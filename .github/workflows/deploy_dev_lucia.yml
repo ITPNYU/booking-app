@@ -32,7 +32,7 @@ jobs:
       - name: Push to Google Apps Script
         run: |
           cd media_commons_booking_app
-          npm run deploy
+          npm run deploy:local
       - name: Create new version and push
         run: |
           cd media_commons_booking_app

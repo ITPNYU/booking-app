@@ -1,78 +1,63 @@
 import {
+  addEventToCalendar,
+  confirmEvent,
+  getCalendarEvents,
+} from './calendars';
+import {
+  appendRowActive,
+  fetchById,
+  getActiveBookingsFutureDates,
+  getAllActiveSheetRows,
+  getOldSafetyTrainingEmails,
+} from './db';
+import {
+  approvalUrl,
   doGet,
   getActiveUserEmail,
-  scriptURL,
-  approvalUrl,
   rejectUrl,
-  request,
-  getUserEmail,
-  getCalendarEvents,
+  scriptURL,
 } from './ui';
-
 import {
   approveBooking,
-  secondApprove,
-  reject,
+  approveInstantBooking,
   cancel,
   checkin,
-  approveInstantBooking,
-  BOOKING_STATUS_SHEET_NAME,
-  BOOKING_SHEET_NAME,
-  removeFromList,
+  reject,
+  removeFromListByEmail,
 } from './admin';
-
-import {
-  fetchRows,
-  addSheet,
-  deleteSheet,
-  setActiveSpreadSheet,
-  appendRow,
-  sendHTMLEmail,
-  addEventToCalendar,
-  getEvents,
-  getSheetRows,
-  ACTIVE_SHEET_ID,
-  confirmEvent,
-  sendTextEmail,
-  fetchById,
-  fetchRows_,
-  getFutureDates,
-  getOldSafetyTrainingEmails,
-} from './sheets';
+import { sendHTMLEmail, sendTextEmail } from './emails';
 
 // Public functions must be exported as named exports
+// Interface bewteen server <> client
 export {
-  addSheet,
-  deleteSheet,
-  setActiveSpreadSheet,
+  // calendars
+  addEventToCalendar,
+  confirmEvent,
+  getCalendarEvents,
+
+  // sheets
+  appendRowActive,
+  fetchById,
+  getAllActiveSheetRows,
+  getActiveBookingsFutureDates,
+  getOldSafetyTrainingEmails,
+
+  // ui
+  scriptURL,
+  approvalUrl,
+  rejectUrl,
   doGet,
   getActiveUserEmail,
-  appendRow,
+
+  // email
   sendHTMLEmail,
-  addEventToCalendar,
-  getEvents,
-  getSheetRows,
-  confirmEvent,
   sendTextEmail,
-  fetchById,
+
+  // admin
   approveBooking,
-  secondApprove,
-  request,
   reject,
   cancel,
   checkin,
-  fetchRows,
-  scriptURL,
-  fetchRows_,
-  approvalUrl,
-  rejectUrl,
   approveInstantBooking,
-  ACTIVE_SHEET_ID,
-  BOOKING_STATUS_SHEET_NAME,
-  BOOKING_SHEET_NAME,
-  getUserEmail,
-  removeFromList,
-  getFutureDates,
-  getCalendarEvents,
-  getOldSafetyTrainingEmails,
+  removeFromListByEmail,
 };

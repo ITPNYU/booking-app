@@ -23,6 +23,7 @@ const envVars = parsed || {};
 const PORT = envVars.PORT || 3000;
 envVars.NODE_ENV = process.env.NODE_ENV;
 envVars.CALENDAR_ENV = process.env.CALENDAR_ENV;
+envVars.BRANCH_NAME = process.env.BRANCH_NAME;
 envVars.PORT = PORT;
 
 const isProd = process.env.NODE_ENV === 'production';
@@ -41,32 +42,20 @@ const serverEntry = './src/server/index.ts';
 
 // define appsscript.json file path
 const copyAppscriptEntry = './appsscript.json';
-const copyEmailTemplate = './src/client/booking/approval_email.html';
+const copyEmailTemplate = './src/client/routes/booking/approval_email.html';
 
-const copyApprovalEntry = './src/client/admin-page/approval.html';
-const copyRejectedEntry = './src/client/admin-page/reject.html';
+const copyApprovalEntry = './src/client/routes/approval.html';
+const copyRejectedEntry = './src/client/routes/reject.html';
 // define live development dialog paths
 const devDialogEntry = './dev/index.js';
 
 // define client entry points and output names
 const clientEntrypoints = [
   {
-    name: 'CLIENT - Dialog Demo Tailwind CSS',
-    entry: './src/client/booking/index.js',
-    filename: 'booking',
-    template: './src/client/booking/index.html',
-  },
-  {
-    name: 'CLIENT - Admin',
-    entry: './src/client/admin-page/index.js',
-    filename: 'admin-page',
-    template: './src/client/admin-page/index.html',
-  },
-  {
-    name: 'CLIENT - PA',
-    entry: './src/client/admin-page/pa.js',
-    filename: 'pa-page',
-    template: './src/client/admin-page/index.html',
+    name: 'CLIENT - Media Commons Reservation System',
+    entry: './src/client/index.js',
+    filename: 'index',
+    template: './src/client/index.html',
   },
 ];
 
@@ -200,6 +189,13 @@ const DynamicCdnWebpackPluginConfig = {
     if (!isProd && packageName === 'react') {
       return null;
     }
+    if (
+      packageName === 'react-router-dom' ||
+      packageName === 'react-router' ||
+      packageName === '@remix-run/router'
+    ) {
+      return null;
+    }
 
     // define custom CDN configuration for new packages
     // "name" should match the package being imported
@@ -257,6 +253,27 @@ const DynamicCdnWebpackPluginConfig = {
           var: '@types/react',
           version: packageVersion,
           url: `https://unpkg.com/@types/react@${packageVersion}/index.d.ts`,
+        };
+      case 'react-router-dom':
+        return {
+          name: packageName,
+          var: 'ReactRouterDOM',
+          version: packageVersion,
+          url: `https://cdnjs.cloudflare.com/ajax/libs/react-router-dom/${packageVersion}/react-router-dom.production.min.js`,
+        };
+      case 'react-router':
+        return {
+          name: packageName,
+          var: 'reactRouter',
+          version: packageVersion,
+          url: `https://cdnjs.cloudflare.com/ajax/libs/react-router/${packageVersion}/react-router.production.min.js`,
+        };
+      case '@remix-run/router':
+        return {
+          name: packageName,
+          var: 'router',
+          version: packageVersion,
+          url: `https://cdn.jsdelivr.net/npm/@remix-run/router@${packageVersion}/dist/router.umd.min.js`,
         };
       // return defaults/null depending if Dynamic CDN plugin finds package
       default:
