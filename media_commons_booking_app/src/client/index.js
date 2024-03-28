@@ -4,6 +4,7 @@ import AdminPage from './routes/admin/adminPage';
 import BookingForm from './routes/booking/BookingForm';
 import ErrorPage from './errorPage';
 import LandingPage from './routes/booking/formPages/LandingPage';
+import MyBookingsPage from './routes/myBookings/myBookingsPage';
 import PAPage from './routes/pa/PAPage';
 import React from 'react';
 import Root from './routes/root';
@@ -25,6 +26,10 @@ const router = createMemoryRouter([
       {
         path: '/pa',
         element: <PAPage />,
+      },
+      {
+        path: '/my-bookings',
+        element: <MyBookingsPage />,
       },
       {
         path: '/',

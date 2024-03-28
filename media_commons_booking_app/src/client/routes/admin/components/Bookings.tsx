@@ -1,4 +1,4 @@
-import React, { useContext } from 'react';
+import React, { useContext, useMemo } from 'react';
 
 import BookingActions from './BookingActions';
 import { DatabaseContext } from '../../components/Provider';
@@ -7,6 +7,7 @@ import getBookingStatus from '../hooks/getBookingStatus';
 
 interface BookingsProps {
   showNnumber: boolean;
+  isUserView?: boolean;
 }
 
 const TableHeader = (text: string) => (
@@ -15,8 +16,17 @@ const TableHeader = (text: string) => (
   </th>
 );
 
-export const Bookings: React.FC<BookingsProps> = ({ showNnumber = false }) => {
-  const { bookings, bookingStatuses } = useContext(DatabaseContext);
+export const Bookings: React.FC<BookingsProps> = ({
+  showNnumber = false,
+  isUserView = false,
+}) => {
+  const { bookings, bookingStatuses, userEmail } = useContext(DatabaseContext);
+
+  const filteredBookings = useMemo(() => {
+    if (isUserView)
+      return bookings.filter((booking) => booking.email === userEmail);
+    return bookings;
+  }, [isUserView, bookings]);
 
   return (
     <div className="m-10">
@@ -24,7 +34,7 @@ export const Bookings: React.FC<BookingsProps> = ({ showNnumber = false }) => {
         <table className="w-[2500px] text-sm text-left text-gray-500 dark:text-gray-400">
           <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
             <tr>
-              {TableHeader('Action')}
+              {!isUserView && TableHeader('Action')}
               {TableHeader('Status')}
               {TableHeader('Room ID')}
               {TableHeader('Contact')}
@@ -53,19 +63,21 @@ export const Bookings: React.FC<BookingsProps> = ({ showNnumber = false }) => {
             </tr>
           </thead>
           <tbody>
-            {bookings.map((booking, index) => {
+            {filteredBookings.map((booking, index) => {
               const status = getBookingStatus(booking, bookingStatuses);
               return (
                 <tr
                   key={index}
                   className="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600"
                 >
-                  <td className="px-2 py-4 w-40 flex flex-col items-start">
-                    <BookingActions
-                      status={status}
-                      calendarEventId={booking.calendarEventId}
-                    />
-                  </td>
+                  {!isUserView && (
+                    <td className="px-2 py-4 w-40 flex flex-col items-start">
+                      <BookingActions
+                        status={status}
+                        calendarEventId={booking.calendarEventId}
+                      />
+                    </td>
+                  )}
                   <td className="px-2 py-4 w-24">{status}</td>
                   <td className="px-2 py-4 w-36">{booking.roomId}</td>
                   <td

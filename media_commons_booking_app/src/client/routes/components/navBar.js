@@ -19,6 +19,15 @@ export default function NavBar() {
               <NavLink
                 className="nav-link"
                 activeClassName="active"
+                to="/my-bookings"
+              >
+                My Bookings
+              </NavLink>
+            </Nav.Item>
+            <Nav.Item>
+              <NavLink
+                className="nav-link"
+                activeClassName="active"
                 to="/admin"
               >
                 Admin
