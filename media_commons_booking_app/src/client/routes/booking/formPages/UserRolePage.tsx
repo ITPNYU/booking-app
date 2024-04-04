@@ -5,14 +5,8 @@ import { BookingContext } from '../bookingProvider';
 import { useNavigate } from 'react-router-dom';
 
 export default function UserRolePage() {
-  const {
-    isThesis_PLACEHOLDER,
-    role,
-    department,
-    setDepartment,
-    setIsThesis,
-    setRole,
-  } = useContext(BookingContext);
+  const { role, department, setDepartment, setRole } =
+    useContext(BookingContext);
 
   const navigate = useNavigate();
 
@@ -70,23 +64,6 @@ export default function UserRolePage() {
               ))}
             </select>
           </div>
-          {role === 'Student' && (
-            <div className="flex items-center my-8">
-              <input
-                id="default-checkbox"
-                type="checkbox"
-                checked={isThesis_PLACEHOLDER}
-                onChange={(e) => setIsThesis(e.target.checked)}
-                className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-              />
-              <label
-                htmlFor="default-checkbox"
-                className="ml-2 text-sm font-medium text-gray-900 dark:text-gray-300"
-              >
-                This request is related to my thesis or capstone
-              </label>
-            </div>
-          )}
           <div className="block">
             <button
               onClick={handleNextClick}

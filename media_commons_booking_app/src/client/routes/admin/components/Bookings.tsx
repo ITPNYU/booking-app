@@ -66,17 +66,12 @@ export const Bookings: React.FC<BookingsProps> = ({
             {filteredBookings.map((booking, index) => {
               const status = getBookingStatus(booking, bookingStatuses);
               return (
-                <tr
-                  key={index}
-                  className="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600"
-                >
+                <tr key={index} className="">
                   {!isUserView && (
-                    <td className="px-2 py-4 w-40 flex flex-col items-start">
-                      <BookingActions
-                        status={status}
-                        calendarEventId={booking.calendarEventId}
-                      />
-                    </td>
+                    <BookingActions
+                      status={status}
+                      calendarEventId={booking.calendarId}
+                    />
                   )}
                   <td className="px-2 py-4 w-24">{status}</td>
                   <td className="px-2 py-4 w-36">{booking.roomId}</td>
@@ -120,11 +115,9 @@ export const Bookings: React.FC<BookingsProps> = ({
                     {booking.sponsorFirstName} {booking.sponsorLastName}
                   </td>
                   <td className="px-2 py-4 w-20">{booking.sponsorEmail}</td>
-                  <td className="px-2 py-4 w-52 break-all">
-                    {booking.reservationTitle}
-                  </td>
+                  <td className="px-2 py-4 w-52 break-all">{booking.title}</td>
                   <td className="px-2 py-4 w-60 break-all">
-                    {booking.reservationDescription}
+                    {booking.description}
                   </td>
                   <td className="px-2 py-4 w-20">
                     {booking.expectedAttendance}

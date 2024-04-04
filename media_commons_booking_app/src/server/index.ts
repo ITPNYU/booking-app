@@ -22,6 +22,7 @@ import {
   approveInstantBooking,
   cancel,
   checkin,
+  noShow,
   reject,
   removeFromListByEmail,
 } from './admin';
@@ -58,6 +59,7 @@ export {
   reject,
   cancel,
   checkin,
+  noShow,
   approveInstantBooking,
   removeFromListByEmail,
 };

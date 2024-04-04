@@ -14,32 +14,26 @@ import { serverFunctions } from '../../utils/serverFunctions';
 
 export interface BookingContextType {
   bookingCalendarInfo: DateSelectArg | undefined;
-  canBookFullTime: boolean;
   department: Department | undefined;
   isBanned: boolean;
   isSafetyTrained: boolean;
-  isThesis_PLACEHOLDER: boolean;
   role: Role | undefined;
   selectedRooms: RoomSetting[];
   setBookingCalendarInfo: (x: DateSelectArg) => void;
   setDepartment: (x: Department) => void;
-  setIsThesis: (x: boolean) => void;
   setRole: (x: Role) => void;
   setSelectedRooms: (x: RoomSetting[]) => void;
 }
 
 export const BookingContext = createContext<BookingContextType>({
   bookingCalendarInfo: undefined,
-  canBookFullTime: false,
   department: undefined,
   isBanned: false,
   isSafetyTrained: true,
-  isThesis_PLACEHOLDER: false,
   role: undefined,
   selectedRooms: [],
   setBookingCalendarInfo: (x: DateSelectArg) => {},
   setDepartment: (x: Department) => {},
-  setIsThesis: (x: boolean) => {},
   setRole: (x: Role) => {},
   setSelectedRooms: (x: RoomSetting[]) => {},
 });
@@ -52,14 +46,8 @@ export function BookingProvider({ children }) {
     useState<DateSelectArg>();
   const [department, setDepartment] = useState<Department>();
   const [isSafetyTrained, setIsSafetyTrained] = useState(true);
-  const [isThesis_PLACEHOLDER, setIsThesis] = useState(false);
   const [role, setRole] = useState<Role>();
   const [selectedRooms, setSelectedRooms] = useState<RoomSetting[]>([]);
-
-  const canBookFullTime = useMemo(
-    () => isThesis_PLACEHOLDER || role !== 'Student',
-    [isThesis_PLACEHOLDER, role]
-  );
 
   const isBanned = useMemo<boolean>(() => {
     if (!userEmail) return false;
@@ -90,16 +78,13 @@ export function BookingProvider({ children }) {
     <BookingContext.Provider
       value={{
         bookingCalendarInfo,
-        canBookFullTime,
         department,
         isBanned,
         isSafetyTrained,
-        isThesis_PLACEHOLDER,
         role,
         selectedRooms,
         setBookingCalendarInfo,
         setDepartment,
-        setIsThesis,
         setRole,
         setSelectedRooms,
       }}

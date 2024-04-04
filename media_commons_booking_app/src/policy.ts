@@ -1,14 +1,29 @@
 /********** GOOGLE SHEETS ************/
 
+import { DevBranch } from './types';
+
 /** ACTIVE master Google Sheet  */
 export const ACTIVE_SHEET_ID = '1MnWbn6bvNyMiawddtYYx0tRW4NMgvugl0I8zBO3sy68';
+
+export function getLiaisonTableName() {
+  switch (process.env.BRANCH_NAME as DevBranch) {
+    case 'development':
+      return TableNames.LIAISONS_DEV;
+    case 'staging':
+      return TableNames.LIAISONS_STAGING;
+    default:
+      return TableNames.LIAISONS_PROD;
+  }
+}
 
 export enum TableNames {
   ADMINS = 'admin_users',
   BANNED = 'banned_users',
   BOOKING = 'bookings',
   BOOKING_STATUS = 'bookingStatus',
-  LIAISONS = 'liaisons',
+  LIAISONS_DEV = 'liaisonsDev',
+  LIAISONS_PROD = 'liaisonsProd',
+  LIAISONS_STAGING = 'liaisonsStaging',
   PAS = 'pa_users',
   ROOMS = 'rooms',
   SAFETY_TRAINING = 'safety_training_users',
@@ -24,7 +39,7 @@ export enum ActiveSheetBookingStatusColumns {
   REJECTED_DATE = 5,
   CANCELLED_DATE = 6,
   CHECKED_IN_DATE = 7,
-  STATUS = 8,
+  NO_SHOWED_DATE = 8,
 }
 
 export enum ActiveSheetRoomsColumns {
@@ -43,7 +58,11 @@ export const OLD_SAFETY_TRAINING_SHEET_NAME = 'Sheet1';
 
 /********** CONTACTS ************/
 
-export const SECOND_APPROVER_EMAIL = 'ss12430@nyu.edu';
+// TODO configure this via admin UI
+export const getSecondApproverEmail = (branchName: string) =>
+  branchName === 'development'
+    ? 'media-commons-devs@itp.nyu.edu'
+    : 'jg5626@nyu.edu'; // Jhanele
 
 /********** ROOMS ************/
 

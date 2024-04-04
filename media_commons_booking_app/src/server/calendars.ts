@@ -3,8 +3,8 @@
 //   const startDate = new Date(startCalendarDate);
 //   const endDate = new Date(endCalendarDate);
 
-import { ActiveSheetRoomsColumns, TableNames } from '../policy';
-
+import { RoomSetting } from '../types';
+import { TableNames } from '../policy';
 import { getAllActiveSheetRows } from './db';
 
 export const addEventToCalendar = (
@@ -63,8 +63,7 @@ export const getCalendarEvents = (calendarId: string) => {
 
 const allRoomIds = () => {
   const rows = getAllActiveSheetRows(TableNames.ROOMS);
-  const ids = rows.map((row) => row[ActiveSheetRoomsColumns.CALENDAR_ID]);
-  // ids.shift(); // remove header row
+  const ids = JSON.parse(rows).map((row: RoomSetting) => row.calendarId);
   return ids;
 };
 

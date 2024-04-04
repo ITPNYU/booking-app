@@ -12,7 +12,6 @@ export default function SelectRoomPage() {
   const navigate = useNavigate();
   const { roomSettings, userEmail } = useContext(DatabaseContext);
   const {
-    canBookFullTime,
     isBanned,
     isSafetyTrained,
     selectedRooms,
@@ -50,7 +49,6 @@ export default function SelectRoomPage() {
         key="calendars"
         allRooms={roomSettings}
         handleSetDate={handleSetDate}
-        canBookFullTime={canBookFullTime}
       />
     </div>
   );

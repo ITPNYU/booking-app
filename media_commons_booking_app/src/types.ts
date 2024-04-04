@@ -9,16 +9,16 @@ export type Ban = {
 };
 
 export type Booking = Inputs & {
-  calendarEventId: string;
+  calendarId: string;
   email: string;
   startDate: string;
   endDate: string;
   roomId: string;
-  devBranch: DevBranch;
+  devBranch: string;
 };
 
 export type BookingStatus = {
-  calendarEventId: string;
+  calendarId: string;
   email: string;
   requestedAt: string;
   firstApprovedAt: string;
@@ -26,16 +26,18 @@ export type BookingStatus = {
   rejectedAt: string;
   canceledAt: string;
   checkedInAt: string;
+  noShowedAt: string;
 };
 
 export enum BookingStatusLabel {
-  APPROVED = 'Approved',
-  CANCELED = 'Canceled',
-  CHECKED_IN = 'Checked In',
-  PRE_APPROVED = 'Pre-Approved',
-  REJECTED = 'Rejected',
-  REQUESTED = 'Requested',
-  UNKNOWN = 'Unknown',
+  APPROVED = 'APPROVED',
+  CANCELED = 'CANCELED',
+  CHECKED_IN = 'CHECKED-IN',
+  NO_SHOW = 'NO-SHOW',
+  PRE_APPROVED = 'PRE-APPROVED',
+  REJECTED = 'REJECTED',
+  REQUESTED = 'REQUESTED',
+  UNKNOWN = 'UNKNOWN',
 }
 
 export type CalendarEvent = {
@@ -68,8 +70,8 @@ export type Inputs = {
   sponsorFirstName: string;
   sponsorLastName: string;
   sponsorEmail: string;
-  reservationTitle: string;
-  reservationDescription: string;
+  title: string;
+  description: string;
   attendeeAffiliation: string;
   roomSetup: string;
   setupDetails: string;

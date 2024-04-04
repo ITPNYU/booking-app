@@ -1,19 +1,29 @@
+import {
+  Booking,
+  BookingStatusLabel,
+  Inputs,
+  RoomSetting,
+} from '../../../../types';
 import { INSTANT_APPROVAL_ROOMS, TableNames } from '../../../../policy';
-import { Inputs, RoomSetting } from '../../../../types';
 import { useContext, useMemo, useState } from 'react';
 
 import { BookingContext } from '../bookingProvider';
 import { DatabaseContext } from '../../components/Provider';
 import { formatDate } from '@fullcalendar/core';
 import { serverFunctions } from '../../../utils/serverFunctions';
+import { useNavigate } from 'react-router';
 
-export default function useSubmitBooking(): [(any) => Promise<void>, boolean] {
+export default function useSubmitBooking(): [
+  (x: Inputs) => Promise<void>,
+  boolean
+] {
   const { liaisonUsers, userEmail, reloadBookings, reloadBookingStatuses } =
     useContext(DatabaseContext);
   const { bookingCalendarInfo, department, role, selectedRooms } =
     useContext(BookingContext);
 
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
   const firstApprovers = useMemo(
     () =>
@@ -43,15 +53,17 @@ export default function useSubmitBooking(): [(any) => Promise<void>, boolean] {
     }
   };
 
-  const sendApprovalEmail = (recipient, contents) => {
+  const sendApprovalEmail = (recipients: string[], contents: Booking) => {
     var subject = 'Approval Request';
-
-    serverFunctions.sendHTMLEmail(
-      'approval_email',
-      contents,
-      recipient,
-      subject,
-      ''
+    recipients.forEach((recipient) =>
+      serverFunctions.sendHTMLEmail(
+        'approval_email',
+        contents,
+        recipient,
+        BookingStatusLabel.REQUESTED,
+        contents.title,
+        ''
+      )
     );
   };
 
@@ -81,9 +93,9 @@ export default function useSubmitBooking(): [(any) => Promise<void>, boolean] {
     // Add the event to the calendar.
     const calendarEventId = await serverFunctions.addEventToCalendar(
       calendarId,
-      `[REQUESTED] ${selectedRoomIds.join(', ')} ${department} - ${
-        data.firstName
-      } ${data.lastName} (${data.netId})`,
+      `[${BookingStatusLabel.REQUESTED}] ${selectedRoomIds.join(
+        ', '
+      )} ${department} - ${data.firstName} ${data.lastName} (${data.netId})`,
       'Your reservation is not yet confirmed. The coordinator will review and finalize your reservation within a few days.',
       bookingCalendarInfo.startStr,
       bookingCalendarInfo.endStr,
@@ -111,13 +123,13 @@ export default function useSubmitBooking(): [(any) => Promise<void>, boolean] {
       formatDate(new Date()),
     ]);
 
-    const isAutoApproval = (selectedRoomIds, data) => {
+    const isAutoApproval = (selectedRoomIds: string[], data: Booking) => {
       // If the selected rooms are all instant approval rooms and the user does not need catering, and hire security, and room setup, then it is auto-approval.
       return (
         selectedRoomIds.every((r) => INSTANT_APPROVAL_ROOMS.includes(r)) &&
         data['catering'] === 'no' &&
         data['hireSecurity'] === 'no' &&
-        data['mediaServices'] === '' &&
+        data['mediaServices'].length === 0 &&
         data['roomSetup'] === 'no'
       );
     };
@@ -128,7 +140,7 @@ export default function useSubmitBooking(): [(any) => Promise<void>, boolean] {
       const getApprovalUrl = serverFunctions.approvalUrl(calendarEventId);
       const getRejectedUrl = serverFunctions.rejectUrl(calendarEventId);
       Promise.all([getApprovalUrl, getRejectedUrl]).then((values) => {
-        const userEventInputs = {
+        const userEventInputs: Booking = {
           calendarEventId: calendarEventId,
           roomId: selectedRoomIds,
           email: email,
@@ -143,10 +155,12 @@ export default function useSubmitBooking(): [(any) => Promise<void>, boolean] {
     }
 
     alert('Your request has been sent.');
+    navigate('/');
 
     serverFunctions.sendTextEmail(
       email,
-      'Your Request Sent to Media Commons',
+      BookingStatusLabel.REQUESTED,
+      data.title,
       'Your reservation is not yet confirmed. The coordinator will review and finalize your reservation within a few days.'
     );
     setLoading(false);
@@ -169,8 +183,8 @@ const order: (keyof Inputs)[] = [
   'sponsorFirstName',
   'sponsorLastName',
   'sponsorEmail',
-  'reservationTitle',
-  'reservationDescription',
+  'title',
+  'description',
   'expectedAttendance',
   'attendeeAffiliation',
   'roomSetup',

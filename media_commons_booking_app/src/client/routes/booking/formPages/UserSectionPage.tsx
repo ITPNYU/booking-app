@@ -1,8 +1,9 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext } from 'react';
 
 import { BookingContext } from '../bookingProvider';
 import { DatabaseContext } from '../../components/Provider';
 import FormInput from '../components/FormInput';
+import { Inputs } from '../../../../types';
 import Loading from '../../../utils/Loading';
 import { useNavigate } from 'react-router-dom';
 import useSubmitBooking from '../hooks/useSubmitBooking';
@@ -14,7 +15,7 @@ export default function UserSectionPage() {
 
   const [registerEvent, loading] = useSubmitBooking();
 
-  const handleSubmit = async (data) => {
+  const handleSubmit = async (data: Inputs) => {
     if (!bookingCalendarInfo) return;
     if (!userEmail && data.missingEmail) {
       setUserEmail(data.missingEmail);

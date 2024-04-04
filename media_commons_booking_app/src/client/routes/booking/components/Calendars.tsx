@@ -11,7 +11,6 @@ type CalendarProps = {
   selectedRooms: RoomSetting[];
   handleSetDate: any;
   refs?: any[];
-  canBookFullTime: Boolean;
 };
 
 const TITLE_TAG = '[Click to Delete]';
@@ -20,7 +19,6 @@ export const Calendars = ({
   allRooms,
   selectedRooms,
   handleSetDate,
-  canBookFullTime,
 }: CalendarProps) => {
   const [bookingTimeEvent, setBookingTimeEvent] = useState<DateSelectArg>();
 
@@ -114,7 +112,6 @@ export const Calendars = ({
             allRooms={allRooms}
             bookingTimeEvent={bookingTimeEvent}
             setBookingTimeEvent={setBookingTimeEvent}
-            canBookFullTime={canBookFullTime}
             isOverlap={isOverlap}
             key={i}
           />

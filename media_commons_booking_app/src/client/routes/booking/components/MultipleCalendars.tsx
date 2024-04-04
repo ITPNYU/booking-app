@@ -4,11 +4,7 @@ import { Calendars } from './Calendars';
 import { RoomSetting } from '../../../../types';
 import { SelectRooms } from './SelectRooms';
 
-export const MultipleCalendars = ({
-  allRooms,
-  handleSetDate,
-  canBookFullTime,
-}) => {
+export const MultipleCalendars = ({ allRooms, handleSetDate }) => {
   const [calendarRefs, setCalendarRefs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [checkedRoomIds, setCheckedRoomIds] = useState<string[]>([]);
@@ -122,7 +118,6 @@ export const MultipleCalendars = ({
             allRooms={allRooms}
             selectedRooms={checkedRooms}
             handleSetDate={handleSubmit}
-            canBookFullTime={canBookFullTime}
           />
         </div>
       )}

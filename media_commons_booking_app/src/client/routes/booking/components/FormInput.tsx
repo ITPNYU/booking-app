@@ -51,8 +51,6 @@ const FormInput = ({ handleParentSubmit }) => {
   const [showTextbox, setShowTextbox] = useState(false);
   const roomNumber = selectedRooms.map((room) => room.roomId);
 
-  console.log(selectedRooms);
-
   const maxCapacity = selectedRooms.reduce((sum, room) => {
     return sum + parseInt(room.capacity);
   }, 0);
@@ -79,7 +77,6 @@ const FormInput = ({ handleParentSubmit }) => {
 
   const onSubmit: SubmitHandler<Inputs> = (data) => {
     const dumpMediaServices = data.mediaServices || [];
-    //@ts-ignore
     data.mediaServices = Array.isArray(dumpMediaServices)
       ? dumpMediaServices.join(', ')
       : dumpMediaServices;
@@ -95,15 +92,7 @@ const FormInput = ({ handleParentSubmit }) => {
   };
 
   return (
-    <form
-      className="py-10 items-center"
-      //onSubmit={(e) => {
-      //  e.preventDefault();
-      //  const values = Object.values(data);
-      //  handleParentSubmit(values, data);
-      //}}
-      onSubmit={handleSubmit(onSubmit)}
-    >
+    <form className="py-10 items-center" onSubmit={handleSubmit(onSubmit)}>
       {userEmail == null && (
         <div className="mb-6">
           <label
@@ -333,38 +322,36 @@ const FormInput = ({ handleParentSubmit }) => {
       )}
       <div className="mb-6">
         <label
-          htmlFor="reservationTitle"
+          htmlFor="title"
           className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
         >
           Reservation Title
         </label>
-        {errors.reservationTitle && (
-          <ErrorMessage errors={errors.reservationTitle.message} />
-        )}
+        {errors.title && <ErrorMessage errors={errors.title.message} />}
         <input
-          type="reservationTitle"
-          id="reservationTitle"
+          type="title"
+          id="title"
           className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-[600px] p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
           placeholder=""
-          {...register('reservationTitle', { required: true })}
+          {...register('title', { required: true })}
         />
       </div>
       <div className="mb-6">
         <label
-          htmlFor="reservationDescription"
+          htmlFor="description"
           className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
         >
           Reservation Description
         </label>
-        {errors.reservationDescription && (
-          <ErrorMessage errors={errors.reservationDescription.message} />
+        {errors.description && (
+          <ErrorMessage errors={errors.description.message} />
         )}
         <input
-          type="reservationDescription"
-          id="reservationDescription"
+          type="description"
+          id="description"
           className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-[600px] p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
           placeholder=""
-          {...register('reservationDescription', { required: true })}
+          {...register('description', { required: true })}
         />
       </div>
       <div className="mb-6">
@@ -501,15 +488,20 @@ const FormInput = ({ handleParentSubmit }) => {
             htmlFor="chartFieldForRoomSetup"
             className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
           >
-            ChartField for Campus Safety
+            ChartField for Room Setup
           </label>
+          {errors.chartFieldForRoomSetup && (
+            <ErrorMessage errors={errors.chartFieldForRoomSetup.message} />
+          )}
           <div className="flex items-center mb-4">
             <input
               type="text"
               id="chartFieldForRoomSetup"
               className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-[600px] p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
               placeholder=""
-              {...register('chartFieldForRoomSetup')}
+              {...register('chartFieldForRoomSetup', {
+                required: watch('roomSetup') === 'yes',
+              })}
             />
           </div>
         </div>
@@ -590,44 +582,50 @@ const FormInput = ({ handleParentSubmit }) => {
             ))}
         </div>
       </div>
-      {watch('mediaServices') !== undefined && (
-        <div className="mb-6">
-          <label
-            htmlFor="mediaServicesDetails"
-            className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
-          >
-            If you selected any of the Media Services above, please describe
-            your needs in detail. If you need to check out equipment, you can
-            check our inventory and include your request below. (Ie. 2x Small
-            Mocap Suits)
-            <br />-{' '}
-            <a
-              href="https://docs.google.com/document/d/1oRtvZ0SR52Mq_ykoNXelwqat4JFgdado5JDY6A746VY/edit#heading=h.iv9c7z15bn0t"
-              target="_blank"
-              className="text-blue-600 hover:underline dark:text-blue-500 mx-1"
+      {watch('mediaServices') !== undefined &&
+        watch('mediaServices').length > 0 && (
+          <div className="mb-6">
+            <label
+              htmlFor="mediaServicesDetails"
+              className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
             >
-              Inventory for Black Box 220 and Ballrooms 221-224
-            </a>
-            <br />-{' '}
-            <a
-              href="https://docs.google.com/spreadsheets/d/1fziyVrzeytQJyZ8585Wtqxer-PBt6L-u-Z0LHVavK5k/edit#gid=870626522"
-              target="_blank"
-              className="text-blue-600 hover:underline dark:text-blue-500 mx-1"
-            >
-              Inventory for Garage 103
-            </a>
-            <br />
-          </label>
-          <p className="text-xs"></p>
-          <input
-            type="text"
-            id="mediaServicesDetails"
-            className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-[600px] p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
-            placeholder=""
-            {...register('mediaServicesDetails')}
-          />
-        </div>
-      )}
+              If you selected any of the Media Services above, please describe
+              your needs in detail. If you need to check out equipment, you can
+              check our inventory and include your request below. (Ie. 2x Small
+              Mocap Suits)
+              <br />-{' '}
+              <a
+                href="https://docs.google.com/document/d/1oRtvZ0SR52Mq_ykoNXelwqat4JFgdado5JDY6A746VY/edit#heading=h.iv9c7z15bn0t"
+                target="_blank"
+                className="text-blue-600 hover:underline dark:text-blue-500 mx-1"
+              >
+                Inventory for Black Box 220 and Ballrooms 221-224
+              </a>
+              <br />-{' '}
+              <a
+                href="https://docs.google.com/spreadsheets/d/1fziyVrzeytQJyZ8585Wtqxer-PBt6L-u-Z0LHVavK5k/edit#gid=870626522"
+                target="_blank"
+                className="text-blue-600 hover:underline dark:text-blue-500 mx-1"
+              >
+                Inventory for Garage 103
+              </a>
+              <br />
+            </label>
+            <p className="text-xs"></p>
+            {errors.mediaServicesDetails && (
+              <ErrorMessage errors={errors.mediaServicesDetails.message} />
+            )}
+            <input
+              type="text"
+              id="mediaServicesDetails"
+              className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-[600px] p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+              placeholder=""
+              {...register('mediaServicesDetails', {
+                required: watch('mediaServices').length > 0,
+              })}
+            />
+          </div>
+        )}
       <div className="mb-6">
         <label
           htmlFor="catering"
@@ -686,7 +684,7 @@ const FormInput = ({ handleParentSubmit }) => {
             htmlFor="chartFieldForCatering"
             className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
           >
-            ChartField for Event Cleanup
+            ChartField for Catering
           </label>
           <div className="flex items-center mb-4">
             <input
@@ -741,7 +739,7 @@ const FormInput = ({ handleParentSubmit }) => {
             htmlFor="chartFieldForSecurity"
             className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
           >
-            ChartField for Campus Safety
+            ChartField for Security
           </label>
           <div className="flex items-center mb-4">
             <input

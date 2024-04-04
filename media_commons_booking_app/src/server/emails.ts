@@ -1,19 +1,25 @@
+import { Booking, BookingStatusLabel } from '../types';
+
 export const sendTextEmail = (
   targetEmail: string,
-  title: string,
+  status: BookingStatusLabel,
+  eventTitle: string,
   body: string
 ) => {
-  GmailApp.sendEmail(targetEmail, title, body);
+  const subj = `${status}: Media Commons request for \"${eventTitle}\"`;
+  GmailApp.sendEmail(targetEmail, subj, body);
 };
 
 export const sendHTMLEmail = (
   templateName: string,
-  contents: any,
+  contents: Booking,
   targetEmail: string,
-  title: string,
+  status: BookingStatusLabel,
+  eventTitle: string,
   body
 ) => {
   console.log('contents', contents);
+  const subj = `${status}: Media Commons request for \"${eventTitle}\"`;
   const htmlTemplate = HtmlService.createTemplateFromFile(templateName);
   for (const key in contents) {
     htmlTemplate[key] = contents[key] || '';
@@ -22,5 +28,5 @@ export const sendHTMLEmail = (
   const options = {
     htmlBody,
   };
-  GmailApp.sendEmail(targetEmail, title, body, options);
+  GmailApp.sendEmail(targetEmail, subj, body, options);
 };
