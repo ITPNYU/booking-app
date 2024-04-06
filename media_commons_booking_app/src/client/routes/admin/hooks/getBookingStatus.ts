@@ -6,7 +6,7 @@ export default function getBookingStatus(
 ): BookingStatusLabel {
   const bookingStatusLabel = () => {
     const bookingStatusMatch = bookingStatuses.filter(
-      (row) => row.calendarId === booking.calendarId
+      (row) => row.calendarEventId === booking.calendarEventId
     )[0];
     if (bookingStatusMatch === undefined) return BookingStatusLabel.UNKNOWN;
     if (bookingStatusMatch.checkedInAt !== '') {

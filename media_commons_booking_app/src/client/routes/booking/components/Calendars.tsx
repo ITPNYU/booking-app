@@ -7,9 +7,9 @@ import { RoomSetting } from '../../../../types';
 import { formatDate } from '../../../utils/date';
 
 type CalendarProps = {
-  allRooms: any[];
+  allRooms: RoomSetting[];
   selectedRooms: RoomSetting[];
-  handleSetDate: any;
+  handleSetDate: (x: DateSelectArg) => void;
   refs?: any[];
 };
 
@@ -76,7 +76,10 @@ export const Calendars = ({
 
   const handleChange = (selectedDate: Date) => {
     allRooms.forEach((room) => {
-      room.calendarRef.current.getApi().gotoDate(selectedDate);
+      const roomApi = room.calendarRef.current.getApi();
+      roomApi.unselect();
+      setBookingTimeEvent(null);
+      roomApi.gotoDate(selectedDate);
     });
   };
 

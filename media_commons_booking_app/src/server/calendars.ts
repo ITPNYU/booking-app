@@ -1,8 +1,3 @@
-// export const getEvents = async (calendarId: string, startCalendarDate, endCalendarDate) => {
-//   const calendar = CalendarApp.getCalendarById(calendarId);
-//   const startDate = new Date(startCalendarDate);
-//   const endDate = new Date(endCalendarDate);
-
 import { RoomSetting } from '../types';
 import { TableNames } from '../policy';
 import { getAllActiveSheetRows } from './db';
@@ -36,8 +31,8 @@ export const addEventToCalendar = (
   return event.getId();
 };
 
-export const confirmEvent = (calendarId: string) => {
-  const event = CalendarApp.getEventById(calendarId);
+export const confirmEvent = (calendarEventId: string) => {
+  const event = CalendarApp.getEventById(calendarEventId);
   event.setTitle(event.getTitle().replace('[HOLD]', '[CONFIRMED]'));
   // @ts-expect-error GAS type doesn't match the documentation
   event.setColor(CalendarApp.EventColor.GREEN);
@@ -61,35 +56,44 @@ export const getCalendarEvents = (calendarId: string) => {
   return formattedEvents;
 };
 
-const allRoomIds = () => {
+const getAllRoomCalendarIds = (): string[] => {
   const rows = getAllActiveSheetRows(TableNames.ROOMS);
-  const ids = JSON.parse(rows).map((row: RoomSetting) => row.calendarId);
+  const ids = JSON.parse(rows).map((room: RoomSetting) =>
+    process.env.CALENDAR_ENV === 'production'
+      ? room.calendarIdProd
+      : room.calendarIdDev
+  );
   return ids;
 };
 
 export const inviteUserToCalendarEvent = (
-  eventId: string,
+  calendarEventId: string,
   guestEmail: string
 ) => {
   console.log(`Invite User: ${guestEmail}`);
   //TODO: getting roomId from booking sheet
-  const roomIds = allRoomIds();
-  roomIds.forEach((roomId) => {
-    const calendar = CalendarApp.getCalendarById(roomId);
-    const event = calendar.getEventById(eventId);
+  const roomCalendarIds = getAllRoomCalendarIds();
+  roomCalendarIds.forEach((roomCalendarId) => {
+    const calendar = CalendarApp.getCalendarById(roomCalendarId);
+    const event = calendar.getEventById(calendarEventId);
     if (event) {
       event.addGuest(guestEmail);
-      console.log(`Invited ${guestEmail} to room: ${roomId} event: ${eventId}`);
+      console.log(
+        `Invited ${guestEmail} to room: ${roomCalendarId} event: ${calendarEventId}`
+      );
     }
   });
 };
 
-export const updateEventPrefix = (id: string, newPrefix: string) => {
-  const roomIds = allRoomIds();
+export const updateEventPrefix = (
+  calendarEventId: string,
+  newPrefix: string
+) => {
+  const roomCalendarIds = getAllRoomCalendarIds();
   //TODO: getting roomId from booking sheet
-  roomIds.map((roomId) => {
-    const calendar = CalendarApp.getCalendarById(roomId);
-    const event = calendar.getEventById(id);
+  roomCalendarIds.map((roomCalendarId) => {
+    const calendar = CalendarApp.getCalendarById(roomCalendarId);
+    const event = calendar.getEventById(calendarEventId);
     const description =
       ' Cancellation Policy: To cancel reservations please email the Media Commons Team(mediacommons.reservations@nyu.edu) at least 24 hours before the date of the event. Failure to cancel may result in restricted use of event spaces.';
     if (event) {

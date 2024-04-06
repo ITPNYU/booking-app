@@ -43,6 +43,7 @@ const serverEntry = './src/server/index.ts';
 // define appsscript.json file path
 const copyAppscriptEntry = './appsscript.json';
 const copyEmailTemplate = './src/client/routes/booking/approval_email.html';
+const BookinDetailTemplate = './src/client/routes/booking/booking_detail.html';
 
 const copyApprovalEntry = './src/client/routes/approval.html';
 const copyRejectedEntry = './src/client/routes/reject.html';
@@ -83,6 +84,10 @@ const copyFilesConfig = {
       patterns: [
         {
           from: copyAppscriptEntry,
+          to: destination,
+        },
+        {
+          from: BookinDetailTemplate,
           to: destination,
         },
         {

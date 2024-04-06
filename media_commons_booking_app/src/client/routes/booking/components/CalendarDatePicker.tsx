@@ -6,7 +6,7 @@ export const CalendarDatePicker = ({ handleChange }) => {
     title: 'Date',
     autoHide: true,
     todayBtn: true,
-    clearBtn: true,
+    clearBtn: false,
     maxDate: new Date('2030-01-01'),
     minDate: new Date('1950-01-01'),
     theme: {
@@ -19,11 +19,6 @@ export const CalendarDatePicker = ({ handleChange }) => {
       input: '',
       inputIcon: '',
       selected: '',
-    },
-    icons: {
-      // () => ReactElement | JSX.Element
-      prev: () => <span>Previous</span>,
-      next: () => <span>Next</span>,
     },
     datepickerClassNames: 'top-12',
     defaultDate: new Date(),

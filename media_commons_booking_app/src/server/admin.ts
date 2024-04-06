@@ -3,6 +3,7 @@ import {
   TableNames,
   getSecondApproverEmail,
 } from '../policy';
+import { BookingFormDetails, BookingStatusLabel } from '../types';
 import { approvalUrl, rejectUrl } from './ui';
 import {
   fetchById,
@@ -12,13 +13,11 @@ import {
   updateActiveSheetValueById,
 } from './db';
 import { inviteUserToCalendarEvent, updateEventPrefix } from './calendars';
-import { sendHTMLEmail, sendTextEmail } from './emails';
 
-import { BookingStatusLabel } from '../types';
+import { sendHTMLEmail } from './emails';
 
-export const bookingContents = (id: string) => {
+export const bookingContents = (id: string): BookingFormDetails => {
   const bookingObj = fetchById(TableNames.BOOKING, id);
-  bookingObj.calendarEventId = id;
   bookingObj.approvalUrl = approvalUrl(id);
   bookingObj.rejectedUrl = rejectUrl(id);
   return bookingObj;
@@ -63,10 +62,8 @@ export const approveBooking = (id: string) => {
   } else {
     firstApprove(id);
 
-    //TODO: send email to user
     updateEventPrefix(id, BookingStatusLabel.PRE_APPROVED);
 
-    const subject = 'Second Approval Request';
     const contents = bookingContents(id);
     const recipient = getSecondApproverEmail(process.env.BRANCH_NAME);
     sendHTMLEmail(
@@ -80,19 +77,43 @@ export const approveBooking = (id: string) => {
   }
 };
 
+export const sendConfirmationEmail = (
+  calendarEventId: string,
+  status: BookingStatusLabel
+) => {
+  const email = getSecondApproverEmail(process.env.BRANCH_NAME);
+  const headerMessage = 'This is a confirmation email.';
+  sendBookingDetailEmail(calendarEventId, email, headerMessage, status);
+};
+
+export const sendBookingDetailEmail = (
+  calendarEventId: string,
+  email: string,
+  headerMessage: string,
+  status: BookingStatusLabel
+) => {
+  const contents = bookingContents(calendarEventId);
+  contents.headerMessage = headerMessage;
+  sendHTMLEmail('booking_detail', contents, email, status, contents.title, '');
+};
+
 export const approveEvent = (id: string) => {
   const guestEmail = getActiveSheetValueById(
     TableNames.BOOKING_STATUS,
     id,
     ActiveSheetBookingStatusColumns.EMAIL
   );
-  const eventTitle = getActiveSheetValueById(TableNames.BOOKING, id, 16);
-  sendTextEmail(
+
+  const headerMessage =
+    'Your reservation request for Media Commons is approved.';
+  console.log('sending booking detail email...');
+  sendBookingDetailEmail(
+    id,
     guestEmail,
-    BookingStatusLabel.APPROVED,
-    eventTitle,
-    'Your reservation request for Media Commons is approved.'
+    headerMessage,
+    BookingStatusLabel.APPROVED
   );
+  sendConfirmationEmail(id, BookingStatusLabel.APPROVED);
 
   updateEventPrefix(id, BookingStatusLabel.APPROVED);
   inviteUserToCalendarEvent(id, guestEmail);
@@ -111,13 +132,13 @@ export const reject = (id: string) => {
     id,
     ActiveSheetBookingStatusColumns.EMAIL
   );
-  const eventTitle = getActiveSheetValueById(TableNames.BOOKING, id, 16);
-
-  sendTextEmail(
+  const headerMessage =
+    'Your reservation request for Media Commons has been rejected. For detailed reasons regarding this decision, please contact us at mediacommons.reservations@nyu.edu.';
+  sendBookingDetailEmail(
+    id,
     guestEmail,
-    BookingStatusLabel.REJECTED,
-    eventTitle,
-    'Your reservation request for Media Commons has been rejected. For detailed reasons regarding this decision, please contact us at mediacommons.reservations@nyu.edu.'
+    headerMessage,
+    BookingStatusLabel.REJECTED
   );
   updateEventPrefix(id, BookingStatusLabel.REJECTED);
 };
@@ -134,14 +155,15 @@ export const cancel = (id: string) => {
     id,
     ActiveSheetBookingStatusColumns.EMAIL
   );
-  const eventTitle = getActiveSheetValueById(TableNames.BOOKING, id, 16);
-
-  sendTextEmail(
+  const headerMessage =
+    'Your reservation request for Media Commons has been cancelled. For detailed reasons regarding this decision, please contact us at mediacommons.reservations@nyu.edu.';
+  sendBookingDetailEmail(
+    id,
     guestEmail,
-    BookingStatusLabel.CANCELED,
-    eventTitle,
-    'Your reservation request for Media Commons has been cancelled. For detailed reasons regarding this decision, please contact us at mediacommons.reservations@nyu.edu.'
+    headerMessage,
+    BookingStatusLabel.CANCELED
   );
+  sendConfirmationEmail(id, BookingStatusLabel.CANCELED);
   updateEventPrefix(id, BookingStatusLabel.CANCELED);
 };
 
@@ -157,13 +179,14 @@ export const checkin = (id: string) => {
     id,
     ActiveSheetBookingStatusColumns.EMAIL
   );
-  const eventTitle = getActiveSheetValueById(TableNames.BOOKING, id, 16);
 
-  sendTextEmail(
+  const headerMessage =
+    'Your reservation request for Media Commons has been checked in. Thank you for choosing Media Commons.';
+  sendBookingDetailEmail(
+    id,
     guestEmail,
-    BookingStatusLabel.CHECKED_IN,
-    eventTitle,
-    'Your reservation request for Media Commons has been checked in. Thank you for choosing Media Commons.'
+    headerMessage,
+    BookingStatusLabel.CHECKED_IN
   );
   updateEventPrefix(id, BookingStatusLabel.CHECKED_IN);
 };
@@ -180,14 +203,16 @@ export const noShow = (id: string) => {
     id,
     ActiveSheetBookingStatusColumns.EMAIL
   );
-  const eventTitle = getActiveSheetValueById(TableNames.BOOKING, id, 16);
 
-  sendTextEmail(
+  const headerMessage =
+    'You did not check-in for your Media Commons Reservation and have been marked as a no-show.';
+  sendBookingDetailEmail(
+    id,
     guestEmail,
-    BookingStatusLabel.NO_SHOW,
-    eventTitle,
-    'You did not check-in for your Media Commons Reservation and have been marked as a no-show.'
+    headerMessage,
+    BookingStatusLabel.NO_SHOW
   );
+  sendConfirmationEmail(id, BookingStatusLabel.NO_SHOW);
   updateEventPrefix(id, BookingStatusLabel.NO_SHOW);
 };
 

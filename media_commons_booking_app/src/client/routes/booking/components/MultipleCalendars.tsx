@@ -1,10 +1,16 @@
 import React, { useEffect, useState } from 'react';
 
 import { Calendars } from './Calendars';
+import { DateSelectArg } from '@fullcalendar/core';
 import { RoomSetting } from '../../../../types';
 import { SelectRooms } from './SelectRooms';
 
-export const MultipleCalendars = ({ allRooms, handleSetDate }) => {
+interface Props {
+  allRooms: RoomSetting[];
+  handleSetDate: (x: DateSelectArg, y: RoomSetting[]) => void;
+}
+
+export const MultipleCalendars = ({ allRooms, handleSetDate }: Props) => {
   const [calendarRefs, setCalendarRefs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [checkedRoomIds, setCheckedRoomIds] = useState<string[]>([]);
@@ -55,7 +61,7 @@ export const MultipleCalendars = ({ allRooms, handleSetDate }) => {
     }
   };
 
-  const handleSubmit = (bookInfo) => {
+  const handleSubmit = (bookInfo: DateSelectArg) => {
     handleSetDate(bookInfo, checkedRooms);
   };
 

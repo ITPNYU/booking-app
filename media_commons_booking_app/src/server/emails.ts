@@ -1,4 +1,4 @@
-import { Booking, BookingStatusLabel } from '../types';
+import { Booking, BookingStatusLabel, DevBranch } from '../types';
 
 export const sendTextEmail = (
   targetEmail: string,
@@ -10,6 +10,17 @@ export const sendTextEmail = (
   GmailApp.sendEmail(targetEmail, subj, body);
 };
 
+const getEmailBranchTag = () => {
+  switch (process.env.BRANCH_NAME as DevBranch) {
+    case 'development':
+      return '[DEV] ';
+    case 'staging':
+      return '[STAGING] ';
+    default:
+      return '';
+  }
+};
+
 export const sendHTMLEmail = (
   templateName: string,
   contents: Booking,
@@ -19,7 +30,7 @@ export const sendHTMLEmail = (
   body
 ) => {
   console.log('contents', contents);
-  const subj = `${status}: Media Commons request for \"${eventTitle}\"`;
+  const subj = `${getEmailBranchTag()}${status}: Media Commons request for \"${eventTitle}\"`;
   const htmlTemplate = HtmlService.createTemplateFromFile(templateName);
   for (const key in contents) {
     htmlTemplate[key] = contents[key] || '';

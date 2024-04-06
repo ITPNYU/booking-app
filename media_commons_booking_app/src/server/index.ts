@@ -25,6 +25,7 @@ import {
   noShow,
   reject,
   removeFromListByEmail,
+  sendBookingDetailEmail,
 } from './admin';
 import { sendHTMLEmail, sendTextEmail } from './emails';
 
@@ -53,7 +54,6 @@ export {
   // email
   sendHTMLEmail,
   sendTextEmail,
-
   // admin
   approveBooking,
   reject,
@@ -62,4 +62,5 @@ export {
   noShow,
   approveInstantBooking,
   removeFromListByEmail,
+  sendBookingDetailEmail,
 };
