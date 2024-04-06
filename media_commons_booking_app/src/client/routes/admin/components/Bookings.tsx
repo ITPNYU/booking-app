@@ -70,7 +70,7 @@ export const Bookings: React.FC<BookingsProps> = ({
                   {!isUserView && (
                     <BookingActions
                       status={status}
-                      calendarEventId={booking.calendarId}
+                      calendarEventId={booking.calendarEventId}
                     />
                   )}
                   <td className="px-2 py-4 w-24">{status}</td>

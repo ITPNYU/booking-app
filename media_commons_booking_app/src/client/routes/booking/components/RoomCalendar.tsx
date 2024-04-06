@@ -1,6 +1,11 @@
-import { BookingStatusLabel, CalendarEvent } from '../../../../types';
-import React, { useEffect, useRef, useState } from 'react';
+import {
+  BookingStatusLabel,
+  CalendarEvent,
+  RoomSetting,
+} from '../../../../types';
+import React, { useEffect, useState } from 'react';
 
+import { DateSelectArg } from '@fullcalendar/core';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import googleCalendarPlugin from '@fullcalendar/google-calendar';
@@ -10,6 +15,15 @@ import timeGridPlugin from '@fullcalendar/timegrid'; // a plugin!
 
 const TITLE_TAG = '[Click to Delete]';
 
+interface Props {
+  allRooms: RoomSetting[];
+  bookingTimeEvent: DateSelectArg;
+  isOverlap: (x: DateSelectArg) => boolean;
+  room: RoomSetting;
+  selectedRooms: RoomSetting[];
+  setBookingTimeEvent: (x: DateSelectArg) => void;
+}
+
 export const RoomCalendar = ({
   room,
   selectedRooms,
@@ -17,7 +31,7 @@ export const RoomCalendar = ({
   bookingTimeEvent,
   setBookingTimeEvent,
   isOverlap,
-}) => {
+}: Props) => {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
 
   useEffect(() => {
@@ -29,7 +43,7 @@ export const RoomCalendar = ({
     fetchCalendarEvents(
       process.env.CALENDAR_ENV === 'production'
         ? room.calendarIdProd
-        : room.calendarId
+        : room.calendarIdDev
     );
   }, []);
 

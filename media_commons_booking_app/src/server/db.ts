@@ -5,17 +5,6 @@ import {
   TableNames,
 } from '../policy';
 
-function formatHeaderString(header: string): string {
-  // replace all spaces with underscores
-  let snakeCase = header.replace(/ /g, '_');
-  // convert snake_case_string to camelCaseString
-  let camelCase = snakeCase.replace(/([-_][a-z])/gi, ($1) => {
-    return $1.toUpperCase().replace('-', '').replace('_', '');
-  });
-  // ensure first letter is lowercased
-  return camelCase.charAt(0).toLowerCase() + camelCase.slice(1);
-}
-
 const sheetToStrings = (rows: any[][] | undefined) =>
   (rows || []).map((row) => row.map((cell) => `${cell}`));
 
@@ -24,7 +13,7 @@ function sheetRowToJSON(headers: string[], row: any[]) {
   headers
     .filter((header) => header.length > 0)
     .forEach((header, index) => {
-      rowObject[formatHeaderString(header)] = `${row[index]}`;
+      rowObject[header] = `${row[index]}`;
     });
   return rowObject;
 }

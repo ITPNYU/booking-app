@@ -1,5 +1,6 @@
 import {
   Booking,
+  BookingFormDetails,
   BookingStatusLabel,
   Inputs,
   RoomSetting,
@@ -49,12 +50,14 @@ export default function useSubmitBooking(): [
     if (process.env.CALENDAR_ENV === 'production') {
       return room.calendarIdProd;
     } else {
-      return room.calendarId;
+      return room.calendarIdDev;
     }
   };
 
-  const sendApprovalEmail = (recipients: string[], contents: Booking) => {
-    var subject = 'Approval Request';
+  const sendApprovalEmail = (
+    recipients: string[],
+    contents: BookingFormDetails
+  ) => {
     recipients.forEach((recipient) =>
       serverFunctions.sendHTMLEmail(
         'approval_email',
@@ -140,10 +143,10 @@ export default function useSubmitBooking(): [
       const getApprovalUrl = serverFunctions.approvalUrl(calendarEventId);
       const getRejectedUrl = serverFunctions.rejectUrl(calendarEventId);
       Promise.all([getApprovalUrl, getRejectedUrl]).then((values) => {
-        const userEventInputs: Booking = {
-          calendarEventId: calendarEventId,
+        const userEventInputs: BookingFormDetails = {
+          calendarEventId,
           roomId: selectedRoomIds,
-          email: email,
+          email,
           startDate: bookingCalendarInfo?.startStr,
           endDate: bookingCalendarInfo?.endStr,
           approvalUrl: values[0],
@@ -157,12 +160,15 @@ export default function useSubmitBooking(): [
     alert('Your request has been sent.');
     navigate('/');
 
-    serverFunctions.sendTextEmail(
+    const headerMessage =
+      'Your reservation is not yet confirmed. The coordinator will review and finalize your reservation within a few days.';
+    serverFunctions.sendBookingDetailEmail(
+      calendarEventId,
       email,
-      BookingStatusLabel.REQUESTED,
-      data.title,
-      'Your reservation is not yet confirmed. The coordinator will review and finalize your reservation within a few days.'
+      headerMessage,
+      BookingStatusLabel.REQUESTED
     );
+
     setLoading(false);
     reloadBookings();
     reloadBookingStatuses();
