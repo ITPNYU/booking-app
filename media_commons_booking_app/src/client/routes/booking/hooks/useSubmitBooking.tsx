@@ -151,6 +151,7 @@ export default function useSubmitBooking(): [
           endDate: bookingCalendarInfo?.endStr,
           approvalUrl: values[0],
           rejectedUrl: values[1],
+          headerMessage: 'This is a request email for first approval.',
           ...data,
         };
         sendApprovalEmail(firstApprovers, userEventInputs);

@@ -65,10 +65,14 @@ export const approveBooking = (id: string) => {
     updateEventPrefix(id, BookingStatusLabel.PRE_APPROVED);
 
     const contents = bookingContents(id);
+    const emailContents = {
+      headerMessage: 'This is a request email for final approval.',
+      ...contents,
+    };
     const recipient = getSecondApproverEmail(process.env.BRANCH_NAME);
     sendHTMLEmail(
       'approval_email',
-      contents,
+      emailContents,
       recipient,
       BookingStatusLabel.PRE_APPROVED,
       contents.title,
@@ -79,10 +83,10 @@ export const approveBooking = (id: string) => {
 
 export const sendConfirmationEmail = (
   calendarEventId: string,
-  status: BookingStatusLabel
+  status: BookingStatusLabel,
+  headerMessage
 ) => {
   const email = getSecondApproverEmail(process.env.BRANCH_NAME);
-  const headerMessage = 'This is a confirmation email.';
   sendBookingDetailEmail(calendarEventId, email, headerMessage, status);
 };
 
@@ -104,6 +108,7 @@ export const approveEvent = (id: string) => {
     ActiveSheetBookingStatusColumns.EMAIL
   );
 
+  // for user
   const headerMessage =
     'Your reservation request for Media Commons is approved.';
   console.log('sending booking detail email...');
@@ -113,7 +118,12 @@ export const approveEvent = (id: string) => {
     headerMessage,
     BookingStatusLabel.APPROVED
   );
-  sendConfirmationEmail(id, BookingStatusLabel.APPROVED);
+  // for second approver
+  sendConfirmationEmail(
+    id,
+    BookingStatusLabel.APPROVED,
+    `This is a confirmation email.`
+  );
 
   updateEventPrefix(id, BookingStatusLabel.APPROVED);
   inviteUserToCalendarEvent(id, guestEmail);
@@ -163,7 +173,11 @@ export const cancel = (id: string) => {
     headerMessage,
     BookingStatusLabel.CANCELED
   );
-  sendConfirmationEmail(id, BookingStatusLabel.CANCELED);
+  sendConfirmationEmail(
+    id,
+    BookingStatusLabel.CANCELED,
+    `This is a cancelation email.`
+  );
   updateEventPrefix(id, BookingStatusLabel.CANCELED);
 };
 
@@ -212,7 +226,11 @@ export const noShow = (id: string) => {
     headerMessage,
     BookingStatusLabel.NO_SHOW
   );
-  sendConfirmationEmail(id, BookingStatusLabel.NO_SHOW);
+  sendConfirmationEmail(
+    id,
+    BookingStatusLabel.NO_SHOW,
+    `This is a no show email.`
+  );
   updateEventPrefix(id, BookingStatusLabel.NO_SHOW);
 };
 
