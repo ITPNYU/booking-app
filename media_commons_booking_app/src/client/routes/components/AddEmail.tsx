@@ -19,7 +19,7 @@ export default function AddEmail<T extends EmailField>({
   userList,
   userListRefresh,
 }: Props<T>) {
-  const [emailToAdd, setEmailToAdd] = useState<string | undefined>();
+  const [emailToAdd, setEmailToAdd] = useState<string>('');
   const [loading, setLoading] = useState(false);
 
   const userEmails = useMemo<string[]>(
@@ -28,7 +28,7 @@ export default function AddEmail<T extends EmailField>({
   );
 
   const addUser = async () => {
-    if (!emailToAdd) return;
+    if (!emailToAdd || emailToAdd.length === 0) return;
 
     if (userEmails.includes(emailToAdd)) {
       alert('This user is already registered');

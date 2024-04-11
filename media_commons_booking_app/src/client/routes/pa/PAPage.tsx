@@ -59,7 +59,7 @@ const PAPage = () => {
             </li>
           </ul>
           {tab === 'safety_training' && <SafetyTrainedUsers />}
-          {tab === 'bookings' && <Bookings showNnumber={false} />}
+          {tab === 'bookings' && <Bookings isPaView={true} />}
         </div>
       )}
     </div>

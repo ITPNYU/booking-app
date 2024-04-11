@@ -114,7 +114,7 @@ export default function Admin() {
           {tab === 'adminUsers' && <AdminUsers />}
           {tab === 'paUsers' && <PAUsers />}
           {tab === 'liaesons' && <Liaisons />}
-          {tab === 'bookings' && <Bookings showNnumber={true} />}
+          {tab === 'bookings' && <Bookings isAdminView={true} />}
         </div>
       )}
     </div>
