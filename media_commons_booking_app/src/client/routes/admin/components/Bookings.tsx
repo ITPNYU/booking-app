@@ -1,4 +1,4 @@
-import React, { useContext, useMemo } from 'react';
+import React, { useContext, useEffect, useMemo } from 'react';
 
 import { BookingStatusLabel } from '../../../../types';
 import BookingTableRow from './BookingTableRow';
@@ -22,7 +22,18 @@ export const Bookings: React.FC<BookingsProps> = ({
   isPaView = false,
   isUserView = false,
 }) => {
-  const { bookings, bookingStatuses, userEmail } = useContext(DatabaseContext);
+  const {
+    bookings,
+    bookingStatuses,
+    userEmail,
+    reloadBookings,
+    reloadBookingStatuses,
+  } = useContext(DatabaseContext);
+
+  useEffect(() => {
+    reloadBookingStatuses();
+    reloadBookings();
+  }, []);
 
   const filteredBookings = useMemo(() => {
     const paViewStatuses = [
@@ -45,7 +56,7 @@ export const Bookings: React.FC<BookingsProps> = ({
         <table className="w-[2500px] text-sm text-left text-gray-500 dark:text-gray-400">
           <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
             <tr>
-              {!isUserView && TableHeader('Action')}
+              {TableHeader('Action')}
               {TableHeader('Status')}
               {TableHeader('Room ID')}
               {TableHeader('Contact')}

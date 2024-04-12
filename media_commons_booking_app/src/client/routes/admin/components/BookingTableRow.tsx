@@ -25,13 +25,11 @@ export default function BookingTableRow({
 
   return (
     <tr className="">
-      {!isUserView && (
-        <BookingActions
-          status={optimisticStatus ?? status}
-          calendarEventId={booking.calendarEventId}
-          {...{ setOptimisticStatus }}
-        />
-      )}
+      <BookingActions
+        status={optimisticStatus ?? status}
+        calendarEventId={booking.calendarEventId}
+        {...{ setOptimisticStatus, isAdminView, isUserView }}
+      />
       <td className="px-2 py-4 w-28">{optimisticStatus ?? status}</td>
       <td className="px-2 py-4 w-36">{booking.roomId}</td>
       <td scope="row" className="px-2 py-4 w-40 text-gray-900 dark:text-white">
