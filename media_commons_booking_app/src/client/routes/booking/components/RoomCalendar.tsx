@@ -12,6 +12,7 @@ import googleCalendarPlugin from '@fullcalendar/google-calendar';
 import interactionPlugin from '@fullcalendar/interaction'; // for selectable
 import { serverFunctions } from '../../../utils/serverFunctions';
 import timeGridPlugin from '@fullcalendar/timegrid'; // a plugin!
+import { HIDING_STATUS } from '../../../../policy';
 
 const TITLE_TAG = '[Click to Delete]';
 
@@ -47,9 +48,49 @@ export const RoomCalendar = ({
     );
   }, []);
 
+  function renderEventContent(eventInfo) {
+    const match = eventInfo.event.title.match(/\[(.*?)\]/);
+    const title = match ? match[1] : eventInfo.event.title;
+
+    const startTime = new Intl.DateTimeFormat('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(eventInfo.event.start);
+    const endTime = new Intl.DateTimeFormat('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(eventInfo.event.end);
+
+    let backgroundColor = '';
+    // Change the background color of the event depending on its title
+    if (eventInfo.event.title.includes(BookingStatusLabel.REQUESTED)) {
+      backgroundColor = '#d60000';
+    } else if (
+      eventInfo.event.title.includes(BookingStatusLabel.PRE_APPROVED)
+    ) {
+      backgroundColor = '#f6c026';
+    } else if (eventInfo.event.title.includes(BookingStatusLabel.APPROVED)) {
+      backgroundColor = '#33b679';
+    }
+    return (
+      <div
+        style={{
+          backgroundColor: backgroundColor,
+          height: '100%',
+          width: '100%',
+        }}
+      >
+        <b>{title}</b>
+      </div>
+    );
+  }
+
   const fetchCalendarEvents = async (calendarId) => {
     serverFunctions.getCalendarEvents(calendarId).then((rows) => {
-      setEvents(rows);
+      const filteredEvents = rows.filter((row) => {
+        return !HIDING_STATUS.some((status) => row.title.includes(status));
+      });
+      setEvents(filteredEvents);
     });
   };
 
@@ -142,32 +183,7 @@ export const RoomCalendar = ({
           right: '',
         }}
         themeSystem="bootstrap5"
-        eventDidMount={function (info) {
-          // Change the title status only
-          const match = info.event.title.match(/\[(.*?)\]/);
-          if (match) {
-            let el = info.el.querySelector('.fc-event-title');
-            if (el != null) {
-              el.textContent = match[1];
-            }
-          }
-          // Change the background color of the event depending on its title
-          if (info.event.title.includes(BookingStatusLabel.REQUESTED)) {
-            info.el.style.backgroundColor = '#d60000';
-          } else if (
-            info.event.title.includes(BookingStatusLabel.PRE_APPROVED)
-          ) {
-            info.el.style.backgroundColor = '#f6c026';
-          } else if (info.event.title.includes(BookingStatusLabel.APPROVED)) {
-            info.el.style.backgroundColor = '#33b679';
-          } else if (info.event.title.includes(BookingStatusLabel.REJECTED)) {
-            info.el.style.display = 'none';
-          } else if (info.event.title.includes(BookingStatusLabel.CANCELED)) {
-            info.el.style.display = 'none';
-          } else if (info.event.title.includes(BookingStatusLabel.NO_SHOW)) {
-            info.el.style.display = 'none';
-          }
-        }}
+        eventContent={renderEventContent}
         editable={true}
         initialView={selectedRooms.length > 1 ? 'timeGridDay' : 'timeGridDay'}
         navLinks={true}

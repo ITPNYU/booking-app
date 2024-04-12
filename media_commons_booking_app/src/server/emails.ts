@@ -7,7 +7,10 @@ export const sendTextEmail = (
   body: string
 ) => {
   const subj = `${status}: Media Commons request for \"${eventTitle}\"`;
-  GmailApp.sendEmail(targetEmail, subj, body);
+  const options = {
+    replyTo: 'mediacommons.reservations@nyu.edu',
+  };
+  GmailApp.sendEmail(targetEmail, subj, body, options);
 };
 
 const getEmailBranchTag = () => {
@@ -29,7 +32,6 @@ export const sendHTMLEmail = (
   eventTitle: string,
   body
 ) => {
-  console.log('contents', contents);
   const subj = `${getEmailBranchTag()}${status}: Media Commons request for \"${eventTitle}\"`;
   const htmlTemplate = HtmlService.createTemplateFromFile(templateName);
   for (const key in contents) {
@@ -38,6 +40,7 @@ export const sendHTMLEmail = (
   const htmlBody = htmlTemplate.evaluate().getContent();
   const options = {
     htmlBody,
+    replyTo: 'mediacommons.reservations@nyu.edu',
   };
   GmailApp.sendEmail(targetEmail, subj, body, options);
 };

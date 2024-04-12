@@ -8,14 +8,38 @@ export default function getBookingStatus(
     const bookingStatusMatch = bookingStatuses.filter(
       (row) => row.calendarEventId === booking.calendarEventId
     )[0];
+
     if (bookingStatusMatch === undefined) return BookingStatusLabel.UNKNOWN;
-    if (bookingStatusMatch.checkedInAt !== '') {
-      return BookingStatusLabel.CHECKED_IN;
-    } else if (bookingStatusMatch.noShowedAt !== '') {
-      return BookingStatusLabel.NO_SHOW;
-    } else if (bookingStatusMatch.canceledAt !== '') {
-      return BookingStatusLabel.CANCELED;
-    } else if (bookingStatusMatch.rejectedAt !== '') {
+
+    const timeStringtoDate = (time: string) =>
+      time.length > 0 ? new Date(time) : new Date(0);
+
+    const checkedInTimestamp = timeStringtoDate(bookingStatusMatch.checkedInAt);
+    const noShowTimestamp = timeStringtoDate(bookingStatusMatch.noShowedAt);
+    const canceledTimestamp = timeStringtoDate(bookingStatusMatch.canceledAt);
+
+    // if any of checkedInAt, noShowedAt, canceledAt have a date, return the most recent
+    if (
+      checkedInTimestamp.getTime() !== 0 ||
+      noShowTimestamp.getTime() !== 0 ||
+      canceledTimestamp.getTime() !== 0
+    ) {
+      let mostRecentTimestamp: Date = checkedInTimestamp;
+      let label = BookingStatusLabel.CHECKED_IN;
+
+      if (noShowTimestamp > mostRecentTimestamp) {
+        mostRecentTimestamp = noShowTimestamp;
+        label = BookingStatusLabel.NO_SHOW;
+      }
+
+      if (canceledTimestamp > mostRecentTimestamp) {
+        mostRecentTimestamp = canceledTimestamp;
+        label = BookingStatusLabel.CANCELED;
+      }
+      return label;
+    }
+
+    if (bookingStatusMatch.rejectedAt !== '') {
       return BookingStatusLabel.REJECTED;
     } else if (bookingStatusMatch.secondApprovedAt !== '') {
       return BookingStatusLabel.APPROVED;

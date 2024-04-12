@@ -94,6 +94,13 @@ export const DatabaseProvider = ({ children }) => {
       fetchLiaisonUsers();
       fetchRoomSettings();
     });
+
+    // refresh booking data every 10s;
+    setInterval(() => {
+      console.log('UPDATING');
+      fetchBookings();
+      fetchBookingStatuses();
+    }, 10000);
   }, []);
 
   const fetchActiveUserEmail = () => {
