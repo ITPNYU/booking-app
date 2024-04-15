@@ -23,7 +23,7 @@ export const Header = () => {
       <div>
         {!isSafetyTrained && (
           <p className="text-red-500 text-bold  ">
-            You have to take safty training before booking!
+            You have to take safety training before booking!
           </p>
         )}
         {isBanned && <p className="text-red-500 text-bold  ">You're banned </p>}
