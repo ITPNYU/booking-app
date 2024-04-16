@@ -126,9 +126,13 @@ export default function useSubmitBooking(): [
       formatDate(new Date()),
     ]);
 
-    const isAutoApproval = (selectedRoomIds: string[], data: Booking) => {
-      const startDate = new Date(data.startDate);
-      const endDate = new Date(data.endDate);
+    const isAutoApproval = (
+      selectedRoomIds: string[],
+      data: Booking,
+      bookingCalendarInfo
+    ) => {
+      const startDate = new Date(bookingCalendarInfo?.startStr);
+      const endDate = new Date(bookingCalendarInfo?.endStr);
       const duration = endDate.getTime() - startDate.getTime();
       // If the selected rooms are all instant approval rooms and the user does not need catering, and hire security, and room setup, then it is auto-approval.
       return (
@@ -141,7 +145,7 @@ export default function useSubmitBooking(): [
       );
     };
 
-    if (isAutoApproval(selectedRoomIds, data)) {
+    if (isAutoApproval(selectedRoomIds, data, bookingCalendarInfo)) {
       serverFunctions.approveInstantBooking(calendarEventId);
     } else {
       const getApprovalUrl = serverFunctions.approvalUrl(calendarEventId);
