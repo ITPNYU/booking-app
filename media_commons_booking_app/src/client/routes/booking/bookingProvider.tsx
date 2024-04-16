@@ -56,10 +56,6 @@ export function BookingProvider({ children }) {
       .includes(userEmail);
   }, [userEmail, bannedUsers]);
 
-  useEffect(() => {
-    fetchIsSafetyTrained();
-  }, []);
-
   const fetchIsSafetyTrained = useCallback(async () => {
     if (!userEmail) return;
     let isTrained = safetyTrainedUsers
@@ -73,6 +69,10 @@ export function BookingProvider({ children }) {
     }
     setIsSafetyTrained(isTrained);
   }, [userEmail, safetyTrainedUsers]);
+
+  useEffect(() => {
+    fetchIsSafetyTrained();
+  }, [fetchIsSafetyTrained]);
 
   return (
     <BookingContext.Provider

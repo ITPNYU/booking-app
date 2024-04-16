@@ -2,6 +2,8 @@ import {
   ACTIVE_SHEET_ID,
   OLD_SAFETY_TRAINING_SHEET_ID,
   OLD_SAFETY_TRAINING_SHEET_NAME,
+  SECOND_OLD_SAFETY_TRAINING_SHEET_ID,
+  SECOND_OLD_SAFETY_TRAINING_SHEET_GID,
   TableNames,
 } from '../policy';
 
@@ -138,5 +140,18 @@ export const getOldSafetyTrainingEmails = () => {
   var range = activeSheet.getRange(1, 5, lastRow);
   var values = range.getValues();
 
-  return values;
+  const secondSpreadSheet = SpreadsheetApp.openById(
+    SECOND_OLD_SAFETY_TRAINING_SHEET_ID
+  );
+  const secondSheet = secondSpreadSheet
+    .getSheets()
+    .find(
+      (sheet) => sheet.getSheetId() === SECOND_OLD_SAFETY_TRAINING_SHEET_GID
+    );
+  const secondLastRow = secondSheet.getLastRow();
+  const secondRange = secondSheet.getRange(1, 2, secondLastRow);
+  const secondValues = secondRange.getValues();
+
+  const combinedValues = [...values, ...secondValues];
+  return combinedValues;
 };
