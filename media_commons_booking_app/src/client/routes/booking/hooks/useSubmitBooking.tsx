@@ -10,7 +10,6 @@ import { useContext, useMemo, useState } from 'react';
 
 import { BookingContext } from '../bookingProvider';
 import { DatabaseContext } from '../../components/Provider';
-import { formatDate } from '@fullcalendar/core';
 import { serverFunctions } from '../../../utils/serverFunctions';
 import { useNavigate } from 'react-router';
 
@@ -123,7 +122,7 @@ export default function useSubmitBooking(): [
     await serverFunctions.appendRowActive(TableNames.BOOKING_STATUS, [
       calendarEventId,
       email,
-      formatDate(new Date()),
+      new Date().toLocaleString(),
     ]);
 
     const isAutoApproval = (
