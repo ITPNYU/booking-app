@@ -1,5 +1,7 @@
-import { RoomSetting } from '../types';
+import { BookingFormDetails, RoomSetting } from '../types';
+
 import { TableNames } from '../policy';
+import { bookingContents } from './admin';
 import { getAllActiveSheetRows } from './db';
 
 export const addEventToCalendar = (
@@ -85,17 +87,53 @@ export const inviteUserToCalendarEvent = (
   });
 };
 
+const bookingContentsToDescription = (bookingContents: BookingFormDetails) => {
+  const listItem = (key: string, value: string) => `<li>${key}: ${value}</li>`;
+  let description = '<h3>Requestor</h3><ul>';
+  const items = [
+    listItem('First Name', bookingContents.firstName),
+    listItem('Last Name', bookingContents.lastName),
+    listItem('Email', bookingContents.email),
+    listItem('Phone Number', bookingContents.phoneNumber),
+    listItem('Department', bookingContents.department),
+    listItem('Role', bookingContents.role),
+    '</ul><h3>Reservation Details</h3><ul>',
+    listItem('Title', bookingContents.title),
+    listItem('Description', bookingContents.description),
+    listItem('Expected Attendance', bookingContents.expectedAttendance),
+    bookingContents.roomSetup === 'yes' &&
+      '**' + listItem('Room Setup', bookingContents.setupDetails) + '**',
+    listItem('Title', bookingContents.title),
+    bookingContents.mediaServices.length > 0 &&
+      listItem('Media Services', bookingContents.mediaServices),
+    bookingContents.mediaServicesDetails.length > 0 &&
+      listItem('Media Services Details', bookingContents.mediaServicesDetails),
+    (bookingContents.catering === 'yes' ||
+      bookingContents.cateringService.length > 0) &&
+      listItem('Catering', bookingContents.cateringService),
+    bookingContents.hireSecurity === 'yes' &&
+      listItem('Hire Security', bookingContents.hireSecurity),
+    '</ul>',
+  ].filter((x: string | boolean) => x !== false);
+  description = description.concat(...items);
+  return description;
+};
+
 export const updateEventPrefix = (
   calendarEventId: string,
-  newPrefix: string
+  newPrefix: string,
+  bookingContents?: BookingFormDetails
 ) => {
   const roomCalendarIds = getAllRoomCalendarIds();
   //TODO: getting roomId from booking sheet
   roomCalendarIds.map((roomCalendarId) => {
     const calendar = CalendarApp.getCalendarById(roomCalendarId);
     const event = calendar.getEventById(calendarEventId);
-    const description =
-      ' Cancellation Policy: To cancel reservations please email the Media Commons Team(mediacommons.reservations@nyu.edu) at least 24 hours before the date of the event. Failure to cancel may result in restricted use of event spaces.';
+    let description = bookingContents
+      ? bookingContentsToDescription(bookingContents)
+      : '';
+    description +=
+      '\nCancellation Policy: To cancel reservations please return to the Booking Tool, visit My Bookings, and click "cancel" on the booking at least 24 hours before the date of the event. Failure to cancel may result in restricted use of event spaces.';
     if (event) {
       const prefix = /(?<=\[).+?(?=\])/g;
       event.setTitle(event.getTitle().replace(prefix, newPrefix));

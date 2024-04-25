@@ -97,7 +97,7 @@ export default function useSubmitBooking(): [
       calendarId,
       `[${BookingStatusLabel.REQUESTED}] ${selectedRoomIds.join(
         ', '
-      )} ${department} - ${data.firstName} ${data.lastName} (${data.netId})`,
+      )} ${department} ${data.title}`,
       'Your reservation is not yet confirmed. The coordinator will review and finalize your reservation within a few days.',
       bookingCalendarInfo.startStr,
       bookingCalendarInfo.endStr,

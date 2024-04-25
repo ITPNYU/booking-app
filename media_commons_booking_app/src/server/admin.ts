@@ -125,7 +125,8 @@ export const approveEvent = (id: string) => {
     `This is a confirmation email.`
   );
 
-  updateEventPrefix(id, BookingStatusLabel.APPROVED);
+  const contents = bookingContents(id);
+  updateEventPrefix(id, BookingStatusLabel.APPROVED, contents);
   inviteUserToCalendarEvent(id, guestEmail);
 };
 
