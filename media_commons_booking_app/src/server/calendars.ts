@@ -89,15 +89,8 @@ export const inviteUserToCalendarEvent = (
 
 const bookingContentsToDescription = (bookingContents: BookingFormDetails) => {
   const listItem = (key: string, value: string) => `<li>${key}: ${value}</li>`;
-  let description = '<h3>Requestor</h3><ul>';
+  let description = '<h3>Reservation Details</h3><ul>';
   const items = [
-    listItem('First Name', bookingContents.firstName),
-    listItem('Last Name', bookingContents.lastName),
-    listItem('Email', bookingContents.email),
-    listItem('Phone Number', bookingContents.phoneNumber),
-    listItem('Department', bookingContents.department),
-    listItem('Role', bookingContents.role),
-    '</ul><h3>Reservation Details</h3><ul>',
     listItem('Title', bookingContents.title),
     listItem('Description', bookingContents.description),
     listItem('Expected Attendance', bookingContents.expectedAttendance),
@@ -113,7 +106,7 @@ const bookingContentsToDescription = (bookingContents: BookingFormDetails) => {
       listItem('Catering', bookingContents.cateringService),
     bookingContents.hireSecurity === 'yes' &&
       listItem('Hire Security', bookingContents.hireSecurity),
-    '</ul>',
+    '</ul><h3>Cancellation Policy</h3>',
   ].filter((x: string | boolean) => x !== false);
   description = description.concat(...items);
   return description;
@@ -133,7 +126,7 @@ export const updateEventPrefix = (
       ? bookingContentsToDescription(bookingContents)
       : '';
     description +=
-      '\nCancellation Policy: To cancel reservations please return to the Booking Tool, visit My Bookings, and click "cancel" on the booking at least 24 hours before the date of the event. Failure to cancel may result in restricted use of event spaces.';
+      'To cancel reservations please return to the Booking Tool, visit My Bookings, and click "cancel" on the booking at least 24 hours before the date of the event. Failure to cancel an unused booking is considered a no-show and may result in restricted use of the space.';
     if (event) {
       const prefix = /(?<=\[).+?(?=\])/g;
       event.setTitle(event.getTitle().replace(prefix, newPrefix));
