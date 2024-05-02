@@ -149,20 +149,24 @@ export default function useSubmitBooking(): [
     } else {
       const getApprovalUrl = serverFunctions.approvalUrl(calendarEventId);
       const getRejectedUrl = serverFunctions.rejectUrl(calendarEventId);
-      Promise.all([getApprovalUrl, getRejectedUrl]).then((values) => {
-        const userEventInputs: BookingFormDetails = {
-          calendarEventId,
-          roomId: selectedRoomIds,
-          email,
-          startDate: bookingCalendarInfo?.startStr,
-          endDate: bookingCalendarInfo?.endStr,
-          approvalUrl: values[0],
-          rejectedUrl: values[1],
-          headerMessage: 'This is a request email for first approval.',
-          ...data,
-        };
-        sendApprovalEmail(firstApprovers, userEventInputs);
-      });
+      const getBookingToolUrl = serverFunctions.scriptURL();
+      Promise.all([getApprovalUrl, getRejectedUrl, getBookingToolUrl]).then(
+        (values) => {
+          const userEventInputs: BookingFormDetails = {
+            calendarEventId,
+            roomId: selectedRoomIds,
+            email,
+            startDate: bookingCalendarInfo?.startStr,
+            endDate: bookingCalendarInfo?.endStr,
+            approvalUrl: values[0],
+            rejectedUrl: values[1],
+            bookingToolUrl: values[2],
+            headerMessage: 'This is a request email for first approval.',
+            ...data,
+          };
+          sendApprovalEmail(firstApprovers, userEventInputs);
+        }
+      );
     }
 
     alert('Your request has been sent.');

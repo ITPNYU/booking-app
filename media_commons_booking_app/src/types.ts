@@ -19,6 +19,7 @@ export type Booking = Inputs & {
 
 export type BookingFormDetails = Booking & {
   approvalUrl: string;
+  bookingToolUrl: string;
   rejectUrl: string;
   headerMessage?: string;
 };
