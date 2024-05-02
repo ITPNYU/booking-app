@@ -34,21 +34,20 @@ const FormInput = ({ handleParentSubmit }) => {
       sponsorEmail: '',
       mediaServicesDetails: '',
       role,
-      catering: '',
+      catering: 'no',
       chartFieldForCatering: '',
       chartFieldForSecurity: '',
       chartFieldForRoomSetup: '',
-      hireSecurity: '',
+      hireSecurity: 'no',
       attendeeAffiliation: '',
       department,
-      roomSetup: '',
+      roomSetup: 'no',
     },
     mode: 'onBlur',
   });
   const [checklist, setChecklist] = useState(false);
   const [resetRoom, setResetRoom] = useState(false);
   const [bookingPolicy, setBookingPolicy] = useState(false);
-  const [showTextbox, setShowTextbox] = useState(false);
   const roomNumber = selectedRooms.map((room) => room.roomId);
 
   const maxCapacity = selectedRooms.reduce((sum, room) => {
@@ -81,14 +80,6 @@ const FormInput = ({ handleParentSubmit }) => {
       ? dumpMediaServices.join(', ')
       : dumpMediaServices;
     handleParentSubmit(data);
-  };
-
-  const handleSelectChange = (event) => {
-    if (event.target.value === 'others') {
-      setShowTextbox(true);
-    } else {
-      setShowTextbox(false);
-    }
   };
 
   return (
