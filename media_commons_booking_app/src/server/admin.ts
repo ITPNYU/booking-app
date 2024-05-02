@@ -4,7 +4,7 @@ import {
   getSecondApproverEmail,
 } from '../policy';
 import { BookingFormDetails, BookingStatusLabel } from '../types';
-import { approvalUrl, rejectUrl } from './ui';
+import { approvalUrl, rejectUrl, scriptURL } from './ui';
 import {
   fetchById,
   fetchIndexByUniqueValue,
@@ -20,6 +20,7 @@ export const bookingContents = (id: string): BookingFormDetails => {
   const bookingObj = fetchById(TableNames.BOOKING, id);
   bookingObj.approvalUrl = approvalUrl(id);
   bookingObj.rejectedUrl = rejectUrl(id);
+  bookingObj.bookingToolUrl = scriptURL();
   return bookingObj;
 };
 
@@ -125,7 +126,8 @@ export const approveEvent = (id: string) => {
     `This is a confirmation email.`
   );
 
-  updateEventPrefix(id, BookingStatusLabel.APPROVED);
+  const contents = bookingContents(id);
+  updateEventPrefix(id, BookingStatusLabel.APPROVED, contents);
   inviteUserToCalendarEvent(id, guestEmail);
 };
 

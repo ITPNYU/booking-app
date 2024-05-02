@@ -1,4 +1,9 @@
-import { Booking, BookingStatusLabel, DevBranch } from '../types';
+import {
+  Booking,
+  BookingFormDetails,
+  BookingStatusLabel,
+  DevBranch,
+} from '../types';
 
 export const sendTextEmail = (
   targetEmail: string,
@@ -26,7 +31,7 @@ const getEmailBranchTag = () => {
 
 export const sendHTMLEmail = (
   templateName: string,
-  contents: Booking,
+  contents: BookingFormDetails,
   targetEmail: string,
   status: BookingStatusLabel,
   eventTitle: string,

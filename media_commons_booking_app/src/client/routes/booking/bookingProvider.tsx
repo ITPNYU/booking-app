@@ -50,6 +50,7 @@ export function BookingProvider({ children }) {
   const [selectedRooms, setSelectedRooms] = useState<RoomSetting[]>([]);
 
   const isBanned = useMemo<boolean>(() => {
+    console.log('userEmail', userEmail);
     if (!userEmail) return false;
     return bannedUsers
       .map((bannedUser) => bannedUser.email)
@@ -61,12 +62,14 @@ export function BookingProvider({ children }) {
     let isTrained = safetyTrainedUsers
       .map((user) => user.email)
       .includes(userEmail);
+    console.log('isTrained from tool', isTrained);
     // if not on active list, check old list
     if (!isTrained) {
       isTrained = await serverFunctions
         .getOldSafetyTrainingEmails()
         .then((rows) => rows.map((row) => row[0]).includes(userEmail));
     }
+    console.log('isTrained from googlesheets', isTrained);
     setIsSafetyTrained(isTrained);
   }, [userEmail, safetyTrainedUsers]);
 
