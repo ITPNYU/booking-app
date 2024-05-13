@@ -67,6 +67,11 @@ export const getSecondApproverEmail = (branchName: string) =>
     ? 'media-commons-devs@itp.nyu.edu'
     : 'jg5626@nyu.edu'; // Jhanele
 
+export const getApprovalCcEmail = (branchName: string) =>
+  branchName === 'development'
+    ? 'media-commons-devs@itp.nyu.edu'
+    : 'ss12430@nyu.edu'; // Samantha
+
 /********** ROOMS ************/
 
 export type Purpose = 'multipleRoom' | 'motionCapture';

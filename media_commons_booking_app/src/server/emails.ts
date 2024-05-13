@@ -5,6 +5,15 @@ import {
   DevBranch,
 } from '../types';
 
+import { getApprovalCcEmail } from '../policy';
+
+const getCcEmail = (status: BookingStatusLabel): string => {
+  if (status !== BookingStatusLabel.APPROVED) {
+    return '';
+  }
+  return getApprovalCcEmail(process.env.BRANCH_NAME);
+};
+
 export const sendTextEmail = (
   targetEmail: string,
   status: BookingStatusLabel,
@@ -14,6 +23,7 @@ export const sendTextEmail = (
   const subj = `${status}: Media Commons request for \"${eventTitle}\"`;
   const options = {
     replyTo: 'mediacommons.reservations@nyu.edu',
+    cc: getCcEmail(status),
   };
   GmailApp.sendEmail(targetEmail, subj, body, options);
 };
@@ -46,6 +56,7 @@ export const sendHTMLEmail = (
   const options = {
     htmlBody,
     replyTo: 'mediacommons.reservations@nyu.edu',
+    cc: getCcEmail(status),
   };
   GmailApp.sendEmail(targetEmail, subj, body, options);
 };
