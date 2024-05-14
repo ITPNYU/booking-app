@@ -1,10 +1,10 @@
 import React, { useContext, useMemo, useState } from 'react';
-import { TableNames, getLiaisonTableName } from '../../../../policy';
 
 import { DatabaseContext } from '../../components/Provider';
 import EmailListTable from '../../components/EmailListTable';
 import Loading from '../../../utils/Loading';
 import { formatDate } from '../../../utils/date';
+import { getLiaisonTableName } from '../../../../policy';
 // This is a wrapper for google.script.run that lets us use promises.
 import { serverFunctions } from '../../../utils/serverFunctions';
 

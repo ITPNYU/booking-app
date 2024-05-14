@@ -17,7 +17,7 @@ const ErrorMessage = (message) => {
 };
 
 const FormInput = ({ handleParentSubmit }) => {
-  const { userEmail } = useContext(DatabaseContext);
+  const { userEmail, settings } = useContext(DatabaseContext);
   const { role, department, selectedRooms } = useContext(BookingContext);
   const {
     register,
@@ -42,6 +42,7 @@ const FormInput = ({ handleParentSubmit }) => {
       attendeeAffiliation: '',
       department,
       roomSetup: 'no',
+      reservationType: '',
     },
     mode: 'onBlur',
   });
@@ -344,6 +345,33 @@ const FormInput = ({ handleParentSubmit }) => {
           placeholder=""
           {...register('description', { required: true })}
         />
+      </div>
+      <div className="mb-6">
+        <label
+          htmlFor="reservationType"
+          className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+        >
+          Reservation Type
+        </label>
+        {errors.reservationType && (
+          <ErrorMessage errors={errors.reservationType.message} />
+        )}
+        <div className="flex items-center mb-4">
+          <select
+            className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-[600px] p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+            {...register('reservationType', {
+              required: true,
+              validate: (value) => value !== '',
+            })}
+          >
+            <option value="">Select option</option>
+            {settings.reservationTypes.map((value, idx) => (
+              <option value={value.reservationType} key={idx}>
+                {value.reservationType}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
       <div className="mb-6">
         <label

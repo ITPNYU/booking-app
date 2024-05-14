@@ -6,8 +6,10 @@ import {
   LiaisonType,
   PaUser,
   PagePermission,
+  ReservationType,
   RoomSetting,
   SafetyTraining,
+  Settings,
 } from '../../../types';
 import React, { createContext, useEffect, useMemo, useState } from 'react';
 import { TableNames, getLiaisonTableName } from '../../../policy';
@@ -24,6 +26,7 @@ export interface DatabaseContextType {
   paUsers: PaUser[];
   roomSettings: RoomSetting[];
   safetyTrainedUsers: SafetyTraining[];
+  settings: Settings;
   userEmail: string | undefined;
   reloadAdminUsers: () => Promise<void>;
   reloadBannedUsers: () => Promise<void>;
@@ -31,6 +34,7 @@ export interface DatabaseContextType {
   reloadBookingStatuses: () => Promise<void>;
   reloadLiaisonUsers: () => Promise<void>;
   reloadPaUsers: () => Promise<void>;
+  reloadReservationTypes: () => Promise<void>;
   reloadSafetyTrainedUsers: () => Promise<void>;
   setUserEmail: (x: string) => void;
 }
@@ -45,6 +49,7 @@ export const DatabaseContext = createContext<DatabaseContextType>({
   paUsers: [],
   roomSettings: [],
   safetyTrainedUsers: [],
+  settings: { reservationTypes: [] },
   userEmail: undefined,
   reloadAdminUsers: async () => {},
   reloadBannedUsers: async () => {},
@@ -52,6 +57,7 @@ export const DatabaseContext = createContext<DatabaseContextType>({
   reloadBookingStatuses: async () => {},
   reloadLiaisonUsers: async () => {},
   reloadPaUsers: async () => {},
+  reloadReservationTypes: async () => {},
   reloadSafetyTrainedUsers: async () => {},
   setUserEmail: (x: string) => {},
 });
@@ -67,6 +73,7 @@ export const DatabaseProvider = ({ children }) => {
   const [safetyTrainedUsers, setSafetyTrainedUsers] = useState<
     SafetyTraining[]
   >([]);
+  const [settings, setSettings] = useState<Settings>({ reservationTypes: [] });
   const [userEmail, setUserEmail] = useState<string | undefined>();
 
   // page permission updates with respect to user email, admin list, PA list
@@ -93,6 +100,7 @@ export const DatabaseProvider = ({ children }) => {
       fetchBannedUsers();
       fetchLiaisonUsers();
       fetchRoomSettings();
+      fetchSettings();
     });
 
     // refresh booking data every 10s;
@@ -173,6 +181,20 @@ export const DatabaseProvider = ({ children }) => {
     setRoomSettings(settings);
   };
 
+  const fetchBookingReservationTypes = async () => {
+    const reservationTypes: ReservationType[] = await serverFunctions
+      .getAllActiveSheetRows(TableNames.RESERVATION_TYPES)
+      .then((rows) => JSON.parse(rows));
+    setSettings((prev) => ({
+      ...prev,
+      reservationTypes,
+    }));
+  };
+
+  const fetchSettings = async () => {
+    await fetchBookingReservationTypes();
+  };
+
   return (
     <DatabaseContext.Provider
       value={{
@@ -185,6 +207,7 @@ export const DatabaseProvider = ({ children }) => {
         pagePermission,
         roomSettings,
         safetyTrainedUsers,
+        settings,
         userEmail,
         reloadAdminUsers: fetchAdminUsers,
         reloadBannedUsers: fetchBannedUsers,
@@ -192,6 +215,7 @@ export const DatabaseProvider = ({ children }) => {
         reloadBookingStatuses: fetchBookingStatuses,
         reloadLiaisonUsers: fetchLiaisonUsers,
         reloadPaUsers: fetchPaUsers,
+        reloadReservationTypes: fetchBookingReservationTypes,
         reloadSafetyTrainedUsers: fetchSafetyTrainedUsers,
         setUserEmail,
       }}

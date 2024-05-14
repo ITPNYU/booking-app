@@ -25,6 +25,7 @@ export enum TableNames {
   LIAISONS_PROD = 'liaisonsProd',
   LIAISONS_STAGING = 'liaisonsStaging',
   PAS = 'pa_users',
+  RESERVATION_TYPES = 'reservationTypes',
   ROOMS = 'rooms',
   SAFETY_TRAINING = 'safety_training_users',
   SETTINGS = 'settings',

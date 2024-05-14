@@ -1,33 +1,24 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 
 import Loading from '../../utils/Loading';
-import { TableNames } from '../../../policy';
-// This is a wrapper for google.script.run that lets us use promises.
-import { serverFunctions } from '../../utils/serverFunctions';
 
-interface EmailField {
-  email: string;
-}
-
-interface Props<T extends EmailField> {
+interface Props {
   columnFormatters?: { [key: string]: (value: string) => string };
   columnNames: string[];
   index: number;
   refresh: () => Promise<void>;
-  removeUser: () => Promise<void>;
-  user: T;
+  removeRow: () => Promise<void>;
+  row: { [key: string]: string };
 }
 
-export default function EmailListTableRow<T extends EmailField>(
-  props: Props<T>
-) {
-  const { columnFormatters, columnNames, index, refresh, removeUser, user } =
+export default function ListTableRow(props: Props) {
+  const { columnFormatters, columnNames, index, refresh, removeRow, row } =
     props;
   const [uiLoading, setUiLoading] = useState(false);
   const [isRemoved, setIsRemoved] = useState(false);
 
   const onError = () => {
-    alert('Failed to remove user: ' + user.email);
+    alert('Failed to remove value');
   };
 
   /**
@@ -40,7 +31,7 @@ export default function EmailListTableRow<T extends EmailField>(
     setUiLoading(true);
     setIsRemoved(true); // optimistically hide component
     try {
-      removeUser()
+      removeRow()
         .catch(() => {
           onError();
           setIsRemoved(false);
@@ -71,8 +62,8 @@ export default function EmailListTableRow<T extends EmailField>(
       {columnNames.map((columnName, idx) => (
         <td className="px-2 py-4 w-36" key={idx}>
           {columnFormatters[columnName]
-            ? columnFormatters[columnName](user[columnName])
-            : user[columnName]}
+            ? columnFormatters[columnName](row[columnName])
+            : row[columnName]}
         </td>
       ))}
       <td className="px-2 py-4 w-36">

@@ -9,6 +9,7 @@ import Loading from '../../../utils/Loading';
 import { PAUsers } from './PAUsers';
 import { PagePermission } from '../../../../types';
 import SafetyTrainedUsers from './SafetyTraining';
+import Settings from './Settings';
 
 // This is a wrapper for google.script.run that lets us use promises.
 
@@ -108,6 +109,18 @@ export default function Admin() {
                 Liaisons
               </a>
             </li>
+            <li className="mr-2">
+              <a
+                onClick={() => setTab('settings')}
+                className={`${
+                  tab === 'settings'
+                    ? 'inline-block p-4 text-blue-600 bg-gray-100 rounded-t-lg active dark:bg-gray-800 dark:text-blue-500'
+                    : 'inline-block p-4 rounded-t-lg hover:text-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800 dark:hover:text-gray-300 '
+                }`}
+              >
+                Settings
+              </a>
+            </li>
           </ul>
           {tab === 'safety_training' && <SafetyTrainedUsers />}
           {tab === 'ban' && <BannedUsers />}
@@ -115,6 +128,7 @@ export default function Admin() {
           {tab === 'paUsers' && <PAUsers />}
           {tab === 'liaesons' && <Liaisons />}
           {tab === 'bookings' && <Bookings isAdminView={true} />}
+          {tab === 'settings' && <Settings />}
         </div>
       )}
     </div>

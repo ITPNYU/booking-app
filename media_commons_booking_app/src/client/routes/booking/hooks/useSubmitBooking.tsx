@@ -203,6 +203,7 @@ const order: (keyof Inputs)[] = [
   'sponsorEmail',
   'title',
   'description',
+  'reservationType',
   'expectedAttendance',
   'attendeeAffiliation',
   'roomSetup',
