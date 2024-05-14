@@ -71,6 +71,7 @@ export const Bookings: React.FC<BookingsProps> = ({
               {TableHeader('Sponsor Email')}
               {TableHeader('Title')}
               {TableHeader('Description')}
+              {TableHeader('Type')}
               {TableHeader('Expected Attendees')}
               {TableHeader('Attendee Affiliation')}
               {TableHeader('Setup')}

@@ -79,6 +79,7 @@ export type Inputs = {
   sponsorEmail: string;
   title: string;
   description: string;
+  reservationType: string;
   attendeeAffiliation: string;
   roomSetup: string;
   setupDetails: string;
@@ -111,6 +112,11 @@ export enum PagePermission {
   PA,
 }
 
+export type ReservationType = {
+  reservationType: string;
+  dateAdded: string;
+};
+
 export enum Role {
   STUDENT = 'Student',
   RESIDENT_FELLOW = 'Resident/Fellow',
@@ -130,4 +136,8 @@ export type RoomSetting = {
 export type SafetyTraining = {
   email: string;
   completedAt: string;
+};
+
+export type Settings = {
+  reservationTypes: ReservationType[];
 };

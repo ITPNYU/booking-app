@@ -24,7 +24,7 @@ import {
   checkin,
   noShow,
   reject,
-  removeFromListByEmail,
+  removeFromListByValue,
   sendBookingDetailEmail,
 } from './admin';
 import { sendHTMLEmail, sendTextEmail } from './emails';
@@ -61,6 +61,6 @@ export {
   checkin,
   noShow,
   approveInstantBooking,
-  removeFromListByEmail,
+  removeFromListByValue,
   sendBookingDetailEmail,
 };

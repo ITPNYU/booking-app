@@ -25,6 +25,7 @@ export enum TableNames {
   LIAISONS_PROD = 'liaisonsProd',
   LIAISONS_STAGING = 'liaisonsStaging',
   PAS = 'pa_users',
+  RESERVATION_TYPES = 'reservationTypes',
   ROOMS = 'rooms',
   SAFETY_TRAINING = 'safety_training_users',
   SETTINGS = 'settings',
@@ -66,6 +67,11 @@ export const getSecondApproverEmail = (branchName: string) =>
   branchName === 'development'
     ? 'media-commons-devs@itp.nyu.edu'
     : 'jg5626@nyu.edu'; // Jhanele
+
+export const getApprovalCcEmail = (branchName: string) =>
+  branchName === 'development'
+    ? 'media-commons-devs@itp.nyu.edu'
+    : 'ss12430@nyu.edu'; // Samantha
 
 /********** ROOMS ************/
 

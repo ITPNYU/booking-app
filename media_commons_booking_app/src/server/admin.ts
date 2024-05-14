@@ -236,13 +236,13 @@ export const noShow = (id: string) => {
   updateEventPrefix(id, BookingStatusLabel.NO_SHOW);
 };
 
-// assumes the email is in column 0 but that can be overridden
-export const removeFromListByEmail = (
+// assumes the unique value is in column 0 but that can be overridden
+export const removeFromListByValue = (
   sheetName: TableNames,
-  email: string,
+  value: string,
   column: number = 0
 ) => {
-  const rowIndex = fetchIndexByUniqueValue(sheetName, column, email);
+  const rowIndex = fetchIndexByUniqueValue(sheetName, column, value);
   console.log('rowIndex to remove:', rowIndex);
   removeRowActive(sheetName, rowIndex);
 };
