@@ -14,8 +14,9 @@ import {
   approvalUrl,
   doGet,
   getActiveUserEmail,
+  getBookingToolDeployUrl,
   rejectUrl,
-  scriptURL,
+  scriptUrl,
 } from './ui';
 import {
   approveBooking,
@@ -45,7 +46,8 @@ export {
   getOldSafetyTrainingEmails,
 
   // ui
-  scriptURL,
+  getBookingToolDeployUrl,
+  scriptUrl,
   approvalUrl,
   rejectUrl,
   doGet,

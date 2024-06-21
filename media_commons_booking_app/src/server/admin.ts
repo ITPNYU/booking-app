@@ -4,7 +4,7 @@ import {
   getSecondApproverEmail,
 } from '../policy';
 import { BookingFormDetails, BookingStatusLabel } from '../types';
-import { approvalUrl, rejectUrl, scriptURL } from './ui';
+import { approvalUrl, getBookingToolDeployUrl, rejectUrl } from './ui';
 import {
   fetchById,
   fetchIndexByUniqueValue,
@@ -20,7 +20,7 @@ export const bookingContents = (id: string): BookingFormDetails => {
   const bookingObj = fetchById(TableNames.BOOKING, id);
   bookingObj.approvalUrl = approvalUrl(id);
   bookingObj.rejectedUrl = rejectUrl(id);
-  bookingObj.bookingToolUrl = scriptURL();
+  bookingObj.bookingToolUrl = getBookingToolDeployUrl();
   return bookingObj;
 };
 

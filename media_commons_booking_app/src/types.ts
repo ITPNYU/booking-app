@@ -55,12 +55,14 @@ export type CalendarEvent = {
 
 export enum Department {
   ALT = 'ALT',
+  CDI = 'CDI',
   GAMES = 'Game Center',
   IDM = 'IDM',
   ITP = 'ITP / IMA / Low Res',
   MARL = 'MARL',
+  MPAP = 'MPAP',
   MUSIC_TECH = 'Music Tech',
-  RECORDED_MUSIC = 'Recorded Music',
+  OTHER = 'Other',
 }
 
 export type DevBranch = 'development' | 'staging' | 'production' | '';
