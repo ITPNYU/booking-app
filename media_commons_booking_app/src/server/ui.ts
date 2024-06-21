@@ -1,8 +1,21 @@
 import { approveBooking, reject } from './admin';
 
-export const scriptURL = () => {
+import { DevBranch } from '../types';
+
+export const scriptUrl = () => {
   const url = ScriptApp.getService().getUrl();
   return url;
+};
+
+export const getBookingToolDeployUrl = () => {
+  switch (process.env.BRANCH_NAME as DevBranch) {
+    case 'development':
+      return 'https://sites.google.com/nyu.edu/media-commons-dev/';
+    case 'staging':
+      return 'https://sites.google.com/nyu.edu/media-commons-staging/';
+    default:
+      return 'https://sites.google.com/nyu.edu/media-commons-prod/';
+  }
 };
 
 export const approvalUrl = (calendarEventId: string) => {

@@ -149,7 +149,7 @@ export default function useSubmitBooking(): [
     } else {
       const getApprovalUrl = serverFunctions.approvalUrl(calendarEventId);
       const getRejectedUrl = serverFunctions.rejectUrl(calendarEventId);
-      const getBookingToolUrl = serverFunctions.scriptURL();
+      const getBookingToolUrl = serverFunctions.getBookingToolDeployUrl();
       Promise.all([getApprovalUrl, getRejectedUrl, getBookingToolUrl]).then(
         (values) => {
           const userEventInputs: BookingFormDetails = {
