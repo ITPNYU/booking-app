@@ -17,6 +17,7 @@ export interface BookingContextType {
   department: Department | undefined;
   isBanned: boolean;
   isSafetyTrained: boolean;
+  isStudent: boolean;
   role: Role | undefined;
   selectedRooms: RoomSetting[];
   setBookingCalendarInfo: (x: DateSelectArg) => void;
@@ -29,6 +30,7 @@ export const BookingContext = createContext<BookingContextType>({
   bookingCalendarInfo: undefined,
   department: undefined,
   isBanned: false,
+  isStudent: false,
   isSafetyTrained: true,
   role: undefined,
   selectedRooms: [],
@@ -47,6 +49,7 @@ export function BookingProvider({ children }) {
   const [department, setDepartment] = useState<Department>();
   const [isSafetyTrained, setIsSafetyTrained] = useState(true);
   const [role, setRole] = useState<Role>();
+  const [isStudent, setIsStudent] = useState(false);
   const [selectedRooms, setSelectedRooms] = useState<RoomSetting[]>([]);
 
   const isBanned = useMemo<boolean>(() => {
@@ -77,6 +80,10 @@ export function BookingProvider({ children }) {
     fetchIsSafetyTrained();
   }, [fetchIsSafetyTrained]);
 
+  useEffect(() => {
+    setIsStudent(role === Role.STUDENT);
+  }, [role]);
+
   return (
     <BookingContext.Provider
       value={{
@@ -84,6 +91,7 @@ export function BookingProvider({ children }) {
         department,
         isBanned,
         isSafetyTrained,
+        isStudent,
         role,
         selectedRooms,
         setBookingCalendarInfo,
