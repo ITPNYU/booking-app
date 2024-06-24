@@ -49,6 +49,7 @@ export function BookingProvider({ children }) {
   const [department, setDepartment] = useState<Department>();
   const [isSafetyTrained, setIsSafetyTrained] = useState(true);
   const [role, setRole] = useState<Role>();
+  const [isStudent, setIsStudent] = useState(false);
   const [selectedRooms, setSelectedRooms] = useState<RoomSetting[]>([]);
 
   const isBanned = useMemo<boolean>(() => {
@@ -74,11 +75,14 @@ export function BookingProvider({ children }) {
     console.log('isTrained from googlesheets', isTrained);
     setIsSafetyTrained(isTrained);
   }, [userEmail, safetyTrainedUsers]);
-  const isStudent = role === Role.STUDENT;
 
   useEffect(() => {
     fetchIsSafetyTrained();
   }, [fetchIsSafetyTrained]);
+
+  useEffect(() => {
+    setIsStudent(role === Role.STUDENT);
+  }, [role]);
 
   return (
     <BookingContext.Provider
