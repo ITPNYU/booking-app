@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 
 import { Calendars } from './Calendars';
 import { DateSelectArg } from '@fullcalendar/core';
 import { RoomSetting } from '../../../../types';
 import { SelectRooms } from './SelectRooms';
+import { BookingContext } from '../bookingProvider';
 
 interface Props {
   allRooms: RoomSetting[];
@@ -17,6 +18,7 @@ export const MultipleCalendars = ({ allRooms, handleSetDate }: Props) => {
   const [checkedRooms, setCheckedRooms] = useState<RoomSetting[]>([]);
   const [showMotionCaptureModal, setShowMotionCaptureModal] = useState(false);
   const [hasModalBeenShown, setHasModalBeenShown] = useState(false);
+  const { checkSafetyTraining } = useContext(BookingContext);
 
   const allRoomWithCalendarRefs = allRooms.map((room, i) => {
     room.calendarRef = React.createRef();
@@ -29,10 +31,11 @@ export const MultipleCalendars = ({ allRooms, handleSetDate }: Props) => {
   }, [allRooms]);
 
   useEffect(() => {
-    const checked = allRooms.filter((room) =>
+    checkSafetyTraining(checkedRoomIds);
+    const checkedRooms = allRooms.filter((room) =>
       checkedRoomIds.includes(room.roomId)
     );
-    setCheckedRooms(checked);
+    setCheckedRooms(checkedRooms);
   }, [checkedRoomIds]);
 
   //if (loading) {
