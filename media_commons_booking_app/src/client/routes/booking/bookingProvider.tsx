@@ -17,6 +17,7 @@ export interface BookingContextType {
   department: Department | undefined;
   isBanned: boolean;
   isSafetyTrained: boolean;
+  isStudent: boolean;
   role: Role | undefined;
   selectedRooms: RoomSetting[];
   setBookingCalendarInfo: (x: DateSelectArg) => void;
@@ -29,6 +30,7 @@ export const BookingContext = createContext<BookingContextType>({
   bookingCalendarInfo: undefined,
   department: undefined,
   isBanned: false,
+  isStudent: false,
   isSafetyTrained: true,
   role: undefined,
   selectedRooms: [],
@@ -72,6 +74,7 @@ export function BookingProvider({ children }) {
     console.log('isTrained from googlesheets', isTrained);
     setIsSafetyTrained(isTrained);
   }, [userEmail, safetyTrainedUsers]);
+  const isStudent = role === Role.STUDENT;
 
   useEffect(() => {
     fetchIsSafetyTrained();
@@ -84,6 +87,7 @@ export function BookingProvider({ children }) {
         department,
         isBanned,
         isSafetyTrained,
+        isStudent,
         role,
         selectedRooms,
         setBookingCalendarInfo,
