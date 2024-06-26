@@ -4,7 +4,7 @@ import { BookingContext } from '../bookingProvider';
 import { DatabaseContext } from '../../components/Provider';
 import { DateSelectArg } from '@fullcalendar/core';
 import { MultipleCalendars } from '../components/MultipleCalendars';
-import { RoomSetting } from '../../../../types';
+import { Role, RoomSetting } from '../../../../types';
 import { SAFETY_TRAINING_REQUIRED_ROOM } from '../../../../policy';
 import { useNavigate } from 'react-router-dom';
 
@@ -13,7 +13,7 @@ export default function SelectRoomPage() {
   const { roomSettings, userEmail } = useContext(DatabaseContext);
   const {
     isBanned,
-    isSafetyTrained,
+    needsSafetyTraining,
     selectedRooms,
     setBookingCalendarInfo,
     setSelectedRooms,
@@ -27,7 +27,7 @@ export default function SelectRoomPage() {
     const requiresSafetyTraining = rooms.some((room) =>
       SAFETY_TRAINING_REQUIRED_ROOM.includes(room.roomId)
     );
-    if (userEmail && !isSafetyTrained && requiresSafetyTraining) {
+    if (needsSafetyTraining) {
       alert('You have to take safety training before booking!');
       return;
     }
