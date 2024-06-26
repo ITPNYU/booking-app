@@ -5,7 +5,7 @@ import { DatabaseContext } from '../../components/Provider';
 import { useLocation } from 'react-router-dom';
 
 export const Header = () => {
-  const { isBanned, isSafetyTrained } = useContext(BookingContext);
+  const { isBanned, needsSafetyTraining } = useContext(BookingContext);
   const { userEmail } = useContext(DatabaseContext);
 
   const location = useLocation();
@@ -21,7 +21,7 @@ export const Header = () => {
         {userEmail ? `${userEmail}` : `Unable to retrieve the email address.`}
       </p>
       <div>
-        {!isSafetyTrained && (
+        {needsSafetyTraining && (
           <p className="text-red-500 text-bold  ">
             You have to take safety training before booking!
           </p>
