@@ -13,8 +13,7 @@ export default function SelectRoomPage() {
   const { roomSettings, userEmail } = useContext(DatabaseContext);
   const {
     isBanned,
-    isSafetyTrained,
-    isStudent,
+    needsSafetyTraining,
     selectedRooms,
     setBookingCalendarInfo,
     setSelectedRooms,
@@ -28,7 +27,7 @@ export default function SelectRoomPage() {
     const requiresSafetyTraining = rooms.some((room) =>
       SAFETY_TRAINING_REQUIRED_ROOM.includes(room.roomId)
     );
-    if (userEmail && !isSafetyTrained && isStudent && requiresSafetyTraining) {
+    if (needsSafetyTraining) {
       alert('You have to take safety training before booking!');
       return;
     }

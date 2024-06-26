@@ -11,26 +11,28 @@ import React, {
 import { DatabaseContext } from '../components/Provider';
 import { DateSelectArg } from '@fullcalendar/core';
 import { serverFunctions } from '../../utils/serverFunctions';
+import { SAFETY_TRAINING_REQUIRED_ROOM } from '../../../policy';
 
 export interface BookingContextType {
   bookingCalendarInfo: DateSelectArg | undefined;
   department: Department | undefined;
   isBanned: boolean;
   isSafetyTrained: boolean;
-  isStudent: boolean;
+  needsSafetyTraining: boolean;
   role: Role | undefined;
   selectedRooms: RoomSetting[];
   setBookingCalendarInfo: (x: DateSelectArg) => void;
   setDepartment: (x: Department) => void;
   setRole: (x: Role) => void;
   setSelectedRooms: (x: RoomSetting[]) => void;
+  setNeedsSafetyTraining: (x: boolean) => void;
 }
 
 export const BookingContext = createContext<BookingContextType>({
   bookingCalendarInfo: undefined,
   department: undefined,
   isBanned: false,
-  isStudent: false,
+  needsSafetyTraining: false,
   isSafetyTrained: true,
   role: undefined,
   selectedRooms: [],
@@ -38,6 +40,7 @@ export const BookingContext = createContext<BookingContextType>({
   setDepartment: (x: Department) => {},
   setRole: (x: Role) => {},
   setSelectedRooms: (x: RoomSetting[]) => {},
+  setNeedsSafetyTraining: (x: boolean) => {},
 });
 
 export function BookingProvider({ children }) {
@@ -49,7 +52,7 @@ export function BookingProvider({ children }) {
   const [department, setDepartment] = useState<Department>();
   const [isSafetyTrained, setIsSafetyTrained] = useState(true);
   const [role, setRole] = useState<Role>();
-  const [isStudent, setIsStudent] = useState(false);
+  const [needsSafetyTraining, setNeedsSafetyTraining] = useState(false);
   const [selectedRooms, setSelectedRooms] = useState<RoomSetting[]>([]);
 
   const isBanned = useMemo<boolean>(() => {
@@ -80,10 +83,6 @@ export function BookingProvider({ children }) {
     fetchIsSafetyTrained();
   }, [fetchIsSafetyTrained]);
 
-  useEffect(() => {
-    setIsStudent(role === Role.STUDENT);
-  }, [role]);
-
   return (
     <BookingContext.Provider
       value={{
@@ -91,13 +90,14 @@ export function BookingProvider({ children }) {
         department,
         isBanned,
         isSafetyTrained,
-        isStudent,
+        needsSafetyTraining,
         role,
         selectedRooms,
         setBookingCalendarInfo,
         setDepartment,
         setRole,
         setSelectedRooms,
+        setNeedsSafetyTraining,
       }}
     >
       {children}
