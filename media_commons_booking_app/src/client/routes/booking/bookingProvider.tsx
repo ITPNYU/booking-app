@@ -25,7 +25,7 @@ export interface BookingContextType {
   setDepartment: (x: Department) => void;
   setRole: (x: Role) => void;
   setSelectedRooms: (x: RoomSetting[]) => void;
-  checkSafetyTraining: (x: String[]) => void;
+  setNeedsSafetyTraining: (x: boolean) => void;
 }
 
 export const BookingContext = createContext<BookingContextType>({
@@ -40,7 +40,7 @@ export const BookingContext = createContext<BookingContextType>({
   setDepartment: (x: Department) => {},
   setRole: (x: Role) => {},
   setSelectedRooms: (x: RoomSetting[]) => {},
-  checkSafetyTraining: (x: any) => {},
+  setNeedsSafetyTraining: (x: boolean) => {},
 });
 
 export function BookingProvider({ children }) {
@@ -83,16 +83,6 @@ export function BookingProvider({ children }) {
     fetchIsSafetyTrained();
   }, [fetchIsSafetyTrained]);
 
-  const checkSafetyTraining = (roomIds = []) => {
-    const isStudent = role === Role.STUDENT;
-    const requiresSafetyTraining = roomIds.some((id) =>
-      SAFETY_TRAINING_REQUIRED_ROOM.includes(id)
-    );
-    setNeedsSafetyTraining(
-      isStudent && !isSafetyTrained && requiresSafetyTraining
-    );
-  };
-
   return (
     <BookingContext.Provider
       value={{
@@ -107,7 +97,7 @@ export function BookingProvider({ children }) {
         setDepartment,
         setRole,
         setSelectedRooms,
-        checkSafetyTraining,
+        setNeedsSafetyTraining,
       }}
     >
       {children}

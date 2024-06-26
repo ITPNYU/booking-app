@@ -2,9 +2,10 @@ import React, { useContext, useEffect, useState } from 'react';
 
 import { Calendars } from './Calendars';
 import { DateSelectArg } from '@fullcalendar/core';
-import { RoomSetting } from '../../../../types';
+import { Role, RoomSetting } from '../../../../types';
 import { SelectRooms } from './SelectRooms';
 import { BookingContext } from '../bookingProvider';
+import { SAFETY_TRAINING_REQUIRED_ROOM } from '../../../../policy';
 
 interface Props {
   allRooms: RoomSetting[];
@@ -18,7 +19,8 @@ export const MultipleCalendars = ({ allRooms, handleSetDate }: Props) => {
   const [checkedRooms, setCheckedRooms] = useState<RoomSetting[]>([]);
   const [showMotionCaptureModal, setShowMotionCaptureModal] = useState(false);
   const [hasModalBeenShown, setHasModalBeenShown] = useState(false);
-  const { checkSafetyTraining } = useContext(BookingContext);
+  const { role, isSafetyTrained, setNeedsSafetyTraining } =
+    useContext(BookingContext);
 
   const allRoomWithCalendarRefs = allRooms.map((room, i) => {
     room.calendarRef = React.createRef();
@@ -38,6 +40,15 @@ export const MultipleCalendars = ({ allRooms, handleSetDate }: Props) => {
     setCheckedRooms(checkedRooms);
   }, [checkedRoomIds]);
 
+  const checkSafetyTraining = (roomIds = []) => {
+    const isStudent = role === Role.STUDENT;
+    const requiresSafetyTraining = roomIds.some((id) =>
+      SAFETY_TRAINING_REQUIRED_ROOM.includes(id)
+    );
+    setNeedsSafetyTraining(
+      isStudent && !isSafetyTrained && requiresSafetyTraining
+    );
+  };
   //if (loading) {
   //  return <div>Loading...</div>;
   //}
