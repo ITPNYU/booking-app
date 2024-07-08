@@ -66,7 +66,7 @@ export const SECOND_OLD_SAFETY_TRAINING_SHEET_GID = 293202487;
 export const getSecondApproverEmail = (branchName: string) =>
   branchName === 'development'
     ? 'media-commons-devs@itp.nyu.edu'
-    : 'ss12430@nyu.edu'; // TODO: Revert it back once Jhanele's leave is over.
+    : 'jg5626@nyu.edu'; // Jhanele
 
 export const getApprovalCcEmail = (branchName: string) =>
   branchName === 'development'
