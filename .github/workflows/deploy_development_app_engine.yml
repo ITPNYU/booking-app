@@ -68,3 +68,16 @@ jobs:
         run: |
           cd booking-app
           gcloud app deploy app.development.yaml --project=${{ secrets.GCP_PROJECT_ID }} --quiet
+      - name: Delete old versions
+        run: |
+          CURRENT_VERSION=$(gcloud app versions list --service=development --sort-by=~version --limit=1 --format="value(version.id)")
+          echo "Current version: $CURRENT_VERSION"
+
+          VERSIONS_TO_DELETE=$(gcloud app versions list --service=development --sort-by=~version --format="value(version.id)" | tail -n +3)
+
+          if [ -n "$VERSIONS_TO_DELETE" ]; then
+            echo "Deleting old versions: $VERSIONS_TO_DELETE"
+            echo $VERSIONS_TO_DELETE | xargs gcloud app versions delete --service=development --quiet
+          else
+            echo "No old versions to delete"
+          fi
