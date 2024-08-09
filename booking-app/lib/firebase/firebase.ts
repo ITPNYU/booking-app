@@ -10,6 +10,7 @@ import {
   getDoc,
   getDocs,
   query,
+  setDoc,
   updateDoc,
   where,
 } from "@firebase/firestore";
@@ -32,6 +33,21 @@ export const deleteDataFromFirestore = async (
   } catch (error) {
     console.error("Error deleting document: ", error);
   }
+};
+
+export const getNextSequentialId = async (collectionName) => {
+  const counterDocRef = doc(db, "counters", collectionName);
+
+  const counterDoc = await getDoc(counterDocRef);
+  let currentCount = 1;
+
+  if (counterDoc.exists()) {
+    currentCount = counterDoc.data().count + 1;
+  }
+
+  await setDoc(counterDocRef, { count: currentCount }, { merge: true });
+
+  return currentCount;
 };
 
 export const saveDataToFirestore = async (

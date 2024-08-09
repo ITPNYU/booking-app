@@ -14,7 +14,10 @@ import {
 import { Timestamp } from "@firebase/firestore";
 import { approveInstantBooking } from "@/components/src/server/admin";
 import { firstApproverEmails } from "@/components/src/server/db";
-import { saveDataToFirestore } from "@/lib/firebase/firebase";
+import {
+  getNextSequentialId,
+  saveDataToFirestore,
+} from "@/lib/firebase/firebase";
 import { sendHTMLEmail } from "@/app/lib/sendHTMLEmail";
 import {
   formatDate,
@@ -53,6 +56,8 @@ export async function POST(request: NextRequest) {
     roomEmails: otherRoomIds,
   });
   const calendarEventId = event.id;
+  //For putting sequentialId in bookings
+  const sequentialId = await getNextSequentialId("bookings");
 
   await saveDataToFirestore(TableNames.BOOKING, {
     calendarEventId,
@@ -60,6 +65,7 @@ export async function POST(request: NextRequest) {
     email,
     startDate: toFirebaseTimestampFromString(bookingCalendarInfo.startStr),
     endDate: toFirebaseTimestampFromString(bookingCalendarInfo.endStr),
+    requestNumber: sequentialId,
     ...data,
   });
   await saveDataToFirestore(TableNames.BOOKING_STATUS, {
