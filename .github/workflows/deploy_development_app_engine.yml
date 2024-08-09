@@ -3,7 +3,6 @@ on:
   push:
     branches:
       - main
-      - riho/delete_old_deployment
 jobs:
   deploy:
     runs-on: ubuntu-latest
