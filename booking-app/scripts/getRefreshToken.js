@@ -20,6 +20,7 @@ const oauth2Client = new google.auth.OAuth2(
 
 const authUrl = oauth2Client.generateAuthUrl({
   access_type: "offline",
+  prompt: "consent",
   scope: SCOPES,
 });
 

@@ -6,9 +6,10 @@ import {
   TableRow,
   useTheme,
 } from "@mui/material";
+import React, { useContext } from "react";
 
 import { Add } from "@mui/icons-material";
-import React from "react";
+import { DatabaseContext } from "../Provider";
 import { styled } from "@mui/system";
 import { useRouter } from "next/navigation";
 
@@ -21,6 +22,7 @@ const BottomRow = styled(Table)({
 export default function BookMoreButton() {
   const router = useRouter();
   const theme = useTheme();
+  const { reloadSafetyTrainedUsers } = useContext(DatabaseContext);
 
   return (
     <BottomRow>
@@ -28,7 +30,10 @@ export default function BookMoreButton() {
         <TableRow>
           <TableCell sx={{ padding: "4px", borderBottom: "none" }}>
             <Button
-              onClick={() => router.push("/book")}
+              onClick={() => {
+                reloadSafetyTrainedUsers();
+                router.push("/book");
+              }}
               variant="text"
               sx={{
                 background: theme.palette.primary[50],

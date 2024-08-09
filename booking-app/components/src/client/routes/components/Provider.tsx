@@ -108,12 +108,8 @@ export const DatabaseProvider = ({
       fetchRoomSettings();
       fetchSettings();
     }
-    // refresh booking data every 10s;
-    const intervalId = setInterval(() => {
-      fetchBookings();
-      fetchBookingStatuses();
-    }, 10000);
-    return () => clearInterval(intervalId);
+    fetchBookings();
+    fetchBookingStatuses();
   }, [bookingsLoading]);
 
   useEffect(() => {

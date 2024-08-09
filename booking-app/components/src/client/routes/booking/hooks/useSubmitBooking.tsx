@@ -3,8 +3,8 @@ import { useCallback, useContext } from "react";
 import { BookingContext } from "../bookingProvider";
 import { DatabaseContext } from "../../components/Provider";
 import { Inputs } from "../../../../types";
-import { useRouter } from "next/navigation";
 import useCheckAutoApproval from "./useCheckAutoApproval";
+import { useRouter } from "next/navigation";
 
 export default function useSubmitBooking(isWalkIn: boolean) {
   const router = useRouter();
@@ -31,7 +31,7 @@ export default function useSubmitBooking(isWalkIn: boolean) {
       }
 
       let email: string;
-      setSubmitting(true);
+      setSubmitting("submitting");
       if (isWalkIn && data.netId) {
         email = data.netId + "@nyu.edu";
       } else {
@@ -43,7 +43,7 @@ export default function useSubmitBooking(isWalkIn: boolean) {
         !bookingCalendarInfo.startStr ||
         !bookingCalendarInfo.endStr
       ) {
-        setSubmitting(false);
+        setSubmitting("error");
         return;
       }
 
@@ -72,12 +72,11 @@ export default function useSubmitBooking(isWalkIn: boolean) {
 
         reloadBookings();
         reloadBookingStatuses();
+        setSubmitting("success");
       } catch (error) {
         console.error("Error submitting booking:", error);
-        alert("An error occurred while submitting your booking.");
+        setSubmitting("error");
       }
-
-      setSubmitting(false);
     },
     [
       bookingCalendarInfo,

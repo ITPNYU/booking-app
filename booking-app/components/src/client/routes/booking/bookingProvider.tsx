@@ -4,6 +4,7 @@ import {
   Inputs,
   Role,
   RoomSetting,
+  SubmitStatus,
 } from "../../../types";
 import React, { createContext, useContext, useMemo, useState } from "react";
 
@@ -30,8 +31,8 @@ export interface BookingContextType {
   setHasShownMocapModal: (x: boolean) => void;
   setRole: (x: Role) => void;
   setSelectedRooms: (x: RoomSetting[]) => void;
-  setSubmitting: (x: boolean) => void;
-  submitting: boolean;
+  setSubmitting: (x: SubmitStatus) => void;
+  submitting: SubmitStatus;
 }
 
 export const BookingContext = createContext<BookingContextType>({
@@ -51,8 +52,8 @@ export const BookingContext = createContext<BookingContextType>({
   setHasShownMocapModal: (x: boolean) => {},
   setRole: (x: Role) => {},
   setSelectedRooms: (x: RoomSetting[]) => {},
-  setSubmitting: (x: boolean) => {},
-  submitting: false,
+  setSubmitting: (x: SubmitStatus) => {},
+  submitting: "none",
 });
 
 export function BookingProvider({ children }) {
@@ -67,7 +68,7 @@ export function BookingProvider({ children }) {
   const [hasShownMocapModal, setHasShownMocapModal] = useState(false);
   const [role, setRole] = useState<Role>();
   const [selectedRooms, setSelectedRooms] = useState<RoomSetting[]>([]);
-  const [submitting, setSubmitting] = useState<boolean>(false);
+  const [submitting, setSubmitting] = useState<SubmitStatus>("error");
   const existingCalendarEvents = fetchCalendarEvents(roomSettings);
 
   const isBanned = useMemo<boolean>(() => {

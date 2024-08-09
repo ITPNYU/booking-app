@@ -171,3 +171,5 @@ export type SafetyTraining = {
 export type Settings = {
   reservationTypes: ReservationType[];
 };
+
+export type SubmitStatus = "none" | "submitting" | "success" | "error";

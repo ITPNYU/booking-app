@@ -1,10 +1,10 @@
 "use client";
 
 import { Box, Button, Typography, useTheme } from "@mui/material";
+import { Error, Event } from "@mui/icons-material";
 import React, { useContext } from "react";
 
 import { BookingContext } from "../bookingProvider";
-import { Event } from "@mui/icons-material";
 import Loading from "../../components/Loading";
 import { styled } from "@mui/system";
 import { useRouter } from "next/navigation";
@@ -25,7 +25,7 @@ export default function BookingFormConfirmationPage() {
 
   // don't submit form via useEffect here b/c it submits twice in development strict mode
 
-  if (submitting) {
+  if (submitting === "submitting") {
     return (
       <Centered>
         <Box
@@ -43,6 +43,49 @@ export default function BookingFormConfirmationPage() {
     );
   }
 
+  if (submitting === "success") {
+    return (
+      <Centered>
+        <Box
+          sx={{
+            position: "absolute",
+            top: "calc(50% - 40px)",
+            left: "50%",
+            transform: "translate(-50%, -100%)",
+          }}
+        >
+          <Typography variant="h3" lineHeight="1.55rem">
+            🎉
+          </Typography>
+        </Box>
+        <Typography variant="h6" sx={{ padding: 3 }}>
+          Yay! We've received your booking request
+        </Typography>
+        <Box
+          sx={{
+            position: "absolute",
+            top: "calc(50% + 100px)",
+            left: "50%",
+            transform: "translate(-50%, 0%)",
+          }}
+        >
+          <Button
+            onClick={() => router.push("/")}
+            variant="text"
+            sx={{
+              background: theme.palette.primary[50],
+              color: theme.palette.primary.main,
+            }}
+          >
+            <Event />
+            View My Bookings
+          </Button>
+        </Box>
+      </Centered>
+    );
+  }
+
+  // TODO error state
   return (
     <Centered>
       <Box
@@ -53,33 +96,11 @@ export default function BookingFormConfirmationPage() {
           transform: "translate(-50%, -100%)",
         }}
       >
-        <Typography variant="h3" lineHeight="1.55rem">
-          🎉
-        </Typography>
+        <Error />
       </Box>
-      <Typography variant="h6" sx={{ padding: 3 }}>
-        Yay! We've received your booking request
+      <Typography variant="h6">
+        Sorry, an error occured while submitting your booking
       </Typography>
-      <Box
-        sx={{
-          position: "absolute",
-          top: "calc(50% + 100px)",
-          left: "50%",
-          transform: "translate(-50%, 0%)",
-        }}
-      >
-        <Button
-          onClick={() => router.push("/")}
-          variant="text"
-          sx={{
-            background: theme.palette.primary[50],
-            color: theme.palette.primary.main,
-          }}
-        >
-          <Event />
-          View My Bookings
-        </Button>
-      </Box>
     </Centered>
   );
 }

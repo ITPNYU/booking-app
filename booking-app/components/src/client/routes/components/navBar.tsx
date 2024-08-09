@@ -8,11 +8,11 @@ import {
   Toolbar,
   Typography,
 } from "@mui/material";
-import ConfirmDialog, { ConfirmDialogControlled } from "./ConfirmDialog";
 import React, { useContext, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
 import { BookingContext } from "../booking/bookingProvider";
+import ConfirmDialog from "./ConfirmDialog";
 import { DatabaseContext } from "./Provider";
 import { PagePermission } from "../../../types";
 import { styled } from "@mui/system";
@@ -35,11 +35,10 @@ const Divider = styled(Box)(({ theme }) => ({
   margin: "0px 20px",
 }));
 
-const PATHNAME_HIDE_NAVBAR = ["/approve", "/reject", "/forbidden"];
-
 export default function NavBar() {
   const router = useRouter();
-  const { pagePermission, userEmail } = useContext(DatabaseContext);
+  const { pagePermission, userEmail, reloadSafetyTrainedUsers } =
+    useContext(DatabaseContext);
   const { setHasShownMocapModal } = useContext(BookingContext);
   const [selectedView, setSelectedView] = useState<PagePermission>(
     PagePermission.BOOKING
@@ -49,7 +48,17 @@ export default function NavBar() {
   const netId = userEmail?.split("@")[0];
 
   const handleRoleChange = (e: any) => {
-    setSelectedView(e.target.value as PagePermission);
+    switch (e.target.value as PagePermission) {
+      case PagePermission.BOOKING:
+        router.push("/");
+        break;
+      case PagePermission.PA:
+        router.push("/pa");
+        break;
+      case PagePermission.ADMIN:
+        router.push("/admin");
+        break;
+    }
   };
 
   const handleClickHome = () => {
@@ -67,21 +76,14 @@ export default function NavBar() {
   })();
 
   useEffect(() => {
-    if (PATHNAME_HIDE_NAVBAR.some((hidePath) => pathname.includes(hidePath))) {
-      return;
+    if (pathname === "/") {
+      setSelectedView(PagePermission.BOOKING);
+    } else if (pathname.includes("/pa")) {
+      setSelectedView(PagePermission.PA);
+    } else if (pathname.includes("/admin")) {
+      setSelectedView(PagePermission.ADMIN);
     }
-    switch (selectedView) {
-      case PagePermission.BOOKING:
-        router.push("/");
-        break;
-      case PagePermission.PA:
-        router.push("/pa");
-        break;
-      case PagePermission.ADMIN:
-        router.push("/admin");
-        break;
-    }
-  }, [selectedView]);
+  }, [pathname]);
 
   const dropdown = useMemo(() => {
     if (
@@ -110,7 +112,10 @@ export default function NavBar() {
     if (selectedView === PagePermission.BOOKING) {
       return (
         <Button
-          onClick={() => router.push("/book")}
+          onClick={() => {
+            reloadSafetyTrainedUsers();
+            router.push("/book");
+          }}
           variant="outlined"
           sx={{ height: "40px", marginRight: 2 }}
         >
@@ -123,8 +128,9 @@ export default function NavBar() {
       return (
         <Button
           onClick={() => {
-            router.push("/walk-in");
+            reloadSafetyTrainedUsers();
             setHasShownMocapModal(false);
+            router.push("/walk-in");
           }}
           variant="outlined"
           sx={{ height: "40px", marginRight: 2 }}
