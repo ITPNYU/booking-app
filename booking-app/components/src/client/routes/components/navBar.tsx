@@ -39,7 +39,8 @@ export default function NavBar() {
   const router = useRouter();
   const { pagePermission, userEmail, reloadSafetyTrainedUsers } =
     useContext(DatabaseContext);
-  const { setHasShownMocapModal } = useContext(BookingContext);
+  const { setHasShownMocapModal, reloadExistingCalendarEvents } =
+    useContext(BookingContext);
   const [selectedView, setSelectedView] = useState<PagePermission>(
     PagePermission.BOOKING
   );
@@ -114,6 +115,7 @@ export default function NavBar() {
         <Button
           onClick={() => {
             reloadSafetyTrainedUsers();
+            reloadExistingCalendarEvents();
             router.push("/book");
           }}
           variant="outlined"
@@ -129,6 +131,7 @@ export default function NavBar() {
         <Button
           onClick={() => {
             reloadSafetyTrainedUsers();
+            reloadExistingCalendarEvents();
             setHasShownMocapModal(false);
             router.push("/walk-in");
           }}

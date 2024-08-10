@@ -1,6 +1,6 @@
 import { Booking, CalendarEvent, RoomSetting } from "../../../../types";
 import { CALENDAR_HIDE_STATUS, STORAGE_KEY_BOOKING } from "../../../../policy";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import axios from "axios";
 import getBookingStatus from "../../hooks/getBookingStatus";
@@ -8,7 +8,7 @@ import getBookingStatus from "../../hooks/getBookingStatus";
 export default function fetchCalendarEvents(allRooms: RoomSetting[]) {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
 
-  useEffect(() => {
+  const loadEvents = useCallback(() => {
     //TODO: Fix this after getting title from prodcalendars
     Promise.all(allRooms.map(fetchRoomCalendarEvents)).then((results) =>
       setEvents(
@@ -21,6 +21,10 @@ export default function fetchCalendarEvents(allRooms: RoomSetting[]) {
       )
     );
   }, [allRooms]);
+
+  useEffect(() => {
+    loadEvents();
+  }, [loadEvents]);
 
   const fetchRoomCalendarEvents = async (room: RoomSetting) => {
     const calendarId = room.calendarId;
@@ -35,7 +39,6 @@ export default function fetchCalendarEvents(allRooms: RoomSetting[]) {
         row?.title?.includes(status)
       );
     });
-    setEvents(filteredEvents);
     const rowsWithResourceIds = filteredEvents.map((row) => ({
       ...row,
       id: room.roomId + row.start,
@@ -44,6 +47,7 @@ export default function fetchCalendarEvents(allRooms: RoomSetting[]) {
     return rowsWithResourceIds;
   };
 
+  // TODO add this back or delete it
   const getFakeEvents: () => CalendarEvent[] = () => {
     const existingFakeData = localStorage.getItem(STORAGE_KEY_BOOKING);
     if (existingFakeData != null && process.env.BRANCH_NAME === "development") {
@@ -61,5 +65,8 @@ export default function fetchCalendarEvents(allRooms: RoomSetting[]) {
     return [];
   };
 
-  return events;
+  return {
+    existingCalendarEvents: events,
+    reloadExistingCalendarEvents: loadEvents,
+  };
 }

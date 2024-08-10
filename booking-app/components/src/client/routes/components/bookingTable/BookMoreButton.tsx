@@ -9,6 +9,7 @@ import {
 import React, { useContext } from "react";
 
 import { Add } from "@mui/icons-material";
+import { BookingContext } from "../../booking/bookingProvider";
 import { DatabaseContext } from "../Provider";
 import { styled } from "@mui/system";
 import { useRouter } from "next/navigation";
@@ -23,6 +24,7 @@ export default function BookMoreButton() {
   const router = useRouter();
   const theme = useTheme();
   const { reloadSafetyTrainedUsers } = useContext(DatabaseContext);
+  const { reloadExistingCalendarEvents } = useContext(BookingContext);
 
   return (
     <BottomRow>
@@ -32,6 +34,7 @@ export default function BookMoreButton() {
             <Button
               onClick={() => {
                 reloadSafetyTrainedUsers();
+                reloadExistingCalendarEvents();
                 router.push("/book");
               }}
               variant="text"

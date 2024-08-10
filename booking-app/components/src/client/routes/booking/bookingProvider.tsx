@@ -23,6 +23,7 @@ export interface BookingContextType {
   isBanned: boolean;
   isSafetyTrained: boolean;
   needsSafetyTraining: boolean;
+  reloadExistingCalendarEvents: () => void;
   role: Role | undefined;
   selectedRooms: RoomSetting[];
   setBookingCalendarInfo: (x: DateSelectArg) => void;
@@ -44,6 +45,7 @@ export const BookingContext = createContext<BookingContextType>({
   isBanned: false,
   isSafetyTrained: true,
   needsSafetyTraining: false,
+  reloadExistingCalendarEvents: () => {},
   role: undefined,
   selectedRooms: [],
   setBookingCalendarInfo: (x: DateSelectArg) => {},
@@ -69,7 +71,8 @@ export function BookingProvider({ children }) {
   const [role, setRole] = useState<Role>();
   const [selectedRooms, setSelectedRooms] = useState<RoomSetting[]>([]);
   const [submitting, setSubmitting] = useState<SubmitStatus>("error");
-  const existingCalendarEvents = fetchCalendarEvents(roomSettings);
+  const { existingCalendarEvents, reloadExistingCalendarEvents } =
+    fetchCalendarEvents(roomSettings);
 
   const isBanned = useMemo<boolean>(() => {
     const bannedEmails = bannedUsers.map((bannedUser) => bannedUser.email);
@@ -108,6 +111,7 @@ export function BookingProvider({ children }) {
         bookingCalendarInfo,
         department,
         existingCalendarEvents,
+        reloadExistingCalendarEvents,
         formData,
         hasShownMocapModal,
         isBanned,
