@@ -149,7 +149,7 @@ export const sendBookingDetailEmail = async (
     targetEmail: email,
     status: status,
     eventTitle: contents.title,
-    requestNumber: contents.requestNumber,
+    requestNumber: contents.requestNumber ?? "--",
     bodyMessage: "",
   };
   const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/sendEmail`, {
