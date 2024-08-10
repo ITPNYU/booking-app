@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
         targetEmail: recipient,
         status: BookingStatusLabel.REQUESTED,
         eventTitle: contents.title,
-        requestNumber: contents.requestNumber,
+        requestNumber: contents.requestNumber ?? sequentialId,
         body: "",
       }),
     );
@@ -112,6 +112,7 @@ export async function POST(request: NextRequest) {
       rejectUrl,
       bookingToolUrl: getBookingToolDeployUrl(),
       headerMessage: "This is a request email for first approval.",
+      requestNumber: sequentialId,
       ...data,
     };
     console.log("userEventInputs", userEventInputs);
