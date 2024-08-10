@@ -7,6 +7,14 @@ import {
   rejectUrl,
 } from "@/components/src/server/ui";
 import {
+  formatDate,
+  toFirebaseTimestampFromString,
+} from "@/components/src/client/utils/date";
+import {
+  getNextSequentialId,
+  saveDataToFirestore,
+} from "@/lib/firebase/firebase";
+import {
   getRoomCalendarId,
   insertEvent,
 } from "@/components/src/server/calendars";
@@ -14,15 +22,7 @@ import {
 import { Timestamp } from "@firebase/firestore";
 import { approveInstantBooking } from "@/components/src/server/admin";
 import { firstApproverEmails } from "@/components/src/server/db";
-import {
-  getNextSequentialId,
-  saveDataToFirestore,
-} from "@/lib/firebase/firebase";
 import { sendHTMLEmail } from "@/app/lib/sendHTMLEmail";
-import {
-  formatDate,
-  toFirebaseTimestampFromString,
-} from "@/components/src/client/utils/date";
 
 export async function POST(request: NextRequest) {
   const { email, selectedRooms, bookingCalendarInfo, data, isAutoApproval } =
@@ -87,6 +87,7 @@ export async function POST(request: NextRequest) {
           roomId: contents.roomId.toString(),
           startDate: formatDate(contents.startDate),
           endDate: formatDate(contents.endDate),
+          requestNumber: contents.requestNumber + "",
         },
         targetEmail: recipient,
         status: BookingStatusLabel.REQUESTED,

@@ -19,6 +19,7 @@ export const COMPARATORS: {
   department: (a, b) => a.department.localeCompare(b.department),
   netId: (a, b) => a.netId.localeCompare(b.netId),
   status: (a, b) => a.status.localeCompare(b.status),
+  requestNumber: (a, b) => a.requestNumber - b.requestNumber,
 };
 
 export default function SortableTableCell(props: Props) {

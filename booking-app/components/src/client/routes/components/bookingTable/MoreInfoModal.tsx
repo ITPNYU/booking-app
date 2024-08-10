@@ -60,6 +60,10 @@ export default function MoreInfoModal({ booking, closeModal }: Props) {
       <Box sx={modalStyle}>
         <AlertHeader color="info" icon={<Event />} sx={{ marginBottom: 3 }}>
           <RoomDetails container>
+            <label>Request Number:</label>
+            <p>{booking.requestNumber ?? "--"}</p>
+          </RoomDetails>
+          <RoomDetails container>
             <label>Rooms:</label>
             <p>{booking.roomId}</p>
           </RoomDetails>

@@ -128,6 +128,7 @@ export const DatabaseProvider = ({
       .then((fetchedData) => {
         const bookings = fetchedData.map((item: any) => ({
           id: item.id,
+          requestNumber: item.requestNumber,
           calendarEventId: item.calendarEventId,
           email: item.email,
           startDate: item.startDate,
@@ -258,7 +259,6 @@ export const DatabaseProvider = ({
 
       // Convert Map to SafetyTraining array
       const uniqueUsers = Array.from(userMap.values());
-
       // Update state
       setSafetyTrainedUsers(uniqueUsers);
     } catch (error) {

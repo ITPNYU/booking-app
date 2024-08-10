@@ -42,6 +42,7 @@ export default function BookingTableRow({
 
   return (
     <TableRow>
+      <TableCell>{booking.requestNumber ?? "--"}</TableCell>
       <TableCell>
         <StatusChip status={optimisticStatus ?? status} />
       </TableCell>

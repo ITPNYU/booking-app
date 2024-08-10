@@ -153,6 +153,12 @@ export const Bookings: React.FC<BookingsProps> = ({
   const columns = useMemo(
     () => [
       <SortableTableCell
+        label="#"
+        property="requestNumber"
+        key="requestNumber"
+        {...{ createSortHandler, order, orderBy }}
+      />,
+      <SortableTableCell
         key="status"
         label="Status"
         property="status"
