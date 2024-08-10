@@ -22,6 +22,7 @@ import BookingSelection from "./BookingSelection";
 import { DatabaseContext } from "../../components/Provider";
 import isEqual from "react-fast-compare";
 import { styled } from "@mui/system";
+import useCheckAutoApproval from "../hooks/useCheckAutoApproval";
 import { useRouter } from "next/navigation";
 import useSubmitBooking from "../hooks/useSubmitBooking";
 
@@ -69,6 +70,7 @@ export default function FormInput({ isWalkIn }: Props) {
   } = useContext(BookingContext);
   const router = useRouter();
   const registerEvent = useSubmitBooking(isWalkIn);
+  const { isAutoApproval } = useCheckAutoApproval();
 
   const {
     control,
@@ -174,8 +176,8 @@ export default function FormInput({ isWalkIn }: Props) {
   const onSubmit: SubmitHandler<Inputs> = (data) => {
     if (!bookingCalendarInfo) return;
 
-    setFormData(data);
-    registerEvent(data);
+    // setFormData(data);
+    registerEvent(data, isAutoApproval);
     router.push("/book/confirmation");
   };
 

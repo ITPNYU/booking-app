@@ -3,14 +3,12 @@ import { useCallback, useContext } from "react";
 import { BookingContext } from "../bookingProvider";
 import { DatabaseContext } from "../../components/Provider";
 import { Inputs } from "../../../../types";
-import useCheckAutoApproval from "./useCheckAutoApproval";
 import { useRouter } from "next/navigation";
 
 export default function useSubmitBooking(isWalkIn: boolean) {
   const router = useRouter();
   const { liaisonUsers, userEmail, reloadBookings, reloadBookingStatuses } =
     useContext(DatabaseContext);
-  const { isAutoApproval } = useCheckAutoApproval();
   const {
     bookingCalendarInfo,
     department,
@@ -24,7 +22,7 @@ export default function useSubmitBooking(isWalkIn: boolean) {
   } = useContext(BookingContext);
 
   const registerEvent = useCallback(
-    async (data: Inputs) => {
+    async (data: Inputs, isAutoApproval: boolean) => {
       if (!department || !role) {
         console.error("Missing info for submitting booking");
         return;
@@ -47,36 +45,36 @@ export default function useSubmitBooking(isWalkIn: boolean) {
         return;
       }
 
-      try {
-        const endpoint = isWalkIn ? "/api/walkIn" : "/api/bookings";
-        await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}${endpoint}`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            email,
-            selectedRooms,
-            bookingCalendarInfo,
-            liaisonUsers,
-            data,
-            isAutoApproval,
-          }),
+      const endpoint = isWalkIn ? "/api/walkIn" : "/api/bookings";
+      fetch(`${process.env.NEXT_PUBLIC_BASE_URL}${endpoint}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email,
+          selectedRooms,
+          bookingCalendarInfo,
+          liaisonUsers,
+          data,
+          isAutoApproval,
+        }),
+      })
+        .then((res) => {
+          // clear stored booking data after submit confirmation
+          setBookingCalendarInfo(undefined);
+          setSelectedRooms([]);
+          setFormData(undefined);
+          setHasShownMocapModal(false);
+
+          reloadBookings();
+          reloadBookingStatuses();
+          setSubmitting("success");
+        })
+        .catch((error) => {
+          console.error("Error submitting booking:", error);
+          setSubmitting("error");
         });
-
-        // clear stored booking data after submit confirmation
-        setBookingCalendarInfo(undefined);
-        setSelectedRooms([]);
-        setFormData(undefined);
-        setHasShownMocapModal(false);
-
-        reloadBookings();
-        reloadBookingStatuses();
-        setSubmitting("success");
-      } catch (error) {
-        console.error("Error submitting booking:", error);
-        setSubmitting("error");
-      }
     },
     [
       bookingCalendarInfo,

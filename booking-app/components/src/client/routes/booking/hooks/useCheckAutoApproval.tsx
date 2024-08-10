@@ -78,10 +78,7 @@ export default function useCheckAutoApproval(isWalkIn = false) {
     // WARNING WARNING make sure to update this dep list if relying on new props
     bookingCalendarInfo,
     selectedRooms,
-    formData?.catering,
-    formData?.hireSecurity,
-    formData?.mediaServices,
-    formData?.roomSetup,
+    formData,
   ]);
 
   return { isAutoApproval, errorMessage };
