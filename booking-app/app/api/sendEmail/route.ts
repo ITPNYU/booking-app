@@ -9,6 +9,7 @@ export async function POST(req: NextRequest) {
     targetEmail,
     status,
     eventTitle,
+    requestNumber,
     bodyMessage,
   } = await req.json();
 
@@ -26,6 +27,7 @@ export async function POST(req: NextRequest) {
       targetEmail,
       status,
       eventTitle,
+      requestNumber,
       body: bodyMessage || "",
     });
     return NextResponse.json(

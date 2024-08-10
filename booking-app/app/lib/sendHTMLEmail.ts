@@ -1,12 +1,11 @@
-import fs from "fs";
-import path from "path";
-import handlebars, { templates } from "handlebars";
-import { getGmailClient } from "@/lib/googleClient";
-import { BookingStatusLabel } from "@/components/src/types";
-import { app } from "firebase-admin";
 import { approvalUrl, rejectUrl } from "@/components/src/server/ui";
+
 import { formatDate } from "@/components/src/client/utils/date";
+import fs from "fs";
 import { getEmailBranchTag } from "@/components/src/server/emails";
+import { getGmailClient } from "@/lib/googleClient";
+import handlebars from "handlebars";
+import path from "path";
 
 interface BookingFormDetails {
   [key: string]: string;
@@ -18,14 +17,22 @@ interface SendHTMLEmailParams {
   targetEmail: string;
   status: string;
   eventTitle: string;
+  requestNumber: number;
   body: string;
 }
 
 export const sendHTMLEmail = async (params: SendHTMLEmailParams) => {
-  const { templateName, contents, targetEmail, status, eventTitle, body } =
-    params;
+  const {
+    templateName,
+    contents,
+    targetEmail,
+    status,
+    eventTitle,
+    requestNumber,
+    body,
+  } = params;
 
-  const subj = `${getEmailBranchTag()}${status}: Media Commons request for "${eventTitle}"`;
+  const subj = `${getEmailBranchTag()}${status} - Media Commons request #${requestNumber}: "${eventTitle}"`;
 
   const templatePath = path.join(
     process.cwd(),

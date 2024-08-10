@@ -92,6 +92,7 @@ export async function POST(request: NextRequest) {
         targetEmail: recipient,
         status: BookingStatusLabel.REQUESTED,
         eventTitle: contents.title,
+        requestNumber: contents.requestNumber,
         body: "",
       }),
     );
