@@ -78,7 +78,7 @@ export const approveBooking = async (id: string) => {
   // if already first approved, then this is a second approve
   if (firstApproveDateRange !== null) {
     secondApprove(id);
-    approveEvent(id);
+    await approveEvent(id);
   } else {
     firstApprove(id);
 

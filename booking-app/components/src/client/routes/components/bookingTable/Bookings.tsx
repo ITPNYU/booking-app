@@ -54,7 +54,7 @@ export const Bookings: React.FC<BookingsProps> = ({
         ...booking,
         status: getBookingStatus(booking, bookingStatuses),
       })),
-    [bookings]
+    [bookings, bookingStatuses]
   );
 
   const allowedStatuses: BookingStatusLabel[] = useMemo(() => {
@@ -91,7 +91,7 @@ export const Bookings: React.FC<BookingsProps> = ({
   }, [
     isUserView,
     isPaView,
-    bookings,
+    rows,
     allowedStatuses,
     statusFilters,
     order,
