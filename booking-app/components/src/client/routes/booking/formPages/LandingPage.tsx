@@ -13,7 +13,7 @@ const Center = styled(Box)`
 `;
 
 const Modal = styled(Center)(({ theme }) => ({
-  //border: `1px solid ${theme.palette.custom.border}`,
+  border: `1px solid ${theme.palette.custom.border}`,
   borderRadius: 4,
   alignItems: "flex-start",
   marginTop: 20,

@@ -28,10 +28,14 @@ const Container = styled(Box)(({ theme }) => ({
 }));
 
 interface Props {
+  calendarEventId?: string;
   isWalkIn?: boolean;
 }
 
-export default function UserRolePage({ isWalkIn = false }: Props) {
+export default function UserRolePage({
+  calendarEventId,
+  isWalkIn = false,
+}: Props) {
   const { role, department, setDepartment, setRole } =
     useContext(BookingContext);
 

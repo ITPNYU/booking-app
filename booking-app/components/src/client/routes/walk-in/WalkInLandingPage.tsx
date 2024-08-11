@@ -53,7 +53,7 @@ export default function WalkInLandingPage() {
 
   return (
     <Center sx={{ width: "100vw", height: "90vh" }}>
-      <Title as="h1">370🅙 Media Commons walkIn Reservation Form</Title>
+      <Title as="h1">370🅙 Media Commons Walk-In Reservation Form</Title>
       <Modal padding={4}>
         <Box width="100%">
           <AlertHeader color="info" icon={<Description />}>

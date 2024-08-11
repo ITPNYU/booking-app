@@ -12,10 +12,14 @@ import { SelectRooms } from "../components/SelectRooms";
 import { WALK_IN_ROOMS } from "@/components/src/policy";
 
 interface Props {
+  isEdit?: boolean;
   isWalkIn?: boolean;
 }
 
-export default function SelectRoomPage({ isWalkIn = false }: Props) {
+export default function SelectRoomPage({
+  isEdit = false,
+  isWalkIn = false,
+}: Props) {
   const { roomSettings } = useContext(DatabaseContext);
   const { selectedRooms, setSelectedRooms } = useContext(BookingContext);
   const [date, setDate] = useState<Date>(new Date());
