@@ -123,6 +123,12 @@ export type LiaisonType = {
   createdAt: string;
 };
 
+export type DepartmentType = {
+  department: string;
+  createdAt: string;
+  departmentTier: string;
+};
+
 export enum MediaServices {
   AUDIO_TECH_103 = "(Garage 103) Request an audio technician",
   AUDIO_TECH_230 = "(Audio Lab 230) Request an audio technician",

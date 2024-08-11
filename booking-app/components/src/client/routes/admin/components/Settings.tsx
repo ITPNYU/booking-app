@@ -8,12 +8,14 @@ import { Liaisons } from "./Liaisons";
 import { PAUsers } from "./PAUsers";
 import ReservationTypes from "./ReservationTypes";
 import SafetyTrainedUsers from "./SafetyTraining";
+import { Departments } from "./Departments";
 
 const tabs = [
   { label: "Safety Training", id: "safetyTraining" },
   { label: "PA Users", id: "pa" },
   { label: "Admin Users", id: "admin" },
   { label: "Liaisons", id: "liaisons" },
+  { label: "Departments", id: "departments" },
   { label: "Ban", id: "ban" },
   { label: "Reservation Types", id: "reservationTypes" },
 ];
@@ -41,6 +43,7 @@ export default function Settings() {
         {tab === "pa" && <PAUsers />}
         {tab === "admin" && <AdminUsers />}
         {tab === "liaisons" && <Liaisons />}
+        {tab === "departments" && <Departments />}
         {tab === "ban" && <BannedUsers />}
         {tab === "reservationTypes" && <ReservationTypes />}
       </Grid>

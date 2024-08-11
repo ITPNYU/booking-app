@@ -3,6 +3,7 @@ import {
   Ban,
   Booking,
   BookingStatus,
+  DepartmentType,
   LiaisonType,
   PaUser,
   PagePermission,
@@ -28,6 +29,7 @@ export interface DatabaseContextType {
   bookingsLoading: boolean;
   bookingStatuses: BookingStatus[];
   liaisonUsers: LiaisonType[];
+  departmentNames: DepartmentType[];
   pagePermission: PagePermission;
   paUsers: PaUser[];
   roomSettings: RoomSetting[];
@@ -39,6 +41,7 @@ export interface DatabaseContextType {
   reloadBookings: () => Promise<void>;
   reloadBookingStatuses: () => Promise<void>;
   reloadLiaisonUsers: () => Promise<void>;
+  reloadDepartmentNames: () => Promise<void>;
   reloadPaUsers: () => Promise<void>;
   reloadReservationTypes: () => Promise<void>;
   reloadSafetyTrainedUsers: () => Promise<void>;
@@ -52,6 +55,7 @@ export const DatabaseContext = createContext<DatabaseContextType>({
   bookingsLoading: true,
   bookingStatuses: [],
   liaisonUsers: [],
+  departmentNames: [],
   pagePermission: PagePermission.BOOKING,
   paUsers: [],
   roomSettings: [],
@@ -63,6 +67,7 @@ export const DatabaseContext = createContext<DatabaseContextType>({
   reloadBookings: async () => {},
   reloadBookingStatuses: async () => {},
   reloadLiaisonUsers: async () => {},
+  reloadDepartmentNames: async () => {},
   reloadPaUsers: async () => {},
   reloadReservationTypes: async () => {},
   reloadSafetyTrainedUsers: async () => {},
@@ -80,6 +85,7 @@ export const DatabaseProvider = ({
   const [bookingStatuses, setBookingStatuses] = useState<BookingStatus[]>([]);
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
   const [liaisonUsers, setLiaisonUsers] = useState<LiaisonType[]>([]);
+  const [departmentNames, setDepartmentName] = useState<DepartmentType[]>([]);
   const [paUsers, setPaUsers] = useState<PaUser[]>([]);
   const [roomSettings, setRoomSettings] = useState<RoomSetting[]>([]);
   const [safetyTrainedUsers, setSafetyTrainedUsers] = useState<
@@ -105,6 +111,7 @@ export const DatabaseProvider = ({
       fetchSafetyTrainedUsers();
       fetchBannedUsers();
       fetchLiaisonUsers();
+      fetchDepartmentNames();
       fetchRoomSettings();
       fetchSettings();
     }
@@ -293,6 +300,19 @@ export const DatabaseProvider = ({
       })
       .catch((error) => console.error("Error fetching data:", error));
   };
+  const fetchDepartmentNames = async () => {
+    fetchAllDataFromCollection(TableNames.DEPARTMENTS)
+      .then((fetchedData) => {
+        const filtered = fetchedData.map((item: any) => ({
+          id: item.id,
+          department: item.department,
+          createdAt: item.createdAt,
+          departmentTier: item.departmentTier
+        }));
+        setDepartmentName(filtered);
+      })
+      .catch((error) => console.error("Error fetching data:", error));
+  };
 
   const fetchRoomSettings = async () => {
     fetchAllDataFromCollection(TableNames.ROOMS)
@@ -338,6 +358,7 @@ export const DatabaseProvider = ({
         bookings,
         bookingStatuses,
         liaisonUsers,
+        departmentNames,
         paUsers,
         pagePermission,
         roomSettings,
@@ -350,6 +371,7 @@ export const DatabaseProvider = ({
         reloadBookings: fetchBookings,
         reloadBookingStatuses: fetchBookingStatuses,
         reloadLiaisonUsers: fetchLiaisonUsers,
+        reloadDepartmentNames: fetchDepartmentNames,
         reloadPaUsers: fetchPaUsers,
         reloadReservationTypes: fetchBookingReservationTypes,
         reloadSafetyTrainedUsers: fetchSafetyTrainedUsers,

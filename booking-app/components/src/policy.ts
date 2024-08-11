@@ -16,6 +16,8 @@ export function getLiaisonTableName() {
   }
 }
 
+
+
 export enum TableNames {
   ADMINS = "admin_users",
   BANNED = "banned_users",
@@ -24,6 +26,7 @@ export enum TableNames {
   LIAISONS_DEV = "liaisonsDev",
   LIAISONS_PROD = "liaisonsProd",
   LIAISONS_STAGING = "liaisonsStaging",
+  DEPARTMENTS = "departments",
   PAS = "pa_users",
   RESERVATION_TYPES = "reservationTypes",
   ROOMS = "rooms",
