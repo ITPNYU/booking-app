@@ -149,6 +149,10 @@ export enum PagePermission {
   PA = "PA",
 }
 
+export type PolicySettings = {
+  finalApproverEmail: string;
+};
+
 export type ReservationType = {
   reservationType: string;
   createdAt: string;

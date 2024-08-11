@@ -3,12 +3,13 @@ import React, { useState } from "react";
 
 import { AdminUsers } from "./AdminUsers";
 import { BannedUsers } from "./Ban";
+import { Departments } from "./Departments";
+import FinalApproverSetting from "./PolicySettings";
 import Grid from "@mui/material/Unstable_Grid2";
 import { Liaisons } from "./Liaisons";
 import { PAUsers } from "./PAUsers";
 import ReservationTypes from "./ReservationTypes";
 import SafetyTrainedUsers from "./SafetyTraining";
-import { Departments } from "./Departments";
 
 const tabs = [
   { label: "Safety Training", id: "safetyTraining" },
@@ -18,6 +19,7 @@ const tabs = [
   { label: "Departments", id: "departments" },
   { label: "Ban", id: "ban" },
   { label: "Reservation Types", id: "reservationTypes" },
+  { label: "Policy Settings", id: "policy" },
 ];
 
 export default function Settings() {
@@ -43,9 +45,10 @@ export default function Settings() {
         {tab === "pa" && <PAUsers />}
         {tab === "admin" && <AdminUsers />}
         {tab === "liaisons" && <Liaisons />}
-        {tab === "departments" && <Departments />}
         {tab === "ban" && <BannedUsers />}
+        {tab === "departments" && <Departments />}
         {tab === "reservationTypes" && <ReservationTypes />}
+        {tab === "policy" && <FinalApproverSetting />}
       </Grid>
     </Grid>
   );

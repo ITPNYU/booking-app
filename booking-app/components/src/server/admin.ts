@@ -2,10 +2,12 @@ import {
   BookingFormDetails,
   BookingStatus,
   BookingStatusLabel,
+  PolicySettings,
 } from "../types";
 import { TableNames, getSecondApproverEmail } from "../policy";
 import { approvalUrl, getBookingToolDeployUrl, rejectUrl } from "./ui";
 import {
+  fetchAllDataFromCollection,
   getDataByCalendarEventId,
   updateDataInFirestore,
 } from "@/lib/firebase/firebase";
@@ -29,6 +31,21 @@ export const bookingContents = (id: string) => {
       throw error;
     });
 };
+
+export const updatePolicySettingData = async (updatedData: object) => {
+  type PolicySettingsDoc = PolicySettings & { id: string };
+  const policySettingsDocs =
+    await fetchAllDataFromCollection<PolicySettingsDoc>(TableNames.POLICY);
+
+  if (policySettingsDocs.length > 0) {
+    const policySettings = policySettingsDocs[0]; // should only be 1 doc
+    const docId = policySettings.id;
+    await updateDataInFirestore(TableNames.POLICY, docId, updatedData);
+  } else {
+    console.log("No policy settings docs found");
+  }
+};
+
 export const updateDataByCalendarEventId = async (
   collectionName: TableNames,
   calendarEventId: string,
