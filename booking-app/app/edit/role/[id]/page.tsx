@@ -3,7 +3,7 @@ import React from "react";
 import UserRolePage from "@/components/src/client/routes/booking/formPages/UserRolePage";
 
 const Role: React.FC = ({ params }: { params: { id: string } }) => (
-  <UserRolePage calendarEventId={params.id} />
+  <UserRolePage calendarEventId={params.id} isEdit={true} />
 );
 
 export default Role;
