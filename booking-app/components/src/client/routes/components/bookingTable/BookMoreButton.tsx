@@ -6,12 +6,11 @@ import {
   TableRow,
   useTheme,
 } from "@mui/material";
-import React, { useContext } from "react";
 
 import { Add } from "@mui/icons-material";
-import { BookingContext } from "../../booking/bookingProvider";
-import { DatabaseContext } from "../Provider";
+import React from "react";
 import { styled } from "@mui/system";
+import useHandleStartBooking from "../../booking/hooks/useHandleStartBooking";
 import { useRouter } from "next/navigation";
 
 const BottomRow = styled(Table)({
@@ -23,8 +22,7 @@ const BottomRow = styled(Table)({
 export default function BookMoreButton() {
   const router = useRouter();
   const theme = useTheme();
-  const { reloadSafetyTrainedUsers } = useContext(DatabaseContext);
-  const { reloadExistingCalendarEvents } = useContext(BookingContext);
+  const handleStartBooking = useHandleStartBooking();
 
   return (
     <BottomRow>
@@ -33,8 +31,7 @@ export default function BookMoreButton() {
           <TableCell sx={{ padding: "4px", borderBottom: "none" }}>
             <Button
               onClick={() => {
-                reloadSafetyTrainedUsers();
-                reloadExistingCalendarEvents();
+                handleStartBooking();
                 router.push("/book");
               }}
               variant="text"

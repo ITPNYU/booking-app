@@ -16,6 +16,7 @@ import ConfirmDialog from "./ConfirmDialog";
 import { DatabaseContext } from "./Provider";
 import { PagePermission } from "../../../types";
 import { styled } from "@mui/system";
+import useHandleStartBooking from "../booking/hooks/useHandleStartBooking";
 
 const Title = styled(Typography)`
   width: fit-content;
@@ -37,10 +38,8 @@ const Divider = styled(Box)(({ theme }) => ({
 
 export default function NavBar() {
   const router = useRouter();
-  const { pagePermission, userEmail, reloadSafetyTrainedUsers } =
-    useContext(DatabaseContext);
-  const { setHasShownMocapModal, reloadExistingCalendarEvents } =
-    useContext(BookingContext);
+  const { pagePermission, userEmail } = useContext(DatabaseContext);
+  const handleStartBooking = useHandleStartBooking();
   const [selectedView, setSelectedView] = useState<PagePermission>(
     PagePermission.BOOKING
   );
@@ -114,8 +113,7 @@ export default function NavBar() {
       return (
         <Button
           onClick={() => {
-            reloadSafetyTrainedUsers();
-            reloadExistingCalendarEvents();
+            handleStartBooking();
             router.push("/book");
           }}
           variant="outlined"
@@ -130,9 +128,7 @@ export default function NavBar() {
       return (
         <Button
           onClick={() => {
-            reloadSafetyTrainedUsers();
-            reloadExistingCalendarEvents();
-            setHasShownMocapModal(false);
+            handleStartBooking();
             router.push("/walk-in");
           }}
           variant="outlined"
