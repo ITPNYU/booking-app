@@ -41,7 +41,7 @@ export default function fetchCalendarEvents(allRooms: RoomSetting[]) {
     });
     const rowsWithResourceIds = filteredEvents.map((row) => ({
       ...row,
-      id: room.roomId + row.start,
+      id: `${row.calendarEventId}:${room.roomId}:${row.start}`,
       resourceId: room.roomId + "",
     }));
     return rowsWithResourceIds;

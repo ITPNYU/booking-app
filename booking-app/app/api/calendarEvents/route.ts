@@ -29,6 +29,7 @@ const getCalendarEvents = async (calendarId: string) => {
     title: e.summary,
     start: e.start?.dateTime || e.start?.date,
     end: e.end?.dateTime || e.end?.date,
+    calendarEventId: e.id,
   }));
 
   return formattedEvents;

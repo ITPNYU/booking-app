@@ -12,11 +12,13 @@ import { SelectRooms } from "../components/SelectRooms";
 import { WALK_IN_ROOMS } from "@/components/src/policy";
 
 interface Props {
+  calendarEventId?: string;
   isEdit?: boolean;
   isWalkIn?: boolean;
 }
 
 export default function SelectRoomPage({
+  calendarEventId,
   isEdit = false,
   isWalkIn = false,
 }: Props) {
@@ -48,7 +50,11 @@ export default function SelectRoomPage({
           </Stack>
         </Grid>
         <Grid paddingRight={2} flex={1}>
-          <CalendarVerticalResource rooms={selectedRooms} dateView={date} />
+          <CalendarVerticalResource
+            rooms={selectedRooms}
+            dateView={date}
+            {...{ isEdit, calendarEventId }}
+          />
         </Grid>
       </Grid>
     </Box>
