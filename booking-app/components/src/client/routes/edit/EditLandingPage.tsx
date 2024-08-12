@@ -37,7 +37,7 @@ export default function EditLandingPage({ calendarEventId }: Props) {
   const router = useRouter();
 
   return (
-    <Center sx={{ width: "100vw", height: "60vh" }}>
+    <Center sx={{ width: "100vw", height: "90vh" }}>
       <Title as="h1">370🅙 Media Commons Reservation Form</Title>
       <Modal padding={4}>
         <Typography fontWeight={700}>
