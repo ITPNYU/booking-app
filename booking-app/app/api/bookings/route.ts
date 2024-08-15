@@ -22,6 +22,12 @@ import {
 import { Timestamp } from "@firebase/firestore";
 import { approveInstantBooking } from "@/components/src/server/admin";
 import { firstApproverEmails } from "@/components/src/server/db";
+
+import {
+  getNextSequentialId,
+  saveDataToFirestore,
+} from "@/lib/firebase/firebase";
+
 import { sendHTMLEmail } from "@/app/lib/sendHTMLEmail";
 
 export async function POST(request: NextRequest) {
