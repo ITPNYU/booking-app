@@ -13,6 +13,7 @@ import {
   setDoc,
   updateDoc,
   where,
+  limit,
 } from "@firebase/firestore";
 
 import { TableNames } from "@/components/src/policy";
@@ -95,6 +96,25 @@ export const getDataByCalendarEventId = async <T>(
     return null;
   } catch (error) {
     console.error("Error fetching document: ", error);
+    return null;
+  }
+};
+
+export const getFinalApproverEmail = async (): Promise<string | null> => {
+  try {
+    const policyCollection = collection(db, TableNames.POLICY);
+    const q = query(policyCollection, limit(1));
+    const querySnapshot = await getDocs(q);
+    if (!querySnapshot.empty) {
+      const doc = querySnapshot.docs[0];
+      const finalApproverEmail = doc.data().finalApproverEmail;
+      if (finalApproverEmail) {
+        return finalApproverEmail;
+      }
+    }
+    return null;
+  } catch (error) {
+    console.error("Error fetching finalApproverEmail:", error);
     return null;
   }
 };

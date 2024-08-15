@@ -1,5 +1,6 @@
 /********** GOOGLE SHEETS ************/
 
+import { getFinalApproverEmail } from "@/lib/firebase/firebase";
 import { BookingStatusLabel, DevBranch } from "./types";
 
 /** ACTIVE master Google Sheet  */
@@ -44,18 +45,23 @@ export const SECOND_OLD_SAFETY_TRAINING_SHEET_GID = 293202487;
 
 /********** CONTACTS ************/
 
-// TODO configure this via admin UI
-export const getSecondApproverEmail = (branchName: string) =>
-  branchName === "development"
-    ? "booking-app-devs+jhanele@itp.nyu.edu"
-    : "booking-app-devs+jhanele@itp.nyu.edu";
-//: "jg5626@nyu.edu"; // Jhanele
+export const getSecondApproverEmail = async (
+  branchName: string
+): Promise<string> => {
+  if (branchName === "development") {
+    return "booking-app-devs+finalApprover@itp.nyu.edu";
+  } else {
+    const finalApproverEmail = await getFinalApproverEmail();
+    return (
+      finalApproverEmail || "booking-app-devs+notFoundFinalApprover@itp.nyu.edu"
+    );
+  }
+};
 
 export const getApprovalCcEmail = (branchName: string) =>
   branchName === "development"
     ? "booking-app-devs+samantha@itp.nyu.edu"
-    : "booking-app-devs+samantha@itp.nyu.edu";
-//: "ss12430@nyu.edu"; // Samantha
+    : "ss12430@nyu.edu"; // Samantha
 
 /********** ROOMS ************/
 

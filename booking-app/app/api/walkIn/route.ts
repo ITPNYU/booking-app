@@ -119,7 +119,7 @@ export async function POST(request: NextRequest) {
 
   const notifyEmails = [
     data.sponsorEmail ?? null,
-    getSecondApproverEmail(process.env.NEXT_PUBLIC_BRANCH_NAME),
+    await getSecondApproverEmail(process.env.NEXT_PUBLIC_BRANCH_NAME),
     getApprovalCcEmail(process.env.NEXT_PUBLIC_BRANCH_NAME),
   ].filter(x => x != null);
   await sendWalkInNofificationEmail(notifyEmails);
