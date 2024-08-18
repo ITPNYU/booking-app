@@ -46,17 +46,11 @@ export const MEDIA_COMMON_EMAIL = "mediacommons.reservations@nyu.edu";
 
 /********** CONTACTS ************/
 
-export const getSecondApproverEmail = async (
-  branchName: string
-): Promise<string> => {
-  if (branchName === "development") {
-    return "booking-app-devs+finalApprover@itp.nyu.edu";
-  } else {
-    const finalApproverEmail = await getFinalApproverEmail();
-    return (
-      finalApproverEmail || "booking-app-devs+notFoundFinalApprover@itp.nyu.edu"
-    );
-  }
+export const getSecondApproverEmail = async (): Promise<string> => {
+  const finalApproverEmail = await getFinalApproverEmail();
+  return (
+    finalApproverEmail || "booking-app-devs+notFoundFinalApprover@itp.nyu.edu"
+  );
 };
 
 export const getApprovalCcEmail = (branchName: string) =>
