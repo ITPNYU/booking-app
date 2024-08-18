@@ -58,9 +58,7 @@ export default function CalendarEventBlock(eventInfo: EventContentArg) {
     let backgroundColor = "rgba(72, 196, 77, 1)";
     if (eventInfo.event.title.includes(BookingStatusLabel.REQUESTED)) {
       backgroundColor = "rgba(255, 122, 26, 1)";
-    } else if (
-      eventInfo.event.title.includes(BookingStatusLabel.PRE_APPROVED)
-    ) {
+    } else if (eventInfo.event.title.includes(BookingStatusLabel.PENDING)) {
       backgroundColor = "rgba(223, 26, 255, 1)";
     }
     return backgroundColor;

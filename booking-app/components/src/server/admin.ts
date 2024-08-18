@@ -112,7 +112,7 @@ export const approveBooking = async (id: string) => {
         },
         body: JSON.stringify({
           calendarEventId: id,
-          newPrefix: BookingStatusLabel.PRE_APPROVED,
+          newPrefix: BookingStatusLabel.PENDING,
         }),
       }
     );
@@ -127,7 +127,7 @@ export const approveBooking = async (id: string) => {
       templateName: "approval_email",
       contents: emailContents,
       targetEmail: recipient,
-      status: BookingStatusLabel.PRE_APPROVED,
+      status: BookingStatusLabel.PENDING,
       eventTitle: contents.title || "",
       requestNumber: contents.requestNumber,
       bodyMessage: "",

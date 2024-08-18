@@ -114,7 +114,7 @@ export default function BookingActions({
       action: async () => {
         await approveBooking(calendarEventId);
       },
-      optimisticNextStatus: BookingStatusLabel.PRE_APPROVED,
+      optimisticNextStatus: BookingStatusLabel.PENDING,
     },
     [Actions.SECOND_APPROVE]: {
       action: async () => {
@@ -166,7 +166,7 @@ export default function BookingActions({
     let options: Actions[] = [];
     if (status === BookingStatusLabel.REQUESTED) {
       options.push(Actions.FIRST_APPROVE);
-    } else if (status === BookingStatusLabel.PRE_APPROVED) {
+    } else if (status === BookingStatusLabel.PENDING) {
       options.push(Actions.SECOND_APPROVE);
     }
 

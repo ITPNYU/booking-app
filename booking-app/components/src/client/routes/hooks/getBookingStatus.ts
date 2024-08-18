@@ -47,7 +47,7 @@ export default function getBookingStatus(
     } else if (bookingStatusMatch.secondApprovedAt !== undefined) {
       return BookingStatusLabel.APPROVED;
     } else if (bookingStatusMatch.firstApprovedAt !== undefined) {
-      return BookingStatusLabel.PRE_APPROVED;
+      return BookingStatusLabel.PENDING;
     } else if (bookingStatusMatch.requestedAt != undefined) {
       return BookingStatusLabel.REQUESTED;
     } else if (bookingStatusMatch.walkedInAt != undefined) {
