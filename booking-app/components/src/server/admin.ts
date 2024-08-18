@@ -122,9 +122,7 @@ export const approveBooking = async (id: string) => {
       ...contents,
       headerMessage: "This is a request email for final approval.",
     };
-    const recipient = await getSecondApproverEmail(
-      process.env.NEXT_PUBLIC_BRANCH_NAME || ""
-    );
+    const recipient = await getSecondApproverEmail();
     const formData = {
       templateName: "approval_email",
       contents: emailContents,
@@ -152,7 +150,7 @@ export const sendConfirmationEmail = async (
   status: BookingStatusLabel,
   headerMessage: string
 ) => {
-  const email = await getSecondApproverEmail(process.env.BRANCH_NAME);
+  const email = await getSecondApproverEmail();
   sendBookingDetailEmail(calendarEventId, email, headerMessage, status);
 };
 
