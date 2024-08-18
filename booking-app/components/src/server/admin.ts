@@ -4,7 +4,11 @@ import {
   BookingStatusLabel,
   PolicySettings,
 } from "../types";
-import { TableNames, getSecondApproverEmail } from "../policy";
+import {
+  TableNames,
+  getCancelCcEmail,
+  getSecondApproverEmail,
+} from "../policy";
 import { approvalUrl, getBookingToolDeployUrl, rejectUrl } from "./ui";
 import {
   fetchAllDataFromCollection,
@@ -279,10 +283,11 @@ export const cancel = async (id: string) => {
     headerMessage,
     BookingStatusLabel.CANCELED
   );
-  sendConfirmationEmail(
+  sendBookingDetailEmail(
     id,
-    BookingStatusLabel.CANCELED,
-    `This is a cancelation email.`
+    getCancelCcEmail(),
+    headerMessage,
+    BookingStatusLabel.CANCELED
   );
   const response = await fetch(
     `${process.env.NEXT_PUBLIC_BASE_URL}/api/calendarEvents`,
