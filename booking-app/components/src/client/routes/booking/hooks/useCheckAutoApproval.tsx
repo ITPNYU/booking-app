@@ -1,7 +1,21 @@
+import {
+  INSTANT_APPROVAL_ROOMS,
+  WALK_IN_CAN_BOOK_TWO,
+} from "../../../../policy";
 import { useContext, useEffect, useState } from "react";
 
 import { BookingContext } from "../bookingProvider";
-import { INSTANT_APPROVAL_ROOMS } from "../../../../policy";
+
+export function selectedAutoApprovalRooms(selectedRoomIds: number[]) {
+  if (selectedRoomIds.length < 2) return true;
+  if (selectedRoomIds.length > 2) return false;
+  if (
+    WALK_IN_CAN_BOOK_TWO.includes(selectedRoomIds[0]) &&
+    WALK_IN_CAN_BOOK_TWO.includes(selectedRoomIds[1])
+  )
+    return true;
+  return false;
+}
 
 export default function useCheckAutoApproval(isWalkIn = false) {
   const { bookingCalendarInfo, selectedRooms, formData } =
@@ -40,6 +54,13 @@ export default function useCheckAutoApproval(isWalkIn = false) {
     ) {
       throwError(
         "At least one of the requested rooms is not eligible for auto approval"
+      );
+      return;
+    }
+
+    if (!selectedAutoApprovalRooms(selectedRooms.map((room) => room.roomId))) {
+      throwError(
+        "Requests for multiple rooms (except for 2 ballrooms) will require full approval"
       );
       return;
     }
