@@ -122,10 +122,11 @@ export const DatabaseProvider = ({
       fetchDepartmentNames();
       fetchRoomSettings();
       fetchSettings();
+    } else {
+      fetchBookings();
+      fetchBookingStatuses();
     }
-    fetchBookings();
-    fetchBookingStatuses();
-  }, [bookingsLoading]);
+  }, [bookingsLoading, user]);
 
   useEffect(() => {
     fetchActiveUserEmail();
