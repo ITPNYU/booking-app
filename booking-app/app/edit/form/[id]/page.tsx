@@ -6,7 +6,7 @@ import BookingFormDetailsPage from "@/components/src/client/routes/booking/formP
 import React from "react";
 
 const Form: React.FC = ({ params }: { params: { id: string } }) => (
-  <BookingFormDetailsPage />
+  <BookingFormDetailsPage calendarEventId={params.id} isEdit={true} />
 );
 
 export default Form;

@@ -7,6 +7,7 @@ import {
 import { TableNames, getSecondApproverEmail } from "../policy";
 import { approvalUrl, getBookingToolDeployUrl, rejectUrl } from "./ui";
 import {
+  deleteDataFromFirestore,
   fetchAllDataFromCollection,
   getDataByCalendarEventId,
   updateDataInFirestore,
@@ -56,6 +57,20 @@ export const updateDataByCalendarEventId = async (
   if (data) {
     const { id } = data;
     await updateDataInFirestore(collectionName, id, updatedData);
+  } else {
+    console.log("No document found with the given calendarEventId.");
+  }
+};
+
+export const deleteDataByCalendarEventId = async (
+  collectionName: TableNames,
+  calendarEventId: string
+) => {
+  const data = await getDataByCalendarEventId(collectionName, calendarEventId);
+
+  if (data) {
+    const { id } = data;
+    await deleteDataFromFirestore(collectionName, id);
   } else {
     console.log("No document found with the given calendarEventId.");
   }

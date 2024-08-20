@@ -53,10 +53,16 @@ const Container = styled(Box)(({ theme }) => ({
 }));
 
 interface Props {
+  calendarEventId?: string;
+  isEdit: boolean;
   isWalkIn: boolean;
 }
 
-export default function FormInput({ isWalkIn }: Props) {
+export default function FormInput({
+  calendarEventId,
+  isEdit,
+  isWalkIn,
+}: Props) {
   const { userEmail, settings } = useContext(DatabaseContext);
   const {
     role,
@@ -69,7 +75,7 @@ export default function FormInput({ isWalkIn }: Props) {
     setFormData,
   } = useContext(BookingContext);
   const router = useRouter();
-  const registerEvent = useSubmitBooking(isWalkIn);
+  const registerEvent = useSubmitBooking(isEdit, isWalkIn);
   const { isAutoApproval } = useCheckAutoApproval();
 
   const {
@@ -177,7 +183,8 @@ export default function FormInput({ isWalkIn }: Props) {
     if (!bookingCalendarInfo) return;
 
     // setFormData(data);
-    registerEvent(data, isAutoApproval);
+    registerEvent(data, isAutoApproval, calendarEventId);
+    // // TODO confirmation page for walk-in
     router.push("/book/confirmation");
   };
 
