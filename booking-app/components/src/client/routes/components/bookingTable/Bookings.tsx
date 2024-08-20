@@ -42,6 +42,7 @@ export const Bookings: React.FC<BookingsProps> = ({
   const [statusFilters, setStatusFilters] = useState([]);
   const [orderBy, setOrderBy] = useState<keyof BookingRow>("startDate");
   const [order, setOrder] = useState<"asc" | "desc">("asc");
+  const [currentTime, setCurrentTime] = useState(new Date());
 
   useEffect(() => {
     reloadBookingStatuses();
@@ -56,6 +57,14 @@ export const Bookings: React.FC<BookingsProps> = ({
       })),
     [bookings, bookingStatuses]
   );
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 60000); // Update every minute
+
+    return () => clearInterval(interval);
+  }, []);
 
   const allowedStatuses: BookingStatusLabel[] = useMemo(() => {
     const paViewStatuses = [
@@ -79,6 +88,20 @@ export const Bookings: React.FC<BookingsProps> = ({
     else if (isPaView)
       filtered = rows.filter((row) => allowedStatuses.includes(row.status));
 
+    // filter if endTime has passed and status is NO_SHOW or CHECKED_OUT
+    const elapsedStatues = [
+      BookingStatusLabel.NO_SHOW,
+      BookingStatusLabel.CHECKED_OUT,
+    ];
+    // checks once per minute
+    filtered = filtered.filter(
+      (row) =>
+        !(
+          elapsedStatues.includes(row.status) &&
+          row.endDate.toDate() < currentTime
+        )
+    );
+
     // column sorting
     const comparator = COMPARATORS[orderBy];
     const coeff = order === "asc" ? 1 : -1;
@@ -97,6 +120,7 @@ export const Bookings: React.FC<BookingsProps> = ({
     statusFilters,
     order,
     orderBy,
+    currentTime,
   ]);
 
   const topRow = useMemo(() => {
