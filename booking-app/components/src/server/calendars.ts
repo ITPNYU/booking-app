@@ -1,9 +1,9 @@
 import { BookingFormDetails, BookingStatusLabel, RoomSetting } from "../types";
+import { Timestamp, endAt, sum, where } from "@firebase/firestore";
 
 import { TableNames } from "../policy";
 import { fetchAllDataFromCollection } from "@/lib/firebase/firebase";
 import { getCalendarClient } from "@/lib/googleClient";
-import { endAt, sum, Timestamp, where } from "@firebase/firestore";
 
 export const getRoomCalendarIds = async (roomId: number): Promise<string[]> => {
   const queryConstraints = [where("roomId", "==", roomId)];
@@ -201,5 +201,22 @@ export const updateEventPrefix = async (
         error
       );
     }
+  }
+};
+
+export const deleteEvent = async (
+  calendarId: string,
+  calendarEventId: string,
+  roomId?: string
+) => {
+  const calendar = await getCalendarClient();
+  try {
+    await calendar.events.delete({
+      calendarId,
+      eventId: calendarEventId,
+    });
+    console.log("deleted calendar event for " + roomId);
+  } catch (error) {
+    console.log("calendar event doesn't exist for room " + roomId);
   }
 };

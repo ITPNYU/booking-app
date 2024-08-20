@@ -25,44 +25,60 @@ export const Header = () => {
     threshold: 100,
   });
 
-  if (pathname === "/book" || pathname === "/walk-in") {
+  // /book, /walk-in, /edit/<id>
+  if (/^\/(book|walk-in|edit\/[^\/]+)$/.test(pathname)) {
     return null;
   }
 
   const goBack = (() => {
-    switch (pathname) {
-      case "/book/selectRoom":
-        return () => router.push("/book/role");
-      case "/book/form":
-        return () => router.push("/book/selectRoom");
-      case "/walk-in/selectRoom":
-        return () => router.push("/walk-in/role");
-      case "/walk-in/form":
-        return () => router.push("/walk-in/selectRoom");
-      default:
-        return () => {};
+    const match = pathname.match(
+      /^(\/(book|walk-in|edit))\/(selectRoom|form)(\/[a-zA-Z0-9_-]+)?$/
+    );
+
+    if (match) {
+      const [, basePath, , step, idSegment] = match;
+      const id = idSegment || ""; // If there's an ID, use it; otherwise, use an empty string.
+
+      switch (step) {
+        case "selectRoom":
+          return () => router.push(`${basePath}/role${id}`);
+        case "form":
+          return () => router.push(`${basePath}/selectRoom${id}`);
+        default:
+          return () => {};
+      }
+    } else {
+      return () => {};
     }
   })();
 
   const goNext = (() => {
-    switch (pathname) {
-      case "/book/selectRoom":
-        return () => router.push("/book/form");
-      case "/walk-in/selectRoom":
-        return () => router.push("/walk-in/form");
-      default:
-        return () => {};
+    const match = pathname.match(
+      /^(\/(book|walk-in|edit))\/(selectRoom)(\/[a-zA-Z0-9_-]+)?$/
+    );
+
+    if (match) {
+      const [, basePath, , step, idSegment] = match;
+      const id = idSegment || ""; // If there's an ID, use it; otherwise, use an empty string.
+
+      switch (step) {
+        case "selectRoom":
+          return () => router.push(`${basePath}/form${id}`);
+        default:
+          return () => {};
+      }
+    } else {
+      return () => {};
     }
   })();
 
+  // /book/form, /walk-in/form, /edit/form/<id>
   const hideNextButton =
-    pathname === "/book/form" || pathname === "/walk-in/form";
+    /^(\/(book|walk-in|edit))\/form(\/[a-zA-Z0-9_-]+)?$/.test(pathname);
 
+  // /book/selectRoom, /book/form, /walk-in/selectRoom, /walk-in/form, /edit/selectRoom/<id>, /edit/form/<id>
   const showStatusBar =
-    pathname === "/book/selectRoom" ||
-    pathname === "/book/form" ||
-    pathname === "/walk-in/selectRoom" ||
-    pathname === "/walk-in/form";
+    /^(\/(book|walk-in|edit))\/(selectRoom|form)(\/[^\/]+)?$/.test(pathname);
 
   return (
     <StickyScroll

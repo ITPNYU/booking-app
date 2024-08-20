@@ -5,7 +5,7 @@ import { DatabaseContext } from "../../components/Provider";
 import { Inputs } from "../../../../types";
 import { useRouter } from "next/navigation";
 
-export default function useSubmitBooking(isWalkIn: boolean) {
+export default function useSubmitBooking(isEdit: boolean, isWalkIn: boolean) {
   const router = useRouter();
   const { liaisonUsers, userEmail, reloadBookings, reloadBookingStatuses } =
     useContext(DatabaseContext);
@@ -22,10 +22,19 @@ export default function useSubmitBooking(isWalkIn: boolean) {
   } = useContext(BookingContext);
 
   const registerEvent = useCallback(
-    async (data: Inputs, isAutoApproval: boolean) => {
+    async (data: Inputs, isAutoApproval: boolean, calendarEventId?: string) => {
       if (!department || !role) {
         console.error("Missing info for submitting booking");
         return;
+      }
+
+      if (isEdit && data.netId) {
+        // block another person editing someone's booking
+        // TODO unless is PA or admin editing
+        if (data.netId + "@nyu.edu" !== userEmail) {
+          setSubmitting("error");
+          return;
+        }
       }
 
       let email: string;
@@ -47,7 +56,7 @@ export default function useSubmitBooking(isWalkIn: boolean) {
 
       const endpoint = isWalkIn ? "/api/walkIn" : "/api/bookings";
       fetch(`${process.env.NEXT_PUBLIC_BASE_URL}${endpoint}`, {
-        method: "POST",
+        method: isWalkIn || !isEdit ? "POST" : "PUT",
         headers: {
           "Content-Type": "application/json",
         },
@@ -58,6 +67,7 @@ export default function useSubmitBooking(isWalkIn: boolean) {
           liaisonUsers,
           data,
           isAutoApproval,
+          ...(isEdit && calendarEventId && { calendarEventId }),
         }),
       })
         .then((res) => {

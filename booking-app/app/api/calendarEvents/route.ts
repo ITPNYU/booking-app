@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
+  deleteEvent,
   insertEvent,
   updateEventPrefix,
 } from "@/components/src/server/calendars";
@@ -29,6 +30,7 @@ const getCalendarEvents = async (calendarId: string) => {
     title: e.summary,
     start: e.start?.dateTime || e.start?.date,
     end: e.end?.dateTime || e.end?.date,
+    calendarEventId: e.id,
   }));
 
   return formattedEvents;
@@ -113,6 +115,29 @@ export async function PUT(req: NextRequest) {
     console.error("Error updating event:", error);
     return NextResponse.json(
       { error: "Failed to update event" },
+      { status: 500 },
+    );
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  const { calendarId, calendarEventId } = await req.json();
+  if (!calendarId || !calendarEventId) {
+    return NextResponse.json(
+      { error: "Missing required fields" },
+      { status: 400 },
+    );
+  }
+  try {
+    await deleteEvent(calendarId, calendarEventId);
+    return NextResponse.json(
+      { message: "Event deleted successfully" },
+      { status: 200 },
+    );
+  } catch (error) {
+    console.error("Error deleting event:", error);
+    return NextResponse.json(
+      { error: "Failed to delete event" },
       { status: 500 },
     );
   }

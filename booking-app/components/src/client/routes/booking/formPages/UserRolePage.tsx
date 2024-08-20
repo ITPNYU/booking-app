@@ -28,10 +28,16 @@ const Container = styled(Box)(({ theme }) => ({
 }));
 
 interface Props {
+  calendarEventId?: string;
+  isEdit?: boolean;
   isWalkIn?: boolean;
 }
 
-export default function UserRolePage({ isWalkIn = false }: Props) {
+export default function UserRolePage({
+  calendarEventId,
+  isEdit = false,
+  isWalkIn = false,
+}: Props) {
   const { role, department, setDepartment, setRole } =
     useContext(BookingContext);
 
@@ -49,7 +55,11 @@ export default function UserRolePage({ isWalkIn = false }: Props) {
       alert("Please make sure all fields are selected.");
       return;
     }
-    router.push(isWalkIn ? "/walk-in/selectRoom" : "/book/selectRoom");
+    if (isEdit && calendarEventId != null) {
+      router.push("/edit/selectRoom/" + calendarEventId);
+    } else {
+      router.push(isWalkIn ? "/walk-in/selectRoom" : "/book/selectRoom");
+    }
   };
 
   return (

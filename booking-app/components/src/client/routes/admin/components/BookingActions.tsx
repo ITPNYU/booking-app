@@ -15,6 +15,8 @@ import Check from "@mui/icons-material/Check";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import { DatabaseContext } from "../../components/Provider";
 import Loading from "../../components/Loading";
+import useExistingBooking from "../hooks/useExistingBooking";
+import { useRouter } from "next/navigation";
 
 interface Props {
   calendarEventId: string;
@@ -32,6 +34,7 @@ enum Actions {
   FIRST_APPROVE = "1st Approve",
   SECOND_APPROVE = "2nd Approve",
   REJECT = "Reject",
+  EDIT = "Edit",
   PLACEHOLDER = "",
 }
 
@@ -55,6 +58,8 @@ export default function BookingActions({
   );
   const { reloadBookings, reloadBookingStatuses } = useContext(DatabaseContext);
   const [showError, setShowError] = useState(false);
+  const router = useRouter();
+  const loadExistingBookingData = useExistingBooking();
 
   const reload = async () => {
     await Promise.all([reloadBookings(), reloadBookingStatuses()]);
@@ -137,6 +142,14 @@ export default function BookingActions({
       optimisticNextStatus: BookingStatusLabel.REJECTED,
       confirmation: true,
     },
+    [Actions.EDIT]: {
+      action: async () => {
+        loadExistingBookingData(calendarEventId);
+        router.push("/edit/" + calendarEventId);
+      },
+      optimisticNextStatus: status,
+      confirmation: false,
+    },
     // never used, just make typescript happy
     [Actions.PLACEHOLDER]: {
       action: async () => {},
@@ -144,10 +157,19 @@ export default function BookingActions({
     },
   };
 
-  const userOptions = useMemo(
-    () => (status === BookingStatusLabel.CANCELED ? [] : [Actions.CANCEL]),
-    [status]
-  );
+  const userOptions = useMemo(() => {
+    let options = [];
+    if (status !== BookingStatusLabel.CANCELED) {
+      options.push(Actions.CANCEL);
+    }
+    if (
+      status !== BookingStatusLabel.CHECKED_IN &&
+      status !== BookingStatusLabel.NO_SHOW
+    ) {
+      options.push(Actions.EDIT);
+    }
+    return options;
+  }, [status]);
 
   const paOptions = useMemo(() => {
     let options = [];

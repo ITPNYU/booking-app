@@ -1,8 +1,8 @@
-import { Box, Typography, useTheme } from "@mui/material";
+import { Box, Typography } from "@mui/material";
 import { CalendarApi, DateSelectArg, EventClickArg } from "@fullcalendar/core";
 import { CalendarEvent, RoomSetting } from "../../../../types";
 import CalendarEventBlock, { NEW_TITLE_TAG } from "./CalendarEventBlock";
-import React, { useContext, useEffect, useMemo, useRef, useState } from "react";
+import React, { useContext, useEffect, useMemo, useRef } from "react";
 
 import { BookingContext } from "../bookingProvider";
 import FullCalendar from "@fullcalendar/react";
@@ -12,6 +12,8 @@ import resourceTimeGridPlugin from "@fullcalendar/resource-timegrid";
 import { styled } from "@mui/system";
 
 interface Props {
+  calendarEventId?: string;
+  isEdit: boolean;
   rooms: RoomSetting[];
   dateView: Date;
 }
@@ -68,9 +70,12 @@ const Empty = styled(Box)(({ theme }) => ({
   color: theme.palette.custom.gray3,
 }));
 
-export default function CalendarVerticalResource({ rooms, dateView }: Props) {
-  const theme = useTheme();
-
+export default function CalendarVerticalResource({
+  calendarEventId,
+  isEdit,
+  rooms,
+  dateView,
+}: Props) {
   const {
     bookingCalendarInfo,
     existingCalendarEvents,
@@ -162,6 +167,17 @@ export default function CalendarVerticalResource({ rooms, dateView }: Props) {
     }
   };
 
+  // for editing an existing reservation
+  const existingCalEventsFiltered = useMemo(() => {
+    if (!isEdit || calendarEventId == null || calendarEventId.length === 0)
+      return existingCalendarEvents;
+
+    // based on how we format the id in fetchCalendarEvents
+    return existingCalendarEvents.filter(
+      (event) => event.id.split(":")[0] !== calendarEventId
+    );
+  }, [existingCalendarEvents, isEdit]);
+
   if (rooms.length === 0) {
     return (
       <Empty>
@@ -189,7 +205,7 @@ export default function CalendarVerticalResource({ rooms, dateView }: Props) {
         schedulerLicenseKey="CC-Attribution-NonCommercial-NoDerivatives"
         resources={resources}
         resourceOrder={"index"}
-        events={[...blockPastTimes, ...existingCalendarEvents, ...newEvents]}
+        events={[...blockPastTimes, ...existingCalEventsFiltered, ...newEvents]}
         eventContent={CalendarEventBlock}
         eventClick={function (info) {
           info.jsEvent.preventDefault();
