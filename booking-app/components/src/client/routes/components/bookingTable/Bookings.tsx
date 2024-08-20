@@ -1,4 +1,8 @@
 import { Booking, BookingRow, BookingStatusLabel } from "../../../../types";
+import BookingTableFilters, {
+  DATE_FILTERS,
+  DateRangeFilter,
+} from "./BookingTableFilters";
 import { Box, TableCell } from "@mui/material";
 import React, {
   useCallback,
@@ -11,7 +15,6 @@ import SortableTableCell, { COMPARATORS } from "./SortableTableCell";
 import Table, { TableEmpty } from "../Table";
 
 import BookMoreButton from "./BookMoreButton";
-import BookingTableFilters from "./BookingTableFilters";
 import BookingTableRow from "./BookingTableRow";
 import { DatabaseContext } from "../Provider";
 import Loading from "../Loading";
@@ -40,6 +43,8 @@ export const Bookings: React.FC<BookingsProps> = ({
 
   const [modalData, setModalData] = useState<BookingRow>(null);
   const [statusFilters, setStatusFilters] = useState([]);
+  const [selectedDateRange, setSelectedDateRange] =
+    useState<DateRangeFilter>("today");
   const [orderBy, setOrderBy] = useState<keyof BookingRow>("startDate");
   const [order, setOrder] = useState<"asc" | "desc">("asc");
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -102,6 +107,11 @@ export const Bookings: React.FC<BookingsProps> = ({
         )
     );
 
+    // filter by selected PA date range
+    if (isPaView) {
+      filtered = filtered.filter(DATE_FILTERS[selectedDateRange]);
+    }
+
     // column sorting
     const comparator = COMPARATORS[orderBy];
     const coeff = order === "asc" ? 1 : -1;
@@ -121,6 +131,7 @@ export const Bookings: React.FC<BookingsProps> = ({
     order,
     orderBy,
     currentTime,
+    selectedDateRange,
   ]);
 
   const topRow = useMemo(() => {
@@ -140,12 +151,17 @@ export const Bookings: React.FC<BookingsProps> = ({
     }
     return (
       <BookingTableFilters
-        allowedStatuses={allowedStatuses}
-        selected={statusFilters}
-        setSelected={setStatusFilters}
+        selectedStatuses={statusFilters}
+        setSelectedStatuses={setStatusFilters}
+        {...{
+          allowedStatuses,
+          isPaView,
+          selectedDateRange,
+          setSelectedDateRange,
+        }}
       />
     );
-  }, [isUserView, statusFilters, allowedStatuses]);
+  }, [isUserView, statusFilters, allowedStatuses, selectedDateRange]);
 
   const bottomSection = useMemo(() => {
     if (bookingsLoading && bookings.length === 0) {
