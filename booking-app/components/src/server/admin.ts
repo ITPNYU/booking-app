@@ -333,6 +333,37 @@ export const checkin = async (id: string) => {
   );
 };
 
+export const checkOut = async (id: string) => {
+  updateDataByCalendarEventId(TableNames.BOOKING_STATUS, id, {
+    checkedOutAt: Timestamp.now(),
+  });
+  const doc = await getDataByCalendarEventId(TableNames.BOOKING_STATUS, id);
+  //@ts-ignore
+  const guestEmail = doc ? doc.email : null;
+
+  const headerMessage =
+    "Your reservation request for Media Commons has been checked out. Thank you for choosing Media Commons.";
+  sendBookingDetailEmail(
+    id,
+    guestEmail,
+    headerMessage,
+    BookingStatusLabel.CHECKED_OUT
+  );
+  const response = await fetch(
+    `${process.env.NEXT_PUBLIC_BASE_URL}/api/calendarEvents`,
+    {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        calendarEventId: id,
+        newPrefix: BookingStatusLabel.CHECKED_OUT,
+      }),
+    }
+  );
+};
+
 export const noShow = async (id: string) => {
   updateDataByCalendarEventId(TableNames.BOOKING_STATUS, id, {
     noShowedAt: Timestamp.now(),

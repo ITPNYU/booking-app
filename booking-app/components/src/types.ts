@@ -46,6 +46,7 @@ export type BookingStatus = {
   rejectedAt: Timestamp;
   canceledAt: Timestamp;
   checkedInAt: Timestamp;
+  checkedOutAt: Timestamp;
   noShowedAt: Timestamp;
   walkedInAt: Timestamp;
 };
@@ -55,6 +56,7 @@ export enum BookingStatusLabel {
   APPROVED = "APPROVED",
   CANCELED = "CANCELED",
   CHECKED_IN = "CHECKED-IN",
+  CHECKED_OUT = "CHECKED-OUT",
   NO_SHOW = "NO-SHOW",
   PENDING = "PENDING",
   REJECTED = "DECLINED",

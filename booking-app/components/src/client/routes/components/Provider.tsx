@@ -201,6 +201,7 @@ export const DatabaseProvider = ({
           rejectedAt: item.rejectedAt,
           canceledAt: item.canceledAt,
           checkedInAt: item.checkedInAt,
+          checkedOutAt: item.checkedOutAt,
           noShowedAt: item.noShowedAt,
           walkedInAt: item.walkedInAt,
         }));

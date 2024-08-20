@@ -1,7 +1,8 @@
 /********** GOOGLE SHEETS ************/
 
-import { getFinalApproverEmail } from "@/lib/firebase/firebase";
 import { BookingStatusLabel, DevBranch } from "./types";
+
+import { getFinalApproverEmail } from "@/lib/firebase/firebase";
 
 /** ACTIVE master Google Sheet  */
 export const ACTIVE_SHEET_ID = "1MnWbn6bvNyMiawddtYYx0tRW4NMgvugl0I8zBO3sy68";
@@ -86,6 +87,7 @@ export const CALENDAR_HIDE_STATUS = [
   BookingStatusLabel.NO_SHOW,
   BookingStatusLabel.CANCELED,
   BookingStatusLabel.REJECTED,
+  BookingStatusLabel.CHECKED_OUT,
 ];
 
 export const STORAGE_KEY_BOOKING = "mediaCommonsDevBooking";

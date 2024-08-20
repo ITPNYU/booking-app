@@ -18,12 +18,16 @@ export default function getBookingStatus(
     };
 
     const checkedInTimestamp = timeStringtoDate(bookingStatusMatch.checkedInAt);
+    const checkedOutTimestamp = timeStringtoDate(
+      bookingStatusMatch.checkedOutAt
+    );
     const noShowTimestamp = timeStringtoDate(bookingStatusMatch.noShowedAt);
     const canceledTimestamp = timeStringtoDate(bookingStatusMatch.canceledAt);
 
     // if any of checkedInAt, noShowedAt, canceledAt have a date, return the most recent
     if (
       checkedInTimestamp.getTime() !== 0 ||
+      checkedOutTimestamp.getTime() !== 0 ||
       noShowTimestamp.getTime() !== 0 ||
       canceledTimestamp.getTime() !== 0
     ) {
@@ -38,6 +42,11 @@ export default function getBookingStatus(
       if (canceledTimestamp > mostRecentTimestamp) {
         mostRecentTimestamp = canceledTimestamp;
         label = BookingStatusLabel.CANCELED;
+      }
+
+      if (checkedOutTimestamp > mostRecentTimestamp) {
+        mostRecentTimestamp = checkedOutTimestamp;
+        label = BookingStatusLabel.CHECKED_OUT;
       }
       return label;
     }

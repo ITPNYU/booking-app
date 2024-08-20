@@ -3,6 +3,7 @@ import React, { useContext, useMemo, useState } from "react";
 import {
   approveBooking,
   cancel,
+  checkOut,
   checkin,
   noShow,
   reject,
@@ -27,6 +28,7 @@ enum Actions {
   CANCEL = "Cancel",
   NO_SHOW = "No Show",
   CHECK_IN = "Check In",
+  CHECK_OUT = "Check Out",
   FIRST_APPROVE = "1st Approve",
   SECOND_APPROVE = "2nd Approve",
   REJECT = "Reject",
@@ -110,6 +112,12 @@ export default function BookingActions({
       },
       optimisticNextStatus: BookingStatusLabel.CHECKED_IN,
     },
+    [Actions.CHECK_OUT]: {
+      action: async () => {
+        await checkOut(calendarEventId);
+      },
+      optimisticNextStatus: BookingStatusLabel.CHECKED_OUT,
+    },
     [Actions.FIRST_APPROVE]: {
       action: async () => {
         await approveBooking(calendarEventId);
@@ -149,6 +157,7 @@ export default function BookingActions({
       options.push(Actions.NO_SHOW);
     } else if (status === BookingStatusLabel.CHECKED_IN) {
       options.push(Actions.NO_SHOW);
+      options.push(Actions.CHECK_OUT);
     } else if (status === BookingStatusLabel.NO_SHOW) {
       options.push(Actions.CHECK_IN);
     }
@@ -158,7 +167,8 @@ export default function BookingActions({
   const adminOptions = useMemo(() => {
     if (
       status === BookingStatusLabel.CANCELED ||
-      status === BookingStatusLabel.REJECTED
+      status === BookingStatusLabel.REJECTED ||
+      status === BookingStatusLabel.CHECKED_OUT
     ) {
       return [];
     }
