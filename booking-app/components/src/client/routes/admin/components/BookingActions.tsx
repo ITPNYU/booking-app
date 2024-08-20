@@ -181,6 +181,7 @@ export default function BookingActions({
     }
 
     options = options.concat(paOptions);
+    options.push(Actions.CANCEL);
     options.push(Actions.REJECT);
     return options;
   }, [status, paOptions]);
