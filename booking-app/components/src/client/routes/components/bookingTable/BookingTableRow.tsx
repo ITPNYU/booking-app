@@ -7,7 +7,11 @@ import {
   tooltipClasses,
 } from "@mui/material";
 import React, { useContext, useMemo, useRef, useState } from "react";
-import { formatDateTable, formatTimeTable } from "../../../utils/date";
+import {
+  formatDateTable,
+  formatTimeAmPm,
+  formatTimeTable,
+} from "../../../utils/date";
 
 import BookingActions from "../../admin/components/BookingActions";
 import { DatabaseContext } from "../Provider";
@@ -48,7 +52,7 @@ export default function BookingTableRow({
       </TableCell>
       <StackedTableCell
         topText={formatDateTable(booking.startDate.toDate())}
-        bottomText={`${formatTimeTable(booking.startDate.toDate())} - ${formatTimeTable(
+        bottomText={`${formatTimeAmPm(booking.startDate.toDate())} - ${formatTimeAmPm(
           booking.endDate.toDate()
         )}`}
       />
