@@ -9,11 +9,11 @@ import {
   doc,
   getDoc,
   getDocs,
+  limit,
   query,
   setDoc,
   updateDoc,
   where,
-  limit,
 } from "@firebase/firestore";
 
 import { TableNames } from "@/components/src/policy";
@@ -100,7 +100,9 @@ export const getDataByCalendarEventId = async <T>(
   }
 };
 
-export const getFinalApproverEmail = async (): Promise<string | null> => {
+export const getFinalApproverEmailFromDatabase = async (): Promise<
+  string | null
+> => {
   try {
     const policyCollection = collection(db, TableNames.POLICY);
     const q = query(policyCollection, limit(1));

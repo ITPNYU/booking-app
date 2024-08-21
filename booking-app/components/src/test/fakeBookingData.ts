@@ -62,7 +62,7 @@ function genFakeBookingStatusRow(
     email,
     requestedAt: new Date(),
     firstApprovedAt: "",
-    secondApprovedAt: "",
+    finalApprovedAt: "",
     declinedAt: "",
     canceledAt: "",
     checkedInAt: "",

@@ -2,7 +2,7 @@
 
 import { BookingStatusLabel, DevBranch } from "./types";
 
-import { getFinalApproverEmail } from "@/lib/firebase/firebase";
+import { getFinalApproverEmailFromDatabase } from "@/lib/firebase/firebase";
 
 /** ACTIVE master Google Sheet  */
 export const ACTIVE_SHEET_ID = "1MnWbn6bvNyMiawddtYYx0tRW4NMgvugl0I8zBO3sy68";
@@ -47,8 +47,8 @@ export const MEDIA_COMMON_EMAIL = "mediacommons.reservations@nyu.edu";
 
 /********** CONTACTS ************/
 
-export const getSecondApproverEmail = async (): Promise<string> => {
-  const finalApproverEmail = await getFinalApproverEmail();
+export const getFinalApproverEmail = async (): Promise<string> => {
+  const finalApproverEmail = await getFinalApproverEmailFromDatabase();
   return (
     finalApproverEmail || "booking-app-devs+notFoundFinalApprover@itp.nyu.edu"
   );

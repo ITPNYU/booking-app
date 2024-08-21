@@ -42,7 +42,7 @@ export type BookingStatus = {
   email: string;
   requestedAt: Timestamp;
   firstApprovedAt: Timestamp;
-  secondApprovedAt: Timestamp;
+  finalApprovedAt: Timestamp;
   declinedAt: Timestamp;
   canceledAt: Timestamp;
   checkedInAt: Timestamp;

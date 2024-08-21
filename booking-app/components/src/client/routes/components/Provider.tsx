@@ -198,7 +198,7 @@ export const DatabaseProvider = ({
           email: item.email,
           requestedAt: item.requestedAt,
           firstApprovedAt: item.firstApprovedAt,
-          secondApprovedAt: item.secondApprovedAt,
+          finalApprovedAt: item.finalApprovedAt,
           declinedAt: item.declinedAt,
           canceledAt: item.canceledAt,
           checkedInAt: item.checkedInAt,

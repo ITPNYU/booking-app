@@ -4,11 +4,7 @@ import {
   BookingStatusLabel,
   PolicySettings,
 } from "../types";
-import {
-  TableNames,
-  getCancelCcEmail,
-  getSecondApproverEmail,
-} from "../policy";
+import { TableNames, getCancelCcEmail, getFinalApproverEmail } from "../policy";
 import { approvalUrl, declineUrl, getBookingToolDeployUrl } from "./ui";
 import {
   deleteDataFromFirestore,
@@ -86,15 +82,15 @@ const firstApprove = (id: string) => {
   });
 };
 
-const secondApprove = (id: string) => {
+const finalApprove = (id: string) => {
   updateDataByCalendarEventId(TableNames.BOOKING_STATUS, id, {
-    secondApprovedAt: Timestamp.now(),
+    finalApprovedAt: Timestamp.now(),
   });
 };
 
 export const approveInstantBooking = (id: string) => {
   firstApprove(id);
-  secondApprove(id);
+  finalApprove(id);
   approveEvent(id);
 };
 
@@ -113,7 +109,7 @@ export const approveBooking = async (id: string) => {
 
   // if already first approved, then this is a second approve
   if (firstApproveDateRange !== null) {
-    secondApprove(id);
+    finalApprove(id);
     await approveEvent(id);
   } else {
     firstApprove(id);
@@ -137,7 +133,7 @@ export const approveBooking = async (id: string) => {
       ...contents,
       headerMessage: "This is a request email for final approval.",
     };
-    const recipient = await getSecondApproverEmail();
+    const recipient = await getFinalApproverEmail();
     const formData = {
       templateName: "approval_email",
       contents: emailContents,
@@ -165,7 +161,7 @@ export const sendConfirmationEmail = async (
   status: BookingStatusLabel,
   headerMessage: string
 ) => {
-  const email = await getSecondApproverEmail();
+  const email = await getFinalApproverEmail();
   sendBookingDetailEmail(calendarEventId, email, headerMessage, status);
 };
 

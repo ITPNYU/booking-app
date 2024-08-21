@@ -32,7 +32,7 @@ enum Actions {
   CHECK_IN = "Check In",
   CHECK_OUT = "Check Out",
   FIRST_APPROVE = "1st Approve",
-  SECOND_APPROVE = "2nd Approve",
+  FINAL_APPROVE = "Final Approve",
   DECLINE = "Decline",
   EDIT = "Edit",
   PLACEHOLDER = "",
@@ -129,7 +129,7 @@ export default function BookingActions({
       },
       optimisticNextStatus: BookingStatusLabel.PENDING,
     },
-    [Actions.SECOND_APPROVE]: {
+    [Actions.FINAL_APPROVE]: {
       action: async () => {
         await approveBooking(calendarEventId);
       },
@@ -199,7 +199,7 @@ export default function BookingActions({
     if (status === BookingStatusLabel.REQUESTED) {
       options.push(Actions.FIRST_APPROVE);
     } else if (status === BookingStatusLabel.PENDING) {
-      options.push(Actions.SECOND_APPROVE);
+      options.push(Actions.FINAL_APPROVE);
     }
 
     options = options.concat(paOptions);

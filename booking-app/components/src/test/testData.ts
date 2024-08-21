@@ -61,8 +61,8 @@ const argv = yargs(hideBin(process.argv))
 const handleStatus = (status: string) => {
   const date = new Date();
   switch (status) {
-    case "secondApproved":
-      fakeBookingStatusData["secondApprovedAt"] = date;
+    case "finalApproved":
+      fakeBookingStatusData["finalApprovedAt"] = date;
     case "firstApproved":
       fakeBookingStatusData["firstApprovedAt"] = date;
       return;

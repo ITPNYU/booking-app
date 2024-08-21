@@ -53,7 +53,7 @@ export default function getBookingStatus(
 
     if (bookingStatusMatch.declinedAt != undefined) {
       return BookingStatusLabel.DECLINED;
-    } else if (bookingStatusMatch.secondApprovedAt !== undefined) {
+    } else if (bookingStatusMatch.finalApprovedAt !== undefined) {
       return BookingStatusLabel.APPROVED;
     } else if (bookingStatusMatch.firstApprovedAt !== undefined) {
       return BookingStatusLabel.PENDING;

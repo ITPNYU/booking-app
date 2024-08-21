@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   TableNames,
   getApprovalCcEmail,
-  getSecondApproverEmail,
+  getFinalApproverEmail,
 } from "@/components/src/policy";
 import {
   approveInstantBooking,
@@ -14,6 +14,10 @@ import {
   toFirebaseTimestampFromString,
 } from "@/components/src/client/utils/date";
 import {
+  getNextSequentialId,
+  saveDataToFirestore,
+} from "@/lib/firebase/firebase";
+import {
   getRoomCalendarId,
   insertEvent,
 } from "@/components/src/server/calendars";
@@ -21,10 +25,6 @@ import {
 import { Timestamp } from "@firebase/firestore";
 import { firstApproverEmails } from "@/components/src/server/db";
 import { getBookingToolDeployUrl } from "@/components/src/server/ui";
-import {
-  getNextSequentialId,
-  saveDataToFirestore,
-} from "@/lib/firebase/firebase";
 import { sendHTMLEmail } from "@/app/lib/sendHTMLEmail";
 
 export async function POST(request: NextRequest) {
@@ -124,7 +124,7 @@ export async function POST(request: NextRequest) {
 
   const notifyEmails = [
     data.sponsorEmail ?? null,
-    await getSecondApproverEmail(),
+    await getFinalApproverEmail(),
     getApprovalCcEmail(process.env.NEXT_PUBLIC_BRANCH_NAME),
   ].filter(x => x != null);
   await sendWalkInNofificationEmail(notifyEmails);
