@@ -6,8 +6,8 @@ import {
 import { NextRequest, NextResponse } from "next/server";
 import {
   approvalUrl,
+  declineUrl,
   getBookingToolDeployUrl,
-  rejectUrl,
 } from "@/components/src/server/ui";
 import {
   approveInstantBooking,
@@ -108,7 +108,7 @@ async function handleBookingApprovalEmails(
       startDate: bookingCalendarInfo?.startStr,
       endDate: bookingCalendarInfo?.endStr,
       approvalUrl,
-      rejectUrl,
+      declineUrl,
       bookingToolUrl: getBookingToolDeployUrl(),
       headerMessage: "This is a request email for first approval.",
       requestNumber: sequentialId,

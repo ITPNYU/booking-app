@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
   <head>
     <style>
@@ -22,8 +22,11 @@
         padding: 6px 12px;
         font-size: 1rem;
         border-radius: 0.25rem;
-        transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out,
-          border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+        transition:
+          color 0.15s ease-in-out,
+          background-color 0.15s ease-in-out,
+          border-color 0.15s ease-in-out,
+          box-shadow 0.15s ease-in-out;
         color: #0d6efd;
         border-color: #0d6efd;
         :hover {
@@ -63,125 +66,41 @@
     </div>
     <div class="container">
       <h2>Room Reservation Request</h2>
-      <p>
-        Room Number:
-        <?= roomId ?>
-      </p>
+      <p>Room Number: <?= roomId ?></p>
 
-      <p>
-        First name:
-        <?= firstName ?>
-      </p>
-      <p>
-        Last name:
-        <?= lastName ?>
-      </p>
+      <p>First name: <?= firstName ?></p>
+      <p>Last name: <?= lastName ?></p>
 
-      <p>
-        Email:
-        <?= email ?>
-      </p>
-      <p>
-        Start date:
-        <?= startDate ?>
-      </p>
-      <p>
-        End date:
-        <?= endDate ?>
-      </p>
-      <p>
-        Secondary Point of Contact:
-        <?= secondaryName ?>
-      </p>
-      <p>
-        NYU N-number:
-        <?= nNumber ?>
-      </p>
-      <p>
-        Net Id:
-        <?= netId ?>
-      </p>
-      <p>
-        Phone Number:
-        <?= phoneNumber ?>
-      </p>
-      <p>
-        Department:
-        <?= department ?>
-      </p>
-      <p>
-        Requestor's Role:
-        <?= role?>
-      </p>
-      <p>
-        Sponsor First Name:
-        <?= sponsorFirstName ?>
-      </p>
-      <p>
-        Sponsor Last Name:
-        <?= sponsorLastName ?>
-      </p>
-      <p>
-        Sponsor Email:
-        <?= sponsorEmail ?>
-      </p>
-      <p>
-        Reservation Title:
-        <?= title ?>
-      </p>
-      <p>
-        Reservation Description:
-        <?= description ?>
-      </p>
-      <p>
-        Reservation Type:
-        <?= reservationType ?>
-      </p>
-      <p>
-        Expected Attendance:
-        <?= expectedAttendance ?>
-      </p>
-      <p>
-        Attendee Affiliations:
-        <?= attendeeAffiliation ?>
-      </p>
-      <p>
-        Room setup needed?:
-        <?= roomSetup ?>
-        <?= setupDetails ?>
-      </p>
-      <p>
-        Chartfield for Room setup?:
-        <?= chartFieldForRoomSetup ?>
-      </p>
-      <p>
-        Media Services:
-        <?= mediaServices ?>
-        <?= mediaServicesDetails ?>
-      </p>
-      <p>
-        Catering:
-        <?= catering ?>
-      </p>
-      <p>
-        Catering Details:
-        <?= cateringService ?>
-      </p>
-      <p>
-        Chartfield for Catering?:
-        <?= chartFieldForCatering ?>
-      </p>
-      <p>
-        Hire Security:
-        <?= hireSecurity ?>
-      </p>
-      <p>
-        Chartfield for Hiring Security?:
-        <?= chartFieldForSecurity ?>
-      </p>
+      <p>Email: <?= email ?></p>
+      <p>Start date: <?= startDate ?></p>
+      <p>End date: <?= endDate ?></p>
+      <p>Secondary Point of Contact: <?= secondaryName ?></p>
+      <p>NYU N-number: <?= nNumber ?></p>
+      <p>Net Id: <?= netId ?></p>
+      <p>Phone Number: <?= phoneNumber ?></p>
+      <p>Department: <?= department ?></p>
+      <p>Requestor's Role: <?= role?></p>
+      <p>Sponsor First Name: <?= sponsorFirstName ?></p>
+      <p>Sponsor Last Name: <?= sponsorLastName ?></p>
+      <p>Sponsor Email: <?= sponsorEmail ?></p>
+      <p>Reservation Title: <?= title ?></p>
+      <p>Reservation Description: <?= description ?></p>
+      <p>Reservation Type: <?= reservationType ?></p>
+      <p>Expected Attendance: <?= expectedAttendance ?></p>
+      <p>Attendee Affiliations: <?= attendeeAffiliation ?></p>
+      <p>Room setup needed?: <?= roomSetup ?> <?= setupDetails ?></p>
+      <p>Chartfield for Room setup?: <?= chartFieldForRoomSetup ?></p>
+      <p>Media Services: <?= mediaServices ?> <?= mediaServicesDetails ?></p>
+      <p>Catering: <?= catering ?></p>
+      <p>Catering Details: <?= cateringService ?></p>
+      <p>Chartfield for Catering?: <?= chartFieldForCatering ?></p>
+      <p>Hire Security: <?= hireSecurity ?></p>
+      <p>Chartfield for Hiring Security?: <?= chartFieldForSecurity ?></p>
 
       <a href="<?= approvalUrl ?>" target="_blank" class="button">Approve</a>
-      <a href="<?= rejectedUrl ?>" target="_blank" class="button-red">Reject</a>
+      <a href="<?= declinedUrl ?>" target="_blank" class="button-red"
+        >Decline</a
+      >
       <a href="<?= bookingToolUrl ?>" target="_blank" class="button"
         >Open Booking Tool</a
       >

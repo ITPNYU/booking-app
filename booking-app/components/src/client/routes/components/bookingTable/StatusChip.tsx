@@ -36,7 +36,7 @@ export default function StatusChip({ status, disabled = false }: Props) {
         return "rgba(6, 180, 255, 1)";
       case BookingStatusLabel.PENDING:
         return "rgba(223, 26, 255, 1)";
-      case BookingStatusLabel.REJECTED:
+      case BookingStatusLabel.DECLINED:
         return "rgba(255, 26, 26, 1)";
       case BookingStatusLabel.REQUESTED:
         return "rgba(255, 122, 26, 1)";
@@ -64,7 +64,7 @@ export default function StatusChip({ status, disabled = false }: Props) {
         return "rgba(6, 180, 255, 0.11)";
       case BookingStatusLabel.PENDING:
         return "rgba(223, 26, 255, 0.11)";
-      case BookingStatusLabel.REJECTED:
+      case BookingStatusLabel.DECLINED:
         return "rgba(255, 26, 26, 0.11)";
       case BookingStatusLabel.REQUESTED:
         return "rgba(255, 122, 26, 0.11)";
@@ -89,7 +89,7 @@ export default function StatusChip({ status, disabled = false }: Props) {
         return "No Show";
       case BookingStatusLabel.PENDING:
         return "Pending";
-      case BookingStatusLabel.REJECTED:
+      case BookingStatusLabel.DECLINED:
         return "Declined";
       case BookingStatusLabel.REQUESTED:
         return "Requested";

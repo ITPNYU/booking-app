@@ -3,25 +3,25 @@
 import React, { Suspense, useState } from "react";
 
 import { Button } from "@mui/material";
-import { reject } from "@/components/src/server/admin";
+import { decline } from "@/components/src/server/admin";
 import { useSearchParams } from "next/navigation";
 
-const RejectPageContent: React.FC = () => {
+const DeclinePageContent: React.FC = () => {
   const searchParams = useSearchParams();
   const paramCalendarEventId = searchParams.get("calendarEventId");
   const [loading, setLoading] = useState(false);
-  const [rejected, setRejected] = useState(false);
+  const [declined, setDeclined] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleReject = async () => {
+  const handleDecline = async () => {
     if (paramCalendarEventId) {
       setLoading(true);
       setError(null);
       try {
-        await reject(paramCalendarEventId);
-        setRejected(true);
+        await decline(paramCalendarEventId);
+        setDeclined(true);
       } catch (err) {
-        setError("Failed to reject booking.");
+        setError("Failed to decline booking.");
       } finally {
         setLoading(false);
       }
@@ -30,20 +30,20 @@ const RejectPageContent: React.FC = () => {
 
   return (
     <div style={{ padding: 24 }}>
-      <h1>Booking Rejection</h1>
+      <h1>Booking Decline</h1>
       {paramCalendarEventId ? (
         <div>
           <p>Event ID: {paramCalendarEventId}</p>
           <Button
-            onClick={() => handleReject()}
-            disabled={loading || rejected}
+            onClick={() => handleDecline()}
+            disabled={loading || declined}
             variant="contained"
           >
             {loading
-              ? "Rejecting..."
-              : rejected
-                ? "Rejected"
-                : "Reject Booking"}
+              ? "Declining..."
+              : declined
+                ? "Declined"
+                : "Decline Booking"}
           </Button>
           {error && <p style={{ color: "red" }}>{error}</p>}
         </div>
@@ -54,10 +54,10 @@ const RejectPageContent: React.FC = () => {
   );
 };
 
-const RejectPage: React.FC = () => (
+const DeclinePage: React.FC = () => (
   <Suspense fallback={<div>Loading...</div>}>
-    <RejectPageContent />
+    <DeclinePageContent />
   </Suspense>
 );
 
-export default RejectPage;
+export default DeclinePage;

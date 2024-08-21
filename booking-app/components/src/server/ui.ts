@@ -1,4 +1,4 @@
-import { approveBooking, reject } from "./admin";
+import { approveBooking, decline } from "./admin";
 
 import { DevBranch } from "../types";
 
@@ -16,5 +16,5 @@ export const getBookingToolDeployUrl = () => {
 export const approvalUrl = (calendarEventId: string) =>
   `${process.env.NEXT_PUBLIC_BASE_URL}/approve?calendarEventId=${calendarEventId}`;
 
-export const rejectUrl = (calendarEventId: string) =>
-  `${process.env.NEXT_PUBLIC_BASE_URL}/reject?calendarEventId=${calendarEventId}`;
+export const declineUrl = (calendarEventId: string) =>
+  `${process.env.NEXT_PUBLIC_BASE_URL}/decline?calendarEventId=${calendarEventId}`;

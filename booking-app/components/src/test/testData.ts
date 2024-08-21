@@ -66,8 +66,8 @@ const handleStatus = (status: string) => {
     case "firstApproved":
       fakeBookingStatusData["firstApprovedAt"] = date;
       return;
-    case "rejected":
-      fakeBookingStatusData["rejectedAt"] = date;
+    case "declined":
+      fakeBookingStatusData["declinedAt"] = date;
       return;
     case "canceled":
       fakeBookingStatusData["canceledAt"] = date;

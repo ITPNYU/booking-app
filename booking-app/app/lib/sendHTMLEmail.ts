@@ -1,4 +1,4 @@
-import { approvalUrl, rejectUrl } from "@/components/src/server/ui";
+import { approvalUrl, declineUrl } from "@/components/src/server/ui";
 
 import { formatDate } from "@/components/src/client/utils/date";
 import fs from "fs";
@@ -50,7 +50,7 @@ export const sendHTMLEmail = async (params: SendHTMLEmailParams) => {
     startDate: formatDate(contents.startDate),
     endDate: formatDate(contents.endDate),
     approvalUrl: approvalUrl(contents.calendarEventId),
-    rejectUrl: rejectUrl(contents.calendarEventId),
+    declineUrl: declineUrl(contents.calendarEventId),
   });
 
   const messageParts = [

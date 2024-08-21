@@ -9,7 +9,7 @@ import {
   getCancelCcEmail,
   getSecondApproverEmail,
 } from "../policy";
-import { approvalUrl, getBookingToolDeployUrl, rejectUrl } from "./ui";
+import { approvalUrl, declineUrl, getBookingToolDeployUrl } from "./ui";
 import {
   deleteDataFromFirestore,
   fetchAllDataFromCollection,
@@ -26,7 +26,7 @@ export const bookingContents = (id: string) => {
         headerMessage: "This is a request email for final approval.",
         approvalUrl: approvalUrl(id),
         bookingToolUrl: getBookingToolDeployUrl(),
-        rejectUrl: rejectUrl(id),
+        declineUrl: declineUrl(id),
       });
 
       return updatedBookingObj as unknown as BookingFormDetails;
@@ -250,21 +250,21 @@ export const approveEvent = async (id: string) => {
   );
 };
 
-export const reject = async (id: string) => {
+export const decline = async (id: string) => {
   updateDataByCalendarEventId(TableNames.BOOKING_STATUS, id, {
-    rejectedAt: Timestamp.now(),
+    declinedAt: Timestamp.now(),
   });
 
   const doc = await getDataByCalendarEventId(TableNames.BOOKING_STATUS, id);
   //@ts-ignore
   const guestEmail = doc ? doc.email : null;
   const headerMessage =
-    "Your reservation request for Media Commons has been rejected. For detailed reasons regarding this decision, please contact us at mediacommons.reservations@nyu.edu.";
+    "Your reservation request for Media Commons has been declined. For detailed reasons regarding this decision, please contact us at mediacommons.reservations@nyu.edu.";
   sendBookingDetailEmail(
     id,
     guestEmail,
     headerMessage,
-    BookingStatusLabel.REJECTED
+    BookingStatusLabel.DECLINED
   );
   const response = await fetch(
     `${process.env.NEXT_PUBLIC_BASE_URL}/api/calendarEvents`,
@@ -275,7 +275,7 @@ export const reject = async (id: string) => {
       },
       body: JSON.stringify({
         calendarEventId: id,
-        newPrefix: BookingStatusLabel.REJECTED,
+        newPrefix: BookingStatusLabel.DECLINED,
       }),
     }
   );

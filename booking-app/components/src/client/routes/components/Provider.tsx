@@ -199,7 +199,7 @@ export const DatabaseProvider = ({
           requestedAt: item.requestedAt,
           firstApprovedAt: item.firstApprovedAt,
           secondApprovedAt: item.secondApprovedAt,
-          rejectedAt: item.rejectedAt,
+          declinedAt: item.declinedAt,
           canceledAt: item.canceledAt,
           checkedInAt: item.checkedInAt,
           checkedOutAt: item.checkedOutAt,

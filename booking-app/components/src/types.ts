@@ -33,7 +33,7 @@ export type BookingRow = Booking & {
 export type BookingFormDetails = Booking & {
   approvalUrl: string;
   bookingToolUrl: string;
-  rejectedUrl: string;
+  declinedUrl: string;
   headerMessage?: string;
 };
 
@@ -43,7 +43,7 @@ export type BookingStatus = {
   requestedAt: Timestamp;
   firstApprovedAt: Timestamp;
   secondApprovedAt: Timestamp;
-  rejectedAt: Timestamp;
+  declinedAt: Timestamp;
   canceledAt: Timestamp;
   checkedInAt: Timestamp;
   checkedOutAt: Timestamp;
@@ -59,7 +59,7 @@ export enum BookingStatusLabel {
   CHECKED_OUT = "CHECKED-OUT",
   NO_SHOW = "NO-SHOW",
   PENDING = "PENDING",
-  REJECTED = "DECLINED",
+  DECLINED = "DECLINED",
   REQUESTED = "REQUESTED",
   UNKNOWN = "UNKNOWN",
   WALK_IN = "WALK-IN",

@@ -86,7 +86,7 @@ export const WALK_IN_CAN_BOOK_TWO = [221, 222, 223, 224];
 export const CALENDAR_HIDE_STATUS = [
   BookingStatusLabel.NO_SHOW,
   BookingStatusLabel.CANCELED,
-  BookingStatusLabel.REJECTED,
+  BookingStatusLabel.DECLINED,
   BookingStatusLabel.CHECKED_OUT,
 ];
 

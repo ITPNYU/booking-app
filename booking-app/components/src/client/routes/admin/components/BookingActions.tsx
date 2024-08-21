@@ -5,8 +5,8 @@ import {
   cancel,
   checkOut,
   checkin,
+  decline,
   noShow,
-  reject,
 } from "@/components/src/server/admin";
 
 import AlertToast from "../../components/AlertToast";
@@ -33,7 +33,7 @@ enum Actions {
   CHECK_OUT = "Check Out",
   FIRST_APPROVE = "1st Approve",
   SECOND_APPROVE = "2nd Approve",
-  REJECT = "Reject",
+  DECLINE = "Decline",
   EDIT = "Edit",
   PLACEHOLDER = "",
 }
@@ -135,11 +135,11 @@ export default function BookingActions({
       },
       optimisticNextStatus: BookingStatusLabel.APPROVED,
     },
-    [Actions.REJECT]: {
+    [Actions.DECLINE]: {
       action: async () => {
-        await reject(calendarEventId);
+        await decline(calendarEventId);
       },
-      optimisticNextStatus: BookingStatusLabel.REJECTED,
+      optimisticNextStatus: BookingStatusLabel.DECLINED,
       confirmation: true,
     },
     [Actions.EDIT]: {
@@ -189,7 +189,7 @@ export default function BookingActions({
   const adminOptions = useMemo(() => {
     if (
       status === BookingStatusLabel.CANCELED ||
-      status === BookingStatusLabel.REJECTED ||
+      status === BookingStatusLabel.DECLINED ||
       status === BookingStatusLabel.CHECKED_OUT
     ) {
       return [];
@@ -204,7 +204,7 @@ export default function BookingActions({
 
     options = options.concat(paOptions);
     options.push(Actions.CANCEL);
-    options.push(Actions.REJECT);
+    options.push(Actions.DECLINE);
     return options;
   }, [status, paOptions]);
 
