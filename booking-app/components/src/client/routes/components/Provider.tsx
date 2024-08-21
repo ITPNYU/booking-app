@@ -174,6 +174,7 @@ export const DatabaseProvider = ({
           setupDetails: item.setupDetails,
           mediaServices: item.mediaServices,
           mediaServicesDetails: item.mediaServicesDetails,
+          equipmentCheckedOut: item.equipmentCheckedOut,
           catering: item.catering,
           hireSecurity: item.hireSecurity,
           expectedAttendance: item.expectedAttendance,

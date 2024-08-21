@@ -78,11 +78,12 @@ async function handleBookingApprovalEmails(
     recipients: string[],
     contents: BookingFormDetails,
   ) => {
+    const { equipmentCheckedOut, ...otherContents } = contents;
     const emailPromises = recipients.map(recipient =>
       sendHTMLEmail({
         templateName: "approval_email",
         contents: {
-          ...contents,
+          ...otherContents,
           roomId: selectedRoomIds,
           startDate: formatDate(bookingCalendarInfo?.startStr),
           endDate: formatDate(bookingCalendarInfo?.endStr),
@@ -154,6 +155,7 @@ export async function POST(request: NextRequest) {
     startDate: toFirebaseTimestampFromString(bookingCalendarInfo.startStr),
     endDate: toFirebaseTimestampFromString(bookingCalendarInfo.endStr),
     requestNumber: sequentialId,
+    equipmentCheckedOut: false,
     ...data,
   });
   await saveDataToFirestore(TableNames.BOOKING_STATUS, {
@@ -230,6 +232,7 @@ export async function PUT(request: NextRequest) {
     startDate: toFirebaseTimestampFromString(bookingCalendarInfo.startStr),
     endDate: toFirebaseTimestampFromString(bookingCalendarInfo.endStr),
     calendarEventId: newCalendarEventId,
+    equipmentCheckedOut: false,
   };
 
   await updateDataByCalendarEventId(

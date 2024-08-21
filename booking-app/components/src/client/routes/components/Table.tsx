@@ -20,6 +20,10 @@ const TableCustom = styled(MuiTable)(({ theme }) => ({
   "& tr:last-child td": {
     borderBottom: "none",
   },
+
+  th: {
+    paddingRight: 0,
+  },
 }));
 
 const ShadedHeader = styled(TableHead)(({ theme }) => ({

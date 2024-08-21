@@ -1,20 +1,18 @@
 import { BookingRow, BookingStatusLabel } from "../../../../types";
 import {
   IconButton,
+  Switch,
   TableCell,
   TableRow,
   Tooltip,
   tooltipClasses,
 } from "@mui/material";
 import React, { useContext, useMemo, useRef, useState } from "react";
-import {
-  formatDateTable,
-  formatTimeAmPm,
-  formatTimeTable,
-} from "../../../utils/date";
+import { formatDateTable, formatTimeAmPm } from "../../../utils/date";
 
 import BookingActions from "../../admin/components/BookingActions";
 import { DatabaseContext } from "../Provider";
+import EquipmentCheckoutToggle from "./EquipmentCheckoutToggle";
 import MoreHoriz from "@mui/icons-material/MoreHoriz";
 import StackedTableCell from "./StackedTableCell";
 import StatusChip from "./StatusChip";
@@ -23,6 +21,7 @@ import getBookingStatus from "../../hooks/getBookingStatus";
 interface Props {
   booking: BookingRow;
   isAdminView: boolean;
+  isPaView: boolean;
   isUserView: boolean;
   setModalData: (x: BookingRow) => void;
 }
@@ -30,6 +29,7 @@ interface Props {
 export default function BookingTableRow({
   booking,
   isAdminView,
+  isPaView,
   isUserView,
   setModalData,
 }: Props) {
@@ -38,6 +38,13 @@ export default function BookingTableRow({
 
   const [optimisticStatus, setOptimisticStatus] =
     useState<BookingStatusLabel>();
+  // const [optimisticEquipStatus, setOptimisticEquipStatus] = useState<
+  //   boolean | null
+  // >(undefined);
+  // const optimisticEquipStatus = useRef();
+
+  // const setOptimisticEquipStatus = (newVal) =>
+  //   (optimisticEquipStatus.current = newVal);
 
   const status = useMemo(
     () => getBookingStatus(booking, bookingStatuses),
@@ -109,6 +116,14 @@ export default function BookingTableRow({
           <MoreHoriz />
         </IconButton>
       </TableCell>
+      {isPaView && (
+        <TableCell>
+          <EquipmentCheckoutToggle
+            status={booking.equipmentCheckedOut}
+            {...{ booking }}
+          />
+        </TableCell>
+      )}
       <TableCell width={100}>
         <BookingActions
           status={optimisticStatus ?? status}

@@ -1,5 +1,5 @@
 import { Booking, MediaServices } from "@/components/src/types";
-import React, { useContext, useState } from "react";
+import React, { useContext, useRef, useState } from "react";
 
 import { DatabaseContext } from "../Provider";
 import { Switch } from "@mui/material";
@@ -9,50 +9,46 @@ import { updateDataByCalendarEventId } from "@/components/src/server/admin";
 interface Props {
   booking: Booking;
   status: boolean;
-  setOptimisticEquipStatus: (x: boolean) => void;
 }
 
-export default function EquipmentCheckoutToggle({
-  booking,
-  status,
-  setOptimisticEquipStatus,
-}: Props) {
+export default function EquipmentCheckoutToggle({ booking, status }: Props) {
   const [loading, setLoading] = useState(false);
+  const [optimisticStatus, setOptimisticStatus] = useState(status);
+  const originalStatus = useRef(status);
   const { reloadBookings } = useContext(DatabaseContext);
 
   const handleEquipToggleChange = async (
     event: React.ChangeEvent<HTMLInputElement>
   ) => {
+    const newStatus = event.target.checked;
+    setOptimisticStatus(newStatus);
     setLoading(true);
-    setOptimisticEquipStatus(event.target.checked);
 
     try {
       await updateDataByCalendarEventId(
         TableNames.BOOKING,
         booking.calendarEventId,
         {
-          equipmentCheckedOut: event.target.checked,
+          equipmentCheckedOut: newStatus,
         }
       );
+      await reloadBookings();
     } catch (ex) {
       console.error(ex);
-      setOptimisticEquipStatus(undefined);
-      console.error(ex);
+      // Revert to the original status if there's an error
+      setOptimisticStatus(originalStatus.current);
     } finally {
-      await reloadBookings();
-      setOptimisticEquipStatus(undefined);
-      //  setSelectedAction(Actions.PLACEHOLDER);
       setLoading(false);
     }
   };
 
-  if (!booking.mediaServices.includes(MediaServices.CHECKOUT_EQUIPMENT)) {
+  if (!booking.mediaServices?.includes(MediaServices.CHECKOUT_EQUIPMENT)) {
     return null;
   }
 
   return (
     <Switch
-      checked={status}
+      checked={optimisticStatus}
       onChange={handleEquipToggleChange}
       inputProps={{ "aria-label": "controlled" }}
       sx={{ marginLeft: "-8px" }}

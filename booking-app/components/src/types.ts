@@ -23,6 +23,7 @@ export type Booking = Inputs & {
   endDate: Timestamp;
   roomId: string;
   requestNumber: number;
+  equipmentCheckedOut: boolean;
 };
 
 // used for Booking table rows that show status
