@@ -34,7 +34,7 @@ function genFakeBookingRow(
     sponsorEmail: "nnp278@nyu.edu",
     title: "[Test] My Event",
     description: "This is a fake booking for testing",
-    reservationType: "Workshop",
+    bookingType: "Workshop",
     expectedAttendance: "1",
     attendeeAffiliation: "NYU Members",
     roomSetup: "no",

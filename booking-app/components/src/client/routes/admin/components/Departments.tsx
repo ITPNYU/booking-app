@@ -1,5 +1,4 @@
 import React, { useContext, useMemo, useState } from "react";
-import { TableNames, getLiaisonTableName } from "../../../../policy";
 
 import AddDepartmentRow from "../../components/AddDepartmentRow";
 import AddRow from "../../components/AddRow";
@@ -8,6 +7,7 @@ import { DatabaseContext } from "../../components/Provider";
 import { Department } from "../../../../types";
 import Dropdown from "../../booking/components/Dropdown";
 import ListTable from "../../components/ListTable";
+import { TableNames } from "../../../../policy";
 import { formatDate } from "../../../utils/date";
 
 const AddDepartmentForm = ({ departments, reloadDepartments }) => {

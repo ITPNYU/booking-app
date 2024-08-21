@@ -6,8 +6,8 @@ import { DatabaseContext } from "../../components/Provider";
 import { Department } from "../../../../types";
 import Dropdown from "../../booking/components/Dropdown";
 import ListTable from "../../components/ListTable";
+import { TableNames } from "../../../../policy";
 import { formatDate } from "../../../utils/date";
-import { getLiaisonTableName } from "../../../../policy";
 
 const AddLiaisonForm = ({ liaisonEmails, reloadLiaisonEmails }) => {
   const [department, setDepartment] = useState("");
@@ -32,7 +32,7 @@ const AddLiaisonForm = ({ liaisonEmails, reloadLiaisonEmails }) => {
       addFailedErrorMessage="Failed to add user as liaison"
       columnNameUniqueValue="email"
       inputPlaceholder="Add email"
-      tableName={getLiaisonTableName()}
+      tableName={TableNames.APPROVERS}
       rows={liaisonEmails}
       rowsRefresh={reloadLiaisonEmails}
       title="Department Liaisons"
@@ -62,7 +62,7 @@ export const Liaisons = () => {
 
   return (
     <ListTable
-      tableName={getLiaisonTableName()}
+      tableName={TableNames.APPROVERS}
       columnNameToRemoveBy="email"
       rows={rows}
       rowsRefresh={reloadLiaisonUsers}

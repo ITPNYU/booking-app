@@ -99,7 +99,7 @@ export default function FormInput({
       hireSecurity: "no",
       attendeeAffiliation: "",
       roomSetup: "no",
-      reservationType: "",
+      bookingType: "",
       secondaryName: "",
       // copy department + role from earlier in form
       department,
@@ -293,10 +293,10 @@ export default function FormInput({
               {...{ control, errors, trigger }}
             />
             <BookingFormDropdown
-              id="reservationType"
-              label="Reservation Type"
-              options={settings.reservationTypes
-                .map((x) => x.reservationType)
+              id="bookingType"
+              label="Booking Type"
+              options={settings.bookingTypes
+                .map((x) => x.bookingType)
                 .sort((a, b) => a.localeCompare(b))}
               {...{ control, errors, trigger }}
             />

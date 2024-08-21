@@ -8,7 +8,7 @@ import { getCalendarClient } from "@/lib/googleClient";
 export const getRoomCalendarIds = async (roomId: number): Promise<string[]> => {
   const queryConstraints = [where("roomId", "==", roomId)];
   const rooms = await fetchAllDataFromCollection(
-    TableNames.ROOMS,
+    TableNames.RESOURCES,
     queryConstraints
   );
   console.log(`Rooms: ${rooms}`);
@@ -20,7 +20,7 @@ export const getRoomCalendarId = async (
 ): Promise<string | null> => {
   const queryConstraints = [where("roomId", "==", roomId)];
   const rooms = await fetchAllDataFromCollection(
-    TableNames.ROOMS,
+    TableNames.RESOURCES,
     queryConstraints
   );
   if (rooms.length > 0) {

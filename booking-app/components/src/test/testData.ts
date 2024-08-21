@@ -37,7 +37,7 @@ const options: Record<string, Options> = {
   sponsorEmail: { type: "string" },
   title: { type: "string" },
   description: { type: "string" },
-  reservationType: { type: "string" },
+  bookingType: { type: "string" },
   expectedAttendance: { type: "string" },
   attendeeAffiliation: { type: "string" },
   roomSetup: { type: "string" },

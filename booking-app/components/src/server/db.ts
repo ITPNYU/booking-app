@@ -50,10 +50,8 @@ export const getOldSafetyTrainingEmails = () => {
   //return combinedValues;
 };
 
-export const liaisons = async () => {
-  const fetchedData = await fetchAllDataFromCollection(
-    TableNames.LIAISONS_PROD
-  );
+export const approvers = async () => {
+  const fetchedData = await fetchAllDataFromCollection(TableNames.APPROVERS);
   const filtered = fetchedData.map((item: any) => ({
     id: item.id,
     email: item.email,
@@ -64,8 +62,8 @@ export const liaisons = async () => {
 };
 
 export const firstApproverEmails = async (department: string) => {
-  const liaisonsData = await liaisons();
-  return liaisonsData
-    .filter((liaison) => liaison.department === department)
-    .map((liaison) => liaison.email);
+  const approversData = await approvers();
+  return approversData
+    .filter((approver) => approver.department === department)
+    .map((approver) => approver.email);
 };

@@ -3,12 +3,12 @@ import {
   Ban,
   Booking,
   BookingStatus,
+  BookingType,
   DepartmentType,
   LiaisonType,
   PaUser,
   PagePermission,
   PolicySettings,
-  ReservationType,
   RoomSetting,
   SafetyTraining,
   Settings,
@@ -46,7 +46,7 @@ export interface DatabaseContextType {
   reloadDepartmentNames: () => Promise<void>;
   reloadPaUsers: () => Promise<void>;
   reloadPolicySettings: () => Promise<void>;
-  reloadReservationTypes: () => Promise<void>;
+  reloadBookingTypes: () => Promise<void>;
   reloadSafetyTrainedUsers: () => Promise<void>;
   setUserEmail: (x: string) => void;
 }
@@ -64,7 +64,7 @@ export const DatabaseContext = createContext<DatabaseContextType>({
   policySettings: { finalApproverEmail: "" },
   roomSettings: [],
   safetyTrainedUsers: [],
-  settings: { reservationTypes: [] },
+  settings: { bookingTypes: [] },
   userEmail: undefined,
   reloadAdminUsers: async () => {},
   reloadBannedUsers: async () => {},
@@ -74,7 +74,7 @@ export const DatabaseContext = createContext<DatabaseContextType>({
   reloadDepartmentNames: async () => {},
   reloadPaUsers: async () => {},
   reloadPolicySettings: async () => {},
-  reloadReservationTypes: async () => {},
+  reloadBookingTypes: async () => {},
   reloadSafetyTrainedUsers: async () => {},
   setUserEmail: (x: string) => {},
 });
@@ -99,7 +99,7 @@ export const DatabaseProvider = ({
   const [safetyTrainedUsers, setSafetyTrainedUsers] = useState<
     SafetyTraining[]
   >([]);
-  const [settings, setSettings] = useState<Settings>({ reservationTypes: [] });
+  const [settings, setSettings] = useState<Settings>({ bookingTypes: [] });
   const [userEmail, setUserEmail] = useState<string | undefined>();
   const { user } = useAuth();
 
@@ -168,7 +168,7 @@ export const DatabaseProvider = ({
           sponsorEmail: item.sponsorEmail,
           title: item.title,
           description: item.description,
-          reservationType: item.reservationType,
+          bookingType: item.bookingType,
           attendeeAffiliation: item.attendeeAffiliation,
           roomSetup: item.roomSetup,
           setupDetails: item.setupDetails,
@@ -298,7 +298,7 @@ export const DatabaseProvider = ({
   };
 
   const fetchLiaisonUsers = async () => {
-    fetchAllDataFromCollection(TableNames.LIAISONS_PROD)
+    fetchAllDataFromCollection(TableNames.APPROVERS)
       .then((fetchedData) => {
         const filtered = fetchedData.map((item: any) => ({
           id: item.id,
@@ -325,7 +325,7 @@ export const DatabaseProvider = ({
   };
 
   const fetchRoomSettings = async () => {
-    fetchAllDataFromCollection(TableNames.ROOMS)
+    fetchAllDataFromCollection(TableNames.RESOURCES)
       .then((fetchedData) => {
         const filtered = fetchedData.map((item: any) => ({
           id: item.id,
@@ -340,17 +340,17 @@ export const DatabaseProvider = ({
       .catch((error) => console.error("Error fetching data:", error));
   };
 
-  const fetchBookingReservationTypes = async () => {
-    fetchAllDataFromCollection(TableNames.RESERVATION_TYPES)
+  const fetchBookingTypes = async () => {
+    fetchAllDataFromCollection(TableNames.BOOKING_TYPES)
       .then((fetchedData) => {
         const filtered = fetchedData.map((item: any) => ({
           id: item.id,
-          reservationType: item.reservationType,
+          bookingType: item.bookingType,
           createdAt: item.createdAt,
         }));
         setSettings((prev) => ({
           ...prev,
-          reservationTypes: filtered as ReservationType[],
+          bookingTypes: filtered as BookingType[],
         }));
       })
       .catch((error) => console.error("Error fetching data:", error));
@@ -370,7 +370,7 @@ export const DatabaseProvider = ({
   };
 
   const fetchSettings = async () => {
-    fetchBookingReservationTypes();
+    fetchBookingTypes();
     fetchPolicySettings();
   };
 
@@ -399,7 +399,7 @@ export const DatabaseProvider = ({
         reloadDepartmentNames: fetchDepartmentNames,
         reloadPaUsers: fetchPaUsers,
         reloadPolicySettings: fetchPolicySettings,
-        reloadReservationTypes: fetchBookingReservationTypes,
+        reloadBookingTypes: fetchBookingTypes,
         reloadSafetyTrainedUsers: fetchSafetyTrainedUsers,
         setUserEmail,
       }}

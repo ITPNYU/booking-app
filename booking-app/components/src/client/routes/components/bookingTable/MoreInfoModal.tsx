@@ -133,8 +133,8 @@ export default function MoreInfoModal({ booking, closeModal }: Props) {
                   <TableCell>{booking.description}</TableCell>
                 </TableRow>
                 <TableRow>
-                  <LabelCell>Reservation Type</LabelCell>
-                  <TableCell>{booking.reservationType}</TableCell>
+                  <LabelCell>Booking Type</LabelCell>
+                  <TableCell>{booking.bookingType}</TableCell>
                 </TableRow>
                 <TableRow>
                   <LabelCell>Expected Attendance</LabelCell>

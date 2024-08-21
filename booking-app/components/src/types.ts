@@ -65,6 +65,11 @@ export enum BookingStatusLabel {
   WALK_IN = "WALK-IN",
 }
 
+export type BookingType = {
+  bookingType: string;
+  createdAt: string;
+};
+
 export type CalendarEvent = {
   title: string;
   start: string;
@@ -103,7 +108,7 @@ export type Inputs = {
   sponsorEmail: string;
   title: string;
   description: string;
-  reservationType: string;
+  bookingType: string;
   attendeeAffiliation: string;
   roomSetup: string;
   setupDetails: string;
@@ -155,11 +160,6 @@ export type PolicySettings = {
   finalApproverEmail: string;
 };
 
-export type ReservationType = {
-  reservationType: string;
-  createdAt: string;
-};
-
 export enum Role {
   STUDENT = "Student",
   RESIDENT_FELLOW = "Resident/Fellow",
@@ -182,7 +182,7 @@ export type SafetyTraining = {
 };
 
 export type Settings = {
-  reservationTypes: ReservationType[];
+  bookingTypes: BookingType[];
 };
 
 export type SubmitStatus = "none" | "submitting" | "success" | "error";

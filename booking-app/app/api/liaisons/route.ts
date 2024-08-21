@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { fetchAllDataFromCollection } from "@/lib/firebase/firebase";
+
 import { TableNames } from "@/components/src/policy";
+import { fetchAllDataFromCollection } from "@/lib/firebase/firebase";
 
 export async function GET(req: NextRequest) {
   try {
-    const fetchedData = await fetchAllDataFromCollection(
-      TableNames.LIAISONS_PROD,
-    );
+    const fetchedData = await fetchAllDataFromCollection(TableNames.APPROVERS);
     const filtered = fetchedData.map((item: any) => ({
       id: item.id,
       email: item.email,

@@ -7,31 +7,18 @@ import { getFinalApproverEmailFromDatabase } from "@/lib/firebase/firebase";
 /** ACTIVE master Google Sheet  */
 export const ACTIVE_SHEET_ID = "1MnWbn6bvNyMiawddtYYx0tRW4NMgvugl0I8zBO3sy68";
 
-export function getLiaisonTableName() {
-  switch (process.env.BRANCH_NAME as DevBranch) {
-    case "development":
-      return TableNames.LIAISONS_DEV;
-    case "staging":
-      return TableNames.LIAISONS_STAGING;
-    default:
-      return TableNames.LIAISONS_PROD;
-  }
-}
-
 export enum TableNames {
-  ADMINS = "admin_users",
-  BANNED = "banned_users",
+  ADMINS = "usersAdmin",
+  APPROVERS = "usersLiaison",
+  BANNED = "usersBanned",
   BOOKING = "bookings",
   BOOKING_STATUS = "bookingStatus",
-  LIAISONS_DEV = "liaisonsDev",
-  LIAISONS_PROD = "liaisonsProd",
-  LIAISONS_STAGING = "liaisonsStaging",
+  BOOKING_TYPES = "bookingTypes",
   DEPARTMENTS = "departments",
-  PAS = "pa_users",
+  PAS = "usersPa",
   POLICY = "policy",
-  RESERVATION_TYPES = "reservationTypes",
-  ROOMS = "rooms",
-  SAFETY_TRAINING = "safety_training_users",
+  RESOURCES = "rooms",
+  SAFETY_TRAINING = "usersSafetyWhitelist",
   SETTINGS = "settings",
 }
 
