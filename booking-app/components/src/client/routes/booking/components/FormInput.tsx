@@ -424,8 +424,13 @@ export default function FormInput({
                 <BookingFormSwitch
                   id="catering"
                   label="Catering?"
-                  description="It is required for the reservation holder to pay and arrange for
-              CBS cleaning services if the event includes catering"
+                  description={
+                    <p>
+                      It is required for the reservation holder to pay and
+                      arrange for CBS cleaning services if the event includes
+                      catering
+                    </p>
+                  }
                   required={false}
                   {...{ control, errors, trigger }}
                 />
