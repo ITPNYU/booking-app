@@ -10,6 +10,7 @@ import { DatabaseContext } from "../../components/Provider";
 import Grid from "@mui/material/Unstable_Grid2";
 import { SelectRooms } from "../components/SelectRooms";
 import { WALK_IN_ROOMS } from "@/components/src/policy";
+import useCheckFormMissingData from "../hooks/useCheckFormMissingData";
 
 interface Props {
   calendarEventId?: string;
@@ -25,6 +26,7 @@ export default function SelectRoomPage({
   const { roomSettings } = useContext(DatabaseContext);
   const { selectedRooms, setSelectedRooms } = useContext(BookingContext);
   const [date, setDate] = useState<Date>(new Date());
+  useCheckFormMissingData();
 
   const roomsToShow = useMemo(() => {
     return !isWalkIn
