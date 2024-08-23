@@ -51,10 +51,6 @@ export default function UserRolePage({
   }, []);
 
   const handleNextClick = () => {
-    if (!role || !department) {
-      alert("Please make sure all fields are selected.");
-      return;
-    }
     if (isEdit && calendarEventId != null) {
       router.push("/edit/selectRoom/" + calendarEventId);
     } else {
@@ -84,6 +80,7 @@ export default function UserRolePage({
           onClick={handleNextClick}
           variant="contained"
           color="primary"
+          disabled={!role || !department}
           sx={{ marginTop: 6 }}
         >
           Next
