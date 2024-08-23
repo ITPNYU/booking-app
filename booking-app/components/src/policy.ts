@@ -17,7 +17,7 @@ export enum TableNames {
   DEPARTMENTS = "departments",
   PAS = "usersPa",
   POLICY = "policy",
-  RESOURCES = "rooms",
+  RESOURCES = "resources",
   SAFETY_TRAINING = "usersSafetyWhitelist",
   SETTINGS = "settings",
 }
