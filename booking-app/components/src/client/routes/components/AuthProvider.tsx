@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { User } from "firebase/auth";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { auth, signInWithGoogle } from "@/lib/firebase/firebaseClient";
 
 type AuthContextType = {
@@ -26,6 +26,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const pathname = usePathname();
   useEffect(() => {
     const handleAuth = async () => {
       const user = auth.currentUser;
@@ -39,8 +40,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         }
       } else {
         try {
-          const signedInUser = await signInWithGoogle();
-          setUser(signedInUser);
+          if (!pathname.includes("signin")) {
+            const signedInUser = await signInWithGoogle();
+            setUser(signedInUser);
+          }
         } catch (error) {
           router.push("/signin");
         }

@@ -17,6 +17,8 @@ import { DatabaseContext } from "./Provider";
 import { PagePermission } from "../../../types";
 import { styled } from "@mui/system";
 import useHandleStartBooking from "../booking/hooks/useHandleStartBooking";
+import { signOut } from "firebase/auth";
+import { auth } from "@/lib/firebase/firebaseClient";
 
 const Title = styled(Typography)`
   width: fit-content;
@@ -38,7 +40,8 @@ const Divider = styled(Box)(({ theme }) => ({
 
 export default function NavBar() {
   const router = useRouter();
-  const { pagePermission, userEmail } = useContext(DatabaseContext);
+  const { pagePermission, userEmail, setUserEmail } =
+    useContext(DatabaseContext);
   const handleStartBooking = useHandleStartBooking();
   const [selectedView, setSelectedView] = useState<PagePermission>(
     PagePermission.BOOKING
@@ -84,6 +87,17 @@ export default function NavBar() {
       setSelectedView(PagePermission.ADMIN);
     }
   }, [pathname]);
+
+  const handleSignOut = async () => {
+    try {
+      await signOut(auth);
+      console.log("Sign-out successful");
+      router.push("/signin");
+      setUserEmail(null);
+    } catch (error) {
+      console.error("Sign-out error", error);
+    }
+  };
 
   const dropdown = useMemo(() => {
     if (
@@ -152,7 +166,7 @@ export default function NavBar() {
         {dropdown}
         <Divider />
         <ConfirmDialog
-          callback={(result) => console.log("logout:", result)} // TODO @Riho implement logout based on dialog result
+          callback={handleSignOut}
           message="Are you sure you want to log out?"
           title="Log Out"
         >
