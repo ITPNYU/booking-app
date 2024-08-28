@@ -48,7 +48,7 @@ export const getApprovalCcEmail = (branchName: string) =>
 
 export const getCancelCcEmail = () =>
   process.env.NEXT_PUBLIC_BRANCH_NAME === "development"
-    ? "booking-app-devs+cancelcc@itp.nyu.edu"
+    ? "booking-app-devs+mediacommons.reservations@itp.nyu.edu"
     : MEDIA_COMMON_EMAIL;
 
 /********** ROOMS ************/
