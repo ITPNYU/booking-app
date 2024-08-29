@@ -1,6 +1,6 @@
 // firebaseClient.ts
 import { getApp, getApps, initializeApp } from "firebase/app";
-import { initializeFirestore } from "firebase/firestore";
+import { Firestore, initializeFirestore } from "firebase/firestore";
 import { getAuth, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 
 const firebaseConfig = {
@@ -13,19 +13,32 @@ const firebaseConfig = {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 const app = initializeApp(firebaseConfig);
-export const db = initializeFirestore(
-  app,
-  {
+let db: Firestore;
+export const initializeDb = () => {
+  const options: any = {
     experimentalForceLongPolling: true,
     experimentalAutoDetectLongPolling: false,
-  },
-  process.env.NEXT_PUBLIC_DATABASE_NAME
-);
+  };
+
+  options.headers = {
+    "X-API-Key": "BOOKING_APP_API_KEY",
+  };
+
+  db = initializeFirestore(app, options, process.env.NEXT_PUBLIC_DATABASE_NAME);
+  return db;
+};
+export const getDb = () => {
+  if (!db) {
+    initializeDb();
+  }
+  return db;
+};
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({
   hd: "nyu.edu",
 });
+
 export const signInWithGoogle = async () => {
   try {
     const result = await signInWithPopup(auth, googleProvider);

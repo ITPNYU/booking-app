@@ -17,7 +17,7 @@ import {
 } from "@firebase/firestore";
 
 import { TableNames } from "@/components/src/policy";
-import { db } from "./firebaseClient";
+import { getDb } from "./firebaseClient";
 
 export type AdminUserData = {
   email: string;
@@ -29,6 +29,7 @@ export const deleteDataFromFirestore = async (
   docId: string
 ) => {
   try {
+    const db = getDb();
     await deleteDoc(doc(db, collectionName, docId));
     console.log("Document successfully deleted with ID:", docId);
   } catch (error) {
@@ -37,6 +38,7 @@ export const deleteDataFromFirestore = async (
 };
 
 export const getNextSequentialId = async (collectionName) => {
+  const db = getDb();
   const counterDocRef = doc(db, "counters", collectionName);
 
   const counterDoc = await getDoc(counterDocRef);
@@ -56,6 +58,7 @@ export const saveDataToFirestore = async (
   data: object
 ) => {
   try {
+    const db = getDb();
     const docRef = await addDoc(collection(db, collectionName), data);
 
     console.log("Document successfully written with ID:", docRef.id);
@@ -68,6 +71,7 @@ export const fetchAllDataFromCollection = async <T>(
   collectionName: TableNames,
   queryConstraints: QueryConstraint[] = []
 ): Promise<T[]> => {
+  const db = getDb();
   const colRef = collection(db, collectionName);
   const q = query(colRef, ...queryConstraints);
   const snapshot = await getDocs(q);
@@ -83,6 +87,7 @@ export const getDataByCalendarEventId = async <T>(
   calendarEventId: string
 ) => {
   try {
+    const db = getDb();
     const colRef = collection(db, collectionName);
     const q = query(colRef, where("calendarEventId", "==", calendarEventId));
     const querySnapshot: QuerySnapshot = await getDocs(q);
@@ -104,6 +109,7 @@ export const getFinalApproverEmailFromDatabase = async (): Promise<
   string | null
 > => {
   try {
+    const db = getDb();
     const policyCollection = collection(db, TableNames.POLICY);
     const q = query(policyCollection, limit(1));
     const querySnapshot = await getDocs(q);
@@ -127,6 +133,7 @@ export const updateDataInFirestore = async (
   updatedData: object
 ) => {
   try {
+    const db = getDb();
     const docRef = doc(db, collectionName, docId);
     await updateDoc(docRef, updatedData);
     console.log("Document successfully updated with ID:", docId);
