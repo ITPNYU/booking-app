@@ -11,24 +11,35 @@ import {
 import React, { useContext, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
-import { BookingContext } from "../booking/bookingProvider";
 import ConfirmDialog from "./ConfirmDialog";
 import { DatabaseContext } from "./Provider";
+import Image from "next/image";
 import { PagePermission } from "../../../types";
+import SVGLOGO from "../../../../../public/mediaCommonsLogo.svg";
+import { auth } from "@/lib/firebase/firebaseClient";
+import { signOut } from "firebase/auth";
 import { styled } from "@mui/system";
 import useHandleStartBooking from "../booking/hooks/useHandleStartBooking";
-import { signOut } from "firebase/auth";
-import { auth } from "@/lib/firebase/firebaseClient";
+
+const LogoBox = styled(Box)`
+  cursor: pointer;
+  display: flex;
+  align-items: flex-end;
+
+  img {
+    margin-right: 8px;
+  }
+`;
 
 const Title = styled(Typography)`
   width: fit-content;
   font-size: 20px;
   font-weight: 500;
-  cursor: pointer;
 `;
 
 const Nav = styled(Toolbar)(({ theme }) => ({
   border: `1px solid ${theme.palette.custom.border}`,
+  justifyContent: "space-between",
 }));
 
 const Divider = styled(Box)(({ theme }) => ({
@@ -156,11 +167,10 @@ export default function NavBar() {
 
   return (
     <Nav>
-      <Box flex={1}>
-        <Title as="h1" onClick={handleClickHome}>
-          Media Commons {envTitle}
-        </Title>
-      </Box>
+      <LogoBox onClick={handleClickHome}>
+        <Image src={SVGLOGO} alt="Media Commons logo" height={40} />
+        <Title as="h1">Media Commons {envTitle}</Title>
+      </LogoBox>
       <Box display="flex" alignItems="center">
         {button}
         {dropdown}
