@@ -38,13 +38,6 @@ export default function BookingTableRow({
 
   const [optimisticStatus, setOptimisticStatus] =
     useState<BookingStatusLabel>();
-  // const [optimisticEquipStatus, setOptimisticEquipStatus] = useState<
-  //   boolean | null
-  // >(undefined);
-  // const optimisticEquipStatus = useRef();
-
-  // const setOptimisticEquipStatus = (newVal) =>
-  //   (optimisticEquipStatus.current = newVal);
 
   const status = useMemo(
     () => getBookingStatus(booking, bookingStatuses),
@@ -116,7 +109,7 @@ export default function BookingTableRow({
           <MoreHoriz />
         </IconButton>
       </TableCell>
-      {isPaView && (
+      {!isUserView && (
         <TableCell>
           <EquipmentCheckoutToggle
             status={booking.equipmentCheckedOut}
