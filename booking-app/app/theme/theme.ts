@@ -1,5 +1,6 @@
 "use client";
 
+import { Roboto } from "next/font/google";
 import { createTheme } from "@mui/material/styles";
 import { deepPurple } from "@mui/material/colors";
 
@@ -22,6 +23,11 @@ const theme = createTheme({
     success: { main: "rgb(0 255 0)" },
     warning: { main: "rgb(255 167 0)" },
     error: { main: "rgba(255, 26, 26, 1)" },
+  },
+  typography: {
+    allVariants: {
+      fontFamily: "unset",
+    },
   },
   components: {
     MuiCssBaseline: {
