@@ -4,7 +4,12 @@ import {
   BookingStatusLabel,
   PolicySettings,
 } from "../types";
-import { TableNames, getCancelCcEmail, getFinalApproverEmail } from "../policy";
+import {
+  TableNames,
+  getApprovalCcEmail,
+  getCancelCcEmail,
+  getFinalApproverEmail,
+} from "../policy";
 import { approvalUrl, declineUrl, getBookingToolDeployUrl } from "./ui";
 import {
   deleteDataFromFirestore,
@@ -197,10 +202,11 @@ export const approveEvent = async (id: string) => {
     console.error("Booking status not found for calendar event id: ", id);
     return;
   }
+
   //@ts-ignore
   const guestEmail = doc.email;
 
-  // for user
+  // for client
   const headerMessage =
     "Your reservation request for Media Commons is approved.";
   console.log("sending booking detail email...");
@@ -210,12 +216,33 @@ export const approveEvent = async (id: string) => {
     headerMessage,
     BookingStatusLabel.APPROVED
   );
+
   // for second approver
   sendConfirmationEmail(
     id,
     BookingStatusLabel.APPROVED,
     `This is a confirmation email.`
   );
+
+  // for Samantha
+  sendBookingDetailEmail(
+    id,
+    getApprovalCcEmail(process.env.NEXT_PUBLIC_BRANCH_NAME),
+    `This is a confirmation email.`,
+    BookingStatusLabel.APPROVED
+  );
+
+  // for sponsor, if we have one
+  const contents = await bookingContents(id);
+  if (contents.role === "Student" && contents.sponsorEmail?.length > 0) {
+    sendBookingDetailEmail(
+      id,
+      contents.sponsorEmail,
+      `A reservation that you are the Sponsor of has been approved.`,
+      BookingStatusLabel.APPROVED
+    );
+  }
+
   const formDataForCalendarEvents = {
     calendarEventId: id,
     newPrefix: BookingStatusLabel.APPROVED,
@@ -228,7 +255,6 @@ export const approveEvent = async (id: string) => {
     body: JSON.stringify(formDataForCalendarEvents),
   });
 
-  const contents = await bookingContents(id);
   const formData = {
     guestEmail: guestEmail,
     calendarEventId: id,
