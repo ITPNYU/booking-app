@@ -20,10 +20,6 @@ export const initializeDb = () => {
     experimentalAutoDetectLongPolling: false,
   };
 
-  options.headers = {
-    "X-API-Key": "BOOKING_APP_API_KEY",
-  };
-
   db = initializeFirestore(app, options, process.env.NEXT_PUBLIC_DATABASE_NAME);
   return db;
 };

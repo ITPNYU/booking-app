@@ -6,7 +6,7 @@ import Grid from "@mui/material/Unstable_Grid2/Grid2";
 import Loading from "./Loading";
 import { TableNames } from "../../../policy";
 import { Timestamp } from "@firebase/firestore";
-import { saveDataToFirestore } from "../../../../../lib/firebase/firebase";
+import { clientSaveDataToFirestore } from "../../../../../lib/firebase/firebase";
 
 interface Props {
   addDuplicateErrorMessage?: string;
@@ -42,7 +42,7 @@ export default function AddDepartmentRow(props: Props) {
 
     setLoading(true);
     try {
-      await saveDataToFirestore(tableName, {
+      await clientSaveDataToFirestore(tableName, {
         [props.columnNameUniqueValue]: props.valueToAdd,
         ...(values ?? {}),
         createdAt: Timestamp.now(),
@@ -69,7 +69,7 @@ export default function AddDepartmentRow(props: Props) {
       </Grid>
       <Grid paddingLeft={0} paddingRight={4} display="flex" alignItems="center">
         <Grid container paddingRight={1}>
-          {...(components ?? [])}
+          {...components ?? []}
         </Grid>
         {loading ? (
           <Loading style={{ height: "25px", width: "25px" }} />

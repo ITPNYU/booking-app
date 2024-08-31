@@ -1,5 +1,3 @@
-import { approveBooking, decline } from "./admin";
-
 import { DevBranch } from "../types";
 
 export const getBookingToolDeployUrl = () => {

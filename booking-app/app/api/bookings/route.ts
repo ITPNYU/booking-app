@@ -10,25 +10,25 @@ import {
   getBookingToolDeployUrl,
 } from "@/components/src/server/ui";
 import {
-  approveInstantBooking,
-  deleteDataByCalendarEventId,
-  updateDataByCalendarEventId,
+  firstApproverEmails,
+  serverApproveInstantBooking,
+  serverDeleteDataByCalendarEventId,
+  serverUpdateDataByCalendarEventId,
 } from "@/components/src/server/admin";
 import { deleteEvent, insertEvent } from "@/components/src/server/calendars";
-import {
-  formatDate,
-  toFirebaseTimestampFromString,
-} from "@/components/src/client/utils/date";
-import {
-  getNextSequentialId,
-  saveDataToFirestore,
-} from "@/lib/firebase/firebase";
 
 import { DateSelectArg } from "fullcalendar";
 import { TableNames } from "@/components/src/policy";
-import { Timestamp } from "@firebase/firestore";
-import { firstApproverEmails } from "@/components/src/server/db";
+import { Timestamp } from "firebase-admin/firestore";
 import { sendHTMLEmail } from "@/app/lib/sendHTMLEmail";
+import {
+  serverGetNextSequentialId,
+  serverSaveDataToFirestore,
+} from "@/lib/firebase/server/adminDb";
+import {
+  serverFormatDate,
+  toFirebaseTimestampFromString,
+} from "@/components/src/client/utils/serverDate";
 
 async function createBookingCalendarEvent(
   selectedRooms: RoomSetting[],
@@ -62,7 +62,7 @@ async function createBookingCalendarEvent(
   return event.id;
 }
 
-async function handleBookingApprovalEmails(
+export async function handleBookingApprovalEmails(
   isAutoApproval: boolean,
   calendarEventId: string,
   sequentialId: number,
@@ -85,8 +85,8 @@ async function handleBookingApprovalEmails(
         contents: {
           ...otherContents,
           roomId: selectedRoomIds,
-          startDate: formatDate(bookingCalendarInfo?.startStr),
-          endDate: formatDate(bookingCalendarInfo?.endStr),
+          startDate: serverFormatDate(bookingCalendarInfo?.startStr),
+          endDate: serverFormatDate(bookingCalendarInfo?.endStr),
           requestNumber: contents.requestNumber + "",
         },
         targetEmail: recipient,
@@ -99,21 +99,22 @@ async function handleBookingApprovalEmails(
     await Promise.all(emailPromises);
   };
 
+  console.log("approval email calendarEventId", calendarEventId);
   if (calendarEventId && shouldAutoApprove) {
-    approveInstantBooking(calendarEventId);
+    serverApproveInstantBooking(calendarEventId);
   } else {
     const userEventInputs: BookingFormDetails = {
-      calendarEventId,
+      ...data,
+      calendarEventId: calendarEventId,
       roomId: selectedRoomIds,
       email,
       startDate: bookingCalendarInfo?.startStr,
       endDate: bookingCalendarInfo?.endStr,
-      approvalUrl,
-      declineUrl,
+      approvalUrl: approvalUrl(calendarEventId),
+      declineUrl: declineUrl(calendarEventId),
       bookingToolUrl: getBookingToolDeployUrl(),
       headerMessage: "This is a request email for first approval.",
       requestNumber: sequentialId,
-      ...data,
     };
     console.log("userEventInputs", userEventInputs);
     await sendApprovalEmail(firstApprovers, userEventInputs);
@@ -143,12 +144,14 @@ export async function POST(request: NextRequest) {
   }
 
   //For putting sequentialId in bookings
-  const sequentialId = await getNextSequentialId("bookings");
+  const sequentialId = await serverGetNextSequentialId("bookings");
   const selectedRoomIds = selectedRooms
     .map((r: { roomId: number }) => r.roomId)
     .join(", ");
+  console.log(" Done serverGetNextSequentialId ");
+  console.log("calendarEventId", calendarEventId);
 
-  await saveDataToFirestore(TableNames.BOOKING, {
+  await serverSaveDataToFirestore(TableNames.BOOKING, {
     calendarEventId,
     roomId: selectedRoomIds,
     email,
@@ -158,11 +161,13 @@ export async function POST(request: NextRequest) {
     equipmentCheckedOut: false,
     ...data,
   });
-  await saveDataToFirestore(TableNames.BOOKING_STATUS, {
+  console.log(" Done serverSaveDataToFirestore booking");
+  await serverSaveDataToFirestore(TableNames.BOOKING_STATUS, {
     calendarEventId,
     email,
     requestedAt: Timestamp.now(),
   });
+  console.log(" Done serverSaveDataToFirestore booking status");
 
   await handleBookingApprovalEmails(
     isAutoApproval,
@@ -173,6 +178,7 @@ export async function POST(request: NextRequest) {
     bookingCalendarInfo,
     email,
   );
+  console.log(" Done handleBookingApprovalEmails");
 
   return NextResponse.json(
     { result: "success", calendarEventId },
@@ -226,6 +232,7 @@ export async function PUT(request: NextRequest) {
 
   // update booking contents WITH new calendarEventId
   const { id, ...formData } = data;
+  console.log("newCalendarEventId", newCalendarEventId);
   const updatedData = {
     ...formData,
     roomId: selectedRoomIds,
@@ -235,15 +242,18 @@ export async function PUT(request: NextRequest) {
     equipmentCheckedOut: false,
   };
 
-  await updateDataByCalendarEventId(
+  await serverUpdateDataByCalendarEventId(
     TableNames.BOOKING,
     calendarEventId,
     updatedData,
   );
 
   // update statuses
-  await deleteDataByCalendarEventId(TableNames.BOOKING_STATUS, calendarEventId);
-  await saveDataToFirestore(TableNames.BOOKING_STATUS, {
+  await serverDeleteDataByCalendarEventId(
+    TableNames.BOOKING_STATUS,
+    calendarEventId,
+  );
+  await serverSaveDataToFirestore(TableNames.BOOKING_STATUS, {
     calendarEventId: newCalendarEventId,
     email,
     requestedAt: Timestamp.now(),

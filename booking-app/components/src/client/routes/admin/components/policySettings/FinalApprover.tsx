@@ -10,7 +10,7 @@ import {
 import React, { useContext, useState } from "react";
 
 import { DatabaseContext } from "../../../components/Provider";
-import { updatePolicySettingData } from "@/components/src/server/admin";
+import { updatePolicySettingData } from "@/components/src/server/db";
 
 export default function FinalApprover() {
   const { policySettings, reloadPolicySettings } = useContext(DatabaseContext);

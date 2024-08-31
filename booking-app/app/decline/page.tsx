@@ -3,8 +3,8 @@
 import React, { Suspense, useState } from "react";
 
 import { Button } from "@mui/material";
-import { decline } from "@/components/src/server/admin";
 import { useSearchParams } from "next/navigation";
+import { decline } from "@/components/src/server/db";
 
 const DeclinePageContent: React.FC = () => {
   const searchParams = useSearchParams();

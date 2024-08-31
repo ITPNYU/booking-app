@@ -20,7 +20,7 @@ import {
 } from "@/components/src/server/db";
 
 import { TableNames } from "@/components/src/policy";
-import { fetchAllDataFromCollection } from "@/lib/firebase/firebase";
+import { clientFetchAllDataFromCollection } from "@/lib/firebase/firebase";
 import { useAuth } from "@/components/src/client/routes/components/AuthProvider";
 
 export interface DatabaseContextType {
@@ -213,7 +213,7 @@ export const DatabaseProvider = ({
   };
 
   const fetchAdminUsers = async () => {
-    fetchAllDataFromCollection(TableNames.ADMINS)
+    clientFetchAllDataFromCollection(TableNames.ADMINS)
       .then((fetchedData) => {
         const adminUsers = fetchedData.map((item: any) => ({
           id: item.id,
@@ -226,7 +226,7 @@ export const DatabaseProvider = ({
   };
 
   const fetchPaUsers = async () => {
-    fetchAllDataFromCollection(TableNames.PAS)
+    clientFetchAllDataFromCollection(TableNames.PAS)
       .then((fetchedData) => {
         const paUsers = fetchedData.map((item: any) => ({
           id: item.id,
@@ -241,7 +241,7 @@ export const DatabaseProvider = ({
   const fetchSafetyTrainedUsers = async () => {
     try {
       // Fetch data from Firestore
-      const firestoreData = await fetchAllDataFromCollection(
+      const firestoreData = await clientFetchAllDataFromCollection(
         TableNames.SAFETY_TRAINING
       );
       const firestoreUsers: SafetyTraining[] = firestoreData.map(
@@ -286,7 +286,7 @@ export const DatabaseProvider = ({
   };
 
   const fetchBannedUsers = async () => {
-    fetchAllDataFromCollection(TableNames.BANNED)
+    clientFetchAllDataFromCollection(TableNames.BANNED)
       .then((fetchedData) => {
         const filtered = fetchedData.map((item: any) => ({
           id: item.id,
@@ -299,7 +299,7 @@ export const DatabaseProvider = ({
   };
 
   const fetchLiaisonUsers = async () => {
-    fetchAllDataFromCollection(TableNames.APPROVERS)
+    clientFetchAllDataFromCollection(TableNames.APPROVERS)
       .then((fetchedData) => {
         const filtered = fetchedData.map((item: any) => ({
           id: item.id,
@@ -312,7 +312,7 @@ export const DatabaseProvider = ({
       .catch((error) => console.error("Error fetching data:", error));
   };
   const fetchDepartmentNames = async () => {
-    fetchAllDataFromCollection(TableNames.DEPARTMENTS)
+    clientFetchAllDataFromCollection(TableNames.DEPARTMENTS)
       .then((fetchedData) => {
         const filtered = fetchedData.map((item: any) => ({
           id: item.id,
@@ -326,7 +326,7 @@ export const DatabaseProvider = ({
   };
 
   const fetchRoomSettings = async () => {
-    fetchAllDataFromCollection(TableNames.RESOURCES)
+    clientFetchAllDataFromCollection(TableNames.RESOURCES)
       .then((fetchedData) => {
         const filtered = fetchedData.map((item: any) => ({
           id: item.id,
@@ -342,7 +342,7 @@ export const DatabaseProvider = ({
   };
 
   const fetchBookingTypes = async () => {
-    fetchAllDataFromCollection(TableNames.BOOKING_TYPES)
+    clientFetchAllDataFromCollection(TableNames.BOOKING_TYPES)
       .then((fetchedData) => {
         const filtered = fetchedData.map((item: any) => ({
           id: item.id,
@@ -358,7 +358,7 @@ export const DatabaseProvider = ({
   };
 
   const fetchPolicySettings = async () => {
-    fetchAllDataFromCollection(TableNames.POLICY)
+    clientFetchAllDataFromCollection(TableNames.POLICY)
       .then((fetchedData) => {
         const policy: PolicySettings = fetchedData.map((item: any) => ({
           finalApproverEmail: item.finalApproverEmail,

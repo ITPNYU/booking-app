@@ -1,7 +1,6 @@
 // saveData.ts
 import {
   QueryConstraint,
-  QuerySnapshot,
   Timestamp,
   addDoc,
   collection,
@@ -24,7 +23,7 @@ export type AdminUserData = {
   createdAt: Timestamp;
 };
 
-export const deleteDataFromFirestore = async (
+export const clientDeleteDataFromFirestore = async (
   collectionName: string,
   docId: string
 ) => {
@@ -37,23 +36,7 @@ export const deleteDataFromFirestore = async (
   }
 };
 
-export const getNextSequentialId = async (collectionName) => {
-  const db = getDb();
-  const counterDocRef = doc(db, "counters", collectionName);
-
-  const counterDoc = await getDoc(counterDocRef);
-  let currentCount = 1;
-
-  if (counterDoc.exists()) {
-    currentCount = counterDoc.data().count + 1;
-  }
-
-  await setDoc(counterDocRef, { count: currentCount }, { merge: true });
-
-  return currentCount;
-};
-
-export const saveDataToFirestore = async (
+export const clientSaveDataToFirestore = async (
   collectionName: string,
   data: object
 ) => {
@@ -67,7 +50,7 @@ export const saveDataToFirestore = async (
   }
 };
 
-export const fetchAllDataFromCollection = async <T>(
+export const clientFetchAllDataFromCollection = async <T>(
   collectionName: TableNames,
   queryConstraints: QueryConstraint[] = []
 ): Promise<T[]> => {
@@ -82,30 +65,7 @@ export const fetchAllDataFromCollection = async <T>(
   return data;
 };
 
-export const getDataByCalendarEventId = async <T>(
-  collectionName: TableNames,
-  calendarEventId: string
-) => {
-  try {
-    const db = getDb();
-    const colRef = collection(db, collectionName);
-    const q = query(colRef, where("calendarEventId", "==", calendarEventId));
-    const querySnapshot: QuerySnapshot = await getDocs(q);
-
-    if (!querySnapshot.empty) {
-      const docSnap = querySnapshot.docs[0];
-      const data = docSnap.data() as T;
-      return { id: docSnap.id, ...data };
-    }
-    console.log("No such document!");
-    return null;
-  } catch (error) {
-    console.error("Error fetching document: ", error);
-    return null;
-  }
-};
-
-export const getFinalApproverEmailFromDatabase = async (): Promise<
+export const clientGetFinalApproverEmailFromDatabase = async (): Promise<
   string | null
 > => {
   try {
@@ -126,8 +86,29 @@ export const getFinalApproverEmailFromDatabase = async (): Promise<
     return null;
   }
 };
+export const clientGetDataByCalendarEventId = async <T>(
+  collectionName: TableNames,
+  calendarEventId: string
+): Promise<(T & { id: string }) | null> => {
+  try {
+    const db = getDb();
+    const colRef = collection(db, collectionName);
+    const q = query(colRef, where("calendarEventId", "==", calendarEventId));
+    const querySnapshot = await getDocs(q);
 
-export const updateDataInFirestore = async (
+    if (!querySnapshot.empty) {
+      const docSnap = querySnapshot.docs[0];
+      const data = docSnap.data() as T;
+      return { id: docSnap.id, ...data };
+    }
+    console.log("No such document!");
+    return null;
+  } catch (error) {
+    console.error("Error fetching document: ", error);
+    return null;
+  }
+};
+export const clientUpdateDataInFirestore = async (
   collectionName: string,
   docId: string,
   updatedData: object

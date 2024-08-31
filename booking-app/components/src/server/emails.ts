@@ -1,18 +1,4 @@
-import {
-  Booking,
-  BookingFormDetails,
-  BookingStatusLabel,
-  DevBranch,
-} from "../types";
-
-import { getApprovalCcEmail } from "../policy";
-
-const getCcEmail = (status: BookingStatusLabel): string => {
-  if (status !== BookingStatusLabel.APPROVED) {
-    return "";
-  }
-  return getApprovalCcEmail(process.env.BRANCH_NAME);
-};
+import { DevBranch } from "../types";
 
 export const getEmailBranchTag = () => {
   switch (process.env.NEXT_PUBLIC_BRANCH_NAME as DevBranch) {

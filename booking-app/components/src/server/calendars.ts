@@ -2,36 +2,9 @@ import { BookingFormDetails, BookingStatusLabel, RoomSetting } from "../types";
 import { Timestamp, endAt, sum, where } from "@firebase/firestore";
 
 import { TableNames } from "../policy";
-import { fetchAllDataFromCollection } from "@/lib/firebase/firebase";
+import { clientFetchAllDataFromCollection } from "@/lib/firebase/firebase";
 import { getCalendarClient } from "@/lib/googleClient";
-
-export const getRoomCalendarIds = async (roomId: number): Promise<string[]> => {
-  const queryConstraints = [where("roomId", "==", roomId)];
-  const rooms = await fetchAllDataFromCollection(
-    TableNames.RESOURCES,
-    queryConstraints
-  );
-  console.log(`Rooms: ${rooms}`);
-  return rooms.map((room: any) => room.calendarId);
-};
-
-export const getRoomCalendarId = async (
-  roomId: number
-): Promise<string | null> => {
-  const queryConstraints = [where("roomId", "==", roomId)];
-  const rooms = await fetchAllDataFromCollection(
-    TableNames.RESOURCES,
-    queryConstraints
-  );
-  if (rooms.length > 0) {
-    const room = rooms[0] as RoomSetting;
-    console.log(`Room: ${JSON.stringify(room)}`);
-    return room.calendarId;
-  } else {
-    console.log("No matching room found.");
-    return null;
-  }
-};
+import { serverGetRoomCalendarIds } from "./admin";
 
 const patchCalendarEvent = async (
   event: any,
@@ -57,7 +30,7 @@ export const inviteUserToCalendarEvent = async (
   guestEmail: string,
   roomId: number
 ) => {
-  const roomCalendarIds = await getRoomCalendarIds(roomId);
+  const roomCalendarIds = await serverGetRoomCalendarIds(roomId);
   const calendar = await getCalendarClient();
 
   for (const roomCalendarId of roomCalendarIds) {
@@ -66,7 +39,6 @@ export const inviteUserToCalendarEvent = async (
         calendarId: roomCalendarId,
         eventId: calendarEventId,
       });
-      console.log("event", event);
 
       if (event) {
         const eventData = event.data;
@@ -148,7 +120,6 @@ export const insertEvent = async ({
       colorId: "8", // Gray
     },
   });
-  console.log("inseerted event", event);
   return event.data;
 };
 
@@ -157,7 +128,7 @@ export const updateEventPrefix = async (
   newPrefix: BookingStatusLabel,
   bookingContents: BookingFormDetails
 ) => {
-  const roomCalendarIds = await getRoomCalendarIds(
+  const roomCalendarIds = await serverGetRoomCalendarIds(
     typeof bookingContents.roomId == "string"
       ? parseInt(bookingContents.roomId, 10)
       : bookingContents.roomId
@@ -172,7 +143,6 @@ export const updateEventPrefix = async (
         calendarId: roomCalendarId,
         eventId: calendarEventId,
       });
-      console.log("event", event);
 
       if (event) {
         const eventData = event.data;

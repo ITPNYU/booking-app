@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { TableNames } from "@/components/src/policy";
-import { fetchAllDataFromCollection } from "@/lib/firebase/firebase";
+import { serverFetchAllDataFromCollection } from "@/lib/firebase/server/adminDb";
 
 export async function GET(req: NextRequest) {
   try {
-    const fetchedData = await fetchAllDataFromCollection(TableNames.APPROVERS);
+    const fetchedData = await serverFetchAllDataFromCollection(
+      TableNames.APPROVERS,
+    );
     const filtered = fetchedData.map((item: any) => ({
       id: item.id,
       email: item.email,

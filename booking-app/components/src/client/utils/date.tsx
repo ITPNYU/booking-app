@@ -1,4 +1,4 @@
-import { Timestamp } from "@firebase/firestore";
+import { Timestamp } from "firebase/firestore";
 import { format } from "date-fns";
 
 export const formatDate = (
@@ -57,8 +57,4 @@ export const formatTimeAmPm = (d: Date) => {
     minute: "numeric",
     hour12: true,
   });
-};
-
-export const toFirebaseTimestampFromString = (date: string) => {
-  return Timestamp.fromDate(new Date(date));
 };
