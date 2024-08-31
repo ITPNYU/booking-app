@@ -11,6 +11,7 @@ import { approvalUrl, declineUrl, getBookingToolDeployUrl } from "./ui";
 
 import { Timestamp } from "firebase-admin/firestore";
 import {
+  Constraint,
   serverDeleteData,
   serverFetchAllDataFromCollection,
   serverGetDataByCalendarEventId,
@@ -290,37 +291,47 @@ export const firstApproverEmails = async (department: string) => {
 export const serverGetRoomCalendarIds = async (
   roomId: number
 ): Promise<string[]> => {
-  const queryConstraints = [
+  const queryConstraints: Constraint[] = [
     {
       field: "roomId",
       operator: "==",
       value: roomId,
     },
   ];
-  const rooms = await serverFetchAllDataFromCollection(
+
+  const rooms = await serverFetchAllDataFromCollection<RoomSetting>(
     TableNames.RESOURCES,
     queryConstraints
   );
-  console.log(`Rooms: ${rooms}`);
-  return rooms.map((room: any) => room.calendarId);
+
+  console.log(`Rooms: ${JSON.stringify(rooms)}`);
+
+  return rooms
+    .map((room) => room.calendarId)
+    .filter(
+      (calendarId): calendarId is string =>
+        calendarId !== undefined && calendarId !== null
+    );
 };
 
 export const serverGetRoomCalendarId = async (
   roomId: number
 ): Promise<string | null> => {
-  const queryConstraints = [
+  const queryConstraints: Constraint[] = [
     {
       field: "roomId",
       operator: "==",
       value: roomId,
     },
   ];
-  const rooms = await serverFetchAllDataFromCollection(
+
+  const rooms = await serverFetchAllDataFromCollection<RoomSetting>(
     TableNames.RESOURCES,
     queryConstraints
   );
+
   if (rooms.length > 0) {
-    const room = rooms[0] as RoomSetting;
+    const room = rooms[0];
     console.log(`Room: ${JSON.stringify(room)}`);
     return room.calendarId;
   } else {
