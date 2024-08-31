@@ -1,3 +1,10 @@
+import {
+  CollectionReference,
+  DocumentData,
+  Query,
+  QuerySnapshot,
+  WhereFilterOp,
+} from "firebase-admin/firestore";
 import admin from "./firebaseAdmin";
 import { TableNames } from "@/components/src/policy";
 
@@ -43,11 +50,21 @@ export const serverSaveDataToFirestore = async (
   }
 };
 
-export const serverFetchAllDataFromCollection = async <T>(
+export type Constraint = {
+  field: string;
+  operator: WhereFilterOp;
+  value: any;
+};
+export const serverFetchAllDataFromCollection = async <T extends DocumentData>(
   collectionName: TableNames,
-  queryConstraints: any[] = []
+  queryConstraints: Constraint[] = []
 ): Promise<T[]> => {
-  let query = db.collection(collectionName);
+  const collectionRef: CollectionReference<T> = db.collection(
+    collectionName
+  ) as CollectionReference<T>;
+
+  let query: Query<T> = collectionRef;
+
   queryConstraints.forEach((constraint) => {
     query = query.where(
       constraint.field,
@@ -55,8 +72,10 @@ export const serverFetchAllDataFromCollection = async <T>(
       constraint.value
     );
   });
-  const snapshot = await query.get();
-  return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }) as T);
+
+  const snapshot: QuerySnapshot<T> = await query.get();
+
+  return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
 };
 
 export const serverGetDataByCalendarEventId = async <T>(

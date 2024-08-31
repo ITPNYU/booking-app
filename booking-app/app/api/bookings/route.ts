@@ -62,7 +62,7 @@ async function createBookingCalendarEvent(
   return event.id;
 }
 
-export async function handleBookingApprovalEmails(
+async function handleBookingApprovalEmails(
   isAutoApproval: boolean,
   calendarEventId: string,
   sequentialId: number,
