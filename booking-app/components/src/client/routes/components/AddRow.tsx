@@ -6,7 +6,7 @@ import Grid from "@mui/material/Unstable_Grid2/Grid2";
 import Loading from "./Loading";
 import { TableNames } from "../../../policy";
 import { Timestamp } from "@firebase/firestore";
-import { saveDataToFirestore } from "../../../../../lib/firebase/firebase";
+import { clientSaveDataToFirestore } from "../../../../../lib/firebase/firebase";
 
 interface Props {
   addDuplicateErrorMessage?: string;
@@ -46,7 +46,7 @@ export default function AddRow(props: Props) {
 
     setLoading(true);
     try {
-      await saveDataToFirestore(tableName, {
+      await clientSaveDataToFirestore(tableName, {
         [props.columnNameUniqueValue]: valueToAdd.trim(),
         ...(extra?.values ?? {}),
         createdAt: Timestamp.now(),

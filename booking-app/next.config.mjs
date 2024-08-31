@@ -25,6 +25,12 @@ const nextConfig = {
   compiler: {
     styledComponents: true,
   },
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      config.resolve.alias.handlebars = false;
+    }
+    return config;
+  },
 };
 
 export default nextConfig;

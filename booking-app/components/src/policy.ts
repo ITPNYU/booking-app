@@ -1,8 +1,7 @@
 /********** GOOGLE SHEETS ************/
 
-import { BookingStatusLabel, DevBranch } from "./types";
-
-import { getFinalApproverEmailFromDatabase } from "@/lib/firebase/firebase";
+import { clientGetFinalApproverEmailFromDatabase } from "@/lib/firebase/firebase";
+import { BookingStatusLabel } from "./types";
 
 /** ACTIVE master Google Sheet  */
 export const ACTIVE_SHEET_ID = "1MnWbn6bvNyMiawddtYYx0tRW4NMgvugl0I8zBO3sy68";
@@ -34,8 +33,8 @@ export const MEDIA_COMMON_EMAIL = "mediacommons.reservations@nyu.edu";
 
 /********** CONTACTS ************/
 
-export const getFinalApproverEmail = async (): Promise<string> => {
-  const finalApproverEmail = await getFinalApproverEmailFromDatabase();
+export const clientGetFinalApproverEmail = async (): Promise<string> => {
+  const finalApproverEmail = await clientGetFinalApproverEmailFromDatabase();
   return (
     finalApproverEmail || "booking-app-devs+notFoundFinalApprover@itp.nyu.edu"
   );

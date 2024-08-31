@@ -3,8 +3,8 @@
 import React, { Suspense, useState } from "react";
 
 import { Button } from "@mui/material";
-import { approveBooking } from "@/components/src/server/admin";
 import { useSearchParams } from "next/navigation";
+import { clientApproveBooking } from "@/components/src/server/db";
 
 const ApprovePageContent: React.FC = () => {
   const searchParams = useSearchParams();
@@ -18,7 +18,7 @@ const ApprovePageContent: React.FC = () => {
       setLoading(true);
       setError(null);
       try {
-        await approveBooking(paramCalendarEventId);
+        await clientApproveBooking(paramCalendarEventId);
         setApproved(true);
       } catch (err) {
         setError("Failed to approve booking.");

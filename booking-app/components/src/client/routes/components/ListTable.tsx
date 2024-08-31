@@ -4,7 +4,7 @@ import React, { useMemo } from "react";
 import ListTableRow from "./ListTableRow";
 import Table from "./Table";
 import { TableNames } from "../../../policy";
-import { deleteDataFromFirestore } from "@/lib/firebase/firebase";
+import { clientDeleteDataFromFirestore } from "@/lib/firebase/firebase";
 
 interface Props {
   columnFormatters?: { [key: string]: (value: string) => string };
@@ -44,7 +44,9 @@ export default function ListTable(props: Props) {
       {props?.rows.map((row, index: number) => (
         <ListTableRow
           key={index}
-          removeRow={() => deleteDataFromFirestore(props.tableName, row.id)}
+          removeRow={() =>
+            clientDeleteDataFromFirestore(props.tableName, row.id)
+          }
           columnNames={columnNames}
           columnFormatters={columnFormatters}
           index={index}
