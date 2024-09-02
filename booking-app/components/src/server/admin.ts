@@ -3,20 +3,24 @@ import {
   BookingStatus,
   BookingStatusLabel,
   PolicySettings,
+  RoomSetting,
 } from "../types";
-import { TableNames, getCancelCcEmail, getFinalApproverEmail } from "../policy";
+
+import { getApprovalCcEmail, TableNames } from "../policy";
 import { approvalUrl, declineUrl, getBookingToolDeployUrl } from "./ui";
+
+import { Timestamp } from "firebase-admin/firestore";
 import {
-  deleteDataFromFirestore,
-  fetchAllDataFromCollection,
-  getDataByCalendarEventId,
-  updateDataInFirestore,
-} from "@/lib/firebase/firebase";
+  Constraint,
+  serverDeleteData,
+  serverFetchAllDataFromCollection,
+  serverGetDataByCalendarEventId,
+  serverGetFinalApproverEmail,
+  serverUpdateInFirestore,
+} from "@/lib/firebase/server/adminDb";
 
-import { Timestamp } from "@firebase/firestore";
-
-export const bookingContents = (id: string) => {
-  return getDataByCalendarEventId(TableNames.BOOKING, id)
+export const serverBookingContents = (id: string) => {
+  return serverGetDataByCalendarEventId(TableNames.BOOKING, id)
     .then((bookingObj) => {
       const updatedBookingObj = Object.assign({}, bookingObj, {
         headerMessage: "This is a request email for final approval.",
@@ -33,70 +37,64 @@ export const bookingContents = (id: string) => {
     });
 };
 
-export const updatePolicySettingData = async (updatedData: object) => {
-  type PolicySettingsDoc = PolicySettings & { id: string };
-  const policySettingsDocs =
-    await fetchAllDataFromCollection<PolicySettingsDoc>(TableNames.POLICY);
-
-  if (policySettingsDocs.length > 0) {
-    const policySettings = policySettingsDocs[0]; // should only be 1 doc
-    const docId = policySettings.id;
-    await updateDataInFirestore(TableNames.POLICY, docId, updatedData);
-  } else {
-    console.log("No policy settings docs found");
-  }
-};
-
-export const updateDataByCalendarEventId = async (
+export const serverUpdateDataByCalendarEventId = async (
   collectionName: TableNames,
   calendarEventId: string,
   updatedData: object
 ) => {
-  const data = await getDataByCalendarEventId(collectionName, calendarEventId);
+  const data = await serverGetDataByCalendarEventId(
+    collectionName,
+    calendarEventId
+  );
 
   if (data) {
     const { id } = data;
-    await updateDataInFirestore(collectionName, id, updatedData);
+    await serverUpdateInFirestore(collectionName, id, updatedData);
   } else {
     console.log("No document found with the given calendarEventId.");
   }
 };
 
-export const deleteDataByCalendarEventId = async (
+export const serverDeleteDataByCalendarEventId = async (
   collectionName: TableNames,
   calendarEventId: string
 ) => {
-  const data = await getDataByCalendarEventId(collectionName, calendarEventId);
+  const data = await serverGetDataByCalendarEventId(
+    collectionName,
+    calendarEventId
+  );
 
   if (data) {
     const { id } = data;
-    await deleteDataFromFirestore(collectionName, id);
+    await serverDeleteData(collectionName, id);
   } else {
     console.log("No document found with the given calendarEventId.");
   }
 };
 
-const firstApprove = (id: string) => {
-  updateDataByCalendarEventId(TableNames.BOOKING_STATUS, id, {
+// from server
+const serverFirstApprove = (id: string) => {
+  serverUpdateDataByCalendarEventId(TableNames.BOOKING_STATUS, id, {
     firstApprovedAt: Timestamp.now(),
   });
 };
 
-const finalApprove = (id: string) => {
-  updateDataByCalendarEventId(TableNames.BOOKING_STATUS, id, {
+const serverFinalApprove = (id: string) => {
+  serverUpdateDataByCalendarEventId(TableNames.BOOKING_STATUS, id, {
     finalApprovedAt: Timestamp.now(),
   });
 };
 
-export const approveInstantBooking = (id: string) => {
-  firstApprove(id);
-  finalApprove(id);
-  approveEvent(id);
+//server
+export const serverApproveInstantBooking = (id: string) => {
+  serverFirstApprove(id);
+  serverFinalApprove(id);
+  serverApproveEvent(id);
 };
 
 // both first approve and second approve flows hit here
-export const approveBooking = async (id: string) => {
-  const bookingStatus = await getDataByCalendarEventId<BookingStatus>(
+export const serverApproveBooking = async (id: string) => {
+  const bookingStatus = await serverGetDataByCalendarEventId<BookingStatus>(
     TableNames.BOOKING_STATUS,
     id
   );
@@ -109,10 +107,10 @@ export const approveBooking = async (id: string) => {
 
   // if already first approved, then this is a second approve
   if (firstApproveDateRange !== null) {
-    finalApprove(id);
-    await approveEvent(id);
+    serverFinalApprove(id);
+    await serverApproveEvent(id);
   } else {
-    firstApprove(id);
+    serverFirstApprove(id);
 
     const response = await fetch(
       `${process.env.NEXT_PUBLIC_BASE_URL}/api/calendarEvents`,
@@ -127,13 +125,13 @@ export const approveBooking = async (id: string) => {
         }),
       }
     );
-    const contents = await bookingContents(id);
+    const contents = await serverBookingContents(id);
 
     const emailContents = {
       ...contents,
       headerMessage: "This is a request email for final approval.",
     };
-    const recipient = await getFinalApproverEmail();
+    const recipient = await serverGetFinalApproverEmail();
     const formData = {
       templateName: "approval_email",
       contents: emailContents,
@@ -156,22 +154,21 @@ export const approveBooking = async (id: string) => {
   }
 };
 
-export const sendConfirmationEmail = async (
+export const serverSendConfirmationEmail = async (
   calendarEventId: string,
   status: BookingStatusLabel,
   headerMessage: string
 ) => {
-  const email = await getFinalApproverEmail();
-  sendBookingDetailEmail(calendarEventId, email, headerMessage, status);
+  const email = await serverGetFinalApproverEmail();
+  serverSendBookingDetailEmail(calendarEventId, email, headerMessage, status);
 };
-
-export const sendBookingDetailEmail = async (
+export const serverSendBookingDetailEmail = async (
   calendarEventId: string,
   email: string,
   headerMessage: string,
   status: BookingStatusLabel
 ) => {
-  const contents = await bookingContents(calendarEventId);
+  const contents = await serverBookingContents(calendarEventId);
   contents.headerMessage = headerMessage;
   const formData = {
     templateName: "booking_detail",
@@ -191,31 +188,57 @@ export const sendBookingDetailEmail = async (
   });
 };
 
-export const approveEvent = async (id: string) => {
-  const doc = await getDataByCalendarEventId(TableNames.BOOKING_STATUS, id);
+//server
+export const serverApproveEvent = async (id: string) => {
+  const doc = await serverGetDataByCalendarEventId(
+    TableNames.BOOKING_STATUS,
+    id
+  );
   if (doc === undefined || doc === null) {
     console.error("Booking status not found for calendar event id: ", id);
     return;
   }
+
   //@ts-ignore
   const guestEmail = doc.email;
 
-  // for user
+  // for client
   const headerMessage =
     "Your reservation request for Media Commons is approved.";
   console.log("sending booking detail email...");
-  sendBookingDetailEmail(
+  serverSendBookingDetailEmail(
     id,
     guestEmail,
     headerMessage,
     BookingStatusLabel.APPROVED
   );
+
   // for second approver
-  sendConfirmationEmail(
+  serverSendConfirmationEmail(
     id,
     BookingStatusLabel.APPROVED,
     `This is a confirmation email.`
   );
+
+  // for Samantha
+  serverSendBookingDetailEmail(
+    id,
+    getApprovalCcEmail(process.env.NEXT_PUBLIC_BRANCH_NAME),
+    `This is a confirmation email.`,
+    BookingStatusLabel.APPROVED
+  );
+
+  // for sponsor, if we have one
+  const contents = await serverBookingContents(id);
+  if (contents.role === "Student" && contents.sponsorEmail?.length > 0) {
+    serverSendBookingDetailEmail(
+      id,
+      contents.sponsorEmail,
+      `A reservation that you are the Sponsor of has been approved.`,
+      BookingStatusLabel.APPROVED
+    );
+  }
+
   const formDataForCalendarEvents = {
     calendarEventId: id,
     newPrefix: BookingStatusLabel.APPROVED,
@@ -228,7 +251,6 @@ export const approveEvent = async (id: string) => {
     body: JSON.stringify(formDataForCalendarEvents),
   });
 
-  const contents = await bookingContents(id);
   const formData = {
     guestEmail: guestEmail,
     calendarEventId: id,
@@ -246,167 +268,74 @@ export const approveEvent = async (id: string) => {
   );
 };
 
-export const decline = async (id: string) => {
-  updateDataByCalendarEventId(TableNames.BOOKING_STATUS, id, {
-    declinedAt: Timestamp.now(),
-  });
-
-  const doc = await getDataByCalendarEventId(TableNames.BOOKING_STATUS, id);
-  //@ts-ignore
-  const guestEmail = doc ? doc.email : null;
-  const headerMessage =
-    "Your reservation request for Media Commons has been declined. For detailed reasons regarding this decision, please contact us at mediacommons.reservations@nyu.edu.";
-  sendBookingDetailEmail(
-    id,
-    guestEmail,
-    headerMessage,
-    BookingStatusLabel.DECLINED
+export const approvers = async () => {
+  const fetchedData = await serverFetchAllDataFromCollection(
+    TableNames.APPROVERS
   );
-  const response = await fetch(
-    `${process.env.NEXT_PUBLIC_BASE_URL}/api/calendarEvents`,
-    {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        calendarEventId: id,
-        newPrefix: BookingStatusLabel.DECLINED,
-      }),
-    }
-  );
+  const filtered = fetchedData.map((item: any) => ({
+    id: item.id,
+    email: item.email,
+    department: item.department,
+    createdAt: item.createdAt,
+  }));
+  return filtered;
 };
 
-export const cancel = async (id: string) => {
-  updateDataByCalendarEventId(TableNames.BOOKING_STATUS, id, {
-    canceledAt: Timestamp.now(),
-  });
-  const doc = await getDataByCalendarEventId(TableNames.BOOKING_STATUS, id);
-  //@ts-ignore
-  const guestEmail = doc ? doc.email : null;
-  const headerMessage =
-    "Your reservation request for Media Commons has been cancelled. For detailed reasons regarding this decision, please contact us at mediacommons.reservations@nyu.edu.";
-  sendBookingDetailEmail(
-    id,
-    guestEmail,
-    headerMessage,
-    BookingStatusLabel.CANCELED
-  );
-  sendBookingDetailEmail(
-    id,
-    getCancelCcEmail(),
-    headerMessage,
-    BookingStatusLabel.CANCELED
-  );
-  const response = await fetch(
-    `${process.env.NEXT_PUBLIC_BASE_URL}/api/calendarEvents`,
-    {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        calendarEventId: id,
-        newPrefix: BookingStatusLabel.CANCELED,
-      }),
-    }
-  );
+export const firstApproverEmails = async (department: string) => {
+  const approversData = await approvers();
+  return approversData
+    .filter((approver) => approver.department === department)
+    .map((approver) => approver.email);
 };
 
-export const checkin = async (id: string) => {
-  updateDataByCalendarEventId(TableNames.BOOKING_STATUS, id, {
-    checkedInAt: Timestamp.now(),
-  });
-  const doc = await getDataByCalendarEventId(TableNames.BOOKING_STATUS, id);
-  //@ts-ignore
-  const guestEmail = doc ? doc.email : null;
-
-  const headerMessage =
-    "Your reservation request for Media Commons has been checked in. Thank you for choosing Media Commons.";
-  sendBookingDetailEmail(
-    id,
-    guestEmail,
-    headerMessage,
-    BookingStatusLabel.CHECKED_IN
-  );
-  const response = await fetch(
-    `${process.env.NEXT_PUBLIC_BASE_URL}/api/calendarEvents`,
+export const serverGetRoomCalendarIds = async (
+  roomId: number
+): Promise<string[]> => {
+  const queryConstraints: Constraint[] = [
     {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        calendarEventId: id,
-        newPrefix: BookingStatusLabel.CHECKED_IN,
-      }),
-    }
+      field: "roomId",
+      operator: "==",
+      value: roomId,
+    },
+  ];
+
+  const rooms = await serverFetchAllDataFromCollection<RoomSetting>(
+    TableNames.RESOURCES,
+    queryConstraints
   );
+
+  console.log(`Rooms: ${JSON.stringify(rooms)}`);
+
+  return rooms
+    .map((room) => room.calendarId)
+    .filter(
+      (calendarId): calendarId is string =>
+        calendarId !== undefined && calendarId !== null
+    );
 };
 
-export const checkOut = async (id: string) => {
-  updateDataByCalendarEventId(TableNames.BOOKING_STATUS, id, {
-    checkedOutAt: Timestamp.now(),
-  });
-  const doc = await getDataByCalendarEventId(TableNames.BOOKING_STATUS, id);
-  //@ts-ignore
-  const guestEmail = doc ? doc.email : null;
-
-  const headerMessage =
-    "Your reservation request for Media Commons has been checked out. Thank you for choosing Media Commons.";
-  sendBookingDetailEmail(
-    id,
-    guestEmail,
-    headerMessage,
-    BookingStatusLabel.CHECKED_OUT
-  );
-  const response = await fetch(
-    `${process.env.NEXT_PUBLIC_BASE_URL}/api/calendarEvents`,
+export const serverGetRoomCalendarId = async (
+  roomId: number
+): Promise<string | null> => {
+  const queryConstraints: Constraint[] = [
     {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        calendarEventId: id,
-        newPrefix: BookingStatusLabel.CHECKED_OUT,
-      }),
-    }
-  );
-};
+      field: "roomId",
+      operator: "==",
+      value: roomId,
+    },
+  ];
 
-export const noShow = async (id: string) => {
-  updateDataByCalendarEventId(TableNames.BOOKING_STATUS, id, {
-    noShowedAt: Timestamp.now(),
-  });
-  const doc = await getDataByCalendarEventId(TableNames.BOOKING_STATUS, id);
-  //@ts-ignore
-  const guestEmail = doc ? doc.email : null;
+  const rooms = await serverFetchAllDataFromCollection<RoomSetting>(
+    TableNames.RESOURCES,
+    queryConstraints
+  );
 
-  const headerMessage =
-    "You did not check-in for your Media Commons Reservation and have been marked as a no-show.";
-  sendBookingDetailEmail(
-    id,
-    guestEmail,
-    headerMessage,
-    BookingStatusLabel.NO_SHOW
-  );
-  sendConfirmationEmail(
-    id,
-    BookingStatusLabel.NO_SHOW,
-    `This is a no show email.`
-  );
-  const response = await fetch(
-    `${process.env.NEXT_PUBLIC_BASE_URL}/api/calendarEvents`,
-    {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        calendarEventId: id,
-        newPrefix: BookingStatusLabel.NO_SHOW,
-      }),
-    }
-  );
+  if (rooms.length > 0) {
+    const room = rooms[0];
+    console.log(`Room: ${JSON.stringify(room)}`);
+    return room.calendarId;
+  } else {
+    console.log("No matching room found.");
+    return null;
+  }
 };

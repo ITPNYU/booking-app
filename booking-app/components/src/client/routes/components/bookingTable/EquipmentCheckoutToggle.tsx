@@ -4,7 +4,7 @@ import React, { useContext, useRef, useState } from "react";
 import { DatabaseContext } from "../Provider";
 import { Switch } from "@mui/material";
 import { TableNames } from "@/components/src/policy";
-import { updateDataByCalendarEventId } from "@/components/src/server/admin";
+import { clientUpdateDataByCalendarEventId } from "@/lib/firebase/client/clientDb";
 
 interface Props {
   booking: Booking;
@@ -25,7 +25,7 @@ export default function EquipmentCheckoutToggle({ booking, status }: Props) {
     setLoading(true);
 
     try {
-      await updateDataByCalendarEventId(
+      await clientUpdateDataByCalendarEventId(
         TableNames.BOOKING,
         booking.calendarEventId,
         {

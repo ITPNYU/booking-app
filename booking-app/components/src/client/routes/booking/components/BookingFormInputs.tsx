@@ -7,18 +7,18 @@ import {
   Select,
   Switch,
   TextField,
-} from '@mui/material';
+} from "@mui/material";
 import {
   Control,
   Controller,
   FieldErrors,
   UseFormTrigger,
   ValidationRule,
-} from 'react-hook-form';
+} from "react-hook-form";
+import React, { cloneElement } from "react";
 
-import { Inputs } from '../../../../types';
-import React from 'react';
-import styled from '@emotion/styled';
+import { Inputs } from "../../../../types";
+import styled from "@emotion/styled";
 
 const Label = styled.label`
   font-weight: 500;
@@ -60,7 +60,7 @@ export function BookingFormDropdown(props: DropdownInputs) {
       defaultValue=""
       rules={{
         required: required && `${label} is required`,
-        validate: (value) => value !== '',
+        validate: (value) => value !== "",
       }}
       render={({ field }) => (
         <FormControl
@@ -68,9 +68,9 @@ export function BookingFormDropdown(props: DropdownInputs) {
           sx={{ marginBottom: 4 }}
           fullWidth
         >
-          <Label htmlFor={id}>{`${label}${required ? '*' : ''}`}</Label>
+          <Label htmlFor={id}>{`${label}${required ? "*" : ""}`}</Label>
           {description && (
-            <div style={{ fontSize: '0.75rem' }}>{description}</div>
+            <div style={{ fontSize: "0.75rem" }}>{description}</div>
           )}
           <Select
             {...field}
@@ -80,8 +80,8 @@ export function BookingFormDropdown(props: DropdownInputs) {
               trigger(id);
             }}
             renderValue={(selected: React.ReactNode) => {
-              if (selected === '' || selected == null) {
-                return <p style={{ color: 'gray' }}>Select an option</p>;
+              if (selected === "" || selected == null) {
+                return <p style={{ color: "gray" }}>Select an option</p>;
               }
               return selected;
             }}
@@ -138,8 +138,8 @@ export function BookingFormTextField(props: TextFieldProps) {
       }}
       render={({ field }) => (
         <div>
-          <Label htmlFor={id}>{`${label}${required ? '*' : ''}`}</Label>
-          {description && <p style={{ fontSize: '0.75rem' }}>{description}</p>}
+          <Label htmlFor={id}>{`${label}${required ? "*" : ""}`}</Label>
+          {description && <p style={{ fontSize: "0.75rem" }}>{description}</p>}
           <TextField
             {...field}
             variant="outlined"
@@ -156,7 +156,7 @@ export function BookingFormTextField(props: TextFieldProps) {
 }
 
 interface SwitchProps extends Props {
-  description?: React.ReactNode;
+  description?: React.ReactElement;
 }
 
 export function BookingFormSwitch(props: SwitchProps) {
@@ -169,6 +169,12 @@ export function BookingFormSwitch(props: SwitchProps) {
     trigger,
   } = props;
 
+  const desc =
+    description &&
+    cloneElement(description, {
+      style: { fontSize: "0.75rem" },
+    });
+
   return (
     <Controller
       control={control}
@@ -178,15 +184,15 @@ export function BookingFormSwitch(props: SwitchProps) {
       }}
       render={({ field }) => (
         <div>
-          <Label htmlFor={id}>{`${label}${required ? '*' : ''}`}</Label>
-          {description && <p style={{ fontSize: '0.75rem' }}>{description}</p>}
+          <Label htmlFor={id}>{`${label}${required ? "*" : ""}`}</Label>
+          {desc}
           <FormControlLabel
-            label={field.value === 'yes' ? 'Yes' : 'No'}
+            label={field.value === "yes" ? "Yes" : "No"}
             control={
               <Switch
-                checked={field.value === 'yes'}
+                checked={field.value === "yes"}
                 onChange={(e) =>
-                  field.onChange(e.target.checked ? 'yes' : 'no')
+                  field.onChange(e.target.checked ? "yes" : "no")
                 }
                 onBlur={() => trigger(id)}
               />
@@ -209,7 +215,7 @@ export function BookingFormAgreementCheckbox(props: CheckboxProps) {
   const { id, onChange, checked, description } = props;
   return (
     <>
-      <div style={{ fontSize: '0.75rem', fontWeight: 500 }}>{description}</div>
+      <div style={{ fontSize: "0.75rem", fontWeight: 500 }}>{description}</div>
       <FormControlLabel
         control={
           <Checkbox

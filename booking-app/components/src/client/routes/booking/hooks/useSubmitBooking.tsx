@@ -23,8 +23,14 @@ export default function useSubmitBooking(isEdit: boolean, isWalkIn: boolean) {
 
   const registerEvent = useCallback(
     async (data: Inputs, isAutoApproval: boolean, calendarEventId?: string) => {
-      if (!department || !role) {
+      if (
+        !department ||
+        !role ||
+        selectedRooms.length === 0 ||
+        !bookingCalendarInfo
+      ) {
         console.error("Missing info for submitting booking");
+        setSubmitting("error");
         return;
       }
 
@@ -43,15 +49,6 @@ export default function useSubmitBooking(isEdit: boolean, isWalkIn: boolean) {
         email = data.netId + "@nyu.edu";
       } else {
         email = userEmail || data.missingEmail;
-      }
-
-      if (
-        !bookingCalendarInfo ||
-        !bookingCalendarInfo.startStr ||
-        !bookingCalendarInfo.endStr
-      ) {
-        setSubmitting("error");
-        return;
       }
 
       const endpoint = isWalkIn ? "/api/walkIn" : "/api/bookings";

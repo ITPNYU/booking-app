@@ -1,31 +1,20 @@
 import { BookingFormDetails, BookingStatusLabel } from "@/components/src/types";
 import { NextRequest, NextResponse } from "next/server";
+import { TableNames, getApprovalCcEmail } from "@/components/src/policy";
 import {
-  TableNames,
-  getApprovalCcEmail,
-  getFinalApproverEmail,
-} from "@/components/src/policy";
-import {
-  approveInstantBooking,
-  sendBookingDetailEmail,
+  serverGetRoomCalendarId,
+  serverApproveInstantBooking,
+  serverSendBookingDetailEmail,
 } from "@/components/src/server/admin";
-import {
-  formatDate,
-  toFirebaseTimestampFromString,
-} from "@/components/src/client/utils/date";
-import {
-  getNextSequentialId,
-  saveDataToFirestore,
-} from "@/lib/firebase/firebase";
-import {
-  getRoomCalendarId,
-  insertEvent,
-} from "@/components/src/server/calendars";
+import { insertEvent } from "@/components/src/server/calendars";
 
-import { Timestamp } from "@firebase/firestore";
-import { firstApproverEmails } from "@/components/src/server/db";
-import { getBookingToolDeployUrl } from "@/components/src/server/ui";
-import { sendHTMLEmail } from "@/app/lib/sendHTMLEmail";
+import { Timestamp } from "firebase-admin/firestore";
+import {
+  serverGetFinalApproverEmail,
+  serverGetNextSequentialId,
+  serverSaveDataToFirestore,
+} from "@/lib/firebase/server/adminDb";
+import { toFirebaseTimestampFromString } from "@/components/src/client/utils/serverDate";
 
 export async function POST(request: NextRequest) {
   const { email, selectedRooms, bookingCalendarInfo, data } =
@@ -40,7 +29,7 @@ export async function POST(request: NextRequest) {
     (r: { calendarId: string }) => r.calendarId,
   );
 
-  const calendarId = await getRoomCalendarId(room.roomId);
+  const calendarId = await serverGetRoomCalendarId(room.roomId);
   if (calendarId == null) {
     return NextResponse.json(
       { result: "error", message: "ROOM CALENDAR ID NOT FOUND" },
@@ -58,8 +47,8 @@ export async function POST(request: NextRequest) {
   });
   const calendarEventId = event.id;
 
-  const sequentialId = await getNextSequentialId("bookings");
-  await saveDataToFirestore(TableNames.BOOKING, {
+  const sequentialId = await serverGetNextSequentialId("bookings");
+  await serverSaveDataToFirestore(TableNames.BOOKING, {
     calendarEventId,
     roomId: selectedRoomIds.join(", "),
     email,
@@ -68,7 +57,7 @@ export async function POST(request: NextRequest) {
     requestNumber: sequentialId,
     ...data,
   });
-  await saveDataToFirestore(TableNames.BOOKING_STATUS, {
+  await serverSaveDataToFirestore(TableNames.BOOKING_STATUS, {
     calendarEventId,
     email,
     walkedInAt: Timestamp.now(),
@@ -79,7 +68,7 @@ export async function POST(request: NextRequest) {
     // contents: BookingFormDetails,
   ) => {
     const emailPromises = recipients.map(recipient =>
-      sendBookingDetailEmail(
+      serverSendBookingDetailEmail(
         calendarEventId,
         recipient,
         "A walk-in reservation for Media Commons has been confirmed.",
@@ -104,7 +93,7 @@ export async function POST(request: NextRequest) {
     await Promise.all(emailPromises);
   };
 
-  sendBookingDetailEmail(
+  serverSendBookingDetailEmail(
     calendarEventId,
     email,
     "Your walk-in reservation for Media Commons is confirmed.",
@@ -124,7 +113,7 @@ export async function POST(request: NextRequest) {
 
   const notifyEmails = [
     data.sponsorEmail ?? null,
-    await getFinalApproverEmail(),
+    await serverGetFinalApproverEmail(),
     getApprovalCcEmail(process.env.NEXT_PUBLIC_BRANCH_NAME),
   ].filter(x => x != null);
   await sendWalkInNofificationEmail(notifyEmails);

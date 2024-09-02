@@ -5,8 +5,7 @@ import {
   updateEventPrefix,
 } from "@/components/src/server/calendars";
 
-import { BookingFormDetails } from "@/components/src/types";
-import { bookingContents } from "@/components/src/server/admin";
+import { serverBookingContents } from "@/components/src/server/admin";
 import { getCalendarClient } from "@/lib/googleClient";
 
 const getCalendarEvents = async (calendarId: string) => {
@@ -104,7 +103,7 @@ export async function PUT(req: NextRequest) {
       { status: 400 },
     );
   }
-  const contents = await bookingContents(calendarEventId);
+  const contents = await serverBookingContents(calendarEventId);
   try {
     await updateEventPrefix(calendarEventId, newPrefix, contents);
     return NextResponse.json(

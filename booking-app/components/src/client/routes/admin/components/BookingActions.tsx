@@ -1,13 +1,5 @@
 import { IconButton, MenuItem, Select } from "@mui/material";
 import React, { useContext, useMemo, useState } from "react";
-import {
-  approveBooking,
-  cancel,
-  checkOut,
-  checkin,
-  decline,
-  noShow,
-} from "@/components/src/server/admin";
 
 import AlertToast from "../../components/AlertToast";
 import { BookingStatusLabel } from "../../../../types";
@@ -17,6 +9,14 @@ import { DatabaseContext } from "../../components/Provider";
 import Loading from "../../components/Loading";
 import useExistingBooking from "../hooks/useExistingBooking";
 import { useRouter } from "next/navigation";
+import {
+  cancel,
+  checkin,
+  checkOut,
+  clientApproveBooking,
+  decline,
+  noShow,
+} from "@/components/src/server/db";
 
 interface Props {
   calendarEventId: string;
@@ -125,13 +125,13 @@ export default function BookingActions({
     },
     [Actions.FIRST_APPROVE]: {
       action: async () => {
-        await approveBooking(calendarEventId);
+        await clientApproveBooking(calendarEventId);
       },
       optimisticNextStatus: BookingStatusLabel.PENDING,
     },
     [Actions.FINAL_APPROVE]: {
       action: async () => {
-        await approveBooking(calendarEventId);
+        await clientApproveBooking(calendarEventId);
       },
       optimisticNextStatus: BookingStatusLabel.APPROVED,
     },

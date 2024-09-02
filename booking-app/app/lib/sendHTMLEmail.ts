@@ -1,12 +1,17 @@
 import { approvalUrl, declineUrl } from "@/components/src/server/ui";
 
-import { formatDate } from "@/components/src/client/utils/date";
 import fs from "fs";
 import { getEmailBranchTag } from "@/components/src/server/emails";
 import { getGmailClient } from "@/lib/googleClient";
-import handlebars from "handlebars";
 import path from "path";
+import { serverFormatDate } from "@/components/src/client/utils/serverDate";
 
+let Handlebars;
+
+if (typeof window === "undefined") {
+  // Import Handlebars
+  Handlebars = require("handlebars");
+}
 interface BookingFormDetails {
   [key: string]: string;
 }
@@ -40,15 +45,15 @@ export const sendHTMLEmail = async (params: SendHTMLEmailParams) => {
     `${templateName}.html`,
   );
   const templateSource = fs.readFileSync(templatePath, "utf8");
-  const template = handlebars.compile(templateSource);
+  const template = Handlebars.compile(templateSource);
 
   const htmlBody = template({
     eventTitle,
     status,
     body,
     contents,
-    startDate: formatDate(contents.startDate),
-    endDate: formatDate(contents.endDate),
+    startDate: serverFormatDate(contents.startDate),
+    endDate: serverFormatDate(contents.endDate),
     approvalUrl: approvalUrl(contents.calendarEventId),
     declineUrl: declineUrl(contents.calendarEventId),
   });

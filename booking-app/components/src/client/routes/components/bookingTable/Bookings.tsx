@@ -231,7 +231,7 @@ export const Bookings: React.FC<BookingsProps> = ({
       !isUserView && <TableCell key="contacts">Contact Info</TableCell>,
       <TableCell key="title">Title</TableCell>,
       <TableCell key="other">Details</TableCell>,
-      isPaView && <TableCell key="equip">Equip.</TableCell>,
+      !isUserView && <TableCell key="equip">Equip.</TableCell>,
       <TableCell key="action">Action</TableCell>,
     ],
     [isUserView, order, orderBy]

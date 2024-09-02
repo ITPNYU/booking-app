@@ -3,6 +3,7 @@
 import FormInput from "../components/FormInput";
 import Grid from "@mui/material/Unstable_Grid2";
 import React from "react";
+import useCheckFormMissingData from "../hooks/useCheckFormMissingData";
 
 interface Props {
   calendarEventId?: string;
@@ -15,6 +16,7 @@ export default function BookingFormDetailsPage({
   isEdit = false,
   isWalkIn = false,
 }: Props) {
+  useCheckFormMissingData();
   return (
     <Grid container>
       <Grid width={330} />
