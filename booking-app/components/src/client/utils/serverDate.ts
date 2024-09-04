@@ -3,7 +3,7 @@ import { format } from "date-fns";
 
 type DateInput = Date | Timestamp | { [key: string]: any } | number | string;
 
-const parseTimestamp = (value: any): Timestamp => {
+const parseTimestamp = (value: DateInput): Timestamp => {
   if (value instanceof Timestamp) return value;
   if (value instanceof Date) return Timestamp.fromDate(value);
   if (typeof value === "object" && value !== null) {
@@ -11,20 +11,24 @@ const parseTimestamp = (value: any): Timestamp => {
     const nanoseconds = Number(value.nanoseconds || value._nanoseconds || 0);
     return new Timestamp(seconds, nanoseconds);
   }
-  return Timestamp.fromDate(new Date(value));
+  return Timestamp.fromDate(new Date(value.toString()));
 };
 
-export const serverFormatDate = (input: DateInput): string => {
+export const serverFormatDate = (
+  input: DateInput,
+  timeZone: string = "America/New_York"
+): string => {
   if (!input) return "";
   try {
-    const date = parseTimestamp(input).toDate();
-    return format(date, "yyyy-MM-dd hh:mm a");
+    const timestamp = parseTimestamp(input);
+    const date = timestamp.toDate();
+    const zonedDate = new Date(date.toLocaleString("en-US", { timeZone }));
+    return format(zonedDate, "yyyy-MM-dd hh:mm a");
   } catch (error) {
     console.error("Error formatting date:", error, "Input:", input);
     return "";
   }
 };
-
 export const toFirebaseTimestamp = (date: Date | string | number): Timestamp =>
   parseTimestamp(date);
 
