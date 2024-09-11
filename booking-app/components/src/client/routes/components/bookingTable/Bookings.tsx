@@ -97,6 +97,7 @@ export const Bookings: React.FC<BookingsProps> = ({
     const elapsedStatues = [
       BookingStatusLabel.NO_SHOW,
       BookingStatusLabel.CHECKED_OUT,
+      BookingStatusLabel.CANCELED,
     ];
     // checks once per minute
     filtered = filtered.filter(
