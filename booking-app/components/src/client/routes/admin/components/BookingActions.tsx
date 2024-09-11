@@ -1,27 +1,26 @@
+import { BookingStatusLabel, PageContextLevel } from "../../../../types";
 import { IconButton, MenuItem, Select } from "@mui/material";
 import React, { useContext, useMemo, useState } from "react";
+import {
+  cancel,
+  checkOut,
+  checkin,
+  clientApproveBooking,
+  decline,
+  noShow,
+} from "@/components/src/server/db";
 
 import AlertToast from "../../components/AlertToast";
-import { BookingStatusLabel } from "../../../../types";
 import Check from "@mui/icons-material/Check";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import { DatabaseContext } from "../../components/Provider";
 import Loading from "../../components/Loading";
 import useExistingBooking from "../hooks/useExistingBooking";
 import { useRouter } from "next/navigation";
-import {
-  cancel,
-  checkin,
-  checkOut,
-  clientApproveBooking,
-  decline,
-  noShow,
-} from "@/components/src/server/db";
 
 interface Props {
   calendarEventId: string;
-  isAdminView: boolean;
-  isUserView: boolean;
+  pageContext: PageContextLevel;
   setOptimisticStatus: (x: BookingStatusLabel) => void;
   status: BookingStatusLabel;
 }
@@ -48,8 +47,7 @@ type ActionDefinition = {
 export default function BookingActions({
   status,
   calendarEventId,
-  isAdminView,
-  isUserView,
+  pageContext,
   setOptimisticStatus,
 }: Props) {
   const [uiLoading, setUiLoading] = useState(false);
@@ -209,9 +207,14 @@ export default function BookingActions({
   }, [status, paOptions]);
 
   const options = () => {
-    if (isUserView) return userOptions;
-    if (isAdminView) return adminOptions;
-    return paOptions;
+    switch (pageContext) {
+      case PageContextLevel.USER:
+        return userOptions;
+      case PageContextLevel.PA:
+        return paOptions;
+      default:
+        return adminOptions;
+    }
   };
 
   if (options().length === 0) {
