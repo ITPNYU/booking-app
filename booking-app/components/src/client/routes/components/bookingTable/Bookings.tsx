@@ -110,7 +110,9 @@ export const Bookings: React.FC<BookingsProps> = ({ pageContext }) => {
       filtered = rows.filter((row) => row.email === userEmail);
     else if (pageContext === PageContextLevel.PA) {
       filtered = rows.filter((row) => allowedStatuses.includes(row.status));
-    } else if (pageContext >= PageContextLevel.PA) {
+    }
+
+    if (pageContext >= PageContextLevel.PA) {
       // PA and Admin
       // filter by selected PA date range
       filtered = filtered.filter(DATE_FILTERS[selectedDateRange]);
