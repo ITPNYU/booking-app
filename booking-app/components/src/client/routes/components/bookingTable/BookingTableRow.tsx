@@ -1,4 +1,8 @@
-import { BookingRow, BookingStatusLabel } from "../../../../types";
+import {
+  BookingRow,
+  BookingStatusLabel,
+  PageContextLevel,
+} from "../../../../types";
 import {
   IconButton,
   Switch,
@@ -20,21 +24,19 @@ import getBookingStatus from "../../hooks/getBookingStatus";
 
 interface Props {
   booking: BookingRow;
-  isAdminView: boolean;
-  isPaView: boolean;
-  isUserView: boolean;
+  pageContext: PageContextLevel;
   setModalData: (x: BookingRow) => void;
 }
 
 export default function BookingTableRow({
   booking,
-  isAdminView,
-  isPaView,
-  isUserView,
+  pageContext,
   setModalData,
 }: Props) {
   const { bookingStatuses } = useContext(DatabaseContext);
   const titleRef = useRef();
+
+  const isUserView = pageContext === PageContextLevel.USER;
 
   const [optimisticStatus, setOptimisticStatus] =
     useState<BookingStatusLabel>();
@@ -121,7 +123,7 @@ export default function BookingTableRow({
         <BookingActions
           status={optimisticStatus ?? status}
           calendarEventId={booking.calendarEventId}
-          {...{ setOptimisticStatus, isAdminView, isUserView }}
+          {...{ setOptimisticStatus, pageContext }}
         />
       </TableCell>
     </TableRow>

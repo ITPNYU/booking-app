@@ -1,4 +1,8 @@
-import { Booking, BookingStatusLabel } from "../../../../types";
+import {
+  Booking,
+  BookingStatusLabel,
+  PageContextLevel,
+} from "../../../../types";
 import { Box, ToggleButton, ToggleButtonGroup } from "@mui/material";
 import { CalendarMonth, DateRange, Today } from "@mui/icons-material";
 
@@ -45,7 +49,7 @@ export const DATE_FILTERS: Record<DateRangeFilter, (x: Booking) => boolean> = {
 
 interface Props {
   allowedStatuses: BookingStatusLabel[];
-  isPaView: boolean;
+  pageContext: PageContextLevel;
   selectedStatuses: BookingStatusLabel[];
   setSelectedStatuses: any;
   selectedDateRange: DateRangeFilter;
@@ -54,7 +58,7 @@ interface Props {
 
 export default function BookingTableFilters({
   allowedStatuses,
-  isPaView,
+  pageContext,
   selectedStatuses,
   setSelectedStatuses,
   selectedDateRange,
@@ -128,7 +132,7 @@ export default function BookingTableFilters({
           )
         )}
       </Box>
-      <Box>{isPaView && dateFilters}</Box>
+      <Box>{pageContext >= PageContextLevel.PA && dateFilters}</Box>
     </Box>
   );
 }

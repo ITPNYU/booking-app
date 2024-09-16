@@ -218,7 +218,7 @@ export default function FormInput({
               description="Your N-number begins with a capital 'N' followed by eight digits."
               required
               pattern={{
-                value: /N[0-9]{8}/,
+                value: /N[0-9]{8}$/,
                 message: "Invalid N-Number",
               }}
               {...{ control, errors, trigger }}

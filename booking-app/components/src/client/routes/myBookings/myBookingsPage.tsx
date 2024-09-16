@@ -1,6 +1,7 @@
 import { Box, Typography } from "@mui/material";
 
 import { Bookings } from "../components/bookingTable/Bookings";
+import { PageContextLevel } from "@/components/src/types";
 import React from "react";
 import { styled } from "@mui/system";
 
@@ -15,7 +16,7 @@ export default function MyBookingsPage() {
     <Center>
       <Box width="65%" margin={6}>
         <Typography variant="h6">Welcome</Typography>
-        <Bookings isUserView={true} />
+        <Bookings pageContext={PageContextLevel.USER} />
       </Box>
     </Center>
   );

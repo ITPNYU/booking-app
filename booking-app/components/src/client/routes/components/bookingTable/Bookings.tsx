@@ -1,4 +1,9 @@
-import { Booking, BookingRow, BookingStatusLabel } from "../../../../types";
+import {
+  Booking,
+  BookingRow,
+  BookingStatusLabel,
+  PageContextLevel,
+} from "../../../../types";
 import BookingTableFilters, {
   DATE_FILTERS,
   DateRangeFilter,
@@ -22,16 +27,10 @@ import MoreInfoModal from "./MoreInfoModal";
 import getBookingStatus from "../../hooks/getBookingStatus";
 
 interface BookingsProps {
-  isAdminView?: boolean;
-  isPaView?: boolean;
-  isUserView?: boolean;
+  pageContext: PageContextLevel;
 }
 
-export const Bookings: React.FC<BookingsProps> = ({
-  isAdminView = false,
-  isPaView = false,
-  isUserView = false,
-}) => {
+export const Bookings: React.FC<BookingsProps> = ({ pageContext }) => {
   const {
     bookings,
     bookingsLoading,
@@ -48,6 +47,8 @@ export const Bookings: React.FC<BookingsProps> = ({
   const [orderBy, setOrderBy] = useState<keyof BookingRow>("startDate");
   const [order, setOrder] = useState<"asc" | "desc">("asc");
   const [currentTime, setCurrentTime] = useState(new Date());
+
+  const isUserView = pageContext === PageContextLevel.USER;
 
   useEffect(() => {
     reloadBookingStatuses();
@@ -79,24 +80,21 @@ export const Bookings: React.FC<BookingsProps> = ({
       BookingStatusLabel.NO_SHOW,
       BookingStatusLabel.WALK_IN,
     ];
-    if (isPaView) {
+    if (pageContext === PageContextLevel.PA) {
       return paViewStatuses;
     } else {
       return Object.values(BookingStatusLabel);
     }
-  }, [isUserView, isPaView]);
+  }, [pageContext]);
 
   const filteredRows = useMemo(() => {
     let filtered: BookingRow[] = rows;
-    // filter based on user view
-    if (isUserView) filtered = rows.filter((row) => row.email === userEmail);
-    else if (isPaView)
-      filtered = rows.filter((row) => allowedStatuses.includes(row.status));
 
     // filter if endTime has passed and status is NO_SHOW or CHECKED_OUT
     const elapsedStatues = [
       BookingStatusLabel.NO_SHOW,
       BookingStatusLabel.CHECKED_OUT,
+      BookingStatusLabel.CANCELED,
     ];
     // checks once per minute
     filtered = filtered.filter(
@@ -107,8 +105,16 @@ export const Bookings: React.FC<BookingsProps> = ({
         )
     );
 
-    // filter by selected PA date range
-    if (isPaView) {
+    // filter based on user view
+    if (pageContext === PageContextLevel.USER)
+      filtered = rows.filter((row) => row.email === userEmail);
+    else if (pageContext === PageContextLevel.PA) {
+      filtered = rows.filter((row) => allowedStatuses.includes(row.status));
+    }
+
+    if (pageContext >= PageContextLevel.PA) {
+      // PA and Admin
+      // filter by selected PA date range
       filtered = filtered.filter(DATE_FILTERS[selectedDateRange]);
     }
 
@@ -123,8 +129,7 @@ export const Bookings: React.FC<BookingsProps> = ({
     }
     return filtered.filter((row) => statusFilters.includes(row.status));
   }, [
-    isUserView,
-    isPaView,
+    pageContext,
     rows,
     allowedStatuses,
     statusFilters,
@@ -135,7 +140,7 @@ export const Bookings: React.FC<BookingsProps> = ({
   ]);
 
   const topRow = useMemo(() => {
-    if (isUserView) {
+    if (pageContext === PageContextLevel.USER) {
       return (
         <Box
           sx={{
@@ -155,13 +160,13 @@ export const Bookings: React.FC<BookingsProps> = ({
         setSelectedStatuses={setStatusFilters}
         {...{
           allowedStatuses,
-          isPaView,
+          pageContext,
           selectedDateRange,
           setSelectedDateRange,
         }}
       />
     );
-  }, [isUserView, statusFilters, allowedStatuses, selectedDateRange]);
+  }, [pageContext, statusFilters, allowedStatuses, selectedDateRange]);
 
   const bottomSection = useMemo(() => {
     if (bookingsLoading && bookings.length === 0) {
@@ -174,13 +179,13 @@ export const Bookings: React.FC<BookingsProps> = ({
     if (filteredRows.length === 0) {
       return (
         <TableEmpty>
-          {isUserView
+          {pageContext === PageContextLevel.USER
             ? "You don't have any reservations"
             : "No active reservations found"}
         </TableEmpty>
       );
     }
-  }, [isUserView, bookingsLoading, filteredRows]);
+  }, [pageContext, bookingsLoading, filteredRows]);
 
   const createSortHandler = useCallback(
     (property: keyof Booking) => (_: React.MouseEvent<unknown>) => {
@@ -250,8 +255,7 @@ export const Bookings: React.FC<BookingsProps> = ({
             key={row.calendarEventId}
             {...{
               booking: row,
-              isAdminView,
-              isPaView,
+              pageContext,
               isUserView,
               setModalData,
             }}
