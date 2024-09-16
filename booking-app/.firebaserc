@@ -1,0 +1,9 @@
+{
+  "projects": {
+    "default": "flowing-mantis-389917",
+    "production": "flowing-mantis-389917"
+  },
+  "targets": {},
+  "etags": {},
+  "dataconnectEmulatorConfig": {}
+}

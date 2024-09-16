@@ -1,0 +1,1623 @@
+[debug] [2024-07-08T21:18:52.854Z] ----------------------------------------------------------------------
+[debug] [2024-07-08T21:18:52.855Z] Command:       /Users/takagiriho/.nvm/versions/node/v18.17.0/bin/node /usr/local/bin/firebase deploy
+[debug] [2024-07-08T21:18:52.855Z] CLI Version:   13.13.0
+[debug] [2024-07-08T21:18:52.856Z] Platform:      darwin
+[debug] [2024-07-08T21:18:52.856Z] Node Version:  v18.17.0
+[debug] [2024-07-08T21:18:52.860Z] Time:          Mon Jul 08 2024 17:18:52 GMT-0400 (Eastern Daylight Time)
+[debug] [2024-07-08T21:18:52.860Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2024-07-08T21:18:52.890Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2024-07-08T21:18:52.890Z] > authorizing via signed-in user (rh3555@nyu.edu)
+[debug] [2024-07-08T21:18:52.890Z] [iam] checking project flowing-mantis-389917 for permissions ["firebase.projects.get","firebasehosting.sites.update"]
+[debug] [2024-07-08T21:18:52.891Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/flowing-mantis-389917:testIamPermissions [none]
+[debug] [2024-07-08T21:18:52.891Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/flowing-mantis-389917:testIamPermissions x-goog-quota-user=projects/flowing-mantis-389917
+[debug] [2024-07-08T21:18:52.891Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/flowing-mantis-389917:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2024-07-08T21:18:53.441Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/flowing-mantis-389917:testIamPermissions 200
+[debug] [2024-07-08T21:18:53.442Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/flowing-mantis-389917:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2024-07-08T21:18:53.444Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/flowing-mantis-389917 [none]
+[debug] [2024-07-08T21:18:54.139Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/flowing-mantis-389917 200
+[debug] [2024-07-08T21:18:54.140Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/flowing-mantis-389917 {"projectId":"flowing-mantis-389917","projectNumber":"289027705740","displayName":"sharedSpaceBooking","name":"projects/flowing-mantis-389917","resources":{"hostingSite":"flowing-mantis-389917","locationId":"us-central"},"state":"ACTIVE","etag":"1_5d2cff49-f9b1-4ad8-a083-9037b60e7e48"}
+[debug] [2024-07-08T21:18:55.002Z] defaultcredentials: writing to file /Users/takagiriho/.config/firebase/rh3555_nyu_edu_application_default_credentials.json
+[info] 
+   Thank you for trying our early preview of Next.js support on Firebase Hosting.
+   During the preview, support is best-effort and breaking changes can be expected. Proceed with caution.
+   The integration is known to work with Next.js version 12 - 14.0. You may encounter errors.
+
+   Documentation: https://firebase.google.com/docs/hosting/frameworks/nextjs
+   File a bug: https://github.com/firebase/firebase-tools/issues/new?template=bug_report.md
+   Submit a feature request: https://github.com/firebase/firebase-tools/issues/new?template=feature_request.md
+
+   We'd love to learn from you. Express your interest in helping us shape the future of Firebase Hosting: https://goo.gle/41enW5X
+
+[debug] [2024-07-08T21:18:56.625Z] >>> [apiv2][query] GET https://firebasehosting.googleapis.com/v1beta1/projects/flowing-mantis-389917/sites/flowing-mantis-389917 [none]
+[debug] [2024-07-08T21:18:57.260Z] <<< [apiv2][status] GET https://firebasehosting.googleapis.com/v1beta1/projects/flowing-mantis-389917/sites/flowing-mantis-389917 200
+[debug] [2024-07-08T21:18:57.261Z] <<< [apiv2][body] GET https://firebasehosting.googleapis.com/v1beta1/projects/flowing-mantis-389917/sites/flowing-mantis-389917 {"name":"projects/flowing-mantis-389917/sites/flowing-mantis-389917","defaultUrl":"https://flowing-mantis-389917.web.app","appId":"1:289027705740:web:31820e33df9be4d65d24a9","type":"DEFAULT_SITE"}
+[info]   ▲ Next.js 14.2.4
+
+[info]   - Environments: .env.local
+
+
+[info]    Creating an optimized production build ...
+
+[info]  ✓ Compiled successfully
+
+[info]    Linting and checking validity of types ...
+
+[info]  ⨯ ESLint: Failed to load config "airbnb-base" to extend from. Referenced from: /Users/takagiriho/ghq/github.com/ITPNYU/Booking-Tool/booking-app/components/src/client/.eslintrc.json
+
+[info] Failed to compile.
+
+
+[info] ./components/src/client/routes/admin/components/BookingActions.tsx:53:35
+Type error: Argument of type 'undefined' is not assignable to parameter of type 'BookingStatusLabel'.
+
+  51 |             .catch(() => {
+  52 |               onError();
+> 53 |               setOptimisticStatus(undefined);
+     |                                   ^
+  54 |             })
+  55 |             .finally(() => reload().then(() => setOptimisticStatus(undefined)));
+  56 |         } catch (ex) {
+
+[debug] [2024-07-08T21:19:11.487Z] Error: ENOENT: no such file or directory, open '/Users/takagiriho/ghq/github.com/ITPNYU/Booking-Tool/booking-app/.next/export-marker.json'
+[error] 
+[error] Error: An unexpected error has occurred.
+[debug] [2024-07-08T21:20:14.178Z] ----------------------------------------------------------------------
+[debug] [2024-07-08T21:20:14.179Z] Command:       /Users/takagiriho/.nvm/versions/node/v18.17.0/bin/node /usr/local/bin/firebase deploy
+[debug] [2024-07-08T21:20:14.180Z] CLI Version:   13.13.0
+[debug] [2024-07-08T21:20:14.180Z] Platform:      darwin
+[debug] [2024-07-08T21:20:14.180Z] Node Version:  v18.17.0
+[debug] [2024-07-08T21:20:14.180Z] Time:          Mon Jul 08 2024 17:20:14 GMT-0400 (Eastern Daylight Time)
+[debug] [2024-07-08T21:20:14.180Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2024-07-08T21:20:14.210Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2024-07-08T21:20:14.210Z] > authorizing via signed-in user (rh3555@nyu.edu)
+[debug] [2024-07-08T21:20:14.210Z] [iam] checking project flowing-mantis-389917 for permissions ["firebase.projects.get","firebasehosting.sites.update"]
+[debug] [2024-07-08T21:20:14.211Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/flowing-mantis-389917:testIamPermissions [none]
+[debug] [2024-07-08T21:20:14.211Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/flowing-mantis-389917:testIamPermissions x-goog-quota-user=projects/flowing-mantis-389917
+[debug] [2024-07-08T21:20:14.211Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/flowing-mantis-389917:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2024-07-08T21:20:14.412Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/flowing-mantis-389917:testIamPermissions 200
+[debug] [2024-07-08T21:20:14.412Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/flowing-mantis-389917:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2024-07-08T21:20:14.414Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/flowing-mantis-389917 [none]
+[debug] [2024-07-08T21:20:14.781Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/flowing-mantis-389917 200
+[debug] [2024-07-08T21:20:14.782Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/flowing-mantis-389917 {"projectId":"flowing-mantis-389917","projectNumber":"289027705740","displayName":"sharedSpaceBooking","name":"projects/flowing-mantis-389917","resources":{"hostingSite":"flowing-mantis-389917","locationId":"us-central"},"state":"ACTIVE","etag":"1_5d2cff49-f9b1-4ad8-a083-9037b60e7e48"}
+[debug] [2024-07-08T21:20:15.563Z] defaultcredentials: writing to file /Users/takagiriho/.config/firebase/rh3555_nyu_edu_application_default_credentials.json
+[info] 
+   Thank you for trying our early preview of Next.js support on Firebase Hosting.
+   During the preview, support is best-effort and breaking changes can be expected. Proceed with caution.
+   The integration is known to work with Next.js version 12 - 14.0. You may encounter errors.
+
+   Documentation: https://firebase.google.com/docs/hosting/frameworks/nextjs
+   File a bug: https://github.com/firebase/firebase-tools/issues/new?template=bug_report.md
+   Submit a feature request: https://github.com/firebase/firebase-tools/issues/new?template=feature_request.md
+
+   We'd love to learn from you. Express your interest in helping us shape the future of Firebase Hosting: https://goo.gle/41enW5X
+
+[debug] [2024-07-08T21:20:17.180Z] >>> [apiv2][query] GET https://firebasehosting.googleapis.com/v1beta1/projects/flowing-mantis-389917/sites/flowing-mantis-389917 [none]
+[debug] [2024-07-08T21:20:17.551Z] <<< [apiv2][status] GET https://firebasehosting.googleapis.com/v1beta1/projects/flowing-mantis-389917/sites/flowing-mantis-389917 200
+[debug] [2024-07-08T21:20:17.551Z] <<< [apiv2][body] GET https://firebasehosting.googleapis.com/v1beta1/projects/flowing-mantis-389917/sites/flowing-mantis-389917 {"name":"projects/flowing-mantis-389917/sites/flowing-mantis-389917","defaultUrl":"https://flowing-mantis-389917.web.app","appId":"1:289027705740:web:31820e33df9be4d65d24a9","type":"DEFAULT_SITE"}
+[info]   ▲ Next.js 14.2.4
+
+[info]   - Environments: .env.local
+
+
+[info]    Creating an optimized production build ...
+
+[info]  ✓ Compiled successfully
+
+[info]    Linting and checking validity of types ...
+
+[info]  ⨯ ESLint: Failed to load config "airbnb-base" to extend from. Referenced from: /Users/takagiriho/ghq/github.com/ITPNYU/Booking-Tool/booking-app/components/src/client/.eslintrc.json
+
+[info] Failed to compile.
+
+
+[info] ./components/src/client/routes/admin/components/BookingActions.tsx:89:19
+Type error: Type 'Promise<{ result: string; }>' is not assignable to type 'Promise<void>'.
+
+  87 |           {ActionButton(
+  88 |             "Cancel",
+> 89 |             () => serverFunctions.cancel(calendarEventId),
+     |                   ^
+  90 |             BookingStatusLabel.CANCELED,
+  91 |             true
+  92 |           )}
+
+[debug] [2024-07-08T21:20:27.663Z] Error: ENOENT: no such file or directory, open '/Users/takagiriho/ghq/github.com/ITPNYU/Booking-Tool/booking-app/.next/export-marker.json'
+[error] 
+[error] Error: An unexpected error has occurred.
+[debug] [2024-07-08T21:22:26.986Z] ----------------------------------------------------------------------
+[debug] [2024-07-08T21:22:26.987Z] Command:       /Users/takagiriho/.nvm/versions/node/v18.17.0/bin/node /usr/local/bin/firebase deploy
+[debug] [2024-07-08T21:22:26.987Z] CLI Version:   13.13.0
+[debug] [2024-07-08T21:22:26.987Z] Platform:      darwin
+[debug] [2024-07-08T21:22:26.988Z] Node Version:  v18.17.0
+[debug] [2024-07-08T21:22:26.992Z] Time:          Mon Jul 08 2024 17:22:26 GMT-0400 (Eastern Daylight Time)
+[debug] [2024-07-08T21:22:26.992Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2024-07-08T21:22:27.021Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2024-07-08T21:22:27.021Z] > authorizing via signed-in user (rh3555@nyu.edu)
+[debug] [2024-07-08T21:22:27.021Z] [iam] checking project flowing-mantis-389917 for permissions ["firebase.projects.get","firebasehosting.sites.update"]
+[debug] [2024-07-08T21:22:27.022Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/flowing-mantis-389917:testIamPermissions [none]
+[debug] [2024-07-08T21:22:27.022Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/flowing-mantis-389917:testIamPermissions x-goog-quota-user=projects/flowing-mantis-389917
+[debug] [2024-07-08T21:22:27.022Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/flowing-mantis-389917:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2024-07-08T21:22:27.249Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/flowing-mantis-389917:testIamPermissions 200
+[debug] [2024-07-08T21:22:27.250Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/flowing-mantis-389917:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2024-07-08T21:22:27.251Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/flowing-mantis-389917 [none]
+[debug] [2024-07-08T21:22:27.533Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/flowing-mantis-389917 200
+[debug] [2024-07-08T21:22:27.533Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/flowing-mantis-389917 {"projectId":"flowing-mantis-389917","projectNumber":"289027705740","displayName":"sharedSpaceBooking","name":"projects/flowing-mantis-389917","resources":{"hostingSite":"flowing-mantis-389917","locationId":"us-central"},"state":"ACTIVE","etag":"1_5d2cff49-f9b1-4ad8-a083-9037b60e7e48"}
+[debug] [2024-07-08T21:22:28.393Z] defaultcredentials: writing to file /Users/takagiriho/.config/firebase/rh3555_nyu_edu_application_default_credentials.json
+[info] 
+   Thank you for trying our early preview of Next.js support on Firebase Hosting.
+   During the preview, support is best-effort and breaking changes can be expected. Proceed with caution.
+   The integration is known to work with Next.js version 12 - 14.0. You may encounter errors.
+
+   Documentation: https://firebase.google.com/docs/hosting/frameworks/nextjs
+   File a bug: https://github.com/firebase/firebase-tools/issues/new?template=bug_report.md
+   Submit a feature request: https://github.com/firebase/firebase-tools/issues/new?template=feature_request.md
+
+   We'd love to learn from you. Express your interest in helping us shape the future of Firebase Hosting: https://goo.gle/41enW5X
+
+[debug] [2024-07-08T21:22:30.060Z] >>> [apiv2][query] GET https://firebasehosting.googleapis.com/v1beta1/projects/flowing-mantis-389917/sites/flowing-mantis-389917 [none]
+[debug] [2024-07-08T21:22:30.219Z] <<< [apiv2][status] GET https://firebasehosting.googleapis.com/v1beta1/projects/flowing-mantis-389917/sites/flowing-mantis-389917 200
+[debug] [2024-07-08T21:22:30.219Z] <<< [apiv2][body] GET https://firebasehosting.googleapis.com/v1beta1/projects/flowing-mantis-389917/sites/flowing-mantis-389917 {"name":"projects/flowing-mantis-389917/sites/flowing-mantis-389917","defaultUrl":"https://flowing-mantis-389917.web.app","appId":"1:289027705740:web:31820e33df9be4d65d24a9","type":"DEFAULT_SITE"}
+[info]   ▲ Next.js 14.2.4
+
+[info]   - Environments: .env.local
+
+
+[info]    Creating an optimized production build ...
+
+[info]  ✓ Compiled successfully
+
+[info]    Linting and checking validity of types ...
+
+[info]  ⨯ ESLint: Failed to load config "airbnb-base" to extend from. Referenced from: /Users/takagiriho/ghq/github.com/ITPNYU/Booking-Tool/booking-app/components/src/client/.eslintrc.json
+
+[info] Failed to compile.
+
+
+[info] ./components/src/client/routes/admin/components/Liaisons.tsx:11:27
+Type error: Binding element 'liaisonEmails' implicitly has an 'any' type.
+
+   9 | import { serverFunctions } from '../../../utils/serverFunctions';
+  10 |
+> 11 | const AddLiaisonForm = ({ liaisonEmails, reloadLiaisonEmails }) => {
+     |                           ^
+  12 |   const [email, setEmail] = useState('');
+  13 |   const [department, setDepartment] = useState('');
+  14 |   const [loading, setLoading] = useState(false);
+
+[debug] [2024-07-08T21:22:39.586Z] Error: ENOENT: no such file or directory, open '/Users/takagiriho/ghq/github.com/ITPNYU/Booking-Tool/booking-app/.next/export-marker.json'
+[error] 
+[error] Error: An unexpected error has occurred.
+[debug] [2024-07-08T21:23:17.645Z] ----------------------------------------------------------------------
+[debug] [2024-07-08T21:23:17.646Z] Command:       /Users/takagiriho/.nvm/versions/node/v18.17.0/bin/node /usr/local/bin/firebase deploy
+[debug] [2024-07-08T21:23:17.646Z] CLI Version:   13.13.0
+[debug] [2024-07-08T21:23:17.646Z] Platform:      darwin
+[debug] [2024-07-08T21:23:17.646Z] Node Version:  v18.17.0
+[debug] [2024-07-08T21:23:17.650Z] Time:          Mon Jul 08 2024 17:23:17 GMT-0400 (Eastern Daylight Time)
+[debug] [2024-07-08T21:23:17.650Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2024-07-08T21:23:17.681Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2024-07-08T21:23:17.681Z] > authorizing via signed-in user (rh3555@nyu.edu)
+[debug] [2024-07-08T21:23:17.682Z] [iam] checking project flowing-mantis-389917 for permissions ["firebase.projects.get","firebasehosting.sites.update"]
+[debug] [2024-07-08T21:23:17.682Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/flowing-mantis-389917:testIamPermissions [none]
+[debug] [2024-07-08T21:23:17.682Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/flowing-mantis-389917:testIamPermissions x-goog-quota-user=projects/flowing-mantis-389917
+[debug] [2024-07-08T21:23:17.683Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/flowing-mantis-389917:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2024-07-08T21:23:17.904Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/flowing-mantis-389917:testIamPermissions 200
+[debug] [2024-07-08T21:23:17.904Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/flowing-mantis-389917:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2024-07-08T21:23:17.905Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/flowing-mantis-389917 [none]
+[debug] [2024-07-08T21:23:18.177Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/flowing-mantis-389917 200
+[debug] [2024-07-08T21:23:18.177Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/flowing-mantis-389917 {"projectId":"flowing-mantis-389917","projectNumber":"289027705740","displayName":"sharedSpaceBooking","name":"projects/flowing-mantis-389917","resources":{"hostingSite":"flowing-mantis-389917","locationId":"us-central"},"state":"ACTIVE","etag":"1_5d2cff49-f9b1-4ad8-a083-9037b60e7e48"}
+[debug] [2024-07-08T21:23:18.994Z] defaultcredentials: writing to file /Users/takagiriho/.config/firebase/rh3555_nyu_edu_application_default_credentials.json
+[info] 
+   Thank you for trying our early preview of Next.js support on Firebase Hosting.
+   During the preview, support is best-effort and breaking changes can be expected. Proceed with caution.
+   The integration is known to work with Next.js version 12 - 14.0. You may encounter errors.
+
+   Documentation: https://firebase.google.com/docs/hosting/frameworks/nextjs
+   File a bug: https://github.com/firebase/firebase-tools/issues/new?template=bug_report.md
+   Submit a feature request: https://github.com/firebase/firebase-tools/issues/new?template=feature_request.md
+
+   We'd love to learn from you. Express your interest in helping us shape the future of Firebase Hosting: https://goo.gle/41enW5X
+
+[debug] [2024-07-08T21:23:20.594Z] >>> [apiv2][query] GET https://firebasehosting.googleapis.com/v1beta1/projects/flowing-mantis-389917/sites/flowing-mantis-389917 [none]
+[debug] [2024-07-08T21:23:20.896Z] <<< [apiv2][status] GET https://firebasehosting.googleapis.com/v1beta1/projects/flowing-mantis-389917/sites/flowing-mantis-389917 200
+[debug] [2024-07-08T21:23:20.897Z] <<< [apiv2][body] GET https://firebasehosting.googleapis.com/v1beta1/projects/flowing-mantis-389917/sites/flowing-mantis-389917 {"name":"projects/flowing-mantis-389917/sites/flowing-mantis-389917","defaultUrl":"https://flowing-mantis-389917.web.app","appId":"1:289027705740:web:31820e33df9be4d65d24a9","type":"DEFAULT_SITE"}
+[info]   ▲ Next.js 14.2.4
+
+[info]   - Environments: .env.local
+
+
+[info]    Creating an optimized production build ...
+
+[info]  ✓ Compiled successfully
+
+[info]    Linting and checking validity of types ...
+
+[info]  ⨯ ESLint: Failed to load config "airbnb-base" to extend from. Referenced from: /Users/takagiriho/ghq/github.com/ITPNYU/Booking-Tool/booking-app/components/src/client/.eslintrc.json
+
+[info] Failed to compile.
+
+
+[info] ./components/src/client/routes/booking/bookingProvider.tsx:70:30
+Type error: Property 'map' does not exist on type '{ result: string; }'.
+
+  68 |       isTrained = await serverFunctions
+  69 |         .getOldSafetyTrainingEmails()
+> 70 |         .then((rows) => rows.map((row) => row[0]).includes(userEmail));
+     |                              ^
+  71 |     }
+  72 |     console.log("isTrained from googlesheets", isTrained);
+  73 |     setIsSafetyTrained(isTrained);
+
+[debug] [2024-07-08T21:23:31.091Z] Error: ENOENT: no such file or directory, open '/Users/takagiriho/ghq/github.com/ITPNYU/Booking-Tool/booking-app/.next/export-marker.json'
+[error] 
+[error] Error: An unexpected error has occurred.
+[debug] [2024-07-08T21:24:43.186Z] ----------------------------------------------------------------------
+[debug] [2024-07-08T21:24:43.187Z] Command:       /Users/takagiriho/.nvm/versions/node/v18.17.0/bin/node /usr/local/bin/firebase deploy
+[debug] [2024-07-08T21:24:43.187Z] CLI Version:   13.13.0
+[debug] [2024-07-08T21:24:43.187Z] Platform:      darwin
+[debug] [2024-07-08T21:24:43.187Z] Node Version:  v18.17.0
+[debug] [2024-07-08T21:24:43.192Z] Time:          Mon Jul 08 2024 17:24:43 GMT-0400 (Eastern Daylight Time)
+[debug] [2024-07-08T21:24:43.193Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2024-07-08T21:24:43.230Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2024-07-08T21:24:43.231Z] > authorizing via signed-in user (rh3555@nyu.edu)
+[debug] [2024-07-08T21:24:43.231Z] [iam] checking project flowing-mantis-389917 for permissions ["firebase.projects.get","firebasehosting.sites.update"]
+[debug] [2024-07-08T21:24:43.232Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/flowing-mantis-389917:testIamPermissions [none]
+[debug] [2024-07-08T21:24:43.232Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/flowing-mantis-389917:testIamPermissions x-goog-quota-user=projects/flowing-mantis-389917
+[debug] [2024-07-08T21:24:43.232Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/flowing-mantis-389917:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2024-07-08T21:24:43.454Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/flowing-mantis-389917:testIamPermissions 200
+[debug] [2024-07-08T21:24:43.455Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/flowing-mantis-389917:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2024-07-08T21:24:43.456Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/flowing-mantis-389917 [none]
+[debug] [2024-07-08T21:24:43.973Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/flowing-mantis-389917 200
+[debug] [2024-07-08T21:24:43.974Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/flowing-mantis-389917 {"projectId":"flowing-mantis-389917","projectNumber":"289027705740","displayName":"sharedSpaceBooking","name":"projects/flowing-mantis-389917","resources":{"hostingSite":"flowing-mantis-389917","locationId":"us-central"},"state":"ACTIVE","etag":"1_5d2cff49-f9b1-4ad8-a083-9037b60e7e48"}
+[debug] [2024-07-08T21:24:44.818Z] defaultcredentials: writing to file /Users/takagiriho/.config/firebase/rh3555_nyu_edu_application_default_credentials.json
+[info] 
+   Thank you for trying our early preview of Next.js support on Firebase Hosting.
+   During the preview, support is best-effort and breaking changes can be expected. Proceed with caution.
+   The integration is known to work with Next.js version 12 - 14.0. You may encounter errors.
+
+   Documentation: https://firebase.google.com/docs/hosting/frameworks/nextjs
+   File a bug: https://github.com/firebase/firebase-tools/issues/new?template=bug_report.md
+   Submit a feature request: https://github.com/firebase/firebase-tools/issues/new?template=feature_request.md
+
+   We'd love to learn from you. Express your interest in helping us shape the future of Firebase Hosting: https://goo.gle/41enW5X
+
+[debug] [2024-07-08T21:24:46.967Z] >>> [apiv2][query] GET https://firebasehosting.googleapis.com/v1beta1/projects/flowing-mantis-389917/sites/flowing-mantis-389917 [none]
+[debug] [2024-07-08T21:24:47.267Z] <<< [apiv2][status] GET https://firebasehosting.googleapis.com/v1beta1/projects/flowing-mantis-389917/sites/flowing-mantis-389917 200
+[debug] [2024-07-08T21:24:47.268Z] <<< [apiv2][body] GET https://firebasehosting.googleapis.com/v1beta1/projects/flowing-mantis-389917/sites/flowing-mantis-389917 {"name":"projects/flowing-mantis-389917/sites/flowing-mantis-389917","defaultUrl":"https://flowing-mantis-389917.web.app","appId":"1:289027705740:web:31820e33df9be4d65d24a9","type":"DEFAULT_SITE"}
+[info]   ▲ Next.js 14.2.4
+
+[info]   - Environments: .env.local
+
+
+[info]    Creating an optimized production build ...
+
+[info]  ✓ Compiled successfully
+
+[info]    Linting and checking validity of types ...
+
+[info]  ⨯ ESLint: Failed to load config "airbnb-base" to extend from. Referenced from: /Users/takagiriho/ghq/github.com/ITPNYU/Booking-Tool/booking-app/components/src/client/.eslintrc.json
+
+[info] Failed to compile.
+
+
+[info] ./components/src/client/routes/booking/bookingProvider.tsx:41:35
+Type error: Binding element 'children' implicitly has an 'any' type.
+
+  39 | });
+  40 |
+> 41 | export function BookingProvider({ children }) {
+     |                                   ^
+  42 |   const { bannedUsers, safetyTrainedUsers, userEmail } =
+  43 |     useContext(DatabaseContext);
+  44 |
+
+[debug] [2024-07-08T21:24:57.354Z] Error: ENOENT: no such file or directory, open '/Users/takagiriho/ghq/github.com/ITPNYU/Booking-Tool/booking-app/.next/export-marker.json'
+[error] 
+[error] Error: An unexpected error has occurred.
+[debug] [2024-07-08T21:27:55.548Z] ----------------------------------------------------------------------
+[debug] [2024-07-08T21:27:55.549Z] Command:       /Users/takagiriho/.nvm/versions/node/v18.17.0/bin/node /usr/local/bin/firebase deploy
+[debug] [2024-07-08T21:27:55.549Z] CLI Version:   13.13.0
+[debug] [2024-07-08T21:27:55.550Z] Platform:      darwin
+[debug] [2024-07-08T21:27:55.550Z] Node Version:  v18.17.0
+[debug] [2024-07-08T21:27:55.553Z] Time:          Mon Jul 08 2024 17:27:55 GMT-0400 (Eastern Daylight Time)
+[debug] [2024-07-08T21:27:55.553Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2024-07-08T21:27:55.583Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2024-07-08T21:27:55.583Z] > authorizing via signed-in user (rh3555@nyu.edu)
+[debug] [2024-07-08T21:27:55.583Z] [iam] checking project flowing-mantis-389917 for permissions ["firebase.projects.get","firebasehosting.sites.update"]
+[debug] [2024-07-08T21:27:55.584Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/flowing-mantis-389917:testIamPermissions [none]
+[debug] [2024-07-08T21:27:55.584Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/flowing-mantis-389917:testIamPermissions x-goog-quota-user=projects/flowing-mantis-389917
+[debug] [2024-07-08T21:27:55.584Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/flowing-mantis-389917:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2024-07-08T21:27:56.204Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/flowing-mantis-389917:testIamPermissions 200
+[debug] [2024-07-08T21:27:56.205Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/flowing-mantis-389917:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2024-07-08T21:27:56.206Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/flowing-mantis-389917 [none]
+[debug] [2024-07-08T21:27:56.882Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/flowing-mantis-389917 200
+[debug] [2024-07-08T21:27:56.883Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/flowing-mantis-389917 {"projectId":"flowing-mantis-389917","projectNumber":"289027705740","displayName":"sharedSpaceBooking","name":"projects/flowing-mantis-389917","resources":{"hostingSite":"flowing-mantis-389917","locationId":"us-central"},"state":"ACTIVE","etag":"1_5d2cff49-f9b1-4ad8-a083-9037b60e7e48"}
+[debug] [2024-07-08T21:27:57.732Z] defaultcredentials: writing to file /Users/takagiriho/.config/firebase/rh3555_nyu_edu_application_default_credentials.json
+[info] 
+   Thank you for trying our early preview of Next.js support on Firebase Hosting.
+   During the preview, support is best-effort and breaking changes can be expected. Proceed with caution.
+   The integration is known to work with Next.js version 12 - 14.0. You may encounter errors.
+
+   Documentation: https://firebase.google.com/docs/hosting/frameworks/nextjs
+   File a bug: https://github.com/firebase/firebase-tools/issues/new?template=bug_report.md
+   Submit a feature request: https://github.com/firebase/firebase-tools/issues/new?template=feature_request.md
+
+   We'd love to learn from you. Express your interest in helping us shape the future of Firebase Hosting: https://goo.gle/41enW5X
+
+[debug] [2024-07-08T21:27:59.356Z] >>> [apiv2][query] GET https://firebasehosting.googleapis.com/v1beta1/projects/flowing-mantis-389917/sites/flowing-mantis-389917 [none]
+[debug] [2024-07-08T21:27:59.998Z] <<< [apiv2][status] GET https://firebasehosting.googleapis.com/v1beta1/projects/flowing-mantis-389917/sites/flowing-mantis-389917 200
+[debug] [2024-07-08T21:27:59.999Z] <<< [apiv2][body] GET https://firebasehosting.googleapis.com/v1beta1/projects/flowing-mantis-389917/sites/flowing-mantis-389917 {"name":"projects/flowing-mantis-389917/sites/flowing-mantis-389917","defaultUrl":"https://flowing-mantis-389917.web.app","appId":"1:289027705740:web:31820e33df9be4d65d24a9","type":"DEFAULT_SITE"}
+[info]   ▲ Next.js 14.2.4
+
+[info]   - Environments: .env.local
+
+
+[info]    Creating an optimized production build ...
+
+[info]  ✓ Compiled successfully
+
+[info]    Linting and checking validity of types ...
+
+[info]  ⨯ ESLint: Failed to load config "airbnb-base" to extend from. Referenced from: /Users/takagiriho/ghq/github.com/ITPNYU/Booking-Tool/booking-app/components/src/client/.eslintrc.json
+
+[info] Failed to compile.
+
+
+[info] ./components/src/client/routes/booking/components/CalendarDatePicker.tsx:4:38
+Type error: Binding element 'handleChange' implicitly has an 'any' type.
+
+  2 | import Datepicker from 'tailwind-datepicker-react';
+  3 |
+> 4 | export const CalendarDatePicker = ({ handleChange }) => {
+    |                                      ^
+  5 |   const options = {
+  6 |     title: 'Date',
+  7 |     autoHide: true,
+
+[debug] [2024-07-08T21:28:09.675Z] Error: ENOENT: no such file or directory, open '/Users/takagiriho/ghq/github.com/ITPNYU/Booking-Tool/booking-app/.next/export-marker.json'
+[error] 
+[error] Error: An unexpected error has occurred.
+[debug] [2024-07-08T21:28:29.556Z] ----------------------------------------------------------------------
+[debug] [2024-07-08T21:28:29.557Z] Command:       /Users/takagiriho/.nvm/versions/node/v18.17.0/bin/node /usr/local/bin/firebase deploy
+[debug] [2024-07-08T21:28:29.557Z] CLI Version:   13.13.0
+[debug] [2024-07-08T21:28:29.557Z] Platform:      darwin
+[debug] [2024-07-08T21:28:29.557Z] Node Version:  v18.17.0
+[debug] [2024-07-08T21:28:29.560Z] Time:          Mon Jul 08 2024 17:28:29 GMT-0400 (Eastern Daylight Time)
+[debug] [2024-07-08T21:28:29.560Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2024-07-08T21:28:29.591Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2024-07-08T21:28:29.591Z] > authorizing via signed-in user (rh3555@nyu.edu)
+[debug] [2024-07-08T21:28:29.591Z] [iam] checking project flowing-mantis-389917 for permissions ["firebase.projects.get","firebasehosting.sites.update"]
+[debug] [2024-07-08T21:28:29.592Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/flowing-mantis-389917:testIamPermissions [none]
+[debug] [2024-07-08T21:28:29.592Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/flowing-mantis-389917:testIamPermissions x-goog-quota-user=projects/flowing-mantis-389917
+[debug] [2024-07-08T21:28:29.592Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/flowing-mantis-389917:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2024-07-08T21:28:29.796Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/flowing-mantis-389917:testIamPermissions 200
+[debug] [2024-07-08T21:28:29.796Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/flowing-mantis-389917:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2024-07-08T21:28:29.797Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/flowing-mantis-389917 [none]
+[debug] [2024-07-08T21:28:30.023Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/flowing-mantis-389917 200
+[debug] [2024-07-08T21:28:30.024Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/flowing-mantis-389917 {"projectId":"flowing-mantis-389917","projectNumber":"289027705740","displayName":"sharedSpaceBooking","name":"projects/flowing-mantis-389917","resources":{"hostingSite":"flowing-mantis-389917","locationId":"us-central"},"state":"ACTIVE","etag":"1_5d2cff49-f9b1-4ad8-a083-9037b60e7e48"}
+[debug] [2024-07-08T21:28:30.840Z] defaultcredentials: writing to file /Users/takagiriho/.config/firebase/rh3555_nyu_edu_application_default_credentials.json
+[info] 
+   Thank you for trying our early preview of Next.js support on Firebase Hosting.
+   During the preview, support is best-effort and breaking changes can be expected. Proceed with caution.
+   The integration is known to work with Next.js version 12 - 14.0. You may encounter errors.
+
+   Documentation: https://firebase.google.com/docs/hosting/frameworks/nextjs
+   File a bug: https://github.com/firebase/firebase-tools/issues/new?template=bug_report.md
+   Submit a feature request: https://github.com/firebase/firebase-tools/issues/new?template=feature_request.md
+
+   We'd love to learn from you. Express your interest in helping us shape the future of Firebase Hosting: https://goo.gle/41enW5X
+
+[debug] [2024-07-08T21:28:32.470Z] >>> [apiv2][query] GET https://firebasehosting.googleapis.com/v1beta1/projects/flowing-mantis-389917/sites/flowing-mantis-389917 [none]
+[debug] [2024-07-08T21:28:32.774Z] <<< [apiv2][status] GET https://firebasehosting.googleapis.com/v1beta1/projects/flowing-mantis-389917/sites/flowing-mantis-389917 200
+[debug] [2024-07-08T21:28:32.774Z] <<< [apiv2][body] GET https://firebasehosting.googleapis.com/v1beta1/projects/flowing-mantis-389917/sites/flowing-mantis-389917 {"name":"projects/flowing-mantis-389917/sites/flowing-mantis-389917","defaultUrl":"https://flowing-mantis-389917.web.app","appId":"1:289027705740:web:31820e33df9be4d65d24a9","type":"DEFAULT_SITE"}
+[info]   ▲ Next.js 14.2.4
+
+[info]   - Environments: .env.local
+
+
+[info]    Creating an optimized production build ...
+
+[info]  ✓ Compiled successfully
+
+[info]    Linting and checking validity of types ...
+
+[info]  ⨯ ESLint: Failed to load config "airbnb-base" to extend from. Referenced from: /Users/takagiriho/ghq/github.com/ITPNYU/Booking-Tool/booking-app/components/src/client/.eslintrc.json
+
+[info] Failed to compile.
+
+
+[info] ./components/src/client/routes/booking/components/Calendars.tsx:26:22
+Type error: Parameter 'info' implicitly has an 'any' type.
+
+  24 |   const [bookingTimeEvent, setBookingTimeEvent] = useState<DateSelectArg>();
+  25 |
+> 26 |   const isOverlap = (info) => {
+     |                      ^
+  27 |     return selectedRooms.some((room, i) => {
+  28 |       const calendarApi = room.calendarRef.current.getApi();
+  29 |
+
+[debug] [2024-07-08T21:28:42.660Z] Error: ENOENT: no such file or directory, open '/Users/takagiriho/ghq/github.com/ITPNYU/Booking-Tool/booking-app/.next/export-marker.json'
+[error] 
+[error] Error: An unexpected error has occurred.
+[debug] [2024-07-08T21:43:26.080Z] ----------------------------------------------------------------------
+[debug] [2024-07-08T21:43:26.081Z] Command:       /Users/takagiriho/.nvm/versions/node/v18.17.0/bin/node /usr/local/bin/firebase deploy
+[debug] [2024-07-08T21:43:26.081Z] CLI Version:   13.13.0
+[debug] [2024-07-08T21:43:26.081Z] Platform:      darwin
+[debug] [2024-07-08T21:43:26.081Z] Node Version:  v18.17.0
+[debug] [2024-07-08T21:43:26.085Z] Time:          Mon Jul 08 2024 17:43:26 GMT-0400 (Eastern Daylight Time)
+[debug] [2024-07-08T21:43:26.085Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2024-07-08T21:43:26.114Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2024-07-08T21:43:26.114Z] > authorizing via signed-in user (rh3555@nyu.edu)
+[debug] [2024-07-08T21:43:26.114Z] [iam] checking project flowing-mantis-389917 for permissions ["firebase.projects.get","firebasehosting.sites.update"]
+[debug] [2024-07-08T21:43:26.115Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/flowing-mantis-389917:testIamPermissions [none]
+[debug] [2024-07-08T21:43:26.115Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/flowing-mantis-389917:testIamPermissions x-goog-quota-user=projects/flowing-mantis-389917
+[debug] [2024-07-08T21:43:26.115Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/flowing-mantis-389917:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2024-07-08T21:43:26.715Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/flowing-mantis-389917:testIamPermissions 200
+[debug] [2024-07-08T21:43:26.716Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/flowing-mantis-389917:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2024-07-08T21:43:26.718Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/flowing-mantis-389917 [none]
+[debug] [2024-07-08T21:43:27.428Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/flowing-mantis-389917 200
+[debug] [2024-07-08T21:43:27.429Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/flowing-mantis-389917 {"projectId":"flowing-mantis-389917","projectNumber":"289027705740","displayName":"sharedSpaceBooking","name":"projects/flowing-mantis-389917","resources":{"hostingSite":"flowing-mantis-389917","locationId":"us-central"},"state":"ACTIVE","etag":"1_5d2cff49-f9b1-4ad8-a083-9037b60e7e48"}
+[debug] [2024-07-08T21:43:28.294Z] defaultcredentials: writing to file /Users/takagiriho/.config/firebase/rh3555_nyu_edu_application_default_credentials.json
+[info] 
+   Thank you for trying our early preview of Next.js support on Firebase Hosting.
+   During the preview, support is best-effort and breaking changes can be expected. Proceed with caution.
+   The integration is known to work with Next.js version 12 - 14.0. You may encounter errors.
+
+   Documentation: https://firebase.google.com/docs/hosting/frameworks/nextjs
+   File a bug: https://github.com/firebase/firebase-tools/issues/new?template=bug_report.md
+   Submit a feature request: https://github.com/firebase/firebase-tools/issues/new?template=feature_request.md
+
+   We'd love to learn from you. Express your interest in helping us shape the future of Firebase Hosting: https://goo.gle/41enW5X
+
+[debug] [2024-07-08T21:43:30.007Z] >>> [apiv2][query] GET https://firebasehosting.googleapis.com/v1beta1/projects/flowing-mantis-389917/sites/flowing-mantis-389917 [none]
+[debug] [2024-07-08T21:43:30.757Z] <<< [apiv2][status] GET https://firebasehosting.googleapis.com/v1beta1/projects/flowing-mantis-389917/sites/flowing-mantis-389917 200
+[debug] [2024-07-08T21:43:30.758Z] <<< [apiv2][body] GET https://firebasehosting.googleapis.com/v1beta1/projects/flowing-mantis-389917/sites/flowing-mantis-389917 {"name":"projects/flowing-mantis-389917/sites/flowing-mantis-389917","defaultUrl":"https://flowing-mantis-389917.web.app","appId":"1:289027705740:web:31820e33df9be4d65d24a9","type":"DEFAULT_SITE"}
+[info]   ▲ Next.js 14.2.4
+
+[info]   - Environments: .env.local
+
+
+[info]    Creating an optimized production build ...
+
+[info]    Disabled SWC as replacement for Babel because of custom Babel configuration ".babelrc" https://nextjs.org/docs/messages/swc-disabled
+
+[info]    Using external babel configuration from /Users/takagiriho/ghq/github.com/ITPNYU/Booking-Tool/booking-app/.babelrc
+
+[info]  ⚠ It looks like there is a custom Babel configuration that can be removed.
+
+[info] [BABEL] Note: The code generator has deoptimised the styling of /Users/takagiriho/ghq/github.com/ITPNYU/Booking-Tool/booking-app/node_modules/googleapis/build/src/apis/aiplatform/v1.js as it exceeds the max of 500KB.
+
+[info] [BABEL] Note: The code generator has deoptimised the styling of /Users/takagiriho/ghq/github.com/ITPNYU/Booking-Tool/booking-app/node_modules/googleapis/build/src/apis/aiplatform/v1beta1.js as it exceeds the max of 500KB.
+
+[info] [BABEL] Note: The code generator has deoptimised the styling of /Users/takagiriho/ghq/github.com/ITPNYU/Booking-Tool/booking-app/node_modules/googleapis/build/src/apis/compute/v1.js as it exceeds the max of 500KB.
+
+[info] [BABEL] Note: The code generator has deoptimised the styling of /Users/takagiriho/ghq/github.com/ITPNYU/Booking-Tool/booking-app/node_modules/googleapis/build/src/apis/compute/alpha.js as it exceeds the max of 500KB.
+
+[info] [BABEL] Note: The code generator has deoptimised the styling of /Users/takagiriho/ghq/github.com/ITPNYU/Booking-Tool/booking-app/node_modules/googleapis/build/src/apis/compute/beta.js as it exceeds the max of 500KB.
+
+[info] Failed to compile.
+
+
+[info] ./app/layout.tsx:3:1
+Syntax error: "next/font" requires SWC although Babel is being used due to a custom babel config being present.
+Read more: https://nextjs.org/docs/messages/babel-font-loader-conflict
+
+
+[info] 
+
+[info] > Build failed because of webpack errors
+
+[debug] [2024-07-08T21:43:59.930Z] Error: ENOENT: no such file or directory, open '/Users/takagiriho/ghq/github.com/ITPNYU/Booking-Tool/booking-app/.next/server/middleware-manifest.json'
+[error] 
+[error] Error: An unexpected error has occurred.
+[debug] [2024-07-08T21:48:05.360Z] ----------------------------------------------------------------------
+[debug] [2024-07-08T21:48:05.361Z] Command:       /Users/takagiriho/.nvm/versions/node/v18.17.0/bin/node /usr/local/bin/firebase deploy
+[debug] [2024-07-08T21:48:05.361Z] CLI Version:   13.13.0
+[debug] [2024-07-08T21:48:05.361Z] Platform:      darwin
+[debug] [2024-07-08T21:48:05.361Z] Node Version:  v18.17.0
+[debug] [2024-07-08T21:48:05.364Z] Time:          Mon Jul 08 2024 17:48:05 GMT-0400 (Eastern Daylight Time)
+[debug] [2024-07-08T21:48:05.364Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2024-07-08T21:48:05.396Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2024-07-08T21:48:05.397Z] > authorizing via signed-in user (rh3555@nyu.edu)
+[debug] [2024-07-08T21:48:05.397Z] [iam] checking project flowing-mantis-389917 for permissions ["firebase.projects.get","firebasehosting.sites.update"]
+[debug] [2024-07-08T21:48:05.398Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/flowing-mantis-389917:testIamPermissions [none]
+[debug] [2024-07-08T21:48:05.398Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/flowing-mantis-389917:testIamPermissions x-goog-quota-user=projects/flowing-mantis-389917
+[debug] [2024-07-08T21:48:05.398Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/flowing-mantis-389917:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2024-07-08T21:48:05.607Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/flowing-mantis-389917:testIamPermissions 200
+[debug] [2024-07-08T21:48:05.607Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/flowing-mantis-389917:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2024-07-08T21:48:05.609Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/flowing-mantis-389917 [none]
+[debug] [2024-07-08T21:48:05.958Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/flowing-mantis-389917 200
+[debug] [2024-07-08T21:48:05.959Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/flowing-mantis-389917 {"projectId":"flowing-mantis-389917","projectNumber":"289027705740","displayName":"sharedSpaceBooking","name":"projects/flowing-mantis-389917","resources":{"hostingSite":"flowing-mantis-389917","locationId":"us-central"},"state":"ACTIVE","etag":"1_5d2cff49-f9b1-4ad8-a083-9037b60e7e48"}
+[debug] [2024-07-08T21:48:06.782Z] defaultcredentials: writing to file /Users/takagiriho/.config/firebase/rh3555_nyu_edu_application_default_credentials.json
+[info] 
+   Thank you for trying our early preview of Next.js support on Firebase Hosting.
+   During the preview, support is best-effort and breaking changes can be expected. Proceed with caution.
+   The integration is known to work with Next.js version 12 - 14.0. You may encounter errors.
+
+   Documentation: https://firebase.google.com/docs/hosting/frameworks/nextjs
+   File a bug: https://github.com/firebase/firebase-tools/issues/new?template=bug_report.md
+   Submit a feature request: https://github.com/firebase/firebase-tools/issues/new?template=feature_request.md
+
+   We'd love to learn from you. Express your interest in helping us shape the future of Firebase Hosting: https://goo.gle/41enW5X
+
+[debug] [2024-07-08T21:48:08.449Z] >>> [apiv2][query] GET https://firebasehosting.googleapis.com/v1beta1/projects/flowing-mantis-389917/sites/flowing-mantis-389917 [none]
+[debug] [2024-07-08T21:48:08.752Z] <<< [apiv2][status] GET https://firebasehosting.googleapis.com/v1beta1/projects/flowing-mantis-389917/sites/flowing-mantis-389917 200
+[debug] [2024-07-08T21:48:08.753Z] <<< [apiv2][body] GET https://firebasehosting.googleapis.com/v1beta1/projects/flowing-mantis-389917/sites/flowing-mantis-389917 {"name":"projects/flowing-mantis-389917/sites/flowing-mantis-389917","defaultUrl":"https://flowing-mantis-389917.web.app","appId":"1:289027705740:web:31820e33df9be4d65d24a9","type":"DEFAULT_SITE"}
+[info]   ▲ Next.js 14.2.4
+
+[info]   - Environments: .env.local
+
+
+[info]    Creating an optimized production build ...
+
+[info]  ✓ Compiled successfully
+
+[info]    Linting and checking validity of types ...
+
+[info] Failed to compile.
+
+./components/src/client/routes/booking/components/Calendars.tsx:26:22
+Type error: Parameter 'info' implicitly has an 'any' type.
+
+  24 |   const [bookingTimeEvent, setBookingTimeEvent] = useState<DateSelectArg>();
+  25 |
+> 26 |   const isOverlap = (info) => {
+     |                      ^
+  27 |     return selectedRooms.some((room, i) => {
+  28 |       const calendarApi = room.calendarRef.current.getApi();
+  29 |
+
+[debug] [2024-07-08T21:48:28.421Z] Error: ENOENT: no such file or directory, open '/Users/takagiriho/ghq/github.com/ITPNYU/Booking-Tool/booking-app/.next/export-marker.json'
+[error] 
+[error] Error: An unexpected error has occurred.
+[debug] [2024-07-11T14:59:05.210Z] ----------------------------------------------------------------------
+[debug] [2024-07-11T14:59:05.210Z] Command:       /Users/takagiriho/.nvm/versions/node/v18.17.0/bin/node /usr/local/bin/firebase emulators:start
+[debug] [2024-07-11T14:59:05.211Z] CLI Version:   13.13.0
+[debug] [2024-07-11T14:59:05.211Z] Platform:      darwin
+[debug] [2024-07-11T14:59:05.211Z] Node Version:  v18.17.0
+[debug] [2024-07-11T14:59:05.211Z] Time:          Thu Jul 11 2024 10:59:05 GMT-0400 (Eastern Daylight Time)
+[debug] [2024-07-11T14:59:05.211Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2024-07-11T14:59:05.213Z] >>> [apiv2][query] GET https://firebase-public.firebaseio.com/cli.json [none]
+[debug] [2024-07-11T14:59:05.263Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2024-07-11T14:59:05.263Z] > authorizing via signed-in user (rh3555@nyu.edu)
+[info] i  emulators: Starting emulators: hosting {"metadata":{"emulator":{"name":"hub"},"message":"Starting emulators: hosting"}}
+[debug] [2024-07-11T14:59:05.718Z] [logging] Logging Emulator only supports listening on one address (127.0.0.1). Not listening on ::1
+[warn] ⚠  hosting: Hosting Emulator unable to start on port 5000, starting on 5002 instead. {"metadata":{"emulator":{"name":"hosting"},"message":"Hosting Emulator unable to start on port 5000, starting on 5002 instead."}}
+[debug] [2024-07-11T14:59:05.718Z] [hosting] Hosting Emulator only supports listening on one address (127.0.0.1). Not listening on ::1
+[debug] [2024-07-11T14:59:05.718Z] assigned listening specs for emulators {"user":{"hub":[{"address":"127.0.0.1","family":"IPv4","port":4400},{"address":"::1","family":"IPv6","port":4400}],"logging":[{"address":"127.0.0.1","family":"IPv4","port":4500}],"hosting":[{"address":"127.0.0.1","family":"IPv4","port":5002}]},"metadata":{"message":"assigned listening specs for emulators"}}
+[debug] [2024-07-11T14:59:05.721Z] [hub] writing locator at /var/folders/0t/pc3g628n3ylg5pnvtgy3y8h00000gn/T/hub-flowing-mantis-389917.json
+[debug] [2024-07-11T14:59:05.725Z] > refreshing access token with scopes: []
+[debug] [2024-07-11T14:59:05.725Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2024-07-11T14:59:05.726Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2024-07-11T14:59:05.817Z] <<< [apiv2][status] GET https://firebase-public.firebaseio.com/cli.json 200
+[debug] [2024-07-11T14:59:05.818Z] <<< [apiv2][body] GET https://firebase-public.firebaseio.com/cli.json {"cloudBuildErrorAfter":1594252800000,"cloudBuildWarnAfter":1590019200000,"defaultNode10After":1594252800000,"minVersion":"3.0.5","node8DeploysDisabledAfter":1613390400000,"node8RuntimeDisabledAfter":1615809600000,"node8WarnAfter":1600128000000}
+[debug] [2024-07-11T14:59:06.235Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 200
+[debug] [2024-07-11T14:59:06.235Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2024-07-11T14:59:06.248Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/flowing-mantis-389917 [none]
+[debug] [2024-07-11T14:59:06.906Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/flowing-mantis-389917 200
+[debug] [2024-07-11T14:59:06.907Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/flowing-mantis-389917 {"projectId":"flowing-mantis-389917","projectNumber":"289027705740","displayName":"sharedSpaceBooking","name":"projects/flowing-mantis-389917","resources":{"hostingSite":"flowing-mantis-389917","locationId":"us-central"},"state":"ACTIVE","etag":"1_eef0285d-0deb-4624-91cc-ffd3664399c8"}
+[debug] [2024-07-11T14:59:07.796Z] defaultcredentials: writing to file /Users/takagiriho/.config/firebase/rh3555_nyu_edu_application_default_credentials.json
+[debug] [2024-07-11T14:59:07.798Z] >>> [apiv2][query] GET https://firebasehosting.googleapis.com/v1beta1/projects/flowing-mantis-389917/sites pageToken=&pageSize=10
+[debug] [2024-07-11T14:59:08.549Z] <<< [apiv2][status] GET https://firebasehosting.googleapis.com/v1beta1/projects/flowing-mantis-389917/sites 200
+[debug] [2024-07-11T14:59:08.550Z] <<< [apiv2][body] GET https://firebasehosting.googleapis.com/v1beta1/projects/flowing-mantis-389917/sites {"sites":[{"name":"projects/flowing-mantis-389917/sites/flowing-mantis-389917","defaultUrl":"https://flowing-mantis-389917.web.app","appId":"1:289027705740:web:31820e33df9be4d65d24a9","type":"DEFAULT_SITE"}]}
+[debug] [2024-07-11T14:59:08.551Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/-/webApps/1:289027705740:web:31820e33df9be4d65d24a9/config [none]
+[debug] [2024-07-11T14:59:09.153Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/-/webApps/1:289027705740:web:31820e33df9be4d65d24a9/config 200
+[debug] [2024-07-11T14:59:09.153Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/-/webApps/1:289027705740:web:31820e33df9be4d65d24a9/config {"projectId":"flowing-mantis-389917","appId":"1:289027705740:web:31820e33df9be4d65d24a9","storageBucket":"flowing-mantis-389917.appspot.com","locationId":"us-central","apiKey":"AIzaSyDdFBW-MHSbBCHg-6TLBgJUmp1hacx7Vr8","authDomain":"flowing-mantis-389917.firebaseapp.com","messagingSenderId":"289027705740","measurementId":"G-B2TH2J5RFR"}
+[info] 
+   Thank you for trying our early preview of Next.js support on Firebase Hosting.
+   During the preview, support is best-effort and breaking changes can be expected. Proceed with caution.
+   The integration is known to work with Next.js version 12 - 14.0. You may encounter errors.
+
+   Documentation: https://firebase.google.com/docs/hosting/frameworks/nextjs
+   File a bug: https://github.com/firebase/firebase-tools/issues/new?template=bug_report.md
+   Submit a feature request: https://github.com/firebase/firebase-tools/issues/new?template=feature_request.md
+
+   We'd love to learn from you. Express your interest in helping us shape the future of Firebase Hosting: https://goo.gle/41enW5X
+
+[debug] [2024-07-11T14:59:21.854Z] [web frameworks] effective firebase.json:  {
+  "hosting": [
+    {
+      "source": ".",
+      "ignore": [
+        "firebase.json",
+        "**/.*",
+        "**/node_modules/**"
+      ],
+      "frameworksBackend": {
+        "region": "us-central1"
+      },
+      "site": "flowing-mantis-389917",
+      "rewrites": [
+        {
+          "source": "**",
+          "function": {
+            "functionId": "ssrflowingmantis389917",
+            "region": "us-central1",
+            "pinTag": true
+          }
+        }
+      ],
+      "redirects": [],
+      "headers": [
+        {
+          "source": "**/*.[jt]s",
+          "headers": [
+            {
+              "key": "Set-Cookie",
+              "value": "__FIREBASE_DEFAULTS__=eyJjb25maWciOnsicHJvamVjdElkIjoiZmxvd2luZy1tYW50aXMtMzg5OTE3IiwiYXBwSWQiOiIxOjI4OTAyNzcwNTc0MDp3ZWI6MzE4MjBlMzNkZjliZTRkNjVkMjRhOSIsInN0b3JhZ2VCdWNrZXQiOiJmbG93aW5nLW1hbnRpcy0zODk5MTcuYXBwc3BvdC5jb20iLCJsb2NhdGlvbklkIjoidXMtY2VudHJhbCIsImFwaUtleSI6IkFJemFTeURkRkJXLU1IU2JCQ0hnLTZUTEJnSlVtcDFoYWN4N1ZyOCIsImF1dGhEb21haW4iOiJmbG93aW5nLW1hbnRpcy0zODk5MTcuZmlyZWJhc2VhcHAuY29tIiwibWVzc2FnaW5nU2VuZGVySWQiOiIyODkwMjc3MDU3NDAiLCJtZWFzdXJlbWVudElkIjoiRy1CMlRIMko1UkZSIn0sIl9hdXRoVG9rZW5TeW5jVVJMIjoiL19fc2Vzc2lvbiJ9; SameSite=Strict; Expires=2026-06-06T01:39:21.854Z; Path=/;"
+            }
+          ]
+        }
+      ],
+      "cleanUrls": true,
+      "public": ".firebase/flowing-mantis-389917/hosting",
+      "webFramework": "next_ssr"
+    }
+  ],
+  "functions": [
+    {
+      "source": ".firebase/flowing-mantis-389917/functions",
+      "codebase": "firebase-frameworks-flowing-mantis-389917"
+    }
+  ]
+}
+[debug] [2024-07-11T14:59:22.130Z] [functions] Functions Emulator only supports listening on one address (127.0.0.1). Not listening on ::1
+[debug] [2024-07-11T14:59:22.130Z] [eventarc] Eventarc Emulator only supports listening on one address (127.0.0.1). Not listening on ::1
+[debug] [2024-07-11T14:59:22.130Z] late-assigned ports for functions and eventarc emulators {"user":{"hub":[{"address":"127.0.0.1","family":"IPv4","port":4400},{"address":"::1","family":"IPv6","port":4400}],"logging":[{"address":"127.0.0.1","family":"IPv4","port":4500}],"hosting":[{"address":"127.0.0.1","family":"IPv4","port":5002}],"functions":[{"address":"127.0.0.1","family":"IPv4","port":5001}],"eventarc":[{"address":"127.0.0.1","family":"IPv4","port":9299}]},"metadata":{"message":"late-assigned ports for functions and eventarc emulators"}}
+[warn] ⚠  functions: The following emulators are not running, calls to these services from the Functions emulator will affect production: auth, firestore, database, pubsub, storage, dataconnect {"metadata":{"emulator":{"name":"functions"},"message":"The following emulators are not running, calls to these services from the Functions emulator will affect production: \u001b[1mauth, firestore, database, pubsub, storage, dataconnect\u001b[22m"}}
+[warn] ⚠  functions: Your GOOGLE_APPLICATION_CREDENTIALS environment variable points to /Users/takagiriho/.config/firebase/rh3555_nyu_edu_application_default_credentials.json. Non-emulated services will access production using these credentials. Be careful! {"metadata":{"emulator":{"name":"functions"},"message":"Your GOOGLE_APPLICATION_CREDENTIALS environment variable points to /Users/takagiriho/.config/firebase/rh3555_nyu_edu_application_default_credentials.json. Non-emulated services will access production using these credentials. Be careful!"}}
+[debug] [2024-07-11T14:59:22.134Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/flowing-mantis-389917/adminSdkConfig [none]
+[debug] [2024-07-11T14:59:22.504Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/flowing-mantis-389917/adminSdkConfig 200
+[debug] [2024-07-11T14:59:22.505Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/flowing-mantis-389917/adminSdkConfig {"projectId":"flowing-mantis-389917","storageBucket":"flowing-mantis-389917.appspot.com","locationId":"us-central"}
+[debug] [2024-07-11T14:59:22.530Z] >>> [apiv2][query] GET https://firebasehosting.googleapis.com/v1beta1/projects/flowing-mantis-389917/sites 
+[debug] [2024-07-11T14:59:22.909Z] <<< [apiv2][status] GET https://firebasehosting.googleapis.com/v1beta1/projects/flowing-mantis-389917/sites 200
+[debug] [2024-07-11T14:59:22.909Z] <<< [apiv2][body] GET https://firebasehosting.googleapis.com/v1beta1/projects/flowing-mantis-389917/sites {"sites":[{"name":"projects/flowing-mantis-389917/sites/flowing-mantis-389917","defaultUrl":"https://flowing-mantis-389917.web.app","appId":"1:289027705740:web:31820e33df9be4d65d24a9","type":"DEFAULT_SITE"}]}
+[debug] [2024-07-11T14:59:22.910Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/flowing-mantis-389917/webApps/1:289027705740:web:31820e33df9be4d65d24a9/config [none]
+[debug] [2024-07-11T14:59:23.412Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/flowing-mantis-389917/webApps/1:289027705740:web:31820e33df9be4d65d24a9/config 200
+[debug] [2024-07-11T14:59:23.413Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/flowing-mantis-389917/webApps/1:289027705740:web:31820e33df9be4d65d24a9/config {"projectId":"flowing-mantis-389917","appId":"1:289027705740:web:31820e33df9be4d65d24a9","storageBucket":"flowing-mantis-389917.appspot.com","locationId":"us-central","apiKey":"AIzaSyDdFBW-MHSbBCHg-6TLBgJUmp1hacx7Vr8","authDomain":"flowing-mantis-389917.firebaseapp.com","messagingSenderId":"289027705740","measurementId":"G-B2TH2J5RFR"}
+[info] i  hosting[flowing-mantis-389917]: Serving hosting files from: .firebase/flowing-mantis-389917/hosting {"metadata":{"emulator":{"name":"hosting"},"message":"Serving hosting files from: \u001b[1m.firebase/flowing-mantis-389917/hosting\u001b[22m"}}
+[info] ✔  hosting[flowing-mantis-389917]: Local server: http://127.0.0.1:5002 {"metadata":{"emulator":{"name":"hosting"},"message":"Local server: \u001b[4m\u001b[1mhttp://127.0.0.1:5002\u001b[22m\u001b[24m"}}
+[info] i  functions: Watching "/Users/takagiriho/ghq/github.com/ITPNYU/Booking-Tool/booking-app/.firebase/flowing-mantis-389917/functions" for Cloud Functions... {"metadata":{"emulator":{"name":"functions"},"message":"Watching \"/Users/takagiriho/ghq/github.com/ITPNYU/Booking-Tool/booking-app/.firebase/flowing-mantis-389917/functions\" for Cloud Functions..."}}
+[debug] [2024-07-11T14:59:23.539Z] Validating nodejs source
+[warn] ⚠  functions: package.json indicates an outdated version of firebase-functions. Please upgrade using npm install --save firebase-functions@latest in your functions directory. 
+[warn] ⚠  functions: Please note that there will be breaking changes when you upgrade. 
+[debug] [2024-07-11T14:59:23.837Z] > [functions] package.json contents: {
+  "main": "server.js",
+  "dependencies": {
+    "firebase-frameworks": "^0.11.0",
+    "firebase-functions": "^4.5.0",
+    "firebase-admin": "^11.11.1"
+  },
+  "engines": {
+    "node": "18"
+  }
+}
+[debug] [2024-07-11T14:59:23.837Z] Building nodejs source
+[debug] [2024-07-11T14:59:23.837Z] Failed to find version of module node: reached end of search path /Users/takagiriho/ghq/github.com/ITPNYU/Booking-Tool/booking-app/.firebase/flowing-mantis-389917/functions/node_modules
+[info] ✔  functions: Using node@18 from host. 
+[debug] [2024-07-11T14:59:23.839Z] Failed to validate key FIREBASE_PROJECT_ID: Error: Key FIREBASE_PROJECT_ID starts with a reserved prefix (X_GOOGLE_ FIREBASE_ EXT_)
+[debug] [2024-07-11T14:59:23.839Z] Failed to validate key FIREBASE_PRIVATE_KEY_ID: Error: Key FIREBASE_PRIVATE_KEY_ID starts with a reserved prefix (X_GOOGLE_ FIREBASE_ EXT_)
+[debug] [2024-07-11T14:59:23.839Z] Failed to validate key FIREBASE_PRIVATE_KEY: Error: Key FIREBASE_PRIVATE_KEY starts with a reserved prefix (X_GOOGLE_ FIREBASE_ EXT_)
+[debug] [2024-07-11T14:59:23.839Z] Failed to validate key FIREBASE_CLIENT_EMAIL: Error: Key FIREBASE_CLIENT_EMAIL starts with a reserved prefix (X_GOOGLE_ FIREBASE_ EXT_)
+[debug] [2024-07-11T14:59:23.839Z] Failed to validate key FIREBASE_CLIENT_ID: Error: Key FIREBASE_CLIENT_ID starts with a reserved prefix (X_GOOGLE_ FIREBASE_ EXT_)
+[debug] [2024-07-11T14:59:23.839Z] Failed to validate key FIREBASE_AUTH_URI: Error: Key FIREBASE_AUTH_URI starts with a reserved prefix (X_GOOGLE_ FIREBASE_ EXT_)
+[debug] [2024-07-11T14:59:23.839Z] Failed to validate key FIREBASE_TOKEN_URI: Error: Key FIREBASE_TOKEN_URI starts with a reserved prefix (X_GOOGLE_ FIREBASE_ EXT_)
+[debug] [2024-07-11T14:59:23.839Z] Failed to validate key FIREBASE_AUTH_PROVIDER_X509_CERT_URL: Error: Key FIREBASE_AUTH_PROVIDER_X509_CERT_URL starts with a reserved prefix (X_GOOGLE_ FIREBASE_ EXT_)
+[debug] [2024-07-11T14:59:23.839Z] Failed to validate key FIREBASE_CLIENT_X509_CERT_URL: Error: Key FIREBASE_CLIENT_X509_CERT_URL starts with a reserved prefix (X_GOOGLE_ FIREBASE_ EXT_)
+[error] ⬢  functions: Failed to load function definition from source: FirebaseError: Failed to load environment variables from .env.local. {"metadata":{"emulator":{"name":"functions"},"message":"Failed to load function definition from source: FirebaseError: Failed to load environment variables from .env.local."}}
+[info] 
+┌─────────────────────────────────────────────────────────────┐
+│ ✔  All emulators ready! It is now safe to connect your app. │
+└─────────────────────────────────────────────────────────────┘
+
+┌───────────┬────────────────┐
+│ Emulator  │ Host:Port      │
+├───────────┼────────────────┤
+│ Functions │ 127.0.0.1:5001 │
+├───────────┼────────────────┤
+│ Hosting   │ 127.0.0.1:5002 │
+└───────────┴────────────────┘
+  Emulator Hub running at 127.0.0.1:4400
+  Other reserved ports: 4500
+
+Issues? Report them at https://github.com/firebase/firebase-tools/issues and attach the *-debug.log files.
+ 
+[debug] [2024-07-11T15:06:00.878Z] Received signal SIGHUP 1
+[info]  
+[info] i  emulators: Received SIGHUP for the first time. Starting a clean shutdown. 
+[info] i  emulators: Please wait for a clean shutdown or send the SIGHUP signal again to stop right now. 
+[debug] [2024-07-11T15:06:00.888Z] Error: write EIO
+    at afterWriteDispatched (node:internal/stream_base_commons:160:15)
+    at writeGeneric (node:internal/stream_base_commons:151:3)
+    at Socket._writeGeneric (node:net:931:11)
+    at Socket._write (node:net:943:8)
+    at writeOrBuffer (node:internal/streams/writable:392:12)
+    at _write (node:internal/streams/writable:333:10)
+    at Writable.write (node:internal/streams/writable:337:10)
+    at Console.log (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/transports/console.js:79:23)
+    at Console._write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/modern.js:103:17)
+    at doWrite (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:390:139)
+    at writeOrBuffer (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:381:5)
+    at Writable.write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:302:11)
+    at DerivedLogger.ondata (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:629:20)
+    at DerivedLogger.emit (node:events:526:35)
+    at DerivedLogger.emit (node:domain:489:12)
+    at addChunk (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:279:12)
+    at readableAddChunk (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:262:11)
+    at Readable.push (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:228:10)
+    at Transform.push (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_transform.js:132:32)
+    at DerivedLogger._transform (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/logger.js:313:12)
+    at Transform._read (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_transform.js:166:10)
+    at Transform._write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_transform.js:155:83)
+    at doWrite (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_writable.js:390:139)
+    at writeOrBuffer (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_writable.js:381:5)
+    at Writable.write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_writable.js:302:11)
+    at DerivedLogger.<computed> [as info] (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/create-logger.js:81:14)
+    at process.<anonymous> (/usr/local/lib/node_modules/firebase-tools/lib/emulator/commandUtils.js:171:29)
+    at process.emit (node:events:514:28)
+[error] 
+[error] Error: An unexpected error has occurred.
+[debug] [2024-07-11T15:06:00.900Z] Error: write EIO
+    at afterWriteDispatched (node:internal/stream_base_commons:160:15)
+    at writeGeneric (node:internal/stream_base_commons:151:3)
+    at Socket._writeGeneric (node:net:931:11)
+    at Socket._write (node:net:943:8)
+    at writeOrBuffer (node:internal/streams/writable:392:12)
+    at _write (node:internal/streams/writable:333:10)
+    at Writable.write (node:internal/streams/writable:337:10)
+    at Console.log (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/transports/console.js:79:23)
+    at Console._write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/modern.js:103:17)
+    at doWrite (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:390:139)
+    at writeOrBuffer (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:381:5)
+    at Writable.write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:302:11)
+    at DerivedLogger.ondata (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:629:20)
+    at DerivedLogger.emit (node:events:526:35)
+    at DerivedLogger.emit (node:domain:489:12)
+    at addChunk (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:279:12)
+    at readableAddChunk (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:262:11)
+    at Readable.push (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:228:10)
+    at Transform.push (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_transform.js:132:32)
+    at DerivedLogger._transform (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/logger.js:313:12)
+    at Transform._read (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_transform.js:166:10)
+    at Transform._write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_transform.js:155:83)
+    at doWrite (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_writable.js:390:139)
+    at writeOrBuffer (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_writable.js:381:5)
+    at Writable.write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_writable.js:302:11)
+    at DerivedLogger.log (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/logger.js:231:12)
+    at DerivedLogger.newLogFunc [as log] (/usr/local/lib/node_modules/firebase-tools/lib/logger.js:15:16)
+    at DerivedLogger.<computed> [as error] (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/create-logger.js:87:14)
+    at logError (/usr/local/lib/node_modules/firebase-tools/lib/logError.js:22:25)
+    at errorOut (/usr/local/lib/node_modules/firebase-tools/lib/errorOut.js:17:29)
+    at process.<anonymous> (/usr/local/lib/node_modules/firebase-tools/lib/bin/firebase.js:124:29)
+    at process.emit (node:events:526:35)
+    at process._fatalException (node:internal/process/execution:149:25)
+[error] 
+[error] Error: An unexpected error has occurred.
+[debug] [2024-07-11T15:06:00.903Z] Error: write EIO
+    at afterWriteDispatched (node:internal/stream_base_commons:160:15)
+    at writeGeneric (node:internal/stream_base_commons:151:3)
+    at Socket._writeGeneric (node:net:931:11)
+    at Socket._write (node:net:943:8)
+    at writeOrBuffer (node:internal/streams/writable:392:12)
+    at _write (node:internal/streams/writable:333:10)
+    at Writable.write (node:internal/streams/writable:337:10)
+    at Console.log (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/transports/console.js:79:23)
+    at Console._write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/modern.js:103:17)
+    at doWrite (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:390:139)
+    at writeOrBuffer (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:381:5)
+    at Writable.write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:302:11)
+    at DerivedLogger.ondata (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:629:20)
+    at DerivedLogger.emit (node:events:526:35)
+    at DerivedLogger.emit (node:domain:489:12)
+    at addChunk (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:279:12)
+    at readableAddChunk (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:262:11)
+    at Readable.push (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:228:10)
+    at Transform.push (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_transform.js:132:32)
+    at DerivedLogger._transform (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/logger.js:313:12)
+    at Transform._read (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_transform.js:166:10)
+    at Transform._write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_transform.js:155:83)
+    at doWrite (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_writable.js:390:139)
+    at writeOrBuffer (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_writable.js:381:5)
+    at Writable.write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_writable.js:302:11)
+    at DerivedLogger.log (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/logger.js:231:12)
+    at DerivedLogger.newLogFunc [as log] (/usr/local/lib/node_modules/firebase-tools/lib/logger.js:15:16)
+    at DerivedLogger.<computed> [as error] (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/create-logger.js:87:14)
+    at logError (/usr/local/lib/node_modules/firebase-tools/lib/logError.js:22:25)
+    at errorOut (/usr/local/lib/node_modules/firebase-tools/lib/errorOut.js:17:29)
+    at process.<anonymous> (/usr/local/lib/node_modules/firebase-tools/lib/bin/firebase.js:124:29)
+    at process.emit (node:events:526:35)
+    at process._fatalException (node:internal/process/execution:149:25)
+[error] 
+[error] Error: An unexpected error has occurred.
+[debug] [2024-07-11T15:06:00.905Z] Error: write EIO
+    at afterWriteDispatched (node:internal/stream_base_commons:160:15)
+    at writeGeneric (node:internal/stream_base_commons:151:3)
+    at Socket._writeGeneric (node:net:931:11)
+    at Socket._write (node:net:943:8)
+    at writeOrBuffer (node:internal/streams/writable:392:12)
+    at _write (node:internal/streams/writable:333:10)
+    at Writable.write (node:internal/streams/writable:337:10)
+    at Console.log (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/transports/console.js:79:23)
+    at Console._write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/modern.js:103:17)
+    at doWrite (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:390:139)
+    at writeOrBuffer (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:381:5)
+    at Writable.write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:302:11)
+    at DerivedLogger.ondata (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:629:20)
+    at DerivedLogger.emit (node:events:526:35)
+    at DerivedLogger.emit (node:domain:489:12)
+    at addChunk (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:279:12)
+    at readableAddChunk (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:262:11)
+    at Readable.push (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:228:10)
+    at Transform.push (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_transform.js:132:32)
+    at DerivedLogger._transform (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/logger.js:313:12)
+    at Transform._read (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_transform.js:166:10)
+    at Transform._write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_transform.js:155:83)
+    at doWrite (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_writable.js:390:139)
+    at writeOrBuffer (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_writable.js:381:5)
+    at Writable.write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_writable.js:302:11)
+    at DerivedLogger.log (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/logger.js:231:12)
+    at DerivedLogger.newLogFunc [as log] (/usr/local/lib/node_modules/firebase-tools/lib/logger.js:15:16)
+    at DerivedLogger.<computed> [as error] (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/create-logger.js:87:14)
+    at logError (/usr/local/lib/node_modules/firebase-tools/lib/logError.js:22:25)
+    at errorOut (/usr/local/lib/node_modules/firebase-tools/lib/errorOut.js:17:29)
+    at process.<anonymous> (/usr/local/lib/node_modules/firebase-tools/lib/bin/firebase.js:124:29)
+    at process.emit (node:events:526:35)
+    at process._fatalException (node:internal/process/execution:149:25)
+[error] 
+[error] Error: An unexpected error has occurred.
+[debug] [2024-07-11T15:06:00.908Z] Error: write EIO
+    at afterWriteDispatched (node:internal/stream_base_commons:160:15)
+    at writeGeneric (node:internal/stream_base_commons:151:3)
+    at Socket._writeGeneric (node:net:931:11)
+    at Socket._write (node:net:943:8)
+    at writeOrBuffer (node:internal/streams/writable:392:12)
+    at _write (node:internal/streams/writable:333:10)
+    at Writable.write (node:internal/streams/writable:337:10)
+    at Console.log (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/transports/console.js:79:23)
+    at Console._write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/modern.js:103:17)
+    at doWrite (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:390:139)
+    at writeOrBuffer (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:381:5)
+    at Writable.write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:302:11)
+    at DerivedLogger.ondata (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:629:20)
+    at DerivedLogger.emit (node:events:526:35)
+    at DerivedLogger.emit (node:domain:489:12)
+    at addChunk (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:279:12)
+    at readableAddChunk (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:262:11)
+    at Readable.push (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:228:10)
+    at Transform.push (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_transform.js:132:32)
+    at DerivedLogger._transform (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/logger.js:313:12)
+    at Transform._read (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_transform.js:166:10)
+    at Transform._write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_transform.js:155:83)
+    at doWrite (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_writable.js:390:139)
+    at writeOrBuffer (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_writable.js:381:5)
+    at Writable.write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_writable.js:302:11)
+    at DerivedLogger.log (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/logger.js:231:12)
+    at DerivedLogger.newLogFunc [as log] (/usr/local/lib/node_modules/firebase-tools/lib/logger.js:15:16)
+    at DerivedLogger.<computed> [as error] (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/create-logger.js:87:14)
+    at logError (/usr/local/lib/node_modules/firebase-tools/lib/logError.js:22:25)
+    at errorOut (/usr/local/lib/node_modules/firebase-tools/lib/errorOut.js:17:29)
+    at process.<anonymous> (/usr/local/lib/node_modules/firebase-tools/lib/bin/firebase.js:124:29)
+    at process.emit (node:events:526:35)
+    at process._fatalException (node:internal/process/execution:149:25)
+[error] 
+[error] Error: An unexpected error has occurred.
+[debug] [2024-07-11T15:06:00.912Z] Error: write EIO
+    at afterWriteDispatched (node:internal/stream_base_commons:160:15)
+    at writeGeneric (node:internal/stream_base_commons:151:3)
+    at Socket._writeGeneric (node:net:931:11)
+    at Socket._write (node:net:943:8)
+    at writeOrBuffer (node:internal/streams/writable:392:12)
+    at _write (node:internal/streams/writable:333:10)
+    at Writable.write (node:internal/streams/writable:337:10)
+    at Console.log (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/transports/console.js:79:23)
+    at Console._write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/modern.js:103:17)
+    at doWrite (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:390:139)
+    at writeOrBuffer (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:381:5)
+    at Writable.write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:302:11)
+    at DerivedLogger.ondata (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:629:20)
+    at DerivedLogger.emit (node:events:526:35)
+    at DerivedLogger.emit (node:domain:489:12)
+    at addChunk (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:279:12)
+    at readableAddChunk (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:262:11)
+    at Readable.push (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:228:10)
+    at Transform.push (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_transform.js:132:32)
+    at DerivedLogger._transform (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/logger.js:313:12)
+    at Transform._read (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_transform.js:166:10)
+    at Transform._write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_transform.js:155:83)
+    at doWrite (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_writable.js:390:139)
+    at writeOrBuffer (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_writable.js:381:5)
+    at Writable.write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_writable.js:302:11)
+    at DerivedLogger.log (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/logger.js:231:12)
+    at DerivedLogger.newLogFunc [as log] (/usr/local/lib/node_modules/firebase-tools/lib/logger.js:15:16)
+    at DerivedLogger.<computed> [as error] (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/create-logger.js:87:14)
+    at logError (/usr/local/lib/node_modules/firebase-tools/lib/logError.js:22:25)
+    at errorOut (/usr/local/lib/node_modules/firebase-tools/lib/errorOut.js:17:29)
+    at process.<anonymous> (/usr/local/lib/node_modules/firebase-tools/lib/bin/firebase.js:124:29)
+    at process.emit (node:events:526:35)
+    at process._fatalException (node:internal/process/execution:149:25)
+[error] 
+[error] Error: An unexpected error has occurred.
+[debug] [2024-07-11T15:06:00.914Z] Error: write EIO
+    at afterWriteDispatched (node:internal/stream_base_commons:160:15)
+    at writeGeneric (node:internal/stream_base_commons:151:3)
+    at Socket._writeGeneric (node:net:931:11)
+    at Socket._write (node:net:943:8)
+    at writeOrBuffer (node:internal/streams/writable:392:12)
+    at _write (node:internal/streams/writable:333:10)
+    at Writable.write (node:internal/streams/writable:337:10)
+    at Console.log (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/transports/console.js:79:23)
+    at Console._write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/modern.js:103:17)
+    at doWrite (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:390:139)
+    at writeOrBuffer (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:381:5)
+    at Writable.write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:302:11)
+    at DerivedLogger.ondata (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:629:20)
+    at DerivedLogger.emit (node:events:526:35)
+    at DerivedLogger.emit (node:domain:489:12)
+    at addChunk (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:279:12)
+    at readableAddChunk (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:262:11)
+    at Readable.push (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:228:10)
+    at Transform.push (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_transform.js:132:32)
+    at DerivedLogger._transform (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/logger.js:313:12)
+    at Transform._read (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_transform.js:166:10)
+    at Transform._write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_transform.js:155:83)
+    at doWrite (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_writable.js:390:139)
+    at writeOrBuffer (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_writable.js:381:5)
+    at Writable.write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_writable.js:302:11)
+    at DerivedLogger.log (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/logger.js:231:12)
+    at DerivedLogger.newLogFunc [as log] (/usr/local/lib/node_modules/firebase-tools/lib/logger.js:15:16)
+    at DerivedLogger.<computed> [as error] (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/create-logger.js:87:14)
+    at logError (/usr/local/lib/node_modules/firebase-tools/lib/logError.js:22:25)
+    at errorOut (/usr/local/lib/node_modules/firebase-tools/lib/errorOut.js:17:29)
+    at process.<anonymous> (/usr/local/lib/node_modules/firebase-tools/lib/bin/firebase.js:124:29)
+    at process.emit (node:events:526:35)
+    at process._fatalException (node:internal/process/execution:149:25)
+[error] 
+[error] Error: An unexpected error has occurred.
+[debug] [2024-07-11T15:06:00.916Z] Error: write EIO
+    at afterWriteDispatched (node:internal/stream_base_commons:160:15)
+    at writeGeneric (node:internal/stream_base_commons:151:3)
+    at Socket._writeGeneric (node:net:931:11)
+    at Socket._write (node:net:943:8)
+    at writeOrBuffer (node:internal/streams/writable:392:12)
+    at _write (node:internal/streams/writable:333:10)
+    at Writable.write (node:internal/streams/writable:337:10)
+    at Console.log (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/transports/console.js:79:23)
+    at Console._write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/modern.js:103:17)
+    at doWrite (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:390:139)
+    at writeOrBuffer (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:381:5)
+    at Writable.write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:302:11)
+    at DerivedLogger.ondata (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:629:20)
+    at DerivedLogger.emit (node:events:526:35)
+    at DerivedLogger.emit (node:domain:489:12)
+    at addChunk (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:279:12)
+    at readableAddChunk (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:262:11)
+    at Readable.push (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:228:10)
+    at Transform.push (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_transform.js:132:32)
+    at DerivedLogger._transform (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/logger.js:313:12)
+    at Transform._read (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_transform.js:166:10)
+    at Transform._write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_transform.js:155:83)
+    at doWrite (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_writable.js:390:139)
+    at writeOrBuffer (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_writable.js:381:5)
+    at Writable.write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_writable.js:302:11)
+    at DerivedLogger.log (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/logger.js:231:12)
+    at DerivedLogger.newLogFunc [as log] (/usr/local/lib/node_modules/firebase-tools/lib/logger.js:15:16)
+    at DerivedLogger.<computed> [as error] (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/create-logger.js:87:14)
+    at logError (/usr/local/lib/node_modules/firebase-tools/lib/logError.js:22:25)
+    at errorOut (/usr/local/lib/node_modules/firebase-tools/lib/errorOut.js:17:29)
+    at process.<anonymous> (/usr/local/lib/node_modules/firebase-tools/lib/bin/firebase.js:124:29)
+    at process.emit (node:events:526:35)
+    at process._fatalException (node:internal/process/execution:149:25)
+[error] 
+[error] Error: An unexpected error has occurred.
+[debug] [2024-07-11T15:06:00.917Z] Error: write EIO
+    at afterWriteDispatched (node:internal/stream_base_commons:160:15)
+    at writeGeneric (node:internal/stream_base_commons:151:3)
+    at Socket._writeGeneric (node:net:931:11)
+    at Socket._write (node:net:943:8)
+    at writeOrBuffer (node:internal/streams/writable:392:12)
+    at _write (node:internal/streams/writable:333:10)
+    at Writable.write (node:internal/streams/writable:337:10)
+    at Console.log (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/transports/console.js:79:23)
+    at Console._write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/modern.js:103:17)
+    at doWrite (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:390:139)
+    at writeOrBuffer (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:381:5)
+    at Writable.write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:302:11)
+    at DerivedLogger.ondata (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:629:20)
+    at DerivedLogger.emit (node:events:526:35)
+    at DerivedLogger.emit (node:domain:489:12)
+    at addChunk (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:279:12)
+    at readableAddChunk (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:262:11)
+    at Readable.push (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:228:10)
+    at Transform.push (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_transform.js:132:32)
+    at DerivedLogger._transform (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/logger.js:313:12)
+    at Transform._read (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_transform.js:166:10)
+    at Transform._write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_transform.js:155:83)
+    at doWrite (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_writable.js:390:139)
+    at writeOrBuffer (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_writable.js:381:5)
+    at Writable.write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_writable.js:302:11)
+    at DerivedLogger.log (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/logger.js:231:12)
+    at DerivedLogger.newLogFunc [as log] (/usr/local/lib/node_modules/firebase-tools/lib/logger.js:15:16)
+    at DerivedLogger.<computed> [as error] (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/create-logger.js:87:14)
+    at logError (/usr/local/lib/node_modules/firebase-tools/lib/logError.js:22:25)
+    at errorOut (/usr/local/lib/node_modules/firebase-tools/lib/errorOut.js:17:29)
+    at process.<anonymous> (/usr/local/lib/node_modules/firebase-tools/lib/bin/firebase.js:124:29)
+    at process.emit (node:events:526:35)
+    at process._fatalException (node:internal/process/execution:149:25)
+[error] 
+[error] Error: An unexpected error has occurred.
+[debug] [2024-07-11T15:06:00.919Z] Error: write EIO
+    at afterWriteDispatched (node:internal/stream_base_commons:160:15)
+    at writeGeneric (node:internal/stream_base_commons:151:3)
+    at Socket._writeGeneric (node:net:931:11)
+    at Socket._write (node:net:943:8)
+    at writeOrBuffer (node:internal/streams/writable:392:12)
+    at _write (node:internal/streams/writable:333:10)
+    at Writable.write (node:internal/streams/writable:337:10)
+    at Console.log (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/transports/console.js:79:23)
+    at Console._write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/modern.js:103:17)
+    at doWrite (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:390:139)
+    at writeOrBuffer (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:381:5)
+    at Writable.write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:302:11)
+    at DerivedLogger.ondata (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:629:20)
+    at DerivedLogger.emit (node:events:526:35)
+    at DerivedLogger.emit (node:domain:489:12)
+    at addChunk (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:279:12)
+    at readableAddChunk (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:262:11)
+    at Readable.push (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:228:10)
+    at Transform.push (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_transform.js:132:32)
+    at DerivedLogger._transform (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/logger.js:313:12)
+    at Transform._read (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_transform.js:166:10)
+    at Transform._write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_transform.js:155:83)
+    at doWrite (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_writable.js:390:139)
+    at writeOrBuffer (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_writable.js:381:5)
+    at Writable.write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_writable.js:302:11)
+    at DerivedLogger.log (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/logger.js:231:12)
+    at DerivedLogger.newLogFunc [as log] (/usr/local/lib/node_modules/firebase-tools/lib/logger.js:15:16)
+    at DerivedLogger.<computed> [as error] (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/create-logger.js:87:14)
+    at logError (/usr/local/lib/node_modules/firebase-tools/lib/logError.js:22:25)
+    at errorOut (/usr/local/lib/node_modules/firebase-tools/lib/errorOut.js:17:29)
+    at process.<anonymous> (/usr/local/lib/node_modules/firebase-tools/lib/bin/firebase.js:124:29)
+    at process.emit (node:events:526:35)
+    at process._fatalException (node:internal/process/execution:149:25)
+[error] 
+[error] Error: An unexpected error has occurred.
+[debug] [2024-07-11T15:06:00.921Z] Error: write EIO
+    at afterWriteDispatched (node:internal/stream_base_commons:160:15)
+    at writeGeneric (node:internal/stream_base_commons:151:3)
+    at Socket._writeGeneric (node:net:931:11)
+    at Socket._write (node:net:943:8)
+    at writeOrBuffer (node:internal/streams/writable:392:12)
+    at _write (node:internal/streams/writable:333:10)
+    at Writable.write (node:internal/streams/writable:337:10)
+    at Console.log (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/transports/console.js:79:23)
+    at Console._write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/modern.js:103:17)
+    at doWrite (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:390:139)
+    at writeOrBuffer (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:381:5)
+    at Writable.write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:302:11)
+    at DerivedLogger.ondata (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:629:20)
+    at DerivedLogger.emit (node:events:526:35)
+    at DerivedLogger.emit (node:domain:489:12)
+    at addChunk (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:279:12)
+    at readableAddChunk (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:262:11)
+    at Readable.push (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:228:10)
+    at Transform.push (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_transform.js:132:32)
+    at DerivedLogger._transform (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/logger.js:313:12)
+    at Transform._read (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_transform.js:166:10)
+    at Transform._write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_transform.js:155:83)
+    at doWrite (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_writable.js:390:139)
+    at writeOrBuffer (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_writable.js:381:5)
+    at Writable.write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_writable.js:302:11)
+    at DerivedLogger.log (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/logger.js:231:12)
+    at DerivedLogger.newLogFunc [as log] (/usr/local/lib/node_modules/firebase-tools/lib/logger.js:15:16)
+    at DerivedLogger.<computed> [as error] (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/create-logger.js:87:14)
+    at logError (/usr/local/lib/node_modules/firebase-tools/lib/logError.js:22:25)
+    at errorOut (/usr/local/lib/node_modules/firebase-tools/lib/errorOut.js:17:29)
+    at process.<anonymous> (/usr/local/lib/node_modules/firebase-tools/lib/bin/firebase.js:124:29)
+    at process.emit (node:events:526:35)
+    at process._fatalException (node:internal/process/execution:149:25)
+[error] 
+[error] Error: An unexpected error has occurred.
+[debug] [2024-07-11T15:06:00.922Z] Error: write EIO
+    at afterWriteDispatched (node:internal/stream_base_commons:160:15)
+    at writeGeneric (node:internal/stream_base_commons:151:3)
+    at Socket._writeGeneric (node:net:931:11)
+    at Socket._write (node:net:943:8)
+    at writeOrBuffer (node:internal/streams/writable:392:12)
+    at _write (node:internal/streams/writable:333:10)
+    at Writable.write (node:internal/streams/writable:337:10)
+    at Console.log (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/transports/console.js:79:23)
+    at Console._write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/modern.js:103:17)
+    at doWrite (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:390:139)
+    at writeOrBuffer (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:381:5)
+    at Writable.write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:302:11)
+    at DerivedLogger.ondata (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:629:20)
+    at DerivedLogger.emit (node:events:526:35)
+    at DerivedLogger.emit (node:domain:489:12)
+    at addChunk (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:279:12)
+    at readableAddChunk (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:262:11)
+    at Readable.push (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:228:10)
+    at Transform.push (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_transform.js:132:32)
+    at DerivedLogger._transform (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/logger.js:313:12)
+    at Transform._read (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_transform.js:166:10)
+    at Transform._write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_transform.js:155:83)
+    at doWrite (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_writable.js:390:139)
+    at writeOrBuffer (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_writable.js:381:5)
+    at Writable.write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_writable.js:302:11)
+    at DerivedLogger.log (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/logger.js:231:12)
+    at DerivedLogger.newLogFunc [as log] (/usr/local/lib/node_modules/firebase-tools/lib/logger.js:15:16)
+    at DerivedLogger.<computed> [as error] (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/create-logger.js:87:14)
+    at logError (/usr/local/lib/node_modules/firebase-tools/lib/logError.js:22:25)
+    at errorOut (/usr/local/lib/node_modules/firebase-tools/lib/errorOut.js:17:29)
+    at process.<anonymous> (/usr/local/lib/node_modules/firebase-tools/lib/bin/firebase.js:124:29)
+    at process.emit (node:events:526:35)
+    at process._fatalException (node:internal/process/execution:149:25)
+[error] 
+[error] Error: An unexpected error has occurred.
+[debug] [2024-07-11T15:06:00.923Z] Error: write EIO
+    at afterWriteDispatched (node:internal/stream_base_commons:160:15)
+    at writeGeneric (node:internal/stream_base_commons:151:3)
+    at Socket._writeGeneric (node:net:931:11)
+    at Socket._write (node:net:943:8)
+    at writeOrBuffer (node:internal/streams/writable:392:12)
+    at _write (node:internal/streams/writable:333:10)
+    at Writable.write (node:internal/streams/writable:337:10)
+    at Console.log (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/transports/console.js:79:23)
+    at Console._write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/modern.js:103:17)
+    at doWrite (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:390:139)
+    at writeOrBuffer (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:381:5)
+    at Writable.write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:302:11)
+    at DerivedLogger.ondata (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:629:20)
+    at DerivedLogger.emit (node:events:526:35)
+    at DerivedLogger.emit (node:domain:489:12)
+    at addChunk (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:279:12)
+    at readableAddChunk (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:262:11)
+    at Readable.push (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:228:10)
+    at Transform.push (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_transform.js:132:32)
+    at DerivedLogger._transform (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/logger.js:313:12)
+    at Transform._read (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_transform.js:166:10)
+    at Transform._write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_transform.js:155:83)
+    at doWrite (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_writable.js:390:139)
+    at writeOrBuffer (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_writable.js:381:5)
+    at Writable.write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_writable.js:302:11)
+    at DerivedLogger.log (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/logger.js:231:12)
+    at DerivedLogger.newLogFunc [as log] (/usr/local/lib/node_modules/firebase-tools/lib/logger.js:15:16)
+    at DerivedLogger.<computed> [as error] (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/create-logger.js:87:14)
+    at logError (/usr/local/lib/node_modules/firebase-tools/lib/logError.js:22:25)
+    at errorOut (/usr/local/lib/node_modules/firebase-tools/lib/errorOut.js:17:29)
+    at process.<anonymous> (/usr/local/lib/node_modules/firebase-tools/lib/bin/firebase.js:124:29)
+    at process.emit (node:events:526:35)
+    at process._fatalException (node:internal/process/execution:149:25)
+[error] 
+[error] Error: An unexpected error has occurred.
+[debug] [2024-07-11T15:06:00.925Z] Error: write EIO
+    at afterWriteDispatched (node:internal/stream_base_commons:160:15)
+    at writeGeneric (node:internal/stream_base_commons:151:3)
+    at Socket._writeGeneric (node:net:931:11)
+    at Socket._write (node:net:943:8)
+    at writeOrBuffer (node:internal/streams/writable:392:12)
+    at _write (node:internal/streams/writable:333:10)
+    at Writable.write (node:internal/streams/writable:337:10)
+    at Console.log (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/transports/console.js:79:23)
+    at Console._write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/modern.js:103:17)
+    at doWrite (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:390:139)
+    at writeOrBuffer (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:381:5)
+    at Writable.write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:302:11)
+    at DerivedLogger.ondata (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:629:20)
+    at DerivedLogger.emit (node:events:526:35)
+    at DerivedLogger.emit (node:domain:489:12)
+    at addChunk (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:279:12)
+    at readableAddChunk (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:262:11)
+    at Readable.push (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:228:10)
+    at Transform.push (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_transform.js:132:32)
+    at DerivedLogger._transform (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/logger.js:313:12)
+    at Transform._read (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_transform.js:166:10)
+    at Transform._write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_transform.js:155:83)
+    at doWrite (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_writable.js:390:139)
+    at writeOrBuffer (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_writable.js:381:5)
+    at Writable.write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_writable.js:302:11)
+    at DerivedLogger.log (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/logger.js:231:12)
+    at DerivedLogger.newLogFunc [as log] (/usr/local/lib/node_modules/firebase-tools/lib/logger.js:15:16)
+    at DerivedLogger.<computed> [as error] (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/create-logger.js:87:14)
+    at logError (/usr/local/lib/node_modules/firebase-tools/lib/logError.js:22:25)
+    at errorOut (/usr/local/lib/node_modules/firebase-tools/lib/errorOut.js:17:29)
+    at process.<anonymous> (/usr/local/lib/node_modules/firebase-tools/lib/bin/firebase.js:124:29)
+    at process.emit (node:events:526:35)
+    at process._fatalException (node:internal/process/execution:149:25)
+[error] 
+[error] Error: An unexpected error has occurred.
+[debug] [2024-07-11T15:06:00.925Z] Error: write EIO
+    at afterWriteDispatched (node:internal/stream_base_commons:160:15)
+    at writeGeneric (node:internal/stream_base_commons:151:3)
+    at Socket._writeGeneric (node:net:931:11)
+    at Socket._write (node:net:943:8)
+    at writeOrBuffer (node:internal/streams/writable:392:12)
+    at _write (node:internal/streams/writable:333:10)
+    at Writable.write (node:internal/streams/writable:337:10)
+    at Console.log (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/transports/console.js:79:23)
+    at Console._write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/modern.js:103:17)
+    at doWrite (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:390:139)
+    at writeOrBuffer (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:381:5)
+    at Writable.write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:302:11)
+    at DerivedLogger.ondata (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:629:20)
+    at DerivedLogger.emit (node:events:526:35)
+    at DerivedLogger.emit (node:domain:489:12)
+    at addChunk (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:279:12)
+    at readableAddChunk (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:262:11)
+    at Readable.push (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:228:10)
+    at Transform.push (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_transform.js:132:32)
+    at DerivedLogger._transform (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/logger.js:313:12)
+    at Transform._read (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_transform.js:166:10)
+    at Transform._write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_transform.js:155:83)
+    at doWrite (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_writable.js:390:139)
+    at writeOrBuffer (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_writable.js:381:5)
+    at Writable.write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_writable.js:302:11)
+    at DerivedLogger.log (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/logger.js:231:12)
+    at DerivedLogger.newLogFunc [as log] (/usr/local/lib/node_modules/firebase-tools/lib/logger.js:15:16)
+    at DerivedLogger.<computed> [as error] (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/create-logger.js:87:14)
+    at logError (/usr/local/lib/node_modules/firebase-tools/lib/logError.js:22:25)
+    at errorOut (/usr/local/lib/node_modules/firebase-tools/lib/errorOut.js:17:29)
+    at process.<anonymous> (/usr/local/lib/node_modules/firebase-tools/lib/bin/firebase.js:124:29)
+    at process.emit (node:events:526:35)
+    at process._fatalException (node:internal/process/execution:149:25)
+[error] 
+[error] Error: An unexpected error has occurred.
+[debug] [2024-07-11T15:06:00.926Z] Error: write EIO
+    at afterWriteDispatched (node:internal/stream_base_commons:160:15)
+    at writeGeneric (node:internal/stream_base_commons:151:3)
+    at Socket._writeGeneric (node:net:931:11)
+    at Socket._write (node:net:943:8)
+    at writeOrBuffer (node:internal/streams/writable:392:12)
+    at _write (node:internal/streams/writable:333:10)
+    at Writable.write (node:internal/streams/writable:337:10)
+    at Console.log (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/transports/console.js:79:23)
+    at Console._write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/modern.js:103:17)
+    at doWrite (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:390:139)
+    at writeOrBuffer (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:381:5)
+    at Writable.write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:302:11)
+    at DerivedLogger.ondata (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:629:20)
+    at DerivedLogger.emit (node:events:526:35)
+    at DerivedLogger.emit (node:domain:489:12)
+    at addChunk (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:279:12)
+    at readableAddChunk (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:262:11)
+    at Readable.push (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:228:10)
+    at Transform.push (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_transform.js:132:32)
+    at DerivedLogger._transform (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/logger.js:313:12)
+    at Transform._read (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_transform.js:166:10)
+    at Transform._write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_transform.js:155:83)
+    at doWrite (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_writable.js:390:139)
+    at writeOrBuffer (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_writable.js:381:5)
+    at Writable.write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_writable.js:302:11)
+    at DerivedLogger.log (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/logger.js:231:12)
+    at DerivedLogger.newLogFunc [as log] (/usr/local/lib/node_modules/firebase-tools/lib/logger.js:15:16)
+    at DerivedLogger.<computed> [as error] (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/create-logger.js:87:14)
+    at logError (/usr/local/lib/node_modules/firebase-tools/lib/logError.js:22:25)
+    at errorOut (/usr/local/lib/node_modules/firebase-tools/lib/errorOut.js:17:29)
+    at process.<anonymous> (/usr/local/lib/node_modules/firebase-tools/lib/bin/firebase.js:124:29)
+    at process.emit (node:events:526:35)
+    at process._fatalException (node:internal/process/execution:149:25)
+[error] 
+[error] Error: An unexpected error has occurred.
+[debug] [2024-07-11T15:06:00.928Z] Error: write EIO
+    at afterWriteDispatched (node:internal/stream_base_commons:160:15)
+    at writeGeneric (node:internal/stream_base_commons:151:3)
+    at Socket._writeGeneric (node:net:931:11)
+    at Socket._write (node:net:943:8)
+    at writeOrBuffer (node:internal/streams/writable:392:12)
+    at _write (node:internal/streams/writable:333:10)
+    at Writable.write (node:internal/streams/writable:337:10)
+    at Console.log (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/transports/console.js:79:23)
+    at Console._write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/modern.js:103:17)
+    at doWrite (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:390:139)
+    at writeOrBuffer (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:381:5)
+    at Writable.write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:302:11)
+    at DerivedLogger.ondata (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:629:20)
+    at DerivedLogger.emit (node:events:526:35)
+    at DerivedLogger.emit (node:domain:489:12)
+    at addChunk (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:279:12)
+    at readableAddChunk (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:262:11)
+    at Readable.push (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:228:10)
+    at Transform.push (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_transform.js:132:32)
+    at DerivedLogger._transform (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/logger.js:313:12)
+    at Transform._read (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_transform.js:166:10)
+    at Transform._write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_transform.js:155:83)
+    at doWrite (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_writable.js:390:139)
+    at writeOrBuffer (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_writable.js:381:5)
+    at Writable.write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_writable.js:302:11)
+    at DerivedLogger.log (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/logger.js:231:12)
+    at DerivedLogger.newLogFunc [as log] (/usr/local/lib/node_modules/firebase-tools/lib/logger.js:15:16)
+    at DerivedLogger.<computed> [as error] (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/create-logger.js:87:14)
+    at logError (/usr/local/lib/node_modules/firebase-tools/lib/logError.js:22:25)
+    at errorOut (/usr/local/lib/node_modules/firebase-tools/lib/errorOut.js:17:29)
+    at process.<anonymous> (/usr/local/lib/node_modules/firebase-tools/lib/bin/firebase.js:124:29)
+    at process.emit (node:events:526:35)
+    at process._fatalException (node:internal/process/execution:149:25)
+[error] 
+[error] Error: An unexpected error has occurred.
+[debug] [2024-07-11T15:06:00.928Z] Error: write EIO
+    at afterWriteDispatched (node:internal/stream_base_commons:160:15)
+    at writeGeneric (node:internal/stream_base_commons:151:3)
+    at Socket._writeGeneric (node:net:931:11)
+    at Socket._write (node:net:943:8)
+    at writeOrBuffer (node:internal/streams/writable:392:12)
+    at _write (node:internal/streams/writable:333:10)
+    at Writable.write (node:internal/streams/writable:337:10)
+    at Console.log (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/transports/console.js:79:23)
+    at Console._write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/modern.js:103:17)
+    at doWrite (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:390:139)
+    at writeOrBuffer (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:381:5)
+    at Writable.write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:302:11)
+    at DerivedLogger.ondata (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:629:20)
+    at DerivedLogger.emit (node:events:526:35)
+    at DerivedLogger.emit (node:domain:489:12)
+    at addChunk (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:279:12)
+    at readableAddChunk (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:262:11)
+    at Readable.push (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:228:10)
+    at Transform.push (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_transform.js:132:32)
+    at DerivedLogger._transform (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/logger.js:313:12)
+    at Transform._read (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_transform.js:166:10)
+    at Transform._write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_transform.js:155:83)
+    at doWrite (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_writable.js:390:139)
+    at writeOrBuffer (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_writable.js:381:5)
+    at Writable.write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_writable.js:302:11)
+    at DerivedLogger.log (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/logger.js:231:12)
+    at DerivedLogger.newLogFunc [as log] (/usr/local/lib/node_modules/firebase-tools/lib/logger.js:15:16)
+    at DerivedLogger.<computed> [as error] (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/create-logger.js:87:14)
+    at logError (/usr/local/lib/node_modules/firebase-tools/lib/logError.js:22:25)
+    at errorOut (/usr/local/lib/node_modules/firebase-tools/lib/errorOut.js:17:29)
+    at process.<anonymous> (/usr/local/lib/node_modules/firebase-tools/lib/bin/firebase.js:124:29)
+    at process.emit (node:events:526:35)
+    at process._fatalException (node:internal/process/execution:149:25)
+[error] 
+[error] Error: An unexpected error has occurred.
+[debug] [2024-07-11T15:06:00.929Z] Error: write EIO
+    at afterWriteDispatched (node:internal/stream_base_commons:160:15)
+    at writeGeneric (node:internal/stream_base_commons:151:3)
+    at Socket._writeGeneric (node:net:931:11)
+    at Socket._write (node:net:943:8)
+    at writeOrBuffer (node:internal/streams/writable:392:12)
+    at _write (node:internal/streams/writable:333:10)
+    at Writable.write (node:internal/streams/writable:337:10)
+    at Console.log (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/transports/console.js:79:23)
+    at Console._write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/modern.js:103:17)
+    at doWrite (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:390:139)
+    at writeOrBuffer (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:381:5)
+    at Writable.write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:302:11)
+    at DerivedLogger.ondata (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:629:20)
+    at DerivedLogger.emit (node:events:526:35)
+    at DerivedLogger.emit (node:domain:489:12)
+    at addChunk (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:279:12)
+    at readableAddChunk (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:262:11)
+    at Readable.push (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:228:10)
+    at Transform.push (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_transform.js:132:32)
+    at DerivedLogger._transform (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/logger.js:313:12)
+    at Transform._read (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_transform.js:166:10)
+    at Transform._write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_transform.js:155:83)
+    at doWrite (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_writable.js:390:139)
+    at writeOrBuffer (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_writable.js:381:5)
+    at Writable.write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_writable.js:302:11)
+    at DerivedLogger.log (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/logger.js:231:12)
+    at DerivedLogger.newLogFunc [as log] (/usr/local/lib/node_modules/firebase-tools/lib/logger.js:15:16)
+    at DerivedLogger.<computed> [as error] (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/create-logger.js:87:14)
+    at logError (/usr/local/lib/node_modules/firebase-tools/lib/logError.js:22:25)
+    at errorOut (/usr/local/lib/node_modules/firebase-tools/lib/errorOut.js:17:29)
+    at process.<anonymous> (/usr/local/lib/node_modules/firebase-tools/lib/bin/firebase.js:124:29)
+    at process.emit (node:events:526:35)
+    at process._fatalException (node:internal/process/execution:149:25)
+[error] 
+[error] Error: An unexpected error has occurred.
+[debug] [2024-07-11T15:06:00.930Z] Error: write EIO
+    at afterWriteDispatched (node:internal/stream_base_commons:160:15)
+    at writeGeneric (node:internal/stream_base_commons:151:3)
+    at Socket._writeGeneric (node:net:931:11)
+    at Socket._write (node:net:943:8)
+    at writeOrBuffer (node:internal/streams/writable:392:12)
+    at _write (node:internal/streams/writable:333:10)
+    at Writable.write (node:internal/streams/writable:337:10)
+    at Console.log (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/transports/console.js:79:23)
+    at Console._write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/modern.js:103:17)
+    at doWrite (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:390:139)
+    at writeOrBuffer (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:381:5)
+    at Writable.write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:302:11)
+    at DerivedLogger.ondata (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:629:20)
+    at DerivedLogger.emit (node:events:526:35)
+    at DerivedLogger.emit (node:domain:489:12)
+    at addChunk (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:279:12)
+    at readableAddChunk (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:262:11)
+    at Readable.push (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:228:10)
+    at Transform.push (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_transform.js:132:32)
+    at DerivedLogger._transform (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/logger.js:313:12)
+    at Transform._read (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_transform.js:166:10)
+    at Transform._write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_transform.js:155:83)
+    at doWrite (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_writable.js:390:139)
+    at writeOrBuffer (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_writable.js:381:5)
+    at Writable.write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_writable.js:302:11)
+    at DerivedLogger.log (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/logger.js:231:12)
+    at DerivedLogger.newLogFunc [as log] (/usr/local/lib/node_modules/firebase-tools/lib/logger.js:15:16)
+    at DerivedLogger.<computed> [as error] (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/create-logger.js:87:14)
+    at logError (/usr/local/lib/node_modules/firebase-tools/lib/logError.js:22:25)
+    at errorOut (/usr/local/lib/node_modules/firebase-tools/lib/errorOut.js:17:29)
+    at process.<anonymous> (/usr/local/lib/node_modules/firebase-tools/lib/bin/firebase.js:124:29)
+    at process.emit (node:events:526:35)
+    at process._fatalException (node:internal/process/execution:149:25)
+[error] 
+[error] Error: An unexpected error has occurred.
+[info] i  emulators: Shutting down emulators. {"metadata":{"emulator":{"name":"hub"},"message":"Shutting down emulators."}}
+[info] i  functions: Stopping Functions Emulator {"metadata":{"emulator":{"name":"functions"},"message":"Stopping Functions Emulator"}}
+[info] i  hosting: Stopping Hosting Emulator {"metadata":{"emulator":{"name":"hosting"},"message":"Stopping Hosting Emulator"}}
+[info] i  eventarc: Stopping Eventarc Emulator {"metadata":{"emulator":{"name":"eventarc"},"message":"Stopping Eventarc Emulator"}}
+[info] i  hub: Stopping emulator hub {"metadata":{"emulator":{"name":"hub"},"message":"Stopping emulator hub"}}
+[debug] [2024-07-11T15:06:00.943Z] Error: write EIO
+    at afterWriteDispatched (node:internal/stream_base_commons:160:15)
+    at writeGeneric (node:internal/stream_base_commons:151:3)
+    at Socket._writeGeneric (node:net:931:11)
+    at Socket._write (node:net:943:8)
+    at writeOrBuffer (node:internal/streams/writable:392:12)
+    at _write (node:internal/streams/writable:333:10)
+    at Writable.write (node:internal/streams/writable:337:10)
+    at Console.log (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/transports/console.js:79:23)
+    at Console._write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/modern.js:103:17)
+    at doWrite (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:390:139)
+    at writeOrBuffer (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:381:5)
+    at Writable.write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:302:11)
+    at DerivedLogger.ondata (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:629:20)
+    at DerivedLogger.emit (node:events:526:35)
+    at DerivedLogger.emit (node:domain:489:12)
+    at Readable.read (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:451:26)
+    at flow (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:858:34)
+    at File.pipeOnDrainFunctionResult (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:690:7)
+    at File.emit (node:events:514:28)
+    at File.emit (node:domain:489:12)
+    at onwriteDrain (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:453:12)
+    at afterWrite (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:441:18)
+    at onwrite (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:436:7)
+    at WritableState.onwrite (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:160:5)
+    at PassThrough.<anonymous> (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/transports/file.js:227:9)
+    at Object.onceWrapper (node:events:628:28)
+    at PassThrough.emit (node:events:514:28)
+    at PassThrough.emit (node:domain:489:12)
+    at onwriteDrain (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_writable.js:453:12)
+    at afterWrite (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_writable.js:441:18)
+    at onwrite (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_writable.js:436:7)
+    at WritableState.onwrite (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_writable.js:160:5)
+    at PassThrough.afterTransform (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_transform.js:86:3)
+    at PassThrough._transform (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_passthrough.js:36:3)
+    at Transform._read (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_transform.js:166:10)
+    at Readable.read (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:428:10)
+    at maybeReadMore_ (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:550:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:82:21)
+[error] 
+[error] Error: An unexpected error has occurred.
+[debug] [2024-07-11T15:06:00.943Z] Error: write EIO
+    at afterWriteDispatched (node:internal/stream_base_commons:160:15)
+    at writeGeneric (node:internal/stream_base_commons:151:3)
+    at Socket._writeGeneric (node:net:931:11)
+    at Socket._write (node:net:943:8)
+    at writeOrBuffer (node:internal/streams/writable:392:12)
+    at _write (node:internal/streams/writable:333:10)
+    at Writable.write (node:internal/streams/writable:337:10)
+    at Console.log (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/transports/console.js:79:23)
+    at Console._write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/modern.js:103:17)
+    at doWrite (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:390:139)
+    at writeOrBuffer (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:381:5)
+    at Writable.write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:302:11)
+    at DerivedLogger.ondata (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:629:20)
+    at DerivedLogger.emit (node:events:526:35)
+    at DerivedLogger.emit (node:domain:489:12)
+    at addChunk (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:279:12)
+    at readableAddChunk (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:262:11)
+    at Readable.push (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:228:10)
+    at Transform.push (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_transform.js:132:32)
+    at DerivedLogger._transform (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/logger.js:313:12)
+    at Transform._read (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_transform.js:166:10)
+    at Transform._write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_transform.js:155:83)
+    at doWrite (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_writable.js:390:139)
+    at writeOrBuffer (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_writable.js:381:5)
+    at Writable.write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_writable.js:302:11)
+    at DerivedLogger.log (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/logger.js:231:12)
+    at DerivedLogger.newLogFunc [as log] (/usr/local/lib/node_modules/firebase-tools/lib/logger.js:15:16)
+    at DerivedLogger.<computed> [as error] (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/create-logger.js:87:14)
+    at logError (/usr/local/lib/node_modules/firebase-tools/lib/logError.js:22:25)
+    at errorOut (/usr/local/lib/node_modules/firebase-tools/lib/errorOut.js:17:29)
+    at process.<anonymous> (/usr/local/lib/node_modules/firebase-tools/lib/bin/firebase.js:124:29)
+    at process.emit (node:events:526:35)
+    at process._fatalException (node:internal/process/execution:149:25)
+[error] 
+[error] Error: An unexpected error has occurred.
+[debug] [2024-07-11T15:06:00.945Z] Error: write EIO
+    at afterWriteDispatched (node:internal/stream_base_commons:160:15)
+    at writeGeneric (node:internal/stream_base_commons:151:3)
+    at Socket._writeGeneric (node:net:931:11)
+    at Socket._write (node:net:943:8)
+    at writeOrBuffer (node:internal/streams/writable:392:12)
+    at _write (node:internal/streams/writable:333:10)
+    at Writable.write (node:internal/streams/writable:337:10)
+    at Console.log (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/transports/console.js:79:23)
+    at Console._write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/modern.js:103:17)
+    at doWrite (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:390:139)
+    at writeOrBuffer (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:381:5)
+    at Writable.write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:302:11)
+    at DerivedLogger.ondata (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:629:20)
+    at DerivedLogger.emit (node:events:526:35)
+    at DerivedLogger.emit (node:domain:489:12)
+    at addChunk (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:279:12)
+    at readableAddChunk (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:262:11)
+    at Readable.push (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:228:10)
+    at Transform.push (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_transform.js:132:32)
+    at DerivedLogger._transform (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/logger.js:313:12)
+    at Transform._read (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_transform.js:166:10)
+    at Transform._write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_transform.js:155:83)
+    at doWrite (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_writable.js:390:139)
+    at writeOrBuffer (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_writable.js:381:5)
+    at Writable.write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_writable.js:302:11)
+    at DerivedLogger.log (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/logger.js:231:12)
+    at DerivedLogger.newLogFunc [as log] (/usr/local/lib/node_modules/firebase-tools/lib/logger.js:15:16)
+    at DerivedLogger.<computed> [as error] (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/create-logger.js:87:14)
+    at logError (/usr/local/lib/node_modules/firebase-tools/lib/logError.js:22:25)
+    at errorOut (/usr/local/lib/node_modules/firebase-tools/lib/errorOut.js:17:29)
+    at process.<anonymous> (/usr/local/lib/node_modules/firebase-tools/lib/bin/firebase.js:124:29)
+    at process.emit (node:events:526:35)
+    at process._fatalException (node:internal/process/execution:149:25)
+[error] 
+[error] Error: An unexpected error has occurred.
+[debug] [2024-07-11T15:06:00.945Z] Error: write EIO
+    at afterWriteDispatched (node:internal/stream_base_commons:160:15)
+    at writeGeneric (node:internal/stream_base_commons:151:3)
+    at Socket._writeGeneric (node:net:931:11)
+    at Socket._write (node:net:943:8)
+    at writeOrBuffer (node:internal/streams/writable:392:12)
+    at _write (node:internal/streams/writable:333:10)
+    at Writable.write (node:internal/streams/writable:337:10)
+    at Console.log (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/transports/console.js:79:23)
+    at Console._write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/modern.js:103:17)
+    at doWrite (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:390:139)
+    at writeOrBuffer (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:381:5)
+    at Writable.write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:302:11)
+    at DerivedLogger.ondata (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:629:20)
+    at DerivedLogger.emit (node:events:526:35)
+    at DerivedLogger.emit (node:domain:489:12)
+    at addChunk (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:279:12)
+    at readableAddChunk (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:262:11)
+    at Readable.push (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:228:10)
+    at Transform.push (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_transform.js:132:32)
+    at DerivedLogger._transform (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/logger.js:313:12)
+    at Transform._read (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_transform.js:166:10)
+    at Transform._write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_transform.js:155:83)
+    at doWrite (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_writable.js:390:139)
+    at writeOrBuffer (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_writable.js:381:5)
+    at Writable.write (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/node_modules/readable-stream/lib/_stream_writable.js:302:11)
+    at DerivedLogger.log (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/logger.js:231:12)
+    at DerivedLogger.newLogFunc [as log] (/usr/local/lib/node_modules/firebase-tools/lib/logger.js:15:16)
+    at DerivedLogger.<computed> [as error] (/usr/local/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/create-logger.js:87:14)
+    at logError (/usr/local/lib/node_modules/firebase-tools/lib/logError.js:22:25)
+    at errorOut (/usr/local/lib/node_modules/firebase-tools/lib/errorOut.js:17:29)
+    at process.<anonymous> (/usr/local/lib/node_modules/firebase-tools/lib/bin/firebase.js:124:29)
+    at process.emit (node:events:526:35)
+    at process._fatalException (node:internal/process/execution:149:25)
+[error] 
+[error] Error: An unexpected error has occurred.
+[debug] [2024-07-11T15:06:00.947Z] Error: write EIO
+    at afterWriteDispatched (node:internal/stream_base_commons:160:15)
+    at writeGeneric (node:internal/stream_base_commons:151:3)
+    at Socket._writeGeneric (node:net:931:11)
+    at Socket._write (node:net:943:8)
+    at writeOrBuffer (node:internal/streams/writable:392:12)
+    at _write (node:internal/streams/writable:333:10)
+    at Writable.write (node:internal/streams/writable:337:10)
+    at console.value (node:internal/console/constructor:305:16)
+    at console.warn (node:internal/console/constructor:385:26)
+    at prefixedLog (/Users/takagiriho/ghq/github.com/ITPNYU/Booking-Tool/booking-app/node_modules/next/dist/build/output/log.js:80:31)
+    at Object.error (/Users/takagiriho/ghq/github.com/ITPNYU/Booking-Tool/booking-app/node_modules/next/dist/build/output/log.js:90:5)
+    at Object.logErrorWithOriginalStack (/Users/takagiriho/ghq/github.com/ITPNYU/Booking-Tool/booking-app/node_modules/next/dist/server/lib/router-utils/setup-dev-bundler.js:751:22)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async DevBundlerService.logErrorWithOriginalStack (/Users/takagiriho/ghq/github.com/ITPNYU/Booking-Tool/booking-app/node_modules/next/dist/server/lib/dev-bundler-service.js:21:20)
+    at async DevServer.logErrorWithOriginalStack (/Users/takagiriho/ghq/github.com/ITPNYU/Booking-Tool/booking-app/node_modules/next/dist/server/dev/next-dev-server.js:393:9)
