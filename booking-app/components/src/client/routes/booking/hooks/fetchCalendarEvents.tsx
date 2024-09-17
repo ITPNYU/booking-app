@@ -12,18 +12,18 @@ export default function fetchCalendarEvents(allRooms: RoomSetting[]) {
     Promise.all(allRooms.map(fetchRoomCalendarEvents)).then(
       (results) => {
         const flatResults = results.flat();
-        console.log(
-          "FETCHED CALENDAR RESULTS FOR EACH ROOM (flat)",
-          flatResults
-        );
+        console.log("FETCHED CALENDAR RESULTS:", flatResults.length);
         const filtered = flatResults.filter(
           (event) =>
             !CALENDAR_HIDE_STATUS.some((hideStatus) =>
               event.title?.includes(hideStatus)
             )
         );
-        console.log("FILTERED", filtered);
-        setEvents(filtered);
+        if (filtered.length === 0 && events.length > 0) {
+          console.log("!!! RE-FETCHING CALENDAR EVENTS WAS EMPTY !!!");
+        } else {
+          setEvents(filtered);
+        }
       }
       // setEvents(
       //   [...results.flat()].filter(
