@@ -1,14 +1,14 @@
-import { Box, Tab, Tabs } from '@mui/material';
-import React, { useContext, useMemo, useState } from 'react';
+import { Box, Tab, Tabs } from "@mui/material";
+import { PageContextLevel, PagePermission } from "../../../types";
+import React, { useContext, useMemo, useState } from "react";
 
-import { Bookings } from '../components/bookingTable/Bookings';
-import { CenterLoading } from '../components/Loading';
-import { DatabaseContext } from '../components/Provider';
-import { PagePermission } from '../../../types';
+import { Bookings } from "../components/bookingTable/Bookings";
+import { CenterLoading } from "../components/Loading";
+import { DatabaseContext } from "../components/Provider";
 
 const PAPage = () => {
   const { paUsers, pagePermission, userEmail } = useContext(DatabaseContext);
-  const [tab, setTab] = useState('bookings');
+  const [tab, setTab] = useState("bookings");
 
   const paEmails = useMemo<string[]>(
     () => paUsers.map((user) => user.email),
@@ -37,7 +37,7 @@ const PAPage = () => {
           >
             <Tab value="bookings" label="Bookings" />
           </Tabs>
-          {tab === 'bookings' && <Bookings isPaView={true} />}
+          {tab === "bookings" && <Bookings pageContext={PageContextLevel.PA} />}
         </div>
       )}
     </Box>

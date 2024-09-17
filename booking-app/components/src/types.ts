@@ -157,6 +157,13 @@ export enum PagePermission {
   PA = "PA",
 }
 
+export enum PageContextLevel {
+  USER = 0,
+  LIAISON,
+  PA,
+  ADMIN,
+}
+
 export type PolicySettings = {
   finalApproverEmail: string;
 };

@@ -1,11 +1,13 @@
 import { Box, IconButton } from "@mui/material";
+
 import { BookingStatusLabel } from "../../../../types";
 import { Close } from "@mui/icons-material";
 import { EventContentArg } from "@fullcalendar/core";
 import React from "react";
-import { styled, useTheme } from "@mui/material/styles";
+import { styled } from "@mui/material/styles";
 
 export const NEW_TITLE_TAG = "Your Reservation";
+export const UNKNOWN_BLOCK_TITLE = "Unavailable";
 
 interface Props {
   bgcolor: string;
@@ -40,9 +42,12 @@ const CloseButton = styled(IconButton)(({ theme }) => ({
 }));
 
 export default function CalendarEventBlock(eventInfo: EventContentArg) {
-  const match = eventInfo.event.title.match(/\[(.*?)\]/);
-  const title = match ? match[1] : eventInfo.event.title;
   const isNew = eventInfo.event.title === NEW_TITLE_TAG;
+  let title = isNew ? NEW_TITLE_TAG : UNKNOWN_BLOCK_TITLE;
+  if (eventInfo.event.title.trim().length === 0) {
+    title = "";
+  }
+
   const params = eventInfo.event.url
     ? eventInfo.event.url.split(":")
     : ["0", "0"];
@@ -55,13 +60,7 @@ export default function CalendarEventBlock(eventInfo: EventContentArg) {
     if (isNew) {
       return null;
     }
-    let backgroundColor = "rgba(72, 196, 77, 1)";
-    if (eventInfo.event.title.includes(BookingStatusLabel.REQUESTED)) {
-      backgroundColor = "rgba(255, 122, 26, 1)";
-    } else if (eventInfo.event.title.includes(BookingStatusLabel.PENDING)) {
-      backgroundColor = "rgba(223, 26, 255, 1)";
-    }
-    return backgroundColor;
+    return "rgba(72, 196, 77, 1)";
   };
 
   const hideTitle = isNew && index !== 0 && !isOneColumn;

@@ -120,7 +120,6 @@ export const DatabaseProvider = ({
       fetchBannedUsers();
       fetchLiaisonUsers();
       fetchDepartmentNames();
-      fetchRoomSettings();
       fetchSettings();
     } else {
       fetchBookings();
@@ -132,6 +131,7 @@ export const DatabaseProvider = ({
     fetchActiveUserEmail();
     fetchAdminUsers();
     fetchPaUsers();
+    fetchRoomSettings();
   }, [user]);
 
   const fetchActiveUserEmail = () => {
