@@ -1,0 +1,19 @@
+runtime: nodejs18
+instance_class: F1
+service: development
+
+automatic_scaling:
+  min_instances: 1
+  max_instances: 10
+  target_cpu_utilization: 0.65
+
+env_variables:
+  NEXT_PUBLIC_BRANCH_NAME: "development"
+  NODE_OPTIONS: "--max-old-space-size=4096"
+
+build_env_variables:
+  NODE_OPTIONS: "--max-old-space-size=4096"
+
+handlers:
+  - url: /(.*)
+    script: auto
