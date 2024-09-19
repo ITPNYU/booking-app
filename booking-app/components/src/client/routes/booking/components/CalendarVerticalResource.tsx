@@ -1,4 +1,4 @@
-import { Box, Typography } from "@mui/material";
+import { Box, Typography, useMediaQuery, useTheme } from "@mui/material";
 import { CalendarApi, DateSelectArg, EventClickArg } from "@fullcalendar/core";
 import { CalendarEvent, RoomSetting } from "../../../../types";
 import CalendarEventBlock, { NEW_TITLE_TAG } from "./CalendarEventBlock";
@@ -82,6 +82,9 @@ export default function CalendarVerticalResource({
     setBookingCalendarInfo,
   } = useContext(BookingContext);
   const ref = useRef(null);
+
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
   const resources = useMemo(
     () =>
@@ -215,7 +218,7 @@ export default function CalendarVerticalResource({
         slotMinTime="09:00:00"
         slotMaxTime="21:00:00"
         allDaySlot={false}
-        aspectRatio={1.5}
+        aspectRatio={isMobile ? 0.5 : 1.5}
         expandRows={true}
         stickyHeaderDates={true}
         ref={ref}

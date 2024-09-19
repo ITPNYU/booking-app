@@ -20,7 +20,7 @@ export default function BookingFormDetailsPage({
   return (
     <Grid container>
       <Grid width={330} />
-      <Grid xs={7} paddingRight={2}>
+      <Grid xs={12} md={7} margin={2} paddingRight={{ xs: 0, md: 2 }}>
         <FormInput {...{ isEdit, isWalkIn, calendarEventId }} />
       </Grid>
     </Grid>
