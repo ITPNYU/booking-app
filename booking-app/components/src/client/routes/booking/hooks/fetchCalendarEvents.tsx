@@ -1,40 +1,29 @@
-import { Booking, CalendarEvent, RoomSetting } from "../../../../types";
-import { CALENDAR_HIDE_STATUS, STORAGE_KEY_BOOKING } from "../../../../policy";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { CalendarEvent, RoomSetting } from "../../../../types";
+import { useCallback, useEffect, useState } from "react";
 
+import { CALENDAR_HIDE_STATUS } from "../../../../policy";
 import axios from "axios";
-import getBookingStatus from "../../hooks/getBookingStatus";
 
 export default function fetchCalendarEvents(allRooms: RoomSetting[]) {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
 
   const loadEvents = useCallback(() => {
-    Promise.all(allRooms.map(fetchRoomCalendarEvents)).then(
-      (results) => {
-        const flatResults = results.flat();
-        console.log("FETCHED CALENDAR RESULTS:", flatResults.length);
-        const filtered = flatResults.filter(
-          (event) =>
-            !CALENDAR_HIDE_STATUS.some((hideStatus) =>
-              event.title?.includes(hideStatus)
-            )
-        );
-        if (filtered.length === 0 && events.length > 0) {
-          console.log("!!! RE-FETCHING CALENDAR EVENTS WAS EMPTY !!!");
-        } else {
-          setEvents(filtered);
-        }
+    Promise.all(allRooms.map(fetchRoomCalendarEvents)).then((results) => {
+      const flatResults = results.flat();
+      console.log("FETCHED CALENDAR RESULTS:", flatResults.length);
+      const filtered = flatResults.filter(
+        (event) =>
+          !CALENDAR_HIDE_STATUS.some((hideStatus) =>
+            event.title?.includes(hideStatus)
+          )
+      );
+      if (filtered.length === 0 && events.length > 0) {
+        console.log("!!! RE-FETCHING CALENDAR EVENTS WAS EMPTY !!!");
+      } else {
+        setEvents(filtered);
       }
-      // setEvents(
-      //   [...results.flat()].filter(
-      //     (event) =>
-      //       !CALENDAR_HIDE_STATUS.some((status) =>
-      //         event?.title?.includes(status)
-      //       )
-      //   )
-      // )
-    );
-  }, [allRooms]);
+    });
+  }, [allRooms, events]);
 
   useEffect(() => {
     loadEvents();

@@ -1,6 +1,6 @@
 "use client";
 
-import { Box, Stack, Typography } from "@mui/material";
+import { Box, Stack, Typography, useMediaQuery, useTheme } from "@mui/material";
 import React, { useContext, useMemo, useState } from "react";
 
 import { BookingContext } from "../bookingProvider";
@@ -27,6 +27,8 @@ export default function SelectRoomPage({
   const { selectedRooms, setSelectedRooms } = useContext(BookingContext);
   const [date, setDate] = useState<Date>(new Date());
   useCheckFormMissingData();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
   const roomsToShow = useMemo(() => {
     return !isWalkIn
@@ -36,9 +38,12 @@ export default function SelectRoomPage({
 
   return (
     <Box sx={{ flexGrow: 1 }}>
-      <Grid container>
-        <Grid width={330}>
-          <Stack spacing={2}>
+      <Grid container={!isMobile}>
+        <Grid width={{ xs: "100%", md: 330 }}>
+          <Stack
+            spacing={{ xs: 0, md: 2 }}
+            alignItems={{ xs: "center", md: "unset" }}
+          >
             {!isWalkIn && <CalendarDatePicker handleChange={setDate} />}
             <Box paddingLeft="24px">
               <Typography fontWeight={500}>Spaces</Typography>

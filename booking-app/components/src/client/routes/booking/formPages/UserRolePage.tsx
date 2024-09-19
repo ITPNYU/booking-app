@@ -19,7 +19,6 @@ const Center = styled(Box)`
 `;
 
 const Container = styled(Box)(({ theme }) => ({
-  width: "50%",
   display: "flex",
   flexDirection: "column",
   alignItems: "center",
@@ -60,7 +59,12 @@ export default function UserRolePage({
 
   return (
     <Center>
-      <Container padding={4} marginTop={6}>
+      <Container
+        padding={4}
+        margin={3}
+        marginTop={6}
+        width={{ xs: "100%", md: "50%" }}
+      >
         <Typography fontWeight={500}>Affiliation</Typography>
         <Dropdown
           value={department}
