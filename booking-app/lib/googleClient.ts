@@ -62,6 +62,16 @@ const getGoogleSheet = async (spreadsheetId: string) => {
   const authClient = await getAuthenticatedClient();
   return google.sheets({ version: "v4", auth: authClient });
 };
+const getLoggingClient = async () => {
+  const authClient = await getAuthenticatedClient();
+  return google.logging({ version: "v2", auth: authClient });
+};
 
 const oauth2Client = createOAuth2Client();
-export { getCalendarClient, getGmailClient, getGoogleSheet, oauth2Client };
+export {
+  getCalendarClient,
+  getGmailClient,
+  getGoogleSheet,
+  getLoggingClient,
+  oauth2Client,
+};

@@ -1,5 +1,5 @@
-import { getGoogleSheet } from "@/lib/googleClient";
 import { NextRequest, NextResponse } from "next/server";
+import { getGoogleSheet, getLoggingClient } from "@/lib/googleClient";
 
 const SPREADSHEET_ID = process.env.GOOGLE_SPREADSHEET_ID;
 const SHEET_GID = process.env.GOOGLE_SHEET_ID;
@@ -9,6 +9,7 @@ const MAX_ROWS = 1000;
 export async function GET(request: NextRequest) {
   try {
     const sheetsService = await getGoogleSheet(SPREADSHEET_ID);
+    const logger = await getLoggingClient();
 
     const spreadsheet = await sheetsService.spreadsheets.get({
       spreadsheetId: SPREADSHEET_ID,
@@ -32,6 +33,27 @@ export async function GET(request: NextRequest) {
       fields: "values",
     });
     console.log("emails", response.data.values);
+
+    const logEntry = {
+      logName: process.env.NEXT_PUBLIC_GCP_LOG_NAME + "/safety-training",
+      resource: { type: "global" },
+      entries: [
+        {
+          jsonPayload: {
+            message: "Fetched emails",
+            emails: response.data.values,
+            number: response.data.values.length,
+            branchName: process.env.NEXT_PUBLIC_BRANCH_NAME,
+            timestamp,
+          },
+          severity: "INFO",
+        },
+      ],
+    };
+
+    logger.entries.write({
+      requestBody: logEntry,
+    });
 
     const rows = response.data.values;
     if (!rows || rows.length === 0) {
