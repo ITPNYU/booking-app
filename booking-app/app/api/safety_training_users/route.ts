@@ -57,14 +57,26 @@ export async function GET(request: NextRequest) {
 
     const rows = response.data.values;
     if (!rows || rows.length === 0) {
-      return NextResponse.json({ emails: [] });
+      const res = NextResponse.json({ emails: [] });
+      res.headers.set(
+        "Cache-Control",
+        "no-store, no-cache, must-revalidate, proxy-revalidate",
+      );
+      res.headers.set("Expires", "0");
+      return res;
     }
 
     const emails = rows
       .flat()
       .filter(email => email && typeof email === "string");
 
-    return NextResponse.json({ emails });
+    const res = NextResponse.json({ emails });
+    res.headers.set(
+      "Cache-Control",
+      "no-store, no-cache, must-revalidate, proxy-revalidate",
+    );
+    res.headers.set("Expires", "0");
+    return res;
   } catch (error) {
     console.error("Failed to fetch emails:", error);
     if (
