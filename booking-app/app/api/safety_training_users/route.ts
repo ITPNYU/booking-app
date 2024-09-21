@@ -6,6 +6,7 @@ const SHEET_GID = process.env.GOOGLE_SHEET_ID;
 const COLUMN = "B";
 const MAX_ROWS = 1000;
 
+export const dynamic = "force-dynamic";
 export async function GET(request: NextRequest) {
   try {
     const sheetsService = await getGoogleSheet(SPREADSHEET_ID);
