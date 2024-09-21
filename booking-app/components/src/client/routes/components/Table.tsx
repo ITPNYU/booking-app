@@ -12,10 +12,15 @@ import {
 import React from "react";
 import { styled } from "@mui/system";
 
+const Clip = styled(Box)`
+  overflow-x: auto;
+`;
+
 const TableCustom = styled(MuiTable)(({ theme }) => ({
   border: `1px solid ${theme.palette.custom.border}`,
   borderCollapse: "separate",
   borderRadius: "0px 0px 4px 4px",
+  // overflowX: "scroll",
 
   "& tr:last-child td": {
     borderBottom: "none",
@@ -31,6 +36,7 @@ const ShadedHeader = styled(TableHead)(({ theme }) => ({
 }));
 
 export const TableTopRow = styled(MuiTable)`
+  width: 100%;
   height: 48px;
   border-bottom: none;
   border-collapse: separate;
@@ -69,12 +75,14 @@ export default function Table({ columns, children, topRow, sx }: Props) {
           </TableRow>
         </TableBody>
       </TableTopRow>
-      <TableCustom size="small" sx={sx ?? {}}>
-        <ShadedHeader>
-          <TableRow>{columns}</TableRow>
-        </ShadedHeader>
-        <TableBody>{children}</TableBody>
-      </TableCustom>
+      <Clip>
+        <TableCustom size="small" sx={sx ?? {}}>
+          <ShadedHeader>
+            <TableRow>{columns}</TableRow>
+          </ShadedHeader>
+          <TableBody>{children}</TableBody>
+        </TableCustom>
+      </Clip>
     </>
   );
 }

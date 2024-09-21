@@ -11,10 +11,15 @@ const Center = styled(Box)`
   align-items: center;
 `;
 
+const Container = styled(Box)`
+  width: 65%;
+  margin: 48px;
+`;
+
 export default function MyBookingsPage() {
   return (
     <Center>
-      <Box width="65%" margin={6}>
+      <Box width={{ xs: "90%", md: "65%" }} margin={6}>
         <Typography variant="h6">Welcome</Typography>
         <Bookings pageContext={PageContextLevel.USER} />
       </Box>

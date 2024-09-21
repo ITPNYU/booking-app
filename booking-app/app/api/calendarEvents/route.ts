@@ -5,8 +5,8 @@ import {
   updateEventPrefix,
 } from "@/components/src/server/calendars";
 
-import { serverBookingContents } from "@/components/src/server/admin";
 import { getCalendarClient } from "@/lib/googleClient";
+import { serverBookingContents } from "@/components/src/server/admin";
 
 const getCalendarEvents = async (calendarId: string) => {
   const calendar = await getCalendarClient();
@@ -84,7 +84,13 @@ export async function GET(req: NextRequest) {
 
   try {
     const events = await getCalendarEvents(calendarId);
-    return NextResponse.json(events);
+    const res = NextResponse.json(events);
+    res.headers.set(
+      "Cache-Control",
+      "no-store, no-cache, must-revalidate, proxy-revalidate",
+    );
+    res.headers.set("Expires", "0");
+    return res;
   } catch (error) {
     console.error("Error fetching calendar events:", error);
     return NextResponse.json(

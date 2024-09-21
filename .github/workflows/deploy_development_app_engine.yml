@@ -54,6 +54,7 @@ jobs:
           echo "NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=${{ secrets.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID }}" >> .env.production
           echo "NEXT_PUBLIC_DATABASE_NAME=${{ secrets.NEXT_PUBLIC_DATABASE_NAME }}" >> .env.production
           echo "NEXT_PUBLIC_BRANCH_NAME=${{ secrets.NEXT_PUBLIC_BRANCH_NAME }}" >> .env.production
+          echo "NEXT_PUBLIC_GCP_LOG_NAME=${{ secrets.NEXT_PUBLIC_GCP_LOG_NAME }}" >> .env.production
 
       - name: Install dependencies
         run: |
