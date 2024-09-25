@@ -58,3 +58,23 @@ export const formatTimeAmPm = (d: Date) => {
     hour12: true,
   });
 };
+
+export function roundTimeUp() {
+  const now = new Date();
+  const minutes = now.getMinutes();
+
+  // Round up to next half-hour or hour
+  const roundedMinutes = minutes > 30 ? 60 : 30;
+
+  if (roundedMinutes === 60) {
+    now.setHours(now.getHours() + 1);
+    now.setMinutes(0);
+  } else {
+    now.setMinutes(30);
+  }
+
+  now.setSeconds(0);
+  now.setMilliseconds(0);
+
+  return now;
+}

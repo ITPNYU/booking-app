@@ -15,6 +15,8 @@ import Check from "@mui/icons-material/Check";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import { DatabaseContext } from "../../components/Provider";
 import Loading from "../../components/Loading";
+import { Timestamp } from "@firebase/firestore";
+import { updateByCalendarEventId } from "@/components/src/server/calendars";
 import useExistingBooking from "../hooks/useExistingBooking";
 import { useRouter } from "next/navigation";
 
@@ -23,6 +25,7 @@ interface Props {
   pageContext: PageContextLevel;
   setOptimisticStatus: (x: BookingStatusLabel) => void;
   status: BookingStatusLabel;
+  startDate: Timestamp;
 }
 
 enum Actions {
@@ -34,6 +37,7 @@ enum Actions {
   FINAL_APPROVE = "Final Approve",
   DECLINE = "Decline",
   EDIT = "Edit",
+  MODIFICATION = "Modification",
   PLACEHOLDER = "",
 }
 
@@ -49,6 +53,7 @@ export default function BookingActions({
   calendarEventId,
   pageContext,
   setOptimisticStatus,
+  startDate,
 }: Props) {
   const [uiLoading, setUiLoading] = useState(false);
   const [selectedAction, setSelectedAction] = useState<Actions>(
@@ -56,6 +61,7 @@ export default function BookingActions({
   );
   const { reloadBookings, reloadBookingStatuses } = useContext(DatabaseContext);
   const [showError, setShowError] = useState(false);
+  const [date, setDate] = useState(new Date());
   const router = useRouter();
   const loadExistingBookingData = useExistingBooking();
 
@@ -65,6 +71,10 @@ export default function BookingActions({
 
   const onError = () => {
     setShowError(true);
+  };
+
+  const updateActions = () => {
+    setDate(new Date());
   };
 
   const handleDialogChoice = (result: boolean) => {
@@ -118,6 +128,11 @@ export default function BookingActions({
     [Actions.CHECK_OUT]: {
       action: async () => {
         await checkOut(calendarEventId);
+        await updateByCalendarEventId(calendarEventId, {
+          end: {
+            dateTime: new Date().toISOString(),
+          },
+        });
       },
       optimisticNextStatus: BookingStatusLabel.CHECKED_OUT,
     },
@@ -148,6 +163,14 @@ export default function BookingActions({
       optimisticNextStatus: status,
       confirmation: false,
     },
+    [Actions.MODIFICATION]: {
+      action: async () => {
+        loadExistingBookingData(calendarEventId);
+        router.push("/modification/" + calendarEventId);
+      },
+      optimisticNextStatus: status,
+      confirmation: false,
+    },
     // never used, just make typescript happy
     [Actions.PLACEHOLDER]: {
       action: async () => {},
@@ -162,7 +185,8 @@ export default function BookingActions({
     }
     if (
       status !== BookingStatusLabel.CHECKED_IN &&
-      status !== BookingStatusLabel.NO_SHOW
+      status !== BookingStatusLabel.NO_SHOW &&
+      startDate.toDate() > date
     ) {
       options.push(Actions.EDIT);
     }
@@ -175,9 +199,11 @@ export default function BookingActions({
     if (status === BookingStatusLabel.APPROVED) {
       options.push(Actions.CHECK_IN);
       options.push(Actions.NO_SHOW);
+      options.push(Actions.MODIFICATION);
     } else if (status === BookingStatusLabel.CHECKED_IN) {
       options.push(Actions.NO_SHOW);
       options.push(Actions.CHECK_OUT);
+      options.push(Actions.MODIFICATION);
     } else if (status === BookingStatusLabel.NO_SHOW) {
       options.push(Actions.CHECK_IN);
     }
@@ -204,7 +230,7 @@ export default function BookingActions({
     options.push(Actions.CANCEL);
     options.push(Actions.DECLINE);
     return options;
-  }, [status, paOptions]);
+  }, [status, paOptions, date]);
 
   const options = () => {
     switch (pageContext) {
@@ -234,6 +260,7 @@ export default function BookingActions({
         value={selectedAction}
         size="small"
         displayEmpty
+        onFocus={updateActions}
         onChange={(e) => setSelectedAction(e.target.value as Actions)}
         renderValue={(selected) => {
           if (selected === Actions.PLACEHOLDER) {

@@ -123,6 +123,7 @@ export default function BookingTableRow({
         <BookingActions
           status={optimisticStatus ?? status}
           calendarEventId={booking.calendarEventId}
+          startDate={booking.startDate}
           {...{ setOptimisticStatus, pageContext }}
         />
       </TableCell>
