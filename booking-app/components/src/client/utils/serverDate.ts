@@ -1,5 +1,6 @@
 import { Timestamp } from "firebase-admin/firestore";
 import { format } from "date-fns";
+import { toZonedTime } from "date-fns-tz";
 
 type DateInput = Date | Timestamp | { [key: string]: any } | number | string;
 
@@ -21,9 +22,11 @@ export const serverFormatDate = (
   if (!input) return "";
   try {
     const timestamp = parseTimestamp(input);
-    const date = timestamp.toDate();
-    const zonedDate = new Date(date.toLocaleString("en-US", { timeZone }));
-    return format(zonedDate, "yyyy-MM-dd hh:mm a");
+    const utcDate = timestamp.toDate();
+    const zonedDate = toZonedTime(utcDate, timeZone);
+    const formattedResult = format(zonedDate, "yyyy-MM-dd hh:mm a");
+
+    return formattedResult;
   } catch (error) {
     console.error("Error formatting date:", error, "Input:", input);
     return "";
