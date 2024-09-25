@@ -1,10 +1,16 @@
 import { Box, Typography, useMediaQuery, useTheme } from "@mui/material";
-import { CalendarApi, DateSelectArg, EventClickArg } from "@fullcalendar/core";
+import {
+  CalendarApi,
+  DateSelectArg,
+  EventClickArg,
+  EventDropArg,
+} from "@fullcalendar/core";
 import { CalendarEvent, RoomSetting } from "../../../../types";
 import CalendarEventBlock, { NEW_TITLE_TAG } from "./CalendarEventBlock";
 import React, { useContext, useEffect, useMemo, useRef } from "react";
 
 import { BookingContext } from "../bookingProvider";
+import { EventResizeDoneArg } from "fullcalendar";
 import FullCalendar from "@fullcalendar/react";
 import googleCalendarPlugin from "@fullcalendar/google-calendar";
 import interactionPlugin from "@fullcalendar/interaction"; // for selectable
@@ -117,7 +123,10 @@ export default function CalendarVerticalResource({
       resourceId: room.roomId + "",
       title: NEW_TITLE_TAG,
       overlap: true,
-      url: `${index}:${rooms.length - 1}`, // some hackiness to let us render multiple events visually as one big block
+      durationEditable: true,
+      startEditable: true,
+      groupId: "new",
+      url: `${index}:${rooms.length}`, // some hackiness to let us render multiple events visually as one big block
     }));
   }, [bookingCalendarInfo, rooms]);
 
@@ -164,10 +173,24 @@ export default function CalendarVerticalResource({
     return el.overlap;
   };
 
+  // clicking on created event should delete it
   const handleEventClick = (info: EventClickArg) => {
     if (info.event.title.includes(NEW_TITLE_TAG)) {
       setBookingCalendarInfo(null);
     }
+  };
+
+  // if change event duration via dragging edges or drag event block to move
+  const handleEventEdit = (info: EventResizeDoneArg | EventDropArg) => {
+    setBookingCalendarInfo({
+      startStr: info.event.startStr,
+      start: info.event.start,
+      endStr: info.event.endStr,
+      end: info.event.end,
+      allDay: false,
+      jsEvent: info.jsEvent,
+      view: info.view,
+    });
   };
 
   // for editing an existing reservation
@@ -185,7 +208,8 @@ export default function CalendarVerticalResource({
     return (
       <Empty>
         <Typography>
-          Select spaces to view their availability and choose a time slot
+          Select spaces to view their availability, then click and drag to
+          choose a time slot
         </Typography>
       </Empty>
     );
@@ -214,6 +238,8 @@ export default function CalendarVerticalResource({
           info.jsEvent.preventDefault();
           handleEventClick(info);
         }}
+        eventResize={handleEventEdit}
+        eventDrop={handleEventEdit}
         headerToolbar={false}
         slotMinTime="09:00:00"
         slotMaxTime="21:00:00"
