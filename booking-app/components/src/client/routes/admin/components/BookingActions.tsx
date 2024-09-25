@@ -16,7 +16,7 @@ import ConfirmDialog from "../../components/ConfirmDialog";
 import { DatabaseContext } from "../../components/Provider";
 import Loading from "../../components/Loading";
 import { Timestamp } from "@firebase/firestore";
-import { updateByCalendarEventId } from "@/components/src/server/calendars";
+// import { updateByCalendarEventId } from "@/components/src/server/calendars";
 import useExistingBooking from "../hooks/useExistingBooking";
 import { useRouter } from "next/navigation";
 
@@ -128,11 +128,11 @@ export default function BookingActions({
     [Actions.CHECK_OUT]: {
       action: async () => {
         await checkOut(calendarEventId);
-        await updateByCalendarEventId(calendarEventId, {
-          end: {
-            dateTime: new Date().toISOString(),
-          },
-        });
+        // await updateByCalendarEventId(calendarEventId, {
+        //   end: {
+        //     dateTime: new Date().toISOString(),
+        //   },
+        // });
       },
       optimisticNextStatus: BookingStatusLabel.CHECKED_OUT,
     },
