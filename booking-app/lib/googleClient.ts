@@ -14,9 +14,6 @@ const refreshAccessTokenIfNeeded = async (oauth2Client) => {
   const currentTime = Date.now();
   const tokenExpiryTime = oauth2Client.credentials.expiry_date;
 
-  console.log("Current time:", new Date(currentTime));
-  console.log("Token expiry:", new Date(tokenExpiryTime));
-
   if (!tokenExpiryTime || currentTime >= tokenExpiryTime - 60000) {
     // 1分前に更新
     try {

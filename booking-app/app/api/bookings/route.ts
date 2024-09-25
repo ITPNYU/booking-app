@@ -161,13 +161,11 @@ export async function POST(request: NextRequest) {
     equipmentCheckedOut: false,
     ...data,
   });
-  console.log(" Done serverSaveDataToFirestore booking");
   await serverSaveDataToFirestore(TableNames.BOOKING_STATUS, {
     calendarEventId,
     email,
     requestedAt: Timestamp.now(),
   });
-  console.log(" Done serverSaveDataToFirestore booking status");
 
   await handleBookingApprovalEmails(
     isAutoApproval,
