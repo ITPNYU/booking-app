@@ -22,8 +22,8 @@ export const serverFormatDate = (
 ): string => {
   if (!input) return "";
   try {
-    const date = new Date(input);
-
+    const timestamp = parseTimestamp(input);
+    const date = new Date(timestamp.toDate());
     const zonedDate = toZonedTime(date, timeZone);
 
     const formattedResult = format(zonedDate, "yyyy-MM-dd hh:mm a", {
