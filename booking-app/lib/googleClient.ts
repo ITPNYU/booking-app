@@ -14,9 +14,6 @@ const refreshAccessTokenIfNeeded = async (oauth2Client) => {
   const currentTime = Date.now();
   const tokenExpiryTime = oauth2Client.credentials.expiry_date;
 
-  console.log("Current time:", new Date(currentTime));
-  console.log("Token expiry:", new Date(tokenExpiryTime));
-
   if (!tokenExpiryTime || currentTime >= tokenExpiryTime - 60000) {
     // 1分前に更新
     try {
@@ -62,6 +59,16 @@ const getGoogleSheet = async (spreadsheetId: string) => {
   const authClient = await getAuthenticatedClient();
   return google.sheets({ version: "v4", auth: authClient });
 };
+const getLoggingClient = async () => {
+  const authClient = await getAuthenticatedClient();
+  return google.logging({ version: "v2", auth: authClient });
+};
 
 const oauth2Client = createOAuth2Client();
-export { getCalendarClient, getGmailClient, getGoogleSheet, oauth2Client };
+export {
+  getCalendarClient,
+  getGmailClient,
+  getGoogleSheet,
+  getLoggingClient,
+  oauth2Client,
+};

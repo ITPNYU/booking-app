@@ -31,7 +31,12 @@ export default function LandingPage() {
   const router = useRouter();
 
   return (
-    <Center sx={{ width: "100vw", height: "90vh" }}>
+    <Center
+      sx={{ width: "100vw" }}
+      height={{ xs: "unset", md: "90vh" }}
+      padding={{ xs: 3 }}
+      // marginTop={{ xs: "10vh", md: 0 }}
+    >
       <Title as="h1">370🅙 Media Commons Reservation Form</Title>
       <p>Thank you for your interest in booking with the Media Commons</p>
       <Modal padding={4}>

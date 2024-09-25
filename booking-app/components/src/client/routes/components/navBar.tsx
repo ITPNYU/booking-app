@@ -7,6 +7,8 @@ import {
   Select,
   Toolbar,
   Typography,
+  useMediaQuery,
+  useTheme,
 } from "@mui/material";
 import React, { useContext, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
@@ -58,6 +60,8 @@ export default function NavBar() {
     PagePermission.BOOKING
   );
   const pathname = usePathname();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
   const netId = userEmail?.split("@")[0];
 
@@ -169,7 +173,7 @@ export default function NavBar() {
     <Nav>
       <LogoBox onClick={handleClickHome}>
         <Image src={SVGLOGO} alt="Media Commons logo" height={40} />
-        <Title as="h1">Media Commons {envTitle}</Title>
+        {!isMobile && <Title as="h1">Media Commons {envTitle}</Title>}
       </LogoBox>
       <Box display="flex" alignItems="center">
         {button}
