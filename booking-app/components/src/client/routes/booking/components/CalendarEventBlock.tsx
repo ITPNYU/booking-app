@@ -1,6 +1,5 @@
 import { Box, IconButton } from "@mui/material";
 
-import { BookingStatusLabel } from "../../../../types";
 import { Close } from "@mui/icons-material";
 import { EventContentArg } from "@fullcalendar/core";
 import React from "react";
@@ -11,28 +10,31 @@ export const UNKNOWN_BLOCK_TITLE = "Unavailable";
 
 interface Props {
   bgcolor: string;
-  isFirst: boolean;
-  isLast: boolean;
-  isNew: boolean;
+  isnew: boolean;
+  numrooms: number;
 }
 
-const Block = styled(Box)<Props>(
-  ({ theme, bgcolor, isFirst, isLast, isNew }) => ({
-    backgroundColor: bgcolor || theme.palette.primary.main,
-    border: `2px solid ${bgcolor || theme.palette.primary.main}`,
-    borderRadius: "4px",
-    outline: "none",
-    height: "100%",
-    width: isNew && !isLast ? "105%" : "100%",
-    overflowX: "hidden",
-    cursor: bgcolor ? "unset" : "pointer",
-    padding: "2px 4px",
-    position: "relative",
-    zIndex: isNew ? 99 : 2,
-    borderTopLeftRadius: isNew && !isFirst ? 0 : 4,
-    borderBottomLeftRadius: isNew && !isFirst ? 0 : 4,
-  })
-);
+const Block = styled(Box)<Props>(({ theme, bgcolor, isnew, numrooms }) => ({
+  backgroundColor: bgcolor || theme.palette.primary.main,
+  border: `2px solid ${bgcolor || theme.palette.primary.main}`,
+  borderRadius: "4px",
+  outline: "none",
+  height: "100%",
+  width: isnew
+    ? `calc((100% + 2px) * ${numrooms} + ${numrooms - 1}px)`
+    : "100%",
+  overflowX: "hidden",
+  cursor: bgcolor ? "unset" : "pointer",
+  padding: "2px 4px",
+  position: "relative",
+  zIndex: isnew ? 99 : 2,
+}));
+
+const Empty = styled(Box)`
+  width: "100%";
+  height: "100%";
+  position: relative;
+`;
 
 const CloseButton = styled(IconButton)(({ theme }) => ({
   position: "absolute",
@@ -52,8 +54,9 @@ export default function CalendarEventBlock(eventInfo: EventContentArg) {
     ? eventInfo.event.url.split(":")
     : ["0", "0"];
   const index = Number(params[0]);
-  const maxIndex = Number(params[1]);
-  const isLast = index === maxIndex;
+  const numRooms = Number(params[1]);
+
+  const isLast = index === numRooms - 1;
   const isOneColumn = index === 0 && isLast;
 
   const backgroundColor = () => {
@@ -63,17 +66,22 @@ export default function CalendarEventBlock(eventInfo: EventContentArg) {
     return "rgba(72, 196, 77, 1)";
   };
 
-  const hideTitle = isNew && index !== 0 && !isOneColumn;
+  if (isNew && index !== 0) {
+    return (
+      <Empty>
+        {isNew && isLast && (
+          <CloseButton>
+            <Close />
+          </CloseButton>
+        )}
+      </Empty>
+    );
+  }
 
   return (
-    <Block
-      bgcolor={backgroundColor()}
-      isNew={isNew}
-      isLast={isLast}
-      isFirst={index === 0}
-    >
-      {!hideTitle && <b>{title}</b>}
-      {isNew && isLast && (
+    <Block bgcolor={backgroundColor()} isnew={isNew} numrooms={numRooms}>
+      <b>{title}</b>
+      {isNew && isOneColumn && (
         <CloseButton>
           <Close />
         </CloseButton>
