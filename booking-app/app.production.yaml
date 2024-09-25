@@ -10,6 +10,7 @@ automatic_scaling:
 env_variables:
   NEXT_PUBLIC_BRANCH_NAME: "production"
   NODE_OPTIONS: "--max-old-space-size=4096"
+  TZ: "America/New_York"
 
 build_env_variables:
   NODE_OPTIONS: "--max-old-space-size=4096"
