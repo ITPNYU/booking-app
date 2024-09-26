@@ -494,17 +494,18 @@ export default function FormInput({ calendarEventId, formContext }: Props) {
                 {" "}
                 I confirm receipt of the
                 <a
-                  href="https://docs.google.com/document/d/1TIOl8f8-7o2BdjHxHYIYELSb4oc8QZMj1aSfaENWjR8/edit?usp=sharing"
+                  href="https://docs.google.com/document/d/1TIOl8f8-7o2BdjHxHYIYELSb4oc8QZMj1aSfaENWjR8/edit#heading=h.ns3jisyhutvq"
                   target="_blank"
                   className="text-blue-600 hover:underline dark:text-blue-500 mx-1 mx-1"
                 >
-                  370J Pre-Event Checklist
+                  370J Media Commons Event Service Rates/Additional Information
                 </a>
-                and acknowledge that it is my responsibility to setup various
-                event services as detailed within the checklist. While the 370J
-                Operations staff do setup cleaning services through CBS, they do
-                not facilitate hiring security, catering, and arranging room
-                setup services.
+                document that contains information regarding event needs and
+                services. I acknowledge that it is my responsibility to set up
+                catering and Campus Media if needed for my reservation. I
+                understand that the 370J Media Commons Operations staff will
+                setup CBS cleaning services, facilitate hiring security, and
+                arrange room setup services if needed for my reservation.
               </p>
             }
           />
@@ -514,12 +515,13 @@ export default function FormInput({ calendarEventId, formContext }: Props) {
             onChange={setResetRoom}
             description={
               <p>
-                I agree to reset any and all requested rooms and common spaces
-                to their original state at the end of the event, including
-                cleaning and furniture return, and will notify building staff of
-                any problems, damage, or other concerns affecting the condition
-                and maintenance of the reserved space. I understand that if I do
-                not reset the room, I will lose reservation privileges.
+                I agree to reset all rooms and common spaces I have used to
+                their original state at the end of my reservation, including
+                returning equipment, resetting furniture, and cleaning up after
+                myself. I will notify Media Commons staff of any problems,
+                damage, or other concerns affecting the condition and
+                maintenance of the reserved space. I understand that if I do not
+                reset the room, I may lose access to the Media Commons.
               </p>
             }
           />
