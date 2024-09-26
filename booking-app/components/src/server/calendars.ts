@@ -69,17 +69,19 @@ const bookingContentsToDescription = (bookingContents: BookingFormDetails) => {
     listItem("Expected Attendance", bookingContents.expectedAttendance),
     bookingContents.roomSetup === "yes" &&
       "**" + listItem("Room Setup", bookingContents.setupDetails) + "**",
-    listItem("Title", bookingContents.title),
-    bookingContents.mediaServices &&
-      bookingContents.mediaServices.length > 0 &&
-      listItem("Media Services", bookingContents.mediaServices),
-    bookingContents.mediaServicesDetails.length > 0 &&
-      listItem("Media Services Details", bookingContents.mediaServicesDetails),
-    (bookingContents.catering === "yes" ||
-      bookingContents.cateringService.length > 0) &&
-      listItem("Catering", bookingContents.cateringService),
-    bookingContents.hireSecurity === "yes" &&
-      listItem("Hire Security", bookingContents.hireSecurity),
+    bookingContents.mediaServices && bookingContents.mediaServices.length > 0
+      ? listItem("Media Services", bookingContents.mediaServices)
+      : "",
+    bookingContents.mediaServicesDetails.length > 0
+      ? listItem("Media Services Details", bookingContents.mediaServicesDetails)
+      : "",
+    bookingContents.catering === "yes" ||
+    bookingContents.cateringService.length > 0
+      ? listItem("Catering", bookingContents.cateringService)
+      : "",
+    bookingContents.hireSecurity === "yes"
+      ? listItem("Hire Security", bookingContents.hireSecurity)
+      : "",
     "</ul><h3>Cancellation Policy</h3>",
   ];
   //@ts-ignore
