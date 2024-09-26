@@ -78,7 +78,7 @@ export const Header = ({ formContext }: Props) => {
         <BookingFormStepper formContext={formContext} />
         {showStatusBar && (
           <BookingStatusBar
-            {...{ goBack, goNext, hideNextButton, hideBackButton }}
+            {...{ goBack, goNext, hideNextButton, hideBackButton, formContext }}
           />
         )}
       </div>

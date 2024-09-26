@@ -124,7 +124,7 @@ export default function CalendarVerticalResource({
       title: NEW_TITLE_TAG,
       overlap: true,
       durationEditable: true,
-      startEditable: true,
+      startEditable: formContext !== FormContextLevel.MODIFICATION,
       groupId: "new",
       url: `${index}:${rooms.length}`, // some hackiness to let us render multiple events visually as one big block
     }));
@@ -174,8 +174,12 @@ export default function CalendarVerticalResource({
   };
 
   // clicking on created event should delete it
+  // only if not in MODIFICATION mode
   const handleEventClick = (info: EventClickArg) => {
-    if (info.event.title.includes(NEW_TITLE_TAG)) {
+    if (
+      info.event.title.includes(NEW_TITLE_TAG) &&
+      formContext !== FormContextLevel.MODIFICATION
+    ) {
       setBookingCalendarInfo(null);
     }
   };
@@ -230,7 +234,7 @@ export default function CalendarVerticalResource({
           googleCalendarPlugin,
           interactionPlugin,
         ]}
-        selectable={true}
+        selectable={formContext !== FormContextLevel.MODIFICATION}
         select={handleEventSelect}
         selectAllow={handleEventSelecting}
         selectOverlap={handleSelectOverlap}
