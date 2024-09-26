@@ -11,6 +11,7 @@ import {
 } from "@/components/src/server/db";
 
 import AlertToast from "../../components/AlertToast";
+import { BookingContext } from "../../booking/bookingProvider";
 import Check from "@mui/icons-material/Check";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import { DatabaseContext } from "../../components/Provider";
@@ -55,6 +56,7 @@ export default function BookingActions({
     Actions.PLACEHOLDER
   );
   const { reloadBookings, reloadBookingStatuses } = useContext(DatabaseContext);
+  const { reloadExistingCalendarEvents } = useContext(BookingContext);
   const [showError, setShowError] = useState(false);
   const router = useRouter();
   const loadExistingBookingData = useExistingBooking();
@@ -143,6 +145,7 @@ export default function BookingActions({
     [Actions.EDIT]: {
       action: async () => {
         loadExistingBookingData(calendarEventId);
+        reloadExistingCalendarEvents();
         router.push("/edit/" + calendarEventId);
       },
       optimisticNextStatus: status,

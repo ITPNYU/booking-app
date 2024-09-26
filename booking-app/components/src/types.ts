@@ -96,12 +96,11 @@ export enum Department {
 export type DevBranch = "development" | "staging" | "production" | "";
 
 // what context are we entering the form in?
-// increasing levels of edit power
 export enum FormContextLevel {
-  MODIFICATION = 0,
-  WALK_IN = 1,
-  EDIT = 2,
-  FULL_FORM = 99,
+  EDIT = "/edit",
+  FULL_FORM = "/book",
+  MODIFICATION = "/modification",
+  WALK_IN = "/walk-in",
 }
 
 export type Inputs = {
