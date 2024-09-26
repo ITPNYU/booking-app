@@ -39,6 +39,11 @@ export default function BookingFormMediaServices(props: Props) {
   const { selectedRooms } = useContext(BookingContext);
   const roomIds = selectedRooms.map((room) => room.roomId);
 
+  const limitedContexts = [
+    FormContextLevel.WALK_IN,
+    FormContextLevel.MODIFICATION,
+  ];
+
   const checkboxes = useMemo(() => {
     const options: MediaServices[] = [];
     const checkRoomMediaServices = (list: number[]) =>
@@ -74,7 +79,7 @@ export default function BookingFormMediaServices(props: Props) {
                 if (!e.target.checked) {
                   // de-select boxes if switch says "no media services"
                   field.onChange("");
-                } else if (formContext === FormContextLevel.WALK_IN) {
+                } else if (limitedContexts.includes(formContext)) {
                   field.onChange(MediaServices.CHECKOUT_EQUIPMENT);
                 }
 
@@ -88,7 +93,7 @@ export default function BookingFormMediaServices(props: Props) {
     ></Controller>
   );
 
-  if (formContext === FormContextLevel.WALK_IN) {
+  if (limitedContexts.includes(formContext)) {
     return (
       <div style={{ marginBottom: 8 }}>
         <Label htmlFor={id}>Media Services</Label>

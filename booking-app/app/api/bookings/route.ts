@@ -9,26 +9,27 @@ import {
   declineUrl,
   getBookingToolDeployUrl,
 } from "@/components/src/server/ui";
+import { deleteEvent, insertEvent } from "@/components/src/server/calendars";
 import {
   firstApproverEmails,
   serverApproveInstantBooking,
+  serverBookingContents,
   serverDeleteDataByCalendarEventId,
   serverUpdateDataByCalendarEventId,
 } from "@/components/src/server/admin";
-import { deleteEvent, insertEvent } from "@/components/src/server/calendars";
+import {
+  serverFormatDate,
+  toFirebaseTimestampFromString,
+} from "@/components/src/client/utils/serverDate";
+import {
+  serverGetNextSequentialId,
+  serverSaveDataToFirestore,
+} from "@/lib/firebase/server/adminDb";
 
 import { DateSelectArg } from "fullcalendar";
 import { TableNames } from "@/components/src/policy";
 import { Timestamp } from "firebase-admin/firestore";
 import { sendHTMLEmail } from "@/app/lib/sendHTMLEmail";
-import {
-  serverGetNextSequentialId,
-  serverSaveDataToFirestore,
-} from "@/lib/firebase/server/adminDb";
-import {
-  serverFormatDate,
-  toFirebaseTimestampFromString,
-} from "@/components/src/client/utils/serverDate";
 
 async function createBookingCalendarEvent(
   selectedRooms: RoomSetting[],
@@ -188,6 +189,7 @@ export async function PUT(request: NextRequest) {
   const {
     email,
     selectedRooms,
+    allRooms,
     bookingCalendarInfo,
     data,
     isAutoApproval,
@@ -200,13 +202,20 @@ export async function PUT(request: NextRequest) {
       { status: 500 },
     );
   }
+
+  const existingContents = await serverBookingContents(calendarEventId);
+  const oldRoomIds = existingContents.roomId.split(",").map(x => x.trim());
+  const oldRooms = allRooms.filter((room: RoomSetting) =>
+    oldRoomIds.includes(room.roomId + ""),
+  );
+
   const selectedRoomIds = selectedRooms
     .map((r: { roomId: number }) => r.roomId)
     .join(", ");
 
   // delete existing cal events
   await Promise.all(
-    selectedRooms.map(async room => {
+    oldRooms.map(async room => {
       await deleteEvent(room.calendarId, calendarEventId, room.roomId);
     }),
   );

@@ -1,4 +1,4 @@
-import { FormContextLevel, Inputs } from "../../../../types";
+import { FormContextLevel, Inputs, PagePermission } from "../../../../types";
 import { useCallback, useContext } from "react";
 
 import { BookingContext } from "../bookingProvider";
@@ -7,8 +7,14 @@ import { useRouter } from "next/navigation";
 
 export default function useSubmitBooking(formContext: FormContextLevel) {
   const router = useRouter();
-  const { liaisonUsers, userEmail, reloadBookings, reloadBookingStatuses } =
-    useContext(DatabaseContext);
+  const {
+    liaisonUsers,
+    userEmail,
+    reloadBookings,
+    reloadBookingStatuses,
+    pagePermission,
+    roomSettings,
+  } = useContext(DatabaseContext);
   const {
     bookingCalendarInfo,
     department,
@@ -23,6 +29,7 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
 
   const isEdit = formContext === FormContextLevel.EDIT;
   const isWalkIn = formContext === FormContextLevel.WALK_IN;
+  const isModification = formContext === FormContextLevel.MODIFICATION;
 
   const registerEvent = useCallback(
     async (data: Inputs, isAutoApproval: boolean, calendarEventId?: string) => {
@@ -46,17 +53,57 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
         }
       }
 
+      if (isModification && pagePermission === PagePermission.BOOKING) {
+        // only a PA/admin can do a modification
+        setSubmitting("error");
+        return;
+      }
+
       let email: string;
       setSubmitting("submitting");
-      if (isWalkIn && data.netId) {
+      if ((isWalkIn || isModification) && data.netId) {
         email = data.netId + "@nyu.edu";
       } else {
         email = userEmail || data.missingEmail;
       }
 
-      const endpoint = isWalkIn ? "/api/walkIn" : "/api/bookings";
-      fetch(`${process.env.NEXT_PUBLIC_BASE_URL}${endpoint}`, {
-        method: isWalkIn || !isEdit ? "POST" : "PUT",
+      const requestParams = ((): {
+        endpoint: string;
+        method: "POST" | "PUT";
+        body?: Object;
+      } => {
+        switch (formContext) {
+          case FormContextLevel.EDIT:
+            return {
+              endpoint: "/api/bookings",
+              method: "PUT",
+              body: { calendarEventId, allRooms: roomSettings },
+            };
+          case FormContextLevel.MODIFICATION:
+            return {
+              endpoint: "/api/bookings",
+              method: "PUT",
+              body: {
+                calendarEventId,
+                isAutoApproval: true,
+                allRooms: roomSettings,
+              },
+            };
+          case FormContextLevel.WALK_IN:
+            return {
+              endpoint: "/api/walkIn",
+              method: "POST",
+            };
+          default:
+            return {
+              endpoint: "/api/bookings",
+              method: "POST",
+            };
+        }
+      })();
+
+      fetch(`${process.env.NEXT_PUBLIC_BASE_URL}${requestParams.endpoint}`, {
+        method: requestParams.method,
         headers: {
           "Content-Type": "application/json",
         },
@@ -67,7 +114,7 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
           liaisonUsers,
           data,
           isAutoApproval,
-          ...(isEdit && calendarEventId && { calendarEventId }),
+          ...(requestParams.body ?? {}),
         }),
       })
         .then((res) => {

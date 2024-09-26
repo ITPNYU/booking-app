@@ -163,6 +163,7 @@ export default function BookingActions({
     [Actions.MODIFICATION]: {
       action: async () => {
         loadExistingBookingData(calendarEventId);
+        reloadExistingCalendarEvents();
         router.push("/modification/" + calendarEventId);
       },
       optimisticNextStatus: status,
