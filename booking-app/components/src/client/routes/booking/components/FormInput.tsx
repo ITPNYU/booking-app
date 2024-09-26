@@ -1,4 +1,9 @@
-import { AttendeeAffiliation, Inputs, Role } from "../../../../types";
+import {
+  AttendeeAffiliation,
+  FormContextLevel,
+  Inputs,
+  Role,
+} from "../../../../types";
 import {
   BookingFormAgreementCheckbox,
   BookingFormDropdown,
@@ -54,15 +59,10 @@ const Container = styled(Box)(({ theme }) => ({
 
 interface Props {
   calendarEventId?: string;
-  isEdit: boolean;
-  isWalkIn: boolean;
+  formContext: FormContextLevel;
 }
 
-export default function FormInput({
-  calendarEventId,
-  isEdit,
-  isWalkIn,
-}: Props) {
+export default function FormInput({ calendarEventId, formContext }: Props) {
   const { userEmail, settings } = useContext(DatabaseContext);
   const {
     role,
@@ -75,7 +75,7 @@ export default function FormInput({
     setFormData,
   } = useContext(BookingContext);
   const router = useRouter();
-  const registerEvent = useSubmitBooking(isEdit, isWalkIn);
+  const registerEvent = useSubmitBooking(formContext);
   const { isAutoApproval } = useCheckAutoApproval();
 
   const {
@@ -108,6 +108,8 @@ export default function FormInput({
     },
     mode: "onBlur",
   });
+
+  const isWalkIn = formContext === FormContextLevel.WALK_IN;
 
   // different from other switches b/c mediaServices doesn't have yes/no column in DB
   const [showMediaServices, setShowMediaServices] = useState(false);
@@ -380,7 +382,7 @@ export default function FormInput({
                   trigger,
                   showMediaServices,
                   setShowMediaServices,
-                  isWalkIn,
+                  formContext,
                 }}
               />
               {watch("mediaServices") !== undefined &&

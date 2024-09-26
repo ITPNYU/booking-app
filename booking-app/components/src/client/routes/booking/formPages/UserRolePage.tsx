@@ -1,7 +1,7 @@
 "use client";
 
 import { Box, Button, Typography } from "@mui/material";
-import { Department, Role } from "../../../../types";
+import { Department, FormContextLevel, Role } from "../../../../types";
 import React, { useContext, useEffect } from "react";
 
 import { BookingContext } from "../bookingProvider";
@@ -28,14 +28,12 @@ const Container = styled(Box)(({ theme }) => ({
 
 interface Props {
   calendarEventId?: string;
-  isEdit?: boolean;
-  isWalkIn?: boolean;
+  formContext?: FormContextLevel;
 }
 
 export default function UserRolePage({
   calendarEventId,
-  isEdit = false,
-  isWalkIn = false,
+  formContext = FormContextLevel.FULL_FORM,
 }: Props) {
   const { role, department, setDepartment, setRole } =
     useContext(BookingContext);
@@ -50,10 +48,14 @@ export default function UserRolePage({
   }, []);
 
   const handleNextClick = () => {
-    if (isEdit && calendarEventId != null) {
+    if (formContext === FormContextLevel.EDIT && calendarEventId != null) {
       router.push("/edit/selectRoom/" + calendarEventId);
     } else {
-      router.push(isWalkIn ? "/walk-in/selectRoom" : "/book/selectRoom");
+      router.push(
+        formContext === FormContextLevel.WALK_IN
+          ? "/walk-in/selectRoom"
+          : "/book/selectRoom"
+      );
     }
   };
 

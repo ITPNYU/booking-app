@@ -1,21 +1,21 @@
 import { Checkbox, FormControlLabel, FormGroup } from "@mui/material";
+import { FormContextLevel, RoomSetting } from "../../../../types";
 import { MOCAP_ROOMS, WALK_IN_CAN_BOOK_TWO } from "../../../../policy";
 import React, { useContext, useMemo } from "react";
 
 import { BookingContext } from "../bookingProvider";
 import { ConfirmDialogControlled } from "../../components/ConfirmDialog";
-import { RoomSetting } from "../../../../types";
 
 interface Props {
   allRooms: RoomSetting[];
-  isWalkIn: boolean;
+  formContext: FormContextLevel;
   selected: RoomSetting[];
   setSelected: any;
 }
 
 export const SelectRooms = ({
   allRooms,
-  isWalkIn,
+  formContext,
   selected,
   setSelected,
 }: Props) => {
@@ -34,7 +34,8 @@ export const SelectRooms = ({
 
   // walk-ins can only book 1 room unless it's 2 ballroom bays (221-224)
   const isDisabled = (roomId: number) => {
-    if (!isWalkIn || selectedIds.length === 0) return false;
+    if (formContext !== FormContextLevel.WALK_IN || selectedIds.length === 0)
+      return false;
     if (selectedIds.includes(roomId)) return false;
     if (selectedIds.length >= 2) return true;
     if (

@@ -1,11 +1,11 @@
+import { FormContextLevel, Inputs } from "../../../../types";
 import { useCallback, useContext } from "react";
 
 import { BookingContext } from "../bookingProvider";
 import { DatabaseContext } from "../../components/Provider";
-import { Inputs } from "../../../../types";
 import { useRouter } from "next/navigation";
 
-export default function useSubmitBooking(isEdit: boolean, isWalkIn: boolean) {
+export default function useSubmitBooking(formContext: FormContextLevel) {
   const router = useRouter();
   const { liaisonUsers, userEmail, reloadBookings, reloadBookingStatuses } =
     useContext(DatabaseContext);
@@ -20,6 +20,9 @@ export default function useSubmitBooking(isEdit: boolean, isWalkIn: boolean) {
     setHasShownMocapModal,
     setSubmitting,
   } = useContext(BookingContext);
+
+  const isEdit = formContext === FormContextLevel.EDIT;
+  const isWalkIn = formContext === FormContextLevel.WALK_IN;
 
   const registerEvent = useCallback(
     async (data: Inputs, isAutoApproval: boolean, calendarEventId?: string) => {
