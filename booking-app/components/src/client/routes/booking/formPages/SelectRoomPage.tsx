@@ -45,7 +45,10 @@ export default function SelectRoomPage({
             spacing={{ xs: 0, md: 2 }}
             alignItems={{ xs: "center", md: "unset" }}
           >
-            {!isWalkIn && <CalendarDatePicker handleChange={setDate} />}
+            <CalendarDatePicker
+              handleChange={setDate}
+              formContext={formContext}
+            />
             <Box paddingLeft="24px">
               <Typography fontWeight={500}>Spaces</Typography>
               <SelectRooms

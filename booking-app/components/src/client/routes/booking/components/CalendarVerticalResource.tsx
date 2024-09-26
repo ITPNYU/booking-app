@@ -196,7 +196,8 @@ export default function CalendarVerticalResource({
   // for editing an existing reservation
   const existingCalEventsFiltered = useMemo(() => {
     if (
-      formContext !== FormContextLevel.EDIT ||
+      (formContext !== FormContextLevel.EDIT &&
+        formContext !== FormContextLevel.MODIFICATION) ||
       calendarEventId == null ||
       calendarEventId.length === 0
     )

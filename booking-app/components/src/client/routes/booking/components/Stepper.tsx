@@ -1,13 +1,19 @@
 import { Box, Step, StepLabel, Stepper } from "@mui/material";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 
 import { usePathname } from "next/navigation";
-
-const steps = ["Affiliation", "Select Time", "Details", "Confirmation"];
 
 export default function BookingFormStepper() {
   const pathname = usePathname();
   const [activeStep, setActiveStep] = useState(0);
+
+  const steps = useMemo(() => {
+    if (pathname.includes("/modification")) {
+      return ["Select Time", "Details", "Confirmation"];
+    } else {
+      return ["Affiliation", "Select Time", "Details", "Confirmation"];
+    }
+  }, [pathname]);
 
   useEffect(() => {
     switch (pathname) {

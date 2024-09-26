@@ -25,19 +25,23 @@ export const Header = () => {
     threshold: 100,
   });
 
-  // /book, /walk-in, /edit/<id>
-  if (/^\/(book|walk-in|edit\/[^\/]+)$/.test(pathname)) {
+  // /book, /walk-in, /edit/<id>, /modification/<id>
+  if (/^\/(book|walk-in|(?:edit|modification)\/[^\/]+)$/.test(pathname)) {
     return null;
   }
 
   const goBack = (() => {
     const match = pathname.match(
-      /^(\/(book|walk-in|edit))\/(selectRoom|form)(\/[a-zA-Z0-9_-]+)?$/
+      /^(\/(book|walk-in|edit|modification))\/(selectRoom|form)(\/[a-zA-Z0-9_-]+)?$/
     );
 
     if (match) {
       const [, basePath, , step, idSegment] = match;
       const id = idSegment || ""; // If there's an ID, use it; otherwise, use an empty string.
+
+      if (basePath === "/modification" && step === "selectRoom") {
+        return () => {};
+      }
 
       switch (step) {
         case "selectRoom":
@@ -54,7 +58,7 @@ export const Header = () => {
 
   const goNext = (() => {
     const match = pathname.match(
-      /^(\/(book|walk-in|edit))\/(selectRoom)(\/[a-zA-Z0-9_-]+)?$/
+      /^(\/(book|walk-in|edit|modification))\/(selectRoom)(\/[a-zA-Z0-9_-]+)?$/
     );
 
     if (match) {
@@ -72,13 +76,21 @@ export const Header = () => {
     }
   })();
 
-  // /book/form, /walk-in/form, /edit/form/<id>
+  const hideBackButton =
+    /^(\/modification)\/selectRoom(\/[a-zA-Z0-9_-]+)?$/.test(pathname);
+
+  // /book/form, /walk-in/form, /edit/form/<id>, /modification/form/<id>
   const hideNextButton =
-    /^(\/(book|walk-in|edit))\/form(\/[a-zA-Z0-9_-]+)?$/.test(pathname);
+    /^(\/(book|walk-in|(?:edit|modification)))\/form(\/[a-zA-Z0-9_-]+)?$/.test(
+      pathname
+    );
 
   // /book/selectRoom, /book/form, /walk-in/selectRoom, /walk-in/form, /edit/selectRoom/<id>, /edit/form/<id>
+  // /modification/selectRoom/<id>, /modification/form/<id>
   const showStatusBar =
-    /^(\/(book|walk-in|edit))\/(selectRoom|form)(\/[^\/]+)?$/.test(pathname);
+    /^(\/(book|walk-in|(?:edit|modification)))\/(selectRoom|form)(\/[^\/]+)?$/.test(
+      pathname
+    );
 
   return (
     <StickyScroll
@@ -91,7 +103,9 @@ export const Header = () => {
       <div>
         <BookingFormStepper />
         {showStatusBar && (
-          <BookingStatusBar {...{ goBack, goNext, hideNextButton }} />
+          <BookingStatusBar
+            {...{ goBack, goNext, hideNextButton, hideBackButton }}
+          />
         )}
       </div>
     </StickyScroll>

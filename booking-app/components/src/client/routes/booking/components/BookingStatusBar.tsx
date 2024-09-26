@@ -11,6 +11,7 @@ import { usePathname } from "next/navigation";
 interface Props {
   goBack: () => void;
   goNext: () => void;
+  hideBackButton: boolean;
   hideNextButton: boolean;
 }
 
@@ -25,7 +26,9 @@ export default function BookingStatusBar(props: Props) {
   const showAlert =
     isBanned ||
     needsSafetyTraining ||
-    (bookingCalendarInfo != null && selectedRooms.length > 0);
+    (bookingCalendarInfo != null &&
+      selectedRooms.length > 0 &&
+      !pathname.includes("/modification"));
 
   // order of precedence matters
   // unfixable blockers > fixable blockers > non-blockers
@@ -122,13 +125,15 @@ export default function BookingStatusBar(props: Props) {
         paddingRight="18px"
       >
         <Grid xs={"auto"}>
-          <Button
-            variant="outlined"
-            startIcon={<ChevronLeft />}
-            onClick={props.goBack}
-          >
-            Back
-          </Button>
+          {!props.hideBackButton && (
+            <Button
+              variant="outlined"
+              startIcon={<ChevronLeft />}
+              onClick={props.goBack}
+            >
+              Back
+            </Button>
+          )}
         </Grid>
         <Grid md={10} xs={"auto"}>
           {showAlert && (

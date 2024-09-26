@@ -11,8 +11,10 @@ export default function useCalculateOverlap() {
   const isOverlapping = useCallback(() => {
     if (bookingCalendarInfo == null) return false;
 
-    // check if /edit path and pull calendarEventId if true
-    const match = pathname.match(/^\/edit\/selectRoom\/([a-zA-Z0-9_-]+)$/);
+    // check if /edit or /modification path and pull calendarEventId if true
+    const match = pathname.match(
+      /^\/(?:edit|modification)\/selectRoom\/([a-zA-Z0-9_-]+)$/
+    );
     let calendarEventId: string;
     if (match) {
       calendarEventId = match[1];
