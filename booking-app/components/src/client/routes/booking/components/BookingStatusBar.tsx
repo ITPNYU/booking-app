@@ -3,20 +3,22 @@ import { Check, ChevronLeft, ChevronRight } from "@mui/icons-material";
 import React, { useContext } from "react";
 
 import { BookingContext } from "../bookingProvider";
+import { FormContextLevel } from "@/components/src/types";
 import Grid from "@mui/material/Unstable_Grid2";
 import useCalculateOverlap from "../hooks/useCalculateOverlap";
 import useCheckAutoApproval from "../hooks/useCheckAutoApproval";
 import { usePathname } from "next/navigation";
 
 interface Props {
+  formContext: FormContextLevel;
   goBack: () => void;
   goNext: () => void;
+  hideBackButton: boolean;
   hideNextButton: boolean;
 }
 
-export default function BookingStatusBar(props: Props) {
-  const pathname = usePathname();
-  const isWalkIn = pathname.includes("/walk-in");
+export default function BookingStatusBar({ formContext, ...props }: Props) {
+  const isWalkIn = formContext === FormContextLevel.WALK_IN;
   const { isAutoApproval, errorMessage } = useCheckAutoApproval(isWalkIn);
   const { bookingCalendarInfo, selectedRooms, isBanned, needsSafetyTraining } =
     useContext(BookingContext);
@@ -29,14 +31,16 @@ export default function BookingStatusBar(props: Props) {
 
   // order of precedence matters
   // unfixable blockers > fixable blockers > non-blockers
-  const state: {
-    message: React.ReactNode;
-    severity: AlertColor;
-    icon?: React.ReactNode;
-    variant?: "filled" | "standard" | "outlined";
-    btnDisabled: boolean;
-    btnDisabledMessage?: string;
-  } = (() => {
+  const state:
+    | {
+        message: React.ReactNode;
+        severity: AlertColor;
+        icon?: React.ReactNode;
+        variant?: "filled" | "standard" | "outlined";
+        btnDisabled: boolean;
+        btnDisabledMessage?: string;
+      }
+    | undefined = (() => {
     if (isBanned)
       return {
         btnDisabled: true,
@@ -79,7 +83,7 @@ export default function BookingStatusBar(props: Props) {
         severity: "error",
       };
     }
-    if (isAutoApproval)
+    if (isAutoApproval && formContext !== FormContextLevel.MODIFICATION)
       return {
         btnDisabled: false,
         btnDisabledMessage: null,
@@ -87,24 +91,27 @@ export default function BookingStatusBar(props: Props) {
         severity: "success",
         icon: <Check fontSize="inherit" />,
       };
-
-    return {
-      btnDisabled: false,
-      btnDisabledMessage: null,
-      message: (
-        <p>
-          This request will require approval.{" "}
-          <Tooltip title={errorMessage}>
-            <a>Why?</a>
-          </Tooltip>
-        </p>
-      ),
-      severity: "warning",
-    };
+    else if (formContext !== FormContextLevel.MODIFICATION)
+      return {
+        btnDisabled: false,
+        btnDisabledMessage: null,
+        message: (
+          <p>
+            This request will require approval.{" "}
+            <Tooltip title={errorMessage}>
+              <a>Why?</a>
+            </Tooltip>
+          </p>
+        ),
+        severity: "warning",
+      };
+    else {
+      return undefined;
+    }
   })();
 
   const [disabled, disabledMessage] = (() => {
-    if (state.btnDisabled) {
+    if (state?.btnDisabled ?? false) {
       return [true, state.btnDisabledMessage];
     }
     if (bookingCalendarInfo == null) {
@@ -122,16 +129,18 @@ export default function BookingStatusBar(props: Props) {
         paddingRight="18px"
       >
         <Grid xs={"auto"}>
-          <Button
-            variant="outlined"
-            startIcon={<ChevronLeft />}
-            onClick={props.goBack}
-          >
-            Back
-          </Button>
+          {!props.hideBackButton && (
+            <Button
+              variant="outlined"
+              startIcon={<ChevronLeft />}
+              onClick={props.goBack}
+            >
+              Back
+            </Button>
+          )}
         </Grid>
         <Grid md={10} xs={"auto"}>
-          {showAlert && (
+          {showAlert && state && (
             <Alert
               severity={state.severity}
               icon={state.icon}

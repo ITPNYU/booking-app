@@ -95,6 +95,14 @@ export enum Department {
 }
 export type DevBranch = "development" | "staging" | "production" | "";
 
+// what context are we entering the form in?
+export enum FormContextLevel {
+  EDIT = "/edit",
+  FULL_FORM = "/book",
+  MODIFICATION = "/modification",
+  WALK_IN = "/walk-in",
+}
+
 export type Inputs = {
   firstName: string;
   lastName: string;

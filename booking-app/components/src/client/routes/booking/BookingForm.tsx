@@ -1,12 +1,19 @@
 "use client";
+
 import React, { useEffect } from "react";
+
+import { FormContextLevel } from "@/components/src/types";
 import { Header } from "./components/Header";
 
 type BookingFormProps = {
   children: React.ReactNode;
+  formContext: FormContextLevel;
 };
 
-export default function BookingForm({ children }: BookingFormProps) {
+export default function BookingForm({
+  children,
+  formContext,
+}: BookingFormProps) {
   useEffect(() => {
     console.log(
       "DEPLOY MODE ENVIRONMENT:",
@@ -44,7 +51,7 @@ export default function BookingForm({ children }: BookingFormProps) {
 
   return (
     <div>
-      <Header />
+      <Header formContext={formContext} />
       {children}
     </div>
   );

@@ -1,4 +1,4 @@
-// app/edit/selectRoom/page.tsx
+// app/modification/selectRoom/[id].tsx
 
 "use client";
 
@@ -9,7 +9,7 @@ import SelectRoomPage from "@/components/src/client/routes/booking/formPages/Sel
 const SelectRoom: React.FC = ({ params }: { params: { id: string } }) => (
   <SelectRoomPage
     calendarEventId={params.id}
-    formContext={FormContextLevel.EDIT}
+    formContext={FormContextLevel.MODIFICATION}
   />
 );
 

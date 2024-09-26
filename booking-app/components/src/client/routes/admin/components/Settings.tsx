@@ -5,6 +5,7 @@ import { AdminUsers } from "./AdminUsers";
 import { BannedUsers } from "./Ban";
 import BookingTypes from "./BookingTypes";
 import { Departments } from "./Departments";
+import ExportDatabase from "./ExportDatabase";
 import FinalApproverSetting from "./PolicySettings";
 import Grid from "@mui/material/Unstable_Grid2";
 import { Liaisons } from "./Liaisons";
@@ -20,6 +21,7 @@ const tabs = [
   { label: "Ban", id: "ban" },
   { label: "Booking Types", id: "bookingTypes" },
   { label: "Policy Settings", id: "policy" },
+  { label: "Export", id: "export" },
 ];
 
 export default function Settings() {
@@ -49,6 +51,7 @@ export default function Settings() {
         {tab === "departments" && <Departments />}
         {tab === "bookingTypes" && <BookingTypes />}
         {tab === "policy" && <FinalApproverSetting />}
+        {tab === "export" && <ExportDatabase />}
       </Grid>
     </Grid>
   );
