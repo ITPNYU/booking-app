@@ -1,9 +1,14 @@
 import { Box, Step, StepLabel, Stepper } from "@mui/material";
 import React, { useEffect, useMemo, useState } from "react";
 
+import { FormContextLevel } from "@/components/src/types";
 import { usePathname } from "next/navigation";
 
-export default function BookingFormStepper() {
+interface Props {
+  formContext: FormContextLevel;
+}
+
+export default function BookingFormStepper({ formContext }: Props) {
   const pathname = usePathname();
   const [activeStep, setActiveStep] = useState(0);
 
@@ -16,27 +21,24 @@ export default function BookingFormStepper() {
   }, [pathname]);
 
   useEffect(() => {
-    switch (pathname) {
-      case "/walk-in/role":
-      case "/book/role":
+    const step = pathname.split("/")[2]; // role, selectRoom, form
+    switch (step) {
+      case "role":
         setActiveStep(0);
         break;
-      case "/walk-in/selectRoom":
-      case "/book/selectRoom":
+      case "selectRoom":
         setActiveStep(1);
         break;
-      case "/walk-in/form":
-      case "/book/form":
+      case "form":
         setActiveStep(2);
         break;
-      case "/walk-in/confirmation":
-      case "/book/confirmation":
+      case "confirmation":
         setActiveStep(3);
         break;
       default:
         setActiveStep(0);
     }
-  }, [pathname]);
+  }, [pathname, formContext]);
 
   return (
     <Box sx={{ width: "100%", padding: 4 }}>

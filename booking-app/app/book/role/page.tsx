@@ -1,12 +1,7 @@
-// app/book/form/page.tsx
-import BookingForm from "@/components/src/client/routes/booking/BookingForm";
-import UserRolePage from "@/components/src/client/routes/booking/formPages/UserRolePage";
 import React from "react";
+// app/book/form/page.tsx
+import UserRolePage from "@/components/src/client/routes/booking/formPages/UserRolePage";
 
-const Role: React.FC = () => (
-  <BookingForm>
-    <UserRolePage />
-  </BookingForm>
-);
+const Role: React.FC = () => <UserRolePage />;
 
 export default Role;

@@ -1,9 +1,10 @@
 import { Box, useScrollTrigger } from "@mui/material";
+import React, { useMemo } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
 import BookingFormStepper from "./Stepper";
 import BookingStatusBar from "./BookingStatusBar";
-import React from "react";
+import { FormContextLevel } from "@/components/src/types";
 import { styled } from "@mui/system";
 
 const StickyScroll = styled(Box)`
@@ -16,7 +17,11 @@ const StickyScroll = styled(Box)`
   transition: box-shadow 300ms cubic-bezier(0.4, 0, 0.2, 1) 0ms;
 `;
 
-export const Header = () => {
+interface Props {
+  formContext: FormContextLevel;
+}
+
+export const Header = ({ formContext }: Props) => {
   const router = useRouter();
   const pathname = usePathname();
 
@@ -31,66 +36,34 @@ export const Header = () => {
   }
 
   const goBack = (() => {
-    const match = pathname.match(
-      /^(\/(book|walk-in|edit|modification))\/(selectRoom|form)(\/[a-zA-Z0-9_-]+)?$/
-    );
+    const step = pathname.split("/")[2]; // Get the step
+    const idSegment = pathname.split("/")[3] || ""; // Get the id if it exists
 
-    if (match) {
-      const [, basePath, , step, idSegment] = match;
-      const id = idSegment || ""; // If there's an ID, use it; otherwise, use an empty string.
-
-      if (basePath === "/modification" && step === "selectRoom") {
+    switch (step) {
+      case "selectRoom":
+        return () => router.push(`${formContext}/role/${idSegment}`);
+      case "form":
+        return () => router.push(`${formContext}/selectRoom/${idSegment}`);
+      default:
         return () => {};
-      }
-
-      switch (step) {
-        case "selectRoom":
-          return () => router.push(`${basePath}/role${id}`);
-        case "form":
-          return () => router.push(`${basePath}/selectRoom${id}`);
-        default:
-          return () => {};
-      }
-    } else {
-      return () => {};
     }
   })();
 
   const goNext = (() => {
-    const match = pathname.match(
-      /^(\/(book|walk-in|edit|modification))\/(selectRoom)(\/[a-zA-Z0-9_-]+)?$/
-    );
+    const step = pathname.split("/")[2]; // Get the step
+    const idSegment = pathname.split("/")[3] || ""; // Get the id segment if it exists
 
-    if (match) {
-      const [, basePath, , step, idSegment] = match;
-      const id = idSegment || ""; // If there's an ID, use it; otherwise, use an empty string.
-
-      switch (step) {
-        case "selectRoom":
-          return () => router.push(`${basePath}/form${id}`);
-        default:
-          return () => {};
-      }
-    } else {
-      return () => {};
+    if (step === "selectRoom") {
+      return () => router.push(`${formContext}/form/${idSegment}`);
     }
+    return () => {};
   })();
 
   const hideBackButton =
-    /^(\/modification)\/selectRoom(\/[a-zA-Z0-9_-]+)?$/.test(pathname);
-
-  // /book/form, /walk-in/form, /edit/form/<id>, /modification/form/<id>
-  const hideNextButton =
-    /^(\/(book|walk-in|(?:edit|modification)))\/form(\/[a-zA-Z0-9_-]+)?$/.test(
-      pathname
-    );
-
-  // /book/selectRoom, /book/form, /walk-in/selectRoom, /walk-in/form, /edit/selectRoom/<id>, /edit/form/<id>
-  // /modification/selectRoom/<id>, /modification/form/<id>
-  const showStatusBar =
-    /^(\/(book|walk-in|(?:edit|modification)))\/(selectRoom|form)(\/[^\/]+)?$/.test(
-      pathname
-    );
+    formContext === FormContextLevel.MODIFICATION &&
+    pathname.includes("/selectRoom");
+  const hideNextButton = pathname.includes("/form");
+  const showStatusBar = pathname.match(/\/(selectRoom|form)/);
 
   return (
     <StickyScroll
@@ -101,7 +74,7 @@ export const Header = () => {
       }
     >
       <div>
-        <BookingFormStepper />
+        <BookingFormStepper formContext={formContext} />
         {showStatusBar && (
           <BookingStatusBar
             {...{ goBack, goNext, hideNextButton, hideBackButton }}
