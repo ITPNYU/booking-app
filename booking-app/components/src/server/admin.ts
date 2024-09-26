@@ -5,11 +5,6 @@ import {
   PolicySettings,
   RoomSetting,
 } from "../types";
-
-import { getApprovalCcEmail, TableNames } from "../policy";
-import { approvalUrl, declineUrl, getBookingToolDeployUrl } from "./ui";
-
-import { Timestamp } from "firebase-admin/firestore";
 import {
   Constraint,
   serverDeleteData,
@@ -18,6 +13,10 @@ import {
   serverGetFinalApproverEmail,
   serverUpdateInFirestore,
 } from "@/lib/firebase/server/adminDb";
+import { TableNames, getApprovalCcEmail } from "../policy";
+import { approvalUrl, declineUrl, getBookingToolDeployUrl } from "./ui";
+
+import { Timestamp } from "firebase-admin/firestore";
 
 export const serverBookingContents = (id: string) => {
   return serverGetDataByCalendarEventId(TableNames.BOOKING, id)
@@ -121,7 +120,9 @@ export const serverApproveBooking = async (id: string) => {
         },
         body: JSON.stringify({
           calendarEventId: id,
-          newPrefix: BookingStatusLabel.PENDING,
+          newValues: {
+            statusPrefix: BookingStatusLabel.PENDING,
+          },
         }),
       }
     );
@@ -241,7 +242,7 @@ export const serverApproveEvent = async (id: string) => {
 
   const formDataForCalendarEvents = {
     calendarEventId: id,
-    newPrefix: BookingStatusLabel.APPROVED,
+    newValues: { statusPrefix: BookingStatusLabel.APPROVED },
   };
   await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/calendarEvents`, {
     method: "PUT",

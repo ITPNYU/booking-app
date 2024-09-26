@@ -97,7 +97,7 @@ export const decline = async (id: string) => {
       },
       body: JSON.stringify({
         calendarEventId: id,
-        newPrefix: BookingStatusLabel.DECLINED,
+        newValues: { statusPrefix: BookingStatusLabel.DECLINED },
       }),
     }
   );
@@ -135,7 +135,7 @@ export const cancel = async (id: string) => {
       },
       body: JSON.stringify({
         calendarEventId: id,
-        newPrefix: BookingStatusLabel.CANCELED,
+        newValues: { statusPrefix: BookingStatusLabel.CANCELED },
       }),
     }
   );
@@ -184,7 +184,7 @@ export const checkin = async (id: string) => {
       },
       body: JSON.stringify({
         calendarEventId: id,
-        newPrefix: BookingStatusLabel.CHECKED_IN,
+        newValues: { statusPrefix: BookingStatusLabel.CHECKED_IN },
       }),
     }
   );
@@ -223,7 +223,12 @@ export const checkOut = async (id: string) => {
       },
       body: JSON.stringify({
         calendarEventId: id,
-        newPrefix: BookingStatusLabel.CHECKED_OUT,
+        newValues: {
+          statusPrefix: BookingStatusLabel.CHECKED_OUT,
+          end: {
+            dateTime: roundTimeUp().toISOString(),
+          },
+        },
       }),
     }
   );
@@ -262,7 +267,7 @@ export const noShow = async (id: string) => {
       },
       body: JSON.stringify({
         calendarEventId: id,
-        newPrefix: BookingStatusLabel.NO_SHOW,
+        newValues: { statusPrefix: BookingStatusLabel.NO_SHOW },
       }),
     }
   );

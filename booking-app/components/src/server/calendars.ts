@@ -122,9 +122,14 @@ export const insertEvent = async ({
   return event.data;
 };
 
-export const updateEventPrefix = async (
+export const updateCalendarEvent = async (
   calendarEventId: string,
-  newPrefix: BookingStatusLabel,
+  newValues: {
+    end: {
+      dateTime: string;
+    };
+    statusPrefix?: BookingStatusLabel;
+  },
   bookingContents: BookingFormDetails
 ) => {
   const roomCalendarIds = await serverGetRoomCalendarIds(
@@ -143,27 +148,44 @@ export const updateEventPrefix = async (
         eventId: calendarEventId,
       });
 
-      if (event) {
+      if (!event) {
+        throw new Error("event not found with specified id");
+      }
+
+      const updatedValues = {};
+
+      if (newValues.statusPrefix) {
         const eventData = event.data;
         const eventTitle = eventData.summary ?? "";
         const prefixRegex = /\[.*?\]/g;
-        const newTitle = eventTitle.replace(prefixRegex, `[${newPrefix}]`);
-
-        let description = bookingContents
-          ? bookingContentsToDescription(bookingContents)
-          : "";
-        description +=
-          'To cancel reservations please return to the Booking Tool, visit My Bookings, and click "cancel" on the booking at least 24 hours before the date of the event. Failure to cancel an unused booking is considered a no-show and may result in restricted use of the space.';
-
-        await patchCalendarEvent(event, roomCalendarId, calendarEventId, {
-          summary: newTitle,
-          description: description,
-        });
-
-        console.log(
-          `Updated event ${calendarEventId} in calendar ${roomCalendarId} with new prefix ${newPrefix}`
+        const newTitle = eventTitle.replace(
+          prefixRegex,
+          `[${newValues.statusPrefix}]`
         );
+        updatedValues["summary"] = newTitle;
       }
+
+      if (newValues.end) {
+        updatedValues["end"] = newValues.end;
+      }
+
+      let description = bookingContents
+        ? bookingContentsToDescription(bookingContents)
+        : "";
+      description +=
+        'To cancel reservations please return to the Booking Tool, visit My Bookings, and click "cancel" on the booking at least 24 hours before the date of the event. Failure to cancel an unused booking is considered a no-show and may result in restricted use of the space.';
+      updatedValues["description"] = description;
+
+      await patchCalendarEvent(
+        event,
+        roomCalendarId,
+        calendarEventId,
+        updatedValues
+      );
+
+      console.log(
+        `Updated event ${calendarEventId} in calendar ${roomCalendarId} with new values: ${JSON.stringify(newValues)}`
+      );
     } catch (error) {
       console.error(
         `Error updating event ${calendarEventId} in calendar ${roomCalendarId}:`,
