@@ -7,12 +7,12 @@ import { Header } from "./components/Header";
 
 type BookingFormProps = {
   children: React.ReactNode;
-  formContext?: FormContextLevel;
+  formContext: FormContextLevel;
 };
 
 export default function BookingForm({
   children,
-  formContext = FormContextLevel.FULL_FORM,
+  formContext,
 }: BookingFormProps) {
   useEffect(() => {
     console.log(

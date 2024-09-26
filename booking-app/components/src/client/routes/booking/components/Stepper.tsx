@@ -8,36 +8,38 @@ interface Props {
   formContext: FormContextLevel;
 }
 
+const routeToStepNames = {
+  role: "Affiliation",
+  selectRoom: "Select Time",
+  form: "Details",
+  confirmation: "Confirmation",
+};
+
 export default function BookingFormStepper({ formContext }: Props) {
   const pathname = usePathname();
   const [activeStep, setActiveStep] = useState(0);
 
   const steps = useMemo(() => {
-    if (pathname.includes("/modification")) {
-      return ["Select Time", "Details", "Confirmation"];
+    if (formContext === FormContextLevel.MODIFICATION) {
+      return [
+        routeToStepNames.selectRoom,
+        routeToStepNames.form,
+        routeToStepNames.confirmation,
+      ];
     } else {
-      return ["Affiliation", "Select Time", "Details", "Confirmation"];
+      return [
+        routeToStepNames.role,
+        routeToStepNames.selectRoom,
+        routeToStepNames.form,
+        routeToStepNames.confirmation,
+      ];
     }
   }, [pathname]);
 
   useEffect(() => {
     const step = pathname.split("/")[2]; // role, selectRoom, form
-    switch (step) {
-      case "role":
-        setActiveStep(0);
-        break;
-      case "selectRoom":
-        setActiveStep(1);
-        break;
-      case "form":
-        setActiveStep(2);
-        break;
-      case "confirmation":
-        setActiveStep(3);
-        break;
-      default:
-        setActiveStep(0);
-    }
+    const index = steps.indexOf(routeToStepNames[step]) ?? 0;
+    setActiveStep(index);
   }, [pathname, formContext]);
 
   return (
