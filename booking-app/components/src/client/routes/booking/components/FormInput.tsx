@@ -533,14 +533,14 @@ export default function FormInput({ calendarEventId, formContext }: Props) {
               <p>
                 I have read the
                 <a
-                  href="https://docs.google.com/document/d/1vAajz6XRV0EUXaMrLivP_yDq_LyY43BvxOqlH-oNacc/edit?usp=sharing"
+                  href="https://docs.google.com/document/d/1vAajz6XRV0EUXaMrLivP_yDq_LyY43BvxOqlH-oNacc/edit"
                   target="_blank"
                   className="text-blue-600 hover:underline dark:text-blue-500 mx-1 mx-1"
                 >
-                  Booking Policy for 370 Jay Street Shared Spaces
+                  Booking Policy for 370J Media Commons
                 </a>
                 and agree to follow all policies outlined. I understand that I
-                may lose access to spaces if I break this agreement.
+                may lose access to the Media Commons if I break this agreement.
               </p>
             }
           />
