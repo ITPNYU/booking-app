@@ -5,7 +5,7 @@ import {
 } from "../../../../policy";
 import { Checkbox, FormControlLabel, Switch } from "@mui/material";
 import { Control, Controller, UseFormTrigger } from "react-hook-form";
-import { Inputs, MediaServices } from "../../../../types";
+import { FormContextLevel, Inputs, MediaServices } from "../../../../types";
 import React, { useContext, useMemo } from "react";
 
 import { BookingContext } from "../bookingProvider";
@@ -24,7 +24,7 @@ interface Props {
   trigger: UseFormTrigger<Inputs>;
   showMediaServices: boolean;
   setShowMediaServices: any;
-  isWalkIn: boolean;
+  formContext: FormContextLevel;
 }
 
 export default function BookingFormMediaServices(props: Props) {
@@ -34,7 +34,7 @@ export default function BookingFormMediaServices(props: Props) {
     trigger,
     showMediaServices,
     setShowMediaServices,
-    isWalkIn,
+    formContext,
   } = props;
   const { selectedRooms } = useContext(BookingContext);
   const roomIds = selectedRooms.map((room) => room.roomId);
@@ -74,7 +74,7 @@ export default function BookingFormMediaServices(props: Props) {
                 if (!e.target.checked) {
                   // de-select boxes if switch says "no media services"
                   field.onChange("");
-                } else if (isWalkIn) {
+                } else if (formContext === FormContextLevel.WALK_IN) {
                   field.onChange(MediaServices.CHECKOUT_EQUIPMENT);
                 }
 
@@ -88,7 +88,7 @@ export default function BookingFormMediaServices(props: Props) {
     ></Controller>
   );
 
-  if (isWalkIn) {
+  if (formContext === FormContextLevel.WALK_IN) {
     return (
       <div style={{ marginBottom: 8 }}>
         <Label htmlFor={id}>Media Services</Label>

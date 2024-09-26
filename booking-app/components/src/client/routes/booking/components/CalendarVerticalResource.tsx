@@ -5,8 +5,8 @@ import {
   EventClickArg,
   EventDropArg,
 } from "@fullcalendar/core";
-import { CalendarEvent, RoomSetting } from "../../../../types";
 import CalendarEventBlock, { NEW_TITLE_TAG } from "./CalendarEventBlock";
+import { FormContextLevel, RoomSetting } from "../../../../types";
 import React, { useContext, useEffect, useMemo, useRef } from "react";
 
 import { BookingContext } from "../bookingProvider";
@@ -19,7 +19,7 @@ import { styled } from "@mui/system";
 
 interface Props {
   calendarEventId?: string;
-  isEdit: boolean;
+  formContext: FormContextLevel;
   rooms: RoomSetting[];
   dateView: Date;
 }
@@ -78,7 +78,7 @@ const Empty = styled(Box)(({ theme }) => ({
 
 export default function CalendarVerticalResource({
   calendarEventId,
-  isEdit,
+  formContext,
   rooms,
   dateView,
 }: Props) {
@@ -195,14 +195,18 @@ export default function CalendarVerticalResource({
 
   // for editing an existing reservation
   const existingCalEventsFiltered = useMemo(() => {
-    if (!isEdit || calendarEventId == null || calendarEventId.length === 0)
+    if (
+      formContext !== FormContextLevel.EDIT ||
+      calendarEventId == null ||
+      calendarEventId.length === 0
+    )
       return existingCalendarEvents;
 
     // based on how we format the id in fetchCalendarEvents
     return existingCalendarEvents.filter(
       (event) => event.id.split(":")[0] !== calendarEventId
     );
-  }, [existingCalendarEvents, isEdit]);
+  }, [existingCalendarEvents, formContext]);
 
   if (rooms.length === 0) {
     return (
