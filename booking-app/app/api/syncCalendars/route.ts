@@ -1,11 +1,10 @@
-import { NextApiRequest, NextApiResponse } from "next";
-import { Booking, MediaServices } from "@/components/src/types";
-import admin from "@/firebaseAdmin";
-import { getCalendarClient } from "@/lib/googleClient";
 import { toFirebaseTimestampFromString } from "@/components/src/client/utils/serverDate";
+import { TableNames } from "@/components/src/policy";
+import { Booking, MediaServices } from "@/components/src/types";
+import admin from "@/lib/firebase/server/firebaseAdmin";
+import { getCalendarClient } from "@/lib/googleClient";
 import { Timestamp } from "@firebase/firestore";
 import { NextResponse } from "next/server";
-import { TableNames } from "@/components/src/policy";
 
 const db = admin.firestore();
 const createBookingWithDefaults = (
@@ -67,16 +66,28 @@ export async function POST(request: Request) {
     }));
 
     let totalNewBookings = 0;
+    let targetBookings = 0;
     for (const resource of resources) {
       try {
         // Fetch events for each calendar
+        let pageToken: string | undefined;
         const now = new Date();
+        const threeMonthsAgo = new Date(now.getFullYear(), now.getMonth(), 1);
+        const threeMonthsLater = new Date(
+          now.getFullYear(),
+          now.getMonth() + 4,
+          0,
+        );
+        const timeMin = threeMonthsAgo.toISOString();
+        const timeMax = threeMonthsLater.toISOString();
         const events = await calendar.events.list({
           calendarId: resource.calendarId,
-          timeMin: now.toISOString(),
-          maxResults: 100, // Adjust as needed
+          timeMin: timeMin,
+          timeMax: timeMax,
+          maxResults: 500, // Maximum allowed by Google Calendar API
           singleEvents: true,
           orderBy: "startTime",
+          pageToken: pageToken,
         });
 
         for (const event of events.data.items || []) {
@@ -84,11 +95,16 @@ export async function POST(request: Request) {
             .collection("bookings")
             .where("calendarEventId", "==", event.id);
           const bookingSnapshot = await bookingRef.get();
+          const nyuEmail = findNyuEmail(event);
+          if (bookingSnapshot.empty && nyuEmail) {
+            targetBookings++;
+            console.log("calendarEventId", event.id);
+            console.log("title", event.summary);
+          }
 
-          if (bookingSnapshot.empty) {
+          if (bookingSnapshot.empty && nyuEmail) {
             // Create a new booking
             const calendarEventId = event.id;
-            const nyuEmail = findNyuEmail(event);
             const newBooking = createBookingWithDefaults({
               title: event.summary || "",
               description: event.description || "",
@@ -104,6 +120,7 @@ export async function POST(request: Request) {
               roomId: resource.roomId,
               mediaServices: MediaServices.CHECKOUT_EQUIPMENT,
             });
+            console.log("newBooking", newBooking);
             const bookingDocRef = await db
               .collection(TableNames.BOOKING)
               .add(newBooking);
@@ -117,6 +134,7 @@ export async function POST(request: Request) {
               firstApprovedAt: admin.firestore.FieldValue.serverTimestamp(),
               finalApprovedAt: admin.firestore.FieldValue.serverTimestamp(),
             };
+            console.log("newBookingStatus", newBookingStatus);
             const statusDocRef = await db
               .collection(TableNames.BOOKING_STATUS)
               .add(newBookingStatus);
@@ -126,7 +144,10 @@ export async function POST(request: Request) {
 
             totalNewBookings++;
           }
+          pageToken = events.data.nextPageToken;
         }
+        while (pageToken);
+        console.log("targetBookings", targetBookings);
       } catch (error) {
         console.error(
           `Error processing calendar ${resource.calendarId}:`,
