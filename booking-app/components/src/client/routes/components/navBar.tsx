@@ -76,6 +76,9 @@ export default function NavBar() {
       case PagePermission.ADMIN:
         router.push("/admin");
         break;
+      case PagePermission.LIAISON:
+        router.push("/liaison");
+        break;
     }
   };
 
@@ -100,6 +103,8 @@ export default function NavBar() {
       setSelectedView(PagePermission.PA);
     } else if (pathname.includes("/admin")) {
       setSelectedView(PagePermission.ADMIN);
+    } else if (pathname.includes("/liaison")) {
+      setSelectedView(PagePermission.LIAISON);
     }
   }, [pathname]);
 
@@ -117,22 +122,28 @@ export default function NavBar() {
   const dropdown = useMemo(() => {
     if (
       pagePermission !== PagePermission.ADMIN &&
-      pagePermission !== PagePermission.PA
+      pagePermission !== PagePermission.PA &&
+      pagePermission !== PagePermission.LIAISON
     ) {
       return null;
     }
 
+    const showPA =
+      pagePermission === PagePermission.PA ||
+      pagePermission === PagePermission.ADMIN;
+    const showLiaison =
+      pagePermission === PagePermission.LIAISON ||
+      pagePermission === PagePermission.ADMIN;
+    const showAdmin = pagePermission === PagePermission.ADMIN;
+
     return (
       <Select size="small" value={selectedView} onChange={handleRoleChange}>
-        <MenuItem value={PagePermission.BOOKING}>
-          {PagePermission.BOOKING}
-        </MenuItem>
-        <MenuItem value={PagePermission.PA}>{PagePermission.PA}</MenuItem>
-        {pagePermission === PagePermission.ADMIN && (
-          <MenuItem value={PagePermission.ADMIN}>
-            {PagePermission.ADMIN}
-          </MenuItem>
+        <MenuItem value={PagePermission.BOOKING}>User</MenuItem>
+        {showPA && <MenuItem value={PagePermission.PA}>PA</MenuItem>}
+        {showLiaison && (
+          <MenuItem value={PagePermission.LIAISON}>Liaison</MenuItem>
         )}
+        {showAdmin && <MenuItem value={PagePermission.ADMIN}>Admin</MenuItem>}
       </Select>
     );
   }, [pagePermission, selectedView]);

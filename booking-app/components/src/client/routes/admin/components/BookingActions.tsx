@@ -191,6 +191,11 @@ export default function BookingActions({
     return options;
   }, [status]);
 
+  const liaisonOptions = useMemo(
+    () => [Actions.FIRST_APPROVE, Actions.DECLINE],
+    [status]
+  );
+
   const paOptions = useMemo(() => {
     let options = [];
 
@@ -236,6 +241,8 @@ export default function BookingActions({
         return userOptions;
       case PageContextLevel.PA:
         return paOptions;
+      case PageContextLevel.LIAISON:
+        return liaisonOptions;
       default:
         return adminOptions;
     }
