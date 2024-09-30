@@ -191,6 +191,11 @@ export default function BookingActions({
     return options;
   }, [status]);
 
+  const liaisonOptions = useMemo(
+    () => [Actions.FIRST_APPROVE, Actions.DECLINE],
+    [status]
+  );
+
   const paOptions = useMemo(() => {
     let options = [];
 
