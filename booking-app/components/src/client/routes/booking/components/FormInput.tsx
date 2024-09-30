@@ -186,8 +186,7 @@ export default function FormInput({ calendarEventId, formContext }: Props) {
 
     // setFormData(data);
     registerEvent(data, isAutoApproval, calendarEventId);
-    // // TODO confirmation page for walk-in
-    router.push("/book/confirmation");
+    router.push(isWalkIn ? "/walk-in/confirmation" : "/book/confirmation");
   };
 
   const fullFormFields = (
