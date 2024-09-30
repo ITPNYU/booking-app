@@ -5,7 +5,7 @@ import { EventContentArg } from "@fullcalendar/core";
 import React from "react";
 import { styled } from "@mui/material/styles";
 
-export const NEW_TITLE_TAG = "Your Reservation";
+export const NEW_TITLE_TAG = "Your Reservation - Click and Drag to select time";
 export const UNKNOWN_BLOCK_TITLE = "Unavailable";
 
 interface Props {
