@@ -33,10 +33,13 @@ export default function Settings() {
           divider={<Divider sx={{ borderColor: "#21212114" }} />}
           sx={{ border: "1px solid #21212114", borderRadius: "4px" }}
         >
-          {tabs.map((tab) => (
-            <div key={tab.label}>
-              <ListItemButton onClick={() => setTab(tab.id)}>
-                <ListItemText primary={tab.label} />
+          {tabs.map((currentTab) => (
+            <div key={currentTab.label}>
+              <ListItemButton
+                onClick={() => setTab(currentTab.id)}
+                selected={tab === currentTab.id}
+              >
+                <ListItemText primary={currentTab.label} />
               </ListItemButton>
             </div>
           ))}
