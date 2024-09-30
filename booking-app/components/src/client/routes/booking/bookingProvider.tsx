@@ -17,6 +17,7 @@ import { usePathname } from "next/navigation";
 export interface BookingContextType {
   bookingCalendarInfo: DateSelectArg | undefined;
   department: Department | undefined;
+  otherDepartment: string | undefined;
   existingCalendarEvents: CalendarEvent[];
   formData: Inputs | undefined;
   hasShownMocapModal: boolean;
@@ -28,6 +29,7 @@ export interface BookingContextType {
   selectedRooms: RoomSetting[];
   setBookingCalendarInfo: (x: DateSelectArg) => void;
   setDepartment: (x: Department) => void;
+  setOtherDepartment: (x: string) => void;
   setFormData: (x: Inputs) => void;
   setHasShownMocapModal: (x: boolean) => void;
   setRole: (x: Role) => void;
@@ -39,6 +41,7 @@ export interface BookingContextType {
 export const BookingContext = createContext<BookingContextType>({
   bookingCalendarInfo: undefined,
   department: undefined,
+  otherDepartment: undefined,
   existingCalendarEvents: [],
   formData: undefined,
   hasShownMocapModal: false,
@@ -50,6 +53,7 @@ export const BookingContext = createContext<BookingContextType>({
   selectedRooms: [],
   setBookingCalendarInfo: (x: DateSelectArg) => {},
   setDepartment: (x: Department) => {},
+  setOtherDepartment: (x: string) => {},
   setFormData: (x: Inputs) => {},
   setHasShownMocapModal: (x: boolean) => {},
   setRole: (x: Role) => {},
@@ -66,6 +70,7 @@ export function BookingProvider({ children }) {
   const [bookingCalendarInfo, setBookingCalendarInfo] =
     useState<DateSelectArg>();
   const [department, setDepartment] = useState<Department>();
+  const [otherDepartment, setOtherDepartment] = useState<string>();
   const [formData, setFormData] = useState<Inputs>(undefined);
   const [hasShownMocapModal, setHasShownMocapModal] = useState(false);
   const [role, setRole] = useState<Role>();
@@ -110,6 +115,7 @@ export function BookingProvider({ children }) {
       value={{
         bookingCalendarInfo,
         department,
+        otherDepartment,
         existingCalendarEvents,
         reloadExistingCalendarEvents,
         formData,
@@ -121,6 +127,7 @@ export function BookingProvider({ children }) {
         selectedRooms,
         setBookingCalendarInfo,
         setDepartment,
+        setOtherDepartment,
         setFormData,
         setHasShownMocapModal,
         setRole,

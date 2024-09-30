@@ -1,8 +1,8 @@
 "use client";
 
-import { Box, Button, Typography } from "@mui/material";
+import { Box, Button, TextField, Typography } from "@mui/material";
 import { Department, FormContextLevel, Role } from "../../../../types";
-import React, { useContext, useEffect } from "react";
+import React, { useContext, useEffect, useState } from "react";
 
 import { BookingContext } from "../bookingProvider";
 import Dropdown from "../components/Dropdown";
@@ -35,17 +35,32 @@ export default function UserRolePage({
   calendarEventId,
   formContext = FormContextLevel.FULL_FORM,
 }: Props) {
-  const { role, department, setDepartment, setRole } =
-    useContext(BookingContext);
+  const {
+    role,
+    department,
+    otherDepartment,
+    setDepartment,
+    setRole,
+    setOtherDepartment,
+  } = useContext(BookingContext);
 
   const router = useRouter();
   const { user } = useAuth();
+
+  const showOther = department === Department.OTHER;
 
   useEffect(() => {
     if (!user) {
       router.push("/signin");
     }
   }, []);
+
+  const getDisabled = () => {
+    if (showOther && (!otherDepartment || otherDepartment.length === 0)) {
+      return true;
+    }
+    return !role || !department;
+  };
 
   const handleNextClick = () => {
     if (formContext === FormContextLevel.EDIT && calendarEventId != null) {
@@ -75,6 +90,20 @@ export default function UserRolePage({
           placeholder="Choose a Department"
           sx={{ marginTop: 4 }}
         />
+        {showOther && (
+          <TextField
+            variant="outlined"
+            placeholder="Enter your department"
+            value={otherDepartment}
+            error={
+              otherDepartment != null && otherDepartment.trim().length === 0
+            }
+            onError={() => setOtherDepartment("")}
+            onChange={(e) => setOtherDepartment(e.target.value)}
+            sx={{ marginBottom: 2, marginTop: 1 }}
+            fullWidth
+          />
+        )}
         <Dropdown
           value={role}
           updateValue={setRole}
@@ -86,7 +115,7 @@ export default function UserRolePage({
           onClick={handleNextClick}
           variant="contained"
           color="primary"
-          disabled={!role || !department}
+          disabled={getDisabled()}
           sx={{ marginTop: 6 }}
         >
           Next
