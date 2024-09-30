@@ -208,6 +208,8 @@ export default function BookingActions({
     return options;
   }, [status]);
 
+  const liaisonOptions = [Actions.FIRST_APPROVE, Actions.DECLINE];
+
   const adminOptions = useMemo(() => {
     if (
       status === BookingStatusLabel.CANCELED ||
@@ -236,6 +238,8 @@ export default function BookingActions({
         return userOptions;
       case PageContextLevel.PA:
         return paOptions;
+      case PageContextLevel.LIAISON:
+        return liaisonOptions;
       default:
         return adminOptions;
     }
