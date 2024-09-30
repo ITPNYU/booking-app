@@ -191,11 +191,6 @@ export default function BookingActions({
     return options;
   }, [status]);
 
-  const liaisonOptions = useMemo(
-    () => [Actions.FIRST_APPROVE, Actions.DECLINE],
-    [status]
-  );
-
   const paOptions = useMemo(() => {
     let options = [];
 
@@ -209,6 +204,9 @@ export default function BookingActions({
       options.push(Actions.MODIFICATION);
     } else if (status === BookingStatusLabel.NO_SHOW) {
       options.push(Actions.CHECK_IN);
+    } else if (status === BookingStatusLabel.WALK_IN) {
+      options.push(Actions.CHECK_OUT);
+      options.push(Actions.MODIFICATION);
     }
     return options;
   }, [status]);
