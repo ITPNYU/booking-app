@@ -17,7 +17,7 @@ interface Props {
 
 const ListTableWrapper = styled(Table)`
   th {
-    padding-right: 16px;
+    padding-right: 16px !important;
   }
 `;
 

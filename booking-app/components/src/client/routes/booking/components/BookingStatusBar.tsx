@@ -56,7 +56,14 @@ export default function BookingStatusBar({ formContext, ...props }: Props) {
         message: (
           <p>
             You have not taken safety training, which is required for at least
-            one of the rooms you have selected
+            one of the rooms you have selected.{" "}
+            <a
+              href="https://sites.google.com/nyu.edu/370jmediacommons/reservations/safety-training"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Sign up here
+            </a>
           </p>
         ),
         severity: "error",

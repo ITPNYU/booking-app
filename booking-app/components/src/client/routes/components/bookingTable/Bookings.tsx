@@ -35,6 +35,7 @@ export const Bookings: React.FC<BookingsProps> = ({ pageContext }) => {
     bookings,
     bookingsLoading,
     bookingStatuses,
+    liaisonUsers,
     userEmail,
     reloadBookings,
     reloadBookingStatuses,
@@ -73,15 +74,16 @@ export const Bookings: React.FC<BookingsProps> = ({ pageContext }) => {
   }, []);
 
   const allowedStatuses: BookingStatusLabel[] = useMemo(() => {
-    const paViewStatuses = [
-      BookingStatusLabel.APPROVED,
-      BookingStatusLabel.CHECKED_IN,
-      BookingStatusLabel.CHECKED_OUT,
-      BookingStatusLabel.NO_SHOW,
-      BookingStatusLabel.WALK_IN,
-    ];
     if (pageContext === PageContextLevel.PA) {
-      return paViewStatuses;
+      return [
+        BookingStatusLabel.APPROVED,
+        BookingStatusLabel.CHECKED_IN,
+        BookingStatusLabel.CHECKED_OUT,
+        BookingStatusLabel.NO_SHOW,
+        BookingStatusLabel.WALK_IN,
+      ];
+    } else if (pageContext === PageContextLevel.LIAISON) {
+      return [BookingStatusLabel.REQUESTED];
     } else {
       return Object.values(BookingStatusLabel);
     }
@@ -106,11 +108,23 @@ export const Bookings: React.FC<BookingsProps> = ({ pageContext }) => {
     );
 
     // filter based on user view
-    if (pageContext === PageContextLevel.USER)
+    if (pageContext === PageContextLevel.USER) {
       filtered = rows.filter((row) => row.email === userEmail);
-    else if (pageContext === PageContextLevel.PA) {
-      filtered = rows.filter((row) => allowedStatuses.includes(row.status));
+    } else if (pageContext === PageContextLevel.LIAISON) {
+      const liaisonMatches = liaisonUsers.filter(
+        (user) => user.email === userEmail
+      );
+      if (liaisonMatches.length > 0) {
+        const liaisonDepartments = liaisonMatches.map(
+          (user) => user.department
+        );
+        filtered = rows.filter((row) =>
+          liaisonDepartments.includes(row.department)
+        );
+      }
     }
+
+    filtered = filtered.filter((row) => allowedStatuses.includes(row.status));
 
     if (pageContext >= PageContextLevel.PA) {
       // PA and Admin
@@ -154,6 +168,22 @@ export const Bookings: React.FC<BookingsProps> = ({ pageContext }) => {
         </Box>
       );
     }
+
+    if (pageContext === PageContextLevel.LIAISON) {
+      return (
+        <Box
+          sx={{
+            color: "rgba(0,0,0,0.6)",
+            display: "flex",
+            justifyContent: "flex-start",
+            paddingLeft: "16px",
+          }}
+        >
+          Department Requests
+        </Box>
+      );
+    }
+
     return (
       <BookingTableFilters
         selectedStatuses={statusFilters}

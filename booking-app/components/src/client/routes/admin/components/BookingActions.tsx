@@ -204,9 +204,14 @@ export default function BookingActions({
       options.push(Actions.MODIFICATION);
     } else if (status === BookingStatusLabel.NO_SHOW) {
       options.push(Actions.CHECK_IN);
+    } else if (status === BookingStatusLabel.WALK_IN) {
+      options.push(Actions.CHECK_OUT);
+      options.push(Actions.MODIFICATION);
     }
     return options;
   }, [status]);
+
+  const liaisonOptions = [Actions.FIRST_APPROVE, Actions.DECLINE];
 
   const adminOptions = useMemo(() => {
     if (
@@ -236,6 +241,8 @@ export default function BookingActions({
         return userOptions;
       case PageContextLevel.PA:
         return paOptions;
+      case PageContextLevel.LIAISON:
+        return liaisonOptions;
       default:
         return adminOptions;
     }

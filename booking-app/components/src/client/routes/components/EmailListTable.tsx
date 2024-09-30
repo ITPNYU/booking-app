@@ -1,8 +1,8 @@
-import React, { useMemo } from 'react';
+import React, { useMemo } from "react";
 
-import AddEmail from './AddEmail';
-import ListTable from './ListTable';
-import { TableNames } from '../../../policy';
+import AddEmail from "./AddEmail";
+import ListTable from "./ListTable";
+import { TableNames } from "../../../policy";
 
 interface EmailField {
   email: string;
@@ -18,6 +18,7 @@ interface Props<T extends EmailField> {
 
 export default function EmailListTable<T extends EmailField>(props: Props<T>) {
   const addEmail = useMemo(() => <AddEmail {...props} />, [props]);
+  props.userList.sort((a, b) => a.email.localeCompare(b.email));
 
   return (
     <ListTable

@@ -11,6 +11,7 @@ import Grid from "@mui/material/Unstable_Grid2";
 import { Liaisons } from "./Liaisons";
 import { PAUsers } from "./PAUsers";
 import SafetyTrainedUsers from "./SafetyTraining";
+import SyncCalendars from "./SyncCalendars";
 
 const tabs = [
   { label: "Safety Training", id: "safetyTraining" },
@@ -22,6 +23,7 @@ const tabs = [
   { label: "Booking Types", id: "bookingTypes" },
   { label: "Policy Settings", id: "policy" },
   { label: "Export", id: "export" },
+  { label: "Sync Calendars", id: "syncCalendars" },
 ];
 
 export default function Settings() {
@@ -33,10 +35,13 @@ export default function Settings() {
           divider={<Divider sx={{ borderColor: "#21212114" }} />}
           sx={{ border: "1px solid #21212114", borderRadius: "4px" }}
         >
-          {tabs.map((tab) => (
-            <div key={tab.label}>
-              <ListItemButton onClick={() => setTab(tab.id)}>
-                <ListItemText primary={tab.label} />
+          {tabs.map((currentTab) => (
+            <div key={currentTab.label}>
+              <ListItemButton
+                onClick={() => setTab(currentTab.id)}
+                selected={tab === currentTab.id}
+              >
+                <ListItemText primary={currentTab.label} />
               </ListItemButton>
             </div>
           ))}
@@ -52,6 +57,7 @@ export default function Settings() {
         {tab === "bookingTypes" && <BookingTypes />}
         {tab === "policy" && <FinalApproverSetting />}
         {tab === "export" && <ExportDatabase />}
+        {tab === "syncCalendars" && <SyncCalendars />}
       </Grid>
     </Grid>
   );

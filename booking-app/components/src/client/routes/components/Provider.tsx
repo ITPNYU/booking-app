@@ -19,6 +19,7 @@ import {
   fetchAllFutureBookingStatus,
 } from "@/components/src/server/db";
 
+import { Liaisons } from "../admin/components/Liaisons";
 import { TableNames } from "@/components/src/policy";
 import { clientFetchAllDataFromCollection } from "@/lib/firebase/firebase";
 import { useAuth } from "@/components/src/client/routes/components/AuthProvider";
@@ -106,10 +107,11 @@ export const DatabaseProvider = ({
   // page permission updates with respect to user email, admin list, PA list
   const pagePermission = useMemo<PagePermission>(() => {
     if (!userEmail) return PagePermission.BOOKING;
-
     if (adminUsers.map((admin) => admin.email).includes(userEmail))
       return PagePermission.ADMIN;
-    else if (paUsers.map((pa) => pa.email).includes(userEmail))
+    if (liaisonUsers.map((liaison) => liaison.email).includes(userEmail)) {
+      return PagePermission.LIAISON;
+    } else if (paUsers.map((pa) => pa.email).includes(userEmail))
       return PagePermission.PA;
     else return PagePermission.BOOKING;
   }, [userEmail, adminUsers, paUsers]);
