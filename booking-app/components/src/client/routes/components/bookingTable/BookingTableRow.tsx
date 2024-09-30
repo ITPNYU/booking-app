@@ -50,7 +50,7 @@ export default function BookingTableRow({
     <TableRow>
       <TableCell>{booking.requestNumber ?? "--"}</TableCell>
       <TableCell>
-        <StatusChip status={optimisticStatus ?? status} />
+        <StatusChip status={optimisticStatus ?? status} allowTooltip={true} />
       </TableCell>
       <StackedTableCell
         topText={formatDateTable(booking.startDate.toDate())}
