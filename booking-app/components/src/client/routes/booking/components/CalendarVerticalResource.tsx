@@ -10,6 +10,7 @@ import { FormContextLevel, RoomSetting } from "../../../../types";
 import React, { useContext, useEffect, useMemo, useRef } from "react";
 
 import { BookingContext } from "../bookingProvider";
+import { Error } from "@mui/icons-material";
 import { EventResizeDoneArg } from "fullcalendar";
 import FullCalendar from "@fullcalendar/react";
 import googleCalendarPlugin from "@fullcalendar/google-calendar";
@@ -70,6 +71,7 @@ const FullCalendarWrapper = styled(Box)({
 
 const Empty = styled(Box)(({ theme }) => ({
   display: "flex",
+  flexDirection: "column",
   justifyContent: "center",
   alignItems: "center",
   height: 500,
@@ -212,6 +214,19 @@ export default function CalendarVerticalResource({
       (event) => event.id.split(":")[0] !== calendarEventId
     );
   }, [existingCalendarEvents, formContext]);
+
+  if (existingCalendarEvents.length === 0) {
+    return (
+      <Empty>
+        <Error />
+        <Typography align="center">
+          Sorry, we were unable to retrieve existing calendar events.
+          <br />
+          Please refresh the page.
+        </Typography>
+      </Empty>
+    );
+  }
 
   if (rooms.length === 0) {
     return (
