@@ -164,6 +164,7 @@ export const DatabaseProvider = ({
           netId: item.netId,
           phoneNumber: item.phoneNumber,
           department: item.department,
+          otherDepartment: item.otherDepartment,
           role: item.role,
           sponsorFirstName: item.sponsorFirstName,
           sponsorLastName: item.sponsorLastName,

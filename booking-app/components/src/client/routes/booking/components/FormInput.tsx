@@ -101,10 +101,11 @@ export default function FormInput({ calendarEventId, formContext }: Props) {
       roomSetup: "no",
       bookingType: "",
       secondaryName: "",
+      otherDepartment: "",
+      ...formData, // restore answers if navigating between form pages
       // copy department + role from earlier in form
       department,
       role,
-      ...formData, // restore answers if navigating between form pages
     },
     mode: "onBlur",
   });

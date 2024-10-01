@@ -111,6 +111,7 @@ export type Inputs = {
   netId: string;
   phoneNumber: string;
   department: string;
+  otherDepartment: string;
   role: string;
   sponsorFirstName: string;
   sponsorLastName: string;

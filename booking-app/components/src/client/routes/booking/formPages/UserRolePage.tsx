@@ -1,13 +1,15 @@
 "use client";
 
 import { Box, Button, TextField, Typography } from "@mui/material";
-import { Department, FormContextLevel, Role } from "../../../../types";
-import React, { useContext, useEffect, useState } from "react";
+import { Department, FormContextLevel, Inputs, Role } from "../../../../types";
+import React, { useContext, useEffect, useRef, useState } from "react";
 
 import { BookingContext } from "../bookingProvider";
+import { BookingFormTextField } from "../components/BookingFormInputs";
 import Dropdown from "../components/Dropdown";
 import { styled } from "@mui/material/styles";
 import { useAuth } from "../../components/AuthProvider";
+import { useForm } from "react-hook-form";
 import { useRouter } from "next/navigation";
 
 const Center = styled(Box)`
@@ -35,17 +37,28 @@ export default function UserRolePage({
   calendarEventId,
   formContext = FormContextLevel.FULL_FORM,
 }: Props) {
-  const {
-    role,
-    department,
-    otherDepartment,
-    setDepartment,
-    setRole,
-    setOtherDepartment,
-  } = useContext(BookingContext);
+  const { formData, role, department, setDepartment, setRole, setFormData } =
+    useContext(BookingContext);
+
+  console.log(formData);
 
   const router = useRouter();
   const { user } = useAuth();
+
+  const {
+    control,
+    trigger,
+    watch,
+    formState: { errors },
+  } = useForm<Inputs>({
+    defaultValues: {
+      ...formData, // restore answers if navigating between form pages
+    },
+    mode: "onBlur",
+  });
+
+  const watchedFields = watch();
+  const prevWatchedFieldsRef = useRef<Inputs>();
 
   const showOther = department === Department.OTHER;
 
@@ -55,8 +68,19 @@ export default function UserRolePage({
     }
   }, []);
 
+  useEffect(() => {
+    if (
+      !prevWatchedFieldsRef.current ||
+      prevWatchedFieldsRef.current.otherDepartment !==
+        watchedFields.otherDepartment
+    ) {
+      setFormData({ ...watchedFields });
+      prevWatchedFieldsRef.current = watchedFields;
+    }
+  }, [watchedFields, setFormData]);
+
   const getDisabled = () => {
-    if (showOther && (!otherDepartment || otherDepartment.length === 0)) {
+    if (showOther && !watchedFields.otherDepartment) {
       return true;
     }
     return !role || !department;
@@ -91,17 +115,12 @@ export default function UserRolePage({
           sx={{ marginTop: 4 }}
         />
         {showOther && (
-          <TextField
-            variant="outlined"
-            placeholder="Enter your department"
-            value={otherDepartment}
-            error={
-              otherDepartment != null && otherDepartment.trim().length === 0
-            }
-            onError={() => setOtherDepartment("")}
-            onChange={(e) => setOtherDepartment(e.target.value)}
-            sx={{ marginBottom: 2, marginTop: 1 }}
-            fullWidth
+          <BookingFormTextField
+            id="otherDepartment"
+            label="Your Department"
+            containerSx={{ marginBottom: 2, marginTop: 1, width: "100%" }}
+            fieldSx={{}}
+            {...{ control, errors, trigger }}
           />
         )}
         <Dropdown

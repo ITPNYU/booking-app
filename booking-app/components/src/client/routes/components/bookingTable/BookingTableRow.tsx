@@ -61,7 +61,11 @@ export default function BookingTableRow({
       <TableCell sx={{ maxWidth: "150px" }}>{booking.roomId}</TableCell>
       {!isUserView && (
         <StackedTableCell
-          topText={booking.department}
+          topText={
+            booking.otherDepartment
+              ? `${booking.department} - ${booking.otherDepartment}`
+              : booking.department
+          }
           bottomText={booking.role}
         />
       )}
