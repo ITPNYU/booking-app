@@ -268,7 +268,8 @@ export default function FormInput({
               <BookingFormTextField
                 id="sponsorEmail"
                 label="Sponsor Email"
-                description="Must be an nyu.edu email address"
+                description="“An NYU faculty or staff member related to your request. Ex: your thesis teacher if you have a thesis-related reservation request.”
+Must be an nyu.edu email address"
                 required={watch("role") === Role.STUDENT}
                 pattern={{
                   value: /^[A-Z0-9._%+-]+@nyu.edu$/i,

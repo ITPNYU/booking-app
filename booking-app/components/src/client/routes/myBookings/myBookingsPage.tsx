@@ -14,7 +14,7 @@ export default function MyBookingsPage() {
   return (
     <Center>
       <Box width="65%" margin={6}>
-        <Typography variant="h6">Welcome</Typography>
+        <Typography variant="h6">Welcome to the Media Commons booking tool!</Typography>
         <Bookings isUserView={true} />
       </Box>
     </Center>

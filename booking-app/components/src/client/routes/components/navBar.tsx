@@ -169,7 +169,7 @@ export default function NavBar() {
     <Nav>
       <LogoBox onClick={handleClickHome}>
         <Image src={SVGLOGO} alt="Media Commons logo" height={40} />
-        <Title as="h1">Media Commons {envTitle}</Title>
+        <Title as="h1">Media Commonss {envTitle}</Title>
       </LogoBox>
       <Box display="flex" alignItems="center">
         {button}
