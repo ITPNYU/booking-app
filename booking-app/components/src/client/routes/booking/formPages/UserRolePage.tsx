@@ -40,8 +40,6 @@ export default function UserRolePage({
   const { formData, role, department, setDepartment, setRole, setFormData } =
     useContext(BookingContext);
 
-  console.log(formData);
-
   const router = useRouter();
   const { user } = useAuth();
 

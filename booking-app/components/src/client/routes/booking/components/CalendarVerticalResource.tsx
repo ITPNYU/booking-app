@@ -222,7 +222,8 @@ export default function CalendarVerticalResource({
         <Typography align="center">
           Sorry, we were unable to retrieve existing calendar events.
           <br />
-          Please refresh the page.
+          Please refresh the page if this message appears for more than a few
+          seconds.
         </Typography>
       </Empty>
     );
