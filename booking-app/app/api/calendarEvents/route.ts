@@ -2,11 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   deleteEvent,
   insertEvent,
-  updateEventPrefix,
+  updateCalendarEvent,
 } from "@/components/src/server/calendars";
 
-import { serverBookingContents } from "@/components/src/server/admin";
 import { getCalendarClient } from "@/lib/googleClient";
+import { serverBookingContents } from "@/components/src/server/admin";
 
 const getCalendarEvents = async (calendarId: string) => {
   const calendar = await getCalendarClient();
@@ -84,7 +84,13 @@ export async function GET(req: NextRequest) {
 
   try {
     const events = await getCalendarEvents(calendarId);
-    return NextResponse.json(events);
+    const res = NextResponse.json(events);
+    res.headers.set(
+      "Cache-Control",
+      "no-store, no-cache, must-revalidate, proxy-revalidate",
+    );
+    res.headers.set("Expires", "0");
+    return res;
   } catch (error) {
     console.error("Error fetching calendar events:", error);
     return NextResponse.json(
@@ -95,9 +101,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function PUT(req: NextRequest) {
-  const { calendarEventId, newPrefix } = await req.json();
+  const { calendarEventId, newValues } = await req.json();
 
-  if (!calendarEventId || !newPrefix) {
+  if (!calendarEventId || !newValues) {
     return NextResponse.json(
       { error: "Missing required fields" },
       { status: 400 },
@@ -105,7 +111,7 @@ export async function PUT(req: NextRequest) {
   }
   const contents = await serverBookingContents(calendarEventId);
   try {
-    await updateEventPrefix(calendarEventId, newPrefix, contents);
+    await updateCalendarEvent(calendarEventId, newValues, contents);
     return NextResponse.json(
       { message: "Event updated successfully" },
       { status: 200 },

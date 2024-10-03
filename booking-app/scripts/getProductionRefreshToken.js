@@ -1,15 +1,18 @@
 //@ts-nocheck
+require("dotenv").config({ path: ".env.local" });
 const { google } = require("googleapis");
 const readline = require("readline");
 
-const CLIENT_ID = "";
-const CLIENT_SECRET = "";
-const REDIRECT_URI = "http://localhost:3000/api/auth/callback";
+const CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
+const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
+const REDIRECT_URI =
+  "https://flowing-mantis-389917.uc.r.appspot.com/api/auth/callback";
 const SCOPES = [
   "https://www.googleapis.com/auth/gmail.send",
   "https://www.googleapis.com/auth/calendar.events",
   "https://www.googleapis.com/auth/userinfo.email",
   "https://www.googleapis.com/auth/spreadsheets",
+  "https://www.googleapis.com/auth/logging.write",
 ];
 
 const oauth2Client = new google.auth.OAuth2(

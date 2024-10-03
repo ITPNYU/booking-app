@@ -5,6 +5,7 @@ import { Error, Event } from "@mui/icons-material";
 import React, { useContext } from "react";
 
 import { BookingContext } from "../bookingProvider";
+import { FormContextLevel } from "@/components/src/types";
 import Loading from "../../components/Loading";
 import { styled } from "@mui/system";
 import { useRouter } from "next/navigation";
@@ -18,10 +19,16 @@ const Centered = styled(Box)`
   height: 55vh;
 `;
 
-export default function BookingFormConfirmationPage() {
+interface Props {
+  formContext: FormContextLevel;
+}
+
+export default function BookingFormConfirmationPage({ formContext }: Props) {
   const { submitting } = useContext(BookingContext);
   const router = useRouter();
   const theme = useTheme();
+
+  const isWalkIn = formContext === FormContextLevel.WALK_IN;
 
   // don't submit form via useEffect here b/c it submits twice in development strict mode
 
@@ -38,7 +45,9 @@ export default function BookingFormConfirmationPage() {
         >
           <Loading />
         </Box>
-        <Typography variant="h6">Submitting your booking request...</Typography>
+        <Typography variant="h6">
+          Submitting {isWalkIn ? "walk-in" : "your booking"} request...
+        </Typography>
       </Centered>
     );
   }
@@ -59,7 +68,9 @@ export default function BookingFormConfirmationPage() {
           </Typography>
         </Box>
         <Typography variant="h6" sx={{ padding: 3 }}>
-          Yay! We've received your booking request
+          {isWalkIn
+            ? "Walk-in submitted"
+            : "Yay! We've received your booking request"}
         </Typography>
         <Box
           sx={{
@@ -70,7 +81,7 @@ export default function BookingFormConfirmationPage() {
           }}
         >
           <Button
-            onClick={() => router.push("/")}
+            onClick={() => router.push(isWalkIn ? "/pa" : "/")}
             variant="text"
             sx={{
               background: theme.palette.primary[50],
@@ -78,7 +89,7 @@ export default function BookingFormConfirmationPage() {
             }}
           >
             <Event />
-            View My Bookings
+            View Bookings
           </Button>
         </Box>
       </Centered>
@@ -99,7 +110,7 @@ export default function BookingFormConfirmationPage() {
         <Error />
       </Box>
       <Typography variant="h6">
-        Sorry, an error occured while submitting your booking
+        Sorry, an error occured while submitting this request
       </Typography>
     </Centered>
   );

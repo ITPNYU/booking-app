@@ -34,7 +34,10 @@ export default function useCheckFormMissingData() {
     }
 
     if (isMissing) {
-      router.push("/" + pathname.split("/")[1]);
+      const base = pathname.split("/")[1];
+      const id = pathname.split("/")[3] ?? "";
+      console.log("MISSING ID", id, pathname);
+      router.push(`/${base}/${id}`);
     }
   }, []);
 }

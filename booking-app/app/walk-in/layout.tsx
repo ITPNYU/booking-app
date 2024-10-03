@@ -1,5 +1,6 @@
 // app/walk-in/layout.tsx
 import BookingForm from "@/components/src/client/routes/booking/BookingForm";
+import { FormContextLevel } from "@/components/src/types";
 import React from "react";
 
 type LayoutProps = {
@@ -7,7 +8,7 @@ type LayoutProps = {
 };
 
 const BookingLayout: React.FC<LayoutProps> = ({ children }) => (
-  <BookingForm>{children}</BookingForm>
+  <BookingForm formContext={FormContextLevel.WALK_IN}>{children}</BookingForm>
 );
 
 export default BookingLayout;

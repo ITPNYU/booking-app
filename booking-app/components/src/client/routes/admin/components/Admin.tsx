@@ -1,15 +1,13 @@
+import { PageContextLevel, PagePermission } from "../../../../types";
 import React, { useContext, useMemo, useState } from "react";
 
 import { Bookings } from "../../components/bookingTable/Bookings";
 import { Box } from "@mui/material";
 import { CenterLoading } from "../../components/Loading";
 import { DatabaseContext } from "../../components/Provider";
-import { PagePermission } from "../../../../types";
 import Settings from "./Settings";
 import Tab from "@mui/material/Tab";
 import Tabs from "@mui/material/Tabs";
-
-// This is a wrapper for google.script.run that lets us use promises.
 
 export default function Admin() {
   const [tab, setTab] = useState("bookings");
@@ -40,7 +38,9 @@ export default function Admin() {
             <Tab value="bookings" label="Bookings" />
             <Tab value="settings" label="Settings" />
           </Tabs>
-          {tab === "bookings" && <Bookings isAdminView={true} />}
+          {tab === "bookings" && (
+            <Bookings pageContext={PageContextLevel.ADMIN} />
+          )}
           {tab === "settings" && <Settings />}
         </div>
       )}

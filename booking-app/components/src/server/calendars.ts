@@ -1,12 +1,11 @@
 import { BookingFormDetails, BookingStatusLabel, RoomSetting } from "../types";
-import { Timestamp, endAt, sum, where } from "@firebase/firestore";
 
 import { TableNames } from "../policy";
 import { clientFetchAllDataFromCollection } from "@/lib/firebase/firebase";
 import { getCalendarClient } from "@/lib/googleClient";
 import { serverGetRoomCalendarIds } from "./admin";
 
-const patchCalendarEvent = async (
+export const patchCalendarEvent = async (
   event: any,
   calendarId: string,
   eventId: string,
@@ -70,17 +69,19 @@ const bookingContentsToDescription = (bookingContents: BookingFormDetails) => {
     listItem("Expected Attendance", bookingContents.expectedAttendance),
     bookingContents.roomSetup === "yes" &&
       "**" + listItem("Room Setup", bookingContents.setupDetails) + "**",
-    listItem("Title", bookingContents.title),
-    bookingContents.mediaServices &&
-      bookingContents.mediaServices.length > 0 &&
-      listItem("Media Services", bookingContents.mediaServices),
-    bookingContents.mediaServicesDetails.length > 0 &&
-      listItem("Media Services Details", bookingContents.mediaServicesDetails),
-    (bookingContents.catering === "yes" ||
-      bookingContents.cateringService.length > 0) &&
-      listItem("Catering", bookingContents.cateringService),
-    bookingContents.hireSecurity === "yes" &&
-      listItem("Hire Security", bookingContents.hireSecurity),
+    bookingContents.mediaServices && bookingContents.mediaServices.length > 0
+      ? listItem("Media Services", bookingContents.mediaServices)
+      : "",
+    bookingContents.mediaServicesDetails.length > 0
+      ? listItem("Media Services Details", bookingContents.mediaServicesDetails)
+      : "",
+    bookingContents.catering === "yes" ||
+    bookingContents.cateringService.length > 0
+      ? listItem("Catering", bookingContents.cateringService)
+      : "",
+    bookingContents.hireSecurity === "yes"
+      ? listItem("Hire Security", bookingContents.hireSecurity)
+      : "",
     "</ul><h3>Cancellation Policy</h3>",
   ];
   //@ts-ignore
@@ -123,9 +124,14 @@ export const insertEvent = async ({
   return event.data;
 };
 
-export const updateEventPrefix = async (
+export const updateCalendarEvent = async (
   calendarEventId: string,
-  newPrefix: BookingStatusLabel,
+  newValues: {
+    end: {
+      dateTime: string;
+    };
+    statusPrefix?: BookingStatusLabel;
+  },
   bookingContents: BookingFormDetails
 ) => {
   const roomCalendarIds = await serverGetRoomCalendarIds(
@@ -144,27 +150,44 @@ export const updateEventPrefix = async (
         eventId: calendarEventId,
       });
 
-      if (event) {
+      if (!event) {
+        throw new Error("event not found with specified id");
+      }
+
+      const updatedValues = {};
+
+      if (newValues.statusPrefix) {
         const eventData = event.data;
         const eventTitle = eventData.summary ?? "";
         const prefixRegex = /\[.*?\]/g;
-        const newTitle = eventTitle.replace(prefixRegex, `[${newPrefix}]`);
-
-        let description = bookingContents
-          ? bookingContentsToDescription(bookingContents)
-          : "";
-        description +=
-          'To cancel reservations please return to the Booking Tool, visit My Bookings, and click "cancel" on the booking at least 24 hours before the date of the event. Failure to cancel an unused booking is considered a no-show and may result in restricted use of the space.';
-
-        await patchCalendarEvent(event, roomCalendarId, calendarEventId, {
-          summary: newTitle,
-          description: description,
-        });
-
-        console.log(
-          `Updated event ${calendarEventId} in calendar ${roomCalendarId} with new prefix ${newPrefix}`
+        const newTitle = eventTitle.replace(
+          prefixRegex,
+          `[${newValues.statusPrefix}]`
         );
+        updatedValues["summary"] = newTitle;
       }
+
+      if (newValues.end) {
+        updatedValues["end"] = newValues.end;
+      }
+
+      let description = bookingContents
+        ? bookingContentsToDescription(bookingContents)
+        : "";
+      description +=
+        'To cancel reservations please return to the Booking Tool, visit My Bookings, and click "cancel" on the booking at least 24 hours before the date of the event. Failure to cancel an unused booking is considered a no-show and may result in restricted use of the space.';
+      updatedValues["description"] = description;
+
+      await patchCalendarEvent(
+        event,
+        roomCalendarId,
+        calendarEventId,
+        updatedValues
+      );
+
+      console.log(
+        `Updated event ${calendarEventId} in calendar ${roomCalendarId} with new values: ${JSON.stringify(newValues)}`
+      );
     } catch (error) {
       console.error(
         `Error updating event ${calendarEventId} in calendar ${roomCalendarId}:`,
@@ -190,3 +213,34 @@ export const deleteEvent = async (
     console.log("calendar event doesn't exist for room " + roomId);
   }
 };
+
+export const updateByCalendarEventId = async (
+  calendarEventId: string,
+  newValues: any
+) => {
+  // const allRooms: RoomSetting[] = await clientFetchAllDataFromCollection(
+  //   TableNames.RESOURCES
+  // );
+  // const roomCalendarIds = allRooms.map((room) => room.calendarId);
+  // // const calendarIdsToEvent = {};
+  // const calendar = await getCalendarClient();
+  // for (const roomCalendarId of roomCalendarIds) {
+  //   const event = await calendar.events.get({
+  //     calendarId: roomCalendarId,
+  //     eventId: calendarEventId,
+  //   });
+  //   await patchCalendarEvent(event, roomCalendarId, calendarEventId, newValues);
+  // }
+};
+
+// update endTime for all calendar events
+// searchCalendarsForEventId(id);
+// const roomCalendarIdsToEvents = await searchCalendarsForEventId(id);
+// for (let [calendarId, event] of Object.entries(roomCalendarIdsToEvents)) {
+//   await patchCalendarEvent(event, calendarId, id, {
+//     end: {
+//       dateTime: checkoutDate.toISOString(),
+//     },
+//   });
+//   console.log(`Updated end time on ${calendarId} event: ${id}`);
+// }

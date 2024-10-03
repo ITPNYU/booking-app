@@ -2,14 +2,9 @@
 
 "use client";
 
-import BookingForm from "@/components/src/client/routes/booking/BookingForm";
-import SelectRoomPage from "@/components/src/client/routes/booking/formPages/SelectRoomPage";
 import React from "react";
+import SelectRoomPage from "@/components/src/client/routes/booking/formPages/SelectRoomPage";
 
-const SelectRoom: React.FC = () => (
-  <BookingForm>
-    <SelectRoomPage />
-  </BookingForm>
-);
+const SelectRoom: React.FC = () => <SelectRoomPage />;
 
 export default SelectRoom;

@@ -1,12 +1,10 @@
 // app/book/confirmation/page.tsx
-import BookingForm from "@/components/src/client/routes/booking/BookingForm";
 import BookingFormConfirmationPage from "@/components/src/client/routes/booking/formPages/BookingFormConfirmationPage";
+import { FormContextLevel } from "@/components/src/types";
 import React from "react";
 
 const Role: React.FC = () => (
-  <BookingForm>
-    <BookingFormConfirmationPage />
-  </BookingForm>
+  <BookingFormConfirmationPage formContext={FormContextLevel.FULL_FORM} />
 );
 
 export default Role;

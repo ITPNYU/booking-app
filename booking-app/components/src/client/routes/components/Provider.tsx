@@ -19,6 +19,7 @@ import {
   fetchAllFutureBookingStatus,
 } from "@/components/src/server/db";
 
+import { Liaisons } from "../admin/components/Liaisons";
 import { TableNames } from "@/components/src/policy";
 import { clientFetchAllDataFromCollection } from "@/lib/firebase/firebase";
 import { useAuth } from "@/components/src/client/routes/components/AuthProvider";
@@ -106,10 +107,11 @@ export const DatabaseProvider = ({
   // page permission updates with respect to user email, admin list, PA list
   const pagePermission = useMemo<PagePermission>(() => {
     if (!userEmail) return PagePermission.BOOKING;
-
     if (adminUsers.map((admin) => admin.email).includes(userEmail))
       return PagePermission.ADMIN;
-    else if (paUsers.map((pa) => pa.email).includes(userEmail))
+    if (liaisonUsers.map((liaison) => liaison.email).includes(userEmail)) {
+      return PagePermission.LIAISON;
+    } else if (paUsers.map((pa) => pa.email).includes(userEmail))
       return PagePermission.PA;
     else return PagePermission.BOOKING;
   }, [userEmail, adminUsers, paUsers]);
@@ -120,7 +122,6 @@ export const DatabaseProvider = ({
       fetchBannedUsers();
       fetchLiaisonUsers();
       fetchDepartmentNames();
-      fetchRoomSettings();
       fetchSettings();
     } else {
       fetchBookings();
@@ -132,6 +133,7 @@ export const DatabaseProvider = ({
     fetchActiveUserEmail();
     fetchAdminUsers();
     fetchPaUsers();
+    fetchRoomSettings();
   }, [user]);
 
   const fetchActiveUserEmail = () => {
@@ -162,6 +164,7 @@ export const DatabaseProvider = ({
           netId: item.netId,
           phoneNumber: item.phoneNumber,
           department: item.department,
+          otherDepartment: item.otherDepartment,
           role: item.role,
           sponsorFirstName: item.sponsorFirstName,
           sponsorLastName: item.sponsorLastName,
@@ -251,6 +254,10 @@ export const DatabaseProvider = ({
           completedAt: item.completedAt || new Date().toISOString(), // Use current time if completedAt is missing
         })
       );
+      console.log(
+        "FETCHED SAFETY TRAINED EMAILS FROM DB:",
+        firestoreUsers.length
+      );
 
       // Fetch data from spreadsheet
       const response = await fetch("/api/safety_training_users");
@@ -258,6 +265,11 @@ export const DatabaseProvider = ({
         throw new Error("Failed to fetch authorized emails from spreadsheet");
       }
       const spreadsheetData = await response.json();
+
+      console.log(
+        "FETCHED SAFETY TRAINED EMAILS FROM SPREADSHEET:",
+        spreadsheetData.emails.length
+      );
       const currentDate = new Date().toISOString();
 
       // Map to merge users
@@ -277,6 +289,7 @@ export const DatabaseProvider = ({
 
       // Convert Map to SafetyTraining array
       const uniqueUsers = Array.from(userMap.values());
+      console.log("TOTAL UNIQUE SAFETY TRAINED USER:", uniqueUsers.length);
       // Update state
       setSafetyTrainedUsers(uniqueUsers);
     } catch (error) {

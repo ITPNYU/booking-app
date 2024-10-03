@@ -1,4 +1,4 @@
-import { Box, TableCell } from "@mui/material";
+import { Box, TableCell, styled } from "@mui/material";
 import React, { useMemo } from "react";
 
 import ListTableRow from "./ListTableRow";
@@ -15,6 +15,12 @@ interface Props {
   topRow: React.ReactNode;
 }
 
+const ListTableWrapper = styled(Table)`
+  th {
+    padding-right: 16px !important;
+  }
+`;
+
 export default function ListTable(props: Props) {
   const refresh = props.rowsRefresh;
   const topRow = props.topRow;
@@ -24,7 +30,7 @@ export default function ListTable(props: Props) {
     if (props.rows.length === 0) {
       return [];
     }
-    return Object.keys(props.rows[0]) as string[];
+    return Object.keys(props.rows[0]).filter((x) => x !== "id") as string[];
   }, [props.rows]);
 
   const columns = useMemo(
@@ -40,7 +46,7 @@ export default function ListTable(props: Props) {
   );
 
   return (
-    <Table {...{ columns, topRow }}>
+    <ListTableWrapper {...{ columns, topRow }}>
       {props?.rows.map((row, index: number) => (
         <ListTableRow
           key={index}
@@ -54,7 +60,7 @@ export default function ListTable(props: Props) {
           refresh={refresh}
         />
       ))}
-    </Table>
+    </ListTableWrapper>
   );
 }
 

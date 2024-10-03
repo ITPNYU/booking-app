@@ -1,29 +1,31 @@
+import { BookingStatusLabel, PageContextLevel } from "../../../../types";
 import { IconButton, MenuItem, Select } from "@mui/material";
 import React, { useContext, useMemo, useState } from "react";
-
-import AlertToast from "../../components/AlertToast";
-import { BookingStatusLabel } from "../../../../types";
-import Check from "@mui/icons-material/Check";
-import ConfirmDialog from "../../components/ConfirmDialog";
-import { DatabaseContext } from "../../components/Provider";
-import Loading from "../../components/Loading";
-import useExistingBooking from "../hooks/useExistingBooking";
-import { useRouter } from "next/navigation";
 import {
   cancel,
-  checkin,
   checkOut,
+  checkin,
   clientApproveBooking,
   decline,
   noShow,
 } from "@/components/src/server/db";
 
+import AlertToast from "../../components/AlertToast";
+import { BookingContext } from "../../booking/bookingProvider";
+import Check from "@mui/icons-material/Check";
+import ConfirmDialog from "../../components/ConfirmDialog";
+import { DatabaseContext } from "../../components/Provider";
+import Loading from "../../components/Loading";
+import { Timestamp } from "@firebase/firestore";
+import useExistingBooking from "../hooks/useExistingBooking";
+import { useRouter } from "next/navigation";
+
 interface Props {
   calendarEventId: string;
-  isAdminView: boolean;
-  isUserView: boolean;
+  pageContext: PageContextLevel;
   setOptimisticStatus: (x: BookingStatusLabel) => void;
   status: BookingStatusLabel;
+  startDate: Timestamp;
 }
 
 enum Actions {
@@ -35,6 +37,7 @@ enum Actions {
   FINAL_APPROVE = "Final Approve",
   DECLINE = "Decline",
   EDIT = "Edit",
+  MODIFICATION = "Modification",
   PLACEHOLDER = "",
 }
 
@@ -48,16 +51,18 @@ type ActionDefinition = {
 export default function BookingActions({
   status,
   calendarEventId,
-  isAdminView,
-  isUserView,
+  pageContext,
   setOptimisticStatus,
+  startDate,
 }: Props) {
   const [uiLoading, setUiLoading] = useState(false);
   const [selectedAction, setSelectedAction] = useState<Actions>(
     Actions.PLACEHOLDER
   );
   const { reloadBookings, reloadBookingStatuses } = useContext(DatabaseContext);
+  const { reloadExistingCalendarEvents } = useContext(BookingContext);
   const [showError, setShowError] = useState(false);
+  const [date, setDate] = useState(new Date());
   const router = useRouter();
   const loadExistingBookingData = useExistingBooking();
 
@@ -67,6 +72,10 @@ export default function BookingActions({
 
   const onError = () => {
     setShowError(true);
+  };
+
+  const updateActions = () => {
+    setDate(new Date());
   };
 
   const handleDialogChoice = (result: boolean) => {
@@ -145,7 +154,17 @@ export default function BookingActions({
     [Actions.EDIT]: {
       action: async () => {
         loadExistingBookingData(calendarEventId);
+        reloadExistingCalendarEvents();
         router.push("/edit/" + calendarEventId);
+      },
+      optimisticNextStatus: status,
+      confirmation: false,
+    },
+    [Actions.MODIFICATION]: {
+      action: async () => {
+        loadExistingBookingData(calendarEventId);
+        reloadExistingCalendarEvents();
+        router.push("/modification/" + calendarEventId);
       },
       optimisticNextStatus: status,
       confirmation: false,
@@ -164,7 +183,8 @@ export default function BookingActions({
     }
     if (
       status !== BookingStatusLabel.CHECKED_IN &&
-      status !== BookingStatusLabel.NO_SHOW
+      status !== BookingStatusLabel.NO_SHOW &&
+      startDate.toDate() > date
     ) {
       options.push(Actions.EDIT);
     }
@@ -177,14 +197,21 @@ export default function BookingActions({
     if (status === BookingStatusLabel.APPROVED) {
       options.push(Actions.CHECK_IN);
       options.push(Actions.NO_SHOW);
+      options.push(Actions.MODIFICATION);
     } else if (status === BookingStatusLabel.CHECKED_IN) {
       options.push(Actions.NO_SHOW);
       options.push(Actions.CHECK_OUT);
+      options.push(Actions.MODIFICATION);
     } else if (status === BookingStatusLabel.NO_SHOW) {
       options.push(Actions.CHECK_IN);
+    } else if (status === BookingStatusLabel.WALK_IN) {
+      options.push(Actions.CHECK_OUT);
+      options.push(Actions.MODIFICATION);
     }
     return options;
   }, [status]);
+
+  const liaisonOptions = [Actions.FIRST_APPROVE, Actions.DECLINE];
 
   const adminOptions = useMemo(() => {
     if (
@@ -206,12 +233,19 @@ export default function BookingActions({
     options.push(Actions.CANCEL);
     options.push(Actions.DECLINE);
     return options;
-  }, [status, paOptions]);
+  }, [status, paOptions, date]);
 
   const options = () => {
-    if (isUserView) return userOptions;
-    if (isAdminView) return adminOptions;
-    return paOptions;
+    switch (pageContext) {
+      case PageContextLevel.USER:
+        return userOptions;
+      case PageContextLevel.PA:
+        return paOptions;
+      case PageContextLevel.LIAISON:
+        return liaisonOptions;
+      default:
+        return adminOptions;
+    }
   };
 
   if (options().length === 0) {
@@ -231,6 +265,7 @@ export default function BookingActions({
         value={selectedAction}
         size="small"
         displayEmpty
+        onFocus={updateActions}
         onChange={(e) => setSelectedAction(e.target.value as Actions)}
         renderValue={(selected) => {
           if (selected === Actions.PLACEHOLDER) {
