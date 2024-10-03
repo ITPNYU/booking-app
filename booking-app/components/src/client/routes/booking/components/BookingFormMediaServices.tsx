@@ -107,7 +107,7 @@ export default function BookingFormMediaServices(props: Props) {
     <div style={{ marginBottom: 8 }}>
       <Label htmlFor={id}>Media Services</Label>
       <p style={{ fontSize: "0.75rem" }}>
-        Check out equipment, use DMX lighting grid, request a technician, etc.
+      Check out equipment, request a technician, etc.
       </p>
       {toggle}
       {showMediaServices && (

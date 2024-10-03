@@ -158,7 +158,7 @@ export default function BookingStatusBar({ formContext, ...props }: Props) {
             </Alert>
           )}
         </Grid>
-        <Grid sx={{ marginLeft: "auto" }}>
+        <Grid sx={{ marginLeft: "24px" }}>
           {!props.hideNextButton && (
             <Tooltip title={disabledMessage}>
               <span>
