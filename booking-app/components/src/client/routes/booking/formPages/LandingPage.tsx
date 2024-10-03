@@ -41,16 +41,17 @@ export default function LandingPage() {
       <p>Thank you for your interest in booking with the Media Commons</p>
       <Modal padding={4}>
         <Typography fontWeight={500}>
-        Please read our policy for using the 370J Media Commons
+          Please read our Policy for using the 370 Jay Street Shared Spaces
         </Typography>
         <Typography fontWeight={700} marginTop={3}>
           Booking Confirmation
         </Typography>
         <p>
-        You will receive an email response from the Media Commons Team and a calendar 
-        invite once your request has been reviewed and processed. Please allow a minimum 
-        of 3 days for your request to be approved. If you do not hear back about your request, 
-        please contact the Media Commons Team  (
+          You will receive an email response from the 370J Operations team and a
+          calendar invite once your request has been reviewed and processed.
+          Please allow a minimum of 3 days for your request to be approved. If
+          you do not hear back about your request within 48 hours, you can
+          contact the Media Commons Team (
           <a href="mailto:mediacommons.reservations@nyu.edu">
             mediacommons.reservations@nyu.edu
           </a>
@@ -60,12 +61,12 @@ export default function LandingPage() {
           Cancellation Policy
         </Typography>
         <p>
-        To cancel a reservation please email the Media Commons Team  (
+          To cancel reservations please email the Media Commons Team (
           <a href="mailto:mediacommons.reservations@nyu.edu">
             mediacommons.reservations@nyu.edu
           </a>
-          ) at least 24 hours before the date of the event. 
-          Failure to cancel may result in restricted use of the Media Commons.
+          ) at least 24 hours before the date of the event. Failure to cancel
+          may result in restricted use of event spaces.
         </p>
         <Button
           variant="contained"

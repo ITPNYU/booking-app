@@ -278,21 +278,53 @@ export default function FormInput({ calendarEventId, formContext }: Props) {
         </Section>
       )}
 
-              <BookingFormTextField
-                id="sponsorEmail"
-                label="Sponsor Email"
-                description="“An NYU faculty or staff member related to your request. Ex: your thesis teacher if you have a thesis-related reservation request.”
-Must be an nyu.edu email address"
-                required={watch("role") === Role.STUDENT}
-                pattern={{
-                  value: /^[A-Z0-9._%+-]+@nyu.edu$/i,
-                  message: "Invalid email address",
-                }}
-                validate={validateSponsorEmail}
-                {...{ control, errors, trigger }}
-              />
-            </Section>
-          )}
+      <Section title="Reservation Details">
+        <BookingFormTextField
+          id="title"
+          label="Reservation Title"
+          validate={validateTitleLength}
+          {...{ control, errors, trigger }}
+        />
+        <BookingFormTextField
+          id="description"
+          label="Reservation Description"
+          {...{ control, errors, trigger }}
+        />
+        <BookingFormDropdown
+          id="bookingType"
+          label="Booking Type"
+          options={settings.bookingTypes
+            .map((x) => x.bookingType)
+            .sort((a, b) => a.localeCompare(b))}
+          {...{ control, errors, trigger }}
+        />
+        <BookingFormTextField
+          id="expectedAttendance"
+          label="Expected Attendance"
+          validate={validateExpectedAttendance}
+          {...{ control, errors, trigger }}
+        />
+        <BookingFormDropdown
+          id="attendeeAffiliation"
+          label="Attendee Affiliation(s)"
+          options={Object.values(AttendeeAffiliation)}
+          description={
+            <p>
+              Non-NYU guests will need to be sponsored through JRNY. For more
+              information about visitor, vendor, and affiliate access,
+              <a
+                href="https://www.nyu.edu/about/visitor-information/sponsoring-visitors.html"
+                className="text-blue-600 hover:underline dark:text-blue-500 mx-1"
+                target="_blank"
+              >
+                click here
+              </a>
+              .
+            </p>
+          }
+          {...{ control, errors, trigger }}
+        />
+      </Section>
 
       <Section title="Services">
         {!isWalkIn && (
@@ -320,144 +352,17 @@ Must be an nyu.edu email address"
               }
               {...{ control, errors, trigger }}
             />
-          </Section>
-
-          <Section title="Services">
-            {!isWalkIn && (
-              <div style={{ marginBottom: 32 }}>
-                <BookingFormSwitch
-                  id="roomSetup"
-                  label="Room Setup Needed?"
-                  required={false}
-                  description={
-                    <p>
-                      If your event needs a specific room setup with tables and chairs, 
-                      please provide a description below. In the description please include  
-                      # of chairs, # of tables, and formation. Depending on the scope, it may 
-                      be required to hire CBS services for the room set up which comes at a cost. 
-                      The Media Commons Team will procure the services needed for the Room Setup. 
-                      Please provide the chartfield below.
-                    </p>
-                  }
+            {watch("roomSetup") === "yes" && (
+              <>
+                <BookingFormTextField
+                  id="setupDetails"
+                  label="Room Setup Details"
+                  description="If you requested Room Setup and are not using rooms 233 or 1201, please explain your needs including # of chairs, # tables, and formation."
                   {...{ control, errors, trigger }}
                 />
-                {watch("roomSetup") === "yes" && (
-                  <>
-                    <BookingFormTextField
-                      id="setupDetails"
-                      label="Room Setup Details"
-                      description="If you requested Room Setup and are not using rooms 233 or 1201, please explain your needs including # of chairs, # tables, and formation."
-                      {...{ control, errors, trigger }}
-                    />
-                    <BookingFormTextField
-                      id="chartFieldForRoomSetup"
-                      label="ChartField for Room Setup"
-                      {...{ control, errors, trigger }}
-                    />
-                  </>
-                )}
-              </div>
-            )}
-            <div style={{ marginBottom: 32 }}>
-              <BookingFormMediaServices
-                id="mediaServices"
-                {...{
-                  control,
-                  trigger,
-                  showMediaServices,
-                  setShowMediaServices,
-                  isWalkIn,
-                }}
-              />
-              {watch("mediaServices") !== undefined &&
-                watch("mediaServices").length > 0 && (
-                  <BookingFormTextField
-                    id="mediaServicesDetails"
-                    label="Media Services Details"
-                    description={
-                      <p>
-                        If you selected any of the Media Services above, please
-                        describe your needs in detail.
-                        <br />
-                        If you need to check out equipment, you can check our
-                        inventory and include your request below. (Ie. 2x Small
-                        Mocap Suits)
-                        <br />-{" "}
-                        <a
-                          href="https://docs.google.com/document/d/1oRtvZ0SR52Mq_ykoNXelwqat4JFgdado5JDY6A746VY/edit#heading=h.iv9c7z15bn0t"
-                          target="_blank"
-                          className="text-blue-600 hover:underline dark:text-blue-500 mx-1"
-                        >
-                          Inventory for Black Box 220 and Ballrooms 221-224
-                        </a>
-                        <br />-{" "}
-                        <a
-                          href="https://docs.google.com/spreadsheets/d/1fziyVrzeytQJyZ8585Wtqxer-PBt6L-u-Z0LHVavK5k/edit#gid=870626522"
-                          target="_blank"
-                          className="text-blue-600 hover:underline dark:text-blue-500 mx-1"
-                        >
-                          Inventory for Garage 103
-                        </a>
-                        <br />
-                      </p>
-                    }
-                    {...{ control, errors, trigger }}
-                  />
-                )}
-            </div>
-            {!isWalkIn && (
-              <div style={{ marginBottom: 32 }}>
-                <BookingFormSwitch
-                  id="catering"
-                  label="Catering?"
-                  description={
-                    <p>
-                      If the event includes catering, it is required for the 
-                      reservation holder to provide a chartfield so that the 
-                      Media Commons Team can obtain CBS Cleaning Services.
-                    </p>
-                  }
-                  required={false}
-                  {...{ control, errors, trigger }}
-                />
-                {watch("catering") === "yes" && (
-                  <>
-                    <BookingFormDropdown
-                      id="cateringService"
-                      label="Catering Information"
-                      options={["Outside Catering", "NYU Plated"]}
-                      {...{ control, errors, trigger }}
-                    />
-                    <BookingFormTextField
-                      id="chartFieldForCatering"
-                      label="ChartField for CBS Cleaning Services"
-                      {...{ control, errors, trigger }}
-                    />
-                  </>
-                )}
-              </div>
-            )}
-            {!isWalkIn && (
-              <div style={{ marginBottom: 32 }}>
-                <BookingFormSwitch
-                  id="hireSecurity"
-                  label="Hire Security?"
-                  required={false}
-                  description={
-                    <p>
-                      Only for large events with 75+ attendees, and bookings in The Garage where 
-                      the Willoughby entrance will be in use. It is required for the reservation 
-                      holder to provide a chartfield so that the Media Commons Team can obtain 
-                      Campus Safety Security Services.
-                      <a
-                        href="https://www.nyu.edu/life/safety-health-wellness/campus-safety.html"
-                        target="_blank"
-                        className="text-blue-600 hover:underline dark:text-blue-500 mx-1"
-                      >
-                        Click for Campus Safety Form
-                      </a>
-                    </p>
-                  }
+                <BookingFormTextField
+                  id="chartFieldForRoomSetup"
+                  label="ChartField for Room Setup"
                   {...{ control, errors, trigger }}
                 />
               </>
