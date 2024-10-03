@@ -41,7 +41,7 @@ export default function BookMoreButton() {
                 width: "100%",
               }}
             >
-              <Add /> Request a Reservation
+              <Add /> Book More
             </Button>
           </TableCell>
         </TableRow>
