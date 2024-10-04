@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   deleteEvent,
   insertEvent,
-  updateEventPrefix,
+  updateCalendarEvent,
 } from "@/components/src/server/calendars";
 
 import { getCalendarClient } from "@/lib/googleClient";
@@ -101,9 +101,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function PUT(req: NextRequest) {
-  const { calendarEventId, newPrefix } = await req.json();
+  const { calendarEventId, newValues } = await req.json();
 
-  if (!calendarEventId || !newPrefix) {
+  if (!calendarEventId || !newValues) {
     return NextResponse.json(
       { error: "Missing required fields" },
       { status: 400 },
@@ -111,7 +111,7 @@ export async function PUT(req: NextRequest) {
   }
   const contents = await serverBookingContents(calendarEventId);
   try {
-    await updateEventPrefix(calendarEventId, newPrefix, contents);
+    await updateCalendarEvent(calendarEventId, newValues, contents);
     return NextResponse.json(
       { message: "Event updated successfully" },
       { status: 200 },

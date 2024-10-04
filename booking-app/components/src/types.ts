@@ -95,6 +95,14 @@ export enum Department {
 }
 export type DevBranch = "development" | "staging" | "production" | "";
 
+// what context are we entering the form in?
+export enum FormContextLevel {
+  EDIT = "/edit",
+  FULL_FORM = "/book",
+  MODIFICATION = "/modification",
+  WALK_IN = "/walk-in",
+}
+
 export type Inputs = {
   firstName: string;
   lastName: string;
@@ -103,6 +111,7 @@ export type Inputs = {
   netId: string;
   phoneNumber: string;
   department: string;
+  otherDepartment: string;
   role: string;
   sponsorFirstName: string;
   sponsorLastName: string;
@@ -152,9 +161,10 @@ export type PaUser = {
 };
 
 export enum PagePermission {
-  ADMIN = "Admin",
-  BOOKING = "User",
-  PA = "PA",
+  BOOKING = 0,
+  PA,
+  LIAISON,
+  ADMIN,
 }
 
 export enum PageContextLevel {

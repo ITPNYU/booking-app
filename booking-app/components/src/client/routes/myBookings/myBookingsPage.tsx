@@ -20,7 +20,7 @@ export default function MyBookingsPage() {
   return (
     <Center>
       <Box width={{ xs: "90%", md: "65%" }} margin={6}>
-        <Typography variant="h6">Welcome</Typography>
+        <Typography variant="h6">Welcome to the Media Commons booking tool!</Typography>
         <Bookings pageContext={PageContextLevel.USER} />
       </Box>
     </Center>

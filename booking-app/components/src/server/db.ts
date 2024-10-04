@@ -1,22 +1,23 @@
-import { Timestamp, where } from "@firebase/firestore";
-
-import {
-  clientGetFinalApproverEmail,
-  getCancelCcEmail,
-  TableNames,
-} from "../policy";
-import {
-  clientFetchAllDataFromCollection,
-  clientGetDataByCalendarEventId,
-  clientUpdateDataInFirestore,
-} from "@/lib/firebase/firebase";
-import { clientUpdateDataByCalendarEventId } from "@/lib/firebase/client/clientDb";
 import {
   BookingFormDetails,
   BookingStatusLabel,
   PolicySettings,
 } from "../types";
+import {
+  TableNames,
+  clientGetFinalApproverEmail,
+  getCancelCcEmail,
+} from "../policy";
+import { Timestamp, where } from "@firebase/firestore";
 import { approvalUrl, declineUrl, getBookingToolDeployUrl } from "./ui";
+import {
+  clientFetchAllDataFromCollection,
+  clientGetDataByCalendarEventId,
+  clientUpdateDataInFirestore,
+} from "@/lib/firebase/firebase";
+
+import { clientUpdateDataByCalendarEventId } from "@/lib/firebase/client/clientDb";
+import { roundTimeUp } from "../client/utils/date";
 
 export const fetchAllFutureBooking = async <T>(
   collectionName: TableNames
@@ -96,7 +97,7 @@ export const decline = async (id: string) => {
       },
       body: JSON.stringify({
         calendarEventId: id,
-        newPrefix: BookingStatusLabel.DECLINED,
+        newValues: { statusPrefix: BookingStatusLabel.DECLINED },
       }),
     }
   );
@@ -134,7 +135,7 @@ export const cancel = async (id: string) => {
       },
       body: JSON.stringify({
         calendarEventId: id,
-        newPrefix: BookingStatusLabel.CANCELED,
+        newValues: { statusPrefix: BookingStatusLabel.CANCELED },
       }),
     }
   );
@@ -183,15 +184,19 @@ export const checkin = async (id: string) => {
       },
       body: JSON.stringify({
         calendarEventId: id,
-        newPrefix: BookingStatusLabel.CHECKED_IN,
+        newValues: { statusPrefix: BookingStatusLabel.CHECKED_IN },
       }),
     }
   );
 };
 
 export const checkOut = async (id: string) => {
+  const checkoutDate = roundTimeUp();
   clientUpdateDataByCalendarEventId(TableNames.BOOKING_STATUS, id, {
     checkedOutAt: Timestamp.now(),
+  });
+  clientUpdateDataByCalendarEventId(TableNames.BOOKING, id, {
+    endDate: Timestamp.fromDate(checkoutDate),
   });
   const doc = await clientGetDataByCalendarEventId(
     TableNames.BOOKING_STATUS,
@@ -208,6 +213,7 @@ export const checkOut = async (id: string) => {
     headerMessage,
     BookingStatusLabel.CHECKED_OUT
   );
+
   const response = await fetch(
     `${process.env.NEXT_PUBLIC_BASE_URL}/api/calendarEvents`,
     {
@@ -217,7 +223,12 @@ export const checkOut = async (id: string) => {
       },
       body: JSON.stringify({
         calendarEventId: id,
-        newPrefix: BookingStatusLabel.CHECKED_OUT,
+        newValues: {
+          statusPrefix: BookingStatusLabel.CHECKED_OUT,
+          end: {
+            dateTime: roundTimeUp().toISOString(),
+          },
+        },
       }),
     }
   );
@@ -256,7 +267,7 @@ export const noShow = async (id: string) => {
       },
       body: JSON.stringify({
         calendarEventId: id,
-        newPrefix: BookingStatusLabel.NO_SHOW,
+        newValues: { statusPrefix: BookingStatusLabel.NO_SHOW },
       }),
     }
   );

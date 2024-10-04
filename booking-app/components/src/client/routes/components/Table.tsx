@@ -59,15 +59,22 @@ export const TableEmpty = styled(Box)`
 `;
 
 interface Props {
+  className?: string;
   columns: React.ReactNode[];
   children: React.ReactNode[];
   topRow: React.ReactNode;
   sx?: SxProps<Theme>;
 }
 
-export default function Table({ columns, children, topRow, sx }: Props) {
+export default function Table({
+  className,
+  columns,
+  children,
+  topRow,
+  sx,
+}: Props) {
   return (
-    <>
+    <Box className={className}>
       <TableTopRow>
         <TableBody>
           <TableRow>
@@ -83,6 +90,6 @@ export default function Table({ columns, children, topRow, sx }: Props) {
           <TableBody>{children}</TableBody>
         </TableCustom>
       </Clip>
-    </>
+    </Box>
   );
 }

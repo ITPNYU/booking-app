@@ -5,11 +5,12 @@ import {
   EventClickArg,
   EventDropArg,
 } from "@fullcalendar/core";
-import { CalendarEvent, RoomSetting } from "../../../../types";
 import CalendarEventBlock, { NEW_TITLE_TAG } from "./CalendarEventBlock";
+import { FormContextLevel, RoomSetting } from "../../../../types";
 import React, { useContext, useEffect, useMemo, useRef } from "react";
 
 import { BookingContext } from "../bookingProvider";
+import { Error } from "@mui/icons-material";
 import { EventResizeDoneArg } from "fullcalendar";
 import FullCalendar from "@fullcalendar/react";
 import googleCalendarPlugin from "@fullcalendar/google-calendar";
@@ -19,7 +20,7 @@ import { styled } from "@mui/system";
 
 interface Props {
   calendarEventId?: string;
-  isEdit: boolean;
+  formContext: FormContextLevel;
   rooms: RoomSetting[];
   dateView: Date;
 }
@@ -70,6 +71,7 @@ const FullCalendarWrapper = styled(Box)({
 
 const Empty = styled(Box)(({ theme }) => ({
   display: "flex",
+  flexDirection: "column",
   justifyContent: "center",
   alignItems: "center",
   height: 500,
@@ -78,7 +80,7 @@ const Empty = styled(Box)(({ theme }) => ({
 
 export default function CalendarVerticalResource({
   calendarEventId,
-  isEdit,
+  formContext,
   rooms,
   dateView,
 }: Props) {
@@ -124,7 +126,7 @@ export default function CalendarVerticalResource({
       title: NEW_TITLE_TAG,
       overlap: true,
       durationEditable: true,
-      startEditable: true,
+      startEditable: formContext !== FormContextLevel.MODIFICATION,
       groupId: "new",
       url: `${index}:${rooms.length}`, // some hackiness to let us render multiple events visually as one big block
     }));
@@ -174,8 +176,12 @@ export default function CalendarVerticalResource({
   };
 
   // clicking on created event should delete it
+  // only if not in MODIFICATION mode
   const handleEventClick = (info: EventClickArg) => {
-    if (info.event.title.includes(NEW_TITLE_TAG)) {
+    if (
+      info.event.title.includes(NEW_TITLE_TAG) &&
+      formContext !== FormContextLevel.MODIFICATION
+    ) {
       setBookingCalendarInfo(null);
     }
   };
@@ -195,14 +201,33 @@ export default function CalendarVerticalResource({
 
   // for editing an existing reservation
   const existingCalEventsFiltered = useMemo(() => {
-    if (!isEdit || calendarEventId == null || calendarEventId.length === 0)
+    if (
+      (formContext !== FormContextLevel.EDIT &&
+        formContext !== FormContextLevel.MODIFICATION) ||
+      calendarEventId == null ||
+      calendarEventId.length === 0
+    )
       return existingCalendarEvents;
 
     // based on how we format the id in fetchCalendarEvents
     return existingCalendarEvents.filter(
       (event) => event.id.split(":")[0] !== calendarEventId
     );
-  }, [existingCalendarEvents, isEdit]);
+  }, [existingCalendarEvents, formContext]);
+
+  if (existingCalendarEvents.length === 0) {
+    return (
+      <Empty>
+        <Error />
+        <Typography align="center">
+          Sorry, we were unable to retrieve existing calendar events.
+          <br />
+          Please refresh the page if this message appears for more than a few
+          seconds.
+        </Typography>
+      </Empty>
+    );
+  }
 
   if (rooms.length === 0) {
     return (
@@ -225,7 +250,7 @@ export default function CalendarVerticalResource({
           googleCalendarPlugin,
           interactionPlugin,
         ]}
-        selectable={true}
+        selectable={formContext !== FormContextLevel.MODIFICATION}
         select={handleEventSelect}
         selectAllow={handleEventSelecting}
         selectOverlap={handleSelectOverlap}

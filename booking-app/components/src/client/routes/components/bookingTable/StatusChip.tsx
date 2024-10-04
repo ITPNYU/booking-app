@@ -1,10 +1,11 @@
 import React, { useMemo } from "react";
+import { Tooltip, styled } from "@mui/material";
 
 import { BookingStatusLabel } from "../../../../types";
 import Chip from "@mui/material/Chip";
-import { styled } from "@mui/material";
 
 interface Props {
+  allowTooltip?: boolean;
   disabled?: boolean;
   status: BookingStatusLabel;
 }
@@ -18,7 +19,11 @@ const RectangleChip = styled(Chip)({
   },
 });
 
-export default function StatusChip({ status, disabled = false }: Props) {
+export default function StatusChip({
+  status,
+  disabled = false,
+  allowTooltip = false,
+}: Props) {
   const color = useMemo(() => {
     if (disabled) {
       return "rgba(0, 0, 0, 0.38)";
@@ -100,7 +105,32 @@ export default function StatusChip({ status, disabled = false }: Props) {
     }
   }, [status]);
 
-  return (
+  const tooltipText = useMemo(() => {
+    switch (status) {
+      case BookingStatusLabel.APPROVED:
+        return "Your request has been fully approved!";
+      case BookingStatusLabel.CANCELED:
+        return "You have canceled your request";
+      case BookingStatusLabel.CHECKED_IN:
+        return "Your reservation has begun, thank you for checking in at the front desk";
+      case BookingStatusLabel.CHECKED_OUT:
+        return "Your reservation has ended";
+      case BookingStatusLabel.NO_SHOW:
+        return "You did not show up in time for your reservation. Your booking has been forfeited";
+      case BookingStatusLabel.PENDING:
+        return "Your request has been partially approved, still pending final approval";
+      case BookingStatusLabel.DECLINED:
+        return "Your request has been declined";
+      case BookingStatusLabel.REQUESTED:
+        return "Your request has been received and is pending approval";
+      case BookingStatusLabel.UNKNOWN:
+        return "Unable to determine the status of this request";
+      case BookingStatusLabel.WALK_IN:
+        return "This request was booked as a walk-in";
+    }
+  }, [status]);
+
+  const chip = (
     <RectangleChip
       label={text}
       sx={{
@@ -109,5 +139,12 @@ export default function StatusChip({ status, disabled = false }: Props) {
         transition: "background-color 150ms, color 150ms",
       }}
     />
+  );
+
+  if (!allowTooltip) return chip;
+  return (
+    <Tooltip title={tooltipText} placement="right">
+      {chip}
+    </Tooltip>
   );
 }

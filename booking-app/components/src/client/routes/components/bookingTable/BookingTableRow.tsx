@@ -50,7 +50,7 @@ export default function BookingTableRow({
     <TableRow>
       <TableCell>{booking.requestNumber ?? "--"}</TableCell>
       <TableCell>
-        <StatusChip status={optimisticStatus ?? status} />
+        <StatusChip status={optimisticStatus ?? status} allowTooltip={true} />
       </TableCell>
       <StackedTableCell
         topText={formatDateTable(booking.startDate.toDate())}
@@ -61,7 +61,11 @@ export default function BookingTableRow({
       <TableCell sx={{ maxWidth: "150px" }}>{booking.roomId}</TableCell>
       {!isUserView && (
         <StackedTableCell
-          topText={booking.department}
+          topText={
+            booking.otherDepartment
+              ? `${booking.department} - ${booking.otherDepartment}`
+              : booking.department
+          }
           bottomText={booking.role}
         />
       )}
@@ -123,6 +127,7 @@ export default function BookingTableRow({
         <BookingActions
           status={optimisticStatus ?? status}
           calendarEventId={booking.calendarEventId}
+          startDate={booking.startDate}
           {...{ setOptimisticStatus, pageContext }}
         />
       </TableCell>
