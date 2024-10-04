@@ -1,10 +1,11 @@
-import { toFirebaseTimestampFromString } from "@/components/src/client/utils/serverDate";
-import { TableNames } from "@/components/src/policy";
 import { Booking, MediaServices } from "@/components/src/types";
+
+import { NextResponse } from "next/server";
+import { TableNames } from "@/components/src/policy";
+import { Timestamp } from "@firebase/firestore";
 import admin from "@/lib/firebase/server/firebaseAdmin";
 import { getCalendarClient } from "@/lib/googleClient";
-import { Timestamp } from "@firebase/firestore";
-import { NextResponse } from "next/server";
+import { toFirebaseTimestampFromString } from "@/components/src/client/utils/serverDate";
 
 const db = admin.firestore();
 const createBookingWithDefaults = (
@@ -21,6 +22,7 @@ const createBookingWithDefaults = (
     netId: "",
     phoneNumber: "",
     department: "",
+    otherDepartment: "",
     role: "",
     sponsorFirstName: "",
     sponsorLastName: "",

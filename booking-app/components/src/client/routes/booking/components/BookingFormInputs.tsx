@@ -1,4 +1,5 @@
 import {
+  Box,
   Checkbox,
   FormControl,
   FormControlLabel,
@@ -107,6 +108,8 @@ interface TextFieldProps extends Props {
   description?: React.ReactNode;
   pattern?: ValidationRule<RegExp>;
   validate?: any;
+  containerSx?: any;
+  fieldSx?: any;
 }
 
 export function BookingFormTextField(props: TextFieldProps) {
@@ -120,6 +123,8 @@ export function BookingFormTextField(props: TextFieldProps) {
     control,
     errors,
     trigger,
+    containerSx,
+    fieldSx,
   } = props;
 
   return (
@@ -137,7 +142,7 @@ export function BookingFormTextField(props: TextFieldProps) {
         pattern,
       }}
       render={({ field }) => (
-        <div>
+        <Box sx={containerSx}>
           <Label htmlFor={id}>{`${label}${required ? "*" : ""}`}</Label>
           {description && <p style={{ fontSize: "0.75rem" }}>{description}</p>}
           <TextField
@@ -146,10 +151,10 @@ export function BookingFormTextField(props: TextFieldProps) {
             error={errors[id] != null}
             helperText={errors[id]?.message}
             onBlur={() => trigger(id)}
-            sx={{ marginBottom: 4 }}
+            sx={fieldSx ?? { marginBottom: 4 }}
             fullWidth
           />
-        </div>
+        </Box>
       )}
     ></Controller>
   );

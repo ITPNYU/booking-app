@@ -101,10 +101,11 @@ export default function FormInput({ calendarEventId, formContext }: Props) {
       roomSetup: "no",
       bookingType: "",
       secondaryName: "",
+      otherDepartment: "",
+      ...formData, // restore answers if navigating between form pages
       // copy department + role from earlier in form
       department,
       role,
-      ...formData, // restore answers if navigating between form pages
     },
     mode: "onBlur",
   });
@@ -251,6 +252,7 @@ export default function FormInput({ calendarEventId, formContext }: Props) {
           <BookingFormTextField
             id="sponsorFirstName"
             label="Sponsor First Name"
+            description = "An NYU faculty or staff member related to your request. Ex: your thesis teacher if you have a thesis-related reservation request."
             required={watch("role") === Role.STUDENT}
             {...{ control, errors, trigger }}
           />
@@ -265,7 +267,7 @@ export default function FormInput({ calendarEventId, formContext }: Props) {
           <BookingFormTextField
             id="sponsorEmail"
             label="Sponsor Email"
-            description="Must be an nyu.edu email address"
+            description="Must be an nyu.edu email address."
             required={watch("role") === Role.STUDENT}
             pattern={{
               value: /^[A-Z0-9._%+-]+@nyu.edu$/i,
@@ -334,19 +336,12 @@ export default function FormInput({ calendarEventId, formContext }: Props) {
               required={false}
               description={
                 <p>
-                  If your reservation is in 233 or 1201 and requires a specific
-                  room setup that is different from the standard configuration,
-                  it is the reservation holder’s responsibility to submit a
-                  <a
-                    className="text-blue-600 hover:underline dark:text-blue-500 mx-1"
-                    href="https://nyu.service-now.com/csmp?id=sc_home"
-                    target="_blank"
-                  >
-                    work order with CBS
-                  </a>
-                  . <br />
-                  It is also the reservation holder's responsibility to ensure
-                  the room is reset after use.
+                  If your event needs a specific room setup with tables and chairs, 
+                  please provide a description below. In the description please include  
+                  # of chairs, # of tables, and formation. Depending on the scope, it may 
+                  be required to hire CBS services for the room set up which comes at a cost. 
+                  The Media Commons Team will procure the services needed for the Room Setup. 
+                  Please provide the chartfield below.
                 </p>
               }
               {...{ control, errors, trigger }}
@@ -422,8 +417,9 @@ export default function FormInput({ calendarEventId, formContext }: Props) {
               label="Catering?"
               description={
                 <p>
-                  It is required for the reservation holder to pay and arrange
-                  for CBS cleaning services if the event includes catering
+                  If the event includes catering, it is required for the reservation 
+                  holder to provide a chartfield so that the Media Commons Team can 
+                  obtain CBS Cleaning Services.
                 </p>
               }
               required={false}
@@ -439,7 +435,7 @@ export default function FormInput({ calendarEventId, formContext }: Props) {
                 />
                 <BookingFormTextField
                   id="chartFieldForCatering"
-                  label="ChartField for Catering"
+                  label="ChartField for CBS Cleaning Services"
                   {...{ control, errors, trigger }}
                 />
               </>
@@ -454,19 +450,10 @@ export default function FormInput({ calendarEventId, formContext }: Props) {
               required={false}
               description={
                 <p>
-                  Only for large events with 75+ attendees, and bookings in The
-                  Garage where the Willoughby entrance will be in use. Once your
-                  booking is confirmed, it is your responsibility to hire Campus
-                  Safety for your event. If appropriate, please coordinate with
-                  your departmental Scheduling Liaison to hire Campus Safety, as
-                  there is a fee.
-                  <a
-                    href="https://www.nyu.edu/life/safety-health-wellness/campus-safety.html"
-                    target="_blank"
-                    className="text-blue-600 hover:underline dark:text-blue-500 mx-1"
-                  >
-                    Click for Campus Safety Form
-                  </a>
+                  Only for large events with 75+ attendees, and bookings in 
+                  The Garage where the Willoughby entrance will be in use. 
+                  It is required for the reservation holder to provide a chartfield 
+                  so that the Media Commons Team can obtain Campus Safety Security Services.
                 </p>
               }
               {...{ control, errors, trigger }}
