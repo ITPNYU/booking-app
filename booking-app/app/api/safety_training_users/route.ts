@@ -33,7 +33,6 @@ export async function GET(request: NextRequest) {
       range: range,
       fields: "values",
     });
-    console.log("emails", response.data.values);
 
     const logEntry = {
       logName: process.env.NEXT_PUBLIC_GCP_LOG_NAME + "/safety-training",

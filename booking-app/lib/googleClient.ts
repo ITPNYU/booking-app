@@ -19,23 +19,16 @@ const refreshAccessTokenIfNeeded = async (oauth2Client) => {
     try {
       const { credentials } = await oauth2Client.refreshAccessToken();
       oauth2Client.setCredentials(credentials);
-      console.log("Access token refreshed successfully");
-      console.log(
-        "New token expiry:",
-        new Date(oauth2Client.credentials.expiry_date)
-      );
     } catch (error) {
       console.error("Error refreshing access token:", error);
       throw error;
     }
   } else {
-    console.log("Using existing access token");
   }
 };
 
 const getAuthenticatedClient = async () => {
   if (!cachedOAuth2Client) {
-    console.log("Creating new OAuth2 client");
     cachedOAuth2Client = createOAuth2Client();
     cachedOAuth2Client.setCredentials({
       refresh_token: process.env.GOOGLE_REFRESH_TOKEN,
