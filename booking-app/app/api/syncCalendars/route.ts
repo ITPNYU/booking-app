@@ -8,13 +8,21 @@ import { NextResponse } from "next/server";
 
 const db = admin.firestore();
 const areRoomIdsSame = (roomIds1: string, roomIds2: string): boolean => {
-  // Trim and split the room IDs, then sort both arrays
-  const sortedRoomIds1 = roomIds1.split(',').map(id => id.trim()).sort();
-  const sortedRoomIds2 = roomIds2.split(',').map(id => id.trim()).sort();
+  const toArray = (ids: string): string[] => {
+    return ids.includes(',') ? ids.split(',').map(id => id.trim()) : [ids.trim()];
+  };
+
+  const sortedRoomIds1 = toArray(roomIds1).sort();
+  const sortedRoomIds2 = toArray(roomIds2).sort();
   
-  // Compare the two arrays
-  return sortedRoomIds1.length === sortedRoomIds2.length &&
-         sortedRoomIds1.every((id, index) => id === sortedRoomIds2[index]);
+  console.log('Comparing room IDs:', { ids1: sortedRoomIds1, ids2: sortedRoomIds2 });
+
+  const areEqual = sortedRoomIds1.length === sortedRoomIds2.length &&
+                   sortedRoomIds1.every((id, index) => id === sortedRoomIds2[index]);
+
+  console.log('Comparison result:', areEqual);
+
+  return areEqual;
 };
 const createBookingWithDefaults = (
   partialBooking: Partial<Booking>,
