@@ -112,18 +112,20 @@ export const cancel = async (id: string) => {
   );
   //@ts-ignore
   const guestEmail = doc ? doc.email : null;
-  const headerMessage =
+  const userHeaderMessage =
     "Your reservation request for Media Commons has been cancelled. For detailed reasons regarding this decision, please contact us at mediacommons.reservations@nyu.edu.";
+  const adminHeaderMessage =
+    "This request has been canceled."
   clientSendBookingDetailEmail(
     id,
     guestEmail,
-    headerMessage,
+    userHeaderMessage,
     BookingStatusLabel.CANCELED
   );
   clientSendBookingDetailEmail(
     id,
     getCancelCcEmail(),
-    headerMessage,
+    adminHeaderMessage,
     BookingStatusLabel.CANCELED
   );
   const response = await fetch(
