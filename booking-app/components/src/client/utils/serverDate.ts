@@ -30,12 +30,6 @@ export const serverFormatDate = (
       timeZone,
     });
 
-    console.log("Input:", input);
-    console.log("Parsed Date:", date.toISOString());
-    console.log("Zoned Date:", zonedDate.toString());
-    console.log("Formatted Result:", formattedResult);
-    console.log("Timezone:", timeZone);
-
     return formattedResult;
   } catch (error) {
     console.error("Error formatting date:", error, "Input:", input);

@@ -29,7 +29,7 @@ export default function ConfirmDialog(props: Props) {
 
   const handleClose = (result: boolean) => {
     setOpen(false);
-    callback(result);
+    if (result) callback(result);
   };
 
   return (
