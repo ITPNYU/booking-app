@@ -173,10 +173,9 @@ export async function POST(request: Request) {
               // Update existing booking if roomIds contains multiple rooms and is different from the existing roomId
               const existingBooking = bookingSnapshot.docs[0];
               const existingData = existingBooking.data() as Booking;
-              
+              console.log("roomIds",roomIds)
+              console.log("existingData.roomId",existingData.roomId)
               if (roomIds.includes(',') && !areRoomIdsSame(roomIds, existingData.roomId)) {
-                console.log("roomIds",roomIds)
-                console.log("existingData.roomId",existingData.roomId)
                 await existingBooking.ref.update({ roomId: roomIds });
                 console.log(`Updated roomId for Booking ID: ${existingBooking.id}`);
                 totalUpdatedBookings++;
