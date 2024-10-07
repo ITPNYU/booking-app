@@ -8,12 +8,13 @@ import { NextResponse } from "next/server";
 
 const db = admin.firestore();
 const areRoomIdsSame = (roomIds1: string, roomIds2: string): boolean => {
+
   const toArray = (ids: string): string[] => {
     return ids.includes(',') ? ids.split(',').map(id => id.trim()) : [ids.trim()];
   };
 
-  const sortedRoomIds1 = toArray(roomIds1).sort();
-  const sortedRoomIds2 = toArray(roomIds2).sort();
+  const sortedRoomIds1 = toArray(String(roomIds1)).sort();
+  const sortedRoomIds2 = toArray(String(roomIds2)).sort();
   
   console.log('Comparing room IDs:', { ids1: sortedRoomIds1, ids2: sortedRoomIds2 });
 
