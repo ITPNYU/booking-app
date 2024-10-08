@@ -3,11 +3,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { serverApproveBooking } from "@/components/src/server/admin";
 
 export async function POST(req: NextRequest) {
-  const { id } = await req.json();
+  const { id, email } = await req.json();
 
   try {
-    console.log("id", id);
-    await serverApproveBooking(id);
+    await serverApproveBooking(id, email);
     return NextResponse.json(
       { message: "Approved successfully" },
       { status: 200 },
