@@ -40,6 +40,7 @@ interface Props {
   pageContext: PageContextLevel;
   status: BookingStatusLabel;
   startDate: Timestamp;
+  reason: string;
 }
 
 export default function useBookingActions({
@@ -47,8 +48,10 @@ export default function useBookingActions({
   pageContext,
   status,
   startDate,
+  reason,
 }: Props) {
   const [date, setDate] = useState(new Date());
+
   const { reloadExistingCalendarEvents } = useContext(BookingContext);
   const { userEmail } = useContext(DatabaseContext);
   const loadExistingBookingData = useExistingBooking();
@@ -98,7 +101,7 @@ export default function useBookingActions({
     },
     [Actions.DECLINE]: {
       action: async () => {
-        await decline(calendarEventId, userEmail);
+        await decline(calendarEventId, userEmail, reason);
       },
       optimisticNextStatus: BookingStatusLabel.DECLINED,
       confirmation: true,

@@ -1,6 +1,6 @@
 import { BookingStatusLabel, PageContextLevel } from "../../../../types";
 import { IconButton, MenuItem, Select } from "@mui/material";
-import React, { useContext, useState } from "react";
+import React, { useContext, useMemo, useState } from "react";
 import useBookingActions, {
   ActionDefinition,
   Actions,
@@ -10,6 +10,7 @@ import AlertToast from "../../components/AlertToast";
 import Check from "@mui/icons-material/Check";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import { DatabaseContext } from "../../components/Provider";
+import DeclineReasonDialog from "../../components/DeclineReasonDialog";
 import Loading from "../../components/Loading";
 import { Timestamp } from "@firebase/firestore";
 
@@ -35,12 +36,14 @@ export default function BookingActions(props: Props) {
   );
   const { reloadBookings, reloadBookingStatuses } = useContext(DatabaseContext);
   const [showError, setShowError] = useState(false);
+  const [reason, setReason] = useState<string>();
 
   const { actions, updateActions, options } = useBookingActions({
     status,
     calendarEventId,
     pageContext,
     startDate,
+    reason,
   });
 
   const reload = async () => {
@@ -78,6 +81,50 @@ export default function BookingActions(props: Props) {
       setUiLoading(false);
     }
   };
+
+  const onAction = useMemo(() => {
+    if (selectedAction === Actions.DECLINE) {
+      return (
+        <DeclineReasonDialog
+          callback={handleDialogChoice}
+          value={reason}
+          setValue={setReason}
+        >
+          <IconButton color={"primary"}>
+            <Check />
+          </IconButton>
+        </DeclineReasonDialog>
+      );
+    }
+
+    if (actions[selectedAction].confirmation === true) {
+      return (
+        <ConfirmDialog
+          message="Are you sure? This action can't be undone."
+          callback={handleDialogChoice}
+        >
+          <IconButton
+            disabled={selectedAction === Actions.PLACEHOLDER}
+            color={"primary"}
+          >
+            <Check />
+          </IconButton>
+        </ConfirmDialog>
+      );
+    }
+
+    return (
+      <IconButton
+        disabled={selectedAction === Actions.PLACEHOLDER}
+        color={"primary"}
+        onClick={() => {
+          handleDialogChoice(true);
+        }}
+      >
+        <Check />
+      </IconButton>
+    );
+  }, [selectedAction, reason]);
 
   if (options().length === 0) {
     return <></>;
@@ -119,28 +166,8 @@ export default function BookingActions(props: Props) {
       </Select>
       {uiLoading ? (
         <Loading style={{ height: "24px", width: "24px", margin: 8 }} />
-      ) : actions[selectedAction].confirmation === true ? (
-        <ConfirmDialog
-          message="Are you sure? This action can't be undone."
-          callback={handleDialogChoice}
-        >
-          <IconButton
-            disabled={selectedAction === Actions.PLACEHOLDER}
-            color={"primary"}
-          >
-            <Check />
-          </IconButton>
-        </ConfirmDialog>
       ) : (
-        <IconButton
-          disabled={selectedAction === Actions.PLACEHOLDER}
-          color={"primary"}
-          onClick={() => {
-            handleDialogChoice(true);
-          }}
-        >
-          <Check />
-        </IconButton>
+        onAction
       )}
       <AlertToast
         message="Failed to perform action on booking"
