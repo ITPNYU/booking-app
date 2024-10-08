@@ -1,6 +1,3 @@
-import { BookingStatusLabel, PageContextLevel } from "../../../../types";
-import { IconButton, MenuItem, Select } from "@mui/material";
-import React, { useContext, useMemo, useState } from "react";
 import {
   cancel,
   checkOut,
@@ -9,16 +6,19 @@ import {
   decline,
   noShow,
 } from "@/components/src/server/db";
+import { IconButton, MenuItem, Select } from "@mui/material";
+import { useContext, useMemo, useState } from "react";
+import { BookingStatusLabel, PageContextLevel } from "../../../../types";
 
-import AlertToast from "../../components/AlertToast";
-import { BookingContext } from "../../booking/bookingProvider";
-import Check from "@mui/icons-material/Check";
-import ConfirmDialog from "../../components/ConfirmDialog";
-import { DatabaseContext } from "../../components/Provider";
-import Loading from "../../components/Loading";
 import { Timestamp } from "@firebase/firestore";
-import useExistingBooking from "../hooks/useExistingBooking";
+import Check from "@mui/icons-material/Check";
 import { useRouter } from "next/navigation";
+import { BookingContext } from "../../booking/bookingProvider";
+import AlertToast from "../../components/AlertToast";
+import ConfirmDialog from "../../components/ConfirmDialog";
+import Loading from "../../components/Loading";
+import { DatabaseContext } from "../../components/Provider";
+import useExistingBooking from "../hooks/useExistingBooking";
 
 interface Props {
   calendarEventId: string;
@@ -65,7 +65,7 @@ export default function BookingActions({
   const [date, setDate] = useState(new Date());
   const router = useRouter();
   const loadExistingBookingData = useExistingBooking();
-
+  const { userEmail } = useContext(DatabaseContext);
   const reload = async () => {
     await Promise.all([reloadBookings(), reloadBookingStatuses()]);
   };
@@ -109,44 +109,44 @@ export default function BookingActions({
   const actions: { [key in Actions]: ActionDefinition } = {
     [Actions.CANCEL]: {
       action: async () => {
-        await cancel(calendarEventId);
+        await cancel(calendarEventId, userEmail);
       },
       optimisticNextStatus: BookingStatusLabel.CANCELED,
       confirmation: true,
     },
     [Actions.NO_SHOW]: {
       action: async () => {
-        await noShow(calendarEventId);
+        await noShow(calendarEventId, userEmail);
       },
       optimisticNextStatus: BookingStatusLabel.NO_SHOW,
     },
     [Actions.CHECK_IN]: {
       action: async () => {
-        await checkin(calendarEventId);
+        await checkin(calendarEventId, userEmail);
       },
       optimisticNextStatus: BookingStatusLabel.CHECKED_IN,
     },
     [Actions.CHECK_OUT]: {
       action: async () => {
-        await checkOut(calendarEventId);
+        await checkOut(calendarEventId, userEmail);
       },
       optimisticNextStatus: BookingStatusLabel.CHECKED_OUT,
     },
     [Actions.FIRST_APPROVE]: {
       action: async () => {
-        await clientApproveBooking(calendarEventId);
+        await clientApproveBooking(calendarEventId, userEmail);
       },
       optimisticNextStatus: BookingStatusLabel.PENDING,
     },
     [Actions.FINAL_APPROVE]: {
       action: async () => {
-        await clientApproveBooking(calendarEventId);
+        await clientApproveBooking(calendarEventId, userEmail);
       },
       optimisticNextStatus: BookingStatusLabel.APPROVED,
     },
     [Actions.DECLINE]: {
       action: async () => {
-        await decline(calendarEventId);
+        await decline(calendarEventId, userEmail);
       },
       optimisticNextStatus: BookingStatusLabel.DECLINED,
       confirmation: true,
