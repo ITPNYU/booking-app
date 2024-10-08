@@ -1,20 +1,20 @@
 import {
-  clientFetchAllDataFromCollection,
-  clientGetDataByCalendarEventId,
-  clientUpdateDataInFirestore,
-} from "@/lib/firebase/firebase";
-import { Timestamp, where } from "@firebase/firestore";
+  BookingFormDetails,
+  BookingStatusLabel,
+  PolicySettings,
+} from "../types";
 import {
   TableNames,
   clientGetFinalApproverEmail,
   getCancelCcEmail,
 } from "../policy";
-import {
-  BookingFormDetails,
-  BookingStatusLabel,
-  PolicySettings,
-} from "../types";
+import { Timestamp, where } from "@firebase/firestore";
 import { approvalUrl, declineUrl, getBookingToolDeployUrl } from "./ui";
+import {
+  clientFetchAllDataFromCollection,
+  clientGetDataByCalendarEventId,
+  clientUpdateDataInFirestore,
+} from "@/lib/firebase/firebase";
 
 import { clientUpdateDataByCalendarEventId } from "@/lib/firebase/client/clientDb";
 import { roundTimeUp } from "../client/utils/date";
@@ -69,10 +69,9 @@ export const getOldSafetyTrainingEmails = () => {
   //return combinedValues;
 };
 
-export const decline = async (id: string, email: string, reason?: string) => {
+export const decline = async (id: string) => {
   clientUpdateDataByCalendarEventId(TableNames.BOOKING_STATUS, id, {
     declinedAt: Timestamp.now(),
-    declinedBy: email,
   });
 
   const doc = await clientGetDataByCalendarEventId(
@@ -81,15 +80,8 @@ export const decline = async (id: string, email: string, reason?: string) => {
   );
   //@ts-ignore
   const guestEmail = doc ? doc.email : null;
-  let headerMessage =
-    "Your reservation request for Media Commons has been declined.";
-
-  if (reason) {
-    headerMessage += ` Reason: ${reason}`;
-  } else {
-    headerMessage +=
-      " For detailed reasons regarding this decision, please contact us at mediacommons.reservations@nyu.edu.";
-  }
+  const headerMessage =
+    "Your reservation request for Media Commons has been declined. For detailed reasons regarding this decision, please contact us at mediacommons.reservations@nyu.edu.";
   clientSendBookingDetailEmail(
     id,
     guestEmail,
@@ -110,10 +102,9 @@ export const decline = async (id: string, email: string, reason?: string) => {
     }
   );
 };
-export const cancel = async (id: string, email: string) => {
+export const cancel = async (id: string) => {
   clientUpdateDataByCalendarEventId(TableNames.BOOKING_STATUS, id, {
     canceledAt: Timestamp.now(),
-    canceledBy: email,
   });
   const doc = await clientGetDataByCalendarEventId(
     TableNames.BOOKING_STATUS,
@@ -165,10 +156,9 @@ export const updatePolicySettingData = async (updatedData: object) => {
     console.log("No policy settings docs found");
   }
 };
-export const checkin = async (id: string, email: string) => {
+export const checkin = async (id: string) => {
   clientUpdateDataByCalendarEventId(TableNames.BOOKING_STATUS, id, {
     checkedInAt: Timestamp.now(),
-    checkedInBy: email,
   });
   const doc = await clientGetDataByCalendarEventId(
     TableNames.BOOKING_STATUS,
@@ -200,11 +190,10 @@ export const checkin = async (id: string, email: string) => {
   );
 };
 
-export const checkOut = async (id: string, email: string) => {
+export const checkOut = async (id: string) => {
   const checkoutDate = roundTimeUp();
   clientUpdateDataByCalendarEventId(TableNames.BOOKING_STATUS, id, {
     checkedOutAt: Timestamp.now(),
-    checkedOutBy: email,
   });
   clientUpdateDataByCalendarEventId(TableNames.BOOKING, id, {
     endDate: Timestamp.fromDate(checkoutDate),
@@ -245,10 +234,9 @@ export const checkOut = async (id: string, email: string) => {
   );
 };
 
-export const noShow = async (id: string, email: email) => {
+export const noShow = async (id: string) => {
   clientUpdateDataByCalendarEventId(TableNames.BOOKING_STATUS, id, {
     noShowedAt: Timestamp.now(),
-    noShowedBy: email,
   });
   const doc = await clientGetDataByCalendarEventId(
     TableNames.BOOKING_STATUS,
@@ -336,12 +324,12 @@ export const clientSendConfirmationEmail = async (
   clientSendBookingDetailEmail(calendarEventId, email, headerMessage, status);
 };
 
-export const clientApproveBooking = async (id: string, email: string) => {
+export const clientApproveBooking = async (id: string) => {
   const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/approve`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ id: id, email: email }),
+    body: JSON.stringify({ id: id }),
   });
 };
