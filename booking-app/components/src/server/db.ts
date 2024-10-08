@@ -245,7 +245,7 @@ export const checkOut = async (id: string, email: string) => {
   );
 };
 
-export const noShow = async (id: string, email: email) => {
+export const noShow = async (id: string, email: string) => {
   clientUpdateDataByCalendarEventId(TableNames.BOOKING_STATUS, id, {
     noShowedAt: Timestamp.now(),
     noShowedBy: email,
