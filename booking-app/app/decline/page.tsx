@@ -1,10 +1,12 @@
 "use client";
-
-import React, { Suspense, useState } from "react";
-
-import { Button } from "@mui/material";
-import { useSearchParams } from "next/navigation";
+import {
+  DatabaseContext,
+  DatabaseProvider,
+} from "@/components/src/client/routes/components/Provider";
 import { decline } from "@/components/src/server/db";
+import { Button, TextField } from "@mui/material";
+import { useSearchParams } from "next/navigation";
+import React, { Suspense, useContext, useState } from "react";
 
 const DeclinePageContent: React.FC = () => {
   const searchParams = useSearchParams();
@@ -12,19 +14,24 @@ const DeclinePageContent: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [declined, setDeclined] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [reason, setReason] = useState("");
+  const { userEmail } = useContext(DatabaseContext);
 
   const handleDecline = async () => {
-    if (paramCalendarEventId) {
+    if (paramCalendarEventId && reason.trim()) {
       setLoading(true);
       setError(null);
       try {
-        await decline(paramCalendarEventId);
+        await decline(paramCalendarEventId, userEmail, reason);
         setDeclined(true);
       } catch (err) {
         setError("Failed to decline booking.");
+        console.log(err);
       } finally {
         setLoading(false);
       }
+    } else {
+      setError("Please provide a reason for declining.");
     }
   };
 
@@ -34,9 +41,20 @@ const DeclinePageContent: React.FC = () => {
       {paramCalendarEventId ? (
         <div>
           <p>Event ID: {paramCalendarEventId}</p>
+          <TextField
+            label="Reason for Declining"
+            variant="outlined"
+            fullWidth
+            multiline
+            rows={4}
+            value={reason}
+            onChange={e => setReason(e.target.value)}
+            style={{ marginBottom: 16 }}
+            required
+          />
           <Button
             onClick={() => handleDecline()}
-            disabled={loading || declined}
+            disabled={loading || declined || !reason.trim()}
             variant="contained"
           >
             {loading
@@ -55,9 +73,11 @@ const DeclinePageContent: React.FC = () => {
 };
 
 const DeclinePage: React.FC = () => (
-  <Suspense fallback={<div>Loading...</div>}>
-    <DeclinePageContent />
-  </Suspense>
+  <DatabaseProvider>
+    <Suspense fallback={<div>Loading...</div>}>
+      <DeclinePageContent />
+    </Suspense>
+  </DatabaseProvider>
 );
 
 export default DeclinePage;
