@@ -73,6 +73,7 @@ export const decline = async (id: string, email: string, reason?: string) => {
   clientUpdateDataByCalendarEventId(TableNames.BOOKING_STATUS, id, {
     declinedAt: Timestamp.now(),
     declinedBy: email,
+    declineReason: reason || null,
   });
 
   const doc = await clientGetDataByCalendarEventId(
