@@ -10,6 +10,7 @@ import {
 import { useContext, useMemo, useState } from "react";
 
 import { BookingContext } from "../../booking/bookingProvider";
+import { DatabaseContext } from "../../components/Provider";
 import { Timestamp } from "@firebase/firestore";
 import useExistingBooking from "./useExistingBooking";
 import { useRouter } from "next/navigation";
@@ -49,6 +50,7 @@ export default function useBookingActions({
 }: Props) {
   const [date, setDate] = useState(new Date());
   const { reloadExistingCalendarEvents } = useContext(BookingContext);
+  const { userEmail } = useContext(DatabaseContext);
   const loadExistingBookingData = useExistingBooking();
   const router = useRouter();
 
@@ -59,44 +61,44 @@ export default function useBookingActions({
   const actions: { [key in Actions]: ActionDefinition } = {
     [Actions.CANCEL]: {
       action: async () => {
-        await cancel(calendarEventId);
+        await cancel(calendarEventId, userEmail);
       },
       optimisticNextStatus: BookingStatusLabel.CANCELED,
       confirmation: true,
     },
     [Actions.NO_SHOW]: {
       action: async () => {
-        await noShow(calendarEventId);
+        await noShow(calendarEventId, userEmail);
       },
       optimisticNextStatus: BookingStatusLabel.NO_SHOW,
     },
     [Actions.CHECK_IN]: {
       action: async () => {
-        await checkin(calendarEventId);
+        await checkin(calendarEventId, userEmail);
       },
       optimisticNextStatus: BookingStatusLabel.CHECKED_IN,
     },
     [Actions.CHECK_OUT]: {
       action: async () => {
-        await checkOut(calendarEventId);
+        await checkOut(calendarEventId, userEmail);
       },
       optimisticNextStatus: BookingStatusLabel.CHECKED_OUT,
     },
     [Actions.FIRST_APPROVE]: {
       action: async () => {
-        await clientApproveBooking(calendarEventId);
+        await clientApproveBooking(calendarEventId, userEmail);
       },
       optimisticNextStatus: BookingStatusLabel.PENDING,
     },
     [Actions.FINAL_APPROVE]: {
       action: async () => {
-        await clientApproveBooking(calendarEventId);
+        await clientApproveBooking(calendarEventId, userEmail);
       },
       optimisticNextStatus: BookingStatusLabel.APPROVED,
     },
     [Actions.DECLINE]: {
       action: async () => {
-        await decline(calendarEventId);
+        await decline(calendarEventId, userEmail);
       },
       optimisticNextStatus: BookingStatusLabel.DECLINED,
       confirmation: true,

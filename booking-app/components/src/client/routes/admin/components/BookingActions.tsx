@@ -35,6 +35,7 @@ export default function BookingActions(props: Props) {
   );
   const { reloadBookings, reloadBookingStatuses } = useContext(DatabaseContext);
   const [showError, setShowError] = useState(false);
+
   const { actions, updateActions, options } = useBookingActions({
     status,
     calendarEventId,
