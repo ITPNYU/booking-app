@@ -6,18 +6,22 @@ import {
   Table,
   TableBody,
   TableCell,
+  TableHead,
   TableRow,
   Typography,
 } from "@mui/material";
+import { BookingRow, BookingStatusLabel } from "../../../../types";
 
-import { BookingRow } from "../../../../types";
+import { default as CustomTable } from "../Table";
 import { Event } from "@mui/icons-material";
 import Grid from "@mui/material/Unstable_Grid2/Grid2";
 import React from "react";
 import { RoomDetails } from "../../booking/components/BookingSelection";
 import StackedTableCell from "./StackedTableCell";
+import StatusChip from "./StatusChip";
 import { formatTimeAmPm } from "../../../utils/date";
 import { styled } from "@mui/system";
+import useSortBookingHistory from "../../hooks/useSortBookingHistory";
 
 interface Props {
   booking: BookingRow;
@@ -37,6 +41,10 @@ const modalStyle = {
   padding: 4,
   overflowY: "scroll",
 };
+
+const StatusTable = styled(CustomTable)({
+  width: "100%",
+});
 
 const SectionTitle = styled(Typography)({});
 SectionTitle.defaultProps = {
@@ -60,6 +68,15 @@ const AlertHeader = styled(Alert)(({ theme }) => ({
 const BLANK = "None";
 
 export default function MoreInfoModal({ booking, closeModal }: Props) {
+  const historyRows = useSortBookingHistory(booking);
+
+  const historyCols = [
+    <TableCell key="status">Status</TableCell>,
+    <TableCell key="user">User</TableCell>,
+    <TableCell key="date">Date</TableCell>,
+    <TableCell key="note">Note</TableCell>,
+  ];
+
   return (
     <Modal open={booking != null} onClose={closeModal}>
       <Box sx={modalStyle}>
@@ -88,6 +105,10 @@ export default function MoreInfoModal({ booking, closeModal }: Props) {
           </RoomDetails>
         </AlertHeader>
         <Grid container columnSpacing={2}>
+          <StatusTable columns={historyCols} sx={{ marginBottom: 3 }}>
+            {historyRows}
+          </StatusTable>
+
           <SectionTitle>Requestor</SectionTitle>
           <Table size="small" sx={{ marginBottom: 3 }}>
             <TableBody>

@@ -43,12 +43,20 @@ export type BookingStatus = {
   email: string;
   requestedAt: Timestamp;
   firstApprovedAt: Timestamp;
+  firstApprovedBy: string;
   finalApprovedAt: Timestamp;
+  finalApprovedBy: string;
   declinedAt: Timestamp;
+  declinedBy: string;
+  declineReason: string;
   canceledAt: Timestamp;
+  canceledBy: string;
   checkedInAt: Timestamp;
+  checkedInBy: string;
   checkedOutAt: Timestamp;
+  checkedOutBy: string;
   noShowedAt: Timestamp;
+  noShowedBy: string;
   walkedInAt: Timestamp;
 };
 
