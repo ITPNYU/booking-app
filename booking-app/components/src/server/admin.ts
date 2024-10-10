@@ -1,11 +1,4 @@
 import {
-  BookingFormDetails,
-  BookingStatus,
-  BookingStatusLabel,
-  PolicySettings,
-  RoomSetting,
-} from "../types";
-import {
   Constraint,
   serverDeleteData,
   serverFetchAllDataFromCollection,
@@ -14,6 +7,12 @@ import {
   serverUpdateInFirestore,
 } from "@/lib/firebase/server/adminDb";
 import { TableNames, getApprovalCcEmail } from "../policy";
+import {
+  BookingFormDetails,
+  BookingStatus,
+  BookingStatusLabel,
+  RoomSetting,
+} from "../types";
 import { approvalUrl, declineUrl, getBookingToolDeployUrl } from "./ui";
 
 import { Timestamp } from "firebase-admin/firestore";
@@ -72,15 +71,17 @@ export const serverDeleteDataByCalendarEventId = async (
 };
 
 // from server
-const serverFirstApprove = (id: string) => {
+const serverFirstApprove = (id: string, email?: string) => {
   serverUpdateDataByCalendarEventId(TableNames.BOOKING_STATUS, id, {
     firstApprovedAt: Timestamp.now(),
+    firstApprovedBy: email,
   });
 };
 
-const serverFinalApprove = (id: string) => {
+const serverFinalApprove = (id: string, email?: string) => {
   serverUpdateDataByCalendarEventId(TableNames.BOOKING_STATUS, id, {
     finalApprovedAt: Timestamp.now(),
+    finalApprovedBy: email,
   });
 };
 
@@ -92,7 +93,7 @@ export const serverApproveInstantBooking = (id: string) => {
 };
 
 // both first approve and second approve flows hit here
-export const serverApproveBooking = async (id: string) => {
+export const serverApproveBooking = async (id: string, email: string) => {
   const bookingStatus = await serverGetDataByCalendarEventId<BookingStatus>(
     TableNames.BOOKING_STATUS,
     id
@@ -106,10 +107,11 @@ export const serverApproveBooking = async (id: string) => {
 
   // if already first approved, then this is a second approve
   if (firstApproveDateRange !== null) {
-    serverFinalApprove(id);
+    serverFinalApprove(id, email);
     await serverApproveEvent(id);
   } else {
-    serverFirstApprove(id);
+    console.log("email", email);
+    serverFirstApprove(id, email);
 
     const response = await fetch(
       `${process.env.NEXT_PUBLIC_BASE_URL}/api/calendarEvents`,
