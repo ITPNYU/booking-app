@@ -7,7 +7,7 @@ import {
   DatabaseProvider,
 } from "@/components/src/client/routes/components/Provider";
 
-import { Button } from "@mui/material";
+import { Button, TextField } from "@mui/material";
 import { useSearchParams } from "next/navigation";
 import { clientApproveBooking } from "@/components/src/server/db";
 import { decline } from "@/components/src/server/db";
@@ -21,6 +21,7 @@ const ApproveDeclinePageContent: React.FC = () => {
   const [approved, setApproved] = useState(false);
   const [notApproved, setNotApproved] = useState(false);
   const [notDeclined, setNotDeclined] = useState(false);
+  const [reason, setReason] = useState("");
   const { userEmail } = useContext(DatabaseContext);
 
   const handleApprove = async () => {
@@ -41,7 +42,7 @@ const ApproveDeclinePageContent: React.FC = () => {
   };
 
   const handleDecline = async () => {
-    if (paramCalendarEventId) {
+    if (paramCalendarEventId && reason.trim()) {
       setNotApproved(true);
       setLoading(true);
       setError(null);
@@ -54,6 +55,8 @@ const ApproveDeclinePageContent: React.FC = () => {
       } finally {
         setLoading(false);
       }
+    } else {
+      setError("Please provide a reason for declining.");
     }
   };
 
@@ -63,6 +66,7 @@ const ApproveDeclinePageContent: React.FC = () => {
       {paramCalendarEventId ? (
         <div>
           <p>Event ID: {paramCalendarEventId}</p>
+          <p>Email: {userEmail}</p>
           {!(notApproved) && (
             <Button
               onClick={() => handleApprove()}
@@ -89,6 +93,18 @@ const ApproveDeclinePageContent: React.FC = () => {
                   ? "Declined"
                   : "Decline Booking"}
             </Button>
+          )}
+          {!(notDeclined) && (
+          <TextField
+            label="Reason for Declining"
+            variant="outlined"
+            multiline
+            rows={4}
+            value={reason}
+            onChange={e => setReason(e.target.value)}
+            style={{ marginLeft: 24, marginBottom: 16, width: 400}}
+            required
+          />
           )}
           {error && <p style={{ color: "red" }}>{error}</p>}
         </div>
