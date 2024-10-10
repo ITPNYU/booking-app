@@ -13,7 +13,7 @@ import {
   BookingStatusLabel,
   RoomSetting,
 } from "../types";
-import { approvalUrl, declineUrl, getBookingToolDeployUrl } from "./ui";
+import { reviewUrl, getBookingToolDeployUrl } from "./ui";
 
 import { Timestamp } from "firebase-admin/firestore";
 
@@ -22,9 +22,8 @@ export const serverBookingContents = (id: string) => {
     .then((bookingObj) => {
       const updatedBookingObj = Object.assign({}, bookingObj, {
         headerMessage: "This is a request email for final approval.",
-        approvalUrl: approvalUrl(id),
+        reviewUrl: reviewUrl(id),
         bookingToolUrl: getBookingToolDeployUrl(),
-        declineUrl: declineUrl(id),
       });
 
       return updatedBookingObj as unknown as BookingFormDetails;

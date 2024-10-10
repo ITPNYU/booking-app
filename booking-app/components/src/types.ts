@@ -32,9 +32,8 @@ export type BookingRow = Booking & {
 };
 
 export type BookingFormDetails = Booking & {
-  approvalUrl: string;
+  reviewUrl: string;
   bookingToolUrl: string;
-  declinedUrl: string;
   headerMessage?: string;
 };
 

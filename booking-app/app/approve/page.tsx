@@ -62,7 +62,7 @@ const ApproveDeclinePageContent: React.FC = () => {
 
   return (
     <div style={{ padding: 24 }}>
-      <h1>Booking Approve/Decline</h1>
+      <h1>Booking Review</h1>
       {paramCalendarEventId ? (
         <div>
           <p>Event ID: {paramCalendarEventId}</p>
@@ -83,7 +83,7 @@ const ApproveDeclinePageContent: React.FC = () => {
           {!(notDeclined) && (
             <Button
               onClick={() => handleDecline()}
-              disabled={loading || declined || notDeclined || !reason.trim()}
+              disabled={loading || declined || notDeclined}
               variant="contained"
               style={{marginLeft: declined ? "0px" : "24px"  }}
             >
