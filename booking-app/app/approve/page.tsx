@@ -70,7 +70,7 @@ const ApproveDeclinePageContent: React.FC = () => {
           {!(notApproved) && (
             <Button
               onClick={() => handleApprove()}
-              disabled={loading || approved}
+              disabled={loading || approved || notApproved}
               variant="contained"
             >
               {loading
@@ -83,7 +83,7 @@ const ApproveDeclinePageContent: React.FC = () => {
           {!(notDeclined) && (
             <Button
               onClick={() => handleDecline()}
-              disabled={loading || declined || notDeclined}
+              disabled={loading || declined || notDeclined || !reason.trim()}
               variant="contained"
               style={{marginLeft: declined ? "0px" : "24px"  }}
             >
