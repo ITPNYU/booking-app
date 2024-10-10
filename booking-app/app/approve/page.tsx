@@ -116,10 +116,12 @@ const ApproveDeclinePageContent: React.FC = () => {
 };
 
 const ApproveDeclinePage: React.FC = () => (
-  <Suspense fallback={<div>Loading...</div>}>
-    <ApproveDeclinePageContent />
-  </Suspense>
-);
+    <DatabaseProvider>
+      <Suspense fallback={<div>Loading...</div>}>
+        <ApproveDeclinePageContent />
+      </Suspense>
+    </DatabaseProvider>
+  );
 
 export default ApproveDeclinePage;
 
