@@ -89,7 +89,7 @@ export default function useSortBookingHistory(booking: BookingRow) {
   }, [booking, status]);
 
   return rows
-    .sort((a, b) => b.time.toMillis() - a.time.toMillis())
+    .sort((a, b) => a.time.toMillis() - b.time.toMillis())
     .map((row, i) => (
       <TableRow key={i}>
         <TableCell>
