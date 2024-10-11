@@ -2,7 +2,6 @@ import {
   BookingFormDetails,
   BookingStatus,
   BookingStatusLabel,
-  PolicySettings,
   RoomSetting,
 } from "../types";
 import {
@@ -72,27 +71,29 @@ export const serverDeleteDataByCalendarEventId = async (
 };
 
 // from server
-const serverFirstApprove = (id: string) => {
+const serverFirstApprove = (id: string, email?: string) => {
   serverUpdateDataByCalendarEventId(TableNames.BOOKING_STATUS, id, {
     firstApprovedAt: Timestamp.now(),
+    firstApprovedBy: email,
   });
 };
 
-const serverFinalApprove = (id: string) => {
+const serverFinalApprove = (id: string, email?: string) => {
   serverUpdateDataByCalendarEventId(TableNames.BOOKING_STATUS, id, {
     finalApprovedAt: Timestamp.now(),
+    finalApprovedBy: email,
   });
 };
 
 //server
 export const serverApproveInstantBooking = (id: string) => {
-  serverFirstApprove(id);
-  serverFinalApprove(id);
+  serverFirstApprove(id, "");
+  serverFinalApprove(id, "");
   serverApproveEvent(id);
 };
 
 // both first approve and second approve flows hit here
-export const serverApproveBooking = async (id: string) => {
+export const serverApproveBooking = async (id: string, email: string) => {
   const bookingStatus = await serverGetDataByCalendarEventId<BookingStatus>(
     TableNames.BOOKING_STATUS,
     id
@@ -106,10 +107,11 @@ export const serverApproveBooking = async (id: string) => {
 
   // if already first approved, then this is a second approve
   if (firstApproveDateRange !== null) {
-    serverFinalApprove(id);
+    serverFinalApprove(id, email);
     await serverApproveEvent(id);
   } else {
-    serverFirstApprove(id);
+    console.log("email", email);
+    serverFirstApprove(id, email);
 
     const response = await fetch(
       `${process.env.NEXT_PUBLIC_BASE_URL}/api/calendarEvents`,

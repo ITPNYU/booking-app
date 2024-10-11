@@ -108,25 +108,25 @@ export default function StatusChip({
   const tooltipText = useMemo(() => {
     switch (status) {
       case BookingStatusLabel.APPROVED:
-        return "Your request has been fully approved!";
+        return "Your request has been approved!";
       case BookingStatusLabel.CANCELED:
-        return "You have canceled your request";
+        return "Your request has been canceled.";
       case BookingStatusLabel.CHECKED_IN:
-        return "Your reservation has begun, thank you for checking in at the front desk";
+        return "Your reservation has begun, thank you for checking in at the front desk.";
       case BookingStatusLabel.CHECKED_OUT:
-        return "Your reservation has ended";
+        return "Your reservation has ended.";
       case BookingStatusLabel.NO_SHOW:
-        return "You did not show up in time for your reservation. Your booking has been forfeited";
+        return "Your reservation has been cancelled as you did not check in on time.";
       case BookingStatusLabel.PENDING:
-        return "Your request has been partially approved, still pending final approval";
+        return "Your request has been partially approved, still pending final approval.";
       case BookingStatusLabel.DECLINED:
-        return "Your request has been declined";
+        return "Your request has been declined.";
       case BookingStatusLabel.REQUESTED:
-        return "Your request has been received and is pending approval";
+        return "Your request has been received and is pending approval.";
       case BookingStatusLabel.UNKNOWN:
-        return "Unable to determine the status of this request";
+        return "Unable to determine the status of this request.";
       case BookingStatusLabel.WALK_IN:
-        return "This request was booked as a walk-in";
+        return "This request has been booked as a walk-in session.";
     }
   }, [status]);
 
