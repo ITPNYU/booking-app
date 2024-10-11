@@ -8,7 +8,7 @@ export const ACTIVE_SHEET_ID = "1MnWbn6bvNyMiawddtYYx0tRW4NMgvugl0I8zBO3sy68";
 
 export enum TableNames {
   ADMINS = "usersAdmin",
-  APPROVERS = "usersLiaison",
+  APPROVERS = "usersApprovers",
   BANNED = "usersBanned",
   BOOKING = "bookings",
   BOOKING_STATUS = "bookingStatus",
