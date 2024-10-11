@@ -1,5 +1,6 @@
 import { Box, Button, Typography } from "@mui/material";
 import React, { useState } from "react";
+
 import AlertToast from "../../components/AlertToast";
 
 const SyncCalendars = () => {
@@ -32,6 +33,18 @@ const SyncCalendars = () => {
     }
   };
 
+  const duplicate = async () => {
+    await fetch("/api/db", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        newCollection: "usersApprovers",
+      }),
+    });
+  };
+
   return (
     <Box>
       <Typography variant="h6">
@@ -47,6 +60,7 @@ const SyncCalendars = () => {
           Sync Calendar Events
         </Button>
       </Box>
+      <Button onClick={duplicate}>Duplicate</Button>
       <AlertToast
         message={message}
         severity={alertSeverity}
