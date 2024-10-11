@@ -19,7 +19,6 @@ import {
   fetchAllFutureBookingStatus,
 } from "@/components/src/server/db";
 
-import { Liaisons } from "../admin/components/Liaisons";
 import { TableNames } from "@/components/src/policy";
 import { clientFetchAllDataFromCollection } from "@/lib/firebase/firebase";
 import { useAuth } from "@/components/src/client/routes/components/AuthProvider";
@@ -151,7 +150,7 @@ export const DatabaseProvider = ({
           email: item.email,
           startDate: item.startDate,
           endDate: item.endDate,
-          roomId: item.roomId,
+          roomId: String(item.roomId),
           user: item.user,
           room: item.room,
           startTime: item.startTime,

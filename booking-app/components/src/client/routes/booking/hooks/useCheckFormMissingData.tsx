@@ -10,7 +10,8 @@ export default function useCheckFormMissingData() {
   const { role, department, selectedRooms, bookingCalendarInfo, formData } =
     useContext(BookingContext);
 
-  const hasAffiliationFields = role && department;
+  const hasAffiliationFields =
+    (role && department) || pathname.includes("/modification");
   const hasRoomSelectionFields =
     selectedRooms &&
     bookingCalendarInfo &&

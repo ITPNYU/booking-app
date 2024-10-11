@@ -1,4 +1,10 @@
 import {
+  BookingFormDetails,
+  BookingStatus,
+  BookingStatusLabel,
+  RoomSetting,
+} from "../types";
+import {
   Constraint,
   serverDeleteData,
   serverFetchAllDataFromCollection,
@@ -7,12 +13,6 @@ import {
   serverUpdateInFirestore,
 } from "@/lib/firebase/server/adminDb";
 import { TableNames, getApprovalCcEmail } from "../policy";
-import {
-  BookingFormDetails,
-  BookingStatus,
-  BookingStatusLabel,
-  RoomSetting,
-} from "../types";
 import { approvalUrl, declineUrl, getBookingToolDeployUrl } from "./ui";
 
 import { Timestamp } from "firebase-admin/firestore";
@@ -87,8 +87,8 @@ const serverFinalApprove = (id: string, email?: string) => {
 
 //server
 export const serverApproveInstantBooking = (id: string) => {
-  serverFirstApprove(id);
-  serverFinalApprove(id);
+  serverFirstApprove(id, "");
+  serverFinalApprove(id, "");
   serverApproveEvent(id);
 };
 
