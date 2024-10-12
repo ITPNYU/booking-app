@@ -31,15 +31,8 @@ interface BookingsProps {
 }
 
 export const Bookings: React.FC<BookingsProps> = ({ pageContext }) => {
-  const {
-    bookings,
-    bookingsLoading,
-    bookingStatuses,
-    liaisonUsers,
-    userEmail,
-    reloadBookings,
-    reloadBookingStatuses,
-  } = useContext(DatabaseContext);
+  const { bookings, bookingsLoading, liaisonUsers, userEmail, reloadBookings } =
+    useContext(DatabaseContext);
 
   const [modalData, setModalData] = useState<BookingRow>(null);
   const [statusFilters, setStatusFilters] = useState([]);
@@ -52,7 +45,6 @@ export const Bookings: React.FC<BookingsProps> = ({ pageContext }) => {
   const isUserView = pageContext === PageContextLevel.USER;
 
   useEffect(() => {
-    reloadBookingStatuses();
     reloadBookings();
   }, []);
 
@@ -60,9 +52,9 @@ export const Bookings: React.FC<BookingsProps> = ({ pageContext }) => {
     () =>
       bookings.map((booking) => ({
         ...booking,
-        status: getBookingStatus(booking, bookingStatuses),
+        status: getBookingStatus(booking),
       })),
-    [bookings, bookingStatuses]
+    [bookings]
   );
 
   useEffect(() => {
