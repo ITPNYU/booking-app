@@ -16,15 +16,16 @@ export type Ban = {
   bannedAt: string;
 };
 
-export type Booking = Inputs & {
-  calendarEventId: string;
-  email: string;
-  startDate: Timestamp;
-  endDate: Timestamp;
-  roomId: string;
-  requestNumber: number;
-  equipmentCheckedOut: boolean;
-};
+export type Booking = Inputs &
+  BookingStatus & {
+    calendarEventId: string;
+    email: string;
+    startDate: Timestamp;
+    endDate: Timestamp;
+    roomId: string;
+    requestNumber: number;
+    equipmentCheckedOut: boolean;
+  };
 
 // used for Booking table rows that show status
 export type BookingRow = Booking & {

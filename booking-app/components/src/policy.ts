@@ -11,7 +11,6 @@ export enum TableNames {
   APPROVERS = "usersLiaison",
   BANNED = "usersBanned",
   BOOKING = "bookings",
-  BOOKING_STATUS = "bookingStatus",
   BOOKING_TYPES = "bookingTypes",
   DEPARTMENTS = "departments",
   PAS = "usersPa",
