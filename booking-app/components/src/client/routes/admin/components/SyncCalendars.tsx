@@ -2,6 +2,7 @@ import { Box, Button, Typography } from "@mui/material";
 import React, { useState } from "react";
 
 import AlertToast from "../../components/AlertToast";
+import { TableNames } from "@/components/src/policy";
 
 const SyncCalendars = () => {
   const [loading, setLoading] = useState(false);
@@ -33,17 +34,18 @@ const SyncCalendars = () => {
     }
   };
 
-  const duplicate = async () => {
-    await fetch("/api/db", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        newCollection: "usersApprovers",
-      }),
-    });
-  };
+  // const duplicate = async () => {
+  //   await fetch("/api/db/duplicate", {
+  //     method: "DELETE",
+  //     headers: {
+  //       "Content-Type": "application/json",
+  //     },
+  //     body: JSON.stringify({
+  //       source: TableNames.BOOKING_STATUS,
+  //       destination: TableNames.BOOKING,
+  //     }),
+  //   });
+  // };
 
   return (
     <Box>
@@ -60,7 +62,7 @@ const SyncCalendars = () => {
           Sync Calendar Events
         </Button>
       </Box>
-      <Button onClick={duplicate}>Duplicate</Button>
+      {/* <Button onClick={duplicate}>Duplicate</Button> */}
       <AlertToast
         message={message}
         severity={alertSeverity}

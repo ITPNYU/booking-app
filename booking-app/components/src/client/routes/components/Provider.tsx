@@ -321,12 +321,15 @@ export const DatabaseProvider = ({
   const fetchLiaisonUsers = async () => {
     clientFetchAllDataFromCollection(TableNames.APPROVERS)
       .then((fetchedData) => {
-        const filtered = fetchedData.map((item: any) => ({
-          id: item.id,
-          email: item.email,
-          department: item.department,
-          createdAt: item.createdAt,
-        }));
+        const filtered = fetchedData
+          .map((item: any) => ({
+            id: item.id,
+            email: item.email,
+            department: item.department,
+            createdAt: item.createdAt,
+            level: Number(item.level),
+          }))
+          .filter((x) => x.level === 1);
         setLiaisonUsers(filtered);
       })
       .catch((error) => console.error("Error fetching data:", error));
