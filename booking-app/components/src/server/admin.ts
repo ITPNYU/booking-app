@@ -72,14 +72,14 @@ export const serverDeleteDataByCalendarEventId = async (
 
 // from server
 const serverFirstApprove = (id: string, email?: string) => {
-  serverUpdateDataByCalendarEventId(TableNames.BOOKING_STATUS, id, {
+  serverUpdateDataByCalendarEventId(TableNames.BOOKING, id, {
     firstApprovedAt: Timestamp.now(),
     firstApprovedBy: email,
   });
 };
 
 const serverFinalApprove = (id: string, email?: string) => {
-  serverUpdateDataByCalendarEventId(TableNames.BOOKING_STATUS, id, {
+  serverUpdateDataByCalendarEventId(TableNames.BOOKING, id, {
     finalApprovedAt: Timestamp.now(),
     finalApprovedBy: email,
   });
@@ -95,7 +95,7 @@ export const serverApproveInstantBooking = (id: string) => {
 // both first approve and second approve flows hit here
 export const serverApproveBooking = async (id: string, email: string) => {
   const bookingStatus = await serverGetDataByCalendarEventId<BookingStatus>(
-    TableNames.BOOKING_STATUS,
+    TableNames.BOOKING,
     id
   );
   const firstApproveDateRange =
@@ -193,10 +193,7 @@ export const serverSendBookingDetailEmail = async (
 
 //server
 export const serverApproveEvent = async (id: string) => {
-  const doc = await serverGetDataByCalendarEventId(
-    TableNames.BOOKING_STATUS,
-    id
-  );
+  const doc = await serverGetDataByCalendarEventId(TableNames.BOOKING, id);
   if (doc === undefined || doc === null) {
     console.error("Booking status not found for calendar event id: ", id);
     return;

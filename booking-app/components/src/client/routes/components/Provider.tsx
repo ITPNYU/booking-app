@@ -2,7 +2,6 @@ import {
   AdminUser,
   Ban,
   Booking,
-  BookingStatus,
   BookingType,
   DepartmentType,
   LiaisonType,
@@ -14,13 +13,10 @@ import {
   Settings,
 } from "../../../types";
 import React, { createContext, useEffect, useMemo, useState } from "react";
-import {
-  fetchAllFutureBooking,
-  fetchAllFutureBookingStatus,
-} from "@/components/src/server/db";
 
 import { TableNames } from "@/components/src/policy";
 import { clientFetchAllDataFromCollection } from "@/lib/firebase/firebase";
+import { fetchAllFutureBooking } from "@/components/src/server/db";
 import { useAuth } from "@/components/src/client/routes/components/AuthProvider";
 
 export interface DatabaseContextType {
@@ -28,7 +24,6 @@ export interface DatabaseContextType {
   bannedUsers: Ban[];
   bookings: Booking[];
   bookingsLoading: boolean;
-  bookingStatuses: BookingStatus[];
   liaisonUsers: LiaisonType[];
   departmentNames: DepartmentType[];
   pagePermission: PagePermission;
@@ -41,7 +36,6 @@ export interface DatabaseContextType {
   reloadAdminUsers: () => Promise<void>;
   reloadBannedUsers: () => Promise<void>;
   reloadBookings: () => Promise<void>;
-  reloadBookingStatuses: () => Promise<void>;
   reloadLiaisonUsers: () => Promise<void>;
   reloadDepartmentNames: () => Promise<void>;
   reloadPaUsers: () => Promise<void>;
@@ -56,7 +50,6 @@ export const DatabaseContext = createContext<DatabaseContextType>({
   bannedUsers: [],
   bookings: [],
   bookingsLoading: true,
-  bookingStatuses: [],
   liaisonUsers: [],
   departmentNames: [],
   pagePermission: PagePermission.BOOKING,
@@ -69,7 +62,6 @@ export const DatabaseContext = createContext<DatabaseContextType>({
   reloadAdminUsers: async () => {},
   reloadBannedUsers: async () => {},
   reloadBookings: async () => {},
-  reloadBookingStatuses: async () => {},
   reloadLiaisonUsers: async () => {},
   reloadDepartmentNames: async () => {},
   reloadPaUsers: async () => {},
@@ -87,7 +79,6 @@ export const DatabaseProvider = ({
   const [bannedUsers, setBannedUsers] = useState<Ban[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [bookingsLoading, setBookingsLoading] = useState<boolean>(true);
-  const [bookingStatuses, setBookingStatuses] = useState<BookingStatus[]>([]);
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
   const [liaisonUsers, setLiaisonUsers] = useState<LiaisonType[]>([]);
   const [departmentNames, setDepartmentName] = useState<DepartmentType[]>([]);
@@ -124,7 +115,6 @@ export const DatabaseProvider = ({
       fetchSettings();
     } else {
       fetchBookings();
-      fetchBookingStatuses();
     }
   }, [bookingsLoading, user]);
 
@@ -185,20 +175,6 @@ export const DatabaseProvider = ({
           chartFieldForCatering: item.chartFieldForCatering,
           chartFieldForSecurity: item.chartFieldForSecurity,
           chartFieldForRoomSetup: item.chartFieldForRoomSetup,
-        }));
-        setBookings(bookings);
-        setBookingsLoading(false);
-      })
-      .catch((error) => console.error("Error fetching data:", error));
-  };
-
-  const fetchBookingStatuses = async () => {
-    fetchAllFutureBookingStatus(TableNames.BOOKING_STATUS)
-      .then((fetchedData) => {
-        const filtered = fetchedData.map((item: any) => ({
-          id: item.id,
-          calendarEventId: item.calendarEventId,
-          email: item.email,
           requestedAt: item.requestedAt,
           firstApprovedAt: item.firstApprovedAt,
           firstApprovedBy: item.firstApprovedBy,
@@ -217,7 +193,8 @@ export const DatabaseProvider = ({
           noShowedBy: item.noShowedBy,
           walkedInAt: item.walkedInAt,
         }));
-        setBookingStatuses(filtered);
+        setBookings(bookings);
+        setBookingsLoading(false);
       })
       .catch((error) => console.error("Error fetching data:", error));
   };
@@ -404,7 +381,6 @@ export const DatabaseProvider = ({
         adminUsers,
         bannedUsers,
         bookings,
-        bookingStatuses,
         liaisonUsers,
         departmentNames,
         paUsers,
@@ -418,7 +394,6 @@ export const DatabaseProvider = ({
         reloadAdminUsers: fetchAdminUsers,
         reloadBannedUsers: fetchBannedUsers,
         reloadBookings: fetchBookings,
-        reloadBookingStatuses: fetchBookingStatuses,
         reloadLiaisonUsers: fetchLiaisonUsers,
         reloadDepartmentNames: fetchDepartmentNames,
         reloadPaUsers: fetchPaUsers,
