@@ -40,6 +40,7 @@ export default function BookMoreButton() {
                 color: theme.palette.primary.main,
                 width: "100%",
               }}
+              data-testid="book-btn"
             >
               <Add /> Request a Reservation
             </Button>
