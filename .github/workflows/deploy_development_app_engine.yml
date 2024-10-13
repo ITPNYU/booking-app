@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - main
+      - tests
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -60,6 +61,12 @@ jobs:
         run: |
           cd booking-app
           npm ci
+
+      - name: Run Unit Tests
+        run: |
+          cd booking-app
+          npm test
+        continue-on-error: false
 
       - name: Build
         run: |
