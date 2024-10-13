@@ -4,16 +4,19 @@ import {
   serverUpdateInFirestore,
 } from "@/lib/firebase/server/adminDb";
 
+import { ApproverLevel } from "@/components/src/policy";
+
 export async function POST(request: NextRequest) {
   const { collection } = await request.json();
 
   try {
     const rows = await serverFetchAllDataFromCollection(collection);
 
-    // await serverUpdateInFirestore(collection, rows[0].id, { level: 1 });
     await Promise.all(
       rows.map(row =>
-        serverUpdateInFirestore(collection, row.id, { level: 1 }),
+        serverUpdateInFirestore(collection, row.id, {
+          level: ApproverLevel.FIRST,
+        }),
       ),
     );
 

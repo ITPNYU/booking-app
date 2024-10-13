@@ -10,10 +10,10 @@ import {
 import React, { useContext, useState } from "react";
 
 import { DatabaseContext } from "../../../components/Provider";
-import { updatePolicySettingData } from "@/components/src/server/db";
+import { updateFinalApprover } from "@/components/src/server/db";
 
 export default function FinalApprover() {
-  const { policySettings, reloadPolicySettings } = useContext(DatabaseContext);
+  const { policySettings, reloadApproverUsers } = useContext(DatabaseContext);
   const [editing, setEditing] = useState(false);
   const [finalApproverEmail, setFinalApproverEmail] = useState(
     policySettings.finalApproverEmail
@@ -29,8 +29,8 @@ export default function FinalApprover() {
 
   const handleButtonClick = async () => {
     if (editing) {
-      await updatePolicySettingData({ finalApproverEmail });
-      await reloadPolicySettings();
+      await updateFinalApprover({ email: finalApproverEmail });
+      await reloadApproverUsers();
     }
     setEditing((prev) => !prev);
   };

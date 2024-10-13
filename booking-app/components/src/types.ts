@@ -5,6 +5,13 @@ export type AdminUser = {
   createdAt: string;
 };
 
+export type Approver = {
+  email: string;
+  department: string;
+  createdAt: string;
+  level: number;
+};
+
 export enum AttendeeAffiliation {
   NYU = "NYU Members with an active NYU ID",
   NON_NYU = "Non-NYU guests",
@@ -141,13 +148,6 @@ export type Inputs = {
   chartFieldForCatering: string;
   chartFieldForSecurity: string;
   chartFieldForRoomSetup: string;
-};
-
-export type LiaisonType = {
-  email: string;
-  department: string;
-  createdAt: string;
-  level: number;
 };
 
 export type DepartmentType = {
