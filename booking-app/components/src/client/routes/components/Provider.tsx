@@ -303,11 +303,11 @@ export const DatabaseProvider = ({
           createdAt: item.createdAt,
           level: Number(item.level),
         }));
-        const liaisons = all.filter((x) => x.level === ApproverLevel.FIRST);
+        // const liaisons = all.filter((x) => x.level === ApproverLevel.FIRST);
         const finalApprover = all.filter(
           (x) => x.level === ApproverLevel.FINAL
         )[0];
-        setLiaisonUsers(liaisons);
+        setLiaisonUsers(all);
         setPolicySettings({ finalApproverEmail: finalApprover.email });
       })
       .catch((error) => console.error("Error fetching data:", error));

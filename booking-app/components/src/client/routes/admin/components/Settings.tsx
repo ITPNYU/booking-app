@@ -2,13 +2,13 @@ import { Divider, ListItemButton, ListItemText, Stack } from "@mui/material";
 import React, { useState } from "react";
 
 import { AdminUsers } from "./AdminUsers";
+import { Approvers } from "./Approvers";
 import { BannedUsers } from "./Ban";
 import BookingTypes from "./BookingTypes";
 import { Departments } from "./Departments";
 import ExportDatabase from "./ExportDatabase";
 import FinalApproverSetting from "./PolicySettings";
 import Grid from "@mui/material/Unstable_Grid2";
-import { Liaisons } from "./Liaisons";
 import { PAUsers } from "./PAUsers";
 import SafetyTrainedUsers from "./SafetyTraining";
 import SyncCalendars from "./SyncCalendars";
@@ -17,7 +17,7 @@ const tabs = [
   { label: "Safety Training", id: "safetyTraining" },
   { label: "PA Users", id: "pa" },
   { label: "Admin Users", id: "admin" },
-  { label: "Liaisons", id: "liaisons" },
+  { label: "Approvers", id: "approvers" },
   { label: "Departments", id: "departments" },
   { label: "Ban", id: "ban" },
   { label: "Booking Types", id: "bookingTypes" },
@@ -51,7 +51,7 @@ export default function Settings() {
         {tab === "safetyTraining" && <SafetyTrainedUsers />}
         {tab === "pa" && <PAUsers />}
         {tab === "admin" && <AdminUsers />}
-        {tab === "liaisons" && <Liaisons />}
+        {tab === "approvers" && <Approvers />}
         {tab === "ban" && <BannedUsers />}
         {tab === "departments" && <Departments />}
         {tab === "bookingTypes" && <BookingTypes />}
