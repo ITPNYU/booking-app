@@ -1,3 +1,4 @@
+import { ApproverLevel, TableNames } from "@/components/src/policy";
 // saveData.ts
 import {
   QueryConstraint,
@@ -15,7 +16,6 @@ import {
   where,
 } from "@firebase/firestore";
 
-import { TableNames } from "@/components/src/policy";
 import { getDb } from "./firebaseClient";
 
 export type AdminUserData = {
@@ -70,13 +70,17 @@ export const clientGetFinalApproverEmailFromDatabase = async (): Promise<
 > => {
   try {
     const db = getDb();
-    const policyCollection = collection(db, TableNames.POLICY);
-    const q = query(policyCollection, limit(1));
+    const approversCollection = collection(db, TableNames.APPROVERS);
+    const q = query(
+      approversCollection,
+      where("level", "==", ApproverLevel.FINAL)
+    );
     const querySnapshot = await getDocs(q);
     if (!querySnapshot.empty) {
-      const doc = querySnapshot.docs[0];
-      const finalApproverEmail = doc.data().finalApproverEmail;
+      const doc = querySnapshot.docs[0]; // assuming only one final approver
+      const finalApproverEmail = doc.data().email;
       if (finalApproverEmail) {
+        console.log("HERE", finalApproverEmail);
         return finalApproverEmail;
       }
     }

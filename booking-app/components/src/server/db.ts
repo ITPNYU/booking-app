@@ -1,9 +1,11 @@
 import {
+  Approver,
   BookingFormDetails,
   BookingStatusLabel,
   PolicySettings,
 } from "../types";
 import {
+  ApproverLevel,
   TableNames,
   clientGetFinalApproverEmail,
   getCancelCcEmail,
@@ -137,21 +139,23 @@ export const cancel = async (id: string, email: string) => {
   );
 };
 
-export const updatePolicySettingData = async (updatedData: object) => {
-  type PolicySettingsDoc = PolicySettings & { id: string };
-  const policySettingsDocs =
-    await clientFetchAllDataFromCollection<PolicySettingsDoc>(
-      TableNames.POLICY
-    );
+export const updateFinalApprover = async (updatedData: object) => {
+  type ApproverDoc = Approver & { id: string };
+  const approverDocs = await clientFetchAllDataFromCollection<ApproverDoc>(
+    TableNames.APPROVERS
+  );
 
-  if (policySettingsDocs.length > 0) {
-    const policySettings = policySettingsDocs[0]; // should only be 1 doc
-    const docId = policySettings.id;
-    await clientUpdateDataInFirestore(TableNames.POLICY, docId, updatedData);
+  if (approverDocs.length > 0) {
+    const finalApproverDoc = approverDocs.filter(
+      (doc) => doc.level === ApproverLevel.FINAL
+    )[0]; // assuming only 1 final approver
+    const docId = finalApproverDoc.id;
+    await clientUpdateDataInFirestore(TableNames.APPROVERS, docId, updatedData);
   } else {
     console.log("No policy settings docs found");
   }
 };
+
 export const checkin = async (id: string, email: string) => {
   clientUpdateDataByCalendarEventId(TableNames.BOOKING, id, {
     checkedInAt: Timestamp.now(),

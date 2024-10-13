@@ -14,10 +14,14 @@ export enum TableNames {
   BOOKING_TYPES = "bookingTypes",
   DEPARTMENTS = "departments",
   PAS = "usersPa",
-  POLICY = "policy",
   RESOURCES = "resources",
   SAFETY_TRAINING = "usersWhitelist",
   SETTINGS = "settings",
+}
+
+export enum ApproverLevel {
+  FIRST = 1,
+  FINAL = 2,
 }
 
 /** Old safety training Google Sheet */
