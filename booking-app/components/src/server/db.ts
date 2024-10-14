@@ -14,7 +14,7 @@ import {
   BookingStatusLabel,
   PolicySettings,
 } from "../types";
-import { approvalUrl, declineUrl, getBookingToolDeployUrl } from "./ui";
+import { reviewUrl, getBookingToolDeployUrl } from "./ui";
 
 import { clientUpdateDataByCalendarEventId } from "@/lib/firebase/client/clientDb";
 import { roundTimeUp } from "../client/utils/date";
@@ -290,9 +290,8 @@ export const clientBookingContents = (id: string) => {
     .then((bookingObj) => {
       const updatedBookingObj = Object.assign({}, bookingObj, {
         headerMessage: "This is a request email for final approval.",
-        approvalUrl: approvalUrl(id),
+        reviewUrl: reviewUrl(id),
         bookingToolUrl: getBookingToolDeployUrl(),
-        declineUrl: declineUrl(id),
       });
 
       return updatedBookingObj as unknown as BookingFormDetails;

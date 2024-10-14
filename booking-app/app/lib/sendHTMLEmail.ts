@@ -1,4 +1,4 @@
-import { approvalUrl, declineUrl } from "@/components/src/server/ui";
+import { reviewUrl } from "@/components/src/server/ui";
 
 import fs from "fs";
 import { getEmailBranchTag } from "@/components/src/server/emails";
@@ -54,8 +54,7 @@ export const sendHTMLEmail = async (params: SendHTMLEmailParams) => {
     contents,
     startDate: serverFormatDate(contents.startDate),
     endDate: serverFormatDate(contents.endDate),
-    approvalUrl: approvalUrl(contents.calendarEventId),
-    declineUrl: declineUrl(contents.calendarEventId),
+    reviewUrl: reviewUrl(contents.calendarEventId),
   });
 
   const messageParts = [
