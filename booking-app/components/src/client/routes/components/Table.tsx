@@ -62,7 +62,7 @@ interface Props {
   className?: string;
   columns: React.ReactNode[];
   children: React.ReactNode[];
-  topRow: React.ReactNode;
+  topRow?: React.ReactNode;
   sx?: SxProps<Theme>;
 }
 
@@ -75,13 +75,15 @@ export default function Table({
 }: Props) {
   return (
     <Box className={className}>
-      <TableTopRow>
-        <TableBody>
-          <TableRow>
-            <TableCell>{topRow}</TableCell>
-          </TableRow>
-        </TableBody>
-      </TableTopRow>
+      {topRow && (
+        <TableTopRow>
+          <TableBody>
+            <TableRow>
+              <TableCell>{topRow}</TableCell>
+            </TableRow>
+          </TableBody>
+        </TableTopRow>
+      )}
       <Clip>
         <TableCustom size="small" sx={sx ?? {}}>
           <ShadedHeader>

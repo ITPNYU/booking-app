@@ -111,6 +111,7 @@ export default function FormInput({ calendarEventId, formContext }: Props) {
   });
 
   const isWalkIn = formContext === FormContextLevel.WALK_IN;
+  const isMod = formContext === FormContextLevel.MODIFICATION;
 
   // different from other switches b/c mediaServices doesn't have yes/no column in DB
   const [showMediaServices, setShowMediaServices] = useState(false);
@@ -187,7 +188,11 @@ export default function FormInput({ calendarEventId, formContext }: Props) {
 
     // setFormData(data);
     registerEvent(data, isAutoApproval, calendarEventId);
-    router.push(isWalkIn ? "/walk-in/confirmation" : "/book/confirmation");
+    if (isMod) {
+      router.push("/modification/confirmation");
+    } else {
+      router.push(isWalkIn ? "/walk-in/confirmation" : "/book/confirmation");
+    }
   };
 
   const fullFormFields = (
@@ -252,7 +257,6 @@ export default function FormInput({ calendarEventId, formContext }: Props) {
           <BookingFormTextField
             id="sponsorFirstName"
             label="Sponsor First Name"
-            description = "An NYU faculty or staff member related to your request. Ex: your thesis teacher if you have a thesis-related reservation request."
             required={watch("role") === Role.STUDENT}
             {...{ control, errors, trigger }}
           />
@@ -336,12 +340,6 @@ export default function FormInput({ calendarEventId, formContext }: Props) {
               required={false}
               description={
                 <p>
-                  If your event needs a specific room setup with tables and chairs, 
-                  please provide a description below. In the description please include  
-                  # of chairs, # of tables, and formation. Depending on the scope, it may 
-                  be required to hire CBS services for the room set up which comes at a cost. 
-                  The Media Commons Team will procure the services needed for the Room Setup. 
-                  Please provide the chartfield below.
                 </p>
               }
               {...{ control, errors, trigger }}
@@ -417,9 +415,6 @@ export default function FormInput({ calendarEventId, formContext }: Props) {
               label="Catering?"
               description={
                 <p>
-                  If the event includes catering, it is required for the reservation 
-                  holder to provide a chartfield so that the Media Commons Team can 
-                  obtain CBS Cleaning Services.
                 </p>
               }
               required={false}
@@ -450,10 +445,11 @@ export default function FormInput({ calendarEventId, formContext }: Props) {
               required={false}
               description={
                 <p>
-                  Only for large events with 75+ attendees, and bookings in 
-                  The Garage where the Willoughby entrance will be in use. 
-                  It is required for the reservation holder to provide a chartfield 
-                  so that the Media Commons Team can obtain Campus Safety Security Services.
+                  Only for large events with 75+ attendees, and bookings in The
+                  Garage where the Willoughby entrance will be in use. It is
+                  required for the reservation holder to provide a chartfield so
+                  that the Media Commons Team can obtain Campus Safety Security
+                  Services.
                 </p>
               }
               {...{ control, errors, trigger }}

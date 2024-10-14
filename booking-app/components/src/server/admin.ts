@@ -1,4 +1,10 @@
 import {
+  BookingFormDetails,
+  BookingStatus,
+  BookingStatusLabel,
+  RoomSetting,
+} from "../types";
+import {
   Constraint,
   serverDeleteData,
   serverFetchAllDataFromCollection,
@@ -86,8 +92,8 @@ const serverFinalApprove = (id: string, email?: string) => {
 
 //server
 export const serverApproveInstantBooking = (id: string) => {
-  serverFirstApprove(id);
-  serverFinalApprove(id);
+  serverFirstApprove(id, "");
+  serverFinalApprove(id, "");
   serverApproveEvent(id);
 };
 
