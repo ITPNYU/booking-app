@@ -29,8 +29,9 @@ export const OLD_SAFETY_TRAINING_SHEET_NAME = "Sheet1";
 export const SECOND_OLD_SAFETY_TRAINING_SHEET_ID =
   "1TZYBrX5X6TXM07V3OMTOnVWF8qRmWnTzh27zacrQHh0";
 export const SECOND_OLD_SAFETY_TRAINING_SHEET_GID = 293202487;
-export const MEDIA_COMMON_EMAIL = "mediacommons.reservations@nyu.edu";
-export const MEDIA_COMMON_OPERATION_EMAIL = "mediacommons.operations@nyu.edu";
+export const MEDIA_COMMON_EMAIL = "booking-app-devs+operation@itp.nyu.edu"; // "mediacommons.reservations@nyu.edu";
+export const MEDIA_COMMON_OPERATION_EMAIL =
+  "booking-app-devs+reservations@itp.nyu.edu"; // "mediacommons.operations@nyu.edu";
 
 /********** CONTACTS ************/
 
