@@ -19,7 +19,6 @@ import {
   fetchAllFutureBookingStatus,
 } from "@/components/src/server/db";
 
-import { Liaisons } from "../admin/components/Liaisons";
 import { TableNames } from "@/components/src/policy";
 import { clientFetchAllDataFromCollection } from "@/lib/firebase/firebase";
 import { useAuth } from "@/components/src/client/routes/components/AuthProvider";
@@ -151,7 +150,7 @@ export const DatabaseProvider = ({
           email: item.email,
           startDate: item.startDate,
           endDate: item.endDate,
-          roomId: item.roomId,
+          roomId: String(item.roomId),
           user: item.user,
           room: item.room,
           startTime: item.startTime,
@@ -202,12 +201,20 @@ export const DatabaseProvider = ({
           email: item.email,
           requestedAt: item.requestedAt,
           firstApprovedAt: item.firstApprovedAt,
+          firstApprovedBy: item.firstApprovedBy,
           finalApprovedAt: item.finalApprovedAt,
+          finalApprovedBy: item.finalApprovedBy,
           declinedAt: item.declinedAt,
+          declinedBy: item.declinedBy,
+          declineReason: item.declineReason,
           canceledAt: item.canceledAt,
+          canceledBy: item.canceledBy,
           checkedInAt: item.checkedInAt,
+          checkedInBy: item.checkedInBy,
           checkedOutAt: item.checkedOutAt,
+          checkedOutBy: item.checkedOutBy,
           noShowedAt: item.noShowedAt,
+          noShowedBy: item.noShowedBy,
           walkedInAt: item.walkedInAt,
         }));
         setBookingStatuses(filtered);

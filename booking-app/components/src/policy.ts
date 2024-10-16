@@ -30,6 +30,7 @@ export const SECOND_OLD_SAFETY_TRAINING_SHEET_ID =
   "1TZYBrX5X6TXM07V3OMTOnVWF8qRmWnTzh27zacrQHh0";
 export const SECOND_OLD_SAFETY_TRAINING_SHEET_GID = 293202487;
 export const MEDIA_COMMON_EMAIL = "mediacommons.reservations@nyu.edu";
+export const MEDIA_COMMON_OPERATION_EMAIL = "mediacommons.operations@nyu.edu";
 
 /********** CONTACTS ************/
 
@@ -42,8 +43,8 @@ export const clientGetFinalApproverEmail = async (): Promise<string> => {
 
 export const getApprovalCcEmail = (branchName: string) =>
   branchName === "development"
-    ? "booking-app-devs+samantha@itp.nyu.edu"
-    : "ss12430@nyu.edu"; // Samantha
+    ? "booking-app-devs+operation@itp.nyu.edu"
+    : MEDIA_COMMON_OPERATION_EMAIL;
 
 export const getCancelCcEmail = () =>
   process.env.NEXT_PUBLIC_BRANCH_NAME === "development"

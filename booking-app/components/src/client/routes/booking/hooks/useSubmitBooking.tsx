@@ -33,9 +33,9 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
 
   const registerEvent = useCallback(
     async (data: Inputs, isAutoApproval: boolean, calendarEventId?: string) => {
+      const hasAffiliation = (role && department) || isModification;
       if (
-        !department ||
-        !role ||
+        !hasAffiliation ||
         selectedRooms.length === 0 ||
         !bookingCalendarInfo
       ) {
@@ -46,7 +46,6 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
 
       if (isEdit && data.netId) {
         // block another person editing someone's booking
-        // TODO unless is PA or admin editing
         if (data.netId + "@nyu.edu" !== userEmail) {
           setSubmitting("error");
           return;
