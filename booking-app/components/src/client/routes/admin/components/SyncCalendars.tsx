@@ -34,18 +34,11 @@ const SyncCalendars = () => {
     }
   };
 
-  // const duplicate = async () => {
-  //   await fetch("/api/db/duplicate", {
-  //     method: "DELETE",
-  //     headers: {
-  //       "Content-Type": "application/json",
-  //     },
-  //     body: JSON.stringify({
-  //       source: TableNames.BOOKING_STATUS,
-  //       destination: TableNames.BOOKING,
-  //     }),
-  //   });
-  // };
+  const refactor = async () => {
+    await fetch("/api/db/refactor", {
+      method: "POST",
+    });
+  };
 
   return (
     <Box>
@@ -62,7 +55,12 @@ const SyncCalendars = () => {
           Sync Calendar Events
         </Button>
       </Box>
-      {/* <Button onClick={duplicate}>Duplicate</Button> */}
+      <Box sx={{ marginTop: 6 }}>
+        <p>Don't press this unless you know what you're doing!</p>
+        <Button variant="contained" onClick={refactor} color={"error"}>
+          !!! DB REFACTOR !!!
+        </Button>
+      </Box>
       <AlertToast
         message={message}
         severity={alertSeverity}
