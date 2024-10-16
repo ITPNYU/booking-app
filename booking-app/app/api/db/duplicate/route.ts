@@ -8,12 +8,11 @@ import {
 import { TableNames } from "@/components/src/policy";
 
 export async function POST(request: NextRequest) {
-  const { newCollection } = await request.json();
+  const { sourceCollection, newCollection } = await request.json();
+  const source = sourceCollection as TableNames;
 
   try {
-    const rows = await serverFetchAllDataFromCollection(
-      TableNames.SAFETY_TRAINING,
-    );
+    const rows = await serverFetchAllDataFromCollection(source);
     const rowsWithoutIds = rows.map(row => {
       const { id, ...other } = row;
       return other;
