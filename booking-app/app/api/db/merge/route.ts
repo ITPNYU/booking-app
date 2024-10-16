@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
   serverFetchAllDataFromCollection,
-  serverSaveDataToFirestore,
+  serverUpdateInFirestore,
 } from "@/lib/firebase/server/adminDb";
 
 import { TableNames } from "@/components/src/policy";
@@ -21,29 +21,25 @@ export async function POST(request: NextRequest) {
       const { id, email, ...other } = row;
       return other;
     });
-    const destinationRowsFiltered = destinationRows.map(row => {
-      const { id, ...other } = row;
-      return other;
-    });
 
     const calIdToBookingStatus = {};
     for (let row of sourceRowsFiltered) {
       calIdToBookingStatus[row.calendarEventId] = row;
     }
 
-    const merged = destinationRowsFiltered.map(booking => {
-      const matchingStatus = calIdToBookingStatus[booking.calendarEventId];
-      return { ...booking, ...matchingStatus };
-    });
+    const docIdToCalId: { [key: string]: string } = {};
+    for (let row of destinationRows) {
+      docIdToCalId[row.id] = row.calendarEventId;
+    }
 
     await Promise.all(
-      merged.map(row => serverSaveDataToFirestore(destinationTable, row)),
+      Object.entries(docIdToCalId).map(([docId, calId]) => {
+        const bookingStatus = calIdToBookingStatus[calId];
+        return serverUpdateInFirestore(destinationTable, docId, bookingStatus);
+      }),
     );
 
-    return NextResponse.json(
-      { duplicatedRows: merged.length },
-      { status: 200 },
-    );
+    return NextResponse.json({ status: 200 });
   } catch (err) {
     console.error(err);
     return NextResponse.json(
