@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 5. combine bookings and bookingStatus documents
-    const sourceBookingStatus = TableNames.BOOKING_STATUS;
+    const sourceBookingStatus = "bookingStatus";
     const destinationBooking = TableNames.BOOKING;
     res = await fetch(process.env.NEXT_PUBLIC_BASE_URL + "/api/db/merge", {
       method: "POST",

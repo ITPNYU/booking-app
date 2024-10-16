@@ -8,7 +8,7 @@ export const ACTIVE_SHEET_ID = "1MnWbn6bvNyMiawddtYYx0tRW4NMgvugl0I8zBO3sy68";
 
 export enum TableNames {
   ADMINS = "usersAdmin",
-  APPROVERS = "usersLiaison",
+  APPROVERS = "usersApprovers",
   BANNED = "usersBanned",
   BOOKING = "bookings",
   BOOKING_TYPES = "bookingTypes",
@@ -16,7 +16,7 @@ export enum TableNames {
   PAS = "usersPa",
   POLICY = "policy",
   RESOURCES = "resources",
-  SAFETY_TRAINING = "usersSafetyWhitelist",
+  SAFETY_TRAINING = "usersWhitelist",
   SETTINGS = "settings",
 }
 
