@@ -1,13 +1,4 @@
-import {
-  Booking,
-  BookingRow,
-  BookingStatusLabel,
-  PageContextLevel,
-} from "../../../../types";
-import BookingTableFilters, {
-  DATE_FILTERS,
-  DateRangeFilter,
-} from "./BookingTableFilters";
+import { Booking, BookingRow, PageContextLevel } from "../../../../types";
 import { Box, TableCell } from "@mui/material";
 import React, {
   useCallback,
@@ -16,38 +7,35 @@ import React, {
   useMemo,
   useState,
 } from "react";
-import SortableTableCell, { COMPARATORS } from "./SortableTableCell";
 import Table, { TableEmpty } from "../Table";
 
 import BookMoreButton from "./BookMoreButton";
+import BookingTableFilters from "./BookingTableFilters";
 import BookingTableRow from "./BookingTableRow";
+import { ColumnSortOrder } from "./hooks/getColumnComparator";
 import { DatabaseContext } from "../Provider";
+import { DateRangeFilter } from "./hooks/getDateFilter";
 import Loading from "../Loading";
 import MoreInfoModal from "./MoreInfoModal";
-import getBookingStatus from "../../hooks/getBookingStatus";
+import SortableTableCell from "./SortableTableCell";
+import useAllowedStatuses from "./hooks/useAllowedStatuses";
+import { useBookingFilters } from "./hooks/useBookingFilters";
 
 interface BookingsProps {
   pageContext: PageContextLevel;
 }
 
 export const Bookings: React.FC<BookingsProps> = ({ pageContext }) => {
-  const {
-    bookings,
-    bookingsLoading,
-    bookingStatuses,
-    liaisonUsers,
-    userEmail,
-    reloadBookings,
-    reloadBookingStatuses,
-  } = useContext(DatabaseContext);
+  const { bookings, bookingsLoading, reloadBookings, reloadBookingStatuses } =
+    useContext(DatabaseContext);
+  const allowedStatuses = useAllowedStatuses(pageContext);
 
   const [modalData, setModalData] = useState<BookingRow>(null);
   const [statusFilters, setStatusFilters] = useState([]);
   const [selectedDateRange, setSelectedDateRange] =
     useState<DateRangeFilter>("Today");
   const [orderBy, setOrderBy] = useState<keyof BookingRow>("startDate");
-  const [order, setOrder] = useState<"asc" | "desc">("asc");
-  const [currentTime, setCurrentTime] = useState(new Date());
+  const [order, setOrder] = useState<ColumnSortOrder>("asc");
 
   const isUserView = pageContext === PageContextLevel.USER;
 
@@ -56,102 +44,13 @@ export const Bookings: React.FC<BookingsProps> = ({ pageContext }) => {
     reloadBookings();
   }, []);
 
-  const rows: BookingRow[] = useMemo(
-    () =>
-      bookings.map((booking) => ({
-        ...booking,
-        status: getBookingStatus(booking, bookingStatuses),
-      })),
-    [bookings, bookingStatuses]
-  );
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 60000); // Update every minute
-
-    return () => clearInterval(interval);
-  }, []);
-
-  const allowedStatuses: BookingStatusLabel[] = useMemo(() => {
-    if (pageContext === PageContextLevel.PA) {
-      return [
-        BookingStatusLabel.APPROVED,
-        BookingStatusLabel.CHECKED_IN,
-        BookingStatusLabel.CHECKED_OUT,
-        BookingStatusLabel.NO_SHOW,
-        BookingStatusLabel.WALK_IN,
-      ];
-    } else if (pageContext === PageContextLevel.LIAISON) {
-      return [BookingStatusLabel.REQUESTED];
-    } else {
-      return Object.values(BookingStatusLabel);
-    }
-  }, [pageContext]);
-
-  const filteredRows = useMemo(() => {
-    let filtered: BookingRow[] = rows;
-
-    // filter if endTime has passed and status is NO_SHOW or CHECKED_OUT
-    const elapsedStatues = [
-      BookingStatusLabel.NO_SHOW,
-      BookingStatusLabel.CHECKED_OUT,
-      BookingStatusLabel.CANCELED,
-    ];
-    // checks once per minute
-    filtered = filtered.filter(
-      (row) =>
-        !(
-          elapsedStatues.includes(row.status) &&
-          row.endDate.toDate() < currentTime
-        )
-    );
-
-    // filter based on user view
-    if (pageContext === PageContextLevel.USER) {
-      filtered = rows.filter((row) => row.email === userEmail);
-    } else if (pageContext === PageContextLevel.LIAISON) {
-      const liaisonMatches = liaisonUsers.filter(
-        (user) => user.email === userEmail
-      );
-      if (liaisonMatches.length > 0) {
-        const liaisonDepartments = liaisonMatches.map(
-          (user) => user.department
-        );
-        filtered = rows.filter((row) =>
-          liaisonDepartments.includes(row.department)
-        );
-      }
-    }
-
-    filtered = filtered.filter((row) => allowedStatuses.includes(row.status));
-
-    if (pageContext >= PageContextLevel.PA) {
-      // PA and Admin
-      // filter by selected PA date range
-      filtered = filtered.filter(DATE_FILTERS[selectedDateRange]);
-    }
-
-    // column sorting
-    const comparator = COMPARATORS[orderBy];
-    const coeff = order === "asc" ? 1 : -1;
-    comparator != null && filtered.sort((a, b) => coeff * comparator(a, b));
-
-    // status chip filters
-    if (statusFilters.length === 0) {
-      return filtered;
-    }
-    return filtered.filter((row) => statusFilters.includes(row.status));
-  }, [
+  const filteredRows = useBookingFilters({
     pageContext,
-    rows,
-    allowedStatuses,
-    statusFilters,
-    order,
-    orderBy,
-    currentTime,
+    columnOrderBy: orderBy,
+    columnOrder: order,
     selectedDateRange,
-  ]);
+    selectedStatusFilters: statusFilters,
+  });
 
   const topRow = useMemo(() => {
     if (pageContext === PageContextLevel.USER) {

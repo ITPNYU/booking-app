@@ -1,7 +1,7 @@
 /********** GOOGLE SHEETS ************/
 
-import { clientGetFinalApproverEmailFromDatabase } from "@/lib/firebase/firebase";
 import { BookingStatusLabel } from "./types";
+import { clientGetFinalApproverEmailFromDatabase } from "@/lib/firebase/firebase";
 
 /** ACTIVE master Google Sheet  */
 export const ACTIVE_SHEET_ID = "1MnWbn6bvNyMiawddtYYx0tRW4NMgvugl0I8zBO3sy68";
@@ -75,6 +75,12 @@ export const CALENDAR_HIDE_STATUS = [
   BookingStatusLabel.CANCELED,
   BookingStatusLabel.DECLINED,
   BookingStatusLabel.CHECKED_OUT,
+];
+
+export const BOOKING_TABLE_HIDE_STATUS_TIME_ELAPSED = [
+  BookingStatusLabel.NO_SHOW,
+  BookingStatusLabel.CHECKED_OUT,
+  BookingStatusLabel.CANCELED,
 ];
 
 export const STORAGE_KEY_BOOKING = "mediaCommonsDevBooking";
