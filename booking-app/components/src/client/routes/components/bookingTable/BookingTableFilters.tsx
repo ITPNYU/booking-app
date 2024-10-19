@@ -6,14 +6,15 @@ import {
 import { Box, ToggleButton, ToggleButtonGroup } from "@mui/material";
 import { CalendarMonth, DateRange, Today } from "@mui/icons-material";
 
+import Dropdown from "../../booking/components/Dropdown";
 import FilterList from "@mui/icons-material/FilterList";
 import React from "react";
 import StatusChip from "./StatusChip";
 
-export type DateRangeFilter = "today" | "week" | "all";
+export type DateRangeFilter = "Today" | "This Week" | "All";
 
 export const DATE_FILTERS: Record<DateRangeFilter, (x: Booking) => boolean> = {
-  today: (row) => {
+  Today: (row) => {
     const today = new Date();
     const date = row.startDate.toDate();
     return (
@@ -22,7 +23,7 @@ export const DATE_FILTERS: Record<DateRangeFilter, (x: Booking) => boolean> = {
       date.getDate() === today.getDate()
     );
   },
-  week: (row) => {
+  "This Week": (row) => {
     const today = new Date();
     let dayOfWeek = today.getDay();
     if (dayOfWeek === 0) {
@@ -44,7 +45,7 @@ export const DATE_FILTERS: Record<DateRangeFilter, (x: Booking) => boolean> = {
     const date = row.startDate.toDate();
     return date >= startOfWeek && date <= endOfWeek;
   },
-  all: (row) => true,
+  All: (row) => true,
 };
 
 interface Props {
@@ -83,22 +84,13 @@ export default function BookingTableFilters({
   };
 
   const dateFilters = (
-    <ToggleButtonGroup
-      exclusive
+    <Dropdown
       value={selectedDateRange}
-      onChange={handleDateRangeFilterClick}
-      size="small"
-    >
-      <ToggleButton value="today">
-        <Today />
-      </ToggleButton>
-      <ToggleButton value="week">
-        <DateRange />
-      </ToggleButton>
-      <ToggleButton value="all">
-        <CalendarMonth />
-      </ToggleButton>
-    </ToggleButtonGroup>
+      updateValue={(x) => handleDateRangeFilterClick(null, x)}
+      options={["Today", "This Week", "All"]}
+      placeholder={"Today"}
+      sx={{ width: "125px", mr: 1 }}
+    />
   );
 
   return (

@@ -44,7 +44,7 @@ export const Bookings: React.FC<BookingsProps> = ({ pageContext }) => {
   const [modalData, setModalData] = useState<BookingRow>(null);
   const [statusFilters, setStatusFilters] = useState([]);
   const [selectedDateRange, setSelectedDateRange] =
-    useState<DateRangeFilter>("today");
+    useState<DateRangeFilter>("Today");
   const [orderBy, setOrderBy] = useState<keyof BookingRow>("startDate");
   const [order, setOrder] = useState<"asc" | "desc">("asc");
   const [currentTime, setCurrentTime] = useState(new Date());
