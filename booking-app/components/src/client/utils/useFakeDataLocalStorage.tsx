@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from "react";
 
-import { STORAGE_KEY_BOOKING } from "../../policy";
+import { STORAGE_KEY_BOOKING } from "../../mediaCommonsPolicy";
 //@ts-ignore
 import useWebSocket from "react-use-websocket";
 
