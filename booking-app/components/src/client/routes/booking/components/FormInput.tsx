@@ -257,6 +257,7 @@ export default function FormInput({ calendarEventId, formContext }: Props) {
           <BookingFormTextField
             id="sponsorFirstName"
             label="Sponsor First Name"
+            description="A faculty or staff member related to your request."
             required={watch("role") === Role.STUDENT}
             {...{ control, errors, trigger }}
           />
