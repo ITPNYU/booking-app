@@ -1,0 +1,39 @@
+name: Deploy STAGING to Google Apps Script
+
+on:
+  push:
+    branches:
+      - staging
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: "18"
+
+      - name: Install dependencies
+        run: |
+          cd media_commons_booking_app
+          npm ci
+      - name: Set up clasp authentication
+        run: |
+          echo "$CLASP_CREDENTIALS" > ~/.clasprc.json
+        env:
+          CLASP_CREDENTIALS: ${{ secrets.CLASP_CREDENTIALS }}
+      - name: Install clasp
+        run: npm install -g @google/clasp
+      - name: Push to Google Apps Script
+        run: |
+          cd media_commons_booking_app
+          npm run deploy:staging
+      - name: Create new version and push
+        run: |
+          cd media_commons_booking_app
+          clasp deploy --deploymentId AKfycbxviocXzB4aOPCV5XuxNGX4vWNsK4pHwm88sJIKpHBlUKPDsGe2Ca3IA-09rgc2BzXzhA -d "STAGING"

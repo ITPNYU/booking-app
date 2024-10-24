@@ -1,28 +1,17 @@
-import { Booking, BookingStatus, BookingStatusLabel } from "../../../types";
+import { Booking, BookingStatusLabel } from "../../../types";
 
 import { Timestamp } from "@firebase/firestore";
 
-export default function getBookingStatus(
-  booking: Booking,
-  bookingStatuses: BookingStatus[]
-): BookingStatusLabel {
+export default function getBookingStatus(booking: Booking): BookingStatusLabel {
   const bookingStatusLabel = () => {
-    const bookingStatusMatch = bookingStatuses.filter(
-      (row) => row.calendarEventId === booking.calendarEventId
-    )[0];
-
-    if (bookingStatusMatch === undefined) return BookingStatusLabel.UNKNOWN;
-
     const timeStringtoDate = (time: Timestamp) => {
       return time != undefined ? time.toDate() : new Date(0);
     };
 
-    const checkedInTimestamp = timeStringtoDate(bookingStatusMatch.checkedInAt);
-    const checkedOutTimestamp = timeStringtoDate(
-      bookingStatusMatch.checkedOutAt
-    );
-    const noShowTimestamp = timeStringtoDate(bookingStatusMatch.noShowedAt);
-    const canceledTimestamp = timeStringtoDate(bookingStatusMatch.canceledAt);
+    const checkedInTimestamp = timeStringtoDate(booking.checkedInAt);
+    const checkedOutTimestamp = timeStringtoDate(booking.checkedOutAt);
+    const noShowTimestamp = timeStringtoDate(booking.noShowedAt);
+    const canceledTimestamp = timeStringtoDate(booking.canceledAt);
 
     // if any of checkedInAt, noShowedAt, canceledAt have a date, return the most recent
     if (
@@ -51,15 +40,15 @@ export default function getBookingStatus(
       return label;
     }
 
-    if (bookingStatusMatch.declinedAt != undefined) {
+    if (booking.declinedAt != undefined) {
       return BookingStatusLabel.DECLINED;
-    } else if (bookingStatusMatch.finalApprovedAt !== undefined) {
+    } else if (booking.finalApprovedAt !== undefined) {
       return BookingStatusLabel.APPROVED;
-    } else if (bookingStatusMatch.firstApprovedAt !== undefined) {
+    } else if (booking.firstApprovedAt !== undefined) {
       return BookingStatusLabel.PENDING;
-    } else if (bookingStatusMatch.requestedAt != undefined) {
+    } else if (booking.requestedAt != undefined) {
       return BookingStatusLabel.REQUESTED;
-    } else if (bookingStatusMatch.walkedInAt != undefined) {
+    } else if (booking.walkedInAt != undefined) {
       return BookingStatusLabel.WALK_IN;
     } else {
       return BookingStatusLabel.UNKNOWN;

@@ -8,16 +8,14 @@ import { clientGetFinalApproverEmailFromDatabase } from "@/lib/firebase/firebase
 
 export enum TableNames {
   ADMINS = "usersAdmin",
-  APPROVERS = "usersLiaison",
+  APPROVERS = "usersApprovers",
   BANNED = "usersBanned",
   BOOKING = "bookings",
-  BOOKING_STATUS = "bookingStatus",
   BOOKING_TYPES = "bookingTypes",
   DEPARTMENTS = "departments",
   PAS = "usersPa",
-  POLICY = "policy",
   RESOURCES = "resources",
-  SAFETY_TRAINING = "usersSafetyWhitelist",
+  SAFETY_TRAINING = "usersWhitelist",
   SETTINGS = "settings",
 }
 
@@ -33,6 +31,10 @@ export const BOOKING_TABLE_HIDE_STATUS_TIME_ELAPSED = [
   BookingStatusLabel.CHECKED_OUT,
   BookingStatusLabel.CANCELED,
 ];
+export enum ApproverLevel {
+  FIRST = 1,
+  FINAL = 2,
+}
 
 /********** CONTACTS ************/
 

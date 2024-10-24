@@ -26,7 +26,7 @@ interface BookingsProps {
 }
 
 export const Bookings: React.FC<BookingsProps> = ({ pageContext }) => {
-  const { bookings, bookingsLoading, reloadBookings, reloadBookingStatuses } =
+  const { bookings, bookingsLoading, reloadBookings } =
     useContext(DatabaseContext);
   const allowedStatuses = useAllowedStatuses(pageContext);
 
@@ -40,7 +40,6 @@ export const Bookings: React.FC<BookingsProps> = ({ pageContext }) => {
   const isUserView = pageContext === PageContextLevel.USER;
 
   useEffect(() => {
-    reloadBookingStatuses();
     reloadBookings();
   }, []);
 

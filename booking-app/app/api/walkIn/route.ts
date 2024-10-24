@@ -2,18 +2,18 @@ import { BookingFormDetails, BookingStatusLabel } from "@/components/src/types";
 import { NextRequest, NextResponse } from "next/server";
 import { TableNames, getApprovalCcEmail } from "@/components/src/policy";
 import {
-  serverGetRoomCalendarId,
   serverApproveInstantBooking,
+  serverGetRoomCalendarId,
   serverSendBookingDetailEmail,
 } from "@/components/src/server/admin";
-import { insertEvent } from "@/components/src/server/calendars";
-
-import { Timestamp } from "firebase-admin/firestore";
 import {
   serverGetFinalApproverEmail,
   serverGetNextSequentialId,
   serverSaveDataToFirestore,
 } from "@/lib/firebase/server/adminDb";
+
+import { Timestamp } from "firebase-admin/firestore";
+import { insertEvent } from "@/components/src/server/calendars";
 import { toFirebaseTimestampFromString } from "@/components/src/client/utils/serverDate";
 
 export async function POST(request: NextRequest) {
@@ -55,12 +55,8 @@ export async function POST(request: NextRequest) {
     startDate: toFirebaseTimestampFromString(bookingCalendarInfo.startStr),
     endDate: toFirebaseTimestampFromString(bookingCalendarInfo.endStr),
     requestNumber: sequentialId,
-    ...data,
-  });
-  await serverSaveDataToFirestore(TableNames.BOOKING_STATUS, {
-    calendarEventId,
-    email,
     walkedInAt: Timestamp.now(),
+    ...data,
   });
 
   const sendWalkInNofificationEmail = async (
@@ -75,21 +71,7 @@ export async function POST(request: NextRequest) {
         BookingStatusLabel.WALK_IN,
       ),
     );
-    // const emailPromises = recipients.map(recipient =>
-    //   sendHTMLEmail({
-    //     templateName: "booking_detail",
-    //     contents: {
-    //       ...contents,
-    //       roomId: contents.roomId.toString(),
-    //       startDate: formatDate(contents.startDate),
-    //       endDate: formatDate(contents.endDate),
-    //     },
-    //     targetEmail: recipient,
-    //     status: BookingStatusLabel.WALK_IN,
-    //     eventTitle: contents.title,
-    //     body: "",
-    //   }),
-    // );
+
     await Promise.all(emailPromises);
   };
 
@@ -99,17 +81,6 @@ export async function POST(request: NextRequest) {
     "Your walk-in reservation for Media Commons is confirmed.",
     BookingStatusLabel.WALK_IN,
   );
-
-  // const userEventInputs: BookingFormDetails = {
-  //   calendarEventId,
-  //   roomId: selectedRoomIds.join(", "),
-  //   email,
-  //   startDate: bookingCalendarInfo?.startStr,
-  //   endDate: bookingCalendarInfo?.endStr,
-  //   bookingToolUrl: getBookingToolDeployUrl(),
-  //   headerMessage: "This is a request email for first approval.",
-  //   ...data,
-  // };
 
   const notifyEmails = [
     data.sponsorEmail ?? null,

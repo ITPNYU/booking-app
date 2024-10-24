@@ -1,11 +1,10 @@
 import {
   AdminUser,
+  Approver,
   Ban,
   Booking,
-  BookingStatus,
   BookingType,
   DepartmentType,
-  LiaisonType,
   PaUser,
   PagePermission,
   PolicySettings,
@@ -13,14 +12,11 @@ import {
   SafetyTraining,
   Settings,
 } from "../../../types";
+import { ApproverLevel, TableNames } from "@/components/src/policy";
 import React, { createContext, useEffect, useMemo, useState } from "react";
-import {
-  fetchAllFutureBooking,
-  fetchAllFutureBookingStatus,
-} from "@/components/src/server/db";
 
-import { TableNames } from "@/components/src/policy";
 import { clientFetchAllDataFromCollection } from "@/lib/firebase/firebase";
+import { fetchAllFutureBooking } from "@/components/src/server/db";
 import { useAuth } from "@/components/src/client/routes/components/AuthProvider";
 
 export interface DatabaseContextType {
@@ -28,8 +24,7 @@ export interface DatabaseContextType {
   bannedUsers: Ban[];
   bookings: Booking[];
   bookingsLoading: boolean;
-  bookingStatuses: BookingStatus[];
-  liaisonUsers: LiaisonType[];
+  liaisonUsers: Approver[];
   departmentNames: DepartmentType[];
   pagePermission: PagePermission;
   paUsers: PaUser[];
@@ -39,13 +34,11 @@ export interface DatabaseContextType {
   settings: Settings;
   userEmail: string | undefined;
   reloadAdminUsers: () => Promise<void>;
+  reloadApproverUsers: () => Promise<void>;
   reloadBannedUsers: () => Promise<void>;
   reloadBookings: () => Promise<void>;
-  reloadBookingStatuses: () => Promise<void>;
-  reloadLiaisonUsers: () => Promise<void>;
   reloadDepartmentNames: () => Promise<void>;
   reloadPaUsers: () => Promise<void>;
-  reloadPolicySettings: () => Promise<void>;
   reloadBookingTypes: () => Promise<void>;
   reloadSafetyTrainedUsers: () => Promise<void>;
   setUserEmail: (x: string) => void;
@@ -56,7 +49,6 @@ export const DatabaseContext = createContext<DatabaseContextType>({
   bannedUsers: [],
   bookings: [],
   bookingsLoading: true,
-  bookingStatuses: [],
   liaisonUsers: [],
   departmentNames: [],
   pagePermission: PagePermission.BOOKING,
@@ -67,13 +59,11 @@ export const DatabaseContext = createContext<DatabaseContextType>({
   settings: { bookingTypes: [] },
   userEmail: undefined,
   reloadAdminUsers: async () => {},
+  reloadApproverUsers: async () => {},
   reloadBannedUsers: async () => {},
   reloadBookings: async () => {},
-  reloadBookingStatuses: async () => {},
-  reloadLiaisonUsers: async () => {},
   reloadDepartmentNames: async () => {},
   reloadPaUsers: async () => {},
-  reloadPolicySettings: async () => {},
   reloadBookingTypes: async () => {},
   reloadSafetyTrainedUsers: async () => {},
   setUserEmail: (x: string) => {},
@@ -87,9 +77,8 @@ export const DatabaseProvider = ({
   const [bannedUsers, setBannedUsers] = useState<Ban[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [bookingsLoading, setBookingsLoading] = useState<boolean>(true);
-  const [bookingStatuses, setBookingStatuses] = useState<BookingStatus[]>([]);
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
-  const [liaisonUsers, setLiaisonUsers] = useState<LiaisonType[]>([]);
+  const [liaisonUsers, setLiaisonUsers] = useState<Approver[]>([]);
   const [departmentNames, setDepartmentName] = useState<DepartmentType[]>([]);
   const [paUsers, setPaUsers] = useState<PaUser[]>([]);
   const [policySettings, setPolicySettings] = useState<PolicySettings>({
@@ -119,12 +108,11 @@ export const DatabaseProvider = ({
     if (!bookingsLoading) {
       fetchSafetyTrainedUsers();
       fetchBannedUsers();
-      fetchLiaisonUsers();
+      fetchApproverUsers();
       fetchDepartmentNames();
       fetchSettings();
     } else {
       fetchBookings();
-      fetchBookingStatuses();
     }
   }, [bookingsLoading, user]);
 
@@ -185,20 +173,6 @@ export const DatabaseProvider = ({
           chartFieldForCatering: item.chartFieldForCatering,
           chartFieldForSecurity: item.chartFieldForSecurity,
           chartFieldForRoomSetup: item.chartFieldForRoomSetup,
-        }));
-        setBookings(bookings);
-        setBookingsLoading(false);
-      })
-      .catch((error) => console.error("Error fetching data:", error));
-  };
-
-  const fetchBookingStatuses = async () => {
-    fetchAllFutureBookingStatus(TableNames.BOOKING_STATUS)
-      .then((fetchedData) => {
-        const filtered = fetchedData.map((item: any) => ({
-          id: item.id,
-          calendarEventId: item.calendarEventId,
-          email: item.email,
           requestedAt: item.requestedAt,
           firstApprovedAt: item.firstApprovedAt,
           firstApprovedBy: item.firstApprovedBy,
@@ -217,7 +191,8 @@ export const DatabaseProvider = ({
           noShowedBy: item.noShowedBy,
           walkedInAt: item.walkedInAt,
         }));
-        setBookingStatuses(filtered);
+        setBookings(bookings);
+        setBookingsLoading(false);
       })
       .catch((error) => console.error("Error fetching data:", error));
   };
@@ -318,16 +293,22 @@ export const DatabaseProvider = ({
       .catch((error) => console.error("Error fetching data:", error));
   };
 
-  const fetchLiaisonUsers = async () => {
+  const fetchApproverUsers = async () => {
     clientFetchAllDataFromCollection(TableNames.APPROVERS)
       .then((fetchedData) => {
-        const filtered = fetchedData.map((item: any) => ({
+        const all = fetchedData.map((item: any) => ({
           id: item.id,
           email: item.email,
           department: item.department,
           createdAt: item.createdAt,
+          level: Number(item.level),
         }));
-        setLiaisonUsers(filtered);
+        const liaisons = all.filter((x) => x.level === ApproverLevel.FIRST);
+        const finalApprover = all.filter(
+          (x) => x.level === ApproverLevel.FINAL
+        )[0];
+        setLiaisonUsers(liaisons);
+        setPolicySettings({ finalApproverEmail: finalApprover.email });
       })
       .catch((error) => console.error("Error fetching data:", error));
   };
@@ -377,22 +358,21 @@ export const DatabaseProvider = ({
       .catch((error) => console.error("Error fetching data:", error));
   };
 
-  const fetchPolicySettings = async () => {
-    clientFetchAllDataFromCollection(TableNames.POLICY)
-      .then((fetchedData) => {
-        const policy: PolicySettings = fetchedData.map((item: any) => ({
-          finalApproverEmail: item.finalApproverEmail,
-        }))[0]; // should only be 1 document
-        setPolicySettings(policy);
-      })
-      .catch((error) =>
-        console.error("Error fetching policy settings data:", error)
-      );
-  };
+  // const fetchPolicySettings = async () => {
+  //   clientFetchAllDataFromCollection(TableNames.POLICY)
+  //     .then((fetchedData) => {
+  //       const policy: PolicySettings = fetchedData.map((item: any) => ({
+  //         finalApproverEmail: item.finalApproverEmail,
+  //       }))[0]; // should only be 1 document
+  //       setPolicySettings(policy);
+  //     })
+  //     .catch((error) =>
+  //       console.error("Error fetching policy settings data:", error)
+  //     );
+  // };
 
   const fetchSettings = async () => {
     fetchBookingTypes();
-    fetchPolicySettings();
   };
 
   return (
@@ -401,7 +381,6 @@ export const DatabaseProvider = ({
         adminUsers,
         bannedUsers,
         bookings,
-        bookingStatuses,
         liaisonUsers,
         departmentNames,
         paUsers,
@@ -413,13 +392,11 @@ export const DatabaseProvider = ({
         userEmail,
         bookingsLoading,
         reloadAdminUsers: fetchAdminUsers,
+        reloadApproverUsers: fetchApproverUsers,
         reloadBannedUsers: fetchBannedUsers,
         reloadBookings: fetchBookings,
-        reloadBookingStatuses: fetchBookingStatuses,
-        reloadLiaisonUsers: fetchLiaisonUsers,
         reloadDepartmentNames: fetchDepartmentNames,
         reloadPaUsers: fetchPaUsers,
-        reloadPolicySettings: fetchPolicySettings,
         reloadBookingTypes: fetchBookingTypes,
         reloadSafetyTrainedUsers: fetchSafetyTrainedUsers,
         setUserEmail,
