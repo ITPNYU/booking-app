@@ -1,7 +1,7 @@
 import {
+  Approver,
   BookingRow,
   BookingStatusLabel,
-  LiaisonType,
   PageContextLevel,
 } from "@/components/src/types";
 import { COMPARATORS, ColumnSortOrder } from "./getColumnComparator";
@@ -29,8 +29,7 @@ export function useBookingFilters(props: Props): BookingRow[] {
     selectedDateRange,
     selectedStatusFilters,
   } = props;
-  const { bookings, bookingStatuses, liaisonUsers, userEmail } =
-    useContext(DatabaseContext);
+  const { bookings, liaisonUsers, userEmail } = useContext(DatabaseContext);
   const allowedStatuses = useAllowedStatuses(pageContext);
   const [currentTime, setCurrentTime] = useState(new Date());
 
@@ -46,9 +45,9 @@ export function useBookingFilters(props: Props): BookingRow[] {
     () =>
       bookings.map((booking) => ({
         ...booking,
-        status: getBookingStatus(booking, bookingStatuses),
+        status: getBookingStatus(booking),
       })),
-    [bookings, bookingStatuses]
+    [bookings]
   );
 
   const filteredRows = useMemo(() => {
@@ -107,7 +106,7 @@ class BookingFilter {
     return this;
   }
 
-  filterPageContext(userEmail: string, liaisonUsers: LiaisonType[]) {
+  filterPageContext(userEmail: string, liaisonUsers: Approver[]) {
     if (this.pageContext === PageContextLevel.USER) {
       this.rows = this.rows.filter((row) => row.email === userEmail);
     }
