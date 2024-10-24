@@ -34,12 +34,6 @@ const SyncCalendars = () => {
     }
   };
 
-  const refactor = async () => {
-    await fetch("/api/db/refactor", {
-      method: "POST",
-    });
-  };
-
   return (
     <Box>
       <Typography variant="h6">
@@ -53,12 +47,6 @@ const SyncCalendars = () => {
       <Box sx={{ marginTop: 2 }}>
         <Button onClick={handleSync} variant="contained" disabled={loading}>
           Sync Calendar Events
-        </Button>
-      </Box>
-      <Box sx={{ marginTop: 6 }}>
-        <p>Don't press this unless you know what you're doing!</p>
-        <Button variant="contained" onClick={refactor} color={"error"}>
-          !!! DB REFACTOR !!!
         </Button>
       </Box>
       <AlertToast
