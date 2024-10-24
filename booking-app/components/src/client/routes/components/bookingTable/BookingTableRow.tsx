@@ -5,17 +5,15 @@ import {
 } from "../../../../types";
 import {
   IconButton,
-  Switch,
   TableCell,
   TableRow,
   Tooltip,
   tooltipClasses,
 } from "@mui/material";
-import React, { useContext, useMemo, useRef, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { formatDateTable, formatTimeAmPm } from "../../../utils/date";
 
 import BookingActions from "../../admin/components/BookingActions";
-import { DatabaseContext } from "../Provider";
 import EquipmentCheckoutToggle from "./EquipmentCheckoutToggle";
 import MoreHoriz from "@mui/icons-material/MoreHoriz";
 import StackedTableCell from "./StackedTableCell";
@@ -33,7 +31,6 @@ export default function BookingTableRow({
   pageContext,
   setModalData,
 }: Props) {
-  const { bookingStatuses } = useContext(DatabaseContext);
   const titleRef = useRef();
 
   const isUserView = pageContext === PageContextLevel.USER;
@@ -42,8 +39,8 @@ export default function BookingTableRow({
     useState<BookingStatusLabel>();
 
   const status = useMemo(
-    () => getBookingStatus(booking, bookingStatuses),
-    [booking, bookingStatuses, optimisticStatus]
+    () => getBookingStatus(booking),
+    [booking, optimisticStatus]
   );
 
   return (

@@ -11,7 +11,6 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
     liaisonUsers,
     userEmail,
     reloadBookings,
-    reloadBookingStatuses,
     pagePermission,
     roomSettings,
   } = useContext(DatabaseContext);
@@ -124,7 +123,6 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
           setHasShownMocapModal(false);
 
           reloadBookings();
-          reloadBookingStatuses();
           setSubmitting("success");
         })
         .catch((error) => {
@@ -139,7 +137,6 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
       userEmail,
       router,
       reloadBookings,
-      reloadBookingStatuses,
       department,
       role,
     ]

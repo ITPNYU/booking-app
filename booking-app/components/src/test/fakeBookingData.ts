@@ -93,10 +93,7 @@ export function addFakeBookingData(
   for (let i = 0; i < n; i++) {
     calendarEventId = generateUUID();
     bookingRows.push(genFakeBookingRow(calendarEventId, email, fakeData));
-    bookingStatusRows.push(
-      genFakeBookingStatusRow(calendarEventId, email, fakeBookingStatusData)
-    );
   }
 
-  return { bookingRows, bookingStatusRows };
+  return { bookingRows };
 }

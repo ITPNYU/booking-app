@@ -1,3 +1,4 @@
+import { ApproverLevel, TableNames } from "@/components/src/policy";
 import {
   CollectionReference,
   DocumentData,
@@ -5,8 +6,8 @@ import {
   QuerySnapshot,
   WhereFilterOp,
 } from "firebase-admin/firestore";
+
 import admin from "./firebaseAdmin";
-import { TableNames } from "@/components/src/policy";
 
 const db = admin.firestore();
 
@@ -116,11 +117,13 @@ export const serverGetFinalApproverEmailFromDatabase = async (): Promise<
   string | null
 > => {
   try {
-    const policyCollection = db.collection(TableNames.POLICY);
-    const querySnapshot = await policyCollection.limit(1).get();
+    const policyCollection = db.collection(TableNames.APPROVERS);
+    const querySnapshot = await policyCollection
+      .where("level", "==", ApproverLevel.FINAL)
+      .get();
     if (!querySnapshot.empty) {
       const doc = querySnapshot.docs[0];
-      const finalApproverEmail = doc.data().finalApproverEmail;
+      const finalApproverEmail = doc.data().email;
       if (finalApproverEmail) {
         return finalApproverEmail;
       }

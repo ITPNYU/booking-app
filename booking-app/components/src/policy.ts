@@ -1,24 +1,27 @@
 /********** GOOGLE SHEETS ************/
 
-import { clientGetFinalApproverEmailFromDatabase } from "@/lib/firebase/firebase";
 import { BookingStatusLabel } from "./types";
+import { clientGetFinalApproverEmailFromDatabase } from "@/lib/firebase/firebase";
 
 /** ACTIVE master Google Sheet  */
 export const ACTIVE_SHEET_ID = "1MnWbn6bvNyMiawddtYYx0tRW4NMgvugl0I8zBO3sy68";
 
 export enum TableNames {
   ADMINS = "usersAdmin",
-  APPROVERS = "usersLiaison",
+  APPROVERS = "usersApprovers",
   BANNED = "usersBanned",
   BOOKING = "bookings",
-  BOOKING_STATUS = "bookingStatus",
   BOOKING_TYPES = "bookingTypes",
   DEPARTMENTS = "departments",
   PAS = "usersPa",
-  POLICY = "policy",
   RESOURCES = "resources",
-  SAFETY_TRAINING = "usersSafetyWhitelist",
+  SAFETY_TRAINING = "usersWhitelist",
   SETTINGS = "settings",
+}
+
+export enum ApproverLevel {
+  FIRST = 1,
+  FINAL = 2,
 }
 
 /** Old safety training Google Sheet */

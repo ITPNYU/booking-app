@@ -46,7 +46,7 @@ const AddLiaisonForm = ({ liaisonEmails, reloadLiaisonEmails }) => {
 };
 
 export const Liaisons = () => {
-  const { liaisonUsers, reloadLiaisonUsers } = useContext(DatabaseContext);
+  const { liaisonUsers, reloadApproverUsers } = useContext(DatabaseContext);
 
   const liaisonEmails = useMemo<string[]>(
     () => liaisonUsers.map((user) => user.email),
@@ -65,11 +65,11 @@ export const Liaisons = () => {
       tableName={TableNames.APPROVERS}
       columnNameToRemoveBy="email"
       rows={rows}
-      rowsRefresh={reloadLiaisonUsers}
+      rowsRefresh={reloadApproverUsers}
       topRow={
         <AddLiaisonForm
           liaisonEmails={liaisonEmails}
-          reloadLiaisonEmails={reloadLiaisonUsers}
+          reloadLiaisonEmails={reloadApproverUsers}
         />
       }
       columnFormatters={{ createdAt: formatDate }}

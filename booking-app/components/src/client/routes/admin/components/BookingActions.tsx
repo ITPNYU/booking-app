@@ -34,7 +34,7 @@ export default function BookingActions(props: Props) {
   const [selectedAction, setSelectedAction] = useState<Actions>(
     Actions.PLACEHOLDER
   );
-  const { reloadBookings, reloadBookingStatuses } = useContext(DatabaseContext);
+  const { reloadBookings } = useContext(DatabaseContext);
   const [showError, setShowError] = useState(false);
   const [reason, setReason] = useState<string>();
 
@@ -47,7 +47,7 @@ export default function BookingActions(props: Props) {
   });
 
   const reload = async () => {
-    await Promise.all([reloadBookings(), reloadBookingStatuses()]);
+    reloadBookings();
   };
 
   const onError = () => {

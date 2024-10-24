@@ -1,11 +1,10 @@
 import { BookingRow, BookingStatusLabel } from "@/components/src/types";
 import { TableCell, TableRow } from "@mui/material";
 import { formatDateTable, formatTimeAmPm } from "../../utils/date";
-import { useContext, useMemo } from "react";
 
-import { DatabaseContext } from "../components/Provider";
 import StatusChip from "../components/bookingTable/StatusChip";
 import { Timestamp } from "@firebase/firestore";
+import { useMemo } from "react";
 
 type HistoryRow = {
   status: BookingStatusLabel;
@@ -15,74 +14,69 @@ type HistoryRow = {
 };
 
 export default function useSortBookingHistory(booking: BookingRow) {
-  const { bookingStatuses } = useContext(DatabaseContext);
-  const status = bookingStatuses.filter(
-    (row) => row.calendarEventId === booking.calendarEventId
-  )[0];
-
   const rows = useMemo(() => {
     let data: HistoryRow[] = [];
     data.push({
       status: BookingStatusLabel.REQUESTED,
-      user: status.email,
-      time: status.requestedAt,
+      user: booking.email,
+      time: booking.requestedAt,
     });
 
-    if (status.finalApprovedAt) {
+    if (booking.finalApprovedAt) {
       data.push({
         status: BookingStatusLabel.APPROVED,
-        user: status.finalApprovedBy,
-        time: status.finalApprovedAt,
+        user: booking.finalApprovedBy,
+        time: booking.finalApprovedAt,
       });
     }
-    if (status.canceledAt) {
+    if (booking.canceledAt) {
       data.push({
         status: BookingStatusLabel.CANCELED,
-        user: status.canceledBy,
-        time: status.canceledAt,
+        user: booking.canceledBy,
+        time: booking.canceledAt,
       });
     }
-    if (status.checkedInAt) {
+    if (booking.checkedInAt) {
       data.push({
         status: BookingStatusLabel.CHECKED_IN,
-        user: status.checkedInBy,
-        time: status.checkedInAt,
+        user: booking.checkedInBy,
+        time: booking.checkedInAt,
       });
     }
-    if (status.checkedOutAt) {
+    if (booking.checkedOutAt) {
       data.push({
         status: BookingStatusLabel.CHECKED_OUT,
-        user: status.checkedOutBy,
-        time: status.checkedOutAt,
+        user: booking.checkedOutBy,
+        time: booking.checkedOutAt,
       });
     }
-    if (status.noShowedAt) {
+    if (booking.noShowedAt) {
       data.push({
         status: BookingStatusLabel.NO_SHOW,
-        user: status.noShowedBy,
-        time: status.noShowedAt,
+        user: booking.noShowedBy,
+        time: booking.noShowedAt,
       });
     }
-    if (status.firstApprovedAt) {
+    if (booking.firstApprovedAt) {
       data.push({
         status: BookingStatusLabel.PENDING,
-        user: status.firstApprovedBy,
-        time: status.firstApprovedAt,
+        user: booking.firstApprovedBy,
+        time: booking.firstApprovedAt,
       });
     }
-    if (status.declinedAt) {
+    if (booking.declinedAt) {
       data.push({
         status: BookingStatusLabel.DECLINED,
-        user: status.declinedBy,
-        time: status.declinedAt,
-        note: status.declineReason,
+        user: booking.declinedBy,
+        time: booking.declinedAt,
+        note: booking.declineReason,
       });
     }
-    if (status.walkedInAt) {
+    if (booking.walkedInAt) {
       data.push({
         status: BookingStatusLabel.WALK_IN,
         user: "",
-        time: status.walkedInAt,
+        time: booking.walkedInAt,
       });
     }
     return data;

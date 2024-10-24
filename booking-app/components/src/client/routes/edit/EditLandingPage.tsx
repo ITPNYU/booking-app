@@ -38,7 +38,7 @@ export default function EditLandingPage({ calendarEventId }: Props) {
 
   return (
     <Center sx={{ width: "100vw", height: "90vh" }}>
-      <Title as="h1">370🅙 Media Commons Reservation Form</Title>
+      <Title as="h1">370J Media Commons Reservation Form</Title>
       <Modal padding={4}>
         <Typography fontWeight={700}>
           Please read our Policy for editing an existing reservation

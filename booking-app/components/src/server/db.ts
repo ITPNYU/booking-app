@@ -1,20 +1,22 @@
 import {
-  clientFetchAllDataFromCollection,
-  clientGetDataByCalendarEventId,
-  clientUpdateDataInFirestore,
-} from "@/lib/firebase/firebase";
-import { Timestamp, where } from "@firebase/firestore";
-import {
-  TableNames,
-  clientGetFinalApproverEmail,
-  getCancelCcEmail,
-} from "../policy";
-import {
+  Approver,
   BookingFormDetails,
   BookingStatusLabel,
   PolicySettings,
 } from "../types";
+import {
+  ApproverLevel,
+  TableNames,
+  clientGetFinalApproverEmail,
+  getCancelCcEmail,
+} from "../policy";
+import { Timestamp, where } from "@firebase/firestore";
 import { approvalUrl, declineUrl, getBookingToolDeployUrl } from "./ui";
+import {
+  clientFetchAllDataFromCollection,
+  clientGetDataByCalendarEventId,
+  clientUpdateDataInFirestore,
+} from "@/lib/firebase/firebase";
 
 import { clientUpdateDataByCalendarEventId } from "@/lib/firebase/client/clientDb";
 import { roundTimeUp } from "../client/utils/date";
@@ -28,14 +30,6 @@ export const fetchAllFutureBooking = async <T>(
     collectionName,
     futureQueryConstraints
   );
-};
-
-export const fetchAllFutureBookingStatus = async <T>(
-  collectionName: TableNames
-): Promise<T[]> => {
-  // const now = Timestamp.now();
-  // const futureQueryConstraints = [where("requestedAt", ">", now)];
-  return clientFetchAllDataFromCollection<T>(collectionName);
 };
 
 export const getOldSafetyTrainingEmails = () => {
@@ -70,16 +64,13 @@ export const getOldSafetyTrainingEmails = () => {
 };
 
 export const decline = async (id: string, email: string, reason?: string) => {
-  clientUpdateDataByCalendarEventId(TableNames.BOOKING_STATUS, id, {
+  clientUpdateDataByCalendarEventId(TableNames.BOOKING, id, {
     declinedAt: Timestamp.now(),
     declinedBy: email,
     declineReason: reason || null,
   });
 
-  const doc = await clientGetDataByCalendarEventId(
-    TableNames.BOOKING_STATUS,
-    id
-  );
+  const doc = await clientGetDataByCalendarEventId(TableNames.BOOKING, id);
   //@ts-ignore
   const guestEmail = doc ? doc.email : null;
   let headerMessage =
@@ -112,14 +103,11 @@ export const decline = async (id: string, email: string, reason?: string) => {
   );
 };
 export const cancel = async (id: string, email: string) => {
-  clientUpdateDataByCalendarEventId(TableNames.BOOKING_STATUS, id, {
+  clientUpdateDataByCalendarEventId(TableNames.BOOKING, id, {
     canceledAt: Timestamp.now(),
     canceledBy: email,
   });
-  const doc = await clientGetDataByCalendarEventId(
-    TableNames.BOOKING_STATUS,
-    id
-  );
+  const doc = await clientGetDataByCalendarEventId(TableNames.BOOKING, id);
   //@ts-ignore
   const guestEmail = doc ? doc.email : null;
   const headerMessage =
@@ -151,30 +139,29 @@ export const cancel = async (id: string, email: string) => {
   );
 };
 
-export const updatePolicySettingData = async (updatedData: object) => {
-  type PolicySettingsDoc = PolicySettings & { id: string };
-  const policySettingsDocs =
-    await clientFetchAllDataFromCollection<PolicySettingsDoc>(
-      TableNames.POLICY
-    );
+export const updateFinalApprover = async (updatedData: object) => {
+  type ApproverDoc = Approver & { id: string };
+  const approverDocs = await clientFetchAllDataFromCollection<ApproverDoc>(
+    TableNames.APPROVERS
+  );
 
-  if (policySettingsDocs.length > 0) {
-    const policySettings = policySettingsDocs[0]; // should only be 1 doc
-    const docId = policySettings.id;
-    await clientUpdateDataInFirestore(TableNames.POLICY, docId, updatedData);
+  if (approverDocs.length > 0) {
+    const finalApproverDoc = approverDocs.filter(
+      (doc) => doc.level === ApproverLevel.FINAL
+    )[0]; // assuming only 1 final approver
+    const docId = finalApproverDoc.id;
+    await clientUpdateDataInFirestore(TableNames.APPROVERS, docId, updatedData);
   } else {
     console.log("No policy settings docs found");
   }
 };
+
 export const checkin = async (id: string, email: string) => {
-  clientUpdateDataByCalendarEventId(TableNames.BOOKING_STATUS, id, {
+  clientUpdateDataByCalendarEventId(TableNames.BOOKING, id, {
     checkedInAt: Timestamp.now(),
     checkedInBy: email,
   });
-  const doc = await clientGetDataByCalendarEventId(
-    TableNames.BOOKING_STATUS,
-    id
-  );
+  const doc = await clientGetDataByCalendarEventId(TableNames.BOOKING, id);
   //@ts-ignore
   const guestEmail = doc ? doc.email : null;
 
@@ -203,17 +190,14 @@ export const checkin = async (id: string, email: string) => {
 
 export const checkOut = async (id: string, email: string) => {
   const checkoutDate = roundTimeUp();
-  clientUpdateDataByCalendarEventId(TableNames.BOOKING_STATUS, id, {
+  clientUpdateDataByCalendarEventId(TableNames.BOOKING, id, {
     checkedOutAt: Timestamp.now(),
     checkedOutBy: email,
   });
   clientUpdateDataByCalendarEventId(TableNames.BOOKING, id, {
     endDate: Timestamp.fromDate(checkoutDate),
   });
-  const doc = await clientGetDataByCalendarEventId(
-    TableNames.BOOKING_STATUS,
-    id
-  );
+  const doc = await clientGetDataByCalendarEventId(TableNames.BOOKING, id);
   //@ts-ignore
   const guestEmail = doc ? doc.email : null;
 
@@ -247,14 +231,11 @@ export const checkOut = async (id: string, email: string) => {
 };
 
 export const noShow = async (id: string, email: string) => {
-  clientUpdateDataByCalendarEventId(TableNames.BOOKING_STATUS, id, {
+  clientUpdateDataByCalendarEventId(TableNames.BOOKING, id, {
     noShowedAt: Timestamp.now(),
     noShowedBy: email,
   });
-  const doc = await clientGetDataByCalendarEventId(
-    TableNames.BOOKING_STATUS,
-    id
-  );
+  const doc = await clientGetDataByCalendarEventId(TableNames.BOOKING, id);
   //@ts-ignore
   const guestEmail = doc ? doc.email : null;
 

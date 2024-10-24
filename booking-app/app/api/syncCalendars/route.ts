@@ -1,27 +1,33 @@
-import { toFirebaseTimestampFromString } from "@/components/src/client/utils/serverDate";
-import { TableNames } from "@/components/src/policy";
 import { Booking, MediaServices } from "@/components/src/types";
+
+import { NextResponse } from "next/server";
+import { TableNames } from "@/components/src/policy";
+import { Timestamp } from "@firebase/firestore";
 import admin from "@/lib/firebase/server/firebaseAdmin";
 import { getCalendarClient } from "@/lib/googleClient";
-import { Timestamp } from "@firebase/firestore";
-import { NextResponse } from "next/server";
+import { toFirebaseTimestampFromString } from "@/components/src/client/utils/serverDate";
 
 const db = admin.firestore();
 const areRoomIdsSame = (roomIds1: string, roomIds2: string): boolean => {
-
   const toArray = (ids: string): string[] => {
-    return ids.includes(',') ? ids.split(',').map(id => id.trim()) : [ids.trim()];
+    return ids.includes(",")
+      ? ids.split(",").map(id => id.trim())
+      : [ids.trim()];
   };
 
   const sortedRoomIds1 = toArray(String(roomIds1)).sort();
   const sortedRoomIds2 = toArray(String(roomIds2)).sort();
-  
-  console.log('Comparing room IDs:', { ids1: sortedRoomIds1, ids2: sortedRoomIds2 });
 
-  const areEqual = sortedRoomIds1.length === sortedRoomIds2.length &&
-                   sortedRoomIds1.every((id, index) => id === sortedRoomIds2[index]);
+  console.log("Comparing room IDs:", {
+    ids1: sortedRoomIds1,
+    ids2: sortedRoomIds2,
+  });
 
-  console.log('Comparison result:', areEqual);
+  const areEqual =
+    sortedRoomIds1.length === sortedRoomIds2.length &&
+    sortedRoomIds1.every((id, index) => id === sortedRoomIds2[index]);
+
+  console.log("Comparison result:", areEqual);
 
   return areEqual;
 };
@@ -63,14 +69,32 @@ const createBookingWithDefaults = (
     equipmentCheckedOut: false,
     startDate: null,
     endDate: null,
+    requestedAt: undefined,
+    firstApprovedAt: undefined,
+    firstApprovedBy: "",
+    finalApprovedAt: undefined,
+    finalApprovedBy: "",
+    declinedAt: undefined,
+    declinedBy: "",
+    declineReason: "",
+    canceledAt: undefined,
+    canceledBy: "",
+    checkedInAt: undefined,
+    checkedInBy: "",
+    checkedOutAt: undefined,
+    checkedOutBy: "",
+    noShowedAt: undefined,
+    noShowedBy: "",
+    walkedInAt: undefined,
     ...partialBooking,
   };
 };
 
 const findGuestEmail = (event: any): string => {
   const attendees = event.attendees || [];
-  const guestEmail = attendees.find((attendee: any) => 
-    attendee.email && !attendee.email.endsWith('@group.calendar.google.com')
+  const guestEmail = attendees.find(
+    (attendee: any) =>
+      attendee.email && !attendee.email.endsWith("@group.calendar.google.com"),
   );
   return guestEmail ? guestEmail.email : "";
 };
@@ -79,7 +103,9 @@ const findRoomIds = (event: any, resources: any[]): string => {
   const roomIds = new Set<string>();
 
   // Add the roomId of the current resource
-  const currentResource = resources.find(r => r.calendarId === event.organizer.email);
+  const currentResource = resources.find(
+    r => r.calendarId === event.organizer.email,
+  );
   if (currentResource) {
     roomIds.add(currentResource.roomId);
   }
@@ -95,7 +121,7 @@ const findRoomIds = (event: any, resources: any[]): string => {
   // Convert to array, sort numerically, and join
   return Array.from(roomIds)
     .sort((a, b) => parseInt(a) - parseInt(b))
-    .join(',');
+    .join(",");
 };
 
 export async function POST(request: Request) {
@@ -150,43 +176,43 @@ export async function POST(request: Request) {
                 title: event.summary || "",
                 description: event.description || "",
                 email: guestEmail,
-                startDate: toFirebaseTimestampFromString(event.start?.dateTime) as Timestamp,
-                endDate: toFirebaseTimestampFromString(event.end?.dateTime) as Timestamp,
+                startDate: toFirebaseTimestampFromString(
+                  event.start?.dateTime,
+                ) as Timestamp,
+                endDate: toFirebaseTimestampFromString(
+                  event.end?.dateTime,
+                ) as Timestamp,
                 calendarEventId: calendarEventId || "",
                 roomId: roomIds,
                 mediaServices: MediaServices.CHECKOUT_EQUIPMENT,
               });
-
               console.log("newBooking", newBooking);
               const bookingDocRef = await db
                 .collection(TableNames.BOOKING)
-                .add(newBooking);
+                .add({
+                  ...newBooking,
+                  requestedAt: admin.firestore.FieldValue.serverTimestamp(),
+                  firstApprovedAt: admin.firestore.FieldValue.serverTimestamp(),
+                  finalApprovedAt: admin.firestore.FieldValue.serverTimestamp(),
+                });
 
               console.log(`New Booking created with ID: ${bookingDocRef.id}`);
-
-              const newBookingStatus = {
-                calendarEventId: calendarEventId,
-                email: guestEmail,
-                requestedAt: admin.firestore.FieldValue.serverTimestamp(),
-                firstApprovedAt: admin.firestore.FieldValue.serverTimestamp(),
-                finalApprovedAt: admin.firestore.FieldValue.serverTimestamp(),
-              };
-              console.log("newBookingStatus", newBookingStatus);
-              const statusDocRef = await db
-                .collection(TableNames.BOOKING_STATUS)
-                .add(newBookingStatus);
-              console.log(`New BookingStatus created with ID: ${statusDocRef.id}`);
 
               totalNewBookings++;
             } else if (!bookingSnapshot.empty) {
               // Update existing booking if roomIds contains multiple rooms and is different from the existing roomId
               const existingBooking = bookingSnapshot.docs[0];
               const existingData = existingBooking.data() as Booking;
-              console.log("roomIds",roomIds)
-              console.log("existingData.roomId",existingData.roomId)
-              if (roomIds.includes(',') && !areRoomIdsSame(roomIds, existingData.roomId)) {
+              console.log("roomIds", roomIds);
+              console.log("existingData.roomId", existingData.roomId);
+              if (
+                roomIds.includes(",") &&
+                !areRoomIdsSame(roomIds, existingData.roomId)
+              ) {
                 await existingBooking.ref.update({ roomId: roomIds });
-                console.log(`Updated roomId for Booking ID: ${existingBooking.id}`);
+                console.log(
+                  `Updated roomId for Booking ID: ${existingBooking.id}`,
+                );
                 totalUpdatedBookings++;
               }
             }
@@ -194,25 +220,28 @@ export async function POST(request: Request) {
           pageToken = events.data.nextPageToken;
         } while (pageToken);
       } catch (error) {
-        console.error(`Error processing calendar ${resource.calendarId}:`, error);
+        console.error(
+          `Error processing calendar ${resource.calendarId}:`,
+          error,
+        );
       }
     }
 
     console.log("targetBookings", targetBookings);
     console.log("totalNewBookings", totalNewBookings);
     console.log("totalUpdatedBookings", totalUpdatedBookings);
-    
+
     return NextResponse.json(
-      { 
-        message: `${totalNewBookings} new bookings have been synchronized. ${totalUpdatedBookings} existing bookings have been updated with multiple rooms.` 
+      {
+        message: `${totalNewBookings} new bookings have been synchronized. ${totalUpdatedBookings} existing bookings have been updated with multiple rooms.`,
       },
-      { status: 200 }
+      { status: 200 },
     );
   } catch (error) {
     console.error("Error syncing calendars:", error);
     return NextResponse.json(
       { error: "An error occurred while syncing calendars." },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

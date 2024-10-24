@@ -80,11 +80,17 @@ async function handleBookingApprovalEmails(
     contents: BookingFormDetails,
   ) => {
     const { equipmentCheckedOut, ...otherContents } = contents;
+    const otherContentsStrings = Object.fromEntries(
+      Object.entries(otherContents).map(([key, value]) => [
+        key,
+        value instanceof Timestamp ? value.toDate().toISOString() : value,
+      ]),
+    );
     const emailPromises = recipients.map(recipient =>
       sendHTMLEmail({
         templateName: "approval_email",
         contents: {
-          ...otherContents,
+          ...otherContentsStrings,
           roomId: selectedRoomIds,
           startDate: serverFormatDate(bookingCalendarInfo?.startStr),
           endDate: serverFormatDate(bookingCalendarInfo?.endStr),
@@ -160,12 +166,8 @@ export async function POST(request: NextRequest) {
     endDate: toFirebaseTimestampFromString(bookingCalendarInfo.endStr),
     requestNumber: sequentialId,
     equipmentCheckedOut: false,
-    ...data,
-  });
-  await serverSaveDataToFirestore(TableNames.BOOKING_STATUS, {
-    calendarEventId,
-    email,
     requestedAt: Timestamp.now(),
+    ...data,
   });
 
   await handleBookingApprovalEmails(
@@ -247,6 +249,7 @@ export async function PUT(request: NextRequest) {
     endDate: toFirebaseTimestampFromString(bookingCalendarInfo.endStr),
     calendarEventId: newCalendarEventId,
     equipmentCheckedOut: false,
+    requestedAt: Timestamp.now(),
   };
 
   await serverUpdateDataByCalendarEventId(
@@ -254,17 +257,6 @@ export async function PUT(request: NextRequest) {
     calendarEventId,
     updatedData,
   );
-
-  // update statuses
-  await serverDeleteDataByCalendarEventId(
-    TableNames.BOOKING_STATUS,
-    calendarEventId,
-  );
-  await serverSaveDataToFirestore(TableNames.BOOKING_STATUS, {
-    calendarEventId: newCalendarEventId,
-    email,
-    requestedAt: Timestamp.now(),
-  });
 
   // handle auto-approval + send emails
   await handleBookingApprovalEmails(
