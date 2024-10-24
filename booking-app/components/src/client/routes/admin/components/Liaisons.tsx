@@ -38,7 +38,7 @@ const AddLiaisonForm = ({ liaisonEmails, reloadLiaisonEmails }) => {
       title="Department Liaisons"
       extra={{
         components: [departmentDropdown],
-        values: { department },
+        values: { department, level: 1 },
         updates: [setDepartment],
       }}
     />
@@ -54,7 +54,11 @@ export const Liaisons = () => {
   );
 
   const rows = useMemo(() => {
-    const sorted = liaisonUsers.sort((a, b) =>
+    const filtered = liaisonUsers.map((liaison) => {
+      const { level, ...other } = liaison;
+      return other;
+    });
+    const sorted = filtered.sort((a, b) =>
       a.department.localeCompare(b.department)
     );
     return sorted as unknown as { [key: string]: string }[];
