@@ -155,7 +155,7 @@ export const serverApproveBooking = async (id: string, email: string) => {
     };
     const recipient = await serverGetFinalApproverEmail();
     const formData = {
-      templateName: "approval_email",
+      templateName: "booking_detail",
       contents: emailContents,
       targetEmail: recipient,
       status: BookingStatusLabel.PENDING,
