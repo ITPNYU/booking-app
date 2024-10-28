@@ -1,6 +1,6 @@
 import { Options } from "yargs";
-import { addFakeBookingData } from "./fakeBookingData";
 import axios from "axios";
+import { genFakeBooking } from "./fakeBookingData";
 import { hideBin } from "yargs/helpers";
 //@ts-ignore
 import yargs from "yargs/yargs";
@@ -94,7 +94,7 @@ Object.keys(argv).forEach((key) => {
   }
 });
 
-const data = addFakeBookingData(n, fakeData, fakeBookingStatusData);
+const data = genFakeBooking(n, fakeData);
 axios
   .post(SERVER_URL, data)
   .then((response) => console.log(response.data))
