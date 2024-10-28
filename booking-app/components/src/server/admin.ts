@@ -7,6 +7,7 @@ import {
 import {
   Constraint,
   serverDeleteData,
+  serverDeleteDocumentFields,
   serverFetchAllDataFromCollection,
   serverGetDataByCalendarEventId,
   serverGetFinalApproverEmail,
@@ -48,6 +49,24 @@ export const serverUpdateDataByCalendarEventId = async (
   if (data) {
     const { id } = data;
     await serverUpdateInFirestore(collectionName, id, updatedData);
+  } else {
+    console.log("No document found with the given calendarEventId.");
+  }
+};
+
+export const serverDeleteFieldsByCalendarEventId = async (
+  collectionName: TableNames,
+  calendarEventId: string,
+  fields: string[]
+) => {
+  const data = await serverGetDataByCalendarEventId(
+    collectionName,
+    calendarEventId
+  );
+
+  if (data) {
+    const { id } = data;
+    await serverDeleteDocumentFields(collectionName, id, fields);
   } else {
     console.log("No document found with the given calendarEventId.");
   }

@@ -2,6 +2,7 @@ import { ApproverLevel, TableNames } from "@/components/src/policy";
 import {
   CollectionReference,
   DocumentData,
+  FieldValue,
   Query,
   QuerySnapshot,
   WhereFilterOp,
@@ -25,6 +26,24 @@ export const serverDeleteData = async (
     console.log("Document successfully deleted with ID:", docId);
   } catch (error) {
     console.error("Error deleting document: ", error);
+  }
+};
+
+export const serverDeleteDocumentFields = async (
+  collectionName: string,
+  docId: string,
+  fields: string[]
+) => {
+  try {
+    const updateData = fields.reduce((acc, field) => {
+      acc[field] = FieldValue.delete();
+      return acc;
+    }, {});
+
+    await db.collection(collectionName).doc(docId).update(updateData);
+    console.log("Fields successfully deleted from document:", docId);
+  } catch (error) {
+    console.error("Error deleting fields from document:", error);
   }
 };
 
