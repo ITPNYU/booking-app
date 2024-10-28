@@ -2,7 +2,7 @@ import { Box, Tab, Tabs } from "@mui/material";
 import { PageContextLevel, PagePermission } from "../../../types";
 import React, { useContext, useMemo, useState } from "react";
 
-import { Bookings } from "../components/bookingTable/Bookings";
+import Bookings from "../components/bookingTable/Bookings";
 import { CenterLoading } from "../components/Loading";
 import { DatabaseContext } from "../components/Provider";
 

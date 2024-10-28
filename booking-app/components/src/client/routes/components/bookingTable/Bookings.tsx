@@ -25,7 +25,7 @@ interface BookingsProps {
   pageContext: PageContextLevel;
 }
 
-export const Bookings: React.FC<BookingsProps> = ({ pageContext }) => {
+export default function Bookings({ pageContext }: BookingsProps) {
   const { bookings, bookingsLoading, reloadBookings } =
     useContext(DatabaseContext);
   const allowedStatuses = useAllowedStatuses(pageContext);
@@ -200,4 +200,4 @@ export const Bookings: React.FC<BookingsProps> = ({ pageContext }) => {
       )}
     </Box>
   );
-};
+}

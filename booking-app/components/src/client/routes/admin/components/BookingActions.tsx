@@ -154,12 +154,17 @@ export default function BookingActions(props: Props) {
         sx={{
           width: 125,
         }}
+        data-testid="actions"
       >
         <MenuItem value={Actions.PLACEHOLDER} sx={{ color: "gray" }}>
           <em>Action</em>
         </MenuItem>
         {options().map((action) => (
-          <MenuItem value={action} key={action}>
+          <MenuItem
+            value={action}
+            key={action}
+            data-testid={`action-${action}`}
+          >
             {action}
           </MenuItem>
         ))}

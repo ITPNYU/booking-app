@@ -44,7 +44,7 @@ export interface DatabaseContextType {
   setUserEmail: (x: string) => void;
 }
 
-export const DatabaseContext = createContext<DatabaseContextType>({
+export const DefaultDatabaseContext = {
   adminUsers: [],
   bannedUsers: [],
   bookings: [],
@@ -67,7 +67,11 @@ export const DatabaseContext = createContext<DatabaseContextType>({
   reloadBookingTypes: async () => {},
   reloadSafetyTrainedUsers: async () => {},
   setUserEmail: (x: string) => {},
-});
+};
+
+export const DatabaseContext = createContext<DatabaseContextType>(
+  DefaultDatabaseContext
+);
 
 export const DatabaseProvider = ({
   children,

@@ -1,7 +1,7 @@
 import { PageContextLevel, PagePermission } from "../../../../types";
 import React, { useContext, useMemo, useState } from "react";
 
-import { Bookings } from "../../components/bookingTable/Bookings";
+import Bookings from "../../components/bookingTable/Bookings";
 import { Box } from "@mui/material";
 import { CenterLoading } from "../../components/Loading";
 import { DatabaseContext } from "../../components/Provider";

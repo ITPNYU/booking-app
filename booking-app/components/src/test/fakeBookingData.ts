@@ -1,4 +1,5 @@
-import { Booking, BookingStatus } from "../types";
+import { Booking } from "../types";
+import { Timestamp } from "@firebase/firestore";
 
 function genFakeBookingRow(
   calendarEventId: string,
@@ -6,21 +7,15 @@ function genFakeBookingRow(
   fakeData?: any
 ): Booking {
   const today = new Date();
-  today.setMinutes(0); // show a nice time
-  today.setSeconds(0);
-  today.setMilliseconds(0);
   const endTime = new Date();
   endTime.setHours(today.getHours() + 4);
-  endTime.setMinutes(0);
-  endTime.setSeconds(0);
-  endTime.setMilliseconds(0);
 
   return {
     calendarEventId,
     roomId: "224",
     email,
-    startDate: today,
-    endDate: endTime,
+    startDate: Timestamp.fromDate(today),
+    endDate: Timestamp.fromDate(endTime),
     firstName: "Grace",
     lastName: "Hopper",
     secondaryName: "",
@@ -48,26 +43,23 @@ function genFakeBookingRow(
     chartFieldForSecurity: "",
     chartFieldForRoomSetup: "",
     devBranch: "development",
-    ...fakeData,
-  };
-}
-
-function genFakeBookingStatusRow(
-  calendarEventId: string,
-  email: string,
-  fakeData?: any
-): BookingStatus {
-  return {
-    calendarEventId,
-    email,
-    requestedAt: new Date(),
-    firstApprovedAt: "",
-    finalApprovedAt: "",
-    declinedAt: "",
-    canceledAt: "",
-    checkedInAt: "",
-    checkedOutAt: "",
-    noShowedAt: "",
+    // booking status
+    requestedAt: Timestamp.now(),
+    requestedBy: email,
+    // firstApprovedAt: "",
+    // firstApprovedBy: "",
+    // finalApprovedAt: "",
+    // finalApprovedBy: "",
+    // declinedAt: "",
+    // declinedBy: "",
+    // canceledAt: "",
+    // canceledBy: "",
+    // checkedInAt: "",
+    // checkedInBy: "",
+    // checkedOutAt: "",
+    // checkedOutBy: "",
+    // noShowedAt: "",
+    // noShowedBy: "",
     ...fakeData,
   };
 }
@@ -80,20 +72,25 @@ function generateUUID() {
   });
 }
 
-export function addFakeBookingData(
-  n: number,
-  fakeData: any,
-  fakeBookingStatusData: any
-) {
-  let calendarEventId;
+export function genFakeBooking(n: number, fakeData: any): Booking[] {
+  let calendarEventId: string;
   const email = "booking-app-devs@itp.nyu.edu";
   const bookingRows = [];
-  const bookingStatusRows = [];
 
   for (let i = 0; i < n; i++) {
     calendarEventId = generateUUID();
     bookingRows.push(genFakeBookingRow(calendarEventId, email, fakeData));
   }
 
-  return { bookingRows };
+  return bookingRows;
+}
+
+export function genFakeApprovedBooking(n: number, fakeData: any): Booking[] {
+  return genFakeBooking(n, {
+    ...fakeData,
+    firstApprovedAt: Timestamp.now(),
+    firstApprovedBy: "abc123@nyu.edu",
+    finalApprovedAt: Timestamp.now(),
+    finalApprovedBy: "abc123@nyu.edu",
+  });
 }

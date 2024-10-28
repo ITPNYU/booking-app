@@ -49,6 +49,7 @@ export default function BookingTableFilters({
       options={["Today", "This Week", "All"]}
       placeholder={"Today"}
       sx={{ width: "125px", mr: 1 }}
+      data-testid="dropdown-date-range"
     />
   );
 

@@ -36,7 +36,7 @@ export interface BookingContextType {
   submitting: SubmitStatus;
 }
 
-export const BookingContext = createContext<BookingContextType>({
+export const DefaultBookingContext: BookingContextType = {
   bookingCalendarInfo: undefined,
   department: undefined,
   existingCalendarEvents: [],
@@ -56,7 +56,11 @@ export const BookingContext = createContext<BookingContextType>({
   setSelectedRooms: (x: RoomSetting[]) => {},
   setSubmitting: (x: SubmitStatus) => {},
   submitting: "none",
-});
+};
+
+export const BookingContext = createContext<BookingContextType>(
+  DefaultBookingContext
+);
 
 export function BookingProvider({ children }) {
   const { bannedUsers, roomSettings, safetyTrainedUsers, userEmail } =

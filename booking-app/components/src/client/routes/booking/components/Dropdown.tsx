@@ -1,6 +1,6 @@
-import { MenuItem, Select, SxProps, Theme } from '@mui/material';
+import { MenuItem, Select, SxProps, Theme } from "@mui/material";
 
-import React from 'react';
+import React from "react";
 
 interface DropdownProps<T extends React.ReactNode> {
   value: T;
@@ -11,22 +11,23 @@ interface DropdownProps<T extends React.ReactNode> {
 }
 
 export default function Dropdown<T extends string>(props: DropdownProps<T>) {
-  const { value, updateValue, options, placeholder, sx } = props;
+  const { value, updateValue, options, placeholder, sx, ...otherProps } = props;
 
   return (
     <Select
       size="small"
-      value={value != null ? value : ''}
+      value={value != null ? value : ""}
       onChange={(e) => updateValue(e.target.value as T)}
       renderValue={(selected) => {
-        if (selected === '') {
-          return <p style={{ color: 'gray' }}>{placeholder}</p>;
+        if (selected === "") {
+          return <p style={{ color: "gray" }}>{placeholder}</p>;
         }
         return selected;
       }}
       sx={sx}
       displayEmpty
       fullWidth
+      {...otherProps}
     >
       {options.map((label, index) => (
         <MenuItem key={index} value={label as string}>
