@@ -2,7 +2,7 @@ import {
   CAMPUS_MEDIA_SERVICES_ROOMS,
   CHECKOUT_EQUIPMENT_ROOMS,
   LIGHTING_DMX_ROOMS,
-} from "../../../../policy";
+} from "../../../../mediaCommonsPolicy";
 import { Checkbox, FormControlLabel, Switch } from "@mui/material";
 import { Control, Controller, UseFormTrigger } from "react-hook-form";
 import { FormContextLevel, Inputs, MediaServices } from "../../../../types";

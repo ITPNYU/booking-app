@@ -14,7 +14,7 @@ import {
   firstApproverEmails,
   serverApproveInstantBooking,
   serverBookingContents,
-  serverDeleteDataByCalendarEventId,
+  serverDeleteFieldsByCalendarEventId,
   serverUpdateDataByCalendarEventId,
 } from "@/components/src/server/admin";
 import {
@@ -240,6 +240,7 @@ export async function PUT(request: NextRequest) {
   }
 
   // update booking contents WITH new calendarEventId
+  // but remove old approvals
   const { id, ...formData } = data;
   console.log("newCalendarEventId", newCalendarEventId);
   const updatedData = {
@@ -258,6 +259,20 @@ export async function PUT(request: NextRequest) {
     updatedData,
   );
 
+<<<<<<< HEAD
+=======
+  await serverDeleteFieldsByCalendarEventId(
+    TableNames.BOOKING,
+    newCalendarEventId,
+    [
+      "finalApprovedAt",
+      "finalApprovedBy",
+      "firstApprovedAt",
+      "firstApprovedBy",
+    ],
+  );
+
+>>>>>>> staging
   // handle auto-approval + send emails
   await handleBookingApprovalEmails(
     isAutoApproval,

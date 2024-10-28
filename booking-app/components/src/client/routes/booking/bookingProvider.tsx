@@ -10,7 +10,7 @@ import React, { createContext, useContext, useMemo, useState } from "react";
 
 import { DatabaseContext } from "../components/Provider";
 import { DateSelectArg } from "@fullcalendar/core";
-import { SAFETY_TRAINING_REQUIRED_ROOM } from "../../../policy";
+import { SAFETY_TRAINING_REQUIRED_ROOM } from "../../../mediaCommonsPolicy";
 import fetchCalendarEvents from "./hooks/fetchCalendarEvents";
 import { usePathname } from "next/navigation";
 

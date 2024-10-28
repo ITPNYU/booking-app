@@ -6,19 +6,17 @@ import {
   Table,
   TableBody,
   TableCell,
-  TableHead,
   TableRow,
   Typography,
 } from "@mui/material";
-import { BookingRow, BookingStatusLabel } from "../../../../types";
 
+import { BookingRow } from "../../../../types";
 import { default as CustomTable } from "../Table";
 import { Event } from "@mui/icons-material";
 import Grid from "@mui/material/Unstable_Grid2/Grid2";
 import React from "react";
 import { RoomDetails } from "../../booking/components/BookingSelection";
 import StackedTableCell from "./StackedTableCell";
-import StatusChip from "./StatusChip";
 import { formatTimeAmPm } from "../../../utils/date";
 import { styled } from "@mui/system";
 import useSortBookingHistory from "../../hooks/useSortBookingHistory";
@@ -37,16 +35,26 @@ const modalStyle = {
   width: "600px",
   bgcolor: "background.paper",
   boxShadow: 24,
-  p: 4,
-  padding: 4,
-  overflowY: "scroll",
+  display: "grid",
+  gridTemplateRows: "1fr 80px",
 };
+
+const ScrollableContent = styled(Box)({
+  overflowY: "scroll",
+});
+
+const Footer = styled(Box)(({ theme }) => ({
+  textAlign: "right",
+  borderTop: `1px solid ${theme.palette.custom.border}`,
+}));
 
 const StatusTable = styled(CustomTable)({
   width: "100%",
 });
 
-const SectionTitle = styled(Typography)({});
+const SectionTitle = styled(Typography)({
+  fontWeight: 700,
+});
 SectionTitle.defaultProps = {
   variant: "subtitle1",
 };
@@ -80,148 +88,145 @@ export default function MoreInfoModal({ booking, closeModal }: Props) {
   return (
     <Modal open={booking != null} onClose={closeModal}>
       <Box sx={modalStyle}>
-        <AlertHeader color="info" icon={<Event />} sx={{ marginBottom: 3 }}>
-          <RoomDetails container>
-            <label>Request Number:</label>
-            <p>{booking.requestNumber ?? "--"}</p>
-          </RoomDetails>
-          <RoomDetails container>
-            <label>Rooms:</label>
-            <p>{booking.roomId}</p>
-          </RoomDetails>
-          <RoomDetails container>
-            <label>Date:</label>
-            <p>{booking.startDate.toDate().toLocaleDateString()}</p>
-          </RoomDetails>
-          <RoomDetails container>
-            <label>Time:</label>
-            <p>{`${formatTimeAmPm(booking.startDate.toDate())} - ${formatTimeAmPm(
-              booking.endDate.toDate()
-            )}`}</p>
-          </RoomDetails>
-          <RoomDetails container>
-            <label>Status:</label>
-            <p>{booking.status}</p>
-          </RoomDetails>
-        </AlertHeader>
-        <Grid container columnSpacing={2}>
-          <StatusTable columns={historyCols} sx={{ marginBottom: 3 }}>
-            {historyRows}
-          </StatusTable>
+        <ScrollableContent padding={4}>
+          <AlertHeader color="info" icon={<Event />} sx={{ marginBottom: 3 }}>
+            <RoomDetails container>
+              <label>Request Number:</label>
+              <p>{booking.requestNumber ?? "--"}</p>
+            </RoomDetails>
+            <RoomDetails container>
+              <label>Rooms:</label>
+              <p>{booking.roomId}</p>
+            </RoomDetails>
+            <RoomDetails container>
+              <label>Date:</label>
+              <p>{booking.startDate.toDate().toLocaleDateString()}</p>
+            </RoomDetails>
+            <RoomDetails container>
+              <label>Time:</label>
+              <p>{`${formatTimeAmPm(booking.startDate.toDate())} - ${formatTimeAmPm(
+                booking.endDate.toDate()
+              )}`}</p>
+            </RoomDetails>
+            <RoomDetails container>
+              <label>Status:</label>
+              <p>{booking.status}</p>
+            </RoomDetails>
+          </AlertHeader>
+          <Grid container columnSpacing={2} margin={0}>
+            <SectionTitle>History</SectionTitle>
+            <StatusTable columns={historyCols} sx={{ marginBottom: 3 }}>
+              {historyRows}
+            </StatusTable>
 
-          <SectionTitle>Requestor</SectionTitle>
-          <Table size="small" sx={{ marginBottom: 3 }}>
-            <TableBody>
-              <TableRow>
-                <LabelCell>NetID / Name</LabelCell>
-                <StackedTableCell
-                  topText={booking.netId}
-                  bottomText={`${booking.firstName} ${booking.lastName}`}
-                />
-              </TableRow>
-              <TableRow>
-                <LabelCell>Contact Info</LabelCell>
-                <StackedTableCell
-                  topText={booking.email}
-                  bottomText={booking.phoneNumber}
-                />
-              </TableRow>
-              <TableRow>
-                <LabelCell>N-Number </LabelCell>
-                <TableCell>{booking.nNumber}</TableCell>
-              </TableRow>
-              <TableRow>
-                <LabelCell>Secondary Contact</LabelCell>
-                <TableCell>{booking.secondaryName || BLANK}</TableCell>
-              </TableRow>
-              <TableRow>
-                <LabelCell>Sponsor</LabelCell>
-                <StackedTableCell
-                  topText={booking.sponsorEmail || BLANK}
-                  bottomText={`${booking.sponsorFirstName} ${booking.sponsorLastName}`}
-                />
-              </TableRow>
-            </TableBody>
-          </Table>
+            <SectionTitle>Requestor</SectionTitle>
+            <Table size="small" sx={{ marginBottom: 3 }}>
+              <TableBody>
+                <TableRow>
+                  <LabelCell>NetID / Name</LabelCell>
+                  <StackedTableCell
+                    topText={booking.netId}
+                    bottomText={`${booking.firstName} ${booking.lastName}`}
+                  />
+                </TableRow>
+                <TableRow>
+                  <LabelCell>Contact Info</LabelCell>
+                  <StackedTableCell
+                    topText={booking.email}
+                    bottomText={booking.phoneNumber}
+                  />
+                </TableRow>
+                <TableRow>
+                  <LabelCell>N-Number </LabelCell>
+                  <TableCell>{booking.nNumber}</TableCell>
+                </TableRow>
+                <TableRow>
+                  <LabelCell>Secondary Contact</LabelCell>
+                  <TableCell>{booking.secondaryName || BLANK}</TableCell>
+                </TableRow>
+                <TableRow>
+                  <LabelCell>Sponsor</LabelCell>
+                  <StackedTableCell
+                    topText={booking.sponsorEmail || BLANK}
+                    bottomText={`${booking.sponsorFirstName} ${booking.sponsorLastName}`}
+                  />
+                </TableRow>
+              </TableBody>
+            </Table>
 
-          <SectionTitle>Details</SectionTitle>
-          <Table size="small" sx={{ marginBottom: 3 }}>
-            <TableBody>
-              <TableRow>
-                <LabelCell>Title</LabelCell>
-                <TableCell>{booking.title}</TableCell>
-              </TableRow>
-              <TableRow>
-                <LabelCell>Description</LabelCell>
-                <TableCell>{booking.description}</TableCell>
-              </TableRow>
-              <TableRow>
-                <LabelCell>Booking Type</LabelCell>
-                <TableCell>{booking.bookingType}</TableCell>
-              </TableRow>
-              <TableRow>
-                <LabelCell>Expected Attendance</LabelCell>
-                <TableCell>{booking.expectedAttendance}</TableCell>
-              </TableRow>
-              <TableRow>
-                <LabelCell>Attendee Affiliation</LabelCell>
-                <TableCell>{booking.attendeeAffiliation}</TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
+            <SectionTitle>Details</SectionTitle>
+            <Table size="small" sx={{ marginBottom: 3 }}>
+              <TableBody>
+                <TableRow>
+                  <LabelCell>Title</LabelCell>
+                  <TableCell>{booking.title}</TableCell>
+                </TableRow>
+                <TableRow>
+                  <LabelCell>Description</LabelCell>
+                  <TableCell>{booking.description}</TableCell>
+                </TableRow>
+                <TableRow>
+                  <LabelCell>Booking Type</LabelCell>
+                  <TableCell>{booking.bookingType}</TableCell>
+                </TableRow>
+                <TableRow>
+                  <LabelCell>Expected Attendance</LabelCell>
+                  <TableCell>{booking.expectedAttendance}</TableCell>
+                </TableRow>
+                <TableRow>
+                  <LabelCell>Attendee Affiliation</LabelCell>
+                  <TableCell>{booking.attendeeAffiliation}</TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
 
-          <SectionTitle>Services</SectionTitle>
-          <Table size="small">
-            <TableBody>
-              <TableRow>
-                <LabelCell>Room Setup</LabelCell>
-                <StackedTableCell
-                  topText={booking.setupDetails || BLANK}
-                  bottomText={booking.chartFieldForRoomSetup}
-                />
-              </TableRow>
-              <TableRow>
-                <LabelCell>Media Service</LabelCell>
-                <TableCell>
-                  {booking.mediaServices == undefined
-                    ? BLANK
-                    : booking.mediaServices
-                        .split(", ")
-                        .map((service) => (
-                          <p key={service}>{service.trim()}</p>
-                        ))}
-                  <p>{booking.mediaServicesDetails}</p>
-                </TableCell>
-              </TableRow>
-              <TableRow>
-                <LabelCell>Catering</LabelCell>
-                <StackedTableCell
-                  topText={booking.cateringService || BLANK}
-                  bottomText={booking.chartFieldForCatering}
-                />
-              </TableRow>
-              <TableRow>
-                <LabelCell>Security</LabelCell>
-                <StackedTableCell
-                  topText={booking.hireSecurity === "yes" ? "Yes" : BLANK}
-                  bottomText={booking.chartFieldForSecurity}
-                />
-              </TableRow>
-            </TableBody>
-          </Table>
-        </Grid>
+            <SectionTitle>Services</SectionTitle>
+            <Table size="small">
+              <TableBody>
+                <TableRow>
+                  <LabelCell>Room Setup</LabelCell>
+                  <StackedTableCell
+                    topText={booking.setupDetails || BLANK}
+                    bottomText={booking.chartFieldForRoomSetup}
+                  />
+                </TableRow>
+                <TableRow>
+                  <LabelCell>Media Service</LabelCell>
+                  <TableCell>
+                    {booking.mediaServices == undefined
+                      ? BLANK
+                      : booking.mediaServices
+                          .split(", ")
+                          .map((service) => (
+                            <p key={service}>{service.trim()}</p>
+                          ))}
+                    <p>{booking.mediaServicesDetails}</p>
+                  </TableCell>
+                </TableRow>
+                <TableRow>
+                  <LabelCell>Catering</LabelCell>
+                  <StackedTableCell
+                    topText={booking.cateringService || BLANK}
+                    bottomText={booking.chartFieldForCatering}
+                  />
+                </TableRow>
+                <TableRow>
+                  <LabelCell>Security</LabelCell>
+                  <StackedTableCell
+                    topText={booking.hireSecurity === "yes" ? "Yes" : BLANK}
+                    bottomText={booking.chartFieldForSecurity}
+                  />
+                </TableRow>
+              </TableBody>
+            </Table>
+          </Grid>
+        </ScrollableContent>
 
-        <Box
-          sx={{
-            display: "flex",
-            justifyContent: "flex-end",
-            mt: 2,
-          }}
-        >
+        <Footer pr={4} pt={2}>
           <Button variant="text" onClick={closeModal}>
             Close
           </Button>
-        </Box>
+        </Footer>
       </Box>
     </Modal>
   );
