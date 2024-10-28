@@ -1,13 +1,20 @@
-import { Alert, AlertColor, Box, Button, Tooltip } from "@mui/material";
+import {
+  Alert,
+  AlertColor,
+  Box,
+  Button,
+  Tooltip,
+  useMediaQuery,
+  useTheme,
+} from "@mui/material";
 import { Check, ChevronLeft, ChevronRight } from "@mui/icons-material";
 import React, { useContext } from "react";
 
 import { BookingContext } from "../bookingProvider";
 import { FormContextLevel } from "@/components/src/types";
-import Grid from "@mui/material/Unstable_Grid2";
+import { styled } from "@mui/system";
 import useCalculateOverlap from "../hooks/useCalculateOverlap";
 import useCheckAutoApproval from "../hooks/useCheckAutoApproval";
-import { usePathname } from "next/navigation";
 
 interface Props {
   formContext: FormContextLevel;
@@ -17,12 +24,23 @@ interface Props {
   hideNextButton: boolean;
 }
 
+const NavGrid = styled(Box)`
+  display: grid;
+  grid-template-columns: 94px 1fr 94px;
+  grid-gap: 12px;
+  padding-left: 24px;
+  padding-right: 18px;
+`;
+
 export default function BookingStatusBar({ formContext, ...props }: Props) {
   const isWalkIn = formContext === FormContextLevel.WALK_IN;
   const { isAutoApproval, errorMessage } = useCheckAutoApproval(isWalkIn);
   const { bookingCalendarInfo, selectedRooms, isBanned, needsSafetyTraining } =
     useContext(BookingContext);
   const isOverlap = useCalculateOverlap();
+
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
   const showAlert =
     isBanned ||
@@ -127,54 +145,62 @@ export default function BookingStatusBar({ formContext, ...props }: Props) {
     return [false, ""];
   })();
 
+  const backBtn = !props.hideBackButton && (
+    <Button
+      variant="outlined"
+      startIcon={<ChevronLeft />}
+      onClick={props.goBack}
+    >
+      Back
+    </Button>
+  );
+
+  const nextBtn = !props.hideNextButton && (
+    <Tooltip title={disabledMessage}>
+      <span>
+        <Button
+          variant="outlined"
+          endIcon={<ChevronRight />}
+          onClick={props.goNext}
+          disabled={disabled}
+        >
+          Next
+        </Button>
+      </span>
+    </Tooltip>
+  );
+
+  const alert = showAlert && state && (
+    <Alert
+      severity={state.severity}
+      icon={state.icon}
+      variant={state.variant ?? "filled"}
+      sx={{ padding: "0px 16px", width: "100%" }}
+    >
+      {state.message}
+    </Alert>
+  );
+
+  if (isMobile) {
+    return (
+      <Box>
+        <NavGrid>
+          <Box>{backBtn}</Box>
+          <Box></Box>
+          <Box>{nextBtn}</Box>
+        </NavGrid>
+        <Box sx={{ pr: "18px", pl: "24px", mt: 2 }}>{alert}</Box>
+      </Box>
+    );
+  }
+
   return (
     <Box sx={{ flexGrow: 1 }}>
-      <Grid
-        container
-        sx={{ alignItems: "center" }}
-        paddingLeft="24px"
-        paddingRight="18px"
-      >
-        <Grid xs={"auto"}>
-          {!props.hideBackButton && (
-            <Button
-              variant="outlined"
-              startIcon={<ChevronLeft />}
-              onClick={props.goBack}
-            >
-              Back
-            </Button>
-          )}
-        </Grid>
-        <Grid md={10} xs={"auto"}>
-          {showAlert && state && (
-            <Alert
-              severity={state.severity}
-              icon={state.icon}
-              variant={state.variant ?? "filled"}
-              sx={{ padding: "0px 16px", margin: "0px 12px", width: "100%" }}
-            >
-              {state.message}
-            </Alert>
-          )}
-        </Grid>
-        <Grid sx={{ marginLeft: "auto" }}>
-          {!props.hideNextButton && (
-            <Tooltip title={disabledMessage}>
-              <span>
-                <Button
-                  variant="outlined"
-                  endIcon={<ChevronRight />}
-                  onClick={props.goNext}
-                  disabled={disabled}
-                >
-                  Next
-                </Button>
-              </span>
-            </Tooltip>
-          )}
-        </Grid>
-      </Grid>
+      <NavGrid>
+        <Box>{backBtn}</Box>
+        <Box>{alert}</Box>
+        <Box>{nextBtn}</Box>
+      </NavGrid>
     </Box>
   );
 }

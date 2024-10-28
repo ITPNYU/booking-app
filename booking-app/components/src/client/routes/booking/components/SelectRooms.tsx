@@ -1,6 +1,9 @@
 import { Checkbox, FormControlLabel, FormGroup } from "@mui/material";
 import { FormContextLevel, RoomSetting } from "../../../../types";
-import { MOCAP_ROOMS, WALK_IN_CAN_BOOK_TWO } from "../../../../policy";
+import {
+  MOCAP_ROOMS,
+  WALK_IN_CAN_BOOK_TWO,
+} from "../../../../mediaCommonsPolicy";
 import React, { useContext, useMemo } from "react";
 
 import { BookingContext } from "../bookingProvider";

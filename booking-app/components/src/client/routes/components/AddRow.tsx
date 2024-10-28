@@ -19,7 +19,7 @@ interface Props {
   title: string;
   extra?: {
     components: React.ReactNode[];
-    values: { [key: string]: string };
+    values: { [key: string]: any };
     updates: ((x: string) => void)[];
   };
 }

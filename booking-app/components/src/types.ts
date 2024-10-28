@@ -5,6 +5,13 @@ export type AdminUser = {
   createdAt: string;
 };
 
+export type Approver = {
+  email: string;
+  department: string;
+  createdAt: string;
+  level: number;
+};
+
 export enum AttendeeAffiliation {
   NYU = "NYU Members with an active NYU ID",
   NON_NYU = "Non-NYU guests",
@@ -16,15 +23,16 @@ export type Ban = {
   bannedAt: string;
 };
 
-export type Booking = Inputs & {
-  calendarEventId: string;
-  email: string;
-  startDate: Timestamp;
-  endDate: Timestamp;
-  roomId: string;
-  requestNumber: number;
-  equipmentCheckedOut: boolean;
-};
+export type Booking = Inputs &
+  BookingStatus & {
+    calendarEventId: string;
+    email: string;
+    startDate: Timestamp;
+    endDate: Timestamp;
+    roomId: string;
+    requestNumber: number;
+    equipmentCheckedOut: boolean;
+  };
 
 // used for Booking table rows that show status
 export type BookingRow = Booking & {
@@ -140,12 +148,6 @@ export type Inputs = {
   chartFieldForCatering: string;
   chartFieldForSecurity: string;
   chartFieldForRoomSetup: string;
-};
-
-export type LiaisonType = {
-  email: string;
-  department: string;
-  createdAt: string;
 };
 
 export type DepartmentType = {

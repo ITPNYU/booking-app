@@ -1,8 +1,9 @@
 "use client";
 
+import { deepPurple, lightGreen } from "@mui/material/colors";
+
 import { Roboto } from "next/font/google";
 import { createTheme } from "@mui/material/styles";
-import { deepPurple } from "@mui/material/colors";
 
 const theme = createTheme({
   palette: {
@@ -20,7 +21,7 @@ const theme = createTheme({
       gray3: "rgba(0,0,0,0.3)",
       border: "#e3e3e3",
     },
-    success: { main: "rgb(0 255 0)" },
+    success: { main: lightGreen.A400 },
     warning: { main: "rgb(255 167 0)" },
     error: { main: "rgba(255, 26, 26, 1)" },
   },
