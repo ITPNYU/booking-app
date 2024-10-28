@@ -259,8 +259,6 @@ export async function PUT(request: NextRequest) {
     updatedData,
   );
 
-<<<<<<< HEAD
-=======
   await serverDeleteFieldsByCalendarEventId(
     TableNames.BOOKING,
     newCalendarEventId,
@@ -272,7 +270,6 @@ export async function PUT(request: NextRequest) {
     ],
   );
 
->>>>>>> staging
   // handle auto-approval + send emails
   await handleBookingApprovalEmails(
     isAutoApproval,
