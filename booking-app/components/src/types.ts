@@ -40,9 +40,7 @@ export type BookingRow = Booking & {
 };
 
 export type BookingFormDetails = Booking & {
-  approvalUrl: string;
   bookingToolUrl: string;
-  declinedUrl: string;
   headerMessage?: string;
 };
 

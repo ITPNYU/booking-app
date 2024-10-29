@@ -1,10 +1,8 @@
-import { approvalUrl, declineUrl } from "@/components/src/server/ui";
-
-import fs from "fs";
+import { serverFormatDate } from "@/components/src/client/utils/serverDate";
 import { getEmailBranchTag } from "@/components/src/server/emails";
 import { getGmailClient } from "@/lib/googleClient";
+import fs from "fs";
 import path from "path";
-import { serverFormatDate } from "@/components/src/client/utils/serverDate";
 
 let Handlebars;
 
@@ -54,8 +52,6 @@ export const sendHTMLEmail = async (params: SendHTMLEmailParams) => {
     contents,
     startDate: serverFormatDate(contents.startDate),
     endDate: serverFormatDate(contents.endDate),
-    approvalUrl: approvalUrl(contents.calendarEventId),
-    declineUrl: declineUrl(contents.calendarEventId),
   });
 
   const messageParts = [

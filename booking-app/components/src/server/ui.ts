@@ -10,9 +10,3 @@ export const getBookingToolDeployUrl = () => {
       return "https://flowing-mantis-389917.uc.r.appspot.com/";
   }
 };
-
-export const approvalUrl = (calendarEventId: string) =>
-  `${process.env.NEXT_PUBLIC_BASE_URL}/`;
-
-export const declineUrl = (calendarEventId: string) =>
-  `${process.env.NEXT_PUBLIC_BASE_URL}/`;

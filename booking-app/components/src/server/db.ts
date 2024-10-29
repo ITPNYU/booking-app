@@ -1,22 +1,17 @@
 import {
-  Approver,
-  BookingFormDetails,
-  BookingStatusLabel,
-  PolicySettings,
-} from "../types";
+  clientFetchAllDataFromCollection,
+  clientGetDataByCalendarEventId,
+  clientUpdateDataInFirestore,
+} from "@/lib/firebase/firebase";
+import { Timestamp, where } from "@firebase/firestore";
 import {
   ApproverLevel,
   TableNames,
   clientGetFinalApproverEmail,
   getCancelCcEmail,
 } from "../policy";
-import { Timestamp, where } from "@firebase/firestore";
-import { approvalUrl, declineUrl, getBookingToolDeployUrl } from "./ui";
-import {
-  clientFetchAllDataFromCollection,
-  clientGetDataByCalendarEventId,
-  clientUpdateDataInFirestore,
-} from "@/lib/firebase/firebase";
+import { Approver, BookingFormDetails, BookingStatusLabel } from "../types";
+import { getBookingToolDeployUrl } from "./ui";
 
 import { clientUpdateDataByCalendarEventId } from "@/lib/firebase/client/clientDb";
 import { roundTimeUp } from "../client/utils/date";
@@ -271,9 +266,7 @@ export const clientBookingContents = (id: string) => {
     .then((bookingObj) => {
       const updatedBookingObj = Object.assign({}, bookingObj, {
         headerMessage: "This is a request email for final approval.",
-        approvalUrl: approvalUrl(id),
         bookingToolUrl: getBookingToolDeployUrl(),
-        declineUrl: declineUrl(id),
       });
 
       return updatedBookingObj as unknown as BookingFormDetails;

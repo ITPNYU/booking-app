@@ -10,11 +10,7 @@ import {
   serverUpdateDataByCalendarEventId,
 } from "@/components/src/server/admin";
 import { deleteEvent, insertEvent } from "@/components/src/server/calendars";
-import {
-  approvalUrl,
-  declineUrl,
-  getBookingToolDeployUrl,
-} from "@/components/src/server/ui";
+import { getBookingToolDeployUrl } from "@/components/src/server/ui";
 import {
   BookingFormDetails,
   BookingStatusLabel,
@@ -117,8 +113,6 @@ async function handleBookingApprovalEmails(
       email,
       startDate: bookingCalendarInfo?.startStr,
       endDate: bookingCalendarInfo?.endStr,
-      approvalUrl: approvalUrl(calendarEventId),
-      declineUrl: declineUrl(calendarEventId),
       bookingToolUrl: getBookingToolDeployUrl(),
       headerMessage: "This is a request email for first approval.",
       requestNumber: sequentialId,
