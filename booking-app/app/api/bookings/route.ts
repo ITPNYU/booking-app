@@ -12,6 +12,7 @@ import {
 import { deleteEvent, insertEvent } from "@/components/src/server/calendars";
 import { getBookingToolDeployUrl } from "@/components/src/server/ui";
 import {
+  ApproverType,
   BookingFormDetails,
   BookingStatusLabel,
   RoomSetting,
@@ -97,6 +98,7 @@ async function handleBookingApprovalEmails(
         eventTitle: contents.title,
         requestNumber: contents.requestNumber ?? sequentialId,
         body: "",
+        approverType: ApproverType.LIAISON,
       }),
     );
     await Promise.all(emailPromises);

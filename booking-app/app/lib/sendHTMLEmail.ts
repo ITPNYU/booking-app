@@ -1,5 +1,6 @@
 import { serverFormatDate } from "@/components/src/client/utils/serverDate";
 import { getEmailBranchTag } from "@/components/src/server/emails";
+import { ApproverType } from "@/components/src/types";
 import { getGmailClient } from "@/lib/googleClient";
 import fs from "fs";
 import path from "path";
@@ -22,6 +23,7 @@ interface SendHTMLEmailParams {
   eventTitle: string;
   requestNumber: number;
   body: string;
+  approverType?: ApproverType;
 }
 
 export const sendHTMLEmail = async (params: SendHTMLEmailParams) => {
@@ -33,9 +35,29 @@ export const sendHTMLEmail = async (params: SendHTMLEmailParams) => {
     eventTitle,
     requestNumber,
     body,
+    approverType,
   } = params;
 
   const subj = `${getEmailBranchTag()}${status} - Media Commons request #${requestNumber}: "${eventTitle}"`;
+
+  const getUrlPathByApproverType = (
+    calendarEventId,
+    approverType?: ApproverType,
+  ): string => {
+    let path: string;
+    switch (approverType) {
+      case ApproverType.LIAISON:
+        path = "/liaison";
+        break;
+      case ApproverType.FINAL_APPROVER:
+        path = "/admin";
+        break;
+      default:
+        path = "/";
+    }
+
+    return `${process.env.NEXT_PUBLIC_BASE_URL}${path}?calendarEventId=${calendarEventId}`;
+  };
 
   const templatePath = path.join(
     process.cwd(),
@@ -44,6 +66,10 @@ export const sendHTMLEmail = async (params: SendHTMLEmailParams) => {
   );
   const templateSource = fs.readFileSync(templatePath, "utf8");
   const template = Handlebars.compile(templateSource);
+  const approvalUrl = getUrlPathByApproverType(
+    contents.calendarEventId,
+    approverType,
+  );
 
   const htmlBody = template({
     eventTitle,
@@ -52,6 +78,7 @@ export const sendHTMLEmail = async (params: SendHTMLEmailParams) => {
     contents,
     startDate: serverFormatDate(contents.startDate),
     endDate: serverFormatDate(contents.endDate),
+    approvalUrl,
   });
 
   const messageParts = [

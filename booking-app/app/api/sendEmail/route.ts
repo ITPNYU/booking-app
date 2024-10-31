@@ -11,6 +11,7 @@ export async function POST(req: NextRequest) {
     eventTitle,
     requestNumber,
     bodyMessage,
+    approverType,
   } = await req.json();
 
   // if (!templateName || !contents || !targetEmail || !status || !eventTitle) {
@@ -29,6 +30,7 @@ export async function POST(req: NextRequest) {
       eventTitle,
       requestNumber,
       body: bodyMessage || "",
+      approverType,
     });
     return NextResponse.json(
       { message: "Email sent successfully" },

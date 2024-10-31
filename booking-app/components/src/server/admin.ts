@@ -9,12 +9,12 @@ import {
 } from "@/lib/firebase/server/adminDb";
 import { TableNames, getApprovalCcEmail } from "../policy";
 import {
+  ApproverType,
   BookingFormDetails,
   BookingStatus,
   BookingStatusLabel,
   RoomSetting,
 } from "../types";
-import { getBookingToolDeployUrl } from "./ui";
 
 import { Timestamp } from "firebase-admin/firestore";
 
@@ -23,7 +23,6 @@ export const serverBookingContents = (id: string) => {
     .then((bookingObj) => {
       const updatedBookingObj = Object.assign({}, bookingObj, {
         headerMessage: "This is a request email for final approval.",
-        bookingToolUrl: getBookingToolDeployUrl(),
       });
 
       return updatedBookingObj as unknown as BookingFormDetails;
@@ -160,6 +159,7 @@ export const serverApproveBooking = async (id: string, email: string) => {
       eventTitle: contents.title || "",
       requestNumber: contents.requestNumber,
       bodyMessage: "",
+      approverType: ApproverType.FINAL_APPROVER,
     };
     const res = await fetch(
       `${process.env.NEXT_PUBLIC_BASE_URL}/api/sendEmail`,
@@ -186,7 +186,8 @@ export const serverSendBookingDetailEmail = async (
   calendarEventId: string,
   email: string,
   headerMessage: string,
-  status: BookingStatusLabel
+  status: BookingStatusLabel,
+  approverType?: ApproverType
 ) => {
   const contents = await serverBookingContents(calendarEventId);
   contents.headerMessage = headerMessage;
@@ -198,6 +199,7 @@ export const serverSendBookingDetailEmail = async (
     eventTitle: contents.title,
     requestNumber: contents.requestNumber ?? "--",
     bodyMessage: "",
+    approverType: approverType,
   };
   const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/sendEmail`, {
     method: "POST",
