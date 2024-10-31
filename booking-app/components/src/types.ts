@@ -40,9 +40,6 @@ export type BookingRow = Booking & {
 };
 
 export type BookingFormDetails = Booking & {
-  approvalUrl: string;
-  bookingToolUrl: string;
-  declinedUrl: string;
   headerMessage?: string;
 };
 
@@ -110,6 +107,11 @@ export enum Department {
   OTHER = "Other",
 }
 export type DevBranch = "development" | "staging" | "production" | "";
+
+export enum ApproverType {
+  LIAISON = "liaison",
+  FINAL_APPROVER = "admin",
+}
 
 // what context are we entering the form in?
 export enum FormContextLevel {

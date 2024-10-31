@@ -1,14 +1,15 @@
 import { Box, Tab, Tabs } from "@mui/material";
+import { useContext, useMemo, useState } from "react";
 import { PageContextLevel, PagePermission } from "../../../types";
-import React, { useContext, useMemo, useState } from "react";
 
 import { Bookings } from "../components/bookingTable/Bookings";
 import { CenterLoading } from "../components/Loading";
 import { DatabaseContext } from "../components/Provider";
 
-const Liaison = () => {
+const Liaison = ({ calendarEventId }) => {
   const { liaisonUsers, pagePermission, userEmail } =
     useContext(DatabaseContext);
+
   const [tab, setTab] = useState("bookings");
 
   const liaisonEmails = useMemo<string[]>(
@@ -39,7 +40,10 @@ const Liaison = () => {
             <Tab value="bookings" label="Bookings" />
           </Tabs>
           {tab === "bookings" && (
-            <Bookings pageContext={PageContextLevel.LIAISON} />
+            <Bookings
+              calendarEventId={calendarEventId}
+              pageContext={PageContextLevel.LIAISON}
+            />
           )}
         </div>
       )}
