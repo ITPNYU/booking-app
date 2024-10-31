@@ -1,10 +1,4 @@
 import {
-  BookingFormDetails,
-  BookingStatus,
-  BookingStatusLabel,
-  RoomSetting,
-} from "../types";
-import {
   Constraint,
   serverDeleteData,
   serverDeleteDocumentFields,
@@ -14,7 +8,13 @@ import {
   serverUpdateInFirestore,
 } from "@/lib/firebase/server/adminDb";
 import { TableNames, getApprovalCcEmail } from "../policy";
-import { approvalUrl, declineUrl, getBookingToolDeployUrl } from "./ui";
+import {
+  BookingFormDetails,
+  BookingStatus,
+  BookingStatusLabel,
+  RoomSetting,
+} from "../types";
+import { getBookingToolDeployUrl } from "./ui";
 
 import { Timestamp } from "firebase-admin/firestore";
 
@@ -23,9 +23,7 @@ export const serverBookingContents = (id: string) => {
     .then((bookingObj) => {
       const updatedBookingObj = Object.assign({}, bookingObj, {
         headerMessage: "This is a request email for final approval.",
-        approvalUrl: approvalUrl(id),
         bookingToolUrl: getBookingToolDeployUrl(),
-        declineUrl: declineUrl(id),
       });
 
       return updatedBookingObj as unknown as BookingFormDetails;
