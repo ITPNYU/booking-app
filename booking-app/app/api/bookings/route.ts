@@ -1,7 +1,15 @@
 import {
-  serverFormatDate,
-  toFirebaseTimestampFromString,
-} from "@/components/src/client/utils/serverDate";
+  BookingFormDetails,
+  BookingStatusLabel,
+  RoomSetting,
+} from "@/components/src/types";
+import { NextRequest, NextResponse } from "next/server";
+import {
+  approvalUrl,
+  declineUrl,
+  getBookingToolDeployUrl,
+} from "@/components/src/server/ui";
+import { deleteEvent, insertEvent } from "@/components/src/server/calendars";
 import {
   firstApproverEmails,
   serverApproveInstantBooking,
@@ -9,24 +17,19 @@ import {
   serverDeleteFieldsByCalendarEventId,
   serverUpdateDataByCalendarEventId,
 } from "@/components/src/server/admin";
-import { deleteEvent, insertEvent } from "@/components/src/server/calendars";
-import { getBookingToolDeployUrl } from "@/components/src/server/ui";
 import {
-  ApproverType,
-  BookingFormDetails,
-  BookingStatusLabel,
-  RoomSetting,
-} from "@/components/src/types";
+  serverFormatDate,
+  toFirebaseTimestampFromString,
+} from "@/components/src/client/utils/serverDate";
 import {
   serverGetNextSequentialId,
   serverSaveDataToFirestore,
 } from "@/lib/firebase/server/adminDb";
-import { NextRequest, NextResponse } from "next/server";
 
-import { sendHTMLEmail } from "@/app/lib/sendHTMLEmail";
+import { DateSelectArg } from "fullcalendar";
 import { TableNames } from "@/components/src/policy";
 import { Timestamp } from "firebase-admin/firestore";
-import { DateSelectArg } from "fullcalendar";
+import { sendHTMLEmail } from "@/app/lib/sendHTMLEmail";
 
 async function createBookingCalendarEvent(
   selectedRooms: RoomSetting[],
@@ -85,7 +88,7 @@ async function handleBookingApprovalEmails(
     );
     const emailPromises = recipients.map(recipient =>
       sendHTMLEmail({
-        templateName: "booking_detail",
+        templateName: "approval_email",
         contents: {
           ...otherContentsStrings,
           roomId: selectedRoomIds,
@@ -98,7 +101,6 @@ async function handleBookingApprovalEmails(
         eventTitle: contents.title,
         requestNumber: contents.requestNumber ?? sequentialId,
         body: "",
-        approverType: ApproverType.LIAISON,
       }),
     );
     await Promise.all(emailPromises);
@@ -115,6 +117,8 @@ async function handleBookingApprovalEmails(
       email,
       startDate: bookingCalendarInfo?.startStr,
       endDate: bookingCalendarInfo?.endStr,
+      approvalUrl: approvalUrl(calendarEventId),
+      declineUrl: declineUrl(calendarEventId),
       bookingToolUrl: getBookingToolDeployUrl(),
       headerMessage: "This is a request email for first approval.",
       requestNumber: sequentialId,
