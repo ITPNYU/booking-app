@@ -36,26 +36,29 @@ export const Header = ({ formContext }: Props) => {
   }
 
   const goBack = (() => {
-    const step = pathname.split("/")[2]; // Get the step
-    const idSegment = pathname.split("/")[3] || ""; // Get the id if it exists
+    const step = pathname.split("/")[3]; // Get the step
+    const idSegment = pathname.split("/")[4] || ""; // Get the id if it exists
 
     switch (step) {
       case "selectRoom":
         if (formContext === FormContextLevel.MODIFICATION) return () => {};
-        return () => router.push(`${formContext}/role/${idSegment}`);
+        return () =>
+          router.push(`/media-commons${formContext}/role/${idSegment}`);
       case "form":
-        return () => router.push(`${formContext}/selectRoom/${idSegment}`);
+        return () =>
+          router.push(`/media-commons${formContext}/selectRoom/${idSegment}`);
       default:
         return () => {};
     }
   })();
 
   const goNext = (() => {
-    const step = pathname.split("/")[2]; // Get the step
-    const idSegment = pathname.split("/")[3] || ""; // Get the id segment if it exists
+    const step = pathname.split("/")[3]; // Get the step
+    const idSegment = pathname.split("/")[4] || ""; // Get the id segment if it exists
 
     if (step === "selectRoom") {
-      return () => router.push(`${formContext}/form/${idSegment}`);
+      return () =>
+        router.push(`/media-commons${formContext}/form/${idSegment}`);
     }
     return () => {};
   })();

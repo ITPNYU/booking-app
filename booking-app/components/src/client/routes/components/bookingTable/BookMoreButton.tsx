@@ -32,7 +32,7 @@ export default function BookMoreButton() {
             <Button
               onClick={() => {
                 handleStartBooking();
-                router.push("/book");
+                router.push("/media-commons/book");
               }}
               variant="text"
               sx={{

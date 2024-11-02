@@ -1,4 +1,4 @@
-// app/book/confirmation/page.tsx
+// app/media-commons/book/confirmation/page.tsx
 import BookingFormConfirmationPage from "@/components/src/client/routes/booking/formPages/BookingFormConfirmationPage";
 import { FormContextLevel } from "@/components/src/types";
 import React from "react";

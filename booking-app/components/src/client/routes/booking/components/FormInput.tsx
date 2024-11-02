@@ -189,9 +189,13 @@ export default function FormInput({ calendarEventId, formContext }: Props) {
     // setFormData(data);
     registerEvent(data, isAutoApproval, calendarEventId);
     if (isMod) {
-      router.push("/modification/confirmation");
+      router.push("/media-commons/modification/confirmation");
     } else {
-      router.push(isWalkIn ? "/walk-in/confirmation" : "/book/confirmation");
+      router.push(
+        isWalkIn
+          ? "/media-commons/walk-in/confirmation"
+          : "/media-commons/book/confirmation"
+      );
     }
   };
 
@@ -338,10 +342,7 @@ export default function FormInput({ calendarEventId, formContext }: Props) {
               id="roomSetup"
               label="Room Setup Needed?"
               required={false}
-              description={
-                <p>
-                </p>
-              }
+              description={<p></p>}
               {...{ control, errors, trigger }}
             />
             {watch("roomSetup") === "yes" && (
@@ -413,10 +414,7 @@ export default function FormInput({ calendarEventId, formContext }: Props) {
             <BookingFormSwitch
               id="catering"
               label="Catering?"
-              description={
-                <p>
-                </p>
-              }
+              description={<p></p>}
               required={false}
               {...{ control, errors, trigger }}
             />

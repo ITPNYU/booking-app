@@ -1,4 +1,4 @@
-// app/book/layout.tsx
+// app/media-commons/book/layout.tsx
 import BookingForm from "@/components/src/client/routes/booking/BookingForm";
 import { FormContextLevel } from "@/components/src/types";
 import React from "react";

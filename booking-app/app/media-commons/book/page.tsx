@@ -1,4 +1,4 @@
-// app/book/page.tsx
+// app/media-commons/book/page.tsx
 
 "use client";
 

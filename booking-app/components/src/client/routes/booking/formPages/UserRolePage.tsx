@@ -86,12 +86,12 @@ export default function UserRolePage({
 
   const handleNextClick = () => {
     if (formContext === FormContextLevel.EDIT && calendarEventId != null) {
-      router.push("/edit/selectRoom/" + calendarEventId);
+      router.push("/media-commons/edit/selectRoom/" + calendarEventId);
     } else {
       router.push(
         formContext === FormContextLevel.WALK_IN
-          ? "/walk-in/selectRoom"
-          : "/book/selectRoom"
+          ? "/media-commons/walk-in/selectRoom"
+          : "/media-commons/book/selectRoom"
       );
     }
   };

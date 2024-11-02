@@ -68,16 +68,16 @@ export default function NavBar() {
   const handleRoleChange = (e: any) => {
     switch (e.target.value as PagePermission) {
       case PagePermission.BOOKING:
-        router.push("/");
+        router.push("/media-commons");
         break;
       case PagePermission.PA:
-        router.push("/pa");
+        router.push("/media-commons/pa");
         break;
       case PagePermission.ADMIN:
-        router.push("/admin");
+        router.push("/media-commons/admin");
         break;
       case PagePermission.LIAISON:
-        router.push("/liaison");
+        router.push("/media-commons/liaison");
         break;
     }
   };
@@ -154,7 +154,7 @@ export default function NavBar() {
         <Button
           onClick={() => {
             handleStartBooking();
-            router.push("/book");
+            router.push("/media-commons/book");
           }}
           variant="outlined"
           sx={{ height: "40px", marginRight: 2 }}
@@ -169,7 +169,7 @@ export default function NavBar() {
         <Button
           onClick={() => {
             handleStartBooking();
-            router.push("/walk-in");
+            router.push("/media-commons/walk-in");
           }}
           variant="outlined"
           sx={{ height: "40px", marginRight: 2 }}

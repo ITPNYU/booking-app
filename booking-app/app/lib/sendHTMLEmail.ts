@@ -1,9 +1,9 @@
-import { serverFormatDate } from "@/components/src/client/utils/serverDate";
-import { getEmailBranchTag } from "@/components/src/server/emails";
 import { ApproverType } from "@/components/src/types";
-import { getGmailClient } from "@/lib/googleClient";
 import fs from "fs";
+import { getEmailBranchTag } from "@/components/src/server/emails";
+import { getGmailClient } from "@/lib/googleClient";
 import path from "path";
+import { serverFormatDate } from "@/components/src/client/utils/serverDate";
 
 let Handlebars;
 
@@ -47,13 +47,13 @@ export const sendHTMLEmail = async (params: SendHTMLEmailParams) => {
     let path: string;
     switch (approverType) {
       case ApproverType.LIAISON:
-        path = "/liaison";
+        path = "/media-commons/liaison";
         break;
       case ApproverType.FINAL_APPROVER:
-        path = "/admin";
+        path = "/media-commons/admin";
         break;
       default:
-        path = "/";
+        path = "/media-commons";
     }
 
     return `${process.env.NEXT_PUBLIC_BASE_URL}${path}?calendarEventId=${calendarEventId}`;

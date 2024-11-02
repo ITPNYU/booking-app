@@ -1,4 +1,4 @@
-// app/book/selectRoom/page.tsx
+// app/media-commons/book/selectRoom/page.tsx
 
 "use client";
 

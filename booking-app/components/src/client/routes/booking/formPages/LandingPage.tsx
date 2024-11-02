@@ -47,11 +47,11 @@ export default function LandingPage() {
           Booking Confirmation
         </Typography>
         <p>
-        You will receive an email response from the Media Commons 
-        Team and a calendar invite once your request has been reviewed 
-        and processed. Please allow a minimum of 3 days for your request 
-        to be approved. If you do not hear back about your request, 
-        please contact the Media Commons Team (
+          You will receive an email response from the Media Commons Team and a
+          calendar invite once your request has been reviewed and processed.
+          Please allow a minimum of 3 days for your request to be approved. If
+          you do not hear back about your request, please contact the Media
+          Commons Team (
           <a href="mailto:mediacommons.reservations@nyu.edu">
             mediacommons.reservations@nyu.edu
           </a>
@@ -61,17 +61,17 @@ export default function LandingPage() {
           Cancellation Policy
         </Typography>
         <p>
-          To cancel a reservation please email the Media Commons Team  (
+          To cancel a reservation please email the Media Commons Team (
           <a href="mailto:mediacommons.reservations@nyu.edu">
             mediacommons.reservations@nyu.edu
           </a>
-          ) at least 24 hours before the date of the event. 
-            Failure to cancel may result in restricted use of the Media Commons.
+          ) at least 24 hours before the date of the event. Failure to cancel
+          may result in restricted use of the Media Commons.
         </p>
         <Button
           variant="contained"
           color="primary"
-          onClick={() => router.push("/book/role")}
+          onClick={() => router.push("/media-commons/book/role")}
           sx={{
             alignSelf: "center",
             marginTop: 6,
