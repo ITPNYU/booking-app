@@ -1,10 +1,4 @@
 import {
-  BookingFormDetails,
-  BookingStatus,
-  BookingStatusLabel,
-  RoomSetting,
-} from "../types";
-import {
   Constraint,
   serverDeleteData,
   serverDeleteDocumentFields,
@@ -14,7 +8,13 @@ import {
   serverUpdateInFirestore,
 } from "@/lib/firebase/server/adminDb";
 import { TableNames, getApprovalCcEmail } from "../policy";
-import { approvalUrl, declineUrl, getBookingToolDeployUrl } from "./ui";
+import {
+  ApproverType,
+  BookingFormDetails,
+  BookingStatus,
+  BookingStatusLabel,
+  RoomSetting,
+} from "../types";
 
 import { Timestamp } from "firebase-admin/firestore";
 
@@ -23,9 +23,6 @@ export const serverBookingContents = (id: string) => {
     .then((bookingObj) => {
       const updatedBookingObj = Object.assign({}, bookingObj, {
         headerMessage: "This is a request email for final approval.",
-        approvalUrl: approvalUrl(id),
-        bookingToolUrl: getBookingToolDeployUrl(),
-        declineUrl: declineUrl(id),
       });
 
       return updatedBookingObj as unknown as BookingFormDetails;
@@ -155,13 +152,14 @@ export const serverApproveBooking = async (id: string, email: string) => {
     };
     const recipient = await serverGetFinalApproverEmail();
     const formData = {
-      templateName: "approval_email",
+      templateName: "booking_detail",
       contents: emailContents,
       targetEmail: recipient,
       status: BookingStatusLabel.PENDING,
       eventTitle: contents.title || "",
       requestNumber: contents.requestNumber,
       bodyMessage: "",
+      approverType: ApproverType.FINAL_APPROVER,
     };
     const res = await fetch(
       `${process.env.NEXT_PUBLIC_BASE_URL}/api/sendEmail`,
@@ -188,7 +186,8 @@ export const serverSendBookingDetailEmail = async (
   calendarEventId: string,
   email: string,
   headerMessage: string,
-  status: BookingStatusLabel
+  status: BookingStatusLabel,
+  approverType?: ApproverType
 ) => {
   const contents = await serverBookingContents(calendarEventId);
   contents.headerMessage = headerMessage;
@@ -200,6 +199,7 @@ export const serverSendBookingDetailEmail = async (
     eventTitle: contents.title,
     requestNumber: contents.requestNumber ?? "--",
     bodyMessage: "",
+    approverType: approverType,
   };
   const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/sendEmail`, {
     method: "POST",
