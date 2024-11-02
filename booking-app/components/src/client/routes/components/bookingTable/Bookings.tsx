@@ -1,4 +1,3 @@
-import { Booking, BookingRow, PageContextLevel } from "../../../../types";
 import { Box, TableCell } from "@mui/material";
 import React, {
   useCallback,
@@ -7,25 +6,30 @@ import React, {
   useMemo,
   useState,
 } from "react";
+import { Booking, BookingRow, PageContextLevel } from "../../../../types";
 import Table, { TableEmpty } from "../Table";
 
+import Loading from "../Loading";
+import { DatabaseContext } from "../Provider";
 import BookMoreButton from "./BookMoreButton";
 import BookingTableFilters from "./BookingTableFilters";
 import BookingTableRow from "./BookingTableRow";
-import { ColumnSortOrder } from "./hooks/getColumnComparator";
-import { DatabaseContext } from "../Provider";
-import { DateRangeFilter } from "./hooks/getDateFilter";
-import Loading from "../Loading";
 import MoreInfoModal from "./MoreInfoModal";
 import SortableTableCell from "./SortableTableCell";
+import { ColumnSortOrder } from "./hooks/getColumnComparator";
+import { DateRangeFilter } from "./hooks/getDateFilter";
 import useAllowedStatuses from "./hooks/useAllowedStatuses";
 import { useBookingFilters } from "./hooks/useBookingFilters";
 
 interface BookingsProps {
   pageContext: PageContextLevel;
+  calendarEventId?: string;
 }
 
-export const Bookings: React.FC<BookingsProps> = ({ pageContext }) => {
+export const Bookings: React.FC<BookingsProps> = ({
+  pageContext,
+  calendarEventId,
+}) => {
   const { bookings, bookingsLoading, reloadBookings } =
     useContext(DatabaseContext);
   const allowedStatuses = useAllowedStatuses(pageContext);
