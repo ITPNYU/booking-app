@@ -1,7 +1,8 @@
 "use client";
 
 import { Box, Toolbar, Typography } from "@mui/material";
-import React, { useContext, useState } from "react";
+import React, { useContext, useMemo, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 
 import ConfirmDialog from "../ConfirmDialog";
 import { DatabaseContext } from "../Provider";
@@ -9,10 +10,10 @@ import NavBarActionButton from "./NavBarActionButton";
 import NavBarRoleSelect from "./NavBarRoleSelect";
 import NavBarTitle from "./NavBarTitle";
 import { PagePermission } from "../../../../types";
+import { Tenants } from "@/components/src/policy";
 import { auth } from "@/lib/firebase/firebaseClient";
 import { signOut } from "firebase/auth";
 import { styled } from "@mui/system";
-import { useRouter } from "next/navigation";
 
 const Nav = styled(Toolbar)(({ theme }) => ({
   border: `1px solid ${theme.palette.custom.border}`,
@@ -28,6 +29,7 @@ const Divider = styled(Box)(({ theme }) => ({
 
 export default function NavBar() {
   const router = useRouter();
+  const pathname = usePathname();
   const { userEmail, setUserEmail } = useContext(DatabaseContext);
 
   const [selectedView, setSelectedView] = useState<PagePermission>(
@@ -35,6 +37,15 @@ export default function NavBar() {
   );
 
   const netId = userEmail?.split("@")[0];
+
+  const tenant: Tenants = useMemo(() => {
+    if (pathname.includes("/media-commons")) {
+      return Tenants.MEDIA_COMMONS;
+    } else if (pathname.includes("/staging")) {
+      return Tenants.STAGING;
+    }
+    return null;
+  }, [pathname]);
 
   const handleSignOut = async () => {
     try {
@@ -49,10 +60,10 @@ export default function NavBar() {
 
   return (
     <Nav>
-      <NavBarTitle {...{ setSelectedView }} />
+      <NavBarTitle {...{ setSelectedView, tenant }} />
       <Box display="flex" alignItems="center">
-        <NavBarActionButton {...{ selectedView }} />
-        <NavBarRoleSelect {...{ selectedView, setSelectedView }} />
+        {tenant && <NavBarActionButton {...{ selectedView }} />}
+        {tenant && <NavBarRoleSelect {...{ selectedView, setSelectedView }} />}
         <Divider />
         <ConfirmDialog
           callback={handleSignOut}

@@ -1,9 +1,11 @@
 import { Box, Typography, useMediaQuery, useTheme } from "@mui/material";
 
+import ITPLogo from "../../../../../../public/itpLogo.svg";
 import Image from "next/image";
+import MediaCommonsLogo from "../../../../../../public/mediaCommonsLogo.svg";
 import { PagePermission } from "@/components/src/types";
 import React from "react";
-import SVGLOGO from "../../../../../../public/mediaCommonsLogo.svg";
+import { Tenants } from "@/components/src/policy";
 import { styled } from "@mui/system";
 import { useRouter } from "next/navigation";
 
@@ -25,9 +27,10 @@ const LogoBox = styled(Box)`
 
 interface Props {
   setSelectedView: (x: PagePermission) => void;
+  tenant: Tenants;
 }
 
-export default function NavBarTitle({ setSelectedView }: Props) {
+export default function NavBarTitle({ setSelectedView, tenant }: Props) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const router = useRouter();
@@ -46,10 +49,36 @@ export default function NavBarTitle({ setSelectedView }: Props) {
     return `[${branchTitle}]`;
   })();
 
+  const title = (() => {
+    switch (tenant) {
+      case Tenants.MEDIA_COMMONS:
+        return "Media Commons";
+      case Tenants.STAGING:
+        return "Staging Space";
+      default:
+        return "Booking Tool";
+    }
+  })();
+
+  const logo = (() => {
+    switch (tenant) {
+      case Tenants.MEDIA_COMMONS:
+        return MediaCommonsLogo;
+      case Tenants.STAGING:
+        return ITPLogo;
+      default:
+        return ITPLogo;
+    }
+  })();
+
   return (
     <LogoBox onClick={handleClickHome}>
-      <Image src={SVGLOGO} alt="Media Commons logo" height={40} />
-      {!isMobile && <Title as="h1">Media Commons {envTitle}</Title>}
+      <Image src={logo} alt="logo" height={40} />
+      {!isMobile && (
+        <Title as="h1">
+          {title} {envTitle}
+        </Title>
+      )}
     </LogoBox>
   );
 }
