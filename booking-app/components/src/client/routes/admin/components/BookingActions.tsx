@@ -16,6 +16,7 @@ import { Timestamp } from "@firebase/firestore";
 
 interface Props {
   calendarEventId: string;
+  onSelect: () => void;
   pageContext: PageContextLevel;
   setOptimisticStatus: (x: BookingStatusLabel) => void;
   status: BookingStatusLabel;
@@ -26,6 +27,7 @@ export default function BookingActions(props: Props) {
   const {
     status,
     calendarEventId,
+    onSelect,
     pageContext,
     setOptimisticStatus,
     startDate,
@@ -45,6 +47,11 @@ export default function BookingActions(props: Props) {
     startDate,
     reason,
   });
+
+  const onFocus = () => {
+    updateActions();
+    onSelect();
+  };
 
   const reload = async () => {
     reloadBookings();
@@ -143,7 +150,7 @@ export default function BookingActions(props: Props) {
         value={selectedAction}
         size="small"
         displayEmpty
-        onFocus={updateActions}
+        onFocus={onFocus}
         onChange={(e) => setSelectedAction(e.target.value as Actions)}
         renderValue={(selected) => {
           if (selected === Actions.PLACEHOLDER) {

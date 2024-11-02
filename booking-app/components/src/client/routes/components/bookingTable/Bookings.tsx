@@ -1,3 +1,4 @@
+import { Booking, BookingRow, PageContextLevel } from "../../../../types";
 import { Box, TableCell } from "@mui/material";
 import React, {
   useCallback,
@@ -6,18 +7,17 @@ import React, {
   useMemo,
   useState,
 } from "react";
-import { Booking, BookingRow, PageContextLevel } from "../../../../types";
 import Table, { TableEmpty } from "../Table";
 
-import Loading from "../Loading";
-import { DatabaseContext } from "../Provider";
 import BookMoreButton from "./BookMoreButton";
 import BookingTableFilters from "./BookingTableFilters";
 import BookingTableRow from "./BookingTableRow";
+import { ColumnSortOrder } from "./hooks/getColumnComparator";
+import { DatabaseContext } from "../Provider";
+import { DateRangeFilter } from "./hooks/getDateFilter";
+import Loading from "../Loading";
 import MoreInfoModal from "./MoreInfoModal";
 import SortableTableCell from "./SortableTableCell";
-import { ColumnSortOrder } from "./hooks/getColumnComparator";
-import { DateRangeFilter } from "./hooks/getDateFilter";
 import useAllowedStatuses from "./hooks/useAllowedStatuses";
 import { useBookingFilters } from "./hooks/useBookingFilters";
 
@@ -36,8 +36,9 @@ export const Bookings: React.FC<BookingsProps> = ({
 
   const [modalData, setModalData] = useState<BookingRow>(null);
   const [statusFilters, setStatusFilters] = useState([]);
-  const [selectedDateRange, setSelectedDateRange] =
-    useState<DateRangeFilter>("Today");
+  const [selectedDateRange, setSelectedDateRange] = useState<DateRangeFilter>(
+    calendarEventId ? "All" : "Today"
+  );
   const [orderBy, setOrderBy] = useState<keyof BookingRow>("startDate");
   const [order, setOrder] = useState<ColumnSortOrder>("asc");
 
@@ -187,6 +188,7 @@ export const Bookings: React.FC<BookingsProps> = ({
             key={row.calendarEventId}
             {...{
               booking: row,
+              calendarEventId,
               pageContext,
               isUserView,
               setModalData,
