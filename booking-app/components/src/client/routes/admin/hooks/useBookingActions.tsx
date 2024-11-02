@@ -133,11 +133,18 @@ export default function useBookingActions({
 
   const userOptions = useMemo(() => {
     let options = [];
-    if (status !== BookingStatusLabel.CANCELED) {
+    if (
+      status !== BookingStatusLabel.CANCELED &&
+      status !== BookingStatusLabel.CHECKED_IN &&
+      status !== BookingStatusLabel.CHECKED_OUT &&
+      status !== BookingStatusLabel.NO_SHOW
+    ) {
       options.push(Actions.CANCEL);
     }
     if (
+      status !== BookingStatusLabel.CANCELED &&
       status !== BookingStatusLabel.CHECKED_IN &&
+      status !== BookingStatusLabel.CHECKED_OUT &&
       status !== BookingStatusLabel.NO_SHOW &&
       startDate.toDate() > date
     ) {
