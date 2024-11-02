@@ -19,6 +19,11 @@ export enum TableNames {
   SETTINGS = "settings",
 }
 
+export enum Tenants {
+  MEDIA_COMMONS = "Media Commons",
+  STAGING = "Staging Space",
+}
+
 export const CALENDAR_HIDE_STATUS = [
   BookingStatusLabel.NO_SHOW,
   BookingStatusLabel.CANCELED,

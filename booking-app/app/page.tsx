@@ -2,9 +2,9 @@
 
 "use client";
 
-import MyBookingsPage from "@/components/src/client/routes/myBookings/myBookingsPage";
+import MultiTenantLandingPage from "@/components/src/client/routes/multiTenant/MultiTenantLandingPage";
 import React from "react";
 
-const HomePage: React.FC = () => <MyBookingsPage />;
+const HomePage: React.FC = () => <MultiTenantLandingPage />;
 
 export default HomePage;

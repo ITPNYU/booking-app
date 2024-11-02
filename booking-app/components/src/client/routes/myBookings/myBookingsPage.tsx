@@ -3,6 +3,7 @@ import { Box, Typography } from "@mui/material";
 import { Bookings } from "../components/bookingTable/Bookings";
 import { PageContextLevel } from "@/components/src/types";
 import React from "react";
+import { Tenants } from "@/components/src/policy";
 import { styled } from "@mui/system";
 
 const Center = styled(Box)`
@@ -11,17 +12,20 @@ const Center = styled(Box)`
   align-items: center;
 `;
 
-const Container = styled(Box)`
-  width: 65%;
-  margin: 48px;
-`;
+interface Props {
+  tenant: Tenants;
+}
 
-export default function MyBookingsPage() {
+export default function MyBookingsPage({ tenant }: Props) {
   return (
     <Center>
       <Box width={{ xs: "90%", md: "65%" }} margin={6}>
-        <Typography variant="h6">Welcome to the Media Commons booking tool!</Typography>
-        <Bookings pageContext={PageContextLevel.USER} />
+        <Typography variant="h6">
+          Welcome to the {tenant} booking tool!
+        </Typography>
+        {tenant === Tenants.MEDIA_COMMONS && (
+          <Bookings pageContext={PageContextLevel.USER} />
+        )}
       </Box>
     </Center>
   );
