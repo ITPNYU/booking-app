@@ -49,7 +49,11 @@ export default function useBookingActions({
   status,
   startDate,
   reason,
-}: Props) {
+}: Props): {
+  actions: { [key in Actions]: ActionDefinition };
+  updateActions: () => void;
+  options: Actions[];
+} {
   const [date, setDate] = useState(new Date());
 
   const { reloadExistingCalendarEvents } = useContext(BookingContext);
@@ -137,18 +141,13 @@ export default function useBookingActions({
       status !== BookingStatusLabel.CANCELED &&
       status !== BookingStatusLabel.CHECKED_IN &&
       status !== BookingStatusLabel.CHECKED_OUT &&
-      status !== BookingStatusLabel.NO_SHOW
-    ) {
-      options.push(Actions.CANCEL);
-    }
-    if (
-      status !== BookingStatusLabel.CANCELED &&
-      status !== BookingStatusLabel.CHECKED_IN &&
-      status !== BookingStatusLabel.CHECKED_OUT &&
       status !== BookingStatusLabel.NO_SHOW &&
-      startDate.toDate() > date
+      status !== BookingStatusLabel.DECLINED
     ) {
-      options.push(Actions.EDIT);
+      if (startDate.toDate() > date) {
+        options.push(Actions.EDIT);
+      }
+      options.push(Actions.CANCEL);
     }
     return options;
   }, [status]);
@@ -207,7 +206,7 @@ export default function useBookingActions({
     return options;
   }, [status, paOptions, date]);
 
-  const options = () => {
+  const options = (() => {
     switch (pageContext) {
       case PageContextLevel.USER:
         return userOptions;
@@ -218,7 +217,7 @@ export default function useBookingActions({
       default:
         return adminOptions;
     }
-  };
+  })();
 
   return { actions, updateActions, options };
 }

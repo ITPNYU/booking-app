@@ -133,7 +133,7 @@ export default function BookingActions(props: Props) {
     );
   }, [selectedAction, reason]);
 
-  if (options().length === 0) {
+  if (options.length === 0) {
     return <></>;
   }
 
@@ -166,7 +166,7 @@ export default function BookingActions(props: Props) {
         <MenuItem value={Actions.PLACEHOLDER} sx={{ color: "gray" }}>
           <em>Action</em>
         </MenuItem>
-        {options().map((action) => (
+        {options.map((action) => (
           <MenuItem
             value={action}
             key={action}

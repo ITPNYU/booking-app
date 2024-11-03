@@ -53,9 +53,11 @@ export default function BookingTableRow({
   return (
     <TableRow
       sx={
-        isHighlight && {
-          backgroundColor: theme.palette.secondary.light,
-        }
+        isHighlight
+          ? {
+              backgroundColor: theme.palette.secondary.light,
+            }
+          : {}
       }
     >
       <TableCell>{booking.requestNumber ?? "--"}</TableCell>
