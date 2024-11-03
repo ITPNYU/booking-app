@@ -1,12 +1,12 @@
 import React, { useContext } from "react";
 import { TableNamesRaw, Tenants, getTableName } from "../../../../policy";
 
-import { DatabaseContext } from "../../components/Provider";
 import EmailListTable from "../../components/EmailListTable";
+import { SharedDatabaseContext } from "../../../providers/SharedDatabaseProvider";
 import { formatDate } from "../../../utils/date";
 
 export const AdminUsers = () => {
-  const { adminUsers, reloadAdminUsers } = useContext(DatabaseContext);
+  const { adminUsers, reloadAdminUsers } = useContext(SharedDatabaseContext);
 
   return (
     <EmailListTable

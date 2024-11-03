@@ -9,10 +9,10 @@ import { DATE_FILTERS, DateRangeFilter } from "./getDateFilter";
 import { useContext, useEffect, useMemo, useState } from "react";
 
 import { BOOKING_TABLE_HIDE_STATUS_TIME_ELAPSED } from "@/components/src/policy";
-import { DatabaseContext } from "../../Provider";
+import { SharedDatabaseContext } from "../../../../providers/SharedDatabaseProvider";
 import getBookingStatus from "../../../hooks/getBookingStatus";
 import useAllowedStatuses from "./useAllowedStatuses";
-import { useAuth } from "../../AuthProvider";
+import { useAuth } from "../../../../providers/AuthProvider";
 
 interface Props {
   pageContext: PageContextLevel;
@@ -30,7 +30,7 @@ export function useBookingFilters(props: Props): BookingRow[] {
     selectedDateRange,
     selectedStatusFilters,
   } = props;
-  const { bookings, liaisonUsers } = useContext(DatabaseContext);
+  const { bookings, liaisonUsers } = useContext(SharedDatabaseContext);
   const { userEmail } = useAuth();
   const allowedStatuses = useAllowedStatuses(pageContext);
   const [currentTime, setCurrentTime] = useState(new Date());

@@ -1,18 +1,19 @@
 import { PageContextLevel, PagePermission } from "../../../../types";
-import React, { useContext, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 
 import { Bookings } from "../../components/bookingTable/Bookings";
 import { Box } from "@mui/material";
 import { CenterLoading } from "../../components/Loading";
-import { DatabaseContext } from "../../components/Provider";
 import Settings from "./Settings";
 import Tab from "@mui/material/Tab";
 import Tabs from "@mui/material/Tabs";
-import { useAuth } from "../../components/AuthProvider";
+import { useAuth } from "../../../providers/AuthProvider";
+import { useMediaCommonsDatabase } from "../../../providers/MediaCommonsDatabaseProvider";
+import { useSharedDatabase } from "../../../providers/SharedDatabaseProvider";
 
 export default function Admin({ calendarEventId }) {
   const [tab, setTab] = useState("bookings");
-  const { adminUsers, pagePermission } = useContext(DatabaseContext);
+  const { adminUsers, pagePermission } = useSharedDatabase();
   const { userEmail } = useAuth();
 
   const adminEmails = useMemo<string[]>(

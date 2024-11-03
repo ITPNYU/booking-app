@@ -13,7 +13,7 @@ import { Tenants } from "@/components/src/policy";
 import { auth } from "@/lib/firebase/firebaseClient";
 import { signOut } from "firebase/auth";
 import { styled } from "@mui/system";
-import { useAuth } from "../AuthProvider";
+import { useAuth } from "../../../providers/AuthProvider";
 
 const Nav = styled(Toolbar)(({ theme }) => ({
   border: `1px solid ${theme.palette.custom.border}`,

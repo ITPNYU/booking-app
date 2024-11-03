@@ -5,15 +5,15 @@ import {
   Role,
   RoomSetting,
   SubmitStatus,
-} from "../../../types";
-import React, { createContext, useContext, useMemo, useState } from "react";
+} from "../../types";
+import React, { createContext, useMemo, useState } from "react";
 
-import { DatabaseContext } from "../components/Provider";
 import { DateSelectArg } from "@fullcalendar/core";
-import { SAFETY_TRAINING_REQUIRED_ROOM } from "../../../mediaCommonsPolicy";
-import fetchCalendarEvents from "./hooks/fetchCalendarEvents";
-import { useAuth } from "../components/AuthProvider";
+import { SAFETY_TRAINING_REQUIRED_ROOM } from "../../mediaCommonsPolicy";
+import fetchCalendarEvents from "../routes/booking/hooks/fetchCalendarEvents";
+import { useAuth } from "./AuthProvider";
 import { usePathname } from "next/navigation";
+import { useSharedDatabase } from "./SharedDatabaseProvider";
 
 export interface BookingContextType {
   bookingCalendarInfo: DateSelectArg | undefined;
@@ -59,9 +59,8 @@ export const BookingContext = createContext<BookingContextType>({
   submitting: "none",
 });
 
-export function BookingProvider({ children }) {
-  const { bannedUsers, roomSettings, safetyTrainedUsers } =
-    useContext(DatabaseContext);
+export function BookingFormProvider({ children }) {
+  const { bannedUsers, roomSettings, safetyTrainedUsers } = useSharedDatabase();
   const { userEmail } = useAuth();
   const pathname = usePathname();
 

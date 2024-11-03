@@ -1,9 +1,9 @@
-import { BookingContext } from "../bookingProvider";
-import { DatabaseContext } from "../../components/Provider";
+import { BookingContext } from "../../../providers/BookingFormProvider";
+import { SharedDatabaseContext } from "../../../providers/SharedDatabaseProvider";
 import { useContext } from "react";
 
 export default function useHandleStartBooking() {
-  const { reloadSafetyTrainedUsers } = useContext(DatabaseContext);
+  const { reloadSafetyTrainedUsers } = useContext(SharedDatabaseContext);
   const {
     reloadExistingCalendarEvents,
     setHasShownMocapModal,

@@ -1,9 +1,9 @@
 // components/ClientProvider.tsx
 "use client";
 
+import { BookingFormProvider } from "./BookingFormProvider";
 import React from "react";
-import { DatabaseProvider } from "@/components/src/client/routes/components/Provider";
-import { BookingProvider } from "../booking/bookingProvider";
+import { SharedDatabaseProvider } from "./SharedDatabaseProvider";
 
 type ClientProviderProps = {
   children: React.ReactNode;
@@ -12,9 +12,9 @@ type ClientProviderProps = {
 //TODO: Only apply BookingProvider during booking flow
 const ClientProvider: React.FC<ClientProviderProps> = ({ children }) => {
   return (
-    <DatabaseProvider>
-      <BookingProvider>{children}</BookingProvider>
-    </DatabaseProvider>
+    <SharedDatabaseProvider>
+      <BookingFormProvider>{children}</BookingFormProvider>
+    </SharedDatabaseProvider>
   );
 };
 

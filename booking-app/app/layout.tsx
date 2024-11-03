@@ -2,7 +2,7 @@
 
 import "@/components/src/client/styles.css";
 
-import { AuthProvider } from "@/components/src/client/routes/components/AuthProvider";
+import { AuthProvider } from "@/components/src/client/providers/AuthProvider";
 import CssBaseline from "@mui/material/CssBaseline";
 import { Roboto } from "next/font/google";
 import { ThemeProvider } from "@mui/material";

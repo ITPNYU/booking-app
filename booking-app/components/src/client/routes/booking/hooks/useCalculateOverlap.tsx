@@ -1,6 +1,6 @@
 import { useCallback, useContext } from "react";
 
-import { BookingContext } from "../bookingProvider";
+import { BookingContext } from "../../../providers/BookingFormProvider";
 import { usePathname } from "next/navigation";
 
 export default function useCalculateOverlap() {

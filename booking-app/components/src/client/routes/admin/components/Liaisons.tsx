@@ -3,10 +3,10 @@ import { TableNamesRaw, Tenants, getTableName } from "../../../../policy";
 
 import AddRow from "../../components/AddRow";
 import { Box } from "@mui/material";
-import { DatabaseContext } from "../../components/Provider";
 import { Department } from "../../../../types";
 import Dropdown from "../../booking/components/Dropdown";
 import ListTable from "../../components/ListTable";
+import { SharedDatabaseContext } from "../../../providers/SharedDatabaseProvider";
 import { formatDate } from "../../../utils/date";
 
 const table = getTableName(TableNamesRaw.APPROVERS, Tenants.MEDIA_COMMONS);
@@ -48,7 +48,9 @@ const AddLiaisonForm = ({ liaisonEmails, reloadLiaisonEmails }) => {
 };
 
 export const Liaisons = () => {
-  const { liaisonUsers, reloadApproverUsers } = useContext(DatabaseContext);
+  const { liaisonUsers, reloadApproverUsers } = useContext(
+    SharedDatabaseContext
+  );
 
   const liaisonEmails = useMemo<string[]>(
     () => liaisonUsers.map((user) => user.email),

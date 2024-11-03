@@ -10,7 +10,7 @@ import {
 import { Check, ChevronLeft, ChevronRight } from "@mui/icons-material";
 import React, { useContext } from "react";
 
-import { BookingContext } from "../bookingProvider";
+import { BookingContext } from "../../../providers/BookingFormProvider";
 import { FormContextLevel } from "@/components/src/types";
 import { styled } from "@mui/system";
 import useCalculateOverlap from "../hooks/useCalculateOverlap";

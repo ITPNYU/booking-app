@@ -1,14 +1,14 @@
 import { Box, Tab, Tabs } from "@mui/material";
 import { PageContextLevel, PagePermission } from "../../../types";
-import { useContext, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 import { Bookings } from "../components/bookingTable/Bookings";
 import { CenterLoading } from "../components/Loading";
-import { DatabaseContext } from "../components/Provider";
-import { useAuth } from "../components/AuthProvider";
+import { useAuth } from "../../providers/AuthProvider";
+import { useSharedDatabase } from "../../providers/SharedDatabaseProvider";
 
 const Liaison = ({ calendarEventId }) => {
-  const { liaisonUsers, pagePermission } = useContext(DatabaseContext);
+  const { liaisonUsers, pagePermission } = useSharedDatabase();
   const { userEmail } = useAuth();
 
   const [tab, setTab] = useState("bookings");

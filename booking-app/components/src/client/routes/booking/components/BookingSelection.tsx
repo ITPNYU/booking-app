@@ -1,7 +1,7 @@
 import { Alert, AlertTitle, Box, Typography } from "@mui/material";
 import React, { useContext } from "react";
 
-import { BookingContext } from "../bookingProvider";
+import { BookingContext } from "../../../providers/BookingFormProvider";
 import { Event } from "@mui/icons-material";
 import Grid from "@mui/material/Unstable_Grid2";
 import { formatTimeAmPm } from "../../../utils/date";

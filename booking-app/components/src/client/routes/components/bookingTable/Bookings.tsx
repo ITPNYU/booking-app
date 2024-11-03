@@ -13,10 +13,10 @@ import BookMoreButton from "./BookMoreButton";
 import BookingTableFilters from "./BookingTableFilters";
 import BookingTableRow from "./BookingTableRow";
 import { ColumnSortOrder } from "./hooks/getColumnComparator";
-import { DatabaseContext } from "../Provider";
 import { DateRangeFilter } from "./hooks/getDateFilter";
 import Loading from "../Loading";
 import MoreInfoModal from "./MoreInfoModal";
+import { SharedDatabaseContext } from "../../../providers/SharedDatabaseProvider";
 import SortableTableCell from "./SortableTableCell";
 import useAllowedStatuses from "./hooks/useAllowedStatuses";
 import { useBookingFilters } from "./hooks/useBookingFilters";
@@ -30,8 +30,9 @@ export const Bookings: React.FC<BookingsProps> = ({
   pageContext,
   calendarEventId,
 }) => {
-  const { bookings, bookingsLoading, reloadBookings } =
-    useContext(DatabaseContext);
+  const { bookings, bookingsLoading, reloadBookings } = useContext(
+    SharedDatabaseContext
+  );
   const allowedStatuses = useAllowedStatuses(pageContext);
 
   const [modalData, setModalData] = useState<BookingRow>(null);

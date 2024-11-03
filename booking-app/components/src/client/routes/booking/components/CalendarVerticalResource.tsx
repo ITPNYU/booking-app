@@ -9,7 +9,7 @@ import CalendarEventBlock, { NEW_TITLE_TAG } from "./CalendarEventBlock";
 import { FormContextLevel, RoomSetting } from "../../../../types";
 import React, { useContext, useEffect, useMemo, useRef } from "react";
 
-import { BookingContext } from "../bookingProvider";
+import { BookingContext } from "../../../providers/BookingFormProvider";
 import { Error } from "@mui/icons-material";
 import { EventResizeDoneArg } from "fullcalendar";
 import FullCalendar from "@fullcalendar/react";

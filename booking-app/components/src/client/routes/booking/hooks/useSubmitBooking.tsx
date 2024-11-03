@@ -1,15 +1,15 @@
 import { FormContextLevel, Inputs, PagePermission } from "../../../../types";
 import { useCallback, useContext } from "react";
 
-import { BookingContext } from "../bookingProvider";
-import { DatabaseContext } from "../../components/Provider";
-import { useAuth } from "../../components/AuthProvider";
+import { BookingContext } from "../../../providers/BookingFormProvider";
+import { SharedDatabaseContext } from "../../../providers/SharedDatabaseProvider";
+import { useAuth } from "../../../providers/AuthProvider";
 import { useRouter } from "next/navigation";
 
 export default function useSubmitBooking(formContext: FormContextLevel) {
   const router = useRouter();
   const { liaisonUsers, reloadBookings, pagePermission, roomSettings } =
-    useContext(DatabaseContext);
+    useContext(SharedDatabaseContext);
   const {
     bookingCalendarInfo,
     department,

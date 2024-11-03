@@ -2,10 +2,10 @@ import React, { useContext, useMemo, useState } from "react";
 
 import AddDepartmentRow from "../../components/AddDepartmentRow";
 import { Box } from "@mui/material";
-import { DatabaseContext } from "../../components/Provider";
 import { Department } from "../../../../types";
 import Dropdown from "../../booking/components/Dropdown";
 import ListTable from "../../components/ListTable";
+import { SharedDatabaseContext } from "../../../providers/SharedDatabaseProvider";
 import { TableNamesMediaCommonsOnly } from "@/components/src/mediaCommonsPolicy";
 import { formatDate } from "../../../utils/date";
 
@@ -58,8 +58,9 @@ const AddDepartmentForm = ({ departments, reloadDepartments }) => {
 };
 
 export const Departments = () => {
-  const { departmentNames, reloadDepartmentNames } =
-    useContext(DatabaseContext);
+  const { departmentNames, reloadDepartmentNames } = useContext(
+    SharedDatabaseContext
+  );
 
   const departments = useMemo<string[]>(
     () => departmentNames.map((user) => user.department),

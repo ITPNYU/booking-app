@@ -1,7 +1,7 @@
 import { Department, Role } from "@/components/src/types";
 
-import { BookingContext } from "../../booking/bookingProvider";
-import { DatabaseContext } from "../../components/Provider";
+import { BookingContext } from "../../../providers/BookingFormProvider";
+import { SharedDatabaseContext } from "../../../providers/SharedDatabaseProvider";
 import { useContext } from "react";
 
 export default function useExistingBooking() {
@@ -12,7 +12,7 @@ export default function useExistingBooking() {
     setBookingCalendarInfo,
     setFormData,
   } = useContext(BookingContext);
-  const { bookings, roomSettings } = useContext(DatabaseContext);
+  const { bookings, roomSettings } = useContext(SharedDatabaseContext);
 
   const findBooking = (calendarEventId: string) =>
     bookings.filter(

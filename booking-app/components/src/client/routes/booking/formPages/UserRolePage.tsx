@@ -4,11 +4,11 @@ import { Box, Button, TextField, Typography } from "@mui/material";
 import { Department, FormContextLevel, Inputs, Role } from "../../../../types";
 import React, { useContext, useEffect, useRef, useState } from "react";
 
-import { BookingContext } from "../bookingProvider";
+import { BookingContext } from "../../../providers/BookingFormProvider";
 import { BookingFormTextField } from "../components/BookingFormInputs";
 import Dropdown from "../components/Dropdown";
 import { styled } from "@mui/material/styles";
-import { useAuth } from "../../components/AuthProvider";
+import { useAuth } from "../../../providers/AuthProvider";
 import { useForm } from "react-hook-form";
 import { useRouter } from "next/navigation";
 

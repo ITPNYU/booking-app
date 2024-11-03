@@ -1,13 +1,14 @@
 import React, { useContext } from "react";
 import { TableNamesRaw, Tenants, getTableName } from "../../../../policy";
 
-import { DatabaseContext } from "../../components/Provider";
 import EmailListTable from "../../components/EmailListTable";
+import { SharedDatabaseContext } from "../../../providers/SharedDatabaseProvider";
 import { formatDate } from "../../../utils/date";
 
 export default function SafetyTrainedUsers() {
-  const { safetyTrainedUsers, reloadSafetyTrainedUsers } =
-    useContext(DatabaseContext);
+  const { safetyTrainedUsers, reloadSafetyTrainedUsers } = useContext(
+    SharedDatabaseContext
+  );
 
   const safetyTrainUsersFromFirestore = safetyTrainedUsers.filter(
     (user) => user.id !== null

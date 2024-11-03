@@ -4,7 +4,7 @@ import {
 } from "../../../../mediaCommonsPolicy";
 import { useContext, useEffect, useState } from "react";
 
-import { BookingContext } from "../bookingProvider";
+import { BookingContext } from "../../../providers/BookingFormProvider";
 
 export function selectedAutoApprovalRooms(selectedRoomIds: number[]) {
   if (selectedRoomIds.length < 2) return true;

@@ -9,11 +9,13 @@ import {
 } from "@mui/material";
 import React, { useContext, useState } from "react";
 
-import { DatabaseContext } from "../../../components/Provider";
+import { SharedDatabaseContext } from "../../../../providers/SharedDatabaseProvider";
 import { updateFinalApprover } from "@/components/src/server/db";
 
 export default function FinalApprover() {
-  const { policySettings, reloadApproverUsers } = useContext(DatabaseContext);
+  const { policySettings, reloadApproverUsers } = useContext(
+    SharedDatabaseContext
+  );
   const [editing, setEditing] = useState(false);
   const [finalApproverEmail, setFinalApproverEmail] = useState(
     policySettings.finalApproverEmail

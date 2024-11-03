@@ -6,7 +6,7 @@ import {
 } from "../../../../mediaCommonsPolicy";
 import React, { useContext, useMemo } from "react";
 
-import { BookingContext } from "../bookingProvider";
+import { BookingContext } from "../../../providers/BookingFormProvider";
 import { ConfirmDialogControlled } from "../../components/ConfirmDialog";
 
 interface Props {

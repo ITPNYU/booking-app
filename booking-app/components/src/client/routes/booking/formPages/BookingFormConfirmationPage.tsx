@@ -4,7 +4,7 @@ import { Box, Button, Typography, useTheme } from "@mui/material";
 import { Error, Event } from "@mui/icons-material";
 import React, { useContext } from "react";
 
-import { BookingContext } from "../bookingProvider";
+import { BookingContext } from "../../../providers/BookingFormProvider";
 import { FormContextLevel } from "@/components/src/types";
 import Loading from "../../components/Loading";
 import { styled } from "@mui/system";

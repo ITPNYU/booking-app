@@ -1,9 +1,9 @@
 import { MenuItem, Select } from "@mui/material";
-import React, { useContext, useEffect, useMemo } from "react";
+import React, { useEffect, useMemo } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
-import { DatabaseContext } from "../Provider";
 import { PagePermission } from "@/components/src/types";
+import { useSharedDatabase } from "../../../providers/SharedDatabaseProvider";
 
 interface Props {
   selectedView: PagePermission;
@@ -17,7 +17,7 @@ export default function NavBarRoleSelect({
   const router = useRouter();
   const pathname = usePathname();
 
-  const { pagePermission } = useContext(DatabaseContext);
+  const { pagePermission } = useSharedDatabase();
 
   useEffect(() => {
     if (pathname === "/") {

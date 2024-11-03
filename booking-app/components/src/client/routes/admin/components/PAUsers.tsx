@@ -1,12 +1,11 @@
-import React, { useContext } from "react";
-
-import { DatabaseContext } from "../../components/Provider";
 import EmailListTable from "../../components/EmailListTable";
+import React from "react";
 import { TableNamesMediaCommonsOnly } from "@/components/src/mediaCommonsPolicy";
 import { formatDate } from "../../../utils/date";
+import { useMediaCommonsDatabase } from "../../../providers/MediaCommonsDatabaseProvider";
 
 export const PAUsers = () => {
-  const { paUsers, reloadPaUsers } = useContext(DatabaseContext);
+  const { paUsers, reloadPaUsers } = useMediaCommonsDatabase();
 
   return (
     <EmailListTable

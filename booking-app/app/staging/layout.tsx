@@ -1,12 +1,12 @@
-// app/media-commons/layout.tsx
+// app/staging/layout.tsx
 
 import ClientProvider from "@/components/src/client/providers/ClientProvider";
-import { MediaCommonsDatabaseProvider } from "@/components/src/client/providers/MediaCommonsDatabaseProvider";
 import NavBar from "@/components/src/client/routes/components/navBar/NavBar";
+import { StagingDatabaseProvider } from "@/components/src/client/providers/StagingDatabaseProvider";
 
 export const metadata = {
-  title: "Media commons booking app",
-  description: "Media commons booking app",
+  title: "ITP Staging Space booking tool",
+  description: "ITP Staging Space booking tool",
 };
 
 type LayoutProps = {
@@ -15,10 +15,10 @@ type LayoutProps = {
 
 const MediaCommonsLayout: React.FC<LayoutProps> = ({ children }) => (
   <ClientProvider>
-    <MediaCommonsDatabaseProvider>
+    <StagingDatabaseProvider>
       <NavBar />
       {children}
-    </MediaCommonsDatabaseProvider>
+    </StagingDatabaseProvider>
   </ClientProvider>
 );
 

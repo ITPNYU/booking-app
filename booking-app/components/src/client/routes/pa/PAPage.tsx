@@ -1,14 +1,16 @@
 import { Box, Tab, Tabs } from "@mui/material";
 import { PageContextLevel, PagePermission } from "../../../types";
-import React, { useContext, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 
 import { Bookings } from "../components/bookingTable/Bookings";
 import { CenterLoading } from "../components/Loading";
-import { DatabaseContext } from "../components/Provider";
-import { useAuth } from "../components/AuthProvider";
+import { useAuth } from "../../providers/AuthProvider";
+import { useMediaCommonsDatabase } from "../../providers/MediaCommonsDatabaseProvider";
+import { useSharedDatabase } from "../../providers/SharedDatabaseProvider";
 
 const PAPage = () => {
-  const { paUsers, pagePermission } = useContext(DatabaseContext);
+  const { pagePermission } = useSharedDatabase();
+  const { paUsers } = useMediaCommonsDatabase();
   const { userEmail } = useAuth();
   const [tab, setTab] = useState("bookings");
 

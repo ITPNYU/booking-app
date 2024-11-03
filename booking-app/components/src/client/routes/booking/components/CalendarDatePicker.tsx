@@ -3,7 +3,7 @@ import React, { useContext, useEffect, useState } from "react";
 import dayjs, { Dayjs } from "dayjs";
 
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
-import { BookingContext } from "../bookingProvider";
+import { BookingContext } from "../../../providers/BookingFormProvider";
 import { FormContextLevel } from "@/components/src/types";
 
 interface Props {

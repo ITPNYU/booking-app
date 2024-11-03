@@ -1,7 +1,7 @@
 import { useContext, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
-import { BookingContext } from "../bookingProvider";
+import { BookingContext } from "../../../providers/BookingFormProvider";
 
 export default function useCheckFormMissingData() {
   const pathname = usePathname();

@@ -3,13 +3,13 @@
 import { Box, Stack, Typography, useMediaQuery, useTheme } from "@mui/material";
 import React, { useContext, useMemo, useState } from "react";
 
-import { BookingContext } from "../bookingProvider";
+import { BookingContext } from "../../../providers/BookingFormProvider";
 import { CalendarDatePicker } from "../components/CalendarDatePicker";
 import CalendarVerticalResource from "../components/CalendarVerticalResource";
-import { DatabaseContext } from "../../components/Provider";
 import { FormContextLevel } from "@/components/src/types";
 import Grid from "@mui/material/Unstable_Grid2";
 import { SelectRooms } from "../components/SelectRooms";
+import { SharedDatabaseContext } from "../../../providers/SharedDatabaseProvider";
 import { WALK_IN_ROOMS } from "@/components/src/mediaCommonsPolicy";
 import useCheckFormMissingData from "../hooks/useCheckFormMissingData";
 
@@ -22,7 +22,7 @@ export default function SelectRoomPage({
   calendarEventId,
   formContext = FormContextLevel.FULL_FORM,
 }: Props) {
-  const { roomSettings } = useContext(DatabaseContext);
+  const { roomSettings } = useContext(SharedDatabaseContext);
   const { selectedRooms, setSelectedRooms } = useContext(BookingContext);
   const [date, setDate] = useState<Date>(new Date());
   useCheckFormMissingData();

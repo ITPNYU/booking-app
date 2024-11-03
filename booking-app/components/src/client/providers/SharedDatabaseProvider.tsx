@@ -1,3 +1,5 @@
+"use client";
+
 import {
   AdminUser,
   Approver,
@@ -5,21 +7,26 @@ import {
   Booking,
   BookingType,
   DepartmentType,
-  PaUser,
   PagePermission,
   PolicySettings,
   RoomSetting,
   SafetyTraining,
   Settings,
-} from "../../../types";
+} from "../../types";
 import { ApproverLevel, TableNamesRaw } from "@/components/src/policy";
-import React, { createContext, useEffect, useMemo, useState } from "react";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 
 import { TableNamesMediaCommonsOnly } from "@/components/src/mediaCommonsPolicy";
 import { clientFetchAllDataFromCollection } from "@/lib/firebase/firebase";
 import { fetchAllFutureBooking } from "@/components/src/server/db";
-import { useAuth } from "@/components/src/client/routes/components/AuthProvider";
-import useTableName from "../../utils/useTableName";
+import { useAuth } from "./AuthProvider";
+import useTableName from "../utils/useTableName";
 
 export interface DatabaseContextType {
   adminUsers: AdminUser[];
@@ -29,7 +36,6 @@ export interface DatabaseContextType {
   liaisonUsers: Approver[];
   departmentNames: DepartmentType[];
   pagePermission: PagePermission;
-  paUsers: PaUser[];
   policySettings: PolicySettings;
   roomSettings: RoomSetting[];
   safetyTrainedUsers: SafetyTraining[];
@@ -39,12 +45,12 @@ export interface DatabaseContextType {
   reloadBannedUsers: () => Promise<void>;
   reloadBookings: () => Promise<void>;
   reloadDepartmentNames: () => Promise<void>;
-  reloadPaUsers: () => Promise<void>;
   reloadBookingTypes: () => Promise<void>;
   reloadSafetyTrainedUsers: () => Promise<void>;
+  overridePagePermission: (x: PagePermission) => void;
 }
 
-export const DatabaseContext = createContext<DatabaseContextType>({
+export const SharedDatabaseContext = createContext<DatabaseContextType>({
   adminUsers: [],
   bannedUsers: [],
   bookings: [],
@@ -52,7 +58,6 @@ export const DatabaseContext = createContext<DatabaseContextType>({
   liaisonUsers: [],
   departmentNames: [],
   pagePermission: PagePermission.BOOKING,
-  paUsers: [],
   policySettings: { finalApproverEmail: "" },
   roomSettings: [],
   safetyTrainedUsers: [],
@@ -62,12 +67,14 @@ export const DatabaseContext = createContext<DatabaseContextType>({
   reloadBannedUsers: async () => {},
   reloadBookings: async () => {},
   reloadDepartmentNames: async () => {},
-  reloadPaUsers: async () => {},
   reloadBookingTypes: async () => {},
   reloadSafetyTrainedUsers: async () => {},
+  overridePagePermission: (x: PagePermission) => {},
 });
 
-export const DatabaseProvider = ({
+export const useSharedDatabase = () => useContext(SharedDatabaseContext);
+
+export const SharedDatabaseProvider = ({
   children,
 }: {
   children: React.ReactNode;
@@ -78,7 +85,8 @@ export const DatabaseProvider = ({
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
   const [liaisonUsers, setLiaisonUsers] = useState<Approver[]>([]);
   const [departmentNames, setDepartmentName] = useState<DepartmentType[]>([]);
-  const [paUsers, setPaUsers] = useState<PaUser[]>([]);
+  const [overriddenPagePermission, setOverriddenPagePermission] =
+    useState(null);
   const [policySettings, setPolicySettings] = useState<PolicySettings>({
     finalApproverEmail: "",
   });
@@ -90,17 +98,17 @@ export const DatabaseProvider = ({
   const tableName = useTableName();
   const { userEmail } = useAuth();
 
-  // page permission updates with respect to user email, admin list, PA list
-  const pagePermission = useMemo<PagePermission>(() => {
+  // by default all tenants have permissions BOOKING and ADMIN
+  // any other permission levels will be defined in tenant-specific Provider
+  // tenants can override this base permission with their own logic
+  const basePagePermission = useMemo(() => {
     if (!userEmail) return PagePermission.BOOKING;
     if (adminUsers.map((admin) => admin.email).includes(userEmail))
       return PagePermission.ADMIN;
-    if (liaisonUsers.map((liaison) => liaison.email).includes(userEmail)) {
-      return PagePermission.LIAISON;
-    } else if (paUsers.map((pa) => pa.email).includes(userEmail))
-      return PagePermission.PA;
     else return PagePermission.BOOKING;
-  }, [userEmail, adminUsers, paUsers]);
+  }, [userEmail, adminUsers]);
+
+  const pagePermission = overriddenPagePermission ?? basePagePermission;
 
   useEffect(() => {
     if (!bookingsLoading) {
@@ -116,7 +124,6 @@ export const DatabaseProvider = ({
 
   useEffect(() => {
     fetchAdminUsers();
-    fetchPaUsers();
     fetchRoomSettings();
   }, [userEmail]);
 
@@ -198,19 +205,6 @@ export const DatabaseProvider = ({
           createdAt: item.createdAt,
         }));
         setAdminUsers(adminUsers);
-      })
-      .catch((error) => console.error("Error fetching data:", error));
-  };
-
-  const fetchPaUsers = async () => {
-    clientFetchAllDataFromCollection(TableNamesMediaCommonsOnly.PAS)
-      .then((fetchedData) => {
-        const paUsers = fetchedData.map((item: any) => ({
-          id: item.id,
-          email: item.email,
-          createdAt: item.createdAt,
-        }));
-        setPaUsers(paUsers);
       })
       .catch((error) => console.error("Error fetching data:", error));
   };
@@ -355,14 +349,13 @@ export const DatabaseProvider = ({
   };
 
   return (
-    <DatabaseContext.Provider
+    <SharedDatabaseContext.Provider
       value={{
         adminUsers,
         bannedUsers,
         bookings,
         liaisonUsers,
         departmentNames,
-        paUsers,
         pagePermission,
         policySettings,
         roomSettings,
@@ -374,12 +367,12 @@ export const DatabaseProvider = ({
         reloadBannedUsers: fetchBannedUsers,
         reloadBookings: fetchBookings,
         reloadDepartmentNames: fetchDepartmentNames,
-        reloadPaUsers: fetchPaUsers,
         reloadBookingTypes: fetchBookingTypes,
         reloadSafetyTrainedUsers: fetchSafetyTrainedUsers,
+        overridePagePermission: setOverriddenPagePermission,
       }}
     >
       {children}
-    </DatabaseContext.Provider>
+    </SharedDatabaseContext.Provider>
   );
 };

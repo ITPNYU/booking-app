@@ -9,9 +9,9 @@ import useBookingActions, {
 import AlertToast from "../../components/AlertToast";
 import Check from "@mui/icons-material/Check";
 import ConfirmDialog from "../../components/ConfirmDialog";
-import { DatabaseContext } from "../../components/Provider";
 import DeclineReasonDialog from "../../components/DeclineReasonDialog";
 import Loading from "../../components/Loading";
+import { SharedDatabaseContext } from "../../../providers/SharedDatabaseProvider";
 import { Timestamp } from "@firebase/firestore";
 
 interface Props {
@@ -36,7 +36,7 @@ export default function BookingActions(props: Props) {
   const [selectedAction, setSelectedAction] = useState<Actions>(
     Actions.PLACEHOLDER
   );
-  const { reloadBookings } = useContext(DatabaseContext);
+  const { reloadBookings } = useContext(SharedDatabaseContext);
   const [showError, setShowError] = useState(false);
   const [reason, setReason] = useState<string>();
 

@@ -8,7 +8,7 @@ import { Control, Controller, UseFormTrigger } from "react-hook-form";
 import { FormContextLevel, Inputs, MediaServices } from "../../../../types";
 import React, { useContext, useMemo } from "react";
 
-import { BookingContext } from "../bookingProvider";
+import { BookingContext } from "../../../providers/BookingFormProvider";
 import styled from "@emotion/styled";
 
 const Label = styled.label`

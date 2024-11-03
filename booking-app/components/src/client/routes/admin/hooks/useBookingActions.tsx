@@ -9,9 +9,9 @@ import {
 } from "@/components/src/server/db";
 import { useContext, useMemo, useState } from "react";
 
-import { BookingContext } from "../../booking/bookingProvider";
+import { BookingContext } from "../../../providers/BookingFormProvider";
 import { Timestamp } from "@firebase/firestore";
-import { useAuth } from "../../components/AuthProvider";
+import { useAuth } from "../../../providers/AuthProvider";
 import useExistingBooking from "./useExistingBooking";
 import { useRouter } from "next/navigation";
 

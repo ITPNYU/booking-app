@@ -2,7 +2,7 @@ import { Booking, MediaServices } from "@/components/src/types";
 import React, { useContext, useRef, useState } from "react";
 import { TableNamesRaw, Tenants, getTableName } from "@/components/src/policy";
 
-import { DatabaseContext } from "../Provider";
+import { SharedDatabaseContext } from "../../../providers/SharedDatabaseProvider";
 import { Switch } from "@mui/material";
 import { clientUpdateDataByCalendarEventId } from "@/lib/firebase/client/clientDb";
 
@@ -15,7 +15,7 @@ export default function EquipmentCheckoutToggle({ booking, status }: Props) {
   const [loading, setLoading] = useState(false);
   const [optimisticStatus, setOptimisticStatus] = useState(status);
   const originalStatus = useRef(status);
-  const { reloadBookings } = useContext(DatabaseContext);
+  const { reloadBookings } = useContext(SharedDatabaseContext);
 
   const handleEquipToggleChange = async (
     event: React.ChangeEvent<HTMLInputElement>
