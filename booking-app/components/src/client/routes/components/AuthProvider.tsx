@@ -1,18 +1,23 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { User } from "firebase/auth";
-import { usePathname, useRouter } from "next/navigation";
 import { auth, signInWithGoogle } from "@/lib/firebase/firebaseClient";
+import { usePathname, useRouter } from "next/navigation";
+
+import { User } from "firebase/auth";
 
 type AuthContextType = {
   user: User | null;
+  userEmail: string | null;
+  setUser: (x: User | null) => void;
   loading: boolean;
   error: string | null;
 };
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
+  userEmail: null,
+  setUser: (x: User | null) => {},
   loading: true,
   error: null,
 });
@@ -62,7 +67,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [error, router]);
 
   return (
-    <AuthContext.Provider value={{ user, loading, error }}>
+    <AuthContext.Provider
+      value={{ user, userEmail: user?.email, setUser, loading, error }}
+    >
       {children}
     </AuthContext.Provider>
   );

@@ -12,6 +12,7 @@ import { BOOKING_TABLE_HIDE_STATUS_TIME_ELAPSED } from "@/components/src/policy"
 import { DatabaseContext } from "../../Provider";
 import getBookingStatus from "../../../hooks/getBookingStatus";
 import useAllowedStatuses from "./useAllowedStatuses";
+import { useAuth } from "../../AuthProvider";
 
 interface Props {
   pageContext: PageContextLevel;
@@ -29,7 +30,8 @@ export function useBookingFilters(props: Props): BookingRow[] {
     selectedDateRange,
     selectedStatusFilters,
   } = props;
-  const { bookings, liaisonUsers, userEmail } = useContext(DatabaseContext);
+  const { bookings, liaisonUsers } = useContext(DatabaseContext);
+  const { userEmail } = useAuth();
   const allowedStatuses = useAllowedStatuses(pageContext);
   const [currentTime, setCurrentTime] = useState(new Date());
 

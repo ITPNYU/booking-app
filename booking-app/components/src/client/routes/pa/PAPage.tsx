@@ -5,9 +5,11 @@ import React, { useContext, useMemo, useState } from "react";
 import { Bookings } from "../components/bookingTable/Bookings";
 import { CenterLoading } from "../components/Loading";
 import { DatabaseContext } from "../components/Provider";
+import { useAuth } from "../components/AuthProvider";
 
 const PAPage = () => {
-  const { paUsers, pagePermission, userEmail } = useContext(DatabaseContext);
+  const { paUsers, pagePermission } = useContext(DatabaseContext);
+  const { userEmail } = useAuth();
   const [tab, setTab] = useState("bookings");
 
   const paEmails = useMemo<string[]>(

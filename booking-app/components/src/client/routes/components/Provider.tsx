@@ -34,7 +34,6 @@ export interface DatabaseContextType {
   roomSettings: RoomSetting[];
   safetyTrainedUsers: SafetyTraining[];
   settings: Settings;
-  userEmail: string | undefined;
   reloadAdminUsers: () => Promise<void>;
   reloadApproverUsers: () => Promise<void>;
   reloadBannedUsers: () => Promise<void>;
@@ -43,7 +42,6 @@ export interface DatabaseContextType {
   reloadPaUsers: () => Promise<void>;
   reloadBookingTypes: () => Promise<void>;
   reloadSafetyTrainedUsers: () => Promise<void>;
-  setUserEmail: (x: string) => void;
 }
 
 export const DatabaseContext = createContext<DatabaseContextType>({
@@ -59,7 +57,6 @@ export const DatabaseContext = createContext<DatabaseContextType>({
   roomSettings: [],
   safetyTrainedUsers: [],
   settings: { bookingTypes: [] },
-  userEmail: undefined,
   reloadAdminUsers: async () => {},
   reloadApproverUsers: async () => {},
   reloadBannedUsers: async () => {},
@@ -68,7 +65,6 @@ export const DatabaseContext = createContext<DatabaseContextType>({
   reloadPaUsers: async () => {},
   reloadBookingTypes: async () => {},
   reloadSafetyTrainedUsers: async () => {},
-  setUserEmail: (x: string) => {},
 });
 
 export const DatabaseProvider = ({
@@ -91,9 +87,8 @@ export const DatabaseProvider = ({
     SafetyTraining[]
   >([]);
   const [settings, setSettings] = useState<Settings>({ bookingTypes: [] });
-  const [userEmail, setUserEmail] = useState<string | undefined>();
-  const { user } = useAuth();
   const tableName = useTableName();
+  const { userEmail } = useAuth();
 
   // page permission updates with respect to user email, admin list, PA list
   const pagePermission = useMemo<PagePermission>(() => {
@@ -117,19 +112,13 @@ export const DatabaseProvider = ({
     } else {
       fetchBookings();
     }
-  }, [bookingsLoading, user]);
+  }, [bookingsLoading, userEmail]);
 
   useEffect(() => {
-    fetchActiveUserEmail();
     fetchAdminUsers();
     fetchPaUsers();
     fetchRoomSettings();
-  }, [user]);
-
-  const fetchActiveUserEmail = () => {
-    if (!user) return;
-    setUserEmail(user.email);
-  };
+  }, [userEmail]);
 
   const fetchBookings = async () => {
     fetchAllFutureBooking(tableName(TableNamesRaw.BOOKING))
@@ -379,7 +368,6 @@ export const DatabaseProvider = ({
         roomSettings,
         safetyTrainedUsers,
         settings,
-        userEmail,
         bookingsLoading,
         reloadAdminUsers: fetchAdminUsers,
         reloadApproverUsers: fetchApproverUsers,
@@ -389,7 +377,6 @@ export const DatabaseProvider = ({
         reloadPaUsers: fetchPaUsers,
         reloadBookingTypes: fetchBookingTypes,
         reloadSafetyTrainedUsers: fetchSafetyTrainedUsers,
-        setUserEmail,
       }}
     >
       {children}

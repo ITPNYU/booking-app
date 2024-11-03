@@ -1,14 +1,15 @@
 import { Box, Tab, Tabs } from "@mui/material";
-import { useContext, useMemo, useState } from "react";
 import { PageContextLevel, PagePermission } from "../../../types";
+import { useContext, useMemo, useState } from "react";
 
 import { Bookings } from "../components/bookingTable/Bookings";
 import { CenterLoading } from "../components/Loading";
 import { DatabaseContext } from "../components/Provider";
+import { useAuth } from "../components/AuthProvider";
 
 const Liaison = ({ calendarEventId }) => {
-  const { liaisonUsers, pagePermission, userEmail } =
-    useContext(DatabaseContext);
+  const { liaisonUsers, pagePermission } = useContext(DatabaseContext);
+  const { userEmail } = useAuth();
 
   const [tab, setTab] = useState("bookings");
 

@@ -8,10 +8,12 @@ import { DatabaseContext } from "../../components/Provider";
 import Settings from "./Settings";
 import Tab from "@mui/material/Tab";
 import Tabs from "@mui/material/Tabs";
+import { useAuth } from "../../components/AuthProvider";
 
 export default function Admin({ calendarEventId }) {
   const [tab, setTab] = useState("bookings");
-  const { adminUsers, pagePermission, userEmail } = useContext(DatabaseContext);
+  const { adminUsers, pagePermission } = useContext(DatabaseContext);
+  const { userEmail } = useAuth();
 
   const adminEmails = useMemo<string[]>(
     () => adminUsers.map((user) => user.email),

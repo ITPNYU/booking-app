@@ -10,8 +10,8 @@ import {
 import { useContext, useMemo, useState } from "react";
 
 import { BookingContext } from "../../booking/bookingProvider";
-import { DatabaseContext } from "../../components/Provider";
 import { Timestamp } from "@firebase/firestore";
+import { useAuth } from "../../components/AuthProvider";
 import useExistingBooking from "./useExistingBooking";
 import { useRouter } from "next/navigation";
 
@@ -53,7 +53,7 @@ export default function useBookingActions({
   const [date, setDate] = useState(new Date());
 
   const { reloadExistingCalendarEvents } = useContext(BookingContext);
-  const { userEmail } = useContext(DatabaseContext);
+  const { userEmail } = useAuth();
   const loadExistingBookingData = useExistingBooking();
   const router = useRouter();
 

@@ -1,11 +1,10 @@
 "use client";
 
 import { Box, Toolbar, Typography } from "@mui/material";
-import React, { useContext, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
 import ConfirmDialog from "../ConfirmDialog";
-import { DatabaseContext } from "../Provider";
 import NavBarActionButton from "./NavBarActionButton";
 import NavBarRoleSelect from "./NavBarRoleSelect";
 import NavBarTitle from "./NavBarTitle";
@@ -14,6 +13,7 @@ import { Tenants } from "@/components/src/policy";
 import { auth } from "@/lib/firebase/firebaseClient";
 import { signOut } from "firebase/auth";
 import { styled } from "@mui/system";
+import { useAuth } from "../AuthProvider";
 
 const Nav = styled(Toolbar)(({ theme }) => ({
   border: `1px solid ${theme.palette.custom.border}`,
@@ -30,7 +30,7 @@ const Divider = styled(Box)(({ theme }) => ({
 export default function NavBar() {
   const router = useRouter();
   const pathname = usePathname();
-  const { userEmail, setUserEmail } = useContext(DatabaseContext);
+  const { userEmail, setUser } = useAuth();
 
   const [selectedView, setSelectedView] = useState<PagePermission>(
     PagePermission.BOOKING
@@ -52,7 +52,7 @@ export default function NavBar() {
       await signOut(auth);
       console.log("Sign-out successful");
       router.push("/signin");
-      setUserEmail(null);
+      setUser(null);
     } catch (error) {
       console.error("Sign-out error", error);
     }

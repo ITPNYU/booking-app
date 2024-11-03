@@ -27,6 +27,7 @@ import BookingSelection from "./BookingSelection";
 import { DatabaseContext } from "../../components/Provider";
 import isEqual from "react-fast-compare";
 import { styled } from "@mui/system";
+import { useAuth } from "../../components/AuthProvider";
 import useCheckAutoApproval from "../hooks/useCheckAutoApproval";
 import { useRouter } from "next/navigation";
 import useSubmitBooking from "../hooks/useSubmitBooking";
@@ -63,7 +64,8 @@ interface Props {
 }
 
 export default function FormInput({ calendarEventId, formContext }: Props) {
-  const { userEmail, settings } = useContext(DatabaseContext);
+  const { settings } = useContext(DatabaseContext);
+  const { userEmail } = useAuth();
   const {
     role,
     department,

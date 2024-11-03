@@ -3,17 +3,13 @@ import { useCallback, useContext } from "react";
 
 import { BookingContext } from "../bookingProvider";
 import { DatabaseContext } from "../../components/Provider";
+import { useAuth } from "../../components/AuthProvider";
 import { useRouter } from "next/navigation";
 
 export default function useSubmitBooking(formContext: FormContextLevel) {
   const router = useRouter();
-  const {
-    liaisonUsers,
-    userEmail,
-    reloadBookings,
-    pagePermission,
-    roomSettings,
-  } = useContext(DatabaseContext);
+  const { liaisonUsers, reloadBookings, pagePermission, roomSettings } =
+    useContext(DatabaseContext);
   const {
     bookingCalendarInfo,
     department,
@@ -25,6 +21,7 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
     setHasShownMocapModal,
     setSubmitting,
   } = useContext(BookingContext);
+  const { userEmail } = useAuth();
 
   const isEdit = formContext === FormContextLevel.EDIT;
   const isWalkIn = formContext === FormContextLevel.WALK_IN;

@@ -12,6 +12,7 @@ import { DatabaseContext } from "../components/Provider";
 import { DateSelectArg } from "@fullcalendar/core";
 import { SAFETY_TRAINING_REQUIRED_ROOM } from "../../../mediaCommonsPolicy";
 import fetchCalendarEvents from "./hooks/fetchCalendarEvents";
+import { useAuth } from "../components/AuthProvider";
 import { usePathname } from "next/navigation";
 
 export interface BookingContextType {
@@ -59,8 +60,9 @@ export const BookingContext = createContext<BookingContextType>({
 });
 
 export function BookingProvider({ children }) {
-  const { bannedUsers, roomSettings, safetyTrainedUsers, userEmail } =
+  const { bannedUsers, roomSettings, safetyTrainedUsers } =
     useContext(DatabaseContext);
+  const { userEmail } = useAuth();
   const pathname = usePathname();
 
   const [bookingCalendarInfo, setBookingCalendarInfo] =
