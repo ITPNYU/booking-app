@@ -3,7 +3,7 @@ import React, { useContext, useMemo } from "react";
 import AddRow from "../../components/AddRow";
 import { DatabaseContext } from "../../components/Provider";
 import ListTable from "../../components/ListTable";
-import { TableNames } from "../../../../policy";
+import { TableNamesMediaCommonsOnly } from "@/components/src/mediaCommonsPolicy";
 import { formatDate } from "../../../utils/date";
 
 export default function BookingTypes() {
@@ -13,7 +13,7 @@ export default function BookingTypes() {
     () => (
       <AddRow
         columnNameUniqueValue="bookingType"
-        tableName={TableNames.BOOKING_TYPES}
+        tableName={TableNamesMediaCommonsOnly.BOOKING_TYPES}
         rows={settings.bookingTypes as unknown as { [key: string]: string }[]}
         rowsRefresh={reloadBookingTypes}
         inputPlaceholder="Add booking type"
@@ -33,7 +33,7 @@ export default function BookingTypes() {
   return (
     <ListTable
       columnNameToRemoveBy="bookingType"
-      tableName={TableNames.BOOKING_TYPES}
+      tableName={TableNamesMediaCommonsOnly.BOOKING_TYPES}
       rows={rows}
       rowsRefresh={reloadBookingTypes}
       columnFormatters={{ createdAt: formatDate }}

@@ -1,4 +1,10 @@
-import { ApproverLevel, TableNames } from "@/components/src/policy";
+import {
+  ApproverLevel,
+  TableNames,
+  TableNamesRaw,
+  Tenants,
+  getTableName,
+} from "@/components/src/policy";
 import {
   CollectionReference,
   DocumentData,
@@ -18,11 +24,14 @@ export type AdminUserData = {
 };
 
 export const serverDeleteData = async (
-  collectionName: string,
+  collectionName: TableNames,
   docId: string
 ) => {
   try {
-    await db.collection(collectionName).doc(docId).delete();
+    await db
+      .collection(collectionName as string)
+      .doc(docId)
+      .delete();
     console.log("Document successfully deleted with ID:", docId);
   } catch (error) {
     console.error("Error deleting document: ", error);
@@ -30,7 +39,7 @@ export const serverDeleteData = async (
 };
 
 export const serverDeleteDocumentFields = async (
-  collectionName: string,
+  collectionName: TableNames,
   docId: string,
   fields: string[]
 ) => {
@@ -40,15 +49,18 @@ export const serverDeleteDocumentFields = async (
       return acc;
     }, {});
 
-    await db.collection(collectionName).doc(docId).update(updateData);
+    await db
+      .collection(collectionName as string)
+      .doc(docId)
+      .update(updateData);
     console.log("Fields successfully deleted from document:", docId);
   } catch (error) {
     console.error("Error deleting fields from document:", error);
   }
 };
 
-export const serverGetNextSequentialId = async (collectionName: string) => {
-  const counterDocRef = db.collection("counters").doc(collectionName);
+export const serverGetNextSequentialId = async (collectionName: TableNames) => {
+  const counterDocRef = db.collection(collectionName as string).doc("bookings");
   const counterDoc = await counterDocRef.get();
   let currentCount = 1;
   if (counterDoc.exists) {
@@ -59,11 +71,11 @@ export const serverGetNextSequentialId = async (collectionName: string) => {
 };
 
 export const serverSaveDataToFirestore = async (
-  collectionName: string,
+  collectionName: TableNames,
   data: object
 ) => {
   try {
-    const docRef = await db.collection(collectionName).add(data);
+    const docRef = await db.collection(collectionName as string).add(data);
     console.log("Document successfully written with ID:", docRef.id);
   } catch (error) {
     console.error("Error writing document: ", error);
@@ -80,7 +92,7 @@ export const serverFetchAllDataFromCollection = async <T extends DocumentData>(
   queryConstraints: Constraint[] = []
 ): Promise<T[]> => {
   const collectionRef: CollectionReference<T> = db.collection(
-    collectionName
+    collectionName as string
   ) as CollectionReference<T>;
 
   let query: Query<T> = collectionRef;
@@ -104,7 +116,7 @@ export const serverGetDataByCalendarEventId = async <T>(
 ) => {
   try {
     const snapshot = await db
-      .collection(collectionName)
+      .collection(collectionName as string)
       .where("calendarEventId", "==", calendarEventId)
       .limit(1)
       .get();
@@ -121,12 +133,15 @@ export const serverGetDataByCalendarEventId = async <T>(
 };
 
 export const serverUpdateInFirestore = async (
-  collectionName: string,
+  collectionName: TableNames,
   docId: string,
   updatedData: object
 ) => {
   try {
-    await db.collection(collectionName).doc(docId).update(updatedData);
+    await db
+      .collection(collectionName as string)
+      .doc(docId)
+      .update(updatedData);
     console.log("Document successfully updated with ID:", docId);
   } catch (error) {
     console.error("Error updating document: ", error);
@@ -136,7 +151,8 @@ export const serverGetFinalApproverEmailFromDatabase = async (): Promise<
   string | null
 > => {
   try {
-    const policyCollection = db.collection(TableNames.APPROVERS);
+    const table = getTableName(TableNamesRaw.APPROVERS, Tenants.MEDIA_COMMONS);
+    const policyCollection = db.collection(table as string);
     const querySnapshot = await policyCollection
       .where("level", "==", ApproverLevel.FINAL)
       .get();

@@ -1,17 +1,16 @@
-import React, { useContext } from 'react';
+import React, { useContext } from "react";
+import { TableNamesRaw, Tenants, getTableName } from "../../../../policy";
 
-import AddEmail from '../../components/AddEmail';
-import { DatabaseContext } from '../../components/Provider';
-import EmailListTable from '../../components/EmailListTable';
-import { TableNames } from '../../../../policy';
-import { formatDate } from '../../../utils/date';
+import { DatabaseContext } from "../../components/Provider";
+import EmailListTable from "../../components/EmailListTable";
+import { formatDate } from "../../../utils/date";
 
 export const AdminUsers = () => {
   const { adminUsers, reloadAdminUsers } = useContext(DatabaseContext);
 
   return (
     <EmailListTable
-      tableName={TableNames.ADMINS}
+      tableName={getTableName(TableNamesRaw.ADMINS, Tenants.MEDIA_COMMONS)}
       userList={adminUsers}
       userListRefresh={reloadAdminUsers}
       columnFormatters={{ createdAt: formatDate }}

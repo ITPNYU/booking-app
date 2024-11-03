@@ -1,13 +1,12 @@
 import React, { useContext, useMemo, useState } from "react";
 
 import AddDepartmentRow from "../../components/AddDepartmentRow";
-import AddRow from "../../components/AddRow";
 import { Box } from "@mui/material";
 import { DatabaseContext } from "../../components/Provider";
 import { Department } from "../../../../types";
 import Dropdown from "../../booking/components/Dropdown";
 import ListTable from "../../components/ListTable";
-import { TableNames } from "../../../../policy";
+import { TableNamesMediaCommonsOnly } from "@/components/src/mediaCommonsPolicy";
 import { formatDate } from "../../../utils/date";
 
 const AddDepartmentForm = ({ departments, reloadDepartments }) => {
@@ -48,7 +47,7 @@ const AddDepartmentForm = ({ departments, reloadDepartments }) => {
       addFailedErrorMessage="Failed to add Department"
       columnNameUniqueValue="department"
       valueToAdd={departmentName}
-      tableName={TableNames.DEPARTMENTS}
+      tableName={TableNamesMediaCommonsOnly.DEPARTMENTS}
       rows={departments}
       rowsRefresh={reloadDepartments}
       title="Departments"
@@ -84,7 +83,7 @@ export const Departments = () => {
 
   return (
     <ListTable
-      tableName={TableNames.DEPARTMENTS}
+      tableName={TableNamesMediaCommonsOnly.DEPARTMENTS}
       columnNameToRemoveBy="department"
       rows={formattedDepartmentNames as unknown as { [key: string]: string }[]}
       rowsRefresh={reloadDepartmentNames}

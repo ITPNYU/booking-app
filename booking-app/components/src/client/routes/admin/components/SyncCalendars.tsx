@@ -2,7 +2,6 @@ import { Box, Button, Typography } from "@mui/material";
 import React, { useState } from "react";
 
 import AlertToast from "../../components/AlertToast";
-import { TableNames } from "@/components/src/policy";
 
 const SyncCalendars = () => {
   const [loading, setLoading] = useState(false);

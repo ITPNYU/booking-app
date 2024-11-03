@@ -1,22 +1,43 @@
 import {
   MEDIA_COMMONS_EMAIL,
   MEDIA_COMMONS_OPERATION_EMAIL,
+  FIRESTORE_COLLECTION_SUFFIX as MEDIA_COMMONS_SUFFIX,
+  TableNamesMediaCommonsOnly,
 } from "./mediaCommonsPolicy";
+import {
+  FIRESTORE_COLLECTION_SUFFIX as STAGING_SUFFIX,
+  TableNamesStagingOnly,
+} from "./stagingPolicy";
 
 import { BookingStatusLabel } from "./types";
 import { clientGetFinalApproverEmailFromDatabase } from "@/lib/firebase/firebase";
 
-export enum TableNames {
+export enum TableNamesRaw {
   ADMINS = "usersAdmin",
   APPROVERS = "usersApprovers",
   BANNED = "usersBanned",
   BOOKING = "bookings",
-  BOOKING_TYPES = "bookingTypes",
-  DEPARTMENTS = "departments",
-  PAS = "usersPa",
+  COUNTERS = "counters",
   RESOURCES = "resources",
   SAFETY_TRAINING = "usersWhitelist",
   SETTINGS = "settings",
+}
+
+export type TableNames =
+  | `${TableNamesRaw}_${string}`
+  | TableNamesMediaCommonsOnly
+  | TableNamesStagingOnly;
+
+export function getTableName(
+  table: TableNamesRaw,
+  tenant: Tenants
+): TableNames {
+  switch (tenant) {
+    case Tenants.STAGING:
+      return (table + STAGING_SUFFIX) as TableNames;
+    default:
+      return (table + MEDIA_COMMONS_SUFFIX) as TableNames;
+  }
 }
 
 export enum Tenants {

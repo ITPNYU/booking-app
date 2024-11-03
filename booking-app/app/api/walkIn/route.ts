@@ -1,17 +1,21 @@
-import { BookingFormDetails, BookingStatusLabel } from "@/components/src/types";
 import { NextRequest, NextResponse } from "next/server";
-import { TableNames, getApprovalCcEmail } from "@/components/src/policy";
 import {
-  serverApproveInstantBooking,
-  serverGetRoomCalendarId,
-  serverSendBookingDetailEmail,
-} from "@/components/src/server/admin";
+  TableNamesRaw,
+  Tenants,
+  getApprovalCcEmail,
+  getTableName,
+} from "@/components/src/policy";
 import {
   serverGetFinalApproverEmail,
   serverGetNextSequentialId,
   serverSaveDataToFirestore,
 } from "@/lib/firebase/server/adminDb";
+import {
+  serverGetRoomCalendarId,
+  serverSendBookingDetailEmail,
+} from "@/components/src/server/admin";
 
+import { BookingStatusLabel } from "@/components/src/types";
 import { Timestamp } from "firebase-admin/firestore";
 import { insertEvent } from "@/components/src/server/calendars";
 import { toFirebaseTimestampFromString } from "@/components/src/client/utils/serverDate";
@@ -47,8 +51,13 @@ export async function POST(request: NextRequest) {
   });
   const calendarEventId = event.id;
 
-  const sequentialId = await serverGetNextSequentialId("bookings");
-  await serverSaveDataToFirestore(TableNames.BOOKING, {
+  const counterTable = getTableName(
+    TableNamesRaw.COUNTERS,
+    Tenants.MEDIA_COMMONS,
+  );
+  const sequentialId = await serverGetNextSequentialId(counterTable);
+  const table = getTableName(TableNamesRaw.BOOKING, Tenants.MEDIA_COMMONS);
+  await serverSaveDataToFirestore(table, {
     calendarEventId,
     roomId: selectedRoomIds.join(", "),
     email,

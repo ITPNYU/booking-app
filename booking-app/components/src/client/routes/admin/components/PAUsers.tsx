@@ -2,7 +2,7 @@ import React, { useContext } from "react";
 
 import { DatabaseContext } from "../../components/Provider";
 import EmailListTable from "../../components/EmailListTable";
-import { TableNames } from "../../../../policy";
+import { TableNamesMediaCommonsOnly } from "@/components/src/mediaCommonsPolicy";
 import { formatDate } from "../../../utils/date";
 
 export const PAUsers = () => {
@@ -10,7 +10,7 @@ export const PAUsers = () => {
 
   return (
     <EmailListTable
-      tableName={TableNames.PAS}
+      tableName={TableNamesMediaCommonsOnly.PAS}
       userList={paUsers}
       userListRefresh={reloadPaUsers}
       columnFormatters={{ createdAt: formatDate }}

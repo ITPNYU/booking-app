@@ -1,9 +1,9 @@
 // This is a wrapper for google.script.run that lets us use promises.
 import React, { useContext } from "react";
+import { TableNamesRaw, Tenants, getTableName } from "../../../../policy";
 
 import { DatabaseContext } from "../../components/Provider";
 import EmailListTable from "../../components/EmailListTable";
-import { TableNames } from "../../../../policy";
 import { formatDate } from "../../../utils/date";
 
 export const BannedUsers = () => {
@@ -11,7 +11,7 @@ export const BannedUsers = () => {
 
   return (
     <EmailListTable
-      tableName={TableNames.BANNED}
+      tableName={getTableName(TableNamesRaw.BANNED, Tenants.MEDIA_COMMONS)}
       userList={bannedUsers}
       userListRefresh={reloadBannedUsers}
       columnFormatters={{ bannedAt: formatDate }}

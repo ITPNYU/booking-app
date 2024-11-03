@@ -1,4 +1,11 @@
 import {
+  ApproverType,
+  BookingFormDetails,
+  BookingStatus,
+  BookingStatusLabel,
+  RoomSetting,
+} from "../types";
+import {
   Constraint,
   serverDeleteData,
   serverDeleteDocumentFields,
@@ -7,19 +14,20 @@ import {
   serverGetFinalApproverEmail,
   serverUpdateInFirestore,
 } from "@/lib/firebase/server/adminDb";
-import { TableNames, getApprovalCcEmail } from "../policy";
 import {
-  ApproverType,
-  BookingFormDetails,
-  BookingStatus,
-  BookingStatusLabel,
-  RoomSetting,
-} from "../types";
+  TableNames,
+  TableNamesRaw,
+  Tenants,
+  getApprovalCcEmail,
+  getTableName,
+} from "../policy";
 
 import { Timestamp } from "firebase-admin/firestore";
 
+const BOOKING = getTableName(TableNamesRaw.BOOKING, Tenants.MEDIA_COMMONS);
+
 export const serverBookingContents = (id: string) => {
-  return serverGetDataByCalendarEventId(TableNames.BOOKING, id)
+  return serverGetDataByCalendarEventId(BOOKING, id)
     .then((bookingObj) => {
       const updatedBookingObj = Object.assign({}, bookingObj, {
         headerMessage: "This is a request email for final approval.",
@@ -88,14 +96,14 @@ export const serverDeleteDataByCalendarEventId = async (
 
 // from server
 const serverFirstApprove = (id: string, email?: string) => {
-  serverUpdateDataByCalendarEventId(TableNames.BOOKING, id, {
+  serverUpdateDataByCalendarEventId(BOOKING, id, {
     firstApprovedAt: Timestamp.now(),
     firstApprovedBy: email,
   });
 };
 
 const serverFinalApprove = (id: string, email?: string) => {
-  serverUpdateDataByCalendarEventId(TableNames.BOOKING, id, {
+  serverUpdateDataByCalendarEventId(BOOKING, id, {
     finalApprovedAt: Timestamp.now(),
     finalApprovedBy: email,
   });
@@ -111,7 +119,7 @@ export const serverApproveInstantBooking = (id: string) => {
 // both first approve and second approve flows hit here
 export const serverApproveBooking = async (id: string, email: string) => {
   const bookingStatus = await serverGetDataByCalendarEventId<BookingStatus>(
-    TableNames.BOOKING,
+    BOOKING,
     id
   );
   const firstApproveDateRange =
@@ -212,7 +220,7 @@ export const serverSendBookingDetailEmail = async (
 
 //server
 export const serverApproveEvent = async (id: string) => {
-  const doc = await serverGetDataByCalendarEventId(TableNames.BOOKING, id);
+  const doc = await serverGetDataByCalendarEventId(BOOKING, id);
   if (doc === undefined || doc === null) {
     console.error("Booking status not found for calendar event id: ", id);
     return;
@@ -288,9 +296,8 @@ export const serverApproveEvent = async (id: string) => {
 };
 
 export const approvers = async () => {
-  const fetchedData = await serverFetchAllDataFromCollection(
-    TableNames.APPROVERS
-  );
+  const table = getTableName(TableNamesRaw.APPROVERS, Tenants.MEDIA_COMMONS);
+  const fetchedData = await serverFetchAllDataFromCollection(table);
   const filtered = fetchedData.map((item: any) => ({
     id: item.id,
     email: item.email,
@@ -318,8 +325,9 @@ export const serverGetRoomCalendarIds = async (
     },
   ];
 
+  const table = getTableName(TableNamesRaw.RESOURCES, Tenants.MEDIA_COMMONS);
   const rooms = await serverFetchAllDataFromCollection<RoomSetting>(
-    TableNames.RESOURCES,
+    table,
     queryConstraints
   );
 
@@ -344,8 +352,9 @@ export const serverGetRoomCalendarId = async (
     },
   ];
 
+  const table = getTableName(TableNamesRaw.RESOURCES, Tenants.MEDIA_COMMONS);
   const rooms = await serverFetchAllDataFromCollection<RoomSetting>(
-    TableNames.RESOURCES,
+    table,
     queryConstraints
   );
 

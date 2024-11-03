@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
+  TableNames,
+  TableNamesRaw,
+  Tenants,
+  getTableName,
+} from "@/components/src/policy";
+import {
   serverDeleteData,
   serverFetchAllDataFromCollection,
   serverSaveDataToFirestore,
 } from "@/lib/firebase/server/adminDb";
-
-import { TableNames } from "@/components/src/policy";
 
 export async function POST(request: NextRequest) {
   const { sourceCollection, newCollection } = await request.json();
@@ -34,7 +38,8 @@ export async function POST(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-  const rows = await serverFetchAllDataFromCollection(TableNames.BOOKING);
+  const table = getTableName(TableNamesRaw.BOOKING, Tenants.MEDIA_COMMONS);
+  const rows = await serverFetchAllDataFromCollection(table);
 
   const ids = {};
 
@@ -56,9 +61,7 @@ export async function DELETE(request: NextRequest) {
     }
   }
 
-  await Promise.all(
-    deleteDocIds.map(id => serverDeleteData(TableNames.BOOKING, id)),
-  );
+  await Promise.all(deleteDocIds.map(id => serverDeleteData(table, id)));
 
   return NextResponse.json({ status: 200 });
 }

@@ -1,8 +1,8 @@
 import React, { useContext } from "react";
+import { TableNamesRaw, Tenants, getTableName } from "../../../../policy";
 
 import { DatabaseContext } from "../../components/Provider";
 import EmailListTable from "../../components/EmailListTable";
-import { TableNames } from "../../../../policy";
 import { formatDate } from "../../../utils/date";
 
 export default function SafetyTrainedUsers() {
@@ -16,7 +16,10 @@ export default function SafetyTrainedUsers() {
   return (
     <EmailListTable
       columnFormatters={{ completedAt: formatDate }}
-      tableName={TableNames.SAFETY_TRAINING}
+      tableName={getTableName(
+        TableNamesRaw.SAFETY_TRAINING,
+        Tenants.MEDIA_COMMONS
+      )}
       title="Safety Trained Users"
       userList={safetyTrainUsersFromFirestore}
       userListRefresh={reloadSafetyTrainedUsers}

@@ -211,34 +211,3 @@ export const deleteEvent = async (
     console.log("calendar event doesn't exist for room " + roomId);
   }
 };
-
-export const updateByCalendarEventId = async (
-  calendarEventId: string,
-  newValues: any
-) => {
-  // const allRooms: RoomSetting[] = await clientFetchAllDataFromCollection(
-  //   TableNames.RESOURCES
-  // );
-  // const roomCalendarIds = allRooms.map((room) => room.calendarId);
-  // // const calendarIdsToEvent = {};
-  // const calendar = await getCalendarClient();
-  // for (const roomCalendarId of roomCalendarIds) {
-  //   const event = await calendar.events.get({
-  //     calendarId: roomCalendarId,
-  //     eventId: calendarEventId,
-  //   });
-  //   await patchCalendarEvent(event, roomCalendarId, calendarEventId, newValues);
-  // }
-};
-
-// update endTime for all calendar events
-// searchCalendarsForEventId(id);
-// const roomCalendarIdsToEvents = await searchCalendarsForEventId(id);
-// for (let [calendarId, event] of Object.entries(roomCalendarIdsToEvents)) {
-//   await patchCalendarEvent(event, calendarId, id, {
-//     end: {
-//       dateTime: checkoutDate.toISOString(),
-//     },
-//   });
-//   console.log(`Updated end time on ${calendarId} event: ${id}`);
-// }

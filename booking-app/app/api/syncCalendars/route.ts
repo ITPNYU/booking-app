@@ -1,7 +1,7 @@
 import { Booking, MediaServices } from "@/components/src/types";
+import { TableNamesRaw, Tenants, getTableName } from "@/components/src/policy";
 
 import { NextResponse } from "next/server";
-import { TableNames } from "@/components/src/policy";
 import { Timestamp } from "@firebase/firestore";
 import admin from "@/lib/firebase/server/firebaseAdmin";
 import { getCalendarClient } from "@/lib/googleClient";
@@ -187,14 +187,16 @@ export async function POST(request: Request) {
                 mediaServices: MediaServices.CHECKOUT_EQUIPMENT,
               });
               console.log("newBooking", newBooking);
-              const bookingDocRef = await db
-                .collection(TableNames.BOOKING)
-                .add({
-                  ...newBooking,
-                  requestedAt: admin.firestore.FieldValue.serverTimestamp(),
-                  firstApprovedAt: admin.firestore.FieldValue.serverTimestamp(),
-                  finalApprovedAt: admin.firestore.FieldValue.serverTimestamp(),
-                });
+              const table = getTableName(
+                TableNamesRaw.BOOKING,
+                Tenants.MEDIA_COMMONS,
+              );
+              const bookingDocRef = await db.collection(table as string).add({
+                ...newBooking,
+                requestedAt: admin.firestore.FieldValue.serverTimestamp(),
+                firstApprovedAt: admin.firestore.FieldValue.serverTimestamp(),
+                finalApprovedAt: admin.firestore.FieldValue.serverTimestamp(),
+              });
 
               console.log(`New Booking created with ID: ${bookingDocRef.id}`);
 

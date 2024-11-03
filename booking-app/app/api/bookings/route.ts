@@ -1,7 +1,12 @@
 import {
-  serverFormatDate,
-  toFirebaseTimestampFromString,
-} from "@/components/src/client/utils/serverDate";
+  ApproverType,
+  BookingFormDetails,
+  BookingStatusLabel,
+  RoomSetting,
+} from "@/components/src/types";
+import { NextRequest, NextResponse } from "next/server";
+import { TableNamesRaw, Tenants, getTableName } from "@/components/src/policy";
+import { deleteEvent, insertEvent } from "@/components/src/server/calendars";
 import {
   firstApproverEmails,
   serverApproveInstantBooking,
@@ -9,24 +14,21 @@ import {
   serverDeleteFieldsByCalendarEventId,
   serverUpdateDataByCalendarEventId,
 } from "@/components/src/server/admin";
-import { deleteEvent, insertEvent } from "@/components/src/server/calendars";
-import { getBookingToolDeployUrl } from "@/components/src/server/ui";
 import {
-  ApproverType,
-  BookingFormDetails,
-  BookingStatusLabel,
-  RoomSetting,
-} from "@/components/src/types";
+  serverFormatDate,
+  toFirebaseTimestampFromString,
+} from "@/components/src/client/utils/serverDate";
 import {
   serverGetNextSequentialId,
   serverSaveDataToFirestore,
 } from "@/lib/firebase/server/adminDb";
-import { NextRequest, NextResponse } from "next/server";
 
-import { sendHTMLEmail } from "@/app/lib/sendHTMLEmail";
-import { TableNames } from "@/components/src/policy";
-import { Timestamp } from "firebase-admin/firestore";
 import { DateSelectArg } from "fullcalendar";
+import { Timestamp } from "firebase-admin/firestore";
+import { getBookingToolDeployUrl } from "@/components/src/server/ui";
+import { sendHTMLEmail } from "@/app/lib/sendHTMLEmail";
+
+const BOOKING = getTableName(TableNamesRaw.BOOKING, Tenants.MEDIA_COMMONS);
 
 async function createBookingCalendarEvent(
   selectedRooms: RoomSetting[],
@@ -147,14 +149,18 @@ export async function POST(request: NextRequest) {
   }
 
   //For putting sequentialId in bookings
-  const sequentialId = await serverGetNextSequentialId("bookings");
+  const counterTable = getTableName(
+    TableNamesRaw.COUNTERS,
+    Tenants.MEDIA_COMMONS,
+  );
+  const sequentialId = await serverGetNextSequentialId(counterTable);
   const selectedRoomIds = selectedRooms
     .map((r: { roomId: number }) => r.roomId)
     .join(", ");
   console.log(" Done serverGetNextSequentialId ");
   console.log("calendarEventId", calendarEventId);
 
-  await serverSaveDataToFirestore(TableNames.BOOKING, {
+  await serverSaveDataToFirestore(BOOKING, {
     calendarEventId,
     roomId: selectedRoomIds,
     email,
@@ -250,21 +256,17 @@ export async function PUT(request: NextRequest) {
   };
 
   await serverUpdateDataByCalendarEventId(
-    TableNames.BOOKING,
+    BOOKING,
     calendarEventId,
     updatedData,
   );
 
-  await serverDeleteFieldsByCalendarEventId(
-    TableNames.BOOKING,
-    newCalendarEventId,
-    [
-      "finalApprovedAt",
-      "finalApprovedBy",
-      "firstApprovedAt",
-      "firstApprovedBy",
-    ],
-  );
+  await serverDeleteFieldsByCalendarEventId(BOOKING, newCalendarEventId, [
+    "finalApprovedAt",
+    "finalApprovedBy",
+    "firstApprovedAt",
+    "firstApprovedBy",
+  ]);
 
   // handle auto-approval + send emails
   await handleBookingApprovalEmails(

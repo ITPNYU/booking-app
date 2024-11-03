@@ -1,8 +1,9 @@
-import { TableNames } from "@/components/src/policy";
 import {
   clientGetDataByCalendarEventId,
   clientUpdateDataInFirestore,
 } from "../firebase";
+
+import { TableNames } from "@/components/src/policy";
 
 export const clientUpdateDataByCalendarEventId = async (
   collectionName: TableNames,

@@ -1,4 +1,5 @@
 import React, { useContext, useMemo, useState } from "react";
+import { TableNamesRaw, Tenants, getTableName } from "../../../../policy";
 
 import AddRow from "../../components/AddRow";
 import { Box } from "@mui/material";
@@ -6,8 +7,9 @@ import { DatabaseContext } from "../../components/Provider";
 import { Department } from "../../../../types";
 import Dropdown from "../../booking/components/Dropdown";
 import ListTable from "../../components/ListTable";
-import { TableNames } from "../../../../policy";
 import { formatDate } from "../../../utils/date";
+
+const table = getTableName(TableNamesRaw.APPROVERS, Tenants.MEDIA_COMMONS);
 
 const AddLiaisonForm = ({ liaisonEmails, reloadLiaisonEmails }) => {
   const [department, setDepartment] = useState("");
@@ -32,7 +34,7 @@ const AddLiaisonForm = ({ liaisonEmails, reloadLiaisonEmails }) => {
       addFailedErrorMessage="Failed to add user as liaison"
       columnNameUniqueValue="email"
       inputPlaceholder="Add email"
-      tableName={TableNames.APPROVERS}
+      tableName={table}
       rows={liaisonEmails}
       rowsRefresh={reloadLiaisonEmails}
       title="Department Liaisons"
@@ -66,7 +68,7 @@ export const Liaisons = () => {
 
   return (
     <ListTable
-      tableName={TableNames.APPROVERS}
+      tableName={table}
       columnNameToRemoveBy="email"
       rows={rows}
       rowsRefresh={reloadApproverUsers}

@@ -1,9 +1,9 @@
 import { Booking, MediaServices } from "@/components/src/types";
 import React, { useContext, useRef, useState } from "react";
+import { TableNamesRaw, Tenants, getTableName } from "@/components/src/policy";
 
 import { DatabaseContext } from "../Provider";
 import { Switch } from "@mui/material";
-import { TableNames } from "@/components/src/policy";
 import { clientUpdateDataByCalendarEventId } from "@/lib/firebase/client/clientDb";
 
 interface Props {
@@ -26,7 +26,7 @@ export default function EquipmentCheckoutToggle({ booking, status }: Props) {
 
     try {
       await clientUpdateDataByCalendarEventId(
-        TableNames.BOOKING,
+        getTableName(TableNamesRaw.BOOKING, Tenants.MEDIA_COMMONS),
         booking.calendarEventId,
         {
           equipmentCheckedOut: newStatus,

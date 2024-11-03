@@ -5,6 +5,14 @@ export const MEDIA_COMMONS_OPERATION_EMAIL = "mediacommons.operations@nyu.edu";
 
 export const STORAGE_KEY_BOOKING = "mediaCommonsDevBooking";
 
+export const FIRESTORE_COLLECTION_SUFFIX = "";
+
+export enum TableNamesMediaCommonsOnly {
+  BOOKING_TYPES = "bookingTypes",
+  DEPARTMENTS = "departments",
+  PAS = "usersPa",
+}
+
 /********** ROOMS ************/
 
 export const SAFETY_TRAINING_REQUIRED_ROOM = [

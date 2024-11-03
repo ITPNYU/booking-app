@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
+  TableNames,
+  TableNamesRaw,
+  Tenants,
+  getTableName,
+} from "@/components/src/policy";
+import {
   serverFetchAllDataFromCollection,
   serverSaveDataToFirestore,
   serverUpdateInFirestore,
 } from "@/lib/firebase/server/adminDb";
 
-import { TableNames } from "@/components/src/policy";
-import { Timestamp } from "@firebase/firestore";
 import { getLoggingClient } from "@/lib/googleClient";
 
 export const dynamic = "force-dynamic";
@@ -18,8 +22,11 @@ export async function POST(request: NextRequest) {
     logger = await getLoggingClient();
 
     // 1. rename usersLiaison to usersApprovers
-    const sourceApproverCollection = TableNames.APPROVERS;
-    const newApproverCollection = "usersApprovers";
+    const sourceApproverCollection = getTableName(
+      TableNamesRaw.APPROVERS,
+      Tenants.MEDIA_COMMONS,
+    );
+    const newApproverCollection = "usersApprovers" as TableNames;
     let res = await fetch(
       process.env.NEXT_PUBLIC_BASE_URL + "/api/db/duplicate",
       {
@@ -45,9 +52,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 2. every document in usersApprovers needs a numeric approver level
-    const rows = await serverFetchAllDataFromCollection(
-      newApproverCollection as TableNames,
-    );
+    const rows = await serverFetchAllDataFromCollection(newApproverCollection);
 
     await Promise.all(
       rows.map(row =>
@@ -66,7 +71,7 @@ export async function POST(request: NextRequest) {
     log(logger, `Added final approver doc to ${newApproverCollection}`);
 
     // 4. rename usersSafetyWhitelist to usersWhitelist
-    const sourceWhitelistCollection = TableNames.SAFETY_TRAINING;
+    const sourceWhitelistCollection = TableNamesRaw.SAFETY_TRAINING;
     const newWhitelistCollection = "usersWhitelist";
     res = await fetch(process.env.NEXT_PUBLIC_BASE_URL + "/api/db/duplicate", {
       method: "POST",
@@ -91,7 +96,7 @@ export async function POST(request: NextRequest) {
 
     // 5. combine bookings and bookingStatus documents
     const sourceBookingStatus = "bookingStatus";
-    const destinationBooking = TableNames.BOOKING;
+    const destinationBooking = TableNamesRaw.BOOKING;
     res = await fetch(process.env.NEXT_PUBLIC_BASE_URL + "/api/db/merge", {
       method: "POST",
       headers: {

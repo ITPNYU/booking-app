@@ -12,12 +12,14 @@ import {
   SafetyTraining,
   Settings,
 } from "../../../types";
-import { ApproverLevel, TableNames } from "@/components/src/policy";
+import { ApproverLevel, TableNamesRaw } from "@/components/src/policy";
 import React, { createContext, useEffect, useMemo, useState } from "react";
 
+import { TableNamesMediaCommonsOnly } from "@/components/src/mediaCommonsPolicy";
 import { clientFetchAllDataFromCollection } from "@/lib/firebase/firebase";
 import { fetchAllFutureBooking } from "@/components/src/server/db";
 import { useAuth } from "@/components/src/client/routes/components/AuthProvider";
+import useTableName from "../../utils/useTableName";
 
 export interface DatabaseContextType {
   adminUsers: AdminUser[];
@@ -91,6 +93,7 @@ export const DatabaseProvider = ({
   const [settings, setSettings] = useState<Settings>({ bookingTypes: [] });
   const [userEmail, setUserEmail] = useState<string | undefined>();
   const { user } = useAuth();
+  const tableName = useTableName();
 
   // page permission updates with respect to user email, admin list, PA list
   const pagePermission = useMemo<PagePermission>(() => {
@@ -129,7 +132,7 @@ export const DatabaseProvider = ({
   };
 
   const fetchBookings = async () => {
-    fetchAllFutureBooking(TableNames.BOOKING)
+    fetchAllFutureBooking(tableName(TableNamesRaw.BOOKING))
       .then((fetchedData) => {
         const bookings = fetchedData.map((item: any) => ({
           id: item.id,
@@ -198,7 +201,7 @@ export const DatabaseProvider = ({
   };
 
   const fetchAdminUsers = async () => {
-    clientFetchAllDataFromCollection(TableNames.ADMINS)
+    clientFetchAllDataFromCollection(tableName(TableNamesRaw.ADMINS))
       .then((fetchedData) => {
         const adminUsers = fetchedData.map((item: any) => ({
           id: item.id,
@@ -211,7 +214,7 @@ export const DatabaseProvider = ({
   };
 
   const fetchPaUsers = async () => {
-    clientFetchAllDataFromCollection(TableNames.PAS)
+    clientFetchAllDataFromCollection(TableNamesMediaCommonsOnly.PAS)
       .then((fetchedData) => {
         const paUsers = fetchedData.map((item: any) => ({
           id: item.id,
@@ -227,7 +230,7 @@ export const DatabaseProvider = ({
     try {
       // Fetch data from Firestore
       const firestoreData = await clientFetchAllDataFromCollection(
-        TableNames.SAFETY_TRAINING
+        tableName(TableNamesRaw.SAFETY_TRAINING)
       );
       const firestoreUsers: SafetyTraining[] = firestoreData.map(
         (item: any) => ({
@@ -281,7 +284,7 @@ export const DatabaseProvider = ({
   };
 
   const fetchBannedUsers = async () => {
-    clientFetchAllDataFromCollection(TableNames.BANNED)
+    clientFetchAllDataFromCollection(tableName(TableNamesRaw.BANNED))
       .then((fetchedData) => {
         const filtered = fetchedData.map((item: any) => ({
           id: item.id,
@@ -294,7 +297,7 @@ export const DatabaseProvider = ({
   };
 
   const fetchApproverUsers = async () => {
-    clientFetchAllDataFromCollection(TableNames.APPROVERS)
+    clientFetchAllDataFromCollection(tableName(TableNamesRaw.APPROVERS))
       .then((fetchedData) => {
         const all = fetchedData.map((item: any) => ({
           id: item.id,
@@ -313,7 +316,7 @@ export const DatabaseProvider = ({
       .catch((error) => console.error("Error fetching data:", error));
   };
   const fetchDepartmentNames = async () => {
-    clientFetchAllDataFromCollection(TableNames.DEPARTMENTS)
+    clientFetchAllDataFromCollection(TableNamesMediaCommonsOnly.DEPARTMENTS)
       .then((fetchedData) => {
         const filtered = fetchedData.map((item: any) => ({
           id: item.id,
@@ -327,7 +330,7 @@ export const DatabaseProvider = ({
   };
 
   const fetchRoomSettings = async () => {
-    clientFetchAllDataFromCollection(TableNames.RESOURCES)
+    clientFetchAllDataFromCollection(tableName(TableNamesRaw.RESOURCES))
       .then((fetchedData) => {
         const filtered = fetchedData.map((item: any) => ({
           id: item.id,
@@ -343,7 +346,7 @@ export const DatabaseProvider = ({
   };
 
   const fetchBookingTypes = async () => {
-    clientFetchAllDataFromCollection(TableNames.BOOKING_TYPES)
+    clientFetchAllDataFromCollection(TableNamesMediaCommonsOnly.BOOKING_TYPES)
       .then((fetchedData) => {
         const filtered = fetchedData.map((item: any) => ({
           id: item.id,
@@ -357,19 +360,6 @@ export const DatabaseProvider = ({
       })
       .catch((error) => console.error("Error fetching data:", error));
   };
-
-  // const fetchPolicySettings = async () => {
-  //   clientFetchAllDataFromCollection(TableNames.POLICY)
-  //     .then((fetchedData) => {
-  //       const policy: PolicySettings = fetchedData.map((item: any) => ({
-  //         finalApproverEmail: item.finalApproverEmail,
-  //       }))[0]; // should only be 1 document
-  //       setPolicySettings(policy);
-  //     })
-  //     .catch((error) =>
-  //       console.error("Error fetching policy settings data:", error)
-  //     );
-  // };
 
   const fetchSettings = async () => {
     fetchBookingTypes();

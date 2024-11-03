@@ -1,4 +1,10 @@
-import { ApproverLevel, TableNames } from "@/components/src/policy";
+import {
+  ApproverLevel,
+  TableNames,
+  TableNamesRaw,
+  Tenants,
+  getTableName,
+} from "@/components/src/policy";
 // saveData.ts
 import {
   QueryConstraint,
@@ -7,11 +13,8 @@ import {
   collection,
   deleteDoc,
   doc,
-  getDoc,
   getDocs,
-  limit,
   query,
-  setDoc,
   updateDoc,
   where,
 } from "@firebase/firestore";
@@ -24,12 +27,12 @@ export type AdminUserData = {
 };
 
 export const clientDeleteDataFromFirestore = async (
-  collectionName: string,
+  collectionName: TableNames,
   docId: string
 ) => {
   try {
     const db = getDb();
-    await deleteDoc(doc(db, collectionName, docId));
+    await deleteDoc(doc(db, collectionName as string, docId));
     console.log("Document successfully deleted with ID:", docId);
   } catch (error) {
     console.error("Error deleting document: ", error);
@@ -37,12 +40,12 @@ export const clientDeleteDataFromFirestore = async (
 };
 
 export const clientSaveDataToFirestore = async (
-  collectionName: string,
+  collectionName: TableNames,
   data: object
 ) => {
   try {
     const db = getDb();
-    const docRef = await addDoc(collection(db, collectionName), data);
+    const docRef = await addDoc(collection(db, collectionName as string), data);
 
     console.log("Document successfully written with ID:", docRef.id);
   } catch (error) {
@@ -55,7 +58,7 @@ export const clientFetchAllDataFromCollection = async <T>(
   queryConstraints: QueryConstraint[] = []
 ): Promise<T[]> => {
   const db = getDb();
-  const colRef = collection(db, collectionName);
+  const colRef = collection(db, collectionName as string);
   const q = query(colRef, ...queryConstraints);
   const snapshot = await getDocs(q);
   const data = snapshot.docs.map((document) => ({
@@ -70,7 +73,8 @@ export const clientGetFinalApproverEmailFromDatabase = async (): Promise<
 > => {
   try {
     const db = getDb();
-    const approversCollection = collection(db, TableNames.APPROVERS);
+    const table = getTableName(TableNamesRaw.APPROVERS, Tenants.MEDIA_COMMONS);
+    const approversCollection = collection(db, table as string);
     const q = query(
       approversCollection,
       where("level", "==", ApproverLevel.FINAL)
@@ -96,7 +100,7 @@ export const clientGetDataByCalendarEventId = async <T>(
 ): Promise<(T & { id: string }) | null> => {
   try {
     const db = getDb();
-    const colRef = collection(db, collectionName);
+    const colRef = collection(db, collectionName as string);
     const q = query(colRef, where("calendarEventId", "==", calendarEventId));
     const querySnapshot = await getDocs(q);
 
@@ -113,13 +117,13 @@ export const clientGetDataByCalendarEventId = async <T>(
   }
 };
 export const clientUpdateDataInFirestore = async (
-  collectionName: string,
+  collectionName: TableNames,
   docId: string,
   updatedData: object
 ) => {
   try {
     const db = getDb();
-    const docRef = doc(db, collectionName, docId);
+    const docRef = doc(db, collectionName as string, docId);
     await updateDoc(docRef, updatedData);
     console.log("Document successfully updated with ID:", docId);
   } catch (error) {
