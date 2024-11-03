@@ -2,7 +2,7 @@ import {
   ApproverType,
   BookingFormDetails,
   BookingStatusLabel,
-  RoomSetting,
+  Resource,
 } from "@/components/src/types";
 import { NextRequest, NextResponse } from "next/server";
 import { TableNamesRaw, Tenants, getTableName } from "@/components/src/policy";
@@ -31,7 +31,7 @@ import { sendHTMLEmail } from "@/app/lib/sendHTMLEmail";
 const BOOKING = getTableName(TableNamesRaw.BOOKING, Tenants.MEDIA_COMMONS);
 
 async function createBookingCalendarEvent(
-  selectedRooms: RoomSetting[],
+  selectedRooms: Resource[],
   department: string,
   title: string,
   bookingCalendarInfo: DateSelectArg,
@@ -209,7 +209,7 @@ export async function PUT(request: NextRequest) {
 
   const existingContents = await serverBookingContents(calendarEventId);
   const oldRoomIds = existingContents.roomId.split(",").map(x => x.trim());
-  const oldRooms = allRooms.filter((room: RoomSetting) =>
+  const oldRooms = allRooms.filter((room: Resource) =>
     oldRoomIds.includes(room.roomId + ""),
   );
 

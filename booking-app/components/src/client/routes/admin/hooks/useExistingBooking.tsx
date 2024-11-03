@@ -12,7 +12,7 @@ export default function useExistingBooking() {
     setBookingCalendarInfo,
     setFormData,
   } = useContext(BookingContext);
-  const { bookings, roomSettings } = useContext(SharedDatabaseContext);
+  const { bookings, resources } = useContext(SharedDatabaseContext);
 
   const findBooking = (calendarEventId: string) =>
     bookings.filter(
@@ -26,8 +26,8 @@ export default function useExistingBooking() {
     setRole(booking.role as Role);
 
     const roomIds = booking.roomId.split(", ").map((x) => Number(x));
-    const rooms = roomSettings.filter((roomSetting) =>
-      roomIds.includes(roomSetting.roomId)
+    const rooms = resources.filter((resource) =>
+      roomIds.includes(resource.roomId)
     );
     setSelectedRooms(rooms);
 

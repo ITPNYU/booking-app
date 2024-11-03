@@ -1,13 +1,13 @@
-import React, { useContext, useMemo } from "react";
+import { useMemo } from "react";
 
 import AddRow from "../../components/AddRow";
 import ListTable from "../../components/ListTable";
-import { SharedDatabaseContext } from "../../../providers/SharedDatabaseProvider";
 import { TableNamesMediaCommonsOnly } from "@/components/src/mediaCommonsPolicy";
 import { formatDate } from "../../../utils/date";
+import { useMediaCommonsDatabase } from "../../../providers/MediaCommonsDatabaseProvider";
 
 export default function BookingTypes() {
-  const { settings, reloadBookingTypes } = useContext(SharedDatabaseContext);
+  const { settings, reloadBookingTypes } = useMediaCommonsDatabase();
 
   const addResType = useMemo(
     () => (

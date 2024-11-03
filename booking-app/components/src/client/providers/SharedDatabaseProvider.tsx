@@ -5,13 +5,10 @@ import {
   Approver,
   Ban,
   Booking,
-  BookingType,
-  DepartmentType,
   PagePermission,
   PolicySettings,
-  RoomSetting,
+  Resource,
   SafetyTraining,
-  Settings,
 } from "../../types";
 import { ApproverLevel, TableNamesRaw } from "@/components/src/policy";
 import React, {
@@ -22,7 +19,6 @@ import React, {
   useState,
 } from "react";
 
-import { TableNamesMediaCommonsOnly } from "@/components/src/mediaCommonsPolicy";
 import { clientFetchAllDataFromCollection } from "@/lib/firebase/firebase";
 import { fetchAllFutureBooking } from "@/components/src/server/db";
 import { useAuth } from "./AuthProvider";
@@ -30,44 +26,36 @@ import useTableName from "../utils/useTableName";
 
 export interface DatabaseContextType {
   adminUsers: AdminUser[];
+  approverUsers: Approver[];
   bannedUsers: Ban[];
   bookings: Booking[];
   bookingsLoading: boolean;
-  liaisonUsers: Approver[];
-  departmentNames: DepartmentType[];
   pagePermission: PagePermission;
   policySettings: PolicySettings;
-  roomSettings: RoomSetting[];
+  resources: Resource[];
   safetyTrainedUsers: SafetyTraining[];
-  settings: Settings;
   reloadAdminUsers: () => Promise<void>;
   reloadApproverUsers: () => Promise<void>;
   reloadBannedUsers: () => Promise<void>;
   reloadBookings: () => Promise<void>;
-  reloadDepartmentNames: () => Promise<void>;
-  reloadBookingTypes: () => Promise<void>;
   reloadSafetyTrainedUsers: () => Promise<void>;
   overridePagePermission: (x: PagePermission) => void;
 }
 
 export const SharedDatabaseContext = createContext<DatabaseContextType>({
   adminUsers: [],
+  approverUsers: [],
   bannedUsers: [],
   bookings: [],
   bookingsLoading: true,
-  liaisonUsers: [],
-  departmentNames: [],
   pagePermission: PagePermission.BOOKING,
   policySettings: { finalApproverEmail: "" },
-  roomSettings: [],
+  resources: [],
   safetyTrainedUsers: [],
-  settings: { bookingTypes: [] },
   reloadAdminUsers: async () => {},
   reloadApproverUsers: async () => {},
   reloadBannedUsers: async () => {},
   reloadBookings: async () => {},
-  reloadDepartmentNames: async () => {},
-  reloadBookingTypes: async () => {},
   reloadSafetyTrainedUsers: async () => {},
   overridePagePermission: (x: PagePermission) => {},
 });
@@ -83,18 +71,16 @@ export const SharedDatabaseProvider = ({
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [bookingsLoading, setBookingsLoading] = useState<boolean>(true);
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
-  const [liaisonUsers, setLiaisonUsers] = useState<Approver[]>([]);
-  const [departmentNames, setDepartmentName] = useState<DepartmentType[]>([]);
+  const [approverUsers, setApproverUsers] = useState<Approver[]>([]);
   const [overriddenPagePermission, setOverriddenPagePermission] =
     useState(null);
   const [policySettings, setPolicySettings] = useState<PolicySettings>({
     finalApproverEmail: "",
   });
-  const [roomSettings, setRoomSettings] = useState<RoomSetting[]>([]);
+  const [resources, setResources] = useState<Resource[]>([]);
   const [safetyTrainedUsers, setSafetyTrainedUsers] = useState<
     SafetyTraining[]
   >([]);
-  const [settings, setSettings] = useState<Settings>({ bookingTypes: [] });
   const tableName = useTableName();
   const { userEmail } = useAuth();
 
@@ -115,8 +101,6 @@ export const SharedDatabaseProvider = ({
       fetchSafetyTrainedUsers();
       fetchBannedUsers();
       fetchApproverUsers();
-      fetchDepartmentNames();
-      fetchSettings();
     } else {
       fetchBookings();
     }
@@ -124,7 +108,7 @@ export const SharedDatabaseProvider = ({
 
   useEffect(() => {
     fetchAdminUsers();
-    fetchRoomSettings();
+    fetchResources();
   }, [userEmail]);
 
   const fetchBookings = async () => {
@@ -289,30 +273,17 @@ export const SharedDatabaseProvider = ({
           createdAt: item.createdAt,
           level: Number(item.level),
         }));
-        const liaisons = all.filter((x) => x.level === ApproverLevel.FIRST);
+        const approvers = all.filter((x) => x.level === ApproverLevel.FIRST);
         const finalApprover = all.filter(
           (x) => x.level === ApproverLevel.FINAL
         )[0];
-        setLiaisonUsers(liaisons);
+        setApproverUsers(approvers);
         setPolicySettings({ finalApproverEmail: finalApprover.email });
       })
       .catch((error) => console.error("Error fetching data:", error));
   };
-  const fetchDepartmentNames = async () => {
-    clientFetchAllDataFromCollection(TableNamesMediaCommonsOnly.DEPARTMENTS)
-      .then((fetchedData) => {
-        const filtered = fetchedData.map((item: any) => ({
-          id: item.id,
-          department: item.department,
-          createdAt: item.createdAt,
-          departmentTier: item.departmentTier,
-        }));
-        setDepartmentName(filtered);
-      })
-      .catch((error) => console.error("Error fetching data:", error));
-  };
 
-  const fetchRoomSettings = async () => {
+  const fetchResources = async () => {
     clientFetchAllDataFromCollection(tableName(TableNamesRaw.RESOURCES))
       .then((fetchedData) => {
         const filtered = fetchedData.map((item: any) => ({
@@ -323,51 +294,27 @@ export const SharedDatabaseProvider = ({
           calendarId: item.calendarId,
         }));
         filtered.sort((a, b) => a.roomId - b.roomId);
-        setRoomSettings(filtered);
+        setResources(filtered);
       })
       .catch((error) => console.error("Error fetching data:", error));
-  };
-
-  const fetchBookingTypes = async () => {
-    clientFetchAllDataFromCollection(TableNamesMediaCommonsOnly.BOOKING_TYPES)
-      .then((fetchedData) => {
-        const filtered = fetchedData.map((item: any) => ({
-          id: item.id,
-          bookingType: item.bookingType,
-          createdAt: item.createdAt,
-        }));
-        setSettings((prev) => ({
-          ...prev,
-          bookingTypes: filtered as BookingType[],
-        }));
-      })
-      .catch((error) => console.error("Error fetching data:", error));
-  };
-
-  const fetchSettings = async () => {
-    fetchBookingTypes();
   };
 
   return (
     <SharedDatabaseContext.Provider
       value={{
         adminUsers,
+        approverUsers,
         bannedUsers,
         bookings,
-        liaisonUsers,
-        departmentNames,
         pagePermission,
         policySettings,
-        roomSettings,
+        resources,
         safetyTrainedUsers,
-        settings,
         bookingsLoading,
         reloadAdminUsers: fetchAdminUsers,
         reloadApproverUsers: fetchApproverUsers,
         reloadBannedUsers: fetchBannedUsers,
         reloadBookings: fetchBookings,
-        reloadDepartmentNames: fetchDepartmentNames,
-        reloadBookingTypes: fetchBookingTypes,
         reloadSafetyTrainedUsers: fetchSafetyTrainedUsers,
         overridePagePermission: setOverriddenPagePermission,
       }}

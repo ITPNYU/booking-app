@@ -2,11 +2,11 @@ import {
   CalendarEvent,
   Department,
   Inputs,
+  Resource,
   Role,
-  RoomSetting,
   SubmitStatus,
 } from "../../types";
-import React, { createContext, useMemo, useState } from "react";
+import { createContext, useMemo, useState } from "react";
 
 import { DateSelectArg } from "@fullcalendar/core";
 import { SAFETY_TRAINING_REQUIRED_ROOM } from "../../mediaCommonsPolicy";
@@ -26,13 +26,13 @@ export interface BookingContextType {
   needsSafetyTraining: boolean;
   reloadExistingCalendarEvents: () => void;
   role: Role | undefined;
-  selectedRooms: RoomSetting[];
+  selectedRooms: Resource[];
   setBookingCalendarInfo: (x: DateSelectArg) => void;
   setDepartment: (x: Department) => void;
   setFormData: (x: Inputs) => void;
   setHasShownMocapModal: (x: boolean) => void;
   setRole: (x: Role) => void;
-  setSelectedRooms: (x: RoomSetting[]) => void;
+  setSelectedRooms: (x: Resource[]) => void;
   setSubmitting: (x: SubmitStatus) => void;
   submitting: SubmitStatus;
 }
@@ -54,13 +54,13 @@ export const BookingContext = createContext<BookingContextType>({
   setFormData: (x: Inputs) => {},
   setHasShownMocapModal: (x: boolean) => {},
   setRole: (x: Role) => {},
-  setSelectedRooms: (x: RoomSetting[]) => {},
+  setSelectedRooms: (x: Resource[]) => {},
   setSubmitting: (x: SubmitStatus) => {},
   submitting: "none",
 });
 
 export function BookingFormProvider({ children }) {
-  const { bannedUsers, roomSettings, safetyTrainedUsers } = useSharedDatabase();
+  const { bannedUsers, resources, safetyTrainedUsers } = useSharedDatabase();
   const { userEmail } = useAuth();
   const pathname = usePathname();
 
@@ -70,10 +70,10 @@ export function BookingFormProvider({ children }) {
   const [formData, setFormData] = useState<Inputs>(undefined);
   const [hasShownMocapModal, setHasShownMocapModal] = useState(false);
   const [role, setRole] = useState<Role>();
-  const [selectedRooms, setSelectedRooms] = useState<RoomSetting[]>([]);
+  const [selectedRooms, setSelectedRooms] = useState<Resource[]>([]);
   const [submitting, setSubmitting] = useState<SubmitStatus>("error");
   const { existingCalendarEvents, reloadExistingCalendarEvents } =
-    fetchCalendarEvents(roomSettings);
+    fetchCalendarEvents(resources);
 
   const isBanned = useMemo<boolean>(() => {
     const bannedEmails = bannedUsers.map((bannedUser) => bannedUser.email);

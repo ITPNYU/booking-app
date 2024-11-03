@@ -6,8 +6,8 @@ import {
   EventDropArg,
 } from "@fullcalendar/core";
 import CalendarEventBlock, { NEW_TITLE_TAG } from "./CalendarEventBlock";
-import { FormContextLevel, RoomSetting } from "../../../../types";
-import React, { useContext, useEffect, useMemo, useRef } from "react";
+import { FormContextLevel, Resource } from "../../../../types";
+import { useContext, useEffect, useMemo, useRef } from "react";
 
 import { BookingContext } from "../../../providers/BookingFormProvider";
 import { Error } from "@mui/icons-material";
@@ -21,7 +21,7 @@ import { styled } from "@mui/system";
 interface Props {
   calendarEventId?: string;
   formContext: FormContextLevel;
-  rooms: RoomSetting[];
+  rooms: Resource[];
   dateView: Date;
 }
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { Box, Stack, Typography, useMediaQuery, useTheme } from "@mui/material";
-import React, { useContext, useMemo, useState } from "react";
+import { useContext, useMemo, useState } from "react";
 
 import { BookingContext } from "../../../providers/BookingFormProvider";
 import { CalendarDatePicker } from "../components/CalendarDatePicker";
@@ -22,7 +22,7 @@ export default function SelectRoomPage({
   calendarEventId,
   formContext = FormContextLevel.FULL_FORM,
 }: Props) {
-  const { roomSettings } = useContext(SharedDatabaseContext);
+  const { resources } = useContext(SharedDatabaseContext);
   const { selectedRooms, setSelectedRooms } = useContext(BookingContext);
   const [date, setDate] = useState<Date>(new Date());
   useCheckFormMissingData();
@@ -33,9 +33,9 @@ export default function SelectRoomPage({
 
   const roomsToShow = useMemo(() => {
     return !isWalkIn
-      ? roomSettings
-      : roomSettings.filter((room) => WALK_IN_ROOMS.includes(room.roomId));
-  }, [roomSettings]);
+      ? resources
+      : resources.filter((room) => WALK_IN_ROOMS.includes(room.roomId));
+  }, [resources]);
 
   return (
     <Box sx={{ flexGrow: 1 }}>

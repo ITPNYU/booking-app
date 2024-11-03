@@ -30,7 +30,7 @@ export function useBookingFilters(props: Props): BookingRow[] {
     selectedDateRange,
     selectedStatusFilters,
   } = props;
-  const { bookings, liaisonUsers } = useContext(SharedDatabaseContext);
+  const { bookings, approverUsers } = useContext(SharedDatabaseContext);
   const { userEmail } = useAuth();
   const allowedStatuses = useAllowedStatuses(pageContext);
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -62,7 +62,7 @@ export function useBookingFilters(props: Props): BookingRow[] {
     return filter
       .filterSelectedDateRange(selectedDateRange)
       .filterElapsedTime(currentTime)
-      .filterPageContext(userEmail, liaisonUsers)
+      .filterPageContext(userEmail, approverUsers)
       .filterAllowedStatuses()
       .filterStatusChips(selectedStatusFilters)
       .sortByColumn(columnOrderBy, columnOrder)
@@ -108,20 +108,20 @@ class BookingFilter {
     return this;
   }
 
-  filterPageContext(userEmail: string, liaisonUsers: Approver[]) {
+  filterPageContext(userEmail: string, approverUsers: Approver[]) {
     if (this.pageContext === PageContextLevel.USER) {
       this.rows = this.rows.filter((row) => row.email === userEmail);
     }
     if (this.pageContext === PageContextLevel.LIAISON) {
-      const liaisonMatches = liaisonUsers.filter(
+      const approverMatches = approverUsers.filter(
         (user) => user.email === userEmail
       );
-      if (liaisonMatches.length > 0) {
-        const liaisonDepartments = liaisonMatches.map(
+      if (approverMatches.length > 0) {
+        const approverDepartments = approverMatches.map(
           (user) => user.department
         );
         this.rows = this.rows.filter((row) =>
-          liaisonDepartments.includes(row.department)
+          approverDepartments.includes(row.department)
         );
       }
     }

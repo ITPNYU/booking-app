@@ -3,7 +3,7 @@ import {
   BookingFormDetails,
   BookingStatus,
   BookingStatusLabel,
-  RoomSetting,
+  Resource,
 } from "../types";
 import {
   Constraint,
@@ -326,7 +326,7 @@ export const serverGetRoomCalendarIds = async (
   ];
 
   const table = getTableName(TableNamesRaw.RESOURCES, Tenants.MEDIA_COMMONS);
-  const rooms = await serverFetchAllDataFromCollection<RoomSetting>(
+  const rooms = await serverFetchAllDataFromCollection<Resource>(
     table,
     queryConstraints
   );
@@ -353,7 +353,7 @@ export const serverGetRoomCalendarId = async (
   ];
 
   const table = getTableName(TableNamesRaw.RESOURCES, Tenants.MEDIA_COMMONS);
-  const rooms = await serverFetchAllDataFromCollection<RoomSetting>(
+  const rooms = await serverFetchAllDataFromCollection<Resource>(
     table,
     queryConstraints
   );

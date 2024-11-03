@@ -8,7 +8,7 @@ import { useRouter } from "next/navigation";
 
 export default function useSubmitBooking(formContext: FormContextLevel) {
   const router = useRouter();
-  const { liaisonUsers, reloadBookings, pagePermission, roomSettings } =
+  const { approverUsers, reloadBookings, pagePermission, resources } =
     useContext(SharedDatabaseContext);
   const {
     bookingCalendarInfo,
@@ -72,7 +72,7 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
             return {
               endpoint: "/api/bookings",
               method: "PUT",
-              body: { calendarEventId, allRooms: roomSettings },
+              body: { calendarEventId, allRooms: resources },
             };
           case FormContextLevel.MODIFICATION:
             return {
@@ -81,7 +81,7 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
               body: {
                 calendarEventId,
                 isAutoApproval: true,
-                allRooms: roomSettings,
+                allRooms: resources,
               },
             };
           case FormContextLevel.WALK_IN:
@@ -106,7 +106,7 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
           email,
           selectedRooms,
           bookingCalendarInfo,
-          liaisonUsers,
+          approverUsers,
           data,
           isAutoApproval,
           ...(requestParams.body ?? {}),
@@ -130,7 +130,7 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
     [
       bookingCalendarInfo,
       selectedRooms,
-      liaisonUsers,
+      approverUsers,
       userEmail,
       router,
       reloadBookings,

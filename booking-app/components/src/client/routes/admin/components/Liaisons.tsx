@@ -1,4 +1,4 @@
-import React, { useContext, useMemo, useState } from "react";
+import { useContext, useMemo, useState } from "react";
 import { TableNamesRaw, Tenants, getTableName } from "../../../../policy";
 
 import AddRow from "../../components/AddRow";
@@ -48,17 +48,17 @@ const AddLiaisonForm = ({ liaisonEmails, reloadLiaisonEmails }) => {
 };
 
 export const Liaisons = () => {
-  const { liaisonUsers, reloadApproverUsers } = useContext(
+  const { approverUsers, reloadApproverUsers } = useContext(
     SharedDatabaseContext
   );
 
   const liaisonEmails = useMemo<string[]>(
-    () => liaisonUsers.map((user) => user.email),
-    [liaisonUsers]
+    () => approverUsers.map((user) => user.email),
+    [approverUsers]
   );
 
   const rows = useMemo(() => {
-    const filtered = liaisonUsers.map((liaison) => {
+    const filtered = approverUsers.map((liaison) => {
       const { level, ...other } = liaison;
       return other;
     });
@@ -66,7 +66,7 @@ export const Liaisons = () => {
       a.department.localeCompare(b.department)
     );
     return sorted as unknown as { [key: string]: string }[];
-  }, [liaisonUsers]);
+  }, [approverUsers]);
 
   return (
     <ListTable

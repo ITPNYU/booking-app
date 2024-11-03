@@ -1,18 +1,18 @@
 import { Checkbox, FormControlLabel, FormGroup } from "@mui/material";
-import { FormContextLevel, RoomSetting } from "../../../../types";
+import { FormContextLevel, Resource } from "../../../../types";
 import {
   MOCAP_ROOMS,
   WALK_IN_CAN_BOOK_TWO,
 } from "../../../../mediaCommonsPolicy";
-import React, { useContext, useMemo } from "react";
+import { useContext, useMemo } from "react";
 
 import { BookingContext } from "../../../providers/BookingFormProvider";
 import { ConfirmDialogControlled } from "../../components/ConfirmDialog";
 
 interface Props {
-  allRooms: RoomSetting[];
+  allRooms: Resource[];
   formContext: FormContextLevel;
-  selected: RoomSetting[];
+  selected: Resource[];
   setSelected: any;
 }
 
@@ -49,22 +49,22 @@ export const SelectRooms = ({
     return true;
   };
 
-  const handleCheckChange = (e: any, room: RoomSetting) => {
+  const handleCheckChange = (e: any, room: Resource) => {
     const newVal: boolean = e.target.checked;
-    setSelected((prev: RoomSetting[]) => {
+    setSelected((prev: Resource[]) => {
       if (newVal) {
         return [...prev, room].sort(
           (a, b) => Number(a.roomId) - Number(b.roomId)
         );
       } else {
-        return prev.filter((x: RoomSetting) => x.roomId != room.roomId);
+        return prev.filter((x: Resource) => x.roomId != room.roomId);
       }
     });
   };
 
   return (
     <FormGroup>
-      {allRooms.map((room: RoomSetting) => (
+      {allRooms.map((room: Resource) => (
         <FormControlLabel
           control={
             <Checkbox

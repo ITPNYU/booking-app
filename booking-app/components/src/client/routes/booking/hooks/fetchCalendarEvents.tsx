@@ -1,16 +1,16 @@
-import { CalendarEvent, RoomSetting } from "../../../../types";
+import { CalendarEvent, Resource } from "../../../../types";
 import { useCallback, useEffect, useState } from "react";
 
 import { CALENDAR_HIDE_STATUS } from "../../../../policy";
 
-export default function fetchCalendarEvents(allRooms: RoomSetting[]) {
+export default function fetchCalendarEvents(allResources: Resource[]) {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
 
   const loadEvents = useCallback(() => {
-    if (allRooms.length === 0) {
+    if (allResources.length === 0) {
       return;
     }
-    Promise.all(allRooms.map(fetchRoomCalendarEvents)).then((results) => {
+    Promise.all(allResources.map(fetchRoomCalendarEvents)).then((results) => {
       const flatResults = results.flat();
       console.log("FETCHED CALENDAR RESULTS:", flatResults.length);
       const filtered = flatResults.filter(
@@ -25,13 +25,13 @@ export default function fetchCalendarEvents(allRooms: RoomSetting[]) {
         setEvents(filtered);
       }
     });
-  }, [allRooms, events]);
+  }, [allResources, events]);
 
   useEffect(() => {
     loadEvents();
-  }, [allRooms]);
+  }, [allResources]);
 
-  const fetchRoomCalendarEvents = async (room: RoomSetting) => {
+  const fetchRoomCalendarEvents = async (room: Resource) => {
     const calendarId = room.calendarId;
     const response = await fetch(
       `${process.env.NEXT_PUBLIC_BASE_URL}/api/calendarEvents?calendarId=${calendarId}`,

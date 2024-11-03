@@ -11,7 +11,7 @@ import {
   BookingFormTextField,
 } from "./BookingFormInputs";
 import { Box, Button, Typography } from "@mui/material";
-import React, {
+import {
   useCallback,
   useContext,
   useEffect,
@@ -24,11 +24,11 @@ import { SubmitHandler, useForm } from "react-hook-form";
 import { BookingContext } from "../../../providers/BookingFormProvider";
 import BookingFormMediaServices from "./BookingFormMediaServices";
 import BookingSelection from "./BookingSelection";
-import { SharedDatabaseContext } from "../../../providers/SharedDatabaseProvider";
 import isEqual from "react-fast-compare";
 import { styled } from "@mui/system";
 import { useAuth } from "../../../providers/AuthProvider";
 import useCheckAutoApproval from "../hooks/useCheckAutoApproval";
+import { useMediaCommonsDatabase } from "../../../providers/MediaCommonsDatabaseProvider";
 import { useRouter } from "next/navigation";
 import useSubmitBooking from "../hooks/useSubmitBooking";
 
@@ -64,7 +64,7 @@ interface Props {
 }
 
 export default function FormInput({ calendarEventId, formContext }: Props) {
-  const { settings } = useContext(SharedDatabaseContext);
+  const { settings } = useMediaCommonsDatabase();
   const { userEmail } = useAuth();
   const {
     role,

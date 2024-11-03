@@ -8,21 +8,21 @@ import { useAuth } from "../../providers/AuthProvider";
 import { useSharedDatabase } from "../../providers/SharedDatabaseProvider";
 
 const Liaison = ({ calendarEventId }) => {
-  const { liaisonUsers, pagePermission } = useSharedDatabase();
+  const { approverUsers, pagePermission } = useSharedDatabase();
   const { userEmail } = useAuth();
 
   const [tab, setTab] = useState("bookings");
 
-  const liaisonEmails = useMemo<string[]>(
-    () => liaisonUsers.map((user) => user.email),
-    [liaisonUsers]
+  const approverEmails = useMemo<string[]>(
+    () => approverUsers.map((user) => user.email),
+    [approverUsers]
   );
 
   const userHasPermission =
     pagePermission === PagePermission.ADMIN ||
     pagePermission === PagePermission.LIAISON;
 
-  if (liaisonEmails.length === 0 || userEmail === null) {
+  if (approverEmails.length === 0 || userEmail === null) {
     return <CenterLoading />;
   }
 

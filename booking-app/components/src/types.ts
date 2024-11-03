@@ -197,12 +197,11 @@ export enum Role {
   ADMIN_STAFF = "Admin/Staff",
 }
 
-export type RoomSetting = {
+export type Resource = {
   roomId: number;
   name: string;
-  capacity: string;
+  capacity?: string;
   calendarId: string;
-  calendarRef?: any;
 };
 
 export type SafetyTraining = {
