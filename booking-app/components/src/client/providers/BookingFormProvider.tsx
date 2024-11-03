@@ -9,7 +9,7 @@ import {
 import { createContext, useMemo, useState } from "react";
 
 import { DateSelectArg } from "@fullcalendar/core";
-import { SAFETY_TRAINING_REQUIRED_ROOM } from "../../mediaCommonsPolicy";
+import { SAFETY_TRAINING_REQUIRED_ROOM } from "../../policyMediaCommons";
 import fetchCalendarEvents from "../routes/booking/hooks/fetchCalendarEvents";
 import { useAuth } from "./AuthProvider";
 import { usePathname } from "next/navigation";

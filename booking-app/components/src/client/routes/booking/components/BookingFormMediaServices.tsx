@@ -2,11 +2,11 @@ import {
   CAMPUS_MEDIA_SERVICES_ROOMS,
   CHECKOUT_EQUIPMENT_ROOMS,
   LIGHTING_DMX_ROOMS,
-} from "../../../../mediaCommonsPolicy";
+} from "../../../../policyMediaCommons";
 import { Checkbox, FormControlLabel, Switch } from "@mui/material";
 import { Control, Controller, UseFormTrigger } from "react-hook-form";
 import { FormContextLevel, Inputs, MediaServices } from "../../../../types";
-import React, { useContext, useMemo } from "react";
+import { useContext, useMemo } from "react";
 
 import { BookingContext } from "../../../providers/BookingFormProvider";
 import styled from "@emotion/styled";

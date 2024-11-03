@@ -3,11 +3,11 @@ import {
   MEDIA_COMMONS_OPERATION_EMAIL,
   FIRESTORE_COLLECTION_SUFFIX as MEDIA_COMMONS_SUFFIX,
   TableNamesMediaCommonsOnly,
-} from "./mediaCommonsPolicy";
+} from "./policyMediaCommons";
 import {
   FIRESTORE_COLLECTION_SUFFIX as STAGING_SUFFIX,
   TableNamesStagingOnly,
-} from "./stagingPolicy";
+} from "./policyStaging";
 
 import { BookingStatusLabel } from "./types";
 import { clientGetFinalApproverEmailFromDatabase } from "@/lib/firebase/firebase";

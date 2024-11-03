@@ -1,10 +1,9 @@
-import { useMemo } from "react";
-
 import AddRow from "../../components/AddRow";
 import ListTable from "../../components/ListTable";
-import { TableNamesMediaCommonsOnly } from "@/components/src/mediaCommonsPolicy";
+import { TableNamesMediaCommonsOnly } from "@/components/src/policyMediaCommons";
 import { formatDate } from "../../../utils/date";
 import { useMediaCommonsDatabase } from "../../../providers/MediaCommonsDatabaseProvider";
+import { useMemo } from "react";
 
 export default function BookingTypes() {
   const { settings, reloadBookingTypes } = useMediaCommonsDatabase();

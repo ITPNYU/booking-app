@@ -9,7 +9,7 @@ import {
 } from "../../types";
 import React, { createContext, useContext, useEffect, useState } from "react";
 
-import { TableNamesMediaCommonsOnly } from "../../mediaCommonsPolicy";
+import { TableNamesMediaCommonsOnly } from "../../policyMediaCommons";
 import { clientFetchAllDataFromCollection } from "@/lib/firebase/firebase";
 import { useAuth } from "./AuthProvider";
 import { useSharedDatabase } from "./SharedDatabaseProvider";

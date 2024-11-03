@@ -10,7 +10,7 @@ import { FormContextLevel } from "@/components/src/types";
 import Grid from "@mui/material/Unstable_Grid2";
 import { SelectRooms } from "../components/SelectRooms";
 import { SharedDatabaseContext } from "../../../providers/SharedDatabaseProvider";
-import { WALK_IN_ROOMS } from "@/components/src/mediaCommonsPolicy";
+import { WALK_IN_ROOMS } from "@/components/src/policyMediaCommons";
 import useCheckFormMissingData from "../hooks/useCheckFormMissingData";
 
 interface Props {

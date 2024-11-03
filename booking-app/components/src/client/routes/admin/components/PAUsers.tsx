@@ -1,6 +1,5 @@
 import EmailListTable from "../../components/EmailListTable";
-import React from "react";
-import { TableNamesMediaCommonsOnly } from "@/components/src/mediaCommonsPolicy";
+import { TableNamesMediaCommonsOnly } from "@/components/src/policyMediaCommons";
 import { formatDate } from "../../../utils/date";
 import { useMediaCommonsDatabase } from "../../../providers/MediaCommonsDatabaseProvider";
 

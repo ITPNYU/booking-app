@@ -1,4 +1,4 @@
-import React, { useContext, useMemo, useState } from "react";
+import { useContext, useMemo, useState } from "react";
 
 import AddDepartmentRow from "../../components/AddDepartmentRow";
 import { Box } from "@mui/material";
@@ -6,7 +6,7 @@ import { Department } from "../../../../types";
 import Dropdown from "../../booking/components/Dropdown";
 import ListTable from "../../components/ListTable";
 import { SharedDatabaseContext } from "../../../providers/SharedDatabaseProvider";
-import { TableNamesMediaCommonsOnly } from "@/components/src/mediaCommonsPolicy";
+import { TableNamesMediaCommonsOnly } from "@/components/src/policyMediaCommons";
 import { formatDate } from "../../../utils/date";
 
 const AddDepartmentForm = ({ departments, reloadDepartments }) => {

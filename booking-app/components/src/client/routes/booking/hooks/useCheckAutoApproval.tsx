@@ -1,7 +1,7 @@
 import {
   INSTANT_APPROVAL_ROOMS,
   WALK_IN_CAN_BOOK_TWO,
-} from "../../../../mediaCommonsPolicy";
+} from "../../../../policyMediaCommons";
 import { useContext, useEffect, useState } from "react";
 
 import { BookingContext } from "../../../providers/BookingFormProvider";

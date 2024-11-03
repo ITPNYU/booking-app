@@ -3,7 +3,7 @@ import { FormContextLevel, Resource } from "../../../../types";
 import {
   MOCAP_ROOMS,
   WALK_IN_CAN_BOOK_TWO,
-} from "../../../../mediaCommonsPolicy";
+} from "../../../../policyMediaCommons";
 import { useContext, useMemo } from "react";
 
 import { BookingContext } from "../../../providers/BookingFormProvider";
