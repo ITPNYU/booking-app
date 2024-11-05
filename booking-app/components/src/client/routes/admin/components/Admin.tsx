@@ -9,7 +9,7 @@ import Settings from "./Settings";
 import Tab from "@mui/material/Tab";
 import Tabs from "@mui/material/Tabs";
 
-export default function Admin() {
+export default function Admin({ calendarEventId }) {
   const [tab, setTab] = useState("bookings");
   const { adminUsers, pagePermission, userEmail } = useContext(DatabaseContext);
 
@@ -39,7 +39,10 @@ export default function Admin() {
             <Tab value="settings" label="Settings" />
           </Tabs>
           {tab === "bookings" && (
-            <Bookings pageContext={PageContextLevel.ADMIN} />
+            <Bookings
+              pageContext={PageContextLevel.ADMIN}
+              calendarEventId={calendarEventId}
+            />
           )}
           {tab === "settings" && <Settings />}
         </div>

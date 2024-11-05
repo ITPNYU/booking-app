@@ -133,11 +133,18 @@ export default function useBookingActions({
 
   const userOptions = useMemo(() => {
     let options = [];
-    if (status !== BookingStatusLabel.CANCELED) {
+    if (
+      status !== BookingStatusLabel.CANCELED &&
+      status !== BookingStatusLabel.CHECKED_IN &&
+      status !== BookingStatusLabel.CHECKED_OUT &&
+      status !== BookingStatusLabel.NO_SHOW
+    ) {
       options.push(Actions.CANCEL);
     }
     if (
+      status !== BookingStatusLabel.CANCELED &&
       status !== BookingStatusLabel.CHECKED_IN &&
+      status !== BookingStatusLabel.CHECKED_OUT &&
       status !== BookingStatusLabel.NO_SHOW &&
       startDate.toDate() > date
     ) {
@@ -151,10 +158,8 @@ export default function useBookingActions({
 
     if (status === BookingStatusLabel.APPROVED) {
       options.push(Actions.CHECK_IN);
-      options.push(Actions.NO_SHOW);
       options.push(Actions.MODIFICATION);
     } else if (status === BookingStatusLabel.CHECKED_IN) {
-      options.push(Actions.NO_SHOW);
       options.push(Actions.CHECK_OUT);
       options.push(Actions.MODIFICATION);
     } else if (status === BookingStatusLabel.NO_SHOW) {
@@ -163,6 +168,18 @@ export default function useBookingActions({
       options.push(Actions.CHECK_OUT);
       options.push(Actions.MODIFICATION);
     }
+
+    const THIRTY_MIN_MS = 30 * 60 * 1000;
+    const thirtyPastStartTime =
+      date.getTime() - startDate.toDate().getTime() >= THIRTY_MIN_MS;
+    if (
+      thirtyPastStartTime &&
+      (status === BookingStatusLabel.APPROVED ||
+        status === BookingStatusLabel.CHECKED_IN)
+    ) {
+      options.push(Actions.NO_SHOW);
+    }
+
     return options;
   }, [status]);
 

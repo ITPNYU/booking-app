@@ -9,6 +9,7 @@ import {
   TableRow,
   Tooltip,
   tooltipClasses,
+  useTheme,
 } from "@mui/material";
 import React, { useMemo, useRef, useState } from "react";
 import { formatDateTable, formatTimeAmPm } from "../../../utils/date";
@@ -22,16 +23,22 @@ import getBookingStatus from "../../hooks/getBookingStatus";
 
 interface Props {
   booking: BookingRow;
+  calendarEventId?: string;
   pageContext: PageContextLevel;
   setModalData: (x: BookingRow) => void;
 }
 
 export default function BookingTableRow({
   booking,
+  calendarEventId,
   pageContext,
   setModalData,
 }: Props) {
   const titleRef = useRef();
+  const theme = useTheme();
+  const [isHighlight, setHighlight] = useState(
+    calendarEventId && calendarEventId === booking.calendarEventId
+  );
 
   const isUserView = pageContext === PageContextLevel.USER;
 
@@ -44,7 +51,15 @@ export default function BookingTableRow({
   );
 
   return (
-    <TableRow>
+    <TableRow
+      sx={
+        isHighlight
+          ? {
+              backgroundColor: theme.palette.secondary.light,
+            }
+          : {}
+      }
+    >
       <TableCell>{booking.requestNumber ?? "--"}</TableCell>
       <TableCell>
         <StatusChip status={optimisticStatus ?? status} allowTooltip={true} />
@@ -125,6 +140,7 @@ export default function BookingTableRow({
           status={optimisticStatus ?? status}
           calendarEventId={booking.calendarEventId}
           startDate={booking.startDate}
+          onSelect={() => setHighlight(false)}
           {...{ setOptimisticStatus, pageContext }}
         />
       </TableCell>
