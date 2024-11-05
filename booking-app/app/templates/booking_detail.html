@@ -1,105 +1,218 @@
 <!doctype html>
 <html>
   <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="initial-scale=1, width=device-width" />
     <style>
-      .container {
-        width: 100%;
-        padding-right: 15px;
-        padding-left: 15px;
-        margin-right: auto;
-        margin-left: auto;
+      body {
+        font-family: Arial, sans-serif;
+        color: #333;
+        line-height: 1.4;
+        margin: 0;
+        padding: 20px;
       }
 
-      .button {
-        cursor: pointer;
-        outline: 0;
-        display: inline-block;
-        font-weight: 400;
-        line-height: 1.5;
-        text-align: center;
-        background-color: transparent;
-        border: 1px solid transparent;
-        padding: 6px 12px;
-        font-size: 1rem;
-        border-radius: 0.25rem;
-        transition:
-          color 0.15s ease-in-out,
-          background-color 0.15s ease-in-out,
-          border-color 0.15s ease-in-out,
-          box-shadow 0.15s ease-in-out;
-        color: #0d6efd;
-        border-color: #0d6efd;
-        :hover {
-          color: #fff;
-          background-color: #0d6efd;
-          border-color: #0d6efd;
-        }
+      .section {
+        margin-bottom: 30px;
+        max-width: 800px;
       }
 
-      .button:active {
-        background-color: #3e8e41;
-        box-shadow: 0 5px #666;
-        transform: translateY(4px);
-      }
-
-      .button-red {
-        padding: 8px 12px;
-        border: 1px solid #ed2939;
-        border-radius: 2px;
-        font-family: Helvetica, Arial, sans-serif;
-        font-size: 14px;
-        color: #ffffff;
-        text-decoration: none;
+      .section-title {
+        font-size: 16px;
         font-weight: bold;
-        display: inline-block;
+        margin-bottom: 10px;
       }
 
-      .button-red:active {
-        background-color: #8b0000;
+      .info-table {
+        width: 100%;
+        border-collapse: collapse;
+        border: 1px solid #ddd;
+        table-layout: fixed;
+      }
+
+      .info-table tr {
+        height: 100%;
+      }
+
+      .info-table td {
+        padding: 8px 12px;
+        border: 1px solid #ddd;
+        height: inherit;
+      }
+      .info-table td:first-child {
+        width: 150px;
+      }
+
+      .info-table > tbody > tr > td:first-child {
+        background-color: #f9f9f9;
+        border-right: 1px solid #ddd;
+        border-bottom: 1px solid #ddd;
+      }
+
+      .info-table > tbody > tr > td:last-child {
+        border-bottom: 1px solid #ddd;
+      }
+
+      .info-table > tbody > tr:last-child > td {
+        border-bottom: none;
+      }
+
+      .value-content {
+        margin: 0;
+      }
+
+      .footer {
+        margin-top: 20px;
+        font-size: 12px;
+      }
+
+      .footer a {
+        color: #0066cc;
+        text-decoration: none;
       }
     </style>
   </head>
   <body>
-    <div id="index"></div>
-    <div class="container"></div>
-    <div class="container">
+    <div class="section">
       <p>{{ contents.headerMessage }}</p>
-      <p>Room Number: {{ contents.roomId }}</p>
 
-      <p>First name: {{ contents.firstName }}</p>
-      <p>Last name: {{ contents.lastName }}</p>
-      <p>Email: {{ contents.email }}</p>
-      <p>Start date: {{ startDate }}</p>
-      <p>End date: {{ endDate }}</p>
-      <p>Secondary Point of Contact: {{ contents.secondaryName }}</p>
-      <p>NYU N-number: {{ contents.nNumber }}</p>
-      <p>Net Id: {{ contents.netId }}</p>
-      <p>Phone Number: {{ contents.phoneNumber }}</p>
-      <p>Department: {{ contents.department }}</p>
-      <p>Requestor's Role: {{ contents.role}}</p>
-      <p>Sponsor First Name: {{ contents.sponsorFirstName }}</p>
-      <p>Sponsor Last Name: {{ contents.sponsorLastName }}</p>
-      <p>Sponsor Email: {{ contents.sponsorEmail }}</p>
-      <p>Title: {{ contents.title }}</p>
-      <p>Description: {{ contents.description }}</p>
-      <p>Booking Type: {{ contents.bookingType }}</p>
-      <p>Expected Attendance: {{ contents.expectedAttendance }}</p>
-      <p>Attendee Affiliations: {{ contents.attendeeAffiliation }}</p>
-      <p>
-        Room setup needed?: {{ contents.roomSetup }} {{ contents.setupDetails }}
-      </p>
-      <p>Chartfield for Room setup?: {{ contents.chartFieldForRoomSetup }}</p>
-      <p>
-        Media Services: {{ contents.mediaServices }} {{
-        contents.mediaServicesDetails }}
-      </p>
-      <p>Catering: {{ contents.catering }}</p>
-      <p>Catering Details: {{ contents.cateringService }}</p>
-      <p>Chartfield for Catering?: {{ contents.chartFieldForCatering }}</p>
-      <p>Hire Security: {{ contents.hireSecurity }}</p>
-      <p>
-        Chartfield for Hiring Security?: {{ contents.chartFieldForSecurity }}
-      </p>
+      <div class="section-title">Requestor</div>
+      <table class="info-table">
+        <tr>
+          <td>Request Number</td>
+          <td>
+            <div class="value-content">{{ contents.requestNumber }}</div>
+          </td>
+        </tr>
+        <tr></tr>
+        <tr>
+          <td>Rooms</td>
+          <td>
+            <div class="value-content">{{ contents.roomId }}</div>
+          </td>
+        </tr>
+        <tr></tr>
+        <tr>
+          <td>Start Date</td>
+          <td>
+            <div class="value-content">{{ startDate }}</div>
+          </td>
+        </tr>
+        <tr>
+          <td>End Date</td>
+          <td>
+            <div class="value-content">{{ endDate }}</div>
+          </td>
+        </tr>
+        <tr>
+          <td>NetID / Name</td>
+          <td>
+            <div class="value-content">
+              {{ contents.netId }} <br />{{ contents.firstName }} {{
+              contents.lastName }}
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td>Contact Info</td>
+          <td>
+            <div class="value-content">
+              {{ contents.email }} <br />
+              {{ contents.phoneNumber }}
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td>N-Number</td>
+          <td>{{ contents.nNumber }}</td>
+        </tr>
+        <tr>
+          <td>Secondary Contact</td>
+          <td>{{ contents.secondaryName }}</td>
+        </tr>
+        <tr>
+          <td>Sponsor</td>
+          <td>
+            {{ contents.sponsorEmail }}<br />
+            {{ contents.sponsorFirstName }} {{ contents.sponsorLastName }}
+          </td>
+        </tr>
+      </table>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Details</div>
+      <table class="info-table">
+        <tr>
+          <td>Title</td>
+          <td>{{ contents.title }}</td>
+        </tr>
+        <tr>
+          <td>Description</td>
+          <td>{{ contents.description }}</td>
+        </tr>
+        <tr>
+          <td>Booking Type</td>
+          <td>{{ contents.bookingType }}</td>
+        </tr>
+        <tr>
+          <td>Expected Attendance</td>
+          <td>{{ contents.expectedAttendance }}</td>
+        </tr>
+        <tr>
+          <td>Attendee Affiliation</td>
+          <td>{{ contents.attendeeAffiliation }}</td>
+        </tr>
+      </table>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Services</div>
+      <table class="info-table">
+        <tr>
+          <td>Room Setup</td>
+          <td>
+            <div class="value-content">
+              {{ contents.roomSetup }} {{#if contents.setupDetails}}<br />{{
+              contents.setupDetails }}{{/if}} {{#if
+              contents.chartFieldForRoomSetup}}<br />{{
+              contents.chartFieldForRoomSetup }}{{/if}}
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td>Media Services</td>
+          <td>
+            <div class="value-content">
+              {{contents.mediaServices}} {{#if
+              contents.mediaServicesDetails}}<br />{{contents.mediaServicesDetails}}{{/if}}
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td>Catering</td>
+          <td>
+            <div class="value-content">
+              {{contents.cateringService}} {{#if
+              contents.chartFieldForCatering}}<br />
+              {{contents.chartFieldForCatering}}{{/if}}
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td>Security</td>
+          <td>
+            <div class="value-content">
+              {{contents.hireSecurity}} {{#if
+              contents.chartFieldForSecurity}}<br />{{contents.chartFieldForSecurity}}{{/if}}
+            </div>
+          </td>
+        </tr>
+      </table>
+      <a href="{{ approvalUrl }}" target="_blank" class="button"
+        >Open Booking Tool</a
+      >
+      to approve or decline this request.
     </div>
   </body>
 </html>

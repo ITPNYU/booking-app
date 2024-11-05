@@ -23,17 +23,22 @@ import { useBookingFilters } from "./hooks/useBookingFilters";
 
 interface BookingsProps {
   pageContext: PageContextLevel;
+  calendarEventId?: string;
 }
 
-export const Bookings: React.FC<BookingsProps> = ({ pageContext }) => {
+export const Bookings: React.FC<BookingsProps> = ({
+  pageContext,
+  calendarEventId,
+}) => {
   const { bookings, bookingsLoading, reloadBookings } =
     useContext(DatabaseContext);
   const allowedStatuses = useAllowedStatuses(pageContext);
 
   const [modalData, setModalData] = useState<BookingRow>(null);
   const [statusFilters, setStatusFilters] = useState([]);
-  const [selectedDateRange, setSelectedDateRange] =
-    useState<DateRangeFilter>("Today");
+  const [selectedDateRange, setSelectedDateRange] = useState<DateRangeFilter>(
+    calendarEventId ? "All" : "Today"
+  );
   const [orderBy, setOrderBy] = useState<keyof BookingRow>("startDate");
   const [order, setOrder] = useState<ColumnSortOrder>("asc");
 
@@ -183,6 +188,7 @@ export const Bookings: React.FC<BookingsProps> = ({ pageContext }) => {
             key={row.calendarEventId}
             {...{
               booking: row,
+              calendarEventId,
               pageContext,
               isUserView,
               setModalData,
