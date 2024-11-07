@@ -1,3 +1,5 @@
+import { ApproverLevel, TableNames } from "@/components/src/policy";
+import React, { createContext, useEffect, useMemo, useState } from "react";
 import {
   AdminUser,
   Approver,
@@ -12,12 +14,10 @@ import {
   SafetyTraining,
   Settings,
 } from "../../../types";
-import { ApproverLevel, TableNames } from "@/components/src/policy";
-import React, { createContext, useEffect, useMemo, useState } from "react";
 
-import { clientFetchAllDataFromCollection } from "@/lib/firebase/firebase";
-import { fetchAllFutureBooking } from "@/components/src/server/db";
 import { useAuth } from "@/components/src/client/routes/components/AuthProvider";
+import { fetchAllFutureBooking } from "@/components/src/server/db";
+import { clientFetchAllDataFromCollection } from "@/lib/firebase/firebase";
 
 export interface DatabaseContextType {
   adminUsers: AdminUser[];
@@ -103,6 +103,7 @@ export const DatabaseProvider = ({
       return PagePermission.PA;
     else return PagePermission.BOOKING;
   }, [userEmail, adminUsers, paUsers]);
+  console.log("pagePermission", pagePermission);
 
   useEffect(() => {
     if (!bookingsLoading) {
