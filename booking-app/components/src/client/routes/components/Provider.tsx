@@ -97,12 +97,18 @@ export const DatabaseProvider = ({
     if (!userEmail) return PagePermission.BOOKING;
     if (adminUsers.map((admin) => admin.email).includes(userEmail))
       return PagePermission.ADMIN;
+    console.log("liaisonUsers", liaisonUsers);
+    console.log("userEmail", userEmail);
+    console.log(
+      "liaisonUsers.map((liaison) => liaison.email).includes(userEmail)",
+      liaisonUsers.map((liaison) => liaison.email).includes(userEmail)
+    );
     if (liaisonUsers.map((liaison) => liaison.email).includes(userEmail)) {
       return PagePermission.LIAISON;
     } else if (paUsers.map((pa) => pa.email).includes(userEmail))
       return PagePermission.PA;
     else return PagePermission.BOOKING;
-  }, [userEmail, adminUsers, paUsers]);
+  }, [userEmail, adminUsers, paUsers, liaisonUsers]);
   console.log("pagePermission", pagePermission);
 
   useEffect(() => {
