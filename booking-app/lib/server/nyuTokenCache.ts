@@ -1,3 +1,4 @@
+import { NYUTokenCache, TokenResponse } from "@/components/src/types";
 import { Buffer } from "buffer";
 
 const NYU_AUTH_URL = "https://auth.nyu.edu/oauth2/token";
@@ -50,8 +51,6 @@ export class NYUTokenManager {
         "Content-Type": "application/x-www-form-urlencoded",
       },
       body: params.toString(),
-      // @ts-ignore
-      rejectUnauthorized: false,
     });
 
     if (!response.ok) {

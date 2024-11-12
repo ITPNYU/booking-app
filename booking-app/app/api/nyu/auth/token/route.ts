@@ -1,15 +1,7 @@
+import { TokenResponse } from "@/components/src/types";
 import { NYUTokenManager } from "@/lib/server/nyuTokenCache";
 import { Buffer } from "buffer";
 import { NextResponse } from "next/server";
-
-interface TokenResponse {
-  scope: string;
-  token_type: string;
-  expires_in: number;
-  refresh_token: string;
-  id_token: string;
-  access_token: string;
-}
 
 const NYU_AUTH_URL = "https://auth.nyu.edu/oauth2/token";
 
@@ -28,7 +20,7 @@ function getBasicAuthHeader(): string {
 export async function GET() {
   try {
     const tokenManager = NYUTokenManager.getInstance();
-    let tokenCache = tokenManager.getToken();
+    let tokenCache = await tokenManager.getToken();
     if (!tokenCache) {
       const username = process.env.NYU_API_USER_NAME;
       const password = process.env.NYU_API_PASSWORD;
@@ -58,7 +50,7 @@ export async function GET() {
         tokenResponse.expires_in,
         tokenResponse.token_type,
       );
-      tokenCache = tokenManager.getToken()!;
+      tokenCache = await tokenManager.getToken()!;
     }
     return NextResponse.json({
       isAuthenticated: true,

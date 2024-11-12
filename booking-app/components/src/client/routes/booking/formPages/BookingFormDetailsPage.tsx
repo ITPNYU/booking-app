@@ -17,7 +17,6 @@ export default function BookingFormDetailsPage({
   formContext = FormContextLevel.FULL_FORM,
 }: Props) {
   const { netId } = useContext(DatabaseContext);
-  console.log("netId", netId);
   useCheckFormMissingData();
   const [userApiData, setUserApiData] = useState<UserApiData | undefined>(
     undefined
@@ -31,7 +30,6 @@ export default function BookingFormDetailsPage({
 
         if (response.ok) {
           const data = await response.json();
-          console.log("data", data);
           setUserApiData(data);
         }
       } catch (err) {
