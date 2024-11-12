@@ -216,3 +216,50 @@ export type Settings = {
 };
 
 export type SubmitStatus = "none" | "submitting" | "success" | "error";
+
+export interface NYUAuthTokens {
+  access_token: string;
+  refresh_token: string;
+  expires_in: number;
+  token_type: string;
+}
+
+export interface TokenResponse {
+  scope: string;
+  token_type: string;
+  expires_in: number;
+  refresh_token: string;
+  id_token: string;
+  access_token: string;
+}
+
+export interface NYUTokenCache {
+  access_token: string;
+  expires_at: number;
+  token_type: string;
+  lastUpdated: number;
+  refresh_token?: string;
+}
+
+export interface AuthResult {
+  isAuthenticated: boolean;
+  token: string;
+  expiresAt: string;
+  error?: string;
+}
+interface UserApiData {
+  school_abbr?: string;
+  school_name?: string;
+  reporting_dept_code?: string;
+  reporting_dept_name?: string;
+  dept_code?: string;
+  affiliation?: string;
+  preferred_last_name?: string;
+  affiliation_sub_type?: string;
+  university_id?: string;
+  netid_reachable?: string | null;
+  netid?: string;
+  primary_affiliation?: string;
+  dept_name?: string;
+  preferred_first_name?: string;
+}

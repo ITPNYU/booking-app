@@ -10,18 +10,18 @@ import {
   useMediaQuery,
   useTheme,
 } from "@mui/material";
-import React, { useContext, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { useContext, useEffect, useMemo, useState } from "react";
 
+import { auth } from "@/lib/firebase/firebaseClient";
+import { styled } from "@mui/system";
+import { signOut } from "firebase/auth";
+import Image from "next/image";
+import SVGLOGO from "../../../../../public/mediaCommonsLogo.svg";
+import { PagePermission } from "../../../types";
+import useHandleStartBooking from "../booking/hooks/useHandleStartBooking";
 import ConfirmDialog from "./ConfirmDialog";
 import { DatabaseContext } from "./Provider";
-import Image from "next/image";
-import { PagePermission } from "../../../types";
-import SVGLOGO from "../../../../../public/mediaCommonsLogo.svg";
-import { auth } from "@/lib/firebase/firebaseClient";
-import { signOut } from "firebase/auth";
-import { styled } from "@mui/system";
-import useHandleStartBooking from "../booking/hooks/useHandleStartBooking";
 
 const LogoBox = styled(Box)`
   cursor: pointer;
@@ -53,7 +53,7 @@ const Divider = styled(Box)(({ theme }) => ({
 
 export default function NavBar() {
   const router = useRouter();
-  const { pagePermission, userEmail, setUserEmail } =
+  const { pagePermission, userEmail, netId, setUserEmail } =
     useContext(DatabaseContext);
   const handleStartBooking = useHandleStartBooking();
   const [selectedView, setSelectedView] = useState<PagePermission>(
@@ -62,8 +62,6 @@ export default function NavBar() {
   const pathname = usePathname();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
-
-  const netId = userEmail?.split("@")[0];
 
   const handleRoleChange = (e: any) => {
     switch (e.target.value as PagePermission) {
