@@ -33,6 +33,7 @@ export interface DatabaseContextType {
   safetyTrainedUsers: SafetyTraining[];
   settings: Settings;
   userEmail: string | undefined;
+  netId: string | undefined;
   reloadAdminUsers: () => Promise<void>;
   reloadApproverUsers: () => Promise<void>;
   reloadBannedUsers: () => Promise<void>;
@@ -58,6 +59,7 @@ export const DatabaseContext = createContext<DatabaseContextType>({
   safetyTrainedUsers: [],
   settings: { bookingTypes: [] },
   userEmail: undefined,
+  netId: undefined,
   reloadAdminUsers: async () => {},
   reloadApproverUsers: async () => {},
   reloadBannedUsers: async () => {},
@@ -91,6 +93,7 @@ export const DatabaseProvider = ({
   const [settings, setSettings] = useState<Settings>({ bookingTypes: [] });
   const [userEmail, setUserEmail] = useState<string | undefined>();
   const { user } = useAuth();
+  const netId = useMemo(() => userEmail?.split("@")[0], [userEmail]);
 
   // page permission updates with respect to user email, admin list, PA list
   const pagePermission = useMemo<PagePermission>(() => {
@@ -109,7 +112,6 @@ export const DatabaseProvider = ({
       return PagePermission.PA;
     else return PagePermission.BOOKING;
   }, [userEmail, adminUsers, paUsers, liaisonUsers]);
-  console.log("pagePermission", pagePermission);
 
   useEffect(() => {
     if (!bookingsLoading) {
@@ -397,6 +399,7 @@ export const DatabaseProvider = ({
         safetyTrainedUsers,
         settings,
         userEmail,
+        netId,
         bookingsLoading,
         reloadAdminUsers: fetchAdminUsers,
         reloadApproverUsers: fetchApproverUsers,

@@ -22,6 +22,10 @@ const nextConfig = {
     GOOGLE_SHEET_ID: process.env.GOOGLE_SHEET_ID,
     GOOGLE_SPREADSHEET_ID: process.env.GOOGLE_SPREADSHEET_ID,
     GOOGLE_API_KEY: process.env.GOOGLE_API_KEY,
+    NYU_API_CLIENT_ID: process.env.NYU_API_CLIENT_ID,
+    NYU_API_CLIENT_SECRET: process.env.NYU_API_CLIENT_SECRET,
+    NYU_API_USER_NAME: process.env.NYU_API_USER_NAME,
+    NYU_API_PASSWORD: process.env.NYU_API_PASSWORD,
   },
   compiler: {
     styledComponents: true,
