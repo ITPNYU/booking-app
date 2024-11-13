@@ -247,7 +247,8 @@ export interface AuthResult {
   expiresAt: string;
   error?: string;
 }
-interface UserApiData {
+
+export interface UserApiData {
   school_abbr?: string;
   school_name?: string;
   reporting_dept_code?: string;
