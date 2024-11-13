@@ -1,3 +1,5 @@
+import { ApproverLevel, TableNames } from "@/components/src/policy";
+import React, { createContext, useEffect, useMemo, useState } from "react";
 import {
   AdminUser,
   Approver,
@@ -12,12 +14,10 @@ import {
   SafetyTraining,
   Settings,
 } from "../../../types";
-import { ApproverLevel, TableNames } from "@/components/src/policy";
-import React, { createContext, useEffect, useMemo, useState } from "react";
 
-import { clientFetchAllDataFromCollection } from "@/lib/firebase/firebase";
-import { fetchAllFutureBooking } from "@/components/src/server/db";
 import { useAuth } from "@/components/src/client/routes/components/AuthProvider";
+import { fetchAllFutureBooking } from "@/components/src/server/db";
+import { clientFetchAllDataFromCollection } from "@/lib/firebase/firebase";
 
 export interface DatabaseContextType {
   adminUsers: AdminUser[];
@@ -33,6 +33,7 @@ export interface DatabaseContextType {
   safetyTrainedUsers: SafetyTraining[];
   settings: Settings;
   userEmail: string | undefined;
+  netId: string | undefined;
   reloadAdminUsers: () => Promise<void>;
   reloadApproverUsers: () => Promise<void>;
   reloadBannedUsers: () => Promise<void>;
@@ -58,6 +59,7 @@ export const DatabaseContext = createContext<DatabaseContextType>({
   safetyTrainedUsers: [],
   settings: { bookingTypes: [] },
   userEmail: undefined,
+  netId: undefined,
   reloadAdminUsers: async () => {},
   reloadApproverUsers: async () => {},
   reloadBannedUsers: async () => {},
@@ -91,18 +93,25 @@ export const DatabaseProvider = ({
   const [settings, setSettings] = useState<Settings>({ bookingTypes: [] });
   const [userEmail, setUserEmail] = useState<string | undefined>();
   const { user } = useAuth();
+  const netId = useMemo(() => userEmail?.split("@")[0], [userEmail]);
 
   // page permission updates with respect to user email, admin list, PA list
   const pagePermission = useMemo<PagePermission>(() => {
     if (!userEmail) return PagePermission.BOOKING;
     if (adminUsers.map((admin) => admin.email).includes(userEmail))
       return PagePermission.ADMIN;
+    console.log("liaisonUsers", liaisonUsers);
+    console.log("userEmail", userEmail);
+    console.log(
+      "liaisonUsers.map((liaison) => liaison.email).includes(userEmail)",
+      liaisonUsers.map((liaison) => liaison.email).includes(userEmail)
+    );
     if (liaisonUsers.map((liaison) => liaison.email).includes(userEmail)) {
       return PagePermission.LIAISON;
     } else if (paUsers.map((pa) => pa.email).includes(userEmail))
       return PagePermission.PA;
     else return PagePermission.BOOKING;
-  }, [userEmail, adminUsers, paUsers]);
+  }, [userEmail, adminUsers, paUsers, liaisonUsers]);
 
   useEffect(() => {
     if (!bookingsLoading) {
@@ -390,6 +399,7 @@ export const DatabaseProvider = ({
         safetyTrainedUsers,
         settings,
         userEmail,
+        netId,
         bookingsLoading,
         reloadAdminUsers: fetchAdminUsers,
         reloadApproverUsers: fetchApproverUsers,
