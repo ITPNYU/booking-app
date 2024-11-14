@@ -9,12 +9,17 @@ import {
 } from "../../types";
 import React, { createContext, useContext, useEffect, useState } from "react";
 
+import { BookingMediaCommons } from "../../typesMediaCommons";
 import { TableNamesMediaCommonsOnly } from "../../policyMediaCommons";
+import { TableNamesRaw } from "../../policy";
 import { clientFetchAllDataFromCollection } from "@/lib/firebase/firebase";
+import { fetchAllFutureBooking } from "@/components/src/server/db";
 import { useAuth } from "./AuthProvider";
 import { useSharedDatabase } from "./SharedDatabaseProvider";
+import useTableName from "../utils/useTableName";
 
 type MediaCommonsDatabaseContextType = {
+  bookings: BookingMediaCommons[];
   departmentNames: DepartmentType[];
   paUsers: PaUser[];
   settings: Settings;
@@ -25,6 +30,7 @@ type MediaCommonsDatabaseContextType = {
 
 const MediaCommonsDatabaseContext =
   createContext<MediaCommonsDatabaseContextType>({
+    bookings: [],
     departmentNames: [],
     paUsers: [],
     settings: { bookingTypes: [] },
@@ -39,18 +45,33 @@ export const useMediaCommonsDatabase = () =>
 export const MediaCommonsDatabaseProvider: React.FC<{
   children: React.ReactNode;
 }> = ({ children }) => {
-  const { adminUsers, approverUsers, bookingsLoading, overridePagePermission } =
-    useSharedDatabase();
+  const {
+    adminUsers,
+    approverUsers,
+    bookingsLoading,
+    setBookingsLoading,
+    setFetchBookings,
+    overridePagePermission,
+  } = useSharedDatabase();
   const { userEmail } = useAuth();
+  const tableName = useTableName();
 
+  const [bookings, setBookings] = useState<BookingMediaCommons[]>([]);
   const [departmentNames, setDepartmentName] = useState<DepartmentType[]>([]);
   const [paUsers, setPaUsers] = useState<PaUser[]>([]);
   const [settings, setSettings] = useState<Settings>({ bookingTypes: [] });
+
+  // give callback to parent provider
+  useEffect(() => {
+    if (fetchBookings) setFetchBookings(fetchBookings);
+  }, []);
 
   useEffect(() => {
     if (!bookingsLoading) {
       fetchDepartmentNames();
       fetchSettings();
+    } else {
+      fetchBookings();
     }
   }, [bookingsLoading]);
 
@@ -73,6 +94,75 @@ export const MediaCommonsDatabaseProvider: React.FC<{
       overridePagePermission(PagePermission.BOOKING);
     }
   }, [overridePagePermission, userEmail, adminUsers, approverUsers, paUsers]);
+
+  const fetchBookings = async () => {
+    fetchAllFutureBooking(tableName(TableNamesRaw.BOOKING))
+      .then((fetchedData) => {
+        const bookings = fetchedData.map((item: any) => ({
+          id: item.id,
+          requestNumber: item.requestNumber,
+          calendarEventId: item.calendarEventId,
+          email: item.email,
+          startDate: item.startDate,
+          endDate: item.endDate,
+          roomId: String(item.roomId),
+          user: item.user,
+          room: item.room,
+          startTime: item.startTime,
+          endTime: item.endTime,
+          status: item.status,
+          firstName: item.firstName,
+          lastName: item.lastName,
+          secondaryName: item.secondaryName,
+          nNumber: item.nNumber,
+          netId: item.netId,
+          phoneNumber: item.phoneNumber,
+          department: item.department,
+          otherDepartment: item.otherDepartment,
+          role: item.role,
+          sponsorFirstName: item.sponsorFirstName,
+          sponsorLastName: item.sponsorLastName,
+          sponsorEmail: item.sponsorEmail,
+          title: item.title,
+          description: item.description,
+          bookingType: item.bookingType,
+          attendeeAffiliation: item.attendeeAffiliation,
+          roomSetup: item.roomSetup,
+          setupDetails: item.setupDetails,
+          mediaServices: item.mediaServices,
+          mediaServicesDetails: item.mediaServicesDetails,
+          equipmentCheckedOut: item.equipmentCheckedOut,
+          catering: item.catering,
+          hireSecurity: item.hireSecurity,
+          expectedAttendance: item.expectedAttendance,
+          cateringService: item.cateringService,
+          missingEmail: item?.missingEmail,
+          chartFieldForCatering: item.chartFieldForCatering,
+          chartFieldForSecurity: item.chartFieldForSecurity,
+          chartFieldForRoomSetup: item.chartFieldForRoomSetup,
+          requestedAt: item.requestedAt,
+          firstApprovedAt: item.firstApprovedAt,
+          firstApprovedBy: item.firstApprovedBy,
+          finalApprovedAt: item.finalApprovedAt,
+          finalApprovedBy: item.finalApprovedBy,
+          declinedAt: item.declinedAt,
+          declinedBy: item.declinedBy,
+          declineReason: item.declineReason,
+          canceledAt: item.canceledAt,
+          canceledBy: item.canceledBy,
+          checkedInAt: item.checkedInAt,
+          checkedInBy: item.checkedInBy,
+          checkedOutAt: item.checkedOutAt,
+          checkedOutBy: item.checkedOutBy,
+          noShowedAt: item.noShowedAt,
+          noShowedBy: item.noShowedBy,
+          walkedInAt: item.walkedInAt,
+        }));
+        setBookings(bookings);
+        setBookingsLoading(false);
+      })
+      .catch((error) => console.error("Error fetching data:", error));
+  };
 
   const fetchPaUsers = async () => {
     clientFetchAllDataFromCollection(TableNamesMediaCommonsOnly.PAS)
@@ -124,6 +214,7 @@ export const MediaCommonsDatabaseProvider: React.FC<{
   return (
     <MediaCommonsDatabaseContext.Provider
       value={{
+        bookings,
         departmentNames,
         paUsers,
         settings,

@@ -1,3 +1,5 @@
+// import { BookingMediaCommons } from "./typesMediaCommons";
+
 import { Timestamp } from "@firebase/firestore";
 
 export type AdminUser = {
@@ -31,38 +33,27 @@ export type Booking = Inputs &
     endDate: Timestamp;
     roomId: string;
     requestNumber: number;
-    equipmentCheckedOut: boolean;
   };
-
-// used for Booking table rows that show status
-export type BookingRow = Booking & {
-  status: BookingStatusLabel;
-};
-
-export type BookingFormDetails = Booking & {
-  headerMessage?: string;
-};
 
 export type BookingStatus = {
   calendarEventId: string;
   email: string;
   requestedAt: Timestamp;
-  firstApprovedAt: Timestamp;
-  firstApprovedBy: string;
-  finalApprovedAt: Timestamp;
-  finalApprovedBy: string;
+  canceledAt: Timestamp;
+  canceledBy: string;
   declinedAt: Timestamp;
   declinedBy: string;
   declineReason: string;
-  canceledAt: Timestamp;
-  canceledBy: string;
-  checkedInAt: Timestamp;
-  checkedInBy: string;
-  checkedOutAt: Timestamp;
-  checkedOutBy: string;
-  noShowedAt: Timestamp;
-  noShowedBy: string;
-  walkedInAt: Timestamp;
+  finalApprovedAt: Timestamp;
+  finalApprovedBy: string;
+};
+
+export type BookingFormDetails = {
+  headerMessage?: string;
+};
+
+export type BookingRow = Booking & {
+  status: BookingStatusLabel;
 };
 
 // the order here is the order these are displayed as table filters
@@ -124,32 +115,10 @@ export enum FormContextLevel {
 export type Inputs = {
   firstName: string;
   lastName: string;
-  secondaryName: string;
-  nNumber: string;
   netId: string;
-  phoneNumber: string;
-  department: string;
-  otherDepartment: string;
   role: string;
-  sponsorFirstName: string;
-  sponsorLastName: string;
-  sponsorEmail: string;
   title: string;
   description: string;
-  bookingType: string;
-  attendeeAffiliation: string;
-  roomSetup: string;
-  setupDetails: string;
-  mediaServices: string;
-  mediaServicesDetails: string;
-  catering: string;
-  hireSecurity: string;
-  expectedAttendance: string;
-  cateringService: string;
-  missingEmail?: string;
-  chartFieldForCatering: string;
-  chartFieldForSecurity: string;
-  chartFieldForRoomSetup: string;
 };
 
 export type DepartmentType = {

@@ -1,6 +1,12 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { auth, signInWithGoogle } from "@/lib/firebase/firebaseClient";
 import { usePathname, useRouter } from "next/navigation";
 
@@ -9,6 +15,7 @@ import { User } from "firebase/auth";
 type AuthContextType = {
   user: User | null;
   userEmail: string | null;
+  netId: string | null;
   setUser: (x: User | null) => void;
   loading: boolean;
   error: string | null;
@@ -17,6 +24,7 @@ type AuthContextType = {
 const AuthContext = createContext<AuthContextType>({
   user: null,
   userEmail: null,
+  netId: null,
   setUser: (x: User | null) => {},
   loading: true,
   error: null,
@@ -32,6 +40,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const pathname = usePathname();
+
+  const netId = useMemo(() => user?.email?.split("@")[0], [user]);
+
   useEffect(() => {
     const handleAuth = async () => {
       const user = auth.currentUser;
@@ -68,7 +79,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   return (
     <AuthContext.Provider
-      value={{ user, userEmail: user?.email, setUser, loading, error }}
+      value={{ user, userEmail: user?.email, netId, setUser, loading, error }}
     >
       {children}
     </AuthContext.Provider>

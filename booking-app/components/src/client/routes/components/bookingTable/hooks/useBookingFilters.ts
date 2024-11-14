@@ -1,5 +1,6 @@
 import {
   Approver,
+  Booking,
   BookingRow,
   BookingStatusLabel,
   PageContextLevel,
@@ -9,14 +10,16 @@ import { DATE_FILTERS, DateRangeFilter } from "./getDateFilter";
 import { useContext, useEffect, useMemo, useState } from "react";
 
 import { BOOKING_TABLE_HIDE_STATUS_TIME_ELAPSED } from "@/components/src/policy";
+import { BookingRowMediaCommons } from "@/components/src/typesMediaCommons";
 import { SharedDatabaseContext } from "../../../../providers/SharedDatabaseProvider";
 import getBookingStatus from "../../../hooks/getBookingStatus";
 import useAllowedStatuses from "./useAllowedStatuses";
 import { useAuth } from "../../../../providers/AuthProvider";
 
 interface Props {
+  bookings: Booking[];
   pageContext: PageContextLevel;
-  columnOrderBy: keyof BookingRow;
+  columnOrderBy: string;
   columnOrder: ColumnSortOrder;
   selectedDateRange: DateRangeFilter;
   selectedStatusFilters: BookingStatusLabel[];
@@ -24,13 +27,14 @@ interface Props {
 
 export function useBookingFilters(props: Props): BookingRow[] {
   const {
+    bookings,
     pageContext,
     columnOrderBy,
     columnOrder,
     selectedDateRange,
     selectedStatusFilters,
   } = props;
-  const { bookings, approverUsers } = useContext(SharedDatabaseContext);
+  const { approverUsers } = useContext(SharedDatabaseContext);
   const { userEmail } = useAuth();
   const allowedStatuses = useAllowedStatuses(pageContext);
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -121,7 +125,9 @@ class BookingFilter {
           (user) => user.department
         );
         this.rows = this.rows.filter((row) =>
-          approverDepartments.includes(row.department)
+          approverDepartments.includes(
+            (row as BookingRowMediaCommons).department
+          )
         );
       }
     }
@@ -151,7 +157,7 @@ class BookingFilter {
     return this;
   }
 
-  sortByColumn(orderBy: keyof BookingRow, order: ColumnSortOrder) {
+  sortByColumn(orderBy: string, order: ColumnSortOrder) {
     const comparator = COMPARATORS[orderBy];
     const coeff = order === "asc" ? 1 : -1;
     if (comparator != null) {

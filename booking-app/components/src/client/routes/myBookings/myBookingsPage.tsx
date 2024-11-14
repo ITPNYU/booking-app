@@ -2,7 +2,6 @@ import { Box, Typography } from "@mui/material";
 
 import { Bookings } from "../components/bookingTable/Bookings";
 import { PageContextLevel } from "@/components/src/types";
-import React from "react";
 import { Tenants } from "@/components/src/policy";
 import { styled } from "@mui/system";
 
@@ -23,9 +22,7 @@ export default function MyBookingsPage({ tenant }: Props) {
         <Typography variant="h6">
           Welcome to the {tenant} booking tool!
         </Typography>
-        {tenant === Tenants.MEDIA_COMMONS && (
-          <Bookings pageContext={PageContextLevel.USER} />
-        )}
+        <Bookings pageContext={PageContextLevel.USER} tenant={tenant} />
       </Box>
     </Center>
   );

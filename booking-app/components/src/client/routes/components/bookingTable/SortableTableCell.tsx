@@ -2,22 +2,23 @@ import { TableCell, TableSortLabel } from "@mui/material";
 
 import { BookingRow } from "../../../../types";
 import { ColumnSortOrder } from "./hooks/getColumnComparator";
-import React from "react";
 
-interface Props {
+interface Props<T extends BookingRow> {
   createSortHandler: any;
-  property: keyof BookingRow;
+  property: keyof T;
   label: string;
-  orderBy: keyof BookingRow;
+  orderBy: keyof T;
   order: ColumnSortOrder;
 }
 
-export default function SortableTableCell(props: Props) {
+export default function SortableTableCell<T extends BookingRow>(
+  props: Props<T>
+) {
   const { orderBy, order, property } = props;
 
   return (
     <TableCell
-      key={property}
+      key={property as string}
       sortDirection={orderBy === property ? order : false}
     >
       <TableSortLabel

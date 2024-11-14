@@ -1,8 +1,4 @@
-import {
-  BookingRow,
-  BookingStatusLabel,
-  PageContextLevel,
-} from "../../../../types";
+import { BookingStatusLabel, PageContextLevel } from "@/components/src/types";
 import {
   IconButton,
   TableCell,
@@ -11,24 +7,24 @@ import {
   tooltipClasses,
   useTheme,
 } from "@mui/material";
-import React, { useMemo, useRef, useState } from "react";
-import { formatDateTable, formatTimeAmPm } from "../../../utils/date";
+import { formatDateTable, formatTimeAmPm } from "../../utils/date";
+import { useMemo, useRef, useState } from "react";
 
-import BookingActions from "../../admin/components/BookingActions";
-import EquipmentCheckoutToggle from "./EquipmentCheckoutToggle";
-import MoreHoriz from "@mui/icons-material/MoreHoriz";
-import StackedTableCell from "./StackedTableCell";
-import StatusChip from "./StatusChip";
-import getBookingStatus from "../../hooks/getBookingStatus";
+import BookingActions from "../admin/components/BookingActions";
+import { BookingRowStaging } from "@/components/src/typesStaging";
+import { MoreHoriz } from "@mui/icons-material";
+import StackedTableCell from "../components/bookingTable/StackedTableCell";
+import StatusChip from "../components/bookingTable/StatusChip";
+import getBookingStatus from "../hooks/getBookingStatus";
 
 interface Props {
-  booking: BookingRow;
+  booking: BookingRowStaging;
   calendarEventId?: string;
   pageContext: PageContextLevel;
-  setModalData: (x: BookingRow) => void;
+  setModalData: (x: BookingRowStaging) => void;
 }
 
-export default function BookingTableRow({
+export default function BookingTableRowStaging({
   booking,
   calendarEventId,
   pageContext,
@@ -73,24 +69,8 @@ export default function BookingTableRow({
       <TableCell sx={{ maxWidth: "150px" }}>{booking.roomId}</TableCell>
       {!isUserView && (
         <StackedTableCell
-          topText={
-            booking.otherDepartment
-              ? `${booking.department} - ${booking.otherDepartment}`
-              : booking.department
-          }
-          bottomText={booking.role}
-        />
-      )}
-      {!isUserView && (
-        <StackedTableCell
           topText={booking.netId}
           bottomText={`${booking.firstName} ${booking.lastName}`}
-        />
-      )}
-      {!isUserView && (
-        <StackedTableCell
-          topText={booking.email}
-          bottomText={booking.phoneNumber}
         />
       )}
       <Tooltip
@@ -127,14 +107,6 @@ export default function BookingTableRow({
           <MoreHoriz />
         </IconButton>
       </TableCell>
-      {!isUserView && (
-        <TableCell>
-          <EquipmentCheckoutToggle
-            status={booking.equipmentCheckedOut}
-            {...{ booking }}
-          />
-        </TableCell>
-      )}
       <TableCell width={100}>
         <BookingActions
           status={optimisticStatus ?? status}

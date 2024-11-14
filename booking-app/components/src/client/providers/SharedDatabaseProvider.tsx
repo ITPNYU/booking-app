@@ -2,7 +2,6 @@ import {
   AdminUser,
   Approver,
   Ban,
-  Booking,
   PagePermission,
   PolicySettings,
   Resource,
@@ -19,7 +18,6 @@ import React, {
 } from "react";
 
 import { clientFetchAllDataFromCollection } from "@/lib/firebase/firebase";
-import { fetchAllFutureBooking } from "@/components/src/server/db";
 import { useAuth } from "./AuthProvider";
 import useTableName from "../utils/useTableName";
 
@@ -27,7 +25,6 @@ export interface DatabaseContextType {
   adminUsers: AdminUser[];
   approverUsers: Approver[];
   bannedUsers: Ban[];
-  bookings: Booking[];
   bookingsLoading: boolean;
   pagePermission: PagePermission;
   policySettings: PolicySettings;
@@ -35,20 +32,20 @@ export interface DatabaseContextType {
   safetyTrainedUsers: SafetyTraining[];
   settings: Settings;
   userEmail: string | undefined;
-  netId: string | undefined;
   reloadAdminUsers: () => Promise<void>;
   reloadApproverUsers: () => Promise<void>;
   reloadBannedUsers: () => Promise<void>;
   reloadBookings: () => Promise<void>;
   reloadSafetyTrainedUsers: () => Promise<void>;
   overridePagePermission: (x: PagePermission) => void;
+  setBookingsLoading: (x: boolean) => void;
+  setFetchBookings: (x: () => Promise<void>) => void;
 }
 
 export const SharedDatabaseContext = createContext<DatabaseContextType>({
   adminUsers: [],
   approverUsers: [],
   bannedUsers: [],
-  bookings: [],
   bookingsLoading: true,
   pagePermission: PagePermission.BOOKING,
   policySettings: { finalApproverEmail: "" },
@@ -56,13 +53,14 @@ export const SharedDatabaseContext = createContext<DatabaseContextType>({
   safetyTrainedUsers: [],
   settings: { bookingTypes: [] },
   userEmail: undefined,
-  netId: undefined,
   reloadAdminUsers: async () => {},
   reloadApproverUsers: async () => {},
   reloadBannedUsers: async () => {},
   reloadBookings: async () => {},
   reloadSafetyTrainedUsers: async () => {},
   overridePagePermission: (x: PagePermission) => {},
+  setBookingsLoading: (x: boolean) => {},
+  setFetchBookings: async () => {},
 });
 
 export const useSharedDatabase = () => useContext(SharedDatabaseContext);
@@ -73,8 +71,8 @@ export const SharedDatabaseProvider = ({
   children: React.ReactNode;
 }) => {
   const [bannedUsers, setBannedUsers] = useState<Ban[]>([]);
-  const [bookings, setBookings] = useState<Booking[]>([]);
   const [bookingsLoading, setBookingsLoading] = useState<boolean>(true);
+  const [fetchBookings, setFetchBookings] = useState(() => async () => {});
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
   const [approverUsers, setApproverUsers] = useState<Approver[]>([]);
   const [overriddenPagePermission, setOverriddenPagePermission] =
@@ -89,7 +87,6 @@ export const SharedDatabaseProvider = ({
   const tableName = useTableName();
   const { userEmail } = useAuth();
   const [settings, setSettings] = useState<Settings>({ bookingTypes: [] });
-  const netId = useMemo(() => userEmail?.split("@")[0], [userEmail]);
 
   // by default all tenants have permissions BOOKING and ADMIN
   // any other permission levels will be defined in tenant-specific Provider
@@ -108,8 +105,6 @@ export const SharedDatabaseProvider = ({
       fetchSafetyTrainedUsers();
       fetchBannedUsers();
       fetchApproverUsers();
-    } else {
-      fetchBookings();
     }
   }, [bookingsLoading, userEmail]);
 
@@ -117,75 +112,6 @@ export const SharedDatabaseProvider = ({
     fetchAdminUsers();
     fetchResources();
   }, [userEmail]);
-
-  const fetchBookings = async () => {
-    fetchAllFutureBooking(tableName(TableNamesRaw.BOOKING))
-      .then((fetchedData) => {
-        const bookings = fetchedData.map((item: any) => ({
-          id: item.id,
-          requestNumber: item.requestNumber,
-          calendarEventId: item.calendarEventId,
-          email: item.email,
-          startDate: item.startDate,
-          endDate: item.endDate,
-          roomId: String(item.roomId),
-          user: item.user,
-          room: item.room,
-          startTime: item.startTime,
-          endTime: item.endTime,
-          status: item.status,
-          firstName: item.firstName,
-          lastName: item.lastName,
-          secondaryName: item.secondaryName,
-          nNumber: item.nNumber,
-          netId: item.netId,
-          phoneNumber: item.phoneNumber,
-          department: item.department,
-          otherDepartment: item.otherDepartment,
-          role: item.role,
-          sponsorFirstName: item.sponsorFirstName,
-          sponsorLastName: item.sponsorLastName,
-          sponsorEmail: item.sponsorEmail,
-          title: item.title,
-          description: item.description,
-          bookingType: item.bookingType,
-          attendeeAffiliation: item.attendeeAffiliation,
-          roomSetup: item.roomSetup,
-          setupDetails: item.setupDetails,
-          mediaServices: item.mediaServices,
-          mediaServicesDetails: item.mediaServicesDetails,
-          equipmentCheckedOut: item.equipmentCheckedOut,
-          catering: item.catering,
-          hireSecurity: item.hireSecurity,
-          expectedAttendance: item.expectedAttendance,
-          cateringService: item.cateringService,
-          missingEmail: item?.missingEmail,
-          chartFieldForCatering: item.chartFieldForCatering,
-          chartFieldForSecurity: item.chartFieldForSecurity,
-          chartFieldForRoomSetup: item.chartFieldForRoomSetup,
-          requestedAt: item.requestedAt,
-          firstApprovedAt: item.firstApprovedAt,
-          firstApprovedBy: item.firstApprovedBy,
-          finalApprovedAt: item.finalApprovedAt,
-          finalApprovedBy: item.finalApprovedBy,
-          declinedAt: item.declinedAt,
-          declinedBy: item.declinedBy,
-          declineReason: item.declineReason,
-          canceledAt: item.canceledAt,
-          canceledBy: item.canceledBy,
-          checkedInAt: item.checkedInAt,
-          checkedInBy: item.checkedInBy,
-          checkedOutAt: item.checkedOutAt,
-          checkedOutBy: item.checkedOutBy,
-          noShowedAt: item.noShowedAt,
-          noShowedBy: item.noShowedBy,
-          walkedInAt: item.walkedInAt,
-        }));
-        setBookings(bookings);
-        setBookingsLoading(false);
-      })
-      .catch((error) => console.error("Error fetching data:", error));
-  };
 
   const fetchAdminUsers = async () => {
     clientFetchAllDataFromCollection(tableName(TableNamesRaw.ADMINS))
@@ -312,14 +238,12 @@ export const SharedDatabaseProvider = ({
         adminUsers,
         approverUsers,
         bannedUsers,
-        bookings,
         pagePermission,
         policySettings,
         resources,
         safetyTrainedUsers,
         settings,
         userEmail,
-        netId,
         bookingsLoading,
         reloadAdminUsers: fetchAdminUsers,
         reloadApproverUsers: fetchApproverUsers,
@@ -327,6 +251,8 @@ export const SharedDatabaseProvider = ({
         reloadBookings: fetchBookings,
         reloadSafetyTrainedUsers: fetchSafetyTrainedUsers,
         overridePagePermission: setOverriddenPagePermission,
+        setBookingsLoading,
+        setFetchBookings,
       }}
     >
       {children}

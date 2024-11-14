@@ -14,7 +14,6 @@ import { auth } from "@/lib/firebase/firebaseClient";
 import { signOut } from "firebase/auth";
 import { styled } from "@mui/system";
 import { useAuth } from "../../../providers/AuthProvider";
-import { useSharedDatabase } from "../../../providers/SharedDatabaseProvider";
 
 const Nav = styled(Toolbar)(({ theme }) => ({
   border: `1px solid ${theme.palette.custom.border}`,
@@ -31,8 +30,7 @@ const Divider = styled(Box)(({ theme }) => ({
 export default function NavBar() {
   const router = useRouter();
   const pathname = usePathname();
-  const { setUser } = useAuth();
-  const { netId } = useSharedDatabase();
+  const { netId, setUser } = useAuth();
 
   const [selectedView, setSelectedView] = useState<PagePermission>(
     PagePermission.BOOKING

@@ -1,5 +1,5 @@
 import { PageContextLevel, PagePermission } from "../../../../types";
-import React, { useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 import { Bookings } from "../../components/bookingTable/Bookings";
 import { Box } from "@mui/material";
@@ -8,7 +8,6 @@ import Settings from "./Settings";
 import Tab from "@mui/material/Tab";
 import Tabs from "@mui/material/Tabs";
 import { useAuth } from "../../../providers/AuthProvider";
-import { useMediaCommonsDatabase } from "../../../providers/MediaCommonsDatabaseProvider";
 import { useSharedDatabase } from "../../../providers/SharedDatabaseProvider";
 
 export default function Admin({ calendarEventId }) {
