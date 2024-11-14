@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "eslint": "eslint . --ext .js,.jsx,.ts,.tsx",
+    "typecheck": "npx tsc --noEmit",
     "seed": "node prisma/seed.mjs"
   },
   "dependencies": {

@@ -27,11 +27,6 @@ export const StagingDatabaseProvider: React.FC<{
 
   const [bookings, setBookings] = useState<BookingStaging[]>([]);
 
-  // give callback to parent provider
-  useEffect(() => {
-    setFetchBookings(fetchBookings);
-  }, []);
-
   useEffect(() => {
     if (bookingsLoading) {
       fetchBookings();
@@ -70,6 +65,11 @@ export const StagingDatabaseProvider: React.FC<{
       })
       .catch((error) => console.error("Error fetching data:", error));
   };
+
+  // give callback to parent provider
+  useEffect(() => {
+    setFetchBookings(() => fetchBookings);
+  }, []);
 
   return (
     <StagingDatabaseContext.Provider value={{ bookings }}>

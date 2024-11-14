@@ -7,10 +7,16 @@ import { CenterLoading } from "../../components/Loading";
 import Settings from "./Settings";
 import Tab from "@mui/material/Tab";
 import Tabs from "@mui/material/Tabs";
+import { Tenants } from "@/components/src/policy";
 import { useAuth } from "../../../providers/AuthProvider";
 import { useSharedDatabase } from "../../../providers/SharedDatabaseProvider";
 
-export default function Admin({ calendarEventId }) {
+interface Props {
+  calendarEventId?: string;
+  tenant: Tenants;
+}
+
+export default function Admin({ calendarEventId, tenant }: Props) {
   const [tab, setTab] = useState("bookings");
   const { adminUsers, pagePermission } = useSharedDatabase();
   const { userEmail } = useAuth();
@@ -44,9 +50,10 @@ export default function Admin({ calendarEventId }) {
             <Bookings
               pageContext={PageContextLevel.ADMIN}
               calendarEventId={calendarEventId}
+              tenant={tenant}
             />
           )}
-          {tab === "settings" && <Settings />}
+          {tab === "settings" && <Settings tenant={tenant} />}
         </div>
       )}
     </Box>

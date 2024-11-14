@@ -61,11 +61,6 @@ export const MediaCommonsDatabaseProvider: React.FC<{
   const [paUsers, setPaUsers] = useState<PaUser[]>([]);
   const [settings, setSettings] = useState<Settings>({ bookingTypes: [] });
 
-  // give callback to parent provider
-  useEffect(() => {
-    if (fetchBookings) setFetchBookings(fetchBookings);
-  }, []);
-
   useEffect(() => {
     if (!bookingsLoading) {
       fetchDepartmentNames();
@@ -210,6 +205,11 @@ export const MediaCommonsDatabaseProvider: React.FC<{
   const fetchSettings = async () => {
     fetchBookingTypes();
   };
+
+  // give callback to parent provider
+  useEffect(() => {
+    if (fetchBookings) setFetchBookings(() => fetchBookings);
+  }, []);
 
   return (
     <MediaCommonsDatabaseContext.Provider

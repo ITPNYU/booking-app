@@ -1,20 +1,16 @@
-import { TableNamesRaw, Tenants, getTableName } from "../../policy";
+import { TableNamesRaw, getTableName } from "../../policy";
 
 import { useCallback } from "react";
-import { usePathname } from "next/navigation";
+import useTenant from "./useTenant";
 
 export default function useTableName() {
-  const pathname = usePathname();
+  const tenant = useTenant();
 
   const tableName = useCallback(
     (table: TableNamesRaw) => {
-      let tenant = Tenants.MEDIA_COMMONS;
-      if (pathname.includes("/staging")) {
-        tenant = Tenants.STAGING;
-      }
       return getTableName(table, tenant);
     },
-    [pathname]
+    [tenant]
   );
 
   return tableName;

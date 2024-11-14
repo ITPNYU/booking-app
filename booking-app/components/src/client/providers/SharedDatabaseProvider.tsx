@@ -11,6 +11,7 @@ import {
 import { ApproverLevel, TableNamesRaw } from "@/components/src/policy";
 import React, {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -39,7 +40,7 @@ export interface DatabaseContextType {
   reloadSafetyTrainedUsers: () => Promise<void>;
   overridePagePermission: (x: PagePermission) => void;
   setBookingsLoading: (x: boolean) => void;
-  setFetchBookings: (x: () => Promise<void>) => void;
+  setFetchBookings: React.Dispatch<React.SetStateAction<() => Promise<void>>>;
 }
 
 export const SharedDatabaseContext = createContext<DatabaseContextType>({
@@ -60,7 +61,7 @@ export const SharedDatabaseContext = createContext<DatabaseContextType>({
   reloadSafetyTrainedUsers: async () => {},
   overridePagePermission: (x: PagePermission) => {},
   setBookingsLoading: (x: boolean) => {},
-  setFetchBookings: async () => {},
+  setFetchBookings: () => async () => {},
 });
 
 export const useSharedDatabase = () => useContext(SharedDatabaseContext);
@@ -72,7 +73,7 @@ export const SharedDatabaseProvider = ({
 }) => {
   const [bannedUsers, setBannedUsers] = useState<Ban[]>([]);
   const [bookingsLoading, setBookingsLoading] = useState<boolean>(true);
-  const [fetchBookings, setFetchBookings] = useState(() => async () => {});
+  const [fetchBookings, setFetchBookings] = useState<() => Promise<void>>();
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
   const [approverUsers, setApproverUsers] = useState<Approver[]>([]);
   const [overriddenPagePermission, setOverriddenPagePermission] =
@@ -232,6 +233,12 @@ export const SharedDatabaseProvider = ({
       .catch((error) => console.error("Error fetching data:", error));
   };
 
+  const reloadBookings = useCallback(async () => {
+    if (fetchBookings) {
+      fetchBookings();
+    }
+  }, [fetchBookings]);
+
   return (
     <SharedDatabaseContext.Provider
       value={{
@@ -248,7 +255,7 @@ export const SharedDatabaseProvider = ({
         reloadAdminUsers: fetchAdminUsers,
         reloadApproverUsers: fetchApproverUsers,
         reloadBannedUsers: fetchBannedUsers,
-        reloadBookings: fetchBookings,
+        reloadBookings,
         reloadSafetyTrainedUsers: fetchSafetyTrainedUsers,
         overridePagePermission: setOverriddenPagePermission,
         setBookingsLoading,

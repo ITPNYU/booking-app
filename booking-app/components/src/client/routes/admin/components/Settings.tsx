@@ -1,5 +1,5 @@
 import { Divider, ListItemButton, ListItemText, Stack } from "@mui/material";
-import React, { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { AdminUsers } from "./AdminUsers";
 import { BannedUsers } from "./Ban";
@@ -12,22 +12,43 @@ import { Liaisons } from "./Liaisons";
 import { PAUsers } from "./PAUsers";
 import SafetyTrainedUsers from "./SafetyTraining";
 import SyncCalendars from "./SyncCalendars";
+import { Tenants } from "@/components/src/policy";
 
-const tabs = [
-  { label: "Safety Training", id: "safetyTraining" },
-  { label: "PA Users", id: "pa" },
-  { label: "Admin Users", id: "admin" },
-  { label: "Liaisons", id: "liaisons" },
-  { label: "Departments", id: "departments" },
-  { label: "Ban", id: "ban" },
-  { label: "Booking Types", id: "bookingTypes" },
-  { label: "Policy Settings", id: "policy" },
-  { label: "Export", id: "export" },
-  { label: "Sync Calendars", id: "syncCalendars" },
-];
+interface Props {
+  tenant: Tenants;
+}
 
-export default function Settings() {
+export default function Settings({ tenant }: Props) {
   const [tab, setTab] = useState("safetyTraining");
+
+  const tabs = useMemo(
+    () =>
+      [
+        { label: "Safety Training", id: "safetyTraining" },
+        { label: "PA Users", id: "pa" },
+        { label: "Admin Users", id: "admin" },
+        tenant === Tenants.MEDIA_COMMONS && {
+          label: "Liaisons",
+          id: "liaisons",
+        },
+        tenant === Tenants.MEDIA_COMMONS && {
+          label: "Departments",
+          id: "departments",
+        },
+        { label: "Ban", id: "ban" },
+        tenant === Tenants.MEDIA_COMMONS && {
+          label: "Booking Types",
+          id: "bookingTypes",
+        },
+        { label: "Policy Settings", id: "policy" },
+        { label: "Export", id: "export" },
+        { label: "Sync Calendars", id: "syncCalendars" },
+      ].filter((x) => x),
+    [tenant]
+  );
+
+  console.log(tabs);
+
   return (
     <Grid container marginTop={4} spacing={2}>
       <Grid xs={2}>

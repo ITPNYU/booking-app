@@ -1,9 +1,11 @@
 import { MenuItem, Select } from "@mui/material";
-import React, { useEffect, useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
 import { PagePermission } from "@/components/src/types";
+import { Tenants } from "@/components/src/policy";
 import { useSharedDatabase } from "../../../providers/SharedDatabaseProvider";
+import useTenant from "../../../utils/useTenant";
 
 interface Props {
   selectedView: PagePermission;
@@ -16,6 +18,7 @@ export default function NavBarRoleSelect({
 }: Props) {
   const router = useRouter();
   const pathname = usePathname();
+  const tenant = useTenant();
 
   const { pagePermission } = useSharedDatabase();
 
@@ -31,19 +34,29 @@ export default function NavBarRoleSelect({
     }
   }, [pathname]);
 
+  const tenantToPathPrefix = () => {
+    switch (tenant) {
+      case Tenants.MEDIA_COMMONS:
+        return "/media-commons";
+      case Tenants.STAGING:
+        return "/staging";
+    }
+  };
+
   const handleRoleChange = (e: any) => {
+    const tenantPrefix = tenantToPathPrefix();
     switch (e.target.value as PagePermission) {
       case PagePermission.BOOKING:
-        router.push("/media-commons");
+        router.push(tenantPrefix);
         break;
       case PagePermission.PA:
-        router.push("/media-commons/pa");
+        router.push(`${tenantPrefix}/pa`);
         break;
       case PagePermission.ADMIN:
-        router.push("/media-commons/admin");
+        router.push(`${tenantPrefix}/admin`);
         break;
       case PagePermission.LIAISON:
-        router.push("/media-commons/liaison");
+        router.push(`${tenantPrefix}liaison`);
         break;
     }
   };

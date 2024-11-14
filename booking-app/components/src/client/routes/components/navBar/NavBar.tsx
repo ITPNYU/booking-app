@@ -1,19 +1,19 @@
 "use client";
 
 import { Box, Toolbar, Typography } from "@mui/material";
-import { useMemo, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
 
 import ConfirmDialog from "../ConfirmDialog";
 import NavBarActionButton from "./NavBarActionButton";
 import NavBarRoleSelect from "./NavBarRoleSelect";
 import NavBarTitle from "./NavBarTitle";
 import { PagePermission } from "../../../../types";
-import { Tenants } from "@/components/src/policy";
 import { auth } from "@/lib/firebase/firebaseClient";
 import { signOut } from "firebase/auth";
 import { styled } from "@mui/system";
 import { useAuth } from "../../../providers/AuthProvider";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import useTenant from "../../../utils/useTenant";
 
 const Nav = styled(Toolbar)(({ theme }) => ({
   border: `1px solid ${theme.palette.custom.border}`,
@@ -29,21 +29,12 @@ const Divider = styled(Box)(({ theme }) => ({
 
 export default function NavBar() {
   const router = useRouter();
-  const pathname = usePathname();
+  const tenant = useTenant();
   const { netId, setUser } = useAuth();
 
   const [selectedView, setSelectedView] = useState<PagePermission>(
     PagePermission.BOOKING
   );
-
-  const tenant: Tenants = useMemo(() => {
-    if (pathname.includes("/media-commons")) {
-      return Tenants.MEDIA_COMMONS;
-    } else if (pathname.includes("/staging")) {
-      return Tenants.STAGING;
-    }
-    return null;
-  }, [pathname]);
 
   const handleSignOut = async () => {
     try {

@@ -1,4 +1,4 @@
-// app/media-commons/admin/page.tsx
+// app/staging/admin/page.tsx
 
 "use client";
 
@@ -11,9 +11,7 @@ const AdminWithParams: React.FC = () => {
   const searchParams = useSearchParams();
   const calendarEventId = searchParams.get("calendarEventId");
 
-  return (
-    <Admin calendarEventId={calendarEventId} tenant={Tenants.MEDIA_COMMONS} />
-  );
+  return <Admin calendarEventId={calendarEventId} tenant={Tenants.STAGING} />;
 };
 
 const AdminPage: React.FC = () => {

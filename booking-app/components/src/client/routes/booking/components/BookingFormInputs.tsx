@@ -28,7 +28,7 @@ const Label = styled.label`
   margin-bottom: 0.5rem;
 `;
 
-interface Props {
+interface Props<T> {
   id: keyof Inputs;
   label: string;
   required?: boolean;
