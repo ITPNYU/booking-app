@@ -1,5 +1,3 @@
-"use client";
-
 import {
   AdminUser,
   Approver,
@@ -9,6 +7,7 @@ import {
   PolicySettings,
   Resource,
   SafetyTraining,
+  Settings,
 } from "../../types";
 import { ApproverLevel, TableNamesRaw } from "@/components/src/policy";
 import React, {
@@ -34,6 +33,9 @@ export interface DatabaseContextType {
   policySettings: PolicySettings;
   resources: Resource[];
   safetyTrainedUsers: SafetyTraining[];
+  settings: Settings;
+  userEmail: string | undefined;
+  netId: string | undefined;
   reloadAdminUsers: () => Promise<void>;
   reloadApproverUsers: () => Promise<void>;
   reloadBannedUsers: () => Promise<void>;
@@ -52,6 +54,9 @@ export const SharedDatabaseContext = createContext<DatabaseContextType>({
   policySettings: { finalApproverEmail: "" },
   resources: [],
   safetyTrainedUsers: [],
+  settings: { bookingTypes: [] },
+  userEmail: undefined,
+  netId: undefined,
   reloadAdminUsers: async () => {},
   reloadApproverUsers: async () => {},
   reloadBannedUsers: async () => {},
@@ -83,6 +88,8 @@ export const SharedDatabaseProvider = ({
   >([]);
   const tableName = useTableName();
   const { userEmail } = useAuth();
+  const [settings, setSettings] = useState<Settings>({ bookingTypes: [] });
+  const netId = useMemo(() => userEmail?.split("@")[0], [userEmail]);
 
   // by default all tenants have permissions BOOKING and ADMIN
   // any other permission levels will be defined in tenant-specific Provider
@@ -310,6 +317,9 @@ export const SharedDatabaseProvider = ({
         policySettings,
         resources,
         safetyTrainedUsers,
+        settings,
+        userEmail,
+        netId,
         bookingsLoading,
         reloadAdminUsers: fetchAdminUsers,
         reloadApproverUsers: fetchApproverUsers,

@@ -3,6 +3,7 @@ import {
   FormContextLevel,
   Inputs,
   Role,
+  UserApiData,
 } from "../../../../types";
 import {
   BookingFormAgreementCheckbox,
@@ -11,6 +12,7 @@ import {
   BookingFormTextField,
 } from "./BookingFormInputs";
 import { Box, Button, Typography } from "@mui/material";
+import { SubmitHandler, useForm } from "react-hook-form";
 import {
   useCallback,
   useContext,
@@ -19,7 +21,6 @@ import {
   useRef,
   useState,
 } from "react";
-import { SubmitHandler, useForm } from "react-hook-form";
 
 import { BookingContext } from "../../../providers/BookingFormProvider";
 import BookingFormMediaServices from "./BookingFormMediaServices";
@@ -61,9 +62,14 @@ const Container = styled(Box)(({ theme }) => ({
 interface Props {
   calendarEventId?: string;
   formContext: FormContextLevel;
+  userApiData?: UserApiData;
 }
 
-export default function FormInput({ calendarEventId, formContext }: Props) {
+export default function FormInput({
+  calendarEventId,
+  formContext,
+  userApiData,
+}: Props) {
   const { settings } = useMediaCommonsDatabase();
   const { userEmail } = useAuth();
   const {
@@ -79,12 +85,17 @@ export default function FormInput({ calendarEventId, formContext }: Props) {
   const router = useRouter();
   const registerEvent = useSubmitBooking(formContext);
   const { isAutoApproval } = useCheckAutoApproval();
+  const getDefaultValue = (key: keyof UserApiData): string => {
+    if (!userApiData) return "";
+    return userApiData[key] || "";
+  };
 
   const {
     control,
     handleSubmit,
     trigger,
     watch,
+    reset,
     formState: { errors, isValid },
   } = useForm<Inputs>({
     defaultValues: {
@@ -104,6 +115,10 @@ export default function FormInput({ calendarEventId, formContext }: Props) {
       bookingType: "",
       secondaryName: "",
       otherDepartment: "",
+      firstName: getDefaultValue("preferred_first_name"),
+      lastName: getDefaultValue("preferred_last_name"),
+      nNumber: getDefaultValue("university_id"),
+      netId: getDefaultValue("netid"),
       ...formData, // restore answers if navigating between form pages
       // copy department + role from earlier in form
       department,
@@ -179,7 +194,17 @@ export default function FormInput({ calendarEventId, formContext }: Props) {
     },
     [userEmail]
   );
-
+  useEffect(() => {
+    if (userApiData) {
+      reset((formValues) => ({
+        ...formValues,
+        firstName: userApiData.preferred_first_name || formValues.firstName,
+        lastName: userApiData.preferred_last_name || formValues.lastName,
+        nNumber: userApiData.university_id || formValues.nNumber,
+        netId: userApiData.netid || formValues.netId,
+      }));
+    }
+  }, [userApiData, reset]);
   const disabledButton =
     !(checklist && resetRoom && bookingPolicy && isValid) ||
     isBanned ||
