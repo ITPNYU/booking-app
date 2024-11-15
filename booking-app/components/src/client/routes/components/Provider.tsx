@@ -13,6 +13,7 @@ import {
   RoomSetting,
   SafetyTraining,
   Settings,
+  UserApiData,
 } from "../../../types";
 
 import { useAuth } from "@/components/src/client/routes/components/AuthProvider";
@@ -34,6 +35,7 @@ export interface DatabaseContextType {
   settings: Settings;
   userEmail: string | undefined;
   netId: string | undefined;
+  userApiData: UserApiData | undefined;
   reloadAdminUsers: () => Promise<void>;
   reloadApproverUsers: () => Promise<void>;
   reloadBannedUsers: () => Promise<void>;
@@ -60,6 +62,7 @@ export const DatabaseContext = createContext<DatabaseContextType>({
   settings: { bookingTypes: [] },
   userEmail: undefined,
   netId: undefined,
+  userApiData: undefined,
   reloadAdminUsers: async () => {},
   reloadApproverUsers: async () => {},
   reloadBannedUsers: async () => {},
@@ -92,8 +95,27 @@ export const DatabaseProvider = ({
   >([]);
   const [settings, setSettings] = useState<Settings>({ bookingTypes: [] });
   const [userEmail, setUserEmail] = useState<string | undefined>();
+  const [userApiData, setUserApiData] = useState<UserApiData | undefined>(
+    undefined
+  );
+
   const { user } = useAuth();
   const netId = useMemo(() => userEmail?.split("@")[0], [userEmail]);
+  useEffect(() => {
+    const fetchUserApiData = async () => {
+      if (!netId) return;
+      try {
+        const response = await fetch(`/api/nyu/identity/${netId}`);
+        if (response.ok) {
+          const data = await response.json();
+          setUserApiData(data);
+        }
+      } catch (err) {
+        console.error("Failed to fetch user data:", err);
+      }
+    };
+    fetchUserApiData();
+  }, [netId]);
 
   // page permission updates with respect to user email, admin list, PA list
   const pagePermission = useMemo<PagePermission>(() => {
@@ -401,6 +423,7 @@ export const DatabaseProvider = ({
         userEmail,
         netId,
         bookingsLoading,
+        userApiData,
         reloadAdminUsers: fetchAdminUsers,
         reloadApproverUsers: fetchApproverUsers,
         reloadBannedUsers: fetchBannedUsers,

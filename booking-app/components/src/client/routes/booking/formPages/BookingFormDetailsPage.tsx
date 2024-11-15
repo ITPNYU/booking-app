@@ -1,8 +1,8 @@
 "use client";
 
-import { FormContextLevel, UserApiData } from "@/components/src/types";
+import { FormContextLevel } from "@/components/src/types";
 import Grid from "@mui/material/Unstable_Grid2";
-import { useContext, useEffect, useState } from "react";
+import { useContext } from "react";
 import { DatabaseContext } from "../../components/Provider";
 import FormInput from "../components/FormInput";
 import useCheckFormMissingData from "../hooks/useCheckFormMissingData";
@@ -16,29 +16,8 @@ export default function BookingFormDetailsPage({
   calendarEventId,
   formContext = FormContextLevel.FULL_FORM,
 }: Props) {
-  const { netId } = useContext(DatabaseContext);
+  const { userApiData } = useContext(DatabaseContext);
   useCheckFormMissingData();
-  const [userApiData, setUserApiData] = useState<UserApiData | undefined>(
-    undefined
-  );
-  useEffect(() => {
-    const fetchUserData = async () => {
-      if (!netId) return;
-
-      try {
-        const response = await fetch(`/api/nyu/identity/${netId}`);
-
-        if (response.ok) {
-          const data = await response.json();
-          setUserApiData(data);
-        }
-      } catch (err) {
-        console.error("Failed to fetch user data:", err);
-      }
-    };
-
-    fetchUserData();
-  }, [netId]);
   return (
     <Grid container>
       <Grid width={330} />
