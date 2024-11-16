@@ -1,44 +1,33 @@
 # Booking App
 
-This project is a booking management application built with Next.js.
+## About
 
-## Getting Started
-
-Follow these steps to run the application in your local environment.
-
-### Prerequisites
-
-- Node.js (version 18 or later)
-- npm (usually comes with Node.js)
-
-### Installation
-
-1. Clone the repository or download the project files.
-
-2. Navigate to the project directory:
-   ```
-   cd booking-app
-   ```
-3. Install the dependencies:
-   `npm install`
-4. Obtain the `.env` file from a project administrator and place it in the root directory of the project.
-
-### Running the Application
-
-To start the development server:
-`npm run dev`
-The application should now be running on [http://localhost:3000](http://localhost:3000).
-
-## Environment Variables
-
-This project uses environment variables for configuration. Make sure you have received the `.env` file from a project administrator and placed it in the root directory before running the application.
+This application is designed for reserving rooms at the 370J Media Commons Room.
 
 ## Deployment
 
-This project uses automated deployment pipelines:
+We employ GitHub workflows for our deployment process.
+Any merges into the main branch automatically trigger a deployment to the production Google App Script.
+We employ GitHub workflows for our deployment process. Pushing or merging to different branches will automatically trigger different Google App Script deploys:
+- `main` branch: triggers the DEVELOPMENT deploy, which serves from localhost and reads/writes the development calendars
+- `staging` branch: triggers the STAGING deploy, which serves from the GAS project and reads/writes the development calendars
+- `prod` branch: triggers the PRODUCTION deploy, which serves from the GAS project and reads/writes the **production** calendars
+The `NODE_ENV` environment variable controls where we serve from, and the `CALENDAR_ENV` environment variable controls which calendars we use. These values are specified in the `package.json` commands triggered by the workflows
 
-- Pushing to the `main` branch automatically deploys to the development environment.
-- Pushing to the `staging` branch automatically deploys to the staging environment.
-- Pushing to the `production` branch automatically deploys to the production environment.
+## Setup Instructions
 
-Please ensure you push your changes to the appropriate branch based on the intended deployment environment.
+When developing locally, please follow the flow below.
+
+1. **Clone the Repository**:
+
+2. **Install Packages**:
+   ```bash
+   npm install
+   ```
+
+3. **Make sure that you have placed the `.env.local` file in the root directory**
+
+4. **Run the dev local server**
+   ```bash
+   npm run dev
+   ```
