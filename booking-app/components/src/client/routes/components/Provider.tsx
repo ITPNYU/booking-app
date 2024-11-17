@@ -17,13 +17,14 @@ import {
 } from "../../../types";
 
 import { useAuth } from "@/components/src/client/routes/components/AuthProvider";
-import { fetchAllFutureBooking } from "@/components/src/server/db";
+import { fetchAllBookings, fetchAllFutureBooking } from "@/components/src/server/db";
 import { clientFetchAllDataFromCollection } from "@/lib/firebase/firebase";
 
 export interface DatabaseContextType {
   adminUsers: AdminUser[];
   bannedUsers: Ban[];
-  bookings: Booking[];
+  futureBookings: Booking[];
+  allBookings: Booking[];
   bookingsLoading: boolean;
   liaisonUsers: Approver[];
   departmentNames: DepartmentType[];
@@ -39,18 +40,20 @@ export interface DatabaseContextType {
   reloadAdminUsers: () => Promise<void>;
   reloadApproverUsers: () => Promise<void>;
   reloadBannedUsers: () => Promise<void>;
-  reloadBookings: () => Promise<void>;
+  reloadFutureBookings: () => Promise<void>;
   reloadDepartmentNames: () => Promise<void>;
   reloadPaUsers: () => Promise<void>;
   reloadBookingTypes: () => Promise<void>;
   reloadSafetyTrainedUsers: () => Promise<void>;
   setUserEmail: (x: string) => void;
+  fetchAllBookings: () => Promise<void>;
 }
 
 export const DatabaseContext = createContext<DatabaseContextType>({
   adminUsers: [],
   bannedUsers: [],
-  bookings: [],
+  futureBookings: [],
+  allBookings: [],
   bookingsLoading: true,
   liaisonUsers: [],
   departmentNames: [],
@@ -66,12 +69,13 @@ export const DatabaseContext = createContext<DatabaseContextType>({
   reloadAdminUsers: async () => {},
   reloadApproverUsers: async () => {},
   reloadBannedUsers: async () => {},
-  reloadBookings: async () => {},
+  reloadFutureBookings: async () => {},
   reloadDepartmentNames: async () => {},
   reloadPaUsers: async () => {},
   reloadBookingTypes: async () => {},
   reloadSafetyTrainedUsers: async () => {},
   setUserEmail: (x: string) => {},
+  fetchAllBookings: async () => {},
 });
 
 export const DatabaseProvider = ({
@@ -80,8 +84,9 @@ export const DatabaseProvider = ({
   children: React.ReactNode;
 }) => {
   const [bannedUsers, setBannedUsers] = useState<Ban[]>([]);
-  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [futureBookings, setFutureBookings] = useState<Booking[]>([]);
   const [bookingsLoading, setBookingsLoading] = useState<boolean>(true);
+  const [allBookings, setAllBookings] = useState<Booking[]>([]);
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
   const [liaisonUsers, setLiaisonUsers] = useState<Approver[]>([]);
   const [departmentNames, setDepartmentName] = useState<DepartmentType[]>([]);
@@ -98,9 +103,12 @@ export const DatabaseProvider = ({
   const [userApiData, setUserApiData] = useState<UserApiData | undefined>(
     undefined
   );
+  const [lastItem, setLastItem] = useState<any>(null);
+  const LIMIT = 3;
 
   const { user } = useAuth();
   const netId = useMemo(() => userEmail?.split("@")[0], [userEmail]);
+
   useEffect(() => {
     const fetchUserApiData = async () => {
       if (!netId) return;
@@ -119,21 +127,27 @@ export const DatabaseProvider = ({
 
   // page permission updates with respect to user email, admin list, PA list
   const pagePermission = useMemo<PagePermission>(() => {
+    // Early return if no email
     if (!userEmail) return PagePermission.BOOKING;
-    if (adminUsers.map((admin) => admin.email).includes(userEmail))
-      return PagePermission.ADMIN;
-    console.log("liaisonUsers", liaisonUsers);
-    console.log("userEmail", userEmail);
-    console.log(
-      "liaisonUsers.map((liaison) => liaison.email).includes(userEmail)",
-      liaisonUsers.map((liaison) => liaison.email).includes(userEmail)
-    );
-    if (liaisonUsers.map((liaison) => liaison.email).includes(userEmail)) {
-      return PagePermission.LIAISON;
-    } else if (paUsers.map((pa) => pa.email).includes(userEmail))
-      return PagePermission.PA;
-    else return PagePermission.BOOKING;
-  }, [userEmail, adminUsers, paUsers, liaisonUsers]);
+  
+    // Pre-compute email lists once
+    const adminEmails = adminUsers.map(admin => admin.email);
+    const liaisonEmails = liaisonUsers.map(liaison => liaison.email);
+    const paEmails = paUsers.map(pa => pa.email);
+  
+    // Check permissions
+    if (adminEmails.includes(userEmail)) return PagePermission.ADMIN;
+    if (liaisonEmails.includes(userEmail)) return PagePermission.LIAISON;
+    if (paEmails.includes(userEmail)) return PagePermission.PA;
+    
+    return PagePermission.BOOKING;
+  }, [
+    userEmail,
+    // Make sure we're using the actual arrays in dependencies
+    JSON.stringify(adminUsers),
+    JSON.stringify(liaisonUsers),
+    JSON.stringify(paUsers)
+  ]);
 
   useEffect(() => {
     if (!bookingsLoading) {
@@ -143,7 +157,7 @@ export const DatabaseProvider = ({
       fetchDepartmentNames();
       fetchSettings();
     } else {
-      fetchBookings();
+      fetchFutureBookings();
     }
   }, [bookingsLoading, user]);
 
@@ -154,78 +168,33 @@ export const DatabaseProvider = ({
     fetchRoomSettings();
   }, [user]);
 
+  useEffect(()=>{
+    if(pagePermission === PagePermission.ADMIN || pagePermission === PagePermission.LIAISON || pagePermission === PagePermission.PA)
+    fetchBookings(); 
+  }, [pagePermission]);
+
   const fetchActiveUserEmail = () => {
     if (!user) return;
     setUserEmail(user.email);
   };
 
-  const fetchBookings = async () => {
-    fetchAllFutureBooking(TableNames.BOOKING)
+  const fetchFutureBookings = async () => {
+    fetchAllFutureBooking()
       .then((fetchedData) => {
-        const bookings = fetchedData.map((item: any) => ({
-          id: item.id,
-          requestNumber: item.requestNumber,
-          calendarEventId: item.calendarEventId,
-          email: item.email,
-          startDate: item.startDate,
-          endDate: item.endDate,
-          roomId: String(item.roomId),
-          user: item.user,
-          room: item.room,
-          startTime: item.startTime,
-          endTime: item.endTime,
-          status: item.status,
-          firstName: item.firstName,
-          lastName: item.lastName,
-          secondaryName: item.secondaryName,
-          nNumber: item.nNumber,
-          netId: item.netId,
-          phoneNumber: item.phoneNumber,
-          department: item.department,
-          otherDepartment: item.otherDepartment,
-          role: item.role,
-          sponsorFirstName: item.sponsorFirstName,
-          sponsorLastName: item.sponsorLastName,
-          sponsorEmail: item.sponsorEmail,
-          title: item.title,
-          description: item.description,
-          bookingType: item.bookingType,
-          attendeeAffiliation: item.attendeeAffiliation,
-          roomSetup: item.roomSetup,
-          setupDetails: item.setupDetails,
-          mediaServices: item.mediaServices,
-          mediaServicesDetails: item.mediaServicesDetails,
-          equipmentCheckedOut: item.equipmentCheckedOut,
-          catering: item.catering,
-          hireSecurity: item.hireSecurity,
-          expectedAttendance: item.expectedAttendance,
-          cateringService: item.cateringService,
-          missingEmail: item?.missingEmail,
-          chartFieldForCatering: item.chartFieldForCatering,
-          chartFieldForSecurity: item.chartFieldForSecurity,
-          chartFieldForRoomSetup: item.chartFieldForRoomSetup,
-          requestedAt: item.requestedAt,
-          firstApprovedAt: item.firstApprovedAt,
-          firstApprovedBy: item.firstApprovedBy,
-          finalApprovedAt: item.finalApprovedAt,
-          finalApprovedBy: item.finalApprovedBy,
-          declinedAt: item.declinedAt,
-          declinedBy: item.declinedBy,
-          declineReason: item.declineReason,
-          canceledAt: item.canceledAt,
-          canceledBy: item.canceledBy,
-          checkedInAt: item.checkedInAt,
-          checkedInBy: item.checkedInBy,
-          checkedOutAt: item.checkedOutAt,
-          checkedOutBy: item.checkedOutBy,
-          noShowedAt: item.noShowedAt,
-          noShowedBy: item.noShowedBy,
-          walkedInAt: item.walkedInAt,
-        }));
-        setBookings(bookings);
+        setFutureBookings(fetchedData as Booking[]);
         setBookingsLoading(false);
       })
       .catch((error) => console.error("Error fetching data:", error));
+  };
+
+  const fetchBookings = async () => {
+    try{
+      const bookingsResponse : Booking[] = await fetchAllBookings(LIMIT, lastItem);
+      setLastItem(bookingsResponse[bookingsResponse.length - 1].calendarEventId);
+      setAllBookings((oldBookings) => [...oldBookings, ...bookingsResponse]);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    }
   };
 
   const fetchAdminUsers = async () => {
@@ -411,7 +380,8 @@ export const DatabaseProvider = ({
       value={{
         adminUsers,
         bannedUsers,
-        bookings,
+        futureBookings,
+        allBookings,
         liaisonUsers,
         departmentNames,
         paUsers,
@@ -427,12 +397,13 @@ export const DatabaseProvider = ({
         reloadAdminUsers: fetchAdminUsers,
         reloadApproverUsers: fetchApproverUsers,
         reloadBannedUsers: fetchBannedUsers,
-        reloadBookings: fetchBookings,
+        reloadFutureBookings: fetchFutureBookings,
         reloadDepartmentNames: fetchDepartmentNames,
         reloadPaUsers: fetchPaUsers,
         reloadBookingTypes: fetchBookingTypes,
         reloadSafetyTrainedUsers: fetchSafetyTrainedUsers,
         setUserEmail,
+        fetchAllBookings: fetchBookings,
       }}
     >
       {children}

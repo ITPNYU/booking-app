@@ -29,7 +29,7 @@ export function useBookingFilters(props: Props): BookingRow[] {
     selectedDateRange,
     selectedStatusFilters,
   } = props;
-  const { bookings, liaisonUsers, userEmail } = useContext(DatabaseContext);
+  const { futureBookings, liaisonUsers, userEmail } = useContext(DatabaseContext);
   const allowedStatuses = useAllowedStatuses(pageContext);
   const [currentTime, setCurrentTime] = useState(new Date());
 
@@ -43,11 +43,11 @@ export function useBookingFilters(props: Props): BookingRow[] {
 
   const rows: BookingRow[] = useMemo(
     () =>
-      bookings.map((booking) => ({
+      futureBookings.map((booking) => ({
         ...booking,
         status: getBookingStatus(booking),
       })),
-    [bookings]
+    [futureBookings]
   );
 
   const filteredRows = useMemo(() => {
