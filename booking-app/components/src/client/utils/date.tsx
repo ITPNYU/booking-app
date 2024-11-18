@@ -1,3 +1,4 @@
+import { Booking } from "../../types";
 import { Timestamp } from "firebase/firestore";
 import { format } from "date-fns";
 
@@ -78,3 +79,10 @@ export function roundTimeUp() {
 
   return now;
 }
+
+export const typeGuard = (booking: Booking, key: string) => {
+  if (key in booking) {
+    return booking[key] as Timestamp;
+  }
+  return undefined;
+};

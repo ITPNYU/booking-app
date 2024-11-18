@@ -1,6 +1,6 @@
 import { BookingRow, BookingStatusLabel } from "@/components/src/types";
 import { TableCell, TableRow } from "@mui/material";
-import { formatDateTable, formatTimeAmPm } from "../../utils/date";
+import { formatDateTable, formatTimeAmPm, typeGuard } from "../../utils/date";
 
 import StatusChip from "../components/bookingTable/StatusChip";
 import { Timestamp } from "@firebase/firestore";
@@ -14,6 +14,13 @@ type HistoryRow = {
 };
 
 export default function useSortBookingHistory(booking: BookingRow) {
+  const typeGuardActionBy = (key: string) => {
+    if (key in booking) {
+      return booking[key];
+    }
+    return "";
+  };
+
   const rows = useMemo(() => {
     let data: HistoryRow[] = [];
     data.push({
@@ -36,32 +43,32 @@ export default function useSortBookingHistory(booking: BookingRow) {
         time: booking.canceledAt,
       });
     }
-    if (booking.checkedInAt) {
+    if (typeGuard(booking, "checkedInAt")) {
       data.push({
         status: BookingStatusLabel.CHECKED_IN,
-        user: booking.checkedInBy,
-        time: booking.checkedInAt,
+        user: typeGuardActionBy("checkedInBy"),
+        time: typeGuard(booking, "checkedInAt"),
       });
     }
-    if (booking.checkedOutAt) {
+    if (typeGuard(booking, "checkedOutAt")) {
       data.push({
         status: BookingStatusLabel.CHECKED_OUT,
-        user: booking.checkedOutBy,
-        time: booking.checkedOutAt,
+        user: typeGuardActionBy("checkedOutAt"),
+        time: typeGuard(booking, "checkedOutAt"),
       });
     }
-    if (booking.noShowedAt) {
+    if (typeGuard(booking, "noShowedAt")) {
       data.push({
         status: BookingStatusLabel.NO_SHOW,
-        user: booking.noShowedBy,
-        time: booking.noShowedAt,
+        user: typeGuardActionBy("noShowedBy"),
+        time: typeGuard(booking, "noShowedAt"),
       });
     }
-    if (booking.firstApprovedAt) {
+    if (typeGuard(booking, "firstApprovedAt")) {
       data.push({
         status: BookingStatusLabel.PENDING,
-        user: booking.firstApprovedBy,
-        time: booking.firstApprovedAt,
+        user: typeGuardActionBy("firstApprovedBy"),
+        time: typeGuard(booking, "firstApprovedAt"),
       });
     }
     if (booking.declinedAt) {
@@ -72,11 +79,11 @@ export default function useSortBookingHistory(booking: BookingRow) {
         note: booking.declineReason,
       });
     }
-    if (booking.walkedInAt) {
+    if (typeGuard(booking, "walkedInAt")) {
       data.push({
         status: BookingStatusLabel.WALK_IN,
         user: "",
-        time: booking.walkedInAt,
+        time: typeGuard(booking, "walkedInAt"),
       });
     }
     return data;
