@@ -29,6 +29,53 @@ const Container = styled(Box)(({ theme }) => ({
   border: `1px solid ${theme.palette.divider}`,
 }));
 
+const roleMappings: Record<Role, string[]> = {
+  [Role.STUDENT]: ["STUDENT", "DEGREE", "UNDERGRADUATE", "GRADUATE"],
+  [Role.RESIDENT_FELLOW]: ["FELLOW", "RESIDENT", "POSTDOC"],
+  [Role.FACULTY]: ["FACULTY", "PROFESSOR", "INSTRUCTOR", "LECTURER"],
+  [Role.ADMIN_STAFF]: ["ADMIN", "STAFF", "EMPLOYEE"],
+};
+
+const departmentMappings: Record<Department, string[]> = {
+  [Department.ITP]: ["ITP", "IMA", "LOWRES"],
+  [Department.ALT]: ["ALT"],
+  [Department.CDI]: ["CDI"],
+  [Department.GAMES]: ["GAMES", "GAMECENTER"],
+  [Department.IDM]: ["IDM"],
+  [Department.MARL]: ["MARL"],
+  [Department.MPAP]: ["MPAP", "PERFORMINGARTS"],
+  [Department.MUSIC_TECH]: ["MUSICTECH", "MUSTECH"],
+  [Department.OTHER]: [],
+};
+
+const mapAffiliationToRole = (affiliation?: string): Role | undefined => {
+  if (!affiliation) return undefined;
+
+  const normalizedAffiliation = affiliation.toUpperCase();
+
+  for (const [role, affiliations] of Object.entries(roleMappings)) {
+    if (affiliations.includes(normalizedAffiliation)) {
+      return role as Role;
+    }
+  }
+
+  return undefined;
+};
+
+const mapDepartmentCode = (deptCode?: string): Department | undefined => {
+  if (!deptCode) return undefined;
+
+  const normalizedCode = deptCode.toUpperCase();
+
+  for (const [dept, codes] of Object.entries(departmentMappings)) {
+    if (codes.includes(normalizedCode)) {
+      return dept as Department;
+    }
+  }
+
+  return Department.OTHER;
+};
+
 interface Props {
   calendarEventId?: string;
   formContext?: FormContextLevel;
@@ -40,9 +87,8 @@ export default function UserRolePage({
 }: Props) {
   const { formData, role, department, setDepartment, setRole, setFormData } =
     useContext(BookingContext);
-
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, userApiData } = useAuth();
 
   const {
     control,
@@ -51,7 +97,7 @@ export default function UserRolePage({
     formState: { errors },
   } = useForm<InputsMediaCommons>({
     defaultValues: {
-      ...formData, // restore answers if navigating between form pages
+      ...formData,
     },
     mode: "onBlur",
   });
@@ -64,8 +110,24 @@ export default function UserRolePage({
   useEffect(() => {
     if (!user) {
       router.push("/signin");
+      return;
     }
-  }, []);
+
+    if (userApiData) {
+      const mappedRole = mapAffiliationToRole(userApiData.affiliation_sub_type);
+      const mappedDepartment = mapDepartmentCode(
+        userApiData.reporting_dept_code
+      );
+
+      if (mappedRole && !role) {
+        setRole(mappedRole);
+      }
+
+      if (mappedDepartment && !department) {
+        setDepartment(mappedDepartment);
+      }
+    }
+  }, [userApiData, user]);
 
   useEffect(() => {
     if (

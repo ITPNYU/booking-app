@@ -1,10 +1,8 @@
 "use client";
 
-import { FormContextLevel, UserApiData } from "@/components/src/types";
-import { useEffect, useState } from "react";
-
 import BookingSelection from "../components/BookingSelection";
 import { Box } from "@mui/material";
+import { FormContextLevel } from "@/components/src/types";
 import FormInputsMediaCommons from "../components/FormInputsMediaCommons";
 import Grid from "@mui/material/Unstable_Grid2";
 import { Tenants } from "@/components/src/policy";
@@ -23,31 +21,8 @@ export default function BookingFormDetailsPage({
   formContext = FormContextLevel.FULL_FORM,
   tenant,
 }: Props) {
-  const { netId } = useAuth();
+  const { userApiData } = useAuth();
   useCheckFormMissingData();
-
-  const [userApiData, setUserApiData] = useState<UserApiData | undefined>(
-    undefined
-  );
-
-  useEffect(() => {
-    const fetchUserData = async () => {
-      if (!netId) return;
-
-      try {
-        const response = await fetch(`/api/nyu/identity/${netId}`);
-
-        if (response.ok) {
-          const data = await response.json();
-          setUserApiData(data);
-        }
-      } catch (err) {
-        console.error("Failed to fetch user data:", err);
-      }
-    };
-
-    fetchUserData();
-  }, [netId]);
 
   let form = <></>;
   switch (tenant) {
