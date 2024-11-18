@@ -13,6 +13,7 @@ import {
   Control,
   Controller,
   FieldErrors,
+  Path,
   UseFormTrigger,
   ValidationRule,
 } from "react-hook-form";
@@ -28,23 +29,25 @@ const Label = styled.label`
   margin-bottom: 0.5rem;
 `;
 
-interface Props<T> {
-  id: keyof Inputs;
+interface Props<T extends Inputs> {
+  id: keyof T;
   label: string;
   required?: boolean;
-  control: Control<Inputs, any>;
-  errors: FieldErrors<Inputs>;
-  trigger: UseFormTrigger<Inputs>;
+  control: Control<T, any>;
+  errors: FieldErrors<T>;
+  trigger: UseFormTrigger<T>;
 }
 
-interface DropdownInputs extends Props {
+interface DropdownInputs<T extends Inputs> extends Props<T> {
   options: string[];
   description?: React.ReactNode;
 }
 
-export function BookingFormDropdown(props: DropdownInputs) {
+export function BookingFormDropdown<T extends Inputs>(
+  props: DropdownInputs<T>
+) {
   const {
-    id,
+    id: idUntyped,
     label,
     options,
     description = null,
@@ -54,11 +57,13 @@ export function BookingFormDropdown(props: DropdownInputs) {
     trigger,
   } = props;
 
+  const id = idUntyped as Path<T>;
+
   return (
     <Controller
       name={id}
       control={control}
-      defaultValue=""
+      defaultValue={null}
       rules={{
         required: required && `${label} is required`,
         validate: (value) => value !== "",
@@ -97,14 +102,16 @@ export function BookingFormDropdown(props: DropdownInputs) {
               </MenuItem>
             ))}
           </Select>
-          <FormHelperText>{errors[id]?.message}</FormHelperText>
+          <FormHelperText>
+            {(errors[id]?.message || null) as React.ReactNode}
+          </FormHelperText>
         </FormControl>
       )}
     ></Controller>
   );
 }
 
-interface TextFieldProps extends Props {
+interface TextFieldProps<T extends Inputs> extends Props<T> {
   description?: React.ReactNode;
   pattern?: ValidationRule<RegExp>;
   validate?: any;
@@ -112,9 +119,11 @@ interface TextFieldProps extends Props {
   fieldSx?: any;
 }
 
-export function BookingFormTextField(props: TextFieldProps) {
+export function BookingFormTextField<T extends Inputs>(
+  props: TextFieldProps<T>
+) {
   const {
-    id,
+    id: idUntyped,
     label,
     description = null,
     required = true,
@@ -126,6 +135,8 @@ export function BookingFormTextField(props: TextFieldProps) {
     containerSx,
     fieldSx,
   } = props;
+
+  const id = idUntyped as Path<T>;
 
   return (
     <Controller
@@ -149,7 +160,7 @@ export function BookingFormTextField(props: TextFieldProps) {
             {...field}
             variant="outlined"
             error={errors[id] != null}
-            helperText={errors[id]?.message}
+            helperText={(errors[id]?.message || null) as React.ReactNode}
             onBlur={() => trigger(id)}
             sx={fieldSx ?? { marginBottom: 4 }}
             fullWidth
@@ -160,13 +171,13 @@ export function BookingFormTextField(props: TextFieldProps) {
   );
 }
 
-interface SwitchProps extends Props {
+interface SwitchProps<T extends Inputs> extends Props<T> {
   description?: React.ReactElement;
 }
 
-export function BookingFormSwitch(props: SwitchProps) {
+export function BookingFormSwitch<T extends Inputs>(props: SwitchProps<T>) {
   const {
-    id,
+    id: idUntyped,
     label,
     description = null,
     required = true,
@@ -179,6 +190,8 @@ export function BookingFormSwitch(props: SwitchProps) {
     cloneElement(description, {
       style: { fontSize: "0.75rem" },
     });
+
+  const id = idUntyped as Path<T>;
 
   return (
     <Controller

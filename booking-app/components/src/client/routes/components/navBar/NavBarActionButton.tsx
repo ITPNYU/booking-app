@@ -1,8 +1,7 @@
 import { Button } from "@mui/material";
 import { PagePermission } from "@/components/src/types";
-import React from "react";
-import router from "next/router";
 import useHandleStartBooking from "../../booking/hooks/useHandleStartBooking";
+import { useRouter } from "next/navigation";
 import { useSharedDatabase } from "../../../providers/SharedDatabaseProvider";
 
 interface Props {
@@ -12,6 +11,7 @@ interface Props {
 export default function NavBarActionButton({ selectedView }: Props) {
   const { pagePermission } = useSharedDatabase();
   const handleStartBooking = useHandleStartBooking();
+  const router = useRouter();
 
   if (selectedView === PagePermission.BOOKING) {
     return (

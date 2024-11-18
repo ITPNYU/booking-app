@@ -1,7 +1,6 @@
 import {
   CalendarEvent,
   Department,
-  Inputs,
   Resource,
   Role,
   SubmitStatus,
@@ -9,6 +8,7 @@ import {
 import { createContext, useMemo, useState } from "react";
 
 import { DateSelectArg } from "@fullcalendar/core";
+import { InputsMediaCommons } from "../../typesMediaCommons";
 import { SAFETY_TRAINING_REQUIRED_ROOM } from "../../policyMediaCommons";
 import fetchCalendarEvents from "../routes/booking/hooks/fetchCalendarEvents";
 import { useAuth } from "./AuthProvider";
@@ -19,7 +19,7 @@ export interface BookingContextType {
   bookingCalendarInfo: DateSelectArg | undefined;
   department: Department | undefined;
   existingCalendarEvents: CalendarEvent[];
-  formData: Inputs | undefined;
+  formData: InputsMediaCommons | undefined;
   hasShownMocapModal: boolean;
   isBanned: boolean;
   isSafetyTrained: boolean;
@@ -29,7 +29,7 @@ export interface BookingContextType {
   selectedRooms: Resource[];
   setBookingCalendarInfo: (x: DateSelectArg) => void;
   setDepartment: (x: Department) => void;
-  setFormData: (x: Inputs) => void;
+  setFormData: (x: InputsMediaCommons) => void;
   setHasShownMocapModal: (x: boolean) => void;
   setRole: (x: Role) => void;
   setSelectedRooms: (x: Resource[]) => void;
@@ -51,7 +51,7 @@ export const BookingContext = createContext<BookingContextType>({
   selectedRooms: [],
   setBookingCalendarInfo: (x: DateSelectArg) => {},
   setDepartment: (x: Department) => {},
-  setFormData: (x: Inputs) => {},
+  setFormData: (x: InputsMediaCommons) => {},
   setHasShownMocapModal: (x: boolean) => {},
   setRole: (x: Role) => {},
   setSelectedRooms: (x: Resource[]) => {},
@@ -67,7 +67,7 @@ export function BookingFormProvider({ children }) {
   const [bookingCalendarInfo, setBookingCalendarInfo] =
     useState<DateSelectArg>();
   const [department, setDepartment] = useState<Department>();
-  const [formData, setFormData] = useState<Inputs>(undefined);
+  const [formData, setFormData] = useState<InputsMediaCommons>(undefined);
   const [hasShownMocapModal, setHasShownMocapModal] = useState(false);
   const [role, setRole] = useState<Role>();
   const [selectedRooms, setSelectedRooms] = useState<Resource[]>([]);

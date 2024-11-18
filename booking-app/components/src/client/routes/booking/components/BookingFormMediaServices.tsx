@@ -5,10 +5,11 @@ import {
 } from "../../../../policyMediaCommons";
 import { Checkbox, FormControlLabel, Switch } from "@mui/material";
 import { Control, Controller, UseFormTrigger } from "react-hook-form";
-import { FormContextLevel, Inputs, MediaServices } from "../../../../types";
+import { FormContextLevel, MediaServices } from "../../../../types";
 import { useContext, useMemo } from "react";
 
 import { BookingContext } from "../../../providers/BookingFormProvider";
+import { InputsMediaCommons } from "@/components/src/typesMediaCommons";
 import styled from "@emotion/styled";
 
 const Label = styled.label`
@@ -19,9 +20,9 @@ const Label = styled.label`
 `;
 
 interface Props {
-  id: keyof Inputs;
-  control: Control<Inputs, any>;
-  trigger: UseFormTrigger<Inputs>;
+  id: keyof InputsMediaCommons;
+  control: Control<InputsMediaCommons, any>;
+  trigger: UseFormTrigger<InputsMediaCommons>;
   showMediaServices: boolean;
   setShowMediaServices: any;
   formContext: FormContextLevel;

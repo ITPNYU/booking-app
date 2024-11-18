@@ -1,19 +1,27 @@
 import {
+  AttendeeAffiliation,
+  InputsMediaCommons,
+} from "@/components/src/typesMediaCommons";
+import {
   BookingFormAgreementCheckbox,
   BookingFormDropdown,
   BookingFormSwitch,
   BookingFormTextField,
 } from "./BookingFormInputs";
 import { Button, Typography } from "@mui/material";
-import { FormContextLevel, Inputs, Role } from "@/components/src/types";
+import { FormContextLevel, Role, UserApiData } from "@/components/src/types";
+import { SubmitHandler, useForm } from "react-hook-form";
 import { useCallback, useContext, useMemo, useState } from "react";
 
-import { AttendeeAffiliation } from "@/components/src/typesMediaCommons";
 import { BookingContext } from "../../../providers/BookingFormProvider";
 import BookingFormMediaServices from "./BookingFormMediaServices";
-import { UseFormReturn } from "react-hook-form";
 import { useAuth } from "../../../providers/AuthProvider";
+import useCheckAutoApproval from "../hooks/useCheckAutoApproval";
+import useFormWatch from "../hooks/useFormWatch";
+import useFormWithUserApiData from "../hooks/useFormWithUserApiData";
 import { useMediaCommonsDatabase } from "../../../providers/MediaCommonsDatabaseProvider";
+import { useRouter } from "next/navigation";
+import useSubmitBooking from "../hooks/useSubmitBooking";
 
 const Section = ({ title, children }) => (
   <div style={{ marginBottom: "20px" }}>
@@ -25,22 +33,36 @@ const Section = ({ title, children }) => (
 );
 
 interface Props {
+  calendarEventId?: string;
   formContext: FormContextLevel;
-  formReturn: UseFormReturn<Inputs, any, undefined>;
+  userApiData?: UserApiData;
 }
 
 export default function FormInputsMediaCommons({
+  calendarEventId,
   formContext,
-  formReturn,
+  userApiData,
 }: Props) {
-  const { selectedRooms, isBanned, needsSafetyTraining } =
-    useContext(BookingContext);
+  const {
+    bookingCalendarInfo,
+    selectedRooms,
+    isBanned,
+    needsSafetyTraining,
+    role,
+    department,
+    formData,
+  } = useContext(BookingContext);
   const { settings } = useMediaCommonsDatabase();
   const { userEmail } = useAuth();
+  const router = useRouter();
+  const registerEvent = useSubmitBooking(formContext);
 
   // different from other switches b/c mediaServices doesn't have yes/no column in DB
   const [showMediaServices, setShowMediaServices] = useState(false);
 
+  const { isAutoApproval } = useCheckAutoApproval();
+
+  const isMod = formContext === FormContextLevel.MODIFICATION;
   const isWalkIn = formContext === FormContextLevel.WALK_IN;
 
   // agreements, skip for walk-ins
@@ -48,23 +70,76 @@ export default function FormInputsMediaCommons({
   const [resetRoom, setResetRoom] = useState(isWalkIn);
   const [bookingPolicy, setBookingPolicy] = useState(isWalkIn);
 
-  const disabledButton =
-    !(
-      checklist &&
-      resetRoom &&
-      bookingPolicy &&
-      formReturn.formState.isValid
-    ) ||
-    isBanned ||
-    needsSafetyTraining;
+  const getDefaultValue = (key: keyof UserApiData): string => {
+    if (!userApiData) return "";
+    return userApiData[key] || "";
+  };
 
   const {
     control,
     handleSubmit,
     trigger,
     watch,
+    reset,
     formState: { errors, isValid },
-  } = formReturn;
+  } = useForm<InputsMediaCommons>({
+    defaultValues: {
+      setupDetails: "",
+      cateringService: "",
+      sponsorFirstName: "",
+      sponsorLastName: "",
+      sponsorEmail: "",
+      mediaServicesDetails: "",
+      catering: "no",
+      chartFieldForCatering: "",
+      chartFieldForSecurity: "",
+      chartFieldForRoomSetup: "",
+      hireSecurity: "no",
+      attendeeAffiliation: "",
+      roomSetup: "no",
+      bookingType: "",
+      secondaryName: "",
+      otherDepartment: "",
+      firstName: getDefaultValue("preferred_first_name"),
+      lastName: getDefaultValue("preferred_last_name"),
+      nNumber: getDefaultValue("university_id"),
+      netId: getDefaultValue("netid"),
+      ...formData, // restore answers if navigating between form pages
+      // copy department + role from earlier in form
+      department,
+      role,
+    },
+    mode: "onBlur",
+  });
+
+  const watchedFields = watch();
+  useFormWatch<InputsMediaCommons>(watchedFields);
+  useFormWithUserApiData<InputsMediaCommons>({ userApiData, reset });
+
+  // useEffect(() => {
+  //   setFormWatchedFields(watchedFields);
+  // }, [watchedFields, setFormWatchedFields]);
+
+  const disabledButton =
+    !(checklist && resetRoom && bookingPolicy && isValid) ||
+    isBanned ||
+    needsSafetyTraining;
+
+  const onSubmit: SubmitHandler<InputsMediaCommons> = (data) => {
+    if (!bookingCalendarInfo) return;
+
+    // setFormData(data);
+    registerEvent(data, isAutoApproval, calendarEventId);
+    if (isMod) {
+      router.push("/media-commons/modification/confirmation");
+    } else {
+      router.push(
+        isWalkIn
+          ? "/media-commons/walk-in/confirmation"
+          : "/media-commons/book/confirmation"
+      );
+    }
+  };
 
   const maxCapacity = useMemo(
     () =>
@@ -112,24 +187,24 @@ export default function FormInputsMediaCommons({
   const fullFormFields = (
     <>
       <Section title="Contact Information">
-        <BookingFormTextField
+        <BookingFormTextField<InputsMediaCommons>
           id="firstName"
           label="First Name"
           {...{ control, errors, trigger }}
         />
-        <BookingFormTextField
+        <BookingFormTextField<InputsMediaCommons>
           id="lastName"
           label="Last Name"
           {...{ control, errors, trigger }}
         />
-        <BookingFormTextField
+        <BookingFormTextField<InputsMediaCommons>
           id="secondaryName"
           label="Secondary Point of Contact"
           description="If the person submitting this request is not the Point of Contact for the reservation, please add their name and contact information here (i.e. event organizer, faculty member, etc.)"
           required={false}
           {...{ control, errors, trigger }}
         />
-        <BookingFormTextField
+        <BookingFormTextField<InputsMediaCommons>
           id="nNumber"
           label="NYU N-Number"
           description="Your N-number begins with a capital 'N' followed by eight digits."
@@ -141,7 +216,7 @@ export default function FormInputsMediaCommons({
           {...{ control, errors, trigger }}
         />
 
-        <BookingFormTextField
+        <BookingFormTextField<InputsMediaCommons>
           id="netId"
           label="NYU Net ID"
           description="Your Net ID is the username portion of your official NYU email address. It begins with your initials followed by one or more numbers."
@@ -153,7 +228,7 @@ export default function FormInputsMediaCommons({
           {...{ control, errors, trigger }}
         />
 
-        <BookingFormTextField
+        <BookingFormTextField<InputsMediaCommons>
           id="phoneNumber"
           label="Phone Number"
           required
@@ -168,21 +243,21 @@ export default function FormInputsMediaCommons({
 
       {watch("role") === "Student" && (
         <Section title="Sponsor">
-          <BookingFormTextField
+          <BookingFormTextField<InputsMediaCommons>
             id="sponsorFirstName"
             label="Sponsor First Name"
             required={watch("role") === Role.STUDENT}
             {...{ control, errors, trigger }}
           />
 
-          <BookingFormTextField
+          <BookingFormTextField<InputsMediaCommons>
             id="sponsorLastName"
             label="Sponsor Last Name"
             required={watch("role") === Role.STUDENT}
             {...{ control, errors, trigger }}
           />
 
-          <BookingFormTextField
+          <BookingFormTextField<InputsMediaCommons>
             id="sponsorEmail"
             label="Sponsor Email"
             description="Must be an nyu.edu email address."
@@ -198,18 +273,18 @@ export default function FormInputsMediaCommons({
       )}
 
       <Section title="Reservation Details">
-        <BookingFormTextField
+        <BookingFormTextField<InputsMediaCommons>
           id="title"
           label="Reservation Title"
           validate={validateTitleLength}
           {...{ control, errors, trigger }}
         />
-        <BookingFormTextField
+        <BookingFormTextField<InputsMediaCommons>
           id="description"
           label="Reservation Description"
           {...{ control, errors, trigger }}
         />
-        <BookingFormDropdown
+        <BookingFormDropdown<InputsMediaCommons>
           id="bookingType"
           label="Booking Type"
           options={settings.bookingTypes
@@ -217,13 +292,13 @@ export default function FormInputsMediaCommons({
             .sort((a, b) => a.localeCompare(b))}
           {...{ control, errors, trigger }}
         />
-        <BookingFormTextField
+        <BookingFormTextField<InputsMediaCommons>
           id="expectedAttendance"
           label="Expected Attendance"
           validate={validateExpectedAttendance}
           {...{ control, errors, trigger }}
         />
-        <BookingFormDropdown
+        <BookingFormDropdown<InputsMediaCommons>
           id="attendeeAffiliation"
           label="Attendee Affiliation(s)"
           options={Object.values(AttendeeAffiliation)}
@@ -248,7 +323,7 @@ export default function FormInputsMediaCommons({
       <Section title="Services">
         {!isWalkIn && (
           <div style={{ marginBottom: 32 }}>
-            <BookingFormSwitch
+            <BookingFormSwitch<InputsMediaCommons>
               id="roomSetup"
               label="Room Setup Needed?"
               required={false}
@@ -257,13 +332,13 @@ export default function FormInputsMediaCommons({
             />
             {watch("roomSetup") === "yes" && (
               <>
-                <BookingFormTextField
+                <BookingFormTextField<InputsMediaCommons>
                   id="setupDetails"
                   label="Room Setup Details"
                   description="If you requested Room Setup and are not using rooms 233 or 1201, please explain your needs including # of chairs, # tables, and formation."
                   {...{ control, errors, trigger }}
                 />
-                <BookingFormTextField
+                <BookingFormTextField<InputsMediaCommons>
                   id="chartFieldForRoomSetup"
                   label="ChartField for Room Setup"
                   {...{ control, errors, trigger }}
@@ -285,7 +360,7 @@ export default function FormInputsMediaCommons({
           />
           {watch("mediaServices") !== undefined &&
             watch("mediaServices").length > 0 && (
-              <BookingFormTextField
+              <BookingFormTextField<InputsMediaCommons>
                 id="mediaServicesDetails"
                 label="Media Services Details"
                 description={
@@ -321,7 +396,7 @@ export default function FormInputsMediaCommons({
         </div>
         {!isWalkIn && (
           <div style={{ marginBottom: 32 }}>
-            <BookingFormSwitch
+            <BookingFormSwitch<InputsMediaCommons>
               id="catering"
               label="Catering?"
               description={<p></p>}
@@ -330,13 +405,13 @@ export default function FormInputsMediaCommons({
             />
             {watch("catering") === "yes" && (
               <>
-                <BookingFormDropdown
+                <BookingFormDropdown<InputsMediaCommons>
                   id="cateringService"
                   label="Catering Information"
                   options={["Outside Catering", "NYU Plated"]}
                   {...{ control, errors, trigger }}
                 />
-                <BookingFormTextField
+                <BookingFormTextField<InputsMediaCommons>
                   id="chartFieldForCatering"
                   label="ChartField for CBS Cleaning Services"
                   {...{ control, errors, trigger }}
@@ -347,7 +422,7 @@ export default function FormInputsMediaCommons({
         )}
         {!isWalkIn && (
           <div style={{ marginBottom: 32 }}>
-            <BookingFormSwitch
+            <BookingFormSwitch<InputsMediaCommons>
               id="hireSecurity"
               label="Hire Security?"
               required={false}
@@ -363,7 +438,7 @@ export default function FormInputsMediaCommons({
               {...{ control, errors, trigger }}
             />
             {watch("hireSecurity") === "yes" && (
-              <BookingFormTextField
+              <BookingFormTextField<InputsMediaCommons>
                 id="chartFieldForSecurity"
                 label="ChartField for Security"
                 {...{ control, errors, trigger }}
@@ -445,7 +520,7 @@ export default function FormInputsMediaCommons({
   const modificationFormFields = (
     <>
       <Section title="Reservation Details">
-        <BookingFormTextField
+        <BookingFormTextField<InputsMediaCommons>
           id="expectedAttendance"
           label="Expected Attendance"
           validate={validateExpectedAttendance}
@@ -466,7 +541,7 @@ export default function FormInputsMediaCommons({
           />
           {watch("mediaServices") !== undefined &&
             watch("mediaServices").length > 0 && (
-              <BookingFormTextField
+              <BookingFormTextField<InputsMediaCommons>
                 id="mediaServicesDetails"
                 label="Media Services Details"
                 {...{ control, errors, trigger }}
@@ -489,5 +564,5 @@ export default function FormInputsMediaCommons({
       formFields = fullFormFields;
   }
 
-  return formFields;
+  return <form onSubmit={handleSubmit(onSubmit)}>{formFields}</form>;
 }

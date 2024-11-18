@@ -56,7 +56,7 @@ export default function NavBarRoleSelect({
         router.push(`${tenantPrefix}/admin`);
         break;
       case PagePermission.LIAISON:
-        router.push(`${tenantPrefix}liaison`);
+        router.push(`${tenantPrefix}/liaison`);
         break;
     }
   };
