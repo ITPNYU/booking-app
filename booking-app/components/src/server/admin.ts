@@ -1,10 +1,4 @@
-import {
-  ApproverType,
-  BookingFormDetails,
-  BookingStatus,
-  BookingStatusLabel,
-  Resource,
-} from "../types";
+import { ApproverType, BookingStatusLabel, Resource } from "../types";
 import {
   Constraint,
   serverDeleteData,
@@ -22,24 +16,11 @@ import {
   getTableName,
 } from "../policy";
 
+import { BookingMediaCommons } from "../typesMediaCommons";
 import { Timestamp } from "firebase-admin/firestore";
+import { serverBookingContents } from "./mediaCommons/admin";
 
 const BOOKING = getTableName(TableNamesRaw.BOOKING, Tenants.MEDIA_COMMONS);
-
-export const serverBookingContents = (id: string) => {
-  return serverGetDataByCalendarEventId(BOOKING, id)
-    .then((bookingObj) => {
-      const updatedBookingObj = Object.assign({}, bookingObj, {
-        headerMessage: "This is a request email for final approval.",
-      });
-
-      return updatedBookingObj as unknown as BookingFormDetails;
-    })
-    .catch((error) => {
-      console.error("Error fetching booking contents:", error);
-      throw error;
-    });
-};
 
 export const serverUpdateDataByCalendarEventId = async (
   collectionName: TableNames,
@@ -118,10 +99,8 @@ export const serverApproveInstantBooking = (id: string) => {
 
 // both first approve and second approve flows hit here
 export const serverApproveBooking = async (id: string, email: string) => {
-  const bookingStatus = await serverGetDataByCalendarEventId<BookingStatus>(
-    BOOKING,
-    id
-  );
+  const bookingStatus =
+    await serverGetDataByCalendarEventId<BookingMediaCommons>(BOOKING, id);
   const firstApproveDateRange =
     bookingStatus && bookingStatus.firstApprovedAt
       ? bookingStatus.firstApprovedAt.toDate()

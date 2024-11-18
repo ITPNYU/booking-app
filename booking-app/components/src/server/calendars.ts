@@ -1,5 +1,5 @@
-import { BookingFormDetails, BookingStatusLabel } from "../types";
-
+import { BookingFormDetailsMediaCommons } from "../typesMediaCommons";
+import { BookingStatusLabel } from "../types";
 import { getCalendarClient } from "@/lib/googleClient";
 import { serverGetRoomCalendarIds } from "./admin";
 
@@ -58,7 +58,9 @@ export const inviteUserToCalendarEvent = async (
   }
 };
 
-const bookingContentsToDescription = (bookingContents: BookingFormDetails) => {
+const mediaCommonsBookingContentsToDescription = (
+  bookingContents: BookingFormDetailsMediaCommons
+) => {
   const listItem = (key: string, value: string) => `<li>${key}: ${value}</li>`;
   let description = "<h3>Reservation Details</h3><ul>";
   const items = [
@@ -130,7 +132,7 @@ export const updateCalendarEvent = async (
     };
     statusPrefix?: BookingStatusLabel;
   },
-  bookingContents: BookingFormDetails
+  bookingContents: BookingFormDetailsMediaCommons
 ) => {
   const roomCalendarIds = await serverGetRoomCalendarIds(
     typeof bookingContents.roomId == "string"
@@ -170,7 +172,7 @@ export const updateCalendarEvent = async (
       }
 
       let description = bookingContents
-        ? bookingContentsToDescription(bookingContents)
+        ? mediaCommonsBookingContentsToDescription(bookingContents)
         : "";
       description +=
         'To cancel reservations please return to the Booking Tool, visit My Bookings, and click "cancel" on the booking at least 24 hours before the date of the event. Failure to cancel an unused booking is considered a no-show and may result in restricted use of the space.';

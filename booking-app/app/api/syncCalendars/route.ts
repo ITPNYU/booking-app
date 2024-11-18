@@ -1,6 +1,7 @@
 import { Booking, MediaServices } from "@/components/src/types";
 import { TableNamesRaw, Tenants, getTableName } from "@/components/src/policy";
 
+import { BookingMediaCommons } from "@/components/src/typesMediaCommons";
 import { NextResponse } from "next/server";
 import { Timestamp } from "@firebase/firestore";
 import admin from "@/lib/firebase/server/firebaseAdmin";
@@ -32,7 +33,7 @@ const areRoomIdsSame = (roomIds1: string, roomIds2: string): boolean => {
   return areEqual;
 };
 const createBookingWithDefaults = (
-  partialBooking: Partial<Booking>,
+  partialBooking: Partial<BookingMediaCommons>,
 ): Booking => {
   return {
     title: "",

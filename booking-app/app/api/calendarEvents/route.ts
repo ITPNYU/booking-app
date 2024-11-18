@@ -6,7 +6,7 @@ import {
 } from "@/components/src/server/calendars";
 
 import { getCalendarClient } from "@/lib/googleClient";
-import { serverBookingContents } from "@/components/src/server/admin";
+import { serverBookingContents } from "@/components/src/server/mediaCommons/admin";
 
 const getCalendarEvents = async (calendarId: string) => {
   const calendar = await getCalendarClient();

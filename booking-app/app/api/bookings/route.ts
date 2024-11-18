@@ -1,6 +1,5 @@
 import {
   ApproverType,
-  BookingFormDetails,
   BookingStatusLabel,
   Resource,
 } from "@/components/src/types";
@@ -10,7 +9,6 @@ import { deleteEvent, insertEvent } from "@/components/src/server/calendars";
 import {
   firstApproverEmails,
   serverApproveInstantBooking,
-  serverBookingContents,
   serverDeleteFieldsByCalendarEventId,
   serverUpdateDataByCalendarEventId,
 } from "@/components/src/server/admin";
@@ -23,10 +21,12 @@ import {
   serverSaveDataToFirestore,
 } from "@/lib/firebase/server/adminDb";
 
+import { BookingFormDetailsMediaCommons } from "@/components/src/typesMediaCommons";
 import { DateSelectArg } from "fullcalendar";
 import { Timestamp } from "firebase-admin/firestore";
 import { getBookingToolDeployUrl } from "@/components/src/server/ui";
 import { sendHTMLEmail } from "@/app/lib/sendHTMLEmail";
+import { serverBookingContents } from "@/components/src/server/mediaCommons/admin";
 
 const BOOKING = getTableName(TableNamesRaw.BOOKING, Tenants.MEDIA_COMMONS);
 
@@ -76,7 +76,7 @@ async function handleBookingApprovalEmails(
 
   const sendApprovalEmail = async (
     recipients: string[],
-    contents: BookingFormDetails,
+    contents: BookingFormDetailsMediaCommons,
   ) => {
     const { equipmentCheckedOut, ...otherContents } = contents;
     const otherContentsStrings = Object.fromEntries(
@@ -110,7 +110,7 @@ async function handleBookingApprovalEmails(
   if (calendarEventId && shouldAutoApprove) {
     serverApproveInstantBooking(calendarEventId);
   } else {
-    const userEventInputs: BookingFormDetails = {
+    const userEventInputs: BookingFormDetailsMediaCommons = {
       ...data,
       calendarEventId: calendarEventId,
       roomId: selectedRoomIds,
