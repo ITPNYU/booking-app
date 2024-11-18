@@ -8,9 +8,16 @@ export default function getBookingStatus(booking: Booking): BookingStatusLabel {
       return time != undefined ? time.toDate() : new Date(0);
     };
 
-    const checkedInTimestamp = timeStringtoDate(booking.checkedInAt);
-    const checkedOutTimestamp = timeStringtoDate(booking.checkedOutAt);
-    const noShowTimestamp = timeStringtoDate(booking.noShowedAt);
+    const typeGuard = (key: string) => {
+      if (key in booking) {
+        return booking[key] as Timestamp;
+      }
+      return undefined;
+    };
+
+    const checkedInTimestamp = timeStringtoDate(typeGuard("checkedInAt"));
+    const checkedOutTimestamp = timeStringtoDate(typeGuard("checkedOutAt"));
+    const noShowTimestamp = timeStringtoDate(typeGuard("noShowedAt"));
     const canceledTimestamp = timeStringtoDate(booking.canceledAt);
 
     // if any of checkedInAt, noShowedAt, canceledAt have a date, return the most recent
@@ -44,11 +51,11 @@ export default function getBookingStatus(booking: Booking): BookingStatusLabel {
       return BookingStatusLabel.DECLINED;
     } else if (booking.finalApprovedAt !== undefined) {
       return BookingStatusLabel.APPROVED;
-    } else if (booking.firstApprovedAt !== undefined) {
+    } else if (typeGuard("firstApprovedAt") !== undefined) {
       return BookingStatusLabel.PENDING;
     } else if (booking.requestedAt != undefined) {
       return BookingStatusLabel.REQUESTED;
-    } else if (booking.walkedInAt != undefined) {
+    } else if (typeGuard("walkedInAt") != undefined) {
       return BookingStatusLabel.WALK_IN;
     } else {
       return BookingStatusLabel.UNKNOWN;

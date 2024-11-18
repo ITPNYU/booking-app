@@ -1,12 +1,13 @@
 "use client";
 
-import { Box, Button, TextField, Typography } from "@mui/material";
-import { Department, FormContextLevel, Inputs, Role } from "../../../../types";
-import React, { useContext, useEffect, useRef, useState } from "react";
+import { Box, Button, Typography } from "@mui/material";
+import { Department, FormContextLevel, Role } from "../../../../types";
+import { useContext, useEffect, useRef } from "react";
 
 import { BookingContext } from "../../../providers/BookingFormProvider";
 import { BookingFormTextField } from "../components/BookingFormInputs";
 import Dropdown from "../components/Dropdown";
+import { InputsMediaCommons } from "@/components/src/typesMediaCommons";
 import { styled } from "@mui/material/styles";
 import { useAuth } from "../../../providers/AuthProvider";
 import { useForm } from "react-hook-form";
@@ -48,7 +49,7 @@ export default function UserRolePage({
     trigger,
     watch,
     formState: { errors },
-  } = useForm<Inputs>({
+  } = useForm<InputsMediaCommons>({
     defaultValues: {
       ...formData, // restore answers if navigating between form pages
     },
@@ -56,7 +57,7 @@ export default function UserRolePage({
   });
 
   const watchedFields = watch();
-  const prevWatchedFieldsRef = useRef<Inputs>();
+  const prevWatchedFieldsRef = useRef<InputsMediaCommons>();
 
   const showOther = department === Department.OTHER;
 
@@ -113,7 +114,7 @@ export default function UserRolePage({
           sx={{ marginTop: 4 }}
         />
         {showOther && (
-          <BookingFormTextField
+          <BookingFormTextField<InputsMediaCommons>
             id="otherDepartment"
             label="Your Department"
             containerSx={{ marginBottom: 2, marginTop: 1, width: "100%" }}

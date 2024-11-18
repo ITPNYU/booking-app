@@ -1,13 +1,13 @@
-import { useContext, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 import AddDepartmentRow from "../../components/AddDepartmentRow";
 import { Box } from "@mui/material";
 import { Department } from "../../../../types";
 import Dropdown from "../../booking/components/Dropdown";
 import ListTable from "../../components/ListTable";
-import { SharedDatabaseContext } from "../../../providers/SharedDatabaseProvider";
 import { TableNamesMediaCommonsOnly } from "@/components/src/policyMediaCommons";
 import { formatDate } from "../../../utils/date";
+import { useMediaCommonsDatabase } from "../../../providers/MediaCommonsDatabaseProvider";
 
 const AddDepartmentForm = ({ departments, reloadDepartments }) => {
   const [departmentName, setDepartmentName] = useState("");
@@ -58,9 +58,7 @@ const AddDepartmentForm = ({ departments, reloadDepartments }) => {
 };
 
 export const Departments = () => {
-  const { departmentNames, reloadDepartmentNames } = useContext(
-    SharedDatabaseContext
-  );
+  const { departmentNames, reloadDepartmentNames } = useMediaCommonsDatabase();
 
   const departments = useMemo<string[]>(
     () => departmentNames.map((user) => user.department),

@@ -85,7 +85,6 @@ export type InputsMediaCommons = Inputs & {
   hireSecurity: string;
   expectedAttendance: string;
   cateringService: string;
-  missingEmail?: string;
   chartFieldForCatering: string;
   chartFieldForSecurity: string;
   chartFieldForRoomSetup: string;

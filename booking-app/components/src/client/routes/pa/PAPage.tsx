@@ -1,9 +1,10 @@
 import { Box, Tab, Tabs } from "@mui/material";
 import { PageContextLevel, PagePermission } from "../../../types";
-import React, { useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 import { Bookings } from "../components/bookingTable/Bookings";
 import { CenterLoading } from "../components/Loading";
+import { Tenants } from "@/components/src/policy";
 import { useAuth } from "../../providers/AuthProvider";
 import { useMediaCommonsDatabase } from "../../providers/MediaCommonsDatabaseProvider";
 import { useSharedDatabase } from "../../providers/SharedDatabaseProvider";
@@ -41,7 +42,12 @@ const PAPage = () => {
           >
             <Tab value="bookings" label="Bookings" />
           </Tabs>
-          {tab === "bookings" && <Bookings pageContext={PageContextLevel.PA} />}
+          {tab === "bookings" && (
+            <Bookings
+              pageContext={PageContextLevel.PA}
+              tenant={Tenants.MEDIA_COMMONS}
+            />
+          )}
         </div>
       )}
     </Box>

@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 
 import { Bookings } from "../components/bookingTable/Bookings";
 import { CenterLoading } from "../components/Loading";
+import { Tenants } from "@/components/src/policy";
 import { useAuth } from "../../providers/AuthProvider";
 import { useSharedDatabase } from "../../providers/SharedDatabaseProvider";
 
@@ -44,6 +45,7 @@ const Liaison = ({ calendarEventId }) => {
             <Bookings
               calendarEventId={calendarEventId}
               pageContext={PageContextLevel.LIAISON}
+              tenant={Tenants.MEDIA_COMMONS}
             />
           )}
         </div>

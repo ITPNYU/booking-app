@@ -1,13 +1,14 @@
-import { Booking, MediaServices } from "@/components/src/types";
 import React, { useContext, useRef, useState } from "react";
 import { TableNamesRaw, Tenants, getTableName } from "@/components/src/policy";
 
+import { BookingRowMediaCommons } from "@/components/src/typesMediaCommons";
+import { MediaServices } from "@/components/src/types";
 import { SharedDatabaseContext } from "../../../providers/SharedDatabaseProvider";
 import { Switch } from "@mui/material";
 import { clientUpdateDataByCalendarEventId } from "@/lib/firebase/client/clientDb";
 
 interface Props {
-  booking: Booking;
+  booking: BookingRowMediaCommons;
   status: boolean;
 }
 

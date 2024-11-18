@@ -59,7 +59,7 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
       if ((isWalkIn || isModification) && data.netId) {
         email = data.netId + "@nyu.edu";
       } else {
-        email = userEmail || data.missingEmail;
+        email = userEmail;
       }
 
       const requestParams = ((): {

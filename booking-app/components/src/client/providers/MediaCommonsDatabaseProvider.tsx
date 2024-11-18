@@ -131,7 +131,6 @@ export const MediaCommonsDatabaseProvider: React.FC<{
           hireSecurity: item.hireSecurity,
           expectedAttendance: item.expectedAttendance,
           cateringService: item.cateringService,
-          missingEmail: item?.missingEmail,
           chartFieldForCatering: item.chartFieldForCatering,
           chartFieldForSecurity: item.chartFieldForSecurity,
           chartFieldForRoomSetup: item.chartFieldForRoomSetup,

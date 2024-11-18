@@ -1,7 +1,9 @@
 import { Department, Role } from "@/components/src/types";
 
 import { BookingContext } from "../../../providers/BookingFormProvider";
+import { InputsMediaCommons } from "@/components/src/typesMediaCommons";
 import { SharedDatabaseContext } from "../../../providers/SharedDatabaseProvider";
+import useBookings from "../../components/bookingTable/hooks/useBookings";
 import { useContext } from "react";
 
 export default function useExistingBooking() {
@@ -12,7 +14,8 @@ export default function useExistingBooking() {
     setBookingCalendarInfo,
     setFormData,
   } = useContext(BookingContext);
-  const { bookings, resources } = useContext(SharedDatabaseContext);
+  const { resources } = useContext(SharedDatabaseContext);
+  const bookings = useBookings();
 
   const findBooking = (calendarEventId: string) =>
     bookings.filter(
@@ -22,7 +25,9 @@ export default function useExistingBooking() {
   const loadExistingBookingData = (calendarEventId: string) => {
     const booking = findBooking(calendarEventId);
 
-    setDepartment(booking.department as Department);
+    if ("department" in booking) {
+      setDepartment(booking.department as Department);
+    }
     setRole(booking.role as Role);
 
     const roomIds = booking.roomId.split(", ").map((x) => Number(x));
@@ -45,7 +50,7 @@ export default function useExistingBooking() {
       view: null,
     });
 
-    setFormData({ ...booking });
+    setFormData({ ...booking } as unknown as InputsMediaCommons);
   };
 
   return loadExistingBookingData;
