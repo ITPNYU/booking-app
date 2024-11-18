@@ -144,6 +144,7 @@ export const Bookings: React.FC<BookingsProps> = ({
         <MoreInfoModal
           booking={modalData}
           closeModal={() => setModalData(null)}
+          tenant={tenant}
         />
       )}
     </Box>
