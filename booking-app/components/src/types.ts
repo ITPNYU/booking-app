@@ -50,6 +50,7 @@ export type BookingStatus = {
 
 export type BookingFormDetails = {
   headerMessage?: string;
+  bookingToolUrl?: string;
 };
 
 export type BookingRow = Booking & {

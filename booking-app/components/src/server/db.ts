@@ -1,10 +1,9 @@
-import { Approver, BookingFormDetails, BookingStatusLabel } from "../types";
+import { Approver, BookingStatusLabel } from "../types";
 import {
   ApproverLevel,
   TableNames,
   TableNamesRaw,
   Tenants,
-  clientGetFinalApproverEmail,
   getCancelCcEmail,
   getTableName,
 } from "../policy";
@@ -14,11 +13,15 @@ import {
   clientGetDataByCalendarEventId,
   clientUpdateDataInFirestore,
 } from "@/lib/firebase/firebase";
+import {
+  clientSendBookingDetailEmail,
+  clientSendConfirmationEmail,
+} from "./emails";
 
 import { clientUpdateDataByCalendarEventId } from "@/lib/firebase/client/clientDb";
-import { getBookingToolDeployUrl } from "./ui";
 import { roundTimeUp } from "../client/utils/date";
 
+// TODO should work for all tenants
 const BOOKING = getTableName(TableNamesRaw.BOOKING, Tenants.MEDIA_COMMONS);
 
 export const fetchAllFutureBooking = async <T>(
@@ -83,6 +86,7 @@ export const decline = async (id: string, email: string, reason?: string) => {
       " For detailed reasons regarding this decision, please contact us at mediacommons.reservations@nyu.edu.";
   }
   clientSendBookingDetailEmail(
+    Tenants.MEDIA_COMMONS,
     id,
     guestEmail,
     headerMessage,
@@ -113,12 +117,14 @@ export const cancel = async (id: string, email: string) => {
   const headerMessage =
     "Your reservation request for Media Commons has been cancelled. For detailed reasons regarding this decision, please contact us at mediacommons.reservations@nyu.edu.";
   clientSendBookingDetailEmail(
+    Tenants.MEDIA_COMMONS,
     id,
     guestEmail,
     headerMessage,
     BookingStatusLabel.CANCELED
   );
   clientSendBookingDetailEmail(
+    Tenants.MEDIA_COMMONS,
     id,
     getCancelCcEmail(),
     headerMessage,
@@ -169,6 +175,7 @@ export const checkin = async (id: string, email: string) => {
   const headerMessage =
     "Your reservation request for Media Commons has been checked in. Thank you for choosing Media Commons.";
   clientSendBookingDetailEmail(
+    Tenants.MEDIA_COMMONS,
     id,
     guestEmail,
     headerMessage,
@@ -205,6 +212,7 @@ export const checkOut = async (id: string, email: string) => {
   const headerMessage =
     "Your reservation request for Media Commons has been checked out. Thank you for choosing Media Commons.";
   clientSendBookingDetailEmail(
+    Tenants.MEDIA_COMMONS,
     id,
     guestEmail,
     headerMessage,
@@ -243,12 +251,14 @@ export const noShow = async (id: string, email: string) => {
   const headerMessage =
     "You did not check-in for your Media Commons Reservation and have been marked as a no-show.";
   clientSendBookingDetailEmail(
+    Tenants.MEDIA_COMMONS,
     id,
     guestEmail,
     headerMessage,
     BookingStatusLabel.NO_SHOW
   );
   clientSendConfirmationEmail(
+    Tenants.MEDIA_COMMONS,
     id,
     BookingStatusLabel.NO_SHOW,
     `This is a no show email.`
@@ -266,55 +276,6 @@ export const noShow = async (id: string, email: string) => {
       }),
     }
   );
-};
-export const clientBookingContents = (id: string) => {
-  return clientGetDataByCalendarEventId(BOOKING, id)
-    .then((bookingObj) => {
-      const updatedBookingObj = Object.assign({}, bookingObj, {
-        headerMessage: "This is a request email for final approval.",
-        bookingToolUrl: getBookingToolDeployUrl(),
-      });
-
-      return updatedBookingObj as unknown as BookingFormDetails;
-    })
-    .catch((error) => {
-      console.error("Error fetching booking contents:", error);
-      throw error;
-    });
-};
-export const clientSendBookingDetailEmail = async (
-  calendarEventId: string,
-  email: string,
-  headerMessage: string,
-  status: BookingStatusLabel
-) => {
-  const contents = await clientBookingContents(calendarEventId);
-  contents.headerMessage = headerMessage;
-  const formData = {
-    templateName: "booking_detail",
-    contents: contents,
-    targetEmail: email,
-    status: status,
-    eventTitle: contents.title,
-    requestNumber: contents.requestNumber ?? "--",
-    bodyMessage: "",
-  };
-  const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/sendEmail`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(formData),
-  });
-};
-
-export const clientSendConfirmationEmail = async (
-  calendarEventId: string,
-  status: BookingStatusLabel,
-  headerMessage: string
-) => {
-  const email = await clientGetFinalApproverEmail();
-  clientSendBookingDetailEmail(calendarEventId, email, headerMessage, status);
 };
 
 export const clientApproveBooking = async (id: string, email: string) => {
