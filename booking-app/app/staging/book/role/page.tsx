@@ -1,4 +1,4 @@
-// app/media-commons/book/form/page.tsx
+// app/staging/book/form/page.tsx
 
 import React from "react";
 import UserRolePage from "@/components/src/client/routes/booking/formPages/UserRolePage";

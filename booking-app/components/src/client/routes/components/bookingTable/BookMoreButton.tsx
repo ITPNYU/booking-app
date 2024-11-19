@@ -8,10 +8,8 @@ import {
 } from "@mui/material";
 
 import { Add } from "@mui/icons-material";
-import React from "react";
 import { styled } from "@mui/system";
 import useHandleStartBooking from "../../booking/hooks/useHandleStartBooking";
-import { useRouter } from "next/navigation";
 
 const BottomRow = styled(Table)({
   borderTop: "none",
@@ -20,7 +18,6 @@ const BottomRow = styled(Table)({
 });
 
 export default function BookMoreButton() {
-  const router = useRouter();
   const theme = useTheme();
   const handleStartBooking = useHandleStartBooking();
 
@@ -30,10 +27,7 @@ export default function BookMoreButton() {
         <TableRow>
           <TableCell sx={{ padding: "4px", borderBottom: "none" }}>
             <Button
-              onClick={() => {
-                handleStartBooking();
-                router.push("/media-commons/book");
-              }}
+              onClick={handleStartBooking}
               variant="text"
               sx={{
                 background: theme.palette.primary[50],

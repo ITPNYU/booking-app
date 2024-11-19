@@ -1,4 +1,4 @@
-// app/media-commons/book/layout.tsx
+// app/staging/book/layout.tsx
 import BookingForm from "@/components/src/client/routes/booking/BookingForm";
 import { FormContextLevel } from "@/components/src/types";
 import React from "react";
@@ -11,7 +11,7 @@ type LayoutProps = {
 const BookingLayout: React.FC<LayoutProps> = ({ children }) => (
   <BookingForm
     formContext={FormContextLevel.FULL_FORM}
-    tenant={Tenants.MEDIA_COMMONS}
+    tenant={Tenants.STAGING}
   >
     {children}
   </BookingForm>

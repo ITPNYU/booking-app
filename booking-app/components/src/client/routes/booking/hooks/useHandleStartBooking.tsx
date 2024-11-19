@@ -1,6 +1,9 @@
 import { BookingContext } from "../../../providers/BookingFormProvider";
 import { SharedDatabaseContext } from "../../../providers/SharedDatabaseProvider";
+import { Tenants } from "@/components/src/policy";
 import { useContext } from "react";
+import { useRouter } from "next/navigation";
+import useTenant from "../../../utils/useTenant";
 
 export default function useHandleStartBooking() {
   const { reloadSafetyTrainedUsers } = useContext(SharedDatabaseContext);
@@ -13,6 +16,8 @@ export default function useHandleStartBooking() {
     setBookingCalendarInfo,
     setFormData,
   } = useContext(BookingContext);
+  const router = useRouter();
+  const tenant = useTenant();
 
   const handleStartBooking = () => {
     reloadSafetyTrainedUsers();
@@ -26,6 +31,15 @@ export default function useHandleStartBooking() {
     setFormData(undefined);
 
     setHasShownMocapModal(false);
+
+    switch (tenant) {
+      case Tenants.MEDIA_COMMONS:
+        router.push("/media-commons/book");
+        break;
+      case Tenants.STAGING:
+        router.push("/staging/book");
+        break;
+    }
   };
 
   return handleStartBooking;

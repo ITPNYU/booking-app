@@ -2,17 +2,20 @@
 
 import React, { useEffect } from "react";
 
+import { BookingFormHeader } from "./components/BookingFormHeader";
 import { FormContextLevel } from "@/components/src/types";
-import { Header } from "./components/Header";
+import { Tenants } from "@/components/src/policy";
 
 type BookingFormProps = {
   children: React.ReactNode;
   formContext: FormContextLevel;
+  tenant: Tenants;
 };
 
 export default function BookingForm({
   children,
   formContext,
+  tenant,
 }: BookingFormProps) {
   useEffect(() => {
     console.log(
@@ -51,7 +54,7 @@ export default function BookingForm({
 
   return (
     <div>
-      <Header formContext={formContext} />
+      <BookingFormHeader formContext={formContext} tenant={tenant} />
       {children}
     </div>
   );

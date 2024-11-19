@@ -59,6 +59,7 @@ export default function NavBarRoleSelect({
         router.push(`${tenantPrefix}/liaison`);
         break;
     }
+    setSelectedView(e.target.value);
   };
 
   const dropdown = useMemo(() => {
@@ -71,11 +72,15 @@ export default function NavBarRoleSelect({
     }
 
     const showPA =
-      pagePermission === PagePermission.PA ||
-      pagePermission === PagePermission.ADMIN;
+      tenant === Tenants.MEDIA_COMMONS &&
+      (pagePermission === PagePermission.PA ||
+        pagePermission === PagePermission.ADMIN);
+
     const showLiaison =
-      pagePermission === PagePermission.LIAISON ||
-      pagePermission === PagePermission.ADMIN;
+      tenant === Tenants.MEDIA_COMMONS &&
+      (pagePermission === PagePermission.LIAISON ||
+        pagePermission === PagePermission.ADMIN);
+
     const showAdmin = pagePermission === PagePermission.ADMIN;
 
     return (
@@ -88,7 +93,7 @@ export default function NavBarRoleSelect({
         {showAdmin && <MenuItem value={PagePermission.ADMIN}>Admin</MenuItem>}
       </Select>
     );
-  }, [pagePermission, selectedView]);
+  }, [pagePermission, selectedView, tenant]);
 
   return dropdown;
 }

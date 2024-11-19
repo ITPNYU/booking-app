@@ -9,7 +9,6 @@ type ClientProviderProps = {
   children: React.ReactNode;
 };
 
-//TODO: Only apply BookingProvider during booking flow
 const ClientProvider: React.FC<ClientProviderProps> = ({ children }) => {
   return (
     <SharedDatabaseProvider>

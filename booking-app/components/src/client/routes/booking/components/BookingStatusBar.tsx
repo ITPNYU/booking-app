@@ -12,12 +12,14 @@ import React, { useContext } from "react";
 
 import { BookingContext } from "../../../providers/BookingFormProvider";
 import { FormContextLevel } from "@/components/src/types";
+import { Tenants } from "@/components/src/policy";
 import { styled } from "@mui/system";
 import useCalculateOverlap from "../hooks/useCalculateOverlap";
 import useCheckAutoApproval from "../hooks/useCheckAutoApproval";
 
 interface Props {
   formContext: FormContextLevel;
+  tenant: Tenants;
   goBack: () => void;
   goNext: () => void;
   hideBackButton: boolean;
@@ -32,7 +34,11 @@ const NavGrid = styled(Box)`
   padding-right: 18px;
 `;
 
-export default function BookingStatusBar({ formContext, ...props }: Props) {
+export default function BookingStatusBar({
+  formContext,
+  tenant,
+  ...props
+}: Props) {
   const isWalkIn = formContext === FormContextLevel.WALK_IN;
   const { isAutoApproval, errorMessage } = useCheckAutoApproval(isWalkIn);
   const { bookingCalendarInfo, selectedRooms, isBanned, needsSafetyTraining } =
