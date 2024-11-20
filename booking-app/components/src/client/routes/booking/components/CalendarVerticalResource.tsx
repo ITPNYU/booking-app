@@ -6,10 +6,11 @@ import {
   EventDropArg,
 } from "@fullcalendar/core";
 import CalendarEventBlock, { NEW_TITLE_TAG } from "./CalendarEventBlock";
-import { FormContextLevel, RoomSetting } from "../../../../types";
-import React, { useContext, useEffect, useMemo, useRef } from "react";
+import { Days, FormContextLevel, RoomSetting } from "../../../../types";
+import { useContext, useEffect, useMemo, useRef } from "react";
 
 import { BookingContext } from "../bookingProvider";
+import { DatabaseContext } from "../../components/Provider";
 import { Error } from "@mui/icons-material";
 import { EventResizeDoneArg } from "fullcalendar";
 import FullCalendar from "@fullcalendar/react";
@@ -84,6 +85,7 @@ export default function CalendarVerticalResource({
   rooms,
   dateView,
 }: Props) {
+  const { operationHours } = useContext(DatabaseContext);
   const {
     bookingCalendarInfo,
     existingCalendarEvents,
@@ -239,6 +241,13 @@ export default function CalendarVerticalResource({
       </Empty>
     );
   }
+
+  const operationHoursToday = operationHours.find(
+    (setting) => Object.values(Days)[dateView.getDay()] === setting.day
+  );
+  const slotMinTime = `${operationHoursToday.open}:00:00`;
+  const slotMaxTime = `${operationHoursToday.close}:00:00`;
+  // don't use these values until we talk to Samantha/Jhanele
 
   return (
     <FullCalendarWrapper>
