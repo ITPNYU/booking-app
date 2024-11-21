@@ -25,7 +25,7 @@ interface SendHTMLEmailParams {
   requestNumber: number;
   body: string;
   approverType?: ApproverType;
-  replyTo: string;
+  replyTo?: string;
 }
 
 export const sendHTMLEmail = async (params: SendHTMLEmailParams) => {
