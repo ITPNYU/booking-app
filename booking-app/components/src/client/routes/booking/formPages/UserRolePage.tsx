@@ -28,10 +28,10 @@ const Container = styled(Box)(({ theme }) => ({
 }));
 
 const roleMappings: Record<Role, string[]> = {
-  [Role.STUDENT]: ["STUDENT", "DEGREE", "UNDERGRADUATE", "GRADUATE"],
-  [Role.RESIDENT_FELLOW]: ["FELLOW", "RESIDENT", "POSTDOC"],
-  [Role.FACULTY]: ["FACULTY", "PROFESSOR", "INSTRUCTOR", "LECTURER"],
-  [Role.ADMIN_STAFF]: ["ADMIN", "STAFF", "EMPLOYEE"],
+  [Role.STUDENT]: ["STUDENT", "DEGREE"],
+  [Role.RESIDENT_FELLOW]: ["FELLOW", "RESIDENT", "POST DOCTORAL FELLOW"],
+  [Role.FACULTY]: ["FACULTY", "PROFESSOR", "ADJUNCT FUACULTY", "LECTURER"],
+  [Role.ADMIN_STAFF]: ["ADMINISTRATOR", "STAFF", "EMPLOYEE"],
 };
 
 const departmentMappings: Record<Department, string[]> = {
