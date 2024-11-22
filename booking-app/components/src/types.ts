@@ -196,6 +196,7 @@ export enum Role {
   RESIDENT_FELLOW = "Resident/Fellow",
   FACULTY = "Faculty",
   ADMIN_STAFF = "Admin/Staff",
+  CHAIR_PROGRAM_DIRECTOR = "Chair/Program Director"
 }
 
 export type RoomSetting = {
