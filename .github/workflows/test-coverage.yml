@@ -17,25 +17,19 @@ jobs:
         with:
           node-version: lts/*
 
-      - run: cd booking-app
+      - run: cd booking-app && npm ci
 
-      - name: Install dependencies
-        run: npm ci
+      - run: cd booking-app && npx playwright install --with-deps
 
-      - name: Install Playwright Browsers
-        run: npx playwright install --with-deps
-
-      - name: Start Next.js Development Server
-        run: |
-          npm run dev &  # Start the Next.js development server in the background
+      - run: |
+          cd booking-app && npm run dev &  # Start the Next.js development server in the background
           sleep 10  # Wait a few seconds to allow the server to start
 
-      - name: Run Playwright tests
-        run: npx playwright test
+      - run: cd booking-app && npx playwright test
 
       - uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
         with:
           name: playwright-report
-          path: playwright-report/
+          path: booking-app/playwright-report/
           retention-days: 30
