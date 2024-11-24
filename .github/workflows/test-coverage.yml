@@ -17,42 +17,44 @@ jobs:
         with:
           node-version: lts/*
 
-      - name: Create .env file
-        run: |
-          cd booking-app
-          echo "NEXT_PUBLIC_BASE_URL=${{ secrets.NEXT_PUBLIC_BASE_URL }}" >> .env.production
-          echo "GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}" >> .env.production
-          echo "GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}" >> .env.production
-          echo "GOOGLE_REDIRECT_URI=${{ secrets.GOOGLE_REDIRECT_URI }}" >> .env.production
-          echo "GOOGLE_REFRESH_TOKEN=${{ secrets.GOOGLE_REFRESH_TOKEN }}" >> .env.production
-          echo "GOOGLE_API_KEY=${{ secrets.GOOGLE_API_KEY }}" >> .env.production
-          echo "GOOGLE_SHEET_ID=${{ secrets.GOOGLE_SHEET_ID }}" >> .env.production
-          echo "GOOGLE_SPREADSHEET_ID=${{ secrets.GOOGLE_SPREADSHEET_ID }}" >> .env.production
-          echo "FIREBASE_PROJECT_ID=${{ secrets.FIREBASE_PROJECT_ID }}" >> .env.production
-          echo "FIREBASE_PRIVATE_KEY_ID=${{ secrets.FIREBASE_PRIVATE_KEY_ID }}" >> .env.production
-          echo "FIREBASE_PRIVATE_KEY=${{ secrets.FIREBASE_PRIVATE_KEY }}" >> .env.production
-          echo "FIREBASE_CLIENT_EMAIL=${{ secrets.FIREBASE_CLIENT_EMAIL }}" >> .env.production
-          echo "FIREBASE_CLIENT_ID=${{ secrets.FIREBASE_CLIENT_ID }}" >> .env.production
-          echo "FIREBASE_AUTH_URI=${{ secrets.FIREBASE_AUTH_URI }}" >> .env.production
-          echo "FIREBASE_TOKEN_URI=${{ secrets.FIREBASE_TOKEN_URI }}" >> .env.production
-          echo "FIREBASE_AUTH_PROVIDER_X509_CERT_URL=${{ secrets.FIREBASE_AUTH_PROVIDER_X509_CERT_URL }}" >> .env.production  
-          echo "FIREBASE_CLIENT_X509_CERT_URL=${{ secrets.FIREBASE_CLIENT_X509_CERT_URL }}" >> .env.production
-          echo "NEXT_PUBLIC_FIREBASE_API_KEY=${{ secrets.NEXT_PUBLIC_FIREBASE_API_KEY }}" >> .env.production
-          echo "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=${{ secrets.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN }}" >> .env.production
-          echo "NEXT_PUBLIC_FIREBASE_PROJECT_ID=${{ secrets.NEXT_PUBLIC_FIREBASE_PROJECT_ID }}" >> .env.production
-          echo "NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=${{ secrets.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET }}" >> .env.production 
-          echo "NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=${{ secrets.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID }}" >> .env.production 
-          echo "NEXT_PUBLIC_FIREBASE_APP_ID=${{ secrets.NEXT_PUBLIC_FIREBASE_APP_ID }}" >> .env.production
-          echo "NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=${{ secrets.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID }}" >> .env.production
-          echo "NEXT_PUBLIC_DATABASE_NAME=${{ secrets.NEXT_PUBLIC_DATABASE_NAME }}" >> .env.production
-          echo "NEXT_PUBLIC_BRANCH_NAME=${{ secrets.NEXT_PUBLIC_BRANCH_NAME }}" >> .env.production
-          echo "NEXT_PUBLIC_GCP_LOG_NAME=${{ secrets.NEXT_PUBLIC_GCP_LOG_NAME }}" >> .env.production
-          echo "NYU_API_CLIENT_ID=${{ secrets.NYU_API_CLIENT_ID }}" >> .env.production
-          echo "NYU_API_CLIENT_SECRET=${{ secrets.NYU_API_CLIENT_SECRET }}" >> .env.production
-          echo "NYU_API_USER_NAME=${{ secrets.NYU_API_USER_NAME }}" >> .env.production
-          echo "NYU_API_PASSWORD=${{ secrets.NYU_API_PASSWORD }}" >> .env.production
-          echo "NYU_API_ACCESS_ID=${{ secrets.NYU_API_ACCESS_ID }}" >> .env.production
       
+    - name: Create .env file
+      run: |
+        cd booking-app
+        echo "NEXT_PUBLIC_BASE_URL=${{ secrets.NEXT_PUBLIC_BASE_URL_DEV }}" >> .env.local
+        echo "NEXT_PUBLIC_BRANCH_NAME=${{ secrets.NEXT_PUBLIC_BRANCH_NAME_DEV }}" >> .env.local
+        echo "GOOGLE_REDIRECT_URI=${{ secrets.GOOGLE_REDIRECT_URI_DEV }}" >> .env.local
+        echo "GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID_DEV }}" >> .env.local
+        echo "GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET_DEV }}" >> .env.local
+        echo "GOOGLE_REFRESH_TOKEN=${{ secrets.GOOGLE_REFRESH_TOKEN_DEV }}" >> .env.local
+        echo "GOOGLE_SPREADSHEET_ID=${{ secrets.GOOGLE_SPREADSHEET_ID_DEV }}" >> .env.local
+        echo "GOOGLE_SHEET_ID=${{ secrets.GOOGLE_SHEET_ID_DEV }}" >> .env.local
+        echo "NEXT_PUBLIC_FIREBASE_API_KEY=${{ secrets.NEXT_PUBLIC_FIREBASE_API_KEY_DEV }}" >> .env.local
+        echo "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=${{ secrets.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN_DEV }}" >> .env.local
+        echo "NEXT_PUBLIC_FIREBASE_PROJECT_ID=${{ secrets.NEXT_PUBLIC_FIREBASE_PROJECT_ID_DEV }}" >> .env.local
+        echo "NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=${{ secrets.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET_DEV }}" >> .env.local
+        echo "NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=${{ secrets.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID_DEV }}" >> .env.local
+        echo "NEXT_PUBLIC_FIREBASE_APP_ID=${{ secrets.NEXT_PUBLIC_FIREBASE_APP_ID_DEV }}" >> .env.local
+        echo "NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=${{ secrets.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID_DEV }}" >> .env.local
+        echo "NEXT_PUBLIC_DATABASE_NAME=${{ secrets.NEXT_PUBLIC_DATABASE_NAME_DEV }}" >> .env.local
+        echo "FIREBASE_PROJECT_ID=${{ secrets.FIREBASE_PROJECT_ID_DEV }}" >> .env.local
+        echo "FIREBASE_PRIVATE_KEY_ID=${{ secrets.FIREBASE_PRIVATE_KEY_ID_DEV }}" >> .env.local
+        echo "FIREBASE_PRIVATE_KEY=${{ secrets.FIREBASE_PRIVATE_KEY_DEV }}" >> .env.local
+        echo "FIREBASE_CLIENT_EMAIL=${{ secrets.FIREBASE_CLIENT_EMAIL_DEV }}" >> .env.local
+        echo "FIREBASE_CLIENT_ID=${{ secrets.FIREBASE_CLIENT_ID_DEV }}" >> .env.local
+        echo "FIREBASE_AUTH_URI=${{ secrets.FIREBASE_AUTH_URI_DEV }}" >> .env.local
+        echo "FIREBASE_TOKEN_URI=${{ secrets.FIREBASE_TOKEN_URI_DEV }}" >> .env.local
+        echo "FIREBASE_AUTH_PROVIDER_X509_CERT_URL=${{ secrets.FIREBASE_AUTH_PROVIDER_X509_CERT_URL_DEV }}" >> .env.local
+        echo "FIREBASE_CLIENT_X509_CERT_URL=${{ secrets.FIREBASE_CLIENT_X509_CERT_URL_DEV }}" >> .env.local
+        echo "NEXT_PUBLIC_USE_FIREBASE_EMULATOR=${{ secrets.NEXT_PUBLIC_USE_FIREBASE_EMULATOR_DEV }}" >> .env.local
+        echo "NEXT_PUBLIC_GCP_LOG_NAME=${{ secrets.NEXT_PUBLIC_GCP_LOG_NAME_DEV }}" >> .env.local
+        echo "NYU_API_CLIENT_ID=${{ secrets.NYU_API_CLIENT_ID_DEV }}" >> .env.local
+        echo "NYU_API_CLIENT_SECRET=${{ secrets.NYU_API_CLIENT_SECRET_DEV }}" >> .env.local
+        echo "NYU_API_USER_NAME=${{ secrets.NYU_API_USER_NAME_DEV }}" >> .env.local
+        echo "NYU_API_PASSWORD=${{ secrets.NYU_API_PASSWORD_DEV }}" >> .env.local
+        echo "NYU_API_ACCESS_ID=${{ secrets.NYU_API_ACCESS_ID_DEV }}" >> .env.local
+
+          
       - run: cd booking-app && npm ci
 
       - run: cd booking-app && npx playwright install --with-deps
