@@ -24,7 +24,7 @@ jobs:
       - run: |
           cd booking-app && npm run dev &  # Start the Next.js development server in the background
           sleep 10  # Wait a few seconds to allow the server to start
-          npx playwright test  # Run Playwright tests
+          node node_modules/@playwright/test/cli.js test
 
       - uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
