@@ -1,0 +1,46 @@
+name: E2E Tests with Playwright
+
+on:
+  push:
+    branches:
+      - test-coverage
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:latest
+        env:
+          POSTGRES_DB: test_db
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+        ports:
+          - 5432:5432
+        options: --health-cmd="pg_isready -U test_user" --health-timeout=30s --health-retries=3
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+
+    - name: Install dependencies
+      run: |
+        npm ci
+
+    - name: Start the Next.js development server
+      run: |
+        npm run dev &  # Start the Next.js server in the background
+        sleep 10  # Wait a few seconds to allow the server to start
+
+    - name: Run Playwright end-to-end tests
+      run: |
+        npx playwright test  # Run Playwright tests
+
+    - name: Stop the server (optional)
+      run: |
+        pkill -f "next dev"  # Stop the Next.js server after tests finish
