@@ -17,6 +17,8 @@ jobs:
         with:
           node-version: lts/*
 
+      - run: cd booking-app
+
       - name: Install dependencies
         run: npm ci
 
