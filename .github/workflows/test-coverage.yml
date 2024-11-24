@@ -56,13 +56,17 @@ jobs:
           EOF
 
       - run: cd booking-app && npm ci
-
+      - run: sudo apt-get update && sudo apt-get install -y libfontconfig1 libicu66 libjpeg-turbo8 libvpx6 libevent-2.1-7
       - run: cd booking-app && npx playwright install --with-deps
+      
+      - name: Start Booking App development server
+        run: |
+          cd booking-app && npm run dev &  # Start the server in the background
+          npx wait-on http://localhost:3000  # Wait for the server to be ready
 
-      - run: |
-          cd booking-app && npm run dev &  # Start the Next.js development server in the background
-          npx wait-on http://localhost:3000
-          cd test
+      - name: Run Playwright tests
+        run: |
+          cd booking-app
           npx playwright test
 
       - uses: actions/upload-artifact@v4
