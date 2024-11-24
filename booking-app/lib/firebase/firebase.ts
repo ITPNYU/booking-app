@@ -86,7 +86,7 @@ export const clientFetchAllDataFromCollectionWithLimitAndOffset = async <T>(
 export const getPaginatedData = async<T> (
   collectionName,
   itemsPerPage = 10,
-  orderByField = 'calendarEventId',
+  orderByField = 'requestedAt',
   lastVisible = null
  ) : Promise<T[]> => {
   try {
@@ -98,7 +98,7 @@ export const getPaginatedData = async<T> (
     // Build query
     let q = query(
       colRef,
-      orderBy(orderByField),
+      orderBy(orderByField, 'desc'),
       limit(itemsPerPage)
     );
     
@@ -107,7 +107,7 @@ export const getPaginatedData = async<T> (
       console.log(lastVisible);
       q = query(
         colRef,
-        orderBy(orderByField),
+        orderBy(orderByField, 'desc'),
         startAfter(lastVisible),
         limit(itemsPerPage)
       );
@@ -121,7 +121,7 @@ export const getPaginatedData = async<T> (
       id: doc.id,
       ...doc.data() as unknown as T
     }));
-    
+    console.log(items)
     return items;
   } catch (error) {
     console.error('Error getting paginated data:', error);

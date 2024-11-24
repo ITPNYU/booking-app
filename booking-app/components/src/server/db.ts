@@ -27,7 +27,7 @@ export const fetchAllFutureBooking = async <Booking>(): Promise<Booking[]> => {
 };
 
 export const fetchAllBookings = async <Booking>(limit:number, last:any) : Promise<Booking[]> =>{
-  return getPaginatedData<Booking>(TableNames.BOOKING, limit, "calendarEventId", last);
+  return getPaginatedData<Booking>(TableNames.BOOKING, limit, "requestedAt", last);
 }
 
 

@@ -19,6 +19,7 @@ import {
 import { useAuth } from "@/components/src/client/routes/components/AuthProvider";
 import { fetchAllBookings, fetchAllFutureBooking } from "@/components/src/server/db";
 import { clientFetchAllDataFromCollection } from "@/lib/firebase/firebase";
+import { Timestamp } from "firebase-admin/firestore";
 
 export interface DatabaseContextType {
   adminUsers: AdminUser[];
@@ -103,7 +104,7 @@ export const DatabaseProvider = ({
   const [userApiData, setUserApiData] = useState<UserApiData | undefined>(
     undefined
   );
-  const [lastItem, setLastItem] = useState<any>(null);
+  const [lastItem, setLastItem] = useState<Timestamp>(null);
   const LIMIT = 3;
 
   const { user } = useAuth();
@@ -190,7 +191,7 @@ export const DatabaseProvider = ({
   const fetchBookings = async () => {
     try{
       const bookingsResponse : Booking[] = await fetchAllBookings(LIMIT, lastItem);
-      setLastItem(bookingsResponse[bookingsResponse.length - 1].calendarEventId);
+      setLastItem(bookingsResponse[bookingsResponse.length - 1].requestedAt);
       setAllBookings((oldBookings) => [...oldBookings, ...bookingsResponse]);
     } catch (error) {
       console.error("Error fetching data:", error);
