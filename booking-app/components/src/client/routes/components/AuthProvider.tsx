@@ -9,12 +9,14 @@ type AuthContextType = {
   user: User | null;
   loading: boolean;
   error: string | null;
+  isOnTestEnv: boolean;
 };
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: true,
   error: null,
+  isOnTestEnv: false,
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -25,13 +27,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isOnTestEnv, setIsOnTestEnv] = useState<boolean>(false);
+
   const router = useRouter();
   const pathname = usePathname();
+  
   useEffect(() => {
     const handleAuth = async () => {
+      const testEnvRes = await fetch("/api/isTestEnv");
+      const { isOnTestEnv } = await testEnvRes.json();
+      setIsOnTestEnv(isOnTestEnv);
+      
       const user = auth.currentUser;
       if (user) {
-        if (user.email?.endsWith("@nyu.edu")) {
+        if (user.email?.endsWith("@nyu.edu") || isOnTestEnv) {
           setUser(user);
         } else {
           await auth.signOut();
@@ -62,7 +71,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [error, router]);
 
   return (
-    <AuthContext.Provider value={{ user, loading, error }}>
+    <AuthContext.Provider value={{ user, loading, error, isOnTestEnv }}>
       {children}
     </AuthContext.Provider>
   );

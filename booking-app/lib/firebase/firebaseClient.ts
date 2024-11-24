@@ -31,15 +31,18 @@ export const getDb = () => {
 };
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
-googleProvider.setCustomParameters({
-  hd: "nyu.edu",
-});
+
+if(process.env.NEXT_PUBLIC_BRANCH_NAME !== "development") {
+  googleProvider.setCustomParameters({
+    hd: "nyu.edu",
+  });
+}
 
 export const signInWithGoogle = async () => {
   try {
     const result = await signInWithPopup(auth, googleProvider);
     const user = result.user;
-    if (!user.email?.endsWith("@nyu.edu")) {
+    if (!user.email?.endsWith("@nyu.edu") && process.env.NEXT_PUBLIC_BRANCH_NAME !== "development") {
       await auth.signOut();
       throw new Error("Only nyu.edu email addresses are allowed.");
     }

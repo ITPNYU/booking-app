@@ -245,7 +245,7 @@ export default function CalendarVerticalResource({
   const operationHoursToday = operationHours.find(
     (setting) => Object.values(Days)[dateView.getDay()] === setting.day
   );
-
+console.log(operationHoursToday)
   if (operationHoursToday.isClosed) {
     return (
       <Empty>

@@ -17,23 +17,62 @@ jobs:
         with:
           node-version: lts/*
 
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Install Playwright Browsers
-        run: npx playwright install --with-deps
-
-      - name: Start Next.js Development Server
+      - name: Create .env file
         run: |
-          npm run dev &  # Start the Next.js development server in the background
-          sleep 10  # Wait a few seconds to allow the server to start
+          cd booking-app
+          cat <<EOF > .env.local
+          NEXT_PUBLIC_BASE_URL="${{ secrets.NEXT_PUBLIC_BASE_URL_DEV }}"
+          NEXT_PUBLIC_BRANCH_NAME="${{ secrets.NEXT_PUBLIC_BRANCH_NAME_DEV }}"
+          GOOGLE_REDIRECT_URI="${{ secrets.GOOGLE_REDIRECT_URI_DEV }}"
+          GOOGLE_CLIENT_ID="${{ secrets.GOOGLE_CLIENT_ID_DEV }}"
+          GOOGLE_CLIENT_SECRET="${{ secrets.GOOGLE_CLIENT_SECRET_DEV }}"
+          GOOGLE_REFRESH_TOKEN="${{ secrets.GOOGLE_REFRESH_TOKEN_DEV }}"
+          GOOGLE_SPREADSHEET_ID="${{ secrets.GOOGLE_SPREADSHEET_ID_DEV }}"
+          GOOGLE_SHEET_ID="${{ secrets.GOOGLE_SHEET_ID_DEV }}"
+          NEXT_PUBLIC_FIREBASE_API_KEY="${{ secrets.NEXT_PUBLIC_FIREBASE_API_KEY_DEV }}"
+          NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN="${{ secrets.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN_DEV }}"
+          NEXT_PUBLIC_FIREBASE_PROJECT_ID="${{ secrets.NEXT_PUBLIC_FIREBASE_PROJECT_ID_DEV }}"
+          NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET="${{ secrets.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET_DEV }}"
+          NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID="${{ secrets.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID_DEV }}"
+          NEXT_PUBLIC_FIREBASE_APP_ID="${{ secrets.NEXT_PUBLIC_FIREBASE_APP_ID_DEV }}"
+          NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID="${{ secrets.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID_DEV }}"
+          NEXT_PUBLIC_DATABASE_NAME="${{ secrets.NEXT_PUBLIC_DATABASE_NAME_DEV }}"
+          FIREBASE_PROJECT_ID="${{ secrets.FIREBASE_PROJECT_ID_DEV }}"
+          FIREBASE_PRIVATE_KEY_ID="${{ secrets.FIREBASE_PRIVATE_KEY_ID_DEV }}"
+          FIREBASE_PRIVATE_KEY="${{ secrets.FIREBASE_PRIVATE_KEY_DEV }}"
+          FIREBASE_CLIENT_EMAIL="${{ secrets.FIREBASE_CLIENT_EMAIL_DEV }}"
+          FIREBASE_CLIENT_ID="${{ secrets.FIREBASE_CLIENT_ID_DEV }}"
+          FIREBASE_AUTH_URI="${{ secrets.FIREBASE_AUTH_URI_DEV }}"
+          FIREBASE_TOKEN_URI="${{ secrets.FIREBASE_TOKEN_URI_DEV }}"
+          FIREBASE_AUTH_PROVIDER_X509_CERT_URL="${{ secrets.FIREBASE_AUTH_PROVIDER_X509_CERT_URL_DEV }}"
+          FIREBASE_CLIENT_X509_CERT_URL="${{ secrets.FIREBASE_CLIENT_X509_CERT_URL_DEV }}"
+          NEXT_PUBLIC_USE_FIREBASE_EMULATOR="${{ secrets.NEXT_PUBLIC_USE_FIREBASE_EMULATOR_DEV }}"
+          NEXT_PUBLIC_GCP_LOG_NAME="${{ secrets.NEXT_PUBLIC_GCP_LOG_NAME_DEV }}"
+          NYU_API_CLIENT_ID="${{ secrets.NYU_API_CLIENT_ID_DEV }}"
+          NYU_API_CLIENT_SECRET="${{ secrets.NYU_API_CLIENT_SECRET_DEV }}"
+          NYU_API_USER_NAME="${{ secrets.NYU_API_USER_NAME_DEV }}"
+          NYU_API_PASSWORD="${{ secrets.NYU_API_PASSWORD_DEV }}"
+          NYU_API_ACCESS_ID="${{ secrets.NYU_API_ACCESS_ID_DEV }}"
+          TEST_EMAIL_ADDRESS="${{ secrets.TEST_EMAIL_ADDRESS_DEV }}"
+          TEST_PASSWORD="${{ secrets.TEST_PASSWORD_DEV }}"
+          EOF
+
+      - run: cd booking-app && npm ci
+      - run: cd booking-app && npx playwright install --with-deps
+      
+      - name: Start Booking App development server
+        run: |
+          cd booking-app && npm run dev &  # Start the server in the background
+          npx wait-on http://localhost:3000  # Wait for the server to be ready
 
       - name: Run Playwright tests
-        run: npx playwright test
+        run: |
+          cd booking-app
+          npx playwright test
 
       - uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
         with:
           name: playwright-report
-          path: playwright-report/
+          path: booking-app/playwright-report/
           retention-days: 30
