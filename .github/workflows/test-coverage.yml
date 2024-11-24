@@ -1,46 +1,39 @@
-name: E2E Tests with Playwright
+name: Playwright Tests
 
 on:
   push:
-    branches:
-      - test-coverage
+    branches: [ test-coverage ]
+  pull_request:
+    branches: [ test-coverage ]
 
 jobs:
-  e2e:
+  test:
+    timeout-minutes: 60
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:latest
-        env:
-          POSTGRES_DB: test_db
-          POSTGRES_USER: test_user
-          POSTGRES_PASSWORD: test_password
-        ports:
-          - 5432:5432
-        options: --health-cmd="pg_isready -U test_user" --health-timeout=30s --health-retries=3
-    
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
-    - name: Set up Node.js
-      uses: actions/setup-node@v3
-      with:
-        node-version: '18'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
 
-    - name: Install dependencies
-      run: |
-        npm ci
+      - name: Install dependencies
+        run: npm ci
 
-    - name: Start the Next.js development server
-      run: |
-        npm run dev &  # Start the Next.js server in the background
-        sleep 10  # Wait a few seconds to allow the server to start
+      - name: Install Playwright Browsers
+        run: npx playwright install --with-deps
 
-    - name: Run Playwright end-to-end tests
-      run: |
-        npx playwright test  # Run Playwright tests
+      - name: Start Next.js Development Server
+        run: |
+          npm run dev &  # Start the Next.js development server in the background
+          sleep 10  # Wait a few seconds to allow the server to start
 
-    - name: Stop the server (optional)
-      run: |
-        pkill -f "next dev"  # Stop the Next.js server after tests finish
+      - name: Run Playwright tests
+        run: npx playwright test
+
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 30
