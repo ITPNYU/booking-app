@@ -1,3 +1,5 @@
+import { ApproverLevel, TableNames } from "@/components/src/policy";
+import React, { createContext, useEffect, useMemo, useState } from "react";
 import {
   AdminUser,
   Approver,
@@ -5,21 +7,17 @@ import {
   Booking,
   BookingType,
   DepartmentType,
-  OperationHours,
   PaUser,
   PagePermission,
   PolicySettings,
   RoomSetting,
   SafetyTraining,
   Settings,
-  UserApiData,
 } from "../../../types";
-import { ApproverLevel, TableNames } from "@/components/src/policy";
-import React, { createContext, useEffect, useMemo, useState } from "react";
 
-import { clientFetchAllDataFromCollection } from "@/lib/firebase/firebase";
-import { fetchAllFutureBooking } from "@/components/src/server/db";
 import { useAuth } from "@/components/src/client/routes/components/AuthProvider";
+import { fetchAllFutureBooking } from "@/components/src/server/db";
+import { clientFetchAllDataFromCollection } from "@/lib/firebase/firebase";
 
 export interface DatabaseContextType {
   adminUsers: AdminUser[];
@@ -28,7 +26,6 @@ export interface DatabaseContextType {
   bookingsLoading: boolean;
   liaisonUsers: Approver[];
   departmentNames: DepartmentType[];
-  operationHours: OperationHours[];
   pagePermission: PagePermission;
   paUsers: PaUser[];
   policySettings: PolicySettings;
@@ -37,13 +34,11 @@ export interface DatabaseContextType {
   settings: Settings;
   userEmail: string | undefined;
   netId: string | undefined;
-  userApiData: UserApiData | undefined;
   reloadAdminUsers: () => Promise<void>;
   reloadApproverUsers: () => Promise<void>;
   reloadBannedUsers: () => Promise<void>;
   reloadBookings: () => Promise<void>;
   reloadDepartmentNames: () => Promise<void>;
-  reloadOperationHours: () => Promise<void>;
   reloadPaUsers: () => Promise<void>;
   reloadBookingTypes: () => Promise<void>;
   reloadSafetyTrainedUsers: () => Promise<void>;
@@ -57,7 +52,6 @@ export const DatabaseContext = createContext<DatabaseContextType>({
   bookingsLoading: true,
   liaisonUsers: [],
   departmentNames: [],
-  operationHours: [],
   pagePermission: PagePermission.BOOKING,
   paUsers: [],
   policySettings: { finalApproverEmail: "" },
@@ -66,13 +60,11 @@ export const DatabaseContext = createContext<DatabaseContextType>({
   settings: { bookingTypes: [] },
   userEmail: undefined,
   netId: undefined,
-  userApiData: undefined,
   reloadAdminUsers: async () => {},
   reloadApproverUsers: async () => {},
   reloadBannedUsers: async () => {},
   reloadBookings: async () => {},
   reloadDepartmentNames: async () => {},
-  reloadOperationHours: async () => {},
   reloadPaUsers: async () => {},
   reloadBookingTypes: async () => {},
   reloadSafetyTrainedUsers: async () => {},
@@ -90,7 +82,6 @@ export const DatabaseProvider = ({
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
   const [liaisonUsers, setLiaisonUsers] = useState<Approver[]>([]);
   const [departmentNames, setDepartmentName] = useState<DepartmentType[]>([]);
-  const [operationHours, setOperationHours] = useState<OperationHours[]>([]);
   const [paUsers, setPaUsers] = useState<PaUser[]>([]);
   const [policySettings, setPolicySettings] = useState<PolicySettings>({
     finalApproverEmail: "",
@@ -101,27 +92,8 @@ export const DatabaseProvider = ({
   >([]);
   const [settings, setSettings] = useState<Settings>({ bookingTypes: [] });
   const [userEmail, setUserEmail] = useState<string | undefined>();
-  const [userApiData, setUserApiData] = useState<UserApiData | undefined>(
-    undefined
-  );
-
   const { user } = useAuth();
   const netId = useMemo(() => userEmail?.split("@")[0], [userEmail]);
-  useEffect(() => {
-    const fetchUserApiData = async () => {
-      if (!netId) return;
-      try {
-        const response = await fetch(`/api/nyu/identity/${netId}`);
-        if (response.ok) {
-          const data = await response.json();
-          setUserApiData(data);
-        }
-      } catch (err) {
-        console.error("Failed to fetch user data:", err);
-      }
-    };
-    fetchUserApiData();
-  }, [netId]);
 
   // page permission updates with respect to user email, admin list, PA list
   const pagePermission = useMemo<PagePermission>(() => {
@@ -395,14 +367,6 @@ export const DatabaseProvider = ({
       .catch((error) => console.error("Error fetching data:", error));
   };
 
-  const fetchOperationHours = async () => {
-    clientFetchAllDataFromCollection(TableNames.OPERATION_HOURS)
-      .then((fetchedData) => {
-        setOperationHours(fetchedData as OperationHours[]);
-      })
-      .catch((error) => console.error("Error fetching data:", error));
-  };
-
   // const fetchPolicySettings = async () => {
   //   clientFetchAllDataFromCollection(TableNames.POLICY)
   //     .then((fetchedData) => {
@@ -418,7 +382,6 @@ export const DatabaseProvider = ({
 
   const fetchSettings = async () => {
     fetchBookingTypes();
-    fetchOperationHours();
   };
 
   return (
@@ -429,7 +392,6 @@ export const DatabaseProvider = ({
         bookings,
         liaisonUsers,
         departmentNames,
-        operationHours,
         paUsers,
         pagePermission,
         policySettings,
@@ -439,13 +401,11 @@ export const DatabaseProvider = ({
         userEmail,
         netId,
         bookingsLoading,
-        userApiData,
         reloadAdminUsers: fetchAdminUsers,
         reloadApproverUsers: fetchApproverUsers,
         reloadBannedUsers: fetchBannedUsers,
         reloadBookings: fetchBookings,
         reloadDepartmentNames: fetchDepartmentNames,
-        reloadOperationHours: fetchOperationHours,
         reloadPaUsers: fetchPaUsers,
         reloadBookingTypes: fetchBookingTypes,
         reloadSafetyTrainedUsers: fetchSafetyTrainedUsers,

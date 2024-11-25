@@ -49,7 +49,6 @@ export class NYUTokenManager {
       headers: {
         Authorization: this.getBasicAuthHeader(),
         "Content-Type": "application/x-www-form-urlencoded",
-        cache: "no-store",
       },
       body: params.toString(),
     });

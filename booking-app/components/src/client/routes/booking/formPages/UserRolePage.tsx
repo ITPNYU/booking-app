@@ -1,15 +1,16 @@
 "use client";
-import { Box, Button, Typography } from "@mui/material";
-import { styled } from "@mui/material/styles";
-import { useRouter } from "next/navigation";
-import { useContext, useEffect, useRef } from "react";
-import { useForm } from "react-hook-form";
+
+import { Box, Button, TextField, Typography } from "@mui/material";
 import { Department, FormContextLevel, Inputs, Role } from "../../../../types";
-import { useAuth } from "../../components/AuthProvider";
-import { DatabaseContext } from "../../components/Provider";
+import React, { useContext, useEffect, useRef, useState } from "react";
+
 import { BookingContext } from "../bookingProvider";
 import { BookingFormTextField } from "../components/BookingFormInputs";
 import Dropdown from "../components/Dropdown";
+import { styled } from "@mui/material/styles";
+import { useAuth } from "../../components/AuthProvider";
+import { useForm } from "react-hook-form";
+import { useRouter } from "next/navigation";
 
 const Center = styled(Box)`
   width: 100%;
@@ -27,53 +28,6 @@ const Container = styled(Box)(({ theme }) => ({
   border: `1px solid ${theme.palette.divider}`,
 }));
 
-const roleMappings: Record<Role, string[]> = {
-  [Role.STUDENT]: ["STUDENT", "DEGREE"],
-  [Role.RESIDENT_FELLOW]: ["FELLOW", "RESIDENT", "POST DOCTORAL FELLOW"],
-  [Role.FACULTY]: ["FACULTY", "PROFESSOR", "ADJUNCT FUACULTY", "LECTURER"],
-  [Role.ADMIN_STAFF]: ["ADMINISTRATOR", "STAFF", "EMPLOYEE"],
-};
-
-const departmentMappings: Record<Department, string[]> = {
-  [Department.ITP]: ["ITP", "IMA", "LOWRES"],
-  [Department.ALT]: ["ALT"],
-  [Department.CDI]: ["CDI"],
-  [Department.GAMES]: ["GAMES", "GAMECENTER"],
-  [Department.IDM]: ["IDM"],
-  [Department.MARL]: ["MARL"],
-  [Department.MPAP]: ["MPAP", "PERFORMINGARTS"],
-  [Department.MUSIC_TECH]: ["MUSICTECH", "MUSTECH"],
-  [Department.OTHER]: [],
-};
-
-const mapAffiliationToRole = (affiliation?: string): Role | undefined => {
-  if (!affiliation) return undefined;
-
-  const normalizedAffiliation = affiliation.toUpperCase();
-
-  for (const [role, affiliations] of Object.entries(roleMappings)) {
-    if (affiliations.includes(normalizedAffiliation)) {
-      return role as Role;
-    }
-  }
-
-  return undefined;
-};
-
-const mapDepartmentCode = (deptCode?: string): Department | undefined => {
-  if (!deptCode) return undefined;
-
-  const normalizedCode = deptCode.toUpperCase();
-
-  for (const [dept, codes] of Object.entries(departmentMappings)) {
-    if (codes.includes(normalizedCode)) {
-      return dept as Department;
-    }
-  }
-
-  return Department.OTHER;
-};
-
 interface Props {
   calendarEventId?: string;
   formContext?: FormContextLevel;
@@ -85,7 +39,7 @@ export default function UserRolePage({
 }: Props) {
   const { formData, role, department, setDepartment, setRole, setFormData } =
     useContext(BookingContext);
-  const { userApiData } = useContext(DatabaseContext);
+
   const router = useRouter();
   const { user } = useAuth();
 
@@ -96,36 +50,21 @@ export default function UserRolePage({
     formState: { errors },
   } = useForm<Inputs>({
     defaultValues: {
-      ...formData,
+      ...formData, // restore answers if navigating between form pages
     },
     mode: "onBlur",
   });
 
   const watchedFields = watch();
   const prevWatchedFieldsRef = useRef<Inputs>();
+
   const showOther = department === Department.OTHER;
 
   useEffect(() => {
     if (!user) {
       router.push("/signin");
-      return;
     }
-
-    if (userApiData) {
-      const mappedRole = mapAffiliationToRole(userApiData.affiliation_sub_type);
-      const mappedDepartment = mapDepartmentCode(
-        userApiData.reporting_dept_code
-      );
-
-      if (mappedRole && !role) {
-        setRole(mappedRole);
-      }
-
-      if (mappedDepartment && !department) {
-        setDepartment(mappedDepartment);
-      }
-    }
-  }, [userApiData, user]);
+  }, []);
 
   useEffect(() => {
     if (

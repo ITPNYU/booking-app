@@ -1,5 +1,4 @@
 import { serverFormatDate } from "@/components/src/client/utils/serverDate";
-import { MEDIA_COMMONS_EMAIL } from "@/components/src/mediaCommonsPolicy";
 import { getEmailBranchTag } from "@/components/src/server/emails";
 import { ApproverType } from "@/components/src/types";
 import { getGmailClient } from "@/lib/googleClient";
@@ -25,7 +24,6 @@ interface SendHTMLEmailParams {
   requestNumber: number;
   body: string;
   approverType?: ApproverType;
-  replyTo?: string;
 }
 
 export const sendHTMLEmail = async (params: SendHTMLEmailParams) => {
@@ -38,7 +36,6 @@ export const sendHTMLEmail = async (params: SendHTMLEmailParams) => {
     requestNumber,
     body,
     approverType,
-    replyTo = MEDIA_COMMONS_EMAIL,
   } = params;
 
   const subj = `${getEmailBranchTag()}${status} - Media Commons request #${requestNumber}: "${eventTitle}"`;
@@ -87,7 +84,6 @@ export const sendHTMLEmail = async (params: SendHTMLEmailParams) => {
   const messageParts = [
     "From: 'Media Commons' <>",
     `To: ${targetEmail}`,
-    `Reply-To: ${replyTo}`,
     "Content-Type: text/html; charset=utf-8",
     "MIME-Version: 1.0",
     `Subject: ${subj}`,

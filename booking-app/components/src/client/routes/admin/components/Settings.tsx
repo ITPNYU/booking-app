@@ -1,17 +1,17 @@
 import { Divider, ListItemButton, ListItemText, Stack } from "@mui/material";
+import React, { useState } from "react";
 
 import { AdminUsers } from "./AdminUsers";
 import { BannedUsers } from "./Ban";
 import BookingTypes from "./BookingTypes";
 import { Departments } from "./Departments";
 import ExportDatabase from "./ExportDatabase";
+import FinalApproverSetting from "./PolicySettings";
 import Grid from "@mui/material/Unstable_Grid2";
 import { Liaisons } from "./Liaisons";
 import { PAUsers } from "./PAUsers";
-import PolicySettings from "./PolicySettings";
 import SafetyTrainedUsers from "./SafetyTraining";
 import SyncCalendars from "./SyncCalendars";
-import { useState } from "react";
 
 const tabs = [
   { label: "Safety Training", id: "safetyTraining" },
@@ -55,7 +55,7 @@ export default function Settings() {
         {tab === "ban" && <BannedUsers />}
         {tab === "departments" && <Departments />}
         {tab === "bookingTypes" && <BookingTypes />}
-        {tab === "policy" && <PolicySettings />}
+        {tab === "policy" && <FinalApproverSetting />}
         {tab === "export" && <ExportDatabase />}
         {tab === "syncCalendars" && <SyncCalendars />}
       </Grid>

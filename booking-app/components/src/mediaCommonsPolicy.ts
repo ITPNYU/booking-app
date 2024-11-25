@@ -21,5 +21,5 @@ export const CAMPUS_MEDIA_SERVICES_ROOMS = [202, 1201];
 export const LIGHTING_DMX_ROOMS = [220, 221, 222, 223, 224];
 export const MOCAP_ROOMS = [221, 222];
 
-export const WALK_IN_ROOMS = [103, 220, 221, 222, 223, 224, 230, 233];
+export const WALK_IN_ROOMS = [220, 221, 222, 223, 224, 230, 233];
 export const WALK_IN_CAN_BOOK_TWO = [221, 222, 223, 224];
