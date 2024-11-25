@@ -13,6 +13,7 @@ export enum TableNames {
   BOOKING = "bookings",
   BOOKING_TYPES = "bookingTypes",
   DEPARTMENTS = "departments",
+  OPERATION_HOURS = "operationHours",
   PAS = "usersPa",
   RESOURCES = "resources",
   SAFETY_TRAINING = "usersWhitelist",

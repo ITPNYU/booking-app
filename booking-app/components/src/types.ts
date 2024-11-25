@@ -13,6 +13,7 @@ export type Approver = {
 };
 
 export enum AttendeeAffiliation {
+  CHAIR = "Chair / Program Director",
   NYU = "NYU Members with an active NYU ID",
   NON_NYU = "Non-NYU guests",
   BOTH = "All of the above",
@@ -166,6 +167,23 @@ export enum MediaServices {
   LIGHTING_TECH_103 = "(Garage 103) Request a lighting technician",
   LIGHTING_DMX = "(Rooms 220-224) Using DMX lights in ceiling grid",
 }
+
+export enum Days {
+  Sunday = "Sunday",
+  Monday = "Monday",
+  Tuesday = "Tuesday",
+  Wednesday = "Wednesday",
+  Thursday = "Thursday",
+  Friday = "Friday",
+  Saturday = "Saturday",
+}
+
+export type OperationHours = {
+  day: Days;
+  open: number;
+  close: number;
+  isClosed: boolean;
+};
 
 export type PaUser = {
   email: string;

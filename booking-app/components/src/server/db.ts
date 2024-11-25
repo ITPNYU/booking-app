@@ -1,19 +1,26 @@
 import {
-  clientFetchAllDataFromCollection,
-  clientGetDataByCalendarEventId,
-  clientUpdateDataInFirestore,
-} from "@/lib/firebase/firebase";
-import { Timestamp, where } from "@firebase/firestore";
+  Approver,
+  BookingFormDetails,
+  BookingStatusLabel,
+  Days,
+  OperationHours,
+} from "../types";
 import {
   ApproverLevel,
   TableNames,
   clientGetFinalApproverEmail,
   getCancelCcEmail,
 } from "../policy";
-import { Approver, BookingFormDetails, BookingStatusLabel } from "../types";
-import { getBookingToolDeployUrl } from "./ui";
+import { Timestamp, where } from "@firebase/firestore";
+import {
+  clientFetchAllDataFromCollection,
+  clientGetDataByCalendarEventId,
+  clientSaveDataToFirestore,
+  clientUpdateDataInFirestore,
+} from "@/lib/firebase/firebase";
 
 import { clientUpdateDataByCalendarEventId } from "@/lib/firebase/client/clientDb";
+import { getBookingToolDeployUrl } from "./ui";
 import { roundTimeUp } from "../client/utils/date";
 
 export const fetchAllFutureBooking = async <T>(
@@ -148,6 +155,36 @@ export const updateFinalApprover = async (updatedData: object) => {
     await clientUpdateDataInFirestore(TableNames.APPROVERS, docId, updatedData);
   } else {
     console.log("No policy settings docs found");
+  }
+};
+
+export const updateOperationHours = async (
+  day: Days,
+  open: number,
+  close: number,
+  isClosed: boolean
+) => {
+  const docs = await clientFetchAllDataFromCollection<
+    OperationHours & { id: string }
+  >(TableNames.OPERATION_HOURS);
+
+  const match = docs.find((x) => x.day === day);
+
+  if (match != null) {
+    const { id, ...data } = match;
+    clientUpdateDataInFirestore(TableNames.OPERATION_HOURS, match.id, {
+      ...data,
+      open,
+      close,
+      isClosed,
+    });
+  } else {
+    clientSaveDataToFirestore(TableNames.OPERATION_HOURS, {
+      day: day.toString(),
+      open,
+      close,
+      isClosed,
+    });
   }
 };
 
