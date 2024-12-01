@@ -1,13 +1,3 @@
-import { Box, Button, Typography } from "@mui/material";
-import {
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
-import { SubmitHandler, useForm } from "react-hook-form";
 import {
   AttendeeAffiliation,
   FormContextLevel,
@@ -21,16 +11,26 @@ import {
   BookingFormSwitch,
   BookingFormTextField,
 } from "./BookingFormInputs";
+import { Box, Button, Typography } from "@mui/material";
+import { SubmitHandler, useForm } from "react-hook-form";
+import {
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
-import { styled } from "@mui/system";
-import { useRouter } from "next/navigation";
-import isEqual from "react-fast-compare";
-import { DatabaseContext } from "../../components/Provider";
 import { BookingContext } from "../bookingProvider";
-import useCheckAutoApproval from "../hooks/useCheckAutoApproval";
-import useSubmitBooking from "../hooks/useSubmitBooking";
 import BookingFormMediaServices from "./BookingFormMediaServices";
 import BookingSelection from "./BookingSelection";
+import { DatabaseContext } from "../../components/Provider";
+import isEqual from "react-fast-compare";
+import { styled } from "@mui/system";
+import useCheckAutoApproval from "../hooks/useCheckAutoApproval";
+import { useRouter } from "next/navigation";
+import useSubmitBooking from "../hooks/useSubmitBooking";
 
 const Section = ({ title, children }) => (
   <div style={{ marginBottom: "20px" }}>
@@ -409,19 +409,11 @@ export default function FormInput({
                     Mocap Suits)
                     <br />-{" "}
                     <a
-                      href="https://docs.google.com/document/d/1oRtvZ0SR52Mq_ykoNXelwqat4JFgdado5JDY6A746VY/edit#heading=h.iv9c7z15bn0t"
+                      href="https://sites.google.com/nyu.edu/370jmediacommons/rental-inventory"
                       target="_blank"
                       className="text-blue-600 hover:underline dark:text-blue-500 mx-1"
                     >
-                      Inventory for Black Box 220 and Ballrooms 221-224
-                    </a>
-                    <br />-{" "}
-                    <a
-                      href="https://docs.google.com/spreadsheets/d/1fziyVrzeytQJyZ8585Wtqxer-PBt6L-u-Z0LHVavK5k/edit#gid=870626522"
-                      target="_blank"
-                      className="text-blue-600 hover:underline dark:text-blue-500 mx-1"
-                    >
-                      Inventory for Garage 103
+                      Media Commons Inventory
                     </a>
                     <br />
                   </p>
