@@ -13,7 +13,6 @@ export type Approver = {
 };
 
 export enum AttendeeAffiliation {
-  CHAIR = "Chair / Program Director",
   NYU = "NYU Members with an active NYU ID",
   NON_NYU = "Non-NYU guests",
   BOTH = "All of the above",
