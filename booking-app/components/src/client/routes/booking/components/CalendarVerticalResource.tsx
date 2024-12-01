@@ -246,16 +246,16 @@ export default function CalendarVerticalResource({
     (setting) => Object.values(Days)[dateView.getDay()] === setting.day
   );
 
-  if (operationHoursToday.isClosed) {
-    return (
-      <Empty>
-        <Typography>The Media Commons are closed on Sundays.</Typography>
-      </Empty>
-    );
-  }
+  // if (operationHoursToday.isClosed) {
+  //   return (
+  //     <Empty>
+  //       <Typography>The Media Commons are closed on Sundays.</Typography>
+  //     </Empty>
+  //   );
+  // }
 
-  const slotMinTime = `${operationHoursToday.open}:00:00`;
-  const slotMaxTime = `${operationHoursToday.close}:00:00`;
+  // const slotMinTime = `${operationHoursToday.open}:00:00`;
+  // const slotMaxTime = `${operationHoursToday.close}:00:00`;
   // don't use these values until we talk to Samantha/Jhanele
 
   return (
@@ -284,8 +284,8 @@ export default function CalendarVerticalResource({
         eventResize={handleEventEdit}
         eventDrop={handleEventEdit}
         headerToolbar={false}
-        slotMinTime={slotMinTime}
-        slotMaxTime={slotMaxTime}
+        slotMinTime="9:00:00"
+        slotMaxTime="21:00:00"
         allDaySlot={false}
         aspectRatio={isMobile ? 0.5 : 1.5}
         expandRows={true}
