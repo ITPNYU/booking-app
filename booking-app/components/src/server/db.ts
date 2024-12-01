@@ -162,13 +162,19 @@ export const updateOperationHours = async (
   day: Days,
   open: number,
   close: number,
-  isClosed: boolean
+  isClosed: boolean,
+  roomId?: number
 ) => {
   const docs = await clientFetchAllDataFromCollection<
     OperationHours & { id: string }
   >(TableNames.OPERATION_HOURS);
 
-  const match = docs.find((x) => x.day === day);
+  const match = docs.find((x) => {
+    if (roomId) {
+      return x.day === day && x.roomId === roomId;
+    }
+    return x.day === day;
+  });
 
   if (match != null) {
     const { id, ...data } = match;
@@ -179,11 +185,13 @@ export const updateOperationHours = async (
       isClosed,
     });
   } else {
+    const r = roomId ? { roomId } : {};
     clientSaveDataToFirestore(TableNames.OPERATION_HOURS, {
       day: day.toString(),
       open,
       close,
       isClosed,
+      ...r,
     });
   }
 };

@@ -183,6 +183,7 @@ export type OperationHours = {
   open: number;
   close: number;
   isClosed: boolean;
+  roomId?: number;
 };
 
 export type PaUser = {
@@ -213,7 +214,7 @@ export enum Role {
   RESIDENT_FELLOW = "Resident/Fellow",
   FACULTY = "Faculty",
   ADMIN_STAFF = "Admin/Staff",
-  CHAIR_PROGRAM_DIRECTOR = "Chair/Program Director"
+  CHAIR_PROGRAM_DIRECTOR = "Chair/Program Director",
 }
 
 export type RoomSetting = {
