@@ -1,103 +1,138 @@
-import { Box, Switch, Typography } from "@mui/material";
-import { Days, OperationHours } from "@/components/src/types";
-import { LocalizationProvider, TimePicker } from "@mui/x-date-pickers";
-import { useContext, useEffect, useState } from "react";
+import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
+  Box,
+  Chip,
+  Divider,
+  FormControl,
+  InputLabel,
+  MenuItem,
+  OutlinedInput,
+  Select,
+  SelectChangeEvent,
+  Stack,
+  Typography,
+} from "@mui/material";
+import { useContext, useState } from "react";
 
-import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { DatabaseContext } from "../../../components/Provider";
-import dayjs from "dayjs";
-import styled from "styled-components";
-import { updateOperationHours } from "@/components/src/server/db";
+import { Days } from "@/components/src/types";
+import { ExpandMore } from "@mui/icons-material";
+import OperationalHoursRow from "./OperationalHoursRow";
 
-const Row = styled(Box)`
-  display: grid;
-  grid-template-columns: 100px 1fr;
-  align-items: center;
-`;
-
-interface Props {
-  day: Days;
-  setting: OperationHours;
-}
-
-function HoursRow({ day, setting }: Props) {
-  const { reloadOperationHours } = useContext(DatabaseContext);
-
-  const [closed, setClosed] = useState(setting?.isClosed || false);
-  const [openDate, setOpenDate] = useState(
-    dayjs(new Date().setHours(setting?.open, 0, 0, 0))
-  );
-  const [closeDate, setCloseDate] = useState(
-    dayjs(new Date().setHours(setting?.close, 0, 0, 0))
-  );
-
-  const handleSwitch = (e) => {
-    setClosed(!e.target.checked);
-    updateOperationHours(
-      day,
-      openDate.hour(),
-      closeDate.hour(),
-      !e.target.checked
-    );
-  };
-
-  const handleOpenChange = (e) => {
-    setOpenDate(e);
-    updateOperationHours(day, e["$H"], closeDate.hour(), closed);
-  };
-
-  const handleCloseChange = (e) => {
-    setCloseDate(e);
-    updateOperationHours(day, openDate.hour(), e["$H"], closed);
-  };
-
-  // when we leave the page, the app reloads the newly set operation hours
-  useEffect(() => {
-    return () => {
-      reloadOperationHours();
-    };
-  });
-
-  return (
-    <Box sx={{ p: 1 }}>
-      <Row>
-        <Typography>{day}</Typography>
-        <Box sx={{ display: "flex", alignItems: "center" }}>
-          <LocalizationProvider dateAdapter={AdapterDayjs}>
-            <TimePicker
-              value={openDate}
-              onChange={handleOpenChange}
-              disabled={closed}
-            />
-            <Typography p={2}>--</Typography>
-            <TimePicker
-              value={closeDate}
-              onChange={handleCloseChange}
-              disabled={closed}
-            />
-          </LocalizationProvider>
-          <Switch checked={!closed} onChange={handleSwitch} />
-        </Box>
-      </Row>
-    </Box>
-  );
-}
+const ITEM_HEIGHT = 48;
+const ITEM_PADDING_TOP = 8;
+const MenuProps = {
+  PaperProps: {
+    style: {
+      maxHeight: ITEM_HEIGHT * 4.5 + ITEM_PADDING_TOP,
+      width: 250,
+    },
+  },
+};
 
 export default function OperationalHours() {
-  const { operationHours } = useContext(DatabaseContext);
+  const { operationHours, roomSettings } = useContext(DatabaseContext);
+  const [specialHourRooms, setSpecialHourRooms] = useState<number[]>(
+    Array.from(
+      new Set(operationHours.map((x) => x.roomId).filter((x) => x != null))
+    ).sort((a, b) => a - b)
+  ); // roomIds
+
+  const handleChange = (event: SelectChangeEvent<typeof specialHourRooms>) => {
+    const {
+      target: { value },
+    } = event;
+    // On autofill we get a stringified value.
+    let list =
+      typeof value === "string"
+        ? value.split(",").map((x) => Number(x))
+        : value;
+    setSpecialHourRooms(list.sort((a, b) => a - b));
+  };
 
   return (
     <Box>
       <Typography variant="h6" mt={4}>
         Operational Hours
       </Typography>
+      <Typography fontWeight={700}>Default Operational Hours</Typography>
+      <p>
+        All spaces will adhere to these operational hours unless otherwise
+        specififed below
+      </p>
       {Object.values(Days).map((day: Days) => (
-        <HoursRow
+        <OperationalHoursRow
           day={day}
-          setting={operationHours.find((x) => x.day === (day as Days))}
+          setting={operationHours.find(
+            (x) => x.day === (day as Days) && x.roomId == null
+          )}
           key={day}
         />
       ))}
+      <Typography fontWeight={700} mt={3}>
+        Special Operational Hours
+      </Typography>
+      <p>
+        Select spaces from the dropdown below to define their operational hours
+      </p>
+      <Box m={1}>
+        <FormControl sx={{ width: 300 }}>
+          <InputLabel id="special-room-hours">Spaces</InputLabel>
+          <Select
+            labelId="special-room-hours"
+            multiple
+            value={specialHourRooms}
+            onChange={handleChange}
+            input={<OutlinedInput label="Spaces" />}
+            renderValue={(selected) => (
+              <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+                {selected.map((value) => (
+                  <Chip key={value} label={value} />
+                ))}
+              </Box>
+            )}
+            MenuProps={MenuProps}
+          >
+            {roomSettings.map((roomSetting) => (
+              <MenuItem key={roomSetting.roomId} value={roomSetting.roomId}>
+                {roomSetting.roomId} {roomSetting.name}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+        <Box maxWidth="50vw" mt={1}>
+          <Stack
+            divider={<Divider sx={{ borderColor: "#21212114" }} />}
+            sx={{ border: "1px solid #21212114", borderRadius: "4px" }}
+          >
+            {specialHourRooms.map((roomId) => (
+              <Accordion key={roomId} sx={{ boxShadow: "none" }}>
+                <AccordionSummary
+                  expandIcon={<ExpandMore />}
+                  aria-controls="panel1-content"
+                  id="panel1-header"
+                >
+                  {roomId}
+                </AccordionSummary>
+                <AccordionDetails>
+                  {Object.values(Days).map((day: Days) => (
+                    <OperationalHoursRow
+                      day={day}
+                      setting={operationHours.find(
+                        (x) => x.day === (day as Days) && x.roomId === roomId
+                      )}
+                      roomId={roomId}
+                      key={day}
+                    />
+                  ))}
+                </AccordionDetails>
+              </Accordion>
+            ))}
+          </Stack>
+        </Box>
+      </Box>
     </Box>
   );
 }

@@ -32,6 +32,7 @@ const roleMappings: Record<Role, string[]> = {
   [Role.RESIDENT_FELLOW]: ["FELLOW", "RESIDENT", "POST DOCTORAL FELLOW"],
   [Role.FACULTY]: ["FACULTY", "PROFESSOR", "ADJUNCT FUACULTY", "LECTURER"],
   [Role.ADMIN_STAFF]: ["ADMINISTRATOR", "STAFF", "EMPLOYEE"],
+  [Role.CHAIR_PROGRAM_DIRECTOR]: ["CHAIR", "PROGRAM DIRECTOR"],
 };
 
 const departmentMappings: Record<Department, string[]> = {
