@@ -1,5 +1,3 @@
-import { ApproverLevel, TableNames } from "@/components/src/policy";
-import React, { createContext, useEffect, useMemo, useState } from "react";
 import {
   AdminUser,
   Approver,
@@ -7,6 +5,7 @@ import {
   Booking,
   BookingType,
   DepartmentType,
+  OperationHours,
   PaUser,
   PagePermission,
   PolicySettings,
@@ -15,11 +14,14 @@ import {
   Settings,
   UserApiData,
 } from "../../../types";
+import { ApproverLevel, TableNames } from "@/components/src/policy";
+import React, { createContext, useEffect, useMemo, useState } from "react";
 
 import { useAuth } from "@/components/src/client/routes/components/AuthProvider";
 import { fetchAllBookings, fetchAllFutureBooking } from "@/components/src/server/db";
 import { clientFetchAllDataFromCollection } from "@/lib/firebase/firebase";
 import { Timestamp } from "firebase-admin/firestore";
+
 
 export interface DatabaseContextType {
   adminUsers: AdminUser[];
@@ -29,6 +31,7 @@ export interface DatabaseContextType {
   bookingsLoading: boolean;
   liaisonUsers: Approver[];
   departmentNames: DepartmentType[];
+  operationHours: OperationHours[];
   pagePermission: PagePermission;
   paUsers: PaUser[];
   policySettings: PolicySettings;
@@ -43,6 +46,7 @@ export interface DatabaseContextType {
   reloadBannedUsers: () => Promise<void>;
   reloadFutureBookings: () => Promise<void>;
   reloadDepartmentNames: () => Promise<void>;
+  reloadOperationHours: () => Promise<void>;
   reloadPaUsers: () => Promise<void>;
   reloadBookingTypes: () => Promise<void>;
   reloadSafetyTrainedUsers: () => Promise<void>;
@@ -58,6 +62,7 @@ export const DatabaseContext = createContext<DatabaseContextType>({
   bookingsLoading: true,
   liaisonUsers: [],
   departmentNames: [],
+  operationHours: [],
   pagePermission: PagePermission.BOOKING,
   paUsers: [],
   policySettings: { finalApproverEmail: "" },
@@ -72,6 +77,7 @@ export const DatabaseContext = createContext<DatabaseContextType>({
   reloadBannedUsers: async () => {},
   reloadFutureBookings: async () => {},
   reloadDepartmentNames: async () => {},
+  reloadOperationHours: async () => {},
   reloadPaUsers: async () => {},
   reloadBookingTypes: async () => {},
   reloadSafetyTrainedUsers: async () => {},
@@ -91,6 +97,7 @@ export const DatabaseProvider = ({
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
   const [liaisonUsers, setLiaisonUsers] = useState<Approver[]>([]);
   const [departmentNames, setDepartmentName] = useState<DepartmentType[]>([]);
+  const [operationHours, setOperationHours] = useState<OperationHours[]>([]);
   const [paUsers, setPaUsers] = useState<PaUser[]>([]);
   const [policySettings, setPolicySettings] = useState<PolicySettings>({
     finalApproverEmail: "",
@@ -359,6 +366,14 @@ export const DatabaseProvider = ({
       .catch((error) => console.error("Error fetching data:", error));
   };
 
+  const fetchOperationHours = async () => {
+    clientFetchAllDataFromCollection(TableNames.OPERATION_HOURS)
+      .then((fetchedData) => {
+        setOperationHours(fetchedData as OperationHours[]);
+      })
+      .catch((error) => console.error("Error fetching data:", error));
+  };
+
   // const fetchPolicySettings = async () => {
   //   clientFetchAllDataFromCollection(TableNames.POLICY)
   //     .then((fetchedData) => {
@@ -374,6 +389,7 @@ export const DatabaseProvider = ({
 
   const fetchSettings = async () => {
     fetchBookingTypes();
+    fetchOperationHours();
   };
 
   return (
@@ -385,6 +401,7 @@ export const DatabaseProvider = ({
         allBookings,
         liaisonUsers,
         departmentNames,
+        operationHours,
         paUsers,
         pagePermission,
         policySettings,
@@ -400,6 +417,7 @@ export const DatabaseProvider = ({
         reloadBannedUsers: fetchBannedUsers,
         reloadFutureBookings: fetchFutureBookings,
         reloadDepartmentNames: fetchDepartmentNames,
+        reloadOperationHours: fetchOperationHours,
         reloadPaUsers: fetchPaUsers,
         reloadBookingTypes: fetchBookingTypes,
         reloadSafetyTrainedUsers: fetchSafetyTrainedUsers,

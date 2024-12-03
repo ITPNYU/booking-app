@@ -167,6 +167,24 @@ export enum MediaServices {
   LIGHTING_DMX = "(Rooms 220-224) Using DMX lights in ceiling grid",
 }
 
+export enum Days {
+  Sunday = "Sunday",
+  Monday = "Monday",
+  Tuesday = "Tuesday",
+  Wednesday = "Wednesday",
+  Thursday = "Thursday",
+  Friday = "Friday",
+  Saturday = "Saturday",
+}
+
+export type OperationHours = {
+  day: Days;
+  open: number;
+  close: number;
+  isClosed: boolean;
+  roomId?: number;
+};
+
 export type PaUser = {
   email: string;
   createdAt: string;
@@ -195,6 +213,7 @@ export enum Role {
   RESIDENT_FELLOW = "Resident/Fellow",
   FACULTY = "Faculty",
   ADMIN_STAFF = "Admin/Staff",
+  CHAIR_PROGRAM_DIRECTOR = "Chair/Program Director",
 }
 
 export type RoomSetting = {
