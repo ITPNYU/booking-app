@@ -18,6 +18,7 @@ import {
   clientGetDataByCalendarEventId,
   clientSaveDataToFirestore,
   clientUpdateDataInFirestore,
+  getPaginatedData,
 } from "@/lib/firebase/firebase";
 
 import { clientUpdateDataByCalendarEventId } from "@/lib/firebase/client/clientDb";
