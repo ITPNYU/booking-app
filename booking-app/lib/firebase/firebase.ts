@@ -10,8 +10,10 @@ import {
   getDoc,
   getDocs,
   limit,
+  orderBy,
   query,
   setDoc,
+  startAfter,
   updateDoc,
   where,
 } from "@firebase/firestore";
@@ -63,6 +65,68 @@ export const clientFetchAllDataFromCollection = async <T>(
     ...(document.data() as unknown as T),
   }));
   return data;
+};
+
+export const clientFetchAllDataFromCollectionWithLimitAndOffset = async <T>(
+  collectionName: TableNames,
+  limitNumber: number,
+  offset: number
+): Promise<T[]> => {
+  const db = getDb();
+  const colRef = collection(db, collectionName);
+  const q = query(colRef, limit(limitNumber), where("offset", ">=", offset));
+  const snapshot = await getDocs(q);
+  const data = snapshot.docs.map((document) => ({
+    id: document.id,
+    ...(document.data() as unknown as T),
+  }));
+  return data;
+}
+
+export const getPaginatedData = async<T> (
+  collectionName,
+  itemsPerPage = 10,
+  orderByField = 'requestedAt',
+  lastVisible = null
+ ) : Promise<T[]> => {
+  try {
+    const db = getDb();
+
+    // Create reference to collection
+    const colRef = collection(db, collectionName);
+    
+    // Build query
+    let q = query(
+      colRef,
+      orderBy(orderByField, 'desc'),
+      limit(itemsPerPage)
+    );
+    
+    // If we have a last visible item, start after it
+    if (lastVisible) {
+      console.log(lastVisible);
+      q = query(
+        colRef,
+        orderBy(orderByField, 'desc'),
+        startAfter(lastVisible),
+        limit(itemsPerPage)
+      );
+    }
+    
+    // Execute query
+    const snapshot = await getDocs(q);
+    
+    // Convert snapshot to data array
+    const items = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data() as unknown as T
+    }));
+    console.log(items)
+    return items;
+  } catch (error) {
+    console.error('Error getting paginated data:', error);
+    throw error;
+  }
 };
 
 export const clientGetFinalApproverEmailFromDatabase = async (): Promise<

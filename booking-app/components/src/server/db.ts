@@ -5,6 +5,7 @@ import {
   Days,
   OperationHours,
 } from "../types";
+
 import {
   ApproverLevel,
   TableNames,
@@ -23,16 +24,19 @@ import { clientUpdateDataByCalendarEventId } from "@/lib/firebase/client/clientD
 import { getBookingToolDeployUrl } from "./ui";
 import { roundTimeUp } from "../client/utils/date";
 
-export const fetchAllFutureBooking = async <T>(
-  collectionName: TableNames
-): Promise<T[]> => {
+export const fetchAllFutureBooking = async <Booking>(): Promise<Booking[]> => {
   const now = Timestamp.now();
   const futureQueryConstraints = [where("endDate", ">", now)];
-  return clientFetchAllDataFromCollection<T>(
-    collectionName,
+  return clientFetchAllDataFromCollection<Booking>(
+    TableNames.BOOKING,
     futureQueryConstraints
   );
 };
+
+export const fetchAllBookings = async <Booking>(limit:number, last:any) : Promise<Booking[]> =>{
+  return getPaginatedData<Booking>(TableNames.BOOKING, limit, "requestedAt", last);
+}
+
 
 export const getOldSafetyTrainingEmails = () => {
   //TODO: implement this
