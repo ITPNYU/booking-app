@@ -7,8 +7,10 @@ import {
   serverGetFinalApproverEmail,
   serverUpdateInFirestore,
 } from "@/lib/firebase/server/adminDb";
-import { TableNames, getApprovalCcEmail } from "../policy";
+import { ApproverLevel, TableNames, getApprovalCcEmail } from "../policy";
 import {
+  AdminUser,
+  Approver,
   ApproverType,
   BookingFormDetails,
   BookingStatus,
@@ -110,68 +112,85 @@ export const serverApproveInstantBooking = (id: string) => {
 
 // both first approve and second approve flows hit here
 export const serverApproveBooking = async (id: string, email: string) => {
-  const bookingStatus = await serverGetDataByCalendarEventId<BookingStatus>(
-    TableNames.BOOKING,
-    id
-  );
-  const firstApproveDateRange =
-    bookingStatus && bookingStatus.firstApprovedAt
-      ? bookingStatus.firstApprovedAt.toDate()
-      : null;
-
-  console.log("first approve date", firstApproveDateRange);
-
-  // if already first approved, then this is a second approve
-  if (firstApproveDateRange !== null) {
-    serverFinalApprove(id, email);
-    await serverApproveEvent(id);
-  } else {
-    console.log("email", email);
-    serverFirstApprove(id, email);
-
-    const response = await fetch(
-      `${process.env.NEXT_PUBLIC_BASE_URL}/api/calendarEvents`,
-      {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          calendarEventId: id,
-          newValues: {
-            statusPrefix: BookingStatusLabel.PENDING,
-          },
-        }),
-      }
+  try {
+    const bookingStatus = await serverGetDataByCalendarEventId<BookingStatus>(
+      TableNames.BOOKING,
+      id
     );
-    const contents = await serverBookingContents(id);
+    const isFinalApproval = bookingStatus?.firstApprovedAt?.toDate() ?? null;
 
-    const emailContents = {
-      ...contents,
-      headerMessage: "This is a request email for final approval.",
-    };
-    const recipient = await serverGetFinalApproverEmail();
-    const formData = {
-      templateName: "booking_detail",
-      contents: emailContents,
-      targetEmail: recipient,
-      status: BookingStatusLabel.PENDING,
-      eventTitle: contents.title || "",
-      requestNumber: contents.requestNumber,
-      bodyMessage: "",
-      approverType: ApproverType.FINAL_APPROVER,
-    };
-    const res = await fetch(
-      `${process.env.NEXT_PUBLIC_BASE_URL}/api/sendEmail`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(formData),
-      }
-    );
+    if (isFinalApproval) {
+      await finalApprove(id, email);
+    } else {
+      await firstApprove(id, email);
+    }
+  } catch (error) {
+    throw error.status ? error : { status: 500, message: error.message };
   }
+};
+
+const firstApprove = async (id, email) => {
+  serverFirstApprove(id, email);
+
+  const response = await fetch(
+    `${process.env.NEXT_PUBLIC_BASE_URL}/api/calendarEvents`,
+    {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        calendarEventId: id,
+        newValues: {
+          statusPrefix: BookingStatusLabel.PENDING,
+        },
+      }),
+    }
+  );
+  const contents = await serverBookingContents(id);
+
+  const emailContents = {
+    ...contents,
+    headerMessage: "This is a request email for final approval.",
+  };
+  const recipient = await serverGetFinalApproverEmail();
+  const formData = {
+    templateName: "booking_detail",
+    contents: emailContents,
+    targetEmail: recipient,
+    status: BookingStatusLabel.PENDING,
+    eventTitle: contents.title || "",
+    requestNumber: contents.requestNumber,
+    bodyMessage: "",
+    approverType: ApproverType.FINAL_APPROVER,
+  };
+  const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/sendEmail`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(formData),
+  });
+};
+const finalApprove = async (id, email) => {
+  const finalApprovers = (await approvers()).filter(
+    (a) => a.level === ApproverLevel.FINAL
+  );
+  const finalApproverEmails = [...(await admins()), ...finalApprovers].map(
+    (a) => a.email
+  );
+
+  const canPerformSecondApproval = finalApproverEmails.includes(email);
+  if (!canPerformSecondApproval) {
+    throw {
+      success: false,
+      message:
+        "Unauthorized: Only final approvers or admin users can perform second approval",
+      status: 403,
+    };
+  }
+  serverFinalApprove(id, email);
+  await serverApproveEvent(id);
 };
 
 export const serverSendConfirmationEmail = async (
@@ -287,7 +306,17 @@ export const serverApproveEvent = async (id: string) => {
   );
 };
 
-export const approvers = async () => {
+export const admins = async (): Promise<AdminUser[]> => {
+  const fetchedData = await serverFetchAllDataFromCollection(TableNames.ADMINS);
+  const filtered = fetchedData.map((item: any) => ({
+    id: item.id,
+    email: item.email,
+    createdAt: item.createdAt,
+  }));
+  return filtered;
+};
+
+export const approvers = async (): Promise<Approver[]> => {
   const fetchedData = await serverFetchAllDataFromCollection(
     TableNames.APPROVERS
   );
@@ -295,6 +324,7 @@ export const approvers = async () => {
     id: item.id,
     email: item.email,
     department: item.department,
+    level: item.level,
     createdAt: item.createdAt,
   }));
   return filtered;
