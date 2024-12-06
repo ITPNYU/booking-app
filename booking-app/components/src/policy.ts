@@ -3,8 +3,8 @@ import {
   MEDIA_COMMONS_OPERATION_EMAIL,
 } from "./mediaCommonsPolicy";
 
-import { BookingStatusLabel } from "./types";
 import { clientGetFinalApproverEmailFromDatabase } from "@/lib/firebase/firebase";
+import { BookingStatusLabel } from "./types";
 
 export enum TableNames {
   ADMINS = "usersAdmin",
@@ -35,6 +35,7 @@ export const BOOKING_TABLE_HIDE_STATUS_TIME_ELAPSED = [
 export enum ApproverLevel {
   FIRST = 1,
   FINAL = 2,
+  EQUIPMENT = 3,
 }
 
 /********** CONTACTS ************/

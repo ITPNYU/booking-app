@@ -1,3 +1,5 @@
+import { ApproverLevel, TableNames } from "@/components/src/policy";
+import React, { createContext, useEffect, useMemo, useState } from "react";
 import {
   AdminUser,
   Approver,
@@ -14,14 +16,14 @@ import {
   Settings,
   UserApiData,
 } from "../../../types";
-import { ApproverLevel, TableNames } from "@/components/src/policy";
-import React, { createContext, useEffect, useMemo, useState } from "react";
 
 import { useAuth } from "@/components/src/client/routes/components/AuthProvider";
-import { fetchAllBookings, fetchAllFutureBooking } from "@/components/src/server/db";
+import {
+  fetchAllBookings,
+  fetchAllFutureBooking,
+} from "@/components/src/server/db";
 import { clientFetchAllDataFromCollection } from "@/lib/firebase/firebase";
 import { Timestamp } from "firebase-admin/firestore";
-
 
 export interface DatabaseContextType {
   adminUsers: AdminUser[];
@@ -30,6 +32,7 @@ export interface DatabaseContextType {
   allBookings: Booking[];
   bookingsLoading: boolean;
   liaisonUsers: Approver[];
+  equipmentUsers: Approver[];
   departmentNames: DepartmentType[];
   operationHours: OperationHours[];
   pagePermission: PagePermission;
@@ -61,6 +64,7 @@ export const DatabaseContext = createContext<DatabaseContextType>({
   allBookings: [],
   bookingsLoading: true,
   liaisonUsers: [],
+  equipmentUsers: [],
   departmentNames: [],
   operationHours: [],
   pagePermission: PagePermission.BOOKING,
@@ -96,6 +100,7 @@ export const DatabaseProvider = ({
   const [allBookings, setAllBookings] = useState<Booking[]>([]);
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
   const [liaisonUsers, setLiaisonUsers] = useState<Approver[]>([]);
+  const [equipmentUsers, setEquipmentUsers] = useState<Approver[]>([]);
   const [departmentNames, setDepartmentName] = useState<DepartmentType[]>([]);
   const [operationHours, setOperationHours] = useState<OperationHours[]>([]);
   const [paUsers, setPaUsers] = useState<PaUser[]>([]);
@@ -137,24 +142,27 @@ export const DatabaseProvider = ({
   const pagePermission = useMemo<PagePermission>(() => {
     // Early return if no email
     if (!userEmail) return PagePermission.BOOKING;
-  
+
     // Pre-compute email lists once
-    const adminEmails = adminUsers.map(admin => admin.email);
-    const liaisonEmails = liaisonUsers.map(liaison => liaison.email);
-    const paEmails = paUsers.map(pa => pa.email);
-  
+    const adminEmails = adminUsers.map((admin) => admin.email);
+    const liaisonEmails = liaisonUsers.map((liaison) => liaison.email);
+    const paEmails = paUsers.map((pa) => pa.email);
+    const equipmentEmails = equipmentUsers.map((e) => e.email);
+
     // Check permissions
     if (adminEmails.includes(userEmail)) return PagePermission.ADMIN;
+    if (equipmentEmails.includes(userEmail)) return PagePermission.EQUIPMENT;
     if (liaisonEmails.includes(userEmail)) return PagePermission.LIAISON;
     if (paEmails.includes(userEmail)) return PagePermission.PA;
-    
+
     return PagePermission.BOOKING;
   }, [
     userEmail,
     // Make sure we're using the actual arrays in dependencies
     JSON.stringify(adminUsers),
     JSON.stringify(liaisonUsers),
-    JSON.stringify(paUsers)
+    JSON.stringify(paUsers),
+    JSON.stringify(equipmentUsers),
   ]);
 
   useEffect(() => {
@@ -176,9 +184,13 @@ export const DatabaseProvider = ({
     fetchRoomSettings();
   }, [user]);
 
-  useEffect(()=>{
-    if(pagePermission === PagePermission.ADMIN || pagePermission === PagePermission.LIAISON || pagePermission === PagePermission.PA)
-    fetchBookings(); 
+  useEffect(() => {
+    if (
+      pagePermission === PagePermission.ADMIN ||
+      pagePermission === PagePermission.LIAISON ||
+      pagePermission === PagePermission.PA
+    )
+      fetchBookings();
   }, [pagePermission]);
 
   const fetchActiveUserEmail = () => {
@@ -196,8 +208,11 @@ export const DatabaseProvider = ({
   };
 
   const fetchBookings = async () => {
-    try{
-      const bookingsResponse : Booking[] = await fetchAllBookings(LIMIT, lastItem);
+    try {
+      const bookingsResponse: Booking[] = await fetchAllBookings(
+        LIMIT,
+        lastItem
+      );
       setLastItem(bookingsResponse[bookingsResponse.length - 1].requestedAt);
       setAllBookings((oldBookings) => [...oldBookings, ...bookingsResponse]);
     } catch (error) {
@@ -312,14 +327,20 @@ export const DatabaseProvider = ({
           level: Number(item.level),
         }));
         const liaisons = all.filter((x) => x.level === ApproverLevel.FIRST);
+        const equipmentUsers = all.filter(
+          (x) => x.level === ApproverLevel.EQUIPMENT
+        );
+
         const finalApprover = all.filter(
           (x) => x.level === ApproverLevel.FINAL
         )[0];
         setLiaisonUsers(liaisons);
+        setEquipmentUsers(equipmentUsers);
         setPolicySettings({ finalApproverEmail: finalApprover.email });
       })
       .catch((error) => console.error("Error fetching data:", error));
   };
+
   const fetchDepartmentNames = async () => {
     clientFetchAllDataFromCollection(TableNames.DEPARTMENTS)
       .then((fetchedData) => {
@@ -400,6 +421,7 @@ export const DatabaseProvider = ({
         futureBookings,
         allBookings,
         liaisonUsers,
+        equipmentUsers,
         departmentNames,
         operationHours,
         paUsers,
