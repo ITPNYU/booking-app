@@ -146,6 +146,7 @@ export default function useBookingActions({
       status !== BookingStatusLabel.CHECKED_IN &&
       status !== BookingStatusLabel.CHECKED_OUT &&
       status !== BookingStatusLabel.NO_SHOW &&
+      status !== BookingStatusLabel.APPROVED &&
       startDate.toDate() > date
     ) {
       options.push(Actions.EDIT);
