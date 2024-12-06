@@ -4,7 +4,6 @@ import { serverApproveBooking } from "@/components/src/server/admin";
 
 export async function POST(req: NextRequest) {
   const { id, email } = await req.json();
-
   try {
     await serverApproveBooking(id, email);
     return NextResponse.json(
@@ -14,8 +13,8 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error(`booking_id: ${id} Error approving:`, error);
     return NextResponse.json(
-      { error: `Failed to approve booking. id: ${id}` },
-      { status: 500 },
+      { error: error.message },
+      { status: error.status },
     );
   }
 }
