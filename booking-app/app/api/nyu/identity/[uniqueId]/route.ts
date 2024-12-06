@@ -1,5 +1,4 @@
-import { ensureNYUToken } from "@/lib/server/nyuApiAuth";
-import { NYUTokenManager } from "@/lib/server/nyuTokenCache";
+import { getNYUToken } from "@/lib/server/nyuApiAuth";
 import { NextRequest, NextResponse } from "next/server";
 
 const NYU_API_BASE = "https://api.nyu.edu/identity-v2-sys";
@@ -9,16 +8,15 @@ export async function GET(
   { params }: { params: { uniqueId: string } },
 ) {
   try {
-    const authResult = await ensureNYUToken();
-    if (!authResult.isAuthenticated || !authResult.token) {
+    const token = await getNYUToken();
+    if (!token) {
       return NextResponse.json(
-        { error: authResult.error || "Authentication required" },
+        { error: "Authentication failed" },
         { status: 401 },
       );
     }
 
     const apiAccessId = process.env.NYU_API_ACCESS_ID;
-
     if (!apiAccessId) {
       return NextResponse.json(
         { error: "API access ID not configured" },
@@ -33,24 +31,13 @@ export async function GET(
 
     const response = await fetch(url.toString(), {
       headers: {
-        Authorization: `Bearer ${authResult.token}`,
+        Authorization: `Bearer ${token}`,
         Accept: "application/json",
       },
     });
     console.log("response", response);
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error("NYU Identity API Error:", {
-        status: response.status,
-        body: errorText,
-        uniqueId: params.uniqueId,
-      });
-
-      if (response.status === 401) {
-        NYUTokenManager.getInstance().clearToken();
-      }
-
       return NextResponse.json(
         { error: `NYU API call failed: ${response.status}` },
         { status: response.status },
@@ -58,7 +45,6 @@ export async function GET(
     }
 
     const userData = await response.json();
-
     return NextResponse.json(userData);
   } catch (error) {
     console.error("Identity API error:", error);

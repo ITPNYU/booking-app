@@ -1,32 +1,48 @@
-import { AuthResult } from "@/components/src/types";
-import { NYUTokenManager } from "./nyuTokenCache";
+const NYU_AUTH_URL = "https://auth.nyu.edu/oauth2/token";
 
-export async function ensureNYUToken(): Promise<AuthResult> {
+export async function getNYUToken(): Promise<string | null> {
   try {
-    const tokenManager = NYUTokenManager.getInstance();
-    const tokenCache = await tokenManager.getToken();
+    const clientId = process.env.NYU_API_CLIENT_ID;
+    const clientSecret = process.env.NYU_API_CLIENT_SECRET;
+    const username = process.env.NYU_API_USER_NAME;
+    const password = process.env.NYU_API_PASSWORD;
 
-    if (!tokenCache) {
-      return {
-        isAuthenticated: false,
-        token: "",
-        expiresAt: "",
-        error: "Failed to get token",
-      };
+    if (!clientId || !clientSecret || !username || !password) {
+      throw new Error("NYU credentials not configured");
     }
 
-    return {
-      isAuthenticated: true,
-      token: tokenCache.access_token,
-      expiresAt: new Date(tokenCache.expires_at).toISOString(),
-    };
+    const basicAuth = Buffer.from(`${clientId}:${clientSecret}`).toString(
+      "base64"
+    );
+
+    const params = new URLSearchParams({
+      grant_type: "password",
+      username,
+      password,
+      scope: "openid",
+    });
+
+    const response = await fetch(NYU_AUTH_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Basic ${basicAuth}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      cache: "no-store",
+      next: { revalidate: 0 },
+      body: params.toString(),
+    });
+
+    if (!response.ok) {
+      console.log("Error response", response);
+      throw new Error(`Token fetch failed: ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log("token", data.access_token);
+    return data.access_token;
   } catch (error) {
-    console.error("NYU Auth error:", error);
-    return {
-      isAuthenticated: false,
-      token: "",
-      expiresAt: "",
-      error: error instanceof Error ? error.message : "Internal error",
-    };
+    console.error("Failed to get NYU token:", error);
+    return null;
   }
 }
