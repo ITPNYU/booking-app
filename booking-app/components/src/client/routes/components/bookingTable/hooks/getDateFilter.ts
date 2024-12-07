@@ -1,6 +1,6 @@
 import { Booking } from "@/components/src/types";
 
-export type DateRangeFilter = "Today" | "This Week" | "All";
+export type DateRangeFilter = "Today" | "This Week" | "All Future" | "Past 24 hours" | "Past Week" | "Past Month" | "Past 6 Months" | "All Past";
 
 export const DATE_FILTERS: Record<DateRangeFilter, (x: Booking) => boolean> = {
   Today: (row) => {
@@ -34,5 +34,5 @@ export const DATE_FILTERS: Record<DateRangeFilter, (x: Booking) => boolean> = {
     const date = row.startDate.toDate();
     return date >= startOfWeek && date <= endOfWeek;
   },
-  All: (row) => true,
+  "All Future": (row) => true,
 };
