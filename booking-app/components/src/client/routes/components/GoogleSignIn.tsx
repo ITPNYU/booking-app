@@ -1,10 +1,11 @@
 "use client";
-import React from "react"; // Added this line
+import React, { useContext } from "react"; // Added this line
 import { useState } from "react";
 import { signInWithPopup } from "firebase/auth";
 import { auth, googleProvider } from "@/lib/firebase/firebaseClient";
 import { useRouter } from "next/navigation";
 import { Box, Button, styled } from "@mui/material";
+import { useAuth } from "./AuthProvider";
 
 const Center = styled(Box)`
   display: flex;
@@ -20,7 +21,8 @@ const GoogleSignIn = () => {
     try {
       const result = await signInWithPopup(auth, googleProvider);
       const user = result.user;
-      if (user.email?.endsWith("@nyu.edu")) {
+      const {isOnTestEnv} = useAuth();
+      if (user.email?.endsWith("@nyu.edu") || isOnTestEnv) {
         console.log("Google sign-in successful", user);
         router.push("/");
       } else {
