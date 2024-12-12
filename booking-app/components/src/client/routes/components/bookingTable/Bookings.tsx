@@ -1,5 +1,5 @@
 import { Booking, BookingRow, PageContextLevel } from "../../../../types";
-import { Box, TableCell } from "@mui/material";
+import { Box, TableCell, Typography } from "@mui/material";
 import React, {
   useCallback,
   useContext,
@@ -20,6 +20,7 @@ import MoreInfoModal from "./MoreInfoModal";
 import SortableTableCell from "./SortableTableCell";
 import useAllowedStatuses from "./hooks/useAllowedStatuses";
 import { useBookingFilters } from "./hooks/useBookingFilters";
+import { Button } from "@mui/material";
 
 interface BookingsProps {
   pageContext: PageContextLevel;
@@ -30,7 +31,7 @@ export const Bookings: React.FC<BookingsProps> = ({
   pageContext,
   calendarEventId,
 }) => {
-  const { bookings, bookingsLoading, reloadBookings } =
+  const { futureBookings, bookingsLoading, reloadFutureBookings, fetchAllBookings, allBookings } =
     useContext(DatabaseContext);
   const allowedStatuses = useAllowedStatuses(pageContext);
 
@@ -45,7 +46,7 @@ export const Bookings: React.FC<BookingsProps> = ({
   const isUserView = pageContext === PageContextLevel.USER;
 
   useEffect(() => {
-    reloadBookings();
+    reloadFutureBookings();
   }, []);
 
   const filteredRows = useBookingFilters({
@@ -102,7 +103,7 @@ export const Bookings: React.FC<BookingsProps> = ({
   }, [pageContext, statusFilters, allowedStatuses, selectedDateRange]);
 
   const bottomSection = useMemo(() => {
-    if (bookingsLoading && bookings.length === 0) {
+    if (bookingsLoading && futureBookings.length === 0) {
       return (
         <TableEmpty>
           <Loading />
@@ -196,6 +197,7 @@ export const Bookings: React.FC<BookingsProps> = ({
           />
         ))}
       </Table>
+
       {isUserView && <BookMoreButton />}
       {bottomSection}
       {modalData != null && (
@@ -203,6 +205,35 @@ export const Bookings: React.FC<BookingsProps> = ({
           booking={modalData}
           closeModal={() => setModalData(null)}
         />
+      )}
+      {!isUserView && (
+        <Box marginTop={5}>
+        <Box sx={{ display: "flex", justifyContent: "center" }}>
+          <Typography>Previous Bookings</Typography>
+        </Box>
+          <Table
+            {...{ columns}}
+            sx={{
+              borderRadius: isUserView ? "0px" : "",
+            }}
+          >
+            {allBookings.map((row: BookingRow) => (
+              <BookingTableRow
+                key={row.calendarEventId}
+                {...{
+                  booking: row,
+                  calendarEventId,
+                  pageContext,
+                  isUserView,
+                  setModalData,
+                }}
+              />
+            ))}
+          </Table>
+          <Box sx={{ display: "flex", justifyContent: "center" }}>
+            <Button onClick={fetchAllBookings}>Load More</Button>
+          </Box>
+        </Box>
       )}
     </Box>
   );

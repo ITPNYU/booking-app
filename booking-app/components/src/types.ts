@@ -194,6 +194,7 @@ export enum PagePermission {
   BOOKING = 0,
   PA,
   LIAISON,
+  EQUIPMENT,
   ADMIN,
 }
 
@@ -201,6 +202,7 @@ export enum PageContextLevel {
   USER = 0,
   LIAISON,
   PA,
+  EQUIPMENT,
   ADMIN,
 }
 

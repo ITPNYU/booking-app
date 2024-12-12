@@ -36,7 +36,7 @@ export default function BookingActions(props: Props) {
   const [selectedAction, setSelectedAction] = useState<Actions>(
     Actions.PLACEHOLDER
   );
-  const { reloadBookings } = useContext(DatabaseContext);
+  const { reloadFutureBookings } = useContext(DatabaseContext);
   const [showError, setShowError] = useState(false);
   const [reason, setReason] = useState<string>();
 
@@ -54,7 +54,7 @@ export default function BookingActions(props: Props) {
   };
 
   const reload = async () => {
-    reloadBookings();
+    reloadFutureBookings();
   };
 
   const onError = () => {

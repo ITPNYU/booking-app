@@ -1,4 +1,3 @@
-import { BookingStatusLabel, PageContextLevel } from "@/components/src/types";
 import {
   cancel,
   checkOut,
@@ -7,13 +6,14 @@ import {
   decline,
   noShow,
 } from "@/components/src/server/db";
+import { BookingStatusLabel, PageContextLevel } from "@/components/src/types";
 import { useContext, useMemo, useState } from "react";
 
+import { Timestamp } from "@firebase/firestore";
+import { useRouter } from "next/navigation";
 import { BookingContext } from "../../booking/bookingProvider";
 import { DatabaseContext } from "../../components/Provider";
-import { Timestamp } from "@firebase/firestore";
 import useExistingBooking from "./useExistingBooking";
-import { useRouter } from "next/navigation";
 
 export enum Actions {
   CANCEL = "Cancel",
@@ -146,6 +146,7 @@ export default function useBookingActions({
       status !== BookingStatusLabel.CHECKED_IN &&
       status !== BookingStatusLabel.CHECKED_OUT &&
       status !== BookingStatusLabel.NO_SHOW &&
+      status !== BookingStatusLabel.APPROVED &&
       startDate.toDate() > date
     ) {
       options.push(Actions.EDIT);
@@ -184,6 +185,7 @@ export default function useBookingActions({
   }, [status]);
 
   const liaisonOptions = [Actions.FIRST_APPROVE, Actions.DECLINE];
+  const equipmentOptions = [Actions.MODIFICATION, Actions.DECLINE];
 
   const adminOptions = useMemo(() => {
     if (
@@ -215,6 +217,8 @@ export default function useBookingActions({
         return paOptions;
       case PageContextLevel.LIAISON:
         return liaisonOptions;
+      case PageContextLevel.EQUIPMENT:
+        return equipmentOptions;
       default:
         return adminOptions;
     }
