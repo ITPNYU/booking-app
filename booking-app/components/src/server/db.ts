@@ -137,7 +137,7 @@ export const cancel = async (id: string, email: string) => {
     id,
     getApprovalCcEmail(process.env.NEXT_PUBLIC_BRANCH_NAME),
     headerMessage,
-    BookingStatusLabel.NO_SHOW
+    BookingStatusLabel.CANCELED
   );
   clientSendBookingDetailEmail(
     id,
