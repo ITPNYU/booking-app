@@ -7,6 +7,7 @@ import {
   Booking,
   BookingType,
   DepartmentType,
+  Filters,
   OperationHours,
   PaUser,
   PagePermission,
@@ -28,7 +29,6 @@ import { Timestamp } from "firebase-admin/firestore";
 export interface DatabaseContextType {
   adminUsers: AdminUser[];
   bannedUsers: Ban[];
-  futureBookings: Booking[];
   allBookings: Booking[];
   bookingsLoading: boolean;
   liaisonUsers: Approver[];
@@ -44,6 +44,7 @@ export interface DatabaseContextType {
   userEmail: string | undefined;
   netId: string | undefined;
   userApiData: UserApiData | undefined;
+  loadMoreEnabled?: boolean;
   reloadAdminUsers: () => Promise<void>;
   reloadApproverUsers: () => Promise<void>;
   reloadBannedUsers: () => Promise<void>;
@@ -54,13 +55,15 @@ export interface DatabaseContextType {
   reloadBookingTypes: () => Promise<void>;
   reloadSafetyTrainedUsers: () => Promise<void>;
   setUserEmail: (x: string) => void;
-  fetchAllBookings: () => Promise<void>;
+  fetchAllBookings: (clicked: boolean) => Promise<void>;
+  setFilters: (x: Filters) => void;
+  setLoadMoreEnabled: (x: boolean) => void;
+  setLastItem: (x: any) => void;
 }
 
 export const DatabaseContext = createContext<DatabaseContextType>({
   adminUsers: [],
   bannedUsers: [],
-  futureBookings: [],
   allBookings: [],
   bookingsLoading: true,
   liaisonUsers: [],
@@ -76,17 +79,21 @@ export const DatabaseContext = createContext<DatabaseContextType>({
   userEmail: undefined,
   netId: undefined,
   userApiData: undefined,
-  reloadAdminUsers: async () => {},
-  reloadApproverUsers: async () => {},
-  reloadBannedUsers: async () => {},
-  reloadFutureBookings: async () => {},
-  reloadDepartmentNames: async () => {},
-  reloadOperationHours: async () => {},
-  reloadPaUsers: async () => {},
-  reloadBookingTypes: async () => {},
-  reloadSafetyTrainedUsers: async () => {},
-  setUserEmail: (x: string) => {},
-  fetchAllBookings: async () => {},
+  loadMoreEnabled: true,
+  reloadAdminUsers: async () => { },
+  reloadApproverUsers: async () => { },
+  reloadBannedUsers: async () => { },
+  reloadFutureBookings: async () => { },
+  reloadDepartmentNames: async () => { },
+  reloadOperationHours: async () => { },
+  reloadPaUsers: async () => { },
+  reloadBookingTypes: async () => { },
+  reloadSafetyTrainedUsers: async () => { },
+  setUserEmail: (x: string) => { },
+  fetchAllBookings: async () => { },
+  setFilters: (x: Filters) => { },
+  setLoadMoreEnabled: (x: boolean) => { },
+  setLastItem: (x: any) => { },
 });
 
 export const DatabaseProvider = ({
@@ -95,7 +102,7 @@ export const DatabaseProvider = ({
   children: React.ReactNode;
 }) => {
   const [bannedUsers, setBannedUsers] = useState<Ban[]>([]);
-  const [futureBookings, setFutureBookings] = useState<Booking[]>([]);
+  // const [futureBookings, setFutureBookings] = useState<Booking[]>([]);
   const [bookingsLoading, setBookingsLoading] = useState<boolean>(true);
   const [allBookings, setAllBookings] = useState<Booking[]>([]);
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
@@ -107,6 +114,8 @@ export const DatabaseProvider = ({
   const [policySettings, setPolicySettings] = useState<PolicySettings>({
     finalApproverEmail: "",
   });
+  const [loadMoreEnabled, setLoadMoreEnabled] = useState<boolean>(true);
+
   const [roomSettings, setRoomSettings] = useState<RoomSetting[]>([]);
   const [safetyTrainedUsers, setSafetyTrainedUsers] = useState<
     SafetyTraining[]
@@ -116,8 +125,9 @@ export const DatabaseProvider = ({
   const [userApiData, setUserApiData] = useState<UserApiData | undefined>(
     undefined
   );
-  const [lastItem, setLastItem] = useState<Timestamp>(null);
-  const LIMIT = 3;
+  const [lastItem, setLastItem] = useState<any>(null);
+  const [filters, setFilters] = useState<Filters>({ dateRange: "", sortField: "startDate" });
+  const LIMIT = 10;
 
   const { user } = useAuth();
   const netId = useMemo(() => userEmail?.split("@")[0], [userEmail]);
@@ -166,6 +176,10 @@ export const DatabaseProvider = ({
   ]);
 
   useEffect(() => {
+    console.log(allBookings.length);
+  }, [allBookings]);
+
+  useEffect(() => {
     if (!bookingsLoading) {
       fetchSafetyTrainedUsers();
       fetchBannedUsers();
@@ -173,9 +187,13 @@ export const DatabaseProvider = ({
       fetchDepartmentNames();
       fetchSettings();
     } else {
-      fetchFutureBookings();
+      // fetchBookings();
     }
   }, [bookingsLoading, user]);
+
+  useEffect(() => {
+    fetchBookings();
+  }, [filters]);
 
   useEffect(() => {
     fetchActiveUserEmail();
@@ -183,15 +201,6 @@ export const DatabaseProvider = ({
     fetchPaUsers();
     fetchRoomSettings();
   }, [user]);
-
-  useEffect(() => {
-    if (
-      pagePermission === PagePermission.ADMIN ||
-      pagePermission === PagePermission.LIAISON ||
-      pagePermission === PagePermission.PA
-    )
-      fetchBookings();
-  }, [pagePermission]);
 
   const fetchActiveUserEmail = () => {
     if (!user) return;
@@ -201,20 +210,42 @@ export const DatabaseProvider = ({
   const fetchFutureBookings = async () => {
     fetchAllFutureBooking()
       .then((fetchedData) => {
-        setFutureBookings(fetchedData as Booking[]);
+        // setFutureBookings(fetchedData as Booking[]);
         setBookingsLoading(false);
       })
       .catch((error) => console.error("Error fetching data:", error));
   };
 
-  const fetchBookings = async () => {
+  const fetchBookings = async (clicked = false) => {
     try {
+      
+      if (filters.dateRange === "") {
+        return;
+      }
+      
       const bookingsResponse: Booking[] = await fetchAllBookings(
+        pagePermission,
         LIMIT,
+        filters,
         lastItem
       );
-      setLastItem(bookingsResponse[bookingsResponse.length - 1].requestedAt);
-      setAllBookings((oldBookings) => [...oldBookings, ...bookingsResponse]);
+
+
+
+      if (clicked && bookingsResponse.length === 0) {
+        setLoadMoreEnabled(false);
+        return;
+      }
+
+      if (clicked) {
+        setLastItem(bookingsResponse[bookingsResponse.length - 1]);
+        setAllBookings((oldBookings) => [...oldBookings, ...bookingsResponse]);
+      } else {
+        setLastItem(bookingsResponse[bookingsResponse.length - 1]);
+        setAllBookings(bookingsResponse);
+      }
+      setBookingsLoading(false);
+
     } catch (error) {
       console.error("Error fetching data:", error);
     }
@@ -418,7 +449,6 @@ export const DatabaseProvider = ({
       value={{
         adminUsers,
         bannedUsers,
-        futureBookings,
         allBookings,
         liaisonUsers,
         equipmentUsers,
@@ -434,6 +464,7 @@ export const DatabaseProvider = ({
         netId,
         bookingsLoading,
         userApiData,
+        loadMoreEnabled,
         reloadAdminUsers: fetchAdminUsers,
         reloadApproverUsers: fetchApproverUsers,
         reloadBannedUsers: fetchBannedUsers,
@@ -445,6 +476,9 @@ export const DatabaseProvider = ({
         reloadSafetyTrainedUsers: fetchSafetyTrainedUsers,
         setUserEmail,
         fetchAllBookings: fetchBookings,
+        setFilters: setFilters,
+        setLoadMoreEnabled,
+        setLastItem,
       }}
     >
       {children}
