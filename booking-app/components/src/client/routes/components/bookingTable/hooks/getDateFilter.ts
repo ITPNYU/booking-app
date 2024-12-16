@@ -1,6 +1,6 @@
 import { Booking } from "@/components/src/types";
 
-export type DateRangeFilter = "Today" | "This Week" | "All";
+export type DateRangeFilter = "Today" | "This Week" | "All Future" | "Past 24 hours" | "Past Week" | "Past Month" | "Past 6 Months" | "All Past";
 
 export const DATE_FILTERS: Record<DateRangeFilter, (x: Booking) => boolean> = {
   Today: (row) => {
@@ -12,6 +12,7 @@ export const DATE_FILTERS: Record<DateRangeFilter, (x: Booking) => boolean> = {
       date.getDate() === today.getDate()
     );
   },
+
   "This Week": (row) => {
     const today = new Date();
     let dayOfWeek = today.getDay();
@@ -34,5 +35,55 @@ export const DATE_FILTERS: Record<DateRangeFilter, (x: Booking) => boolean> = {
     const date = row.startDate.toDate();
     return date >= startOfWeek && date <= endOfWeek;
   },
-  All: (row) => true,
+  
+  "All Future": (row) => {
+    const today = new Date();
+    return row.startDate.toDate() >= today;
+  },
+
+  "Past 24 hours": (row) => {
+    const today = new Date();
+    const date = row.startDate.toDate();
+    const diff = today.getTime() - date.getTime();
+
+    // Check that the date is within the past 24 hours and not in the future
+    return diff >= 0 && diff < 24 * 60 * 60 * 1000;
+  },
+
+  "Past Week": (row) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Reset today to midnight
+
+    const date = row.startDate.toDate();
+    const diff = today.getTime() - date.getTime();
+
+    // Check that the date is within the past 7 days and not in the future
+    return diff >= 0 && diff < 7 * 24 * 60 * 60 * 1000;
+  },
+
+  "Past Month": (row) => {
+    const today = new Date();
+    const date = row.startDate.toDate();
+    const diff = today.getTime() - date.getTime();
+
+    // Check that the date is within the past 30 days and not in the future
+    return diff >= 0 && diff < 30 * 24 * 60 * 60 * 1000;
+  },
+
+  "Past 6 Months": (row) => {
+    const today = new Date();
+    const date = row.startDate.toDate();
+    const diff = today.getTime() - date.getTime();
+
+    // Check that the date is within the past 6 months and not in the future
+    return diff >= 0 && diff < 6 * 30 * 24 * 60 * 60 * 1000;
+  },
+
+  "All Past": (row) => {
+    const today = new Date();
+    const date = row.startDate.toDate();
+
+    // Check that the date is in the past (not in the future)
+    return today.getTime() - date.getTime() >= 0;
+  },
 };

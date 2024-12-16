@@ -4,8 +4,9 @@ import { Box } from "@mui/material";
 import { DateRangeFilter } from "./hooks/getDateFilter";
 import Dropdown from "../../booking/components/Dropdown";
 import FilterList from "@mui/icons-material/FilterList";
-import React from "react";
+import React, { useContext } from "react";
 import StatusChip from "./StatusChip";
+import { DatabaseContext } from "../Provider";
 
 interface Props {
   allowedStatuses: BookingStatusLabel[];
@@ -24,6 +25,7 @@ export default function BookingTableFilters({
   selectedDateRange,
   setSelectedDateRange,
 }: Props) {
+  const { setLoadMoreEnabled, setLastItem } = useContext(DatabaseContext);
   const handleChipClick = (status: BookingStatusLabel) => {
     setSelectedStatuses((prev: BookingStatusLabel[]) => {
       if (prev.includes(status)) {
@@ -39,6 +41,8 @@ export default function BookingTableFilters({
   ) => {
     if (newFilter != null) {
       setSelectedDateRange(newFilter);
+      setLoadMoreEnabled(true);
+      setLastItem(null);
     }
   };
 
@@ -46,7 +50,7 @@ export default function BookingTableFilters({
     <Dropdown
       value={selectedDateRange}
       updateValue={(x) => handleDateRangeFilterClick(null, x)}
-      options={["Today", "This Week", "All"]}
+      options={["Today", "This Week", "All Future", "Past 24 hours", "Past Week", "Past Month", "Past 6 Months", "All Past"]}
       placeholder={"Today"}
       sx={{ width: "125px", mr: 1 }}
     />

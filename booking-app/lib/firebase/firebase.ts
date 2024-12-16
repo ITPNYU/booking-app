@@ -19,6 +19,7 @@ import {
 } from "@firebase/firestore";
 
 import { getDb } from "./firebaseClient";
+import { Filters } from "@/components/src/types";
 
 export type AdminUserData = {
   email: string;
@@ -86,29 +87,45 @@ export const clientFetchAllDataFromCollectionWithLimitAndOffset = async <T>(
 export const getPaginatedData = async<T> (
   collectionName,
   itemsPerPage = 10,
-  orderByField = 'requestedAt',
-  lastVisible = null
+  filters: Filters,
+  lastVisible = null,
  ) : Promise<T[]> => {
   try {
     const db = getDb();
 
     // Create reference to collection
     const colRef = collection(db, collectionName);
+    console.log(filters)
+    const queryParams = [];
     
+    if (filters.dateRange && filters.dateRange.length === 2) {
+      if(filters.dateRange[0]){
+        queryParams.push(where("startDate", ">=", filters.dateRange[0]));
+      }
+
+      if(filters.dateRange[1]){
+        queryParams.push(where("startDate", "<=", filters.dateRange[1]));
+      }
+    }
+    console.log(queryParams)
     // Build query
     let q = query(
       colRef,
-      orderBy(orderByField, 'desc'),
+      ...queryParams,
+      orderBy(filters.sortField, 'desc'),
+      orderBy("__name__", 'desc'),
       limit(itemsPerPage)
     );
     
     // If we have a last visible item, start after it
+    console.log(lastVisible)
     if (lastVisible) {
-      console.log(lastVisible);
       q = query(
         colRef,
-        orderBy(orderByField, 'desc'),
-        startAfter(lastVisible),
+        ...queryParams,
+        orderBy(filters.sortField, 'desc'),
+        orderBy("__name__", 'desc'),
+        startAfter(lastVisible[filters.sortField], lastVisible.id),
         limit(itemsPerPage)
       );
     }

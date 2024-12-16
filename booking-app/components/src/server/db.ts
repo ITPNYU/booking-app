@@ -3,7 +3,9 @@ import {
   BookingFormDetails,
   BookingStatusLabel,
   Days,
+  Filters,
   OperationHours,
+  PagePermission,
 } from "../types";
 
 import {
@@ -36,15 +38,27 @@ export const fetchAllFutureBooking = async <Booking>(): Promise<Booking[]> => {
 };
 
 export const fetchAllBookings = async <Booking>(
+  pagePermission:PagePermission,
   limit: number,
+  filters: Filters,
   last: any
 ): Promise<Booking[]> => {
-  return getPaginatedData<Booking>(
-    TableNames.BOOKING,
-    limit,
-    "requestedAt",
-    last
-  );
+ if(pagePermission === PagePermission.ADMIN || pagePermission === PagePermission.LIAISON || pagePermission === PagePermission.PA)
+  {
+    return getPaginatedData<Booking>(
+      TableNames.BOOKING,
+      limit,
+      filters,
+      last
+    );
+  } else {
+    return getPaginatedData<Booking>(
+      TableNames.BOOKING,
+      limit,
+      filters,
+      last
+    );
+  }
 };
 
 export const getOldSafetyTrainingEmails = () => {
