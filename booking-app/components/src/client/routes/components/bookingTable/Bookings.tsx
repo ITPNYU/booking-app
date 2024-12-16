@@ -31,7 +31,7 @@ export const Bookings: React.FC<BookingsProps> = ({
   pageContext,
   calendarEventId,
 }) => {
-  const { bookingsLoading, reloadFutureBookings, fetchAllBookings, allBookings, loadMoreEnabled } =
+  const { bookingsLoading, setLastItem, fetchAllBookings, allBookings, loadMoreEnabled } =
     useContext(DatabaseContext);
   const allowedStatuses = useAllowedStatuses(pageContext);
 
@@ -45,9 +45,12 @@ export const Bookings: React.FC<BookingsProps> = ({
 
   const isUserView = pageContext === PageContextLevel.USER;
 
-  // useEffect(() => {
-  //   reloadFutureBookings();
-  // }, []);
+  useEffect(() => {
+    // reloadFutureBookings();
+    return ()=>{
+      setLastItem(null);
+    }
+  }, []);
 
   const filteredRows = useBookingFilters({
     pageContext,
