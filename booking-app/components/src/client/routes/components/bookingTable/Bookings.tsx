@@ -46,7 +46,6 @@ export const Bookings: React.FC<BookingsProps> = ({
   const isUserView = pageContext === PageContextLevel.USER;
 
   useEffect(() => {
-    // reloadFutureBookings();
     return ()=>{
       setLastItem(null);
     }
