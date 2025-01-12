@@ -46,7 +46,6 @@ export const Bookings: React.FC<BookingsProps> = ({
   const isUserView = pageContext === PageContextLevel.USER;
 
   useEffect(() => {
-    // reloadFutureBookings();
     return ()=>{
       setLastItem(null);
     }
@@ -209,10 +208,10 @@ export const Bookings: React.FC<BookingsProps> = ({
           closeModal={() => setModalData(null)}
         />
       )}
-      {loadMoreEnabled &&
+      {/* {loadMoreEnabled &&
         (<Box sx={{ display: "flex", justifyContent: "center" }}>
           <Button onClick={() => { fetchAllBookings(true) }}>Load More</Button>
-        </Box>)}
+        </Box>)} */}
     </Box>
   );
 };

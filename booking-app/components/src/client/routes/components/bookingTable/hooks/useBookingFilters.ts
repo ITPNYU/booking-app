@@ -94,12 +94,15 @@ function getDateRangeFromDateSelection(selectedDateRange: DateRangeFilter) {
       startOfPast6Months.setMonth(today.getMonth() - 6);
       return [startOfPast6Months, today];
     }
-    case "All Past": {
+    case "Past 9 Months": {
       // return an array of the start of time and the end of today
       const today = new Date();
       const endOfToday = new Date(today);
       endOfToday.setHours(23, 59, 59, 999);
-      return [null, endOfToday];
+
+      const startOfPast9Months = new Date(today);
+      startOfPast9Months.setMonth(today.getMonth() - 9);
+      return [startOfPast9Months, endOfToday];
     }
     default:
       return "Today";

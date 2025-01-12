@@ -114,7 +114,7 @@ export const getPaginatedData = async<T> (
       ...queryParams,
       orderBy(filters.sortField, 'desc'),
       orderBy("__name__", 'desc'),
-      limit(itemsPerPage)
+      // limit(itemsPerPage)
     );
     
     // If we have a last visible item, start after it
@@ -125,8 +125,8 @@ export const getPaginatedData = async<T> (
         ...queryParams,
         orderBy(filters.sortField, 'desc'),
         orderBy("__name__", 'desc'),
-        startAfter(lastVisible[filters.sortField], lastVisible.id),
-        limit(itemsPerPage)
+        // startAfter(lastVisible[filters.sortField], lastVisible.id),
+        // limit(itemsPerPage)
       );
     }
     

@@ -50,7 +50,7 @@ export default function BookingTableFilters({
     <Dropdown
       value={selectedDateRange}
       updateValue={(x) => handleDateRangeFilterClick(null, x)}
-      options={["Today", "This Week", "All Future", "Past 24 hours", "Past Week", "Past Month", "Past 6 Months", "All Past"]}
+      options={["Today", "This Week", "All Future", "Past 24 hours", "Past Week", "Past Month", "Past 6 Months", "Past 9 Months"]}
       placeholder={"Today"}
       sx={{ width: "125px", mr: 1 }}
     />
