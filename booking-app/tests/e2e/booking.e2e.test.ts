@@ -8,81 +8,54 @@ if (!process.env.TEST_EMAIL_ADDRESS || !process.env.TEST_PASSWORD) {
 }
 
 test('test', async ({ page }) => {
-
-  // Store the popup promise before navigation
-  const popupPromise = page.waitForEvent('popup');
-
-  // Navigate to the page
-  await page.goto('http://localhost:3000/');
-
-  //wait for 50 seconds for the popup to load
-  await page.waitForTimeout(30000);
-
-  // Wait for the popup with a timeout
-  const page1 = await popupPromise.catch(error => {
-    console.error('Failed to get popup:', error);
-    throw new Error('Popup failed to open or was closed too quickly');
-  });
-
-  // Verify popup is valid
-  if (!page1 || page1.isClosed()) {
-    console.error('Popup state:', {
-      exists: !!page1,
-      isClosed: page1?.isClosed()
-    });
-    throw new Error('Popup was closed immediately after opening');
-  }
-
   try {
-    // Add longer timeouts for CI environment
-    await page1.setDefaultTimeout(60000); // 60 seconds
-    await page1.setDefaultNavigationTimeout(60000);
-    await page1.bringToFront();
-    // Wait for initial page load with retry logic
-    let retries = 3;
-    while (retries > 0) {
+    let authUrl = null;
+
+    // Set up listener before navigation
+    page.on('popup', async popup => {
       try {
-        await page1.waitForLoadState('domcontentloaded', { timeout: 30000 });
-        await page1.waitForLoadState('networkidle', { timeout: 30000 });
-        break;
+        // Get URL before popup closes
+        authUrl = await popup.url();
+        console.log('Captured auth URL:', authUrl);
       } catch (error) {
-        console.error(`Retry ${4 - retries}/3 failed:`, error);
-        retries--;
-        if (retries === 0) throw error;
-        await page1.waitForTimeout(2000); // Wait before retry
+        console.error('Failed to capture URL:', error);
       }
+    });
+
+    // First visit localhost:3000
+    await page.goto('http://localhost:3000/');
+
+    // Wait a bit to ensure we get the URL
+    await page.waitForTimeout(2000);
+
+    if (!authUrl) {
+      throw new Error('Failed to capture authentication URL');
     }
 
-    // Ensure the email input is actually visible and interactive
-    await page1.waitForSelector('input[type="email"], input[aria-label="Email or phone"]',
-      { state: 'visible', timeout: 30000 });
+    // Now that we have the auth URL, navigate to it in main page
+    console.log('Navigating to captured auth URL');
+    await page.goto(authUrl);
 
-    // Login sequence with explicit waits and error handling
-    const emailInput = await page1.getByLabel('Email or phone');
-    await emailInput.waitFor({ state: 'visible', timeout: 30000 });
-    await emailInput.click({ timeout: 30000 });
-    await emailInput.fill(process.env.TEST_EMAIL_ADDRESS);
+    // Handle login in main page
+    await page.getByLabel('Email or phone').waitFor({ state: 'visible' });
+    await page.getByLabel('Email or phone').click();
+    await page.getByLabel('Email or phone').fill(process.env.TEST_EMAIL_ADDRESS);
 
-    const nextButton = page1.getByRole('button', { name: 'Next' });
-    await nextButton.waitFor({ state: 'visible', timeout: 30000 });
-    await nextButton.click({ timeout: 30000 });
+    await page.getByRole('button', { name: 'Next' }).waitFor({ state: 'visible' });
+    await page.getByRole('button', { name: 'Next' }).click();
 
-    const passwordInput = await page1.getByLabel('Enter your password');
-    await passwordInput.waitFor({ state: 'visible', timeout: 30000 });
-    await passwordInput.click({ timeout: 30000 });
-    await passwordInput.fill(process.env.TEST_PASSWORD);
+    await page.getByLabel('Enter your password').waitFor({ state: 'visible' });
+    await page.getByLabel('Enter your password').fill(process.env.TEST_PASSWORD);
 
-    const submitButton = page1.getByRole('button', { name: 'Next' });
-    await submitButton.waitFor({ state: 'visible', timeout: 30000 });
-    await submitButton.click({ timeout: 30000 });
+    await page.getByRole('button', { name: 'Next' }).waitFor({ state: 'visible' });
+    await page.getByRole('button', { name: 'Next' }).click();
 
-    // Wait for login completion
-    await page1.waitForNavigation({
-      waitUntil: 'networkidle',
-      timeout: 30000
-    }).catch(error => {
-      console.error('Navigation after login failed:', error);
-    });
+    // Wait for auth to complete
+    await page.waitForTimeout(5000);
+
+    // Return to the original application
+    console.log('Returning to main application');
+    await page.goto('http://localhost:3000/');
 
     const combobox = page.getByRole('combobox');
 
@@ -174,5 +147,73 @@ test('test', async ({ page }) => {
     console.error("An error occurred during the booking sequence:", error);
     throw error;
   }
+  await page.getByRole('button', { name: 'Next', exact: true }).waitFor({ state: 'visible' });
+  await page.getByRole('button', { name: 'Next', exact: true }).click();
+
+  await page.locator('input[name="firstName"]').click();
+  await page.waitForTimeout(500);
+  await page.locator('input[name="firstName"]').fill('Test');
+  await page.waitForTimeout(500);
+
+  await page.locator('input[name="lastName"]').click();
+  await page.waitForTimeout(500);
+  await page.locator('input[name="lastName"]').fill('Test');
+  await page.waitForTimeout(500);
+
+  await page.locator('input[name="secondaryName"]').click();
+  await page.waitForTimeout(500);
+
+  await page.locator('input[name="nNumber"]').click();
+  await page.waitForTimeout(500);
+  await page.locator('input[name="nNumber"]').fill('N11223344');
+  await page.waitForTimeout(500);
+
+  await page.locator('input[name="netId"]').click();
+  await page.waitForTimeout(500);
+  await page.locator('input[name="netId"]').fill('t111');
+  await page.waitForTimeout(500);
+
+  await page.locator('input[name="phoneNumber"]').click();
+  await page.waitForTimeout(500);
+  await page.locator('input[name="phoneNumber"]').fill('215-319-3211');
+  await page.waitForTimeout(500);
+
+  await page.locator('input[name="title"]').click();
+  await page.waitForTimeout(500);
+  await page.locator('input[name="title"]').fill('Test');
+  await page.waitForTimeout(500);
+
+  await page.locator('input[name="description"]').click();
+  await page.waitForTimeout(500);
+  await page.locator('input[name="description"]').fill('Test');
+  await page.waitForTimeout(500);
+
+  await page.locator('#mui-component-select-bookingType').click();
+  await page.waitForTimeout(500);
+  await page.getByRole('option', { name: 'Panel Discussion' }).click();
+  await page.waitForTimeout(500);
+
+  await page.locator('input[name="expectedAttendance"]').click();
+  await page.waitForTimeout(500);
+  await page.locator('input[name="expectedAttendance"]').fill('12');
+  await page.waitForTimeout(500);
+
+  await page.getByLabel('Select an option').click();
+  await page.waitForTimeout(500);
+  await page.getByRole('option', { name: 'NYU Members with an active' }).click();
+  await page.waitForTimeout(500);
+
+  await page.locator('#checklist').check();
+  await page.waitForTimeout(500);
+  await page.locator('#resetRoom').check();
+  await page.waitForTimeout(500);
+  await page.locator('#bookingPolicy').check();
+  await page.waitForTimeout(500);
+
+  await page.getByRole('button', { name: 'Submit' }).click();
+  // wait for h6 with the text Yay! We've received your booking reques appears
+  await page.waitForSelector('h6');
+  await expect(page.getByRole('heading', { name: 'Yay! We\'ve received your' })).toBeVisible();
 }
+
 );
