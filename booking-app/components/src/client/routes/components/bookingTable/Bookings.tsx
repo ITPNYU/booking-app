@@ -31,22 +31,24 @@ export const Bookings: React.FC<BookingsProps> = ({
   pageContext,
   calendarEventId,
 }) => {
-  const { futureBookings, bookingsLoading, reloadFutureBookings, fetchAllBookings, allBookings } =
+  const { bookingsLoading, setLastItem, fetchAllBookings, allBookings, loadMoreEnabled } =
     useContext(DatabaseContext);
   const allowedStatuses = useAllowedStatuses(pageContext);
 
   const [modalData, setModalData] = useState<BookingRow>(null);
   const [statusFilters, setStatusFilters] = useState([]);
   const [selectedDateRange, setSelectedDateRange] = useState<DateRangeFilter>(
-    calendarEventId ? "All" : "Today"
+    calendarEventId ? "All Future" : "Today"
   );
   const [orderBy, setOrderBy] = useState<keyof BookingRow>("startDate");
-  const [order, setOrder] = useState<ColumnSortOrder>("asc");
+  const [order, setOrder] = useState<ColumnSortOrder>("desc");
 
   const isUserView = pageContext === PageContextLevel.USER;
 
   useEffect(() => {
-    reloadFutureBookings();
+    return ()=>{
+      setLastItem(null);
+    }
   }, []);
 
   const filteredRows = useBookingFilters({
@@ -103,7 +105,7 @@ export const Bookings: React.FC<BookingsProps> = ({
   }, [pageContext, statusFilters, allowedStatuses, selectedDateRange]);
 
   const bottomSection = useMemo(() => {
-    if (bookingsLoading && futureBookings.length === 0) {
+    if (bookingsLoading && allBookings.length === 0) {
       return (
         <TableEmpty>
           <Loading />
@@ -206,35 +208,10 @@ export const Bookings: React.FC<BookingsProps> = ({
           closeModal={() => setModalData(null)}
         />
       )}
-      {!isUserView && (
-        <Box marginTop={5}>
-        <Box sx={{ display: "flex", justifyContent: "center" }}>
-          <Typography>Previous Bookings</Typography>
-        </Box>
-          <Table
-            {...{ columns}}
-            sx={{
-              borderRadius: isUserView ? "0px" : "",
-            }}
-          >
-            {allBookings.map((row: BookingRow) => (
-              <BookingTableRow
-                key={row.calendarEventId}
-                {...{
-                  booking: row,
-                  calendarEventId,
-                  pageContext,
-                  isUserView,
-                  setModalData,
-                }}
-              />
-            ))}
-          </Table>
-          <Box sx={{ display: "flex", justifyContent: "center" }}>
-            <Button onClick={fetchAllBookings}>Load More</Button>
-          </Box>
-        </Box>
-      )}
+      {/* {loadMoreEnabled &&
+        (<Box sx={{ display: "flex", justifyContent: "center" }}>
+          <Button onClick={() => { fetchAllBookings(true) }}>Load More</Button>
+        </Box>)} */}
     </Box>
   );
 };

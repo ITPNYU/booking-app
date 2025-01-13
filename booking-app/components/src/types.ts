@@ -285,3 +285,8 @@ export interface UserApiData {
   dept_name?: string;
   preferred_first_name?: string;
 }
+
+export type Filters = {
+  dateRange: string | Date[];
+  sortField: string;
+};
