@@ -16,7 +16,7 @@ const parseEmails = (emailString: string): string[] => {
   // Match all email addresses that end with @nyu.edu
   const emailRegex = /[a-zA-Z0-9._%+-]+@nyu\.edu/g;
   const emails = emailString.match(emailRegex) || [];
-  return [...new Set(emails)]; // Remove duplicates
+  return Array.from(new Set(emails)); // Remove duplicates
 };
 const findRoomIds = (title: string): string => {
   const match = title.match(/^\d+(,\s*\d+)*/);
@@ -171,6 +171,7 @@ const findGuestEmails = (event: any, description: string): string[] => {
 const createBookingWithDefaults = (
   partialBooking: Partial<Booking>,
 ): Booking => {
+  //@ts-ignore
   return {
     title: "",
     description: "",
@@ -229,13 +230,11 @@ export async function POST(request: Request) {
     const now = new Date();
     const oneMonthsAgo = new Date(now.getFullYear(), now.getMonth(), 1);
     const fifthMonthsLater = new Date(now.getFullYear(), now.getMonth() + 6, 0);
-    console.log("oneMonthsAgo", oneMonthsAgo);
-    console.log("fifthMonthsLater", fifthMonthsLater);
     const timeMin = oneMonthsAgo.toISOString();
     const timeMax = fifthMonthsLater.toISOString();
 
     for (const resource of resources) {
-      console.log(resource.calendarId);
+      console.log("calendarId", resource.calendarId);
       try {
         let pageToken: string | undefined;
         const calendarId = resource.calendarId;
@@ -253,7 +252,10 @@ export async function POST(request: Request) {
           for (const event of events.data.items || []) {
             //Skip not pregame events
             console.log(event.summary);
-            console.log("pregame", hasRequesterDetails(event.description));
+            console.log(
+              "Is it pregame event?",
+              hasRequesterDetails(event.description),
+            );
             if (hasRequesterDetails(event.description)) {
               const bookingRef = db
                 .collection("bookings")
@@ -268,8 +270,7 @@ export async function POST(request: Request) {
               ) as Timestamp;
               const title = event.summary;
               const sanitizedTitle = title.replace(/^\[.*?\]\s*/, ""); // `[PENDING]` を削除
-
-              console.log("roomIds", roomIds);
+              console.log("sanitizedTitle", sanitizedTitle);
 
               const existingBookingSnapshot = await db
                 .collection("bookings")
@@ -278,7 +279,6 @@ export async function POST(request: Request) {
                 .get();
 
               if (!existingBookingSnapshot.empty) {
-                console.log();
                 console.log(
                   `Skipping event with title "${title}", startDate "${event.start?.dateTime}" as it already exists.`,
                 );
@@ -310,13 +310,13 @@ export async function POST(request: Request) {
 
                 console.log("newBooking", newBooking);
                 const newTitle = `[${BookingStatusLabel.PENDING}] ${event.summary}`;
-                console.log("updatedTitle", newTitle);
                 //const bookingDocRef = await db
                 //  .collection(TableNames.BOOKING)
                 //  .add({
                 //    ...newBooking,
                 //    requestedAt: admin.firestore.FieldValue.serverTimestamp(),
-                //    firstApprovedAt: admin.firestore.FieldValue.serverTimestamp(),
+                //    firstApprovedAt:
+                //      admin.firestore.FieldValue.serverTimestamp(),
                 //  });
 
                 ////Add all requesters as guests to the calendar event
