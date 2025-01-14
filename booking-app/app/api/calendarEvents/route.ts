@@ -13,6 +13,7 @@ const getCalendarEvents = async (calendarId: string) => {
   const now = new Date().toISOString();
   const threeMonthsFromNow = new Date();
   threeMonthsFromNow.setMonth(threeMonthsFromNow.getMonth() + 3);
+  threeMonthsFromNow.setMonth(threeMonthsFromNow.getMonth() + 6);
   const threeMonthsFromNowISOString = threeMonthsFromNow.toISOString();
 
   const res = await calendar.events.list({
