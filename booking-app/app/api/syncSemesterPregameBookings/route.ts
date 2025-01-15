@@ -1,5 +1,4 @@
 import { toFirebaseTimestampFromString } from "@/components/src/client/utils/serverDate";
-import { TableNames } from "@/components/src/policy";
 import {
   Booking,
   BookingStatusLabel,
@@ -281,8 +280,27 @@ export async function POST(request: Request) {
 
               if (!existingBookingSnapshot.empty) {
                 console.log(
-                  `Skipping event with title "${title}", startDate "${event.start?.dateTime}" as it already exists.`,
+                  `A Booking with title "${title}" and startDate "${event.start?.dateTime}" already exists.`,
                 );
+
+                // Add [PENDING]
+                if (
+                  !title.startsWith("[") &&
+                  !title.includes(`[${BookingStatusLabel.PENDING}]`)
+                ) {
+                  const newTitle = `[${BookingStatusLabel.PENDING}] ${title}`;
+                  console.log(
+                    `Renaming existing event title from "${title}" to "${newTitle}".`,
+                  );
+
+                  //await calendar.events.patch({
+                  //  calendarId: resource.calendarId,
+                  //  eventId: event.id!,
+                  //  requestBody: {
+                  //    summary: newTitle,
+                  //  },
+                  //});
+                }
                 continue;
               }
 
@@ -311,28 +329,28 @@ export async function POST(request: Request) {
 
                 console.log("newBooking", newBooking);
                 const newTitle = `[${BookingStatusLabel.PENDING}] ${event.summary}`;
-                const bookingDocRef = await db
-                  .collection(TableNames.BOOKING)
-                  .add({
-                    ...newBooking,
-                    requestedAt: admin.firestore.FieldValue.serverTimestamp(),
-                    firstApprovedAt:
-                      admin.firestore.FieldValue.serverTimestamp(),
-                  });
+                //const bookingDocRef = await db
+                //  .collection(TableNames.BOOKING)
+                //  .add({
+                //    ...newBooking,
+                //    requestedAt: admin.firestore.FieldValue.serverTimestamp(),
+                //    firstApprovedAt:
+                //      admin.firestore.FieldValue.serverTimestamp(),
+                //  });
 
-                //Add all requesters as guests to the calendar event
-                if (event.id) {
-                  await calendar.events.patch({
-                    calendarId: resource.calendarId,
-                    eventId: event.id,
-                    requestBody: {
-                      summary: newTitle,
-                    },
-                  });
-                }
+                ////Add all requesters as guests to the calendar event
+                //if (event.id) {
+                //  await calendar.events.patch({
+                //    calendarId: resource.calendarId,
+                //    eventId: event.id,
+                //    requestBody: {
+                //      summary: newTitle,
+                //    },
+                //  });
+                //}
 
-                console.log(`New Booking created with ID: ${bookingDocRef.id}`);
-                totalNewBookings++;
+                //console.log(`New Booking created with ID: ${bookingDocRef.id}`);
+                //totalNewBookings++;
               }
             }
           }
