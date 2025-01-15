@@ -136,7 +136,7 @@ const parseDescription = (
   return bookingDetails;
 };
 const hasRequesterDetails = (description: string): boolean => {
-  return description.includes("Requester Details");
+  return description?.includes("Requester Details");
 };
 
 const findGuestEmails = (event: any, description: string): string[] => {
