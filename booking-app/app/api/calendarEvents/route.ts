@@ -1,39 +1,47 @@
-import { NextRequest, NextResponse } from "next/server";
 import {
   deleteEvent,
   insertEvent,
   updateCalendarEvent,
 } from "@/components/src/server/calendars";
+import { NextRequest, NextResponse } from "next/server";
 
-import { getCalendarClient } from "@/lib/googleClient";
 import { serverBookingContents } from "@/components/src/server/admin";
+import { getCalendarClient } from "@/lib/googleClient";
+import { calendar_v3 } from "googleapis/build/src/apis/calendar";
 
 const getCalendarEvents = async (calendarId: string) => {
-  const calendar = await getCalendarClient();
   const now = new Date().toISOString();
-  const threeMonthsFromNow = new Date();
-  threeMonthsFromNow.setMonth(threeMonthsFromNow.getMonth() + 3);
-  threeMonthsFromNow.setMonth(threeMonthsFromNow.getMonth() + 6);
-  const threeMonthsFromNowISOString = threeMonthsFromNow.toISOString();
+  const endOfRange = new Date();
+  endOfRange.setMonth(endOfRange.getMonth() + 6);
+  const endOfRangeISOString = endOfRange.toISOString();
 
-  const res = await calendar.events.list({
-    calendarId,
-    timeMin: now,
-    timeMax: threeMonthsFromNowISOString,
-    singleEvents: true,
-    orderBy: "startTime",
-  });
+  let events: calendar_v3.Schema$Event[] = [];
+  const calendar = await getCalendarClient();
+  let pageToken: string | undefined = undefined;
 
-  const events = res.data.items || [];
+  do {
+    const res = await calendar.events.list({
+      calendarId,
+      timeMin: now,
+      timeMax: endOfRangeISOString,
+      singleEvents: true,
+      orderBy: "startTime",
+      maxResults: 1000,
+      pageToken,
+    });
 
-  const formattedEvents = events.map(e => ({
+    if (res.data.items) {
+      events.push(...res.data.items);
+    }
+    pageToken = res.data.nextPageToken || undefined;
+  } while (pageToken);
+
+  return events.map(e => ({
     title: e.summary,
     start: e.start?.dateTime || e.start?.date,
     end: e.end?.dateTime || e.end?.date,
     calendarEventId: e.id,
   }));
-
-  return formattedEvents;
 };
 
 export async function POST(request: NextRequest) {
