@@ -139,10 +139,10 @@ export async function POST(request: Request) {
     let targetBookings = 0;
 
     const now = new Date();
-    const threeMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const threeMonthsLater = new Date(now.getFullYear(), now.getMonth() + 4, 0);
-    const timeMin = threeMonthsAgo.toISOString();
-    const timeMax = threeMonthsLater.toISOString();
+    const startTimeMax = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const endTimeMax = new Date(now.getFullYear(), now.getMonth() + 12, 0);
+    const timeMin = startTimeMax.toISOString();
+    const timeMax = endTimeMax.toISOString();
 
     for (const resource of resources) {
       try {

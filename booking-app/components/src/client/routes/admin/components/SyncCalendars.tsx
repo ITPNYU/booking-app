@@ -58,17 +58,14 @@ const SyncCalendars = () => {
 
   return (
     <Box>
-      <Typography variant="h6">
-        {" "}
-        Sync Current Semester Calendar Events
-      </Typography>
+      <Typography variant="h6"> Import Manual Calendar Events</Typography>
       <p>
-        This function saves existing events from the current semester's calendar
-        to the database.
+        This function imports existing manually entered events from Production
+        Google Calendars to the Booking Tool database.
       </p>
       <Box sx={{ marginTop: 2 }}>
         <Button onClick={handleSync} variant="contained" disabled={loading}>
-          Sync Calendar Events
+          IMPORT MANUAL CALENDAR EVENTS
         </Button>
       </Box>
       <AlertToast
@@ -78,13 +75,10 @@ const SyncCalendars = () => {
         handleClose={() => setShowAlert(false)}
       />
       <Box sx={{ marginTop: 4 }}>
-        <Typography variant="h6">
-          {" "}
-          Sync Pregame Calendar Events to Database
-        </Typography>
+        <Typography variant="h6"> Import Pregame Calendar Events</Typography>
         <p>
-          This function saves existing pregame events from the calendar to the
-          database.
+          This function imports existing pregame events from Production Google
+          Calendars to the Booking Tool database.
         </p>
         <Box sx={{ marginTop: 2 }}>
           <Button
@@ -92,7 +86,7 @@ const SyncCalendars = () => {
             variant="contained"
             disabled={loading}
           >
-            Sync Pregame Events
+            IMPORT PREGAME CALENDAR EVENTS
           </Button>
         </Box>
         <AlertToast
