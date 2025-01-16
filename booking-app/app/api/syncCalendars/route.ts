@@ -1,7 +1,6 @@
 import { Booking, MediaServices } from "@/components/src/types";
 
 import { toFirebaseTimestampFromString } from "@/components/src/client/utils/serverDate";
-import { TableNames } from "@/components/src/policy";
 import admin from "@/lib/firebase/server/firebaseAdmin";
 import { getCalendarClient } from "@/lib/googleClient";
 import { Timestamp } from "@firebase/firestore";
@@ -166,6 +165,26 @@ export async function POST(request: Request) {
             const guestEmail = findGuestEmail(event);
             const roomIds = findRoomIds(event, resources);
 
+            if (!bookingSnapshot.empty) {
+              console.log(
+                `Skippping the request because the booking with calendarEventId "${event.id}" already exists.`,
+              );
+              continue;
+            }
+            if (event.summary && /\[.*?\]/.test(event.summary)) {
+              console.log(
+                `Skipping event because the title includes status: "${event.summary}"`,
+              );
+              continue;
+            }
+            if (!guestEmail) {
+              console.log(
+                `Skippping the request(calendarEventId: "${event.id}") because we can't find a guestemail.`,
+              );
+
+              continue;
+            }
+
             if (bookingSnapshot.empty && guestEmail) {
               targetBookings++;
               console.log("calendarEventId", event.id);
@@ -187,34 +206,28 @@ export async function POST(request: Request) {
                 mediaServices: MediaServices.CHECKOUT_EQUIPMENT,
               });
               console.log("newBooking", newBooking);
-              const bookingDocRef = await db
-                .collection(TableNames.BOOKING)
-                .add({
-                  ...newBooking,
-                  requestedAt: admin.firestore.FieldValue.serverTimestamp(),
-                  firstApprovedAt: admin.firestore.FieldValue.serverTimestamp(),
-                  finalApprovedAt: admin.firestore.FieldValue.serverTimestamp(),
-                });
+              //const bookingDocRef = await db
+              //  .collection(TableNames.BOOKING)
+              //  .add({
+              //    ...newBooking,
+              //    requestedAt: admin.firestore.FieldValue.serverTimestamp(),
+              //    firstApprovedAt: admin.firestore.FieldValue.serverTimestamp(),
+              //    finalApprovedAt: admin.firestore.FieldValue.serverTimestamp(),
+              //  });
 
-              console.log(`New Booking created with ID: ${bookingDocRef.id}`);
+              //if (event.id) {
+              //  const newTitle = `[${BookingStatusLabel.APPROVED}] ${event.summary}`;
 
-              totalNewBookings++;
-            } else if (!bookingSnapshot.empty) {
-              // Update existing booking if roomIds contains multiple rooms and is different from the existing roomId
-              const existingBooking = bookingSnapshot.docs[0];
-              const existingData = existingBooking.data() as Booking;
-              console.log("roomIds", roomIds);
-              console.log("existingData.roomId", existingData.roomId);
-              if (
-                roomIds.includes(",") &&
-                !areRoomIdsSame(roomIds, existingData.roomId)
-              ) {
-                await existingBooking.ref.update({ roomId: roomIds });
-                console.log(
-                  `Updated roomId for Booking ID: ${existingBooking.id}`,
-                );
-                totalUpdatedBookings++;
-              }
+              //  await calendar.events.patch({
+              //    calendarId: resource.calendarId,
+              //    eventId: event.id,
+              //    requestBody: {
+              //      summary: newTitle,
+              //    },
+              //  });
+              //}
+              //console.log(`New Booking created with ID: ${bookingDocRef.id}`);
+              //totalNewBookings++;
             }
           }
           pageToken = events.data.nextPageToken;
