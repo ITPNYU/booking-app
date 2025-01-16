@@ -1,6 +1,12 @@
-import { Booking, MediaServices } from "@/components/src/types";
+import {
+  Booking,
+  BookingStatusLabel,
+  MediaServices,
+} from "@/components/src/types";
 
 import { toFirebaseTimestampFromString } from "@/components/src/client/utils/serverDate";
+import { TableNames } from "@/components/src/policy";
+import { serverGetNextSequentialId } from "@/lib/firebase/server/adminDb";
 import admin from "@/lib/firebase/server/firebaseAdmin";
 import { getCalendarClient } from "@/lib/googleClient";
 import { Timestamp } from "@firebase/firestore";
@@ -33,6 +39,7 @@ const areRoomIdsSame = (roomIds1: string, roomIds2: string): boolean => {
 const createBookingWithDefaults = (
   partialBooking: Partial<Booking>,
 ): Booking => {
+  //@ts-ignore
   return {
     title: "",
     description: "",
@@ -73,18 +80,6 @@ const createBookingWithDefaults = (
     firstApprovedBy: "",
     finalApprovedAt: undefined,
     finalApprovedBy: "",
-    declinedAt: undefined,
-    declinedBy: "",
-    declineReason: "",
-    canceledAt: undefined,
-    canceledBy: "",
-    checkedInAt: undefined,
-    checkedInBy: "",
-    checkedOutAt: undefined,
-    checkedOutBy: "",
-    noShowedAt: undefined,
-    noShowedBy: "",
-    walkedInAt: undefined,
     ...partialBooking,
   };
 };
@@ -184,11 +179,16 @@ export async function POST(request: Request) {
 
               continue;
             }
+            if (
+              event.start?.dateTime === undefined &&
+              event.end?.dateTime === undefined
+            ) {
+              //All day event
+              continue;
+            }
 
             if (bookingSnapshot.empty && guestEmail) {
               targetBookings++;
-              console.log("calendarEventId", event.id);
-              console.log("title", event.summary);
 
               const calendarEventId = event.id;
               const newBooking = createBookingWithDefaults({
@@ -203,31 +203,32 @@ export async function POST(request: Request) {
                 ) as Timestamp,
                 calendarEventId: calendarEventId || "",
                 roomId: roomIds,
+                requestNumber: await serverGetNextSequentialId("bookings"),
                 mediaServices: MediaServices.CHECKOUT_EQUIPMENT,
               });
               console.log("newBooking", newBooking);
-              //const bookingDocRef = await db
-              //  .collection(TableNames.BOOKING)
-              //  .add({
-              //    ...newBooking,
-              //    requestedAt: admin.firestore.FieldValue.serverTimestamp(),
-              //    firstApprovedAt: admin.firestore.FieldValue.serverTimestamp(),
-              //    finalApprovedAt: admin.firestore.FieldValue.serverTimestamp(),
-              //  });
+              const bookingDocRef = await db
+                .collection(TableNames.BOOKING)
+                .add({
+                  ...newBooking,
+                  requestedAt: admin.firestore.FieldValue.serverTimestamp(),
+                  firstApprovedAt: admin.firestore.FieldValue.serverTimestamp(),
+                  finalApprovedAt: admin.firestore.FieldValue.serverTimestamp(),
+                });
 
-              //if (event.id) {
-              //  const newTitle = `[${BookingStatusLabel.APPROVED}] ${event.summary}`;
+              if (event.id) {
+                const newTitle = `[${BookingStatusLabel.APPROVED}] ${event.summary}`;
 
-              //  await calendar.events.patch({
-              //    calendarId: resource.calendarId,
-              //    eventId: event.id,
-              //    requestBody: {
-              //      summary: newTitle,
-              //    },
-              //  });
-              //}
-              //console.log(`New Booking created with ID: ${bookingDocRef.id}`);
-              //totalNewBookings++;
+                await calendar.events.patch({
+                  calendarId: resource.calendarId,
+                  eventId: event.id,
+                  requestBody: {
+                    summary: newTitle,
+                  },
+                });
+              }
+              console.log(`New Booking created with ID: ${bookingDocRef.id}`);
+              totalNewBookings++;
             }
           }
           pageToken = events.data.nextPageToken;
