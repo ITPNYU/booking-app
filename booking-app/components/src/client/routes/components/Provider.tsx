@@ -244,10 +244,11 @@ export const DatabaseProvider = ({
         setLastItem(bookingsResponse[bookingsResponse.length - 1]);
         setAllBookings(bookingsResponse);
       }
-      setBookingsLoading(false);
 
     } catch (error) {
       console.error("Error fetching data:", error);
+    } finally {
+      setBookingsLoading(false);
     }
   };
 
