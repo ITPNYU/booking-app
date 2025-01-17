@@ -75,7 +75,7 @@ export const Bookings: React.FC<BookingsProps> = ({
       );
     }
 
-    /* if (pageContext === PageContextLevel.LIAISON) {
+    if (pageContext === PageContextLevel.LIAISON) {
       return (
         <Box
           sx={{
@@ -88,7 +88,7 @@ export const Bookings: React.FC<BookingsProps> = ({
           Department Requests
         </Box>
       );
-    } */
+    }
 
     return (
       <BookingTableFilters
