@@ -38,7 +38,7 @@ export const Bookings: React.FC<BookingsProps> = ({
   const [modalData, setModalData] = useState<BookingRow>(null);
   const [statusFilters, setStatusFilters] = useState([]);
   const [selectedDateRange, setSelectedDateRange] = useState<DateRangeFilter>(
-    calendarEventId ? "All Future" : "Today"
+    "All Future"
   );
   const [orderBy, setOrderBy] = useState<keyof BookingRow>("startDate");
   const [order, setOrder] = useState<ColumnSortOrder>("desc");
@@ -75,7 +75,7 @@ export const Bookings: React.FC<BookingsProps> = ({
       );
     }
 
-    if (pageContext === PageContextLevel.LIAISON) {
+    /* if (pageContext === PageContextLevel.LIAISON) {
       return (
         <Box
           sx={{
@@ -88,7 +88,7 @@ export const Bookings: React.FC<BookingsProps> = ({
           Department Requests
         </Box>
       );
-    }
+    } */
 
     return (
       <BookingTableFilters

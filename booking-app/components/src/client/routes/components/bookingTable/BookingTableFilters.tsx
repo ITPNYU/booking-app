@@ -87,7 +87,7 @@ export default function BookingTableFilters({
           )
         )}
       </Box>
-      <Box>{pageContext >= PageContextLevel.PA && dateFilters}</Box>
+      <Box>{pageContext >= PageContextLevel.LIAISON && dateFilters}</Box>
     </Box>
   );
 }
