@@ -90,6 +90,7 @@ export default function CalendarVerticalResource({
     bookingCalendarInfo,
     existingCalendarEvents,
     setBookingCalendarInfo,
+    fetchingStatus,
   } = useContext(BookingContext);
   const ref = useRef(null);
 
@@ -177,6 +178,10 @@ export default function CalendarVerticalResource({
     return el.overlap;
   };
 
+  useEffect(() => {
+    console.log(fetchingStatus);
+  },[fetchingStatus]);
+
   // clicking on created event should delete it
   // only if not in MODIFICATION mode
   const handleEventClick = (info: EventClickArg) => {
@@ -217,7 +222,7 @@ export default function CalendarVerticalResource({
     );
   }, [existingCalendarEvents, formContext]);
 
-  if (existingCalendarEvents.length === 0) {
+  if (fetchingStatus === "error" && existingCalendarEvents.length === 0) {
     return (
       <Empty>
         <Error />
@@ -238,6 +243,14 @@ export default function CalendarVerticalResource({
           Select spaces to view their availability, then click and drag to
           choose a time slot
         </Typography>
+      </Empty>
+    );
+  }
+  
+  if(fetchingStatus === "loading"){
+    return (
+      <Empty>
+        <Typography>Loading...</Typography>
       </Empty>
     );
   }

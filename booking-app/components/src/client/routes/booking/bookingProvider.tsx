@@ -34,6 +34,7 @@ export interface BookingContextType {
   setSelectedRooms: (x: RoomSetting[]) => void;
   setSubmitting: (x: SubmitStatus) => void;
   submitting: SubmitStatus;
+  fetchingStatus: "loading" | "loaded" | "error" | null;
 }
 
 export const BookingContext = createContext<BookingContextType>({
@@ -56,6 +57,7 @@ export const BookingContext = createContext<BookingContextType>({
   setSelectedRooms: (x: RoomSetting[]) => {},
   setSubmitting: (x: SubmitStatus) => {},
   submitting: "none",
+  fetchingStatus: null,
 });
 
 export function BookingProvider({ children }) {
@@ -71,7 +73,7 @@ export function BookingProvider({ children }) {
   const [role, setRole] = useState<Role>();
   const [selectedRooms, setSelectedRooms] = useState<RoomSetting[]>([]);
   const [submitting, setSubmitting] = useState<SubmitStatus>("error");
-  const { existingCalendarEvents, reloadExistingCalendarEvents } =
+  const { existingCalendarEvents, reloadExistingCalendarEvents, fetchingStatus } =
     fetchCalendarEvents(roomSettings);
 
   const isBanned = useMemo<boolean>(() => {
@@ -127,6 +129,7 @@ export function BookingProvider({ children }) {
         setSelectedRooms,
         setSubmitting,
         submitting,
+        fetchingStatus,
       }}
     >
       {children}
