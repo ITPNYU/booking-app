@@ -46,6 +46,9 @@ export const Bookings: React.FC<BookingsProps> = ({
   const isUserView = pageContext === PageContextLevel.USER;
 
   useEffect(() => {
+    if(pageContext > PageContextLevel.LIAISON) {
+      setSelectedDateRange("Today");
+    }
     return ()=>{
       setLastItem(null);
     }
