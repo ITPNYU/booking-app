@@ -132,6 +132,16 @@ export default function BookingActions(props: Props) {
       </IconButton>
     );
   }, [selectedAction, reason]);
+  
+  const disabledActions = useMemo(()=>{
+    let disabledActions = [];
+    if (pageContext === PageContextLevel.ADMIN || pageContext === PageContextLevel.PA) {
+      if (new Date().getTime() < startDate.toMillis()) {
+        disabledActions.push(Actions.CHECK_IN);
+      }
+    }
+    return disabledActions;
+  }, [pageContext, startDate]);
 
   if (options().length === 0) {
     return <></>;
@@ -166,7 +176,9 @@ export default function BookingActions(props: Props) {
           <em>Action</em>
         </MenuItem>
         {options().map((action) => (
-          <MenuItem value={action} key={action}>
+          <MenuItem 
+            disabled={disabledActions.includes(action)} 
+            value={action} key={action}>
             {action}
           </MenuItem>
         ))}
