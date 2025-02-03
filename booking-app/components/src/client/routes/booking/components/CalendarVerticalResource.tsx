@@ -85,7 +85,7 @@ export default function CalendarVerticalResource({
   rooms,
   dateView,
 }: Props) {
-  const { operationHours } = useContext(DatabaseContext);
+  const { operationHours, pagePermission } = useContext(DatabaseContext);
   const {
     bookingCalendarInfo,
     existingCalendarEvents,
@@ -289,7 +289,9 @@ export default function CalendarVerticalResource({
         resources={resources}
         resourceOrder={"index"}
         events={[...blockPastTimes, ...existingCalEventsFiltered, ...newEvents]}
-        eventContent={CalendarEventBlock}
+        eventContent={(calendarEventInfo) =>
+          CalendarEventBlock(calendarEventInfo, pagePermission)
+        }
         eventClick={function (info) {
           info.jsEvent.preventDefault();
           handleEventClick(info);
