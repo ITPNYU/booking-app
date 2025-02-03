@@ -85,11 +85,12 @@ export default function CalendarVerticalResource({
   rooms,
   dateView,
 }: Props) {
-  const { operationHours } = useContext(DatabaseContext);
+  const { operationHours, pagePermission } = useContext(DatabaseContext);
   const {
     bookingCalendarInfo,
     existingCalendarEvents,
     setBookingCalendarInfo,
+    fetchingStatus,
   } = useContext(BookingContext);
   const ref = useRef(null);
 
@@ -177,6 +178,10 @@ export default function CalendarVerticalResource({
     return el.overlap;
   };
 
+  useEffect(() => {
+    console.log(fetchingStatus);
+  },[fetchingStatus]);
+
   // clicking on created event should delete it
   // only if not in MODIFICATION mode
   const handleEventClick = (info: EventClickArg) => {
@@ -217,7 +222,7 @@ export default function CalendarVerticalResource({
     );
   }, [existingCalendarEvents, formContext]);
 
-  if (existingCalendarEvents.length === 0) {
+  if (fetchingStatus === "error" && existingCalendarEvents.length === 0) {
     return (
       <Empty>
         <Error />
@@ -238,6 +243,14 @@ export default function CalendarVerticalResource({
           Select spaces to view their availability, then click and drag to
           choose a time slot
         </Typography>
+      </Empty>
+    );
+  }
+  
+  if(fetchingStatus === "loading"){
+    return (
+      <Empty>
+        <Typography>Loading...</Typography>
       </Empty>
     );
   }
@@ -276,7 +289,9 @@ export default function CalendarVerticalResource({
         resources={resources}
         resourceOrder={"index"}
         events={[...blockPastTimes, ...existingCalEventsFiltered, ...newEvents]}
-        eventContent={CalendarEventBlock}
+        eventContent={(calendarEventInfo) =>
+          CalendarEventBlock(calendarEventInfo, pagePermission)
+        }
         eventClick={function (info) {
           info.jsEvent.preventDefault();
           handleEventClick(info);
