@@ -41,7 +41,7 @@ export const Bookings: React.FC<BookingsProps> = ({
     "All Future"
   );
   const [orderBy, setOrderBy] = useState<keyof BookingRow>("startDate");
-  const [order, setOrder] = useState<ColumnSortOrder>("desc");
+  const [order, setOrder] = useState<ColumnSortOrder>(pageContext === PageContextLevel.PA ? "asc" : "desc");
 
   const isUserView = pageContext === PageContextLevel.USER;
 
