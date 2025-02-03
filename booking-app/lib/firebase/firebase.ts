@@ -138,7 +138,6 @@ export const getPaginatedData = async<T> (
       id: doc.id,
       ...doc.data() as unknown as T
     }));
-    console.log(items)
     return items;
   } catch (error) {
     console.error('Error getting paginated data:', error);

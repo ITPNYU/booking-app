@@ -142,11 +142,8 @@ export default function useBookingActions({
       options.push(Actions.CANCEL);
     }
     if (
-      status !== BookingStatusLabel.CANCELED &&
-      status !== BookingStatusLabel.CHECKED_IN &&
-      status !== BookingStatusLabel.CHECKED_OUT &&
-      status !== BookingStatusLabel.NO_SHOW &&
-      status !== BookingStatusLabel.APPROVED &&
+      (status == BookingStatusLabel.PENDING ||
+        status == BookingStatusLabel.REQUESTED) &&
       startDate.toDate() > date
     ) {
       options.push(Actions.EDIT);
