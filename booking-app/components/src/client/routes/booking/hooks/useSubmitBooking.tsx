@@ -4,6 +4,7 @@ import { useCallback, useContext } from "react";
 import { BookingContext } from "../bookingProvider";
 import { DatabaseContext } from "../../components/Provider";
 import { useRouter } from "next/navigation";
+import useCalculateOverlap from "./useCalculateOverlap";
 
 export default function useSubmitBooking(formContext: FormContextLevel) {
   const router = useRouter();
@@ -25,6 +26,7 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
     setHasShownMocapModal,
     setSubmitting,
   } = useContext(BookingContext);
+  const isOverlap = useCalculateOverlap();
 
   const isEdit = formContext === FormContextLevel.EDIT;
   const isWalkIn = formContext === FormContextLevel.WALK_IN;
@@ -53,6 +55,12 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
 
       if (isModification && pagePermission === PagePermission.BOOKING) {
         // only a PA/admin can do a modification
+        setSubmitting("error");
+        return;
+      }
+      // Add final overlap check before submitting
+      if (isOverlap) {
+        console.error("Booking time slot is no longer available");
         setSubmitting("error");
         return;
       }
@@ -115,7 +123,11 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
           ...(requestParams.body ?? {}),
         }),
       })
-        .then((res) => {
+        .then(async (res) => {
+          if (!res.ok) {
+            const error = await res.json();
+            throw new Error(error.error || "Failed to submit booking");
+          }
           // clear stored booking data after submit confirmation
           setBookingCalendarInfo(undefined);
           setSelectedRooms([]);
@@ -139,6 +151,7 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
       reloadFutureBookings,
       department,
       role,
+      isOverlap
     ]
   );
 

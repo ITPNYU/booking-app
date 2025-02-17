@@ -52,6 +52,49 @@ export default function BookingFormConfirmationPage({ formContext }: Props) {
     );
   }
 
+  if (submitting === "error") {
+    return (
+      <Centered>
+        <Box
+          sx={{
+            position: "absolute",
+            top: "calc(50% - 40px)",
+            left: "50%",
+            transform: "translate(-50%, -100%)",
+          }}
+        >
+          <Typography variant="h3" lineHeight="1.55rem">
+            ⚠️
+          </Typography>
+        </Box>
+        <Typography variant="h6" sx={{ padding: 3, textAlign: "center" }}>
+          This time slot is no longer available.
+          <br />
+          Please select a different time.
+        </Typography>
+        <Box
+          sx={{
+            position: "absolute",
+            top: "calc(50% + 100px)",
+            left: "50%",
+            transform: "translate(-50%, 0%)",
+          }}
+        >
+          <Button
+            onClick={() => router.push(isWalkIn ? "/walk-in/selectRoom" : "/book/selectRoom")}
+            variant="text"
+            sx={{
+              background: theme.palette.primary[50],
+              color: theme.palette.primary.main,
+            }}
+          >
+            Try Again
+          </Button>
+        </Box>
+      </Centered>
+    );
+  }
+
   if (submitting === "success") {
     return (
       <Centered>
