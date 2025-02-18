@@ -1,6 +1,6 @@
 # Booking App
 
-Welcome to our booking management application! ✨ Built with Next.js, this platform provides a booking capabilities for both administrators and users.
+✨ Built with Next.js.
 
 ## 🚀 Getting Started
 
@@ -18,12 +18,12 @@ Before you begin, ensure you have the following installed:
 
 1. Clone the repository or download the project files:
 ```bash
-git clone https://github.com/your-org/booking-app.git
+git clone https://github.com/ITPNYU/booking-app.git
 ```
 
 2. Navigate to the project directory:
 ```bash
-cd booking-app
+cd booking-app/booking-app
 ```
 
 3. Install the dependencies:
@@ -31,7 +31,7 @@ cd booking-app
 npm install
 ```
 
-4. 🔐 Obtain the `.env` file from a project administrator and place it in the root directory of the project.
+4. 🔐 Obtain the `.env.local` file from a project administrator (Riho or Nima) and place it in the root directory of the project.
 
 ### Running the Application
 
@@ -46,15 +46,15 @@ npm run dev
 
 Once the application is running, you should be able to:
 - View the homepage at http://localhost:3000
-- Access the admin dashboard (if you have credentials)
+- Access the admin dashboard (if you are authorized)
 - See the booking interface
 
 ## 🔒 Environment Variables
 
 This project relies on environment variables for secure configuration. Important notes:
-- Request the `.env` file from your project administrator
+- Request the `.env.local` file from project admin or another dev
 - Never commit the `.env` file to version control
-- Keep your environment variables secure and confidential
+- Keep the environment variables secure and confidential
 
 
 ## 🧪 Testing the Application
@@ -90,6 +90,14 @@ In the `package.json` file, the following test scripts are defined:
    ```bash
    npm install
    ```
+
+2. Make sure the environemnt variables below are set accordingly: 
+   ```bash
+   NEXT_PUBLIC_BRANCH_NAME=development
+   CI=true
+   TEST_EMAIL_ADDRESS=<YOUR_TEST_EMAIL_ADDRESS>
+   TEST_PASSWORD=<YOUR_TEST_EMAIL_PASSWORD>
+   ```
 2. Run the desired test script:
    - For unit tests: `npm run test:unit`
    - For E2E tests: `npm run test:e2e`
@@ -106,13 +114,13 @@ In the `package.json` file, the following test scripts are defined:
 
 ## 🚢 Deployment
 
-Our project uses a CI/CD pipeline with automated deployments:
+This project uses a CI/CD pipeline with automated deployments:
 
 | Branch | Environment | Description |
 |--------|-------------|-------------|
 | `main` | 🔧 Development | Automatic deployment for testing new features |
 | `staging` | 🔬 Staging | Pre-production testing and QA |
-| `production` | 🚀 Production | Live production environment |
+| `prod` | 🚀 Production | Live production environment |
 
 ### 📝 Deployment Guidelines
 
@@ -120,12 +128,6 @@ Our project uses a CI/CD pipeline with automated deployments:
 2. Test thoroughly in development
 3. Create pull requests for code review
 4. Merge to appropriate branch based on deployment target
-
-## 🆘 Need Help?
-
-- 📧 Contact the project administrator for `.env.local` configuration
-- 🐛 Report bugs through the issue tracker
-- 💡 Submit feature requests through pull requests
 
 ## 🔄 Regular Maintenance
 
