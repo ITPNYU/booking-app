@@ -37,10 +37,12 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const truncatedTitle = data.title.length > 25 ? data.title.substring(0, 25) + "..." : data.title;
+  
   const event = await insertEvent({
     calendarId,
-    title: `[${BookingStatusLabel.WALK_IN}] ${selectedRoomIds.join(", ")} ${department} ${data.title}`,
-    description: "This reservation was made as a walk-in.",
+    title: `[${BookingStatusLabel.WALK_IN}] ${selectedRoomIds.join(", ")} ${truncatedTitle}`,
+    description: `Department: ${department}\n\nThis reservation was made as a walk-in.`,
     startTime: bookingCalendarInfo.startStr,
     endTime: bookingCalendarInfo.endStr,
     roomEmails: otherRoomIds,

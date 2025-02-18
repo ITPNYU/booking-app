@@ -47,11 +47,13 @@ async function createBookingCalendarEvent(
     (r: { calendarId: string }) => r.calendarId,
   );
 
+  // Limit title to 25 characters
+  const truncatedTitle = title.length > 25 ? title.substring(0, 25) + "..." : title;
+
   const event = await insertEvent({
     calendarId,
-    title: `[${BookingStatusLabel.REQUESTED}] ${selectedRoomIds.join(", ")} ${department} ${title}`,
-    description:
-      "Your reservation is not yet confirmed. The coordinator will review and finalize your reservation within a few days.",
+    title: `[${BookingStatusLabel.REQUESTED}] ${selectedRoomIds.join(", ")} ${truncatedTitle}`,
+    description: `Department: ${department}\n\nYour reservation is not yet confirmed. The coordinator will review and finalize your reservation within a few days.`,
     startTime: bookingCalendarInfo.startStr,
     endTime: bookingCalendarInfo.endStr,
     roomEmails: otherRoomEmails,
