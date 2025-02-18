@@ -1,11 +1,16 @@
-import { Booking, MediaServices } from "@/components/src/types";
+import {
+  Booking,
+  BookingStatusLabel,
+  MediaServices,
+} from "@/components/src/types";
 
-import { NextResponse } from "next/server";
+import { toFirebaseTimestampFromString } from "@/components/src/client/utils/serverDate";
 import { TableNames } from "@/components/src/policy";
-import { Timestamp } from "@firebase/firestore";
+import { serverGetNextSequentialId } from "@/lib/firebase/server/adminDb";
 import admin from "@/lib/firebase/server/firebaseAdmin";
 import { getCalendarClient } from "@/lib/googleClient";
-import { toFirebaseTimestampFromString } from "@/components/src/client/utils/serverDate";
+import { Timestamp } from "@firebase/firestore";
+import { NextResponse } from "next/server";
 
 const db = admin.firestore();
 const areRoomIdsSame = (roomIds1: string, roomIds2: string): boolean => {
@@ -34,6 +39,7 @@ const areRoomIdsSame = (roomIds1: string, roomIds2: string): boolean => {
 const createBookingWithDefaults = (
   partialBooking: Partial<Booking>,
 ): Booking => {
+  //@ts-ignore
   return {
     title: "",
     description: "",
@@ -74,18 +80,6 @@ const createBookingWithDefaults = (
     firstApprovedBy: "",
     finalApprovedAt: undefined,
     finalApprovedBy: "",
-    declinedAt: undefined,
-    declinedBy: "",
-    declineReason: "",
-    canceledAt: undefined,
-    canceledBy: "",
-    checkedInAt: undefined,
-    checkedInBy: "",
-    checkedOutAt: undefined,
-    checkedOutBy: "",
-    noShowedAt: undefined,
-    noShowedBy: "",
-    walkedInAt: undefined,
     ...partialBooking,
   };
 };
@@ -139,10 +133,10 @@ export async function POST(request: Request) {
     let targetBookings = 0;
 
     const now = new Date();
-    const threeMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const threeMonthsLater = new Date(now.getFullYear(), now.getMonth() + 4, 0);
-    const timeMin = threeMonthsAgo.toISOString();
-    const timeMax = threeMonthsLater.toISOString();
+    const startTimeMax = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const endTimeMax = new Date(now.getFullYear(), now.getMonth() + 12, 0);
+    const timeMin = startTimeMax.toISOString();
+    const timeMax = endTimeMax.toISOString();
 
     for (const resource of resources) {
       try {
@@ -166,10 +160,35 @@ export async function POST(request: Request) {
             const guestEmail = findGuestEmail(event);
             const roomIds = findRoomIds(event, resources);
 
+            if (!bookingSnapshot.empty) {
+              console.log(
+                `Skippping the request because the booking with calendarEventId "${event.id}" already exists.`,
+              );
+              continue;
+            }
+            if (event.summary && /\[.*?\]/.test(event.summary)) {
+              console.log(
+                `Skipping event because the title includes status: "${event.summary}"`,
+              );
+              continue;
+            }
+            if (!guestEmail) {
+              console.log(
+                `Skippping the request(calendarEventId: "${event.id}") because we can't find a guestemail.`,
+              );
+
+              continue;
+            }
+            if (
+              event.start?.dateTime === undefined &&
+              event.end?.dateTime === undefined
+            ) {
+              //All day event
+              continue;
+            }
+
             if (bookingSnapshot.empty && guestEmail) {
               targetBookings++;
-              console.log("calendarEventId", event.id);
-              console.log("title", event.summary);
 
               const calendarEventId = event.id;
               const newBooking = createBookingWithDefaults({
@@ -184,6 +203,7 @@ export async function POST(request: Request) {
                 ) as Timestamp,
                 calendarEventId: calendarEventId || "",
                 roomId: roomIds,
+                requestNumber: await serverGetNextSequentialId("bookings"),
                 mediaServices: MediaServices.CHECKOUT_EQUIPMENT,
               });
               console.log("newBooking", newBooking);
@@ -196,25 +216,19 @@ export async function POST(request: Request) {
                   finalApprovedAt: admin.firestore.FieldValue.serverTimestamp(),
                 });
 
-              console.log(`New Booking created with ID: ${bookingDocRef.id}`);
+              if (event.id) {
+                const newTitle = `[${BookingStatusLabel.APPROVED}] ${event.summary}`;
 
-              totalNewBookings++;
-            } else if (!bookingSnapshot.empty) {
-              // Update existing booking if roomIds contains multiple rooms and is different from the existing roomId
-              const existingBooking = bookingSnapshot.docs[0];
-              const existingData = existingBooking.data() as Booking;
-              console.log("roomIds", roomIds);
-              console.log("existingData.roomId", existingData.roomId);
-              if (
-                roomIds.includes(",") &&
-                !areRoomIdsSame(roomIds, existingData.roomId)
-              ) {
-                await existingBooking.ref.update({ roomId: roomIds });
-                console.log(
-                  `Updated roomId for Booking ID: ${existingBooking.id}`,
-                );
-                totalUpdatedBookings++;
+                await calendar.events.patch({
+                  calendarId: resource.calendarId,
+                  eventId: event.id,
+                  requestBody: {
+                    summary: newTitle,
+                  },
+                });
               }
+              console.log(`New Booking created with ID: ${bookingDocRef.id}`);
+              totalNewBookings++;
             }
           }
           pageToken = events.data.nextPageToken;

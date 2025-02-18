@@ -3,35 +3,62 @@ import {
   BookingFormDetails,
   BookingStatusLabel,
   Days,
+  Filters,
   OperationHours,
+  PagePermission,
 } from "../types";
-import {
-  ApproverLevel,
-  TableNames,
-  clientGetFinalApproverEmail,
-  getCancelCcEmail,
-} from "../policy";
-import { Timestamp, where } from "@firebase/firestore";
+
 import {
   clientFetchAllDataFromCollection,
   clientGetDataByCalendarEventId,
   clientSaveDataToFirestore,
   clientUpdateDataInFirestore,
+  getPaginatedData,
 } from "@/lib/firebase/firebase";
+import { Timestamp, where } from "@firebase/firestore";
+import {
+  ApproverLevel,
+  TableNames,
+  clientGetFinalApproverEmail,
+  getApprovalCcEmail,
+  getCancelCcEmail,
+} from "../policy";
 
 import { clientUpdateDataByCalendarEventId } from "@/lib/firebase/client/clientDb";
-import { getBookingToolDeployUrl } from "./ui";
 import { roundTimeUp } from "../client/utils/date";
+import { getBookingToolDeployUrl } from "./ui";
 
-export const fetchAllFutureBooking = async <T>(
-  collectionName: TableNames
-): Promise<T[]> => {
+export const fetchAllFutureBooking = async <Booking>(): Promise<Booking[]> => {
   const now = Timestamp.now();
   const futureQueryConstraints = [where("endDate", ">", now)];
-  return clientFetchAllDataFromCollection<T>(
-    collectionName,
+  return clientFetchAllDataFromCollection<Booking>(
+    TableNames.BOOKING,
     futureQueryConstraints
   );
+};
+
+export const fetchAllBookings = async <Booking>(
+  pagePermission:PagePermission,
+  limit: number,
+  filters: Filters,
+  last: any
+): Promise<Booking[]> => {
+ if(pagePermission === PagePermission.ADMIN || pagePermission === PagePermission.LIAISON || pagePermission === PagePermission.PA)
+  {
+    return getPaginatedData<Booking>(
+      TableNames.BOOKING,
+      limit,
+      filters,
+      last
+    );
+  } else {
+    return getPaginatedData<Booking>(
+      TableNames.BOOKING,
+      limit,
+      filters,
+      last
+    );
+  }
 };
 
 export const getOldSafetyTrainingEmails = () => {
@@ -122,6 +149,12 @@ export const cancel = async (id: string, email: string) => {
   );
   clientSendBookingDetailEmail(
     id,
+    getApprovalCcEmail(process.env.NEXT_PUBLIC_BRANCH_NAME),
+    headerMessage,
+    BookingStatusLabel.CANCELED
+  );
+  clientSendBookingDetailEmail(
+    id,
     getCancelCcEmail(),
     headerMessage,
     BookingStatusLabel.CANCELED
@@ -162,13 +195,19 @@ export const updateOperationHours = async (
   day: Days,
   open: number,
   close: number,
-  isClosed: boolean
+  isClosed: boolean,
+  roomId?: number
 ) => {
   const docs = await clientFetchAllDataFromCollection<
     OperationHours & { id: string }
   >(TableNames.OPERATION_HOURS);
 
-  const match = docs.find((x) => x.day === day);
+  const match = docs.find((x) => {
+    if (roomId) {
+      return x.day === day && x.roomId === roomId;
+    }
+    return x.day === day;
+  });
 
   if (match != null) {
     const { id, ...data } = match;
@@ -179,11 +218,13 @@ export const updateOperationHours = async (
       isClosed,
     });
   } else {
+    const r = roomId ? { roomId } : {};
     clientSaveDataToFirestore(TableNames.OPERATION_HOURS, {
       day: day.toString(),
       open,
       close,
       isClosed,
+      ...r,
     });
   }
 };
@@ -276,6 +317,12 @@ export const noShow = async (id: string, email: string) => {
   clientSendBookingDetailEmail(
     id,
     guestEmail,
+    headerMessage,
+    BookingStatusLabel.NO_SHOW
+  );
+  clientSendBookingDetailEmail(
+    id,
+    getApprovalCcEmail(process.env.NEXT_PUBLIC_BRANCH_NAME),
     headerMessage,
     BookingStatusLabel.NO_SHOW
   );

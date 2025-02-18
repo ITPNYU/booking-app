@@ -12,10 +12,10 @@ export default function useExistingBooking() {
     setBookingCalendarInfo,
     setFormData,
   } = useContext(BookingContext);
-  const { bookings, roomSettings } = useContext(DatabaseContext);
+  const { allBookings, roomSettings } = useContext(DatabaseContext);
 
   const findBooking = (calendarEventId: string) =>
-    bookings.filter(
+    allBookings.filter(
       (booking) => booking.calendarEventId === calendarEventId
     )[0];
 

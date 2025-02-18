@@ -1,12 +1,12 @@
-import { Box, IconButton, TextField } from "@mui/material";
+import { IconButton, TextField } from "@mui/material";
 import React, { useMemo, useState } from "react";
 
+import { Timestamp } from "@firebase/firestore";
 import { AddCircleOutline } from "@mui/icons-material";
 import Grid from "@mui/material/Unstable_Grid2/Grid2";
-import Loading from "./Loading";
-import { TableNames } from "../../../policy";
-import { Timestamp } from "@firebase/firestore";
 import { clientSaveDataToFirestore } from "../../../../../lib/firebase/firebase";
+import { TableNames } from "../../../policy";
+import Loading from "./Loading";
 
 interface Props {
   addDuplicateErrorMessage?: string;
@@ -18,9 +18,9 @@ interface Props {
   rowsRefresh: () => Promise<void>;
   title: string;
   extra?: {
-    components: React.ReactNode[];
+    components?: React.ReactNode[];
     values: { [key: string]: any };
-    updates: ((x: string) => void)[];
+    updates?: ((x: string) => void)[];
   };
 }
 

@@ -85,11 +85,12 @@ export default function CalendarVerticalResource({
   rooms,
   dateView,
 }: Props) {
-  const { operationHours } = useContext(DatabaseContext);
+  const { operationHours, pagePermission } = useContext(DatabaseContext);
   const {
     bookingCalendarInfo,
     existingCalendarEvents,
     setBookingCalendarInfo,
+    fetchingStatus,
   } = useContext(BookingContext);
   const ref = useRef(null);
 
@@ -177,6 +178,10 @@ export default function CalendarVerticalResource({
     return el.overlap;
   };
 
+  useEffect(() => {
+    console.log(fetchingStatus);
+  },[fetchingStatus]);
+
   // clicking on created event should delete it
   // only if not in MODIFICATION mode
   const handleEventClick = (info: EventClickArg) => {
@@ -217,7 +222,7 @@ export default function CalendarVerticalResource({
     );
   }, [existingCalendarEvents, formContext]);
 
-  if (existingCalendarEvents.length === 0) {
+  if (fetchingStatus === "error" && existingCalendarEvents.length === 0) {
     return (
       <Empty>
         <Error />
@@ -245,17 +250,30 @@ export default function CalendarVerticalResource({
   const operationHoursToday = operationHours.find(
     (setting) => Object.values(Days)[dateView.getDay()] === setting.day
   );
-console.log(operationHoursToday)
-  if (operationHoursToday.isClosed) {
+
+  
+  if(fetchingStatus === "loading"){
     return (
       <Empty>
-        <Typography>The Media Commons are closed on Sundays.</Typography>
+        <Typography>Loading...</Typography>
       </Empty>
     );
   }
 
-  const slotMinTime = `${operationHoursToday.open}:00:00`;
-  const slotMaxTime = `${operationHoursToday.close}:00:00`;
+  const operationHoursToday = operationHours.find(
+    (setting) => Object.values(Days)[dateView.getDay()] === setting.day
+  );
+
+  // if (operationHoursToday.isClosed) {
+  //   return (
+  //     <Empty>
+  //       <Typography>The Media Commons are closed on Sundays.</Typography>
+  //     </Empty>
+  //   );
+  // }
+
+  // const slotMinTime = `${operationHoursToday.open}:00:00`;
+  // const slotMaxTime = `${operationHoursToday.close}:00:00`;
   // don't use these values until we talk to Samantha/Jhanele
 
   return (
@@ -276,7 +294,9 @@ console.log(operationHoursToday)
         resources={resources}
         resourceOrder={"index"}
         events={[...blockPastTimes, ...existingCalEventsFiltered, ...newEvents]}
-        eventContent={CalendarEventBlock}
+        eventContent={(calendarEventInfo) =>
+          CalendarEventBlock(calendarEventInfo, pagePermission)
+        }
         eventClick={function (info) {
           info.jsEvent.preventDefault();
           handleEventClick(info);
@@ -284,8 +304,8 @@ console.log(operationHoursToday)
         eventResize={handleEventEdit}
         eventDrop={handleEventEdit}
         headerToolbar={false}
-        slotMinTime={slotMinTime}
-        slotMaxTime={slotMaxTime}
+        slotMinTime="9:00:00"
+        slotMaxTime="21:00:00"
         allDaySlot={false}
         aspectRatio={isMobile ? 0.5 : 1.5}
         expandRows={true}

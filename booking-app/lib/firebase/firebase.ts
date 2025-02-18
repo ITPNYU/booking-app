@@ -10,13 +10,16 @@ import {
   getDoc,
   getDocs,
   limit,
+  orderBy,
   query,
   setDoc,
+  startAfter,
   updateDoc,
   where,
 } from "@firebase/firestore";
 
 import { getDb } from "./firebaseClient";
+import { Filters } from "@/components/src/types";
 
 export type AdminUserData = {
   email: string;
@@ -63,6 +66,83 @@ export const clientFetchAllDataFromCollection = async <T>(
     ...(document.data() as unknown as T),
   }));
   return data;
+};
+
+export const clientFetchAllDataFromCollectionWithLimitAndOffset = async <T>(
+  collectionName: TableNames,
+  limitNumber: number,
+  offset: number
+): Promise<T[]> => {
+  const db = getDb();
+  const colRef = collection(db, collectionName);
+  const q = query(colRef, limit(limitNumber), where("offset", ">=", offset));
+  const snapshot = await getDocs(q);
+  const data = snapshot.docs.map((document) => ({
+    id: document.id,
+    ...(document.data() as unknown as T),
+  }));
+  return data;
+}
+
+export const getPaginatedData = async<T> (
+  collectionName,
+  itemsPerPage = 10,
+  filters: Filters,
+  lastVisible = null,
+ ) : Promise<T[]> => {
+  try {
+    const db = getDb();
+
+    // Create reference to collection
+    const colRef = collection(db, collectionName);
+    console.log(filters)
+    const queryParams = [];
+    
+    if (filters.dateRange && filters.dateRange.length === 2) {
+      if(filters.dateRange[0]){
+        queryParams.push(where("startDate", ">=", filters.dateRange[0]));
+      }
+
+      if(filters.dateRange[1]){
+        queryParams.push(where("startDate", "<=", filters.dateRange[1]));
+      }
+    }
+    console.log(queryParams)
+    // Build query
+    let q = query(
+      colRef,
+      ...queryParams,
+      orderBy(filters.sortField, 'desc'),
+      orderBy("__name__", 'desc'),
+      // limit(itemsPerPage)
+    );
+    
+    // If we have a last visible item, start after it
+    console.log(lastVisible)
+    if (lastVisible) {
+      q = query(
+        colRef,
+        ...queryParams,
+        orderBy(filters.sortField, 'desc'),
+        orderBy("__name__", 'desc'),
+        // startAfter(lastVisible[filters.sortField], lastVisible.id),
+        // limit(itemsPerPage)
+      );
+    }
+    
+    // Execute query
+    const snapshot = await getDocs(q);
+    
+    // Convert snapshot to data array
+    const items = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data() as unknown as T
+    }));
+    return items;
+  } catch (error) {
+    console.error('Error getting paginated data:', error);
+    throw error;
+  }
 };
 
 export const clientGetFinalApproverEmailFromDatabase = async (): Promise<

@@ -13,7 +13,6 @@ export type Approver = {
 };
 
 export enum AttendeeAffiliation {
-  CHAIR = "Chair / Program Director",
   NYU = "NYU Members with an active NYU ID",
   NON_NYU = "Non-NYU guests",
   BOTH = "All of the above",
@@ -183,6 +182,7 @@ export type OperationHours = {
   open: number;
   close: number;
   isClosed: boolean;
+  roomId?: number;
 };
 
 export type PaUser = {
@@ -194,6 +194,7 @@ export enum PagePermission {
   BOOKING = 0,
   PA,
   LIAISON,
+  EQUIPMENT,
   ADMIN,
 }
 
@@ -201,6 +202,7 @@ export enum PageContextLevel {
   USER = 0,
   LIAISON,
   PA,
+  EQUIPMENT,
   ADMIN,
 }
 
@@ -213,6 +215,7 @@ export enum Role {
   RESIDENT_FELLOW = "Resident/Fellow",
   FACULTY = "Faculty",
   ADMIN_STAFF = "Admin/Staff",
+  CHAIR_PROGRAM_DIRECTOR = "Chair/Program Director",
 }
 
 export type RoomSetting = {
@@ -282,3 +285,8 @@ export interface UserApiData {
   dept_name?: string;
   preferred_first_name?: string;
 }
+
+export type Filters = {
+  dateRange: string | Date[];
+  sortField: string;
+};

@@ -77,6 +77,9 @@ export default function NavBar() {
       case PagePermission.LIAISON:
         router.push("/liaison");
         break;
+      case PagePermission.EQUIPMENT:
+        router.push("/equipment");
+        break;
     }
   };
 
@@ -103,6 +106,8 @@ export default function NavBar() {
       setSelectedView(PagePermission.ADMIN);
     } else if (pathname.includes("/liaison")) {
       setSelectedView(PagePermission.LIAISON);
+    } else if (pathname.includes("/equipment")) {
+      setSelectedView(PagePermission.EQUIPMENT);
     }
   }, [pathname]);
 
@@ -133,6 +138,8 @@ export default function NavBar() {
       pagePermission === PagePermission.LIAISON ||
       pagePermission === PagePermission.ADMIN;
     const showAdmin = pagePermission === PagePermission.ADMIN;
+    const showEquipment =
+      pagePermission === PagePermission.ADMIN || PagePermission.EQUIPMENT;
 
     return (
       <Select size="small" value={selectedView} onChange={handleRoleChange}>
@@ -142,6 +149,9 @@ export default function NavBar() {
           <MenuItem value={PagePermission.LIAISON}>Liaison</MenuItem>
         )}
         {showAdmin && <MenuItem value={PagePermission.ADMIN}>Admin</MenuItem>}
+        {showEquipment && (
+          <MenuItem value={PagePermission.EQUIPMENT}>Equipment</MenuItem>
+        )}
       </Select>
     );
   }, [pagePermission, selectedView]);

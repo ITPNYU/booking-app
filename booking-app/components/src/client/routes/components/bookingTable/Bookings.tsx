@@ -1,5 +1,5 @@
 import { Booking, BookingRow, PageContextLevel } from "../../../../types";
-import { Box, TableCell } from "@mui/material";
+import { Box, TableCell, Typography } from "@mui/material";
 import React, {
   useCallback,
   useContext,
@@ -20,6 +20,7 @@ import MoreInfoModal from "./MoreInfoModal";
 import SortableTableCell from "./SortableTableCell";
 import useAllowedStatuses from "./hooks/useAllowedStatuses";
 import { useBookingFilters } from "./hooks/useBookingFilters";
+import { Button } from "@mui/material";
 
 interface BookingsProps {
   pageContext: PageContextLevel;
@@ -30,22 +31,27 @@ export const Bookings: React.FC<BookingsProps> = ({
   pageContext,
   calendarEventId,
 }) => {
-  const { bookings, bookingsLoading, reloadBookings } =
+  const { bookingsLoading, setLastItem, fetchAllBookings, allBookings, loadMoreEnabled } =
     useContext(DatabaseContext);
   const allowedStatuses = useAllowedStatuses(pageContext);
 
   const [modalData, setModalData] = useState<BookingRow>(null);
   const [statusFilters, setStatusFilters] = useState([]);
   const [selectedDateRange, setSelectedDateRange] = useState<DateRangeFilter>(
-    calendarEventId ? "All" : "Today"
+    "All Future"
   );
   const [orderBy, setOrderBy] = useState<keyof BookingRow>("startDate");
-  const [order, setOrder] = useState<ColumnSortOrder>("asc");
+  const [order, setOrder] = useState<ColumnSortOrder>(pageContext === PageContextLevel.PA ? "asc" : "desc");
 
   const isUserView = pageContext === PageContextLevel.USER;
 
   useEffect(() => {
-    reloadBookings();
+    if(pageContext > PageContextLevel.LIAISON) {
+      setSelectedDateRange("Today");
+    }
+    return ()=>{
+      setLastItem(null);
+    }
   }, []);
 
   const filteredRows = useBookingFilters({
@@ -102,7 +108,7 @@ export const Bookings: React.FC<BookingsProps> = ({
   }, [pageContext, statusFilters, allowedStatuses, selectedDateRange]);
 
   const bottomSection = useMemo(() => {
-    if (bookingsLoading && bookings.length === 0) {
+    if (bookingsLoading && allBookings.length === 0) {
       return (
         <TableEmpty>
           <Loading />
@@ -196,6 +202,7 @@ export const Bookings: React.FC<BookingsProps> = ({
           />
         ))}
       </Table>
+
       {isUserView && <BookMoreButton />}
       {bottomSection}
       {modalData != null && (
@@ -204,6 +211,10 @@ export const Bookings: React.FC<BookingsProps> = ({
           closeModal={() => setModalData(null)}
         />
       )}
+      {/* {loadMoreEnabled &&
+        (<Box sx={{ display: "flex", justifyContent: "center" }}>
+          <Button onClick={() => { fetchAllBookings(true) }}>Load More</Button>
+        </Box>)} */}
     </Box>
   );
 };
