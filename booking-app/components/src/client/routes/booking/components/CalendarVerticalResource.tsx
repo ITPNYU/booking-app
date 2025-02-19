@@ -300,7 +300,6 @@ export default function CalendarVerticalResource({
         eventDrop={handleEventEdit}
         headerToolbar={false}
         slotMinTime="9:00:00"
-        slotMaxTime="21:00:00"
         allDaySlot={false}
         aspectRatio={isMobile ? 0.5 : 1.5}
         expandRows={true}

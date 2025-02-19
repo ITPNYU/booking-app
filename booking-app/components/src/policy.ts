@@ -1,7 +1,4 @@
-import {
-  MEDIA_COMMONS_EMAIL,
-  MEDIA_COMMONS_OPERATION_EMAIL,
-} from "./mediaCommonsPolicy";
+import { MEDIA_COMMONS_OPERATION_EMAIL } from "./mediaCommonsPolicy";
 
 import { clientGetFinalApproverEmailFromDatabase } from "@/lib/firebase/firebase";
 import { BookingStatusLabel } from "./types";
@@ -55,4 +52,4 @@ export const getApprovalCcEmail = (branchName: string) =>
 export const getCancelCcEmail = () =>
   process.env.NEXT_PUBLIC_BRANCH_NAME === "development"
     ? "booking-app-devs+cancelcc@itp.nyu.edu"
-    : MEDIA_COMMONS_EMAIL;
+    : MEDIA_COMMONS_OPERATION_EMAIL;
