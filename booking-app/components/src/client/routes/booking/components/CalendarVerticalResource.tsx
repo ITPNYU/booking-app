@@ -246,6 +246,11 @@ export default function CalendarVerticalResource({
       </Empty>
     );
   }
+
+  const operationHoursToday = operationHours.find(
+    (setting) => Object.values(Days)[dateView.getDay()] === setting.day
+  );
+
   
   if(fetchingStatus === "loading"){
     return (
@@ -254,10 +259,6 @@ export default function CalendarVerticalResource({
       </Empty>
     );
   }
-
-  const operationHoursToday = operationHours.find(
-    (setting) => Object.values(Days)[dateView.getDay()] === setting.day
-  );
 
   // if (operationHoursToday.isClosed) {
   //   return (
