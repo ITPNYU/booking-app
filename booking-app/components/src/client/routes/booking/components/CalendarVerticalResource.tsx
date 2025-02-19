@@ -305,6 +305,7 @@ export default function CalendarVerticalResource({
         aspectRatio={isMobile ? 0.5 : 1.5}
         expandRows={true}
         stickyHeaderDates={true}
+        timeZone="America/New_York"
         ref={ref}
       />
     </FullCalendarWrapper>
