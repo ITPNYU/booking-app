@@ -69,9 +69,10 @@ export const sendHTMLEmail = async (params: SendHTMLEmailParams) => {
   );
   const templateSource = fs.readFileSync(templatePath, "utf8");
   const template = Handlebars.compile(templateSource);
-  const approvalUrl = approverType
-    ? getUrlPathByApproverType(contents.calendarEventId, approverType)
-    : undefined;
+  const approvalUrl = getUrlPathByApproverType(
+    contents.calendarEventId,
+    approverType,
+  );
 
   const htmlBody = template({
     eventTitle,

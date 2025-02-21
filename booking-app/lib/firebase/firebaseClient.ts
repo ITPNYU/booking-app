@@ -31,25 +31,15 @@ export const getDb = () => {
 };
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
-
-let isTestEnv = false;
-fetch("/api/isTestEnv")
-  .then(res => res.json())
-  .then(data => {
-    isTestEnv = data.isOnTestEnv;
-    console.log("isTestEnv", isTestEnv);
-    if (!isTestEnv) {
-      googleProvider.setCustomParameters({
-        hd: "nyu.edu",
-      });
-    }
-  });
+googleProvider.setCustomParameters({
+  hd: "nyu.edu",
+});
 
 export const signInWithGoogle = async () => {
   try {
     const result = await signInWithPopup(auth, googleProvider);
     const user = result.user;
-    if (!user.email?.endsWith("@nyu.edu") && !isTestEnv) {
+    if (!user.email?.endsWith("@nyu.edu")) {
       await auth.signOut();
       throw new Error("Only nyu.edu email addresses are allowed.");
     }

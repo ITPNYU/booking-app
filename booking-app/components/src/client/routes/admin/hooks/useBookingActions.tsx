@@ -141,7 +141,11 @@ export default function useBookingActions({
     ) {
       options.push(Actions.CANCEL);
     }
-    if (status == BookingStatusLabel.REQUESTED && startDate.toDate() > date) {
+    if (
+      (status == BookingStatusLabel.PENDING ||
+        status == BookingStatusLabel.REQUESTED) &&
+      startDate.toDate() > date
+    ) {
       options.push(Actions.EDIT);
     }
     return options;
