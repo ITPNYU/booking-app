@@ -159,8 +159,8 @@ export default function FormInput({
   );
 
   const validateTitleLength = (value: string) => {
-    if (value.trim().length > 25) {
-      return "Must be less than 25 characters";
+    if (value.trim().length > 40) {
+      return "Must be less than 40 characters";
     }
     return true;
   };
