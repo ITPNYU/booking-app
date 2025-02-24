@@ -37,6 +37,7 @@ export const Bookings: React.FC<BookingsProps> = ({
 
   const [modalData, setModalData] = useState<BookingRow>(null);
   const [statusFilters, setStatusFilters] = useState([]);
+  const [selectedRoom, setSelectedRoom] = useState("Room All");
   const [selectedDateRange, setSelectedDateRange] = useState<DateRangeFilter>(
     "All Future"
   );
@@ -54,12 +55,13 @@ export const Bookings: React.FC<BookingsProps> = ({
     }
   }, []);
 
-  const filteredRows = useBookingFilters({
+  const [filteredRows, roomNumbers] = useBookingFilters({
     pageContext,
     columnOrderBy: orderBy,
     columnOrder: order,
     selectedDateRange,
     selectedStatusFilters: statusFilters,
+    selectedRoom,
   });
 
   const topRow = useMemo(() => {
@@ -97,15 +99,18 @@ export const Bookings: React.FC<BookingsProps> = ({
       <BookingTableFilters
         selectedStatuses={statusFilters}
         setSelectedStatuses={setStatusFilters}
+        selectedRoom={selectedRoom}
+        setSelectedRoom={setSelectedRoom}
         {...{
           allowedStatuses,
+          roomNumbers,
           pageContext,
           selectedDateRange,
           setSelectedDateRange,
         }}
       />
     );
-  }, [pageContext, statusFilters, allowedStatuses, selectedDateRange]);
+  }, [pageContext, statusFilters, allowedStatuses, selectedDateRange, roomNumbers, selectedRoom]);
 
   const bottomSection = useMemo(() => {
     if (bookingsLoading && allBookings.length === 0) {

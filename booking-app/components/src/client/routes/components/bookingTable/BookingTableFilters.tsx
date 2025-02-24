@@ -15,15 +15,21 @@ interface Props {
   setSelectedStatuses: any;
   selectedDateRange: DateRangeFilter;
   setSelectedDateRange: any;
+  setSelectedRoom: any;
+  selectedRoom: string;
+  roomNumbers: string[];
 }
 
 export default function BookingTableFilters({
   allowedStatuses,
   pageContext,
+  roomNumbers,
   selectedStatuses,
   setSelectedStatuses,
   selectedDateRange,
   setSelectedDateRange,
+  setSelectedRoom,
+  selectedRoom,
 }: Props) {
   const { setLoadMoreEnabled, setLastItem } = useContext(DatabaseContext);
   const handleChipClick = (status: BookingStatusLabel) => {
@@ -46,6 +52,16 @@ export default function BookingTableFilters({
     }
   };
 
+  const roomFilters = (
+    <Dropdown
+      value={selectedRoom}
+      updateValue={(x) => setSelectedRoom(x)}
+      options={["Room All", ...roomNumbers.map(d => `Room ${d}`)]}
+      placeholder={"Room All"}
+      sx={{ width: "125px", mr: 1 }}
+    />
+  )
+  
   const dateFilters = (
     <Dropdown
       value={selectedDateRange}
@@ -87,7 +103,7 @@ export default function BookingTableFilters({
           )
         )}
       </Box>
-      <Box>{pageContext >= PageContextLevel.PA && dateFilters}</Box>
+      <Box>{pageContext >= PageContextLevel.PA && [roomFilters, dateFilters]}</Box>
     </Box>
   );
 }
