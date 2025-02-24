@@ -215,10 +215,11 @@
           </td>
         </tr>
       </table>
-      <a href="{{ approvalUrl }}" target="_blank" class="button"
-        >Open Booking Tool</a
-      >
-      to approve or decline this request.
+      {{#if approvalUrl}}
+        <a href="{{ approvalUrl }}" target="_blank" class="button">
+          Open Booking Tool
+        </a> to approve or decline this request.
+      {{/if}}
     </div>
   </body>
 </html>

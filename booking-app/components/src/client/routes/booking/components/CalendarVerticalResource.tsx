@@ -246,6 +246,11 @@ export default function CalendarVerticalResource({
       </Empty>
     );
   }
+
+  const operationHoursToday = operationHours.find(
+    (setting) => Object.values(Days)[dateView.getDay()] === setting.day
+  );
+
   
   if(fetchingStatus === "loading"){
     return (
@@ -254,10 +259,6 @@ export default function CalendarVerticalResource({
       </Empty>
     );
   }
-
-  const operationHoursToday = operationHours.find(
-    (setting) => Object.values(Days)[dateView.getDay()] === setting.day
-  );
 
   // if (operationHoursToday.isClosed) {
   //   return (
@@ -300,11 +301,11 @@ export default function CalendarVerticalResource({
         eventDrop={handleEventEdit}
         headerToolbar={false}
         slotMinTime="9:00:00"
-        slotMaxTime="21:00:00"
         allDaySlot={false}
         aspectRatio={isMobile ? 0.5 : 1.5}
         expandRows={true}
         stickyHeaderDates={true}
+        timeZone="America/New_York"
         ref={ref}
       />
     </FullCalendarWrapper>
