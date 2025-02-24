@@ -19,7 +19,6 @@ interface Props {
   columnOrder: ColumnSortOrder;
   selectedDateRange: DateRangeFilter;
   selectedStatusFilters: BookingStatusLabel[];
-  selectedRoom: string;
 }
 
 function getDateRangeFromDateSelection(selectedDateRange: DateRangeFilter) {
@@ -110,14 +109,13 @@ function getDateRangeFromDateSelection(selectedDateRange: DateRangeFilter) {
   }
 }
 
-  export function useBookingFilters(props: Props): [BookingRow[], string[]] {
+  export function useBookingFilters(props: Props): BookingRow[] {
     const {
       pageContext,
       columnOrderBy,
       columnOrder,
       selectedDateRange,
       selectedStatusFilters,
-      selectedRoom,
     } = props;
     const { liaisonUsers, userEmail, allBookings, setFilters } = useContext(DatabaseContext);
     const allowedStatuses = useAllowedStatuses(pageContext);
@@ -153,11 +151,6 @@ function getDateRangeFromDateSelection(selectedDateRange: DateRangeFilter) {
       [allBookings]
     );
 
-    const roomNumbers: string[] = useMemo(
-      () => Array.from(new Set(rows.flatMap(row => row.roomId.split(",")))),
-      [allBookings],
-    );
-    
     const filteredRows = useMemo(() => {
       const filter = new BookingFilter({
         rows,
@@ -171,7 +164,6 @@ function getDateRangeFromDateSelection(selectedDateRange: DateRangeFilter) {
         .filterPageContext(userEmail, liaisonUsers)
         .filterAllowedStatuses()
         .filterStatusChips(selectedStatusFilters)
-        .filterRoomNumber(selectedRoom)
         .sortByColumn(columnOrderBy, columnOrder)
         .getRows();
     }, [
@@ -182,10 +174,9 @@ function getDateRangeFromDateSelection(selectedDateRange: DateRangeFilter) {
       pageContext,
       // selectedDateRange,
       selectedStatusFilters,
-      selectedRoom,
     ]);
 
-    return [filteredRows, roomNumbers];
+    return filteredRows;
   }
 
   class BookingFilter {
@@ -256,14 +247,6 @@ function getDateRangeFromDateSelection(selectedDateRange: DateRangeFilter) {
           selectedStatusFilters.includes(row.status)
         );
       }
-      return this;
-    }
-
-    filterRoomNumber(roomNumber: string) {
-      if(roomNumber === "Room All") return this;
-      this.rows = this.rows.filter((row) =>
-        row.roomId.split(",").includes(roomNumber.replace("Room ", ""))
-      );
       return this;
     }
 
