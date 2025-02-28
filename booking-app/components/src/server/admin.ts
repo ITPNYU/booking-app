@@ -196,17 +196,27 @@ const finalApprove = async (id, email) => {
 export const serverSendConfirmationEmail = async (
   calendarEventId: string,
   status: BookingStatusLabel,
-  headerMessage: string
+  headerMessage: string,
+  guestEmail: string
 ) => {
   const email = await serverGetFinalApproverEmail();
-  serverSendBookingDetailEmail(calendarEventId, email, headerMessage, status);
+  serverSendBookingDetailEmail(
+    calendarEventId,
+    email,
+    headerMessage,
+    status,
+    undefined,
+    guestEmail
+  );
 };
+
 export const serverSendBookingDetailEmail = async (
   calendarEventId: string,
   email: string,
   headerMessage: string,
   status: BookingStatusLabel,
-  approverType?: ApproverType
+  approverType?: ApproverType,
+  replyTo?: string
 ) => {
   const contents = await serverBookingContents(calendarEventId);
   contents.headerMessage = headerMessage;
@@ -219,6 +229,7 @@ export const serverSendBookingDetailEmail = async (
     requestNumber: contents.requestNumber ?? "--",
     bodyMessage: "",
     approverType: approverType,
+    replyTo: replyTo,
   };
   const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/sendEmail`, {
     method: "POST",
@@ -255,7 +266,8 @@ export const serverApproveEvent = async (id: string) => {
   serverSendConfirmationEmail(
     id,
     BookingStatusLabel.APPROVED,
-    `This is a confirmation email.`
+    `This is a confirmation email.`,
+    guestEmail
   );
 
   // for Samantha
@@ -263,7 +275,9 @@ export const serverApproveEvent = async (id: string) => {
     id,
     getApprovalCcEmail(process.env.NEXT_PUBLIC_BRANCH_NAME),
     `This is a confirmation email.`,
-    BookingStatusLabel.APPROVED
+    BookingStatusLabel.APPROVED,
+    undefined,
+    guestEmail
   );
 
   // for sponsor, if we have one
@@ -273,7 +287,9 @@ export const serverApproveEvent = async (id: string) => {
       id,
       contents.sponsorEmail,
       `A reservation that you are the Sponsor of has been approved.`,
-      BookingStatusLabel.APPROVED
+      BookingStatusLabel.APPROVED,
+      undefined,
+      guestEmail
     );
   }
 
