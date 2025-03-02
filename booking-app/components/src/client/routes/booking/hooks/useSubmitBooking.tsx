@@ -25,6 +25,8 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
     setFormData,
     setHasShownMocapModal,
     setSubmitting,
+    error,
+    setError,
   } = useContext(BookingContext);
   const isOverlap = useCalculateOverlap();
 
@@ -41,6 +43,7 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
         !bookingCalendarInfo
       ) {
         console.error("Missing info for submitting booking");
+        setError(new Error("Missing info for submitting booking"));
         setSubmitting("error");
         return;
       }
@@ -48,6 +51,7 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
       if (isEdit && data.netId) {
         // block another person editing someone's booking
         if (data.netId + "@nyu.edu" !== userEmail) {
+          setError(new Error("You are not authorized to edit this booking"));
           setSubmitting("error");
           return;
         }
@@ -55,12 +59,14 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
 
       if (isModification && pagePermission === PagePermission.BOOKING) {
         // only a PA/admin can do a modification
+        setError(new Error("You are not authorized to modify this booking"));
         setSubmitting("error");
         return;
       }
       // Add final overlap check before submitting
       if (isOverlap) {
         console.error("Booking time slot is no longer available");
+        setError(new Error("Booking time slot is no longer available"));
         setSubmitting("error");
         return;
       }
@@ -139,6 +145,7 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
         })
         .catch((error) => {
           console.error("Error submitting booking:", error);
+          setError(error);
           setSubmitting("error");
         });
     },

@@ -24,7 +24,7 @@ interface Props {
 }
 
 export default function BookingFormConfirmationPage({ formContext }: Props) {
-  const { submitting } = useContext(BookingContext);
+  const { submitting, error } = useContext(BookingContext);
   const router = useRouter();
   const theme = useTheme();
 
@@ -63,14 +63,16 @@ export default function BookingFormConfirmationPage({ formContext }: Props) {
             transform: "translate(-50%, -100%)",
           }}
         >
-          <Typography variant="h3" lineHeight="1.55rem">
+          <Typography variant="h3" style={{ fontSize: "2rem", marginBottom: "1rem" }}>
             ⚠️
           </Typography>
         </Box>
         <Typography variant="h6" sx={{ padding: 3, textAlign: "center" }}>
-          This time slot is no longer available.
+          An error occurred while submitting your request.
           <br />
-          Please select a different time.
+          {error?.message}
+          <br />
+          Please try again.
         </Typography>
         <Box
           sx={{
