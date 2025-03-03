@@ -193,43 +193,42 @@ const finalApprove = async (id, email) => {
   await serverApproveEvent(id);
 };
 
-export const serverSendConfirmationEmail = async (
-  calendarEventId: string,
-  status: BookingStatusLabel,
-  headerMessage: string,
-  guestEmail: string
-) => {
-  const email = await serverGetFinalApproverEmail();
-  serverSendBookingDetailEmail(
-    calendarEventId,
-    email,
-    headerMessage,
-    status,
-    undefined,
-    guestEmail
-  );
-};
+interface SendBookingEmailOptions {
+  calendarEventId: string;
+  targetEmail: string;
+  headerMessage: string;
+  status: BookingStatusLabel;
+  approverType?: ApproverType;
+  replyTo?: string;
+}
 
-export const serverSendBookingDetailEmail = async (
-  calendarEventId: string,
-  email: string,
-  headerMessage: string,
-  status: BookingStatusLabel,
-  approverType?: ApproverType,
-  replyTo?: string
-) => {
+interface SendConfirmationEmailOptions {
+  calendarEventId: string;
+  status: BookingStatusLabel;
+  headerMessage: string;
+  guestEmail: string;
+}
+
+export const serverSendBookingDetailEmail = async ({
+  calendarEventId,
+  targetEmail,
+  headerMessage,
+  status,
+  approverType,
+  replyTo,
+}: SendBookingEmailOptions) => {
   const contents = await serverBookingContents(calendarEventId);
   contents.headerMessage = headerMessage;
   const formData = {
     templateName: "booking_detail",
     contents: contents,
-    targetEmail: email,
-    status: status,
+    targetEmail,
+    status,
     eventTitle: contents.title,
     requestNumber: contents.requestNumber ?? "--",
     bodyMessage: "",
-    approverType: approverType,
-    replyTo: replyTo,
+    approverType,
+    replyTo,
   };
   const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/sendEmail`, {
     method: "POST",
@@ -240,57 +239,73 @@ export const serverSendBookingDetailEmail = async (
   });
 };
 
+export const serverSendConfirmationEmail = async ({
+  calendarEventId,
+  status,
+  headerMessage,
+  guestEmail,
+}: SendConfirmationEmailOptions) => {
+  const email = await serverGetFinalApproverEmail();
+  serverSendBookingDetailEmail({
+    calendarEventId,
+    targetEmail: email,
+    headerMessage,
+    status,
+    replyTo: guestEmail,
+  });
+};
+
 //server
 export const serverApproveEvent = async (id: string) => {
   const doc = await serverGetDataByCalendarEventId(TableNames.BOOKING, id);
-  if (doc === undefined || doc === null) {
+  if (!doc) {
     console.error("Booking status not found for calendar event id: ", id);
     return;
   }
 
-  //@ts-ignore
+  // @ts-ignore
   const guestEmail = doc.email;
 
   // for client
   const headerMessage =
     "Your reservation request for Media Commons is approved.";
   console.log("sending booking detail email...");
-  serverSendBookingDetailEmail(
-    id,
-    guestEmail,
-    headerMessage,
-    BookingStatusLabel.APPROVED
-  );
+
+  serverSendBookingDetailEmail({
+    calendarEventId: id,
+    targetEmail: guestEmail,
+    headerMessage: headerMessage,
+    status: BookingStatusLabel.APPROVED,
+  });
 
   // for second approver
-  serverSendConfirmationEmail(
-    id,
-    BookingStatusLabel.APPROVED,
-    `This is a confirmation email.`,
-    guestEmail
-  );
+  serverSendConfirmationEmail({
+    calendarEventId: id,
+    status: BookingStatusLabel.APPROVED,
+    headerMessage: "This is a confirmation email.",
+    guestEmail: guestEmail,
+  });
 
   // for Samantha
-  serverSendBookingDetailEmail(
-    id,
-    getApprovalCcEmail(process.env.NEXT_PUBLIC_BRANCH_NAME),
-    `This is a confirmation email.`,
-    BookingStatusLabel.APPROVED,
-    undefined,
-    guestEmail
-  );
+  serverSendBookingDetailEmail({
+    calendarEventId: id,
+    targetEmail: getApprovalCcEmail(process.env.NEXT_PUBLIC_BRANCH_NAME),
+    headerMessage: "This is a confirmation email.",
+    status: BookingStatusLabel.APPROVED,
+    replyTo: guestEmail,
+  });
 
   // for sponsor, if we have one
   const contents = await serverBookingContents(id);
   if (contents.role === "Student" && contents.sponsorEmail?.length > 0) {
-    serverSendBookingDetailEmail(
-      id,
-      contents.sponsorEmail,
-      `A reservation that you are the Sponsor of has been approved.`,
-      BookingStatusLabel.APPROVED,
-      undefined,
-      guestEmail
-    );
+    serverSendBookingDetailEmail({
+      calendarEventId: id,
+      targetEmail: contents.sponsorEmail,
+      headerMessage:
+        "A reservation that you are the Sponsor of has been approved.",
+      status: BookingStatusLabel.APPROVED,
+      replyTo: guestEmail,
+    });
   }
 
   const formDataForCalendarEvents = {
