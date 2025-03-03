@@ -1,0 +1,18 @@
+# .github/workflows/copilot-review.yml
+name: Copilot Auto Review
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  copilot-review:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: github/copilot-actions/pr-review@v0.0.5
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          command: review
