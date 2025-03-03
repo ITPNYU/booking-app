@@ -216,11 +216,11 @@ export const DatabaseProvider = ({
       .catch((error) => console.error("Error fetching data:", error));
   };
 
-  const fetchBookings = async (clicked = false) => {
+  const fetchBookings = async (clicked = false): Promise<void> => {
     try {
       
       if (filters.dateRange === "") {
-        return;
+        return Promise.resolve();
       }
       
       const bookingsResponse: Booking[] = await fetchAllBookings(
@@ -230,11 +230,9 @@ export const DatabaseProvider = ({
         lastItem
       );
 
-
-
       if (clicked && bookingsResponse.length === 0) {
         setLoadMoreEnabled(false);
-        return;
+        return Promise.resolve();
       }
 
       if (clicked) {
@@ -245,8 +243,10 @@ export const DatabaseProvider = ({
         setAllBookings(bookingsResponse);
       }
 
+      return Promise.resolve();
     } catch (error) {
       console.error("Error fetching data:", error);
+      return Promise.reject(error);
     } finally {
       setBookingsLoading(false);
     }

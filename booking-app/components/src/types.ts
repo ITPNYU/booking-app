@@ -289,4 +289,5 @@ export interface UserApiData {
 export type Filters = {
   dateRange: string | Date[];
   sortField: string;
+  searchQuery?: string;
 };
