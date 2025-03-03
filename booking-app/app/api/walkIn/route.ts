@@ -61,28 +61,25 @@ export async function POST(request: NextRequest) {
     ...data,
   });
 
-  const sendWalkInNofificationEmail = async (
-    recipients: string[],
-    // contents: BookingFormDetails,
-  ) => {
+  const sendWalkInNofificationEmail = async (recipients: string[]) => {
     const emailPromises = recipients.map(recipient =>
-      serverSendBookingDetailEmail(
+      serverSendBookingDetailEmail({
         calendarEventId,
-        recipient,
-        "A walk-in reservation for Media Commons has been confirmed.",
-        BookingStatusLabel.WALK_IN,
-      ),
+        targetEmail: recipient,
+        headerMessage: "A walk-in reservation for Media Commons has been confirmed.",
+        status: BookingStatusLabel.WALK_IN
+      }),
     );
 
     await Promise.all(emailPromises);
   };
 
-  serverSendBookingDetailEmail(
+  serverSendBookingDetailEmail({
     calendarEventId,
-    email,
-    "Your walk-in reservation for Media Commons is confirmed.",
-    BookingStatusLabel.WALK_IN,
-  );
+    targetEmail: email,
+    headerMessage: "Your walk-in reservation for Media Commons is confirmed.",
+    status: BookingStatusLabel.WALK_IN
+  });
 
   const notifyEmails = [
     data.sponsorEmail ?? null,

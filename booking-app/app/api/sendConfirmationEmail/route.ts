@@ -13,7 +13,12 @@ export async function POST(req: NextRequest) {
   // }
 
   try {
-    serverSendBookingDetailEmail(calendarEventId, email, headerMessage, status);
+    serverSendBookingDetailEmail({
+      calendarEventId,
+      targetEmail: email,
+      headerMessage,
+      status
+    });
     return NextResponse.json(
       { message: "Email sent successfully" },
       { status: 200 },
