@@ -1,3 +1,13 @@
+import { Box, Button, Typography } from "@mui/material";
+import {
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { SubmitHandler, useForm } from "react-hook-form";
 import {
   AttendeeAffiliation,
   FormContextLevel,
@@ -11,26 +21,17 @@ import {
   BookingFormSwitch,
   BookingFormTextField,
 } from "./BookingFormInputs";
-import { Box, Button, Typography } from "@mui/material";
-import { SubmitHandler, useForm } from "react-hook-form";
-import {
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
 
+import { styled } from "@mui/system";
+import { useRouter } from "next/navigation";
+import isEqual from "react-fast-compare";
+import { DatabaseContext } from "../../components/Provider";
 import { BookingContext } from "../bookingProvider";
+import useCheckAutoApproval from "../hooks/useCheckAutoApproval";
+import useSubmitBooking from "../hooks/useSubmitBooking";
 import BookingFormMediaServices from "./BookingFormMediaServices";
 import BookingSelection from "./BookingSelection";
-import { DatabaseContext } from "../../components/Provider";
-import isEqual from "react-fast-compare";
-import { styled } from "@mui/system";
-import useCheckAutoApproval from "../hooks/useCheckAutoApproval";
-import { useRouter } from "next/navigation";
-import useSubmitBooking from "../hooks/useSubmitBooking";
+import { mapAffiliationToRole } from "../formPages/UserRolePage";
 
 const Section = ({ title, children }) => (
   <div style={{ marginBottom: "20px" }}>
@@ -123,6 +124,7 @@ export default function FormInput({
       role,
     },
     mode: "onBlur",
+    resolver: undefined,
   });
 
   const isWalkIn = formContext === FormContextLevel.WALK_IN;
@@ -183,15 +185,62 @@ export default function FormInput({
     [maxCapacity]
   );
 
+  // Add a state to store sponsor API data
+  const [sponsorApiData, setSponsorApiData] = useState<UserApiData | null>(
+    null
+  );
+  // Add a state to track if we're currently fetching sponsor data
+  const [isFetchingSponsor, setIsFetchingSponsor] = useState(false);
+
+  // Add a function to fetch sponsor data by email
+  const fetchSponsorByEmail = useCallback(async (email: string) => {
+    if (!email || !email.endsWith("@nyu.edu")) return;
+
+    // Extract netId from email (assuming format is netId@nyu.edu)
+    const netId = email.split("@")[0];
+    if (!netId) return;
+
+    setIsFetchingSponsor(true);
+    try {
+      const response = await fetch(`/api/nyu/identity/${netId}`);
+      if (response.ok) {
+        const data = await response.json();
+        setSponsorApiData(data);
+        return data;
+      }
+    } catch (err) {
+      console.error("Failed to fetch sponsor data:", err);
+    } finally {
+      setIsFetchingSponsor(false);
+    }
+    return null;
+  }, []);
+
+  // Enhanced sponsor email validation
   const validateSponsorEmail = useCallback(
-    (value: string) => {
+    async (value: string) => {
       if (value === userEmail) {
         return "Sponsor email cannot be your own email";
       }
+
+      // Only proceed with API validation if it's an NYU email
+      if (value && value.endsWith("@nyu.edu")) {
+        const data = await fetchSponsorByEmail(value);
+
+        // Check if the sponsor is a student
+        if (data) {
+          const sponsorRole = mapAffiliationToRole(data.affiliation_sub_type);
+          if (sponsorRole === Role.STUDENT) {
+            return "Sponsor cannot be a student";
+          }
+        }
+      }
+
       return true;
     },
-    [userEmail]
+    [userEmail, fetchSponsorByEmail]
   );
+
   useEffect(() => {
     if (userApiData) {
       reset((formValues) => ({
