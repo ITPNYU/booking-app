@@ -1,12 +1,14 @@
 import { BookingStatusLabel, PageContextLevel } from "../../../../types";
 
-import { Box } from "@mui/material";
+import { Box, TextField, InputAdornment, CircularProgress } from "@mui/material";
 import { DateRangeFilter } from "./hooks/getDateFilter";
 import Dropdown from "../../booking/components/Dropdown";
 import FilterList from "@mui/icons-material/FilterList";
-import React, { useContext } from "react";
+import SearchIcon from "@mui/icons-material/Search";
+import React, { useCallback, useContext, useEffect, useState } from "react";
 import StatusChip from "./StatusChip";
 import { DatabaseContext } from "../Provider";
+import { debounce } from "../../../utils/debounce";
 
 interface Props {
   allowedStatuses: BookingStatusLabel[];
@@ -15,6 +17,9 @@ interface Props {
   setSelectedStatuses: any;
   selectedDateRange: DateRangeFilter;
   setSelectedDateRange: any;
+  searchQuery?: string;
+  setSearchQuery?: (query: string) => void;
+  isSearching?: boolean;
 }
 
 export default function BookingTableFilters({
@@ -24,8 +29,18 @@ export default function BookingTableFilters({
   setSelectedStatuses,
   selectedDateRange,
   setSelectedDateRange,
+  searchQuery = "",
+  setSearchQuery = () => {},
+  isSearching = false,
 }: Props) {
   const { setLoadMoreEnabled, setLastItem } = useContext(DatabaseContext);
+  const [localSearchQuery, setLocalSearchQuery] = useState(searchQuery);
+
+  // Update local search query when the prop changes
+  useEffect(() => {
+    setLocalSearchQuery(searchQuery);
+  }, [searchQuery]);
+
   const handleChipClick = (status: BookingStatusLabel) => {
     setSelectedStatuses((prev: BookingStatusLabel[]) => {
       if (prev.includes(status)) {
@@ -35,16 +50,47 @@ export default function BookingTableFilters({
     });
   };
 
-  const handleDateRangeFilterClick = (
+  // Debounced search handler
+  const debouncedSearch = useCallback(
+    debounce((value: string) => {
+      // Only update if the value is different from the current searchQuery
+      if (value !== searchQuery) {
+        setSearchQuery(value);
+        // Let the Provider handle the fetch through its filters effect
+        setLoadMoreEnabled(true);
+        setLastItem(null);
+      }
+    }, 1000), // Increase debounce time to 1 second to prevent rapid fetches
+    [setSearchQuery, setLoadMoreEnabled, setLastItem, searchQuery]
+  );
+
+  const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const value = event.target.value;
+    setLocalSearchQuery(value);
+    debouncedSearch(value);
+  };
+
+  const handleClearSearch = useCallback(() => {
+    setLocalSearchQuery('');
+    setSearchQuery('');
+    setLoadMoreEnabled(true);
+    setLastItem(null);
+  }, [setSearchQuery, setLoadMoreEnabled, setLastItem]);
+
+  const handleDateRangeFilterClick = useCallback((
     _: React.MouseEvent<HTMLElement>,
     newFilter: DateRangeFilter | null
   ) => {
     if (newFilter != null) {
       setSelectedDateRange(newFilter);
+      // Reset search when changing date range
+      if (localSearchQuery) {
+        handleClearSearch();
+      }
       setLoadMoreEnabled(true);
       setLastItem(null);
     }
-  };
+  }, [localSearchQuery, handleClearSearch, setSelectedDateRange, setLoadMoreEnabled, setLastItem]);
 
   const dateFilters = (
     <Dropdown
@@ -53,6 +99,45 @@ export default function BookingTableFilters({
       options={["Today", "This Week", "All Future", "Past 24 hours", "Past Week", "Past Month", "Past 6 Months", "Past 9 Months"]}
       placeholder={"Today"}
       sx={{ width: "125px", mr: 1 }}
+    />
+  );
+
+  const searchBar = (
+    <TextField
+      size="small"
+      placeholder="Search..."
+      value={localSearchQuery}
+      onChange={handleSearchChange}
+      InputProps={{
+        startAdornment: (
+          <InputAdornment position="start">
+            <SearchIcon fontSize="small" />
+          </InputAdornment>
+        ),
+        endAdornment: isSearching && localSearchQuery.trim() !== '' ? (
+          <InputAdornment position="end">
+            <CircularProgress size={20} />
+          </InputAdornment>
+        ) : localSearchQuery ? (
+          <InputAdornment position="end">
+            <Box 
+              component="span" 
+              sx={{ 
+                cursor: 'pointer',
+                fontSize: '0.75rem',
+                color: 'text.secondary',
+                '&:hover': {
+                  color: 'text.primary',
+                }
+              }}
+              onClick={handleClearSearch}
+            >
+              ✕
+            </Box>
+          </InputAdornment>
+        ) : null,
+      }}
+      sx={{ width: "200px" }}
     />
   );
 
@@ -87,7 +172,10 @@ export default function BookingTableFilters({
           )
         )}
       </Box>
-      <Box>{pageContext >= PageContextLevel.PA && dateFilters}</Box>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+        {pageContext >= PageContextLevel.PA && searchBar}
+        {pageContext >= PageContextLevel.PA && dateFilters}
+      </Box>
     </Box>
   );
 }

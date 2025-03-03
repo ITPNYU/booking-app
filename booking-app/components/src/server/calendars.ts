@@ -62,6 +62,7 @@ const bookingContentsToDescription = (bookingContents: BookingFormDetails) => {
   const listItem = (key: string, value: string) => `<li>${key}: ${value}</li>`;
   let description = "<h3>Reservation Details</h3><ul>";
   const items = [
+    listItem("Request #", bookingContents.requestNumber.toString()),
     listItem("Title", bookingContents.title),
     listItem("Description", bookingContents.description),
     listItem("Expected Attendance", bookingContents.expectedAttendance),
