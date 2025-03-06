@@ -27,11 +27,11 @@ import { useRouter } from "next/navigation";
 import isEqual from "react-fast-compare";
 import { DatabaseContext } from "../../components/Provider";
 import { BookingContext } from "../bookingProvider";
+import { mapAffiliationToRole } from "../formPages/UserRolePage";
 import useCheckAutoApproval from "../hooks/useCheckAutoApproval";
 import useSubmitBooking from "../hooks/useSubmitBooking";
 import BookingFormMediaServices from "./BookingFormMediaServices";
 import BookingSelection from "./BookingSelection";
-import { mapAffiliationToRole } from "../formPages/UserRolePage";
 
 const Section = ({ title, children }) => (
   <div style={{ marginBottom: "20px" }}>
@@ -252,21 +252,31 @@ export default function FormInput({
       }));
     }
   }, [userApiData, reset]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const disabledButton =
     !(checklist && resetRoom && bookingPolicy && isValid) ||
     isBanned ||
-    needsSafetyTraining;
+    needsSafetyTraining ||
+    isSubmitting;
 
   const onSubmit: SubmitHandler<Inputs> = (data) => {
     if (!bookingCalendarInfo) return;
 
-    // setFormData(data);
-    registerEvent(data, isAutoApproval, calendarEventId);
-    if (isMod) {
-      router.push("/modification/confirmation");
-    } else {
-      router.push(isWalkIn ? "/walk-in/confirmation" : "/book/confirmation");
-    }
+    setIsSubmitting(true);
+
+    registerEvent(data, isAutoApproval, calendarEventId)
+      .catch((error) => {
+        console.error("Error submitting booking:", error);
+      })
+      .finally(() => {
+        if (isMod) {
+          router.push("/modification/confirmation");
+        } else {
+          router.push(
+            isWalkIn ? "/walk-in/confirmation" : "/book/confirmation"
+          );
+        }
+      });
   };
 
   const fullFormFields = (
