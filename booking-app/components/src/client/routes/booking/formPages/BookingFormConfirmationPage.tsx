@@ -24,7 +24,7 @@ interface Props {
 }
 
 export default function BookingFormConfirmationPage({ formContext }: Props) {
-  const { submitting, error } = useContext(BookingContext);
+  const { submitting } = useContext(BookingContext);
   const router = useRouter();
   const theme = useTheme();
 
@@ -48,51 +48,6 @@ export default function BookingFormConfirmationPage({ formContext }: Props) {
         <Typography variant="h6">
           Submitting {isWalkIn ? "walk-in" : "your booking"} request...
         </Typography>
-      </Centered>
-    );
-  }
-
-  if (submitting === "error") {
-    return (
-      <Centered>
-        <Box
-          sx={{
-            position: "absolute",
-            top: "calc(50% - 40px)",
-            left: "50%",
-            transform: "translate(-50%, -100%)",
-          }}
-        >
-          <Typography variant="h3" style={{ fontSize: "2rem", marginBottom: "1rem" }}>
-            ⚠️
-          </Typography>
-        </Box>
-        <Typography variant="h6" sx={{ padding: 3, textAlign: "center" }}>
-          An error occurred while submitting your request.
-          <br />
-          {error?.message}
-          <br />
-          Please try again.
-        </Typography>
-        <Box
-          sx={{
-            position: "absolute",
-            top: "calc(50% + 100px)",
-            left: "50%",
-            transform: "translate(-50%, 0%)",
-          }}
-        >
-          <Button
-            onClick={() => router.push(isWalkIn ? "/walk-in/selectRoom" : "/book/selectRoom")}
-            variant="text"
-            sx={{
-              background: theme.palette.primary[50],
-              color: theme.palette.primary.main,
-            }}
-          >
-            Try Again
-          </Button>
-        </Box>
       </Centered>
     );
   }
