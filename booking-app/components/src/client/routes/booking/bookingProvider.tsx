@@ -35,8 +35,6 @@ export interface BookingContextType {
   setSubmitting: (x: SubmitStatus) => void;
   submitting: SubmitStatus;
   fetchingStatus: "loading" | "loaded" | "error" | null;
-  error: Error | null;
-  setError: (x: Error | null) => void;
 }
 
 export const BookingContext = createContext<BookingContextType>({
@@ -60,8 +58,6 @@ export const BookingContext = createContext<BookingContextType>({
   setSubmitting: (x: SubmitStatus) => {},
   submitting: "none",
   fetchingStatus: null,
-  error: null,
-  setError: (x: Error | null) => {},
 });
 
 export function BookingProvider({ children }) {
@@ -77,7 +73,6 @@ export function BookingProvider({ children }) {
   const [role, setRole] = useState<Role>();
   const [selectedRooms, setSelectedRooms] = useState<RoomSetting[]>([]);
   const [submitting, setSubmitting] = useState<SubmitStatus>("error");
-  const [error, setError] = useState<Error | null>(null);
   const { existingCalendarEvents, reloadExistingCalendarEvents, fetchingStatus } =
     fetchCalendarEvents(roomSettings);
 
@@ -135,8 +130,6 @@ export function BookingProvider({ children }) {
         setSubmitting,
         submitting,
         fetchingStatus,
-        error,
-        setError,
       }}
     >
       {children}
