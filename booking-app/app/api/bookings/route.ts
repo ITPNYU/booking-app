@@ -48,7 +48,8 @@ async function createBookingCalendarEvent(
   );
 
   // Limit title to 25 characters
-  const truncatedTitle = title.length > 25 ? title.substring(0, 25) + "..." : title;
+  const truncatedTitle =
+    title.length > 25 ? title.substring(0, 25) + "..." : title;
 
   const event = await insertEvent({
     calendarId,
@@ -100,6 +101,7 @@ async function handleBookingApprovalEmails(
         requestNumber: contents.requestNumber ?? sequentialId,
         body: "",
         approverType: ApproverType.LIAISON,
+        replyTo: email,
       }),
     );
     await Promise.all(emailPromises);
