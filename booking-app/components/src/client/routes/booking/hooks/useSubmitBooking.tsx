@@ -4,7 +4,6 @@ import { useCallback, useContext } from "react";
 import { BookingContext } from "../bookingProvider";
 import { DatabaseContext } from "../../components/Provider";
 import { useRouter } from "next/navigation";
-import useCalculateOverlap from "./useCalculateOverlap";
 
 export default function useSubmitBooking(formContext: FormContextLevel) {
   const router = useRouter();
@@ -25,10 +24,7 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
     setFormData,
     setHasShownMocapModal,
     setSubmitting,
-    error,
-    setError,
   } = useContext(BookingContext);
-  const isOverlap = useCalculateOverlap();
 
   const isEdit = formContext === FormContextLevel.EDIT;
   const isWalkIn = formContext === FormContextLevel.WALK_IN;
@@ -43,7 +39,6 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
         !bookingCalendarInfo
       ) {
         console.error("Missing info for submitting booking");
-        setError(new Error("Missing info for submitting booking"));
         setSubmitting("error");
         return;
       }
@@ -51,7 +46,6 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
       if (isEdit && data.netId) {
         // block another person editing someone's booking
         if (data.netId + "@nyu.edu" !== userEmail) {
-          setError(new Error("You are not authorized to edit this booking"));
           setSubmitting("error");
           return;
         }
@@ -59,14 +53,6 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
 
       if (isModification && pagePermission === PagePermission.BOOKING) {
         // only a PA/admin can do a modification
-        setError(new Error("You are not authorized to modify this booking"));
-        setSubmitting("error");
-        return;
-      }
-      // Add final overlap check before submitting
-      if (isOverlap) {
-        console.error("Booking time slot is no longer available");
-        setError(new Error("Booking time slot is no longer available"));
         setSubmitting("error");
         return;
       }
@@ -129,11 +115,7 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
           ...(requestParams.body ?? {}),
         }),
       })
-        .then(async (res) => {
-          if (!res.ok) {
-            const error = await res.json();
-            throw new Error(error.error || "Failed to submit booking");
-          }
+        .then((res) => {
           // clear stored booking data after submit confirmation
           setBookingCalendarInfo(undefined);
           setSelectedRooms([]);
@@ -145,7 +127,6 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
         })
         .catch((error) => {
           console.error("Error submitting booking:", error);
-          setError(error);
           setSubmitting("error");
         });
     },
@@ -158,7 +139,6 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
       reloadFutureBookings,
       department,
       role,
-      isOverlap
     ]
   );
 
