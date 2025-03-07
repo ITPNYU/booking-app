@@ -38,26 +38,19 @@ export const fetchAllFutureBooking = async <Booking>(): Promise<Booking[]> => {
 };
 
 export const fetchAllBookings = async <Booking>(
-  pagePermission:PagePermission,
+  pagePermission: PagePermission,
   limit: number,
   filters: Filters,
   last: any
 ): Promise<Booking[]> => {
- if(pagePermission === PagePermission.ADMIN || pagePermission === PagePermission.LIAISON || pagePermission === PagePermission.PA)
-  {
-    return getPaginatedData<Booking>(
-      TableNames.BOOKING,
-      limit,
-      filters,
-      last
-    );
+  if (
+    pagePermission === PagePermission.ADMIN ||
+    pagePermission === PagePermission.LIAISON ||
+    pagePermission === PagePermission.PA
+  ) {
+    return getPaginatedData<Booking>(TableNames.BOOKING, limit, filters, last);
   } else {
-    return getPaginatedData<Booking>(
-      TableNames.BOOKING,
-      limit,
-      filters,
-      last
-    );
+    return getPaginatedData<Booking>(TableNames.BOOKING, limit, filters, last);
   }
 };
 
@@ -131,12 +124,30 @@ export const decline = async (id: string, email: string, reason?: string) => {
     }
   );
 };
-export const cancel = async (id: string, email: string) => {
+
+// If cancel within 24 hours of event or o, add to pre-ban logs.
+function maybeAddToPreBanLogs(doc: any, bookingId: string, netId: string) {
+  if (!doc) return;
+  const now = Timestamp.now();
+  const eventDate = doc.startDate;
+  const timeDiff = now.toDate().getTime() - eventDate.toDate().getTime();
+  const hoursDiff = timeDiff / (1000 * 60 * 60);
+  if (hoursDiff > 24) return;
+  // Add to pre-ban logs
+  const log = { netId, bookingId, lateCancelDate: now };
+  clientSaveDataToFirestore(TableNames.PRE_BAN_LOGS, log);
+}
+
+export const cancel = async (id: string, email: string, netId: string) => {
   clientUpdateDataByCalendarEventId(TableNames.BOOKING, id, {
     canceledAt: Timestamp.now(),
     canceledBy: email,
   });
+
   const doc = await clientGetDataByCalendarEventId(TableNames.BOOKING, id);
+
+  maybeAddToPreBanLogs(doc, id, netId);
+
   //@ts-ignore
   const guestEmail = doc ? doc.email : null;
   const headerMessage =
@@ -297,12 +308,18 @@ export const checkOut = async (id: string, email: string) => {
   );
 };
 
-export const noShow = async (id: string, email: string) => {
+export const noShow = async (id: string, email: string, netId: string) => {
   clientUpdateDataByCalendarEventId(TableNames.BOOKING, id, {
     noShowedAt: Timestamp.now(),
     noShowedBy: email,
   });
+
   const doc = await clientGetDataByCalendarEventId(TableNames.BOOKING, id);
+
+  // Add to pre-ban logs
+  const log = { netId, bookingId: id, noShowDate: Timestamp.now() };
+  clientSaveDataToFirestore(TableNames.PRE_BAN_LOGS, log);
+
   //@ts-ignore
   const guestEmail = doc ? doc.email : null;
 
