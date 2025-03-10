@@ -15,6 +15,7 @@ export enum TableNames {
   RESOURCES = "resources",
   SAFETY_TRAINING = "usersWhitelist",
   SETTINGS = "settings",
+  PRE_BAN_LOGS = "preBanLogs",
 }
 
 export const CALENDAR_HIDE_STATUS = [
