@@ -163,6 +163,7 @@ const firstApprove = async (id, email) => {
     requestNumber: contents.requestNumber,
     bodyMessage: "",
     approverType: ApproverType.FINAL_APPROVER,
+    replyTo: contents.email,
   };
   const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/sendEmail`, {
     method: "POST",
