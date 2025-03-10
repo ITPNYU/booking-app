@@ -126,7 +126,7 @@ export const decline = async (id: string, email: string, reason?: string) => {
 };
 
 // If cancel within 24 hours of event or o, add to pre-ban logs.
-function maybeAddToPreBanLogs(doc: any, bookingId: string, netId: string) {
+function checkAndLogLateCancellation(doc: any, bookingId: string, netId: string) {
   if (!doc) return;
   const now = Timestamp.now();
   const eventDate = doc.startDate;
@@ -146,7 +146,7 @@ export const cancel = async (id: string, email: string, netId: string) => {
 
   const doc = await clientGetDataByCalendarEventId(TableNames.BOOKING, id);
 
-  maybeAddToPreBanLogs(doc, id, netId);
+  checkAndLogLateCancellation(doc, id, netId);
 
   //@ts-ignore
   const guestEmail = doc ? doc.email : null;
