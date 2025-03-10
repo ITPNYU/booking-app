@@ -39,7 +39,7 @@ export async function GET(
 
     if (!response.ok) {
       return NextResponse.json(
-        { error: `NYU API call failed: ${response.status}` },
+        { error: `NYU API call failed: ${(response.status, response.body)}` },
         { status: response.status },
       );
     }
