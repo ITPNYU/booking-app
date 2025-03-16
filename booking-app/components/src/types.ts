@@ -291,3 +291,11 @@ export type Filters = {
   sortField: string;
   searchQuery?: string;
 };
+
+export interface PreBanLog {
+  id: string;
+  bookingId: string;
+  netId: string;
+  lateCancelDate?: Timestamp;
+  noShowDate?: Timestamp;
+}
