@@ -139,10 +139,14 @@ async function checkOverlap(selectedRooms: RoomSetting[], bookingCalendarInfo: D
 
     const hasOverlap = events.data.items?.some(event => {
       // Skip the event being edited in case of modification
-      if (calendarEventId && event.id === calendarEventId) return false;
+      if (calendarEventId && (calendarEventId === event.id || calendarEventId === event.id.split(":")[0])) {
+        console.log("calendarEventId", calendarEventId);
+        console.log("event.id", event.id);
+        return false;
+      }
       
-      const eventStart = new Date(event.start.dateTime);
-      const eventEnd = new Date(event.end.dateTime);
+      const eventStart = new Date(event.start.dateTime || event.start.date);
+      const eventEnd = new Date(event.end.dateTime || event.end.date);
       const requestStart = new Date(bookingCalendarInfo.startStr);
       const requestEnd = new Date(bookingCalendarInfo.endStr);
 
