@@ -168,6 +168,13 @@ async function checkOverlap(selectedRooms: RoomSetting[], bookingCalendarInfo: D
 export async function POST(request: NextRequest) {
   const { email, selectedRooms, bookingCalendarInfo, data, isAutoApproval } =
     await request.json();
+  const hasOverlap = await checkOverlap(selectedRooms, bookingCalendarInfo);
+  if (hasOverlap) {
+    return NextResponse.json(
+      { error: "Time slot no longer available" },
+      { status: 409 }
+    );
+  }
 
   console.log("data", data);
 

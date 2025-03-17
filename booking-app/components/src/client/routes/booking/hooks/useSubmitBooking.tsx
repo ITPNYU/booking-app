@@ -4,7 +4,7 @@ import { useCallback, useContext } from "react";
 import { BookingContext } from "../bookingProvider";
 import { DatabaseContext } from "../../components/Provider";
 import { useRouter } from "next/navigation";
-
+import useCalculateOverlap from "./useCalculateOverlap";
 export default function useSubmitBooking(formContext: FormContextLevel) {
   const router = useRouter();
   const {
@@ -24,8 +24,16 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
     setFormData,
     setHasShownMocapModal,
     setSubmitting,
+    error,
+    setError,
   } = useContext(BookingContext);
 
+  const isOverlap = useCalculateOverlap();
+  if (isOverlap) {
+    setError(new Error("Booking time slot is no longer available"));
+    setSubmitting("error");
+    return;
+  }
   const isEdit = formContext === FormContextLevel.EDIT;
   const isWalkIn = formContext === FormContextLevel.WALK_IN;
   const isModification = formContext === FormContextLevel.MODIFICATION;
@@ -116,6 +124,11 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
         }),
       })
         .then((res) => {
+          if (res.status === 409) {
+            setError(new Error("Booking time slot is no longer available"));
+            setSubmitting("error");
+            return;
+          }
           // clear stored booking data after submit confirmation
           setBookingCalendarInfo(undefined);
           setSelectedRooms([]);
