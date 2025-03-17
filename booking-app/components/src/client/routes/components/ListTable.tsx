@@ -7,12 +7,15 @@ import { TableNames } from "../../../policy";
 import { clientDeleteDataFromFirestore } from "@/lib/firebase/firebase";
 
 interface Props {
-  columnFormatters?: { [key: string]: (value: string) => string };
+  columnFormatters?: {
+    [key: string]: (value: string) => string | React.JSX.Element;
+  };
   columnNameToRemoveBy: string;
   tableName: TableNames;
   rows: { [key: string]: string }[];
   rowsRefresh: () => Promise<void>;
   topRow: React.ReactNode;
+  onRemoveRow?: (row: { [key: string]: string }) => Promise<void>;
 }
 
 const ListTableWrapper = styled(Table)`
@@ -51,7 +54,9 @@ export default function ListTable(props: Props) {
         <ListTableRow
           key={index}
           removeRow={() =>
-            clientDeleteDataFromFirestore(props.tableName, row.id)
+            props.onRemoveRow
+              ? props.onRemoveRow(row)
+              : clientDeleteDataFromFirestore(props.tableName, row.id)
           }
           columnNames={columnNames}
           columnFormatters={columnFormatters}
