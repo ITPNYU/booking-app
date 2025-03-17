@@ -12,6 +12,7 @@ import { PAUsers } from "./PAUsers";
 import PolicySettings from "./PolicySettings";
 import SafetyTrainedUsers from "./SafetyTraining";
 import SyncCalendars from "./SyncCalendars";
+import { PreBannedUsers } from "./PreBan";
 
 const tabs = [
   { label: "Safety Training", id: "safetyTraining" },
@@ -19,6 +20,7 @@ const tabs = [
   { label: "Admin Users", id: "admin" },
   { label: "Approvers", id: "approvers" },
   { label: "Departments", id: "departments" },
+  { label: "Pre-ban", id: "preBan" },
   { label: "Ban", id: "ban" },
   { label: "Booking Types", id: "bookingTypes" },
   { label: "Policy Settings", id: "policy" },
@@ -49,6 +51,7 @@ export default function Settings() {
       </Grid>
       <Grid xs={10}>
         {tab === "safetyTraining" && <SafetyTrainedUsers />}
+        {tab === "preBan" && <PreBannedUsers />}
         {tab === "pa" && <PAUsers />}
         {tab === "admin" && <AdminUsers />}
         {tab === "approvers" && <Approvers />}

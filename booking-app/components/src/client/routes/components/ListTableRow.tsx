@@ -5,7 +5,7 @@ import { Delete } from "@mui/icons-material";
 import Loading from "./Loading";
 
 interface Props {
-  columnFormatters?: { [key: string]: (value: string) => string };
+  columnFormatters?: { [key: string]: (value: string) => string | React.JSX.Element};
   columnNames: string[];
   index: number;
   refresh: () => Promise<void>;
