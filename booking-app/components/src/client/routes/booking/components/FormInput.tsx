@@ -129,6 +129,7 @@ export default function FormInput({
 
   const isWalkIn = formContext === FormContextLevel.WALK_IN;
   const isMod = formContext === FormContextLevel.MODIFICATION;
+  const isFullForm = formContext === FormContextLevel.FULL_FORM;
 
   // different from other switches b/c mediaServices doesn't have yes/no column in DB
   const [showMediaServices, setShowMediaServices] = useState(false);
@@ -279,7 +280,7 @@ export default function FormInput({
   );
 
   useEffect(() => {
-    if (userApiData) {
+    if (userApiData && isFullForm) {
       reset((formValues) => ({
         ...formValues,
         firstName: userApiData.preferred_first_name || formValues.firstName,
