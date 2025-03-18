@@ -1,23 +1,23 @@
-import { Box, Typography, useMediaQuery, useTheme } from "@mui/material";
 import {
   CalendarApi,
   DateSelectArg,
   EventClickArg,
   EventDropArg,
 } from "@fullcalendar/core";
-import CalendarEventBlock, { NEW_TITLE_TAG } from "./CalendarEventBlock";
-import { Days, FormContextLevel, RoomSetting } from "../../../../types";
+import { Box, Typography, useMediaQuery, useTheme } from "@mui/material";
 import { useContext, useEffect, useMemo, useRef } from "react";
+import { Days, FormContextLevel, RoomSetting } from "../../../../types";
+import CalendarEventBlock, { NEW_TITLE_TAG } from "./CalendarEventBlock";
 
-import { BookingContext } from "../bookingProvider";
-import { DatabaseContext } from "../../components/Provider";
-import { Error } from "@mui/icons-material";
-import { EventResizeDoneArg } from "fullcalendar";
-import FullCalendar from "@fullcalendar/react";
 import googleCalendarPlugin from "@fullcalendar/google-calendar";
 import interactionPlugin from "@fullcalendar/interaction"; // for selectable
+import FullCalendar from "@fullcalendar/react";
 import resourceTimeGridPlugin from "@fullcalendar/resource-timegrid";
+import { Error } from "@mui/icons-material";
 import { styled } from "@mui/system";
+import { EventResizeDoneArg } from "fullcalendar";
+import { DatabaseContext } from "../../components/Provider";
+import { BookingContext } from "../bookingProvider";
 
 interface Props {
   calendarEventId?: string;
@@ -180,7 +180,7 @@ export default function CalendarVerticalResource({
 
   useEffect(() => {
     console.log(fetchingStatus);
-  },[fetchingStatus]);
+  }, [fetchingStatus]);
 
   // clicking on created event should delete it
   // only if not in MODIFICATION mode
@@ -251,8 +251,7 @@ export default function CalendarVerticalResource({
     (setting) => Object.values(Days)[dateView.getDay()] === setting.day
   );
 
-  
-  if(fetchingStatus === "loading"){
+  if (fetchingStatus === "loading") {
     return (
       <Empty>
         <Typography>Loading...</Typography>
@@ -305,7 +304,6 @@ export default function CalendarVerticalResource({
         aspectRatio={isMobile ? 0.5 : 1.5}
         expandRows={true}
         stickyHeaderDates={true}
-        timeZone="America/New_York"
         ref={ref}
       />
     </FullCalendarWrapper>

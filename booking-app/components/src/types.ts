@@ -289,4 +289,13 @@ export interface UserApiData {
 export type Filters = {
   dateRange: string | Date[];
   sortField: string;
+  searchQuery?: string;
 };
+
+export interface PreBanLog {
+  id: string;
+  bookingId: string;
+  netId: string;
+  lateCancelDate?: Timestamp;
+  noShowDate?: Timestamp;
+}

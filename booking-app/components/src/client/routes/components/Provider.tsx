@@ -16,6 +16,7 @@ import {
   SafetyTraining,
   Settings,
   UserApiData,
+  PreBanLog,
 } from "../../../types";
 
 import { useAuth } from "@/components/src/client/routes/components/AuthProvider";
@@ -59,6 +60,8 @@ export interface DatabaseContextType {
   setFilters: (x: Filters) => void;
   setLoadMoreEnabled: (x: boolean) => void;
   setLastItem: (x: any) => void;
+  preBanLogs: PreBanLog[];
+  reloadPreBanLogs: () => Promise<void>;
 }
 
 export const DatabaseContext = createContext<DatabaseContextType>({
@@ -94,6 +97,8 @@ export const DatabaseContext = createContext<DatabaseContextType>({
   setFilters: (x: Filters) => { },
   setLoadMoreEnabled: (x: boolean) => { },
   setLastItem: (x: any) => { },
+  preBanLogs: [],
+  reloadPreBanLogs: async () => { },
 });
 
 export const DatabaseProvider = ({
@@ -131,6 +136,8 @@ export const DatabaseProvider = ({
 
   const { user } = useAuth();
   const netId = useMemo(() => userEmail?.split("@")[0], [userEmail]);
+
+  const [preBanLogs, setPreBanLogs] = useState<PreBanLog[]>([]);
 
   useEffect(() => {
     const fetchUserApiData = async () => {
@@ -216,11 +223,11 @@ export const DatabaseProvider = ({
       .catch((error) => console.error("Error fetching data:", error));
   };
 
-  const fetchBookings = async (clicked = false) => {
+  const fetchBookings = async (clicked = false): Promise<void> => {
     try {
       
       if (filters.dateRange === "") {
-        return;
+        return Promise.resolve();
       }
       
       const bookingsResponse: Booking[] = await fetchAllBookings(
@@ -230,11 +237,9 @@ export const DatabaseProvider = ({
         lastItem
       );
 
-
-
       if (clicked && bookingsResponse.length === 0) {
         setLoadMoreEnabled(false);
-        return;
+        return Promise.resolve();
       }
 
       if (clicked) {
@@ -245,8 +250,10 @@ export const DatabaseProvider = ({
         setAllBookings(bookingsResponse);
       }
 
+      return Promise.resolve();
     } catch (error) {
       console.error("Error fetching data:", error);
+      return Promise.reject(error);
     } finally {
       setBookingsLoading(false);
     }
@@ -445,6 +452,22 @@ export const DatabaseProvider = ({
     fetchOperationHours();
   };
 
+  const fetchPreBanLogs = async () => {
+    try {
+      const fetchedData = await clientFetchAllDataFromCollection(TableNames.PRE_BAN_LOGS);
+      const logs = fetchedData.map((item: any) => ({
+        id: item.id,
+        bookingId: item.bookingId,
+        netId: item.netId,
+        lateCancelDate: item.lateCancelDate,
+        noShowDate: item.noShowDate
+      }));
+      setPreBanLogs(logs);
+    } catch (error) {
+      console.error("Error fetching pre-ban logs:", error);
+    }
+  };
+
   return (
     <DatabaseContext.Provider
       value={{
@@ -480,6 +503,8 @@ export const DatabaseProvider = ({
         setFilters: setFilters,
         setLoadMoreEnabled,
         setLastItem,
+        preBanLogs,
+        reloadPreBanLogs: fetchPreBanLogs,
       }}
     >
       {children}

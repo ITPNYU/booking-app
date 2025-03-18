@@ -40,6 +40,8 @@ export const Bookings: React.FC<BookingsProps> = ({
   const [selectedDateRange, setSelectedDateRange] = useState<DateRangeFilter>(
     "All Future"
   );
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isSearching, setIsSearching] = useState(false);
   const [orderBy, setOrderBy] = useState<keyof BookingRow>("startDate");
   const [order, setOrder] = useState<ColumnSortOrder>(pageContext === PageContextLevel.PA ? "asc" : "desc");
 
@@ -54,12 +56,30 @@ export const Bookings: React.FC<BookingsProps> = ({
     }
   }, []);
 
+  useEffect(() => {
+    if (fetchAllBookings && searchQuery !== undefined) {
+      const isActualSearch = searchQuery.trim() !== '';
+      if (isActualSearch) {
+        setIsSearching(true);
+        const timer = setTimeout(() => {
+          if (!bookingsLoading) {
+            setIsSearching(false);
+          }
+        }, 500);
+        return () => clearTimeout(timer);
+      } else {
+        setIsSearching(false);
+      }
+    }
+  }, [searchQuery, bookingsLoading]);
+
   const filteredRows = useBookingFilters({
     pageContext,
     columnOrderBy: orderBy,
     columnOrder: order,
     selectedDateRange,
     selectedStatusFilters: statusFilters,
+    searchQuery,
   });
 
   const topRow = useMemo(() => {
@@ -102,10 +122,13 @@ export const Bookings: React.FC<BookingsProps> = ({
           pageContext,
           selectedDateRange,
           setSelectedDateRange,
+          searchQuery,
+          setSearchQuery,
+          isSearching,
         }}
       />
     );
-  }, [pageContext, statusFilters, allowedStatuses, selectedDateRange]);
+  }, [pageContext, statusFilters, allowedStatuses, selectedDateRange, searchQuery, isSearching]);
 
   const bottomSection = useMemo(() => {
     if (bookingsLoading && allBookings.length === 0) {
@@ -124,7 +147,7 @@ export const Bookings: React.FC<BookingsProps> = ({
         </TableEmpty>
       );
     }
-  }, [pageContext, bookingsLoading, filteredRows]);
+  }, [pageContext, bookingsLoading, filteredRows, allBookings.length]);
 
   const createSortHandler = useCallback(
     (property: keyof Booking) => (_: React.MouseEvent<unknown>) => {

@@ -47,7 +47,7 @@ const departmentMappings: Record<Department, string[]> = {
   [Department.OTHER]: [],
 };
 
-const mapAffiliationToRole = (affiliation?: string): Role | undefined => {
+export const mapAffiliationToRole = (affiliation?: string): Role | undefined => {
   if (!affiliation) return undefined;
 
   const normalizedAffiliation = affiliation.toUpperCase();

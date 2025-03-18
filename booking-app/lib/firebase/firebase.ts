@@ -92,53 +92,87 @@ export const getPaginatedData = async<T> (
  ) : Promise<T[]> => {
   try {
     const db = getDb();
-
-    // Create reference to collection
     const colRef = collection(db, collectionName);
-    console.log(filters)
     const queryParams = [];
     
+    // Add date range filters
     if (filters.dateRange && filters.dateRange.length === 2) {
       if(filters.dateRange[0]){
         queryParams.push(where("startDate", ">=", filters.dateRange[0]));
       }
-
       if(filters.dateRange[1]){
         queryParams.push(where("startDate", "<=", filters.dateRange[1]));
       }
     }
-    console.log(queryParams)
-    // Build query
+
+    // If there's a search query, fetch data and filter client-side
+    if (filters.searchQuery && filters.searchQuery.trim() !== "") {
+      const searchTerm = filters.searchQuery.trim().toLowerCase();
+      
+      // Define the fields we want to search
+      const searchableFields = [
+        "requestNumber",
+        "department",
+        "netId",
+        "email",
+        "title",
+        "description",
+        "firstName",
+        "lastName",
+        "roomId"
+      ];
+
+      // Fetch data with just date filters
+      const baseQuery = query(
+        colRef,
+        ...queryParams,
+        orderBy(filters.sortField, 'desc')
+      );
+
+      const snapshot = await getDocs(baseQuery);
+      
+      // Filter documents that match the search term in any field
+      const matchingDocs = snapshot.docs.filter(doc => {
+        const data = doc.data();
+        return searchableFields.some(field => {
+          const fieldValue = data[field];
+          // Handle different types of fields
+          if (fieldValue === null || fieldValue === undefined) return false;
+          const stringValue = String(fieldValue).toLowerCase();
+          // Check if the field contains the search term anywhere
+          return stringValue.includes(searchTerm);
+        });
+      });
+
+      // Return all matching docs without pagination
+      return matchingDocs.map(doc => ({
+        id: doc.id,
+        ...doc.data() as unknown as T
+      }));
+    }
+    
+    // If no search query, use standard query with date filters
     let q = query(
       colRef,
       ...queryParams,
-      orderBy(filters.sortField, 'desc'),
-      orderBy("__name__", 'desc'),
-      // limit(itemsPerPage)
+      orderBy(filters.sortField, 'desc')
     );
     
-    // If we have a last visible item, start after it
-    console.log(lastVisible)
     if (lastVisible) {
       q = query(
         colRef,
         ...queryParams,
         orderBy(filters.sortField, 'desc'),
-        orderBy("__name__", 'desc'),
-        // startAfter(lastVisible[filters.sortField], lastVisible.id),
-        // limit(itemsPerPage)
+        startAfter(lastVisible[filters.sortField])
       );
     }
     
-    // Execute query
     const snapshot = await getDocs(q);
-    
-    // Convert snapshot to data array
-    const items = snapshot.docs.map(doc => ({
+    return snapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data() as unknown as T
     }));
-    return items;
+    
   } catch (error) {
     console.error('Error getting paginated data:', error);
     throw error;

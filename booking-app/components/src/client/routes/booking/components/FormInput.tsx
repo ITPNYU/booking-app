@@ -1,3 +1,13 @@
+import { Box, Button, Typography } from "@mui/material";
+import {
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { SubmitHandler, useForm } from "react-hook-form";
 import {
   AttendeeAffiliation,
   FormContextLevel,
@@ -11,26 +21,17 @@ import {
   BookingFormSwitch,
   BookingFormTextField,
 } from "./BookingFormInputs";
-import { Box, Button, Typography } from "@mui/material";
-import { SubmitHandler, useForm } from "react-hook-form";
-import {
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
 
+import { styled } from "@mui/system";
+import { useRouter } from "next/navigation";
+import isEqual from "react-fast-compare";
+import { DatabaseContext } from "../../components/Provider";
 import { BookingContext } from "../bookingProvider";
+import { mapAffiliationToRole } from "../formPages/UserRolePage";
+import useCheckAutoApproval from "../hooks/useCheckAutoApproval";
+import useSubmitBooking from "../hooks/useSubmitBooking";
 import BookingFormMediaServices from "./BookingFormMediaServices";
 import BookingSelection from "./BookingSelection";
-import { DatabaseContext } from "../../components/Provider";
-import isEqual from "react-fast-compare";
-import { styled } from "@mui/system";
-import useCheckAutoApproval from "../hooks/useCheckAutoApproval";
-import { useRouter } from "next/navigation";
-import useSubmitBooking from "../hooks/useSubmitBooking";
 
 const Section = ({ title, children }) => (
   <div style={{ marginBottom: "20px" }}>
@@ -123,6 +124,7 @@ export default function FormInput({
       role,
     },
     mode: "onBlur",
+    resolver: undefined,
   });
 
   const isWalkIn = formContext === FormContextLevel.WALK_IN;
@@ -183,15 +185,99 @@ export default function FormInput({
     [maxCapacity]
   );
 
+  // Add a state to store sponsor API data
+  const [sponsorApiData, setSponsorApiData] = useState<UserApiData | null>(
+    null
+  );
+  // Add a state to track if we're currently fetching sponsor data
+  const [isFetchingSponsor, setIsFetchingSponsor] = useState(false);
+
+  // Add a function to fetch sponsor data by email
+  const fetchSponsorByEmail = useCallback(async (email: string) => {
+    if (!email || !email.endsWith("@nyu.edu")) return;
+
+    // Extract netId from email (assuming format is netId@nyu.edu)
+    const netId = email.split("@")[0];
+    if (!netId) return;
+
+    setIsFetchingSponsor(true);
+    try {
+      const response = await fetch(`/api/nyu/identity/${netId}`);
+      if (response.ok) {
+        const data = await response.json();
+        setSponsorApiData(data);
+        return data;
+      }
+    } catch (err) {
+      console.error("Failed to fetch sponsor data:", err);
+    } finally {
+      setIsFetchingSponsor(false);
+    }
+    return null;
+  }, []);
+
+  // Enhanced sponsor email validation
   const validateSponsorEmail = useCallback(
+    async (value: string) => {
+      if (value === userEmail) {
+        return "Sponsor email cannot be your own email";
+      }
+
+      // Only proceed with API validation if it's an NYU email
+      if (value && value.endsWith("@nyu.edu")) {
+        const data = await fetchSponsorByEmail(value);
+
+        // Check if the sponsor is a student
+        if (data) {
+          const sponsorRole = mapAffiliationToRole(data.affiliation_sub_type);
+          if (sponsorRole === Role.STUDENT) {
+            return "Sponsor cannot be a student";
+          }
+        }
+      }
+
+      return true;
+    },
+    [userEmail, fetchSponsorByEmail]
+  );
+
+  // Watch the sponsor email field specifically
+  const sponsorEmail = watch("sponsorEmail");
+
+  // Only fetch sponsor data when the sponsor email changes
+  useEffect(() => {
+    // Only fetch if there's a valid email and it's an NYU email
+    if (
+      sponsorEmail &&
+      sponsorEmail.endsWith("@nyu.edu") &&
+      sponsorEmail !== userEmail
+    ) {
+      fetchSponsorByEmail(sponsorEmail);
+    }
+  }, [sponsorEmail, fetchSponsorByEmail, userEmail]);
+
+  // Remove the API call from the validation function since we're now handling it separately
+  const validateSponsorEmailSimple = useCallback(
     (value: string) => {
       if (value === userEmail) {
         return "Sponsor email cannot be your own email";
       }
+
+      // Use the already fetched data for validation
+      if (sponsorApiData && value.endsWith("@nyu.edu")) {
+        const sponsorRole = mapAffiliationToRole(
+          sponsorApiData.affiliation_sub_type
+        );
+        if (sponsorRole === Role.STUDENT) {
+          return "Sponsor cannot be a student";
+        }
+      }
+
       return true;
     },
-    [userEmail]
+    [userEmail, sponsorApiData]
   );
+
   useEffect(() => {
     if (userApiData) {
       reset((formValues) => ({
@@ -203,21 +289,48 @@ export default function FormInput({
       }));
     }
   }, [userApiData, reset]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  // Add a ref to track submission state to prevent race conditions
+  const isSubmittingRef = useRef(false);
   const disabledButton =
     !(checklist && resetRoom && bookingPolicy && isValid) ||
     isBanned ||
-    needsSafetyTraining;
+    needsSafetyTraining ||
+    isSubmitting;
 
   const onSubmit: SubmitHandler<Inputs> = (data) => {
-    if (!bookingCalendarInfo) return;
+    // Prevent multiple submissions using ref
+    if (isSubmittingRef.current || !bookingCalendarInfo) return;
 
-    // setFormData(data);
-    registerEvent(data, isAutoApproval, calendarEventId);
-    if (isMod) {
-      router.push("/modification/confirmation");
-    } else {
-      router.push(isWalkIn ? "/walk-in/confirmation" : "/book/confirmation");
+    // Set both state and ref immediately
+    setIsSubmitting(true);
+    isSubmittingRef.current = true;
+
+    registerEvent(data, isAutoApproval, calendarEventId)
+      .catch((error) => {
+        console.error("Error submitting booking:", error);
+      })
+      .finally(() => {
+        if (isMod) {
+          router.push("/modification/confirmation");
+        } else {
+          router.push(
+            isWalkIn ? "/walk-in/confirmation" : "/book/confirmation"
+          );
+        }
+      });
+  };
+
+  // Modify the form submission to use a wrapper that prevents multiple submissions
+  const handleFormSubmit = (e) => {
+    // If already submitting, prevent the default form submission
+    if (isSubmittingRef.current) {
+      e.preventDefault();
+      return false;
     }
+
+    // Otherwise, proceed with the normal form submission
+    return handleSubmit(onSubmit)(e);
   };
 
   const fullFormFields = (
@@ -302,7 +415,7 @@ export default function FormInput({
               value: /^[A-Z0-9._%+-]+@nyu.edu$/i,
               message: "Invalid email address",
             }}
-            validate={validateSponsorEmail}
+            validate={validateSponsorEmailSimple}
             {...{ control, errors, trigger }}
           />
         </Section>
@@ -596,7 +709,7 @@ export default function FormInput({
     <Center>
       <Container padding={8} marginTop={4} marginBottom={6}>
         <BookingSelection />
-        <form onSubmit={handleSubmit(onSubmit)}>{formFields}</form>
+        <form onSubmit={handleFormSubmit}>{formFields}</form>
       </Container>
     </Center>
   );

@@ -5,7 +5,8 @@ import { Timestamp } from "@firebase/firestore";
 export default function getBookingStatus(booking: Booking): BookingStatusLabel {
   const bookingStatusLabel = () => {
     const timeStringtoDate = (time: Timestamp) => {
-      return time != undefined ? time.toDate() : new Date(0);
+      //for some reason there are some timestamps that are throwing an error when toDate is called only on dev, for now adding a check to avoid the error, will probably need to investigate further
+      return time != undefined && typeof time.toDate === 'function' ? time.toDate() : new Date(0);
     };
 
     const checkedInTimestamp = timeStringtoDate(booking.checkedInAt);
