@@ -63,6 +63,7 @@ export type BookingStatus = {
   noShowedAt: Timestamp;
   noShowedBy: string;
   walkedInAt: Timestamp;
+  vipAt: Timestamp;
 };
 
 // the order here is the order these are displayed as table filters
@@ -77,6 +78,7 @@ export enum BookingStatusLabel {
   REQUESTED = "REQUESTED",
   UNKNOWN = "UNKNOWN",
   WALK_IN = "WALK-IN",
+  VIP = "VIP",
 }
 
 export type BookingType = {
@@ -119,6 +121,7 @@ export enum FormContextLevel {
   FULL_FORM = "/book",
   MODIFICATION = "/modification",
   WALK_IN = "/walk-in",
+  VIP = "/vip",
 }
 
 export type Inputs = {
