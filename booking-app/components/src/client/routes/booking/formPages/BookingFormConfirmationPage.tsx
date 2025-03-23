@@ -29,6 +29,7 @@ export default function BookingFormConfirmationPage({ formContext }: Props) {
   const theme = useTheme();
 
   const isWalkIn = formContext === FormContextLevel.WALK_IN;
+  const isVIP = formContext === FormContextLevel.VIP;
 
   // don't submit form via useEffect here b/c it submits twice in development strict mode
 
@@ -46,7 +47,8 @@ export default function BookingFormConfirmationPage({ formContext }: Props) {
           <Loading />
         </Box>
         <Typography variant="h6">
-          Submitting {isWalkIn ? "walk-in" : "your booking"} request...
+          Submitting {isWalkIn ? "walk-in" : isVIP ? "VIP" : "your booking"}{" "}
+          request...
         </Typography>
       </Centered>
     );
@@ -70,7 +72,9 @@ export default function BookingFormConfirmationPage({ formContext }: Props) {
         <Typography variant="h6" sx={{ padding: 3 }}>
           {isWalkIn
             ? "Walk-in submitted"
-            : "Yay! We've received your booking request"}
+            : isVIP
+              ? "VIP request submitted"
+              : "Yay! We've received your booking request"}
         </Typography>
         <Box
           sx={{
@@ -81,7 +85,7 @@ export default function BookingFormConfirmationPage({ formContext }: Props) {
           }}
         >
           <Button
-            onClick={() => router.push(isWalkIn ? "/pa" : "/")}
+            onClick={() => router.push(isWalkIn || isVIP ? "/pa" : "/")}
             variant="text"
             sx={{
               background: theme.palette.primary[50],
@@ -111,7 +115,7 @@ export default function BookingFormConfirmationPage({ formContext }: Props) {
         <Error />
       </Box>
       <Typography variant="h6">
-        Sorry, an error occured while submitting this request
+        Sorry, an error occurred while submitting this request
       </Typography>
       <Typography variant="h6">
         {error?.message}

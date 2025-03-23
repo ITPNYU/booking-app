@@ -51,6 +51,8 @@ export default function getBookingStatus(booking: Booking): BookingStatusLabel {
       return BookingStatusLabel.REQUESTED;
     } else if (booking.walkedInAt != undefined) {
       return BookingStatusLabel.WALK_IN;
+    } else if (booking.vipAt != undefined) {
+      return BookingStatusLabel.VIP;
     } else {
       return BookingStatusLabel.UNKNOWN;
     }

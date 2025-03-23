@@ -16,7 +16,7 @@ import { insertEvent } from "@/components/src/server/calendars";
 import { Timestamp } from "firebase-admin/firestore";
 
 export async function POST(request: NextRequest) {
-  const { email, selectedRooms, bookingCalendarInfo, data } =
+  const { email, selectedRooms, bookingCalendarInfo, data, isVIP } =
     await request.json();
   console.log("data", data);
   const { department } = data;
@@ -27,6 +27,12 @@ export async function POST(request: NextRequest) {
   const otherRoomIds = otherRooms.map(
     (r: { calendarId: string }) => r.calendarId,
   );
+
+  const bookingStatus = isVIP
+    ? BookingStatusLabel.VIP
+    : BookingStatusLabel.WALK_IN;
+  const type = isVIP ? "VIP" : "walk-in";
+  const timeKey = isVIP ? "vipAt" : "walkedInAt";
 
   const calendarId = await serverGetRoomCalendarId(room.roomId);
   if (calendarId == null) {
@@ -41,8 +47,8 @@ export async function POST(request: NextRequest) {
 
   const event = await insertEvent({
     calendarId,
-    title: `[${BookingStatusLabel.WALK_IN}] ${selectedRoomIds.join(", ")} ${truncatedTitle}`,
-    description: `Department: ${department}\n\nThis reservation was made as a walk-in.`,
+    title: `[${bookingStatus}] ${selectedRoomIds.join(", ")} ${truncatedTitle}`,
+    description: `Department: ${department}\n\nThis reservation was made as a ${type}.`,
     startTime: bookingCalendarInfo.startStr,
     endTime: bookingCalendarInfo.endStr,
     roomEmails: otherRoomIds,
@@ -72,7 +78,7 @@ export async function POST(request: NextRequest) {
     startDate: toFirebaseTimestampFromString(bookingCalendarInfo.startStr),
     endDate: toFirebaseTimestampFromString(bookingCalendarInfo.endStr),
     requestNumber: sequentialId,
-    walkedInAt: Timestamp.now(),
+    [timeKey]: Timestamp.now(),
     ...data,
   });
 
@@ -81,9 +87,14 @@ export async function POST(request: NextRequest) {
       serverSendBookingDetailEmail({
         calendarEventId,
         targetEmail: recipient,
+<<<<<<< HEAD
         headerMessage:
           "A walk-in reservation for Media Commons has been confirmed.",
         status: BookingStatusLabel.WALK_IN,
+=======
+        headerMessage: `A ${type} reservation for Media Commons has been confirmed.`,
+        status: bookingStatus,
+>>>>>>> caa8c9b (Support VIP)
       }),
     );
 
@@ -93,8 +104,13 @@ export async function POST(request: NextRequest) {
   serverSendBookingDetailEmail({
     calendarEventId,
     targetEmail: email,
+<<<<<<< HEAD
     headerMessage: "Your walk-in reservation for Media Commons is confirmed.",
     status: BookingStatusLabel.WALK_IN,
+=======
+    headerMessage: `Your ${type} reservation for Media Commons is confirmed.`,
+    status: bookingStatus,
+>>>>>>> caa8c9b (Support VIP)
   });
 
   const notifyEmails = [
