@@ -53,7 +53,7 @@ export default function useBookingActions({
   const [date, setDate] = useState(new Date());
 
   const { reloadExistingCalendarEvents } = useContext(BookingContext);
-  const { userEmail } = useContext(DatabaseContext);
+  const { userEmail, netId } = useContext(DatabaseContext);
   const loadExistingBookingData = useExistingBooking();
   const router = useRouter();
 
@@ -64,14 +64,14 @@ export default function useBookingActions({
   const actions: { [key in Actions]: ActionDefinition } = {
     [Actions.CANCEL]: {
       action: async () => {
-        await cancel(calendarEventId, userEmail);
+        await cancel(calendarEventId, userEmail, netId);
       },
       optimisticNextStatus: BookingStatusLabel.CANCELED,
       confirmation: true,
     },
     [Actions.NO_SHOW]: {
       action: async () => {
-        await noShow(calendarEventId, userEmail);
+        await noShow(calendarEventId, userEmail, netId);
       },
       optimisticNextStatus: BookingStatusLabel.NO_SHOW,
     },
