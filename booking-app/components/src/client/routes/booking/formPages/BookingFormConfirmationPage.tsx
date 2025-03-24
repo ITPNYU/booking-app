@@ -114,7 +114,7 @@ export default function BookingFormConfirmationPage({ formContext }: Props) {
         Sorry, an error occured while submitting this request
       </Typography>
       <Typography variant="h6">
-        {error.message}
+        {error?.message}
       </Typography>
     </Centered>
     );
