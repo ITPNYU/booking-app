@@ -473,7 +473,7 @@ export default function FormInput({
       </Section>
 
       <Section title="Services">
-        {isBooking && (
+        {!isWalkIn && (
           <div style={{ marginBottom: 32 }}>
             <BookingFormSwitch
               id="roomSetup"
@@ -538,7 +538,7 @@ export default function FormInput({
               />
             )}
         </div>
-        {isBooking && (
+        {!isWalkIn && (
           <div style={{ marginBottom: 32 }}>
             <BookingFormSwitch
               id="catering"
@@ -564,7 +564,7 @@ export default function FormInput({
             )}
           </div>
         )}
-        {isBooking && (
+        {!isWalkIn && (
           <div style={{ marginBottom: 32 }}>
             <BookingFormSwitch
               id="hireSecurity"
