@@ -79,13 +79,6 @@ export default function useSortBookingHistory(booking: BookingRow) {
         time: booking.walkedInAt,
       });
     }
-    if (booking.vipAt) {
-      data.push({
-        status: BookingStatusLabel.VIP,
-        user: "",
-        time: booking.vipAt,
-      });
-    }
     return data;
   }, [booking]);
 
