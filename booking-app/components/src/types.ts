@@ -63,7 +63,7 @@ export type BookingStatus = {
   noShowedAt: Timestamp;
   noShowedBy: string;
   walkedInAt: Timestamp;
-  vipAt: Timestamp;
+  origin: "walk-in" | "vip";
 };
 
 // the order here is the order these are displayed as table filters
@@ -78,7 +78,6 @@ export enum BookingStatusLabel {
   REQUESTED = "REQUESTED",
   UNKNOWN = "UNKNOWN",
   WALK_IN = "WALK-IN",
-  VIP = "VIP",
 }
 
 export type BookingType = {

@@ -10,12 +10,12 @@ export default function useAllowedStatuses(pageContext: PageContextLevel) {
         BookingStatusLabel.CHECKED_IN,
         BookingStatusLabel.CHECKED_OUT,
         BookingStatusLabel.NO_SHOW,
-        BookingStatusLabel.WALK_IN,
       ];
     } else if (pageContext === PageContextLevel.LIAISON) {
       return [BookingStatusLabel.REQUESTED];
     } else {
-      return Object.values(BookingStatusLabel);
+      const {WALK_IN, ...displayableStatuses} = BookingStatusLabel;
+      return Object.values(displayableStatuses);
     }
   }, [pageContext]);
 

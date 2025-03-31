@@ -85,7 +85,7 @@ export default function BookingFormConfirmationPage({ formContext }: Props) {
           }}
         >
           <Button
-            onClick={() => router.push(isWalkIn || isVIP ? "/pa" : "/")}
+            onClick={() => router.push(isVIP ? '/admin' : isWalkIn ? "/pa" : "/")}
             variant="text"
             sx={{
               background: theme.palette.primary[50],

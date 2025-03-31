@@ -28,11 +28,8 @@ export async function POST(request: NextRequest) {
     (r: { calendarId: string }) => r.calendarId,
   );
 
-  const bookingStatus = isVIP
-    ? BookingStatusLabel.VIP
-    : BookingStatusLabel.WALK_IN;
+  const bookingStatus = BookingStatusLabel.APPROVED;
   const type = isVIP ? "VIP" : "walk-in";
-  const timeKey = isVIP ? "vipAt" : "walkedInAt";
 
   const calendarId = await serverGetRoomCalendarId(room.roomId);
   if (calendarId == null) {
@@ -78,7 +75,8 @@ export async function POST(request: NextRequest) {
     startDate: toFirebaseTimestampFromString(bookingCalendarInfo.startStr),
     endDate: toFirebaseTimestampFromString(bookingCalendarInfo.endStr),
     requestNumber: sequentialId,
-    [timeKey]: Timestamp.now(),
+    walkedInAt: Timestamp.now(),
+    origin: isVIP ? "vip" : "walk-in",
     ...data,
   });
 
