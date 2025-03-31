@@ -24,7 +24,7 @@ interface Props {
 }
 
 export default function BookingFormConfirmationPage({ formContext }: Props) {
-  const { submitting } = useContext(BookingContext);
+  const { submitting, error } = useContext(BookingContext);
   const router = useRouter();
   const theme = useTheme();
 
@@ -97,9 +97,10 @@ export default function BookingFormConfirmationPage({ formContext }: Props) {
   }
 
   // TODO error state
-  return (
-    <Centered>
-      <Box
+  if (error || submitting === "error") {
+    return (
+      <Centered>
+        <Box
         sx={{
           position: "absolute",
           top: "calc(50% - 40px)",
@@ -112,6 +113,12 @@ export default function BookingFormConfirmationPage({ formContext }: Props) {
       <Typography variant="h6">
         Sorry, an error occured while submitting this request
       </Typography>
+      <Typography variant="h6">
+        {error?.message}
+      </Typography>
     </Centered>
-  );
+    );
+  }
+
+  return null;
 }

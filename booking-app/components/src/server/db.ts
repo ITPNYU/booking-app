@@ -126,14 +126,30 @@ export const decline = async (id: string, email: string, reason?: string) => {
 };
 
 // If cancel within 24 hours of event or o, add to pre-ban logs.
-function checkAndLogLateCancellation(doc: any, bookingId: string, netId: string) {
+function checkAndLogLateCancellation(
+  doc: any,
+  bookingId: string,
+  netId: string
+) {
   if (!doc) return;
+
   const now = Timestamp.now();
   const eventDate = doc.startDate;
-  const timeDiff = now.toDate().getTime() - eventDate.toDate().getTime();
-  const hoursDiff = timeDiff / (1000 * 60 * 60);
-  if (hoursDiff > 24) return;
-  // Add to pre-ban logs
+  const requestedAt = doc.requestedAt;
+
+  // Calculate time differences
+  const timeToEvent = eventDate.toDate().getTime() - now.toDate().getTime();
+  const hoursToEvent = timeToEvent / (1000 * 60 * 60);
+
+  // If event is more than 24 hours away, no penalty.
+  if (hoursToEvent > 24) return;
+
+  // If within 1 hour grace period of creation, no penalty.
+  const timeSinceCreation = now.toDate().getTime() - requestedAt.toDate().getTime();
+  const hoursSinceCreation = timeSinceCreation / (1000 * 60 * 60);
+  if (hoursSinceCreation <= 1) return;
+
+  // Add to pre-ban logs if outside grace period.
   const log = { netId, bookingId, lateCancelDate: now };
   clientSaveDataToFirestore(TableNames.PRE_BAN_LOGS, log);
 }
@@ -145,7 +161,6 @@ export const cancel = async (id: string, email: string, netId: string) => {
   });
 
   const doc = await clientGetDataByCalendarEventId(TableNames.BOOKING, id);
-
   checkAndLogLateCancellation(doc, id, netId);
 
   //@ts-ignore
