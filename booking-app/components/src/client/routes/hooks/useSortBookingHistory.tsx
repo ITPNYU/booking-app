@@ -2,9 +2,9 @@ import { BookingRow, BookingStatusLabel } from "@/components/src/types";
 import { TableCell, TableRow } from "@mui/material";
 import { formatDateTable, formatTimeAmPm } from "../../utils/date";
 
-import StatusChip from "../components/bookingTable/StatusChip";
 import { Timestamp } from "@firebase/firestore";
 import { useMemo } from "react";
+import StatusChip from "../components/bookingTable/StatusChip";
 
 type HistoryRow = {
   status: BookingStatusLabel;
@@ -16,11 +16,13 @@ type HistoryRow = {
 export default function useSortBookingHistory(booking: BookingRow) {
   const rows = useMemo(() => {
     let data: HistoryRow[] = [];
-    data.push({
-      status: BookingStatusLabel.REQUESTED,
-      user: booking.email,
-      time: booking.requestedAt,
-    });
+    if (booking.requestedAt) {
+      data.push({
+        status: BookingStatusLabel.REQUESTED,
+        user: booking.email,
+        time: booking.requestedAt,
+      });
+    }
 
     if (booking.finalApprovedAt) {
       data.push({

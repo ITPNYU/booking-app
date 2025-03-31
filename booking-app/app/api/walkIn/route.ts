@@ -1,20 +1,19 @@
-import { BookingFormDetails, BookingStatusLabel } from "@/components/src/types";
-import { NextRequest, NextResponse } from "next/server";
 import { TableNames, getApprovalCcEmail } from "@/components/src/policy";
 import {
-  serverApproveInstantBooking,
   serverGetRoomCalendarId,
   serverSendBookingDetailEmail,
 } from "@/components/src/server/admin";
+import { BookingStatusLabel } from "@/components/src/types";
 import {
   serverGetFinalApproverEmail,
   serverGetNextSequentialId,
   serverSaveDataToFirestore,
 } from "@/lib/firebase/server/adminDb";
+import { NextRequest, NextResponse } from "next/server";
 
-import { Timestamp } from "firebase-admin/firestore";
-import { insertEvent } from "@/components/src/server/calendars";
 import { toFirebaseTimestampFromString } from "@/components/src/client/utils/serverDate";
+import { insertEvent } from "@/components/src/server/calendars";
+import { Timestamp } from "firebase-admin/firestore";
 
 export async function POST(request: NextRequest) {
   const { email, selectedRooms, bookingCalendarInfo, data } =
@@ -37,8 +36,9 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const truncatedTitle = data.title.length > 25 ? data.title.substring(0, 25) + "..." : data.title;
-  
+  const truncatedTitle =
+    data.title.length > 25 ? data.title.substring(0, 25) + "..." : data.title;
+
   const event = await insertEvent({
     calendarId,
     title: `[${BookingStatusLabel.WALK_IN}] ${selectedRoomIds.join(", ")} ${truncatedTitle}`,
@@ -48,6 +48,21 @@ export async function POST(request: NextRequest) {
     roomEmails: otherRoomIds,
   });
   const calendarEventId = event.id;
+  const formData = {
+    guestEmail: email,
+    calendarEventId: calendarEventId,
+    roomId: room.roomId,
+  };
+  const res = await fetch(
+    `${process.env.NEXT_PUBLIC_BASE_URL}/api/inviteUser`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(formData),
+    },
+  );
 
   const sequentialId = await serverGetNextSequentialId("bookings");
   await serverSaveDataToFirestore(TableNames.BOOKING, {
@@ -66,8 +81,9 @@ export async function POST(request: NextRequest) {
       serverSendBookingDetailEmail({
         calendarEventId,
         targetEmail: recipient,
-        headerMessage: "A walk-in reservation for Media Commons has been confirmed.",
-        status: BookingStatusLabel.WALK_IN
+        headerMessage:
+          "A walk-in reservation for Media Commons has been confirmed.",
+        status: BookingStatusLabel.WALK_IN,
       }),
     );
 
@@ -78,7 +94,7 @@ export async function POST(request: NextRequest) {
     calendarEventId,
     targetEmail: email,
     headerMessage: "Your walk-in reservation for Media Commons is confirmed.",
-    status: BookingStatusLabel.WALK_IN
+    status: BookingStatusLabel.WALK_IN,
   });
 
   const notifyEmails = [
