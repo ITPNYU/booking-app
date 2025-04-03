@@ -1,11 +1,13 @@
-import { CalendarEvent, RoomSetting } from "../../../../types";
 import { useCallback, useEffect, useState } from "react";
+import { CalendarEvent, RoomSetting } from "../../../../types";
 
 import { CALENDAR_HIDE_STATUS } from "../../../../policy";
 
 export default function fetchCalendarEvents(allRooms: RoomSetting[]) {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
-  const [fetchingStatus, setFetchingStatus] = useState<"loading" | "loaded" | "error" | null>(null);
+  const [fetchingStatus, setFetchingStatus] = useState<
+    "loading" | "loaded" | "error" | null
+  >(null);
 
   const loadEvents = useCallback(() => {
     if (allRooms.length === 0) {
@@ -38,7 +40,7 @@ export default function fetchCalendarEvents(allRooms: RoomSetting[]) {
     let response = null;
     try {
       response = await fetch(
-        `${process.env.NEXT_PUBLIC_BASE_URL}/api/calendarEvents?calendarId=${calendarId}`,
+        `${process.env.NEXT_PUBLIC_BASE_URL}/api/calendarEvents?calendarId=${calendarId}?maxResults=2500`,
         {
           headers: {
             "Content-Type": "application/json",
