@@ -396,6 +396,7 @@ export default function FormInput({
           <BookingFormTextField
             id="sponsorFirstName"
             label="Sponsor First Name"
+            description="Faculty, Staff, or Liaison related to your request."
             required={watch("role") === Role.STUDENT}
             {...{ control, errors, trigger }}
           />
