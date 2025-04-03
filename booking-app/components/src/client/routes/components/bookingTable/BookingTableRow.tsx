@@ -11,7 +11,7 @@ import {
   tooltipClasses,
   useTheme,
 } from "@mui/material";
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { formatDateTable, formatTimeAmPm } from "../../../utils/date";
 
 import BookingActions from "../../admin/components/BookingActions";
@@ -45,10 +45,20 @@ export default function BookingTableRow({
   const [optimisticStatus, setOptimisticStatus] =
     useState<BookingStatusLabel>();
 
-  const status = useMemo(
-    () => getBookingStatus(booking),
-    [booking, optimisticStatus]
-  );
+  const actualStatus = useMemo(() => getBookingStatus(booking), [booking]);
+
+  const displayStatus = useMemo(() => {
+    if (optimisticStatus) {
+      return optimisticStatus;
+    }
+    return actualStatus;
+  }, [optimisticStatus, actualStatus]);
+
+  useEffect(() => {
+    if (optimisticStatus && optimisticStatus === actualStatus) {
+      setOptimisticStatus(undefined);
+    }
+  }, [optimisticStatus, actualStatus]);
 
   return (
     <TableRow
@@ -62,7 +72,7 @@ export default function BookingTableRow({
     >
       <TableCell>{booking.requestNumber ?? "--"}</TableCell>
       <TableCell>
-        <StatusChip status={optimisticStatus ?? status} allowTooltip={true} />
+        <StatusChip status={displayStatus} allowTooltip={true} />
       </TableCell>
       <StackedTableCell
         topText={formatDateTable(booking.startDate.toDate())}
@@ -137,7 +147,7 @@ export default function BookingTableRow({
       )}
       <TableCell width={100}>
         <BookingActions
-          status={optimisticStatus ?? status}
+          status={actualStatus}
           calendarEventId={booking.calendarEventId}
           startDate={booking.startDate}
           onSelect={() => setHighlight(false)}

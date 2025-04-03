@@ -134,6 +134,14 @@ export const getPaginatedData = async<T> (
       // Filter documents that match the search term in any field
       const matchingDocs = snapshot.docs.filter(doc => {
         const data = doc.data();
+        
+        // Check for matches in combined firstName + lastName
+        if (data.firstName && data.lastName) {
+          const fullName = `${data.firstName} ${data.lastName}`.toLowerCase();
+          if (fullName.includes(searchTerm)) return true;
+        }
+        
+        // Continue with existing field-by-field check
         return searchableFields.some(field => {
           const fieldValue = data[field];
           // Handle different types of fields

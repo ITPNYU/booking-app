@@ -1,5 +1,6 @@
 import { serverFormatDate } from "@/components/src/client/utils/serverDate";
 import { MEDIA_COMMONS_EMAIL } from "@/components/src/mediaCommonsPolicy";
+import { admins } from "@/components/src/server/admin";
 import { getEmailBranchTag } from "@/components/src/server/emails";
 import { ApproverType } from "@/components/src/types";
 import { getGmailClient } from "@/lib/googleClient";
@@ -40,6 +41,22 @@ export const sendHTMLEmail = async (params: SendHTMLEmailParams) => {
     approverType,
     replyTo = MEDIA_COMMONS_EMAIL,
   } = params;
+
+  // Check if we're in development and if the target email is an admin
+  const isDevelopment = process.env.NEXT_PUBLIC_BRANCH_NAME === "development";
+  let finalTargetEmail = targetEmail;
+
+  if (isDevelopment) {
+    const adminUsers = await admins();
+    const adminEmails = new Set(adminUsers.map(user => user.email));
+    console.log("targetEmail", targetEmail);
+
+    // Only redirect if the email ends with @nyu.edu and is not in admin list
+    if (targetEmail.endsWith("@nyu.edu") && !adminEmails.has(targetEmail)) {
+      finalTargetEmail = "booking-app-devs+requester@itp.nyu.edu";
+    }
+  }
+  console.log("finalTargetEmail", finalTargetEmail);
 
   const subj = `${getEmailBranchTag()}${status} - Media Commons request #${requestNumber}: "${eventTitle}"`;
 
@@ -85,7 +102,7 @@ export const sendHTMLEmail = async (params: SendHTMLEmailParams) => {
 
   const messageParts = [
     "From: 'Media Commons' <>",
-    `To: ${targetEmail}`,
+    `To: ${finalTargetEmail}`,
     `Reply-To: ${replyTo}`,
     "Content-Type: text/html; charset=utf-8",
     "MIME-Version: 1.0",

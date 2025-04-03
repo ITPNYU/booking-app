@@ -77,13 +77,12 @@ export default function BookingActions(props: Props) {
 
     try {
       await action();
+      await reload();
     } catch (ex) {
       console.error(ex);
       setOptimisticStatus(undefined);
       onError();
     } finally {
-      await reload();
-      setOptimisticStatus(undefined);
       setSelectedAction(Actions.PLACEHOLDER);
       setUiLoading(false);
     }
