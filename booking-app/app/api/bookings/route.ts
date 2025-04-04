@@ -142,16 +142,23 @@ async function checkOverlap(selectedRooms: RoomSetting[], bookingCalendarInfo: D
     const hasOverlap = events.data.items?.some(event => {
       // Skip the event being edited in case of modification
       if (calendarEventId && (calendarEventId === event.id || calendarEventId === event.id.split(":")[0])) {
-        console.log("calendarEventId", calendarEventId);
-        console.log("event.id", event.id);
         return false;
       }
+      
+      //if event is cancelled, then it is not an overlap
+      if (event.status === BookingStatusLabel.CANCELED || event.summary.includes("CANCELED")) {
+        return false;
+      }
+
       
       const eventStart = new Date(event.start.dateTime || event.start.date);
       const eventEnd = new Date(event.end.dateTime || event.end.date);
       const requestStart = new Date(bookingCalendarInfo.startStr);
       const requestEnd = new Date(bookingCalendarInfo.endStr);
-
+      //log the event that overlaps and then return
+      if(eventStart >= requestStart && eventStart < requestEnd || eventEnd > requestStart && eventEnd <= requestEnd || eventStart <= requestStart && eventEnd >= requestEnd) {
+        console.log("event that overlaps", event);
+      }
       return (
         (eventStart >= requestStart && eventStart < requestEnd) ||
         (eventEnd > requestStart && eventEnd <= requestEnd) ||
