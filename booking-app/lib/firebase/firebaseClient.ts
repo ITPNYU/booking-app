@@ -33,7 +33,7 @@ export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 
 let isTestEnv = false;
-fetch("/api/isTestEnv")
+fetch(process.env.NEXT_PUBLIC_BASE_URL + "/api/isTestEnv")
   .then(res => res.json())
   .then(data => {
     isTestEnv = data.isOnTestEnv;
