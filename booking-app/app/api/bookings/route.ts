@@ -146,11 +146,10 @@ async function checkOverlap(selectedRooms: RoomSetting[], bookingCalendarInfo: D
       }
       
       //if event is cancelled, then it is not an overlap
-      if (event.status === BookingStatusLabel.CANCELED || event.summary.includes("CANCELED")) {
+      if (event.summary.includes("CANCELED")) {
         return false;
       }
 
-      
       const eventStart = new Date(event.start.dateTime || event.start.date);
       const eventEnd = new Date(event.end.dateTime || event.end.date);
       const requestStart = new Date(bookingCalendarInfo.startStr);
