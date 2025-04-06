@@ -128,13 +128,15 @@ class BookingFilter {
   // filter if endTime has passed and status should be hidden
   // checks once per minute
   filterElapsedTime(currentTime: Date) {
-    this.rows = this.rows.filter(
-      (row) =>
-        !(
+    if (this.pageContext === PageContextLevel.USER) {
+      this.rows = this.rows.filter(
+        (row) =>
+          !(
           BOOKING_TABLE_HIDE_STATUS_TIME_ELAPSED.includes(row.status) &&
           row.endDate.toDate() < currentTime
         )
-    );
+      );
+    }
     return this;
   }
 
