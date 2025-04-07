@@ -36,6 +36,7 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
   }
   const isEdit = formContext === FormContextLevel.EDIT;
   const isWalkIn = formContext === FormContextLevel.WALK_IN;
+  const isVIP = formContext === FormContextLevel.VIP;
   const isModification = formContext === FormContextLevel.MODIFICATION;
 
   const registerEvent = useCallback(
@@ -67,7 +68,7 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
 
       let email: string;
       setSubmitting("submitting");
-      if ((isWalkIn || isModification) && data.netId) {
+      if ((isWalkIn || isModification || isVIP) && data.netId) {
         email = data.netId + "@nyu.edu";
       } else {
         email = userEmail || data.missingEmail;
@@ -96,8 +97,9 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
               },
             };
           case FormContextLevel.WALK_IN:
+          case FormContextLevel.VIP:
             return {
-              endpoint: "/api/walkIn",
+              endpoint: "/api/bookingsDirect",
               method: "POST",
             };
           default:
@@ -114,6 +116,8 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
+          origin: isVIP ? "vip" : "walk-in",
+          type: isVIP ? "VIP" : "walk-in",
           email,
           selectedRooms,
           bookingCalendarInfo,
