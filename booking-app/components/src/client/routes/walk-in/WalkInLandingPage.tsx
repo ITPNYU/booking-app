@@ -50,7 +50,7 @@ const AlertHeader = styled(Alert)(({ theme }) => ({
 
 interface WalkInLandingPageProps {
   formContext?: FormContextLevel;
-} 
+}
 
 export default function WalkInLandingPage({
   formContext = FormContextLevel.FULL_FORM,
@@ -69,7 +69,13 @@ export default function WalkInLandingPage({
             Policy Reminders
           </AlertHeader>
         </Box>
-        {!isVIP && (
+        {isVIP ? (
+          <>
+            <Typography fontWeight={700} marginTop={3}>
+              VIP policy placeholder
+            </Typography>
+          </>
+        ) : (
           <>
             <Typography fontWeight={700} marginTop={3}>
               Audio Lab (230) has different hours for Walk-Ins
