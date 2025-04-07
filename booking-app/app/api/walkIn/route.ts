@@ -16,9 +16,17 @@ import { insertEvent } from "@/components/src/server/calendars";
 import { Timestamp } from "firebase-admin/firestore";
 
 export async function POST(request: NextRequest) {
-  const { email, selectedRooms, bookingCalendarInfo, data, isVIP } =
-    await request.json();
+  const {
+    email,
+    selectedRooms,
+    bookingCalendarInfo,
+    data,
+    origin = "walk-in",
+    type = "walk-in",
+  } = await request.json();
+
   console.log("data", data);
+
   const { department } = data;
   const [room, ...otherRooms] = selectedRooms;
   const selectedRoomIds = selectedRooms.map(
@@ -29,7 +37,6 @@ export async function POST(request: NextRequest) {
   );
 
   const bookingStatus = BookingStatusLabel.APPROVED;
-  const type = isVIP ? "VIP" : "walk-in";
 
   const calendarId = await serverGetRoomCalendarId(room.roomId);
   if (calendarId == null) {
@@ -76,7 +83,7 @@ export async function POST(request: NextRequest) {
     endDate: toFirebaseTimestampFromString(bookingCalendarInfo.endStr),
     requestNumber: sequentialId,
     walkedInAt: Timestamp.now(),
-    origin: isVIP ? "vip" : "walk-in",
+    origin,
     ...data,
   });
 
