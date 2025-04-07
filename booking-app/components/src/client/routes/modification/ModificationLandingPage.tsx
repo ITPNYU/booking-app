@@ -5,7 +5,7 @@ import { Box, List, ListItem, Typography } from "@mui/material";
 import Button from "@mui/material/Button";
 import React from "react";
 import { styled } from "@mui/system";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 
 const Center = styled(Box)`
   display: flex;
@@ -44,6 +44,7 @@ interface Props {
 
 export default function ModificationLandingPage({ calendarEventId }: Props) {
   const router = useRouter();
+  const { tenant } = useParams();
 
   return (
     <Center sx={{ width: "100vw", height: "70vh" }}>
@@ -66,7 +67,7 @@ export default function ModificationLandingPage({ calendarEventId }: Props) {
           variant="contained"
           color="primary"
           onClick={() =>
-            router.push("/modification/selectRoom/" + calendarEventId)
+            router.push(`/${tenant}/modification/selectRoom/${calendarEventId}`)
           }
           sx={{
             alignSelf: "center",

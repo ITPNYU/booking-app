@@ -10,7 +10,7 @@ import {
   useMediaQuery,
   useTheme,
 } from "@mui/material";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useParams } from "next/navigation";
 import { useContext, useEffect, useMemo, useState } from "react";
 
 import { auth } from "@/lib/firebase/firebaseClient";
@@ -53,6 +53,7 @@ const Divider = styled(Box)(({ theme }) => ({
 
 export default function NavBar() {
   const router = useRouter();
+  const { tenant } = useParams();
   const { pagePermission, userEmail, netId, setUserEmail } =
     useContext(DatabaseContext);
   const handleStartBooking = useHandleStartBooking();
@@ -66,26 +67,26 @@ export default function NavBar() {
   const handleRoleChange = (e: any) => {
     switch (e.target.value as PagePermission) {
       case PagePermission.BOOKING:
-        router.push("/");
+        router.push(`/${tenant}`);
         break;
       case PagePermission.PA:
-        router.push("/pa");
+        router.push(`/${tenant}/pa`);
         break;
       case PagePermission.ADMIN:
-        router.push("/admin");
+        router.push(`/${tenant}/admin`);
         break;
       case PagePermission.LIAISON:
-        router.push("/liaison");
+        router.push(`/${tenant}/liaison`);
         break;
       case PagePermission.EQUIPMENT:
-        router.push("/equipment");
+        router.push(`/${tenant}/equipment`);
         break;
     }
   };
 
   const handleClickHome = () => {
     setSelectedView(PagePermission.BOOKING);
-    router.push("/");
+    router.push(`/${tenant}`);
   };
 
   const envTitle = (() => {
@@ -162,7 +163,7 @@ export default function NavBar() {
         <Button
           onClick={() => {
             handleStartBooking();
-            router.push("/book");
+            router.push(`/${tenant}/book`);
           }}
           variant="outlined"
           sx={{ height: "40px", marginRight: 2 }}
@@ -177,7 +178,7 @@ export default function NavBar() {
         <Button
           onClick={() => {
             handleStartBooking();
-            router.push("/walk-in");
+            router.push(`/${tenant}/walk-in`);
           }}
           variant="outlined"
           sx={{ height: "40px", marginRight: 2 }}
@@ -186,7 +187,7 @@ export default function NavBar() {
         </Button>
       );
     }
-  }, [pagePermission, selectedView]);
+  }, [pagePermission, selectedView, tenant]);
 
   return (
     <Nav>

@@ -12,7 +12,7 @@ import React from "react";
 import { styled } from "@mui/system";
 import useHandleStartBooking from "../../booking/hooks/useHandleStartBooking";
 import { useRouter } from "next/navigation";
-
+import { useParams } from "next/navigation";
 const BottomRow = styled(Table)({
   borderTop: "none",
   borderRadius: "0px 0px 4px 4px",
@@ -22,6 +22,7 @@ const BottomRow = styled(Table)({
 export default function BookMoreButton() {
   const router = useRouter();
   const theme = useTheme();
+  const { tenant } = useParams();
   const handleStartBooking = useHandleStartBooking();
 
   return (
@@ -32,7 +33,7 @@ export default function BookMoreButton() {
             <Button
               onClick={() => {
                 handleStartBooking();
-                router.push("/book");
+                router.push(`/${tenant}/book`);
               }}
               variant="text"
               sx={{
