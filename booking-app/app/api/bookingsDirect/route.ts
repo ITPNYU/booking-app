@@ -92,14 +92,8 @@ export async function POST(request: NextRequest) {
       serverSendBookingDetailEmail({
         calendarEventId,
         targetEmail: recipient,
-<<<<<<< HEAD
-        headerMessage:
-          "A walk-in reservation for Media Commons has been confirmed.",
-        status: BookingStatusLabel.WALK_IN,
-=======
         headerMessage: `A ${type} reservation for Media Commons has been confirmed.`,
         status: bookingStatus,
->>>>>>> caa8c9b (Support VIP)
       }),
     );
 
@@ -109,13 +103,8 @@ export async function POST(request: NextRequest) {
   serverSendBookingDetailEmail({
     calendarEventId,
     targetEmail: email,
-<<<<<<< HEAD
-    headerMessage: "Your walk-in reservation for Media Commons is confirmed.",
-    status: BookingStatusLabel.WALK_IN,
-=======
     headerMessage: `Your ${type} reservation for Media Commons is confirmed.`,
     status: bookingStatus,
->>>>>>> caa8c9b (Support VIP)
   });
 
   const notifyEmails = [
