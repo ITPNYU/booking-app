@@ -1,14 +1,8 @@
-import {  BookingRow, PageContextLevel } from "../../../../types";
+import { BookingRow, PageContextLevel } from "../../../../types";
 import { Box, TableCell, IconButton } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
 import StackedTableCell from "./StackedTableCell";
-import React, {
-
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import React, { useContext, useEffect, useMemo, useState } from "react";
 import { TableEmpty } from "../Table";
 import { MoreHoriz } from "@mui/icons-material";
 import { Tooltip, tooltipClasses } from "@mui/material";
@@ -300,6 +294,7 @@ export const Bookings: React.FC<BookingsProps> = ({
           headerName: "Details",
           width: 100,
           renderHeader: () => <TableCell>Details</TableCell>,
+          filterable: false,
           renderCell: (params) => (
             <TableCell>
               <IconButton onClick={() => setModalData(params.row)}>
@@ -315,6 +310,7 @@ export const Bookings: React.FC<BookingsProps> = ({
                 headerName: "Equip.",
                 width: 100,
                 renderHeader: () => <TableCell>Equip.</TableCell>,
+                filterable: false,
                 renderCell: (params) => (
                   <TableCell>
                     <EquipmentCheckoutToggle
@@ -331,6 +327,7 @@ export const Bookings: React.FC<BookingsProps> = ({
           headerName: "Action",
           width: 200,
           renderHeader: () => <TableCell>Action</TableCell>,
+          filterable: false,
           renderCell: (params) => (
             <TableCell width={200}>
               <BookingActions
