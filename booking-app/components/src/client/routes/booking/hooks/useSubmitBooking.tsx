@@ -116,7 +116,8 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          isVIP,
+          origin: isVIP ? "vip" : "walk-in",
+          type: isVIP ? "VIP" : "walk-in",
           email,
           selectedRooms,
           bookingCalendarInfo,
