@@ -99,7 +99,7 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
           case FormContextLevel.WALK_IN:
           case FormContextLevel.VIP:
             return {
-              endpoint: "/api/walkIn",
+              endpoint: "/api/bookingsDirect",
               method: "POST",
             };
           default:
