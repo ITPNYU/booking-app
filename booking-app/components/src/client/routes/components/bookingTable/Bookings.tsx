@@ -161,6 +161,13 @@ export const Bookings: React.FC<BookingsProps> = ({
     () =>
       [
         {
+          field: "origin",
+          headerName: "#",
+          width: 60,
+          renderHeader: () => <TableCell>Origin</TableCell>,
+          renderCell: (params) => <TableCell></TableCell>, // TODO
+        },
+        {
           field: "requestNumber",
           headerName: "#",
           width: 80,
@@ -292,7 +299,7 @@ export const Bookings: React.FC<BookingsProps> = ({
         {
           field: "other",
           headerName: "Details",
-          width: 100,
+          width: 80,
           renderHeader: () => <TableCell>Details</TableCell>,
           filterable: false,
           renderCell: (params) => (
@@ -308,7 +315,7 @@ export const Bookings: React.FC<BookingsProps> = ({
               {
                 field: "equip",
                 headerName: "Equip.",
-                width: 100,
+                width: 80,
                 renderHeader: () => <TableCell>Equip.</TableCell>,
                 filterable: false,
                 renderCell: (params) => (
