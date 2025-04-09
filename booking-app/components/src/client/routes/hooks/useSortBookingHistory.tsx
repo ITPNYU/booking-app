@@ -2,9 +2,9 @@ import { BookingRow, BookingStatusLabel } from "@/components/src/types";
 import { TableCell, TableRow } from "@mui/material";
 import { formatDateTable, formatTimeAmPm } from "../../utils/date";
 
-import StatusChip from "../components/bookingTable/StatusChip";
 import { Timestamp } from "@firebase/firestore";
 import { useMemo } from "react";
+import StatusChip from "../components/bookingTable/StatusChip";
 
 type HistoryRow = {
   status: BookingStatusLabel;
@@ -19,7 +19,7 @@ export default function useSortBookingHistory(booking: BookingRow) {
     data.push({
       status: BookingStatusLabel.REQUESTED,
       user: booking.email,
-      time: booking.requestedAt,
+      time: booking.requestedAt || booking.walkedInAt,
     });
 
     if (booking.finalApprovedAt) {
@@ -75,7 +75,7 @@ export default function useSortBookingHistory(booking: BookingRow) {
     if (booking.walkedInAt) {
       data.push({
         status: BookingStatusLabel.WALK_IN,
-        user: "",
+        user: "PA",
         time: booking.walkedInAt,
       });
     }

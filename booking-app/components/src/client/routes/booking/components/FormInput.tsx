@@ -161,13 +161,6 @@ export default function FormInput({
     [selectedRooms]
   );
 
-  const validateTitleLength = (value: string) => {
-    if (value.trim().length > 25) {
-      return "Must be less than 25 characters";
-    }
-    return true;
-  };
-
   const validateExpectedAttendance = useCallback(
     (value: string) => {
       const attendance = parseInt(value);
@@ -427,7 +420,9 @@ export default function FormInput({
         <BookingFormTextField
           id="title"
           label="Reservation Title"
-          validate={validateTitleLength}
+          fieldProps={{
+            inputProps: { maxLength: 25 }
+          }}
           {...{ control, errors, trigger }}
         />
         <BookingFormTextField

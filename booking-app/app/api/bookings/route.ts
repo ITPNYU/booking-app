@@ -26,6 +26,7 @@ import { sendHTMLEmail } from "@/app/lib/sendHTMLEmail";
 import { TableNames } from "@/components/src/policy";
 import { Timestamp } from "firebase-admin/firestore";
 import { DateSelectArg } from "fullcalendar";
+import { getCalendarClient } from "@/lib/googleClient";
 
 async function createBookingCalendarEvent(
   selectedRooms: RoomSetting[],
@@ -126,9 +127,60 @@ async function handleBookingApprovalEmails(
   }
 }
 
+async function checkOverlap(selectedRooms: RoomSetting[], bookingCalendarInfo: DateSelectArg, calendarEventId?: string) {
+  const calendar = await getCalendarClient();
+  
+  // Check each selected room for overlaps
+  for (const room of selectedRooms) {
+    const events = await calendar.events.list({
+      calendarId: room.calendarId,
+      timeMin: bookingCalendarInfo.startStr,
+      timeMax: bookingCalendarInfo.endStr,
+      singleEvents: true
+    });
+
+    const hasOverlap = events.data.items?.some(event => {
+      // Skip the event being edited in case of modification
+      if (calendarEventId && (calendarEventId === event.id || calendarEventId === event.id.split(":")[0])) {
+        return false;
+      }
+      
+      //if event is cancelled, then it is not an overlap
+      if (event.summary.includes("CANCELED")) {
+        return false;
+      }
+
+      const eventStart = new Date(event.start.dateTime || event.start.date);
+      const eventEnd = new Date(event.end.dateTime || event.end.date);
+      const requestStart = new Date(bookingCalendarInfo.startStr);
+      const requestEnd = new Date(bookingCalendarInfo.endStr);
+      //log the event that overlaps and then return
+      if(eventStart >= requestStart && eventStart < requestEnd || eventEnd > requestStart && eventEnd <= requestEnd || eventStart <= requestStart && eventEnd >= requestEnd) {
+        console.log("event that overlaps", event);
+      }
+      return (
+        (eventStart >= requestStart && eventStart < requestEnd) ||
+        (eventEnd > requestStart && eventEnd <= requestEnd) ||
+        (eventStart <= requestStart && eventEnd >= requestEnd)
+      );
+    });
+
+    if (hasOverlap) return true;
+  }
+  
+  return false;
+}
+
 export async function POST(request: NextRequest) {
   const { email, selectedRooms, bookingCalendarInfo, data, isAutoApproval } =
     await request.json();
+  const hasOverlap = await checkOverlap(selectedRooms, bookingCalendarInfo);
+  if (hasOverlap) {
+    return NextResponse.json(
+      { error: "Time slot no longer available" },
+      { status: 409 }
+    );
+  }
 
   console.log("data", data);
 
