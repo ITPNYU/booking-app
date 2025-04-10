@@ -420,6 +420,7 @@ export default function FormInput({
         <BookingFormTextField
           id="title"
           label="Reservation Title"
+          description="Please provide a short title for your reservation (25 character limit)."
           fieldProps={{
             inputProps: { maxLength: 25 }
           }}
