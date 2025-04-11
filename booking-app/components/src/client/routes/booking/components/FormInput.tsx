@@ -473,7 +473,7 @@ export default function FormInput({
               id="roomSetup"
               label="Room Setup Needed?"
               required={false}
-              description={<p></p>}
+              description={<p>This field is for requesting a room setup that requires hiring CBS through a work order.</p>}
               {...{ control, errors, trigger }}
             />
             {watch("roomSetup") === "yes" && (
@@ -481,7 +481,7 @@ export default function FormInput({
                 <BookingFormTextField
                   id="setupDetails"
                   label="Room Setup Details"
-                  description="If you requested Room Setup and are not using rooms 233 or 1201, please explain your needs including # of chairs, # tables, and formation."
+                  description="Please specify the number of chairs, tables, and your preferred room configuration."
                   {...{ control, errors, trigger }}
                 />
                 <BookingFormTextField
