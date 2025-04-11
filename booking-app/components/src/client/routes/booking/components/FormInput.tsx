@@ -472,9 +472,8 @@ export default function FormInput({
             <BookingFormSwitch
               id="roomSetup"
               label="Room Setup Needed?"
-              description="This field is for requesting a room setup that requires hiring CBS through a work order."
               required={false}
-              description={<p></p>}
+              description={<p>This field is for requesting a room setup that requires hiring CBS through a work order.</p>}
               {...{ control, errors, trigger }}
             />
             {watch("roomSetup") === "yes" && (
