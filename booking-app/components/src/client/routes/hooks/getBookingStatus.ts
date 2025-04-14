@@ -6,7 +6,11 @@ export default function getBookingStatus(booking: Booking): BookingStatusLabel {
   const bookingStatusLabel = () => {
     const timeStringtoDate = (time: Timestamp) => {
       //for some reason there are some timestamps that are throwing an error when toDate is called only on dev, for now adding a check to avoid the error, will probably need to investigate further
-      return time != undefined  ? typeof time.toDate === "function" ? time.toDate() : new Date(time.seconds * 1000) : new Date(0);
+      return time != undefined
+        ? typeof time.toDate === "function"
+          ? time.toDate()
+          : new Date(time.seconds * 1000)
+        : new Date(0);
     };
 
     const checkedInTimestamp = timeStringtoDate(booking.checkedInAt);
@@ -49,8 +53,13 @@ export default function getBookingStatus(booking: Booking): BookingStatusLabel {
       return BookingStatusLabel.PENDING;
     } else if (booking.requestedAt != undefined) {
       return BookingStatusLabel.REQUESTED;
-    } else if (booking.walkedInAt != undefined) {
-      return BookingStatusLabel.WALK_IN;
+    } else if (
+      booking.origin === "walk-in" ||
+      booking.walkedInAt != undefined
+    ) {
+      return BookingStatusLabel.APPROVED;
+    } else if (booking.origin === "vip") {
+      return BookingStatusLabel.APPROVED;
     } else {
       return BookingStatusLabel.UNKNOWN;
     }

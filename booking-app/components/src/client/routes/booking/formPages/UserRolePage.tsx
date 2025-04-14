@@ -47,7 +47,9 @@ const departmentMappings: Record<Department, string[]> = {
   [Department.OTHER]: [],
 };
 
-export const mapAffiliationToRole = (affiliation?: string): Role | undefined => {
+export const mapAffiliationToRole = (
+  affiliation?: string
+): Role | undefined => {
   if (!affiliation) return undefined;
 
   const normalizedAffiliation = affiliation.toUpperCase();
@@ -153,7 +155,9 @@ export default function UserRolePage({
       router.push(
         formContext === FormContextLevel.WALK_IN
           ? "/walk-in/selectRoom"
-          : "/book/selectRoom"
+          : formContext === FormContextLevel.VIP
+            ? "/vip/selectRoom"
+            : "/book/selectRoom"
       );
     }
   };
