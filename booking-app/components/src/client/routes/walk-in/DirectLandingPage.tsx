@@ -57,7 +57,7 @@ export default function WalkInLandingPage({
 }: WalkInLandingPageProps) {
   const router = useRouter();
   const isVIP = formContext === FormContextLevel.VIP;
-  const title = isVIP ? "" : "Walk-In";
+  const title = isVIP ? "VIP" : "Walk-In";
 
   return (
     <Center sx={{ width: "100vw", height: "90vh" }}>
