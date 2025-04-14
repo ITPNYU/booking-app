@@ -50,6 +50,7 @@ export async function GET(request: NextRequest) {
 
     const batch = db.batch();
     let updatedCount = 0;
+    const updatedBookingIds: string[] = []; // Array to store IDs
 
     bookingsSnapshot.forEach(doc => {
       const booking = doc.data();
@@ -69,6 +70,7 @@ export async function GET(request: NextRequest) {
             // Set checkedOutAt to the original endDate
             batch.update(bookingRef, { checkedOutAt: booking.endDate });
             updatedCount++;
+            updatedBookingIds.push(bookingId); // Add ID to the list
           }
         }
       }
@@ -77,7 +79,11 @@ export async function GET(request: NextRequest) {
     if (updatedCount > 0) {
       await batch.commit();
       console.log(`Successfully auto-checked out ${updatedCount} bookings.`);
-      return NextResponse.json({ message: `Successfully auto-checked out ${updatedCount} bookings.` }, { status: 200 });
+      // Include updated IDs in the response
+      return NextResponse.json({ 
+        message: `Successfully auto-checked out ${updatedCount} bookings.`,
+        updatedIds: updatedBookingIds 
+      }, { status: 200 });
     } else {
        console.log("No bookings met the time criteria for auto-checkout.");
       return NextResponse.json({ message: "No bookings met the time criteria for auto-checkout." }, { status: 200 });
