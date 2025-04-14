@@ -1,0 +1,32 @@
+# .github/workflows/auto-checkout-cron.yml
+name: Auto Checkout Cron Job
+
+on:
+  schedule:
+    # Runs every 30 minutes *if* the job condition is met
+    - cron: '*/30 * * * *'
+  workflow_dispatch: # Allows manual triggering from the Actions tab
+
+jobs:
+  trigger-auto-checkout:
+    # Add this 'if' condition: Only run if the secret CRON_JOB_ENABLED is 'true'
+    if: secrets.CRON_JOB_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Auto-Checkout API
+        run: |
+          # Check if URL secret is available (optional but good practice)
+          if [ -z "${{ secrets.DEPLOYED_APP_URL }}" ]; then
+            echo "Error: DEPLOYED_APP_URL secret is not set."
+            exit 1
+          fi
+          # Check if CRON_SECRET secret is available (optional but good practice)
+           if [ -z "${{ secrets.CRON_SECRET }}" ]; then
+            echo "Error: CRON_SECRET secret is not set."
+            exit 1
+          fi
+
+          echo "Attempting to trigger auto-checkout API..."
+          curl --fail-with-body -X GET \
+          "${{ secrets.DEPLOYED_APP_URL }}/api/bookings/auto-checkout" \
+          -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
