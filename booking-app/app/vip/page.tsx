@@ -2,7 +2,7 @@
 
 "use client";
 
-import WalkInLandingPage from "@/components/src/client/routes/walk-in/WalkInLandingPage";
+import WalkInLandingPage from "@/components/src/client/routes/walk-in/DirectLandingPage";
 import { FormContextLevel } from "@/components/src/types";
 import React from "react";
 
