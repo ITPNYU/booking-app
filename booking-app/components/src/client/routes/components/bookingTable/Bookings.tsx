@@ -302,6 +302,7 @@ export const Bookings: React.FC<BookingsProps> = ({
           width: 80,
           renderHeader: () => <TableCell>Details</TableCell>,
           filterable: false,
+          sortable: false,
           renderCell: (params) => (
             <TableCell>
               <IconButton onClick={() => setModalData(params.row)}>
@@ -335,6 +336,7 @@ export const Bookings: React.FC<BookingsProps> = ({
           width: 200,
           renderHeader: () => <TableCell>Action</TableCell>,
           filterable: false,
+          sortable: false,
           renderCell: (params) => (
             <TableCell width={200}>
               <BookingActions
