@@ -57,12 +57,11 @@ export default function WalkInLandingPage({
 }: WalkInLandingPageProps) {
   const router = useRouter();
   const isVIP = formContext === FormContextLevel.VIP;
+  const title = isVIP ? "" : "Walk-In";
 
   return (
     <Center sx={{ width: "100vw", height: "90vh" }}>
-      <Title as="h1">
-        370🅙 Media Commons {isVIP ? "VIP" : "Walk-In"} Reservation Form
-      </Title>
+      <Title as="h1">370🅙 Media Commons {title} Reservation Form</Title>
       <Modal padding={4}>
         <Box width="100%">
           <AlertHeader color="info" icon={<Description />}>
@@ -72,7 +71,10 @@ export default function WalkInLandingPage({
         {isVIP ? (
           <>
             <Typography fontWeight={700} marginTop={3}>
-              VIP policy placeholder
+              Use this form to submit a reservation on behalf of a VIP,
+              Community Partner, or any person in need of concierge service.
+              They will be added to the booking tool reservation and Google
+              Calendar invitation
             </Typography>
           </>
         ) : (
