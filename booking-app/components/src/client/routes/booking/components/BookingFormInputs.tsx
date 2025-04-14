@@ -110,6 +110,7 @@ interface TextFieldProps extends Props {
   validate?: any;
   containerSx?: any;
   fieldSx?: any;
+  fieldProps?: any;
 }
 
 export function BookingFormTextField(props: TextFieldProps) {
@@ -125,6 +126,7 @@ export function BookingFormTextField(props: TextFieldProps) {
     trigger,
     containerSx,
     fieldSx,
+    fieldProps,
   } = props;
 
   return (
@@ -153,6 +155,7 @@ export function BookingFormTextField(props: TextFieldProps) {
             onBlur={() => trigger(id)}
             sx={fieldSx ?? { marginBottom: 4 }}
             fullWidth
+            {...fieldProps}
           />
         </Box>
       )}

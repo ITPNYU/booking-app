@@ -136,6 +136,12 @@ export default function CalendarVerticalResource({
   }, [bookingCalendarInfo, rooms]);
 
   const blockPastTimes = useMemo(() => {
+    // Only apply past time blocks if not in MODIFICATION mode
+    // This allows admins to edit end times of bookings with past start times
+    if (formContext === FormContextLevel.MODIFICATION) {
+      return [];
+    }
+    
     const blocks = rooms.map((room) => {
       const today = new Date();
       const start = new Date();
@@ -158,7 +164,7 @@ export default function CalendarVerticalResource({
       };
     });
     return blocks;
-  }, [rooms]);
+  }, [rooms, formContext]);
 
   const handleEventSelect = (selectInfo: DateSelectArg) => {
     setBookingCalendarInfo(selectInfo);
@@ -195,6 +201,7 @@ export default function CalendarVerticalResource({
 
   // if change event duration via dragging edges or drag event block to move
   const handleEventEdit = (info: EventResizeDoneArg | EventDropArg) => {
+    // Always allow modification of end time, even for past events
     setBookingCalendarInfo({
       startStr: info.event.startStr,
       start: info.event.start,
@@ -298,6 +305,11 @@ export default function CalendarVerticalResource({
         }}
         eventResize={handleEventEdit}
         eventDrop={handleEventEdit}
+        // Enable editing based on form context
+        editable={true}
+        // Control specific edit behavior
+        eventStartEditable={formContext !== FormContextLevel.MODIFICATION}
+        eventDurationEditable={true}
         headerToolbar={false}
         slotMinTime="9:00:00"
         allDaySlot={false}

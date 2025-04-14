@@ -130,14 +130,16 @@ export default function FormInput({
   const isWalkIn = formContext === FormContextLevel.WALK_IN;
   const isMod = formContext === FormContextLevel.MODIFICATION;
   const isFullForm = formContext === FormContextLevel.FULL_FORM;
+  const isVIP = formContext === FormContextLevel.VIP;
+  const isBooking = !isWalkIn && !isVIP;
 
   // different from other switches b/c mediaServices doesn't have yes/no column in DB
   const [showMediaServices, setShowMediaServices] = useState(false);
 
   // agreements, skip for walk-ins
-  const [checklist, setChecklist] = useState(isWalkIn);
-  const [resetRoom, setResetRoom] = useState(isWalkIn);
-  const [bookingPolicy, setBookingPolicy] = useState(isWalkIn);
+  const [checklist, setChecklist] = useState(isWalkIn || isVIP);
+  const [resetRoom, setResetRoom] = useState(isWalkIn || isVIP);
+  const [bookingPolicy, setBookingPolicy] = useState(isWalkIn || isVIP);
 
   const watchedFields = watch();
   const prevWatchedFieldsRef = useRef<Inputs>();
@@ -160,13 +162,6 @@ export default function FormInput({
       }, 0),
     [selectedRooms]
   );
-
-  const validateTitleLength = (value: string) => {
-    if (value.trim().length > 25) {
-      return "Must be less than 25 characters";
-    }
-    return true;
-  };
 
   const validateExpectedAttendance = useCallback(
     (value: string) => {
@@ -316,7 +311,11 @@ export default function FormInput({
           router.push("/modification/confirmation");
         } else {
           router.push(
-            isWalkIn ? "/walk-in/confirmation" : "/book/confirmation"
+            isWalkIn
+              ? "/walk-in/confirmation"
+              : isVIP
+              ? "/vip/confirmation"
+              : "/book/confirmation"
           );
         }
       });
@@ -427,7 +426,10 @@ export default function FormInput({
         <BookingFormTextField
           id="title"
           label="Reservation Title"
-          validate={validateTitleLength}
+          description="Please provide a short title for your reservation (25 character limit)."
+          fieldProps={{
+            inputProps: { maxLength: 25 }
+          }}
           {...{ control, errors, trigger }}
         />
         <BookingFormTextField
@@ -478,7 +480,7 @@ export default function FormInput({
               id="roomSetup"
               label="Room Setup Needed?"
               required={false}
-              description={<p></p>}
+              description={<p>This field is for requesting a room setup that requires hiring CBS through a work order.</p>}
               {...{ control, errors, trigger }}
             />
             {watch("roomSetup") === "yes" && (
@@ -486,7 +488,7 @@ export default function FormInput({
                 <BookingFormTextField
                   id="setupDetails"
                   label="Room Setup Details"
-                  description="If you requested Room Setup and are not using rooms 233 or 1201, please explain your needs including # of chairs, # tables, and formation."
+                  description="Please specify the number of chairs, tables, and your preferred room configuration."
                   {...{ control, errors, trigger }}
                 />
                 <BookingFormTextField
@@ -591,7 +593,7 @@ export default function FormInput({
         )}
       </Section>
 
-      {!isWalkIn && (
+      {isBooking && (
         <Section title="Agreement">
           <BookingFormAgreementCheckbox
             id="checklist"

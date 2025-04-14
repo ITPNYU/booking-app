@@ -80,7 +80,7 @@ export default function useSortBookingHistory(booking: BookingRow) {
       });
     }
     return data;
-  }, [booking, status]);
+  }, [booking]);
 
   return rows
     .sort((a, b) => a.time.toMillis() - b.time.toMillis())

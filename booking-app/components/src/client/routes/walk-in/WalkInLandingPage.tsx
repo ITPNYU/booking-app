@@ -7,7 +7,7 @@ import { Description } from "@mui/icons-material";
 import React from "react";
 import { styled } from "@mui/system";
 import { useRouter } from "next/navigation";
-
+import { FormContextLevel } from "@/components/src/types";
 const Center = styled(Box)`
   display: flex;
   flex-direction: column;
@@ -48,38 +48,59 @@ const AlertHeader = styled(Alert)(({ theme }) => ({
   },
 }));
 
-export default function WalkInLandingPage() {
+interface WalkInLandingPageProps {
+  formContext?: FormContextLevel;
+}
+
+export default function WalkInLandingPage({
+  formContext = FormContextLevel.FULL_FORM,
+}: WalkInLandingPageProps) {
   const router = useRouter();
+  const isVIP = formContext === FormContextLevel.VIP;
+  const title = isVIP ? "" : "Walk-In";
 
   return (
     <Center sx={{ width: "100vw", height: "90vh" }}>
-      <Title as="h1">370🅙 Media Commons Walk-In Reservation Form</Title>
+      <Title as="h1">370🅙 Media Commons {title} Reservation Form</Title>
       <Modal padding={4}>
         <Box width="100%">
           <AlertHeader color="info" icon={<Description />}>
             Policy Reminders
           </AlertHeader>
         </Box>
-        <Typography fontWeight={700} marginTop={3}>
-          Audio Lab (230) has different hours for Walk-Ins
-        </Typography>
-        <Bulleted>
-          <ListItem>
-            M-F 10am - 6pm staffed hours (audio engineer on site)
-          </ListItem>
-          <ListItem>
-            M-F 6pm - 9pm playback hours (no staff, multichannel speakers and
-            RME)
-          </ListItem>
-          <ListItem>
-            Sa 11am - 6pm playback hours (no staff, multichannel speakers and
-            RME)
-          </ListItem>
-        </Bulleted>
+        {isVIP ? (
+          <>
+            <Typography fontWeight={700} marginTop={3}>
+              Use this form to submit a reservation on behalf of a VIP,
+              Community Partner, or any person in need of concierge service.
+              They will be added to the booking tool reservation and Google
+              Calendar invitation
+            </Typography>
+          </>
+        ) : (
+          <>
+            <Typography fontWeight={700} marginTop={3}>
+              Audio Lab (230) has different hours for Walk-Ins
+            </Typography>
+            <Bulleted>
+              <ListItem>
+                M-F 10am - 6pm staffed hours (audio engineer on site)
+              </ListItem>
+              <ListItem>
+                M-F 6pm - 9pm playback hours (no staff, multichannel speakers
+                and RME)
+              </ListItem>
+              <ListItem>
+                Sa 11am - 6pm playback hours (no staff, multichannel speakers
+                and RME)
+              </ListItem>
+            </Bulleted>
+          </>
+        )}
         <Button
           variant="contained"
           color="primary"
-          onClick={() => router.push("/walk-in/role")}
+          onClick={() => router.push(isVIP ? "/vip/role" : "/walk-in/role")}
           sx={{
             alignSelf: "center",
             marginTop: 6,

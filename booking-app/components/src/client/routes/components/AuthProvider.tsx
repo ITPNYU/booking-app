@@ -34,7 +34,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   
   useEffect(() => {
     const handleAuth = async () => {
-      const testEnvRes = await fetch("/api/isTestEnv");
+      const testEnvRes = await fetch(window.location.origin + "/api/isTestEnv");
       const { isOnTestEnv } = await testEnvRes.json();
       setIsOnTestEnv(isOnTestEnv);
       

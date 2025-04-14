@@ -12,7 +12,7 @@ import { calendar_v3 } from "googleapis/build/src/apis/calendar";
 const getCalendarEvents = async (calendarId: string) => {
   const now = new Date().toISOString();
   const endOfRange = new Date();
-  endOfRange.setMonth(endOfRange.getMonth() + 6);
+  endOfRange.setMonth(endOfRange.getMonth() + 12);
   const endOfRangeISOString = endOfRange.toISOString();
 
   let events: calendar_v3.Schema$Event[] = [];

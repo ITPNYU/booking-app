@@ -1,0 +1,45 @@
+# .github/workflows/auto-checkout-cron.yml
+name: Auto Checkout Cron Job
+
+on:
+  schedule:
+    # Runs every 30 minutes
+    - cron: '*/30 * * * *'
+  workflow_dispatch: # Allows manual triggering from the Actions tab
+
+jobs:
+  trigger-auto-checkout:
+    # No job-level 'if' here
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Auto-Checkout API
+        env: # Define secrets as environment variables for the step
+          CRON_JOB_ENABLED: ${{ secrets.CRON_JOB_ENABLED }}
+          DEPLOYED_APP_URL: ${{ secrets.DEPLOYED_APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          # --- Start: Control and Secret Checks ---
+          # Check if CRON job is enabled first
+          if [ "${CRON_JOB_ENABLED}" != "true" ]; then
+            echo "CRON_JOB_ENABLED ('${CRON_JOB_ENABLED}') is not set to 'true'. Skipping execution."
+            exit 0 # Exit successfully, job is intentionally skipped
+          fi
+
+          # Check if URL secret is available
+          if [ -z "${DEPLOYED_APP_URL}" ]; then
+            echo "Error: DEPLOYED_APP_URL secret is not set."
+            exit 1
+          fi
+
+          # Check if CRON_SECRET secret is available
+          if [ -z "${CRON_SECRET}" ]; then
+            echo "Error: CRON_SECRET secret is not set."
+            exit 1
+          fi
+          # --- End: Control and Secret Checks ---
+
+          echo "Attempting to trigger auto-checkout API..."
+          # Use environment variables directly in the script
+          curl --fail-with-body -X GET \
+          "${DEPLOYED_APP_URL}/api/bookings/auto-checkout" \
+          -H "Authorization: Bearer ${CRON_SECRET}"
