@@ -3,12 +3,11 @@
 import { Box, Button, Typography, useTheme } from "@mui/material";
 import { Error, Event } from "@mui/icons-material";
 import React, { useContext } from "react";
-
 import { BookingContext } from "../bookingProvider";
 import { FormContextLevel } from "@/components/src/types";
 import Loading from "../../components/Loading";
 import { styled } from "@mui/system";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 
 const Centered = styled(Box)`
   position: relative;
@@ -26,6 +25,7 @@ interface Props {
 export default function BookingFormConfirmationPage({ formContext }: Props) {
   const { submitting, error } = useContext(BookingContext);
   const router = useRouter();
+  const { tenant } = useParams();
   const theme = useTheme();
 
   const isWalkIn = formContext === FormContextLevel.WALK_IN;
@@ -81,7 +81,7 @@ export default function BookingFormConfirmationPage({ formContext }: Props) {
           }}
         >
           <Button
-            onClick={() => router.push(isWalkIn ? "/pa" : "/")}
+            onClick={() => router.push(isWalkIn ? `/${tenant}/pa` : `/${tenant}`)}
             variant="text"
             sx={{
               background: theme.palette.primary[50],

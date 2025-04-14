@@ -23,7 +23,7 @@ import {
 } from "./BookingFormInputs";
 
 import { styled } from "@mui/system";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import isEqual from "react-fast-compare";
 import { DatabaseContext } from "../../components/Provider";
 import { BookingContext } from "../bookingProvider";
@@ -82,6 +82,7 @@ export default function FormInput({
     setFormData,
   } = useContext(BookingContext);
   const router = useRouter();
+  const { tenant } = useParams();
   const registerEvent = useSubmitBooking(formContext);
   const { isAutoApproval } = useCheckAutoApproval();
   const getDefaultValue = (key: keyof UserApiData): string => {
@@ -306,10 +307,10 @@ export default function FormInput({
       })
       .finally(() => {
         if (isMod) {
-          router.push("/modification/confirmation");
+          router.push(`/${tenant}/modification/confirmation`);
         } else {
           router.push(
-            isWalkIn ? "/walk-in/confirmation" : "/book/confirmation"
+            isWalkIn ? `/${tenant}/walk-in/confirmation` : `/${tenant}/book/confirmation`
           );
         }
       });

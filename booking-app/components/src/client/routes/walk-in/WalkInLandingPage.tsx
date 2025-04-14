@@ -6,7 +6,7 @@ import Button from "@mui/material/Button";
 import { Description } from "@mui/icons-material";
 import React from "react";
 import { styled } from "@mui/system";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 
 const Center = styled(Box)`
   display: flex;
@@ -50,6 +50,7 @@ const AlertHeader = styled(Alert)(({ theme }) => ({
 
 export default function WalkInLandingPage() {
   const router = useRouter();
+  const { tenant } = useParams();
 
   return (
     <Center sx={{ width: "100vw", height: "90vh" }}>
@@ -79,7 +80,7 @@ export default function WalkInLandingPage() {
         <Button
           variant="contained"
           color="primary"
-          onClick={() => router.push("/walk-in/role")}
+          onClick={() => router.push(`/${tenant}/walk-in/role`)}
           sx={{
             alignSelf: "center",
             marginTop: 6,

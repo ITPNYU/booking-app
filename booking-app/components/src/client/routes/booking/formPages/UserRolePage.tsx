@@ -10,6 +10,7 @@ import { DatabaseContext } from "../../components/Provider";
 import { BookingContext } from "../bookingProvider";
 import { BookingFormTextField } from "../components/BookingFormInputs";
 import Dropdown from "../components/Dropdown";
+import { useParams } from "next/navigation";
 
 const Center = styled(Box)`
   width: 100%;
@@ -47,7 +48,9 @@ const departmentMappings: Record<Department, string[]> = {
   [Department.OTHER]: [],
 };
 
-export const mapAffiliationToRole = (affiliation?: string): Role | undefined => {
+export const mapAffiliationToRole = (
+  affiliation?: string
+): Role | undefined => {
   if (!affiliation) return undefined;
 
   const normalizedAffiliation = affiliation.toUpperCase();
@@ -89,6 +92,7 @@ export default function UserRolePage({
   const { userApiData } = useContext(DatabaseContext);
   const router = useRouter();
   const { user } = useAuth();
+  const { tenant } = useParams();
 
   const {
     control,
@@ -148,12 +152,12 @@ export default function UserRolePage({
 
   const handleNextClick = () => {
     if (formContext === FormContextLevel.EDIT && calendarEventId != null) {
-      router.push("/edit/selectRoom/" + calendarEventId);
+      router.push(`/${tenant}/edit/selectRoom/${calendarEventId}`);
     } else {
       router.push(
         formContext === FormContextLevel.WALK_IN
-          ? "/walk-in/selectRoom"
-          : "/book/selectRoom"
+          ? `/${tenant}/walk-in/selectRoom`
+          : `/${tenant}/book/selectRoom`
       );
     }
   };
