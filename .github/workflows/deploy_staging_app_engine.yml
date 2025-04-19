@@ -60,6 +60,7 @@ jobs:
           echo "NYU_API_USER_NAME=${{ secrets.NYU_API_USER_NAME }}" >> .env.production
           echo "NYU_API_PASSWORD=${{ secrets.NYU_API_PASSWORD }}" >> .env.production
           echo "NYU_API_ACCESS_ID=${{ secrets.NYU_API_ACCESS_ID }}" >> .env.production
+          echo "CRON_SECRET=${{ secrets.CRON_SECRET }}" >> .env.production
 
       - name: Install dependencies
         run: |

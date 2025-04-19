@@ -47,8 +47,6 @@ export default function StatusChip({
         return "rgba(255, 122, 26, 1)";
       case BookingStatusLabel.UNKNOWN:
         return "rgba(85,94,97,1)";
-      case BookingStatusLabel.WALK_IN:
-        return "rgba(52, 77, 255, 1)";
     }
   }, [status, disabled]);
 
@@ -75,8 +73,6 @@ export default function StatusChip({
         return "rgba(255, 122, 26, 0.11)";
       case BookingStatusLabel.UNKNOWN:
         return "rgba(47,47,46,0.11)";
-      case BookingStatusLabel.WALK_IN:
-        return "rgba(89, 57, 251, 0.18)";
     }
   }, [status, disabled]);
 
@@ -100,8 +96,6 @@ export default function StatusChip({
         return "Requested";
       case BookingStatusLabel.UNKNOWN:
         return "Unknown";
-      case BookingStatusLabel.WALK_IN:
-        return "Walk-In";
     }
   }, [status]);
 
@@ -125,8 +119,6 @@ export default function StatusChip({
         return "Your request has been received and is pending approval.";
       case BookingStatusLabel.UNKNOWN:
         return "Unable to determine the status of this request.";
-      case BookingStatusLabel.WALK_IN:
-        return "This request has been booked as a walk-in session.";
     }
   }, [status]);
 
