@@ -77,8 +77,11 @@ export function BookingProvider({ children }) {
   const [role, setRole] = useState<Role>();
   const [selectedRooms, setSelectedRooms] = useState<RoomSetting[]>([]);
   const [submitting, setSubmitting] = useState<SubmitStatus>("error");
-  const { existingCalendarEvents, reloadExistingCalendarEvents, fetchingStatus } =
-    fetchCalendarEvents(roomSettings);
+  const {
+    existingCalendarEvents,
+    reloadExistingCalendarEvents,
+    fetchingStatus,
+  } = fetchCalendarEvents(roomSettings);
   const [error, setError] = useState<Error | null>(null);
 
   const isBanned = useMemo<boolean>(() => {
