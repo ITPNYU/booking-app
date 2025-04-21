@@ -165,7 +165,7 @@ export const Bookings: React.FC<BookingsProps> = ({
         minWidth: 60,
         flex: 1,
         renderHeader: () => <TableCell>Origin</TableCell>,
-        renderCell: (params) => <TableCell></TableCell>,
+        renderCell: (params) => <TableCell>{params.row.origin ?? "user"}</TableCell>,
       },
       {
         field: "requestNumber",
