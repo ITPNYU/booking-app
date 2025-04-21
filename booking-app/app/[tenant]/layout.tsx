@@ -19,7 +19,6 @@ const Layout: React.FC<LayoutProps> = ({ children, params }) => {
   }
   return (
     <>
-      <NavBar />
       {children}
     </>
   );

@@ -33,6 +33,7 @@ const RootLayout: React.FC<LayoutProps> = ({ children }) => (
         <ClientProvider>
           <ThemeProvider theme={theme}>
             <CssBaseline />
+            <NavBar />
             {children}
           </ThemeProvider>
         </ClientProvider>

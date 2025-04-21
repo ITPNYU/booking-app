@@ -18,6 +18,7 @@ import { styled } from "@mui/system";
 import { signOut } from "firebase/auth";
 import Image from "next/image";
 import SVGLOGO from "../../../../../public/mediaCommonsLogo.svg";
+import NYULOGO from "../../../../../public/nyuLogo.png";
 import { PagePermission } from "../../../types";
 import useHandleStartBooking from "../booking/hooks/useHandleStartBooking";
 import ConfirmDialog from "./ConfirmDialog";
@@ -63,6 +64,7 @@ export default function NavBar() {
   const pathname = usePathname();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const isRoot = pathname === "/";
 
   const handleRoleChange = (e: any) => {
     switch (e.target.value as PagePermission) {
@@ -87,6 +89,11 @@ export default function NavBar() {
   const handleClickHome = () => {
     setSelectedView(PagePermission.BOOKING);
     router.push(`/${tenant}`);
+  };
+
+  const handleClickRoot = () => {
+    setSelectedView(PagePermission.BOOKING);
+    router.push("/");
   };
 
   const envTitle = (() => {
@@ -191,14 +198,30 @@ export default function NavBar() {
 
   return (
     <Nav>
-      <LogoBox onClick={handleClickHome}>
-        <Image src={SVGLOGO} alt="Media Commons logo" height={40} />
-        {!isMobile && <Title as="h1">Media Commons {envTitle}</Title>}
-      </LogoBox>
+      <div style={{ display: "flex", alignItems: "center" }}>
+        <LogoBox onClick={handleClickRoot}>
+          <Image
+            src={NYULOGO}
+            alt="NYU logo"
+            height={40}
+            style={{ transform: "translateY(4px)", marginRight: 15 }}
+          />
+        </LogoBox>
+        {!isRoot && (
+          <LogoBox onClick={handleClickHome}>
+            <Image src={SVGLOGO} alt="Media Commons logo" height={40} />
+            {!isMobile && <Title as="h1">Media Commons {envTitle}</Title>}
+          </LogoBox>
+        )}
+      </div>
       <Box display="flex" alignItems="center">
-        {button}
-        {dropdown}
-        <Divider />
+        {!isRoot && (
+          <>
+            {button}
+            {dropdown}
+            <Divider />
+          </>
+        )}
         <ConfirmDialog
           callback={handleSignOut}
           message="Are you sure you want to log out?"
