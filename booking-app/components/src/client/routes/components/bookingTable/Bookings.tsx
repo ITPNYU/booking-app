@@ -157,202 +157,212 @@ export const Bookings: React.FC<BookingsProps> = ({
     }
   }, [pageContext, bookingsLoading, filteredRows, allBookings.length]);
 
-  const columns = useMemo(
-    () =>
-      [
-        {
-          field: "origin",
-          headerName: "#",
-          width: 60,
-          renderHeader: () => <TableCell>Origin</TableCell>,
-          renderCell: (params) => <TableCell></TableCell>, // TODO
-        },
-        {
-          field: "requestNumber",
-          headerName: "#",
-          width: 80,
-          renderHeader: () => <TableCell>#</TableCell>,
-          renderCell: (params) => (
-            <TableCell>{params.row.requestNumber ?? "--"}</TableCell>
-          ),
-        },
-        {
-          field: "status",
-          headerName: "Status",
-          width: 100,
-          renderHeader: () => <TableCell>Status</TableCell>,
-          renderCell: (params) => (
-            <TableCell>
-              <StatusChip
-                status={getBookingStatus(params.row)}
-                allowTooltip={true}
-              />
-            </TableCell>
-          ),
-        },
-        {
-          field: "startDate",
-          headerName: "Date / Time",
-          width: 130,
-          renderHeader: () => <TableCell>Date / Time</TableCell>,
-          renderCell: (params) => (
-            <StackedTableCell
-              topText={formatDateTable(params.row.startDate.toDate())}
-              bottomText={`${formatTimeAmPm(params.row.startDate.toDate())} - ${formatTimeAmPm(
-                params.row.endDate.toDate()
-              )}`}
+  const columns = useMemo(() => {
+    const baseColumns = [
+      {
+        field: "origin",
+        headerName: "#",
+        minWidth: 60,
+        flex: 1,
+        renderHeader: () => <TableCell>Origin</TableCell>,
+        renderCell: (params) => <TableCell></TableCell>,
+      },
+      {
+        field: "requestNumber",
+        headerName: "#",
+        minWidth: 80,
+        flex: 1,
+        renderHeader: () => <TableCell>#</TableCell>,
+        renderCell: (params) => (
+          <TableCell>{params.row.requestNumber ?? "--"}</TableCell>
+        ),
+      },
+      {
+        field: "status",
+        headerName: "Status",
+        minWidth: 100,
+        flex: 1,
+        renderHeader: () => <TableCell>Status</TableCell>,
+        renderCell: (params) => (
+          <TableCell>
+            <StatusChip
+              status={getBookingStatus(params.row)}
+              allowTooltip={true}
             />
-          ),
-        },
-        {
-          field: "room",
-          headerName: "Room(s)",
-          width: 100,
-          renderHeader: () => <TableCell>Room(s)</TableCell>,
-          renderCell: (params) => (
-            <TableCell sx={{ maxWidth: "150px" }}>
-              {params.row.roomId}
-            </TableCell>
-          ),
-        },
-        ...(!isUserView
-          ? [
-              {
-                field: "department",
-                headerName: "Department / Role",
-                width: 150,
-                renderHeader: () => <TableCell>Department / Role</TableCell>,
-                renderCell: (params) => (
-                  <StackedTableCell
-                    topText={
-                      params.row.otherDepartment
-                        ? `${params.row.department} - ${params.row.otherDepartment}`
-                        : params.row.department
-                    }
-                    bottomText={params.row.role}
-                  />
-                ),
-              },
-              {
-                field: "netId",
-                headerName: "Requestor",
-                width: 100,
-                renderHeader: () => <TableCell>Requestor</TableCell>,
-                renderCell: (params) => (
-                  <StackedTableCell
-                    topText={params.row.netId}
-                    bottomText={`${params.row.firstName} ${params.row.lastName}`}
-                  />
-                ),
-              },
-              {
-                field: "contacts",
-                headerName: "Contact Info",
-                width: 180,
-                renderHeader: () => <TableCell>Contact Info</TableCell>,
-                renderCell: (params) => (
-                  <StackedTableCell
-                    topText={params.row.email}
-                    bottomText={params.row.phoneNumber}
-                  />
-                ),
-              },
-            ]
-          : []),
-        {
-          field: "title",
-          headerName: "Title",
-          width: 200,
-          renderHeader: () => <TableCell>Title</TableCell>,
-          renderCell: (params) => (
-            <Tooltip
-              title={params.row.title}
-              placement="bottom"
-              slotProps={{
-                popper: {
-                  sx: {
-                    [`&.${tooltipClasses.popper}[data-popper-placement*="bottom"] .${tooltipClasses.tooltip}`]:
-                      {
-                        marginTop: "-12px",
-                      },
-                    [`&.${tooltipClasses.popper}[data-popper-placement*="top"] .${tooltipClasses.tooltip}`]:
-                      {
-                        marginBottom: "-12px",
-                      },
-                  },
+          </TableCell>
+        ),
+      },
+      {
+        field: "startDate",
+        headerName: "Date / Time",
+        minWidth: 130,
+        flex: 1,
+        renderHeader: () => <TableCell>Date / Time</TableCell>,
+        renderCell: (params) => (
+          <StackedTableCell
+            topText={formatDateTable(params.row.startDate.toDate())}
+            bottomText={`${formatTimeAmPm(params.row.startDate.toDate())} - ${formatTimeAmPm(
+              params.row.endDate.toDate()
+            )}`}
+          />
+        ),
+      },
+      {
+        field: "room",
+        headerName: "Room(s)",
+        minWidth: 100,
+        flex: 1,
+        renderHeader: () => <TableCell>Room(s)</TableCell>,
+        renderCell: (params) => (
+          <TableCell sx={{ maxWidth: "150px" }}>{params.row.roomId}</TableCell>
+        ),
+      },
+      ...(!isUserView
+        ? [
+            {
+              field: "department",
+              headerName: "Department / Role",
+              minWidth: 150,
+              flex: 1,
+              renderHeader: () => <TableCell>Department / Role</TableCell>,
+              renderCell: (params) => (
+                <StackedTableCell
+                  topText={
+                    params.row.otherDepartment
+                      ? `${params.row.department} - ${params.row.otherDepartment}`
+                      : params.row.department
+                  }
+                  bottomText={params.row.role}
+                />
+              ),
+            },
+            {
+              field: "netId",
+              headerName: "Requestor",
+              minWidth: 100,
+              flex: 1,
+              renderHeader: () => <TableCell>Requestor</TableCell>,
+              renderCell: (params) => (
+                <StackedTableCell
+                  topText={params.row.netId}
+                  bottomText={`${params.row.firstName} ${params.row.lastName}`}
+                />
+              ),
+            },
+            {
+              field: "contacts",
+              headerName: "Contact Info",
+              minWidth: 180,
+              flex: 1,
+              renderHeader: () => <TableCell>Contact Info</TableCell>,
+              renderCell: (params) => (
+                <StackedTableCell
+                  topText={params.row.email}
+                  bottomText={params.row.phoneNumber}
+                />
+              ),
+            },
+          ]
+        : []),
+      {
+        field: "title",
+        headerName: "Title",
+        minWidth: 200,
+        flex: 2,
+        renderHeader: () => <TableCell>Title</TableCell>,
+        renderCell: (params) => (
+          <Tooltip
+            title={params.row.title}
+            placement="bottom"
+            slotProps={{
+              popper: {
+                sx: {
+                  [`&.${tooltipClasses.popper}[data-popper-placement*="bottom"] .${tooltipClasses.tooltip}`]:
+                    {
+                      marginTop: "-12px",
+                    },
+                  [`&.${tooltipClasses.popper}[data-popper-placement*="top"] .${tooltipClasses.tooltip}`]:
+                    {
+                      marginBottom: "-12px",
+                    },
                 },
+              },
+            }}
+          >
+            <TableCell
+              sx={{
+                maxWidth: "200px",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
               }}
             >
-              <TableCell
-                sx={{
-                  maxWidth: "200px",
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                }}
-              >
-                {params.row.title}
-              </TableCell>
-            </Tooltip>
-          ),
-        },
-        {
-          field: "other",
-          headerName: "Details",
-          width: 80,
-          renderHeader: () => <TableCell>Details</TableCell>,
-          filterable: false,
-          sortable: false,
-          renderCell: (params) => (
-            <TableCell>
-              <IconButton onClick={() => setModalData(params.row)}>
-                <MoreHoriz />
-              </IconButton>
+              {params.row.title}
             </TableCell>
-          ),
-        },
-        ...(!isUserView
-          ? [
-              {
-                field: "equip",
-                headerName: "Equip.",
-                width: 80,
-                renderHeader: () => <TableCell>Equip.</TableCell>,
-                filterable: false,
-                renderCell: (params) => (
-                  <TableCell>
-                    <EquipmentCheckoutToggle
-                      status={params.row.equipmentCheckedOut}
-                      booking={params.row}
-                    />
-                  </TableCell>
-                ),
-              },
-            ]
-          : []),
-        {
-          field: "action",
-          headerName: "Action",
-          width: 200,
-          renderHeader: () => <TableCell>Action</TableCell>,
-          filterable: false,
-          sortable: false,
-          renderCell: (params) => (
-            <TableCell width={200}>
-              <BookingActions
-                status={getBookingStatus(params.row)}
-                calendarEventId={params.row.calendarEventId}
-                startDate={params.row.startDate}
-                onSelect={() => {}}
-                setOptimisticStatus={() => {}}
-                pageContext={pageContext}
-              />
-            </TableCell>
-          ),
-        },
-      ].filter(Boolean),
-    [isUserView, pageContext]
-  );
+          </Tooltip>
+        ),
+      },
+      {
+        field: "other",
+        headerName: "Details",
+        minWidth: 80,
+        flex: 1,
+        renderHeader: () => <TableCell>Details</TableCell>,
+        filterable: false,
+        sortable: false,
+        renderCell: (params) => (
+          <TableCell>
+            <IconButton onClick={() => setModalData(params.row)}>
+              <MoreHoriz />
+            </IconButton>
+          </TableCell>
+        ),
+      },
+      ...(!isUserView
+        ? [
+            {
+              field: "equip",
+              headerName: "Equip.",
+              minWidth: 80,
+              flex: 1,
+              renderHeader: () => <TableCell>Equip.</TableCell>,
+              filterable: false,
+              renderCell: (params) => (
+                <TableCell>
+                  <EquipmentCheckoutToggle
+                    status={params.row.equipmentCheckedOut}
+                    booking={params.row}
+                  />
+                </TableCell>
+              ),
+            },
+          ]
+        : []),
+      {
+        field: "action",
+        headerName: "Action",
+        minWidth: 200,
+        flex: 1,
+        renderHeader: () => <TableCell>Action</TableCell>,
+        filterable: false,
+        sortable: false,
+        renderCell: (params) => (
+          <TableCell width={200}>
+            <BookingActions
+              status={getBookingStatus(params.row)}
+              calendarEventId={params.row.calendarEventId}
+              startDate={params.row.startDate}
+              onSelect={() => {}}
+              setOptimisticStatus={() => {}}
+              pageContext={pageContext}
+            />
+          </TableCell>
+        ),
+      },
+    ].filter(Boolean);
+
+    return baseColumns;
+  }, [isUserView, pageContext]);
 
   return (
     <Box sx={{ marginTop: 4 }}>
