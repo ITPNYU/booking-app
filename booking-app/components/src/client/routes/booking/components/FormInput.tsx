@@ -84,8 +84,16 @@ export default function FormInput({
   const router = useRouter();
   const registerEvent = useSubmitBooking(formContext);
   const { isAutoApproval } = useCheckAutoApproval();
+
+  const isWalkIn = formContext === FormContextLevel.WALK_IN;
+  const isMod = formContext === FormContextLevel.MODIFICATION;
+  const isFullForm = formContext === FormContextLevel.FULL_FORM;
+  const isVIP = formContext === FormContextLevel.VIP;
+  const isBooking = !isWalkIn && !isVIP;
+
   const getDefaultValue = (key: keyof UserApiData): string => {
-    if (!userApiData) return "";
+    // For VIP and walk-in bookings, we don't need identity data.
+    if (isVIP || isWalkIn || !userApiData) return "";
     return userApiData[key] || "";
   };
 
@@ -126,12 +134,6 @@ export default function FormInput({
     mode: "onBlur",
     resolver: undefined,
   });
-
-  const isWalkIn = formContext === FormContextLevel.WALK_IN;
-  const isMod = formContext === FormContextLevel.MODIFICATION;
-  const isFullForm = formContext === FormContextLevel.FULL_FORM;
-  const isVIP = formContext === FormContextLevel.VIP;
-  const isBooking = !isWalkIn && !isVIP;
 
   // different from other switches b/c mediaServices doesn't have yes/no column in DB
   const [showMediaServices, setShowMediaServices] = useState(false);
@@ -314,8 +316,8 @@ export default function FormInput({
             isWalkIn
               ? "/walk-in/confirmation"
               : isVIP
-              ? "/vip/confirmation"
-              : "/book/confirmation"
+                ? "/vip/confirmation"
+                : "/book/confirmation"
           );
         }
       });
@@ -428,7 +430,7 @@ export default function FormInput({
           label="Reservation Title"
           description="Please provide a short title for your reservation (25 character limit)."
           fieldProps={{
-            inputProps: { maxLength: 25 }
+            inputProps: { maxLength: 25 },
           }}
           {...{ control, errors, trigger }}
         />
@@ -480,7 +482,12 @@ export default function FormInput({
               id="roomSetup"
               label="Room Setup Needed?"
               required={false}
-              description={<p>This field is for requesting a room setup that requires hiring CBS through a work order.</p>}
+              description={
+                <p>
+                  This field is for requesting a room setup that requires hiring
+                  CBS through a work order.
+                </p>
+              }
               {...{ control, errors, trigger }}
             />
             {watch("roomSetup") === "yes" && (
