@@ -172,7 +172,7 @@ export default function NavBar() {
       );
     }
 
-    if (selectedView === PagePermission.ADMIN) {
+    if (selectedView === PagePermission.ADMIN || selectedView === PagePermission.LIAISON) {
       return (
         <Button
           onClick={() => {
