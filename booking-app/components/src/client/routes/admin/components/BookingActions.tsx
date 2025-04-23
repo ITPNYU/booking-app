@@ -151,6 +151,7 @@ export default function BookingActions(props: Props) {
       style={{
         display: "flex",
         flexDirection: "row",
+        justifyContent: "flex-end",
         alignItems: "center",
       }}
     >
