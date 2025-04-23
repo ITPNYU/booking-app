@@ -23,10 +23,10 @@ import {
 import { NextRequest, NextResponse } from "next/server";
 
 import { sendHTMLEmail } from "@/app/lib/sendHTMLEmail";
-import { TableNames } from "@/components/src/policy";
+import { CALENDAR_HIDE_STATUS, TableNames } from "@/components/src/policy";
+import { getCalendarClient } from "@/lib/googleClient";
 import { Timestamp } from "firebase-admin/firestore";
 import { DateSelectArg } from "fullcalendar";
-import { getCalendarClient } from "@/lib/googleClient";
 
 async function createBookingCalendarEvent(
   selectedRooms: RoomSetting[],
@@ -127,26 +127,37 @@ async function handleBookingApprovalEmails(
   }
 }
 
-async function checkOverlap(selectedRooms: RoomSetting[], bookingCalendarInfo: DateSelectArg, calendarEventId?: string) {
+async function checkOverlap(
+  selectedRooms: RoomSetting[],
+  bookingCalendarInfo: DateSelectArg,
+  calendarEventId?: string,
+) {
   const calendar = await getCalendarClient();
-  
+
   // Check each selected room for overlaps
   for (const room of selectedRooms) {
     const events = await calendar.events.list({
       calendarId: room.calendarId,
       timeMin: bookingCalendarInfo.startStr,
       timeMax: bookingCalendarInfo.endStr,
-      singleEvents: true
+      singleEvents: true,
     });
 
     const hasOverlap = events.data.items?.some(event => {
       // Skip the event being edited in case of modification
-      if (calendarEventId && (calendarEventId === event.id || calendarEventId === event.id.split(":")[0])) {
+      if (
+        calendarEventId &&
+        (calendarEventId === event.id ||
+          calendarEventId === event.id.split(":")[0])
+      ) {
+        console.log("calendarEventId", calendarEventId);
+        console.log("event.id", event.id);
         return false;
       }
-      
-      //if event is cancelled, then it is not an overlap
-      if (event.summary.includes("CANCELED")) {
+
+      // Skip events with CALENDAR_HIDE_STATUS
+      const eventTitle = event.summary || "";
+      if (CALENDAR_HIDE_STATUS.some(status => eventTitle.includes(status))) {
         return false;
       }
 
@@ -167,7 +178,7 @@ async function checkOverlap(selectedRooms: RoomSetting[], bookingCalendarInfo: D
 
     if (hasOverlap) return true;
   }
-  
+
   return false;
 }
 
@@ -178,7 +189,7 @@ export async function POST(request: NextRequest) {
   if (hasOverlap) {
     return NextResponse.json(
       { error: "Time slot no longer available" },
-      { status: 409 }
+      { status: 409 },
     );
   }
 
