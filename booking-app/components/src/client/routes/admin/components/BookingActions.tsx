@@ -12,7 +12,7 @@ import ConfirmDialog from "../../components/ConfirmDialog";
 import { DatabaseContext } from "../../components/Provider";
 import DeclineReasonDialog from "../../components/DeclineReasonDialog";
 import Loading from "../../components/Loading";
-import { Timestamp } from "@firebase/firestore";
+import { Timestamp } from "firebase/firestore";
 
 interface Props {
   calendarEventId: string;

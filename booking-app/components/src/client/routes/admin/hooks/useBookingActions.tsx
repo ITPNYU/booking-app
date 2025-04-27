@@ -9,7 +9,7 @@ import {
 import { BookingStatusLabel, PageContextLevel } from "@/components/src/types";
 import { useContext, useMemo, useState } from "react";
 
-import { Timestamp } from "@firebase/firestore";
+import { Timestamp } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import { BookingContext } from "../../booking/bookingProvider";
 import { DatabaseContext } from "../../components/Provider";
