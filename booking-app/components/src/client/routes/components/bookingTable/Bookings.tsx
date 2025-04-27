@@ -1,4 +1,4 @@
-import { Booking, BookingRow, PageContextLevel } from "../../../../types";
+import { Booking, BookingRow, PageContextLevel, BookingStatusLabel } from "../../../../types";
 import { Box, TableCell, Typography } from "@mui/material";
 import React, {
   useCallback,
@@ -36,21 +36,27 @@ export const Bookings: React.FC<BookingsProps> = ({
   const allowedStatuses = useAllowedStatuses(pageContext);
 
   const [modalData, setModalData] = useState<BookingRow>(null);
-  const [statusFilters, setStatusFilters] = useState([]);
+  const [statusFilters, setStatusFilters] = useState(() => 
+    pageContext === PageContextLevel.LIAISON ? [BookingStatusLabel.REQUESTED] : []
+  );
   const [selectedDateRange, setSelectedDateRange] = useState<DateRangeFilter>(
     "All Future"
   );
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
-  const [orderBy, setOrderBy] = useState<keyof BookingRow>("startDate");
-  const [order, setOrder] = useState<ColumnSortOrder>(pageContext === PageContextLevel.PA ? "asc" : "desc");
+  const [orderBy, setOrderBy] = useState<keyof BookingRow>(() =>
+    pageContext === PageContextLevel.LIAISON ? "requestNumber" : "startDate"
+  );
+  const [order, setOrder] = useState<ColumnSortOrder>(() => {
+    if (pageContext === PageContextLevel.LIAISON) {
+      return "asc";
+    }
+    return pageContext === PageContextLevel.PA ? "asc" : "desc";
+  });
 
   const isUserView = pageContext === PageContextLevel.USER;
 
   useEffect(() => {
-    if(pageContext > PageContextLevel.LIAISON) {
-      setSelectedDateRange("Today");
-    }
     return ()=>{
       setLastItem(null);
     }
@@ -94,21 +100,6 @@ export const Bookings: React.FC<BookingsProps> = ({
           }}
         >
           Your Bookings
-        </Box>
-      );
-    }
-
-    if (pageContext === PageContextLevel.LIAISON) {
-      return (
-        <Box
-          sx={{
-            color: "rgba(0,0,0,0.6)",
-            display: "flex",
-            justifyContent: "flex-start",
-            paddingLeft: "16px",
-          }}
-        >
-          Department Requests
         </Box>
       );
     }
