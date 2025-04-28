@@ -22,6 +22,7 @@
     "@fullcalendar/resource-timegrid": "^6.1.15",
     "@mui/icons-material": "^5.16.5",
     "@mui/material": "^5.16.5",
+    "@mui/x-data-grid": "^7.28.2",
     "@mui/x-date-pickers": "^7.11.1",
     "@prisma/client": "^5.16.1",
     "@svgr/webpack": "^8.1.0",
