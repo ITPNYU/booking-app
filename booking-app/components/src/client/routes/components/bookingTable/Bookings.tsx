@@ -1,14 +1,19 @@
-import { BookingRow, PageContextLevel } from "../../../../types";
+import {
+  BookingRow,
+  PageContextLevel,
+  BookingStatusLabel,
+} from "../../../../types";
 import { Box, TableCell, IconButton } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
 import StackedTableCell from "./StackedTableCell";
-import React, { useContext, useEffect, useMemo, useState } from "react";
-import { TableEmpty } from "../Table";
 import { MoreHoriz } from "@mui/icons-material";
 import { Tooltip, tooltipClasses } from "@mui/material";
+import React, { useContext, useEffect, useMemo, useState } from "react";
+import { TableEmpty } from "../Table";
 
 import BookMoreButton from "./BookMoreButton";
 import BookingTableFilters from "./BookingTableFilters";
+import { ColumnSortOrder } from "./hooks/getColumnComparator";
 import { DatabaseContext } from "../Provider";
 import { DateRangeFilter } from "./hooks/getDateFilter";
 import Loading from "../Loading";
@@ -40,18 +45,28 @@ export const Bookings: React.FC<BookingsProps> = ({
   const allowedStatuses = useAllowedStatuses(pageContext);
 
   const [modalData, setModalData] = useState<BookingRow>(null);
-  const [statusFilters, setStatusFilters] = useState([]);
+  const [statusFilters, setStatusFilters] = useState(() =>
+    pageContext === PageContextLevel.LIAISON
+      ? [BookingStatusLabel.REQUESTED]
+      : []
+  );
   const [selectedDateRange, setSelectedDateRange] =
     useState<DateRangeFilter>("All Future");
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
+  const [orderBy, setOrderBy] = useState<keyof BookingRow>(() =>
+    pageContext === PageContextLevel.LIAISON ? "requestNumber" : "startDate"
+  );
+  const [order, setOrder] = useState<ColumnSortOrder>(() => {
+    if (pageContext === PageContextLevel.LIAISON) {
+      return "asc";
+    }
+    return pageContext === PageContextLevel.PA ? "asc" : "desc";
+  });
 
   const isUserView = pageContext === PageContextLevel.USER;
 
   useEffect(() => {
-    if (pageContext > PageContextLevel.LIAISON) {
-      setSelectedDateRange("Today");
-    }
     return () => {
       setLastItem(null);
     };
@@ -95,21 +110,6 @@ export const Bookings: React.FC<BookingsProps> = ({
           }}
         >
           Your Bookings
-        </Box>
-      );
-    }
-
-    if (pageContext === PageContextLevel.LIAISON) {
-      return (
-        <Box
-          sx={{
-            color: "rgba(0,0,0,0.6)",
-            display: "flex",
-            justifyContent: "flex-start",
-            paddingLeft: "16px",
-          }}
-        >
-          Department Requests
         </Box>
       );
     }
@@ -165,7 +165,9 @@ export const Bookings: React.FC<BookingsProps> = ({
         minWidth: 60,
         flex: 1,
         renderHeader: () => <TableCell>Origin</TableCell>,
-        renderCell: (params) => <TableCell>{params.row.origin ?? "user"}</TableCell>,
+        renderCell: (params) => (
+          <TableCell>{params.row.origin ?? "user"}</TableCell>
+        ),
       },
       {
         field: "requestNumber",

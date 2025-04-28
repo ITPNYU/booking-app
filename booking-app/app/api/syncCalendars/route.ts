@@ -9,7 +9,7 @@ import { TableNames } from "@/components/src/policy";
 import { serverGetNextSequentialId } from "@/lib/firebase/server/adminDb";
 import admin from "@/lib/firebase/server/firebaseAdmin";
 import { getCalendarClient } from "@/lib/googleClient";
-import { Timestamp } from "@firebase/firestore";
+import { Timestamp } from "firebase/firestore";
 import { NextResponse } from "next/server";
 
 const db = admin.firestore();
