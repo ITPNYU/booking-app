@@ -13,7 +13,6 @@ import { TableEmpty } from "../Table";
 
 import BookMoreButton from "./BookMoreButton";
 import BookingTableFilters from "./BookingTableFilters";
-import { ColumnSortOrder } from "./hooks/getColumnComparator";
 import { DatabaseContext } from "../Provider";
 import { DateRangeFilter } from "./hooks/getDateFilter";
 import Loading from "../Loading";
@@ -54,15 +53,6 @@ export const Bookings: React.FC<BookingsProps> = ({
     useState<DateRangeFilter>("All Future");
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
-  const [orderBy, setOrderBy] = useState<keyof BookingRow>(() =>
-    pageContext === PageContextLevel.LIAISON ? "requestNumber" : "startDate"
-  );
-  const [order, setOrder] = useState<ColumnSortOrder>(() => {
-    if (pageContext === PageContextLevel.LIAISON) {
-      return "asc";
-    }
-    return pageContext === PageContextLevel.PA ? "asc" : "desc";
-  });
 
   const isUserView = pageContext === PageContextLevel.USER;
 
