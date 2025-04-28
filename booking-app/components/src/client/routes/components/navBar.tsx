@@ -10,7 +10,7 @@ import {
   useMediaQuery,
   useTheme,
 } from "@mui/material";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useParams } from "next/navigation";
 import { useContext, useEffect, useMemo, useState } from "react";
 
 import { auth } from "@/lib/firebase/firebaseClient";
@@ -18,6 +18,7 @@ import { styled } from "@mui/system";
 import { signOut } from "firebase/auth";
 import Image from "next/image";
 import SVGLOGO from "../../../../../public/mediaCommonsLogo.svg";
+import NYULOGO from "../../../../../public/nyuLogo.png";
 import { PagePermission } from "../../../types";
 import useHandleStartBooking from "../booking/hooks/useHandleStartBooking";
 import ConfirmDialog from "./ConfirmDialog";
@@ -53,6 +54,7 @@ const Divider = styled(Box)(({ theme }) => ({
 
 export default function NavBar() {
   const router = useRouter();
+  const { tenant } = useParams();
   const { pagePermission, userEmail, netId, setUserEmail } =
     useContext(DatabaseContext);
   const handleStartBooking = useHandleStartBooking();
@@ -62,28 +64,34 @@ export default function NavBar() {
   const pathname = usePathname();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const isRoot = pathname === "/";
 
   const handleRoleChange = (e: any) => {
     switch (e.target.value as PagePermission) {
       case PagePermission.BOOKING:
-        router.push("/");
+        router.push(`/${tenant}`);
         break;
       case PagePermission.PA:
-        router.push("/pa");
+        router.push(`/${tenant}/pa`);
         break;
       case PagePermission.ADMIN:
-        router.push("/admin");
+        router.push(`/${tenant}/admin`);
         break;
       case PagePermission.LIAISON:
-        router.push("/liaison");
+        router.push(`/${tenant}/liaison`);
         break;
       case PagePermission.EQUIPMENT:
-        router.push("/equipment");
+        router.push(`/${tenant}/equipment`);
         break;
     }
   };
 
   const handleClickHome = () => {
+    setSelectedView(PagePermission.BOOKING);
+    router.push(`/${tenant}`);
+  };
+
+  const handleClickRoot = () => {
     setSelectedView(PagePermission.BOOKING);
     router.push("/");
   };
@@ -162,7 +170,7 @@ export default function NavBar() {
         <Button
           onClick={() => {
             handleStartBooking();
-            router.push("/book");
+            router.push(`/${tenant}/book`);
           }}
           variant="outlined"
           sx={{ height: "40px", marginRight: 2 }}
@@ -177,7 +185,7 @@ export default function NavBar() {
         <Button
           onClick={() => {
             handleStartBooking();
-            router.push("/walk-in");
+            router.push(`/${tenant}/walk-in`);
           }}
           variant="outlined"
           sx={{ height: "40px", marginRight: 2 }}
@@ -186,18 +194,34 @@ export default function NavBar() {
         </Button>
       );
     }
-  }, [pagePermission, selectedView]);
+  }, [pagePermission, selectedView, tenant]);
 
   return (
     <Nav>
-      <LogoBox onClick={handleClickHome}>
-        <Image src={SVGLOGO} alt="Media Commons logo" height={40} />
-        {!isMobile && <Title as="h1">Media Commons {envTitle}</Title>}
-      </LogoBox>
+      <div style={{ display: "flex", alignItems: "center" }}>
+        <LogoBox onClick={handleClickRoot}>
+          <Image
+            src={NYULOGO}
+            alt="NYU logo"
+            height={40}
+            style={{ transform: "translateY(4px)", marginRight: 15 }}
+          />
+        </LogoBox>
+        {!isRoot && (
+          <LogoBox onClick={handleClickHome}>
+            <Image src={SVGLOGO} alt="Media Commons logo" height={40} />
+            {!isMobile && <Title as="h1">Media Commons {envTitle}</Title>}
+          </LogoBox>
+        )}
+      </div>
       <Box display="flex" alignItems="center">
-        {button}
-        {dropdown}
-        <Divider />
+        {!isRoot && (
+          <>
+            {button}
+            {dropdown}
+            <Divider />
+          </>
+        )}
         <ConfirmDialog
           callback={handleSignOut}
           message="Are you sure you want to log out?"

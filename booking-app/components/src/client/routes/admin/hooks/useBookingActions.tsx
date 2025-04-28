@@ -10,7 +10,7 @@ import { BookingStatusLabel, PageContextLevel } from "@/components/src/types";
 import { useContext, useMemo, useState } from "react";
 
 import { Timestamp } from "@firebase/firestore";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { BookingContext } from "../../booking/bookingProvider";
 import { DatabaseContext } from "../../components/Provider";
 import useExistingBooking from "./useExistingBooking";
@@ -51,11 +51,11 @@ export default function useBookingActions({
   reason,
 }: Props) {
   const [date, setDate] = useState(new Date());
-
+  const router = useRouter();
+  const { tenant } = useParams();
   const { reloadExistingCalendarEvents } = useContext(BookingContext);
   const { userEmail, netId } = useContext(DatabaseContext);
-  const loadExistingBookingData = useExistingBooking();
-  const router = useRouter();
+  const { loadExistingBookingData } = useExistingBooking();
 
   const updateActions = () => {
     setDate(new Date());
@@ -110,7 +110,7 @@ export default function useBookingActions({
       action: async () => {
         loadExistingBookingData(calendarEventId);
         reloadExistingCalendarEvents();
-        router.push("/edit/" + calendarEventId);
+        router.push(`/${tenant}/edit/${calendarEventId}`);
       },
       optimisticNextStatus: status,
       confirmation: false,
@@ -119,7 +119,7 @@ export default function useBookingActions({
       action: async () => {
         loadExistingBookingData(calendarEventId);
         reloadExistingCalendarEvents();
-        router.push("/modification/" + calendarEventId);
+        router.push(`/${tenant}/modification/${calendarEventId}`);
       },
       optimisticNextStatus: status,
       confirmation: false,
