@@ -11,6 +11,7 @@ import { BookingContext } from "../bookingProvider";
 import { BookingFormTextField } from "../components/BookingFormInputs";
 import Dropdown from "../components/Dropdown";
 import { useParams } from "next/navigation";
+import { useTenantSchema } from "../../components/SchemaProvider";
 
 const Center = styled(Box)`
   width: 100%;
@@ -93,6 +94,7 @@ export default function UserRolePage({
   const router = useRouter();
   const { user } = useAuth();
   const { tenant } = useParams();
+  const tenantSchema = useTenantSchema();
 
   const {
     control,
@@ -174,7 +176,7 @@ export default function UserRolePage({
         <Dropdown
           value={department}
           updateValue={setDepartment}
-          options={Object.values(Department)}
+          options={tenantSchema.programs}
           placeholder="Choose a Department"
           sx={{ marginTop: 4 }}
         />
@@ -190,7 +192,7 @@ export default function UserRolePage({
         <Dropdown
           value={role}
           updateValue={setRole}
-          options={Object.values(Role)}
+          options={tenantSchema.roles}
           placeholder="Choose a Role"
           sx={{ marginTop: 4 }}
         />

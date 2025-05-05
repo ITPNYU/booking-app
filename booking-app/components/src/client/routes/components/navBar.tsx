@@ -17,12 +17,12 @@ import { auth } from "@/lib/firebase/firebaseClient";
 import { styled } from "@mui/system";
 import { signOut } from "firebase/auth";
 import Image from "next/image";
-import SVGLOGO from "../../../../../public/mediaCommonsLogo.svg";
 import NYULOGO from "../../../../../public/nyuLogo.png";
 import { PagePermission } from "../../../types";
 import useHandleStartBooking from "../booking/hooks/useHandleStartBooking";
 import ConfirmDialog from "./ConfirmDialog";
 import { DatabaseContext } from "./Provider";
+import { schema } from "../../../../../app/[tenant]/layout";
 
 const LogoBox = styled(Box)`
   cursor: pointer;
@@ -65,6 +65,8 @@ export default function NavBar() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const isRoot = pathname === "/";
+  const tenantSchema = schema[tenant as keyof typeof schema];
+  const { name, logo } = tenantSchema || {};
 
   const handleRoleChange = (e: any) => {
     switch (e.target.value as PagePermission) {
@@ -209,8 +211,12 @@ export default function NavBar() {
         </LogoBox>
         {!isRoot && (
           <LogoBox onClick={handleClickHome}>
-            <Image src={SVGLOGO} alt="Media Commons logo" height={40} />
-            {!isMobile && <Title as="h1">Media Commons {envTitle}</Title>}
+            <Image src={logo} alt={`${name} logo`} height={40} />
+            {!isMobile && (
+              <Title as="h1">
+                {name} {envTitle}
+              </Title>
+            )}
           </LogoBox>
         )}
       </div>
