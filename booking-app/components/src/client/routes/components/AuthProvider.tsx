@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from "react";
@@ -34,26 +35,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   
   useEffect(() => {
     const handleAuth = async () => {
+      console.log("handleAuth triggered");
       const testEnvRes = await fetch(window.location.origin + "/api/isTestEnv");
       const { isOnTestEnv } = await testEnvRes.json();
       setIsOnTestEnv(isOnTestEnv);
-      
+      console.log("isOnTestEnv:", isOnTestEnv);
+
       const user = auth.currentUser;
+      console.log("auth.currentUser:", user);
+
       if (user) {
+        console.log("User object exists:", user.email);
         if (user.email?.endsWith("@nyu.edu") || isOnTestEnv) {
+          console.log("Setting user state:", user.email);
           setUser(user);
         } else {
+          console.log("Invalid email, signing out:", user.email);
           await auth.signOut();
           setUser(null);
           setError("Only nyu.edu email addresses are allowed.");
         }
       } else {
+        console.log("No user object found. Checking if sign-in needed.");
         try {
           if (!pathname.includes("signin")) {
-            const signedInUser = await signInWithGoogle();
-            setUser(signedInUser);
+            console.log("Attempting signInWithGoogle...");
+            await signInWithGoogle();
           }
         } catch (error) {
+          console.error("Error during signInWithGoogle attempt:", error);
           router.push("/signin");
         }
       }
