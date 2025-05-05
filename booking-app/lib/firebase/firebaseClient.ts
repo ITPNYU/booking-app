@@ -1,11 +1,13 @@
 // firebaseClient.ts
 import { getApp, getApps, initializeApp } from "firebase/app";
 import { Firestore, initializeFirestore } from "firebase/firestore";
-import { getAuth, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import { getAuth, GoogleAuthProvider, signInWithRedirect, getRedirectResult } from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  authDomain: process.env.NODE_ENV === 'production' 
+    ? 'development-dot-flowing-mantis-389917.uc.r.appspot.com' 
+    : 'localhost:3000',
   projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
   storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
@@ -47,15 +49,30 @@ fetch(process.env.NEXT_PUBLIC_BASE_URL + "/api/isTestEnv")
 
 export const signInWithGoogle = async () => {
   try {
-    const result = await signInWithPopup(auth, googleProvider);
-    const user = result.user;
-    if (!user.email?.endsWith("@nyu.edu") && !isTestEnv) {
-      await auth.signOut();
-      throw new Error("Only nyu.edu email addresses are allowed.");
-    }
-    return user;
+    // Initiate the redirect flow - this will take the user away from your app
+    await signInWithRedirect(auth, googleProvider);
+    // Note: The function will not return anything here as the page redirects
+    // You'll need to handle the result when the user returns to your app
   } catch (error) {
     console.error("Google sign-in error", error);
+    throw error;
+  }
+};
+
+export const getGoogleRedirectResult = async () => {
+  try {
+    const result = await getRedirectResult(auth);
+    if (result) {
+      const user = result.user;
+      if (!user.email?.endsWith("@nyu.edu") && !isTestEnv) {
+        await auth.signOut();
+        throw new Error("Only nyu.edu email addresses are allowed.");
+      }
+      return user;
+    }
+    return null;
+  } catch (error) {
+    console.error("Google redirect result error", error);
     throw error;
   }
 };
