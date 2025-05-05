@@ -1,8 +1,8 @@
 "use client";
-import React, { useContext } from "react"; // Added this line
+import React, { useContext, useEffect } from "react"; // Added this line
 import { useState } from "react";
 import { signInWithPopup } from "firebase/auth";
-import { auth, googleProvider } from "@/lib/firebase/firebaseClient";
+import { auth, googleProvider, signInWithGoogle, getGoogleRedirectResult } from "@/lib/firebase/firebaseClient";
 import { useRouter } from "next/navigation";
 import { Box, Button, styled } from "@mui/material";
 import { useAuth } from "./AuthProvider";
@@ -16,19 +16,32 @@ const Center = styled(Box)`
 const GoogleSignIn = () => {
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const { isOnTestEnv } = useAuth();
+  
+  // Check for redirect result when component mounts
+  useEffect(() => {
+    const handleRedirectResult = async () => {
+      try {
+        const user = await getGoogleRedirectResult();
+        if (user) {
+          console.log("Google sign-in successful", user);
+          router.push("/");
+        }
+      } catch (error: any) {
+        setError(error.message || "Google sign-in failed. Please try again.");
+        console.error("Google sign-in error", error);
+      }
+    };
+    
+    handleRedirectResult();
+  }, [router]);
 
   const handleGoogleSignIn = async () => {
     try {
-      const result = await signInWithPopup(auth, googleProvider);
-      const user = result.user;
-      const {isOnTestEnv} = useAuth();
-      if (user.email?.endsWith("@nyu.edu") || isOnTestEnv) {
-        console.log("Google sign-in successful", user);
-        router.push("/");
-      } else {
-        await auth.signOut();
-        setError("Only nyu.edu email addresses are allowed.");
-      }
+      await signInWithGoogle();
+      // User will be redirected to Google login page
+      // After signing in, they'll be redirected back to the app
+      // and the useEffect above will handle the result
     } catch (error) {
       setError("Google sign-in failed. Please try again.");
       console.error("Google sign-in error", error);
@@ -49,7 +62,7 @@ const GoogleSignIn = () => {
         >
           Sign in with NYU Google Account
         </Button>
-        <p>You must enable pop-ups for this site in order to login.</p>
+        <p>You'll be redirected to NYU login page to sign in.</p>
         {error && <p style={{ color: "red" }}>{error}</p>}
       </Center>
     </div>
