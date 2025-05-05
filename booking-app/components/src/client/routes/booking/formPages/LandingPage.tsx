@@ -5,6 +5,7 @@ import React from "react";
 import { styled } from "@mui/system";
 import { useRouter } from "next/navigation";
 import { useParams } from "next/navigation";
+import { useTenantSchema } from "@/components/src/client/routes/components/SchemaProvider";
 
 const Center = styled(Box)`
   display: flex;
@@ -31,45 +32,23 @@ const Title = styled(Typography)`
 export default function LandingPage() {
   const router = useRouter();
   const { tenant } = useParams();
+  const schema = useTenantSchema();
 
   return (
     <Center
       sx={{ width: "100vw" }}
       height={{ xs: "unset", md: "90vh" }}
       padding={{ xs: 3 }}
-      // marginTop={{ xs: "10vh", md: 0 }}
     >
-      <Title as="h1">370🅙 Media Commons Reservation Form</Title>
-      <p>Thank you for your interest in booking with the Media Commons</p>
+      <Title as="h1">{schema.nameForPolicy} Reservation Form</Title>
+      <p>Thank you for your interest in booking with the {schema.name}</p>
       <Modal padding={4}>
-        <Typography fontWeight={500}>
-          Please read our policy for using the 370J Media Commons
+        <Typography
+          sx={{ fontWeight: 500, fontSize: "1rem", lineHeight: "1.5" }}
+        >
+          Please read our policy for using the {schema.nameForPolicy}
         </Typography>
-        <Typography fontWeight={700} marginTop={3}>
-          Booking Confirmation
-        </Typography>
-        <p>
-          You will receive an email response from the Media Commons Team and a
-          calendar invite once your request has been reviewed and processed.
-          Please allow a minimum of 3 days for your request to be approved. If
-          you do not hear back about your request, please contact the Media
-          Commons Team (
-          <a href="mailto:mediacommons.reservations@nyu.edu">
-            mediacommons.reservations@nyu.edu
-          </a>
-          ) to follow up. A request does not guarantee a booking.
-        </p>
-        <Typography fontWeight={700} marginTop={3}>
-          Cancellation Policy
-        </Typography>
-        <p>
-          To cancel a reservation please email the Media Commons Team (
-          <a href="mailto:mediacommons.reservations@nyu.edu">
-            mediacommons.reservations@nyu.edu
-          </a>
-          ) at least 24 hours before the date of the event. Failure to cancel
-          may result in restricted use of the Media Commons.
-        </p>
+        <div dangerouslySetInnerHTML={{ __html: schema.policy }} />
         <Button
           variant="contained"
           color="primary"

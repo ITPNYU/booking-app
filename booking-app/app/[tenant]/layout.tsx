@@ -6,6 +6,7 @@ import {
   SchemaProvider,
   SchemaContextType,
 } from "@/components/src/client/routes/components/SchemaProvider";
+import SVGLOGO from "../../public/mediaCommonsLogo.svg";
 
 type LayoutProps = {
   children: React.ReactNode;
@@ -16,8 +17,123 @@ type LayoutProps = {
 
 const ALLOWED_PLATFORMS = ["mc", "itp"];
 
-const schema: Record<string, SchemaContextType> = {
+export const schema: Record<string, SchemaContextType> = {
   mc: {
+    name: "Media Commons",
+    logo: SVGLOGO,
+    nameForPolicy: "370J Media Commons",
+    policy: `
+    <p style="font-weight: 700; font-size: 1rem; line-height: 1.5; margin-top: 24px;">
+      Booking Confirmation
+    </p>
+    <p style="font-size: 1rem; line-height: 1.5;">
+      You will receive an email response from the Media Commons Team and a
+      calendar invite once your request has been reviewed and processed.
+      Please allow a minimum of 3 days for your request to be approved. If
+      you do not hear back about your request, please contact the Media
+      Commons Team (
+      <a href="mailto:mediacommons.reservations@nyu.edu">
+        mediacommons.reservations@nyu.edu
+      </a>
+      ) to follow up. A request does not guarantee a booking.
+    </p>
+    <p style="font-weight: 700; font-size: 1rem; line-height: 1.5; margin-top: 24px;">
+      Cancellation Policy
+    </p>
+    <p style="font-size: 1rem; line-height: 1.5;">
+      To cancel a reservation please email the Media Commons Team (
+      <a href="mailto:mediacommons.reservations@nyu.edu">
+        mediacommons.reservations@nyu.edu
+      </a>
+      ) at least 24 hours before the date of the event. Failure to cancel
+      may result in restricted use of the Media Commons.
+    </p>`,
+    programs: [
+      "ALT",
+      "CDI",
+      "Game Center",
+      "IDM",
+      "ITP / IMA / Low Res",
+      "MARL",
+      "MPAP",
+      "Music Tech",
+      "Other",
+    ],
+    roles: [
+      "Student",
+      "Resident/Fellow",
+      "Faculty",
+      "Admin/Staff",
+      "Chair/Program Director",
+    ],
+    resources: [
+      {
+        roomId: 221,
+        name: "Ballroom A",
+        capacity: 12,
+        autoApproval: true,
+      },
+      {
+        roomId: 222,
+        name: "Ballroom B",
+        capacity: 12,
+        autoApproval: true,
+      },
+      {
+        roomId: 223,
+        name: "Ballroom C",
+        capacity: 12,
+        autoApproval: true,
+      },
+      {
+        roomId: 224,
+        name: "Ballroom D",
+        capacity: 12,
+        autoApproval: true,
+      },
+      {
+        roomId: 202,
+        name: "Lecture Hall",
+        capacity: 210,
+        autoApproval: true,
+      },
+      {
+        roomId: 230,
+        name: "Audio Lab",
+        capacity: 13,
+        autoApproval: true,
+      },
+      {
+        roomId: 103,
+        name: "The Garage",
+        capacity: 74,
+        autoApproval: true,
+      },
+      {
+        roomId: 260,
+        name: "Post Production Lab",
+        capacity: 20,
+        autoApproval: true,
+      },
+      {
+        roomId: 233,
+        name: "Co-Lab",
+        capacity: 50,
+        autoApproval: true,
+      },
+      {
+        roomId: 1201,
+        name: "Seminar Room",
+        capacity: 100,
+        autoApproval: true,
+      },
+      {
+        roomId: 220,
+        name: "Black Box",
+        capacity: 30,
+        autoApproval: true,
+      },
+    ],
     showNNumber: true,
     showSponsor: true,
     showHireSecurity: true,
@@ -71,13 +187,27 @@ const schema: Record<string, SchemaContextType> = {
     ],
   },
   itp: {
+    name: "ITP",
+    logo: SVGLOGO,
+    nameForPolicy: "ITP",
+    policy: "<p>ITP Policy</p>",
+    programs: ["ALT"],
+    roles: ["Student"],
+    resources: [
+      {
+        roomId: 221,
+        name: "Ballroom A",
+        capacity: 12,
+        autoApproval: true,
+      },
+    ],
     showNNumber: false,
     showSponsor: false,
     showHireSecurity: false,
     agreements: [
       {
         id: "bookingPolicy",
-        html: `<p>placeholder</p>`,
+        html: `<p>ITP Policy</p>`,
       },
     ],
   },
