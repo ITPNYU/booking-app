@@ -32,7 +32,7 @@ import useCheckAutoApproval from "../hooks/useCheckAutoApproval";
 import useSubmitBooking from "../hooks/useSubmitBooking";
 import BookingFormMediaServices from "./BookingFormMediaServices";
 import BookingSelection from "./BookingSelection";
-import { useSchema } from "../../components/SchemaProvider";
+import { useTenantSchema } from "../../components/SchemaProvider";
 
 const Section = ({ title, children }) => (
   <div style={{ marginBottom: "20px" }}>
@@ -92,7 +92,7 @@ export default function FormInput({
   };
 
   const { showNNumber, showSponsor, showHireSecurity, agreements } =
-    useSchema();
+    useTenantSchema();
 
   const {
     control,

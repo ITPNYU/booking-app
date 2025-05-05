@@ -18,7 +18,7 @@ export const SchemaContext = createContext<SchemaContextType>({
   agreements: [],
 });
 
-export const useSchema = () => useContext(SchemaContext);
+export const useTenantSchema = () => useContext(SchemaContext);
 
 export const SchemaProvider: React.FC<{
   value: SchemaContextType;
