@@ -198,7 +198,13 @@ export default function BookingStatusBar({ formContext, ...props }: Props) {
     <Box sx={{ flexGrow: 1 }}>
       <NavGrid>
         <Box>{backBtn}</Box>
-        <Box>{alert}</Box>
+        <Box>
+          {alert}
+          <Alert severity="warning" variant="filled" sx={{ padding: "0px 16px", width: "100%", margin:"5px 0px"}}>
+            Please include all setup and breakdown time in your reservation
+            request.
+          </Alert>
+        </Box>
         <Box>{nextBtn}</Box>
       </NavGrid>
     </Box>

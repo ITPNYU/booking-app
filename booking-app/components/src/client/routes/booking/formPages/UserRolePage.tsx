@@ -108,13 +108,16 @@ export default function UserRolePage({
   const prevWatchedFieldsRef = useRef<Inputs>();
   const showOther = department === Department.OTHER;
 
+  const isVIP = formContext === FormContextLevel.VIP;
+  const isWalkIn = formContext === FormContextLevel.WALK_IN;
+
   useEffect(() => {
     if (!user) {
       router.push("/signin");
       return;
     }
 
-    if (userApiData) {
+    if (userApiData && !isVIP && !isWalkIn) {
       const mappedRole = mapAffiliationToRole(userApiData.affiliation_sub_type);
       const mappedDepartment = mapDepartmentCode(
         userApiData.reporting_dept_code
@@ -128,7 +131,7 @@ export default function UserRolePage({
         setDepartment(mappedDepartment);
       }
     }
-  }, [userApiData, user]);
+  }, [userApiData, user, isVIP, isWalkIn]);
 
   useEffect(() => {
     if (
@@ -153,9 +156,9 @@ export default function UserRolePage({
       router.push("/edit/selectRoom/" + calendarEventId);
     } else {
       router.push(
-        formContext === FormContextLevel.WALK_IN
+        isWalkIn
           ? "/walk-in/selectRoom"
-          : formContext === FormContextLevel.VIP
+          : isVIP
             ? "/vip/selectRoom"
             : "/book/selectRoom"
       );
