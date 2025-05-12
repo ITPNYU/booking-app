@@ -15,7 +15,7 @@ import {
   clientUpdateDataInFirestore,
   getPaginatedData,
 } from "@/lib/firebase/firebase";
-import { Timestamp, where } from "@firebase/firestore";
+import { Timestamp, where } from "firebase/firestore";
 import {
   ApproverLevel,
   TableNames,

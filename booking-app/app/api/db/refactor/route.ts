@@ -6,7 +6,7 @@ import {
 } from "@/lib/firebase/server/adminDb";
 
 import { TableNames } from "@/components/src/policy";
-import { Timestamp } from "@firebase/firestore";
+import { Timestamp } from "firebase/firestore";
 import { getLoggingClient } from "@/lib/googleClient";
 
 export const dynamic = "force-dynamic";

@@ -5,7 +5,7 @@ import { AddCircleOutline } from "@mui/icons-material";
 import Grid from "@mui/material/Unstable_Grid2/Grid2";
 import Loading from "./Loading";
 import { TableNames } from "../../../policy";
-import { Timestamp } from "@firebase/firestore";
+import { Timestamp } from "firebase/firestore";
 import { clientSaveDataToFirestore } from "../../../../../lib/firebase/firebase";
 
 interface Props {
