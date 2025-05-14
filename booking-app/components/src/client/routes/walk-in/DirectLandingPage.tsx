@@ -70,12 +70,20 @@ export default function WalkInLandingPage({
         </Box>
         {isVIP ? (
           <>
-            <Typography fontWeight={700} marginTop={3}>
-              Use this form to submit a reservation on behalf of a VIP,
-              Community Partner, or any person in need of concierge service.
-              They will be added to the booking tool reservation and Google
-              Calendar invitation
-            </Typography>
+            <div style={{ marginTop: 3 }}>
+              <Bulleted>
+                <ListItem>
+                  Enter booking details for the VIP's or Community Partners.
+                </ListItem>
+                <ListItem>
+                  No approval process is required for these bookings.
+                </ListItem>
+                <ListItem>
+                  The booking will be linked by the individual’s netID and will
+                  appears on the their dashboard and Google Calendar.
+                </ListItem>
+              </Bulleted>
+            </div>
           </>
         ) : (
           <>
