@@ -66,7 +66,7 @@ export default function NavBar() {
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const isRoot = pathname === "/";
   const tenantSchema = schema[tenant as keyof typeof schema];
-  const { name, logo } = tenantSchema || {};
+  const { name, logo = NYULOGO } = tenantSchema || {};
 
   const handleRoleChange = (e: any) => {
     switch (e.target.value as PagePermission) {
@@ -182,7 +182,10 @@ export default function NavBar() {
       );
     }
 
-    if (selectedView === PagePermission.ADMIN || selectedView === PagePermission.LIAISON) {
+    if (
+      selectedView === PagePermission.ADMIN ||
+      selectedView === PagePermission.LIAISON
+    ) {
       return (
         <Button
           onClick={() => {
@@ -216,14 +219,14 @@ export default function NavBar() {
   return (
     <Nav>
       <div style={{ display: "flex", alignItems: "center" }}>
-        <LogoBox onClick={handleClickRoot}>
+        {/* <LogoBox onClick={handleClickRoot}>
           <Image
             src={NYULOGO}
             alt="NYU logo"
             height={40}
             style={{ transform: "translateY(4px)", marginRight: 15 }}
           />
-        </LogoBox>
+        </LogoBox> */}
         {!isRoot && (
           <LogoBox onClick={handleClickHome}>
             <Image src={logo} alt={`${name} logo`} height={40} />
