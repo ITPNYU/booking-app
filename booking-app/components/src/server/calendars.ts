@@ -132,8 +132,13 @@ export const updateCalendarEvent = async (
     };
     statusPrefix?: BookingStatusLabel;
   },
-  bookingContents: BookingFormDetails
+  bookingContents?: BookingFormDetails
 ) => {
+  if (!bookingContents) {
+    console.error("No booking contents provided for calendar event update");
+    return;
+  }
+
   const roomCalendarIds = await serverGetRoomCalendarIds(
     typeof bookingContents.roomId == "string"
       ? parseInt(bookingContents.roomId, 10)
@@ -171,9 +176,7 @@ export const updateCalendarEvent = async (
         updatedValues["end"] = newValues.end;
       }
 
-      let description = bookingContents
-        ? bookingContentsToDescription(bookingContents)
-        : "";
+      let description = bookingContentsToDescription(bookingContents);
       description +=
         'To cancel reservations please return to the Booking Tool, visit My Bookings, and click "cancel" on the booking at least 24 hours before the date of the event. Failure to cancel an unused booking is considered a no-show and may result in restricted use of the space.';
       updatedValues["description"] = description;

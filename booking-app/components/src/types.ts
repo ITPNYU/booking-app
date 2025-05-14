@@ -41,6 +41,7 @@ export type BookingRow = Booking & {
 
 export type BookingFormDetails = Booking & {
   headerMessage?: string;
+  id?: string;
 };
 
 export type BookingStatus = {
