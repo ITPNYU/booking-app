@@ -2,7 +2,7 @@ import { BookingRow, BookingStatusLabel } from "@/components/src/types";
 import { TableCell, TableRow } from "@mui/material";
 import { formatDateTable, formatTimeAmPm } from "../../utils/date";
 
-import { Timestamp } from "@firebase/firestore";
+import { Timestamp } from "firebase/firestore";
 import { useMemo } from "react";
 import StatusChip from "../components/bookingTable/StatusChip";
 
@@ -80,7 +80,7 @@ export default function useSortBookingHistory(booking: BookingRow) {
       });
     }
     return data;
-  }, [booking, status]);
+  }, [booking]);
 
   return rows
     .sort((a, b) => a.time.toMillis() - b.time.toMillis())

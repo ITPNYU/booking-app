@@ -55,7 +55,7 @@ export default function useBookingActions({
   const { tenant } = useParams();
   const { reloadExistingCalendarEvents } = useContext(BookingContext);
   const { userEmail, netId } = useContext(DatabaseContext);
-  const { loadExistingBookingData } = useExistingBooking();
+  const loadExistingBookingData = useExistingBooking();
 
   const updateActions = () => {
     setDate(new Date());

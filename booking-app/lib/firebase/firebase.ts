@@ -16,7 +16,7 @@ import {
   startAfter,
   updateDoc,
   where,
-} from "@firebase/firestore";
+} from "firebase/firestore";
 
 import { getDb } from "./firebaseClient";
 import { Filters } from "@/components/src/types";

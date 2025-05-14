@@ -86,8 +86,16 @@ export default function FormInput({
   const { tenant } = useParams();
   const registerEvent = useSubmitBooking(formContext);
   const { isAutoApproval } = useCheckAutoApproval();
+
+  const isWalkIn = formContext === FormContextLevel.WALK_IN;
+  const isMod = formContext === FormContextLevel.MODIFICATION;
+  const isFullForm = formContext === FormContextLevel.FULL_FORM;
+  const isVIP = formContext === FormContextLevel.VIP;
+  const isBooking = !isWalkIn && !isVIP;
+
   const getDefaultValue = (key: keyof UserApiData): string => {
-    if (!userApiData) return "";
+    // For VIP and walk-in bookings, we don't need identity data.
+    if (isVIP || isWalkIn || !userApiData) return "";
     return userApiData[key] || "";
   };
 
@@ -131,10 +139,6 @@ export default function FormInput({
     mode: "onBlur",
     resolver: undefined,
   });
-
-  const isWalkIn = formContext === FormContextLevel.WALK_IN;
-  const isMod = formContext === FormContextLevel.MODIFICATION;
-  const isFullForm = formContext === FormContextLevel.FULL_FORM;
 
   // different from other switches b/c mediaServices doesn't have yes/no column in DB
   const [showMediaServices, setShowMediaServices] = useState(false);
@@ -318,7 +322,9 @@ export default function FormInput({
           router.push(
             isWalkIn
               ? `/${tenant}/walk-in/confirmation`
-              : `/${tenant}/book/confirmation`
+              : isVIP
+                ? `/${tenant}/vip/confirmation`
+                : `/${tenant}/book/confirmation`
           );
         }
       });
@@ -431,6 +437,7 @@ export default function FormInput({
         <BookingFormTextField
           id="title"
           label="Reservation Title"
+          description="Please provide a short title for your reservation (25 character limit)."
           fieldProps={{
             inputProps: { maxLength: 25 },
           }}
@@ -484,7 +491,12 @@ export default function FormInput({
               id="roomSetup"
               label="Room Setup Needed?"
               required={false}
-              description={<p></p>}
+              description={
+                <p>
+                  This field is for requesting a room setup that requires hiring
+                  CBS through a work order.
+                </p>
+              }
               {...{ control, errors, trigger }}
             />
             {watch("roomSetup") === "yes" && (
@@ -492,7 +504,7 @@ export default function FormInput({
                 <BookingFormTextField
                   id="setupDetails"
                   label="Room Setup Details"
-                  description="If you requested Room Setup and are not using rooms 233 or 1201, please explain your needs including # of chairs, # tables, and formation."
+                  description="Please specify the number of chairs, tables, and your preferred room configuration."
                   {...{ control, errors, trigger }}
                 />
                 <BookingFormTextField
@@ -597,7 +609,7 @@ export default function FormInput({
         )}
       </Section>
 
-      {!isWalkIn && (
+      {isBooking && (
         <Section title="Agreement">
           {agreements.map((agreement) => (
             <BookingFormAgreementCheckbox

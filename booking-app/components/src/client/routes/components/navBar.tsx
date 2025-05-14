@@ -182,6 +182,21 @@ export default function NavBar() {
       );
     }
 
+    if (selectedView === PagePermission.ADMIN || selectedView === PagePermission.LIAISON) {
+      return (
+        <Button
+          onClick={() => {
+            handleStartBooking();
+            router.push("/vip");
+          }}
+          variant="outlined"
+          sx={{ height: "40px", marginRight: 2 }}
+        >
+          VIP
+        </Button>
+      );
+    }
+
     if (pagePermission !== PagePermission.BOOKING) {
       return (
         <Button

@@ -1,7 +1,7 @@
 import { IconButton, TextField } from "@mui/material";
 import React, { useMemo, useState } from "react";
 
-import { Timestamp } from "@firebase/firestore";
+import { Timestamp } from "firebase/firestore";
 import { AddCircleOutline } from "@mui/icons-material";
 import Grid from "@mui/material/Unstable_Grid2/Grid2";
 import { clientSaveDataToFirestore } from "../../../../../lib/firebase/firebase";
