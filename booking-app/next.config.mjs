@@ -34,6 +34,11 @@ const nextConfig = {
     if (!isServer) {
       config.resolve.alias.handlebars = false;
     }
+    // Add WebAssembly support
+    config.experiments = {
+      ...config.experiments,
+      asyncWebAssembly: true,
+    };
     return config;
   },
   async headers() {

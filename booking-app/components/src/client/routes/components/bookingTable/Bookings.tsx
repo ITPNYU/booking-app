@@ -93,7 +93,7 @@ export const Bookings: React.FC<BookingsProps> = ({
       return (
         <Box
           sx={{
-            color: "rgba(0,0,0,0.6)",
+              color: "rgba(0,0,0,0.6)",
             display: "flex",
             justifyContent: "flex-start",
             paddingLeft: "16px",

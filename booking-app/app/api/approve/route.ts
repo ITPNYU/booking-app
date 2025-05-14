@@ -6,6 +6,7 @@ export async function POST(req: NextRequest) {
   const { id, email } = await req.json();
   try {
     await serverApproveBooking(id, email);
+    
     return NextResponse.json(
       { message: "Approved successfully" },
       { status: 200 },

@@ -17,6 +17,7 @@ import {
   RoomSetting,
 } from "@/components/src/types";
 import {
+  logServerBookingChange,
   serverGetNextSequentialId,
   serverSaveDataToFirestore,
 } from "@/lib/firebase/server/adminDb";
@@ -110,7 +111,7 @@ async function handleBookingApprovalEmails(
 
   console.log("approval email calendarEventId", calendarEventId);
   if (calendarEventId && shouldAutoApprove) {
-    serverApproveInstantBooking(calendarEventId);
+    serverApproveInstantBooking(calendarEventId, email);
   } else {
     const userEventInputs: BookingFormDetails = {
       ...data,
@@ -166,7 +167,11 @@ async function checkOverlap(
       const requestStart = new Date(bookingCalendarInfo.startStr);
       const requestEnd = new Date(bookingCalendarInfo.endStr);
       //log the event that overlaps and then return
-      if(eventStart >= requestStart && eventStart < requestEnd || eventEnd > requestStart && eventEnd <= requestEnd || eventStart <= requestStart && eventEnd >= requestEnd) {
+      if (
+        (eventStart >= requestStart && eventStart < requestEnd) ||
+        (eventEnd > requestStart && eventEnd <= requestEnd) ||
+        (eventStart <= requestStart && eventEnd >= requestEnd)
+      ) {
         console.log("event that overlaps", event);
       }
       return (
@@ -219,33 +224,55 @@ export async function POST(request: NextRequest) {
   console.log(" Done serverGetNextSequentialId ");
   console.log("calendarEventId", calendarEventId);
 
-  await serverSaveDataToFirestore(TableNames.BOOKING, {
-    calendarEventId,
-    roomId: selectedRoomIds,
-    email,
-    startDate: toFirebaseTimestampFromString(bookingCalendarInfo.startStr),
-    endDate: toFirebaseTimestampFromString(bookingCalendarInfo.endStr),
-    requestNumber: sequentialId,
-    equipmentCheckedOut: false,
-    requestedAt: Timestamp.now(),
-    ...data,
-  });
+  let doc;
+  try {
+    doc = await serverSaveDataToFirestore(TableNames.BOOKING, {
+      calendarEventId,
+      roomId: selectedRoomIds,
+      email,
+      startDate: toFirebaseTimestampFromString(bookingCalendarInfo.startStr),
+      endDate: toFirebaseTimestampFromString(bookingCalendarInfo.endStr),
+      requestNumber: sequentialId,
+      equipmentCheckedOut: false,
+      requestedAt: Timestamp.now(),
+      ...data,
+    });
 
-  await handleBookingApprovalEmails(
-    isAutoApproval,
-    calendarEventId,
-    sequentialId,
-    data,
-    selectedRoomIds,
-    bookingCalendarInfo,
-    email,
-  );
-  console.log(" Done handleBookingApprovalEmails");
+    await handleBookingApprovalEmails(
+      isAutoApproval,
+      calendarEventId,
+      sequentialId,
+      data,
+      selectedRoomIds,
+      bookingCalendarInfo,
+      email,
+    );
 
-  return NextResponse.json(
-    { result: "success", calendarEventId },
-    { status: 200 },
-  );
+    if (!doc || !doc.id) {
+      throw new Error("Failed to create booking document");
+    }
+
+    await logServerBookingChange(
+      doc.id,
+      calendarEventId,
+      BookingStatusLabel.REQUESTED,
+      email,
+      "New booking created",
+    );
+
+    console.log(" Done handleBookingApprovalEmails");
+
+    return NextResponse.json(
+      { result: "success", calendarEventId },
+      { status: 200 },
+    );
+  } catch (error) {
+    console.error("Error creating booking:", error);
+    return NextResponse.json(
+      { result: "error", message: "Failed to create booking" },
+      { status: 500 },
+    );
+  }
 }
 
 export async function PUT(request: NextRequest) {
@@ -291,6 +318,15 @@ export async function PUT(request: NextRequest) {
       data.department,
       data.title,
       bookingCalendarInfo,
+    );
+    console.log("existingContents", existingContents);
+    debugger;
+
+    await logServerBookingChange(
+      existingContents.id,
+      calendarEventId,
+      BookingStatusLabel.REQUESTED,
+      email,
     );
   } catch (err) {
     console.error(err);
