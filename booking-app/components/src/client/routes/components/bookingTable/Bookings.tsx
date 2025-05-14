@@ -147,6 +147,16 @@ export const Bookings: React.FC<BookingsProps> = ({
     }
   }, [pageContext, bookingsLoading, filteredRows, allBookings.length]);
 
+  const formatOrigin = (origin: string) => {
+    const originMap = {
+      user: "User",
+      vip: "VIP",
+      walkIn: "Walk-In",
+      pregame: "Pregame",
+    };
+    return originMap[origin] ?? origin;
+  };
+
   const columns = useMemo(() => {
     const baseColumns = [
       {
@@ -156,7 +166,7 @@ export const Bookings: React.FC<BookingsProps> = ({
         flex: 1,
         renderHeader: () => <TableCell>Origin</TableCell>,
         renderCell: (params) => (
-          <TableCell>{params.row.origin ?? "user"}</TableCell>
+          <TableCell>{formatOrigin(params.row.origin ?? "user")}</TableCell>
         ),
       },
       {
