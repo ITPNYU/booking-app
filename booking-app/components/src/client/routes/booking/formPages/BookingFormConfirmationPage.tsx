@@ -3,12 +3,11 @@
 import { Box, Button, Typography, useTheme } from "@mui/material";
 import { Error, Event } from "@mui/icons-material";
 import React, { useContext } from "react";
-
 import { BookingContext } from "../bookingProvider";
 import { FormContextLevel } from "@/components/src/types";
 import Loading from "../../components/Loading";
 import { styled } from "@mui/system";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 
 const Centered = styled(Box)`
   position: relative;
@@ -26,6 +25,7 @@ interface Props {
 export default function BookingFormConfirmationPage({ formContext }: Props) {
   const { submitting, error } = useContext(BookingContext);
   const router = useRouter();
+  const { tenant } = useParams();
   const theme = useTheme();
 
   const isWalkIn = formContext === FormContextLevel.WALK_IN;
@@ -85,7 +85,15 @@ export default function BookingFormConfirmationPage({ formContext }: Props) {
           }}
         >
           <Button
-            onClick={() => router.push(isVIP ? '/admin' : isWalkIn ? "/pa" : "/")}
+            onClick={() =>
+              router.push(
+                isVIP
+                  ? `/${tenant}/admin`
+                  : isWalkIn
+                    ? `/${tenant}/pa`
+                    : `/${tenant}`
+              )
+            }
             variant="text"
             sx={{
               background: theme.palette.primary[50],
@@ -105,22 +113,20 @@ export default function BookingFormConfirmationPage({ formContext }: Props) {
     return (
       <Centered>
         <Box
-        sx={{
-          position: "absolute",
-          top: "calc(50% - 40px)",
-          left: "50%",
-          transform: "translate(-50%, -100%)",
-        }}
-      >
-        <Error />
-      </Box>
-      <Typography variant="h6">
-        Sorry, an error occurred while submitting this request
-      </Typography>
-      <Typography variant="h6">
-        {error?.message}
-      </Typography>
-    </Centered>
+          sx={{
+            position: "absolute",
+            top: "calc(50% - 40px)",
+            left: "50%",
+            transform: "translate(-50%, -100%)",
+          }}
+        >
+          <Error />
+        </Box>
+        <Typography variant="h6">
+          Sorry, an error occurred while submitting this request
+        </Typography>
+        <Typography variant="h6">{error?.message}</Typography>
+      </Centered>
     );
   }
 

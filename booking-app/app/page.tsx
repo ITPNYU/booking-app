@@ -1,10 +1,16 @@
-// app/page.tsx
-
 "use client";
 
-import MyBookingsPage from "@/components/src/client/routes/myBookings/myBookingsPage";
 import React from "react";
 
-const HomePage: React.FC = () => <MyBookingsPage />;
+const HomePage: React.FC = () => (
+  <div>
+    <div className="m-4">
+      <a href="/mc">Media Commons</a>
+    </div>
+    <div className="m-4">
+      <a href="/itp">ITP</a>
+    </div>
+  </div>
+);
 
 export default HomePage;

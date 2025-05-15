@@ -12,7 +12,7 @@ import Grid from "@mui/material/Unstable_Grid2";
 import { SelectRooms } from "../components/SelectRooms";
 import { WALK_IN_ROOMS } from "@/components/src/mediaCommonsPolicy";
 import useCheckFormMissingData from "../hooks/useCheckFormMissingData";
-
+import { useTenantSchema } from "../../components/SchemaProvider";
 interface Props {
   calendarEventId?: string;
   formContext?: FormContextLevel;
@@ -30,11 +30,18 @@ export default function SelectRoomPage({
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
   const isWalkIn = formContext === FormContextLevel.WALK_IN;
+  const schema = useTenantSchema();
 
   const roomsToShow = useMemo(() => {
-    return !isWalkIn
+    const { resources } = schema;
+    const allRooms = !isWalkIn
       ? roomSettings
       : roomSettings.filter((room) => WALK_IN_ROOMS.includes(room.roomId));
+
+    // TODO: Request all rooms from schema API in database context.
+    return allRooms.filter((room) =>
+      resources.some((r) => r.roomId === room.roomId)
+    );
   }, [roomSettings]);
 
   return (
