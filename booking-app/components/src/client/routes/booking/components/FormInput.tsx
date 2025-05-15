@@ -335,7 +335,7 @@ export default function FormInput({
     return handleSubmit(onSubmit)(e);
   };
 
-  const prefix = isVIP ? "VIP"  : "";
+  const prefix = isVIP ? "VIP" : isWalkIn ? "Walk-In" : "";
   const formatSectionTitle = (title: string) => {
     return `${prefix} ${title}`.trim();
   };
