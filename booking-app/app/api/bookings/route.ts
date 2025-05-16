@@ -257,7 +257,7 @@ export async function POST(request: NextRequest) {
       calendarEventId,
       BookingStatusLabel.REQUESTED,
       email,
-      "New booking created",
+      "",
     );
 
     console.log(" Done handleBookingApprovalEmails");
@@ -319,14 +319,12 @@ export async function PUT(request: NextRequest) {
       data.title,
       bookingCalendarInfo,
     );
-    console.log("existingContents", existingContents);
-    debugger;
-
     await logServerBookingChange(
       existingContents.id,
       calendarEventId,
       BookingStatusLabel.REQUESTED,
       email,
+      "MODIFIED",
     );
   } catch (err) {
     console.error(err);
