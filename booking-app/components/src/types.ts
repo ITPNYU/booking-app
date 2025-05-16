@@ -37,6 +37,7 @@ export type Booking = Inputs &
 // used for Booking table rows that show status
 export type BookingRow = Booking & {
   status: BookingStatusLabel;
+  id: string;
 };
 
 export type BookingFormDetails = Booking & {

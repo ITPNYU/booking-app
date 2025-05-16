@@ -278,6 +278,7 @@ export const checkin = async (id: string, email: string) => {
   });
   const doc = await clientGetDataByCalendarEventId(TableNames.BOOKING, id);
 
+  console.log("check in doc", doc);
   // Log the check-in action
   if (doc) {
     await logClientBookingChange(
@@ -323,6 +324,7 @@ export const checkOut = async (id: string, email: string) => {
     endDate: Timestamp.fromDate(checkoutDate),
   });
   const doc = await clientGetDataByCalendarEventId(TableNames.BOOKING, id);
+  console.log("check out doc", doc);
 
   // Log the check-out action
   if (doc) {
@@ -501,7 +503,7 @@ export const logClientBookingChange = async (
     status,
     changedBy,
     changedAt: Timestamp.now(),
-    note,
+    note: note ?? null,
   };
 
   await clientSaveDataToFirestore(TableNames.BOOKING_LOGS, logData);
