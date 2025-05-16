@@ -116,8 +116,8 @@ export const serverApproveInstantBooking = async (
       doc.id,
       id,
       BookingStatusLabel.APPROVED,
-      email
-      ,"AUTO"
+      email,
+      ""
     );
   }
   serverFinalApprove(id, "");
