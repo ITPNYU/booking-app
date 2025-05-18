@@ -30,8 +30,8 @@ export default function useSortBookingHistory(booking: BookingRow) {
         // Use bookingLogs data if available
         const sortedRows = logs
           .sort((a, b) => a.changedAt.toMillis() - b.changedAt.toMillis())
-          .map((log, i) => (
-            <TableRow key={i}>
+          .map((log) => (
+            <TableRow key={log.id}>
               <TableCell>
                 <StatusChip status={log.status} />
               </TableCell>
