@@ -167,9 +167,9 @@ export const serverGetFinalApproverEmail = async (): Promise<string> => {
 
 export const logServerBookingChange = async (
   bookingId: string,
-  calendarEventId: string,
   status: BookingStatusLabel,
   changedBy: string,
+  calendarEventId?: string,
   note?: string
 ) => {
   const logData: Omit<BookingLog, "id"> = {

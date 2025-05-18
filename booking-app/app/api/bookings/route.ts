@@ -254,9 +254,9 @@ export async function POST(request: NextRequest) {
 
     await logServerBookingChange(
       doc.id,
-      calendarEventId,
       BookingStatusLabel.REQUESTED,
       email,
+      calendarEventId,
       "",
     );
 
@@ -321,9 +321,9 @@ export async function PUT(request: NextRequest) {
     );
     await logServerBookingChange(
       existingContents.id,
-      calendarEventId,
       BookingStatusLabel.REQUESTED,
       email,
+      newCalendarEventId,
       "MODIFIED",
     );
   } catch (err) {

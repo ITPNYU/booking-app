@@ -109,9 +109,9 @@ export async function GET(request: NextRequest) {
           if (bookingData && bookingData.calendarEventId) {
             await logServerBookingChange(
               bookingId,
-              bookingData.calendarEventId,
               BookingStatusLabel.CHECKED_OUT,
               "system-auto-checkout",
+              bookingData.calendarEventId,
               "Auto-checkout by system",
             );
           }

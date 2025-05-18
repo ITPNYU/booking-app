@@ -483,11 +483,11 @@ export const clientApproveBooking = async (id: string, email: string) => {
 export interface BookingLog {
   id: string;
   bookingId: string;
-  calendarEventId: string;
+  calendarEventId?: string;
   status: BookingStatusLabel;
   changedBy: string;
   changedAt: any;
-  note?: string;
+  note?: any;
 }
 
 export const logClientBookingChange = async (
