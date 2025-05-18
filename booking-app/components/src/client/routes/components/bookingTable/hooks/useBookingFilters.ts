@@ -4,13 +4,13 @@ import {
   BookingStatusLabel,
   PageContextLevel,
 } from "@/components/src/types";
+import { useContext, useEffect, useMemo, useState } from "react";
 import { COMPARATORS, ColumnSortOrder } from "./getColumnComparator";
 import { DATE_FILTERS, DateRangeFilter } from "./getDateFilter";
-import { useContext, useEffect, useMemo, useState } from "react";
 
 import { BOOKING_TABLE_HIDE_STATUS_TIME_ELAPSED } from "@/components/src/policy";
-import { DatabaseContext } from "../../Provider";
 import getBookingStatus from "../../../hooks/getBookingStatus";
+import { DatabaseContext } from "../../Provider";
 import useAllowedStatuses from "./useAllowedStatuses";
 
 interface Props {
@@ -76,16 +76,15 @@ function getDateRangeFromDateSelection(selectedDateRange: DateRangeFilter) {
       startOfPastWeek.setDate(today.getDate() - 7);
       return [startOfPastWeek, today];
     }
-    case "Past Month":
-      {
-        // return an array of the start and end of the past month
-        const today = new Date();
-        today.setHours(0, 0, 0, 0); // Reset today to midnight
+    case "Past Month": {
+      // return an array of the start and end of the past month
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Reset today to midnight
 
-        const startOfPastMonth = new Date(today);
-        startOfPastMonth.setMonth(today.getMonth() - 1);
-        return [startOfPastMonth, today];
-      }
+      const startOfPastMonth = new Date(today);
+      startOfPastMonth.setMonth(today.getMonth() - 1);
+      return [startOfPastMonth, today];
+    }
     case "Past 6 Months": {
       // return an array of the start and end of the past 6 months
       const today = new Date();
@@ -132,9 +131,9 @@ class BookingFilter {
       this.rows = this.rows.filter(
         (row) =>
           !(
-          BOOKING_TABLE_HIDE_STATUS_TIME_ELAPSED.includes(row.status) &&
-          row.endDate.toDate() < currentTime
-        )
+            BOOKING_TABLE_HIDE_STATUS_TIME_ELAPSED.includes(row.status) &&
+            row.endDate.toDate() < currentTime
+          )
       );
     }
     return this;
@@ -234,7 +233,8 @@ export function useBookingFilters(props: Props): BookingRow[] {
     selectedStatusFilters,
     searchQuery = "",
   } = props;
-  const { liaisonUsers, userEmail, allBookings, setFilters } = useContext(DatabaseContext);
+  const { liaisonUsers, userEmail, allBookings, setFilters } =
+    useContext(DatabaseContext);
   const allowedStatuses = useAllowedStatuses(pageContext);
   const [currentTime, setCurrentTime] = useState(new Date());
 
@@ -247,7 +247,10 @@ export function useBookingFilters(props: Props): BookingRow[] {
   }, []);
 
   useEffect(() => {
-    console.log("selectedDateRange",getDateRangeFromDateSelection(selectedDateRange));
+    console.log(
+      "selectedDateRange",
+      getDateRangeFromDateSelection(selectedDateRange)
+    );
     setFilters({
       dateRange: getDateRangeFromDateSelection(selectedDateRange),
       sortField: "startDate",
@@ -255,19 +258,13 @@ export function useBookingFilters(props: Props): BookingRow[] {
     });
   }, [selectedDateRange, setFilters, searchQuery]);
 
-  const rows: BookingRow[] = useMemo(
-    () => {
-      /* return futureBookings.map((booking) => ({
-        ...booking,
-        status: getBookingStatus(booking),
-      }))} */
-      return allBookings.map((booking) => ({
-        ...booking,
-        status: getBookingStatus(booking),
-      }))
-    },
-    [allBookings]
-  );
+  const rows: BookingRow[] = useMemo(() => {
+    return allBookings.map((booking) => ({
+      ...booking,
+      status: getBookingStatus(booking),
+      id: booking.calendarEventId,
+    }));
+  }, [allBookings]);
 
   const filteredRows = useMemo(() => {
     const filter = new BookingFilter({
@@ -276,16 +273,18 @@ export function useBookingFilters(props: Props): BookingRow[] {
       pageContext,
     });
 
-    return filter
-      // .filterSelectedDateRange(selectedDateRange)
-      .filterElapsedTime(currentTime)
-      .filterPageContext(userEmail, liaisonUsers)
-      .filterAllowedStatuses()
-      .filterStatusChips(selectedStatusFilters)
-      // No need for client-side search filtering since it's done on the database side
-      // .filterBySearchQuery(searchQuery)
-      .sortByColumn(columnOrderBy, columnOrder)
-      .getRows();
+    return (
+      filter
+        // .filterSelectedDateRange(selectedDateRange)
+        .filterElapsedTime(currentTime)
+        .filterPageContext(userEmail, liaisonUsers)
+        .filterAllowedStatuses()
+        .filterStatusChips(selectedStatusFilters)
+        // No need for client-side search filtering since it's done on the database side
+        // .filterBySearchQuery(searchQuery)
+        .sortByColumn(columnOrderBy, columnOrder)
+        .getRows()
+    );
   }, [
     rows,
     columnOrderBy,
