@@ -178,7 +178,7 @@ export const logServerBookingChange = async (
     status,
     changedBy,
     changedAt: admin.firestore.Timestamp.now(),
-    note,
+    note: note ?? null,
   };
 
   await serverSaveDataToFirestore(TableNames.BOOKING_LOGS, logData);
