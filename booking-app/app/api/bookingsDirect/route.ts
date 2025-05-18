@@ -89,12 +89,14 @@ export async function POST(request: NextRequest) {
   });
 
   // Log the walk-in booking creation
-  await logServerBookingChange(
-    doc.id,
-    calendarEventId,
-    BookingStatusLabel.WALK_IN,
-    email,
-  );
+  if (calendarEventId) {
+    await logServerBookingChange(
+      doc.id,
+      BookingStatusLabel.WALK_IN,
+      email,
+      calendarEventId,
+    );
+  }
 
   const sendWalkInNofificationEmail = async (recipients: string[]) => {
     const emailPromises = recipients.map(recipient =>
