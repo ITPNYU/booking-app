@@ -93,6 +93,17 @@ export const decline = async (id: string, email: string, reason?: string) => {
   });
 
   const doc = await clientGetDataByCalendarEventId(TableNames.BOOKING, id);
+
+  // Log the decline action
+  if (doc) {
+    await logClientBookingChange(
+      doc.id,
+      id,
+      BookingStatusLabel.DECLINED,
+      email,
+      reason
+    );
+  }
   //@ts-ignore
   const guestEmail = doc ? doc.email : null;
   let headerMessage =
@@ -145,7 +156,8 @@ function checkAndLogLateCancellation(
   if (hoursToEvent > 24) return;
 
   // If within 1 hour grace period of creation, no penalty.
-  const timeSinceCreation = now.toDate().getTime() - requestedAt.toDate().getTime();
+  const timeSinceCreation =
+    now.toDate().getTime() - requestedAt.toDate().getTime();
   const hoursSinceCreation = timeSinceCreation / (1000 * 60 * 60);
   if (hoursSinceCreation <= 1) return;
 
@@ -162,6 +174,16 @@ export const cancel = async (id: string, email: string, netId: string) => {
 
   const doc = await clientGetDataByCalendarEventId(TableNames.BOOKING, id);
   checkAndLogLateCancellation(doc, id, netId);
+
+  // Log the cancel action
+  if (doc) {
+    await logClientBookingChange(
+      doc.id,
+      id,
+      BookingStatusLabel.CANCELED,
+      email
+    );
+  }
 
   //@ts-ignore
   const guestEmail = doc ? doc.email : null;
@@ -255,6 +277,17 @@ export const checkin = async (id: string, email: string) => {
     checkedInBy: email,
   });
   const doc = await clientGetDataByCalendarEventId(TableNames.BOOKING, id);
+
+  console.log("check in doc", doc);
+  // Log the check-in action
+  if (doc) {
+    await logClientBookingChange(
+      doc.id,
+      id,
+      BookingStatusLabel.CHECKED_IN,
+      email
+    );
+  }
   //@ts-ignore
   const guestEmail = doc ? doc.email : null;
 
@@ -291,6 +324,17 @@ export const checkOut = async (id: string, email: string) => {
     endDate: Timestamp.fromDate(checkoutDate),
   });
   const doc = await clientGetDataByCalendarEventId(TableNames.BOOKING, id);
+  console.log("check out doc", doc);
+
+  // Log the check-out action
+  if (doc) {
+    await logClientBookingChange(
+      doc.id,
+      id,
+      BookingStatusLabel.CHECKED_OUT,
+      email
+    );
+  }
   //@ts-ignore
   const guestEmail = doc ? doc.email : null;
 
@@ -334,6 +378,11 @@ export const noShow = async (id: string, email: string, netId: string) => {
   // Add to pre-ban logs
   const log = { netId, bookingId: id, noShowDate: Timestamp.now() };
   clientSaveDataToFirestore(TableNames.PRE_BAN_LOGS, log);
+
+  // Log the no-show action
+  if (doc) {
+    await logClientBookingChange(doc.id, id, BookingStatusLabel.NO_SHOW, email);
+  }
 
   //@ts-ignore
   const guestEmail = doc ? doc.email : null;
@@ -429,4 +478,33 @@ export const clientApproveBooking = async (id: string, email: string) => {
     },
     body: JSON.stringify({ id: id, email: email }),
   });
+};
+
+export interface BookingLog {
+  id: string;
+  bookingId: string;
+  calendarEventId: string;
+  status: BookingStatusLabel;
+  changedBy: string;
+  changedAt: any;
+  note?: string;
+}
+
+export const logClientBookingChange = async (
+  bookingId: string,
+  calendarEventId: string,
+  status: BookingStatusLabel,
+  changedBy: string,
+  note?: string
+) => {
+  const logData: Omit<BookingLog, "id"> = {
+    bookingId,
+    calendarEventId,
+    status,
+    changedBy,
+    changedAt: Timestamp.now(),
+    note: note ?? null,
+  };
+
+  await clientSaveDataToFirestore(TableNames.BOOKING_LOGS, logData);
 };

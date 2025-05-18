@@ -10,16 +10,15 @@ import {
   Typography,
 } from "@mui/material";
 
-import { BookingRow } from "../../../../types";
-import { default as CustomTable } from "../Table";
 import { Event } from "@mui/icons-material";
 import Grid from "@mui/material/Unstable_Grid2/Grid2";
-import React from "react";
-import { RoomDetails } from "../../booking/components/BookingSelection";
-import StackedTableCell from "./StackedTableCell";
-import { formatTimeAmPm } from "../../../utils/date";
 import { styled } from "@mui/system";
+import { BookingRow } from "../../../../types";
+import { formatTimeAmPm } from "../../../utils/date";
+import { RoomDetails } from "../../booking/components/BookingSelection";
 import useSortBookingHistory from "../../hooks/useSortBookingHistory";
+import { default as CustomTable } from "../Table";
+import StackedTableCell from "./StackedTableCell";
 
 interface Props {
   booking: BookingRow;
@@ -73,7 +72,7 @@ const AlertHeader = styled(Alert)(({ theme }) => ({
   },
 }));
 
-const BLANK = "None";
+const BLANK = "N/A";
 
 export default function MoreInfoModal({ booking, closeModal }: Props) {
   const historyRows = useSortBookingHistory(booking);
@@ -119,37 +118,92 @@ export default function MoreInfoModal({ booking, closeModal }: Props) {
               {historyRows}
             </StatusTable>
 
+            <SectionTitle>Request</SectionTitle>
+            <Table size="small" sx={{ marginBottom: 3 }}>
+              <TableBody>
+                <TableRow>
+                  <LabelCell>Request#</LabelCell>
+                  <TableCell>{booking.requestNumber ?? BLANK}</TableCell>
+                </TableRow>
+                <TableRow>
+                  <LabelCell>Room(s)</LabelCell>
+                  <TableCell>{booking.roomId ?? BLANK}</TableCell>
+                </TableRow>
+                <TableRow>
+                  <LabelCell>Date</LabelCell>
+                  <TableCell>
+                    {booking.startDate
+                      ? booking.startDate.toDate().toLocaleDateString()
+                      : BLANK}
+                  </TableCell>
+                </TableRow>
+                <TableRow>
+                  <LabelCell>Time</LabelCell>
+                  <TableCell>
+                    {booking.startDate && booking.endDate
+                      ? `${formatTimeAmPm(booking.startDate.toDate())} - ${formatTimeAmPm(booking.endDate.toDate())}`
+                      : BLANK}
+                  </TableCell>
+                </TableRow>
+                <TableRow>
+                  <LabelCell>Status</LabelCell>
+                  <TableCell>{booking.status ?? BLANK}</TableCell>
+                </TableRow>
+                <TableRow>
+                  <LabelCell>Origin</LabelCell>
+                  <TableCell>{booking.origin ?? BLANK}</TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+
             <SectionTitle>Requestor</SectionTitle>
             <Table size="small" sx={{ marginBottom: 3 }}>
               <TableBody>
                 <TableRow>
-                  <LabelCell>NetID / Name</LabelCell>
-                  <StackedTableCell
-                    topText={booking.netId}
-                    bottomText={`${booking.firstName} ${booking.lastName}`}
-                  />
+                  <LabelCell>NetID</LabelCell>
+                  <TableCell>{booking.netId ?? BLANK}</TableCell>
                 </TableRow>
                 <TableRow>
-                  <LabelCell>Contact Info</LabelCell>
-                  <StackedTableCell
-                    topText={booking.email}
-                    bottomText={booking.phoneNumber}
-                  />
+                  <LabelCell>Name</LabelCell>
+                  <TableCell>
+                    {`${booking.firstName ?? ""} ${booking.lastName ?? ""}`.trim() ||
+                      BLANK}
+                  </TableCell>
                 </TableRow>
                 <TableRow>
-                  <LabelCell>N-Number </LabelCell>
-                  <TableCell>{booking.nNumber}</TableCell>
+                  <LabelCell>Department</LabelCell>
+                  <TableCell>{booking.department ?? BLANK}</TableCell>
                 </TableRow>
                 <TableRow>
-                  <LabelCell>Secondary Contact</LabelCell>
+                  <LabelCell>Role</LabelCell>
+                  <TableCell>{booking.role ?? BLANK}</TableCell>
+                </TableRow>
+                <TableRow>
+                  <LabelCell>Email</LabelCell>
+                  <TableCell>{booking.email ?? BLANK}</TableCell>
+                </TableRow>
+                <TableRow>
+                  <LabelCell>Phone</LabelCell>
+                  <TableCell>{booking.phoneNumber ?? BLANK}</TableCell>
+                </TableRow>
+                <TableRow>
+                  <LabelCell>Secondary Contact Name</LabelCell>
                   <TableCell>{booking.secondaryName || BLANK}</TableCell>
                 </TableRow>
                 <TableRow>
-                  <LabelCell>Sponsor</LabelCell>
-                  <StackedTableCell
-                    topText={booking.sponsorEmail || BLANK}
-                    bottomText={`${booking.sponsorFirstName} ${booking.sponsorLastName}`}
-                  />
+                  <LabelCell>Secondary Contact Email</LabelCell>
+                  <TableCell>{booking.missingEmail || BLANK}</TableCell>
+                </TableRow>
+                <TableRow>
+                  <LabelCell>Sponsor Name</LabelCell>
+                  <TableCell>
+                    {`${booking.sponsorFirstName ?? ""} ${booking.sponsorLastName ?? ""}`.trim() ||
+                      BLANK}
+                  </TableCell>
+                </TableRow>
+                <TableRow>
+                  <LabelCell>Sponsor Email</LabelCell>
+                  <TableCell>{booking.sponsorEmail || BLANK}</TableCell>
                 </TableRow>
               </TableBody>
             </Table>
@@ -159,23 +213,23 @@ export default function MoreInfoModal({ booking, closeModal }: Props) {
               <TableBody>
                 <TableRow>
                   <LabelCell>Title</LabelCell>
-                  <TableCell>{booking.title}</TableCell>
+                  <TableCell>{booking.title ?? BLANK}</TableCell>
                 </TableRow>
                 <TableRow>
                   <LabelCell>Description</LabelCell>
-                  <TableCell>{booking.description}</TableCell>
+                  <TableCell>{booking.description ?? BLANK}</TableCell>
                 </TableRow>
                 <TableRow>
                   <LabelCell>Booking Type</LabelCell>
-                  <TableCell>{booking.bookingType}</TableCell>
+                  <TableCell>{booking.bookingType ?? BLANK}</TableCell>
                 </TableRow>
                 <TableRow>
                   <LabelCell>Expected Attendance</LabelCell>
-                  <TableCell>{booking.expectedAttendance}</TableCell>
+                  <TableCell>{booking.expectedAttendance ?? BLANK}</TableCell>
                 </TableRow>
                 <TableRow>
                   <LabelCell>Attendee Affiliation</LabelCell>
-                  <TableCell>{booking.attendeeAffiliation}</TableCell>
+                  <TableCell>{booking.attendeeAffiliation ?? BLANK}</TableCell>
                 </TableRow>
               </TableBody>
             </Table>
