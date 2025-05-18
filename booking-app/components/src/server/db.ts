@@ -487,7 +487,7 @@ export interface BookingLog {
   status: BookingStatusLabel;
   changedBy: string;
   changedAt: any;
-  note?: string;
+  note?: any;
 }
 
 export const logClientBookingChange = async (
