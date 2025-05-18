@@ -111,12 +111,12 @@ export const serverApproveInstantBooking = async (
 ) => {
   serverFirstApprove(id, "");
   const doc = await serverGetDataByCalendarEventId(TableNames.BOOKING, id);
-  if (doc) {
+  if (doc && id) {
     await logServerBookingChange(
       doc.id,
-      id,
       BookingStatusLabel.APPROVED,
       email,
+      id,
       ""
     );
   }
@@ -153,7 +153,9 @@ const firstApprove = async (id: string, email: string) => {
     throw new Error("Booking document not found");
   }
 
-  await logServerBookingChange(doc.id, id, BookingStatusLabel.PENDING, email);
+  if (id) {
+    await logServerBookingChange(doc.id, BookingStatusLabel.PENDING, email, id);
+  }
 
   const response = await fetch(
     `${process.env.NEXT_PUBLIC_BASE_URL}/api/calendarEvents`,
@@ -217,12 +219,12 @@ const finalApprove = async (id: string, email: string) => {
 
   // Log the final approval action
   const doc = await serverGetDataByCalendarEventId(TableNames.BOOKING, id);
-  if (doc) {
+  if (doc && id) {
     await logServerBookingChange(
       doc.id,
-      id,
       BookingStatusLabel.APPROVED,
-      email
+      email,
+      id
     );
   }
 

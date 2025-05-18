@@ -167,9 +167,9 @@ export const serverGetFinalApproverEmail = async (): Promise<string> => {
 
 export const logServerBookingChange = async (
   bookingId: string,
-  calendarEventId: string,
   status: BookingStatusLabel,
   changedBy: string,
+  calendarEventId?: string,
   note?: string
 ) => {
   const logData: Omit<BookingLog, "id"> = {
@@ -178,7 +178,7 @@ export const logServerBookingChange = async (
     status,
     changedBy,
     changedAt: admin.firestore.Timestamp.now(),
-    note: note ?? null,
+    note,
   };
 
   await serverSaveDataToFirestore(TableNames.BOOKING_LOGS, logData);
