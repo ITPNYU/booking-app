@@ -8,6 +8,8 @@ import {
   WhereFilterOp,
 } from "firebase-admin/firestore";
 
+import { BookingLog } from "@/components/src/server/db";
+import { BookingStatusLabel } from "@/components/src/types";
 import admin from "./firebaseAdmin";
 
 const db = admin.firestore();
@@ -65,8 +67,10 @@ export const serverSaveDataToFirestore = async (
   try {
     const docRef = await db.collection(collectionName).add(data);
     console.log("Document successfully written with ID:", docRef.id);
+    return docRef;
   } catch (error) {
     console.error("Error writing document: ", error);
+    throw error;
   }
 };
 
@@ -159,4 +163,23 @@ export const serverGetFinalApproverEmail = async (): Promise<string> => {
   return (
     finalApproverEmail || "booking-app-devs+notFoundFinalApprover@itp.nyu.edu"
   );
+};
+
+export const logServerBookingChange = async (
+  bookingId: string,
+  calendarEventId: string,
+  status: BookingStatusLabel,
+  changedBy: string,
+  note?: string
+) => {
+  const logData: Omit<BookingLog, "id"> = {
+    bookingId,
+    calendarEventId,
+    status,
+    changedBy,
+    changedAt: admin.firestore.Timestamp.now(),
+    note: note ?? null,
+  };
+
+  await serverSaveDataToFirestore(TableNames.BOOKING_LOGS, logData);
 };

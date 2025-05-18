@@ -1,5 +1,6 @@
 import {
   Constraint,
+  logServerBookingChange,
   serverDeleteData,
   serverDeleteDocumentFields,
   serverFetchAllDataFromCollection,
@@ -104,8 +105,21 @@ const serverFinalApprove = (id: string, email?: string) => {
 };
 
 //server
-export const serverApproveInstantBooking = (id: string) => {
+export const serverApproveInstantBooking = async (
+  id: string,
+  email: string
+) => {
   serverFirstApprove(id, "");
+  const doc = await serverGetDataByCalendarEventId(TableNames.BOOKING, id);
+  if (doc) {
+    await logServerBookingChange(
+      doc.id,
+      id,
+      BookingStatusLabel.APPROVED,
+      email,
+      ""
+    );
+  }
   serverFinalApprove(id, "");
   serverApproveEvent(id);
 };
@@ -129,8 +143,17 @@ export const serverApproveBooking = async (id: string, email: string) => {
   }
 };
 
-const firstApprove = async (id, email) => {
-  serverFirstApprove(id, email);
+const firstApprove = async (id: string, email: string) => {
+  await serverFirstApprove(id, email);
+
+  // Log the first approval action
+  const doc = await serverGetDataByCalendarEventId(TableNames.BOOKING, id);
+  if (!doc) {
+    console.error("Booking document not found for calendar event id:", id);
+    throw new Error("Booking document not found");
+  }
+
+  await logServerBookingChange(doc.id, id, BookingStatusLabel.PENDING, email);
 
   const response = await fetch(
     `${process.env.NEXT_PUBLIC_BASE_URL}/api/calendarEvents`,
@@ -173,7 +196,7 @@ const firstApprove = async (id, email) => {
     body: JSON.stringify(formData),
   });
 };
-const finalApprove = async (id, email) => {
+const finalApprove = async (id: string, email: string) => {
   const finalApprovers = (await approvers()).filter(
     (a) => a.level === ApproverLevel.FINAL
   );
@@ -191,6 +214,18 @@ const finalApprove = async (id, email) => {
     };
   }
   serverFinalApprove(id, email);
+
+  // Log the final approval action
+  const doc = await serverGetDataByCalendarEventId(TableNames.BOOKING, id);
+  if (doc) {
+    await logServerBookingChange(
+      doc.id,
+      id,
+      BookingStatusLabel.APPROVED,
+      email
+    );
+  }
+
   await serverApproveEvent(id);
 };
 

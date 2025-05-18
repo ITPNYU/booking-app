@@ -5,6 +5,7 @@ import {
 } from "@/components/src/server/admin";
 import { BookingStatusLabel } from "@/components/src/types";
 import {
+  logServerBookingChange,
   serverGetFinalApproverEmail,
   serverGetNextSequentialId,
   serverSaveDataToFirestore,
@@ -75,7 +76,7 @@ export async function POST(request: NextRequest) {
   );
 
   const sequentialId = await serverGetNextSequentialId("bookings");
-  await serverSaveDataToFirestore(TableNames.BOOKING, {
+  const doc = await serverSaveDataToFirestore(TableNames.BOOKING, {
     calendarEventId,
     roomId: selectedRoomIds.join(", "),
     email,
@@ -86,6 +87,14 @@ export async function POST(request: NextRequest) {
     origin,
     ...data,
   });
+
+  // Log the walk-in booking creation
+  await logServerBookingChange(
+    doc.id,
+    calendarEventId,
+    BookingStatusLabel.WALK_IN,
+    email,
+  );
 
   const sendWalkInNofificationEmail = async (recipients: string[]) => {
     const emailPromises = recipients.map(recipient =>
