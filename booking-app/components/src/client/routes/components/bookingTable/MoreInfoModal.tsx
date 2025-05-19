@@ -72,7 +72,7 @@ const AlertHeader = styled(Alert)(({ theme }) => ({
   },
 }));
 
-const BLANK = "N/A";
+const BLANK = "";
 
 export default function MoreInfoModal({ booking, closeModal }: Props) {
   const historyRows = useSortBookingHistory(booking);
@@ -149,10 +149,12 @@ export default function MoreInfoModal({ booking, closeModal }: Props) {
                   <LabelCell>Status</LabelCell>
                   <TableCell>{booking.status ?? BLANK}</TableCell>
                 </TableRow>
-                <TableRow>
-                  <LabelCell>Origin</LabelCell>
-                  <TableCell>{booking.origin ?? BLANK}</TableCell>
-                </TableRow>
+                {booking.origin && (
+                  <TableRow>
+                    <LabelCell>Origin</LabelCell>
+                    <TableCell>{booking.origin}</TableCell>
+                  </TableRow>
+                )}
               </TableBody>
             </Table>
 
@@ -189,10 +191,6 @@ export default function MoreInfoModal({ booking, closeModal }: Props) {
                 <TableRow>
                   <LabelCell>Secondary Contact Name</LabelCell>
                   <TableCell>{booking.secondaryName || BLANK}</TableCell>
-                </TableRow>
-                <TableRow>
-                  <LabelCell>Secondary Contact Email</LabelCell>
-                  <TableCell>{booking.missingEmail || BLANK}</TableCell>
                 </TableRow>
                 <TableRow>
                   <LabelCell>Sponsor Name</LabelCell>
