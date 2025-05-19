@@ -9,10 +9,12 @@ import {
   serverUpdateInFirestore,
 } from "@/lib/firebase/server/adminDb";
 import { ApproverLevel, TableNames, getApprovalCcEmail } from "../policy";
+import { BookingLog } from "../server/db";
 import {
   AdminUser,
   Approver,
   ApproverType,
+  Booking,
   BookingFormDetails,
   BookingStatus,
   BookingStatusLabel,
@@ -21,19 +23,155 @@ import {
 
 import { Timestamp } from "firebase-admin/firestore";
 
-export const serverBookingContents = (id: string) => {
-  return serverGetDataByCalendarEventId(TableNames.BOOKING, id)
-    .then((bookingObj) => {
-      const updatedBookingObj = Object.assign({}, bookingObj, {
-        headerMessage: "This is a request email for final approval.",
-      });
+interface HistoryItem {
+  status: BookingStatusLabel;
+  user: string;
+  date: string;
+  note?: string;
+}
 
-      return updatedBookingObj as unknown as BookingFormDetails;
-    })
-    .catch((error) => {
-      console.error("Error fetching booking contents:", error);
-      throw error;
+const getBookingHistory = async (booking: Booking): Promise<HistoryItem[]> => {
+  const history: HistoryItem[] = [];
+
+  // Fetch logs from BOOKING_LOGS table
+  const logs = await serverFetchAllDataFromCollection<BookingLog>(
+    TableNames.BOOKING_LOGS,
+    [
+      {
+        field: "calendarEventId",
+        operator: "==",
+        value: booking.calendarEventId,
+      },
+    ]
+  );
+
+  if (logs.length > 0) {
+    // Use bookingLogs data if available
+    return logs
+      .sort((a, b) => a.changedAt.toMillis() - b.changedAt.toMillis())
+      .map((log) => ({
+        status: log.status,
+        user: log.changedBy,
+        date: log.changedAt.toDate().toLocaleString(),
+        note: log.note ?? undefined,
+      }));
+  }
+
+  // Fallback to original implementation if no logs found
+  if (booking.requestedAt) {
+    history.push({
+      status: BookingStatusLabel.REQUESTED,
+      user: booking.email,
+      date: booking.requestedAt.toDate().toLocaleString(),
     });
+  }
+
+  if (booking.firstApprovedAt) {
+    history.push({
+      status: BookingStatusLabel.PENDING,
+      user: booking.firstApprovedBy,
+      date: booking.firstApprovedAt.toDate().toLocaleString(),
+    });
+  }
+
+  if (booking.finalApprovedAt) {
+    history.push({
+      status: BookingStatusLabel.APPROVED,
+      user: booking.finalApprovedBy,
+      date: booking.finalApprovedAt.toDate().toLocaleString(),
+    });
+  }
+
+  if (booking.declinedAt) {
+    history.push({
+      status: BookingStatusLabel.DECLINED,
+      user: booking.declinedBy,
+      date: booking.declinedAt.toDate().toLocaleString(),
+      note: booking.declineReason,
+    });
+  }
+
+  if (booking.canceledAt) {
+    history.push({
+      status: BookingStatusLabel.CANCELED,
+      user: booking.canceledBy,
+      date: booking.canceledAt.toDate().toLocaleString(),
+    });
+  }
+
+  if (booking.checkedInAt) {
+    history.push({
+      status: BookingStatusLabel.CHECKED_IN,
+      user: booking.checkedInBy,
+      date: booking.checkedInAt.toDate().toLocaleString(),
+    });
+  }
+
+  if (booking.checkedOutAt) {
+    history.push({
+      status: BookingStatusLabel.CHECKED_OUT,
+      user: booking.checkedOutBy,
+      date: booking.checkedOutAt.toDate().toLocaleString(),
+    });
+  }
+
+  if (booking.noShowedAt) {
+    history.push({
+      status: BookingStatusLabel.NO_SHOW,
+      user: booking.noShowedBy,
+      date: booking.noShowedAt.toDate().toLocaleString(),
+    });
+  }
+
+  if (booking.walkedInAt) {
+    history.push({
+      status: BookingStatusLabel.WALK_IN,
+      user: "PA",
+      date: booking.walkedInAt.toDate().toLocaleString(),
+    });
+  }
+
+  return history.sort(
+    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+  );
+};
+
+export const serverBookingContents = async (id: string) => {
+  const bookingObj = await serverGetDataByCalendarEventId<Booking>(
+    TableNames.BOOKING,
+    id
+  );
+  if (!bookingObj) {
+    throw new Error("Booking not found");
+  }
+  const history = await getBookingHistory(bookingObj);
+
+  // Format date and time
+  const startDate = bookingObj.startDate.toDate();
+  const endDate = bookingObj.endDate.toDate();
+
+  const updatedBookingObj = Object.assign({}, bookingObj, {
+    headerMessage: "This is a request email for final approval.",
+    history: history,
+    startDate: startDate.toLocaleDateString(),
+    endDate: endDate.toLocaleDateString(),
+    startTime: startDate.toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    }),
+    endTime: endDate.toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    }),
+    status:
+      history.length > 0
+        ? history[history.length - 1].status
+        : BookingStatusLabel.REQUESTED,
+  });
+
+  return updatedBookingObj as unknown as BookingFormDetails;
 };
 
 export const serverUpdateDataByCalendarEventId = async (

@@ -41,20 +41,7 @@
       }
       .info-table td:first-child {
         width: 150px;
-      }
-
-      .info-table > tbody > tr > td:first-child {
         background-color: #f9f9f9;
-        border-right: 1px solid #ddd;
-        border-bottom: 1px solid #ddd;
-      }
-
-      .info-table > tbody > tr > td:last-child {
-        border-bottom: 1px solid #ddd;
-      }
-
-      .info-table > tbody > tr:last-child > td {
-        border-bottom: none;
       }
 
       .value-content {
@@ -70,83 +57,123 @@
         color: #0066cc;
         text-decoration: none;
       }
+
+      .history-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 20px;
+      }
+
+      .history-table th,
+      .history-table td {
+        padding: 8px 12px;
+        border: 1px solid #ddd;
+        text-align: left;
+      }
+
+      .history-table th {
+        background-color: #f9f9f9;
+        font-weight: bold;
+      }
     </style>
   </head>
   <body>
     <div class="section">
       <p>{{ contents.headerMessage }}</p>
+      <div class="section-title">History</div>
+      <table class="history-table">
+        <thead>
+          <tr>
+            <th>Status</th>
+            <th>User</th>
+            <th>Date</th>
+            <th>Note</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{#each contents.history}}
+          <tr>
+            <td>{{this.status}}</td>
+            <td>{{this.user}}</td>
+            <td>{{this.date}}</td>
+            <td>{{this.note}}</td>
+          </tr>
+          {{/each}}
+        </tbody>
+      </table>
+
+      <div class="section-title">Request</div>
+      <table class="info-table">
+        <tr>
+          <td>Request#</td>
+          <td>{{ contents.requestNumber }}</td>
+        </tr>
+        <tr>
+          <td>Room(s)</td>
+          <td>{{ contents.roomId }}</td>
+        </tr>
+        <tr>
+          <td>Date</td>
+          <td>{{ contents.startDate }}</td>
+        </tr>
+        <tr>
+          <td>Time</td>
+          <td>{{ contents.startTime }} - {{ contents.endTime }}</td>
+        </tr>
+        <tr>
+          <td>Status</td>
+          <td>{{ contents.status }}</td>
+        </tr>
+        {{#if contents.origin}}
+        <tr>
+          <td>Origin</td>
+          <td>{{ contents.origin }}</td>
+        </tr>
+        {{/if}}
+      </table>
 
       <div class="section-title">Requestor</div>
       <table class="info-table">
         <tr>
-          <td>Request Number</td>
-          <td>
-            <div class="value-content">{{ contents.requestNumber }}</div>
-          </td>
-        </tr>
-        <tr></tr>
-        <tr>
-          <td>Rooms</td>
-          <td>
-            <div class="value-content">{{ contents.roomId }}</div>
-          </td>
-        </tr>
-        <tr></tr>
-        <tr>
-          <td>Start Date</td>
-          <td>
-            <div class="value-content">{{ startDate }}</div>
-          </td>
+          <td>NetID</td>
+          <td>{{ contents.netId }}</td>
         </tr>
         <tr>
-          <td>End Date</td>
-          <td>
-            <div class="value-content">{{ endDate }}</div>
-          </td>
+          <td>Name</td>
+          <td>{{ contents.firstName }} {{ contents.lastName }}</td>
         </tr>
         <tr>
-          <td>NetID / Name</td>
-          <td>
-            <div class="value-content">
-              {{ contents.netId }} <br />{{ contents.firstName }} {{
-              contents.lastName }}
-            </div>
-          </td>
-        </tr>
-         <tr></tr>
           <td>Department</td>
-          <td>
-            <div class="value-content">{{ contents.department }}</div>
-          </td>
+          <td>{{ contents.department }}</td>
         </tr>
         <tr>
-          <td>Contact Info</td>
-          <td>
-            <div class="value-content">
-              {{ contents.email }} <br />
-              {{ contents.phoneNumber }}
-            </div>
-          </td>
+          <td>Role</td>
+          <td>{{ contents.role }}</td>
         </tr>
         <tr>
-          <td>N-Number</td>
-          <td>{{ contents.nNumber }}</td>
+          <td>Email</td>
+          <td>{{ contents.email }}</td>
         </tr>
         <tr>
-          <td>Secondary Contact</td>
+          <td>Phone</td>
+          <td>{{ contents.phoneNumber }}</td>
+        </tr>
+        <tr>
+          <td>Secondary Contact Name</td>
           <td>{{ contents.secondaryName }}</td>
         </tr>
         <tr>
-          <td>Sponsor</td>
+          <td>Sponsor Name</td>
           <td>
-            {{ contents.sponsorEmail }}<br />
             {{ contents.sponsorFirstName }} {{ contents.sponsorLastName }}
           </td>
         </tr>
+        <tr>
+          <td>Sponsor Email</td>
+          <td>{{ contents.sponsorEmail }}</td>
+        </tr>
       </table>
-    </div>
 
-    <div class="section">
       <div class="section-title">Details</div>
       <table class="info-table">
         <tr>
@@ -170,39 +197,29 @@
           <td>{{ contents.attendeeAffiliation }}</td>
         </tr>
       </table>
-    </div>
 
-    <div class="section">
       <div class="section-title">Services</div>
       <table class="info-table">
         <tr>
           <td>Room Setup</td>
           <td>
-            <div class="value-content">
-              {{ contents.roomSetup }} {{#if contents.setupDetails}}<br />{{
-              contents.setupDetails }}{{/if}} {{#if
-              contents.chartFieldForRoomSetup}}<br />{{
-              contents.chartFieldForRoomSetup }}{{/if}}
-            </div>
+            {{ contents.setupDetails }} {{#if contents.chartFieldForRoomSetup}}
+            <br />{{ contents.chartFieldForRoomSetup }} {{/if}}
           </td>
         </tr>
         <tr>
-          <td>Media Services</td>
+          <td>Media Service</td>
           <td>
-            <div class="value-content">
-              {{contents.mediaServices}} {{#if
-              contents.mediaServicesDetails}}<br />{{contents.mediaServicesDetails}}{{/if}}
-            </div>
+            {{ contents.mediaServices }} {{#if contents.mediaServicesDetails}}
+            <br />{{ contents.mediaServicesDetails }} {{/if}}
           </td>
         </tr>
         <tr>
           <td>Catering</td>
           <td>
-            <div class="value-content">
-              {{contents.cateringService}} {{#if
-              contents.chartFieldForCatering}}<br />
-              {{contents.chartFieldForCatering}}{{/if}}
-            </div>
+            {{ contents.cateringService }} {{#if
+            contents.chartFieldForCatering}}
+            <br />{{ contents.chartFieldForCatering }} {{/if}}
           </td>
         </tr>
         <tr>
@@ -215,11 +232,13 @@
           </td>
         </tr>
       </table>
-      {{#if approvalUrl}}
-        <a href="{{ approvalUrl }}" target="_blank" class="button">
-          Open Booking Tool
-        </a> to approve or decline this request.
-      {{/if}}
     </div>
+
+    {{#if approvalUrl}}
+    <div class="footer">
+      <a href="{{ approvalUrl }}" target="_blank">Open Booking Tool</a> to
+      approve or decline this request.
+    </div>
+    {{/if}}
   </body>
 </html>
