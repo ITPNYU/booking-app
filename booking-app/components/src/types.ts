@@ -55,7 +55,7 @@ export type BookingStatus = {
   finalApprovedBy: string;
   declinedAt: Timestamp;
   declinedBy: string;
-  declineReason: string;
+  declineReason?: string;
   canceledAt: Timestamp;
   canceledBy: string;
   checkedInAt: Timestamp;

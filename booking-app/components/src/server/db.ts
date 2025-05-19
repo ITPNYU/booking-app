@@ -1,5 +1,6 @@
 import {
   Approver,
+  Booking,
   BookingFormDetails,
   BookingStatusLabel,
   Days,
@@ -446,21 +447,125 @@ export const noShow = async (id: string, email: string, netId: string) => {
     }
   );
 };
-export const clientBookingContents = (id: string) => {
-  return clientGetDataByCalendarEventId(TableNames.BOOKING, id)
-    .then((bookingObj) => {
-      const updatedBookingObj = Object.assign({}, bookingObj, {
-        headerMessage: "This is a request email for final approval.",
-        bookingToolUrl: getBookingToolDeployUrl(),
-      });
 
-      return updatedBookingObj as unknown as BookingFormDetails;
-    })
-    .catch((error) => {
-      console.error("Error fetching booking contents:", error);
-      throw error;
+const getBookingHistory = async (booking: Booking) => {
+  const history = [];
+
+  // Add initial request
+  if (booking.requestedAt) {
+    history.push({
+      status: BookingStatusLabel.REQUESTED,
+      user: booking.email,
+      date: booking.requestedAt.toDate().toLocaleString(),
+      note: "",
     });
+  }
+
+  // Add first approval
+  if (booking.firstApprovedAt) {
+    history.push({
+      status: BookingStatusLabel.PENDING,
+      user: booking.firstApprovedBy,
+      date: booking.firstApprovedAt.toDate().toLocaleString(),
+      note: "",
+    });
+  }
+
+  // Add final approval
+  if (booking.finalApprovedAt) {
+    history.push({
+      status: BookingStatusLabel.APPROVED,
+      user: booking.finalApprovedBy,
+      date: booking.finalApprovedAt.toDate().toLocaleString(),
+      note: "",
+    });
+  }
+
+  // Add decline
+  if (booking.declinedAt) {
+    history.push({
+      status: BookingStatusLabel.DECLINED,
+      user: booking.declinedBy,
+      date: booking.declinedAt.toDate().toLocaleString(),
+      note: booking.declineReason || "",
+    });
+  }
+
+  // Add cancel
+  if (booking.canceledAt) {
+    history.push({
+      status: BookingStatusLabel.CANCELED,
+      user: booking.canceledBy,
+      date: booking.canceledAt.toDate().toLocaleString(),
+      note: "",
+    });
+  }
+
+  // Add check in
+  if (booking.checkedInAt) {
+    history.push({
+      status: BookingStatusLabel.CHECKED_IN,
+      user: booking.checkedInBy,
+      date: booking.checkedInAt.toDate().toLocaleString(),
+      note: "",
+    });
+  }
+
+  // Add check out
+  if (booking.checkedOutAt) {
+    history.push({
+      status: BookingStatusLabel.CHECKED_OUT,
+      user: booking.checkedOutBy,
+      date: booking.checkedOutAt.toDate().toLocaleString(),
+      note: "",
+    });
+  }
+
+  // Add no show
+  if (booking.noShowedAt) {
+    history.push({
+      status: BookingStatusLabel.NO_SHOW,
+      user: booking.noShowedBy,
+      date: booking.noShowedAt.toDate().toLocaleString(),
+      note: "",
+    });
+  }
+
+  // Add walk in
+  if (booking.walkedInAt) {
+    history.push({
+      status: BookingStatusLabel.WALK_IN,
+      user: "PA",
+      date: booking.walkedInAt.toDate().toLocaleString(),
+      note: "",
+    });
+  }
+
+  // Sort by date
+  return history.sort(
+    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+  );
 };
+
+export const clientBookingContents = async (id: string) => {
+  const bookingObj = await clientGetDataByCalendarEventId<Booking>(
+    TableNames.BOOKING,
+    id
+  );
+  if (!bookingObj) {
+    throw new Error("Booking not found");
+  }
+  const history = await getBookingHistory(bookingObj);
+
+  const updatedBookingObj = Object.assign({}, bookingObj, {
+    headerMessage: "This is a request email for final approval.",
+    bookingToolUrl: getBookingToolDeployUrl(),
+    history: history,
+  });
+
+  return updatedBookingObj as unknown as BookingFormDetails;
+};
+
 export const clientSendBookingDetailEmail = async (
   calendarEventId: string,
   email: string,
