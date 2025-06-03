@@ -22,9 +22,8 @@ export default function useSortBookingHistory(booking: BookingRow) {
     const fetchLogs = async () => {
       const logs = await clientFetchAllDataFromCollection<BookingLog>(
         TableNames.BOOKING_LOGS,
-        [where("bookingId", "==", booking.id)]
+        [where("requestNumber", "==", booking.requestNumber)]
       );
-      console.log("logs",logs)
 
       if (logs.length > 0) {
         // Use bookingLogs data if available
@@ -40,7 +39,11 @@ export default function useSortBookingHistory(booking: BookingRow) {
                 {formatDateTable(log.changedAt.toDate())}{" "}
                 {formatTimeAmPm(log.changedAt.toDate())}
               </TableCell>
-              <TableCell>{log.note}</TableCell>
+              <TableCell>
+                {log.status === BookingStatusLabel.MODIFIED
+                  ? `Modified by ${log.changedBy}`
+                  : log.note}
+              </TableCell>
             </TableRow>
           ));
         setRows(sortedRows);
@@ -110,11 +113,10 @@ export default function useSortBookingHistory(booking: BookingRow) {
             time: booking.walkedInAt,
           });
         }
-
         const sortedRows = data
           .sort((a, b) => a.time.toMillis() - b.time.toMillis())
-          .map((row, i) => (
-            <TableRow key={i}>
+          .map((row, index) => (
+            <TableRow key={index}>
               <TableCell>
                 <StatusChip status={row.status} />
               </TableCell>
@@ -129,7 +131,6 @@ export default function useSortBookingHistory(booking: BookingRow) {
         setRows(sortedRows);
       }
     };
-
     fetchLogs();
   }, [booking]);
 

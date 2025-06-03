@@ -92,17 +92,21 @@ export const decline = async (id: string, email: string, reason?: string) => {
     declineReason: reason || null,
   });
 
-  const doc = await clientGetDataByCalendarEventId(TableNames.BOOKING, id);
+  const doc = await clientGetDataByCalendarEventId<{
+    id: string;
+    requestNumber: number;
+  }>(TableNames.BOOKING, id);
 
   // Log the decline action
   if (doc) {
-    await logClientBookingChange(
-      doc.id,
-      id,
-      BookingStatusLabel.DECLINED,
-      email,
-      reason
-    );
+    await logClientBookingChange({
+      bookingId: doc.id,
+      calendarEventId: id,
+      status: BookingStatusLabel.DECLINED,
+      changedBy: email,
+      requestNumber: doc.requestNumber,
+      note: reason,
+    });
   }
   //@ts-ignore
   const guestEmail = doc ? doc.email : null;
@@ -172,17 +176,21 @@ export const cancel = async (id: string, email: string, netId: string) => {
     canceledBy: email,
   });
 
-  const doc = await clientGetDataByCalendarEventId(TableNames.BOOKING, id);
+  const doc = await clientGetDataByCalendarEventId<{
+    id: string;
+    requestNumber: number;
+  }>(TableNames.BOOKING, id);
   checkAndLogLateCancellation(doc, id, netId);
 
   // Log the cancel action
   if (doc) {
-    await logClientBookingChange(
-      doc.id,
-      id,
-      BookingStatusLabel.CANCELED,
-      email
-    );
+    await logClientBookingChange({
+      bookingId: doc.id,
+      calendarEventId: id,
+      status: BookingStatusLabel.CANCELED,
+      changedBy: email,
+      requestNumber: doc.requestNumber,
+    });
   }
 
   //@ts-ignore
@@ -276,17 +284,22 @@ export const checkin = async (id: string, email: string) => {
     checkedInAt: Timestamp.now(),
     checkedInBy: email,
   });
-  const doc = await clientGetDataByCalendarEventId(TableNames.BOOKING, id);
+  const doc = await clientGetDataByCalendarEventId<{
+    id: string;
+    requestNumber: number;
+  }>(TableNames.BOOKING, id);
 
   console.log("check in doc", doc);
   // Log the check-in action
   if (doc) {
-    await logClientBookingChange(
-      doc.id,
-      id,
-      BookingStatusLabel.CHECKED_IN,
-      email
-    );
+    await logClientBookingChange({
+      bookingId: doc.id,
+      calendarEventId: id,
+      status: BookingStatusLabel.CHECKED_IN,
+      changedBy: email,
+      requestNumber: doc.requestNumber,
+      note: "",
+    });
   }
   //@ts-ignore
   const guestEmail = doc ? doc.email : null;
@@ -323,17 +336,21 @@ export const checkOut = async (id: string, email: string) => {
   clientUpdateDataByCalendarEventId(TableNames.BOOKING, id, {
     endDate: Timestamp.fromDate(checkoutDate),
   });
-  const doc = await clientGetDataByCalendarEventId(TableNames.BOOKING, id);
+  const doc = await clientGetDataByCalendarEventId<{
+    id: string;
+    requestNumber: number;
+  }>(TableNames.BOOKING, id);
   console.log("check out doc", doc);
 
   // Log the check-out action
   if (doc) {
-    await logClientBookingChange(
-      doc.id,
-      id,
-      BookingStatusLabel.CHECKED_OUT,
-      email
-    );
+    await logClientBookingChange({
+      bookingId: doc.id,
+      calendarEventId: id,
+      status: BookingStatusLabel.CHECKED_OUT,
+      changedBy: email,
+      requestNumber: doc.requestNumber,
+    });
   }
   //@ts-ignore
   const guestEmail = doc ? doc.email : null;
@@ -373,7 +390,10 @@ export const noShow = async (id: string, email: string, netId: string) => {
     noShowedBy: email,
   });
 
-  const doc = await clientGetDataByCalendarEventId(TableNames.BOOKING, id);
+  const doc = await clientGetDataByCalendarEventId<{
+    id: string;
+    requestNumber: number;
+  }>(TableNames.BOOKING, id);
 
   // Add to pre-ban logs
   const log = { netId, bookingId: id, noShowDate: Timestamp.now() };
@@ -381,7 +401,13 @@ export const noShow = async (id: string, email: string, netId: string) => {
 
   // Log the no-show action
   if (doc) {
-    await logClientBookingChange(doc.id, id, BookingStatusLabel.NO_SHOW, email);
+    await logClientBookingChange({
+      bookingId: doc.id,
+      calendarEventId: id,
+      status: BookingStatusLabel.NO_SHOW,
+      changedBy: email,
+      requestNumber: doc.requestNumber,
+    });
   }
 
   //@ts-ignore
@@ -480,31 +506,40 @@ export const clientApproveBooking = async (id: string, email: string) => {
   });
 };
 
-export interface BookingLog {
-  id: string;
+const logClientBookingChange = async ({
+  bookingId,
+  calendarEventId,
+  status,
+  changedBy,
+  requestNumber,
+  note,
+}: {
   bookingId: string;
-  calendarEventId?: string;
+  calendarEventId: string;
   status: BookingStatusLabel;
   changedBy: string;
-  changedAt: any;
-  note?: any;
-}
+  requestNumber: number;
+  note?: string;
+}) => {
+  const response = await fetch(
+    `${process.env.NEXT_PUBLIC_BASE_URL}/api/booking-logs`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        bookingId,
+        calendarEventId,
+        status,
+        changedBy,
+        requestNumber,
+        note: note ?? null,
+      }),
+    }
+  );
 
-export const logClientBookingChange = async (
-  bookingId: string,
-  calendarEventId: string,
-  status: BookingStatusLabel,
-  changedBy: string,
-  note?: string
-) => {
-  const logData: Omit<BookingLog, "id"> = {
-    bookingId,
-    calendarEventId,
-    status,
-    changedBy,
-    changedAt: Timestamp.now(),
-    note: note ?? null,
-  };
-
-  await clientSaveDataToFirestore(TableNames.BOOKING_LOGS, logData);
+  if (!response.ok) {
+    console.error("Failed to log booking change:", await response.text());
+  }
 };

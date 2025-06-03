@@ -77,6 +77,7 @@ export enum BookingStatusLabel {
   NO_SHOW = "NO-SHOW",
   PENDING = "PENDING",
   DECLINED = "DECLINED",
+  MODIFIED = "MODIFIED",
   REQUESTED = "REQUESTED",
   UNKNOWN = "UNKNOWN",
   WALK_IN = "WALK-IN",
