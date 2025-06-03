@@ -12,11 +12,11 @@ import {
   PaUser,
   PagePermission,
   PolicySettings,
+  PreBanLog,
   RoomSetting,
   SafetyTraining,
   Settings,
   UserApiData,
-  PreBanLog,
 } from "../../../types";
 
 import { useAuth } from "@/components/src/client/routes/components/AuthProvider";
@@ -25,7 +25,6 @@ import {
   fetchAllFutureBooking,
 } from "@/components/src/server/db";
 import { clientFetchAllDataFromCollection } from "@/lib/firebase/firebase";
-import { Timestamp } from "firebase-admin/firestore";
 
 export interface DatabaseContextType {
   adminUsers: AdminUser[];
@@ -83,22 +82,22 @@ export const DatabaseContext = createContext<DatabaseContextType>({
   netId: undefined,
   userApiData: undefined,
   loadMoreEnabled: true,
-  reloadAdminUsers: async () => { },
-  reloadApproverUsers: async () => { },
-  reloadBannedUsers: async () => { },
-  reloadFutureBookings: async () => { },
-  reloadDepartmentNames: async () => { },
-  reloadOperationHours: async () => { },
-  reloadPaUsers: async () => { },
-  reloadBookingTypes: async () => { },
-  reloadSafetyTrainedUsers: async () => { },
-  setUserEmail: (x: string) => { },
-  fetchAllBookings: async () => { },
-  setFilters: (x: Filters) => { },
-  setLoadMoreEnabled: (x: boolean) => { },
-  setLastItem: (x: any) => { },
+  reloadAdminUsers: async () => {},
+  reloadApproverUsers: async () => {},
+  reloadBannedUsers: async () => {},
+  reloadFutureBookings: async () => {},
+  reloadDepartmentNames: async () => {},
+  reloadOperationHours: async () => {},
+  reloadPaUsers: async () => {},
+  reloadBookingTypes: async () => {},
+  reloadSafetyTrainedUsers: async () => {},
+  setUserEmail: (x: string) => {},
+  fetchAllBookings: async () => {},
+  setFilters: (x: Filters) => {},
+  setLoadMoreEnabled: (x: boolean) => {},
+  setLastItem: (x: any) => {},
   preBanLogs: [],
-  reloadPreBanLogs: async () => { },
+  reloadPreBanLogs: async () => {},
 });
 
 export const DatabaseProvider = ({
@@ -131,7 +130,10 @@ export const DatabaseProvider = ({
     undefined
   );
   const [lastItem, setLastItem] = useState<any>(null);
-  const [filters, setFilters] = useState<Filters>({ dateRange: "", sortField: "startDate" });
+  const [filters, setFilters] = useState<Filters>({
+    dateRange: "",
+    sortField: "startDate",
+  });
   const LIMIT = 10;
 
   const { user } = useAuth();
@@ -225,11 +227,10 @@ export const DatabaseProvider = ({
 
   const fetchBookings = async (clicked = false): Promise<void> => {
     try {
-      
       if (filters.dateRange === "") {
         return Promise.resolve();
       }
-      
+
       const bookingsResponse: Booking[] = await fetchAllBookings(
         pagePermission,
         LIMIT,
@@ -454,13 +455,15 @@ export const DatabaseProvider = ({
 
   const fetchPreBanLogs = async () => {
     try {
-      const fetchedData = await clientFetchAllDataFromCollection(TableNames.PRE_BAN_LOGS);
+      const fetchedData = await clientFetchAllDataFromCollection(
+        TableNames.PRE_BAN_LOGS
+      );
       const logs = fetchedData.map((item: any) => ({
         id: item.id,
         bookingId: item.bookingId,
         netId: item.netId,
         lateCancelDate: item.lateCancelDate,
-        noShowDate: item.noShowDate
+        noShowDate: item.noShowDate,
       }));
       setPreBanLogs(logs);
     } catch (error) {

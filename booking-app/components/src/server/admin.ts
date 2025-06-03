@@ -110,15 +110,19 @@ export const serverApproveInstantBooking = async (
   email: string
 ) => {
   serverFirstApprove(id, "");
-  const doc = await serverGetDataByCalendarEventId(TableNames.BOOKING, id);
+  const doc = await serverGetDataByCalendarEventId<{
+    id: string;
+    requestNumber: number;
+  }>(TableNames.BOOKING, id);
   if (doc && id) {
-    await logServerBookingChange(
-      doc.id,
-      BookingStatusLabel.APPROVED,
-      email,
-      id,
-      ""
-    );
+    await logServerBookingChange({
+      bookingId: doc.id,
+      status: BookingStatusLabel.APPROVED,
+      changedBy: email,
+      requestNumber: doc.requestNumber,
+      calendarEventId: id,
+      note: "",
+    });
   }
   serverFinalApprove(id, "");
   serverApproveEvent(id);
@@ -147,14 +151,23 @@ const firstApprove = async (id: string, email: string) => {
   await serverFirstApprove(id, email);
 
   // Log the first approval action
-  const doc = await serverGetDataByCalendarEventId(TableNames.BOOKING, id);
+  const doc = await serverGetDataByCalendarEventId<{
+    id: string;
+    requestNumber: number;
+  }>(TableNames.BOOKING, id);
   if (!doc) {
     console.error("Booking document not found for calendar event id:", id);
     throw new Error("Booking document not found");
   }
 
   if (id) {
-    await logServerBookingChange(doc.id, BookingStatusLabel.PENDING, email, id);
+    await logServerBookingChange({
+      bookingId: doc.id,
+      status: BookingStatusLabel.PENDING,
+      changedBy: email,
+      requestNumber: doc.requestNumber,
+      calendarEventId: id,
+    });
   }
 
   const response = await fetch(
@@ -218,14 +231,19 @@ const finalApprove = async (id: string, email: string) => {
   serverFinalApprove(id, email);
 
   // Log the final approval action
-  const doc = await serverGetDataByCalendarEventId(TableNames.BOOKING, id);
+  const doc = await serverGetDataByCalendarEventId<{
+    id: string;
+    requestNumber: number;
+  }>(TableNames.BOOKING, id);
   if (doc && id) {
-    await logServerBookingChange(
-      doc.id,
-      BookingStatusLabel.APPROVED,
-      email,
-      id
-    );
+    await logServerBookingChange({
+      bookingId: doc.id,
+      status: BookingStatusLabel.APPROVED,
+      changedBy: email,
+      requestNumber: doc.requestNumber,
+      calendarEventId: id,
+      note: "",
+    });
   }
 
   await serverApproveEvent(id);

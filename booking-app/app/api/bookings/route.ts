@@ -252,13 +252,14 @@ export async function POST(request: NextRequest) {
       throw new Error("Failed to create booking document");
     }
 
-    await logServerBookingChange(
-      doc.id,
-      BookingStatusLabel.REQUESTED,
-      email,
-      calendarEventId,
-      "",
-    );
+    await logServerBookingChange({
+      bookingId: doc.id,
+      status: BookingStatusLabel.REQUESTED,
+      changedBy: email,
+      requestNumber: sequentialId,
+      calendarEventId: calendarEventId,
+      note: "",
+    });
 
     console.log(" Done handleBookingApprovalEmails");
 
@@ -319,13 +320,15 @@ export async function PUT(request: NextRequest) {
       data.title,
       bookingCalendarInfo,
     );
-    await logServerBookingChange(
-      existingContents.id,
-      BookingStatusLabel.REQUESTED,
-      email,
-      newCalendarEventId,
-      "MODIFIED",
-    );
+    // Add a new history entry for the modification
+    await logServerBookingChange({
+      bookingId: existingContents.id,
+      status: BookingStatusLabel.MODIFIED,
+      changedBy: data.modifiedBy || email,
+      requestNumber: existingContents.requestNumber,
+      calendarEventId: newCalendarEventId,
+      note: "Modified by " + (data.modifiedBy || email),
+    });
   } catch (err) {
     console.error(err);
     return NextResponse.json(
