@@ -19,6 +19,7 @@ import { Timestamp } from "firebase-admin/firestore";
 export async function POST(request: NextRequest) {
   const {
     email,
+    requestedBy,
     selectedRooms,
     bookingCalendarInfo,
     data,
@@ -88,14 +89,24 @@ export async function POST(request: NextRequest) {
     ...data,
   });
 
-  // Log the walk-in booking creation
+  // Log the walk-in/VIP booking creation
   if (calendarEventId) {
-    await logServerBookingChange(
-      doc.id,
-      BookingStatusLabel.WALK_IN,
-      email,
-      calendarEventId,
-    );
+    await logServerBookingChange({
+      bookingId: doc.id,
+      status: BookingStatusLabel.REQUESTED,
+      changedBy: requestedBy,
+      requestNumber: sequentialId,
+      calendarEventId: calendarEventId,
+      note: `${requestedBy} for ${email} as ${type} booking`,
+    });
+    await logServerBookingChange({
+      bookingId: doc.id,
+      status: BookingStatusLabel.APPROVED,
+      changedBy: requestedBy,
+      requestNumber: sequentialId,
+      calendarEventId: calendarEventId,
+      note: `${requestedBy} for ${email} as ${type} booking`,
+    });
   }
 
   const sendWalkInNofificationEmail = async (recipients: string[]) => {
