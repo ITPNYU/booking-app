@@ -1,6 +1,5 @@
 import { TableNames } from "@/components/src/policy";
-import { BookingLog } from "@/components/src/server/db";
-import { BookingRow, BookingStatusLabel } from "@/components/src/types";
+import { BookingLog, BookingRow, BookingStatusLabel } from "@/components/src/types";
 import { clientFetchAllDataFromCollection } from "@/lib/firebase/firebase";
 import { TableCell, TableRow } from "@mui/material";
 import { Timestamp, where } from "firebase/firestore";

@@ -304,3 +304,14 @@ export interface PreBanLog {
   lateCancelDate?: Timestamp;
   noShowDate?: Timestamp;
 }
+
+export interface BookingLog {
+  id: string;
+  bookingId: string;
+  calendarEventId?: string;
+  status: BookingStatusLabel;
+  changedBy: string;
+  changedAt: any;
+  note?: any;
+  requestNumber: number;
+}
