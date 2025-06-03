@@ -8,7 +8,6 @@ import {
   WhereFilterOp,
 } from "firebase-admin/firestore";
 
-import { BookingLog } from "@/components/src/server/db";
 import { BookingStatusLabel } from "@/components/src/types";
 import admin from "./firebaseAdmin";
 
@@ -165,13 +164,21 @@ export const serverGetFinalApproverEmail = async (): Promise<string> => {
   );
 };
 
-export const logServerBookingChange = async (
-  bookingId: string,
-  status: BookingStatusLabel,
-  changedBy: string,
-  calendarEventId?: string,
-  note?: string
-) => {
+export const logServerBookingChange = async ({
+  bookingId,
+  status,
+  changedBy,
+  requestNumber,
+  calendarEventId,
+  note,
+}: {
+  bookingId: string;
+  status: BookingStatusLabel;
+  changedBy: string;
+  requestNumber: number;
+  calendarEventId?: string;
+  note?: string;
+}) => {
   const logData: Omit<BookingLog, "id"> = {
     bookingId,
     calendarEventId,
@@ -179,6 +186,7 @@ export const logServerBookingChange = async (
     changedBy,
     changedAt: admin.firestore.Timestamp.now(),
     note: note ?? null,
+    requestNumber,
   };
 
   await serverSaveDataToFirestore(TableNames.BOOKING_LOGS, logData);

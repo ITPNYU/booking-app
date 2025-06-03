@@ -107,13 +107,14 @@ export async function GET(request: NextRequest) {
             .get();
           const bookingData = bookingDoc.data();
           if (bookingData && bookingData.calendarEventId) {
-            await logServerBookingChange(
+            await logServerBookingChange({
               bookingId,
-              BookingStatusLabel.CHECKED_OUT,
-              "system-auto-checkout",
-              bookingData.calendarEventId,
-              "Auto-checkout by system",
-            );
+              status: BookingStatusLabel.CHECKED_OUT,
+              changedBy: "system-auto-checkout",
+              requestNumber: bookingData.requestNumber,
+              calendarEventId: bookingData.calendarEventId,
+              note: "Auto-checkout by system",
+            });
           }
         } catch (error) {
           console.error(
