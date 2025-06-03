@@ -311,7 +311,7 @@ export interface BookingLog {
   calendarEventId?: string;
   status: BookingStatusLabel;
   changedBy: string;
-  changedAt: any;
+  changedAt: Timestamp;
   note?: any;
   requestNumber: number;
 }
