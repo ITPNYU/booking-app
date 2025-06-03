@@ -8,7 +8,7 @@ import {
   WhereFilterOp,
 } from "firebase-admin/firestore";
 
-import { BookingStatusLabel } from "@/components/src/types";
+import { BookingLog, BookingStatusLabel } from "@/components/src/types";
 import admin from "./firebaseAdmin";
 
 const db = admin.firestore();
