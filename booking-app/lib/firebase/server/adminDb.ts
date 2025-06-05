@@ -197,12 +197,11 @@ export const getBookingLogs = async (
 ): Promise<BookingLog[]> => {
   try {
     const logsRef = db.collection(TableNames.BOOKING_LOGS);
-    const q = logsRef
-      .where("requestNumber", "==", requestNumber)
-      .orderBy("changedAt", "asc");
+    const q = logsRef.where("requestNumber", "==", requestNumber);
 
     const querySnapshot = await q.get();
-    return querySnapshot.docs.map((doc) => {
+
+    const results = querySnapshot.docs.map((doc) => {
       const data = doc.data();
       return {
         id: doc.id,
@@ -215,6 +214,14 @@ export const getBookingLogs = async (
         requestNumber: data.requestNumber,
       } as BookingLog;
     });
+
+    // Sort by changedAt on the application side
+    results.sort((a, b) => {
+      if (!a.changedAt || !b.changedAt) return 0;
+      return a.changedAt.toMillis() - b.changedAt.toMillis();
+    });
+
+    return results;
   } catch (error) {
     console.error("Error fetching booking logs:", error);
     return [];

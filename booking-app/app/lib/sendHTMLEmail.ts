@@ -1,4 +1,7 @@
-import { serverFormatDate } from "@/components/src/client/utils/serverDate";
+import {
+  serverFormatDate,
+  serverFormatDateOnly,
+} from "@/components/src/client/utils/serverDate";
 import { MEDIA_COMMONS_EMAIL } from "@/components/src/mediaCommonsPolicy";
 import { admins } from "@/components/src/server/admin";
 import { getEmailBranchTag } from "@/components/src/server/emails";
@@ -94,14 +97,12 @@ export const sendHTMLEmail = async (params: SendHTMLEmailParams) => {
   // Register date formatting helper
   Handlebars.registerHelper("formatDate", function (timestamp) {
     if (!timestamp) return "";
-    const date = new Date(timestamp);
-    return date.toLocaleString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+    try {
+      return serverFormatDate(timestamp);
+    } catch (error) {
+      console.error("Error formatting date:", error);
+      return "Invalid Date";
+    }
   });
 
   const template = Handlebars.compile(templateSource);
@@ -109,15 +110,21 @@ export const sendHTMLEmail = async (params: SendHTMLEmailParams) => {
     ? getUrlPathByApproverType(contents.calendarEventId, approverType)
     : undefined;
 
+  // Update contents with formatted data for the template
+  const updatedContents = {
+    ...contents,
+    startDate: serverFormatDateOnly(contents.startDate),
+    endDate: serverFormatDateOnly(contents.endDate),
+    status: status,
+  };
+
   const htmlBody = template({
     eventTitle,
     status,
     body,
-    contents,
-    startDate: serverFormatDate(contents.startDate),
-    endDate: serverFormatDate(contents.endDate),
+    contents: updatedContents,
     approvalUrl,
-    bookingLogs, 
+    bookingLogs,
   });
 
   const messageParts = [
