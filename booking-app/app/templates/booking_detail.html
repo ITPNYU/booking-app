@@ -80,6 +80,7 @@
   <body>
     <div class="section">
       <p>{{ contents.headerMessage }}</p>
+      {{#if bookingLogs.length}}
       <div class="section-title">History</div>
       <table class="history-table">
         <thead>
@@ -91,16 +92,17 @@
           </tr>
         </thead>
         <tbody>
-          {{#each contents.history}}
+          {{#each bookingLogs}}
           <tr>
             <td>{{this.status}}</td>
-            <td>{{this.user}}</td>
-            <td>{{this.date}}</td>
+            <td>{{this.changedBy}}</td>
+            <td>{{formatDate this.changedAt}}</td>
             <td>{{this.note}}</td>
           </tr>
           {{/each}}
         </tbody>
       </table>
+      {{/if}}
 
       <div class="section-title">Request</div>
       <table class="info-table">
