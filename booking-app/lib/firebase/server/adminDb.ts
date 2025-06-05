@@ -191,3 +191,32 @@ export const logServerBookingChange = async ({
 
   await serverSaveDataToFirestore(TableNames.BOOKING_LOGS, logData);
 };
+
+export const getBookingLogs = async (
+  requestNumber: number
+): Promise<BookingLog[]> => {
+  try {
+    const logsRef = db.collection(TableNames.BOOKING_LOGS);
+    const q = logsRef
+      .where("requestNumber", "==", requestNumber)
+      .orderBy("changedAt", "asc");
+
+    const querySnapshot = await q.get();
+    return querySnapshot.docs.map((doc) => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        bookingId: data.bookingId,
+        calendarEventId: data.calendarEventId,
+        status: data.status as BookingStatusLabel,
+        changedBy: data.changedBy,
+        changedAt: data.changedAt,
+        note: data.note || null,
+        requestNumber: data.requestNumber,
+      } as BookingLog;
+    });
+  } catch (error) {
+    console.error("Error fetching booking logs:", error);
+    return [];
+  }
+};

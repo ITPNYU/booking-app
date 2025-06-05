@@ -3,6 +3,7 @@ import { MEDIA_COMMONS_EMAIL } from "@/components/src/mediaCommonsPolicy";
 import { admins } from "@/components/src/server/admin";
 import { getEmailBranchTag } from "@/components/src/server/emails";
 import { ApproverType } from "@/components/src/types";
+import { getBookingLogs } from "@/lib/firebase/server/adminDb";
 import { getGmailClient } from "@/lib/googleClient";
 import fs from "fs";
 import path from "path";
@@ -13,6 +14,7 @@ if (typeof window === "undefined") {
   // Import Handlebars
   Handlebars = require("handlebars");
 }
+
 interface BookingFormDetails {
   [key: string]: string;
 }
@@ -79,12 +81,29 @@ export const sendHTMLEmail = async (params: SendHTMLEmailParams) => {
     return `${process.env.NEXT_PUBLIC_BASE_URL}${path}?calendarEventId=${calendarEventId}`;
   };
 
+  // Get booking logs
+  const bookingLogs = await getBookingLogs(requestNumber);
+
   const templatePath = path.join(
     process.cwd(),
     "app/templates",
     `${templateName}.html`,
   );
   const templateSource = fs.readFileSync(templatePath, "utf8");
+
+  // Register date formatting helper
+  Handlebars.registerHelper("formatDate", function (timestamp) {
+    if (!timestamp) return "";
+    const date = new Date(timestamp);
+    return date.toLocaleString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  });
+
   const template = Handlebars.compile(templateSource);
   const approvalUrl = approverType
     ? getUrlPathByApproverType(contents.calendarEventId, approverType)
@@ -98,6 +117,7 @@ export const sendHTMLEmail = async (params: SendHTMLEmailParams) => {
     startDate: serverFormatDate(contents.startDate),
     endDate: serverFormatDate(contents.endDate),
     approvalUrl,
+    bookingLogs, 
   });
 
   const messageParts = [
