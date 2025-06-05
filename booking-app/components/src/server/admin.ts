@@ -9,13 +9,13 @@ import {
   serverUpdateInFirestore,
 } from "@/lib/firebase/server/adminDb";
 import { ApproverLevel, TableNames, getApprovalCcEmail } from "../policy";
-import { BookingLog } from "../server/db";
 import {
   AdminUser,
   Approver,
   ApproverType,
   Booking,
   BookingFormDetails,
+  BookingLog,
   BookingStatus,
   BookingStatusLabel,
   RoomSetting,
