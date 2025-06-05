@@ -224,6 +224,6 @@ export const getBookingLogs = async (
     return results;
   } catch (error) {
     console.error("Error fetching booking logs:", error);
-    return [];
+    throw error;
   }
 };
