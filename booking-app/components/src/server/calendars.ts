@@ -59,33 +59,129 @@ export const inviteUserToCalendarEvent = async (
 };
 
 const bookingContentsToDescription = (bookingContents: BookingFormDetails) => {
-  const listItem = (key: string, value: string) => `<li>${key}: ${value}</li>`;
-  let description = "<h3>Reservation Details</h3><ul>";
-  const items = [
-    listItem("Request #", bookingContents.requestNumber.toString()),
-    listItem("Title", bookingContents.title),
-    listItem("Description", bookingContents.description),
-    listItem("Expected Attendance", bookingContents.expectedAttendance),
-    listItem("Department", bookingContents.department),
-    bookingContents.roomSetup === "yes" &&
-      "**" + listItem("Room Setup", bookingContents.setupDetails) + "**",
-    bookingContents.mediaServices && bookingContents.mediaServices.length > 0
-      ? listItem("Media Services", bookingContents.mediaServices)
-      : "",
-    bookingContents.mediaServicesDetails.length > 0
-      ? listItem("Media Services Details", bookingContents.mediaServicesDetails)
-      : "",
-    bookingContents.catering === "yes" ||
-    bookingContents.cateringService.length > 0
-      ? listItem("Catering", bookingContents.cateringService)
-      : "",
-    bookingContents.hireSecurity === "yes"
-      ? listItem("Hire Security", bookingContents.hireSecurity)
-      : "",
-    "</ul><h3>Cancellation Policy</h3>",
-  ];
-  //@ts-ignore
-  description = description.concat(...items);
+  const listItem = (key: string, value: string) =>
+    `<li><strong>${key}:</strong> ${value || ""}</li>`;
+
+  let description = "";
+
+  // Helper function to safely get property value
+  const getProperty = (obj: any, key: string): string => {
+    return obj[key]?.toString() || "";
+  };
+
+  // Request Section
+  description += "<h3>Request</h3><ul>";
+  description += listItem(
+    "Request #",
+    getProperty(bookingContents, "requestNumber")
+  );
+  description += listItem("Room(s)", getProperty(bookingContents, "roomId"));
+  description += listItem("Date", getProperty(bookingContents, "startDate"));
+  description += listItem(
+    "Time",
+    `${getProperty(bookingContents, "startTime")} - ${getProperty(bookingContents, "endTime")}`
+  );
+  description += listItem("Status", getProperty(bookingContents, "status"));
+  description += "</ul>";
+
+  // Requester Section
+  description += "<h3>Requester</h3><ul>";
+  description += listItem("NetID", getProperty(bookingContents, "netId"));
+  description += listItem(
+    "Name",
+    `${getProperty(bookingContents, "firstName")} ${getProperty(bookingContents, "lastName")}`
+  );
+  description += listItem(
+    "Department",
+    getProperty(bookingContents, "department")
+  );
+  description += listItem("Role", getProperty(bookingContents, "role"));
+  description += listItem("Email", getProperty(bookingContents, "email"));
+  description += listItem("Phone", getProperty(bookingContents, "phoneNumber"));
+  description += listItem("N-Number", getProperty(bookingContents, "nNumber"));
+  description += listItem(
+    "Secondary Contact",
+    getProperty(bookingContents, "secondaryName")
+  );
+  description += listItem(
+    "Sponsor Name",
+    `${getProperty(bookingContents, "sponsorFirstName")} ${getProperty(bookingContents, "sponsorLastName")}`
+  );
+  description += listItem(
+    "Sponsor Email",
+    getProperty(bookingContents, "sponsorEmail")
+  );
+  description += "</ul>";
+
+  // Details Section
+  description += "<h3>Details</h3><ul>";
+  description += listItem("Title", getProperty(bookingContents, "title"));
+  description += listItem(
+    "Description",
+    getProperty(bookingContents, "description")
+  );
+  description += listItem(
+    "Booking Type",
+    getProperty(bookingContents, "bookingType")
+  );
+  description += listItem(
+    "Expected Attendance",
+    getProperty(bookingContents, "expectedAttendance")
+  );
+  description += listItem(
+    "Attendee Affiliation",
+    getProperty(bookingContents, "attendeeAffiliation")
+  );
+  description += "</ul>";
+
+  // Services Section
+  description += "<h3>Services</h3><ul>";
+  description += listItem(
+    "Room Setup",
+    getProperty(bookingContents, "setupDetails") ||
+      getProperty(bookingContents, "roomSetup")
+  );
+  if (getProperty(bookingContents, "chartFieldForRoomSetup")) {
+    description += listItem(
+      "Room Setup Chart Field",
+      getProperty(bookingContents, "chartFieldForRoomSetup")
+    );
+  }
+  description += listItem(
+    "Media Service",
+    getProperty(bookingContents, "mediaServices")
+  );
+  if (getProperty(bookingContents, "mediaServicesDetails")) {
+    description += listItem(
+      "Media Services Details",
+      getProperty(bookingContents, "mediaServicesDetails")
+    );
+  }
+  description += listItem(
+    "Catering",
+    getProperty(bookingContents, "cateringService") ||
+      getProperty(bookingContents, "catering")
+  );
+  if (getProperty(bookingContents, "chartFieldForCatering")) {
+    description += listItem(
+      "Catering Chart Field",
+      getProperty(bookingContents, "chartFieldForCatering")
+    );
+  }
+  description += listItem(
+    "Security",
+    getProperty(bookingContents, "hireSecurity")
+  );
+  if (getProperty(bookingContents, "chartFieldForSecurity")) {
+    description += listItem(
+      "Security Chart Field",
+      getProperty(bookingContents, "chartFieldForSecurity")
+    );
+  }
+  description += "</ul>";
+
+  description += "<h3>Cancellation Policy</h3>";
+
   return description;
 };
 
@@ -132,8 +228,13 @@ export const updateCalendarEvent = async (
     };
     statusPrefix?: BookingStatusLabel;
   },
-  bookingContents: BookingFormDetails
+  bookingContents?: BookingFormDetails
 ) => {
+  if (!bookingContents) {
+    console.error("No booking contents provided for calendar event update");
+    return;
+  }
+
   const roomCalendarIds = await serverGetRoomCalendarIds(
     typeof bookingContents.roomId == "string"
       ? parseInt(bookingContents.roomId, 10)
@@ -171,9 +272,7 @@ export const updateCalendarEvent = async (
         updatedValues["end"] = newValues.end;
       }
 
-      let description = bookingContents
-        ? bookingContentsToDescription(bookingContents)
-        : "";
+      let description = bookingContentsToDescription(bookingContents);
       description +=
         'To cancel reservations please return to the Booking Tool, visit My Bookings, and click "cancel" on the booking at least 24 hours before the date of the event. Failure to cancel an unused booking is considered a no-show and may result in restricted use of the space.';
       updatedValues["description"] = description;

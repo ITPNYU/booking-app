@@ -1,9 +1,9 @@
-import { FormContextLevel, Inputs, PagePermission } from "../../../../types";
 import { useCallback, useContext } from "react";
+import { FormContextLevel, Inputs, PagePermission } from "../../../../types";
 
-import { BookingContext } from "../bookingProvider";
-import { DatabaseContext } from "../../components/Provider";
 import { useRouter } from "next/navigation";
+import { DatabaseContext } from "../../components/Provider";
+import { BookingContext } from "../bookingProvider";
 import useCalculateOverlap from "./useCalculateOverlap";
 export default function useSubmitBooking(formContext: FormContextLevel) {
   const router = useRouter();
@@ -94,6 +94,7 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
                 calendarEventId,
                 isAutoApproval: true,
                 allRooms: roomSettings,
+                modifiedBy: userEmail,
               },
             };
           case FormContextLevel.WALK_IN:
@@ -101,6 +102,9 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
             return {
               endpoint: "/api/bookingsDirect",
               method: "POST",
+              body: {
+                requestedBy: userEmail,
+              },
             };
           default:
             return {
