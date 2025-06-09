@@ -1,7 +1,4 @@
-import {
-  serverFormatDate,
-  toFirebaseTimestampFromString,
-} from "@/components/src/client/utils/serverDate";
+import { toFirebaseTimestampFromString } from "@/components/src/client/utils/serverDate";
 import {
   firstApproverEmails,
   serverApproveInstantBooking,
@@ -87,14 +84,29 @@ async function handleBookingApprovalEmails(
         value instanceof Timestamp ? value.toDate().toISOString() : value,
       ]),
     );
+
+    // Format dates and times properly
+    const startDate = new Date(bookingCalendarInfo?.startStr);
+    const endDate = new Date(bookingCalendarInfo?.endStr);
+
     const emailPromises = recipients.map(recipient =>
       sendHTMLEmail({
         templateName: "booking_detail",
         contents: {
           ...otherContentsStrings,
           roomId: selectedRoomIds,
-          startDate: serverFormatDate(bookingCalendarInfo?.startStr),
-          endDate: serverFormatDate(bookingCalendarInfo?.endStr),
+          startDate: startDate.toLocaleDateString(),
+          endDate: endDate.toLocaleDateString(),
+          startTime: startDate.toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: true,
+          }),
+          endTime: endDate.toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: true,
+          }),
           requestNumber: contents.requestNumber + "",
         },
         targetEmail: recipient,
@@ -238,6 +250,20 @@ export async function POST(request: NextRequest) {
       ...data,
     });
 
+    if (!doc || !doc.id) {
+      throw new Error("Failed to create booking document");
+    }
+
+    // Create initial booking log entry before sending email so it appears in History
+    await logServerBookingChange({
+      bookingId: doc.id,
+      status: BookingStatusLabel.REQUESTED,
+      changedBy: email,
+      requestNumber: sequentialId,
+      calendarEventId: calendarEventId,
+      note: "",
+    });
+
     await handleBookingApprovalEmails(
       isAutoApproval,
       calendarEventId,
@@ -247,19 +273,6 @@ export async function POST(request: NextRequest) {
       bookingCalendarInfo,
       email,
     );
-
-    if (!doc || !doc.id) {
-      throw new Error("Failed to create booking document");
-    }
-
-    await logServerBookingChange({
-      bookingId: doc.id,
-      status: BookingStatusLabel.REQUESTED,
-      changedBy: email,
-      requestNumber: sequentialId,
-      calendarEventId: calendarEventId,
-      note: "",
-    });
 
     console.log(" Done handleBookingApprovalEmails");
 

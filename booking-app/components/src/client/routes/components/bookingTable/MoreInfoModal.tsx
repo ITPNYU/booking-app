@@ -72,7 +72,7 @@ const AlertHeader = styled(Alert)(({ theme }) => ({
   },
 }));
 
-const BLANK = "";
+const BLANK = "none";
 
 export default function MoreInfoModal({ booking, closeModal }: Props) {
   const historyRows = useSortBookingHistory(booking);
@@ -122,7 +122,7 @@ export default function MoreInfoModal({ booking, closeModal }: Props) {
             <Table size="small" sx={{ marginBottom: 3 }}>
               <TableBody>
                 <TableRow>
-                  <LabelCell>Request#</LabelCell>
+                  <LabelCell>Request #</LabelCell>
                   <TableCell>{booking.requestNumber ?? BLANK}</TableCell>
                 </TableRow>
                 <TableRow>
@@ -158,7 +158,7 @@ export default function MoreInfoModal({ booking, closeModal }: Props) {
               </TableBody>
             </Table>
 
-            <SectionTitle>Requestor</SectionTitle>
+            <SectionTitle>Requester</SectionTitle>
             <Table size="small" sx={{ marginBottom: 3 }}>
               <TableBody>
                 <TableRow>
@@ -238,35 +238,45 @@ export default function MoreInfoModal({ booking, closeModal }: Props) {
                 <TableRow>
                   <LabelCell>Room Setup</LabelCell>
                   <StackedTableCell
-                    topText={booking.setupDetails || BLANK}
-                    bottomText={booking.chartFieldForRoomSetup}
+                    topText={
+                      booking.setupDetails ||
+                      (booking.roomSetup === "no"
+                        ? "none"
+                        : booking.roomSetup || "none")
+                    }
+                    bottomText={booking.chartFieldForRoomSetup || "none"}
                   />
                 </TableRow>
                 <TableRow>
                   <LabelCell>Media Service</LabelCell>
                   <TableCell>
                     {booking.mediaServices == undefined
-                      ? BLANK
+                      ? "none"
                       : booking.mediaServices
                           .split(", ")
                           .map((service) => (
                             <p key={service}>{service.trim()}</p>
                           ))}
-                    <p>{booking.mediaServicesDetails}</p>
+                    <p>{booking.mediaServicesDetails || "none"}</p>
                   </TableCell>
                 </TableRow>
                 <TableRow>
                   <LabelCell>Catering</LabelCell>
                   <StackedTableCell
-                    topText={booking.cateringService || BLANK}
-                    bottomText={booking.chartFieldForCatering}
+                    topText={
+                      booking.cateringService ||
+                      (booking.catering === "no"
+                        ? "none"
+                        : booking.catering || "none")
+                    }
+                    bottomText={booking.chartFieldForCatering || "none"}
                   />
                 </TableRow>
                 <TableRow>
                   <LabelCell>Security</LabelCell>
                   <StackedTableCell
-                    topText={booking.hireSecurity === "yes" ? "Yes" : BLANK}
-                    bottomText={booking.chartFieldForSecurity}
+                    topText={booking.hireSecurity === "yes" ? "Yes" : "none"}
+                    bottomText={booking.chartFieldForSecurity || "none"}
                   />
                 </TableRow>
               </TableBody>
