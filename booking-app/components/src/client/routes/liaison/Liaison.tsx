@@ -19,7 +19,8 @@ const Liaison = ({ calendarEventId }) => {
 
   const userHasPermission =
     pagePermission === PagePermission.ADMIN ||
-    pagePermission === PagePermission.LIAISON;
+    pagePermission === PagePermission.LIAISON ||
+    pagePermission === PagePermission.SUPER_ADMIN;
 
   if (liaisonEmails.length === 0 || userEmail === null) {
     return <CenterLoading />;

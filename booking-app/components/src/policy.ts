@@ -17,6 +17,7 @@ export enum TableNames {
   SETTINGS = "settings",
   PRE_BAN_LOGS = "preBanLogs",
   BOOKING_LOGS = "bookingLogs",
+  SUPER_ADMINS = "usersSuperAdmin",
 }
 
 export const CALENDAR_HIDE_STATUS = [
