@@ -8,6 +8,7 @@ import {
   WhereFilterOp,
 } from "firebase-admin/firestore";
 
+import { BookingLog, BookingStatusLabel } from "@/components/src/types";
 import admin from "./firebaseAdmin";
 
 const db = admin.firestore();
@@ -65,8 +66,10 @@ export const serverSaveDataToFirestore = async (
   try {
     const docRef = await db.collection(collectionName).add(data);
     console.log("Document successfully written with ID:", docRef.id);
+    return docRef;
   } catch (error) {
     console.error("Error writing document: ", error);
+    throw error;
   }
 };
 
@@ -159,4 +162,68 @@ export const serverGetFinalApproverEmail = async (): Promise<string> => {
   return (
     finalApproverEmail || "booking-app-devs+notFoundFinalApprover@itp.nyu.edu"
   );
+};
+
+export const logServerBookingChange = async ({
+  bookingId,
+  status,
+  changedBy,
+  requestNumber,
+  calendarEventId,
+  note,
+}: {
+  bookingId: string;
+  status: BookingStatusLabel;
+  changedBy: string;
+  requestNumber: number;
+  calendarEventId?: string;
+  note?: string;
+}) => {
+  const logData: Omit<BookingLog, "id"> = {
+    bookingId,
+    calendarEventId,
+    status,
+    changedBy,
+    changedAt: admin.firestore.Timestamp.now(),
+    note: note ?? null,
+    requestNumber,
+  };
+
+  await serverSaveDataToFirestore(TableNames.BOOKING_LOGS, logData);
+};
+
+export const getBookingLogs = async (
+  requestNumber: number
+): Promise<BookingLog[]> => {
+  try {
+    const logsRef = db.collection(TableNames.BOOKING_LOGS);
+    const q = logsRef.where("requestNumber", "==", requestNumber);
+
+    const querySnapshot = await q.get();
+
+    const results = querySnapshot.docs.map((doc) => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        bookingId: data.bookingId,
+        calendarEventId: data.calendarEventId,
+        status: data.status as BookingStatusLabel,
+        changedBy: data.changedBy,
+        changedAt: data.changedAt,
+        note: data.note || null,
+        requestNumber: data.requestNumber,
+      } as BookingLog;
+    });
+
+    // Sort by changedAt on the application side
+    results.sort((a, b) => {
+      if (!a.changedAt || !b.changedAt) return 0;
+      return a.changedAt.toMillis() - b.changedAt.toMillis();
+    });
+
+    return results;
+  } catch (error) {
+    console.error("Error fetching booking logs:", error);
+    throw error;
+  }
 };

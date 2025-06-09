@@ -1,8 +1,12 @@
-import { serverFormatDate } from "@/components/src/client/utils/serverDate";
+import {
+  serverFormatDate,
+  serverFormatDateOnly,
+} from "@/components/src/client/utils/serverDate";
 import { MEDIA_COMMONS_EMAIL } from "@/components/src/mediaCommonsPolicy";
 import { admins } from "@/components/src/server/admin";
 import { getEmailBranchTag } from "@/components/src/server/emails";
 import { ApproverType } from "@/components/src/types";
+import { getBookingLogs } from "@/lib/firebase/server/adminDb";
 import { getGmailClient } from "@/lib/googleClient";
 import fs from "fs";
 import path from "path";
@@ -13,6 +17,7 @@ if (typeof window === "undefined") {
   // Import Handlebars
   Handlebars = require("handlebars");
 }
+
 interface BookingFormDetails {
   [key: string]: string;
 }
@@ -79,25 +84,47 @@ export const sendHTMLEmail = async (params: SendHTMLEmailParams) => {
     return `${process.env.NEXT_PUBLIC_BASE_URL}${path}?calendarEventId=${calendarEventId}`;
   };
 
+  // Get booking logs
+  const bookingLogs = await getBookingLogs(requestNumber);
+
   const templatePath = path.join(
     process.cwd(),
     "app/templates",
     `${templateName}.html`,
   );
   const templateSource = fs.readFileSync(templatePath, "utf8");
+
+  // Register date formatting helper
+  Handlebars.registerHelper("formatDate", function (timestamp) {
+    if (!timestamp) return "";
+    try {
+      return serverFormatDate(timestamp);
+    } catch (error) {
+      console.error("Error formatting date:", error);
+      return "Invalid Date";
+    }
+  });
+
   const template = Handlebars.compile(templateSource);
   const approvalUrl = approverType
     ? getUrlPathByApproverType(contents.calendarEventId, approverType)
     : undefined;
 
+  // Update contents with formatted data for the template
+  const updatedContents = {
+    ...contents,
+    startDate: serverFormatDateOnly(contents.startDate),
+    endDate: serverFormatDateOnly(contents.endDate),
+    status: status,
+  };
+
   const htmlBody = template({
     eventTitle,
     status,
     body,
-    contents,
-    startDate: serverFormatDate(contents.startDate),
-    endDate: serverFormatDate(contents.endDate),
+    contents: updatedContents,
     approvalUrl,
+    bookingLogs,
   });
 
   const messageParts = [

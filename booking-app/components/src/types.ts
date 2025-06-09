@@ -37,10 +37,12 @@ export type Booking = Inputs &
 // used for Booking table rows that show status
 export type BookingRow = Booking & {
   status: BookingStatusLabel;
+  id: string;
 };
 
 export type BookingFormDetails = Booking & {
   headerMessage?: string;
+  id?: string;
 };
 
 export type BookingStatus = {
@@ -53,7 +55,7 @@ export type BookingStatus = {
   finalApprovedBy: string;
   declinedAt: Timestamp;
   declinedBy: string;
-  declineReason: string;
+  declineReason?: string;
   canceledAt: Timestamp;
   canceledBy: string;
   checkedInAt: Timestamp;
@@ -75,6 +77,7 @@ export enum BookingStatusLabel {
   NO_SHOW = "NO-SHOW",
   PENDING = "PENDING",
   DECLINED = "DECLINED",
+  MODIFIED = "MODIFIED",
   REQUESTED = "REQUESTED",
   UNKNOWN = "UNKNOWN",
   WALK_IN = "WALK-IN",
@@ -300,4 +303,15 @@ export interface PreBanLog {
   netId: string;
   lateCancelDate?: Timestamp;
   noShowDate?: Timestamp;
+}
+
+export interface BookingLog {
+  id: string;
+  bookingId: string;
+  calendarEventId?: string;
+  status: BookingStatusLabel;
+  changedBy: string;
+  changedAt: any;
+  note?: any;
+  requestNumber: number;
 }

@@ -1,8 +1,8 @@
-import React, { useMemo } from "react";
 import { Tooltip, styled } from "@mui/material";
+import { useMemo } from "react";
 
-import { BookingStatusLabel } from "../../../../types";
 import Chip from "@mui/material/Chip";
+import { BookingStatusLabel } from "../../../../types";
 
 interface Props {
   allowTooltip?: boolean;
@@ -31,6 +31,8 @@ export default function StatusChip({
     switch (status) {
       case BookingStatusLabel.APPROVED:
         return "rgba(72, 196, 77, 1)";
+      case BookingStatusLabel.MODIFIED:
+        return "rgba(255, 122, 26, 1)";
       case BookingStatusLabel.CANCELED:
         return "rgba(85,94,97,1)";
       case BookingStatusLabel.CHECKED_IN:
@@ -57,6 +59,8 @@ export default function StatusChip({
     switch (status) {
       case BookingStatusLabel.APPROVED:
         return "rgba(72, 196, 77, 0.11)";
+      case BookingStatusLabel.MODIFIED:
+        return "rgba(255, 122, 26, 0.11)";
       case BookingStatusLabel.CANCELED:
         return "rgba(47,47,46,0.11)";
       case BookingStatusLabel.CHECKED_IN:
@@ -80,6 +84,8 @@ export default function StatusChip({
     switch (status) {
       case BookingStatusLabel.APPROVED:
         return "Approved";
+      case BookingStatusLabel.MODIFIED:
+        return "Modified";
       case BookingStatusLabel.CANCELED:
         return "Canceled";
       case BookingStatusLabel.CHECKED_IN:

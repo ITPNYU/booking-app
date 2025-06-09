@@ -17,6 +17,7 @@ import {
   RoomSetting,
 } from "@/components/src/types";
 import {
+  logServerBookingChange,
   serverGetNextSequentialId,
   serverSaveDataToFirestore,
 } from "@/lib/firebase/server/adminDb";
@@ -110,7 +111,7 @@ async function handleBookingApprovalEmails(
 
   console.log("approval email calendarEventId", calendarEventId);
   if (calendarEventId && shouldAutoApprove) {
-    serverApproveInstantBooking(calendarEventId);
+    serverApproveInstantBooking(calendarEventId, email);
   } else {
     const userEventInputs: BookingFormDetails = {
       ...data,
@@ -166,7 +167,11 @@ async function checkOverlap(
       const requestStart = new Date(bookingCalendarInfo.startStr);
       const requestEnd = new Date(bookingCalendarInfo.endStr);
       //log the event that overlaps and then return
-      if(eventStart >= requestStart && eventStart < requestEnd || eventEnd > requestStart && eventEnd <= requestEnd || eventStart <= requestStart && eventEnd >= requestEnd) {
+      if (
+        (eventStart >= requestStart && eventStart < requestEnd) ||
+        (eventEnd > requestStart && eventEnd <= requestEnd) ||
+        (eventStart <= requestStart && eventEnd >= requestEnd)
+      ) {
         console.log("event that overlaps", event);
       }
       return (
@@ -219,33 +224,56 @@ export async function POST(request: NextRequest) {
   console.log(" Done serverGetNextSequentialId ");
   console.log("calendarEventId", calendarEventId);
 
-  await serverSaveDataToFirestore(TableNames.BOOKING, {
-    calendarEventId,
-    roomId: selectedRoomIds,
-    email,
-    startDate: toFirebaseTimestampFromString(bookingCalendarInfo.startStr),
-    endDate: toFirebaseTimestampFromString(bookingCalendarInfo.endStr),
-    requestNumber: sequentialId,
-    equipmentCheckedOut: false,
-    requestedAt: Timestamp.now(),
-    ...data,
-  });
+  let doc;
+  try {
+    doc = await serverSaveDataToFirestore(TableNames.BOOKING, {
+      calendarEventId,
+      roomId: selectedRoomIds,
+      email,
+      startDate: toFirebaseTimestampFromString(bookingCalendarInfo.startStr),
+      endDate: toFirebaseTimestampFromString(bookingCalendarInfo.endStr),
+      requestNumber: sequentialId,
+      equipmentCheckedOut: false,
+      requestedAt: Timestamp.now(),
+      ...data,
+    });
 
-  await handleBookingApprovalEmails(
-    isAutoApproval,
-    calendarEventId,
-    sequentialId,
-    data,
-    selectedRoomIds,
-    bookingCalendarInfo,
-    email,
-  );
-  console.log(" Done handleBookingApprovalEmails");
+    await handleBookingApprovalEmails(
+      isAutoApproval,
+      calendarEventId,
+      sequentialId,
+      data,
+      selectedRoomIds,
+      bookingCalendarInfo,
+      email,
+    );
 
-  return NextResponse.json(
-    { result: "success", calendarEventId },
-    { status: 200 },
-  );
+    if (!doc || !doc.id) {
+      throw new Error("Failed to create booking document");
+    }
+
+    await logServerBookingChange({
+      bookingId: doc.id,
+      status: BookingStatusLabel.REQUESTED,
+      changedBy: email,
+      requestNumber: sequentialId,
+      calendarEventId: calendarEventId,
+      note: "",
+    });
+
+    console.log(" Done handleBookingApprovalEmails");
+
+    return NextResponse.json(
+      { result: "success", calendarEventId },
+      { status: 200 },
+    );
+  } catch (error) {
+    console.error("Error creating booking:", error);
+    return NextResponse.json(
+      { result: "error", message: "Failed to create booking" },
+      { status: 500 },
+    );
+  }
 }
 
 export async function PUT(request: NextRequest) {
@@ -292,6 +320,15 @@ export async function PUT(request: NextRequest) {
       data.title,
       bookingCalendarInfo,
     );
+    // Add a new history entry for the modification
+    await logServerBookingChange({
+      bookingId: existingContents.id,
+      status: BookingStatusLabel.MODIFIED,
+      changedBy: data.modifiedBy || email,
+      requestNumber: existingContents.requestNumber,
+      calendarEventId: newCalendarEventId,
+      note: "Modified by " + (data.modifiedBy || email),
+    });
   } catch (err) {
     console.error(err);
     return NextResponse.json(

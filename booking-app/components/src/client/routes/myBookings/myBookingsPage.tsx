@@ -1,10 +1,9 @@
 import { Box, Typography } from "@mui/material";
 
-import { Bookings } from "../components/bookingTable/Bookings";
 import { PageContextLevel } from "@/components/src/types";
-import React from "react";
 import { styled } from "@mui/system";
 import { useTenantSchema } from "../components/SchemaProvider";
+import { Bookings } from "../components/bookingTable/Bookings";
 
 const Center = styled(Box)`
   display: flex;

@@ -342,9 +342,14 @@ export default function FormInput({
     return handleSubmit(onSubmit)(e);
   };
 
+  const prefix = isVIP ? "VIP" : isWalkIn ? "Walk-In" : "";
+  const formatSectionTitle = (title: string) => {
+    return `${prefix} ${title}`.trim();
+  };
+
   const fullFormFields = (
     <>
-      <Section title="Contact Information">
+      <Section title={formatSectionTitle("Contact Information")}>
         <BookingFormTextField
           id="firstName"
           label="First Name"
@@ -433,7 +438,7 @@ export default function FormInput({
         </Section>
       )}
 
-      <Section title="Reservation Details">
+      <Section title={formatSectionTitle("Reservation Details")}>
         <BookingFormTextField
           id="title"
           label="Reservation Title"
@@ -484,7 +489,7 @@ export default function FormInput({
         />
       </Section>
 
-      <Section title="Services">
+      <Section title={formatSectionTitle("Services")}>
         {!isWalkIn && (
           <div style={{ marginBottom: 32 }}>
             <BookingFormSwitch

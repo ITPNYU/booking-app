@@ -4,7 +4,12 @@ import type { NextRequest } from "next/server";
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Skip if already starts with /mc
+  // Handle auth paths
+  if (pathname.startsWith('/__/auth/')) {
+    return NextResponse.next();
+  }
+
+  // Skip if already starts with /mc or /itp
   if (pathname.startsWith("/mc") || pathname.startsWith("/itp")) {
     return NextResponse.next();
   }
@@ -24,5 +29,8 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  matcher: [
+    '/__/auth/:path*',
+    '/((?!_next/static|_next/image|favicon.ico).*)'
+  ],
 };
