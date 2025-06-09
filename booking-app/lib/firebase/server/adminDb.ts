@@ -102,7 +102,7 @@ export const serverFetchAllDataFromCollection = async <T extends DocumentData>(
 };
 
 export const serverGetDataByCalendarEventId = async <T>(
-  collectionName: TableNames,
+  collectionName: TableNames | string,
   calendarEventId: string
 ) => {
   try {

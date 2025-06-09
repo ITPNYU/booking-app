@@ -57,6 +57,7 @@ export interface DatabaseContextType {
   setUserEmail: (x: string) => void;
   fetchAllBookings: (clicked: boolean) => Promise<void>;
   setFilters: (x: Filters) => void;
+  setCollection: (x: string) => void;
   setLoadMoreEnabled: (x: boolean) => void;
   setLastItem: (x: any) => void;
   preBanLogs: PreBanLog[];
@@ -94,6 +95,7 @@ export const DatabaseContext = createContext<DatabaseContextType>({
   setUserEmail: (x: string) => {},
   fetchAllBookings: async () => {},
   setFilters: (x: Filters) => {},
+  setCollection: (x: string) => {},
   setLoadMoreEnabled: (x: boolean) => {},
   setLastItem: (x: any) => {},
   preBanLogs: [],
@@ -106,6 +108,7 @@ export const DatabaseProvider = ({
   children: React.ReactNode;
 }) => {
   const [bannedUsers, setBannedUsers] = useState<Ban[]>([]);
+  const [collection, setCollection] = useState<string>("");
   // const [futureBookings, setFutureBookings] = useState<Booking[]>([]);
   const [bookingsLoading, setBookingsLoading] = useState<boolean>(true);
   const [allBookings, setAllBookings] = useState<Booking[]>([]);
@@ -201,8 +204,8 @@ export const DatabaseProvider = ({
   }, [bookingsLoading, user]);
 
   useEffect(() => {
-    fetchBookings();
-  }, [filters]);
+    fetchBookings(false);
+  }, [filters, collection]);
 
   useEffect(() => {
     fetchActiveUserEmail();
@@ -217,7 +220,7 @@ export const DatabaseProvider = ({
   };
 
   const fetchFutureBookings = async () => {
-    fetchAllFutureBooking()
+    fetchAllFutureBooking(collection)
       .then((fetchedData) => {
         // setFutureBookings(fetchedData as Booking[]);
         setBookingsLoading(false);
@@ -235,7 +238,8 @@ export const DatabaseProvider = ({
         pagePermission,
         LIMIT,
         filters,
-        lastItem
+        lastItem,
+        collection
       );
 
       if (clicked && bookingsResponse.length === 0) {
@@ -504,6 +508,7 @@ export const DatabaseProvider = ({
         setUserEmail,
         fetchAllBookings: fetchBookings,
         setFilters: setFilters,
+        setCollection: setCollection,
         setLoadMoreEnabled,
         setLastItem,
         preBanLogs,

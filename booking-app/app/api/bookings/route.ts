@@ -72,7 +72,8 @@ async function handleBookingApprovalEmails(
   selectedRoomIds: string,
   bookingCalendarInfo: DateSelectArg,
   email: string,
-) {
+  collection: string,
+  ) {
   const shouldAutoApprove = isAutoApproval === true;
   const firstApprovers = await firstApproverEmails(data.department);
 
@@ -111,7 +112,7 @@ async function handleBookingApprovalEmails(
 
   console.log("approval email calendarEventId", calendarEventId);
   if (calendarEventId && shouldAutoApprove) {
-    serverApproveInstantBooking(calendarEventId, email);
+    serverApproveInstantBooking(calendarEventId, email, collection);
   } else {
     const userEventInputs: BookingFormDetails = {
       ...data,
@@ -188,8 +189,15 @@ async function checkOverlap(
 }
 
 export async function POST(request: NextRequest) {
-  const { email, selectedRooms, bookingCalendarInfo, data, isAutoApproval } =
-    await request.json();
+  const {
+    email,
+    selectedRooms,
+    bookingCalendarInfo,
+    data,
+    isAutoApproval,
+    collection,
+  } = await request.json();
+
   const hasOverlap = await checkOverlap(selectedRooms, bookingCalendarInfo);
   if (hasOverlap) {
     return NextResponse.json(
@@ -226,7 +234,7 @@ export async function POST(request: NextRequest) {
 
   let doc;
   try {
-    doc = await serverSaveDataToFirestore(TableNames.BOOKING, {
+    doc = await serverSaveDataToFirestore(collection, {
       calendarEventId,
       roomId: selectedRoomIds,
       email,
@@ -246,6 +254,7 @@ export async function POST(request: NextRequest) {
       selectedRoomIds,
       bookingCalendarInfo,
       email,
+      collection,
     );
 
     if (!doc || !doc.id) {
@@ -285,6 +294,7 @@ export async function PUT(request: NextRequest) {
     data,
     isAutoApproval,
     calendarEventId,
+    collection,
   } = await request.json();
   // TODO verify that they actually changed something
   if (bookingCalendarInfo == null) {
@@ -294,7 +304,7 @@ export async function PUT(request: NextRequest) {
     );
   }
 
-  const existingContents = await serverBookingContents(calendarEventId);
+  const existingContents = await serverBookingContents(calendarEventId, collection);
   const oldRoomIds = existingContents.roomId.split(",").map(x => x.trim());
   const oldRooms = allRooms.filter((room: RoomSetting) =>
     oldRoomIds.includes(room.roomId + ""),
@@ -377,6 +387,7 @@ export async function PUT(request: NextRequest) {
     selectedRoomIds,
     bookingCalendarInfo,
     email,
+    collection,
   );
 
   return NextResponse.json({ result: "success" }, { status: 200 });

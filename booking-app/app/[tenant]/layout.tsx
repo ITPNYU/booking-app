@@ -21,6 +21,7 @@ export const schema: Record<string, SchemaContextType> = {
   mc: {
     name: "Media Commons",
     logo: SVGLOGO,
+    collection: "bookings",
     nameForPolicy: "370J Media Commons",
     policy: `
     <p style="font-weight: 700; font-size: 1rem; line-height: 1.5; margin-top: 24px;">
@@ -188,6 +189,7 @@ export const schema: Record<string, SchemaContextType> = {
   },
   itp: {
     name: "ITP",
+    collection: "bookings-itp",
     logo: SVGLOGO,
     nameForPolicy: "ITP",
     policy: "<p>ITP Policy</p>",

@@ -5,7 +5,10 @@ import { useRouter } from "next/navigation";
 import { DatabaseContext } from "../../components/Provider";
 import { BookingContext } from "../bookingProvider";
 import useCalculateOverlap from "./useCalculateOverlap";
+import { useTenantSchema } from "../../components/SchemaProvider";
+
 export default function useSubmitBooking(formContext: FormContextLevel) {
+  const { collection } = useTenantSchema();
   const router = useRouter();
   const {
     liaisonUsers,
@@ -128,6 +131,7 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
           liaisonUsers,
           data,
           isAutoApproval,
+          collection,
           ...(requestParams.body ?? {}),
         }),
       })
