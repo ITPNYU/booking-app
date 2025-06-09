@@ -214,6 +214,8 @@ export const Bookings: React.FC<BookingsProps> = ({
         headerName: "Room(s)",
         minWidth: 100,
         flex: 1,
+        // !!! CHECK THIS !!!
+        // Abstract out Room(s)
         renderHeader: () => <TableCell>Room(s)</TableCell>,
         renderCell: (params) => (
           <TableCell sx={{ maxWidth: "150px" }}>{params.row.roomId}</TableCell>

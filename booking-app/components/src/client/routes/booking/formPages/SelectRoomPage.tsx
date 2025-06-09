@@ -18,6 +18,9 @@ interface Props {
   formContext?: FormContextLevel;
 }
 
+// !!! CHECK THIS !!!
+// - All mentions to rooms should be changed to resources
+// - Change spaces to resources
 export default function SelectRoomPage({
   calendarEventId,
   formContext = FormContextLevel.FULL_FORM,

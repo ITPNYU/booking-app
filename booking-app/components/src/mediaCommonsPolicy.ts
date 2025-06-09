@@ -1,5 +1,8 @@
 /** ACTIVE master Google Sheet  */
 
+// !!! CHECK THIS !!!
+// This file should be removed and included in the schema
+
 export const MEDIA_COMMONS_EMAIL = "mediacommons.reservations@nyu.edu";
 export const MEDIA_COMMONS_OPERATION_EMAIL = "mediacommons.operations@nyu.edu";
 

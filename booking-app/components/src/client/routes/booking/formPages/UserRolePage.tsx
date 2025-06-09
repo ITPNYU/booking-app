@@ -29,6 +29,7 @@ const Container = styled(Box)(({ theme }) => ({
   border: `1px solid ${theme.palette.divider}`,
 }));
 
+// !!! CHECK THIS !!!
 const roleMappings: Record<Role, string[]> = {
   [Role.STUDENT]: ["STUDENT", "DEGREE"],
   [Role.RESIDENT_FELLOW]: ["FELLOW", "RESIDENT", "POST DOCTORAL FELLOW"],
@@ -112,6 +113,9 @@ export default function UserRolePage({
   const prevWatchedFieldsRef = useRef<Inputs>();
   const showOther = department === Department.OTHER;
 
+  // !!! CHECK THIS !!!
+  // Schema should support toggle walk-in and vip,
+  // option like supportVIP and supportWalkIn
   const isVIP = formContext === FormContextLevel.VIP;
   const isWalkIn = formContext === FormContextLevel.WALK_IN;
 

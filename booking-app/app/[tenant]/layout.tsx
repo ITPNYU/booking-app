@@ -67,6 +67,8 @@ export const schema: Record<string, SchemaContextType> = {
       "Chair/Program Director",
     ],
     resources: [
+      // !!! CHECK THIS !!!
+      // Add a option like checkable
       {
         roomId: 221,
         name: "Ballroom A",

@@ -66,6 +66,9 @@ interface Props {
   userApiData?: UserApiData;
 }
 
+// !!! CHECK THIS !!!
+// - In settings, there should be a new section called 
+// Form Agreement, a field for agreement name, agreement language
 export default function FormInput({
   calendarEventId,
   formContext,
