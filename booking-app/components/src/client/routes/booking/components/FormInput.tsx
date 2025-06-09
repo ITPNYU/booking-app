@@ -398,7 +398,7 @@ export default function FormInput({
       </Section>
 
       {watch("role") === "Student" && (
-        <Section title="Sponsor">
+        <Section title={formatSectionTitle("Sponsor")}>
           <BookingFormTextField
             id="sponsorFirstName"
             label="Sponsor First Name"
