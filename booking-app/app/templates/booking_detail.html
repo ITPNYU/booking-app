@@ -107,7 +107,7 @@
       <div class="section-title">Request</div>
       <table class="info-table">
         <tr>
-          <td>Request#</td>
+          <td>Request #</td>
           <td>{{ contents.requestNumber }}</td>
         </tr>
         <tr>
@@ -134,45 +134,61 @@
         {{/if}}
       </table>
 
-      <div class="section-title">Requestor</div>
+      <div class="section-title">Requester</div>
       <table class="info-table">
         <tr>
           <td>NetID</td>
-          <td>{{ contents.netId }}</td>
+          <td>{{#if contents.netId}}{{ contents.netId }}{{else}}none{{/if}}</td>
         </tr>
         <tr>
           <td>Name</td>
-          <td>{{ contents.firstName }} {{ contents.lastName }}</td>
+          <td>
+            {{#if contents.firstName}}{{ contents.firstName }} {{
+            contents.lastName }}{{else}}none{{/if}}
+          </td>
         </tr>
         <tr>
           <td>Department</td>
-          <td>{{ contents.department }}</td>
+          <td>
+            {{#if contents.department}}{{ contents.department
+            }}{{else}}none{{/if}}
+          </td>
         </tr>
         <tr>
           <td>Role</td>
-          <td>{{ contents.role }}</td>
+          <td>{{#if contents.role}}{{ contents.role }}{{else}}none{{/if}}</td>
         </tr>
         <tr>
           <td>Email</td>
-          <td>{{ contents.email }}</td>
+          <td>{{#if contents.email}}{{ contents.email }}{{else}}none{{/if}}</td>
         </tr>
         <tr>
           <td>Phone</td>
-          <td>{{ contents.phoneNumber }}</td>
+          <td>
+            {{#if contents.phoneNumber}}{{ contents.phoneNumber
+            }}{{else}}none{{/if}}
+          </td>
         </tr>
         <tr>
           <td>Secondary Contact Name</td>
-          <td>{{ contents.secondaryName }}</td>
+          <td>
+            {{#if contents.secondaryName}}{{ contents.secondaryName
+            }}{{else}}none{{/if}}
+          </td>
         </tr>
         <tr>
           <td>Sponsor Name</td>
           <td>
-            {{ contents.sponsorFirstName }} {{ contents.sponsorLastName }}
+            {{#if contents.sponsorFirstName}}{{ contents.sponsorFirstName }} {{
+            contents.sponsorLastName }}{{else}}none{{/if}}
           </td>
         </tr>
         <tr>
           <td>Sponsor Email</td>
-          <td>{{ contents.sponsorEmail }}</td>
+          <td>
+            {{#if contents.sponsorEmail}}{{ contents.sponsorEmail
+            }}{{else}}none{{/if}}
+          </td>
         </tr>
       </table>
 
@@ -180,23 +196,35 @@
       <table class="info-table">
         <tr>
           <td>Title</td>
-          <td>{{ contents.title }}</td>
+          <td>{{#if contents.title}}{{ contents.title }}{{else}}none{{/if}}</td>
         </tr>
         <tr>
           <td>Description</td>
-          <td>{{ contents.description }}</td>
+          <td>
+            {{#if contents.description}}{{ contents.description
+            }}{{else}}none{{/if}}
+          </td>
         </tr>
         <tr>
           <td>Booking Type</td>
-          <td>{{ contents.bookingType }}</td>
+          <td>
+            {{#if contents.bookingType}}{{ contents.bookingType
+            }}{{else}}none{{/if}}
+          </td>
         </tr>
         <tr>
           <td>Expected Attendance</td>
-          <td>{{ contents.expectedAttendance }}</td>
+          <td>
+            {{#if contents.expectedAttendance}}{{ contents.expectedAttendance
+            }}{{else}}none{{/if}}
+          </td>
         </tr>
         <tr>
           <td>Attendee Affiliation</td>
-          <td>{{ contents.attendeeAffiliation }}</td>
+          <td>
+            {{#if contents.attendeeAffiliation}}{{ contents.attendeeAffiliation
+            }}{{else}}none{{/if}}
+          </td>
         </tr>
       </table>
 
@@ -205,21 +233,29 @@
         <tr>
           <td>Room Setup</td>
           <td>
-            {{ contents.setupDetails }} {{#if contents.chartFieldForRoomSetup}}
+            {{#if contents.setupDetails}}{{ contents.setupDetails
+            }}{{else}}{{#if contents.roomSetup}}{{#unless (eq contents.roomSetup
+            "no")}}{{ contents.roomSetup
+            }}{{else}}none{{/unless}}{{else}}none{{/if}}{{/if}} {{#if
+            contents.chartFieldForRoomSetup}}
             <br />{{ contents.chartFieldForRoomSetup }} {{/if}}
           </td>
         </tr>
         <tr>
           <td>Media Service</td>
           <td>
-            {{ contents.mediaServices }} {{#if contents.mediaServicesDetails}}
+            {{#if contents.mediaServices}}{{ contents.mediaServices
+            }}{{else}}none{{/if}} {{#if contents.mediaServicesDetails}}
             <br />{{ contents.mediaServicesDetails }} {{/if}}
           </td>
         </tr>
         <tr>
           <td>Catering</td>
           <td>
-            {{ contents.cateringService }} {{#if
+            {{#if contents.cateringService}}{{ contents.cateringService
+            }}{{else}}{{#if contents.catering}}{{#unless (eq contents.catering
+            "no")}}{{ contents.catering
+            }}{{else}}none{{/unless}}{{else}}none{{/if}}{{/if}} {{#if
             contents.chartFieldForCatering}}
             <br />{{ contents.chartFieldForCatering }} {{/if}}
           </td>
@@ -228,7 +264,9 @@
           <td>Security</td>
           <td>
             <div class="value-content">
-              {{contents.hireSecurity}} {{#if
+              {{#if contents.hireSecurity}}{{#unless (eq contents.hireSecurity
+              "no")}}{{ contents.hireSecurity
+              }}{{else}}none{{/unless}}{{else}}none{{/if}} {{#if
               contents.chartFieldForSecurity}}<br />{{contents.chartFieldForSecurity}}{{/if}}
             </div>
           </td>
