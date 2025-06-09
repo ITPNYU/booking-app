@@ -161,10 +161,10 @@ export default function UserRolePage({
     } else {
       router.push(
         isWalkIn
-          ? `${tenant}/walk-in/selectRoom`
+          ? `/${tenant}/walk-in/selectRoom`
           : isVIP
-            ? `${tenant}/vip/selectRoom`
-            : `${tenant}/book/selectRoom`
+            ? `/${tenant}/vip/selectRoom`
+            : `/${tenant}/book/selectRoom`
       );
     }
   };

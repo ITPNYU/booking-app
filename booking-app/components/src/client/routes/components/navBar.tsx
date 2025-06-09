@@ -90,7 +90,7 @@ export default function NavBar() {
 
   const handleClickHome = () => {
     setSelectedView(PagePermission.BOOKING);
-    router.push(`/${tenant}`);
+    router.push(`/${tenant || ""}`);
   };
 
   const handleClickRoot = () => {

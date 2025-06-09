@@ -5,7 +5,7 @@ export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Handle auth paths
-  if (pathname.startsWith('/__/auth/')) {
+  if (pathname.startsWith("/__/auth/")) {
     return NextResponse.next();
   }
 
@@ -23,14 +23,14 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Remove any existing /mc prefix to prevent double prefixing
+  const cleanPath = pathname.replace(/^\/mc/, "");
+
   // Redirect all other routes to /mc prefixed version
-  const redirectUrl = new URL(`/mc${pathname}`, request.url);
+  const redirectUrl = new URL(`/mc${cleanPath}`, request.url);
   return NextResponse.redirect(redirectUrl);
 }
 
 export const config = {
-  matcher: [
-    '/__/auth/:path*',
-    '/((?!_next/static|_next/image|favicon.ico).*)'
-  ],
+  matcher: ["/__/auth/:path*", "/((?!_next/static|_next/image|favicon.ico).*)"],
 };
