@@ -54,7 +54,7 @@ export const clientSaveDataToFirestore = async (
 };
 
 export const clientFetchAllDataFromCollection = async <T>(
-  collectionName: TableNames,
+  collectionName: TableNames | string,
   queryConstraints: QueryConstraint[] = []
 ): Promise<T[]> => {
   const db = getDb();

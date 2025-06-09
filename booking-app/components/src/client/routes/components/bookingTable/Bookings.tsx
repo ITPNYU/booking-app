@@ -24,6 +24,7 @@ import EquipmentCheckoutToggle from "./EquipmentCheckoutToggle";
 import BookingActions from "../../admin/components/BookingActions";
 import { formatDateTable, formatTimeAmPm } from "../../../utils/date";
 import getBookingStatus from "../../hooks/getBookingStatus";
+import { useTenantSchema } from "../SchemaProvider";
 
 interface BookingsProps {
   pageContext: PageContextLevel;
@@ -34,12 +35,14 @@ export const Bookings: React.FC<BookingsProps> = ({
   pageContext,
   calendarEventId,
 }) => {
+  const schema = useTenantSchema();
   const {
     bookingsLoading,
     setLastItem,
     fetchAllBookings,
     allBookings,
     loadMoreEnabled,
+    setCollection,
   } = useContext(DatabaseContext);
   const allowedStatuses = useAllowedStatuses(pageContext);
 
@@ -55,6 +58,10 @@ export const Bookings: React.FC<BookingsProps> = ({
   const [isSearching, setIsSearching] = useState(false);
 
   const isUserView = pageContext === PageContextLevel.USER;
+
+  useEffect(() => {
+    setCollection(schema.collection);
+  }, [schema.collection]);
 
   useEffect(() => {
     return () => {

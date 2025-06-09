@@ -29,11 +29,14 @@ import { clientUpdateDataByCalendarEventId } from "@/lib/firebase/client/clientD
 import { roundTimeUp } from "../client/utils/date";
 import { getBookingToolDeployUrl } from "./ui";
 
-export const fetchAllFutureBooking = async <Booking>(): Promise<Booking[]> => {
+export const fetchAllFutureBooking = async <Booking>(
+  collection: string
+): Promise<Booking[]> => {
+  if (!collection) return Promise.resolve([]);
   const now = Timestamp.now();
   const futureQueryConstraints = [where("endDate", ">", now)];
   return clientFetchAllDataFromCollection<Booking>(
-    TableNames.BOOKING,
+    collection,
     futureQueryConstraints
   );
 };
@@ -42,16 +45,18 @@ export const fetchAllBookings = async <Booking>(
   pagePermission: PagePermission,
   limit: number,
   filters: Filters,
-  last: any
+  last: any,
+  collection: string
 ): Promise<Booking[]> => {
+  if (!collection) return Promise.resolve([]);
   if (
     pagePermission === PagePermission.ADMIN ||
     pagePermission === PagePermission.LIAISON ||
     pagePermission === PagePermission.PA
   ) {
-    return getPaginatedData<Booking>(TableNames.BOOKING, limit, filters, last);
+    return getPaginatedData<Booking>(collection, limit, filters, last);
   } else {
-    return getPaginatedData<Booking>(TableNames.BOOKING, limit, filters, last);
+    return getPaginatedData<Booking>(collection, limit, filters, last);
   }
 };
 
