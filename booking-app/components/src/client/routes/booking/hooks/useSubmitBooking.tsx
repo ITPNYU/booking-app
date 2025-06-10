@@ -26,6 +26,9 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
     setSubmitting,
     error,
     setError,
+    isBanned,
+    needsSafetyTraining,
+    isInBlackoutPeriod,
   } = useContext(BookingContext);
 
   const isOverlap = useCalculateOverlap();
@@ -48,6 +51,25 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
         !bookingCalendarInfo
       ) {
         console.error("Missing info for submitting booking");
+        setSubmitting("error");
+        return;
+      }
+
+      // Check for blocking conditions
+      if (isBanned) {
+        setError(new Error("You are banned from booking"));
+        setSubmitting("error");
+        return;
+      }
+
+      if (needsSafetyTraining) {
+        setError(new Error("Safety training is required"));
+        setSubmitting("error");
+        return;
+      }
+
+      if (isInBlackoutPeriod) {
+        setError(new Error("Selected date is within a blackout period"));
         setSubmitting("error");
         return;
       }
