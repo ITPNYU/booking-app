@@ -78,6 +78,7 @@ export default function FormInput({
     bookingCalendarInfo,
     isBanned,
     needsSafetyTraining,
+    isInBlackoutPeriod,
     formData,
     setFormData,
   } = useContext(BookingContext);
@@ -294,6 +295,7 @@ export default function FormInput({
     !(checklist && resetRoom && bookingPolicy && isValid) ||
     isBanned ||
     needsSafetyTraining ||
+    isInBlackoutPeriod ||
     isSubmitting;
 
   const onSubmit: SubmitHandler<Inputs> = (data) => {

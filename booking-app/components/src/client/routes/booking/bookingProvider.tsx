@@ -1,3 +1,4 @@
+import { createContext, useContext, useMemo, useState } from "react";
 import {
   CalendarEvent,
   Department,
@@ -6,13 +7,13 @@ import {
   RoomSetting,
   SubmitStatus,
 } from "../../../types";
-import React, { createContext, useContext, useMemo, useState } from "react";
 
-import { DatabaseContext } from "../components/Provider";
 import { DateSelectArg } from "@fullcalendar/core";
-import { SAFETY_TRAINING_REQUIRED_ROOM } from "../../../mediaCommonsPolicy";
-import fetchCalendarEvents from "./hooks/fetchCalendarEvents";
+import dayjs from "dayjs";
 import { usePathname } from "next/navigation";
+import { SAFETY_TRAINING_REQUIRED_ROOM } from "../../../mediaCommonsPolicy";
+import { DatabaseContext } from "../components/Provider";
+import fetchCalendarEvents from "./hooks/fetchCalendarEvents";
 
 export interface BookingContextType {
   bookingCalendarInfo: DateSelectArg | undefined;
@@ -23,6 +24,7 @@ export interface BookingContextType {
   isBanned: boolean;
   isSafetyTrained: boolean;
   needsSafetyTraining: boolean;
+  isInBlackoutPeriod: boolean;
   reloadExistingCalendarEvents: () => void;
   role: Role | undefined;
   selectedRooms: RoomSetting[];
@@ -48,6 +50,7 @@ export const BookingContext = createContext<BookingContextType>({
   isBanned: false,
   isSafetyTrained: true,
   needsSafetyTraining: false,
+  isInBlackoutPeriod: false,
   reloadExistingCalendarEvents: () => {},
   role: undefined,
   selectedRooms: [],
@@ -65,8 +68,13 @@ export const BookingContext = createContext<BookingContextType>({
 });
 
 export function BookingProvider({ children }) {
-  const { bannedUsers, roomSettings, safetyTrainedUsers, userEmail } =
-    useContext(DatabaseContext);
+  const {
+    bannedUsers,
+    roomSettings,
+    safetyTrainedUsers,
+    userEmail,
+    blackoutPeriods,
+  } = useContext(DatabaseContext);
   const pathname = usePathname();
 
   const [bookingCalendarInfo, setBookingCalendarInfo] =
@@ -77,8 +85,11 @@ export function BookingProvider({ children }) {
   const [role, setRole] = useState<Role>();
   const [selectedRooms, setSelectedRooms] = useState<RoomSetting[]>([]);
   const [submitting, setSubmitting] = useState<SubmitStatus>("error");
-  const { existingCalendarEvents, reloadExistingCalendarEvents, fetchingStatus } =
-    fetchCalendarEvents(roomSettings);
+  const {
+    existingCalendarEvents,
+    reloadExistingCalendarEvents,
+    fetchingStatus,
+  } = fetchCalendarEvents(roomSettings);
   const [error, setError] = useState<Error | null>(null);
 
   const isBanned = useMemo<boolean>(() => {
@@ -112,6 +123,27 @@ export function BookingProvider({ children }) {
     return isStudent && roomRequiresSafetyTraining && !isSafetyTrained;
   }, [selectedRooms, role, isSafetyTrained]);
 
+  // Check if the booking falls within any active blackout period
+  const isInBlackoutPeriod = useMemo(() => {
+    if (!bookingCalendarInfo) return false;
+
+    const bookingDate = dayjs(bookingCalendarInfo.start);
+    const activeBlackoutPeriods = blackoutPeriods.filter(
+      (period) => period.isActive
+    );
+
+    return activeBlackoutPeriods.some((period) => {
+      const startDate = dayjs(period.startDate.toDate());
+      const endDate = dayjs(period.endDate.toDate());
+      return (
+        (bookingDate.isAfter(startDate, "day") ||
+          bookingDate.isSame(startDate, "day")) &&
+        (bookingDate.isBefore(endDate, "day") ||
+          bookingDate.isSame(endDate, "day"))
+      );
+    });
+  }, [bookingCalendarInfo, blackoutPeriods]);
+
   return (
     <BookingContext.Provider
       value={{
@@ -124,6 +156,7 @@ export function BookingProvider({ children }) {
         isBanned,
         isSafetyTrained,
         needsSafetyTraining,
+        isInBlackoutPeriod,
         role,
         selectedRooms,
         setBookingCalendarInfo,
