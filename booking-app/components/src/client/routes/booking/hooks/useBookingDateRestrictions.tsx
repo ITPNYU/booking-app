@@ -6,6 +6,9 @@ export const useBookingDateRestrictions = () => {
   const { blackoutPeriods } = useContext(DatabaseContext);
 
   const activeBlackoutPeriods = useMemo(() => {
+    if (!blackoutPeriods || !Array.isArray(blackoutPeriods)) {
+      return [];
+    }
     return blackoutPeriods.filter((period) => period.isActive);
   }, [blackoutPeriods]);
 
@@ -37,9 +40,14 @@ export const useBookingDateRestrictions = () => {
     });
   };
 
+  const shouldDisableDate = (date: Date) => {
+    return isDateDisabled(dayjs(date));
+  };
+
   return {
     blackoutPeriods: activeBlackoutPeriods,
     isDateDisabled,
+    shouldDisableDate,
     getBlackoutPeriodForDate,
     hasRestrictions: activeBlackoutPeriods.length > 0,
   };
