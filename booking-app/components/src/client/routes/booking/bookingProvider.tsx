@@ -125,7 +125,7 @@ export function BookingProvider({ children }) {
 
   // Check if the booking falls within any active blackout period
   const isInBlackoutPeriod = useMemo(() => {
-    if (!bookingCalendarInfo) return false;
+    if (!bookingCalendarInfo || !blackoutPeriods) return false;
 
     const bookingDate = dayjs(bookingCalendarInfo.start);
     const activeBlackoutPeriods = blackoutPeriods.filter(
