@@ -2,21 +2,27 @@ import {
   Alert,
   Box,
   Button,
+  IconButton,
+  Link,
   Modal,
   Table,
   TableBody,
   TableCell,
   TableRow,
+  TextField,
+  Tooltip,
   Typography,
 } from "@mui/material";
 
-import { Event } from "@mui/icons-material";
+import { Cancel, Check, Edit, Event } from "@mui/icons-material";
 import Grid from "@mui/material/Unstable_Grid2/Grid2";
 import { styled } from "@mui/system";
-import { BookingRow } from "../../../../types";
+import { useContext, useState } from "react";
+import { BookingRow, PagePermission } from "../../../../types";
 import { formatTimeAmPm } from "../../../utils/date";
 import { RoomDetails } from "../../booking/components/BookingSelection";
 import useSortBookingHistory from "../../hooks/useSortBookingHistory";
+import { DatabaseContext } from "../Provider";
 import { default as CustomTable } from "../Table";
 import StackedTableCell from "./StackedTableCell";
 
@@ -76,6 +82,134 @@ const BLANK = "none";
 
 export default function MoreInfoModal({ booking, closeModal }: Props) {
   const historyRows = useSortBookingHistory(booking);
+  const { pagePermission, userEmail } = useContext(DatabaseContext);
+
+  const [isEditingCart, setIsEditingCart] = useState(false);
+  const [cartNumber, setCartNumber] = useState(
+    booking.webcheckoutCartNumber || null
+  );
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  // Check if user has permission to edit cart number
+  const canEditCart =
+    pagePermission === PagePermission.PA ||
+    pagePermission === PagePermission.ADMIN;
+
+  const handleSaveCartNumber = async () => {
+    setIsUpdating(true);
+    try {
+      const response = await fetch("/api/updateWebcheckoutCart", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          calendarEventId: booking.calendarEventId,
+          cartNumber: cartNumber.trim(),
+          userEmail: userEmail,
+        }),
+      });
+
+      if (response.ok) {
+        setIsEditingCart(false);
+        // Update the booking object
+        booking.webcheckoutCartNumber = cartNumber.trim() || undefined;
+      } else {
+        const error = await response.json();
+        alert(`Error: ${error.error}`);
+      }
+    } catch (error) {
+      console.error("Failed to update cart number:", error);
+      alert("Failed to update cart number");
+    }
+    setIsUpdating(false);
+  };
+
+  const handleCancelEdit = () => {
+    setCartNumber(booking.webcheckoutCartNumber || "");
+    setIsEditingCart(false);
+  };
+
+  const renderWebCheckoutSection = () => {
+    if (!canEditCart) {
+      // Hide entire section if user doesn't have PA/Admin permissions
+      return null;
+    }
+
+    return (
+      <>
+        <SectionTitle>WebCheckout</SectionTitle>
+        <Table size="small" sx={{ marginBottom: 3 }}>
+          <TableBody>
+            <TableRow>
+              <LabelCell>Cart Number</LabelCell>
+              <TableCell>
+                {isEditingCart ? (
+                  <Box display="flex" alignItems="center" gap={1}>
+                    <TextField
+                      size="small"
+                      value={cartNumber}
+                      onChange={(e) => setCartNumber(e.target.value)}
+                      placeholder="Enter cart number"
+                      disabled={isUpdating}
+                      variant="outlined"
+                      sx={{
+                        flexGrow: 1,
+                        "& .MuiOutlinedInput-root": {
+                          height: "40px",
+                        },
+                      }}
+                    />
+                    <IconButton
+                      onClick={handleSaveCartNumber}
+                      disabled={isUpdating}
+                      color="primary"
+                    >
+                      <Check />
+                    </IconButton>
+                    <IconButton
+                      onClick={handleCancelEdit}
+                      disabled={isUpdating}
+                      color="primary"
+                    >
+                      <Cancel />
+                    </IconButton>
+                  </Box>
+                ) : (
+                  <Box display="flex" alignItems="center" gap={1}>
+                    {booking.webcheckoutCartNumber ? (
+                      <Link
+                        href={`https://engineering-nyu.webcheckout.net/sso/wco/#/operator/allocations/${booking.webcheckoutCartNumber}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        sx={{ display: "flex", alignItems: "center", gap: 0.5 }}
+                      >
+                        {booking.webcheckoutCartNumber}
+                      </Link>
+                    ) : (
+                      <Typography variant="body2" color="text.secondary">
+                        No cart assigned
+                      </Typography>
+                    )}
+                    {canEditCart && (
+                      <Tooltip title="Edit cart number">
+                        <IconButton
+                          onClick={() => setIsEditingCart(true)}
+                          color="primary"
+                        >
+                          <Edit />
+                        </IconButton>
+                      </Tooltip>
+                    )}
+                  </Box>
+                )}
+              </TableCell>
+            </TableRow>
+          </TableBody>
+        </Table>
+      </>
+    );
+  };
 
   const historyCols = [
     <TableCell key="status">Status</TableCell>,
@@ -113,6 +247,8 @@ export default function MoreInfoModal({ booking, closeModal }: Props) {
             </RoomDetails>
           </AlertHeader>
           <Grid container columnSpacing={2} margin={0}>
+            {renderWebCheckoutSection()}
+
             <SectionTitle>History</SectionTitle>
             <StatusTable columns={historyCols} sx={{ marginBottom: 3 }}>
               {historyRows}

@@ -155,6 +155,7 @@ export type Inputs = {
   chartFieldForCatering: string;
   chartFieldForSecurity: string;
   chartFieldForRoomSetup: string;
+  webcheckoutCartNumber?: string;
 };
 
 export type DepartmentType = {
