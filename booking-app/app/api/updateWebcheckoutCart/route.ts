@@ -1,8 +1,6 @@
 import { TableNames } from "@/components/src/policy";
-import {
-  serverFetchAllDataFromCollection,
-} from "@/lib/firebase/server/adminDb";
 import { serverUpdateDataByCalendarEventId } from "@/components/src/server/admin";
+import { serverFetchAllDataFromCollection } from "@/lib/firebase/server/adminDb";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: NextRequest) {
@@ -39,9 +37,13 @@ export async function POST(req: NextRequest) {
     }
 
     // Update the cart number in the database using calendarEventId
-    await serverUpdateDataByCalendarEventId(TableNames.BOOKING, calendarEventId, {
-      webcheckoutCartNumber: cartNumber || null,
-    });
+    await serverUpdateDataByCalendarEventId(
+      TableNames.BOOKING,
+      calendarEventId,
+      {
+        webcheckoutCartNumber: cartNumber || null,
+      },
+    );
 
     return NextResponse.json({
       success: true,

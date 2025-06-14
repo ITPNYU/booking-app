@@ -3,6 +3,10 @@ import {
   Box,
   Button,
   IconButton,
+<<<<<<< HEAD
+=======
+  Link,
+>>>>>>> 38dc0c7 (Fix link address)
   Modal,
   Table,
   TableBody,
@@ -16,7 +20,11 @@ import {
 import { Cancel, Check, Edit, Event } from "@mui/icons-material";
 import Grid from "@mui/material/Unstable_Grid2/Grid2";
 import { styled } from "@mui/system";
+<<<<<<< HEAD
 import React, { useContext, useState } from "react";
+=======
+import { useContext, useState } from "react";
+>>>>>>> 38dc0c7 (Fix link address)
 import { BookingRow, PagePermission } from "../../../../types";
 import { formatTimeAmPm } from "../../../utils/date";
 import { RoomDetails } from "../../booking/components/BookingSelection";
@@ -104,12 +112,18 @@ export default function MoreInfoModal({
 
   const [isEditingCart, setIsEditingCart] = useState(false);
   const [cartNumber, setCartNumber] = useState(
+<<<<<<< HEAD
     booking.webcheckoutCartNumber || ""
   );
   const [isUpdating, setIsUpdating] = useState(false);
   const [webCheckoutUrl, setWebCheckoutUrl] = useState<string | null>(null);
   const [isLoadingUrl, setIsLoadingUrl] = useState(false);
   const [webCheckoutData, setWebCheckoutData] = useState<any>(null);
+=======
+    booking.webcheckoutCartNumber || null
+  );
+  const [isUpdating, setIsUpdating] = useState(false);
+>>>>>>> 38dc0c7 (Fix link address)
 
   // Check if user has permission to edit cart number
   const canEditCart =
@@ -133,6 +147,7 @@ export default function MoreInfoModal({
 
       if (response.ok) {
         setIsEditingCart(false);
+<<<<<<< HEAD
         // Notify parent to update the booking object
         if (updateBooking) {
           updateBooking({
@@ -142,6 +157,13 @@ export default function MoreInfoModal({
         }
       } else {
         alert("Failed to update cart number");
+=======
+        // Update the booking object
+        booking.webcheckoutCartNumber = cartNumber.trim() || undefined;
+      } else {
+        const error = await response.json();
+        alert(`Error: ${error.error}`);
+>>>>>>> 38dc0c7 (Fix link address)
       }
     } catch (error) {
       console.error("Failed to update cart number:", error);
@@ -155,6 +177,7 @@ export default function MoreInfoModal({
     setIsEditingCart(false);
   };
 
+<<<<<<< HEAD
   const fetchWebCheckoutUrl = async (cartNum: string) => {
     setIsLoadingUrl(true);
     try {
@@ -184,6 +207,8 @@ export default function MoreInfoModal({
     }
   }, [booking.webcheckoutCartNumber]);
 
+=======
+>>>>>>> 38dc0c7 (Fix link address)
   const renderWebCheckoutSection = () => {
     if (!canEditCart) {
       // Hide entire section if user doesn't have PA/Admin permissions
