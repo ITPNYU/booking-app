@@ -37,7 +37,7 @@ export default function BookingFormStepper({ formContext }: Props) {
   }, [pathname]);
 
   useEffect(() => {
-    const step = pathname.split("/")[2]; // role, selectRoom, form
+    const step = pathname.split("/")[3]; // role, selectRoom, form
     const index = steps.indexOf(routeToStepNames[step]) ?? 0;
     setActiveStep(index);
   }, [pathname, formContext]);

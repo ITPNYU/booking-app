@@ -1,11 +1,12 @@
 import { useContext, useEffect } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useParams } from "next/navigation";
 
 import { BookingContext } from "../bookingProvider";
 
 export default function useCheckFormMissingData() {
   const pathname = usePathname();
   const router = useRouter();
+  const { tenant } = useParams();
 
   const { role, department, selectedRooms, bookingCalendarInfo, formData } =
     useContext(BookingContext);
@@ -35,10 +36,11 @@ export default function useCheckFormMissingData() {
     }
 
     if (isMissing) {
-      const base = pathname.split("/")[1];
-      const id = pathname.split("/")[3] ?? "";
+      const segments = pathname.split("/");
+      const base = segments[2];
+      const id = segments[3] ?? "";
       console.log("MISSING ID", id, pathname);
-      router.push(`/${base}/${id}`);
+      router.push(`/${tenant}/${base}/${id}`);
     }
   }, []);
 }
