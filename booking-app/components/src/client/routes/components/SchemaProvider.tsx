@@ -10,6 +10,7 @@ export type Resource = {
   name: string;
   roomId: number;
   autoApproval: boolean;
+  checkable: boolean;
 };
 
 export type SchemaContextType = {
