@@ -10,6 +10,7 @@ export type Resource = {
   name: string;
   roomId: number;
   autoApproval: boolean;
+  checkable: boolean;
 };
 
 export type SchemaContextType = {
@@ -18,12 +19,17 @@ export type SchemaContextType = {
   nameForPolicy: string;
   policy: string; // innerHTML
   programs: string[];
+  programMapping: Record<string, string[]>;
   roles: string[];
+  roleMapping: Record<string, string[]>;
   showNNumber: boolean;
   showSponsor: boolean;
   showHireSecurity: boolean;
   agreements: Agreement[]; // innerHTML[]
   resources: Resource[];
+  supportVIP: boolean;
+  supportWalkIn: boolean;
+  resourceName: string;
 };
 
 export const SchemaContext = createContext<SchemaContextType>({
@@ -38,6 +44,11 @@ export const SchemaContext = createContext<SchemaContextType>({
   showHireSecurity: true,
   agreements: [],
   resources: [],
+  supportVIP: false,
+  supportWalkIn: false,
+  resourceName: "",
+  programMapping: {},
+  roleMapping: {},
 });
 
 export const useTenantSchema = () => useContext(SchemaContext);

@@ -29,34 +29,15 @@ const Container = styled(Box)(({ theme }) => ({
   border: `1px solid ${theme.palette.divider}`,
 }));
 
-const roleMappings: Record<Role, string[]> = {
-  [Role.STUDENT]: ["STUDENT", "DEGREE"],
-  [Role.RESIDENT_FELLOW]: ["FELLOW", "RESIDENT", "POST DOCTORAL FELLOW"],
-  [Role.FACULTY]: ["FACULTY", "PROFESSOR", "ADJUNCT FUACULTY", "LECTURER"],
-  [Role.ADMIN_STAFF]: ["ADMINISTRATOR", "STAFF", "EMPLOYEE"],
-  [Role.CHAIR_PROGRAM_DIRECTOR]: ["CHAIR", "PROGRAM DIRECTOR"],
-};
-
-const departmentMappings: Record<Department, string[]> = {
-  [Department.ITP]: ["ITP", "IMA", "LOWRES"],
-  [Department.ALT]: ["ALT"],
-  [Department.CDI]: ["CDI"],
-  [Department.GAMES]: ["GAMES", "GAMECENTER"],
-  [Department.IDM]: ["IDM"],
-  [Department.MARL]: ["MARL"],
-  [Department.MPAP]: ["MPAP", "PERFORMINGARTS"],
-  [Department.MUSIC_TECH]: ["MUSICTECH", "MUSTECH"],
-  [Department.OTHER]: [],
-};
-
 export const mapAffiliationToRole = (
+  roleMapping: Record<string, string[]>,
   affiliation?: string
 ): Role | undefined => {
   if (!affiliation) return undefined;
 
   const normalizedAffiliation = affiliation.toUpperCase();
 
-  for (const [role, affiliations] of Object.entries(roleMappings)) {
+  for (const [role, affiliations] of Object.entries(roleMapping)) {
     if (affiliations.includes(normalizedAffiliation)) {
       return role as Role;
     }
@@ -65,12 +46,15 @@ export const mapAffiliationToRole = (
   return undefined;
 };
 
-const mapDepartmentCode = (deptCode?: string): Department | undefined => {
+const mapDepartmentCode = (
+  programMapping: Record<string, string[]>,
+  deptCode?: string
+): Department | undefined => {
   if (!deptCode) return undefined;
 
   const normalizedCode = deptCode.toUpperCase();
 
-  for (const [dept, codes] of Object.entries(departmentMappings)) {
+  for (const [dept, codes] of Object.entries(programMapping)) {
     if (codes.includes(normalizedCode)) {
       return dept as Department;
     }
@@ -122,8 +106,12 @@ export default function UserRolePage({
     }
 
     if (userApiData && !isVIP && !isWalkIn) {
-      const mappedRole = mapAffiliationToRole(userApiData.affiliation_sub_type);
+      const mappedRole = mapAffiliationToRole(
+        tenantSchema.roleMapping,
+        userApiData.affiliation_sub_type
+      );
       const mappedDepartment = mapDepartmentCode(
+        tenantSchema.programMapping,
         userApiData.reporting_dept_code
       );
 

@@ -24,6 +24,7 @@ import EquipmentCheckoutToggle from "./EquipmentCheckoutToggle";
 import BookingActions from "../../admin/components/BookingActions";
 import { formatDateTable, formatTimeAmPm } from "../../../utils/date";
 import getBookingStatus from "../../hooks/getBookingStatus";
+import { useTenantSchema } from "../SchemaProvider";
 
 interface BookingsProps {
   pageContext: PageContextLevel;
@@ -34,13 +35,9 @@ export const Bookings: React.FC<BookingsProps> = ({
   pageContext,
   calendarEventId,
 }) => {
-  const {
-    bookingsLoading,
-    setLastItem,
-    fetchAllBookings,
-    allBookings,
-    loadMoreEnabled,
-  } = useContext(DatabaseContext);
+  const { bookingsLoading, setLastItem, fetchAllBookings, allBookings } =
+    useContext(DatabaseContext);
+  const { resourceName } = useTenantSchema();
   const allowedStatuses = useAllowedStatuses(pageContext);
 
   const [modalData, setModalData] = useState<BookingRow>(null);
@@ -211,10 +208,10 @@ export const Bookings: React.FC<BookingsProps> = ({
       },
       {
         field: "room",
-        headerName: "Room(s)",
+        headerName: resourceName,
         minWidth: 100,
         flex: 1,
-        renderHeader: () => <TableCell>Room(s)</TableCell>,
+        renderHeader: () => <TableCell>{resourceName}</TableCell>,
         renderCell: (params) => (
           <TableCell sx={{ maxWidth: "150px" }}>{params.row.roomId}</TableCell>
         ),
