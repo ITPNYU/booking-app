@@ -19,7 +19,9 @@ export type SchemaContextType = {
   nameForPolicy: string;
   policy: string; // innerHTML
   programs: string[];
+  programMapping: Record<string, string[]>;
   roles: string[];
+  roleMapping: Record<string, string[]>;
   showNNumber: boolean;
   showSponsor: boolean;
   showHireSecurity: boolean;
@@ -45,6 +47,8 @@ export const SchemaContext = createContext<SchemaContextType>({
   supportVIP: false,
   supportWalkIn: false,
   resourceName: "",
+  programMapping: {},
+  roleMapping: {},
 });
 
 export const useTenantSchema = () => useContext(SchemaContext);

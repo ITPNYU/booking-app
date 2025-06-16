@@ -100,8 +100,13 @@ export default function FormInput({
     return userApiData[key] || "";
   };
 
-  const { showNNumber, showSponsor, showHireSecurity, agreements } =
-    useTenantSchema();
+  const {
+    showNNumber,
+    showSponsor,
+    showHireSecurity,
+    agreements,
+    roleMapping,
+  } = useTenantSchema();
 
   const {
     control,
@@ -272,6 +277,7 @@ export default function FormInput({
       // Use the already fetched data for validation
       if (sponsorApiData && value.endsWith("@nyu.edu")) {
         const sponsorRole = mapAffiliationToRole(
+          roleMapping,
           sponsorApiData.affiliation_sub_type
         );
         if (sponsorRole === Role.STUDENT) {

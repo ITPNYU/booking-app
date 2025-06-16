@@ -53,6 +53,24 @@ export const schema: Record<string, SchemaContextType> = {
       "Admin/Staff",
       "Chair/Program Director",
     ],
+    roleMapping: {
+      Student: ["STUDENT", "DEGREE"],
+      "Resident/Fellow": ["FELLOW", "RESIDENT", "POST DOCTORAL FELLOW"],
+      Faculty: ["FACULTY", "PROFESSOR", "ADJUNCT FACULTY", "LECTURER"],
+      "Admin/Staff": ["ADMINISTRATOR", "STAFF", "EMPLOYEE"],
+      "Chair/Program Director": ["CHAIR", "PROGRAM DIRECTOR"],
+    },
+    programMapping: {
+      ALT: ["ALT"],
+      CDI: ["CDI"],
+      "Game Center": ["GAMES", "GAMECENTER"],
+      IDM: ["IDM"],
+      "ITP / IMA / Low Res": ["ITP", "IMA", "LOWRES"],
+      MARL: ["MARL"],
+      MPAP: ["MPAP", "PERFORMINGARTS"],
+      "Music Tech": ["MUSICTECH", "MUSTECH"],
+      Other: [],
+    },
     resources: [
       {
         roomId: 221,
@@ -194,6 +212,12 @@ export const schema: Record<string, SchemaContextType> = {
     policy: "<p>ITP Policy</p>",
     programs: ["ALT"],
     roles: ["Student"],
+    roleMapping: {
+      Student: ["STUDENT", "DEGREE"],
+    },
+    programMapping: {
+      ALT: ["ALT"],
+    },
     resources: [
       {
         roomId: 221,
