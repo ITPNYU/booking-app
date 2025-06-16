@@ -22,7 +22,7 @@ import { PagePermission } from "../../../types";
 import useHandleStartBooking from "../booking/hooks/useHandleStartBooking";
 import ConfirmDialog from "./ConfirmDialog";
 import { DatabaseContext } from "./Provider";
-import { schema } from "../../../../../app/[tenant]/layout";
+import { schema } from "../../../../../app/[tenant]/schema";
 
 const LogoBox = styled(Box)`
   cursor: pointer;

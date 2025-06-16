@@ -1,10 +1,11 @@
 import { DateCalendar, LocalizationProvider } from "@mui/x-date-pickers";
-import React, { useContext, useEffect, useState } from "react";
 import dayjs, { Dayjs } from "dayjs";
+import { useContext, useEffect, useState } from "react";
 
+import { FormContextLevel } from "@/components/src/types";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { BookingContext } from "../bookingProvider";
-import { FormContextLevel } from "@/components/src/types";
+import { useBookingDateRestrictions } from "../hooks/useBookingDateRestrictions";
 
 interface Props {
   handleChange: (x: Date) => void;
@@ -14,6 +15,7 @@ interface Props {
 export const CalendarDatePicker = ({ handleChange, formContext }: Props) => {
   const [date, setDate] = useState<Dayjs | null>(dayjs(new Date()));
   const { bookingCalendarInfo } = useContext(BookingContext);
+  const { isDateDisabled } = useBookingDateRestrictions();
 
   const handleDateChange = (newVal: Dayjs) => {
     setDate(newVal);
@@ -39,6 +41,7 @@ export const CalendarDatePicker = ({ handleChange, formContext }: Props) => {
         views={["day", "month"]}
         autoFocus
         disablePast
+        shouldDisableDate={isDateDisabled}
         disabled={formContext === FormContextLevel.MODIFICATION}
         showDaysOutsideCurrentMonth
       />

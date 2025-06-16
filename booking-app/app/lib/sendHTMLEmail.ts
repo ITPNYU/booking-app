@@ -105,6 +105,11 @@ export const sendHTMLEmail = async (params: SendHTMLEmailParams) => {
     }
   });
 
+  // Register equality helper
+  Handlebars.registerHelper("eq", function (a, b) {
+    return a === b;
+  });
+
   const template = Handlebars.compile(templateSource);
   const approvalUrl = approverType
     ? getUrlPathByApproverType(contents.calendarEventId, approverType)

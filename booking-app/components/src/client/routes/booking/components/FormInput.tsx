@@ -79,6 +79,7 @@ export default function FormInput({
     bookingCalendarInfo,
     isBanned,
     needsSafetyTraining,
+    isInBlackoutPeriod,
     formData,
     setFormData,
   } = useContext(BookingContext);
@@ -301,6 +302,7 @@ export default function FormInput({
     !Object.values(checkedAgreements).every((value) => value) ||
     isBanned ||
     needsSafetyTraining ||
+    isInBlackoutPeriod ||
     isSubmitting;
 
   const onSubmit: SubmitHandler<Inputs> = (data) => {
@@ -407,7 +409,7 @@ export default function FormInput({
       </Section>
 
       {watch("role") === "Student" && (
-        <Section title="Sponsor">
+        <Section title={formatSectionTitle("Sponsor")}>
           <BookingFormTextField
             id="sponsorFirstName"
             label="Sponsor First Name"

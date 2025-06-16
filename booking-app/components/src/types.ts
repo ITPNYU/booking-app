@@ -212,6 +212,16 @@ export enum PageContextLevel {
   ADMIN,
 }
 
+export type BlackoutPeriod = {
+  id?: string;
+  name: string;
+  startDate: Timestamp;
+  endDate: Timestamp;
+  isActive: boolean;
+  createdAt: Timestamp;
+  updatedAt?: Timestamp;
+};
+
 export type PolicySettings = {
   finalApproverEmail: string;
 };
