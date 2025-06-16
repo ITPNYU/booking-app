@@ -55,8 +55,7 @@ const Divider = styled(Box)(({ theme }) => ({
 export default function NavBar() {
   const router = useRouter();
   const { tenant } = useParams();
-  const { pagePermission, userEmail, netId, setUserEmail } =
-    useContext(DatabaseContext);
+  const { pagePermission, netId, setUserEmail } = useContext(DatabaseContext);
   const handleStartBooking = useHandleStartBooking();
   const [selectedView, setSelectedView] = useState<PagePermission>(
     PagePermission.BOOKING
@@ -66,7 +65,12 @@ export default function NavBar() {
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const isRoot = pathname === "/";
   const tenantSchema = schema[tenant as keyof typeof schema];
-  const { name, logo = NYULOGO } = tenantSchema || {};
+  const {
+    name,
+    logo = NYULOGO,
+    supportVIP,
+    supportWalkIn,
+  } = tenantSchema || {};
 
   const handleRoleChange = (e: any) => {
     switch (e.target.value as PagePermission) {
@@ -183,8 +187,9 @@ export default function NavBar() {
     }
 
     if (
-      selectedView === PagePermission.ADMIN ||
-      selectedView === PagePermission.LIAISON
+      supportVIP &&
+      (selectedView === PagePermission.ADMIN ||
+        selectedView === PagePermission.LIAISON)
     ) {
       return (
         <Button
@@ -200,7 +205,7 @@ export default function NavBar() {
       );
     }
 
-    if (pagePermission !== PagePermission.BOOKING) {
+    if (supportWalkIn && pagePermission !== PagePermission.BOOKING) {
       return (
         <Button
           onClick={() => {

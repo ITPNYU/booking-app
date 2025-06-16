@@ -6,6 +6,8 @@ export const schema: Record<string, SchemaContextType> = {
     name: "Media Commons",
     logo: SVGLOGO,
     nameForPolicy: "370J Media Commons",
+    supportVIP: true,
+    supportWalkIn: true,
     policy: `
     <p style="font-weight: 700; font-size: 1rem; line-height: 1.5; margin-top: 24px;">
       Booking Confirmation
@@ -172,6 +174,8 @@ export const schema: Record<string, SchemaContextType> = {
   },
   itp: {
     name: "ITP",
+    supportVIP: false,
+    supportWalkIn: false,
     logo: SVGLOGO,
     nameForPolicy: "ITP",
     policy: "<p>ITP Policy</p>",

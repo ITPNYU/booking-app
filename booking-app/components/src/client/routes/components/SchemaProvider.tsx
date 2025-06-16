@@ -24,6 +24,8 @@ export type SchemaContextType = {
   showHireSecurity: boolean;
   agreements: Agreement[]; // innerHTML[]
   resources: Resource[];
+  supportVIP: boolean;
+  supportWalkIn: boolean;
 };
 
 export const SchemaContext = createContext<SchemaContextType>({
@@ -38,6 +40,8 @@ export const SchemaContext = createContext<SchemaContextType>({
   showHireSecurity: true,
   agreements: [],
   resources: [],
+  supportVIP: false,
+  supportWalkIn: false,
 });
 
 export const useTenantSchema = () => useContext(SchemaContext);
