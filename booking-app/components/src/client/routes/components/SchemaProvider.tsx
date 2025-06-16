@@ -26,6 +26,7 @@ export type SchemaContextType = {
   resources: Resource[];
   supportVIP: boolean;
   supportWalkIn: boolean;
+  resourceName: string;
 };
 
 export const SchemaContext = createContext<SchemaContextType>({
@@ -42,6 +43,7 @@ export const SchemaContext = createContext<SchemaContextType>({
   resources: [],
   supportVIP: false,
   supportWalkIn: false,
+  resourceName: "",
 });
 
 export const useTenantSchema = () => useContext(SchemaContext);

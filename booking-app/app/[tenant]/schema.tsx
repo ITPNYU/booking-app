@@ -8,6 +8,7 @@ export const schema: Record<string, SchemaContextType> = {
     nameForPolicy: "370J Media Commons",
     supportVIP: true,
     supportWalkIn: true,
+    resourceName: "Room(s)",
     policy: `
     <p style="font-weight: 700; font-size: 1rem; line-height: 1.5; margin-top: 24px;">
       Booking Confirmation
@@ -178,6 +179,7 @@ export const schema: Record<string, SchemaContextType> = {
     supportWalkIn: false,
     logo: SVGLOGO,
     nameForPolicy: "ITP",
+    resourceName: "Resource(s)",
     policy: "<p>ITP Policy</p>",
     programs: ["ALT"],
     roles: ["Student"],
