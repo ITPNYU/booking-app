@@ -12,7 +12,8 @@ const Equipment = () => {
 
   const userHasPermission =
     pagePermission === PagePermission.ADMIN ||
-    pagePermission === PagePermission.EQUIPMENT;
+    pagePermission === PagePermission.EQUIPMENT ||
+    pagePermission === PagePermission.SUPER_ADMIN;
 
   return (
     <Box margin={3}>
