@@ -112,8 +112,11 @@ export default function MoreInfoModal({ booking, closeModal }: Props) {
 
       if (response.ok) {
         setIsEditingCart(false);
-        // Update the booking object
-        booking.webcheckoutCartNumber = cartNumber.trim() || undefined;
+        // Notify parent to update the booking object
+        updateBooking({
+          ...booking,
+          webcheckoutCartNumber: cartNumber.trim() || undefined,
+        });
       } else {
         const error = await response.json();
         alert(`Error: ${error.error}`);
