@@ -516,14 +516,21 @@ describe("MoreInfoModal", () => {
       const editButton = screen.getByLabelText("Edit cart number");
       await user.click(editButton);
 
-      // Save
+      // Verify buttons are present in edit mode first
       const saveButton = screen.getByTestId("CheckIcon").closest("button")!;
+      const cancelButton = screen.getByTestId("CancelIcon").closest("button")!;
+      expect(saveButton).not.toBeDisabled();
+      expect(cancelButton).not.toBeDisabled();
+
+      // Start the save operation
       await user.click(saveButton);
 
       // Check that buttons are disabled during update
-      expect(saveButton).toBeDisabled();
-      expect(screen.getByTestId("CancelIcon").closest("button")).toBeDisabled();
-      expect(screen.getByPlaceholderText("Enter cart number")).toBeDisabled();
+      await waitFor(() => {
+        expect(saveButton).toBeDisabled();
+        expect(cancelButton).toBeDisabled();
+        expect(screen.getByPlaceholderText("Enter cart number")).toBeDisabled();
+      });
 
       // Wait for completion
       await waitFor(() => {
