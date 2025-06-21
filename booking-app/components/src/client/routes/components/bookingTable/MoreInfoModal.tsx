@@ -86,7 +86,7 @@ export default function MoreInfoModal({ booking, closeModal }: Props) {
 
   const [isEditingCart, setIsEditingCart] = useState(false);
   const [cartNumber, setCartNumber] = useState(
-    booking.webcheckoutCartNumber || null
+    booking.webcheckoutCartNumber || ""
   );
   const [isUpdating, setIsUpdating] = useState(false);
 
