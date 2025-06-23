@@ -138,38 +138,47 @@ export default function NavBar() {
     }
   };
 
+  const hasPermission = (roles: PagePermission[]) => {
+    return roles.includes(pagePermission);
+  };
+
   const dropdown = useMemo(() => {
     // First check if user has any admin privileges
     if (
-      pagePermission !== PagePermission.ADMIN &&
-      pagePermission !== PagePermission.PA &&
-      pagePermission !== PagePermission.LIAISON &&
-      pagePermission !== PagePermission.SUPER_ADMIN &&
-      pagePermission !== PagePermission.EQUIPMENT
+      !hasPermission([
+        PagePermission.ADMIN,
+        PagePermission.PA,
+        PagePermission.LIAISON,
+        PagePermission.SUPER_ADMIN,
+      ])
     ) {
       return null;
     }
 
-    const showPA =
-      pagePermission === PagePermission.PA ||
-      pagePermission === PagePermission.ADMIN ||
-      pagePermission === PagePermission.SUPER_ADMIN;
+    const showPA = hasPermission([
+      PagePermission.PA,
+      PagePermission.ADMIN,
+      PagePermission.SUPER_ADMIN,
+    ]);
 
-    const showLiaison =
-      pagePermission === PagePermission.LIAISON ||
-      pagePermission === PagePermission.ADMIN ||
-      pagePermission === PagePermission.SUPER_ADMIN;
+    const showLiaison = hasPermission([
+      PagePermission.LIAISON,
+      PagePermission.ADMIN,
+      PagePermission.SUPER_ADMIN,
+    ]);
 
-    const showAdmin =
-      pagePermission === PagePermission.ADMIN ||
-      pagePermission === PagePermission.SUPER_ADMIN;
+    const showAdmin = hasPermission([
+      PagePermission.ADMIN,
+      PagePermission.SUPER_ADMIN,
+    ]);
 
-    const showEquipment =
-      pagePermission === PagePermission.EQUIPMENT ||
-      pagePermission === PagePermission.ADMIN ||
-      pagePermission === PagePermission.SUPER_ADMIN;
+    const showEquipment = hasPermission([
+      PagePermission.EQUIPMENT,
+      PagePermission.ADMIN,
+      PagePermission.SUPER_ADMIN,
+    ]);
 
-    const showSuperAdmin = pagePermission === PagePermission.SUPER_ADMIN;
+    const showSuperAdmin = hasPermission([PagePermission.SUPER_ADMIN]);
 
     return (
       <Select size="small" value={selectedView} onChange={handleRoleChange}>
