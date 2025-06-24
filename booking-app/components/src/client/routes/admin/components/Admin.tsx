@@ -1,6 +1,5 @@
 import { PageContextLevel, PagePermission } from "../../../../types";
 import React, { useContext, useMemo, useState } from "react";
-
 import { Bookings } from "../../components/bookingTable/Bookings";
 import { Box } from "@mui/material";
 import { CenterLoading } from "../../components/Loading";
@@ -17,7 +16,10 @@ export default function Admin({ calendarEventId }) {
     () => adminUsers.map((user) => user.email),
     [adminUsers]
   );
-  const userHasPermission = pagePermission === PagePermission.ADMIN;
+
+  const userHasPermission =
+    pagePermission === PagePermission.ADMIN ||
+    pagePermission === PagePermission.SUPER_ADMIN;
 
   if (adminEmails.length === 0 || userEmail == null) {
     return <CenterLoading />;
