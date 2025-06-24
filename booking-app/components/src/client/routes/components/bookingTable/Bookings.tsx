@@ -1,30 +1,36 @@
+import { MoreHoriz } from "@mui/icons-material";
+import {
+  Box,
+  IconButton,
+  TableCell,
+  Tooltip,
+  tooltipClasses,
+} from "@mui/material";
+import { DataGrid } from "@mui/x-data-grid";
+import React, { useContext, useEffect, useMemo, useState } from "react";
 import {
   BookingRow,
-  PageContextLevel,
   BookingStatusLabel,
+  PageContextLevel,
 } from "../../../../types";
-import { Box, TableCell, IconButton } from "@mui/material";
-import { DataGrid } from "@mui/x-data-grid";
-import StackedTableCell from "./StackedTableCell";
-import { MoreHoriz } from "@mui/icons-material";
-import { Tooltip, tooltipClasses } from "@mui/material";
-import React, { useContext, useEffect, useMemo, useState } from "react";
 import { TableEmpty } from "../Table";
+import StackedTableCell from "./StackedTableCell";
 
+import { formatDateTable, formatTimeAmPm } from "../../../utils/date";
+import BookingActions from "../../admin/components/BookingActions";
+import getBookingStatus from "../../hooks/getBookingStatus";
+import Loading from "../Loading";
+import { DatabaseContext } from "../Provider";
+import { useTenantSchema } from "../SchemaProvider";
 import BookMoreButton from "./BookMoreButton";
 import BookingTableFilters from "./BookingTableFilters";
-import { DatabaseContext } from "../Provider";
-import { DateRangeFilter } from "./hooks/getDateFilter";
-import Loading from "../Loading";
+import EquipmentCheckoutToggle from "./EquipmentCheckoutToggle";
 import MoreInfoModal from "./MoreInfoModal";
+import StatusChip from "./StatusChip";
+import WebCheckoutEquipmentDisplay from "./WebCheckoutEquipmentDisplay";
+import { DateRangeFilter } from "./hooks/getDateFilter";
 import useAllowedStatuses from "./hooks/useAllowedStatuses";
 import { useBookingFilters } from "./hooks/useBookingFilters";
-import StatusChip from "./StatusChip";
-import EquipmentCheckoutToggle from "./EquipmentCheckoutToggle";
-import BookingActions from "../../admin/components/BookingActions";
-import { formatDateTable, formatTimeAmPm } from "../../../utils/date";
-import getBookingStatus from "../../hooks/getBookingStatus";
-import { useTenantSchema } from "../SchemaProvider";
 
 interface BookingsProps {
   pageContext: PageContextLevel;
@@ -332,6 +338,23 @@ export const Bookings: React.FC<BookingsProps> = ({
                   <EquipmentCheckoutToggle
                     status={params.row.equipmentCheckedOut}
                     booking={params.row}
+                  />
+                </TableCell>
+              ),
+            },
+            {
+              field: "webcheckout",
+              headerName: "WebCheckout",
+              minWidth: 180,
+              flex: 1,
+              renderHeader: () => <TableCell>WebCheckout</TableCell>,
+              filterable: false,
+              sortable: false,
+              renderCell: (params) => (
+                <TableCell>
+                  <WebCheckoutEquipmentDisplay
+                    cartNumber={params.row.webcheckoutCartNumber}
+                    maxDisplayItems={2}
                   />
                 </TableCell>
               ),

@@ -17,7 +17,7 @@ import {
 import { Cancel, Check, Edit, Event } from "@mui/icons-material";
 import Grid from "@mui/material/Unstable_Grid2/Grid2";
 import { styled } from "@mui/system";
-import { useContext, useState } from "react";
+import React, { useContext, useState } from "react";
 import { BookingRow, PagePermission } from "../../../../types";
 import { formatTimeAmPm } from "../../../utils/date";
 import { RoomDetails } from "../../booking/components/BookingSelection";
@@ -89,6 +89,8 @@ export default function MoreInfoModal({ booking, closeModal }: Props) {
     booking.webcheckoutCartNumber || ""
   );
   const [isUpdating, setIsUpdating] = useState(false);
+  const [webCheckoutUrl, setWebCheckoutUrl] = useState<string | null>(null);
+  const [isLoadingUrl, setIsLoadingUrl] = useState(false);
 
   // Check if user has permission to edit cart number
   const canEditCart =
@@ -117,7 +119,6 @@ export default function MoreInfoModal({ booking, closeModal }: Props) {
           ...booking,
           webcheckoutCartNumber: cartNumber.trim() || undefined,
         });
-      } else {
         const error = await response.json();
         alert(`Error: ${error.error}`);
       }
@@ -132,6 +133,34 @@ export default function MoreInfoModal({ booking, closeModal }: Props) {
     setCartNumber(booking.webcheckoutCartNumber || "");
     setIsEditingCart(false);
   };
+
+  const fetchWebCheckoutUrl = async (cartNum: string) => {
+    if (!cartNum) return;
+
+    setIsLoadingUrl(true);
+    try {
+      const response = await fetch(`/api/webcheckout/cart/${cartNum}`);
+      if (response.ok) {
+        const data = await response.json();
+        setWebCheckoutUrl(data.webCheckoutUrl);
+      } else {
+        console.error("Failed to fetch WebCheckout URL");
+        setWebCheckoutUrl(null);
+      }
+    } catch (error) {
+      console.error("Error fetching WebCheckout URL:", error);
+      setWebCheckoutUrl(null);
+    } finally {
+      setIsLoadingUrl(false);
+    }
+  };
+
+  // WebCheckout URLを取得（カート番号があるとき）
+  React.useEffect(() => {
+    if (booking.webcheckoutCartNumber) {
+      fetchWebCheckoutUrl(booking.webcheckoutCartNumber);
+    }
+  }, [booking.webcheckoutCartNumber]);
 
   const renderWebCheckoutSection = () => {
     if (!canEditCart) {
@@ -181,14 +210,29 @@ export default function MoreInfoModal({ booking, closeModal }: Props) {
                 ) : (
                   <Box display="flex" alignItems="center" gap={1}>
                     {booking.webcheckoutCartNumber ? (
-                      <Link
-                        href={`https://engineering-nyu.webcheckout.net/sso/wco/#/operator/allocations/${booking.webcheckoutCartNumber}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        sx={{ display: "flex", alignItems: "center", gap: 0.5 }}
-                      >
-                        {booking.webcheckoutCartNumber}
-                      </Link>
+                      <Box display="flex" alignItems="center" gap={1}>
+                        <Typography variant="body2">
+                          {booking.webcheckoutCartNumber}
+                        </Typography>
+                        {isLoadingUrl ? (
+                          <Typography variant="body2" color="text.secondary">
+                            Loading...
+                          </Typography>
+                        ) : webCheckoutUrl ? (
+                          <Link
+                            href={webCheckoutUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            sx={{ fontSize: "0.875rem" }}
+                          >
+                            Open in WebCheckout
+                          </Link>
+                        ) : (
+                          <Typography variant="body2" color="text.secondary">
+                            Invalid cart
+                          </Typography>
+                        )}
+                      </Box>
                     ) : (
                       <Typography variant="body2" color="text.secondary">
                         No cart assigned
