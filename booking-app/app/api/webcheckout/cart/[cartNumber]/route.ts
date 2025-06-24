@@ -14,7 +14,6 @@ export async function GET(
       );
     }
 
-    // Server-side WebCheckout authentication
     const userid = process.env.WEBCHECKOUT_USERNAME;
     const password = process.env.WEBCHECKOUT_PASSWORD;
     const baseUrl = process.env.WEBCHECKOUT_API_BASE_URL;
@@ -27,6 +26,7 @@ export async function GET(
     }
 
     // Authenticate with WebCheckout API
+
     const authResponse = await fetch(`${baseUrl}/rest/session/start`, {
       method: "POST",
       headers: {
@@ -46,6 +46,7 @@ export async function GET(
           error: `WebCheckout authentication failed: ${authResponse.status}`,
           details: errorText,
         },
+
         { status: 401 },
       );
     }
@@ -96,11 +97,13 @@ export async function GET(
           error: `WebCheckout API request failed: ${response.status}`,
           details: errorText,
         },
+
         { status: response.status },
       );
     }
 
     const webCheckoutResponse = await response.json();
+
     if (webCheckoutResponse.status === "unauthenticated") {
       return NextResponse.json(
         { error: "WebCheckout session is invalid or expired" },
@@ -242,6 +245,7 @@ export async function GET(
         error: "Internal server error",
         details: error instanceof Error ? error.message : String(error),
       },
+
       { status: 500 },
     );
   }

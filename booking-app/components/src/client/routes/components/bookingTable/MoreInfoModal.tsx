@@ -173,14 +173,13 @@ export default function MoreInfoModal({
     }
   };
 
-  // Fetch WebCheckout URL when cart number exists
   React.useEffect(() => {
     if (booking.webcheckoutCartNumber) {
       fetchWebCheckoutUrl(booking.webcheckoutCartNumber);
     }
   }, [booking.webcheckoutCartNumber]);
 
-  () => {
+  const renderWebCheckoutSection = () => {
     if (!canEditCart) {
       // Hide entire section if user doesn't have PA/Admin permissions
       return null;
