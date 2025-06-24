@@ -302,10 +302,17 @@ export default function FormInput({
     }
   }, [userApiData, reset]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
   // Add a ref to track submission state to prevent race conditions
   const isSubmittingRef = useRef(false);
+
+  // Only check if there are agreements to submit
+  const agreementsChecked =
+    checkedAgreements.length &&
+    Object.values(checkedAgreements).every((value) => value);
+
   const disabledButton =
-    !Object.values(checkedAgreements).every((value) => value) ||
+    agreementsChecked ||
     isBanned ||
     needsSafetyTraining ||
     isInBlackoutPeriod ||
