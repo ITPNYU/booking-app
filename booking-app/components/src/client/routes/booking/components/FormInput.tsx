@@ -302,10 +302,17 @@ export default function FormInput({
     }
   }, [userApiData, reset]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
   // Add a ref to track submission state to prevent race conditions
   const isSubmittingRef = useRef(false);
+
+  // Only check if there are agreements to submit
+  const agreementsChecked =
+    checkedAgreements.length &&
+    Object.values(checkedAgreements).every((value) => value);
+
   const disabledButton =
-    !Object.values(checkedAgreements).every((value) => value) ||
+    agreementsChecked ||
     isBanned ||
     needsSafetyTraining ||
     isInBlackoutPeriod ||
@@ -375,7 +382,8 @@ export default function FormInput({
           required={false}
           {...{ control, errors, trigger }}
         />
-        {showNNumber && (
+        {showNNumber && !isVIP && (
+          // TODO: Refactor this when design schema for inputs
           <BookingFormTextField
             id="nNumber"
             label="NYU N-Number"
@@ -392,7 +400,12 @@ export default function FormInput({
           <BookingFormTextField
             id="netId"
             label="NYU Net ID"
-            description="Your Net ID is the username portion of your official NYU email address. It begins with your initials followed by one or more numbers."
+            // TODO: Refactor this when design schema for inputs
+            description={
+              isVIP
+                ? "The VIP Net ID is the username portion of the VIP's official NYU email address. It begins with the VIP's initials followed by one or more numbers."
+                : "Your Net ID is the username portion of your official NYU email address. It begins with your initials followed by one or more numbers."
+            }
             required
             pattern={{
               value: /[a-zA-Z]{1,3}[0-9]{1,6}/,

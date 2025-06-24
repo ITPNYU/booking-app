@@ -61,7 +61,7 @@ export default function WalkInLandingPage({
   const title = isVIP ? "VIP" : "Walk-In";
 
   return (
-    <Center sx={{ width: "100vw", height: "90vh" }}>
+    <Center sx={{ width: "100vw", marginTop: 10 }}>
       <Title as="h1">370🅙 Media Commons {title} Reservation Form</Title>
       <Modal padding={4}>
         <Box width="100%">
@@ -110,7 +110,7 @@ export default function WalkInLandingPage({
           variant="contained"
           color="primary"
           onClick={() =>
-            router.push(isVIP ? `${tenant}/vip/role` : `${tenant}/walk-in/role`)
+            router.push(isVIP ? `/${tenant}/vip/role` : `/${tenant}/walk-in/role`)
           }
           sx={{
             alignSelf: "center",

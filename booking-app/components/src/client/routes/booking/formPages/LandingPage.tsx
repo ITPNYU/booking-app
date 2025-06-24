@@ -37,7 +37,7 @@ export default function LandingPage() {
   return (
     <Center
       sx={{ width: "100vw" }}
-      height={{ xs: "unset", md: "90vh" }}
+      height={{ xs: "unset" }}
       padding={{ xs: 3 }}
     >
       <Title as="h1">{schema.nameForPolicy} Reservation Form</Title>

@@ -149,6 +149,7 @@ export const Bookings: React.FC<BookingsProps> = ({
       user: "User",
       vip: "VIP",
       walkIn: "Walk-In",
+      "walk-in": "Walk-In",
       pregame: "Pregame",
     };
     return originMap[origin] ?? origin;
@@ -163,7 +164,7 @@ export const Bookings: React.FC<BookingsProps> = ({
         flex: 1,
         renderHeader: () => <TableCell>Origin</TableCell>,
         renderCell: (params) => (
-          <TableCell>{formatOrigin(params.row.origin ?? "user")}</TableCell>
+          <TableCell>{formatOrigin(params.row.origin ?? "User")}</TableCell>
         ),
       },
       {
