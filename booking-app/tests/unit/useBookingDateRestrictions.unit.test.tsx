@@ -26,7 +26,7 @@ const mockBlackoutPeriods: BlackoutPeriod[] = [
     id: "2",
     name: "Winter Holidays",
     startDate: Timestamp.fromDate(dayjs("2026-12-20").toDate()),
-    endDate: Timestamp.fromDate(dayjs("2027-01-05").toDate()),
+    endDate: Timestamp.fromDate(dayjs("2026-01-05").toDate()),
     isActive: true,
     createdAt: Timestamp.now(),
     updatedAt: Timestamp.now(),
@@ -37,6 +37,26 @@ const mockBlackoutPeriods: BlackoutPeriod[] = [
     startDate: Timestamp.fromDate(dayjs("2026-03-15").toDate()),
     endDate: Timestamp.fromDate(dayjs("2026-03-20").toDate()),
     isActive: false, // This period is inactive
+    createdAt: Timestamp.now(),
+    updatedAt: Timestamp.now(),
+  },
+  {
+    id: "4",
+    name: "Room 221 Maintenance",
+    startDate: Timestamp.fromDate(dayjs("2026-04-01").toDate()),
+    endDate: Timestamp.fromDate(dayjs("2026-04-07").toDate()),
+    isActive: true,
+    roomIds: [221], // Only applies to room 221
+    createdAt: Timestamp.now(),
+    updatedAt: Timestamp.now(),
+  },
+  {
+    id: "5",
+    name: "Audio Equipment Upgrade",
+    startDate: Timestamp.fromDate(dayjs("2026-05-01").toDate()),
+    endDate: Timestamp.fromDate(dayjs("2026-05-15").toDate()),
+    isActive: true,
+    roomIds: [230, 221], // Applies to rooms 230 and 221
     createdAt: Timestamp.now(),
     updatedAt: Timestamp.now(),
   },
@@ -276,5 +296,180 @@ describe("useBookingDateRestrictions Hook", () => {
     const noBlackoutPeriod =
       result.current.getBlackoutPeriodForDate(normalDate);
     expect(noBlackoutPeriod).toBeUndefined();
+  });
+
+  describe("Room-Specific Blackout Periods", () => {
+    it("should check blackout periods for specific rooms", () => {
+      const { result } = renderHook(() => useBookingDateRestrictions(), {
+        wrapper: ({ children }) => (
+          <DatabaseContext.Provider value={mockDatabaseContext as any}>
+            {children}
+          </DatabaseContext.Provider>
+        ),
+      });
+
+      // Test room 221 during its maintenance period
+      const room221MaintenanceDate = dayjs("2026-04-03");
+      expect(
+        result.current.isDateDisabledForRooms(room221MaintenanceDate, [221])
+      ).toBe(true);
+      expect(
+        result.current.isDateDisabledForRooms(room221MaintenanceDate, [222])
+      ).toBe(false);
+      expect(
+        result.current.isDateDisabledForRooms(
+          room221MaintenanceDate,
+          [221, 222]
+        )
+      ).toBe(true);
+    });
+
+    it("should handle multiple rooms in blackout periods", () => {
+      const { result } = renderHook(() => useBookingDateRestrictions(), {
+        wrapper: ({ children }) => (
+          <DatabaseContext.Provider value={mockDatabaseContext as any}>
+            {children}
+          </DatabaseContext.Provider>
+        ),
+      });
+
+      // Test during Audio Equipment Upgrade (affects rooms 230 and 221)
+      const audioUpgradeDate = dayjs("2026-05-10");
+      expect(
+        result.current.isDateDisabledForRooms(audioUpgradeDate, [230])
+      ).toBe(true);
+      expect(
+        result.current.isDateDisabledForRooms(audioUpgradeDate, [221])
+      ).toBe(true);
+      expect(
+        result.current.isDateDisabledForRooms(audioUpgradeDate, [222])
+      ).toBe(false);
+      expect(
+        result.current.isDateDisabledForRooms(audioUpgradeDate, [230, 221])
+      ).toBe(true);
+      expect(
+        result.current.isDateDisabledForRooms(audioUpgradeDate, [222, 223])
+      ).toBe(false);
+    });
+
+    it("should return blackout periods for specific rooms and dates", () => {
+      const { result } = renderHook(() => useBookingDateRestrictions(), {
+        wrapper: ({ children }) => (
+          <DatabaseContext.Provider value={mockDatabaseContext as any}>
+            {children}
+          </DatabaseContext.Provider>
+        ),
+      });
+
+      // Test getting blackout periods for room 221 during Audio Equipment Upgrade
+      const audioUpgradeDate = dayjs("2026-05-10");
+      const periodsForRoom221 =
+        result.current.getBlackoutPeriodsForDateAndRooms(audioUpgradeDate, [
+          221,
+        ]);
+      expect(periodsForRoom221).toHaveLength(1);
+      expect(periodsForRoom221[0].name).toBe("Audio Equipment Upgrade");
+
+      // Test getting blackout periods for room 222 (should be none during this period)
+      const periodsForRoom222 =
+        result.current.getBlackoutPeriodsForDateAndRooms(audioUpgradeDate, [
+          222,
+        ]);
+      expect(periodsForRoom222).toHaveLength(0);
+
+      // Test during global blackout period (Summer Break)
+      const summerDate = dayjs("2026-07-15");
+      const periodsForSummer = result.current.getBlackoutPeriodsForDateAndRooms(
+        summerDate,
+        [221, 222]
+      );
+      expect(periodsForSummer).toHaveLength(1);
+      expect(periodsForSummer[0].name).toBe("Summer Break");
+    });
+
+    it("should handle global blackout periods correctly with room-specific checks", () => {
+      const { result } = renderHook(() => useBookingDateRestrictions(), {
+        wrapper: ({ children }) => (
+          <DatabaseContext.Provider value={mockDatabaseContext as any}>
+            {children}
+          </DatabaseContext.Provider>
+        ),
+      });
+
+      // Test during Summer Break (global blackout - affects all rooms)
+      const summerDate = dayjs("2026-07-15");
+      expect(result.current.isDateDisabledForRooms(summerDate, [221])).toBe(
+        true
+      );
+      expect(result.current.isDateDisabledForRooms(summerDate, [222])).toBe(
+        true
+      );
+      expect(result.current.isDateDisabledForRooms(summerDate, [230])).toBe(
+        true
+      );
+      expect(
+        result.current.isDateDisabledForRooms(summerDate, [221, 222, 230])
+      ).toBe(true);
+    });
+
+    it("should handle empty room lists correctly", () => {
+      const { result } = renderHook(() => useBookingDateRestrictions(), {
+        wrapper: ({ children }) => (
+          <DatabaseContext.Provider value={mockDatabaseContext as any}>
+            {children}
+          </DatabaseContext.Provider>
+        ),
+      });
+
+      // Test with empty room list during room-specific blackout
+      const room221MaintenanceDate = dayjs("2026-04-03");
+      expect(
+        result.current.isDateDisabledForRooms(room221MaintenanceDate, [])
+      ).toBe(false);
+
+      // Test with empty room list during global blackout
+      const summerDate = dayjs("2026-07-15");
+      expect(result.current.isDateDisabledForRooms(summerDate, [])).toBe(true);
+    });
+
+    it("should handle overlapping room-specific and global blackout periods", () => {
+      const overlappingBlackoutPeriods = [
+        ...mockBlackoutPeriods,
+        {
+          id: "6",
+          name: "Room 221 Summer Maintenance",
+          startDate: Timestamp.fromDate(dayjs("2026-07-01").toDate()),
+          endDate: Timestamp.fromDate(dayjs("2026-07-31").toDate()),
+          isActive: true,
+          roomIds: [221],
+          createdAt: Timestamp.now(),
+          updatedAt: Timestamp.now(),
+        },
+      ];
+
+      const contextWithOverlappingPeriods = {
+        ...mockDatabaseContext,
+        blackoutPeriods: overlappingBlackoutPeriods,
+      };
+
+      const { result } = renderHook(() => useBookingDateRestrictions(), {
+        wrapper: ({ children }) => (
+          <DatabaseContext.Provider
+            value={contextWithOverlappingPeriods as any}
+          >
+            {children}
+          </DatabaseContext.Provider>
+        ),
+      });
+
+      // Test during overlap (both Summer Break and Room 221 Summer Maintenance)
+      const overlapDate = dayjs("2026-07-15");
+      const periodsForRoom221 =
+        result.current.getBlackoutPeriodsForDateAndRooms(overlapDate, [221]);
+      expect(periodsForRoom221).toHaveLength(2);
+      const periodNames = periodsForRoom221.map((p) => p.name);
+      expect(periodNames).toContain("Summer Break");
+      expect(periodNames).toContain("Room 221 Summer Maintenance");
+    });
   });
 });

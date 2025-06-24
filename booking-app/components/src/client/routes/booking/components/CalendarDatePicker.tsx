@@ -14,12 +14,20 @@ interface Props {
 
 export const CalendarDatePicker = ({ handleChange, formContext }: Props) => {
   const [date, setDate] = useState<Dayjs | null>(dayjs(new Date()));
-  const { bookingCalendarInfo } = useContext(BookingContext);
-  const { isDateDisabled } = useBookingDateRestrictions();
+  const { bookingCalendarInfo, selectedRooms } = useContext(BookingContext);
+  const { isDateDisabled, isDateDisabledForRooms } =
+    useBookingDateRestrictions();
 
   const handleDateChange = (newVal: Dayjs) => {
     setDate(newVal);
     handleChange(newVal.toDate());
+  };
+
+  // Create a date validation function that only considers global blackout periods
+  const shouldDisableDate = (date: Dayjs) => {
+    // Only disable dates for global blackout periods (periods without specific roomIds)
+    // and past dates
+    return isDateDisabled(date);
   };
 
   // if go back to calendar from booking form, show currently selected date
@@ -41,7 +49,7 @@ export const CalendarDatePicker = ({ handleChange, formContext }: Props) => {
         views={["day", "month"]}
         autoFocus
         disablePast
-        shouldDisableDate={isDateDisabled}
+        shouldDisableDate={shouldDisableDate}
         disabled={formContext === FormContextLevel.MODIFICATION}
         showDaysOutsideCurrentMonth
       />

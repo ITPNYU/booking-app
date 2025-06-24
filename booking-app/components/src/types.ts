@@ -219,6 +219,7 @@ export type BlackoutPeriod = {
   isActive: boolean;
   createdAt: Timestamp;
   updatedAt?: Timestamp;
+  roomIds?: number[]; // Optional array of room IDs - if empty/undefined, applies to all rooms
 };
 
 export type PolicySettings = {
