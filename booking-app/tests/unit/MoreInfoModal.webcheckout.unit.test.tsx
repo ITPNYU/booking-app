@@ -12,6 +12,7 @@ import {
   it,
   vi,
 } from "vitest";
+
 import MoreInfoModal from "../../components/src/client/routes/components/bookingTable/MoreInfoModal";
 import { DatabaseContext } from "../../components/src/client/routes/components/Provider";
 import { BookingRow, PagePermission } from "../../components/src/types";
@@ -68,7 +69,6 @@ vi.mock(
 const mockFetch = vi.fn();
 global.fetch = mockFetch;
 
-// Mock WebCheckout data - structure matching the actual API response
 const mockWebCheckoutData = {
   cartNumber: "CK-2614",
   totalItems: 3,
@@ -352,6 +352,7 @@ describe("MoreInfoModal - WebCheckout", () => {
       const user = userEvent.setup();
       // Clear the default mock and set error mock
       mockFetch.mockReset();
+
       mockFetch.mockResolvedValueOnce({
         ok: false,
         json: () => Promise.resolve({ error: "Failed to update" }),
@@ -384,6 +385,7 @@ describe("MoreInfoModal - WebCheckout", () => {
       const user = userEvent.setup();
       // Clear the default mock and set network error mock
       mockFetch.mockReset();
+
       mockFetch.mockRejectedValueOnce(new Error("Network error"));
 
       const booking = createMockBooking({ webcheckoutCartNumber: "CART123" });

@@ -26,7 +26,6 @@ export async function GET(
     }
 
     // Authenticate with WebCheckout API
-
     const authResponse = await fetch(`${baseUrl}/rest/session/start`, {
       method: "POST",
       headers: {
@@ -97,13 +96,11 @@ export async function GET(
           error: `WebCheckout API request failed: ${response.status}`,
           details: errorText,
         },
-
         { status: response.status },
       );
     }
 
     const webCheckoutResponse = await response.json();
-
     if (webCheckoutResponse.status === "unauthenticated") {
       return NextResponse.json(
         { error: "WebCheckout session is invalid or expired" },
