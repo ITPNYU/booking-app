@@ -4,7 +4,7 @@ name: Auto Checkout Cron Job
 on:
   schedule:
     # Runs every 30 minutes
-    - cron: '*/30 * * * *'
+    - cron: "*/30 * * * *"
   workflow_dispatch: # Allows manual triggering from the Actions tab
 
 jobs:
@@ -15,7 +15,7 @@ jobs:
       - name: Trigger Auto-Checkout API
         env: # Define secrets as environment variables for the step
           CRON_JOB_ENABLED: ${{ secrets.CRON_JOB_ENABLED }}
-          DEPLOYED_APP_URL: ${{ secrets.DEPLOYED_APP_URL }}
+          DEPLOYED_APP_URL: ${{ secrets.NEXT_PUBLIC_BASE_URL }}
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
           # --- Start: Control and Secret Checks ---
