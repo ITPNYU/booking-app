@@ -27,7 +27,6 @@ import BookingTableFilters from "./BookingTableFilters";
 import EquipmentCheckoutToggle from "./EquipmentCheckoutToggle";
 import MoreInfoModal from "./MoreInfoModal";
 import StatusChip from "./StatusChip";
-import WebCheckoutEquipmentDisplay from "./WebCheckoutEquipmentDisplay";
 import { DateRangeFilter } from "./hooks/getDateFilter";
 import useAllowedStatuses from "./hooks/useAllowedStatuses";
 import { useBookingFilters } from "./hooks/useBookingFilters";
@@ -338,23 +337,6 @@ export const Bookings: React.FC<BookingsProps> = ({
                   <EquipmentCheckoutToggle
                     status={params.row.equipmentCheckedOut}
                     booking={params.row}
-                  />
-                </TableCell>
-              ),
-            },
-            {
-              field: "webcheckout",
-              headerName: "WebCheckout",
-              minWidth: 180,
-              flex: 1,
-              renderHeader: () => <TableCell>WebCheckout</TableCell>,
-              filterable: false,
-              sortable: false,
-              renderCell: (params) => (
-                <TableCell>
-                  <WebCheckoutEquipmentDisplay
-                    cartNumber={params.row.webcheckoutCartNumber}
-                    maxDisplayItems={2}
                   />
                 </TableCell>
               ),

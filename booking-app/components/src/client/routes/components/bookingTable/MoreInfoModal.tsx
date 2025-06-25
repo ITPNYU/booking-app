@@ -3,7 +3,6 @@ import {
   Box,
   Button,
   IconButton,
-  Link,
   Modal,
   Table,
   TableBody,
@@ -91,6 +90,7 @@ export default function MoreInfoModal({ booking, closeModal }: Props) {
   const [isUpdating, setIsUpdating] = useState(false);
   const [webCheckoutUrl, setWebCheckoutUrl] = useState<string | null>(null);
   const [isLoadingUrl, setIsLoadingUrl] = useState(false);
+  const [webCheckoutData, setWebCheckoutData] = useState<any>(null);
 
   // Check if user has permission to edit cart number
   const canEditCart =
@@ -135,27 +135,28 @@ export default function MoreInfoModal({ booking, closeModal }: Props) {
   };
 
   const fetchWebCheckoutUrl = async (cartNum: string) => {
-    if (!cartNum) return;
-
     setIsLoadingUrl(true);
     try {
       const response = await fetch(`/api/webcheckout/cart/${cartNum}`);
       if (response.ok) {
         const data = await response.json();
         setWebCheckoutUrl(data.webCheckoutUrl);
+        setWebCheckoutData(data);
       } else {
         console.error("Failed to fetch WebCheckout URL");
         setWebCheckoutUrl(null);
+        setWebCheckoutData(null);
       }
     } catch (error) {
       console.error("Error fetching WebCheckout URL:", error);
       setWebCheckoutUrl(null);
+      setWebCheckoutData(null);
     } finally {
       setIsLoadingUrl(false);
     }
   };
 
-  // WebCheckout URLを取得（カート番号があるとき）
+  // Fetch WebCheckout URL when cart number exists
   React.useEffect(() => {
     if (booking.webcheckoutCartNumber) {
       fetchWebCheckoutUrl(booking.webcheckoutCartNumber);
@@ -210,28 +211,129 @@ export default function MoreInfoModal({ booking, closeModal }: Props) {
                 ) : (
                   <Box display="flex" alignItems="center" gap={1}>
                     {booking.webcheckoutCartNumber ? (
-                      <Box display="flex" alignItems="center" gap={1}>
-                        <Typography variant="body2">
-                          {booking.webcheckoutCartNumber}
-                        </Typography>
-                        {isLoadingUrl ? (
+                      <Box display="flex" flexDirection="column" gap={2}>
+                        {/* Loading State */}
+                        {isLoadingUrl && (
                           <Typography variant="body2" color="text.secondary">
-                            Loading...
-                          </Typography>
-                        ) : webCheckoutUrl ? (
-                          <Link
-                            href={webCheckoutUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            sx={{ fontSize: "0.875rem" }}
-                          >
-                            Open in WebCheckout
-                          </Link>
-                        ) : (
-                          <Typography variant="body2" color="text.secondary">
-                            Invalid cart
+                            Loading equipment information...
                           </Typography>
                         )}
+
+                        {/* Equipment List Section */}
+                        {webCheckoutData &&
+                          webCheckoutData.equipmentGroups &&
+                          webCheckoutData.equipmentGroups.length > 0 && (
+                            <Box sx={{ marginTop: 1 }}>
+                              <Box
+                                display="flex"
+                                alignItems="center"
+                                gap={1}
+                                sx={{ marginBottom: 1 }}
+                              >
+                                <Typography
+                                  variant="subtitle2"
+                                  sx={{ fontWeight: 600 }}
+                                >
+                                  Cart: {webCheckoutData.cartNumber} (
+                                  {webCheckoutData.totalItems} items)
+                                </Typography>
+                                <Button
+                                  variant="outlined"
+                                  size="small"
+                                  onClick={() =>
+                                    navigator.clipboard.writeText(
+                                      webCheckoutUrl
+                                    )
+                                  }
+                                  sx={{
+                                    fontSize: "0.7rem",
+                                    textTransform: "none",
+                                    padding: "2px 6px",
+                                    minWidth: "auto",
+                                    height: "24px",
+                                  }}
+                                >
+                                  Copy Cart URL
+                                </Button>
+                              </Box>
+                              <Box
+                                sx={{
+                                  maxHeight: 200,
+                                  overflowY: "auto",
+                                  backgroundColor: "#f9f9f9",
+                                  padding: 1,
+                                  borderRadius: 1,
+                                }}
+                              >
+                                {webCheckoutData.equipmentGroups.map(
+                                  (group: any, groupIndex: number) => (
+                                    <Box
+                                      key={groupIndex}
+                                      sx={{ marginBottom: 2 }}
+                                    >
+                                      <Typography
+                                        variant="caption"
+                                        sx={{
+                                          fontWeight: 600,
+                                          color:
+                                            group.label === "Checked out"
+                                              ? "#1976d2"
+                                              : "#ed6c02",
+                                          display: "block",
+                                          marginBottom: 0.5,
+                                        }}
+                                      >
+                                        {group.label}:
+                                      </Typography>
+                                      {group.items.map(
+                                        (item: any, itemIndex: number) => (
+                                          <Box
+                                            key={itemIndex}
+                                            sx={{
+                                              marginBottom: 1,
+                                              paddingLeft: 1,
+                                            }}
+                                          >
+                                            <Typography
+                                              variant="body2"
+                                              sx={{
+                                                fontSize: "0.875rem",
+                                                fontWeight: 500,
+                                                marginBottom: 0.5,
+                                              }}
+                                            >
+                                              <strong>•</strong> {item.name}
+                                            </Typography>
+                                            {item.subitems &&
+                                              item.subitems.map(
+                                                (
+                                                  subitem: any,
+                                                  subIndex: number
+                                                ) => (
+                                                  <Typography
+                                                    key={subIndex}
+                                                    variant="body2"
+                                                    sx={{
+                                                      fontSize: "0.8rem",
+                                                      color: "#666",
+                                                      lineHeight: 1.3,
+                                                      paddingLeft: 2,
+                                                      marginBottom: 0.25,
+                                                    }}
+                                                  >
+                                                    - {subitem.label}
+                                                  </Typography>
+                                                )
+                                              )}
+                                          </Box>
+                                        )
+                                      )}
+                                    </Box>
+                                  )
+                                )}
+                              </Box>
+                            </Box>
+                          )}
                       </Box>
                     ) : (
                       <Typography variant="body2" color="text.secondary">

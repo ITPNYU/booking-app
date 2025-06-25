@@ -61,6 +61,9 @@ jobs:
           echo "NYU_API_PASSWORD=${{ secrets.NYU_API_PASSWORD }}" >> .env.production
           echo "NYU_API_ACCESS_ID=${{ secrets.NYU_API_ACCESS_ID }}" >> .env.production
           echo "CRON_SECRET=${{ secrets.CRON_SECRET }}" >> .env.production
+          echo "WEBCHECKOUT_USERNAME=${{ secrets.WEBCHECKOUT_USERNAME }}" >> .env.production
+          echo "WEBCHECKOUT_PASSWORD=${{ secrets.WEBCHECKOUT_PASSWORD }}" >> .env.production
+          echo "WEBCHECKOUT_API_BASE_URL=${{ secrets.WEBCHECKOUT_API_BASE_URL }}" >> .env.production
 
       - name: Install dependencies
         run: |
