@@ -15,7 +15,7 @@ jobs:
       - name: Trigger Auto-Checkout API
         env: # Define secrets as environment variables for the step
           CRON_JOB_ENABLED: ${{ secrets.CRON_JOB_ENABLED }}
-          NEXT_PUBLIC_BASE_URL: ${{ secrets.NEXT_PUBLIC_BASE_URL }}
+          NEXT_PUBLIC_BASE_URL: ${{ vars.NEXT_PUBLIC_BASE_URL }}
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
           # --- Start: Control and Secret Checks ---
