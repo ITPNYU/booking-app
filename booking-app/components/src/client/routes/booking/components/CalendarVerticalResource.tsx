@@ -134,17 +134,21 @@ export default function CalendarVerticalResource({
     const selectedDate = dayjs(dateView);
     const blocks: any[] = [];
 
+    console.log("Generating blackout blocks for date:", selectedDate.format("YYYY-MM-DD"));
+
     rooms.forEach((room) => {
       const blackoutPeriods = getBlackoutPeriodsForDateAndRooms(selectedDate, [
         room.roomId,
       ]);
+
+      console.log(`Room ${room.roomId} blackout periods:`, blackoutPeriods);
 
       blackoutPeriods.forEach((period) => {
         // Create full day blackout block for this room
         const startOfDay = selectedDate.startOf("day");
         const endOfDay = selectedDate.endOf("day");
 
-        blocks.push({
+        const blockEvent = {
           start: startOfDay.toISOString(),
           end: endOfDay.toISOString(),
           id: `blackout-${room.roomId}-${period.id}`,
@@ -156,10 +160,17 @@ export default function CalendarVerticalResource({
           backgroundColor: "#e0e0e0",
           borderColor: "#bdbdbd",
           textColor: "#000000",
-        });
+          extendedProps: {
+            selectable: false,
+          },
+        };
+
+        console.log("Adding blackout block:", blockEvent);
+        blocks.push(blockEvent);
       });
     });
 
+    console.log("Total blackout blocks generated:", blocks.length);
     return blocks;
   }, [rooms, dateView, getBlackoutPeriodsForDateAndRooms]);
 
@@ -223,14 +234,29 @@ export default function CalendarVerticalResource({
   }, [rooms, formContext]);
 
   const handleEventSelect = (selectInfo: DateSelectArg) => {
+    // Check if the selection overlaps with any blackout periods before setting booking info
+    const selectedDate = dayjs(selectInfo.start);
+    const selectedResourceId = selectInfo.resource?.id;
+
+    if (selectedResourceId) {
+      const roomId = parseInt(selectedResourceId);
+      const blackoutPeriods = getBlackoutPeriodsForDateAndRooms(selectedDate, [
+        roomId,
+      ]);
+
+      if (blackoutPeriods.length > 0) {
+        // Don't allow selection in blackout periods
+        if (ref.current?.getApi()) {
+          ref.current.getApi().unselect();
+        }
+        return;
+      }
+    }
+
     setBookingCalendarInfo(selectInfo);
   };
 
   const handleEventSelecting = (selectInfo: DateSelectArg) => {
-    if (ref.current == null || ref.current.getApi() == null) {
-      return true;
-    }
-
     // Check if the selection overlaps with any blackout periods
     const selectedDate = dayjs(selectInfo.start);
     const selectedResourceId = selectInfo.resource?.id;
@@ -247,9 +273,7 @@ export default function CalendarVerticalResource({
       }
     }
 
-    const api: CalendarApi = ref.current.getApi();
-    api.unselect();
-    setBookingCalendarInfo(selectInfo);
+    // Allow selection if not in blackout period
     return true;
   };
 
@@ -369,6 +393,10 @@ export default function CalendarVerticalResource({
         select={handleEventSelect}
         selectAllow={handleEventSelecting}
         selectOverlap={handleSelectOverlap}
+        selectConstraint={{
+          resourceIds: resources.map(r => r.id),
+          overlap: false,
+        }}
         schedulerLicenseKey="CC-Attribution-NonCommercial-NoDerivatives"
         resources={resources}
         resourceOrder={"index"}

@@ -60,11 +60,8 @@ export const SelectRooms = ({
 
   // walk-ins can only book 1 room unless it's 2 ballroom bays (221-224)
   const isDisabled = (roomId: number) => {
-    // Don't disable rooms for blackout periods - just show tooltips
-    // Check if room is in blackout period
-    // const blackoutInfo = isRoomInBlackout(roomId);
-    // if (blackoutInfo.inBlackout) return true;
-
+    // Don't disable rooms for blackout periods - let the calendar handle time restrictions
+    // Only apply walk-in restrictions
     if (formContext !== FormContextLevel.WALK_IN || selectedIds.length === 0)
       return false;
     if (selectedIds.includes(roomId)) return false;

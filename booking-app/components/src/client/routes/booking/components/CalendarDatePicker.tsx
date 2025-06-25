@@ -5,7 +5,6 @@ import { useContext, useEffect, useState } from "react";
 import { FormContextLevel } from "@/components/src/types";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { BookingContext } from "../bookingProvider";
-import { useBookingDateRestrictions } from "../hooks/useBookingDateRestrictions";
 
 interface Props {
   handleChange: (x: Date) => void;
@@ -14,20 +13,18 @@ interface Props {
 
 export const CalendarDatePicker = ({ handleChange, formContext }: Props) => {
   const [date, setDate] = useState<Dayjs | null>(dayjs(new Date()));
-  const { bookingCalendarInfo, selectedRooms } = useContext(BookingContext);
-  const { isDateDisabled, isDateDisabledForRooms } =
-    useBookingDateRestrictions();
+  const { bookingCalendarInfo } = useContext(BookingContext);
 
   const handleDateChange = (newVal: Dayjs) => {
     setDate(newVal);
     handleChange(newVal.toDate());
   };
 
-  // Create a date validation function that only considers global blackout periods
+  // Create a date validation function that only disables past dates
   const shouldDisableDate = (date: Dayjs) => {
-    // Only disable dates for global blackout periods (periods without specific roomIds)
-    // and past dates
-    return isDateDisabled(date);
+    // Only disable past dates - allow blackout periods to be selected
+    // Time restrictions will be handled in the calendar view
+    return date.isBefore(dayjs(), "day");
   };
 
   // if go back to calendar from booking form, show currently selected date

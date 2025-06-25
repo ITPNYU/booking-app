@@ -68,6 +68,13 @@ export default function BookingBlackoutPeriods() {
     fetchBlackoutPeriods();
   }, []);
 
+  useEffect(() => {
+    console.log("Room settings updated:", {
+      roomSettings: roomSettings?.length || 0,
+      rooms: roomSettings?.map((r) => ({ id: r.roomId, name: r.name })) || [],
+    });
+  }, [roomSettings]);
+
   const fetchBlackoutPeriods = async () => {
     try {
       const fetchedData =
@@ -91,9 +98,24 @@ export default function BookingBlackoutPeriods() {
       setPeriodName(period.name);
       setStartDate(dayjs(period.startDate.toDate()));
       setEndDate(dayjs(period.endDate.toDate()));
+
       if (period.roomIds && period.roomIds.length > 0) {
-        setSelectedRooms(period.roomIds);
-        setApplyToAllRooms(false);
+        // Check if all available rooms are included
+        const allRoomIds = roomSettings
+          .map((room) => room.roomId)
+          .sort((a, b) => a - b);
+        const periodRoomIds = [...period.roomIds].sort((a, b) => a - b);
+        const isAllRooms =
+          allRoomIds.length === periodRoomIds.length &&
+          allRoomIds.every((id, index) => id === periodRoomIds[index]);
+
+        if (isAllRooms) {
+          setSelectedRooms([]);
+          setApplyToAllRooms(true);
+        } else {
+          setSelectedRooms(period.roomIds);
+          setApplyToAllRooms(false);
+        }
       } else {
         setSelectedRooms([]);
         setApplyToAllRooms(true);
@@ -139,18 +161,40 @@ export default function BookingBlackoutPeriods() {
       return;
     }
 
+    // Check if roomSettings is available when applying to all rooms
+    if (applyToAllRooms && (!roomSettings || roomSettings.length === 0)) {
+      setMessage({
+        type: "error",
+        text: "Room settings not loaded. Please refresh the page and try again.",
+      });
+      return;
+    }
+
     setLoading(true);
     setMessage(null);
 
     try {
+      const allRoomIds = applyToAllRooms
+        ? roomSettings.map((room) => room.roomId)
+        : selectedRooms;
+
+      console.log("Saving blackout period:", {
+        applyToAllRooms,
+        roomSettings: roomSettings?.length || 0,
+        allRoomIds,
+        selectedRooms,
+      });
+
       const periodData = {
         name: periodName.trim(),
         startDate: Timestamp.fromDate(startDate.toDate()),
         endDate: Timestamp.fromDate(endDate.toDate()),
         isActive: true, // Always active when created/updated
         updatedAt: Timestamp.now(),
-        roomIds: applyToAllRooms ? undefined : selectedRooms,
+        roomIds: allRoomIds,
       };
+
+      console.log("Period data to save:", periodData);
 
       if (editingPeriod) {
         await clientUpdateDataInFirestore(
@@ -218,6 +262,20 @@ export default function BookingBlackoutPeriods() {
     if (!period.roomIds || period.roomIds.length === 0) {
       return "All Rooms";
     }
+
+    // Check if all available rooms are included
+    const allRoomIds = roomSettings
+      .map((room) => room.roomId)
+      .sort((a, b) => a - b);
+    const periodRoomIds = [...period.roomIds].sort((a, b) => a - b);
+    const isAllRooms =
+      allRoomIds.length === periodRoomIds.length &&
+      allRoomIds.every((id, index) => id === periodRoomIds[index]);
+
+    if (isAllRooms) {
+      return "All Rooms";
+    }
+
     const selectedRoomNames = period.roomIds
       .map((roomId) => {
         const room = roomSettings.find((r) => r.roomId === roomId);
@@ -364,7 +422,7 @@ export default function BookingBlackoutPeriods() {
                     }}
                   />
                 }
-                label="Apply to all rooms"
+                label={`Apply to all rooms ${roomSettings?.length ? `(${roomSettings.length} rooms)` : "(loading...)"}`}
               />
 
               {!applyToAllRooms && (

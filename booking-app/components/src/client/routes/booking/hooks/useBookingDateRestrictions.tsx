@@ -3,7 +3,7 @@ import { useContext, useMemo } from "react";
 import { DatabaseContext } from "../../components/Provider";
 
 export const useBookingDateRestrictions = () => {
-  const { blackoutPeriods } = useContext(DatabaseContext);
+  const { blackoutPeriods, roomSettings } = useContext(DatabaseContext);
 
   const activeBlackoutPeriods = useMemo(() => {
     if (!blackoutPeriods || !Array.isArray(blackoutPeriods)) {
@@ -18,19 +18,35 @@ export const useBookingDateRestrictions = () => {
       return true;
     }
 
-    // Check if date falls within any global blackout period (periods without specific roomIds)
+    // Check if date falls within any global blackout period (periods that apply to all rooms)
     return activeBlackoutPeriods.some((period) => {
-      // Only check periods that apply to all rooms (no specific roomIds)
-      if (period.roomIds && period.roomIds.length > 0) {
+      const startDate = dayjs(period.startDate.toDate());
+      const endDate = dayjs(period.endDate.toDate());
+
+      // Check if date is within this blackout period
+      const isDateInPeriod =
+        (date.isAfter(startDate, "day") || date.isSame(startDate, "day")) &&
+        (date.isBefore(endDate, "day") || date.isSame(endDate, "day"));
+
+      if (!isDateInPeriod) {
         return false;
       }
 
-      const startDate = dayjs(period.startDate.toDate());
-      const endDate = dayjs(period.endDate.toDate());
-      return (
-        (date.isAfter(startDate, "day") || date.isSame(startDate, "day")) &&
-        (date.isBefore(endDate, "day") || date.isSame(endDate, "day"))
-      );
+      // Check if this period applies to all available rooms
+      if (roomSettings && roomSettings.length > 0 && period.roomIds) {
+        const allRoomIds = roomSettings
+          .map((room) => room.roomId)
+          .sort((a, b) => a - b);
+        const periodRoomIds = [...period.roomIds].sort((a, b) => a - b);
+        const isAllRooms =
+          allRoomIds.length === periodRoomIds.length &&
+          allRoomIds.every((id, index) => id === periodRoomIds[index]);
+
+        return isAllRooms;
+      }
+
+      // Fallback: if no roomSettings or no roomIds, don't disable globally
+      return false;
     });
   };
 
@@ -55,13 +71,12 @@ export const useBookingDateRestrictions = () => {
         return false;
       }
 
-      // If period has no specific rooms (roomIds is undefined/empty), it applies to all rooms
-      if (!period.roomIds || period.roomIds.length === 0) {
-        return true;
+      // Since all periods now have roomIds, check if any of the selected rooms are in the blackout period
+      if (period.roomIds) {
+        return roomIds.some((roomId) => period.roomIds!.includes(roomId));
       }
 
-      // Check if any of the selected rooms are in the blackout period
-      return roomIds.some((roomId) => period.roomIds!.includes(roomId));
+      return false;
     });
   };
 
@@ -94,13 +109,12 @@ export const useBookingDateRestrictions = () => {
         return false;
       }
 
-      // If period has no specific rooms, it applies to all rooms
-      if (!period.roomIds || period.roomIds.length === 0) {
-        return true;
+      // Since all periods now have roomIds, check if any of the selected rooms are in the blackout period
+      if (period.roomIds) {
+        return roomIds.some((roomId) => period.roomIds!.includes(roomId));
       }
 
-      // Check if any of the selected rooms are in the blackout period
-      return roomIds.some((roomId) => period.roomIds!.includes(roomId));
+      return false;
     });
   };
 
