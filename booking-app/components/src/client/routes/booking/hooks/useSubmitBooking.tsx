@@ -116,7 +116,6 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
                 calendarEventId,
                 isAutoApproval: true,
                 allRooms: roomSettings,
-                modifiedBy: userEmail,
               },
             };
           case FormContextLevel.WALK_IN:
@@ -150,6 +149,8 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
           liaisonUsers,
           data,
           isAutoApproval,
+          // Add modifiedBy as a top-level parameter for modification context
+          ...(isModification && { modifiedBy: userEmail }),
           ...(requestParams.body ?? {}),
         }),
       })
