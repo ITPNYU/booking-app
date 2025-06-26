@@ -12,7 +12,6 @@ import {
   it,
   vi,
 } from "vitest";
-
 import MoreInfoModal from "../../components/src/client/routes/components/bookingTable/MoreInfoModal";
 import { DatabaseContext } from "../../components/src/client/routes/components/Provider";
 import { BookingRow, PagePermission } from "../../components/src/types";
