@@ -155,11 +155,18 @@ describe("MoreInfoModal - Accessibility", () => {
 
       renderModal(booking, context);
 
-      // Check for table headers in history section
-      expect(screen.getByText("Status")).toBeInTheDocument();
-      expect(screen.getByText("User")).toBeInTheDocument();
-      expect(screen.getByText("Date")).toBeInTheDocument();
-      expect(screen.getByText("Note")).toBeInTheDocument();
+      // Check for table headers in history section using more specific queries
+      const statusHeader = screen.getByRole("columnheader", { name: "Status" });
+      expect(statusHeader).toBeInTheDocument();
+      expect(
+        screen.getByRole("columnheader", { name: "User" })
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("columnheader", { name: "Date" })
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("columnheader", { name: "Note" })
+      ).toBeInTheDocument();
     });
 
     it("provides semantic structure with proper headings", () => {
