@@ -26,7 +26,7 @@ const mockBlackoutPeriods: BlackoutPeriod[] = [
     id: "2",
     name: "Winter Holidays",
     startDate: Timestamp.fromDate(dayjs("2026-12-20").toDate()),
-    endDate: Timestamp.fromDate(dayjs("2026-01-05").toDate()),
+    endDate: Timestamp.fromDate(dayjs("2027-01-05").toDate()),
     isActive: true,
     createdAt: Timestamp.now(),
     updatedAt: Timestamp.now(),

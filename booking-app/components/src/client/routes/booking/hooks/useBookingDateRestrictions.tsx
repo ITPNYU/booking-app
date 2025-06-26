@@ -45,8 +45,8 @@ export const useBookingDateRestrictions = () => {
         return isAllRooms;
       }
 
-      // Fallback: if no roomSettings or no roomIds, don't disable globally
-      return false;
+      // Fallback: if no roomSettings or no roomIds, disable globally
+      return !period.roomIds;
     });
   };
 
@@ -71,12 +71,13 @@ export const useBookingDateRestrictions = () => {
         return false;
       }
 
-      // Since all periods now have roomIds, check if any of the selected rooms are in the blackout period
+      // If period has roomIds, check if any of the selected rooms are in the blackout period
       if (period.roomIds) {
         return roomIds.some((roomId) => period.roomIds!.includes(roomId));
       }
 
-      return false;
+      // If no roomIds, treat as global blackout that applies to all rooms
+      return true;
     });
   };
 
@@ -109,12 +110,13 @@ export const useBookingDateRestrictions = () => {
         return false;
       }
 
-      // Since all periods now have roomIds, check if any of the selected rooms are in the blackout period
+      // If period has roomIds, check if any of the selected rooms are in the blackout period
       if (period.roomIds) {
         return roomIds.some((roomId) => period.roomIds!.includes(roomId));
       }
 
-      return false;
+      // Include global blackout periods (those without roomIds)
+      return true;
     });
   };
 
