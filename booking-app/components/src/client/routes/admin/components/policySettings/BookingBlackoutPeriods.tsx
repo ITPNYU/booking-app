@@ -11,12 +11,21 @@ import {
   Alert,
   Box,
   Button,
+  Checkbox,
+  Chip,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
+  FormControl,
+  FormControlLabel,
   IconButton,
+  InputLabel,
+  ListItemText,
+  MenuItem,
+  OutlinedInput,
   Paper,
+  Select,
   Stack,
   Table,
   TableBody,
@@ -32,9 +41,11 @@ import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import dayjs, { Dayjs } from "dayjs";
 import { Timestamp } from "firebase/firestore";
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
+import { DatabaseContext } from "../../../components/Provider";
 
 export default function BookingBlackoutPeriods() {
+  const { roomSettings } = useContext(DatabaseContext);
   const [blackoutPeriods, setBlackoutPeriods] = useState<BlackoutPeriod[]>([]);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{
@@ -50,10 +61,19 @@ export default function BookingBlackoutPeriods() {
   const [periodName, setPeriodName] = useState("");
   const [startDate, setStartDate] = useState<Dayjs | null>(null);
   const [endDate, setEndDate] = useState<Dayjs | null>(null);
+  const [selectedRooms, setSelectedRooms] = useState<number[]>([]);
+  const [applyToAllRooms, setApplyToAllRooms] = useState(true);
 
   useEffect(() => {
     fetchBlackoutPeriods();
   }, []);
+
+  useEffect(() => {
+    console.log("Room settings updated:", {
+      roomSettings: roomSettings?.length || 0,
+      rooms: roomSettings?.map((r) => ({ id: r.roomId, name: r.name })) || [],
+    });
+  }, [roomSettings]);
 
   const fetchBlackoutPeriods = async () => {
     try {
@@ -78,11 +98,35 @@ export default function BookingBlackoutPeriods() {
       setPeriodName(period.name);
       setStartDate(dayjs(period.startDate.toDate()));
       setEndDate(dayjs(period.endDate.toDate()));
+
+      if (period.roomIds && period.roomIds.length > 0) {
+        // Check if all available rooms are included
+        const allRoomIds = roomSettings
+          .map((room) => room.roomId)
+          .sort((a, b) => a - b);
+        const periodRoomIds = [...period.roomIds].sort((a, b) => a - b);
+        const isAllRooms =
+          allRoomIds.length === periodRoomIds.length &&
+          allRoomIds.every((id, index) => id === periodRoomIds[index]);
+
+        if (isAllRooms) {
+          setSelectedRooms([]);
+          setApplyToAllRooms(true);
+        } else {
+          setSelectedRooms(period.roomIds);
+          setApplyToAllRooms(false);
+        }
+      } else {
+        setSelectedRooms([]);
+        setApplyToAllRooms(true);
+      }
     } else {
       setEditingPeriod(null);
       setPeriodName("");
       setStartDate(null);
       setEndDate(null);
+      setSelectedRooms([]);
+      setApplyToAllRooms(true);
     }
     setDialogOpen(true);
   };
@@ -90,6 +134,8 @@ export default function BookingBlackoutPeriods() {
   const handleCloseDialog = () => {
     setDialogOpen(false);
     setEditingPeriod(null);
+    setSelectedRooms([]);
+    setApplyToAllRooms(true);
     setMessage(null);
   };
 
@@ -107,17 +153,48 @@ export default function BookingBlackoutPeriods() {
       return;
     }
 
+    if (!applyToAllRooms && selectedRooms.length === 0) {
+      setMessage({
+        type: "error",
+        text: "Please select at least one room or choose 'Apply to all rooms'.",
+      });
+      return;
+    }
+
+    // Check if roomSettings is available when applying to all rooms
+    if (applyToAllRooms && (!roomSettings || roomSettings.length === 0)) {
+      setMessage({
+        type: "error",
+        text: "Room settings not loaded. Please refresh the page and try again.",
+      });
+      return;
+    }
+
     setLoading(true);
     setMessage(null);
 
     try {
+      const allRoomIds = applyToAllRooms
+        ? roomSettings.map((room) => room.roomId)
+        : selectedRooms;
+
+      console.log("Saving blackout period:", {
+        applyToAllRooms,
+        roomSettings: roomSettings?.length || 0,
+        allRoomIds,
+        selectedRooms,
+      });
+
       const periodData = {
         name: periodName.trim(),
         startDate: Timestamp.fromDate(startDate.toDate()),
         endDate: Timestamp.fromDate(endDate.toDate()),
         isActive: true, // Always active when created/updated
         updatedAt: Timestamp.now(),
+        roomIds: allRoomIds,
       };
+
+      console.log("Period data to save:", periodData);
 
       if (editingPeriod) {
         await clientUpdateDataInFirestore(
@@ -181,6 +258,33 @@ export default function BookingBlackoutPeriods() {
     return dayjs(timestamp.toDate()).format("MMMM D, YYYY");
   };
 
+  const getRoomNames = (period: BlackoutPeriod) => {
+    if (!period.roomIds || period.roomIds.length === 0) {
+      return "All Rooms";
+    }
+
+    // Check if all available rooms are included
+    const allRoomIds = roomSettings
+      .map((room) => room.roomId)
+      .sort((a, b) => a - b);
+    const periodRoomIds = [...period.roomIds].sort((a, b) => a - b);
+    const isAllRooms =
+      allRoomIds.length === periodRoomIds.length &&
+      allRoomIds.every((id, index) => id === periodRoomIds[index]);
+
+    if (isAllRooms) {
+      return "All Rooms";
+    }
+
+    const selectedRoomNames = period.roomIds
+      .map((roomId) => {
+        const room = roomSettings.find((r) => r.roomId === roomId);
+        return room ? `${room.roomId} - ${room.name}` : `Room ${roomId}`;
+      })
+      .join(", ");
+    return selectedRoomNames || "Unknown Rooms";
+  };
+
   return (
     <LocalizationProvider dateAdapter={AdapterDayjs}>
       <Paper sx={{ p: 3, mb: 3 }}>
@@ -224,13 +328,14 @@ export default function BookingBlackoutPeriods() {
                 <TableCell>Period Name</TableCell>
                 <TableCell>Start Date</TableCell>
                 <TableCell>End Date</TableCell>
+                <TableCell>Applied Rooms</TableCell>
                 <TableCell align="center">Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {blackoutPeriods.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={4} align="center" sx={{ py: 4 }}>
+                  <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
                     <Typography color="text.secondary">
                       No blackout periods configured
                     </Typography>
@@ -242,6 +347,7 @@ export default function BookingBlackoutPeriods() {
                     <TableCell>{period.name}</TableCell>
                     <TableCell>{formatDate(period.startDate)}</TableCell>
                     <TableCell>{formatDate(period.endDate)}</TableCell>
+                    <TableCell>{getRoomNames(period)}</TableCell>
                     <TableCell align="center">
                       <IconButton
                         size="small"
@@ -303,6 +409,67 @@ export default function BookingBlackoutPeriods() {
                   textField: { fullWidth: true },
                 }}
               />
+
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={applyToAllRooms}
+                    onChange={(e) => {
+                      setApplyToAllRooms(e.target.checked);
+                      if (e.target.checked) {
+                        setSelectedRooms([]);
+                      }
+                    }}
+                  />
+                }
+                label={`Apply to all rooms ${roomSettings?.length ? `(${roomSettings.length} rooms)` : "(loading...)"}`}
+              />
+
+              {!applyToAllRooms && (
+                <FormControl fullWidth>
+                  <InputLabel>Select Rooms</InputLabel>
+                  <Select
+                    multiple
+                    value={selectedRooms}
+                    onChange={(e) => {
+                      const value = e.target.value as number[];
+                      setSelectedRooms(value);
+                    }}
+                    input={<OutlinedInput label="Select Rooms" />}
+                    renderValue={(selected) => (
+                      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+                        {selected.map((value) => {
+                          const room = roomSettings.find(
+                            (r) => r.roomId === value
+                          );
+                          return (
+                            <Chip
+                              key={value}
+                              label={
+                                room
+                                  ? `${room.roomId} - ${room.name}`
+                                  : `Room ${value}`
+                              }
+                              size="small"
+                            />
+                          );
+                        })}
+                      </Box>
+                    )}
+                  >
+                    {roomSettings.map((room) => (
+                      <MenuItem key={room.roomId} value={room.roomId}>
+                        <Checkbox
+                          checked={selectedRooms.indexOf(room.roomId) > -1}
+                        />
+                        <ListItemText
+                          primary={`${room.roomId} - ${room.name}`}
+                        />
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              )}
 
               {message && <Alert severity={message.type}>{message.text}</Alert>}
             </Stack>
