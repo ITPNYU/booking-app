@@ -15,11 +15,24 @@ global.fetch = vi.fn((url) => {
   if (url?.toString().includes("/api/isTestEnv")) {
     return Promise.resolve({
       ok: true,
+      status: 200,
+      statusText: "OK",
+      headers: new Headers(),
+      redirected: false,
+      type: "basic",
+      url: url?.toString() || "",
+      clone: () => ({}) as Response,
+      body: null,
+      bodyUsed: false,
+      text: () => Promise.resolve(""),
+      blob: () => Promise.resolve(new Blob()),
+      arrayBuffer: () => Promise.resolve(new ArrayBuffer(0)),
+      formData: () => Promise.resolve(new FormData()),
       json: () => Promise.resolve({ isTestEnv: true }),
-    });
+    } as Response);
   }
   return Promise.reject(new Error("Not mocked"));
-});
+}) as typeof fetch;
 
 // Mock Firebase modules
 vi.mock("firebase/app", () => ({
