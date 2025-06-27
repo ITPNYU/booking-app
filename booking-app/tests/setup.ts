@@ -11,12 +11,26 @@ process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID = "123456789";
 process.env.NEXT_PUBLIC_FIREBASE_APP_ID = "test-app-id";
 
 // Mock global fetch for isTestEnv endpoint
-global.fetch = vi.fn((url) => {
+global.fetch = vi.fn().mockImplementation((url) => {
   if (url?.toString().includes("/api/isTestEnv")) {
-    return Promise.resolve({
+    const mockResponse = {
       ok: true,
-      json: () => Promise.resolve({ isTestEnv: true }),
-    });
+      status: 200,
+      statusText: "OK",
+      headers: {} as Headers,
+      redirected: false,
+      type: "basic" as ResponseType,
+      url: url?.toString() || "",
+      clone: vi.fn(),
+      body: null,
+      bodyUsed: false,
+      arrayBuffer: vi.fn(() => Promise.resolve(new ArrayBuffer(0))),
+      blob: vi.fn(() => Promise.resolve(new Blob())),
+      formData: vi.fn(() => Promise.resolve(new FormData())),
+      text: vi.fn(() => Promise.resolve(JSON.stringify({ isTestEnv: true }))),
+      json: vi.fn(() => Promise.resolve({ isTestEnv: true })),
+    } as unknown as Response;
+    return Promise.resolve(mockResponse);
   }
   return Promise.reject(new Error("Not mocked"));
 });
