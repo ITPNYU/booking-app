@@ -298,12 +298,21 @@ export async function PUT(request: NextRequest) {
     data,
     isAutoApproval,
     calendarEventId,
+    modifiedBy,
   } = await request.json();
   // TODO verify that they actually changed something
   if (bookingCalendarInfo == null) {
     return NextResponse.json(
       { error: "missing bookingCalendarId" },
       { status: 500 },
+    );
+  }
+
+  // Ensure modifiedBy is provided for modification tracking
+  if (!modifiedBy) {
+    return NextResponse.json(
+      { error: "modifiedBy field is required for modifications" },
+      { status: 400 },
     );
   }
 
@@ -337,10 +346,10 @@ export async function PUT(request: NextRequest) {
     await logServerBookingChange({
       bookingId: existingContents.id,
       status: BookingStatusLabel.MODIFIED,
-      changedBy: data.modifiedBy || email,
+      changedBy: modifiedBy,
       requestNumber: existingContents.requestNumber,
       calendarEventId: newCalendarEventId,
-      note: "Modified by " + (data.modifiedBy || email),
+      note: "Modified by " + modifiedBy,
     });
   } catch (err) {
     console.error(err);
