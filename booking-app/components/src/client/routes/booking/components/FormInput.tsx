@@ -23,7 +23,7 @@ import {
 } from "./BookingFormInputs";
 
 import { styled } from "@mui/system";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import isEqual from "react-fast-compare";
 import { DatabaseContext } from "../../components/Provider";
 import { BookingContext } from "../bookingProvider";
@@ -32,6 +32,7 @@ import useCheckAutoApproval from "../hooks/useCheckAutoApproval";
 import useSubmitBooking from "../hooks/useSubmitBooking";
 import BookingFormMediaServices from "./BookingFormMediaServices";
 import BookingSelection from "./BookingSelection";
+import { useTenantSchema } from "../../components/SchemaProvider";
 
 const Section = ({ title, children }) => (
   <div style={{ marginBottom: "20px" }}>
@@ -78,10 +79,12 @@ export default function FormInput({
     bookingCalendarInfo,
     isBanned,
     needsSafetyTraining,
+    isInBlackoutPeriod,
     formData,
     setFormData,
   } = useContext(BookingContext);
   const router = useRouter();
+  const { tenant } = useParams();
   const registerEvent = useSubmitBooking(formContext);
   const { isAutoApproval } = useCheckAutoApproval();
 
@@ -96,6 +99,14 @@ export default function FormInput({
     if (isVIP || isWalkIn || !userApiData) return "";
     return userApiData[key] || "";
   };
+
+  const {
+    showNNumber,
+    showSponsor,
+    showHireSecurity,
+    agreements,
+    roleMapping,
+  } = useTenantSchema();
 
   const {
     control,
@@ -139,9 +150,11 @@ export default function FormInput({
   const [showMediaServices, setShowMediaServices] = useState(false);
 
   // agreements, skip for walk-ins
-  const [checklist, setChecklist] = useState(isWalkIn || isVIP);
-  const [resetRoom, setResetRoom] = useState(isWalkIn || isVIP);
-  const [bookingPolicy, setBookingPolicy] = useState(isWalkIn || isVIP);
+  const [checkedAgreements, setCheckedAgreements] = useState<
+    Record<string, boolean>
+  >(
+    Object.fromEntries(agreements.map((agreement) => [agreement.id, isWalkIn]))
+  );
 
   const watchedFields = watch();
   const prevWatchedFieldsRef = useRef<Inputs>();
@@ -264,6 +277,7 @@ export default function FormInput({
       // Use the already fetched data for validation
       if (sponsorApiData && value.endsWith("@nyu.edu")) {
         const sponsorRole = mapAffiliationToRole(
+          roleMapping,
           sponsorApiData.affiliation_sub_type
         );
         if (sponsorRole === Role.STUDENT) {
@@ -288,12 +302,20 @@ export default function FormInput({
     }
   }, [userApiData, reset]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
   // Add a ref to track submission state to prevent race conditions
   const isSubmittingRef = useRef(false);
+
+  // Only check if there are agreements to submit
+  const agreementsChecked =
+    checkedAgreements.length &&
+    Object.values(checkedAgreements).every((value) => value);
+
   const disabledButton =
-    !(checklist && resetRoom && bookingPolicy && isValid) ||
+    agreementsChecked ||
     isBanned ||
     needsSafetyTraining ||
+    isInBlackoutPeriod ||
     isSubmitting;
 
   const onSubmit: SubmitHandler<Inputs> = (data) => {
@@ -310,14 +332,14 @@ export default function FormInput({
       })
       .finally(() => {
         if (isMod) {
-          router.push("/modification/confirmation");
+          router.push(`/${tenant}/modification/confirmation`);
         } else {
           router.push(
             isWalkIn
-              ? "/walk-in/confirmation"
+              ? `/${tenant}/walk-in/confirmation`
               : isVIP
-                ? "/vip/confirmation"
-                : "/book/confirmation"
+                ? `/${tenant}/vip/confirmation`
+                : `/${tenant}/book/confirmation`
           );
         }
       });
@@ -360,30 +382,38 @@ export default function FormInput({
           required={false}
           {...{ control, errors, trigger }}
         />
-        <BookingFormTextField
-          id="nNumber"
-          label="NYU N-Number"
-          description="Your N-number begins with a capital 'N' followed by eight digits."
-          required
-          pattern={{
-            value: /N[0-9]{8}$/,
-            message: "Invalid N-Number",
-          }}
-          {...{ control, errors, trigger }}
-        />
-
-        <BookingFormTextField
-          id="netId"
-          label="NYU Net ID"
-          description="Your Net ID is the username portion of your official NYU email address. It begins with your initials followed by one or more numbers."
-          required
-          pattern={{
-            value: /[a-zA-Z]{1,3}[0-9]{1,6}/,
-            message: "Invalid Net ID",
-          }}
-          {...{ control, errors, trigger }}
-        />
-
+        {showNNumber && !isVIP && (
+          // TODO: Refactor this when design schema for inputs
+          <BookingFormTextField
+            id="nNumber"
+            label="NYU N-Number"
+            description="Your N-number begins with a capital 'N' followed by eight digits."
+            required
+            pattern={{
+              value: /N[0-9]{8}$/,
+              message: "Invalid N-Number",
+            }}
+            {...{ control, errors, trigger }}
+          />
+        )}
+        {showSponsor && (
+          <BookingFormTextField
+            id="netId"
+            label="NYU Net ID"
+            // TODO: Refactor this when design schema for inputs
+            description={
+              isVIP
+                ? "The VIP Net ID is the username portion of the VIP's official NYU email address. It begins with the VIP's initials followed by one or more numbers."
+                : "Your Net ID is the username portion of your official NYU email address. It begins with your initials followed by one or more numbers."
+            }
+            required
+            pattern={{
+              value: /[a-zA-Z]{1,3}[0-9]{1,6}/,
+              message: "Invalid Net ID",
+            }}
+            {...{ control, errors, trigger }}
+          />
+        )}
         <BookingFormTextField
           id="phoneNumber"
           label="Phone Number"
@@ -577,7 +607,7 @@ export default function FormInput({
             )}
           </div>
         )}
-        {!isWalkIn && (
+        {!isWalkIn && showHireSecurity && (
           <div style={{ marginBottom: 32 }}>
             <BookingFormSwitch
               id="hireSecurity"
@@ -607,65 +637,22 @@ export default function FormInput({
 
       {isBooking && (
         <Section title="Agreement">
-          <BookingFormAgreementCheckbox
-            id="checklist"
-            checked={checklist}
-            onChange={setChecklist}
-            description={
-              <p>
-                {" "}
-                I confirm receipt of the
-                <a
-                  href="https://docs.google.com/document/d/1TIOl8f8-7o2BdjHxHYIYELSb4oc8QZMj1aSfaENWjR8/edit#heading=h.ns3jisyhutvq"
-                  target="_blank"
-                  className="text-blue-600 hover:underline dark:text-blue-500 mx-1 mx-1"
-                >
-                  370J Media Commons Event Service Rates/Additional Information
-                </a>
-                document that contains information regarding event needs and
-                services. I acknowledge that it is my responsibility to set up
-                catering and Campus Media if needed for my reservation. I
-                understand that the 370J Media Commons Operations staff will
-                setup CBS cleaning services, facilitate hiring security, and
-                arrange room setup services if needed for my reservation.
-              </p>
-            }
-          />
-          <BookingFormAgreementCheckbox
-            id="resetRoom"
-            checked={resetRoom}
-            onChange={setResetRoom}
-            description={
-              <p>
-                I agree to reset all rooms and common spaces I have used to
-                their original state at the end of my reservation, including
-                returning equipment, resetting furniture, and cleaning up after
-                myself. I will notify Media Commons staff of any problems,
-                damage, or other concerns affecting the condition and
-                maintenance of the reserved space. I understand that if I do not
-                reset the room, I may lose access to the Media Commons.
-              </p>
-            }
-          />
-          <BookingFormAgreementCheckbox
-            id="bookingPolicy"
-            checked={bookingPolicy}
-            onChange={setBookingPolicy}
-            description={
-              <p>
-                I have read the
-                <a
-                  href="https://docs.google.com/document/d/1vAajz6XRV0EUXaMrLivP_yDq_LyY43BvxOqlH-oNacc/edit"
-                  target="_blank"
-                  className="text-blue-600 hover:underline dark:text-blue-500 mx-1 mx-1"
-                >
-                  Booking Policy for 370J Media Commons
-                </a>
-                and agree to follow all policies outlined. I understand that I
-                may lose access to the Media Commons if I break this agreement.
-              </p>
-            }
-          />
+          {agreements.map((agreement) => (
+            <BookingFormAgreementCheckbox
+              key={agreement.id}
+              id={agreement.id}
+              checked={checkedAgreements[agreement.id]}
+              onChange={(value) =>
+                setCheckedAgreements({
+                  ...checkedAgreements,
+                  [agreement.id]: value,
+                })
+              }
+              description={
+                <div dangerouslySetInnerHTML={{ __html: agreement.html }} />
+              }
+            />
+          ))}
         </Section>
       )}
       <Button type="submit" disabled={disabledButton} variant="contained">

@@ -6,7 +6,7 @@ import Button from "@mui/material/Button";
 import { Description } from "@mui/icons-material";
 import React from "react";
 import { styled } from "@mui/system";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { FormContextLevel } from "@/components/src/types";
 const Center = styled(Box)`
   display: flex;
@@ -56,11 +56,12 @@ export default function WalkInLandingPage({
   formContext = FormContextLevel.FULL_FORM,
 }: WalkInLandingPageProps) {
   const router = useRouter();
+  const { tenant } = useParams();
   const isVIP = formContext === FormContextLevel.VIP;
   const title = isVIP ? "VIP" : "Walk-In";
 
   return (
-    <Center sx={{ width: "100vw", height: "90vh" }}>
+    <Center sx={{ width: "100vw", marginTop: 10 }}>
       <Title as="h1">370🅙 Media Commons {title} Reservation Form</Title>
       <Modal padding={4}>
         <Box width="100%">
@@ -108,7 +109,9 @@ export default function WalkInLandingPage({
         <Button
           variant="contained"
           color="primary"
-          onClick={() => router.push(isVIP ? "/vip/role" : "/walk-in/role")}
+          onClick={() =>
+            router.push(isVIP ? `/${tenant}/vip/role` : `/${tenant}/walk-in/role`)
+          }
           sx={{
             alignSelf: "center",
             marginTop: 6,

@@ -168,6 +168,7 @@
           <td>Sponsor Name</td>
           <td>
             {{ contents.sponsorFirstName }} {{ contents.sponsorLastName }}
+
           </td>
         </tr>
         <tr>
@@ -180,23 +181,35 @@
       <table class="info-table">
         <tr>
           <td>Title</td>
-          <td>{{ contents.title }}</td>
+          <td>{{#if contents.title}}{{ contents.title }}{{else}}none{{/if}}</td>
         </tr>
         <tr>
           <td>Description</td>
-          <td>{{ contents.description }}</td>
+          <td>
+            {{#if contents.description}}{{ contents.description
+            }}{{else}}none{{/if}}
+          </td>
         </tr>
         <tr>
           <td>Booking Type</td>
-          <td>{{ contents.bookingType }}</td>
+          <td>
+            {{#if contents.bookingType}}{{ contents.bookingType
+            }}{{else}}none{{/if}}
+          </td>
         </tr>
         <tr>
           <td>Expected Attendance</td>
-          <td>{{ contents.expectedAttendance }}</td>
+          <td>
+            {{#if contents.expectedAttendance}}{{ contents.expectedAttendance
+            }}{{else}}none{{/if}}
+          </td>
         </tr>
         <tr>
           <td>Attendee Affiliation</td>
-          <td>{{ contents.attendeeAffiliation }}</td>
+          <td>
+            {{#if contents.attendeeAffiliation}}{{ contents.attendeeAffiliation
+            }}{{else}}none{{/if}}
+          </td>
         </tr>
       </table>
 
@@ -205,21 +218,30 @@
         <tr>
           <td>Room Setup</td>
           <td>
-            {{ contents.setupDetails }} {{#if contents.chartFieldForRoomSetup}}
+            {{#if contents.setupDetails}}{{ contents.setupDetails
+            }}{{else}}{{#if contents.roomSetup}}{{#unless (eq contents.roomSetup
+            "no")}}{{ contents.roomSetup
+            }}{{else}}none{{/unless}}{{else}}none{{/if}}{{/if}} {{#if
+            contents.chartFieldForRoomSetup}}
             <br />{{ contents.chartFieldForRoomSetup }} {{/if}}
           </td>
         </tr>
         <tr>
           <td>Media Service</td>
           <td>
-            {{ contents.mediaServices }} {{#if contents.mediaServicesDetails}}
+            {{#if contents.mediaServices}}{{ contents.mediaServices
+            }}{{else}}none{{/if}} {{#if contents.mediaServicesDetails}}
+
             <br />{{ contents.mediaServicesDetails }} {{/if}}
           </td>
         </tr>
         <tr>
           <td>Catering</td>
           <td>
-            {{ contents.cateringService }} {{#if
+            {{#if contents.cateringService}}{{ contents.cateringService
+            }}{{else}}{{#if contents.catering}}{{#unless (eq contents.catering
+            "no")}}{{ contents.catering
+            }}{{else}}none{{/unless}}{{else}}none{{/if}}{{/if}} {{#if
             contents.chartFieldForCatering}}
             <br />{{ contents.chartFieldForCatering }} {{/if}}
           </td>
@@ -228,7 +250,9 @@
           <td>Security</td>
           <td>
             <div class="value-content">
-              {{contents.hireSecurity}} {{#if
+              {{#if contents.hireSecurity}}{{#unless (eq contents.hireSecurity
+              "no")}}{{ contents.hireSecurity
+              }}{{else}}none{{/unless}}{{else}}none{{/if}} {{#if
               contents.chartFieldForSecurity}}<br />{{contents.chartFieldForSecurity}}{{/if}}
             </div>
           </td>

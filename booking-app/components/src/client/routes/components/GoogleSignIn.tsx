@@ -1,10 +1,11 @@
 "use client";
-import React, { useContext, useEffect } from "react"; // Added this line
-import { useState } from "react";
-import { signInWithPopup } from "firebase/auth";
-import { auth, googleProvider, signInWithGoogle, getGoogleRedirectResult } from "@/lib/firebase/firebaseClient";
-import { useRouter } from "next/navigation";
+import {
+  getGoogleRedirectResult,
+  signInWithGoogle,
+} from "@/lib/firebase/firebaseClient";
 import { Box, Button, styled } from "@mui/material";
+import { useParams, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { useAuth } from "./AuthProvider";
 
 const Center = styled(Box)`
@@ -13,37 +14,57 @@ const Center = styled(Box)`
   justify-content: center;
   align-items: center;
 `;
+
 const GoogleSignIn = () => {
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+
+  const params = useParams();
   const { isOnTestEnv } = useAuth();
-  
-  // Check for redirect result when component mounts
+
+  // Check if running on localhost
+  const isLocalhost =
+    typeof window !== "undefined" &&
+    (window.location.hostname === "localhost" ||
+      window.location.hostname === "127.0.0.1");
+
+  // Check for redirect result when component mounts (only for non-localhost environments)
   useEffect(() => {
-    const handleRedirectResult = async () => {
-      try {
-        const user = await getGoogleRedirectResult();
-        if (user) {
-          console.log("Google sign-in successful", user);
-          router.push("/");
+    if (!isLocalhost) {
+      const handleRedirectResult = async () => {
+        try {
+          const user = await getGoogleRedirectResult();
+          if (user) {
+            console.log("Google sign-in successful", user);
+            // Redirect to the appropriate tenant home page or root
+            const redirectPath = params?.tenant ? `/${params.tenant}` : "/";
+            router.push(redirectPath);
+          }
+        } catch (error: any) {
+          setError(error.message || "Google sign-in failed. Please try again.");
+          console.error("Google sign-in error", error);
         }
-      } catch (error: any) {
-        setError(error.message || "Google sign-in failed. Please try again.");
-        console.error("Google sign-in error", error);
-      }
-    };
-    
-    handleRedirectResult();
-  }, [router]);
+      };
+
+      handleRedirectResult();
+    }
+  }, [router, params, isLocalhost]);
 
   const handleGoogleSignIn = async () => {
     try {
-      await signInWithGoogle();
-      // User will be redirected to Google login page
-      // After signing in, they'll be redirected back to the app
-      // and the useEffect above will handle the result
-    } catch (error) {
-      setError("Google sign-in failed. Please try again.");
+      setError(null);
+      const user = await signInWithGoogle();
+
+      if (isLocalhost && user) {
+        // For localhost popup signin, handle success immediately
+        console.log("Google sign-in successful", user);
+        const redirectPath = params?.tenant ? `/${params.tenant}` : "/";
+        router.push(redirectPath);
+      }
+      // For non-localhost redirect signin, the redirect will happen automatically
+    } catch (error: any) {
+      setError(error.message || "Google sign-in failed. Please try again.");
+
       console.error("Google sign-in error", error);
     }
   };
@@ -62,7 +83,11 @@ const GoogleSignIn = () => {
         >
           Sign in with NYU Google Account
         </Button>
-        <p>You'll be redirected to NYU login page to sign in.</p>
+        <p>
+          {isLocalhost
+            ? "A popup window will open for NYU SSO login."
+            : "You'll be redirected to the NYU SSO login page to sign in securely."}
+        </p>
         {error && <p style={{ color: "red" }}>{error}</p>}
       </Center>
     </div>

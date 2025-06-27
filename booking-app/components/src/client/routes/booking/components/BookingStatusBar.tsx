@@ -1,3 +1,4 @@
+import { Check, ChevronLeft, ChevronRight } from "@mui/icons-material";
 import {
   Alert,
   AlertColor,
@@ -7,12 +8,11 @@ import {
   useMediaQuery,
   useTheme,
 } from "@mui/material";
-import { Check, ChevronLeft, ChevronRight } from "@mui/icons-material";
 import React, { useContext } from "react";
 
-import { BookingContext } from "../bookingProvider";
 import { FormContextLevel } from "@/components/src/types";
 import { styled } from "@mui/system";
+import { BookingContext } from "../bookingProvider";
 import useCalculateOverlap from "../hooks/useCalculateOverlap";
 import useCheckAutoApproval from "../hooks/useCheckAutoApproval";
 
@@ -35,8 +35,13 @@ const NavGrid = styled(Box)`
 export default function BookingStatusBar({ formContext, ...props }: Props) {
   const isWalkIn = formContext === FormContextLevel.WALK_IN;
   const { isAutoApproval, errorMessage } = useCheckAutoApproval(isWalkIn);
-  const { bookingCalendarInfo, selectedRooms, isBanned, needsSafetyTraining } =
-    useContext(BookingContext);
+  const {
+    bookingCalendarInfo,
+    selectedRooms,
+    isBanned,
+    needsSafetyTraining,
+    isInBlackoutPeriod,
+  } = useContext(BookingContext);
   const isOverlap = useCalculateOverlap();
 
   const theme = useTheme();
@@ -45,6 +50,7 @@ export default function BookingStatusBar({ formContext, ...props }: Props) {
   const showAlert =
     isBanned ||
     needsSafetyTraining ||
+    isInBlackoutPeriod ||
     (bookingCalendarInfo != null && selectedRooms.length > 0);
 
   // order of precedence matters
@@ -85,6 +91,19 @@ export default function BookingStatusBar({ formContext, ...props }: Props) {
           </p>
         ),
         severity: "error",
+      };
+    if (isInBlackoutPeriod)
+      return {
+        btnDisabled: true,
+        btnDisabledMessage: "Selected date is within a blackout period",
+        message: (
+          <p>
+            The selected date falls within a blackout period when bookings are
+            not allowed. Please select a different date.
+          </p>
+        ),
+        severity: "error",
+        variant: "filled",
       };
     if (isOverlap)
       return {
@@ -200,7 +219,11 @@ export default function BookingStatusBar({ formContext, ...props }: Props) {
         <Box>{backBtn}</Box>
         <Box>
           {alert}
-          <Alert severity="warning" variant="filled" sx={{ padding: "0px 16px", width: "100%", margin:"5px 0px"}}>
+          <Alert
+            severity="warning"
+            variant="filled"
+            sx={{ padding: "0px 16px", width: "100%", margin: "5px 0px" }}
+          >
             Please include all setup and breakdown time in your reservation
             request.
           </Alert>

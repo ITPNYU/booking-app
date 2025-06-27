@@ -1,5 +1,5 @@
 import { Box, Button, Typography } from "@mui/material";
-import React, { useState } from "react";
+import { useState } from "react";
 
 import AlertToast from "../../components/AlertToast";
 
@@ -20,10 +20,14 @@ export default function ExportDatabase() {
       const blob = await response.blob();
       const url = window.URL.createObjectURL(new Blob([blob]));
 
+      // Generate filename with current date
+      const currentDate = new Date().toISOString().split("T")[0]; // YYYY-MM-DD format
+      const filename = `bookings_${currentDate}.csv`;
+
       // Automatically trigger the download
       const link = document.createElement("a");
       link.href = url;
-      link.download = "data.csv";
+      link.download = filename;
       link.click();
 
       // Clean up

@@ -59,8 +59,11 @@ export const inviteUserToCalendarEvent = async (
 };
 
 const bookingContentsToDescription = (bookingContents: BookingFormDetails) => {
-  const listItem = (key: string, value: string) =>
-    `<li><strong>${key}:</strong> ${value || ""}</li>`;
+  const listItem = (key: string, value: string) => {
+    const displayValue =
+      value === "no" || value === "No" ? "none" : value || "none";
+    return `<li><strong>${key}:</strong> ${displayValue}</li>`;
+  };
 
   let description = "";
 
@@ -89,8 +92,8 @@ const bookingContentsToDescription = (bookingContents: BookingFormDetails) => {
   description += listItem("NetID", getProperty(bookingContents, "netId"));
   description += listItem(
     "Name",
-    `${getProperty(bookingContents, "firstName")} ${getProperty(bookingContents, "lastName")}`
-  );
+    `${getProperty(bookingContents, "firstName")} ${getProperty(bookingContents, "lastName")}`.trim() ||
+      ""  );
   description += listItem(
     "Department",
     getProperty(bookingContents, "department")
@@ -105,8 +108,8 @@ const bookingContentsToDescription = (bookingContents: BookingFormDetails) => {
   );
   description += listItem(
     "Sponsor Name",
-    `${getProperty(bookingContents, "sponsorFirstName")} ${getProperty(bookingContents, "sponsorLastName")}`
-  );
+    `${getProperty(bookingContents, "sponsorFirstName")} ${getProperty(bookingContents, "sponsorLastName")}`.trim() ||
+      ""  );
   description += listItem(
     "Sponsor Email",
     getProperty(bookingContents, "sponsorEmail")

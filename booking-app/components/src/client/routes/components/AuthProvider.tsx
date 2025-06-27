@@ -1,10 +1,10 @@
 
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from "react";
-import { User } from "firebase/auth";
-import { usePathname, useRouter } from "next/navigation";
 import { auth, signInWithGoogle } from "@/lib/firebase/firebaseClient";
+import { User } from "firebase/auth";
+import { useParams, usePathname, useRouter } from "next/navigation";
+import React, { createContext, useContext, useEffect, useState } from "react";
 
 type AuthContextType = {
   user: User | null;
@@ -32,7 +32,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const router = useRouter();
   const pathname = usePathname();
-  
+  const params = useParams();
+
   useEffect(() => {
     const handleAuth = async () => {
       console.log("handleAuth triggered");
@@ -64,7 +65,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           }
         } catch (error) {
           console.error("Error during signInWithGoogle attempt:", error);
-          router.push("/signin");
+          // Redirect to appropriate signin page based on tenant
+          const signinPath = params?.tenant
+            ? `/${params.tenant}/signin`
+            : "/signin";
+          router.push(signinPath);
+
         }
       }
       setLoading(false);
@@ -73,12 +79,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     const unsubscribe = auth.onAuthStateChanged(handleAuth);
 
     return () => unsubscribe();
-  }, [router]);
+  }, [router, params, pathname]);
+
   useEffect(() => {
     if (error === "Only nyu.edu email addresses are allowed.") {
-      router.push("/signin");
+      // Redirect to appropriate signin page based on tenant
+      const signinPath = params?.tenant
+        ? `/${params.tenant}/signin`
+        : "/signin";
+      router.push(signinPath);
     }
-  }, [error, router]);
+  }, [error, router, params]);
 
   return (
     <AuthContext.Provider value={{ user, loading, error, isOnTestEnv }}>

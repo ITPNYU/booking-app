@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
         "Booking End Time": format(endDate, "h:mm a"),
         "Time In Use, Hours": timeInUse,
         "# rooms used": roomCount,
-        "ACTUAL hours": `${timeInUse} x ${roomCount} x 1 = ${timeInUse * roomCount}`,
+        "ACTUAL hours": timeInUse * roomCount,
         "Reservation Title": booking.title,
         "Reservation Description": booking.description,
         "Expected Attendance": booking.expectedAttendance,

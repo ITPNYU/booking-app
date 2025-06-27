@@ -1,19 +1,28 @@
 // firebaseClient.ts
-import { getApp, getApps, initializeApp } from "firebase/app";
+import { initializeApp } from "firebase/app";
+import {
+  getAuth,
+  getRedirectResult,
+  GoogleAuthProvider,
+  signInWithPopup,
+  signInWithRedirect,
+} from "firebase/auth";
 import { Firestore, initializeFirestore } from "firebase/firestore";
-import { getAuth, GoogleAuthProvider, signInWithRedirect, getRedirectResult, signInWithPopup } from "firebase/auth";
+
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_BRANCH_NAME === 'production' 
-    ? 'flowing-mantis-389917.uc.r.appspot.com' 
-    : process.env.NEXT_PUBLIC_BRANCH_NAME === 'staging'
-      ? 'staging-dot-flowing-mantis-389917.uc.r.appspot.com'
-      : process.env.NEXT_PUBLIC_BRANCH_NAME === 'development'
-        ? 'development-dot-flowing-mantis-389917.uc.r.appspot.com'
-        : process.env.NEXT_PUBLIC_BRANCH_NAME === 'development-local'
-          ? process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
-          : process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  authDomain:
+    process.env.NEXT_PUBLIC_BRANCH_NAME === "production"
+      ? "flowing-mantis-389917.uc.r.appspot.com"
+      : process.env.NEXT_PUBLIC_BRANCH_NAME === "staging"
+        ? "staging-dot-flowing-mantis-389917.uc.r.appspot.com"
+        : process.env.NEXT_PUBLIC_BRANCH_NAME === "development"
+          ? "development-dot-flowing-mantis-389917.uc.r.appspot.com"
+          : process.env.NEXT_PUBLIC_BRANCH_NAME === "development-local"
+            ? process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+            : process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+
   projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
   storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
@@ -42,8 +51,8 @@ export const googleProvider = new GoogleAuthProvider();
 
 let isTestEnv = false;
 fetch(process.env.NEXT_PUBLIC_BASE_URL + "/api/isTestEnv")
-  .then(res => res.json())
-  .then(data => {
+  .then((res) => res.json())
+  .then((data) => {
     isTestEnv = data.isOnTestEnv;
     console.log("isTestEnv", isTestEnv);
     if (!isTestEnv) {
@@ -53,12 +62,16 @@ fetch(process.env.NEXT_PUBLIC_BASE_URL + "/api/isTestEnv")
     }
   });
 
-const isLocalDev = process.env.NEXT_PUBLIC_BRANCH_NAME === 'development-local';
+// Check if running on localhost
+const isLocalhost =
+  typeof window !== "undefined" &&
+  (window.location.hostname === "localhost" ||
+    window.location.hostname === "127.0.0.1");
 
 export const signInWithGoogle = async () => {
   try {
-    if (isLocalDev) {
-      // Use popup for local development
+    if (isLocalhost) {
+      // Use popup for localhost to avoid cross-domain issues
       const result = await signInWithPopup(auth, googleProvider);
       const user = result.user;
       if (!user.email?.endsWith("@nyu.edu") && !isTestEnv) {
@@ -67,7 +80,7 @@ export const signInWithGoogle = async () => {
       }
       return user;
     } else {
-      // Use redirect for other environments
+      // Use redirect for deployed environments
       await signInWithRedirect(auth, googleProvider);
       // No return here, as the page will redirect
     }
@@ -78,8 +91,8 @@ export const signInWithGoogle = async () => {
 };
 
 export const getGoogleRedirectResult = async () => {
-  if (isLocalDev) {
-    // No redirect result in local dev (popup is used)
+  if (isLocalhost) {
+    // No redirect result for localhost (popup is used)
     return null;
   }
   try {

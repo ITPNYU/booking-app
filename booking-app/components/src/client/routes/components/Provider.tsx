@@ -4,6 +4,7 @@ import {
   AdminUser,
   Approver,
   Ban,
+  BlackoutPeriod,
   Booking,
   BookingType,
   DepartmentType,
@@ -29,6 +30,7 @@ import { clientFetchAllDataFromCollection } from "@/lib/firebase/firebase";
 export interface DatabaseContextType {
   adminUsers: AdminUser[];
   bannedUsers: Ban[];
+  blackoutPeriods: BlackoutPeriod[];
   allBookings: Booking[];
   bookingsLoading: boolean;
   liaisonUsers: Approver[];
@@ -48,12 +50,14 @@ export interface DatabaseContextType {
   reloadAdminUsers: () => Promise<void>;
   reloadApproverUsers: () => Promise<void>;
   reloadBannedUsers: () => Promise<void>;
+  reloadBlackoutPeriods: () => Promise<void>;
   reloadFutureBookings: () => Promise<void>;
   reloadDepartmentNames: () => Promise<void>;
   reloadOperationHours: () => Promise<void>;
   reloadPaUsers: () => Promise<void>;
   reloadBookingTypes: () => Promise<void>;
   reloadSafetyTrainedUsers: () => Promise<void>;
+  reloadPolicySettings: () => Promise<void>;
   setUserEmail: (x: string) => void;
   fetchAllBookings: (clicked: boolean) => Promise<void>;
   setFilters: (x: Filters) => void;
@@ -66,6 +70,7 @@ export interface DatabaseContextType {
 export const DatabaseContext = createContext<DatabaseContextType>({
   adminUsers: [],
   bannedUsers: [],
+  blackoutPeriods: [],
   allBookings: [],
   bookingsLoading: true,
   liaisonUsers: [],
@@ -85,12 +90,14 @@ export const DatabaseContext = createContext<DatabaseContextType>({
   reloadAdminUsers: async () => {},
   reloadApproverUsers: async () => {},
   reloadBannedUsers: async () => {},
+  reloadBlackoutPeriods: async () => {},
   reloadFutureBookings: async () => {},
   reloadDepartmentNames: async () => {},
   reloadOperationHours: async () => {},
   reloadPaUsers: async () => {},
   reloadBookingTypes: async () => {},
   reloadSafetyTrainedUsers: async () => {},
+  reloadPolicySettings: async () => {},
   setUserEmail: (x: string) => {},
   fetchAllBookings: async () => {},
   setFilters: (x: Filters) => {},
@@ -106,6 +113,7 @@ export const DatabaseProvider = ({
   children: React.ReactNode;
 }) => {
   const [bannedUsers, setBannedUsers] = useState<Ban[]>([]);
+  const [blackoutPeriods, setBlackoutPeriods] = useState<BlackoutPeriod[]>([]);
   // const [futureBookings, setFutureBookings] = useState<Booking[]>([]);
   const [bookingsLoading, setBookingsLoading] = useState<boolean>(true);
   const [allBookings, setAllBookings] = useState<Booking[]>([]);
@@ -435,22 +443,32 @@ export const DatabaseProvider = ({
       .catch((error) => console.error("Error fetching data:", error));
   };
 
-  // const fetchPolicySettings = async () => {
-  //   clientFetchAllDataFromCollection(TableNames.POLICY)
-  //     .then((fetchedData) => {
-  //       const policy: PolicySettings = fetchedData.map((item: any) => ({
-  //         finalApproverEmail: item.finalApproverEmail,
-  //       }))[0]; // should only be 1 document
-  //       setPolicySettings(policy);
-  //     })
-  //     .catch((error) =>
-  //       console.error("Error fetching policy settings data:", error)
-  //     );
-  // };
+  const fetchBlackoutPeriods = async () => {
+    try {
+      const fetchedData =
+        await clientFetchAllDataFromCollection<BlackoutPeriod>(
+          TableNames.BLACKOUT_PERIODS
+        );
+      setBlackoutPeriods(
+        fetchedData.sort(
+          (a, b) =>
+            a.startDate.toDate().getTime() - b.startDate.toDate().getTime()
+        )
+      );
+    } catch (error) {
+      console.error("Error fetching blackout periods:", error);
+    }
+  };
+
+  const fetchPolicySettings = async () => {
+    // This function is kept for future policy settings but currently not fetching booking date limits
+    // since we're using blackout periods instead
+  };
 
   const fetchSettings = async () => {
     fetchBookingTypes();
     fetchOperationHours();
+    fetchBlackoutPeriods();
   };
 
   const fetchPreBanLogs = async () => {
@@ -476,6 +494,7 @@ export const DatabaseProvider = ({
       value={{
         adminUsers,
         bannedUsers,
+        blackoutPeriods,
         allBookings,
         liaisonUsers,
         equipmentUsers,
@@ -495,12 +514,14 @@ export const DatabaseProvider = ({
         reloadAdminUsers: fetchAdminUsers,
         reloadApproverUsers: fetchApproverUsers,
         reloadBannedUsers: fetchBannedUsers,
+        reloadBlackoutPeriods: fetchBlackoutPeriods,
         reloadFutureBookings: fetchFutureBookings,
         reloadDepartmentNames: fetchDepartmentNames,
         reloadOperationHours: fetchOperationHours,
         reloadPaUsers: fetchPaUsers,
         reloadBookingTypes: fetchBookingTypes,
         reloadSafetyTrainedUsers: fetchSafetyTrainedUsers,
+        reloadPolicySettings: fetchPolicySettings,
         setUserEmail,
         fetchAllBookings: fetchBookings,
         setFilters: setFilters,
