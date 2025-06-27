@@ -107,7 +107,7 @@
       <div class="section-title">Request</div>
       <table class="info-table">
         <tr>
-          <td>Request #</td>
+          <td>Request#</td>
           <td>{{ contents.requestNumber }}</td>
         </tr>
         <tr>
@@ -134,61 +134,46 @@
         {{/if}}
       </table>
 
-      <div class="section-title">Requester</div>
+      <div class="section-title">Requestor</div>
       <table class="info-table">
         <tr>
           <td>NetID</td>
-          <td>{{#if contents.netId}}{{ contents.netId }}{{else}}none{{/if}}</td>
+          <td>{{ contents.netId }}</td>
         </tr>
         <tr>
           <td>Name</td>
-          <td>
-            {{#if contents.firstName}}{{ contents.firstName }} {{
-            contents.lastName }}{{else}}none{{/if}}
-          </td>
+          <td>{{ contents.firstName }} {{ contents.lastName }}</td>
         </tr>
         <tr>
           <td>Department</td>
-          <td>
-            {{#if contents.department}}{{ contents.department
-            }}{{else}}none{{/if}}
-          </td>
+          <td>{{ contents.department }}</td>
         </tr>
         <tr>
           <td>Role</td>
-          <td>{{#if contents.role}}{{ contents.role }}{{else}}none{{/if}}</td>
+          <td>{{ contents.role }}</td>
         </tr>
         <tr>
           <td>Email</td>
-          <td>{{#if contents.email}}{{ contents.email }}{{else}}none{{/if}}</td>
+          <td>{{ contents.email }}</td>
         </tr>
         <tr>
           <td>Phone</td>
-          <td>
-            {{#if contents.phoneNumber}}{{ contents.phoneNumber
-            }}{{else}}none{{/if}}
-          </td>
+          <td>{{ contents.phoneNumber }}</td>
         </tr>
         <tr>
           <td>Secondary Contact Name</td>
-          <td>
-            {{#if contents.secondaryName}}{{ contents.secondaryName
-            }}{{else}}none{{/if}}
-          </td>
+          <td>{{ contents.secondaryName }}</td>
         </tr>
         <tr>
           <td>Sponsor Name</td>
           <td>
-            {{#if contents.sponsorFirstName}}{{ contents.sponsorFirstName }} {{
-            contents.sponsorLastName }}{{else}}none{{/if}}
+            {{ contents.sponsorFirstName }} {{ contents.sponsorLastName }}
+
           </td>
         </tr>
         <tr>
           <td>Sponsor Email</td>
-          <td>
-            {{#if contents.sponsorEmail}}{{ contents.sponsorEmail
-            }}{{else}}none{{/if}}
-          </td>
+          <td>{{ contents.sponsorEmail }}</td>
         </tr>
       </table>
 
@@ -246,6 +231,7 @@
           <td>
             {{#if contents.mediaServices}}{{ contents.mediaServices
             }}{{else}}none{{/if}} {{#if contents.mediaServicesDetails}}
+
             <br />{{ contents.mediaServicesDetails }} {{/if}}
           </td>
         </tr>

@@ -93,8 +93,7 @@ const bookingContentsToDescription = (bookingContents: BookingFormDetails) => {
   description += listItem(
     "Name",
     `${getProperty(bookingContents, "firstName")} ${getProperty(bookingContents, "lastName")}`.trim() ||
-      ""
-  );
+      ""  );
   description += listItem(
     "Department",
     getProperty(bookingContents, "department")
@@ -110,8 +109,7 @@ const bookingContentsToDescription = (bookingContents: BookingFormDetails) => {
   description += listItem(
     "Sponsor Name",
     `${getProperty(bookingContents, "sponsorFirstName")} ${getProperty(bookingContents, "sponsorLastName")}`.trim() ||
-      ""
-  );
+      ""  );
   description += listItem(
     "Sponsor Email",
     getProperty(bookingContents, "sponsorEmail")

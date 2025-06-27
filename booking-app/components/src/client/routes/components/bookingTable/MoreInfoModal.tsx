@@ -73,7 +73,6 @@ const AlertHeader = styled(Alert)(({ theme }) => ({
 }));
 
 const BLANK = "none";
-
 export default function MoreInfoModal({ booking, closeModal }: Props) {
   const historyRows = useSortBookingHistory(booking);
 

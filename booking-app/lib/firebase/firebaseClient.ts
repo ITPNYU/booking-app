@@ -9,6 +9,7 @@ import {
 } from "firebase/auth";
 import { Firestore, initializeFirestore } from "firebase/firestore";
 
+
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain:
@@ -21,6 +22,7 @@ const firebaseConfig = {
           : process.env.NEXT_PUBLIC_BRANCH_NAME === "development-local"
             ? process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
             : process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+
   projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
   storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
@@ -93,7 +95,6 @@ export const getGoogleRedirectResult = async () => {
     // No redirect result for localhost (popup is used)
     return null;
   }
-
   try {
     const result = await getRedirectResult(auth);
     if (result) {

@@ -110,6 +110,7 @@ export const sendHTMLEmail = async (params: SendHTMLEmailParams) => {
     return a === b;
   });
 
+
   const template = Handlebars.compile(templateSource);
   const approvalUrl = approverType
     ? getUrlPathByApproverType(contents.calendarEventId, approverType)

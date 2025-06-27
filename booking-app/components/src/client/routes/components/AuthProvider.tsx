@@ -1,3 +1,4 @@
+
 "use client";
 
 import { auth, signInWithGoogle } from "@/lib/firebase/firebaseClient";
@@ -69,6 +70,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             ? `/${params.tenant}/signin`
             : "/signin";
           router.push(signinPath);
+
         }
       }
       setLoading(false);

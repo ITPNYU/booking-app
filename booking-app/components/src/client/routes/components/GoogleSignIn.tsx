@@ -18,6 +18,7 @@ const Center = styled(Box)`
 const GoogleSignIn = () => {
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+
   const params = useParams();
   const { isOnTestEnv } = useAuth();
 
@@ -63,6 +64,7 @@ const GoogleSignIn = () => {
       // For non-localhost redirect signin, the redirect will happen automatically
     } catch (error: any) {
       setError(error.message || "Google sign-in failed. Please try again.");
+
       console.error("Google sign-in error", error);
     }
   };

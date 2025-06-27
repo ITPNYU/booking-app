@@ -250,11 +250,13 @@ export async function POST(request: NextRequest) {
       ...data,
     });
 
+
     if (!doc || !doc.id) {
       throw new Error("Failed to create booking document");
     }
 
     // Create initial booking log entry before sending email so it appears in History
+
     await logServerBookingChange({
       bookingId: doc.id,
       status: BookingStatusLabel.REQUESTED,
@@ -273,6 +275,7 @@ export async function POST(request: NextRequest) {
       bookingCalendarInfo,
       email,
     );
+
 
     console.log(" Done handleBookingApprovalEmails");
 
