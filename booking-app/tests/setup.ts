@@ -29,7 +29,8 @@ global.fetch = vi.fn().mockImplementation((url) => {
       arrayBuffer: () => Promise.resolve(new ArrayBuffer(0)),
       formData: () => Promise.resolve(new FormData()),
       json: () => Promise.resolve({ isTestEnv: true }),
-    } as Response);
+    } as Response;
+    return Promise.resolve(mockResponse);
   }
   return Promise.reject(new Error("Not mocked"));
 }) as typeof fetch;
