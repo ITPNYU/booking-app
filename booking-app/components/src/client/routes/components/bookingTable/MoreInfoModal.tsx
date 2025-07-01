@@ -127,8 +127,7 @@ export default function MoreInfoModal({
           });
         }
       } else {
-        const error = await response.json();
-        alert(`Error: ${error.error}`);
+        alert("Failed to update cart number");
       }
     } catch (error) {
       console.error("Failed to update cart number:", error);
