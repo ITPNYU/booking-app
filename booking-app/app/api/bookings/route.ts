@@ -6,7 +6,11 @@ import {
   serverDeleteFieldsByCalendarEventId,
   serverUpdateDataByCalendarEventId,
 } from "@/components/src/server/admin";
-import { deleteEvent, insertEvent } from "@/components/src/server/calendars";
+import {
+  bookingContentsToDescription,
+  deleteEvent,
+  insertEvent,
+} from "@/components/src/server/calendars";
 import {
   ApproverType,
   BookingFormDetails,
@@ -28,9 +32,10 @@ import { DateSelectArg } from "fullcalendar";
 
 async function createBookingCalendarEvent(
   selectedRooms: RoomSetting[],
-  department: string,
+  _department: string,
   title: string,
   bookingCalendarInfo: DateSelectArg,
+  description: string,
 ) {
   const [room, ...otherRooms] = selectedRooms;
   const calendarId = room.calendarId;
@@ -53,7 +58,7 @@ async function createBookingCalendarEvent(
   const event = await insertEvent({
     calendarId,
     title: `[${BookingStatusLabel.REQUESTED}] ${selectedRoomIds.join(", ")} ${truncatedTitle}`,
-    description: `Department: ${department}\n\nYour reservation is not yet confirmed. The coordinator will review and finalize your reservation within a few days.`,
+    description,
     startTime: bookingCalendarInfo.startStr,
     endTime: bookingCalendarInfo.endStr,
     roomEmails: otherRoomEmails,
@@ -212,6 +217,32 @@ export async function POST(request: NextRequest) {
 
   console.log("data", data);
 
+  // Generate Sequential ID early so it can be used in calendar description
+  const sequentialId = await serverGetNextSequentialId("bookings");
+
+  const selectedRoomIds = selectedRooms
+    .map((r: { roomId: number }) => r.roomId)
+    .join(", ");
+
+  // Build booking contents for description
+  const startDateObj = new Date(bookingCalendarInfo.startStr);
+  const endDateObj = new Date(bookingCalendarInfo.endStr);
+
+  const bookingContentsForDesc = buildBookingContents(
+    data,
+    selectedRoomIds,
+    startDateObj,
+    endDateObj,
+    BookingStatusLabel.REQUESTED,
+    sequentialId
+  );
+
+  const description = `
+    ${bookingContentsToDescription(bookingContentsForDesc)}
+    <p>Your reservation is not yet confirmed. The coordinator will review and finalize your reservation within a few days.</p>
+    <p>To cancel reservations please return to the Booking Tool, visit My Bookings, and click "cancel" on the booking at least 24 hours before the date of the event. Failure to cancel an unused booking is considered a no-show and may result in restricted use of the space.</p>
+  `;
+
   let calendarEventId: string;
   try {
     calendarEventId = await createBookingCalendarEvent(
@@ -219,6 +250,7 @@ export async function POST(request: NextRequest) {
       data.department,
       data.title,
       bookingCalendarInfo,
+      description,
     );
   } catch (err) {
     console.error(err);
@@ -228,11 +260,6 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  //For putting sequentialId in bookings
-  const sequentialId = await serverGetNextSequentialId("bookings");
-  const selectedRoomIds = selectedRooms
-    .map((r: { roomId: number }) => r.roomId)
-    .join(", ");
   console.log(" Done serverGetNextSequentialId ");
   console.log("calendarEventId", calendarEventId);
 
@@ -333,7 +360,33 @@ export async function PUT(request: NextRequest) {
     }),
   );
 
-  // recreate cal events
+  // Build description for modified event
+  const startDateObj2 = new Date(bookingCalendarInfo.startStr);
+  const endDateObj2 = new Date(bookingCalendarInfo.endStr);
+
+  const bookingContentsForDescMod = {
+    ...data,
+    roomId: selectedRoomIds,
+    startDate: startDateObj2.toLocaleDateString(),
+    startTime: startDateObj2.toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    }),
+    endTime: endDateObj2.toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    }),
+    status: BookingStatusLabel.MODIFIED,
+    requestNumber: data.requestNumber ?? existingContents.requestNumber,
+  } as unknown as BookingFormDetails;
+
+  const descriptionMod =
+    bookingContentsToDescription(bookingContentsForDescMod) +
+    "Your reservation is not yet confirmed. The coordinator will review and finalize your reservation within a few days." +
+    ' To cancel reservations please return to the Booking Tool, visit My Bookings, and click "cancel" on the booking at least 24 hours before the date of the event. Failure to cancel an unused booking is considered a no-show and may result in restricted use of the space.';
+
   let newCalendarEventId: string;
   try {
     newCalendarEventId = await createBookingCalendarEvent(
@@ -341,6 +394,7 @@ export async function PUT(request: NextRequest) {
       data.department,
       data.title,
       bookingCalendarInfo,
+      descriptionMod,
     );
     // Add a new history entry for the modification
     await logServerBookingChange({
