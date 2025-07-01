@@ -6,7 +6,7 @@ import {
   Tooltip,
   tooltipClasses,
 } from "@mui/material";
-import { DataGrid } from "@mui/x-data-grid";
+import { DataGrid, GridSortModel } from "@mui/x-data-grid";
 import React, { useContext, useEffect, useMemo, useState } from "react";
 import {
   BookingRow,
@@ -56,7 +56,13 @@ export const Bookings: React.FC<BookingsProps> = ({
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
 
+  // Add sort model state for DataGrid
+  const [sortModel, setSortModel] = useState<GridSortModel>([
+    { field: "startDate", sort: "asc" },
+  ]);
+
   const isUserView = pageContext === PageContextLevel.USER;
+  const isAdminOrAbove = pageContext >= PageContextLevel.ADMIN;
 
   useEffect(() => {
     return () => {
@@ -80,6 +86,13 @@ export const Bookings: React.FC<BookingsProps> = ({
       }
     }
   }, [searchQuery, bookingsLoading]);
+
+  // Reset sort to default when timeframe selection changes for admin users
+  useEffect(() => {
+    if (isAdminOrAbove) {
+      setSortModel([{ field: "startDate", sort: "asc" }]);
+    }
+  }, [selectedDateRange, isAdminOrAbove]);
 
   const filteredRows = useBookingFilters({
     pageContext,
@@ -404,6 +417,8 @@ export const Bookings: React.FC<BookingsProps> = ({
             backgroundColor: "#EEEEEE !important",
           },
         }}
+        sortModel={sortModel}
+        onSortModelChange={(newSortModel) => setSortModel(newSortModel)}
       />
       {isUserView && <BookMoreButton />}
       {bottomSection}
