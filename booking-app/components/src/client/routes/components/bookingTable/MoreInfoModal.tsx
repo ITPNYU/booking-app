@@ -80,6 +80,20 @@ const AlertHeader = styled(Alert)(({ theme }) => ({
 
 const BLANK = "none";
 
+// Helper function to format origin values consistently
+const formatOrigin = (origin: string | undefined) => {
+  if (!origin) return "User";
+
+  const originMap = {
+    user: "User",
+    vip: "VIP",
+    walkIn: "Walk-In",
+    "walk-in": "Walk-In",
+    pregame: "Pregame",
+  };
+  return originMap[origin] ?? origin;
+};
+
 export default function MoreInfoModal({
   booking,
   closeModal,
@@ -512,6 +526,10 @@ export default function MoreInfoModal({
                 <TableRow>
                   <LabelCell>Booking Type</LabelCell>
                   <TableCell>{booking.bookingType ?? BLANK}</TableCell>
+                </TableRow>
+                <TableRow>
+                  <LabelCell>Origin</LabelCell>
+                  <TableCell>{formatOrigin(booking.origin)}</TableCell>
                 </TableRow>
                 <TableRow>
                   <LabelCell>Expected Attendance</LabelCell>
