@@ -350,6 +350,8 @@ describe("MoreInfoModal - WebCheckout", () => {
 
     it("handles save error gracefully", async () => {
       const user = userEvent.setup();
+      // Clear the default mock and set error mock
+      mockFetch.mockReset();
       mockFetch.mockResolvedValueOnce({
         ok: false,
         json: () => Promise.resolve({ error: "Failed to update" }),
@@ -371,11 +373,17 @@ describe("MoreInfoModal - WebCheckout", () => {
       await user.click(saveButton!);
 
       // Should show alert with error
-      expect(global.alert).toHaveBeenCalledWith("Failed to update cart number");
+      await waitFor(() => {
+        expect(global.alert).toHaveBeenCalledWith(
+          "Failed to update cart number"
+        );
+      });
     });
 
     it("handles network error gracefully", async () => {
       const user = userEvent.setup();
+      // Clear the default mock and set network error mock
+      mockFetch.mockReset();
       mockFetch.mockRejectedValueOnce(new Error("Network error"));
 
       const booking = createMockBooking({ webcheckoutCartNumber: "CART123" });
@@ -394,7 +402,11 @@ describe("MoreInfoModal - WebCheckout", () => {
       await user.click(saveButton!);
 
       // Should show alert with error
-      expect(global.alert).toHaveBeenCalledWith("Failed to update cart number");
+      await waitFor(() => {
+        expect(global.alert).toHaveBeenCalledWith(
+          "Failed to update cart number"
+        );
+      });
     });
   });
 

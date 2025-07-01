@@ -30,6 +30,34 @@ import { getCalendarClient } from "@/lib/googleClient";
 import { Timestamp } from "firebase-admin/firestore";
 import { DateSelectArg } from "fullcalendar";
 
+// Helper to build booking contents object for calendar descriptions
+const buildBookingContents = (
+  data: any,
+  selectedRoomIds: string[],
+  startDateObj: Date,
+  endDateObj: Date,
+  status: BookingStatusLabel,
+  requestNumber: number,
+) => {
+  return {
+    ...data,
+    roomId: selectedRoomIds,
+    startDate: startDateObj.toLocaleDateString(),
+    startTime: startDateObj.toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    }),
+    endTime: endDateObj.toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    }),
+    status,
+    requestNumber,
+  } as unknown as BookingFormDetails;
+};
+
 async function createBookingCalendarEvent(
   selectedRooms: RoomSetting[],
   _department: string,
@@ -234,14 +262,13 @@ export async function POST(request: NextRequest) {
     startDateObj,
     endDateObj,
     BookingStatusLabel.REQUESTED,
-    sequentialId
+    sequentialId,
   );
 
-  const description = `
-    ${bookingContentsToDescription(bookingContentsForDesc)}
-    <p>Your reservation is not yet confirmed. The coordinator will review and finalize your reservation within a few days.</p>
-    <p>To cancel reservations please return to the Booking Tool, visit My Bookings, and click "cancel" on the booking at least 24 hours before the date of the event. Failure to cancel an unused booking is considered a no-show and may result in restricted use of the space.</p>
-  `;
+  const description =
+    bookingContentsToDescription(bookingContentsForDesc) +
+    "<p>Your reservation is not yet confirmed. The coordinator will review and finalize your reservation within a few days.</p>" +
+    '<p>To cancel reservations please return to the Booking Tool, visit My Bookings, and click "cancel" on the booking at least 24 hours before the date of the event. Failure to cancel an unused booking is considered a no-show and may result in restricted use of the space.</p>';
 
   let calendarEventId: string;
   try {
@@ -364,28 +391,19 @@ export async function PUT(request: NextRequest) {
   const startDateObj2 = new Date(bookingCalendarInfo.startStr);
   const endDateObj2 = new Date(bookingCalendarInfo.endStr);
 
-  const bookingContentsForDescMod = {
-    ...data,
-    roomId: selectedRoomIds,
-    startDate: startDateObj2.toLocaleDateString(),
-    startTime: startDateObj2.toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
-    }),
-    endTime: endDateObj2.toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
-    }),
-    status: BookingStatusLabel.MODIFIED,
-    requestNumber: data.requestNumber ?? existingContents.requestNumber,
-  } as unknown as BookingFormDetails;
+  const bookingContentsForDescMod = buildBookingContents(
+    data,
+    selectedRoomIds,
+    startDateObj2,
+    endDateObj2,
+    BookingStatusLabel.MODIFIED,
+    data.requestNumber ?? existingContents.requestNumber,
+  );
 
   const descriptionMod =
     bookingContentsToDescription(bookingContentsForDescMod) +
-    "Your reservation is not yet confirmed. The coordinator will review and finalize your reservation within a few days." +
-    ' To cancel reservations please return to the Booking Tool, visit My Bookings, and click "cancel" on the booking at least 24 hours before the date of the event. Failure to cancel an unused booking is considered a no-show and may result in restricted use of the space.';
+    "<p>Your reservation is not yet confirmed. The coordinator will review and finalize your reservation within a few days.</p>" +
+    '<p>To cancel reservations please return to the Booking Tool, visit My Bookings, and click "cancel" on the booking at least 24 hours before the date of the event. Failure to cancel an unused booking is considered a no-show and may result in restricted use of the space.</p>';
 
   let newCalendarEventId: string;
   try {

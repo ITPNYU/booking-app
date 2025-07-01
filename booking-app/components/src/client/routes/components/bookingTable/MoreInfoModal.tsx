@@ -28,6 +28,7 @@ import StackedTableCell from "./StackedTableCell";
 interface Props {
   booking: BookingRow;
   closeModal: () => void;
+  updateBooking?: (updatedBooking: BookingRow) => void;
 }
 
 const modalStyle = {
@@ -79,7 +80,25 @@ const AlertHeader = styled(Alert)(({ theme }) => ({
 
 const BLANK = "none";
 
-export default function MoreInfoModal({ booking, closeModal }: Props) {
+// Helper function to format origin values consistently
+const formatOrigin = (origin: string | undefined) => {
+  if (!origin) return "User";
+
+  const originMap = {
+    user: "User",
+    vip: "VIP",
+    walkIn: "Walk-In",
+    "walk-in": "Walk-In",
+    pregame: "Pregame",
+  };
+  return originMap[origin] ?? origin;
+};
+
+export default function MoreInfoModal({
+  booking,
+  closeModal,
+  updateBooking,
+}: Props) {
   const historyRows = useSortBookingHistory(booking);
   const { pagePermission, userEmail } = useContext(DatabaseContext);
 
@@ -115,12 +134,14 @@ export default function MoreInfoModal({ booking, closeModal }: Props) {
       if (response.ok) {
         setIsEditingCart(false);
         // Notify parent to update the booking object
-        updateBooking({
-          ...booking,
-          webcheckoutCartNumber: cartNumber.trim() || undefined,
-        });
-        const error = await response.json();
-        alert(`Error: ${error.error}`);
+        if (updateBooking) {
+          updateBooking({
+            ...booking,
+            webcheckoutCartNumber: cartNumber.trim() || undefined,
+          });
+        }
+      } else {
+        alert("Failed to update cart number");
       }
     } catch (error) {
       console.error("Failed to update cart number:", error);
@@ -505,6 +526,10 @@ export default function MoreInfoModal({ booking, closeModal }: Props) {
                 <TableRow>
                   <LabelCell>Booking Type</LabelCell>
                   <TableCell>{booking.bookingType ?? BLANK}</TableCell>
+                </TableRow>
+                <TableRow>
+                  <LabelCell>Origin</LabelCell>
+                  <TableCell>{formatOrigin(booking.origin)}</TableCell>
                 </TableRow>
                 <TableRow>
                   <LabelCell>Expected Attendance</LabelCell>
