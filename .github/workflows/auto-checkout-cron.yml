@@ -1,5 +1,8 @@
 name: Auto Checkout Cron Job
 
+permissions:
+  contents: read
+
 on:
   schedule:
     # Run every 30 minutes
