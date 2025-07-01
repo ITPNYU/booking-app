@@ -11,9 +11,9 @@ process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID = "123456789";
 process.env.NEXT_PUBLIC_FIREBASE_APP_ID = "test-app-id";
 
 // Mock global fetch for isTestEnv endpoint
-global.fetch = vi.fn((url) => {
+global.fetch = vi.fn().mockImplementation((url) => {
   if (url?.toString().includes("/api/isTestEnv")) {
-    return Promise.resolve({
+    const mockResponse = {
       ok: true,
       status: 200,
       statusText: "OK",
