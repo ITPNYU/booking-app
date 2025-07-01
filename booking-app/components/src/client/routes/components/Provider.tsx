@@ -182,7 +182,7 @@ export const DatabaseProvider = ({
     const equipmentEmails = equipmentUsers.map((e) => e.email);
     const superAdminEmails = superAdminUsers.map((admin) => admin.email);
 
-    // Check permissions
+    // Check permissions (ordered by hierarchy - highest to lowest)
     if (superAdminEmails.includes(userEmail)) return PagePermission.SUPER_ADMIN;
     if (adminEmails.includes(userEmail)) return PagePermission.ADMIN;
     if (equipmentEmails.includes(userEmail)) return PagePermission.EQUIPMENT;

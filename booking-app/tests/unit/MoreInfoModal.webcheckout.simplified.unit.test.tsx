@@ -131,8 +131,7 @@ const createMockBooking = (
   status: "PENDING" as any,
   bookingType: "Workshop",
   requestedAt: Timestamp.fromDate(new Date("2024-01-15T10:00:00")),
-  checkedInDate: null,
-  actualEndDate: null,
+  checkedInAt: null,
   ...overrides,
 });
 
@@ -217,6 +216,16 @@ describe("MoreInfoModal - WebCheckout (Simplified)", () => {
       expect(screen.getByText("Cart Number")).toBeInTheDocument();
     });
 
+    it("shows WebCheckout section for Super Admin users", () => {
+      const booking = createMockBooking();
+      const context = createMockDatabaseContext(PagePermission.SUPER_ADMIN);
+
+      renderModal(booking, context);
+
+      expect(screen.getByText("WebCheckout")).toBeInTheDocument();
+      expect(screen.getByText("Cart Number")).toBeInTheDocument();
+    });
+
     it("hides WebCheckout section for regular booking users", () => {
       const booking = createMockBooking();
       const context = createMockDatabaseContext(PagePermission.BOOKING);
@@ -241,6 +250,15 @@ describe("MoreInfoModal - WebCheckout (Simplified)", () => {
     it("shows edit button for Admin users", () => {
       const booking = createMockBooking({ webcheckoutCartNumber: undefined });
       const context = createMockDatabaseContext(PagePermission.ADMIN);
+
+      renderModal(booking, context);
+
+      expect(screen.getByLabelText("Edit cart number")).toBeInTheDocument();
+    });
+
+    it("shows edit button for Super Admin users", () => {
+      const booking = createMockBooking({ webcheckoutCartNumber: undefined });
+      const context = createMockDatabaseContext(PagePermission.SUPER_ADMIN);
 
       renderModal(booking, context);
 

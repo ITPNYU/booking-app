@@ -10,19 +10,19 @@ import {
   useMediaQuery,
   useTheme,
 } from "@mui/material";
-import { usePathname, useRouter, useParams } from "next/navigation";
+import { useParams, usePathname, useRouter } from "next/navigation";
 import { useContext, useEffect, useMemo, useState } from "react";
 
 import { auth } from "@/lib/firebase/firebaseClient";
 import { styled } from "@mui/system";
 import { signOut } from "firebase/auth";
 import Image from "next/image";
+import { schema } from "../../../../../app/[tenant]/schema";
 import NYULOGO from "../../../../../public/nyuLogo.png";
 import { PagePermission } from "../../../types";
 import useHandleStartBooking from "../booking/hooks/useHandleStartBooking";
 import ConfirmDialog from "./ConfirmDialog";
 import { DatabaseContext } from "./Provider";
-import { schema } from "../../../../../app/[tenant]/schema";
 
 const LogoBox = styled(Box)`
   cursor: pointer;
@@ -143,14 +143,14 @@ export default function NavBar() {
     }
   };
 
-  const hasPermission = (roles: PagePermission[]) => {
+  const hasUserPermission = (roles: PagePermission[]) => {
     return roles.includes(pagePermission);
   };
 
   const dropdown = useMemo(() => {
     // First check if user has any admin privileges
     if (
-      !hasPermission([
+      !hasUserPermission([
         PagePermission.ADMIN,
         PagePermission.PA,
         PagePermission.LIAISON,
@@ -160,30 +160,30 @@ export default function NavBar() {
       return null;
     }
 
-    const showPA = hasPermission([
+    const showPA = hasUserPermission([
       PagePermission.PA,
       PagePermission.ADMIN,
       PagePermission.SUPER_ADMIN,
     ]);
 
-    const showLiaison = hasPermission([
+    const showLiaison = hasUserPermission([
       PagePermission.LIAISON,
       PagePermission.ADMIN,
       PagePermission.SUPER_ADMIN,
     ]);
 
-    const showAdmin = hasPermission([
+    const showAdmin = hasUserPermission([
       PagePermission.ADMIN,
       PagePermission.SUPER_ADMIN,
     ]);
 
-    const showEquipment = hasPermission([
+    const showEquipment = hasUserPermission([
       PagePermission.EQUIPMENT,
       PagePermission.ADMIN,
       PagePermission.SUPER_ADMIN,
     ]);
 
-    const showSuperAdmin = hasPermission([PagePermission.SUPER_ADMIN]);
+    const showSuperAdmin = hasUserPermission([PagePermission.SUPER_ADMIN]);
 
     return (
       <Select size="small" value={selectedView} onChange={handleRoleChange}>

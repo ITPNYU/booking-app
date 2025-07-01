@@ -191,6 +191,16 @@ describe("MoreInfoModal - WebCheckout", () => {
       expect(screen.getByText("Cart Number")).toBeInTheDocument();
     });
 
+    it("shows WebCheckout section for Super Admin users", () => {
+      const booking = createMockBooking();
+      const context = createMockDatabaseContext(PagePermission.SUPER_ADMIN);
+
+      renderModal(booking, context);
+
+      expect(screen.getByText("WebCheckout")).toBeInTheDocument();
+      expect(screen.getByText("Cart Number")).toBeInTheDocument();
+    });
+
     it("hides WebCheckout section for regular booking users", () => {
       const booking = createMockBooking();
       const context = createMockDatabaseContext(PagePermission.BOOKING);

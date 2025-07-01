@@ -1,12 +1,13 @@
-import { PageContextLevel, PagePermission } from "../../../../types";
-import React, { useContext, useMemo, useState } from "react";
-import { Bookings } from "../../components/bookingTable/Bookings";
 import { Box } from "@mui/material";
+import Tab from "@mui/material/Tab";
+import Tabs from "@mui/material/Tabs";
+import { useContext, useMemo, useState } from "react";
+import { PageContextLevel } from "../../../../types";
+import { canAccessAdmin } from "../../../../utils/permissions";
+import { Bookings } from "../../components/bookingTable/Bookings";
 import { CenterLoading } from "../../components/Loading";
 import { DatabaseContext } from "../../components/Provider";
 import Settings from "./Settings";
-import Tab from "@mui/material/Tab";
-import Tabs from "@mui/material/Tabs";
 
 export default function Admin({ calendarEventId }) {
   const [tab, setTab] = useState("bookings");
@@ -17,9 +18,7 @@ export default function Admin({ calendarEventId }) {
     [adminUsers]
   );
 
-  const userHasPermission =
-    pagePermission === PagePermission.ADMIN ||
-    pagePermission === PagePermission.SUPER_ADMIN;
+  const userHasPermission = canAccessAdmin(pagePermission);
 
   if (adminEmails.length === 0 || userEmail == null) {
     return <CenterLoading />;
