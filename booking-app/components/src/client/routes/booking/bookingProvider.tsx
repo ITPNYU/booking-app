@@ -132,17 +132,34 @@ export function BookingProvider({ children }) {
       (period) => period.isActive
     );
 
+    // Get room IDs from selected rooms
+    const selectedRoomIds = selectedRooms.map(room => room.roomId);
+
     return activeBlackoutPeriods.some((period) => {
       const startDate = dayjs(period.startDate.toDate());
       const endDate = dayjs(period.endDate.toDate());
-      return (
+      
+      // Check if date is within this blackout period
+      const isDateInPeriod = (
         (bookingDate.isAfter(startDate, "day") ||
           bookingDate.isSame(startDate, "day")) &&
         (bookingDate.isBefore(endDate, "day") ||
           bookingDate.isSame(endDate, "day"))
       );
+
+      if (!isDateInPeriod) {
+        return false;
+      }
+
+      // If period has no specific rooms (roomIds is undefined/empty), it applies to all rooms
+      if (!period.roomIds || period.roomIds.length === 0) {
+        return true;
+      }
+
+      // Check if any of the selected rooms are in the blackout period
+      return selectedRoomIds.some(roomId => period.roomIds!.includes(roomId));
     });
-  }, [bookingCalendarInfo, blackoutPeriods]);
+  }, [bookingCalendarInfo, blackoutPeriods, selectedRooms]);
 
   return (
     <BookingContext.Provider
