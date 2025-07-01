@@ -17,7 +17,8 @@ import { Cancel, Check, Edit, Event } from "@mui/icons-material";
 import Grid from "@mui/material/Unstable_Grid2/Grid2";
 import { styled } from "@mui/system";
 import React, { useContext, useState } from "react";
-import { BookingRow, PagePermission } from "../../../../types";
+import { BookingRow } from "../../../../types";
+import { canAccessWebCheckout } from "../../../../utils/permissions";
 import { formatTimeAmPm } from "../../../utils/date";
 import { RoomDetails } from "../../booking/components/BookingSelection";
 import useSortBookingHistory from "../../hooks/useSortBookingHistory";
@@ -112,9 +113,8 @@ export default function MoreInfoModal({
   const [webCheckoutData, setWebCheckoutData] = useState<any>(null);
 
   // Check if user has permission to edit cart number
-  const canEditCart =
-    pagePermission === PagePermission.PA ||
-    pagePermission === PagePermission.ADMIN;
+  console.log("pagePermission", pagePermission);
+  const canEditCart = canAccessWebCheckout(pagePermission);
 
   const handleSaveCartNumber = async () => {
     setIsUpdating(true);
@@ -133,15 +133,11 @@ export default function MoreInfoModal({
 
       if (response.ok) {
         setIsEditingCart(false);
-        // Notify parent to update the booking object
-        if (updateBooking) {
-          updateBooking({
-            ...booking,
-            webcheckoutCartNumber: cartNumber.trim() || undefined,
-          });
-        }
+        // Update the booking object
+        booking.webcheckoutCartNumber = cartNumber.trim() || undefined;
       } else {
-        alert("Failed to update cart number");
+        const error = await response.json();
+        alert(`Error: ${error.error}`);
       }
     } catch (error) {
       console.error("Failed to update cart number:", error);
@@ -177,7 +173,6 @@ export default function MoreInfoModal({
     }
   };
 
-  // Fetch WebCheckout URL when cart number exists
   React.useEffect(() => {
     if (booking.webcheckoutCartNumber) {
       fetchWebCheckoutUrl(booking.webcheckoutCartNumber);
@@ -185,8 +180,9 @@ export default function MoreInfoModal({
   }, [booking.webcheckoutCartNumber]);
 
   const renderWebCheckoutSection = () => {
+    console.log("canEditCart", canEditCart);
     if (!canEditCart) {
-      // Hide entire section if user doesn't have PA/Admin permissions
+      // Hide entire section if user doesn't have PA/Admin/SuperAdmin permissions
       return null;
     }
 

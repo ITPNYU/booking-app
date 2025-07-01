@@ -202,7 +202,7 @@ export enum PagePermission {
   ADMIN = "ADMIN",
   LIAISON = "LIAISON",
   EQUIPMENT = "EQUIPMENT",
-  SUPER_ADMIN = "SUPER_ADMIN"
+    SUPER_ADMIN = "SUPER_ADMIN"
 }
 
 export enum PageContextLevel {

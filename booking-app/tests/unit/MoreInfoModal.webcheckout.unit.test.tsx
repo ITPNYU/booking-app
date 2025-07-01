@@ -68,7 +68,6 @@ vi.mock(
 const mockFetch = vi.fn();
 global.fetch = mockFetch;
 
-// Mock WebCheckout data - structure matching the actual API response
 const mockWebCheckoutData = {
   cartNumber: "CK-2614",
   totalItems: 3,
@@ -185,6 +184,16 @@ describe("MoreInfoModal - WebCheckout", () => {
     it("shows WebCheckout section for Admin users", () => {
       const booking = createMockBooking();
       const context = createMockDatabaseContext(PagePermission.ADMIN);
+
+      renderModal(booking, context);
+
+      expect(screen.getByText("WebCheckout")).toBeInTheDocument();
+      expect(screen.getByText("Cart Number")).toBeInTheDocument();
+    });
+
+    it("shows WebCheckout section for Super Admin users", () => {
+      const booking = createMockBooking();
+      const context = createMockDatabaseContext(PagePermission.SUPER_ADMIN);
 
       renderModal(booking, context);
 
@@ -352,6 +361,7 @@ describe("MoreInfoModal - WebCheckout", () => {
       const user = userEvent.setup();
       // Clear the default mock and set error mock
       mockFetch.mockReset();
+
       mockFetch.mockResolvedValueOnce({
         ok: false,
         json: () => Promise.resolve({ error: "Failed to update" }),
@@ -384,6 +394,7 @@ describe("MoreInfoModal - WebCheckout", () => {
       const user = userEvent.setup();
       // Clear the default mock and set network error mock
       mockFetch.mockReset();
+
       mockFetch.mockRejectedValueOnce(new Error("Network error"));
 
       const booking = createMockBooking({ webcheckoutCartNumber: "CART123" });
