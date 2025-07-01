@@ -73,21 +73,26 @@ export default function NavBar() {
   } = tenantSchema || {};
 
   const handleRoleChange = (e: any) => {
+    const pathOf = (x: string) => (tenant ? `/${tenant}/${x}` : `/${x}`);
+
     switch (e.target.value as PagePermission) {
       case PagePermission.BOOKING:
-        router.push(`/${tenant}`);
+        router.push(pathOf(""));
         break;
       case PagePermission.PA:
-        router.push(`/${tenant}/pa`);
+        router.push(pathOf("pa"));
         break;
       case PagePermission.ADMIN:
-        router.push(`/${tenant}/admin`);
+        router.push(pathOf("admin"));
         break;
       case PagePermission.LIAISON:
-        router.push(`/${tenant}/liaison`);
+        router.push(pathOf("liaison"));
         break;
       case PagePermission.EQUIPMENT:
-        router.push(`/${tenant}/equipment`);
+        router.push(pathOf("equipment"));
+        break;
+      case PagePermission.SUPER_ADMIN:
+        router.push(pathOf("super"));
         break;
     }
   };
@@ -122,6 +127,8 @@ export default function NavBar() {
       setSelectedView(PagePermission.LIAISON);
     } else if (pathname.includes("/equipment")) {
       setSelectedView(PagePermission.EQUIPMENT);
+    } else if (pathname.includes("/super")) {
+      setSelectedView(PagePermission.SUPER_ADMIN);
     }
   }, [pathname]);
 
@@ -136,24 +143,47 @@ export default function NavBar() {
     }
   };
 
+  const hasPermission = (roles: PagePermission[]) => {
+    return roles.includes(pagePermission);
+  };
+
   const dropdown = useMemo(() => {
+    // First check if user has any admin privileges
     if (
-      pagePermission !== PagePermission.ADMIN &&
-      pagePermission !== PagePermission.PA &&
-      pagePermission !== PagePermission.LIAISON
+      !hasPermission([
+        PagePermission.ADMIN,
+        PagePermission.PA,
+        PagePermission.LIAISON,
+        PagePermission.SUPER_ADMIN,
+      ])
     ) {
       return null;
     }
 
-    const showPA =
-      pagePermission === PagePermission.PA ||
-      pagePermission === PagePermission.ADMIN;
-    const showLiaison =
-      pagePermission === PagePermission.LIAISON ||
-      pagePermission === PagePermission.ADMIN;
-    const showAdmin = pagePermission === PagePermission.ADMIN;
-    const showEquipment =
-      pagePermission === PagePermission.ADMIN || PagePermission.EQUIPMENT;
+    const showPA = hasPermission([
+      PagePermission.PA,
+      PagePermission.ADMIN,
+      PagePermission.SUPER_ADMIN,
+    ]);
+
+    const showLiaison = hasPermission([
+      PagePermission.LIAISON,
+      PagePermission.ADMIN,
+      PagePermission.SUPER_ADMIN,
+    ]);
+
+    const showAdmin = hasPermission([
+      PagePermission.ADMIN,
+      PagePermission.SUPER_ADMIN,
+    ]);
+
+    const showEquipment = hasPermission([
+      PagePermission.EQUIPMENT,
+      PagePermission.ADMIN,
+      PagePermission.SUPER_ADMIN,
+    ]);
+
+    const showSuperAdmin = hasPermission([PagePermission.SUPER_ADMIN]);
 
     return (
       <Select size="small" value={selectedView} onChange={handleRoleChange}>
@@ -166,11 +196,19 @@ export default function NavBar() {
         {showEquipment && (
           <MenuItem value={PagePermission.EQUIPMENT}>Equipment</MenuItem>
         )}
+        {showSuperAdmin && (
+          <MenuItem value={PagePermission.SUPER_ADMIN}>Super</MenuItem>
+        )}
       </Select>
     );
   }, [pagePermission, selectedView]);
 
   const button = useMemo(() => {
+    // Do not show the button for super admin.
+    if (pagePermission === PagePermission.SUPER_ADMIN) {
+      return null;
+    }
+
     if (selectedView === PagePermission.BOOKING) {
       return (
         <Button

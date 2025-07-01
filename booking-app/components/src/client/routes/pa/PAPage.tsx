@@ -17,7 +17,8 @@ const PAPage = () => {
 
   const userHasPermission =
     pagePermission === PagePermission.ADMIN ||
-    pagePermission === PagePermission.PA;
+    pagePermission === PagePermission.PA ||
+    pagePermission === PagePermission.SUPER_ADMIN;
 
   if (paEmails.length === 0 || userEmail === null) {
     return <CenterLoading />;
