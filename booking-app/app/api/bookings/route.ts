@@ -228,23 +228,14 @@ export async function POST(request: NextRequest) {
   const startDateObj = new Date(bookingCalendarInfo.startStr);
   const endDateObj = new Date(bookingCalendarInfo.endStr);
 
-  const bookingContentsForDesc = {
-    ...data,
-    roomId: selectedRoomIds,
-    startDate: startDateObj.toLocaleDateString(),
-    startTime: startDateObj.toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
-    }),
-    endTime: endDateObj.toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
-    }),
-    status: BookingStatusLabel.REQUESTED,
-    requestNumber: sequentialId,
-  } as unknown as BookingFormDetails;
+  const bookingContentsForDesc = buildBookingContents(
+    data,
+    selectedRoomIds,
+    startDateObj,
+    endDateObj,
+    BookingStatusLabel.REQUESTED,
+    sequentialId
+  );
 
   const description =
     bookingContentsToDescription(bookingContentsForDesc) +
