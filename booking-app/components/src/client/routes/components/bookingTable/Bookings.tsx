@@ -369,6 +369,14 @@ export const Bookings: React.FC<BookingsProps> = ({
     return baseColumns;
   }, [isUserView, pageContext]);
 
+  // Function to update a booking in the local state
+  const updateBookingInState = (updatedBooking: BookingRow) => {
+    // This is a simple implementation - in a real app you might want to
+    // update the booking in your state management system
+    setModalData(updatedBooking);
+    // You could also trigger a refetch of bookings here if needed
+  };
+
   return (
     <Box sx={{ marginTop: 4 }}>
       <DataGrid
@@ -411,6 +419,7 @@ export const Bookings: React.FC<BookingsProps> = ({
         <MoreInfoModal
           booking={modalData}
           closeModal={() => setModalData(null)}
+          updateBooking={updateBookingInState}
         />
       )}
     </Box>

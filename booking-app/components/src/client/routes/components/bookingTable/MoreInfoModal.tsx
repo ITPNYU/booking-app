@@ -28,6 +28,7 @@ import StackedTableCell from "./StackedTableCell";
 interface Props {
   booking: BookingRow;
   closeModal: () => void;
+  updateBooking?: (updatedBooking: BookingRow) => void;
 }
 
 const modalStyle = {
@@ -79,7 +80,11 @@ const AlertHeader = styled(Alert)(({ theme }) => ({
 
 const BLANK = "none";
 
-export default function MoreInfoModal({ booking, closeModal }: Props) {
+export default function MoreInfoModal({
+  booking,
+  closeModal,
+  updateBooking,
+}: Props) {
   const historyRows = useSortBookingHistory(booking);
   const { pagePermission, userEmail } = useContext(DatabaseContext);
 
@@ -115,10 +120,13 @@ export default function MoreInfoModal({ booking, closeModal }: Props) {
       if (response.ok) {
         setIsEditingCart(false);
         // Notify parent to update the booking object
-        updateBooking({
-          ...booking,
-          webcheckoutCartNumber: cartNumber.trim() || undefined,
-        });
+        if (updateBooking) {
+          updateBooking({
+            ...booking,
+            webcheckoutCartNumber: cartNumber.trim() || undefined,
+          });
+        }
+      } else {
         const error = await response.json();
         alert(`Error: ${error.error}`);
       }
