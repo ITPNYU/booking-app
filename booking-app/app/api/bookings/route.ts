@@ -33,7 +33,7 @@ import { DateSelectArg } from "fullcalendar";
 // Helper to build booking contents object for calendar descriptions
 const buildBookingContents = (
   data: any,
-  selectedRoomIds: string,
+  selectedRoomIds: string[],
   startDateObj: Date,
   endDateObj: Date,
   status: BookingStatusLabel,
