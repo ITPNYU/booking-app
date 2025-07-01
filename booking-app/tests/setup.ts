@@ -17,23 +17,23 @@ global.fetch = vi.fn().mockImplementation((url) => {
       ok: true,
       status: 200,
       statusText: "OK",
-      headers: {} as Headers,
+      headers: new Headers(),
       redirected: false,
-      type: "basic" as ResponseType,
+      type: "basic",
       url: url?.toString() || "",
-      clone: vi.fn(),
+      clone: () => ({}) as Response,
       body: null,
       bodyUsed: false,
-      arrayBuffer: vi.fn(() => Promise.resolve(new ArrayBuffer(0))),
-      blob: vi.fn(() => Promise.resolve(new Blob())),
-      formData: vi.fn(() => Promise.resolve(new FormData())),
-      text: vi.fn(() => Promise.resolve(JSON.stringify({ isTestEnv: true }))),
-      json: vi.fn(() => Promise.resolve({ isTestEnv: true })),
-    } as unknown as Response;
+      text: () => Promise.resolve(""),
+      blob: () => Promise.resolve(new Blob()),
+      arrayBuffer: () => Promise.resolve(new ArrayBuffer(0)),
+      formData: () => Promise.resolve(new FormData()),
+      json: () => Promise.resolve({ isTestEnv: true }),
+    } as Response;
     return Promise.resolve(mockResponse);
   }
   return Promise.reject(new Error("Not mocked"));
-});
+}) as typeof fetch;
 
 // Mock Firebase modules
 vi.mock("firebase/app", () => ({
