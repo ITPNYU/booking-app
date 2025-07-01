@@ -265,11 +265,10 @@ export async function POST(request: NextRequest) {
     sequentialId,
   );
 
-  const description = `
-    ${bookingContentsToDescription(bookingContentsForDesc)}
-    <p>Your reservation is not yet confirmed. The coordinator will review and finalize your reservation within a few days.</p>
-    <p>To cancel reservations please return to the Booking Tool, visit My Bookings, and click "cancel" on the booking at least 24 hours before the date of the event. Failure to cancel an unused booking is considered a no-show and may result in restricted use of the space.</p>
-  `;
+  const description =
+    bookingContentsToDescription(bookingContentsForDesc) +
+    "<p>Your reservation is not yet confirmed. The coordinator will review and finalize your reservation within a few days.</p>" +
+    '<p>To cancel reservations please return to the Booking Tool, visit My Bookings, and click "cancel" on the booking at least 24 hours before the date of the event. Failure to cancel an unused booking is considered a no-show and may result in restricted use of the space.</p>';
 
   let calendarEventId: string;
   try {
@@ -401,11 +400,10 @@ export async function PUT(request: NextRequest) {
     data.requestNumber ?? existingContents.requestNumber,
   );
 
-  const descriptionMod = `
-    ${bookingContentsToDescription(bookingContentsForDescMod)}
-    <p>Your reservation is not yet confirmed. The coordinator will review and finalize your reservation within a few days.</p>
-    <p>To cancel reservations please return to the Booking Tool, visit My Bookings, and click "cancel" on the booking at least 24 hours before the date of the event. Failure to cancel an unused booking is considered a no-show and may result in restricted use of the space.</p>
-  `;
+  const descriptionMod =
+    bookingContentsToDescription(bookingContentsForDescMod) +
+    "<p>Your reservation is not yet confirmed. The coordinator will review and finalize your reservation within a few days.</p>" +
+    '<p>To cancel reservations please return to the Booking Tool, visit My Bookings, and click "cancel" on the booking at least 24 hours before the date of the event. Failure to cancel an unused booking is considered a no-show and may result in restricted use of the space.</p>';
 
   let newCalendarEventId: string;
   try {
