@@ -146,8 +146,6 @@ export default function CalendarVerticalResource({
     const selectedDate = dayjs(dateView);
     const blocks: any[] = [];
 
- 
-
     rooms.forEach((room) => {
       const blackoutPeriods = getBlackoutPeriodsForDateAndRooms(selectedDate, [
         room.roomId,
