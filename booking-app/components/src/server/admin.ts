@@ -247,7 +247,7 @@ export const serverApproveInstantBooking = async (
   id: string,
   email: string
 ) => {
-  serverFirstApprove(id, "");
+  serverFirstApprove(id, "System");
   const doc = await serverGetDataByCalendarEventId<{
     id: string;
     requestNumber: number;
@@ -256,13 +256,13 @@ export const serverApproveInstantBooking = async (
     await logServerBookingChange({
       bookingId: doc.id,
       status: BookingStatusLabel.APPROVED,
-      changedBy: email,
+      changedBy: "System",
       requestNumber: doc.requestNumber,
       calendarEventId: id,
       note: "",
     });
   }
-  serverFinalApprove(id, "");
+  serverFinalApprove(id, "System");
   serverApproveEvent(id);
 };
 

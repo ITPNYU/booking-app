@@ -1,3 +1,4 @@
+import { hasAnyPermission } from "@/components/src/utils/permissions";
 import {
   CalendarApi,
   DateSelectArg,
@@ -6,7 +7,12 @@ import {
 } from "@fullcalendar/core";
 import { Box, Typography, useMediaQuery, useTheme } from "@mui/material";
 import { useContext, useEffect, useMemo, useRef } from "react";
-import { Days, FormContextLevel, RoomSetting } from "../../../../types";
+import {
+  Days,
+  FormContextLevel,
+  PagePermission,
+  RoomSetting,
+} from "../../../../types";
 import CalendarEventBlock, { NEW_TITLE_TAG } from "./CalendarEventBlock";
 
 import googleCalendarPlugin from "@fullcalendar/google-calendar";
@@ -15,9 +21,11 @@ import FullCalendar from "@fullcalendar/react";
 import resourceTimeGridPlugin from "@fullcalendar/resource-timegrid";
 import { Error } from "@mui/icons-material";
 import { styled } from "@mui/system";
+import dayjs from "dayjs";
 import { EventResizeDoneArg } from "fullcalendar";
 import { DatabaseContext } from "../../components/Provider";
 import { BookingContext } from "../bookingProvider";
+import { useBookingDateRestrictions } from "../hooks/useBookingDateRestrictions";
 
 interface Props {
   calendarEventId?: string;
@@ -68,6 +76,25 @@ const FullCalendarWrapper = styled(Box)({
     background: "#55555569",
     border: "none",
   },
+
+  ".fc": {
+    fontFamily: "Roboto, Arial, sans-serif",
+  },
+  ".disabled": {
+    background: "#e0e0e0",
+    pointerEvents: "none",
+  },
+  ".blackout-period": {
+    background: "#e0e0e0 !important",
+    borderColor: "#bdbdbd !important",
+    color: "#000000 !important",
+    pointerEvents: "none",
+    opacity: 0.8,
+  },
+  ".blackout-period .fc-event-title": {
+    fontWeight: "bold",
+    fontSize: "0.8em",
+  },
 });
 
 const Empty = styled(Box)(({ theme }) => ({
@@ -86,6 +113,7 @@ export default function CalendarVerticalResource({
   dateView,
 }: Props) {
   const { operationHours, pagePermission } = useContext(DatabaseContext);
+  const { getBlackoutPeriodsForDateAndRooms } = useBookingDateRestrictions();
   const {
     bookingCalendarInfo,
     existingCalendarEvents,
@@ -106,6 +134,55 @@ export default function CalendarVerticalResource({
       })),
     [rooms]
   );
+
+  const isAdminPermission = hasAnyPermission(pagePermission, [
+    PagePermission.ADMIN,
+    PagePermission.SUPER_ADMIN,
+    PagePermission.PA,
+  ]);
+
+  // Generate blackout blocks for rooms that are in blackout periods on the selected date
+  const blackoutBlocks = useMemo(() => {
+    const selectedDate = dayjs(dateView);
+    const blocks: any[] = [];
+
+    rooms.forEach((room) => {
+      const blackoutPeriods = getBlackoutPeriodsForDateAndRooms(selectedDate, [
+        room.roomId,
+      ]);
+
+      console.log(`Room ${room.roomId} blackout periods:`, blackoutPeriods);
+
+      blackoutPeriods.forEach((period) => {
+        // Create full day blackout block for this room
+        const startOfDay = selectedDate.startOf("day");
+        const endOfDay = selectedDate.endOf("day");
+
+        const blockEvent = {
+          start: startOfDay.toISOString(),
+          end: endOfDay.toISOString(),
+          id: `blackout-${room.roomId}-${period.id}`,
+          resourceId: room.roomId + "",
+          title: `🚫 ${period.name}`,
+          overlap: false,
+          display: "background",
+          classNames: ["blackout-period"],
+          backgroundColor: "#e0e0e0",
+          borderColor: "#bdbdbd",
+          textColor: "#000000",
+          extendedProps: {
+            selectable: false,
+          },
+        };
+
+        console.log("Adding blackout block:", blockEvent);
+        blocks.push(blockEvent);
+      });
+    });
+
+    console.log("Total blackout blocks generated:", blocks.length);
+    return blocks;
+  }, [rooms, dateView, getBlackoutPeriodsForDateAndRooms]);
 
   // update calendar day view based on mini calendar date picker
   useEffect(() => {
@@ -129,11 +206,12 @@ export default function CalendarVerticalResource({
       title: NEW_TITLE_TAG,
       overlap: true,
       durationEditable: true,
-      startEditable: formContext !== FormContextLevel.MODIFICATION,
+      startEditable:
+        formContext !== FormContextLevel.MODIFICATION || isAdminPermission,
       groupId: "new",
       url: `${index}:${rooms.length}`, // some hackiness to let us render multiple events visually as one big block
     }));
-  }, [bookingCalendarInfo, rooms]);
+  }, [bookingCalendarInfo, rooms, formContext, isAdminPermission]);
 
   const blockPastTimes = useMemo(() => {
     // Only apply past time blocks if not in MODIFICATION mode
@@ -141,7 +219,7 @@ export default function CalendarVerticalResource({
     if (formContext === FormContextLevel.MODIFICATION) {
       return [];
     }
-    
+
     const blocks = rooms.map((room) => {
       const today = new Date();
       const start = new Date();
@@ -167,20 +245,54 @@ export default function CalendarVerticalResource({
   }, [rooms, formContext]);
 
   const handleEventSelect = (selectInfo: DateSelectArg) => {
+    // Check if the selection overlaps with any blackout periods before setting booking info
+    const selectedDate = dayjs(selectInfo.start);
+    const selectedResourceId = selectInfo.resource?.id;
+
+    if (selectedResourceId) {
+      const roomId = parseInt(selectedResourceId);
+      const blackoutPeriods = getBlackoutPeriodsForDateAndRooms(selectedDate, [
+        roomId,
+      ]);
+
+      if (blackoutPeriods.length > 0) {
+        // Don't allow selection in blackout periods
+        if (ref.current?.getApi()) {
+          ref.current.getApi().unselect();
+        }
+        return;
+      }
+    }
+
     setBookingCalendarInfo(selectInfo);
   };
 
   const handleEventSelecting = (selectInfo: DateSelectArg) => {
-    if (ref.current == null || ref.current.getApi() == null) {
-      return true;
+    // Check if the selection overlaps with any blackout periods
+    const selectedDate = dayjs(selectInfo.start);
+    const selectedResourceId = selectInfo.resource?.id;
+
+    if (selectedResourceId) {
+      const roomId = parseInt(selectedResourceId);
+      const blackoutPeriods = getBlackoutPeriodsForDateAndRooms(selectedDate, [
+        roomId,
+      ]);
+
+      if (blackoutPeriods.length > 0) {
+        // Don't allow selection in blackout periods
+        return false;
+      }
     }
-    const api: CalendarApi = ref.current.getApi();
-    api.unselect();
-    setBookingCalendarInfo(selectInfo);
+
+    // Allow selection if not in blackout period
     return true;
   };
 
   const handleSelectOverlap = (el) => {
+    // Don't allow overlap with blackout periods
+    if (el.classNames && el.classNames.includes("blackout-period")) {
+      return false;
+    }
     return el.overlap;
   };
 
@@ -288,14 +400,25 @@ export default function CalendarVerticalResource({
           googleCalendarPlugin,
           interactionPlugin,
         ]}
-        selectable={formContext !== FormContextLevel.MODIFICATION}
+        selectable={
+          formContext !== FormContextLevel.MODIFICATION || isAdminPermission
+        }
         select={handleEventSelect}
         selectAllow={handleEventSelecting}
         selectOverlap={handleSelectOverlap}
+        selectConstraint={{
+          resourceIds: resources.map((r) => r.id),
+          overlap: false,
+        }}
         schedulerLicenseKey="CC-Attribution-NonCommercial-NoDerivatives"
         resources={resources}
         resourceOrder={"index"}
-        events={[...blockPastTimes, ...existingCalEventsFiltered, ...newEvents]}
+        events={[
+          ...blackoutBlocks,
+          ...blockPastTimes,
+          ...existingCalEventsFiltered,
+          ...newEvents,
+        ]}
         eventContent={(calendarEventInfo) =>
           CalendarEventBlock(calendarEventInfo, pagePermission)
         }
@@ -308,7 +431,9 @@ export default function CalendarVerticalResource({
         // Enable editing based on form context
         editable={true}
         // Control specific edit behavior
-        eventStartEditable={formContext !== FormContextLevel.MODIFICATION}
+        eventStartEditable={
+          formContext !== FormContextLevel.MODIFICATION || isAdminPermission
+        }
         eventDurationEditable={true}
         headerToolbar={false}
         slotMinTime="9:00:00"

@@ -1,18 +1,18 @@
-import { BookingStatusLabel, PageContextLevel } from "../../../../types";
 import { IconButton, MenuItem, Select } from "@mui/material";
-import React, { useContext, useMemo, useState } from "react";
+import { useContext, useMemo, useState } from "react";
+import { BookingStatusLabel, PageContextLevel } from "../../../../types";
 import useBookingActions, {
   ActionDefinition,
   Actions,
 } from "../hooks/useBookingActions";
 
-import AlertToast from "../../components/AlertToast";
 import Check from "@mui/icons-material/Check";
+import { Timestamp } from "firebase/firestore";
+import AlertToast from "../../components/AlertToast";
 import ConfirmDialog from "../../components/ConfirmDialog";
-import { DatabaseContext } from "../../components/Provider";
 import DeclineReasonDialog from "../../components/DeclineReasonDialog";
 import Loading from "../../components/Loading";
-import { Timestamp } from "firebase/firestore";
+import { DatabaseContext } from "../../components/Provider";
 
 interface Props {
   calendarEventId: string;
@@ -131,11 +131,16 @@ export default function BookingActions(props: Props) {
       </IconButton>
     );
   }, [selectedAction, reason]);
-  
-  const disabledActions = useMemo(()=>{
+
+  const disabledActions = useMemo(() => {
     let disabledActions = [];
-    if (pageContext === PageContextLevel.ADMIN || pageContext === PageContextLevel.PA) {
-      if (new Date().getTime() < startDate.toMillis()) {
+    if (
+      pageContext === PageContextLevel.ADMIN ||
+      pageContext === PageContextLevel.PA
+    ) {
+      // Allow check-in starting 1 hour (3600000 ms) before the start time
+      const oneHourBeforeStart = startDate.toMillis() - 3600000;
+      if (new Date().getTime() < oneHourBeforeStart) {
         disabledActions.push(Actions.CHECK_IN);
       }
     }
@@ -174,9 +179,11 @@ export default function BookingActions(props: Props) {
           <em>Action</em>
         </MenuItem>
         {options().map((action) => (
-          <MenuItem 
-            disabled={disabledActions.includes(action)} 
-            value={action} key={action}>
+          <MenuItem
+            disabled={disabledActions.includes(action)}
+            value={action}
+            key={action}
+          >
             {action}
           </MenuItem>
         ))}

@@ -1,30 +1,35 @@
+import { MoreHoriz } from "@mui/icons-material";
+import {
+  Box,
+  IconButton,
+  TableCell,
+  Tooltip,
+  tooltipClasses,
+} from "@mui/material";
+import { DataGrid, GridSortModel } from "@mui/x-data-grid";
+import React, { useContext, useEffect, useMemo, useState } from "react";
 import {
   BookingRow,
-  PageContextLevel,
   BookingStatusLabel,
+  PageContextLevel,
 } from "../../../../types";
-import { Box, TableCell, IconButton } from "@mui/material";
-import { DataGrid } from "@mui/x-data-grid";
-import StackedTableCell from "./StackedTableCell";
-import { MoreHoriz } from "@mui/icons-material";
-import { Tooltip, tooltipClasses } from "@mui/material";
-import React, { useContext, useEffect, useMemo, useState } from "react";
 import { TableEmpty } from "../Table";
+import StackedTableCell from "./StackedTableCell";
 
+import { formatDateTable, formatTimeAmPm } from "../../../utils/date";
+import BookingActions from "../../admin/components/BookingActions";
+import getBookingStatus from "../../hooks/getBookingStatus";
+import Loading from "../Loading";
+import { DatabaseContext } from "../Provider";
+import { useTenantSchema } from "../SchemaProvider";
 import BookMoreButton from "./BookMoreButton";
 import BookingTableFilters from "./BookingTableFilters";
-import { DatabaseContext } from "../Provider";
-import { DateRangeFilter } from "./hooks/getDateFilter";
-import Loading from "../Loading";
+import EquipmentCheckoutToggle from "./EquipmentCheckoutToggle";
 import MoreInfoModal from "./MoreInfoModal";
+import StatusChip from "./StatusChip";
+import { DateRangeFilter } from "./hooks/getDateFilter";
 import useAllowedStatuses from "./hooks/useAllowedStatuses";
 import { useBookingFilters } from "./hooks/useBookingFilters";
-import StatusChip from "./StatusChip";
-import EquipmentCheckoutToggle from "./EquipmentCheckoutToggle";
-import BookingActions from "../../admin/components/BookingActions";
-import { formatDateTable, formatTimeAmPm } from "../../../utils/date";
-import getBookingStatus from "../../hooks/getBookingStatus";
-import { useTenantSchema } from "../SchemaProvider";
 
 interface BookingsProps {
   pageContext: PageContextLevel;
@@ -51,7 +56,13 @@ export const Bookings: React.FC<BookingsProps> = ({
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
 
+  // Add sort model state for DataGrid
+  const [sortModel, setSortModel] = useState<GridSortModel>([
+    { field: "startDate", sort: "asc" },
+  ]);
+
   const isUserView = pageContext === PageContextLevel.USER;
+  const isAdminOrAbove = pageContext >= PageContextLevel.ADMIN;
 
   useEffect(() => {
     return () => {
@@ -75,6 +86,13 @@ export const Bookings: React.FC<BookingsProps> = ({
       }
     }
   }, [searchQuery, bookingsLoading]);
+
+  // Reset sort to default when timeframe selection changes for admin users
+  useEffect(() => {
+    if (isAdminOrAbove) {
+      setSortModel([{ field: "startDate", sort: "asc" }]);
+    }
+  }, [selectedDateRange, isAdminOrAbove]);
 
   const filteredRows = useBookingFilters({
     pageContext,
@@ -364,6 +382,14 @@ export const Bookings: React.FC<BookingsProps> = ({
     return baseColumns;
   }, [isUserView, pageContext]);
 
+  // Function to update a booking in the local state
+  const updateBookingInState = (updatedBooking: BookingRow) => {
+    // This is a simple implementation - in a real app you might want to
+    // update the booking in your state management system
+    setModalData(updatedBooking);
+    // You could also trigger a refetch of bookings here if needed
+  };
+
   return (
     <Box sx={{ marginTop: 4 }}>
       <DataGrid
@@ -399,6 +425,8 @@ export const Bookings: React.FC<BookingsProps> = ({
             backgroundColor: "#EEEEEE !important",
           },
         }}
+        sortModel={sortModel}
+        onSortModelChange={(newSortModel) => setSortModel(newSortModel)}
       />
       {isUserView && <BookMoreButton />}
       {bottomSection}
@@ -406,6 +434,7 @@ export const Bookings: React.FC<BookingsProps> = ({
         <MoreInfoModal
           booking={modalData}
           closeModal={() => setModalData(null)}
+          updateBooking={updateBookingInState}
         />
       )}
     </Box>

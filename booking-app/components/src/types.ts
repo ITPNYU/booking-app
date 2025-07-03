@@ -155,6 +155,7 @@ export type Inputs = {
   chartFieldForCatering: string;
   chartFieldForSecurity: string;
   chartFieldForRoomSetup: string;
+  webcheckoutCartNumber?: string;
 };
 
 export type DepartmentType = {
@@ -196,11 +197,12 @@ export type PaUser = {
 };
 
 export enum PagePermission {
-  BOOKING = 0,
-  PA,
-  LIAISON,
-  EQUIPMENT,
-  ADMIN,
+  BOOKING = "BOOKING",
+  PA = "PA",
+  ADMIN = "ADMIN",
+  LIAISON = "LIAISON",
+  EQUIPMENT = "EQUIPMENT",
+    SUPER_ADMIN = "SUPER_ADMIN"
 }
 
 export enum PageContextLevel {
@@ -219,6 +221,7 @@ export type BlackoutPeriod = {
   isActive: boolean;
   createdAt: Timestamp;
   updatedAt?: Timestamp;
+  roomIds?: number[]; // Optional array of room IDs - if empty/undefined, applies to all rooms
 };
 
 export type PolicySettings = {

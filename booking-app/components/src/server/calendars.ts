@@ -58,7 +58,9 @@ export const inviteUserToCalendarEvent = async (
   }
 };
 
-const bookingContentsToDescription = (bookingContents: BookingFormDetails) => {
+export const bookingContentsToDescription = (
+  bookingContents: BookingFormDetails
+) => {
   const listItem = (key: string, value: string) => {
     const displayValue =
       value === "no" || value === "No" ? "none" : value || "none";
