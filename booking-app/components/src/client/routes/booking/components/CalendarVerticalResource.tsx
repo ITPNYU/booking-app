@@ -1,3 +1,4 @@
+import { hasAnyPermission } from "@/components/src/utils/permissions";
 import {
   CalendarApi,
   DateSelectArg,
@@ -6,7 +7,12 @@ import {
 } from "@fullcalendar/core";
 import { Box, Typography, useMediaQuery, useTheme } from "@mui/material";
 import { useContext, useEffect, useMemo, useRef } from "react";
-import { Days, FormContextLevel, RoomSetting } from "../../../../types";
+import {
+  Days,
+  FormContextLevel,
+  PagePermission,
+  RoomSetting,
+} from "../../../../types";
 import CalendarEventBlock, { NEW_TITLE_TAG } from "./CalendarEventBlock";
 
 import googleCalendarPlugin from "@fullcalendar/google-calendar";
@@ -129,12 +135,16 @@ export default function CalendarVerticalResource({
     [rooms]
   );
 
+  const isAdminPermission = hasAnyPermission(pagePermission, [
+    PagePermission.ADMIN,
+    PagePermission.SUPER_ADMIN,
+    PagePermission.PA,
+  ]);
+
   // Generate blackout blocks for rooms that are in blackout periods on the selected date
   const blackoutBlocks = useMemo(() => {
     const selectedDate = dayjs(dateView);
     const blocks: any[] = [];
-
-    console.log("Generating blackout blocks for date:", selectedDate.format("YYYY-MM-DD"));
 
     rooms.forEach((room) => {
       const blackoutPeriods = getBlackoutPeriodsForDateAndRooms(selectedDate, [
@@ -196,11 +206,12 @@ export default function CalendarVerticalResource({
       title: NEW_TITLE_TAG,
       overlap: true,
       durationEditable: true,
-      startEditable: formContext !== FormContextLevel.MODIFICATION,
+      startEditable:
+        formContext !== FormContextLevel.MODIFICATION || isAdminPermission,
       groupId: "new",
       url: `${index}:${rooms.length}`, // some hackiness to let us render multiple events visually as one big block
     }));
-  }, [bookingCalendarInfo, rooms]);
+  }, [bookingCalendarInfo, rooms, formContext, isAdminPermission]);
 
   const blockPastTimes = useMemo(() => {
     // Only apply past time blocks if not in MODIFICATION mode
@@ -389,12 +400,14 @@ export default function CalendarVerticalResource({
           googleCalendarPlugin,
           interactionPlugin,
         ]}
-        selectable={formContext !== FormContextLevel.MODIFICATION}
+        selectable={
+          formContext !== FormContextLevel.MODIFICATION || isAdminPermission
+        }
         select={handleEventSelect}
         selectAllow={handleEventSelecting}
         selectOverlap={handleSelectOverlap}
         selectConstraint={{
-          resourceIds: resources.map(r => r.id),
+          resourceIds: resources.map((r) => r.id),
           overlap: false,
         }}
         schedulerLicenseKey="CC-Attribution-NonCommercial-NoDerivatives"
@@ -418,7 +431,9 @@ export default function CalendarVerticalResource({
         // Enable editing based on form context
         editable={true}
         // Control specific edit behavior
-        eventStartEditable={formContext !== FormContextLevel.MODIFICATION}
+        eventStartEditable={
+          formContext !== FormContextLevel.MODIFICATION || isAdminPermission
+        }
         eventDurationEditable={true}
         headerToolbar={false}
         slotMinTime="9:00:00"

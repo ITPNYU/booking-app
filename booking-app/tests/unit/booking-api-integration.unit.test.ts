@@ -256,7 +256,49 @@ describe("Booking API Integration Tests", () => {
 
       expect(response.data.result).toBe("success");
       expect(response.status).toBe(200);
-      expect(mockLogServerBookingChange).toHaveBeenCalledTimes(1);
+      expect(mockLogServerBookingChange).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: BookingStatusLabel.MODIFIED,
+          changedBy: "ss12430@nyu.edu",
+        })
+      );
+    });
+
+    it("should update title, description, expectedAttendance and times", async () => {
+      const request = new MockNextRequest({
+        email: "jg5626@nyu.edu",
+        selectedRooms: [{ roomId: 1201, calendarId: "cal-123" }],
+        allRooms: [{ roomId: 1201, calendarId: "cal-123" }],
+        bookingCalendarInfo: {
+          startStr: "2025-07-01T10:00:00",
+          endStr: "2025-07-01T12:30:00",
+        },
+        modifiedBy: "admin@nyu.edu",
+        data: {
+          title: "New Title",
+          description: "New Description",
+          expectedAttendance: "55",
+          department: "ITP",
+        },
+        calendarEventId: "original-event-id",
+        isAutoApproval: true,
+      });
+
+      mockInsertEvent.mockResolvedValue({ id: "new-cal-id" });
+
+      const response = await putBookingHandler(request);
+
+      expect(response.status).toBe(200);
+      expect(mockServerUpdateDataByCalendarEventId).toHaveBeenCalledWith(
+        "BOOKING",
+        "original-event-id",
+        expect.objectContaining({
+          title: "New Title",
+          description: "New Description",
+          expectedAttendance: "55",
+          calendarEventId: "new-cal-id",
+        })
+      );
     });
 
     it("should log modification history with correct user", async () => {

@@ -23,16 +23,16 @@ import {
 } from "./BookingFormInputs";
 
 import { styled } from "@mui/system";
-import { useRouter, useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import isEqual from "react-fast-compare";
 import { DatabaseContext } from "../../components/Provider";
+import { useTenantSchema } from "../../components/SchemaProvider";
 import { BookingContext } from "../bookingProvider";
 import { mapAffiliationToRole } from "../formPages/UserRolePage";
 import useCheckAutoApproval from "../hooks/useCheckAutoApproval";
 import useSubmitBooking from "../hooks/useSubmitBooking";
 import BookingFormMediaServices from "./BookingFormMediaServices";
 import BookingSelection from "./BookingSelection";
-import { useTenantSchema } from "../../components/SchemaProvider";
 
 const Section = ({ title, children }) => (
   <div style={{ marginBottom: "20px" }}>
@@ -664,6 +664,20 @@ export default function FormInput({
   const modificationFormFields = (
     <>
       <Section title="Reservation Details">
+        <BookingFormTextField
+          id="title"
+          label="Reservation Title"
+          description="Please provide a short title for your reservation (25 character limit)."
+          fieldProps={{
+            inputProps: { maxLength: 25 },
+          }}
+          {...{ control, errors, trigger }}
+        />
+        <BookingFormTextField
+          id="description"
+          label="Reservation Description"
+          {...{ control, errors, trigger }}
+        />
         <BookingFormTextField
           id="expectedAttendance"
           label="Expected Attendance"

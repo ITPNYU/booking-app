@@ -3,9 +3,8 @@
 import { Box, List, ListItem, Typography } from "@mui/material";
 
 import Button from "@mui/material/Button";
-import React from "react";
 import { styled } from "@mui/system";
-import { useRouter, useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 
 const Center = styled(Box)`
   display: flex;
@@ -58,7 +57,11 @@ export default function ModificationLandingPage({ calendarEventId }: Props) {
         </Typography>
         <p>You may modify</p>
         <Bulleted>
-          <ListItem>Reservation end time</ListItem>
+          <ListItem>Reservation title</ListItem>
+          <ListItem>Reservation description</ListItem>
+          <ListItem>
+            Reservation start and end time (date changes allowed)
+          </ListItem>
           <ListItem>Selected rooms</ListItem>
           <ListItem>Equipment checkout</ListItem>
           <ListItem>Number of expected attendees</ListItem>

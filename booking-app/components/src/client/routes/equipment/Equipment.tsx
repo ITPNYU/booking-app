@@ -2,6 +2,7 @@ import { Box, Tab, Tabs } from "@mui/material";
 import { useContext, useState } from "react";
 import { PageContextLevel, PagePermission } from "../../../types";
 
+import { hasAnyPermission } from "@/components/src/utils/permissions";
 import { Bookings } from "../components/bookingTable/Bookings";
 import { DatabaseContext } from "../components/Provider";
 
@@ -10,10 +11,11 @@ const Equipment = () => {
 
   const [tab, setTab] = useState("bookings");
 
-  const userHasPermission =
-    pagePermission === PagePermission.ADMIN ||
-    pagePermission === PagePermission.EQUIPMENT ||
-    pagePermission === PagePermission.SUPER_ADMIN;
+  const userHasPermission = hasAnyPermission(pagePermission, [
+    PagePermission.ADMIN,
+    PagePermission.EQUIPMENT,
+    PagePermission.SUPER_ADMIN,
+  ]);
 
   return (
     <Box margin={3}>
