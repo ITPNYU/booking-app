@@ -228,6 +228,7 @@ describe("Modification Features", () => {
         expect(calendar).toBeInTheDocument();
       });
       // Ensure that admin privileges are NOT granted
+      expect(fullCalendarProps).not.toBeNull();
       if (fullCalendarProps) {
         expect(fullCalendarProps.selectable).toBe(false);
         expect(fullCalendarProps.eventStartEditable).toBe(false);
