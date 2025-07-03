@@ -204,8 +204,8 @@ export default function NavBar() {
   }, [pagePermission, selectedView]);
 
   const button = useMemo(() => {
-    // Do not show the button for super admin.
-    if (pagePermission === PagePermission.SUPER_ADMIN) {
+    // Do not show the button for super admin page.
+    if (selectedView === PagePermission.SUPER_ADMIN) {
       return null;
     }
 
