@@ -13,6 +13,7 @@ import ConfirmDialog from "../../components/ConfirmDialog";
 import DeclineReasonDialog from "../../components/DeclineReasonDialog";
 import Loading from "../../components/Loading";
 import { DatabaseContext } from "../../components/Provider";
+import shouldDisableCheckIn from "../hooks/shouldDisableCheckIn";
 
 interface Props {
   calendarEventId: string;
@@ -36,7 +37,7 @@ export default function BookingActions(props: Props) {
   const [selectedAction, setSelectedAction] = useState<Actions>(
     Actions.PLACEHOLDER
   );
-  const { reloadFutureBookings } = useContext(DatabaseContext);
+  const { reloadFutureBookings, allBookings } = useContext(DatabaseContext);
   const [showError, setShowError] = useState(false);
   const [reason, setReason] = useState<string>();
 
@@ -133,19 +134,14 @@ export default function BookingActions(props: Props) {
   }, [selectedAction, reason]);
 
   const disabledActions = useMemo(() => {
-    let disabledActions = [];
-    if (
-      pageContext === PageContextLevel.ADMIN ||
-      pageContext === PageContextLevel.PA
-    ) {
-      // Allow check-in starting 1 hour (3600000 ms) before the start time
-      const oneHourBeforeStart = startDate.toMillis() - 3600000;
-      if (new Date().getTime() < oneHourBeforeStart) {
-        disabledActions.push(Actions.CHECK_IN);
-      }
-    }
-    return disabledActions;
-  }, [pageContext, startDate]);
+    const shouldDisable = shouldDisableCheckIn({
+      pageContext,
+      startDate,
+      calendarEventId,
+      allBookings,
+    });
+    return shouldDisable ? [Actions.CHECK_IN] : [];
+  }, [pageContext, startDate, allBookings, calendarEventId]);
 
   if (options().length === 0) {
     return <></>;
