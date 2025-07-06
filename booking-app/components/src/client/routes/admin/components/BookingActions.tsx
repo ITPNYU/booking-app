@@ -13,6 +13,7 @@ import ConfirmDialog from "../../components/ConfirmDialog";
 import DeclineReasonDialog from "../../components/DeclineReasonDialog";
 import Loading from "../../components/Loading";
 import { DatabaseContext } from "../../components/Provider";
+import getBookingStatus from "../../hooks/getBookingStatus";
 
 interface Props {
   calendarEventId: string;
@@ -36,7 +37,7 @@ export default function BookingActions(props: Props) {
   const [selectedAction, setSelectedAction] = useState<Actions>(
     Actions.PLACEHOLDER
   );
-  const { reloadFutureBookings } = useContext(DatabaseContext);
+  const { reloadFutureBookings, allBookings } = useContext(DatabaseContext);
   const [showError, setShowError] = useState(false);
   const [reason, setReason] = useState<string>();
 
@@ -133,19 +134,68 @@ export default function BookingActions(props: Props) {
   }, [selectedAction, reason]);
 
   const disabledActions = useMemo(() => {
-    let disabledActions = [];
-    if (
+    let disabled: Actions[] = [];
+
+    // Only PA & ADMIN roles can use early check-in logic
+    const isPaOrAdmin =
       pageContext === PageContextLevel.ADMIN ||
-      pageContext === PageContextLevel.PA
-    ) {
-      // Allow check-in starting 1 hour (3600000 ms) before the start time
-      const oneHourBeforeStart = startDate.toMillis() - 3600000;
-      if (new Date().getTime() < oneHourBeforeStart) {
-        disabledActions.push(Actions.CHECK_IN);
+      pageContext === PageContextLevel.PA;
+
+    if (!isPaOrAdmin) {
+      return disabled;
+    }
+
+    const ONE_HOUR_MS = 60 * 60 * 1000;
+    const now = Date.now();
+    const bookingStart = startDate.toMillis();
+    const oneHourBeforeStart = bookingStart - ONE_HOUR_MS;
+
+    // Disable if we are earlier than one hour before start time
+    if (now < oneHourBeforeStart) {
+      disabled.push(Actions.CHECK_IN);
+      return disabled;
+    }
+
+    // Determine if there is a conflicting booking in the preceding hour
+    const currentBooking = allBookings?.find(
+      (b) => b.calendarEventId === calendarEventId
+    );
+
+    if (currentBooking) {
+      const roomId = currentBooking.roomId;
+      const precedingWindowStart = bookingStart - ONE_HOUR_MS;
+
+      const ALLOWED_PREV_STATUSES = [
+        BookingStatusLabel.CANCELED,
+        BookingStatusLabel.DECLINED,
+        BookingStatusLabel.NO_SHOW,
+        BookingStatusLabel.CHECKED_OUT,
+      ];
+
+      const hasBlockingBooking = allBookings?.some((b) => {
+        if (b.calendarEventId === calendarEventId) return false; // skip current booking
+        if (b.roomId !== roomId) return false; // different room
+
+        const bStart = b.startDate.toDate().getTime();
+        const bEnd = b.endDate.toDate().getTime();
+
+        // overlap with the 1-hour window immediately before current booking start
+        const overlapsPrecedingHour =
+          bStart < bookingStart && bEnd > precedingWindowStart;
+
+        if (!overlapsPrecedingHour) return false;
+
+        const status = getBookingStatus(b);
+        return !ALLOWED_PREV_STATUSES.includes(status);
+      });
+
+      if (hasBlockingBooking) {
+        disabled.push(Actions.CHECK_IN);
       }
     }
-    return disabledActions;
-  }, [pageContext, startDate]);
+
+    return disabled;
+  }, [pageContext, startDate, allBookings, calendarEventId]);
 
   if (options().length === 0) {
     return <></>;
