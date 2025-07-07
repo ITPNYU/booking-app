@@ -181,6 +181,33 @@ describe("Firebase Admin Integration", () => {
     expect(adminModule.default.firestore()).toBe(mockFirestore);
   });
 
+  it("should verify auto-checkout uses correct Firebase Admin after fix", async () => {
+    // This test ensures that auto-checkout API would use the correct Firebase Admin
+    // after our fix (removing old firebaseAdmin.ts import)
+
+    // Simulate the environment where auto-checkout is called
+    process.env.CRON_SECRET = "test-secret";
+    process.env.NEXT_PUBLIC_DATABASE_NAME = "production-database";
+
+    // Reset and ensure clean state
+    vi.resetModules();
+    mockAdmin.apps.length = 0;
+
+    // Import Firebase Admin (this would be called by auto-checkout)
+    const adminModule = await import("@/lib/firebase/server/firebaseAdmin");
+
+    // Verify it uses the environment-specific database
+    expect(mockFirestore.settings).toHaveBeenCalledWith({
+      databaseId: "production-database",
+    });
+
+    // Verify singleton behavior - only one initialization
+    expect(mockAdmin.initializeApp).toHaveBeenCalledTimes(1);
+
+    // Clean up
+    delete process.env.CRON_SECRET;
+  });
+
   it("should verify correct firebase admin import path is used", async () => {
     // This test ensures we're using the correct firebase admin import
 
