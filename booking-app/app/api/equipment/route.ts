@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
     }
   } catch (error) {
     console.error(
-      `booking_id: ${id} Error processing equipment request:`,
+      `booking_id: ${String(id)} Error processing equipment request:`,
       error,
     );
     return NextResponse.json(
