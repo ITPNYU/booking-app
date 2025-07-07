@@ -3,6 +3,8 @@ import {
   checkOut,
   checkin,
   clientApproveBooking,
+  clientEquipmentApprove,
+  clientSendToEquipment,
   decline,
   noShow,
 } from "@/components/src/server/db";
@@ -10,7 +12,7 @@ import { BookingStatusLabel, PageContextLevel } from "@/components/src/types";
 import { useContext, useMemo, useState } from "react";
 
 import { Timestamp } from "@firebase/firestore";
-import { useRouter, useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { BookingContext } from "../../booking/bookingProvider";
 import { DatabaseContext } from "../../components/Provider";
 import useExistingBooking from "./useExistingBooking";
@@ -22,6 +24,8 @@ export enum Actions {
   CHECK_OUT = "Check Out",
   FIRST_APPROVE = "1st Approve",
   FINAL_APPROVE = "Final Approve",
+  EQUIPMENT_APPROVE = "Equipment Approve",
+  SEND_TO_EQUIPMENT = "Send to Equipment",
   DECLINE = "Decline",
   EDIT = "Edit",
   MODIFICATION = "Modification",
@@ -98,6 +102,18 @@ export default function useBookingActions({
         await clientApproveBooking(calendarEventId, userEmail);
       },
       optimisticNextStatus: BookingStatusLabel.APPROVED,
+    },
+    [Actions.EQUIPMENT_APPROVE]: {
+      action: async () => {
+        await clientEquipmentApprove(calendarEventId, userEmail);
+      },
+      optimisticNextStatus: BookingStatusLabel.APPROVED,
+    },
+    [Actions.SEND_TO_EQUIPMENT]: {
+      action: async () => {
+        await clientSendToEquipment(calendarEventId, userEmail);
+      },
+      optimisticNextStatus: BookingStatusLabel.EQUIPMENT,
     },
     [Actions.DECLINE]: {
       action: async () => {
@@ -178,7 +194,11 @@ export default function useBookingActions({
   }, [status]);
 
   const liaisonOptions = [Actions.FIRST_APPROVE, Actions.DECLINE];
-  const equipmentOptions = [Actions.MODIFICATION, Actions.DECLINE];
+  const equipmentOptions = [
+    Actions.MODIFICATION,
+    Actions.EQUIPMENT_APPROVE,
+    Actions.DECLINE,
+  ];
 
   const adminOptions = useMemo(() => {
     if (
@@ -192,7 +212,11 @@ export default function useBookingActions({
     let options: Actions[] = [];
     if (status === BookingStatusLabel.REQUESTED) {
       options.push(Actions.FIRST_APPROVE);
+      // No SEND_TO_EQUIPMENT for REQUESTED status
     } else if (status === BookingStatusLabel.PENDING) {
+      options.push(Actions.FINAL_APPROVE);
+      options.push(Actions.SEND_TO_EQUIPMENT); // Only show for PENDING status
+    } else if (status === BookingStatusLabel.EQUIPMENT) {
       options.push(Actions.FINAL_APPROVE);
     }
 

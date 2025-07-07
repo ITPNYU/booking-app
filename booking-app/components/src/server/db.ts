@@ -611,6 +611,64 @@ export const clientApproveBooking = async (id: string, email: string) => {
   });
 };
 
+export const clientEquipmentApprove = async (id: string, email: string) => {
+  //const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/equipment`, {
+  //  method: "POST",
+  //  headers: {
+  //    "Content-Type": "application/json",
+  //  },
+  //  body: JSON.stringify({
+  //    id: id,
+  //    email: email,
+  //    action: "EQUIPMENT_APPROVE",
+  //  }),
+  //});
+  //if (!res.ok) {
+  //  throw new Error("Failed to approve equipment");
+  //}
+};
+
+export const clientSendToEquipment = async (id: string, email: string) => {
+  const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/equipment`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      id: id,
+      email: email,
+      action: "SEND_TO_EQUIPMENT",
+    }),
+  });
+
+  if (!res.ok) {
+    throw new Error("Failed to send booking to equipment");
+  }
+};
+
+export const clientGetBookingLogs = async (
+  requestNumber: number
+): Promise<{ status: BookingStatusLabel; changedAt: any }[]> => {
+  try {
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_BASE_URL}/api/booking-logs?requestNumber=${requestNumber}`
+    );
+
+    if (!response.ok) {
+      return [];
+    }
+
+    const logs = await response.json();
+    return logs.map((log: any) => ({
+      status: log.status,
+      changedAt: log.changedAt,
+    }));
+  } catch (error) {
+    console.error("Error fetching booking logs:", error);
+    return [];
+  }
+};
+
 const logClientBookingChange = async ({
   bookingId,
   calendarEventId,
