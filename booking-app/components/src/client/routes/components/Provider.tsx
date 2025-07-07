@@ -234,12 +234,15 @@ export const DatabaseProvider = ({
   };
 
   const fetchFutureBookings = async () => {
-    fetchAllFutureBooking()
-      .then((fetchedData) => {
-        // setFutureBookings(fetchedData as Booking[]);
-        setBookingsLoading(false);
-      })
-      .catch((error) => console.error("Error fetching data:", error));
+    try {
+      setBookingsLoading(true);
+      const fetchedData = await fetchAllFutureBooking();
+      setAllBookings(fetchedData as Booking[]);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    } finally {
+      setBookingsLoading(false);
+    }
   };
 
   const fetchBookings = async (clicked = false): Promise<void> => {
