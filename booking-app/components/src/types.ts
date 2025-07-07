@@ -53,10 +53,10 @@ export type BookingStatus = {
   firstApprovedBy: string;
   finalApprovedAt: Timestamp;
   finalApprovedBy: string;
-  equipmentAt: Timestamp;
-  equipmentBy: string;
-  equipmentApprovedAt: Timestamp;
-  equipmentApprovedBy: string;
+  equipmentAt?: Timestamp;
+  equipmentBy?: string;
+  equipmentApprovedAt?: Timestamp;
+  equipmentApprovedBy?: string;
   declinedAt: Timestamp;
   declinedBy: string;
   declineReason?: string;
