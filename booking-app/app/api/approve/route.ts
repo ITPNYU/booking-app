@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
       { status: 200 },
     );
   } catch (error) {
-    console.error(`booking_id: ${id} Error processing request:`, error);
+    console.error("Error processing request for booking_id:", id, error);
     return NextResponse.json(
       { error: error.message },
       { status: error.status || 500 },
