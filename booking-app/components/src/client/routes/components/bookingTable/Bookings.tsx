@@ -390,14 +390,26 @@ export const Bookings: React.FC<BookingsProps> = ({
     // You could also trigger a refetch of bookings here if needed
   };
 
+  const pageSize = 100;
+  const showFooter = useMemo(() => {
+    return filteredRows.length > pageSize;
+  }, [filteredRows.length, pageSize]);
+
   return (
     <Box sx={{ marginTop: 4 }}>
       <DataGrid
         rows={filteredRows}
         columns={columns}
         getRowId={(row) => row.calendarEventId}
-        hideFooterPagination={true}
-        hideFooter={true}
+        hideFooter={!showFooter}
+        initialState={{
+          pagination: {
+            paginationModel: {
+              pageSize: pageSize,
+            },
+          },
+        }}
+        pageSizeOptions={[pageSize]}
         checkboxSelection={false}
         disableRowSelectionOnClick
         slots={{
