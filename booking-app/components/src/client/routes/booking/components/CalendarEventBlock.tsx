@@ -1,10 +1,9 @@
 import { Box, IconButton } from "@mui/material";
 
-import { Close } from "@mui/icons-material";
-import { EventContentArg } from "@fullcalendar/core";
-import React from "react";
-import { styled } from "@mui/material/styles";
 import { PagePermission } from "@/components/src/types";
+import { EventContentArg } from "@fullcalendar/core";
+import { Close } from "@mui/icons-material";
+import { styled } from "@mui/material/styles";
 export const NEW_TITLE_TAG = "Your Reservation - Click and Drag to select time";
 export const UNKNOWN_BLOCK_TITLE = "Unavailable";
 
@@ -45,7 +44,7 @@ const CloseButton = styled(IconButton)(({ theme }) => ({
 
 export default function CalendarEventBlock(
   eventInfo: EventContentArg,
-  pagePermission: PagePermission  
+  pagePermission: PagePermission
 ) {
   const isNew = eventInfo.event.title === NEW_TITLE_TAG;
   let title = isNew ? NEW_TITLE_TAG : UNKNOWN_BLOCK_TITLE;
@@ -70,7 +69,7 @@ export default function CalendarEventBlock(
     if (isNew) {
       return null;
     }
-    return "rgba(72, 196, 77, 1)";
+    return "#e5e7eb";
   };
 
   if (isNew && index !== 0) {

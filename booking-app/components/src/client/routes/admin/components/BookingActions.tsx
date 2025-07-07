@@ -1,18 +1,19 @@
-import { BookingStatusLabel, PageContextLevel } from "../../../../types";
 import { IconButton, MenuItem, Select } from "@mui/material";
-import React, { useContext, useMemo, useState } from "react";
+import { useContext, useMemo, useState } from "react";
+import { BookingStatusLabel, PageContextLevel } from "../../../../types";
 import useBookingActions, {
   ActionDefinition,
   Actions,
 } from "../hooks/useBookingActions";
 
-import AlertToast from "../../components/AlertToast";
 import Check from "@mui/icons-material/Check";
+import { Timestamp } from "firebase/firestore";
+import AlertToast from "../../components/AlertToast";
 import ConfirmDialog from "../../components/ConfirmDialog";
-import { DatabaseContext } from "../../components/Provider";
 import DeclineReasonDialog from "../../components/DeclineReasonDialog";
 import Loading from "../../components/Loading";
-import { Timestamp } from "firebase/firestore";
+import { DatabaseContext } from "../../components/Provider";
+import shouldDisableCheckIn from "../hooks/shouldDisableCheckIn";
 
 interface Props {
   calendarEventId: string;
@@ -36,7 +37,7 @@ export default function BookingActions(props: Props) {
   const [selectedAction, setSelectedAction] = useState<Actions>(
     Actions.PLACEHOLDER
   );
-  const { reloadFutureBookings } = useContext(DatabaseContext);
+  const { reloadFutureBookings, allBookings } = useContext(DatabaseContext);
   const [showError, setShowError] = useState(false);
   const [reason, setReason] = useState<string>();
 
@@ -131,16 +132,16 @@ export default function BookingActions(props: Props) {
       </IconButton>
     );
   }, [selectedAction, reason]);
-  
-  const disabledActions = useMemo(()=>{
-    let disabledActions = [];
-    if (pageContext === PageContextLevel.ADMIN || pageContext === PageContextLevel.PA) {
-      if (new Date().getTime() < startDate.toMillis()) {
-        disabledActions.push(Actions.CHECK_IN);
-      }
-    }
-    return disabledActions;
-  }, [pageContext, startDate]);
+
+  const disabledActions = useMemo(() => {
+    const shouldDisable = shouldDisableCheckIn({
+      pageContext,
+      startDate,
+      calendarEventId,
+      allBookings,
+    });
+    return shouldDisable ? [Actions.CHECK_IN] : [];
+  }, [pageContext, startDate, allBookings, calendarEventId]);
 
   if (options().length === 0) {
     return <></>;
@@ -174,9 +175,11 @@ export default function BookingActions(props: Props) {
           <em>Action</em>
         </MenuItem>
         {options().map((action) => (
-          <MenuItem 
-            disabled={disabledActions.includes(action)} 
-            value={action} key={action}>
+          <MenuItem
+            disabled={disabledActions.includes(action)}
+            value={action}
+            key={action}
+          >
             {action}
           </MenuItem>
         ))}

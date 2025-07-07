@@ -1,6 +1,7 @@
+import { hasAnyPermission } from "@/components/src/utils/permissions";
 import { Box, Tab, Tabs } from "@mui/material";
+import { useContext, useMemo, useState } from "react";
 import { PageContextLevel, PagePermission } from "../../../types";
-import React, { useContext, useMemo, useState } from "react";
 
 import { Bookings } from "../components/bookingTable/Bookings";
 import { CenterLoading } from "../components/Loading";
@@ -15,9 +16,11 @@ const PAPage = () => {
     [paUsers]
   );
 
-  const userHasPermission =
-    pagePermission === PagePermission.ADMIN ||
-    pagePermission === PagePermission.PA;
+  const userHasPermission = hasAnyPermission(pagePermission, [
+    PagePermission.ADMIN,
+    PagePermission.PA,
+    PagePermission.SUPER_ADMIN,
+  ]);
 
   if (paEmails.length === 0 || userEmail === null) {
     return <CenterLoading />;

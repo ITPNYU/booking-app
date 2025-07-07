@@ -1,3 +1,4 @@
+import { hasAnyPermission } from "@/components/src/utils/permissions";
 import { Box, Tab, Tabs } from "@mui/material";
 import { useContext, useMemo, useState } from "react";
 import { PageContextLevel, PagePermission } from "../../../types";
@@ -17,9 +18,11 @@ const Liaison = ({ calendarEventId }) => {
     [liaisonUsers]
   );
 
-  const userHasPermission =
-    pagePermission === PagePermission.ADMIN ||
-    pagePermission === PagePermission.LIAISON;
+  const userHasPermission = hasAnyPermission(pagePermission, [
+    PagePermission.ADMIN,
+    PagePermission.LIAISON,
+    PagePermission.SUPER_ADMIN,
+  ]);
 
   if (liaisonEmails.length === 0 || userEmail === null) {
     return <CenterLoading />;
