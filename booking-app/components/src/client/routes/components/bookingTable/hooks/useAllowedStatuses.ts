@@ -12,7 +12,7 @@ export default function useAllowedStatuses(pageContext: PageContextLevel) {
         BookingStatusLabel.NO_SHOW,
       ];
     } else {
-      const {WALK_IN, ...displayableStatuses} = BookingStatusLabel;
+      const { WALK_IN, ...displayableStatuses } = BookingStatusLabel;
       return Object.values(displayableStatuses);
     }
   }, [pageContext]);

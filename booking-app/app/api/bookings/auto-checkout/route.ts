@@ -1,6 +1,6 @@
 import { BookingStatusLabel } from "@/components/src/types";
-import admin from "@/firebaseAdmin";
 import { logServerBookingChange } from "@/lib/firebase/server/adminDb";
+import admin from "@/lib/firebase/server/firebaseAdmin";
 import { Timestamp } from "firebase-admin/firestore";
 import { NextRequest, NextResponse } from "next/server";
 
