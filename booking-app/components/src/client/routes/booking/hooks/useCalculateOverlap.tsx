@@ -1,7 +1,7 @@
 import { useCallback, useContext } from "react";
 
-import { BookingContext } from "../bookingProvider";
 import { usePathname } from "next/navigation";
+import { BookingContext } from "../bookingProvider";
 
 export default function useCalculateOverlap() {
   const { bookingCalendarInfo, existingCalendarEvents, selectedRooms } =
@@ -11,10 +11,14 @@ export default function useCalculateOverlap() {
     if (bookingCalendarInfo == null) return false;
 
     // check if /edit or /modification path and pull calendarEventId if true
-    const editMode = pathname.includes("/edit") || pathname.includes("/modification");
+    const editMode =
+      pathname.includes("/edit") || pathname.includes("/modification");
     let calendarEventId: string | undefined;
     if (editMode) {
-      calendarEventId = pathname.split("/")[3];
+      // Extract the last non-empty segment as the calendarEventId. This supports both
+      // /edit/<id> and nested paths like /edit/form/<id> or /modification/form/<id>
+      const segments = pathname.split("/").filter(Boolean);
+      calendarEventId = segments[segments.length - 1];
     }
 
     const selectedRoomIds = selectedRooms.map((x) => x.roomId);
@@ -24,7 +28,8 @@ export default function useCalculateOverlap() {
         // for edit/modification mode, don't overlap with existing booking
         if (
           calendarEventId &&
-          (event.id === calendarEventId || event.id.split(":")[0] === calendarEventId)
+          (event.id === calendarEventId ||
+            event.id.split(":")[0] === calendarEventId)
         )
           return false;
 
@@ -39,6 +44,7 @@ export default function useCalculateOverlap() {
           (eventStart <= bookingCalendarInfo.start &&
             eventEnd >= bookingCalendarInfo.end)
         ) {
+          console.log("overlap", event, bookingCalendarInfo);
           return true;
         }
         return false;
