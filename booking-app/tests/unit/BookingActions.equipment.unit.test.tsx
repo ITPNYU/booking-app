@@ -1,15 +1,20 @@
-import BookingActions from "@/components/src/client/routes/admin/components/BookingActions";
-import { Actions } from "@/components/src/client/routes/admin/hooks/useBookingActions";
-import { BookingContext } from "@/components/src/client/routes/booking/bookingProvider";
-import { DatabaseContext } from "@/components/src/client/routes/components/Provider";
-import { SchemaContext } from "@/components/src/client/routes/components/SchemaProvider";
-import { BookingStatusLabel, PageContextLevel } from "@/components/src/types";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Timestamp } from "firebase/firestore";
 import { useParams, useRouter } from "next/navigation";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import BookingActions from "../../components/src/client/routes/admin/components/BookingActions";
+import useBookingActions, {
+  Actions,
+} from "../../components/src/client/routes/admin/hooks/useBookingActions";
+import { BookingContext } from "../../components/src/client/routes/booking/bookingProvider";
+import { DatabaseContext } from "../../components/src/client/routes/components/Provider";
+import { SchemaContext } from "../../components/src/client/routes/components/SchemaProvider";
+import {
+  BookingStatusLabel,
+  PageContextLevel,
+} from "../../components/src/types";
 
 // Mock Next.js navigation
 vi.mock("next/navigation", () => ({
@@ -18,18 +23,21 @@ vi.mock("next/navigation", () => ({
 }));
 
 // Mock the booking actions hook
-vi.mock("@/components/src/client/routes/admin/hooks/useBookingActions", () => ({
-  Actions: {
-    MODIFICATION: "Modification",
-    DECLINE: "Decline",
-    EQUIPMENT_APPROVE: "Equipment Approve",
-    SEND_TO_EQUIPMENT: "Send to Equipment",
-  },
-  default: vi.fn(),
-}));
+vi.mock(
+  "../../components/src/client/routes/admin/hooks/useBookingActions",
+  () => ({
+    Actions: {
+      MODIFICATION: "Modification",
+      DECLINE: "Decline",
+      EQUIPMENT_APPROVE: "Equipment Approve",
+      SEND_TO_EQUIPMENT: "Send to Equipment",
+    },
+    default: vi.fn(),
+  })
+);
 
 // Mock server functions
-vi.mock("@/components/src/server/db", () => ({
+vi.mock("../../components/src/server/db", () => ({
   decline: vi.fn(),
 }));
 
@@ -90,26 +98,68 @@ const renderBookingActionsComponent = (props = {}, contextOverrides = {}) => {
 };
 
 describe("BookingActions Component - Equipment Context", () => {
+  const mockUseBookingActions = vi.mocked(useBookingActions);
+
   beforeEach(() => {
     vi.clearAllMocks();
 
     (useRouter as any).mockReturnValue(mockRouter);
     (useParams as any).mockReturnValue(mockParams);
 
-    // Mock the useBookingActions hook to return equipment-specific options
-    const mockUseBookingActions =
-      require("@/components/src/client/routes/admin/hooks/useBookingActions").default;
+    // Mock the useBookingActions hook to return equipment-specific options with all actions
     mockUseBookingActions.mockReturnValue({
       actions: {
-        [Actions.MODIFICATION]: {
+        [Actions.CANCEL]: {
           action: vi.fn(),
-          optimisticNextStatus: BookingStatusLabel.MODIFIED,
-          confirmation: false,
+          optimisticNextStatus: BookingStatusLabel.CANCELED,
+          confirmation: true,
+        },
+        [Actions.NO_SHOW]: {
+          action: vi.fn(),
+          optimisticNextStatus: BookingStatusLabel.NO_SHOW,
+        },
+        [Actions.CHECK_IN]: {
+          action: vi.fn(),
+          optimisticNextStatus: BookingStatusLabel.CHECKED_IN,
+        },
+        [Actions.CHECK_OUT]: {
+          action: vi.fn(),
+          optimisticNextStatus: BookingStatusLabel.CHECKED_OUT,
+        },
+        [Actions.FIRST_APPROVE]: {
+          action: vi.fn(),
+          optimisticNextStatus: BookingStatusLabel.PENDING,
+        },
+        [Actions.FINAL_APPROVE]: {
+          action: vi.fn(),
+          optimisticNextStatus: BookingStatusLabel.APPROVED,
+        },
+        [Actions.EQUIPMENT_APPROVE]: {
+          action: vi.fn(),
+          optimisticNextStatus: BookingStatusLabel.APPROVED,
+        },
+        [Actions.SEND_TO_EQUIPMENT]: {
+          action: vi.fn(),
+          optimisticNextStatus: BookingStatusLabel.EQUIPMENT,
         },
         [Actions.DECLINE]: {
           action: vi.fn(),
           optimisticNextStatus: BookingStatusLabel.DECLINED,
           confirmation: true,
+        },
+        [Actions.EDIT]: {
+          action: vi.fn(),
+          optimisticNextStatus: BookingStatusLabel.UNKNOWN,
+          confirmation: false,
+        },
+        [Actions.MODIFICATION]: {
+          action: vi.fn(),
+          optimisticNextStatus: BookingStatusLabel.MODIFIED,
+          confirmation: false,
+        },
+        [Actions.PLACEHOLDER]: {
+          action: vi.fn(),
+          optimisticNextStatus: BookingStatusLabel.UNKNOWN,
         },
       },
       updateActions: vi.fn(),
@@ -118,30 +168,50 @@ describe("BookingActions Component - Equipment Context", () => {
   });
 
   describe("Equipment Context Actions", () => {
-    it("should show correct actions for equipment context", () => {
+    it("should show correct actions for equipment context", async () => {
+      const user = userEvent.setup();
       renderBookingActionsComponent();
+
+      // Open the select to see the options
+      const selectElement = screen.getByRole("combobox");
+      await user.click(selectElement);
 
       // Equipment context should show Modification and Decline actions
       expect(screen.getByText("Modification")).toBeInTheDocument();
       expect(screen.getByText("Decline")).toBeInTheDocument();
     });
 
-    it("should not show Equipment Approve action in current implementation", () => {
+    it("should not show Equipment Approve action in current implementation", async () => {
+      const user = userEvent.setup();
       renderBookingActionsComponent();
+
+      // Open the select to see the options
+      const selectElement = screen.getByRole("combobox");
+      await user.click(selectElement);
 
       // Equipment actions are currently disabled (empty array)
       expect(screen.queryByText("Equipment Approve")).not.toBeInTheDocument();
     });
 
-    it("should not show Send to Equipment action in equipment context", () => {
+    it("should not show Send to Equipment action in equipment context", async () => {
+      const user = userEvent.setup();
       renderBookingActionsComponent();
+
+      // Open the select to see the options
+      const selectElement = screen.getByRole("combobox");
+      await user.click(selectElement);
 
       // Equipment context should not show send to equipment action
       expect(screen.queryByText("Send to Equipment")).not.toBeInTheDocument();
     });
 
-    it("should not show admin-only actions", () => {
+    it("should not show admin-only actions", async () => {
+      const user = userEvent.setup();
       renderBookingActionsComponent();
+
+      // Open the select to see the options
+      const selectElement = screen.getByRole("combobox");
+      await user.click(selectElement);
 
       const adminActions = ["1st Approve", "Final Approve", "Cancel"];
 
@@ -150,8 +220,13 @@ describe("BookingActions Component - Equipment Context", () => {
       });
     });
 
-    it("should not show PA-only actions", () => {
+    it("should not show PA-only actions", async () => {
+      const user = userEvent.setup();
       renderBookingActionsComponent();
+
+      // Open the select to see the options
+      const selectElement = screen.getByRole("combobox");
+      await user.click(selectElement);
 
       const paActions = ["Check In", "Check Out", "No Show"];
 
@@ -164,21 +239,61 @@ describe("BookingActions Component - Equipment Context", () => {
   describe("Action Interactions", () => {
     it("should handle Modification action click", async () => {
       const user = userEvent.setup();
-      const mockUseBookingActions =
-        require("@/components/src/client/routes/admin/hooks/useBookingActions").default;
       const mockModificationAction = vi.fn();
 
       mockUseBookingActions.mockReturnValue({
         actions: {
-          [Actions.MODIFICATION]: {
-            action: mockModificationAction,
-            optimisticNextStatus: BookingStatusLabel.MODIFIED,
-            confirmation: false,
+          [Actions.CANCEL]: {
+            action: vi.fn(),
+            optimisticNextStatus: BookingStatusLabel.CANCELED,
+            confirmation: true,
+          },
+          [Actions.NO_SHOW]: {
+            action: vi.fn(),
+            optimisticNextStatus: BookingStatusLabel.NO_SHOW,
+          },
+          [Actions.CHECK_IN]: {
+            action: vi.fn(),
+            optimisticNextStatus: BookingStatusLabel.CHECKED_IN,
+          },
+          [Actions.CHECK_OUT]: {
+            action: vi.fn(),
+            optimisticNextStatus: BookingStatusLabel.CHECKED_OUT,
+          },
+          [Actions.FIRST_APPROVE]: {
+            action: vi.fn(),
+            optimisticNextStatus: BookingStatusLabel.PENDING,
+          },
+          [Actions.FINAL_APPROVE]: {
+            action: vi.fn(),
+            optimisticNextStatus: BookingStatusLabel.APPROVED,
+          },
+          [Actions.EQUIPMENT_APPROVE]: {
+            action: vi.fn(),
+            optimisticNextStatus: BookingStatusLabel.APPROVED,
+          },
+          [Actions.SEND_TO_EQUIPMENT]: {
+            action: vi.fn(),
+            optimisticNextStatus: BookingStatusLabel.EQUIPMENT,
           },
           [Actions.DECLINE]: {
             action: vi.fn(),
             optimisticNextStatus: BookingStatusLabel.DECLINED,
             confirmation: true,
+          },
+          [Actions.EDIT]: {
+            action: vi.fn(),
+            optimisticNextStatus: BookingStatusLabel.UNKNOWN,
+            confirmation: false,
+          },
+          [Actions.MODIFICATION]: {
+            action: mockModificationAction,
+            optimisticNextStatus: BookingStatusLabel.MODIFIED,
+            confirmation: false,
+          },
+          [Actions.PLACEHOLDER]: {
+            action: vi.fn(),
+            optimisticNextStatus: BookingStatusLabel.UNKNOWN,
           },
         },
         updateActions: vi.fn(),
@@ -189,29 +304,77 @@ describe("BookingActions Component - Equipment Context", () => {
 
       renderBookingActionsComponent();
 
+      // Open the select to see the options
+      const selectElement = screen.getByRole("combobox");
+      await user.click(selectElement);
+
       const modificationButton = screen.getByText("Modification");
       await user.click(modificationButton);
+
+      // After selecting an option, click the check button to trigger the action
+      const checkButton = screen.getByTestId("CheckIcon").closest("button");
+      await user.click(checkButton);
 
       expect(mockModificationAction).toHaveBeenCalledTimes(1);
     });
 
     it("should handle Decline action with confirmation", async () => {
       const user = userEvent.setup();
-      const mockUseBookingActions =
-        require("@/components/src/client/routes/admin/hooks/useBookingActions").default;
       const mockDeclineAction = vi.fn();
 
       mockUseBookingActions.mockReturnValue({
         actions: {
-          [Actions.MODIFICATION]: {
+          [Actions.CANCEL]: {
             action: vi.fn(),
-            optimisticNextStatus: BookingStatusLabel.MODIFIED,
-            confirmation: false,
+            optimisticNextStatus: BookingStatusLabel.CANCELED,
+            confirmation: true,
+          },
+          [Actions.NO_SHOW]: {
+            action: vi.fn(),
+            optimisticNextStatus: BookingStatusLabel.NO_SHOW,
+          },
+          [Actions.CHECK_IN]: {
+            action: vi.fn(),
+            optimisticNextStatus: BookingStatusLabel.CHECKED_IN,
+          },
+          [Actions.CHECK_OUT]: {
+            action: vi.fn(),
+            optimisticNextStatus: BookingStatusLabel.CHECKED_OUT,
+          },
+          [Actions.FIRST_APPROVE]: {
+            action: vi.fn(),
+            optimisticNextStatus: BookingStatusLabel.PENDING,
+          },
+          [Actions.FINAL_APPROVE]: {
+            action: vi.fn(),
+            optimisticNextStatus: BookingStatusLabel.APPROVED,
+          },
+          [Actions.EQUIPMENT_APPROVE]: {
+            action: vi.fn(),
+            optimisticNextStatus: BookingStatusLabel.APPROVED,
+          },
+          [Actions.SEND_TO_EQUIPMENT]: {
+            action: vi.fn(),
+            optimisticNextStatus: BookingStatusLabel.EQUIPMENT,
           },
           [Actions.DECLINE]: {
             action: mockDeclineAction,
             optimisticNextStatus: BookingStatusLabel.DECLINED,
             confirmation: true,
+          },
+          [Actions.EDIT]: {
+            action: vi.fn(),
+            optimisticNextStatus: BookingStatusLabel.UNKNOWN,
+            confirmation: false,
+          },
+          [Actions.MODIFICATION]: {
+            action: vi.fn(),
+            optimisticNextStatus: BookingStatusLabel.MODIFIED,
+            confirmation: false,
+          },
+          [Actions.PLACEHOLDER]: {
+            action: vi.fn(),
+            optimisticNextStatus: BookingStatusLabel.UNKNOWN,
           },
         },
         updateActions: vi.fn(),
@@ -221,6 +384,10 @@ describe("BookingActions Component - Equipment Context", () => {
       });
 
       renderBookingActionsComponent();
+
+      // Open the select to see the options
+      const selectElement = screen.getByRole("combobox");
+      await user.click(selectElement);
 
       const declineButton = screen.getByText("Decline");
       expect(declineButton).toBeInTheDocument();
@@ -230,41 +397,48 @@ describe("BookingActions Component - Equipment Context", () => {
   });
 
   describe("Status-specific behavior", () => {
-    it("should show appropriate actions for EQUIPMENT status", () => {
+    it("should show appropriate actions for EQUIPMENT status", async () => {
+      const user = userEvent.setup();
       renderBookingActionsComponent({
         status: BookingStatusLabel.EQUIPMENT,
       });
+
+      // Open the select to see the options
+      const selectElement = screen.getByRole("combobox");
+      await user.click(selectElement);
 
       // Equipment status should show modification and decline
       expect(screen.getByText("Modification")).toBeInTheDocument();
       expect(screen.getByText("Decline")).toBeInTheDocument();
     });
 
-    it("should handle different equipment booking statuses appropriately", () => {
+    it("should handle different equipment booking statuses appropriately", async () => {
+      const user = userEvent.setup();
       const statuses = [
         BookingStatusLabel.EQUIPMENT,
         BookingStatusLabel.APPROVED,
         BookingStatusLabel.DECLINED,
       ];
 
-      statuses.forEach((status) => {
+      for (const status of statuses) {
         const { unmount } = renderBookingActionsComponent({
           status,
         });
+
+        // Open the select to see the options
+        const selectElement = screen.getByRole("combobox");
+        await user.click(selectElement);
 
         // Should render without crashing for any status
         expect(screen.getByText("Modification")).toBeInTheDocument();
 
         unmount();
-      });
+      }
     });
   });
 
   describe("Equipment Context Props", () => {
     it("should pass correct pageContext to useBookingActions", () => {
-      const mockUseBookingActions =
-        require("@/components/src/client/routes/admin/hooks/useBookingActions").default;
-
       renderBookingActionsComponent();
 
       expect(mockUseBookingActions).toHaveBeenCalledWith(
@@ -275,9 +449,6 @@ describe("BookingActions Component - Equipment Context", () => {
     });
 
     it("should pass equipment-specific props correctly", () => {
-      const mockUseBookingActions =
-        require("@/components/src/client/routes/admin/hooks/useBookingActions").default;
-
       renderBookingActionsComponent({
         calendarEventId: "equipment-event-456",
         status: BookingStatusLabel.EQUIPMENT,
@@ -294,37 +465,96 @@ describe("BookingActions Component - Equipment Context", () => {
   });
 
   describe("Loading and Error States", () => {
-    it("should handle loading state gracefully", () => {
+    it("should handle loading state gracefully", async () => {
+      const user = userEvent.setup();
       renderBookingActionsComponent({}, { bookingsLoading: true });
+
+      // Open the select to see the options
+      const selectElement = screen.getByRole("combobox");
+      await user.click(selectElement);
 
       // Component should render even during loading
       expect(screen.getByText("Modification")).toBeInTheDocument();
     });
 
     it("should render without actions if options are empty", () => {
-      const mockUseBookingActions =
-        require("@/components/src/client/routes/admin/hooks/useBookingActions").default;
-
       mockUseBookingActions.mockReturnValue({
-        actions: {},
+        actions: {
+          [Actions.CANCEL]: {
+            action: vi.fn(),
+            optimisticNextStatus: BookingStatusLabel.CANCELED,
+            confirmation: true,
+          },
+          [Actions.NO_SHOW]: {
+            action: vi.fn(),
+            optimisticNextStatus: BookingStatusLabel.NO_SHOW,
+          },
+          [Actions.CHECK_IN]: {
+            action: vi.fn(),
+            optimisticNextStatus: BookingStatusLabel.CHECKED_IN,
+          },
+          [Actions.CHECK_OUT]: {
+            action: vi.fn(),
+            optimisticNextStatus: BookingStatusLabel.CHECKED_OUT,
+          },
+          [Actions.FIRST_APPROVE]: {
+            action: vi.fn(),
+            optimisticNextStatus: BookingStatusLabel.PENDING,
+          },
+          [Actions.FINAL_APPROVE]: {
+            action: vi.fn(),
+            optimisticNextStatus: BookingStatusLabel.APPROVED,
+          },
+          [Actions.EQUIPMENT_APPROVE]: {
+            action: vi.fn(),
+            optimisticNextStatus: BookingStatusLabel.APPROVED,
+          },
+          [Actions.SEND_TO_EQUIPMENT]: {
+            action: vi.fn(),
+            optimisticNextStatus: BookingStatusLabel.EQUIPMENT,
+          },
+          [Actions.DECLINE]: {
+            action: vi.fn(),
+            optimisticNextStatus: BookingStatusLabel.DECLINED,
+            confirmation: true,
+          },
+          [Actions.EDIT]: {
+            action: vi.fn(),
+            optimisticNextStatus: BookingStatusLabel.UNKNOWN,
+            confirmation: false,
+          },
+          [Actions.MODIFICATION]: {
+            action: vi.fn(),
+            optimisticNextStatus: BookingStatusLabel.MODIFIED,
+            confirmation: false,
+          },
+          [Actions.PLACEHOLDER]: {
+            action: vi.fn(),
+            optimisticNextStatus: BookingStatusLabel.UNKNOWN,
+          },
+        },
         updateActions: vi.fn(),
         options: vi.fn().mockReturnValue([]), // Empty options array
       });
 
       renderBookingActionsComponent();
 
-      // Should not show any action buttons
-      expect(screen.queryByText("Modification")).not.toBeInTheDocument();
-      expect(screen.queryByText("Decline")).not.toBeInTheDocument();
+      // Should not show any action buttons - component returns empty fragment when no options
+      expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
     });
   });
 
   describe("Integration with Equipment Workflow", () => {
-    it("should integrate properly with equipment-specific booking flow", () => {
+    it("should integrate properly with equipment-specific booking flow", async () => {
+      const user = userEvent.setup();
       renderBookingActionsComponent({
         status: BookingStatusLabel.EQUIPMENT,
         pageContext: PageContextLevel.EQUIPMENT,
       });
+
+      // Open the select to see the options
+      const selectElement = screen.getByRole("combobox");
+      await user.click(selectElement);
 
       // Should show equipment-appropriate actions
       expect(screen.getByText("Modification")).toBeInTheDocument();
@@ -342,9 +572,6 @@ describe("BookingActions Component - Equipment Context", () => {
       });
 
       // Context should remain EQUIPMENT throughout the component lifecycle
-      const mockUseBookingActions =
-        require("@/components/src/client/routes/admin/hooks/useBookingActions").default;
-
       expect(mockUseBookingActions).toHaveBeenCalledWith(
         expect.objectContaining({
           pageContext: PageContextLevel.EQUIPMENT,

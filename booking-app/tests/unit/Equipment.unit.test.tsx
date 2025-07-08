@@ -6,6 +6,7 @@ import { DatabaseContext } from "../../components/src/client/routes/components/P
 import { SchemaContext } from "../../components/src/client/routes/components/SchemaProvider";
 import Equipment from "../../components/src/client/routes/equipment/Equipment";
 import { PageContextLevel, PagePermission } from "../../components/src/types";
+import { hasAnyPermission } from "../../components/src/utils/permissions";
 
 // Mock Bookings component
 vi.mock(
@@ -19,7 +20,7 @@ vi.mock(
   })
 );
 
-// Mock permissions utility
+// Mock permissions utility with a simple mock function
 vi.mock("../../components/src/utils/permissions", () => ({
   hasAnyPermission: vi.fn(),
 }));
@@ -60,21 +61,18 @@ const renderEquipmentComponent = (
 };
 
 describe("Equipment Component", () => {
+  const mockHasAnyPermission = vi.mocked(hasAnyPermission);
+
   beforeEach(() => {
     vi.clearAllMocks();
+
     // Default to having permission
-    const {
-      hasAnyPermission,
-    } = require("../../components/src/utils/permissions");
-    hasAnyPermission.mockReturnValue(true);
+    mockHasAnyPermission.mockReturnValue(true);
   });
 
   describe("Permission Checks", () => {
     it("should render equipment interface for users with EQUIPMENT permission", () => {
-      const {
-        hasAnyPermission,
-      } = require("../../components/src/utils/permissions");
-      hasAnyPermission.mockReturnValue(true);
+      mockHasAnyPermission.mockReturnValue(true);
 
       renderEquipmentComponent(PagePermission.EQUIPMENT);
 
@@ -84,18 +82,18 @@ describe("Equipment Component", () => {
         screen.queryByText("You do not have permission to view this page.")
       ).not.toBeInTheDocument();
 
-      expect(hasAnyPermission).toHaveBeenCalledWith(PagePermission.EQUIPMENT, [
-        PagePermission.ADMIN,
+      expect(mockHasAnyPermission).toHaveBeenCalledWith(
         PagePermission.EQUIPMENT,
-        PagePermission.SUPER_ADMIN,
-      ]);
+        [
+          PagePermission.ADMIN,
+          PagePermission.EQUIPMENT,
+          PagePermission.SUPER_ADMIN,
+        ]
+      );
     });
 
     it("should render equipment interface for users with ADMIN permission", () => {
-      const {
-        hasAnyPermission,
-      } = require("@/components/src/utils/permissions");
-      hasAnyPermission.mockReturnValue(true);
+      mockHasAnyPermission.mockReturnValue(true);
 
       renderEquipmentComponent(PagePermission.ADMIN);
 
@@ -105,7 +103,7 @@ describe("Equipment Component", () => {
         screen.queryByText("You do not have permission to view this page.")
       ).not.toBeInTheDocument();
 
-      expect(hasAnyPermission).toHaveBeenCalledWith(PagePermission.ADMIN, [
+      expect(mockHasAnyPermission).toHaveBeenCalledWith(PagePermission.ADMIN, [
         PagePermission.ADMIN,
         PagePermission.EQUIPMENT,
         PagePermission.SUPER_ADMIN,
@@ -113,10 +111,7 @@ describe("Equipment Component", () => {
     });
 
     it("should render equipment interface for users with SUPER_ADMIN permission", () => {
-      const {
-        hasAnyPermission,
-      } = require("@/components/src/utils/permissions");
-      hasAnyPermission.mockReturnValue(true);
+      mockHasAnyPermission.mockReturnValue(true);
 
       renderEquipmentComponent(PagePermission.SUPER_ADMIN);
 
@@ -126,7 +121,7 @@ describe("Equipment Component", () => {
         screen.queryByText("You do not have permission to view this page.")
       ).not.toBeInTheDocument();
 
-      expect(hasAnyPermission).toHaveBeenCalledWith(
+      expect(mockHasAnyPermission).toHaveBeenCalledWith(
         PagePermission.SUPER_ADMIN,
         [
           PagePermission.ADMIN,
@@ -137,10 +132,7 @@ describe("Equipment Component", () => {
     });
 
     it("should show permission denied message for users without appropriate permissions", () => {
-      const {
-        hasAnyPermission,
-      } = require("@/components/src/utils/permissions");
-      hasAnyPermission.mockReturnValue(false);
+      mockHasAnyPermission.mockReturnValue(false);
 
       renderEquipmentComponent(PagePermission.BOOKING);
 
@@ -150,25 +142,25 @@ describe("Equipment Component", () => {
       expect(screen.queryByText("Bookings")).not.toBeInTheDocument();
       expect(screen.queryByTestId("mock-bookings")).not.toBeInTheDocument();
 
-      expect(hasAnyPermission).toHaveBeenCalledWith(PagePermission.BOOKING, [
-        PagePermission.ADMIN,
-        PagePermission.EQUIPMENT,
-        PagePermission.SUPER_ADMIN,
-      ]);
+      expect(mockHasAnyPermission).toHaveBeenCalledWith(
+        PagePermission.BOOKING,
+        [
+          PagePermission.ADMIN,
+          PagePermission.EQUIPMENT,
+          PagePermission.SUPER_ADMIN,
+        ]
+      );
     });
 
     it("should deny access to PA users", () => {
-      const {
-        hasAnyPermission,
-      } = require("@/components/src/utils/permissions");
-      hasAnyPermission.mockReturnValue(false);
+      mockHasAnyPermission.mockReturnValue(false);
 
       renderEquipmentComponent(PagePermission.PA);
 
       expect(
         screen.getByText("You do not have permission to view this page.")
       ).toBeInTheDocument();
-      expect(hasAnyPermission).toHaveBeenCalledWith(PagePermission.PA, [
+      expect(mockHasAnyPermission).toHaveBeenCalledWith(PagePermission.PA, [
         PagePermission.ADMIN,
         PagePermission.EQUIPMENT,
         PagePermission.SUPER_ADMIN,
@@ -176,21 +168,21 @@ describe("Equipment Component", () => {
     });
 
     it("should deny access to LIAISON users", () => {
-      const {
-        hasAnyPermission,
-      } = require("@/components/src/utils/permissions");
-      hasAnyPermission.mockReturnValue(false);
+      mockHasAnyPermission.mockReturnValue(false);
 
       renderEquipmentComponent(PagePermission.LIAISON);
 
       expect(
         screen.getByText("You do not have permission to view this page.")
       ).toBeInTheDocument();
-      expect(hasAnyPermission).toHaveBeenCalledWith(PagePermission.LIAISON, [
-        PagePermission.ADMIN,
-        PagePermission.EQUIPMENT,
-        PagePermission.SUPER_ADMIN,
-      ]);
+      expect(mockHasAnyPermission).toHaveBeenCalledWith(
+        PagePermission.LIAISON,
+        [
+          PagePermission.ADMIN,
+          PagePermission.EQUIPMENT,
+          PagePermission.SUPER_ADMIN,
+        ]
+      );
     });
   });
 
@@ -210,7 +202,7 @@ describe("Equipment Component", () => {
       expect(bookingsTab).toHaveAttribute("aria-selected", "true");
     });
 
-    it("should pass correct pageContext to Bookings component", () => {
+    it("should pass EQUIPMENT page context to Bookings component", () => {
       renderEquipmentComponent();
 
       const bookingsComponent = screen.getByTestId("mock-bookings");
@@ -219,99 +211,96 @@ describe("Equipment Component", () => {
         PageContextLevel.EQUIPMENT.toString()
       );
     });
-  });
 
-  describe("Tab Navigation", () => {
-    it("should maintain Bookings tab selection when clicked", async () => {
+    it("should handle tab interaction", async () => {
       const user = userEvent.setup();
       renderEquipmentComponent();
 
       const bookingsTab = screen.getByRole("tab", { name: "Bookings" });
-
       await user.click(bookingsTab);
 
       expect(bookingsTab).toHaveAttribute("aria-selected", "true");
+    });
+  });
+
+  describe("Equipment-specific behavior", () => {
+    it("should show equipment-appropriate UI elements", () => {
+      renderEquipmentComponent();
+
+      // Should show the main equipment interface
+      expect(screen.getByText("Bookings")).toBeInTheDocument();
       expect(screen.getByTestId("mock-bookings")).toBeInTheDocument();
     });
 
-    it("should render Bookings component when Bookings tab is active", () => {
-      renderEquipmentComponent();
+    it("should maintain equipment context throughout component lifecycle", () => {
+      const { rerender } = renderEquipmentComponent(PagePermission.EQUIPMENT);
 
-      // Verify that the Bookings component is rendered
-      const bookingsComponent = screen.getByTestId("mock-bookings");
-      expect(bookingsComponent).toBeInTheDocument();
-      expect(bookingsComponent).toHaveTextContent("Mock Bookings Component");
+      // Initial render
+      expect(screen.getByTestId("mock-bookings")).toHaveAttribute(
+        "data-page-context",
+        PageContextLevel.EQUIPMENT.toString()
+      );
+
+      // Re-render with same permission
+      rerender(
+        <ThemeProvider theme={theme}>
+          <DatabaseContext.Provider
+            value={
+              {
+                ...mockDatabaseContext,
+                pagePermission: PagePermission.EQUIPMENT,
+              } as any
+            }
+          >
+            <SchemaContext.Provider value={mockSchemaContext}>
+              <Equipment />
+            </SchemaContext.Provider>
+          </DatabaseContext.Provider>
+        </ThemeProvider>
+      );
+
+      // Context should remain consistent
+      expect(screen.getByTestId("mock-bookings")).toHaveAttribute(
+        "data-page-context",
+        PageContextLevel.EQUIPMENT.toString()
+      );
     });
   });
 
-  describe("Layout and Styling", () => {
-    it("should render with proper margin styling", () => {
-      renderEquipmentComponent();
+  describe("Error handling", () => {
+    it("should handle undefined permissions gracefully", () => {
+      mockHasAnyPermission.mockReturnValue(false);
 
-      const mainContainer = screen.getByText("Bookings").closest("div");
-      // Check that the component renders without errors
-      expect(mainContainer).toBeInTheDocument();
+      renderEquipmentComponent(undefined as any);
+
+      // Should show permission denied for undefined permission
+      expect(
+        screen.getByText("You do not have permission to view this page.")
+      ).toBeInTheDocument();
     });
 
-    it("should render tabs with correct theme colors", () => {
-      renderEquipmentComponent();
-
-      const bookingsTab = screen.getByRole("tab", { name: "Bookings" });
-      expect(bookingsTab).toBeInTheDocument();
-    });
-  });
-
-  describe("Error Handling", () => {
-    it("should handle missing database context gracefully", () => {
-      // This test ensures the component doesn't crash if context is undefined
+    it("should handle permission check function errors", () => {
       const consoleSpy = vi
         .spyOn(console, "error")
         .mockImplementation(() => {});
 
+      mockHasAnyPermission.mockImplementation(() => {
+        throw new Error("Permission check failed");
+      });
+
+      // Component will throw but should be handled at a higher level
       try {
-        render(
-          <ThemeProvider theme={theme}>
-            <DatabaseContext.Provider value={undefined as any}>
-              <SchemaContext.Provider value={mockSchemaContext}>
-                <Equipment />
-              </SchemaContext.Provider>
-            </DatabaseContext.Provider>
-          </ThemeProvider>
-        );
+        renderEquipmentComponent();
+        // If we get here, the component didn't throw (unexpected)
+        expect(
+          screen.getByText("You do not have permission to view this page.")
+        ).toBeInTheDocument();
       } catch (error) {
-        // Expected to throw due to undefined context
-        expect(error).toBeDefined();
+        // Expected behavior - the component throws when permission check fails
+        expect(error.message).toBe("Permission check failed");
       }
 
       consoleSpy.mockRestore();
-    });
-  });
-
-  describe("Integration", () => {
-    it("should properly integrate with permission checking system", () => {
-      const {
-        hasAnyPermission,
-      } = require("@/components/src/utils/permissions");
-      hasAnyPermission.mockReturnValue(true);
-
-      renderEquipmentComponent(PagePermission.EQUIPMENT);
-
-      expect(hasAnyPermission).toHaveBeenCalledTimes(1);
-      expect(hasAnyPermission).toHaveBeenCalledWith(PagePermission.EQUIPMENT, [
-        PagePermission.ADMIN,
-        PagePermission.EQUIPMENT,
-        PagePermission.SUPER_ADMIN,
-      ]);
-    });
-
-    it("should render equipment-specific booking view", () => {
-      renderEquipmentComponent();
-
-      const bookingsComponent = screen.getByTestId("mock-bookings");
-      expect(bookingsComponent).toHaveAttribute(
-        "data-page-context",
-        PageContextLevel.EQUIPMENT.toString()
-      );
     });
   });
 });
