@@ -39,6 +39,8 @@ export default function StatusChip({
         return "rgba(135, 52, 255, 1)";
       case BookingStatusLabel.CHECKED_OUT:
         return "rgba(142, 115, 180, 1)";
+      case BookingStatusLabel.EQUIPMENT:
+        return "rgba(255, 165, 0, 1)";
       case BookingStatusLabel.NO_SHOW:
         return "rgba(6, 180, 255, 1)";
       case BookingStatusLabel.PENDING:
@@ -67,6 +69,8 @@ export default function StatusChip({
         return "rgba(127, 57, 251, 0.18)";
       case BookingStatusLabel.CHECKED_OUT:
         return "rgba(155, 136, 186, 0.18)";
+      case BookingStatusLabel.EQUIPMENT:
+        return "rgba(255, 165, 0, 0.11)";
       case BookingStatusLabel.NO_SHOW:
         return "rgba(6, 180, 255, 0.11)";
       case BookingStatusLabel.PENDING:
@@ -92,6 +96,8 @@ export default function StatusChip({
         return "Checked In";
       case BookingStatusLabel.CHECKED_OUT:
         return "Checked Out";
+      case BookingStatusLabel.EQUIPMENT:
+        return "Equipment";
       case BookingStatusLabel.NO_SHOW:
         return "No Show";
       case BookingStatusLabel.PENDING:
@@ -115,6 +121,8 @@ export default function StatusChip({
         return "Your reservation has begun, thank you for checking in at the front desk.";
       case BookingStatusLabel.CHECKED_OUT:
         return "Your reservation has ended.";
+      case BookingStatusLabel.EQUIPMENT:
+        return "Your request is pending equipment approval.";
       case BookingStatusLabel.NO_SHOW:
         return "Your reservation has been cancelled as you did not check in on time.";
       case BookingStatusLabel.PENDING:

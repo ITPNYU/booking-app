@@ -6,7 +6,11 @@ import {
   serverDeleteFieldsByCalendarEventId,
   serverUpdateDataByCalendarEventId,
 } from "@/components/src/server/admin";
-import { deleteEvent, insertEvent } from "@/components/src/server/calendars";
+import {
+  bookingContentsToDescription,
+  deleteEvent,
+  insertEvent,
+} from "@/components/src/server/calendars";
 import {
   ApproverType,
   BookingFormDetails,
@@ -26,11 +30,42 @@ import { getCalendarClient } from "@/lib/googleClient";
 import { Timestamp } from "firebase-admin/firestore";
 import { DateSelectArg } from "fullcalendar";
 
+// Helper to build booking contents object for calendar descriptions
+const buildBookingContents = (
+  data: any,
+  selectedRoomIds: string[],
+  startDateObj: Date,
+  endDateObj: Date,
+  status: BookingStatusLabel,
+  requestNumber: number,
+  origin?: string,
+) => {
+  return {
+    ...data,
+    roomId: selectedRoomIds,
+    startDate: startDateObj.toLocaleDateString(),
+    startTime: startDateObj.toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    }),
+    endTime: endDateObj.toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    }),
+    status,
+    requestNumber,
+    origin,
+  } as unknown as BookingFormDetails;
+};
+
 async function createBookingCalendarEvent(
   selectedRooms: RoomSetting[],
-  department: string,
+  _department: string,
   title: string,
   bookingCalendarInfo: DateSelectArg,
+  description: string,
 ) {
   const [room, ...otherRooms] = selectedRooms;
   const calendarId = room.calendarId;
@@ -53,7 +88,7 @@ async function createBookingCalendarEvent(
   const event = await insertEvent({
     calendarId,
     title: `[${BookingStatusLabel.REQUESTED}] ${selectedRoomIds.join(", ")} ${truncatedTitle}`,
-    description: `Department: ${department}\n\nYour reservation is not yet confirmed. The coordinator will review and finalize your reservation within a few days.`,
+    description,
     startTime: bookingCalendarInfo.startStr,
     endTime: bookingCalendarInfo.endStr,
     roomEmails: otherRoomEmails,
@@ -212,6 +247,32 @@ export async function POST(request: NextRequest) {
 
   console.log("data", data);
 
+  // Generate Sequential ID early so it can be used in calendar description
+  const sequentialId = await serverGetNextSequentialId("bookings");
+
+  const selectedRoomIds = selectedRooms
+    .map((r: { roomId: number }) => r.roomId)
+    .join(", ");
+
+  // Build booking contents for description
+  const startDateObj = new Date(bookingCalendarInfo.startStr);
+  const endDateObj = new Date(bookingCalendarInfo.endStr);
+
+  const bookingContentsForDesc = buildBookingContents(
+    data,
+    selectedRoomIds,
+    startDateObj,
+    endDateObj,
+    BookingStatusLabel.REQUESTED,
+    sequentialId,
+    "user",
+  );
+
+  const description =
+    bookingContentsToDescription(bookingContentsForDesc) +
+    "<p>Your reservation is not yet confirmed. The coordinator will review and finalize your reservation within a few days.</p>" +
+    '<p>To cancel reservations please return to the Booking Tool, visit My Bookings, and click "cancel" on the booking at least 24 hours before the date of the event. Failure to cancel an unused booking is considered a no-show and may result in restricted use of the space.</p>';
+
   let calendarEventId: string;
   try {
     calendarEventId = await createBookingCalendarEvent(
@@ -219,6 +280,7 @@ export async function POST(request: NextRequest) {
       data.department,
       data.title,
       bookingCalendarInfo,
+      description,
     );
   } catch (err) {
     console.error(err);
@@ -228,11 +290,6 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  //For putting sequentialId in bookings
-  const sequentialId = await serverGetNextSequentialId("bookings");
-  const selectedRoomIds = selectedRooms
-    .map((r: { roomId: number }) => r.roomId)
-    .join(", ");
   console.log(" Done serverGetNextSequentialId ");
   console.log("calendarEventId", calendarEventId);
 
@@ -247,6 +304,7 @@ export async function POST(request: NextRequest) {
       requestNumber: sequentialId,
       equipmentCheckedOut: false,
       requestedAt: Timestamp.now(),
+      origin: "user",
       ...data,
     });
 
@@ -298,12 +356,21 @@ export async function PUT(request: NextRequest) {
     data,
     isAutoApproval,
     calendarEventId,
+    modifiedBy,
   } = await request.json();
   // TODO verify that they actually changed something
   if (bookingCalendarInfo == null) {
     return NextResponse.json(
       { error: "missing bookingCalendarId" },
       { status: 500 },
+    );
+  }
+
+  // Ensure modifiedBy is provided for modification tracking
+  if (!modifiedBy) {
+    return NextResponse.json(
+      { error: "modifiedBy field is required for modifications" },
+      { status: 400 },
     );
   }
 
@@ -324,7 +391,25 @@ export async function PUT(request: NextRequest) {
     }),
   );
 
-  // recreate cal events
+  // Build description for modified event
+  const startDateObj2 = new Date(bookingCalendarInfo.startStr);
+  const endDateObj2 = new Date(bookingCalendarInfo.endStr);
+
+  const bookingContentsForDescMod = buildBookingContents(
+    data,
+    selectedRoomIds,
+    startDateObj2,
+    endDateObj2,
+    BookingStatusLabel.MODIFIED,
+    data.requestNumber ?? existingContents.requestNumber,
+    "user",
+  );
+
+  const descriptionMod =
+    bookingContentsToDescription(bookingContentsForDescMod) +
+    "<p>Your reservation is not yet confirmed. The coordinator will review and finalize your reservation within a few days.</p>" +
+    '<p>To cancel reservations please return to the Booking Tool, visit My Bookings, and click "cancel" on the booking at least 24 hours before the date of the event. Failure to cancel an unused booking is considered a no-show and may result in restricted use of the space.</p>';
+
   let newCalendarEventId: string;
   try {
     newCalendarEventId = await createBookingCalendarEvent(
@@ -332,15 +417,16 @@ export async function PUT(request: NextRequest) {
       data.department,
       data.title,
       bookingCalendarInfo,
+      descriptionMod,
     );
     // Add a new history entry for the modification
     await logServerBookingChange({
       bookingId: existingContents.id,
       status: BookingStatusLabel.MODIFIED,
-      changedBy: data.modifiedBy || email,
+      changedBy: modifiedBy,
       requestNumber: existingContents.requestNumber,
       calendarEventId: newCalendarEventId,
-      note: "Modified by " + (data.modifiedBy || email),
+      note: "Modified by " + modifiedBy,
     });
   } catch (err) {
     console.error(err);
@@ -362,6 +448,7 @@ export async function PUT(request: NextRequest) {
     calendarEventId: newCalendarEventId,
     equipmentCheckedOut: false,
     requestedAt: Timestamp.now(),
+    origin: "user",
   };
 
   await serverUpdateDataByCalendarEventId(

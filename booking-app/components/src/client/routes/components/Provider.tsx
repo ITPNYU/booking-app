@@ -39,6 +39,7 @@ export interface DatabaseContextType {
   operationHours: OperationHours[];
   pagePermission: PagePermission;
   paUsers: PaUser[];
+  superAdminUsers: AdminUser[];
   policySettings: PolicySettings;
   roomSettings: RoomSetting[];
   safetyTrainedUsers: SafetyTraining[];
@@ -65,6 +66,7 @@ export interface DatabaseContextType {
   setLastItem: (x: any) => void;
   preBanLogs: PreBanLog[];
   reloadPreBanLogs: () => Promise<void>;
+  reloadSuperAdminUsers: () => Promise<void>;
 }
 
 export const DatabaseContext = createContext<DatabaseContextType>({
@@ -79,6 +81,7 @@ export const DatabaseContext = createContext<DatabaseContextType>({
   operationHours: [],
   pagePermission: PagePermission.BOOKING,
   paUsers: [],
+  superAdminUsers: [],
   policySettings: { finalApproverEmail: "" },
   roomSettings: [],
   safetyTrainedUsers: [],
@@ -105,6 +108,7 @@ export const DatabaseContext = createContext<DatabaseContextType>({
   setLastItem: (x: any) => {},
   preBanLogs: [],
   reloadPreBanLogs: async () => {},
+  reloadSuperAdminUsers: async () => {},
 });
 
 export const DatabaseProvider = ({
@@ -148,6 +152,7 @@ export const DatabaseProvider = ({
   const netId = useMemo(() => userEmail?.split("@")[0], [userEmail]);
 
   const [preBanLogs, setPreBanLogs] = useState<PreBanLog[]>([]);
+  const [superAdminUsers, setSuperAdminUsers] = useState<AdminUser[]>([]);
 
   useEffect(() => {
     const fetchUserApiData = async () => {
@@ -175,8 +180,10 @@ export const DatabaseProvider = ({
     const liaisonEmails = liaisonUsers.map((liaison) => liaison.email);
     const paEmails = paUsers.map((pa) => pa.email);
     const equipmentEmails = equipmentUsers.map((e) => e.email);
+    const superAdminEmails = superAdminUsers.map((admin) => admin.email);
 
-    // Check permissions
+    // Check permissions (ordered by hierarchy - highest to lowest)
+    if (superAdminEmails.includes(userEmail)) return PagePermission.SUPER_ADMIN;
     if (adminEmails.includes(userEmail)) return PagePermission.ADMIN;
     if (equipmentEmails.includes(userEmail)) return PagePermission.EQUIPMENT;
     if (liaisonEmails.includes(userEmail)) return PagePermission.LIAISON;
@@ -190,6 +197,7 @@ export const DatabaseProvider = ({
     JSON.stringify(liaisonUsers),
     JSON.stringify(paUsers),
     JSON.stringify(equipmentUsers),
+    JSON.stringify(superAdminUsers),
   ]);
 
   useEffect(() => {
@@ -217,6 +225,7 @@ export const DatabaseProvider = ({
     fetchAdminUsers();
     fetchPaUsers();
     fetchRoomSettings();
+    fetchSuperAdminUsers();
   }, [user]);
 
   const fetchActiveUserEmail = () => {
@@ -225,12 +234,15 @@ export const DatabaseProvider = ({
   };
 
   const fetchFutureBookings = async () => {
-    fetchAllFutureBooking()
-      .then((fetchedData) => {
-        // setFutureBookings(fetchedData as Booking[]);
-        setBookingsLoading(false);
-      })
-      .catch((error) => console.error("Error fetching data:", error));
+    try {
+      setBookingsLoading(true);
+      const fetchedData = await fetchAllFutureBooking();
+      setAllBookings(fetchedData as Booking[]);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    } finally {
+      setBookingsLoading(false);
+    }
   };
 
   const fetchBookings = async (clicked = false): Promise<void> => {
@@ -489,6 +501,21 @@ export const DatabaseProvider = ({
     }
   };
 
+  const fetchSuperAdminUsers = async () => {
+    clientFetchAllDataFromCollection(TableNames.SUPER_ADMINS)
+      .then((fetchedData) => {
+        const superAdminUsers = fetchedData.map((item: any) => ({
+          id: item.id,
+          email: item.email,
+          createdAt: item.createdAt,
+        }));
+        setSuperAdminUsers(superAdminUsers);
+      })
+      .catch((error) =>
+        console.error("Error fetching super admin data:", error)
+      );
+  };
+
   return (
     <DatabaseContext.Provider
       value={{
@@ -501,6 +528,7 @@ export const DatabaseProvider = ({
         departmentNames,
         operationHours,
         paUsers,
+        superAdminUsers,
         pagePermission,
         policySettings,
         roomSettings,
@@ -529,6 +557,7 @@ export const DatabaseProvider = ({
         setLastItem,
         preBanLogs,
         reloadPreBanLogs: fetchPreBanLogs,
+        reloadSuperAdminUsers: fetchSuperAdminUsers,
       }}
     >
       {children}

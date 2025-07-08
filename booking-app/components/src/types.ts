@@ -53,6 +53,10 @@ export type BookingStatus = {
   firstApprovedBy: string;
   finalApprovedAt: Timestamp;
   finalApprovedBy: string;
+  equipmentAt?: Timestamp;
+  equipmentBy?: string;
+  equipmentApprovedAt?: Timestamp;
+  equipmentApprovedBy?: string;
   declinedAt: Timestamp;
   declinedBy: string;
   declineReason?: string;
@@ -65,7 +69,7 @@ export type BookingStatus = {
   noShowedAt: Timestamp;
   noShowedBy: string;
   walkedInAt: Timestamp;
-  origin: "walk-in" | "vip";
+  origin: "walk-in" | "vip" | "user" | "walkIn" | "pregame";
 };
 
 // the order here is the order these are displayed as table filters
@@ -74,6 +78,7 @@ export enum BookingStatusLabel {
   CANCELED = "CANCELED",
   CHECKED_IN = "CHECKED-IN",
   CHECKED_OUT = "CHECKED-OUT",
+  EQUIPMENT = "EQUIPMENT",
   NO_SHOW = "NO-SHOW",
   PENDING = "PENDING",
   DECLINED = "DECLINED",
@@ -155,6 +160,7 @@ export type Inputs = {
   chartFieldForCatering: string;
   chartFieldForSecurity: string;
   chartFieldForRoomSetup: string;
+  webcheckoutCartNumber?: string;
 };
 
 export type DepartmentType = {
@@ -196,11 +202,12 @@ export type PaUser = {
 };
 
 export enum PagePermission {
-  BOOKING = 0,
-  PA,
-  LIAISON,
-  EQUIPMENT,
-  ADMIN,
+  BOOKING = "BOOKING",
+  PA = "PA",
+  ADMIN = "ADMIN",
+  LIAISON = "LIAISON",
+  EQUIPMENT = "EQUIPMENT",
+  SUPER_ADMIN = "SUPER_ADMIN",
 }
 
 export enum PageContextLevel {
@@ -219,6 +226,7 @@ export type BlackoutPeriod = {
   isActive: boolean;
   createdAt: Timestamp;
   updatedAt?: Timestamp;
+  roomIds?: number[]; // Optional array of room IDs - if empty/undefined, applies to all rooms
 };
 
 export type PolicySettings = {

@@ -1,45 +1,55 @@
-# .github/workflows/auto-checkout-cron.yml
 name: Auto Checkout Cron Job
+
+permissions:
+  contents: read
 
 on:
   schedule:
-    # Runs every 30 minutes
+    # Run every 30 minutes
     - cron: "*/30 * * * *"
-  workflow_dispatch: # Allows manual triggering from the Actions tab
+  workflow_dispatch:
+  push:
+    branches: [run_auto_checkout_by_env]
 
 jobs:
   trigger-auto-checkout:
-    # No job-level 'if' here
+    # Run once for each environment (dev, staging, production)
+    strategy:
+      matrix:
+        env_name: [dev, staging, production]
+
+    # Use the matrix value as the target GitHub Environment
+    environment: ${{ matrix.env_name }}
+
     runs-on: ubuntu-latest
+
     steps:
       - name: Trigger Auto-Checkout API
-        env: # Define secrets as environment variables for the step
-          CRON_JOB_ENABLED: ${{ secrets.CRON_JOB_ENABLED }}
-          NEXT_PUBLIC_BASE_URL: ${{ vars.NEXT_PUBLIC_BASE_URL }}
-          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        # Secrets / variables defined at the Environment level are injected here
+        env:
+          CRON_JOB_ENABLED: ${{ secrets.CRON_JOB_ENABLED }} # true/false flag
+          NEXT_PUBLIC_BASE_URL: ${{ secrets.NEXT_PUBLIC_BASE_URL }} # Environment-specific base URL
+          CRON_SECRET: ${{ secrets.CRON_SECRET }} # Environment-specific auth token
+          ENV_NAME: ${{ matrix.env_name }} # Matrix variable as environment variable
         run: |
-          # --- Start: Control and Secret Checks ---
-          # Check if CRON job is enabled first
+          # --- Validate control flag and secrets ---
           if [ "${CRON_JOB_ENABLED}" != "true" ]; then
-            echo "CRON_JOB_ENABLED ('${CRON_JOB_ENABLED}') is not set to 'true'. Skipping execution."
-            exit 0 # Exit successfully, job is intentionally skipped
+            echo "CRON_JOB_ENABLED ('${CRON_JOB_ENABLED}') is not 'true'. Skipping."
+            exit 0
           fi
 
-          # Check if URL secret is available
           if [ -z "${NEXT_PUBLIC_BASE_URL}" ]; then
-            echo "Error: NEXT_PUBLIC_BASE_URL secret is not set."
+            echo "Error: NEXT_PUBLIC_BASE_URL is not set."
             exit 1
           fi
 
-          # Check if CRON_SECRET secret is available
           if [ -z "${CRON_SECRET}" ]; then
-            echo "Error: CRON_SECRET secret is not set."
+            echo "Error: CRON_SECRET is not set."
             exit 1
           fi
-          # --- End: Control and Secret Checks ---
+          # --- End validation ---
 
-          echo "Attempting to trigger auto-checkout API..."
-          # Use environment variables directly in the script
+          echo "[$(date)] ${ENV_NAME}: triggering auto-checkout..."
           curl --fail-with-body -X GET \
-          "${NEXT_PUBLIC_BASE_URL}/api/bookings/auto-checkout" \
-          -H "Authorization: Bearer ${CRON_SECRET}"
+            "${NEXT_PUBLIC_BASE_URL}/api/bookings/auto-checkout" \
+            -H "Authorization: Bearer ${CRON_SECRET}"

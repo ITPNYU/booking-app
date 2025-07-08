@@ -18,6 +18,14 @@ export default function getBookingStatus(booking: Booking): BookingStatusLabel {
     const noShowTimestamp = timeStringtoDate(booking.noShowedAt);
     const canceledTimestamp = timeStringtoDate(booking.canceledAt);
 
+    // Handle equipment fields that might be undefined for existing bookings
+    const equipmentTimestamp = booking.equipmentAt
+      ? timeStringtoDate(booking.equipmentAt)
+      : new Date(0);
+    const equipmentApprovedTimestamp = booking.equipmentApprovedAt
+      ? timeStringtoDate(booking.equipmentApprovedAt)
+      : new Date(0);
+
     // if any of checkedInAt, noShowedAt, canceledAt have a date, return the most recent
     if (
       checkedInTimestamp.getTime() !== 0 ||
@@ -47,6 +55,13 @@ export default function getBookingStatus(booking: Booking): BookingStatusLabel {
 
     if (booking.declinedAt != undefined) {
       return BookingStatusLabel.DECLINED;
+    } else if (
+      booking.equipmentApprovedAt &&
+      equipmentApprovedTimestamp.getTime() !== 0
+    ) {
+      return BookingStatusLabel.APPROVED;
+    } else if (booking.equipmentAt && equipmentTimestamp.getTime() !== 0) {
+      return BookingStatusLabel.EQUIPMENT;
     } else if (booking.finalApprovedAt !== undefined) {
       return BookingStatusLabel.APPROVED;
     } else if (booking.firstApprovedAt !== undefined) {

@@ -259,11 +259,15 @@ export function useBookingFilters(props: Props): BookingRow[] {
   }, [selectedDateRange, setFilters, searchQuery]);
 
   const rows: BookingRow[] = useMemo(() => {
-    return allBookings.map((booking) => ({
-      ...booking,
-      status: getBookingStatus(booking),
-      id: booking.calendarEventId,
-    }));
+    return allBookings.map((booking) => {
+      const status = getBookingStatus(booking);
+
+      return {
+        ...booking,
+        status: status,
+        id: booking.calendarEventId,
+      };
+    });
   }, [allBookings]);
 
   const filteredRows = useMemo(() => {
