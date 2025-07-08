@@ -65,7 +65,7 @@ export type BookingStatus = {
   noShowedAt: Timestamp;
   noShowedBy: string;
   walkedInAt: Timestamp;
-  origin: "walk-in" | "vip" | "user";
+  origin: "walk-in" | "vip" | "user" | "walkIn" | "pregame";
 };
 
 // the order here is the order these are displayed as table filters
