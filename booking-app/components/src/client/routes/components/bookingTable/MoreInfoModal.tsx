@@ -18,6 +18,7 @@ import Grid from "@mui/material/Unstable_Grid2/Grid2";
 import { styled } from "@mui/system";
 import React, { useContext, useState } from "react";
 import { BookingRow } from "../../../../types";
+import { formatOrigin } from "../../../../utils/formatters";
 import { canAccessWebCheckout } from "../../../../utils/permissions";
 import { formatTimeAmPm } from "../../../utils/date";
 import { RoomDetails } from "../../booking/components/BookingSelection";
@@ -80,20 +81,6 @@ const AlertHeader = styled(Alert)(({ theme }) => ({
 }));
 
 const BLANK = "none";
-
-// Helper function to format origin values consistently
-const formatOrigin = (origin: string | undefined) => {
-  if (!origin) return "User";
-
-  const originMap = {
-    user: "User",
-    vip: "VIP",
-    walkIn: "Walk-In",
-    "walk-in": "Walk-In",
-    pregame: "Pregame",
-  };
-  return originMap[origin] ?? origin;
-};
 
 export default function MoreInfoModal({
   booking,

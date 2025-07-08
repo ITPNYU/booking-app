@@ -1,4 +1,5 @@
 import { BookingFormDetails, BookingStatusLabel } from "../types";
+import { formatOrigin } from "../utils/formatters";
 
 import { getCalendarClient } from "@/lib/googleClient";
 import { serverGetRoomCalendarIds } from "./admin";
@@ -130,6 +131,10 @@ export const bookingContentsToDescription = (
   description += listItem(
     "Booking Type",
     getProperty(bookingContents, "bookingType")
+  );
+  description += listItem(
+    "Origin",
+    formatOrigin(getProperty(bookingContents, "origin"))
   );
   description += listItem(
     "Expected Attendance",

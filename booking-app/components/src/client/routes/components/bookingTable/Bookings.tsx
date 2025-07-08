@@ -16,6 +16,7 @@ import {
 import { TableEmpty } from "../Table";
 import StackedTableCell from "./StackedTableCell";
 
+import { formatOrigin } from "../../../../utils/formatters";
 import { formatDateTable, formatTimeAmPm } from "../../../utils/date";
 import BookingActions from "../../admin/components/BookingActions";
 import getBookingStatus from "../../hooks/getBookingStatus";
@@ -161,17 +162,6 @@ export const Bookings: React.FC<BookingsProps> = ({
       );
     }
   }, [pageContext, bookingsLoading, filteredRows, allBookings.length]);
-
-  const formatOrigin = (origin: string) => {
-    const originMap = {
-      user: "User",
-      vip: "VIP",
-      walkIn: "Walk-In",
-      "walk-in": "Walk-In",
-      pregame: "Pregame",
-    };
-    return originMap[origin] ?? origin;
-  };
 
   const columns = useMemo(() => {
     const baseColumns = [
