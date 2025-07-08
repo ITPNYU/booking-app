@@ -53,6 +53,10 @@ export type BookingStatus = {
   firstApprovedBy: string;
   finalApprovedAt: Timestamp;
   finalApprovedBy: string;
+  equipmentAt?: Timestamp;
+  equipmentBy?: string;
+  equipmentApprovedAt?: Timestamp;
+  equipmentApprovedBy?: string;
   declinedAt: Timestamp;
   declinedBy: string;
   declineReason?: string;
@@ -74,6 +78,7 @@ export enum BookingStatusLabel {
   CANCELED = "CANCELED",
   CHECKED_IN = "CHECKED-IN",
   CHECKED_OUT = "CHECKED-OUT",
+  EQUIPMENT = "EQUIPMENT",
   NO_SHOW = "NO-SHOW",
   PENDING = "PENDING",
   DECLINED = "DECLINED",
