@@ -511,10 +511,6 @@ export default function MoreInfoModal({
                   <TableCell>{booking.bookingType ?? BLANK}</TableCell>
                 </TableRow>
                 <TableRow>
-                  <LabelCell>Origin</LabelCell>
-                  <TableCell>{formatOrigin(booking.origin)}</TableCell>
-                </TableRow>
-                <TableRow>
                   <LabelCell>Expected Attendance</LabelCell>
                   <TableCell>{booking.expectedAttendance ?? BLANK}</TableCell>
                 </TableRow>
