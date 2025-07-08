@@ -399,8 +399,11 @@ describe("Equipment API Endpoint", () => {
       await POST(request);
 
       expect(consoleSpy).toHaveBeenCalledWith(
-        "booking_id: test-event-123 Error processing equipment request:",
-        expect.any(Error)
+        "Error processing equipment request",
+        {
+          booking_id: "test-event-123",
+          error: expect.any(Error),
+        }
       );
 
       consoleSpy.mockRestore();
