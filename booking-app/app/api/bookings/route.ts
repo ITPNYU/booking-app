@@ -38,6 +38,7 @@ const buildBookingContents = (
   endDateObj: Date,
   status: BookingStatusLabel,
   requestNumber: number,
+  origin?: string,
 ) => {
   return {
     ...data,
@@ -55,6 +56,7 @@ const buildBookingContents = (
     }),
     status,
     requestNumber,
+    origin,
   } as unknown as BookingFormDetails;
 };
 
@@ -263,6 +265,7 @@ export async function POST(request: NextRequest) {
     endDateObj,
     BookingStatusLabel.REQUESTED,
     sequentialId,
+    "user",
   );
 
   const description =
@@ -301,6 +304,7 @@ export async function POST(request: NextRequest) {
       requestNumber: sequentialId,
       equipmentCheckedOut: false,
       requestedAt: Timestamp.now(),
+      origin: "user",
       ...data,
     });
 
@@ -398,6 +402,7 @@ export async function PUT(request: NextRequest) {
     endDateObj2,
     BookingStatusLabel.MODIFIED,
     data.requestNumber ?? existingContents.requestNumber,
+    "user",
   );
 
   const descriptionMod =
@@ -443,6 +448,7 @@ export async function PUT(request: NextRequest) {
     calendarEventId: newCalendarEventId,
     equipmentCheckedOut: false,
     requestedAt: Timestamp.now(),
+    origin: "user",
   };
 
   await serverUpdateDataByCalendarEventId(

@@ -65,7 +65,7 @@ export type BookingStatus = {
   noShowedAt: Timestamp;
   noShowedBy: string;
   walkedInAt: Timestamp;
-  origin: "walk-in" | "vip";
+  origin: "walk-in" | "vip" | "user";
 };
 
 // the order here is the order these are displayed as table filters
@@ -202,7 +202,7 @@ export enum PagePermission {
   ADMIN = "ADMIN",
   LIAISON = "LIAISON",
   EQUIPMENT = "EQUIPMENT",
-    SUPER_ADMIN = "SUPER_ADMIN"
+  SUPER_ADMIN = "SUPER_ADMIN",
 }
 
 export enum PageContextLevel {
