@@ -134,7 +134,7 @@ export const bookingContentsToDescription = (
   );
   description += listItem(
     "Origin",
-    formatOrigin(getProperty(bookingContents, "origin")) || "User"
+    formatOrigin(getProperty(bookingContents, "origin"))
   );
   description += listItem(
     "Expected Attendance",
