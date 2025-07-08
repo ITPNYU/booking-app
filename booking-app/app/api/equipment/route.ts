@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { TableNames } from "@/components/src/policy";
 import { serverUpdateDataByCalendarEventId } from "@/components/src/server/admin";
-import { BookingStatusLabel } from "@/components/src/types";
+import { Booking, BookingStatusLabel } from "@/components/src/types";
 import {
   logServerBookingChange,
   serverGetDataByCalendarEventId,
@@ -12,7 +12,7 @@ import * as admin from "firebase-admin";
 export async function POST(req: NextRequest) {
   const { id, email, action } = await req.json();
   try {
-    const booking = await serverGetDataByCalendarEventId(
+    const booking = await serverGetDataByCalendarEventId<Booking>(
       TableNames.BOOKING,
       id,
     );
@@ -70,10 +70,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid action" }, { status: 400 });
     }
   } catch (error) {
-    console.error(
-      "Error processing equipment request",
-      { booking_id: String(id), error },
-    );
+    console.error("Error processing equipment request", {
+      booking_id: id,
+      error,
+    });
     return NextResponse.json(
       { error: error.message },
       { status: error.status || 500 },
