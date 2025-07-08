@@ -88,6 +88,10 @@ export const bookingContentsToDescription = (
     `${getProperty(bookingContents, "startTime")} - ${getProperty(bookingContents, "endTime")}`
   );
   description += listItem("Status", getProperty(bookingContents, "status"));
+  description += listItem(
+    "Origin",
+    formatOrigin(getProperty(bookingContents, "origin"))
+  );
   description += "</ul>";
 
   // Requester Section
@@ -131,10 +135,6 @@ export const bookingContentsToDescription = (
   description += listItem(
     "Booking Type",
     getProperty(bookingContents, "bookingType")
-  );
-  description += listItem(
-    "Origin",
-    formatOrigin(getProperty(bookingContents, "origin"))
   );
   description += listItem(
     "Expected Attendance",
