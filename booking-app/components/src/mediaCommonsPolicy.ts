@@ -28,9 +28,11 @@ export const WALK_IN_CAN_BOOK_TWO = [221, 222, 223, 224];
 export const EVENT_ONLY_ROOMS = [1201, 202];
 export const MULTI_ROOMS = [233, 103, 260]; // Both Production and Event
 
+// Production-only rooms (not including multi-use rooms)
+export const PRODUCTION_ONLY_ROOMS = SAFETY_TRAINING_REQUIRED_ROOM.filter(
+  (id) => !MULTI_ROOMS.includes(id)
+);
+
 // Derived categories for blackout period selection
-export const PRODUCTION_ROOMS = [
-  ...SAFETY_TRAINING_REQUIRED_ROOM,
-  ...MULTI_ROOMS,
-];
+export const PRODUCTION_ROOMS = [...PRODUCTION_ONLY_ROOMS, ...MULTI_ROOMS];
 export const EVENT_ROOMS = [...EVENT_ONLY_ROOMS, ...MULTI_ROOMS];

@@ -8,18 +8,18 @@ describe("Blackout Period Room Categories", () => {
   describe("Room Categories Constants", () => {
     it("should have correct production rooms", () => {
       const expectedProductionRooms = [
-        220, 221, 222, 223, 224, 230, 260, 203, 233, 103,
+        220, 221, 222, 223, 224, 230, 233, 103, 260,
       ];
       expect(PRODUCTION_ROOMS).toEqual(expectedProductionRooms);
     });
 
     it("should have correct event rooms including new additions", () => {
-      const expectedEventRooms = [1201, 202, 233, 103];
+      const expectedEventRooms = [1201, 202, 233, 103, 260];
       expect(EVENT_ROOMS).toEqual(expectedEventRooms);
     });
 
     it("should have correct multi-room category", () => {
-      const expectedMultiRooms = [233, 103];
+      const expectedMultiRooms = [233, 103, 260];
       expect(MULTI_ROOMS).toEqual(expectedMultiRooms);
     });
 
@@ -37,9 +37,7 @@ describe("Blackout Period Room Categories", () => {
       const productionOnlyRooms = PRODUCTION_ROOMS.filter(
         (id) => !MULTI_ROOMS.includes(id)
       );
-      expect(productionOnlyRooms).toEqual([
-        220, 221, 222, 223, 224, 230, 260, 203,
-      ]);
+      expect(productionOnlyRooms).toEqual([220, 221, 222, 223, 224, 230]);
 
       // Event rooms not requiring safety training
       const eventOnlyRooms = EVENT_ROOMS.filter(
@@ -48,7 +46,7 @@ describe("Blackout Period Room Categories", () => {
       expect(eventOnlyRooms).toEqual([1201, 202]);
 
       // Multi-room category (appears in both)
-      expect(MULTI_ROOMS).toEqual([233, 103]);
+      expect(MULTI_ROOMS).toEqual([233, 103, 260]);
     });
 
     it("should have no duplicate room IDs within each category", () => {
@@ -70,7 +68,7 @@ describe("Blackout Period Room Categories", () => {
         return `${rooms.slice(0, 3).join(", ")}, ...`;
       };
 
-      expect(formatRoomNumbers(MULTI_ROOMS)).toBe("233, 103");
+      expect(formatRoomNumbers(MULTI_ROOMS)).toBe("233, 103, 260");
       expect(formatRoomNumbers(EVENT_ROOMS)).toBe("1201, 202, 233, ...");
       expect(formatRoomNumbers(PRODUCTION_ROOMS)).toBe("220, 221, 222, ...");
     });
