@@ -12,6 +12,7 @@ import { DateSelectArg } from "@fullcalendar/core";
 import dayjs from "dayjs";
 import { usePathname } from "next/navigation";
 import { SAFETY_TRAINING_REQUIRED_ROOM } from "../../../mediaCommonsPolicy";
+import { getAffectingBlackoutPeriods } from "../../../utils/blackoutUtils";
 import { DatabaseContext } from "../components/Provider";
 import fetchCalendarEvents from "./hooks/fetchCalendarEvents";
 
@@ -127,38 +128,18 @@ export function BookingProvider({ children }) {
   const isInBlackoutPeriod = useMemo(() => {
     if (!bookingCalendarInfo || !blackoutPeriods) return false;
 
-    const bookingDate = dayjs(bookingCalendarInfo.start);
-    const activeBlackoutPeriods = blackoutPeriods.filter(
-      (period) => period.isActive
+    const bookingStart = dayjs(bookingCalendarInfo.start);
+    const bookingEnd = dayjs(bookingCalendarInfo.end);
+    const selectedRoomIds = selectedRooms.map((room) => room.roomId);
+
+    const affectingPeriods = getAffectingBlackoutPeriods(
+      blackoutPeriods,
+      bookingStart,
+      bookingEnd,
+      selectedRoomIds
     );
 
-    // Get room IDs from selected rooms
-    const selectedRoomIds = selectedRooms.map(room => room.roomId);
-
-    return activeBlackoutPeriods.some((period) => {
-      const startDate = dayjs(period.startDate.toDate());
-      const endDate = dayjs(period.endDate.toDate());
-      
-      // Check if date is within this blackout period
-      const isDateInPeriod = (
-        (bookingDate.isAfter(startDate, "day") ||
-          bookingDate.isSame(startDate, "day")) &&
-        (bookingDate.isBefore(endDate, "day") ||
-          bookingDate.isSame(endDate, "day"))
-      );
-
-      if (!isDateInPeriod) {
-        return false;
-      }
-
-      // If period has no specific rooms (roomIds is undefined/empty), it applies to all rooms
-      if (!period.roomIds || period.roomIds.length === 0) {
-        return true;
-      }
-
-      // Check if any of the selected rooms are in the blackout period
-      return selectedRoomIds.some(roomId => period.roomIds!.includes(roomId));
-    });
+    return affectingPeriods.length > 0;
   }, [bookingCalendarInfo, blackoutPeriods, selectedRooms]);
 
   return (
