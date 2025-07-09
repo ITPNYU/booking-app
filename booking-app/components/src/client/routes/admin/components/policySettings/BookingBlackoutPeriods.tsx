@@ -379,18 +379,10 @@ export default function BookingBlackoutPeriods() {
       roomSettings.some((room) => room.roomId === roomId)
     ).sort((a, b) => a - b);
 
-    const isAllRooms =
-      allRoomIds.length === periodRoomIds.length &&
-      allRoomIds.every((id, index) => id === periodRoomIds[index]);
-    const isProductionRooms =
-      productionRoomIds.length === periodRoomIds.length &&
-      productionRoomIds.every((id, index) => id === periodRoomIds[index]);
-    const isEventRooms =
-      eventRoomIds.length === periodRoomIds.length &&
-      eventRoomIds.every((id, index) => id === periodRoomIds[index]);
-    const isMultiRooms =
-      multiRoomIds.length === periodRoomIds.length &&
-      multiRoomIds.every((id, index) => id === periodRoomIds[index]);
+    const isAllRooms = areSortedArraysEqual(allRoomIds, periodRoomIds);
+    const isProductionRooms = areSortedArraysEqual(productionRoomIds, periodRoomIds);
+    const isEventRooms = areSortedArraysEqual(eventRoomIds, periodRoomIds);
+    const isMultiRooms = areSortedArraysEqual(multiRoomIds, periodRoomIds);
 
     if (isAllRooms) {
       return "All Rooms";
