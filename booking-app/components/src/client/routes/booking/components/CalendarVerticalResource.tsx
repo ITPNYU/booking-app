@@ -113,7 +113,8 @@ export default function CalendarVerticalResource({
   dateView,
 }: Props) {
   const { operationHours, pagePermission } = useContext(DatabaseContext);
-  const { getBlackoutPeriodsForDateAndRooms } = useBookingDateRestrictions();
+  const { getBlackoutPeriodsForDateAndRooms, isBookingTimeInBlackout } =
+    useBookingDateRestrictions();
   const {
     bookingCalendarInfo,
     existingCalendarEvents,
@@ -154,16 +155,88 @@ export default function CalendarVerticalResource({
       console.log(`Room ${room.roomId} blackout periods:`, blackoutPeriods);
 
       blackoutPeriods.forEach((period) => {
-        // Create full day blackout block for this room
-        const startOfDay = selectedDate.startOf("day");
-        const endOfDay = selectedDate.endOf("day");
+        let blockStart: dayjs.Dayjs;
+        let blockEnd: dayjs.Dayjs;
+        let title: string;
+
+        // If specific times are set, handle multi-day logic; otherwise use full day
+        if (period.startTime && period.endTime) {
+          const periodStartDate = dayjs(period.startDate.toDate());
+          const periodEndDate = dayjs(period.endDate.toDate());
+          const isStartDate = selectedDate.isSame(periodStartDate, "day");
+          const isEndDate = selectedDate.isSame(periodEndDate, "day");
+          const isSameDay = periodStartDate.isSame(periodEndDate, "day");
+
+          if (isSameDay) {
+            // Single day blackout - use specified time range
+            const [startHour, startMinute] = period.startTime
+              .split(":")
+              .map(Number);
+            const [endHour, endMinute] = period.endTime.split(":").map(Number);
+
+            blockStart = selectedDate
+              .hour(startHour)
+              .minute(startMinute)
+              .second(0)
+              .millisecond(0);
+            blockEnd = selectedDate
+              .hour(endHour)
+              .minute(endMinute)
+              .second(0)
+              .millisecond(0);
+
+            // Handle case where end time is before start time (spans midnight)
+            if (blockEnd.isBefore(blockStart)) {
+              blockEnd = blockEnd.add(1, "day");
+            }
+
+            title = `🚫 ${period.name} (${period.startTime}-${period.endTime})`;
+          } else {
+            // Multi-day blackout period
+            if (isStartDate) {
+              // Start date: blackout from start time to end of day
+              const [startHour, startMinute] = period.startTime
+                .split(":")
+                .map(Number);
+              blockStart = selectedDate
+                .hour(startHour)
+                .minute(startMinute)
+                .second(0)
+                .millisecond(0);
+              blockEnd = selectedDate.endOf("day");
+              title = `🚫 ${period.name} (${period.startTime}→)`;
+            } else if (isEndDate) {
+              // End date: blackout from start of day to end time
+              const [endHour, endMinute] = period.endTime
+                .split(":")
+                .map(Number);
+              blockStart = selectedDate.startOf("day");
+              blockEnd = selectedDate
+                .hour(endHour)
+                .minute(endMinute)
+                .second(0)
+                .millisecond(0);
+              title = `🚫 ${period.name} `;
+            } else {
+              // Middle day: blackout entire day
+              blockStart = selectedDate.startOf("day");
+              blockEnd = selectedDate.endOf("day");
+              title = `🚫 ${period.name} (all day)`;
+            }
+          }
+        } else {
+          // No specific times set, block entire day
+          blockStart = selectedDate.startOf("day");
+          blockEnd = selectedDate.endOf("day");
+          title = `🚫 ${period.name}`;
+        }
 
         const blockEvent = {
-          start: startOfDay.toISOString(),
-          end: endOfDay.toISOString(),
+          start: blockStart.toISOString(),
+          end: blockEnd.toISOString(),
           id: `blackout-${room.roomId}-${period.id}`,
           resourceId: room.roomId + "",
-          title: `🚫 ${period.name}`,
+          title: title,
           overlap: false,
           display: "background",
           classNames: ["blackout-period"],
@@ -246,16 +319,19 @@ export default function CalendarVerticalResource({
 
   const handleEventSelect = (selectInfo: DateSelectArg) => {
     // Check if the selection overlaps with any blackout periods before setting booking info
-    const selectedDate = dayjs(selectInfo.start);
+    const bookingStart = dayjs(selectInfo.start);
+    const bookingEnd = dayjs(selectInfo.end);
     const selectedResourceId = selectInfo.resource?.id;
 
     if (selectedResourceId) {
       const roomId = parseInt(selectedResourceId);
-      const blackoutPeriods = getBlackoutPeriodsForDateAndRooms(selectedDate, [
+
+      // Use the new time-aware blackout checking
+      const { inBlackout } = isBookingTimeInBlackout(bookingStart, bookingEnd, [
         roomId,
       ]);
 
-      if (blackoutPeriods.length > 0) {
+      if (inBlackout) {
         // Don't allow selection in blackout periods
         if (ref.current?.getApi()) {
           ref.current.getApi().unselect();
@@ -269,16 +345,19 @@ export default function CalendarVerticalResource({
 
   const handleEventSelecting = (selectInfo: DateSelectArg) => {
     // Check if the selection overlaps with any blackout periods
-    const selectedDate = dayjs(selectInfo.start);
+    const bookingStart = dayjs(selectInfo.start);
+    const bookingEnd = dayjs(selectInfo.end);
     const selectedResourceId = selectInfo.resource?.id;
 
     if (selectedResourceId) {
       const roomId = parseInt(selectedResourceId);
-      const blackoutPeriods = getBlackoutPeriodsForDateAndRooms(selectedDate, [
+
+      // Use the new time-aware blackout checking
+      const { inBlackout } = isBookingTimeInBlackout(bookingStart, bookingEnd, [
         roomId,
       ]);
 
-      if (blackoutPeriods.length > 0) {
+      if (inBlackout) {
         // Don't allow selection in blackout periods
         return false;
       }

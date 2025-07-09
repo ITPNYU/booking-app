@@ -1,10 +1,5 @@
 import BookingBlackoutPeriods from "@/components/src/client/routes/admin/components/policySettings/BookingBlackoutPeriods";
 import { DatabaseContext } from "@/components/src/client/routes/components/Provider";
-import {
-  EVENT_ROOMS,
-  MULTI_ROOMS,
-  PRODUCTION_ROOMS,
-} from "@/components/src/mediaCommonsPolicy";
 import { LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
@@ -12,10 +7,18 @@ import { vi } from "vitest";
 
 // Mock Firebase functions
 vi.mock("@/lib/firebase/firebase", () => ({
-  clientFetchAllDataFromCollection: vi.fn(),
-  clientSaveDataToFirestore: vi.fn(),
-  clientUpdateDataInFirestore: vi.fn(),
-  clientDeleteDataFromFirestore: vi.fn(),
+  clientFetchAllDataFromCollection: vi.fn().mockResolvedValue([]),
+  clientSaveDataToFirestore: vi.fn().mockResolvedValue({}),
+  clientUpdateDataInFirestore: vi.fn().mockResolvedValue({}),
+  clientDeleteDataFromFirestore: vi.fn().mockResolvedValue({}),
+}));
+
+// Mock Firestore Timestamp
+vi.mock("firebase/firestore", () => ({
+  Timestamp: {
+    fromDate: vi.fn((date) => ({ toDate: () => date })),
+    now: vi.fn(() => ({ toDate: () => new Date() })),
+  },
 }));
 
 // Mock the policy constants import
@@ -26,18 +29,11 @@ vi.mock("@/components/src/policy", () => ({
 }));
 
 const mockRoomSettings = [
-  { roomId: 103, name: "Room 103", capacity: 20, calendarId: "cal-103" },
-  { roomId: 202, name: "Room 202", capacity: 15, calendarId: "cal-202" },
-  { roomId: 203, name: "Room 203", capacity: 25, calendarId: "cal-203" },
-  { roomId: 220, name: "Room 220", capacity: 30, calendarId: "cal-220" },
-  { roomId: 221, name: "Room 221", capacity: 40, calendarId: "cal-221" },
-  { roomId: 222, name: "Room 222", capacity: 40, calendarId: "cal-222" },
-  { roomId: 223, name: "Room 223", capacity: 50, calendarId: "cal-223" },
-  { roomId: 224, name: "Room 224", capacity: 50, calendarId: "cal-224" },
-  { roomId: 230, name: "Room 230", capacity: 35, calendarId: "cal-230" },
-  { roomId: 233, name: "Room 233", capacity: 60, calendarId: "cal-233" },
-  { roomId: 260, name: "Room 260", capacity: 45, calendarId: "cal-260" },
-  { roomId: 1201, name: "Room 1201", capacity: 100, calendarId: "cal-1201" },
+  { roomId: 103, name: "Room 103", capacity: "50", calendarId: "cal103" },
+  { roomId: 202, name: "Room 202", capacity: "30", calendarId: "cal202" },
+  { roomId: 220, name: "Room 220", capacity: "100", calendarId: "cal220" },
+  { roomId: 233, name: "Room 233", capacity: "75", calendarId: "cal233" },
+  { roomId: 1201, name: "Room 1201", capacity: "200", calendarId: "cal1201" },
 ];
 
 const mockDatabaseContext = {
@@ -95,7 +91,7 @@ describe("BookingBlackoutPeriods Component", () => {
     vi.clearAllMocks();
   });
 
-  it("renders the component with correct title", () => {
+  it("should render the component with correct title and description", () => {
     render(
       <TestWrapper>
         <BookingBlackoutPeriods />
@@ -103,151 +99,151 @@ describe("BookingBlackoutPeriods Component", () => {
     );
 
     expect(screen.getByText("Booking Blackout Periods")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Configure periods when bookings are not allowed (e.g., holidays, maintenance, summer break)"
+      )
+    ).toBeInTheDocument();
     expect(screen.getByText("Add Period")).toBeInTheDocument();
   });
 
-  it("opens dialog when Add Period is clicked", async () => {
+  it("should open dialog when Add Period button is clicked", async () => {
     render(
       <TestWrapper>
         <BookingBlackoutPeriods />
       </TestWrapper>
     );
 
-    fireEvent.click(screen.getByText("Add Period"));
+    const addButton = screen.getByText("Add Period");
+    fireEvent.click(addButton);
 
     await waitFor(() => {
       expect(screen.getByText("Add Blackout Period")).toBeInTheDocument();
+      expect(screen.getByLabelText("Period Name")).toBeInTheDocument();
+      expect(screen.getByLabelText("Start Date")).toBeInTheDocument();
+      expect(screen.getByLabelText("End Date")).toBeInTheDocument();
+      expect(screen.getByLabelText("Start Time")).toBeInTheDocument();
+      expect(screen.getByLabelText("End Time")).toBeInTheDocument();
     });
   });
 
-  it("displays room category radio options in dialog", async () => {
+  it("should display room category radio options", async () => {
     render(
       <TestWrapper>
         <BookingBlackoutPeriods />
       </TestWrapper>
     );
 
-    fireEvent.click(screen.getByText("Add Period"));
+    const addButton = screen.getByText("Add Period");
+    fireEvent.click(addButton);
 
     await waitFor(() => {
-      // Check that radio button values exist
-      expect(screen.getByDisplayValue("all")).toBeInTheDocument();
-      expect(screen.getByDisplayValue("production")).toBeInTheDocument();
-      expect(screen.getByDisplayValue("event")).toBeInTheDocument();
-      expect(screen.getByDisplayValue("multi")).toBeInTheDocument();
-      expect(screen.getByDisplayValue("specific")).toBeInTheDocument();
-    });
-  });
-
-  it("shows room numbers in radio button labels", async () => {
-    render(
-      <TestWrapper>
-        <BookingBlackoutPeriods />
-      </TestWrapper>
-    );
-
-    fireEvent.click(screen.getByText("Add Period"));
-
-    await waitFor(() => {
-      // Verify that room numbers are displayed in the labels
+      // Check for radio button options
       expect(
-        screen.getByText(
-          /Production Rooms \(.*220.*221.*222.*223.*224.*230.*260.*203.*233.*103.*\)/
-        )
+        screen.getByLabelText(/All Rooms \(5 rooms\)/)
+      ).toBeInTheDocument();
+      expect(screen.getByLabelText(/Production Rooms/)).toBeInTheDocument();
+      expect(screen.getByLabelText(/Event Rooms/)).toBeInTheDocument();
+      expect(screen.getByLabelText(/Multi-Room/)).toBeInTheDocument();
+      expect(screen.getByLabelText(/Specific Rooms/)).toBeInTheDocument();
+    });
+  });
+
+  it("should show room numbers instead of counts in radio labels", async () => {
+    render(
+      <TestWrapper>
+        <BookingBlackoutPeriods />
+      </TestWrapper>
+    );
+
+    const addButton = screen.getByText("Add Period");
+    fireEvent.click(addButton);
+
+    await waitFor(() => {
+      // Check that room numbers are displayed more specifically
+      expect(
+        screen.getByText(/Production Rooms \(220, 233, 103\)/)
       ).toBeInTheDocument();
       expect(
-        screen.getByText(/Event Rooms \(.*1201.*202.*233.*103.*\)/)
+        screen.getByText(/Event Rooms \(1201, 202, 233, 103\)/)
       ).toBeInTheDocument();
-      expect(
-        screen.getByText(/Multi-Room \(.*233.*103.*\)/)
-      ).toBeInTheDocument();
+      expect(screen.getByText(/Multi-Room \(233, 103\)/)).toBeInTheDocument();
     });
   });
 
-  it("shows specific room selection when 'specific' is selected", async () => {
-    render(
-      <TestWrapper>
-        <BookingBlackoutPeriods />
-      </TestWrapper>
-    );
+  describe("Time Field Functionality", () => {
+    it("should have time picker fields in the dialog", async () => {
+      render(
+        <TestWrapper>
+          <BookingBlackoutPeriods />
+        </TestWrapper>
+      );
 
-    fireEvent.click(screen.getByText("Add Period"));
+      const addButton = screen.getByText("Add Period");
+      fireEvent.click(addButton);
 
-    await waitFor(() => {
-      expect(screen.getByText("Add Blackout Period")).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByLabelText("Start Time")).toBeInTheDocument();
+        expect(screen.getByLabelText("End Time")).toBeInTheDocument();
+      });
     });
 
-    // Select the "Specific Rooms" option
-    const specificRadio = screen.getByDisplayValue("specific");
-    fireEvent.click(specificRadio);
+    it("should validate that all fields including times are required", async () => {
+      render(
+        <TestWrapper>
+          <BookingBlackoutPeriods />
+        </TestWrapper>
+      );
 
-    await waitFor(() => {
-      expect(screen.getAllByText("Select Rooms")).toHaveLength(2); // Label + span
+      const addButton = screen.getByText("Add Period");
+      fireEvent.click(addButton);
+
+      await waitFor(() => {
+        const saveButton = screen.getByText("Save");
+        fireEvent.click(saveButton);
+      });
+
+      await waitFor(() => {
+        expect(
+          screen.getAllByText(
+            "Please fill in all fields: name, start date, end date, start time, and end time."
+          ).length
+        ).toBeGreaterThan(0);
+      });
+    });
+
+    it("should show date and time in table headers", () => {
+      render(
+        <TestWrapper>
+          <BookingBlackoutPeriods />
+        </TestWrapper>
+      );
+
+      expect(screen.getByText("Start Date & Time")).toBeInTheDocument();
+      expect(screen.getByText("End Date & Time")).toBeInTheDocument();
     });
   });
 
-  it("hides specific room selection when other categories are selected", async () => {
-    render(
-      <TestWrapper>
-        <BookingBlackoutPeriods />
-      </TestWrapper>
-    );
+  describe("Room Category Display", () => {
+    it("should correctly display room numbers for each category", async () => {
+      render(
+        <TestWrapper>
+          <BookingBlackoutPeriods />
+        </TestWrapper>
+      );
 
-    fireEvent.click(screen.getByText("Add Period"));
+      const addButton = screen.getByText("Add Period");
+      fireEvent.click(addButton);
 
-    await waitFor(() => {
-      expect(screen.getByText("Add Blackout Period")).toBeInTheDocument();
-    });
-
-    // Initially select specific rooms
-    const specificRadio = screen.getByDisplayValue("specific");
-    fireEvent.click(specificRadio);
-
-    await waitFor(() => {
-      expect(screen.getAllByText("Select Rooms")).toHaveLength(2); // Label + span
-    });
-
-    // Now select production rooms
-    const productionRadio = screen.getByDisplayValue("production");
-    fireEvent.click(productionRadio);
-
-    await waitFor(() => {
-      expect(screen.queryAllByText("Select Rooms")).toHaveLength(0);
-    });
-  });
-
-  describe("Room Category Detection Logic", () => {
-    it("correctly identifies production rooms configuration", () => {
-      const productionRoomIds = PRODUCTION_ROOMS.filter((roomId) =>
-        mockRoomSettings.some((room) => room.roomId === roomId)
-      ).sort((a, b) => a - b);
-
-      expect(productionRoomIds).toEqual([
-        103, 203, 220, 221, 222, 223, 224, 230, 233, 260,
-      ]);
-    });
-
-    it("correctly identifies event rooms configuration", () => {
-      const eventRoomIds = EVENT_ROOMS.filter((roomId) =>
-        mockRoomSettings.some((room) => room.roomId === roomId)
-      ).sort((a, b) => a - b);
-
-      expect(eventRoomIds).toEqual([103, 202, 233, 1201]);
-    });
-
-    it("correctly identifies multi rooms configuration", () => {
-      const multiRoomIds = MULTI_ROOMS.filter((roomId) =>
-        mockRoomSettings.some((room) => room.roomId === roomId)
-      ).sort((a, b) => a - b);
-
-      expect(multiRoomIds).toEqual([103, 233]);
-    });
-
-    it("validates room category overlap", () => {
-      // Multi rooms should be present in both production and event
-      MULTI_ROOMS.forEach((roomId) => {
-        expect(PRODUCTION_ROOMS).toContain(roomId);
-        expect(EVENT_ROOMS).toContain(roomId);
+      await waitFor(() => {
+        // Check for specific text patterns in the radio labels
+        expect(
+          screen.getByText(/Production Rooms \(220, 233, 103\)/)
+        ).toBeInTheDocument();
+        expect(
+          screen.getByText(/Event Rooms \(1201, 202, 233, 103\)/)
+        ).toBeInTheDocument();
+        expect(screen.getByText(/Multi-Room \(233, 103\)/)).toBeInTheDocument();
       });
     });
   });

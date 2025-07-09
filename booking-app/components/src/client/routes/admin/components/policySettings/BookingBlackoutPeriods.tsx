@@ -30,7 +30,11 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { DatePicker, LocalizationProvider } from "@mui/x-date-pickers";
+import {
+  DatePicker,
+  LocalizationProvider,
+  TimePicker,
+} from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { Timestamp } from "firebase/firestore";
 import { useContext, useEffect, useState } from "react";
@@ -75,6 +79,8 @@ export default function BookingBlackoutPeriods() {
   const [periodName, setPeriodName] = useState("");
   const [startDate, setStartDate] = useState<Dayjs | null>(null);
   const [endDate, setEndDate] = useState<Dayjs | null>(null);
+  const [startTime, setStartTime] = useState<Dayjs | null>(null);
+  const [endTime, setEndTime] = useState<Dayjs | null>(null);
   const [selectedRooms, setSelectedRooms] = useState<number[]>([]);
   const [roomApplicationType, setRoomApplicationType] =
     useState<RoomApplicationType>("all");
@@ -113,6 +119,21 @@ export default function BookingBlackoutPeriods() {
       setPeriodName(period.name);
       setStartDate(dayjs(period.startDate.toDate()));
       setEndDate(dayjs(period.endDate.toDate()));
+
+      // Set times if they exist, otherwise use defaults
+      if (period.startTime) {
+        const [hours, minutes] = period.startTime.split(":");
+        setStartTime(dayjs().hour(parseInt(hours)).minute(parseInt(minutes)));
+      } else {
+        setStartTime(dayjs().hour(0).minute(0)); // Default to 00:00
+      }
+
+      if (period.endTime) {
+        const [hours, minutes] = period.endTime.split(":");
+        setEndTime(dayjs().hour(parseInt(hours)).minute(parseInt(minutes)));
+      } else {
+        setEndTime(dayjs().hour(23).minute(59)); // Default to 23:59
+      }
 
       if (period.roomIds && period.roomIds.length > 0) {
         // Check what type of room application this is
@@ -168,6 +189,8 @@ export default function BookingBlackoutPeriods() {
       setPeriodName("");
       setStartDate(null);
       setEndDate(null);
+      setStartTime(dayjs().hour(0).minute(0)); // Default to 00:00
+      setEndTime(dayjs().hour(23).minute(59)); // Default to 23:59
       setSelectedRooms([]);
       setRoomApplicationType("all");
     }
@@ -177,22 +200,39 @@ export default function BookingBlackoutPeriods() {
   const handleCloseDialog = () => {
     setDialogOpen(false);
     setEditingPeriod(null);
+    setStartTime(null);
+    setEndTime(null);
     setSelectedRooms([]);
     setRoomApplicationType("all");
     setMessage(null);
   };
 
   const handleSavePeriod = async () => {
-    if (!periodName.trim() || !startDate || !endDate) {
+    if (
+      !periodName.trim() ||
+      !startDate ||
+      !endDate ||
+      !startTime ||
+      !endTime
+    ) {
       setMessage({
         type: "error",
-        text: "Please fill in all fields: name, start date, and end date.",
+        text: "Please fill in all fields: name, start date, end date, start time, and end time.",
       });
       return;
     }
 
     if (endDate.isBefore(startDate)) {
       setMessage({ type: "error", text: "End date must be after start date." });
+      return;
+    }
+
+    // Check if same day and end time is before start time
+    if (startDate.isSame(endDate, "day") && endTime.isBefore(startTime)) {
+      setMessage({
+        type: "error",
+        text: "End time must be after start time when dates are the same.",
+      });
       return;
     }
 
@@ -204,65 +244,47 @@ export default function BookingBlackoutPeriods() {
       return;
     }
 
-    // Check if roomSettings is available when applying to room categories
-    if (
-      roomApplicationType !== "specific" &&
-      (!roomSettings || roomSettings.length === 0)
-    ) {
-      setMessage({
-        type: "error",
-        text: "Room settings not loaded. Please refresh the page and try again.",
-      });
-      return;
-    }
-
     setLoading(true);
     setMessage(null);
 
     try {
-      let allRoomIds: number[] = [];
-
+      // Determine which rooms to apply the blackout to
+      let roomIds: number[] = [];
       switch (roomApplicationType) {
         case "all":
-          allRoomIds = roomSettings.map((room) => room.roomId);
+          roomIds = roomSettings.map((room) => room.roomId);
           break;
         case "production":
-          allRoomIds = PRODUCTION_ROOMS.filter((roomId) =>
+          roomIds = PRODUCTION_ROOMS.filter((roomId) =>
             roomSettings.some((room) => room.roomId === roomId)
           );
           break;
         case "event":
-          allRoomIds = EVENT_ROOMS.filter((roomId) =>
+          roomIds = EVENT_ROOMS.filter((roomId) =>
             roomSettings.some((room) => room.roomId === roomId)
           );
           break;
         case "multi":
-          allRoomIds = MULTI_ROOMS.filter((roomId) =>
+          roomIds = MULTI_ROOMS.filter((roomId) =>
             roomSettings.some((room) => room.roomId === roomId)
           );
           break;
         case "specific":
-          allRoomIds = selectedRooms;
+          roomIds = selectedRooms;
           break;
       }
 
-      console.log("Saving blackout period:", {
-        roomApplicationType,
-        roomSettings: roomSettings?.length || 0,
-        allRoomIds,
-        selectedRooms,
-      });
-
-      const periodData = {
+      const periodData: Omit<BlackoutPeriod, "id"> = {
         name: periodName.trim(),
         startDate: Timestamp.fromDate(startDate.toDate()),
         endDate: Timestamp.fromDate(endDate.toDate()),
-        isActive: true, // Always active when created/updated
+        startTime: startTime.format("HH:mm"),
+        endTime: endTime.format("HH:mm"),
+        isActive: true,
+        createdAt: editingPeriod?.createdAt || Timestamp.now(),
         updatedAt: Timestamp.now(),
-        roomIds: allRoomIds,
+        roomIds,
       };
-
-      console.log("Period data to save:", periodData);
 
       if (editingPeriod) {
         await clientUpdateDataInFirestore(
@@ -275,13 +297,13 @@ export default function BookingBlackoutPeriods() {
           text: "Blackout period updated successfully!",
         });
       } else {
-        await clientSaveDataToFirestore(TableNames.BLACKOUT_PERIODS, {
-          ...periodData,
-          createdAt: Timestamp.now(),
-        });
+        await clientSaveDataToFirestore(
+          TableNames.BLACKOUT_PERIODS,
+          periodData
+        );
         setMessage({
           type: "success",
-          text: "Blackout period added successfully!",
+          text: "Blackout period created successfully!",
         });
       }
 
@@ -289,7 +311,10 @@ export default function BookingBlackoutPeriods() {
       handleCloseDialog();
     } catch (error) {
       console.error("Error saving blackout period:", error);
-      setMessage({ type: "error", text: "Failed to save. Please try again." });
+      setMessage({
+        type: "error",
+        text: "Failed to save blackout period. Please try again.",
+      });
     } finally {
       setLoading(false);
     }
@@ -323,7 +348,15 @@ export default function BookingBlackoutPeriods() {
   };
 
   const formatDate = (timestamp: Timestamp) => {
-    return dayjs(timestamp.toDate()).format("MMMM D, YYYY");
+    return dayjs(timestamp.toDate()).format("MMM DD, YYYY");
+  };
+
+  const formatDateTime = (dateTimestamp: Timestamp, timeString?: string) => {
+    const dateStr = dayjs(dateTimestamp.toDate()).format("MMM DD, YYYY");
+    if (timeString) {
+      return `${dateStr} at ${timeString}`;
+    }
+    return dateStr;
   };
 
   const getRoomNames = (period: BlackoutPeriod) => {
@@ -437,8 +470,8 @@ export default function BookingBlackoutPeriods() {
             <TableHead>
               <TableRow>
                 <TableCell>Period Name</TableCell>
-                <TableCell>Start Date</TableCell>
-                <TableCell>End Date</TableCell>
+                <TableCell>Start Date & Time</TableCell>
+                <TableCell>End Date & Time</TableCell>
                 <TableCell>Applied Rooms</TableCell>
                 <TableCell align="center">Actions</TableCell>
               </TableRow>
@@ -456,8 +489,12 @@ export default function BookingBlackoutPeriods() {
                 blackoutPeriods.map((period) => (
                   <TableRow key={period.id}>
                     <TableCell>{period.name}</TableCell>
-                    <TableCell>{formatDate(period.startDate)}</TableCell>
-                    <TableCell>{formatDate(period.endDate)}</TableCell>
+                    <TableCell>
+                      {formatDateTime(period.startDate, period.startTime)}
+                    </TableCell>
+                    <TableCell>
+                      {formatDateTime(period.endDate, period.endTime)}
+                    </TableCell>
                     <TableCell>{getRoomNames(period)}</TableCell>
                     <TableCell align="center">
                       <IconButton
@@ -511,11 +548,29 @@ export default function BookingBlackoutPeriods() {
                 }}
               />
 
+              <TimePicker
+                label="Start Time"
+                value={startTime}
+                onChange={(newValue) => setStartTime(newValue)}
+                slotProps={{
+                  textField: { fullWidth: true },
+                }}
+              />
+
               <DatePicker
                 label="End Date"
                 value={endDate}
                 onChange={(newValue) => setEndDate(newValue)}
                 minDate={startDate || undefined}
+                slotProps={{
+                  textField: { fullWidth: true },
+                }}
+              />
+
+              <TimePicker
+                label="End Time"
+                value={endTime}
+                onChange={(newValue) => setEndTime(newValue)}
                 slotProps={{
                   textField: { fullWidth: true },
                 }}

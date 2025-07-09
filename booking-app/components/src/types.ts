@@ -223,6 +223,8 @@ export type BlackoutPeriod = {
   name: string;
   startDate: Timestamp;
   endDate: Timestamp;
+  startTime?: string; // Time in HH:mm format (e.g., "09:00")
+  endTime?: string; // Time in HH:mm format (e.g., "17:00")
   isActive: boolean;
   createdAt: Timestamp;
   updatedAt?: Timestamp;
