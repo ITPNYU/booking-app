@@ -1,11 +1,3 @@
-import { TableNames } from "@/components/src/policy";
-import { BlackoutPeriod } from "@/components/src/types";
-import {
-  clientDeleteDataFromFirestore,
-  clientFetchAllDataFromCollection,
-  clientSaveDataToFirestore,
-  clientUpdateDataInFirestore,
-} from "@/lib/firebase/firebase";
 import { Add, Delete, Edit } from "@mui/icons-material";
 import {
   Alert,
@@ -25,6 +17,8 @@ import {
   MenuItem,
   OutlinedInput,
   Paper,
+  Radio,
+  RadioGroup,
   Select,
   Stack,
   Table,
@@ -36,13 +30,33 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import { DatePicker, LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
-import { DatePicker } from "@mui/x-date-pickers/DatePicker";
-import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
-import dayjs, { Dayjs } from "dayjs";
 import { Timestamp } from "firebase/firestore";
 import { useContext, useEffect, useState } from "react";
+
+import {
+  EVENT_ROOMS,
+  MULTI_ROOMS,
+  PRODUCTION_ROOMS,
+} from "@/components/src/mediaCommonsPolicy";
+import { TableNames } from "@/components/src/policy";
+import { BlackoutPeriod } from "@/components/src/types";
+import {
+  clientDeleteDataFromFirestore,
+  clientFetchAllDataFromCollection,
+  clientSaveDataToFirestore,
+  clientUpdateDataInFirestore,
+} from "@/lib/firebase/firebase";
+import dayjs, { Dayjs } from "dayjs";
 import { DatabaseContext } from "../../../components/Provider";
+
+type RoomApplicationType =
+  | "all"
+  | "production"
+  | "event"
+  | "multi"
+  | "specific";
 
 export default function BookingBlackoutPeriods() {
   const { roomSettings } = useContext(DatabaseContext);
@@ -62,7 +76,8 @@ export default function BookingBlackoutPeriods() {
   const [startDate, setStartDate] = useState<Dayjs | null>(null);
   const [endDate, setEndDate] = useState<Dayjs | null>(null);
   const [selectedRooms, setSelectedRooms] = useState<number[]>([]);
-  const [applyToAllRooms, setApplyToAllRooms] = useState(true);
+  const [roomApplicationType, setRoomApplicationType] =
+    useState<RoomApplicationType>("all");
 
   useEffect(() => {
     fetchBlackoutPeriods();
@@ -100,25 +115,53 @@ export default function BookingBlackoutPeriods() {
       setEndDate(dayjs(period.endDate.toDate()));
 
       if (period.roomIds && period.roomIds.length > 0) {
-        // Check if all available rooms are included
+        // Check what type of room application this is
         const allRoomIds = roomSettings
           .map((room) => room.roomId)
           .sort((a, b) => a - b);
         const periodRoomIds = [...period.roomIds].sort((a, b) => a - b);
+        const productionRoomIds = PRODUCTION_ROOMS.filter((roomId) =>
+          roomSettings.some((room) => room.roomId === roomId)
+        ).sort((a, b) => a - b);
+        const eventRoomIds = EVENT_ROOMS.filter((roomId) =>
+          roomSettings.some((room) => room.roomId === roomId)
+        ).sort((a, b) => a - b);
+        const multiRoomIds = MULTI_ROOMS.filter((roomId) =>
+          roomSettings.some((room) => room.roomId === roomId)
+        ).sort((a, b) => a - b);
+
         const isAllRooms =
           allRoomIds.length === periodRoomIds.length &&
           allRoomIds.every((id, index) => id === periodRoomIds[index]);
+        const isProductionRooms =
+          productionRoomIds.length === periodRoomIds.length &&
+          productionRoomIds.every((id, index) => id === periodRoomIds[index]);
+        const isEventRooms =
+          eventRoomIds.length === periodRoomIds.length &&
+          eventRoomIds.every((id, index) => id === periodRoomIds[index]);
+        const isMultiRooms =
+          multiRoomIds.length === periodRoomIds.length &&
+          multiRoomIds.every((id, index) => id === periodRoomIds[index]);
 
         if (isAllRooms) {
           setSelectedRooms([]);
-          setApplyToAllRooms(true);
+          setRoomApplicationType("all");
+        } else if (isProductionRooms) {
+          setSelectedRooms([]);
+          setRoomApplicationType("production");
+        } else if (isEventRooms) {
+          setSelectedRooms([]);
+          setRoomApplicationType("event");
+        } else if (isMultiRooms) {
+          setSelectedRooms([]);
+          setRoomApplicationType("multi");
         } else {
           setSelectedRooms(period.roomIds);
-          setApplyToAllRooms(false);
+          setRoomApplicationType("specific");
         }
       } else {
         setSelectedRooms([]);
-        setApplyToAllRooms(true);
+        setRoomApplicationType("all");
       }
     } else {
       setEditingPeriod(null);
@@ -126,7 +169,7 @@ export default function BookingBlackoutPeriods() {
       setStartDate(null);
       setEndDate(null);
       setSelectedRooms([]);
-      setApplyToAllRooms(true);
+      setRoomApplicationType("all");
     }
     setDialogOpen(true);
   };
@@ -135,7 +178,7 @@ export default function BookingBlackoutPeriods() {
     setDialogOpen(false);
     setEditingPeriod(null);
     setSelectedRooms([]);
-    setApplyToAllRooms(true);
+    setRoomApplicationType("all");
     setMessage(null);
   };
 
@@ -153,16 +196,19 @@ export default function BookingBlackoutPeriods() {
       return;
     }
 
-    if (!applyToAllRooms && selectedRooms.length === 0) {
+    if (roomApplicationType === "specific" && selectedRooms.length === 0) {
       setMessage({
         type: "error",
-        text: "Please select at least one room or choose 'Apply to all rooms'.",
+        text: "Please select at least one room or choose a different room application type.",
       });
       return;
     }
 
-    // Check if roomSettings is available when applying to all rooms
-    if (applyToAllRooms && (!roomSettings || roomSettings.length === 0)) {
+    // Check if roomSettings is available when applying to room categories
+    if (
+      roomApplicationType !== "specific" &&
+      (!roomSettings || roomSettings.length === 0)
+    ) {
       setMessage({
         type: "error",
         text: "Room settings not loaded. Please refresh the page and try again.",
@@ -174,12 +220,34 @@ export default function BookingBlackoutPeriods() {
     setMessage(null);
 
     try {
-      const allRoomIds = applyToAllRooms
-        ? roomSettings.map((room) => room.roomId)
-        : selectedRooms;
+      let allRoomIds: number[] = [];
+
+      switch (roomApplicationType) {
+        case "all":
+          allRoomIds = roomSettings.map((room) => room.roomId);
+          break;
+        case "production":
+          allRoomIds = PRODUCTION_ROOMS.filter((roomId) =>
+            roomSettings.some((room) => room.roomId === roomId)
+          );
+          break;
+        case "event":
+          allRoomIds = EVENT_ROOMS.filter((roomId) =>
+            roomSettings.some((room) => room.roomId === roomId)
+          );
+          break;
+        case "multi":
+          allRoomIds = MULTI_ROOMS.filter((roomId) =>
+            roomSettings.some((room) => room.roomId === roomId)
+          );
+          break;
+        case "specific":
+          allRoomIds = selectedRooms;
+          break;
+      }
 
       console.log("Saving blackout period:", {
-        applyToAllRooms,
+        roomApplicationType,
         roomSettings: roomSettings?.length || 0,
         allRoomIds,
         selectedRooms,
@@ -263,26 +331,69 @@ export default function BookingBlackoutPeriods() {
       return "All Rooms";
     }
 
-    // Check if all available rooms are included
+    // Check if this matches any of our predefined categories
     const allRoomIds = roomSettings
       .map((room) => room.roomId)
       .sort((a, b) => a - b);
     const periodRoomIds = [...period.roomIds].sort((a, b) => a - b);
+    const productionRoomIds = PRODUCTION_ROOMS.filter((roomId) =>
+      roomSettings.some((room) => room.roomId === roomId)
+    ).sort((a, b) => a - b);
+    const eventRoomIds = EVENT_ROOMS.filter((roomId) =>
+      roomSettings.some((room) => room.roomId === roomId)
+    ).sort((a, b) => a - b);
+    const multiRoomIds = MULTI_ROOMS.filter((roomId) =>
+      roomSettings.some((room) => room.roomId === roomId)
+    ).sort((a, b) => a - b);
+
     const isAllRooms =
       allRoomIds.length === periodRoomIds.length &&
       allRoomIds.every((id, index) => id === periodRoomIds[index]);
+    const isProductionRooms =
+      productionRoomIds.length === periodRoomIds.length &&
+      productionRoomIds.every((id, index) => id === periodRoomIds[index]);
+    const isEventRooms =
+      eventRoomIds.length === periodRoomIds.length &&
+      eventRoomIds.every((id, index) => id === periodRoomIds[index]);
+    const isMultiRooms =
+      multiRoomIds.length === periodRoomIds.length &&
+      multiRoomIds.every((id, index) => id === periodRoomIds[index]);
 
     if (isAllRooms) {
       return "All Rooms";
+    } else if (isProductionRooms) {
+      return `Production Rooms (${productionRoomIds.join(", ")})`;
+    } else if (isEventRooms) {
+      return `Event Rooms (${eventRoomIds.join(", ")})`;
+    } else if (isMultiRooms) {
+      return `Multi-Room (${multiRoomIds.join(", ")})`;
+    } else {
+      const selectedRoomNames = period.roomIds
+        .map((roomId) => {
+          const room = roomSettings.find((r) => r.roomId === roomId);
+          return room ? `${room.roomId} - ${room.name}` : `Room ${roomId}`;
+        })
+        .join(", ");
+      return selectedRoomNames || "Unknown Rooms";
     }
+  };
 
-    const selectedRoomNames = period.roomIds
-      .map((roomId) => {
-        const room = roomSettings.find((r) => r.roomId === roomId);
-        return room ? `${room.roomId} - ${room.name}` : `Room ${roomId}`;
-      })
-      .join(", ");
-    return selectedRoomNames || "Unknown Rooms";
+  const getProductionRoomNumbers = () => {
+    return PRODUCTION_ROOMS.filter((roomId) =>
+      roomSettings.some((room) => room.roomId === roomId)
+    ).join(", ");
+  };
+
+  const getEventRoomNumbers = () => {
+    return EVENT_ROOMS.filter((roomId) =>
+      roomSettings.some((room) => room.roomId === roomId)
+    ).join(", ");
+  };
+
+  const getMultiRoomNumbers = () => {
+    return MULTI_ROOMS.filter((roomId) =>
+      roomSettings.some((room) => room.roomId === roomId)
+    ).join(", ");
   };
 
   return (
@@ -410,22 +521,50 @@ export default function BookingBlackoutPeriods() {
                 }}
               />
 
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={applyToAllRooms}
-                    onChange={(e) => {
-                      setApplyToAllRooms(e.target.checked);
-                      if (e.target.checked) {
-                        setSelectedRooms([]);
-                      }
-                    }}
+              <FormControl>
+                <Typography variant="subtitle2" gutterBottom>
+                  Apply to:
+                </Typography>
+                <RadioGroup
+                  value={roomApplicationType}
+                  onChange={(e) => {
+                    setRoomApplicationType(
+                      e.target.value as RoomApplicationType
+                    );
+                    if (e.target.value !== "specific") {
+                      setSelectedRooms([]);
+                    }
+                  }}
+                >
+                  <FormControlLabel
+                    value="all"
+                    control={<Radio />}
+                    label={`All Rooms (${roomSettings?.length || 0} rooms)`}
                   />
-                }
-                label={`Apply to all rooms ${roomSettings?.length ? `(${roomSettings.length} rooms)` : "(loading...)"}`}
-              />
+                  <FormControlLabel
+                    value="production"
+                    control={<Radio />}
+                    label={`Production Rooms (${getProductionRoomNumbers()})`}
+                  />
+                  <FormControlLabel
+                    value="event"
+                    control={<Radio />}
+                    label={`Event Rooms (${getEventRoomNumbers()})`}
+                  />
+                  <FormControlLabel
+                    value="multi"
+                    control={<Radio />}
+                    label={`Multi-Room (${getMultiRoomNumbers()})`}
+                  />
+                  <FormControlLabel
+                    value="specific"
+                    control={<Radio />}
+                    label={`Specific Rooms (${selectedRooms.length} rooms)`}
+                  />
+                </RadioGroup>
+              </FormControl>
 
-              {!applyToAllRooms && (
+              {roomApplicationType === "specific" && (
                 <FormControl fullWidth>
                   <InputLabel>Select Rooms</InputLabel>
                   <Select

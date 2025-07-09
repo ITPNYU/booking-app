@@ -23,3 +23,10 @@ export const MOCAP_ROOMS = [221, 222];
 
 export const WALK_IN_ROOMS = [103, 220, 221, 222, 223, 224, 230, 233];
 export const WALK_IN_CAN_BOOK_TWO = [221, 222, 223, 224];
+
+// Blackout period room categories
+export const PRODUCTION_ROOMS = [
+  220, 221, 222, 223, 224, 230, 260, 203, 233, 103,
+];
+export const EVENT_ROOMS = [1201, 202, 233, 103];
+export const MULTI_ROOMS = [233, 103]; // Multi (Production and Event) - needs safety training
