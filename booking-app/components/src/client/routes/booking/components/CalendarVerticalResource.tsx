@@ -23,6 +23,7 @@ import { Error } from "@mui/icons-material";
 import { styled } from "@mui/system";
 import dayjs from "dayjs";
 import { EventResizeDoneArg } from "fullcalendar";
+import { getBlackoutTimeRangeForDate } from "../../../../utils/blackoutUtils";
 import { DatabaseContext } from "../../components/Provider";
 import { BookingContext } from "../bookingProvider";
 import { useBookingDateRestrictions } from "../hooks/useBookingDateRestrictions";
@@ -155,101 +156,29 @@ export default function CalendarVerticalResource({
       console.log(`Room ${room.roomId} blackout periods:`, blackoutPeriods);
 
       blackoutPeriods.forEach((period) => {
-        let blockStart: dayjs.Dayjs;
-        let blockEnd: dayjs.Dayjs;
-        let title: string;
+        const blackoutRange = getBlackoutTimeRangeForDate(period, selectedDate);
 
-        // If specific times are set, handle multi-day logic; otherwise use full day
-        if (period.startTime && period.endTime) {
-          const periodStartDate = dayjs(period.startDate.toDate());
-          const periodEndDate = dayjs(period.endDate.toDate());
-          const isStartDate = selectedDate.isSame(periodStartDate, "day");
-          const isEndDate = selectedDate.isSame(periodEndDate, "day");
-          const isSameDay = periodStartDate.isSame(periodEndDate, "day");
+        if (blackoutRange) {
+          const blockEvent = {
+            start: blackoutRange.start.toISOString(),
+            end: blackoutRange.end.toISOString(),
+            id: `blackout-${room.roomId}-${period.id}`,
+            resourceId: room.roomId + "",
+            title: blackoutRange.title,
+            overlap: false,
+            display: "background",
+            classNames: ["blackout-period"],
+            backgroundColor: "#e0e0e0",
+            borderColor: "#bdbdbd",
+            textColor: "#000000",
+            extendedProps: {
+              selectable: false,
+            },
+          };
 
-          if (isSameDay) {
-            // Single day blackout - use specified time range
-            const [startHour, startMinute] = period.startTime
-              .split(":")
-              .map(Number);
-            const [endHour, endMinute] = period.endTime.split(":").map(Number);
-
-            blockStart = selectedDate
-              .hour(startHour)
-              .minute(startMinute)
-              .second(0)
-              .millisecond(0);
-            blockEnd = selectedDate
-              .hour(endHour)
-              .minute(endMinute)
-              .second(0)
-              .millisecond(0);
-
-            // Handle case where end time is before start time (spans midnight)
-            if (blockEnd.isBefore(blockStart)) {
-              blockEnd = blockEnd.add(1, "day");
-            }
-
-            title = `🚫 ${period.name} (${period.startTime}-${period.endTime})`;
-          } else {
-            // Multi-day blackout period
-            if (isStartDate) {
-              // Start date: blackout from start time to end of day
-              const [startHour, startMinute] = period.startTime
-                .split(":")
-                .map(Number);
-              blockStart = selectedDate
-                .hour(startHour)
-                .minute(startMinute)
-                .second(0)
-                .millisecond(0);
-              blockEnd = selectedDate.endOf("day");
-              title = `🚫 ${period.name} (${period.startTime}→)`;
-            } else if (isEndDate) {
-              // End date: blackout from start of day to end time
-              const [endHour, endMinute] = period.endTime
-                .split(":")
-                .map(Number);
-              blockStart = selectedDate.startOf("day");
-              blockEnd = selectedDate
-                .hour(endHour)
-                .minute(endMinute)
-                .second(0)
-                .millisecond(0);
-              title = `🚫 ${period.name} `;
-            } else {
-              // Middle day: blackout entire day
-              blockStart = selectedDate.startOf("day");
-              blockEnd = selectedDate.endOf("day");
-              title = `🚫 ${period.name} (all day)`;
-            }
-          }
-        } else {
-          // No specific times set, block entire day
-          blockStart = selectedDate.startOf("day");
-          blockEnd = selectedDate.endOf("day");
-          title = `🚫 ${period.name}`;
+          console.log("Adding blackout block:", blockEvent);
+          blocks.push(blockEvent);
         }
-
-        const blockEvent = {
-          start: blockStart.toISOString(),
-          end: blockEnd.toISOString(),
-          id: `blackout-${room.roomId}-${period.id}`,
-          resourceId: room.roomId + "",
-          title: title,
-          overlap: false,
-          display: "background",
-          classNames: ["blackout-period"],
-          backgroundColor: "#e0e0e0",
-          borderColor: "#bdbdbd",
-          textColor: "#000000",
-          extendedProps: {
-            selectable: false,
-          },
-        };
-
-        console.log("Adding blackout block:", blockEvent);
-        blocks.push(blockEvent);
       });
     });
 
