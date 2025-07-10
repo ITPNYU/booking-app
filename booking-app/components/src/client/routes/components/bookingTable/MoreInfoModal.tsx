@@ -17,8 +17,15 @@ import { Cancel, Check, Edit, Event } from "@mui/icons-material";
 import Grid from "@mui/material/Unstable_Grid2/Grid2";
 import { styled } from "@mui/system";
 import React, { useContext, useState } from "react";
-import { BookingRow, PageContextLevel } from "../../../../types";
-import { canAccessWebCheckout } from "../../../../utils/permissions";
+import {
+  BookingRow,
+  PageContextLevel,
+  PagePermission,
+} from "../../../../types";
+import {
+  canAccessWebCheckout,
+  hasAnyPermission,
+} from "../../../../utils/permissions";
 import { formatTimeAmPm } from "../../../utils/date";
 import { RoomDetails } from "../../booking/components/BookingSelection";
 import useSortBookingHistory from "../../hooks/useSortBookingHistory";
@@ -168,10 +175,15 @@ export default function MoreInfoModal({
   }, [booking.webcheckoutCartNumber]);
 
   const renderWebCheckoutSection = () => {
-    console.log("canEditCart", canEditCart);
-    // Hide WebCheckout section for users without WebCheckout permissions
-    // or for USER level specifically
-    if (!canEditCart || pageContext === PageContextLevel.USER) {
+    // Hide WebCheckout section for users without sufficient permissions
+    // Only PA, ADMIN, and SUPER_ADMIN should see WebCheckout section
+    const canViewWebCheckout = hasAnyPermission(pagePermission, [
+      PagePermission.PA,
+      PagePermission.ADMIN,
+      PagePermission.SUPER_ADMIN,
+    ]);
+
+    if (!canViewWebCheckout || pageContext === PageContextLevel.USER) {
       return null;
     }
 
