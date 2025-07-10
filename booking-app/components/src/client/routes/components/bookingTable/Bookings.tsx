@@ -25,7 +25,7 @@ import { DatabaseContext } from "../Provider";
 import { useTenantSchema } from "../SchemaProvider";
 import BookMoreButton from "./BookMoreButton";
 import BookingTableFilters from "./BookingTableFilters";
-import EquipmentCheckoutToggle from "./EquipmentCheckoutToggle";
+import EquipmentCartDisplay from "./EquipmentCartDisplay";
 import MoreInfoModal from "./MoreInfoModal";
 import StatusChip from "./StatusChip";
 import { DateRangeFilter } from "./hooks/getDateFilter";
@@ -337,9 +337,10 @@ export const Bookings: React.FC<BookingsProps> = ({
               filterable: false,
               renderCell: (params) => (
                 <TableCell>
-                  <EquipmentCheckoutToggle
-                    status={params.row.equipmentCheckedOut}
+                  <EquipmentCartDisplay
                     booking={params.row}
+                    onCartClick={() => setModalData(params.row)}
+                    pageContext={pageContext}
                   />
                 </TableCell>
               ),
@@ -437,6 +438,7 @@ export const Bookings: React.FC<BookingsProps> = ({
           booking={modalData}
           closeModal={() => setModalData(null)}
           updateBooking={updateBookingInState}
+          pageContext={pageContext}
         />
       )}
     </Box>

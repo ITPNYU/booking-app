@@ -169,6 +169,11 @@ export const bookingContentsToDescription = (
       getProperty(bookingContents, "mediaServicesDetails")
     );
   }
+  // Add WebCheckout Cart Number
+  const cartNumber = getProperty(bookingContents, "webcheckoutCartNumber");
+  if (cartNumber) {
+    description += listItem("Cart Number", cartNumber);
+  }
   description += listItem(
     "Catering",
     getProperty(bookingContents, "cateringService") ||

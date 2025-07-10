@@ -46,6 +46,36 @@ export async function POST(req: NextRequest) {
       },
     );
 
+    // Update the calendar event description with the new cart number via API
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/api/calendarEvents`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            calendarEventId: calendarEventId,
+            newValues: {}, // Empty object since description is automatically updated based on booking contents
+          }),
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error(
+          `Calendar API responded with status: ${response.status}`,
+        );
+      }
+
+      console.log(
+        `Updated calendar event ${calendarEventId} with cart number: ${cartNumber}`,
+      );
+    } catch (calendarError) {
+      console.error("Error updating calendar event:", calendarError);
+      // Don't fail the whole request if calendar update fails
+    }
+
     return NextResponse.json({
       success: true,
       message: "Cart number updated successfully",
