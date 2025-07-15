@@ -1,5 +1,21 @@
 import { NextRequest } from "next/server";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { POST as UpdateCartPost } from "../../app/api/updateWebcheckoutCart/route";
 import { GET } from "../../app/api/webcheckout/cart/[cartNumber]/route";
+
+// Mock server admin functions
+vi.mock("@/components/src/server/admin", () => ({
+  serverUpdateDataByCalendarEventId: vi.fn(),
+}));
+
+// Mock firebase admin
+vi.mock("@/lib/firebase/server/adminDb", () => ({
+  serverFetchAllDataFromCollection: vi.fn(),
+}));
+
+// Import the mocked modules
+import { serverUpdateDataByCalendarEventId } from "@/components/src/server/admin";
+import { serverFetchAllDataFromCollection } from "@/lib/firebase/server/adminDb";
 
 // Mock environment variables
 const mockEnvVars = {
@@ -48,7 +64,7 @@ describe("WebCheckout API Route", () => {
     });
 
     it("should return 500 if environment variables are missing", async () => {
-      process.env = {};
+      process.env = { NODE_ENV: "test" } as any;
       const request = createMockRequest("CART123");
       const params = createMockParams("CART123");
 
@@ -358,6 +374,281 @@ describe("WebCheckout API Route", () => {
 
       expect(response.status).toBe(401);
       expect(data.error).toBe("WebCheckout session is invalid or expired");
+    });
+  });
+});
+
+describe("UpdateWebcheckoutCart API Route", () => {
+  const createMockUpdateRequest = (body: any) => {
+    return new NextRequest("http://localhost/api/updateWebcheckoutCart", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+  };
+
+  describe("Input Validation", () => {
+    it("should return 400 if required fields are missing", async () => {
+      const request = createMockUpdateRequest({
+        cartNumber: "CK-2614",
+        // Missing calendarEventId and userEmail
+      });
+
+      const response = await UpdateCartPost(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.error).toBe("Missing required fields");
+    });
+
+    it("should return 400 if calendarEventId is missing", async () => {
+      const request = createMockUpdateRequest({
+        cartNumber: "CK-2614",
+        userEmail: "test@nyu.edu",
+        // Missing calendarEventId
+      });
+
+      const response = await UpdateCartPost(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.error).toBe("Missing required fields");
+    });
+
+    it("should return 400 if userEmail is missing", async () => {
+      const request = createMockUpdateRequest({
+        calendarEventId: "test-event-id",
+        cartNumber: "CK-2614",
+        // Missing userEmail
+      });
+
+      const response = await UpdateCartPost(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.error).toBe("Missing required fields");
+    });
+  });
+
+  describe("Authorization", () => {
+    beforeEach(() => {
+      const mockAdminUsers = [{ email: "admin@nyu.edu" }];
+      const mockPaUsers = [{ email: "pa@nyu.edu" }];
+
+      vi.mocked(serverFetchAllDataFromCollection)
+        .mockResolvedValueOnce(mockAdminUsers)
+        .mockResolvedValueOnce(mockPaUsers);
+    });
+
+    it("should return 403 if user is not authorized", async () => {
+      const request = createMockUpdateRequest({
+        calendarEventId: "test-event-id",
+        cartNumber: "CK-2614",
+        userEmail: "unauthorized@nyu.edu",
+      });
+
+      const response = await UpdateCartPost(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(403);
+      expect(data.error).toBe(
+        "Unauthorized: Only PA and Admin users can update cart numbers"
+      );
+    });
+
+    it("should allow admin users to update cart numbers", async () => {
+      vi.mocked(serverUpdateDataByCalendarEventId).mockResolvedValue(undefined);
+
+      // Mock successful calendar update
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ message: "Event updated successfully" }),
+      });
+
+      const request = createMockUpdateRequest({
+        calendarEventId: "test-event-id",
+        cartNumber: "CK-2614",
+        userEmail: "admin@nyu.edu",
+      });
+
+      const response = await UpdateCartPost(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data.success).toBe(true);
+      expect(data.message).toBe("Cart number updated successfully");
+    });
+
+    it("should allow PA users to update cart numbers", async () => {
+      vi.mocked(serverUpdateDataByCalendarEventId).mockResolvedValue(undefined);
+
+      // Mock successful calendar update
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ message: "Event updated successfully" }),
+      });
+
+      const request = createMockUpdateRequest({
+        calendarEventId: "test-event-id",
+        cartNumber: "CK-2614",
+        userEmail: "pa@nyu.edu",
+      });
+
+      const response = await UpdateCartPost(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data.success).toBe(true);
+      expect(data.message).toBe("Cart number updated successfully");
+    });
+  });
+
+  describe("Database and Calendar Updates", () => {
+    beforeEach(() => {
+      const mockAdminUsers = [{ email: "admin@nyu.edu" }];
+      const mockPaUsers = [{ email: "pa@nyu.edu" }];
+
+      vi.mocked(serverFetchAllDataFromCollection)
+        .mockResolvedValueOnce(mockAdminUsers)
+        .mockResolvedValueOnce(mockPaUsers);
+    });
+
+    it("should update database with cart number", async () => {
+      vi.mocked(serverUpdateDataByCalendarEventId).mockResolvedValue(undefined);
+
+      // Mock successful calendar update
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ message: "Event updated successfully" }),
+      });
+
+      const request = createMockUpdateRequest({
+        calendarEventId: "test-event-id",
+        cartNumber: "CK-2614",
+        userEmail: "admin@nyu.edu",
+      });
+
+      await UpdateCartPost(request);
+
+      expect(vi.mocked(serverUpdateDataByCalendarEventId)).toHaveBeenCalledWith(
+        "bookings",
+        "test-event-id",
+        { webcheckoutCartNumber: "CK-2614" }
+      );
+    });
+
+    it("should update calendar event description with cart number", async () => {
+      vi.mocked(serverUpdateDataByCalendarEventId).mockResolvedValue(undefined);
+
+      // Mock successful calendar update
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ message: "Event updated successfully" }),
+      });
+
+      const request = createMockUpdateRequest({
+        calendarEventId: "test-event-id",
+        cartNumber: "CK-2614",
+        userEmail: "admin@nyu.edu",
+      });
+
+      await UpdateCartPost(request);
+
+      // Check that calendar API was called
+      expect(mockFetch).toHaveBeenCalledWith(
+        "http://localhost:3000/api/calendarEvents",
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            calendarEventId: "test-event-id",
+            newValues: {},
+          }),
+        }
+      );
+    });
+
+    it("should handle cart number removal (null value)", async () => {
+      vi.mocked(serverUpdateDataByCalendarEventId).mockResolvedValue(undefined);
+
+      // Mock successful calendar update
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ message: "Event updated successfully" }),
+      });
+
+      const request = createMockUpdateRequest({
+        calendarEventId: "test-event-id",
+        cartNumber: null,
+        userEmail: "admin@nyu.edu",
+      });
+
+      const response = await UpdateCartPost(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(vi.mocked(serverUpdateDataByCalendarEventId)).toHaveBeenCalledWith(
+        "bookings",
+        "test-event-id",
+        { webcheckoutCartNumber: null }
+      );
+    });
+
+    it("should continue if calendar update fails", async () => {
+      vi.mocked(serverUpdateDataByCalendarEventId).mockResolvedValue(undefined);
+
+      // Mock failed calendar update
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        text: () => Promise.resolve("Calendar update failed"),
+      });
+
+      const request = createMockUpdateRequest({
+        calendarEventId: "test-event-id",
+        cartNumber: "CK-2614",
+        userEmail: "admin@nyu.edu",
+      });
+
+      const response = await UpdateCartPost(request);
+      const data = await response.json();
+
+      // Should still return success even if calendar update fails
+      expect(response.status).toBe(200);
+      expect(data.success).toBe(true);
+      expect(data.message).toBe("Cart number updated successfully");
+    });
+  });
+
+  describe("Error Handling", () => {
+    beforeEach(() => {
+      const mockAdminUsers = [{ email: "admin@nyu.edu" }];
+      const mockPaUsers = [{ email: "pa@nyu.edu" }];
+
+      vi.mocked(serverFetchAllDataFromCollection)
+        .mockResolvedValueOnce(mockAdminUsers)
+        .mockResolvedValueOnce(mockPaUsers);
+    });
+
+    it("should return 500 if database update fails", async () => {
+      vi.mocked(serverUpdateDataByCalendarEventId).mockRejectedValue(
+        new Error("Database error")
+      );
+
+      const request = createMockUpdateRequest({
+        calendarEventId: "test-event-id",
+        cartNumber: "CK-2614",
+        userEmail: "admin@nyu.edu",
+      });
+
+      const response = await UpdateCartPost(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(500);
+      expect(data.error).toBe("Internal server error");
     });
   });
 });

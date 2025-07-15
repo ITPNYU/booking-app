@@ -50,7 +50,19 @@ export async function GET(
       );
     }
 
-    const authData = await authResponse.json();
+    let authData;
+    try {
+      authData = await authResponse.json();
+    } catch (parseError) {
+      console.error("WebCheckout auth response parsing error:", parseError);
+      return NextResponse.json(
+        {
+          error: "WebCheckout authentication failed - invalid JSON response",
+          details: `Response content type: ${authResponse.headers.get("content-type")}`,
+        },
+        { status: 502 },
+      );
+    }
 
     if (authData.status !== "ok") {
       return NextResponse.json(
@@ -100,7 +112,20 @@ export async function GET(
       );
     }
 
-    const webCheckoutResponse = await response.json();
+    let webCheckoutResponse;
+    try {
+      webCheckoutResponse = await response.json();
+    } catch (parseError) {
+      console.error("WebCheckout search response parsing error:", parseError);
+      return NextResponse.json(
+        {
+          error: "WebCheckout API response failed - invalid JSON response",
+          details: `Response content type: ${response.headers.get("content-type")}`,
+        },
+        { status: 502 },
+      );
+    }
+
     if (webCheckoutResponse.status === "unauthenticated") {
       return NextResponse.json(
         { error: "WebCheckout session is invalid or expired" },
@@ -179,7 +204,22 @@ export async function GET(
       );
     }
 
-    const allocationData = await allocationGetResponse.json();
+    let allocationData;
+    try {
+      allocationData = await allocationGetResponse.json();
+    } catch (parseError) {
+      console.error(
+        "WebCheckout allocation response parsing error:",
+        parseError,
+      );
+      return NextResponse.json(
+        {
+          error: "WebCheckout allocation/get failed - invalid JSON response",
+          details: `Response content type: ${allocationGetResponse.headers.get("content-type")}`,
+        },
+        { status: 502 },
+      );
+    }
 
     if (allocationData.status !== "ok") {
       return NextResponse.json(
