@@ -99,6 +99,10 @@ export default function UserRolePage({
   const isVIP = formContext === FormContextLevel.VIP;
   const isWalkIn = formContext === FormContextLevel.WALK_IN;
 
+  // Create prefix for affiliation header
+  const prefix = isVIP ? "VIP" : isWalkIn ? "Walk-In" : "";
+  const affiliationTitle = prefix ? `${prefix} Affiliation` : "Affiliation";
+
   useEffect(() => {
     if (!user) {
       router.push("/signin");
@@ -165,7 +169,7 @@ export default function UserRolePage({
         marginTop={6}
         width={{ xs: "100%", md: "50%" }}
       >
-        <Typography fontWeight={500}>Affiliation</Typography>
+        <Typography fontWeight={500}>{affiliationTitle}</Typography>
         <Dropdown
           value={department}
           updateValue={setDepartment}
