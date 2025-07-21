@@ -226,8 +226,7 @@ export default function NavBar() {
 
     if (
       supportVIP &&
-      (selectedView === PagePermission.ADMIN ||
-        selectedView === PagePermission.LIAISON)
+      selectedView === PagePermission.ADMIN
     ) {
       return (
         <Button
