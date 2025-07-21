@@ -118,23 +118,20 @@ describe("Validation Utils", () => {
 
   describe("validateNetId", () => {
     const validateNetId = (value: string) => {
-      const netIdRegex = /^[a-zA-Z0-9]+$/;
+      const netIdRegex = /^[a-zA-Z]{2,3}[0-9]{1,6}$/;
       if (!value || value.trim().length === 0) {
         return "NetID is required";
       }
-      if (value.length < 3 || value.length > 8) {
-        return "NetID must be between 3 and 8 characters";
-      }
       if (!netIdRegex.test(value)) {
-        return "NetID can only contain letters and numbers";
+        return "NetID must be 2-3 letters followed by 1-6 numbers";
       }
       return true;
     };
 
     it("validates correct NetID formats", () => {
       expect(validateNetId("abc123")).toBe(true);
-      expect(validateNetId("test123")).toBe(true);
-      expect(validateNetId("user1")).toBe(true);
+      expect(validateNetId("ab123")).toBe(true);
+      expect(validateNetId("abc123456")).toBe(true);
     });
 
     it("rejects empty NetID", () => {
@@ -142,27 +139,39 @@ describe("Validation Utils", () => {
       expect(validateNetId("   ")).toBe("NetID is required");
     });
 
-    it("rejects NetID that is too short or too long", () => {
-      expect(validateNetId("ab")).toBe(
-        "NetID must be between 3 and 8 characters"
+    it("rejects NetID that doesn't match the pattern", () => {
+      expect(validateNetId("a123")).toBe(
+        "NetID must be 2-3 letters followed by 1-6 numbers"
       );
-      expect(validateNetId("verylongnetid")).toBe(
-        "NetID must be between 3 and 8 characters"
+      expect(validateNetId("123")).toBe(
+        "NetID must be 2-3 letters followed by 1-6 numbers"
+      );
+      expect(validateNetId("N12345678")).toBe(
+        "NetID must be 2-3 letters followed by 1-6 numbers"
+      );
+      expect(validateNetId("ab")).toBe(
+        "NetID must be 2-3 letters followed by 1-6 numbers"
+      );
+      expect(validateNetId("abcd123")).toBe(
+        "NetID must be 2-3 letters followed by 1-6 numbers"
+      );
+      expect(validateNetId("abc1234567")).toBe(
+        "NetID must be 2-3 letters followed by 1-6 numbers"
       );
     });
 
     it("rejects NetID with invalid characters", () => {
       expect(validateNetId("test-123")).toBe(
-        "NetID can only contain letters and numbers"
+        "NetID must be 2-3 letters followed by 1-6 numbers"
       );
       expect(validateNetId("test_123")).toBe(
-        "NetID can only contain letters and numbers"
+        "NetID must be 2-3 letters followed by 1-6 numbers"
       );
       expect(validateNetId("test@123")).toBe(
-        "NetID can only contain letters and numbers"
+        "NetID must be 2-3 letters followed by 1-6 numbers"
       );
       expect(validateNetId("test 123")).toBe(
-        "NetID can only contain letters and numbers"
+        "NetID must be 2-3 letters followed by 1-6 numbers"
       );
     });
   });
