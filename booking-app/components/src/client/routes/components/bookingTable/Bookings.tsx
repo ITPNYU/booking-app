@@ -9,6 +9,7 @@ import {
 import { DataGrid, GridSortModel } from "@mui/x-data-grid";
 import React, { useContext, useEffect, useMemo, useState } from "react";
 import {
+  BookingOrigin,
   BookingRow,
   BookingStatusLabel,
   PageContextLevel,
@@ -172,7 +173,9 @@ export const Bookings: React.FC<BookingsProps> = ({
         flex: 1,
         renderHeader: () => <TableCell>Origin</TableCell>,
         renderCell: (params) => (
-          <TableCell>{formatOrigin(params.row.origin ?? "User")}</TableCell>
+          <TableCell>
+            {formatOrigin(params.row.origin ?? BookingOrigin.USER)}
+          </TableCell>
         ),
       },
       {
