@@ -62,6 +62,16 @@ type RoomApplicationType =
   | "multi"
   | "specific";
 
+/**
+ * Check if two sorted arrays are equal
+ */
+function areSortedArraysEqual<T>(arr1: T[], arr2: T[]): boolean {
+  if (arr1.length !== arr2.length) {
+    return false;
+  }
+  return arr1.every((item, index) => item === arr2[index]);
+}
+
 export default function BookingBlackoutPeriods() {
   const { roomSettings } = useContext(DatabaseContext);
   const [blackoutPeriods, setBlackoutPeriods] = useState<BlackoutPeriod[]>([]);
@@ -380,7 +390,10 @@ export default function BookingBlackoutPeriods() {
     ).sort((a, b) => a - b);
 
     const isAllRooms = areSortedArraysEqual(allRoomIds, periodRoomIds);
-    const isProductionRooms = areSortedArraysEqual(productionRoomIds, periodRoomIds);
+    const isProductionRooms = areSortedArraysEqual(
+      productionRoomIds,
+      periodRoomIds
+    );
     const isEventRooms = areSortedArraysEqual(eventRoomIds, periodRoomIds);
     const isMultiRooms = areSortedArraysEqual(multiRoomIds, periodRoomIds);
 
