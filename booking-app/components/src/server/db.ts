@@ -141,34 +141,42 @@ export const decline = async (id: string, email: string, reason?: string) => {
   );
 };
 
-// If cancel within 24 hours of event or o, add to pre-ban logs.
+function isPolicyViolation(doc: any): boolean {
+  // Exclude vip and walk-in
+  if (!doc || !doc.startDate || !doc.requestedAt) return false;
+  return true;
+}
+
+function isLateCancel(doc: any): boolean {
+  if (!isPolicyViolation(doc)) return false;
+  const now = Timestamp.now();
+  const eventDate = doc.startDate;
+  const requestedAt = doc.requestedAt;
+  const timeToEvent = eventDate.toDate().getTime() - now.toDate().getTime();
+  const hoursToEvent = timeToEvent / (1000 * 60 * 60);
+  const timeSinceCreation =
+    now.toDate().getTime() - requestedAt.toDate().getTime();
+  const hoursSinceCreation = timeSinceCreation / (1000 * 60 * 60);
+  return hoursToEvent <= 24 && hoursSinceCreation > 1;
+}
+
 function checkAndLogLateCancellation(
   doc: any,
   bookingId: string,
   netId: string
 ) {
-  if (!doc) return;
-
+  if (!isLateCancel(doc)) return;
   const now = Timestamp.now();
-  const eventDate = doc.startDate;
-  const requestedAt = doc.requestedAt;
-
-  // Calculate time differences
-  const timeToEvent = eventDate.toDate().getTime() - now.toDate().getTime();
-  const hoursToEvent = timeToEvent / (1000 * 60 * 60);
-
-  // If event is more than 24 hours away, no penalty.
-  if (hoursToEvent > 24) return;
-
-  // If within 1 hour grace period of creation, no penalty.
-  const timeSinceCreation =
-    now.toDate().getTime() - requestedAt.toDate().getTime();
-  const hoursSinceCreation = timeSinceCreation / (1000 * 60 * 60);
-  if (hoursSinceCreation <= 1) return;
-
-  // Add to pre-ban logs if outside grace period.
   const log = { netId, bookingId, lateCancelDate: now };
   clientSaveDataToFirestore(TableNames.PRE_BAN_LOGS, log);
+}
+
+async function getViolationCount(netId: string): Promise<number> {
+  const preBanLogs = await clientFetchAllDataFromCollection(
+    TableNames.PRE_BAN_LOGS,
+    [where("netId", "==", netId)]
+  );
+  return preBanLogs.length;
 }
 
 export const cancel = async (id: string, email: string, netId: string) => {
@@ -177,10 +185,11 @@ export const cancel = async (id: string, email: string, netId: string) => {
     canceledBy: email,
   });
 
-  const doc = await clientGetDataByCalendarEventId<{
-    id: string;
-    requestNumber: number;
-  }>(TableNames.BOOKING, id);
+  const doc = await clientGetDataByCalendarEventId<Booking>(
+    TableNames.BOOKING,
+    id
+  );
+  // Always call for pre-ban logging
   checkAndLogLateCancellation(doc, id, netId);
 
   // Log the cancel action
@@ -196,8 +205,20 @@ export const cancel = async (id: string, email: string, netId: string) => {
 
   //@ts-ignore
   const guestEmail = doc ? doc.email : null;
-  const headerMessage =
-    "Your reservation request for Media Commons has been cancelled. For detailed reasons regarding this decision, please contact us at mediacommons.reservations@nyu.edu.";
+
+  let headerMessage =
+    "The request has been canceled.<br /><br />Thank you!<br />";
+  let ccHeaderMessage = headerMessage;
+
+  if (isLateCancel(doc)) {
+    const violationCount = await getViolationCount(netId);
+    headerMessage = `Your reservation has been canceled and recorded as a "late cancelation," as it was canceled within 24 hours of the scheduled time.<br /><br />
+We want to remind you that the Media Commons has a revocation policy regarding Late Cancelations and No Shows (<a href="https://sites.google.com/nyu.edu/370jmediacommons/about/our-policy" target="_blank">IV. Cancelation / V. 'No Show'</a>). Currently, you have <b>${violationCount}</b> on your account. After the third violation, a member of our team will reach out to discuss the next steps. Our aim with this policy is to promote accountability and a culture of sharing equitably within our community.<br /><br />
+We understand that unexpected situations come up, and we ask you to cancel reservations at least 24 hours in advance whenever possible to help maintain a fair system for everyone. You can easily cancel through the <a href="https://sites.google.com/nyu.edu/370jmediacommons/reservations/booking-tool" target="_blank">booking tool on our website</a> or by emailing us at mediacommons.reservations@nyu.edu.<br /><br />
+If you have any questions or need further assistance, please don't hesitate to reach out. We're here to support you!`;
+    // ccHeaderMessage remains the original cancel message
+  }
+
   clientSendBookingDetailEmail(
     id,
     guestEmail,
@@ -207,7 +228,7 @@ export const cancel = async (id: string, email: string, netId: string) => {
   clientSendBookingDetailEmail(
     id,
     getCancelCcEmail(),
-    headerMessage,
+    ccHeaderMessage,
     BookingStatusLabel.CANCELED
   );
   const response = await fetch(
@@ -391,14 +412,16 @@ export const noShow = async (id: string, email: string, netId: string) => {
     noShowedBy: email,
   });
 
-  const doc = await clientGetDataByCalendarEventId<{
-    id: string;
-    requestNumber: number;
-  }>(TableNames.BOOKING, id);
+  const doc = await clientGetDataByCalendarEventId<Booking>(
+    TableNames.BOOKING,
+    id
+  );
 
-  // Add to pre-ban logs
-  const log = { netId, bookingId: id, noShowDate: Timestamp.now() };
-  clientSaveDataToFirestore(TableNames.PRE_BAN_LOGS, log);
+  // Add to pre-ban logs only if policy violation
+  if (isPolicyViolation(doc)) {
+    const log = { netId, bookingId: id, noShowDate: Timestamp.now() };
+    clientSaveDataToFirestore(TableNames.PRE_BAN_LOGS, log);
+  }
 
   // Log the no-show action
   if (doc) {
@@ -414,8 +437,11 @@ export const noShow = async (id: string, email: string, netId: string) => {
   //@ts-ignore
   const guestEmail = doc ? doc.email : null;
 
-  const headerMessage =
-    "You did not check-in for your Media Commons Reservation and have been marked as a no-show.";
+  const violationCount = await getViolationCount(netId);
+  const headerMessage = `You have been marked as a 'No Show' and your reservation has been canceled due to not checking in within the first 30 minutes of your reservation.<br /><br />
+We want to remind you that the Media Commons has a revocation policy regarding Late Cancelations and No Shows (<a href="https://sites.google.com/nyu.edu/370jmediacommons/about/our-policy" target="_blank">IV. Cancelation / V. 'No Show'</a>). Currently, you have <b>${violationCount}</b> on your account. After the third violation, a member of our team will reach out to discuss the next steps. Our aim with this policy is to promote accountability and a culture of sharing equitably within our community.<br /><br />
+We understand that unexpected situations come up, and we encourage you to cancel reservations at least 24 hours in advance whenever possible to help maintain a fair system for everyone. You can easily cancel through the <a href="https://sites.google.com/nyu.edu/370jmediacommons/reservations/booking-tool" target="_blank">booking tool on our website</a> or by emailing us at mediacommons.reservations@nyu.edu.<br /><br />
+If you have any questions or need further assistance, please don't hesitate to reach out. We're here to support you!`;
   clientSendBookingDetailEmail(
     id,
     guestEmail,
