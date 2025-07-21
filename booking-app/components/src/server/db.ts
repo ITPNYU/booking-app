@@ -115,10 +115,10 @@ export const decline = async (id: string, email: string, reason?: string) => {
     "Your reservation request for Media Commons has been declined.";
 
   if (reason) {
-    headerMessage += ` Reason: ${reason}`;
+    headerMessage += ` Reason: ${reason}. <br /><br />If you have any questions or need further assistance, please don't hesitate to reach out.`;
   } else {
     headerMessage +=
-      " For detailed reasons regarding this decision, please contact us at mediacommons.reservations@nyu.edu.";
+      "<br />If you have any questions or need further assistance, please don't hesitate to reach out.";
   }
   clientSendBookingDetailEmail(
     id,
