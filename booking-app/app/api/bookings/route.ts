@@ -25,7 +25,7 @@ import {
 import { NextRequest, NextResponse } from "next/server";
 
 import { sendHTMLEmail } from "@/app/lib/sendHTMLEmail";
-import { CALENDAR_HIDE_STATUS, TableNames } from "@/components/src/policy";
+import { CALENDAR_HIDE_STATUS, TableNames, getTenantCollection } from "@/components/src/policy";
 import { getCalendarClient } from "@/lib/googleClient";
 import { Timestamp } from "firebase-admin/firestore";
 import { DateSelectArg } from "fullcalendar";
@@ -235,7 +235,7 @@ async function checkOverlap(
 }
 
 export async function POST(request: NextRequest) {
-  const { email, selectedRooms, bookingCalendarInfo, data, isAutoApproval } =
+  const { email, selectedRooms, bookingCalendarInfo, data, isAutoApproval, tenant } =
     await request.json();
   const hasOverlap = await checkOverlap(selectedRooms, bookingCalendarInfo);
   if (hasOverlap) {
@@ -246,6 +246,9 @@ export async function POST(request: NextRequest) {
   }
 
   console.log("data", data);
+
+  // Get tenant-specific collection name
+  const collectionName = getTenantCollection(tenant || "mc");
 
   // Generate Sequential ID early so it can be used in calendar description
   const sequentialId = await serverGetNextSequentialId("bookings");
@@ -295,7 +298,7 @@ export async function POST(request: NextRequest) {
 
   let doc;
   try {
-    doc = await serverSaveDataToFirestore(TableNames.BOOKING, {
+    doc = await serverSaveDataToFirestore(collectionName, {
       calendarEventId,
       roomId: selectedRoomIds,
       email,

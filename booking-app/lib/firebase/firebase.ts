@@ -68,6 +68,21 @@ export const clientFetchAllDataFromCollection = async <T>(
   return data;
 };
 
+export const clientFetchAllDataFromCollectionString = async <T>(
+  collectionName: string,
+  queryConstraints: QueryConstraint[] = []
+): Promise<T[]> => {
+  const db = getDb();
+  const colRef = collection(db, collectionName);
+  const q = query(colRef, ...queryConstraints);
+  const snapshot = await getDocs(q);
+  const data = snapshot.docs.map((document) => ({
+    id: document.id,
+    ...(document.data() as unknown as T),
+  }));
+  return data;
+};
+
 export const clientFetchAllDataFromCollectionWithLimitAndOffset = async <T>(
   collectionName: TableNames,
   limitNumber: number,

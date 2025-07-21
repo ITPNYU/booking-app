@@ -1,14 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { TableNames } from "@/components/src/policy";
+import { TableNames, getTenantCollection } from "@/components/src/policy";
 import { Booking, RoomSetting } from "@/components/src/types";
-import { serverFetchAllDataFromCollection } from "@/lib/firebase/server/adminDb";
+import { serverFetchAllDataFromCollection, serverFetchAllDataFromCollectionString } from "@/lib/firebase/server/adminDb";
 import { format } from "date-fns";
 import { parse } from "json2csv";
 
 export async function GET(request: NextRequest) {
+  const { searchParams } = new URL(request.url);
+  const tenant = searchParams.get("tenant") || "mc";
+  const collectionName = getTenantCollection(tenant);
+
   const [bookings, rooms] = await Promise.all([
-    serverFetchAllDataFromCollection<Booking>(TableNames.BOOKING),
+    serverFetchAllDataFromCollectionString<Booking>(collectionName),
     serverFetchAllDataFromCollection<RoomSetting>(TableNames.RESOURCES),
   ]);
 

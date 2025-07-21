@@ -1,12 +1,13 @@
 import { useCallback, useContext } from "react";
 import { FormContextLevel, Inputs, PagePermission } from "../../../../types";
 
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { DatabaseContext } from "../../components/Provider";
 import { BookingContext } from "../bookingProvider";
 import useCalculateOverlap from "./useCalculateOverlap";
 export default function useSubmitBooking(formContext: FormContextLevel) {
   const router = useRouter();
+  const { tenant } = useParams();
   const {
     liaisonUsers,
     userEmail,
@@ -149,6 +150,7 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
           liaisonUsers,
           data,
           isAutoApproval,
+          tenant,
           // Add modifiedBy as a top-level parameter for modification context
           ...(isModification && { modifiedBy: userEmail }),
           ...(requestParams.body ?? {}),

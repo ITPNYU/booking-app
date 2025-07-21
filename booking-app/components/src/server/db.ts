@@ -15,6 +15,7 @@ import {
   clientSaveDataToFirestore,
   clientUpdateDataInFirestore,
   getPaginatedData,
+  clientFetchAllDataFromCollectionString,
 } from "@/lib/firebase/firebase";
 import { Timestamp, where } from "firebase/firestore";
 import {
@@ -23,17 +24,19 @@ import {
   clientGetFinalApproverEmail,
   getApprovalCcEmail,
   getCancelCcEmail,
+  getTenantCollection,
 } from "../policy";
 
 import { clientUpdateDataByCalendarEventId } from "@/lib/firebase/client/clientDb";
 import { roundTimeUp } from "../client/utils/date";
 import { getBookingToolDeployUrl } from "./ui";
 
-export const fetchAllFutureBooking = async <Booking>(): Promise<Booking[]> => {
+export const fetchAllFutureBooking = async <Booking>(tenant?: string): Promise<Booking[]> => {
+  const collectionName = getTenantCollection(tenant || "mc");
   const now = Timestamp.now();
   const futureQueryConstraints = [where("endDate", ">", now)];
-  return clientFetchAllDataFromCollection<Booking>(
-    TableNames.BOOKING,
+  return clientFetchAllDataFromCollectionString<Booking>(
+    collectionName,
     futureQueryConstraints
   );
 };
@@ -42,16 +45,19 @@ export const fetchAllBookings = async <Booking>(
   pagePermission: PagePermission,
   limit: number,
   filters: Filters,
-  last: any
+  last: any,
+  tenant?: string
 ): Promise<Booking[]> => {
+  const collectionName = getTenantCollection(tenant || "mc");
+  
   if (
     pagePermission === PagePermission.ADMIN ||
     pagePermission === PagePermission.LIAISON ||
     pagePermission === PagePermission.PA
   ) {
-    return getPaginatedData<Booking>(TableNames.BOOKING, limit, filters, last);
+    return getPaginatedData<Booking>(collectionName, limit, filters, last);
   } else {
-    return getPaginatedData<Booking>(TableNames.BOOKING, limit, filters, last);
+    return getPaginatedData<Booking>(collectionName, limit, filters, last);
   }
 };
 

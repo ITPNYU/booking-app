@@ -1,4 +1,4 @@
-import { TableNames, getApprovalCcEmail } from "@/components/src/policy";
+import { TableNames, getApprovalCcEmail, getTenantCollection } from "@/components/src/policy";
 import {
   serverGetRoomCalendarId,
   serverSendBookingDetailEmail,
@@ -25,6 +25,7 @@ export async function POST(request: NextRequest) {
     data,
     origin = "walk-in",
     type = "walk-in",
+    tenant,
   } = await request.json();
 
   console.log("data", data);
@@ -76,8 +77,10 @@ export async function POST(request: NextRequest) {
     },
   );
 
+  // Get tenant-specific collection name
+  const collectionName = getTenantCollection(tenant || "mc");
   const sequentialId = await serverGetNextSequentialId("bookings");
-  const doc = await serverSaveDataToFirestore(TableNames.BOOKING, {
+  const doc = await serverSaveDataToFirestore(collectionName, {
     calendarEventId,
     roomId: selectedRoomIds.join(", "),
     email,
