@@ -101,6 +101,29 @@ export const serverFetchAllDataFromCollection = async <T extends DocumentData>(
   return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
 };
 
+export const serverFetchAllDataFromCollectionString = async <T extends DocumentData>(
+  collectionName: string,
+  queryConstraints: Constraint[] = []
+): Promise<T[]> => {
+  const collectionRef: CollectionReference<T> = db.collection(
+    collectionName
+  ) as CollectionReference<T>;
+
+  let query: Query<T> = collectionRef;
+
+  queryConstraints.forEach((constraint) => {
+    query = query.where(
+      constraint.field,
+      constraint.operator,
+      constraint.value
+    );
+  });
+
+  const snapshot: QuerySnapshot<T> = await query.get();
+
+  return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+};
+
 export const serverGetDataByCalendarEventId = async <T>(
   collectionName: TableNames,
   calendarEventId: string

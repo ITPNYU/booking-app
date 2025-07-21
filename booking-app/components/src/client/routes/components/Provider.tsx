@@ -1,4 +1,4 @@
-import { ApproverLevel, TableNames } from "@/components/src/policy";
+import { ApproverLevel, TableNames, getTenantCollection } from "@/components/src/policy";
 import React, { createContext, useEffect, useMemo, useState } from "react";
 import {
   AdminUser,
@@ -26,6 +26,7 @@ import {
   fetchAllFutureBooking,
 } from "@/components/src/server/db";
 import { clientFetchAllDataFromCollection } from "@/lib/firebase/firebase";
+import { useParams } from "next/navigation";
 
 export interface DatabaseContextType {
   adminUsers: AdminUser[];
@@ -116,22 +117,23 @@ export const DatabaseProvider = ({
 }: {
   children: React.ReactNode;
 }) => {
+  const { user } = useAuth();
+  const { tenant } = useParams();
+  const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
   const [bannedUsers, setBannedUsers] = useState<Ban[]>([]);
   const [blackoutPeriods, setBlackoutPeriods] = useState<BlackoutPeriod[]>([]);
   // const [futureBookings, setFutureBookings] = useState<Booking[]>([]);
   const [bookingsLoading, setBookingsLoading] = useState<boolean>(true);
   const [allBookings, setAllBookings] = useState<Booking[]>([]);
-  const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
   const [liaisonUsers, setLiaisonUsers] = useState<Approver[]>([]);
   const [equipmentUsers, setEquipmentUsers] = useState<Approver[]>([]);
   const [departmentNames, setDepartmentName] = useState<DepartmentType[]>([]);
   const [operationHours, setOperationHours] = useState<OperationHours[]>([]);
   const [paUsers, setPaUsers] = useState<PaUser[]>([]);
+  const [superAdminUsers, setSuperAdminUsers] = useState<AdminUser[]>([]);
   const [policySettings, setPolicySettings] = useState<PolicySettings>({
     finalApproverEmail: "",
   });
-  const [loadMoreEnabled, setLoadMoreEnabled] = useState<boolean>(true);
-
   const [roomSettings, setRoomSettings] = useState<RoomSetting[]>([]);
   const [safetyTrainedUsers, setSafetyTrainedUsers] = useState<
     SafetyTraining[]
@@ -141,18 +143,16 @@ export const DatabaseProvider = ({
   const [userApiData, setUserApiData] = useState<UserApiData | undefined>(
     undefined
   );
-  const [lastItem, setLastItem] = useState<any>(null);
+  const [loadMoreEnabled, setLoadMoreEnabled] = useState<boolean>(true);
   const [filters, setFilters] = useState<Filters>({
     dateRange: "",
     sortField: "startDate",
   });
+  const [lastItem, setLastItem] = useState<any>(null);
+  const [preBanLogs, setPreBanLogs] = useState<PreBanLog[]>([]);
   const LIMIT = 10;
 
-  const { user } = useAuth();
   const netId = useMemo(() => userEmail?.split("@")[0], [userEmail]);
-
-  const [preBanLogs, setPreBanLogs] = useState<PreBanLog[]>([]);
-  const [superAdminUsers, setSuperAdminUsers] = useState<AdminUser[]>([]);
 
   useEffect(() => {
     const fetchUserApiData = async () => {
@@ -236,7 +236,7 @@ export const DatabaseProvider = ({
   const fetchFutureBookings = async () => {
     try {
       setBookingsLoading(true);
-      const fetchedData = await fetchAllFutureBooking();
+      const fetchedData = await fetchAllFutureBooking(tenant as string);
       setAllBookings(fetchedData as Booking[]);
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -255,7 +255,8 @@ export const DatabaseProvider = ({
         pagePermission,
         LIMIT,
         filters,
-        lastItem
+        lastItem,
+        tenant as string
       );
 
       if (clicked && bookingsResponse.length === 0) {

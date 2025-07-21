@@ -22,6 +22,18 @@ export enum TableNames {
   BLACKOUT_PERIODS = "blackoutPeriods",
 }
 
+// Function to get tenant-specific collection name
+export const getTenantCollection = (tenant: string): string => {
+  switch (tenant) {
+    case "mc":
+      return "bookings";
+    case "itp":
+      return "itp-bookings";
+    default:
+      return "bookings"; // fallback to default
+  }
+};
+
 export const CALENDAR_HIDE_STATUS = [
   BookingStatusLabel.NO_SHOW,
   BookingStatusLabel.CANCELED,

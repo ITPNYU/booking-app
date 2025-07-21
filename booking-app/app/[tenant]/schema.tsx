@@ -9,6 +9,7 @@ export const schema: Record<string, SchemaContextType> = {
     supportVIP: true,
     supportWalkIn: true,
     resourceName: "Room(s)",
+    collection: "bookings",
     policy: `
     <p style="font-weight: 700; font-size: 1rem; line-height: 1.5; margin-top: 24px;">
       Booking Confirmation
@@ -209,6 +210,7 @@ export const schema: Record<string, SchemaContextType> = {
     logo: SVGLOGO,
     nameForPolicy: "ITP",
     resourceName: "Resource(s)",
+    collection: "itp-bookings",
     policy: "<p>ITP Policy</p>",
     programs: ["ALT"],
     roles: ["Student"],

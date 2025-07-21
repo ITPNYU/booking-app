@@ -30,6 +30,7 @@ export type SchemaContextType = {
   supportVIP: boolean;
   supportWalkIn: boolean;
   resourceName: string;
+  collection: string; // Collection name for this tenant
 };
 
 export const SchemaContext = createContext<SchemaContextType>({
@@ -49,6 +50,7 @@ export const SchemaContext = createContext<SchemaContextType>({
   resourceName: "",
   programMapping: {},
   roleMapping: {},
+  collection: "",
 });
 
 export const useTenantSchema = () => useContext(SchemaContext);
