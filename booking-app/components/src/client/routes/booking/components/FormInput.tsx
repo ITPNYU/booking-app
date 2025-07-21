@@ -412,7 +412,7 @@ export default function FormInput({
             }
             required
             pattern={{
-              value: /[a-zA-Z]{1,3}[0-9]{1,6}/,
+              value: /^[a-zA-Z]{2,3}[0-9]{1,6}$/,
               message: "Invalid Net ID",
             }}
             {...{ control, errors, trigger }}
