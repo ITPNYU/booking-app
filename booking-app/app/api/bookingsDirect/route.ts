@@ -3,7 +3,7 @@ import {
   serverGetRoomCalendarId,
   serverSendBookingDetailEmail,
 } from "@/components/src/server/admin";
-import { BookingStatusLabel } from "@/components/src/types";
+import { BookingOrigin, BookingStatusLabel } from "@/components/src/types";
 import {
   logServerBookingChange,
   serverGetFinalApproverEmail,
@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
     selectedRooms,
     bookingCalendarInfo,
     data,
-    origin = "walk-in",
+    origin = BookingOrigin.WALK_IN,
     type = "walk-in",
   } = await request.json();
 

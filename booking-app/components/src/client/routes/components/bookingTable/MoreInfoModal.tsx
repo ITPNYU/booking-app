@@ -32,6 +32,7 @@ import useSortBookingHistory from "../../hooks/useSortBookingHistory";
 import { DatabaseContext } from "../Provider";
 import { default as CustomTable } from "../Table";
 import StackedTableCell from "./StackedTableCell";
+import { formatOrigin } from "@/components/src/utils/formatters";
 
 interface Props {
   booking: BookingRow;
@@ -486,7 +487,7 @@ export default function MoreInfoModal({
                 {booking.origin && (
                   <TableRow>
                     <LabelCell>Origin</LabelCell>
-                    <TableCell>{booking.origin}</TableCell>
+                    <TableCell>{formatOrigin(booking.origin)}</TableCell>
                   </TableRow>
                 )}
               </TableBody>

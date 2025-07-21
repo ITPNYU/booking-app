@@ -1,5 +1,10 @@
 import { useCallback, useContext } from "react";
-import { FormContextLevel, Inputs, PagePermission } from "../../../../types";
+import {
+  BookingOrigin,
+  FormContextLevel,
+  Inputs,
+  PagePermission,
+} from "../../../../types";
 
 import { useRouter } from "next/navigation";
 import { DatabaseContext } from "../../components/Provider";
@@ -141,8 +146,8 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          origin: isVIP ? "vip" : "walk-in",
-          type: isVIP ? "VIP" : "walk-in",
+          origin: isVIP ? BookingOrigin.VIP : BookingOrigin.WALK_IN,
+          type: isVIP ? BookingOrigin.VIP : BookingOrigin.WALK_IN,
           email,
           selectedRooms,
           bookingCalendarInfo,

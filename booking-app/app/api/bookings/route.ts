@@ -14,6 +14,7 @@ import {
 import {
   ApproverType,
   BookingFormDetails,
+  BookingOrigin,
   BookingStatusLabel,
   RoomSetting,
 } from "@/components/src/types";
@@ -29,6 +30,7 @@ import { CALENDAR_HIDE_STATUS, TableNames } from "@/components/src/policy";
 import { getCalendarClient } from "@/lib/googleClient";
 import { Timestamp } from "firebase-admin/firestore";
 import { DateSelectArg } from "fullcalendar";
+import { formatOrigin } from "@/components/src/utils/formatters";
 
 // Helper to build booking contents object for calendar descriptions
 const buildBookingContents = (
@@ -169,6 +171,7 @@ async function handleBookingApprovalEmails(
       endDate: bookingCalendarInfo?.endStr,
       headerMessage: "This is a request email for first approval.",
       requestNumber: sequentialId,
+      origin: formatOrigin(data.origin) ?? BookingOrigin.USER,
     };
     console.log("userEventInputs", userEventInputs);
     await sendApprovalEmail(firstApprovers, userEventInputs);
@@ -265,7 +268,7 @@ export async function POST(request: NextRequest) {
     endDateObj,
     BookingStatusLabel.REQUESTED,
     sequentialId,
-    "user",
+    BookingOrigin.USER,
   );
 
   const description =
@@ -304,7 +307,7 @@ export async function POST(request: NextRequest) {
       requestNumber: sequentialId,
       equipmentCheckedOut: false,
       requestedAt: Timestamp.now(),
-      origin: "user",
+      origin: BookingOrigin.USER,
       ...data,
     });
 
@@ -448,7 +451,7 @@ export async function PUT(request: NextRequest) {
     calendarEventId: newCalendarEventId,
     equipmentCheckedOut: false,
     requestedAt: Timestamp.now(),
-    origin: "user",
+    origin: BookingOrigin.USER,
   };
 
   await serverUpdateDataByCalendarEventId(

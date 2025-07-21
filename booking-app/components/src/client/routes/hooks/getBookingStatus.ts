@@ -1,4 +1,4 @@
-import { Booking, BookingStatusLabel } from "../../../types";
+import { Booking, BookingOrigin, BookingStatusLabel } from "../../../types";
 
 import { Timestamp } from "firebase/firestore";
 
@@ -69,11 +69,11 @@ export default function getBookingStatus(booking: Booking): BookingStatusLabel {
     } else if (booking.requestedAt != undefined) {
       return BookingStatusLabel.REQUESTED;
     } else if (
-      booking.origin === "walk-in" ||
+      booking.origin === BookingOrigin.WALK_IN ||
       booking.walkedInAt != undefined
     ) {
       return BookingStatusLabel.APPROVED;
-    } else if (booking.origin === "vip") {
+    } else if (booking.origin === BookingOrigin.VIP) {
       return BookingStatusLabel.APPROVED;
     } else {
       return BookingStatusLabel.UNKNOWN;

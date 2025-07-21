@@ -69,7 +69,7 @@ export type BookingStatus = {
   noShowedAt: Timestamp;
   noShowedBy: string;
   walkedInAt: Timestamp;
-  origin: "walk-in" | "vip" | "user" | "walkIn" | "pregame";
+  origin: BookingOrigin;
 };
 
 // the order here is the order these are displayed as table filters
@@ -335,3 +335,35 @@ export interface BookingLog {
   note?: any;
   requestNumber: number;
 }
+
+export enum BookingOrigin {
+  USER = "user",
+  ADMIN = "admin",
+  WALK_IN = "walk-in",
+  VIP = "vip",
+  SYSTEM = "system",
+  PREGAME = "pre-game",
+}
+
+export const formatOrigin = (
+  origin: BookingOrigin | string | undefined
+): string => {
+  if (!origin) return "User";
+  switch (origin) {
+    case BookingOrigin.USER:
+      return "User";
+    case BookingOrigin.ADMIN:
+      return "Admin";
+    case BookingOrigin.WALK_IN:
+      return "Walk-In";
+    case BookingOrigin.VIP:
+      return "VIP";
+    case BookingOrigin.SYSTEM:
+      return "System";
+    case BookingOrigin.PREGAME:
+      return "Pregame";
+    default:
+      // fallback: capitalize first letter
+      return origin.charAt(0).toUpperCase() + origin.slice(1);
+  }
+};
