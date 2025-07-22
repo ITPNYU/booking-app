@@ -361,6 +361,10 @@ export default function FormInput({
   const formatSectionTitle = (title: string) => {
     return `${prefix} ${title}`.trim();
   };
+  
+  const formatFieldLabel = (label: string) => {
+    return `${prefix} ${label}`.trim();
+  };
 
   const fullFormFields = (
     <>
@@ -386,7 +390,7 @@ export default function FormInput({
           // TODO: Refactor this when design schema for inputs
           <BookingFormTextField
             id="nNumber"
-            label="NYU N-Number"
+            label={formatFieldLabel("NYU N-Number")}
             description="Your N-number begins with a capital 'N' followed by eight digits."
             required
             pattern={{
@@ -399,7 +403,7 @@ export default function FormInput({
         {showSponsor && (
           <BookingFormTextField
             id="netId"
-            label="NYU Net ID"
+            label={formatFieldLabel("NYU Net ID")}
             // TODO: Refactor this when design schema for inputs
             description={
               isVIP
@@ -408,7 +412,7 @@ export default function FormInput({
             }
             required
             pattern={{
-              value: /[a-zA-Z]{1,3}[0-9]{1,6}/,
+              value: /^[a-zA-Z]{2,3}[0-9]{1,6}$/,
               message: "Invalid Net ID",
             }}
             {...{ control, errors, trigger }}
@@ -416,7 +420,7 @@ export default function FormInput({
         )}
         <BookingFormTextField
           id="phoneNumber"
-          label="Phone Number"
+          label={formatFieldLabel("Phone Number")}
           required
           pattern={{
             value:

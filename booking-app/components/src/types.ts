@@ -53,6 +53,10 @@ export type BookingStatus = {
   firstApprovedBy: string;
   finalApprovedAt: Timestamp;
   finalApprovedBy: string;
+  equipmentAt?: Timestamp;
+  equipmentBy?: string;
+  equipmentApprovedAt?: Timestamp;
+  equipmentApprovedBy?: string;
   declinedAt: Timestamp;
   declinedBy: string;
   declineReason?: string;
@@ -65,7 +69,7 @@ export type BookingStatus = {
   noShowedAt: Timestamp;
   noShowedBy: string;
   walkedInAt: Timestamp;
-  origin: "walk-in" | "vip";
+  origin: BookingOrigin;
 };
 
 // the order here is the order these are displayed as table filters
@@ -74,6 +78,7 @@ export enum BookingStatusLabel {
   CANCELED = "CANCELED",
   CHECKED_IN = "CHECKED-IN",
   CHECKED_OUT = "CHECKED-OUT",
+  EQUIPMENT = "EQUIPMENT",
   NO_SHOW = "NO-SHOW",
   PENDING = "PENDING",
   DECLINED = "DECLINED",
@@ -202,7 +207,7 @@ export enum PagePermission {
   ADMIN = "ADMIN",
   LIAISON = "LIAISON",
   EQUIPMENT = "EQUIPMENT",
-    SUPER_ADMIN = "SUPER_ADMIN"
+  SUPER_ADMIN = "SUPER_ADMIN",
 }
 
 export enum PageContextLevel {
@@ -218,6 +223,8 @@ export type BlackoutPeriod = {
   name: string;
   startDate: Timestamp;
   endDate: Timestamp;
+  startTime?: string; // Time in HH:mm format (e.g., "09:00")
+  endTime?: string; // Time in HH:mm format (e.g., "17:00")
   isActive: boolean;
   createdAt: Timestamp;
   updatedAt?: Timestamp;
@@ -328,3 +335,35 @@ export interface BookingLog {
   note?: any;
   requestNumber: number;
 }
+
+export enum BookingOrigin {
+  USER = "user",
+  ADMIN = "admin",
+  WALK_IN = "walk-in",
+  VIP = "vip",
+  SYSTEM = "system",
+  PREGAME = "pre-game",
+}
+
+export const formatOrigin = (
+  origin: BookingOrigin | string | undefined
+): string => {
+  if (!origin) return "User";
+  switch (origin) {
+    case BookingOrigin.USER:
+      return "User";
+    case BookingOrigin.ADMIN:
+      return "Admin";
+    case BookingOrigin.WALK_IN:
+      return "Walk-In";
+    case BookingOrigin.VIP:
+      return "VIP";
+    case BookingOrigin.SYSTEM:
+      return "System";
+    case BookingOrigin.PREGAME:
+      return "Pregame";
+    default:
+      // fallback: capitalize first letter
+      return origin.charAt(0).toUpperCase() + origin.slice(1);
+  }
+};

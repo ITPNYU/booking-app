@@ -91,27 +91,28 @@ describe("Booking Form Validation", () => {
   });
 
   describe("Net ID Validation", () => {
-    const netIdRegex = /^[a-zA-Z]{1,3}[0-9]{1,6}$/;
+    const netIdRegex = /^[a-zA-Z]{2,3}[0-9]{1,6}$/;
 
     const validateNetId = (value: string) => {
-      return netIdRegex.test(value) || "Invalid Net ID";
+      return netIdRegex.test(value) || "Invalid Net ID - must be 2-3 letters followed by 1-6 numbers";
     };
 
     it("validates correct Net ID formats", () => {
       expect(validateNetId("abc123")).toBe(true);
       expect(validateNetId("ab123")).toBe(true);
-      expect(validateNetId("a123")).toBe(true);
       expect(validateNetId("abc123456")).toBe(true);
       expect(validateNetId("ABC123")).toBe(true); // Case insensitive
     });
 
     it("rejects invalid Net ID formats", () => {
-      const errorMessage = "Invalid Net ID";
+      const errorMessage = "Invalid Net ID - must be 2-3 letters followed by 1-6 numbers";
 
+      expect(validateNetId("a123")).toBe(errorMessage); // Only one letter
+      expect(validateNetId("123")).toBe(errorMessage); // Numbers only
+      expect(validateNetId("N12345678")).toBe(errorMessage); // N-number format
+      expect(validateNetId("ab")).toBe(errorMessage); // Just letters
       expect(validateNetId("abcd123")).toBe(errorMessage); // Too many letters
       expect(validateNetId("abc1234567")).toBe(errorMessage); // Too many numbers
-      expect(validateNetId("123")).toBe(errorMessage); // Numbers only
-      expect(validateNetId("abc")).toBe(errorMessage); // Letters only
       expect(validateNetId("ab-123")).toBe(errorMessage); // Contains dash
       expect(validateNetId("ab 123")).toBe(errorMessage); // Contains space
       expect(validateNetId("")).toBe(errorMessage); // Empty

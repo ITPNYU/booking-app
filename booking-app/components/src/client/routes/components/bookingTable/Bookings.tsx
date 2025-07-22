@@ -9,6 +9,7 @@ import {
 import { DataGrid, GridSortModel } from "@mui/x-data-grid";
 import React, { useContext, useEffect, useMemo, useState } from "react";
 import {
+  BookingOrigin,
   BookingRow,
   BookingStatusLabel,
   PageContextLevel,
@@ -16,6 +17,7 @@ import {
 import { TableEmpty } from "../Table";
 import StackedTableCell from "./StackedTableCell";
 
+import { formatOrigin } from "../../../../utils/formatters";
 import { formatDateTable, formatTimeAmPm } from "../../../utils/date";
 import BookingActions from "../../admin/components/BookingActions";
 import getBookingStatus from "../../hooks/getBookingStatus";
@@ -24,7 +26,7 @@ import { DatabaseContext } from "../Provider";
 import { useTenantSchema } from "../SchemaProvider";
 import BookMoreButton from "./BookMoreButton";
 import BookingTableFilters from "./BookingTableFilters";
-import EquipmentCheckoutToggle from "./EquipmentCheckoutToggle";
+import EquipmentCartDisplay from "./EquipmentCartDisplay";
 import MoreInfoModal from "./MoreInfoModal";
 import StatusChip from "./StatusChip";
 import { DateRangeFilter } from "./hooks/getDateFilter";
@@ -162,17 +164,6 @@ export const Bookings: React.FC<BookingsProps> = ({
     }
   }, [pageContext, bookingsLoading, filteredRows, allBookings.length]);
 
-  const formatOrigin = (origin: string) => {
-    const originMap = {
-      user: "User",
-      vip: "VIP",
-      walkIn: "Walk-In",
-      "walk-in": "Walk-In",
-      pregame: "Pregame",
-    };
-    return originMap[origin] ?? origin;
-  };
-
   const columns = useMemo(() => {
     const baseColumns = [
       {
@@ -182,7 +173,9 @@ export const Bookings: React.FC<BookingsProps> = ({
         flex: 1,
         renderHeader: () => <TableCell>Origin</TableCell>,
         renderCell: (params) => (
-          <TableCell>{formatOrigin(params.row.origin ?? "User")}</TableCell>
+          <TableCell>
+            {formatOrigin(params.row.origin ?? BookingOrigin.USER)}
+          </TableCell>
         ),
       },
       {
@@ -347,9 +340,10 @@ export const Bookings: React.FC<BookingsProps> = ({
               filterable: false,
               renderCell: (params) => (
                 <TableCell>
-                  <EquipmentCheckoutToggle
-                    status={params.row.equipmentCheckedOut}
+                  <EquipmentCartDisplay
                     booking={params.row}
+                    onCartClick={() => setModalData(params.row)}
+                    pageContext={pageContext}
                   />
                 </TableCell>
               ),
@@ -447,6 +441,7 @@ export const Bookings: React.FC<BookingsProps> = ({
           booking={modalData}
           closeModal={() => setModalData(null)}
           updateBooking={updateBookingInState}
+          pageContext={pageContext}
         />
       )}
     </Box>

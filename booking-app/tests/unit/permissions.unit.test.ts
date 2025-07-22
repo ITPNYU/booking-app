@@ -157,16 +157,16 @@ describe("Permissions Utility", () => {
   });
 
   describe("canAccessWebCheckout", () => {
-    it("should allow PA, ADMIN, and SUPER_ADMIN users", () => {
+    it("should allow access for PA, EQUIPMENT, ADMIN and SUPER_ADMIN", () => {
       expect(canAccessWebCheckout(PagePermission.PA)).toBe(true);
+      expect(canAccessWebCheckout(PagePermission.EQUIPMENT)).toBe(true);
       expect(canAccessWebCheckout(PagePermission.ADMIN)).toBe(true);
       expect(canAccessWebCheckout(PagePermission.SUPER_ADMIN)).toBe(true);
     });
 
-    it("should deny BOOKING, LIAISON, and EQUIPMENT users", () => {
+    it("should deny access for BOOKING and LIAISON", () => {
       expect(canAccessWebCheckout(PagePermission.BOOKING)).toBe(false);
       expect(canAccessWebCheckout(PagePermission.LIAISON)).toBe(false);
-      expect(canAccessWebCheckout(PagePermission.EQUIPMENT)).toBe(false);
     });
   });
 

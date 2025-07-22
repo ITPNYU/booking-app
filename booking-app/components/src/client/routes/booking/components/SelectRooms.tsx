@@ -27,7 +27,7 @@ export const SelectRooms = ({
   // if this isn't stored in the Provider then the modal will reshow when backtracking in the form which is annoying
   const { hasShownMocapModal, setHasShownMocapModal, bookingCalendarInfo } =
     useContext(BookingContext);
-  const { getBlackoutPeriodsForDateAndRooms } = useBookingDateRestrictions();
+  const { isBookingTimeInBlackout } = useBookingDateRestrictions();
   const selectedIds = selected.map((room) => room.roomId);
 
   const showMocapModal = useMemo(() => {
@@ -38,23 +38,20 @@ export const SelectRooms = ({
     return shouldShow;
   }, [selectedIds, hasShownMocapModal]);
 
-  // Get the current selected date for blackout checking
-  const selectedDate = bookingCalendarInfo
-    ? dayjs(bookingCalendarInfo.start)
-    : null;
-
-  // Check if a room is in blackout for the selected date
+  // Check if a room is in blackout for the selected booking time
   const isRoomInBlackout = (
     roomId: number
   ): { inBlackout: boolean; periods: any[] } => {
-    if (!selectedDate) return { inBlackout: false, periods: [] };
+    if (!bookingCalendarInfo) return { inBlackout: false, periods: [] };
 
-    const blackoutPeriods = getBlackoutPeriodsForDateAndRooms(selectedDate, [
-      roomId,
-    ]);
+    const bookingStart = dayjs(bookingCalendarInfo.start);
+    const bookingEnd = dayjs(bookingCalendarInfo.end);
+
+    // Use the new time-aware blackout checking
+    const result = isBookingTimeInBlackout(bookingStart, bookingEnd, [roomId]);
     return {
-      inBlackout: blackoutPeriods.length > 0,
-      periods: blackoutPeriods,
+      inBlackout: result.inBlackout,
+      periods: result.affectedPeriods,
     };
   };
 

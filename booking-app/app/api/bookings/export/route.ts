@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { TableNames } from "@/components/src/policy";
-import { Booking, RoomSetting } from "@/components/src/types";
+import { Booking, BookingOrigin, RoomSetting } from "@/components/src/types";
 import { serverFetchAllDataFromCollection } from "@/lib/firebase/server/adminDb";
 import { format } from "date-fns";
 import { parse } from "json2csv";
@@ -80,7 +80,9 @@ export async function GET(request: NextRequest) {
         "Expected Attendance": booking.expectedAttendance,
         "Reservation Origin":
           booking.origin ||
-          (!booking.department && !booking.role ? "Pre-game" : "User"),
+          (!booking.department && !booking.role
+            ? BookingOrigin.PREGAME
+            : BookingOrigin.USER),
         "Booking Type": booking.bookingType,
         "Attendee Affiliation(s)": booking.attendeeAffiliation,
         "End Event Status": getBookingStatus(booking),

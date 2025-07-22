@@ -1,4 +1,5 @@
 import { BookingFormDetails, BookingStatusLabel } from "../types";
+import { formatOrigin } from "../utils/formatters";
 
 import { getCalendarClient } from "@/lib/googleClient";
 import { serverGetRoomCalendarIds } from "./admin";
@@ -87,6 +88,10 @@ export const bookingContentsToDescription = (
     `${getProperty(bookingContents, "startTime")} - ${getProperty(bookingContents, "endTime")}`
   );
   description += listItem("Status", getProperty(bookingContents, "status"));
+  description += listItem(
+    "Origin",
+    formatOrigin(getProperty(bookingContents, "origin"))
+  );
   description += "</ul>";
 
   // Requester Section
@@ -163,6 +168,11 @@ export const bookingContentsToDescription = (
       "Media Services Details",
       getProperty(bookingContents, "mediaServicesDetails")
     );
+  }
+  // Add WebCheckout Cart Number
+  const cartNumber = getProperty(bookingContents, "webcheckoutCartNumber");
+  if (cartNumber) {
+    description += listItem("Cart Number", cartNumber);
   }
   description += listItem(
     "Catering",

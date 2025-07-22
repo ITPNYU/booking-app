@@ -14,6 +14,7 @@ import {
 import {
   ApproverType,
   BookingFormDetails,
+  BookingOrigin,
   BookingStatusLabel,
   RoomSetting,
 } from "@/components/src/types";
@@ -29,6 +30,7 @@ import { CALENDAR_HIDE_STATUS, TableNames } from "@/components/src/policy";
 import { getCalendarClient } from "@/lib/googleClient";
 import { Timestamp } from "firebase-admin/firestore";
 import { DateSelectArg } from "fullcalendar";
+import { formatOrigin } from "@/components/src/utils/formatters";
 
 // Helper to build booking contents object for calendar descriptions
 const buildBookingContents = (
@@ -38,6 +40,7 @@ const buildBookingContents = (
   endDateObj: Date,
   status: BookingStatusLabel,
   requestNumber: number,
+  origin?: string,
 ) => {
   return {
     ...data,
@@ -55,6 +58,7 @@ const buildBookingContents = (
     }),
     status,
     requestNumber,
+    origin,
   } as unknown as BookingFormDetails;
 };
 
@@ -167,6 +171,7 @@ async function handleBookingApprovalEmails(
       endDate: bookingCalendarInfo?.endStr,
       headerMessage: "This is a request email for first approval.",
       requestNumber: sequentialId,
+      origin: formatOrigin(data.origin) ?? BookingOrigin.USER,
     };
     console.log("userEventInputs", userEventInputs);
     await sendApprovalEmail(firstApprovers, userEventInputs);
@@ -263,6 +268,7 @@ export async function POST(request: NextRequest) {
     endDateObj,
     BookingStatusLabel.REQUESTED,
     sequentialId,
+    BookingOrigin.USER,
   );
 
   const description =
@@ -301,6 +307,7 @@ export async function POST(request: NextRequest) {
       requestNumber: sequentialId,
       equipmentCheckedOut: false,
       requestedAt: Timestamp.now(),
+      origin: BookingOrigin.USER,
       ...data,
     });
 
@@ -398,6 +405,7 @@ export async function PUT(request: NextRequest) {
     endDateObj2,
     BookingStatusLabel.MODIFIED,
     data.requestNumber ?? existingContents.requestNumber,
+    "user",
   );
 
   const descriptionMod =
@@ -443,6 +451,7 @@ export async function PUT(request: NextRequest) {
     calendarEventId: newCalendarEventId,
     equipmentCheckedOut: false,
     requestedAt: Timestamp.now(),
+    origin: BookingOrigin.USER,
   };
 
   await serverUpdateDataByCalendarEventId(

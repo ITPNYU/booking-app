@@ -204,8 +204,11 @@ export default function NavBar() {
   }, [pagePermission, selectedView]);
 
   const button = useMemo(() => {
-    // Do not show the button for super admin page.
-    if (selectedView === PagePermission.SUPER_ADMIN) {
+    // Do not show the button for super admin or liaison page.
+    if (
+      selectedView === PagePermission.SUPER_ADMIN ||
+      selectedView === PagePermission.LIAISON
+    ) {
       return null;
     }
 
@@ -226,8 +229,7 @@ export default function NavBar() {
 
     if (
       supportVIP &&
-      (selectedView === PagePermission.ADMIN ||
-        selectedView === PagePermission.LIAISON)
+      selectedView === PagePermission.ADMIN
     ) {
       return (
         <Button

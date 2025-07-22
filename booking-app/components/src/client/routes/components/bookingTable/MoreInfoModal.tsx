@@ -17,19 +17,28 @@ import { Cancel, Check, Edit, Event } from "@mui/icons-material";
 import Grid from "@mui/material/Unstable_Grid2/Grid2";
 import { styled } from "@mui/system";
 import React, { useContext, useState } from "react";
-import { BookingRow } from "../../../../types";
-import { canAccessWebCheckout } from "../../../../utils/permissions";
+import {
+  BookingRow,
+  PageContextLevel,
+  PagePermission,
+} from "../../../../types";
+import {
+  canAccessWebCheckout,
+  hasAnyPermission,
+} from "../../../../utils/permissions";
 import { formatTimeAmPm } from "../../../utils/date";
 import { RoomDetails } from "../../booking/components/BookingSelection";
 import useSortBookingHistory from "../../hooks/useSortBookingHistory";
 import { DatabaseContext } from "../Provider";
 import { default as CustomTable } from "../Table";
 import StackedTableCell from "./StackedTableCell";
+import { formatOrigin } from "@/components/src/utils/formatters";
 
 interface Props {
   booking: BookingRow;
   closeModal: () => void;
   updateBooking?: (updatedBooking: BookingRow) => void;
+  pageContext?: PageContextLevel;
 }
 
 const modalStyle = {
@@ -81,24 +90,11 @@ const AlertHeader = styled(Alert)(({ theme }) => ({
 
 const BLANK = "none";
 
-// Helper function to format origin values consistently
-const formatOrigin = (origin: string | undefined) => {
-  if (!origin) return "User";
-
-  const originMap = {
-    user: "User",
-    vip: "VIP",
-    walkIn: "Walk-In",
-    "walk-in": "Walk-In",
-    pregame: "Pregame",
-  };
-  return originMap[origin] ?? origin;
-};
-
 export default function MoreInfoModal({
   booking,
   closeModal,
   updateBooking,
+  pageContext,
 }: Props) {
   const historyRows = useSortBookingHistory(booking);
   const { pagePermission, userEmail } = useContext(DatabaseContext);
@@ -180,9 +176,15 @@ export default function MoreInfoModal({
   }, [booking.webcheckoutCartNumber]);
 
   const renderWebCheckoutSection = () => {
-    console.log("canEditCart", canEditCart);
-    if (!canEditCart) {
-      // Hide entire section if user doesn't have PA/Admin/SuperAdmin permissions
+    // Hide WebCheckout section for users without sufficient permissions
+    // Only PA, ADMIN, and SUPER_ADMIN should see WebCheckout section
+    const canViewWebCheckout = hasAnyPermission(pagePermission, [
+      PagePermission.PA,
+      PagePermission.ADMIN,
+      PagePermission.SUPER_ADMIN,
+    ]);
+
+    if (!canViewWebCheckout || pageContext === PageContextLevel.USER) {
       return null;
     }
 
@@ -273,6 +275,37 @@ export default function MoreInfoModal({
                                   Copy Cart URL
                                 </Button>
                               </Box>
+
+                              {/* Display notes if available */}
+                              {webCheckoutData.notes && (
+                                <Box sx={{ marginTop: 1, marginBottom: 1 }}>
+                                  <Typography
+                                    variant="caption"
+                                    sx={{
+                                      fontWeight: 600,
+                                      color: "#666",
+                                      display: "block",
+                                      marginBottom: 0.5,
+                                    }}
+                                  >
+                                    Allocation Notes
+                                  </Typography>
+                                  <Typography
+                                    variant="body2"
+                                    sx={{
+                                      fontSize: "0.875rem",
+                                      color: "#333",
+                                      backgroundColor: "#f5f5f5",
+                                      padding: 1,
+                                      borderRadius: 1,
+                                      fontStyle: "italic",
+                                    }}
+                                  >
+                                    {webCheckoutData.notes}
+                                  </Typography>
+                                </Box>
+                              )}
+
                               <Box
                                 sx={{
                                   maxHeight: 200,
@@ -454,7 +487,7 @@ export default function MoreInfoModal({
                 {booking.origin && (
                   <TableRow>
                     <LabelCell>Origin</LabelCell>
-                    <TableCell>{booking.origin}</TableCell>
+                    <TableCell>{formatOrigin(booking.origin)}</TableCell>
                   </TableRow>
                 )}
               </TableBody>
@@ -522,10 +555,6 @@ export default function MoreInfoModal({
                 <TableRow>
                   <LabelCell>Booking Type</LabelCell>
                   <TableCell>{booking.bookingType ?? BLANK}</TableCell>
-                </TableRow>
-                <TableRow>
-                  <LabelCell>Origin</LabelCell>
-                  <TableCell>{formatOrigin(booking.origin)}</TableCell>
                 </TableRow>
                 <TableRow>
                   <LabelCell>Expected Attendance</LabelCell>

@@ -23,6 +23,7 @@ import { Error } from "@mui/icons-material";
 import { styled } from "@mui/system";
 import dayjs from "dayjs";
 import { EventResizeDoneArg } from "fullcalendar";
+import { getBlackoutTimeRangeForDate } from "../../../../utils/blackoutUtils";
 import { DatabaseContext } from "../../components/Provider";
 import { BookingContext } from "../bookingProvider";
 import { useBookingDateRestrictions } from "../hooks/useBookingDateRestrictions";
@@ -113,7 +114,8 @@ export default function CalendarVerticalResource({
   dateView,
 }: Props) {
   const { operationHours, pagePermission } = useContext(DatabaseContext);
-  const { getBlackoutPeriodsForDateAndRooms } = useBookingDateRestrictions();
+  const { getBlackoutPeriodsForDateAndRooms, isBookingTimeInBlackout } =
+    useBookingDateRestrictions();
   const {
     bookingCalendarInfo,
     existingCalendarEvents,
@@ -154,29 +156,29 @@ export default function CalendarVerticalResource({
       console.log(`Room ${room.roomId} blackout periods:`, blackoutPeriods);
 
       blackoutPeriods.forEach((period) => {
-        // Create full day blackout block for this room
-        const startOfDay = selectedDate.startOf("day");
-        const endOfDay = selectedDate.endOf("day");
+        const blackoutRange = getBlackoutTimeRangeForDate(period, selectedDate);
 
-        const blockEvent = {
-          start: startOfDay.toISOString(),
-          end: endOfDay.toISOString(),
-          id: `blackout-${room.roomId}-${period.id}`,
-          resourceId: room.roomId + "",
-          title: `🚫 ${period.name}`,
-          overlap: false,
-          display: "background",
-          classNames: ["blackout-period"],
-          backgroundColor: "#e0e0e0",
-          borderColor: "#bdbdbd",
-          textColor: "#000000",
-          extendedProps: {
-            selectable: false,
-          },
-        };
+        if (blackoutRange) {
+          const blockEvent = {
+            start: blackoutRange.start.toISOString(),
+            end: blackoutRange.end.toISOString(),
+            id: `blackout-${room.roomId}-${period.id}`,
+            resourceId: room.roomId + "",
+            title: blackoutRange.title,
+            overlap: false,
+            display: "background",
+            classNames: ["blackout-period"],
+            backgroundColor: "#e0e0e0",
+            borderColor: "#bdbdbd",
+            textColor: "#000000",
+            extendedProps: {
+              selectable: false,
+            },
+          };
 
-        console.log("Adding blackout block:", blockEvent);
-        blocks.push(blockEvent);
+          console.log("Adding blackout block:", blockEvent);
+          blocks.push(blockEvent);
+        }
       });
     });
 
@@ -246,16 +248,19 @@ export default function CalendarVerticalResource({
 
   const handleEventSelect = (selectInfo: DateSelectArg) => {
     // Check if the selection overlaps with any blackout periods before setting booking info
-    const selectedDate = dayjs(selectInfo.start);
+    const bookingStart = dayjs(selectInfo.start);
+    const bookingEnd = dayjs(selectInfo.end);
     const selectedResourceId = selectInfo.resource?.id;
 
     if (selectedResourceId) {
       const roomId = parseInt(selectedResourceId);
-      const blackoutPeriods = getBlackoutPeriodsForDateAndRooms(selectedDate, [
+
+      // Use the new time-aware blackout checking
+      const { inBlackout } = isBookingTimeInBlackout(bookingStart, bookingEnd, [
         roomId,
       ]);
 
-      if (blackoutPeriods.length > 0) {
+      if (inBlackout) {
         // Don't allow selection in blackout periods
         if (ref.current?.getApi()) {
           ref.current.getApi().unselect();
@@ -269,16 +274,19 @@ export default function CalendarVerticalResource({
 
   const handleEventSelecting = (selectInfo: DateSelectArg) => {
     // Check if the selection overlaps with any blackout periods
-    const selectedDate = dayjs(selectInfo.start);
+    const bookingStart = dayjs(selectInfo.start);
+    const bookingEnd = dayjs(selectInfo.end);
     const selectedResourceId = selectInfo.resource?.id;
 
     if (selectedResourceId) {
       const roomId = parseInt(selectedResourceId);
-      const blackoutPeriods = getBlackoutPeriodsForDateAndRooms(selectedDate, [
+
+      // Use the new time-aware blackout checking
+      const { inBlackout } = isBookingTimeInBlackout(bookingStart, bookingEnd, [
         roomId,
       ]);
 
-      if (blackoutPeriods.length > 0) {
+      if (inBlackout) {
         // Don't allow selection in blackout periods
         return false;
       }
