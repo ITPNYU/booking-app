@@ -473,7 +473,7 @@ The Media Commons Front Desk is located on the 2nd floor of 370 Jay Street, arou
 <b>Event Services Information</b><br />
 If your reservation is for an event, take a look at the <a href="https://docs.google.com/document/d/1TIOl8f8-7o2BdjHxHYIYELSb4oc8QZMj1aSfaENWjR8/edit?usp=sharing">Event Service Rates and  Set Up Information document</a> to learn how to set up services for your reservation.
 <br /><br />
-<b>Cancelation Policy</b><br />
+<b>Cancellation Policy</b><br />
 To cancel reservations please return to the Booking Tool, visit My Bookings, and click "cancel" on the booking at least 24 hours before the date of the event. Failure to cancel may result in restricted use of Media Commons spaces.
 `;
 
