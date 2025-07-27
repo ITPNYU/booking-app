@@ -21,6 +21,8 @@ import {
 } from "../../../types";
 
 import { useAuth } from "@/components/src/client/routes/components/AuthProvider";
+import { SchemaContext } from "./SchemaProvider";
+import { useContext } from "react";
 import {
   fetchAllBookings,
   fetchAllFutureBooking,
@@ -150,6 +152,10 @@ export const DatabaseProvider = ({
 
   const { user } = useAuth();
   const netId = useMemo(() => userEmail?.split("@")[0], [userEmail]);
+  
+  // Get tenant from SchemaContext
+  const schemaContext = useContext(SchemaContext);
+  const tenant = schemaContext?.tenant;
 
   const [preBanLogs, setPreBanLogs] = useState<PreBanLog[]>([]);
   const [superAdminUsers, setSuperAdminUsers] = useState<AdminUser[]>([]);
@@ -255,7 +261,8 @@ export const DatabaseProvider = ({
         pagePermission,
         LIMIT,
         filters,
-        lastItem
+        lastItem,
+        tenant
       );
 
       if (clicked && bookingsResponse.length === 0) {
@@ -281,7 +288,7 @@ export const DatabaseProvider = ({
   };
 
   const fetchAdminUsers = async () => {
-    clientFetchAllDataFromCollection(TableNames.ADMINS)
+    clientFetchAllDataFromCollection(TableNames.ADMINS, [], tenant)
       .then((fetchedData) => {
         const adminUsers = fetchedData.map((item: any) => ({
           id: item.id,
@@ -294,7 +301,7 @@ export const DatabaseProvider = ({
   };
 
   const fetchPaUsers = async () => {
-    clientFetchAllDataFromCollection(TableNames.PAS)
+    clientFetchAllDataFromCollection(TableNames.PAS, [], tenant)
       .then((fetchedData) => {
         const paUsers = fetchedData.map((item: any) => ({
           id: item.id,
@@ -310,7 +317,9 @@ export const DatabaseProvider = ({
     try {
       // Fetch data from Firestore
       const firestoreData = await clientFetchAllDataFromCollection(
-        TableNames.SAFETY_TRAINING
+        TableNames.SAFETY_TRAINING,
+        [],
+        tenant
       );
       const firestoreUsers: SafetyTraining[] = firestoreData.map(
         (item: any) => ({
@@ -348,23 +357,24 @@ export const DatabaseProvider = ({
       // Add or update spreadsheet users
       spreadsheetData.emails.forEach((email: string) => {
         if (!userMap.has(email)) {
-          userMap.set(email, { email, id: null, completedAt: currentDate });
+          userMap.set(email, {
+            id: email,
+            email,
+            completedAt: currentDate,
+          });
         }
       });
 
-      // Convert Map to SafetyTraining array
-      const uniqueUsers = Array.from(userMap.values());
-      console.log("TOTAL UNIQUE SAFETY TRAINED USER:", uniqueUsers.length);
-      // Update state
-      setSafetyTrainedUsers(uniqueUsers);
+      // Convert map back to array
+      const mergedUsers = Array.from(userMap.values());
+      setSafetyTrainedUsers(mergedUsers);
     } catch (error) {
       console.error("Error fetching safety trained users:", error);
-      throw error;
     }
   };
 
   const fetchBannedUsers = async () => {
-    clientFetchAllDataFromCollection(TableNames.BANNED)
+    clientFetchAllDataFromCollection(TableNames.BANNED, [], tenant)
       .then((fetchedData) => {
         const filtered = fetchedData.map((item: any) => ({
           id: item.id,
@@ -377,7 +387,7 @@ export const DatabaseProvider = ({
   };
 
   const fetchApproverUsers = async () => {
-    clientFetchAllDataFromCollection(TableNames.APPROVERS)
+    clientFetchAllDataFromCollection(TableNames.APPROVERS, [], tenant)
       .then((fetchedData) => {
         const all = fetchedData.map((item: any) => ({
           id: item.id,
@@ -402,7 +412,7 @@ export const DatabaseProvider = ({
   };
 
   const fetchDepartmentNames = async () => {
-    clientFetchAllDataFromCollection(TableNames.DEPARTMENTS)
+    clientFetchAllDataFromCollection(TableNames.DEPARTMENTS, [], tenant)
       .then((fetchedData) => {
         const filtered = fetchedData.map((item: any) => ({
           id: item.id,
@@ -416,7 +426,7 @@ export const DatabaseProvider = ({
   };
 
   const fetchRoomSettings = async () => {
-    clientFetchAllDataFromCollection(TableNames.RESOURCES)
+    clientFetchAllDataFromCollection(TableNames.RESOURCES, [], tenant)
       .then((fetchedData) => {
         const filtered = fetchedData.map((item: any) => ({
           id: item.id,
@@ -432,7 +442,7 @@ export const DatabaseProvider = ({
   };
 
   const fetchBookingTypes = async () => {
-    clientFetchAllDataFromCollection(TableNames.BOOKING_TYPES)
+    clientFetchAllDataFromCollection(TableNames.BOOKING_TYPES, [], tenant)
       .then((fetchedData) => {
         const filtered = fetchedData.map((item: any) => ({
           id: item.id,
@@ -448,7 +458,7 @@ export const DatabaseProvider = ({
   };
 
   const fetchOperationHours = async () => {
-    clientFetchAllDataFromCollection(TableNames.OPERATION_HOURS)
+    clientFetchAllDataFromCollection(TableNames.OPERATION_HOURS, [], tenant)
       .then((fetchedData) => {
         setOperationHours(fetchedData as OperationHours[]);
       })
@@ -459,7 +469,9 @@ export const DatabaseProvider = ({
     try {
       const fetchedData =
         await clientFetchAllDataFromCollection<BlackoutPeriod>(
-          TableNames.BLACKOUT_PERIODS
+          TableNames.BLACKOUT_PERIODS,
+          [],
+          tenant
         );
       setBlackoutPeriods(
         fetchedData.sort(
@@ -486,7 +498,9 @@ export const DatabaseProvider = ({
   const fetchPreBanLogs = async () => {
     try {
       const fetchedData = await clientFetchAllDataFromCollection(
-        TableNames.PRE_BAN_LOGS
+        TableNames.PRE_BAN_LOGS,
+        [],
+        tenant
       );
       const logs = fetchedData.map((item: any) => ({
         id: item.id,
@@ -502,7 +516,7 @@ export const DatabaseProvider = ({
   };
 
   const fetchSuperAdminUsers = async () => {
-    clientFetchAllDataFromCollection(TableNames.SUPER_ADMINS)
+    clientFetchAllDataFromCollection(TableNames.SUPER_ADMINS, [], tenant)
       .then((fetchedData) => {
         const superAdminUsers = fetchedData.map((item: any) => ({
           id: item.id,
