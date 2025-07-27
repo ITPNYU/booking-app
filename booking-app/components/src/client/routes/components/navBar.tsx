@@ -16,13 +16,11 @@ import { useContext, useEffect, useMemo, useState } from "react";
 import { auth } from "@/lib/firebase/firebaseClient";
 import { styled } from "@mui/system";
 import { signOut } from "firebase/auth";
-import Image from "next/image";
-import { schema } from "../../../../../app/[tenant]/schema";
-import NYULOGO from "../../../../../public/nyuLogo.png";
 import { PagePermission } from "../../../types";
 import useHandleStartBooking from "../booking/hooks/useHandleStartBooking";
 import ConfirmDialog from "./ConfirmDialog";
 import { DatabaseContext } from "./Provider";
+import { SchemaContext } from "./SchemaProvider";
 
 const LogoBox = styled(Box)`
   cursor: pointer;
@@ -64,12 +62,12 @@ export default function NavBar() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const isRoot = pathname === "/";
-  const tenantSchema = schema[tenant as keyof typeof schema];
+  const tenantSchema = useContext(SchemaContext);
   const {
-    name,
-    logo = NYULOGO,
-    supportVIP,
-    supportWalkIn,
+    name = "",
+    logo = "/mediaCommonsLogo.svg",
+    supportVIP = false,
+    supportWalkIn = false,
   } = tenantSchema || {};
 
   const handleRoleChange = (e: any) => {
@@ -274,7 +272,7 @@ export default function NavBar() {
         </LogoBox> */}
         {!isRoot && (
           <LogoBox onClick={handleClickHome}>
-            <Image src={logo} alt={`${name} logo`} height={40} />
+            <img src={logo} alt={`${name} logo`} style={{ height: 40 }} />
             {!isMobile && (
               <Title as="h1">
                 {name} {envTitle}

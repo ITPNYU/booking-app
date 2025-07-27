@@ -20,6 +20,7 @@ export enum TableNames {
   SUPER_ADMINS = "usersSuperAdmin",
   POLICY_SETTINGS = "policySettings",
   BLACKOUT_PERIODS = "blackoutPeriods",
+  TENANT_SCHEMA = "tenantSchema",
 }
 
 export const CALENDAR_HIDE_STATUS = [

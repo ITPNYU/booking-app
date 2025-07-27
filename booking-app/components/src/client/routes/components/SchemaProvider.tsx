@@ -14,6 +14,7 @@ export type Resource = {
 };
 
 export type SchemaContextType = {
+  tenant: string;
   name: string;
   logo: string;
   nameForPolicy: string;
@@ -32,6 +33,7 @@ export type SchemaContextType = {
 };
 
 export const SchemaContext = createContext<SchemaContextType>({
+  tenant: "",
   name: "",
   logo: "",
   nameForPolicy: "",
