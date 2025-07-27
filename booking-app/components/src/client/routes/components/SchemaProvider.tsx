@@ -18,7 +18,6 @@ export type SchemaContextType = {
   logo: string;
   nameForPolicy: string;
   policy: string; // innerHTML
-  programs: string[];
   programMapping: Record<string, string[]>;
   roles: string[];
   roleMapping: Record<string, string[]>;
@@ -37,7 +36,6 @@ export const SchemaContext = createContext<SchemaContextType>({
   logo: "",
   nameForPolicy: "",
   policy: "",
-  programs: [],
   roles: [],
   showNNumber: true,
   showSponsor: true,

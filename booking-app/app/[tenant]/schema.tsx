@@ -35,17 +35,6 @@ export const schema: Record<string, SchemaContextType> = {
       ) at least 24 hours before the date of the event. Failure to cancel
       may result in restricted use of the Media Commons.
     </p>`,
-    programs: [
-      "ALT",
-      "CDI",
-      "Game Center",
-      "IDM",
-      "ITP / IMA / Low Res",
-      "MARL",
-      "MPAP",
-      "Music Tech",
-      "Other",
-    ],
     roles: [
       "Student",
       "Resident/Fellow",
@@ -210,7 +199,6 @@ export const schema: Record<string, SchemaContextType> = {
     nameForPolicy: "ITP",
     resourceName: "Resource(s)",
     policy: "<p>ITP Policy</p>",
-    programs: ["ALT"],
     roles: ["Student"],
     roleMapping: {
       Student: ["STUDENT", "DEGREE"],
