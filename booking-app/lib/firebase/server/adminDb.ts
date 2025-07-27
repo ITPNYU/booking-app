@@ -73,22 +73,6 @@ export const serverSaveDataToFirestore = async (
   }
 };
 
-export const serverSaveDataToFirestoreWithId = async (
-  collectionName: string,
-  docId: string,
-  data: object
-) => {
-  try {
-    const docRef = db.collection(collectionName).doc(docId);
-    await docRef.set(data);
-    console.log("Document successfully written with ID:", docId);
-    return docRef;
-  } catch (error) {
-    console.error("Error writing document: ", error);
-    throw error;
-  }
-};
-
 export const serverGetDocumentById = async <T extends DocumentData>(
   collectionName: TableNames,
   docId: string
@@ -96,7 +80,7 @@ export const serverGetDocumentById = async <T extends DocumentData>(
   try {
     const docRef = db.collection(collectionName).doc(docId);
     const docSnap = await docRef.get();
-    
+
     if (docSnap.exists) {
       return docSnap.data() as T;
     }
