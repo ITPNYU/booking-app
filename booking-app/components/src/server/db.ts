@@ -15,6 +15,7 @@ import {
   clientSaveDataToFirestore,
   clientUpdateDataInFirestore,
   getPaginatedData,
+  getCurrentTenant,
 } from "@/lib/firebase/firebase";
 import { Timestamp, where } from "firebase/firestore";
 import {
@@ -29,12 +30,13 @@ import { clientUpdateDataByCalendarEventId } from "@/lib/firebase/client/clientD
 import { roundTimeUp } from "../client/utils/date";
 import { getBookingToolDeployUrl } from "./ui";
 
-export const fetchAllFutureBooking = async <Booking>(): Promise<Booking[]> => {
+export const fetchAllFutureBooking = async <Booking>(tenant?: string): Promise<Booking[]> => {
   const now = Timestamp.now();
   const futureQueryConstraints = [where("endDate", ">", now)];
   return clientFetchAllDataFromCollection<Booking>(
     TableNames.BOOKING,
-    futureQueryConstraints
+    futureQueryConstraints,
+    tenant
   );
 };
 
@@ -42,16 +44,17 @@ export const fetchAllBookings = async <Booking>(
   pagePermission: PagePermission,
   limit: number,
   filters: Filters,
-  last: any
+  last: any,
+  tenant?: string
 ): Promise<Booking[]> => {
   if (
     pagePermission === PagePermission.ADMIN ||
     pagePermission === PagePermission.LIAISON ||
     pagePermission === PagePermission.PA
   ) {
-    return getPaginatedData<Booking>(TableNames.BOOKING, limit, filters, last);
+    return getPaginatedData<Booking>(TableNames.BOOKING, limit, filters, last, tenant);
   } else {
-    return getPaginatedData<Booking>(TableNames.BOOKING, limit, filters, last);
+    return getPaginatedData<Booking>(TableNames.BOOKING, limit, filters, last, tenant);
   }
 };
 
