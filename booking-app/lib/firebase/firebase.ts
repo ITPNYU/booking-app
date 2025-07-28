@@ -20,6 +20,7 @@ import {
 
 import { getDb } from "./firebaseClient";
 import { Filters } from "@/components/src/types";
+import { SchemaContextType } from "@/components/src/client/routes/components/SchemaProvider";
 
 export type AdminUserData = {
   email: string;
@@ -82,25 +83,25 @@ export const clientFetchAllDataFromCollectionWithLimitAndOffset = async <T>(
     ...(document.data() as unknown as T),
   }));
   return data;
-}
+};
 
-export const getPaginatedData = async<T> (
+export const getPaginatedData = async <T>(
   collectionName,
   itemsPerPage = 10,
   filters: Filters,
-  lastVisible = null,
- ) : Promise<T[]> => {
+  lastVisible = null
+): Promise<T[]> => {
   try {
     const db = getDb();
     const colRef = collection(db, collectionName);
     const queryParams = [];
-    
+
     // Add date range filters
     if (filters.dateRange && filters.dateRange.length === 2) {
-      if(filters.dateRange[0]){
+      if (filters.dateRange[0]) {
         queryParams.push(where("startDate", ">=", filters.dateRange[0]));
       }
-      if(filters.dateRange[1]){
+      if (filters.dateRange[1]) {
         queryParams.push(where("startDate", "<=", filters.dateRange[1]));
       }
     }
@@ -108,7 +109,7 @@ export const getPaginatedData = async<T> (
     // If there's a search query, fetch data and filter client-side
     if (filters.searchQuery && filters.searchQuery.trim() !== "") {
       const searchTerm = filters.searchQuery.trim().toLowerCase();
-      
+
       // Define the fields we want to search
       const searchableFields = [
         "requestNumber",
@@ -119,30 +120,30 @@ export const getPaginatedData = async<T> (
         "description",
         "firstName",
         "lastName",
-        "roomId"
+        "roomId",
       ];
 
       // Fetch data with just date filters
       const baseQuery = query(
         colRef,
         ...queryParams,
-        orderBy(filters.sortField, 'desc')
+        orderBy(filters.sortField, "desc")
       );
 
       const snapshot = await getDocs(baseQuery);
-      
+
       // Filter documents that match the search term in any field
-      const matchingDocs = snapshot.docs.filter(doc => {
+      const matchingDocs = snapshot.docs.filter((doc) => {
         const data = doc.data();
-        
+
         // Check for matches in combined firstName + lastName
         if (data.firstName && data.lastName) {
           const fullName = `${data.firstName} ${data.lastName}`.toLowerCase();
           if (fullName.includes(searchTerm)) return true;
         }
-        
+
         // Continue with existing field-by-field check
-        return searchableFields.some(field => {
+        return searchableFields.some((field) => {
           const fieldValue = data[field];
           // Handle different types of fields
           if (fieldValue === null || fieldValue === undefined) return false;
@@ -153,36 +154,31 @@ export const getPaginatedData = async<T> (
       });
 
       // Return all matching docs without pagination
-      return matchingDocs.map(doc => ({
+      return matchingDocs.map((doc) => ({
         id: doc.id,
-        ...doc.data() as unknown as T
+        ...(doc.data() as unknown as T),
       }));
     }
-    
+
     // If no search query, use standard query with date filters
-    let q = query(
-      colRef,
-      ...queryParams,
-      orderBy(filters.sortField, 'desc')
-    );
-    
+    let q = query(colRef, ...queryParams, orderBy(filters.sortField, "desc"));
+
     if (lastVisible) {
       q = query(
         colRef,
         ...queryParams,
-        orderBy(filters.sortField, 'desc'),
+        orderBy(filters.sortField, "desc"),
         startAfter(lastVisible[filters.sortField])
       );
     }
-    
+
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({
+    return snapshot.docs.map((doc) => ({
       id: doc.id,
-      ...doc.data() as unknown as T
+      ...(doc.data() as unknown as T),
     }));
-    
   } catch (error) {
-    console.error('Error getting paginated data:', error);
+    console.error("Error getting paginated data:", error);
     throw error;
   }
 };

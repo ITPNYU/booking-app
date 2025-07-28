@@ -173,7 +173,7 @@ export default function UserRolePage({
         <Dropdown
           value={department}
           updateValue={setDepartment}
-          options={tenantSchema.programs}
+          options={Object.keys(tenantSchema.programMapping)}
           placeholder="Choose a Department"
           sx={{ marginTop: 4 }}
         />

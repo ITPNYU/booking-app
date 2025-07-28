@@ -73,11 +73,30 @@ export const serverSaveDataToFirestore = async (
   }
 };
 
+export const serverGetDocumentById = async <T extends DocumentData>(
+  collectionName: TableNames,
+  docId: string
+): Promise<T | null> => {
+  try {
+    const docRef = db.collection(collectionName).doc(docId);
+    const docSnap = await docRef.get();
+
+    if (docSnap.exists) {
+      return docSnap.data() as T;
+    }
+    return null;
+  } catch (error) {
+    console.error("Error fetching document by ID:", error);
+    return null;
+  }
+};
+
 export type Constraint = {
   field: string;
   operator: WhereFilterOp;
   value: any;
 };
+
 export const serverFetchAllDataFromCollection = async <T extends DocumentData>(
   collectionName: TableNames,
   queryConstraints: Constraint[] = []
