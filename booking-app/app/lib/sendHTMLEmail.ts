@@ -148,7 +148,7 @@ export const sendHTMLEmail = async (params: SendHTMLEmailParams) => {
     .toString("base64")
     .replace(/\+/g, "-")
     .replace(/\//g, "_")
-    .replace(/=+$/, "");
+    .replace(/={1,2}$/, "");
 
   const gmail = await getGmailClient();
 
