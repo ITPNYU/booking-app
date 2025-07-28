@@ -460,32 +460,15 @@ export const serverApproveEvent = async (id: string) => {
   // @ts-ignore
   const guestEmail = doc.email;
 
-  const approvalNoticeHtml = `
-<b>Reservation Check in</b><br />
-Please plan to check in at the Media Commons Front Desk at the time of your reservation. If you are more than 30 minutes late for your reservation, it will be canceled and you will be marked as a “No-Show.” For reservations in room 1201, you can go straight to the 12th floor without checking in. You can reply to this email to adjust your reservation time if plans change and you will be arriving later. 
-<br /><br />
-<b>Equipment Check out</b><br />
-If you requested equipment, you will receive a separate email which will confirm your equipment for your reservation. If you wish to request to reserve any additional equipment, please <a href="https://sites.google.com/nyu.edu/370jmediacommons/rental-inventory">take a look at our equipment inventory</a> and reply to this email with your request or any questions you may have ahead of your reservation. Otherwise our Production Assistants can help you during check in.
-<br /><br />
-<b>Front Desk Location</b><br />
-The Media Commons Front Desk is located on the 2nd floor of 370 Jay Street, around the corner from Cafe 370.
-<br /><br />
-<b>Event Services Information</b><br />
-If your reservation is for an event, take a look at the <a href="https://docs.google.com/document/d/1TIOl8f8-7o2BdjHxHYIYELSb4oc8QZMj1aSfaENWjR8/edit?usp=sharing">Event Service Rates and  Set Up Information document</a> to learn how to set up services for your reservation.
-<br /><br />
-<b>Cancellation Policy</b><br />
-To cancel reservations please return to the Booking Tool, visit My Bookings, and click "cancel" on the booking at least 24 hours before the date of the event. Failure to cancel may result in restricted use of Media Commons spaces.
-`;
-
-  const userHeaderMessage = `Your request has been approved! Please see below for next steps.<br /><br />${approvalNoticeHtml}`;
-
-  const otherHeaderMessage = `This is a confirmation email.<br /><br />${approvalNoticeHtml}`;
-
   // for client
+  const headerMessage =
+    "Your reservation request for Media Commons is approved.";
+  console.log("sending booking detail email...");
+
   serverSendBookingDetailEmail({
     calendarEventId: id,
     targetEmail: guestEmail,
-    headerMessage: userHeaderMessage,
+    headerMessage: headerMessage,
     status: BookingStatusLabel.APPROVED,
   });
 
@@ -493,7 +476,7 @@ To cancel reservations please return to the Booking Tool, visit My Bookings, and
   serverSendConfirmationEmail({
     calendarEventId: id,
     status: BookingStatusLabel.APPROVED,
-    headerMessage: otherHeaderMessage,
+    headerMessage: "This is a confirmation email.",
     guestEmail: guestEmail,
   });
 
@@ -501,7 +484,7 @@ To cancel reservations please return to the Booking Tool, visit My Bookings, and
   serverSendBookingDetailEmail({
     calendarEventId: id,
     targetEmail: getApprovalCcEmail(process.env.NEXT_PUBLIC_BRANCH_NAME),
-    headerMessage: otherHeaderMessage,
+    headerMessage: "This is a confirmation email.",
     status: BookingStatusLabel.APPROVED,
     replyTo: guestEmail,
   });
@@ -513,8 +496,7 @@ To cancel reservations please return to the Booking Tool, visit My Bookings, and
       calendarEventId: id,
       targetEmail: contents.sponsorEmail,
       headerMessage:
-        "A reservation that you are the Sponsor of has been approved.<br /><br />" +
-        approvalNoticeHtml,
+        "A reservation that you are the Sponsor of has been approved.",
       status: BookingStatusLabel.APPROVED,
       replyTo: guestEmail,
     });
