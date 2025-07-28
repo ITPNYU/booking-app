@@ -27,10 +27,12 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { sendHTMLEmail } from "@/app/lib/sendHTMLEmail";
 import { CALENDAR_HIDE_STATUS, TableNames } from "@/components/src/policy";
+import { formatOrigin } from "@/components/src/utils/formatters";
 import { getCalendarClient } from "@/lib/googleClient";
+import { itpBookingMachine } from "@/lib/stateMachines/itpBookingMachine";
 import { Timestamp } from "firebase-admin/firestore";
 import { DateSelectArg } from "fullcalendar";
-import { formatOrigin } from "@/components/src/utils/formatters";
+import { createActor } from "xstate";
 
 // Helper to build booking contents object for calendar descriptions
 const buildBookingContents = (
@@ -159,9 +161,15 @@ async function handleBookingApprovalEmails(
   };
 
   console.log("approval email calendarEventId", calendarEventId);
+  console.log("shouldAutoApprove value:", shouldAutoApprove);
+  console.log("calendarEventId exists:", !!calendarEventId);
+
   if (calendarEventId && shouldAutoApprove) {
+    console.log("Calling serverApproveInstantBooking...");
     serverApproveInstantBooking(calendarEventId, email);
+    console.log("serverApproveInstantBooking called successfully");
   } else {
+    console.log("Not calling serverApproveInstantBooking - conditions not met");
     const userEventInputs: BookingFormDetails = {
       ...data,
       calendarEventId: calendarEventId,
@@ -237,9 +245,41 @@ async function checkOverlap(
   return false;
 }
 
+// Helper function to determine if booking should use XState flow
+function shouldUseXStateFlow(tenant: string): boolean {
+  return tenant === "itp";
+}
+
+// Helper function to get initial XState machine state
+function getInitialXStateStatus(data: any): BookingStatusLabel {
+  console.log("getInitialXStateStatus called with data:", data);
+  const actor = createActor(itpBookingMachine);
+  actor.start();
+
+  const finalSnapshot = actor.getSnapshot();
+  console.log("Final XState snapshot value:", finalSnapshot.value);
+  console.log("Final XState snapshot context:", finalSnapshot.context);
+
+  // The machine starts in "Requested" and immediately evaluates the always transition
+  // If shouldAutoApprove guard returns true, it transitions to "Approved"
+  if (finalSnapshot.value === "Approved") {
+    console.log("XState determined auto-approval - returning APPROVED");
+    return BookingStatusLabel.APPROVED;
+  }
+
+  console.log("XState determined no auto-approval - returning REQUESTED");
+  return BookingStatusLabel.REQUESTED;
+}
+
 export async function POST(request: NextRequest) {
-  const { email, selectedRooms, bookingCalendarInfo, data, isAutoApproval } =
-    await request.json();
+  const {
+    email,
+    selectedRooms,
+    bookingCalendarInfo,
+    data,
+    isAutoApproval,
+    tenant,
+  } = await request.json();
   const hasOverlap = await checkOverlap(selectedRooms, bookingCalendarInfo);
   if (hasOverlap) {
     return NextResponse.json(
@@ -249,6 +289,7 @@ export async function POST(request: NextRequest) {
   }
 
   console.log("data", data);
+  console.log("tenant", tenant);
 
   // Generate Sequential ID early so it can be used in calendar description
   const sequentialId = await serverGetNextSequentialId("bookings");
@@ -296,9 +337,23 @@ export async function POST(request: NextRequest) {
   console.log(" Done serverGetNextSequentialId ");
   console.log("calendarEventId", calendarEventId);
 
+  // Determine initial status based on tenant and XState flow
+  let initialStatus = BookingStatusLabel.REQUESTED;
+  let shouldAutoApprove = isAutoApproval === true;
+
+  if (tenant && shouldUseXStateFlow(tenant)) {
+    console.log("Using XState flow for ITP tenant");
+    initialStatus = getInitialXStateStatus(data);
+
+    // If XState determined auto-approval, override the shouldAutoApprove flag
+    if (initialStatus === BookingStatusLabel.APPROVED) {
+      shouldAutoApprove = true;
+    }
+  }
+
   let doc;
   try {
-    doc = await serverSaveDataToFirestore(TableNames.BOOKING, {
+    const bookingData = {
       calendarEventId,
       roomId: selectedRoomIds,
       email,
@@ -309,24 +364,44 @@ export async function POST(request: NextRequest) {
       requestedAt: Timestamp.now(),
       origin: BookingOrigin.USER,
       ...data,
-    });
+    };
+
+    // Add XState-specific fields for ITP tenant
+    if (tenant && shouldUseXStateFlow(tenant)) {
+      bookingData.xstateCurrentState =
+        initialStatus === BookingStatusLabel.APPROVED
+          ? "Approved"
+          : "Requested";
+      bookingData.tenant = tenant;
+
+      // If auto-approved by XState, set approval timestamps
+      if (initialStatus === BookingStatusLabel.APPROVED) {
+        bookingData.firstApprovedAt = Timestamp.now();
+        bookingData.firstApprovedBy = "Auto-Approval";
+        bookingData.finalApprovedAt = Timestamp.now();
+        bookingData.finalApprovedBy = "Auto-Approval";
+      }
+    }
+
+    doc = await serverSaveDataToFirestore(TableNames.BOOKING, bookingData);
 
     if (!doc || !doc.id) {
       throw new Error("Failed to create booking document");
     }
 
-    // Create initial booking log entry before sending email so it appears in History
+    // Create initial booking log entry with appropriate status
     await logServerBookingChange({
       bookingId: doc.id,
-      status: BookingStatusLabel.REQUESTED,
+      status: initialStatus,
       changedBy: email,
       requestNumber: sequentialId,
       calendarEventId: calendarEventId,
       note: "",
     });
 
+    // Handle approval emails based on final status
     await handleBookingApprovalEmails(
-      isAutoApproval,
+      shouldAutoApprove,
       calendarEventId,
       sequentialId,
       data,
