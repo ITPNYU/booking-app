@@ -63,7 +63,7 @@ export const sendHTMLEmail = async (params: SendHTMLEmailParams) => {
   }
   console.log("finalTargetEmail", finalTargetEmail);
 
-  const subj = `${getEmailBranchTag()}${status} - Media Commons Request #${requestNumber}: "${eventTitle}"`;
+  const subj = `${getEmailBranchTag()}${status} - Media Commons request #${requestNumber}: "${eventTitle}"`;
 
   const getUrlPathByApproverType = (
     calendarEventId,
