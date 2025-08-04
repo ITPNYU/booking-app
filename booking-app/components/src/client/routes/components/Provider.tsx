@@ -426,19 +426,28 @@ export const DatabaseProvider = ({
   };
 
   const fetchRoomSettings = async () => {
-    clientFetchAllDataFromCollection(TableNames.RESOURCES, [], tenant)
-      .then((fetchedData) => {
-        const filtered = fetchedData.map((item: any) => ({
-          id: item.id,
-          roomId: item.roomId,
-          name: item.name,
-          capacity: item.capacity,
-          calendarId: item.calendarId,
-        }));
-        filtered.sort((a, b) => a.roomId - b.roomId);
-        setRoomSettings(filtered);
-      })
-      .catch((error) => console.error("Error fetching data:", error));
+    try {
+      // Get tenant schema from the API
+      const response = await fetch(`/api/tenantSchema/${tenant}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch tenant schema');
+      }
+      const schema = await response.json();
+      
+      // Convert schema resources to RoomSetting format
+      const filtered = schema.resources.map((resource: any) => ({
+        id: resource.roomId.toString(), // Use roomId as id
+        roomId: resource.roomId,
+        name: resource.name,
+        capacity: resource.capacity.toString(),
+        calendarId: resource.calendarId,
+      }));
+      
+      filtered.sort((a, b) => a.roomId - b.roomId);
+      setRoomSettings(filtered);
+    } catch (error) {
+      console.error("Error fetching room settings from schema:", error);
+    }
   };
 
   const fetchBookingTypes = async () => {

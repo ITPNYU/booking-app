@@ -11,6 +11,7 @@ export type Resource = {
   roomId: number;
   autoApproval: boolean;
   checkable: boolean;
+  calendarId: string;
 };
 
 export type SchemaContextType = {

@@ -97,11 +97,13 @@ export const SelectRooms = ({
     const newVal: boolean = e.target.checked;
     setSelected((prev: RoomSetting[]) => {
       if (newVal) {
-        return [...prev, room].sort(
-          (a, b) => Number(a.roomId) - Number(b.roomId)
+        const newSelection = [...prev, room].sort(
+          (a, b) => a.roomId - b.roomId
         );
+        return newSelection;
       } else {
-        return prev.filter((x: RoomSetting) => x.roomId != room.roomId);
+        const newSelection = prev.filter((r) => r.roomId !== room.roomId);
+        return newSelection;
       }
     });
   };

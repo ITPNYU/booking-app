@@ -13,6 +13,7 @@ import { SelectRooms } from "../components/SelectRooms";
 import { WALK_IN_ROOMS } from "@/components/src/mediaCommonsPolicy";
 import useCheckFormMissingData from "../hooks/useCheckFormMissingData";
 import { useTenantSchema } from "../../components/SchemaProvider";
+
 interface Props {
   calendarEventId?: string;
   formContext?: FormContextLevel;
@@ -34,15 +35,22 @@ export default function SelectRoomPage({
 
   const roomsToShow = useMemo(() => {
     const { resources } = schema;
-    const allRooms = !isWalkIn
-      ? roomSettings
-      : roomSettings.filter((room) => WALK_IN_ROOMS.includes(room.roomId));
+    
+    // Convert schema resources to RoomSetting format for compatibility
+    const convertedResources = resources.map((resource) => ({
+      roomId: resource.roomId,
+      name: resource.name,
+      capacity: resource.capacity.toString(),
+      calendarId: resource.calendarId,
+      calendarRef: undefined,
+    }));
 
-    // TODO: Request all rooms from schema API in database context.
-    return allRooms.filter((room) =>
-      resources.some((r) => r.roomId === room.roomId)
-    );
-  }, [roomSettings]);
+    const allRooms = !isWalkIn
+      ? convertedResources
+      : convertedResources.filter((room) => WALK_IN_ROOMS.includes(room.roomId));
+
+    return allRooms;
+  }, [schema.resources, isWalkIn]);
 
   return (
     <Box sx={{ flexGrow: 1 }}>

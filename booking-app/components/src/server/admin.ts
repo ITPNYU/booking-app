@@ -7,6 +7,7 @@ import {
   serverGetDataByCalendarEventId,
   serverGetFinalApproverEmail,
   serverUpdateInFirestore,
+  serverGetDocumentById,
 } from "@/lib/firebase/server/adminDb";
 import { ApproverLevel, TableNames, getApprovalCcEmail } from "../policy";
 import {
@@ -563,53 +564,57 @@ export const firstApproverEmails = async (department: string) => {
 };
 
 export const serverGetRoomCalendarIds = async (
-  roomId: number
+  roomId: number,
+  tenant?: string
 ): Promise<string[]> => {
-  const queryConstraints: Constraint[] = [
-    {
-      field: "roomId",
-      operator: "==",
-      value: roomId,
-    },
-  ];
+  try {
+    // Get tenant schema
+    const schema = await serverGetDocumentById(TableNames.TENANT_SCHEMA, tenant || 'mc');
+    if (!schema || !schema.resources) {
+      console.log('No schema or resources found');
+      return [];
+    }
 
-  const rooms = await serverFetchAllDataFromCollection<RoomSetting>(
-    TableNames.RESOURCES,
-    queryConstraints
-  );
+    const rooms = schema.resources.filter((resource: any) => resource.roomId === roomId);
 
-  console.log(`Rooms: ${JSON.stringify(rooms)}`);
+    console.log(`Rooms: ${JSON.stringify(rooms)}`);
 
-  return rooms
-    .map((room) => room.calendarId)
-    .filter(
-      (calendarId): calendarId is string =>
-        calendarId !== undefined && calendarId !== null
-    );
+    return rooms
+      .map((room: any) => room.calendarId)
+      .filter(
+        (calendarId): calendarId is string =>
+          calendarId !== undefined && calendarId !== null
+      );
+  } catch (error) {
+    console.error('Error fetching room calendar IDs from schema:', error);
+    return [];
+  }
 };
 
 export const serverGetRoomCalendarId = async (
-  roomId: number
+  roomId: number,
+  tenant?: string
 ): Promise<string | null> => {
-  const queryConstraints: Constraint[] = [
-    {
-      field: "roomId",
-      operator: "==",
-      value: roomId,
-    },
-  ];
+  try {
+    // Get tenant schema
+    const schema = await serverGetDocumentById(TableNames.TENANT_SCHEMA, tenant || 'mc');
+    if (!schema || !schema.resources) {
+      console.log('No schema or resources found');
+      return null;
+    }
 
-  const rooms = await serverFetchAllDataFromCollection<RoomSetting>(
-    TableNames.RESOURCES,
-    queryConstraints
-  );
+    const rooms = schema.resources.filter((resource: any) => resource.roomId === roomId);
 
-  if (rooms.length > 0) {
-    const room = rooms[0];
-    console.log(`Room: ${JSON.stringify(room)}`);
-    return room.calendarId;
-  } else {
-    console.log("No matching room found.");
+    if (rooms.length > 0) {
+      const room = rooms[0];
+      console.log(`Room: ${JSON.stringify(room)}`);
+      return room.calendarId;
+    } else {
+      console.log("No matching room found.");
+      return null;
+    }
+  } catch (error) {
+    console.error('Error fetching room calendar ID from schema:', error);
     return null;
   }
 };
