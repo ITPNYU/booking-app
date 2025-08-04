@@ -14,11 +14,11 @@ export type Resource = {
 };
 
 export type SchemaContextType = {
+  tenant: string;
   name: string;
   logo: string;
   nameForPolicy: string;
   policy: string; // innerHTML
-  programs: string[];
   programMapping: Record<string, string[]>;
   roles: string[];
   roleMapping: Record<string, string[]>;
@@ -33,11 +33,11 @@ export type SchemaContextType = {
 };
 
 export const SchemaContext = createContext<SchemaContextType>({
+  tenant: "",
   name: "",
   logo: "",
   nameForPolicy: "",
   policy: "",
-  programs: [],
   roles: [],
   showNNumber: true,
   showSponsor: true,

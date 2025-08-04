@@ -5,7 +5,6 @@ import "@/components/src/client/styles.css";
 import { AuthProvider } from "@/components/src/client/routes/components/AuthProvider";
 import ClientProvider from "@/components/src/client/routes/components/ClientProvider";
 import CssBaseline from "@mui/material/CssBaseline";
-import NavBar from "@/components/src/client/routes/components/navBar";
 import { Roboto } from "next/font/google";
 import { ThemeProvider } from "@mui/material";
 import theme from "./theme/theme";
@@ -33,7 +32,6 @@ const RootLayout: React.FC<LayoutProps> = ({ children }) => (
         <ClientProvider>
           <ThemeProvider theme={theme}>
             <CssBaseline />
-            <NavBar />
             {children}
           </ThemeProvider>
         </ClientProvider>
