@@ -31,7 +31,10 @@ interface HistoryItem {
   note?: string;
 }
 
-const getBookingHistory = async (booking: Booking, tenant?: string): Promise<HistoryItem[]> => {
+const getBookingHistory = async (
+  booking: Booking,
+  tenant?: string
+): Promise<HistoryItem[]> => {
   const history: HistoryItem[] = [];
 
   // Fetch logs from BOOKING_LOGS table
@@ -101,6 +104,14 @@ const getBookingHistory = async (booking: Booking, tenant?: string): Promise<His
     });
   }
 
+  if (booking.checkedInAt) {
+    history.push({
+      status: BookingStatusLabel.CHECKED_IN,
+      user: booking.checkedInBy,
+      date: booking.checkedInAt.toDate().toLocaleString(),
+    });
+  }
+
   if (booking.checkedOutAt) {
     history.push({
       status: BookingStatusLabel.CHECKED_OUT,
@@ -117,7 +128,17 @@ const getBookingHistory = async (booking: Booking, tenant?: string): Promise<His
     });
   }
 
-  return history.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  if (booking.walkedInAt) {
+    history.push({
+      status: BookingStatusLabel.WALK_IN,
+      user: "PA",
+      date: booking.walkedInAt.toDate().toLocaleString(),
+    });
+  }
+
+  return history.sort(
+    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+  );
 };
 
 export const serverBookingContents = async (id: string, tenant?: string) => {
@@ -129,7 +150,7 @@ export const serverBookingContents = async (id: string, tenant?: string) => {
   if (!booking) {
     throw new Error("Booking not found");
   }
-  
+
   const history = await getBookingHistory(booking, tenant);
 
   // Format date and time
@@ -174,7 +195,12 @@ export const serverUpdateDataByCalendarEventId = async (
   if (!booking) {
     throw new Error("Booking not found");
   }
-  await serverUpdateInFirestore(collectionName, booking.id, updatedData, tenant);
+  await serverUpdateInFirestore(
+    collectionName,
+    booking.id,
+    updatedData,
+    tenant
+  );
 };
 
 export const serverDeleteFieldsByCalendarEventId = async (
@@ -569,13 +595,18 @@ export const serverGetRoomCalendarIds = async (
 ): Promise<string[]> => {
   try {
     // Get tenant schema
-    const schema = await serverGetDocumentById(TableNames.TENANT_SCHEMA, tenant || 'mc');
+    const schema = await serverGetDocumentById(
+      TableNames.TENANT_SCHEMA,
+      tenant || "mc"
+    );
     if (!schema || !schema.resources) {
-      console.log('No schema or resources found');
+      console.log("No schema or resources found");
       return [];
     }
 
-    const rooms = schema.resources.filter((resource: any) => resource.roomId === roomId);
+    const rooms = schema.resources.filter(
+      (resource: any) => resource.roomId === roomId
+    );
 
     console.log(`Rooms: ${JSON.stringify(rooms)}`);
 
@@ -586,7 +617,7 @@ export const serverGetRoomCalendarIds = async (
           calendarId !== undefined && calendarId !== null
       );
   } catch (error) {
-    console.error('Error fetching room calendar IDs from schema:', error);
+    console.error("Error fetching room calendar IDs from schema:", error);
     return [];
   }
 };
@@ -597,13 +628,18 @@ export const serverGetRoomCalendarId = async (
 ): Promise<string | null> => {
   try {
     // Get tenant schema
-    const schema = await serverGetDocumentById(TableNames.TENANT_SCHEMA, tenant || 'mc');
+    const schema = await serverGetDocumentById(
+      TableNames.TENANT_SCHEMA,
+      tenant || "mc"
+    );
     if (!schema || !schema.resources) {
-      console.log('No schema or resources found');
+      console.log("No schema or resources found");
       return null;
     }
 
-    const rooms = schema.resources.filter((resource: any) => resource.roomId === roomId);
+    const rooms = schema.resources.filter(
+      (resource: any) => resource.roomId === roomId
+    );
 
     if (rooms.length > 0) {
       const room = rooms[0];
@@ -614,7 +650,7 @@ export const serverGetRoomCalendarId = async (
       return null;
     }
   } catch (error) {
-    console.error('Error fetching room calendar ID from schema:', error);
+    console.error("Error fetching room calendar ID from schema:", error);
     return null;
   }
 };

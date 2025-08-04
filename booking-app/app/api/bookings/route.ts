@@ -36,22 +36,22 @@ import { formatOrigin } from "@/components/src/utils/formatters";
 // Helper function to extract tenant from request
 const extractTenantFromRequest = (request: NextRequest): string | undefined => {
   // Try to get tenant from referer header
-  const referer = request.headers.get('referer');
+  const referer = request.headers.get("referer");
   if (referer) {
     const url = new URL(referer);
     const tenantMatch = url.pathname.match(/^\/([^\/]+)/);
-    if (tenantMatch && tenantMatch[1] !== 'api') {
+    if (tenantMatch && tenantMatch[1] !== "api") {
       return tenantMatch[1];
     }
   }
-  
+
   // Try to get tenant from query parameter
   const { searchParams } = new URL(request.url);
-  const tenant = searchParams.get('tenant');
+  const tenant = searchParams.get("tenant");
   if (tenant) {
     return tenant;
   }
-  
+
   return undefined;
 };
 
@@ -272,10 +272,10 @@ async function checkOverlap(
 export async function POST(request: NextRequest) {
   const { email, selectedRooms, bookingCalendarInfo, data, isAutoApproval } =
     await request.json();
-  
+
   // Extract tenant from URL
   const tenant = extractTenantFromRequest(request);
-  
+
   const hasOverlap = await checkOverlap(selectedRooms, bookingCalendarInfo);
   if (hasOverlap) {
     return NextResponse.json(
@@ -334,18 +334,22 @@ export async function POST(request: NextRequest) {
 
   let doc;
   try {
-    doc = await serverSaveDataToFirestore(TableNames.BOOKING, {
-      calendarEventId,
-      roomId: selectedRoomIds,
-      email,
-      startDate: toFirebaseTimestampFromString(bookingCalendarInfo.startStr),
-      endDate: toFirebaseTimestampFromString(bookingCalendarInfo.endStr),
-      requestNumber: sequentialId,
-      equipmentCheckedOut: false,
-      requestedAt: Timestamp.now(),
-      origin: BookingOrigin.USER,
-      ...data,
-    }, tenant);
+    doc = await serverSaveDataToFirestore(
+      TableNames.BOOKING,
+      {
+        calendarEventId,
+        roomId: selectedRoomIds,
+        email,
+        startDate: toFirebaseTimestampFromString(bookingCalendarInfo.startStr),
+        endDate: toFirebaseTimestampFromString(bookingCalendarInfo.endStr),
+        requestNumber: sequentialId,
+        equipmentCheckedOut: false,
+        requestedAt: Timestamp.now(),
+        origin: BookingOrigin.USER,
+        ...data,
+      },
+      tenant,
+    );
 
     if (!doc || !doc.id) {
       throw new Error("Failed to create booking document");
@@ -398,10 +402,10 @@ export async function PUT(request: NextRequest) {
     calendarEventId,
     modifiedBy,
   } = await request.json();
-  
+
   // Extract tenant from URL
   const tenant = extractTenantFromRequest(request);
-  
+
   // TODO verify that they actually changed something
   if (bookingCalendarInfo == null) {
     return NextResponse.json(
@@ -487,18 +491,13 @@ export async function PUT(request: NextRequest) {
   console.log("newCalendarEventId", newCalendarEventId);
   const updatedData = {
     ...formData,
-    calendarEventId: newCalendarEventId,
     roomId: selectedRoomIds,
     startDate: toFirebaseTimestampFromString(bookingCalendarInfo.startStr),
     endDate: toFirebaseTimestampFromString(bookingCalendarInfo.endStr),
-    // Remove old approval fields
-    firstApprovedAt: null,
-    firstApprovedBy: null,
-    finalApprovedAt: null,
-    finalApprovedBy: null,
-    declinedAt: null,
-    declinedBy: null,
-    declineReason: null,
+    calendarEventId: newCalendarEventId,
+    equipmentCheckedOut: false,
+    requestedAt: Timestamp.now(),
+    origin: BookingOrigin.USER,
   };
 
   try {
@@ -506,7 +505,19 @@ export async function PUT(request: NextRequest) {
       TableNames.BOOKING,
       calendarEventId,
       updatedData,
-      tenant
+      tenant,
+    );
+
+    await serverDeleteFieldsByCalendarEventId(
+      TableNames.BOOKING,
+      newCalendarEventId,
+      [
+        "finalApprovedAt",
+        "finalApprovedBy",
+        "firstApprovedAt",
+        "firstApprovedBy",
+      ],
+      tenant,
     );
   } catch (err) {
     console.error(err);
