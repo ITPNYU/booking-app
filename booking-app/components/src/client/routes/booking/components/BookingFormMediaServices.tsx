@@ -1,14 +1,10 @@
-import {
-  CAMPUS_MEDIA_SERVICES_ROOMS,
-  CHECKOUT_EQUIPMENT_ROOMS,
-  LIGHTING_DMX_ROOMS,
-} from "../../../../mediaCommonsPolicy";
 import { Checkbox, FormControlLabel, Switch } from "@mui/material";
 import { Control, Controller, UseFormTrigger } from "react-hook-form";
 import { FormContextLevel, Inputs, MediaServices } from "../../../../types";
 import React, { useContext, useMemo } from "react";
 
 import { BookingContext } from "../bookingProvider";
+import { useTenantSchema } from "../../components/SchemaProvider";
 import styled from "@emotion/styled";
 
 const Label = styled.label`
@@ -37,6 +33,7 @@ export default function BookingFormMediaServices(props: Props) {
     formContext,
   } = props;
   const { selectedRooms } = useContext(BookingContext);
+  const schema = useTenantSchema();
   const roomIds = selectedRooms.map((room) => room.roomId);
 
   const limitedContexts = [
@@ -46,23 +43,32 @@ export default function BookingFormMediaServices(props: Props) {
 
   const checkboxes = useMemo(() => {
     const options: MediaServices[] = [];
-    const checkRoomMediaServices = (list: number[]) =>
-      roomIds.some((roomId) => list.includes(roomId));
-    if (checkRoomMediaServices(CHECKOUT_EQUIPMENT_ROOMS))
+    
+    // Check if any selected room has equipment service
+    const hasEquipmentService = selectedRooms.some((room) => {
+      return room.services?.includes("equipment") || false;
+    });
+    
+    if (hasEquipmentService) {
       options.push(MediaServices.CHECKOUT_EQUIPMENT);
-    if (checkRoomMediaServices([103])) {
-      options.push(MediaServices.AUDIO_TECH_103);
-      options.push(MediaServices.LIGHTING_TECH_103);
     }
-    if (checkRoomMediaServices([230]))
-      options.push(MediaServices.AUDIO_TECH_230);
-    if (checkRoomMediaServices(CAMPUS_MEDIA_SERVICES_ROOMS))
-      options.push(MediaServices.CAMPUS_MEDIA_SERVICES);
-    if (checkRoomMediaServices(LIGHTING_DMX_ROOMS))
-      options.push(MediaServices.LIGHTING_DMX);
+    
+    // Check for specific room services
+    selectedRooms.forEach((room) => {
+      if (room.roomId === 103) {
+        options.push(MediaServices.AUDIO_TECH_103);
+        options.push(MediaServices.LIGHTING_TECH_103);
+      }
+      if (room.roomId === 230) {
+        options.push(MediaServices.AUDIO_TECH_230);
+      }
+      if (room.services?.includes("campus-media")) {
+        options.push(MediaServices.CAMPUS_MEDIA_SERVICES);
+      }
+    });
 
     return options;
-  }, [roomIds]);
+  }, [roomIds, selectedRooms]);
 
   const toggle = (
     <Controller

@@ -10,8 +10,13 @@ export type Resource = {
   name: string;
   roomId: number;
   autoApproval: boolean;
-  checkable: boolean;
+  isEquipment: boolean; // renamed from checkable
   calendarId: string;
+  needsSafetyTraining: boolean;
+  shouldAutoApprove: boolean;
+  isWalkIn: boolean;
+  isWalkInCanBookTwo: boolean;
+  services: string[]; // ["equipment", "staffing", "setup", "security", "cleaning", "catering", "campus-media"]
 };
 
 export type SchemaContextType = {

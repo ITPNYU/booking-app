@@ -10,7 +10,6 @@ import { DatabaseContext } from "../../components/Provider";
 import { FormContextLevel } from "@/components/src/types";
 import Grid from "@mui/material/Unstable_Grid2";
 import { SelectRooms } from "../components/SelectRooms";
-import { WALK_IN_ROOMS } from "@/components/src/mediaCommonsPolicy";
 import useCheckFormMissingData from "../hooks/useCheckFormMissingData";
 import { useTenantSchema } from "../../components/SchemaProvider";
 
@@ -43,11 +42,21 @@ export default function SelectRoomPage({
       capacity: resource.capacity.toString(),
       calendarId: resource.calendarId,
       calendarRef: undefined,
+      // Include the new schema fields for compatibility
+      needsSafetyTraining: resource.needsSafetyTraining,
+      shouldAutoApprove: resource.shouldAutoApprove,
+      isWalkIn: resource.isWalkIn,
+      isWalkInCanBookTwo: resource.isWalkInCanBookTwo,
+      isEquipment: resource.isEquipment,
+      services: resource.services,
     }));
 
     const allRooms = !isWalkIn
       ? convertedResources
-      : convertedResources.filter((room) => WALK_IN_ROOMS.includes(room.roomId));
+      : convertedResources.filter((room) => {
+          const resource = schema.resources.find((r: any) => r.roomId === room.roomId);
+          return resource?.isWalkIn || false;
+        });
 
     return allRooms;
   }, [schema.resources, isWalkIn]);
