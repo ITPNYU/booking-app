@@ -1,10 +1,10 @@
-"use client";
-
-import { SchemaProvider } from "@/components/src/client/routes/components/SchemaProvider";
-import { isValidTenant } from "@/components/src/client/routes/hooks/useTenant";
-import { notFound } from "next/navigation";
 import React from "react";
-import { schema } from "./schema";
+import { notFound } from "next/navigation";
+import { SchemaContextType } from "@/components/src/client/routes/components/SchemaProvider";
+import SchemaProviderWrapper from "@/components/src/client/routes/components/SchemaProviderWrapper";
+import NavBar from "@/components/src/client/routes/components/navBar";
+import { serverGetDocumentById } from "@/lib/firebase/server/adminDb";
+import { TableNames } from "@/components/src/policy";
 
 type LayoutProps = {
   children: React.ReactNode;
@@ -13,14 +13,33 @@ type LayoutProps = {
   };
 };
 
-const Layout: React.FC<LayoutProps> = ({ children, params }) => {
-  // Use the shared validation logic
-  if (!isValidTenant(params.tenant)) {
-    return notFound();
+const ALLOWED_PLATFORMS = ["mc", "itp"];
+
+const Layout: React.FC<LayoutProps> = async ({ children, params }) => {
+  if (!ALLOWED_PLATFORMS.includes(params.tenant)) {
+    notFound();
   }
 
-  const tenantSchema = schema[params.tenant];
-  return <SchemaProvider value={tenantSchema}>{children}</SchemaProvider>;
+  try {
+    const tenantSchema = await serverGetDocumentById<SchemaContextType>(
+      TableNames.TENANT_SCHEMA,
+      params.tenant
+    );
+
+    if (!tenantSchema) {
+      notFound();
+    }
+
+    return (
+      <SchemaProviderWrapper value={tenantSchema}>
+        <NavBar />
+        {children}
+      </SchemaProviderWrapper>
+    );
+  } catch (error) {
+    console.error("Error fetching tenant schema:", error);
+    notFound();
+  }
 };
 
 export default Layout;
