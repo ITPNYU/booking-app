@@ -8,10 +8,13 @@ import {
 
 import { useRouter } from "next/navigation";
 import { DatabaseContext } from "../../components/Provider";
+import { useTenantSchema } from "../../components/SchemaProvider";
 import { BookingContext } from "../bookingProvider";
 import useCalculateOverlap from "./useCalculateOverlap";
+
 export default function useSubmitBooking(formContext: FormContextLevel) {
   const router = useRouter();
+  const { tenant } = useTenantSchema();
   const {
     liaisonUsers,
     userEmail,
@@ -154,6 +157,7 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
           liaisonUsers,
           data,
           isAutoApproval,
+          tenant, // Add tenant information for XState flow
           // Add modifiedBy as a top-level parameter for modification context
           ...(isModification && { modifiedBy: userEmail }),
           ...(requestParams.body ?? {}),
@@ -188,6 +192,7 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
       reloadFutureBookings,
       department,
       role,
+      tenant,
     ]
   );
 
