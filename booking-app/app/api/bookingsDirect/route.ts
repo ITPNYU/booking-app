@@ -114,7 +114,7 @@ export async function POST(request: NextRequest) {
       serverSendBookingDetailEmail({
         calendarEventId,
         targetEmail: recipient,
-        headerMessage: `Your ${type} reservation has been confirmed!`,
+        headerMessage: `A ${type} reservation for Media Commons has been confirmed.`,
         status: bookingStatus,
       }),
     );
