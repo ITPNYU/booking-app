@@ -6,15 +6,15 @@ import {
   PagePermission,
 } from "../../../../types";
 
-import { useParams, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { DatabaseContext } from "../../components/Provider";
 import { SchemaContext } from "../../components/SchemaProvider";
+
 import { BookingContext } from "../bookingProvider";
 import useCalculateOverlap from "./useCalculateOverlap";
 
 export default function useSubmitBooking(formContext: FormContextLevel) {
   const router = useRouter();
-  const params = useParams();
   const schemaContext = useContext(SchemaContext);
   const tenant = schemaContext?.tenant;
 
