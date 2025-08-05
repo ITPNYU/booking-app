@@ -61,6 +61,7 @@ const Layout: React.FC<LayoutProps> = async ({ children, params }) => {
     );
   } catch (error) {
     console.error("Layout: Error fetching tenant schema:", error);
+
     notFound();
   }
 };
