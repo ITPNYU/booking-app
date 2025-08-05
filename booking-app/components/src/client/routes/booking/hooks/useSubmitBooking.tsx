@@ -7,14 +7,14 @@ import {
 } from "../../../../types";
 
 import { useRouter } from "next/navigation";
-import { useTenant } from "../../../routes/hooks/useTenant";
 import { DatabaseContext } from "../../components/Provider";
+import { useTenantSchema } from "../../components/SchemaProvider";
 import { BookingContext } from "../bookingProvider";
 import useCalculateOverlap from "./useCalculateOverlap";
 
 export default function useSubmitBooking(formContext: FormContextLevel) {
   const router = useRouter();
-  const tenant = useTenant();
+  const { tenant } = useTenantSchema();
   const {
     liaisonUsers,
     userEmail,
