@@ -9,7 +9,6 @@ export type Resource = {
   capacity: number;
   name: string;
   roomId: number;
-  autoApproval: boolean;
   isEquipment: boolean; // renamed from checkable
   calendarId: string;
   needsSafetyTraining: boolean;
@@ -30,7 +29,12 @@ export type SchemaContextType = {
   roleMapping: Record<string, string[]>;
   showNNumber: boolean;
   showSponsor: boolean;
+  showSetup: boolean;
+  showEquipment: boolean;
+  showStaffing: boolean;
+  showCatering: boolean;
   showHireSecurity: boolean;
+  showBookingTypes: boolean;
   agreements: Agreement[]; // innerHTML[]
   resources: Resource[];
   supportVIP: boolean;
@@ -48,6 +52,11 @@ export const SchemaContext = createContext<SchemaContextType>({
   showNNumber: true,
   showSponsor: true,
   showHireSecurity: true,
+  showSetup: true,
+  showEquipment: true,
+  showStaffing: true,
+  showCatering: true,
+  showBookingTypes: true,
   agreements: [],
   resources: [],
   supportVIP: false,
