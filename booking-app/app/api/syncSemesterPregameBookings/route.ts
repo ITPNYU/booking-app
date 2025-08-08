@@ -5,7 +5,7 @@ import {
   BookingStatusLabel,
   MediaServices,
 } from "@/components/src/types";
-import { serverGetNextSequentialId } from "@/lib/firebase/server/adminDb";
+import { serverGetNextSequentialId, serverGetDocumentById } from "@/lib/firebase/server/adminDb";
 import admin from "@/lib/firebase/server/firebaseAdmin";
 import { getCalendarClient } from "@/lib/googleClient";
 import { Timestamp } from "firebase/firestore";
@@ -217,12 +217,17 @@ const createBookingWithDefaults = (
 export async function POST(request: Request) {
   try {
     const calendar = await getCalendarClient();
-    const resourcesSnapshot = await db.collection("resources").get();
-    const resources = resourcesSnapshot.docs.map(doc => ({
-      id: doc.id,
-      calendarId: doc.data().calendarId,
-      roomId: doc.data().roomId,
-    }));
+    
+    // Get tenant from request headers or default to 'mc'
+    const tenant = request.headers.get('x-tenant') || 'mc';
+    
+    // Get resources from tenant schema instead of collection
+    const schema = await serverGetDocumentById(TableNames.TENANT_SCHEMA, tenant);
+    const resources = schema?.resources?.map((resource: any) => ({
+      id: resource.roomId.toString(),
+      calendarId: resource.calendarId,
+      roomId: resource.roomId,
+    })) || [];
 
     let totalNewBookings = 0;
     let totalUpdatedBookings = 0;
