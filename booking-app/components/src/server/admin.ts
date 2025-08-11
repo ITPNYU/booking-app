@@ -1,13 +1,12 @@
 import {
-  Constraint,
   logServerBookingChange,
   serverDeleteData,
   serverDeleteDocumentFields,
   serverFetchAllDataFromCollection,
   serverGetDataByCalendarEventId,
+  serverGetDocumentById,
   serverGetFinalApproverEmail,
   serverUpdateInFirestore,
-  serverGetDocumentById,
 } from "@/lib/firebase/server/adminDb";
 import { ApproverLevel, TableNames, getApprovalCcEmail } from "../policy";
 import {
@@ -19,7 +18,6 @@ import {
   BookingLog,
   BookingStatus,
   BookingStatusLabel,
-  RoomSetting,
 } from "../types";
 
 import { Timestamp } from "firebase-admin/firestore";
@@ -239,30 +237,41 @@ export const serverDeleteDataByCalendarEventId = async (
 };
 
 // from server
-const serverFirstApprove = (id: string, email?: string) => {
-  serverUpdateDataByCalendarEventId(TableNames.BOOKING, id, {
-    firstApprovedAt: Timestamp.now(),
-    firstApprovedBy: email,
-  });
+const serverFirstApprove = (id: string, email?: string, tenant?: string) => {
+  serverUpdateDataByCalendarEventId(
+    TableNames.BOOKING,
+    id,
+    {
+      firstApprovedAt: Timestamp.now(),
+      firstApprovedBy: email,
+    },
+    tenant
+  );
 };
 
-const serverFinalApprove = (id: string, email?: string) => {
-  serverUpdateDataByCalendarEventId(TableNames.BOOKING, id, {
-    finalApprovedAt: Timestamp.now(),
-    finalApprovedBy: email,
-  });
+const serverFinalApprove = (id: string, email?: string, tenant?: string) => {
+  serverUpdateDataByCalendarEventId(
+    TableNames.BOOKING,
+    id,
+    {
+      finalApprovedAt: Timestamp.now(),
+      finalApprovedBy: email,
+    },
+    tenant
+  );
 };
 
 //server
 export const serverApproveInstantBooking = async (
   id: string,
-  email: string
+  email: string,
+  tenant?: string
 ) => {
-  serverFirstApprove(id, "System");
+  serverFirstApprove(id, "System", tenant);
   const doc = await serverGetDataByCalendarEventId<{
     id: string;
     requestNumber: number;
-  }>(TableNames.BOOKING, id);
+  }>(TableNames.BOOKING, id, tenant);
   if (doc && id) {
     await logServerBookingChange({
       bookingId: doc.id,
@@ -271,39 +280,45 @@ export const serverApproveInstantBooking = async (
       requestNumber: doc.requestNumber,
       calendarEventId: id,
       note: "",
+      tenant,
     });
   }
-  serverFinalApprove(id, "System");
-  serverApproveEvent(id);
+  serverFinalApprove(id, "System", tenant);
+  serverApproveEvent(id, tenant);
 };
 
 // both first approve and second approve flows hit here
-export const serverApproveBooking = async (id: string, email: string) => {
+export const serverApproveBooking = async (
+  id: string,
+  email: string,
+  tenant?: string
+) => {
   try {
     const bookingStatus = await serverGetDataByCalendarEventId<BookingStatus>(
       TableNames.BOOKING,
-      id
+      id,
+      tenant
     );
     const isFinalApproval = bookingStatus?.firstApprovedAt?.toDate() ?? null;
 
     if (isFinalApproval) {
-      await finalApprove(id, email);
+      await finalApprove(id, email, tenant);
     } else {
-      await firstApprove(id, email);
+      await firstApprove(id, email, tenant);
     }
   } catch (error) {
     throw error.status ? error : { status: 500, message: error.message };
   }
 };
 
-const firstApprove = async (id: string, email: string) => {
-  await serverFirstApprove(id, email);
+const firstApprove = async (id: string, email: string, tenant?: string) => {
+  await serverFirstApprove(id, email, tenant);
 
   // Log the first approval action
   const doc = await serverGetDataByCalendarEventId<{
     id: string;
     requestNumber: number;
-  }>(TableNames.BOOKING, id);
+  }>(TableNames.BOOKING, id, tenant);
   if (!doc) {
     console.error("Booking document not found for calendar event id:", id);
     throw new Error("Booking document not found");
@@ -316,6 +331,7 @@ const firstApprove = async (id: string, email: string) => {
       changedBy: email,
       requestNumber: doc.requestNumber,
       calendarEventId: id,
+      tenant,
     });
   }
 
@@ -325,6 +341,7 @@ const firstApprove = async (id: string, email: string) => {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
+        "x-tenant": tenant || "mc",
       },
       body: JSON.stringify({
         calendarEventId: id,
@@ -334,7 +351,7 @@ const firstApprove = async (id: string, email: string) => {
       }),
     }
   );
-  const contents = await serverBookingContents(id);
+  const contents = await serverBookingContents(id, tenant);
 
   const emailContents = {
     ...contents,
@@ -360,7 +377,7 @@ const firstApprove = async (id: string, email: string) => {
     body: JSON.stringify(formData),
   });
 };
-const finalApprove = async (id: string, email: string) => {
+const finalApprove = async (id: string, email: string, tenant?: string) => {
   const finalApprovers = (await approvers()).filter(
     (a) => a.level === ApproverLevel.FINAL
   );
@@ -377,13 +394,13 @@ const finalApprove = async (id: string, email: string) => {
       status: 403,
     };
   }
-  serverFinalApprove(id, email);
+  serverFinalApprove(id, email, tenant);
 
   // Log the final approval action
   const doc = await serverGetDataByCalendarEventId<{
     id: string;
     requestNumber: number;
-  }>(TableNames.BOOKING, id);
+  }>(TableNames.BOOKING, id, tenant);
   if (doc && id) {
     await logServerBookingChange({
       bookingId: doc.id,
@@ -392,10 +409,11 @@ const finalApprove = async (id: string, email: string) => {
       requestNumber: doc.requestNumber,
       calendarEventId: id,
       note: "",
+      tenant,
     });
   }
 
-  await serverApproveEvent(id);
+  await serverApproveEvent(id, tenant);
 };
 
 interface SendBookingEmailOptions {
@@ -405,6 +423,7 @@ interface SendBookingEmailOptions {
   status: BookingStatusLabel;
   approverType?: ApproverType;
   replyTo?: string;
+  tenant?: string;
 }
 
 interface SendConfirmationEmailOptions {
@@ -412,6 +431,7 @@ interface SendConfirmationEmailOptions {
   status: BookingStatusLabel;
   headerMessage: string;
   guestEmail: string;
+  tenant?: string;
 }
 
 export const serverSendBookingDetailEmail = async ({
@@ -421,8 +441,9 @@ export const serverSendBookingDetailEmail = async ({
   status,
   approverType,
   replyTo,
+  tenant,
 }: SendBookingEmailOptions) => {
-  const contents = await serverBookingContents(calendarEventId);
+  const contents = await serverBookingContents(calendarEventId, tenant);
   contents.headerMessage = headerMessage;
   const formData = {
     templateName: "booking_detail",
@@ -449,6 +470,7 @@ export const serverSendConfirmationEmail = async ({
   status,
   headerMessage,
   guestEmail,
+  tenant,
 }: SendConfirmationEmailOptions) => {
   const email = await serverGetFinalApproverEmail();
   serverSendBookingDetailEmail({
@@ -457,12 +479,17 @@ export const serverSendConfirmationEmail = async ({
     headerMessage,
     status,
     replyTo: guestEmail,
+    tenant,
   });
 };
 
 //server
-export const serverApproveEvent = async (id: string) => {
-  const doc = await serverGetDataByCalendarEventId(TableNames.BOOKING, id);
+export const serverApproveEvent = async (id: string, tenant?: string) => {
+  const doc = await serverGetDataByCalendarEventId(
+    TableNames.BOOKING,
+    id,
+    tenant
+  );
   if (!doc) {
     console.error("Booking status not found for calendar event id: ", id);
     return;
@@ -498,6 +525,7 @@ To cancel reservations please return to the Booking Tool, visit My Bookings, and
     targetEmail: guestEmail,
     headerMessage: userHeaderMessage,
     status: BookingStatusLabel.APPROVED,
+    tenant,
   });
 
   // for second approver
@@ -506,6 +534,7 @@ To cancel reservations please return to the Booking Tool, visit My Bookings, and
     status: BookingStatusLabel.APPROVED,
     headerMessage: otherHeaderMessage,
     guestEmail: guestEmail,
+    tenant,
   });
 
   // for Samantha
@@ -515,10 +544,11 @@ To cancel reservations please return to the Booking Tool, visit My Bookings, and
     headerMessage: otherHeaderMessage,
     status: BookingStatusLabel.APPROVED,
     replyTo: guestEmail,
+    tenant,
   });
 
   // for sponsor, if we have one
-  const contents = await serverBookingContents(id);
+  const contents = await serverBookingContents(id, tenant);
   if (contents.role === "Student" && contents.sponsorEmail?.length > 0) {
     serverSendBookingDetailEmail({
       calendarEventId: id,
@@ -528,6 +558,7 @@ To cancel reservations please return to the Booking Tool, visit My Bookings, and
         approvalNoticeHtml,
       status: BookingStatusLabel.APPROVED,
       replyTo: guestEmail,
+      tenant,
     });
   }
 
@@ -539,6 +570,7 @@ To cancel reservations please return to the Booking Tool, visit My Bookings, and
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
+      "x-tenant": tenant || "mc",
     },
     body: JSON.stringify(formDataForCalendarEvents),
   });

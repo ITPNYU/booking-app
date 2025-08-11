@@ -15,7 +15,6 @@ import {
   clientSaveDataToFirestore,
   clientUpdateDataInFirestore,
   getPaginatedData,
-  getCurrentTenant,
 } from "@/lib/firebase/firebase";
 import { Timestamp, where } from "firebase/firestore";
 import {
@@ -30,7 +29,9 @@ import { clientUpdateDataByCalendarEventId } from "@/lib/firebase/client/clientD
 import { roundTimeUp } from "../client/utils/date";
 import { getBookingToolDeployUrl } from "./ui";
 
-export const fetchAllFutureBooking = async <Booking>(tenant?: string): Promise<Booking[]> => {
+export const fetchAllFutureBooking = async <Booking>(
+  tenant?: string
+): Promise<Booking[]> => {
   const now = Timestamp.now();
   const futureQueryConstraints = [where("endDate", ">", now)];
   return clientFetchAllDataFromCollection<Booking>(
@@ -52,9 +53,21 @@ export const fetchAllBookings = async <Booking>(
     pagePermission === PagePermission.LIAISON ||
     pagePermission === PagePermission.PA
   ) {
-    return getPaginatedData<Booking>(TableNames.BOOKING, limit, filters, last, tenant);
+    return getPaginatedData<Booking>(
+      TableNames.BOOKING,
+      limit,
+      filters,
+      last,
+      tenant
+    );
   } else {
-    return getPaginatedData<Booking>(TableNames.BOOKING, limit, filters, last, tenant);
+    return getPaginatedData<Booking>(
+      TableNames.BOOKING,
+      limit,
+      filters,
+      last,
+      tenant
+    );
   }
 };
 
@@ -89,17 +102,27 @@ export const getOldSafetyTrainingEmails = () => {
   //return combinedValues;
 };
 
-export const decline = async (id: string, email: string, reason?: string) => {
-  clientUpdateDataByCalendarEventId(TableNames.BOOKING, id, {
-    declinedAt: Timestamp.now(),
-    declinedBy: email,
-    declineReason: reason || null,
-  });
+export const decline = async (
+  id: string,
+  email: string,
+  reason?: string,
+  tenant?: string
+) => {
+  clientUpdateDataByCalendarEventId(
+    TableNames.BOOKING,
+    id,
+    {
+      declinedAt: Timestamp.now(),
+      declinedBy: email,
+      declineReason: reason || null,
+    },
+    tenant
+  );
 
   const doc = await clientGetDataByCalendarEventId<{
     id: string;
     requestNumber: number;
-  }>(TableNames.BOOKING, id);
+  }>(TableNames.BOOKING, id, tenant);
 
   // Log the decline action
   if (doc) {
@@ -110,6 +133,7 @@ export const decline = async (id: string, email: string, reason?: string) => {
       changedBy: email,
       requestNumber: doc.requestNumber,
       note: reason,
+      tenant,
     });
   }
   //@ts-ignore
@@ -127,7 +151,8 @@ export const decline = async (id: string, email: string, reason?: string) => {
     id,
     guestEmail,
     headerMessage,
-    BookingStatusLabel.DECLINED
+    BookingStatusLabel.DECLINED,
+    tenant
   );
   const response = await fetch(
     `${process.env.NEXT_PUBLIC_BASE_URL}/api/calendarEvents`,
@@ -135,6 +160,7 @@ export const decline = async (id: string, email: string, reason?: string) => {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
+        "x-tenant": tenant || "mc",
       },
       body: JSON.stringify({
         calendarEventId: id,
@@ -182,15 +208,26 @@ async function getViolationCount(netId: string): Promise<number> {
   return preBanLogs.length;
 }
 
-export const cancel = async (id: string, email: string, netId: string) => {
-  clientUpdateDataByCalendarEventId(TableNames.BOOKING, id, {
-    canceledAt: Timestamp.now(),
-    canceledBy: email,
-  });
+export const cancel = async (
+  id: string,
+  email: string,
+  netId: string,
+  tenant?: string
+) => {
+  clientUpdateDataByCalendarEventId(
+    TableNames.BOOKING,
+    id,
+    {
+      canceledAt: Timestamp.now(),
+      canceledBy: email,
+    },
+    tenant
+  );
 
   const doc = await clientGetDataByCalendarEventId<Booking>(
     TableNames.BOOKING,
-    id
+    id,
+    tenant
   );
   // Always call for pre-ban logging
   checkAndLogLateCancellation(doc, id, netId);
@@ -203,6 +240,7 @@ export const cancel = async (id: string, email: string, netId: string) => {
       status: BookingStatusLabel.CANCELED,
       changedBy: email,
       requestNumber: doc.requestNumber,
+      tenant,
     });
   }
 
@@ -226,13 +264,15 @@ If you have any questions or need further assistance, please don't hesitate to r
     id,
     guestEmail,
     headerMessage,
-    BookingStatusLabel.CANCELED
+    BookingStatusLabel.CANCELED,
+    tenant
   );
   clientSendBookingDetailEmail(
     id,
     getCancelCcEmail(),
     ccHeaderMessage,
-    BookingStatusLabel.CANCELED
+    BookingStatusLabel.CANCELED,
+    tenant
   );
   const response = await fetch(
     `${process.env.NEXT_PUBLIC_BASE_URL}/api/calendarEvents`,
@@ -240,6 +280,7 @@ If you have any questions or need further assistance, please don't hesitate to r
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
+        "x-tenant": tenant || "mc",
       },
       body: JSON.stringify({
         calendarEventId: id,
@@ -304,15 +345,20 @@ export const updateOperationHours = async (
   }
 };
 
-export const checkin = async (id: string, email: string) => {
-  clientUpdateDataByCalendarEventId(TableNames.BOOKING, id, {
-    checkedInAt: Timestamp.now(),
-    checkedInBy: email,
-  });
+export const checkin = async (id: string, email: string, tenant?: string) => {
+  clientUpdateDataByCalendarEventId(
+    TableNames.BOOKING,
+    id,
+    {
+      checkedInAt: Timestamp.now(),
+      checkedInBy: email,
+    },
+    tenant
+  );
   const doc = await clientGetDataByCalendarEventId<{
     id: string;
     requestNumber: number;
-  }>(TableNames.BOOKING, id);
+  }>(TableNames.BOOKING, id, tenant);
 
   console.log("check in doc", doc);
   // Log the check-in action
@@ -324,6 +370,7 @@ export const checkin = async (id: string, email: string) => {
       changedBy: email,
       requestNumber: doc.requestNumber,
       note: "",
+      tenant,
     });
   }
   //@ts-ignore
@@ -335,7 +382,8 @@ export const checkin = async (id: string, email: string) => {
     id,
     guestEmail,
     headerMessage,
-    BookingStatusLabel.CHECKED_IN
+    BookingStatusLabel.CHECKED_IN,
+    tenant
   );
   const response = await fetch(
     `${process.env.NEXT_PUBLIC_BASE_URL}/api/calendarEvents`,
@@ -343,6 +391,7 @@ export const checkin = async (id: string, email: string) => {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
+        "x-tenant": tenant || "mc",
       },
       body: JSON.stringify({
         calendarEventId: id,
@@ -352,19 +401,29 @@ export const checkin = async (id: string, email: string) => {
   );
 };
 
-export const checkOut = async (id: string, email: string) => {
+export const checkOut = async (id: string, email: string, tenant?: string) => {
   const checkoutDate = roundTimeUp();
-  clientUpdateDataByCalendarEventId(TableNames.BOOKING, id, {
-    checkedOutAt: Timestamp.now(),
-    checkedOutBy: email,
-  });
-  clientUpdateDataByCalendarEventId(TableNames.BOOKING, id, {
-    endDate: Timestamp.fromDate(checkoutDate),
-  });
+  clientUpdateDataByCalendarEventId(
+    TableNames.BOOKING,
+    id,
+    {
+      checkedOutAt: Timestamp.now(),
+      checkedOutBy: email,
+    },
+    tenant
+  );
+  clientUpdateDataByCalendarEventId(
+    TableNames.BOOKING,
+    id,
+    {
+      endDate: Timestamp.fromDate(checkoutDate),
+    },
+    tenant
+  );
   const doc = await clientGetDataByCalendarEventId<{
     id: string;
     requestNumber: number;
-  }>(TableNames.BOOKING, id);
+  }>(TableNames.BOOKING, id, tenant);
   console.log("check out doc", doc);
 
   // Log the check-out action
@@ -375,6 +434,7 @@ export const checkOut = async (id: string, email: string) => {
       status: BookingStatusLabel.CHECKED_OUT,
       changedBy: email,
       requestNumber: doc.requestNumber,
+      tenant,
     });
   }
   //@ts-ignore
@@ -386,7 +446,8 @@ export const checkOut = async (id: string, email: string) => {
     id,
     guestEmail,
     headerMessage,
-    BookingStatusLabel.CHECKED_OUT
+    BookingStatusLabel.CHECKED_OUT,
+    tenant
   );
 
   const response = await fetch(
@@ -395,6 +456,7 @@ export const checkOut = async (id: string, email: string) => {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
+        "x-tenant": tenant || "mc",
       },
       body: JSON.stringify({
         calendarEventId: id,
@@ -409,15 +471,26 @@ export const checkOut = async (id: string, email: string) => {
   );
 };
 
-export const noShow = async (id: string, email: string, netId: string) => {
-  clientUpdateDataByCalendarEventId(TableNames.BOOKING, id, {
-    noShowedAt: Timestamp.now(),
-    noShowedBy: email,
-  });
+export const noShow = async (
+  id: string,
+  email: string,
+  netId: string,
+  tenant?: string
+) => {
+  clientUpdateDataByCalendarEventId(
+    TableNames.BOOKING,
+    id,
+    {
+      noShowedAt: Timestamp.now(),
+      noShowedBy: email,
+    },
+    tenant
+  );
 
   const doc = await clientGetDataByCalendarEventId<Booking>(
     TableNames.BOOKING,
-    id
+    id,
+    tenant
   );
 
   // Add to pre-ban logs only if policy violation
@@ -434,6 +507,7 @@ export const noShow = async (id: string, email: string, netId: string) => {
       status: BookingStatusLabel.NO_SHOW,
       changedBy: email,
       requestNumber: doc.requestNumber,
+      tenant,
     });
   }
 
@@ -449,18 +523,21 @@ If you have any questions or need further assistance, please don't hesitate to r
     id,
     guestEmail,
     headerMessage,
-    BookingStatusLabel.NO_SHOW
+    BookingStatusLabel.NO_SHOW,
+    tenant
   );
   clientSendBookingDetailEmail(
     id,
     getApprovalCcEmail(process.env.NEXT_PUBLIC_BRANCH_NAME),
     headerMessage,
-    BookingStatusLabel.NO_SHOW
+    BookingStatusLabel.NO_SHOW,
+    tenant
   );
   clientSendConfirmationEmail(
     id,
     BookingStatusLabel.NO_SHOW,
-    `This is a no show email.`
+    `This is a no show email.`,
+    tenant
   );
   const response = await fetch(
     `${process.env.NEXT_PUBLIC_BASE_URL}/api/calendarEvents`,
@@ -468,6 +545,7 @@ If you have any questions or need further assistance, please don't hesitate to r
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
+        "x-tenant": tenant || "mc",
       },
       body: JSON.stringify({
         calendarEventId: id,
@@ -576,10 +654,11 @@ const getBookingHistory = async (booking: Booking) => {
   );
 };
 
-export const clientBookingContents = async (id: string) => {
+export const clientBookingContents = async (id: string, tenant?: string) => {
   const bookingObj = await clientGetDataByCalendarEventId<Booking>(
     TableNames.BOOKING,
-    id
+    id,
+    tenant
   );
   if (!bookingObj) {
     throw new Error("Booking not found");
@@ -599,9 +678,10 @@ export const clientSendBookingDetailEmail = async (
   calendarEventId: string,
   email: string,
   headerMessage: string,
-  status: BookingStatusLabel
+  status: BookingStatusLabel,
+  tenant?: string
 ) => {
-  const contents = await clientBookingContents(calendarEventId);
+  const contents = await clientBookingContents(calendarEventId, tenant);
   contents.headerMessage = headerMessage;
   const formData = {
     templateName: "booking_detail",
@@ -624,17 +704,29 @@ export const clientSendBookingDetailEmail = async (
 export const clientSendConfirmationEmail = async (
   calendarEventId: string,
   status: BookingStatusLabel,
-  headerMessage: string
+  headerMessage: string,
+  tenant?: string
 ) => {
   const email = await clientGetFinalApproverEmail();
-  clientSendBookingDetailEmail(calendarEventId, email, headerMessage, status);
+  clientSendBookingDetailEmail(
+    calendarEventId,
+    email,
+    headerMessage,
+    status,
+    tenant
+  );
 };
 
-export const clientApproveBooking = async (id: string, email: string) => {
+export const clientApproveBooking = async (
+  id: string,
+  email: string,
+  tenant?: string
+) => {
   const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/approve`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      "x-tenant": tenant || "mc",
     },
     body: JSON.stringify({ id: id, email: email }),
   });
@@ -705,6 +797,7 @@ const logClientBookingChange = async ({
   changedBy,
   requestNumber,
   note,
+  tenant,
 }: {
   bookingId: string;
   calendarEventId: string;
@@ -712,6 +805,7 @@ const logClientBookingChange = async ({
   changedBy: string;
   requestNumber: number;
   note?: string;
+  tenant?: string;
 }) => {
   const response = await fetch(
     `${process.env.NEXT_PUBLIC_BASE_URL}/api/booking-logs`,
@@ -719,6 +813,7 @@ const logClientBookingChange = async ({
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        "x-tenant": tenant || "mc",
       },
       body: JSON.stringify({
         bookingId,

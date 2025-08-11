@@ -28,10 +28,10 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { sendHTMLEmail } from "@/app/lib/sendHTMLEmail";
 import { CALENDAR_HIDE_STATUS, TableNames } from "@/components/src/policy";
+import { formatOrigin } from "@/components/src/utils/formatters";
 import { getCalendarClient } from "@/lib/googleClient";
 import { Timestamp } from "firebase-admin/firestore";
 import { DateSelectArg } from "fullcalendar";
-import { formatOrigin } from "@/components/src/utils/formatters";
 
 // Helper function to extract tenant from request
 const extractTenantFromRequest = (request: NextRequest): string | undefined => {
@@ -129,6 +129,7 @@ async function handleBookingApprovalEmails(
   selectedRoomIds: string,
   bookingCalendarInfo: DateSelectArg,
   email: string,
+  tenant?: string,
 ) {
   const shouldAutoApprove = isAutoApproval === true;
   const firstApprovers = await firstApproverEmails(data.department);
@@ -183,7 +184,7 @@ async function handleBookingApprovalEmails(
 
   console.log("approval email calendarEventId", calendarEventId);
   if (calendarEventId && shouldAutoApprove) {
-    serverApproveInstantBooking(calendarEventId, email);
+    serverApproveInstantBooking(calendarEventId, email, tenant);
   } else {
     const userEventInputs: BookingFormDetails = {
       ...data,
@@ -206,6 +207,7 @@ async function handleBookingApprovalEmails(
         "Your request has been received!<br />Please allow 3-5 days for review. If there are changes to your request or you would like to follow up, contact mediacommons.reservations@nyu.edu.<br />This email does not confirm your reservation. You will receive a confirmation email and Google Calendar invite once your request is completed.<br /> Thank you!",
       status: BookingStatusLabel.REQUESTED,
       replyTo: email,
+      tenant,
     });
   }
 }
@@ -286,6 +288,10 @@ export async function POST(request: NextRequest) {
 
   console.log("data", data);
 
+  // Determine initial status and auto-approval
+  const initialStatus = BookingStatusLabel.REQUESTED;
+  const shouldAutoApprove = isAutoApproval === true;
+
   // Generate Sequential ID early so it can be used in calendar description
   const sequentialId = await serverGetNextSequentialId("bookings", tenant);
 
@@ -355,10 +361,10 @@ export async function POST(request: NextRequest) {
       throw new Error("Failed to create booking document");
     }
 
-    // Create initial booking log entry before sending email so it appears in History
+    // Create initial booking log entry with appropriate status
     await logServerBookingChange({
       bookingId: doc.id,
-      status: BookingStatusLabel.REQUESTED,
+      status: initialStatus,
       changedBy: email,
       requestNumber: sequentialId,
       calendarEventId: calendarEventId,
@@ -366,14 +372,16 @@ export async function POST(request: NextRequest) {
       tenant,
     });
 
+    // Handle approval emails based on final status
     await handleBookingApprovalEmails(
-      isAutoApproval,
+      shouldAutoApprove,
       calendarEventId,
       sequentialId,
       data,
       selectedRoomIds,
       bookingCalendarInfo,
       email,
+      tenant,
     );
 
     console.log(" Done handleBookingApprovalEmails");
@@ -535,6 +543,7 @@ export async function PUT(request: NextRequest) {
     selectedRoomIds,
     bookingCalendarInfo,
     email,
+    tenant,
   );
 
   return NextResponse.json({

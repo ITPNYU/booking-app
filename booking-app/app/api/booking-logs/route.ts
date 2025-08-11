@@ -39,6 +39,9 @@ export async function POST(req: NextRequest) {
       note,
     } = await req.json();
 
+    // Get tenant from x-tenant header, fallback to 'mc' as default
+    const tenant = req.headers.get("x-tenant") || "mc";
+
     if (!bookingId || !status || !changedBy || !requestNumber) {
       return NextResponse.json(
         { error: "Missing required fields" },
@@ -53,6 +56,7 @@ export async function POST(req: NextRequest) {
       changedBy,
       requestNumber,
       note,
+      tenant,
     });
 
     return NextResponse.json(

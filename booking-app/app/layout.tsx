@@ -2,11 +2,11 @@
 
 import "@/components/src/client/styles.css";
 
-import { AuthProvider } from "@/components/src/client/routes/components/AuthProvider";
 import ClientProvider from "@/components/src/client/routes/components/ClientProvider";
+import { ConditionalAuthProvider } from "@/components/src/client/routes/components/ConditionalAuthProvider";
+import { ThemeProvider } from "@mui/material";
 import CssBaseline from "@mui/material/CssBaseline";
 import { Roboto } from "next/font/google";
-import { ThemeProvider } from "@mui/material";
 import theme from "./theme/theme";
 
 const roboto = Roboto({
@@ -28,14 +28,14 @@ const RootLayout: React.FC<LayoutProps> = ({ children }) => (
   <html lang="en">
     <head></head>
     <body className={roboto.className}>
-      <AuthProvider>
+      <ConditionalAuthProvider>
         <ClientProvider>
           <ThemeProvider theme={theme}>
             <CssBaseline />
             {children}
           </ThemeProvider>
         </ClientProvider>
-      </AuthProvider>
+      </ConditionalAuthProvider>
     </body>
   </html>
 );

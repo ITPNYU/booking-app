@@ -112,21 +112,25 @@ export async function GET(req: NextRequest) {
 export async function PUT(req: NextRequest) {
   const { calendarEventId, newValues } = await req.json();
 
+  // Get tenant from x-tenant header, fallback to 'mc' as default
+  const tenant = req.headers.get("x-tenant") || "mc";
+
   if (!calendarEventId || !newValues) {
     return NextResponse.json(
       { error: "Missing required fields" },
       { status: 400 },
     );
   }
-  const contents = await serverBookingContents(calendarEventId);
+
   try {
+    const contents = await serverBookingContents(calendarEventId, tenant);
     await updateCalendarEvent(calendarEventId, newValues, contents);
     return NextResponse.json(
       { message: "Event updated successfully" },
       { status: 200 },
     );
   } catch (error) {
-    console.error("Error updating event:", error);
+    console.error("Error updating event for tenant:", tenant, error);
     return NextResponse.json(
       { error: "Failed to update event" },
       { status: 500 },
