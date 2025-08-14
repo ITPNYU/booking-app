@@ -188,7 +188,9 @@ export default function UserRolePage({
         )}
         <Dropdown
           value={role}
-          updateValue={setRole}
+          updateValue={(newRole) => {
+            setRole(newRole as Role);
+          }}
           options={tenantSchema.roles}
           placeholder="Choose a Role"
           sx={{ marginTop: 4 }}

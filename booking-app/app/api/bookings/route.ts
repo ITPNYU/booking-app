@@ -33,6 +33,28 @@ import { Timestamp } from "firebase-admin/firestore";
 import { DateSelectArg } from "fullcalendar";
 import { formatOrigin } from "@/components/src/utils/formatters";
 
+// Helper function to extract tenant from request
+const extractTenantFromRequest = (request: NextRequest): string | undefined => {
+  // Try to get tenant from referer header
+  const referer = request.headers.get("referer");
+  if (referer) {
+    const url = new URL(referer);
+    const tenantMatch = url.pathname.match(/^\/([^\/]+)/);
+    if (tenantMatch && tenantMatch[1] !== "api") {
+      return tenantMatch[1];
+    }
+  }
+
+  // Try to get tenant from query parameter
+  const { searchParams } = new URL(request.url);
+  const tenant = searchParams.get("tenant");
+  if (tenant) {
+    return tenant;
+  }
+
+  return undefined;
+};
+
 // Helper to build booking contents object for calendar descriptions
 const buildBookingContents = (
   data: any,
@@ -250,6 +272,10 @@ async function checkOverlap(
 export async function POST(request: NextRequest) {
   const { email, selectedRooms, bookingCalendarInfo, data, isAutoApproval } =
     await request.json();
+
+  // Extract tenant from URL
+  const tenant = extractTenantFromRequest(request);
+
   const hasOverlap = await checkOverlap(selectedRooms, bookingCalendarInfo);
   if (hasOverlap) {
     return NextResponse.json(
@@ -261,7 +287,7 @@ export async function POST(request: NextRequest) {
   console.log("data", data);
 
   // Generate Sequential ID early so it can be used in calendar description
-  const sequentialId = await serverGetNextSequentialId("bookings");
+  const sequentialId = await serverGetNextSequentialId("bookings", tenant);
 
   const selectedRoomIds = selectedRooms
     .map((r: { roomId: number }) => r.roomId)
@@ -308,18 +334,22 @@ export async function POST(request: NextRequest) {
 
   let doc;
   try {
-    doc = await serverSaveDataToFirestore(TableNames.BOOKING, {
-      calendarEventId,
-      roomId: selectedRoomIds,
-      email,
-      startDate: toFirebaseTimestampFromString(bookingCalendarInfo.startStr),
-      endDate: toFirebaseTimestampFromString(bookingCalendarInfo.endStr),
-      requestNumber: sequentialId,
-      equipmentCheckedOut: false,
-      requestedAt: Timestamp.now(),
-      origin: BookingOrigin.USER,
-      ...data,
-    });
+    doc = await serverSaveDataToFirestore(
+      TableNames.BOOKING,
+      {
+        calendarEventId,
+        roomId: selectedRoomIds,
+        email,
+        startDate: toFirebaseTimestampFromString(bookingCalendarInfo.startStr),
+        endDate: toFirebaseTimestampFromString(bookingCalendarInfo.endStr),
+        requestNumber: sequentialId,
+        equipmentCheckedOut: false,
+        requestedAt: Timestamp.now(),
+        origin: BookingOrigin.USER,
+        ...data,
+      },
+      tenant,
+    );
 
     if (!doc || !doc.id) {
       throw new Error("Failed to create booking document");
@@ -333,6 +363,7 @@ export async function POST(request: NextRequest) {
       requestNumber: sequentialId,
       calendarEventId: calendarEventId,
       note: "",
+      tenant,
     });
 
     await handleBookingApprovalEmails(
@@ -371,6 +402,10 @@ export async function PUT(request: NextRequest) {
     calendarEventId,
     modifiedBy,
   } = await request.json();
+
+  // Extract tenant from URL
+  const tenant = extractTenantFromRequest(request);
+
   // TODO verify that they actually changed something
   if (bookingCalendarInfo == null) {
     return NextResponse.json(
@@ -387,7 +422,7 @@ export async function PUT(request: NextRequest) {
     );
   }
 
-  const existingContents = await serverBookingContents(calendarEventId);
+  const existingContents = await serverBookingContents(calendarEventId, tenant);
   const oldRoomIds = existingContents.roomId.split(",").map(x => x.trim());
   const oldRooms = allRooms.filter((room: RoomSetting) =>
     oldRoomIds.includes(room.roomId + ""),
@@ -440,6 +475,7 @@ export async function PUT(request: NextRequest) {
       requestNumber: existingContents.requestNumber,
       calendarEventId: newCalendarEventId,
       note: "Modified by " + modifiedBy,
+      tenant,
     });
   } catch (err) {
     console.error(err);
@@ -464,33 +500,46 @@ export async function PUT(request: NextRequest) {
     origin: BookingOrigin.USER,
   };
 
-  await serverUpdateDataByCalendarEventId(
-    TableNames.BOOKING,
-    calendarEventId,
-    updatedData,
-  );
+  try {
+    await serverUpdateDataByCalendarEventId(
+      TableNames.BOOKING,
+      calendarEventId,
+      updatedData,
+      tenant,
+    );
 
-  await serverDeleteFieldsByCalendarEventId(
-    TableNames.BOOKING,
-    newCalendarEventId,
-    [
-      "finalApprovedAt",
-      "finalApprovedBy",
-      "firstApprovedAt",
-      "firstApprovedBy",
-    ],
-  );
+    await serverDeleteFieldsByCalendarEventId(
+      TableNames.BOOKING,
+      newCalendarEventId,
+      [
+        "finalApprovedAt",
+        "finalApprovedBy",
+        "firstApprovedAt",
+        "firstApprovedBy",
+      ],
+      tenant,
+    );
+  } catch (err) {
+    console.error(err);
+    return NextResponse.json(
+      { result: "error", message: "Failed to update booking" },
+      { status: 500 },
+    );
+  }
 
-  // handle auto-approval + send emails
   await handleBookingApprovalEmails(
     isAutoApproval,
     newCalendarEventId,
-    data.requestNumber,
+    existingContents.requestNumber,
     data,
     selectedRoomIds,
     bookingCalendarInfo,
     email,
   );
 
-  return NextResponse.json({ result: "success" }, { status: 200 });
+  return NextResponse.json({
+    result: "success",
+    calendarEventId: newCalendarEventId,
+    requestNumber: existingContents.requestNumber,
+  });
 }

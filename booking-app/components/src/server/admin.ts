@@ -7,6 +7,7 @@ import {
   serverGetDataByCalendarEventId,
   serverGetFinalApproverEmail,
   serverUpdateInFirestore,
+  serverGetDocumentById,
 } from "@/lib/firebase/server/adminDb";
 import { ApproverLevel, TableNames, getApprovalCcEmail } from "../policy";
 import {
@@ -23,6 +24,8 @@ import {
 
 import { Timestamp } from "firebase-admin/firestore";
 
+const DEFAULT_TENANT = "mc";
+
 interface HistoryItem {
   status: BookingStatusLabel;
   user: string;
@@ -30,7 +33,10 @@ interface HistoryItem {
   note?: string;
 }
 
-const getBookingHistory = async (booking: Booking): Promise<HistoryItem[]> => {
+const getBookingHistory = async (
+  booking: Booking,
+  tenant?: string
+): Promise<HistoryItem[]> => {
   const history: HistoryItem[] = [];
 
   // Fetch logs from BOOKING_LOGS table
@@ -42,7 +48,8 @@ const getBookingHistory = async (booking: Booking): Promise<HistoryItem[]> => {
         operator: "==",
         value: booking.calendarEventId,
       },
-    ]
+    ],
+    tenant
   );
 
   if (logs.length > 0) {
@@ -136,21 +143,23 @@ const getBookingHistory = async (booking: Booking): Promise<HistoryItem[]> => {
   );
 };
 
-export const serverBookingContents = async (id: string) => {
-  const bookingObj = await serverGetDataByCalendarEventId<Booking>(
+export const serverBookingContents = async (id: string, tenant?: string) => {
+  const booking = await serverGetDataByCalendarEventId<Booking>(
     TableNames.BOOKING,
-    id
+    id,
+    tenant
   );
-  if (!bookingObj) {
+  if (!booking) {
     throw new Error("Booking not found");
   }
-  const history = await getBookingHistory(bookingObj);
+
+  const history = await getBookingHistory(booking, tenant);
 
   // Format date and time
-  const startDate = bookingObj.startDate.toDate();
-  const endDate = bookingObj.endDate.toDate();
+  const startDate = booking.startDate.toDate();
+  const endDate = booking.endDate.toDate();
 
-  const updatedBookingObj = Object.assign({}, bookingObj, {
+  const updatedBookingObj = Object.assign({}, booking, {
     headerMessage: "This is a request email for final approval.",
     history: history,
     startDate: startDate.toLocaleDateString(),
@@ -177,54 +186,56 @@ export const serverBookingContents = async (id: string) => {
 export const serverUpdateDataByCalendarEventId = async (
   collectionName: TableNames,
   calendarEventId: string,
-  updatedData: object
+  updatedData: object,
+  tenant?: string
 ) => {
-  const data = await serverGetDataByCalendarEventId(
+  const booking = await serverGetDataByCalendarEventId<Booking>(
     collectionName,
-    calendarEventId
+    calendarEventId,
+    tenant
   );
-
-  if (data) {
-    const { id } = data;
-    await serverUpdateInFirestore(collectionName, id, updatedData);
-  } else {
-    console.log("No document found with the given calendarEventId.");
+  if (!booking) {
+    throw new Error("Booking not found");
   }
+  await serverUpdateInFirestore(
+    collectionName,
+    booking.id,
+    updatedData,
+    tenant
+  );
 };
 
 export const serverDeleteFieldsByCalendarEventId = async (
   collectionName: TableNames,
   calendarEventId: string,
-  fields: string[]
+  fields: string[],
+  tenant?: string
 ) => {
-  const data = await serverGetDataByCalendarEventId(
+  const booking = await serverGetDataByCalendarEventId<Booking>(
     collectionName,
-    calendarEventId
+    calendarEventId,
+    tenant
   );
-
-  if (data) {
-    const { id } = data;
-    await serverDeleteDocumentFields(collectionName, id, fields);
-  } else {
-    console.log("No document found with the given calendarEventId.");
+  if (!booking) {
+    throw new Error("Booking not found");
   }
+  await serverDeleteDocumentFields(collectionName, booking.id, fields, tenant);
 };
 
 export const serverDeleteDataByCalendarEventId = async (
   collectionName: TableNames,
-  calendarEventId: string
+  calendarEventId: string,
+  tenant?: string
 ) => {
-  const data = await serverGetDataByCalendarEventId(
+  const booking = await serverGetDataByCalendarEventId<Booking>(
     collectionName,
-    calendarEventId
+    calendarEventId,
+    tenant
   );
-
-  if (data) {
-    const { id } = data;
-    await serverDeleteData(collectionName, id);
-  } else {
-    console.log("No document found with the given calendarEventId.");
+  if (!booking) {
+    throw new Error("Booking not found");
   }
+  await serverDeleteData(collectionName, booking.id, tenant);
 };
 
 // from server
@@ -581,53 +592,67 @@ export const firstApproverEmails = async (department: string) => {
 };
 
 export const serverGetRoomCalendarIds = async (
-  roomId: number
+  roomId: number,
+  tenant?: string
 ): Promise<string[]> => {
-  const queryConstraints: Constraint[] = [
-    {
-      field: "roomId",
-      operator: "==",
-      value: roomId,
-    },
-  ];
-
-  const rooms = await serverFetchAllDataFromCollection<RoomSetting>(
-    TableNames.RESOURCES,
-    queryConstraints
-  );
-
-  console.log(`Rooms: ${JSON.stringify(rooms)}`);
-
-  return rooms
-    .map((room) => room.calendarId)
-    .filter(
-      (calendarId): calendarId is string =>
-        calendarId !== undefined && calendarId !== null
+  try {
+    // Get tenant schema
+    const schema = await serverGetDocumentById(
+      TableNames.TENANT_SCHEMA,
+      tenant || DEFAULT_TENANT
     );
+    if (!schema || !schema.resources) {
+      console.log("No schema or resources found");
+      return [];
+    }
+
+    const rooms = schema.resources.filter(
+      (resource: any) => resource.roomId === roomId
+    );
+
+    console.log(`Rooms: ${JSON.stringify(rooms)}`);
+
+    return rooms
+      .map((room: any) => room.calendarId)
+      .filter(
+        (calendarId): calendarId is string =>
+          calendarId !== undefined && calendarId !== null
+      );
+  } catch (error) {
+    console.error("Error fetching room calendar IDs from schema:", error);
+    return [];
+  }
 };
 
 export const serverGetRoomCalendarId = async (
-  roomId: number
+  roomId: number,
+  tenant?: string
 ): Promise<string | null> => {
-  const queryConstraints: Constraint[] = [
-    {
-      field: "roomId",
-      operator: "==",
-      value: roomId,
-    },
-  ];
+  try {
+    // Get tenant schema
+    const schema = await serverGetDocumentById(
+      TableNames.TENANT_SCHEMA,
+      tenant || DEFAULT_TENANT
+    );
+    if (!schema || !schema.resources) {
+      console.log("No schema or resources found");
+      return null;
+    }
 
-  const rooms = await serverFetchAllDataFromCollection<RoomSetting>(
-    TableNames.RESOURCES,
-    queryConstraints
-  );
+    const rooms = schema.resources.filter(
+      (resource: any) => resource.roomId === roomId
+    );
 
-  if (rooms.length > 0) {
-    const room = rooms[0];
-    console.log(`Room: ${JSON.stringify(room)}`);
-    return room.calendarId;
-  } else {
-    console.log("No matching room found.");
+    if (rooms.length > 0) {
+      const room = rooms[0];
+      console.log(`Room: ${JSON.stringify(room)}`);
+      return room.calendarId;
+    } else {
+      console.log("No matching room found.");
+      return null;
+    }
+  } catch (error) {
+    console.error("Error fetching room calendar ID from schema:", error);
     return null;
   }
 };
