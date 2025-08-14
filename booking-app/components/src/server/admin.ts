@@ -24,6 +24,8 @@ import {
 
 import { Timestamp } from "firebase-admin/firestore";
 
+const DEFAULT_TENANT = "mc";
+
 interface HistoryItem {
   status: BookingStatusLabel;
   user: string;
@@ -597,7 +599,7 @@ export const serverGetRoomCalendarIds = async (
     // Get tenant schema
     const schema = await serverGetDocumentById(
       TableNames.TENANT_SCHEMA,
-      tenant || "mc"
+      tenant || DEFAULT_TENANT
     );
     if (!schema || !schema.resources) {
       console.log("No schema or resources found");
@@ -630,7 +632,7 @@ export const serverGetRoomCalendarId = async (
     // Get tenant schema
     const schema = await serverGetDocumentById(
       TableNames.TENANT_SCHEMA,
-      tenant || "mc"
+      tenant || DEFAULT_TENANT
     );
     if (!schema || !schema.resources) {
       console.log("No schema or resources found");
