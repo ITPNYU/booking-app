@@ -44,12 +44,12 @@ export default function BookingFormMediaServices(props: Props) {
 
   const checkboxes = useMemo(() => {
     const options: MediaServices[] = [];
-    
+
     // If equipment is enabled in schema, allow checkout equipment regardless of room
     if (showEquipment) {
       options.push(MediaServices.CHECKOUT_EQUIPMENT);
     }
-    
+
     // Check for specific room services
     selectedRooms.forEach((room) => {
       if (showStaffing) {
@@ -109,7 +109,7 @@ export default function BookingFormMediaServices(props: Props) {
     return (
       <div style={{ marginBottom: 8 }}>
         <Label htmlFor={id}>Media Services</Label>
-        <p style={{ fontSize: "0.75rem" }}>Media Services</p>
+        <p style={{ fontSize: "0.75rem" }}>Check out equipment</p>
         {toggle}
       </div>
     );
@@ -118,7 +118,9 @@ export default function BookingFormMediaServices(props: Props) {
   return (
     <div style={{ marginBottom: 8 }}>
       <Label htmlFor={id}>Media Services</Label>
-      <p style={{ fontSize: "0.75rem" }}>Media Services</p>
+      <p style={{ fontSize: "0.75rem" }}>
+        Check out equipment, request a technician, etc.
+      </p>
       {toggle}
       {showMediaServices && (
         <Controller
