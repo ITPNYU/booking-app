@@ -1,4 +1,8 @@
-import { ApproverLevel, TableNames, getTenantCollectionName } from "@/components/src/policy";
+import {
+  ApproverLevel,
+  TableNames,
+  getTenantCollectionName,
+} from "@/components/src/policy";
 // saveData.ts
 import {
   QueryConstraint,
@@ -24,7 +28,7 @@ import { SchemaContextType } from "@/components/src/client/routes/components/Sch
 
 // Utility function to get current tenant from URL
 export const getCurrentTenant = (): string | undefined => {
-  if (typeof window !== 'undefined') {
+  if (typeof window !== "undefined") {
     const pathname = window.location.pathname;
     const tenantMatch = pathname.match(/^\/([^\/]+)/);
     return tenantMatch ? tenantMatch[1] : undefined;
@@ -33,7 +37,10 @@ export const getCurrentTenant = (): string | undefined => {
 };
 
 // Helper function to get tenant-specific collection name
-export const getTenantCollection = (baseCollection: TableNames, tenant?: string): string => {
+export const getTenantCollection = (
+  baseCollection: TableNames,
+  tenant?: string
+): string => {
   const tenantToUse = tenant || getCurrentTenant();
   return getTenantCollectionName(baseCollection, tenantToUse);
 };
@@ -264,11 +271,33 @@ export const clientUpdateDataInFirestore = async (
 ) => {
   try {
     const db = getDb();
-    const tenantCollection = getTenantCollection(collectionName as TableNames, tenant);
+    const tenantCollection = getTenantCollection(
+      collectionName as TableNames,
+      tenant
+    );
     const docRef = doc(db, tenantCollection, docId);
     await updateDoc(docRef, updatedData);
     console.log("Document successfully updated with ID:", docId);
   } catch (error) {
     console.error("Error updating document: ", error);
+  }
+};
+
+export const clientGetTenantSchema = async (
+  tenant: string
+): Promise<SchemaContextType | null> => {
+  try {
+    const db = getDb();
+    const docRef = doc(db, "tenantSchema", tenant);
+    const docSnap = await getDoc(docRef);
+
+    if (docSnap.exists()) {
+      return docSnap.data() as SchemaContextType;
+    }
+    console.log(`No schema found for tenant: ${tenant}`);
+    return null;
+  } catch (error) {
+    console.error("Error fetching tenant schema:", error);
+    return null;
   }
 };

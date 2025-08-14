@@ -1,4 +1,8 @@
-import { ApproverLevel, TableNames, getTenantCollectionName } from "@/components/src/policy";
+import {
+  ApproverLevel,
+  TableNames,
+  getTenantCollectionName,
+} from "@/components/src/policy";
 import {
   CollectionReference,
   DocumentData,
@@ -14,7 +18,10 @@ import admin from "./firebaseAdmin";
 const db = admin.firestore();
 
 // Helper function to get tenant-specific collection name for server-side
-export const getServerTenantCollection = (baseCollection: TableNames, tenant?: string): string => {
+export const getServerTenantCollection = (
+  baseCollection: TableNames,
+  tenant?: string
+): string => {
   return getTenantCollectionName(baseCollection, tenant);
 };
 
@@ -29,7 +36,10 @@ export const serverDeleteData = async (
   tenant?: string
 ) => {
   try {
-    const tenantCollection = getServerTenantCollection(collectionName as TableNames, tenant);
+    const tenantCollection = getServerTenantCollection(
+      collectionName as TableNames,
+      tenant
+    );
     await db.collection(tenantCollection).doc(docId).delete();
     console.log("Document successfully deleted with ID:", docId);
   } catch (error) {
@@ -44,7 +54,10 @@ export const serverDeleteDocumentFields = async (
   tenant?: string
 ) => {
   try {
-    const tenantCollection = getServerTenantCollection(collectionName as TableNames, tenant);
+    const tenantCollection = getServerTenantCollection(
+      collectionName as TableNames,
+      tenant
+    );
     const updateData = fields.reduce((acc, field) => {
       acc[field] = FieldValue.delete();
       return acc;
@@ -57,8 +70,14 @@ export const serverDeleteDocumentFields = async (
   }
 };
 
-export const serverGetNextSequentialId = async (collectionName: string, tenant?: string) => {
-  const tenantCollection = getServerTenantCollection(collectionName as TableNames, tenant);
+export const serverGetNextSequentialId = async (
+  collectionName: string,
+  tenant?: string
+) => {
+  const tenantCollection = getServerTenantCollection(
+    collectionName as TableNames,
+    tenant
+  );
   const counterDocRef = db.collection("counters").doc(tenantCollection);
   const counterDoc = await counterDocRef.get();
   let currentCount = 1;
@@ -75,9 +94,28 @@ export const serverSaveDataToFirestore = async (
   tenant?: string
 ) => {
   try {
-    const tenantCollection = getServerTenantCollection(collectionName as TableNames, tenant);
+    const tenantCollection = getServerTenantCollection(
+      collectionName as TableNames,
+      tenant
+    );
     const docRef = await db.collection(tenantCollection).add(data);
     console.log("Document successfully written with ID:", docRef.id);
+    return docRef;
+  } catch (error) {
+    console.error("Error writing document: ", error);
+    throw error;
+  }
+};
+
+export const serverSaveDataToFirestoreWithId = async (
+  collectionName: string,
+  docId: string,
+  data: object
+) => {
+  try {
+    const docRef = db.collection(collectionName).doc(docId);
+    await docRef.set(data);
+    console.log("Document successfully written with ID:", docId);
     return docRef;
   } catch (error) {
     console.error("Error writing document: ", error);
@@ -167,7 +205,10 @@ export const serverUpdateInFirestore = async (
   tenant?: string
 ) => {
   try {
-    const tenantCollection = getServerTenantCollection(collectionName as TableNames, tenant);
+    const tenantCollection = getServerTenantCollection(
+      collectionName as TableNames,
+      tenant
+    );
     await db.collection(tenantCollection).doc(docId).update(updatedData);
     console.log("Document successfully updated with ID:", docId);
   } catch (error) {
@@ -238,7 +279,10 @@ export const getBookingLogs = async (
   tenant?: string
 ): Promise<BookingLog[]> => {
   try {
-    const tenantCollection = getServerTenantCollection(TableNames.BOOKING_LOGS, tenant);
+    const tenantCollection = getServerTenantCollection(
+      TableNames.BOOKING_LOGS,
+      tenant
+    );
     const logsRef = db.collection(tenantCollection);
     const q = logsRef.where("requestNumber", "==", requestNumber);
 
