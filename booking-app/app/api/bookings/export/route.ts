@@ -1,28 +1,33 @@
+import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
 import { NextRequest, NextResponse } from "next/server";
 
 import { TableNames } from "@/components/src/policy";
 import { Booking, BookingOrigin, RoomSetting } from "@/components/src/types";
-import { serverFetchAllDataFromCollection, serverGetDocumentById } from "@/lib/firebase/server/adminDb";
+import {
+  serverFetchAllDataFromCollection,
+  serverGetDocumentById,
+} from "@/lib/firebase/server/adminDb";
 import { format } from "date-fns";
 import { parse } from "json2csv";
 
 export async function GET(request: NextRequest) {
   // Get tenant from request headers or default to 'mc'
-  const tenant = request.headers.get('x-tenant') || 'mc';
-  
+  const tenant = request.headers.get("x-tenant") || DEFAULT_TENANT;
+
   const [bookings, schema] = await Promise.all([
-    serverFetchAllDataFromCollection<Booking>(TableNames.BOOKING),
+    serverFetchAllDataFromCollection<Booking>(TableNames.BOOKING, [], tenant),
     serverGetDocumentById(TableNames.TENANT_SCHEMA, tenant),
   ]);
 
   // Convert schema resources to RoomSetting format
-  const rooms: RoomSetting[] = schema?.resources?.map((resource: any) => ({
-    roomId: resource.roomId,
-    name: resource.name,
-    capacity: resource.capacity.toString(),
-    calendarId: resource.calendarId,
-    calendarRef: undefined,
-  })) || [];
+  const rooms: RoomSetting[] =
+    schema?.resources?.map((resource: any) => ({
+      roomId: resource.roomId,
+      name: resource.name,
+      capacity: resource.capacity.toString(),
+      calendarId: resource.calendarId,
+      calendarRef: undefined,
+    })) || [];
 
   // Create room ID to name mapping
   const roomMap = new Map<number, string>();

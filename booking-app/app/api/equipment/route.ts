@@ -1,3 +1,4 @@
+import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
 import { NextRequest, NextResponse } from "next/server";
 
 import { TableNames } from "@/components/src/policy";
@@ -11,10 +12,15 @@ import * as admin from "firebase-admin";
 
 export async function POST(req: NextRequest) {
   const { id, email, action } = await req.json();
+
+  // Get tenant from x-tenant header, fallback to default tenant
+  const tenant = req.headers.get("x-tenant") || DEFAULT_TENANT;
+
   try {
     const booking = await serverGetDataByCalendarEventId<Booking>(
       TableNames.BOOKING,
       id,
+      tenant,
     );
     if (!booking) {
       throw new Error("Booking not found");
@@ -29,6 +35,7 @@ export async function POST(req: NextRequest) {
           equipmentAt: admin.firestore.Timestamp.now(),
           equipmentBy: email,
         },
+        tenant,
       );
 
       await logServerBookingChange({
@@ -37,6 +44,7 @@ export async function POST(req: NextRequest) {
         status: BookingStatusLabel.EQUIPMENT,
         changedBy: email,
         requestNumber: booking.requestNumber,
+        tenant,
       });
 
       return NextResponse.json(
@@ -52,6 +60,7 @@ export async function POST(req: NextRequest) {
           equipmentApprovedAt: admin.firestore.Timestamp.now(),
           equipmentApprovedBy: email,
         },
+        tenant,
       );
 
       await logServerBookingChange({
@@ -60,6 +69,7 @@ export async function POST(req: NextRequest) {
         status: BookingStatusLabel.APPROVED,
         changedBy: email,
         requestNumber: booking.requestNumber,
+        tenant,
       });
 
       return NextResponse.json(

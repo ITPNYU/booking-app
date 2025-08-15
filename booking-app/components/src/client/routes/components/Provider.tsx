@@ -1,3 +1,4 @@
+import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
 import { ApproverLevel, TableNames } from "@/components/src/policy";
 import React, { createContext, useEffect, useMemo, useState } from "react";
 import {
@@ -21,13 +22,13 @@ import {
 } from "../../../types";
 
 import { useAuth } from "@/components/src/client/routes/components/AuthProvider";
-import { SchemaContext } from "./SchemaProvider";
-import { useContext } from "react";
 import {
   fetchAllBookings,
   fetchAllFutureBooking,
 } from "@/components/src/server/db";
 import { clientFetchAllDataFromCollection } from "@/lib/firebase/firebase";
+import { useContext } from "react";
+import { SchemaContext } from "./SchemaProvider";
 
 export interface DatabaseContextType {
   adminUsers: AdminUser[];
@@ -152,19 +153,26 @@ export const DatabaseProvider = ({
 
   const { user } = useAuth();
   const netId = useMemo(() => userEmail?.split("@")[0], [userEmail]);
-  
+
   // Get tenant from SchemaContext
   const schemaContext = useContext(SchemaContext);
   const tenant = schemaContext?.tenant;
+
+  console.log("Provider.tsx - schemaContext:", schemaContext);
+  console.log("Provider.tsx - tenant:", tenant);
 
   const [preBanLogs, setPreBanLogs] = useState<PreBanLog[]>([]);
   const [superAdminUsers, setSuperAdminUsers] = useState<AdminUser[]>([]);
 
   useEffect(() => {
     const fetchUserApiData = async () => {
-      if (!netId) return;
+      if (!netId || !tenant) return;
       try {
-        const response = await fetch(`/api/nyu/identity/${netId}`);
+        const response = await fetch(`/api/nyu/identity/${netId}`, {
+          headers: {
+            "x-tenant": tenant || DEFAULT_TENANT,
+          },
+        });
         if (response.ok) {
           const data = await response.json();
           setUserApiData(data);
@@ -174,7 +182,7 @@ export const DatabaseProvider = ({
       }
     };
     fetchUserApiData();
-  }, [netId]);
+  }, [netId, tenant]);
 
   // page permission updates with respect to user email, admin list, PA list
   const pagePermission = useMemo<PagePermission>(() => {
@@ -211,7 +219,7 @@ export const DatabaseProvider = ({
   }, [allBookings]);
 
   useEffect(() => {
-    if (!bookingsLoading) {
+    if (!bookingsLoading && tenant) {
       fetchSafetyTrainedUsers();
       fetchBannedUsers();
       fetchApproverUsers();
@@ -220,7 +228,7 @@ export const DatabaseProvider = ({
     } else {
       // fetchBookings();
     }
-  }, [bookingsLoading, user]);
+  }, [bookingsLoading, user, tenant]);
 
   useEffect(() => {
     fetchBookings();
@@ -228,11 +236,18 @@ export const DatabaseProvider = ({
 
   useEffect(() => {
     fetchActiveUserEmail();
-    fetchAdminUsers();
-    fetchPaUsers();
-    fetchRoomSettings();
-    fetchSuperAdminUsers();
-  }, [user]);
+    if (tenant) {
+      fetchAdminUsers();
+      fetchPaUsers();
+      fetchSuperAdminUsers();
+    }
+  }, [user, tenant]);
+
+  useEffect(() => {
+    if (tenant) {
+      fetchRoomSettings();
+    }
+  }, [tenant]);
 
   const fetchActiveUserEmail = () => {
     if (!user) return;
@@ -334,7 +349,11 @@ export const DatabaseProvider = ({
       );
 
       // Fetch data from spreadsheet
-      const response = await fetch("/api/safety_training_users");
+      const response = await fetch("/api/safety_training_users", {
+        headers: {
+          "x-tenant": tenant || DEFAULT_TENANT,
+        },
+      });
       if (!response.ok) {
         throw new Error("Failed to fetch authorized emails from spreadsheet");
       }
@@ -426,14 +445,25 @@ export const DatabaseProvider = ({
   };
 
   const fetchRoomSettings = async () => {
+    if (!tenant) {
+      console.warn("fetchRoomSettings called but tenant is not available yet");
+      return;
+    }
+
     try {
+      console.log(`fetchRoomSettings called with tenant: "${tenant}"`);
       // Get tenant schema from the API
-      const response = await fetch(`/api/tenantSchema/${tenant}`);
+      const url = `/api/tenantSchema/${tenant}`;
+      console.log(`Fetching from URL: ${url}`);
+      const response = await fetch(url);
       if (!response.ok) {
-        throw new Error('Failed to fetch tenant schema');
+        console.error(
+          `Failed to fetch tenant schema. Status: ${response.status}, URL: ${url}`
+        );
+        throw new Error("Failed to fetch tenant schema");
       }
       const schema = await response.json();
-      
+
       // Convert schema resources to RoomSetting format
       const filtered = schema.resources.map((resource: any) => ({
         id: resource.roomId.toString(), // Use roomId as id
@@ -442,7 +472,7 @@ export const DatabaseProvider = ({
         capacity: resource.capacity.toString(),
         calendarId: resource.calendarId,
       }));
-      
+
       filtered.sort((a, b) => a.roomId - b.roomId);
       setRoomSettings(filtered);
     } catch (error) {
