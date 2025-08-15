@@ -384,6 +384,7 @@ describe("UpdateWebcheckoutCart API Route", () => {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        "x-tenant": "mc",
       },
       body: JSON.stringify(body),
     });
@@ -535,7 +536,8 @@ describe("UpdateWebcheckoutCart API Route", () => {
       expect(vi.mocked(serverUpdateDataByCalendarEventId)).toHaveBeenCalledWith(
         "bookings",
         "test-event-id",
-        { webcheckoutCartNumber: "CK-2614" }
+        { webcheckoutCartNumber: "CK-2614" },
+        "mc"
       );
     });
 
@@ -563,6 +565,7 @@ describe("UpdateWebcheckoutCart API Route", () => {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
+            "x-tenant": "mc",
           },
           body: JSON.stringify({
             calendarEventId: "test-event-id",
@@ -594,7 +597,8 @@ describe("UpdateWebcheckoutCart API Route", () => {
       expect(vi.mocked(serverUpdateDataByCalendarEventId)).toHaveBeenCalledWith(
         "bookings",
         "test-event-id",
-        { webcheckoutCartNumber: null }
+        { webcheckoutCartNumber: null },
+        "mc"
       );
     });
 
