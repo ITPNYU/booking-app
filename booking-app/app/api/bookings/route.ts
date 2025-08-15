@@ -32,8 +32,10 @@ import { CALENDAR_HIDE_STATUS, TableNames } from "@/components/src/policy";
 import { formatOrigin } from "@/components/src/utils/formatters";
 import { serverGetDocumentById } from "@/lib/firebase/server/adminDb";
 import { getCalendarClient } from "@/lib/googleClient";
+import { itpBookingMachine } from "@/lib/stateMachines/itpBookingMachine";
 import { Timestamp } from "firebase-admin/firestore";
 import { DateSelectArg } from "fullcalendar";
+import { createActor } from "xstate";
 
 // Helper function to extract tenant from request
 const extractTenantFromRequest = (request: NextRequest): string | undefined => {
@@ -210,9 +212,15 @@ async function handleBookingApprovalEmails(
   };
 
   console.log("approval email calendarEventId", calendarEventId);
+  console.log("shouldAutoApprove value:", shouldAutoApprove);
+  console.log("calendarEventId exists:", !!calendarEventId);
+
   if (calendarEventId && shouldAutoApprove) {
+    console.log("Calling serverApproveInstantBooking...");
     serverApproveInstantBooking(calendarEventId, email, tenant);
+    console.log("serverApproveInstantBooking called successfully");
   } else {
+    console.log("Not calling serverApproveInstantBooking - conditions not met");
     const userEventInputs: BookingFormDetails = {
       ...data,
       calendarEventId: calendarEventId,
@@ -298,6 +306,32 @@ async function checkOverlap(
   return false;
 }
 
+// Helper function to determine if booking should use XState flow
+function shouldUseXStateFlow(tenant: string): boolean {
+  return tenant === "itp";
+}
+
+// Helper function to get initial XState machine state
+function getInitialXStateStatus(data: any): BookingStatusLabel {
+  console.log("getInitialXStateStatus called with data:", data);
+  const actor = createActor(itpBookingMachine);
+  actor.start();
+
+  const finalSnapshot = actor.getSnapshot();
+  console.log("Final XState snapshot value:", finalSnapshot.value);
+  console.log("Final XState snapshot context:", finalSnapshot.context);
+
+  // The machine starts in "Requested" and immediately evaluates the always transition
+  // If shouldAutoApprove guard returns true, it transitions to "Approved"
+  if (finalSnapshot.value === "Approved") {
+    console.log("XState determined auto-approval - returning APPROVED");
+    return BookingStatusLabel.APPROVED;
+  }
+
+  console.log("XState determined no auto-approval - returning REQUESTED");
+  return BookingStatusLabel.REQUESTED;
+}
+
 export async function POST(request: NextRequest) {
   const { email, selectedRooms, bookingCalendarInfo, data, isAutoApproval } =
     await request.json();
@@ -314,6 +348,7 @@ export async function POST(request: NextRequest) {
   }
 
   console.log("data", data);
+  console.log("tenant", tenant);
 
   // Determine initial status and auto-approval
   const initialStatus = BookingStatusLabel.REQUESTED;
@@ -365,24 +400,34 @@ export async function POST(request: NextRequest) {
   console.log(" Done serverGetNextSequentialId ");
   console.log("calendarEventId", calendarEventId);
 
+  // Determine initial status based on tenant and XState flow
+  let initialStatus = BookingStatusLabel.REQUESTED;
+  let shouldAutoApprove = isAutoApproval === true;
+
+  if (tenant && shouldUseXStateFlow(tenant)) {
+    console.log("Using XState flow for ITP tenant");
+    initialStatus = getInitialXStateStatus(data);
+
+    // If XState determined auto-approval, override the shouldAutoApprove flag
+    if (initialStatus === BookingStatusLabel.APPROVED) {
+      shouldAutoApprove = true;
+    }
+  }
+
   let doc;
   try {
-    doc = await serverSaveDataToFirestore(
-      TableNames.BOOKING,
-      {
-        calendarEventId,
-        roomId: selectedRoomIds,
-        email,
-        startDate: toFirebaseTimestampFromString(bookingCalendarInfo.startStr),
-        endDate: toFirebaseTimestampFromString(bookingCalendarInfo.endStr),
-        requestNumber: sequentialId,
-        equipmentCheckedOut: false,
-        requestedAt: Timestamp.now(),
-        origin: BookingOrigin.USER,
-        ...data,
-      },
-      tenant,
-    );
+    doc = await serverSaveDataToFirestore(TableNames.BOOKING, {
+      calendarEventId,
+      roomId: selectedRoomIds,
+      email,
+      startDate: toFirebaseTimestampFromString(bookingCalendarInfo.startStr),
+      endDate: toFirebaseTimestampFromString(bookingCalendarInfo.endStr),
+      requestNumber: sequentialId,
+      equipmentCheckedOut: false,
+      requestedAt: Timestamp.now(),
+      origin: BookingOrigin.USER,
+      ...data,
+    });
 
     if (!doc || !doc.id) {
       throw new Error("Failed to create booking document");

@@ -1,5 +1,4 @@
 import { useCallback, useContext } from "react";
-import { DEFAULT_TENANT } from "../../../../constants/tenants";
 import {
   BookingOrigin,
   FormContextLevel,
@@ -9,12 +8,15 @@ import {
 
 import { useParams, useRouter } from "next/navigation";
 import { DatabaseContext } from "../../components/Provider";
+import { SchemaContext } from "../../components/SchemaProvider";
 import { BookingContext } from "../bookingProvider";
 import useCalculateOverlap from "./useCalculateOverlap";
+
 export default function useSubmitBooking(formContext: FormContextLevel) {
   const router = useRouter();
   const params = useParams();
-  const tenant = (params?.tenant as string) || DEFAULT_TENANT;
+  const schemaContext = useContext(SchemaContext);
+  const tenant = schemaContext?.tenant;
 
   const {
     liaisonUsers,
@@ -159,6 +161,7 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
           liaisonUsers,
           data,
           isAutoApproval,
+          tenant, // Add tenant information for XState flow
           // Add modifiedBy as a top-level parameter for modification context
           ...(isModification && { modifiedBy: userEmail }),
           ...(requestParams.body ?? {}),
@@ -193,6 +196,7 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
       reloadFutureBookings,
       department,
       role,
+      tenant,
     ]
   );
 
