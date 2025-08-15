@@ -29,6 +29,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { sendHTMLEmail } from "@/app/lib/sendHTMLEmail";
 import { CALENDAR_HIDE_STATUS, TableNames } from "@/components/src/policy";
 import { formatOrigin } from "@/components/src/utils/formatters";
+import { serverGetDocumentById } from "@/lib/firebase/server/adminDb";
 import { getCalendarClient } from "@/lib/googleClient";
 import { Timestamp } from "firebase-admin/firestore";
 import { DateSelectArg } from "fullcalendar";
@@ -53,6 +54,31 @@ const extractTenantFromRequest = (request: NextRequest): string | undefined => {
   }
 
   return undefined;
+};
+
+// Helper function to get tenant-specific room information
+const getTenantRooms = async (tenant?: string) => {
+  try {
+    const schema = await serverGetDocumentById(
+      TableNames.TENANT_SCHEMA,
+      tenant || "mc",
+    );
+
+    if (!schema || !schema.resources) {
+      console.log("No schema or resources found for tenant:", tenant);
+      return [];
+    }
+
+    return schema.resources.map((resource: any) => ({
+      roomId: resource.roomId,
+      name: resource.name,
+      capacity: resource.capacity?.toString(),
+      calendarId: resource.calendarId,
+    }));
+  } catch (error) {
+    console.error("Error fetching tenant rooms:", error);
+    return [];
+  }
 };
 
 // Helper to build booking contents object for calendar descriptions
@@ -432,8 +458,16 @@ export async function PUT(request: NextRequest) {
 
   const existingContents = await serverBookingContents(calendarEventId, tenant);
   const oldRoomIds = existingContents.roomId.split(",").map(x => x.trim());
-  const oldRooms = allRooms.filter((room: RoomSetting) =>
+
+  // Get tenant-specific room information from server instead of relying on client data
+  const tenantRooms = await getTenantRooms(tenant);
+  const oldRooms = tenantRooms.filter((room: any) =>
     oldRoomIds.includes(room.roomId + ""),
+  );
+
+  console.log(
+    `Tenant: ${tenant}, Old room IDs: ${oldRoomIds}, Found old rooms:`,
+    oldRooms,
   );
 
   const selectedRoomIds = selectedRooms
@@ -441,11 +475,24 @@ export async function PUT(request: NextRequest) {
     .join(", ");
 
   // delete existing cal events
+  console.log(
+    `Deleting old calendar events for calendarEventId: ${calendarEventId}`,
+  );
+  console.log(
+    `Old rooms:`,
+    oldRooms.map(r => ({ roomId: r.roomId, calendarId: r.calendarId })),
+  );
+
   await Promise.all(
     oldRooms.map(async room => {
+      console.log(
+        `Deleting event ${calendarEventId} from calendar ${room.calendarId} (room ${room.roomId})`,
+      );
       await deleteEvent(room.calendarId, calendarEventId, room.roomId);
     }),
   );
+
+  console.log(`Finished deleting old calendar events`);
 
   // Build description for modified event
   const startDateObj2 = new Date(bookingCalendarInfo.startStr);
@@ -468,6 +515,12 @@ export async function PUT(request: NextRequest) {
 
   let newCalendarEventId: string;
   try {
+    console.log(`Creating new calendar event for modified booking`);
+    console.log(
+      `New rooms:`,
+      selectedRooms.map(r => ({ roomId: r.roomId, calendarId: r.calendarId })),
+    );
+
     newCalendarEventId = await createBookingCalendarEvent(
       selectedRooms,
       data.department,
@@ -475,6 +528,8 @@ export async function PUT(request: NextRequest) {
       bookingCalendarInfo,
       descriptionMod,
     );
+
+    console.log(`Created new calendar event with ID: ${newCalendarEventId}`);
     // Add a new history entry for the modification
     await logServerBookingChange({
       bookingId: existingContents.id,
@@ -509,6 +564,7 @@ export async function PUT(request: NextRequest) {
   };
 
   try {
+    // First update the booking data with the new calendar event ID
     await serverUpdateDataByCalendarEventId(
       TableNames.BOOKING,
       calendarEventId,
@@ -516,6 +572,7 @@ export async function PUT(request: NextRequest) {
       tenant,
     );
 
+    // Delete approval fields from the updated booking (using new calendarEventId since the entry was updated)
     await serverDeleteFieldsByCalendarEventId(
       TableNames.BOOKING,
       newCalendarEventId,
