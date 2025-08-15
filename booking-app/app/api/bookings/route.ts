@@ -27,6 +27,7 @@ import {
 import { NextRequest, NextResponse } from "next/server";
 
 import { sendHTMLEmail } from "@/app/lib/sendHTMLEmail";
+import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
 import { CALENDAR_HIDE_STATUS, TableNames } from "@/components/src/policy";
 import { formatOrigin } from "@/components/src/utils/formatters";
 import { serverGetDocumentById } from "@/lib/firebase/server/adminDb";
@@ -61,7 +62,7 @@ const getTenantRooms = async (tenant?: string) => {
   try {
     const schema = await serverGetDocumentById(
       TableNames.TENANT_SCHEMA,
-      tenant || "mc",
+      tenant || DEFAULT_TENANT,
     );
 
     if (!schema || !schema.resources) {

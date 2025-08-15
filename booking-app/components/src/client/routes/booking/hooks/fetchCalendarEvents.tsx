@@ -1,5 +1,6 @@
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import { DEFAULT_TENANT } from "../../../../constants/tenants";
 import { CalendarEvent, RoomSetting } from "../../../../types";
 
 import { CALENDAR_HIDE_STATUS } from "../../../../policy";
@@ -49,7 +50,7 @@ export default function fetchCalendarEvents(allRooms: RoomSetting[]) {
         {
           headers: {
             "Content-Type": "application/json",
-            "x-tenant": (tenant as string) || "mc",
+            "x-tenant": (tenant as string) || DEFAULT_TENANT,
           },
         }
       );

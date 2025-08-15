@@ -8,6 +8,7 @@ import {
   serverGetFinalApproverEmail,
   serverUpdateInFirestore,
 } from "@/lib/firebase/server/adminDb";
+import { DEFAULT_TENANT } from "../constants/tenants";
 import { ApproverLevel, TableNames, getApprovalCcEmail } from "../policy";
 import {
   AdminUser,
@@ -21,8 +22,6 @@ import {
 } from "../types";
 
 import { Timestamp } from "firebase-admin/firestore";
-
-const DEFAULT_TENANT = "mc";
 
 interface HistoryItem {
   status: BookingStatusLabel;
@@ -341,7 +340,7 @@ const firstApprove = async (id: string, email: string, tenant?: string) => {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
-        "x-tenant": tenant || "mc",
+        "x-tenant": tenant || DEFAULT_TENANT,
       },
       body: JSON.stringify({
         calendarEventId: id,
@@ -570,7 +569,7 @@ To cancel reservations please return to the Booking Tool, visit My Bookings, and
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
-      "x-tenant": tenant || "mc",
+      "x-tenant": tenant || DEFAULT_TENANT,
     },
     body: JSON.stringify(formDataForCalendarEvents),
   });

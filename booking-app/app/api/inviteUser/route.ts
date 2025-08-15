@@ -1,3 +1,4 @@
+import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
 import { inviteUserToCalendarEvent } from "@/components/src/server/calendars";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -5,7 +6,7 @@ export async function POST(request: NextRequest) {
   const { calendarEventId, guestEmail, roomId } = await request.json();
 
   // Get tenant from x-tenant header for logging purposes
-  const tenant = request.headers.get("x-tenant") || "mc";
+  const tenant = request.headers.get("x-tenant") || DEFAULT_TENANT;
 
   try {
     console.log(

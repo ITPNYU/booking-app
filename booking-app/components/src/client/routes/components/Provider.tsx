@@ -1,3 +1,4 @@
+import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
 import { ApproverLevel, TableNames } from "@/components/src/policy";
 import React, { createContext, useEffect, useMemo, useState } from "react";
 import {
@@ -169,7 +170,7 @@ export const DatabaseProvider = ({
       try {
         const response = await fetch(`/api/nyu/identity/${netId}`, {
           headers: {
-            "x-tenant": tenant,
+            "x-tenant": tenant || DEFAULT_TENANT,
           },
         });
         if (response.ok) {
@@ -350,7 +351,7 @@ export const DatabaseProvider = ({
       // Fetch data from spreadsheet
       const response = await fetch("/api/safety_training_users", {
         headers: {
-          "x-tenant": tenant || "mc",
+          "x-tenant": tenant || DEFAULT_TENANT,
         },
       });
       if (!response.ok) {

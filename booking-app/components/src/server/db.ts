@@ -1,3 +1,4 @@
+import { DEFAULT_TENANT } from "../constants/tenants";
 import {
   Approver,
   Booking,
@@ -160,7 +161,7 @@ export const decline = async (
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
-        "x-tenant": tenant || "mc",
+        "x-tenant": tenant || DEFAULT_TENANT,
       },
       body: JSON.stringify({
         calendarEventId: id,
@@ -280,7 +281,7 @@ If you have any questions or need further assistance, please don't hesitate to r
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
-        "x-tenant": tenant || "mc",
+        "x-tenant": tenant || DEFAULT_TENANT,
       },
       body: JSON.stringify({
         calendarEventId: id,
@@ -391,7 +392,7 @@ export const checkin = async (id: string, email: string, tenant?: string) => {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
-        "x-tenant": tenant || "mc",
+        "x-tenant": tenant || DEFAULT_TENANT,
       },
       body: JSON.stringify({
         calendarEventId: id,
@@ -456,7 +457,7 @@ export const checkOut = async (id: string, email: string, tenant?: string) => {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
-        "x-tenant": tenant || "mc",
+        "x-tenant": tenant || DEFAULT_TENANT,
       },
       body: JSON.stringify({
         calendarEventId: id,
@@ -545,7 +546,7 @@ If you have any questions or need further assistance, please don't hesitate to r
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
-        "x-tenant": tenant || "mc",
+        "x-tenant": tenant || DEFAULT_TENANT,
       },
       body: JSON.stringify({
         calendarEventId: id,
@@ -726,7 +727,7 @@ export const clientApproveBooking = async (
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "x-tenant": tenant || "mc",
+      "x-tenant": tenant || DEFAULT_TENANT,
     },
     body: JSON.stringify({ id: id, email: email }),
   });
@@ -813,7 +814,7 @@ const logClientBookingChange = async ({
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-tenant": tenant || "mc",
+        "x-tenant": tenant || DEFAULT_TENANT,
       },
       body: JSON.stringify({
         bookingId,

@@ -1,4 +1,5 @@
 import { useCallback, useContext } from "react";
+import { DEFAULT_TENANT } from "../../../../constants/tenants";
 import {
   BookingOrigin,
   FormContextLevel,
@@ -13,7 +14,7 @@ import useCalculateOverlap from "./useCalculateOverlap";
 export default function useSubmitBooking(formContext: FormContextLevel) {
   const router = useRouter();
   const params = useParams();
-  const tenant = (params?.tenant as string) || "mc";
+  const tenant = (params?.tenant as string) || DEFAULT_TENANT;
 
   const {
     liaisonUsers,

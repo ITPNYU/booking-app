@@ -1,3 +1,4 @@
+import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
 import { NextRequest, NextResponse } from "next/server";
 
 import { sendHTMLEmail } from "@/app/lib/sendHTMLEmail";
@@ -16,7 +17,7 @@ export async function POST(req: NextRequest) {
   } = await req.json();
 
   // Get tenant from x-tenant header for logging purposes
-  const tenant = req.headers.get("x-tenant") || "mc";
+  const tenant = req.headers.get("x-tenant") || DEFAULT_TENANT;
 
   // if (!templateName || !contents || !targetEmail || !status || !eventTitle) {
   //  return NextResponse.json(

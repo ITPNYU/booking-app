@@ -10,6 +10,7 @@ import {
   useState,
 } from "react";
 import { Actor, createActor } from "xstate";
+import { TENANTS } from "../../constants/tenants";
 import { TableNames } from "../../policy";
 import { BookingStatusLabel } from "../../types";
 import { DatabaseContext } from "../routes/components/Provider";
@@ -122,7 +123,10 @@ export const useMCBookingState = (
 
   // Initialize XState actor
   useEffect(() => {
-    if (!memoizedBookingData.tenant || memoizedBookingData.tenant !== "mc") {
+    if (
+      !memoizedBookingData.tenant ||
+      memoizedBookingData.tenant !== TENANTS.MC
+    ) {
       return; // Only for MC bookings
     }
 
@@ -227,7 +231,7 @@ export const useMCBookingState = (
 
   // Check if services are requested (using same logic as XState servicesRequested guard)
   const areServicesRequested = useCallback(() => {
-    if (!bookingData.tenant || bookingData.tenant !== "mc") {
+    if (!bookingData.tenant || bookingData.tenant !== TENANTS.MC) {
       return false;
     }
 

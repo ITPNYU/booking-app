@@ -1,3 +1,4 @@
+import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
 import { NextRequest, NextResponse } from "next/server";
 
 import { TableNames } from "@/components/src/policy";
@@ -12,8 +13,8 @@ import * as admin from "firebase-admin";
 export async function POST(req: NextRequest) {
   const { id, email, action } = await req.json();
 
-  // Get tenant from x-tenant header, fallback to 'mc' as default
-  const tenant = req.headers.get("x-tenant") || "mc";
+  // Get tenant from x-tenant header, fallback to default tenant
+  const tenant = req.headers.get("x-tenant") || DEFAULT_TENANT;
 
   try {
     const booking = await serverGetDataByCalendarEventId<Booking>(

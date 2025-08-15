@@ -1,10 +1,11 @@
+import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
 import { getDb } from "@/lib/firebase/firebaseClient";
 import { collection, getDocs } from "firebase/firestore";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(req: NextRequest) {
-  // Get tenant from x-tenant header, fallback to 'mc' as default
-  const tenant = req.headers.get("x-tenant") || "mc";
+  // Get tenant from x-tenant header, fallback to default tenant
+  const tenant = req.headers.get("x-tenant") || DEFAULT_TENANT;
 
   let data = [];
 

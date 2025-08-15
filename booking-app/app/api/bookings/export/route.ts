@@ -1,3 +1,4 @@
+import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
 import { NextRequest, NextResponse } from "next/server";
 
 import { TableNames } from "@/components/src/policy";
@@ -11,7 +12,7 @@ import { parse } from "json2csv";
 
 export async function GET(request: NextRequest) {
   // Get tenant from request headers or default to 'mc'
-  const tenant = request.headers.get("x-tenant") || "mc";
+  const tenant = request.headers.get("x-tenant") || DEFAULT_TENANT;
 
   const [bookings, schema] = await Promise.all([
     serverFetchAllDataFromCollection<Booking>(TableNames.BOOKING, [], tenant),

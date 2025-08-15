@@ -6,6 +6,7 @@ import {
 import { NextRequest, NextResponse } from "next/server";
 
 import getBookingStatus from "@/components/src/client/routes/hooks/getBookingStatus";
+import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
 import { TableNames } from "@/components/src/policy";
 import { serverBookingContents } from "@/components/src/server/admin";
 import { Booking } from "@/components/src/types";
@@ -124,7 +125,7 @@ export async function GET(req: NextRequest) {
   const calendarId = searchParams.get("calendarId");
 
   // Get tenant from x-tenant header, fallback to 'mc' as default
-  const tenant = req.headers.get("x-tenant") || "mc";
+  const tenant = req.headers.get("x-tenant") || DEFAULT_TENANT;
 
   if (!calendarId) {
     return NextResponse.json({ error: "Invalid calendarId" }, { status: 400 });
@@ -169,7 +170,7 @@ export async function PUT(req: NextRequest) {
   const { calendarEventId, newValues } = await req.json();
 
   // Get tenant from x-tenant header, fallback to 'mc' as default
-  const tenant = req.headers.get("x-tenant") || "mc";
+  const tenant = req.headers.get("x-tenant") || DEFAULT_TENANT;
 
   if (!calendarEventId || !newValues) {
     return NextResponse.json(

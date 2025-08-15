@@ -1,3 +1,4 @@
+import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
 import { TableNames } from "@/components/src/policy";
 import { serverUpdateDataByCalendarEventId } from "@/components/src/server/admin";
 import { serverFetchAllDataFromCollection } from "@/lib/firebase/server/adminDb";
@@ -8,8 +9,8 @@ export async function POST(req: NextRequest) {
   try {
     const { calendarEventId, cartNumber, userEmail } = await req.json();
 
-    // Get tenant from x-tenant header, fallback to 'mc' as default
-    const tenant = req.headers.get("x-tenant") || "mc";
+    // Get tenant from x-tenant header, fallback to default tenant
+    const tenant = req.headers.get("x-tenant") || DEFAULT_TENANT;
 
     if (!calendarEventId || !userEmail) {
       return NextResponse.json(

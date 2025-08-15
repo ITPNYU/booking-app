@@ -2,6 +2,7 @@ import ClientProvider from "@/components/src/client/routes/components/ClientProv
 import NavBar from "@/components/src/client/routes/components/navBar";
 import { SchemaContextType } from "@/components/src/client/routes/components/SchemaProvider";
 import SchemaProviderWrapper from "@/components/src/client/routes/components/SchemaProviderWrapper";
+import { ALLOWED_TENANTS } from "@/components/src/constants/tenants";
 import { TableNames } from "@/components/src/policy";
 import { serverGetDocumentById } from "@/lib/firebase/server/adminDb";
 import { notFound } from "next/navigation";
@@ -14,10 +15,8 @@ type LayoutProps = {
   };
 };
 
-const ALLOWED_PLATFORMS = ["mc", "itp"];
-
 const Layout: React.FC<LayoutProps> = async ({ children, params }) => {
-  if (!ALLOWED_PLATFORMS.includes(params.tenant)) {
+  if (!ALLOWED_TENANTS.includes(params.tenant)) {
     notFound();
   }
 
