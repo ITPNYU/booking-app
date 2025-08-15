@@ -2,7 +2,6 @@
 
 import "@/components/src/client/styles.css";
 
-import ClientProvider from "@/components/src/client/routes/components/ClientProvider";
 import { ConditionalAuthProvider } from "@/components/src/client/routes/components/ConditionalAuthProvider";
 import { ThemeProvider } from "@mui/material";
 import CssBaseline from "@mui/material/CssBaseline";
@@ -29,12 +28,10 @@ const RootLayout: React.FC<LayoutProps> = ({ children }) => (
     <head></head>
     <body className={roboto.className}>
       <ConditionalAuthProvider>
-        <ClientProvider>
-          <ThemeProvider theme={theme}>
-            <CssBaseline />
-            {children}
-          </ThemeProvider>
-        </ClientProvider>
+        <ThemeProvider theme={theme}>
+          <CssBaseline />
+          {children}
+        </ThemeProvider>
       </ConditionalAuthProvider>
     </body>
   </html>

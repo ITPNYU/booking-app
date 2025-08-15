@@ -1,4 +1,4 @@
-import { createContext, useContext } from "react";
+import { createContext, useContext, useEffect } from "react";
 
 export type Agreement = {
   id: string;
@@ -72,6 +72,20 @@ export const SchemaProvider: React.FC<{
   value: SchemaContextType;
   children: React.ReactNode;
 }> = ({ value, children }) => {
+  console.log("SchemaProvider: Setting context value (render):", {
+    tenant: value?.tenant,
+    name: value?.name,
+    resourcesCount: value?.resources?.length || 0,
+  });
+
+  useEffect(() => {
+    console.log("SchemaProvider: Context value after hydration:", {
+      tenant: value?.tenant,
+      name: value?.name,
+      resourcesCount: value?.resources?.length || 0,
+    });
+  }, [value]);
+
   return (
     <SchemaContext.Provider value={value}>{children}</SchemaContext.Provider>
   );

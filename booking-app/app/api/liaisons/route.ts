@@ -4,9 +4,14 @@ import { TableNames } from "@/components/src/policy";
 import { serverFetchAllDataFromCollection } from "@/lib/firebase/server/adminDb";
 
 export async function GET(req: NextRequest) {
+  // Get tenant from x-tenant header, fallback to 'mc' as default
+  const tenant = req.headers.get("x-tenant") || "mc";
+
   try {
     const fetchedData = await serverFetchAllDataFromCollection(
       TableNames.APPROVERS,
+      [],
+      tenant,
     );
     const filtered = fetchedData.map((item: any) => ({
       id: item.id,

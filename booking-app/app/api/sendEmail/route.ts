@@ -15,6 +15,9 @@ export async function POST(req: NextRequest) {
     replyTo,
   } = await req.json();
 
+  // Get tenant from x-tenant header for logging purposes
+  const tenant = req.headers.get("x-tenant") || "mc";
+
   // if (!templateName || !contents || !targetEmail || !status || !eventTitle) {
   //  return NextResponse.json(
   //    { error: "Missing required fields" },
@@ -23,6 +26,9 @@ export async function POST(req: NextRequest) {
   // }
 
   try {
+    console.log(
+      `Sending email for tenant: ${tenant}, template: ${templateName}, to: ${targetEmail}`,
+    );
     await sendHTMLEmail({
       templateName,
       contents,
@@ -39,7 +45,7 @@ export async function POST(req: NextRequest) {
       { status: 200 },
     );
   } catch (error) {
-    console.error("Error sending email:", error);
+    console.error(`Error sending email for tenant: ${tenant}:`, error);
     return NextResponse.json(
       { error: "Failed to send email" },
       { status: 500 },

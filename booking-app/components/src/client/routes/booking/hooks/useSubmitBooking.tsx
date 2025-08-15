@@ -6,12 +6,15 @@ import {
   PagePermission,
 } from "../../../../types";
 
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { DatabaseContext } from "../../components/Provider";
 import { BookingContext } from "../bookingProvider";
 import useCalculateOverlap from "./useCalculateOverlap";
 export default function useSubmitBooking(formContext: FormContextLevel) {
   const router = useRouter();
+  const params = useParams();
+  const tenant = (params?.tenant as string) || "mc";
+
   const {
     liaisonUsers,
     userEmail,
@@ -144,6 +147,7 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
         method: requestParams.method,
         headers: {
           "Content-Type": "application/json",
+          "x-tenant": tenant,
         },
         body: JSON.stringify({
           origin: isVIP ? BookingOrigin.VIP : BookingOrigin.WALK_IN,
