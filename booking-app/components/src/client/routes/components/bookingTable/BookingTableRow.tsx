@@ -45,7 +45,9 @@ export default function BookingTableRow({
   const [optimisticStatus, setOptimisticStatus] =
     useState<BookingStatusLabel>();
 
-  const actualStatus = useMemo(() => getBookingStatus(booking), [booking]);
+  const actualStatus = useMemo(() => {
+    return getBookingStatus(booking);
+  }, [booking]);
 
   const displayStatus = useMemo(() => {
     if (optimisticStatus) {
