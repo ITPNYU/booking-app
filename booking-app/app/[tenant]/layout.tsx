@@ -16,7 +16,7 @@ type LayoutProps = {
 };
 
 const Layout: React.FC<LayoutProps> = async ({ children, params }) => {
-  if (!ALLOWED_TENANTS.includes(params.tenant)) {
+  if (!ALLOWED_TENANTS.includes(params.tenant as any)) {
     notFound();
   }
 
