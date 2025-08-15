@@ -9,7 +9,6 @@ import {
 import { useRouter } from "next/navigation";
 import { DatabaseContext } from "../../components/Provider";
 import { SchemaContext } from "../../components/SchemaProvider";
-
 import { BookingContext } from "../bookingProvider";
 import useCalculateOverlap from "./useCalculateOverlap";
 
