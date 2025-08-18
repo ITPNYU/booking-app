@@ -158,9 +158,6 @@ export const DatabaseProvider = ({
   const schemaContext = useContext(SchemaContext);
   const tenant = schemaContext?.tenant;
 
-  console.log("Provider.tsx - schemaContext:", schemaContext);
-  console.log("Provider.tsx - tenant:", tenant);
-
   const [preBanLogs, setPreBanLogs] = useState<PreBanLog[]>([]);
   const [superAdminUsers, setSuperAdminUsers] = useState<AdminUser[]>([]);
 

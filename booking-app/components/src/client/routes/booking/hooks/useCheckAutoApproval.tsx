@@ -1,14 +1,17 @@
 import { useContext, useEffect, useState } from "react";
-import { BookingContext } from "../bookingProvider";
 import { useTenantSchema } from "../../components/SchemaProvider";
+import { BookingContext } from "../bookingProvider";
 
-export function selectedAutoApprovalRooms(selectedRoomIds: number[], selectedRooms: any[]) {
+export function selectedAutoApprovalRooms(
+  selectedRoomIds: number[],
+  selectedRooms: any[]
+) {
   if (selectedRoomIds.length < 2) return true;
   if (selectedRoomIds.length > 2) return false;
-  
+
   const room1 = selectedRooms.find((r: any) => r.roomId === selectedRoomIds[0]);
   const room2 = selectedRooms.find((r: any) => r.roomId === selectedRoomIds[1]);
-  
+
   if (room1?.isWalkInCanBookTwo && room2?.isWalkInCanBookTwo) {
     return true;
   }
@@ -24,9 +27,36 @@ export default function useCheckAutoApproval(isWalkIn = false) {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const throwError = (msg: string) => {
+    console.log(
+      `🚫 AUTO-APPROVAL REJECTED [${schema.tenant?.toUpperCase() || "UNKNOWN"}]:`,
+      msg
+    );
     setIsAutoApproval(false);
     setErrorMessage(msg);
   };
+
+  console.log(
+    `🔍 AUTO-APPROVAL CHECK [${schema.tenant?.toUpperCase() || "UNKNOWN"}]:`,
+    {
+      tenant: schema.tenant,
+      isWalkIn,
+      selectedRoomsCount: selectedRooms?.length || 0,
+      selectedRooms: selectedRooms?.map((r) => ({
+        roomId: r.roomId,
+        name: r.name,
+        shouldAutoApprove: r.shouldAutoApprove,
+      })),
+      formData: {
+        roomSetup: formData?.roomSetup,
+        mediaServices: formData?.mediaServices,
+        catering: formData?.catering,
+        hireSecurity: formData?.hireSecurity,
+      },
+      bookingDuration: bookingCalendarInfo
+        ? `${((bookingCalendarInfo.end.getTime() - bookingCalendarInfo.start.getTime()) / (1000 * 60 * 60)).toFixed(1)} hours`
+        : "Not set",
+    }
+  );
 
   useEffect(() => {
     // EVENT DURATION > 4 HOURS
@@ -57,7 +87,12 @@ export default function useCheckAutoApproval(isWalkIn = false) {
       return;
     }
 
-    if (!selectedAutoApprovalRooms(selectedRooms.map((room) => room.roomId), selectedRooms)) {
+    if (
+      !selectedAutoApprovalRooms(
+        selectedRooms.map((room) => room.roomId),
+        selectedRooms
+      )
+    ) {
       throwError(
         "Requests for multiple rooms (except for 2 ballrooms) will require full approval"
       );
@@ -92,6 +127,10 @@ export default function useCheckAutoApproval(isWalkIn = false) {
       return;
     }
 
+    console.log(
+      `✅ AUTO-APPROVAL APPROVED [${schema.tenant?.toUpperCase() || "UNKNOWN"}]:`,
+      "All conditions met for auto-approval"
+    );
     setIsAutoApproval(true);
     setErrorMessage(null);
   }, [
@@ -101,6 +140,15 @@ export default function useCheckAutoApproval(isWalkIn = false) {
     formData,
     schema.resources,
   ]);
+
+  console.log(
+    `📋 AUTO-APPROVAL RESULT [${schema.tenant?.toUpperCase() || "UNKNOWN"}]:`,
+    {
+      isAutoApproval,
+      errorMessage,
+      finalDecision: isAutoApproval ? "APPROVED" : "REJECTED",
+    }
+  );
 
   return { isAutoApproval, errorMessage };
 }

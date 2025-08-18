@@ -51,7 +51,7 @@
     "react-hook-form": "^7.52.0",
     "styled-components": "^6.1.12",
     "tailwind-datepicker-react": "^1.4.3",
-    "xstate": "^5.20.1"
+    "xstate": "^5.20.2"
   },
   "devDependencies": {
     "@next/eslint-plugin-next": "^14.2.4",

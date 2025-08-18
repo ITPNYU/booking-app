@@ -2,7 +2,7 @@ import ClientProvider from "@/components/src/client/routes/components/ClientProv
 import NavBar from "@/components/src/client/routes/components/navBar";
 import { SchemaContextType } from "@/components/src/client/routes/components/SchemaProvider";
 import SchemaProviderWrapper from "@/components/src/client/routes/components/SchemaProviderWrapper";
-import { isValidTenant } from "@/components/src/constants/tenants";
+import { ALLOWED_TENANTS } from "@/components/src/constants/tenants";
 import { TableNames } from "@/components/src/policy";
 import { serverGetDocumentById } from "@/lib/firebase/server/adminDb";
 import { notFound } from "next/navigation";
@@ -16,7 +16,7 @@ type LayoutProps = {
 };
 
 const Layout: React.FC<LayoutProps> = async ({ children, params }) => {
-  if (!isValidTenant(params.tenant)) {
+  if (!ALLOWED_TENANTS.includes(params.tenant as any)) {
     notFound();
   }
 
@@ -61,7 +61,6 @@ const Layout: React.FC<LayoutProps> = async ({ children, params }) => {
     );
   } catch (error) {
     console.error("Layout: Error fetching tenant schema:", error);
-
     notFound();
   }
 };
