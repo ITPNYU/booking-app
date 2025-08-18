@@ -4,7 +4,7 @@ import React, { useMemo } from "react";
 import ListTableRow from "./ListTableRow";
 import Table from "./Table";
 import { TableNames } from "../../../policy";
-import { clientDeleteDataFromFirestore } from "@/lib/firebase/firebase";
+import { clientDeleteDataFromFirestore, clientDeleteUserRightsData } from "@/lib/firebase/firebase";
 
 interface Props {
   columnFormatters?: {
@@ -56,7 +56,16 @@ export default function ListTable(props: Props) {
           removeRow={() =>
             props.onRemoveRow
               ? props.onRemoveRow(row)
-              : clientDeleteDataFromFirestore(props.tableName, row.id)
+              : (() => {
+                  // Check if this is a user collection that should use the new logic
+                  const userCollections = [TableNames.ADMINS, TableNames.PAS, TableNames.SUPER_ADMINS];
+                  
+                  if (userCollections.includes(props.tableName)) {
+                    return clientDeleteUserRightsData(props.tableName, row.id);
+                  } else {
+                    return clientDeleteDataFromFirestore(props.tableName, row.id);
+                  }
+                })()
           }
           columnNames={columnNames}
           columnFormatters={columnFormatters}
