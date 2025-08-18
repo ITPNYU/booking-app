@@ -82,7 +82,7 @@ export async function GET(request: NextRequest) {
 
       return {
         "Request #": booking.requestNumber,
-        Department: booking.department,
+        Department: booking.department === "Other" && booking.otherDepartment ? booking.otherDepartment : booking.department,
         "Role (Affiliation)": booking.role,
         "Room(s)": booking.roomId,
         "Booking Start Date": format(startDate, "M/d/yyyy"),
