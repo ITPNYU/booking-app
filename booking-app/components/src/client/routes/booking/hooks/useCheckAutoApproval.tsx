@@ -1,4 +1,6 @@
+import { itpBookingMachine } from "@/lib/stateMachines/itpBookingMachine";
 import { useContext, useEffect, useState } from "react";
+import { createActor } from "xstate";
 import { useTenantSchema } from "../../components/SchemaProvider";
 import { BookingContext } from "../bookingProvider";
 
@@ -59,6 +61,87 @@ export default function useCheckAutoApproval(isWalkIn = false) {
   );
 
   useEffect(() => {
+    // For ITP tenant, use XState machine for auto-approval logic
+    if (schema.tenant === "itp") {
+      console.log(`🎭 CLIENT-SIDE XSTATE CHECK [ITP]:`, {
+        tenant: schema.tenant,
+        selectedRooms: selectedRooms?.map((r) => ({
+          roomId: r.roomId,
+          name: r.name,
+          shouldAutoApprove: r.shouldAutoApprove,
+        })),
+        formData,
+        bookingCalendarInfo: bookingCalendarInfo
+          ? {
+              startStr: bookingCalendarInfo.start.toISOString(),
+              endStr: bookingCalendarInfo.end.toISOString(),
+              duration: `${((bookingCalendarInfo.end.getTime() - bookingCalendarInfo.start.getTime()) / (1000 * 60 * 60)).toFixed(1)} hours`,
+            }
+          : null,
+        isWalkIn,
+      });
+
+      try {
+        const bookingActor = createActor(itpBookingMachine, {
+          input: {
+            tenant: schema.tenant,
+            selectedRooms,
+            formData,
+            bookingCalendarInfo: bookingCalendarInfo
+              ? {
+                  startStr: bookingCalendarInfo.start.toISOString(),
+                  endStr: bookingCalendarInfo.end.toISOString(),
+                }
+              : null,
+            isWalkIn,
+          },
+        });
+
+        bookingActor.start();
+        const currentState = bookingActor.getSnapshot();
+        const xstateDecision = currentState.value === "Approved";
+
+        console.log(`🎭 CLIENT-SIDE XSTATE RESULT [ITP]:`, {
+          state: currentState.value,
+          decision: xstateDecision ? "AUTO-APPROVE" : "MANUAL-APPROVAL",
+          context: {
+            tenant: currentState.context.tenant,
+            selectedRoomsCount: currentState.context.selectedRooms?.length,
+            hasFormData: !!currentState.context.formData,
+            isWalkIn: currentState.context.isWalkIn,
+          },
+        });
+
+        bookingActor.stop();
+
+        if (xstateDecision) {
+          console.log(
+            `✅ AUTO-APPROVAL APPROVED [ITP]:`,
+            "XState machine approved auto-approval"
+          );
+          setIsAutoApproval(true);
+          setErrorMessage(null);
+        } else {
+          console.log(
+            `🚫 AUTO-APPROVAL REJECTED [ITP]:`,
+            "XState machine rejected auto-approval"
+          );
+          setIsAutoApproval(false);
+          setErrorMessage(
+            "XState machine determined manual approval is required"
+          );
+        }
+      } catch (error) {
+        console.error(`🚨 CLIENT-SIDE XSTATE ERROR [ITP]:`, error);
+        // Fallback to traditional logic if XState fails
+        setIsAutoApproval(false);
+        setErrorMessage("XState evaluation failed, manual approval required");
+      }
+
+      return; // Exit early for ITP tenant
+    }
+
+    // Traditional logic for non-ITP tenants
     // EVENT DURATION > 4 HOURS
     if (bookingCalendarInfo != null) {
       const startDate = bookingCalendarInfo.start;
@@ -139,6 +222,8 @@ export default function useCheckAutoApproval(isWalkIn = false) {
     selectedRooms,
     formData,
     schema.resources,
+    schema.tenant, // Added tenant to dependencies
+    isWalkIn, // Added isWalkIn to dependencies
   ]);
 
   console.log(
@@ -147,6 +232,8 @@ export default function useCheckAutoApproval(isWalkIn = false) {
       isAutoApproval,
       errorMessage,
       finalDecision: isAutoApproval ? "APPROVED" : "REJECTED",
+      usingXState: schema.tenant === "itp",
+      method: schema.tenant === "itp" ? "XState Machine" : "Traditional Logic",
     }
   );
 

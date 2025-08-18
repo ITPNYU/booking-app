@@ -365,6 +365,9 @@ export async function POST(request: NextRequest) {
   const initialStatus = BookingStatusLabel.REQUESTED;
   let shouldAutoApprove = isAutoApproval === true;
 
+  // Declare xstateData in outer scope
+  let xstateData: any = undefined;
+
   // Use XState machine for ITP tenant auto-approval logic
   if (tenant === "itp") {
     console.log(`🎭 USING XSTATE FOR ITP AUTO-APPROVAL LOGIC`);
@@ -425,6 +428,32 @@ export async function POST(request: NextRequest) {
       `🎭 XSTATE DECISION: ${xstateDecision ? "AUTO-APPROVE" : "MANUAL-APPROVAL"}`,
     );
     shouldAutoApprove = xstateDecision;
+
+    // Prepare XState state for persistence
+    xstateData = {
+      currentState: currentState.value,
+      context: currentState.context,
+      machineId: itpBookingMachine.id,
+      lastTransition: new Date().toISOString(),
+      canTransitionTo: {
+        approve: currentState.can({ type: "approve" }),
+        decline: currentState.can({ type: "decline" }),
+        cancel: currentState.can({ type: "cancel" }),
+        edit: currentState.can({ type: "edit" }),
+        checkIn: currentState.can({ type: "checkIn" }),
+        checkOut: currentState.can({ type: "checkOut" }),
+        noShow: currentState.can({ type: "noShow" }),
+        close: currentState.can({ type: "close" }),
+        autoCloseScript: currentState.can({ type: "autoCloseScript" }),
+      },
+    };
+
+    console.log(`🎭 XSTATE: Preparing state for persistence:`, {
+      currentState: xstateData.currentState,
+      availableTransitions: Object.entries(xstateData.canTransitionTo)
+        .filter(([_, canTransition]) => canTransition)
+        .map(([event, _]) => event),
+    });
 
     // Stop the actor
     console.log(`🎭 XSTATE: Stopping actor...`);
@@ -492,20 +521,35 @@ export async function POST(request: NextRequest) {
 
   let doc;
   try {
+    const bookingData = {
+      calendarEventId,
+      roomId: selectedRoomIds,
+      email,
+      startDate: toFirebaseTimestampFromString(bookingCalendarInfo.startStr),
+      endDate: toFirebaseTimestampFromString(bookingCalendarInfo.endStr),
+      requestNumber: sequentialId,
+      equipmentCheckedOut: false,
+      requestedAt: Timestamp.now(),
+      origin: BookingOrigin.USER,
+      ...data,
+    };
+
+    // Add XState data for ITP tenant
+    if (tenant === "itp" && typeof xstateData !== "undefined") {
+      bookingData.xstateData = xstateData;
+      console.log(`💾 SAVING XSTATE DATA TO FIRESTORE [ITP]:`, {
+        currentState: xstateData.currentState,
+        machineId: xstateData.machineId,
+        lastTransition: xstateData.lastTransition,
+        availableTransitions: Object.entries(xstateData.canTransitionTo)
+          .filter(([_, canTransition]) => canTransition)
+          .map(([event, _]) => event),
+      });
+    }
+
     doc = await serverSaveDataToFirestore(
       TableNames.BOOKING,
-      {
-        calendarEventId,
-        roomId: selectedRoomIds,
-        email,
-        startDate: toFirebaseTimestampFromString(bookingCalendarInfo.startStr),
-        endDate: toFirebaseTimestampFromString(bookingCalendarInfo.endStr),
-        requestNumber: sequentialId,
-        equipmentCheckedOut: false,
-        requestedAt: Timestamp.now(),
-        origin: BookingOrigin.USER,
-        ...data,
-      },
+      bookingData,
       tenant,
     );
 
