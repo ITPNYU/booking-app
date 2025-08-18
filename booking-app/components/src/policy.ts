@@ -21,6 +21,7 @@ export enum TableNames {
   POLICY_SETTINGS = "policySettings",
   BLACKOUT_PERIODS = "blackoutPeriods",
   TENANT_SCHEMA = "tenantSchema",
+  USERS_RIGHTS = "usersRights",
 }
 
 // Utility function to get tenant-specific collection names
@@ -39,7 +40,8 @@ export const getTenantCollectionName = (baseCollection: string, tenant?: string)
     "operationHours",
     "preBanLogs",
     "usersWhitelist",
-    "usersApprovers"
+    "usersApprovers",
+    "usersRights"
   ];
   
   if (tenantSpecificCollections.includes(baseCollection)) {

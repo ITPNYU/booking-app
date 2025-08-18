@@ -303,29 +303,35 @@ export const DatabaseProvider = ({
   };
 
   const fetchAdminUsers = async () => {
-    clientFetchAllDataFromCollection(TableNames.ADMINS, [], tenant)
+    // Fetch from usersRights and filter by isAdmin flag
+    clientFetchAllDataFromCollection(TableNames.USERS_RIGHTS, [], tenant)
       .then((fetchedData) => {
-        const adminUsers = fetchedData.map((item: any) => ({
-          id: item.id,
-          email: item.email,
-          createdAt: item.createdAt,
-        }));
+        const adminUsers = fetchedData
+          .filter((item: any) => item.isAdmin === true)
+          .map((item: any) => ({
+            id: item.id,
+            email: item.email,
+            createdAt: item.createdAt,
+          }));
         setAdminUsers(adminUsers);
       })
-      .catch((error) => console.error("Error fetching data:", error));
+      .catch((error) => console.error("Error fetching admin users data:", error));
   };
 
   const fetchPaUsers = async () => {
-    clientFetchAllDataFromCollection(TableNames.PAS, [], tenant)
+    // Fetch from usersRights and filter by isLiaison flag
+    clientFetchAllDataFromCollection(TableNames.USERS_RIGHTS, [], tenant)
       .then((fetchedData) => {
-        const paUsers = fetchedData.map((item: any) => ({
-          id: item.id,
-          email: item.email,
-          createdAt: item.createdAt,
-        }));
+        const paUsers = fetchedData
+          .filter((item: any) => item.isLiaison === true)
+          .map((item: any) => ({
+            id: item.id,
+            email: item.email,
+            createdAt: item.createdAt,
+          }));
         setPaUsers(paUsers);
       })
-      .catch((error) => console.error("Error fetching data:", error));
+      .catch((error) => console.error("Error fetching PA users data:", error));
   };
 
   const fetchSafetyTrainedUsers = async () => {
@@ -555,13 +561,16 @@ export const DatabaseProvider = ({
   };
 
   const fetchSuperAdminUsers = async () => {
-    clientFetchAllDataFromCollection(TableNames.SUPER_ADMINS, [], tenant)
+    // Fetch from usersRights and filter by isSuper flag
+    clientFetchAllDataFromCollection(TableNames.USERS_RIGHTS, [], tenant)
       .then((fetchedData) => {
-        const superAdminUsers = fetchedData.map((item: any) => ({
-          id: item.id,
-          email: item.email,
-          createdAt: item.createdAt,
-        }));
+        const superAdminUsers = fetchedData
+          .filter((item: any) => item.isSuper === true)
+          .map((item: any) => ({
+            id: item.id,
+            email: item.email,
+            createdAt: item.createdAt,
+          }));
         setSuperAdminUsers(superAdminUsers);
       })
       .catch((error) =>
