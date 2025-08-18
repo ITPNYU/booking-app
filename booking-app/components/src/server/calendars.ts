@@ -104,7 +104,9 @@ export const bookingContentsToDescription = (
   );
   description += listItem(
     "Department",
-    getProperty(bookingContents, "department")
+    getProperty(bookingContents, "department") === "Other" && getProperty(bookingContents, "otherDepartment")
+      ? getProperty(bookingContents, "otherDepartment")
+      : getProperty(bookingContents, "department")
   );
   description += listItem("Role", getProperty(bookingContents, "role"));
   description += listItem("Email", getProperty(bookingContents, "email"));

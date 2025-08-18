@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
   const event = await insertEvent({
     calendarId,
     title: `[${bookingStatus}] ${selectedRoomIds.join(", ")} ${truncatedTitle}`,
-    description: `Department: ${department}\n\nThis reservation was made as a ${type}.`,
+    description: `Department: ${department === "Other" && data.otherDepartment ? data.otherDepartment : department}\n\nThis reservation was made as a ${type}.`,
     startTime: bookingCalendarInfo.startStr,
     endTime: bookingCalendarInfo.endStr,
     roomEmails: otherRoomIds,
