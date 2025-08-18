@@ -38,7 +38,8 @@ export const getTenantCollectionName = (baseCollection: string, tenant?: string)
     "counters",
     "operationHours",
     "preBanLogs",
-    "usersWhitelist"
+    "usersWhitelist",
+    "usersApprovers"
   ];
   
   if (tenantSpecificCollections.includes(baseCollection)) {
