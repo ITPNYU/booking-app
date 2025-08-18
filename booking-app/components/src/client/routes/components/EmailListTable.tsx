@@ -12,18 +12,20 @@ interface Props<T extends EmailField> {
   columnFormatters?: { [key: string]: (value: string) => string };
   tableName: TableNames;
   title: string;
-  userList: T[];
+  userList?: T[];
   userListRefresh: () => Promise<void>;
 }
 
 export default function EmailListTable<T extends EmailField>(props: Props<T>) {
   const addEmail = useMemo(() => <AddEmail {...props} />, [props]);
-  props.userList.sort((a, b) => a.email.localeCompare(b.email));
+  
+  // Add safety check for userList
+  const sortedUserList = props.userList ? [...props.userList].sort((a, b) => a.email.localeCompare(b.email)) : [];
 
   return (
     <ListTable
       columnNameToRemoveBy="email"
-      rows={props.userList as unknown as { [key: string]: string }[]}
+      rows={sortedUserList as unknown as { [key: string]: string }[]}
       rowsRefresh={props.userListRefresh}
       topRow={addEmail}
       {...props}

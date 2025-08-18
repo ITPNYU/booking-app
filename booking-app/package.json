@@ -13,7 +13,8 @@
     "test:e2e": "npx playwright test",
     "test:all": "npm run test:unit && npm run test:e2e",
     "copy:staging": "node scripts/copyCollection.js --source-database development --target-database staging --source-collection tenantSchema --target-collection tenantSchema",
-    "copy:production": "node scripts/copyCollection.js --source-database development --target-database production --source-collection tenantSchema --target-collection tenantSchema"
+    "copy:production": "node scripts/copyCollection.js --source-database development --target-database production --source-collection tenantSchema --target-collection tenantSchema",
+    "mergeUsers": "node scripts/mergeUsersCollections.js"
   },
   "dependencies": {
     "@emotion/styled": "^11.13.0",

@@ -4,7 +4,7 @@ import React, { useMemo, useState } from "react";
 import { Timestamp } from "firebase/firestore";
 import { AddCircleOutline } from "@mui/icons-material";
 import Grid from "@mui/material/Unstable_Grid2/Grid2";
-import { clientSaveDataToFirestore } from "../../../../../lib/firebase/firebase";
+import { clientSaveDataToFirestore, clientSaveUserRightsData } from "../../../../../lib/firebase/firebase";
 import { TableNames } from "../../../policy";
 import Loading from "./Loading";
 
@@ -46,11 +46,22 @@ export default function AddRow(props: Props) {
 
     setLoading(true);
     try {
-      await clientSaveDataToFirestore(tableName, {
-        [props.columnNameUniqueValue]: valueToAdd.trim(),
-        ...(extra?.values ?? {}),
-        createdAt: Timestamp.now(),
-      });
+      // Check if this is a user collection that should use the new logic
+      const userCollections = [TableNames.ADMINS, TableNames.PAS, TableNames.SUPER_ADMINS];
+      
+      if (userCollections.includes(tableName)) {
+        await clientSaveUserRightsData(tableName, {
+          [props.columnNameUniqueValue]: valueToAdd.trim(),
+          ...(extra?.values ?? {}),
+          createdAt: Timestamp.now(),
+        });
+      } else {
+        await clientSaveDataToFirestore(tableName, {
+          [props.columnNameUniqueValue]: valueToAdd.trim(),
+          ...(extra?.values ?? {}),
+          createdAt: Timestamp.now(),
+        });
+      }
       await rowsRefresh();
     } catch (ex) {
       console.error(ex);
