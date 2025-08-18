@@ -7,7 +7,7 @@ interface BookingContext {
   formData?: any;
   bookingCalendarInfo?: any;
   isWalkIn?: boolean;
-  calendarEventId?: string;
+  calendarEventId?: string | null;
   email?: string;
 }
 

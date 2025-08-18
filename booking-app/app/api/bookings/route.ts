@@ -399,6 +399,7 @@ export async function POST(request: NextRequest) {
         bookingCalendarInfo,
         isWalkIn: false, // TODO: detect walk-in context
         email,
+        calendarEventId: null, // Will be set after calendar event creation
       },
     });
 
@@ -429,10 +430,17 @@ export async function POST(request: NextRequest) {
     );
     shouldAutoApprove = xstateDecision;
 
+    // Clean context by removing undefined values for Firestore compatibility
+    const cleanContext = Object.fromEntries(
+      Object.entries(currentState.context).filter(
+        ([_, value]) => value !== undefined,
+      ),
+    );
+
     // Prepare XState state for persistence
     xstateData = {
       currentState: currentState.value,
-      context: currentState.context,
+      context: cleanContext,
       machineId: itpBookingMachine.id,
       lastTransition: new Date().toISOString(),
       canTransitionTo: {
@@ -534,18 +542,7 @@ export async function POST(request: NextRequest) {
       ...data,
     };
 
-    // Add XState data for ITP tenant
-    if (tenant === "itp" && typeof xstateData !== "undefined") {
-      bookingData.xstateData = xstateData;
-      console.log(`💾 SAVING XSTATE DATA TO FIRESTORE [ITP]:`, {
-        currentState: xstateData.currentState,
-        machineId: xstateData.machineId,
-        lastTransition: xstateData.lastTransition,
-        availableTransitions: Object.entries(xstateData.canTransitionTo)
-          .filter(([_, canTransition]) => canTransition)
-          .map(([event, _]) => event),
-      });
-    }
+    // XState data will be saved separately after calendarEventId is available
 
     doc = await serverSaveDataToFirestore(
       TableNames.BOOKING,
@@ -567,6 +564,46 @@ export async function POST(request: NextRequest) {
       note: "",
       tenant,
     });
+
+    // Save XState data for ITP tenant after calendarEventId is available
+    if (tenant === "itp" && typeof xstateData !== "undefined") {
+      try {
+        // Update the XState context with the actual calendarEventId
+        const updatedXStateData = {
+          ...xstateData,
+          context: {
+            ...xstateData.context,
+            calendarEventId: calendarEventId,
+          },
+        };
+
+        // Save XState data to the booking document
+        await serverUpdateDataByCalendarEventId(
+          TableNames.BOOKING,
+          calendarEventId,
+          { xstateData: updatedXStateData },
+          tenant,
+        );
+
+        console.log(`💾 XSTATE DATA SAVED TO FIRESTORE [ITP]:`, {
+          calendarEventId,
+          currentState: updatedXStateData.currentState,
+          machineId: updatedXStateData.machineId,
+          lastTransition: updatedXStateData.lastTransition,
+          availableTransitions: Object.entries(
+            updatedXStateData.canTransitionTo,
+          )
+            .filter(([_, canTransition]) => canTransition)
+            .map(([event, _]) => event),
+        });
+      } catch (error) {
+        console.error(`🚨 ERROR SAVING XSTATE DATA [ITP]:`, {
+          calendarEventId,
+          error: error.message,
+        });
+        // Don't fail the entire booking if XState save fails
+      }
+    }
 
     // Handle approval emails based on final status
     await handleBookingApprovalEmails(

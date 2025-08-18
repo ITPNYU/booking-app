@@ -1,8 +1,8 @@
 import { TableNames } from "@/components/src/policy";
+import { BookingStatusLabel } from "@/components/src/types";
 import { serverGetDataByCalendarEventId } from "@/lib/firebase/server/adminDb";
 import { ActorRefFrom, createActor } from "xstate";
 import { itpBookingMachine } from "./itpBookingMachine";
-import { BookingStatusLabel } from "@/components/src/types";
 
 // Type for persisted XState data
 export interface PersistedXStateData {
@@ -33,7 +33,9 @@ function mapBookingStatusToXState(status: string): string {
     case BookingStatusLabel.NO_SHOW:
       return "No Show";
     default:
-      console.warn(`Unknown booking status: ${status}, defaulting to Requested`);
+      console.warn(
+        `Unknown booking status: ${status}, defaulting to Requested`
+      );
       return "Requested";
   }
 }
@@ -179,10 +181,15 @@ async function createXStateFromBookingStatus(
     }
   };
 
+  // Clean context by removing undefined values for Firestore compatibility
+  const cleanContext = Object.fromEntries(
+    Object.entries(snapshot.context).filter(([_, value]) => value !== undefined)
+  );
+
   // Create XState data based on the current booking status
   const xstateData: PersistedXStateData = {
     currentState: xstateState,
-    context: snapshot.context,
+    context: cleanContext,
     machineId: itpBookingMachine.id,
     lastTransition: new Date().toISOString(),
     canTransitionTo: getTransitionsForState(xstateState),
@@ -258,13 +265,10 @@ export async function restoreXStateFromFirestore(
 
       // If we have booking data but no XState data, create XState from booking status
       if (bookingData && tenant === "itp") {
-        console.log(
-          `🔧 CREATING XSTATE FROM BOOKING STATUS [ITP]:`,
-          {
-            calendarEventId,
-            bookingStatus: (bookingData as any).status,
-          }
-        );
+        console.log(`🔧 CREATING XSTATE FROM BOOKING STATUS [ITP]:`, {
+          calendarEventId,
+          bookingStatus: (bookingData as any).status,
+        });
 
         try {
           const xstateData = await createXStateFromBookingStatus(
@@ -285,24 +289,18 @@ export async function restoreXStateFromFirestore(
             },
           });
 
-          console.log(
-            `✅ XSTATE ACTOR CREATED FROM BOOKING STATUS [ITP]:`,
-            {
-              calendarEventId,
-              createdState: xstateData.currentState,
-              contextKeys: Object.keys(xstateData.context || {}),
-            }
-          );
+          console.log(`✅ XSTATE ACTOR CREATED FROM BOOKING STATUS [ITP]:`, {
+            calendarEventId,
+            createdState: xstateData.currentState,
+            contextKeys: Object.keys(xstateData.context || {}),
+          });
 
           return restoredActor;
         } catch (error) {
-          console.error(
-            `🚨 ERROR CREATING XSTATE FROM BOOKING STATUS [ITP]:`,
-            {
-              calendarEventId,
-              error: error.message,
-            }
-          );
+          console.error(`🚨 ERROR CREATING XSTATE FROM BOOKING STATUS [ITP]:`, {
+            calendarEventId,
+            error: error.message,
+          });
           return null;
         }
       }
@@ -438,10 +436,15 @@ export async function executeXStateTransition(
       }
     );
 
+    // Clean context by removing undefined values for Firestore compatibility
+    const cleanNewContext = Object.fromEntries(
+      Object.entries(newSnapshot.context).filter(([_, value]) => value !== undefined)
+    );
+
     // Prepare updated XState data for persistence
     const updatedXStateData: PersistedXStateData = {
       currentState: newSnapshot.value as string,
-      context: newSnapshot.context,
+      context: cleanNewContext,
       machineId: itpBookingMachine.id,
       lastTransition: new Date().toISOString(),
       canTransitionTo: {
@@ -522,13 +525,10 @@ export async function getAvailableXStateTransitions(
     ) {
       // If we have booking data but no XState data, create XState from booking status
       if (bookingData && tenant === "itp") {
-        console.log(
-          `🔧 CREATING XSTATE FOR TRANSITIONS [ITP]:`,
-          {
-            calendarEventId,
-            bookingStatus: (bookingData as any).status,
-          }
-        );
+        console.log(`🔧 CREATING XSTATE FOR TRANSITIONS [ITP]:`, {
+          calendarEventId,
+          bookingStatus: (bookingData as any).status,
+        });
 
         try {
           const xstateData = await createXStateFromBookingStatus(
@@ -541,10 +541,7 @@ export async function getAvailableXStateTransitions(
             .filter(([_, canTransition]) => canTransition)
             .map(([event, _]) => event);
         } catch (error) {
-          console.error(
-            `Error creating XState for transitions:`,
-            error
-          );
+          console.error(`Error creating XState for transitions:`, error);
           return [];
         }
       }
