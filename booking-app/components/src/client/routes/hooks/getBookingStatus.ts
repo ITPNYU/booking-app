@@ -1,8 +1,7 @@
 import { Booking, BookingOrigin, BookingStatusLabel } from "../../../types";
-
 import { Timestamp } from "firebase/firestore";
 
-export default function getBookingStatus(booking: Booking): BookingStatusLabel {
+export default function getBookingStatus(booking: Booking, tenant?: string): BookingStatusLabel {
   const bookingStatusLabel = () => {
     const timeStringtoDate = (time: Timestamp) => {
       //for some reason there are some timestamps that are throwing an error when toDate is called only on dev, for now adding a check to avoid the error, will probably need to investigate further
