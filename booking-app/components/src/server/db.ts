@@ -208,7 +208,6 @@ async function getViolationCount(netId: string): Promise<number> {
   );
   return preBanLogs.length;
 }
-
 export const cancel = async (
   id: string,
   email: string,

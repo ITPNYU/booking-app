@@ -39,7 +39,6 @@ export async function POST(req: NextRequest) {
       requestNumber,
       note,
     } = await req.json();
-
     // Get tenant from x-tenant header, fallback to default tenant
     const tenant = req.headers.get("x-tenant") || DEFAULT_TENANT;
 

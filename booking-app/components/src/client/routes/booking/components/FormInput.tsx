@@ -366,6 +366,10 @@ export default function FormInput({
   const formatSectionTitle = (title: string) => {
     return `${prefix} ${title}`.trim();
   };
+  
+  const formatFieldLabel = (label: string) => {
+    return `${prefix} ${label}`.trim();
+  };
 
   const formatFieldLabel = (label: string) => {
     return `${prefix} ${label}`.trim();
@@ -405,22 +409,24 @@ export default function FormInput({
             {...{ control, errors, trigger }}
           />
         )}
-        <BookingFormTextField
-          id="netId"
-          label={formatFieldLabel("NYU Net ID")}
-          // TODO: Refactor this when design schema for inputs
-          description={
-            isVIP
-              ? "The VIP Net ID is the username portion of the VIP's official NYU email address. It begins with the VIP's initials followed by one or more numbers."
-              : "Your Net ID is the username portion of your official NYU email address. It begins with your initials followed by one or more numbers."
-          }
-          required
-          pattern={{
-            value: /^[a-zA-Z]{2,3}[0-9]{1,6}$/,
-            message: "Invalid Net ID",
-          }}
-          {...{ control, errors, trigger }}
-        />
+        {showSponsor && (
+          <BookingFormTextField
+            id="netId"
+            label={formatFieldLabel("NYU Net ID")}
+            // TODO: Refactor this when design schema for inputs
+            description={
+              isVIP
+                ? "The VIP Net ID is the username portion of the VIP's official NYU email address. It begins with the VIP's initials followed by one or more numbers."
+                : "Your Net ID is the username portion of your official NYU email address. It begins with your initials followed by one or more numbers."
+            }
+            required
+            pattern={{
+              value: /^[a-zA-Z]{2,3}[0-9]{1,6}$/,
+              message: "Invalid Net ID",
+            }}
+            {...{ control, errors, trigger }}
+          />
+        )}
         <BookingFormTextField
           id="phoneNumber"
           label={formatFieldLabel("Phone Number")}

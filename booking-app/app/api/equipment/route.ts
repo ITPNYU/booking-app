@@ -15,7 +15,6 @@ export async function POST(req: NextRequest) {
 
   // Get tenant from x-tenant header, fallback to default tenant
   const tenant = req.headers.get("x-tenant") || DEFAULT_TENANT;
-
   try {
     const booking = await serverGetDataByCalendarEventId<Booking>(
       TableNames.BOOKING,

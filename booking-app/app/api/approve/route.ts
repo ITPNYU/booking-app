@@ -57,7 +57,6 @@ export async function POST(req: NextRequest) {
       );
       await serverApproveBooking(id, email, tenant);
     }
-
     return NextResponse.json(
       { message: "Approved successfully" },
       { status: 200 },

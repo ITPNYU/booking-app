@@ -11,6 +11,7 @@ import {
 import { DateSelectArg } from "@fullcalendar/core";
 import dayjs from "dayjs";
 import { usePathname } from "next/navigation";
+import { SAFETY_TRAINING_REQUIRED_ROOM } from "../../../mediaCommonsPolicy";
 import { getAffectingBlackoutPeriods } from "../../../utils/blackoutUtils";
 import { DatabaseContext } from "../components/Provider";
 import fetchCalendarEvents from "./hooks/fetchCalendarEvents";

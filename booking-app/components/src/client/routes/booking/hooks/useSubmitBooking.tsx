@@ -207,7 +207,19 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
           "Content-Type": "application/json",
           "x-tenant": tenant,
         },
-        body: JSON.stringify(requestBody),
+        body: JSON.stringify({
+          origin: isVIP ? BookingOrigin.VIP : BookingOrigin.WALK_IN,
+          type: isVIP ? BookingOrigin.VIP : BookingOrigin.WALK_IN,
+          email,
+          selectedRooms,
+          bookingCalendarInfo,
+          liaisonUsers,
+          data,
+          isAutoApproval,
+          // Add modifiedBy as a top-level parameter for modification context
+          ...(isModification && { modifiedBy: userEmail }),
+          ...(requestParams.body ?? {}),
+        }),
       })
         .then((res) => {
           console.log(
