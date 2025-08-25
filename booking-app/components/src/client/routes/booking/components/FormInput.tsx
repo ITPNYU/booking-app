@@ -105,14 +105,27 @@ export default function FormInput({
     showNNumber,
     showSponsor,
     showSetup,
-    showEquipment,
-    showStaffing,
-    showCatering,
     showBookingTypes,
-    showHireSecurity,
     agreements,
     roleMapping,
   } = useTenantSchema();
+
+  // Determine which services to show based on selected rooms
+  const showEquipment = useMemo(() => {
+    return selectedRooms.some(room => room.services?.includes('equipment'));
+  }, [selectedRooms]);
+
+  const showStaffing = useMemo(() => {
+    return selectedRooms.some(room => room.services?.includes('staffing'));
+  }, [selectedRooms]);
+
+  const showCatering = useMemo(() => {
+    return selectedRooms.some(room => room.services?.includes('catering'));
+  }, [selectedRooms]);
+
+  const showHireSecurity = useMemo(() => {
+    return selectedRooms.some(room => room.services?.includes('security'));
+  }, [selectedRooms]);
 
   const {
     control,
