@@ -150,8 +150,19 @@
         <tr>
           <td>Department</td>
           <td>
-            {{#if contents.department}}{{ contents.department
-            }}{{else}}none{{/if}}
+            {{#if contents.department}}
+              {{#if (eq contents.department "Other")}}
+                {{#if contents.otherDepartment}}
+                  {{ contents.otherDepartment }}
+                {{else}}
+                  {{ contents.department }}
+                {{/if}}
+              {{else}}
+                {{ contents.department }}
+              {{/if}}
+            {{else}}
+              none
+            {{/if}}
           </td>
         </tr>
         <tr>

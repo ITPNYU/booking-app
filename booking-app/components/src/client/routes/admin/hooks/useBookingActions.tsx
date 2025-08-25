@@ -68,38 +68,46 @@ export default function useBookingActions({
   const actions: { [key in Actions]: ActionDefinition } = {
     [Actions.CANCEL]: {
       action: async () => {
-        await cancel(calendarEventId, userEmail, netId);
+        await cancel(calendarEventId, userEmail, netId, tenant as string);
       },
       optimisticNextStatus: BookingStatusLabel.CANCELED,
       confirmation: true,
     },
     [Actions.NO_SHOW]: {
       action: async () => {
-        await noShow(calendarEventId, userEmail, netId);
+        await noShow(calendarEventId, userEmail, netId, tenant as string);
       },
       optimisticNextStatus: BookingStatusLabel.NO_SHOW,
     },
     [Actions.CHECK_IN]: {
       action: async () => {
-        await checkin(calendarEventId, userEmail);
+        await checkin(calendarEventId, userEmail, tenant as string);
       },
       optimisticNextStatus: BookingStatusLabel.CHECKED_IN,
     },
     [Actions.CHECK_OUT]: {
       action: async () => {
-        await checkOut(calendarEventId, userEmail);
+        await checkOut(calendarEventId, userEmail, tenant as string);
       },
       optimisticNextStatus: BookingStatusLabel.CHECKED_OUT,
     },
     [Actions.FIRST_APPROVE]: {
       action: async () => {
-        await clientApproveBooking(calendarEventId, userEmail);
+        await clientApproveBooking(
+          calendarEventId,
+          userEmail,
+          tenant as string
+        );
       },
       optimisticNextStatus: BookingStatusLabel.PENDING,
     },
     [Actions.FINAL_APPROVE]: {
       action: async () => {
-        await clientApproveBooking(calendarEventId, userEmail);
+        await clientApproveBooking(
+          calendarEventId,
+          userEmail,
+          tenant as string
+        );
       },
       optimisticNextStatus: BookingStatusLabel.APPROVED,
     },
@@ -117,7 +125,7 @@ export default function useBookingActions({
     },
     [Actions.DECLINE]: {
       action: async () => {
-        await decline(calendarEventId, userEmail, reason);
+        await decline(calendarEventId, userEmail, reason, tenant as string);
       },
       optimisticNextStatus: BookingStatusLabel.DECLINED,
       confirmation: true,

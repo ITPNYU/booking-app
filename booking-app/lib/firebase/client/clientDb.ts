@@ -7,16 +7,18 @@ import {
 export const clientUpdateDataByCalendarEventId = async (
   collectionName: TableNames,
   calendarEventId: string,
-  updatedData: object
+  updatedData: object,
+  tenant?: string
 ) => {
   const data = await clientGetDataByCalendarEventId(
     collectionName,
-    calendarEventId
+    calendarEventId,
+    tenant
   );
 
   if (data) {
     const { id } = data;
-    await clientUpdateDataInFirestore(collectionName, id, updatedData);
+    await clientUpdateDataInFirestore(collectionName, id, updatedData, tenant);
   } else {
     console.log("No document found with the given calendarEventId.");
   }

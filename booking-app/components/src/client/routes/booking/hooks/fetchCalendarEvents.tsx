@@ -1,11 +1,16 @@
-import { CalendarEvent, RoomSetting } from "../../../../types";
+import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import { DEFAULT_TENANT } from "../../../../constants/tenants";
+import { CalendarEvent, RoomSetting } from "../../../../types";
 
 import { CALENDAR_HIDE_STATUS } from "../../../../policy";
 
 export default function fetchCalendarEvents(allRooms: RoomSetting[]) {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
-  const [fetchingStatus, setFetchingStatus] = useState<"loading" | "loaded" | "error" | null>(null);
+  const [fetchingStatus, setFetchingStatus] = useState<
+    "loading" | "loaded" | "error" | null
+  >(null);
+  const { tenant } = useParams();
 
   const loadEvents = useCallback(() => {
     if (allRooms.length === 0) {
@@ -37,11 +42,15 @@ export default function fetchCalendarEvents(allRooms: RoomSetting[]) {
     setFetchingStatus("loading");
     let response = null;
     try {
+      console.log(
+        `Fetching calendar events for room ${room.roomId} (${calendarId}) with tenant: ${tenant}`
+      );
       response = await fetch(
         `${process.env.NEXT_PUBLIC_BASE_URL}/api/calendarEvents?calendarId=${calendarId}`,
         {
           headers: {
             "Content-Type": "application/json",
+            "x-tenant": (tenant as string) || DEFAULT_TENANT,
           },
         }
       );
@@ -51,17 +60,60 @@ export default function fetchCalendarEvents(allRooms: RoomSetting[]) {
     }
 
     const data = await response.json();
+    console.log(
+      `Received ${data.length} events for room ${room.roomId} (tenant: ${tenant}):`,
+      data.map((event) => ({
+        title: event.title,
+        calendarEventId: event.calendarEventId,
+        booking: event.booking,
+      }))
+    );
 
     const filteredEvents = data.filter((row: any) => {
       return !CALENDAR_HIDE_STATUS.some((status) =>
         row?.title?.includes(status)
       );
     });
-    const rowsWithResourceIds = filteredEvents.map((row) => ({
-      ...row,
-      id: `${row.calendarEventId}:${room.roomId}:${row.start}`,
-      resourceId: room.roomId + "",
-    }));
+    const rowsWithResourceIds = filteredEvents.map((row) => {
+      // Add visual indication for different booking statuses
+      let backgroundColor = "#3174ad"; // Default blue for approved/confirmed
+      let textColor = "white";
+
+      if (row.booking) {
+        const status = row.booking.status;
+        console.log(
+          `Event ${row.calendarEventId} has booking status: ${status}`
+        );
+
+        switch (status) {
+          case "REQUESTED":
+            backgroundColor = "#ff9800"; // Orange for requested
+            break;
+          case "PENDING":
+            backgroundColor = "#ffc107"; // Yellow for pending
+            break;
+          case "APPROVED":
+            backgroundColor = "#4caf50"; // Green for approved
+            break;
+          case "DECLINED":
+            backgroundColor = "#f44336"; // Red for declined
+            break;
+          case "CANCELED":
+            backgroundColor = "#9e9e9e"; // Gray for canceled
+            break;
+        }
+      }
+
+      return {
+        ...row,
+        id: `${row.calendarEventId}:${room.roomId}:${row.start}`,
+        resourceId: room.roomId + "",
+        overlap: false, // Prevent overlapping with this event
+        backgroundColor,
+        textColor,
+        constraint: "businessHours", // Optional: add constraint
+      };
+    });
     setFetchingStatus("loaded");
     return rowsWithResourceIds;
   };

@@ -509,7 +509,11 @@ export default function MoreInfoModal({
                 </TableRow>
                 <TableRow>
                   <LabelCell>Department</LabelCell>
-                  <TableCell>{booking.department ?? BLANK}</TableCell>
+                  <TableCell>
+                    {booking.department === "Other" && booking.otherDepartment
+                      ? booking.otherDepartment
+                      : booking.department ?? BLANK}
+                  </TableCell>
                 </TableRow>
                 <TableRow>
                   <LabelCell>Role</LabelCell>

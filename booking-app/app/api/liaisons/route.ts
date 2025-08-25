@@ -1,12 +1,18 @@
+import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
 import { NextRequest, NextResponse } from "next/server";
 
 import { TableNames } from "@/components/src/policy";
 import { serverFetchAllDataFromCollection } from "@/lib/firebase/server/adminDb";
 
 export async function GET(req: NextRequest) {
+  // Get tenant from x-tenant header, fallback to default tenant
+  const tenant = req.headers.get("x-tenant") || DEFAULT_TENANT;
+
   try {
     const fetchedData = await serverFetchAllDataFromCollection(
       TableNames.APPROVERS,
+      [],
+      tenant,
     );
     const filtered = fetchedData.map((item: any) => ({
       id: item.id,

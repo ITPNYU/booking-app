@@ -1,3 +1,4 @@
+import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
 import { ApproverLevel, TableNames } from "@/components/src/policy";
 import React, { createContext, useEffect, useMemo, useState } from "react";
 import {
@@ -26,6 +27,8 @@ import {
   fetchAllFutureBooking,
 } from "@/components/src/server/db";
 import { clientFetchAllDataFromCollection } from "@/lib/firebase/firebase";
+import { useContext } from "react";
+import { SchemaContext } from "./SchemaProvider";
 
 export interface DatabaseContextType {
   adminUsers: AdminUser[];
@@ -151,14 +154,22 @@ export const DatabaseProvider = ({
   const { user } = useAuth();
   const netId = useMemo(() => userEmail?.split("@")[0], [userEmail]);
 
+  // Get tenant from SchemaContext
+  const schemaContext = useContext(SchemaContext);
+  const tenant = schemaContext?.tenant;
+
   const [preBanLogs, setPreBanLogs] = useState<PreBanLog[]>([]);
   const [superAdminUsers, setSuperAdminUsers] = useState<AdminUser[]>([]);
 
   useEffect(() => {
     const fetchUserApiData = async () => {
-      if (!netId) return;
+      if (!netId || !tenant) return;
       try {
-        const response = await fetch(`/api/nyu/identity/${netId}`);
+        const response = await fetch(`/api/nyu/identity/${netId}`, {
+          headers: {
+            "x-tenant": tenant || DEFAULT_TENANT,
+          },
+        });
         if (response.ok) {
           const data = await response.json();
           setUserApiData(data);
@@ -168,7 +179,7 @@ export const DatabaseProvider = ({
       }
     };
     fetchUserApiData();
-  }, [netId]);
+  }, [netId, tenant]);
 
   // page permission updates with respect to user email, admin list, PA list
   const pagePermission = useMemo<PagePermission>(() => {
@@ -205,7 +216,7 @@ export const DatabaseProvider = ({
   }, [allBookings]);
 
   useEffect(() => {
-    if (!bookingsLoading) {
+    if (!bookingsLoading && tenant) {
       fetchSafetyTrainedUsers();
       fetchBannedUsers();
       fetchApproverUsers();
@@ -214,7 +225,7 @@ export const DatabaseProvider = ({
     } else {
       // fetchBookings();
     }
-  }, [bookingsLoading, user]);
+  }, [bookingsLoading, user, tenant]);
 
   useEffect(() => {
     fetchBookings();
@@ -222,11 +233,18 @@ export const DatabaseProvider = ({
 
   useEffect(() => {
     fetchActiveUserEmail();
-    fetchAdminUsers();
-    fetchPaUsers();
-    fetchRoomSettings();
-    fetchSuperAdminUsers();
-  }, [user]);
+    if (tenant) {
+      fetchAdminUsers();
+      fetchPaUsers();
+      fetchSuperAdminUsers();
+    }
+  }, [user, tenant]);
+
+  useEffect(() => {
+    if (tenant) {
+      fetchRoomSettings();
+    }
+  }, [tenant]);
 
   const fetchActiveUserEmail = () => {
     if (!user) return;
@@ -255,7 +273,8 @@ export const DatabaseProvider = ({
         pagePermission,
         LIMIT,
         filters,
-        lastItem
+        lastItem,
+        tenant
       );
 
       if (clicked && bookingsResponse.length === 0) {
@@ -281,7 +300,7 @@ export const DatabaseProvider = ({
   };
 
   const fetchAdminUsers = async () => {
-    clientFetchAllDataFromCollection(TableNames.ADMINS)
+    clientFetchAllDataFromCollection(TableNames.ADMINS, [], tenant)
       .then((fetchedData) => {
         const adminUsers = fetchedData.map((item: any) => ({
           id: item.id,
@@ -294,7 +313,7 @@ export const DatabaseProvider = ({
   };
 
   const fetchPaUsers = async () => {
-    clientFetchAllDataFromCollection(TableNames.PAS)
+    clientFetchAllDataFromCollection(TableNames.PAS, [], tenant)
       .then((fetchedData) => {
         const paUsers = fetchedData.map((item: any) => ({
           id: item.id,
@@ -310,7 +329,9 @@ export const DatabaseProvider = ({
     try {
       // Fetch data from Firestore
       const firestoreData = await clientFetchAllDataFromCollection(
-        TableNames.SAFETY_TRAINING
+        TableNames.SAFETY_TRAINING,
+        [],
+        tenant
       );
       const firestoreUsers: SafetyTraining[] = firestoreData.map(
         (item: any) => ({
@@ -325,7 +346,11 @@ export const DatabaseProvider = ({
       );
 
       // Fetch data from spreadsheet
-      const response = await fetch("/api/safety_training_users");
+      const response = await fetch("/api/safety_training_users", {
+        headers: {
+          "x-tenant": tenant || DEFAULT_TENANT,
+        },
+      });
       if (!response.ok) {
         throw new Error("Failed to fetch authorized emails from spreadsheet");
       }
@@ -348,23 +373,24 @@ export const DatabaseProvider = ({
       // Add or update spreadsheet users
       spreadsheetData.emails.forEach((email: string) => {
         if (!userMap.has(email)) {
-          userMap.set(email, { email, id: null, completedAt: currentDate });
+          userMap.set(email, {
+            id: email,
+            email,
+            completedAt: currentDate,
+          });
         }
       });
 
-      // Convert Map to SafetyTraining array
-      const uniqueUsers = Array.from(userMap.values());
-      console.log("TOTAL UNIQUE SAFETY TRAINED USER:", uniqueUsers.length);
-      // Update state
-      setSafetyTrainedUsers(uniqueUsers);
+      // Convert map back to array
+      const mergedUsers = Array.from(userMap.values());
+      setSafetyTrainedUsers(mergedUsers);
     } catch (error) {
       console.error("Error fetching safety trained users:", error);
-      throw error;
     }
   };
 
   const fetchBannedUsers = async () => {
-    clientFetchAllDataFromCollection(TableNames.BANNED)
+    clientFetchAllDataFromCollection(TableNames.BANNED, [], tenant)
       .then((fetchedData) => {
         const filtered = fetchedData.map((item: any) => ({
           id: item.id,
@@ -377,7 +403,7 @@ export const DatabaseProvider = ({
   };
 
   const fetchApproverUsers = async () => {
-    clientFetchAllDataFromCollection(TableNames.APPROVERS)
+    clientFetchAllDataFromCollection(TableNames.APPROVERS, [], tenant)
       .then((fetchedData) => {
         const all = fetchedData.map((item: any) => ({
           id: item.id,
@@ -402,7 +428,7 @@ export const DatabaseProvider = ({
   };
 
   const fetchDepartmentNames = async () => {
-    clientFetchAllDataFromCollection(TableNames.DEPARTMENTS)
+    clientFetchAllDataFromCollection(TableNames.DEPARTMENTS, [], tenant)
       .then((fetchedData) => {
         const filtered = fetchedData.map((item: any) => ({
           id: item.id,
@@ -416,23 +442,43 @@ export const DatabaseProvider = ({
   };
 
   const fetchRoomSettings = async () => {
-    clientFetchAllDataFromCollection(TableNames.RESOURCES)
-      .then((fetchedData) => {
-        const filtered = fetchedData.map((item: any) => ({
-          id: item.id,
-          roomId: item.roomId,
-          name: item.name,
-          capacity: item.capacity,
-          calendarId: item.calendarId,
-        }));
-        filtered.sort((a, b) => a.roomId - b.roomId);
-        setRoomSettings(filtered);
-      })
-      .catch((error) => console.error("Error fetching data:", error));
+    if (!tenant) {
+      console.warn("fetchRoomSettings called but tenant is not available yet");
+      return;
+    }
+
+    try {
+      console.log(`fetchRoomSettings called with tenant: "${tenant}"`);
+      // Get tenant schema from the API
+      const url = `/api/tenantSchema/${tenant}`;
+      console.log(`Fetching from URL: ${url}`);
+      const response = await fetch(url);
+      if (!response.ok) {
+        console.error(
+          `Failed to fetch tenant schema. Status: ${response.status}, URL: ${url}`
+        );
+        throw new Error("Failed to fetch tenant schema");
+      }
+      const schema = await response.json();
+
+      // Convert schema resources to RoomSetting format
+      const filtered = schema.resources.map((resource: any) => ({
+        id: resource.roomId.toString(), // Use roomId as id
+        roomId: resource.roomId,
+        name: resource.name,
+        capacity: resource.capacity.toString(),
+        calendarId: resource.calendarId,
+      }));
+
+      filtered.sort((a, b) => a.roomId - b.roomId);
+      setRoomSettings(filtered);
+    } catch (error) {
+      console.error("Error fetching room settings from schema:", error);
+    }
   };
 
   const fetchBookingTypes = async () => {
-    clientFetchAllDataFromCollection(TableNames.BOOKING_TYPES)
+    clientFetchAllDataFromCollection(TableNames.BOOKING_TYPES, [], tenant)
       .then((fetchedData) => {
         const filtered = fetchedData.map((item: any) => ({
           id: item.id,
@@ -448,7 +494,7 @@ export const DatabaseProvider = ({
   };
 
   const fetchOperationHours = async () => {
-    clientFetchAllDataFromCollection(TableNames.OPERATION_HOURS)
+    clientFetchAllDataFromCollection(TableNames.OPERATION_HOURS, [], tenant)
       .then((fetchedData) => {
         setOperationHours(fetchedData as OperationHours[]);
       })
@@ -459,7 +505,9 @@ export const DatabaseProvider = ({
     try {
       const fetchedData =
         await clientFetchAllDataFromCollection<BlackoutPeriod>(
-          TableNames.BLACKOUT_PERIODS
+          TableNames.BLACKOUT_PERIODS,
+          [],
+          tenant
         );
       setBlackoutPeriods(
         fetchedData.sort(
@@ -486,7 +534,9 @@ export const DatabaseProvider = ({
   const fetchPreBanLogs = async () => {
     try {
       const fetchedData = await clientFetchAllDataFromCollection(
-        TableNames.PRE_BAN_LOGS
+        TableNames.PRE_BAN_LOGS,
+        [],
+        tenant
       );
       const logs = fetchedData.map((item: any) => ({
         id: item.id,
@@ -502,7 +552,7 @@ export const DatabaseProvider = ({
   };
 
   const fetchSuperAdminUsers = async () => {
-    clientFetchAllDataFromCollection(TableNames.SUPER_ADMINS)
+    clientFetchAllDataFromCollection(TableNames.SUPER_ADMINS, [], tenant)
       .then((fetchedData) => {
         const superAdminUsers = fetchedData.map((item: any) => ({
           id: item.id,

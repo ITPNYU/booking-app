@@ -16,6 +16,28 @@ import { toFirebaseTimestampFromString } from "@/components/src/client/utils/ser
 import { insertEvent } from "@/components/src/server/calendars";
 import { Timestamp } from "firebase-admin/firestore";
 
+// Helper function to extract tenant from request
+const extractTenantFromRequest = (request: NextRequest): string | undefined => {
+  // Try to get tenant from referer header
+  const referer = request.headers.get("referer");
+  if (referer) {
+    const url = new URL(referer);
+    const tenantMatch = url.pathname.match(/^\/([^\/]+)/);
+    if (tenantMatch && tenantMatch[1] !== "api") {
+      return tenantMatch[1];
+    }
+  }
+
+  // Try to get tenant from query parameter
+  const { searchParams } = new URL(request.url);
+  const tenant = searchParams.get("tenant");
+  if (tenant) {
+    return tenant;
+  }
+
+  return undefined;
+};
+
 export async function POST(request: NextRequest) {
   const {
     email,
@@ -27,7 +49,11 @@ export async function POST(request: NextRequest) {
     type = "walk-in",
   } = await request.json();
 
+  // Extract tenant from URL
+  const tenant = extractTenantFromRequest(request);
+
   console.log("data", data);
+  console.log("tenant", tenant);
 
   const { department } = data;
   const [room, ...otherRooms] = selectedRooms;
@@ -40,7 +66,7 @@ export async function POST(request: NextRequest) {
 
   const bookingStatus = BookingStatusLabel.APPROVED;
 
-  const calendarId = await serverGetRoomCalendarId(room.roomId);
+  const calendarId = await serverGetRoomCalendarId(room.roomId, tenant);
   if (calendarId == null) {
     return NextResponse.json(
       { result: "error", message: "ROOM CALENDAR ID NOT FOUND" },
@@ -54,7 +80,7 @@ export async function POST(request: NextRequest) {
   const event = await insertEvent({
     calendarId,
     title: `[${bookingStatus}] ${selectedRoomIds.join(", ")} ${truncatedTitle}`,
-    description: `Department: ${department}\n\nThis reservation was made as a ${type}.`,
+    description: `Department: ${department === "Other" && data.otherDepartment ? data.otherDepartment : department}\n\nThis reservation was made as a ${type}.`,
     startTime: bookingCalendarInfo.startStr,
     endTime: bookingCalendarInfo.endStr,
     roomEmails: otherRoomIds,
@@ -76,18 +102,22 @@ export async function POST(request: NextRequest) {
     },
   );
 
-  const sequentialId = await serverGetNextSequentialId("bookings");
-  const doc = await serverSaveDataToFirestore(TableNames.BOOKING, {
-    calendarEventId,
-    roomId: selectedRoomIds.join(", "),
-    email,
-    startDate: toFirebaseTimestampFromString(bookingCalendarInfo.startStr),
-    endDate: toFirebaseTimestampFromString(bookingCalendarInfo.endStr),
-    requestNumber: sequentialId,
-    walkedInAt: Timestamp.now(),
-    origin,
-    ...data,
-  });
+  const sequentialId = await serverGetNextSequentialId("bookings", tenant);
+  const doc = await serverSaveDataToFirestore(
+    TableNames.BOOKING,
+    {
+      calendarEventId,
+      roomId: selectedRoomIds.join(", "),
+      email,
+      startDate: toFirebaseTimestampFromString(bookingCalendarInfo.startStr),
+      endDate: toFirebaseTimestampFromString(bookingCalendarInfo.endStr),
+      requestNumber: sequentialId,
+      walkedInAt: Timestamp.now(),
+      origin,
+      ...data,
+    },
+    tenant,
+  );
 
   // Log the walk-in/VIP booking creation
   if (calendarEventId) {
@@ -98,6 +128,7 @@ export async function POST(request: NextRequest) {
       requestNumber: sequentialId,
       calendarEventId: calendarEventId,
       note: `${requestedBy} for ${email} as ${type} booking`,
+      tenant,
     });
     await logServerBookingChange({
       bookingId: doc.id,
@@ -106,6 +137,7 @@ export async function POST(request: NextRequest) {
       requestNumber: sequentialId,
       calendarEventId: calendarEventId,
       note: `${requestedBy} for ${email} as ${type} booking`,
+      tenant,
     });
   }
 
@@ -116,6 +148,7 @@ export async function POST(request: NextRequest) {
         targetEmail: recipient,
         headerMessage: `Your ${type} reservation has been confirmed!`,
         status: bookingStatus,
+        tenant,
       }),
     );
 
@@ -127,6 +160,7 @@ export async function POST(request: NextRequest) {
     targetEmail: email,
     headerMessage: `Your ${type} reservation for Media Commons is confirmed.`,
     status: bookingStatus,
+    tenant,
   });
 
   const notifyEmails = [

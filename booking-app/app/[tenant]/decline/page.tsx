@@ -5,11 +5,12 @@ import {
 } from "@/components/src/client/routes/components/Provider";
 import { decline } from "@/components/src/server/db";
 import { Button, TextField } from "@mui/material";
-import { useSearchParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import React, { Suspense, useContext, useState } from "react";
 
 const DeclinePageContent: React.FC = () => {
   const searchParams = useSearchParams();
+  const { tenant } = useParams();
   const paramCalendarEventId = searchParams.get("calendarEventId");
   const [loading, setLoading] = useState(false);
   const [declined, setDeclined] = useState(false);
@@ -22,7 +23,12 @@ const DeclinePageContent: React.FC = () => {
       setLoading(true);
       setError(null);
       try {
-        await decline(paramCalendarEventId, userEmail, reason);
+        await decline(
+          paramCalendarEventId,
+          userEmail,
+          reason,
+          tenant as string,
+        );
         setDeclined(true);
       } catch (err) {
         setError("Failed to decline booking.");

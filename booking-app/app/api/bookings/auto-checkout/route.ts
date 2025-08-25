@@ -5,7 +5,9 @@ import { Timestamp } from "firebase-admin/firestore";
 import { NextRequest, NextResponse } from "next/server";
 
 const db = admin.firestore();
-const BOOKINGS_COLLECTION = "bookings"; // Assuming the collection name is 'bookings'
+
+// List of tenant collections to process
+const TENANT_COLLECTIONS = ["itp-bookings", "mc-bookings"];
 
 export async function GET(request: NextRequest) {
   // --- Authorization Check ---
@@ -45,95 +47,120 @@ export async function GET(request: NextRequest) {
     const twentyFourHoursAgoTimestamp = Timestamp.fromDate(twentyFourHoursAgo);
     const nowTimestamp = Timestamp.fromDate(now);
 
-    // Fetch bookings from the last 24 hours whose endDate has passed
-    // We will filter for missing checkedOutAt in the code later
-    const bookingsSnapshot = await db
-      .collection(BOOKINGS_COLLECTION)
-      .where("endDate", ">=", twentyFourHoursAgoTimestamp)
-      .where("endDate", "<=", nowTimestamp)
-      // .where('checkedOutAt', '==', null) // Removed this filter - will apply in code
-      .get();
+    let totalUpdatedCount = 0;
+    const allUpdatedBookingIds: { id: string; tenant: string }[] = [];
 
-    if (bookingsSnapshot.empty) {
-      console.log(
-        "No bookings found with endDate in the last 24 hours and in the past.",
-      );
-      return NextResponse.json(
-        { message: "No bookings found needing auto-checkout." },
-        { status: 200 },
-      );
+    // Process each tenant collection
+    for (const collectionName of TENANT_COLLECTIONS) {
+      console.log(`Processing collection: ${collectionName}`);
+
+      // Fetch bookings from the last 24 hours whose endDate has passed
+      // We will filter for missing checkedOutAt in the code later
+      const bookingsSnapshot = await db
+        .collection(collectionName)
+        .where("endDate", ">=", twentyFourHoursAgoTimestamp)
+        .where("endDate", "<=", nowTimestamp)
+        // .where('checkedOutAt', '==', null) // Removed this filter - will apply in code
+        .get();
+
+      if (bookingsSnapshot.empty) {
+        console.log(
+          `No bookings found in ${collectionName} with endDate in the last 24 hours and in the past.`,
+        );
+        continue; // Continue to next tenant collection
+      }
+
+      const batch = db.batch();
+      let updatedCount = 0;
+      const updatedBookingIds: string[] = []; // Array to store IDs
+      const tenant = collectionName.split("-")[0]; // Extract tenant from collection name
+
+      bookingsSnapshot.forEach(doc => {
+        const booking = doc.data();
+        const bookingId = doc.id;
+
+        // Filter in code: Only process if checkedOutAt is null/undefined AND checkedInAt is present
+        if (booking.checkedOutAt == null && booking.checkedInAt != null) {
+          // Ensure endDate exists and is a Timestamp
+          if (booking.endDate && booking.endDate instanceof Timestamp) {
+            const endDate = booking.endDate.toDate();
+            const endDatePlus30Min = new Date(
+              endDate.getTime() + 30 * 60 * 1000,
+            );
+
+            // Check if current time is 30 minutes or more past the end date
+            if (now >= endDatePlus30Min) {
+              console.log(
+                `Auto-checking out booking ${bookingId} in ${collectionName}`,
+              );
+              const bookingRef = db.collection(collectionName).doc(bookingId);
+              // Set checkedOutAt to the original endDate
+              batch.update(bookingRef, { checkedOutAt: booking.endDate });
+              updatedCount++;
+              updatedBookingIds.push(bookingId); // Add ID to the list
+            }
+          }
+        }
+      });
+
+      if (updatedCount > 0) {
+        await batch.commit();
+        console.log(
+          `Successfully auto-checked out ${updatedCount} bookings in ${collectionName}.`,
+        );
+        totalUpdatedCount += updatedCount;
+
+        // Log each auto-checkout action
+        for (const bookingId of updatedBookingIds) {
+          try {
+            const bookingDoc = await db
+              .collection(collectionName)
+              .doc(bookingId)
+              .get();
+            const bookingData = bookingDoc.data();
+            if (bookingData && bookingData.calendarEventId) {
+              await logServerBookingChange({
+                bookingId,
+                status: BookingStatusLabel.CHECKED_OUT,
+                changedBy: "system-auto-checkout",
+                requestNumber: bookingData.requestNumber,
+                calendarEventId: bookingData.calendarEventId,
+                note: "Auto-checkout by system",
+                tenant,
+              });
+            }
+          } catch (error) {
+            console.error(
+              `Error logging auto-checkout for booking ${bookingId} in ${collectionName}:`,
+              error,
+            );
+          }
+        }
+
+        // Add to all updated booking IDs with tenant info
+        updatedBookingIds.forEach(id => {
+          allUpdatedBookingIds.push({ id, tenant });
+        });
+      } else {
+        console.log(
+          `No bookings in ${collectionName} met the time criteria for auto-checkout.`,
+        );
+      }
     }
 
-    const batch = db.batch();
-    let updatedCount = 0;
-    const updatedBookingIds: string[] = []; // Array to store IDs
-
-    bookingsSnapshot.forEach(doc => {
-      const booking = doc.data();
-      const bookingId = doc.id;
-
-      // Filter in code: Only process if checkedOutAt is null/undefined AND checkedInAt is present
-      if (booking.checkedOutAt == null && booking.checkedInAt != null) {
-        // Ensure endDate exists and is a Timestamp
-        if (booking.endDate && booking.endDate instanceof Timestamp) {
-          const endDate = booking.endDate.toDate();
-          const endDatePlus30Min = new Date(endDate.getTime() + 30 * 60 * 1000);
-
-          // Check if current time is 30 minutes or more past the end date
-          if (now >= endDatePlus30Min) {
-            console.log(`Auto-checking out booking ${bookingId}`);
-            const bookingRef = db
-              .collection(BOOKINGS_COLLECTION)
-              .doc(bookingId);
-            // Set checkedOutAt to the original endDate
-            batch.update(bookingRef, { checkedOutAt: booking.endDate });
-            updatedCount++;
-            updatedBookingIds.push(bookingId); // Add ID to the list
-          }
-        }
-      }
-    });
-
-    if (updatedCount > 0) {
-      await batch.commit();
-      console.log(`Successfully auto-checked out ${updatedCount} bookings.`);
-
-      // Log each auto-checkout action
-      for (const bookingId of updatedBookingIds) {
-        try {
-          const bookingDoc = await db
-            .collection(BOOKINGS_COLLECTION)
-            .doc(bookingId)
-            .get();
-          const bookingData = bookingDoc.data();
-          if (bookingData && bookingData.calendarEventId) {
-            await logServerBookingChange({
-              bookingId,
-              status: BookingStatusLabel.CHECKED_OUT,
-              changedBy: "system-auto-checkout",
-              requestNumber: bookingData.requestNumber,
-              calendarEventId: bookingData.calendarEventId,
-              note: "Auto-checkout by system",
-            });
-          }
-        } catch (error) {
-          console.error(
-            `Error logging auto-checkout for booking ${bookingId}:`,
-            error,
-          );
-        }
-      }
-
-      // Include updated IDs in the response
+    // Return response after processing all tenant collections
+    if (totalUpdatedCount > 0) {
       return NextResponse.json(
         {
-          message: `Successfully auto-checked out ${updatedCount} bookings.`,
-          updatedIds: updatedBookingIds,
+          message: `Successfully auto-checked out ${totalUpdatedCount} bookings across all tenants.`,
+          updatedIds: allUpdatedBookingIds,
         },
         { status: 200 },
       );
     } else {
-      console.log("No bookings met the time criteria for auto-checkout.");
+      console.log(
+        "No bookings met the time criteria for auto-checkout across all tenants.",
+      );
       return NextResponse.json(
         { message: "No bookings met the time criteria for auto-checkout." },
         { status: 200 },

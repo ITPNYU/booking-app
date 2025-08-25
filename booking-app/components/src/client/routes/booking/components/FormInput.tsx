@@ -103,6 +103,11 @@ export default function FormInput({
   const {
     showNNumber,
     showSponsor,
+    showSetup,
+    showEquipment,
+    showStaffing,
+    showCatering,
+    showBookingTypes,
     showHireSecurity,
     agreements,
     roleMapping,
@@ -361,7 +366,7 @@ export default function FormInput({
   const formatSectionTitle = (title: string) => {
     return `${prefix} ${title}`.trim();
   };
-  
+
   const formatFieldLabel = (label: string) => {
     return `${prefix} ${label}`.trim();
   };
@@ -431,7 +436,7 @@ export default function FormInput({
         />
       </Section>
 
-      {watch("role") === "Student" && (
+      {showSponsor && watch("role") === "Student" && (
         <Section title={formatSectionTitle("Sponsor")}>
           <BookingFormTextField
             id="sponsorFirstName"
@@ -478,14 +483,16 @@ export default function FormInput({
           label="Reservation Description"
           {...{ control, errors, trigger }}
         />
-        <BookingFormDropdown
-          id="bookingType"
-          label="Booking Type"
-          options={settings.bookingTypes
-            .map((x) => x.bookingType)
-            .sort((a, b) => a.localeCompare(b))}
-          {...{ control, errors, trigger }}
-        />
+        {showBookingTypes && (
+          <BookingFormDropdown
+            id="bookingType"
+            label="Booking Type"
+            options={settings.bookingTypes
+              .map((x) => x.bookingType)
+              .sort((a, b) => a.localeCompare(b))}
+            {...{ control, errors, trigger }}
+          />
+        )}
         <BookingFormTextField
           id="expectedAttendance"
           label="Expected Attendance"
@@ -515,7 +522,7 @@ export default function FormInput({
       </Section>
 
       <Section title={formatSectionTitle("Services")}>
-        {!isWalkIn && (
+        {!isWalkIn && showSetup && (
           <div style={{ marginBottom: 32 }}>
             <BookingFormSwitch
               id="roomSetup"
@@ -546,46 +553,48 @@ export default function FormInput({
             )}
           </div>
         )}
-        <div style={{ marginBottom: 32 }}>
-          <BookingFormMediaServices
-            id="mediaServices"
-            {...{
-              control,
-              trigger,
-              showMediaServices,
-              setShowMediaServices,
-              formContext,
-            }}
-          />
-          {watch("mediaServices") !== undefined &&
-            watch("mediaServices").length > 0 && (
-              <BookingFormTextField
-                id="mediaServicesDetails"
-                label="Media Services Details"
-                description={
-                  <p>
-                    If you selected any of the Media Services above, please
-                    describe your needs in detail.
-                    <br />
-                    If you need to check out equipment, you can check our
-                    inventory and include your request below. (Ie. 2x Small
-                    Mocap Suits)
-                    <br />-{" "}
-                    <a
-                      href="https://sites.google.com/nyu.edu/370jmediacommons/rental-inventory"
-                      target="_blank"
-                      className="text-blue-600 hover:underline dark:text-blue-500 mx-1"
-                    >
-                      Media Commons Inventory
-                    </a>
-                    <br />
-                  </p>
-                }
-                {...{ control, errors, trigger }}
-              />
-            )}
-        </div>
-        {!isWalkIn && (
+        {(showEquipment || showStaffing) && (
+          <div style={{ marginBottom: 32 }}>
+            <BookingFormMediaServices
+              id="mediaServices"
+              {...{
+                control,
+                trigger,
+                showMediaServices,
+                setShowMediaServices,
+                formContext,
+              }}
+            />
+            {watch("mediaServices") !== undefined &&
+              watch("mediaServices").length > 0 && (
+                <BookingFormTextField
+                  id="mediaServicesDetails"
+                  label="Media Services Details"
+                  description={
+                    <p>
+                      If you selected any of the Media Services above, please
+                      describe your needs in detail.
+                      <br />
+                      If you need to check out equipment, you can check our
+                      inventory and include your request below. (Ie. 2x Small
+                      Mocap Suits)
+                      <br />-{" "}
+                      <a
+                        href="https://sites.google.com/nyu.edu/370jmediacommons/rental-inventory"
+                        target="_blank"
+                        className="text-blue-600 hover:underline dark:text-blue-500 mx-1"
+                      >
+                        Media Commons Inventory
+                      </a>
+                      <br />
+                    </p>
+                  }
+                  {...{ control, errors, trigger }}
+                />
+              )}
+          </div>
+        )}
+        {!isWalkIn && showCatering && (
           <div style={{ marginBottom: 32 }}>
             <BookingFormSwitch
               id="catering"

@@ -1,3 +1,4 @@
+import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
 import { BookingStatusLabel } from "@/components/src/types";
 import {
   getBookingLogs,
@@ -38,6 +39,8 @@ export async function POST(req: NextRequest) {
       requestNumber,
       note,
     } = await req.json();
+    // Get tenant from x-tenant header, fallback to default tenant
+    const tenant = req.headers.get("x-tenant") || DEFAULT_TENANT;
 
     if (!bookingId || !status || !changedBy || !requestNumber) {
       return NextResponse.json(
@@ -53,6 +56,7 @@ export async function POST(req: NextRequest) {
       changedBy,
       requestNumber,
       note,
+      tenant,
     });
 
     return NextResponse.json(

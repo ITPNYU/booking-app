@@ -54,6 +54,12 @@ beforeEach(() => {
 const createMockRequest = (body: any): NextRequest => {
   return {
     json: vi.fn().mockResolvedValue(body),
+    headers: {
+      get: vi.fn((key: string) => {
+        if (key === 'x-tenant') return 'mc';
+        return null;
+      }),
+    },
   } as any as NextRequest;
 };
 
@@ -100,7 +106,8 @@ describe("Equipment API Endpoint", () => {
       // Verify booking was fetched
       expect(mockServerGetDataByCalendarEventId).toHaveBeenCalledWith(
         "BOOKING",
-        "test-event-123"
+        "test-event-123",
+        "mc"
       );
 
       // Verify booking was updated with equipment fields
@@ -110,7 +117,8 @@ describe("Equipment API Endpoint", () => {
         {
           equipmentAt: { seconds: 1708000000, nanoseconds: 0 },
           equipmentBy: "admin@nyu.edu",
-        }
+        },
+        "mc"
       );
 
       // Verify booking log was created
@@ -120,6 +128,7 @@ describe("Equipment API Endpoint", () => {
         status: "EQUIPMENT",
         changedBy: "admin@nyu.edu",
         requestNumber: 1001,
+        tenant: "mc",
       });
     });
 
@@ -206,7 +215,8 @@ describe("Equipment API Endpoint", () => {
         {
           equipmentApprovedAt: { seconds: 1708000000, nanoseconds: 0 },
           equipmentApprovedBy: "equipment@nyu.edu",
-        }
+        },
+        "mc"
       );
 
       // Verify booking log was created with APPROVED status
@@ -216,6 +226,7 @@ describe("Equipment API Endpoint", () => {
         status: "APPROVED",
         changedBy: "equipment@nyu.edu",
         requestNumber: 1001,
+        tenant: "mc",
       });
     });
 
@@ -346,7 +357,8 @@ describe("Equipment API Endpoint", () => {
         expect.objectContaining({
           equipmentAt: expect.any(Object),
           equipmentBy: "admin@nyu.edu",
-        })
+        }),
+        "mc"
       );
     });
 
