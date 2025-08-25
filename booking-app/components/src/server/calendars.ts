@@ -104,7 +104,8 @@ export const bookingContentsToDescription = (
   );
   description += listItem(
     "Department",
-    getProperty(bookingContents, "department") === "Other" && getProperty(bookingContents, "otherDepartment")
+    getProperty(bookingContents, "department") === "Other" &&
+      getProperty(bookingContents, "otherDepartment")
       ? getProperty(bookingContents, "otherDepartment")
       : getProperty(bookingContents, "department")
   );
@@ -162,13 +163,23 @@ export const bookingContentsToDescription = (
     );
   }
   description += listItem(
-    "Media Service",
-    getProperty(bookingContents, "mediaServices")
+    "Equipment Service",
+    getProperty(bookingContents, "equipmentServices")
   );
-  if (getProperty(bookingContents, "mediaServicesDetails")) {
+  if (getProperty(bookingContents, "equipmentServicesDetails")) {
     description += listItem(
-      "Media Services Details",
-      getProperty(bookingContents, "mediaServicesDetails")
+      "Equipment Service Details",
+      getProperty(bookingContents, "equipmentServicesDetails")
+    );
+  }
+  description += listItem(
+    "Staffing Service",
+    getProperty(bookingContents, "staffingServices")
+  );
+  if (getProperty(bookingContents, "staffingServicesDetails")) {
+    description += listItem(
+      "Staffing Service Details",
+      getProperty(bookingContents, "staffingServicesDetails")
     );
   }
   // Add WebCheckout Cart Number
@@ -177,7 +188,7 @@ export const bookingContentsToDescription = (
     description += listItem("Cart Number", cartNumber);
   }
   description += listItem(
-    "Catering",
+    "Catering Service",
     getProperty(bookingContents, "cateringService") ||
       getProperty(bookingContents, "catering")
   );
@@ -185,6 +196,16 @@ export const bookingContentsToDescription = (
     description += listItem(
       "Catering Chart Field",
       getProperty(bookingContents, "chartFieldForCatering")
+    );
+  }
+  description += listItem(
+    "Cleaning Service",
+    getProperty(bookingContents, "cleaningService")
+  );
+  if (getProperty(bookingContents, "chartFieldForCleaning")) {
+    description += listItem(
+      "Cleaning Service Chart Field",
+      getProperty(bookingContents, "chartFieldForCleaning")
     );
   }
   description += listItem(

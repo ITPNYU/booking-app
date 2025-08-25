@@ -105,12 +105,18 @@ export async function GET(request: NextRequest) {
         "End Event Status": getBookingStatus(booking),
         "Room Setup Needed (Y/N)": booking.roomSetup === "yes" ? "Yes" : "No",
         "Room Setup Details": booking.setupDetails || "",
-        "Media Services (Y/N)":
-          booking.mediaServices && booking.mediaServices.length > 0
+        "Equipment Services (Y/N)":
+          booking.equipmentServices && booking.equipmentServices.length > 0
             ? "Yes"
             : "No",
-        "Media Service Details": booking.mediaServicesDetails || "",
+        "Equipment Service Details": booking.equipmentServicesDetails || "",
+        "Staffing Services (Y/N)":
+          booking.staffingServices && booking.staffingServices.length > 0
+            ? "Yes"
+            : "No",
+        "Staffing Service Details": booking.staffingServicesDetails || "",
         "Catering (Y/N)": booking.catering === "yes" ? "Yes" : "No",
+        "Cleaning Services (Y/N)": booking.cleaningService === "yes" ? "Yes" : "No",
         "Hire Security (Y/N)": booking.hireSecurity === "yes" ? "Yes" : "No",
       };
     });

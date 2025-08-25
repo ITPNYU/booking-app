@@ -31,7 +31,8 @@ import { BookingContext } from "../bookingProvider";
 import { mapAffiliationToRole } from "../formPages/UserRolePage";
 import useCheckAutoApproval from "../hooks/useCheckAutoApproval";
 import useSubmitBooking from "../hooks/useSubmitBooking";
-import BookingFormMediaServices from "./BookingFormMediaServices";
+import BookingFormEquipmentServices from "./BookingFormEquipmentServices";
+import BookingFormStaffingServices from "./BookingFormStaffingServices";
 import BookingSelection from "./BookingSelection";
 
 const Section = ({ title, children }) => (
@@ -124,12 +125,16 @@ export default function FormInput({
     defaultValues: {
       setupDetails: "",
       cateringService: "",
+      cleaningService: "no",
       sponsorFirstName: "",
       sponsorLastName: "",
       sponsorEmail: "",
       mediaServicesDetails: "",
+      equipmentServicesDetails: "",
+      staffingServicesDetails: "",
       catering: "no",
       chartFieldForCatering: "",
+      chartFieldForCleaning: "",
       chartFieldForSecurity: "",
       chartFieldForRoomSetup: "",
       hireSecurity: "no",
@@ -151,8 +156,9 @@ export default function FormInput({
     resolver: undefined,
   });
 
-  // different from other switches b/c mediaServices doesn't have yes/no column in DB
-  const [showMediaServices, setShowMediaServices] = useState(false);
+  // different from other switches b/c services don't have yes/no columns in DB
+  const [showEquipmentServices, setShowEquipmentServices] = useState(false);
+  const [showStaffingServices, setShowStaffingServices] = useState(false);
 
   // agreements, skip for walk-ins
   const [checkedAgreements, setCheckedAgreements] = useState<
@@ -551,26 +557,26 @@ export default function FormInput({
             )}
           </div>
         )}
-        {(showEquipment || showStaffing) && (
+        {showEquipment && (
           <div style={{ marginBottom: 32 }}>
-            <BookingFormMediaServices
-              id="mediaServices"
+            <BookingFormEquipmentServices
+              id="equipmentServices"
               {...{
                 control,
                 trigger,
-                showMediaServices,
-                setShowMediaServices,
+                showEquipmentServices,
+                setShowEquipmentServices,
                 formContext,
               }}
             />
-            {watch("mediaServices") !== undefined &&
-              watch("mediaServices").length > 0 && (
+            {watch("equipmentServices") !== undefined &&
+              watch("equipmentServices").length > 0 && (
                 <BookingFormTextField
-                  id="mediaServicesDetails"
-                  label="Media Services Details"
+                  id="equipmentServicesDetails"
+                  label="Equipment Services Details"
                   description={
                     <p>
-                      If you selected any of the Media Services above, please
+                      If you selected Equipment Services above, please
                       describe your needs in detail.
                       <br />
                       If you need to check out equipment, you can check our
@@ -592,12 +598,43 @@ export default function FormInput({
               )}
           </div>
         )}
+        {showStaffing && (
+          <div style={{ marginBottom: 32 }}>
+            <BookingFormStaffingServices
+              id="staffingServices"
+              {...{
+                control,
+                trigger,
+                showStaffingServices,
+                setShowStaffingServices,
+                formContext,
+              }}
+            />
+            {watch("staffingServices") !== undefined &&
+              watch("staffingServices").length > 0 && (
+                <BookingFormTextField
+                  id="staffingServicesDetails"
+                  label="Staffing Services Details"
+                  description={
+                    <p>
+                      If you selected any Staffing Services above, please
+                      describe your needs in detail.
+                      <br />
+                      Please specify the type of technical support you require
+                      and any specific requirements for your event.
+                    </p>
+                  }
+                  {...{ control, errors, trigger }}
+                />
+              )}
+          </div>
+        )}
         {!isWalkIn && showCatering && (
           <div style={{ marginBottom: 32 }}>
             <BookingFormSwitch
               id="catering"
-              label="Catering?"
-              description={<p></p>}
+              label="Catering Services?"
+              description={<p>Select if you need catering for your event.</p>}
               required={false}
               {...{ control, errors, trigger }}
             />
@@ -605,16 +642,34 @@ export default function FormInput({
               <>
                 <BookingFormDropdown
                   id="cateringService"
-                  label="Catering Information"
+                  label="Catering Service"
                   options={["Outside Catering", "NYU Plated"]}
                   {...{ control, errors, trigger }}
                 />
                 <BookingFormTextField
                   id="chartFieldForCatering"
-                  label="ChartField for CBS Cleaning Services"
+                  label="ChartField for Catering Services"
                   {...{ control, errors, trigger }}
                 />
               </>
+            )}
+          </div>
+        )}
+        {!isWalkIn && showCatering && (
+          <div style={{ marginBottom: 32 }}>
+            <BookingFormSwitch
+              id="cleaningService"
+              label="Cleaning Services?"
+              description={<p>Select if you need cleaning services for your event.</p>}
+              required={false}
+              {...{ control, errors, trigger }}
+            />
+            {watch("cleaningService") === "yes" && (
+              <BookingFormTextField
+                id="chartFieldForCleaning"
+                label="ChartField for CBS Cleaning Services"
+                {...{ control, errors, trigger }}
+              />
             )}
           </div>
         )}
@@ -696,23 +751,43 @@ export default function FormInput({
           {...{ control, errors, trigger }}
         />
       </Section>
-      <Section title="Media Services">
+      <Section title="Services">
         <div style={{ marginBottom: 32 }}>
-          <BookingFormMediaServices
-            id="mediaServices"
+          <BookingFormEquipmentServices
+            id="equipmentServices"
             {...{
               control,
               trigger,
-              showMediaServices,
-              setShowMediaServices,
+              showEquipmentServices,
+              setShowEquipmentServices,
               formContext,
             }}
           />
-          {watch("mediaServices") !== undefined &&
-            watch("mediaServices").length > 0 && (
+          {watch("equipmentServices") !== undefined &&
+            watch("equipmentServices").length > 0 && (
               <BookingFormTextField
-                id="mediaServicesDetails"
-                label="Media Services Details"
+                id="equipmentServicesDetails"
+                label="Equipment Services Details"
+                {...{ control, errors, trigger }}
+              />
+            )}
+        </div>
+        <div style={{ marginBottom: 32 }}>
+          <BookingFormStaffingServices
+            id="staffingServices"
+            {...{
+              control,
+              trigger,
+              showStaffingServices,
+              setShowStaffingServices,
+              formContext,
+            }}
+          />
+          {watch("staffingServices") !== undefined &&
+            watch("staffingServices").length > 0 && (
+              <BookingFormTextField
+                id="staffingServicesDetails"
+                label="Staffing Services Details"
                 {...{ control, errors, trigger }}
               />
             )}

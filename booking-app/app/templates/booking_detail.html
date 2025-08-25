@@ -253,15 +253,23 @@
           </td>
         </tr>
         <tr>
-          <td>Media Service</td>
+          <td>Equipment Service</td>
           <td>
-            {{#if contents.mediaServices}}{{ contents.mediaServices
-            }}{{else}}none{{/if}} {{#if contents.mediaServicesDetails}}
-            <br />{{ contents.mediaServicesDetails }} {{/if}}
+            {{#if contents.equipmentServices}}{{ contents.equipmentServices
+            }}{{else}}none{{/if}} {{#if contents.equipmentServicesDetails}}
+            <br />{{ contents.equipmentServicesDetails }} {{/if}}
           </td>
         </tr>
         <tr>
-          <td>Catering</td>
+          <td>Staffing Service</td>
+          <td>
+            {{#if contents.staffingServices}}{{ contents.staffingServices
+            }}{{else}}none{{/if}} {{#if contents.staffingServicesDetails}}
+            <br />{{ contents.staffingServicesDetails }} {{/if}}
+          </td>
+        </tr>
+        <tr>
+          <td>Catering Service</td>
           <td>
             {{#if contents.cateringService}}{{ contents.cateringService
             }}{{else}}{{#if contents.catering}}{{#unless (eq contents.catering
@@ -269,6 +277,15 @@
             }}{{else}}none{{/unless}}{{else}}none{{/if}}{{/if}} {{#if
             contents.chartFieldForCatering}}
             <br />{{ contents.chartFieldForCatering }} {{/if}}
+          </td>
+        </tr>
+        <tr>
+          <td>Cleaning Service</td>
+          <td>
+            {{#if contents.cleaningService}}{{#unless (eq contents.cleaningService
+            "no")}}Yes{{else}}none{{/unless}}{{else}}none{{/if}} {{#if
+            contents.chartFieldForCleaning}}
+            <br />{{ contents.chartFieldForCleaning }} {{/if}}
           </td>
         </tr>
         <tr>

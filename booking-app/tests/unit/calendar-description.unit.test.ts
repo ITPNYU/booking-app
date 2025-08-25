@@ -86,11 +86,17 @@ describe("Calendar Description Functions", () => {
       setupDetails: "Tables in U-shape",
       mediaServices: "Audio/Visual equipment",
       mediaServicesDetails: "Projector and speakers",
+      equipmentServices: "Camera",
+      equipmentServicesDetails: "HD camera setup",
+      staffingServices: "Audio technician",
+      staffingServicesDetails: "Audio support for event",
       catering: "No",
       hireSecurity: "No",
       expectedAttendance: "25",
       cateringService: "None",
+      cleaningService: "no",
       chartFieldForCatering: "",
+      chartFieldForCleaning: "",
       chartFieldForSecurity: "",
       chartFieldForRoomSetup: "",
       status: BookingStatusLabel.REQUESTED,
@@ -166,12 +172,19 @@ describe("Calendar Description Functions", () => {
         "<strong>Room Setup:</strong> Tables in U-shape"
       );
       expect(result).toContain(
-        "<strong>Media Service:</strong> Audio/Visual equipment"
+        "<strong>Equipment Service:</strong> Camera"
       );
       expect(result).toContain(
-        "<strong>Media Services Details:</strong> Projector and speakers"
+        "<strong>Equipment Service Details:</strong> HD camera setup"
       );
-      expect(result).toContain("<strong>Catering:</strong> None");
+      expect(result).toContain(
+        "<strong>Staffing Service:</strong> Audio technician"
+      );
+      expect(result).toContain(
+        "<strong>Staffing Service Details:</strong> Audio support for event"
+      );
+      expect(result).toContain("<strong>Catering Service:</strong> None");
+      expect(result).toContain("<strong>Cleaning Service:</strong> none");
       expect(result).toContain("<strong>Security:</strong> none");
     });
 
@@ -182,13 +195,17 @@ describe("Calendar Description Functions", () => {
         cateringService: "no", // This takes priority over catering
         hireSecurity: "No",
         mediaServices: "",
+        equipmentServices: "",
+        staffingServices: "",
+        cleaningService: "no",
       };
 
       const result = bookingContentsToDescription(bookingWithNoValues);
 
-      expect(result).toContain("<strong>Catering:</strong> none");
+      expect(result).toContain("<strong>Catering Service:</strong> none");
       expect(result).toContain("<strong>Security:</strong> none");
-      expect(result).toContain("<strong>Media Service:</strong> none");
+      expect(result).toContain("<strong>Equipment Service:</strong> none");
+      expect(result).toContain("<strong>Staffing Service:</strong> none");
     });
 
     it("should handle empty or undefined values gracefully", () => {
@@ -212,6 +229,7 @@ describe("Calendar Description Functions", () => {
         ...mockBookingContents,
         chartFieldForRoomSetup: "12345-SETUP",
         chartFieldForCatering: "12345-CATERING",
+        chartFieldForCleaning: "12345-CLEANING",
         chartFieldForSecurity: "12345-SECURITY",
       };
 
@@ -224,6 +242,9 @@ describe("Calendar Description Functions", () => {
         "<strong>Catering Chart Field:</strong> 12345-CATERING"
       );
       expect(result).toContain(
+        "<strong>Cleaning Service Chart Field:</strong> 12345-CLEANING"
+      );
+      expect(result).toContain(
         "<strong>Security Chart Field:</strong> 12345-SECURITY"
       );
     });
@@ -233,6 +254,7 @@ describe("Calendar Description Functions", () => {
 
       expect(result).not.toContain("Room Setup Chart Field");
       expect(result).not.toContain("Catering Chart Field");
+      expect(result).not.toContain("Cleaning Services Chart Field");
       expect(result).not.toContain("Security Chart Field");
     });
 
@@ -248,7 +270,7 @@ describe("Calendar Description Functions", () => {
       const result = bookingContentsToDescription(bookingWithAlternativeProps);
 
       expect(result).toContain("<strong>Room Setup:</strong> U-shape setup");
-      expect(result).toContain("<strong>Catering:</strong> Coffee and snacks");
+      expect(result).toContain("<strong>Catering Service:</strong> Coffee and snacks");
     });
 
     it("should handle time formatting correctly", () => {

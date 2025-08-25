@@ -586,31 +586,53 @@ export default function MoreInfoModal({
                     bottomText={booking.chartFieldForRoomSetup || "none"}
                   />
                 </TableRow>
-                <TableRow>
-                  <LabelCell>Media Service</LabelCell>
-                  <TableCell>
-                    {booking.mediaServices == undefined
-                      ? "none"
-                      : booking.mediaServices
-                          .split(", ")
-                          .map((service) => (
-                            <p key={service}>{service.trim()}</p>
-                          ))}
-                    <p>{booking.mediaServicesDetails || "none"}</p>
-                  </TableCell>
-                </TableRow>
-                <TableRow>
-                  <LabelCell>Catering</LabelCell>
-                  <StackedTableCell
-                    topText={
-                      booking.cateringService ||
-                      (booking.catering === "no"
-                        ? "none"
-                        : booking.catering || "none")
-                    }
-                    bottomText={booking.chartFieldForCatering || "none"}
-                  />
-                </TableRow>
+                {booking.equipmentServices && booking.equipmentServices.length > 0 && (
+                  <TableRow>
+                    <LabelCell>Equipment Service</LabelCell>
+                    <TableCell>
+                      {booking.equipmentServices
+                        .split(", ")
+                        .map((service) => (
+                          <p key={service}>{service.trim()}</p>
+                        ))}
+                      <p>{booking.equipmentServicesDetails || ""}</p>
+                    </TableCell>
+                  </TableRow>
+                )}
+                {booking.staffingServices && booking.staffingServices.length > 0 && (
+                  <TableRow>
+                    <LabelCell>Staffing Service</LabelCell>
+                    <TableCell>
+                      {booking.staffingServices
+                        .split(", ")
+                        .map((service) => (
+                          <p key={service}>{service.trim()}</p>
+                        ))}
+                      <p>{booking.staffingServicesDetails || ""}</p>
+                    </TableCell>
+                  </TableRow>
+                )}
+                {(booking.catering === "yes" || booking.cateringService) && (
+                  <TableRow>
+                    <LabelCell>Catering Service</LabelCell>
+                    <StackedTableCell
+                      topText={
+                        booking.cateringService ||
+                        (booking.catering === "yes" ? "Yes" : "")
+                      }
+                      bottomText={booking.chartFieldForCatering || ""}
+                    />
+                  </TableRow>
+                )}
+                {booking.cleaningService === "yes" && (
+                  <TableRow>
+                    <LabelCell>Cleaning Service</LabelCell>
+                    <StackedTableCell
+                      topText="Yes"
+                      bottomText={booking.chartFieldForCleaning || ""}
+                    />
+                  </TableRow>
+                )}
                 <TableRow>
                   <LabelCell>Security</LabelCell>
                   <StackedTableCell
