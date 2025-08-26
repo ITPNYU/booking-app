@@ -16,6 +16,11 @@ export type Resource = {
   isWalkIn: boolean;
   isWalkInCanBookTwo: boolean;
   services: string[]; // ["equipment", "staffing", "setup", "security", "cleaning", "catering", "campus-media"]
+  maxHour: {
+    student: number;
+    faculty: number;
+    admin: number;
+  };
 };
 
 export type SchemaContextType = {

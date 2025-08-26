@@ -1,4 +1,4 @@
-import { Check, ChevronLeft, ChevronRight } from "@mui/icons-material";
+import { Check, ChevronLeft, ChevronRight, Info } from "@mui/icons-material";
 import {
   Alert,
   AlertColor,
@@ -7,6 +7,7 @@ import {
   Tooltip,
   useMediaQuery,
   useTheme,
+  Typography,
 } from "@mui/material";
 import React, { useContext } from "react";
 
@@ -41,6 +42,7 @@ export default function BookingStatusBar({ formContext, ...props }: Props) {
     isBanned,
     needsSafetyTraining,
     isInBlackoutPeriod,
+    role,
   } = useContext(BookingContext);
   const isOverlap = useCalculateOverlap();
 

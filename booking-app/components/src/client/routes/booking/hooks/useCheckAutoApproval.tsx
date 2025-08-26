@@ -3,6 +3,7 @@ import { useContext, useEffect, useState } from "react";
 import { createActor } from "xstate";
 import { useTenantSchema } from "../../components/SchemaProvider";
 import { BookingContext } from "../bookingProvider";
+import { Role } from "../../../../types";
 
 export function selectedAutoApprovalRooms(
   selectedRoomIds: number[],
@@ -21,7 +22,7 @@ export function selectedAutoApprovalRooms(
 }
 
 export default function useCheckAutoApproval(isWalkIn = false) {
-  const { bookingCalendarInfo, selectedRooms, formData } =
+  const { bookingCalendarInfo, selectedRooms, formData, role } =
     useContext(BookingContext);
   const schema = useTenantSchema();
 
@@ -61,6 +62,44 @@ export default function useCheckAutoApproval(isWalkIn = false) {
   );
 
   useEffect(() => {
+    // Check duration limits based on resource maxHour
+    if (bookingCalendarInfo != null && role && selectedRooms.length > 0) {
+      const startDate = bookingCalendarInfo.start;
+      const endDate = bookingCalendarInfo.end;
+      const duration = endDate.getTime() - startDate.getTime();
+      const durationHours = duration / (1000 * 60 * 60);
+
+      // Check each selected room's duration limit
+      for (const room of selectedRooms) {
+        const resource = schema.resources.find((r) => r.roomId === room.roomId);
+        if (resource?.maxHour) {
+          let maxHours: number;
+          switch (role) {
+            case Role.STUDENT:
+              maxHours = resource.maxHour.student;
+              break;
+            case Role.FACULTY:
+              maxHours = resource.maxHour.faculty;
+              break;
+            case Role.ADMIN_STAFF:
+            case Role.CHAIR_PROGRAM_DIRECTOR:
+            case Role.RESIDENT_FELLOW:
+              maxHours = resource.maxHour.admin;
+              break;
+            default:
+              maxHours = resource.maxHour.admin;
+          }
+
+          if (durationHours > maxHours) {
+            throwError(
+              `Event duration (${durationHours.toFixed(1)} hours) exceeds the maximum allowed duration (${maxHours} hours) for ${room.roomId} ${room.name}`
+            );
+            return;
+          }
+        }
+      }
+    }
+
     // For ITP tenant, use XState machine for auto-approval logic
     if (schema.tenant === "itp") {
       console.log(`🎭 CLIENT-SIDE XSTATE CHECK [ITP]:`, {
@@ -224,6 +263,7 @@ export default function useCheckAutoApproval(isWalkIn = false) {
     schema.resources,
     schema.tenant, // Added tenant to dependencies
     isWalkIn, // Added isWalkIn to dependencies
+    role, // Added role to dependencies
   ]);
 
   console.log(
