@@ -14,6 +14,7 @@ export const GET = async () => {
     const bypassAuth = process.env.BYPASS_AUTH === "true";
 
     if ((isCI && isDevelopmentBranch) || isE2ETesting || bypassAuth) {
+      console.log("isTestEnv: Authentication bypass enabled");
       return NextResponse.json({ isOnTestEnv: true });
     }
   } catch (error) {

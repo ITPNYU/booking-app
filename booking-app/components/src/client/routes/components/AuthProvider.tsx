@@ -57,6 +57,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         }
       } else {
         console.log("No user object found. Checking if sign-in needed.");
+        
+        // In test environment, create a mock user to bypass authentication
+        if (isOnTestEnv) {
+          console.log("Test environment detected, creating mock user");
+          const mockUser = {
+            uid: "test-user-id",
+            email: "test@nyu.edu",
+            displayName: "Test User",
+            photoURL: null,
+            emailVerified: true,
+          } as User;
+          setUser(mockUser);
+          setLoading(false);
+          return;
+        }
+        
         try {
           if (!pathname.includes("signin")) {
             console.log("Attempting signInWithGoogle...");
