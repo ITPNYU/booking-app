@@ -10,9 +10,17 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   reporter: 'html',
 
+  // Set environment variables for E2E testing authentication bypass
+  globalSetup: require.resolve('./tests/e2e/global-setup.ts'),
+
   use: {
     headless: process.env.CI ? true : false,
     trace: 'on-first-retry',
+
+    // Set environment variables for E2E tests
+    extraHTTPHeaders: {
+      'x-test-env': 'true',
+    },
 
     // Add these new configurations
     launchOptions: {
@@ -26,6 +34,10 @@ export default defineConfig({
 
       ],
       slowMo: process.env.CI ? 100 : 0,
+      env: {
+        NODE_ENV: 'test',
+        E2E_TESTING: 'true',
+      },
     },
 
     // Increase timeouts for CI environment
@@ -84,9 +96,15 @@ export default defineConfig({
   ],
 
   /* Run your local dev server before starting the tests */
+  // Note: Start dev server manually with: NODE_ENV=test E2E_TESTING=true npm run dev
   // webServer: {
-  //   command: 'npm run start',
+  //   command: 'npm run dev',
   //   url: 'http://127.0.0.1:3000',
   //   reuseExistingServer: !process.env.CI,
+  //   timeout: 120 * 1000,
+  //   env: {
+  //     NODE_ENV: 'test',
+  //     E2E_TESTING: 'true',
+  //   },
   // },
 });
