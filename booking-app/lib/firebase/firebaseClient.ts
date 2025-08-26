@@ -44,21 +44,56 @@ export const getDb = () => {
   }
   return db;
 };
-export const auth = getAuth(app);
-export const googleProvider = new GoogleAuthProvider();
 
-let isTestEnv = false;
-fetch(process.env.NEXT_PUBLIC_BASE_URL + "/api/isTestEnv")
-  .then((res) => res.json())
-  .then((data) => {
-    isTestEnv = data.isOnTestEnv;
-    console.log("isTestEnv", isTestEnv);
-    if (!isTestEnv) {
-      googleProvider.setCustomParameters({
-        hd: "nyu.edu",
-      });
-    }
-  });
+// Check for test environment synchronously from environment variables
+const isTestEnvironment = process.env.BYPASS_AUTH === "true" || 
+                         process.env.E2E_TESTING === "true";
+
+let authInstance: any = null;
+let providerInstance: any = null;
+
+// Initialize Firebase Auth conditionally
+if (!isTestEnvironment) {
+  authInstance = getAuth(app);
+  providerInstance = new GoogleAuthProvider();
+} else {
+  // Create mock auth for test environment
+  authInstance = {
+    currentUser: null,
+    onAuthStateChanged: (callback: any) => {
+      setTimeout(() => callback(null), 0);
+      return () => {};
+    },
+    signOut: () => Promise.resolve(),
+  };
+  providerInstance = null;
+}
+
+export const auth = authInstance;
+export const googleProvider = providerInstance;
+
+let isTestEnv = isTestEnvironment; // Start with the environment check
+
+// Only fetch from API if we're not already in test environment and we have a valid base URL
+if (!isTestEnvironment && process.env.NEXT_PUBLIC_BASE_URL && typeof window !== 'undefined') {
+  fetch(process.env.NEXT_PUBLIC_BASE_URL + "/api/isTestEnv")
+    .then((res) => res.json())
+    .then((data) => {
+      isTestEnv = data.isOnTestEnv;
+      console.log("isTestEnv", isTestEnv);
+      if (!isTestEnv && googleProvider) {
+        googleProvider.setCustomParameters({
+          hd: "nyu.edu",
+        });
+      }
+    })
+    .catch((error) => {
+      console.log("Failed to fetch isTestEnv, using environment check:", isTestEnvironment);
+      isTestEnv = isTestEnvironment;
+    });
+} else {
+  console.log("Using environment-based test detection:", isTestEnvironment);
+}
 
 // Check if running on localhost
 const isLocalhost =
@@ -67,6 +102,17 @@ const isLocalhost =
     window.location.hostname === "127.0.0.1");
 
 export const signInWithGoogle = async () => {
+  // In test environment, return a mock user instead of trying to sign in
+  if (isTestEnvironment) {
+    return {
+      uid: "test-user-id",
+      email: "test@nyu.edu",
+      displayName: "Test User",
+      photoURL: null,
+      emailVerified: true,
+    };
+  }
+
   try {
     if (isLocalhost) {
       // Use popup for localhost to avoid cross-domain issues
@@ -89,6 +135,11 @@ export const signInWithGoogle = async () => {
 };
 
 export const getGoogleRedirectResult = async () => {
+  // In test environment, always return null (no redirect result)
+  if (isTestEnvironment) {
+    return null;
+  }
+
   if (isLocalhost) {
     // No redirect result for localhost (popup is used)
     return null;
