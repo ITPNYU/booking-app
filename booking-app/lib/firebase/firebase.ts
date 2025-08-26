@@ -76,7 +76,6 @@ export const clientDeleteUserRightsData = async (
     const userCollections = [
       TableNames.ADMINS,
       TableNames.PAS,
-      TableNames.SUPER_ADMINS,
     ];
 
     if (userCollections.includes(collectionName)) {
@@ -108,8 +107,6 @@ export const clientDeleteUserRightsData = async (
         updateData = { isAdmin: false };
       } else if (collectionName === TableNames.PAS) {
         updateData = { isLiaison: false };
-      } else if (collectionName === TableNames.SUPER_ADMINS) {
-        updateData = { isSuper: false };
       }
 
       // Check if all flags are false, if so, remove the document
@@ -118,14 +115,11 @@ export const clientDeleteUserRightsData = async (
           collectionName === TableNames.ADMINS ? false : userData.isAdmin,
         isLiaison:
           collectionName === TableNames.PAS ? false : userData.isLiaison,
-        isSuper:
-          collectionName === TableNames.SUPER_ADMINS ? false : userData.isSuper,
       };
 
       if (
         !updatedFlags.isAdmin &&
-        !updatedFlags.isLiaison &&
-        !updatedFlags.isSuper
+        !updatedFlags.isLiaison
       ) {
         // All flags are false, remove the document
         await deleteDoc(doc(db, usersRightsCollection, docId));
@@ -178,7 +172,6 @@ export const clientSaveUserRightsData = async (
     const userCollections = [
       TableNames.ADMINS,
       TableNames.PAS,
-      TableNames.SUPER_ADMINS,
     ];
 
     if (userCollections.includes(collectionName)) {
@@ -211,8 +204,6 @@ export const clientSaveUserRightsData = async (
           updateData = { isAdmin: true };
         } else if (collectionName === TableNames.PAS) {
           updateData = { isLiaison: true };
-        } else if (collectionName === TableNames.SUPER_ADMINS) {
-          updateData = { isSuper: true };
         }
 
         await updateDoc(
@@ -230,7 +221,6 @@ export const clientSaveUserRightsData = async (
           createdAt: (data as any).createdAt || Timestamp.now(),
           isAdmin: collectionName === TableNames.ADMINS,
           isLiaison: collectionName === TableNames.PAS,
-          isSuper: collectionName === TableNames.SUPER_ADMINS,
           isEquipment: false,
           isStaffing: false,
           isWorker: false,

@@ -570,11 +570,10 @@ export const DatabaseProvider = ({
 
   const fetchSuperAdminUsers = async () => {
     try {
-      // Fetch from usersRights and filter by isSuper flag
-      const fetchedData = await clientFetchAllDataFromCollection(TableNames.USERS_RIGHTS, [], tenant);
+      // Fetch from original usersSuperAdmin collection (not tenant-specific)
+      const fetchedData = await clientFetchAllDataFromCollection(TableNames.SUPER_ADMINS, []);
       
       const superAdminUsers = fetchedData
-        .filter((item: any) => item.isSuper === true)
         .map((item: any) => ({
           id: item.id,
           email: item.email,

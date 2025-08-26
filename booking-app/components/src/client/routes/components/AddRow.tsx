@@ -47,7 +47,7 @@ export default function AddRow(props: Props) {
     setLoading(true);
     try {
       // Check if this is a user collection that should use the new logic
-      const userCollections = [TableNames.ADMINS, TableNames.PAS, TableNames.SUPER_ADMINS];
+      const userCollections = [TableNames.ADMINS, TableNames.PAS];
       
       if (userCollections.includes(tableName)) {
         await clientSaveUserRightsData(tableName, {

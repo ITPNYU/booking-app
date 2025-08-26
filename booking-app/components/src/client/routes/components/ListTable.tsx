@@ -58,7 +58,7 @@ export default function ListTable(props: Props) {
               ? props.onRemoveRow(row)
               : (() => {
                   // Check if this is a user collection that should use the new logic
-                  const userCollections = [TableNames.ADMINS, TableNames.PAS, TableNames.SUPER_ADMINS];
+                  const userCollections = [TableNames.ADMINS, TableNames.PAS];
                   
                   if (userCollections.includes(props.tableName)) {
                     return clientDeleteUserRightsData(props.tableName, row.id);

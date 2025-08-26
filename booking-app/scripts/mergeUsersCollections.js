@@ -121,7 +121,6 @@ async function mergeUsersCollections(tenant = null) {
           ...userData,
           isAdmin: true,
           isLiaison: true, // All users are liaisons
-          isSuper: false,  // Default to false, will be set to true for super admins
           isEquipment: true,
           isStaffing: true,
           isWorker: true
@@ -157,7 +156,6 @@ async function mergeUsersCollections(tenant = null) {
           ...userData,
           isAdmin: false,  // Default to false
           isLiaison: true, // All users are liaisons
-          isSuper: false,  // Default to false
           isEquipment: true,
           isStaffing: true,
           isWorker: true
@@ -172,6 +170,8 @@ async function mergeUsersCollections(tenant = null) {
     
     // Process usersSuperAdmin collection
     console.log('\nProcessing usersSuperAdmin collection...');
+    console.log('Note: Super admin users are not stored in usersRights collection');
+    console.log('They will be fetched directly from usersSuperAdmin collection');
     const usersSuperAdminSnapshot = await db.collection(usersSuperAdminCollection).get();
     let superAdminCount = 0;
     
@@ -184,27 +184,13 @@ async function mergeUsersCollections(tenant = null) {
         return;
       }
       
-      if (mergedUsers.has(email)) {
-        // User already exists, set isSuper to true
-        mergedUsers.get(email).isSuper = true;
-      } else {
-        // New user, create entry with isSuper field
-        mergedUsers.set(email, {
-          ...userData,
-          isAdmin: false,  // Default to false
-          isLiaison: true, // All users are liaisons
-          isSuper: true,   // This user is a super admin
-          isEquipment: true,
-          isStaffing: true,
-          isWorker: true
-        });
-        // Store the document ID for this email
-        emailToDocIds.set(email, doc.id);
-      }
+      // Super admin users are not stored in usersRights collection
+      // They will be fetched directly from usersSuperAdmin collection
+      console.log(`Skipping super admin user ${email} - will be fetched from original collection`);
       superAdminCount++;
     });
     
-    console.log(`Processed ${superAdminCount} users from usersSuperAdmin`);
+    console.log(`Processed ${superAdminCount} super admin users (not stored in usersRights)`);
     
     // Write merged users to usersRight collection
     console.log('\nWriting merged users to usersRight collection...');
@@ -228,14 +214,13 @@ async function mergeUsersCollections(tenant = null) {
     // Print summary of user types
     const adminUsers = Array.from(mergedUsers.values()).filter(user => user.isAdmin).length;
     const liaisonUsers = Array.from(mergedUsers.values()).filter(user => user.isLiaison).length;
-    const superUsers = Array.from(mergedUsers.values()).filter(user => user.isSuper).length;
     
     console.log('\nUser type summary:');
     console.log(`- Admin users: ${adminUsers}`);
     console.log(`- Liaison users: ${liaisonUsers}`);
-    console.log(`- Super admin users: ${superUsers}`);
+    console.log(`- Super admin users: ${superAdminCount} (stored in original collection)`);
     console.log(`- Users with multiple roles: ${Array.from(mergedUsers.values()).filter(user => 
-      (user.isAdmin ? 1 : 0) + (user.isLiaison ? 1 : 0) + (user.isSuper ? 1 : 0) > 1
+      (user.isAdmin ? 1 : 0) + (user.isLiaison ? 1 : 0) > 1
     ).length}`);
     
   } catch (error) {
