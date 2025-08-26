@@ -2,9 +2,7 @@ import { Checkbox, FormControlLabel, Switch } from "@mui/material";
 import { Control, Controller, UseFormTrigger } from "react-hook-form";
 import { FormContextLevel, Inputs, StaffingServices } from "../../../../types";
 import React, { useContext, useMemo } from "react";
-
 import { BookingContext } from "../bookingProvider";
-import { useTenantSchema } from "../../components/SchemaProvider";
 import styled from "@emotion/styled";
 
 const Label = styled.label`
@@ -33,9 +31,10 @@ export default function BookingFormStaffingServices(props: Props) {
     formContext,
   } = props;
   const { selectedRooms } = useContext(BookingContext);
-  const schema = useTenantSchema();
-  const { showStaffing } = schema;
   const roomIds = selectedRooms.map((room) => room.roomId);
+  const showStaffing = selectedRooms.some(
+    (room) => room.staffingServices && room.staffingServices.length > 0
+  );
 
   const limitedContexts = [
     FormContextLevel.WALK_IN,
@@ -47,16 +46,13 @@ export default function BookingFormStaffingServices(props: Props) {
 
     // Check for specific room services
     selectedRooms.forEach((room) => {
-      if (showStaffing) {
-        // Use room-specific staffing services if available
-        if (room.staffingServices && room.staffingServices.length > 0) {
-          room.staffingServices.forEach((serviceKey) => {
-            const service = StaffingServices[serviceKey];
-            if (service && !options.includes(service)) {
-              options.push(service);
-            }
-          });
-        }
+      // Use room-specific staffing services if available
+      if (room.staffingServices && room.staffingServices.length > 0) {
+        room.staffingServices.forEach((serviceKey: any) => {
+          if (serviceKey && !options.includes(serviceKey)) {
+            options.push(serviceKey);
+          }
+        });
       }
     });
 
