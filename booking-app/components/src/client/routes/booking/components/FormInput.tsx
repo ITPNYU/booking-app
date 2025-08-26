@@ -110,7 +110,7 @@ export default function FormInput({
     roleMapping,
   } = useTenantSchema();
 
-  // Determine which services to show based on selected rooms
+  // Determine which services to show based on selected rooms and schema resources
   const showEquipment = useMemo(() => {
     return selectedRooms.some(room => room.services?.includes('equipment'));
   }, [selectedRooms]);

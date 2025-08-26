@@ -48,15 +48,14 @@ export default function BookingFormStaffingServices(props: Props) {
     // Check for specific room services
     selectedRooms.forEach((room) => {
       if (showStaffing) {
-        if (room.roomId === 103) {
-          options.push(StaffingServices.AUDIO_TECH_103);
-          options.push(StaffingServices.LIGHTING_TECH_103);
-        }
-        if (room.roomId === 230) {
-          options.push(StaffingServices.AUDIO_TECH_230);
-        }
-        if (room.services?.includes("campus-media")) {
-          options.push(StaffingServices.CAMPUS_MEDIA_SERVICES);
+        // Use room-specific staffing services if available
+        if (room.staffingServices && room.staffingServices.length > 0) {
+          room.staffingServices.forEach((serviceKey) => {
+            const service = StaffingServices[serviceKey];
+            if (service && !options.includes(service)) {
+              options.push(service);
+            }
+          });
         }
       }
     });
@@ -154,4 +153,3 @@ export default function BookingFormStaffingServices(props: Props) {
     </div>
   );
 }
-

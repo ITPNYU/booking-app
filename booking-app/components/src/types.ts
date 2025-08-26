@@ -283,6 +283,7 @@ export type RoomSetting = {
   isWalkInCanBookTwo?: boolean;
   isEquipment?: boolean;
   services?: string[];
+  staffingServices?: string[]; // Specific staffing service options for this room
 };
 
 export type SafetyTraining = {
