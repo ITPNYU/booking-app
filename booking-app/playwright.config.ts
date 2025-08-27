@@ -38,6 +38,18 @@ export default defineConfig({
         NODE_ENV: 'test',
         E2E_TESTING: 'true',
       },
+      // Try to use system Chromium if available
+      executablePath: process.env.CI ? undefined : (() => {
+        try {
+          const { execSync } = require('child_process');
+          const chromiumPath = execSync('which chromium-browser || which chromium || which google-chrome', { encoding: 'utf8' }).trim();
+          console.log('Using system browser:', chromiumPath);
+          return chromiumPath;
+        } catch (e) {
+          console.log('System browser not found, using Playwright browser');
+          return undefined;
+        }
+      })(),
     },
 
     // Increase timeouts for CI environment
