@@ -224,6 +224,10 @@ export const clientSaveUserRightsData = async (
           isEquipment: false,
           isStaffing: false,
           isWorker: false,
+          isSetup: false,
+          isCatering: false,
+          isCleaning: false,
+          isSecurity: false,
           ...(data as any),
         };
 

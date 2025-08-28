@@ -126,7 +126,12 @@ async function mergeUsersCollections(tenant = null) {
 
       if (mergedUsers.has(email)) {
         // User already exists, add isAdmin field
-        mergedUsers.get(email).isAdmin = true;
+        const existingUser = mergedUsers.get(email);
+        existingUser.isAdmin = true;
+        existingUser.isSetup = true;
+        existingUser.isCatering = true;
+        existingUser.isCleaning = true;
+        existingUser.isSecurity = true;
       } else {
         // New user, create entry with isAdmin field
         mergedUsers.set(email, {
@@ -136,6 +141,10 @@ async function mergeUsersCollections(tenant = null) {
           isEquipment: true,
           isStaffing: true,
           isWorker: true,
+          isSetup: true,
+          isCatering: true,
+          isCleaning: true,
+          isSecurity: true,
         });
         // Store the first document ID we encounter for this email
         emailToDocIds.set(email, doc.id);
@@ -163,7 +172,12 @@ async function mergeUsersCollections(tenant = null) {
 
       if (mergedUsers.has(email)) {
         // User already exists, ensure isLiaison is true
-        mergedUsers.get(email).isLiaison = true;
+        const existingUser = mergedUsers.get(email);
+        existingUser.isLiaison = true;
+        existingUser.isSetup = true;
+        existingUser.isCatering = true;
+        existingUser.isCleaning = true;
+        existingUser.isSecurity = true;
       } else {
         // New user, create entry with isLiaison field
         mergedUsers.set(email, {
@@ -173,6 +187,10 @@ async function mergeUsersCollections(tenant = null) {
           isEquipment: true,
           isStaffing: true,
           isWorker: true,
+          isSetup: true,
+          isCatering: true,
+          isCleaning: true,
+          isSecurity: true,
         });
         // Store the document ID for this email
         emailToDocIds.set(email, doc.id);
