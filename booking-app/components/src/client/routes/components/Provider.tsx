@@ -324,11 +324,11 @@ export const DatabaseProvider = ({
 
   const fetchPaUsers = async () => {
     try {
-      // Fetch from usersRights and filter by isLiaison flag
+      // Fetch from usersRights and filter by isWorker flag
       const fetchedData = await clientFetchAllDataFromCollection(TableNames.USERS_RIGHTS, [], tenant);
       
       const paUsers = fetchedData
-        .filter((item: any) => item.isLiaison === true)
+        .filter((item: any) => item.isWorker === true)
         .map((item: any) => ({
           id: item.id,
           email: item.email,

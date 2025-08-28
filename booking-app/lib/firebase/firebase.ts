@@ -106,20 +106,20 @@ export const clientDeleteUserRightsData = async (
       if (collectionName === TableNames.ADMINS) {
         updateData = { isAdmin: false };
       } else if (collectionName === TableNames.PAS) {
-        updateData = { isLiaison: false };
+        updateData = { isWorker: false };
       }
 
       // Check if all flags are false, if so, remove the document
       const updatedFlags = {
         isAdmin:
           collectionName === TableNames.ADMINS ? false : userData.isAdmin,
-        isLiaison:
-          collectionName === TableNames.PAS ? false : userData.isLiaison,
+        isWorker:
+          collectionName === TableNames.PAS ? false : userData.isWorker,
       };
 
       if (
         !updatedFlags.isAdmin &&
-        !updatedFlags.isLiaison
+        !updatedFlags.isWorker
       ) {
         // All flags are false, remove the document
         await deleteDoc(doc(db, usersRightsCollection, docId));
@@ -203,7 +203,7 @@ export const clientSaveUserRightsData = async (
         if (collectionName === TableNames.ADMINS) {
           updateData = { isAdmin: true };
         } else if (collectionName === TableNames.PAS) {
-          updateData = { isLiaison: true };
+          updateData = { isWorker: true };
         }
 
         await updateDoc(
@@ -220,10 +220,10 @@ export const clientSaveUserRightsData = async (
           email: email,
           createdAt: (data as any).createdAt || Timestamp.now(),
           isAdmin: collectionName === TableNames.ADMINS,
-          isLiaison: collectionName === TableNames.PAS,
+          isWorker: collectionName === TableNames.PAS,
           isEquipment: false,
           isStaffing: false,
-          isWorker: false,
+          isLiaison: false,
           isSetup: false,
           isCatering: false,
           isCleaning: false,
