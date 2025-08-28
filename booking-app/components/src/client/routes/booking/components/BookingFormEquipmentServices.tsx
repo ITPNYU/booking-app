@@ -89,7 +89,7 @@ export default function BookingFormEquipmentServices(props: Props) {
   if (limitedContexts.includes(formContext)) {
     return (
       <div style={{ marginBottom: 8 }}>
-        <Label htmlFor={id}>Equipment Services</Label>
+        <Label htmlFor={id}>Equipment Services?</Label>
         <p style={{ fontSize: "0.75rem" }}>Check out equipment</p>
         {toggle}
       </div>
@@ -98,7 +98,7 @@ export default function BookingFormEquipmentServices(props: Props) {
 
   return (
     <div style={{ marginBottom: 8 }}>
-      <Label htmlFor={id}>Equipment Services</Label>
+      <Label htmlFor={id}>Equipment Services?</Label>
       <p style={{ fontSize: "0.75rem" }}>
         Check out equipment from Media Commons inventory.
       </p>
