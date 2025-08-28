@@ -183,9 +183,9 @@ describe("Calendar Description Functions", () => {
       expect(result).toContain(
         "<strong>Staffing Service Details:</strong> Audio support for event"
       );
-      expect(result).toContain("<strong>Catering Service:</strong> None");
-      expect(result).toContain("<strong>Cleaning Service:</strong> none");
-      expect(result).toContain("<strong>Security:</strong> none");
+      // Services that are not requested should not appear in the description
+      expect(result).not.toContain("Cleaning Service");
+      expect(result).not.toContain("Security");
     });
 
     it('should display "none" for "no" or "No" values', () => {
@@ -202,10 +202,11 @@ describe("Calendar Description Functions", () => {
 
       const result = bookingContentsToDescription(bookingWithNoValues);
 
-      expect(result).toContain("<strong>Catering Service:</strong> none");
-      expect(result).toContain("<strong>Security:</strong> none");
-      expect(result).toContain("<strong>Equipment Service:</strong> none");
-      expect(result).toContain("<strong>Staffing Service:</strong> none");
+      // Services that are not requested should not appear in the description
+      expect(result).not.toContain("Catering Service");
+      expect(result).not.toContain("Security");
+      expect(result).not.toContain("Equipment Service");
+      expect(result).not.toContain("Staffing Service");
     });
 
     it("should handle empty or undefined values gracefully", () => {
@@ -231,6 +232,8 @@ describe("Calendar Description Functions", () => {
         chartFieldForCatering: "12345-CATERING",
         chartFieldForCleaning: "12345-CLEANING",
         chartFieldForSecurity: "12345-SECURITY",
+        hireSecurity: "Yes", // Set to "Yes" so security service appears
+        cleaningService: "yes", // Set to "yes" so cleaning service appears
       };
 
       const result = bookingContentsToDescription(bookingWithChartFields);

@@ -162,61 +162,60 @@ export const bookingContentsToDescription = (
       getProperty(bookingContents, "chartFieldForRoomSetup")
     );
   }
-  description += listItem(
-    "Equipment Service",
-    getProperty(bookingContents, "equipmentServices")
-  );
-  if (getProperty(bookingContents, "equipmentServicesDetails")) {
-    description += listItem(
-      "Equipment Service Details",
-      getProperty(bookingContents, "equipmentServicesDetails")
-    );
+  // Only show equipment service if it exists
+  const equipmentServices = getProperty(bookingContents, "equipmentServices");
+  if (equipmentServices) {
+    description += listItem("Equipment Service", equipmentServices);
+    const equipmentDetails = getProperty(bookingContents, "equipmentServicesDetails");
+    if (equipmentDetails) {
+      description += listItem("Equipment Service Details", equipmentDetails);
+    }
   }
-  description += listItem(
-    "Staffing Service",
-    getProperty(bookingContents, "staffingServices")
-  );
-  if (getProperty(bookingContents, "staffingServicesDetails")) {
-    description += listItem(
-      "Staffing Service Details",
-      getProperty(bookingContents, "staffingServicesDetails")
-    );
+
+  // Only show staffing service if it exists
+  const staffingServices = getProperty(bookingContents, "staffingServices");
+  if (staffingServices) {
+    description += listItem("Staffing Service", staffingServices);
+    const staffingDetails = getProperty(bookingContents, "staffingServicesDetails");
+    if (staffingDetails) {
+      description += listItem("Staffing Service Details", staffingDetails);
+    }
   }
+
   // Add WebCheckout Cart Number
   const cartNumber = getProperty(bookingContents, "webcheckoutCartNumber");
   if (cartNumber) {
     description += listItem("Cart Number", cartNumber);
   }
-  description += listItem(
-    "Catering Service",
-    getProperty(bookingContents, "cateringService") ||
-      getProperty(bookingContents, "catering")
-  );
-  if (getProperty(bookingContents, "chartFieldForCatering")) {
-    description += listItem(
-      "Catering Chart Field",
-      getProperty(bookingContents, "chartFieldForCatering")
-    );
+
+  // Only show catering service if it's not "no" or "No"
+  const cateringService = getProperty(bookingContents, "cateringService") || getProperty(bookingContents, "catering");
+  if (cateringService && cateringService !== "no" && cateringService !== "No") {
+    description += listItem("Catering Service", cateringService);
+    const cateringChartField = getProperty(bookingContents, "chartFieldForCatering");
+    if (cateringChartField) {
+      description += listItem("Catering Chart Field", cateringChartField);
+    }
   }
-  description += listItem(
-    "Cleaning Service",
-    getProperty(bookingContents, "cleaningService")
-  );
-  if (getProperty(bookingContents, "chartFieldForCleaning")) {
-    description += listItem(
-      "Cleaning Service Chart Field",
-      getProperty(bookingContents, "chartFieldForCleaning")
-    );
+
+  // Only show cleaning service if it's not "no" or "No"
+  const cleaningService = getProperty(bookingContents, "cleaningService");
+  if (cleaningService && cleaningService !== "no" && cleaningService !== "No") {
+    description += listItem("Cleaning Service", "Yes");
+    const cleaningChartField = getProperty(bookingContents, "chartFieldForCleaning");
+    if (cleaningChartField) {
+      description += listItem("Cleaning Service Chart Field", cleaningChartField);
+    }
   }
-  description += listItem(
-    "Security",
-    getProperty(bookingContents, "hireSecurity")
-  );
-  if (getProperty(bookingContents, "chartFieldForSecurity")) {
-    description += listItem(
-      "Security Chart Field",
-      getProperty(bookingContents, "chartFieldForSecurity")
-    );
+
+  // Only show security service if it's not "no" or "No"
+  const securityService = getProperty(bookingContents, "hireSecurity");
+  if (securityService && securityService !== "no" && securityService !== "No") {
+    description += listItem("Security", securityService);
+    const securityChartField = getProperty(bookingContents, "chartFieldForSecurity");
+    if (securityChartField) {
+      description += listItem("Security Chart Field", securityChartField);
+    }
   }
   description += "</ul>";
 
