@@ -5,7 +5,7 @@ import { Timestamp } from "firebase/firestore";
 import { AddCircleOutline } from "@mui/icons-material";
 import Grid from "@mui/material/Unstable_Grid2/Grid2";
 import { clientSaveDataToFirestore, clientSaveUserRightsData } from "../../../../../lib/firebase/firebase";
-import { TableNames } from "../../../policy";
+import { TableNames, isLegacyUserCollection } from "../../../policy";
 import Loading from "./Loading";
 
 interface Props {
@@ -46,10 +46,8 @@ export default function AddRow(props: Props) {
 
     setLoading(true);
     try {
-      // Check if this is a user collection that should use the new logic
-      const userCollections = [TableNames.ADMINS, TableNames.PAS];
-      
-      if (userCollections.includes(tableName)) {
+      // Check if this is a legacy user collection that should use the new logic
+      if (isLegacyUserCollection(tableName)) {
         await clientSaveUserRightsData(tableName, {
           [props.columnNameUniqueValue]: valueToAdd.trim(),
           ...(extra?.values ?? {}),

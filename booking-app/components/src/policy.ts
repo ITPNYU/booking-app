@@ -57,6 +57,15 @@ export const getTenantTableName = (tableName: TableNames, tenant?: string): stri
   return getTenantCollectionName(baseCollection, tenant);
 };
 
+// Migration period utility - will be removed after migration is complete
+export const isLegacyUserCollection = (collectionName: TableNames): boolean => {
+  const legacyUserCollections = [
+    TableNames.ADMINS,
+    TableNames.PAS,
+  ];
+  return legacyUserCollections.includes(collectionName);
+};
+
 export const CALENDAR_HIDE_STATUS = [
   BookingStatusLabel.NO_SHOW,
   BookingStatusLabel.CANCELED,

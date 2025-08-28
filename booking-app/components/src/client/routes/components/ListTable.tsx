@@ -3,7 +3,7 @@ import React, { useMemo } from "react";
 
 import ListTableRow from "./ListTableRow";
 import Table from "./Table";
-import { TableNames } from "../../../policy";
+import { TableNames, isLegacyUserCollection } from "../../../policy";
 import { clientDeleteDataFromFirestore, clientDeleteUserRightsData } from "@/lib/firebase/firebase";
 
 interface Props {
@@ -57,10 +57,8 @@ export default function ListTable(props: Props) {
             props.onRemoveRow
               ? props.onRemoveRow(row)
               : (() => {
-                  // Check if this is a user collection that should use the new logic
-                  const userCollections = [TableNames.ADMINS, TableNames.PAS];
-                  
-                  if (userCollections.includes(props.tableName)) {
+                  // Check if this is a legacy user collection that should use the new logic
+                  if (isLegacyUserCollection(props.tableName)) {
                     return clientDeleteUserRightsData(props.tableName, row.id);
                   } else {
                     return clientDeleteDataFromFirestore(props.tableName, row.id);
