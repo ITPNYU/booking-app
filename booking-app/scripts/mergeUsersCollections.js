@@ -128,6 +128,7 @@ async function mergeUsersCollections(tenant = null) {
         // User already exists, add isAdmin field
         const existingUser = mergedUsers.get(email);
         existingUser.isAdmin = true;
+        existingUser.isWorker = true; // Admin users are also workers
         existingUser.isSetup = true;
         existingUser.isCatering = true;
         existingUser.isCleaning = true;
@@ -137,10 +138,10 @@ async function mergeUsersCollections(tenant = null) {
         mergedUsers.set(email, {
           ...userData,
           isAdmin: true,
-          isLiaison: true, // All users are liaisons
+          isWorker: true, // Admin users are also workers
           isEquipment: true,
           isStaffing: true,
-          isWorker: true,
+          isLiaison: true,
           isSetup: true,
           isCatering: true,
           isCleaning: true,
@@ -171,22 +172,23 @@ async function mergeUsersCollections(tenant = null) {
       }
 
       if (mergedUsers.has(email)) {
-        // User already exists, ensure isLiaison is true
+        // User already exists, ensure isWorker and isLiaison are true
         const existingUser = mergedUsers.get(email);
+        existingUser.isWorker = true;
         existingUser.isLiaison = true;
         existingUser.isSetup = true;
         existingUser.isCatering = true;
         existingUser.isCleaning = true;
         existingUser.isSecurity = true;
       } else {
-        // New user, create entry with isLiaison field
+        // New user, create entry with isWorker field
         mergedUsers.set(email, {
           ...userData,
           isAdmin: false, // Default to false
-          isLiaison: true, // All users are liaisons
+          isWorker: true, // All PA users are workers
+          isLiaison: true,
           isEquipment: true,
           isStaffing: true,
-          isWorker: true,
           isSetup: true,
           isCatering: true,
           isCleaning: true,
