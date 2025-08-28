@@ -241,8 +241,8 @@ describe("Calendar Safety Training, Ban, and Overlap Restrictions Logic", () => 
         {
           id: "blackout-1",
           name: "Summer Break",
-          startDate: Timestamp.fromDate(dayjs("2025-07-01").toDate()),
-          endDate: Timestamp.fromDate(dayjs("2025-07-31").toDate()),
+          startDate: Timestamp.fromDate(dayjs("2025-12-01").toDate()),
+          endDate: Timestamp.fromDate(dayjs("2025-12-31").toDate()),
           startTime: null,
           endTime: null,
           isActive: true,
@@ -264,11 +264,11 @@ describe("Calendar Safety Training, Ban, and Overlap Restrictions Logic", () => 
       });
 
       // Date within blackout period
-      const dateInBlackout = dayjs("2025-07-15");
+      const dateInBlackout = dayjs("2025-12-15");
       expect(result.current.isDateDisabled(dateInBlackout)).toBe(true);
 
-      // Date outside blackout period
-      const dateOutsideBlackout = dayjs("2025-08-15");
+      // Date outside blackout period (using future date)
+      const dateOutsideBlackout = dayjs("2025-09-15");
       expect(result.current.isDateDisabled(dateOutsideBlackout)).toBe(false);
     });
   });

@@ -20,7 +20,39 @@ export enum TableNames {
   SUPER_ADMINS = "usersSuperAdmin",
   POLICY_SETTINGS = "policySettings",
   BLACKOUT_PERIODS = "blackoutPeriods",
+  TENANT_SCHEMA = "tenantSchema",
 }
+
+// Utility function to get tenant-specific collection names
+export const getTenantCollectionName = (baseCollection: string, tenant?: string): string => {
+  if (!tenant) {
+    return baseCollection;
+  }
+  
+  // Collections that should be tenant-specific
+  const tenantSpecificCollections = [
+    "bookings",
+    "bookingLogs", 
+    "bookingTypes",
+    "blackoutPeriods",
+    "counters",
+    "operationHours",
+    "preBanLogs",
+    "usersWhitelist"
+  ];
+  
+  if (tenantSpecificCollections.includes(baseCollection)) {
+    return `${tenant}-${baseCollection}`;
+  }
+  
+  return baseCollection;
+};
+
+// Helper function to get tenant-specific TableNames
+export const getTenantTableName = (tableName: TableNames, tenant?: string): string => {
+  const baseCollection = tableName;
+  return getTenantCollectionName(baseCollection, tenant);
+};
 
 export const CALENDAR_HIDE_STATUS = [
   BookingStatusLabel.NO_SHOW,

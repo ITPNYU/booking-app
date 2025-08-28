@@ -1,4 +1,8 @@
-import { ApproverLevel, TableNames } from "@/components/src/policy";
+import {
+  ApproverLevel,
+  TableNames,
+  getTenantCollectionName,
+} from "@/components/src/policy";
 // saveData.ts
 import {
   QueryConstraint,
@@ -20,6 +24,26 @@ import {
 
 import { getDb } from "./firebaseClient";
 import { Filters } from "@/components/src/types";
+import { SchemaContextType } from "@/components/src/client/routes/components/SchemaProvider";
+
+// Utility function to get current tenant from URL
+export const getCurrentTenant = (): string | undefined => {
+  if (typeof window !== "undefined") {
+    const pathname = window.location.pathname;
+    const tenantMatch = pathname.match(/^\/([^\/]+)/);
+    return tenantMatch ? tenantMatch[1] : undefined;
+  }
+  return undefined;
+};
+
+// Helper function to get tenant-specific collection name
+export const getTenantCollection = (
+  baseCollection: TableNames,
+  tenant?: string
+): string => {
+  const tenantToUse = tenant || getCurrentTenant();
+  return getTenantCollectionName(baseCollection, tenantToUse);
+};
 
 export type AdminUserData = {
   email: string;
@@ -55,10 +79,12 @@ export const clientSaveDataToFirestore = async (
 
 export const clientFetchAllDataFromCollection = async <T>(
   collectionName: TableNames,
-  queryConstraints: QueryConstraint[] = []
+  queryConstraints: QueryConstraint[] = [],
+  tenant?: string
 ): Promise<T[]> => {
   const db = getDb();
-  const colRef = collection(db, collectionName);
+  const tenantCollection = getTenantCollection(collectionName, tenant);
+  const colRef = collection(db, tenantCollection);
   const q = query(colRef, ...queryConstraints);
   const snapshot = await getDocs(q);
   const data = snapshot.docs.map((document) => ({
@@ -71,10 +97,12 @@ export const clientFetchAllDataFromCollection = async <T>(
 export const clientFetchAllDataFromCollectionWithLimitAndOffset = async <T>(
   collectionName: TableNames,
   limitNumber: number,
-  offset: number
+  offset: number,
+  tenant?: string
 ): Promise<T[]> => {
   const db = getDb();
-  const colRef = collection(db, collectionName);
+  const tenantCollection = getTenantCollection(collectionName, tenant);
+  const colRef = collection(db, tenantCollection);
   const q = query(colRef, limit(limitNumber), where("offset", ">=", offset));
   const snapshot = await getDocs(q);
   const data = snapshot.docs.map((document) => ({
@@ -82,25 +110,27 @@ export const clientFetchAllDataFromCollectionWithLimitAndOffset = async <T>(
     ...(document.data() as unknown as T),
   }));
   return data;
-}
+};
 
-export const getPaginatedData = async<T> (
+export const getPaginatedData = async <T>(
   collectionName,
   itemsPerPage = 10,
   filters: Filters,
   lastVisible = null,
- ) : Promise<T[]> => {
+  tenant?: string
+): Promise<T[]> => {
   try {
     const db = getDb();
-    const colRef = collection(db, collectionName);
+    const tenantCollection = getTenantCollection(collectionName, tenant);
+    const colRef = collection(db, tenantCollection);
     const queryParams = [];
-    
+
     // Add date range filters
     if (filters.dateRange && filters.dateRange.length === 2) {
-      if(filters.dateRange[0]){
+      if (filters.dateRange[0]) {
         queryParams.push(where("startDate", ">=", filters.dateRange[0]));
       }
-      if(filters.dateRange[1]){
+      if (filters.dateRange[1]) {
         queryParams.push(where("startDate", "<=", filters.dateRange[1]));
       }
     }
@@ -108,7 +138,7 @@ export const getPaginatedData = async<T> (
     // If there's a search query, fetch data and filter client-side
     if (filters.searchQuery && filters.searchQuery.trim() !== "") {
       const searchTerm = filters.searchQuery.trim().toLowerCase();
-      
+
       // Define the fields we want to search
       const searchableFields = [
         "requestNumber",
@@ -119,30 +149,30 @@ export const getPaginatedData = async<T> (
         "description",
         "firstName",
         "lastName",
-        "roomId"
+        "roomId",
       ];
 
       // Fetch data with just date filters
       const baseQuery = query(
         colRef,
         ...queryParams,
-        orderBy(filters.sortField, 'desc')
+        orderBy(filters.sortField, "desc")
       );
 
       const snapshot = await getDocs(baseQuery);
-      
+
       // Filter documents that match the search term in any field
-      const matchingDocs = snapshot.docs.filter(doc => {
+      const matchingDocs = snapshot.docs.filter((doc) => {
         const data = doc.data();
-        
+
         // Check for matches in combined firstName + lastName
         if (data.firstName && data.lastName) {
           const fullName = `${data.firstName} ${data.lastName}`.toLowerCase();
           if (fullName.includes(searchTerm)) return true;
         }
-        
+
         // Continue with existing field-by-field check
-        return searchableFields.some(field => {
+        return searchableFields.some((field) => {
           const fieldValue = data[field];
           // Handle different types of fields
           if (fieldValue === null || fieldValue === undefined) return false;
@@ -153,36 +183,31 @@ export const getPaginatedData = async<T> (
       });
 
       // Return all matching docs without pagination
-      return matchingDocs.map(doc => ({
+      return matchingDocs.map((doc) => ({
         id: doc.id,
-        ...doc.data() as unknown as T
+        ...(doc.data() as unknown as T),
       }));
     }
-    
+
     // If no search query, use standard query with date filters
-    let q = query(
-      colRef,
-      ...queryParams,
-      orderBy(filters.sortField, 'desc')
-    );
-    
+    let q = query(colRef, ...queryParams, orderBy(filters.sortField, "desc"));
+
     if (lastVisible) {
       q = query(
         colRef,
         ...queryParams,
-        orderBy(filters.sortField, 'desc'),
+        orderBy(filters.sortField, "desc"),
         startAfter(lastVisible[filters.sortField])
       );
     }
-    
+
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({
+    return snapshot.docs.map((doc) => ({
       id: doc.id,
-      ...doc.data() as unknown as T
+      ...(doc.data() as unknown as T),
     }));
-    
   } catch (error) {
-    console.error('Error getting paginated data:', error);
+    console.error("Error getting paginated data:", error);
     throw error;
   }
 };
@@ -214,37 +239,65 @@ export const clientGetFinalApproverEmailFromDatabase = async (): Promise<
 };
 export const clientGetDataByCalendarEventId = async <T>(
   collectionName: TableNames,
-  calendarEventId: string
+  calendarEventId: string,
+  tenant?: string
 ): Promise<(T & { id: string }) | null> => {
   try {
     const db = getDb();
-    const colRef = collection(db, collectionName);
+    const tenantCollection = getTenantCollection(collectionName, tenant);
+    const colRef = collection(db, tenantCollection);
     const q = query(colRef, where("calendarEventId", "==", calendarEventId));
-    const querySnapshot = await getDocs(q);
+    const snapshot = await getDocs(q);
 
-    if (!querySnapshot.empty) {
-      const docSnap = querySnapshot.docs[0];
-      const data = docSnap.data() as T;
-      return { id: docSnap.id, ...data };
+    if (snapshot.empty) {
+      return null;
     }
-    console.log("No such document!");
-    return null;
+
+    const doc = snapshot.docs[0];
+    return {
+      id: doc.id,
+      ...(doc.data() as unknown as T),
+    };
   } catch (error) {
-    console.error("Error fetching document: ", error);
+    console.error("Error getting data by calendar event ID:", error);
     return null;
   }
 };
 export const clientUpdateDataInFirestore = async (
   collectionName: string,
   docId: string,
-  updatedData: object
+  updatedData: object,
+  tenant?: string
 ) => {
   try {
     const db = getDb();
-    const docRef = doc(db, collectionName, docId);
+    const tenantCollection = getTenantCollection(
+      collectionName as TableNames,
+      tenant
+    );
+    const docRef = doc(db, tenantCollection, docId);
     await updateDoc(docRef, updatedData);
     console.log("Document successfully updated with ID:", docId);
   } catch (error) {
     console.error("Error updating document: ", error);
+  }
+};
+
+export const clientGetTenantSchema = async (
+  tenant: string
+): Promise<SchemaContextType | null> => {
+  try {
+    const db = getDb();
+    const docRef = doc(db, "tenantSchema", tenant);
+    const docSnap = await getDoc(docRef);
+
+    if (docSnap.exists()) {
+      return docSnap.data() as SchemaContextType;
+    }
+    console.log(`No schema found for tenant: ${tenant}`);
+    return null;
+  } catch (error) {
+    console.error("Error fetching tenant schema:", error);
+    return null;
   }
 };

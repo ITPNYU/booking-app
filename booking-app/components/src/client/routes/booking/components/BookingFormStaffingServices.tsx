@@ -1,10 +1,8 @@
 import { Checkbox, FormControlLabel, Switch } from "@mui/material";
 import { Control, Controller, UseFormTrigger } from "react-hook-form";
-import { FormContextLevel, Inputs, MediaServices } from "../../../../types";
+import { FormContextLevel, Inputs, StaffingServices } from "../../../../types";
 import React, { useContext, useMemo } from "react";
-
 import { BookingContext } from "../bookingProvider";
-import { useTenantSchema } from "../../components/SchemaProvider";
 import styled from "@emotion/styled";
 
 const Label = styled.label`
@@ -18,24 +16,25 @@ interface Props {
   id: keyof Inputs;
   control: Control<Inputs, any>;
   trigger: UseFormTrigger<Inputs>;
-  showMediaServices: boolean;
-  setShowMediaServices: any;
+  showStaffingServices: boolean;
+  setShowStaffingServices: any;
   formContext: FormContextLevel;
 }
 
-export default function BookingFormMediaServices(props: Props) {
+export default function BookingFormStaffingServices(props: Props) {
   const {
     id,
     control,
     trigger,
-    showMediaServices,
-    setShowMediaServices,
+    showStaffingServices,
+    setShowStaffingServices,
     formContext,
   } = props;
   const { selectedRooms } = useContext(BookingContext);
-  const schema = useTenantSchema();
-  const { showEquipment, showStaffing } = schema;
   const roomIds = selectedRooms.map((room) => room.roomId);
+  const showStaffing = selectedRooms.some(
+    (room) => room.staffingServices && room.staffingServices.length > 0
+  );
 
   const limitedContexts = [
     FormContextLevel.WALK_IN,
@@ -43,31 +42,22 @@ export default function BookingFormMediaServices(props: Props) {
   ];
 
   const checkboxes = useMemo(() => {
-    const options: MediaServices[] = [];
-
-    // If equipment is enabled in schema, allow checkout equipment regardless of room
-    if (showEquipment) {
-      options.push(MediaServices.CHECKOUT_EQUIPMENT);
-    }
+    const options: StaffingServices[] = [];
 
     // Check for specific room services
     selectedRooms.forEach((room) => {
-      if (showStaffing) {
-        if (room.roomId === 103) {
-          options.push(MediaServices.AUDIO_TECH_103);
-          options.push(MediaServices.LIGHTING_TECH_103);
-        }
-        if (room.roomId === 230) {
-          options.push(MediaServices.AUDIO_TECH_230);
-        }
-        if (room.services?.includes("campus-media")) {
-          options.push(MediaServices.CAMPUS_MEDIA_SERVICES);
-        }
+      // Use room-specific staffing services if available
+      if (room.staffingServices && room.staffingServices.length > 0) {
+        room.staffingServices.forEach((serviceKey: any) => {
+          if (serviceKey && !options.includes(serviceKey)) {
+            options.push(serviceKey);
+          }
+        });
       }
     });
 
     return options;
-  }, [roomIds, selectedRooms, showEquipment, showStaffing]);
+  }, [roomIds, selectedRooms, showStaffing]);
 
   const toggle = (
     <Controller
@@ -75,17 +65,15 @@ export default function BookingFormMediaServices(props: Props) {
       control={control}
       render={({ field }) => (
         <FormControlLabel
-          label={showMediaServices ? "Yes" : "No"}
+          label={showStaffingServices ? "Yes" : "No"}
           control={
             <Switch
-              checked={showMediaServices}
+              checked={showStaffingServices}
               onChange={(e) => {
-                setShowMediaServices(e.target.checked);
+                setShowStaffingServices(e.target.checked);
                 if (!e.target.checked) {
-                  // de-select boxes if switch says "no media services"
+                  // de-select boxes if switch says "no staffing services"
                   field.onChange("");
-                } else if (limitedContexts.includes(formContext)) {
-                  field.onChange(MediaServices.CHECKOUT_EQUIPMENT);
                 }
 
                 trigger(id);
@@ -98,18 +86,16 @@ export default function BookingFormMediaServices(props: Props) {
     ></Controller>
   );
 
-  // If both equipment and staffing are disabled at the schema level, hide the entire control
-  const mediaServicesEnabled = showEquipment || showStaffing;
-
-  if (!mediaServicesEnabled) {
+  // If staffing is disabled at the schema level, hide the entire control
+  if (!showStaffing) {
     return null;
   }
 
   if (limitedContexts.includes(formContext)) {
     return (
       <div style={{ marginBottom: 8 }}>
-        <Label htmlFor={id}>Media Services</Label>
-        <p style={{ fontSize: "0.75rem" }}>Check out equipment</p>
+        <Label htmlFor={id}>Staffing Services?</Label>
+        <p style={{ fontSize: "0.75rem" }}>Request technicians and support</p>
         {toggle}
       </div>
     );
@@ -117,12 +103,12 @@ export default function BookingFormMediaServices(props: Props) {
 
   return (
     <div style={{ marginBottom: 8 }}>
-      <Label htmlFor={id}>Media Services</Label>
+      <Label htmlFor={id}>Staffing Services?</Label>
       <p style={{ fontSize: "0.75rem" }}>
-        Check out equipment, request a technician, etc.
+        Request audio technicians, lighting technicians, and technical support.
       </p>
       {toggle}
-      {showMediaServices && (
+      {showStaffingServices && (
         <Controller
           name={id}
           control={control}
