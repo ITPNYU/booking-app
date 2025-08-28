@@ -127,6 +127,10 @@ export default function FormInput({
     return selectedRooms.some(room => room.services?.includes('security'));
   }, [selectedRooms]);
 
+  const showCleaning = useMemo(() => {
+    return selectedRooms.some(room => room.services?.includes('cleaning'));
+  }, [selectedRooms]);
+
   const {
     control,
     handleSubmit,
@@ -668,7 +672,7 @@ export default function FormInput({
             )}
           </div>
         )}
-        {!isWalkIn && showCatering && (
+        {!isWalkIn && showCleaning && (
           <div style={{ marginBottom: 32 }}>
             <BookingFormSwitch
               id="cleaningService"
