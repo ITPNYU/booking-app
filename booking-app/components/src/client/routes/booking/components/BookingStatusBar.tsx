@@ -53,6 +53,7 @@ export default function BookingStatusBar({ formContext, ...props }: Props) {
     isBanned ||
     needsSafetyTraining ||
     isInBlackoutPeriod ||
+    durationLimitError ||
     (bookingCalendarInfo != null && selectedRooms.length > 0);
 
   // order of precedence matters

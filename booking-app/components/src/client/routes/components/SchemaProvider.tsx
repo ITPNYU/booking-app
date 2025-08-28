@@ -21,6 +21,7 @@ export type Resource = {
     faculty: number;
     admin: number;
   };
+  staffingServices?: string[]; // Specific staffing service options for this room
 };
 
 export type SchemaContextType = {

@@ -50,6 +50,7 @@ export default function SelectRoomPage({
       isEquipment: resource.isEquipment,
       services: resource.services,
       maxHour: resource.maxHour,
+      staffingServices: resource.staffingServices,
     }));
 
     const allRooms = !isWalkIn

@@ -152,12 +152,18 @@ export type Inputs = {
   setupDetails: string;
   mediaServices: string;
   mediaServicesDetails: string;
+  equipmentServices: string;
+  equipmentServicesDetails: string;
+  staffingServices: string;
+  staffingServicesDetails: string;
   catering: string;
   hireSecurity: string;
   expectedAttendance: string;
   cateringService: string;
+  cleaningService: string;
   missingEmail?: string;
   chartFieldForCatering: string;
+  chartFieldForCleaning: string;
   chartFieldForSecurity: string;
   chartFieldForRoomSetup: string;
   webcheckoutCartNumber?: string;
@@ -176,6 +182,27 @@ export enum MediaServices {
   CHECKOUT_EQUIPMENT = "Checkout Equipment",
   LIGHTING_TECH_103 = "(Garage 103) Request a lighting technician",
   LIGHTING_DMX = "(Rooms 220-224) Using DMX lights in ceiling grid",
+}
+
+export enum EquipmentServices {
+  CHECKOUT_EQUIPMENT = "Checkout Equipment",
+}
+
+export enum StaffingServices {
+  AUDIO_TECH_103 = "(Garage 103) Request an audio technician",
+  AUDIO_TECH_230 = "(Audio Lab 230) Request an audio technician",
+  CAMPUS_MEDIA_SERVICES = "(Rooms 202 and 1201) Contact Campus Media for technical/event support",
+  LIGHTING_TECH_103 = "(Garage 103) Request a lighting technician",
+  LIGHTING_DMX = "(Rooms 220-224) Using DMX lights in ceiling grid",
+}
+
+export enum CateringServices {
+  OUTSIDE_CATERING = "Outside Catering",
+  NYU_PLATED = "NYU Plated",
+}
+
+export enum CleaningServices {
+  CBS_CLEANING = "CBS Cleaning Services",
 }
 
 export enum Days {
@@ -256,6 +283,7 @@ export type RoomSetting = {
   isWalkInCanBookTwo?: boolean;
   isEquipment?: boolean;
   services?: string[];
+  staffingServices?: string[]; // Specific staffing service options for this room
 };
 
 export type SafetyTraining = {

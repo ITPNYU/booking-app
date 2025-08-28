@@ -51,7 +51,8 @@ export default function useCheckAutoApproval(isWalkIn = false) {
       })),
       formData: {
         roomSetup: formData?.roomSetup,
-        mediaServices: formData?.mediaServices,
+        equipmentServices: formData?.equipmentServices,
+        staffingServices: formData?.staffingServices,
         catering: formData?.catering,
         hireSecurity: formData?.hireSecurity,
       },
@@ -229,10 +230,18 @@ export default function useCheckAutoApproval(isWalkIn = false) {
       return;
     }
 
-    // HAS MEDIA SERVICES
-    if (!isWalkIn && formData?.mediaServices?.length > 0) {
+    // HAS EQUIPMENT SERVICES
+    if (!isWalkIn && formData?.equipmentServices?.length > 0) {
       throwError(
-        "Requesting media services for an event will require approval"
+        "Requesting equipment services for an event will require approval"
+      );
+      return;
+    }
+
+    // HAS STAFFING SERVICES
+    if (!isWalkIn && formData?.staffingServices?.length > 0) {
+      throwError(
+        "Requesting staffing services for an event will require approval"
       );
       return;
     }
