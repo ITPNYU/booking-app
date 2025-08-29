@@ -361,6 +361,10 @@ export default function FormInput({
   const formatSectionTitle = (title: string) => {
     return `${prefix} ${title}`.trim();
   };
+  
+  const formatFieldLabel = (label: string) => {
+    return `${prefix} ${label}`.trim();
+  };
 
   const fullFormFields = (
     <>

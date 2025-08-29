@@ -351,13 +351,11 @@ export async function POST(request: Request) {
     let count = 0;
     for (const resource of resources) {
       count++;
-      if (count > 1) {
-        break;
-      }
+      //if (count > 1) {
+      //  break;
+      //}
       console.log("calendarId", resource.calendarId);
-      //const calendarId = resource.calendarId;
-      const calendarId =
-        "c_oea6k9fs8p6nvsai6f25uiue1c@group.calendar.google.com";
+      const calendarId = resource.calendarId;
       try {
         let pageToken: string | undefined;
 
