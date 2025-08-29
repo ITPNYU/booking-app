@@ -683,6 +683,58 @@ export const noShow = async (
   netId: string,
   tenant?: string
 ) => {
+  console.log(
+    `🎯 NO SHOW REQUEST [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+    {
+      calendarEventId: id,
+      email,
+      tenant,
+      netId,
+      usingXState: tenant === "itp" || tenant === "mediaCommons",
+    },
+  );
+
+  // For ITP and Media Commons tenants, use XState transition
+  if (tenant === "itp" || tenant === "mediaCommons") {
+    console.log(`🎭 USING XSTATE FOR NO SHOW [${tenant?.toUpperCase()}]:`, {
+      calendarEventId: id,
+    });
+
+    try {
+      const { executeXStateTransition } = await import("@/lib/stateMachines/xstateUtils");
+      
+      const xstateResult = await executeXStateTransition(id, "noShow", tenant);
+
+      if (!xstateResult.success) {
+        console.error(`🚨 XSTATE NO SHOW FAILED [${tenant?.toUpperCase()}]:`, {
+          calendarEventId: id,
+          error: xstateResult.error,
+        });
+
+        // Fallback to traditional no show if XState fails
+        console.log(`🔄 FALLING BACK TO TRADITIONAL NO SHOW [${tenant?.toUpperCase()}]:`, {
+          calendarEventId: id,
+        });
+      } else {
+        console.log(`✅ XSTATE NO SHOW SUCCESS [${tenant?.toUpperCase()}]:`, {
+          calendarEventId: id,
+          newState: xstateResult.newState,
+        });
+      }
+    } catch (error) {
+      console.error(`🚨 XSTATE NO SHOW ERROR [${tenant?.toUpperCase()}]:`, {
+        calendarEventId: id,
+        error: error.message,
+      });
+      // Continue with traditional no show
+    }
+  } else {
+    console.log(
+      `📝 USING TRADITIONAL NO SHOW [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+      { calendarEventId: id },
+    );
+  }
+
   clientUpdateDataByCalendarEventId(
     TableNames.BOOKING,
     id,

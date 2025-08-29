@@ -393,6 +393,37 @@ export async function POST(request: NextRequest) {
     // Get the appropriate machine for the tenant
     const machine = tenant === "mediaCommons" ? mcBookingMachine : itpBookingMachine;
     
+    // For Media Commons, detect service requests from booking data
+    let servicesRequested = {};
+    let isVip = false;
+    
+    if (tenant === "mediaCommons") {
+      servicesRequested = {
+        setup: !!data.setupService,
+        staff: !!data.staffService,
+        equipment: !!data.equipmentService,
+        catering: !!data.cateringService,
+        cleaning: !!data.cleaningService,
+        security: !!data.securityService,
+      };
+      
+      // Check if user is VIP (you can customize this logic)
+      isVip = data.isVip || false;
+      
+      console.log(`🎭 XSTATE MEDIA COMMONS: Detected services`, {
+        servicesRequested,
+        isVip,
+        formData: {
+          setupService: data.setupService,
+          staffService: data.staffService,
+          equipmentService: data.equipmentService,
+          cateringService: data.cateringService,
+          cleaningService: data.cleaningService,
+          securityService: data.securityService,
+        }
+      });
+    }
+    
     // Create XState actor with booking context
     console.log(`🎭 XSTATE: Creating actor...`);
     const bookingActor = createActor(machine, {
@@ -404,6 +435,8 @@ export async function POST(request: NextRequest) {
         isWalkIn: false, // TODO: detect walk-in context
         email,
         calendarEventId: null, // Will be set after calendar event creation
+        servicesRequested: tenant === "mediaCommons" ? servicesRequested : undefined,
+        isVip: tenant === "mediaCommons" ? isVip : false,
       },
     });
 
