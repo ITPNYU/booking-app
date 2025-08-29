@@ -17,10 +17,10 @@ export async function POST(req: NextRequest) {
   // Get tenant from x-tenant header, fallback to default tenant
   const tenant = req.headers.get("x-tenant") || DEFAULT_TENANT;
 
-  // Only allow XState transitions for ITP tenant
-  if (tenant !== "itp") {
+  // Only allow XState transitions for ITP and Media Commons tenants
+  if (tenant !== "itp" && tenant !== "mediaCommons") {
     return NextResponse.json(
-      { error: "XState transitions are only supported for ITP tenant" },
+      { error: "XState transitions are only supported for ITP and Media Commons tenants" },
       { status: 400 },
     );
   }
@@ -42,6 +42,25 @@ export async function POST(req: NextRequest) {
     "noShow",
     "close",
     "autoCloseScript",
+    // Media Commons specific events
+    "approveSetup",
+    "approveStaff",
+    "declineSetup",
+    "declineStaff",
+    "closeoutSetup",
+    "closeoutStaff",
+    "approveCatering",
+    "approveCleaning",
+    "approveSecurity",
+    "declineCatering",
+    "declineCleaning",
+    "declineSecurity",
+    "approveEquipment",
+    "closeoutCatering",
+    "closeoutCleaning",
+    "closeoutSecurity",
+    "declineEquipment",
+    "closeoutEquipment",
   ];
 
   if (!validEventTypes.includes(eventType)) {
@@ -54,7 +73,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    console.log(`🎬 XSTATE TRANSITION REQUEST [ITP]:`, {
+    console.log(`🎬 XSTATE TRANSITION REQUEST [${tenant?.toUpperCase()}]:`, {
       calendarEventId,
       eventType,
       email,
@@ -71,7 +90,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: result.error }, { status: 400 });
     }
 
-    console.log(`✅ XSTATE TRANSITION SUCCESS [ITP]:`, {
+    console.log(`✅ XSTATE TRANSITION SUCCESS [${tenant?.toUpperCase()}]:`, {
       calendarEventId,
       eventType,
       newState: result.newState,
@@ -83,7 +102,7 @@ export async function POST(req: NextRequest) {
       message: `Successfully transitioned to ${result.newState}`,
     });
   } catch (error) {
-    console.error(`🚨 XSTATE TRANSITION ERROR [ITP]:`, {
+    console.error(`🚨 XSTATE TRANSITION ERROR [${tenant?.toUpperCase()}]:`, {
       calendarEventId,
       eventType,
       error: error.message,
@@ -104,10 +123,10 @@ export async function GET(req: NextRequest) {
   // Get tenant from x-tenant header, fallback to default tenant
   const tenant = req.headers.get("x-tenant") || DEFAULT_TENANT;
 
-  // Only allow XState transitions for ITP tenant
-  if (tenant !== "itp") {
+  // Only allow XState transitions for ITP and Media Commons tenants
+  if (tenant !== "itp" && tenant !== "mediaCommons") {
     return NextResponse.json(
-      { error: "XState transitions are only supported for ITP tenant" },
+      { error: "XState transitions are only supported for ITP and Media Commons tenants" },
       { status: 400 },
     );
   }
@@ -120,7 +139,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    console.log(`🔍 GETTING AVAILABLE XSTATE TRANSITIONS [ITP]:`, {
+    console.log(`🔍 GETTING AVAILABLE XSTATE TRANSITIONS [${tenant?.toUpperCase()}]:`, {
       calendarEventId,
       tenant,
     });
@@ -130,7 +149,7 @@ export async function GET(req: NextRequest) {
       tenant,
     );
 
-    console.log(`📋 AVAILABLE XSTATE TRANSITIONS [ITP]:`, {
+    console.log(`📋 AVAILABLE XSTATE TRANSITIONS [${tenant?.toUpperCase()}]:`, {
       calendarEventId,
       availableTransitions,
     });
@@ -140,7 +159,7 @@ export async function GET(req: NextRequest) {
       availableTransitions,
     });
   } catch (error) {
-    console.error(`🚨 ERROR GETTING XSTATE TRANSITIONS [ITP]:`, {
+    console.error(`🚨 ERROR GETTING XSTATE TRANSITIONS [${tenant?.toUpperCase()}]:`, {
       calendarEventId,
       error: error.message,
     });

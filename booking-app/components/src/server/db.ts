@@ -109,6 +109,58 @@ export const decline = async (
   reason?: string,
   tenant?: string
 ) => {
+  console.log(
+    `🎯 DECLINE REQUEST [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+    {
+      calendarEventId: id,
+      email,
+      tenant,
+      reason,
+      usingXState: tenant === "itp" || tenant === "mediaCommons",
+    },
+  );
+
+  // For ITP and Media Commons tenants, use XState transition
+  if (tenant === "itp" || tenant === "mediaCommons") {
+    console.log(`🎭 USING XSTATE FOR DECLINE [${tenant?.toUpperCase()}]:`, {
+      calendarEventId: id,
+    });
+
+    try {
+      const { executeXStateTransition } = await import("@/lib/stateMachines/xstateUtils");
+      
+      const xstateResult = await executeXStateTransition(id, "decline", tenant);
+
+      if (!xstateResult.success) {
+        console.error(`🚨 XSTATE DECLINE FAILED [${tenant?.toUpperCase()}]:`, {
+          calendarEventId: id,
+          error: xstateResult.error,
+        });
+
+        // Fallback to traditional decline if XState fails
+        console.log(`🔄 FALLING BACK TO TRADITIONAL DECLINE [${tenant?.toUpperCase()}]:`, {
+          calendarEventId: id,
+        });
+      } else {
+        console.log(`✅ XSTATE DECLINE SUCCESS [${tenant?.toUpperCase()}]:`, {
+          calendarEventId: id,
+          newState: xstateResult.newState,
+        });
+      }
+    } catch (error) {
+      console.error(`🚨 XSTATE DECLINE ERROR [${tenant?.toUpperCase()}]:`, {
+        calendarEventId: id,
+        error: error.message,
+      });
+      // Continue with traditional decline
+    }
+  } else {
+    console.log(
+      `📝 USING TRADITIONAL DECLINE [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+      { calendarEventId: id },
+    );
+  }
+
   clientUpdateDataByCalendarEventId(
     TableNames.BOOKING,
     id,
@@ -214,6 +266,58 @@ export const cancel = async (
   netId: string,
   tenant?: string
 ) => {
+  console.log(
+    `🎯 CANCEL REQUEST [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+    {
+      calendarEventId: id,
+      email,
+      tenant,
+      netId,
+      usingXState: tenant === "itp" || tenant === "mediaCommons",
+    },
+  );
+
+  // For ITP and Media Commons tenants, use XState transition
+  if (tenant === "itp" || tenant === "mediaCommons") {
+    console.log(`🎭 USING XSTATE FOR CANCEL [${tenant?.toUpperCase()}]:`, {
+      calendarEventId: id,
+    });
+
+    try {
+      const { executeXStateTransition } = await import("@/lib/stateMachines/xstateUtils");
+      
+      const xstateResult = await executeXStateTransition(id, "cancel", tenant);
+
+      if (!xstateResult.success) {
+        console.error(`🚨 XSTATE CANCEL FAILED [${tenant?.toUpperCase()}]:`, {
+          calendarEventId: id,
+          error: xstateResult.error,
+        });
+
+        // Fallback to traditional cancel if XState fails
+        console.log(`🔄 FALLING BACK TO TRADITIONAL CANCEL [${tenant?.toUpperCase()}]:`, {
+          calendarEventId: id,
+        });
+      } else {
+        console.log(`✅ XSTATE CANCEL SUCCESS [${tenant?.toUpperCase()}]:`, {
+          calendarEventId: id,
+          newState: xstateResult.newState,
+        });
+      }
+    } catch (error) {
+      console.error(`🚨 XSTATE CANCEL ERROR [${tenant?.toUpperCase()}]:`, {
+        calendarEventId: id,
+        error: error.message,
+      });
+      // Continue with traditional cancel
+    }
+  } else {
+    console.log(
+      `📝 USING TRADITIONAL CANCEL [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+      { calendarEventId: id },
+    );
+  }
+
   clientUpdateDataByCalendarEventId(
     TableNames.BOOKING,
     id,
@@ -346,6 +450,57 @@ export const updateOperationHours = async (
 };
 
 export const checkin = async (id: string, email: string, tenant?: string) => {
+  console.log(
+    `🎯 CHECKIN REQUEST [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+    {
+      calendarEventId: id,
+      email,
+      tenant,
+      usingXState: tenant === "itp" || tenant === "mediaCommons",
+    },
+  );
+
+  // For ITP and Media Commons tenants, use XState transition
+  if (tenant === "itp" || tenant === "mediaCommons") {
+    console.log(`🎭 USING XSTATE FOR CHECKIN [${tenant?.toUpperCase()}]:`, {
+      calendarEventId: id,
+    });
+
+    try {
+      const { executeXStateTransition } = await import("@/lib/stateMachines/xstateUtils");
+      
+      const xstateResult = await executeXStateTransition(id, "checkIn", tenant);
+
+      if (!xstateResult.success) {
+        console.error(`🚨 XSTATE CHECKIN FAILED [${tenant?.toUpperCase()}]:`, {
+          calendarEventId: id,
+          error: xstateResult.error,
+        });
+
+        // Fallback to traditional checkin if XState fails
+        console.log(`🔄 FALLING BACK TO TRADITIONAL CHECKIN [${tenant?.toUpperCase()}]:`, {
+          calendarEventId: id,
+        });
+      } else {
+        console.log(`✅ XSTATE CHECKIN SUCCESS [${tenant?.toUpperCase()}]:`, {
+          calendarEventId: id,
+          newState: xstateResult.newState,
+        });
+      }
+    } catch (error) {
+      console.error(`🚨 XSTATE CHECKIN ERROR [${tenant?.toUpperCase()}]:`, {
+        calendarEventId: id,
+        error: error.message,
+      });
+      // Continue with traditional checkin
+    }
+  } else {
+    console.log(
+      `📝 USING TRADITIONAL CHECKIN [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+      { calendarEventId: id },
+    );
+  }
+
   clientUpdateDataByCalendarEventId(
     TableNames.BOOKING,
     id,
@@ -402,6 +557,57 @@ export const checkin = async (id: string, email: string, tenant?: string) => {
 };
 
 export const checkOut = async (id: string, email: string, tenant?: string) => {
+  console.log(
+    `🎯 CHECKOUT REQUEST [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+    {
+      calendarEventId: id,
+      email,
+      tenant,
+      usingXState: tenant === "itp" || tenant === "mediaCommons",
+    },
+  );
+
+  // For ITP and Media Commons tenants, use XState transition
+  if (tenant === "itp" || tenant === "mediaCommons") {
+    console.log(`🎭 USING XSTATE FOR CHECKOUT [${tenant?.toUpperCase()}]:`, {
+      calendarEventId: id,
+    });
+
+    try {
+      const { executeXStateTransition } = await import("@/lib/stateMachines/xstateUtils");
+      
+      const xstateResult = await executeXStateTransition(id, "checkOut", tenant);
+
+      if (!xstateResult.success) {
+        console.error(`🚨 XSTATE CHECKOUT FAILED [${tenant?.toUpperCase()}]:`, {
+          calendarEventId: id,
+          error: xstateResult.error,
+        });
+
+        // Fallback to traditional checkout if XState fails
+        console.log(`🔄 FALLING BACK TO TRADITIONAL CHECKOUT [${tenant?.toUpperCase()}]:`, {
+          calendarEventId: id,
+        });
+      } else {
+        console.log(`✅ XSTATE CHECKOUT SUCCESS [${tenant?.toUpperCase()}]:`, {
+          calendarEventId: id,
+          newState: xstateResult.newState,
+        });
+      }
+    } catch (error) {
+      console.error(`🚨 XSTATE CHECKOUT ERROR [${tenant?.toUpperCase()}]:`, {
+        calendarEventId: id,
+        error: error.message,
+      });
+      // Continue with traditional checkout
+    }
+  } else {
+    console.log(
+      `📝 USING TRADITIONAL CHECKOUT [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+      { calendarEventId: id },
+    );
+  }
+
   const checkoutDate = roundTimeUp();
   clientUpdateDataByCalendarEventId(
     TableNames.BOOKING,

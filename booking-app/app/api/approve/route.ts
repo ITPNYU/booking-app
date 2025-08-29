@@ -17,31 +17,31 @@ export async function POST(req: NextRequest) {
         calendarEventId: id,
         email,
         tenant,
-        usingXState: tenant === "itp",
+        usingXState: tenant === "itp" || tenant === "mediaCommons",
       },
     );
 
-    // For ITP tenant, use XState transition
-    if (tenant === "itp") {
-      console.log(`🎭 USING XSTATE FOR APPROVAL [ITP]:`, {
+    // For ITP and Media Commons tenants, use XState transition
+    if (tenant === "itp" || tenant === "mediaCommons") {
+      console.log(`🎭 USING XSTATE FOR APPROVAL [${tenant?.toUpperCase()}]:`, {
         calendarEventId: id,
       });
 
       const xstateResult = await executeXStateTransition(id, "approve", tenant);
 
       if (!xstateResult.success) {
-        console.error(`🚨 XSTATE APPROVAL FAILED [ITP]:`, {
+        console.error(`🚨 XSTATE APPROVAL FAILED [${tenant?.toUpperCase()}]:`, {
           calendarEventId: id,
           error: xstateResult.error,
         });
 
         // Fallback to traditional approval if XState fails
-        console.log(`🔄 FALLING BACK TO TRADITIONAL APPROVAL [ITP]:`, {
+        console.log(`🔄 FALLING BACK TO TRADITIONAL APPROVAL [${tenant?.toUpperCase()}]:`, {
           calendarEventId: id,
         });
         await serverApproveBooking(id, email, tenant);
       } else {
-        console.log(`✅ XSTATE APPROVAL SUCCESS [ITP]:`, {
+        console.log(`✅ XSTATE APPROVAL SUCCESS [${tenant?.toUpperCase()}]:`, {
           calendarEventId: id,
           newState: xstateResult.newState,
         });
@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
         await serverApproveBooking(id, email, tenant);
       }
     } else {
-      // Traditional approval for non-ITP tenants
+      // Traditional approval for other tenants
       console.log(
         `📝 USING TRADITIONAL APPROVAL [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
         { calendarEventId: id },

@@ -3,6 +3,7 @@ import { BookingStatusLabel } from "@/components/src/types";
 import { serverGetDataByCalendarEventId } from "@/lib/firebase/server/adminDb";
 import { ActorRefFrom, createActor } from "xstate";
 import { itpBookingMachine } from "./itpBookingMachine";
+import { mcBookingMachine } from "./mcBookingMachine";
 
 // Type for persisted XState data
 export interface PersistedXStateData {
@@ -41,6 +42,19 @@ function mapBookingStatusToXState(status: string): string {
 }
 
 /**
+ * Get the appropriate machine for a tenant
+ */
+function getMachineForTenant(tenant?: string) {
+  switch (tenant) {
+    case "mediaCommons":
+      return mcBookingMachine;
+    case "itp":
+    default:
+      return itpBookingMachine;
+  }
+}
+
+/**
  * Create XState data from existing booking data when XState is not present
  */
 async function createXStateFromBookingStatus(
@@ -60,20 +74,54 @@ async function createXStateFromBookingStatus(
     }
   );
 
-  // Create a temporary actor to get the correct context and transitions
-  const tempActor = createActor(itpBookingMachine, {
-    input: {
-      tenant,
-      selectedRooms: [], // We don't have this info, but it's not critical for state management
-      formData: bookingData,
-      bookingCalendarInfo: {
-        startStr: bookingData.startDate?.toDate?.()?.toISOString(),
-        endStr: bookingData.endDate?.toDate?.()?.toISOString(),
-      },
-      isWalkIn: false,
-      calendarEventId,
-      email: bookingData.email,
+  // Get the appropriate machine for the tenant
+  const machine = getMachineForTenant(tenant);
+
+  // Create input context based on tenant
+  const inputContext = tenant === "mediaCommons" ? {
+    tenant,
+    selectedRooms: [], // We don't have this info, but it's not critical for state management
+    formData: bookingData,
+    bookingCalendarInfo: {
+      startStr: bookingData.startDate?.toDate?.()?.toISOString(),
+      endStr: bookingData.endDate?.toDate?.()?.toISOString(),
     },
+    isWalkIn: false,
+    calendarEventId,
+    email: bookingData.email,
+    isVip: bookingData.isVip || false,
+    servicesRequested: {
+      staff: bookingData.staffRequested || false,
+      equipment: bookingData.equipmentRequested || false,
+      catering: bookingData.cateringRequested || false,
+      cleaning: bookingData.cleaningRequested || false,
+      security: bookingData.securityRequested || false,
+      setup: bookingData.setupRequested || false,
+    },
+    servicesApproved: {
+      staff: bookingData.staffApproved,
+      equipment: bookingData.equipmentApproved,
+      catering: bookingData.cateringApproved,
+      cleaning: bookingData.cleaningApproved,
+      security: bookingData.securityApproved,
+      setup: bookingData.setupApproved,
+    },
+  } : {
+    tenant,
+    selectedRooms: [], // We don't have this info, but it's not critical for state management
+    formData: bookingData,
+    bookingCalendarInfo: {
+      startStr: bookingData.startDate?.toDate?.()?.toISOString(),
+      endStr: bookingData.endDate?.toDate?.()?.toISOString(),
+    },
+    isWalkIn: false,
+    calendarEventId,
+    email: bookingData.email,
+  };
+
+  // Create a temporary actor to get the correct context and transitions
+  const tempActor = createActor(machine, {
+    input: inputContext,
   });
 
   tempActor.start();
@@ -190,7 +238,7 @@ async function createXStateFromBookingStatus(
   const xstateData: PersistedXStateData = {
     currentState: xstateState,
     context: cleanContext,
-    machineId: itpBookingMachine.id,
+    machineId: machine.id,
     lastTransition: new Date().toISOString(),
     canTransitionTo: getTransitionsForState(xstateState),
   };
@@ -228,7 +276,7 @@ async function createXStateFromBookingStatus(
 export async function restoreXStateFromFirestore(
   calendarEventId: string,
   tenant?: string
-): Promise<ActorRefFrom<typeof itpBookingMachine> | null> {
+): Promise<any> {
   try {
     console.log(
       `🔄 RESTORING XSTATE FROM FIRESTORE [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
@@ -264,8 +312,8 @@ export async function restoreXStateFromFirestore(
       );
 
       // If we have booking data but no XState data, create XState from booking status
-      if (bookingData && tenant === "itp") {
-        console.log(`🔧 CREATING XSTATE FROM BOOKING STATUS [ITP]:`, {
+      if (bookingData && (tenant === "itp" || tenant === "mediaCommons")) {
+        console.log(`🔧 CREATING XSTATE FROM BOOKING STATUS [${tenant?.toUpperCase()}]:`, {
           calendarEventId,
           bookingStatus: (bookingData as any).status,
         });
@@ -277,10 +325,13 @@ export async function restoreXStateFromFirestore(
             tenant
           );
 
+          // Get the appropriate machine for the tenant
+          const machine = getMachineForTenant(tenant);
+
           // Create actor with the newly created XState data
           // Note: We can't directly set the state in XState v5, but we store the state info
           // for reference and let the machine determine transitions from the context
-          const restoredActor = createActor(itpBookingMachine, {
+          const restoredActor = createActor(machine, {
             input: {
               ...xstateData.context,
               // Add a flag to indicate this is a restored state
@@ -289,7 +340,7 @@ export async function restoreXStateFromFirestore(
             },
           });
 
-          console.log(`✅ XSTATE ACTOR CREATED FROM BOOKING STATUS [ITP]:`, {
+          console.log(`✅ XSTATE ACTOR CREATED FROM BOOKING STATUS [${tenant?.toUpperCase()}]:`, {
             calendarEventId,
             createdState: xstateData.currentState,
             contextKeys: Object.keys(xstateData.context || {}),
@@ -297,7 +348,7 @@ export async function restoreXStateFromFirestore(
 
           return restoredActor;
         } catch (error) {
-          console.error(`🚨 ERROR CREATING XSTATE FROM BOOKING STATUS [ITP]:`, {
+          console.error(`🚨 ERROR CREATING XSTATE FROM BOOKING STATUS [${tenant?.toUpperCase()}]:`, {
             calendarEventId,
             error: error.message,
           });
@@ -322,12 +373,15 @@ export async function restoreXStateFromFirestore(
       }
     );
 
+    // Get the appropriate machine for the tenant
+    const machine = getMachineForTenant(tenant);
+
     // Validate machine ID
-    if (xstateData.machineId !== itpBookingMachine.id) {
+    if (xstateData.machineId !== machine.id) {
       console.warn(
         `⚠️ XSTATE MACHINE ID MISMATCH [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
         {
-          expected: itpBookingMachine.id,
+          expected: machine.id,
           found: xstateData.machineId,
         }
       );
@@ -335,7 +389,7 @@ export async function restoreXStateFromFirestore(
     }
 
     // Create actor with restored context
-    const restoredActor = createActor(itpBookingMachine, {
+    const restoredActor = createActor(machine, {
       input: xstateData.context,
     });
 
@@ -441,11 +495,14 @@ export async function executeXStateTransition(
       Object.entries(newSnapshot.context).filter(([_, value]) => value !== undefined)
     );
 
+    // Get the appropriate machine for the tenant to get the correct machine ID
+    const machine = getMachineForTenant(tenant);
+
     // Prepare updated XState data for persistence
     const updatedXStateData: PersistedXStateData = {
       currentState: newSnapshot.value as string,
       context: cleanNewContext,
-      machineId: itpBookingMachine.id,
+      machineId: machine.id,
       lastTransition: new Date().toISOString(),
       canTransitionTo: {
         approve: newSnapshot.can({ type: "approve" }),
@@ -524,8 +581,8 @@ export async function getAvailableXStateTransitions(
       !bookingData.xstateData
     ) {
       // If we have booking data but no XState data, create XState from booking status
-      if (bookingData && tenant === "itp") {
-        console.log(`🔧 CREATING XSTATE FOR TRANSITIONS [ITP]:`, {
+      if (bookingData && (tenant === "itp" || tenant === "mediaCommons")) {
+        console.log(`🔧 CREATING XSTATE FOR TRANSITIONS [${tenant?.toUpperCase()}]:`, {
           calendarEventId,
           bookingStatus: (bookingData as any).status,
         });
