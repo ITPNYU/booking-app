@@ -30,7 +30,6 @@ import { CALENDAR_HIDE_STATUS, TableNames } from "@/components/src/policy";
 import { getCalendarClient } from "@/lib/googleClient";
 import { Timestamp } from "firebase-admin/firestore";
 import { DateSelectArg } from "fullcalendar";
-import { formatOrigin } from "@/components/src/utils/formatters";
 
 // Helper to build booking contents object for calendar descriptions
 const buildBookingContents = (
