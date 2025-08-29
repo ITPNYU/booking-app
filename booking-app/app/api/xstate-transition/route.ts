@@ -1,10 +1,10 @@
-import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
+import { DEFAULT_TENANT, TENANTS } from "@/components/src/constants/tenants";
 import { NextRequest, NextResponse } from "next/server";
 
 import {
   executeXStateTransition,
   getAvailableXStateTransitions,
-} from "@/lib/stateMachines/xstateUtils";
+} from "@/lib/stateMachines/xstateUtilsV5";
 
 /**
  * Execute XState transition for ITP bookings
@@ -18,9 +18,12 @@ export async function POST(req: NextRequest) {
   const tenant = req.headers.get("x-tenant") || DEFAULT_TENANT;
 
   // Only allow XState transitions for ITP and Media Commons tenants
-  if (tenant !== "itp" && tenant !== "mediaCommons") {
+  if (tenant !== TENANTS.ITP && tenant !== TENANTS.MC) {
     return NextResponse.json(
-      { error: "XState transitions are only supported for ITP and Media Commons tenants" },
+      {
+        error:
+          "XState transitions are only supported for ITP and Media Commons tenants",
+      },
       { status: 400 },
     );
   }
@@ -124,9 +127,12 @@ export async function GET(req: NextRequest) {
   const tenant = req.headers.get("x-tenant") || DEFAULT_TENANT;
 
   // Only allow XState transitions for ITP and Media Commons tenants
-  if (tenant !== "itp" && tenant !== "mediaCommons") {
+  if (tenant !== TENANTS.ITP && tenant !== TENANTS.MC) {
     return NextResponse.json(
-      { error: "XState transitions are only supported for ITP and Media Commons tenants" },
+      {
+        error:
+          "XState transitions are only supported for ITP and Media Commons tenants",
+      },
       { status: 400 },
     );
   }
@@ -139,10 +145,13 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    console.log(`🔍 GETTING AVAILABLE XSTATE TRANSITIONS [${tenant?.toUpperCase()}]:`, {
-      calendarEventId,
-      tenant,
-    });
+    console.log(
+      `🔍 GETTING AVAILABLE XSTATE TRANSITIONS [${tenant?.toUpperCase()}]:`,
+      {
+        calendarEventId,
+        tenant,
+      },
+    );
 
     const availableTransitions = await getAvailableXStateTransitions(
       calendarEventId,
@@ -159,10 +168,13 @@ export async function GET(req: NextRequest) {
       availableTransitions,
     });
   } catch (error) {
-    console.error(`🚨 ERROR GETTING XSTATE TRANSITIONS [${tenant?.toUpperCase()}]:`, {
-      calendarEventId,
-      error: error.message,
-    });
+    console.error(
+      `🚨 ERROR GETTING XSTATE TRANSITIONS [${tenant?.toUpperCase()}]:`,
+      {
+        calendarEventId,
+        error: error.message,
+      },
+    );
 
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

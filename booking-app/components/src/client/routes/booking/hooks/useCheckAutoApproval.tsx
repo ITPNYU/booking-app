@@ -240,7 +240,7 @@ export default function useCheckAutoApproval(isWalkIn = false) {
       isAutoApproval,
       errorMessage,
       finalDecision: isAutoApproval ? "APPROVED" : "REJECTED",
-      usingXState: schema.tenant === "itp",
+      usingXState: true,
       method: schema.tenant === "itp" ? "XState Machine" : "Traditional Logic",
     }
   );

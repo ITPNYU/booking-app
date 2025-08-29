@@ -45,6 +45,8 @@ export default function StatusChip({
         return "rgba(6, 180, 255, 1)";
       case BookingStatusLabel.PENDING:
         return "rgba(223, 26, 255, 1)";
+      case BookingStatusLabel.PRE_APPROVED:
+        return "rgba(147, 51, 234, 1)";
       case BookingStatusLabel.DECLINED:
         return "rgba(255, 26, 26, 1)";
       case BookingStatusLabel.REQUESTED:
@@ -75,6 +77,8 @@ export default function StatusChip({
         return "rgba(6, 180, 255, 0.11)";
       case BookingStatusLabel.PENDING:
         return "rgba(223, 26, 255, 0.11)";
+      case BookingStatusLabel.PRE_APPROVED:
+        return "rgba(147, 51, 234, 0.11)";
       case BookingStatusLabel.DECLINED:
         return "rgba(255, 26, 26, 0.11)";
       case BookingStatusLabel.REQUESTED:
@@ -102,6 +106,8 @@ export default function StatusChip({
         return "No Show";
       case BookingStatusLabel.PENDING:
         return "Pending";
+      case BookingStatusLabel.PRE_APPROVED:
+        return "Pre-Approved";
       case BookingStatusLabel.DECLINED:
         return "Declined";
       case BookingStatusLabel.REQUESTED:
@@ -127,6 +133,8 @@ export default function StatusChip({
         return "Your reservation has been cancelled as you did not check in on time.";
       case BookingStatusLabel.PENDING:
         return "Your request has been partially approved, still pending final approval.";
+      case BookingStatusLabel.PRE_APPROVED:
+        return "Your request has been pre-approved and is awaiting final approval.";
       case BookingStatusLabel.DECLINED:
         return "Your request has been declined.";
       case BookingStatusLabel.REQUESTED:

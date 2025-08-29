@@ -2,7 +2,8 @@ import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
 import { NextRequest, NextResponse } from "next/server";
 
 import { serverApproveBooking } from "@/components/src/server/admin";
-import { executeXStateTransition } from "@/lib/stateMachines/xstateUtils";
+import { shouldUseXState } from "@/components/src/utils/tenantUtils";
+import { executeXStateTransition } from "@/lib/stateMachines/xstateUtilsV5";
 
 export async function POST(req: NextRequest) {
   const { id, email } = await req.json();
@@ -17,12 +18,12 @@ export async function POST(req: NextRequest) {
         calendarEventId: id,
         email,
         tenant,
-        usingXState: tenant === "itp" || tenant === "mediaCommons",
+        usingXState: shouldUseXState(tenant),
       },
     );
 
     // For ITP and Media Commons tenants, use XState transition
-    if (tenant === "itp" || tenant === "mediaCommons") {
+    if (shouldUseXState(tenant)) {
       console.log(`🎭 USING XSTATE FOR APPROVAL [${tenant?.toUpperCase()}]:`, {
         calendarEventId: id,
       });
@@ -36,9 +37,12 @@ export async function POST(req: NextRequest) {
         });
 
         // Fallback to traditional approval if XState fails
-        console.log(`🔄 FALLING BACK TO TRADITIONAL APPROVAL [${tenant?.toUpperCase()}]:`, {
-          calendarEventId: id,
-        });
+        console.log(
+          `🔄 FALLING BACK TO TRADITIONAL APPROVAL [${tenant?.toUpperCase()}]:`,
+          {
+            calendarEventId: id,
+          },
+        );
         await serverApproveBooking(id, email, tenant);
       } else {
         console.log(`✅ XSTATE APPROVAL SUCCESS [${tenant?.toUpperCase()}]:`, {
@@ -46,8 +50,40 @@ export async function POST(req: NextRequest) {
           newState: xstateResult.newState,
         });
 
-        // Still call traditional approval for side effects (emails, status updates)
-        await serverApproveBooking(id, email, tenant);
+        // Handle different XState results
+        if (xstateResult.newState === 'Approved') {
+          console.log(
+            `🎉 XSTATE REACHED APPROVED STATE - EXECUTING FINAL APPROVAL SIDE EFFECTS [${tenant?.toUpperCase()}]:`,
+            {
+              calendarEventId: id,
+              newState: xstateResult.newState,
+            }
+          );
+          
+          // Execute traditional approval for side effects (emails, calendar updates, etc.)
+          await serverApproveBooking(id, email, tenant);
+        } else if (xstateResult.newState === 'Pre-approved') {
+          console.log(
+            `🎯 XSTATE REACHED PRE-APPROVED STATE - EXECUTING FIRST APPROVAL SIDE EFFECTS [${tenant?.toUpperCase()}]:`,
+            {
+              calendarEventId: id,
+              newState: xstateResult.newState,
+            }
+          );
+          
+          // Execute first approval side effects (update firstApprovedAt, etc.)
+          const { serverFirstApproveOnly } = await import("@/components/src/server/admin");
+          await serverFirstApproveOnly(id, email, tenant);
+        } else {
+          console.log(
+            `🚫 XSTATE DID NOT REACH EXPECTED STATE - SKIPPING APPROVAL SIDE EFFECTS [${tenant?.toUpperCase()}]:`,
+            {
+              calendarEventId: id,
+              newState: xstateResult.newState,
+              expectedStates: ['Approved', 'Pre-approved'],
+            }
+          );
+        }
       }
     } else {
       // Traditional approval for other tenants

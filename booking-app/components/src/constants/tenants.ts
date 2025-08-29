@@ -1,6 +1,7 @@
 // Tenant constants
 export const TENANTS = {
   MC: "mc",
+  MEDIA_COMMONS: "mediaCommons",
   ITP: "itp",
 } as const;
 

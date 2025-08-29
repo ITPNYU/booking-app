@@ -1,4 +1,5 @@
-import { setup, and } from "xstate";
+import { TENANTS } from "@/components/src/constants/tenants";
+import { setup, and, assign } from "xstate";
 
 // Define context type for type safety
 interface MediaCommonsBookingContext {
@@ -70,7 +71,7 @@ export const mcBookingMachine = setup({
     createCalendarEvent: ({ context, event }) => {
       console.log(`📅 XSTATE ACTION: createCalendarEvent executed`, {
         tenant: context.tenant,
-        selectedRoomsCount: context.selectedRooms?.length,
+        selectedRoomsCount: context.selectedRooms?.length || 0,
         calendarEventId: context.calendarEventId,
       });
     },
@@ -93,6 +94,80 @@ export const mcBookingMachine = setup({
         email: context.email,
       });
     },
+    // Service approval actions that update context
+    approveStaffService: assign({
+      servicesApproved: ({ context }) => ({
+        ...context.servicesApproved,
+        staff: true,
+      }),
+    }),
+    approveEquipmentService: assign({
+      servicesApproved: ({ context }) => ({
+        ...context.servicesApproved,
+        equipment: true,
+      }),
+    }),
+    approveCateringService: assign({
+      servicesApproved: ({ context }) => ({
+        ...context.servicesApproved,
+        catering: true,
+      }),
+    }),
+    approveCleaningService: assign({
+      servicesApproved: ({ context }) => ({
+        ...context.servicesApproved,
+        cleaning: true,
+      }),
+    }),
+    approveSecurityService: assign({
+      servicesApproved: ({ context }) => ({
+        ...context.servicesApproved,
+        security: true,
+      }),
+    }),
+    approveSetupService: assign({
+      servicesApproved: ({ context }) => ({
+        ...context.servicesApproved,
+        setup: true,
+      }),
+    }),
+    // Service decline actions that update context
+    declineStaffService: assign({
+      servicesApproved: ({ context }) => ({
+        ...context.servicesApproved,
+        staff: false,
+      }),
+    }),
+    declineEquipmentService: assign({
+      servicesApproved: ({ context }) => ({
+        ...context.servicesApproved,
+        equipment: false,
+      }),
+    }),
+    declineCateringService: assign({
+      servicesApproved: ({ context }) => ({
+        ...context.servicesApproved,
+        catering: false,
+      }),
+    }),
+    declineCleaningService: assign({
+      servicesApproved: ({ context }) => ({
+        ...context.servicesApproved,
+        cleaning: false,
+      }),
+    }),
+    declineSecurityService: assign({
+      servicesApproved: ({ context }) => ({
+        ...context.servicesApproved,
+        security: false,
+      }),
+    }),
+    declineSetupService: assign({
+      servicesApproved: ({ context }) => ({
+        ...context.servicesApproved,
+        setup: false,
+      }),
+    }),
   },
   guards: {
     shouldAutoApprove: ({ context }) => {
@@ -101,7 +176,7 @@ export const mcBookingMachine = setup({
         {
           context,
           tenant: context.tenant,
-          selectedRooms: context.selectedRooms?.length,
+          selectedRooms: context.selectedRooms?.length || 0,
           formData: context.formData,
           bookingDuration: context.bookingCalendarInfo
             ? `${((new Date(context.bookingCalendarInfo.endStr).getTime() - new Date(context.bookingCalendarInfo.startStr).getTime()) / (1000 * 60 * 60)).toFixed(1)} hours`
@@ -112,7 +187,7 @@ export const mcBookingMachine = setup({
       );
 
       // Implement actual auto-approval logic for Media Commons
-      if (context.tenant !== "mediaCommons") {
+      if (context.tenant !== TENANTS.MC) {
         console.log(
           `🚫 XSTATE GUARD: Not Media Commons tenant (${context.tenant}), rejecting auto-approval`
         );
@@ -123,7 +198,7 @@ export const mcBookingMachine = setup({
       }
 
       // Check if any services are requested - if so, don't auto-approve
-      if (context.servicesRequested) {
+      if (context.servicesRequested && typeof context.servicesRequested === 'object') {
         const hasServices = Object.values(context.servicesRequested).some(Boolean);
         if (hasServices) {
           console.log(`🚫 XSTATE GUARD: Services requested, requires manual approval`);
@@ -135,17 +210,17 @@ export const mcBookingMachine = setup({
       }
 
       // Check rooms require approval
-      if (context.selectedRooms && !context.isWalkIn) {
+      if (context.selectedRooms && context.selectedRooms.length > 0 && !context.isWalkIn) {
         const allRoomsAutoApprove = context.selectedRooms.every(
-          (room) => room.shouldAutoApprove || false
+          (room) => room && room.shouldAutoApprove || false
         );
         if (!allRoomsAutoApprove) {
           console.log(
             `🚫 XSTATE GUARD: At least one room is not eligible for auto approval`,
             {
               roomsAutoApprove: context.selectedRooms.map((r) => ({
-                roomId: r.roomId,
-                shouldAutoApprove: r.shouldAutoApprove,
+                roomId: r?.roomId,
+                shouldAutoApprove: r?.shouldAutoApprove,
               })),
             }
           );
@@ -167,7 +242,7 @@ export const mcBookingMachine = setup({
         return isVip;
       },
       ({ context }) => {
-        const hasServices = context.servicesRequested 
+        const hasServices = context.servicesRequested && typeof context.servicesRequested === 'object'
           ? Object.values(context.servicesRequested).some(Boolean)
           : false;
         console.log(`🎯 XSTATE GUARD: Checking servicesRequested: ${hasServices}`);
@@ -175,16 +250,27 @@ export const mcBookingMachine = setup({
       },
     ]),
     servicesRequested: ({ context }) => {
-      const hasServices = context.servicesRequested 
+      const hasServices = context.servicesRequested && typeof context.servicesRequested === 'object'
         ? Object.values(context.servicesRequested).some(Boolean)
         : false;
       console.log(`🎯 XSTATE GUARD: servicesRequested: ${hasServices}`);
       return hasServices;
     },
     servicesApproved: ({ context }) => {
-      if (!context.servicesRequested || !context.servicesApproved) return false;
+      if (!context.servicesRequested || typeof context.servicesRequested !== 'object') return false;
       
-      // Check if all requested services are approved
+      // Check if any services are actually requested
+      const hasRequestedServices = Object.values(context.servicesRequested).some(Boolean);
+      
+      // If no services are requested, consider all "approved"
+      if (!hasRequestedServices) {
+        console.log(`🎯 XSTATE GUARD: servicesApproved: true (no services requested)`);
+        return true;
+      }
+      
+      // If services are requested, check if all requested services are approved
+      if (!context.servicesApproved || typeof context.servicesApproved !== 'object') return false;
+      
       const allApproved = Object.entries(context.servicesRequested).every(([service, requested]) => {
         if (!requested) return true; // If not requested, consider it "approved"
         return context.servicesApproved?.[service as keyof typeof context.servicesApproved] === true;
@@ -194,7 +280,8 @@ export const mcBookingMachine = setup({
       return allApproved;
     },
     servicesDeclined: ({ context }) => {
-      if (!context.servicesRequested || !context.servicesApproved) return false;
+      if (!context.servicesRequested || typeof context.servicesRequested !== 'object' || 
+          !context.servicesApproved || typeof context.servicesApproved !== 'object') return false;
       
       // Check if any requested service is explicitly declined
       const anyDeclined = Object.entries(context.servicesRequested).some(([service, requested]) => {
@@ -269,15 +356,15 @@ export const mcBookingMachine = setup({
 }).createMachine({
   context: ({ input }: { input?: MediaCommonsBookingContext }) => ({
     tenant: input?.tenant,
-    selectedRooms: input?.selectedRooms,
+    selectedRooms: input?.selectedRooms || [],
     formData: input?.formData,
     bookingCalendarInfo: input?.bookingCalendarInfo,
     isWalkIn: input?.isWalkIn || false,
     calendarEventId: input?.calendarEventId,
     email: input?.email,
     isVip: input?.isVip || false,
-    servicesRequested: input?.servicesRequested || {},
-    servicesApproved: input?.servicesApproved || {},
+    servicesRequested: input?.servicesRequested && typeof input.servicesRequested === 'object' ? input.servicesRequested : {},
+    servicesApproved: input?.servicesApproved && typeof input.servicesApproved === 'object' ? input.servicesApproved : {},
   }),
   id: "MC Booking Request",
   initial: "Requested",
@@ -406,6 +493,9 @@ export const mcBookingMachine = setup({
         cancel: {
           target: "Canceled",
         },
+        decline: {
+          target: "Declined",
+        },
         noShow: {
           target: "No Show",
         },
@@ -482,9 +572,11 @@ export const mcBookingMachine = setup({
               on: {
                 declineStaff: {
                   target: "Staff Declined",
+                  actions: "declineStaffService",
                 },
                 approveStaff: {
                   target: "Staff Approved",
+                  actions: "approveStaffService",
                 },
               },
               entry: [
@@ -549,9 +641,11 @@ export const mcBookingMachine = setup({
               on: {
                 approveCatering: {
                   target: "Catering Approved",
+                  actions: "approveCateringService",
                 },
                 declineCatering: {
                   target: "Catering Declined",
+                  actions: "declineCateringService",
                 },
               },
               entry: [
@@ -616,9 +710,11 @@ export const mcBookingMachine = setup({
               on: {
                 declineSetup: {
                   target: "Setup Declined",
+                  actions: "declineSetupService",
                 },
                 approveSetup: {
                   target: "Setup Approved",
+                  actions: "approveSetupService",
                 },
               },
               entry: [
@@ -683,9 +779,11 @@ export const mcBookingMachine = setup({
               on: {
                 approveCleaning: {
                   target: "Cleaning Approved",
+                  actions: "approveCleaningService",
                 },
                 declineCleaning: {
                   target: "Cleaning Declined",
+                  actions: "declineCleaningService",
                 },
               },
               entry: [
@@ -750,9 +848,11 @@ export const mcBookingMachine = setup({
               on: {
                 approveSecurity: {
                   target: "Security Approved",
+                  actions: "approveSecurityService",
                 },
                 declineSecurity: {
                   target: "Security Declined",
+                  actions: "declineSecurityService",
                 },
               },
               entry: [
@@ -817,9 +917,11 @@ export const mcBookingMachine = setup({
               on: {
                 approveEquipment: {
                   target: "Equipment Approved",
+                  actions: "approveEquipmentService",
                 },
                 declineEquipment: {
                   target: "Equipment Declined",
+                  actions: "declineEquipmentService",
                 },
               },
               entry: [
@@ -860,6 +962,12 @@ export const mcBookingMachine = setup({
     "Pre-approved": {
       on: {
         approve: [
+          {
+            target: "Approved",
+            guard: {
+              type: "servicesApproved",
+            },
+          },
           {
             target: "Services Request",
             guard: {

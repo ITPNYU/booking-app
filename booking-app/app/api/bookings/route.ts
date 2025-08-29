@@ -33,6 +33,7 @@ import { sendHTMLEmail } from "@/app/lib/sendHTMLEmail";
 import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
 import { CALENDAR_HIDE_STATUS, TableNames } from "@/components/src/policy";
 import { formatOrigin } from "@/components/src/utils/formatters";
+import { isMediaCommons, getMediaCommonsServices } from "@/components/src/utils/tenantUtils";
 import { serverGetDocumentById } from "@/lib/firebase/server/adminDb";
 import { getCalendarClient } from "@/lib/googleClient";
 import { Timestamp } from "firebase-admin/firestore";
@@ -84,6 +85,22 @@ const getTenantRooms = async (tenant?: string) => {
     return [];
   }
 };
+
+// Helper functions for tenant-specific logic
+const getTenantFlags = (tenant: string) => {
+  return {
+    isITP: tenant === "itp",
+    isMediaCommons: isMediaCommons(tenant),
+    usesXState: true,
+  };
+};
+
+const getXStateMachine = (tenant?: string) => {
+  if (isMediaCommons(tenant)) return mcBookingMachine;
+  if (tenant === "itp") return itpBookingMachine;
+  return null;
+};
+
 
 // Helper to build booking contents object for calendar descriptions
 const buildBookingContents = (
@@ -329,9 +346,12 @@ export async function POST(request: NextRequest) {
 
   // Extract tenant from URL
   const tenant = extractTenantFromRequest(request);
+  // Get tenant-specific flags
+  const { isITP, isMediaCommons, usesXState } = getTenantFlags(tenant);
 
   console.log(`🏢 BOOKING API [${tenant?.toUpperCase() || "UNKNOWN"}]:`, {
     tenant,
+    tenantFlags: { isITP, isMediaCommons, usesXState },
     email,
     selectedRooms: selectedRooms?.map((r: any) => ({
       roomId: r.roomId,
@@ -370,8 +390,10 @@ export async function POST(request: NextRequest) {
   let xstateData: any = undefined;
 
   // Use XState machine for ITP and Media Commons tenant auto-approval logic
-  if (tenant === "itp" || tenant === "mediaCommons") {
-    console.log(`🎭 USING XSTATE FOR ${tenant?.toUpperCase()} AUTO-APPROVAL LOGIC`);
+  if (usesXState) {
+    console.log(
+      `🎭 USING XSTATE FOR ${tenant?.toUpperCase()} AUTO-APPROVAL LOGIC`,
+    );
     console.log(`🎭 XSTATE INPUT DATA:`, {
       tenant,
       selectedRooms: selectedRooms?.map(r => ({
@@ -391,8 +413,32 @@ export async function POST(request: NextRequest) {
     });
 
     // Get the appropriate machine for the tenant
-    const machine = tenant === "mediaCommons" ? mcBookingMachine : itpBookingMachine;
-    
+    const machine = getXStateMachine(tenant);
+
+    // For Media Commons, detect service requests from booking data
+    let servicesRequested = {};
+    let isVip = false;
+
+    if (isMediaCommons) {
+      servicesRequested = getMediaCommonsServices(data);
+
+      // Check if user is VIP (you can customize this logic)
+      isVip = data.isVip || false;
+
+      console.log(`🎭 XSTATE MEDIA COMMONS: Detected services`, {
+        servicesRequested,
+        isVip,
+        formData: {
+          setup: data.roomSetup,
+          staff: data.staffingServicesDetails,
+          equipment: data.equipmentServices,
+          catering: data.catering,
+          cleaning: data.cleaningService,
+          security: data.hireSecurity,
+        },
+      });
+    }
+
     // Create XState actor with booking context
     console.log(`🎭 XSTATE: Creating actor...`);
     const bookingActor = createActor(machine, {
@@ -404,6 +450,8 @@ export async function POST(request: NextRequest) {
         isWalkIn: false, // TODO: detect walk-in context
         email,
         calendarEventId: null, // Will be set after calendar event creation
+        servicesRequested: isMediaCommons ? servicesRequested : undefined,
+        isVip: isMediaCommons ? isVip : false,
       },
     });
 
@@ -443,9 +491,18 @@ export async function POST(request: NextRequest) {
 
     // Prepare XState state for persistence - use any type to avoid TypeScript issues with different machine event types
     const canTransitionTo: Record<string, boolean> = {};
-    
+
     // Common transitions for both machines
-    const commonEvents = ["approve", "decline", "cancel", "edit", "checkIn", "checkOut", "noShow", "autoCloseScript"];
+    const commonEvents = [
+      "approve",
+      "decline",
+      "cancel",
+      "edit",
+      "checkIn",
+      "checkOut",
+      "noShow",
+      "autoCloseScript",
+    ];
     commonEvents.forEach(event => {
       try {
         canTransitionTo[event] = currentState.can({ type: event as any });
@@ -455,13 +512,26 @@ export async function POST(request: NextRequest) {
     });
 
     // Add tenant-specific events
-    if (tenant === "mediaCommons") {
+    if (isMediaCommons) {
       const mcEvents = [
-        "approveSetup", "approveStaff", "declineSetup", "declineStaff", 
-        "closeoutSetup", "closeoutStaff", "approveCatering", "approveCleaning", 
-        "approveSecurity", "declineCatering", "declineCleaning", "declineSecurity", 
-        "approveEquipment", "closeoutCatering", "closeoutCleaning", "closeoutSecurity", 
-        "declineEquipment", "closeoutEquipment"
+        "approveSetup",
+        "approveStaff",
+        "declineSetup",
+        "declineStaff",
+        "closeoutSetup",
+        "closeoutStaff",
+        "approveCatering",
+        "approveCleaning",
+        "approveSecurity",
+        "declineCatering",
+        "declineCleaning",
+        "declineSecurity",
+        "approveEquipment",
+        "closeoutCatering",
+        "closeoutCleaning",
+        "closeoutSecurity",
+        "declineEquipment",
+        "closeoutEquipment",
       ];
       mcEvents.forEach(event => {
         try {
@@ -503,9 +573,10 @@ export async function POST(request: NextRequest) {
   console.log(
     `🤖 AUTO-APPROVAL DECISION [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
     {
+      tenant,
       clientDecision: isAutoApproval,
       serverDecision: shouldAutoApprove,
-      usingXState: tenant === "itp" || tenant === "mediaCommons",
+      usingXState: usesXState,
       willAutoApprove: shouldAutoApprove
         ? "YES - Will auto-approve"
         : "NO - Requires manual approval",
@@ -597,7 +668,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Save XState data for ITP and Media Commons tenant after calendarEventId is available
-    if ((tenant === "itp" || tenant === "mediaCommons") && typeof xstateData !== "undefined") {
+    if (usesXState && typeof xstateData !== "undefined") {
       try {
         // Update the XState context with the actual calendarEventId
         const updatedXStateData = {
@@ -616,22 +687,28 @@ export async function POST(request: NextRequest) {
           tenant,
         );
 
-        console.log(`💾 XSTATE DATA SAVED TO FIRESTORE [${tenant?.toUpperCase()}]:`, {
-          calendarEventId,
-          currentState: updatedXStateData.currentState,
-          machineId: updatedXStateData.machineId,
-          lastTransition: updatedXStateData.lastTransition,
-          availableTransitions: Object.entries(
-            updatedXStateData.canTransitionTo,
-          )
-            .filter(([_, canTransition]) => canTransition)
-            .map(([event, _]) => event),
-        });
+        console.log(
+          `💾 XSTATE DATA SAVED TO FIRESTORE [${tenant?.toUpperCase()}]:`,
+          {
+            calendarEventId,
+            currentState: updatedXStateData.currentState,
+            machineId: updatedXStateData.machineId,
+            lastTransition: updatedXStateData.lastTransition,
+            availableTransitions: Object.entries(
+              updatedXStateData.canTransitionTo,
+            )
+              .filter(([_, canTransition]) => canTransition)
+              .map(([event, _]) => event),
+          },
+        );
       } catch (error) {
-        console.error(`🚨 ERROR SAVING XSTATE DATA [${tenant?.toUpperCase()}]:`, {
-          calendarEventId,
-          error: error.message,
-        });
+        console.error(
+          `🚨 ERROR SAVING XSTATE DATA [${tenant?.toUpperCase()}]:`,
+          {
+            calendarEventId,
+            error: error.message,
+          },
+        );
         // Don't fail the entire booking if XState save fails
       }
     }
@@ -678,6 +755,9 @@ export async function PUT(request: NextRequest) {
   // Extract tenant from URL
   const tenant = extractTenantFromRequest(request);
 
+  // Get tenant-specific flags
+  const { isITP, isMediaCommons, usesXState } = getTenantFlags(tenant);
+
   console.log(
     `🎯 MODIFICATION REQUEST [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
     {
@@ -685,42 +765,63 @@ export async function PUT(request: NextRequest) {
       email,
       tenant,
       modifiedBy,
-      usingXState: tenant === "itp" || tenant === "mediaCommons",
+      usingXState: usesXState,
     },
   );
 
   // For ITP and Media Commons tenants, use XState transition
-  if (tenant === "itp" || tenant === "mediaCommons") {
-    console.log(`🎭 USING XSTATE FOR MODIFICATION [${tenant?.toUpperCase()}]:`, {
-      calendarEventId,
-    });
+  if (usesXState) {
+    console.log(
+      `🎭 USING XSTATE FOR MODIFICATION [${tenant?.toUpperCase()}]:`,
+      {
+        calendarEventId,
+      },
+    );
 
     try {
-      const { executeXStateTransition } = await import("@/lib/stateMachines/xstateUtils");
-      
-      const xstateResult = await executeXStateTransition(calendarEventId, "edit", tenant);
+      const { executeXStateTransition } = await import(
+        "@/lib/stateMachines/xstateUtilsV5"
+      );
+
+      const xstateResult = await executeXStateTransition(
+        calendarEventId,
+        "edit",
+        tenant,
+      );
 
       if (!xstateResult.success) {
-        console.error(`🚨 XSTATE MODIFICATION FAILED [${tenant?.toUpperCase()}]:`, {
-          calendarEventId,
-          error: xstateResult.error,
-        });
+        console.error(
+          `🚨 XSTATE MODIFICATION FAILED [${tenant?.toUpperCase()}]:`,
+          {
+            calendarEventId,
+            error: xstateResult.error,
+          },
+        );
 
         // Fallback to traditional modification if XState fails
-        console.log(`🔄 FALLING BACK TO TRADITIONAL MODIFICATION [${tenant?.toUpperCase()}]:`, {
-          calendarEventId,
-        });
+        console.log(
+          `🔄 FALLING BACK TO TRADITIONAL MODIFICATION [${tenant?.toUpperCase()}]:`,
+          {
+            calendarEventId,
+          },
+        );
       } else {
-        console.log(`✅ XSTATE MODIFICATION SUCCESS [${tenant?.toUpperCase()}]:`, {
-          calendarEventId,
-          newState: xstateResult.newState,
-        });
+        console.log(
+          `✅ XSTATE MODIFICATION SUCCESS [${tenant?.toUpperCase()}]:`,
+          {
+            calendarEventId,
+            newState: xstateResult.newState,
+          },
+        );
       }
     } catch (error) {
-      console.error(`🚨 XSTATE MODIFICATION ERROR [${tenant?.toUpperCase()}]:`, {
-        calendarEventId,
-        error: error.message,
-      });
+      console.error(
+        `🚨 XSTATE MODIFICATION ERROR [${tenant?.toUpperCase()}]:`,
+        {
+          calendarEventId,
+          error: error.message,
+        },
+      );
       // Continue with traditional modification
     }
   } else {
