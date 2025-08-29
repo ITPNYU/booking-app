@@ -27,6 +27,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { sendHTMLEmail } from "@/app/lib/sendHTMLEmail";
 import { CALENDAR_HIDE_STATUS, TableNames } from "@/components/src/policy";
+import { formatOrigin } from "@/components/src/utils/formatters";
 import { getCalendarClient } from "@/lib/googleClient";
 import { Timestamp } from "firebase-admin/firestore";
 import { DateSelectArg } from "fullcalendar";
