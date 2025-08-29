@@ -13,6 +13,7 @@ import {
   Typography,
 } from "@mui/material";
 
+import { formatOrigin } from "@/components/src/utils/formatters";
 import { Cancel, Check, Edit, Event } from "@mui/icons-material";
 import Grid from "@mui/material/Unstable_Grid2/Grid2";
 import { styled } from "@mui/system";
@@ -32,7 +33,6 @@ import useSortBookingHistory from "../../hooks/useSortBookingHistory";
 import { DatabaseContext } from "../Provider";
 import { default as CustomTable } from "../Table";
 import StackedTableCell from "./StackedTableCell";
-import { formatOrigin } from "@/components/src/utils/formatters";
 
 interface Props {
   booking: BookingRow;
@@ -582,31 +582,44 @@ export default function MoreInfoModal({
                     bottomText={booking.chartFieldForRoomSetup || "none"}
                   />
                 </TableRow>
-                <TableRow>
-                  <LabelCell>Media Service</LabelCell>
-                  <TableCell>
-                    {booking.mediaServices == undefined
-                      ? "none"
-                      : booking.mediaServices
+                {booking.equipmentServices &&
+                  booking.equipmentServices.length > 0 && (
+                    <TableRow>
+                      <LabelCell>Equipment Service</LabelCell>
+                      <TableCell>
+                        {booking.equipmentServices
                           .split(", ")
                           .map((service) => (
                             <p key={service}>{service.trim()}</p>
                           ))}
-                    <p>{booking.mediaServicesDetails || "none"}</p>
-                  </TableCell>
-                </TableRow>
-                <TableRow>
-                  <LabelCell>Catering</LabelCell>
-                  <StackedTableCell
-                    topText={
-                      booking.cateringService ||
-                      (booking.catering === "no"
-                        ? "none"
-                        : booking.catering || "none")
-                    }
-                    bottomText={booking.chartFieldForCatering || "none"}
-                  />
-                </TableRow>
+                        <p>{booking.equipmentServicesDetails || ""}</p>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                {booking.staffingServices &&
+                  booking.staffingServices.length > 0 && (
+                    <TableRow>
+                      <LabelCell>Staffing Service</LabelCell>
+                      <TableCell>
+                        {booking.staffingServices.split(", ").map((service) => (
+                          <p key={service}>{service.trim()}</p>
+                        ))}
+                        <p>{booking.staffingServicesDetails || ""}</p>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                {(booking.catering === "yes" || booking.cateringService) && (
+                  <TableRow>
+                    <LabelCell>Catering Service</LabelCell>
+                    <StackedTableCell
+                      topText={
+                        booking.cateringService ||
+                        (booking.catering === "yes" ? "Yes" : "")
+                      }
+                      bottomText={booking.chartFieldForCatering || ""}
+                    />
+                  </TableRow>
+                )}
                 <TableRow>
                   <LabelCell>Security</LabelCell>
                   <StackedTableCell
