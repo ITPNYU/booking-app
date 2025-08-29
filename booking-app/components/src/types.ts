@@ -161,6 +161,10 @@ export type Inputs = {
   chartFieldForSecurity: string;
   chartFieldForRoomSetup: string;
   webcheckoutCartNumber?: string;
+  // Individual service fields for pregame parsing
+  equipment?: string;
+  staffing?: string;
+  cleaning?: string;
 };
 
 export type DepartmentType = {
