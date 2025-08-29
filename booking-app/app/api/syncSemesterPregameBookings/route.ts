@@ -34,7 +34,9 @@ const findRoomIds = (title: string, description?: string): string => {
     const roomRegex = /•\s*Room\(s\):\s*([^\n•]+)/i;
     const roomMatch = description.match(roomRegex);
     if (roomMatch) {
-      return roomMatch[1].trim();
+      // Remove HTML tags and clean up the room IDs
+      const roomIds = roomMatch[1].replace(/<[^>]*>/g, "").trim();
+      return roomIds;
     }
   }
 
@@ -93,6 +95,9 @@ const parseDescription = (
     if (!match) return "";
 
     let value = match[1].trim();
+
+    // Remove HTML tags from the value
+    value = value.replace(/<[^>]*>/g, "").trim();
 
     // If the value contains only "none" (case insensitive), return "none"
     if (value.toLowerCase().replace(/\s+/g, "") === "none") {
