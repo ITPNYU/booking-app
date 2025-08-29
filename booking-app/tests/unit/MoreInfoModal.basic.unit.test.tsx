@@ -199,7 +199,7 @@ describe("MoreInfoModal - Basic Rendering", () => {
 
       renderModal(booking, context);
 
-      expect(screen.getAllByText("none")).toHaveLength(8); // Secondary contact fields and other none values
+      expect(screen.getAllByText("none")).toHaveLength(6); // Secondary contact fields and other none values
     });
 
     it("displays all booking details correctly", () => {

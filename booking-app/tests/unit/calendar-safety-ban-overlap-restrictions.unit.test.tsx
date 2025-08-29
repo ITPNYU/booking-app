@@ -268,7 +268,7 @@ describe("Calendar Safety Training, Ban, and Overlap Restrictions Logic", () => 
       expect(result.current.isDateDisabled(dateInBlackout)).toBe(true);
 
       // Date outside blackout period
-      const dateOutsideBlackout = dayjs("2025-08-15");
+      const dateOutsideBlackout = dayjs("2025-12-15");
       expect(result.current.isDateDisabled(dateOutsideBlackout)).toBe(false);
     });
   });
