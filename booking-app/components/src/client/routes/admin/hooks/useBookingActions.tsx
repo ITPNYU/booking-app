@@ -1,3 +1,4 @@
+import { TableNames } from "@/components/src/policy";
 import {
   cancel,
   checkOut,
@@ -8,10 +9,13 @@ import {
   decline,
   noShow,
 } from "@/components/src/server/db";
-import { clientGetDataByCalendarEventId } from "@/components/src/server/admin";
-import { TableNames } from "@/components/src/policy";
 import { BookingStatusLabel, PageContextLevel } from "@/components/src/types";
-import { useContext, useMemo, useState, useEffect } from "react";
+import {
+  getMediaCommonsServices,
+  isMediaCommons,
+} from "@/components/src/utils/tenantUtils";
+import { clientGetDataByCalendarEventId } from "@/lib/firebase/firebase";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 
 import { Timestamp } from "@firebase/firestore";
 import { useParams, useRouter } from "next/navigation";
@@ -99,55 +103,85 @@ export default function useBookingActions({
     security?: boolean;
     setup?: boolean;
   }>({});
+  const [servicesClosedOut, setServicesClosedOut] = useState<{
+    staff?: boolean;
+    equipment?: boolean;
+    catering?: boolean;
+    cleaning?: boolean;
+    security?: boolean;
+    setup?: boolean;
+  }>({});
   const [currentXState, setCurrentXState] = useState<string>("");
+
+  // Function to fetch booking data and update states
+  const fetchBookingData = useCallback(async () => {
+    if (isMediaCommons(tenant as string) && calendarEventId) {
+      try {
+        const data = (await clientGetDataByCalendarEventId(
+          TableNames.BOOKING,
+          calendarEventId,
+          tenant as string
+        )) as any; // Type assertion to handle dynamic properties
+        setBookingData(data);
+
+        // Detect service requests from booking data
+        if (data) {
+          setServiceRequests(getMediaCommonsServices(data));
+
+          // Get XState v5 information for service approval status
+          if (data.xstateData?.snapshot) {
+            // XState v5: Get current state and context from snapshot
+            const currentStateValue = data.xstateData.snapshot.value || "";
+            setCurrentXState(currentStateValue);
+            
+            const context = data.xstateData.snapshot.context || {};
+            setServicesApproved({
+              staff: context.servicesApproved?.staff ?? data.staffServiceApproved,
+              equipment: context.servicesApproved?.equipment ?? data.equipmentServiceApproved,
+              catering: context.servicesApproved?.catering ?? data.cateringServiceApproved,
+              cleaning: context.servicesApproved?.cleaning ?? data.cleaningServiceApproved,
+              security: context.servicesApproved?.security ?? data.securityServiceApproved,
+              setup: context.servicesApproved?.setup ?? data.setupServiceApproved,
+            });
+
+            // Detect service closeout completion from XState parallel states
+            const serviceCloseoutStates = 
+              typeof currentStateValue === 'object' && currentStateValue['Service Closeout'] 
+                ? currentStateValue['Service Closeout'] 
+                : {};
+
+            setServicesClosedOut({
+              staff: serviceCloseoutStates['Staff Closeout'] === 'Staff Closedout',
+              equipment: serviceCloseoutStates['Equipment Closeout'] === 'Equipment Closedout',
+              catering: serviceCloseoutStates['Catering Closeout'] === 'Catering Closedout',
+              cleaning: serviceCloseoutStates['Cleaning Closeout'] === 'Cleaning Closedout',
+              security: serviceCloseoutStates['Security Closeout'] === 'Security Closedout',
+              setup: serviceCloseoutStates['Setup Closeout'] === 'Setup Closedout',
+            });
+          } else {
+            // Fallback to individual service approval fields if XState data is not available
+            setCurrentXState("");
+            setServicesApproved({
+              staff: data.staffServiceApproved,
+              equipment: data.equipmentServiceApproved,
+              catering: data.cateringServiceApproved,
+              cleaning: data.cleaningServiceApproved,
+              security: data.securityServiceApproved,
+              setup: data.setupServiceApproved,
+            });
+            setServicesClosedOut({}); // Reset closeout status if no XState data
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching booking data:", error);
+      }
+    }
+  }, [calendarEventId, tenant]);
 
   // Fetch booking data to detect service requests for Media Commons
   useEffect(() => {
-    const fetchBookingData = async () => {
-      if (tenant === "mediaCommons" && calendarEventId) {
-        try {
-          const data = await clientGetDataByCalendarEventId(
-            TableNames.BOOKING,
-            calendarEventId,
-            tenant as string
-          );
-          setBookingData(data);
-          
-          // Detect service requests from booking data
-          if (data) {
-            setServiceRequests({
-              staff: !!data.staffService,
-              equipment: !!data.equipmentService,
-              catering: !!data.cateringService,
-              cleaning: !!data.cleaningService,
-              security: !!data.securityService,
-              setup: !!data.setupService,
-            });
-            
-            // Get XState information for service approval status
-            if (data.xstateData) {
-              setCurrentXState(data.xstateData.currentState || "");
-              
-              // Extract services approved status from XState context
-              const context = data.xstateData.context || {};
-              setServicesApproved({
-                staff: context.servicesApproved?.staff,
-                equipment: context.servicesApproved?.equipment,
-                catering: context.servicesApproved?.catering,
-                cleaning: context.servicesApproved?.cleaning,
-                security: context.servicesApproved?.security,
-                setup: context.servicesApproved?.setup,
-              });
-            }
-          }
-        } catch (error) {
-          console.error('Error fetching booking data:', error);
-        }
-      }
-    };
-
     fetchBookingData();
-  }, [calendarEventId, tenant]);
+  }, [fetchBookingData]);
 
   const updateActions = () => {
     setDate(new Date());
@@ -187,7 +221,7 @@ export default function useBookingActions({
           tenant as string
         );
       },
-      optimisticNextStatus: BookingStatusLabel.PENDING,
+      optimisticNextStatus: BookingStatusLabel.PRE_APPROVED,
     },
     [Actions.FINAL_APPROVE]: {
       action: async () => {
@@ -239,210 +273,474 @@ export default function useBookingActions({
     // Media Commons Service Actions
     [Actions.APPROVE_STAFF_SERVICE]: {
       action: async () => {
-        await fetch('/api/xstate-transition', {
-          method: 'POST',
+        // Check if staff service is actually requested
+        if (!serviceRequests.staff) {
+          console.warn("Staff service not requested, skipping approval");
+          return;
+        }
+
+        // If we're in Pre-approved state and services are requested, first transition to Services Request
+        if (currentXState === "Pre-approved" && Object.values(serviceRequests).some(Boolean)) {
+          await fetch("/api/xstate-transition", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-tenant": tenant as string,
+            },
+            body: JSON.stringify({
+              calendarEventId,
+              eventType: "approve",
+              email: userEmail,
+            }),
+          });
+        }
+        
+        // Then approve the specific staff service
+        await fetch("/api/xstate-transition", {
+          method: "POST",
           headers: {
-            'Content-Type': 'application/json',
-            'x-tenant': tenant as string,
+            "Content-Type": "application/json",
+            "x-tenant": tenant as string,
           },
           body: JSON.stringify({
             calendarEventId,
-            eventType: 'approveStaff',
+            eventType: "approveStaff",
             email: userEmail,
           }),
         });
+        // Refresh booking data to update UI
+        await fetchBookingData();
       },
       optimisticNextStatus: BookingStatusLabel.PENDING,
     },
     [Actions.APPROVE_EQUIPMENT_SERVICE]: {
       action: async () => {
-        await fetch('/api/xstate-transition', {
-          method: 'POST',
+        // Check if equipment service is actually requested
+        if (!serviceRequests.equipment) {
+          console.warn("Equipment service not requested, skipping approval");
+          return;
+        }
+
+        // If we're in Pre-approved state and services are requested, first transition to Services Request
+        if (currentXState === "Pre-approved" && Object.values(serviceRequests).some(Boolean)) {
+          await fetch("/api/xstate-transition", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-tenant": tenant as string,
+            },
+            body: JSON.stringify({
+              calendarEventId,
+              eventType: "approve",
+              email: userEmail,
+            }),
+          });
+        }
+        
+        // Then approve the specific equipment service
+        await fetch("/api/xstate-transition", {
+          method: "POST",
           headers: {
-            'Content-Type': 'application/json',
-            'x-tenant': tenant as string,
+            "Content-Type": "application/json",
+            "x-tenant": tenant as string,
           },
           body: JSON.stringify({
             calendarEventId,
-            eventType: 'approveEquipment',
+            eventType: "approveEquipment",
             email: userEmail,
           }),
         });
+        // Refresh booking data to update UI
+        await fetchBookingData();
       },
       optimisticNextStatus: BookingStatusLabel.PENDING,
     },
     [Actions.APPROVE_CATERING_SERVICE]: {
       action: async () => {
-        await fetch('/api/xstate-transition', {
-          method: 'POST',
+        // Check if catering service is actually requested
+        if (!serviceRequests.catering) {
+          console.warn("Catering service not requested, skipping approval");
+          return;
+        }
+
+        // If we're in Pre-approved state and services are requested, first transition to Services Request
+        if (currentXState === "Pre-approved" && Object.values(serviceRequests).some(Boolean)) {
+          await fetch("/api/xstate-transition", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-tenant": tenant as string,
+            },
+            body: JSON.stringify({
+              calendarEventId,
+              eventType: "approve",
+              email: userEmail,
+            }),
+          });
+        }
+        
+        // Then approve the specific service
+        await fetch("/api/xstate-transition", {
+          method: "POST",
           headers: {
-            'Content-Type': 'application/json',
-            'x-tenant': tenant as string,
+            "Content-Type": "application/json",
+            "x-tenant": tenant as string,
           },
           body: JSON.stringify({
             calendarEventId,
-            eventType: 'approveCatering',
+            eventType: "approveCatering",
             email: userEmail,
           }),
         });
+        // Refresh booking data to update UI
+        await fetchBookingData();
       },
       optimisticNextStatus: BookingStatusLabel.PENDING,
     },
     [Actions.APPROVE_CLEANING_SERVICE]: {
       action: async () => {
-        await fetch('/api/xstate-transition', {
-          method: 'POST',
+        // Check if cleaning service is actually requested
+        if (!serviceRequests.cleaning) {
+          console.warn("Cleaning service not requested, skipping approval");
+          return;
+        }
+
+        // If we're in Pre-approved state and services are requested, first transition to Services Request
+        if (currentXState === "Pre-approved" && Object.values(serviceRequests).some(Boolean)) {
+          await fetch("/api/xstate-transition", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-tenant": tenant as string,
+            },
+            body: JSON.stringify({
+              calendarEventId,
+              eventType: "approve",
+              email: userEmail,
+            }),
+          });
+        }
+        
+        // Then approve the specific cleaning service
+        await fetch("/api/xstate-transition", {
+          method: "POST",
           headers: {
-            'Content-Type': 'application/json',
-            'x-tenant': tenant as string,
+            "Content-Type": "application/json",
+            "x-tenant": tenant as string,
           },
           body: JSON.stringify({
             calendarEventId,
-            eventType: 'approveCleaning',
+            eventType: "approveCleaning",
             email: userEmail,
           }),
         });
+        // Refresh booking data to update UI
+        await fetchBookingData();
       },
       optimisticNextStatus: BookingStatusLabel.PENDING,
     },
     [Actions.APPROVE_SECURITY_SERVICE]: {
       action: async () => {
-        await fetch('/api/xstate-transition', {
-          method: 'POST',
+        // Check if security service is actually requested
+        if (!serviceRequests.security) {
+          console.warn("Security service not requested, skipping approval");
+          return;
+        }
+
+        // If we're in Pre-approved state and services are requested, first transition to Services Request
+        if (currentXState === "Pre-approved" && Object.values(serviceRequests).some(Boolean)) {
+          await fetch("/api/xstate-transition", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-tenant": tenant as string,
+            },
+            body: JSON.stringify({
+              calendarEventId,
+              eventType: "approve",
+              email: userEmail,
+            }),
+          });
+        }
+        
+        // Then approve the specific security service
+        await fetch("/api/xstate-transition", {
+          method: "POST",
           headers: {
-            'Content-Type': 'application/json',
-            'x-tenant': tenant as string,
+            "Content-Type": "application/json",
+            "x-tenant": tenant as string,
           },
           body: JSON.stringify({
             calendarEventId,
-            eventType: 'approveSecurity',
+            eventType: "approveSecurity",
             email: userEmail,
           }),
         });
+        // Refresh booking data to update UI
+        await fetchBookingData();
       },
       optimisticNextStatus: BookingStatusLabel.PENDING,
     },
     [Actions.APPROVE_SETUP_SERVICE]: {
       action: async () => {
-        await fetch('/api/xstate-transition', {
-          method: 'POST',
+        // Check if setup service is actually requested
+        if (!serviceRequests.setup) {
+          console.warn("Setup service not requested, skipping approval");
+          return;
+        }
+
+        // If we're in Pre-approved state and services are requested, first transition to Services Request
+        if (currentXState === "Pre-approved" && Object.values(serviceRequests).some(Boolean)) {
+          await fetch("/api/xstate-transition", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-tenant": tenant as string,
+            },
+            body: JSON.stringify({
+              calendarEventId,
+              eventType: "approve",
+              email: userEmail,
+            }),
+          });
+        }
+        
+        // Then approve the specific setup service
+        await fetch("/api/xstate-transition", {
+          method: "POST",
           headers: {
-            'Content-Type': 'application/json',
-            'x-tenant': tenant as string,
+            "Content-Type": "application/json",
+            "x-tenant": tenant as string,
           },
           body: JSON.stringify({
             calendarEventId,
-            eventType: 'approveSetup',
+            eventType: "approveSetup",
             email: userEmail,
           }),
         });
+        // Refresh booking data to update UI
+        await fetchBookingData();
       },
       optimisticNextStatus: BookingStatusLabel.PENDING,
     },
     [Actions.DECLINE_STAFF_SERVICE]: {
       action: async () => {
-        await fetch('/api/xstate-transition', {
-          method: 'POST',
+        // First ensure we're in Services Request state if needed
+        if (currentXState === "Pre-approved" || currentXState === "Requested") {
+          await fetch("/api/xstate-transition", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-tenant": tenant as string,
+            },
+            body: JSON.stringify({
+              calendarEventId,
+              eventType: "approve",
+              email: userEmail,
+            }),
+          });
+        }
+        
+        // Then decline the specific staff service
+        await fetch("/api/xstate-transition", {
+          method: "POST",
           headers: {
-            'Content-Type': 'application/json',
-            'x-tenant': tenant as string,
+            "Content-Type": "application/json",
+            "x-tenant": tenant as string,
           },
           body: JSON.stringify({
             calendarEventId,
-            eventType: 'declineStaff',
+            eventType: "declineStaff",
             email: userEmail,
           }),
         });
+        // Refresh booking data to update UI
+        await fetchBookingData();
       },
       optimisticNextStatus: BookingStatusLabel.PENDING,
       confirmation: true,
     },
     [Actions.DECLINE_EQUIPMENT_SERVICE]: {
       action: async () => {
-        await fetch('/api/xstate-transition', {
-          method: 'POST',
+        // First ensure we're in Services Request state if needed
+        if (currentXState === "Pre-approved" || currentXState === "Requested") {
+          await fetch("/api/xstate-transition", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-tenant": tenant as string,
+            },
+            body: JSON.stringify({
+              calendarEventId,
+              eventType: "approve",
+              email: userEmail,
+            }),
+          });
+        }
+        
+        // Then decline the specific equipment service
+        await fetch("/api/xstate-transition", {
+          method: "POST",
           headers: {
-            'Content-Type': 'application/json',
-            'x-tenant': tenant as string,
+            "Content-Type": "application/json",
+            "x-tenant": tenant as string,
           },
           body: JSON.stringify({
             calendarEventId,
-            eventType: 'declineEquipment',
+            eventType: "declineEquipment",
             email: userEmail,
           }),
         });
+        // Refresh booking data to update UI
+        await fetchBookingData();
       },
       optimisticNextStatus: BookingStatusLabel.PENDING,
       confirmation: true,
     },
     [Actions.DECLINE_CATERING_SERVICE]: {
       action: async () => {
-        await fetch('/api/xstate-transition', {
-          method: 'POST',
+        // First ensure we're in Services Request state if needed
+        if (currentXState === "Pre-approved" || currentXState === "Requested") {
+          await fetch("/api/xstate-transition", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-tenant": tenant as string,
+            },
+            body: JSON.stringify({
+              calendarEventId,
+              eventType: "approve",
+              email: userEmail,
+            }),
+          });
+        }
+        
+        // Then decline the specific catering service
+        await fetch("/api/xstate-transition", {
+          method: "POST",
           headers: {
-            'Content-Type': 'application/json',
-            'x-tenant': tenant as string,
+            "Content-Type": "application/json",
+            "x-tenant": tenant as string,
           },
           body: JSON.stringify({
             calendarEventId,
-            eventType: 'declineCatering',
+            eventType: "declineCatering",
             email: userEmail,
           }),
         });
+        // Refresh booking data to update UI
+        await fetchBookingData();
       },
       optimisticNextStatus: BookingStatusLabel.PENDING,
       confirmation: true,
     },
     [Actions.DECLINE_CLEANING_SERVICE]: {
       action: async () => {
-        await fetch('/api/xstate-transition', {
-          method: 'POST',
+        // First ensure we're in Services Request state if needed
+        if (currentXState === "Pre-approved" || currentXState === "Requested") {
+          await fetch("/api/xstate-transition", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-tenant": tenant as string,
+            },
+            body: JSON.stringify({
+              calendarEventId,
+              eventType: "approve",
+              email: userEmail,
+            }),
+          });
+        }
+        
+        // Then decline the specific cleaning service
+        await fetch("/api/xstate-transition", {
+          method: "POST",
           headers: {
-            'Content-Type': 'application/json',
-            'x-tenant': tenant as string,
+            "Content-Type": "application/json",
+            "x-tenant": tenant as string,
           },
           body: JSON.stringify({
             calendarEventId,
-            eventType: 'declineCleaning',
+            eventType: "declineCleaning",
             email: userEmail,
           }),
         });
+        // Refresh booking data to update UI
+        await fetchBookingData();
       },
       optimisticNextStatus: BookingStatusLabel.PENDING,
       confirmation: true,
     },
     [Actions.DECLINE_SECURITY_SERVICE]: {
       action: async () => {
-        await fetch('/api/xstate-transition', {
-          method: 'POST',
+        // First ensure we're in Services Request state if needed
+        if (currentXState === "Pre-approved" || currentXState === "Requested") {
+          await fetch("/api/xstate-transition", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-tenant": tenant as string,
+            },
+            body: JSON.stringify({
+              calendarEventId,
+              eventType: "approve",
+              email: userEmail,
+            }),
+          });
+        }
+        
+        // Then decline the specific security service
+        await fetch("/api/xstate-transition", {
+          method: "POST",
           headers: {
-            'Content-Type': 'application/json',
-            'x-tenant': tenant as string,
+            "Content-Type": "application/json",
+            "x-tenant": tenant as string,
           },
           body: JSON.stringify({
             calendarEventId,
-            eventType: 'declineSecurity',
+            eventType: "declineSecurity",
             email: userEmail,
           }),
         });
+        // Refresh booking data to update UI
+        await fetchBookingData();
       },
       optimisticNextStatus: BookingStatusLabel.PENDING,
       confirmation: true,
     },
     [Actions.DECLINE_SETUP_SERVICE]: {
       action: async () => {
-        await fetch('/api/xstate-transition', {
-          method: 'POST',
+        // First ensure we're in Services Request state if needed
+        if (currentXState === "Pre-approved" || currentXState === "Requested") {
+          await fetch("/api/xstate-transition", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-tenant": tenant as string,
+            },
+            body: JSON.stringify({
+              calendarEventId,
+              eventType: "approve",
+              email: userEmail,
+            }),
+          });
+        }
+        
+        // Then decline the specific setup service
+        await fetch("/api/xstate-transition", {
+          method: "POST",
           headers: {
-            'Content-Type': 'application/json',
-            'x-tenant': tenant as string,
+            "Content-Type": "application/json",
+            "x-tenant": tenant as string,
           },
           body: JSON.stringify({
             calendarEventId,
-            eventType: 'declineSetup',
+            eventType: "declineSetup",
             email: userEmail,
           }),
         });
+        // Refresh booking data to update UI
+        await fetchBookingData();
       },
       optimisticNextStatus: BookingStatusLabel.PENDING,
       confirmation: true,
@@ -450,103 +748,151 @@ export default function useBookingActions({
     // Media Commons Service Closeout Actions
     [Actions.CLOSEOUT_STAFF_SERVICE]: {
       action: async () => {
-        await fetch('/api/xstate-transition', {
-          method: 'POST',
+        // Check if staff service was approved and needs closeout
+        if (!serviceRequests.staff || servicesApproved.staff !== true) {
+          console.warn("Staff service not approved or not requested, skipping closeout");
+          return;
+        }
+
+        await fetch("/api/xstate-transition", {
+          method: "POST",
           headers: {
-            'Content-Type': 'application/json',
-            'x-tenant': tenant as string,
+            "Content-Type": "application/json",
+            "x-tenant": tenant as string,
           },
           body: JSON.stringify({
             calendarEventId,
-            eventType: 'closeoutStaff',
+            eventType: "closeoutStaff",
             email: userEmail,
           }),
         });
+        // Refresh booking data to update UI
+        await fetchBookingData();
       },
       optimisticNextStatus: BookingStatusLabel.CHECKED_OUT,
     },
     [Actions.CLOSEOUT_EQUIPMENT_SERVICE]: {
       action: async () => {
-        await fetch('/api/xstate-transition', {
-          method: 'POST',
+        // Check if equipment service was approved and needs closeout
+        if (!serviceRequests.equipment || servicesApproved.equipment !== true) {
+          console.warn("Equipment service not approved or not requested, skipping closeout");
+          return;
+        }
+
+        await fetch("/api/xstate-transition", {
+          method: "POST",
           headers: {
-            'Content-Type': 'application/json',
-            'x-tenant': tenant as string,
+            "Content-Type": "application/json",
+            "x-tenant": tenant as string,
           },
           body: JSON.stringify({
             calendarEventId,
-            eventType: 'closeoutEquipment',
+            eventType: "closeoutEquipment",
             email: userEmail,
           }),
         });
+        // Refresh booking data to update UI
+        await fetchBookingData();
       },
       optimisticNextStatus: BookingStatusLabel.CHECKED_OUT,
     },
     [Actions.CLOSEOUT_CATERING_SERVICE]: {
       action: async () => {
-        await fetch('/api/xstate-transition', {
-          method: 'POST',
+        // Check if catering service was approved and needs closeout
+        if (!serviceRequests.catering || servicesApproved.catering !== true) {
+          console.warn("Catering service not approved or not requested, skipping closeout");
+          return;
+        }
+
+        await fetch("/api/xstate-transition", {
+          method: "POST",
           headers: {
-            'Content-Type': 'application/json',
-            'x-tenant': tenant as string,
+            "Content-Type": "application/json",
+            "x-tenant": tenant as string,
           },
           body: JSON.stringify({
             calendarEventId,
-            eventType: 'closeoutCatering',
+            eventType: "closeoutCatering",
             email: userEmail,
           }),
         });
+        // Refresh booking data to update UI
+        await fetchBookingData();
       },
       optimisticNextStatus: BookingStatusLabel.CHECKED_OUT,
     },
     [Actions.CLOSEOUT_CLEANING_SERVICE]: {
       action: async () => {
-        await fetch('/api/xstate-transition', {
-          method: 'POST',
+        // Check if cleaning service was approved and needs closeout
+        if (!serviceRequests.cleaning || servicesApproved.cleaning !== true) {
+          console.warn("Cleaning service not approved or not requested, skipping closeout");
+          return;
+        }
+
+        await fetch("/api/xstate-transition", {
+          method: "POST",
           headers: {
-            'Content-Type': 'application/json',
-            'x-tenant': tenant as string,
+            "Content-Type": "application/json",
+            "x-tenant": tenant as string,
           },
           body: JSON.stringify({
             calendarEventId,
-            eventType: 'closeoutCleaning',
+            eventType: "closeoutCleaning",
             email: userEmail,
           }),
         });
+        // Refresh booking data to update UI
+        await fetchBookingData();
       },
       optimisticNextStatus: BookingStatusLabel.CHECKED_OUT,
     },
     [Actions.CLOSEOUT_SECURITY_SERVICE]: {
       action: async () => {
-        await fetch('/api/xstate-transition', {
-          method: 'POST',
+        // Check if security service was approved and needs closeout
+        if (!serviceRequests.security || servicesApproved.security !== true) {
+          console.warn("Security service not approved or not requested, skipping closeout");
+          return;
+        }
+
+        await fetch("/api/xstate-transition", {
+          method: "POST",
           headers: {
-            'Content-Type': 'application/json',
-            'x-tenant': tenant as string,
+            "Content-Type": "application/json",
+            "x-tenant": tenant as string,
           },
           body: JSON.stringify({
             calendarEventId,
-            eventType: 'closeoutSecurity',
+            eventType: "closeoutSecurity",
             email: userEmail,
           }),
         });
+        // Refresh booking data to update UI
+        await fetchBookingData();
       },
       optimisticNextStatus: BookingStatusLabel.CHECKED_OUT,
     },
     [Actions.CLOSEOUT_SETUP_SERVICE]: {
       action: async () => {
-        await fetch('/api/xstate-transition', {
-          method: 'POST',
+        // Check if setup service was approved and needs closeout
+        if (!serviceRequests.setup || servicesApproved.setup !== true) {
+          console.warn("Setup service not approved or not requested, skipping closeout");
+          return;
+        }
+
+        await fetch("/api/xstate-transition", {
+          method: "POST",
           headers: {
-            'Content-Type': 'application/json',
-            'x-tenant': tenant as string,
+            "Content-Type": "application/json",
+            "x-tenant": tenant as string,
           },
           body: JSON.stringify({
             calendarEventId,
-            eventType: 'closeoutSetup',
+            eventType: "closeoutSetup",
             email: userEmail,
           }),
         });
+        // Refresh booking data to update UI
+        await fetchBookingData();
       },
       optimisticNextStatus: BookingStatusLabel.CHECKED_OUT,
     },
@@ -623,15 +969,18 @@ export default function useBookingActions({
     if (status === BookingStatusLabel.REQUESTED) {
       options.push(Actions.FIRST_APPROVE);
       // No SEND_TO_EQUIPMENT for REQUESTED status
-    } else if (status === BookingStatusLabel.PENDING) {
+    } else if (status === BookingStatusLabel.PRE_APPROVED) {
       options.push(Actions.FINAL_APPROVE);
-      options.push(Actions.SEND_TO_EQUIPMENT); // Only show for PENDING status
+      options.push(Actions.SEND_TO_EQUIPMENT); // Only show for PRE_APPROVED status
     } else if (status === BookingStatusLabel.EQUIPMENT) {
       options.push(Actions.FINAL_APPROVE);
     }
 
     // Add Media Commons service approval options
-    if (tenant === "mediaCommons" && Object.values(serviceRequests).some(Boolean)) {
+    if (
+      isMediaCommons(tenant as string) &&
+      Object.values(serviceRequests).some(Boolean)
+    ) {
       // Add service approval actions based on what's requested and current state
       if (serviceRequests.staff && servicesApproved.staff !== true) {
         options.push(Actions.APPROVE_STAFF_SERVICE);
@@ -660,29 +1009,35 @@ export default function useBookingActions({
     }
 
     // Add Media Commons service closeout options
-    // Show closeout actions when booking is checked out or in Service Closeout state
-    // and services were approved and need closeout
+    // Show closeout actions when in Service Closeout state or when services are approved and booking is completed
+    const isInServiceCloseout = 
+      (typeof currentXState === 'object' && currentXState && currentXState['Service Closeout']) ||
+      (typeof currentXState === 'string' && currentXState.includes("Service Closeout"));
+      
     if (
-      tenant === "mediaCommons" &&
-      (status === BookingStatusLabel.CHECKED_OUT || currentXState === "Service Closeout") &&
-      Object.values(servicesApproved).some(Boolean)
+      isMediaCommons(tenant as string) &&
+      (isInServiceCloseout ||
+        (Object.values(servicesApproved).some(Boolean) && 
+         (status === BookingStatusLabel.CHECKED_IN || 
+          status === BookingStatusLabel.NO_SHOW ||
+          (typeof currentXState === 'string' && currentXState === "Checked Out"))))
     ) {
-      if (serviceRequests.staff && servicesApproved.staff === true) {
+      if (serviceRequests.staff && servicesApproved.staff === true && servicesClosedOut.staff !== true) {
         options.push(Actions.CLOSEOUT_STAFF_SERVICE);
       }
-      if (serviceRequests.equipment && servicesApproved.equipment === true) {
+      if (serviceRequests.equipment && servicesApproved.equipment === true && servicesClosedOut.equipment !== true) {
         options.push(Actions.CLOSEOUT_EQUIPMENT_SERVICE);
       }
-      if (serviceRequests.catering && servicesApproved.catering === true) {
+      if (serviceRequests.catering && servicesApproved.catering === true && servicesClosedOut.catering !== true) {
         options.push(Actions.CLOSEOUT_CATERING_SERVICE);
       }
-      if (serviceRequests.cleaning && servicesApproved.cleaning === true) {
+      if (serviceRequests.cleaning && servicesApproved.cleaning === true && servicesClosedOut.cleaning !== true) {
         options.push(Actions.CLOSEOUT_CLEANING_SERVICE);
       }
-      if (serviceRequests.security && servicesApproved.security === true) {
+      if (serviceRequests.security && servicesApproved.security === true && servicesClosedOut.security !== true) {
         options.push(Actions.CLOSEOUT_SECURITY_SERVICE);
       }
-      if (serviceRequests.setup && servicesApproved.setup === true) {
+      if (serviceRequests.setup && servicesApproved.setup === true && servicesClosedOut.setup !== true) {
         options.push(Actions.CLOSEOUT_SETUP_SERVICE);
       }
     }
@@ -691,7 +1046,16 @@ export default function useBookingActions({
     options.push(Actions.CANCEL);
     options.push(Actions.DECLINE);
     return options;
-  }, [status, paOptions, date, tenant, serviceRequests, servicesApproved, currentXState]);
+  }, [
+    status,
+    paOptions,
+    date,
+    tenant,
+    serviceRequests,
+    servicesApproved,
+    servicesClosedOut,
+    currentXState,
+  ]);
 
   const options = () => {
     switch (pageContext) {

@@ -33,7 +33,55 @@ const nextConfig = {
   webpack: (config, { isServer }) => {
     if (!isServer) {
       config.resolve.alias.handlebars = false;
+      // Exclude firebase-admin on client side
+      config.resolve.alias = {
+        ...config.resolve.alias,
+        "firebase-admin": false,
+        "firebase-admin/app": false,
+        "firebase-admin/firestore": false,
+        "firebase-admin/auth": false,
+      };
     }
+
+    // Enable WebAssembly support
+    config.experiments = {
+      ...config.experiments,
+      asyncWebAssembly: true,
+    };
+
+    // Handle WebAssembly files
+    config.module.rules.push({
+      test: /\.wasm$/,
+      type: "webassembly/async",
+    });
+
+    // Handle farmhash-modern WebAssembly files specifically
+    config.module.rules.push({
+      test: /farmhash.*\.wasm$/,
+      type: "webassembly/async",
+    });
+
+    // Ensure WebAssembly files are properly handled
+    config.resolve.fallback = {
+      ...config.resolve.fallback,
+      fs: false,
+      path: false,
+      net: false,
+      tls: false,
+      crypto: false,
+      stream: false,
+      url: false,
+      zlib: false,
+      http: false,
+      https: false,
+      assert: false,
+      os: false,
+      util: false,
+      // Add fallbacks for farmhash-modern dependencies
+      buffer: false,
+      process: false,
+    };
+
     return config;
   },
   async headers() {
@@ -61,8 +109,9 @@ const nextConfig = {
   async rewrites() {
     return [
       {
-        source: '/__/auth/:path*',
-        destination: 'https://flowing-mantis-389917.firebaseapp.com/__/auth/:path*',
+        source: "/__/auth/:path*",
+        destination:
+          "https://flowing-mantis-389917.firebaseapp.com/__/auth/:path*",
       },
     ];
   },

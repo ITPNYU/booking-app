@@ -1,17 +1,18 @@
 import { TableNames } from "@/components/src/policy";
 import { BookingStatusLabel } from "@/components/src/types";
+import { isMediaCommons } from "@/components/src/utils/tenantUtils";
 import { serverGetDataByCalendarEventId } from "@/lib/firebase/server/adminDb";
-import { ActorRefFrom, createActor } from "xstate";
+import { serverUpdateDataByCalendarEventId } from "@/components/src/server/admin";
+import { createActor } from "xstate";
 import { itpBookingMachine } from "./itpBookingMachine";
 import { mcBookingMachine } from "./mcBookingMachine";
+import { TENANTS } from "@/components/src/constants/tenants";
 
-// Type for persisted XState data
+// Type for persisted XState data using v5 snapshot
 export interface PersistedXStateData {
-  currentState: string;
-  context: any;
+  snapshot: any; // XState v5 snapshot object
   machineId: string;
   lastTransition: string;
-  canTransitionTo: Record<string, boolean>;
 }
 
 /**
@@ -46,12 +47,19 @@ function mapBookingStatusToXState(status: string): string {
  */
 function getMachineForTenant(tenant?: string) {
   switch (tenant) {
-    case "mediaCommons":
+    case TENANTS.MC:
       return mcBookingMachine;
-    case "itp":
+    case TENANTS.ITP:
     default:
       return itpBookingMachine;
   }
+}
+
+/**
+ * Check if XState should be used for a tenant
+ */
+function shouldUseXState(tenant?: string): boolean {
+  return tenant === "itp" || isMediaCommons(tenant);
 }
 
 /**
@@ -78,46 +86,48 @@ async function createXStateFromBookingStatus(
   const machine = getMachineForTenant(tenant);
 
   // Create input context based on tenant
-  const inputContext = tenant === "mediaCommons" ? {
-    tenant,
-    selectedRooms: [], // We don't have this info, but it's not critical for state management
-    formData: bookingData,
-    bookingCalendarInfo: {
-      startStr: bookingData.startDate?.toDate?.()?.toISOString(),
-      endStr: bookingData.endDate?.toDate?.()?.toISOString(),
-    },
-    isWalkIn: false,
-    calendarEventId,
-    email: bookingData.email,
-    isVip: bookingData.isVip || false,
-    servicesRequested: {
-      staff: !!bookingData.staffService,
-      equipment: !!bookingData.equipmentService,
-      catering: !!bookingData.cateringService,
-      cleaning: !!bookingData.cleaningService,
-      security: !!bookingData.securityService,
-      setup: !!bookingData.setupService,
-    },
-    servicesApproved: {
-      staff: bookingData.staffServiceApproved,
-      equipment: bookingData.equipmentServiceApproved,
-      catering: bookingData.cateringServiceApproved,
-      cleaning: bookingData.cleaningServiceApproved,
-      security: bookingData.securityServiceApproved,
-      setup: bookingData.setupServiceApproved,
-    },
-  } : {
-    tenant,
-    selectedRooms: [], // We don't have this info, but it's not critical for state management
-    formData: bookingData,
-    bookingCalendarInfo: {
-      startStr: bookingData.startDate?.toDate?.()?.toISOString(),
-      endStr: bookingData.endDate?.toDate?.()?.toISOString(),
-    },
-    isWalkIn: false,
-    calendarEventId,
-    email: bookingData.email,
-  };
+  const inputContext = isMediaCommons(tenant)
+    ? {
+        tenant,
+        selectedRooms: [], // We don't have this info, but it's not critical for state management
+        formData: bookingData,
+        bookingCalendarInfo: {
+          startStr: bookingData.startDate?.toDate?.()?.toISOString(),
+          endStr: bookingData.endDate?.toDate?.()?.toISOString(),
+        },
+        isWalkIn: false,
+        calendarEventId,
+        email: bookingData.email,
+        isVip: bookingData.isVip || false,
+        servicesRequested: {
+          staff: !!bookingData.staffService && bookingData.staffService !== "no",
+          equipment: !!bookingData.equipmentService && bookingData.equipmentService !== "no",
+          catering: !!bookingData.cateringService && bookingData.cateringService !== "no",
+          cleaning: !!bookingData.cleaningService && bookingData.cleaningService !== "no",
+          security: !!bookingData.securityService && bookingData.securityService !== "no",
+          setup: !!bookingData.setupService && bookingData.setupService !== "no",
+        },
+        servicesApproved: {
+          staff: bookingData.staffServiceApproved,
+          equipment: bookingData.equipmentServiceApproved,
+          catering: bookingData.cateringServiceApproved,
+          cleaning: bookingData.cleaningServiceApproved,
+          security: bookingData.securityServiceApproved,
+          setup: bookingData.setupServiceApproved,
+        },
+      }
+    : {
+        tenant,
+        selectedRooms: [], // We don't have this info, but it's not critical for state management
+        formData: bookingData,
+        bookingCalendarInfo: {
+          startStr: bookingData.startDate?.toDate?.()?.toISOString(),
+          endStr: bookingData.endDate?.toDate?.()?.toISOString(),
+        },
+        isWalkIn: false,
+        calendarEventId,
+        email: bookingData.email,
+      };
 
   // Create a temporary actor to get the correct context and transitions
   const tempActor = createActor(machine, {
@@ -312,11 +322,14 @@ export async function restoreXStateFromFirestore(
       );
 
       // If we have booking data but no XState data, create XState from booking status
-      if (bookingData && (tenant === "itp" || tenant === "mediaCommons")) {
-        console.log(`🔧 CREATING XSTATE FROM BOOKING STATUS [${tenant?.toUpperCase()}]:`, {
-          calendarEventId,
-          bookingStatus: (bookingData as any).status,
-        });
+      if (bookingData && shouldUseXState(tenant)) {
+        console.log(
+          `🔧 CREATING XSTATE FROM BOOKING STATUS [${tenant?.toUpperCase()}]:`,
+          {
+            calendarEventId,
+            bookingStatus: (bookingData as any).status,
+          }
+        );
 
         try {
           const xstateData = await createXStateFromBookingStatus(
@@ -340,18 +353,24 @@ export async function restoreXStateFromFirestore(
             },
           });
 
-          console.log(`✅ XSTATE ACTOR CREATED FROM BOOKING STATUS [${tenant?.toUpperCase()}]:`, {
-            calendarEventId,
-            createdState: xstateData.currentState,
-            contextKeys: Object.keys(xstateData.context || {}),
-          });
+          console.log(
+            `✅ XSTATE ACTOR CREATED FROM BOOKING STATUS [${tenant?.toUpperCase()}]:`,
+            {
+              calendarEventId,
+              createdState: xstateData.currentState,
+              contextKeys: Object.keys(xstateData.context || {}),
+            }
+          );
 
           return restoredActor;
         } catch (error) {
-          console.error(`🚨 ERROR CREATING XSTATE FROM BOOKING STATUS [${tenant?.toUpperCase()}]:`, {
-            calendarEventId,
-            error: error.message,
-          });
+          console.error(
+            `🚨 ERROR CREATING XSTATE FROM BOOKING STATUS [${tenant?.toUpperCase()}]:`,
+            {
+              calendarEventId,
+              error: error.message,
+            }
+          );
           return null;
         }
       }
@@ -393,12 +412,85 @@ export async function restoreXStateFromFirestore(
       input: xstateData.context,
     });
 
+    // Start the actor
+    restoredActor.start();
+
+    // Restore to the correct state by sending appropriate events
+    const targetState = xstateData.currentState;
+    const currentSnapshot = restoredActor.getSnapshot();
+
+    console.log(
+      `🔄 RESTORING XSTATE ACTOR TO CORRECT STATE [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+      {
+        calendarEventId,
+        currentState: currentSnapshot.value,
+        targetState: targetState,
+        contextKeys: Object.keys(xstateData.context || {}),
+      }
+    );
+
+    // Navigate to the target state if not already there
+    if (currentSnapshot.value !== targetState) {
+      switch (targetState) {
+        case 'Pre-approved':
+          // From Requested → Pre-approved
+          if (currentSnapshot.value === 'Requested' && currentSnapshot.can({ type: 'approve' })) {
+            restoredActor.send({ type: 'approve' });
+            console.log(`🎯 RESTORED STATE: Requested → Pre-approved`);
+          }
+          break;
+        case 'Approved':
+          // From Requested → Pre-approved → Approved
+          if (currentSnapshot.value === 'Requested' && currentSnapshot.can({ type: 'approve' })) {
+            restoredActor.send({ type: 'approve' });
+            const preApprovedSnapshot = restoredActor.getSnapshot();
+            if (preApprovedSnapshot.value === 'Pre-approved' && preApprovedSnapshot.can({ type: 'approve' })) {
+              restoredActor.send({ type: 'approve' });
+              console.log(`🎯 RESTORED STATE: Requested → Pre-approved → Approved`);
+            }
+          }
+          break;
+        case 'Declined':
+          if (currentSnapshot.value === 'Requested' && currentSnapshot.can({ type: 'decline' })) {
+            restoredActor.send({ type: 'decline' });
+            console.log(`🎯 RESTORED STATE: Requested → Declined`);
+          }
+          break;
+        case 'Canceled':
+          if (currentSnapshot.can({ type: 'cancel' })) {
+            restoredActor.send({ type: 'cancel' });
+            console.log(`🎯 RESTORED STATE: → Canceled`);
+          }
+          break;
+        case 'Checked In':
+          if (currentSnapshot.can({ type: 'checkIn' })) {
+            restoredActor.send({ type: 'checkIn' });
+            console.log(`🎯 RESTORED STATE: → Checked In`);
+          }
+          break;
+        case 'Checked Out':
+          if (currentSnapshot.can({ type: 'checkOut' })) {
+            restoredActor.send({ type: 'checkOut' });
+            console.log(`🎯 RESTORED STATE: → Checked Out`);
+          }
+          break;
+        case 'No Show':
+          if (currentSnapshot.can({ type: 'noShow' })) {
+            restoredActor.send({ type: 'noShow' });
+            console.log(`🎯 RESTORED STATE: → No Show`);
+          }
+          break;
+      }
+    }
+
+    const finalSnapshot = restoredActor.getSnapshot();
     console.log(
       `✅ XSTATE ACTOR RESTORED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
       {
         calendarEventId,
-        restoredState: xstateData.currentState,
-        contextKeys: Object.keys(xstateData.context || {}),
+        restoredState: finalSnapshot.value,
+        targetState: targetState,
+        successfullyRestored: finalSnapshot.value === targetState,
       }
     );
 
@@ -492,7 +584,9 @@ export async function executeXStateTransition(
 
     // Clean context by removing undefined values for Firestore compatibility
     const cleanNewContext = Object.fromEntries(
-      Object.entries(newSnapshot.context).filter(([_, value]) => value !== undefined)
+      Object.entries(newSnapshot.context).filter(
+        ([_, value]) => value !== undefined
+      )
     );
 
     // Get the appropriate machine for the tenant to get the correct machine ID
@@ -581,11 +675,14 @@ export async function getAvailableXStateTransitions(
       !bookingData.xstateData
     ) {
       // If we have booking data but no XState data, create XState from booking status
-      if (bookingData && (tenant === "itp" || tenant === "mediaCommons")) {
-        console.log(`🔧 CREATING XSTATE FOR TRANSITIONS [${tenant?.toUpperCase()}]:`, {
-          calendarEventId,
-          bookingStatus: (bookingData as any).status,
-        });
+      if (bookingData && shouldUseXState(tenant)) {
+        console.log(
+          `🔧 CREATING XSTATE FOR TRANSITIONS [${tenant?.toUpperCase()}]:`,
+          {
+            calendarEventId,
+            bookingStatus: (bookingData as any).status,
+          }
+        );
 
         try {
           const xstateData = await createXStateFromBookingStatus(

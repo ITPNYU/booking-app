@@ -64,7 +64,7 @@ export default function getBookingStatus(booking: Booking, tenant?: string): Boo
     } else if (booking.finalApprovedAt !== undefined) {
       return BookingStatusLabel.APPROVED;
     } else if (booking.firstApprovedAt !== undefined) {
-      return BookingStatusLabel.PENDING;
+      return BookingStatusLabel.PRE_APPROVED;
     } else if (booking.requestedAt != undefined) {
       return BookingStatusLabel.REQUESTED;
     } else if (
