@@ -9,7 +9,8 @@ import {
   serverUpdateInFirestore,
 } from "@/lib/firebase/server/adminDb";
 import { DEFAULT_TENANT } from "../constants/tenants";
-import { TableNames, getApprovalCcEmail } from "../policy";
+import { ApproverLevel, TableNames, getApprovalCcEmail } from "../policy";
+import { getTenantSchemaName } from "./emails";
 import {
   AdminUser,
   Approver,
@@ -471,6 +472,10 @@ const firstApprove = async (id: string, email: string, tenant?: string) => {
     headerMessage: "This is a request email for 2nd approval.",
   };
   const recipient = await serverGetFinalApproverEmail();
+  
+  // Get tenant schema name for email subject
+  const schemaName = await getTenantSchemaName(tenant);
+  
   const formData = {
     templateName: "booking_detail",
     contents: emailContents,
@@ -481,6 +486,7 @@ const firstApprove = async (id: string, email: string, tenant?: string) => {
     bodyMessage: "",
     approverType: ApproverType.FINAL_APPROVER,
     replyTo: contents.email,
+    schemaName,
   };
   const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/sendEmail`, {
     method: "POST",
@@ -547,6 +553,10 @@ export const serverSendBookingDetailEmail = async ({
 }: SendBookingEmailOptions) => {
   const contents = await serverBookingContents(calendarEventId, tenant);
   contents.headerMessage = headerMessage;
+  
+  // Get tenant schema name for email subject
+  const schemaName = await getTenantSchemaName(tenant);
+  
   const formData = {
     templateName: "booking_detail",
     contents: contents,
@@ -558,6 +568,7 @@ export const serverSendBookingDetailEmail = async ({
     approverType,
     replyTo,
     tenant,
+    schemaName,
   };
   const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/sendEmail`, {
     method: "POST",
@@ -871,3 +882,5 @@ export const serverGetRoomCalendarId = async (
     return null;
   }
 };
+
+
