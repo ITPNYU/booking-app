@@ -7,6 +7,7 @@ import {
   serverSendBookingDetailEmail,
   serverUpdateDataByCalendarEventId,
 } from "@/components/src/server/admin";
+import { getTenantSchemaName } from "@/components/src/server/emails";
 import {
   bookingContentsToDescription,
   deleteEvent,
@@ -36,6 +37,8 @@ import { serverGetDocumentById } from "@/lib/firebase/server/adminDb";
 import { getCalendarClient } from "@/lib/googleClient";
 import { Timestamp } from "firebase-admin/firestore";
 import { DateSelectArg } from "fullcalendar";
+
+
 
 // Helper function to extract tenant from request
 const extractTenantFromRequest = (request: NextRequest): string | undefined => {
@@ -163,6 +166,9 @@ async function handleBookingApprovalEmails(
   const shouldAutoApprove = isAutoApproval === true;
   const firstApprovers = await firstApproverEmails(data.department);
 
+  // Get tenant schema name for email subject
+  const schemaName = await getTenantSchemaName(tenant);
+
   const sendApprovalEmail = async (
     recipients: string[],
     contents: BookingFormDetails,
@@ -206,6 +212,7 @@ async function handleBookingApprovalEmails(
         body: "",
         approverType: ApproverType.LIAISON,
         replyTo: email,
+        schemaName,
       }),
     );
     await Promise.all(emailPromises);
