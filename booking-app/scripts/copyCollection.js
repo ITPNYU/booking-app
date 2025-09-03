@@ -74,7 +74,7 @@ Examples:
 };
 
 // Initialize Firebase Admin for source database
-const initializeSourceDb = () => {
+const initializeSourceDb = (databaseName) => {
   if (!admin.apps.length) {
     admin.initializeApp({
       credential: admin.credential.cert({
@@ -88,9 +88,9 @@ const initializeSourceDb = () => {
   const sourceDb = admin.firestore();
   
   // For the default database, don't set databaseId
-  if (DATABASES.development !== "default") {
+  if (databaseName !== "default") {
     sourceDb.settings({
-      databaseId: DATABASES.development,
+      databaseId: databaseName,
     });
   }
   
@@ -244,8 +244,8 @@ const main = async () => {
     }
 
     // Initialize source database
-    const sourceDb = initializeSourceDb();
-    console.log(`📡 Connected to source database (${options.sourceDatabase})`);
+    const sourceDb = initializeSourceDb(DATABASES[options.sourceDatabase]);
+    console.log(`📡 Connected to source database (${options.sourceDatabase} -> ${DATABASES[options.sourceDatabase]})`);
 
     // Test source database connection
     const sourceConnected = await testDatabaseConnection(
