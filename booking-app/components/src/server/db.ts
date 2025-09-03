@@ -27,6 +27,9 @@ import {
 } from "../policy";
 
 import { shouldUseXState } from "@/components/src/utils/tenantUtils";
+import { clientUpdateDataByCalendarEventId } from "@/lib/firebase/client/clientDb";
+import { roundTimeUp } from "../client/utils/date";
+import { getBookingToolDeployUrl } from "./ui";
 
 // Helper function to call XState transition API
 async function callXStateTransitionAPI(
@@ -36,18 +39,21 @@ async function callXStateTransitionAPI(
   tenant?: string
 ): Promise<{ success: boolean; newState?: string; error?: string }> {
   try {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/xstate-transition`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-tenant': tenant || DEFAULT_TENANT,
-      },
-      body: JSON.stringify({
-        calendarEventId,
-        eventType,
-        email,
-      }),
-    });
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_BASE_URL}/api/xstate-transition`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-tenant": tenant || DEFAULT_TENANT,
+        },
+        body: JSON.stringify({
+          calendarEventId,
+          eventType,
+          email,
+        }),
+      }
+    );
 
     if (!response.ok) {
       const errorData = await response.json();
@@ -69,9 +75,6 @@ async function callXStateTransitionAPI(
     };
   }
 }
-import { clientUpdateDataByCalendarEventId } from "@/lib/firebase/client/clientDb";
-import { roundTimeUp } from "../client/utils/date";
-import { getBookingToolDeployUrl } from "./ui";
 
 export const fetchAllFutureBooking = async <Booking>(
   tenant?: string
@@ -166,13 +169,21 @@ export const decline = async (
       calendarEventId: id,
     });
 
-    const xstateResult = await callXStateTransitionAPI(id, 'decline', email, tenant);
+    const xstateResult = await callXStateTransitionAPI(
+      id,
+      "decline",
+      email,
+      tenant
+    );
 
     if (!xstateResult.success) {
-      console.error(`🚨 XSTATE DECLINE API FAILED [${tenant?.toUpperCase()}]:`, {
-        calendarEventId: id,
-        error: xstateResult.error,
-      });
+      console.error(
+        `🚨 XSTATE DECLINE API FAILED [${tenant?.toUpperCase()}]:`,
+        {
+          calendarEventId: id,
+          error: xstateResult.error,
+        }
+      );
 
       // Fallback to traditional decline if XState API fails
       console.log(
@@ -313,7 +324,12 @@ export const cancel = async (
       calendarEventId: id,
     });
 
-    const xstateResult = await callXStateTransitionAPI(id, 'cancel', email, tenant);
+    const xstateResult = await callXStateTransitionAPI(
+      id,
+      "cancel",
+      email,
+      tenant
+    );
 
     if (!xstateResult.success) {
       console.error(`🚨 XSTATE CANCEL API FAILED [${tenant?.toUpperCase()}]:`, {
@@ -486,13 +502,21 @@ export const checkin = async (id: string, email: string, tenant?: string) => {
       calendarEventId: id,
     });
 
-    const xstateResult = await callXStateTransitionAPI(id, 'checkIn', email, tenant);
+    const xstateResult = await callXStateTransitionAPI(
+      id,
+      "checkIn",
+      email,
+      tenant
+    );
 
     if (!xstateResult.success) {
-      console.error(`🚨 XSTATE CHECKIN API FAILED [${tenant?.toUpperCase()}]:`, {
-        calendarEventId: id,
-        error: xstateResult.error,
-      });
+      console.error(
+        `🚨 XSTATE CHECKIN API FAILED [${tenant?.toUpperCase()}]:`,
+        {
+          calendarEventId: id,
+          error: xstateResult.error,
+        }
+      );
 
       // Fallback to traditional checkin if XState API fails
       console.log(
@@ -579,17 +603,28 @@ export const checkOut = async (id: string, email: string, tenant?: string) => {
 
   // For ITP and Media Commons tenants, use XState transition via API
   if (shouldUseXState(tenant)) {
-    console.log(`🎭 USING XSTATE API FOR CHECKOUT [${tenant?.toUpperCase()}]:`, {
-      calendarEventId: id,
-    });
+    console.log(
+      `🎭 USING XSTATE API FOR CHECKOUT [${tenant?.toUpperCase()}]:`,
+      {
+        calendarEventId: id,
+      }
+    );
 
-    const xstateResult = await callXStateTransitionAPI(id, 'checkOut', email, tenant);
+    const xstateResult = await callXStateTransitionAPI(
+      id,
+      "checkOut",
+      email,
+      tenant
+    );
 
     if (!xstateResult.success) {
-      console.error(`🚨 XSTATE CHECKOUT API FAILED [${tenant?.toUpperCase()}]:`, {
-        calendarEventId: id,
-        error: xstateResult.error,
-      });
+      console.error(
+        `🚨 XSTATE CHECKOUT API FAILED [${tenant?.toUpperCase()}]:`,
+        {
+          calendarEventId: id,
+          error: xstateResult.error,
+        }
+      );
 
       // Fallback to traditional checkout if XState API fails
       console.log(
@@ -599,10 +634,13 @@ export const checkOut = async (id: string, email: string, tenant?: string) => {
         }
       );
     } else {
-      console.log(`✅ XSTATE CHECKOUT API SUCCESS [${tenant?.toUpperCase()}]:`, {
-        calendarEventId: id,
-        newState: xstateResult.newState,
-      });
+      console.log(
+        `✅ XSTATE CHECKOUT API SUCCESS [${tenant?.toUpperCase()}]:`,
+        {
+          calendarEventId: id,
+          newState: xstateResult.newState,
+        }
+      );
     }
   } else {
     console.log(
@@ -700,13 +738,21 @@ export const noShow = async (
       calendarEventId: id,
     });
 
-    const xstateResult = await callXStateTransitionAPI(id, 'noShow', email, tenant);
+    const xstateResult = await callXStateTransitionAPI(
+      id,
+      "noShow",
+      email,
+      tenant
+    );
 
     if (!xstateResult.success) {
-      console.error(`🚨 XSTATE NO SHOW API FAILED [${tenant?.toUpperCase()}]:`, {
-        calendarEventId: id,
-        error: xstateResult.error,
-      });
+      console.error(
+        `🚨 XSTATE NO SHOW API FAILED [${tenant?.toUpperCase()}]:`,
+        {
+          calendarEventId: id,
+          error: xstateResult.error,
+        }
+      );
 
       // Fallback to traditional no show if XState API fails
       console.log(
@@ -722,7 +768,7 @@ export const noShow = async (
       });
 
       // Check if XState reached 'No Show' state - only then execute traditional no show for side effects
-      if (xstateResult.newState === 'No Show') {
+      if (xstateResult.newState === "No Show") {
         console.log(
           `🎉 XSTATE REACHED NO SHOW STATE - EXECUTING NO SHOW SIDE EFFECTS [${tenant?.toUpperCase()}]:`,
           {
@@ -730,7 +776,7 @@ export const noShow = async (
             newState: xstateResult.newState,
           }
         );
-        
+
         // Execute traditional no show processing (database updates, emails, etc.)
         await executeTraditionalNoShow(id, email, netId, tenant);
       } else {
@@ -739,11 +785,11 @@ export const noShow = async (
           {
             calendarEventId: id,
             newState: xstateResult.newState,
-            expectedState: 'No Show',
+            expectedState: "No Show",
           }
         );
       }
-      
+
       return; // Exit early since XState handled the transition
     }
   } else {
@@ -758,7 +804,7 @@ export const noShow = async (
 };
 
 // Helper function to execute traditional no show processing
-const executeTraditionalNoShow = async (
+export const executeTraditionalNoShow = async (
   id: string,
   email: string,
   netId: string,

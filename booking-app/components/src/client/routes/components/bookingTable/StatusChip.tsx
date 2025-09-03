@@ -35,6 +35,8 @@ export default function StatusChip({
         return "rgba(255, 122, 26, 1)";
       case BookingStatusLabel.CANCELED:
         return "rgba(85,94,97,1)";
+      case BookingStatusLabel.CLOSED:
+        return "rgba(33, 37, 41, 1)";
       case BookingStatusLabel.CHECKED_IN:
         return "rgba(135, 52, 255, 1)";
       case BookingStatusLabel.CHECKED_OUT:
@@ -67,6 +69,8 @@ export default function StatusChip({
         return "rgba(255, 122, 26, 0.11)";
       case BookingStatusLabel.CANCELED:
         return "rgba(47,47,46,0.11)";
+      case BookingStatusLabel.CLOSED:
+        return "rgba(33, 37, 41, 0.11)";
       case BookingStatusLabel.CHECKED_IN:
         return "rgba(127, 57, 251, 0.18)";
       case BookingStatusLabel.CHECKED_OUT:
@@ -96,6 +100,8 @@ export default function StatusChip({
         return "Modified";
       case BookingStatusLabel.CANCELED:
         return "Canceled";
+      case BookingStatusLabel.CLOSED:
+        return "Closed";
       case BookingStatusLabel.CHECKED_IN:
         return "Checked In";
       case BookingStatusLabel.CHECKED_OUT:
@@ -123,6 +129,8 @@ export default function StatusChip({
         return "Your request has been approved!";
       case BookingStatusLabel.CANCELED:
         return "Your request has been canceled.";
+      case BookingStatusLabel.CLOSED:
+        return "Your reservation has been completed and closed.";
       case BookingStatusLabel.CHECKED_IN:
         return "Your reservation has begun, thank you for checking in at the front desk.";
       case BookingStatusLabel.CHECKED_OUT:

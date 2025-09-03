@@ -28,7 +28,12 @@ export async function POST(req: NextRequest) {
         calendarEventId: id,
       });
 
-      const xstateResult = await executeXStateTransition(id, "approve", tenant);
+      const xstateResult = await executeXStateTransition(
+        id,
+        "approve",
+        tenant,
+        email,
+      );
 
       if (!xstateResult.success) {
         console.error(`🚨 XSTATE APPROVAL FAILED [${tenant?.toUpperCase()}]:`, {
@@ -51,28 +56,30 @@ export async function POST(req: NextRequest) {
         });
 
         // Handle different XState results
-        if (xstateResult.newState === 'Approved') {
+        if (xstateResult.newState === "Approved") {
           console.log(
             `🎉 XSTATE REACHED APPROVED STATE - EXECUTING FINAL APPROVAL SIDE EFFECTS [${tenant?.toUpperCase()}]:`,
             {
               calendarEventId: id,
               newState: xstateResult.newState,
-            }
+            },
           );
-          
+
           // Execute traditional approval for side effects (emails, calendar updates, etc.)
           await serverApproveBooking(id, email, tenant);
-        } else if (xstateResult.newState === 'Pre-approved') {
+        } else if (xstateResult.newState === "Pre-approved") {
           console.log(
             `🎯 XSTATE REACHED PRE-APPROVED STATE - EXECUTING FIRST APPROVAL SIDE EFFECTS [${tenant?.toUpperCase()}]:`,
             {
               calendarEventId: id,
               newState: xstateResult.newState,
-            }
+            },
           );
-          
+
           // Execute first approval side effects (update firstApprovedAt, etc.)
-          const { serverFirstApproveOnly } = await import("@/components/src/server/admin");
+          const { serverFirstApproveOnly } = await import(
+            "@/components/src/server/admin"
+          );
           await serverFirstApproveOnly(id, email, tenant);
         } else {
           console.log(
@@ -80,8 +87,8 @@ export async function POST(req: NextRequest) {
             {
               calendarEventId: id,
               newState: xstateResult.newState,
-              expectedStates: ['Approved', 'Pre-approved'],
-            }
+              expectedStates: ["Approved", "Pre-approved"],
+            },
           );
         }
       }

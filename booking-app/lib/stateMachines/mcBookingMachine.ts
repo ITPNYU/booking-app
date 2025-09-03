@@ -1,5 +1,5 @@
 import { TENANTS } from "@/components/src/constants/tenants";
-import { setup, and, assign } from "xstate";
+import { and, assign, setup } from "xstate";
 
 // Define context type for type safety
 interface MediaCommonsBookingContext {
@@ -198,10 +198,17 @@ export const mcBookingMachine = setup({
       }
 
       // Check if any services are requested - if so, don't auto-approve
-      if (context.servicesRequested && typeof context.servicesRequested === 'object') {
-        const hasServices = Object.values(context.servicesRequested).some(Boolean);
+      if (
+        context.servicesRequested &&
+        typeof context.servicesRequested === "object"
+      ) {
+        const hasServices = Object.values(context.servicesRequested).some(
+          Boolean
+        );
         if (hasServices) {
-          console.log(`🚫 XSTATE GUARD: Services requested, requires manual approval`);
+          console.log(
+            `🚫 XSTATE GUARD: Services requested, requires manual approval`
+          );
           console.log(
             `🎯 XSTATE AUTO-APPROVAL GUARD RESULT: REJECTED (Services requested)`
           );
@@ -210,9 +217,13 @@ export const mcBookingMachine = setup({
       }
 
       // Check rooms require approval
-      if (context.selectedRooms && context.selectedRooms.length > 0 && !context.isWalkIn) {
+      if (
+        context.selectedRooms &&
+        context.selectedRooms.length > 0 &&
+        !context.isWalkIn
+      ) {
         const allRoomsAutoApprove = context.selectedRooms.every(
-          (room) => room && room.shouldAutoApprove || false
+          (room) => (room && room.shouldAutoApprove) || false
         );
         if (!allRoomsAutoApprove) {
           console.log(
@@ -242,53 +253,88 @@ export const mcBookingMachine = setup({
         return isVip;
       },
       ({ context }) => {
-        const hasServices = context.servicesRequested && typeof context.servicesRequested === 'object'
-          ? Object.values(context.servicesRequested).some(Boolean)
-          : false;
-        console.log(`🎯 XSTATE GUARD: Checking servicesRequested: ${hasServices}`);
+        const hasServices =
+          context.servicesRequested &&
+          typeof context.servicesRequested === "object"
+            ? Object.values(context.servicesRequested).some(Boolean)
+            : false;
+        console.log(
+          `🎯 XSTATE GUARD: Checking servicesRequested: ${hasServices}`
+        );
         return hasServices;
       },
     ]),
     servicesRequested: ({ context }) => {
-      const hasServices = context.servicesRequested && typeof context.servicesRequested === 'object'
-        ? Object.values(context.servicesRequested).some(Boolean)
-        : false;
+      const hasServices =
+        context.servicesRequested &&
+        typeof context.servicesRequested === "object"
+          ? Object.values(context.servicesRequested).some(Boolean)
+          : false;
       console.log(`🎯 XSTATE GUARD: servicesRequested: ${hasServices}`);
       return hasServices;
     },
     servicesApproved: ({ context }) => {
-      if (!context.servicesRequested || typeof context.servicesRequested !== 'object') return false;
-      
+      if (
+        !context.servicesRequested ||
+        typeof context.servicesRequested !== "object"
+      )
+        return false;
+
       // Check if any services are actually requested
-      const hasRequestedServices = Object.values(context.servicesRequested).some(Boolean);
-      
+      const hasRequestedServices = Object.values(
+        context.servicesRequested
+      ).some(Boolean);
+
       // If no services are requested, consider all "approved"
       if (!hasRequestedServices) {
-        console.log(`🎯 XSTATE GUARD: servicesApproved: true (no services requested)`);
+        console.log(
+          `🎯 XSTATE GUARD: servicesApproved: true (no services requested)`
+        );
         return true;
       }
-      
+
       // If services are requested, check if all requested services are approved
-      if (!context.servicesApproved || typeof context.servicesApproved !== 'object') return false;
-      
-      const allApproved = Object.entries(context.servicesRequested).every(([service, requested]) => {
-        if (!requested) return true; // If not requested, consider it "approved"
-        return context.servicesApproved?.[service as keyof typeof context.servicesApproved] === true;
-      });
-      
+      if (
+        !context.servicesApproved ||
+        typeof context.servicesApproved !== "object"
+      )
+        return false;
+
+      const allApproved = Object.entries(context.servicesRequested).every(
+        ([service, requested]) => {
+          if (!requested) return true; // If not requested, consider it "approved"
+          return (
+            context.servicesApproved?.[
+              service as keyof typeof context.servicesApproved
+            ] === true
+          );
+        }
+      );
+
       console.log(`🎯 XSTATE GUARD: servicesApproved: ${allApproved}`);
       return allApproved;
     },
     servicesDeclined: ({ context }) => {
-      if (!context.servicesRequested || typeof context.servicesRequested !== 'object' || 
-          !context.servicesApproved || typeof context.servicesApproved !== 'object') return false;
-      
+      if (
+        !context.servicesRequested ||
+        typeof context.servicesRequested !== "object" ||
+        !context.servicesApproved ||
+        typeof context.servicesApproved !== "object"
+      )
+        return false;
+
       // Check if any requested service is explicitly declined
-      const anyDeclined = Object.entries(context.servicesRequested).some(([service, requested]) => {
-        if (!requested) return false; // If not requested, can't be declined
-        return context.servicesApproved?.[service as keyof typeof context.servicesApproved] === false;
-      });
-      
+      const anyDeclined = Object.entries(context.servicesRequested).some(
+        ([service, requested]) => {
+          if (!requested) return false; // If not requested, can't be declined
+          return (
+            context.servicesApproved?.[
+              service as keyof typeof context.servicesApproved
+            ] === false
+          );
+        }
+      );
+
       console.log(`🎯 XSTATE GUARD: servicesDeclined: ${anyDeclined}`);
       return anyDeclined;
     },
@@ -363,8 +409,14 @@ export const mcBookingMachine = setup({
     calendarEventId: input?.calendarEventId,
     email: input?.email,
     isVip: input?.isVip || false,
-    servicesRequested: input?.servicesRequested && typeof input.servicesRequested === 'object' ? input.servicesRequested : {},
-    servicesApproved: input?.servicesApproved && typeof input.servicesApproved === 'object' ? input.servicesApproved : {},
+    servicesRequested:
+      input?.servicesRequested && typeof input.servicesRequested === "object"
+        ? input.servicesRequested
+        : {},
+    servicesApproved:
+      input?.servicesApproved && typeof input.servicesApproved === "object"
+        ? input.servicesApproved
+        : {},
   }),
   id: "MC Booking Request",
   initial: "Requested",
@@ -400,13 +452,16 @@ export const mcBookingMachine = setup({
       ],
       entry: [
         ({ context }) => {
-          console.log(`🏁 XSTATE STATE: Entered 'Requested' state [MEDIA COMMONS]`, {
-            tenant: context.tenant,
-            timestamp: new Date().toISOString(),
-            isVip: context.isVip,
-            servicesRequested: context.servicesRequested,
-            calendarEventId: context.calendarEventId,
-          });
+          console.log(
+            `🏁 XSTATE STATE: Entered 'Requested' state [MEDIA COMMONS]`,
+            {
+              tenant: context.tenant,
+              timestamp: new Date().toISOString(),
+              isVip: context.isVip,
+              servicesRequested: context.servicesRequested,
+              calendarEventId: context.calendarEventId,
+            }
+          );
         },
         {
           type: "sendHTMLEmail",
@@ -430,12 +485,15 @@ export const mcBookingMachine = setup({
       ],
       entry: [
         ({ context }) => {
-          console.log(`🏁 XSTATE STATE: Entered 'Canceled' state [MEDIA COMMONS]`, {
-            tenant: context.tenant,
-            timestamp: new Date().toISOString(),
-            servicesRequested: context.servicesRequested,
-            calendarEventId: context.calendarEventId,
-          });
+          console.log(
+            `🏁 XSTATE STATE: Entered 'Canceled' state [MEDIA COMMONS]`,
+            {
+              tenant: context.tenant,
+              timestamp: new Date().toISOString(),
+              servicesRequested: context.servicesRequested,
+              calendarEventId: context.calendarEventId,
+            }
+          );
         },
         {
           type: "sendHTMLEmail",
@@ -534,12 +592,15 @@ export const mcBookingMachine = setup({
       },
       entry: [
         ({ context }) => {
-          console.log(`🏁 XSTATE STATE: Entered 'Services Request' parallel state [MEDIA COMMONS]`, {
-            tenant: context.tenant,
-            timestamp: new Date().toISOString(),
-            servicesRequested: context.servicesRequested,
-            isVip: context.isVip,
-          });
+          console.log(
+            `🏁 XSTATE STATE: Entered 'Services Request' parallel state [MEDIA COMMONS]`,
+            {
+              tenant: context.tenant,
+              timestamp: new Date().toISOString(),
+              servicesRequested: context.servicesRequested,
+              isVip: context.isVip,
+            }
+          );
         },
       ],
       states: {
@@ -560,11 +621,14 @@ export const mcBookingMachine = setup({
               ],
               entry: [
                 ({ context }) => {
-                  console.log(`🔍 XSTATE SUBSTATE: Evaluating Staff Request [MEDIA COMMONS]`, {
-                    tenant: context.tenant,
-                    staffRequested: context.servicesRequested?.staff,
-                    timestamp: new Date().toISOString(),
-                  });
+                  console.log(
+                    `🔍 XSTATE SUBSTATE: Evaluating Staff Request [MEDIA COMMONS]`,
+                    {
+                      tenant: context.tenant,
+                      staffRequested: context.servicesRequested?.staff,
+                      timestamp: new Date().toISOString(),
+                    }
+                  );
                 },
               ],
             },
@@ -581,10 +645,13 @@ export const mcBookingMachine = setup({
               },
               entry: [
                 ({ context }) => {
-                  console.log(`⏳ XSTATE SUBSTATE: Staff Request Pending Approval [MEDIA COMMONS]`, {
-                    tenant: context.tenant,
-                    timestamp: new Date().toISOString(),
-                  });
+                  console.log(
+                    `⏳ XSTATE SUBSTATE: Staff Request Pending Approval [MEDIA COMMONS]`,
+                    {
+                      tenant: context.tenant,
+                      timestamp: new Date().toISOString(),
+                    }
+                  );
                 },
               ],
             },
@@ -592,10 +659,13 @@ export const mcBookingMachine = setup({
               type: "final",
               entry: [
                 ({ context }) => {
-                  console.log(`✅ XSTATE SUBSTATE: Staff Request APPROVED [MEDIA COMMONS]`, {
-                    tenant: context.tenant,
-                    timestamp: new Date().toISOString(),
-                  });
+                  console.log(
+                    `✅ XSTATE SUBSTATE: Staff Request APPROVED [MEDIA COMMONS]`,
+                    {
+                      tenant: context.tenant,
+                      timestamp: new Date().toISOString(),
+                    }
+                  );
                 },
               ],
             },
@@ -603,10 +673,13 @@ export const mcBookingMachine = setup({
               type: "final",
               entry: [
                 ({ context }) => {
-                  console.log(`❌ XSTATE SUBSTATE: Staff Request DECLINED [MEDIA COMMONS]`, {
-                    tenant: context.tenant,
-                    timestamp: new Date().toISOString(),
-                  });
+                  console.log(
+                    `❌ XSTATE SUBSTATE: Staff Request DECLINED [MEDIA COMMONS]`,
+                    {
+                      tenant: context.tenant,
+                      timestamp: new Date().toISOString(),
+                    }
+                  );
                 },
               ],
             },
@@ -629,11 +702,14 @@ export const mcBookingMachine = setup({
               ],
               entry: [
                 ({ context }) => {
-                  console.log(`🔍 XSTATE SUBSTATE: Evaluating Catering Request [MEDIA COMMONS]`, {
-                    tenant: context.tenant,
-                    cateringRequested: context.servicesRequested?.catering,
-                    timestamp: new Date().toISOString(),
-                  });
+                  console.log(
+                    `🔍 XSTATE SUBSTATE: Evaluating Catering Request [MEDIA COMMONS]`,
+                    {
+                      tenant: context.tenant,
+                      cateringRequested: context.servicesRequested?.catering,
+                      timestamp: new Date().toISOString(),
+                    }
+                  );
                 },
               ],
             },
@@ -650,10 +726,13 @@ export const mcBookingMachine = setup({
               },
               entry: [
                 ({ context }) => {
-                  console.log(`⏳ XSTATE SUBSTATE: Catering Request Pending Approval [MEDIA COMMONS]`, {
-                    tenant: context.tenant,
-                    timestamp: new Date().toISOString(),
-                  });
+                  console.log(
+                    `⏳ XSTATE SUBSTATE: Catering Request Pending Approval [MEDIA COMMONS]`,
+                    {
+                      tenant: context.tenant,
+                      timestamp: new Date().toISOString(),
+                    }
+                  );
                 },
               ],
             },
@@ -661,10 +740,13 @@ export const mcBookingMachine = setup({
               type: "final",
               entry: [
                 ({ context }) => {
-                  console.log(`✅ XSTATE SUBSTATE: Catering Request APPROVED [MEDIA COMMONS]`, {
-                    tenant: context.tenant,
-                    timestamp: new Date().toISOString(),
-                  });
+                  console.log(
+                    `✅ XSTATE SUBSTATE: Catering Request APPROVED [MEDIA COMMONS]`,
+                    {
+                      tenant: context.tenant,
+                      timestamp: new Date().toISOString(),
+                    }
+                  );
                 },
               ],
             },
@@ -672,10 +754,13 @@ export const mcBookingMachine = setup({
               type: "final",
               entry: [
                 ({ context }) => {
-                  console.log(`❌ XSTATE SUBSTATE: Catering Request DECLINED [MEDIA COMMONS]`, {
-                    tenant: context.tenant,
-                    timestamp: new Date().toISOString(),
-                  });
+                  console.log(
+                    `❌ XSTATE SUBSTATE: Catering Request DECLINED [MEDIA COMMONS]`,
+                    {
+                      tenant: context.tenant,
+                      timestamp: new Date().toISOString(),
+                    }
+                  );
                 },
               ],
             },
@@ -698,11 +783,14 @@ export const mcBookingMachine = setup({
               ],
               entry: [
                 ({ context }) => {
-                  console.log(`🔍 XSTATE SUBSTATE: Evaluating Setup Request [MEDIA COMMONS]`, {
-                    tenant: context.tenant,
-                    setupRequested: context.servicesRequested?.setup,
-                    timestamp: new Date().toISOString(),
-                  });
+                  console.log(
+                    `🔍 XSTATE SUBSTATE: Evaluating Setup Request [MEDIA COMMONS]`,
+                    {
+                      tenant: context.tenant,
+                      setupRequested: context.servicesRequested?.setup,
+                      timestamp: new Date().toISOString(),
+                    }
+                  );
                 },
               ],
             },
@@ -719,10 +807,13 @@ export const mcBookingMachine = setup({
               },
               entry: [
                 ({ context }) => {
-                  console.log(`⏳ XSTATE SUBSTATE: Setup Request Pending Approval [MEDIA COMMONS]`, {
-                    tenant: context.tenant,
-                    timestamp: new Date().toISOString(),
-                  });
+                  console.log(
+                    `⏳ XSTATE SUBSTATE: Setup Request Pending Approval [MEDIA COMMONS]`,
+                    {
+                      tenant: context.tenant,
+                      timestamp: new Date().toISOString(),
+                    }
+                  );
                 },
               ],
             },
@@ -730,10 +821,13 @@ export const mcBookingMachine = setup({
               type: "final",
               entry: [
                 ({ context }) => {
-                  console.log(`✅ XSTATE SUBSTATE: Setup Request APPROVED [MEDIA COMMONS]`, {
-                    tenant: context.tenant,
-                    timestamp: new Date().toISOString(),
-                  });
+                  console.log(
+                    `✅ XSTATE SUBSTATE: Setup Request APPROVED [MEDIA COMMONS]`,
+                    {
+                      tenant: context.tenant,
+                      timestamp: new Date().toISOString(),
+                    }
+                  );
                 },
               ],
             },
@@ -741,10 +835,13 @@ export const mcBookingMachine = setup({
               type: "final",
               entry: [
                 ({ context }) => {
-                  console.log(`❌ XSTATE SUBSTATE: Setup Request DECLINED [MEDIA COMMONS]`, {
-                    tenant: context.tenant,
-                    timestamp: new Date().toISOString(),
-                  });
+                  console.log(
+                    `❌ XSTATE SUBSTATE: Setup Request DECLINED [MEDIA COMMONS]`,
+                    {
+                      tenant: context.tenant,
+                      timestamp: new Date().toISOString(),
+                    }
+                  );
                 },
               ],
             },
@@ -767,11 +864,14 @@ export const mcBookingMachine = setup({
               ],
               entry: [
                 ({ context }) => {
-                  console.log(`🔍 XSTATE SUBSTATE: Evaluating Cleaning Request [MEDIA COMMONS]`, {
-                    tenant: context.tenant,
-                    cleaningRequested: context.servicesRequested?.cleaning,
-                    timestamp: new Date().toISOString(),
-                  });
+                  console.log(
+                    `🔍 XSTATE SUBSTATE: Evaluating Cleaning Request [MEDIA COMMONS]`,
+                    {
+                      tenant: context.tenant,
+                      cleaningRequested: context.servicesRequested?.cleaning,
+                      timestamp: new Date().toISOString(),
+                    }
+                  );
                 },
               ],
             },
@@ -788,10 +888,13 @@ export const mcBookingMachine = setup({
               },
               entry: [
                 ({ context }) => {
-                  console.log(`⏳ XSTATE SUBSTATE: Cleaning Request Pending Approval [MEDIA COMMONS]`, {
-                    tenant: context.tenant,
-                    timestamp: new Date().toISOString(),
-                  });
+                  console.log(
+                    `⏳ XSTATE SUBSTATE: Cleaning Request Pending Approval [MEDIA COMMONS]`,
+                    {
+                      tenant: context.tenant,
+                      timestamp: new Date().toISOString(),
+                    }
+                  );
                 },
               ],
             },
@@ -799,10 +902,13 @@ export const mcBookingMachine = setup({
               type: "final",
               entry: [
                 ({ context }) => {
-                  console.log(`✅ XSTATE SUBSTATE: Cleaning Request APPROVED [MEDIA COMMONS]`, {
-                    tenant: context.tenant,
-                    timestamp: new Date().toISOString(),
-                  });
+                  console.log(
+                    `✅ XSTATE SUBSTATE: Cleaning Request APPROVED [MEDIA COMMONS]`,
+                    {
+                      tenant: context.tenant,
+                      timestamp: new Date().toISOString(),
+                    }
+                  );
                 },
               ],
             },
@@ -810,10 +916,13 @@ export const mcBookingMachine = setup({
               type: "final",
               entry: [
                 ({ context }) => {
-                  console.log(`❌ XSTATE SUBSTATE: Cleaning Request DECLINED [MEDIA COMMONS]`, {
-                    tenant: context.tenant,
-                    timestamp: new Date().toISOString(),
-                  });
+                  console.log(
+                    `❌ XSTATE SUBSTATE: Cleaning Request DECLINED [MEDIA COMMONS]`,
+                    {
+                      tenant: context.tenant,
+                      timestamp: new Date().toISOString(),
+                    }
+                  );
                 },
               ],
             },
@@ -836,11 +945,14 @@ export const mcBookingMachine = setup({
               ],
               entry: [
                 ({ context }) => {
-                  console.log(`🔍 XSTATE SUBSTATE: Evaluating Security Request [MEDIA COMMONS]`, {
-                    tenant: context.tenant,
-                    securityRequested: context.servicesRequested?.security,
-                    timestamp: new Date().toISOString(),
-                  });
+                  console.log(
+                    `🔍 XSTATE SUBSTATE: Evaluating Security Request [MEDIA COMMONS]`,
+                    {
+                      tenant: context.tenant,
+                      securityRequested: context.servicesRequested?.security,
+                      timestamp: new Date().toISOString(),
+                    }
+                  );
                 },
               ],
             },
@@ -857,10 +969,13 @@ export const mcBookingMachine = setup({
               },
               entry: [
                 ({ context }) => {
-                  console.log(`⏳ XSTATE SUBSTATE: Security Request Pending Approval [MEDIA COMMONS]`, {
-                    tenant: context.tenant,
-                    timestamp: new Date().toISOString(),
-                  });
+                  console.log(
+                    `⏳ XSTATE SUBSTATE: Security Request Pending Approval [MEDIA COMMONS]`,
+                    {
+                      tenant: context.tenant,
+                      timestamp: new Date().toISOString(),
+                    }
+                  );
                 },
               ],
             },
@@ -868,10 +983,13 @@ export const mcBookingMachine = setup({
               type: "final",
               entry: [
                 ({ context }) => {
-                  console.log(`✅ XSTATE SUBSTATE: Security Request APPROVED [MEDIA COMMONS]`, {
-                    tenant: context.tenant,
-                    timestamp: new Date().toISOString(),
-                  });
+                  console.log(
+                    `✅ XSTATE SUBSTATE: Security Request APPROVED [MEDIA COMMONS]`,
+                    {
+                      tenant: context.tenant,
+                      timestamp: new Date().toISOString(),
+                    }
+                  );
                 },
               ],
             },
@@ -879,10 +997,13 @@ export const mcBookingMachine = setup({
               type: "final",
               entry: [
                 ({ context }) => {
-                  console.log(`❌ XSTATE SUBSTATE: Security Request DECLINED [MEDIA COMMONS]`, {
-                    tenant: context.tenant,
-                    timestamp: new Date().toISOString(),
-                  });
+                  console.log(
+                    `❌ XSTATE SUBSTATE: Security Request DECLINED [MEDIA COMMONS]`,
+                    {
+                      tenant: context.tenant,
+                      timestamp: new Date().toISOString(),
+                    }
+                  );
                 },
               ],
             },
@@ -905,11 +1026,14 @@ export const mcBookingMachine = setup({
               ],
               entry: [
                 ({ context }) => {
-                  console.log(`🔍 XSTATE SUBSTATE: Evaluating Equipment Request [MEDIA COMMONS]`, {
-                    tenant: context.tenant,
-                    equipmentRequested: context.servicesRequested?.equipment,
-                    timestamp: new Date().toISOString(),
-                  });
+                  console.log(
+                    `🔍 XSTATE SUBSTATE: Evaluating Equipment Request [MEDIA COMMONS]`,
+                    {
+                      tenant: context.tenant,
+                      equipmentRequested: context.servicesRequested?.equipment,
+                      timestamp: new Date().toISOString(),
+                    }
+                  );
                 },
               ],
             },
@@ -926,10 +1050,13 @@ export const mcBookingMachine = setup({
               },
               entry: [
                 ({ context }) => {
-                  console.log(`⏳ XSTATE SUBSTATE: Equipment Request Pending Approval [MEDIA COMMONS]`, {
-                    tenant: context.tenant,
-                    timestamp: new Date().toISOString(),
-                  });
+                  console.log(
+                    `⏳ XSTATE SUBSTATE: Equipment Request Pending Approval [MEDIA COMMONS]`,
+                    {
+                      tenant: context.tenant,
+                      timestamp: new Date().toISOString(),
+                    }
+                  );
                 },
               ],
             },
@@ -937,10 +1064,13 @@ export const mcBookingMachine = setup({
               type: "final",
               entry: [
                 ({ context }) => {
-                  console.log(`✅ XSTATE SUBSTATE: Equipment Request APPROVED [MEDIA COMMONS]`, {
-                    tenant: context.tenant,
-                    timestamp: new Date().toISOString(),
-                  });
+                  console.log(
+                    `✅ XSTATE SUBSTATE: Equipment Request APPROVED [MEDIA COMMONS]`,
+                    {
+                      tenant: context.tenant,
+                      timestamp: new Date().toISOString(),
+                    }
+                  );
                 },
               ],
             },
@@ -948,10 +1078,13 @@ export const mcBookingMachine = setup({
               type: "final",
               entry: [
                 ({ context }) => {
-                  console.log(`❌ XSTATE SUBSTATE: Equipment Request DECLINED [MEDIA COMMONS]`, {
-                    tenant: context.tenant,
-                    timestamp: new Date().toISOString(),
-                  });
+                  console.log(
+                    `❌ XSTATE SUBSTATE: Equipment Request DECLINED [MEDIA COMMONS]`,
+                    {
+                      tenant: context.tenant,
+                      timestamp: new Date().toISOString(),
+                    }
+                  );
                 },
               ],
             },
@@ -1007,11 +1140,14 @@ export const mcBookingMachine = setup({
       },
       entry: [
         ({ context }) => {
-          console.log(`🏁 XSTATE STATE: Entered 'Service Closeout' parallel state [MEDIA COMMONS]`, {
-            tenant: context.tenant,
-            timestamp: new Date().toISOString(),
-            servicesApproved: context.servicesApproved,
-          });
+          console.log(
+            `🏁 XSTATE STATE: Entered 'Service Closeout' parallel state [MEDIA COMMONS]`,
+            {
+              tenant: context.tenant,
+              timestamp: new Date().toISOString(),
+              servicesApproved: context.servicesApproved,
+            }
+          );
         },
       ],
       states: {
@@ -1032,11 +1168,14 @@ export const mcBookingMachine = setup({
               ],
               entry: [
                 ({ context }) => {
-                  console.log(`🔍 XSTATE CLOSEOUT: Evaluating Equipment Closeout [MEDIA COMMONS]`, {
-                    tenant: context.tenant,
-                    equipmentApproved: context.servicesApproved?.equipment,
-                    timestamp: new Date().toISOString(),
-                  });
+                  console.log(
+                    `🔍 XSTATE CLOSEOUT: Evaluating Equipment Closeout [MEDIA COMMONS]`,
+                    {
+                      tenant: context.tenant,
+                      equipmentApproved: context.servicesApproved?.equipment,
+                      timestamp: new Date().toISOString(),
+                    }
+                  );
                 },
               ],
             },
@@ -1048,10 +1187,13 @@ export const mcBookingMachine = setup({
               },
               entry: [
                 ({ context }) => {
-                  console.log(`⏳ XSTATE CLOSEOUT: Equipment Closeout Pending [MEDIA COMMONS]`, {
-                    tenant: context.tenant,
-                    timestamp: new Date().toISOString(),
-                  });
+                  console.log(
+                    `⏳ XSTATE CLOSEOUT: Equipment Closeout Pending [MEDIA COMMONS]`,
+                    {
+                      tenant: context.tenant,
+                      timestamp: new Date().toISOString(),
+                    }
+                  );
                 },
               ],
             },
@@ -1059,10 +1201,13 @@ export const mcBookingMachine = setup({
               type: "final",
               entry: [
                 ({ context }) => {
-                  console.log(`✅ XSTATE CLOSEOUT: Equipment CLOSED OUT [MEDIA COMMONS]`, {
-                    tenant: context.tenant,
-                    timestamp: new Date().toISOString(),
-                  });
+                  console.log(
+                    `✅ XSTATE CLOSEOUT: Equipment CLOSED OUT [MEDIA COMMONS]`,
+                    {
+                      tenant: context.tenant,
+                      timestamp: new Date().toISOString(),
+                    }
+                  );
                 },
               ],
             },
@@ -1085,11 +1230,14 @@ export const mcBookingMachine = setup({
               ],
               entry: [
                 ({ context }) => {
-                  console.log(`🔍 XSTATE CLOSEOUT: Evaluating Staff Closeout [MEDIA COMMONS]`, {
-                    tenant: context.tenant,
-                    staffApproved: context.servicesApproved?.staff,
-                    timestamp: new Date().toISOString(),
-                  });
+                  console.log(
+                    `🔍 XSTATE CLOSEOUT: Evaluating Staff Closeout [MEDIA COMMONS]`,
+                    {
+                      tenant: context.tenant,
+                      staffApproved: context.servicesApproved?.staff,
+                      timestamp: new Date().toISOString(),
+                    }
+                  );
                 },
               ],
             },
@@ -1101,10 +1249,13 @@ export const mcBookingMachine = setup({
               },
               entry: [
                 ({ context }) => {
-                  console.log(`⏳ XSTATE CLOSEOUT: Staff Closeout Pending [MEDIA COMMONS]`, {
-                    tenant: context.tenant,
-                    timestamp: new Date().toISOString(),
-                  });
+                  console.log(
+                    `⏳ XSTATE CLOSEOUT: Staff Closeout Pending [MEDIA COMMONS]`,
+                    {
+                      tenant: context.tenant,
+                      timestamp: new Date().toISOString(),
+                    }
+                  );
                 },
               ],
             },
@@ -1112,10 +1263,13 @@ export const mcBookingMachine = setup({
               type: "final",
               entry: [
                 ({ context }) => {
-                  console.log(`✅ XSTATE CLOSEOUT: Staff CLOSED OUT [MEDIA COMMONS]`, {
-                    tenant: context.tenant,
-                    timestamp: new Date().toISOString(),
-                  });
+                  console.log(
+                    `✅ XSTATE CLOSEOUT: Staff CLOSED OUT [MEDIA COMMONS]`,
+                    {
+                      tenant: context.tenant,
+                      timestamp: new Date().toISOString(),
+                    }
+                  );
                 },
               ],
             },
@@ -1138,11 +1292,14 @@ export const mcBookingMachine = setup({
               ],
               entry: [
                 ({ context }) => {
-                  console.log(`🔍 XSTATE CLOSEOUT: Evaluating Setup Closeout [MEDIA COMMONS]`, {
-                    tenant: context.tenant,
-                    setupApproved: context.servicesApproved?.setup,
-                    timestamp: new Date().toISOString(),
-                  });
+                  console.log(
+                    `🔍 XSTATE CLOSEOUT: Evaluating Setup Closeout [MEDIA COMMONS]`,
+                    {
+                      tenant: context.tenant,
+                      setupApproved: context.servicesApproved?.setup,
+                      timestamp: new Date().toISOString(),
+                    }
+                  );
                 },
               ],
             },
@@ -1154,10 +1311,13 @@ export const mcBookingMachine = setup({
               },
               entry: [
                 ({ context }) => {
-                  console.log(`⏳ XSTATE CLOSEOUT: Setup Closeout Pending [MEDIA COMMONS]`, {
-                    tenant: context.tenant,
-                    timestamp: new Date().toISOString(),
-                  });
+                  console.log(
+                    `⏳ XSTATE CLOSEOUT: Setup Closeout Pending [MEDIA COMMONS]`,
+                    {
+                      tenant: context.tenant,
+                      timestamp: new Date().toISOString(),
+                    }
+                  );
                 },
               ],
             },
@@ -1165,10 +1325,13 @@ export const mcBookingMachine = setup({
               type: "final",
               entry: [
                 ({ context }) => {
-                  console.log(`✅ XSTATE CLOSEOUT: Setup CLOSED OUT [MEDIA COMMONS]`, {
-                    tenant: context.tenant,
-                    timestamp: new Date().toISOString(),
-                  });
+                  console.log(
+                    `✅ XSTATE CLOSEOUT: Setup CLOSED OUT [MEDIA COMMONS]`,
+                    {
+                      tenant: context.tenant,
+                      timestamp: new Date().toISOString(),
+                    }
+                  );
                 },
               ],
             },
@@ -1191,11 +1354,14 @@ export const mcBookingMachine = setup({
               ],
               entry: [
                 ({ context }) => {
-                  console.log(`🔍 XSTATE CLOSEOUT: Evaluating Catering Closeout [MEDIA COMMONS]`, {
-                    tenant: context.tenant,
-                    cateringApproved: context.servicesApproved?.catering,
-                    timestamp: new Date().toISOString(),
-                  });
+                  console.log(
+                    `🔍 XSTATE CLOSEOUT: Evaluating Catering Closeout [MEDIA COMMONS]`,
+                    {
+                      tenant: context.tenant,
+                      cateringApproved: context.servicesApproved?.catering,
+                      timestamp: new Date().toISOString(),
+                    }
+                  );
                 },
               ],
             },
@@ -1207,10 +1373,13 @@ export const mcBookingMachine = setup({
               },
               entry: [
                 ({ context }) => {
-                  console.log(`⏳ XSTATE CLOSEOUT: Catering Closeout Pending [MEDIA COMMONS]`, {
-                    tenant: context.tenant,
-                    timestamp: new Date().toISOString(),
-                  });
+                  console.log(
+                    `⏳ XSTATE CLOSEOUT: Catering Closeout Pending [MEDIA COMMONS]`,
+                    {
+                      tenant: context.tenant,
+                      timestamp: new Date().toISOString(),
+                    }
+                  );
                 },
               ],
             },
@@ -1218,10 +1387,13 @@ export const mcBookingMachine = setup({
               type: "final",
               entry: [
                 ({ context }) => {
-                  console.log(`✅ XSTATE CLOSEOUT: Catering CLOSED OUT [MEDIA COMMONS]`, {
-                    tenant: context.tenant,
-                    timestamp: new Date().toISOString(),
-                  });
+                  console.log(
+                    `✅ XSTATE CLOSEOUT: Catering CLOSED OUT [MEDIA COMMONS]`,
+                    {
+                      tenant: context.tenant,
+                      timestamp: new Date().toISOString(),
+                    }
+                  );
                 },
               ],
             },
@@ -1244,11 +1416,14 @@ export const mcBookingMachine = setup({
               ],
               entry: [
                 ({ context }) => {
-                  console.log(`🔍 XSTATE CLOSEOUT: Evaluating Security Closeout [MEDIA COMMONS]`, {
-                    tenant: context.tenant,
-                    securityApproved: context.servicesApproved?.security,
-                    timestamp: new Date().toISOString(),
-                  });
+                  console.log(
+                    `🔍 XSTATE CLOSEOUT: Evaluating Security Closeout [MEDIA COMMONS]`,
+                    {
+                      tenant: context.tenant,
+                      securityApproved: context.servicesApproved?.security,
+                      timestamp: new Date().toISOString(),
+                    }
+                  );
                 },
               ],
             },
@@ -1260,10 +1435,13 @@ export const mcBookingMachine = setup({
               },
               entry: [
                 ({ context }) => {
-                  console.log(`⏳ XSTATE CLOSEOUT: Security Closeout Pending [MEDIA COMMONS]`, {
-                    tenant: context.tenant,
-                    timestamp: new Date().toISOString(),
-                  });
+                  console.log(
+                    `⏳ XSTATE CLOSEOUT: Security Closeout Pending [MEDIA COMMONS]`,
+                    {
+                      tenant: context.tenant,
+                      timestamp: new Date().toISOString(),
+                    }
+                  );
                 },
               ],
             },
@@ -1271,10 +1449,13 @@ export const mcBookingMachine = setup({
               type: "final",
               entry: [
                 ({ context }) => {
-                  console.log(`✅ XSTATE CLOSEOUT: Security CLOSED OUT [MEDIA COMMONS]`, {
-                    tenant: context.tenant,
-                    timestamp: new Date().toISOString(),
-                  });
+                  console.log(
+                    `✅ XSTATE CLOSEOUT: Security CLOSED OUT [MEDIA COMMONS]`,
+                    {
+                      tenant: context.tenant,
+                      timestamp: new Date().toISOString(),
+                    }
+                  );
                 },
               ],
             },
@@ -1297,11 +1478,14 @@ export const mcBookingMachine = setup({
               ],
               entry: [
                 ({ context }) => {
-                  console.log(`🔍 XSTATE CLOSEOUT: Evaluating Cleaning Closeout [MEDIA COMMONS]`, {
-                    tenant: context.tenant,
-                    cleaningApproved: context.servicesApproved?.cleaning,
-                    timestamp: new Date().toISOString(),
-                  });
+                  console.log(
+                    `🔍 XSTATE CLOSEOUT: Evaluating Cleaning Closeout [MEDIA COMMONS]`,
+                    {
+                      tenant: context.tenant,
+                      cleaningApproved: context.servicesApproved?.cleaning,
+                      timestamp: new Date().toISOString(),
+                    }
+                  );
                 },
               ],
             },
@@ -1313,10 +1497,13 @@ export const mcBookingMachine = setup({
               },
               entry: [
                 ({ context }) => {
-                  console.log(`⏳ XSTATE CLOSEOUT: Cleaning Closeout Pending [MEDIA COMMONS]`, {
-                    tenant: context.tenant,
-                    timestamp: new Date().toISOString(),
-                  });
+                  console.log(
+                    `⏳ XSTATE CLOSEOUT: Cleaning Closeout Pending [MEDIA COMMONS]`,
+                    {
+                      tenant: context.tenant,
+                      timestamp: new Date().toISOString(),
+                    }
+                  );
                 },
               ],
             },
@@ -1324,10 +1511,13 @@ export const mcBookingMachine = setup({
               type: "final",
               entry: [
                 ({ context }) => {
-                  console.log(`✅ XSTATE CLOSEOUT: Cleaning CLOSED OUT [MEDIA COMMONS]`, {
-                    tenant: context.tenant,
-                    timestamp: new Date().toISOString(),
-                  });
+                  console.log(
+                    `✅ XSTATE CLOSEOUT: Cleaning CLOSED OUT [MEDIA COMMONS]`,
+                    {
+                      tenant: context.tenant,
+                      timestamp: new Date().toISOString(),
+                    }
+                  );
                 },
               ],
             },
@@ -1409,12 +1599,15 @@ export const mcBookingMachine = setup({
       ],
       entry: [
         ({ context }) => {
-          console.log(`🔍 XSTATE STATE: Evaluating Services Request Results [MEDIA COMMONS]`, {
-            tenant: context.tenant,
-            timestamp: new Date().toISOString(),
-            servicesRequested: context.servicesRequested,
-            servicesApproved: context.servicesApproved,
-          });
+          console.log(
+            `🔍 XSTATE STATE: Evaluating Services Request Results [MEDIA COMMONS]`,
+            {
+              tenant: context.tenant,
+              timestamp: new Date().toISOString(),
+              servicesRequested: context.servicesRequested,
+              servicesApproved: context.servicesApproved,
+            }
+          );
         },
       ],
     },

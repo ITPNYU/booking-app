@@ -12,7 +12,7 @@ import {
  * Body: { calendarEventId: string, eventType: string, email?: string }
  */
 export async function POST(req: NextRequest) {
-  const { calendarEventId, eventType, email } = await req.json();
+  const { calendarEventId, eventType, email, reason } = await req.json();
 
   // Get tenant from x-tenant header, fallback to default tenant
   const tenant = req.headers.get("x-tenant") || DEFAULT_TENANT;
@@ -81,12 +81,15 @@ export async function POST(req: NextRequest) {
       eventType,
       email,
       tenant,
+      reason,
     });
 
     const result = await executeXStateTransition(
       calendarEventId,
       eventType,
       tenant,
+      email, // Pass email for finalApprovedBy
+      reason, // Pass reason for decline actions
     );
 
     if (!result.success) {

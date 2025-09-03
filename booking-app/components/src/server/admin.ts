@@ -9,7 +9,6 @@ import {
   serverUpdateInFirestore,
 } from "@/lib/firebase/server/adminDb";
 import { DEFAULT_TENANT, TENANTS } from "../constants/tenants";
-import { getMediaCommonsServices } from "../utils/tenantUtils";
 import { ApproverLevel, TableNames, getApprovalCcEmail } from "../policy";
 import {
   AdminUser,
@@ -21,6 +20,7 @@ import {
   BookingStatus,
   BookingStatusLabel,
 } from "../types";
+import { getMediaCommonsServices, isMediaCommons } from "../utils/tenantUtils";
 
 import { Timestamp } from "firebase-admin/firestore";
 
@@ -158,7 +158,7 @@ export const serverBookingContents = async (id: string, tenant?: string) => {
   const endDate = booking.endDate.toDate();
 
   const updatedBookingObj = Object.assign({}, booking, {
-    headerMessage: "This is a request email for final approval.",
+    headerMessage: "This is a request email for 2nd approval.",
     history: history,
     startDate: startDate.toLocaleDateString(),
     endDate: endDate.toLocaleDateString(),
@@ -250,7 +250,11 @@ const serverFirstApprove = (id: string, email?: string, tenant?: string) => {
 };
 
 // Export version for external use (for XState integration)
-export const serverFirstApproveOnly = async (id: string, email?: string, tenant?: string) => {
+export const serverFirstApproveOnly = async (
+  id: string,
+  email?: string,
+  tenant?: string
+) => {
   console.log(
     `🎯 SERVER FIRST APPROVE ONLY [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
     {
@@ -298,7 +302,7 @@ export const serverFirstApproveOnly = async (id: string, email?: string, tenant?
   const contents = await serverBookingContents(id, tenant);
   const emailContents = {
     ...contents,
-    headerMessage: "This is a request email for final approval.",
+    headerMessage: "This is a request email for 2nd approval.",
   };
   const recipient = await serverGetFinalApproverEmail();
   const formData = {
@@ -351,7 +355,7 @@ const serverFinalApprove = async (
   // For Media Commons, if services are requested, approve them all during final approval
   if (tenant === TENANTS.MC && bookingData) {
     const servicesRequested = getMediaCommonsServices(bookingData);
-    
+
     if (servicesRequested.staff) {
       updateData.staffServiceApproved = true;
     }
@@ -381,7 +385,41 @@ export const serverApproveInstantBooking = async (
   email: string,
   tenant?: string
 ) => {
+  // For Media Commons VIP bookings, check if services are requested
+  // If so, only do first approval to allow service request flow
+  const bookingData = await serverGetDataByCalendarEventId(
+    TableNames.BOOKING,
+    id,
+    tenant
+  );
+
+  let shouldDoFinalApproval = true;
+
+  if (isMediaCommons(tenant) && bookingData) {
+    const { getMediaCommonsServices } = await import(
+      "@/components/src/utils/tenantUtils"
+    );
+    const servicesRequested = getMediaCommonsServices(bookingData);
+    const hasServices = Object.values(servicesRequested).some(Boolean);
+
+    if (hasServices) {
+      console.log(
+        `🎯 VIP BOOKING WITH SERVICES - STOPPING AT PRE-APPROVED [${tenant?.toUpperCase()}]:`,
+        {
+          calendarEventId: id,
+          servicesRequested,
+        }
+      );
+      shouldDoFinalApproval = false;
+    }
+  }
+
   serverFirstApprove(id, "System", tenant);
+
+  if (shouldDoFinalApproval) {
+    serverFinalApprove(id, "System", tenant);
+  }
+
   const doc = await serverGetDataByCalendarEventId<{
     id: string;
     requestNumber: number;
@@ -389,7 +427,9 @@ export const serverApproveInstantBooking = async (
   if (doc && id) {
     await logServerBookingChange({
       bookingId: doc.id,
-      status: BookingStatusLabel.APPROVED,
+      status: shouldDoFinalApproval
+        ? BookingStatusLabel.APPROVED
+        : BookingStatusLabel.PRE_APPROVED,
       changedBy: "System",
       requestNumber: doc.requestNumber,
       calendarEventId: id,
@@ -397,8 +437,10 @@ export const serverApproveInstantBooking = async (
       tenant,
     });
   }
-  await serverFinalApprove(id, "System", tenant);
-  serverApproveEvent(id, tenant);
+
+  if (shouldDoFinalApproval) {
+    serverApproveEvent(id, tenant);
+  }
 };
 
 // both first approve and second approve flows hit here
@@ -469,7 +511,7 @@ const firstApprove = async (id: string, email: string, tenant?: string) => {
 
   const emailContents = {
     ...contents,
-    headerMessage: "This is a request email for final approval.",
+    headerMessage: "This is a request email for 2nd approval.",
   };
   const recipient = await serverGetFinalApproverEmail();
   const formData = {

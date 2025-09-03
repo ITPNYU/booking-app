@@ -29,7 +29,7 @@ export enum Actions {
   CHECK_IN = "Check In",
   CHECK_OUT = "Check Out",
   FIRST_APPROVE = "1st Approve",
-  FINAL_APPROVE = "Final Approve",
+  FINAL_APPROVE = "2nd Approve",
   EQUIPMENT_APPROVE = "Equipment Approve",
   SEND_TO_EQUIPMENT = "Send to Equipment",
   DECLINE = "Decline",
@@ -111,7 +111,7 @@ export default function useBookingActions({
     security?: boolean;
     setup?: boolean;
   }>({});
-  const [currentXState, setCurrentXState] = useState<string>("");
+  const [currentXState, setCurrentXState] = useState<any>("");
 
   // Function to fetch booking data and update states
   const fetchBookingData = useCallback(async () => {
@@ -133,30 +133,51 @@ export default function useBookingActions({
             // XState v5: Get current state and context from snapshot
             const currentStateValue = data.xstateData.snapshot.value || "";
             setCurrentXState(currentStateValue);
-            
+
             const context = data.xstateData.snapshot.context || {};
             setServicesApproved({
-              staff: context.servicesApproved?.staff ?? data.staffServiceApproved,
-              equipment: context.servicesApproved?.equipment ?? data.equipmentServiceApproved,
-              catering: context.servicesApproved?.catering ?? data.cateringServiceApproved,
-              cleaning: context.servicesApproved?.cleaning ?? data.cleaningServiceApproved,
-              security: context.servicesApproved?.security ?? data.securityServiceApproved,
-              setup: context.servicesApproved?.setup ?? data.setupServiceApproved,
+              staff:
+                context.servicesApproved?.staff ?? data.staffServiceApproved,
+              equipment:
+                context.servicesApproved?.equipment ??
+                data.equipmentServiceApproved,
+              catering:
+                context.servicesApproved?.catering ??
+                data.cateringServiceApproved,
+              cleaning:
+                context.servicesApproved?.cleaning ??
+                data.cleaningServiceApproved,
+              security:
+                context.servicesApproved?.security ??
+                data.securityServiceApproved,
+              setup:
+                context.servicesApproved?.setup ?? data.setupServiceApproved,
             });
 
             // Detect service closeout completion from XState parallel states
-            const serviceCloseoutStates = 
-              typeof currentStateValue === 'object' && currentStateValue['Service Closeout'] 
-                ? currentStateValue['Service Closeout'] 
+            const serviceCloseoutStates =
+              typeof currentStateValue === "object" &&
+              currentStateValue["Service Closeout"]
+                ? currentStateValue["Service Closeout"]
                 : {};
 
             setServicesClosedOut({
-              staff: serviceCloseoutStates['Staff Closeout'] === 'Staff Closedout',
-              equipment: serviceCloseoutStates['Equipment Closeout'] === 'Equipment Closedout',
-              catering: serviceCloseoutStates['Catering Closeout'] === 'Catering Closedout',
-              cleaning: serviceCloseoutStates['Cleaning Closeout'] === 'Cleaning Closedout',
-              security: serviceCloseoutStates['Security Closeout'] === 'Security Closedout',
-              setup: serviceCloseoutStates['Setup Closeout'] === 'Setup Closedout',
+              staff:
+                serviceCloseoutStates["Staff Closeout"] === "Staff Closedout",
+              equipment:
+                serviceCloseoutStates["Equipment Closeout"] ===
+                "Equipment Closedout",
+              catering:
+                serviceCloseoutStates["Catering Closeout"] ===
+                "Catering Closedout",
+              cleaning:
+                serviceCloseoutStates["Cleaning Closeout"] ===
+                "Cleaning Closedout",
+              security:
+                serviceCloseoutStates["Security Closeout"] ===
+                "Security Closedout",
+              setup:
+                serviceCloseoutStates["Setup Closeout"] === "Setup Closedout",
             });
           } else {
             // Fallback to individual service approval fields if XState data is not available
@@ -187,7 +208,7 @@ export default function useBookingActions({
     setDate(new Date());
   };
 
-  const actions: { [key in Actions]: ActionDefinition } = {
+  const baseActions = {
     [Actions.CANCEL]: {
       action: async () => {
         await cancel(calendarEventId, userEmail, netId, tenant as string);
@@ -225,6 +246,8 @@ export default function useBookingActions({
     },
     [Actions.FINAL_APPROVE]: {
       action: async () => {
+        // For Media Commons, let XState handle the service approval flow
+        // Pre-approved -> Services Request (if services requested) -> Approved (when services approved)
         await clientApproveBooking(
           calendarEventId,
           userEmail,
@@ -270,6 +293,78 @@ export default function useBookingActions({
       optimisticNextStatus: status,
       confirmation: false,
     },
+  };
+
+  const autoDeclineRemainingServices = async (
+    excludeService?: string,
+    declineReason?: string
+  ) => {
+    const servicesToAutoDecline = [];
+
+    if (
+      excludeService !== "catering" &&
+      serviceRequests.catering &&
+      servicesApproved.catering === undefined
+    ) {
+      servicesToAutoDecline.push("declineCatering");
+    }
+    if (
+      excludeService !== "cleaning" &&
+      serviceRequests.cleaning &&
+      servicesApproved.cleaning === undefined
+    ) {
+      servicesToAutoDecline.push("declineCleaning");
+    }
+    if (
+      excludeService !== "security" &&
+      serviceRequests.security &&
+      servicesApproved.security === undefined
+    ) {
+      servicesToAutoDecline.push("declineSecurity");
+    }
+    if (
+      excludeService !== "equipment" &&
+      serviceRequests.equipment &&
+      servicesApproved.equipment === undefined
+    ) {
+      servicesToAutoDecline.push("declineEquipment");
+    }
+    if (
+      excludeService !== "staff" &&
+      serviceRequests.staff &&
+      servicesApproved.staff === undefined
+    ) {
+      servicesToAutoDecline.push("declineStaff");
+    }
+    if (
+      excludeService !== "setup" &&
+      serviceRequests.setup &&
+      servicesApproved.setup === undefined
+    ) {
+      servicesToAutoDecline.push("declineSetup");
+    }
+
+    // Execute auto-decline for pending services
+    for (const declineEvent of servicesToAutoDecline) {
+      await fetch("/api/xstate-transition", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-tenant": tenant as string,
+        },
+        body: JSON.stringify({
+          calendarEventId,
+          eventType: declineEvent,
+          email: userEmail,
+          reason: declineReason || "Service declined (auto-decline)",
+        }),
+      });
+    }
+  };
+
+  // Merge base actions with service actions
+  const actions = {
+    ...baseActions,
     // Media Commons Service Actions
     [Actions.APPROVE_STAFF_SERVICE]: {
       action: async () => {
@@ -280,7 +375,10 @@ export default function useBookingActions({
         }
 
         // If we're in Pre-approved state and services are requested, first transition to Services Request
-        if (currentXState === "Pre-approved" && Object.values(serviceRequests).some(Boolean)) {
+        if (
+          currentXState === "Pre-approved" &&
+          Object.values(serviceRequests).some(Boolean)
+        ) {
           await fetch("/api/xstate-transition", {
             method: "POST",
             headers: {
@@ -294,7 +392,7 @@ export default function useBookingActions({
             }),
           });
         }
-        
+
         // Then approve the specific staff service
         await fetch("/api/xstate-transition", {
           method: "POST",
@@ -322,7 +420,10 @@ export default function useBookingActions({
         }
 
         // If we're in Pre-approved state and services are requested, first transition to Services Request
-        if (currentXState === "Pre-approved" && Object.values(serviceRequests).some(Boolean)) {
+        if (
+          currentXState === "Pre-approved" &&
+          Object.values(serviceRequests).some(Boolean)
+        ) {
           await fetch("/api/xstate-transition", {
             method: "POST",
             headers: {
@@ -336,7 +437,7 @@ export default function useBookingActions({
             }),
           });
         }
-        
+
         // Then approve the specific equipment service
         await fetch("/api/xstate-transition", {
           method: "POST",
@@ -364,7 +465,10 @@ export default function useBookingActions({
         }
 
         // If we're in Pre-approved state and services are requested, first transition to Services Request
-        if (currentXState === "Pre-approved" && Object.values(serviceRequests).some(Boolean)) {
+        if (
+          currentXState === "Pre-approved" &&
+          Object.values(serviceRequests).some(Boolean)
+        ) {
           await fetch("/api/xstate-transition", {
             method: "POST",
             headers: {
@@ -378,7 +482,7 @@ export default function useBookingActions({
             }),
           });
         }
-        
+
         // Then approve the specific service
         await fetch("/api/xstate-transition", {
           method: "POST",
@@ -406,7 +510,10 @@ export default function useBookingActions({
         }
 
         // If we're in Pre-approved state and services are requested, first transition to Services Request
-        if (currentXState === "Pre-approved" && Object.values(serviceRequests).some(Boolean)) {
+        if (
+          currentXState === "Pre-approved" &&
+          Object.values(serviceRequests).some(Boolean)
+        ) {
           await fetch("/api/xstate-transition", {
             method: "POST",
             headers: {
@@ -420,7 +527,7 @@ export default function useBookingActions({
             }),
           });
         }
-        
+
         // Then approve the specific cleaning service
         await fetch("/api/xstate-transition", {
           method: "POST",
@@ -448,7 +555,10 @@ export default function useBookingActions({
         }
 
         // If we're in Pre-approved state and services are requested, first transition to Services Request
-        if (currentXState === "Pre-approved" && Object.values(serviceRequests).some(Boolean)) {
+        if (
+          currentXState === "Pre-approved" &&
+          Object.values(serviceRequests).some(Boolean)
+        ) {
           await fetch("/api/xstate-transition", {
             method: "POST",
             headers: {
@@ -462,7 +572,7 @@ export default function useBookingActions({
             }),
           });
         }
-        
+
         // Then approve the specific security service
         await fetch("/api/xstate-transition", {
           method: "POST",
@@ -490,7 +600,10 @@ export default function useBookingActions({
         }
 
         // If we're in Pre-approved state and services are requested, first transition to Services Request
-        if (currentXState === "Pre-approved" && Object.values(serviceRequests).some(Boolean)) {
+        if (
+          currentXState === "Pre-approved" &&
+          Object.values(serviceRequests).some(Boolean)
+        ) {
           await fetch("/api/xstate-transition", {
             method: "POST",
             headers: {
@@ -504,7 +617,7 @@ export default function useBookingActions({
             }),
           });
         }
-        
+
         // Then approve the specific setup service
         await fetch("/api/xstate-transition", {
           method: "POST",
@@ -540,8 +653,8 @@ export default function useBookingActions({
             }),
           });
         }
-        
-        // Then decline the specific staff service
+
+        // Then decline the specific staff service with reason
         await fetch("/api/xstate-transition", {
           method: "POST",
           headers: {
@@ -552,8 +665,16 @@ export default function useBookingActions({
             calendarEventId,
             eventType: "declineStaff",
             email: userEmail,
+            reason: reason || "Staff service declined",
           }),
         });
+
+        // Auto-decline other pending services to complete the parallel state
+        await autoDeclineRemainingServices(
+          "staff",
+          reason || "Staff service declined - other services auto-declined"
+        );
+
         // Refresh booking data to update UI
         await fetchBookingData();
       },
@@ -577,7 +698,7 @@ export default function useBookingActions({
             }),
           });
         }
-        
+
         // Then decline the specific equipment service
         await fetch("/api/xstate-transition", {
           method: "POST",
@@ -589,8 +710,16 @@ export default function useBookingActions({
             calendarEventId,
             eventType: "declineEquipment",
             email: userEmail,
+            reason: reason || "Equipment service declined",
           }),
         });
+
+        // Auto-decline other pending services to complete the parallel state
+        await autoDeclineRemainingServices(
+          "equipment",
+          reason || "Equipment service declined - other services auto-declined"
+        );
+
         // Refresh booking data to update UI
         await fetchBookingData();
       },
@@ -614,7 +743,7 @@ export default function useBookingActions({
             }),
           });
         }
-        
+
         // Then decline the specific catering service
         await fetch("/api/xstate-transition", {
           method: "POST",
@@ -626,8 +755,16 @@ export default function useBookingActions({
             calendarEventId,
             eventType: "declineCatering",
             email: userEmail,
+            reason: reason || "Catering service declined",
           }),
         });
+
+        // Auto-decline other pending services to complete the parallel state
+        await autoDeclineRemainingServices(
+          "catering",
+          reason || "Catering service declined - other services auto-declined"
+        );
+
         // Refresh booking data to update UI
         await fetchBookingData();
       },
@@ -651,7 +788,7 @@ export default function useBookingActions({
             }),
           });
         }
-        
+
         // Then decline the specific cleaning service
         await fetch("/api/xstate-transition", {
           method: "POST",
@@ -663,8 +800,16 @@ export default function useBookingActions({
             calendarEventId,
             eventType: "declineCleaning",
             email: userEmail,
+            reason: reason || "Cleaning service declined",
           }),
         });
+
+        // Auto-decline other pending services to complete the parallel state
+        await autoDeclineRemainingServices(
+          "cleaning",
+          reason || "Cleaning service declined - other services auto-declined"
+        );
+
         // Refresh booking data to update UI
         await fetchBookingData();
       },
@@ -688,7 +833,7 @@ export default function useBookingActions({
             }),
           });
         }
-        
+
         // Then decline the specific security service
         await fetch("/api/xstate-transition", {
           method: "POST",
@@ -700,8 +845,16 @@ export default function useBookingActions({
             calendarEventId,
             eventType: "declineSecurity",
             email: userEmail,
+            reason: reason || "Security service declined",
           }),
         });
+
+        // Auto-decline other pending services to complete the parallel state
+        await autoDeclineRemainingServices(
+          "security",
+          reason || "Security service declined - other services auto-declined"
+        );
+
         // Refresh booking data to update UI
         await fetchBookingData();
       },
@@ -725,7 +878,7 @@ export default function useBookingActions({
             }),
           });
         }
-        
+
         // Then decline the specific setup service
         await fetch("/api/xstate-transition", {
           method: "POST",
@@ -737,8 +890,17 @@ export default function useBookingActions({
             calendarEventId,
             eventType: "declineSetup",
             email: userEmail,
+            reason: reason || "Setup service declined",
           }),
         });
+
+        // Auto-decline other pending services to complete the parallel state
+        // This ensures the booking transitions to Declined immediately
+        await autoDeclineRemainingServices(
+          "setup",
+          reason || "Setup service declined - other services auto-declined"
+        );
+
         // Refresh booking data to update UI
         await fetchBookingData();
       },
@@ -750,7 +912,9 @@ export default function useBookingActions({
       action: async () => {
         // Check if staff service was approved and needs closeout
         if (!serviceRequests.staff || servicesApproved.staff !== true) {
-          console.warn("Staff service not approved or not requested, skipping closeout");
+          console.warn(
+            "Staff service not approved or not requested, skipping closeout"
+          );
           return;
         }
 
@@ -775,7 +939,9 @@ export default function useBookingActions({
       action: async () => {
         // Check if equipment service was approved and needs closeout
         if (!serviceRequests.equipment || servicesApproved.equipment !== true) {
-          console.warn("Equipment service not approved or not requested, skipping closeout");
+          console.warn(
+            "Equipment service not approved or not requested, skipping closeout"
+          );
           return;
         }
 
@@ -800,7 +966,9 @@ export default function useBookingActions({
       action: async () => {
         // Check if catering service was approved and needs closeout
         if (!serviceRequests.catering || servicesApproved.catering !== true) {
-          console.warn("Catering service not approved or not requested, skipping closeout");
+          console.warn(
+            "Catering service not approved or not requested, skipping closeout"
+          );
           return;
         }
 
@@ -825,7 +993,9 @@ export default function useBookingActions({
       action: async () => {
         // Check if cleaning service was approved and needs closeout
         if (!serviceRequests.cleaning || servicesApproved.cleaning !== true) {
-          console.warn("Cleaning service not approved or not requested, skipping closeout");
+          console.warn(
+            "Cleaning service not approved or not requested, skipping closeout"
+          );
           return;
         }
 
@@ -850,7 +1020,9 @@ export default function useBookingActions({
       action: async () => {
         // Check if security service was approved and needs closeout
         if (!serviceRequests.security || servicesApproved.security !== true) {
-          console.warn("Security service not approved or not requested, skipping closeout");
+          console.warn(
+            "Security service not approved or not requested, skipping closeout"
+          );
           return;
         }
 
@@ -875,7 +1047,9 @@ export default function useBookingActions({
       action: async () => {
         // Check if setup service was approved and needs closeout
         if (!serviceRequests.setup || servicesApproved.setup !== true) {
-          console.warn("Setup service not approved or not requested, skipping closeout");
+          console.warn(
+            "Setup service not approved or not requested, skipping closeout"
+          );
           return;
         }
 
@@ -909,6 +1083,7 @@ export default function useBookingActions({
       status !== BookingStatusLabel.CANCELED &&
       status !== BookingStatusLabel.CHECKED_IN &&
       status !== BookingStatusLabel.CHECKED_OUT &&
+      status !== BookingStatusLabel.CLOSED &&
       status !== BookingStatusLabel.NO_SHOW
     ) {
       options.push(Actions.CANCEL);
@@ -958,9 +1133,15 @@ export default function useBookingActions({
 
   const adminOptions = useMemo(() => {
     if (
-      status === BookingStatusLabel.CANCELED ||
       status === BookingStatusLabel.DECLINED ||
-      status === BookingStatusLabel.CHECKED_OUT
+      status === BookingStatusLabel.CLOSED ||
+      (status === BookingStatusLabel.CHECKED_OUT &&
+        !isMediaCommons(tenant as string)) ||
+      (status === BookingStatusLabel.CANCELED &&
+        !(
+          isMediaCommons(tenant as string) &&
+          Object.values(serviceRequests).some(Boolean)
+        ))
     ) {
       return [];
     }
@@ -970,16 +1151,69 @@ export default function useBookingActions({
       options.push(Actions.FIRST_APPROVE);
       // No SEND_TO_EQUIPMENT for REQUESTED status
     } else if (status === BookingStatusLabel.PRE_APPROVED) {
-      options.push(Actions.FINAL_APPROVE);
-      options.push(Actions.SEND_TO_EQUIPMENT); // Only show for PRE_APPROVED status
+      // Only show FINAL_APPROVE if not in Service Request state
+      const isInServiceRequest =
+        (typeof currentXState === "object" &&
+          currentXState &&
+          currentXState["Services Request"]) ||
+        (typeof currentXState === "string" &&
+          (currentXState.includes("Services Request") ||
+            currentXState === "Services Request"));
+
+      // Show FINAL_APPROVE if not in Service Request state
+      // In Pre-approved state, we should show FINAL_APPROVE even if there are unapproved services
+      // because the 2nd approve will transition to Services Request state where services can be approved
+      if (!isInServiceRequest) {
+        options.push(Actions.FINAL_APPROVE);
+      }
     } else if (status === BookingStatusLabel.EQUIPMENT) {
       options.push(Actions.FINAL_APPROVE);
     }
 
-    // Add Media Commons service approval options
+    // Add Media Commons service approval options - only show when in Services Request state
+    console.log(`🔍 DEBUG SERVICES REQUEST DETECTION:`, {
+      calendarEventId,
+      currentXState,
+      currentXStateType: typeof currentXState,
+      currentXStateKeys:
+        typeof currentXState === "object" && currentXState
+          ? Object.keys(currentXState)
+          : null,
+      hasServicesRequestKey:
+        typeof currentXState === "object" &&
+        currentXState &&
+        currentXState["Services Request"],
+      isString: typeof currentXState === "string",
+      includesServicesRequest:
+        typeof currentXState === "string" &&
+        currentXState.includes("Services Request"),
+      equalsServicesRequest:
+        typeof currentXState === "string" &&
+        currentXState === "Services Request",
+    });
+
+    const isInServicesRequest =
+      (typeof currentXState === "object" &&
+        currentXState &&
+        currentXState["Services Request"]) ||
+      (typeof currentXState === "string" &&
+        (currentXState.includes("Services Request") ||
+          currentXState === "Services Request"));
+
+    console.log(`🔍 SERVICES REQUEST DETECTION RESULT:`, {
+      calendarEventId,
+      isInServicesRequest,
+      hasServiceRequests: Object.values(serviceRequests).some(Boolean),
+      willShowServiceActions:
+        isMediaCommons(tenant as string) &&
+        Object.values(serviceRequests).some(Boolean) &&
+        isInServicesRequest,
+    });
+
     if (
       isMediaCommons(tenant as string) &&
-      Object.values(serviceRequests).some(Boolean)
+      Object.values(serviceRequests).some(Boolean) &&
+      isInServicesRequest
     ) {
       // Add service approval actions based on what's requested and current state
       if (serviceRequests.staff && servicesApproved.staff !== true) {
@@ -1010,41 +1244,78 @@ export default function useBookingActions({
 
     // Add Media Commons service closeout options
     // Show closeout actions when in Service Closeout state or when services are approved and booking is completed
-    const isInServiceCloseout = 
-      (typeof currentXState === 'object' && currentXState && currentXState['Service Closeout']) ||
-      (typeof currentXState === 'string' && currentXState.includes("Service Closeout"));
-      
+    const isInServiceCloseout =
+      (typeof currentXState === "object" &&
+        currentXState &&
+        currentXState["Service Closeout"]) ||
+      (typeof currentXState === "string" &&
+        currentXState.includes("Service Closeout"));
+
     if (
       isMediaCommons(tenant as string) &&
       (isInServiceCloseout ||
-        (Object.values(servicesApproved).some(Boolean) && 
-         (status === BookingStatusLabel.CHECKED_IN || 
-          status === BookingStatusLabel.NO_SHOW ||
-          (typeof currentXState === 'string' && currentXState === "Checked Out"))))
+        (Object.values(servicesApproved).some(Boolean) &&
+          (status === BookingStatusLabel.CHECKED_OUT ||
+            status === BookingStatusLabel.CANCELED ||
+            status === BookingStatusLabel.NO_SHOW ||
+            (typeof currentXState === "string" &&
+              currentXState === "Checked Out"))))
     ) {
-      if (serviceRequests.staff && servicesApproved.staff === true && servicesClosedOut.staff !== true) {
+      if (
+        serviceRequests.staff &&
+        servicesApproved.staff === true &&
+        servicesClosedOut.staff !== true
+      ) {
         options.push(Actions.CLOSEOUT_STAFF_SERVICE);
       }
-      if (serviceRequests.equipment && servicesApproved.equipment === true && servicesClosedOut.equipment !== true) {
+      if (
+        serviceRequests.equipment &&
+        servicesApproved.equipment === true &&
+        servicesClosedOut.equipment !== true
+      ) {
         options.push(Actions.CLOSEOUT_EQUIPMENT_SERVICE);
       }
-      if (serviceRequests.catering && servicesApproved.catering === true && servicesClosedOut.catering !== true) {
+      if (
+        serviceRequests.catering &&
+        servicesApproved.catering === true &&
+        servicesClosedOut.catering !== true
+      ) {
         options.push(Actions.CLOSEOUT_CATERING_SERVICE);
       }
-      if (serviceRequests.cleaning && servicesApproved.cleaning === true && servicesClosedOut.cleaning !== true) {
+      if (
+        serviceRequests.cleaning &&
+        servicesApproved.cleaning === true &&
+        servicesClosedOut.cleaning !== true
+      ) {
         options.push(Actions.CLOSEOUT_CLEANING_SERVICE);
       }
-      if (serviceRequests.security && servicesApproved.security === true && servicesClosedOut.security !== true) {
+      if (
+        serviceRequests.security &&
+        servicesApproved.security === true &&
+        servicesClosedOut.security !== true
+      ) {
         options.push(Actions.CLOSEOUT_SECURITY_SERVICE);
       }
-      if (serviceRequests.setup && servicesApproved.setup === true && servicesClosedOut.setup !== true) {
+      if (
+        serviceRequests.setup &&
+        servicesApproved.setup === true &&
+        servicesClosedOut.setup !== true
+      ) {
         options.push(Actions.CLOSEOUT_SETUP_SERVICE);
       }
     }
 
     options = options.concat(paOptions);
-    options.push(Actions.CANCEL);
-    options.push(Actions.DECLINE);
+
+    // Don't show Cancel and Decline for CHECKED_OUT and CANCELED status (CLOSED is already handled by early return)
+    if (
+      status !== BookingStatusLabel.CHECKED_OUT &&
+      status !== BookingStatusLabel.CANCELED
+    ) {
+      options.push(Actions.CANCEL);
+      options.push(Actions.DECLINE);
+    }
+
     return options;
   }, [
     status,
