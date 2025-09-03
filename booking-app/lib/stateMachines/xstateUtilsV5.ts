@@ -95,7 +95,8 @@ async function handleStateTransitions(
   tenant: string,
   firestoreUpdates: any,
   skipCalendarForServiceCloseout = false,
-  isXStateCreation = false
+  isXStateCreation = false,
+  reason?: string
 ) {
   const previousState = currentSnapshot.value;
   const newState = newSnapshot.value;
@@ -247,9 +248,10 @@ async function handleStateTransitions(
         let headerMessage =
           "Your reservation request for Media Commons has been declined.";
 
-        // Use decline reason from XState context if available
+        // Use decline reason from XState context if available, fallback to reason parameter
         const declineReason =
           newSnapshot.context?.declineReason ||
+          reason ||
           "Service requirements could not be fulfilled";
         headerMessage += ` Reason: ${declineReason}. <br /><br />If you have any questions or need further assistance, please don't hesitate to reach out.`;
 
@@ -1556,8 +1558,12 @@ export async function executeXStateTransition(
       };
     }
 
-    // Execute the transition
-    actor.send({ type: eventType as any });
+    // Execute the transition with reason if provided
+    const event: any = { type: eventType as any };
+    if (reason) {
+      event.reason = reason;
+    }
+    actor.send(event);
     const newSnapshot = actor.getSnapshot();
 
     console.log(
@@ -1839,7 +1845,8 @@ We understand that unexpected situations come up, and we encourage you to cancel
       tenant,
       firestoreUpdates,
       eventType === "noShow", // Pass noShow flag to skip calendar updates for Service Closeout
-      false // isXStateCreation - false for normal transitions
+      false, // isXStateCreation - false for normal transitions
+      reason // Pass reason for decline actions
     );
 
     // If this is Media Commons and servicesApproved context changed, update individual service fields

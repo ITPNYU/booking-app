@@ -36,7 +36,8 @@ async function callXStateTransitionAPI(
   calendarEventId: string,
   eventType: string,
   email: string,
-  tenant?: string
+  tenant?: string,
+  reason?: string
 ): Promise<{ success: boolean; newState?: string; error?: string }> {
   try {
     const response = await fetch(
@@ -51,6 +52,7 @@ async function callXStateTransitionAPI(
           calendarEventId,
           eventType,
           email,
+          reason,
         }),
       }
     );
@@ -173,7 +175,8 @@ export const decline = async (
       id,
       "decline",
       email,
-      tenant
+      tenant,
+      reason
     );
 
     if (!xstateResult.success) {
@@ -197,6 +200,10 @@ export const decline = async (
         calendarEventId: id,
         newState: xstateResult.newState,
       });
+
+      // XState handled the decline successfully, including email sending
+      // Skip the traditional email sending below
+      return;
     }
   } else {
     console.log(
@@ -530,6 +537,10 @@ export const checkin = async (id: string, email: string, tenant?: string) => {
         calendarEventId: id,
         newState: xstateResult.newState,
       });
+
+      // XState handled the checkin successfully, including email sending
+      // Skip the traditional email sending below
+      return;
     }
   } else {
     console.log(
@@ -641,6 +652,10 @@ export const checkOut = async (id: string, email: string, tenant?: string) => {
           newState: xstateResult.newState,
         }
       );
+
+      // XState handled the checkout successfully, including email sending
+      // Skip the traditional email sending below
+      return;
     }
   } else {
     console.log(

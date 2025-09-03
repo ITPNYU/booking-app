@@ -11,6 +11,7 @@ interface MediaCommonsBookingContext {
   calendarEventId?: string | null;
   email?: string;
   isVip?: boolean;
+  declineReason?: string;
   servicesRequested?: {
     staff?: boolean;
     equipment?: boolean;
@@ -38,7 +39,7 @@ export const mcBookingMachine = setup({
       | { type: "noShow" }
       | { type: "approve" }
       | { type: "checkIn" }
-      | { type: "decline" }
+      | { type: "decline"; reason?: string }
       | { type: "checkOut" }
       | { type: "approveSetup" }
       | { type: "approveStaff" }
@@ -94,6 +95,15 @@ export const mcBookingMachine = setup({
         email: context.email,
       });
     },
+    setDeclineReason: assign({
+      declineReason: ({ event }) => {
+        const reason = (event as any).reason;
+        if (reason && reason.trim()) {
+          return reason;
+        }
+        return "Service requirements could not be fulfilled";
+      },
+    }),
     // Service approval actions that update context
     approveStaffService: assign({
       servicesApproved: ({ context }) => ({
