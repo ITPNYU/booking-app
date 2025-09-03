@@ -1,18 +1,20 @@
+import { TENANTS } from "@/components/src/constants/tenants";
 import { TableNames } from "@/components/src/policy";
 import { BookingStatusLabel } from "@/components/src/types";
 import { isMediaCommons } from "@/components/src/utils/tenantUtils";
 import { serverGetDataByCalendarEventId } from "@/lib/firebase/server/adminDb";
-import { serverUpdateDataByCalendarEventId } from "@/components/src/server/admin";
 import { createActor } from "xstate";
 import { itpBookingMachine } from "./itpBookingMachine";
 import { mcBookingMachine } from "./mcBookingMachine";
-import { TENANTS } from "@/components/src/constants/tenants";
 
 // Type for persisted XState data using v5 snapshot
 export interface PersistedXStateData {
-  snapshot: any; // XState v5 snapshot object
+  snapshot?: any; // XState v5 snapshot object (optional for legacy compatibility)
   machineId: string;
   lastTransition: string;
+  currentState?: string; // Legacy compatibility
+  context?: any; // Legacy compatibility
+  canTransitionTo?: any; // Legacy compatibility - object with transition states
 }
 
 /**
@@ -100,12 +102,22 @@ async function createXStateFromBookingStatus(
         email: bookingData.email,
         isVip: bookingData.isVip || false,
         servicesRequested: {
-          staff: !!bookingData.staffService && bookingData.staffService !== "no",
-          equipment: !!bookingData.equipmentService && bookingData.equipmentService !== "no",
-          catering: !!bookingData.cateringService && bookingData.cateringService !== "no",
-          cleaning: !!bookingData.cleaningService && bookingData.cleaningService !== "no",
-          security: !!bookingData.securityService && bookingData.securityService !== "no",
-          setup: !!bookingData.setupService && bookingData.setupService !== "no",
+          staff:
+            !!bookingData.staffService && bookingData.staffService !== "no",
+          equipment:
+            !!bookingData.equipmentService &&
+            bookingData.equipmentService !== "no",
+          catering:
+            !!bookingData.cateringService &&
+            bookingData.cateringService !== "no",
+          cleaning:
+            !!bookingData.cleaningService &&
+            bookingData.cleaningService !== "no",
+          security:
+            !!bookingData.securityService &&
+            bookingData.securityService !== "no",
+          setup:
+            !!bookingData.setupService && bookingData.setupService !== "no",
         },
         servicesApproved: {
           staff: bookingData.staffServiceApproved,
@@ -432,51 +444,65 @@ export async function restoreXStateFromFirestore(
     // Navigate to the target state if not already there
     if (currentSnapshot.value !== targetState) {
       switch (targetState) {
-        case 'Pre-approved':
+        case "Pre-approved":
           // From Requested → Pre-approved
-          if (currentSnapshot.value === 'Requested' && currentSnapshot.can({ type: 'approve' })) {
-            restoredActor.send({ type: 'approve' });
+          if (
+            currentSnapshot.value === "Requested" &&
+            currentSnapshot.can({ type: "approve" })
+          ) {
+            restoredActor.send({ type: "approve" });
             console.log(`🎯 RESTORED STATE: Requested → Pre-approved`);
           }
           break;
-        case 'Approved':
+        case "Approved":
           // From Requested → Pre-approved → Approved
-          if (currentSnapshot.value === 'Requested' && currentSnapshot.can({ type: 'approve' })) {
-            restoredActor.send({ type: 'approve' });
+          if (
+            currentSnapshot.value === "Requested" &&
+            currentSnapshot.can({ type: "approve" })
+          ) {
+            restoredActor.send({ type: "approve" });
             const preApprovedSnapshot = restoredActor.getSnapshot();
-            if (preApprovedSnapshot.value === 'Pre-approved' && preApprovedSnapshot.can({ type: 'approve' })) {
-              restoredActor.send({ type: 'approve' });
-              console.log(`🎯 RESTORED STATE: Requested → Pre-approved → Approved`);
+            if (
+              preApprovedSnapshot.value === "Pre-approved" &&
+              preApprovedSnapshot.can({ type: "approve" })
+            ) {
+              restoredActor.send({ type: "approve" });
+              console.log(
+                `🎯 RESTORED STATE: Requested → Pre-approved → Approved`
+              );
             }
           }
           break;
-        case 'Declined':
-          if (currentSnapshot.value === 'Requested' && currentSnapshot.can({ type: 'decline' })) {
-            restoredActor.send({ type: 'decline' });
+        case "Declined":
+          if (
+            currentSnapshot.value === "Requested" &&
+            currentSnapshot.can({ type: "decline" })
+          ) {
+            restoredActor.send({ type: "decline" });
             console.log(`🎯 RESTORED STATE: Requested → Declined`);
           }
           break;
-        case 'Canceled':
-          if (currentSnapshot.can({ type: 'cancel' })) {
-            restoredActor.send({ type: 'cancel' });
+        case "Canceled":
+          if (currentSnapshot.can({ type: "cancel" })) {
+            restoredActor.send({ type: "cancel" });
             console.log(`🎯 RESTORED STATE: → Canceled`);
           }
           break;
-        case 'Checked In':
-          if (currentSnapshot.can({ type: 'checkIn' })) {
-            restoredActor.send({ type: 'checkIn' });
+        case "Checked In":
+          if (currentSnapshot.can({ type: "checkIn" })) {
+            restoredActor.send({ type: "checkIn" });
             console.log(`🎯 RESTORED STATE: → Checked In`);
           }
           break;
-        case 'Checked Out':
-          if (currentSnapshot.can({ type: 'checkOut' })) {
-            restoredActor.send({ type: 'checkOut' });
+        case "Checked Out":
+          if (currentSnapshot.can({ type: "checkOut" })) {
+            restoredActor.send({ type: "checkOut" });
             console.log(`🎯 RESTORED STATE: → Checked Out`);
           }
           break;
-        case 'No Show':
-          if (currentSnapshot.can({ type: 'noShow' })) {
-            restoredActor.send({ type: 'noShow' });
+        case "No Show":
+          if (currentSnapshot.can({ type: "noShow" })) {
+            restoredActor.send({ type: "noShow" });
             console.log(`🎯 RESTORED STATE: → No Show`);
           }
           break;
