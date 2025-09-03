@@ -12,7 +12,8 @@ export default function useAllowedStatuses(pageContext: PageContextLevel) {
         BookingStatusLabel.NO_SHOW,
       ];
     } else if (pageContext === PageContextLevel.EQUIPMENT) {
-      return [BookingStatusLabel.EQUIPMENT];
+      // For Equipment page, show both legacy EQUIPMENT status and Service Requests needing Equipment approval
+      return [BookingStatusLabel.EQUIPMENT, BookingStatusLabel.PRE_APPROVED];
     } else {
       const { WALK_IN, ...displayableStatuses } = BookingStatusLabel;
       return Object.values(displayableStatuses);

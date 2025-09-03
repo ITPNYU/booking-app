@@ -1125,11 +1125,32 @@ export default function useBookingActions({
   }, [status]);
 
   const liaisonOptions = [Actions.FIRST_APPROVE, Actions.DECLINE];
-  const equipmentOptions = [
-    Actions.MODIFICATION,
-    Actions.EQUIPMENT_APPROVE,
-    Actions.DECLINE,
-  ];
+
+  // Equipment options - dynamically determined based on booking state
+  const equipmentOptions = useMemo(() => {
+    let options: Actions[] = [];
+
+    // For Media Commons bookings in Services Request state with Equipment requests
+    if (
+      isMediaCommons(tenant as string) &&
+      serviceRequests.equipment &&
+      servicesApproved.equipment !== true
+    ) {
+      options.push(Actions.APPROVE_EQUIPMENT_SERVICE);
+      options.push(Actions.DECLINE_EQUIPMENT_SERVICE);
+    }
+
+    // For legacy EQUIPMENT status bookings
+    if (status === BookingStatusLabel.EQUIPMENT) {
+      options.push(Actions.EQUIPMENT_APPROVE);
+      options.push(Actions.DECLINE);
+    }
+
+    // Always allow modification for equipment personnel
+    options.push(Actions.MODIFICATION);
+
+    return options;
+  }, [status, serviceRequests, servicesApproved, tenant]);
 
   const adminOptions = useMemo(() => {
     if (

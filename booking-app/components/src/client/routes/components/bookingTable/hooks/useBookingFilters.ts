@@ -11,6 +11,7 @@ import { DATE_FILTERS, DateRangeFilter } from "./getDateFilter";
 import { BOOKING_TABLE_HIDE_STATUS_TIME_ELAPSED } from "@/components/src/policy";
 import getBookingStatus from "../../../hooks/getBookingStatus";
 import { DatabaseContext } from "../../Provider";
+import { SchemaContext } from "../../SchemaProvider";
 import useAllowedStatuses from "./useAllowedStatuses";
 
 interface Props {
@@ -166,6 +167,43 @@ class BookingFilter {
     return this;
   }
 
+  filterEquipmentRequests() {
+    // For Equipment page, filter to show only bookings that need Equipment approval
+    if (this.pageContext === PageContextLevel.EQUIPMENT) {
+      this.rows = this.rows.filter((row) => {
+        // Show legacy EQUIPMENT status bookings
+        if (row.status === BookingStatusLabel.EQUIPMENT) {
+          return true;
+        }
+
+        // Show Service Requests with Equipment that needs approval
+        if (
+          row.status === BookingStatusLabel.PRE_APPROVED &&
+          row.xstateData?.snapshot?.value
+        ) {
+          const xstateValue = row.xstateData.snapshot.value;
+
+          // Check if booking is in Services Request state
+          if (
+            typeof xstateValue === "object" &&
+            xstateValue &&
+            xstateValue["Services Request"]
+          ) {
+            // Check if equipment is requested but not yet approved
+            const context = row.xstateData.snapshot.context;
+            if (context?.servicesRequested?.equipment === true) {
+              // Show if equipment is not yet approved (undefined, null, or false)
+              return context?.servicesApproved?.equipment !== true;
+            }
+          }
+        }
+
+        return false;
+      });
+    }
+    return this;
+  }
+
   filterSelectedDateRange(selectedDateRange: DateRangeFilter) {
     if (this.pageContext >= PageContextLevel.PA) {
       this.rows = this.rows.filter(DATE_FILTERS[selectedDateRange]);
@@ -235,6 +273,7 @@ export function useBookingFilters(props: Props): BookingRow[] {
   } = props;
   const { liaisonUsers, userEmail, allBookings, setFilters } =
     useContext(DatabaseContext);
+  const { tenant } = useContext(SchemaContext);
   const allowedStatuses = useAllowedStatuses(pageContext);
   const [currentTime, setCurrentTime] = useState(new Date());
 
@@ -260,7 +299,7 @@ export function useBookingFilters(props: Props): BookingRow[] {
 
   const rows: BookingRow[] = useMemo(() => {
     return allBookings.map((booking) => {
-      const status = getBookingStatus(booking);
+      const status = getBookingStatus(booking, tenant || undefined);
 
       return {
         ...booking,
@@ -268,7 +307,7 @@ export function useBookingFilters(props: Props): BookingRow[] {
         id: booking.calendarEventId,
       };
     });
-  }, [allBookings]);
+  }, [allBookings, tenant]);
 
   const filteredRows = useMemo(() => {
     const filter = new BookingFilter({
@@ -283,6 +322,7 @@ export function useBookingFilters(props: Props): BookingRow[] {
         .filterElapsedTime(currentTime)
         .filterPageContext(userEmail, liaisonUsers)
         .filterAllowedStatuses()
+        .filterEquipmentRequests()
         .filterStatusChips(selectedStatusFilters)
         // No need for client-side search filtering since it's done on the database side
         // .filterBySearchQuery(searchQuery)
