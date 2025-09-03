@@ -21,6 +21,7 @@ export enum TableNames {
   POLICY_SETTINGS = "policySettings",
   BLACKOUT_PERIODS = "blackoutPeriods",
   TENANT_SCHEMA = "tenantSchema",
+  USERS_RIGHTS = "usersRights",
 }
 
 // Utility function to get tenant-specific collection names
@@ -38,7 +39,9 @@ export const getTenantCollectionName = (baseCollection: string, tenant?: string)
     "counters",
     "operationHours",
     "preBanLogs",
-    "usersWhitelist"
+    "usersWhitelist",
+    "usersApprovers",
+    "usersRights"
   ];
   
   if (tenantSpecificCollections.includes(baseCollection)) {
@@ -52,6 +55,15 @@ export const getTenantCollectionName = (baseCollection: string, tenant?: string)
 export const getTenantTableName = (tableName: TableNames, tenant?: string): string => {
   const baseCollection = tableName;
   return getTenantCollectionName(baseCollection, tenant);
+};
+
+// Migration period utility - will be removed after migration is complete
+export const isLegacyUserCollection = (collectionName: TableNames): boolean => {
+  const legacyUserCollections = [
+    TableNames.ADMINS,
+    TableNames.PAS,
+  ];
+  return legacyUserCollections.includes(collectionName);
 };
 
 export const CALENDAR_HIDE_STATUS = [

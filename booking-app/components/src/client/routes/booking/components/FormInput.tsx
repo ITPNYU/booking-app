@@ -112,23 +112,23 @@ export default function FormInput({
 
   // Determine which services to show based on selected rooms and schema resources
   const showEquipment = useMemo(() => {
-    return selectedRooms.some(room => room.services?.includes('equipment'));
+    return selectedRooms.some((room) => room.services?.includes("equipment"));
   }, [selectedRooms]);
 
   const showStaffing = useMemo(() => {
-    return selectedRooms.some(room => room.services?.includes('staffing'));
+    return selectedRooms.some((room) => room.services?.includes("staffing"));
   }, [selectedRooms]);
 
   const showCatering = useMemo(() => {
-    return selectedRooms.some(room => room.services?.includes('catering'));
+    return selectedRooms.some((room) => room.services?.includes("catering"));
   }, [selectedRooms]);
 
   const showHireSecurity = useMemo(() => {
-    return selectedRooms.some(room => room.services?.includes('security'));
+    return selectedRooms.some((room) => room.services?.includes("security"));
   }, [selectedRooms]);
 
   const showCleaning = useMemo(() => {
-    return selectedRooms.some(room => room.services?.includes('cleaning'));
+    return selectedRooms.some((room) => room.services?.includes("cleaning"));
   }, [selectedRooms]);
 
   const {
@@ -142,21 +142,21 @@ export default function FormInput({
     defaultValues: {
       setupDetails: "",
       cateringService: "",
-      cleaningService: "no",
+      cleaningService: "",
       sponsorFirstName: "",
       sponsorLastName: "",
       sponsorEmail: "",
       mediaServicesDetails: "",
       equipmentServicesDetails: "",
       staffingServicesDetails: "",
-      catering: "no",
+      catering: "",
       chartFieldForCatering: "",
       chartFieldForCleaning: "",
       chartFieldForSecurity: "",
       chartFieldForRoomSetup: "",
-      hireSecurity: "no",
+      hireSecurity: "",
       attendeeAffiliation: "",
-      roomSetup: "no",
+      roomSetup: "",
       bookingType: "",
       secondaryName: "",
       otherDepartment: "",
@@ -595,8 +595,8 @@ export default function FormInput({
                   label="Equipment Services Details"
                   description={
                     <p>
-                      If you selected Equipment Services above, please
-                      describe your needs in detail.
+                      If you selected Equipment Services above, please describe
+                      your needs in detail.
                       <br />
                       If you need to check out equipment, you can check our
                       inventory and include your request below. (Ie. 2x Small
@@ -679,7 +679,9 @@ export default function FormInput({
             <BookingFormSwitch
               id="cleaningService"
               label="Cleaning Services?"
-              description={<p>Select if you need cleaning services for your event.</p>}
+              description={
+                <p>Select if you need cleaning services for your event.</p>
+              }
               required={false}
               {...{ control, errors, trigger }}
             />

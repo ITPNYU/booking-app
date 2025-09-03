@@ -63,6 +63,88 @@ export const clientDeleteDataFromFirestore = async (
   }
 };
 
+// Special function for handling user rights deletion
+export const clientDeleteUserRightsData = async (
+  collectionName: TableNames,
+  docId: string,
+  tenant?: string
+) => {
+  try {
+    const db = getDb();
+
+    // Check if this is one of the user collections that should use usersRights
+    const userCollections = [
+      TableNames.ADMINS,
+      TableNames.PAS,
+    ];
+
+    if (userCollections.includes(collectionName)) {
+      // For user collections, we work directly with the usersRights collection
+      // The docId passed is from the usersRights collection
+      const usersRightsCollection = getTenantCollection(
+        TableNames.USERS_RIGHTS,
+        tenant
+      );
+
+      // Get the document from usersRights collection
+      const userDoc = await getDoc(doc(db, usersRightsCollection, docId));
+
+      if (!userDoc.exists()) {
+        throw new Error("User document not found in usersRights collection");
+      }
+
+      const userData = userDoc.data();
+      const email = userData.email;
+
+      if (!email) {
+        throw new Error("Email not found in user document");
+      }
+
+      // Set the appropriate flag to false
+      let updateData: any = {};
+
+      if (collectionName === TableNames.ADMINS) {
+        updateData = { isAdmin: false };
+      } else if (collectionName === TableNames.PAS) {
+        updateData = { isWorker: false };
+      }
+
+      // Check if all flags are false, if so, remove the document
+      const updatedFlags = {
+        isAdmin:
+          collectionName === TableNames.ADMINS ? false : userData.isAdmin,
+        isWorker:
+          collectionName === TableNames.PAS ? false : userData.isWorker,
+      };
+
+      if (
+        !updatedFlags.isAdmin &&
+        !updatedFlags.isWorker
+      ) {
+        // All flags are false, remove the document
+        await deleteDoc(doc(db, usersRightsCollection, docId));
+        console.log("Removed user from usersRights as all flags are false");
+      } else {
+        // Update the flag
+        await updateDoc(doc(db, usersRightsCollection, docId), updateData);
+        console.log("Updated user flag in usersRights");
+      }
+    } else {
+      // Use original logic for non-user collections
+      const tenantCollection = getTenantCollection(
+        collectionName as TableNames,
+        tenant
+      );
+      await deleteDoc(doc(db, tenantCollection, docId));
+    }
+
+    console.log("Document successfully deleted with ID:", docId);
+  } catch (error) {
+    console.error("Error deleting document: ", error);
+    throw error;
+  }
+};
+
 export const clientSaveDataToFirestore = async (
   collectionName: string,
   data: object
@@ -74,6 +156,96 @@ export const clientSaveDataToFirestore = async (
     console.log("Document successfully written with ID:", docRef.id);
   } catch (error) {
     console.error("Error writing document: ", error);
+  }
+};
+
+// Special function for handling user rights operations
+export const clientSaveUserRightsData = async (
+  collectionName: TableNames,
+  data: object,
+  tenant?: string
+) => {
+  try {
+    const db = getDb();
+
+    // Check if this is one of the user collections that should use usersRights
+    const userCollections = [
+      TableNames.ADMINS,
+      TableNames.PAS,
+    ];
+
+    if (userCollections.includes(collectionName)) {
+      // Use usersRights collection instead
+      const usersRightsCollection = getTenantCollection(
+        TableNames.USERS_RIGHTS,
+        tenant
+      );
+      const email = (data as any).email;
+
+      if (!email) {
+        throw new Error("Email is required for user rights operations");
+      }
+
+      // Check if user already exists in usersRights
+      const existingUserQuery = query(
+        collection(db, usersRightsCollection),
+        where("email", "==", email)
+      );
+      const existingUserSnapshot = await getDocs(existingUserQuery);
+
+      if (!existingUserSnapshot.empty) {
+        // User exists, update the appropriate flag
+        const existingUserDoc = existingUserSnapshot.docs[0];
+        const existingData = existingUserDoc.data();
+
+        let updateData: any = {};
+
+        if (collectionName === TableNames.ADMINS) {
+          updateData = { isAdmin: true };
+        } else if (collectionName === TableNames.PAS) {
+          updateData = { isWorker: true };
+        }
+
+        await updateDoc(
+          doc(db, usersRightsCollection, existingUserDoc.id),
+          updateData
+        );
+        console.log(
+          "Updated existing user in usersRights with ID:",
+          existingUserDoc.id
+        );
+      } else {
+        // User doesn't exist, create new entry
+        const newUserData = {
+          email: email,
+          createdAt: (data as any).createdAt || Timestamp.now(),
+          isAdmin: collectionName === TableNames.ADMINS,
+          isWorker: collectionName === TableNames.PAS,
+          isEquipment: false,
+          isStaffing: false,
+          isLiaison: false,
+          isSetup: false,
+          isCatering: false,
+          isCleaning: false,
+          isSecurity: false,
+          ...(data as any),
+        };
+
+        const docRef = await addDoc(
+          collection(db, usersRightsCollection),
+          newUserData
+        );
+        console.log("Created new user in usersRights with ID:", docRef.id);
+      }
+    } else {
+      // Use original logic for non-user collections
+      const tenantCollection = getTenantCollection(collectionName, tenant);
+      const docRef = await addDoc(collection(db, tenantCollection), data);
+      console.log("Document successfully written with ID:", docRef.id);
+    }
+  } catch (error) {
+    console.error("Error writing document: ", error);
+    throw error;
   }
 };
 

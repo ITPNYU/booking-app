@@ -26,9 +26,55 @@ import {
   getCancelCcEmail,
 } from "../policy";
 
+import { shouldUseXState } from "@/components/src/utils/tenantUtils";
 import { clientUpdateDataByCalendarEventId } from "@/lib/firebase/client/clientDb";
 import { roundTimeUp } from "../client/utils/date";
 import { getBookingToolDeployUrl } from "./ui";
+
+// Helper function to call XState transition API
+async function callXStateTransitionAPI(
+  calendarEventId: string,
+  eventType: string,
+  email: string,
+  tenant?: string
+): Promise<{ success: boolean; newState?: string; error?: string }> {
+  try {
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_BASE_URL}/api/xstate-transition`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-tenant": tenant || DEFAULT_TENANT,
+        },
+        body: JSON.stringify({
+          calendarEventId,
+          eventType,
+          email,
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      return {
+        success: false,
+        error: errorData.error,
+      };
+    }
+
+    const result = await response.json();
+    return {
+      success: true,
+      newState: result.newState,
+    };
+  } catch (error: any) {
+    return {
+      success: false,
+      error: error.message,
+    };
+  }
+}
 
 export const fetchAllFutureBooking = async <Booking>(
   tenant?: string
@@ -109,6 +155,56 @@ export const decline = async (
   reason?: string,
   tenant?: string
 ) => {
+  console.log(`🎯 DECLINE REQUEST [${tenant?.toUpperCase() || "UNKNOWN"}]:`, {
+    calendarEventId: id,
+    email,
+    tenant,
+    reason,
+    usingXState: shouldUseXState(tenant),
+  });
+
+  // For ITP and Media Commons tenants, use XState transition via API
+  if (shouldUseXState(tenant)) {
+    console.log(`🎭 USING XSTATE API FOR DECLINE [${tenant?.toUpperCase()}]:`, {
+      calendarEventId: id,
+    });
+
+    const xstateResult = await callXStateTransitionAPI(
+      id,
+      "decline",
+      email,
+      tenant
+    );
+
+    if (!xstateResult.success) {
+      console.error(
+        `🚨 XSTATE DECLINE API FAILED [${tenant?.toUpperCase()}]:`,
+        {
+          calendarEventId: id,
+          error: xstateResult.error,
+        }
+      );
+
+      // Fallback to traditional decline if XState API fails
+      console.log(
+        `🔄 FALLING BACK TO TRADITIONAL DECLINE [${tenant?.toUpperCase()}]:`,
+        {
+          calendarEventId: id,
+        }
+      );
+    } else {
+      console.log(`✅ XSTATE DECLINE API SUCCESS [${tenant?.toUpperCase()}]:`, {
+        calendarEventId: id,
+        newState: xstateResult.newState,
+      });
+    }
+  } else {
+    console.log(
+      `📝 USING TRADITIONAL DECLINE [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+      { calendarEventId: id }
+    );
+  }
+
   clientUpdateDataByCalendarEventId(
     TableNames.BOOKING,
     id,
@@ -214,6 +310,53 @@ export const cancel = async (
   netId: string,
   tenant?: string
 ) => {
+  console.log(`🎯 CANCEL REQUEST [${tenant?.toUpperCase() || "UNKNOWN"}]:`, {
+    calendarEventId: id,
+    email,
+    tenant,
+    netId,
+    usingXState: shouldUseXState(tenant),
+  });
+
+  // For ITP and Media Commons tenants, use XState transition via API
+  if (shouldUseXState(tenant)) {
+    console.log(`🎭 USING XSTATE API FOR CANCEL [${tenant?.toUpperCase()}]:`, {
+      calendarEventId: id,
+    });
+
+    const xstateResult = await callXStateTransitionAPI(
+      id,
+      "cancel",
+      email,
+      tenant
+    );
+
+    if (!xstateResult.success) {
+      console.error(`🚨 XSTATE CANCEL API FAILED [${tenant?.toUpperCase()}]:`, {
+        calendarEventId: id,
+        error: xstateResult.error,
+      });
+
+      // Fallback to traditional cancel if XState API fails
+      console.log(
+        `🔄 FALLING BACK TO TRADITIONAL CANCEL [${tenant?.toUpperCase()}]:`,
+        {
+          calendarEventId: id,
+        }
+      );
+    } else {
+      console.log(`✅ XSTATE CANCEL API SUCCESS [${tenant?.toUpperCase()}]:`, {
+        calendarEventId: id,
+        newState: xstateResult.newState,
+      });
+    }
+  } else {
+    console.log(
+      `📝 USING TRADITIONAL CANCEL [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+      { calendarEventId: id }
+    );
+  }
+
   clientUpdateDataByCalendarEventId(
     TableNames.BOOKING,
     id,
@@ -346,6 +489,55 @@ export const updateOperationHours = async (
 };
 
 export const checkin = async (id: string, email: string, tenant?: string) => {
+  console.log(`🎯 CHECKIN REQUEST [${tenant?.toUpperCase() || "UNKNOWN"}]:`, {
+    calendarEventId: id,
+    email,
+    tenant,
+    usingXState: shouldUseXState(tenant),
+  });
+
+  // For ITP and Media Commons tenants, use XState transition via API
+  if (shouldUseXState(tenant)) {
+    console.log(`🎭 USING XSTATE API FOR CHECKIN [${tenant?.toUpperCase()}]:`, {
+      calendarEventId: id,
+    });
+
+    const xstateResult = await callXStateTransitionAPI(
+      id,
+      "checkIn",
+      email,
+      tenant
+    );
+
+    if (!xstateResult.success) {
+      console.error(
+        `🚨 XSTATE CHECKIN API FAILED [${tenant?.toUpperCase()}]:`,
+        {
+          calendarEventId: id,
+          error: xstateResult.error,
+        }
+      );
+
+      // Fallback to traditional checkin if XState API fails
+      console.log(
+        `🔄 FALLING BACK TO TRADITIONAL CHECKIN [${tenant?.toUpperCase()}]:`,
+        {
+          calendarEventId: id,
+        }
+      );
+    } else {
+      console.log(`✅ XSTATE CHECKIN API SUCCESS [${tenant?.toUpperCase()}]:`, {
+        calendarEventId: id,
+        newState: xstateResult.newState,
+      });
+    }
+  } else {
+    console.log(
+      `📝 USING TRADITIONAL CHECKIN [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+      { calendarEventId: id }
+    );
+  }
+
   clientUpdateDataByCalendarEventId(
     TableNames.BOOKING,
     id,
@@ -402,6 +594,61 @@ export const checkin = async (id: string, email: string, tenant?: string) => {
 };
 
 export const checkOut = async (id: string, email: string, tenant?: string) => {
+  console.log(`🎯 CHECKOUT REQUEST [${tenant?.toUpperCase() || "UNKNOWN"}]:`, {
+    calendarEventId: id,
+    email,
+    tenant,
+    usingXState: shouldUseXState(tenant),
+  });
+
+  // For ITP and Media Commons tenants, use XState transition via API
+  if (shouldUseXState(tenant)) {
+    console.log(
+      `🎭 USING XSTATE API FOR CHECKOUT [${tenant?.toUpperCase()}]:`,
+      {
+        calendarEventId: id,
+      }
+    );
+
+    const xstateResult = await callXStateTransitionAPI(
+      id,
+      "checkOut",
+      email,
+      tenant
+    );
+
+    if (!xstateResult.success) {
+      console.error(
+        `🚨 XSTATE CHECKOUT API FAILED [${tenant?.toUpperCase()}]:`,
+        {
+          calendarEventId: id,
+          error: xstateResult.error,
+        }
+      );
+
+      // Fallback to traditional checkout if XState API fails
+      console.log(
+        `🔄 FALLING BACK TO TRADITIONAL CHECKOUT [${tenant?.toUpperCase()}]:`,
+        {
+          calendarEventId: id,
+        }
+      );
+    } else {
+      console.log(
+        `✅ XSTATE CHECKOUT API SUCCESS [${tenant?.toUpperCase()}]:`,
+        {
+          calendarEventId: id,
+          newState: xstateResult.newState,
+        }
+      );
+    }
+  } else {
+    console.log(
+      `📝 USING TRADITIONAL CHECKOUT [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+      { calendarEventId: id }
+    );
+  }
+
   const checkoutDate = roundTimeUp();
   clientUpdateDataByCalendarEventId(
     TableNames.BOOKING,
@@ -472,6 +719,92 @@ export const checkOut = async (id: string, email: string, tenant?: string) => {
 };
 
 export const noShow = async (
+  id: string,
+  email: string,
+  netId: string,
+  tenant?: string
+) => {
+  console.log(`🎯 NO SHOW REQUEST [${tenant?.toUpperCase() || "UNKNOWN"}]:`, {
+    calendarEventId: id,
+    email,
+    tenant,
+    netId,
+    usingXState: shouldUseXState(tenant),
+  });
+
+  // For ITP and Media Commons tenants, use XState transition via API
+  if (shouldUseXState(tenant)) {
+    console.log(`🎭 USING XSTATE API FOR NO SHOW [${tenant?.toUpperCase()}]:`, {
+      calendarEventId: id,
+    });
+
+    const xstateResult = await callXStateTransitionAPI(
+      id,
+      "noShow",
+      email,
+      tenant
+    );
+
+    if (!xstateResult.success) {
+      console.error(
+        `🚨 XSTATE NO SHOW API FAILED [${tenant?.toUpperCase()}]:`,
+        {
+          calendarEventId: id,
+          error: xstateResult.error,
+        }
+      );
+
+      // Fallback to traditional no show if XState API fails
+      console.log(
+        `🔄 FALLING BACK TO TRADITIONAL NO SHOW [${tenant?.toUpperCase()}]:`,
+        {
+          calendarEventId: id,
+        }
+      );
+    } else {
+      console.log(`✅ XSTATE NO SHOW API SUCCESS [${tenant?.toUpperCase()}]:`, {
+        calendarEventId: id,
+        newState: xstateResult.newState,
+      });
+
+      // Check if XState reached 'No Show' state - only then execute traditional no show for side effects
+      if (xstateResult.newState === "No Show") {
+        console.log(
+          `🎉 XSTATE REACHED NO SHOW STATE - EXECUTING NO SHOW SIDE EFFECTS [${tenant?.toUpperCase()}]:`,
+          {
+            calendarEventId: id,
+            newState: xstateResult.newState,
+          }
+        );
+
+        // Execute traditional no show processing (database updates, emails, etc.)
+        await executeTraditionalNoShow(id, email, netId, tenant);
+      } else {
+        console.log(
+          `🚫 XSTATE DID NOT REACH NO SHOW STATE - SKIPPING NO SHOW SIDE EFFECTS [${tenant?.toUpperCase()}]:`,
+          {
+            calendarEventId: id,
+            newState: xstateResult.newState,
+            expectedState: "No Show",
+          }
+        );
+      }
+
+      return; // Exit early since XState handled the transition
+    }
+  } else {
+    console.log(
+      `📝 USING TRADITIONAL NO SHOW [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+      { calendarEventId: id }
+    );
+  }
+
+  // Execute traditional no show processing for non-XState tenants or XState failures
+  await executeTraditionalNoShow(id, email, netId, tenant);
+};
+
+// Helper function to execute traditional no show processing
+export const executeTraditionalNoShow = async (
   id: string,
   email: string,
   netId: string,

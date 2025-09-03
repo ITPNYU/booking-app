@@ -104,7 +104,10 @@ export default function BookingActions(props: Props) {
       );
     }
 
-    if (actions[selectedAction].confirmation === true) {
+    if (
+      "confirmation" in actions[selectedAction] &&
+      actions[selectedAction].confirmation === true
+    ) {
       return (
         <ConfirmDialog
           message="Are you sure? This action can't be undone."
