@@ -10,7 +10,7 @@ import {
 } from "@/lib/firebase/server/adminDb";
 import { DEFAULT_TENANT } from "../constants/tenants";
 import { ApproverLevel, TableNames, getApprovalCcEmail } from "../policy";
-import { getTenantSchemaName } from "./emails";
+import { getTenantEmailConfig } from "./emails";
 import {
   AdminUser,
   Approver,
@@ -473,8 +473,8 @@ const firstApprove = async (id: string, email: string, tenant?: string) => {
   };
   const recipient = await serverGetFinalApproverEmail();
   
-  // Get tenant schema name for email subject
-  const schemaName = await getTenantSchemaName(tenant);
+  // Get tenant email configuration
+  const emailConfig = await getTenantEmailConfig(tenant);
   
   const formData = {
     templateName: "booking_detail",
@@ -484,10 +484,10 @@ const firstApprove = async (id: string, email: string, tenant?: string) => {
     eventTitle: contents.title || "",
     requestNumber: contents.requestNumber,
     bodyMessage: "",
-    approverType: ApproverType.FINAL_APPROVER,
-    replyTo: contents.email,
-    schemaName,
-  };
+            approverType: ApproverType.FINAL_APPROVER,
+        replyTo: contents.email,
+        schemaName: emailConfig.schemaName,
+      };
   const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/sendEmail`, {
     method: "POST",
     headers: {
@@ -554,8 +554,8 @@ export const serverSendBookingDetailEmail = async ({
   const contents = await serverBookingContents(calendarEventId, tenant);
   contents.headerMessage = headerMessage;
   
-  // Get tenant schema name for email subject
-  const schemaName = await getTenantSchemaName(tenant);
+  // Get tenant email configuration
+  const emailConfig = await getTenantEmailConfig(tenant);
   
   const formData = {
     templateName: "booking_detail",
@@ -568,7 +568,7 @@ export const serverSendBookingDetailEmail = async ({
     approverType,
     replyTo,
     tenant,
-    schemaName,
+    schemaName: emailConfig.schemaName,
   };
   const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/sendEmail`, {
     method: "POST",
@@ -612,26 +612,12 @@ export const serverApproveEvent = async (id: string, tenant?: string) => {
   // @ts-ignore
   const guestEmail = doc.email;
 
-  const approvalNoticeHtml = `
-<b>Reservation Check in</b><br />
-Please plan to check in at the Media Commons Front Desk at the time of your reservation. If you are more than 30 minutes late for your reservation, it will be canceled and you will be marked as a “No-Show.” For reservations in room 1201, you can go straight to the 12th floor without checking in. You can reply to this email to adjust your reservation time if plans change and you will be arriving later. 
-<br /><br />
-<b>Equipment Check out</b><br />
-If you requested equipment, you will receive a separate email which will confirm your equipment for your reservation. If you wish to request to reserve any additional equipment, please <a href="https://sites.google.com/nyu.edu/370jmediacommons/rental-inventory">take a look at our equipment inventory</a> and reply to this email with your request or any questions you may have ahead of your reservation. Otherwise our Production Assistants can help you during check in.
-<br /><br />
-<b>Front Desk Location</b><br />
-The Media Commons Front Desk is located on the 2nd floor of 370 Jay Street, around the corner from Cafe 370.
-<br /><br />
-<b>Event Services Information</b><br />
-If your reservation is for an event, take a look at the <a href="https://docs.google.com/document/d/1TIOl8f8-7o2BdjHxHYIYELSb4oc8QZMj1aSfaENWjR8/edit?usp=sharing">Event Service Rates and  Set Up Information document</a> to learn how to set up services for your reservation.
-<br /><br />
-<b>Cancellation Policy</b><br />
-To cancel reservations please return to the Booking Tool, visit My Bookings, and click "cancel" on the booking at least 24 hours before the date of the event. Failure to cancel may result in restricted use of Media Commons spaces.
-`;
+  // Get tenant email configuration for approval notice
+  const emailConfig = await getTenantEmailConfig(tenant);
 
-  const userHeaderMessage = `Your request has been approved! Please see below for next steps.<br /><br />${approvalNoticeHtml}`;
+  const userHeaderMessage = `Your request has been approved! Please see below for next steps.<br /><br />${emailConfig.approvalNotice}`;
 
-  const otherHeaderMessage = `This is a confirmation email.<br /><br />${approvalNoticeHtml}`;
+  const otherHeaderMessage = `This is a confirmation email.<br /><br />${emailConfig.approvalNotice}`;
 
   // for client
   serverSendBookingDetailEmail({
@@ -669,7 +655,7 @@ To cancel reservations please return to the Booking Tool, visit My Bookings, and
       targetEmail: contents.sponsorEmail,
       headerMessage:
         "A reservation that you are the Sponsor of has been approved.<br /><br />" +
-        approvalNoticeHtml,
+        emailConfig.approvalNotice,
       status: BookingStatusLabel.APPROVED,
       replyTo: guestEmail,
       tenant,
