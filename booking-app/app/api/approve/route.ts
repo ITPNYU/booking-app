@@ -51,9 +51,11 @@ export async function POST(req: NextRequest) {
         await serverApproveBooking(id, email, tenant);
       } else {
         console.log(`✅ XSTATE APPROVAL SUCCESS [${tenant?.toUpperCase()}]:`, {
+
           calendarEventId: id,
           newState: xstateResult.newState,
         });
+
 
         // Handle different XState results
         if (xstateResult.newState === "Approved") {
@@ -94,6 +96,7 @@ export async function POST(req: NextRequest) {
       }
     } else {
       // Traditional approval for other tenants
+
       console.log(
         `📝 USING TRADITIONAL APPROVAL [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
         { calendarEventId: id },

@@ -270,7 +270,6 @@ async function handleBookingApprovalEmails(
         message: "Booking will be auto-approved instantly",
       },
     );
-
     // For XState tenants, the booking is already approved by XState
     // We need to execute the approval side effects (emails, calendar updates, history)
     if (shouldUseXState(tenant)) {
@@ -535,7 +534,6 @@ export async function POST(request: NextRequest) {
         ([_, value]) => value !== undefined,
       ),
     );
-
     // Prepare XState state for persistence - use any type to avoid TypeScript issues with different machine event types
     const canTransitionTo: Record<string, boolean> = {};
 
