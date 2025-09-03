@@ -162,8 +162,7 @@ async function handleStateTransitions(
       calendarEventId,
       BookingStatusLabel.APPROVED,
       email,
-      tenant,
-      "booking fully approved"
+      tenant
     );
 
     // Execute approval side effects (emails, calendar updates, etc.)
@@ -211,15 +210,12 @@ async function handleStateTransitions(
       }
     );
 
-    // Log to history with decline reason from context
-    const declineReason =
-      newSnapshot.context?.declineReason || "Service(s) declined";
+    // Log to history without note
     await logBookingStatusChange(
       calendarEventId,
       BookingStatusLabel.DECLINED,
       email,
-      tenant,
-      `${declineReason} - booking automatically declined`
+      tenant
     );
 
     // Send decline email to guest using booking document email
@@ -361,8 +357,7 @@ async function handleStateTransitions(
       calendarEventId,
       BookingStatusLabel.CLOSED,
       email,
-      tenant,
-      "booking closed"
+      tenant
     );
 
     // Send closed email to guest (optional - usually no email for closed)
@@ -433,8 +428,7 @@ async function handleStateTransitions(
       calendarEventId,
       BookingStatusLabel.CANCELED,
       email,
-      tenant,
-      "booking canceled"
+      tenant
     );
 
     // Send canceled email to guest and update calendar
@@ -545,8 +539,7 @@ async function handleStateTransitions(
       calendarEventId,
       BookingStatusLabel.CHECKED_IN,
       email,
-      tenant,
-      "booking checked in"
+      tenant
     );
 
     // Send check-in email to guest and update calendar
@@ -657,8 +650,7 @@ async function handleStateTransitions(
       calendarEventId,
       BookingStatusLabel.CHECKED_OUT,
       email,
-      tenant,
-      "booking checked out"
+      tenant
     );
 
     // Send check-out email to guest and update calendar
@@ -774,8 +766,7 @@ async function handleStateTransitions(
       calendarEventId,
       BookingStatusLabel.PRE_APPROVED,
       email,
-      tenant,
-      "first approval completed"
+      tenant
     );
   } else {
     // Generic state change - still log to history for tracking
@@ -845,13 +836,7 @@ async function handleStateTransitions(
     // Only log generic state changes if this is not XState creation
     // XState creation should not generate history logs for automatic transitions
     if (statusLabel && !isXStateCreation) {
-      await logBookingStatusChange(
-        calendarEventId,
-        statusLabel,
-        email,
-        tenant,
-        `XState transition to ${statusLabel}`
-      );
+      await logBookingStatusChange(calendarEventId, statusLabel, email, tenant);
     } else if (statusLabel && isXStateCreation) {
       console.log(
         `⏭️ SKIPPING HISTORY LOG FOR XSTATE CREATION [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
@@ -1829,8 +1814,7 @@ We understand that unexpected situations come up, and we encourage you to cancel
         calendarEventId,
         BookingStatusLabel.NO_SHOW,
         email,
-        tenant,
-        "booking marked as no show"
+        tenant
       );
     }
 

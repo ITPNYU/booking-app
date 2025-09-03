@@ -773,10 +773,45 @@ export const approvers = async (): Promise<Approver[]> => {
 };
 
 export const firstApproverEmails = async (department: string) => {
+  console.log(`🔍 FIRST APPROVER EMAILS DEBUG:`, {
+    department,
+    function: "firstApproverEmails",
+  });
+
   const approversData = await approvers();
-  return approversData
-    .filter((approver) => approver.department === department)
-    .map((approver) => approver.email);
+  console.log(`📋 APPROVERS DATA:`, {
+    department,
+    totalApprovers: approversData.length,
+    approvers: approversData.map((a) => ({
+      email: a.email,
+      department: a.department,
+      level: a.level,
+    })),
+  });
+
+  const filteredApprovers = approversData.filter(
+    (approver) => approver.department === department
+  );
+
+  console.log(`🎯 FILTERED APPROVERS:`, {
+    department,
+    filteredCount: filteredApprovers.length,
+    filteredApprovers: filteredApprovers.map((a) => ({
+      email: a.email,
+      department: a.department,
+      level: a.level,
+    })),
+  });
+
+  const result = filteredApprovers.map((approver) => approver.email);
+
+  console.log(`📧 FIRST APPROVER EMAILS RESULT:`, {
+    department,
+    result,
+    resultCount: result.length,
+  });
+
+  return result;
 };
 
 export const serverGetRoomCalendarIds = async (
