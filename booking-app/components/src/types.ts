@@ -5,6 +5,17 @@ export type AdminUser = {
   createdAt: string;
 };
 
+export type UserRights = {
+  id: string;
+  email: string;
+  createdAt: string;
+  isAdmin?: boolean;
+  isWorker?: boolean;
+  isEquipment?: boolean;
+  isStaffing?: boolean;
+  isSuperAdmin?: boolean;
+};
+
 export type Approver = {
   email: string;
   department: string;
@@ -239,6 +250,7 @@ export enum PagePermission {
   ADMIN = "ADMIN",
   LIAISON = "LIAISON",
   EQUIPMENT = "EQUIPMENT",
+  STAFFING = "STAFFING",
   SUPER_ADMIN = "SUPER_ADMIN",
 }
 
@@ -247,6 +259,7 @@ export enum PageContextLevel {
   LIAISON,
   PA,
   EQUIPMENT,
+  STAFFING,
   ADMIN,
 }
 

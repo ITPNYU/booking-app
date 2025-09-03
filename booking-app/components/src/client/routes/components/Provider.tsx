@@ -2,7 +2,6 @@ import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
 import { ApproverLevel, TableNames } from "@/components/src/policy";
 import React, { createContext, useEffect, useMemo, useState } from "react";
 import {
-  AdminUser,
   Approver,
   Ban,
   BlackoutPeriod,
@@ -11,7 +10,6 @@ import {
   DepartmentType,
   Filters,
   OperationHours,
-  PaUser,
   PagePermission,
   PolicySettings,
   PreBanLog,
@@ -19,6 +17,7 @@ import {
   SafetyTraining,
   Settings,
   UserApiData,
+  UserRights,
 } from "../../../types";
 
 import { useAuth } from "@/components/src/client/routes/components/AuthProvider";
@@ -31,18 +30,20 @@ import { useContext } from "react";
 import { SchemaContext } from "./SchemaProvider";
 
 export interface DatabaseContextType {
-  adminUsers: AdminUser[];
+  adminUsers: UserRights[];
   bannedUsers: Ban[];
   blackoutPeriods: BlackoutPeriod[];
   allBookings: Booking[];
   bookingsLoading: boolean;
   liaisonUsers: Approver[];
-  equipmentUsers: Approver[];
+  equipmentUsers: UserRights[];
+  staffingUsers: UserRights[];
   departmentNames: DepartmentType[];
   operationHours: OperationHours[];
   pagePermission: PagePermission;
-  paUsers: PaUser[];
-  superAdminUsers: AdminUser[];
+  userPermissions: PagePermission[];
+  paUsers: UserRights[];
+  superAdminUsers: UserRights[];
   policySettings: PolicySettings;
   roomSettings: RoomSetting[];
   safetyTrainedUsers: SafetyTraining[];
@@ -53,6 +54,8 @@ export interface DatabaseContextType {
   loadMoreEnabled?: boolean;
   reloadAdminUsers: () => Promise<void>;
   reloadApproverUsers: () => Promise<void>;
+  reloadEquipmentUsers: () => Promise<void>;
+  reloadStaffingUsers: () => Promise<void>;
   reloadBannedUsers: () => Promise<void>;
   reloadBlackoutPeriods: () => Promise<void>;
   reloadFutureBookings: () => Promise<void>;
@@ -80,9 +83,11 @@ export const DatabaseContext = createContext<DatabaseContextType>({
   bookingsLoading: true,
   liaisonUsers: [],
   equipmentUsers: [],
+  staffingUsers: [],
   departmentNames: [],
   operationHours: [],
   pagePermission: PagePermission.BOOKING,
+  userPermissions: [PagePermission.BOOKING],
   paUsers: [],
   superAdminUsers: [],
   policySettings: { finalApproverEmail: "" },
@@ -95,6 +100,8 @@ export const DatabaseContext = createContext<DatabaseContextType>({
   loadMoreEnabled: true,
   reloadAdminUsers: async () => {},
   reloadApproverUsers: async () => {},
+  reloadEquipmentUsers: async () => {},
+  reloadStaffingUsers: async () => {},
   reloadBannedUsers: async () => {},
   reloadBlackoutPeriods: async () => {},
   reloadFutureBookings: async () => {},
@@ -124,12 +131,13 @@ export const DatabaseProvider = ({
   // const [futureBookings, setFutureBookings] = useState<Booking[]>([]);
   const [bookingsLoading, setBookingsLoading] = useState<boolean>(true);
   const [allBookings, setAllBookings] = useState<Booking[]>([]);
-  const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
+  const [adminUsers, setAdminUsers] = useState<UserRights[]>([]);
   const [liaisonUsers, setLiaisonUsers] = useState<Approver[]>([]);
-  const [equipmentUsers, setEquipmentUsers] = useState<Approver[]>([]);
+  const [equipmentUsers, setEquipmentUsers] = useState<UserRights[]>([]);
+  const [staffingUsers, setStaffingUsers] = useState<UserRights[]>([]);
   const [departmentNames, setDepartmentName] = useState<DepartmentType[]>([]);
   const [operationHours, setOperationHours] = useState<OperationHours[]>([]);
-  const [paUsers, setPaUsers] = useState<PaUser[]>([]);
+  const [paUsers, setPaUsers] = useState<UserRights[]>([]);
   const [policySettings, setPolicySettings] = useState<PolicySettings>({
     finalApproverEmail: "",
   });
@@ -159,7 +167,7 @@ export const DatabaseProvider = ({
   const tenant = schemaContext?.tenant;
 
   const [preBanLogs, setPreBanLogs] = useState<PreBanLog[]>([]);
-  const [superAdminUsers, setSuperAdminUsers] = useState<AdminUser[]>([]);
+  const [superAdminUsers, setSuperAdminUsers] = useState<UserRights[]>([]);
 
   useEffect(() => {
     const fetchUserApiData = async () => {
@@ -181,35 +189,53 @@ export const DatabaseProvider = ({
     fetchUserApiData();
   }, [netId, tenant]);
 
-  // page permission updates with respect to user email, admin list, PA list
-  const pagePermission = useMemo<PagePermission>(() => {
+  // Get all permissions for the current user
+  const userPermissions = useMemo<PagePermission[]>(() => {
     // Early return if no email
-    if (!userEmail) return PagePermission.BOOKING;
+    if (!userEmail) {
+      return [PagePermission.BOOKING];
+    }
 
     // Pre-compute email lists once
     const adminEmails = adminUsers.map((admin) => admin.email);
     const liaisonEmails = liaisonUsers.map((liaison) => liaison.email);
     const paEmails = paUsers.map((pa) => pa.email);
     const equipmentEmails = equipmentUsers.map((e) => e.email);
+    const staffingEmails = staffingUsers.map((s) => s.email);
     const superAdminEmails = superAdminUsers.map((admin) => admin.email);
 
-    // Check permissions (ordered by hierarchy - highest to lowest)
-    if (superAdminEmails.includes(userEmail)) return PagePermission.SUPER_ADMIN;
-    if (adminEmails.includes(userEmail)) return PagePermission.ADMIN;
-    if (equipmentEmails.includes(userEmail)) return PagePermission.EQUIPMENT;
-    if (liaisonEmails.includes(userEmail)) return PagePermission.LIAISON;
-    if (paEmails.includes(userEmail)) return PagePermission.PA;
+    const permissions: PagePermission[] = [];
 
-    return PagePermission.BOOKING;
+    // Check all permissions (highest to lowest priority for primary permission)
+    if (superAdminEmails.includes(userEmail))
+      permissions.push(PagePermission.SUPER_ADMIN);
+    if (adminEmails.includes(userEmail)) permissions.push(PagePermission.ADMIN);
+    if (equipmentEmails.includes(userEmail))
+      permissions.push(PagePermission.EQUIPMENT);
+    if (liaisonEmails.includes(userEmail))
+      permissions.push(PagePermission.LIAISON);
+    if (paEmails.includes(userEmail)) permissions.push(PagePermission.PA);
+    if (staffingEmails.includes(userEmail))
+      permissions.push(PagePermission.STAFFING);
+
+    // Always include BOOKING permission
+    permissions.push(PagePermission.BOOKING);
+
+    return permissions;
   }, [
     userEmail,
-    // Make sure we're using the actual arrays in dependencies
-    JSON.stringify(adminUsers),
-    JSON.stringify(liaisonUsers),
-    JSON.stringify(paUsers),
-    JSON.stringify(equipmentUsers),
-    JSON.stringify(superAdminUsers),
+    adminUsers,
+    liaisonUsers,
+    paUsers,
+    equipmentUsers,
+    staffingUsers,
+    superAdminUsers,
   ]);
+
+  // Primary permission (for backward compatibility)
+  const pagePermission = useMemo<PagePermission>(() => {
+    return userPermissions[0] || PagePermission.BOOKING;
+  }, [userPermissions]);
 
   useEffect(() => {
     console.log(allBookings.length);
@@ -234,9 +260,7 @@ export const DatabaseProvider = ({
   useEffect(() => {
     fetchActiveUserEmail();
     if (tenant) {
-      fetchAdminUsers();
-      fetchPaUsers();
-      fetchSuperAdminUsers();
+      fetchUserRightsData();
     }
   }, [user, tenant]);
 
@@ -299,43 +323,73 @@ export const DatabaseProvider = ({
     }
   };
 
-  const fetchAdminUsers = async () => {
+  const fetchUserRightsData = async () => {
     try {
-      // Fetch from usersRights and filter by isAdmin flag
-      const fetchedData = await clientFetchAllDataFromCollection(TableNames.USERS_RIGHTS, [], tenant);
-      
+      // Fetch all user rights data once
+      const fetchedData = await clientFetchAllDataFromCollection(
+        TableNames.USERS_RIGHTS,
+        [],
+        tenant
+      );
+
+      // Filter and set each user type
       const adminUsers = fetchedData
         .filter((item: any) => item.isAdmin === true)
         .map((item: any) => ({
           id: item.id,
           email: item.email,
           createdAt: item.createdAt,
+          isAdmin: item.isAdmin,
         }));
-      
-      setAdminUsers(adminUsers);
-    } catch (error) {
-      console.error("Error fetching admin users data:", error);
-      setAdminUsers([]); // Set empty array on error
-    }
-  };
 
-  const fetchPaUsers = async () => {
-    try {
-      // Fetch from usersRights and filter by isWorker flag
-      const fetchedData = await clientFetchAllDataFromCollection(TableNames.USERS_RIGHTS, [], tenant);
-      
       const paUsers = fetchedData
         .filter((item: any) => item.isWorker === true)
         .map((item: any) => ({
           id: item.id,
           email: item.email,
           createdAt: item.createdAt,
+          isWorker: item.isWorker,
         }));
-      
+
+      const equipmentUsers = fetchedData
+        .filter((item: any) => item.isEquipment === true)
+        .map((item: any) => ({
+          id: item.id,
+          email: item.email,
+          createdAt: item.createdAt,
+          isEquipment: item.isEquipment,
+        }));
+
+      const staffingUsers = fetchedData
+        .filter((item: any) => item.isStaffing === true)
+        .map((item: any) => ({
+          id: item.id,
+          email: item.email,
+          createdAt: item.createdAt,
+          isStaffing: item.isStaffing,
+        }));
+
+      const superAdminUsers = fetchedData
+        .filter((item: any) => item.isSuperAdmin === true)
+        .map((item: any) => ({
+          id: item.id,
+          email: item.email,
+          createdAt: item.createdAt,
+          isSuperAdmin: item.isSuperAdmin,
+        }));
+
+      setAdminUsers(adminUsers);
       setPaUsers(paUsers);
+      setEquipmentUsers(equipmentUsers);
+      setStaffingUsers(staffingUsers);
+      setSuperAdminUsers(superAdminUsers);
     } catch (error) {
-      console.error("Error fetching PA users data:", error);
-      setPaUsers([]); // Set empty array on error
+      console.error("Error fetching user rights data:", error);
+      setAdminUsers([]);
+      setPaUsers([]);
+      setEquipmentUsers([]);
+      setStaffingUsers([]);
+      setSuperAdminUsers([]);
     }
   };
 
@@ -427,15 +481,11 @@ export const DatabaseProvider = ({
           level: Number(item.level),
         }));
         const liaisons = all.filter((x) => x.level === ApproverLevel.FIRST);
-        const equipmentUsers = all.filter(
-          (x) => x.level === ApproverLevel.EQUIPMENT
-        );
 
         const finalApprover = all.filter(
           (x) => x.level === ApproverLevel.FINAL
         )[0];
         setLiaisonUsers(liaisons);
-        setEquipmentUsers(equipmentUsers);
         setPolicySettings({ finalApproverEmail: finalApprover.email });
       })
       .catch((error) => console.error("Error fetching data:", error));
@@ -565,25 +615,6 @@ export const DatabaseProvider = ({
     }
   };
 
-  const fetchSuperAdminUsers = async () => {
-    try {
-      // Fetch from original usersSuperAdmin collection (not tenant-specific)
-      const fetchedData = await clientFetchAllDataFromCollection(TableNames.SUPER_ADMINS, []);
-      
-      const superAdminUsers = fetchedData
-        .map((item: any) => ({
-          id: item.id,
-          email: item.email,
-          createdAt: item.createdAt,
-        }));
-      
-      setSuperAdminUsers(superAdminUsers);
-    } catch (error) {
-      console.error("Error fetching super admin data:", error);
-      setSuperAdminUsers([]); // Set empty array on error
-    }
-  };
-
   return (
     <DatabaseContext.Provider
       value={{
@@ -593,11 +624,13 @@ export const DatabaseProvider = ({
         allBookings,
         liaisonUsers,
         equipmentUsers,
+        staffingUsers,
         departmentNames,
         operationHours,
         paUsers,
         superAdminUsers,
         pagePermission,
+        userPermissions,
         policySettings,
         roomSettings,
         safetyTrainedUsers,
@@ -607,14 +640,16 @@ export const DatabaseProvider = ({
         bookingsLoading,
         userApiData,
         loadMoreEnabled,
-        reloadAdminUsers: fetchAdminUsers,
+        reloadAdminUsers: fetchUserRightsData,
         reloadApproverUsers: fetchApproverUsers,
+        reloadEquipmentUsers: fetchUserRightsData,
+        reloadStaffingUsers: fetchUserRightsData,
         reloadBannedUsers: fetchBannedUsers,
         reloadBlackoutPeriods: fetchBlackoutPeriods,
         reloadFutureBookings: fetchFutureBookings,
         reloadDepartmentNames: fetchDepartmentNames,
         reloadOperationHours: fetchOperationHours,
-        reloadPaUsers: fetchPaUsers,
+        reloadPaUsers: fetchUserRightsData,
         reloadBookingTypes: fetchBookingTypes,
         reloadSafetyTrainedUsers: fetchSafetyTrainedUsers,
         reloadPolicySettings: fetchPolicySettings,
@@ -625,7 +660,7 @@ export const DatabaseProvider = ({
         setLastItem,
         preBanLogs,
         reloadPreBanLogs: fetchPreBanLogs,
-        reloadSuperAdminUsers: fetchSuperAdminUsers,
+        reloadSuperAdminUsers: fetchUserRightsData,
       }}
     >
       {children}

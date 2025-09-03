@@ -11,6 +11,7 @@ const PERMISSION_HIERARCHY: Record<PagePermission, PagePermission[]> = {
     PagePermission.PA,
     PagePermission.LIAISON,
     PagePermission.EQUIPMENT,
+    PagePermission.STAFFING,
     PagePermission.BOOKING,
   ],
   [PagePermission.ADMIN]: [
@@ -18,6 +19,7 @@ const PERMISSION_HIERARCHY: Record<PagePermission, PagePermission[]> = {
     PagePermission.PA,
     PagePermission.LIAISON,
     PagePermission.EQUIPMENT,
+    PagePermission.STAFFING,
     PagePermission.BOOKING,
   ],
   [PagePermission.PA]: [PagePermission.PA, PagePermission.BOOKING],
@@ -26,6 +28,7 @@ const PERMISSION_HIERARCHY: Record<PagePermission, PagePermission[]> = {
     PagePermission.EQUIPMENT,
     PagePermission.BOOKING,
   ],
+  [PagePermission.STAFFING]: [PagePermission.STAFFING, PagePermission.BOOKING],
   [PagePermission.BOOKING]: [PagePermission.BOOKING],
 };
 
@@ -49,6 +52,18 @@ export function hasAnyPermission(
 ): boolean {
   return requiredPermissions.some((permission) =>
     hasPermission(userPermission, permission)
+  );
+}
+
+/**
+ * Check if user has any of the specified permissions (for multiple user permissions)
+ */
+export function hasAnyPermissionMultiple(
+  userPermissions: PagePermission[],
+  requiredPermissions: PagePermission[]
+): boolean {
+  return userPermissions.some((userPerm) =>
+    requiredPermissions.some((reqPerm) => hasPermission(userPerm, reqPerm))
   );
 }
 

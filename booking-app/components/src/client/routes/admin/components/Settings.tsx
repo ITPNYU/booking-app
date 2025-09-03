@@ -10,9 +10,9 @@ import { Departments } from "./Departments";
 import ExportDatabase from "./ExportDatabase";
 import { PAUsers } from "./PAUsers";
 import PolicySettings from "./PolicySettings";
+import { PreBannedUsers } from "./PreBan";
 import SafetyTrainedUsers from "./SafetyTraining";
 import SyncCalendars from "./SyncCalendars";
-import { PreBannedUsers } from "./PreBan";
 
 const tabs = [
   { label: "Safety Training", id: "safetyTraining" },

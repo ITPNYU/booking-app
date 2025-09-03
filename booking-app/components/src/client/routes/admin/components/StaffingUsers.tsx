@@ -5,18 +5,18 @@ import { formatDate } from "../../../utils/date";
 import EmailListTable from "../../components/EmailListTable";
 import { DatabaseContext } from "../../components/Provider";
 
-export const EquipmentUsers = () => {
-  const { equipmentUsers, reloadEquipmentUsers } = useContext(DatabaseContext);
+export const StaffingUsers = () => {
+  const { staffingUsers, reloadStaffingUsers } = useContext(DatabaseContext);
 
   return (
     <EmailListTable
       tableName={TableNames.USERS_RIGHTS}
-      userList={equipmentUsers}
-      userListRefresh={reloadEquipmentUsers}
+      userList={staffingUsers}
+      userListRefresh={reloadStaffingUsers}
       columnFormatters={{ createdAt: formatDate }}
-      title="Equipment Users"
+      title="Staffing Users"
       extra={{
-        values: { isEquipment: true },
+        values: { isStaffing: true },
       }}
     />
   );

@@ -53,7 +53,8 @@ const Divider = styled(Box)(({ theme }) => ({
 export default function NavBar() {
   const router = useRouter();
   const { tenant } = useParams();
-  const { pagePermission, netId, setUserEmail } = useContext(DatabaseContext);
+  const { pagePermission, userPermissions, netId, setUserEmail } =
+    useContext(DatabaseContext);
   const handleStartBooking = useHandleStartBooking();
   const [selectedView, setSelectedView] = useState<PagePermission>(
     PagePermission.BOOKING
@@ -88,6 +89,9 @@ export default function NavBar() {
         break;
       case PagePermission.EQUIPMENT:
         router.push(pathOf("equipment"));
+        break;
+      case PagePermission.STAFFING:
+        router.push(pathOf("staffing"));
         break;
       case PagePermission.SUPER_ADMIN:
         router.push(pathOf("super"));
@@ -125,6 +129,8 @@ export default function NavBar() {
       setSelectedView(PagePermission.LIAISON);
     } else if (pathname.includes("/equipment")) {
       setSelectedView(PagePermission.EQUIPMENT);
+    } else if (pathname.includes("/staffing")) {
+      setSelectedView(PagePermission.STAFFING);
     } else if (pathname.includes("/super")) {
       setSelectedView(PagePermission.SUPER_ADMIN);
     }
@@ -142,7 +148,7 @@ export default function NavBar() {
   };
 
   const hasUserPermission = (roles: PagePermission[]) => {
-    return roles.includes(pagePermission);
+    return roles.some((role) => userPermissions.includes(role));
   };
 
   const dropdown = useMemo(() => {
@@ -152,6 +158,8 @@ export default function NavBar() {
         PagePermission.ADMIN,
         PagePermission.PA,
         PagePermission.LIAISON,
+        PagePermission.EQUIPMENT,
+        PagePermission.STAFFING,
         PagePermission.SUPER_ADMIN,
       ])
     ) {
@@ -181,6 +189,12 @@ export default function NavBar() {
       PagePermission.SUPER_ADMIN,
     ]);
 
+    const showStaffing = hasUserPermission([
+      PagePermission.STAFFING,
+      PagePermission.ADMIN,
+      PagePermission.SUPER_ADMIN,
+    ]);
+
     const showSuperAdmin = hasUserPermission([PagePermission.SUPER_ADMIN]);
 
     return (
@@ -194,18 +208,22 @@ export default function NavBar() {
         {showEquipment && (
           <MenuItem value={PagePermission.EQUIPMENT}>Equipment</MenuItem>
         )}
+        {showStaffing && (
+          <MenuItem value={PagePermission.STAFFING}>Staffing</MenuItem>
+        )}
         {showSuperAdmin && (
           <MenuItem value={PagePermission.SUPER_ADMIN}>Super</MenuItem>
         )}
       </Select>
     );
-  }, [pagePermission, selectedView]);
+  }, [userPermissions, selectedView]);
 
   const button = useMemo(() => {
-    // Do not show the button for super admin or liaison page.
+    // Do not show the button for super admin, liaison, or staffing page.
     if (
       selectedView === PagePermission.SUPER_ADMIN ||
-      selectedView === PagePermission.LIAISON
+      selectedView === PagePermission.LIAISON ||
+      selectedView === PagePermission.STAFFING
     ) {
       return null;
     }
@@ -225,10 +243,7 @@ export default function NavBar() {
       );
     }
 
-    if (
-      supportVIP &&
-      selectedView === PagePermission.ADMIN
-    ) {
+    if (supportVIP && selectedView === PagePermission.ADMIN) {
       return (
         <Button
           onClick={() => {

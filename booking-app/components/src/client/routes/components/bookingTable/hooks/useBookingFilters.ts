@@ -204,6 +204,38 @@ class BookingFilter {
     return this;
   }
 
+  filterStaffingRequests() {
+    // For Staffing page, filter to show only bookings that need Staffing approval
+    if (this.pageContext === PageContextLevel.STAFFING) {
+      this.rows = this.rows.filter((row) => {
+        // Show Service Requests with Staffing that needs approval
+        if (
+          row.status === BookingStatusLabel.PRE_APPROVED &&
+          row.xstateData?.snapshot?.value
+        ) {
+          const xstateValue = row.xstateData.snapshot.value;
+
+          // Check if booking is in Services Request state
+          if (
+            typeof xstateValue === "object" &&
+            xstateValue &&
+            xstateValue["Services Request"]
+          ) {
+            // Check if staffing is requested but not yet approved
+            const context = row.xstateData.snapshot.context;
+            if (context?.servicesRequested?.staffing === true) {
+              // Show if staffing is not yet approved (undefined, null, or false)
+              return context?.servicesApproved?.staffing !== true;
+            }
+          }
+        }
+
+        return false;
+      });
+    }
+    return this;
+  }
+
   filterSelectedDateRange(selectedDateRange: DateRangeFilter) {
     if (this.pageContext >= PageContextLevel.PA) {
       this.rows = this.rows.filter(DATE_FILTERS[selectedDateRange]);
@@ -323,6 +355,7 @@ export function useBookingFilters(props: Props): BookingRow[] {
         .filterPageContext(userEmail, liaisonUsers)
         .filterAllowedStatuses()
         .filterEquipmentRequests()
+        .filterStaffingRequests()
         .filterStatusChips(selectedStatusFilters)
         // No need for client-side search filtering since it's done on the database side
         // .filterBySearchQuery(searchQuery)
