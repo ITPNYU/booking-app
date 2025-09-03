@@ -789,12 +789,43 @@ export const firstApproverEmails = async (department: string) => {
     })),
   });
 
-  const filteredApprovers = approversData.filter(
-    (approver) => approver.department === department
-  );
+  // Normalize department names for comparison (remove extra spaces, normalize slashes)
+  const normalizeDepartment = (dept: string) => {
+    return dept
+      ?.replace(/\s+/g, " ") // Replace multiple spaces with single space
+      ?.replace(/\s*\/\s*/g, " / ") // Normalize slashes with spaces
+      ?.trim()
+      ?.toLowerCase();
+  };
+
+  const normalizedUserDepartment = normalizeDepartment(department);
+  console.log(`🔧 NORMALIZED USER DEPARTMENT:`, {
+    original: department,
+    normalized: normalizedUserDepartment,
+  });
+
+  const filteredApprovers = approversData.filter((approver) => {
+    if (!approver.department) return false;
+
+    const normalizedApproverDepartment = normalizeDepartment(
+      approver.department
+    );
+    const matches = normalizedApproverDepartment === normalizedUserDepartment;
+
+    console.log(`🔍 DEPARTMENT COMPARISON:`, {
+      userDepartment: department,
+      normalizedUserDepartment,
+      approverDepartment: approver.department,
+      normalizedApproverDepartment,
+      matches,
+    });
+
+    return matches;
+  });
 
   console.log(`🎯 FILTERED APPROVERS:`, {
     department,
+    normalizedDepartment: normalizedUserDepartment,
     filteredCount: filteredApprovers.length,
     filteredApprovers: filteredApprovers.map((a) => ({
       email: a.email,
@@ -807,6 +838,7 @@ export const firstApproverEmails = async (department: string) => {
 
   console.log(`📧 FIRST APPROVER EMAILS RESULT:`, {
     department,
+    normalizedDepartment: normalizedUserDepartment,
     result,
     resultCount: result.length,
   });
