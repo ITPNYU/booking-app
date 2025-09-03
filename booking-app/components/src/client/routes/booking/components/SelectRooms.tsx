@@ -28,6 +28,11 @@ export const SelectRooms = ({
   const { resources } = useTenantSchema();
   const selectedIds = selected.map((room) => room.roomId);
 
+  // Sort rooms by room number for consistent display order
+  const sortedRooms = useMemo(() => {
+    return [...allRooms].sort((a, b) => a.roomId - b.roomId);
+  }, [allRooms]);
+
   // Remove this
   const showMocapModal = useMemo(() => {
     const mocapRoomSelected = false; // MOCAP_ROOMS.some((roomId) =>
@@ -115,7 +120,7 @@ export const SelectRooms = ({
 
   return (
     <FormGroup>
-      {allRooms.map((room: RoomSetting) => {
+      {sortedRooms.map((room: RoomSetting) => {
         const disabled = isDisabled(room.roomId);
         const disabledReason = getDisabledReason(room.roomId);
 

@@ -68,8 +68,11 @@ export type BookingStatus = {
   checkedOutBy: string;
   noShowedAt: Timestamp;
   noShowedBy: string;
+  closedAt: Timestamp;
+  closedBy: string;
   walkedInAt: Timestamp;
   origin: BookingOrigin;
+  xstateData?: any; // XState machine data for tenants using XState
 };
 
 // the order here is the order these are displayed as table filters
@@ -78,9 +81,11 @@ export enum BookingStatusLabel {
   CANCELED = "CANCELED",
   CHECKED_IN = "CHECKED-IN",
   CHECKED_OUT = "CHECKED-OUT",
+  CLOSED = "CLOSED",
   EQUIPMENT = "EQUIPMENT",
   NO_SHOW = "NO-SHOW",
   PENDING = "PENDING",
+  PRE_APPROVED = "PRE_APPROVED",
   DECLINED = "DECLINED",
   MODIFIED = "MODIFIED",
   REQUESTED = "REQUESTED",

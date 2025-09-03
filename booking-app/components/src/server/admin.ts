@@ -8,7 +8,7 @@ import {
   serverGetFinalApproverEmail,
   serverUpdateInFirestore,
 } from "@/lib/firebase/server/adminDb";
-import { DEFAULT_TENANT } from "../constants/tenants";
+import { DEFAULT_TENANT, TENANTS } from "../constants/tenants";
 import { ApproverLevel, TableNames, getApprovalCcEmail } from "../policy";
 import { getTenantEmailConfig } from "./emails";
 import {
@@ -21,6 +21,7 @@ import {
   BookingStatus,
   BookingStatusLabel,
 } from "../types";
+import { getMediaCommonsServices, isMediaCommons } from "../utils/tenantUtils";
 
 import { Timestamp } from "firebase-admin/firestore";
 
@@ -73,7 +74,7 @@ const getBookingHistory = async (
 
   if (booking.firstApprovedAt) {
     history.push({
-      status: BookingStatusLabel.PENDING,
+      status: BookingStatusLabel.PRE_APPROVED,
       user: booking.firstApprovedBy,
       date: booking.firstApprovedAt.toDate().toLocaleString(),
     });
@@ -158,7 +159,7 @@ export const serverBookingContents = async (id: string, tenant?: string) => {
   const endDate = booking.endDate.toDate();
 
   const updatedBookingObj = Object.assign({}, booking, {
-    headerMessage: "This is a request email for final approval.",
+    headerMessage: "This is a request email for 2nd approval.",
     history: history,
     startDate: startDate.toLocaleDateString(),
     endDate: endDate.toLocaleDateString(),
@@ -249,16 +250,134 @@ const serverFirstApprove = (id: string, email?: string, tenant?: string) => {
   );
 };
 
-const serverFinalApprove = (id: string, email?: string, tenant?: string) => {
-  serverUpdateDataByCalendarEventId(
+// Export version for external use (for XState integration)
+export const serverFirstApproveOnly = async (
+  id: string,
+  email?: string,
+  tenant?: string
+) => {
+  console.log(
+    `🎯 SERVER FIRST APPROVE ONLY [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+    {
+      calendarEventId: id,
+      email,
+      tenant,
+    }
+  );
+
+  // Update booking with first approval fields and status
+  await serverUpdateDataByCalendarEventId(
     TableNames.BOOKING,
     id,
     {
-      finalApprovedAt: Timestamp.now(),
-      finalApprovedBy: email,
+      firstApprovedAt: Timestamp.now(),
+      firstApprovedBy: email,
+      status: BookingStatusLabel.PRE_APPROVED,
     },
     tenant
   );
+
+  // Log the first approval action
+  const doc = await serverGetDataByCalendarEventId<{
+    id: string;
+    requestNumber: number;
+  }>(TableNames.BOOKING, id, tenant);
+
+  if (!doc) {
+    console.error("Booking document not found for calendar event id:", id);
+    throw new Error("Booking document not found");
+  }
+
+  if (id) {
+    await logServerBookingChange({
+      bookingId: doc.id,
+      status: BookingStatusLabel.PRE_APPROVED,
+      changedBy: email,
+      requestNumber: doc.requestNumber,
+      calendarEventId: id,
+      tenant,
+    });
+  }
+
+  // Send first approval email to final approver
+  const contents = await serverBookingContents(id, tenant);
+  const emailContents = {
+    ...contents,
+    headerMessage: "This is a request email for 2nd approval.",
+  };
+  const recipient = await serverGetFinalApproverEmail();
+  const formData = {
+    templateName: "booking_detail",
+    contents: emailContents,
+    targetEmail: recipient,
+    status: BookingStatusLabel.PRE_APPROVED,
+    eventTitle: contents.title || "",
+    requestNumber: contents.requestNumber,
+    bodyMessage: "",
+    approverType: ApproverType.FINAL_APPROVER,
+    replyTo: contents.email,
+  };
+  const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/sendEmail`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-tenant": tenant || DEFAULT_TENANT,
+    },
+    body: JSON.stringify(formData),
+  });
+
+  console.log(
+    `✅ FIRST APPROVAL COMPLETED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+    {
+      calendarEventId: id,
+      emailSent: res.ok,
+      status: BookingStatusLabel.PRE_APPROVED,
+    }
+  );
+};
+
+const serverFinalApprove = async (
+  id: string,
+  email?: string,
+  tenant?: string
+) => {
+  // Get the booking data to check for services
+  const bookingData = await serverGetDataByCalendarEventId(
+    TableNames.BOOKING,
+    id,
+    tenant
+  );
+
+  const updateData: any = {
+    finalApprovedAt: Timestamp.now(),
+    finalApprovedBy: email,
+  };
+
+  // For Media Commons, if services are requested, approve them all during final approval
+  if (tenant === TENANTS.MC && bookingData) {
+    const servicesRequested = getMediaCommonsServices(bookingData);
+
+    if (servicesRequested.staff) {
+      updateData.staffServiceApproved = true;
+    }
+    if (servicesRequested.equipment) {
+      updateData.equipmentServiceApproved = true;
+    }
+    if (servicesRequested.catering) {
+      updateData.cateringServiceApproved = true;
+    }
+    if (servicesRequested.cleaning) {
+      updateData.cleaningServiceApproved = true;
+    }
+    if (servicesRequested.security) {
+      updateData.securityServiceApproved = true;
+    }
+    if (servicesRequested.setup) {
+      updateData.setupServiceApproved = true;
+    }
+  }
+
+  serverUpdateDataByCalendarEventId(TableNames.BOOKING, id, updateData, tenant);
 };
 
 //server
@@ -267,7 +386,41 @@ export const serverApproveInstantBooking = async (
   email: string,
   tenant?: string
 ) => {
+  // For Media Commons VIP bookings, check if services are requested
+  // If so, only do first approval to allow service request flow
+  const bookingData = await serverGetDataByCalendarEventId(
+    TableNames.BOOKING,
+    id,
+    tenant
+  );
+
+  let shouldDoFinalApproval = true;
+
+  if (isMediaCommons(tenant) && bookingData) {
+    const { getMediaCommonsServices } = await import(
+      "@/components/src/utils/tenantUtils"
+    );
+    const servicesRequested = getMediaCommonsServices(bookingData);
+    const hasServices = Object.values(servicesRequested).some(Boolean);
+
+    if (hasServices) {
+      console.log(
+        `🎯 VIP BOOKING WITH SERVICES - STOPPING AT PRE-APPROVED [${tenant?.toUpperCase()}]:`,
+        {
+          calendarEventId: id,
+          servicesRequested,
+        }
+      );
+      shouldDoFinalApproval = false;
+    }
+  }
+
   serverFirstApprove(id, "System", tenant);
+
+  if (shouldDoFinalApproval) {
+    serverFinalApprove(id, "System", tenant);
+  }
+
   const doc = await serverGetDataByCalendarEventId<{
     id: string;
     requestNumber: number;
@@ -275,7 +428,9 @@ export const serverApproveInstantBooking = async (
   if (doc && id) {
     await logServerBookingChange({
       bookingId: doc.id,
-      status: BookingStatusLabel.APPROVED,
+      status: shouldDoFinalApproval
+        ? BookingStatusLabel.APPROVED
+        : BookingStatusLabel.PRE_APPROVED,
       changedBy: "System",
       requestNumber: doc.requestNumber,
       calendarEventId: id,
@@ -283,8 +438,10 @@ export const serverApproveInstantBooking = async (
       tenant,
     });
   }
-  serverFinalApprove(id, "System", tenant);
-  serverApproveEvent(id, tenant);
+
+  if (shouldDoFinalApproval) {
+    serverApproveEvent(id, tenant);
+  }
 };
 
 // both first approve and second approve flows hit here
@@ -327,7 +484,7 @@ const firstApprove = async (id: string, email: string, tenant?: string) => {
   if (id) {
     await logServerBookingChange({
       bookingId: doc.id,
-      status: BookingStatusLabel.PENDING,
+      status: BookingStatusLabel.PRE_APPROVED,
       changedBy: email,
       requestNumber: doc.requestNumber,
       calendarEventId: id,
@@ -346,7 +503,7 @@ const firstApprove = async (id: string, email: string, tenant?: string) => {
       body: JSON.stringify({
         calendarEventId: id,
         newValues: {
-          statusPrefix: BookingStatusLabel.PENDING,
+          statusPrefix: BookingStatusLabel.PRE_APPROVED,
         },
       }),
     }
@@ -355,7 +512,7 @@ const firstApprove = async (id: string, email: string, tenant?: string) => {
 
   const emailContents = {
     ...contents,
-    headerMessage: "This is a request email for final approval.",
+    headerMessage: "This is a request email for 2nd approval.",
   };
   const recipient = await serverGetFinalApproverEmail();
   
@@ -366,7 +523,7 @@ const firstApprove = async (id: string, email: string, tenant?: string) => {
     templateName: "booking_detail",
     contents: emailContents,
     targetEmail: recipient,
-    status: BookingStatusLabel.PENDING,
+    status: BookingStatusLabel.PRE_APPROVED,
     eventTitle: contents.title || "",
     requestNumber: contents.requestNumber,
     bodyMessage: "",
@@ -399,7 +556,7 @@ const finalApprove = async (id: string, email: string, tenant?: string) => {
       status: 403,
     };
   }
-  serverFinalApprove(id, email, tenant);
+  await serverFinalApprove(id, email, tenant);
 
   // Log the final approval action
   const doc = await serverGetDataByCalendarEventId<{

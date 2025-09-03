@@ -30,7 +30,6 @@ vi.mock(
       MODIFICATION: "Modification",
       DECLINE: "Decline",
       EQUIPMENT_APPROVE: "Equipment Approve",
-      SEND_TO_EQUIPMENT: "Send to Equipment",
     },
     default: vi.fn(),
   })
@@ -191,18 +190,6 @@ describe("BookingActions Component - Equipment Context", () => {
 
       // Equipment actions are currently disabled (empty array)
       expect(screen.queryByText("Equipment Approve")).not.toBeInTheDocument();
-    });
-
-    it("should not show Send to Equipment action in equipment context", async () => {
-      const user = userEvent.setup();
-      renderBookingActionsComponent();
-
-      // Open the select to see the options
-      const selectElement = screen.getByRole("combobox");
-      await user.click(selectElement);
-
-      // Equipment context should not show send to equipment action
-      expect(screen.queryByText("Send to Equipment")).not.toBeInTheDocument();
     });
 
     it("should not show admin-only actions", async () => {
