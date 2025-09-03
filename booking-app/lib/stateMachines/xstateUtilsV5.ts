@@ -20,71 +20,8 @@ export interface PersistedXStateData {
   lastTransition: string;
 }
 
-// Helper function to log booking status changes to History table
-async function logBookingStatusChange(
-  calendarEventId: string,
-  status: BookingStatusLabel,
-  email: string,
-  tenant: string,
-  note?: string
-) {
-  try {
-    const { serverGetDataByCalendarEventId, logServerBookingChange } =
-      await import("@/lib/firebase/server/adminDb");
-    const doc = await serverGetDataByCalendarEventId<{
-      id: string;
-      requestNumber: number;
-    }>(TableNames.BOOKING, calendarEventId, tenant);
-
-    if (doc) {
-      // Log the booking status change to BOOKING_LOGS table
-      await logServerBookingChange({
-        bookingId: doc.id,
-        calendarEventId,
-        status,
-        changedBy: email,
-        requestNumber: doc.requestNumber,
-        note: note || `XState transition to ${status}`,
-        tenant,
-      });
-
-      console.log(
-        `📝 XSTATE HISTORY LOGGED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-        {
-          bookingId: doc.id,
-          calendarEventId,
-          status,
-          changedBy: email,
-          requestNumber: doc.requestNumber,
-          note: note || `XState transition to ${status}`,
-        }
-      );
-
-      return true;
-    } else {
-      console.warn(
-        `⚠️ XSTATE HISTORY LOGGING SKIPPED - BOOKING NOT FOUND [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-        {
-          calendarEventId,
-          status,
-          changedBy: email,
-        }
-      );
-    }
-  } catch (error) {
-    console.error(
-      `🚨 XSTATE HISTORY LOGGING FAILED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-      {
-        calendarEventId,
-        email,
-        tenant,
-        status,
-        error: error.message,
-      }
-    );
-  }
-  return false;
-}
+// Note: History logging is now handled by traditional functions only
+// XState only manages state transitions, not history logging
 
 // Unified state transition handler with history logging
 async function handleStateTransitions(
@@ -103,8 +40,28 @@ async function handleStateTransitions(
 
   // Skip if no state change
   if (previousState === newState) {
+    console.log(
+      `⏭️ SKIPPING HISTORY LOG - NO STATE CHANGE [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+      {
+        calendarEventId,
+        previousState,
+        newState,
+        reason: "Same state, no transition needed",
+      }
+    );
     return;
   }
+
+  console.log(
+    `🔄 XSTATE STATE TRANSITION DETECTED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+    {
+      calendarEventId,
+      previousState,
+      newState,
+      email,
+      willLogToHistory: false,
+    }
+  );
 
   // Get booking data from Firestore (not from XState context)
   let bookingDoc: any = null;
@@ -157,13 +114,8 @@ async function handleStateTransitions(
       }
     );
 
-    // Log to history
-    await logBookingStatusChange(
-      calendarEventId,
-      BookingStatusLabel.APPROVED,
-      email,
-      tenant
-    );
+    // Note: History logging is now handled by traditional functions only
+    // XState only manages state transitions, not history logging
 
     // Execute approval side effects (emails, calendar updates, etc.)
     try {
@@ -210,13 +162,8 @@ async function handleStateTransitions(
       }
     );
 
-    // Log to history without note
-    await logBookingStatusChange(
-      calendarEventId,
-      BookingStatusLabel.DECLINED,
-      email,
-      tenant
-    );
+    // Note: History logging is now handled by traditional functions only
+    // XState only manages state transitions, not history logging
 
     // Send decline email to guest using booking document email
     try {
@@ -352,13 +299,8 @@ async function handleStateTransitions(
       }
     );
 
-    // Log to history
-    await logBookingStatusChange(
-      calendarEventId,
-      BookingStatusLabel.CLOSED,
-      email,
-      tenant
-    );
+    // Note: History logging is now handled by traditional functions only
+    // XState only manages state transitions, not history logging
 
     // Send closed email to guest (optional - usually no email for closed)
     // Update calendar event with CLOSED status
@@ -423,13 +365,8 @@ async function handleStateTransitions(
       }
     );
 
-    // Log to history
-    await logBookingStatusChange(
-      calendarEventId,
-      BookingStatusLabel.CANCELED,
-      email,
-      tenant
-    );
+    // Note: History logging is now handled by traditional functions only
+    // XState only manages state transitions, not history logging
 
     // Send canceled email to guest and update calendar
     try {
@@ -534,13 +471,8 @@ async function handleStateTransitions(
       }
     );
 
-    // Log to history
-    await logBookingStatusChange(
-      calendarEventId,
-      BookingStatusLabel.CHECKED_IN,
-      email,
-      tenant
-    );
+    // Note: History logging is now handled by traditional functions only
+    // XState only manages state transitions, not history logging
 
     // Send check-in email to guest and update calendar
     try {
@@ -645,13 +577,8 @@ async function handleStateTransitions(
       }
     );
 
-    // Log to history
-    await logBookingStatusChange(
-      calendarEventId,
-      BookingStatusLabel.CHECKED_OUT,
-      email,
-      tenant
-    );
+    // Note: History logging is now handled by traditional functions only
+    // XState only manages state transitions, not history logging
 
     // Send check-out email to guest and update calendar
     try {
@@ -761,13 +688,8 @@ async function handleStateTransitions(
       }
     );
 
-    // Log to history
-    await logBookingStatusChange(
-      calendarEventId,
-      BookingStatusLabel.PRE_APPROVED,
-      email,
-      tenant
-    );
+    // Note: History logging is now handled by traditional functions only
+    // XState only manages state transitions, not history logging
   } else {
     // Generic state change - still log to history for tracking
     console.log(
@@ -833,20 +755,8 @@ async function handleStateTransitions(
       }
     }
 
-    // Only log generic state changes if this is not XState creation
-    // XState creation should not generate history logs for automatic transitions
-    if (statusLabel && !isXStateCreation) {
-      await logBookingStatusChange(calendarEventId, statusLabel, email, tenant);
-    } else if (statusLabel && isXStateCreation) {
-      console.log(
-        `⏭️ SKIPPING HISTORY LOG FOR XSTATE CREATION [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-        {
-          calendarEventId,
-          statusLabel,
-          reason: "XState creation should not generate history logs",
-        }
-      );
-    }
+    // Note: History logging is now handled by traditional functions only
+    // XState only manages state transitions, not history logging
   }
 }
 
@@ -1809,13 +1719,8 @@ We understand that unexpected situations come up, and we encourage you to cancel
         firestoreUpdates.noShowedBy = email;
       }
 
-      // Log to history
-      await logBookingStatusChange(
-        calendarEventId,
-        BookingStatusLabel.NO_SHOW,
-        email,
-        tenant
-      );
+      // Note: History logging is now handled by traditional functions only
+      // XState only manages state transitions, not history logging
     }
 
     // Handle state transitions with unified history logging

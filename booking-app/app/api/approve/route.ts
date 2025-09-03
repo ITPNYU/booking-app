@@ -51,38 +51,33 @@ export async function POST(req: NextRequest) {
         await serverApproveBooking(id, email, tenant);
       } else {
         console.log(`✅ XSTATE APPROVAL SUCCESS [${tenant?.toUpperCase()}]:`, {
-
           calendarEventId: id,
           newState: xstateResult.newState,
         });
 
-
         // Handle different XState results
         if (xstateResult.newState === "Approved") {
           console.log(
-            `🎉 XSTATE REACHED APPROVED STATE - EXECUTING FINAL APPROVAL SIDE EFFECTS [${tenant?.toUpperCase()}]:`,
+            `🎉 XSTATE REACHED APPROVED STATE - PROCESSING COMPLETE [${tenant?.toUpperCase()}]:`,
             {
               calendarEventId: id,
               newState: xstateResult.newState,
+              note: "XState processing handled state transition and side effects",
             },
           );
 
-          // Execute traditional approval for side effects (emails, calendar updates, etc.)
-          await serverApproveBooking(id, email, tenant);
+          // XState processing is complete - no additional processing needed
         } else if (xstateResult.newState === "Pre-approved") {
           console.log(
-            `🎯 XSTATE REACHED PRE-APPROVED STATE - EXECUTING FIRST APPROVAL SIDE EFFECTS [${tenant?.toUpperCase()}]:`,
+            `🎯 XSTATE REACHED PRE-APPROVED STATE - PROCESSING COMPLETE [${tenant?.toUpperCase()}]:`,
             {
               calendarEventId: id,
               newState: xstateResult.newState,
+              note: "XState processing handled state transition and side effects",
             },
           );
 
-          // Execute first approval side effects (update firstApprovedAt, etc.)
-          const { serverFirstApproveOnly } = await import(
-            "@/components/src/server/admin"
-          );
-          await serverFirstApproveOnly(id, email, tenant);
+          // XState processing is complete - no additional processing needed
         } else {
           console.log(
             `🚫 XSTATE DID NOT REACH EXPECTED STATE - SKIPPING APPROVAL SIDE EFFECTS [${tenant?.toUpperCase()}]:`,
