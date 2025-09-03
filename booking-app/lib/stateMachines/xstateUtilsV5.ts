@@ -94,7 +94,8 @@ async function handleStateTransitions(
   email: string,
   tenant: string,
   firestoreUpdates: any,
-  skipCalendarForServiceCloseout = false
+  skipCalendarForServiceCloseout = false,
+  isXStateCreation = false
 ) {
   const previousState = currentSnapshot.value;
   const newState = newSnapshot.value;
@@ -102,6 +103,28 @@ async function handleStateTransitions(
   // Skip if no state change
   if (previousState === newState) {
     return;
+  }
+
+  // Get booking data from Firestore (not from XState context)
+  let bookingDoc: any = null;
+  try {
+    const { serverGetDataByCalendarEventId } = await import(
+      "@/lib/firebase/server/adminDb"
+    );
+    const { TableNames } = await import("@/components/src/policy");
+    bookingDoc = await serverGetDataByCalendarEventId<any>(
+      TableNames.BOOKING,
+      calendarEventId,
+      tenant
+    );
+  } catch (error) {
+    console.error(
+      `🚨 ERROR GETTING BOOKING DATA FOR STATE TRANSITIONS [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+      {
+        calendarEventId,
+        error: error.message,
+      }
+    );
   }
 
   console.log(
@@ -198,10 +221,10 @@ async function handleStateTransitions(
       `${declineReason} - booking automatically declined`
     );
 
-    // Send decline email to guest using XState context email
+    // Send decline email to guest using booking document email
     try {
-      // Use email from XState context instead of Firestore query to avoid permissions issues
-      const guestEmail = newSnapshot.context?.email;
+      // Use email from booking document (not from XState context)
+      const guestEmail = bookingDoc?.email;
 
       console.log(
         `🔍 XSTATE DECLINE EMAIL DEBUG [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
@@ -213,7 +236,7 @@ async function handleStateTransitions(
             ? Object.keys(newSnapshot.context)
             : [],
           guestEmail,
-          contextEmail: newSnapshot.context?.email,
+          contextEmail: bookingDoc?.email,
         }
       );
 
@@ -414,8 +437,8 @@ async function handleStateTransitions(
 
     // Send canceled email to guest and update calendar
     try {
-      // Use email from XState context instead of Firestore query to avoid permissions issues
-      const guestEmail = newSnapshot.context?.email;
+      // Use email from booking document (not from XState context)
+      const guestEmail = bookingDoc?.email;
 
       if (guestEmail) {
         const { serverSendBookingDetailEmail } = await import(
@@ -526,8 +549,8 @@ async function handleStateTransitions(
 
     // Send check-in email to guest and update calendar
     try {
-      // Use email from XState context instead of Firestore query to avoid permissions issues
-      const guestEmail = newSnapshot.context?.email;
+      // Use email from booking document (not from XState context)
+      const guestEmail = bookingDoc?.email;
 
       if (guestEmail) {
         const { serverSendBookingDetailEmail } = await import(
@@ -638,8 +661,8 @@ async function handleStateTransitions(
 
     // Send check-out email to guest and update calendar
     try {
-      // Use email from XState context instead of Firestore query to avoid permissions issues
-      const guestEmail = newSnapshot.context?.email;
+      // Use email from booking document (not from XState context)
+      const guestEmail = bookingDoc?.email;
 
       if (guestEmail) {
         const { serverSendBookingDetailEmail } = await import(
@@ -817,13 +840,24 @@ async function handleStateTransitions(
       }
     }
 
-    if (statusLabel) {
+    // Only log generic state changes if this is not XState creation
+    // XState creation should not generate history logs for automatic transitions
+    if (statusLabel && !isXStateCreation) {
       await logBookingStatusChange(
         calendarEventId,
         statusLabel,
         email,
         tenant,
-        ``
+        `XState transition to ${statusLabel}`
+      );
+    } else if (statusLabel && isXStateCreation) {
+      console.log(
+        `⏭️ SKIPPING HISTORY LOG FOR XSTATE CREATION [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+        {
+          calendarEventId,
+          statusLabel,
+          reason: "XState creation should not generate history logs",
+        }
       );
     }
   }
@@ -1001,7 +1035,6 @@ export async function createXStateDataFromBookingStatus(
     ? {
         tenant,
         selectedRooms: bookingData.selectedRooms || [], // Default to empty array
-        formData: bookingData,
         bookingCalendarInfo: {
           startStr: bookingData.startDate?.toDate?.()?.toISOString(),
           endStr: bookingData.endDate?.toDate?.()?.toISOString(),
@@ -1023,7 +1056,6 @@ export async function createXStateDataFromBookingStatus(
     : {
         tenant,
         selectedRooms: bookingData.selectedRooms || [], // Default to empty array
-        formData: bookingData,
         bookingCalendarInfo: {
           startStr: bookingData.startDate?.toDate?.()?.toISOString(),
           endStr: bookingData.endDate?.toDate?.()?.toISOString(),
@@ -1033,14 +1065,46 @@ export async function createXStateDataFromBookingStatus(
         email: bookingData.email,
       };
 
-  // Create actor and navigate to correct state
+  // Create actor starting from the target state directly (without transitions)
+  console.log(
+    `🎯 CREATING XSTATE DIRECTLY IN TARGET STATE [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+    {
+      calendarEventId,
+      targetState: xstateState,
+      bookingStatus,
+    }
+  );
+
+  // Create actor directly in target state without executing transitions
   const actor = createActor(machine, {
     input: inputContext,
   });
   actor.start();
 
-  // Navigate to the correct state based on booking status
-  navigateActorToState(actor, xstateState);
+  // Manually set the state to target without triggering transitions
+  // This prevents automatic history logging during XState creation
+  if (xstateState !== "Requested") {
+    console.log(
+      `🔧 MANUALLY SETTING XSTATE TO TARGET STATE [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+      {
+        calendarEventId,
+        fromState: "Requested",
+        toState: xstateState,
+        reason: "Skip transition side effects during XState creation",
+      }
+    );
+
+    // Use internal method to set state without triggering side effects
+    // This is safe for XState creation from existing booking status
+    const currentSnapshot = actor.getSnapshot();
+    const newSnapshot = {
+      ...currentSnapshot,
+      value: xstateState,
+    };
+
+    // Update the actor's internal state directly
+    (actor as any)._snapshot = newSnapshot;
+  }
 
   // Get the persisted snapshot using XState v5 method
   const persistedSnapshot = actor.getPersistedSnapshot();
@@ -1116,11 +1180,39 @@ export async function restoreXStateFromFirestore(
     );
 
     // Get booking data from Firestore
-    const bookingData = await serverGetDataByCalendarEventId(
+    // Try tenant-specific collection first, then fallback to legacy bookings collection
+    let bookingData = await serverGetDataByCalendarEventId(
       TableNames.BOOKING,
       calendarEventId,
       tenant
     );
+
+    let actualTenant = tenant;
+
+    // If not found in tenant collection, try legacy bookings collection (no tenant)
+    if (!bookingData && tenant) {
+      console.log(
+        `🔍 BOOKING NOT FOUND IN TENANT COLLECTION, TRYING LEGACY [${tenant?.toUpperCase()}]:`,
+        {
+          calendarEventId,
+          triedTenant: tenant,
+        }
+      );
+
+      bookingData = await serverGetDataByCalendarEventId(
+        TableNames.BOOKING,
+        calendarEventId,
+        undefined // No tenant for legacy bookings
+      );
+
+      if (bookingData) {
+        actualTenant = undefined; // Use undefined for legacy bookings
+        console.log(`✅ FOUND LEGACY BOOKING [${tenant?.toUpperCase()}]:`, {
+          calendarEventId,
+          usingLegacyCollection: true,
+        });
+      }
+    }
 
     if (
       !bookingData ||
@@ -1146,7 +1238,7 @@ export async function restoreXStateFromFirestore(
           const xstateData = await createXStateDataFromBookingStatus(
             calendarEventId,
             bookingData,
-            tenant
+            actualTenant // Use actualTenant instead of tenant
           );
 
           const machine = getMachineForTenant(tenant);
@@ -1529,7 +1621,25 @@ export async function executeXStateTransition(
       // Execute No Show side effects (emails, pre-ban logs, etc.)
       // Use server-side functions since this runs in XState server context
       try {
-        const netId = newSnapshot.context?.formData?.netId || "unknown";
+        // Import required modules first
+        const { serverGetDataByCalendarEventId } = await import(
+          "@/lib/firebase/server/adminDb"
+        );
+        const { TableNames } = await import("@/components/src/policy");
+
+        // Get booking document first to extract netId
+        const doc = await serverGetDataByCalendarEventId<any>(
+          TableNames.BOOKING,
+          calendarEventId,
+          tenant
+        );
+
+        if (!doc) {
+          throw new Error("Booking not found");
+        }
+
+        // Get netId directly from booking document (not from XState context)
+        const netId = doc.netId || "unknown";
 
         console.log(
           `🔄 EXECUTING NO SHOW SIDE EFFECTS [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
@@ -1540,30 +1650,14 @@ export async function executeXStateTransition(
           }
         );
 
-        // Import server-side functions
-        const {
-          serverGetDataByCalendarEventId,
-          serverSaveDataToFirestore,
-          serverFetchAllDataFromCollection,
-        } = await import("@/lib/firebase/server/adminDb");
+        // Import server-side functions (doc already retrieved above)
+        const { serverSaveDataToFirestore, serverFetchAllDataFromCollection } =
+          await import("@/lib/firebase/server/adminDb");
         const { serverSendBookingDetailEmail } = await import(
           "@/components/src/server/admin"
         );
-        const { getApprovalCcEmail, TableNames } = await import(
-          "@/components/src/policy"
-        );
+        const { getApprovalCcEmail } = await import("@/components/src/policy");
         const { BookingStatusLabel } = await import("@/components/src/types");
-
-        // Get booking document
-        const doc = await serverGetDataByCalendarEventId<any>(
-          TableNames.BOOKING,
-          calendarEventId,
-          tenant
-        );
-
-        if (!doc) {
-          throw new Error("Booking not found");
-        }
 
         // Check policy violation and add to pre-ban logs
         // Exclude VIP and walk-in bookings from policy violations
@@ -1744,7 +1838,8 @@ We understand that unexpected situations come up, and we encourage you to cancel
       email,
       tenant,
       firestoreUpdates,
-      eventType === "noShow" // Pass noShow flag to skip calendar updates for Service Closeout
+      eventType === "noShow", // Pass noShow flag to skip calendar updates for Service Closeout
+      false // isXStateCreation - false for normal transitions
     );
 
     // If this is Media Commons and servicesApproved context changed, update individual service fields
@@ -1788,6 +1883,22 @@ We understand that unexpected situations come up, and we encourage you to cancel
     }
 
     // Save updated state to Firestore
+    console.log(
+      `🔍 FIRESTORE UPDATE DEBUG [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+      {
+        calendarEventId,
+        firestoreUpdatesKeys: Object.keys(firestoreUpdates),
+        hasXStateData: !!firestoreUpdates.xstateData,
+        xstateDataPreview: firestoreUpdates.xstateData
+          ? {
+              machineId: firestoreUpdates.xstateData.machineId,
+              hasSnapshot: !!firestoreUpdates.xstateData.snapshot,
+              lastTransition: firestoreUpdates.xstateData.lastTransition,
+            }
+          : null,
+      }
+    );
+
     await serverUpdateDataByCalendarEventId(
       TableNames.BOOKING,
       calendarEventId,
