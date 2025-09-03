@@ -41,6 +41,8 @@ export type SchemaContextType = {
   supportVIP: boolean;
   supportWalkIn: boolean;
   resourceName: string;
+  emailHeaderMessage: string;
+  approvalNotice: string;
 };
 
 export const SchemaContext = createContext<SchemaContextType>({
@@ -65,6 +67,8 @@ export const SchemaContext = createContext<SchemaContextType>({
   resourceName: "",
   programMapping: {},
   roleMapping: {},
+  emailHeaderMessage: "",
+  approvalNotice: "",
 });
 
 export const useTenantSchema = () => useContext(SchemaContext);
