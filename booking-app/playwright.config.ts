@@ -38,16 +38,42 @@ export default defineConfig({
         NODE_ENV: 'test',
         E2E_TESTING: 'true',
       },
-      // Try to use system Chromium if available
-      executablePath: process.env.CI ? undefined : (() => {
-        try {
-          const { execSync } = require('child_process');
-          const chromiumPath = execSync('which chromium-browser || which chromium || which google-chrome', { encoding: 'utf8' }).trim();
-          console.log('Using system browser:', chromiumPath);
-          return chromiumPath;
-        } catch (e) {
-          console.log('System browser not found, using Playwright browser');
+      // Try to use system Chromium if available, especially in CI
+      executablePath: (() => {
+        if (process.env.CI) {
+          // In CI, try multiple browser paths as fallback
+          const possiblePaths = [
+            '/usr/bin/chromium-browser',
+            '/usr/bin/chromium',
+            '/usr/bin/google-chrome',
+            '/snap/bin/chromium',
+          ];
+          
+          for (const browserPath of possiblePaths) {
+            try {
+              const fs = require('fs');
+              if (fs.existsSync(browserPath)) {
+                console.log('Using system browser in CI:', browserPath);
+                return browserPath;
+              }
+            } catch (e) {
+              // Continue to next path
+            }
+          }
+          
+          console.log('No system browser found in CI, using Playwright browser');
           return undefined;
+        } else {
+          // For local development
+          try {
+            const { execSync } = require('child_process');
+            const chromiumPath = execSync('which chromium-browser || which chromium || which google-chrome', { encoding: 'utf8' }).trim();
+            console.log('Using system browser:', chromiumPath);
+            return chromiumPath;
+          } catch (e) {
+            console.log('System browser not found, using Playwright browser');
+            return undefined;
+          }
         }
       })(),
     },
