@@ -533,6 +533,7 @@ const firstApprove = async (id: string, email: string, tenant?: string) => {
     body: JSON.stringify(formData),
   });
 };
+
 const finalApprove = async (id: string, email: string, tenant?: string) => {
   const finalApprovers = (await approvers()).filter(
     (a) => a.level === ApproverLevel.FINAL
@@ -773,10 +774,99 @@ export const approvers = async (): Promise<Approver[]> => {
 };
 
 export const firstApproverEmails = async (department: string) => {
+  console.log(`🔍 FIRST APPROVER EMAILS DEBUG:`, {
+    department,
+    function: "firstApproverEmails",
+  });
+
   const approversData = await approvers();
-  return approversData
-    .filter((approver) => approver.department === department)
-    .map((approver) => approver.email);
+  console.log(`📋 APPROVERS DATA:`, {
+    department,
+    totalApprovers: approversData.length,
+    approvers: approversData.map((a) => ({
+      email: a.email,
+      department: a.department,
+      level: a.level,
+    })),
+  });
+
+  // Normalize department names for comparison (remove extra spaces, normalize slashes)
+  const normalizeDepartment = (dept: string) => {
+    if (!dept) return dept;
+
+    // Use string methods instead of regex to avoid ReDoS vulnerabilities
+    let normalized = dept.trim();
+
+    // Replace multiple consecutive whitespace characters with single space
+    // Using iterative approach instead of regex quantifiers
+    while (normalized.includes("  ")) {
+      normalized = normalized.replace("  ", " ");
+    }
+    while (normalized.includes("\t")) {
+      normalized = normalized.replace("\t", " ");
+    }
+    while (normalized.includes("\n")) {
+      normalized = normalized.replace("\n", " ");
+    }
+    while (normalized.includes("\r")) {
+      normalized = normalized.replace("\r", " ");
+    }
+
+    // Normalize slashes - safer regex without quantifiers
+    normalized = normalized.replace(" /", " /").replace("/ ", "/ ");
+    if (normalized.includes("/") && !normalized.includes(" / ")) {
+      normalized = normalized.replace("/", " / ");
+    }
+
+    return normalized.trim().toLowerCase();
+  };
+
+  const normalizedUserDepartment = normalizeDepartment(department);
+  console.log(`🔧 NORMALIZED USER DEPARTMENT:`, {
+    original: department,
+    normalized: normalizedUserDepartment,
+  });
+
+  const filteredApprovers = approversData.filter((approver) => {
+    if (!approver.department) return false;
+
+    const normalizedApproverDepartment = normalizeDepartment(
+      approver.department
+    );
+    const matches = normalizedApproverDepartment === normalizedUserDepartment;
+
+    console.log(`🔍 DEPARTMENT COMPARISON:`, {
+      userDepartment: department,
+      normalizedUserDepartment,
+      approverDepartment: approver.department,
+      normalizedApproverDepartment,
+      matches,
+    });
+
+    return matches;
+  });
+
+  console.log(`🎯 FILTERED APPROVERS:`, {
+    department,
+    normalizedDepartment: normalizedUserDepartment,
+    filteredCount: filteredApprovers.length,
+    filteredApprovers: filteredApprovers.map((a) => ({
+      email: a.email,
+      department: a.department,
+      level: a.level,
+    })),
+  });
+
+  const result = filteredApprovers.map((approver) => approver.email);
+
+  console.log(`📧 FIRST APPROVER EMAILS RESULT:`, {
+    department,
+    normalizedDepartment: normalizedUserDepartment,
+    result,
+    resultCount: result.length,
+  });
+
+  return result;
 };
 
 export const serverGetRoomCalendarIds = async (

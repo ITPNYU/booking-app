@@ -208,12 +208,42 @@ async function handleBookingApprovalEmails(
   tenant?: string,
 ) {
   const shouldAutoApprove = isAutoApproval === true;
+
+  console.log(
+    `🔍 FIRST APPROVER EMAIL DEBUG [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+    {
+      department: data.department,
+      calendarEventId,
+      sequentialId,
+    },
+  );
+
   const firstApprovers = await firstApproverEmails(data.department);
+
+  console.log(
+    `📧 FIRST APPROVERS RESULT [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+    {
+      department: data.department,
+      firstApprovers,
+      firstApproversCount: firstApprovers.length,
+    },
+  );
 
   const sendApprovalEmail = async (
     recipients: string[],
     contents: BookingFormDetails,
   ) => {
+    console.log(
+      `📧 SEND APPROVAL EMAIL FUNCTION [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+      {
+        recipients,
+        recipientsCount: recipients.length,
+        calendarEventId,
+        contentsTitle: contents.title,
+        contentsRequestNumber: contents.requestNumber,
+      },
+    );
+
     const { equipmentCheckedOut, ...otherContents } = contents;
     const otherContentsStrings = Object.fromEntries(
       Object.entries(otherContents).map(([key, value]) => [
@@ -226,8 +256,18 @@ async function handleBookingApprovalEmails(
     const startDate = new Date(bookingCalendarInfo?.startStr);
     const endDate = new Date(bookingCalendarInfo?.endStr);
 
-    const emailPromises = recipients.map(recipient =>
-      sendHTMLEmail({
+    const emailPromises = recipients.map(recipient => {
+      console.log(
+        `📧 SENDING APPROVAL EMAIL TO [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+        {
+          recipient,
+          calendarEventId,
+          eventTitle: contents.title,
+          requestNumber: contents.requestNumber,
+        },
+      );
+
+      return sendHTMLEmail({
         templateName: "booking_detail",
         contents: {
           ...otherContentsStrings,
@@ -253,9 +293,26 @@ async function handleBookingApprovalEmails(
         body: "",
         approverType: ApproverType.LIAISON,
         replyTo: email,
-      }),
+      });
+    });
+
+    console.log(
+      `📧 EXECUTING EMAIL PROMISES [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+      {
+        emailPromisesCount: emailPromises.length,
+        calendarEventId,
+      },
     );
+
     await Promise.all(emailPromises);
+
+    console.log(
+      `✅ ALL APPROVAL EMAILS COMPLETED [${tenant?.toUpperCase()}]:`,
+      {
+        recipients,
+        calendarEventId,
+      },
+    );
   };
 
   console.log("approval email calendarEventId", calendarEventId);
@@ -313,7 +370,33 @@ async function handleBookingApprovalEmails(
       origin: formatOrigin(data.origin) ?? BookingOrigin.USER,
     };
     console.log("userEventInputs", userEventInputs);
-    await sendApprovalEmail(firstApprovers, userEventInputs);
+    console.log(
+      `📧 SENDING APPROVAL EMAILS [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+      {
+        firstApprovers,
+        firstApproversCount: firstApprovers.length,
+        calendarEventId,
+      },
+    );
+
+    if (firstApprovers.length > 0) {
+      await sendApprovalEmail(firstApprovers, userEventInputs);
+      console.log(
+        `✅ APPROVAL EMAILS SENT SUCCESSFULLY [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+        {
+          firstApprovers,
+          calendarEventId,
+        },
+      );
+    } else {
+      console.warn(
+        `⚠️ NO FIRST APPROVERS FOUND - SKIPPING APPROVAL EMAILS [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+        {
+          department: data.department,
+          calendarEventId,
+        },
+      );
+    }
     // Send confirmation to requester as well (use confirmation/booking detail email)
     await serverSendBookingDetailEmail({
       calendarEventId,
