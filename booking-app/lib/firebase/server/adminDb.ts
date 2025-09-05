@@ -78,7 +78,7 @@ export const serverGetNextSequentialId = async (
     collectionName as TableNames,
     tenant
   );
-  const counterDocRef = db.collection("counters").doc(tenantCollection);
+  const counterDocRef = db.collection(tenantCollection).doc("bookings");
   const counterDoc = await counterDocRef.get();
   let currentCount = 1;
   if (counterDoc.exists) {

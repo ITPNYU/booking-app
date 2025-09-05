@@ -11,6 +11,7 @@ interface MediaCommonsBookingContext {
   calendarEventId?: string | null;
   email?: string;
   isVip?: boolean;
+  declineReason?: string;
   servicesRequested?: {
     staff?: boolean;
     equipment?: boolean;
@@ -29,6 +30,15 @@ interface MediaCommonsBookingContext {
   };
 }
 
+// ⚠️ XSTATE PURITY CONSTRAINT:
+// This XState machine should ONLY handle state transitions and logging
+// DO NOT add side effects like:
+// - Database operations (Firestore writes)
+// - Email sending (actual API calls)
+// - External API calls
+// - File operations
+// These should be handled in traditional processing after XState transitions
+
 export const mcBookingMachine = setup({
   types: {
     context: {} as MediaCommonsBookingContext,
@@ -38,7 +48,7 @@ export const mcBookingMachine = setup({
       | { type: "noShow" }
       | { type: "approve" }
       | { type: "checkIn" }
-      | { type: "decline" }
+      | { type: "decline"; reason?: string }
       | { type: "checkOut" }
       | { type: "approveSetup" }
       | { type: "approveStaff" }
@@ -62,30 +72,54 @@ export const mcBookingMachine = setup({
   },
   actions: {
     sendHTMLEmail: ({ context, event }) => {
-      console.log(`📧 XSTATE ACTION: sendHTMLEmail executed`, {
-        tenant: context.tenant,
-        hasFormData: !!context.formData,
-        email: context.email,
-      });
+      // NOTE: This is a placeholder action for state machine logic only
+      // Actual email sending is handled by traditional processing after XState
+      console.log(
+        `📧 XSTATE ACTION: sendHTMLEmail executed (placeholder only)`,
+        {
+          tenant: context.tenant,
+          hasFormData: !!context.formData,
+          email: context.email,
+          note: "Actual email sending handled outside XState",
+        }
+      );
     },
     createCalendarEvent: ({ context, event }) => {
-      console.log(`📅 XSTATE ACTION: createCalendarEvent executed`, {
-        tenant: context.tenant,
-        selectedRoomsCount: context.selectedRooms?.length || 0,
-        calendarEventId: context.calendarEventId,
-      });
+      // NOTE: This is a placeholder action for state machine logic only
+      // Actual calendar creation is handled by traditional processing after XState
+      console.log(
+        `📅 XSTATE ACTION: createCalendarEvent executed (placeholder only)`,
+        {
+          tenant: context.tenant,
+          selectedRoomsCount: context.selectedRooms?.length || 0,
+          calendarEventId: context.calendarEventId,
+          note: "Actual calendar creation handled outside XState",
+        }
+      );
     },
     updateCalendarEvent: ({ context, event }) => {
-      console.log(`📅 XSTATE ACTION: updateCalendarEvent executed`, {
-        tenant: context.tenant,
-        calendarEventId: context.calendarEventId,
-      });
+      // NOTE: This is a placeholder action for state machine logic only
+      // Actual calendar update is handled by traditional processing after XState
+      console.log(
+        `📅 XSTATE ACTION: updateCalendarEvent executed (placeholder only)`,
+        {
+          tenant: context.tenant,
+          calendarEventId: context.calendarEventId,
+          note: "Actual calendar update handled outside XState",
+        }
+      );
     },
     deleteCalendarEvent: ({ context, event }) => {
-      console.log(`🗑️ XSTATE ACTION: deleteCalendarEvent executed`, {
-        tenant: context.tenant,
-        calendarEventId: context.calendarEventId,
-      });
+      // NOTE: This is a placeholder action for state machine logic only
+      // Actual calendar deletion is handled by traditional processing after XState
+      console.log(
+        `🗑️ XSTATE ACTION: deleteCalendarEvent executed (placeholder only)`,
+        {
+          tenant: context.tenant,
+          calendarEventId: context.calendarEventId,
+          note: "Actual calendar deletion handled outside XState",
+        }
+      );
     },
     inviteUserToCalendarEvent: ({ context, event }) => {
       console.log(`👥 XSTATE ACTION: inviteUserToCalendarEvent executed`, {
@@ -94,6 +128,15 @@ export const mcBookingMachine = setup({
         email: context.email,
       });
     },
+    setDeclineReason: assign({
+      declineReason: ({ event }) => {
+        const reason = (event as any).reason;
+        if (reason && reason.trim()) {
+          return reason;
+        }
+        return "Service requirements could not be fulfilled";
+      },
+    }),
     // Service approval actions that update context
     approveStaffService: assign({
       servicesApproved: ({ context }) => ({
@@ -323,7 +366,26 @@ export const mcBookingMachine = setup({
       )
         return false;
 
-      // Check if any requested service is explicitly declined
+      // First, check if ALL requested services have been decided (approved or declined)
+      const allServicesDecided = Object.entries(
+        context.servicesRequested
+      ).every(([service, requested]) => {
+        if (!requested) return true; // If not requested, it's considered "decided"
+        const approval =
+          context.servicesApproved?.[
+            service as keyof typeof context.servicesApproved
+          ];
+        return typeof approval === "boolean"; // Must be explicitly true or false
+      });
+
+      if (!allServicesDecided) {
+        console.log(
+          `🎯 XSTATE GUARD: servicesDeclined: false (not all services decided yet)`
+        );
+        return false;
+      }
+
+      // If all services are decided, check if any requested service is explicitly declined
       const anyDeclined = Object.entries(context.servicesRequested).some(
         ([service, requested]) => {
           if (!requested) return false; // If not requested, can't be declined
@@ -335,7 +397,9 @@ export const mcBookingMachine = setup({
         }
       );
 
-      console.log(`🎯 XSTATE GUARD: servicesDeclined: ${anyDeclined}`);
+      console.log(
+        `🎯 XSTATE GUARD: servicesDeclined: ${anyDeclined} (all services decided: ${allServicesDecided})`
+      );
       return anyDeclined;
     },
     staffRequested: ({ context }) => {
@@ -1114,9 +1178,17 @@ export const mcBookingMachine = setup({
         cancel: {
           target: "Canceled",
         },
-        decline: {
-          target: "Declined",
-        },
+        decline: [
+          {
+            target: "Services Request",
+            guard: {
+              type: "servicesRequested",
+            },
+          },
+          {
+            target: "Declined",
+          },
+        ],
         edit: {
           target: "Requested",
         },

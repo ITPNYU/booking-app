@@ -301,7 +301,7 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // Only send emails if the booking is fully approved
+  // Only send confirmation emails if the booking is fully approved
   // For VIP bookings with service requests, emails should be sent when XState reaches "Approved"
   const shouldSendEmails = bookingStatus === BookingStatusLabel.APPROVED;
 

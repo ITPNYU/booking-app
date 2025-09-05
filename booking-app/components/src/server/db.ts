@@ -28,7 +28,6 @@ import {
 
 import { shouldUseXState } from "@/components/src/utils/tenantUtils";
 import { clientUpdateDataByCalendarEventId } from "@/lib/firebase/client/clientDb";
-import { roundTimeUp } from "../client/utils/date";
 import { getBookingToolDeployUrl } from "./ui";
 
 // Helper function to call XState transition API
@@ -36,7 +35,8 @@ async function callXStateTransitionAPI(
   calendarEventId: string,
   eventType: string,
   email: string,
-  tenant?: string
+  tenant?: string,
+  reason?: string
 ): Promise<{ success: boolean; newState?: string; error?: string }> {
   try {
     const response = await fetch(
@@ -51,6 +51,7 @@ async function callXStateTransitionAPI(
           calendarEventId,
           eventType,
           email,
+          reason,
         }),
       }
     );
@@ -173,7 +174,8 @@ export const decline = async (
       id,
       "decline",
       email,
-      tenant
+      tenant,
+      reason
     );
 
     if (!xstateResult.success) {
@@ -197,6 +199,10 @@ export const decline = async (
         calendarEventId: id,
         newState: xstateResult.newState,
       });
+
+      // XState handled the decline successfully, including email sending
+      // Skip the traditional email sending below
+      return;
     }
   } else {
     console.log(
@@ -349,6 +355,10 @@ export const cancel = async (
         calendarEventId: id,
         newState: xstateResult.newState,
       });
+
+      // XState handled the cancel successfully, including history logging
+      // Skip the traditional processing below
+      return;
     }
   } else {
     console.log(
@@ -375,7 +385,7 @@ export const cancel = async (
   // Always call for pre-ban logging
   checkAndLogLateCancellation(doc, id, netId);
 
-  // Log the cancel action
+  // Log the cancel action (only for traditional processing)
   if (doc) {
     await logClientBookingChange({
       bookingId: doc.id,
@@ -530,6 +540,37 @@ export const checkin = async (id: string, email: string, tenant?: string) => {
         calendarEventId: id,
         newState: xstateResult.newState,
       });
+
+      // XState handled the checkin successfully, including email sending
+      // Add history logging here since XState doesn't handle history
+      const doc = await clientGetDataByCalendarEventId<{
+        id: string;
+        requestNumber: number;
+      }>(TableNames.BOOKING, id, tenant);
+
+      if (doc) {
+        await logClientBookingChange({
+          bookingId: doc.id,
+          calendarEventId: id,
+          status: BookingStatusLabel.CHECKED_IN,
+          changedBy: email,
+          requestNumber: doc.requestNumber,
+          note: "",
+          tenant,
+        });
+
+        console.log(
+          `📋 XSTATE CHECKIN HISTORY LOGGED [${tenant?.toUpperCase()}]:`,
+          {
+            calendarEventId: id,
+            bookingId: doc.id,
+            requestNumber: doc.requestNumber,
+          }
+        );
+      }
+
+      // Skip the traditional processing below
+      return;
     }
   } else {
     console.log(
@@ -553,7 +594,7 @@ export const checkin = async (id: string, email: string, tenant?: string) => {
   }>(TableNames.BOOKING, id, tenant);
 
   console.log("check in doc", doc);
-  // Log the check-in action
+  // Log the check-in action (only for traditional processing)
   if (doc) {
     await logClientBookingChange({
       bookingId: doc.id,
@@ -641,6 +682,10 @@ export const checkOut = async (id: string, email: string, tenant?: string) => {
           newState: xstateResult.newState,
         }
       );
+
+      // XState handled the checkout successfully, including email sending and history logging
+      // Skip the traditional processing below
+      return;
     }
   } else {
     console.log(
@@ -649,7 +694,6 @@ export const checkOut = async (id: string, email: string, tenant?: string) => {
     );
   }
 
-  const checkoutDate = roundTimeUp();
   clientUpdateDataByCalendarEventId(
     TableNames.BOOKING,
     id,
@@ -659,21 +703,13 @@ export const checkOut = async (id: string, email: string, tenant?: string) => {
     },
     tenant
   );
-  clientUpdateDataByCalendarEventId(
-    TableNames.BOOKING,
-    id,
-    {
-      endDate: Timestamp.fromDate(checkoutDate),
-    },
-    tenant
-  );
   const doc = await clientGetDataByCalendarEventId<{
     id: string;
     requestNumber: number;
   }>(TableNames.BOOKING, id, tenant);
   console.log("check out doc", doc);
 
-  // Log the check-out action
+  // Log the check-out action (only for traditional processing)
   if (doc) {
     await logClientBookingChange({
       bookingId: doc.id,
@@ -709,9 +745,6 @@ export const checkOut = async (id: string, email: string, tenant?: string) => {
         calendarEventId: id,
         newValues: {
           statusPrefix: BookingStatusLabel.CHECKED_OUT,
-          end: {
-            dateTime: roundTimeUp().toISOString(),
-          },
         },
       }),
     }
