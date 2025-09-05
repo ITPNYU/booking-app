@@ -792,11 +792,33 @@ export const firstApproverEmails = async (department: string) => {
 
   // Normalize department names for comparison (remove extra spaces, normalize slashes)
   const normalizeDepartment = (dept: string) => {
-    return dept
-      ?.replace(/\s+/g, " ") // Replace multiple spaces with single space
-      ?.replace(/\s*\/\s*/g, " / ") // Normalize slashes with spaces
-      ?.trim()
-      ?.toLowerCase();
+    if (!dept) return dept;
+
+    // Use string methods instead of regex to avoid ReDoS vulnerabilities
+    let normalized = dept.trim();
+
+    // Replace multiple consecutive whitespace characters with single space
+    // Using iterative approach instead of regex quantifiers
+    while (normalized.includes("  ")) {
+      normalized = normalized.replace("  ", " ");
+    }
+    while (normalized.includes("\t")) {
+      normalized = normalized.replace("\t", " ");
+    }
+    while (normalized.includes("\n")) {
+      normalized = normalized.replace("\n", " ");
+    }
+    while (normalized.includes("\r")) {
+      normalized = normalized.replace("\r", " ");
+    }
+
+    // Normalize slashes - safer regex without quantifiers
+    normalized = normalized.replace(" /", " /").replace("/ ", "/ ");
+    if (normalized.includes("/") && !normalized.includes(" / ")) {
+      normalized = normalized.replace("/", " / ");
+    }
+
+    return normalized.trim().toLowerCase();
   };
 
   const normalizedUserDepartment = normalizeDepartment(department);
