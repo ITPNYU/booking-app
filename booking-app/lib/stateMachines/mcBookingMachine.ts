@@ -30,6 +30,15 @@ interface MediaCommonsBookingContext {
   };
 }
 
+// ⚠️ XSTATE PURITY CONSTRAINT:
+// This XState machine should ONLY handle state transitions and logging
+// DO NOT add side effects like:
+// - Database operations (Firestore writes)
+// - Email sending (actual API calls)
+// - External API calls
+// - File operations
+// These should be handled in traditional processing after XState transitions
+
 export const mcBookingMachine = setup({
   types: {
     context: {} as MediaCommonsBookingContext,

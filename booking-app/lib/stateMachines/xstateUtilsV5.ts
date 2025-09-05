@@ -117,31 +117,17 @@ async function handleStateTransitions(
     // Note: History logging is now handled by traditional functions only
     // XState only manages state transitions, not history logging
 
-    // Execute approval side effects (emails, calendar updates, etc.)
-    try {
-      const { serverApproveBooking } = await import(
-        "@/components/src/server/admin"
-      );
-      await serverApproveBooking(calendarEventId, email, tenant);
-      console.log(
-        `✅ XSTATE APPROVED SIDE EFFECTS EXECUTED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-        {
-          calendarEventId,
-          email,
-          tenant,
-        }
-      );
-    } catch (error) {
-      console.error(
-        `🚨 XSTATE APPROVED SIDE EFFECTS FAILED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-        {
-          calendarEventId,
-          email,
-          tenant,
-          error: error.message,
-        }
-      );
-    }
+    // Note: Side effects (emails, calendar updates, history logging) are now handled
+    // by traditional processing after XState transitions to maintain separation of concerns
+    console.log(
+      `📝 XSTATE APPROVED STATE REACHED - SIDE EFFECTS HANDLED EXTERNALLY [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+      {
+        calendarEventId,
+        email,
+        tenant,
+        note: "Approval side effects handled by /api/services or /api/approve",
+      }
+    );
   } else if (newState === "Declined" && previousState !== "Declined") {
     // Declined state handling
     firestoreUpdates.declinedAt = admin.firestore.Timestamp.now();
@@ -191,11 +177,34 @@ async function handleStateTransitions(
         let headerMessage =
           "Your reservation request for Media Commons has been declined.";
 
+        // Check which services were declined and include them in the message
+        const declinedServices = [];
+        if (newSnapshot.context?.servicesApproved) {
+          const servicesApproved = newSnapshot.context.servicesApproved;
+          const servicesRequested = newSnapshot.context.servicesRequested || {};
+
+          Object.entries(servicesApproved).forEach(([service, approved]) => {
+            if (servicesRequested[service] && approved === false) {
+              // Capitalize first letter of service name
+              const serviceName =
+                service.charAt(0).toUpperCase() + service.slice(1);
+              declinedServices.push(serviceName);
+            }
+          });
+        }
+
         // Use decline reason from XState context if available, fallback to reason parameter
-        const declineReason =
+        let declineReason =
           newSnapshot.context?.declineReason ||
           reason ||
           "Service requirements could not be fulfilled";
+
+        // If specific services were declined, include them in the reason
+        if (declinedServices.length > 0) {
+          const servicesList = declinedServices.join(", ");
+          declineReason = `The following service(s) could not be fulfilled: ${servicesList}`;
+        }
+
         headerMessage += ` Reason: ${declineReason}. <br /><br />If you have any questions or need further assistance, please don't hesitate to reach out.`;
 
         await serverSendBookingDetailEmail({
