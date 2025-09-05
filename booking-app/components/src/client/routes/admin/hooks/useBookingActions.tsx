@@ -1226,27 +1226,31 @@ export default function useBookingActions({
       isInServicesRequest
     ) {
       // Add service approval actions based on what's requested and current state
-      if (serviceRequests.staff && servicesApproved.staff !== true) {
+      // Only show actions for services that are requested but not yet decided (undefined)
+      if (serviceRequests.staff && servicesApproved.staff === undefined) {
         options.push(Actions.APPROVE_STAFF_SERVICE);
         options.push(Actions.DECLINE_STAFF_SERVICE);
       }
-      if (serviceRequests.equipment && servicesApproved.equipment !== true) {
+      if (
+        serviceRequests.equipment &&
+        servicesApproved.equipment === undefined
+      ) {
         options.push(Actions.APPROVE_EQUIPMENT_SERVICE);
         options.push(Actions.DECLINE_EQUIPMENT_SERVICE);
       }
-      if (serviceRequests.catering && servicesApproved.catering !== true) {
+      if (serviceRequests.catering && servicesApproved.catering === undefined) {
         options.push(Actions.APPROVE_CATERING_SERVICE);
         options.push(Actions.DECLINE_CATERING_SERVICE);
       }
-      if (serviceRequests.cleaning && servicesApproved.cleaning !== true) {
+      if (serviceRequests.cleaning && servicesApproved.cleaning === undefined) {
         options.push(Actions.APPROVE_CLEANING_SERVICE);
         options.push(Actions.DECLINE_CLEANING_SERVICE);
       }
-      if (serviceRequests.security && servicesApproved.security !== true) {
+      if (serviceRequests.security && servicesApproved.security === undefined) {
         options.push(Actions.APPROVE_SECURITY_SERVICE);
         options.push(Actions.DECLINE_SECURITY_SERVICE);
       }
-      if (serviceRequests.setup && servicesApproved.setup !== true) {
+      if (serviceRequests.setup && servicesApproved.setup === undefined) {
         options.push(Actions.APPROVE_SETUP_SERVICE);
         options.push(Actions.DECLINE_SETUP_SERVICE);
       }

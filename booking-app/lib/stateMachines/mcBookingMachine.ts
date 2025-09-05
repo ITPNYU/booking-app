@@ -63,30 +63,54 @@ export const mcBookingMachine = setup({
   },
   actions: {
     sendHTMLEmail: ({ context, event }) => {
-      console.log(`📧 XSTATE ACTION: sendHTMLEmail executed`, {
-        tenant: context.tenant,
-        hasFormData: !!context.formData,
-        email: context.email,
-      });
+      // NOTE: This is a placeholder action for state machine logic only
+      // Actual email sending is handled by traditional processing after XState
+      console.log(
+        `📧 XSTATE ACTION: sendHTMLEmail executed (placeholder only)`,
+        {
+          tenant: context.tenant,
+          hasFormData: !!context.formData,
+          email: context.email,
+          note: "Actual email sending handled outside XState",
+        }
+      );
     },
     createCalendarEvent: ({ context, event }) => {
-      console.log(`📅 XSTATE ACTION: createCalendarEvent executed`, {
-        tenant: context.tenant,
-        selectedRoomsCount: context.selectedRooms?.length || 0,
-        calendarEventId: context.calendarEventId,
-      });
+      // NOTE: This is a placeholder action for state machine logic only
+      // Actual calendar creation is handled by traditional processing after XState
+      console.log(
+        `📅 XSTATE ACTION: createCalendarEvent executed (placeholder only)`,
+        {
+          tenant: context.tenant,
+          selectedRoomsCount: context.selectedRooms?.length || 0,
+          calendarEventId: context.calendarEventId,
+          note: "Actual calendar creation handled outside XState",
+        }
+      );
     },
     updateCalendarEvent: ({ context, event }) => {
-      console.log(`📅 XSTATE ACTION: updateCalendarEvent executed`, {
-        tenant: context.tenant,
-        calendarEventId: context.calendarEventId,
-      });
+      // NOTE: This is a placeholder action for state machine logic only
+      // Actual calendar update is handled by traditional processing after XState
+      console.log(
+        `📅 XSTATE ACTION: updateCalendarEvent executed (placeholder only)`,
+        {
+          tenant: context.tenant,
+          calendarEventId: context.calendarEventId,
+          note: "Actual calendar update handled outside XState",
+        }
+      );
     },
     deleteCalendarEvent: ({ context, event }) => {
-      console.log(`🗑️ XSTATE ACTION: deleteCalendarEvent executed`, {
-        tenant: context.tenant,
-        calendarEventId: context.calendarEventId,
-      });
+      // NOTE: This is a placeholder action for state machine logic only
+      // Actual calendar deletion is handled by traditional processing after XState
+      console.log(
+        `🗑️ XSTATE ACTION: deleteCalendarEvent executed (placeholder only)`,
+        {
+          tenant: context.tenant,
+          calendarEventId: context.calendarEventId,
+          note: "Actual calendar deletion handled outside XState",
+        }
+      );
     },
     inviteUserToCalendarEvent: ({ context, event }) => {
       console.log(`👥 XSTATE ACTION: inviteUserToCalendarEvent executed`, {

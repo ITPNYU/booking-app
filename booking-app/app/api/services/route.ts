@@ -71,8 +71,10 @@ export async function POST(req: NextRequest) {
         },
       );
 
-      // Create XState event type (e.g., "staffApprove", "equipmentDecline")
-      const eventType = `${serviceType}${action.charAt(0).toUpperCase() + action.slice(1)}`;
+      // Create XState event type (e.g., "approveStaff", "declineEquipment")
+      const capitalizedServiceType =
+        serviceType.charAt(0).toUpperCase() + serviceType.slice(1);
+      const eventType = `${action}${capitalizedServiceType}`;
 
       const xstateResult = await executeXStateTransition(
         calendarEventId,
@@ -108,13 +110,13 @@ export async function POST(req: NextRequest) {
         );
 
         // Add history logging for individual service approve/decline since XState doesn't handle history
-        const { clientGetDataByCalendarEventId } = await import(
-          "@/lib/firebase/firebase"
+        const { serverGetDataByCalendarEventId } = await import(
+          "@/lib/firebase/server/adminDb"
         );
         const { TableNames } = await import("@/components/src/policy");
         const { BookingStatusLabel } = await import("@/components/src/types");
 
-        const doc = await clientGetDataByCalendarEventId<{
+        const doc = await serverGetDataByCalendarEventId<{
           id: string;
           requestNumber: number;
         }>(TableNames.BOOKING, calendarEventId, tenant);
