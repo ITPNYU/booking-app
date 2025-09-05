@@ -333,7 +333,26 @@ export const mcBookingMachine = setup({
       )
         return false;
 
-      // Check if any requested service is explicitly declined
+      // First, check if ALL requested services have been decided (approved or declined)
+      const allServicesDecided = Object.entries(
+        context.servicesRequested
+      ).every(([service, requested]) => {
+        if (!requested) return true; // If not requested, it's considered "decided"
+        const approval =
+          context.servicesApproved?.[
+            service as keyof typeof context.servicesApproved
+          ];
+        return typeof approval === "boolean"; // Must be explicitly true or false
+      });
+
+      if (!allServicesDecided) {
+        console.log(
+          `🎯 XSTATE GUARD: servicesDeclined: false (not all services decided yet)`
+        );
+        return false;
+      }
+
+      // If all services are decided, check if any requested service is explicitly declined
       const anyDeclined = Object.entries(context.servicesRequested).some(
         ([service, requested]) => {
           if (!requested) return false; // If not requested, can't be declined
@@ -345,7 +364,9 @@ export const mcBookingMachine = setup({
         }
       );
 
-      console.log(`🎯 XSTATE GUARD: servicesDeclined: ${anyDeclined}`);
+      console.log(
+        `🎯 XSTATE GUARD: servicesDeclined: ${anyDeclined} (all services decided: ${allServicesDecided})`
+      );
       return anyDeclined;
     },
     staffRequested: ({ context }) => {
@@ -1124,9 +1145,17 @@ export const mcBookingMachine = setup({
         cancel: {
           target: "Canceled",
         },
-        decline: {
-          target: "Declined",
-        },
+        decline: [
+          {
+            target: "Services Request",
+            guard: {
+              type: "servicesRequested",
+            },
+          },
+          {
+            target: "Declined",
+          },
+        ],
         edit: {
           target: "Requested",
         },

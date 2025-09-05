@@ -66,25 +66,169 @@ export async function POST(req: NextRequest) {
             },
           );
 
-          // XState processing is complete - no additional processing needed
+          // Add history logging for final approval since XState doesn't handle history
+          const { serverGetDataByCalendarEventId } = await import(
+            "@/lib/firebase/server/adminDb"
+          );
+          const { TableNames } = await import("@/components/src/policy");
+          const { BookingStatusLabel } = await import("@/components/src/types");
+
+          const doc = await serverGetDataByCalendarEventId<{
+            id: string;
+            requestNumber: number;
+          }>(TableNames.BOOKING, id, tenant);
+
+          if (doc) {
+            const logResponse = await fetch(
+              `${process.env.NEXT_PUBLIC_BASE_URL}/api/booking-logs`,
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "x-tenant": tenant || DEFAULT_TENANT,
+                },
+                body: JSON.stringify({
+                  bookingId: doc.id,
+                  calendarEventId: id,
+                  status: BookingStatusLabel.APPROVED,
+                  changedBy: email,
+                  requestNumber: doc.requestNumber,
+                  note: null,
+                }),
+              },
+            );
+
+            if (logResponse.ok) {
+              console.log(
+                `📋 XSTATE FINAL APPROVAL HISTORY LOGGED [${tenant?.toUpperCase()}]:`,
+                {
+                  calendarEventId: id,
+                  bookingId: doc.id,
+                  requestNumber: doc.requestNumber,
+                  status: BookingStatusLabel.APPROVED,
+                },
+              );
+            } else {
+              console.error(
+                `🚨 XSTATE FINAL APPROVAL HISTORY LOG FAILED [${tenant?.toUpperCase()}]:`,
+                {
+                  calendarEventId: id,
+                  status: logResponse.status,
+                },
+              );
+            }
+          }
         } else if (xstateResult.newState === "Pre-approved") {
           console.log(
             `🎯 XSTATE REACHED PRE-APPROVED STATE - PROCESSING COMPLETE [${tenant?.toUpperCase()}]:`,
             {
               calendarEventId: id,
               newState: xstateResult.newState,
-              note: "XState processing handled state transition and side effects",
+              note: "XState processing handled state transition, now handling side effects",
             },
           );
 
-          // XState processing is complete - no additional processing needed
+          // Handle side effects (history logging and email) outside of XState
+          try {
+            const { serverFirstApproveOnly } = await import(
+              "@/components/src/server/admin"
+            );
+
+            await serverFirstApproveOnly(id, email, tenant);
+
+            console.log(
+              `✅ PRE-APPROVED SIDE EFFECTS COMPLETED [${tenant?.toUpperCase()}]:`,
+              {
+                calendarEventId: id,
+                email,
+                note: "History logging and email sending completed via serverFirstApproveOnly",
+              },
+            );
+          } catch (error) {
+            console.error(
+              `🚨 PRE-APPROVED SIDE EFFECTS FAILED [${tenant?.toUpperCase()}]:`,
+              {
+                calendarEventId: id,
+                email,
+                tenant,
+                error: error.message,
+              },
+            );
+          }
+        } else if (
+          typeof xstateResult.newState === "object" &&
+          xstateResult.newState !== null &&
+          "Services Request" in xstateResult.newState
+        ) {
+          // Handle Services Request parallel state for Media Commons
+          console.log(
+            `🔀 XSTATE REACHED SERVICES REQUEST STATE [${tenant?.toUpperCase()}]:`,
+            {
+              calendarEventId: id,
+              newState: xstateResult.newState,
+              note: "Media Commons booking transitioned to Services Request parallel state",
+            },
+          );
+
+          // Add history logging for Services Request transition
+          const { serverGetDataByCalendarEventId } = await import(
+            "@/lib/firebase/server/adminDb"
+          );
+          const { TableNames } = await import("@/components/src/policy");
+          const { BookingStatusLabel } = await import("@/components/src/types");
+
+          const doc = await serverGetDataByCalendarEventId<{
+            id: string;
+            requestNumber: number;
+          }>(TableNames.BOOKING, id, tenant);
+
+          if (doc) {
+            const logResponse = await fetch(
+              `${process.env.NEXT_PUBLIC_BASE_URL}/api/booking-logs`,
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "x-tenant": tenant || DEFAULT_TENANT,
+                },
+                body: JSON.stringify({
+                  bookingId: doc.id,
+                  calendarEventId: id,
+                  status: BookingStatusLabel.PRE_APPROVED, // Services Request is still PRE_APPROVED status
+                  changedBy: email,
+                  requestNumber: doc.requestNumber,
+                  note: null,
+                }),
+              },
+            );
+
+            if (logResponse.ok) {
+              console.log(
+                `📋 XSTATE SERVICES REQUEST HISTORY LOGGED [${tenant?.toUpperCase()}]:`,
+                {
+                  calendarEventId: id,
+                  bookingId: doc.id,
+                  requestNumber: doc.requestNumber,
+                  status: BookingStatusLabel.PRE_APPROVED,
+                },
+              );
+            } else {
+              console.error(
+                `🚨 XSTATE SERVICES REQUEST HISTORY LOG FAILED [${tenant?.toUpperCase()}]:`,
+                {
+                  calendarEventId: id,
+                  status: logResponse.status,
+                },
+              );
+            }
+          }
         } else {
           console.log(
             `🚫 XSTATE DID NOT REACH EXPECTED STATE - SKIPPING APPROVAL SIDE EFFECTS [${tenant?.toUpperCase()}]:`,
             {
               calendarEventId: id,
               newState: xstateResult.newState,
-              expectedStates: ["Approved", "Pre-approved"],
+              expectedStates: ["Approved", "Pre-approved", "Services Request"],
             },
           );
         }

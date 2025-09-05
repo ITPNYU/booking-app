@@ -346,7 +346,7 @@ export default function useBookingActions({
 
     // Execute auto-decline for pending services
     for (const declineEvent of servicesToAutoDecline) {
-      await fetch("/api/xstate-transition", {
+      await fetch("/api/services", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -379,7 +379,7 @@ export default function useBookingActions({
           currentXState === "Pre-approved" &&
           Object.values(serviceRequests).some(Boolean)
         ) {
-          await fetch("/api/xstate-transition", {
+          await fetch("/api/services", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -393,8 +393,8 @@ export default function useBookingActions({
           });
         }
 
-        // Then approve the specific staff service
-        await fetch("/api/xstate-transition", {
+        // Use new services API for staff service approval
+        await fetch("/api/services", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -402,7 +402,8 @@ export default function useBookingActions({
           },
           body: JSON.stringify({
             calendarEventId,
-            eventType: "approveStaff",
+            serviceType: "staff",
+            action: "approve",
             email: userEmail,
           }),
         });
@@ -424,7 +425,7 @@ export default function useBookingActions({
           currentXState === "Pre-approved" &&
           Object.values(serviceRequests).some(Boolean)
         ) {
-          await fetch("/api/xstate-transition", {
+          await fetch("/api/services", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -438,8 +439,8 @@ export default function useBookingActions({
           });
         }
 
-        // Then approve the specific equipment service
-        await fetch("/api/xstate-transition", {
+        // Use new services API for equipment service approval
+        await fetch("/api/services", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -447,7 +448,8 @@ export default function useBookingActions({
           },
           body: JSON.stringify({
             calendarEventId,
-            eventType: "approveEquipment",
+            serviceType: "equipment",
+            action: "approve",
             email: userEmail,
           }),
         });
@@ -469,7 +471,7 @@ export default function useBookingActions({
           currentXState === "Pre-approved" &&
           Object.values(serviceRequests).some(Boolean)
         ) {
-          await fetch("/api/xstate-transition", {
+          await fetch("/api/services", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -483,8 +485,8 @@ export default function useBookingActions({
           });
         }
 
-        // Then approve the specific service
-        await fetch("/api/xstate-transition", {
+        // Use new services API for catering service approval
+        await fetch("/api/services", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -492,7 +494,8 @@ export default function useBookingActions({
           },
           body: JSON.stringify({
             calendarEventId,
-            eventType: "approveCatering",
+            serviceType: "catering",
+            action: "approve",
             email: userEmail,
           }),
         });
@@ -514,7 +517,7 @@ export default function useBookingActions({
           currentXState === "Pre-approved" &&
           Object.values(serviceRequests).some(Boolean)
         ) {
-          await fetch("/api/xstate-transition", {
+          await fetch("/api/services", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -528,8 +531,8 @@ export default function useBookingActions({
           });
         }
 
-        // Then approve the specific cleaning service
-        await fetch("/api/xstate-transition", {
+        // Use new services API for cleaning service approval
+        await fetch("/api/services", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -537,7 +540,8 @@ export default function useBookingActions({
           },
           body: JSON.stringify({
             calendarEventId,
-            eventType: "approveCleaning",
+            serviceType: "cleaning",
+            action: "approve",
             email: userEmail,
           }),
         });
@@ -559,7 +563,7 @@ export default function useBookingActions({
           currentXState === "Pre-approved" &&
           Object.values(serviceRequests).some(Boolean)
         ) {
-          await fetch("/api/xstate-transition", {
+          await fetch("/api/services", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -573,8 +577,8 @@ export default function useBookingActions({
           });
         }
 
-        // Then approve the specific security service
-        await fetch("/api/xstate-transition", {
+        // Use new services API for security service approval
+        await fetch("/api/services", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -582,7 +586,8 @@ export default function useBookingActions({
           },
           body: JSON.stringify({
             calendarEventId,
-            eventType: "approveSecurity",
+            serviceType: "security",
+            action: "approve",
             email: userEmail,
           }),
         });
@@ -604,7 +609,7 @@ export default function useBookingActions({
           currentXState === "Pre-approved" &&
           Object.values(serviceRequests).some(Boolean)
         ) {
-          await fetch("/api/xstate-transition", {
+          await fetch("/api/services", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -618,8 +623,8 @@ export default function useBookingActions({
           });
         }
 
-        // Then approve the specific setup service
-        await fetch("/api/xstate-transition", {
+        // Use new services API for setup service approval
+        await fetch("/api/services", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -627,7 +632,8 @@ export default function useBookingActions({
           },
           body: JSON.stringify({
             calendarEventId,
-            eventType: "approveSetup",
+            serviceType: "setup",
+            action: "approve",
             email: userEmail,
           }),
         });
@@ -640,7 +646,7 @@ export default function useBookingActions({
       action: async () => {
         // First ensure we're in Services Request state if needed
         if (currentXState === "Pre-approved" || currentXState === "Requested") {
-          await fetch("/api/xstate-transition", {
+          await fetch("/api/services", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -654,8 +660,8 @@ export default function useBookingActions({
           });
         }
 
-        // Then decline the specific staff service with reason
-        await fetch("/api/xstate-transition", {
+        // Use new services API for staff service decline
+        await fetch("/api/services", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -663,9 +669,9 @@ export default function useBookingActions({
           },
           body: JSON.stringify({
             calendarEventId,
-            eventType: "declineStaff",
+            serviceType: "staff",
+            action: "decline",
             email: userEmail,
-            reason: reason || "Staff service declined",
           }),
         });
 
@@ -685,7 +691,7 @@ export default function useBookingActions({
       action: async () => {
         // First ensure we're in Services Request state if needed
         if (currentXState === "Pre-approved" || currentXState === "Requested") {
-          await fetch("/api/xstate-transition", {
+          await fetch("/api/services", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -699,8 +705,8 @@ export default function useBookingActions({
           });
         }
 
-        // Then decline the specific equipment service
-        await fetch("/api/xstate-transition", {
+        // Use new services API for equipment service decline
+        await fetch("/api/services", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -708,9 +714,9 @@ export default function useBookingActions({
           },
           body: JSON.stringify({
             calendarEventId,
-            eventType: "declineEquipment",
+            serviceType: "equipment",
+            action: "decline",
             email: userEmail,
-            reason: reason || "Equipment service declined",
           }),
         });
 
@@ -730,7 +736,7 @@ export default function useBookingActions({
       action: async () => {
         // First ensure we're in Services Request state if needed
         if (currentXState === "Pre-approved" || currentXState === "Requested") {
-          await fetch("/api/xstate-transition", {
+          await fetch("/api/services", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -745,7 +751,7 @@ export default function useBookingActions({
         }
 
         // Then decline the specific catering service
-        await fetch("/api/xstate-transition", {
+        await fetch("/api/services", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -753,7 +759,8 @@ export default function useBookingActions({
           },
           body: JSON.stringify({
             calendarEventId,
-            eventType: "declineCatering",
+            serviceType: "catering",
+            action: "decline",
             email: userEmail,
             reason: reason || "Catering service declined",
           }),
@@ -775,7 +782,7 @@ export default function useBookingActions({
       action: async () => {
         // First ensure we're in Services Request state if needed
         if (currentXState === "Pre-approved" || currentXState === "Requested") {
-          await fetch("/api/xstate-transition", {
+          await fetch("/api/services", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -790,7 +797,7 @@ export default function useBookingActions({
         }
 
         // Then decline the specific cleaning service
-        await fetch("/api/xstate-transition", {
+        await fetch("/api/services", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -798,7 +805,8 @@ export default function useBookingActions({
           },
           body: JSON.stringify({
             calendarEventId,
-            eventType: "declineCleaning",
+            serviceType: "cleaning",
+            action: "decline",
             email: userEmail,
             reason: reason || "Cleaning service declined",
           }),
@@ -820,7 +828,7 @@ export default function useBookingActions({
       action: async () => {
         // First ensure we're in Services Request state if needed
         if (currentXState === "Pre-approved" || currentXState === "Requested") {
-          await fetch("/api/xstate-transition", {
+          await fetch("/api/services", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -835,7 +843,7 @@ export default function useBookingActions({
         }
 
         // Then decline the specific security service
-        await fetch("/api/xstate-transition", {
+        await fetch("/api/services", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -843,7 +851,8 @@ export default function useBookingActions({
           },
           body: JSON.stringify({
             calendarEventId,
-            eventType: "declineSecurity",
+            serviceType: "security",
+            action: "decline",
             email: userEmail,
             reason: reason || "Security service declined",
           }),
@@ -865,7 +874,7 @@ export default function useBookingActions({
       action: async () => {
         // First ensure we're in Services Request state if needed
         if (currentXState === "Pre-approved" || currentXState === "Requested") {
-          await fetch("/api/xstate-transition", {
+          await fetch("/api/services", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -880,7 +889,7 @@ export default function useBookingActions({
         }
 
         // Then decline the specific setup service
-        await fetch("/api/xstate-transition", {
+        await fetch("/api/services", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -888,7 +897,8 @@ export default function useBookingActions({
           },
           body: JSON.stringify({
             calendarEventId,
-            eventType: "declineSetup",
+            serviceType: "setup",
+            action: "decline",
             email: userEmail,
             reason: reason || "Setup service declined",
           }),
@@ -918,7 +928,7 @@ export default function useBookingActions({
           return;
         }
 
-        await fetch("/api/xstate-transition", {
+        await fetch("/api/services", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -945,7 +955,7 @@ export default function useBookingActions({
           return;
         }
 
-        await fetch("/api/xstate-transition", {
+        await fetch("/api/services", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -972,7 +982,7 @@ export default function useBookingActions({
           return;
         }
 
-        await fetch("/api/xstate-transition", {
+        await fetch("/api/services", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -999,7 +1009,7 @@ export default function useBookingActions({
           return;
         }
 
-        await fetch("/api/xstate-transition", {
+        await fetch("/api/services", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -1026,7 +1036,7 @@ export default function useBookingActions({
           return;
         }
 
-        await fetch("/api/xstate-transition", {
+        await fetch("/api/services", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -1053,7 +1063,7 @@ export default function useBookingActions({
           return;
         }
 
-        await fetch("/api/xstate-transition", {
+        await fetch("/api/services", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",

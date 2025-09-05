@@ -832,32 +832,8 @@ async function handleStateTransitions(
     // Note: History logging is now handled by traditional functions only
     // XState only manages state transitions, not history logging
 
-    // Send email to final approver (2nd approver) for PRE_APPROVED state
-    try {
-      const { serverFirstApproveOnly } = await import(
-        "@/components/src/server/admin"
-      );
-
-      await serverFirstApproveOnly(calendarEventId, email, tenant);
-
-      console.log(
-        `📧 XSTATE PRE-APPROVED EMAIL SENT TO FINAL APPROVER [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-        {
-          calendarEventId,
-          email,
-        }
-      );
-    } catch (error) {
-      console.error(
-        `🚨 XSTATE PRE-APPROVED EMAIL FAILED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-        {
-          calendarEventId,
-          email,
-          tenant,
-          error: error.message,
-        }
-      );
-    }
+    // Note: Email sending and history logging for PRE_APPROVED is now handled by /api/approve
+    // XState only manages state transitions, not side effects
 
     // Update calendar event with PRE_APPROVED status
     try {
