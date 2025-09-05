@@ -694,6 +694,7 @@ export const checkOut = async (id: string, email: string, tenant?: string) => {
     );
   }
 
+  const checkoutDate = roundTimeUp();
   clientUpdateDataByCalendarEventId(
     TableNames.BOOKING,
     id,

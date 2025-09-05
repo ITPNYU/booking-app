@@ -22,7 +22,6 @@ export interface PersistedXStateData {
 
 // Note: History logging is now handled by traditional functions only
 // XState only manages state transitions, not history logging
-
 // Unified state transition handler with history logging
 async function handleStateTransitions(
   currentSnapshot: any,
@@ -797,6 +796,9 @@ async function handleStateTransitions(
             calendarEventId,
             newValues: {
               statusPrefix: BookingStatusLabel.CHECKED_OUT,
+              end: {
+                dateTime: new Date().toISOString(),
+              },
             },
           }),
         }
