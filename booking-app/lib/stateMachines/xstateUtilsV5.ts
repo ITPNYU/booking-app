@@ -831,6 +831,78 @@ async function handleStateTransitions(
 
     // Note: History logging is now handled by traditional functions only
     // XState only manages state transitions, not history logging
+
+    // Send email to final approver (2nd approver) for PRE_APPROVED state
+    try {
+      const { serverFirstApproveOnly } = await import(
+        "@/components/src/server/admin"
+      );
+
+      await serverFirstApproveOnly(calendarEventId, email, tenant);
+
+      console.log(
+        `📧 XSTATE PRE-APPROVED EMAIL SENT TO FINAL APPROVER [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+        {
+          calendarEventId,
+          email,
+        }
+      );
+    } catch (error) {
+      console.error(
+        `🚨 XSTATE PRE-APPROVED EMAIL FAILED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+        {
+          calendarEventId,
+          email,
+          tenant,
+          error: error.message,
+        }
+      );
+    }
+
+    // Update calendar event with PRE_APPROVED status
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_BASE_URL}/api/calendarEvents`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            "x-tenant": tenant || "mc",
+          },
+          body: JSON.stringify({
+            calendarEventId,
+            newValues: { statusPrefix: BookingStatusLabel.PRE_APPROVED },
+          }),
+        }
+      );
+
+      if (response.ok) {
+        console.log(
+          `📅 XSTATE PRE-APPROVED CALENDAR UPDATED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+          {
+            calendarEventId,
+            statusPrefix: BookingStatusLabel.PRE_APPROVED,
+          }
+        );
+      } else {
+        console.error(
+          `🚨 XSTATE PRE-APPROVED CALENDAR UPDATE FAILED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+          {
+            calendarEventId,
+            status: response.status,
+            statusText: response.statusText,
+          }
+        );
+      }
+    } catch (error) {
+      console.error(
+        `🚨 XSTATE PRE-APPROVED CALENDAR UPDATE ERROR [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+        {
+          calendarEventId,
+          error: error.message,
+        }
+      );
+    }
   } else {
     // Generic state change - still log to history for tracking
     console.log(
