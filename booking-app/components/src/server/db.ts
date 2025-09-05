@@ -28,7 +28,6 @@ import {
 
 import { shouldUseXState } from "@/components/src/utils/tenantUtils";
 import { clientUpdateDataByCalendarEventId } from "@/lib/firebase/client/clientDb";
-import { roundTimeUp } from "../client/utils/date";
 import { getBookingToolDeployUrl } from "./ui";
 
 // Helper function to call XState transition API
@@ -542,7 +541,34 @@ export const checkin = async (id: string, email: string, tenant?: string) => {
         newState: xstateResult.newState,
       });
 
-      // XState handled the checkin successfully, including email sending and history logging
+      // XState handled the checkin successfully, including email sending
+      // Add history logging here since XState doesn't handle history
+      const doc = await clientGetDataByCalendarEventId<{
+        id: string;
+        requestNumber: number;
+      }>(TableNames.BOOKING, id, tenant);
+
+      if (doc) {
+        await logClientBookingChange({
+          bookingId: doc.id,
+          calendarEventId: id,
+          status: BookingStatusLabel.CHECKED_IN,
+          changedBy: email,
+          requestNumber: doc.requestNumber,
+          note: "",
+          tenant,
+        });
+
+        console.log(
+          `📋 XSTATE CHECKIN HISTORY LOGGED [${tenant?.toUpperCase()}]:`,
+          {
+            calendarEventId: id,
+            bookingId: doc.id,
+            requestNumber: doc.requestNumber,
+          }
+        );
+      }
+
       // Skip the traditional processing below
       return;
     }
@@ -668,21 +694,12 @@ export const checkOut = async (id: string, email: string, tenant?: string) => {
     );
   }
 
-  const checkoutDate = roundTimeUp();
   clientUpdateDataByCalendarEventId(
     TableNames.BOOKING,
     id,
     {
       checkedOutAt: Timestamp.now(),
       checkedOutBy: email,
-    },
-    tenant
-  );
-  clientUpdateDataByCalendarEventId(
-    TableNames.BOOKING,
-    id,
-    {
-      endDate: Timestamp.fromDate(checkoutDate),
     },
     tenant
   );
@@ -728,9 +745,6 @@ export const checkOut = async (id: string, email: string, tenant?: string) => {
         calendarEventId: id,
         newValues: {
           statusPrefix: BookingStatusLabel.CHECKED_OUT,
-          end: {
-            dateTime: roundTimeUp().toISOString(),
-          },
         },
       }),
     }

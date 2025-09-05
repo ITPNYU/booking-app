@@ -299,8 +299,140 @@ async function handleStateTransitions(
       }
     );
 
-    // Note: History logging is now handled by traditional functions only
-    // XState only manages state transitions, not history logging
+    // Add history logging for Closed state since XState is the only way to reach Closed
+    try {
+      const { serverGetDataByCalendarEventId } = await import(
+        "@/lib/firebase/server/adminDb"
+      );
+      const { TableNames } = await import("@/components/src/policy");
+
+      const doc = await serverGetDataByCalendarEventId<any>(
+        TableNames.BOOKING,
+        calendarEventId,
+        tenant
+      );
+
+      if (doc && doc.id && doc.requestNumber) {
+        const { serverSaveDataToFirestore } = await import(
+          "@/lib/firebase/server/adminDb"
+        );
+        const { BookingStatusLabel } = await import("@/components/src/types");
+
+        const logData = {
+          bookingId: doc.id,
+          calendarEventId,
+          status: BookingStatusLabel.CLOSED,
+          changedBy: email || "System",
+          requestNumber: doc.requestNumber,
+          changedAt: admin.firestore.Timestamp.now(),
+          note: null,
+        };
+
+        await serverSaveDataToFirestore(
+          TableNames.BOOKING_LOGS,
+          logData,
+          tenant
+        );
+
+        console.log(
+          `📋 XSTATE CLOSED HISTORY LOGGED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+          {
+            calendarEventId,
+            bookingId: doc.id,
+            requestNumber: doc.requestNumber,
+            status: BookingStatusLabel.CLOSED,
+            changedBy: email || "System",
+          }
+        );
+      }
+    } catch (error) {
+      console.error(
+        `🚨 XSTATE CLOSED HISTORY LOG FAILED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+        {
+          calendarEventId,
+          error: error.message,
+        }
+      );
+    }
+
+    // Handle check-out email for Closed state (when transitioning from Checked In)
+    if (previousState === "Checked In") {
+      console.log(
+        `📧 SENDING CHECK-OUT EMAIL FOR CLOSED STATE [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+        {
+          calendarEventId,
+          previousState,
+          newState: "Closed",
+        }
+      );
+
+      // Set check-out timestamps for Firestore (in addition to closed timestamps)
+      firestoreUpdates.checkedOutAt = admin.firestore.Timestamp.now();
+      if (email) {
+        firestoreUpdates.checkedOutBy = email;
+      }
+
+      // Send check-out email to guest
+      try {
+        // Use email from booking document (not from XState context)
+        const guestEmail = bookingDoc?.email;
+
+        console.log(
+          `🔍 XSTATE CLOSED EMAIL DEBUG [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+          {
+            calendarEventId,
+            hasBookingDoc: !!bookingDoc,
+            bookingDocKeys: bookingDoc ? Object.keys(bookingDoc) : [],
+            guestEmail,
+            guestEmailType: typeof guestEmail,
+            bookingDocEmail: bookingDoc?.email,
+          }
+        );
+
+        if (guestEmail) {
+          const { serverSendBookingDetailEmail } = await import(
+            "@/components/src/server/admin"
+          );
+          const headerMessage =
+            "Your reservation request for Media Commons has been checked out. Thank you for choosing Media Commons.";
+
+          await serverSendBookingDetailEmail({
+            calendarEventId,
+            targetEmail: guestEmail,
+            headerMessage,
+            status: BookingStatusLabel.CHECKED_OUT,
+            tenant,
+          });
+
+          console.log(
+            `📧 XSTATE CLOSED CHECK-OUT EMAIL SENT [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+            {
+              calendarEventId,
+              guestEmail,
+            }
+          );
+        } else {
+          console.warn(
+            `⚠️ XSTATE CLOSED CHECK-OUT EMAIL SKIPPED - NO EMAIL [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+            {
+              calendarEventId,
+              hasBookingDoc: !!bookingDoc,
+              bookingDocKeys: bookingDoc ? Object.keys(bookingDoc) : [],
+            }
+          );
+        }
+      } catch (error) {
+        console.error(
+          `🚨 XSTATE CLOSED CHECK-OUT EMAIL FAILED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+          {
+            calendarEventId,
+            email,
+            tenant,
+            error: error.message,
+          }
+        );
+      }
+    }
 
     // Send closed email to guest (optional - usually no email for closed)
     // Update calendar event with CLOSED status
@@ -585,6 +717,18 @@ async function handleStateTransitions(
       // Use email from booking document (not from XState context)
       const guestEmail = bookingDoc?.email;
 
+      console.log(
+        `🔍 XSTATE CHECK-OUT EMAIL DEBUG [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+        {
+          calendarEventId,
+          hasBookingDoc: !!bookingDoc,
+          bookingDocKeys: bookingDoc ? Object.keys(bookingDoc) : [],
+          guestEmail,
+          guestEmailType: typeof guestEmail,
+          bookingDocEmail: bookingDoc?.email,
+        }
+      );
+
       if (guestEmail) {
         const { serverSendBookingDetailEmail } = await import(
           "@/components/src/server/admin"
@@ -644,9 +788,6 @@ async function handleStateTransitions(
             calendarEventId,
             newValues: {
               statusPrefix: BookingStatusLabel.CHECKED_OUT,
-              end: {
-                dateTime: new Date().toISOString(),
-              },
             },
           }),
         }
@@ -740,6 +881,123 @@ async function handleStateTransitions(
             skipCalendarUpdate: skipCalendarForServiceCloseout,
           }
         );
+
+        // Handle check-out email for Service Closeout state (Media Commons)
+        if (previousState === "Checked In" && !skipCalendarForServiceCloseout) {
+          console.log(
+            `📧 SENDING CHECK-OUT EMAIL FOR SERVICE CLOSEOUT [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+            {
+              calendarEventId,
+              previousState,
+              newState: "Service Closeout",
+            }
+          );
+
+          // Set check-out timestamps for Firestore
+          firestoreUpdates.checkedOutAt = admin.firestore.Timestamp.now();
+          if (email) {
+            firestoreUpdates.checkedOutBy = email;
+          }
+
+          // Send check-out email to guest
+          try {
+            // Use email from booking document (not from XState context)
+            const guestEmail = bookingDoc?.email;
+
+            console.log(
+              `🔍 XSTATE SERVICE CLOSEOUT EMAIL DEBUG [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+              {
+                calendarEventId,
+                hasBookingDoc: !!bookingDoc,
+                bookingDocKeys: bookingDoc ? Object.keys(bookingDoc) : [],
+                guestEmail,
+                guestEmailType: typeof guestEmail,
+                bookingDocEmail: bookingDoc?.email,
+              }
+            );
+
+            if (guestEmail) {
+              const { serverSendBookingDetailEmail } = await import(
+                "@/components/src/server/admin"
+              );
+              const headerMessage =
+                "Your reservation request for Media Commons has been checked out. Thank you for choosing Media Commons.";
+
+              await serverSendBookingDetailEmail({
+                calendarEventId,
+                targetEmail: guestEmail,
+                headerMessage,
+                status: BookingStatusLabel.CHECKED_OUT,
+                tenant,
+              });
+
+              console.log(
+                `📧 XSTATE SERVICE CLOSEOUT EMAIL SENT [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+                {
+                  calendarEventId,
+                  guestEmail,
+                }
+              );
+            } else {
+              console.warn(
+                `⚠️ XSTATE SERVICE CLOSEOUT EMAIL SKIPPED - NO EMAIL [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+                {
+                  calendarEventId,
+                  hasBookingDoc: !!bookingDoc,
+                  bookingDocKeys: bookingDoc ? Object.keys(bookingDoc) : [],
+                }
+              );
+            }
+          } catch (error) {
+            console.error(
+              `🚨 XSTATE SERVICE CLOSEOUT EMAIL FAILED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+              {
+                calendarEventId,
+                email,
+                tenant,
+                error: error.message,
+              }
+            );
+          }
+
+          // Update calendar event with CHECKED_OUT status
+          try {
+            const response = await fetch(
+              `${process.env.NEXT_PUBLIC_BASE_URL}/api/calendarEvents`,
+              {
+                method: "PUT",
+                headers: {
+                  "Content-Type": "application/json",
+                  "x-tenant": tenant || "mc",
+                },
+                body: JSON.stringify({
+                  calendarEventId,
+                  newValues: {
+                    statusPrefix: BookingStatusLabel.CHECKED_OUT,
+                  },
+                }),
+              }
+            );
+
+            if (response.ok) {
+              console.log(
+                `📅 XSTATE SERVICE CLOSEOUT CALENDAR UPDATED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+                {
+                  calendarEventId,
+                  statusPrefix: BookingStatusLabel.CHECKED_OUT,
+                }
+              );
+            }
+          } catch (error) {
+            console.error(
+              `🚨 XSTATE SERVICE CLOSEOUT CALENDAR UPDATE ERROR [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+              {
+                calendarEventId,
+                error: error.message,
+              }
+            );
+          }
+        }
 
         // Skip calendar update if this Service Closeout was triggered by No Show
         if (skipCalendarForServiceCloseout) {
