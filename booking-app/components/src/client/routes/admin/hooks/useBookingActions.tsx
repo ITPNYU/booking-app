@@ -1227,33 +1227,50 @@ export default function useBookingActions({
     ) {
       // Add service approval actions based on what's requested and current state
       // Only show actions for services that are requested but not yet decided (undefined)
-      if (serviceRequests.staff && servicesApproved.staff === undefined) {
-        options.push(Actions.APPROVE_STAFF_SERVICE);
-        options.push(Actions.DECLINE_STAFF_SERVICE);
-      }
-      if (
-        serviceRequests.equipment &&
-        servicesApproved.equipment === undefined
-      ) {
-        options.push(Actions.APPROVE_EQUIPMENT_SERVICE);
-        options.push(Actions.DECLINE_EQUIPMENT_SERVICE);
-      }
-      if (serviceRequests.catering && servicesApproved.catering === undefined) {
-        options.push(Actions.APPROVE_CATERING_SERVICE);
-        options.push(Actions.DECLINE_CATERING_SERVICE);
-      }
-      if (serviceRequests.cleaning && servicesApproved.cleaning === undefined) {
-        options.push(Actions.APPROVE_CLEANING_SERVICE);
-        options.push(Actions.DECLINE_CLEANING_SERVICE);
-      }
-      if (serviceRequests.security && servicesApproved.security === undefined) {
-        options.push(Actions.APPROVE_SECURITY_SERVICE);
-        options.push(Actions.DECLINE_SECURITY_SERVICE);
-      }
-      if (serviceRequests.setup && servicesApproved.setup === undefined) {
-        options.push(Actions.APPROVE_SETUP_SERVICE);
-        options.push(Actions.DECLINE_SETUP_SERVICE);
-      }
+      const addServiceActions = (
+        serviceType: keyof typeof serviceRequests,
+        approveAction: Actions,
+        declineAction: Actions
+      ) => {
+        if (
+          serviceRequests[serviceType] &&
+          servicesApproved[serviceType] === undefined
+        ) {
+          options.push(approveAction);
+          options.push(declineAction);
+        }
+      };
+
+      addServiceActions(
+        "staff",
+        Actions.APPROVE_STAFF_SERVICE,
+        Actions.DECLINE_STAFF_SERVICE
+      );
+      addServiceActions(
+        "equipment",
+        Actions.APPROVE_EQUIPMENT_SERVICE,
+        Actions.DECLINE_EQUIPMENT_SERVICE
+      );
+      addServiceActions(
+        "catering",
+        Actions.APPROVE_CATERING_SERVICE,
+        Actions.DECLINE_CATERING_SERVICE
+      );
+      addServiceActions(
+        "cleaning",
+        Actions.APPROVE_CLEANING_SERVICE,
+        Actions.DECLINE_CLEANING_SERVICE
+      );
+      addServiceActions(
+        "security",
+        Actions.APPROVE_SECURITY_SERVICE,
+        Actions.DECLINE_SECURITY_SERVICE
+      );
+      addServiceActions(
+        "setup",
+        Actions.APPROVE_SETUP_SERVICE,
+        Actions.DECLINE_SETUP_SERVICE
+      );
     }
 
     // Add Media Commons service closeout options
