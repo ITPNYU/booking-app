@@ -156,9 +156,10 @@ export async function POST(req: NextRequest) {
             );
           }
         } else if (
+          xstateResult.newState &&
           typeof xstateResult.newState === "object" &&
           xstateResult.newState !== null &&
-          "Services Request" in xstateResult.newState
+          "Services Request" in (xstateResult.newState as Record<string, any>)
         ) {
           // Handle Services Request parallel state for Media Commons
           console.log(
