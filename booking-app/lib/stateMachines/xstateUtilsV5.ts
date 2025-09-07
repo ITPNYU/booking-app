@@ -1266,6 +1266,8 @@ export async function createXStateDataFromBookingStatus(
           security: bookingData.securityServiceApproved,
           setup: bookingData.setupServiceApproved,
         },
+        // Flag to indicate this XState was created from existing booking without prior xstateData
+        _restoredFromStatus: true,
       }
     : {
         tenant,
@@ -1277,6 +1279,8 @@ export async function createXStateDataFromBookingStatus(
         isWalkIn: false,
         calendarEventId,
         email: bookingData.email,
+        // Flag to indicate this XState was created from existing booking without prior xstateData
+        _restoredFromStatus: true,
       };
 
   // Create actor starting from the target state directly (without transitions)

@@ -812,9 +812,16 @@ export const firstApproverEmails = async (department: string) => {
       normalized = normalized.replace("\r", " ");
     }
 
-    // Normalize slashes - safer regex without quantifiers
-    normalized = normalized.replace(" /", " /").replace("/ ", "/ ");
-    if (normalized.includes("/") && !normalized.includes(" / ")) {
+    // Normalize slashes - ensure consistent spacing around slashes
+    // First, remove any existing spaces around slashes
+    while (normalized.includes(" /")) {
+      normalized = normalized.replace(" /", "/");
+    }
+    while (normalized.includes("/ ")) {
+      normalized = normalized.replace("/ ", "/");
+    }
+    // Then add consistent spacing around all slashes
+    while (normalized.includes("/")) {
       normalized = normalized.replace("/", " / ");
     }
 
@@ -833,13 +840,27 @@ export const firstApproverEmails = async (department: string) => {
     const normalizedApproverDepartment = normalizeDepartment(
       approver.department
     );
-    const matches = normalizedApproverDepartment === normalizedUserDepartment;
+
+    // Check if user department contains any of the key department identifiers
+    const userDeptKeywords = ["itp", "ima", "low res"];
+    const approverDeptKeywords = ["itp", "ima", "low res"];
+
+    const userHasKeywords = userDeptKeywords.some((keyword) =>
+      normalizedUserDepartment.includes(keyword)
+    );
+    const approverHasKeywords = approverDeptKeywords.some((keyword) =>
+      normalizedApproverDepartment.includes(keyword)
+    );
+
+    const matches = userHasKeywords && approverHasKeywords;
 
     console.log(`🔍 DEPARTMENT COMPARISON:`, {
       userDepartment: department,
       normalizedUserDepartment,
       approverDepartment: approver.department,
       normalizedApproverDepartment,
+      userHasKeywords,
+      approverHasKeywords,
       matches,
     });
 

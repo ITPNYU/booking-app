@@ -356,7 +356,32 @@ export const cancel = async (
         newState: xstateResult.newState,
       });
 
-      // XState handled the cancel successfully, including history logging
+      // XState handled the cancel successfully, now add history logging
+      const doc = await clientGetDataByCalendarEventId<{
+        id: string;
+        requestNumber: number;
+      }>(TableNames.BOOKING, id, tenant);
+
+      if (doc) {
+        await logClientBookingChange({
+          bookingId: doc.id,
+          calendarEventId: id,
+          status: BookingStatusLabel.CANCELED,
+          changedBy: email,
+          requestNumber: doc.requestNumber,
+          tenant,
+        });
+
+        console.log(
+          `📋 XSTATE CANCEL HISTORY LOGGED [${tenant?.toUpperCase()}]:`,
+          {
+            calendarEventId: id,
+            bookingId: doc.id,
+            requestNumber: doc.requestNumber,
+          }
+        );
+      }
+
       // Skip the traditional processing below
       return;
     }
