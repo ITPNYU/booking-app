@@ -28,6 +28,8 @@ interface MediaCommonsBookingContext {
     security?: boolean;
     setup?: boolean;
   };
+  // Flag to indicate this XState was created from existing booking without prior xstateData
+  _restoredFromStatus?: boolean;
 }
 
 // ⚠️ XSTATE PURITY CONSTRAINT:
@@ -229,6 +231,18 @@ export const mcBookingMachine = setup({
         }
       );
 
+      // If this is a newly created XState (converted from existing booking without XState data), don't auto-approve
+      // This prevents auto-approval when converting existing bookings to XState
+      if (context._restoredFromStatus) {
+        console.log(
+          `🚫 XSTATE GUARD: Newly created XState from existing booking (no prior xstateData), requires manual approval`
+        );
+        console.log(
+          `🎯 XSTATE AUTO-APPROVAL GUARD RESULT: REJECTED (Converted from existing booking)`
+        );
+        return false;
+      }
+
       // Implement actual auto-approval logic for Media Commons
       if (context.tenant !== TENANTS.MC) {
         console.log(
@@ -283,6 +297,15 @@ export const mcBookingMachine = setup({
           );
           return false;
         }
+      } else if (!context.isWalkIn) {
+        // If no rooms selected and not a walk-in, require manual approval
+        console.log(
+          `🚫 XSTATE GUARD: No rooms selected and not walk-in, requires manual approval`
+        );
+        console.log(
+          `🎯 XSTATE AUTO-APPROVAL GUARD RESULT: REJECTED (No rooms selected)`
+        );
+        return false;
       }
 
       console.log(`✅ XSTATE GUARD: All conditions met for auto-approval`);
