@@ -60,6 +60,9 @@ export async function POST(req: NextRequest) {
       },
     );
 
+    // Declare xstateResult in outer scope for access in response
+    let xstateResult: any = null;
+
     // For ITP and Media Commons tenants, use XState transition
     if (shouldUseXState(tenant)) {
       console.log(
@@ -76,7 +79,7 @@ export async function POST(req: NextRequest) {
         serviceType.charAt(0).toUpperCase() + serviceType.slice(1);
       const eventType = `${action}${capitalizedServiceType}`;
 
-      const xstateResult = await executeXStateTransition(
+      xstateResult = await executeXStateTransition(
         calendarEventId,
         eventType,
         tenant,
@@ -261,6 +264,37 @@ export async function POST(req: NextRequest) {
               );
             }
           }
+
+          // Handle APPROVED side effects: email notification and calendar update
+          // Call serverApproveEvent for final approval when all services are approved
+          if (transitionedToApproved && doc) {
+            try {
+              const { serverApproveEvent } = await import(
+                "@/components/src/server/admin"
+              );
+
+              await serverApproveEvent(calendarEventId, tenant);
+
+              console.log(
+                `📧 APPROVED EMAIL AND CALENDAR UPDATE COMPLETED [${tenant?.toUpperCase()}]:`,
+                {
+                  calendarEventId,
+                  bookingId: doc.id,
+                  requestNumber: doc.requestNumber,
+                  trigger: `${serviceType} service ${action}`,
+                },
+              );
+            } catch (error) {
+              console.error(
+                `🚨 APPROVED SIDE EFFECTS FAILED [${tenant?.toUpperCase()}]:`,
+                {
+                  calendarEventId,
+                  error: error.message,
+                  trigger: `${serviceType} service ${action}`,
+                },
+              );
+            }
+          }
         }
       }
     } else {
@@ -279,6 +313,12 @@ export async function POST(req: NextRequest) {
         message: `${serviceType} service ${action}d successfully`,
         serviceType,
         action,
+        transitionedToApproved: shouldUseXState(tenant)
+          ? xstateResult?.newState === "Approved"
+          : false,
+        transitionedToDeclined: shouldUseXState(tenant)
+          ? xstateResult?.newState === "Declined"
+          : false,
       },
       { status: 200 },
     );

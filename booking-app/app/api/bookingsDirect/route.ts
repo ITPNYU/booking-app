@@ -249,6 +249,29 @@ export async function POST(request: NextRequest) {
         updateData,
         tenant,
       );
+
+      // Log PRE_APPROVED status change for VIP bookings with services
+      // This is done outside XState processing as requested
+      if (bookingStatus === BookingStatusLabel.PRE_APPROVED) {
+        await logServerBookingChange({
+          bookingId: doc.id,
+          calendarEventId,
+          status: BookingStatusLabel.PRE_APPROVED,
+          changedBy: requestedBy,
+          requestNumber: sequentialId,
+          tenant,
+        });
+
+        console.log(
+          `📋 VIP PRE-APPROVED HISTORY LOGGED [${tenant?.toUpperCase()}]:`,
+          {
+            calendarEventId,
+            bookingId: doc.id,
+            requestNumber: sequentialId,
+            changedBy: requestedBy,
+          },
+        );
+      }
     } catch (error) {
       console.error(
         `🚨 VIP XSTATE INITIALIZATION FAILED [${tenant?.toUpperCase()}]:`,
