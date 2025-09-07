@@ -257,7 +257,7 @@ export async function POST(request: NextRequest) {
           bookingId: doc.id,
           calendarEventId,
           status: BookingStatusLabel.PRE_APPROVED,
-          changedBy: requestedBy,
+          changedBy: "System",
           requestNumber: sequentialId,
           tenant,
         });

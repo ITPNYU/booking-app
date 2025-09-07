@@ -936,7 +936,8 @@ export default function useBookingActions({
           },
           body: JSON.stringify({
             calendarEventId,
-            eventType: "closeoutStaff",
+            serviceType: "staff",
+            action: "closeout",
             email: userEmail,
           }),
         });
@@ -963,7 +964,8 @@ export default function useBookingActions({
           },
           body: JSON.stringify({
             calendarEventId,
-            eventType: "closeoutEquipment",
+            serviceType: "equipment",
+            action: "closeout",
             email: userEmail,
           }),
         });
@@ -990,7 +992,8 @@ export default function useBookingActions({
           },
           body: JSON.stringify({
             calendarEventId,
-            eventType: "closeoutCatering",
+            serviceType: "catering",
+            action: "closeout",
             email: userEmail,
           }),
         });
@@ -1017,7 +1020,8 @@ export default function useBookingActions({
           },
           body: JSON.stringify({
             calendarEventId,
-            eventType: "closeoutCleaning",
+            serviceType: "cleaning",
+            action: "closeout",
             email: userEmail,
           }),
         });
@@ -1044,7 +1048,8 @@ export default function useBookingActions({
           },
           body: JSON.stringify({
             calendarEventId,
-            eventType: "closeoutSecurity",
+            serviceType: "security",
+            action: "closeout",
             email: userEmail,
           }),
         });
@@ -1071,7 +1076,8 @@ export default function useBookingActions({
           },
           body: JSON.stringify({
             calendarEventId,
-            eventType: "closeoutSetup",
+            serviceType: "setup",
+            action: "closeout",
             email: userEmail,
           }),
         });

@@ -40,9 +40,9 @@ export async function POST(req: NextRequest) {
   }
 
   // Validate action
-  if (!["approve", "decline"].includes(action)) {
+  if (!["approve", "decline", "closeout"].includes(action)) {
     return NextResponse.json(
-      { error: "Invalid action. Must be 'approve' or 'decline'" },
+      { error: "Invalid action. Must be 'approve', 'decline', or 'closeout'" },
       { status: 400 },
     );
   }
@@ -133,8 +133,18 @@ export async function POST(req: NextRequest) {
           const serviceDisplayName =
             serviceType.charAt(0).toUpperCase() + serviceType.slice(1);
           const actionDisplayName =
-            action === "approve" ? "Approved" : "Declined";
+            action === "approve"
+              ? "Approved"
+              : action === "decline"
+                ? "Declined"
+                : "Closed Out";
           const serviceNote = `${serviceDisplayName} Service ${actionDisplayName}`;
+
+          // Determine appropriate status for history log
+          const historyStatus =
+            action === "closeout"
+              ? BookingStatusLabel.CHECKED_OUT
+              : BookingStatusLabel.PRE_APPROVED;
 
           const logResponse = await fetch(
             `${process.env.NEXT_PUBLIC_BASE_URL}/api/booking-logs`,
@@ -147,10 +157,10 @@ export async function POST(req: NextRequest) {
               body: JSON.stringify({
                 bookingId: doc.id,
                 calendarEventId,
-                status: BookingStatusLabel.PRE_APPROVED, // Always PRE-APPROVED for service actions
+                status: historyStatus, // PRE-APPROVED for approve/decline, CHECKED_OUT for closeout
                 changedBy: email,
                 requestNumber: doc.requestNumber,
-                note: serviceNote, // e.g., "Staff Service Approved", "Equipment Service Declined"
+                note: serviceNote, // e.g., "Staff Service Approved", "Equipment Service Closed Out"
               }),
             },
           );

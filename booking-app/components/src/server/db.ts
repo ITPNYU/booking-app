@@ -708,7 +708,32 @@ export const checkOut = async (id: string, email: string, tenant?: string) => {
         }
       );
 
-      // XState handled the checkout successfully, including email sending and history logging
+      // XState handled the checkout successfully, now add history logging
+      const doc = await clientGetDataByCalendarEventId<{
+        id: string;
+        requestNumber: number;
+      }>(TableNames.BOOKING, id, tenant);
+
+      if (doc) {
+        await logClientBookingChange({
+          bookingId: doc.id,
+          calendarEventId: id,
+          status: BookingStatusLabel.CHECKED_OUT,
+          changedBy: email,
+          requestNumber: doc.requestNumber,
+          tenant,
+        });
+
+        console.log(
+          `📋 XSTATE CHECKOUT HISTORY LOGGED [${tenant?.toUpperCase()}]:`,
+          {
+            calendarEventId: id,
+            bookingId: doc.id,
+            requestNumber: doc.requestNumber,
+          }
+        );
+      }
+
       // Skip the traditional processing below
       return;
     }
