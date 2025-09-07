@@ -115,6 +115,7 @@ export async function POST(req: NextRequest) {
         // Check if the overall booking transitioned to final states
         const transitionedToDeclined = xstateResult.newState === "Declined";
         const transitionedToApproved = xstateResult.newState === "Approved";
+        const transitionedToClosed = xstateResult.newState === "Closed";
 
         // Add history logging for individual service approve/decline since XState doesn't handle history
         const { serverGetDataByCalendarEventId } = await import(
@@ -301,6 +302,49 @@ export async function POST(req: NextRequest) {
                   calendarEventId,
                   error: error.message,
                   trigger: `${serviceType} service ${action}`,
+                },
+              );
+            }
+          }
+
+          // Handle CLOSED state: log final closure after all services are closed out
+          if (transitionedToClosed && doc) {
+            const closedLogResponse = await fetch(
+              `${process.env.NEXT_PUBLIC_BASE_URL}/api/booking-logs`,
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "x-tenant": tenant || DEFAULT_TENANT,
+                },
+                body: JSON.stringify({
+                  bookingId: doc.id,
+                  calendarEventId,
+                  status: BookingStatusLabel.CLOSED,
+                  changedBy: email,
+                  requestNumber: doc.requestNumber,
+                  note: null,
+                }),
+              },
+            );
+
+            if (closedLogResponse.ok) {
+              console.log(
+                `📋 CLOSED HISTORY LOGGED [${tenant?.toUpperCase()}]:`,
+                {
+                  calendarEventId,
+                  bookingId: doc.id,
+                  requestNumber: doc.requestNumber,
+                  status: BookingStatusLabel.CLOSED,
+                  trigger: `${serviceType} service ${action}`,
+                },
+              );
+            } else {
+              console.error(
+                `🚨 CLOSED HISTORY LOG FAILED [${tenant?.toUpperCase()}]:`,
+                {
+                  calendarEventId,
+                  status: closedLogResponse.status,
                 },
               );
             }

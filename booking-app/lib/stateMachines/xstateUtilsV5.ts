@@ -307,61 +307,17 @@ async function handleStateTransitions(
       }
     );
 
-    // Add history logging for Closed state since XState is the only way to reach Closed
-    try {
-      const { serverGetDataByCalendarEventId } = await import(
-        "@/lib/firebase/server/adminDb"
-      );
-      const { TableNames } = await import("@/components/src/policy");
-
-      const doc = await serverGetDataByCalendarEventId<any>(
-        TableNames.BOOKING,
+    // Note: Closed history logging is now handled by /api/services
+    // when the last service closeout triggers the transition to Closed state
+    console.log(
+      `📋 XSTATE CLOSED STATE REACHED - HISTORY HANDLED BY SERVICES API [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+      {
         calendarEventId,
-        tenant
-      );
-
-      if (doc && doc.id && doc.requestNumber) {
-        const { serverSaveDataToFirestore } = await import(
-          "@/lib/firebase/server/adminDb"
-        );
-        const { BookingStatusLabel } = await import("@/components/src/types");
-
-        const logData = {
-          bookingId: doc.id,
-          calendarEventId,
-          status: BookingStatusLabel.CLOSED,
-          changedBy: email || "System",
-          requestNumber: doc.requestNumber,
-          changedAt: admin.firestore.Timestamp.now(),
-          note: null,
-        };
-
-        await serverSaveDataToFirestore(
-          TableNames.BOOKING_LOGS,
-          logData,
-          tenant
-        );
-
-        console.log(
-          `📋 XSTATE CLOSED HISTORY LOGGED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-          {
-            calendarEventId,
-            bookingId: doc.id,
-            requestNumber: doc.requestNumber,
-            status: BookingStatusLabel.CLOSED,
-            changedBy: email || "System",
-          }
-        );
+        previousState,
+        newState,
+        note: "Closed history logging handled by /api/services for proper ordering",
       }
-    } catch (error) {
-      console.error(
-        `🚨 XSTATE CLOSED HISTORY LOG FAILED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-        {
-          calendarEventId,
-          error: error.message,
-        }
-      );
-    }
+    );
 
     // Handle check-out email for Closed state (when transitioning from Checked In)
     if (previousState === "Checked In") {
