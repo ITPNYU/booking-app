@@ -110,21 +110,39 @@ export async function POST(request: NextRequest) {
     roomEmails: otherRoomIds,
   });
   const calendarEventId = event.id;
-  const formData = {
-    guestEmail: email,
-    calendarEventId: calendarEventId,
-    roomId: room.roomId,
-  };
-  const res = await fetch(
-    `${process.env.NEXT_PUBLIC_BASE_URL}/api/inviteUser`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
+  // Only invite user to calendar event if booking is fully approved
+  // For VIP bookings with services, wait until final approval
+  if (bookingStatus === BookingStatusLabel.APPROVED) {
+    const formData = {
+      guestEmail: email,
+      calendarEventId: calendarEventId,
+      roomId: room.roomId,
+    };
+    const res = await fetch(
+      `${process.env.NEXT_PUBLIC_BASE_URL}/api/inviteUser`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
       },
-      body: JSON.stringify(formData),
-    },
-  );
+    );
+
+    console.log(`📧 VIP USER INVITED TO CALENDAR [${tenant?.toUpperCase()}]:`, {
+      calendarEventId,
+      guestEmail: email,
+      bookingStatus,
+      reason: "Booking is fully approved",
+    });
+  } else {
+    console.log(`⏸️ VIP USER INVITATION DEFERRED [${tenant?.toUpperCase()}]:`, {
+      calendarEventId,
+      guestEmail: email,
+      bookingStatus,
+      reason: "Waiting for final approval before inviting to calendar",
+    });
+  }
 
   const sequentialId = await serverGetNextSequentialId("bookings", tenant);
   const doc = await serverSaveDataToFirestore(

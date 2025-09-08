@@ -191,6 +191,7 @@ export async function POST(req: NextRequest) {
           }
 
           // If the booking transitioned to Declined state, add a separate history log for the overall decline
+          // For multi-service declines, attribute final decline to System, not the last service decliner
           if (transitionedToDeclined && doc) {
             const declineLogResponse = await fetch(
               `${process.env.NEXT_PUBLIC_BASE_URL}/api/booking-logs`,
@@ -204,9 +205,9 @@ export async function POST(req: NextRequest) {
                   bookingId: doc.id,
                   calendarEventId,
                   status: BookingStatusLabel.DECLINED,
-                  changedBy: email,
+                  changedBy: "System",
                   requestNumber: doc.requestNumber,
-                  note: null,
+                  note: "Service request declined",
                 }),
               },
             );
@@ -234,6 +235,7 @@ export async function POST(req: NextRequest) {
           }
 
           // If the booking transitioned to Approved state, add a separate history log for the overall approval
+          // For multi-service approvals, attribute final approval to System, not the last service approver
           if (transitionedToApproved && doc) {
             const approveLogResponse = await fetch(
               `${process.env.NEXT_PUBLIC_BASE_URL}/api/booking-logs`,
@@ -247,9 +249,9 @@ export async function POST(req: NextRequest) {
                   bookingId: doc.id,
                   calendarEventId,
                   status: BookingStatusLabel.APPROVED,
-                  changedBy: email,
+                  changedBy: "System",
                   requestNumber: doc.requestNumber,
-                  note: null,
+                  note: "All required services approved",
                 }),
               },
             );
