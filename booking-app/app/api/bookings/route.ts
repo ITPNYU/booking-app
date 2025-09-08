@@ -1143,14 +1143,14 @@ export async function PUT(request: NextRequest) {
     console.log(`Created new calendar event with ID: ${newCalendarEventId}`);
     // Add a new history entry for the modification
     // Use appropriate status and note based on XState processing
-    const historyStatus =
-      xstateProcessed && xstateNewState === "Requested"
-        ? BookingStatusLabel.REQUESTED
-        : BookingStatusLabel.MODIFIED;
-    const historyNote =
-      xstateProcessed && xstateNewState === "Requested"
-        ? "Booking edited and resubmitted"
-        : "Modified by " + modifiedBy;
+    const isXStateResubmission =
+      xstateProcessed && xstateNewState === "Requested";
+    const historyStatus = isXStateResubmission
+      ? BookingStatusLabel.REQUESTED
+      : BookingStatusLabel.MODIFIED;
+    const historyNote = isXStateResubmission
+      ? "Booking edited and resubmitted"
+      : "Modified by " + modifiedBy;
 
     await logServerBookingChange({
       bookingId: existingContents.id,

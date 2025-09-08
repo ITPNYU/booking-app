@@ -175,6 +175,11 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
         }
       })();
 
+      // Extract conditional fields to reduce duplication
+      const modificationFields = (isEdit || isModification) && {
+        modifiedBy: userEmail,
+      };
+
       const requestBody = {
         origin: isVIP ? BookingOrigin.VIP : BookingOrigin.WALK_IN,
         type: isVIP ? BookingOrigin.VIP : BookingOrigin.WALK_IN,
@@ -185,7 +190,7 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
         data,
         isAutoApproval,
         // Add modifiedBy as a top-level parameter for edit/modification context
-        ...((isEdit || isModification) && { modifiedBy: userEmail }),
+        ...modificationFields,
         ...(requestParams.body ?? {}),
       };
 
@@ -217,7 +222,7 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
           data,
           isAutoApproval,
           // Add modifiedBy as a top-level parameter for edit/modification context
-          ...((isEdit || isModification) && { modifiedBy: userEmail }),
+          ...modificationFields,
           ...(requestParams.body ?? {}),
         }),
       })
