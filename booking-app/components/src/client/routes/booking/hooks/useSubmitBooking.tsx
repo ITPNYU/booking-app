@@ -184,8 +184,8 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
         liaisonUsers,
         data,
         isAutoApproval,
-        // Add modifiedBy as a top-level parameter for modification context
-        ...(isModification && { modifiedBy: userEmail }),
+        // Add modifiedBy as a top-level parameter for edit/modification context
+        ...((isEdit || isModification) && { modifiedBy: userEmail }),
         ...(requestParams.body ?? {}),
       };
 
@@ -216,8 +216,8 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
           liaisonUsers,
           data,
           isAutoApproval,
-          // Add modifiedBy as a top-level parameter for modification context
-          ...(isModification && { modifiedBy: userEmail }),
+          // Add modifiedBy as a top-level parameter for edit/modification context
+          ...((isEdit || isModification) && { modifiedBy: userEmail }),
           ...(requestParams.body ?? {}),
         }),
       })

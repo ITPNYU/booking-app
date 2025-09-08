@@ -899,6 +899,10 @@ export async function PUT(request: NextRequest) {
     },
   );
 
+  // Track XState processing results
+  let xstateProcessed = false;
+  let xstateNewState = null;
+
   // For ITP and Media Commons tenants, use XState transition
   if (usesXState) {
     console.log(
@@ -1015,7 +1019,20 @@ export async function PUT(request: NextRequest) {
               newState: xstateResult.newState,
             },
           );
+
+          console.log(
+            `📋 XSTATE EDIT TRANSITION COMPLETED [${tenant?.toUpperCase()}]:`,
+            {
+              calendarEventId,
+              newState: xstateResult.newState,
+              note: "History logging will be handled by traditional processing",
+            },
+          );
         }
+
+        // Set XState processing flags
+        xstateProcessed = true;
+        xstateNewState = xstateResult.newState;
       }
     } catch (error) {
       console.error(
@@ -1125,13 +1142,23 @@ export async function PUT(request: NextRequest) {
 
     console.log(`Created new calendar event with ID: ${newCalendarEventId}`);
     // Add a new history entry for the modification
+    // Use appropriate status and note based on XState processing
+    const historyStatus =
+      xstateProcessed && xstateNewState === "Requested"
+        ? BookingStatusLabel.REQUESTED
+        : BookingStatusLabel.MODIFIED;
+    const historyNote =
+      xstateProcessed && xstateNewState === "Requested"
+        ? "Booking edited and resubmitted"
+        : "Modified by " + modifiedBy;
+
     await logServerBookingChange({
       bookingId: existingContents.id,
-      status: BookingStatusLabel.MODIFIED,
+      status: historyStatus,
       changedBy: modifiedBy,
       requestNumber: existingContents.requestNumber,
       calendarEventId: newCalendarEventId,
-      note: "Modified by " + modifiedBy,
+      note: historyNote,
       tenant,
     });
   } catch (err) {
