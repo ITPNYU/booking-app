@@ -4,7 +4,7 @@ test('verify E2E environment and authentication bypass are working', async ({ re
   console.log('🔍 Verifying E2E environment and authentication bypass...');
   
   // Test the API endpoint directly to ensure it's accessible
-  const response = await request.get('http://localhost:3001/api/isTestEnv');
+  const response = await request.get('http://localhost:3000/api/isTestEnv');
   expect(response.ok()).toBeTruthy();
   
   const data = await response.json();
@@ -15,7 +15,7 @@ test('verify E2E environment and authentication bypass are working', async ({ re
   console.log('🔍 Testing API reliability...');
   const reliabilityTests = [];
   for (let i = 0; i < 3; i++) {
-    reliabilityTests.push(request.get('http://localhost:3001/api/isTestEnv'));
+    reliabilityTests.push(request.get('http://localhost:3000/api/isTestEnv'));
   }
   
   const responses = await Promise.all(reliabilityTests);

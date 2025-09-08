@@ -43,6 +43,7 @@ export default defineConfig({
   use: {
     headless: process.env.CI ? true : false,
     trace: 'on-first-retry',
+    baseURL: 'http://localhost:3000',
 
     // Set environment variables for E2E tests
     extraHTTPHeaders: {

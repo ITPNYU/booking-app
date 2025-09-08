@@ -5,7 +5,7 @@ test.describe('CI-Friendly E2E Tests', () => {
     console.log('Testing authentication bypass via API...');
     
     // Test the isTestEnv API endpoint
-    const response = await request.get('http://localhost:3001/api/isTestEnv');
+    const response = await request.get('http://localhost:3000/api/isTestEnv');
     expect(response.ok()).toBeTruthy();
     
     const data = await response.json();
@@ -26,7 +26,7 @@ test.describe('CI-Friendly E2E Tests', () => {
     for (let i = 1; i <= numberOfTests; i++) {
       console.log(`API test ${i}/${numberOfTests}...`);
       
-      const response = await request.get('http://localhost:3001/api/isTestEnv');
+      const response = await request.get('http://localhost:3000/api/isTestEnv');
       expect(response.ok()).toBeTruthy();
       expect(response.status()).toBe(200);
       
@@ -44,7 +44,7 @@ test.describe('CI-Friendly E2E Tests', () => {
     
     // Step 1: Verify test environment
     console.log('Step 1: Verifying test environment...');
-    const envResponse = await request.get('http://localhost:3001/api/isTestEnv');
+    const envResponse = await request.get('http://localhost:3000/api/isTestEnv');
     expect(envResponse.ok()).toBeTruthy();
     
     const envData = await envResponse.json();
@@ -54,7 +54,7 @@ test.describe('CI-Friendly E2E Tests', () => {
     // Step 2: Test API stability under load
     console.log('Step 2: Testing API stability...');
     const concurrentRequests = Array(3).fill(null).map(() => 
-      request.get('http://localhost:3001/api/isTestEnv')
+      request.get('http://localhost:3000/api/isTestEnv')
     );
     
     const responses = await Promise.all(concurrentRequests);
