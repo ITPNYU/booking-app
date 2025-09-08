@@ -200,8 +200,35 @@ export const decline = async (
         newState: xstateResult.newState,
       });
 
-      // XState handled the decline successfully, including email sending
-      // Skip the traditional email sending below
+      // XState handled the decline successfully, now add history logging
+      const doc = await clientGetDataByCalendarEventId<{
+        id: string;
+        requestNumber: number;
+      }>(TableNames.BOOKING, id, tenant);
+
+      if (doc) {
+        await logClientBookingChange({
+          bookingId: doc.id,
+          calendarEventId: id,
+          status: BookingStatusLabel.DECLINED,
+          changedBy: email,
+          requestNumber: doc.requestNumber,
+          note: reason,
+          tenant,
+        });
+
+        console.log(
+          `📋 XSTATE DECLINE HISTORY LOGGED [${tenant?.toUpperCase()}]:`,
+          {
+            calendarEventId: id,
+            bookingId: doc.id,
+            requestNumber: doc.requestNumber,
+            reason,
+          }
+        );
+      }
+
+      // Skip the traditional processing below
       return;
     }
   } else {

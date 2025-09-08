@@ -612,6 +612,7 @@ export const serverSendBookingDetailEmail = async ({
     bodyMessage: "",
     approverType,
     replyTo,
+    tenant,
   };
   const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/sendEmail`, {
     method: "POST",
@@ -794,38 +795,9 @@ export const firstApproverEmails = async (department: string) => {
   const normalizeDepartment = (dept: string) => {
     if (!dept) return dept;
 
-    // Use string methods instead of regex to avoid ReDoS vulnerabilities
-    let normalized = dept.trim();
-
-    // Replace multiple consecutive whitespace characters with single space
-    // Using iterative approach instead of regex quantifiers
-    while (normalized.includes("  ")) {
-      normalized = normalized.replace("  ", " ");
-    }
-    while (normalized.includes("\t")) {
-      normalized = normalized.replace("\t", " ");
-    }
-    while (normalized.includes("\n")) {
-      normalized = normalized.replace("\n", " ");
-    }
-    while (normalized.includes("\r")) {
-      normalized = normalized.replace("\r", " ");
-    }
-
-    // Normalize slashes - ensure consistent spacing around slashes
-    // First, remove any existing spaces around slashes
-    while (normalized.includes(" /")) {
-      normalized = normalized.replace(" /", "/");
-    }
-    while (normalized.includes("/ ")) {
-      normalized = normalized.replace("/ ", "/");
-    }
-    // Then add consistent spacing around all slashes
-    while (normalized.includes("/")) {
-      normalized = normalized.replace("/", " / ");
-    }
-
-    return normalized.trim().toLowerCase();
+    // Simple normalization: trim whitespace and convert to lowercase
+    // Complex slash processing is unnecessary for keyword-based matching
+    return dept.trim().toLowerCase();
   };
 
   const normalizedUserDepartment = normalizeDepartment(department);
@@ -842,13 +814,12 @@ export const firstApproverEmails = async (department: string) => {
     );
 
     // Check if user department contains any of the key department identifiers
-    const userDeptKeywords = ["itp", "ima", "low res"];
-    const approverDeptKeywords = ["itp", "ima", "low res"];
+    const itpDeptKeywords = ["itp", "ima", "low res"];
 
-    const userHasKeywords = userDeptKeywords.some((keyword) =>
+    const userHasKeywords = itpDeptKeywords.some((keyword) =>
       normalizedUserDepartment.includes(keyword)
     );
-    const approverHasKeywords = approverDeptKeywords.some((keyword) =>
+    const approverHasKeywords = itpDeptKeywords.some((keyword) =>
       normalizedApproverDepartment.includes(keyword)
     );
 

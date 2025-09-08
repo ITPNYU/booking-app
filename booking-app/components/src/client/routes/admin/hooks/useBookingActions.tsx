@@ -1104,7 +1104,12 @@ export default function useBookingActions({
     ) {
       options.push(Actions.CANCEL);
     }
-    if (status == BookingStatusLabel.REQUESTED && startDate.toDate() > date) {
+    // Allow EDIT for REQUESTED and DECLINED bookings (if future date)
+    if (
+      (status === BookingStatusLabel.REQUESTED ||
+        status === BookingStatusLabel.DECLINED) &&
+      startDate.toDate() > date
+    ) {
       options.push(Actions.EDIT);
     }
     return options;
