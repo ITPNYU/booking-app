@@ -128,13 +128,13 @@ jobs:
           # Function to run tests with fallback strategies
           run_tests_with_fallback() {
             local test_type="$1"
-            local test_pattern="$2"
+            local test_options="$2"
             local description="$3"
             
             echo "🧪 Running $description..."
             
-            if [ -n "$test_pattern" ]; then
-              if npx playwright test "$test_pattern" --reporter=list; then
+            if [ -n "$test_options" ]; then
+              if npx playwright test $test_options --reporter=list; then
                 echo "✅ $description PASSED"
                 return 0
               else
