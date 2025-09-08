@@ -4,7 +4,7 @@ test.describe('Booking E2E Test with Auth Bypass', () => {
   test('should verify the authentication bypass works for API calls', async ({ request }) => {
     // Step 1: Verify authentication bypass is enabled
     console.log('Step 1: Checking authentication bypass status...');
-    const authCheckResponse = await request.get('http://localhost:3001/api/isTestEnv');
+    const authCheckResponse = await request.get('http://localhost:3000/api/isTestEnv');
     const authData = await authCheckResponse.json();
     console.log('Authentication bypass status:', authData);
     
@@ -16,8 +16,8 @@ test.describe('Booking E2E Test with Auth Bypass', () => {
     
     // Make multiple API calls to verify consistency
     const apiTests = [
-      { name: 'isTestEnv', url: 'http://localhost:3001/api/isTestEnv' },
-      { name: 'isTestEnv (duplicate)', url: 'http://localhost:3001/api/isTestEnv' },
+      { name: 'isTestEnv', url: 'http://localhost:3000/api/isTestEnv' },
+      { name: 'isTestEnv (duplicate)', url: 'http://localhost:3000/api/isTestEnv' },
     ];
     
     for (const apiTest of apiTests) {
@@ -41,7 +41,7 @@ test.describe('Booking E2E Test with Auth Bypass', () => {
     console.log('Testing booking-related API accessibility...');
     
     // Verify auth bypass is still active
-    const authResponse = await request.get('http://localhost:3001/api/isTestEnv');
+    const authResponse = await request.get('http://localhost:3000/api/isTestEnv');
     expect(authResponse.ok()).toBeTruthy();
     const authData = await authResponse.json();
     expect(authData.isOnTestEnv).toBe(true);
