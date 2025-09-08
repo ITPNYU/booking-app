@@ -318,7 +318,6 @@ async function handleStateTransitions(
         note: "Closed history logging handled by /api/services for proper ordering",
       }
     );
-
     // Handle check-out email for Closed state (when transitioning from Checked In)
     if (previousState === "Checked In") {
       console.log(
