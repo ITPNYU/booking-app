@@ -118,6 +118,21 @@ export default defineConfig({
         baseURL: 'http://localhost:3000',
       },
     },
+
+    // Use case flows project for comprehensive E2E testing
+    {
+      name: 'use-case-flows',
+      testMatch: ['**/booking-flow.e2e.test.ts', '**/walk-in-flow.e2e.test.ts', '**/vip-request-flow.e2e.test.ts'],
+      use: {
+        baseURL: 'http://localhost:3000',
+        // Use the same browser configuration as chromium
+        ...devices['Desktop Chrome'],
+        contextOptions: {
+          reducedMotion: 'reduce',
+          forcedColors: 'active',
+        },
+      },
+    },
   ],
 
   /* Run your local dev server before starting the tests */
