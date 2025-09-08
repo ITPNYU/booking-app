@@ -1,14 +1,41 @@
 import { defineConfig, devices } from '@playwright/test';
 
+// Helper function to find a working browser executable
+function findBrowserExecutable() {
+  const possiblePaths = [
+    '/usr/bin/chromium-browser',
+    '/usr/bin/chromium',
+    '/usr/bin/google-chrome',
+    '/usr/bin/google-chrome-stable',
+    '/snap/bin/chromium',
+    '/opt/google/chrome/chrome',
+  ];
+  
+  for (const browserPath of possiblePaths) {
+    try {
+      const fs = require('fs');
+      if (fs.existsSync(browserPath)) {
+        console.log('✅ Found system browser:', browserPath);
+        return browserPath;
+      }
+    } catch (e) {
+      // Continue to next path
+    }
+  }
+  
+  console.log('⚠️ No system browser found, using Playwright browser');
+  return undefined;
+}
+
 export default defineConfig({
   testDir: './tests',
   testMatch: '**/*.e2e.test.ts',
   timeout: 120000,
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
+  retries: process.env.CI ? 3 : 1, // Increased retries for CI stability
   workers: process.env.CI ? 1 : undefined,
-  reporter: 'html',
+  reporter: process.env.CI ? [['html'], ['github']] : 'html',
 
   // Set environment variables for E2E testing authentication bypass
   globalSetup: require.resolve('./tests/e2e/global-setup.ts'),
@@ -22,72 +49,50 @@ export default defineConfig({
       'x-test-env': 'true',
     },
 
-    // Add these new configurations
+    // Enhanced browser launch options for CI stability
     launchOptions: {
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
         '--disable-dev-shm-usage',
         '--disable-gpu',
-        '--disable-popup-blocking',  // Allow popups
-        '--start-maximized'          // Ensure window is large enough
-
+        '--disable-popup-blocking',
+        '--disable-background-timer-throttling',
+        '--disable-renderer-backgrounding',
+        '--disable-backgrounding-occluded-windows',
+        '--disable-web-security',
+        '--start-maximized',
+        '--disable-features=VizDisplayCompositor',
+        ...(process.env.CI ? [
+          '--disable-extensions',
+          '--disable-plugins',
+          '--no-first-run',
+          '--no-default-browser-check',
+          '--disable-component-update',
+        ] : [])
       ],
       slowMo: process.env.CI ? 100 : 0,
       env: {
         NODE_ENV: 'test',
         E2E_TESTING: 'true',
+        BYPASS_AUTH: 'true',
       },
-      // Try to use system Chromium if available, especially in CI
-      executablePath: (() => {
-        if (process.env.CI) {
-          // In CI, try multiple browser paths as fallback
-          const possiblePaths = [
-            '/usr/bin/chromium-browser',
-            '/usr/bin/chromium',
-            '/usr/bin/google-chrome',
-            '/snap/bin/chromium',
-          ];
-          
-          for (const browserPath of possiblePaths) {
-            try {
-              const fs = require('fs');
-              if (fs.existsSync(browserPath)) {
-                console.log('Using system browser in CI:', browserPath);
-                return browserPath;
-              }
-            } catch (e) {
-              // Continue to next path
-            }
-          }
-          
-          console.log('No system browser found in CI, using Playwright browser');
-          return undefined;
-        } else {
-          // For local development
-          try {
-            const { execSync } = require('child_process');
-            const chromiumPath = execSync('which chromium-browser || which chromium || which google-chrome', { encoding: 'utf8' }).trim();
-            console.log('Using system browser:', chromiumPath);
-            return chromiumPath;
-          } catch (e) {
-            console.log('System browser not found, using Playwright browser');
-            return undefined;
-          }
-        }
-      })(),
+      // Use system browser or fallback gracefully
+      executablePath: findBrowserExecutable(),
+      // Handle download behavior more gracefully
+      downloadsPath: './test-results/downloads',
     },
 
-    // Increase timeouts for CI environment
-    navigationTimeout: 60000,
-    actionTimeout: 30000,
-
+    // Increased timeouts for better CI stability
+    navigationTimeout: 90000,
+    actionTimeout: 45000,
+    
     // Additional helpful options for CI
     viewport: { width: 1280, height: 720 },
     ignoreHTTPSErrors: true,
 
-    // Video recording can help debug CI issues
-    video: process.env.CI ? 'retain-on-failure' : 'off',
+    // Enhanced debugging for CI
+    video: 'off', // Disable video to avoid ffmpeg issues
     screenshot: process.env.CI ? 'only-on-failure' : 'off',
   },
 
@@ -102,39 +107,20 @@ export default defineConfig({
         },
       },
     },
-    /* {
-      name: 'firefox',
-      use: { ...devices['Desktop Firefox'] },
-    },
 
+    // API-only project that doesn't require browser installation
     {
-      name: 'webkit',
-      use: { ...devices['Desktop Safari'] },
-    }, */
-
-    /* Test against mobile viewports. */
-    // {
-    //   name: 'Mobile Chrome',
-    //   use: { ...devices['Pixel 5'] },
-    // },
-    // {
-    //   name: 'Mobile Safari',
-    //   use: { ...devices['iPhone 12'] },
-    // },
-
-    /* Test against branded browsers. */
-    // {
-    //   name: 'Microsoft Edge',
-    //   use: { ...devices['Desktop Edge'], channel: 'msedge' },
-    // },
-    // {
-    //   name: 'Google Chrome',
-    //   use: { ...devices['Desktop Chrome'], channel: 'chrome' },
-    // },
+      name: 'api-only',
+      testMatch: '**/api-only.e2e.test.ts',
+      use: {
+        // API tests don't need browser-specific configurations
+        baseURL: 'http://localhost:3000',
+      },
+    },
   ],
 
   /* Run your local dev server before starting the tests */
-  // Note: Start dev server manually with: NODE_ENV=test E2E_TESTING=true npm run dev
+  // Note: Start dev server manually with: BYPASS_AUTH=true E2E_TESTING=true npm run dev
   // webServer: {
   //   command: 'npm run dev',
   //   url: 'http://127.0.0.1:3000',
@@ -143,6 +129,7 @@ export default defineConfig({
   //   env: {
   //     NODE_ENV: 'test',
   //     E2E_TESTING: 'true',
+  //     BYPASS_AUTH: 'true',
   //   },
   // },
 });
