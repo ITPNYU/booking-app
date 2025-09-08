@@ -888,6 +888,9 @@ export async function PUT(request: NextRequest) {
   // Get tenant-specific flags
   const { isITP, isMediaCommons, usesXState } = getTenantFlags(tenant);
 
+  // Track if booking was previously approved (for history re-recording)
+  let wasApproved = false;
+
   console.log(
     `🎯 MODIFICATION REQUEST [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
     {
@@ -968,6 +971,9 @@ export async function PUT(request: NextRequest) {
         finalApprovedAt: (bookingData as any)?.finalApprovedAt,
         firstApprovedAt: (bookingData as any)?.firstApprovedAt,
       });
+
+      // Store approved state for later history re-recording
+      wasApproved = isApproved;
 
       if (isApproved) {
         console.log(
@@ -1134,6 +1140,28 @@ export async function PUT(request: NextRequest) {
       note: "Modified by " + modifiedBy,
       tenant,
     });
+
+    // If this was an approved booking, re-record the approved status after modification
+    // This ensures the history shows the booking is still approved after changes
+    if (usesXState && wasApproved) {
+      console.log(
+        `📋 RE-RECORDING APPROVED STATUS AFTER MODIFICATION [${tenant?.toUpperCase()}]:`,
+        {
+          calendarEventId: newCalendarEventId,
+          reason: "Booking was previously approved and should remain approved after modification",
+        },
+      );
+      
+      await logServerBookingChange({
+        bookingId: existingContents.id,
+        status: BookingStatusLabel.APPROVED,
+        changedBy: "System",
+        requestNumber: existingContents.requestNumber,
+        calendarEventId: newCalendarEventId,
+        note: "Booking remains approved after modification",
+        tenant,
+      });
+    }
   } catch (err) {
     console.error(err);
     return NextResponse.json(
