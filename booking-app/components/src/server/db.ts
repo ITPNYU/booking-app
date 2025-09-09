@@ -569,13 +569,10 @@ export const checkin = async (id: string, email: string, tenant?: string) => {
   );
 
   if (!xstateResult.success) {
-    console.error(
-      `🚨 XSTATE CHECKIN API FAILED [${tenant?.toUpperCase()}]:`,
-      {
-        calendarEventId: id,
-        error: xstateResult.error,
-      }
-    );
+    console.error(`🚨 XSTATE CHECKIN API FAILED [${tenant?.toUpperCase()}]:`, {
+      calendarEventId: id,
+      error: xstateResult.error,
+    });
     throw new Error(`XState checkin failed: ${xstateResult.error}`);
   }
 
@@ -639,12 +636,9 @@ export const checkOut = async (id: string, email: string, tenant?: string) => {
     tenant,
   });
 
-  console.log(
-    `🎭 USING XSTATE API FOR CHECKOUT [${tenant?.toUpperCase()}]:`,
-    {
-      calendarEventId: id,
-    }
-  );
+  console.log(`🎭 USING XSTATE API FOR CHECKOUT [${tenant?.toUpperCase()}]:`, {
+    calendarEventId: id,
+  });
 
   const xstateResult = await callXStateTransitionAPI(
     id,
@@ -654,23 +648,17 @@ export const checkOut = async (id: string, email: string, tenant?: string) => {
   );
 
   if (!xstateResult.success) {
-    console.error(
-      `🚨 XSTATE CHECKOUT API FAILED [${tenant?.toUpperCase()}]:`,
-      {
-        calendarEventId: id,
-        error: xstateResult.error,
-      }
-    );
+    console.error(`🚨 XSTATE CHECKOUT API FAILED [${tenant?.toUpperCase()}]:`, {
+      calendarEventId: id,
+      error: xstateResult.error,
+    });
     throw new Error(`XState checkout failed: ${xstateResult.error}`);
   }
 
-  console.log(
-    `✅ XSTATE CHECKOUT API SUCCESS [${tenant?.toUpperCase()}]:`,
-    {
-      calendarEventId: id,
-      newState: xstateResult.newState,
-    }
-  );
+  console.log(`✅ XSTATE CHECKOUT API SUCCESS [${tenant?.toUpperCase()}]:`, {
+    calendarEventId: id,
+    newState: xstateResult.newState,
+  });
 
   // XState handled the checkout successfully, now add history logging
   const doc = await clientGetDataByCalendarEventId<{

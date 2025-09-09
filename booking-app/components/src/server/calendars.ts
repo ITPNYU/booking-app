@@ -59,7 +59,7 @@ export const inviteUserToCalendarEvent = async (
   }
 };
 
-export const bookingContentsToDescription = (
+export const bookingContentsToDescription = async (
   bookingContents: BookingFormDetails,
   tenant?: string
 ) => {
@@ -77,9 +77,9 @@ export const bookingContentsToDescription = (
   };
 
   // Use shared status resolver
-  const {
-    getStatusFromXState,
-  } = require("@/components/src/utils/statusFromXState");
+  const { getStatusFromXState } = await import(
+    "@/components/src/utils/statusFromXState"
+  );
 
   // Request Section
   description += "<h3>Request</h3><ul>";
@@ -341,7 +341,10 @@ export const updateCalendarEvent = async (
         updatedValues["end"] = newValues.end;
       }
 
-      let description = bookingContentsToDescription(bookingContents, tenant);
+      let description = await bookingContentsToDescription(
+        bookingContents,
+        tenant
+      );
       description +=
         'To cancel reservations please return to the Booking Tool, visit My Bookings, and click "cancel" on the booking at least 24 hours before the date of the event. Failure to cancel an unused booking is considered a no-show and may result in restricted use of the space.';
       updatedValues["description"] = description;

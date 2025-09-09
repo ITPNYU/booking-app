@@ -67,7 +67,19 @@ export function getStatusFromXState(
   }
 
   // Fallback to existing status if present
-  return (
-    (booking?.status as BookingStatusLabel) || BookingStatusLabel.REQUESTED
-  );
+  if (booking?.status) {
+    return booking.status as BookingStatusLabel;
+  }
+
+  // Fallback to legacy timestamp-based status detection
+  if (booking?.noShowedAt) return BookingStatusLabel.NO_SHOW;
+  if (booking?.checkedOutAt) return BookingStatusLabel.CHECKED_OUT;
+  if (booking?.checkedInAt) return BookingStatusLabel.CHECKED_IN;
+  if (booking?.canceledAt) return BookingStatusLabel.CANCELED;
+  if (booking?.declinedAt) return BookingStatusLabel.DECLINED;
+  if (booking?.finalApprovedAt) return BookingStatusLabel.APPROVED;
+  if (booking?.firstApprovedAt) return BookingStatusLabel.PRE_APPROVED;
+  if (booking?.requestedAt) return BookingStatusLabel.REQUESTED;
+
+  return BookingStatusLabel.REQUESTED;
 }
