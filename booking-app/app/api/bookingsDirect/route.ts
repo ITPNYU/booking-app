@@ -136,39 +136,8 @@ export async function POST(request: NextRequest) {
     roomEmails: otherRoomIds,
   });
   const calendarEventId = event.id;
-  // Only invite user to calendar event if booking is fully approved
-  // For VIP bookings with services, wait until final approval
-  if (bookingStatus === BookingStatusLabel.APPROVED) {
-    const formData = {
-      guestEmail: email,
-      calendarEventId: calendarEventId,
-      roomId: room.roomId,
-    };
-    const res = await fetch(
-      `${process.env.NEXT_PUBLIC_BASE_URL}/api/inviteUser`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(formData),
-      },
-    );
-
-    console.log(`📧 VIP USER INVITED TO CALENDAR [${tenant?.toUpperCase()}]:`, {
-      calendarEventId,
-      guestEmail: email,
-      bookingStatus,
-      reason: "Booking is fully approved",
-    });
-  } else {
-    console.log(`⏸️ VIP USER INVITATION DEFERRED [${tenant?.toUpperCase()}]:`, {
-      calendarEventId,
-      guestEmail: email,
-      bookingStatus,
-      reason: "Waiting for final approval before inviting to calendar",
-    });
-  }
+  // Calendar invitation will be handled after XState initialization
+  // to ensure proper status determination
 
   const sequentialId = await serverGetNextSequentialId("bookings", tenant);
   const doc = await serverSaveDataToFirestore(
@@ -480,6 +449,42 @@ export async function POST(request: NextRequest) {
         tenant,
       });
     }
+  }
+
+  // Handle calendar invitation based on final XState status
+  // Only invite user to calendar event if booking is fully approved (XState status is "Approved")
+  if (bookingStatus === BookingStatusLabel.APPROVED) {
+    const formData = {
+      guestEmail: email,
+      calendarEventId: calendarEventId,
+      roomId: room.roomId,
+    };
+    const res = await fetch(
+      `${process.env.NEXT_PUBLIC_BASE_URL}/api/inviteUser`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
+      },
+    );
+
+    console.log(`📧 USER INVITED TO CALENDAR [${tenant?.toUpperCase()}]:`, {
+      calendarEventId,
+      guestEmail: email,
+      bookingStatus,
+      xstateStatus: bookingStatus,
+      reason: "XState determined booking is fully approved",
+    });
+  } else {
+    console.log(`⏸️ USER INVITATION DEFERRED [${tenant?.toUpperCase()}]:`, {
+      calendarEventId,
+      guestEmail: email,
+      bookingStatus,
+      xstateStatus: bookingStatus,
+      reason: "XState determined booking needs further approval",
+    });
   }
 
   // Only send confirmation emails if the booking is fully approved

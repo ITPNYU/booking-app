@@ -274,11 +274,12 @@ export const mcBookingMachine = setup({
         }
       }
 
-      // Check rooms require approval
+      // Check rooms require approval (skip for VIP and walk-in bookings)
       if (
         context.selectedRooms &&
         context.selectedRooms.length > 0 &&
-        !context.isWalkIn
+        !context.isWalkIn &&
+        !context.isVip
       ) {
         const allRoomsAutoApprove = context.selectedRooms.every(
           (room) => (room && room.shouldAutoApprove) || false
@@ -298,10 +299,10 @@ export const mcBookingMachine = setup({
           );
           return false;
         }
-      } else if (!context.isWalkIn) {
-        // If no rooms selected and not a walk-in, require manual approval
+      } else if (!context.isWalkIn && !context.isVip) {
+        // If no rooms selected and not a walk-in or VIP, require manual approval
         console.log(
-          `🚫 XSTATE GUARD: No rooms selected and not walk-in, requires manual approval`
+          `🚫 XSTATE GUARD: No rooms selected and not walk-in/VIP, requires manual approval`
         );
         console.log(
           `🎯 XSTATE AUTO-APPROVAL GUARD RESULT: REJECTED (No rooms selected)`

@@ -30,6 +30,7 @@ async function handleStateTransitions(
   email: string,
   tenant: string,
   firestoreUpdates: any,
+  actor: any,
   skipCalendarForServiceCloseout = false,
   isXStateCreation = false,
   reason?: string
@@ -583,57 +584,58 @@ async function handleStateTransitions(
     // Note: History logging is now handled by traditional functions only
     // XState only manages state transitions, not history logging
 
-    // Send check-in email to guest and update calendar
+    // Email sending is handled after history logging in db.ts (checkin)
+
+    // Persist latest XState snapshot and checked-in timestamps BEFORE calendar update
     try {
-      // Use email from booking document (not from XState context)
-      const guestEmail = bookingDoc?.email;
+      const { serverUpdateDataByCalendarEventId } = await import(
+        "@/components/src/server/admin"
+      );
+      const { TableNames } = await import("@/components/src/policy");
 
-      if (guestEmail) {
-        const { serverSendBookingDetailEmail } = await import(
-          "@/components/src/server/admin"
-        );
-        const headerMessage =
-          "Your reservation request for Media Commons has been checked in. Thank you for choosing Media Commons.";
+      // Get persisted snapshot from the new state to avoid circular references
+      const persistedSnapshot = actor.getPersistedSnapshot();
 
-        await serverSendBookingDetailEmail({
-          calendarEventId,
-          targetEmail: guestEmail,
-          headerMessage,
-          status: BookingStatusLabel.CHECKED_IN,
-          tenant,
-        });
+      // Clean snapshot by removing undefined values for Firestore compatibility
+      const cleanedSnapshot = cleanObjectForFirestore(persistedSnapshot);
 
-        console.log(
-          `📧 XSTATE CHECK-IN EMAIL SENT [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-          {
-            calendarEventId,
-            guestEmail,
-          }
-        );
-      } else {
-        console.warn(
-          `⚠️ XSTATE CHECK-IN EMAIL SKIPPED - NO EMAIL IN CONTEXT [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-          {
-            calendarEventId,
-            contextKeys: newSnapshot.context
-              ? Object.keys(newSnapshot.context)
-              : [],
-          }
-        );
-      }
-    } catch (error) {
-      console.error(
-        `🚨 XSTATE CHECK-IN EMAIL FAILED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+      const xstateDataToPersist = {
+        snapshot: cleanedSnapshot, // persist cleaned snapshot for statusFromXState
+        machineId: newSnapshot?.machine?.id || currentSnapshot?.machine?.id,
+        lastTransition: new Date().toISOString(),
+      };
+
+      await serverUpdateDataByCalendarEventId(
+        TableNames.BOOKING,
+        calendarEventId,
+        {
+          xstateData: xstateDataToPersist,
+          checkedInAt: firestoreUpdates.checkedInAt,
+          checkedInBy: firestoreUpdates.checkedInBy,
+        },
+        tenant
+      );
+
+      console.log(
+        `💾 XSTATE CHECK-IN: STATE PERSISTED BEFORE CAL UPDATE [${
+          tenant?.toUpperCase() || "UNKNOWN"
+        }]:`,
         {
           calendarEventId,
-          email,
-          tenant,
-          error: error.message,
+          savedState: "Checked In",
         }
+      );
+    } catch (error) {
+      console.error(
+        `🚨 XSTATE CHECK-IN: FAILED TO PERSIST BEFORE CAL UPDATE [${
+          tenant?.toUpperCase() || "UNKNOWN"
+        }]:`,
+        { calendarEventId, error: (error as any)?.message }
       );
     }
 
     // Update calendar event with CHECKED_IN status
+    // Status will be read from XState data in bookingContentsToDescription
     try {
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_BASE_URL}/api/calendarEvents`,
@@ -656,6 +658,7 @@ async function handleStateTransitions(
           {
             calendarEventId,
             statusPrefix: BookingStatusLabel.CHECKED_IN,
+            note: "Status will be read from XState data",
           }
         );
       }
@@ -752,6 +755,7 @@ async function handleStateTransitions(
     }
 
     // Update calendar event with CHECKED_OUT status (including end time)
+    // Status will be read from XState data in bookingContentsToDescription
     try {
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_BASE_URL}/api/calendarEvents`,
@@ -779,6 +783,7 @@ async function handleStateTransitions(
           {
             calendarEventId,
             statusPrefix: BookingStatusLabel.CHECKED_OUT,
+            note: "Status will be read from XState data",
           }
         );
       }
@@ -1959,6 +1964,7 @@ We understand that unexpected situations come up, and we encourage you to cancel
       email,
       tenant,
       firestoreUpdates,
+      actor, // Pass actor instance
       eventType === "noShow", // Pass noShow flag to skip calendar updates for Service Closeout
       false, // isXStateCreation - false for normal transitions
       reason // Pass reason for decline actions

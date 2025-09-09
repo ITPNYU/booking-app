@@ -59,8 +59,9 @@ export const inviteUserToCalendarEvent = async (
   }
 };
 
-export const bookingContentsToDescription = (
-  bookingContents: BookingFormDetails
+export const bookingContentsToDescription = async (
+  bookingContents: BookingFormDetails,
+  tenant?: string
 ) => {
   const listItem = (key: string, value: string) => {
     const displayValue =
@@ -75,6 +76,11 @@ export const bookingContentsToDescription = (
     return obj[key]?.toString() || "";
   };
 
+  // Use shared status resolver
+  const { getStatusFromXState } = await import(
+    "@/components/src/utils/statusFromXState"
+  );
+
   // Request Section
   description += "<h3>Request</h3><ul>";
   description += listItem(
@@ -87,7 +93,10 @@ export const bookingContentsToDescription = (
     "Time",
     `${getProperty(bookingContents, "startTime")} - ${getProperty(bookingContents, "endTime")}`
   );
-  description += listItem("Status", getProperty(bookingContents, "status"));
+  description += listItem(
+    "Status",
+    getStatusFromXState(bookingContents as any, tenant)
+  );
   description += listItem(
     "Origin",
     formatOrigin(getProperty(bookingContents, "origin"))
@@ -166,7 +175,10 @@ export const bookingContentsToDescription = (
   const equipmentServices = getProperty(bookingContents, "equipmentServices");
   if (equipmentServices) {
     description += listItem("Equipment Service", equipmentServices);
-    const equipmentDetails = getProperty(bookingContents, "equipmentServicesDetails");
+    const equipmentDetails = getProperty(
+      bookingContents,
+      "equipmentServicesDetails"
+    );
     if (equipmentDetails) {
       description += listItem("Equipment Service Details", equipmentDetails);
     }
@@ -176,7 +188,10 @@ export const bookingContentsToDescription = (
   const staffingServices = getProperty(bookingContents, "staffingServices");
   if (staffingServices) {
     description += listItem("Staffing Service", staffingServices);
-    const staffingDetails = getProperty(bookingContents, "staffingServicesDetails");
+    const staffingDetails = getProperty(
+      bookingContents,
+      "staffingServicesDetails"
+    );
     if (staffingDetails) {
       description += listItem("Staffing Service Details", staffingDetails);
     }
@@ -189,10 +204,15 @@ export const bookingContentsToDescription = (
   }
 
   // Only show catering service if it's not "no" or "No"
-  const cateringService = getProperty(bookingContents, "cateringService") || getProperty(bookingContents, "catering");
+  const cateringService =
+    getProperty(bookingContents, "cateringService") ||
+    getProperty(bookingContents, "catering");
   if (cateringService && cateringService !== "no" && cateringService !== "No") {
     description += listItem("Catering Service", cateringService);
-    const cateringChartField = getProperty(bookingContents, "chartFieldForCatering");
+    const cateringChartField = getProperty(
+      bookingContents,
+      "chartFieldForCatering"
+    );
     if (cateringChartField) {
       description += listItem("Catering Chart Field", cateringChartField);
     }
@@ -202,9 +222,15 @@ export const bookingContentsToDescription = (
   const cleaningService = getProperty(bookingContents, "cleaningService");
   if (cleaningService && cleaningService !== "no" && cleaningService !== "No") {
     description += listItem("Cleaning Service", "Yes");
-    const cleaningChartField = getProperty(bookingContents, "chartFieldForCleaning");
+    const cleaningChartField = getProperty(
+      bookingContents,
+      "chartFieldForCleaning"
+    );
     if (cleaningChartField) {
-      description += listItem("Cleaning Service Chart Field", cleaningChartField);
+      description += listItem(
+        "Cleaning Service Chart Field",
+        cleaningChartField
+      );
     }
   }
 
@@ -212,7 +238,10 @@ export const bookingContentsToDescription = (
   const securityService = getProperty(bookingContents, "hireSecurity");
   if (securityService && securityService !== "no" && securityService !== "No") {
     description += listItem("Security", securityService);
-    const securityChartField = getProperty(bookingContents, "chartFieldForSecurity");
+    const securityChartField = getProperty(
+      bookingContents,
+      "chartFieldForSecurity"
+    );
     if (securityChartField) {
       description += listItem("Security Chart Field", securityChartField);
     }
@@ -267,7 +296,8 @@ export const updateCalendarEvent = async (
     };
     statusPrefix?: BookingStatusLabel;
   },
-  bookingContents?: BookingFormDetails
+  bookingContents?: BookingFormDetails,
+  tenant?: string
 ) => {
   if (!bookingContents) {
     console.error("No booking contents provided for calendar event update");
@@ -311,7 +341,10 @@ export const updateCalendarEvent = async (
         updatedValues["end"] = newValues.end;
       }
 
-      let description = bookingContentsToDescription(bookingContents);
+      let description = await bookingContentsToDescription(
+        bookingContents,
+        tenant
+      );
       description +=
         'To cancel reservations please return to the Booking Tool, visit My Bookings, and click "cancel" on the booking at least 24 hours before the date of the event. Failure to cancel an unused booking is considered a no-show and may result in restricted use of the space.';
       updatedValues["description"] = description;
