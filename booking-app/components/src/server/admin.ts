@@ -172,10 +172,11 @@ export const serverBookingContents = async (id: string, tenant?: string) => {
       minute: "2-digit",
       hour12: true,
     }),
-    status:
-      history.length > 0
-        ? history[history.length - 1].status
-        : BookingStatusLabel.REQUESTED,
+    // Don't override status - let getStatusFromXState handle it using XState data
+    // status:
+    //   history.length > 0
+    //     ? history[history.length - 1].status
+    //     : BookingStatusLabel.REQUESTED,
   });
 
   return updatedBookingObj as unknown as BookingFormDetails;
