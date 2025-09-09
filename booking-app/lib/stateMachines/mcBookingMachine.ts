@@ -254,10 +254,11 @@ export const mcBookingMachine = setup({
         return false;
       }
 
-      // Check if any services are requested - if so, don't auto-approve
+      // Check if any services are requested - if so, don't auto-approve (except for walk-ins)
       if (
         context.servicesRequested &&
-        typeof context.servicesRequested === "object"
+        typeof context.servicesRequested === "object" &&
+        !context.isWalkIn
       ) {
         const hasServices = Object.values(context.servicesRequested).some(
           Boolean
@@ -309,7 +310,18 @@ export const mcBookingMachine = setup({
       }
 
       console.log(`✅ XSTATE GUARD: All conditions met for auto-approval`);
-      console.log(`🎯 XSTATE AUTO-APPROVAL GUARD RESULT: APPROVED`);
+      console.log(`🎯 XSTATE AUTO-APPROVAL GUARD RESULT: APPROVED`, {
+        isWalkIn: context.isWalkIn,
+        isVip: context.isVip,
+        hasServices:
+          context.servicesRequested &&
+          typeof context.servicesRequested === "object"
+            ? Object.values(context.servicesRequested).some(Boolean)
+            : false,
+        reason: context.isWalkIn
+          ? "Walk-in auto-approval"
+          : "Standard auto-approval",
+      });
       return true;
     },
     "isVip AND servicesRequested": and([

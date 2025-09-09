@@ -1158,7 +1158,7 @@ export async function createXStateDataFromBookingStatus(
           startStr: bookingData.startDate?.toDate?.()?.toISOString(),
           endStr: bookingData.endDate?.toDate?.()?.toISOString(),
         },
-        isWalkIn: false,
+        isWalkIn: bookingData.origin === "walk-in" || !!bookingData.walkedInAt,
         calendarEventId,
         email: bookingData.email,
         isVip: bookingData.isVip || false,
@@ -1181,7 +1181,7 @@ export async function createXStateDataFromBookingStatus(
           startStr: bookingData.startDate?.toDate?.()?.toISOString(),
           endStr: bookingData.endDate?.toDate?.()?.toISOString(),
         },
-        isWalkIn: false,
+        isWalkIn: bookingData.origin === "walk-in" || !!bookingData.walkedInAt,
         calendarEventId,
         email: bookingData.email,
         // Flag to indicate this XState was created from existing booking without prior xstateData
