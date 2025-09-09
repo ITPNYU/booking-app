@@ -2422,7 +2422,7 @@ async function sendCanceledEmail(
       tenant
     );
 
-    const guestEmail = bookingDoc?.email;
+    const guestEmail = (bookingDoc as any)?.email;
 
     if (guestEmail) {
       const headerMessage =

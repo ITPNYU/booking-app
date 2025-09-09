@@ -123,7 +123,10 @@ export const mcBookingMachine = setup({
         }
       );
     },
-    logBookingHistory: async ({ context, event }, params) => {
+    logBookingHistory: async (
+      { context, event },
+      params: { status?: string; note?: string } = {}
+    ) => {
       // Log booking history directly from XState
       try {
         const { logServerBookingChange, serverGetDataByCalendarEventId } =
@@ -161,9 +164,9 @@ export const mcBookingMachine = setup({
         await logServerBookingChange({
           bookingId: bookingDoc.id,
           calendarEventId: context.calendarEventId,
-          status: status,
+          status: status as any, // Type assertion for dynamic import
           changedBy: context.email || "system",
-          requestNumber: bookingDoc.requestNumber,
+          requestNumber: (bookingDoc as any).requestNumber || 0,
           note: note || "",
           tenant: context.tenant,
         });
