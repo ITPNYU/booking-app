@@ -2073,7 +2073,7 @@ We understand that unexpected situations come up, and we encourage you to cancel
     if (eventType === "noShow") {
       // Add No Show history log
       await addNoShowHistoryLog(calendarEventId, email, tenant);
-      
+
       // Add Canceled history log and send email
       await addCanceledHistoryLog(calendarEventId, email, tenant);
       await sendCanceledEmail(calendarEventId, email, tenant);
@@ -2312,87 +2312,147 @@ function getBookingStatusFromData(bookingData: any): string {
 }
 
 /**
- * Helper function to add No Show history log
+ * Helper function to add No Show history log using existing log function
  */
-async function addNoShowHistoryLog(calendarEventId: string, email: string, tenant: string) {
+async function addNoShowHistoryLog(
+  calendarEventId: string,
+  email: string,
+  tenant: string
+) {
   try {
-    const { serverSaveDataToFirestore } = await import("@/lib/firebase/server/adminDb");
+    const { logServerBookingChange, serverGetDataByCalendarEventId } =
+      await import("@/lib/firebase/server/adminDb");
     const { TableNames } = await import("@/components/src/policy");
-    
-    const historyEntry = {
+
+    // Get booking document to get bookingId and requestNumber
+    const bookingDoc = await serverGetDataByCalendarEventId(
+      TableNames.BOOKING,
+      calendarEventId,
+      tenant
+    );
+
+    if (!bookingDoc) {
+      console.error(
+        `❌ NO SHOW HISTORY: Booking not found [${tenant?.toUpperCase()}]`,
+        { calendarEventId }
+      );
+      return;
+    }
+
+    // Log to BOOKING_LOGS table using existing function
+    await logServerBookingChange({
+      bookingId: bookingDoc.id,
       calendarEventId,
       status: BookingStatusLabel.NO_SHOW,
       changedBy: email || "system",
-      changedAt: admin.firestore.Timestamp.now(),
+      requestNumber: bookingDoc.requestNumber,
       note: "Booking marked as no show",
-      requestNumber: 0, // Will be updated by the API
-    };
+      tenant,
+    });
 
-    await serverSaveDataToFirestore(TableNames.BOOKING_LOGS, historyEntry, tenant);
-    
-    console.log(`📋 NO SHOW HISTORY LOGGED [${tenant?.toUpperCase() || "UNKNOWN"}]:`, {
-      calendarEventId,
-      status: BookingStatusLabel.NO_SHOW,
-    });
+    console.log(
+      `📋 NO SHOW HISTORY LOGGED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+      {
+        calendarEventId,
+        status: BookingStatusLabel.NO_SHOW,
+      }
+    );
   } catch (error) {
-    console.error(`🚨 NO SHOW HISTORY LOG FAILED [${tenant?.toUpperCase() || "UNKNOWN"}]:`, {
-      calendarEventId,
-      error: error.message,
-    });
+    console.error(
+      `🚨 NO SHOW HISTORY LOG FAILED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+      {
+        calendarEventId,
+        error: error.message,
+      }
+    );
   }
 }
 
 /**
- * Helper function to add Canceled history log
+ * Helper function to add Canceled history log using existing log function
  */
-async function addCanceledHistoryLog(calendarEventId: string, email: string, tenant: string) {
+async function addCanceledHistoryLog(
+  calendarEventId: string,
+  email: string,
+  tenant: string
+) {
   try {
-    const { serverSaveDataToFirestore } = await import("@/lib/firebase/server/adminDb");
+    const { logServerBookingChange, serverGetDataByCalendarEventId } =
+      await import("@/lib/firebase/server/adminDb");
     const { TableNames } = await import("@/components/src/policy");
-    
-    const historyEntry = {
+
+    // Get booking document to get bookingId and requestNumber
+    const bookingDoc = await serverGetDataByCalendarEventId(
+      TableNames.BOOKING,
+      calendarEventId,
+      tenant
+    );
+
+    if (!bookingDoc) {
+      console.error(
+        `❌ CANCELED HISTORY: Booking not found [${tenant?.toUpperCase()}]`,
+        { calendarEventId }
+      );
+      return;
+    }
+
+    // Log to BOOKING_LOGS table using existing function
+    await logServerBookingChange({
+      bookingId: bookingDoc.id,
       calendarEventId,
       status: BookingStatusLabel.CANCELED,
       changedBy: email || "system",
-      changedAt: admin.firestore.Timestamp.now(),
+      requestNumber: bookingDoc.requestNumber,
       note: "Booking canceled due to no show",
-      requestNumber: 0, // Will be updated by the API
-    };
+      tenant,
+    });
 
-    await serverSaveDataToFirestore(TableNames.BOOKING_LOGS, historyEntry, tenant);
-    
-    console.log(`📋 CANCELED HISTORY LOGGED [${tenant?.toUpperCase() || "UNKNOWN"}]:`, {
-      calendarEventId,
-      status: BookingStatusLabel.CANCELED,
-    });
+    console.log(
+      `📋 CANCELED HISTORY LOGGED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+      {
+        calendarEventId,
+        status: BookingStatusLabel.CANCELED,
+      }
+    );
   } catch (error) {
-    console.error(`🚨 CANCELED HISTORY LOG FAILED [${tenant?.toUpperCase() || "UNKNOWN"}]:`, {
-      calendarEventId,
-      error: error.message,
-    });
+    console.error(
+      `🚨 CANCELED HISTORY LOG FAILED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+      {
+        calendarEventId,
+        error: error.message,
+      }
+    );
   }
 }
 
 /**
  * Helper function to send Canceled email
  */
-async function sendCanceledEmail(calendarEventId: string, email: string, tenant: string) {
+async function sendCanceledEmail(
+  calendarEventId: string,
+  email: string,
+  tenant: string
+) {
   try {
-    const { serverGetDataByCalendarEventId } = await import("@/lib/firebase/server/adminDb");
-    const { serverSendBookingDetailEmail } = await import("@/components/src/server/admin");
+    const { serverGetDataByCalendarEventId } = await import(
+      "@/lib/firebase/server/adminDb"
+    );
+    const { serverSendBookingDetailEmail } = await import(
+      "@/components/src/server/admin"
+    );
     const { TableNames } = await import("@/components/src/policy");
-    
+
     // Get booking document to get guest email
     const bookingDoc = await serverGetDataByCalendarEventId(
       TableNames.BOOKING,
       calendarEventId,
       tenant
     );
-    
+
     const guestEmail = bookingDoc?.email;
-    
+
     if (guestEmail) {
-      const headerMessage = 
+      const headerMessage =
         "Your reservation has been canceled due to no show. " +
         "If you have any questions, please don't hesitate to reach out.";
 
@@ -2404,19 +2464,28 @@ async function sendCanceledEmail(calendarEventId: string, email: string, tenant:
         tenant,
       });
 
-      console.log(`📧 CANCELED EMAIL SENT [${tenant?.toUpperCase() || "UNKNOWN"}]:`, {
-        calendarEventId,
-        guestEmail,
-      });
+      console.log(
+        `📧 CANCELED EMAIL SENT [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+        {
+          calendarEventId,
+          guestEmail,
+        }
+      );
     } else {
-      console.warn(`⚠️ CANCELED EMAIL SKIPPED - NO EMAIL [${tenant?.toUpperCase() || "UNKNOWN"}]:`, {
-        calendarEventId,
-      });
+      console.warn(
+        `⚠️ CANCELED EMAIL SKIPPED - NO EMAIL [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+        {
+          calendarEventId,
+        }
+      );
     }
   } catch (error) {
-    console.error(`🚨 CANCELED EMAIL FAILED [${tenant?.toUpperCase() || "UNKNOWN"}]:`, {
-      calendarEventId,
-      error: error.message,
-    });
+    console.error(
+      `🚨 CANCELED EMAIL FAILED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+      {
+        calendarEventId,
+        error: error.message,
+      }
+    );
   }
 }
