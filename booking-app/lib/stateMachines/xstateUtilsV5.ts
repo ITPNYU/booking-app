@@ -289,6 +289,20 @@ async function handleStateTransitions(
         }
       );
     }
+  } else if (newState === "Requested" && previousState !== "Requested") {
+    // Requested state handling
+    console.log(
+      `🔄 XSTATE REACHED REQUESTED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+      {
+        calendarEventId,
+        previousState,
+        newState,
+        note: "Decline field cleanup handled by calling API",
+      }
+    );
+
+    // Note: History logging, calendar updates, and field cleanup are now handled by traditional functions only
+    // XState only manages state transitions, not side effects
   } else if (newState === "Closed" && previousState !== "Closed") {
     // Closed state handling
     firestoreUpdates.closedAt = admin.firestore.Timestamp.now();
@@ -1027,6 +1041,21 @@ async function handleStateTransitions(
       }
     }
 
+    // Apply status label to Firestore updates if determined
+    if (statusLabel) {
+      firestoreUpdates.status = statusLabel;
+      console.log(
+        `📋 XSTATE STATUS UPDATE [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+        {
+          calendarEventId,
+          previousState,
+          newState,
+          statusLabel,
+          willUpdateDatabaseStatus: true,
+        }
+      );
+    }
+
     // Note: History logging is now handled by traditional functions only
     // XState only manages state transitions, not history logging
   }
@@ -1078,85 +1107,6 @@ function getMachineForTenant(tenant?: string) {
 /**
  * Navigate actor to target state from initial state
  */
-function navigateActorToState(actor: any, targetState: string): void {
-  const currentSnapshot = actor.getSnapshot();
-
-  if (currentSnapshot.value === targetState) {
-    return; // Already at target state
-  }
-
-  console.log(
-    `🔄 NAVIGATING ACTOR: ${currentSnapshot.value} → ${targetState}`,
-    {
-      contextPreview: {
-        tenant: currentSnapshot.context?.tenant,
-        calendarEventId: currentSnapshot.context?.calendarEventId,
-        email: currentSnapshot.context?.email,
-      },
-    }
-  );
-
-  switch (targetState) {
-    case "Pre-approved":
-      if (
-        currentSnapshot.value === "Requested" &&
-        currentSnapshot.can({ type: "approve" })
-      ) {
-        actor.send({ type: "approve" });
-        console.log(`🎯 NAVIGATED: Requested → Pre-approved`);
-      }
-      break;
-    case "Approved":
-      if (
-        currentSnapshot.value === "Requested" &&
-        currentSnapshot.can({ type: "approve" })
-      ) {
-        actor.send({ type: "approve" });
-        const preApprovedSnapshot = actor.getSnapshot();
-        if (
-          preApprovedSnapshot.value === "Pre-approved" &&
-          preApprovedSnapshot.can({ type: "approve" })
-        ) {
-          actor.send({ type: "approve" });
-          console.log(`🎯 NAVIGATED: Requested → Pre-approved → Approved`);
-        }
-      }
-      break;
-    case "Declined":
-      if (
-        currentSnapshot.value === "Requested" &&
-        currentSnapshot.can({ type: "decline" })
-      ) {
-        actor.send({ type: "decline" });
-        console.log(`🎯 NAVIGATED: Requested → Declined`);
-      }
-      break;
-    case "Canceled":
-      if (currentSnapshot.can({ type: "cancel" })) {
-        actor.send({ type: "cancel" });
-        console.log(`🎯 NAVIGATED: → Canceled`);
-      }
-      break;
-    case "Checked In":
-      if (currentSnapshot.can({ type: "checkIn" })) {
-        actor.send({ type: "checkIn" });
-        console.log(`🎯 NAVIGATED: → Checked In`);
-      }
-      break;
-    case "Checked Out":
-      if (currentSnapshot.can({ type: "checkOut" })) {
-        actor.send({ type: "checkOut" });
-        console.log(`🎯 NAVIGATED: → Checked Out`);
-      }
-      break;
-    case "No Show":
-      if (currentSnapshot.can({ type: "noShow" })) {
-        actor.send({ type: "noShow" });
-        console.log(`🎯 NAVIGATED: → No Show`);
-      }
-      break;
-  }
-}
 
 /**
  * Create and save XState data from booking status using v5 snapshot
@@ -1208,7 +1158,7 @@ export async function createXStateDataFromBookingStatus(
           startStr: bookingData.startDate?.toDate?.()?.toISOString(),
           endStr: bookingData.endDate?.toDate?.()?.toISOString(),
         },
-        isWalkIn: false,
+        isWalkIn: bookingData.origin === "walk-in" || !!bookingData.walkedInAt,
         calendarEventId,
         email: bookingData.email,
         isVip: bookingData.isVip || false,
@@ -1231,7 +1181,7 @@ export async function createXStateDataFromBookingStatus(
           startStr: bookingData.startDate?.toDate?.()?.toISOString(),
           endStr: bookingData.endDate?.toDate?.()?.toISOString(),
         },
-        isWalkIn: false,
+        isWalkIn: bookingData.origin === "walk-in" || !!bookingData.walkedInAt,
         calendarEventId,
         email: bookingData.email,
         // Flag to indicate this XState was created from existing booking without prior xstateData

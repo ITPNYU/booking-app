@@ -1115,12 +1115,18 @@ export async function PUT(request: NextRequest) {
   const startDateObj2 = new Date(bookingCalendarInfo.startStr);
   const endDateObj2 = new Date(bookingCalendarInfo.endStr);
 
+  // Determine appropriate status label based on XState processing
+  const statusLabelForCalendar =
+    xstateProcessed && xstateNewState === "Requested"
+      ? BookingStatusLabel.REQUESTED
+      : BookingStatusLabel.MODIFIED;
+
   const bookingContentsForDescMod = buildBookingContents(
     data,
     selectedRoomIds,
     startDateObj2,
     endDateObj2,
-    BookingStatusLabel.MODIFIED,
+    statusLabelForCalendar,
     data.requestNumber ?? existingContents.requestNumber,
     "user",
   );
@@ -1175,10 +1181,11 @@ export async function PUT(request: NextRequest) {
         `📋 RE-RECORDING APPROVED STATUS AFTER MODIFICATION [${tenant?.toUpperCase()}]:`,
         {
           calendarEventId: newCalendarEventId,
-          reason: "Booking was previously approved and should remain approved after modification",
+          reason:
+            "Booking was previously approved and should remain approved after modification",
         },
       );
-      
+
       await logServerBookingChange({
         bookingId: existingContents.id,
         status: BookingStatusLabel.APPROVED,
@@ -1221,16 +1228,32 @@ export async function PUT(request: NextRequest) {
       tenant,
     );
 
-    // Delete approval fields from the updated booking (using new calendarEventId since the entry was updated)
+    // Delete approval and decline fields from the updated booking (using new calendarEventId since the entry was updated)
+    const fieldsToDelete = [
+      "finalApprovedAt",
+      "finalApprovedBy",
+      "firstApprovedAt",
+      "firstApprovedBy",
+    ];
+
+    // Also delete decline fields if this was a declined booking being edited
+    if (xstateProcessed && xstateNewState === "Requested") {
+      fieldsToDelete.push("declinedAt", "declinedBy", "declineReason");
+      console.log(
+        `🗑️ DELETING DECLINE FIELDS FOR EDIT [${tenant?.toUpperCase()}]:`,
+        {
+          calendarEventId: newCalendarEventId,
+          fieldsToDelete: ["declinedAt", "declinedBy", "declineReason"],
+          reason:
+            "Booking edited after decline - returning to Requested status",
+        },
+      );
+    }
+
     await serverDeleteFieldsByCalendarEventId(
       TableNames.BOOKING,
       newCalendarEventId,
-      [
-        "finalApprovedAt",
-        "finalApprovedBy",
-        "firstApprovedAt",
-        "firstApprovedBy",
-      ],
+      fieldsToDelete,
       tenant,
     );
   } catch (err) {

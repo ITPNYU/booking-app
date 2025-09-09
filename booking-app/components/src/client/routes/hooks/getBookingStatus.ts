@@ -178,13 +178,13 @@ export default function getBookingStatus(
       return BookingStatusLabel.APPROVED;
     } else if (booking.firstApprovedAt !== undefined) {
       return BookingStatusLabel.PRE_APPROVED;
-    } else if (booking.requestedAt != undefined) {
-      return BookingStatusLabel.REQUESTED;
     } else if (
       booking.origin === BookingOrigin.WALK_IN ||
       booking.walkedInAt != undefined
     ) {
       return BookingStatusLabel.APPROVED;
+    } else if (booking.requestedAt != undefined) {
+      return BookingStatusLabel.REQUESTED;
     } else if (booking.origin === BookingOrigin.VIP) {
       // For Media Commons VIP bookings, follow the normal approval flow
       // This allows VIP bookings with service requests to go through Pre-approved -> Services Request
