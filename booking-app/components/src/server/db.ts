@@ -942,10 +942,24 @@ const getBookingHistory = async (booking: Booking) => {
 
   // Add walk in
   if (booking.walkedInAt) {
+    let walkedInDate: string;
+    if (booking.walkedInAt.toDate) {
+      // Firebase Timestamp object
+      walkedInDate = booking.walkedInAt.toDate().toLocaleString();
+    } else if (booking.walkedInAt.seconds) {
+      // Plain object with seconds/nanoseconds
+      walkedInDate = new Date(
+        booking.walkedInAt.seconds * 1000
+      ).toLocaleString();
+    } else {
+      // Fallback
+      walkedInDate = new Date().toLocaleString();
+    }
+
     history.push({
       status: BookingStatusLabel.WALK_IN,
       user: "PA",
-      date: booking.walkedInAt.toDate().toLocaleString(),
+      date: walkedInDate,
       note: "",
     });
   }
