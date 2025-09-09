@@ -361,40 +361,6 @@ async function handleStateTransitions(
         closedBy: firestoreUpdates.closedBy,
       }
     );
-
-    // Add history logging for Closed state
-    try {
-      const { logServerBookingChange } = await import(
-        "@/lib/firebase/server/adminDb"
-      );
-
-      await logServerBookingChange({
-        bookingId: bookingDoc?.id || "",
-        calendarEventId,
-        status: BookingStatusLabel.CLOSED,
-        changedBy: email || "system",
-        requestNumber: bookingDoc?.requestNumber || 0,
-        note: "",
-        tenant,
-      });
-
-      console.log(
-        `📋 XSTATE CLOSED HISTORY LOGGED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-        {
-          calendarEventId,
-          status: BookingStatusLabel.CLOSED,
-          changedBy: email || "system",
-        }
-      );
-    } catch (error) {
-      console.error(
-        `🚨 XSTATE CLOSED HISTORY LOGGING FAILED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-        {
-          calendarEventId,
-          error: error.message,
-        }
-      );
-    }
     // Send appropriate email for Closed state based on previous state
     let shouldSendEmail = true;
     let emailMessage = "";
@@ -454,6 +420,40 @@ async function handleStateTransitions(
             bookingDocEmail: bookingDoc?.email,
           }
         );
+
+        // Add Closed history log once when actually reaching Closed state
+        try {
+          const { logServerBookingChange } = await import(
+            "@/lib/firebase/server/adminDb"
+          );
+
+          await logServerBookingChange({
+            bookingId: bookingDoc?.id || "",
+            calendarEventId,
+            status: BookingStatusLabel.CLOSED,
+            changedBy: email || "system",
+            requestNumber: bookingDoc?.requestNumber || 0,
+            note: "",
+            tenant,
+          });
+
+          console.log(
+            `📋 XSTATE CLOSED HISTORY LOGGED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+            {
+              calendarEventId,
+              status: BookingStatusLabel.CLOSED,
+              changedBy: email || "system",
+            }
+          );
+        } catch (error) {
+          console.error(
+            `🚨 XSTATE CLOSED HISTORY LOGGING FAILED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+            {
+              calendarEventId,
+              error: error.message,
+            }
+          );
+        }
 
         if (guestEmail) {
           const { serverSendBookingDetailEmail } = await import(
