@@ -231,18 +231,14 @@ export async function POST(request: NextRequest) {
         ),
       );
 
-      // Prepare XState data for persistence
-      const xstateData = {
-        snapshot: {
-          status: currentState.status,
-          value: currentState.value,
-          historyValue: currentState.historyValue,
-          context: cleanContext,
-          children: currentState.children,
-        },
-        machineId: machine.id,
-        lastTransition: new Date().toISOString(),
-      };
+      // Import common function to create XState data
+      const { createXStateData } = await import("@/app/api/bookings/route");
+
+      // Prepare XState data for persistence using common function
+      const xstateData = createXStateData(machine.id, {
+        ...currentState,
+        context: cleanContext,
+      });
 
       const initialState = xstateData.snapshot?.value;
 
