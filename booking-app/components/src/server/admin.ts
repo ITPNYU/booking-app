@@ -415,10 +415,12 @@ export const serverApproveInstantBooking = async (
     }
   }
 
-  serverFirstApprove(id, "System", tenant);
-
   if (shouldDoFinalApproval) {
+    // For instant booking with no services, skip first approval and go directly to final approval
     serverFinalApprove(id, "System", tenant);
+  } else {
+    // For VIP bookings with services, only do first approval to allow service request flow
+    serverFirstApprove(id, "System", tenant);
   }
 
   const doc = await serverGetDataByCalendarEventId<{
