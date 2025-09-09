@@ -35,8 +35,14 @@ async function handleStateTransitions(
   isXStateCreation = false,
   reason?: string
 ) {
-  const previousState = currentSnapshot.value;
-  const newState = newSnapshot.value;
+  const previousState =
+    typeof currentSnapshot.value === "string"
+      ? currentSnapshot.value
+      : JSON.stringify(currentSnapshot.value);
+  const newState =
+    typeof newSnapshot.value === "string"
+      ? newSnapshot.value
+      : JSON.stringify(newSnapshot.value);
 
   // Skip if no state change
   if (previousState === newState) {
@@ -304,6 +310,40 @@ async function handleStateTransitions(
 
     // Note: History logging, calendar updates, and field cleanup are now handled by traditional functions only
     // XState only manages state transitions, not side effects
+  } else if (newState === "No Show" && previousState !== "No Show") {
+    // No Show state handling - update Firestore fields
+    firestoreUpdates.noShowedAt = admin.firestore.Timestamp.now();
+    if (email) {
+      firestoreUpdates.noShowedBy = email;
+    }
+
+    console.log(
+      `🚫 XSTATE REACHED NO SHOW [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+      {
+        calendarEventId,
+        previousState,
+        newState,
+        noShowedAt: firestoreUpdates.noShowedAt,
+        noShowedBy: firestoreUpdates.noShowedBy,
+      }
+    );
+  } else if (newState === "Canceled" && previousState !== "Canceled") {
+    // Canceled state handling - update Firestore fields
+    firestoreUpdates.canceledAt = admin.firestore.Timestamp.now();
+    if (email) {
+      firestoreUpdates.canceledBy = email;
+    }
+
+    console.log(
+      `🔄 XSTATE REACHED CANCELED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+      {
+        calendarEventId,
+        previousState,
+        newState,
+        canceledAt: firestoreUpdates.canceledAt,
+        canceledBy: firestoreUpdates.canceledBy,
+      }
+    );
   } else if (newState === "Closed" && previousState !== "Closed") {
     // Closed state handling
     firestoreUpdates.closedAt = admin.firestore.Timestamp.now();
@@ -324,25 +364,19 @@ async function handleStateTransitions(
 
     // Add history logging for Closed state
     try {
-      const { serverSaveDataToFirestore } = await import(
+      const { logServerBookingChange } = await import(
         "@/lib/firebase/server/adminDb"
       );
-      const { TableNames } = await import("@/components/src/policy");
 
-      const historyEntry = {
+      await logServerBookingChange({
+        bookingId: bookingDoc?.id || "",
         calendarEventId,
         status: BookingStatusLabel.CLOSED,
         changedBy: email || "system",
-        changedAt: admin.firestore.Timestamp.now(),
-        note: `Booking closed from ${previousState} state`,
         requestNumber: bookingDoc?.requestNumber || 0,
-      };
-
-      await serverSaveDataToFirestore(
-        TableNames.BOOKING_LOGS,
-        historyEntry,
-        tenant
-      );
+        note: "",
+        tenant,
+      });
 
       console.log(
         `📋 XSTATE CLOSED HISTORY LOGGED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
@@ -350,7 +384,6 @@ async function handleStateTransitions(
           calendarEventId,
           status: BookingStatusLabel.CLOSED,
           changedBy: email || "system",
-          note: historyEntry.note,
         }
       );
     } catch (error) {
@@ -1783,12 +1816,71 @@ export async function executeXStateTransition(
       };
     }
 
-    // Execute the transition with reason if provided
-    const event: any = { type: eventType as any };
-    if (reason) {
-      event.reason = reason;
+    // Set up transition listener to capture all state changes
+    const transitionStates: string[] = [];
+    let unsubscribe: (() => void) | undefined;
+
+    try {
+      const subscription = actor.subscribe((snapshot) => {
+        const state =
+          typeof snapshot.value === "string"
+            ? snapshot.value
+            : JSON.stringify(snapshot.value);
+
+        // Only track meaningful state changes (not initial state)
+        if (transitionStates.length > 0 || state !== currentSnapshot.value) {
+          transitionStates.push(state);
+          console.log(
+            `📝 XSTATE TRANSITION CAPTURED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+            {
+              calendarEventId,
+              state,
+              transitionIndex: transitionStates.length,
+            }
+          );
+        }
+      });
+
+      // Handle different return types from subscribe
+      if (typeof subscription === "function") {
+        unsubscribe = subscription;
+      } else if (
+        subscription &&
+        typeof subscription.unsubscribe === "function"
+      ) {
+        unsubscribe = () => subscription.unsubscribe();
+      }
+
+      // Execute the transition with reason if provided
+      const event: any = { type: eventType as any };
+      if (reason) {
+        event.reason = reason;
+      }
+      actor.send(event);
+    } catch (subscribeError) {
+      console.error(
+        `🚨 XSTATE SUBSCRIPTION ERROR [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+        {
+          calendarEventId,
+          error: subscribeError.message,
+        }
+      );
+    } finally {
+      // Unsubscribe if possible
+      if (unsubscribe && typeof unsubscribe === "function") {
+        try {
+          unsubscribe();
+        } catch (unsubError) {
+          console.error(
+            `🚨 XSTATE UNSUBSCRIBE ERROR [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+            {
+              calendarEventId,
+              error: unsubError.message,
+            }
+          );
+        }
+      }
     }
-    actor.send(event);
     const newSnapshot = actor.getSnapshot();
 
     console.log(
@@ -2069,13 +2161,8 @@ We understand that unexpected situations come up, and we encourage you to cancel
       reason // Pass reason for decline actions
     );
 
-    // For No Show events, explicitly handle the intermediate state transitions
+    // For No Show events, send canceled email
     if (eventType === "noShow") {
-      // Add No Show history log
-      await addNoShowHistoryLog(calendarEventId, email, tenant);
-
-      // Add Canceled history log and send email
-      await addCanceledHistoryLog(calendarEventId, email, tenant);
       await sendCanceledEmail(calendarEventId, email, tenant);
     }
 
@@ -2309,120 +2396,6 @@ function getBookingStatusFromData(bookingData: any): string {
   if (bookingData.firstApprovedAt) return BookingStatusLabel.PRE_APPROVED;
   if (bookingData.requestedAt) return BookingStatusLabel.REQUESTED;
   return BookingStatusLabel.UNKNOWN;
-}
-
-/**
- * Helper function to add No Show history log using existing log function
- */
-async function addNoShowHistoryLog(
-  calendarEventId: string,
-  email: string,
-  tenant: string
-) {
-  try {
-    const { logServerBookingChange, serverGetDataByCalendarEventId } =
-      await import("@/lib/firebase/server/adminDb");
-    const { TableNames } = await import("@/components/src/policy");
-
-    // Get booking document to get bookingId and requestNumber
-    const bookingDoc = await serverGetDataByCalendarEventId(
-      TableNames.BOOKING,
-      calendarEventId,
-      tenant
-    );
-
-    if (!bookingDoc) {
-      console.error(
-        `❌ NO SHOW HISTORY: Booking not found [${tenant?.toUpperCase()}]`,
-        { calendarEventId }
-      );
-      return;
-    }
-
-    // Log to BOOKING_LOGS table using existing function
-    await logServerBookingChange({
-      bookingId: bookingDoc.id,
-      calendarEventId,
-      status: BookingStatusLabel.NO_SHOW,
-      changedBy: email || "system",
-      requestNumber: bookingDoc.requestNumber,
-      note: "Booking marked as no show",
-      tenant,
-    });
-
-    console.log(
-      `📋 NO SHOW HISTORY LOGGED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-      {
-        calendarEventId,
-        status: BookingStatusLabel.NO_SHOW,
-      }
-    );
-  } catch (error) {
-    console.error(
-      `🚨 NO SHOW HISTORY LOG FAILED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-      {
-        calendarEventId,
-        error: error.message,
-      }
-    );
-  }
-}
-
-/**
- * Helper function to add Canceled history log using existing log function
- */
-async function addCanceledHistoryLog(
-  calendarEventId: string,
-  email: string,
-  tenant: string
-) {
-  try {
-    const { logServerBookingChange, serverGetDataByCalendarEventId } =
-      await import("@/lib/firebase/server/adminDb");
-    const { TableNames } = await import("@/components/src/policy");
-
-    // Get booking document to get bookingId and requestNumber
-    const bookingDoc = await serverGetDataByCalendarEventId(
-      TableNames.BOOKING,
-      calendarEventId,
-      tenant
-    );
-
-    if (!bookingDoc) {
-      console.error(
-        `❌ CANCELED HISTORY: Booking not found [${tenant?.toUpperCase()}]`,
-        { calendarEventId }
-      );
-      return;
-    }
-
-    // Log to BOOKING_LOGS table using existing function
-    await logServerBookingChange({
-      bookingId: bookingDoc.id,
-      calendarEventId,
-      status: BookingStatusLabel.CANCELED,
-      changedBy: email || "system",
-      requestNumber: bookingDoc.requestNumber,
-      note: "Booking canceled due to no show",
-      tenant,
-    });
-
-    console.log(
-      `📋 CANCELED HISTORY LOGGED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-      {
-        calendarEventId,
-        status: BookingStatusLabel.CANCELED,
-      }
-    );
-  } catch (error) {
-    console.error(
-      `🚨 CANCELED HISTORY LOG FAILED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-      {
-        calendarEventId,
-        error: error.message,
-      }
-    );
-  }
 }
 
 /**

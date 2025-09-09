@@ -123,6 +123,69 @@ export const mcBookingMachine = setup({
         }
       );
     },
+    logBookingHistory: async ({ context, event }, params) => {
+      // Log booking history directly from XState
+      try {
+        const { logServerBookingChange, serverGetDataByCalendarEventId } =
+          await import("@/lib/firebase/server/adminDb");
+        const { TableNames } = await import("@/components/src/policy");
+        const { BookingStatusLabel } = await import("@/components/src/types");
+
+        // Get the action parameters from the second argument
+        const status = params?.status;
+        const note = params?.note;
+
+        if (!status) {
+          console.warn(
+            `⚠️ XSTATE HISTORY LOG SKIPPED - NO STATUS [${context.tenant?.toUpperCase()}]:`,
+            { calendarEventId: context.calendarEventId }
+          );
+          return;
+        }
+
+        // Get booking document to get bookingId and requestNumber
+        const bookingDoc = await serverGetDataByCalendarEventId(
+          TableNames.BOOKING,
+          context.calendarEventId,
+          context.tenant
+        );
+
+        if (!bookingDoc) {
+          console.error(
+            `❌ XSTATE HISTORY LOG: Booking not found [${context.tenant?.toUpperCase()}]`,
+            { calendarEventId: context.calendarEventId }
+          );
+          return;
+        }
+
+        await logServerBookingChange({
+          bookingId: bookingDoc.id,
+          calendarEventId: context.calendarEventId,
+          status: status,
+          changedBy: context.email || "system",
+          requestNumber: bookingDoc.requestNumber,
+          note: note || "",
+          tenant: context.tenant,
+        });
+
+        console.log(
+          `📋 XSTATE HISTORY LOGGED [${context.tenant?.toUpperCase() || "UNKNOWN"}]:`,
+          {
+            calendarEventId: context.calendarEventId,
+            status,
+            note,
+          }
+        );
+      } catch (error) {
+        console.error(
+          `🚨 XSTATE HISTORY LOG FAILED [${context.tenant?.toUpperCase() || "UNKNOWN"}]:`,
+          {
+            calendarEventId: context.calendarEventId,
+            error: error.message,
+          }
+        );
+      }
+    },
     inviteUserToCalendarEvent: ({ context, event }) => {
       console.log(`👥 XSTATE ACTION: inviteUserToCalendarEvent executed`, {
         tenant: context.tenant,
@@ -603,6 +666,13 @@ export const mcBookingMachine = setup({
         },
         {
           type: "deleteCalendarEvent",
+        },
+        {
+          type: "logBookingHistory",
+          params: {
+            status: "CANCELED",
+            note: "Booking canceled due to no show",
+          },
         },
       ],
     },
@@ -1687,6 +1757,13 @@ export const mcBookingMachine = setup({
         },
         {
           type: "updateCalendarEvent",
+        },
+        {
+          type: "logBookingHistory",
+          params: {
+            status: "NO-SHOW",
+            note: "Booking marked as no show",
+          },
         },
       ],
     },
