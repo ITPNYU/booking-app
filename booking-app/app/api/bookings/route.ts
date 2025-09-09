@@ -42,6 +42,68 @@ import { getCalendarClient } from "@/lib/googleClient";
 import { Timestamp } from "firebase-admin/firestore";
 import { DateSelectArg } from "fullcalendar";
 
+// Common function to create XState data structure
+export function createXStateData(
+  machineId: string,
+  snapshot: any,
+  targetState?: string,
+) {
+  return {
+    machineId,
+    lastTransition: new Date().toISOString(),
+    snapshot: {
+      status: snapshot.status,
+      value: targetState || snapshot.value,
+      historyValue: snapshot.historyValue || {},
+      context: cleanObjectForFirestore(snapshot.context),
+      children: snapshot.children || {},
+    },
+  };
+}
+
+// Common function to create XState snapshot data
+async function createXStateSnapshotData(
+  tenant: string,
+  calendarEventId: string,
+  email: string,
+  targetState: string,
+  context?: any,
+) {
+  const { mcBookingMachine } = await import(
+    "@/lib/stateMachines/mcBookingMachine"
+  );
+  const { createActor } = await import("xstate");
+
+  // Create fresh XState actor
+  const freshActor = createActor(mcBookingMachine, {
+    input: {
+      tenant,
+      calendarEventId,
+      email,
+      ...context,
+    },
+  });
+
+  freshActor.start();
+
+  // Get the current snapshot
+  const currentSnapshot = freshActor.getSnapshot();
+
+  // Use the common function to create XState data
+  const xstateData = createXStateData(
+    "MC Booking Request",
+    {
+      ...currentSnapshot,
+      context: context || currentSnapshot.context,
+    },
+    targetState,
+  );
+
+  freshActor.stop();
+
+  return xstateData;
+}
+
 // Clean object by removing undefined values for Firestore compatibility
 function cleanObjectForFirestore(obj: any): any {
   if (obj === null || obj === undefined) {
@@ -663,11 +725,8 @@ export async function POST(request: NextRequest) {
     const persistedSnapshot = bookingActor.getPersistedSnapshot();
     const cleanSnapshot = cleanObjectForFirestore(persistedSnapshot);
 
-    xstateData = {
-      snapshot: cleanSnapshot,
-      machineId: machine.id,
-      lastTransition: new Date().toISOString(),
-    };
+    // Use the common function to create XState data
+    xstateData = createXStateData(machine.id, cleanSnapshot);
 
     console.log(`🎭 XSTATE: Preparing state for persistence:`, {
       currentState: cleanSnapshot?.value,
@@ -1228,6 +1287,51 @@ export async function PUT(request: NextRequest) {
       fieldsToDelete,
       tenant,
     );
+
+    // If XState processing was successful, initialize new XState data for the new booking
+    if (xstateProcessed && xstateNewState) {
+      console.log(
+        `🔄 INITIALIZING NEW XSTATE DATA FOR NEW BOOKING [${tenant?.toUpperCase()}]:`,
+        {
+          calendarEventId: newCalendarEventId,
+          newState: xstateNewState,
+          reason:
+            "Creating fresh XState data for the new booking after transition",
+        },
+      );
+
+      // Create fresh XState data using the common function with proper context
+      const freshXStateData = await createXStateSnapshotData(
+        tenant,
+        newCalendarEventId,
+        email,
+        xstateNewState,
+        {
+          // Pass relevant context data for the new booking
+          selectedRooms: selectedRooms || [],
+          formData: data || {},
+          bookingCalendarInfo: bookingCalendarInfo || {},
+        },
+      );
+
+      // Update the new booking with fresh XState data
+      await serverUpdateDataByCalendarEventId(
+        TableNames.BOOKING,
+        newCalendarEventId,
+        {
+          xstateData: freshXStateData,
+        },
+        tenant,
+      );
+
+      console.log(
+        `✅ NEW BOOKING INITIALIZED WITH FRESH XSTATE DATA [${tenant?.toUpperCase()}]:`,
+        {
+          calendarEventId: newCalendarEventId,
+          newState: xstateNewState,
+        },
+      );
+    }
   } catch (err) {
     console.error(err);
     return NextResponse.json(
