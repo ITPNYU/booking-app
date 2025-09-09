@@ -19,7 +19,6 @@ import {
   BookingStatusLabel,
   RoomSetting,
 } from "@/components/src/types";
-import { shouldUseXState } from "@/components/src/utils/tenantUtils";
 import {
   logServerBookingChange,
   serverGetNextSequentialId,
@@ -327,24 +326,7 @@ async function handleBookingApprovalEmails(
         message: "Booking will be auto-approved instantly",
       },
     );
-    // For XState tenants, the booking is already approved by XState
-    // We need to execute the approval side effects (emails, calendar updates, history)
-    if (shouldUseXState(tenant)) {
-      console.log(
-        `🎭 XSTATE AUTO-APPROVAL: Executing approval side effects [${tenant?.toUpperCase()}]:`,
-        {
-          calendarEventId,
-          email,
-          tenant,
-        },
-      );
-
-      // Execute traditional approval side effects for XState-approved bookings
-      serverApproveInstantBooking(calendarEventId, email, tenant);
-    } else {
-      // For non-XState tenants, use traditional approval
-      serverApproveInstantBooking(calendarEventId, email, tenant);
-    }
+    serverApproveInstantBooking(calendarEventId, email, tenant);
   } else {
     console.log(
       `📧 MANUAL APPROVAL REQUIRED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
@@ -1185,16 +1167,6 @@ export async function PUT(request: NextRequest) {
             "Booking was previously approved and should remain approved after modification",
         },
       );
-
-      await logServerBookingChange({
-        bookingId: existingContents.id,
-        status: BookingStatusLabel.APPROVED,
-        changedBy: "System",
-        requestNumber: existingContents.requestNumber,
-        calendarEventId: newCalendarEventId,
-        note: "Booking remains approved after modification",
-        tenant,
-      });
     }
   } catch (err) {
     console.error(err);

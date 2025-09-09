@@ -1123,7 +1123,7 @@ export default function useBookingActions({
       options.push(Actions.MODIFICATION);
     } else if (status === BookingStatusLabel.CHECKED_IN) {
       options.push(Actions.CHECK_OUT);
-      options.push(Actions.MODIFICATION);
+      // Note: MODIFICATION removed from CHECKED_IN state - once checked in, only checkout is possible
     } else if (status === BookingStatusLabel.NO_SHOW) {
       options.push(Actions.CHECK_IN);
     } else if (status === BookingStatusLabel.WALK_IN) {

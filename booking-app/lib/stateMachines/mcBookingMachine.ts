@@ -46,6 +46,7 @@ export const mcBookingMachine = setup({
     context: {} as MediaCommonsBookingContext,
     events: {} as
       | { type: "edit" }
+      | { type: "Modify" }
       | { type: "cancel" }
       | { type: "noShow" }
       | { type: "approve" }
@@ -732,6 +733,9 @@ export const mcBookingMachine = setup({
         },
         autoCloseScript: {
           target: "Closed",
+        },
+        Modify: {
+          target: "Approved",
         },
       },
       entry: [
