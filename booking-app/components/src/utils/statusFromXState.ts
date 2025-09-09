@@ -10,6 +10,15 @@ type BookingLike = {
   xstateData?: { snapshot?: XStateSnapshot };
   // Optional legacy fields
   status?: BookingStatusLabel | string;
+  // Legacy timestamp fields for status detection
+  noShowedAt?: any;
+  checkedOutAt?: any;
+  checkedInAt?: any;
+  canceledAt?: any;
+  declinedAt?: any;
+  finalApprovedAt?: any;
+  firstApprovedAt?: any;
+  requestedAt?: any;
   // Media Commons service flags may be present on some objects
   equipmentService?: string;
   cateringService?: string;
@@ -32,6 +41,10 @@ export function getStatusFromXState(
           return BookingStatusLabel.PRE_APPROVED;
         }
         if (xvalue["Service Closeout"]) {
+          // Check if this booking was marked as no show
+          if (booking?.noShowedAt) {
+            return BookingStatusLabel.CANCELED;
+          }
           return BookingStatusLabel.CHECKED_OUT;
         }
       }

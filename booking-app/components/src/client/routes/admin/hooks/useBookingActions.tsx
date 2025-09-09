@@ -1136,8 +1136,8 @@ export default function useBookingActions({
       date.getTime() - startDate.toDate().getTime() >= THIRTY_MIN_MS;
     if (
       thirtyPastStartTime &&
-      (status === BookingStatusLabel.APPROVED ||
-        status === BookingStatusLabel.CHECKED_IN)
+      status === BookingStatusLabel.APPROVED
+      // Removed CHECKED_IN from No Show conditions - once checked in, only checkout is possible
     ) {
       options.push(Actions.NO_SHOW);
     }
