@@ -634,6 +634,7 @@ async function handleStateTransitions(
     }
 
     // Update calendar event with CHECKED_IN status
+    // Status will be read from XState data in bookingContentsToDescription
     try {
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_BASE_URL}/api/calendarEvents`,
@@ -656,6 +657,7 @@ async function handleStateTransitions(
           {
             calendarEventId,
             statusPrefix: BookingStatusLabel.CHECKED_IN,
+            note: "Status will be read from XState data",
           }
         );
       }
@@ -752,6 +754,7 @@ async function handleStateTransitions(
     }
 
     // Update calendar event with CHECKED_OUT status (including end time)
+    // Status will be read from XState data in bookingContentsToDescription
     try {
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_BASE_URL}/api/calendarEvents`,
@@ -779,6 +782,7 @@ async function handleStateTransitions(
           {
             calendarEventId,
             statusPrefix: BookingStatusLabel.CHECKED_OUT,
+            note: "Status will be read from XState data",
           }
         );
       }
