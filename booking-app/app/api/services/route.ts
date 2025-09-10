@@ -309,47 +309,18 @@ export async function POST(req: NextRequest) {
             }
           }
 
-          // Handle CLOSED state: log final closure after all services are closed out
-          if (transitionedToClosed && doc) {
-            const closedLogResponse = await fetch(
-              `${process.env.NEXT_PUBLIC_BASE_URL}/api/booking-logs`,
+          // CLOSED state logging is now handled by XState action calling /api/close-processing
+          // This avoids duplicate CLOSED logs in the history
+          if (transitionedToClosed) {
+            console.log(
+              `🎯 TRANSITIONED TO CLOSED STATE [${tenant?.toUpperCase()}]:`,
               {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  "x-tenant": tenant || DEFAULT_TENANT,
-                },
-                body: JSON.stringify({
-                  bookingId: doc.id,
-                  calendarEventId,
-                  status: BookingStatusLabel.CLOSED,
-                  changedBy: email,
-                  requestNumber: doc.requestNumber,
-                  note: null,
-                }),
+                calendarEventId,
+                serviceType,
+                action,
+                note: "CLOSED logging handled by XState close processing action",
               },
             );
-
-            if (closedLogResponse.ok) {
-              console.log(
-                `📋 CLOSED HISTORY LOGGED [${tenant?.toUpperCase()}]:`,
-                {
-                  calendarEventId,
-                  bookingId: doc.id,
-                  requestNumber: doc.requestNumber,
-                  status: BookingStatusLabel.CLOSED,
-                  trigger: `${serviceType} service ${action}`,
-                },
-              );
-            } else {
-              console.error(
-                `🚨 CLOSED HISTORY LOG FAILED [${tenant?.toUpperCase()}]:`,
-                {
-                  calendarEventId,
-                  status: closedLogResponse.status,
-                },
-              );
-            }
           }
         }
       }
