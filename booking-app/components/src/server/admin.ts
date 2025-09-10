@@ -172,10 +172,11 @@ export const serverBookingContents = async (id: string, tenant?: string) => {
       minute: "2-digit",
       hour12: true,
     }),
-    status:
-      history.length > 0
-        ? history[history.length - 1].status
-        : BookingStatusLabel.REQUESTED,
+    // Don't override status - let getStatusFromXState handle it using XState data
+    // status:
+    //   history.length > 0
+    //     ? history[history.length - 1].status
+    //     : BookingStatusLabel.REQUESTED,
   });
 
   return updatedBookingObj as unknown as BookingFormDetails;
@@ -414,10 +415,12 @@ export const serverApproveInstantBooking = async (
     }
   }
 
-  serverFirstApprove(id, "System", tenant);
-
   if (shouldDoFinalApproval) {
+    // For instant booking with no services, skip first approval and go directly to final approval
     serverFinalApprove(id, "System", tenant);
+  } else {
+    // For VIP bookings with services, only do first approval to allow service request flow
+    serverFirstApprove(id, "System", tenant);
   }
 
   const doc = await serverGetDataByCalendarEventId<{
@@ -612,6 +615,7 @@ export const serverSendBookingDetailEmail = async ({
     bodyMessage: "",
     approverType,
     replyTo,
+    tenant,
   };
   const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/sendEmail`, {
     method: "POST",
@@ -794,31 +798,9 @@ export const firstApproverEmails = async (department: string) => {
   const normalizeDepartment = (dept: string) => {
     if (!dept) return dept;
 
-    // Use string methods instead of regex to avoid ReDoS vulnerabilities
-    let normalized = dept.trim();
-
-    // Replace multiple consecutive whitespace characters with single space
-    // Using iterative approach instead of regex quantifiers
-    while (normalized.includes("  ")) {
-      normalized = normalized.replace("  ", " ");
-    }
-    while (normalized.includes("\t")) {
-      normalized = normalized.replace("\t", " ");
-    }
-    while (normalized.includes("\n")) {
-      normalized = normalized.replace("\n", " ");
-    }
-    while (normalized.includes("\r")) {
-      normalized = normalized.replace("\r", " ");
-    }
-
-    // Normalize slashes - safer regex without quantifiers
-    normalized = normalized.replace(" /", " /").replace("/ ", "/ ");
-    if (normalized.includes("/") && !normalized.includes(" / ")) {
-      normalized = normalized.replace("/", " / ");
-    }
-
-    return normalized.trim().toLowerCase();
+    // Simple normalization: trim whitespace and convert to lowercase
+    // Complex slash processing is unnecessary for keyword-based matching
+    return dept.trim().toLowerCase();
   };
 
   const normalizedUserDepartment = normalizeDepartment(department);
@@ -833,13 +815,26 @@ export const firstApproverEmails = async (department: string) => {
     const normalizedApproverDepartment = normalizeDepartment(
       approver.department
     );
-    const matches = normalizedApproverDepartment === normalizedUserDepartment;
+
+    // Check if user department contains any of the key department identifiers
+    const itpDeptKeywords = ["itp", "ima", "low res"];
+
+    const userHasKeywords = itpDeptKeywords.some((keyword) =>
+      normalizedUserDepartment.includes(keyword)
+    );
+    const approverHasKeywords = itpDeptKeywords.some((keyword) =>
+      normalizedApproverDepartment.includes(keyword)
+    );
+
+    const matches = userHasKeywords && approverHasKeywords;
 
     console.log(`🔍 DEPARTMENT COMPARISON:`, {
       userDepartment: department,
       normalizedUserDepartment,
       approverDepartment: approver.department,
       normalizedApproverDepartment,
+      userHasKeywords,
+      approverHasKeywords,
       matches,
     });
 

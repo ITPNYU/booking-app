@@ -936,7 +936,8 @@ export default function useBookingActions({
           },
           body: JSON.stringify({
             calendarEventId,
-            eventType: "closeoutStaff",
+            serviceType: "staff",
+            action: "closeout",
             email: userEmail,
           }),
         });
@@ -963,7 +964,8 @@ export default function useBookingActions({
           },
           body: JSON.stringify({
             calendarEventId,
-            eventType: "closeoutEquipment",
+            serviceType: "equipment",
+            action: "closeout",
             email: userEmail,
           }),
         });
@@ -990,7 +992,8 @@ export default function useBookingActions({
           },
           body: JSON.stringify({
             calendarEventId,
-            eventType: "closeoutCatering",
+            serviceType: "catering",
+            action: "closeout",
             email: userEmail,
           }),
         });
@@ -1017,7 +1020,8 @@ export default function useBookingActions({
           },
           body: JSON.stringify({
             calendarEventId,
-            eventType: "closeoutCleaning",
+            serviceType: "cleaning",
+            action: "closeout",
             email: userEmail,
           }),
         });
@@ -1044,7 +1048,8 @@ export default function useBookingActions({
           },
           body: JSON.stringify({
             calendarEventId,
-            eventType: "closeoutSecurity",
+            serviceType: "security",
+            action: "closeout",
             email: userEmail,
           }),
         });
@@ -1071,7 +1076,8 @@ export default function useBookingActions({
           },
           body: JSON.stringify({
             calendarEventId,
-            eventType: "closeoutSetup",
+            serviceType: "setup",
+            action: "closeout",
             email: userEmail,
           }),
         });
@@ -1098,7 +1104,12 @@ export default function useBookingActions({
     ) {
       options.push(Actions.CANCEL);
     }
-    if (status == BookingStatusLabel.REQUESTED && startDate.toDate() > date) {
+    // Allow EDIT for REQUESTED and DECLINED bookings (if future date)
+    if (
+      (status === BookingStatusLabel.REQUESTED ||
+        status === BookingStatusLabel.DECLINED) &&
+      startDate.toDate() > date
+    ) {
       options.push(Actions.EDIT);
     }
     return options;
@@ -1112,7 +1123,7 @@ export default function useBookingActions({
       options.push(Actions.MODIFICATION);
     } else if (status === BookingStatusLabel.CHECKED_IN) {
       options.push(Actions.CHECK_OUT);
-      options.push(Actions.MODIFICATION);
+      // Note: MODIFICATION removed from CHECKED_IN state - once checked in, only checkout is possible
     } else if (status === BookingStatusLabel.NO_SHOW) {
       options.push(Actions.CHECK_IN);
     } else if (status === BookingStatusLabel.WALK_IN) {
@@ -1125,8 +1136,8 @@ export default function useBookingActions({
       date.getTime() - startDate.toDate().getTime() >= THIRTY_MIN_MS;
     if (
       thirtyPastStartTime &&
-      (status === BookingStatusLabel.APPROVED ||
-        status === BookingStatusLabel.CHECKED_IN)
+      status === BookingStatusLabel.APPROVED
+      // Removed CHECKED_IN from No Show conditions - once checked in, only checkout is possible
     ) {
       options.push(Actions.NO_SHOW);
     }

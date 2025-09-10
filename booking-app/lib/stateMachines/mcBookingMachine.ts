@@ -28,6 +28,8 @@ interface MediaCommonsBookingContext {
     security?: boolean;
     setup?: boolean;
   };
+  // Flag to indicate this XState was created from existing booking without prior xstateData
+  _restoredFromStatus?: boolean;
 }
 
 // ⚠️ XSTATE PURITY CONSTRAINT:
@@ -44,6 +46,7 @@ export const mcBookingMachine = setup({
     context: {} as MediaCommonsBookingContext,
     events: {} as
       | { type: "edit" }
+      | { type: "Modify" }
       | { type: "cancel" }
       | { type: "noShow" }
       | { type: "approve" }
@@ -120,6 +123,72 @@ export const mcBookingMachine = setup({
           note: "Actual calendar deletion handled outside XState",
         }
       );
+    },
+    logBookingHistory: async (
+      { context, event },
+      params: { status?: string; note?: string } = {}
+    ) => {
+      // Log booking history directly from XState
+      try {
+        const { logServerBookingChange, serverGetDataByCalendarEventId } =
+          await import("@/lib/firebase/server/adminDb");
+        const { TableNames } = await import("@/components/src/policy");
+        const { BookingStatusLabel } = await import("@/components/src/types");
+
+        // Get the action parameters from the second argument
+        const status = params?.status;
+        const note = params?.note;
+
+        if (!status) {
+          console.warn(
+            `⚠️ XSTATE HISTORY LOG SKIPPED - NO STATUS [${context.tenant?.toUpperCase()}]:`,
+            { calendarEventId: context.calendarEventId }
+          );
+          return;
+        }
+
+        // Get booking document to get bookingId and requestNumber
+        const bookingDoc = await serverGetDataByCalendarEventId(
+          TableNames.BOOKING,
+          context.calendarEventId,
+          context.tenant
+        );
+
+        if (!bookingDoc) {
+          console.error(
+            `❌ XSTATE HISTORY LOG: Booking not found [${context.tenant?.toUpperCase()}]`,
+            { calendarEventId: context.calendarEventId }
+          );
+          return;
+        }
+
+        await logServerBookingChange({
+          bookingId: bookingDoc.id,
+          calendarEventId: context.calendarEventId,
+          status: status as any, // Type assertion for dynamic import
+          changedBy: context.email || "system",
+          requestNumber: (bookingDoc as any).requestNumber || 0,
+          note: note || "",
+          tenant: context.tenant,
+        });
+
+        console.log(
+          `📋 XSTATE HISTORY LOGGED [${context.tenant?.toUpperCase() || "UNKNOWN"}]:`,
+          {
+            calendarEventId: context.calendarEventId,
+            status,
+            note,
+          }
+        );
+      } catch (error) {
+        console.error(
+          `🚨 XSTATE HISTORY LOG FAILED [${context.tenant?.toUpperCase() || "UNKNOWN"}]:`,
+          {
+            calendarEventId: context.calendarEventId,
+            error: error.message,
+          }
+        );
+      }
     },
     inviteUserToCalendarEvent: ({ context, event }) => {
       console.log(`👥 XSTATE ACTION: inviteUserToCalendarEvent executed`, {
@@ -229,6 +298,18 @@ export const mcBookingMachine = setup({
         }
       );
 
+      // If this is a newly created XState (converted from existing booking without XState data), don't auto-approve
+      // This prevents auto-approval when converting existing bookings to XState
+      if (context._restoredFromStatus) {
+        console.log(
+          `🚫 XSTATE GUARD: Newly created XState from existing booking (no prior xstateData), requires manual approval`
+        );
+        console.log(
+          `🎯 XSTATE AUTO-APPROVAL GUARD RESULT: REJECTED (Converted from existing booking)`
+        );
+        return false;
+      }
+
       // Implement actual auto-approval logic for Media Commons
       if (context.tenant !== TENANTS.MC) {
         console.log(
@@ -240,10 +321,11 @@ export const mcBookingMachine = setup({
         return false;
       }
 
-      // Check if any services are requested - if so, don't auto-approve
+      // Check if any services are requested - if so, don't auto-approve (except for walk-ins)
       if (
         context.servicesRequested &&
-        typeof context.servicesRequested === "object"
+        typeof context.servicesRequested === "object" &&
+        !context.isWalkIn
       ) {
         const hasServices = Object.values(context.servicesRequested).some(
           Boolean
@@ -259,11 +341,12 @@ export const mcBookingMachine = setup({
         }
       }
 
-      // Check rooms require approval
+      // Check rooms require approval (skip for VIP and walk-in bookings)
       if (
         context.selectedRooms &&
         context.selectedRooms.length > 0 &&
-        !context.isWalkIn
+        !context.isWalkIn &&
+        !context.isVip
       ) {
         const allRoomsAutoApprove = context.selectedRooms.every(
           (room) => (room && room.shouldAutoApprove) || false
@@ -283,10 +366,30 @@ export const mcBookingMachine = setup({
           );
           return false;
         }
+      } else if (!context.isWalkIn && !context.isVip) {
+        // If no rooms selected and not a walk-in or VIP, require manual approval
+        console.log(
+          `🚫 XSTATE GUARD: No rooms selected and not walk-in/VIP, requires manual approval`
+        );
+        console.log(
+          `🎯 XSTATE AUTO-APPROVAL GUARD RESULT: REJECTED (No rooms selected)`
+        );
+        return false;
       }
 
       console.log(`✅ XSTATE GUARD: All conditions met for auto-approval`);
-      console.log(`🎯 XSTATE AUTO-APPROVAL GUARD RESULT: APPROVED`);
+      console.log(`🎯 XSTATE AUTO-APPROVAL GUARD RESULT: APPROVED`, {
+        isWalkIn: context.isWalkIn,
+        isVip: context.isVip,
+        hasServices:
+          context.servicesRequested &&
+          typeof context.servicesRequested === "object"
+            ? Object.values(context.servicesRequested).some(Boolean)
+            : false,
+        reason: context.isWalkIn
+          ? "Walk-in auto-approval"
+          : "Standard auto-approval",
+      });
       return true;
     },
     "isVip AND servicesRequested": and([
@@ -568,6 +671,13 @@ export const mcBookingMachine = setup({
         {
           type: "deleteCalendarEvent",
         },
+        {
+          type: "logBookingHistory",
+          params: {
+            status: "CANCELED",
+            note: "Booking canceled due to no show",
+          },
+        },
       ],
     },
     Declined: {
@@ -623,6 +733,9 @@ export const mcBookingMachine = setup({
         },
         autoCloseScript: {
           target: "Closed",
+        },
+        Modify: {
+          target: "Approved",
         },
       },
       entry: [
@@ -1651,6 +1764,13 @@ export const mcBookingMachine = setup({
         },
         {
           type: "updateCalendarEvent",
+        },
+        {
+          type: "logBookingHistory",
+          params: {
+            status: "NO-SHOW",
+            note: "Booking marked as no show",
+          },
         },
       ],
     },

@@ -40,9 +40,9 @@ export async function POST(req: NextRequest) {
   }
 
   // Validate action
-  if (!["approve", "decline"].includes(action)) {
+  if (!["approve", "decline", "closeout"].includes(action)) {
     return NextResponse.json(
-      { error: "Invalid action. Must be 'approve' or 'decline'" },
+      { error: "Invalid action. Must be 'approve', 'decline', or 'closeout'" },
       { status: 400 },
     );
   }
@@ -60,6 +60,9 @@ export async function POST(req: NextRequest) {
       },
     );
 
+    // Declare xstateResult in outer scope for access in response
+    let xstateResult: any = null;
+
     // For ITP and Media Commons tenants, use XState transition
     if (shouldUseXState(tenant)) {
       console.log(
@@ -76,7 +79,7 @@ export async function POST(req: NextRequest) {
         serviceType.charAt(0).toUpperCase() + serviceType.slice(1);
       const eventType = `${action}${capitalizedServiceType}`;
 
-      const xstateResult = await executeXStateTransition(
+      xstateResult = await executeXStateTransition(
         calendarEventId,
         eventType,
         tenant,
@@ -112,6 +115,7 @@ export async function POST(req: NextRequest) {
         // Check if the overall booking transitioned to final states
         const transitionedToDeclined = xstateResult.newState === "Declined";
         const transitionedToApproved = xstateResult.newState === "Approved";
+        const transitionedToClosed = xstateResult.newState === "Closed";
 
         // Add history logging for individual service approve/decline since XState doesn't handle history
         const { serverGetDataByCalendarEventId } = await import(
@@ -130,8 +134,18 @@ export async function POST(req: NextRequest) {
           const serviceDisplayName =
             serviceType.charAt(0).toUpperCase() + serviceType.slice(1);
           const actionDisplayName =
-            action === "approve" ? "Approved" : "Declined";
+            action === "approve"
+              ? "Approved"
+              : action === "decline"
+                ? "Declined"
+                : "Closed Out";
           const serviceNote = `${serviceDisplayName} Service ${actionDisplayName}`;
+
+          // Determine appropriate status for history log
+          const historyStatus =
+            action === "closeout"
+              ? BookingStatusLabel.CHECKED_OUT
+              : BookingStatusLabel.PRE_APPROVED;
 
           const logResponse = await fetch(
             `${process.env.NEXT_PUBLIC_BASE_URL}/api/booking-logs`,
@@ -144,10 +158,10 @@ export async function POST(req: NextRequest) {
               body: JSON.stringify({
                 bookingId: doc.id,
                 calendarEventId,
-                status: BookingStatusLabel.PRE_APPROVED, // Always PRE-APPROVED for service actions
+                status: historyStatus, // PRE-APPROVED for approve/decline, CHECKED_OUT for closeout
                 changedBy: email,
                 requestNumber: doc.requestNumber,
-                note: serviceNote, // e.g., "Staff Service Approved", "Equipment Service Declined"
+                note: serviceNote, // e.g., "Staff Service Approved", "Equipment Service Closed Out"
               }),
             },
           );
@@ -177,6 +191,7 @@ export async function POST(req: NextRequest) {
           }
 
           // If the booking transitioned to Declined state, add a separate history log for the overall decline
+          // For multi-service declines, attribute final decline to System, not the last service decliner
           if (transitionedToDeclined && doc) {
             const declineLogResponse = await fetch(
               `${process.env.NEXT_PUBLIC_BASE_URL}/api/booking-logs`,
@@ -190,9 +205,9 @@ export async function POST(req: NextRequest) {
                   bookingId: doc.id,
                   calendarEventId,
                   status: BookingStatusLabel.DECLINED,
-                  changedBy: email,
+                  changedBy: "System",
                   requestNumber: doc.requestNumber,
-                  note: null,
+                  note: "Service request declined",
                 }),
               },
             );
@@ -220,6 +235,7 @@ export async function POST(req: NextRequest) {
           }
 
           // If the booking transitioned to Approved state, add a separate history log for the overall approval
+          // For multi-service approvals, attribute final approval to System, not the last service approver
           if (transitionedToApproved && doc) {
             const approveLogResponse = await fetch(
               `${process.env.NEXT_PUBLIC_BASE_URL}/api/booking-logs`,
@@ -233,9 +249,9 @@ export async function POST(req: NextRequest) {
                   bookingId: doc.id,
                   calendarEventId,
                   status: BookingStatusLabel.APPROVED,
-                  changedBy: email,
+                  changedBy: "System",
                   requestNumber: doc.requestNumber,
-                  note: null,
+                  note: "All required services approved",
                 }),
               },
             );
@@ -261,6 +277,80 @@ export async function POST(req: NextRequest) {
               );
             }
           }
+
+          // Handle APPROVED side effects: email notification and calendar update
+          // Call serverApproveEvent for final approval when all services are approved
+          if (transitionedToApproved && doc) {
+            try {
+              const { serverApproveEvent } = await import(
+                "@/components/src/server/admin"
+              );
+
+              await serverApproveEvent(calendarEventId, tenant);
+
+              console.log(
+                `📧 APPROVED EMAIL AND CALENDAR UPDATE COMPLETED [${tenant?.toUpperCase()}]:`,
+                {
+                  calendarEventId,
+                  bookingId: doc.id,
+                  requestNumber: doc.requestNumber,
+                  trigger: `${serviceType} service ${action}`,
+                },
+              );
+            } catch (error) {
+              console.error(
+                `🚨 APPROVED SIDE EFFECTS FAILED [${tenant?.toUpperCase()}]:`,
+                {
+                  calendarEventId,
+                  error: error.message,
+                  trigger: `${serviceType} service ${action}`,
+                },
+              );
+            }
+          }
+
+          // Handle CLOSED state: log final closure after all services are closed out
+          if (transitionedToClosed && doc) {
+            const closedLogResponse = await fetch(
+              `${process.env.NEXT_PUBLIC_BASE_URL}/api/booking-logs`,
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "x-tenant": tenant || DEFAULT_TENANT,
+                },
+                body: JSON.stringify({
+                  bookingId: doc.id,
+                  calendarEventId,
+                  status: BookingStatusLabel.CLOSED,
+                  changedBy: email,
+                  requestNumber: doc.requestNumber,
+                  note: null,
+                }),
+              },
+            );
+
+            if (closedLogResponse.ok) {
+              console.log(
+                `📋 CLOSED HISTORY LOGGED [${tenant?.toUpperCase()}]:`,
+                {
+                  calendarEventId,
+                  bookingId: doc.id,
+                  requestNumber: doc.requestNumber,
+                  status: BookingStatusLabel.CLOSED,
+                  trigger: `${serviceType} service ${action}`,
+                },
+              );
+            } else {
+              console.error(
+                `🚨 CLOSED HISTORY LOG FAILED [${tenant?.toUpperCase()}]:`,
+                {
+                  calendarEventId,
+                  status: closedLogResponse.status,
+                },
+              );
+            }
+          }
         }
       }
     } else {
@@ -279,6 +369,12 @@ export async function POST(req: NextRequest) {
         message: `${serviceType} service ${action}d successfully`,
         serviceType,
         action,
+        transitionedToApproved: shouldUseXState(tenant)
+          ? xstateResult?.newState === "Approved"
+          : false,
+        transitionedToDeclined: shouldUseXState(tenant)
+          ? xstateResult?.newState === "Declined"
+          : false,
       },
       { status: 200 },
     );

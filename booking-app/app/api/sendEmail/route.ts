@@ -40,6 +40,7 @@ export async function POST(req: NextRequest) {
       body: bodyMessage || "",
       approverType,
       replyTo,
+      tenant,
     });
     return NextResponse.json(
       { message: "Email sent successfully" },

@@ -200,8 +200,35 @@ export const decline = async (
         newState: xstateResult.newState,
       });
 
-      // XState handled the decline successfully, including email sending
-      // Skip the traditional email sending below
+      // XState handled the decline successfully, now add history logging
+      const doc = await clientGetDataByCalendarEventId<{
+        id: string;
+        requestNumber: number;
+      }>(TableNames.BOOKING, id, tenant);
+
+      if (doc) {
+        await logClientBookingChange({
+          bookingId: doc.id,
+          calendarEventId: id,
+          status: BookingStatusLabel.DECLINED,
+          changedBy: email,
+          requestNumber: doc.requestNumber,
+          note: reason,
+          tenant,
+        });
+
+        console.log(
+          `📋 XSTATE DECLINE HISTORY LOGGED [${tenant?.toUpperCase()}]:`,
+          {
+            calendarEventId: id,
+            bookingId: doc.id,
+            requestNumber: doc.requestNumber,
+            reason,
+          }
+        );
+      }
+
+      // Skip the traditional processing below
       return;
     }
   } else {
@@ -356,7 +383,32 @@ export const cancel = async (
         newState: xstateResult.newState,
       });
 
-      // XState handled the cancel successfully, including history logging
+      // XState handled the cancel successfully, now add history logging
+      const doc = await clientGetDataByCalendarEventId<{
+        id: string;
+        requestNumber: number;
+      }>(TableNames.BOOKING, id, tenant);
+
+      if (doc) {
+        await logClientBookingChange({
+          bookingId: doc.id,
+          calendarEventId: id,
+          status: BookingStatusLabel.CANCELED,
+          changedBy: email,
+          requestNumber: doc.requestNumber,
+          tenant,
+        });
+
+        console.log(
+          `📋 XSTATE CANCEL HISTORY LOGGED [${tenant?.toUpperCase()}]:`,
+          {
+            calendarEventId: id,
+            bookingId: doc.id,
+            requestNumber: doc.requestNumber,
+          }
+        );
+      }
+
       // Skip the traditional processing below
       return;
     }
@@ -503,98 +555,39 @@ export const checkin = async (id: string, email: string, tenant?: string) => {
     calendarEventId: id,
     email,
     tenant,
-    usingXState: shouldUseXState(tenant),
   });
 
-  // For ITP and Media Commons tenants, use XState transition via API
-  if (shouldUseXState(tenant)) {
-    console.log(`🎭 USING XSTATE API FOR CHECKIN [${tenant?.toUpperCase()}]:`, {
-      calendarEventId: id,
-    });
+  console.log(`🎭 USING XSTATE API FOR CHECKIN [${tenant?.toUpperCase()}]:`, {
+    calendarEventId: id,
+  });
 
-    const xstateResult = await callXStateTransitionAPI(
-      id,
-      "checkIn",
-      email,
-      tenant
-    );
-
-    if (!xstateResult.success) {
-      console.error(
-        `🚨 XSTATE CHECKIN API FAILED [${tenant?.toUpperCase()}]:`,
-        {
-          calendarEventId: id,
-          error: xstateResult.error,
-        }
-      );
-
-      // Fallback to traditional checkin if XState API fails
-      console.log(
-        `🔄 FALLING BACK TO TRADITIONAL CHECKIN [${tenant?.toUpperCase()}]:`,
-        {
-          calendarEventId: id,
-        }
-      );
-    } else {
-      console.log(`✅ XSTATE CHECKIN API SUCCESS [${tenant?.toUpperCase()}]:`, {
-        calendarEventId: id,
-        newState: xstateResult.newState,
-      });
-
-      // XState handled the checkin successfully, including email sending
-      // Add history logging here since XState doesn't handle history
-      const doc = await clientGetDataByCalendarEventId<{
-        id: string;
-        requestNumber: number;
-      }>(TableNames.BOOKING, id, tenant);
-
-      if (doc) {
-        await logClientBookingChange({
-          bookingId: doc.id,
-          calendarEventId: id,
-          status: BookingStatusLabel.CHECKED_IN,
-          changedBy: email,
-          requestNumber: doc.requestNumber,
-          note: "",
-          tenant,
-        });
-
-        console.log(
-          `📋 XSTATE CHECKIN HISTORY LOGGED [${tenant?.toUpperCase()}]:`,
-          {
-            calendarEventId: id,
-            bookingId: doc.id,
-            requestNumber: doc.requestNumber,
-          }
-        );
-      }
-
-      // Skip the traditional processing below
-      return;
-    }
-  } else {
-    console.log(
-      `📝 USING TRADITIONAL CHECKIN [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-      { calendarEventId: id }
-    );
-  }
-
-  clientUpdateDataByCalendarEventId(
-    TableNames.BOOKING,
+  const xstateResult = await callXStateTransitionAPI(
     id,
-    {
-      checkedInAt: Timestamp.now(),
-      checkedInBy: email,
-    },
+    "checkIn",
+    email,
     tenant
   );
+
+  if (!xstateResult.success) {
+    console.error(`🚨 XSTATE CHECKIN API FAILED [${tenant?.toUpperCase()}]:`, {
+      calendarEventId: id,
+      error: xstateResult.error,
+    });
+    throw new Error(`XState checkin failed: ${xstateResult.error}`);
+  }
+
+  console.log(`✅ XSTATE CHECKIN API SUCCESS [${tenant?.toUpperCase()}]:`, {
+    calendarEventId: id,
+    newState: xstateResult.newState,
+  });
+
+  // XState handled the checkin successfully, now add history logging and send email
+  // Add history logging here since XState doesn't handle history
   const doc = await clientGetDataByCalendarEventId<{
     id: string;
     requestNumber: number;
   }>(TableNames.BOOKING, id, tenant);
 
-  console.log("check in doc", doc);
-  // Log the check-in action (only for traditional processing)
   if (doc) {
     await logClientBookingChange({
       bookingId: doc.id,
@@ -605,7 +598,18 @@ export const checkin = async (id: string, email: string, tenant?: string) => {
       note: "",
       tenant,
     });
+
+    console.log(
+      `📋 XSTATE CHECKIN HISTORY LOGGED [${tenant?.toUpperCase()}]:`,
+      {
+        calendarEventId: id,
+        bookingId: doc.id,
+        requestNumber: doc.requestNumber,
+      }
+    );
   }
+
+  // Send check-in email after history logging
   //@ts-ignore
   const guestEmail = doc ? doc.email : null;
 
@@ -618,20 +622,11 @@ export const checkin = async (id: string, email: string, tenant?: string) => {
     BookingStatusLabel.CHECKED_IN,
     tenant
   );
-  const response = await fetch(
-    `${process.env.NEXT_PUBLIC_BASE_URL}/api/calendarEvents`,
-    {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        "x-tenant": tenant || DEFAULT_TENANT,
-      },
-      body: JSON.stringify({
-        calendarEventId: id,
-        newValues: { statusPrefix: BookingStatusLabel.CHECKED_IN },
-      }),
-    }
-  );
+
+  console.log(`📧 XSTATE CHECKIN EMAIL SENT [${tenant?.toUpperCase()}]:`, {
+    calendarEventId: id,
+    guestEmail,
+  });
 };
 
 export const checkOut = async (id: string, email: string, tenant?: string) => {
@@ -639,77 +634,38 @@ export const checkOut = async (id: string, email: string, tenant?: string) => {
     calendarEventId: id,
     email,
     tenant,
-    usingXState: shouldUseXState(tenant),
   });
 
-  // For ITP and Media Commons tenants, use XState transition via API
-  if (shouldUseXState(tenant)) {
-    console.log(
-      `🎭 USING XSTATE API FOR CHECKOUT [${tenant?.toUpperCase()}]:`,
-      {
-        calendarEventId: id,
-      }
-    );
+  console.log(`🎭 USING XSTATE API FOR CHECKOUT [${tenant?.toUpperCase()}]:`, {
+    calendarEventId: id,
+  });
 
-    const xstateResult = await callXStateTransitionAPI(
-      id,
-      "checkOut",
-      email,
-      tenant
-    );
-
-    if (!xstateResult.success) {
-      console.error(
-        `🚨 XSTATE CHECKOUT API FAILED [${tenant?.toUpperCase()}]:`,
-        {
-          calendarEventId: id,
-          error: xstateResult.error,
-        }
-      );
-
-      // Fallback to traditional checkout if XState API fails
-      console.log(
-        `🔄 FALLING BACK TO TRADITIONAL CHECKOUT [${tenant?.toUpperCase()}]:`,
-        {
-          calendarEventId: id,
-        }
-      );
-    } else {
-      console.log(
-        `✅ XSTATE CHECKOUT API SUCCESS [${tenant?.toUpperCase()}]:`,
-        {
-          calendarEventId: id,
-          newState: xstateResult.newState,
-        }
-      );
-
-      // XState handled the checkout successfully, including email sending and history logging
-      // Skip the traditional processing below
-      return;
-    }
-  } else {
-    console.log(
-      `📝 USING TRADITIONAL CHECKOUT [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-      { calendarEventId: id }
-    );
-  }
-
-  clientUpdateDataByCalendarEventId(
-    TableNames.BOOKING,
+  const xstateResult = await callXStateTransitionAPI(
     id,
-    {
-      checkedOutAt: Timestamp.now(),
-      checkedOutBy: email,
-    },
+    "checkOut",
+    email,
     tenant
   );
+
+  if (!xstateResult.success) {
+    console.error(`🚨 XSTATE CHECKOUT API FAILED [${tenant?.toUpperCase()}]:`, {
+      calendarEventId: id,
+      error: xstateResult.error,
+    });
+    throw new Error(`XState checkout failed: ${xstateResult.error}`);
+  }
+
+  console.log(`✅ XSTATE CHECKOUT API SUCCESS [${tenant?.toUpperCase()}]:`, {
+    calendarEventId: id,
+    newState: xstateResult.newState,
+  });
+
+  // XState handled the checkout successfully, now add history logging
   const doc = await clientGetDataByCalendarEventId<{
     id: string;
     requestNumber: number;
   }>(TableNames.BOOKING, id, tenant);
-  console.log("check out doc", doc);
 
-  // Log the check-out action (only for traditional processing)
   if (doc) {
     await logClientBookingChange({
       bookingId: doc.id,
@@ -719,36 +675,16 @@ export const checkOut = async (id: string, email: string, tenant?: string) => {
       requestNumber: doc.requestNumber,
       tenant,
     });
-  }
-  //@ts-ignore
-  const guestEmail = doc ? doc.email : null;
 
-  const headerMessage =
-    "Your reservation request for Media Commons has been checked out. Thank you for choosing Media Commons.";
-  clientSendBookingDetailEmail(
-    id,
-    guestEmail,
-    headerMessage,
-    BookingStatusLabel.CHECKED_OUT,
-    tenant
-  );
-
-  const response = await fetch(
-    `${process.env.NEXT_PUBLIC_BASE_URL}/api/calendarEvents`,
-    {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        "x-tenant": tenant || DEFAULT_TENANT,
-      },
-      body: JSON.stringify({
+    console.log(
+      `📋 XSTATE CHECKOUT HISTORY LOGGED [${tenant?.toUpperCase()}]:`,
+      {
         calendarEventId: id,
-        newValues: {
-          statusPrefix: BookingStatusLabel.CHECKED_OUT,
-        },
-      }),
-    }
-  );
+        bookingId: doc.id,
+        requestNumber: doc.requestNumber,
+      }
+    );
+  }
 };
 
 export const noShow = async (
@@ -1006,10 +942,24 @@ const getBookingHistory = async (booking: Booking) => {
 
   // Add walk in
   if (booking.walkedInAt) {
+    let walkedInDate: string;
+    if (booking.walkedInAt.toDate) {
+      // Firebase Timestamp object
+      walkedInDate = booking.walkedInAt.toDate().toLocaleString();
+    } else if (booking.walkedInAt.seconds) {
+      // Plain object with seconds/nanoseconds
+      walkedInDate = new Date(
+        booking.walkedInAt.seconds * 1000
+      ).toLocaleString();
+    } else {
+      // Fallback
+      walkedInDate = new Date().toLocaleString();
+    }
+
     history.push({
       status: BookingStatusLabel.WALK_IN,
       user: "PA",
-      date: booking.walkedInAt.toDate().toLocaleString(),
+      date: walkedInDate,
       note: "",
     });
   }
