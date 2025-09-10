@@ -1291,17 +1291,10 @@ export const mcBookingMachine = setup({
         cancel: {
           target: "Canceled",
         },
-        decline: [
-          {
-            target: "Services Request",
-            guard: {
-              type: "servicesRequested",
-            },
-          },
-          {
-            target: "Declined",
-          },
-        ],
+        decline: {
+          target: "Declined",
+          actions: "setDeclineReason",
+        },
         edit: {
           target: "Requested",
         },
