@@ -326,6 +326,88 @@ export const mcBookingMachine = setup({
       console.log(`🎬 XSTATE ACTOR: handleCancelProcessing completed`);
     },
 
+    handleCheckoutProcessing: async ({ context, event }) => {
+      console.log(`🎬 XSTATE ACTOR: handleCheckoutProcessing started`, {
+        input: {
+          context: {
+            tenant: context.tenant,
+            calendarEventId: context.calendarEventId,
+            email: context.email,
+          },
+        },
+      });
+
+      try {
+        const calendarEventId = context.calendarEventId;
+        const email = context.email || "system";
+        const tenant = context.tenant;
+
+        if (calendarEventId) {
+          console.log(
+            `🎬 XSTATE ACTOR: About to call checkout processing API`,
+            {
+              calendarEventId,
+              email,
+              tenant,
+            }
+          );
+
+          // Call the checkout processing API
+          const response = await fetch(
+            `${process.env.NEXT_PUBLIC_BASE_URL}/api/checkout-processing`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "x-tenant": tenant || "mc",
+              },
+              body: JSON.stringify({
+                calendarEventId,
+                email,
+                tenant,
+              }),
+            }
+          );
+
+          if (response.ok) {
+            const result = await response.json();
+            console.log(`✅ XSTATE ACTOR: Checkout processing API succeeded`, {
+              calendarEventId,
+              result,
+            });
+          } else {
+            const errorText = await response.text();
+            console.error(`🚨 XSTATE ACTOR: Checkout processing API failed`, {
+              calendarEventId,
+              status: response.status,
+              error: errorText,
+            });
+          }
+        } else {
+          console.warn(
+            `⚠️ XSTATE ACTOR: No calendarEventId available for checkout processing`,
+            {
+              context: {
+                tenant: context.tenant,
+                email: context.email,
+              },
+            }
+          );
+        }
+      } catch (error) {
+        console.error(`🚨 XSTATE ACTOR: handleCheckoutProcessing error:`, {
+          error: error.message,
+          context: {
+            tenant: context.tenant,
+            calendarEventId: context.calendarEventId,
+            email: context.email,
+          },
+        });
+      }
+
+      console.log(`🎬 XSTATE ACTOR: handleCheckoutProcessing completed`);
+    },
+
     handleCloseProcessing: async ({ context, event }) => {
       console.log(`🎬 XSTATE ACTOR: handleCloseProcessing started`, {
         input: {
@@ -404,6 +486,7 @@ export const mcBookingMachine = setup({
 
       console.log(`🎬 XSTATE ACTOR: handleCloseProcessing completed`);
     },
+
     // Service decline actions that update context
     declineStaffService: assign({
       servicesApproved: ({ context }) => ({
@@ -1965,6 +2048,9 @@ export const mcBookingMachine = setup({
             tenant: context.tenant,
             timestamp: new Date().toISOString(),
           });
+        },
+        {
+          type: "handleCheckoutProcessing",
         },
         {
           type: "sendHTMLEmail",

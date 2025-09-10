@@ -61,6 +61,87 @@ export function createXStateData(
   };
 }
 
+// Common function to create fresh XState actor and data
+export async function createFreshXStateData(
+  tenant: string,
+  calendarEventId: string,
+  email: string,
+  selectedRooms: any[],
+  formData: any,
+  bookingCalendarInfo: any,
+) {
+  const { createActor } = await import("xstate");
+  const { mcBookingMachine } = await import(
+    "@/lib/stateMachines/mcBookingMachine"
+  );
+
+  // Create a fresh actor with clean initial context
+  const machine = mcBookingMachine.provide({
+    // Provide fresh context
+  });
+
+  const bookingActor = createActor(machine, {
+    input: {
+      tenant: tenant,
+      selectedRooms: selectedRooms || [],
+      formData: formData || {},
+      bookingCalendarInfo: bookingCalendarInfo || {},
+      calendarEventId: calendarEventId,
+      email: email,
+    },
+  });
+
+  // Start the actor
+  bookingActor.start();
+
+  // Get the current snapshot
+  const persistedSnapshot = bookingActor.getPersistedSnapshot();
+
+  // Clean snapshot manually (same logic as cleanObjectForFirestore)
+  const cleanSnapshot = cleanObjectForFirestore(persistedSnapshot);
+
+  // Use the common function to create XState data
+  const xstateData = createXStateData(machine.id, cleanSnapshot);
+
+  console.log(`🔄 CREATED FRESH XSTATE DATA:`, {
+    calendarEventId: calendarEventId,
+    currentState: cleanSnapshot?.value,
+    hasSnapshot: !!cleanSnapshot,
+    machineId: xstateData.machineId,
+  });
+
+  // Stop the actor
+  bookingActor.stop();
+
+  return xstateData;
+}
+
+// Helper function to clean objects for Firestore (same as in xstateUtilsV5)
+function cleanObjectForFirestore(obj: any): any {
+  if (obj === null || obj === undefined) {
+    return null;
+  }
+
+  if (typeof obj !== "object") {
+    return obj;
+  }
+
+  if (Array.isArray(obj)) {
+    return obj
+      .map(item => cleanObjectForFirestore(item))
+      .filter(item => item !== undefined);
+  }
+
+  const cleaned: any = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (value !== undefined) {
+      cleaned[key] = cleanObjectForFirestore(value);
+    }
+  }
+
+  return cleaned;
+}
+
 // Common function to create XState snapshot data
 async function createXStateSnapshotData(
   tenant: string,
@@ -102,32 +183,6 @@ async function createXStateSnapshotData(
   freshActor.stop();
 
   return xstateData;
-}
-
-// Clean object by removing undefined values for Firestore compatibility
-function cleanObjectForFirestore(obj: any): any {
-  if (obj === null || obj === undefined) {
-    return null;
-  }
-
-  if (typeof obj !== "object") {
-    return obj;
-  }
-
-  if (Array.isArray(obj)) {
-    return obj
-      .map(item => cleanObjectForFirestore(item))
-      .filter(item => item !== undefined);
-  }
-
-  const cleaned: any = {};
-  for (const [key, value] of Object.entries(obj)) {
-    if (value !== undefined) {
-      cleaned[key] = cleanObjectForFirestore(value);
-    }
-  }
-
-  return cleaned;
 }
 
 // Helper function to extract tenant from request
@@ -721,24 +776,23 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Get XState v5 persisted snapshot
-    const persistedSnapshot = bookingActor.getPersistedSnapshot();
-    const cleanSnapshot = cleanObjectForFirestore(persistedSnapshot);
+    // Use the common function to create XState data (same as edit process)
+    xstateData = await createFreshXStateData(
+      tenant,
+      "", // calendarEventId will be set later
+      email,
+      selectedRooms,
+      data,
+      bookingCalendarInfo,
+    );
 
-    // Use the common function to create XState data
-    xstateData = createXStateData(machine.id, cleanSnapshot);
-
-    console.log(`🎭 XSTATE: Preparing state for persistence:`, {
-      currentState: cleanSnapshot?.value,
-      hasSnapshot: !!cleanSnapshot,
-      snapshotKeys: cleanSnapshot ? Object.keys(cleanSnapshot) : [],
-      machineId: xstateData.machineId,
-    });
-
-    // Stop the actor
-    console.log(`🎭 XSTATE: Stopping actor...`);
-    bookingActor.stop();
-    console.log(`🎭 XSTATE: Actor stopped`);
+    console.log(
+      `🎭 XSTATE: Prepared state for persistence using common function:`,
+      {
+        currentState: xstateData.snapshot?.value,
+        machineId: xstateData.machineId,
+      },
+    );
   }
 
   console.log(
@@ -1031,23 +1085,28 @@ export async function PUT(request: NextRequest) {
         );
         // Skip XState transition and continue with traditional modification
       } else {
-        const { executeXStateTransition } = await import(
-          "@/lib/stateMachines/xstateUtilsV5"
+        console.log(
+          `🔄 CREATING FRESH XSTATE FOR EDIT [${tenant?.toUpperCase()}]:`,
+          {
+            calendarEventId,
+            reason:
+              "Creating new XState instead of transitioning existing one to avoid stale context",
+          },
         );
 
-        const xstateResult = await executeXStateTransition(
-          calendarEventId,
-          "edit",
-          tenant,
-          undefined, // No email needed for edit
-        );
+        // Instead of transitioning existing XState, create a fresh one
+        const xstateResult = {
+          success: true,
+          newState: "Requested",
+          note: "Fresh XState created for edit",
+        };
 
         if (!xstateResult.success) {
           console.error(
             `🚨 XSTATE MODIFICATION FAILED [${tenant?.toUpperCase()}]:`,
             {
               calendarEventId,
-              error: xstateResult.error,
+              error: "Fresh XState creation failed",
             },
           );
 
@@ -1267,16 +1326,38 @@ export async function PUT(request: NextRequest) {
       "firstApprovedBy",
     ];
 
-    // Also delete decline fields if this was a declined booking being edited
+    // Also delete decline fields, service approval fields, and XState data if this was a declined booking being edited
     if (xstateProcessed && xstateNewState === "Requested") {
-      fieldsToDelete.push("declinedAt", "declinedBy", "declineReason");
+      fieldsToDelete.push(
+        "declinedAt",
+        "declinedBy",
+        "declineReason",
+        "staffServiceApproved",
+        "equipmentServiceApproved",
+        "cateringServiceApproved",
+        "cleaningServiceApproved",
+        "securityServiceApproved",
+        "setupServiceApproved",
+        "xstateData", // Delete existing XState data to force fresh creation
+      );
       console.log(
-        `🗑️ DELETING DECLINE FIELDS FOR EDIT [${tenant?.toUpperCase()}]:`,
+        `🗑️ DELETING DECLINE, SERVICE APPROVAL FIELDS, AND XSTATE DATA FOR EDIT [${tenant?.toUpperCase()}]:`,
         {
           calendarEventId: newCalendarEventId,
-          fieldsToDelete: ["declinedAt", "declinedBy", "declineReason"],
+          fieldsToDelete: [
+            "declinedAt",
+            "declinedBy",
+            "declineReason",
+            "staffServiceApproved",
+            "equipmentServiceApproved",
+            "cateringServiceApproved",
+            "cleaningServiceApproved",
+            "securityServiceApproved",
+            "setupServiceApproved",
+            "xstateData",
+          ],
           reason:
-            "Booking edited after decline - returning to Requested status",
+            "Booking edited after decline - returning to Requested status, resetting service approvals, and creating fresh XState",
         },
       );
     }
@@ -1300,17 +1381,22 @@ export async function PUT(request: NextRequest) {
         },
       );
 
-      // Create fresh XState data using the common function with proper context
-      const freshXStateData = await createXStateSnapshotData(
+      // Use the same common function as new bookings
+      const freshXStateData = await createFreshXStateData(
         tenant,
         newCalendarEventId,
         email,
-        xstateNewState,
+        selectedRooms,
+        data,
+        bookingCalendarInfo,
+      );
+
+      console.log(
+        `🔄 CREATED FRESH XSTATE DATA FOR EDIT [${tenant?.toUpperCase()}]:`,
         {
-          // Pass relevant context data for the new booking
-          selectedRooms: selectedRooms || [],
-          formData: data || {},
-          bookingCalendarInfo: bookingCalendarInfo || {},
+          calendarEventId: newCalendarEventId,
+          currentState: freshXStateData.snapshot?.value,
+          machineId: freshXStateData.machineId,
         },
       );
 

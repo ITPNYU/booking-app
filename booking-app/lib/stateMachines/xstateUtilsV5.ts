@@ -358,7 +358,12 @@ async function handleStateTransitions(
     );
 
     // Old close processing code removed - now handled by XState machine action
-    if (false) { // Disabled old processing
+    if (false) {
+      // Disabled old processing
+      const emailMessage =
+        "Your reservation has been closed. Thank you for choosing Media Commons.";
+      const emailStatus = BookingStatusLabel.CLOSED;
+
       console.log(
         `📧 SENDING EMAIL FOR CLOSED STATE [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
         {
@@ -704,130 +709,125 @@ async function handleStateTransitions(
       );
     }
   } else if (newState === "Checked Out" && previousState !== "Checked Out") {
-    // Check-out state handling
-    firestoreUpdates.checkedOutAt = admin.firestore.Timestamp.now();
-    if (email) {
-      firestoreUpdates.checkedOutBy = email;
-    }
-
+    // Checkout processing is now handled by XState machine actions
+    // Skip processing here to avoid duplication
     console.log(
-      `📤 XSTATE REACHED CHECKED OUT [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+      `🎯 XSTATE REACHED CHECKED OUT [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
       {
         calendarEventId,
         previousState,
         newState,
-        checkedOutAt: firestoreUpdates.checkedOutAt,
-        checkedOutBy: firestoreUpdates.checkedOutBy,
+        note: "Checkout processing handled by XState action",
       }
     );
 
-    // Note: History logging is now handled by traditional functions only
-    // XState only manages state transitions, not history logging
-
-    // Send check-out email to guest and update calendar
-    try {
-      // Use email from booking document (not from XState context)
-      const guestEmail = bookingDoc?.email;
-
-      console.log(
-        `🔍 XSTATE CHECK-OUT EMAIL DEBUG [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-        {
-          calendarEventId,
-          hasBookingDoc: !!bookingDoc,
-          bookingDocKeys: bookingDoc ? Object.keys(bookingDoc) : [],
-          guestEmail,
-          guestEmailType: typeof guestEmail,
-          bookingDocEmail: bookingDoc?.email,
-        }
-      );
-
-      if (guestEmail) {
-        const { serverSendBookingDetailEmail } = await import(
-          "@/components/src/server/admin"
-        );
-        const headerMessage =
-          "Your reservation request for Media Commons has been checked out. Thank you for choosing Media Commons.";
-
-        await serverSendBookingDetailEmail({
-          calendarEventId,
-          targetEmail: guestEmail,
-          headerMessage,
-          status: BookingStatusLabel.CHECKED_OUT,
-          tenant,
-        });
+    // Old checkout processing code removed - now handled by XState machine action
+    if (false) {
+      // Disabled old processing
+      try {
+        // Use email from booking document (not from XState context)
+        const guestEmail = bookingDoc?.email;
 
         console.log(
-          `📧 XSTATE CHECK-OUT EMAIL SENT [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+          `🔍 XSTATE CHECK-OUT EMAIL DEBUG [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
           {
             calendarEventId,
+            hasBookingDoc: !!bookingDoc,
+            bookingDocKeys: bookingDoc ? Object.keys(bookingDoc) : [],
             guestEmail,
+            guestEmailType: typeof guestEmail,
+            bookingDocEmail: bookingDoc?.email,
           }
         );
-      } else {
-        console.warn(
-          `⚠️ XSTATE CHECK-OUT EMAIL SKIPPED - NO EMAIL IN CONTEXT [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+
+        if (guestEmail) {
+          const { serverSendBookingDetailEmail } = await import(
+            "@/components/src/server/admin"
+          );
+          const headerMessage =
+            "Your reservation request for Media Commons has been checked out. Thank you for choosing Media Commons.";
+
+          await serverSendBookingDetailEmail({
+            calendarEventId,
+            targetEmail: guestEmail,
+            headerMessage,
+            status: BookingStatusLabel.CHECKED_OUT,
+            tenant,
+          });
+
+          console.log(
+            `📧 XSTATE CHECK-OUT EMAIL SENT [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+            {
+              calendarEventId,
+              guestEmail,
+            }
+          );
+        } else {
+          console.warn(
+            `⚠️ XSTATE CHECK-OUT EMAIL SKIPPED - NO EMAIL IN CONTEXT [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+            {
+              calendarEventId,
+              contextKeys: newSnapshot.context
+                ? Object.keys(newSnapshot.context)
+                : [],
+            }
+          );
+        }
+      } catch (error) {
+        console.error(
+          `🚨 XSTATE CHECK-OUT EMAIL FAILED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
           {
             calendarEventId,
-            contextKeys: newSnapshot.context
-              ? Object.keys(newSnapshot.context)
-              : [],
+            email,
+            tenant,
+            error: error.message,
           }
         );
       }
-    } catch (error) {
-      console.error(
-        `🚨 XSTATE CHECK-OUT EMAIL FAILED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-        {
-          calendarEventId,
-          email,
-          tenant,
-          error: error.message,
-        }
-      );
-    }
 
-    // Update calendar event with CHECKED_OUT status (including end time)
-    // Status will be read from XState data in bookingContentsToDescription
-    try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_BASE_URL}/api/calendarEvents`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            "x-tenant": tenant || "mc",
-          },
-          body: JSON.stringify({
-            calendarEventId,
-            newValues: {
-              statusPrefix: BookingStatusLabel.CHECKED_OUT,
-              end: {
-                dateTime: new Date().toISOString(),
-              },
+      // Update calendar event with CHECKED_OUT status (including end time)
+      // Status will be read from XState data in bookingContentsToDescription
+      try {
+        const response = await fetch(
+          `${process.env.NEXT_PUBLIC_BASE_URL}/api/calendarEvents`,
+          {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+              "x-tenant": tenant || "mc",
             },
-          }),
-        }
-      );
+            body: JSON.stringify({
+              calendarEventId,
+              newValues: {
+                statusPrefix: BookingStatusLabel.CHECKED_OUT,
+                end: {
+                  dateTime: new Date().toISOString(),
+                },
+              },
+            }),
+          }
+        );
 
-      if (response.ok) {
-        console.log(
-          `📅 XSTATE CHECK-OUT CALENDAR UPDATED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+        if (response.ok) {
+          console.log(
+            `📅 XSTATE CHECK-OUT CALENDAR UPDATED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+            {
+              calendarEventId,
+              statusPrefix: BookingStatusLabel.CHECKED_OUT,
+              note: "Status will be read from XState data",
+            }
+          );
+        }
+      } catch (error) {
+        console.error(
+          `🚨 XSTATE CHECK-OUT CALENDAR UPDATE ERROR [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
           {
             calendarEventId,
-            statusPrefix: BookingStatusLabel.CHECKED_OUT,
-            note: "Status will be read from XState data",
+            error: error.message,
           }
         );
       }
-    } catch (error) {
-      console.error(
-        `🚨 XSTATE CHECK-OUT CALENDAR UPDATE ERROR [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-        {
-          calendarEventId,
-          error: error.message,
-        }
-      );
-    }
+    } // End of disabled old processing
   } else if (newState === "Pre-approved" && previousState !== "Pre-approved") {
     // Pre-approved state handling
     firestoreUpdates.firstApprovedAt = admin.firestore.Timestamp.now();

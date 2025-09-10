@@ -358,6 +358,88 @@ async function getViolationCount(
 }
 
 /**
+ * Shared checkout processing function that handles all checkout-related operations
+ * Used by both traditional checkout function and XState checkout processing
+ */
+export const processCheckoutBooking = async (
+  id: string,
+  email: string,
+  tenant?: string
+): Promise<void> => {
+  // Import server-side functions and admin SDK
+  const { serverGetDataByCalendarEventId, serverUpdateInFirestore } =
+    await import("@/lib/firebase/server/adminDb");
+  const { serverSendBookingDetailEmail } = await import(
+    "@/components/src/server/admin"
+  );
+  const { logServerBookingChange } = await import(
+    "@/lib/firebase/server/adminDb"
+  );
+  const admin = await import("firebase-admin");
+
+  // Get booking document first to get the document ID
+  const doc = await serverGetDataByCalendarEventId<Booking>(
+    TableNames.BOOKING,
+    id,
+    tenant
+  );
+
+  if (!doc) {
+    console.error(
+      `🚨 CHECKOUT PROCESSING: Booking not found for calendarEventId: ${id}`
+    );
+    return;
+  }
+
+  // Update Firestore booking document using server-side Timestamp
+  await serverUpdateInFirestore(
+    TableNames.BOOKING,
+    doc.id,
+    {
+      checkedOutAt: admin.firestore.Timestamp.now(),
+      checkedOutBy: email,
+    },
+    tenant
+  );
+
+  // Add Checkout history log
+  await logServerBookingChange({
+    bookingId: doc.id,
+    calendarEventId: id,
+    status: BookingStatusLabel.CHECKED_OUT,
+    changedBy: email,
+    requestNumber: doc.requestNumber || 0,
+    note: "",
+    tenant,
+  });
+
+  // Send checkout email to guest
+  const guestEmail = doc.email;
+  if (guestEmail) {
+    const headerMessage =
+      "Your reservation for Media Commons has been checked out. Thank you for choosing Media Commons.";
+
+    await serverSendBookingDetailEmail({
+      calendarEventId: id,
+      targetEmail: guestEmail,
+      headerMessage: headerMessage,
+      status: BookingStatusLabel.CHECKED_OUT,
+      tenant,
+    });
+
+    console.log(`📧 CHECKOUT EMAIL SENT [${tenant?.toUpperCase()}]:`, {
+      calendarEventId: id,
+      guestEmail,
+    });
+  }
+
+  console.log(`✅ CHECKOUT PROCESSING COMPLETED [${tenant?.toUpperCase()}]:`, {
+    calendarEventId: id,
+    checkedOutBy: email,
+  });
+};
+
+/**
  * Shared close processing function that handles all close-related operations
  * Used by both traditional close function and XState close processing
  */
@@ -809,38 +891,17 @@ export const checkOut = async (id: string, email: string, tenant?: string) => {
       calendarEventId: id,
       error: xstateResult.error,
     });
-    throw new Error(`XState checkout failed: ${xstateResult.error}`);
-  }
 
-  console.log(`✅ XSTATE CHECKOUT API SUCCESS [${tenant?.toUpperCase()}]:`, {
-    calendarEventId: id,
-    newState: xstateResult.newState,
-  });
-
-  // XState handled the checkout successfully, now add history logging
-  const doc = await clientGetDataByCalendarEventId<{
-    id: string;
-    requestNumber: number;
-  }>(TableNames.BOOKING, id, tenant);
-
-  if (doc) {
-    await logClientBookingChange({
-      bookingId: doc.id,
+    // Use the shared checkout processing function for fallback
+    await processCheckoutBooking(id, email, tenant);
+  } else {
+    console.log(`✅ XSTATE CHECKOUT API SUCCESS [${tenant?.toUpperCase()}]:`, {
       calendarEventId: id,
-      status: BookingStatusLabel.CHECKED_OUT,
-      changedBy: email,
-      requestNumber: doc.requestNumber,
-      tenant,
+      newState: xstateResult.newState,
     });
 
-    console.log(
-      `📋 XSTATE CHECKOUT HISTORY LOGGED [${tenant?.toUpperCase()}]:`,
-      {
-        calendarEventId: id,
-        bookingId: doc.id,
-        requestNumber: doc.requestNumber,
-      }
-    );
+    // XState handled the checkout successfully, processing is done by XState actions
+    return;
   }
 };
 
