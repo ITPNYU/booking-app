@@ -345,46 +345,20 @@ async function handleStateTransitions(
       }
     );
   } else if (newState === "Closed" && previousState !== "Closed") {
-    // Closed state handling
-    firestoreUpdates.closedAt = admin.firestore.Timestamp.now();
-    if (email) {
-      firestoreUpdates.closedBy = email;
-    }
-
+    // Close processing is now handled by XState machine actions
+    // Skip processing here to avoid duplication
     console.log(
-      `🔒 XSTATE REACHED CLOSED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+      `🎯 XSTATE REACHED CLOSED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
       {
         calendarEventId,
         previousState,
         newState,
-        closedAt: firestoreUpdates.closedAt,
-        closedBy: firestoreUpdates.closedBy,
+        note: "Close processing handled by XState action",
       }
     );
-    // Send appropriate email for Closed state based on previous state
-    let shouldSendEmail = true;
-    let emailMessage = "";
-    let emailStatus = BookingStatusLabel.CLOSED;
 
-    if (previousState === "Checked In") {
-      emailMessage =
-        "Your reservation request for Media Commons has been checked out. Thank you for choosing Media Commons.";
-      emailStatus = BookingStatusLabel.CHECKED_OUT;
-    } else if (
-      previousState === "Service Closeout" ||
-      previousState === "Canceled"
-    ) {
-      emailMessage =
-        "Your reservation has been completed and closed. Thank you for choosing Media Commons.";
-      emailStatus = BookingStatusLabel.CLOSED;
-    } else {
-      // For other transitions to Closed, send a general closure email
-      emailMessage =
-        "Your reservation has been closed. Thank you for choosing Media Commons.";
-      emailStatus = BookingStatusLabel.CLOSED;
-    }
-
-    if (shouldSendEmail) {
+    // Old close processing code removed - now handled by XState machine action
+    if (false) { // Disabled old processing
       console.log(
         `📧 SENDING EMAIL FOR CLOSED STATE [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
         {
@@ -610,91 +584,17 @@ async function handleStateTransitions(
       );
     }
 
-    // Send canceled email to guest and update calendar
-    try {
-      // Use email from booking document (not from XState context)
-      const guestEmail = bookingDoc?.email;
-
-      if (guestEmail) {
-        const { serverSendBookingDetailEmail } = await import(
-          "@/components/src/server/admin"
-        );
-        const headerMessage =
-          "Your reservation request for Media Commons has been canceled.";
-
-        await serverSendBookingDetailEmail({
-          calendarEventId,
-          targetEmail: guestEmail,
-          headerMessage,
-          status: BookingStatusLabel.CANCELED,
-          tenant,
-        });
-
-        console.log(
-          `📧 XSTATE CANCEL EMAIL SENT [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-          {
-            calendarEventId,
-            guestEmail,
-          }
-        );
-      } else {
-        console.warn(
-          `⚠️ XSTATE CANCEL EMAIL SKIPPED - NO EMAIL IN CONTEXT [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-          {
-            calendarEventId,
-            contextKeys: newSnapshot.context
-              ? Object.keys(newSnapshot.context)
-              : [],
-          }
-        );
+    // Cancel processing is now handled by XState machine actions
+    // Skip processing here to avoid duplication
+    console.log(
+      `🎯 XSTATE REACHED CANCELED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+      {
+        calendarEventId,
+        previousState,
+        newState,
+        note: "Cancel processing handled by XState action",
       }
-    } catch (error) {
-      console.error(
-        `🚨 XSTATE CANCEL EMAIL FAILED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-        {
-          calendarEventId,
-          email,
-          tenant,
-          error: error.message,
-        }
-      );
-    }
-
-    // Update calendar event with CANCELED status
-    try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_BASE_URL}/api/calendarEvents`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            "x-tenant": tenant || "mc",
-          },
-          body: JSON.stringify({
-            calendarEventId,
-            newValues: { statusPrefix: BookingStatusLabel.CANCELED },
-          }),
-        }
-      );
-
-      if (response.ok) {
-        console.log(
-          `📅 XSTATE CANCEL CALENDAR UPDATED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-          {
-            calendarEventId,
-            statusPrefix: BookingStatusLabel.CANCELED,
-          }
-        );
-      }
-    } catch (error) {
-      console.error(
-        `🚨 XSTATE CANCEL CALENDAR UPDATE ERROR [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-        {
-          calendarEventId,
-          error: error.message,
-        }
-      );
-    }
+    );
   } else if (newState === "Checked In" && previousState !== "Checked In") {
     // Check-in state handling
     firestoreUpdates.checkedInAt = admin.firestore.Timestamp.now();
