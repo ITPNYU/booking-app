@@ -100,7 +100,16 @@ jobs:
       - name: Start development server
         run: |
           cd booking-app
-          BYPASS_AUTH=true E2E_TESTING=true npm run dev &
+          BYPASS_AUTH=true E2E_TESTING=true \
+          NEXT_PUBLIC_FIREBASE_API_KEY=test-api-key \
+          NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=test.firebaseapp.com \
+          NEXT_PUBLIC_FIREBASE_PROJECT_ID=test-project \
+          NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=test.appspot.com \
+          NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=123456789 \
+          NEXT_PUBLIC_FIREBASE_APP_ID=test-app-id \
+          NEXT_PUBLIC_MEASUREMENT_ID=test-measurement-id \
+          NEXT_PUBLIC_BRANCH_NAME=development-local \
+          npm run dev &
           
           # Wait for server to be ready
           timeout 120 bash -c 'until curl -f http://localhost:3000/api/isTestEnv; do sleep 2; done'
@@ -109,6 +118,14 @@ jobs:
         env:
           BYPASS_AUTH: true
           E2E_TESTING: true
+          NEXT_PUBLIC_FIREBASE_API_KEY: test-api-key
+          NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: test.firebaseapp.com
+          NEXT_PUBLIC_FIREBASE_PROJECT_ID: test-project
+          NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: test.appspot.com
+          NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: 123456789
+          NEXT_PUBLIC_FIREBASE_APP_ID: test-app-id
+          NEXT_PUBLIC_MEASUREMENT_ID: test-measurement-id
+          NEXT_PUBLIC_BRANCH_NAME: development-local
         run: |
           cd booking-app
           
@@ -134,7 +151,7 @@ jobs:
             echo "🧪 Running $description..."
             
             if [ -n "$test_options" ]; then
-              if npx playwright test $test_options --reporter=list; then
+              if npx playwright test $test_options --reporter=list --output=stdout; then
                 echo "✅ $description PASSED"
                 return 0
               else
@@ -142,7 +159,7 @@ jobs:
                 return 1
               fi
             else
-              if npx playwright test --reporter=list; then
+              if npx playwright test --reporter=list --output=stdout; then
                 echo "✅ $description PASSED"
                 return 0
               else

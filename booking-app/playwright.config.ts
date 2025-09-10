@@ -35,7 +35,7 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 3 : 1, // Increased retries for CI stability
   workers: process.env.CI ? 1 : undefined,
-  reporter: process.env.CI ? [['html'], ['github']] : 'html',
+  reporter: process.env.CI ? [['list'], ['github'], ['html']] : 'html',
 
   // Set environment variables for E2E testing authentication bypass
   globalSetup: require.resolve('./tests/e2e/global-setup.ts'),
@@ -77,6 +77,14 @@ export default defineConfig({
         NODE_ENV: 'test',
         E2E_TESTING: 'true',
         BYPASS_AUTH: 'true',
+        NEXT_PUBLIC_FIREBASE_API_KEY: 'test-api-key',
+        NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: 'test.firebaseapp.com',
+        NEXT_PUBLIC_FIREBASE_PROJECT_ID: 'test-project',
+        NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: 'test.appspot.com',
+        NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: '123456789',
+        NEXT_PUBLIC_FIREBASE_APP_ID: 'test-app-id',
+        NEXT_PUBLIC_MEASUREMENT_ID: 'test-measurement-id',
+        NEXT_PUBLIC_BRANCH_NAME: 'development-local',
       },
       // Use system browser or fallback gracefully
       executablePath: findBrowserExecutable(),
