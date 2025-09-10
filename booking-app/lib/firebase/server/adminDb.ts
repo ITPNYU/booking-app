@@ -74,11 +74,12 @@ export const serverGetNextSequentialId = async (
   collectionName: string,
   tenant?: string
 ) => {
-  const tenantCollection = getServerTenantCollection(
-    collectionName as TableNames,
+  // For counters, we need to use the counters collection, not the target collection
+  const counterCollection = getServerTenantCollection(
+    "counters" as TableNames,
     tenant
   );
-  const counterDocRef = db.collection(tenantCollection).doc("bookings");
+  const counterDocRef = db.collection(counterCollection).doc(collectionName);
   const counterDoc = await counterDocRef.get();
   let currentCount = 1;
   if (counterDoc.exists) {
