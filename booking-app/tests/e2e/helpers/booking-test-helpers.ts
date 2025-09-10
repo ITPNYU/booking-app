@@ -40,41 +40,36 @@ export class BookingTestHelper {
   constructor(private page: Page) {}
 
   async loginUser(user: TestUser): Promise<void> {
-    await this.page.goto('http://localhost:3000/');
+    // With authentication bypass enabled, we don't need to go through login flow
+    // Just verify that the auth bypass is working
+    console.log(`🎯 Setting up user context for ${user.role} user with authentication bypass...`);
     
-    // Handle potential popup auth flow
-    let authUrl = null;
-    this.page.on('popup', async popup => {
-      try {
-        authUrl = await popup.url();
-        console.log('Captured auth URL:', authUrl);
-      } catch (error) {
-        console.error('Failed to capture URL:', error);
-      }
-    });
-
-    await this.page.waitForTimeout(2000);
-
-    if (authUrl) {
-      await this.page.goto(authUrl);
+    // Verify authentication bypass is working by checking the test environment endpoint
+    const response = await this.page.request.get('http://localhost:3000/api/isTestEnv');
+    if (!response.ok()) {
+      throw new Error('Authentication bypass verification failed - test environment not accessible');
     }
-
-    // Fill login form
-    await this.page.getByLabel('Email or phone').waitFor({ state: 'visible', timeout: 30000 });
-    await this.page.getByLabel('Email or phone').fill(user.email);
-    await this.page.getByRole('button', { name: 'Next' }).click();
     
-    await this.page.getByLabel('Enter your password').waitFor({ state: 'visible', timeout: 30000 });
-    await this.page.getByLabel('Enter your password').fill(user.password);
-    await this.page.getByRole('button', { name: 'Next' }).click();
-
-    // Wait for successful login and redirect
-    await this.page.waitForURL('http://localhost:3000/**', { timeout: 30000 });
+    const authData = await response.json();
+    if (!authData.isOnTestEnv) {
+      throw new Error('Authentication bypass not enabled - BYPASS_AUTH environment variable not working');
+    }
+    
+    console.log('✅ Authentication bypass confirmed - proceeding without login flow');
   }
 
   async navigateToMCTenant(): Promise<void> {
-    await this.page.goto('http://localhost:3000/mc/');
+    // Navigate directly to media-commons tenant (using the standard path from working tests)
+    await this.page.goto('http://localhost:3000/media-commons');
     await this.page.waitForLoadState('networkidle');
+    
+    // Verify we're not redirected to signin (indicates auth bypass is working)
+    const currentUrl = this.page.url();
+    if (currentUrl.includes('/signin')) {
+      throw new Error('Authentication bypass failed - redirected to signin page');
+    }
+    
+    console.log('✅ Successfully navigated to MC tenant with auth bypass');
   }
 
   async startBookingProcess(options: BookingOptions = {}): Promise<void> {

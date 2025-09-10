@@ -72,7 +72,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         console.log("No user object found. Checking if sign-in needed.");
         
         // In test environment, create a mock user to bypass authentication
-        if (isOnTestEnv) {
+        if (testEnvStatus) {
           console.log("Test environment detected, creating mock user");
           const mockUser = {
             uid: "test-user-id",
