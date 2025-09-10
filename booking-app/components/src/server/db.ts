@@ -358,6 +358,102 @@ async function getViolationCount(
 }
 
 /**
+ * Shared close processing function that handles all close-related operations
+ * Used by both traditional close function and XState close processing
+ */
+export const processCloseBooking = async (
+  id: string,
+  email: string,
+  tenant?: string
+): Promise<void> => {
+  // Import server-side functions and admin SDK
+  const { serverGetDataByCalendarEventId, serverUpdateInFirestore } =
+    await import("@/lib/firebase/server/adminDb");
+  const { serverSendBookingDetailEmail } = await import(
+    "@/components/src/server/admin"
+  );
+  const { logServerBookingChange } = await import(
+    "@/lib/firebase/server/adminDb"
+  );
+  const admin = await import("firebase-admin");
+
+  // Get booking document first to get the document ID
+  const doc = await serverGetDataByCalendarEventId<Booking>(
+    TableNames.BOOKING,
+    id,
+    tenant
+  );
+
+  if (!doc) {
+    console.error(
+      `🚨 CLOSE PROCESSING: Booking not found for calendarEventId: ${id}`
+    );
+    return;
+  }
+
+  // Update Firestore booking document using server-side Timestamp
+  await serverUpdateInFirestore(
+    TableNames.BOOKING,
+    doc.id,
+    {
+      closedAt: admin.firestore.Timestamp.now(),
+      closedBy: email,
+    },
+    tenant
+  );
+
+  // Add Close history log
+  await logServerBookingChange({
+    bookingId: doc.id,
+    calendarEventId: id,
+    status: BookingStatusLabel.CLOSED,
+    changedBy: email,
+    requestNumber: doc.requestNumber || 0,
+    note: "",
+    tenant,
+  });
+
+  // Unified email message for all close operations
+  const emailMessage =
+    "Your reservation has been closed. Thank you for choosing Media Commons.";
+  const emailStatus = BookingStatusLabel.CLOSED;
+
+  // Send email using server-side function
+  const guestEmail = doc.email;
+  if (guestEmail) {
+    await serverSendBookingDetailEmail({
+      calendarEventId: id,
+      targetEmail: guestEmail,
+      headerMessage: emailMessage,
+      status: emailStatus,
+      tenant,
+    });
+  }
+
+  // Update calendar
+  const response = await fetch(
+    `${process.env.NEXT_PUBLIC_BASE_URL}/api/calendarEvents`,
+    {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "x-tenant": tenant || DEFAULT_TENANT,
+      },
+      body: JSON.stringify({
+        calendarEventId: id,
+        newValues: { statusPrefix: BookingStatusLabel.CLOSED },
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    console.error(
+      `🚨 CLOSE CALENDAR UPDATE FAILED: ${response.status} ${response.statusText}`
+    );
+  }
+};
+
+/**
  * Shared cancel processing function that handles all cancel-related operations
  * Used by both traditional cancel function and XState cancel processing
  */

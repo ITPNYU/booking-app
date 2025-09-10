@@ -325,6 +325,85 @@ export const mcBookingMachine = setup({
 
       console.log(`🎬 XSTATE ACTOR: handleCancelProcessing completed`);
     },
+
+    handleCloseProcessing: async ({ context, event }) => {
+      console.log(`🎬 XSTATE ACTOR: handleCloseProcessing started`, {
+        input: {
+          context: {
+            tenant: context.tenant,
+            calendarEventId: context.calendarEventId,
+            email: context.email,
+          },
+        },
+      });
+
+      try {
+        const calendarEventId = context.calendarEventId;
+        const email = context.email || "system";
+        const tenant = context.tenant;
+
+        if (calendarEventId) {
+          console.log(`🎬 XSTATE ACTOR: About to call close processing API`, {
+            calendarEventId,
+            email,
+            tenant,
+          });
+
+          // Call the close processing API
+          const response = await fetch(
+            `${process.env.NEXT_PUBLIC_BASE_URL}/api/close-processing`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "x-tenant": tenant || "mc",
+              },
+              body: JSON.stringify({
+                calendarEventId,
+                email,
+                tenant,
+              }),
+            }
+          );
+
+          if (response.ok) {
+            const result = await response.json();
+            console.log(
+              `✅ CLOSE PROCESSING API SUCCESS [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+              {
+                calendarEventId,
+                result,
+              }
+            );
+          } else {
+            const errorText = await response.text();
+            console.error(
+              `🚨 CLOSE PROCESSING API FAILED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+              {
+                calendarEventId,
+                status: response.status,
+                statusText: response.statusText,
+                error: errorText,
+              }
+            );
+          }
+        } else {
+          console.error(
+            `🚨 CLOSE PROCESSING API SKIPPED - NO CALENDAR EVENT ID [${tenant?.toUpperCase() || "UNKNOWN"}]`
+          );
+        }
+      } catch (error: any) {
+        console.error(
+          `🚨 CLOSE PROCESSING API ERROR [${context.tenant?.toUpperCase() || "UNKNOWN"}]:`,
+          {
+            error: error.message,
+            stack: error.stack,
+          }
+        );
+      }
+
+      console.log(`🎬 XSTATE ACTOR: handleCloseProcessing completed`);
+    },
     // Service decline actions that update context
     declineStaffService: assign({
       servicesApproved: ({ context }) => ({
@@ -1780,6 +1859,9 @@ export const mcBookingMachine = setup({
             tenant: context.tenant,
             timestamp: new Date().toISOString(),
           });
+        },
+        {
+          type: "handleCloseProcessing",
         },
         {
           type: "sendHTMLEmail",

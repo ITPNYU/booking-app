@@ -345,46 +345,20 @@ async function handleStateTransitions(
       }
     );
   } else if (newState === "Closed" && previousState !== "Closed") {
-    // Closed state handling
-    firestoreUpdates.closedAt = admin.firestore.Timestamp.now();
-    if (email) {
-      firestoreUpdates.closedBy = email;
-    }
-
+    // Close processing is now handled by XState machine actions
+    // Skip processing here to avoid duplication
     console.log(
-      `🔒 XSTATE REACHED CLOSED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+      `🎯 XSTATE REACHED CLOSED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
       {
         calendarEventId,
         previousState,
         newState,
-        closedAt: firestoreUpdates.closedAt,
-        closedBy: firestoreUpdates.closedBy,
+        note: "Close processing handled by XState action",
       }
     );
-    // Send appropriate email for Closed state based on previous state
-    let shouldSendEmail = true;
-    let emailMessage = "";
-    let emailStatus = BookingStatusLabel.CLOSED;
 
-    if (previousState === "Checked In") {
-      emailMessage =
-        "Your reservation request for Media Commons has been checked out. Thank you for choosing Media Commons.";
-      emailStatus = BookingStatusLabel.CHECKED_OUT;
-    } else if (
-      previousState === "Service Closeout" ||
-      previousState === "Canceled"
-    ) {
-      emailMessage =
-        "Your reservation has been completed and closed. Thank you for choosing Media Commons.";
-      emailStatus = BookingStatusLabel.CLOSED;
-    } else {
-      // For other transitions to Closed, send a general closure email
-      emailMessage =
-        "Your reservation has been closed. Thank you for choosing Media Commons.";
-      emailStatus = BookingStatusLabel.CLOSED;
-    }
-
-    if (shouldSendEmail) {
+    // Old close processing code removed - now handled by XState machine action
+    if (false) { // Disabled old processing
       console.log(
         `📧 SENDING EMAIL FOR CLOSED STATE [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
         {
