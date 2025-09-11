@@ -362,7 +362,12 @@ async function handleStateTransitions(
   } else if (newState === "Canceled" && previousState !== "Canceled") {
     // Canceled state handling
     firestoreUpdates.canceledAt = admin.firestore.Timestamp.now();
-    if (email) {
+
+    // For automatic transitions from No Show, attribute to System, not the user
+    const isAutomaticFromNoShow = previousState === "No Show";
+    if (isAutomaticFromNoShow) {
+      firestoreUpdates.canceledBy = "System";
+    } else if (email) {
       firestoreUpdates.canceledBy = email;
     }
 
@@ -374,6 +379,7 @@ async function handleStateTransitions(
         newState,
         canceledAt: firestoreUpdates.canceledAt,
         canceledBy: firestoreUpdates.canceledBy,
+        isAutomaticFromNoShow,
       }
     );
 
@@ -384,10 +390,13 @@ async function handleStateTransitions(
       );
       const { TableNames } = await import("@/components/src/policy");
 
+      // For automatic transitions from No Show, attribute to System
+      const changedBy = isAutomaticFromNoShow ? "System" : email || "system";
+
       const historyEntry = {
         calendarEventId,
         status: BookingStatusLabel.CANCELED,
-        changedBy: email || "system",
+        changedBy,
         changedAt: admin.firestore.Timestamp.now(),
         note:
           previousState === "No Show"
@@ -407,8 +416,9 @@ async function handleStateTransitions(
         {
           calendarEventId,
           status: BookingStatusLabel.CANCELED,
-          changedBy: email || "system",
+          changedBy,
           note: historyEntry.note,
+          isAutomaticFromNoShow,
         }
       );
     } catch (error) {

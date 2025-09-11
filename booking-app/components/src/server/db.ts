@@ -392,22 +392,24 @@ export const processCloseBooking = async (
   }
 
   // Update Firestore booking document using server-side Timestamp
+  // CLOSED state is always attributed to System
   await serverUpdateInFirestore(
     TableNames.BOOKING,
     doc.id,
     {
       closedAt: admin.firestore.Timestamp.now(),
-      closedBy: email,
+      closedBy: "System",
     },
     tenant
   );
 
   // Add Close history log
+  // CLOSED state is always attributed to System
   await logServerBookingChange({
     bookingId: doc.id,
     calendarEventId: id,
     status: BookingStatusLabel.CLOSED,
-    changedBy: email,
+    changedBy: "System",
     requestNumber: doc.requestNumber || 0,
     note: "",
     tenant,
