@@ -1904,9 +1904,6 @@ export const mcBookingMachine = setup({
           });
         },
         {
-          type: "sendHTMLEmail",
-        },
-        {
           type: "updateCalendarEvent",
         },
         {
