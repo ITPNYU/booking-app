@@ -72,7 +72,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         console.log("No user object found. Checking if sign-in needed.");
         
         // In test environment, create a mock user to bypass authentication
-        if (isOnTestEnv) {
+        if (testEnvStatus) {
           console.log("Test environment detected, creating mock user");
           const mockUser = {
             uid: "test-user-id",
@@ -86,18 +86,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           return;
         }
         
-        try {
-          if (!pathname.includes("signin")) {
-            console.log("Attempting signInWithGoogle...");
-            await signInWithGoogle();
+        // Only attempt sign-in if NOT in test environment
+        if (!testEnvStatus) {
+          try {
+            if (!pathname.includes("signin")) {
+              console.log("Attempting signInWithGoogle...");
+              await signInWithGoogle();
+            }
+          } catch (error) {
+            console.error("Error during signInWithGoogle attempt:", error);
+            // Redirect to appropriate signin page based on tenant
+            const signinPath = params?.tenant
+              ? `/${params.tenant}/signin`
+              : "/signin";
+            router.push(signinPath);
           }
-        } catch (error) {
-          console.error("Error during signInWithGoogle attempt:", error);
-          // Redirect to appropriate signin page based on tenant
-          const signinPath = params?.tenant
-            ? `/${params.tenant}/signin`
-            : "/signin";
-          router.push(signinPath);
         }
       }
       setLoading(false);
