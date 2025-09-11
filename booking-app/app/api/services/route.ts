@@ -234,72 +234,32 @@ export async function POST(req: NextRequest) {
             }
           }
 
-          // If the booking transitioned to Approved state, add a separate history log for the overall approval
-          // For multi-service approvals, attribute final approval to System, not the last service approver
-          if (transitionedToApproved && doc) {
-            const approveLogResponse = await fetch(
-              `${process.env.NEXT_PUBLIC_BASE_URL}/api/booking-logs`,
-              {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  "x-tenant": tenant || DEFAULT_TENANT,
-                },
-                body: JSON.stringify({
-                  bookingId: doc.id,
-                  calendarEventId,
-                  status: BookingStatusLabel.APPROVED,
-                  changedBy: "System",
-                  requestNumber: doc.requestNumber,
-                  note: "All required services approved",
-                }),
-              },
-            );
-
-            if (approveLogResponse.ok) {
-              console.log(
-                `📋 OVERALL APPROVAL HISTORY LOGGED [${tenant?.toUpperCase()}]:`,
-                {
-                  calendarEventId,
-                  bookingId: doc.id,
-                  requestNumber: doc.requestNumber,
-                  status: BookingStatusLabel.APPROVED,
-                  trigger: `${serviceType} service ${action}`,
-                },
-              );
-            } else {
-              console.error(
-                `🚨 OVERALL APPROVAL HISTORY LOG FAILED [${tenant?.toUpperCase()}]:`,
-                {
-                  calendarEventId,
-                  status: approveLogResponse.status,
-                },
-              );
-            }
-          }
-
-          // Handle APPROVED side effects: email notification and calendar update
-          // Call serverApproveEvent for final approval when all services are approved
+          // Handle APPROVED state: use finalApprove function for consistent processing
           if (transitionedToApproved && doc) {
             try {
-              const { serverApproveEvent } = await import(
+              const { finalApprove } = await import(
                 "@/components/src/server/admin"
               );
 
-              await serverApproveEvent(calendarEventId, tenant);
+              // Use finalApprove function which handles:
+              // 1. serverFinalApprove (booking update + service approvals)
+              // 2. Logging final approval action
+              // 3. serverApproveEvent (email + calendar update)
+              await finalApprove(calendarEventId, "System", tenant);
 
               console.log(
-                `📧 APPROVED EMAIL AND CALENDAR UPDATE COMPLETED [${tenant?.toUpperCase()}]:`,
+                `📧 APPROVED PROCESSING COMPLETED [${tenant?.toUpperCase()}]:`,
                 {
                   calendarEventId,
                   bookingId: doc.id,
                   requestNumber: doc.requestNumber,
                   trigger: `${serviceType} service ${action}`,
+                  note: "Used finalApprove function for consistent approval processing",
                 },
               );
             } catch (error) {
               console.error(
-                `🚨 APPROVED SIDE EFFECTS FAILED [${tenant?.toUpperCase()}]:`,
+                `🚨 APPROVED PROCESSING FAILED [${tenant?.toUpperCase()}]:`,
                 {
                   calendarEventId,
                   error: error.message,
