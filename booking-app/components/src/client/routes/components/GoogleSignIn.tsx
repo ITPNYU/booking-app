@@ -70,22 +70,31 @@ const GoogleSignIn = () => {
   return (
     <div>
       <Center>
-        <Button
-          variant="contained"
-          color="primary"
-          onClick={handleGoogleSignIn}
-          sx={{
-            alignSelf: "center",
-            marginTop: 6,
-          }}
-        >
-          Sign in with NYU Google Account
-        </Button>
-        <p>
-          {isLocalhost
-            ? "A popup window will open for NYU SSO login."
-            : "You'll be redirected to the NYU SSO login page to sign in securely."}
-        </p>
+        {isOnTestEnv ? (
+          <div>
+            <p>Test environment detected - authentication bypassed</p>
+            <p>Mock user automatically created: test@nyu.edu</p>
+          </div>
+        ) : (
+          <>
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={handleGoogleSignIn}
+              sx={{
+                alignSelf: "center",
+                marginTop: 6,
+              }}
+            >
+              Sign in with NYU Google Account
+            </Button>
+            <p>
+              {isLocalhost
+                ? "A popup window will open for NYU SSO login."
+                : "You'll be redirected to the NYU SSO login page to sign in securely."}
+            </p>
+          </>
+        )}
         {error && <p style={{ color: "red" }}>{error}</p>}
       </Center>
     </div>
