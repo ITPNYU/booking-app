@@ -1908,9 +1908,17 @@ We understand that unexpected situations come up, and we encourage you to cancel
       reason // Pass reason for decline actions
     );
 
-    // For No Show events, send canceled email
+    // For No Show events, do not send canceled email as NO SHOW email was already sent
+    // Note: NO SHOW email contains the appropriate message for the user
+    // Sending a CANCELED email would be redundant and confusing
     if (eventType === "noShow") {
-      await sendCanceledEmail(calendarEventId, email, tenant);
+      console.log(
+        `🚫 CANCELED EMAIL SKIPPED FOR NO SHOW [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+        {
+          calendarEventId,
+          note: "NO SHOW email already sent with appropriate message",
+        }
+      );
     }
 
     // If this is Media Commons and servicesApproved context changed, update individual service fields
@@ -2173,7 +2181,7 @@ async function sendCanceledEmail(
 
     if (guestEmail) {
       const headerMessage =
-        "Your reservation has been canceled due to no show. " +
+        "Your reservation has been canceled. " +
         "If you have any questions, please don't hesitate to reach out.";
 
       await serverSendBookingDetailEmail({
