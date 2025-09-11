@@ -86,18 +86,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           return;
         }
         
-        try {
-          if (!pathname.includes("signin")) {
-            console.log("Attempting signInWithGoogle...");
-            await signInWithGoogle();
+        // Only attempt sign-in if NOT in test environment
+        if (!testEnvStatus) {
+          try {
+            if (!pathname.includes("signin")) {
+              console.log("Attempting signInWithGoogle...");
+              await signInWithGoogle();
+            }
+          } catch (error) {
+            console.error("Error during signInWithGoogle attempt:", error);
+            // Redirect to appropriate signin page based on tenant
+            const signinPath = params?.tenant
+              ? `/${params.tenant}/signin`
+              : "/signin";
+            router.push(signinPath);
           }
-        } catch (error) {
-          console.error("Error during signInWithGoogle attempt:", error);
-          // Redirect to appropriate signin page based on tenant
-          const signinPath = params?.tenant
-            ? `/${params.tenant}/signin`
-            : "/signin";
-          router.push(signinPath);
         }
       }
       setLoading(false);
