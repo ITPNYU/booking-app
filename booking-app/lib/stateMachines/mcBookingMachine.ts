@@ -342,6 +342,18 @@ export const mcBookingMachine = setup({
         const tenant = context.tenant;
 
         if (calendarEventId) {
+          // Add delay to allow service closeout processing to complete first
+          // This ensures proper order: Service Closeout → Close Processing
+          console.log(
+            `⏳ WAITING FOR SERVICE CLOSEOUT COMPLETION [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+            {
+              calendarEventId,
+              delay: "500ms",
+            }
+          );
+
+          await new Promise((resolve) => setTimeout(resolve, 500));
+
           console.log(`🎬 XSTATE ACTOR: About to call close processing API`, {
             calendarEventId,
             email,

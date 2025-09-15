@@ -393,15 +393,34 @@ export const processCloseBooking = async (
 
   // Update Firestore booking document using server-side Timestamp
   // CLOSED state is always attributed to System
-  await serverUpdateInFirestore(
-    TableNames.BOOKING,
-    doc.id,
-    {
-      closedAt: admin.firestore.Timestamp.now(),
-      closedBy: "System",
-    },
-    tenant
-  );
+  const updateData: any = {
+    closedAt: admin.firestore.Timestamp.now(),
+    closedBy: "System",
+  };
+
+  // If this booking uses XState, also update the XState snapshot to "Closed"
+  if (doc.xstateData?.snapshot) {
+    console.log(
+      `🎯 UPDATING XSTATE SNAPSHOT TO CLOSED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+      {
+        calendarEventId: id,
+        currentXStateValue: doc.xstateData.snapshot.value,
+        updatingTo: "Closed",
+      }
+    );
+
+    updateData.xstateData = {
+      ...doc.xstateData,
+      snapshot: {
+        ...doc.xstateData.snapshot,
+        value: "Closed",
+        status: "done",
+      },
+      lastTransition: new Date().toISOString(),
+    };
+  }
+
+  await serverUpdateInFirestore(TableNames.BOOKING, doc.id, updateData, tenant);
 
   // Add Close history log
   // CLOSED state is always attributed to System

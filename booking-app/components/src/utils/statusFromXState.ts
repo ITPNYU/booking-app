@@ -1,5 +1,4 @@
 import { BookingStatusLabel } from "../types";
-import { shouldUseXState } from "./tenantUtils";
 
 type XStateSnapshot = {
   value?: string | Record<string, any>;
@@ -15,10 +14,13 @@ type BookingLike = {
   checkedOutAt?: any;
   checkedInAt?: any;
   canceledAt?: any;
+  canceledBy?: string;
   declinedAt?: any;
   finalApprovedAt?: any;
   firstApprovedAt?: any;
   requestedAt?: any;
+  closedAt?: any;
+  closedBy?: string;
   // Media Commons service flags may be present on some objects
   equipmentService?: string;
   cateringService?: string;
@@ -35,17 +37,18 @@ export function getStatusFromXState(
     if (shouldUseXState(tenant) && booking?.xstateData?.snapshot?.value) {
       const xvalue = booking.xstateData.snapshot.value;
 
-      // Handle parallel states
+      // Handle parallel states - check in priority order
       if (typeof xvalue === "object" && xvalue) {
-        if (xvalue["Services Request"]) {
-          return BookingStatusLabel.PRE_APPROVED;
-        }
+        // Service Closeout has higher priority than Services Request
         if (xvalue["Service Closeout"]) {
           // Check if this booking was marked as no show
           if (booking?.noShowedAt) {
             return BookingStatusLabel.CANCELED;
           }
           return BookingStatusLabel.CHECKED_OUT;
+        }
+        if (xvalue["Services Request"]) {
+          return BookingStatusLabel.PRE_APPROVED;
         }
       }
 
@@ -95,4 +98,8 @@ export function getStatusFromXState(
   if (booking?.requestedAt) return BookingStatusLabel.REQUESTED;
 
   return BookingStatusLabel.REQUESTED;
+}
+
+function shouldUseXState(tenant?: string): boolean {
+  return tenant === "mc" || tenant === "itp";
 }
