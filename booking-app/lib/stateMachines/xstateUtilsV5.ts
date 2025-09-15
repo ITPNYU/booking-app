@@ -571,67 +571,14 @@ async function handleStateTransitions(
     // Note: History logging is now handled by traditional functions only
     // XState only manages state transitions, not history logging
 
-    // Send check-out email to guest and update calendar
-    try {
-      // Use email from booking document (not from XState context)
-      const guestEmail = bookingDoc?.email;
-
-      console.log(
-        `🔍 XSTATE CHECK-OUT EMAIL DEBUG [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-        {
-          calendarEventId,
-          hasBookingDoc: !!bookingDoc,
-          bookingDocKeys: bookingDoc ? Object.keys(bookingDoc) : [],
-          guestEmail,
-          guestEmailType: typeof guestEmail,
-          bookingDocEmail: bookingDoc?.email,
-        }
-      );
-
-      if (guestEmail) {
-        const { serverSendBookingDetailEmail } = await import(
-          "@/components/src/server/admin"
-        );
-        const headerMessage =
-          "Your reservation request for Media Commons has been checked out. Thank you for choosing Media Commons.";
-
-        await serverSendBookingDetailEmail({
-          calendarEventId,
-          targetEmail: guestEmail,
-          headerMessage,
-          status: BookingStatusLabel.CHECKED_OUT,
-          tenant,
-        });
-
-        console.log(
-          `📧 XSTATE CHECK-OUT EMAIL SENT [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-          {
-            calendarEventId,
-            guestEmail,
-          }
-        );
-      } else {
-        console.warn(
-          `⚠️ XSTATE CHECK-OUT EMAIL SKIPPED - NO EMAIL IN CONTEXT [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-          {
-            calendarEventId,
-            contextKeys: newSnapshot.context
-              ? Object.keys(newSnapshot.context)
-              : [],
-          }
-        );
+    // Note: Check-out email sending is now handled by /api/checkout-processing
+    console.log(
+      `📧 XSTATE CHECK-OUT EMAIL SKIPPED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+      {
+        calendarEventId,
+        note: "Email sending handled by /api/checkout-processing",
       }
-    } catch (error) {
-      console.error(
-        `🚨 XSTATE CHECK-OUT EMAIL FAILED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-        {
-          calendarEventId,
-          email,
-          tenant,
-          error: error.message,
-        }
-      );
-    }
+    );
 
     // Update calendar event with CHECKED_OUT status (including end time)
     // Status will be read from XState data in bookingContentsToDescription

@@ -325,6 +325,92 @@ export const mcBookingMachine = setup({
       }),
     }),
 
+    handleCheckoutProcessing: async ({ context, event }) => {
+      console.log(`🎬 XSTATE ACTOR: handleCheckoutProcessing started`, {
+        input: {
+          context: {
+            tenant: context.tenant,
+            calendarEventId: context.calendarEventId,
+            email: context.email,
+          },
+        },
+      });
+
+      try {
+        const calendarEventId = context.calendarEventId;
+        const email = context.email || "system";
+        const tenant = context.tenant;
+
+        if (calendarEventId) {
+          console.log(
+            `🎬 XSTATE ACTOR: About to call checkout processing API`,
+            {
+              calendarEventId,
+              email,
+              tenant,
+            }
+          );
+
+          // Call the checkout processing API (uses existing checkOut function)
+          const response = await fetch(
+            `${process.env.NEXT_PUBLIC_BASE_URL}/api/checkout-processing`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "x-tenant": tenant || "mc",
+              },
+              body: JSON.stringify({
+                calendarEventId,
+                email,
+                tenant,
+              }),
+            }
+          );
+
+          if (response.ok) {
+            const result = await response.json();
+            console.log(
+              `✅ CHECKOUT PROCESSING API SUCCESS [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+              {
+                calendarEventId,
+                result,
+              }
+            );
+          } else {
+            console.error(
+              `🚨 CHECKOUT PROCESSING API FAILED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+              {
+                calendarEventId,
+                status: response.status,
+                statusText: response.statusText,
+              }
+            );
+            throw new Error(
+              `Checkout processing failed: ${response.statusText}`
+            );
+          }
+        } else {
+          console.warn(
+            `⚠️ CHECKOUT PROCESSING SKIPPED - NO CALENDAR EVENT ID [${context.tenant?.toUpperCase() || "UNKNOWN"}]`
+          );
+        }
+      } catch (error) {
+        console.error(
+          `🚨 XSTATE ACTOR ERROR: handleCheckoutProcessing failed`,
+          {
+            calendarEventId: context.calendarEventId,
+            email: context.email,
+            tenant: context.tenant,
+            error: error.message,
+            stack: error.stack,
+          }
+        );
+      }
+
+      console.log(`🎬 XSTATE ACTOR: handleCheckoutProcessing completed`);
+    },
+
     handleCloseProcessing: async ({ context, event }) => {
       console.log(`🎬 XSTATE ACTOR: handleCloseProcessing started`, {
         input: {
@@ -1961,29 +2047,37 @@ export const mcBookingMachine = setup({
       ],
     },
     "Checked Out": {
-      always: [
-        {
-          target: "Service Closeout",
-          guard: {
-            type: "servicesRequested",
+      after: {
+        // Small delay to ensure email and calendar update complete
+        200: [
+          {
+            target: "Service Closeout",
+            guard: {
+              type: "servicesRequested",
+            },
           },
-        },
-        {
-          target: "Closed",
-        },
-      ],
+          {
+            target: "Closed",
+          },
+        ],
+      },
       entry: [
         ({ context }) => {
           console.log(`🏁 XSTATE STATE: Entered 'Checked Out' state`, {
             tenant: context.tenant,
             timestamp: new Date().toISOString(),
+            note: "Will call checkout processing API and log history",
           });
         },
         {
-          type: "sendHTMLEmail",
+          type: "logBookingHistory",
+          params: {
+            status: "CHECKED_OUT",
+            note: "Booking checked out",
+          },
         },
         {
-          type: "updateCalendarEvent",
+          type: "handleCheckoutProcessing",
         },
       ],
     },

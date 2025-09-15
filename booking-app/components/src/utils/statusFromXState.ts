@@ -33,9 +33,20 @@ export function getStatusFromXState(
   booking: BookingLike,
   tenant?: string
 ): BookingStatusLabel | string {
-  try {
-    if (shouldUseXState(tenant) && booking?.xstateData?.snapshot?.value) {
+  // Priority 1: Always use XState if available in the booking record
+  if (booking?.xstateData?.snapshot?.value) {
+    try {
       const xvalue = booking.xstateData.snapshot.value;
+
+      console.log(
+        `🔍 XSTATE STATUS CHECK [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+        {
+          calendarEventId: booking.calendarEventId,
+          xvalue,
+          xvalueType: typeof xvalue,
+          hasNoShowedAt: !!booking?.noShowedAt,
+        }
+      );
 
       // Handle parallel states - check in priority order
       if (typeof xvalue === "object" && xvalue) {
@@ -77,17 +88,50 @@ export function getStatusFromXState(
             return xvalue.toUpperCase().replace(/\s+/g, "_");
         }
       }
+
+      console.warn(
+        `⚠️ XSTATE VALUE NOT HANDLED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+        {
+          calendarEventId: booking.calendarEventId,
+          xvalue,
+          xvalueType: typeof xvalue,
+        }
+      );
+    } catch (err) {
+      console.error(
+        `🚨 XSTATE STATUS ERROR [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+        {
+          calendarEventId: booking.calendarEventId,
+          error: err.message,
+        }
+      );
     }
-  } catch (err) {
-    // Fall back below
   }
 
-  // Fallback to existing status if present
+  // Priority 2: Fallback to existing status field if present
   if (booking?.status) {
+    console.log(
+      `📋 USING STATUS FIELD [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+      {
+        calendarEventId: booking.calendarEventId,
+        status: booking.status,
+      }
+    );
     return booking.status as BookingStatusLabel;
   }
 
-  // Fallback to legacy timestamp-based status detection
+  // Priority 3: Legacy timestamp-based status detection (only if no XState)
+  console.log(
+    `⏰ USING LEGACY TIMESTAMPS [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+    {
+      calendarEventId: booking.calendarEventId,
+      hasNoShowedAt: !!booking?.noShowedAt,
+      hasCheckedOutAt: !!booking?.checkedOutAt,
+      hasCheckedInAt: !!booking?.checkedInAt,
+      hasCanceledAt: !!booking?.canceledAt,
+    }
+  );
+
   if (booking?.noShowedAt) return BookingStatusLabel.NO_SHOW;
   if (booking?.checkedOutAt) return BookingStatusLabel.CHECKED_OUT;
   if (booking?.checkedInAt) return BookingStatusLabel.CHECKED_IN;
@@ -98,8 +142,4 @@ export function getStatusFromXState(
   if (booking?.requestedAt) return BookingStatusLabel.REQUESTED;
 
   return BookingStatusLabel.REQUESTED;
-}
-
-function shouldUseXState(tenant?: string): boolean {
-  return tenant === "mc" || tenant === "itp";
 }

@@ -1,3 +1,4 @@
+import { parseTimestamp } from "../client/utils/serverDate";
 import { DEFAULT_TENANT } from "../constants/tenants";
 import {
   Approver,
@@ -836,33 +837,8 @@ export const checkOut = async (id: string, email: string, tenant?: string) => {
   console.log(`✅ XSTATE CHECKOUT API SUCCESS [${tenant?.toUpperCase()}]:`, {
     calendarEventId: id,
     newState: xstateResult.newState,
+    note: "History logging will be handled by mcBookingMachine",
   });
-
-  // XState handled the checkout successfully, now add history logging
-  const doc = await clientGetDataByCalendarEventId<{
-    id: string;
-    requestNumber: number;
-  }>(TableNames.BOOKING, id, tenant);
-
-  if (doc) {
-    await logClientBookingChange({
-      bookingId: doc.id,
-      calendarEventId: id,
-      status: BookingStatusLabel.CHECKED_OUT,
-      changedBy: email,
-      requestNumber: doc.requestNumber,
-      tenant,
-    });
-
-    console.log(
-      `📋 XSTATE CHECKOUT HISTORY LOGGED [${tenant?.toUpperCase()}]:`,
-      {
-        calendarEventId: id,
-        bookingId: doc.id,
-        requestNumber: doc.requestNumber,
-      }
-    );
-  }
 };
 
 export const noShow = async (
@@ -1120,19 +1096,8 @@ const getBookingHistory = async (booking: Booking) => {
 
   // Add walk in
   if (booking.walkedInAt) {
-    let walkedInDate: string;
-    if (booking.walkedInAt.toDate) {
-      // Firebase Timestamp object
-      walkedInDate = booking.walkedInAt.toDate().toLocaleString();
-    } else if (booking.walkedInAt.seconds) {
-      // Plain object with seconds/nanoseconds
-      walkedInDate = new Date(
-        booking.walkedInAt.seconds * 1000
-      ).toLocaleString();
-    } else {
-      // Fallback
-      walkedInDate = new Date().toLocaleString();
-    }
+    const timestamp = parseTimestamp(booking.walkedInAt);
+    const walkedInDate = timestamp.toDate().toLocaleString();
 
     history.push({
       status: BookingStatusLabel.WALK_IN,

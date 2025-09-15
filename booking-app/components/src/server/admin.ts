@@ -8,6 +8,7 @@ import {
   serverGetFinalApproverEmail,
   serverUpdateInFirestore,
 } from "@/lib/firebase/server/adminDb";
+import { parseTimestamp } from "../client/utils/serverDate";
 import { DEFAULT_TENANT } from "../constants/tenants";
 import { TableNames, getApprovalCcEmail } from "../policy";
 import {
@@ -129,10 +130,13 @@ const getBookingHistory = async (
   }
 
   if (booking.walkedInAt) {
+    const timestamp = parseTimestamp(booking.walkedInAt);
+    const walkedInDate = timestamp.toDate().toLocaleString();
+    
     history.push({
       status: BookingStatusLabel.WALK_IN,
       user: "PA",
-      date: booking.walkedInAt.toDate().toLocaleString(),
+      date: walkedInDate,
     });
   }
 

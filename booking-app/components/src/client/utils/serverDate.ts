@@ -3,7 +3,7 @@ import { Timestamp } from "firebase-admin/firestore";
 
 type DateInput = Date | Timestamp | { [key: string]: any } | number | string;
 
-const parseTimestamp = (value: DateInput): Timestamp => {
+export const parseTimestamp = (value: DateInput): Timestamp => {
   if (value instanceof Timestamp) return value;
   if (value instanceof Date) return Timestamp.fromDate(value);
   if (typeof value === "object" && value !== null) {
