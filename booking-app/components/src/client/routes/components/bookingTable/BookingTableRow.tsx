@@ -1,9 +1,4 @@
 import {
-  BookingRow,
-  BookingStatusLabel,
-  PageContextLevel,
-} from "../../../../types";
-import {
   IconButton,
   TableCell,
   TableRow,
@@ -11,15 +6,21 @@ import {
   tooltipClasses,
   useTheme,
 } from "@mui/material";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useParams } from "next/navigation";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  BookingRow,
+  BookingStatusLabel,
+  PageContextLevel,
+} from "../../../../types";
 import { formatDateTable, formatTimeAmPm } from "../../../utils/date";
 
-import BookingActions from "../../admin/components/BookingActions";
-import EquipmentCheckoutToggle from "./EquipmentCheckoutToggle";
 import MoreHoriz from "@mui/icons-material/MoreHoriz";
+import BookingActions from "../../admin/components/BookingActions";
+import getBookingStatus from "../../hooks/getBookingStatus";
+import EquipmentCheckoutToggle from "./EquipmentCheckoutToggle";
 import StackedTableCell from "./StackedTableCell";
 import StatusChip from "./StatusChip";
-import getBookingStatus from "../../hooks/getBookingStatus";
 
 interface Props {
   booking: BookingRow;
@@ -36,6 +37,8 @@ export default function BookingTableRow({
 }: Props) {
   const titleRef = useRef();
   const theme = useTheme();
+  const params = useParams();
+  const tenant = params?.tenant as string;
   const [isHighlight, setHighlight] = useState(
     calendarEventId && calendarEventId === booking.calendarEventId
   );
@@ -46,8 +49,8 @@ export default function BookingTableRow({
     useState<BookingStatusLabel>();
 
   const actualStatus = useMemo(() => {
-    return getBookingStatus(booking);
-  }, [booking]);
+    return getBookingStatus(booking, tenant);
+  }, [booking, tenant]);
 
   const displayStatus = useMemo(() => {
     if (optimisticStatus) {
