@@ -37,17 +37,18 @@ export function getStatusFromXState(
     if (shouldUseXState(tenant) && booking?.xstateData?.snapshot?.value) {
       const xvalue = booking.xstateData.snapshot.value;
 
-      // Handle parallel states
+      // Handle parallel states - check in priority order
       if (typeof xvalue === "object" && xvalue) {
-        if (xvalue["Services Request"]) {
-          return BookingStatusLabel.PRE_APPROVED;
-        }
+        // Service Closeout has higher priority than Services Request
         if (xvalue["Service Closeout"]) {
           // Check if this booking was marked as no show
           if (booking?.noShowedAt) {
             return BookingStatusLabel.CANCELED;
           }
           return BookingStatusLabel.CHECKED_OUT;
+        }
+        if (xvalue["Services Request"]) {
+          return BookingStatusLabel.PRE_APPROVED;
         }
       }
 
