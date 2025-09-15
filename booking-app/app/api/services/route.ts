@@ -278,7 +278,7 @@ export async function POST(req: NextRequest) {
                 calendarEventId,
                 serviceType,
                 action,
-                note: "CLOSED logging handled by XState close processing action",
+                note: "CLOSED logging handled by XState close processing action with proper ordering",
               },
             );
           }
