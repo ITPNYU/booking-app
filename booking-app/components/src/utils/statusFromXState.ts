@@ -1,5 +1,4 @@
 import { BookingStatusLabel } from "../types";
-import { shouldUseXState } from "./tenantUtils";
 
 type XStateSnapshot = {
   value?: string | Record<string, any>;
@@ -15,10 +14,13 @@ type BookingLike = {
   checkedOutAt?: any;
   checkedInAt?: any;
   canceledAt?: any;
+  canceledBy?: string;
   declinedAt?: any;
   finalApprovedAt?: any;
   firstApprovedAt?: any;
   requestedAt?: any;
+  closedAt?: any;
+  closedBy?: string;
   // Media Commons service flags may be present on some objects
   equipmentService?: string;
   cateringService?: string;
@@ -95,4 +97,8 @@ export function getStatusFromXState(
   if (booking?.requestedAt) return BookingStatusLabel.REQUESTED;
 
   return BookingStatusLabel.REQUESTED;
+}
+
+function shouldUseXState(tenant?: string): boolean {
+  return tenant === "mc" || tenant === "itp";
 }
