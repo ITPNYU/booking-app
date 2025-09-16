@@ -1,5 +1,5 @@
 import { TENANTS } from "@/components/src/constants/tenants";
-import { and, assign, setup } from "xstate";
+import { and, assign, fromPromise, setup } from "xstate";
 
 // Define context type for type safety
 interface MediaCommonsBookingContext {
@@ -72,6 +72,87 @@ export const mcBookingMachine = setup({
       | { type: "declineEquipment" }
       | { type: "closeoutEquipment" }
       | { type: "autoCloseScript" },
+  },
+  actors: {
+    handleCancelProcessing: fromPromise(
+      async ({ input }: { input: MediaCommonsBookingContext }) => {
+        console.log(`🎬 XSTATE ACTOR: handleCancelProcessing started`, {
+          input: {
+            context: {
+              tenant: input.tenant,
+              calendarEventId: input.calendarEventId,
+              email: input.email,
+            },
+          },
+        });
+
+        try {
+          const calendarEventId = input.calendarEventId;
+          const email = input.email || "system";
+          const netId = email?.split("@")[0] || "system";
+          const tenant = input.tenant;
+
+          if (calendarEventId) {
+            console.log(
+              `🎬 XSTATE ACTOR: About to call cancel processing API`,
+              {
+                calendarEventId,
+                email,
+                netId,
+                tenant,
+              }
+            );
+
+            // Call the cancel processing API
+            const response = await fetch(
+              `${process.env.NEXT_PUBLIC_BASE_URL}/api/cancel-processing`,
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "x-tenant": tenant || "mc",
+                },
+                body: JSON.stringify({
+                  calendarEventId,
+                  email,
+                  netId,
+                  tenant,
+                }),
+              }
+            );
+
+            if (response.ok) {
+              const result = await response.json();
+              console.log(
+                `✅ CANCEL PROCESSING API SUCCESS [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+                {
+                  calendarEventId,
+                  result,
+                }
+              );
+            } else {
+              console.error(
+                `🚨 CANCEL PROCESSING API FAILED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+                {
+                  calendarEventId,
+                  status: response.status,
+                  statusText: response.statusText,
+                }
+              );
+            }
+          }
+        } catch (error) {
+          console.error(`🚨 XSTATE CANCEL PROCESSING ERROR:`, {
+            calendarEventId: input.calendarEventId,
+            error: error.message,
+          });
+          throw error;
+        }
+
+        console.log(`🎬 XSTATE ACTOR: handleCancelProcessing completed`);
+        return { success: true };
+      }
+    ),
   },
   actions: {
     sendHTMLEmail: ({ context, event }) => {
@@ -243,6 +324,97 @@ export const mcBookingMachine = setup({
         setup: true,
       }),
     }),
+
+    handleCloseProcessing: async ({ context, event }) => {
+      console.log(`🎬 XSTATE ACTOR: handleCloseProcessing started`, {
+        input: {
+          context: {
+            tenant: context.tenant,
+            calendarEventId: context.calendarEventId,
+            email: context.email,
+          },
+        },
+      });
+
+      try {
+        const calendarEventId = context.calendarEventId;
+        const email = context.email || "system";
+        const tenant = context.tenant;
+
+        if (calendarEventId) {
+          // Add delay to allow service closeout processing to complete first
+          // This ensures proper order: Service Closeout → Close Processing
+          console.log(
+            `⏳ WAITING FOR SERVICE CLOSEOUT COMPLETION [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+            {
+              calendarEventId,
+              delay: "500ms",
+            }
+          );
+
+          await new Promise((resolve) => setTimeout(resolve, 500));
+
+          console.log(`🎬 XSTATE ACTOR: About to call close processing API`, {
+            calendarEventId,
+            email,
+            tenant,
+          });
+
+          // Call the close processing API
+          const response = await fetch(
+            `${process.env.NEXT_PUBLIC_BASE_URL}/api/close-processing`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "x-tenant": tenant || "mc",
+              },
+              body: JSON.stringify({
+                calendarEventId,
+                email,
+                tenant,
+              }),
+            }
+          );
+
+          if (response.ok) {
+            const result = await response.json();
+            console.log(
+              `✅ CLOSE PROCESSING API SUCCESS [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+              {
+                calendarEventId,
+                result,
+              }
+            );
+          } else {
+            const errorText = await response.text();
+            console.error(
+              `🚨 CLOSE PROCESSING API FAILED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+              {
+                calendarEventId,
+                status: response.status,
+                statusText: response.statusText,
+                error: errorText,
+              }
+            );
+          }
+        } else {
+          console.error(
+            `🚨 CLOSE PROCESSING API SKIPPED - NO CALENDAR EVENT ID [${tenant?.toUpperCase() || "UNKNOWN"}]`
+          );
+        }
+      } catch (error: any) {
+        console.error(
+          `🚨 CLOSE PROCESSING API ERROR [${context.tenant?.toUpperCase() || "UNKNOWN"}]:`,
+          {
+            error: error.message,
+            stack: error.stack,
+          }
+        );
+      }
+
+      console.log(`🎬 XSTATE ACTOR: handleCloseProcessing completed`);
+    },
     // Service decline actions that update context
     declineStaffService: assign({
       servicesApproved: ({ context }) => ({
@@ -639,17 +811,6 @@ export const mcBookingMachine = setup({
       ],
     },
     Canceled: {
-      always: [
-        {
-          target: "Service Closeout",
-          guard: {
-            type: "servicesRequested",
-          },
-        },
-        {
-          target: "Closed",
-        },
-      ],
       entry: [
         ({ context }) => {
           console.log(
@@ -662,23 +823,26 @@ export const mcBookingMachine = setup({
             }
           );
         },
-        {
-          type: "sendHTMLEmail",
-        },
-        {
-          type: "updateCalendarEvent",
-        },
-        {
-          type: "deleteCalendarEvent",
-        },
-        {
-          type: "logBookingHistory",
-          params: {
-            status: "CANCELED",
-            note: "Booking canceled due to no show",
-          },
-        },
       ],
+      invoke: {
+        id: "cancelProcessingActor",
+        src: "handleCancelProcessing",
+        input: ({ context }) => context,
+        onDone: [
+          {
+            target: "Service Closeout",
+            guard: {
+              type: "servicesRequested",
+            },
+          },
+          {
+            target: "Closed",
+          },
+        ],
+        onError: {
+          target: "Closed",
+        },
+      },
     },
     Declined: {
       on: {
@@ -1291,17 +1455,10 @@ export const mcBookingMachine = setup({
         cancel: {
           target: "Canceled",
         },
-        decline: [
-          {
-            target: "Services Request",
-            guard: {
-              type: "servicesRequested",
-            },
-          },
-          {
-            target: "Declined",
-          },
-        ],
+        decline: {
+          target: "Declined",
+          actions: "setDeclineReason",
+        },
         edit: {
           target: "Requested",
         },
@@ -1720,6 +1877,9 @@ export const mcBookingMachine = setup({
           });
         },
         {
+          type: "handleCloseProcessing",
+        },
+        {
           type: "sendHTMLEmail",
         },
         {
@@ -1758,9 +1918,6 @@ export const mcBookingMachine = setup({
             tenant: context.tenant,
             timestamp: new Date().toISOString(),
           });
-        },
-        {
-          type: "sendHTMLEmail",
         },
         {
           type: "updateCalendarEvent",

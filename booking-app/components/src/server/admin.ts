@@ -8,8 +8,8 @@ import {
   serverGetFinalApproverEmail,
   serverUpdateInFirestore,
 } from "@/lib/firebase/server/adminDb";
-import { DEFAULT_TENANT, TENANTS } from "../constants/tenants";
-import { ApproverLevel, TableNames, getApprovalCcEmail } from "../policy";
+import { DEFAULT_TENANT } from "../constants/tenants";
+import { TableNames, getApprovalCcEmail } from "../policy";
 import {
   AdminUser,
   Approver,
@@ -20,7 +20,7 @@ import {
   BookingStatus,
   BookingStatusLabel,
 } from "../types";
-import { getMediaCommonsServices, isMediaCommons } from "../utils/tenantUtils";
+import { isMediaCommons } from "../utils/tenantUtils";
 
 import { Timestamp } from "firebase-admin/firestore";
 
@@ -336,7 +336,7 @@ export const serverFirstApproveOnly = async (
   );
 };
 
-const serverFinalApprove = async (
+export const serverFinalApprove = async (
   id: string,
   email?: string,
   tenant?: string
@@ -352,30 +352,6 @@ const serverFinalApprove = async (
     finalApprovedAt: Timestamp.now(),
     finalApprovedBy: email,
   };
-
-  // For Media Commons, if services are requested, approve them all during final approval
-  if (tenant === TENANTS.MC && bookingData) {
-    const servicesRequested = getMediaCommonsServices(bookingData);
-
-    if (servicesRequested.staff) {
-      updateData.staffServiceApproved = true;
-    }
-    if (servicesRequested.equipment) {
-      updateData.equipmentServiceApproved = true;
-    }
-    if (servicesRequested.catering) {
-      updateData.cateringServiceApproved = true;
-    }
-    if (servicesRequested.cleaning) {
-      updateData.cleaningServiceApproved = true;
-    }
-    if (servicesRequested.security) {
-      updateData.securityServiceApproved = true;
-    }
-    if (servicesRequested.setup) {
-      updateData.setupServiceApproved = true;
-    }
-  }
 
   serverUpdateDataByCalendarEventId(TableNames.BOOKING, id, updateData, tenant);
 };
@@ -416,33 +392,11 @@ export const serverApproveInstantBooking = async (
   }
 
   if (shouldDoFinalApproval) {
-    // For instant booking with no services, skip first approval and go directly to final approval
-    serverFinalApprove(id, "System", tenant);
+    // For instant booking with no services, use finalApprove for consistent processing
+    await finalApprove(id, "System", tenant);
   } else {
-    // For VIP bookings with services, only do first approval to allow service request flow
-    serverFirstApprove(id, "System", tenant);
-  }
-
-  const doc = await serverGetDataByCalendarEventId<{
-    id: string;
-    requestNumber: number;
-  }>(TableNames.BOOKING, id, tenant);
-  if (doc && id) {
-    await logServerBookingChange({
-      bookingId: doc.id,
-      status: shouldDoFinalApproval
-        ? BookingStatusLabel.APPROVED
-        : BookingStatusLabel.PRE_APPROVED,
-      changedBy: "System",
-      requestNumber: doc.requestNumber,
-      calendarEventId: id,
-      note: "",
-      tenant,
-    });
-  }
-
-  if (shouldDoFinalApproval) {
-    serverApproveEvent(id, tenant);
+    // For VIP bookings with services, use firstApprove for consistent processing
+    await firstApprove(id, "System", tenant);
   }
 };
 
@@ -537,23 +491,11 @@ const firstApprove = async (id: string, email: string, tenant?: string) => {
   });
 };
 
-const finalApprove = async (id: string, email: string, tenant?: string) => {
-  const finalApprovers = (await approvers()).filter(
-    (a) => a.level === ApproverLevel.FINAL
-  );
-  const finalApproverEmails = [...(await admins()), ...finalApprovers].map(
-    (a) => a.email
-  );
-
-  const canPerformSecondApproval = finalApproverEmails.includes(email);
-  if (!canPerformSecondApproval) {
-    throw {
-      success: false,
-      message:
-        "Unauthorized: Only final approvers or admin users can perform second approval",
-      status: 403,
-    };
-  }
+export const finalApprove = async (
+  id: string,
+  email: string,
+  tenant?: string
+) => {
   await serverFinalApprove(id, email, tenant);
 
   // Log the final approval action

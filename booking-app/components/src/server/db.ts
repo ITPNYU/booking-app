@@ -319,24 +319,298 @@ function isLateCancel(doc: any): boolean {
   return hoursToEvent <= 24 && hoursSinceCreation > 1;
 }
 
-function checkAndLogLateCancellation(
+async function checkAndLogLateCancellation(
   doc: any,
   bookingId: string,
-  netId: string
+  netId: string,
+  tenant?: string
 ) {
   if (!isLateCancel(doc)) return;
-  const now = Timestamp.now();
+
+  const { serverSaveDataToFirestore } = await import(
+    "@/lib/firebase/server/adminDb"
+  );
+  const admin = await import("firebase-admin");
+  const now = admin.firestore.Timestamp.now();
   const log = { netId, bookingId, lateCancelDate: now };
-  clientSaveDataToFirestore(TableNames.PRE_BAN_LOGS, log);
+  await serverSaveDataToFirestore(TableNames.PRE_BAN_LOGS, log, tenant);
 }
 
-async function getViolationCount(netId: string): Promise<number> {
-  const preBanLogs = await clientFetchAllDataFromCollection(
-    TableNames.PRE_BAN_LOGS,
-    [where("netId", "==", netId)]
+async function getViolationCount(
+  netId: string,
+  tenant?: string
+): Promise<number> {
+  const { serverFetchAllDataFromCollection } = await import(
+    "@/lib/firebase/server/adminDb"
   );
-  return preBanLogs.length;
+
+  // For server-side, we'll query directly without where clause for now
+  // This is a simplified approach - in production you'd want proper filtering
+  const preBanLogs = await serverFetchAllDataFromCollection(
+    TableNames.PRE_BAN_LOGS,
+    undefined,
+    tenant
+  );
+
+  // Filter on the client side for now
+  const filteredLogs = preBanLogs.filter((log: any) => log.netId === netId);
+  return filteredLogs.length;
 }
+
+/**
+ * Shared close processing function that handles all close-related operations
+ * Used by both traditional close function and XState close processing
+ */
+export const processCloseBooking = async (
+  id: string,
+  email: string,
+  tenant?: string
+): Promise<void> => {
+  // Import server-side functions and admin SDK
+  const { serverGetDataByCalendarEventId, serverUpdateInFirestore } =
+    await import("@/lib/firebase/server/adminDb");
+  const { serverSendBookingDetailEmail } = await import(
+    "@/components/src/server/admin"
+  );
+  const { logServerBookingChange } = await import(
+    "@/lib/firebase/server/adminDb"
+  );
+  const admin = await import("firebase-admin");
+
+  // Get booking document first to get the document ID
+  const doc = await serverGetDataByCalendarEventId<Booking>(
+    TableNames.BOOKING,
+    id,
+    tenant
+  );
+
+  if (!doc) {
+    console.error(
+      `🚨 CLOSE PROCESSING: Booking not found for calendarEventId: ${id}`
+    );
+    return;
+  }
+
+  // Update Firestore booking document using server-side Timestamp
+  // CLOSED state is always attributed to System
+  const updateData: any = {
+    closedAt: admin.firestore.Timestamp.now(),
+    closedBy: "System",
+  };
+
+  // If this booking uses XState, also update the XState snapshot to "Closed"
+  if (doc.xstateData?.snapshot) {
+    console.log(
+      `🎯 UPDATING XSTATE SNAPSHOT TO CLOSED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+      {
+        calendarEventId: id,
+        currentXStateValue: doc.xstateData.snapshot.value,
+        updatingTo: "Closed",
+      }
+    );
+
+    updateData.xstateData = {
+      ...doc.xstateData,
+      snapshot: {
+        ...doc.xstateData.snapshot,
+        value: "Closed",
+        status: "done",
+      },
+      lastTransition: new Date().toISOString(),
+    };
+  }
+
+  await serverUpdateInFirestore(TableNames.BOOKING, doc.id, updateData, tenant);
+
+  // Add Close history log
+  // CLOSED state is always attributed to System
+  await logServerBookingChange({
+    bookingId: doc.id,
+    calendarEventId: id,
+    status: BookingStatusLabel.CLOSED,
+    changedBy: "System",
+    requestNumber: doc.requestNumber || 0,
+    note: "",
+    tenant,
+  });
+
+  // Unified email message for all close operations
+  const emailMessage =
+    "Your reservation has been closed. Thank you for choosing Media Commons.";
+  const emailStatus = BookingStatusLabel.CLOSED;
+
+  // Send email using server-side function
+  const guestEmail = doc.email;
+  if (guestEmail) {
+    await serverSendBookingDetailEmail({
+      calendarEventId: id,
+      targetEmail: guestEmail,
+      headerMessage: emailMessage,
+      status: emailStatus,
+      tenant,
+    });
+  }
+
+  // Update calendar
+  const response = await fetch(
+    `${process.env.NEXT_PUBLIC_BASE_URL}/api/calendarEvents`,
+    {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "x-tenant": tenant || DEFAULT_TENANT,
+      },
+      body: JSON.stringify({
+        calendarEventId: id,
+        newValues: { statusPrefix: BookingStatusLabel.CLOSED },
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    console.error(
+      `🚨 CLOSE CALENDAR UPDATE FAILED: ${response.status} ${response.statusText}`
+    );
+  }
+};
+
+/**
+ * Shared cancel processing function that handles all cancel-related operations
+ * Used by both traditional cancel function and XState cancel processing
+ */
+export const processCancelBooking = async (
+  id: string,
+  email: string,
+  netId: string,
+  tenant?: string
+): Promise<void> => {
+  // Import server-side functions and admin SDK
+  const { serverGetDataByCalendarEventId, serverUpdateInFirestore } =
+    await import("@/lib/firebase/server/adminDb");
+  const admin = await import("firebase-admin");
+
+  // Get booking document first to get the document ID
+  const doc = await serverGetDataByCalendarEventId<Booking>(
+    TableNames.BOOKING,
+    id,
+    tenant
+  );
+
+  if (!doc) {
+    console.error(
+      `🚨 CANCEL PROCESSING: Booking not found for calendarEventId: ${id}`
+    );
+    return;
+  }
+
+  // Update Firestore booking document using server-side Timestamp
+  await serverUpdateInFirestore(
+    TableNames.BOOKING,
+    doc.id,
+    {
+      canceledAt: admin.firestore.Timestamp.now(),
+      canceledBy: email,
+    },
+    tenant
+  );
+
+  // Always call for pre-ban logging
+  await checkAndLogLateCancellation(doc, id, netId, tenant);
+
+  // Log the cancel action
+  if (doc) {
+    const { serverSaveDataToFirestore } = await import(
+      "@/lib/firebase/server/adminDb"
+    );
+
+    await serverSaveDataToFirestore(
+      TableNames.BOOKING_LOGS,
+      {
+        calendarEventId: id,
+        status: BookingStatusLabel.CANCELED,
+        changedBy: email,
+        changedAt: admin.firestore.Timestamp.now(),
+        note: "",
+        requestNumber: doc.requestNumber,
+      },
+      tenant
+    );
+  }
+
+  //@ts-ignore
+  const guestEmail = doc ? doc.email : null;
+
+  let headerMessage =
+    "The request has been canceled.<br /><br />Thank you!<br />";
+  let ccHeaderMessage = headerMessage;
+
+  if (isLateCancel(doc)) {
+    const violationCount = await getViolationCount(netId, tenant);
+    headerMessage = `Your reservation has been canceled and recorded as a "late cancellation," as it was canceled within 24 hours of the scheduled time.<br /><br />
+We want to remind you that the Media Commons has a revocation policy regarding Late Cancellations and No Shows (<a href="https://sites.google.com/nyu.edu/370jmediacommons/about/our-policy" target="_blank">IV. Cancellation / V. 'No Show'</a>). Currently, you have <b>${violationCount}</b> on your account. After the third violation, a member of our team will reach out to discuss the next steps. Our aim with this policy is to promote accountability and a culture of sharing equitably within our community.<br /><br />
+We understand that unexpected situations come up, and we ask you to cancel reservations at least 24 hours in advance whenever possible to help maintain a fair system for everyone. You can easily cancel through the <a href="https://sites.google.com/nyu.edu/370jmediacommons/reservations/booking-tool" target="_blank">booking tool on our website</a> or by emailing us at mediacommons.reservations@nyu.edu.<br /><br />
+If you have any questions or need further assistance, please don't hesitate to reach out. We're here to support you!`;
+    // ccHeaderMessage remains the original cancel message
+  }
+
+  // Send emails using server-side function
+  const { serverSendBookingDetailEmail } = await import(
+    "@/components/src/server/admin"
+  );
+
+  if (guestEmail) {
+    await serverSendBookingDetailEmail({
+      calendarEventId: id,
+      targetEmail: guestEmail,
+      headerMessage,
+      status: BookingStatusLabel.CANCELED,
+      tenant,
+    });
+
+    await serverSendBookingDetailEmail({
+      calendarEventId: id,
+      targetEmail: getCancelCcEmail(),
+      headerMessage: ccHeaderMessage,
+      status: BookingStatusLabel.CANCELED,
+      tenant,
+    });
+  }
+
+  // Update calendar
+  const response = await fetch(
+    `${process.env.NEXT_PUBLIC_BASE_URL}/api/calendarEvents`,
+    {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "x-tenant": tenant || DEFAULT_TENANT,
+      },
+      body: JSON.stringify({
+        calendarEventId: id,
+        newValues: { statusPrefix: BookingStatusLabel.CANCELED },
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    console.error(
+      `🚨 CANCEL CALENDAR UPDATE FAILED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+      {
+        calendarEventId: id,
+        status: response.status,
+        statusText: response.statusText,
+      }
+    );
+  } else {
+    console.log(
+      `📅 CANCEL CALENDAR UPDATED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+      {
+        calendarEventId: id,
+        statusPrefix: BookingStatusLabel.CANCELED,
+      }
+    );
+  }
+};
 export const cancel = async (
   id: string,
   email: string,
@@ -352,147 +626,51 @@ export const cancel = async (
   });
 
   // For ITP and Media Commons tenants, use XState transition via API
-  if (shouldUseXState(tenant)) {
-    console.log(`🎭 USING XSTATE API FOR CANCEL [${tenant?.toUpperCase()}]:`, {
+  console.log(`🎭 USING XSTATE API FOR CANCEL [${tenant?.toUpperCase()}]:`, {
+    calendarEventId: id,
+  });
+
+  const xstateResult = await callXStateTransitionAPI(
+    id,
+    "cancel",
+    email,
+    tenant
+  );
+
+  if (!xstateResult.success) {
+    console.error(`🚨 XSTATE CANCEL API FAILED [${tenant?.toUpperCase()}]:`, {
       calendarEventId: id,
+      error: xstateResult.error,
     });
 
-    const xstateResult = await callXStateTransitionAPI(
-      id,
-      "cancel",
-      email,
-      tenant
-    );
-
-    if (!xstateResult.success) {
-      console.error(`🚨 XSTATE CANCEL API FAILED [${tenant?.toUpperCase()}]:`, {
-        calendarEventId: id,
-        error: xstateResult.error,
-      });
-
-      // Fallback to traditional cancel if XState API fails
-      console.log(
-        `🔄 FALLING BACK TO TRADITIONAL CANCEL [${tenant?.toUpperCase()}]:`,
-        {
-          calendarEventId: id,
-        }
-      );
-    } else {
-      console.log(`✅ XSTATE CANCEL API SUCCESS [${tenant?.toUpperCase()}]:`, {
-        calendarEventId: id,
-        newState: xstateResult.newState,
-      });
-
-      // XState handled the cancel successfully, now add history logging
-      const doc = await clientGetDataByCalendarEventId<{
-        id: string;
-        requestNumber: number;
-      }>(TableNames.BOOKING, id, tenant);
-
-      if (doc) {
-        await logClientBookingChange({
-          bookingId: doc.id,
-          calendarEventId: id,
-          status: BookingStatusLabel.CANCELED,
-          changedBy: email,
-          requestNumber: doc.requestNumber,
-          tenant,
-        });
-
-        console.log(
-          `📋 XSTATE CANCEL HISTORY LOGGED [${tenant?.toUpperCase()}]:`,
-          {
-            calendarEventId: id,
-            bookingId: doc.id,
-            requestNumber: doc.requestNumber,
-          }
-        );
-      }
-
-      // Skip the traditional processing below
-      return;
-    }
-  } else {
+    // Fallback to traditional cancel if XState API fails
     console.log(
-      `📝 USING TRADITIONAL CANCEL [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-      { calendarEventId: id }
-    );
-  }
-
-  clientUpdateDataByCalendarEventId(
-    TableNames.BOOKING,
-    id,
-    {
-      canceledAt: Timestamp.now(),
-      canceledBy: email,
-    },
-    tenant
-  );
-
-  const doc = await clientGetDataByCalendarEventId<Booking>(
-    TableNames.BOOKING,
-    id,
-    tenant
-  );
-  // Always call for pre-ban logging
-  checkAndLogLateCancellation(doc, id, netId);
-
-  // Log the cancel action (only for traditional processing)
-  if (doc) {
-    await logClientBookingChange({
-      bookingId: doc.id,
-      calendarEventId: id,
-      status: BookingStatusLabel.CANCELED,
-      changedBy: email,
-      requestNumber: doc.requestNumber,
-      tenant,
-    });
-  }
-
-  //@ts-ignore
-  const guestEmail = doc ? doc.email : null;
-
-  let headerMessage =
-    "The request has been canceled.<br /><br />Thank you!<br />";
-  let ccHeaderMessage = headerMessage;
-
-  if (isLateCancel(doc)) {
-    const violationCount = await getViolationCount(netId);
-    headerMessage = `Your reservation has been canceled and recorded as a "late cancellation," as it was canceled within 24 hours of the scheduled time.<br /><br />
-We want to remind you that the Media Commons has a revocation policy regarding Late Cancellations and No Shows (<a href="https://sites.google.com/nyu.edu/370jmediacommons/about/our-policy" target="_blank">IV. Cancellation / V. 'No Show'</a>). Currently, you have <b>${violationCount}</b> on your account. After the third violation, a member of our team will reach out to discuss the next steps. Our aim with this policy is to promote accountability and a culture of sharing equitably within our community.<br /><br />
-We understand that unexpected situations come up, and we ask you to cancel reservations at least 24 hours in advance whenever possible to help maintain a fair system for everyone. You can easily cancel through the <a href="https://sites.google.com/nyu.edu/370jmediacommons/reservations/booking-tool" target="_blank">booking tool on our website</a> or by emailing us at mediacommons.reservations@nyu.edu.<br /><br />
-If you have any questions or need further assistance, please don't hesitate to reach out. We're here to support you!`;
-    // ccHeaderMessage remains the original cancel message
-  }
-
-  clientSendBookingDetailEmail(
-    id,
-    guestEmail,
-    headerMessage,
-    BookingStatusLabel.CANCELED,
-    tenant
-  );
-  clientSendBookingDetailEmail(
-    id,
-    getCancelCcEmail(),
-    ccHeaderMessage,
-    BookingStatusLabel.CANCELED,
-    tenant
-  );
-  const response = await fetch(
-    `${process.env.NEXT_PUBLIC_BASE_URL}/api/calendarEvents`,
-    {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        "x-tenant": tenant || DEFAULT_TENANT,
-      },
-      body: JSON.stringify({
+      `🔄 FALLING BACK TO TRADITIONAL CANCEL [${tenant?.toUpperCase()}]:`,
+      {
         calendarEventId: id,
-        newValues: { statusPrefix: BookingStatusLabel.CANCELED },
-      }),
-    }
-  );
+      }
+    );
+
+    // Use the shared cancel processing function for fallback
+    await processCancelBooking(id, email, netId, tenant);
+  } else {
+    console.log(`✅ XSTATE CANCEL API SUCCESS [${tenant?.toUpperCase()}]:`, {
+      calendarEventId: id,
+      newState: xstateResult.newState,
+    });
+
+    // XState handled the cancel successfully, processing is done by machine actions
+    console.log(
+      `🎯 CANCEL PROCESSING HANDLED BY XSTATE [${tenant?.toUpperCase()}]:`,
+      {
+        calendarEventId: id,
+        note: "Cancel processing handled by XState machine actions",
+      }
+    );
+
+    // Skip the traditional processing below
+    return;
+  }
 };
 
 export const updateFinalApprover = async (updatedData: object) => {
