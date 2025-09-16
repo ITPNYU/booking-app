@@ -608,6 +608,17 @@ export default function MoreInfoModal({
                       </TableCell>
                     </TableRow>
                   )}
+                {booking.mediaServices && booking.mediaServices.length > 0 && (
+                  <TableRow>
+                    <LabelCell>Media Service</LabelCell>
+                    <TableCell>
+                      {booking.mediaServices.split(", ").map((service) => (
+                        <p key={service}>{service.trim()}</p>
+                      ))}
+                      <p>{booking.mediaServicesDetails || ""}</p>
+                    </TableCell>
+                  </TableRow>
+                )}
                 {(booking.catering === "yes" || booking.cateringService) && (
                   <TableRow>
                     <LabelCell>Catering Service</LabelCell>
