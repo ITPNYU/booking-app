@@ -17,6 +17,7 @@ export type Resource = {
   isWalkInCanBookTwo: boolean;
   services: string[]; // ["equipment", "staffing", "setup", "security", "cleaning", "catering", "campus-media"]
   staffingServices?: string[]; // Specific staffing service options for this room
+  staffingSections?: { name: string; indexes: number[] }[];
 };
 
 export type SchemaContextType = {
