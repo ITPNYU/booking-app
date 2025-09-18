@@ -2,6 +2,7 @@ import {
   Approver,
   Booking,
   BookingFormDetails,
+  BookingOrigin,
   BookingStatusLabel,
   Days,
   Filters,
@@ -142,12 +143,18 @@ export const decline = async (id: string, email: string, reason?: string) => {
 };
 
 // If cancel within 24 hours of event or o, add to pre-ban logs.
-function checkAndLogLateCancellation(
+export function checkAndLogLateCancellation(
   doc: any,
   bookingId: string,
   netId: string
 ) {
   if (!doc) return;
+
+  // Only apply late cancellation penalty to user-created bookings
+  if (doc.origin !== BookingOrigin.USER) return;
+
+  // Check if required fields exist
+  if (!doc.startDate || !doc.requestedAt) return;
 
   const now = Timestamp.now();
   const eventDate = doc.startDate;
@@ -157,8 +164,8 @@ function checkAndLogLateCancellation(
   const timeToEvent = eventDate.toDate().getTime() - now.toDate().getTime();
   const hoursToEvent = timeToEvent / (1000 * 60 * 60);
 
-  // If event is more than 24 hours away, no penalty.
-  if (hoursToEvent > 24) return;
+  // If event is 24 hours or more away, no penalty.
+  if (hoursToEvent >= 24) return;
 
   // If within 1 hour grace period of creation, no penalty.
   const timeSinceCreation =
