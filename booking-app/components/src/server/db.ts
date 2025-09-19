@@ -3,6 +3,7 @@ import {
   Approver,
   Booking,
   BookingFormDetails,
+  BookingOrigin,
   BookingStatusLabel,
   Days,
   Filters,
@@ -300,13 +301,17 @@ export const decline = async (
   );
 };
 
-function isPolicyViolation(doc: any): boolean {
+export function isPolicyViolation(doc: any): boolean {
   // Exclude vip and walk-in
   if (!doc || !doc.startDate || !doc.requestedAt) return false;
+
+  // Only apply late cancellation penalty to user-created bookings
+  if (doc.origin !== BookingOrigin.USER) return false;
+
   return true;
 }
 
-function isLateCancel(doc: any): boolean {
+export function isLateCancel(doc: any): boolean {
   if (!isPolicyViolation(doc)) return false;
   const now = Timestamp.now();
   const eventDate = doc.startDate;
