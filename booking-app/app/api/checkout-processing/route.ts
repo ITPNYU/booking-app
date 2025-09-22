@@ -6,8 +6,10 @@ import {
 } from "@/components/src/server/admin";
 import { updateCalendarEvent } from "@/components/src/server/calendars";
 import { BookingStatusLabel } from "@/components/src/types";
-import { clientGetDataByCalendarEventId } from "@/lib/firebase/firebase";
-import { logServerBookingChange } from "@/lib/firebase/server/adminDb";
+import {
+  logServerBookingChange,
+  serverGetDataByCalendarEventId,
+} from "@/lib/firebase/server/adminDb";
 import { BookingLogger } from "@/lib/logger/bookingLogger";
 import { Timestamp } from "firebase-admin/firestore";
 import { NextRequest, NextResponse } from "next/server";
@@ -33,7 +35,7 @@ export async function POST(req: NextRequest) {
     });
 
     // Get booking data
-    const bookingDoc = (await clientGetDataByCalendarEventId(
+    const bookingDoc = (await serverGetDataByCalendarEventId(
       TableNames.BOOKING,
       calendarEventId,
       tenant,
@@ -115,9 +117,6 @@ export async function POST(req: NextRequest) {
         calendarEventId,
         {
           statusPrefix: BookingStatusLabel.CHECKED_OUT,
-          end: {
-            dateTime: new Date().toISOString(),
-          },
         },
         bookingContents,
         tenant,
@@ -131,7 +130,6 @@ export async function POST(req: NextRequest) {
         },
         {
           statusPrefix: BookingStatusLabel.CHECKED_OUT,
-          endTime: new Date().toISOString(),
         },
       );
     } catch (calendarError) {
