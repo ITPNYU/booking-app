@@ -334,6 +334,19 @@ export const Bookings: React.FC<BookingsProps> = ({
       },
       ...(!isUserView
         ? [
+           {
+              field: "services",
+              headerName: "Services",
+              minWidth: 120,
+              flex: 1,
+              renderHeader: () => <TableCell>Services</TableCell>,
+              filterable: false,
+              renderCell: (params) => (
+                <TableCell>
+
+                </TableCell>
+              ),
+            },
             {
               field: "equip",
               headerName: "Equip.",
