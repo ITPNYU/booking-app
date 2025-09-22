@@ -20,72 +20,8 @@ export interface PersistedXStateData {
   lastTransition: string;
 }
 
-// Helper function to log booking status changes to History table
-async function logBookingStatusChange(
-  calendarEventId: string,
-  status: BookingStatusLabel,
-  email: string,
-  tenant: string,
-  note?: string
-) {
-  try {
-    const { serverGetDataByCalendarEventId, logServerBookingChange } =
-      await import("@/lib/firebase/server/adminDb");
-    const doc = await serverGetDataByCalendarEventId<{
-      id: string;
-      requestNumber: number;
-    }>(TableNames.BOOKING, calendarEventId, tenant);
-
-    if (doc) {
-      // Log the booking status change to BOOKING_LOGS table
-      await logServerBookingChange({
-        bookingId: doc.id,
-        calendarEventId,
-        status,
-        changedBy: email,
-        requestNumber: doc.requestNumber,
-        note: note || `XState transition to ${status}`,
-        tenant,
-      });
-
-      console.log(
-        `📝 XSTATE HISTORY LOGGED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-        {
-          bookingId: doc.id,
-          calendarEventId,
-          status,
-          changedBy: email,
-          requestNumber: doc.requestNumber,
-          note: note || `XState transition to ${status}`,
-        }
-      );
-
-      return true;
-    } else {
-      console.warn(
-        `⚠️ XSTATE HISTORY LOGGING SKIPPED - BOOKING NOT FOUND [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-        {
-          calendarEventId,
-          status,
-          changedBy: email,
-        }
-      );
-    }
-  } catch (error) {
-    console.error(
-      `🚨 XSTATE HISTORY LOGGING FAILED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-      {
-        calendarEventId,
-        email,
-        tenant,
-        status,
-        error: error.message,
-      }
-    );
-  }
-  return false;
-}
-
+// Note: History logging is now handled by traditional functions only
+// XState only manages state transitions, not history logging
 // Unified state transition handler with history logging
 async function handleStateTransitions(
   currentSnapshot: any,
@@ -94,16 +30,44 @@ async function handleStateTransitions(
   email: string,
   tenant: string,
   firestoreUpdates: any,
+  actor: any,
   skipCalendarForServiceCloseout = false,
-  isXStateCreation = false
+  isXStateCreation = false,
+  reason?: string
 ) {
-  const previousState = currentSnapshot.value;
-  const newState = newSnapshot.value;
+  const previousState =
+    typeof currentSnapshot.value === "string"
+      ? currentSnapshot.value
+      : JSON.stringify(currentSnapshot.value);
+  const newState =
+    typeof newSnapshot.value === "string"
+      ? newSnapshot.value
+      : JSON.stringify(newSnapshot.value);
 
   // Skip if no state change
   if (previousState === newState) {
+    console.log(
+      `⏭️ SKIPPING HISTORY LOG - NO STATE CHANGE [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+      {
+        calendarEventId,
+        previousState,
+        newState,
+        reason: "Same state, no transition needed",
+      }
+    );
     return;
   }
+
+  console.log(
+    `🔄 XSTATE STATE TRANSITION DETECTED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+    {
+      calendarEventId,
+      previousState,
+      newState,
+      email,
+      willLogToHistory: false,
+    }
+  );
 
   // Get booking data from Firestore (not from XState context)
   let bookingDoc: any = null;
@@ -156,40 +120,20 @@ async function handleStateTransitions(
       }
     );
 
-    // Log to history
-    await logBookingStatusChange(
-      calendarEventId,
-      BookingStatusLabel.APPROVED,
-      email,
-      tenant,
-      "booking fully approved"
-    );
+    // Note: History logging is now handled by traditional functions only
+    // XState only manages state transitions, not history logging
 
-    // Execute approval side effects (emails, calendar updates, etc.)
-    try {
-      const { serverApproveBooking } = await import(
-        "@/components/src/server/admin"
-      );
-      await serverApproveBooking(calendarEventId, email, tenant);
-      console.log(
-        `✅ XSTATE APPROVED SIDE EFFECTS EXECUTED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-        {
-          calendarEventId,
-          email,
-          tenant,
-        }
-      );
-    } catch (error) {
-      console.error(
-        `🚨 XSTATE APPROVED SIDE EFFECTS FAILED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-        {
-          calendarEventId,
-          email,
-          tenant,
-          error: error.message,
-        }
-      );
-    }
+    // Note: Side effects (emails, calendar updates, history logging) are now handled
+    // by traditional processing after XState transitions to maintain separation of concerns
+    console.log(
+      `📝 XSTATE APPROVED STATE REACHED - SIDE EFFECTS HANDLED EXTERNALLY [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+      {
+        calendarEventId,
+        email,
+        tenant,
+        note: "Approval side effects handled by /api/services or /api/approve",
+      }
+    );
   } else if (newState === "Declined" && previousState !== "Declined") {
     // Declined state handling
     firestoreUpdates.declinedAt = admin.firestore.Timestamp.now();
@@ -210,16 +154,8 @@ async function handleStateTransitions(
       }
     );
 
-    // Log to history with decline reason from context
-    const declineReason =
-      newSnapshot.context?.declineReason || "Service(s) declined";
-    await logBookingStatusChange(
-      calendarEventId,
-      BookingStatusLabel.DECLINED,
-      email,
-      tenant,
-      `${declineReason} - booking automatically declined`
-    );
+    // Note: History logging is now handled by traditional functions only
+    // XState only manages state transitions, not history logging
 
     // Send decline email to guest using booking document email
     try {
@@ -247,10 +183,34 @@ async function handleStateTransitions(
         let headerMessage =
           "Your reservation request for Media Commons has been declined.";
 
-        // Use decline reason from XState context if available
-        const declineReason =
+        // Check which services were declined and include them in the message
+        const declinedServices = [];
+        if (newSnapshot.context?.servicesApproved) {
+          const servicesApproved = newSnapshot.context.servicesApproved;
+          const servicesRequested = newSnapshot.context.servicesRequested || {};
+
+          Object.entries(servicesApproved).forEach(([service, approved]) => {
+            if (servicesRequested[service] && approved === false) {
+              // Capitalize first letter of service name
+              const serviceName =
+                service.charAt(0).toUpperCase() + service.slice(1);
+              declinedServices.push(serviceName);
+            }
+          });
+        }
+
+        // Use decline reason from XState context if available, fallback to reason parameter
+        let declineReason =
           newSnapshot.context?.declineReason ||
+          reason ||
           "Service requirements could not be fulfilled";
+
+        // If specific services were declined, include them in the reason
+        if (declinedServices.length > 0) {
+          const servicesList = declinedServices.join(", ");
+          declineReason = `The following service(s) could not be fulfilled: ${servicesList}`;
+        }
+
         headerMessage += ` Reason: ${declineReason}. <br /><br />If you have any questions or need further assistance, please don't hesitate to reach out.`;
 
         await serverSendBookingDetailEmail({
@@ -336,82 +296,78 @@ async function handleStateTransitions(
         }
       );
     }
-  } else if (newState === "Closed" && previousState !== "Closed") {
-    // Closed state handling
-    firestoreUpdates.closedAt = admin.firestore.Timestamp.now();
-    if (email) {
-      firestoreUpdates.closedBy = email;
-    }
-
+  } else if (newState === "Requested" && previousState !== "Requested") {
+    // Requested state handling
     console.log(
-      `🔒 XSTATE REACHED CLOSED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+      `🔄 XSTATE REACHED REQUESTED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
       {
         calendarEventId,
         previousState,
         newState,
-        closedAt: firestoreUpdates.closedAt,
-        closedBy: firestoreUpdates.closedBy,
+        note: "Decline field cleanup handled by calling API",
       }
     );
 
-    // Log to history
-    await logBookingStatusChange(
-      calendarEventId,
-      BookingStatusLabel.CLOSED,
-      email,
-      tenant,
-      "booking closed"
-    );
-
-    // Send closed email to guest (optional - usually no email for closed)
-    // Update calendar event with CLOSED status
-    try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_BASE_URL}/api/calendarEvents`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            "x-tenant": tenant || "mc",
-          },
-          body: JSON.stringify({
-            calendarEventId,
-            newValues: { statusPrefix: BookingStatusLabel.CLOSED },
-          }),
-        }
-      );
-
-      if (response.ok) {
-        console.log(
-          `📅 XSTATE CLOSED CALENDAR UPDATED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-          {
-            calendarEventId,
-            statusPrefix: BookingStatusLabel.CLOSED,
-          }
-        );
-      } else {
-        console.error(
-          `🚨 XSTATE CLOSED CALENDAR UPDATE FAILED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-          {
-            calendarEventId,
-            status: response.status,
-            statusText: response.statusText,
-          }
-        );
-      }
-    } catch (error) {
-      console.error(
-        `🚨 XSTATE CLOSED CALENDAR UPDATE ERROR [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-        {
-          calendarEventId,
-          error: error.message,
-        }
-      );
+    // Note: History logging, calendar updates, and field cleanup are now handled by traditional functions only
+    // XState only manages state transitions, not side effects
+  } else if (newState === "No Show" && previousState !== "No Show") {
+    // No Show state handling - update Firestore fields
+    firestoreUpdates.noShowedAt = admin.firestore.Timestamp.now();
+    if (email) {
+      firestoreUpdates.noShowedBy = email;
     }
+
+    console.log(
+      `🚫 XSTATE REACHED NO SHOW [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+      {
+        calendarEventId,
+        previousState,
+        newState,
+        noShowedAt: firestoreUpdates.noShowedAt,
+        noShowedBy: firestoreUpdates.noShowedBy,
+      }
+    );
+  } else if (newState === "Canceled" && previousState !== "Canceled") {
+    // Canceled state handling - update Firestore fields
+    firestoreUpdates.canceledAt = admin.firestore.Timestamp.now();
+    if (email) {
+      firestoreUpdates.canceledBy = email;
+    }
+
+    console.log(
+      `🔄 XSTATE REACHED CANCELED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+      {
+        calendarEventId,
+        previousState,
+        newState,
+        canceledAt: firestoreUpdates.canceledAt,
+        canceledBy: firestoreUpdates.canceledBy,
+      }
+    );
+  } else if (newState === "Closed" && previousState !== "Closed") {
+    // Close processing is now handled by XState machine actions
+    // Skip processing here to avoid duplication
+    console.log(
+      `🎯 XSTATE REACHED CLOSED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+      {
+        calendarEventId,
+        previousState,
+        newState,
+        note: "Close processing handled by XState action",
+      }
+    );
+
+    // Close processing is now handled by XState machine action calling /api/close-processing
+    // All close-related operations (logging, email, calendar update) are handled by the API
   } else if (newState === "Canceled" && previousState !== "Canceled") {
     // Canceled state handling
     firestoreUpdates.canceledAt = admin.firestore.Timestamp.now();
-    if (email) {
+
+    // For automatic transitions from No Show, attribute to System, not the user
+    const isAutomaticFromNoShow = previousState === "No Show";
+    if (isAutomaticFromNoShow) {
+      firestoreUpdates.canceledBy = "System";
+    } else if (email) {
       firestoreUpdates.canceledBy = email;
     }
 
@@ -423,103 +379,69 @@ async function handleStateTransitions(
         newState,
         canceledAt: firestoreUpdates.canceledAt,
         canceledBy: firestoreUpdates.canceledBy,
+        isAutomaticFromNoShow,
       }
     );
 
-    // Log to history
-    await logBookingStatusChange(
-      calendarEventId,
-      BookingStatusLabel.CANCELED,
-      email,
-      tenant,
-      "booking canceled"
-    );
-
-    // Send canceled email to guest and update calendar
+    // Add history logging for Canceled state
     try {
-      // Use email from booking document (not from XState context)
-      const guestEmail = bookingDoc?.email;
+      const { serverSaveDataToFirestore } = await import(
+        "@/lib/firebase/server/adminDb"
+      );
+      const { TableNames } = await import("@/components/src/policy");
 
-      if (guestEmail) {
-        const { serverSendBookingDetailEmail } = await import(
-          "@/components/src/server/admin"
-        );
-        const headerMessage =
-          "Your reservation request for Media Commons has been canceled.";
+      // For automatic transitions from No Show, attribute to System
+      const changedBy = isAutomaticFromNoShow ? "System" : email || "system";
 
-        await serverSendBookingDetailEmail({
+      const historyEntry = {
+        calendarEventId,
+        status: BookingStatusLabel.CANCELED,
+        changedBy,
+        changedAt: admin.firestore.Timestamp.now(),
+        note:
+          previousState === "No Show"
+            ? "Canceled due to no show"
+            : "Booking canceled",
+        requestNumber: bookingDoc?.requestNumber || 0,
+      };
+
+      await serverSaveDataToFirestore(
+        TableNames.BOOKING_LOGS,
+        historyEntry,
+        tenant
+      );
+
+      console.log(
+        `📋 XSTATE CANCELED HISTORY LOGGED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+        {
           calendarEventId,
-          targetEmail: guestEmail,
-          headerMessage,
           status: BookingStatusLabel.CANCELED,
-          tenant,
-        });
-
-        console.log(
-          `📧 XSTATE CANCEL EMAIL SENT [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-          {
-            calendarEventId,
-            guestEmail,
-          }
-        );
-      } else {
-        console.warn(
-          `⚠️ XSTATE CANCEL EMAIL SKIPPED - NO EMAIL IN CONTEXT [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-          {
-            calendarEventId,
-            contextKeys: newSnapshot.context
-              ? Object.keys(newSnapshot.context)
-              : [],
-          }
-        );
-      }
-    } catch (error) {
-      console.error(
-        `🚨 XSTATE CANCEL EMAIL FAILED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-        {
-          calendarEventId,
-          email,
-          tenant,
-          error: error.message,
+          changedBy,
+          note: historyEntry.note,
+          isAutomaticFromNoShow,
         }
       );
-    }
-
-    // Update calendar event with CANCELED status
-    try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_BASE_URL}/api/calendarEvents`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            "x-tenant": tenant || "mc",
-          },
-          body: JSON.stringify({
-            calendarEventId,
-            newValues: { statusPrefix: BookingStatusLabel.CANCELED },
-          }),
-        }
-      );
-
-      if (response.ok) {
-        console.log(
-          `📅 XSTATE CANCEL CALENDAR UPDATED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-          {
-            calendarEventId,
-            statusPrefix: BookingStatusLabel.CANCELED,
-          }
-        );
-      }
     } catch (error) {
       console.error(
-        `🚨 XSTATE CANCEL CALENDAR UPDATE ERROR [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+        `🚨 XSTATE CANCELED HISTORY LOGGING FAILED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
         {
           calendarEventId,
           error: error.message,
         }
       );
     }
+
+    // Cancel processing is now handled by XState machine actions
+    // Skip processing here to avoid duplication
+    console.log(
+      `🎯 XSTATE REACHED CANCELED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+      {
+        calendarEventId,
+        previousState,
+        newState,
+        note: "Cancel processing handled by XState action",
+      }
+    );
   } else if (newState === "Checked In" && previousState !== "Checked In") {
     // Check-in state handling
     firestoreUpdates.checkedInAt = admin.firestore.Timestamp.now();
@@ -538,66 +460,61 @@ async function handleStateTransitions(
       }
     );
 
-    // Log to history
-    await logBookingStatusChange(
-      calendarEventId,
-      BookingStatusLabel.CHECKED_IN,
-      email,
-      tenant,
-      "booking checked in"
-    );
+    // Note: History logging is now handled by traditional functions only
+    // XState only manages state transitions, not history logging
 
-    // Send check-in email to guest and update calendar
+    // Email sending is handled after history logging in db.ts (checkin)
+
+    // Persist latest XState snapshot and checked-in timestamps BEFORE calendar update
     try {
-      // Use email from booking document (not from XState context)
-      const guestEmail = bookingDoc?.email;
+      const { serverUpdateDataByCalendarEventId } = await import(
+        "@/components/src/server/admin"
+      );
+      const { TableNames } = await import("@/components/src/policy");
 
-      if (guestEmail) {
-        const { serverSendBookingDetailEmail } = await import(
-          "@/components/src/server/admin"
-        );
-        const headerMessage =
-          "Your reservation request for Media Commons has been checked in. Thank you for choosing Media Commons.";
+      // Get persisted snapshot from the new state to avoid circular references
+      const persistedSnapshot = actor.getPersistedSnapshot();
 
-        await serverSendBookingDetailEmail({
-          calendarEventId,
-          targetEmail: guestEmail,
-          headerMessage,
-          status: BookingStatusLabel.CHECKED_IN,
-          tenant,
-        });
+      // Clean snapshot by removing undefined values for Firestore compatibility
+      const cleanedSnapshot = cleanObjectForFirestore(persistedSnapshot);
 
-        console.log(
-          `📧 XSTATE CHECK-IN EMAIL SENT [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-          {
-            calendarEventId,
-            guestEmail,
-          }
-        );
-      } else {
-        console.warn(
-          `⚠️ XSTATE CHECK-IN EMAIL SKIPPED - NO EMAIL IN CONTEXT [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-          {
-            calendarEventId,
-            contextKeys: newSnapshot.context
-              ? Object.keys(newSnapshot.context)
-              : [],
-          }
-        );
-      }
-    } catch (error) {
-      console.error(
-        `🚨 XSTATE CHECK-IN EMAIL FAILED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+      const xstateDataToPersist = {
+        snapshot: cleanedSnapshot, // persist cleaned snapshot for statusFromXState
+        machineId: newSnapshot?.machine?.id || currentSnapshot?.machine?.id,
+        lastTransition: new Date().toISOString(),
+      };
+
+      await serverUpdateDataByCalendarEventId(
+        TableNames.BOOKING,
+        calendarEventId,
+        {
+          xstateData: xstateDataToPersist,
+          checkedInAt: firestoreUpdates.checkedInAt,
+          checkedInBy: firestoreUpdates.checkedInBy,
+        },
+        tenant
+      );
+
+      console.log(
+        `💾 XSTATE CHECK-IN: STATE PERSISTED BEFORE CAL UPDATE [${
+          tenant?.toUpperCase() || "UNKNOWN"
+        }]:`,
         {
           calendarEventId,
-          email,
-          tenant,
-          error: error.message,
+          savedState: "Checked In",
         }
+      );
+    } catch (error) {
+      console.error(
+        `🚨 XSTATE CHECK-IN: FAILED TO PERSIST BEFORE CAL UPDATE [${
+          tenant?.toUpperCase() || "UNKNOWN"
+        }]:`,
+        { calendarEventId, error: (error as any)?.message }
       );
     }
 
     // Update calendar event with CHECKED_IN status
+    // Status will be read from XState data in bookingContentsToDescription
     try {
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_BASE_URL}/api/calendarEvents`,
@@ -620,6 +537,7 @@ async function handleStateTransitions(
           {
             calendarEventId,
             statusPrefix: BookingStatusLabel.CHECKED_IN,
+            note: "Status will be read from XState data",
           }
         );
       }
@@ -650,19 +568,25 @@ async function handleStateTransitions(
       }
     );
 
-    // Log to history
-    await logBookingStatusChange(
-      calendarEventId,
-      BookingStatusLabel.CHECKED_OUT,
-      email,
-      tenant,
-      "booking checked out"
-    );
+    // Note: History logging is now handled by traditional functions only
+    // XState only manages state transitions, not history logging
 
     // Send check-out email to guest and update calendar
     try {
       // Use email from booking document (not from XState context)
       const guestEmail = bookingDoc?.email;
+
+      console.log(
+        `🔍 XSTATE CHECK-OUT EMAIL DEBUG [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+        {
+          calendarEventId,
+          hasBookingDoc: !!bookingDoc,
+          bookingDocKeys: bookingDoc ? Object.keys(bookingDoc) : [],
+          guestEmail,
+          guestEmailType: typeof guestEmail,
+          bookingDocEmail: bookingDoc?.email,
+        }
+      );
 
       if (guestEmail) {
         const { serverSendBookingDetailEmail } = await import(
@@ -710,6 +634,7 @@ async function handleStateTransitions(
     }
 
     // Update calendar event with CHECKED_OUT status (including end time)
+    // Status will be read from XState data in bookingContentsToDescription
     try {
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_BASE_URL}/api/calendarEvents`,
@@ -737,6 +662,7 @@ async function handleStateTransitions(
           {
             calendarEventId,
             statusPrefix: BookingStatusLabel.CHECKED_OUT,
+            note: "Status will be read from XState data",
           }
         );
       }
@@ -767,14 +693,56 @@ async function handleStateTransitions(
       }
     );
 
-    // Log to history
-    await logBookingStatusChange(
-      calendarEventId,
-      BookingStatusLabel.PRE_APPROVED,
-      email,
-      tenant,
-      "first approval completed"
-    );
+    // Note: History logging is now handled by traditional functions only
+    // XState only manages state transitions, not history logging
+
+    // Note: Email sending and history logging for PRE_APPROVED is now handled by /api/approve
+    // XState only manages state transitions, not side effects
+
+    // Update calendar event with PRE_APPROVED status
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_BASE_URL}/api/calendarEvents`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            "x-tenant": tenant || "mc",
+          },
+          body: JSON.stringify({
+            calendarEventId,
+            newValues: { statusPrefix: BookingStatusLabel.PRE_APPROVED },
+          }),
+        }
+      );
+
+      if (response.ok) {
+        console.log(
+          `📅 XSTATE PRE-APPROVED CALENDAR UPDATED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+          {
+            calendarEventId,
+            statusPrefix: BookingStatusLabel.PRE_APPROVED,
+          }
+        );
+      } else {
+        console.error(
+          `🚨 XSTATE PRE-APPROVED CALENDAR UPDATE FAILED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+          {
+            calendarEventId,
+            status: response.status,
+            statusText: response.statusText,
+          }
+        );
+      }
+    } catch (error) {
+      console.error(
+        `🚨 XSTATE PRE-APPROVED CALENDAR UPDATE ERROR [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+        {
+          calendarEventId,
+          error: error.message,
+        }
+      );
+    }
   } else {
     // Generic state change - still log to history for tracking
     console.log(
@@ -826,6 +794,123 @@ async function handleStateTransitions(
           }
         );
 
+        // Handle check-out email for Service Closeout state (Media Commons)
+        if (previousState === "Checked In" && !skipCalendarForServiceCloseout) {
+          console.log(
+            `📧 SENDING CHECK-OUT EMAIL FOR SERVICE CLOSEOUT [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+            {
+              calendarEventId,
+              previousState,
+              newState: "Service Closeout",
+            }
+          );
+
+          // Set check-out timestamps for Firestore
+          firestoreUpdates.checkedOutAt = admin.firestore.Timestamp.now();
+          if (email) {
+            firestoreUpdates.checkedOutBy = email;
+          }
+
+          // Send check-out email to guest
+          try {
+            // Use email from booking document (not from XState context)
+            const guestEmail = bookingDoc?.email;
+
+            console.log(
+              `🔍 XSTATE SERVICE CLOSEOUT EMAIL DEBUG [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+              {
+                calendarEventId,
+                hasBookingDoc: !!bookingDoc,
+                bookingDocKeys: bookingDoc ? Object.keys(bookingDoc) : [],
+                guestEmail,
+                guestEmailType: typeof guestEmail,
+                bookingDocEmail: bookingDoc?.email,
+              }
+            );
+
+            if (guestEmail) {
+              const { serverSendBookingDetailEmail } = await import(
+                "@/components/src/server/admin"
+              );
+              const headerMessage =
+                "Your reservation request for Media Commons has been checked out. Thank you for choosing Media Commons.";
+
+              await serverSendBookingDetailEmail({
+                calendarEventId,
+                targetEmail: guestEmail,
+                headerMessage,
+                status: BookingStatusLabel.CHECKED_OUT,
+                tenant,
+              });
+
+              console.log(
+                `📧 XSTATE SERVICE CLOSEOUT EMAIL SENT [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+                {
+                  calendarEventId,
+                  guestEmail,
+                }
+              );
+            } else {
+              console.warn(
+                `⚠️ XSTATE SERVICE CLOSEOUT EMAIL SKIPPED - NO EMAIL [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+                {
+                  calendarEventId,
+                  hasBookingDoc: !!bookingDoc,
+                  bookingDocKeys: bookingDoc ? Object.keys(bookingDoc) : [],
+                }
+              );
+            }
+          } catch (error) {
+            console.error(
+              `🚨 XSTATE SERVICE CLOSEOUT EMAIL FAILED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+              {
+                calendarEventId,
+                email,
+                tenant,
+                error: error.message,
+              }
+            );
+          }
+
+          // Update calendar event with CHECKED_OUT status
+          try {
+            const response = await fetch(
+              `${process.env.NEXT_PUBLIC_BASE_URL}/api/calendarEvents`,
+              {
+                method: "PUT",
+                headers: {
+                  "Content-Type": "application/json",
+                  "x-tenant": tenant || "mc",
+                },
+                body: JSON.stringify({
+                  calendarEventId,
+                  newValues: {
+                    statusPrefix: BookingStatusLabel.CHECKED_OUT,
+                  },
+                }),
+              }
+            );
+
+            if (response.ok) {
+              console.log(
+                `📅 XSTATE SERVICE CLOSEOUT CALENDAR UPDATED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+                {
+                  calendarEventId,
+                  statusPrefix: BookingStatusLabel.CHECKED_OUT,
+                }
+              );
+            }
+          } catch (error) {
+            console.error(
+              `🚨 XSTATE SERVICE CLOSEOUT CALENDAR UPDATE ERROR [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+              {
+                calendarEventId,
+                error: error.message,
+              }
+            );
+          }
+        }
+
         // Skip calendar update if this Service Closeout was triggered by No Show
         if (skipCalendarForServiceCloseout) {
           console.log(
@@ -840,26 +925,23 @@ async function handleStateTransitions(
       }
     }
 
-    // Only log generic state changes if this is not XState creation
-    // XState creation should not generate history logs for automatic transitions
-    if (statusLabel && !isXStateCreation) {
-      await logBookingStatusChange(
-        calendarEventId,
-        statusLabel,
-        email,
-        tenant,
-        `XState transition to ${statusLabel}`
-      );
-    } else if (statusLabel && isXStateCreation) {
+    // Apply status label to Firestore updates if determined
+    if (statusLabel) {
+      firestoreUpdates.status = statusLabel;
       console.log(
-        `⏭️ SKIPPING HISTORY LOG FOR XSTATE CREATION [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+        `📋 XSTATE STATUS UPDATE [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
         {
           calendarEventId,
+          previousState,
+          newState,
           statusLabel,
-          reason: "XState creation should not generate history logs",
+          willUpdateDatabaseStatus: true,
         }
       );
     }
+
+    // Note: History logging is now handled by traditional functions only
+    // XState only manages state transitions, not history logging
   }
 }
 
@@ -909,85 +991,6 @@ function getMachineForTenant(tenant?: string) {
 /**
  * Navigate actor to target state from initial state
  */
-function navigateActorToState(actor: any, targetState: string): void {
-  const currentSnapshot = actor.getSnapshot();
-
-  if (currentSnapshot.value === targetState) {
-    return; // Already at target state
-  }
-
-  console.log(
-    `🔄 NAVIGATING ACTOR: ${currentSnapshot.value} → ${targetState}`,
-    {
-      contextPreview: {
-        tenant: currentSnapshot.context?.tenant,
-        calendarEventId: currentSnapshot.context?.calendarEventId,
-        email: currentSnapshot.context?.email,
-      },
-    }
-  );
-
-  switch (targetState) {
-    case "Pre-approved":
-      if (
-        currentSnapshot.value === "Requested" &&
-        currentSnapshot.can({ type: "approve" })
-      ) {
-        actor.send({ type: "approve" });
-        console.log(`🎯 NAVIGATED: Requested → Pre-approved`);
-      }
-      break;
-    case "Approved":
-      if (
-        currentSnapshot.value === "Requested" &&
-        currentSnapshot.can({ type: "approve" })
-      ) {
-        actor.send({ type: "approve" });
-        const preApprovedSnapshot = actor.getSnapshot();
-        if (
-          preApprovedSnapshot.value === "Pre-approved" &&
-          preApprovedSnapshot.can({ type: "approve" })
-        ) {
-          actor.send({ type: "approve" });
-          console.log(`🎯 NAVIGATED: Requested → Pre-approved → Approved`);
-        }
-      }
-      break;
-    case "Declined":
-      if (
-        currentSnapshot.value === "Requested" &&
-        currentSnapshot.can({ type: "decline" })
-      ) {
-        actor.send({ type: "decline" });
-        console.log(`🎯 NAVIGATED: Requested → Declined`);
-      }
-      break;
-    case "Canceled":
-      if (currentSnapshot.can({ type: "cancel" })) {
-        actor.send({ type: "cancel" });
-        console.log(`🎯 NAVIGATED: → Canceled`);
-      }
-      break;
-    case "Checked In":
-      if (currentSnapshot.can({ type: "checkIn" })) {
-        actor.send({ type: "checkIn" });
-        console.log(`🎯 NAVIGATED: → Checked In`);
-      }
-      break;
-    case "Checked Out":
-      if (currentSnapshot.can({ type: "checkOut" })) {
-        actor.send({ type: "checkOut" });
-        console.log(`🎯 NAVIGATED: → Checked Out`);
-      }
-      break;
-    case "No Show":
-      if (currentSnapshot.can({ type: "noShow" })) {
-        actor.send({ type: "noShow" });
-        console.log(`🎯 NAVIGATED: → No Show`);
-      }
-      break;
-  }
-}
 
 /**
  * Create and save XState data from booking status using v5 snapshot
@@ -1039,7 +1042,7 @@ export async function createXStateDataFromBookingStatus(
           startStr: bookingData.startDate?.toDate?.()?.toISOString(),
           endStr: bookingData.endDate?.toDate?.()?.toISOString(),
         },
-        isWalkIn: false,
+        isWalkIn: bookingData.origin === "walk-in" || !!bookingData.walkedInAt,
         calendarEventId,
         email: bookingData.email,
         isVip: bookingData.isVip || false,
@@ -1052,6 +1055,8 @@ export async function createXStateDataFromBookingStatus(
           security: bookingData.securityServiceApproved,
           setup: bookingData.setupServiceApproved,
         },
+        // Flag to indicate this XState was created from existing booking without prior xstateData
+        _restoredFromStatus: true,
       }
     : {
         tenant,
@@ -1060,9 +1065,11 @@ export async function createXStateDataFromBookingStatus(
           startStr: bookingData.startDate?.toDate?.()?.toISOString(),
           endStr: bookingData.endDate?.toDate?.()?.toISOString(),
         },
-        isWalkIn: false,
+        isWalkIn: bookingData.origin === "walk-in" || !!bookingData.walkedInAt,
         calendarEventId,
         email: bookingData.email,
+        // Flag to indicate this XState was created from existing booking without prior xstateData
+        _restoredFromStatus: true,
       };
 
   // Create actor starting from the target state directly (without transitions)
@@ -1556,8 +1563,71 @@ export async function executeXStateTransition(
       };
     }
 
-    // Execute the transition
-    actor.send({ type: eventType as any });
+    // Set up transition listener to capture all state changes
+    const transitionStates: string[] = [];
+    let unsubscribe: (() => void) | undefined;
+
+    try {
+      const subscription = actor.subscribe((snapshot) => {
+        const state =
+          typeof snapshot.value === "string"
+            ? snapshot.value
+            : JSON.stringify(snapshot.value);
+
+        // Only track meaningful state changes (not initial state)
+        if (transitionStates.length > 0 || state !== currentSnapshot.value) {
+          transitionStates.push(state);
+          console.log(
+            `📝 XSTATE TRANSITION CAPTURED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+            {
+              calendarEventId,
+              state,
+              transitionIndex: transitionStates.length,
+            }
+          );
+        }
+      });
+
+      // Handle different return types from subscribe
+      if (typeof subscription === "function") {
+        unsubscribe = subscription;
+      } else if (
+        subscription &&
+        typeof subscription.unsubscribe === "function"
+      ) {
+        unsubscribe = () => subscription.unsubscribe();
+      }
+
+      // Execute the transition with reason if provided
+      const event: any = { type: eventType as any };
+      if (reason) {
+        event.reason = reason;
+      }
+      actor.send(event);
+    } catch (subscribeError) {
+      console.error(
+        `🚨 XSTATE SUBSCRIPTION ERROR [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+        {
+          calendarEventId,
+          error: subscribeError.message,
+        }
+      );
+    } finally {
+      // Unsubscribe if possible
+      if (unsubscribe && typeof unsubscribe === "function") {
+        try {
+          unsubscribe();
+        } catch (unsubError) {
+          console.error(
+            `🚨 XSTATE UNSUBSCRIBE ERROR [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+            {
+              calendarEventId,
+              error: unsubError.message,
+            }
+          );
+        }
+      }
+    }
     const newSnapshot = actor.getSnapshot();
 
     console.log(
@@ -1818,14 +1888,8 @@ We understand that unexpected situations come up, and we encourage you to cancel
         firestoreUpdates.noShowedBy = email;
       }
 
-      // Log to history
-      await logBookingStatusChange(
-        calendarEventId,
-        BookingStatusLabel.NO_SHOW,
-        email,
-        tenant,
-        "booking marked as no show"
-      );
+      // Note: History logging is now handled by traditional functions only
+      // XState only manages state transitions, not history logging
     }
 
     // Handle state transitions with unified history logging
@@ -1838,9 +1902,24 @@ We understand that unexpected situations come up, and we encourage you to cancel
       email,
       tenant,
       firestoreUpdates,
+      actor, // Pass actor instance
       eventType === "noShow", // Pass noShow flag to skip calendar updates for Service Closeout
-      false // isXStateCreation - false for normal transitions
+      false, // isXStateCreation - false for normal transitions
+      reason // Pass reason for decline actions
     );
+
+    // For No Show events, do not send canceled email as NO SHOW email was already sent
+    // Note: NO SHOW email contains the appropriate message for the user
+    // Sending a CANCELED email would be redundant and confusing
+    if (eventType === "noShow") {
+      console.log(
+        `🚫 CANCELED EMAIL SKIPPED FOR NO SHOW [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+        {
+          calendarEventId,
+          note: "NO SHOW email already sent with appropriate message",
+        }
+      );
+    }
 
     // If this is Media Commons and servicesApproved context changed, update individual service fields
     if (isMediaCommons(tenant) && newSnapshot.context?.servicesApproved) {
@@ -2072,4 +2151,69 @@ function getBookingStatusFromData(bookingData: any): string {
   if (bookingData.firstApprovedAt) return BookingStatusLabel.PRE_APPROVED;
   if (bookingData.requestedAt) return BookingStatusLabel.REQUESTED;
   return BookingStatusLabel.UNKNOWN;
+}
+
+/**
+ * Helper function to send Canceled email
+ */
+async function sendCanceledEmail(
+  calendarEventId: string,
+  email: string,
+  tenant: string
+) {
+  try {
+    const { serverGetDataByCalendarEventId } = await import(
+      "@/lib/firebase/server/adminDb"
+    );
+    const { serverSendBookingDetailEmail } = await import(
+      "@/components/src/server/admin"
+    );
+    const { TableNames } = await import("@/components/src/policy");
+
+    // Get booking document to get guest email
+    const bookingDoc = await serverGetDataByCalendarEventId(
+      TableNames.BOOKING,
+      calendarEventId,
+      tenant
+    );
+
+    const guestEmail = (bookingDoc as any)?.email;
+
+    if (guestEmail) {
+      const headerMessage =
+        "Your reservation has been canceled. " +
+        "If you have any questions, please don't hesitate to reach out.";
+
+      await serverSendBookingDetailEmail({
+        calendarEventId,
+        targetEmail: guestEmail,
+        headerMessage,
+        status: BookingStatusLabel.CANCELED,
+        tenant,
+      });
+
+      console.log(
+        `📧 CANCELED EMAIL SENT [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+        {
+          calendarEventId,
+          guestEmail,
+        }
+      );
+    } else {
+      console.warn(
+        `⚠️ CANCELED EMAIL SKIPPED - NO EMAIL [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+        {
+          calendarEventId,
+        }
+      );
+    }
+  } catch (error) {
+    console.error(
+      `🚨 CANCELED EMAIL FAILED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+      {
+        calendarEventId,
+        error: error.message,
+      }
+    );
+  }
 }

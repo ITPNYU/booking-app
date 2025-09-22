@@ -155,7 +155,6 @@ export async function GET(req: NextRequest) {
         tenant,
       },
     );
-
     const availableTransitions = await getAvailableXStateTransitions(
       calendarEventId,
       tenant,

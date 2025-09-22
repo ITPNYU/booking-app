@@ -17,6 +17,7 @@ import {
 import { TableEmpty } from "../Table";
 import StackedTableCell from "./StackedTableCell";
 
+import { useParams } from "next/navigation";
 import { formatOrigin } from "../../../../utils/formatters";
 import { formatDateTable, formatTimeAmPm } from "../../../utils/date";
 import BookingActions from "../../admin/components/BookingActions";
@@ -45,6 +46,8 @@ export const Bookings: React.FC<BookingsProps> = ({
   const { bookingsLoading, setLastItem, fetchAllBookings, allBookings } =
     useContext(DatabaseContext);
   const { resourceName } = useTenantSchema();
+  const params = useParams();
+  const tenant = params?.tenant as string;
   const allowedStatuses = useAllowedStatuses(pageContext);
 
   const [modalData, setModalData] = useState<BookingRow>(null);
@@ -361,7 +364,7 @@ export const Bookings: React.FC<BookingsProps> = ({
         renderCell: (params) => (
           <TableCell width={200}>
             <BookingActions
-              status={getBookingStatus(params.row)}
+              status={getBookingStatus(params.row, tenant)}
               calendarEventId={params.row.calendarEventId}
               startDate={params.row.startDate}
               onSelect={() => {}}

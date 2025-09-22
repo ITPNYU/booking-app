@@ -21,7 +21,7 @@ import {
   BookingStatus,
   BookingStatusLabel,
 } from "../types";
-import { getMediaCommonsServices, isMediaCommons } from "../utils/tenantUtils";
+import { isMediaCommons } from "../utils/tenantUtils";
 
 import { Timestamp } from "firebase-admin/firestore";
 
@@ -173,10 +173,11 @@ export const serverBookingContents = async (id: string, tenant?: string) => {
       minute: "2-digit",
       hour12: true,
     }),
-    status:
-      history.length > 0
-        ? history[history.length - 1].status
-        : BookingStatusLabel.REQUESTED,
+    // Don't override status - let getStatusFromXState handle it using XState data
+    // status:
+    //   history.length > 0
+    //     ? history[history.length - 1].status
+    //     : BookingStatusLabel.REQUESTED,
   });
 
   return updatedBookingObj as unknown as BookingFormDetails;
@@ -336,7 +337,7 @@ export const serverFirstApproveOnly = async (
   );
 };
 
-const serverFinalApprove = async (
+export const serverFinalApprove = async (
   id: string,
   email?: string,
   tenant?: string
@@ -352,30 +353,6 @@ const serverFinalApprove = async (
     finalApprovedAt: Timestamp.now(),
     finalApprovedBy: email,
   };
-
-  // For Media Commons, if services are requested, approve them all during final approval
-  if (tenant === TENANTS.MC && bookingData) {
-    const servicesRequested = getMediaCommonsServices(bookingData);
-
-    if (servicesRequested.staff) {
-      updateData.staffServiceApproved = true;
-    }
-    if (servicesRequested.equipment) {
-      updateData.equipmentServiceApproved = true;
-    }
-    if (servicesRequested.catering) {
-      updateData.cateringServiceApproved = true;
-    }
-    if (servicesRequested.cleaning) {
-      updateData.cleaningServiceApproved = true;
-    }
-    if (servicesRequested.security) {
-      updateData.securityServiceApproved = true;
-    }
-    if (servicesRequested.setup) {
-      updateData.setupServiceApproved = true;
-    }
-  }
 
   serverUpdateDataByCalendarEventId(TableNames.BOOKING, id, updateData, tenant);
 };
@@ -415,32 +392,12 @@ export const serverApproveInstantBooking = async (
     }
   }
 
-  serverFirstApprove(id, "System", tenant);
-
   if (shouldDoFinalApproval) {
-    serverFinalApprove(id, "System", tenant);
-  }
-
-  const doc = await serverGetDataByCalendarEventId<{
-    id: string;
-    requestNumber: number;
-  }>(TableNames.BOOKING, id, tenant);
-  if (doc && id) {
-    await logServerBookingChange({
-      bookingId: doc.id,
-      status: shouldDoFinalApproval
-        ? BookingStatusLabel.APPROVED
-        : BookingStatusLabel.PRE_APPROVED,
-      changedBy: "System",
-      requestNumber: doc.requestNumber,
-      calendarEventId: id,
-      note: "",
-      tenant,
-    });
-  }
-
-  if (shouldDoFinalApproval) {
-    serverApproveEvent(id, tenant);
+    // For instant booking with no services, use finalApprove for consistent processing
+    await finalApprove(id, "System", tenant);
+  } else {
+    // For VIP bookings with services, use firstApprove for consistent processing
+    await firstApprove(id, "System", tenant);
   }
 };
 
@@ -527,10 +484,10 @@ const firstApprove = async (id: string, email: string, tenant?: string) => {
     eventTitle: contents.title || "",
     requestNumber: contents.requestNumber,
     bodyMessage: "",
-            approverType: ApproverType.FINAL_APPROVER,
-        replyTo: contents.email,
-        schemaName: emailConfig.schemaName,
-      };
+    approverType: ApproverType.FINAL_APPROVER,
+    replyTo: contents.email,
+    schemaName: emailConfig.schemaName,
+  };
   const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/sendEmail`, {
     method: "POST",
     headers: {
@@ -539,23 +496,12 @@ const firstApprove = async (id: string, email: string, tenant?: string) => {
     body: JSON.stringify(formData),
   });
 };
-const finalApprove = async (id: string, email: string, tenant?: string) => {
-  const finalApprovers = (await approvers()).filter(
-    (a) => a.level === ApproverLevel.FINAL
-  );
-  const finalApproverEmails = [...(await admins()), ...finalApprovers].map(
-    (a) => a.email
-  );
 
-  const canPerformSecondApproval = finalApproverEmails.includes(email);
-  if (!canPerformSecondApproval) {
-    throw {
-      success: false,
-      message:
-        "Unauthorized: Only final approvers or admin users can perform second approval",
-      status: 403,
-    };
-  }
+export const finalApprove = async (
+  id: string,
+  email: string,
+  tenant?: string
+) => {
   await serverFinalApprove(id, email, tenant);
 
   // Log the final approval action
@@ -622,6 +568,7 @@ export const serverSendBookingDetailEmail = async ({
     approverType,
     replyTo,
     schemaName: emailConfig.schemaName,
+    tenant,
   };
   const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/sendEmail`, {
     method: "POST",
@@ -770,10 +717,90 @@ export const approvers = async (): Promise<Approver[]> => {
 };
 
 export const firstApproverEmails = async (department: string) => {
+  console.log(`🔍 FIRST APPROVER EMAILS DEBUG:`, {
+    department,
+    function: "firstApproverEmails",
+  });
+
   const approversData = await approvers();
-  return approversData
-    .filter((approver) => approver.department === department)
-    .map((approver) => approver.email);
+  console.log(`📋 APPROVERS DATA:`, {
+    department,
+    totalApprovers: approversData.length,
+    approvers: approversData.map((a) => ({
+      email: a.email,
+      department: a.department,
+      level: a.level,
+    })),
+  });
+
+  // Normalize department names for comparison (remove extra spaces, normalize slashes)
+  const normalizeDepartment = (dept: string) => {
+    if (!dept) return dept;
+
+    // Simple normalization: trim whitespace and convert to lowercase
+    // Complex slash processing is unnecessary for keyword-based matching
+    return dept.trim().toLowerCase();
+  };
+
+  const normalizedUserDepartment = normalizeDepartment(department);
+  console.log(`🔧 NORMALIZED USER DEPARTMENT:`, {
+    original: department,
+    normalized: normalizedUserDepartment,
+  });
+
+  const filteredApprovers = approversData.filter((approver) => {
+    if (!approver.department) return false;
+
+    const normalizedApproverDepartment = normalizeDepartment(
+      approver.department
+    );
+
+    // Check if user department contains any of the key department identifiers
+    const itpDeptKeywords = ["itp", "ima", "low res"];
+
+    const userHasKeywords = itpDeptKeywords.some((keyword) =>
+      normalizedUserDepartment.includes(keyword)
+    );
+    const approverHasKeywords = itpDeptKeywords.some((keyword) =>
+      normalizedApproverDepartment.includes(keyword)
+    );
+
+    const matches = userHasKeywords && approverHasKeywords;
+
+    console.log(`🔍 DEPARTMENT COMPARISON:`, {
+      userDepartment: department,
+      normalizedUserDepartment,
+      approverDepartment: approver.department,
+      normalizedApproverDepartment,
+      userHasKeywords,
+      approverHasKeywords,
+      matches,
+    });
+
+    return matches;
+  });
+
+  console.log(`🎯 FILTERED APPROVERS:`, {
+    department,
+    normalizedDepartment: normalizedUserDepartment,
+    filteredCount: filteredApprovers.length,
+    filteredApprovers: filteredApprovers.map((a) => ({
+      email: a.email,
+      department: a.department,
+      level: a.level,
+    })),
+  });
+
+  const result = filteredApprovers.map((approver) => approver.email);
+
+  console.log(`📧 FIRST APPROVER EMAILS RESULT:`, {
+    department,
+    normalizedDepartment: normalizedUserDepartment,
+    result,
+    resultCount: result.length,
+  });
+
+  return result;
 };
 
 export const serverGetRoomCalendarIds = async (

@@ -33,6 +33,7 @@ interface SendHTMLEmailParams {
   approverType?: ApproverType;
   replyTo?: string;
   schemaName?: string;
+  tenant?: string;
 }
 
 export const sendHTMLEmail = async (params: SendHTMLEmailParams) => {
@@ -47,6 +48,7 @@ export const sendHTMLEmail = async (params: SendHTMLEmailParams) => {
     approverType,
     replyTo = MEDIA_COMMONS_EMAIL,
     schemaName = "Media Commons",
+    tenant,
   } = params;
 
   // Check if we're in development and if the target email is an admin
@@ -87,7 +89,7 @@ export const sendHTMLEmail = async (params: SendHTMLEmailParams) => {
   };
 
   // Get booking logs
-  const bookingLogs = await getBookingLogs(requestNumber);
+  const bookingLogs = await getBookingLogs(requestNumber, tenant);
 
   const templatePath = path.join(
     process.cwd(),

@@ -36,17 +36,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   useEffect(() => {
     const handleAuth = async () => {
       console.log("handleAuth triggered");
-      const testEnvRes = await fetch(window.location.origin + "/api/isTestEnv");
-      const { isOnTestEnv } = await testEnvRes.json();
-      setIsOnTestEnv(isOnTestEnv);
-      console.log("isOnTestEnv:", isOnTestEnv);
+      let testEnvStatus = false;
+      try {
+        const testEnvRes = await fetch(
+          window.location.origin + "/api/isTestEnv"
+        );
+        if (testEnvRes.ok) {
+          const { isOnTestEnv } = await testEnvRes.json();
+          testEnvStatus = isOnTestEnv;
+          setIsOnTestEnv(isOnTestEnv);
+        } else {
+          console.warn("Failed to fetch test env status:", testEnvRes.status);
+          setIsOnTestEnv(false);
+        }
+      } catch (error) {
+        console.warn("Error fetching test env status:", error);
+        setIsOnTestEnv(false);
+      }
 
       const user = auth.currentUser;
       console.log("auth.currentUser:", user);
 
       if (user) {
         console.log("User object exists:", user.email);
-        if (user.email?.endsWith("@nyu.edu") || isOnTestEnv) {
+        if (user.email?.endsWith("@nyu.edu") || testEnvStatus) {
           console.log("Setting user state:", user.email);
           setUser(user);
         } else {

@@ -42,6 +42,7 @@ export async function POST(req: NextRequest) {
       approverType,
       replyTo,
       schemaName,
+      tenant,
     });
     return NextResponse.json(
       { message: "Email sent successfully" },

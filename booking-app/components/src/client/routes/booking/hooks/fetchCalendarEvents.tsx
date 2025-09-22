@@ -57,6 +57,13 @@ export default function fetchCalendarEvents(allRooms: RoomSetting[]) {
     } catch (e) {
       console.error("Error fetching calendar events", e);
       setFetchingStatus("error");
+      return; // Early return if fetch failed
+    }
+
+    if (!response || !response.ok) {
+      console.error("Failed to fetch calendar events:", response?.status);
+      setFetchingStatus("error");
+      return;
     }
 
     const data = await response.json();

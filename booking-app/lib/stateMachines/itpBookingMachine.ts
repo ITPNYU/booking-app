@@ -340,9 +340,6 @@ export const itpBookingMachine = setup({
           });
         },
         {
-          type: "sendHTMLEmail",
-        },
-        {
           type: "updateCalendarEvent",
         },
       ],

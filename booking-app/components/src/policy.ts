@@ -41,7 +41,8 @@ export const getTenantCollectionName = (baseCollection: string, tenant?: string)
     "preBanLogs",
     "usersWhitelist",
     "usersApprovers",
-    "usersRights"
+    "usersRights",
+    "counters"
   ];
   
   if (tenantSpecificCollections.includes(baseCollection)) {

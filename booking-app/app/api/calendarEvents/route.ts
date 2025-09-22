@@ -181,7 +181,7 @@ export async function PUT(req: NextRequest) {
 
   try {
     const contents = await serverBookingContents(calendarEventId, tenant);
-    await updateCalendarEvent(calendarEventId, newValues, contents);
+    await updateCalendarEvent(calendarEventId, newValues, contents, tenant);
     return NextResponse.json(
       { message: "Event updated successfully" },
       { status: 200 },

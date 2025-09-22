@@ -1,9 +1,8 @@
-import { Checkbox, FormControlLabel, Switch } from "@mui/material";
+import { FormControlLabel, Switch } from "@mui/material";
 import { Control, Controller, UseFormTrigger } from "react-hook-form";
 import { FormContextLevel, Inputs, EquipmentServices } from "../../../../types";
-import React, { useContext, useMemo } from "react";
+import React from "react";
 
-import { BookingContext } from "../bookingProvider";
 import { useTenantSchema } from "../../components/SchemaProvider";
 import styled from "@emotion/styled";
 
@@ -32,7 +31,6 @@ export default function BookingFormEquipmentServices(props: Props) {
     setShowEquipmentServices,
     formContext,
   } = props;
-  const { selectedRooms } = useContext(BookingContext);
   const schema = useTenantSchema();
   const { showEquipment } = schema;
 
@@ -40,17 +38,6 @@ export default function BookingFormEquipmentServices(props: Props) {
     FormContextLevel.WALK_IN,
     FormContextLevel.MODIFICATION,
   ];
-
-  const checkboxes = useMemo(() => {
-    const options: EquipmentServices[] = [];
-
-    // If equipment is enabled in schema, allow checkout equipment regardless of room
-    if (showEquipment) {
-      options.push(EquipmentServices.CHECKOUT_EQUIPMENT);
-    }
-
-    return options;
-  }, [showEquipment]);
 
   const toggle = (
     <Controller
@@ -65,9 +52,10 @@ export default function BookingFormEquipmentServices(props: Props) {
               onChange={(e) => {
                 setShowEquipmentServices(e.target.checked);
                 if (!e.target.checked) {
-                  // de-select boxes if switch says "no equipment services"
+                  // de-select equipment if switch says "no equipment services"
                   field.onChange("");
-                } else if (limitedContexts.includes(formContext)) {
+                } else {
+                  // automatically select equipment when toggle is ON
                   field.onChange(EquipmentServices.CHECKOUT_EQUIPMENT);
                 }
 
@@ -103,44 +91,6 @@ export default function BookingFormEquipmentServices(props: Props) {
         Check out equipment from Media Commons inventory.
       </p>
       {toggle}
-      {showEquipmentServices && (
-        <Controller
-          name={id}
-          control={control}
-          render={({ field }) => (
-            <div>
-              {checkboxes.map((checkbox) => (
-                <FormControlLabel
-                  key={checkbox}
-                  label={checkbox}
-                  sx={{ display: "block" }}
-                  control={
-                    <Checkbox
-                      checked={field.value?.includes(checkbox) || false}
-                      onChange={(e) => {
-                        const values = field.value
-                          ? field.value.split(", ")
-                          : [];
-                        let newValue: string[];
-                        if (e.target.checked) {
-                          newValue = [...values, checkbox];
-                        } else {
-                          newValue = values.filter(
-                            (value) => value !== checkbox
-                          );
-                        }
-                        field.onChange(newValue.join(", "));
-                        trigger(id);
-                      }}
-                      onBlur={() => trigger(id)}
-                    />
-                  }
-                />
-              ))}
-            </div>
-          )}
-        ></Controller>
-      )}
     </div>
   );
 }

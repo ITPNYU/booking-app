@@ -232,6 +232,7 @@ export default function useCheckAutoApproval(isWalkIn = false) {
 
     // HAS EQUIPMENT SERVICES
     if (!isWalkIn && formData?.equipmentServices?.length > 0) {
+
       throwError(
         "Requesting equipment services for an event will require approval"
       );

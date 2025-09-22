@@ -102,6 +102,10 @@ export default function UserRolePage({
   // Create prefix for affiliation header
   const prefix = isVIP ? "VIP" : isWalkIn ? "Walk-In" : "";
   const affiliationTitle = prefix ? `${prefix} Affiliation` : "Affiliation";
+  
+  const formatFieldLabel = (label: string) => {
+    return `${prefix} ${label}`.trim();
+  };
 
   useEffect(() => {
     if (!user) {
@@ -180,7 +184,7 @@ export default function UserRolePage({
         {showOther && (
           <BookingFormTextField
             id="otherDepartment"
-            label="Your Department"
+            label={formatFieldLabel("Department")}
             containerSx={{ marginBottom: 2, marginTop: 1, width: "100%" }}
             fieldSx={{}}
             {...{ control, errors, trigger }}
