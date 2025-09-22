@@ -49,6 +49,7 @@ export default function SelectRoomPage({
       isWalkInCanBookTwo: resource.isWalkInCanBookTwo,
       isEquipment: resource.isEquipment,
       services: resource.services,
+      maxHour: resource.maxHour,
       staffingServices: resource.staffingServices,
       staffingSections: resource.staffingSections,
     }));
