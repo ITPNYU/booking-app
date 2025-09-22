@@ -361,7 +361,9 @@ export const updateCalendarEvent = async (
       );
     } catch (error) {
       console.error(
-        `Error updating event ${calendarEventId} in calendar ${roomCalendarId}:`,
+        "Error updating event %s in calendar %s:",
+        calendarEventId,
+        roomCalendarId,
         error
       );
     }
