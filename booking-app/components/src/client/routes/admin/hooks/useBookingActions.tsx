@@ -1145,7 +1145,16 @@ export default function useBookingActions({
     return options;
   }, [status]);
 
-  const liaisonOptions = [Actions.FIRST_APPROVE, Actions.DECLINE];
+  const liaisonOptions = useMemo(() => {
+    let options = [Actions.DECLINE];
+    
+    // Only allow FIRST_APPROVE for REQUESTED status, not for DECLINED
+    if (status === BookingStatusLabel.REQUESTED) {
+      options.push(Actions.FIRST_APPROVE);
+    }
+    
+    return options;
+  }, [status]);
   const equipmentOptions = [
     Actions.MODIFICATION,
     Actions.EQUIPMENT_APPROVE,
