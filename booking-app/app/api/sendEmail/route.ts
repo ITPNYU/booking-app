@@ -14,6 +14,7 @@ export async function POST(req: NextRequest) {
     bodyMessage,
     approverType,
     replyTo,
+    schemaName,
   } = await req.json();
 
   // Get tenant from x-tenant header for logging purposes
@@ -40,6 +41,7 @@ export async function POST(req: NextRequest) {
       body: bodyMessage || "",
       approverType,
       replyTo,
+      schemaName,
       tenant,
     });
     return NextResponse.json(

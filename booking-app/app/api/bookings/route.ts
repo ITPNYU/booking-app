@@ -7,6 +7,7 @@ import {
   serverSendBookingDetailEmail,
   serverUpdateDataByCalendarEventId,
 } from "@/components/src/server/admin";
+import { getTenantEmailConfig } from "@/components/src/server/emails";
 import {
   bookingContentsToDescription,
   deleteEvent,
@@ -281,6 +282,9 @@ async function handleBookingApprovalEmails(
 
   const firstApprovers = await firstApproverEmails(data.department);
 
+  // Get tenant email configuration
+  const emailConfig = await getTenantEmailConfig(tenant);
+
   console.log(
     `📧 FIRST APPROVERS RESULT [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
     {
@@ -354,6 +358,7 @@ async function handleBookingApprovalEmails(
         body: "",
         approverType: ApproverType.LIAISON,
         replyTo: email,
+        schemaName: emailConfig.schemaName,
       });
     });
 
@@ -445,8 +450,7 @@ async function handleBookingApprovalEmails(
     await serverSendBookingDetailEmail({
       calendarEventId,
       targetEmail: email,
-      headerMessage:
-        "Your request has been received!<br />Please allow 3-5 days for review. If there are changes to your request or you would like to follow up, contact mediacommons.reservations@nyu.edu.<br />This email does not confirm your reservation. You will receive a confirmation email and Google Calendar invite once your request is completed.<br /> Thank you!",
+      headerMessage: emailConfig.emailHeaderMessage,
       status: BookingStatusLabel.REQUESTED,
       replyTo: email,
       tenant,
