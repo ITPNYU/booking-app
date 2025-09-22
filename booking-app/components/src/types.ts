@@ -289,6 +289,7 @@ export type RoomSetting = {
   isEquipment?: boolean;
   services?: string[];
   staffingServices?: string[]; // Specific staffing service options for this room
+  staffingSections?: { name: string; indexes: number[] }[];
 };
 
 export type SafetyTraining = {
