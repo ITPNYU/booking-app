@@ -291,7 +291,7 @@ export const insertEvent = async ({
 export const updateCalendarEvent = async (
   calendarEventId: string,
   newValues: {
-    end: {
+    end?: {
       dateTime: string;
     };
     statusPrefix?: BookingStatusLabel;

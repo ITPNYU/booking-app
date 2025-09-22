@@ -237,12 +237,16 @@ describe("Calendar Safety Training, Ban, and Overlap Restrictions Logic", () => 
 
   describe("Blackout Period Integration", () => {
     it("should correctly identify dates within blackout periods", () => {
+      // Create dynamic blackout period: 3 months from now to 4 months from now
+      const blackoutStart = dayjs().add(3, "month");
+      const blackoutEnd = dayjs().add(4, "month");
+
       const blackoutPeriods = [
         {
           id: "blackout-1",
           name: "Summer Break",
-          startDate: Timestamp.fromDate(dayjs("2025-12-01").toDate()),
-          endDate: Timestamp.fromDate(dayjs("2025-12-31").toDate()),
+          startDate: Timestamp.fromDate(blackoutStart.toDate()),
+          endDate: Timestamp.fromDate(blackoutEnd.toDate()),
           startTime: null,
           endTime: null,
           isActive: true,
@@ -263,12 +267,12 @@ describe("Calendar Safety Training, Ban, and Overlap Restrictions Logic", () => 
         ),
       });
 
-      // Date within blackout period
-      const dateInBlackout = dayjs("2025-12-15");
+      // Date within blackout period (3.5 months from now)
+      const dateInBlackout = dayjs().add(3.5, "month");
       expect(result.current.isDateDisabled(dateInBlackout)).toBe(true);
 
-      // Date outside blackout period (using future date)
-      const dateOutsideBlackout = dayjs("2025-09-15");
+      // Date outside blackout period (2 months from now - before blackout)
+      const dateOutsideBlackout = dayjs().add(2, "month");
       expect(result.current.isDateDisabled(dateOutsideBlackout)).toBe(false);
     });
   });
