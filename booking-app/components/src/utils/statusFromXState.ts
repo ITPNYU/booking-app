@@ -101,5 +101,5 @@ export function getStatusFromXState(
 }
 
 function shouldUseXState(tenant?: string): boolean {
-  return tenant === "mc" || tenant === "itp";
+  return true; // All tenants use XState now
 }
