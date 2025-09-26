@@ -682,10 +682,59 @@ export default function useBookingActions({
     return serviceActions;
   };
 
+  // Create all service actions regardless of tenant for testing compatibility
+  const createAllServiceActions = () => {
+    const serviceActions: Record<string, ActionDefinition> = {};
+
+    SERVICE_TYPES.forEach((serviceType) => {
+      const capitalizedType =
+        serviceType.charAt(0).toUpperCase() + serviceType.slice(1);
+
+      // Approve actions - use the enum value as key
+      const approveActionKey =
+        Actions[
+          `APPROVE_${serviceType.toUpperCase()}_SERVICE` as keyof typeof Actions
+        ];
+      serviceActions[approveActionKey] = {
+        action: () => executeServiceAction(serviceType, "approve"),
+        optimisticNextStatus: BookingStatusLabel.PENDING,
+      };
+
+      // Decline actions - use the enum value as key
+      const declineActionKey =
+        Actions[
+          `DECLINE_${serviceType.toUpperCase()}_SERVICE` as keyof typeof Actions
+        ];
+      serviceActions[declineActionKey] = {
+        action: () =>
+          executeServiceAction(
+            serviceType,
+            "decline",
+            reason || `${capitalizedType} service declined`
+          ),
+        optimisticNextStatus: BookingStatusLabel.PENDING,
+        confirmation: true,
+      };
+
+      // Closeout actions - use the enum value as key
+      const closeoutActionKey =
+        Actions[
+          `CLOSEOUT_${serviceType.toUpperCase()}_SERVICE` as keyof typeof Actions
+        ];
+      serviceActions[closeoutActionKey] = {
+        action: () => executeServiceAction(serviceType, "closeout"),
+        optimisticNextStatus: BookingStatusLabel.CHECKED_OUT,
+      };
+    });
+
+    return serviceActions;
+  };
+
   // Merge base actions with service actions
+  const serviceActions = createAllServiceActions();
   const actions = {
     ...baseActions,
-    ...createServiceActions(),
+    ...serviceActions,
     // never used, just make typescript happy
     [Actions.PLACEHOLDER]: {
       action: async () => {},
