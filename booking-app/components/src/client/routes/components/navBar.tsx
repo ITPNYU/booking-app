@@ -86,8 +86,8 @@ export default function NavBar() {
       case PagePermission.LIAISON:
         router.push(pathOf("liaison"));
         break;
-      case PagePermission.EQUIPMENT:
-        router.push(pathOf("equipment"));
+      case PagePermission.STAFFING:
+        router.push(pathOf("staffing"));
         break;
       case PagePermission.SUPER_ADMIN:
         router.push(pathOf("super"));
@@ -123,8 +123,8 @@ export default function NavBar() {
       setSelectedView(PagePermission.ADMIN);
     } else if (pathname.includes("/liaison")) {
       setSelectedView(PagePermission.LIAISON);
-    } else if (pathname.includes("/equipment")) {
-      setSelectedView(PagePermission.EQUIPMENT);
+    } else if (pathname.includes("/staffing")) {
+      setSelectedView(PagePermission.STAFFING);
     } else if (pathname.includes("/super")) {
       setSelectedView(PagePermission.SUPER_ADMIN);
     }
@@ -176,7 +176,7 @@ export default function NavBar() {
     ]);
 
     const showEquipment = hasUserPermission([
-      PagePermission.EQUIPMENT,
+      PagePermission.STAFFING,
       PagePermission.ADMIN,
       PagePermission.SUPER_ADMIN,
     ]);
@@ -192,7 +192,7 @@ export default function NavBar() {
         )}
         {showAdmin && <MenuItem value={PagePermission.ADMIN}>Admin</MenuItem>}
         {showEquipment && (
-          <MenuItem value={PagePermission.EQUIPMENT}>Equipment</MenuItem>
+          <MenuItem value={PagePermission.STAFFING}>Staffing</MenuItem>
         )}
         {showSuperAdmin && (
           <MenuItem value={PagePermission.SUPER_ADMIN}>Super</MenuItem>
@@ -225,10 +225,7 @@ export default function NavBar() {
       );
     }
 
-    if (
-      supportVIP &&
-      selectedView === PagePermission.ADMIN
-    ) {
+    if (supportVIP && selectedView === PagePermission.ADMIN) {
       return (
         <Button
           onClick={() => {

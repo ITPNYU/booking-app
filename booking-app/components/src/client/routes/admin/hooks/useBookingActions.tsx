@@ -129,12 +129,15 @@ export default function useBookingActions({
           setServiceRequests(getMediaCommonsServices(data));
 
           // Get XState v5 information for service approval status
-          if (data.xstateData?.snapshot) {
-            // XState v5: Get current state and context from snapshot
-            const currentStateValue = data.xstateData.snapshot.value || "";
+          if (data.xstateData) {
+            // Use common helper to get current state and context
+            const { getXStateValue, getXStateContext } = await import(
+              "@/components/src/utils/xstateHelpers"
+            );
+            const currentStateValue = getXStateValue(data) || "";
             setCurrentXState(currentStateValue);
 
-            const context = data.xstateData.snapshot.context || {};
+            const context = getXStateContext(data) || {};
             setServicesApproved({
               staff:
                 context.servicesApproved?.staff ?? data.staffServiceApproved,
@@ -1147,12 +1150,12 @@ export default function useBookingActions({
 
   const liaisonOptions = useMemo(() => {
     let options = [Actions.DECLINE];
-    
+
     // Only allow FIRST_APPROVE for REQUESTED status, not for DECLINED
     if (status === BookingStatusLabel.REQUESTED) {
       options.push(Actions.FIRST_APPROVE);
     }
-    
+
     return options;
   }, [status]);
   const equipmentOptions = [

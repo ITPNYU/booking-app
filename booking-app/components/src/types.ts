@@ -238,7 +238,7 @@ export enum PagePermission {
   PA = "PA",
   ADMIN = "ADMIN",
   LIAISON = "LIAISON",
-  EQUIPMENT = "EQUIPMENT",
+  STAFFING = "STAFFING",
   SUPER_ADMIN = "SUPER_ADMIN",
 }
 
