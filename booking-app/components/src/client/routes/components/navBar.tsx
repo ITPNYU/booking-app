@@ -240,7 +240,11 @@ export default function NavBar() {
       );
     }
 
-    if (supportWalkIn && pagePermission !== PagePermission.BOOKING) {
+    if (
+      supportWalkIn &&
+      pagePermission !== PagePermission.BOOKING &&
+      selectedView !== PagePermission.STAFFING
+    ) {
       return (
         <Button
           onClick={() => {

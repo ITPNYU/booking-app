@@ -248,6 +248,7 @@ export enum PageContextLevel {
   PA,
   EQUIPMENT,
   ADMIN,
+  STAFFING,
 }
 
 export type BlackoutPeriod = {
