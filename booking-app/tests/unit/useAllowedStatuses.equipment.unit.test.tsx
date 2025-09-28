@@ -4,10 +4,10 @@ import { renderHook } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 describe("useAllowedStatuses Hook - Equipment Context", () => {
-  describe("PageContextLevel.EQUIPMENT", () => {
+  describe("PageContextLevel.SERVICES", () => {
     it("should return only EQUIPMENT status for equipment context", () => {
       const { result } = renderHook(() =>
-        useAllowedStatuses(PageContextLevel.EQUIPMENT)
+        useAllowedStatuses(PageContextLevel.SERVICES)
       );
 
       const allowedStatuses = result.current;
@@ -18,7 +18,7 @@ describe("useAllowedStatuses Hook - Equipment Context", () => {
 
     it("should not include other statuses for equipment context", () => {
       const { result } = renderHook(() =>
-        useAllowedStatuses(PageContextLevel.EQUIPMENT)
+        useAllowedStatuses(PageContextLevel.SERVICES)
       );
 
       const allowedStatuses = result.current;
@@ -45,10 +45,10 @@ describe("useAllowedStatuses Hook - Equipment Context", () => {
 
     it("should be consistent across multiple hook calls", () => {
       const { result: result1 } = renderHook(() =>
-        useAllowedStatuses(PageContextLevel.EQUIPMENT)
+        useAllowedStatuses(PageContextLevel.SERVICES)
       );
       const { result: result2 } = renderHook(() =>
-        useAllowedStatuses(PageContextLevel.EQUIPMENT)
+        useAllowedStatuses(PageContextLevel.SERVICES)
       );
 
       expect(result1.current).toEqual(result2.current);
@@ -58,7 +58,7 @@ describe("useAllowedStatuses Hook - Equipment Context", () => {
   describe("Comparison with other contexts", () => {
     it("should return different statuses for PA context", () => {
       const { result: equipmentResult } = renderHook(() =>
-        useAllowedStatuses(PageContextLevel.EQUIPMENT)
+        useAllowedStatuses(PageContextLevel.SERVICES)
       );
       const { result: paResult } = renderHook(() =>
         useAllowedStatuses(PageContextLevel.PA)
@@ -93,7 +93,7 @@ describe("useAllowedStatuses Hook - Equipment Context", () => {
 
     it("should return different statuses for ADMIN context", () => {
       const { result: equipmentResult } = renderHook(() =>
-        useAllowedStatuses(PageContextLevel.EQUIPMENT)
+        useAllowedStatuses(PageContextLevel.SERVICES)
       );
       const { result: adminResult } = renderHook(() =>
         useAllowedStatuses(PageContextLevel.ADMIN)
@@ -111,7 +111,7 @@ describe("useAllowedStatuses Hook - Equipment Context", () => {
 
     it("should return different statuses for LIAISON context", () => {
       const { result: equipmentResult } = renderHook(() =>
-        useAllowedStatuses(PageContextLevel.EQUIPMENT)
+        useAllowedStatuses(PageContextLevel.SERVICES)
       );
       const { result: liaisonResult } = renderHook(() =>
         useAllowedStatuses(PageContextLevel.LIAISON)
@@ -131,7 +131,7 @@ describe("useAllowedStatuses Hook - Equipment Context", () => {
   describe("Hook behavior", () => {
     it("should memoize the result", () => {
       const { result, rerender } = renderHook(() =>
-        useAllowedStatuses(PageContextLevel.EQUIPMENT)
+        useAllowedStatuses(PageContextLevel.SERVICES)
       );
 
       const firstResult = result.current;
@@ -146,7 +146,7 @@ describe("useAllowedStatuses Hook - Equipment Context", () => {
     });
 
     it("should update when context changes", () => {
-      let pageContext = PageContextLevel.EQUIPMENT;
+      let pageContext = PageContextLevel.SERVICES;
       const { result, rerender } = renderHook(() =>
         useAllowedStatuses(pageContext)
       );
@@ -171,9 +171,9 @@ describe("useAllowedStatuses Hook - Equipment Context", () => {
 
   describe("Edge cases", () => {
     it("should handle numeric enum values correctly", () => {
-      // PageContextLevel.EQUIPMENT is likely a numeric enum
-      const { result } = renderHook(
-        () => useAllowedStatuses(3 as PageContextLevel.EQUIPMENT) // Assuming EQUIPMENT = 3
+      // PageContextLevel.SERVICES is now the correct enum value
+      const { result } = renderHook(() =>
+        useAllowedStatuses(PageContextLevel.SERVICES)
       );
 
       expect(result.current).toEqual([BookingStatusLabel.EQUIPMENT]);
@@ -181,7 +181,7 @@ describe("useAllowedStatuses Hook - Equipment Context", () => {
 
     it("should return equipment statuses regardless of case sensitivity", () => {
       const { result } = renderHook(() =>
-        useAllowedStatuses(PageContextLevel.EQUIPMENT)
+        useAllowedStatuses(PageContextLevel.SERVICES)
       );
 
       const allowedStatuses = result.current;

@@ -14,6 +14,10 @@ import {
   getMediaCommonsServices,
   isMediaCommons,
 } from "@/components/src/utils/tenantUtils";
+import {
+  createXStateChecker,
+  getXStateContext,
+} from "@/components/src/utils/xstateUnified";
 import { clientGetDataByCalendarEventId } from "@/lib/firebase/firebase";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 
@@ -130,11 +134,9 @@ export default function useBookingActions({
 
           // Get XState v5 information for service approval status
           if (data.xstateData) {
-            // Use common helper to get current state and context
-            const { getXStateValue, getXStateContext } = await import(
-              "@/components/src/utils/xstateHelpers"
-            );
-            const currentStateValue = getXStateValue(data) || "";
+            // Use unified XState utilities
+            const checker = createXStateChecker(data);
+            const currentStateValue = checker.getCurrentStateString();
             setCurrentXState(currentStateValue);
 
             const context = getXStateContext(data) || {};
@@ -381,6 +383,7 @@ export default function useBookingActions({
         // Services context does not show basic actions (Cancel, Decline)
         options = [];
 
+        // Use unified XState checker for consistent state checking
         const isInServicesRequest =
           (typeof currentXState === "object" &&
             currentXState &&

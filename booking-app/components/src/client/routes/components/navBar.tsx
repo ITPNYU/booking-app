@@ -123,8 +123,8 @@ export default function NavBar() {
       setSelectedView(PagePermission.ADMIN);
     } else if (pathname.includes("/liaison")) {
       setSelectedView(PagePermission.LIAISON);
-    } else if (pathname.includes("/staffing")) {
-      setSelectedView(PagePermission.STAFFING);
+    } else if (pathname.includes("/services")) {
+      setSelectedView(PagePermission.SERVICES);
     } else if (pathname.includes("/super")) {
       setSelectedView(PagePermission.SUPER_ADMIN);
     }

@@ -90,7 +90,6 @@ export default function BookingActions(props: Props) {
   };
 
   const onAction = useMemo(() => {
-    // 最初にselectedActionがPlaceholderまたは無効な値かチェック
     if (selectedAction === Actions.PLACEHOLDER || !actions[selectedAction]) {
       return (
         <IconButton disabled={true} color={"primary"}>
