@@ -1,4 +1,4 @@
-import { MoreHoriz } from "@mui/icons-material";
+import { MoreHoriz, TableBar, Headset, PeopleAlt, LocalDining, CleaningServices, LocalPolice } from "@mui/icons-material";
 import {
   Box,
   IconButton,
@@ -337,13 +337,18 @@ export const Bookings: React.FC<BookingsProps> = ({
            {
               field: "services",
               headerName: "Services",
-              minWidth: 120,
+              minWidth: 160,
               flex: 1,
               renderHeader: () => <TableCell>Services</TableCell>,
               filterable: false,
               renderCell: (params) => (
-                <TableCell>
-
+                <TableCell style = { { display : "flex", flexDirection : "row", gap : "4px" } }>
+                  <TableBar style = { { fontSize : "20px", color : "rgba(0, 0, 0, 0.8)" } }/>
+                  <Headset style = { { fontSize : "20px", color : "rgba(0, 0, 0, 0.08)" } }/>
+                  <PeopleAlt style = { { fontSize : "20px", color : "rgba(0, 0, 0, 0.8)" } }/>
+                  <LocalDining style = { { fontSize : "20px", color : "rgba(0, 0, 0, 0.8)" } }/>
+                  <CleaningServices style = { { fontSize : "20px", color : "rgba(0, 0, 0, 0.08)" } }/>
+                  <LocalPolice style = { { fontSize : "20px", color : "rgba(0, 0, 0, 0.08)" } }/>
                 </TableCell>
               ),
             },
