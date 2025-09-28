@@ -115,7 +115,9 @@ export default function NavBar() {
   })();
 
   useEffect(() => {
-    if (pathname === "/") {
+    const isTenantRoot = /^\/[^/]+$/.test(pathname);
+
+    if (pathname === "/" || isTenantRoot) {
       setSelectedView(PagePermission.BOOKING);
     } else if (pathname.includes("/pa")) {
       setSelectedView(PagePermission.PA);
