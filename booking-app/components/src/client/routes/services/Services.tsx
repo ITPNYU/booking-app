@@ -4,16 +4,16 @@ import { PagePermission } from "../../../types";
 
 import { hasAnyPermission } from "@/components/src/utils/permissions";
 import { DatabaseContext } from "../components/Provider";
-import StaffingBookings from "./StaffingBookings";
+import ServicesBookings from "./ServicesBookings";
 
-const Staffing = () => {
+const Services = () => {
   const { pagePermission } = useContext(DatabaseContext);
 
   const [tab, setTab] = useState("bookings");
 
   const userHasPermission = hasAnyPermission(pagePermission, [
     PagePermission.ADMIN,
-    PagePermission.STAFFING,
+    PagePermission.SERVICES,
     PagePermission.SUPER_ADMIN,
   ]);
 
@@ -29,13 +29,13 @@ const Staffing = () => {
             textColor="primary"
             indicatorColor="primary"
           >
-            <Tab value="bookings" label="Staffing Requests" />
+            <Tab value="bookings" label="Service Requests" />
           </Tabs>
-          {tab === "bookings" && <StaffingBookings />}
+          {tab === "bookings" && <ServicesBookings />}
         </div>
       )}
     </Box>
   );
 };
 
-export default Staffing;
+export default Services;

@@ -190,13 +190,13 @@ export const DatabaseProvider = ({
     const adminEmails = adminUsers.map((admin) => admin.email);
     const liaisonEmails = liaisonUsers.map((liaison) => liaison.email);
     const paEmails = paUsers.map((pa) => pa.email);
-    const equipmentEmails = equipmentUsers.map((e) => e.email);
+    const servicesEmails = equipmentUsers.map((e) => e.email);
     const superAdminEmails = superAdminUsers.map((admin) => admin.email);
 
     // Check permissions (ordered by hierarchy - highest to lowest)
     if (superAdminEmails.includes(userEmail)) return PagePermission.SUPER_ADMIN;
     if (adminEmails.includes(userEmail)) return PagePermission.ADMIN;
-    if (equipmentEmails.includes(userEmail)) return PagePermission.STAFFING;
+    if (servicesEmails.includes(userEmail)) return PagePermission.SERVICES;
     if (liaisonEmails.includes(userEmail)) return PagePermission.LIAISON;
     if (paEmails.includes(userEmail)) return PagePermission.PA;
 

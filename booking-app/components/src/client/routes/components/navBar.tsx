@@ -86,8 +86,8 @@ export default function NavBar() {
       case PagePermission.LIAISON:
         router.push(pathOf("liaison"));
         break;
-      case PagePermission.STAFFING:
-        router.push(pathOf("staffing"));
+      case PagePermission.SERVICES:
+        router.push(pathOf("services"));
         break;
       case PagePermission.SUPER_ADMIN:
         router.push(pathOf("super"));
@@ -175,8 +175,8 @@ export default function NavBar() {
       PagePermission.SUPER_ADMIN,
     ]);
 
-    const showEquipment = hasUserPermission([
-      PagePermission.STAFFING,
+    const showServices = hasUserPermission([
+      PagePermission.SERVICES,
       PagePermission.ADMIN,
       PagePermission.SUPER_ADMIN,
     ]);
@@ -190,10 +190,10 @@ export default function NavBar() {
         {showLiaison && (
           <MenuItem value={PagePermission.LIAISON}>Liaison</MenuItem>
         )}
-        {showAdmin && <MenuItem value={PagePermission.ADMIN}>Admin</MenuItem>}
-        {showEquipment && (
-          <MenuItem value={PagePermission.STAFFING}>Staffing</MenuItem>
+        {showServices && (
+          <MenuItem value={PagePermission.SERVICES}>Services</MenuItem>
         )}
+        {showAdmin && <MenuItem value={PagePermission.ADMIN}>Admin</MenuItem>}
         {showSuperAdmin && (
           <MenuItem value={PagePermission.SUPER_ADMIN}>Super</MenuItem>
         )}

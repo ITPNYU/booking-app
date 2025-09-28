@@ -298,7 +298,7 @@ export default function useBookingActions({
     },
   };
 
-  // サービスタイプの定数定義
+  // Service types constant definition
   const SERVICE_TYPES = [
     "staff",
     "equipment",
@@ -308,20 +308,20 @@ export default function useBookingActions({
     "setup",
   ] as const;
 
-  // 共通のアクション定義関数
+  // Common action definition function
   const getActionsForPageContext = (
     pageContext: PageContextLevel
   ): Actions[] => {
     let options: Actions[] = [];
 
-    // 共通の定数定義
+    // Common constants definition
     const THIRTY_MIN_MS = 30 * 60 * 1000;
     const thirtyPastStartTime =
       date.getTime() - startDate.toDate().getTime() >= THIRTY_MIN_MS;
 
     switch (pageContext) {
       case PageContextLevel.USER:
-        // ユーザー用アクション
+        // User actions
         if (
           status !== BookingStatusLabel.CANCELED &&
           status !== BookingStatusLabel.CHECKED_IN &&
@@ -341,7 +341,7 @@ export default function useBookingActions({
         break;
 
       case PageContextLevel.PA:
-        // PA用アクション
+        // PA actions
         if (status === BookingStatusLabel.APPROVED) {
           options.push(Actions.CHECK_IN);
           options.push(Actions.MODIFICATION);
@@ -360,24 +360,15 @@ export default function useBookingActions({
         break;
 
       case PageContextLevel.LIAISON:
-        // Liaison用アクション
+        // Liaison actions
         options.push(Actions.DECLINE);
         if (status === BookingStatusLabel.REQUESTED) {
           options.push(Actions.FIRST_APPROVE);
         }
         break;
 
-      case PageContextLevel.EQUIPMENT:
-        // Equipment用アクション（固定）
-        options = [
-          Actions.MODIFICATION,
-          Actions.EQUIPMENT_APPROVE,
-          Actions.DECLINE,
-        ];
-        break;
-
-      case PageContextLevel.STAFFING:
-        // Staffing用アクション
+      case PageContextLevel.SERVICES:
+        // Services actions
         if (
           status === BookingStatusLabel.DECLINED ||
           status === BookingStatusLabel.CLOSED ||
@@ -387,6 +378,9 @@ export default function useBookingActions({
           return [];
         }
 
+        // Services context does not show basic actions (Cancel, Decline)
+        options = [];
+
         const isInServicesRequest =
           (typeof currentXState === "object" &&
             currentXState &&
@@ -395,6 +389,7 @@ export default function useBookingActions({
             (currentXState.includes("Services Request") ||
               currentXState === "Services Request"));
 
+        // For Media Commons, provide actions only when service requests exist
         if (
           isMediaCommons(tenant as string) &&
           Object.values(serviceRequests).some(Boolean) &&
@@ -415,10 +410,39 @@ export default function useBookingActions({
           };
 
           SERVICE_TYPES.forEach((serviceType) => {
-            const approveAction =
-              `APPROVE_${serviceType.toUpperCase()}_SERVICE` as Actions;
-            const declineAction =
-              `DECLINE_${serviceType.toUpperCase()}_SERVICE` as Actions;
+            // Direct enum value mapping to avoid string literal issues
+            let approveAction: Actions;
+            let declineAction: Actions;
+
+            switch (serviceType) {
+              case "staff":
+                approveAction = Actions.APPROVE_STAFF_SERVICE;
+                declineAction = Actions.DECLINE_STAFF_SERVICE;
+                break;
+              case "equipment":
+                approveAction = Actions.APPROVE_EQUIPMENT_SERVICE;
+                declineAction = Actions.DECLINE_EQUIPMENT_SERVICE;
+                break;
+              case "catering":
+                approveAction = Actions.APPROVE_CATERING_SERVICE;
+                declineAction = Actions.DECLINE_CATERING_SERVICE;
+                break;
+              case "cleaning":
+                approveAction = Actions.APPROVE_CLEANING_SERVICE;
+                declineAction = Actions.DECLINE_CLEANING_SERVICE;
+                break;
+              case "security":
+                approveAction = Actions.APPROVE_SECURITY_SERVICE;
+                declineAction = Actions.DECLINE_SECURITY_SERVICE;
+                break;
+              case "setup":
+                approveAction = Actions.APPROVE_SETUP_SERVICE;
+                declineAction = Actions.DECLINE_SETUP_SERVICE;
+                break;
+              default:
+                return; // Skip unknown service types
+            }
+
             addServiceActions(serviceType, approveAction, declineAction);
           });
         }
@@ -439,7 +463,7 @@ export default function useBookingActions({
           return [];
         }
 
-        // 基本的なapprovalアクション
+        // Basic approval actions
         if (status === BookingStatusLabel.REQUESTED) {
           options.push(Actions.FIRST_APPROVE);
         } else if (status === BookingStatusLabel.PRE_APPROVED) {
@@ -458,7 +482,7 @@ export default function useBookingActions({
           options.push(Actions.FINAL_APPROVE);
         }
 
-        // サービス関連のアクション（Services Request状態の時のみ）
+        // Service-related actions (only in Services Request state)
         const adminIsInServicesRequest =
           (typeof currentXState === "object" &&
             currentXState &&
@@ -495,7 +519,7 @@ export default function useBookingActions({
           });
         }
 
-        // サービスcloseoutアクション
+        // Service closeout actions
         const isInServiceCloseout =
           (typeof currentXState === "object" &&
             currentXState &&
@@ -526,7 +550,7 @@ export default function useBookingActions({
           });
         }
 
-        // PAオプションを追加
+        // Add PA options
         if (status === BookingStatusLabel.APPROVED) {
           options.push(Actions.CHECK_IN);
           options.push(Actions.MODIFICATION);
@@ -543,7 +567,7 @@ export default function useBookingActions({
           options.push(Actions.NO_SHOW);
         }
 
-        // CHECKED_OUTとCANCELED状態ではCancelとDeclineを表示しない
+        // Do not show Cancel and Decline for CHECKED_OUT and CANCELED states
         if (
           status !== BookingStatusLabel.CHECKED_OUT &&
           status !== BookingStatusLabel.CANCELED
@@ -557,13 +581,13 @@ export default function useBookingActions({
     return options;
   };
 
-  // サービス関連の汎用処理関数
+  // Service-related generic processing function
   const executeServiceAction = async (
     serviceType: keyof typeof serviceRequests,
     action: "approve" | "decline" | "closeout",
     reason?: string
   ) => {
-    // サービスが実際にリクエストされているかチェック（approveとcloseoutの場合）
+    // Check if service is actually requested (for approve and closeout actions)
     if (action === "approve" && !serviceRequests[serviceType]) {
       console.warn(`${serviceType} service not requested, skipping approval`);
       return;
@@ -579,7 +603,7 @@ export default function useBookingActions({
       return;
     }
 
-    // Pre-approvedからServices Request状態への移行が必要な場合
+    // When transition from Pre-approved to Services Request state is needed
     if (
       (action === "approve" || action === "decline") &&
       currentXState === "Pre-approved" &&
@@ -599,7 +623,7 @@ export default function useBookingActions({
       });
     }
 
-    // decline時は状態チェック
+    // State check for decline action
     if (
       action === "decline" &&
       (currentXState === "Pre-approved" || currentXState === "Requested")
@@ -618,7 +642,7 @@ export default function useBookingActions({
       });
     }
 
-    // サービスアクションの実行
+    // Execute service action
     await fetch("/api/services", {
       method: "POST",
       headers: {
@@ -634,13 +658,13 @@ export default function useBookingActions({
       }),
     });
 
-    // decline時は他のサービスも自動的にdecline
-    // XStateの状態機械が自動的に処理するため、手動でのauto-declineは不要
+    // When declining, other services are automatically declined
+    // Manual auto-decline is not needed as XState state machine handles it automatically
 
     await fetchBookingData();
   };
 
-  // サービスアクションを動的に生成する関数
+  // Function to dynamically generate service actions
   const createServiceActions = () => {
     const serviceActions: Partial<Record<Actions, ActionDefinition>> = {};
 
@@ -742,7 +766,7 @@ export default function useBookingActions({
     },
   };
 
-  // 各PageContextLevelのオプションを共通関数で取得
+  // Get options for each PageContextLevel using common function
   const allOptions = useMemo(() => {
     return getActionsForPageContext(pageContext);
   }, [

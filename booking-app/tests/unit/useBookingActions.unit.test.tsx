@@ -331,8 +331,8 @@ describe("useBookingActions Hook", () => {
     testLiaisonContext(BookingStatusLabel.UNKNOWN, [Actions.DECLINE]);
   });
 
-  describe("PageContextLevel.EQUIPMENT", () => {
-    const testEquipmentContext = (
+  describe("PageContextLevel.SERVICES", () => {
+    const testServicesContext = (
       status: BookingStatusLabel,
       expectedActions: Actions[]
     ) => {
@@ -342,7 +342,7 @@ describe("useBookingActions Hook", () => {
 
         const { result } = renderUseBookingActions(
           "test-event",
-          PageContextLevel.EQUIPMENT,
+          PageContextLevel.SERVICES,
           status,
           Timestamp.fromDate(futureDate)
         );
@@ -352,27 +352,21 @@ describe("useBookingActions Hook", () => {
       });
     };
 
-    // Equipment context always shows the same actions regardless of status
-    const equipmentActions = [
-      Actions.MODIFICATION,
-      Actions.EQUIPMENT_APPROVE,
-      Actions.DECLINE,
-    ];
-
-    testEquipmentContext(BookingStatusLabel.REQUESTED, equipmentActions);
-    testEquipmentContext(BookingStatusLabel.PRE_APPROVED, equipmentActions);
-    testEquipmentContext(BookingStatusLabel.APPROVED, equipmentActions);
-    testEquipmentContext(BookingStatusLabel.EQUIPMENT, equipmentActions);
-    testEquipmentContext(BookingStatusLabel.DECLINED, equipmentActions);
-    testEquipmentContext(BookingStatusLabel.CANCELED, equipmentActions);
-    testEquipmentContext(BookingStatusLabel.CHECKED_IN, equipmentActions);
-    testEquipmentContext(BookingStatusLabel.CHECKED_OUT, equipmentActions);
-    testEquipmentContext(BookingStatusLabel.CLOSED, equipmentActions);
-    testEquipmentContext(BookingStatusLabel.NO_SHOW, equipmentActions);
-    testEquipmentContext(BookingStatusLabel.WALK_IN, equipmentActions);
-    testEquipmentContext(BookingStatusLabel.PENDING, equipmentActions);
-    testEquipmentContext(BookingStatusLabel.MODIFIED, equipmentActions);
-    testEquipmentContext(BookingStatusLabel.UNKNOWN, equipmentActions);
+    // Services context shows no basic actions, only service-specific actions in Service Requested state
+    testServicesContext(BookingStatusLabel.REQUESTED, []);
+    testServicesContext(BookingStatusLabel.PRE_APPROVED, []);
+    testServicesContext(BookingStatusLabel.APPROVED, []);
+    testServicesContext(BookingStatusLabel.EQUIPMENT, []);
+    testServicesContext(BookingStatusLabel.DECLINED, []);
+    testServicesContext(BookingStatusLabel.CANCELED, []);
+    testServicesContext(BookingStatusLabel.CHECKED_IN, []);
+    testServicesContext(BookingStatusLabel.CHECKED_OUT, []);
+    testServicesContext(BookingStatusLabel.CLOSED, []);
+    testServicesContext(BookingStatusLabel.NO_SHOW, []);
+    testServicesContext(BookingStatusLabel.WALK_IN, []);
+    testServicesContext(BookingStatusLabel.PENDING, []);
+    testServicesContext(BookingStatusLabel.MODIFIED, []);
+    testServicesContext(BookingStatusLabel.UNKNOWN, []);
   });
 
   describe("PageContextLevel.ADMIN (Default)", () => {
@@ -680,7 +674,7 @@ describe("useBookingActions Hook", () => {
         const testContexts = [
           { context: PageContextLevel.USER, shouldHave: false },
           { context: PageContextLevel.LIAISON, shouldHave: false },
-          { context: PageContextLevel.EQUIPMENT, shouldHave: false },
+          { context: PageContextLevel.SERVICES, shouldHave: false },
           { context: PageContextLevel.PA, shouldHave: true },
           { context: PageContextLevel.ADMIN, shouldHave: true },
         ];
@@ -708,7 +702,7 @@ describe("useBookingActions Hook", () => {
         const testContexts = [
           { context: PageContextLevel.USER, shouldHave: false },
           { context: PageContextLevel.PA, shouldHave: false },
-          { context: PageContextLevel.EQUIPMENT, shouldHave: false },
+          { context: PageContextLevel.SERVICES, shouldHave: false },
           { context: PageContextLevel.LIAISON, shouldHave: true },
           { context: PageContextLevel.ADMIN, shouldHave: true },
         ];
@@ -737,7 +731,7 @@ describe("useBookingActions Hook", () => {
           { context: PageContextLevel.USER, shouldHave: false },
           { context: PageContextLevel.PA, shouldHave: false },
           { context: PageContextLevel.LIAISON, shouldHave: false },
-          { context: PageContextLevel.EQUIPMENT, shouldHave: false },
+          { context: PageContextLevel.SERVICES, shouldHave: false },
           { context: PageContextLevel.ADMIN, shouldHave: true },
         ];
 
@@ -765,7 +759,7 @@ describe("useBookingActions Hook", () => {
           { context: PageContextLevel.USER, shouldHave: false },
           { context: PageContextLevel.PA, shouldHave: false },
           { context: PageContextLevel.LIAISON, shouldHave: false },
-          { context: PageContextLevel.EQUIPMENT, shouldHave: true },
+          { context: PageContextLevel.SERVICES, shouldHave: false }, // Services context doesn't have EQUIPMENT_APPROVE
           { context: PageContextLevel.ADMIN, shouldHave: false }, // Admin has different equipment handling
         ];
 
@@ -793,7 +787,7 @@ describe("useBookingActions Hook", () => {
           { context: PageContextLevel.USER, shouldHave: true },
           { context: PageContextLevel.PA, shouldHave: false },
           { context: PageContextLevel.LIAISON, shouldHave: false },
-          { context: PageContextLevel.EQUIPMENT, shouldHave: false },
+          { context: PageContextLevel.SERVICES, shouldHave: false },
           { context: PageContextLevel.ADMIN, shouldHave: false },
         ];
 
@@ -826,11 +820,7 @@ describe("useBookingActions Hook", () => {
           [PageContextLevel.USER]: [Actions.CANCEL, Actions.EDIT],
           [PageContextLevel.PA]: [],
           [PageContextLevel.LIAISON]: [Actions.DECLINE, Actions.FIRST_APPROVE],
-          [PageContextLevel.EQUIPMENT]: [
-            Actions.MODIFICATION,
-            Actions.EQUIPMENT_APPROVE,
-            Actions.DECLINE,
-          ],
+          [PageContextLevel.SERVICES]: [],
           [PageContextLevel.ADMIN]: [
             Actions.FIRST_APPROVE,
             Actions.CANCEL,
@@ -861,11 +851,7 @@ describe("useBookingActions Hook", () => {
           [PageContextLevel.USER]: [Actions.CANCEL],
           [PageContextLevel.PA]: [Actions.CHECK_IN, Actions.MODIFICATION],
           [PageContextLevel.LIAISON]: [Actions.DECLINE],
-          [PageContextLevel.EQUIPMENT]: [
-            Actions.MODIFICATION,
-            Actions.EQUIPMENT_APPROVE,
-            Actions.DECLINE,
-          ],
+          [PageContextLevel.SERVICES]: [],
           [PageContextLevel.ADMIN]: [
             Actions.CHECK_IN,
             Actions.MODIFICATION,
@@ -897,11 +883,7 @@ describe("useBookingActions Hook", () => {
           [PageContextLevel.USER]: [],
           [PageContextLevel.PA]: [Actions.CHECK_OUT],
           [PageContextLevel.LIAISON]: [Actions.DECLINE],
-          [PageContextLevel.EQUIPMENT]: [
-            Actions.MODIFICATION,
-            Actions.EQUIPMENT_APPROVE,
-            Actions.DECLINE,
-          ],
+          [PageContextLevel.SERVICES]: [],
           [PageContextLevel.ADMIN]: [
             Actions.CHECK_OUT,
             Actions.CANCEL,
@@ -932,11 +914,7 @@ describe("useBookingActions Hook", () => {
           [PageContextLevel.USER]: [Actions.CANCEL, Actions.EDIT],
           [PageContextLevel.PA]: [],
           [PageContextLevel.LIAISON]: [Actions.DECLINE],
-          [PageContextLevel.EQUIPMENT]: [
-            Actions.MODIFICATION,
-            Actions.EQUIPMENT_APPROVE,
-            Actions.DECLINE,
-          ],
+          [PageContextLevel.SERVICES]: [],
           [PageContextLevel.ADMIN]: [],
         };
 
@@ -963,11 +941,7 @@ describe("useBookingActions Hook", () => {
           [PageContextLevel.USER]: [],
           [PageContextLevel.PA]: [],
           [PageContextLevel.LIAISON]: [Actions.DECLINE],
-          [PageContextLevel.EQUIPMENT]: [
-            Actions.MODIFICATION,
-            Actions.EQUIPMENT_APPROVE,
-            Actions.DECLINE,
-          ],
+          [PageContextLevel.SERVICES]: [],
           [PageContextLevel.ADMIN]: [],
         };
 
@@ -994,11 +968,7 @@ describe("useBookingActions Hook", () => {
           [PageContextLevel.USER]: [],
           [PageContextLevel.PA]: [Actions.CHECK_IN],
           [PageContextLevel.LIAISON]: [Actions.DECLINE],
-          [PageContextLevel.EQUIPMENT]: [
-            Actions.MODIFICATION,
-            Actions.EQUIPMENT_APPROVE,
-            Actions.DECLINE,
-          ],
+          [PageContextLevel.SERVICES]: [],
           [PageContextLevel.ADMIN]: [
             Actions.CHECK_IN,
             Actions.CANCEL,
@@ -1029,11 +999,7 @@ describe("useBookingActions Hook", () => {
           [PageContextLevel.USER]: [Actions.CANCEL],
           [PageContextLevel.PA]: [],
           [PageContextLevel.LIAISON]: [Actions.DECLINE],
-          [PageContextLevel.EQUIPMENT]: [
-            Actions.MODIFICATION,
-            Actions.EQUIPMENT_APPROVE,
-            Actions.DECLINE,
-          ],
+          [PageContextLevel.SERVICES]: [],
           [PageContextLevel.ADMIN]: [
             Actions.FINAL_APPROVE,
             Actions.CANCEL,
@@ -1069,7 +1035,7 @@ describe("useBookingActions Hook", () => {
           PageContextLevel.USER,
           PageContextLevel.PA,
           PageContextLevel.LIAISON,
-          PageContextLevel.EQUIPMENT,
+          PageContextLevel.SERVICES,
           PageContextLevel.ADMIN,
         ];
 
@@ -1099,7 +1065,7 @@ describe("useBookingActions Hook", () => {
           PageContextLevel.USER,
           PageContextLevel.PA,
           PageContextLevel.LIAISON,
-          PageContextLevel.EQUIPMENT,
+          PageContextLevel.SERVICES,
           PageContextLevel.ADMIN,
         ];
 
@@ -1128,7 +1094,7 @@ describe("useBookingActions Hook", () => {
         const nonUserContexts = [
           PageContextLevel.PA,
           PageContextLevel.LIAISON,
-          PageContextLevel.EQUIPMENT,
+          PageContextLevel.SERVICES,
           PageContextLevel.ADMIN,
         ];
 
@@ -1163,7 +1129,7 @@ describe("useBookingActions Hook", () => {
           const testContexts = [
             { context: PageContextLevel.USER, shouldHave: false },
             { context: PageContextLevel.LIAISON, shouldHave: false },
-            { context: PageContextLevel.EQUIPMENT, shouldHave: false },
+            { context: PageContextLevel.SERVICES, shouldHave: false },
             { context: PageContextLevel.PA, shouldHave: true },
             { context: PageContextLevel.ADMIN, shouldHave: true },
           ];
@@ -1266,7 +1232,7 @@ describe("useBookingActions Hook", () => {
           const nonPaAdminContexts = [
             PageContextLevel.USER,
             PageContextLevel.LIAISON,
-            PageContextLevel.EQUIPMENT,
+            PageContextLevel.SERVICES,
           ];
 
           nonPaAdminContexts.forEach((context) => {
@@ -1336,7 +1302,7 @@ describe("useBookingActions Hook", () => {
           PageContextLevel.USER,
           PageContextLevel.PA,
           PageContextLevel.LIAISON,
-          PageContextLevel.EQUIPMENT,
+          PageContextLevel.SERVICES,
         ];
 
         const serviceActions = [
