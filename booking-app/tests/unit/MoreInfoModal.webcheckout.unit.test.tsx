@@ -221,9 +221,9 @@ describe("MoreInfoModal - WebCheckout", () => {
       expect(screen.queryByText("Cart Number")).not.toBeInTheDocument();
     });
 
-    it("hides WebCheckout section for equipment users", () => {
+    it("hides WebCheckout section for staffing users", () => {
       const booking = createMockBooking();
-      const context = createMockDatabaseContext(PagePermission.EQUIPMENT);
+      const context = createMockDatabaseContext(PagePermission.STAFFING);
 
       renderModal(booking, context);
 

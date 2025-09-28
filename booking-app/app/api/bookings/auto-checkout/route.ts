@@ -113,16 +113,18 @@ export async function GET(request: NextRequest) {
         // Check XState status for eligible bookings
         let shouldAutoCheckout = false;
 
-        if (booking.xstateData?.snapshot?.value) {
-          // Check if booking is in "Checked In" state
-          const xstateValue = booking.xstateData.snapshot.value;
-          shouldAutoCheckout =
-            typeof xstateValue === "string" && xstateValue === "Checked In";
+        if (booking.xstateData) {
+          // Check if booking is in "Checked In" state using common helper
+          const { hasXStateValue, getXStateValue } = await import(
+            "@/components/src/utils/xstateHelpers"
+          );
+          shouldAutoCheckout = hasXStateValue(booking, "Checked In");
+          const currentXStateValue = getXStateValue(booking);
 
           BookingLogger.debug("XState auto-checkout eligibility check", {
             tenant,
             bookingId,
-            xstateValue,
+            xstateValue: currentXStateValue,
             shouldAutoCheckout,
           });
         } else {
