@@ -334,23 +334,56 @@ export const Bookings: React.FC<BookingsProps> = ({
       },
       ...(!isUserView
         ? [
-           {
+            {
               field: "services",
               headerName: "Services",
               minWidth: 160,
               flex: 1,
               renderHeader: () => <TableCell>Services</TableCell>,
               filterable: false,
-              renderCell: (params) => (
-                <TableCell style = { { display : "flex", flexDirection : "row", gap : "4px" } }>
-                  <TableBar style = { { fontSize : "20px", color : "rgba(0, 0, 0, 0.8)" } }/>
-                  <Headset style = { { fontSize : "20px", color : "rgba(0, 0, 0, 0.08)" } }/>
-                  <PeopleAlt style = { { fontSize : "20px", color : "rgba(0, 0, 0, 0.8)" } }/>
-                  <LocalDining style = { { fontSize : "20px", color : "rgba(0, 0, 0, 0.8)" } }/>
-                  <CleaningServices style = { { fontSize : "20px", color : "rgba(0, 0, 0, 0.08)" } }/>
-                  <LocalPolice style = { { fontSize : "20px", color : "rgba(0, 0, 0, 0.08)" } }/>
-                </TableCell>
-              ),
+              renderCell: (params) => {
+                const bookingRow = params.row as BookingRow;
+
+                const isActive = {
+                  tableSetup: !!bookingRow.roomSetup && bookingRow.roomSetup !== "no",
+                  equipmentServices:
+                    !!bookingRow.equipmentServices &&
+                    bookingRow.equipmentServices.trim() !== "",
+                  staffingServices:
+                    !!bookingRow.staffingServices &&
+                    bookingRow.staffingServices.trim() !== "",
+                  cateringService:
+                    (!!bookingRow.cateringService &&
+                      bookingRow.cateringService.trim() !== "") ||
+                    bookingRow.catering === "yes",
+                  cleaningService: bookingRow.cleaningService === "yes",
+                  hireSecurity: bookingRow.hireSecurity === "yes",
+                };
+
+                const colorFor = (active: boolean) =>
+                  active ? "rgba(0, 0, 0, 0.8)" : "rgba(0, 0, 0, 0.08)";
+
+                const items: { label: string; Icon: any; active: boolean }[] = [
+                  { label: "Room Setup", Icon: TableBar, active: isActive.tableSetup },
+                  { label: "Equipment", Icon: Headset, active: isActive.equipmentServices },
+                  { label: "Staffing", Icon: PeopleAlt, active: isActive.staffingServices },
+                  { label: "Catering", Icon: LocalDining, active: isActive.cateringService },
+                  { label: "Cleaning", Icon: CleaningServices, active: isActive.cleaningService },
+                  { label: "Security", Icon: LocalPolice, active: isActive.hireSecurity },
+                ];
+
+                return (
+                  <TableCell style={{ display: "flex", flexDirection: "row", gap: "4px" }}>
+                    {items.map(({ label, Icon, active }) => (
+                      <Tooltip key={label} title={label} placement="top">
+                        <span>
+                          <Icon style={{ fontSize: "20px", color: colorFor(active) }} />
+                        </span>
+                      </Tooltip>
+                    ))}
+                  </TableCell>
+                );
+              },
             },
             {
               field: "equip",
