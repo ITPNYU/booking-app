@@ -1,5 +1,6 @@
 import React, { useContext, useMemo } from "react";
 import { Booking, PageContextLevel } from "../../../types";
+import { getXStateValue, logXStateDebug } from "../../../utils/xstateHelpers";
 import { Bookings } from "../components/bookingTable/Bookings";
 import { DatabaseContext } from "../components/Provider";
 
@@ -19,8 +20,7 @@ const ServicesBookings: React.FC = () => {
       }
 
       try {
-        // Use the same logic as Service approve/decline actions
-        const { getXStateValue } = require("../../../utils/xstateHelpers");
+        // Get current XState value using the utility function
         const currentXState = getXStateValue(booking);
 
         if (!currentXState) return false;
@@ -49,11 +49,12 @@ const ServicesBookings: React.FC = () => {
             (parsedState.includes("Services Request") ||
               parsedState === "Services Request"));
 
-        // Debugging information
-        console.log(`🔍 SERVICES FILTER DEBUG:`, {
+        // Use the built-in debug helper
+        logXStateDebug(booking, "SERVICES FILTER DEBUG");
+
+        // Additional debug info specific to services
+        console.log(`🔍 SERVICES REQUEST:`, {
           calendarEventId: booking.calendarEventId,
-          rawXState: currentXState,
-          parsedState,
           isInServicesRequest,
           title: booking.title,
         });

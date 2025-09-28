@@ -55,7 +55,7 @@ export function hasAnyPermission(
 export function canAccessWebCheckout(userPermission: PagePermission): boolean {
   return hasAnyPermission(userPermission, [
     PagePermission.PA,
-    PagePermission.STAFFING,
+    PagePermission.SERVICES,
     PagePermission.ADMIN,
     PagePermission.SUPER_ADMIN,
   ]);
