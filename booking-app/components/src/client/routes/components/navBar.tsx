@@ -243,7 +243,7 @@ export default function NavBar() {
     if (
       supportWalkIn &&
       pagePermission !== PagePermission.BOOKING &&
-      selectedView !== PagePermission.STAFFING
+      selectedView !== PagePermission.SERVICES
     ) {
       return (
         <Button

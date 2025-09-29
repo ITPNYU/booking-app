@@ -1,4 +1,5 @@
 import { extractTenantFromCollectionName } from "@/components/src/policy";
+import { Booking } from "@/components/src/types";
 import admin from "@/lib/firebase/server/firebaseAdmin";
 import { BookingLogger } from "@/lib/logger/bookingLogger";
 import { executeXStateTransition } from "@/lib/stateMachines/xstateUtilsV5";
@@ -107,7 +108,7 @@ export async function GET(request: NextRequest) {
       // All tenants now use XState
 
       for (const doc of bookingsSnapshot.docs) {
-        const booking = doc.data();
+        const booking = doc.data() as Booking;
         const bookingId = doc.id;
 
         // Check XState status for eligible bookings

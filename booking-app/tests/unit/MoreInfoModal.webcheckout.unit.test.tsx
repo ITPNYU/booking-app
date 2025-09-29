@@ -223,7 +223,7 @@ describe("MoreInfoModal - WebCheckout", () => {
 
     it("hides WebCheckout section for staffing users", () => {
       const booking = createMockBooking();
-      const context = createMockDatabaseContext(PagePermission.STAFFING);
+      const context = createMockDatabaseContext(PagePermission.SERVICES);
 
       renderModal(booking, context);
 

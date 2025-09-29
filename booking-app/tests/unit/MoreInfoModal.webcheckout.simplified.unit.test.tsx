@@ -293,7 +293,7 @@ describe("MoreInfoModal - WebCheckout (Simplified)", () => {
 
     it("does not show edit button for staffing users", () => {
       const booking = createMockBooking({ webcheckoutCartNumber: undefined });
-      const context = createMockDatabaseContext(PagePermission.STAFFING);
+      const context = createMockDatabaseContext(PagePermission.SERVICES);
 
       renderModal(booking, context);
 
