@@ -162,6 +162,7 @@ export default function useBookingActions({
             // Detect service closeout completion from XState parallel states
             const serviceCloseoutStates =
               typeof currentStateValue === "object" &&
+              currentStateValue &&
               currentStateValue["Service Closeout"]
                 ? currentStateValue["Service Closeout"]
                 : {};
