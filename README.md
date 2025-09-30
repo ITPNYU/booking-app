@@ -129,6 +129,18 @@ This project uses a CI/CD pipeline with automated deployments:
 3. Create pull requests for code review
 4. Merge to appropriate branch based on deployment target
 
+## 📚 Documentation
+
+For detailed information about the application architecture, database structure, user roles, and workflows:
+
+- **[ARCHITECTURE.md](./ARCHITECTURE.md)** - Comprehensive architecture documentation covering:
+  - Database collections and their purposes
+  - User roles and permissions system
+  - Booking states and workflows
+  - APIs and components
+  - Tenant architecture
+  - Developer terminology and best practices
+
 ## 🔄 Regular Maintenance
 
 Remember to keep your local environment up to date:
