@@ -122,7 +122,6 @@ This document provides a comprehensive overview of the booking application's arc
 - **Key Fields:**
   - `email`: Approver/Liaison email
   - `department`: Department they're responsible for
-  - `level`: Approver level (1 = first, 2 = final, 3 = equipment)
   - `createdAt`: When assignment was created
 - **Note:** "Liaison" is Media Commons-specific language; "Approver" is the generic app language
 
@@ -220,7 +219,6 @@ The application uses a multi-level permission system with the following roles:
 - **Who:** Anyone with NYU credentials
 - **What:** Can create bookings, view their own bookings
 - **When:** Default role for all authenticated users
-- **Page Context Level:** 0
 
 #### 2. Worker / PA (Production Assistant)
 - **Who:** Media Commons Production Assistants or service workers
@@ -229,7 +227,6 @@ The application uses a multi-level permission system with the following roles:
   - Can check in/out equipment
   - Can view bookings assigned to them
 - **When:** Assigned by admins for operational staff
-- **Page Context Level:** 1
 - **Permission Flag:** `isWorker` in `usersRights`
 - **Terminology:** "PA" is Media Commons-specific; "Worker" is generic app language
 
@@ -240,7 +237,6 @@ The application uses a multi-level permission system with the following roles:
   - First-level or final-level approval depending on configuration
   - Can view pending bookings for their departments
 - **When:** Assigned per department
-- **Page Context Level:** 2
 - **Permission Flag:** `isLiaison` in `usersRights`
 - **Database:** `usersApprovers` maps departments to liaisons
 - **Terminology:** "Liaison" is Media Commons-specific; "Approver" is generic app language
@@ -251,7 +247,6 @@ The application uses a multi-level permission system with the following roles:
   - Can approve/decline specific services (equipment, setup, catering, etc.)
   - Service-specific permissions: `isEquipment`, `isSetup`, `isCatering`, `isCleaning`, `isSecurity`
 - **When:** Assigned for specialized service management
-- **Page Context Level:** 3
 - **Permission Flags:** Multiple service-specific booleans in `usersRights`
 
 #### 5. Admin
@@ -263,7 +258,6 @@ The application uses a multi-level permission system with the following roles:
   - Can create walk-in bookings and VIP bookings
   - Can check in/out bookings
 - **When:** Assigned by super admins for tenant management
-- **Page Context Level:** 4
 - **Permission Flag:** `isAdmin` in `usersRights`
 
 #### 6. Super Admin
@@ -274,7 +268,6 @@ The application uses a multi-level permission system with the following roles:
   - Can assign admins to tenants
   - Full system access
 - **When:** Assigned for system-level administration
-- **Page Context Level:** 5 (implied, highest level)
 - **Database:** Separate `usersSuperAdmin` collection (not in `usersRights`)
 - **Note:** Kept separate for security and cross-tenant access control
 
@@ -768,6 +761,6 @@ Tenant
 
 **Document Version:** 1.0  
 **Last Updated:** 2024  
-**Maintainers:** ITP Development Team
+**Maintainers:** BookingApp Development Team
 
 For questions or updates to this documentation, please contact the development team or open an issue in the repository.
