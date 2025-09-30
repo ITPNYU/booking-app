@@ -189,35 +189,31 @@ export default function BookingFormStaffingServices(props: Props) {
                   })}
                 </div>
               ) : (
-                // Render regular checkboxes for non-sectioned services
-                staffingServices.map((service) => (
-                  <FormControlLabel
-                    key={service}
-                    label={service}
-                    sx={{ display: "block" }}
-                    control={
-                      <Checkbox
-                        checked={field.value?.includes(service) || false}
-                        onChange={(e) => {
-                          const values = field.value
-                            ? field.value.split(", ")
-                            : [];
-                          let newValue: string[];
-                          if (e.target.checked) {
-                            newValue = [...values, service];
-                          } else {
-                            newValue = values.filter(
-                              (value) => value !== service
-                            );
-                          }
-                          field.onChange(newValue.join(", "));
-                          trigger(id);
+                // Render radio buttons for non-sectioned services (single select for staffing)
+                <FormControl component="fieldset">
+                  <RadioGroup
+                    value={field.value || ""}
+                    onChange={(e) => {
+                      field.onChange(e.target.value);
+                      trigger(id);
+                    }}
+                    onBlur={() => trigger(id)}
+                  >
+                    {staffingServices.map((service) => (
+                      <FormControlLabel
+                        key={service}
+                        value={service}
+                        control={<Radio size="small" />}
+                        label={service}
+                        sx={{ 
+                          display: "block", 
+                          fontSize: "0.75rem",
+                          marginBottom: 0.5
                         }}
-                        onBlur={() => trigger(id)}
                       />
-                    }
-                  />
-                ))
+                    ))}
+                  </RadioGroup>
+                </FormControl>
               )}
             </div>
           )}

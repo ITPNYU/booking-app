@@ -1,4 +1,5 @@
 import { extractTenantFromCollectionName } from "@/components/src/policy";
+import { Booking } from "@/components/src/types";
 import admin from "@/lib/firebase/server/firebaseAdmin";
 import { BookingLogger } from "@/lib/logger/bookingLogger";
 import { executeXStateTransition } from "@/lib/stateMachines/xstateUtilsV5";
@@ -107,22 +108,24 @@ export async function GET(request: NextRequest) {
       // All tenants now use XState
 
       for (const doc of bookingsSnapshot.docs) {
-        const booking = doc.data();
+        const booking = doc.data() as Booking;
         const bookingId = doc.id;
 
         // Check XState status for eligible bookings
         let shouldAutoCheckout = false;
 
-        if (booking.xstateData?.snapshot?.value) {
-          // Check if booking is in "Checked In" state
-          const xstateValue = booking.xstateData.snapshot.value;
-          shouldAutoCheckout =
-            typeof xstateValue === "string" && xstateValue === "Checked In";
+        if (booking.xstateData) {
+          // Check if booking is in "Checked In" state using common helper
+          const { hasXStateValue, getXStateValue } = await import(
+            "@/components/src/utils/xstateHelpers"
+          );
+          shouldAutoCheckout = hasXStateValue(booking, "Checked In");
+          const currentXStateValue = getXStateValue(booking);
 
           BookingLogger.debug("XState auto-checkout eligibility check", {
             tenant,
             bookingId,
-            xstateValue,
+            xstateValue: currentXStateValue,
             shouldAutoCheckout,
           });
         } else {

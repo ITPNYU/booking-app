@@ -236,17 +236,17 @@ export type PaUser = {
 export enum PagePermission {
   BOOKING = "BOOKING",
   PA = "PA",
-  ADMIN = "ADMIN",
   LIAISON = "LIAISON",
-  EQUIPMENT = "EQUIPMENT",
+  SERVICES = "SERVICES",
+  ADMIN = "ADMIN",
   SUPER_ADMIN = "SUPER_ADMIN",
 }
 
 export enum PageContextLevel {
   USER = 0,
-  LIAISON,
   PA,
-  EQUIPMENT,
+  LIAISON,
+  SERVICES,
   ADMIN,
 }
 
