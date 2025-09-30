@@ -90,6 +90,7 @@ export default function BookingActions(props: Props) {
   };
 
   const onAction = useMemo(() => {
+    // Disable for PLACEHOLDER or if action doesn't exist (using enum-based check)
     if (selectedAction === Actions.PLACEHOLDER || !actions[selectedAction]) {
       return (
         <IconButton disabled={true} color={"primary"}>
@@ -112,7 +113,9 @@ export default function BookingActions(props: Props) {
       );
     }
 
+    // Check if action exists and has confirmation property
     if (
+      actions[selectedAction] &&
       "confirmation" in actions[selectedAction] &&
       actions[selectedAction].confirmation === true
     ) {
@@ -128,6 +131,7 @@ export default function BookingActions(props: Props) {
       );
     }
 
+    // Always allow check button to be clicked for any non-placeholder action
     return (
       <IconButton
         color={"primary"}
