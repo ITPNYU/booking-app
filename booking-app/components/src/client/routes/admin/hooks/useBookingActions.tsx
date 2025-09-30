@@ -515,10 +515,15 @@ export default function useBookingActions({
           };
 
           SERVICE_TYPES.forEach((serviceType) => {
+            // Use enum values (not enum names) to match the action keys
             const approveAction =
-              `APPROVE_${serviceType.toUpperCase()}_SERVICE` as Actions;
+              Actions[
+                `APPROVE_${serviceType.toUpperCase()}_SERVICE` as keyof typeof Actions
+              ];
             const declineAction =
-              `DECLINE_${serviceType.toUpperCase()}_SERVICE` as Actions;
+              Actions[
+                `DECLINE_${serviceType.toUpperCase()}_SERVICE` as keyof typeof Actions
+              ];
             addServiceActions(serviceType, approveAction, declineAction);
           });
         }
@@ -548,7 +553,9 @@ export default function useBookingActions({
               servicesClosedOut[serviceType] !== true
             ) {
               const closeoutAction =
-                `CLOSEOUT_${serviceType.toUpperCase()}_SERVICE` as Actions;
+                Actions[
+                  `CLOSEOUT_${serviceType.toUpperCase()}_SERVICE` as keyof typeof Actions
+                ];
               options.push(closeoutAction);
             }
           });
@@ -718,7 +725,7 @@ export default function useBookingActions({
       const capitalizedType =
         serviceType.charAt(0).toUpperCase() + serviceType.slice(1);
 
-      // Approve actions - use the enum value as key
+      // Approve actions - use the enum value directly as key for proper enum-based matching
       const approveActionKey =
         Actions[
           `APPROVE_${serviceType.toUpperCase()}_SERVICE` as keyof typeof Actions
@@ -728,7 +735,7 @@ export default function useBookingActions({
         optimisticNextStatus: BookingStatusLabel.PENDING,
       };
 
-      // Decline actions - use the enum value as key
+      // Decline actions - use the enum value directly as key for proper enum-based matching
       const declineActionKey =
         Actions[
           `DECLINE_${serviceType.toUpperCase()}_SERVICE` as keyof typeof Actions
@@ -744,7 +751,7 @@ export default function useBookingActions({
         confirmation: true,
       };
 
-      // Closeout actions - use the enum value as key
+      // Closeout actions - use the enum value directly as key for proper enum-based matching
       const closeoutActionKey =
         Actions[
           `CLOSEOUT_${serviceType.toUpperCase()}_SERVICE` as keyof typeof Actions
