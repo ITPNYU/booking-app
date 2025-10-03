@@ -10,11 +10,9 @@ async function completeStandardBooking(page, helper) {
   // Role selection
   await page.goto(`${BASE_URL}/mc/book/role`, { waitUntil: 'domcontentloaded' });
   await helper.fillBasicBookingForm(formData);
-  await page.getByRole('button', { name: 'Next' }).click();
 
   // Room selection
   await helper.selectRoomAndTime();
-  await page.getByRole('button', { name: 'Next' }).click();
 
   // Details form
   await helper.fillEventDetails(formData);

@@ -21,6 +21,26 @@ const Layout: React.FC<LayoutProps> = async ({ children, params }) => {
   }
 
   try {
+    const isE2ETestEnv = process.env.E2E_TESTING === "true";
+
+    if (isE2ETestEnv) {
+      const { getTestTenantSchema } = await import(
+        "@/components/src/testHelpers/testTenantSchemas"
+      );
+      const mockSchema = getTestTenantSchema(params.tenant);
+
+      if (mockSchema) {
+        return (
+          <SchemaProviderWrapper value={mockSchema}>
+            <ClientProvider>
+              <NavBar />
+              {children}
+            </ClientProvider>
+          </SchemaProviderWrapper>
+        );
+      }
+    }
+
     console.log("Layout: Fetching schema for tenant:", params.tenant);
     const tenantSchema = await serverGetDocumentById<SchemaContextType>(
       TableNames.TENANT_SCHEMA,

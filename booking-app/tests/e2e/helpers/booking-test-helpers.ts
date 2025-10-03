@@ -87,20 +87,27 @@ export class BookingTestHelper {
     // Accept terms
     await this.page.getByRole('button', { name: 'I accept' }).waitFor({ state: 'visible' });
     await this.page.getByRole('button', { name: 'I accept' }).click();
+
+    await this.page.waitForURL(/\/mc\/(walk-in\/|vip\/)?book\/role$/);
+    await this.page.getByRole('combobox', { name: /Choose a Department/i }).waitFor({ state: 'visible' });
   }
 
   async fillBasicBookingForm(formData: BookingFormData): Promise<void> {
+    const selectDropdownOption = async (label: string, optionText: string) => {
+      const trigger = this.page.getByRole('combobox', { name: new RegExp(label, 'i') });
+      await trigger.waitFor({ state: 'visible' });
+      await trigger.click();
+      await this.page.getByRole('listbox').waitFor({ state: 'visible' });
+
+      const option = this.page.getByRole('option', { name: optionText });
+      await option.click();
+    };
+
     // Department selection
-    await this.page.getByText('Choose a Department').waitFor({ state: 'visible' });
-    await this.page.getByText('Choose a Department').click();
-    await this.page.getByRole('option', { name: formData.department }).waitFor({ state: 'visible' });
-    await this.page.getByRole('option', { name: formData.department }).click();
+    await selectDropdownOption('Choose a Department', formData.department);
 
     // Role selection
-    await this.page.getByText('Choose a Role').waitFor({ state: 'visible' });
-    await this.page.getByText('Choose a Role').click();
-    await this.page.getByRole('option', { name: formData.role }).waitFor({ state: 'visible' });
-    await this.page.getByRole('option', { name: formData.role }).click();
+    await selectDropdownOption('Choose a Role', formData.role);
 
     // Title
     await this.page.locator('input[name="title"]').waitFor({ state: 'visible' });
@@ -115,16 +122,20 @@ export class BookingTestHelper {
       await this.page.locator('input[name="netId"]').waitFor({ state: 'visible' });
       await this.page.locator('input[name="netId"]').fill(formData.netId);
     }
+
+    await this.page.getByRole('button', { name: 'Next' }).waitFor({ state: 'visible' });
+    await this.page.getByRole('button', { name: 'Next' }).click();
   }
 
   async selectRoomAndTime(): Promise<void> {
+    await this.page.waitForURL(/selectRoom/);
     // Select first available room
-    const roomSelector = this.page.locator('[data-testid="room-option"]').first();
+    const roomSelector = this.page.locator('[data-testid^="room-option-"]').first();
     if (await roomSelector.count() > 0) {
       await roomSelector.click();
     } else {
-      // Fallback to generic room selection
-      await this.page.locator('input[type="checkbox"][name*="room"]').first().check();
+      // Fallback to first checkbox
+      await this.page.getByRole('checkbox').first().check();
     }
 
     // Select tomorrow's date
@@ -138,13 +149,27 @@ export class BookingTestHelper {
     }
 
     // Select time slot (default to morning slot)
-    const timeSlot = this.page.locator('[data-testid="time-slot"]').first();
-    if (await timeSlot.count() > 0) {
-      await timeSlot.click();
+    const calendar = this.page.locator('[data-testid="calendar-grid"]');
+    if (await calendar.count() > 0) {
+      const boundingBox = await calendar.boundingBox();
+      if (boundingBox) {
+        const { x, y, width, height } = boundingBox;
+        const startX = x + width * 0.2;
+        const startY = y + height * 0.3;
+        const endY = startY + height * 0.1;
+        await this.page.mouse.move(startX, startY);
+        await this.page.mouse.down();
+        await this.page.mouse.move(startX, endY, { steps: 10 });
+        await this.page.mouse.up();
+      }
     }
+
+    await this.page.getByRole('button', { name: 'Next' }).waitFor({ state: 'visible' });
+    await this.page.getByRole('button', { name: 'Next' }).click();
   }
 
   async fillEventDetails(formData: BookingFormData): Promise<void> {
+    await this.page.waitForURL(/details/);
     // Expected attendance
     await this.page.locator('input[name="expectedAttendance"]').waitFor({ state: 'visible' });
     await this.page.locator('input[name="expectedAttendance"]').fill(formData.expectedAttendance);
