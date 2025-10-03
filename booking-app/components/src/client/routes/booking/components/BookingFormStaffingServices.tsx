@@ -36,7 +36,7 @@ export default function BookingFormStaffingServices(props: Props) {
     trigger,
     showStaffingServices,
     setShowStaffingServices,
-    formContext,
+    formContext: _formContext,
   } = props;
   const { selectedRooms } = useContext(BookingContext);
   const roomIds = selectedRooms.map((room) => room.roomId);
@@ -44,10 +44,7 @@ export default function BookingFormStaffingServices(props: Props) {
     (room) => room.staffingServices && room.staffingServices.length > 0
   );
 
-  const limitedContexts = [
-    FormContextLevel.WALK_IN,
-    FormContextLevel.MODIFICATION,
-  ];
+  // Previously limited for walk-in/modification; restriction removed so full options show in all contexts
 
   const { staffingSections, staffingServices } = useMemo(() => {
     let sections: { name: string; indexes: number[] }[] = [];
@@ -103,16 +100,6 @@ export default function BookingFormStaffingServices(props: Props) {
   // If staffing is disabled at the schema level, hide the entire control
   if (!showStaffing) {
     return null;
-  }
-
-  if (limitedContexts.includes(formContext)) {
-    return (
-      <div style={{ marginBottom: 8 }}>
-        <Label htmlFor={id}>Staffing Services?</Label>
-        <p style={{ fontSize: "0.75rem" }}>Request technicians and support</p>
-        {toggle}
-      </div>
-    );
   }
 
   return (
