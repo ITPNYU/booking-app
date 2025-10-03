@@ -32,6 +32,7 @@ interface SendHTMLEmailParams {
   body: string;
   approverType?: ApproverType;
   replyTo?: string;
+  schemaName?: string;
   tenant?: string;
 }
 
@@ -46,6 +47,7 @@ export const sendHTMLEmail = async (params: SendHTMLEmailParams) => {
     body,
     approverType,
     replyTo = MEDIA_COMMONS_EMAIL,
+    schemaName = "Media Commons",
     tenant,
   } = params;
 
@@ -65,7 +67,7 @@ export const sendHTMLEmail = async (params: SendHTMLEmailParams) => {
   }
   console.log("finalTargetEmail", finalTargetEmail);
 
-  const subj = `${getEmailBranchTag()}${status} - Media Commons Request #${requestNumber}: "${eventTitle}"`;
+  const subj = `${getEmailBranchTag()}${status} - ${schemaName} Request #${requestNumber}: "${eventTitle}"`;
 
   const getUrlPathByApproverType = (
     calendarEventId,
