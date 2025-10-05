@@ -344,8 +344,6 @@ export const Bookings: React.FC<BookingsProps> = ({
               renderCell: (params) => {
                 const bookingRow = params.row as BookingRow;
 
-                console.log("bookingRow services!!!!!!!!!!!", bookingRow.requestNumber);
-
                 const isActive = {
                   tableSetup: !!bookingRow.roomSetup && bookingRow.roomSetup !== "no",
                   equipmentServices:
