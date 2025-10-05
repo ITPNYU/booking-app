@@ -577,6 +577,22 @@ export const mcBookingMachine = setup({
         return false;
       }
 
+      // Check event duration > 4 hours
+      if (context.bookingCalendarInfo) {
+        const startDate = new Date(context.bookingCalendarInfo.startStr);
+        const endDate = new Date(context.bookingCalendarInfo.endStr);
+        const duration = endDate.getTime() - startDate.getTime();
+        if (duration > 3.6e6 * 4) {
+          console.log(
+            `🚫 XSTATE GUARD: Event duration exceeds 4 hours (${(duration / 3.6e6).toFixed(1)} hours)`
+          );
+          console.log(
+            `🎯 XSTATE AUTO-APPROVAL GUARD RESULT: REJECTED (Duration too long)`
+          );
+          return false;
+        }
+      }
+
       // Check if any services are requested - if so, don't auto-approve (except for walk-ins)
       if (
         context.servicesRequested &&
