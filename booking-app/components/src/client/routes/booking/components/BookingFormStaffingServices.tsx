@@ -94,7 +94,7 @@ export default function BookingFormStaffingServices(props: Props) {
   if (limitedContexts.includes(formContext)) {
     return (
       <div style={{ marginBottom: 8 }}>
-        <Label htmlFor={id}>Staffing Services?</Label>
+        <Label htmlFor={id}>Staffing?</Label>
         <p style={{ fontSize: "0.75rem" }}>Request technicians and support</p>
         {toggle}
       </div>
@@ -103,7 +103,7 @@ export default function BookingFormStaffingServices(props: Props) {
 
   return (
     <div style={{ marginBottom: 8 }}>
-      <Label htmlFor={id}>Staffing Services?</Label>
+      <Label htmlFor={id}>Staffing?</Label>
       <p style={{ fontSize: "0.75rem" }}>
         Request audio technicians, lighting technicians, and technical support.
       </p>
