@@ -1,4 +1,4 @@
-import { MoreHoriz, TableBar, Headset, PeopleAlt, LocalDining, CleaningServices, LocalPolice } from "@mui/icons-material";
+import { MoreHoriz, TableBar, Headset, PeopleAlt, LocalDining, CleaningServices, LocalPolice, CheckCircle, Cancel } from "@mui/icons-material";
 import {
   Box,
   IconButton,
@@ -344,43 +344,70 @@ export const Bookings: React.FC<BookingsProps> = ({
               renderCell: (params) => {
                 const bookingRow = params.row as BookingRow;
 
-                const isActive = {
-                  tableSetup: !!bookingRow.roomSetup && bookingRow.roomSetup !== "no",
-                  equipmentServices:
-                    !!bookingRow.equipmentServices &&
-                    bookingRow.equipmentServices.trim() !== "",
-                  staffingServices:
-                    !!bookingRow.staffingServices &&
-                    bookingRow.staffingServices.trim() !== "",
-                  cateringService:
-                    (!!bookingRow.cateringService &&
-                      bookingRow.cateringService.trim() !== "") ||
-                    bookingRow.catering === "yes",
-                  cleaningService: bookingRow.cleaningService === "yes",
-                  hireSecurity: bookingRow.hireSecurity === "yes",
-                };
+                console.log("SNAPSHOT!!!!!!!!!!!", bookingRow.requestNumber, bookingRow.xstateData?.snapshot?.context);
+                // .formData
+                // .servicesApproved
+                // .servicesRequested
 
-                const colorFor = (active: boolean) =>
-                  active ? "rgba(0, 0, 0, 0.8)" : "rgba(0, 0, 0, 0.08)";
+                const colorFor = (requested: boolean) =>
+                  requested ? "rgba(0, 0, 0, 0.8)" : "rgba(0, 0, 0, 0.08)";
 
-                const items: { label: string; Icon: any; active: boolean }[] = [
-                  { label: "Setup", Icon: TableBar, active: isActive.tableSetup },
-                  { label: "Equipment", Icon: Headset, active: isActive.equipmentServices },
-                  { label: "Staffing", Icon: PeopleAlt, active: isActive.staffingServices },
-                  { label: "Catering", Icon: LocalDining, active: isActive.cateringService },
-                  { label: "Cleaning", Icon: CleaningServices, active: isActive.cleaningService },
-                  { label: "Security", Icon: LocalPolice, active: isActive.hireSecurity },
+                // Safely access xstateData and provide fallback values
+                const servicesRequested = bookingRow.xstateData?.snapshot?.context?.servicesRequested || {};
+                const servicesApproved = bookingRow.xstateData?.snapshot?.context?.servicesApproved || {};
+
+                const items: { label: string; Icon: any; requested: boolean; serviceKey: string }[] = [
+                  { label: "Setup", Icon: TableBar, requested: servicesRequested.setup || false, serviceKey: "setup" },
+                  { label: "Equipment", Icon: Headset, requested: servicesRequested.equipment || false, serviceKey: "equipment" },
+                  { label: "Staffing", Icon: PeopleAlt, requested: servicesRequested.staff || false, serviceKey: "staff" },
+                  { label: "Catering", Icon: LocalDining, requested: servicesRequested.catering || false, serviceKey: "catering" },
+                  { label: "Cleaning", Icon: CleaningServices, requested: servicesRequested.cleaning || false, serviceKey: "cleaning" },
+                  { label: "Security", Icon: LocalPolice, requested: servicesRequested.security || false, serviceKey: "security" },
                 ];
 
                 return (
                   <TableCell style={{ display: "flex", flexDirection: "row", gap: "4px" }}>
-                    {items.map(({ label, Icon, active }) => (
-                      <Tooltip key={label} title={label} placement="top">
-                        <span>
-                          <Icon style={{ fontSize: "20px", color: colorFor(active) }} />
-                        </span>
-                      </Tooltip>
-                    ))}
+                    {items.map(({ label, Icon, requested, serviceKey }) => {
+                      const approved = servicesApproved[serviceKey];
+                      const showBadge = requested && (approved === true || approved === false);
+                      
+                      return (
+                        <Tooltip key={label} title={label} placement="top">
+                          <span style={{ position: "relative", display: "inline-block" }}>
+                            <Icon style={{ fontSize: "20px", color: colorFor(requested) }} />
+                            {showBadge && (
+                              <>
+                                {approved === true ? (
+                                  <CheckCircle 
+                                    style={{ 
+                                      fontSize: "10px", 
+                                      color: "#4caf50", 
+                                      position: "absolute", 
+                                      bottom: "-2px", 
+                                      right: "-2px",
+                                      backgroundColor: "white",
+                                      borderRadius: "50%"
+                                    }} 
+                                  />
+                                ) : (
+                                  <Cancel 
+                                    style={{ 
+                                      fontSize: "10px", 
+                                      color: "#f44336", 
+                                      position: "absolute", 
+                                      bottom: "-2px", 
+                                      right: "-2px",
+                                      backgroundColor: "white",
+                                      borderRadius: "50%"
+                                    }} 
+                                  />
+                                )}
+                              </>
+                            )}
+                          </span>
+                        </Tooltip>
+                      );
+                    })}
                   </TableCell>
                 );
               },
