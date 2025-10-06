@@ -1,4 +1,4 @@
-import { MoreHoriz, TableBar, Headset, PeopleAlt, LocalDining, CleaningServices, LocalPolice, CheckCircle, Cancel } from "@mui/icons-material";
+import { MoreHoriz, TableBar, Headset, PeopleAlt, LocalDining, CleaningServices, LocalPolice, CheckCircle, Cancel, DoneAll, Recommend } from "@mui/icons-material";
 import {
   Box,
   IconButton,
@@ -337,72 +337,120 @@ export const Bookings: React.FC<BookingsProps> = ({
             {
               field: "services",
               headerName: "Services",
-              minWidth: 160,
+              minWidth: 240,
               flex: 1,
               renderHeader: () => <TableCell>Services</TableCell>,
               filterable: false,
               renderCell: (params) => {
                 const bookingRow = params.row as BookingRow;
 
-                console.log("SNAPSHOT!!!!!!!!!!!", bookingRow.requestNumber, bookingRow.xstateData?.snapshot?.context);
-                // .formData
-                // .servicesApproved
-                // .servicesRequested
-
                 const colorFor = (requested: boolean) =>
                   requested ? "rgba(0, 0, 0, 0.8)" : "rgba(0, 0, 0, 0.08)";
 
-                // Safely access xstateData and provide fallback values
                 const servicesRequested = bookingRow.xstateData?.snapshot?.context?.servicesRequested || {};
                 const servicesApproved = bookingRow.xstateData?.snapshot?.context?.servicesApproved || {};
+                const servicesClosedout = bookingRow.xstateData?.snapshot?.value?.["Service Closeout"] || {};
 
-                const items: { label: string; Icon: any; requested: boolean; serviceKey: string }[] = [
-                  { label: "Setup", Icon: TableBar, requested: servicesRequested.setup || false, serviceKey: "setup" },
-                  { label: "Equipment", Icon: Headset, requested: servicesRequested.equipment || false, serviceKey: "equipment" },
-                  { label: "Staffing", Icon: PeopleAlt, requested: servicesRequested.staff || false, serviceKey: "staff" },
-                  { label: "Catering", Icon: LocalDining, requested: servicesRequested.catering || false, serviceKey: "catering" },
-                  { label: "Cleaning", Icon: CleaningServices, requested: servicesRequested.cleaning || false, serviceKey: "cleaning" },
-                  { label: "Security", Icon: LocalPolice, requested: servicesRequested.security || false, serviceKey: "security" },
+                const items: { label: string; Icon: any; requested: boolean; serviceKey: string; closeoutKey: string; closedout: boolean }[] = [
+                  { 
+                    label: "Setup", 
+                    Icon: TableBar, 
+                    requested: servicesRequested.setup || false, 
+                    serviceKey: "setup",
+                    closeoutKey: "Setup Closeout",
+                    closedout: servicesClosedout["Setup Closeout"] && !servicesClosedout["Setup Closeout"].includes("Pending")
+                  },
+                  { 
+                    label: "Equipment", 
+                    Icon: Headset, 
+                    requested: servicesRequested.equipment || false, 
+                    serviceKey: "equipment",
+                    closeoutKey: "Equipment Closeout",
+                    closedout: servicesClosedout["Equipment Closeout"] && !servicesClosedout["Equipment Closeout"].includes("Pending")
+                  },
+                  { 
+                    label: "Staffing", 
+                    Icon: PeopleAlt, 
+                    requested: servicesRequested.staff || false, 
+                    serviceKey: "staff",
+                    closeoutKey: "Staff Closeout",
+                    closedout: servicesClosedout["Staff Closeout"] && !servicesClosedout["Staff Closeout"].includes("Pending")
+                  },
+                  { 
+                    label: "Catering", 
+                    Icon: LocalDining, 
+                    requested: servicesRequested.catering || false, 
+                    serviceKey: "catering",
+                    closeoutKey: "Catering Closeout",
+                    closedout: servicesClosedout["Catering Closeout"] && !servicesClosedout["Catering Closeout"].includes("Pending")
+                  },
+                  { 
+                    label: "Cleaning", 
+                    Icon: CleaningServices, 
+                    requested: servicesRequested.cleaning || false, 
+                    serviceKey: "cleaning",
+                    closeoutKey: "Cleaning Closeout",
+                    closedout: servicesClosedout["Cleaning Closeout"] && !servicesClosedout["Cleaning Closeout"].includes("Pending")
+                  },
+                  { 
+                    label: "Security", 
+                    Icon: LocalPolice, 
+                    requested: servicesRequested.security || false, 
+                    serviceKey: "security",
+                    closeoutKey: "Security Closeout",
+                    closedout: servicesClosedout["Security Closeout"] && !servicesClosedout["Security Closeout"].includes("Pending")
+                  },
                 ];
 
                 return (
-                  <TableCell style={{ display: "flex", flexDirection: "row", gap: "4px" }}>
-                    {items.map(({ label, Icon, requested, serviceKey }) => {
+                  <TableCell style={{ display: "flex", flexDirection: "row", gap: "6px" }}>
+                    {items.map(({ label, Icon, requested, serviceKey, closedout }) => {
                       const approved = servicesApproved[serviceKey];
-                      const showBadge = requested && (approved === true || approved === false);
+                      const showApprovalBadge = requested && (approved === true || approved === false);
+                      const showCloseoutBadge = requested && approved === true && closedout;
                       
                       return (
                         <Tooltip key={label} title={label} placement="top">
-                          <span style={{ position: "relative", display: "inline-block" }}>
-                            <Icon style={{ fontSize: "20px", color: colorFor(requested) }} />
-                            {showBadge && (
+                          <span style={{ display: "flex", flexDirection : "column", alignItems : "center", gap : "2px", background : "rgba(0, 0, 0, 0.02)", padding : "4px 6px", borderRadius : "6px" }}>
+                            <Icon style={{ fontSize: "18px", color: colorFor(requested) }} />
+                            {showApprovalBadge && !showCloseoutBadge && (
                               <>
                                 {approved === true ? (
                                   <CheckCircle 
                                     style={{ 
-                                      fontSize: "10px", 
-                                      color: "#4caf50", 
-                                      position: "absolute", 
-                                      bottom: "-2px", 
-                                      right: "-2px",
-                                      backgroundColor: "white",
+                                      fontSize: "14px", 
+                                      color: "#01aa34ff", 
+                                      bottom: "-6px", 
+                                      right: "-6px",
+                                      background: "white",
                                       borderRadius: "50%"
                                     }} 
                                   />
                                 ) : (
                                   <Cancel 
                                     style={{ 
-                                      fontSize: "10px", 
-                                      color: "#f44336", 
-                                      position: "absolute", 
-                                      bottom: "-2px", 
-                                      right: "-2px",
-                                      backgroundColor: "white",
+                                      fontSize: "14px", 
+                                      color: "#f44336",
+                                      bottom: "-6px", 
+                                      right: "-6px",
+                                      background: "white",
                                       borderRadius: "50%"
                                     }} 
                                   />
                                 )}
                               </>
+                            )}
+                            {showCloseoutBadge && (
+                              <DoneAll
+                                style={{ 
+                                  fontSize: "14px", 
+                                  color: "#333333", 
+                                  bottom: "-6px", 
+                                  right: "-6px",
+                                  background: "none",
+                                  borderRadius: "50%",
+                                }} 
+                              />
                             )}
                           </span>
                         </Tooltip>
