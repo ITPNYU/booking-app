@@ -40,25 +40,25 @@ export enum Actions {
   EDIT = "Edit",
   MODIFICATION = "Modification",
   // Media Commons Service Actions
-  APPROVE_STAFF_SERVICE = "Approve Staff",
+  APPROVE_SETUP_SERVICE = "Approve Setup",
   APPROVE_EQUIPMENT_SERVICE = "Approve Equipment",
+  APPROVE_STAFF_SERVICE = "Approve Staffing",
   APPROVE_CATERING_SERVICE = "Approve Catering",
   APPROVE_CLEANING_SERVICE = "Approve Cleaning",
   APPROVE_SECURITY_SERVICE = "Approve Security",
-  APPROVE_SETUP_SERVICE = "Approve Setup",
-  DECLINE_STAFF_SERVICE = "Decline Staff",
+  DECLINE_SETUP_SERVICE = "Decline Setup",
   DECLINE_EQUIPMENT_SERVICE = "Decline Equipment",
+  DECLINE_STAFF_SERVICE = "Decline Staffing",
   DECLINE_CATERING_SERVICE = "Decline Catering",
   DECLINE_CLEANING_SERVICE = "Decline Cleaning",
   DECLINE_SECURITY_SERVICE = "Decline Security",
-  DECLINE_SETUP_SERVICE = "Decline Setup",
   // Media Commons Service Closeout Actions
-  CLOSEOUT_STAFF_SERVICE = "Closeout Staff",
+  CLOSEOUT_SETUP_SERVICE = "Closeout Setup",
   CLOSEOUT_EQUIPMENT_SERVICE = "Closeout Equipment",
+  CLOSEOUT_STAFF_SERVICE = "Closeout Staff",
   CLOSEOUT_CATERING_SERVICE = "Closeout Catering",
   CLOSEOUT_CLEANING_SERVICE = "Closeout Cleaning",
   CLOSEOUT_SECURITY_SERVICE = "Closeout Security",
-  CLOSEOUT_SETUP_SERVICE = "Closeout Setup",
   PLACEHOLDER = "",
 }
 
@@ -141,11 +141,13 @@ export default function useBookingActions({
 
             const context = getXStateContext(data) || {};
             setServicesApproved({
-              staff:
-                context.servicesApproved?.staff ?? data.staffServiceApproved,
+              setup:
+                context.servicesApproved?.setup ?? data.setupServiceApproved,
               equipment:
                 context.servicesApproved?.equipment ??
                 data.equipmentServiceApproved,
+              staff:
+                context.servicesApproved?.staff ?? data.staffServiceApproved,
               catering:
                 context.servicesApproved?.catering ??
                 data.cateringServiceApproved,
@@ -155,8 +157,6 @@ export default function useBookingActions({
               security:
                 context.servicesApproved?.security ??
                 data.securityServiceApproved,
-              setup:
-                context.servicesApproved?.setup ?? data.setupServiceApproved,
             });
 
             // Detect service closeout completion from XState parallel states
@@ -168,11 +168,13 @@ export default function useBookingActions({
                 : {};
 
             setServicesClosedOut({
-              staff:
-                serviceCloseoutStates["Staff Closeout"] === "Staff Closedout",
+              setup:
+                serviceCloseoutStates["Setup Closeout"] === "Setup Closedout",
               equipment:
                 serviceCloseoutStates["Equipment Closeout"] ===
                 "Equipment Closedout",
+              staff:
+                serviceCloseoutStates["Staff Closeout"] === "Staff Closedout",
               catering:
                 serviceCloseoutStates["Catering Closeout"] ===
                 "Catering Closedout",
@@ -182,19 +184,17 @@ export default function useBookingActions({
               security:
                 serviceCloseoutStates["Security Closeout"] ===
                 "Security Closedout",
-              setup:
-                serviceCloseoutStates["Setup Closeout"] === "Setup Closedout",
             });
           } else {
             // Fallback to individual service approval fields if XState data is not available
             setCurrentXState("");
             setServicesApproved({
-              staff: data.staffServiceApproved,
+              setup: data.setupServiceApproved,
               equipment: data.equipmentServiceApproved,
+              staff: data.staffServiceApproved,
               catering: data.cateringServiceApproved,
               cleaning: data.cleaningServiceApproved,
               security: data.securityServiceApproved,
-              setup: data.setupServiceApproved,
             });
             setServicesClosedOut({}); // Reset closeout status if no XState data
           }
@@ -717,6 +717,37 @@ export default function useBookingActions({
     return serviceActions;
   };
 
+      addServiceActions(
+        "setup",
+        Actions.APPROVE_SETUP_SERVICE,
+        Actions.DECLINE_SETUP_SERVICE
+      );
+      addServiceActions(
+        "equipment",
+        Actions.APPROVE_EQUIPMENT_SERVICE,
+        Actions.DECLINE_EQUIPMENT_SERVICE
+      );
+      addServiceActions(
+        "staff",
+        Actions.APPROVE_STAFF_SERVICE,
+        Actions.DECLINE_STAFF_SERVICE
+      );
+      addServiceActions(
+        "catering",
+        Actions.APPROVE_CATERING_SERVICE,
+        Actions.DECLINE_CATERING_SERVICE
+      );
+      addServiceActions(
+        "cleaning",
+        Actions.APPROVE_CLEANING_SERVICE,
+        Actions.DECLINE_CLEANING_SERVICE
+      );
+      addServiceActions(
+        "security",
+        Actions.APPROVE_SECURITY_SERVICE,
+        Actions.DECLINE_SECURITY_SERVICE
+      );
+    }
   // Create all service actions regardless of tenant for testing compatibility
   const createAllServiceActions = () => {
     const serviceActions: Record<string, ActionDefinition> = {};
