@@ -139,7 +139,7 @@ export default function BookingStatusBar({ formContext, ...props }: Props) {
       return {
         btnDisabled: true,
         btnDisabledMessage: errorMessage,
-        message: <p>Walk-ins must be between 1-4 hours in duration</p>,
+        message: <p>Walk-ins must be between 0.5 and 4 hours in duration.</p>,
         severity: "error",
       };
     }
