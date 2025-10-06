@@ -291,7 +291,7 @@ export const insertEvent = async ({
 export const updateCalendarEvent = async (
   calendarEventId: string,
   newValues: {
-    end: {
+    end?: {
       dateTime: string;
     };
     statusPrefix?: BookingStatusLabel;
@@ -361,7 +361,9 @@ export const updateCalendarEvent = async (
       );
     } catch (error) {
       console.error(
-        `Error updating event ${calendarEventId} in calendar ${roomCalendarId}:`,
+        "Error updating event %s in calendar %s:",
+        calendarEventId,
+        roomCalendarId,
         error
       );
     }

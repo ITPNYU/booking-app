@@ -190,13 +190,13 @@ export const DatabaseProvider = ({
     const adminEmails = adminUsers.map((admin) => admin.email);
     const liaisonEmails = liaisonUsers.map((liaison) => liaison.email);
     const paEmails = paUsers.map((pa) => pa.email);
-    const equipmentEmails = equipmentUsers.map((e) => e.email);
+    const servicesEmails = equipmentUsers.map((e) => e.email);
     const superAdminEmails = superAdminUsers.map((admin) => admin.email);
 
     // Check permissions (ordered by hierarchy - highest to lowest)
     if (superAdminEmails.includes(userEmail)) return PagePermission.SUPER_ADMIN;
     if (adminEmails.includes(userEmail)) return PagePermission.ADMIN;
-    if (equipmentEmails.includes(userEmail)) return PagePermission.EQUIPMENT;
+    if (servicesEmails.includes(userEmail)) return PagePermission.SERVICES;
     if (liaisonEmails.includes(userEmail)) return PagePermission.LIAISON;
     if (paEmails.includes(userEmail)) return PagePermission.PA;
 
@@ -302,8 +302,12 @@ export const DatabaseProvider = ({
   const fetchAdminUsers = async () => {
     try {
       // Fetch from usersRights and filter by isAdmin flag
-      const fetchedData = await clientFetchAllDataFromCollection(TableNames.USERS_RIGHTS, [], tenant);
-      
+      const fetchedData = await clientFetchAllDataFromCollection(
+        TableNames.USERS_RIGHTS,
+        [],
+        tenant
+      );
+
       const adminUsers = fetchedData
         .filter((item: any) => item.isAdmin === true)
         .map((item: any) => ({
@@ -311,7 +315,7 @@ export const DatabaseProvider = ({
           email: item.email,
           createdAt: item.createdAt,
         }));
-      
+
       setAdminUsers(adminUsers);
     } catch (error) {
       console.error("Error fetching admin users data:", error);
@@ -322,8 +326,12 @@ export const DatabaseProvider = ({
   const fetchPaUsers = async () => {
     try {
       // Fetch from usersRights and filter by isWorker flag
-      const fetchedData = await clientFetchAllDataFromCollection(TableNames.USERS_RIGHTS, [], tenant);
-      
+      const fetchedData = await clientFetchAllDataFromCollection(
+        TableNames.USERS_RIGHTS,
+        [],
+        tenant
+      );
+
       const paUsers = fetchedData
         .filter((item: any) => item.isWorker === true)
         .map((item: any) => ({
@@ -331,7 +339,7 @@ export const DatabaseProvider = ({
           email: item.email,
           createdAt: item.createdAt,
         }));
-      
+
       setPaUsers(paUsers);
     } catch (error) {
       console.error("Error fetching PA users data:", error);
@@ -568,15 +576,17 @@ export const DatabaseProvider = ({
   const fetchSuperAdminUsers = async () => {
     try {
       // Fetch from original usersSuperAdmin collection (not tenant-specific)
-      const fetchedData = await clientFetchAllDataFromCollection(TableNames.SUPER_ADMINS, []);
-      
-      const superAdminUsers = fetchedData
-        .map((item: any) => ({
-          id: item.id,
-          email: item.email,
-          createdAt: item.createdAt,
-        }));
-      
+      const fetchedData = await clientFetchAllDataFromCollection(
+        TableNames.SUPER_ADMINS,
+        []
+      );
+
+      const superAdminUsers = fetchedData.map((item: any) => ({
+        id: item.id,
+        email: item.email,
+        createdAt: item.createdAt,
+      }));
+
       setSuperAdminUsers(superAdminUsers);
     } catch (error) {
       console.error("Error fetching super admin data:", error);

@@ -1,19 +1,19 @@
 import { Box, Tab, Tabs } from "@mui/material";
 import { useContext, useState } from "react";
-import { PageContextLevel, PagePermission } from "../../../types";
+import { PagePermission } from "../../../types";
 
 import { hasAnyPermission } from "@/components/src/utils/permissions";
-import { Bookings } from "../components/bookingTable/Bookings";
 import { DatabaseContext } from "../components/Provider";
+import ServicesBookings from "./ServicesBookings";
 
-const Equipment = () => {
+const Services = () => {
   const { pagePermission } = useContext(DatabaseContext);
 
   const [tab, setTab] = useState("bookings");
 
   const userHasPermission = hasAnyPermission(pagePermission, [
     PagePermission.ADMIN,
-    PagePermission.EQUIPMENT,
+    PagePermission.SERVICES,
     PagePermission.SUPER_ADMIN,
   ]);
 
@@ -29,15 +29,13 @@ const Equipment = () => {
             textColor="primary"
             indicatorColor="primary"
           >
-            <Tab value="bookings" label="Bookings" />
+            <Tab value="bookings" label="Service Requests" />
           </Tabs>
-          {tab === "bookings" && (
-            <Bookings pageContext={PageContextLevel.EQUIPMENT} />
-          )}
+          {tab === "bookings" && <ServicesBookings />}
         </div>
       )}
     </Box>
   );
 };
 
-export default Equipment;
+export default Services;

@@ -8,6 +8,7 @@ import {
   shouldUseXState,
 } from "@/components/src/utils/tenantUtils";
 import { serverGetDataByCalendarEventId } from "@/lib/firebase/server/adminDb";
+import { BookingLogger } from "@/lib/logger/bookingLogger";
 import * as admin from "firebase-admin";
 import { createActor } from "xstate";
 import { itpBookingMachine } from "./itpBookingMachine";
@@ -550,131 +551,6 @@ async function handleStateTransitions(
         }
       );
     }
-  } else if (newState === "Checked Out" && previousState !== "Checked Out") {
-    // Check-out state handling
-    firestoreUpdates.checkedOutAt = admin.firestore.Timestamp.now();
-    if (email) {
-      firestoreUpdates.checkedOutBy = email;
-    }
-
-    console.log(
-      `📤 XSTATE REACHED CHECKED OUT [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-      {
-        calendarEventId,
-        previousState,
-        newState,
-        checkedOutAt: firestoreUpdates.checkedOutAt,
-        checkedOutBy: firestoreUpdates.checkedOutBy,
-      }
-    );
-
-    // Note: History logging is now handled by traditional functions only
-    // XState only manages state transitions, not history logging
-
-    // Send check-out email to guest and update calendar
-    try {
-      // Use email from booking document (not from XState context)
-      const guestEmail = bookingDoc?.email;
-
-      console.log(
-        `🔍 XSTATE CHECK-OUT EMAIL DEBUG [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-        {
-          calendarEventId,
-          hasBookingDoc: !!bookingDoc,
-          bookingDocKeys: bookingDoc ? Object.keys(bookingDoc) : [],
-          guestEmail,
-          guestEmailType: typeof guestEmail,
-          bookingDocEmail: bookingDoc?.email,
-        }
-      );
-
-      if (guestEmail) {
-        const { serverSendBookingDetailEmail } = await import(
-          "@/components/src/server/admin"
-        );
-        const headerMessage =
-          "Your reservation request for Media Commons has been checked out. Thank you for choosing Media Commons.";
-
-        await serverSendBookingDetailEmail({
-          calendarEventId,
-          targetEmail: guestEmail,
-          headerMessage,
-          status: BookingStatusLabel.CHECKED_OUT,
-          tenant,
-        });
-
-        console.log(
-          `📧 XSTATE CHECK-OUT EMAIL SENT [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-          {
-            calendarEventId,
-            guestEmail,
-          }
-        );
-      } else {
-        console.warn(
-          `⚠️ XSTATE CHECK-OUT EMAIL SKIPPED - NO EMAIL IN CONTEXT [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-          {
-            calendarEventId,
-            contextKeys: newSnapshot.context
-              ? Object.keys(newSnapshot.context)
-              : [],
-          }
-        );
-      }
-    } catch (error) {
-      console.error(
-        `🚨 XSTATE CHECK-OUT EMAIL FAILED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-        {
-          calendarEventId,
-          email,
-          tenant,
-          error: error.message,
-        }
-      );
-    }
-
-    // Update calendar event with CHECKED_OUT status (including end time)
-    // Status will be read from XState data in bookingContentsToDescription
-    try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_BASE_URL}/api/calendarEvents`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            "x-tenant": tenant || "mc",
-          },
-          body: JSON.stringify({
-            calendarEventId,
-            newValues: {
-              statusPrefix: BookingStatusLabel.CHECKED_OUT,
-              end: {
-                dateTime: new Date().toISOString(),
-              },
-            },
-          }),
-        }
-      );
-
-      if (response.ok) {
-        console.log(
-          `📅 XSTATE CHECK-OUT CALENDAR UPDATED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-          {
-            calendarEventId,
-            statusPrefix: BookingStatusLabel.CHECKED_OUT,
-            note: "Status will be read from XState data",
-          }
-        );
-      }
-    } catch (error) {
-      console.error(
-        `🚨 XSTATE CHECK-OUT CALENDAR UPDATE ERROR [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-        {
-          calendarEventId,
-          error: error.message,
-        }
-      );
-    }
   } else if (newState === "Pre-approved" && previousState !== "Pre-approved") {
     // Pre-approved state handling
     firestoreUpdates.firstApprovedAt = admin.firestore.Timestamp.now();
@@ -892,21 +768,17 @@ async function handleStateTransitions(
             );
 
             if (response.ok) {
-              console.log(
-                `📅 XSTATE SERVICE CLOSEOUT CALENDAR UPDATED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-                {
-                  calendarEventId,
-                  statusPrefix: BookingStatusLabel.CHECKED_OUT,
-                }
+              BookingLogger.calendarUpdate(
+                "Service Closeout status update",
+                { calendarEventId, tenant },
+                { statusPrefix: BookingStatusLabel.CHECKED_OUT }
               );
             }
           } catch (error) {
-            console.error(
-              `🚨 XSTATE SERVICE CLOSEOUT CALENDAR UPDATE ERROR [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-              {
-                calendarEventId,
-                error: error.message,
-              }
+            BookingLogger.calendarError(
+              "Service Closeout calendar update",
+              { calendarEventId, tenant },
+              error
             );
           }
         }
@@ -1630,30 +1502,15 @@ export async function executeXStateTransition(
     }
     const newSnapshot = actor.getSnapshot();
 
-    console.log(
-      `🎯 XSTATE TRANSITION EXECUTED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+    BookingLogger.xstateTransition(
+      String(currentSnapshot.value),
+      String(newSnapshot.value),
+      eventType,
       {
-        previousState: currentSnapshot.value,
-        newState: newSnapshot.value,
-        eventType,
-        transitionPath: `${currentSnapshot.value} → ${newSnapshot.value}`,
-        contextAfterTransition: {
-          servicesRequested: newSnapshot.context?.servicesRequested,
-          servicesApproved: newSnapshot.context?.servicesApproved,
-        },
-        // Additional debug info for service decline events
-        ...(eventType?.includes("decline") && {
-          serviceDeclineDebug: {
-            isDeclineEvent: true,
-            declinedService: eventType.replace("decline", "").toLowerCase(),
-            allServicesApproved: newSnapshot.context?.servicesApproved,
-            hasDeclinedServices: newSnapshot.context?.servicesApproved
-              ? Object.values(newSnapshot.context.servicesApproved).some(
-                  (val) => val === false
-                )
-              : false,
-          },
-        }),
+        calendarEventId,
+        tenant,
+        servicesRequested: newSnapshot.context?.servicesRequested,
+        servicesApproved: newSnapshot.context?.servicesApproved,
       }
     );
 

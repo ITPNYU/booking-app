@@ -76,7 +76,7 @@ const defaultProps = {
   startDate: Timestamp.fromDate(new Date("2024-02-15T10:00:00Z")),
   onSelect: vi.fn(),
   setOptimisticStatus: vi.fn(),
-  pageContext: PageContextLevel.EQUIPMENT,
+  pageContext: PageContextLevel.SERVICES,
 };
 
 const renderBookingActionsComponent = (props = {}, contextOverrides = {}) => {
@@ -430,7 +430,7 @@ describe("BookingActions Component - Equipment Context", () => {
 
       expect(mockUseBookingActions).toHaveBeenCalledWith(
         expect.objectContaining({
-          pageContext: PageContextLevel.EQUIPMENT,
+          pageContext: PageContextLevel.SERVICES,
         })
       );
     });
@@ -445,7 +445,7 @@ describe("BookingActions Component - Equipment Context", () => {
         expect.objectContaining({
           calendarEventId: "equipment-event-456",
           status: BookingStatusLabel.EQUIPMENT,
-          pageContext: PageContextLevel.EQUIPMENT,
+          pageContext: PageContextLevel.SERVICES,
         })
       );
     });
@@ -536,7 +536,7 @@ describe("BookingActions Component - Equipment Context", () => {
       const user = userEvent.setup();
       renderBookingActionsComponent({
         status: BookingStatusLabel.EQUIPMENT,
-        pageContext: PageContextLevel.EQUIPMENT,
+        pageContext: PageContextLevel.SERVICES,
       });
 
       // Open the select to see the options
@@ -555,13 +555,13 @@ describe("BookingActions Component - Equipment Context", () => {
 
     it("should maintain equipment context consistency", () => {
       renderBookingActionsComponent({
-        pageContext: PageContextLevel.EQUIPMENT,
+        pageContext: PageContextLevel.SERVICES,
       });
 
       // Context should remain EQUIPMENT throughout the component lifecycle
       expect(mockUseBookingActions).toHaveBeenCalledWith(
         expect.objectContaining({
-          pageContext: PageContextLevel.EQUIPMENT,
+          pageContext: PageContextLevel.SERVICES,
         })
       );
     });

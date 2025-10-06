@@ -30,17 +30,15 @@ export default function BookingFormMediaServices(props: Props) {
     trigger,
     showMediaServices,
     setShowMediaServices,
-    formContext,
+    formContext: _formContext,
   } = props;
   const { selectedRooms } = useContext(BookingContext);
   const schema = useTenantSchema();
   const { showEquipment, showStaffing } = schema;
   const roomIds = selectedRooms.map((room) => room.roomId);
 
-  const limitedContexts = [
-    FormContextLevel.WALK_IN,
-    FormContextLevel.MODIFICATION,
-  ];
+  // Previously, walk-in/modification contexts were limited to equipment-only.
+  // This restriction has been removed, so technician options should be available in all contexts.
 
   const checkboxes = useMemo(() => {
     const options: MediaServices[] = [];
@@ -84,8 +82,6 @@ export default function BookingFormMediaServices(props: Props) {
                 if (!e.target.checked) {
                   // de-select boxes if switch says "no media services"
                   field.onChange("");
-                } else if (limitedContexts.includes(formContext)) {
-                  field.onChange(MediaServices.CHECKOUT_EQUIPMENT);
                 }
 
                 trigger(id);
@@ -103,16 +99,6 @@ export default function BookingFormMediaServices(props: Props) {
 
   if (!mediaServicesEnabled) {
     return null;
-  }
-
-  if (limitedContexts.includes(formContext)) {
-    return (
-      <div style={{ marginBottom: 8 }}>
-        <Label htmlFor={id}>Media Services</Label>
-        <p style={{ fontSize: "0.75rem" }}>Check out equipment</p>
-        {toggle}
-      </div>
-    );
   }
 
   return (

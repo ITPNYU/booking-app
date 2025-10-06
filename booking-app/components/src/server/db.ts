@@ -1159,10 +1159,25 @@ export const clientBookingContents = async (id: string, tenant?: string) => {
   }
   const history = await getBookingHistory(bookingObj);
 
+  // Format startTime and endTime from startDate and endDate
+  const startDateObj = new Date(bookingObj.startDate.toDate());
+  const endDateObj = new Date(bookingObj.endDate.toDate());
+
   const updatedBookingObj = Object.assign({}, bookingObj, {
     headerMessage: "This is a request email for final approval.",
     bookingToolUrl: getBookingToolDeployUrl(),
     history: history,
+    // Add formatted time fields for email template
+    startTime: startDateObj.toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    }),
+    endTime: endDateObj.toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    }),
   });
 
   return updatedBookingObj as unknown as BookingFormDetails;
