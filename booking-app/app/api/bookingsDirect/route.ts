@@ -17,7 +17,7 @@ import {
 import { NextRequest, NextResponse } from "next/server";
 
 import { toFirebaseTimestampFromString } from "@/components/src/client/utils/serverDate";
-import { insertEvent } from "@/components/src/server/calendars";
+import { bookingContentsToDescription, insertEvent } from "@/components/src/server/calendars";
 import { Timestamp } from "firebase-admin/firestore";
 
 // Helper function to extract tenant from request
@@ -127,10 +127,42 @@ export async function POST(request: NextRequest) {
   const truncatedTitle =
     data.title.length > 25 ? data.title.substring(0, 25) + "..." : data.title;
 
+  // Generate Sequential ID early so it can be used in calendar description
+  const sequentialId = await serverGetNextSequentialId("bookings", tenant);
+
+  // Build booking contents for calendar description
+  const startDateObj = new Date(bookingCalendarInfo.startStr);
+  const endDateObj = new Date(bookingCalendarInfo.endStr);
+  const selectedRoomIdsStr = selectedRoomIds.join(", ");
+
+  const bookingContentsForDesc = {
+    ...data,
+    roomId: selectedRoomIdsStr,
+    startDate: startDateObj.toLocaleDateString(),
+    startTime: startDateObj.toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    }),
+    endTime: endDateObj.toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    }),
+    status: bookingStatus,
+    requestNumber: sequentialId,
+    origin,
+  } as any;
+
+  const description =
+    (await bookingContentsToDescription(bookingContentsForDesc, tenant)) +
+    `<p>This reservation was made as a ${type}.</p>` +
+    'To cancel reservations please return to the Booking Tool, visit My Bookings, and click "cancel" on the booking at least 24 hours before the date of the event. Failure to cancel an unused booking is considered a no-show and may result in restricted use of the space.';
+
   const event = await insertEvent({
     calendarId,
     title: `[${bookingStatus}] ${selectedRoomIds.join(", ")} ${truncatedTitle}`,
-    description: `Department: ${department === "Other" && data.otherDepartment ? data.otherDepartment : department}\n\nThis reservation was made as a ${type}.`,
+    description,
     startTime: bookingCalendarInfo.startStr,
     endTime: bookingCalendarInfo.endStr,
     roomEmails: otherRoomIds,
@@ -139,7 +171,6 @@ export async function POST(request: NextRequest) {
   // Calendar invitation will be handled after XState initialization
   // to ensure proper status determination
 
-  const sequentialId = await serverGetNextSequentialId("bookings", tenant);
   const doc = await serverSaveDataToFirestore(
     TableNames.BOOKING,
     {
