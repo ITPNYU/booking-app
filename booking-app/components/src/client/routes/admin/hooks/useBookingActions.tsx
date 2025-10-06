@@ -334,13 +334,8 @@ export default function useBookingActions({
         ) {
           options.push(Actions.CANCEL);
         }
-        if (
-          (status === BookingStatusLabel.REQUESTED ||
-            status === BookingStatusLabel.DECLINED) &&
-          startDate.toDate() > date
-        ) {
-          options.push(Actions.EDIT);
-        }
+        // Always show Edit action for users, but it will be disabled when not appropriate
+        options.push(Actions.EDIT);
         break;
 
       case PageContextLevel.PA:

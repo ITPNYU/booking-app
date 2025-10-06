@@ -153,9 +153,9 @@ describe("useBookingActions Hook", () => {
       Actions.CANCEL,
       Actions.EDIT,
     ]);
-    testUserContext(BookingStatusLabel.PRE_APPROVED, [Actions.CANCEL]);
-    testUserContext(BookingStatusLabel.APPROVED, [Actions.CANCEL]);
-    testUserContext(BookingStatusLabel.EQUIPMENT, [Actions.CANCEL]);
+    testUserContext(BookingStatusLabel.PRE_APPROVED, [Actions.CANCEL, Actions.EDIT]);
+    testUserContext(BookingStatusLabel.APPROVED, [Actions.CANCEL, Actions.EDIT]);
+    testUserContext(BookingStatusLabel.EQUIPMENT, [Actions.CANCEL, Actions.EDIT]);
     testUserContext(BookingStatusLabel.DECLINED, [
       Actions.CANCEL,
       Actions.EDIT,
@@ -165,12 +165,12 @@ describe("useBookingActions Hook", () => {
     testUserContext(BookingStatusLabel.CHECKED_OUT, []);
     testUserContext(BookingStatusLabel.CLOSED, []);
     testUserContext(BookingStatusLabel.NO_SHOW, []);
-    testUserContext(BookingStatusLabel.WALK_IN, [Actions.CANCEL]);
-    testUserContext(BookingStatusLabel.PENDING, [Actions.CANCEL]);
-    testUserContext(BookingStatusLabel.MODIFIED, [Actions.CANCEL]);
-    testUserContext(BookingStatusLabel.UNKNOWN, [Actions.CANCEL]);
+    testUserContext(BookingStatusLabel.WALK_IN, [Actions.CANCEL, Actions.EDIT]);
+    testUserContext(BookingStatusLabel.PENDING, [Actions.CANCEL, Actions.EDIT]);
+    testUserContext(BookingStatusLabel.MODIFIED, [Actions.CANCEL, Actions.EDIT]);
+    testUserContext(BookingStatusLabel.UNKNOWN, [Actions.CANCEL, Actions.EDIT]);
 
-    it("should not show EDIT for past REQUESTED bookings", () => {
+    it("should show EDIT for past REQUESTED bookings (but will be disabled)", () => {
       const pastDate = new Date();
       pastDate.setDate(pastDate.getDate() - 1);
 
@@ -182,10 +182,10 @@ describe("useBookingActions Hook", () => {
       );
 
       const options = result.current.options();
-      expect(options).toEqual([Actions.CANCEL]);
+      expect(options).toEqual([Actions.CANCEL, Actions.EDIT]);
     });
 
-    it("should not show EDIT for past DECLINED bookings", () => {
+    it("should show EDIT for past DECLINED bookings (but will be disabled)", () => {
       const pastDate = new Date();
       pastDate.setDate(pastDate.getDate() - 1);
 
@@ -197,7 +197,7 @@ describe("useBookingActions Hook", () => {
       );
 
       const options = result.current.options();
-      expect(options).toEqual([Actions.CANCEL]); // CANCEL is still shown for past DECLINED bookings
+      expect(options).toEqual([Actions.CANCEL, Actions.EDIT]); // Both CANCEL and EDIT are shown for past DECLINED bookings
     });
   });
 
