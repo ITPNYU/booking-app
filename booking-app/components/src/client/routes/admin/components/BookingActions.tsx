@@ -63,7 +63,7 @@ export default function BookingActions(props: Props) {
   };
 
   const handleDialogChoice = (result: boolean) => {
-    if (result) {
+    if (result && actions[selectedAction]) {
       const actionDetails = actions[selectedAction];
       doAction(actionDetails);
     }
@@ -90,6 +90,15 @@ export default function BookingActions(props: Props) {
   };
 
   const onAction = useMemo(() => {
+    // Disable for PLACEHOLDER or if action doesn't exist (using enum-based check)
+    if (selectedAction === Actions.PLACEHOLDER || !actions[selectedAction]) {
+      return (
+        <IconButton disabled={true} color={"primary"}>
+          <Check />
+        </IconButton>
+      );
+    }
+
     if (selectedAction === Actions.DECLINE) {
       return (
         <DeclineReasonDialog
@@ -104,7 +113,9 @@ export default function BookingActions(props: Props) {
       );
     }
 
+    // Check if action exists and has confirmation property
     if (
+      actions[selectedAction] &&
       "confirmation" in actions[selectedAction] &&
       actions[selectedAction].confirmation === true
     ) {
@@ -113,19 +124,16 @@ export default function BookingActions(props: Props) {
           message="Are you sure? This action can't be undone."
           callback={handleDialogChoice}
         >
-          <IconButton
-            disabled={selectedAction === Actions.PLACEHOLDER}
-            color={"primary"}
-          >
+          <IconButton color={"primary"}>
             <Check />
           </IconButton>
         </ConfirmDialog>
       );
     }
 
+    // Always allow check button to be clicked for any non-placeholder action
     return (
       <IconButton
-        disabled={selectedAction === Actions.PLACEHOLDER}
         color={"primary"}
         onClick={() => {
           handleDialogChoice(true);
@@ -134,7 +142,7 @@ export default function BookingActions(props: Props) {
         <Check />
       </IconButton>
     );
-  }, [selectedAction, reason]);
+  }, [selectedAction, reason, actions]);
 
   const disabledActions = useMemo(() => {
     const shouldDisable = shouldDisableCheckIn({
@@ -168,7 +176,10 @@ export default function BookingActions(props: Props) {
           if (selected === Actions.PLACEHOLDER) {
             return <em style={{ color: "gray" }}>Action</em>;
           }
-          return selected;
+          // Convert enum key to enum value if needed
+          const actionKey = selected as string;
+          const displayText = (Actions as any)[actionKey] || selected;
+          return displayText;
         }}
         sx={{
           width: 125,
@@ -177,15 +188,21 @@ export default function BookingActions(props: Props) {
         <MenuItem value={Actions.PLACEHOLDER} sx={{ color: "gray" }}>
           <em>Action</em>
         </MenuItem>
-        {options().map((action) => (
-          <MenuItem
-            disabled={disabledActions.includes(action)}
-            value={action}
-            key={action}
-          >
-            {action}
-          </MenuItem>
-        ))}
+        {options().map((action) => {
+          // Convert enum key to enum value if needed
+          const actionKey = action as string;
+          const displayText = (Actions as any)[actionKey] || action;
+
+          return (
+            <MenuItem
+              disabled={disabledActions.includes(action)}
+              value={action}
+              key={action}
+            >
+              {displayText}
+            </MenuItem>
+          );
+        })}
       </Select>
       {uiLoading ? (
         <Loading style={{ height: "24px", width: "24px", margin: 8 }} />

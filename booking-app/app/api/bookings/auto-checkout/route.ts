@@ -1,6 +1,8 @@
-import { BookingStatusLabel } from "@/components/src/types";
-import { logServerBookingChange } from "@/lib/firebase/server/adminDb";
+import { extractTenantFromCollectionName } from "@/components/src/policy";
+import { Booking } from "@/components/src/types";
 import admin from "@/lib/firebase/server/firebaseAdmin";
+import { BookingLogger } from "@/lib/logger/bookingLogger";
+import { executeXStateTransition } from "@/lib/stateMachines/xstateUtilsV5";
 import { Timestamp } from "firebase-admin/firestore";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -15,7 +17,10 @@ export async function GET(request: NextRequest) {
   const isDryRun = url.searchParams.get("dryRun") === "true";
 
   if (isDryRun) {
-    console.log("🧪 DRY RUN MODE ENABLED - No actual changes will be made");
+    BookingLogger.debug(
+      "DRY RUN MODE ENABLED - No actual changes will be made",
+      {},
+    );
   }
 
   // --- Authorization Check ---
@@ -23,8 +28,12 @@ export async function GET(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
 
   if (!expectedToken) {
-    // Log an error on the server if the secret isn't configured
-    console.error("CRON_SECRET environment variable is not set.");
+    BookingLogger.apiError(
+      "GET",
+      "/api/bookings/auto-checkout",
+      {},
+      new Error("CRON_SECRET environment variable is not set"),
+    );
     return NextResponse.json(
       { message: "Internal Server Error: Configuration missing" },
       { status: 500 },
@@ -67,7 +76,12 @@ export async function GET(request: NextRequest) {
 
     // Process each tenant collection
     for (const collectionName of TENANT_COLLECTIONS) {
-      console.log(`Processing collection: ${collectionName}`);
+      const tenant = extractTenantFromCollectionName(collectionName);
+
+      BookingLogger.apiRequest("GET", "/api/bookings/auto-checkout", {
+        tenant,
+        collection: collectionName,
+      });
 
       // Fetch bookings from the last 24 hours whose endDate has passed
       // We will filter for missing checkedOutAt in the code later
@@ -79,58 +93,49 @@ export async function GET(request: NextRequest) {
         .get();
 
       if (bookingsSnapshot.empty) {
-        console.log(
-          `No bookings found in ${collectionName} with endDate in the last 24 hours and in the past.`,
-        );
+        BookingLogger.debug("No eligible bookings found for auto-checkout", {
+          tenant,
+          collection: collectionName,
+          criteria: "endDate in last 24 hours and in the past",
+        });
         continue; // Continue to next tenant collection
       }
 
       const batch = db.batch();
       let updatedCount = 0;
       const updatedBookingIds: string[] = []; // Array to store IDs
-      const tenant = collectionName.split("-")[0]; // Extract tenant from collection name
 
-      // Import tenant utilities once
-      const { shouldUseXState } = await import(
-        "@/components/src/utils/tenantUtils"
-      );
-      const usesXState = shouldUseXState(tenant);
+      // All tenants now use XState
 
       for (const doc of bookingsSnapshot.docs) {
-        const booking = doc.data();
+        const booking = doc.data() as Booking;
         const bookingId = doc.id;
 
-        // Filter in code: Check XState status for eligible bookings
+        // Check XState status for eligible bookings
         let shouldAutoCheckout = false;
 
-        if (usesXState && booking.xstateData?.snapshot?.value) {
-          // For XState tenants, check if booking is in "Checked In" state
-          const xstateValue = booking.xstateData.snapshot.value;
-          shouldAutoCheckout =
-            typeof xstateValue === "string" && xstateValue === "Checked In";
-
-          console.log(
-            `🔍 XSTATE AUTO-CHECKOUT ELIGIBILITY CHECK [${tenant?.toUpperCase()}]:`,
-            {
-              bookingId,
-              xstateValue,
-              shouldAutoCheckout,
-            },
+        if (booking.xstateData) {
+          // Check if booking is in "Checked In" state using common helper
+          const { hasXStateValue, getXStateValue } = await import(
+            "@/components/src/utils/xstateHelpers"
           );
+          shouldAutoCheckout = hasXStateValue(booking, "Checked In");
+          const currentXStateValue = getXStateValue(booking);
+
+          BookingLogger.debug("XState auto-checkout eligibility check", {
+            tenant,
+            bookingId,
+            xstateValue: currentXStateValue,
+            shouldAutoCheckout,
+          });
         } else {
-          // For non-XState tenants or missing XState data, fall back to timestamp check
-          shouldAutoCheckout =
-            booking.checkedOutAt == null && booking.checkedInAt != null;
-
-          console.log(
-            `🔍 LEGACY AUTO-CHECKOUT ELIGIBILITY CHECK [${tenant?.toUpperCase()}]:`,
-            {
-              bookingId,
-              hasCheckedInAt: !!booking.checkedInAt,
-              hasCheckedOutAt: !!booking.checkedOutAt,
-              shouldAutoCheckout,
-            },
-          );
+          // Skip bookings without XState data
+          BookingLogger.debug("Skipping booking without XState data", {
+            tenant,
+            bookingId,
+            hasXStateData: false,
+          });
+          continue;
         }
 
         if (shouldAutoCheckout) {
@@ -143,15 +148,15 @@ export async function GET(request: NextRequest) {
 
             // Check if current time is 30 minutes or more past the end date
             if (now >= endDatePlus30Min) {
-              const checkoutReason = usesXState
-                ? `XState: ${booking.xstateData?.snapshot?.value} → Checked Out`
-                : `Legacy: checkedInAt exists, checkedOutAt missing`;
+              const checkoutReason = `XState: ${booking.xstateData?.snapshot?.value} → Checked Out`;
 
               if (isDryRun) {
                 // Dry run: just collect the information
-                console.log(
-                  `🧪 DRY RUN: Would auto-checkout booking ${bookingId} in ${collectionName}`,
-                );
+                BookingLogger.debug("DRY RUN: Would auto-checkout booking", {
+                  tenant,
+                  bookingId,
+                  collection: collectionName,
+                });
                 dryRunResults.push({
                   id: bookingId,
                   tenant,
@@ -160,99 +165,116 @@ export async function GET(request: NextRequest) {
                   reason: checkoutReason,
                 });
               } else {
-                // Actual run: perform the checkout
-                console.log(
-                  `Auto-checking out booking ${bookingId} in ${collectionName}`,
-                );
-                const bookingRef = db.collection(collectionName).doc(bookingId);
-                // Set checkedOutAt to the original endDate
-                batch.update(bookingRef, { checkedOutAt: booking.endDate });
-                updatedCount++;
-                updatedBookingIds.push(bookingId); // Add ID to the list
+                // Actual run: perform the checkout via XState
+                BookingLogger.debug("Auto-checkout via XState transition", {
+                  calendarEventId: booking.calendarEventId,
+                  tenant,
+                  bookingId,
+                });
+
+                try {
+                  if (booking.calendarEventId) {
+                    // Use XState checkout event
+                    const xstateResult = await executeXStateTransition(
+                      booking.calendarEventId,
+                      "checkOut",
+                      tenant,
+                      "system", // email
+                      "Auto-checkout: 30 minutes after scheduled end time",
+                    );
+
+                    if (xstateResult.success) {
+                      BookingLogger.xstateTransition(
+                        String(
+                          booking.xstateData?.snapshot?.value || "Unknown",
+                        ),
+                        String(xstateResult.newState),
+                        "checkOut",
+                        {
+                          calendarEventId: booking.calendarEventId,
+                          tenant,
+                          reason: "auto-checkout",
+                        },
+                      );
+                      updatedCount++;
+                      updatedBookingIds.push(bookingId);
+                    } else {
+                      BookingLogger.warning(
+                        "Auto-checkout XState transition failed",
+                        {
+                          calendarEventId: booking.calendarEventId,
+                          tenant,
+                          error: xstateResult.error,
+                        },
+                      );
+                    }
+                  } else {
+                    BookingLogger.warning(
+                      "Auto-checkout skipped - no calendar event ID",
+                      {
+                        tenant,
+                        bookingId,
+                      },
+                    );
+                  }
+                } catch (error) {
+                  BookingLogger.apiError(
+                    "GET",
+                    "/api/bookings/auto-checkout",
+                    {
+                      calendarEventId: booking.calendarEventId,
+                      tenant,
+                      bookingId,
+                    },
+                    error,
+                  );
+                }
               }
             }
           }
         }
       }
 
+      // Commit batch updates only for non-XState bookings (fallback cases)
       if (updatedCount > 0 && !isDryRun) {
-        await batch.commit();
-        console.log(
-          `Successfully auto-checked out ${updatedCount} bookings in ${collectionName}.`,
-        );
-        totalUpdatedCount += updatedCount;
-
-        // Use the existing checkOut function for each booking
-        for (const bookingId of updatedBookingIds) {
-          try {
-            const bookingDoc = await db
-              .collection(collectionName)
-              .doc(bookingId)
-              .get();
-            const bookingData = bookingDoc.data();
-            if (bookingData && bookingData.calendarEventId) {
-              console.log(
-                `🎭 USING EXISTING CHECKOUT FUNCTION FOR AUTO-CHECKOUT [${tenant?.toUpperCase()}]:`,
-                {
-                  bookingId,
-                  calendarEventId: bookingData.calendarEventId,
-                  tenant,
-                },
-              );
-
-              try {
-                // Use the existing checkOut function which handles XState, history, and emails
-                const { checkOut } = await import("@/components/src/server/db");
-                await checkOut(
-                  bookingData.calendarEventId,
-                  "system-auto-checkout",
-                  tenant,
-                );
-
-                console.log(
-                  `✅ AUTO-CHECKOUT SUCCESS [${tenant?.toUpperCase()}]:`,
-                  {
-                    bookingId,
-                    calendarEventId: bookingData.calendarEventId,
-                  },
-                );
-              } catch (checkoutError) {
-                console.error(
-                  `🚨 AUTO-CHECKOUT FAILED [${tenant?.toUpperCase()}]:`,
-                  {
-                    bookingId,
-                    calendarEventId: bookingData.calendarEventId,
-                    error: checkoutError,
-                  },
-                );
-                // Fall back to traditional logging if checkOut fails
-                await logServerBookingChange({
-                  bookingId,
-                  status: BookingStatusLabel.CHECKED_OUT,
-                  changedBy: "system-auto-checkout",
-                  requestNumber: bookingData.requestNumber,
-                  calendarEventId: bookingData.calendarEventId,
-                  note: "Auto-checkout by system (checkOut function failed)",
-                  tenant,
-                });
-              }
-            }
-          } catch (error) {
-            console.error(
-              `Error processing auto-checkout for booking ${bookingId} in ${collectionName}:`,
-              error,
-            );
-          }
+        // Commit batch if there are any pending operations (fallback for non-XState bookings)
+        try {
+          await batch.commit();
+          BookingLogger.dbOperation("BATCH COMMIT", "bookings", {
+            tenant,
+            note: "Committed fallback Firestore updates for non-XState bookings",
+          });
+        } catch (error) {
+          // Batch might be empty, which is fine
+          BookingLogger.debug("Batch commit skipped (no operations)", {
+            tenant,
+          });
         }
+
+        BookingLogger.apiSuccess(
+          "GET",
+          "/api/bookings/auto-checkout",
+          {
+            tenant,
+          },
+          {
+            processedCount: updatedCount,
+            bookingIds: updatedBookingIds,
+            note: "Auto-checkout completed via XState transitions",
+          },
+        );
+
+        totalUpdatedCount += updatedCount;
 
         // Add to all updated booking IDs with tenant info
         updatedBookingIds.forEach(id => {
           allUpdatedBookingIds.push({ id, tenant });
         });
       } else if (!isDryRun) {
-        console.log(
-          `No bookings in ${collectionName} met the time criteria for auto-checkout.`,
-        );
+        BookingLogger.debug("No bookings met time criteria for auto-checkout", {
+          tenant,
+          collection: collectionName,
+        });
       }
     }
 
@@ -286,9 +308,9 @@ export async function GET(request: NextRequest) {
         { status: 200 },
       );
     } else {
-      console.log(
-        "No bookings met the time criteria for auto-checkout across all tenants.",
-      );
+      BookingLogger.debug("No bookings met time criteria across all tenants", {
+        processedTenants: TENANT_COLLECTIONS,
+      });
       return NextResponse.json(
         {
           message: "No bookings met the time criteria for auto-checkout.",
@@ -298,7 +320,7 @@ export async function GET(request: NextRequest) {
       );
     }
   } catch (error) {
-    console.error("Error during auto-checkout process:", error);
+    BookingLogger.apiError("GET", "/api/bookings/auto-checkout", {}, error);
     // Check if error is an object and has a message property before accessing it
     const errorMessage =
       error instanceof Error ? error.message : "An unknown error occurred";
