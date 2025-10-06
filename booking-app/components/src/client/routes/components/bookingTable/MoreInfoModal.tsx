@@ -13,6 +13,7 @@ import {
   Typography,
 } from "@mui/material";
 
+import { formatOrigin } from "@/components/src/utils/formatters";
 import { Cancel, Check, Edit, Event } from "@mui/icons-material";
 import Grid from "@mui/material/Unstable_Grid2/Grid2";
 import { styled } from "@mui/system";
@@ -32,7 +33,6 @@ import useSortBookingHistory from "../../hooks/useSortBookingHistory";
 import { DatabaseContext } from "../Provider";
 import { default as CustomTable } from "../Table";
 import StackedTableCell from "./StackedTableCell";
-import { formatOrigin } from "@/components/src/utils/formatters";
 
 interface Props {
   booking: BookingRow;
@@ -587,29 +587,40 @@ export default function MoreInfoModal({
                     bottomText={booking.chartFieldForRoomSetup || "none"}
                   />
                 </TableRow>
-                {booking.equipmentServices && booking.equipmentServices.length > 0 && (
-                  <TableRow>
-                    <LabelCell>Equipment Service</LabelCell>
-                    <TableCell>
-                      {booking.equipmentServices
-                        .split(", ")
-                        .map((service) => (
+                {booking.equipmentServices &&
+                  booking.equipmentServices.length > 0 && (
+                    <TableRow>
+                      <LabelCell>Equipment Service</LabelCell>
+                      <TableCell>
+                        {booking.equipmentServices
+                          .split(", ")
+                          .map((service) => (
+                            <p key={service}>{service.trim()}</p>
+                          ))}
+                        <p>{booking.equipmentServicesDetails || ""}</p>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                {booking.staffingServices &&
+                  booking.staffingServices.length > 0 && (
+                    <TableRow>
+                      <LabelCell>Staffing Service</LabelCell>
+                      <TableCell>
+                        {booking.staffingServices.split(", ").map((service) => (
                           <p key={service}>{service.trim()}</p>
                         ))}
-                      <p>{booking.equipmentServicesDetails || ""}</p>
-                    </TableCell>
-                  </TableRow>
-                )}
-                {booking.staffingServices && booking.staffingServices.length > 0 && (
+                        <p>{booking.staffingServicesDetails || ""}</p>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                {booking.mediaServices && booking.mediaServices.length > 0 && (
                   <TableRow>
-                    <LabelCell>Staffing Service</LabelCell>
+                    <LabelCell>Media Service</LabelCell>
                     <TableCell>
-                      {booking.staffingServices
-                        .split(", ")
-                        .map((service) => (
-                          <p key={service}>{service.trim()}</p>
-                        ))}
-                      <p>{booking.staffingServicesDetails || ""}</p>
+                      {booking.mediaServices.split(", ").map((service) => (
+                        <p key={service}>{service.trim()}</p>
+                      ))}
+                      <p>{booking.mediaServicesDetails || ""}</p>
                     </TableCell>
                   </TableRow>
                 )}
