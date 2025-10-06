@@ -240,9 +240,9 @@ describe("Booking Form Integration Tests", () => {
         errors.push("Event duration exceeds 4 hours");
       }
 
-      // Walk-in minimum duration (1 hour = 3,600,000 ms)
-      if (data.isWalkIn && data.duration < 3600000) {
-        errors.push("Walk-in event duration must be at least 1 hour");
+      // Walk-in minimum duration (0.5 hour = 1,800,000 ms)
+      if (data.isWalkIn && data.duration < 1800000) {
+        errors.push("Walk-in event duration must be at least 0.5 hours");
       }
 
       // Room setup requires approval
@@ -373,7 +373,7 @@ describe("Booking Form Integration Tests", () => {
 
     it("validates walk-in minimum duration", () => {
       const data: AutoApprovalData = {
-        duration: 1800000, // 30 minutes
+        duration: 900000, // 15 minutes (less than 0.5 hours)
         selectedRooms: ["room1"],
         formData: {},
         isWalkIn: true,
@@ -382,7 +382,22 @@ describe("Booking Form Integration Tests", () => {
       const result = checkAutoApproval(data);
       expect(result.isAutoApproval).toBe(false);
       expect(result.errors).toContain(
-        "Walk-in event duration must be at least 1 hour"
+        "Walk-in event duration must be at least 0.5 hours"
+      );
+    });
+
+    it("allows walk-in bookings with 0.5 hour duration", () => {
+      const data: AutoApprovalData = {
+        duration: 1800000, // 30 minutes (0.5 hours)
+        selectedRooms: ["room1"],
+        formData: {},
+        isWalkIn: true,
+      };
+
+      const result = checkAutoApproval(data);
+      expect(result.isAutoApproval).toBe(true);
+      expect(result.errors).not.toContain(
+        "Walk-in event duration must be at least 0.5 hours"
       );
     });
   });

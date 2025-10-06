@@ -191,8 +191,8 @@ export default function useCheckAutoApproval(isWalkIn = false) {
         throwError("Event duration exceeds 4 hours");
         return;
       }
-      if (isWalkIn && duration < 3.6e6) {
-        throwError("Walk-in event duration must be at least 1 hour");
+      if (isWalkIn && duration < 1.8e6) {
+        throwError("Walk-in event duration must be at least 0.5 hours");
         return;
       }
     }
