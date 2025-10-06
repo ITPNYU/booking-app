@@ -35,7 +35,7 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 3 : 1, // Increased retries for CI stability
   workers: process.env.CI ? 1 : undefined,
-  reporter: process.env.CI ? [['list'], ['github'], ['html']] : 'html',
+  reporter: process.env.CI ? [['list'], ['github'], ['html']] : [['list']],
 
   // Set environment variables for E2E testing authentication bypass
   globalSetup: require.resolve('./tests/e2e/global-setup.ts'),

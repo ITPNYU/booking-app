@@ -88,19 +88,28 @@ export class BookingTestHelper {
     await this.page.getByRole('button', { name: 'I accept' }).waitFor({ state: 'visible' });
     await this.page.getByRole('button', { name: 'I accept' }).click();
 
+    const currentUrl = this.page.url();
+    if (!/\/mc\/(walk-in\/|vip\/)?book\/role$/.test(currentUrl)) {
+      if (currentUrl.endsWith('/mc') || currentUrl.endsWith('/mc/')) {
+        await this.page.getByRole('button', { name: /Request a Reservation/i }).click();
+        await this.page.getByRole('button', { name: /I accept/i }).click();
+      } else if (currentUrl.includes('/signin')) {
+        await this.page.waitForURL(/\/mc(\/book\/role)?$/);
+        if (this.page.url().endsWith('/mc') || this.page.url().endsWith('/mc/')) {
+          await this.page.getByRole('button', { name: /Request a Reservation/i }).click();
+          await this.page.getByRole('button', { name: /I accept/i }).click();
+        }
+      }
+    }
+
     await this.page.waitForURL(/\/mc\/(walk-in\/|vip\/)?book\/role$/);
-    await this.page.getByRole('combobox', { name: /Choose a Department/i }).waitFor({ state: 'visible' });
   }
 
   async fillBasicBookingForm(formData: BookingFormData): Promise<void> {
     const selectDropdownOption = async (label: string, optionText: string) => {
       const trigger = this.page.getByRole('combobox', { name: new RegExp(label, 'i') });
-      await trigger.waitFor({ state: 'visible' });
       await trigger.click();
-      await this.page.getByRole('listbox').waitFor({ state: 'visible' });
-
-      const option = this.page.getByRole('option', { name: optionText });
-      await option.click();
+      await this.page.getByRole('option', { name: optionText }).click();
     };
 
     // Department selection
@@ -149,7 +158,7 @@ export class BookingTestHelper {
     }
 
     // Select time slot (default to morning slot)
-    const calendar = this.page.locator('[data-testid="calendar-grid"]');
+    const calendar = this.page.locator('[data-testid="booking-calendar-wrapper"]');
     if (await calendar.count() > 0) {
       const boundingBox = await calendar.boundingBox();
       if (boundingBox) {
