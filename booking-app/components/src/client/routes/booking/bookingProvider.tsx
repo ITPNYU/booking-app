@@ -15,6 +15,7 @@ import { SAFETY_TRAINING_REQUIRED_ROOM } from "../../../mediaCommonsPolicy";
 import { getAffectingBlackoutPeriods } from "../../../utils/blackoutUtils";
 import { DatabaseContext } from "../components/Provider";
 import fetchCalendarEvents from "./hooks/fetchCalendarEvents";
+import { useTenantSchema } from "../components/SchemaProvider";
 
 export interface BookingContextType {
   bookingCalendarInfo: DateSelectArg | undefined;
@@ -77,6 +78,7 @@ export function BookingProvider({ children }) {
     blackoutPeriods,
   } = useContext(DatabaseContext);
   const pathname = usePathname();
+  const schema = useTenantSchema();
 
   const [bookingCalendarInfo, setBookingCalendarInfo] =
     useState<DateSelectArg>();
@@ -118,9 +120,9 @@ export function BookingProvider({ children }) {
   // block progressing in the form is safety training requirement isn't met
   const needsSafetyTraining = useMemo(() => {
     const isStudent = role === Role.STUDENT;
-    const roomRequiresSafetyTraining = selectedRooms.some((room) =>
-      SAFETY_TRAINING_REQUIRED_ROOM.includes(room.roomId)
-    );
+    const roomRequiresSafetyTraining = selectedRooms.some((room) => {
+      return room.needsSafetyTraining || false;
+    });
     return isStudent && roomRequiresSafetyTraining && !isSafetyTrained;
   }, [selectedRooms, role, isSafetyTrained]);
 

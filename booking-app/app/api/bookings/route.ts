@@ -4,6 +4,7 @@ import {
   serverApproveInstantBooking,
   serverBookingContents,
   serverDeleteFieldsByCalendarEventId,
+  serverSendBookingDetailEmail,
   serverUpdateDataByCalendarEventId,
 } from "@/components/src/server/admin";
 import {
@@ -23,14 +24,173 @@ import {
   serverGetNextSequentialId,
   serverSaveDataToFirestore,
 } from "@/lib/firebase/server/adminDb";
+import { itpBookingMachine } from "@/lib/stateMachines/itpBookingMachine";
+import { mcBookingMachine } from "@/lib/stateMachines/mcBookingMachine";
 import { NextRequest, NextResponse } from "next/server";
+import { createActor } from "xstate";
 
 import { sendHTMLEmail } from "@/app/lib/sendHTMLEmail";
+import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
 import { CALENDAR_HIDE_STATUS, TableNames } from "@/components/src/policy";
 import { formatOrigin } from "@/components/src/utils/formatters";
+import {
+  getMediaCommonsServices,
+  isMediaCommons,
+} from "@/components/src/utils/tenantUtils";
+import { serverGetDocumentById } from "@/lib/firebase/server/adminDb";
 import { getCalendarClient } from "@/lib/googleClient";
 import { Timestamp } from "firebase-admin/firestore";
 import { DateSelectArg } from "fullcalendar";
+
+// Common function to create XState data structure
+export function createXStateData(
+  machineId: string,
+  snapshot: any,
+  targetState?: string,
+) {
+  return {
+    machineId,
+    lastTransition: new Date().toISOString(),
+    snapshot: {
+      status: snapshot.status,
+      value: targetState || snapshot.value,
+      historyValue: snapshot.historyValue || {},
+      context: cleanObjectForFirestore(snapshot.context),
+      children: snapshot.children || {},
+    },
+  };
+}
+
+// Common function to create XState snapshot data
+async function createXStateSnapshotData(
+  tenant: string,
+  calendarEventId: string,
+  email: string,
+  targetState: string,
+  context?: any,
+) {
+  const { mcBookingMachine } = await import(
+    "@/lib/stateMachines/mcBookingMachine"
+  );
+  const { createActor } = await import("xstate");
+
+  // Create fresh XState actor
+  const freshActor = createActor(mcBookingMachine, {
+    input: {
+      tenant,
+      calendarEventId,
+      email,
+      ...context,
+    },
+  });
+
+  freshActor.start();
+
+  // Get the current snapshot
+  const currentSnapshot = freshActor.getSnapshot();
+
+  // Use the common function to create XState data
+  const xstateData = createXStateData(
+    "MC Booking Request",
+    {
+      ...currentSnapshot,
+      context: context || currentSnapshot.context,
+    },
+    targetState,
+  );
+
+  freshActor.stop();
+
+  return xstateData;
+}
+
+// Clean object by removing undefined values for Firestore compatibility
+function cleanObjectForFirestore(obj: any): any {
+  if (obj === null || obj === undefined) {
+    return null;
+  }
+
+  if (typeof obj !== "object") {
+    return obj;
+  }
+
+  if (Array.isArray(obj)) {
+    return obj
+      .map(item => cleanObjectForFirestore(item))
+      .filter(item => item !== undefined);
+  }
+
+  const cleaned: any = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (value !== undefined) {
+      cleaned[key] = cleanObjectForFirestore(value);
+    }
+  }
+
+  return cleaned;
+}
+
+// Helper function to extract tenant from request
+const extractTenantFromRequest = (request: NextRequest): string | undefined => {
+  // Try to get tenant from referer header
+  const referer = request.headers.get("referer");
+  if (referer) {
+    const url = new URL(referer);
+    const tenantMatch = url.pathname.match(/^\/([^\/]+)/);
+    if (tenantMatch && tenantMatch[1] !== "api") {
+      return tenantMatch[1];
+    }
+  }
+
+  // Try to get tenant from query parameter
+  const { searchParams } = new URL(request.url);
+  const tenant = searchParams.get("tenant");
+  if (tenant) {
+    return tenant;
+  }
+
+  return undefined;
+};
+
+// Helper function to get tenant-specific room information
+const getTenantRooms = async (tenant?: string) => {
+  try {
+    const schema = await serverGetDocumentById(
+      TableNames.TENANT_SCHEMA,
+      tenant || DEFAULT_TENANT,
+    );
+
+    if (!schema || !schema.resources) {
+      console.log("No schema or resources found for tenant:", tenant);
+      return [];
+    }
+
+    return schema.resources.map((resource: any) => ({
+      roomId: resource.roomId,
+      name: resource.name,
+      capacity: resource.capacity?.toString(),
+      calendarId: resource.calendarId,
+    }));
+  } catch (error) {
+    console.error("Error fetching tenant rooms:", error);
+    return [];
+  }
+};
+
+// Helper functions for tenant-specific logic
+const getTenantFlags = (tenant: string) => {
+  return {
+    isITP: tenant === "itp",
+    isMediaCommons: isMediaCommons(tenant),
+    usesXState: true,
+  };
+};
+
+const getXStateMachine = (tenant?: string) => {
+  if (isMediaCommons(tenant)) return mcBookingMachine;
+  if (tenant === "itp") return itpBookingMachine;
+  return null;
+};
 
 // Helper to build booking contents object for calendar descriptions
 const buildBookingContents = (
@@ -106,14 +266,45 @@ async function handleBookingApprovalEmails(
   selectedRoomIds: string,
   bookingCalendarInfo: DateSelectArg,
   email: string,
+  tenant?: string,
 ) {
   const shouldAutoApprove = isAutoApproval === true;
+
+  console.log(
+    `🔍 FIRST APPROVER EMAIL DEBUG [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+    {
+      department: data.department,
+      calendarEventId,
+      sequentialId,
+    },
+  );
+
   const firstApprovers = await firstApproverEmails(data.department);
+
+  console.log(
+    `📧 FIRST APPROVERS RESULT [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+    {
+      department: data.department,
+      firstApprovers,
+      firstApproversCount: firstApprovers.length,
+    },
+  );
 
   const sendApprovalEmail = async (
     recipients: string[],
     contents: BookingFormDetails,
   ) => {
+    console.log(
+      `📧 SEND APPROVAL EMAIL FUNCTION [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+      {
+        recipients,
+        recipientsCount: recipients.length,
+        calendarEventId,
+        contentsTitle: contents.title,
+        contentsRequestNumber: contents.requestNumber,
+      },
+    );
+
     const { equipmentCheckedOut, ...otherContents } = contents;
     const otherContentsStrings = Object.fromEntries(
       Object.entries(otherContents).map(([key, value]) => [
@@ -126,8 +317,18 @@ async function handleBookingApprovalEmails(
     const startDate = new Date(bookingCalendarInfo?.startStr);
     const endDate = new Date(bookingCalendarInfo?.endStr);
 
-    const emailPromises = recipients.map(recipient =>
-      sendHTMLEmail({
+    const emailPromises = recipients.map(recipient => {
+      console.log(
+        `📧 SENDING APPROVAL EMAIL TO [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+        {
+          recipient,
+          calendarEventId,
+          eventTitle: contents.title,
+          requestNumber: contents.requestNumber,
+        },
+      );
+
+      return sendHTMLEmail({
         templateName: "booking_detail",
         contents: {
           ...otherContentsStrings,
@@ -153,15 +354,54 @@ async function handleBookingApprovalEmails(
         body: "",
         approverType: ApproverType.LIAISON,
         replyTo: email,
-      }),
+      });
+    });
+
+    console.log(
+      `📧 EXECUTING EMAIL PROMISES [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+      {
+        emailPromisesCount: emailPromises.length,
+        calendarEventId,
+      },
     );
+
     await Promise.all(emailPromises);
+
+    console.log(
+      `✅ ALL APPROVAL EMAILS COMPLETED [${tenant?.toUpperCase()}]:`,
+      {
+        recipients,
+        calendarEventId,
+      },
+    );
   };
 
   console.log("approval email calendarEventId", calendarEventId);
+
   if (calendarEventId && shouldAutoApprove) {
-    serverApproveInstantBooking(calendarEventId, email);
+    console.log(
+      `🎉 INSTANT APPROVAL [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+      {
+        calendarEventId,
+        email,
+        tenant,
+        message: "Booking will be auto-approved instantly",
+      },
+    );
+    serverApproveInstantBooking(calendarEventId, email, tenant);
   } else {
+    console.log(
+      `📧 MANUAL APPROVAL REQUIRED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+      {
+        calendarEventId,
+        email,
+        tenant,
+        reason: !calendarEventId
+          ? "No calendar event ID"
+          : "Auto-approval conditions not met",
+        message: "Sending approval request emails",
+      },
+    );
     const userEventInputs: BookingFormDetails = {
       ...data,
       calendarEventId: calendarEventId,
@@ -174,7 +414,43 @@ async function handleBookingApprovalEmails(
       origin: formatOrigin(data.origin) ?? BookingOrigin.USER,
     };
     console.log("userEventInputs", userEventInputs);
-    await sendApprovalEmail(firstApprovers, userEventInputs);
+    console.log(
+      `📧 SENDING APPROVAL EMAILS [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+      {
+        firstApprovers,
+        firstApproversCount: firstApprovers.length,
+        calendarEventId,
+      },
+    );
+
+    if (firstApprovers.length > 0) {
+      await sendApprovalEmail(firstApprovers, userEventInputs);
+      console.log(
+        `✅ APPROVAL EMAILS SENT SUCCESSFULLY [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+        {
+          firstApprovers,
+          calendarEventId,
+        },
+      );
+    } else {
+      console.warn(
+        `⚠️ NO FIRST APPROVERS FOUND - SKIPPING APPROVAL EMAILS [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+        {
+          department: data.department,
+          calendarEventId,
+        },
+      );
+    }
+    // Send confirmation to requester as well (use confirmation/booking detail email)
+    await serverSendBookingDetailEmail({
+      calendarEventId,
+      targetEmail: email,
+      headerMessage:
+        "Your request has been received!<br />Please allow 3-5 days for review. If there are changes to your request or you would like to follow up, contact mediacommons.reservations@nyu.edu.<br />This email does not confirm your reservation. You will receive a confirmation email and Google Calendar invite once your request is completed.<br /> Thank you!",
+      status: BookingStatusLabel.REQUESTED,
+      replyTo: email,
+      tenant,
+    });
   }
 }
 
@@ -240,6 +516,35 @@ async function checkOverlap(
 export async function POST(request: NextRequest) {
   const { email, selectedRooms, bookingCalendarInfo, data, isAutoApproval } =
     await request.json();
+
+  // Extract tenant from URL
+  const tenant = extractTenantFromRequest(request);
+  // Get tenant-specific flags
+  const { isITP, isMediaCommons, usesXState } = getTenantFlags(tenant);
+
+  console.log(`🏢 BOOKING API [${tenant?.toUpperCase() || "UNKNOWN"}]:`, {
+    tenant,
+    tenantFlags: { isITP, isMediaCommons, usesXState },
+    email,
+    selectedRooms: selectedRooms?.map((r: any) => ({
+      roomId: r.roomId,
+      name: r.name,
+      shouldAutoApprove: r.shouldAutoApprove,
+    })),
+    isAutoApproval,
+    bookingDuration: bookingCalendarInfo
+      ? `${((new Date(bookingCalendarInfo.endStr).getTime() - new Date(bookingCalendarInfo.startStr).getTime()) / (1000 * 60 * 60)).toFixed(1)} hours`
+      : "Not set",
+    formData: {
+      title: data?.title,
+      department: data?.department,
+      roomSetup: data?.roomSetup,
+      mediaServices: data?.mediaServices,
+      catering: data?.catering,
+      hireSecurity: data?.hireSecurity,
+    },
+  });
+
   const hasOverlap = await checkOverlap(selectedRooms, bookingCalendarInfo);
   if (hasOverlap) {
     return NextResponse.json(
@@ -250,8 +555,207 @@ export async function POST(request: NextRequest) {
 
   console.log("data", data);
 
+  // Determine initial status and auto-approval using XState for ITP
+  const initialStatus = BookingStatusLabel.REQUESTED;
+  let shouldAutoApprove = isAutoApproval === true;
+
+  // Declare xstateData in outer scope
+  let xstateData: any = undefined;
+
+  // Use XState machine for ITP and Media Commons tenant auto-approval logic
+  if (usesXState) {
+    console.log(
+      `🎭 USING XSTATE FOR ${tenant?.toUpperCase()} AUTO-APPROVAL LOGIC`,
+    );
+    console.log(`🎭 XSTATE INPUT DATA:`, {
+      tenant,
+      selectedRooms: selectedRooms?.map(r => ({
+        roomId: r.roomId,
+        name: r.name,
+        shouldAutoApprove: r.shouldAutoApprove,
+      })),
+      formData: data,
+      bookingCalendarInfo: {
+        start: bookingCalendarInfo?.startStr,
+        end: bookingCalendarInfo?.endStr,
+        duration: bookingCalendarInfo
+          ? `${((new Date(bookingCalendarInfo.endStr).getTime() - new Date(bookingCalendarInfo.startStr).getTime()) / (1000 * 60 * 60)).toFixed(1)} hours`
+          : "Not set",
+      },
+      isWalkIn: false,
+    });
+
+    // Get the appropriate machine for the tenant
+    const machine = getXStateMachine(tenant);
+
+    // For Media Commons, detect service requests from booking data
+    let servicesRequested = {};
+    let isVip = false;
+
+    if (isMediaCommons) {
+      servicesRequested = getMediaCommonsServices(data);
+
+      // Check if user is VIP (you can customize this logic)
+      isVip = data.isVip || false;
+
+      console.log(`🎭 XSTATE MEDIA COMMONS: Detected services`, {
+        servicesRequested,
+        isVip,
+        formData: {
+          setup: data.roomSetup,
+          staff: data.staffingServicesDetails,
+          equipment: data.equipmentServices,
+          catering: data.catering,
+          cleaning: data.cleaningService,
+          security: data.hireSecurity,
+        },
+      });
+    }
+
+    // Create XState actor with booking context
+    console.log(`🎭 XSTATE: Creating actor...`);
+    const bookingActor = createActor(machine, {
+      input: {
+        tenant,
+        selectedRooms,
+        formData: data,
+        bookingCalendarInfo,
+        isWalkIn: false, // TODO: detect walk-in context
+        email,
+        calendarEventId: null, // Will be set after calendar event creation
+        servicesRequested: isMediaCommons ? servicesRequested : undefined,
+        isVip: isMediaCommons ? isVip : false,
+      },
+    });
+
+    // Start the actor to trigger initial state evaluation
+    console.log(`🎭 XSTATE: Starting actor...`);
+    bookingActor.start();
+    console.log(`🎭 XSTATE: Actor started successfully`);
+
+    // Get the current state after initial evaluation
+    const currentState = bookingActor.getSnapshot();
+
+    console.log(`🎭 XSTATE FINAL STATE RESULT:`, {
+      value: currentState.value,
+      context: {
+        tenant: currentState.context.tenant,
+        selectedRoomsCount: currentState.context.selectedRooms?.length,
+        hasFormData: !!currentState.context.formData,
+        isWalkIn: currentState.context.isWalkIn,
+      },
+      canAutoApprove: currentState.value === "Approved",
+      transitionPath: `Requested → ${currentState.value}`,
+    });
+
+    // Override shouldAutoApprove based on XState decision
+    const xstateDecision = currentState.value === "Approved";
+    console.log(
+      `🎭 XSTATE DECISION: ${xstateDecision ? "AUTO-APPROVE" : "MANUAL-APPROVAL"}`,
+    );
+    shouldAutoApprove = xstateDecision;
+
+    // Clean context by removing undefined values for Firestore compatibility
+    const cleanContext = Object.fromEntries(
+      Object.entries(currentState.context).filter(
+        ([_, value]) => value !== undefined,
+      ),
+    );
+    // Prepare XState state for persistence - use any type to avoid TypeScript issues with different machine event types
+    const canTransitionTo: Record<string, boolean> = {};
+
+    // Common transitions for both machines
+    const commonEvents = [
+      "approve",
+      "decline",
+      "cancel",
+      "edit",
+      "checkIn",
+      "checkOut",
+      "noShow",
+      "autoCloseScript",
+    ];
+    commonEvents.forEach(event => {
+      try {
+        canTransitionTo[event] = currentState.can({ type: event as any });
+      } catch (e) {
+        canTransitionTo[event] = false;
+      }
+    });
+
+    // Add tenant-specific events
+    if (isMediaCommons) {
+      const mcEvents = [
+        "approveSetup",
+        "approveStaff",
+        "declineSetup",
+        "declineStaff",
+        "closeoutSetup",
+        "closeoutStaff",
+        "approveCatering",
+        "approveCleaning",
+        "approveSecurity",
+        "declineCatering",
+        "declineCleaning",
+        "declineSecurity",
+        "approveEquipment",
+        "closeoutCatering",
+        "closeoutCleaning",
+        "closeoutSecurity",
+        "declineEquipment",
+        "closeoutEquipment",
+      ];
+      mcEvents.forEach(event => {
+        try {
+          canTransitionTo[event] = currentState.can({ type: event as any });
+        } catch (e) {
+          canTransitionTo[event] = false;
+        }
+      });
+    } else {
+      // ITP specific events
+      try {
+        canTransitionTo["close"] = currentState.can({ type: "close" as any });
+      } catch (e) {
+        canTransitionTo["close"] = false;
+      }
+    }
+
+    // Get XState v5 persisted snapshot
+    const persistedSnapshot = bookingActor.getPersistedSnapshot();
+    const cleanSnapshot = cleanObjectForFirestore(persistedSnapshot);
+
+    // Use the common function to create XState data
+    xstateData = createXStateData(machine.id, cleanSnapshot);
+
+    console.log(`🎭 XSTATE: Preparing state for persistence:`, {
+      currentState: cleanSnapshot?.value,
+      hasSnapshot: !!cleanSnapshot,
+      snapshotKeys: cleanSnapshot ? Object.keys(cleanSnapshot) : [],
+      machineId: xstateData.machineId,
+    });
+
+    // Stop the actor
+    console.log(`🎭 XSTATE: Stopping actor...`);
+    bookingActor.stop();
+    console.log(`🎭 XSTATE: Actor stopped`);
+  }
+
+  console.log(
+    `🤖 AUTO-APPROVAL DECISION [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+    {
+      tenant,
+      clientDecision: isAutoApproval,
+      serverDecision: shouldAutoApprove,
+      usingXState: usesXState,
+      willAutoApprove: shouldAutoApprove
+        ? "YES - Will auto-approve"
+        : "NO - Requires manual approval",
+    },
+  );
+
   // Generate Sequential ID early so it can be used in calendar description
-  const sequentialId = await serverGetNextSequentialId("bookings");
+  const sequentialId = await serverGetNextSequentialId("bookings", tenant);
 
   const selectedRoomIds = selectedRooms
     .map((r: { roomId: number }) => r.roomId)
@@ -272,7 +776,7 @@ export async function POST(request: NextRequest) {
   );
 
   const description =
-    bookingContentsToDescription(bookingContentsForDesc) +
+    (await bookingContentsToDescription(bookingContentsForDesc, tenant)) +
     "<p>Your reservation is not yet confirmed. The coordinator will review and finalize your reservation within a few days.</p>" +
     '<p>To cancel reservations please return to the Booking Tool, visit My Bookings, and click "cancel" on the booking at least 24 hours before the date of the event. Failure to cancel an unused booking is considered a no-show and may result in restricted use of the space.</p>';
 
@@ -298,7 +802,7 @@ export async function POST(request: NextRequest) {
 
   let doc;
   try {
-    doc = await serverSaveDataToFirestore(TableNames.BOOKING, {
+    const bookingData = {
       calendarEventId,
       roomId: selectedRoomIds,
       email,
@@ -309,30 +813,87 @@ export async function POST(request: NextRequest) {
       requestedAt: Timestamp.now(),
       origin: BookingOrigin.USER,
       ...data,
-    });
+    };
+
+    // XState data will be saved separately after calendarEventId is available
+
+    doc = await serverSaveDataToFirestore(
+      TableNames.BOOKING,
+      bookingData,
+      tenant,
+    );
 
     if (!doc || !doc.id) {
       throw new Error("Failed to create booking document");
     }
 
-    // Create initial booking log entry before sending email so it appears in History
+    // Create initial booking log entry with appropriate status
     await logServerBookingChange({
       bookingId: doc.id,
-      status: BookingStatusLabel.REQUESTED,
+      status: initialStatus,
       changedBy: email,
       requestNumber: sequentialId,
       calendarEventId: calendarEventId,
       note: "",
+      tenant,
     });
 
+    // Save XState data for ITP and Media Commons tenant after calendarEventId is available
+    if (usesXState && typeof xstateData !== "undefined") {
+      try {
+        // Update the XState context with the actual calendarEventId
+        const updatedXStateData = {
+          ...xstateData,
+          context: {
+            ...xstateData.context,
+            calendarEventId: calendarEventId,
+          },
+        };
+
+        // Save XState data to the booking document
+        await serverUpdateDataByCalendarEventId(
+          TableNames.BOOKING,
+          calendarEventId,
+          { xstateData: updatedXStateData },
+          tenant,
+        );
+
+        console.log(
+          `💾 XSTATE DATA SAVED TO FIRESTORE [${tenant?.toUpperCase()}]:`,
+          {
+            calendarEventId,
+            currentState: updatedXStateData.currentState,
+            machineId: updatedXStateData.machineId,
+            lastTransition: updatedXStateData.lastTransition,
+            availableTransitions: Object.entries(
+              updatedXStateData.canTransitionTo,
+            )
+              .filter(([_, canTransition]) => canTransition)
+              .map(([event, _]) => event),
+          },
+        );
+      } catch (error) {
+        console.error(
+          `🚨 ERROR SAVING XSTATE DATA [${tenant?.toUpperCase()}]:`,
+          {
+            calendarEventId,
+            error: error.message,
+          },
+        );
+        // Don't fail the entire booking if XState save fails
+      }
+    }
+
+    // Handle approval emails based on final status
     await handleBookingApprovalEmails(
-      isAutoApproval,
+      shouldAutoApprove,
       calendarEventId,
       sequentialId,
       data,
       selectedRoomIds,
       bookingCalendarInfo,
       email,
+      tenant,
     );
 
     console.log(" Done handleBookingApprovalEmails");
@@ -361,6 +922,182 @@ export async function PUT(request: NextRequest) {
     calendarEventId,
     modifiedBy,
   } = await request.json();
+
+  // Extract tenant from URL
+  const tenant = extractTenantFromRequest(request);
+
+  // Get tenant-specific flags
+  const { isITP, isMediaCommons, usesXState } = getTenantFlags(tenant);
+
+  // Track if booking was previously approved (for history re-recording)
+  let wasApproved = false;
+
+  console.log(
+    `🎯 MODIFICATION REQUEST [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+    {
+      calendarEventId,
+      email,
+      tenant,
+      modifiedBy,
+      usingXState: usesXState,
+    },
+  );
+
+  // Track XState processing results
+  let xstateProcessed = false;
+  let xstateNewState = null;
+
+  // For ITP and Media Commons tenants, use XState transition
+  if (usesXState) {
+    console.log(
+      `🎭 USING XSTATE FOR MODIFICATION [${tenant?.toUpperCase()}]:`,
+      {
+        calendarEventId,
+      },
+    );
+
+    try {
+      // First check current state to determine if edit should be applied
+      const { serverGetDataByCalendarEventId } = await import(
+        "@/lib/firebase/server/adminDb"
+      );
+      const bookingData = await serverGetDataByCalendarEventId(
+        TableNames.BOOKING,
+        calendarEventId,
+        tenant,
+      );
+
+      const currentXStateValue = (bookingData as any)?.xstateData?.snapshot
+        ?.value;
+
+      console.log(
+        `🔍 CURRENT XSTATE BEFORE MODIFY [${tenant?.toUpperCase()}]:`,
+        {
+          calendarEventId,
+          currentXStateValue,
+          currentXStateType: typeof currentXStateValue,
+          xstateData: (bookingData as any)?.xstateData,
+        },
+      );
+
+      // Skip edit transition if already in Approved state or approved flow
+      // Approved bookings should remain approved after modification
+      const hasApprovedTimestamp = !!(bookingData as any)?.finalApprovedAt;
+      const hasPreApprovedTimestamp = !!(bookingData as any)?.firstApprovedAt;
+
+      const isApproved =
+        currentXStateValue === "Approved" ||
+        currentXStateValue === "Pre-approved" ||
+        hasApprovedTimestamp ||
+        (hasPreApprovedTimestamp &&
+          typeof currentXStateValue === "object" &&
+          currentXStateValue &&
+          (currentXStateValue["Services Request"] ||
+            currentXStateValue["Service Closeout"] ||
+            Object.keys(currentXStateValue).some(
+              key => key.includes("Request") || key.includes("Closeout"),
+            )));
+
+      console.log(`🎯 APPROVED STATE DETECTION [${tenant?.toUpperCase()}]:`, {
+        calendarEventId,
+        isApproved,
+        isStringApproved: currentXStateValue === "Approved",
+        isPreApproved: currentXStateValue === "Pre-approved",
+        hasApprovedTimestamp,
+        hasPreApprovedTimestamp,
+        isObjectState:
+          typeof currentXStateValue === "object" && currentXStateValue,
+        hasServicesRequest:
+          typeof currentXStateValue === "object" &&
+          currentXStateValue?.["Services Request"],
+        hasServiceCloseout:
+          typeof currentXStateValue === "object" &&
+          currentXStateValue?.["Service Closeout"],
+        finalApprovedAt: (bookingData as any)?.finalApprovedAt,
+        firstApprovedAt: (bookingData as any)?.firstApprovedAt,
+      });
+
+      // Store approved state for later history re-recording
+      wasApproved = isApproved;
+
+      if (isApproved) {
+        console.log(
+          `✅ SKIPPING EDIT TRANSITION - MAINTAINING APPROVED STATE [${tenant?.toUpperCase()}]:`,
+          {
+            calendarEventId,
+            reason:
+              "Booking is already approved, should remain approved after modification",
+          },
+        );
+        // Skip XState transition and continue with traditional modification
+      } else {
+        const { executeXStateTransition } = await import(
+          "@/lib/stateMachines/xstateUtilsV5"
+        );
+
+        const xstateResult = await executeXStateTransition(
+          calendarEventId,
+          "edit",
+          tenant,
+          undefined, // No email needed for edit
+        );
+
+        if (!xstateResult.success) {
+          console.error(
+            `🚨 XSTATE MODIFICATION FAILED [${tenant?.toUpperCase()}]:`,
+            {
+              calendarEventId,
+              error: xstateResult.error,
+            },
+          );
+
+          // Fallback to traditional modification if XState fails
+          console.log(
+            `🔄 FALLING BACK TO TRADITIONAL MODIFICATION [${tenant?.toUpperCase()}]:`,
+            {
+              calendarEventId,
+            },
+          );
+        } else {
+          console.log(
+            `✅ XSTATE MODIFICATION SUCCESS [${tenant?.toUpperCase()}]:`,
+            {
+              calendarEventId,
+              newState: xstateResult.newState,
+            },
+          );
+
+          console.log(
+            `📋 XSTATE EDIT TRANSITION COMPLETED [${tenant?.toUpperCase()}]:`,
+            {
+              calendarEventId,
+              newState: xstateResult.newState,
+              note: "History logging will be handled by traditional processing",
+            },
+          );
+        }
+
+        // Set XState processing flags
+        xstateProcessed = true;
+        xstateNewState = xstateResult.newState;
+      }
+    } catch (error) {
+      console.error(
+        `🚨 XSTATE MODIFICATION ERROR [${tenant?.toUpperCase()}]:`,
+        {
+          calendarEventId,
+          error: error.message,
+        },
+      );
+      // Continue with traditional modification
+    }
+  } else {
+    console.log(
+      `📝 USING TRADITIONAL MODIFICATION [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+      { calendarEventId },
+    );
+  }
+
   // TODO verify that they actually changed something
   if (bookingCalendarInfo == null) {
     return NextResponse.json(
@@ -377,10 +1114,18 @@ export async function PUT(request: NextRequest) {
     );
   }
 
-  const existingContents = await serverBookingContents(calendarEventId);
+  const existingContents = await serverBookingContents(calendarEventId, tenant);
   const oldRoomIds = existingContents.roomId.split(",").map(x => x.trim());
-  const oldRooms = allRooms.filter((room: RoomSetting) =>
+
+  // Get tenant-specific room information from server instead of relying on client data
+  const tenantRooms = await getTenantRooms(tenant);
+  const oldRooms = tenantRooms.filter((room: any) =>
     oldRoomIds.includes(room.roomId + ""),
+  );
+
+  console.log(
+    `Tenant: ${tenant}, Old room IDs: ${oldRoomIds}, Found old rooms:`,
+    oldRooms,
   );
 
   const selectedRoomIds = selectedRooms
@@ -388,33 +1133,58 @@ export async function PUT(request: NextRequest) {
     .join(", ");
 
   // delete existing cal events
+  console.log(
+    `Deleting old calendar events for calendarEventId: ${calendarEventId}`,
+  );
+  console.log(
+    `Old rooms:`,
+    oldRooms.map(r => ({ roomId: r.roomId, calendarId: r.calendarId })),
+  );
+
   await Promise.all(
     oldRooms.map(async room => {
+      console.log(
+        `Deleting event ${calendarEventId} from calendar ${room.calendarId} (room ${room.roomId})`,
+      );
       await deleteEvent(room.calendarId, calendarEventId, room.roomId);
     }),
   );
 
+  console.log(`Finished deleting old calendar events`);
+
   // Build description for modified event
   const startDateObj2 = new Date(bookingCalendarInfo.startStr);
   const endDateObj2 = new Date(bookingCalendarInfo.endStr);
+
+  // Determine appropriate status label based on XState processing
+  const statusLabelForCalendar =
+    xstateProcessed && xstateNewState === "Requested"
+      ? BookingStatusLabel.REQUESTED
+      : BookingStatusLabel.MODIFIED;
 
   const bookingContentsForDescMod = buildBookingContents(
     data,
     selectedRoomIds,
     startDateObj2,
     endDateObj2,
-    BookingStatusLabel.MODIFIED,
+    statusLabelForCalendar,
     data.requestNumber ?? existingContents.requestNumber,
     "user",
   );
 
   const descriptionMod =
-    bookingContentsToDescription(bookingContentsForDescMod) +
+    (await bookingContentsToDescription(bookingContentsForDescMod, tenant)) +
     "<p>Your reservation is not yet confirmed. The coordinator will review and finalize your reservation within a few days.</p>" +
     '<p>To cancel reservations please return to the Booking Tool, visit My Bookings, and click "cancel" on the booking at least 24 hours before the date of the event. Failure to cancel an unused booking is considered a no-show and may result in restricted use of the space.</p>';
 
   let newCalendarEventId: string;
   try {
+    console.log(`Creating new calendar event for modified booking`);
+    console.log(
+      `New rooms:`,
+      selectedRooms.map(r => ({ roomId: r.roomId, calendarId: r.calendarId })),
+    );
+
     newCalendarEventId = await createBookingCalendarEvent(
       selectedRooms,
       data.department,
@@ -422,15 +1192,41 @@ export async function PUT(request: NextRequest) {
       bookingCalendarInfo,
       descriptionMod,
     );
+
+    console.log(`Created new calendar event with ID: ${newCalendarEventId}`);
     // Add a new history entry for the modification
+    // Use appropriate status and note based on XState processing
+    const isXStateResubmission =
+      xstateProcessed && xstateNewState === "Requested";
+    const historyStatus = isXStateResubmission
+      ? BookingStatusLabel.REQUESTED
+      : BookingStatusLabel.MODIFIED;
+    const historyNote = isXStateResubmission
+      ? "Booking edited and resubmitted"
+      : "Modified by " + modifiedBy;
+
     await logServerBookingChange({
       bookingId: existingContents.id,
-      status: BookingStatusLabel.MODIFIED,
+      status: historyStatus,
       changedBy: modifiedBy,
       requestNumber: existingContents.requestNumber,
       calendarEventId: newCalendarEventId,
-      note: "Modified by " + modifiedBy,
+      note: historyNote,
+      tenant,
     });
+
+    // If this was an approved booking, re-record the approved status after modification
+    // This ensures the history shows the booking is still approved after changes
+    if (usesXState && wasApproved) {
+      console.log(
+        `📋 RE-RECORDING APPROVED STATUS AFTER MODIFICATION [${tenant?.toUpperCase()}]:`,
+        {
+          calendarEventId: newCalendarEventId,
+          reason:
+            "Booking was previously approved and should remain approved after modification",
+        },
+      );
+    }
   } catch (err) {
     console.error(err);
     return NextResponse.json(
@@ -454,33 +1250,110 @@ export async function PUT(request: NextRequest) {
     origin: BookingOrigin.USER,
   };
 
-  await serverUpdateDataByCalendarEventId(
-    TableNames.BOOKING,
-    calendarEventId,
-    updatedData,
-  );
+  try {
+    // First update the booking data with the new calendar event ID
+    await serverUpdateDataByCalendarEventId(
+      TableNames.BOOKING,
+      calendarEventId,
+      updatedData,
+      tenant,
+    );
 
-  await serverDeleteFieldsByCalendarEventId(
-    TableNames.BOOKING,
-    newCalendarEventId,
-    [
+    // Delete approval and decline fields from the updated booking (using new calendarEventId since the entry was updated)
+    const fieldsToDelete = [
       "finalApprovedAt",
       "finalApprovedBy",
       "firstApprovedAt",
       "firstApprovedBy",
-    ],
-  );
+    ];
 
-  // handle auto-approval + send emails
+    // Also delete decline fields if this was a declined booking being edited
+    if (xstateProcessed && xstateNewState === "Requested") {
+      fieldsToDelete.push("declinedAt", "declinedBy", "declineReason");
+      console.log(
+        `🗑️ DELETING DECLINE FIELDS FOR EDIT [${tenant?.toUpperCase()}]:`,
+        {
+          calendarEventId: newCalendarEventId,
+          fieldsToDelete: ["declinedAt", "declinedBy", "declineReason"],
+          reason:
+            "Booking edited after decline - returning to Requested status",
+        },
+      );
+    }
+
+    await serverDeleteFieldsByCalendarEventId(
+      TableNames.BOOKING,
+      newCalendarEventId,
+      fieldsToDelete,
+      tenant,
+    );
+
+    // If XState processing was successful, initialize new XState data for the new booking
+    if (xstateProcessed && xstateNewState) {
+      console.log(
+        `🔄 INITIALIZING NEW XSTATE DATA FOR NEW BOOKING [${tenant?.toUpperCase()}]:`,
+        {
+          calendarEventId: newCalendarEventId,
+          newState: xstateNewState,
+          reason:
+            "Creating fresh XState data for the new booking after transition",
+        },
+      );
+
+      // Create fresh XState data using the common function with proper context
+      const freshXStateData = await createXStateSnapshotData(
+        tenant,
+        newCalendarEventId,
+        email,
+        xstateNewState,
+        {
+          // Pass relevant context data for the new booking
+          selectedRooms: selectedRooms || [],
+          formData: data || {},
+          bookingCalendarInfo: bookingCalendarInfo || {},
+        },
+      );
+
+      // Update the new booking with fresh XState data
+      await serverUpdateDataByCalendarEventId(
+        TableNames.BOOKING,
+        newCalendarEventId,
+        {
+          xstateData: freshXStateData,
+        },
+        tenant,
+      );
+
+      console.log(
+        `✅ NEW BOOKING INITIALIZED WITH FRESH XSTATE DATA [${tenant?.toUpperCase()}]:`,
+        {
+          calendarEventId: newCalendarEventId,
+          newState: xstateNewState,
+        },
+      );
+    }
+  } catch (err) {
+    console.error(err);
+    return NextResponse.json(
+      { result: "error", message: "Failed to update booking" },
+      { status: 500 },
+    );
+  }
+
   await handleBookingApprovalEmails(
     isAutoApproval,
     newCalendarEventId,
-    data.requestNumber,
+    existingContents.requestNumber,
     data,
     selectedRoomIds,
     bookingCalendarInfo,
     email,
+    tenant,
   );
 
-  return NextResponse.json({ result: "success" }, { status: 200 });
+  return NextResponse.json({
+    result: "success",
+    calendarEventId: newCalendarEventId,
+    requestNumber: existingContents.requestNumber,
+  });
 }

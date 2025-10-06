@@ -1,16 +1,33 @@
+import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
 import { NextRequest, NextResponse } from "next/server";
 
 import { TableNames } from "@/components/src/policy";
 import { Booking, BookingOrigin, RoomSetting } from "@/components/src/types";
-import { serverFetchAllDataFromCollection } from "@/lib/firebase/server/adminDb";
+import {
+  serverFetchAllDataFromCollection,
+  serverGetDocumentById,
+} from "@/lib/firebase/server/adminDb";
 import { format } from "date-fns";
 import { parse } from "json2csv";
 
 export async function GET(request: NextRequest) {
-  const [bookings, rooms] = await Promise.all([
-    serverFetchAllDataFromCollection<Booking>(TableNames.BOOKING),
-    serverFetchAllDataFromCollection<RoomSetting>(TableNames.RESOURCES),
+  // Get tenant from request headers or default to 'mc'
+  const tenant = request.headers.get("x-tenant") || DEFAULT_TENANT;
+
+  const [bookings, schema] = await Promise.all([
+    serverFetchAllDataFromCollection<Booking>(TableNames.BOOKING, [], tenant),
+    serverGetDocumentById(TableNames.TENANT_SCHEMA, tenant),
   ]);
+
+  // Convert schema resources to RoomSetting format
+  const rooms: RoomSetting[] =
+    schema?.resources?.map((resource: any) => ({
+      roomId: resource.roomId,
+      name: resource.name,
+      capacity: resource.capacity.toString(),
+      calendarId: resource.calendarId,
+      calendarRef: undefined,
+    })) || [];
 
   // Create room ID to name mapping
   const roomMap = new Map<number, string>();
@@ -65,7 +82,7 @@ export async function GET(request: NextRequest) {
 
       return {
         "Request #": booking.requestNumber,
-        Department: booking.department,
+        Department: booking.department === "Other" && booking.otherDepartment ? booking.otherDepartment : booking.department,
         "Role (Affiliation)": booking.role,
         "Room(s)": booking.roomId,
         "Booking Start Date": format(startDate, "M/d/yyyy"),
@@ -88,12 +105,18 @@ export async function GET(request: NextRequest) {
         "End Event Status": getBookingStatus(booking),
         "Room Setup Needed (Y/N)": booking.roomSetup === "yes" ? "Yes" : "No",
         "Room Setup Details": booking.setupDetails || "",
-        "Media Services (Y/N)":
-          booking.mediaServices && booking.mediaServices.length > 0
+        "Equipment Services (Y/N)":
+          booking.equipmentServices && booking.equipmentServices.length > 0
             ? "Yes"
             : "No",
-        "Media Service Details": booking.mediaServicesDetails || "",
+        "Equipment Service Details": booking.equipmentServicesDetails || "",
+        "Staffing Services (Y/N)":
+          booking.staffingServices && booking.staffingServices.length > 0
+            ? "Yes"
+            : "No",
+        "Staffing Service Details": booking.staffingServicesDetails || "",
         "Catering (Y/N)": booking.catering === "yes" ? "Yes" : "No",
+        "Cleaning Services (Y/N)": booking.cleaningService === "yes" ? "Yes" : "No",
         "Hire Security (Y/N)": booking.hireSecurity === "yes" ? "Yes" : "No",
       };
     });

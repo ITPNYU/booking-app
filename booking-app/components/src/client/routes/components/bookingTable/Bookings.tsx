@@ -1,4 +1,4 @@
-import { MoreHoriz } from "@mui/icons-material";
+import { MoreHoriz, TableBar, Headset, PeopleAlt, LocalDining, CleaningServices, LocalPolice } from "@mui/icons-material";
 import {
   Box,
   IconButton,
@@ -17,6 +17,7 @@ import {
 import { TableEmpty } from "../Table";
 import StackedTableCell from "./StackedTableCell";
 
+import { useParams } from "next/navigation";
 import { formatOrigin } from "../../../../utils/formatters";
 import { formatDateTable, formatTimeAmPm } from "../../../utils/date";
 import BookingActions from "../../admin/components/BookingActions";
@@ -45,6 +46,8 @@ export const Bookings: React.FC<BookingsProps> = ({
   const { bookingsLoading, setLastItem, fetchAllBookings, allBookings } =
     useContext(DatabaseContext);
   const { resourceName } = useTenantSchema();
+  const params = useParams();
+  const tenant = params?.tenant as string;
   const allowedStatuses = useAllowedStatuses(pageContext);
 
   const [modalData, setModalData] = useState<BookingRow>(null);
@@ -332,6 +335,57 @@ export const Bookings: React.FC<BookingsProps> = ({
       ...(!isUserView
         ? [
             {
+              field: "services",
+              headerName: "Services",
+              minWidth: 160,
+              flex: 1,
+              renderHeader: () => <TableCell>Services</TableCell>,
+              filterable: false,
+              renderCell: (params) => {
+                const bookingRow = params.row as BookingRow;
+
+                const isActive = {
+                  tableSetup: !!bookingRow.roomSetup && bookingRow.roomSetup !== "no",
+                  equipmentServices:
+                    !!bookingRow.equipmentServices &&
+                    bookingRow.equipmentServices.trim() !== "",
+                  staffingServices:
+                    !!bookingRow.staffingServices &&
+                    bookingRow.staffingServices.trim() !== "",
+                  cateringService:
+                    (!!bookingRow.cateringService &&
+                      bookingRow.cateringService.trim() !== "") ||
+                    bookingRow.catering === "yes",
+                  cleaningService: bookingRow.cleaningService === "yes",
+                  hireSecurity: bookingRow.hireSecurity === "yes",
+                };
+
+                const colorFor = (active: boolean) =>
+                  active ? "rgba(0, 0, 0, 0.8)" : "rgba(0, 0, 0, 0.08)";
+
+                const items: { label: string; Icon: any; active: boolean }[] = [
+                  { label: "Setup", Icon: TableBar, active: isActive.tableSetup },
+                  { label: "Equipment", Icon: Headset, active: isActive.equipmentServices },
+                  { label: "Staffing", Icon: PeopleAlt, active: isActive.staffingServices },
+                  { label: "Catering", Icon: LocalDining, active: isActive.cateringService },
+                  { label: "Cleaning", Icon: CleaningServices, active: isActive.cleaningService },
+                  { label: "Security", Icon: LocalPolice, active: isActive.hireSecurity },
+                ];
+
+                return (
+                  <TableCell style={{ display: "flex", flexDirection: "row", gap: "4px" }}>
+                    {items.map(({ label, Icon, active }) => (
+                      <Tooltip key={label} title={label} placement="top">
+                        <span>
+                          <Icon style={{ fontSize: "20px", color: colorFor(active) }} />
+                        </span>
+                      </Tooltip>
+                    ))}
+                  </TableCell>
+                );
+              },
+            },
+            {
               field: "equip",
               headerName: "Equip.",
               minWidth: 80,
@@ -361,7 +415,7 @@ export const Bookings: React.FC<BookingsProps> = ({
         renderCell: (params) => (
           <TableCell width={200}>
             <BookingActions
-              status={getBookingStatus(params.row)}
+              status={getBookingStatus(params.row, tenant)}
               calendarEventId={params.row.calendarEventId}
               startDate={params.row.startDate}
               onSelect={() => {}}

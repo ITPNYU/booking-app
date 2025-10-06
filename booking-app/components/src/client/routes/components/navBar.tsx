@@ -16,13 +16,11 @@ import { useContext, useEffect, useMemo, useState } from "react";
 import { auth } from "@/lib/firebase/firebaseClient";
 import { styled } from "@mui/system";
 import { signOut } from "firebase/auth";
-import Image from "next/image";
-import { schema } from "../../../../../app/[tenant]/schema";
-import NYULOGO from "../../../../../public/nyuLogo.png";
 import { PagePermission } from "../../../types";
 import useHandleStartBooking from "../booking/hooks/useHandleStartBooking";
 import ConfirmDialog from "./ConfirmDialog";
 import { DatabaseContext } from "./Provider";
+import { SchemaContext } from "./SchemaProvider";
 
 const LogoBox = styled(Box)`
   cursor: pointer;
@@ -64,12 +62,12 @@ export default function NavBar() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const isRoot = pathname === "/";
-  const tenantSchema = schema[tenant as keyof typeof schema];
+  const tenantSchema = useContext(SchemaContext);
   const {
-    name,
-    logo = NYULOGO,
-    supportVIP,
-    supportWalkIn,
+    name = "",
+    logo = "/mediaCommonsLogo.svg",
+    supportVIP = false,
+    supportWalkIn = false,
   } = tenantSchema || {};
 
   const handleRoleChange = (e: any) => {
@@ -88,8 +86,8 @@ export default function NavBar() {
       case PagePermission.LIAISON:
         router.push(pathOf("liaison"));
         break;
-      case PagePermission.EQUIPMENT:
-        router.push(pathOf("equipment"));
+      case PagePermission.SERVICES:
+        router.push(pathOf("services"));
         break;
       case PagePermission.SUPER_ADMIN:
         router.push(pathOf("super"));
@@ -117,7 +115,9 @@ export default function NavBar() {
   })();
 
   useEffect(() => {
-    if (pathname === "/") {
+    const isTenantRoot = /^\/[^/]+$/.test(pathname);
+
+    if (pathname === "/" || isTenantRoot) {
       setSelectedView(PagePermission.BOOKING);
     } else if (pathname.includes("/pa")) {
       setSelectedView(PagePermission.PA);
@@ -125,8 +125,8 @@ export default function NavBar() {
       setSelectedView(PagePermission.ADMIN);
     } else if (pathname.includes("/liaison")) {
       setSelectedView(PagePermission.LIAISON);
-    } else if (pathname.includes("/equipment")) {
-      setSelectedView(PagePermission.EQUIPMENT);
+    } else if (pathname.includes("/services")) {
+      setSelectedView(PagePermission.SERVICES);
     } else if (pathname.includes("/super")) {
       setSelectedView(PagePermission.SUPER_ADMIN);
     }
@@ -177,8 +177,8 @@ export default function NavBar() {
       PagePermission.SUPER_ADMIN,
     ]);
 
-    const showEquipment = hasUserPermission([
-      PagePermission.EQUIPMENT,
+    const showServices = hasUserPermission([
+      PagePermission.SERVICES,
       PagePermission.ADMIN,
       PagePermission.SUPER_ADMIN,
     ]);
@@ -192,10 +192,10 @@ export default function NavBar() {
         {showLiaison && (
           <MenuItem value={PagePermission.LIAISON}>Liaison</MenuItem>
         )}
-        {showAdmin && <MenuItem value={PagePermission.ADMIN}>Admin</MenuItem>}
-        {showEquipment && (
-          <MenuItem value={PagePermission.EQUIPMENT}>Equipment</MenuItem>
+        {showServices && (
+          <MenuItem value={PagePermission.SERVICES}>Services</MenuItem>
         )}
+        {showAdmin && <MenuItem value={PagePermission.ADMIN}>Admin</MenuItem>}
         {showSuperAdmin && (
           <MenuItem value={PagePermission.SUPER_ADMIN}>Super</MenuItem>
         )}
@@ -227,10 +227,7 @@ export default function NavBar() {
       );
     }
 
-    if (
-      supportVIP &&
-      selectedView === PagePermission.ADMIN
-    ) {
+    if (supportVIP && selectedView === PagePermission.ADMIN) {
       return (
         <Button
           onClick={() => {
@@ -245,7 +242,11 @@ export default function NavBar() {
       );
     }
 
-    if (supportWalkIn && pagePermission !== PagePermission.BOOKING) {
+    if (
+      supportWalkIn &&
+      pagePermission !== PagePermission.BOOKING &&
+      selectedView !== PagePermission.SERVICES
+    ) {
       return (
         <Button
           onClick={() => {
@@ -274,7 +275,7 @@ export default function NavBar() {
         </LogoBox> */}
         {!isRoot && (
           <LogoBox onClick={handleClickHome}>
-            <Image src={logo} alt={`${name} logo`} height={40} />
+            <img src={logo} alt={`${name} logo`} style={{ height: 40 }} />
             {!isMobile && (
               <Title as="h1">
                 {name} {envTitle}

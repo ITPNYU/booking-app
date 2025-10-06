@@ -110,6 +110,7 @@ export default function MoreInfoModal({
 
   // Check if user has permission to edit cart number
   console.log("pagePermission", pagePermission);
+  console.log("booking!!!!!!!!!!!!!!!!!!!!!", booking);
   const canEditCart = canAccessWebCheckout(pagePermission);
 
   const handleSaveCartNumber = async () => {
@@ -509,7 +510,11 @@ export default function MoreInfoModal({
                 </TableRow>
                 <TableRow>
                   <LabelCell>Department</LabelCell>
-                  <TableCell>{booking.department ?? BLANK}</TableCell>
+                  <TableCell>
+                    {booking.department === "Other" && booking.otherDepartment
+                      ? booking.otherDepartment
+                      : booking.department ?? BLANK}
+                  </TableCell>
                 </TableRow>
                 <TableRow>
                   <LabelCell>Role</LabelCell>
@@ -628,6 +633,15 @@ export default function MoreInfoModal({
                         (booking.catering === "yes" ? "Yes" : "")
                       }
                       bottomText={booking.chartFieldForCatering || ""}
+                    />
+                  </TableRow>
+                )}
+                {booking.cleaningService === "yes" && (
+                  <TableRow>
+                    <LabelCell>Cleaning Service</LabelCell>
+                    <StackedTableCell
+                      topText="Yes"
+                      bottomText={booking.chartFieldForCleaning || ""}
                     />
                   </TableRow>
                 )}

@@ -1,4 +1,4 @@
-import { createContext, useContext } from "react";
+import { createContext, useContext, useEffect } from "react";
 
 export type Agreement = {
   id: string;
@@ -9,22 +9,39 @@ export type Resource = {
   capacity: number;
   name: string;
   roomId: number;
-  autoApproval: boolean;
-  checkable: boolean;
+  isEquipment: boolean; // renamed from checkable
+  calendarId: string;
+  needsSafetyTraining: boolean;
+  shouldAutoApprove: boolean;
+  isWalkIn: boolean;
+  isWalkInCanBookTwo: boolean;
+  services: string[]; // ["equipment", "staffing", "setup", "security", "cleaning", "catering", "campus-media"]
+  maxHour: {
+    student: number;
+    faculty: number;
+    admin: number;
+  };
+  staffingServices?: string[]; // Specific staffing service options for this room
+  staffingSections?: { name: string; indexes: number[] }[];
 };
 
 export type SchemaContextType = {
+  tenant: string;
   name: string;
   logo: string;
   nameForPolicy: string;
   policy: string; // innerHTML
-  programs: string[];
   programMapping: Record<string, string[]>;
   roles: string[];
   roleMapping: Record<string, string[]>;
   showNNumber: boolean;
   showSponsor: boolean;
+  showSetup: boolean;
+  showEquipment: boolean;
+  showStaffing: boolean;
+  showCatering: boolean;
   showHireSecurity: boolean;
+  showBookingTypes: boolean;
   agreements: Agreement[]; // innerHTML[]
   resources: Resource[];
   supportVIP: boolean;
@@ -33,15 +50,20 @@ export type SchemaContextType = {
 };
 
 export const SchemaContext = createContext<SchemaContextType>({
+  tenant: "",
   name: "",
   logo: "",
   nameForPolicy: "",
   policy: "",
-  programs: [],
   roles: [],
   showNNumber: true,
   showSponsor: true,
   showHireSecurity: true,
+  showSetup: true,
+  showEquipment: true,
+  showStaffing: true,
+  showCatering: true,
+  showBookingTypes: true,
   agreements: [],
   resources: [],
   supportVIP: false,
@@ -57,6 +79,20 @@ export const SchemaProvider: React.FC<{
   value: SchemaContextType;
   children: React.ReactNode;
 }> = ({ value, children }) => {
+  console.log("SchemaProvider: Setting context value (render):", {
+    tenant: value?.tenant,
+    name: value?.name,
+    resourcesCount: value?.resources?.length || 0,
+  });
+
+  useEffect(() => {
+    console.log("SchemaProvider: Context value after hydration:", {
+      tenant: value?.tenant,
+      name: value?.name,
+      resourcesCount: value?.resources?.length || 0,
+    });
+  }, [value]);
+
   return (
     <SchemaContext.Provider value={value}>{children}</SchemaContext.Provider>
   );

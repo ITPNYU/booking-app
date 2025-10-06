@@ -11,7 +11,10 @@
     "seed": "node prisma/seed.mjs",
     "test:unit": "vitest --run",
     "test:e2e": "npx playwright test",
-    "test:all": "npm run test:unit && npm run test:e2e"
+    "test:all": "npm run test:unit && npm run test:e2e",
+    "copy:staging": "node scripts/copyCollection.js --source-database development --target-database staging --source-collection tenantSchema --target-collection tenantSchema",
+    "copy:production": "node scripts/copyCollection.js --source-database development --target-database production --source-collection tenantSchema --target-collection tenantSchema",
+    "mergeUsers": "node scripts/mergeUsersCollections.js"
   },
   "dependencies": {
     "@emotion/styled": "^11.13.0",
@@ -27,6 +30,7 @@
     "@prisma/client": "^5.16.1",
     "@svgr/webpack": "^8.1.0",
     "@typescript-eslint/typescript-estree": "^7.16.0",
+    "@xstate/react": "^6.0.0",
     "axios": "^1.11.0",
     "bootstrap": "^5.3.3",
     "date-fns": "^3.6.0",
@@ -47,7 +51,8 @@
     "react-firebase-hooks": "^5.1.1",
     "react-hook-form": "^7.52.0",
     "styled-components": "^6.1.12",
-    "tailwind-datepicker-react": "^1.4.3"
+    "tailwind-datepicker-react": "^1.4.3",
+    "xstate": "^5.20.2"
   },
   "devDependencies": {
     "@next/eslint-plugin-next": "^14.2.4",
