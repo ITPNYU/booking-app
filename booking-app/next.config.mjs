@@ -57,6 +57,9 @@ const nextConfig = {
         'firebase/app': resolveStub('lib/firebase/stubs/firebaseAppStub.ts'),
         'firebase/auth': resolveStub('lib/firebase/stubs/firebaseAuthStub.ts'),
         'firebase/firestore': resolveStub('lib/firebase/stubs/firebaseFirestoreStub.ts'),
+        '@firebase/app': resolveStub('lib/firebase/stubs/firebaseAppStub.ts'),
+        '@firebase/auth': resolveStub('lib/firebase/stubs/firebaseAuthStub.ts'),
+        '@firebase/firestore': resolveStub('lib/firebase/stubs/firebaseFirestoreStub.ts'),
       };
     }
 
