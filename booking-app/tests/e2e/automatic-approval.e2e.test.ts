@@ -105,21 +105,67 @@ async function selectDropdown(page, label, optionText) {
 }
 
 async function selectRoomAndTime(page) {
-  await page.getByTestId('room-option-202').check();
+  const ROOM_ID = '202';
+  await page.getByTestId(`room-option-${ROOM_ID}`).check();
 
   const calendar = page.locator('[data-testid="booking-calendar-wrapper"]');
   await calendar.waitFor({ state: 'visible', timeout: 15000 });
 
-  const box = await calendar.boundingBox();
-  if (!box) throw new Error('Calendar bounding box unavailable');
+  // Pick a slot that starts one hour from "now" to keep the selection in the future.
+  const now = new Date();
+  now.setMinutes(0, 0, 0);
+  now.setHours(now.getHours() + 1);
 
-  const startX = box.x + box.width * 0.3;
-  const startY = box.y + box.height * 0.35;
-  const endY = startY + box.height * 0.12;
+  const EARLIEST_HOUR = 9;
+  const LATEST_START_HOUR = 21; // allows a one-hour block before closing
+  let startHour = now.getHours();
+  if (startHour < EARLIEST_HOUR) startHour = EARLIEST_HOUR;
+  if (startHour > LATEST_START_HOUR) startHour = LATEST_START_HOUR;
 
-  await page.mouse.move(startX, startY);
+  const endHour = startHour + 1;
+  const formatHour = (hour: number) => `${hour.toString().padStart(2, '0')}:00:00`;
+  const findSlot = async (hour: number) => {
+    const candidates = [
+      `[data-resource-id="${ROOM_ID}"][data-time="${formatHour(hour)}"]`,
+      `.fc-timegrid-slot.fc-timegrid-slot-lane[data-resource-id="${ROOM_ID}"][data-time="${formatHour(hour)}"]`,
+      `.fc-timegrid-slot.fc-timegrid-slot-lane[data-time="${formatHour(hour)}"]`,
+      `.fc-timegrid-slot.fc-timegrid-slot-lane[aria-label*="${hour % 12 === 0 ? 12 : hour % 12}"]`,
+      `[data-time="${formatHour(hour)}"]`,
+    ];
+
+    for (const selector of candidates) {
+      const slot = calendar.locator(selector).first();
+      if ((await slot.count()) > 0) {
+        return slot;
+      }
+    }
+    return null;
+  };
+
+  const startSlot = await findSlot(startHour);
+  const endSlot = await findSlot(endHour);
+
+  if (!startSlot || !endSlot) {
+    throw new Error(`Could not find time slots for range ${startHour}:00-${endHour}:00`);
+  }
+
+  await startSlot.scrollIntoViewIfNeeded();
+  await endSlot.scrollIntoViewIfNeeded();
+
+  const startBox = await startSlot.boundingBox();
+  const endBox = await endSlot.boundingBox();
+
+  if (!startBox || !endBox) {
+    throw new Error('Unable to determine calendar slot positions');
+  }
+
+  const mouseX = startBox.x + startBox.width / 2;
+  const startY = startBox.y + startBox.height / 2;
+  const endY = endBox.y + endBox.height / 2;
+
+  await page.mouse.move(mouseX, startY);
   await page.mouse.down();
-  await page.mouse.move(startX, endY, { steps: 8 });
+  await page.mouse.move(mouseX, endY, { steps: 8 });
   await page.mouse.up();
 }
 
