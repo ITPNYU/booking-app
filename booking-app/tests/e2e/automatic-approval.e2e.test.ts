@@ -1,4 +1,12 @@
 import { expect, test } from '@playwright/test';
+import {
+  addDoc,
+  collection,
+  doc,
+  setDoc,
+  Timestamp,
+} from '../../lib/firebase/stubs/firebaseFirestoreStub';
+import { BookingOrigin, BookingStatusLabel } from '../../components/src/types';
 import { registerBookingMocks } from './helpers/mock-routes';
 
 const BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:3000';
@@ -202,6 +210,206 @@ test.describe('Automatic Approval Booking Flow', () => {
   });
 
   test('should submit booking that qualifies for automatic approval', async ({ page }) => {
+    const sentEmails: any[] = [];
+    const calendarCreations: any[] = [];
+    const bookingHistoryEntries: any[] = [];
+    const createdBookings: any[] = [];
+    let requestNumberCounter = 10_000;
+    const jsonHeaders = {
+      'content-type': 'application/json',
+    };
+
+    const createTimestamp = (date: Date) => {
+      const ts = new Timestamp(date);
+      (ts as any).toMillis = () => date.getTime();
+      return ts;
+    };
+
+    await addDoc(collection({} as any, 'mc-usersRights'), {
+      email: 'test@nyu.edu',
+      createdAt: createTimestamp(new Date()),
+      isAdmin: true,
+      isWorker: false,
+      isEquipment: false,
+      isStaffing: false,
+      isLiaison: false,
+      isSetup: false,
+      isCatering: false,
+      isCleaning: false,
+      isSecurity: false,
+    });
+
+    await page.unroute('**/api/bookings').catch(() => {});
+    await page.route('**/api/bookings', async (route) => {
+      const method = route.request().method();
+
+      if (method === 'POST') {
+        const body = route.request().postDataJSON();
+        const startDate = body?.bookingCalendarInfo?.start
+          ? new Date(body.bookingCalendarInfo.start)
+          : new Date(Date.now() + 60 * 60 * 1000);
+        const endDate = body?.bookingCalendarInfo?.end
+          ? new Date(body.bookingCalendarInfo.end)
+          : new Date(startDate.getTime() + 60 * 60 * 1000);
+
+        const bookingId = `mock-booking-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
+        const calendarEventId = `mock-calendar-event-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
+        const requestNumber = requestNumberCounter++;
+        const selectedRoom = body?.selectedRooms?.[0];
+        const email = body?.email ?? body?.data?.missingEmail ?? 'test@nyu.edu';
+        const bookingInputs = {
+          secondaryName: '',
+          roomSetup: '',
+          setupDetails: '',
+          mediaServices: '',
+          mediaServicesDetails: '',
+          equipmentServices: '',
+          equipmentServicesDetails: '',
+          staffingServices: '',
+          staffingServicesDetails: '',
+          catering: '',
+          hireSecurity: '',
+          expectedAttendance: '',
+          cateringService: '',
+          cleaningService: '',
+          chartFieldForCatering: '',
+          chartFieldForCleaning: '',
+          chartFieldForSecurity: '',
+          chartFieldForRoomSetup: '',
+          webcheckoutCartNumber: undefined,
+          ...body?.data,
+        };
+
+        const bookingDoc = {
+          ...bookingInputs,
+          calendarEventId,
+          email,
+          startDate: createTimestamp(startDate),
+          endDate: createTimestamp(endDate),
+          roomId: selectedRoom?.roomId?.toString() ?? '202',
+          requestNumber,
+          equipmentCheckedOut: false,
+          requestedAt: createTimestamp(new Date()),
+          firstApprovedAt: createTimestamp(new Date(0)),
+          firstApprovedBy: '',
+          finalApprovedAt: createTimestamp(new Date(0)),
+          finalApprovedBy: '',
+          declinedAt: createTimestamp(new Date(0)),
+          declinedBy: '',
+          canceledAt: createTimestamp(new Date(0)),
+          canceledBy: '',
+          checkedInAt: createTimestamp(new Date(0)),
+          checkedInBy: '',
+          checkedOutAt: createTimestamp(new Date(0)),
+          checkedOutBy: '',
+          noShowedAt: createTimestamp(new Date(0)),
+          noShowedBy: '',
+          closedAt: createTimestamp(new Date(0)),
+          closedBy: '',
+          walkedInAt: createTimestamp(new Date(0)),
+          origin: body?.origin ?? BookingOrigin.WALK_IN,
+          status: BookingStatusLabel.REQUESTED,
+          xstateData: {
+            snapshot: {
+              value: 'Requested',
+            },
+          },
+        };
+
+        await setDoc(doc({} as any, 'mc-bookings', bookingId), bookingDoc);
+        createdBookings.push({ id: bookingId, ...bookingDoc });
+
+        const historyEntry = {
+          bookingId,
+          calendarEventId,
+          status: BookingStatusLabel.REQUESTED,
+          changedBy: email,
+          changedAt: createTimestamp(new Date()),
+          requestNumber,
+          note: 'Booking submitted for review',
+        };
+
+        await addDoc(collection({} as any, 'mc-bookingLogs'), historyEntry);
+        bookingHistoryEntries.push(historyEntry);
+
+        const calendarPayload = {
+          calendarEventId,
+          roomId: bookingDoc.roomId,
+          start: startDate.toISOString(),
+          end: endDate.toISOString(),
+        };
+        calendarCreations.push(calendarPayload);
+
+        const emailPayload = {
+          targetEmail: email,
+          requestNumber,
+          type: 'booking-request',
+        };
+        sentEmails.push(emailPayload);
+
+        await route.fulfill({
+          status: 200,
+          headers: jsonHeaders,
+          body: JSON.stringify({
+            success: true,
+            booking: {
+              bookingId,
+              requestNumber,
+              status: 'REQUESTED',
+              calendarEventId,
+            },
+          }),
+        });
+        return;
+      }
+
+      await route.fulfill({
+        status: 200,
+        headers: jsonHeaders,
+        body: JSON.stringify(createdBookings),
+      });
+    });
+
+    await page.unroute('**/api/calendarEvents**').catch(() => {});
+    await page.route('**/api/calendarEvents**', async (route) => {
+      if (route.request().method() === 'POST') {
+        const payload = route.request().postDataJSON();
+        calendarCreations.push(payload);
+        await route.fulfill({
+          status: 200,
+          headers: jsonHeaders,
+          body: JSON.stringify({ success: true, eventId: payload?.id ?? payload?.calendarEventId }),
+        });
+        return;
+      }
+
+      await route.fulfill({
+        status: 200,
+        headers: jsonHeaders,
+        body: JSON.stringify([]),
+      });
+    });
+
+    await page.unroute('**/api/sendEmail').catch(() => {});
+    await page.route('**/api/sendEmail', async (route) => {
+      if (route.request().method() === 'POST') {
+        const payload = route.request().postDataJSON();
+        sentEmails.push(payload);
+        await route.fulfill({
+          status: 200,
+          headers: jsonHeaders,
+          body: JSON.stringify({ success: true }),
+        });
+        return;
+      }
+
+      await route.fulfill({
+        status: 200,
+        headers: jsonHeaders,
+        body: JSON.stringify({ success: true }),
+      });
+    });
+
     await ensureRoleSelectionPage(page);
 
     await selectDropdown(page, 'Choose a Department', 'ITP / IMA / Low Res');
@@ -220,5 +428,18 @@ test.describe('Automatic Approval Booking Flow', () => {
     await page.getByRole('button', { name: 'Submit' }).click();
 
     await expect(page.getByRole('heading', { name: /Yay! We've received your/i })).toBeVisible();
+
+    await expect.poll(() => sentEmails.length).toBeGreaterThan(0);
+    const emailPayload = sentEmails.find((payload) => payload?.targetEmail || payload?.email) ?? sentEmails[0];
+    expect(emailPayload?.targetEmail ?? emailPayload?.email).toBe('test@nyu.edu');
+
+    await expect.poll(() => calendarCreations.length).toBeGreaterThan(0);
+    expect(calendarCreations[0].calendarEventId ?? calendarCreations[0].eventId ?? calendarCreations[0].id).toBeDefined();
+
+    await expect.poll(() => bookingHistoryEntries.length).toBeGreaterThan(0);
+    expect(bookingHistoryEntries[0].status).toBe(BookingStatusLabel.REQUESTED);
+
+    await expect.poll(() => createdBookings.length).toBeGreaterThan(0);
+    expect(createdBookings[0].status).toBe(BookingStatusLabel.REQUESTED);
   });
 });
