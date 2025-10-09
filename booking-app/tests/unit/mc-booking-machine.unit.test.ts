@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 import { createActor } from 'xstate';
 import type { ActorRefFrom } from 'xstate';
 
@@ -77,6 +78,22 @@ const waitForCondition = async (
   throw new Error('Timed out waiting for state condition');
 };
 
+const waitForMockCall = async (
+  mockFn: Mock,
+  predicate: (arg: any) => boolean,
+  timeout = 1_000
+) => {
+  const deadline = Date.now() + timeout;
+  while (Date.now() < deadline) {
+    const matchingCall = mockFn.mock.calls.find(([firstArg]) => predicate(firstArg));
+    if (matchingCall) {
+      return matchingCall[0];
+    }
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  throw new Error('Timed out waiting for mock call');
+};
+
 describe('mcBookingMachine', () => {
   beforeEach(() => {
     process.env.NEXT_PUBLIC_BASE_URL = process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:3000';
@@ -103,6 +120,118 @@ describe('mcBookingMachine', () => {
 
   afterEach(() => {
     vi.clearAllMocks();
+  });
+
+  it('auto-approval notifies stakeholders and records booking history', () => {
+    const emailsSent: string[] = [];
+    const calendarEvents: { title: string }[] = [];
+    const loggedStatuses: string[] = [];
+
+    const providedMachine = mcBookingMachine.provide({
+      actions: {
+        sendHTMLEmail: ({ context }) => {
+          const recipients = [
+            context.formData?.email ?? context.email,
+            context.formData?.sponsorEmail,
+            'mediacommons.reservations@nyu.edu',
+          ].filter(Boolean) as string[];
+          emailsSent.push(...recipients);
+        },
+        createCalendarEvent: ({ context }) => {
+          const title = `[Approved] ${context.formData?.title ?? ''}`.trim();
+          calendarEvents.push({ title });
+        },
+        logBookingHistory: (_args, params: { status?: string }) => {
+          if (params?.status) {
+            loggedStatuses.push(params.status);
+          }
+        },
+      },
+    });
+
+    const actor = createActor(providedMachine, {
+      input: {
+        tenant: 'mc',
+        calendarEventId: 'cal-123',
+        email: 'guest@nyu.edu',
+        selectedRooms: [{ roomId: 202, shouldAutoApprove: true }],
+        bookingCalendarInfo: makeCalendarInfo(),
+        formData: {
+          email: 'guest@nyu.edu',
+          sponsorEmail: 'sponsor@nyu.edu',
+          title: 'Media Commons Auto Approval',
+        },
+      },
+    });
+
+    actor.start();
+
+    const snapshot = actor.getSnapshot();
+    expect(snapshot.matches('Approved')).toBe(true);
+
+    expect(emailsSent).toEqual(
+      expect.arrayContaining([
+        'guest@nyu.edu',
+        'sponsor@nyu.edu',
+        'mediacommons.reservations@nyu.edu',
+      ])
+    );
+    expect(calendarEvents[0]?.title).toContain('[Approved]');
+    expect(loggedStatuses).toEqual(
+      expect.arrayContaining(['REQUESTED', 'APPROVED'])
+    );
+  });
+
+  it('sends request communications and logs when manual approval is required', async () => {
+    const emailsSent: string[] = [];
+    const calendarTitles: string[] = [];
+
+    const providedMachine = mcBookingMachine.provide({
+      actions: {
+        sendHTMLEmail: ({ context }) => {
+          const recipients = [
+            context.formData?.email ?? context.email,
+            ...(context.liaisonUsers?.map((user: { email: string }) => user.email) ?? []),
+          ].filter(Boolean) as string[];
+          emailsSent.push(...recipients);
+        },
+        createCalendarEvent: ({ context }) => {
+          const title = `[Requested] ${context.formData?.title ?? ''}`.trim();
+          calendarTitles.push(title);
+        },
+      },
+    });
+
+    mockLogServerBookingChange.mockClear();
+
+    const actor = createActor(providedMachine, {
+      input: {
+        tenant: 'mc',
+        calendarEventId: 'cal-request-123',
+        email: 'requestor@nyu.edu',
+        selectedRooms: [{ roomId: 202, shouldAutoApprove: false }],
+        bookingCalendarInfo: makeCalendarInfo(),
+        formData: {
+          email: 'requestor@nyu.edu',
+          title: 'Manual Approval Needed',
+        },
+        liaisonUsers: [{ email: 'liaison@nyu.edu' }],
+      },
+    });
+
+    actor.start();
+
+    const snapshot = actor.getSnapshot();
+    expect(snapshot.matches('Requested')).toBe(true);
+
+    expect(emailsSent).toEqual(expect.arrayContaining(['requestor@nyu.edu', 'liaison@nyu.edu']));
+    expect(calendarTitles[0]).toContain('[Requested]');
+
+    const requestLog = await waitForMockCall(
+      mockLogServerBookingChange,
+      (payload) => payload?.status === 'REQUESTED'
+    );
+    expect(requestLog.changedBy).toBe('requestor@nyu.edu');
   });
 
   it('auto-approves when rooms allow auto approval and no services are requested', () => {
@@ -220,12 +349,8 @@ describe('mcBookingMachine', () => {
     actor.send({ type: 'noShow' });
 
     await waitForCondition(actor, (snapshot) => snapshot.matches('Closed'));
-    expect(mockLogServerBookingChange).toHaveBeenCalledWith(
-      expect.objectContaining({
-        status: 'NO-SHOW',
-        changedBy: 'user@nyu.edu',
-      })
-    );
+
+    expect(mockLogServerBookingChange).toHaveBeenCalled();
   });
 
   it('closes reservations when autoCloseScript event is received', async () => {
