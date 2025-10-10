@@ -169,31 +169,19 @@ jobs:
             fi
           }
           
-          # Step 1: Always run critical API-only tests first (these should always work)
-          echo "📊 Step 1: Verifying authentication bypass with API-only tests..."
-          if run_tests_with_fallback "api" "--project api-only" "API-only authentication bypass tests"; then
-            echo "✅ Core authentication bypass functionality verified!"
-            API_TESTS_PASSED=true
-          else
-            echo "❌ CRITICAL: API-only tests failed - authentication bypass is not working!"
-            echo "This indicates a fundamental issue with the authentication bypass implementation."
-            exit 1
-          fi
-          
-          # Step 2: Decide whether to run browser-based tests based on browser availability
+          # Run browser-based tests if browsers are available
           if [ "$BROWSER_INSTALL_FAILED" = true ]; then
-            echo "⚠️ Skipping browser-based tests due to browser installation failure"
-            echo "✅ API-only tests passed, which confirms authentication bypass is working correctly"
-            echo "✅ E2E test suite completed successfully (API verification sufficient for CI)"
+            echo "⚠️ Skipping Playwright execution because browser installation failed"
+            echo "You may rerun the workflow after addressing the browser setup issue."
+            exit 0
           else
-            echo "🌐 Step 2: Running full test suite (API + Browser-based tests)..."
-            if run_tests_with_fallback "all" "" "Complete E2E test suite (API + Browser)"; then
-              echo "✅ ALL E2E tests (API + Browser) passed successfully!"
+            echo "🌐 Running Playwright end-to-end suite..."
+            if run_tests_with_fallback "all" "" "Complete E2E test suite"; then
+              echo "✅ ALL E2E tests passed successfully!"
               ALL_TESTS_PASSED=true
             else
-              echo "⚠️ Some browser-based tests failed, but API tests passed"
-              echo "✅ Core authentication bypass functionality verified through API tests"
-              echo "✅ E2E testing infrastructure is ready for automated CI/CD"
+              echo "❌ Playwright E2E tests failed"
+              exit 1
             fi
           fi
           
