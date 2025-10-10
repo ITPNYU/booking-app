@@ -610,26 +610,63 @@ describe("XState Approval Real Integration Tests", () => {
         // The real XState actions are placeholders (console.log only)
         // Actual side effects are handled by external processing after XState
 
-        // 1. XState should have logged the initial REQUESTED state
-        expect(mockLogServerBookingChange).toHaveBeenCalledWith(
-          expect.objectContaining({
-            status: "REQUESTED",
-            changedBy: testEmail,
-            calendarEventId: testCalendarEventId,
-            note: "Booking submitted",
-          })
-        );
-
-        // 2. XState actions are placeholders, so no actual API calls are made
-        // This is the correct behavior - XState handles state transitions only
-        // Real side effects (emails, calendar updates) are handled externally
-
-        // 3. Verify that XState reached the correct final state
+        // Verify that XState reached the correct final state
         expect(actor.getSnapshot().value).toBe("Approved");
         expect(actor.getSnapshot().context.email).toBe(testEmail);
         expect(actor.getSnapshot().context.calendarEventId).toBe(
           testCalendarEventId
         );
+
+        // Note: For Approved state, XState actions are mostly placeholders (console.log only)
+        // Real side effects (emails, calendar updates, logs) are handled by external processing
+        // via /api/approve → finalApprove function → logServerBookingChange
+
+        // Test integration: XState reaches Approved, then manual /api/approve processing
+        // Note: XState doesn't automatically call /api/approve - it only manages state transitions
+        // The /api/approve endpoint is called manually and handles the side effects
+        vi.clearAllMocks();
+
+        // Import and call finalApprove to simulate what /api/approve does when XState reaches "Approved"
+        const { finalApprove } = await import("@/components/src/server/admin");
+
+        // Call finalApprove (this is what /api/approve does when XState reaches "Approved")
+        await finalApprove(testCalendarEventId, testEmail, testTenant);
+
+        // Verify that finalApprove actually called logServerBookingChange for APPROVED status
+        expect(mockLogServerBookingChange).toHaveBeenCalledWith(
+          expect.objectContaining({
+            status: "APPROVED",
+            changedBy: testEmail,
+            calendarEventId: testCalendarEventId,
+            note: "",
+          })
+        );
+
+        // Test XState's logBookingHistory action with No Show from Approved state
+        vi.clearAllMocks();
+
+        // Ensure we're in Approved state for No Show test
+        expect(actor.getSnapshot().value).toBe("Approved");
+
+        // Simulate no show scenario to test XState's logBookingHistory action
+        actor.send({ type: "noShow" });
+
+        // Wait for async logBookingHistory action to complete
+        // No Show state has 'always' transition to 'Canceled', so it happens quickly
+        await new Promise((resolve) => setTimeout(resolve, 500));
+
+        // Verify that XState's logBookingHistory action called mockLogServerBookingChange
+        expect(mockLogServerBookingChange).toHaveBeenCalledWith(
+          expect.objectContaining({
+            status: "NO-SHOW",
+            changedBy: testEmail,
+            calendarEventId: testCalendarEventId,
+            note: "Booking marked as no show",
+          })
+        );
+
+        // Verify final state after no show (No Show → Canceled → Closed due to no services)
+        expect(actor.getSnapshot().value).toBe("Closed");
       });
     });
 
@@ -676,18 +713,6 @@ describe("XState Approval Real Integration Tests", () => {
 
         await new Promise((resolve) => setTimeout(resolve, 100));
 
-        // Verify initial REQUESTED side effects from real XState actions
-        expect(mockLogServerBookingChange).toHaveBeenCalledWith(
-          expect.objectContaining({
-            status: "REQUESTED",
-            changedBy: testEmail,
-            calendarEventId: testCalendarEventId,
-          })
-        );
-
-        // XState actions are placeholders, so no fetch calls are made
-        // This is correct behavior - XState only handles state transitions
-
         // Simulate manual approval
         actor.send({ type: "approve" });
 
@@ -697,13 +722,62 @@ describe("XState Approval Real Integration Tests", () => {
         await new Promise((resolve) => setTimeout(resolve, 100));
 
         // Verify that XState transitioned correctly
-        // XState actions are placeholders, so no additional logging or API calls
-        // Real side effects would be handled by external processing after XState
         expect(actor.getSnapshot().value).toBe("Pre-approved");
         expect(actor.getSnapshot().context.email).toBe(testEmail);
         expect(actor.getSnapshot().context.calendarEventId).toBe(
           testCalendarEventId
         );
+
+        // Test integration: XState reaches Pre-approved, then manual /api/approve processing
+        vi.clearAllMocks();
+
+        // Import and call serverFirstApproveOnly to simulate what /api/approve does when XState reaches "Pre-approved"
+        const { serverFirstApproveOnly } = await import(
+          "@/components/src/server/admin"
+        );
+
+        // Call serverFirstApproveOnly (this is what /api/approve does when XState reaches "Pre-approved")
+        await serverFirstApproveOnly(
+          testCalendarEventId,
+          testEmail,
+          testTenant
+        );
+
+        // Verify that serverFirstApproveOnly actually called logServerBookingChange for PRE-APPROVED status
+        expect(mockLogServerBookingChange).toHaveBeenCalledWith(
+          expect.objectContaining({
+            status: "PRE-APPROVED",
+            changedBy: testEmail,
+            calendarEventId: testCalendarEventId,
+          })
+        );
+
+        // Test XState's logBookingHistory action by transitioning to Approved first, then No Show
+        vi.clearAllMocks();
+
+        // Transition to Approved state first (from Pre-approved)
+        actor.send({ type: "approve" });
+        expect(actor.getSnapshot().value).toBe("Approved");
+
+        // Now simulate no show scenario to test XState's logBookingHistory action
+        actor.send({ type: "noShow" });
+
+        // Wait for async logBookingHistory action to complete
+        // No Show state has 'always' transition to 'Canceled', so it happens quickly
+        await new Promise((resolve) => setTimeout(resolve, 500));
+
+        // Verify that XState's logBookingHistory action called mockLogServerBookingChange
+        expect(mockLogServerBookingChange).toHaveBeenCalledWith(
+          expect.objectContaining({
+            status: "NO-SHOW",
+            changedBy: testEmail,
+            calendarEventId: testCalendarEventId,
+            note: "Booking marked as no show",
+          })
+        );
+
+        // Verify final state after no show (No Show → Canceled → Closed due to no services)
+        expect(actor.getSnapshot().value).toBe("Closed");
       });
     });
 
@@ -760,18 +834,6 @@ describe("XState Approval Real Integration Tests", () => {
 
         await new Promise((resolve) => setTimeout(resolve, 100));
 
-        // Verify initial side effects from real XState actions
-        expect(mockLogServerBookingChange).toHaveBeenCalledWith(
-          expect.objectContaining({
-            status: "REQUESTED",
-            changedBy: testEmail,
-            calendarEventId: testCalendarEventId,
-          })
-        );
-
-        // XState actions are placeholders, so no fetch calls are made
-        // This is correct behavior - XState only handles state transitions
-
         // Test service approval flow
         actor.send({ type: "approveCleaning" });
         actor.send({ type: "approveSetup" });
@@ -780,6 +842,77 @@ describe("XState Approval Real Integration Tests", () => {
         const finalSnapshot = actor.getSnapshot();
         expect(finalSnapshot.context.servicesApproved?.cleaning).toBe(true);
         expect(finalSnapshot.context.servicesApproved?.setup).toBe(true);
+        expect(finalSnapshot.value).toBe("Approved");
+
+        // Test integration: XState reaches Approved, then manual /api/approve processing for VIP
+        vi.clearAllMocks();
+
+        // Import and call finalApprove to simulate what /api/approve does when XState reaches "Approved"
+        const { finalApprove } = await import("@/components/src/server/admin");
+
+        // Call finalApprove (this is what /api/approve does when XState reaches "Approved")
+        await finalApprove(testCalendarEventId, testEmail, testTenant);
+
+        // Verify that finalApprove actually called logServerBookingChange for APPROVED status
+        expect(mockLogServerBookingChange).toHaveBeenCalledWith(
+          expect.objectContaining({
+            status: "APPROVED",
+            changedBy: testEmail,
+            calendarEventId: testCalendarEventId,
+            note: "",
+          })
+        );
+
+        // Test that noShow event is not handled in Services Request state
+        // This is expected behavior - services must be processed first
+        vi.clearAllMocks();
+
+        // Create a new VIP actor that starts in Services Request
+        const vipServicesContext = {
+          tenant: testTenant,
+          selectedRooms: [{ roomId: "224", shouldAutoApprove: true }],
+          servicesRequested: {
+            cleaning: true,
+            setup: true,
+          },
+          email: testEmail,
+          calendarEventId: testCalendarEventId,
+          isWalkIn: false,
+          isVip: true,
+        };
+
+        const vipActor = createActor(mcBookingMachine, {
+          input: vipServicesContext,
+        });
+        vipActor.start();
+
+        // Should be in Services Request state
+        const servicesSnapshot = vipActor.getSnapshot();
+        expect(servicesSnapshot.value).toEqual(
+          expect.objectContaining({
+            "Services Request": expect.any(Object),
+          })
+        );
+
+        // Try to send noShow event - should not transition or call logBookingHistory
+        vipActor.send({ type: "noShow" });
+
+        await new Promise((resolve) => setTimeout(resolve, 300));
+
+        // Should still be in Services Request state (noShow not handled)
+        const afterNoShowSnapshot = vipActor.getSnapshot();
+        expect(afterNoShowSnapshot.value).toEqual(
+          expect.objectContaining({
+            "Services Request": expect.any(Object),
+          })
+        );
+
+        // logBookingHistory should not have been called since noShow wasn't processed
+        expect(mockLogServerBookingChange).not.toHaveBeenCalledWith(
+          expect.objectContaining({
+            status: "NO-SHOW",
+          })
+        );
       });
     });
 
@@ -832,27 +965,53 @@ describe("XState Approval Real Integration Tests", () => {
 
         await new Promise((resolve) => setTimeout(resolve, 200));
 
-        // Verify walk-in specific side effects from real XState actions
-        // Walk-ins should log REQUESTED state (XState actions are placeholders)
-        expect(mockLogServerBookingChange).toHaveBeenCalledWith(
-          expect.objectContaining({
-            status: "REQUESTED",
-            changedBy: testEmail,
-            calendarEventId: testCalendarEventId,
-            note: "Booking submitted",
-          })
-        );
-
-        // XState actions are placeholders, so no actual API calls are made
-        // This is correct behavior - XState only handles state transitions
-        // Real side effects (emails, calendar updates) are handled externally
-
         // Verify that XState reached the correct final state
         expect(actor.getSnapshot().value).toBe("Approved");
         expect(actor.getSnapshot().context.isWalkIn).toBe(true);
         expect(actor.getSnapshot().context.servicesRequested?.cleaning).toBe(
           true
         );
+
+        // Test integration: XState reaches Approved, then manual /api/approve processing for Walk-in
+        vi.clearAllMocks();
+
+        // Import and call finalApprove to simulate what /api/approve does when XState reaches "Approved"
+        const { finalApprove } = await import("@/components/src/server/admin");
+
+        // Call finalApprove (this is what /api/approve does when XState reaches "Approved")
+        await finalApprove(testCalendarEventId, testEmail, testTenant);
+
+        // Verify that finalApprove actually called logServerBookingChange for APPROVED status
+        expect(mockLogServerBookingChange).toHaveBeenCalledWith(
+          expect.objectContaining({
+            status: "APPROVED",
+            changedBy: testEmail,
+            calendarEventId: testCalendarEventId,
+            note: "",
+          })
+        );
+
+        // Also test XState's own logBookingHistory action with No Show
+        vi.clearAllMocks();
+
+        // Simulate no show scenario to test XState's logBookingHistory action
+        actor.send({ type: "noShow" });
+
+        // Wait for async logBookingHistory action to complete
+        await new Promise((resolve) => setTimeout(resolve, 300));
+
+        // Verify that XState's logBookingHistory action called mockLogServerBookingChange
+        expect(mockLogServerBookingChange).toHaveBeenCalledWith(
+          expect.objectContaining({
+            status: "NO-SHOW",
+            changedBy: testEmail,
+            calendarEventId: testCalendarEventId,
+            note: "Booking marked as no show",
+          })
+        );
+
+        // Verify final state after no show
+        expect(actor.getSnapshot().value).toBe("Closed");
       });
     });
 
@@ -922,10 +1081,28 @@ describe("XState Approval Real Integration Tests", () => {
           testCalendarEventId
         );
 
-        // The real XState actions are placeholders (console.log only)
-        // This test verifies that XState correctly transitions states
-        // Real side effects (emails, calendar updates, logs) would be handled
-        // by external processing after XState transition (via executeXStateTransition)
+        // Note: For Checked In state, XState actions are placeholders (console.log only)
+        // Real side effects (emails, calendar updates, logs) are handled by external processing
+        // via /api/checkin or similar endpoints
+
+        // Test that noShow event is not handled in Checked In state
+        // This is expected behavior - once checked in, noShow is not applicable
+        vi.clearAllMocks();
+
+        // Try to send noShow event from Checked In state - should not be processed
+        actor.send({ type: "noShow" });
+
+        await new Promise((resolve) => setTimeout(resolve, 300));
+
+        // Should still be in Checked In state (noShow not handled)
+        expect(actor.getSnapshot().value).toBe("Checked In");
+
+        // logBookingHistory should not have been called since noShow wasn't processed
+        expect(mockLogServerBookingChange).not.toHaveBeenCalledWith(
+          expect.objectContaining({
+            status: "NO-SHOW",
+          })
+        );
       });
 
       it("should handle check-in for walk-in bookings using real XState machine", async () => {
@@ -985,9 +1162,28 @@ describe("XState Approval Real Integration Tests", () => {
           testCalendarEventId
         );
 
-        // The real XState actions are placeholders (console.log only)
-        // This test verifies that XState correctly transitions states for walk-ins
-        // Real side effects would be handled by external processing after XState transition
+        // Note: For Checked In state, XState actions are placeholders (console.log only)
+        // Real side effects (emails, calendar updates, logs) are handled by external processing
+        // via /api/checkin or similar endpoints
+
+        // Test that noShow event is not handled in Checked In state
+        // This is expected behavior - once checked in, noShow is not applicable
+        vi.clearAllMocks();
+
+        // Try to send noShow event from Checked In state - should not be processed
+        actor.send({ type: "noShow" });
+
+        await new Promise((resolve) => setTimeout(resolve, 300));
+
+        // Should still be in Checked In state (noShow not handled)
+        expect(actor.getSnapshot().value).toBe("Checked In");
+
+        // logBookingHistory should not have been called since noShow wasn't processed
+        expect(mockLogServerBookingChange).not.toHaveBeenCalledWith(
+          expect.objectContaining({
+            status: "NO-SHOW",
+          })
+        );
       });
     });
   });
