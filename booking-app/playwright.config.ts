@@ -117,16 +117,6 @@ export default defineConfig({
       },
     },
 
-    // API-only project that doesn't require browser installation
-    {
-      name: 'api-only',
-      testMatch: '**/api-only.e2e.test.ts',
-      use: {
-        // API tests don't need browser-specific configurations
-        baseURL: 'http://localhost:3000',
-      },
-    },
-
     // Use case flows project for comprehensive E2E testing
     {
       name: 'use-case-flows',
