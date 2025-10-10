@@ -411,8 +411,9 @@ export default function CalendarVerticalResource({
   // don't use these values until we talk to Samantha/Jhanele
 
   return (
-    <FullCalendarWrapper>
+    <FullCalendarWrapper data-testid="booking-calendar-wrapper">
       <FullCalendar
+        data-testid="booking-calendar"
         initialDate={dateView}
         initialView="resourceTimeGridDay"
         plugins={[

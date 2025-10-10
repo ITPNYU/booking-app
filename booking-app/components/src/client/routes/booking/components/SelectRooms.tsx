@@ -130,7 +130,10 @@ export const SelectRooms = ({
               <Checkbox
                 checked={selectedIds.includes(room.roomId)}
                 onChange={(e) => handleCheckChange(e, room)}
-                inputProps={{ "aria-label": "controlled" }}
+                inputProps={{
+                  "aria-label": `${room.roomId} ${room.name}`,
+                  'data-testid': `room-option-${room.roomId}`,
+                }}
                 disabled={disabled}
               />
             }

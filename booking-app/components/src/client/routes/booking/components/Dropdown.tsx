@@ -8,16 +8,18 @@ interface DropdownProps<T extends React.ReactNode> {
   options: T[];
   placeholder: string;
   sx?: SxProps<Theme>;
+  dataTestId?: string;
 }
 
 export default function Dropdown<T extends string>(props: DropdownProps<T>) {
-  const { value, updateValue, options, placeholder, sx } = props;
+  const { value, updateValue, options, placeholder, sx, dataTestId } = props;
 
   return (
     <Select
       size="small"
       value={value != null ? value : ''}
       onChange={(e) => updateValue(e.target.value as T)}
+      data-testid={dataTestId}
       renderValue={(selected) => {
         if (selected === '') {
           return <p style={{ color: 'gray' }}>{placeholder}</p>;
@@ -27,9 +29,24 @@ export default function Dropdown<T extends string>(props: DropdownProps<T>) {
       sx={sx}
       displayEmpty
       fullWidth
+      MenuProps={
+        dataTestId
+          ? {
+              PaperProps: {
+                'data-testid': `${dataTestId}-menu`,
+              },
+            }
+          : undefined
+      }
     >
       {options.map((label, index) => (
-        <MenuItem key={index} value={label as string}>
+        <MenuItem
+          key={index}
+          value={label as string}
+          data-testid={
+            dataTestId ? `${dataTestId}-option-${index}` : undefined
+          }
+        >
           {label}
         </MenuItem>
       ))}

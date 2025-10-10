@@ -513,6 +513,7 @@ export default function FormInput({
             options={settings.bookingTypes
               .map((x) => x.bookingType)
               .sort((a, b) => a.localeCompare(b))}
+            dataTestId="booking-type-select"
             {...{ control, errors, trigger }}
           />
         )}
@@ -540,6 +541,7 @@ export default function FormInput({
               .
             </p>
           }
+          dataTestId="attendee-affiliation-select"
           {...{ control, errors, trigger }}
         />
       </Section>
