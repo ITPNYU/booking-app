@@ -1,4 +1,4 @@
-import { MoreHoriz, TableBar, Headset, PeopleAlt, LocalDining, CleaningServices, LocalPolice, CheckCircle, Cancel, DoneAll, Recommend } from "@mui/icons-material";
+import { MoreHoriz, TableBar, Headset, PeopleAlt, LocalDining, CleaningServices, LocalPolice, CheckCircle, Cancel, DoneAll, Recommend, HourglassTop, Check, Close } from "@mui/icons-material";
 import {
   Box,
   IconButton,
@@ -411,29 +411,27 @@ export const Bookings: React.FC<BookingsProps> = ({
                       
                       return (
                         <Tooltip key={label} title={label} placement="top">
-                          <span style={{ display: "flex", flexDirection : "column", alignItems : "center", gap : "2px", background : "rgba(0, 0, 0, 0.02)", padding : "4px 6px", borderRadius : "6px" }}>
+                          <span style={{ display: "flex", flexDirection : "column", alignItems : "center", gap : "2px", background : (requested && approved === undefined) ? "rgba(255, 26, 26, 0.08)" : "transparent",  padding : "4px 6px", borderRadius : "6px" }}>
                             <Icon style={{ fontSize: "18px", color: colorFor(requested) }} />
                             {showApprovalBadge && !showCloseoutBadge && (
                               <>
                                 {approved === true ? (
-                                  <CheckCircle 
+                                  <Check 
                                     style={{ 
-                                      fontSize: "14px", 
-                                      color: "#01aa34ff", 
+                                      fontSize: "10px", 
+                                      color: "rgba(72, 196, 77, 1)", 
                                       bottom: "-6px", 
                                       right: "-6px",
-                                      background: "white",
                                       borderRadius: "50%"
                                     }} 
                                   />
                                 ) : (
-                                  <Cancel 
+                                  <Close 
                                     style={{ 
-                                      fontSize: "14px", 
-                                      color: "#f44336",
+                                      fontSize: "10px", 
+                                      color: "rgba(255, 26, 26, 1)",
                                       bottom: "-6px", 
                                       right: "-6px",
-                                      background: "white",
                                       borderRadius: "50%"
                                     }} 
                                   />
@@ -443,12 +441,22 @@ export const Bookings: React.FC<BookingsProps> = ({
                             {showCloseoutBadge && (
                               <DoneAll
                                 style={{ 
-                                  fontSize: "14px", 
+                                  fontSize: "10px", 
                                   color: "#333333", 
                                   bottom: "-6px", 
                                   right: "-6px",
-                                  background: "none",
                                   borderRadius: "50%",
+                                }} 
+                              />
+                            )}
+                            {(requested && approved === undefined) && (
+                              <HourglassTop
+                                style={{ 
+                                  fontSize: "10px", 
+                                  color: "#333333", 
+                                  bottom: "-6px", 
+                                  right: "-6px",
+                                  borderRadius: "50%"
                                 }} 
                               />
                             )}
