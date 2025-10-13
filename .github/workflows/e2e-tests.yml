@@ -12,7 +12,7 @@ permissions:
 jobs:
   e2e-tests:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
 
     steps:
       - name: Checkout repository
@@ -32,12 +32,12 @@ jobs:
         run: |
           cd booking-app
           echo "🔧 Setting up Playwright browser installation with enhanced error handling..."
-          
+
           # Set environment variables for better browser installation
           export PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=0
           export PLAYWRIGHT_BROWSERS_PATH=0
           export DEBIAN_FRONTEND=noninteractive
-          
+
           # Function to clean up failed installations
           cleanup_playwright() {
             echo "🧹 Cleaning up partial browser installations..."
@@ -45,7 +45,7 @@ jobs:
             rm -rf ~/.cache/ms-playwright/firefox* 2>/dev/null || true
             rm -rf ~/.cache/ms-playwright/webkit* 2>/dev/null || true
           }
-          
+
           # Function to install system browsers as fallback
           install_system_browsers() {
             echo "📦 Installing system browsers as fallback..."
@@ -58,15 +58,15 @@ jobs:
               chromium-browser --version || true
             fi
           }
-          
+
           # Try to install Playwright browsers with multiple strategies
           echo "🎭 Attempting to install Playwright browsers..."
-          
+
           # Strategy 1: Install system browsers first for a reliable fallback
           install_system_browsers
-          
-          # Strategy 2: Try installing just Chromium with dependencies
-          if timeout 600 npx playwright install chromium --with-deps; then
+
+          # Strategy 2: Try installing just Chromium with dependencies (faster install)
+          if timeout 300 npx playwright install chromium --with-deps; then
             echo "✅ Playwright Chromium installed successfully"
           else
             echo "⚠️ Playwright browser installation failed, using system browsers only"
@@ -80,13 +80,13 @@ jobs:
             # Create a flag file to indicate browser installation failure
             touch ~/.playwright-browser-install-failed
           fi
-          
+
           # Verify browser availability
           echo "🔍 Verifying browser availability..."
           if command -v chromium-browser >/dev/null 2>&1; then
             echo "✅ System Chromium available: $(chromium-browser --version)"
           fi
-          
+
           if [ -d ~/.cache/ms-playwright/ ]; then
             echo "✅ Playwright cache directory exists"
             ls -la ~/.cache/ms-playwright/ || true
@@ -110,10 +110,10 @@ jobs:
           NEXT_PUBLIC_MEASUREMENT_ID=test-measurement-id \
           NEXT_PUBLIC_BRANCH_NAME=development-local \
           npm run dev &
-          
-          # Wait for server to be ready
-          timeout 120 bash -c 'until curl -f http://localhost:3000/api/isTestEnv; do sleep 2; done'
-        
+
+          # Wait for server to be ready (reduced timeout)
+          timeout 60 bash -c 'until curl -f http://localhost:3000/api/isTestEnv; do sleep 2; done'
+
       - name: Run E2E tests with comprehensive error handling
         env:
           BYPASS_AUTH: true
@@ -128,20 +128,20 @@ jobs:
           NEXT_PUBLIC_BRANCH_NAME: development-local
         run: |
           cd booking-app
-          
+
           echo "🚀 Starting comprehensive E2E test execution..."
           echo "Environment variables:"
           echo "  BYPASS_AUTH: $BYPASS_AUTH"
           echo "  E2E_TESTING: $E2E_TESTING"
           echo "  NODE_ENV: $NODE_ENV"
-          
+
           # Check if browser installation failed
           BROWSER_INSTALL_FAILED=false
           if [ -f ~/.playwright-browser-install-failed ]; then
             echo "⚠️ Playwright browser installation failed, using API-only testing strategy"
             BROWSER_INSTALL_FAILED=true
           fi
-          
+
           # Function to run tests with fallback strategies
           run_tests_with_fallback() {
             local test_type="$1"
@@ -151,7 +151,7 @@ jobs:
             echo "🧪 Running $description..."
             
             if [ -n "$test_options" ]; then
-              if npx playwright test $test_options --reporter=list --output=stdout; then
+              if npx playwright test $test_options --reporter=list --output=stdout --workers=2 --max-failures=3; then
                 echo "✅ $description PASSED"
                 return 0
               else
@@ -159,7 +159,7 @@ jobs:
                 return 1
               fi
             else
-              if npx playwright test --reporter=list --output=stdout; then
+              if npx playwright test --reporter=list --output=stdout --workers=2 --max-failures=3; then
                 echo "✅ $description PASSED"
                 return 0
               else
@@ -168,7 +168,7 @@ jobs:
               fi
             fi
           }
-          
+
           # Run browser-based tests if browsers are available
           if [ "$BROWSER_INSTALL_FAILED" = true ]; then
             echo "⚠️ Skipping Playwright execution because browser installation failed"
@@ -184,7 +184,7 @@ jobs:
               exit 1
             fi
           fi
-          
+
           # Final verification
           if [ "$API_TESTS_PASSED" = true ]; then
             echo ""
