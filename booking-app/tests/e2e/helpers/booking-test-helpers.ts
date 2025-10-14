@@ -17,6 +17,15 @@ export interface BookingFormData {
   expectedAttendance: string;
   description: string;
   netId?: string; // For walk-in and VIP bookings
+  firstName?: string;
+  lastName?: string;
+  nNumber?: string;
+  phoneNumber?: string;
+  sponsorFirstName?: string;
+  sponsorLastName?: string;
+  sponsorEmail?: string;
+  bookingType?: string;
+  attendeeAffiliation?: string;
 }
 
 export interface ServicesRequested {
@@ -38,6 +47,273 @@ export interface BookingOptions {
 
 export class BookingTestHelper {
   constructor(private page: Page) {}
+
+  /**
+   * Navigate to role selection page with authentication bypass
+   * This handles the common flow: /mc -> Request a Reservation -> I accept -> /mc/book/role
+   */
+  async navigateToRoleSelection(
+    baseUrl: string = "http://localhost:3000"
+  ): Promise<void> {
+    await this.page.goto(`${baseUrl}/mc/book/role`, {
+      waitUntil: "domcontentloaded",
+    });
+    await this.page.waitForLoadState("networkidle");
+
+    // If we're redirected to the main MC page, go through the booking flow
+    if (this.page.url().endsWith("/mc") || this.page.url().endsWith("/mc/")) {
+      const requestButton = this.page.getByRole("button", {
+        name: /Request a Reservation/i,
+      });
+      await requestButton.waitFor({ state: "visible", timeout: 15000 });
+      await requestButton.click();
+
+      await this.page.waitForURL("**/mc/book", { timeout: 15000 });
+      const acceptButton = this.page.getByRole("button", {
+        name: /^I accept$/i,
+      });
+      await acceptButton.waitFor({ state: "visible", timeout: 15000 });
+      await acceptButton.click();
+
+      await this.page.waitForURL("**/mc/book/role", { timeout: 15000 });
+      await this.page.waitForLoadState("networkidle");
+    }
+
+    // Wait for department dropdown to be ready using data-testid
+    const departmentLocator = this.page.getByTestId("department-select");
+    await departmentLocator.waitFor({ state: "visible", timeout: 30000 });
+  }
+
+  /**
+   * Select dropdown option using data-testid or fallback to text-based selector
+   */
+  async selectDropdown(label: string, optionText: string): Promise<void> {
+    const DROPDOWN_TEST_IDS: Record<string, string> = {
+      "Choose a Department": "department-select",
+      "Choose a Role": "role-select",
+      "Booking Type": "booking-type-select",
+      "Attendee Affiliation(s)": "attendee-affiliation-select",
+    };
+
+    const DROPDOWN_OPTION_INDEX: Record<string, Record<string, number>> = {
+      "Choose a Department": {
+        "ITP / IMA / Low Res": 0,
+        "General Department": 1,
+      },
+      "Choose a Role": {
+        Student: 0,
+        Faculty: 1,
+        Staff: 2,
+      },
+      "Booking Type": {
+        "Class Session": 0,
+        "General Event": 1,
+      },
+      "Attendee Affiliation(s)": {
+        "NYU Members with an active NYU ID": 0,
+        "Non-NYU guests": 1,
+        "All of the above": 2,
+      },
+    };
+
+    const testId = DROPDOWN_TEST_IDS[label] ?? undefined;
+
+    if (testId) {
+      // Wait for dropdown to be visible and interactable
+      const dropdown = this.page.getByTestId(testId);
+      await dropdown.waitFor({ state: "visible", timeout: 30000 });
+      await dropdown.click();
+      await this.chooseOption(testId, optionText, DROPDOWN_OPTION_INDEX);
+      return;
+    }
+
+    // Fallback to text-based selector with increased timeout
+    const trigger = this.page.getByText(label, { exact: false }).first();
+    await trigger.waitFor({ state: "visible", timeout: 30000 });
+    await trigger.click();
+    await this.chooseOption(undefined, optionText, DROPDOWN_OPTION_INDEX);
+  }
+
+  /**
+   * Choose option from dropdown menu
+   */
+  private async chooseOption(
+    menuTestId: string | undefined,
+    optionText: string,
+    optionIndex: Record<string, Record<string, number>>
+  ): Promise<void> {
+    if (menuTestId) {
+      const menu = this.page.getByTestId(`${menuTestId}-menu`);
+      await menu.waitFor({ state: "visible", timeout: 15000 });
+
+      const labelFromTestId = (testId: string): string => {
+        const DROPDOWN_TEST_IDS: Record<string, string> = {
+          "Choose a Department": "department-select",
+          "Choose a Role": "role-select",
+          "Booking Type": "booking-type-select",
+          "Attendee Affiliation(s)": "attendee-affiliation-select",
+        };
+        const entries = Object.entries(DROPDOWN_TEST_IDS);
+        const found = entries.find(([, value]) => value === testId);
+        return found ? found[0] : "";
+      };
+
+      const optionIdx = optionIndex[labelFromTestId(menuTestId)]?.[optionText];
+      if (optionIdx != null) {
+        await menu.getByTestId(`${menuTestId}-option-${optionIdx}`).click();
+      } else {
+        await menu
+          .locator(`[data-testid^="${menuTestId}-option-"]`)
+          .filter({ hasText: optionText })
+          .first()
+          .click();
+      }
+      await this.page.waitForTimeout(200);
+      return;
+    }
+
+    const fallbackMenu = this.page
+      .locator('li[role="option"]')
+      .filter({ hasText: optionText })
+      .first();
+    await fallbackMenu.waitFor({ state: "visible", timeout: 15000 });
+    await fallbackMenu.click();
+    await this.page.waitForTimeout(200);
+  }
+
+  /**
+   * Select room and time slot using calendar interface
+   */
+  async selectRoomAndTime(roomId: string = "202"): Promise<void> {
+    await this.page.getByTestId(`room-option-${roomId}`).check();
+
+    const calendar = this.page.locator(
+      '[data-testid="booking-calendar-wrapper"]'
+    );
+    await calendar.waitFor({ state: "visible", timeout: 15000 });
+
+    // Pick a slot that starts one hour from "now" to keep the selection in the future.
+    const now = new Date();
+    now.setMinutes(0, 0, 0);
+    now.setHours(now.getHours() + 1);
+
+    const EARLIEST_HOUR = 9;
+    const LATEST_START_HOUR = 21; // allows a one-hour block before closing
+    let startHour = now.getHours();
+    if (startHour < EARLIEST_HOUR) startHour = EARLIEST_HOUR;
+    if (startHour > LATEST_START_HOUR) startHour = LATEST_START_HOUR;
+
+    const endHour = startHour + 1;
+    const formatHour = (hour: number) =>
+      `${hour.toString().padStart(2, "0")}:00:00`;
+
+    const findSlot = async (hour: number) => {
+      const candidates = [
+        `[data-resource-id="${roomId}"][data-time="${formatHour(hour)}"]`,
+        `.fc-timegrid-slot.fc-timegrid-slot-lane[data-resource-id="${roomId}"][data-time="${formatHour(hour)}"]`,
+        `.fc-timegrid-slot.fc-timegrid-slot-lane[data-time="${formatHour(hour)}"]`,
+        `.fc-timegrid-slot.fc-timegrid-slot-lane[aria-label*="${hour % 12 === 0 ? 12 : hour % 12}"]`,
+        `[data-time="${formatHour(hour)}"]`,
+      ];
+
+      for (const selector of candidates) {
+        const slot = calendar.locator(selector).first();
+        if ((await slot.count()) > 0) {
+          return slot;
+        }
+      }
+      return null;
+    };
+
+    const startSlot = await findSlot(startHour);
+    const endSlot = await findSlot(endHour);
+
+    if (!startSlot || !endSlot) {
+      throw new Error(
+        `Could not find time slots for range ${startHour}:00-${endHour}:00`
+      );
+    }
+
+    await startSlot.scrollIntoViewIfNeeded();
+    await endSlot.scrollIntoViewIfNeeded();
+
+    const startBox = await startSlot.boundingBox();
+    const endBox = await endSlot.boundingBox();
+
+    if (!startBox || !endBox) {
+      throw new Error("Unable to determine calendar slot positions");
+    }
+
+    const mouseX = startBox.x + startBox.width / 2;
+    const startY = startBox.y + startBox.height / 2;
+    const endY = endBox.y + endBox.height / 2;
+
+    await this.page.mouse.move(mouseX, startY);
+    await this.page.mouse.down();
+    await this.page.mouse.move(mouseX, endY, { steps: 8 });
+    await this.page.mouse.up();
+  }
+
+  /**
+   * Fill booking form details
+   */
+  async fillBookingDetails(formData: BookingFormData): Promise<void> {
+    await this.page
+      .locator('input[name="firstName"]')
+      .fill(formData.firstName || "Test");
+    await this.page
+      .locator('input[name="lastName"]')
+      .fill(formData.lastName || "User");
+    await this.page
+      .locator('input[name="nNumber"]')
+      .fill(formData.nNumber || "N12345678");
+    await this.page
+      .locator('input[name="netId"]')
+      .fill(formData.netId || "testuser");
+    await this.page
+      .locator('input[name="phoneNumber"]')
+      .fill(formData.phoneNumber || "2125551234");
+
+    if (formData.sponsorFirstName) {
+      await this.page
+        .locator('input[name="sponsorFirstName"]')
+        .fill(formData.sponsorFirstName);
+    }
+    if (formData.sponsorLastName) {
+      await this.page
+        .locator('input[name="sponsorLastName"]')
+        .fill(formData.sponsorLastName);
+    }
+    if (formData.sponsorEmail) {
+      await this.page
+        .locator('input[name="sponsorEmail"]')
+        .fill(formData.sponsorEmail);
+    }
+
+    await this.page.locator('input[name="title"]').fill(formData.title);
+    await this.page
+      .locator('input[name="description"]')
+      .fill(formData.description);
+
+    if (formData.bookingType) {
+      await this.selectDropdown("Booking Type", formData.bookingType);
+    }
+    await this.page
+      .locator('input[name="expectedAttendance"]')
+      .fill(formData.expectedAttendance);
+
+    if (formData.attendeeAffiliation) {
+      await this.selectDropdown(
+        "Attendee Affiliation(s)",
+        formData.attendeeAffiliation
+      );
+    }
+
+    // Check required agreements
+    await this.page.locator("#checklist").check();
+    await this.page.locator("#resetRoom").check();
+    await this.page.locator("#bookingPolicy").check();
+  }
 
   async loginUser(user: TestUser): Promise<void> {
     // With authentication bypass enabled, we don't need to go through login flow
