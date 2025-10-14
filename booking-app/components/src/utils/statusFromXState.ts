@@ -1,4 +1,5 @@
 import { BookingStatusLabel } from "../types";
+import { getXStateValue } from "./xstateHelpers";
 
 type XStateSnapshot = {
   value?: string | Record<string, any>;
@@ -34,8 +35,21 @@ export function getStatusFromXState(
   tenant?: string
 ): BookingStatusLabel | string {
   try {
-    if (shouldUseXState(tenant) && booking?.xstateData?.snapshot?.value) {
-      const xvalue = booking.xstateData.snapshot.value;
+    if (shouldUseXState(tenant) && booking?.xstateData) {
+      // Use the common helper to get XState value, but parse as object if needed
+      const rawValue = getXStateValue(booking);
+      let xvalue: string | Record<string, any> | null = null;
+
+      // Try to parse JSON if it's a string representation of an object
+      if (rawValue) {
+        try {
+          xvalue = rawValue.startsWith("{") ? JSON.parse(rawValue) : rawValue;
+        } catch {
+          xvalue = rawValue;
+        }
+      }
+
+      if (!xvalue) return BookingStatusLabel.REQUESTED;
 
       // Handle parallel states - check in priority order
       if (typeof xvalue === "object" && xvalue) {
@@ -101,5 +115,5 @@ export function getStatusFromXState(
 }
 
 function shouldUseXState(tenant?: string): boolean {
-  return tenant === "mc" || tenant === "itp";
+  return true; // All tenants use XState now
 }

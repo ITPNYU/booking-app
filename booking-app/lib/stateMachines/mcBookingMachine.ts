@@ -1,5 +1,10 @@
 import { TENANTS } from "@/components/src/constants/tenants";
+import { BookingLogger } from "@/lib/logger/bookingLogger";
 import { and, assign, fromPromise, setup } from "xstate";
+
+// Time constants for clarity
+const ONE_HOUR_IN_MS = 60 * 60 * 1000;
+const FOUR_HOURS_IN_MS = 4 * ONE_HOUR_IN_MS;
 
 // Define context type for type safety
 interface MediaCommonsBookingContext {
@@ -415,6 +420,89 @@ export const mcBookingMachine = setup({
 
       console.log(`🎬 XSTATE ACTOR: handleCloseProcessing completed`);
     },
+
+    handleCheckoutProcessing: async ({ context, event }) => {
+      BookingLogger.xstateActorStarted("handleCheckoutProcessing", {
+        calendarEventId: context.calendarEventId,
+        tenant: context.tenant,
+        email: context.email,
+      });
+
+      try {
+        const calendarEventId = context.calendarEventId;
+        const email = context.email || "system";
+        const tenant = context.tenant;
+
+        if (calendarEventId) {
+          BookingLogger.apiRequest("POST", "/api/checkout-processing", {
+            calendarEventId,
+            email,
+            tenant,
+          });
+
+          // Call the checkout processing API
+          const response = await fetch(
+            `${process.env.NEXT_PUBLIC_BASE_URL}/api/checkout-processing`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "x-tenant": tenant || "mc",
+              },
+              body: JSON.stringify({
+                calendarEventId,
+                email,
+                tenant,
+              }),
+            }
+          );
+
+          if (response.ok) {
+            const result = await response.json();
+            BookingLogger.apiSuccess(
+              "POST",
+              "/api/checkout-processing",
+              {
+                calendarEventId,
+                tenant,
+              },
+              result
+            );
+          } else {
+            const errorText = await response.text();
+            BookingLogger.apiError(
+              "POST",
+              "/api/checkout-processing",
+              {
+                calendarEventId,
+                tenant,
+              },
+              {
+                message: errorText,
+                status: response.status,
+              }
+            );
+          }
+        } else {
+          BookingLogger.warning(
+            "Checkout processing API skipped - no calendar event ID",
+            { tenant }
+          );
+        }
+      } catch (error: any) {
+        BookingLogger.xstateError(
+          "Checkout processing API error",
+          { calendarEventId: context.calendarEventId, tenant: context.tenant },
+          error
+        );
+      }
+
+      BookingLogger.xstateActorCompleted("handleCheckoutProcessing", {
+        calendarEventId: context.calendarEventId,
+        tenant: context.tenant,
+      });
+    },
+
     // Service decline actions that update context
     declineStaffService: assign({
       servicesApproved: ({ context }) => ({
@@ -491,6 +579,22 @@ export const mcBookingMachine = setup({
           `🎯 XSTATE AUTO-APPROVAL GUARD RESULT: REJECTED (Wrong tenant)`
         );
         return false;
+      }
+
+      // Check event duration > 4 hours
+      if (context.bookingCalendarInfo) {
+        const startDate = new Date(context.bookingCalendarInfo.startStr);
+        const endDate = new Date(context.bookingCalendarInfo.endStr);
+        const duration = endDate.getTime() - startDate.getTime();
+        if (duration > FOUR_HOURS_IN_MS) {
+          console.log(
+            `🚫 XSTATE GUARD: Event duration exceeds 4 hours (${(duration / ONE_HOUR_IN_MS).toFixed(1)} hours)`
+          );
+          console.log(
+            `🎯 XSTATE AUTO-APPROVAL GUARD RESULT: REJECTED (Duration too long)`
+          );
+          return false;
+        }
       }
 
       // Check if any services are requested - if so, don't auto-approve (except for walk-ins)
@@ -1978,6 +2082,9 @@ export const mcBookingMachine = setup({
             tenant: context.tenant,
             timestamp: new Date().toISOString(),
           });
+        },
+        {
+          type: "handleCheckoutProcessing",
         },
         {
           type: "sendHTMLEmail",

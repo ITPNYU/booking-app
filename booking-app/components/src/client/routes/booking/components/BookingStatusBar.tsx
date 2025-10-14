@@ -1,4 +1,4 @@
-import { Check, ChevronLeft, ChevronRight } from "@mui/icons-material";
+import { Check, ChevronLeft, ChevronRight, Info } from "@mui/icons-material";
 import {
   Alert,
   AlertColor,
@@ -7,6 +7,7 @@ import {
   Tooltip,
   useMediaQuery,
   useTheme,
+  Typography,
 } from "@mui/material";
 import React, { useContext } from "react";
 
@@ -15,6 +16,7 @@ import { styled } from "@mui/system";
 import { BookingContext } from "../bookingProvider";
 import useCalculateOverlap from "../hooks/useCalculateOverlap";
 import useCheckAutoApproval from "../hooks/useCheckAutoApproval";
+import useCheckDurationLimits from "../hooks/useCheckDurationLimits";
 
 interface Props {
   formContext: FormContextLevel;
@@ -35,12 +37,14 @@ const NavGrid = styled(Box)`
 export default function BookingStatusBar({ formContext, ...props }: Props) {
   const isWalkIn = formContext === FormContextLevel.WALK_IN;
   const { isAutoApproval, errorMessage } = useCheckAutoApproval(isWalkIn);
+  const { durationError } = useCheckDurationLimits();
   const {
     bookingCalendarInfo,
     selectedRooms,
     isBanned,
     needsSafetyTraining,
     isInBlackoutPeriod,
+    role,
   } = useContext(BookingContext);
   const isOverlap = useCalculateOverlap();
 
@@ -51,6 +55,7 @@ export default function BookingStatusBar({ formContext, ...props }: Props) {
     isBanned ||
     needsSafetyTraining ||
     isInBlackoutPeriod ||
+    durationError !== null ||
     (bookingCalendarInfo != null && selectedRooms.length > 0);
 
   // order of precedence matters
@@ -114,6 +119,17 @@ export default function BookingStatusBar({ formContext, ...props }: Props) {
           <p>
             Your selection conflicts with at least one existing reservation.
             Please make another selection.
+          </p>
+        ),
+        severity: "error",
+      };
+    if (durationError)
+      return {
+        btnDisabled: true,
+        btnDisabledMessage: `Duration exceeds maximum allowed for your role (${durationError.maxDuration} hours)`,
+        message: (
+          <p>
+            Event duration ({durationError.currentDuration.toFixed(1)} hours) exceeds the maximum allowed duration ({durationError.maxDuration} hours) for {durationError.roomName} based on your {durationError.role} role. Please select a shorter time slot.
           </p>
         ),
         severity: "error",
