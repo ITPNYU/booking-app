@@ -1,4 +1,5 @@
 // firebaseClient.ts
+import { isTestEnvironment } from "@/lib/utils/testEnvironment";
 import { initializeApp } from "firebase/app";
 import {
   getAuth,
@@ -8,10 +9,16 @@ import {
   signInWithRedirect,
 } from "firebase/auth";
 import { Firestore, initializeFirestore } from "firebase/firestore";
-import { isTestEnvironment } from "@/lib/utils/testEnvironment";
 
 // Check for test environment synchronously from environment variables
 const isTestEnv = isTestEnvironment();
+
+// Debug logging for environment detection
+console.log("🔍 Firebase Client Debug:");
+console.log("BYPASS_AUTH:", process.env.BYPASS_AUTH);
+console.log("E2E_TESTING:", process.env.E2E_TESTING);
+console.log("NODE_ENV:", process.env.NODE_ENV);
+console.log("isTestEnv:", isTestEnv);
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -188,7 +195,7 @@ export const getGoogleRedirectResult = async () => {
     const result = await getRedirectResult(auth);
     if (result) {
       const user = result.user;
-      if (!user.email?.endsWith("@nyu.edu") && !isTestEnv) {
+      if (!user.email?.endsWith("@nyu.edu") && !dynamicTestEnv) {
         await auth.signOut();
         throw new Error("Only nyu.edu email addresses are allowed.");
       }

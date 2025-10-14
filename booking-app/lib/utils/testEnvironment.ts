@@ -8,21 +8,27 @@
  * This is a synchronous check that can be used during module initialization
  */
 export const isTestEnvironment = (): boolean => {
-  return (
-    process.env.BYPASS_AUTH === "true" || 
-    process.env.E2E_TESTING === "true" ||
-    process.env.NODE_ENV === "test"
-  );
+  const bypassAuth = process.env.BYPASS_AUTH === "true";
+  const e2eTesting = process.env.E2E_TESTING === "true";
+  const nodeEnvTest = process.env.NODE_ENV === "test";
+
+  const result = bypassAuth || e2eTesting || nodeEnvTest;
+
+  // Debug logging
+  console.log("🔍 Test Environment Detection:");
+  console.log("  BYPASS_AUTH:", process.env.BYPASS_AUTH, "->", bypassAuth);
+  console.log("  E2E_TESTING:", process.env.E2E_TESTING, "->", e2eTesting);
+  console.log("  NODE_ENV:", process.env.NODE_ENV, "->", nodeEnvTest);
+  console.log("  Result:", result);
+
+  return result;
 };
 
 /**
  * Check if we're in E2E testing mode specifically
  */
 export const isE2ETesting = (): boolean => {
-  return (
-    process.env.NODE_ENV === "test" && 
-    process.env.E2E_TESTING === "true"
-  );
+  return process.env.NODE_ENV === "test" && process.env.E2E_TESTING === "true";
 };
 
 /**
@@ -30,7 +36,7 @@ export const isE2ETesting = (): boolean => {
  */
 export const isCIDevelopment = (): boolean => {
   return (
-    process.env.CI === "true" && 
+    process.env.CI === "true" &&
     process.env.NEXT_PUBLIC_BRANCH_NAME === "development"
   );
 };
@@ -41,9 +47,7 @@ export const isCIDevelopment = (): boolean => {
  */
 export const shouldBypassAuth = (): boolean => {
   return (
-    isCIDevelopment() || 
-    isE2ETesting() || 
-    process.env.BYPASS_AUTH === "true"
+    isCIDevelopment() || isE2ETesting() || process.env.BYPASS_AUTH === "true"
   );
 };
 
@@ -52,17 +56,17 @@ export const shouldBypassAuth = (): boolean => {
  */
 export const getTestEnvironmentStatus = () => {
   const testEnvEnabled = shouldBypassAuth();
-  
+
   if (testEnvEnabled) {
     console.log("Test environment: Authentication bypass enabled");
   }
-  
+
   return {
     isOnTestEnv: testEnvEnabled,
     reasons: {
       ciDevelopment: isCIDevelopment(),
       e2eTesting: isE2ETesting(),
       bypassAuth: process.env.BYPASS_AUTH === "true",
-    }
+    },
   };
 };

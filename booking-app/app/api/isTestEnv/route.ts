@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
 import { getTestEnvironmentStatus } from "@/lib/utils/testEnvironment";
+import { NextResponse } from "next/server";
 
 export const GET = async () => {
   try {

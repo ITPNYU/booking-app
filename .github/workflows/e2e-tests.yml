@@ -28,6 +28,25 @@ jobs:
           cd booking-app
           npm ci
 
+      - name: Test build with environment variables
+        run: |
+          cd booking-app
+          echo "🔧 Testing Next.js build with test environment variables..."
+          NODE_ENV=test \
+          CI=true \
+          BYPASS_AUTH=true \
+          E2E_TESTING=true \
+          NEXT_PUBLIC_FIREBASE_API_KEY=test-api-key \
+          NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=test.firebaseapp.com \
+          NEXT_PUBLIC_FIREBASE_PROJECT_ID=test-project \
+          NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=test.appspot.com \
+          NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=123456789 \
+          NEXT_PUBLIC_FIREBASE_APP_ID=test-app-id \
+          NEXT_PUBLIC_MEASUREMENT_ID=test-measurement-id \
+          NEXT_PUBLIC_DATABASE_NAME=test-database \
+          NEXT_PUBLIC_BRANCH_NAME=development-local \
+          npm run build 2>&1 | tee build.log || (echo "❌ Build failed, showing logs:" && cat build.log && exit 1)
+
       - name: Install Playwright browsers with enhanced error handling
         run: |
           cd booking-app
@@ -103,9 +122,37 @@ jobs:
           PLAYWRIGHT_BROWSERS_PATH: 0
           PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 0
 
-      - name: Start development server
+      - name: Debug environment variables
         run: |
           cd booking-app
+          echo "🔍 Environment Variables Debug:"
+          echo "NODE_ENV: $NODE_ENV"
+          echo "CI: $CI"
+          echo "BYPASS_AUTH: $BYPASS_AUTH"
+          echo "E2E_TESTING: $E2E_TESTING"
+          echo "NEXT_PUBLIC_FIREBASE_API_KEY: $NEXT_PUBLIC_FIREBASE_API_KEY"
+          echo "NEXT_PUBLIC_FIREBASE_PROJECT_ID: $NEXT_PUBLIC_FIREBASE_PROJECT_ID"
+          echo "NEXT_PUBLIC_DATABASE_NAME: $NEXT_PUBLIC_DATABASE_NAME"
+          echo "NEXT_PUBLIC_BRANCH_NAME: $NEXT_PUBLIC_BRANCH_NAME"
+        env:
+          NODE_ENV: test
+          CI: true
+          BYPASS_AUTH: true
+          E2E_TESTING: true
+          NEXT_PUBLIC_FIREBASE_API_KEY: test-api-key
+          NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: test.firebaseapp.com
+          NEXT_PUBLIC_FIREBASE_PROJECT_ID: test-project
+          NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: test.appspot.com
+          NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: 123456789
+          NEXT_PUBLIC_FIREBASE_APP_ID: test-app-id
+          NEXT_PUBLIC_MEASUREMENT_ID: test-measurement-id
+          NEXT_PUBLIC_DATABASE_NAME: test-database
+          NEXT_PUBLIC_BRANCH_NAME: development-local
+
+      - name: Start development server with debug
+        run: |
+          cd booking-app
+          echo "🚀 Starting development server with debug output..."
           NODE_ENV=test \
           CI=true \
           BYPASS_AUTH=true \
@@ -119,10 +166,39 @@ jobs:
           NEXT_PUBLIC_MEASUREMENT_ID=test-measurement-id \
           NEXT_PUBLIC_DATABASE_NAME=test-database \
           NEXT_PUBLIC_BRANCH_NAME=development-local \
-          npm run dev &
+          npm run dev > server.log 2>&1 &
 
-          # Wait for server to be ready (reduced timeout)
-          timeout 60 bash -c 'until curl -f http://localhost:3000/api/isTestEnv; do sleep 2; done'
+          SERVER_PID=$!
+          echo "Server PID: $SERVER_PID"
+
+          # Wait a bit for server to start
+          sleep 10
+
+          # Check if server is still running
+          if kill -0 $SERVER_PID 2>/dev/null; then
+            echo "✅ Server is running"
+          else
+            echo "❌ Server crashed, showing logs:"
+            cat server.log
+            exit 1
+          fi
+
+          # Wait for server to be ready with more detailed output
+          echo "🔄 Waiting for server to be ready..."
+          for i in {1..30}; do
+            if curl -f http://localhost:3000/api/isTestEnv 2>/dev/null; then
+              echo "✅ Server is ready after ${i} attempts"
+              break
+            else
+              echo "⏳ Attempt $i: Server not ready yet..."
+              if [ $i -eq 30 ]; then
+                echo "❌ Server failed to start, showing logs:"
+                cat server.log
+                exit 1
+              fi
+              sleep 2
+            fi
+          done
 
       - name: Run E2E tests with comprehensive error handling
         env:
