@@ -2,6 +2,10 @@ import { TENANTS } from "@/components/src/constants/tenants";
 import { BookingLogger } from "@/lib/logger/bookingLogger";
 import { and, assign, fromPromise, setup } from "xstate";
 
+// Time constants for clarity
+const ONE_HOUR_IN_MS = 60 * 60 * 1000;
+const FOUR_HOURS_IN_MS = 4 * ONE_HOUR_IN_MS;
+
 // Define context type for type safety
 interface MediaCommonsBookingContext {
   tenant?: string;
@@ -582,9 +586,9 @@ export const mcBookingMachine = setup({
         const startDate = new Date(context.bookingCalendarInfo.startStr);
         const endDate = new Date(context.bookingCalendarInfo.endStr);
         const duration = endDate.getTime() - startDate.getTime();
-        if (duration > 3.6e6 * 4) {
+        if (duration > FOUR_HOURS_IN_MS) {
           console.log(
-            `🚫 XSTATE GUARD: Event duration exceeds 4 hours (${(duration / 3.6e6).toFixed(1)} hours)`
+            `🚫 XSTATE GUARD: Event duration exceeds 4 hours (${(duration / ONE_HOUR_IN_MS).toFixed(1)} hours)`
           );
           console.log(
             `🎯 XSTATE AUTO-APPROVAL GUARD RESULT: REJECTED (Duration too long)`
