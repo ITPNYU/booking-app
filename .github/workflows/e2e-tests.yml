@@ -48,14 +48,19 @@ jobs:
 
           # Function to install system browsers as fallback
           install_system_browsers() {
-            echo "📦 Installing system browsers as fallback..."
+            echo "📦 Installing system browsers and ffmpeg as fallback..."
             sudo apt-get update -qq
-            sudo apt-get install -y chromium-browser firefox-esr || true
+            sudo apt-get install -y chromium-browser firefox-esr ffmpeg || true
             
-            # Verify system browsers are available
+            # Verify system browsers and ffmpeg are available
             if command -v chromium-browser >/dev/null 2>&1; then
               echo "✅ System Chromium browser installed successfully"
               chromium-browser --version || true
+            fi
+            
+            if command -v ffmpeg >/dev/null 2>&1; then
+              echo "✅ System ffmpeg installed successfully"
+              ffmpeg -version | head -1 || true
             fi
           }
 
@@ -66,8 +71,9 @@ jobs:
           install_system_browsers
 
           # Strategy 2: Try installing just Chromium with dependencies (faster install)
-          if timeout 300 npx playwright install chromium --with-deps; then
-            echo "✅ Playwright Chromium installed successfully"
+          # Also install ffmpeg explicitly for video recording
+          if timeout 300 npx playwright install chromium --with-deps && timeout 60 npx playwright install ffmpeg; then
+            echo "✅ Playwright Chromium and ffmpeg installed successfully"
           else
             echo "⚠️ Playwright browser installation failed, using system browsers only"
             cleanup_playwright
