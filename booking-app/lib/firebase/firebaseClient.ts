@@ -46,8 +46,8 @@ export const getDb = () => {
 };
 
 // Check for test environment synchronously from environment variables
-const isTestEnvironment = process.env.BYPASS_AUTH === "true" || 
-                         process.env.E2E_TESTING === "true";
+const isTestEnvironment =
+  process.env.BYPASS_AUTH === "true" || process.env.E2E_TESTING === "true";
 
 let authInstance: any = null;
 let providerInstance: any = null;
@@ -75,7 +75,11 @@ export const googleProvider = providerInstance;
 let isTestEnv = isTestEnvironment; // Start with the environment check
 
 // Only fetch from API if we're not already in test environment and we have a valid base URL
-if (!isTestEnvironment && process.env.NEXT_PUBLIC_BASE_URL && typeof window !== 'undefined') {
+if (
+  !isTestEnvironment &&
+  process.env.NEXT_PUBLIC_BASE_URL &&
+  typeof window !== "undefined"
+) {
   fetch(process.env.NEXT_PUBLIC_BASE_URL + "/api/isTestEnv")
     .then((res) => res.json())
     .then((data) => {
@@ -88,7 +92,10 @@ if (!isTestEnvironment && process.env.NEXT_PUBLIC_BASE_URL && typeof window !== 
       }
     })
     .catch((error) => {
-      console.log("Failed to fetch isTestEnv, using environment check:", isTestEnvironment);
+      console.log(
+        "Failed to fetch isTestEnv, using environment check:",
+        isTestEnvironment
+      );
       isTestEnv = isTestEnvironment;
     });
 } else {

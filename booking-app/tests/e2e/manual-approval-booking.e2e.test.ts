@@ -94,9 +94,9 @@ test.describe("Manual Approval Booking Flow", () => {
       string,
       unknown
     >;
-    const formData = (requestBody.data ?? {}) as Record<string, unknown>;
+    const requestFormData = (requestBody.data ?? {}) as Record<string, unknown>;
     const requesterEmail = requestBody.email as string | undefined;
-    const sponsorEmail = formData.sponsorEmail as string | undefined;
+    const sponsorEmail = requestFormData.sponsorEmail as string | undefined;
 
     const requestEmail = services
       .getSideEffects("email:send")
