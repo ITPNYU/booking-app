@@ -159,7 +159,7 @@ export const serverBookingContents = async (id: string, tenant?: string) => {
   const endDate = booking.endDate.toDate();
 
   const updatedBookingObj = Object.assign({}, booking, {
-    headerMessage: "This is a request email for 2nd approval.",
+    headerMessage: "", // Will be set per email context
     history: history,
     startDate: startDate.toLocaleDateString(),
     endDate: endDate.toLocaleDateString(),
@@ -302,9 +302,10 @@ export const serverFirstApproveOnly = async (
 
   // Send first approval email to final approver
   const contents = await serverBookingContents(id, tenant);
+  const emailConfig = await getTenantEmailConfig(tenant);
   const emailContents = {
     ...contents,
-    headerMessage: "This is a request email for 2nd approval.",
+    headerMessage: emailConfig.emailMessages.secondApprovalRequest,
   };
   const recipient = await serverGetFinalApproverEmail();
   const formData = {
@@ -467,14 +468,14 @@ const firstApprove = async (id: string, email: string, tenant?: string) => {
   );
   const contents = await serverBookingContents(id, tenant);
 
-  const emailContents = {
-    ...contents,
-    headerMessage: "This is a request email for 2nd approval.",
-  };
-  const recipient = await serverGetFinalApproverEmail();
-  
   // Get tenant email configuration
   const emailConfig = await getTenantEmailConfig(tenant);
+  
+  const emailContents = {
+    ...contents,
+    headerMessage: emailConfig.emailMessages.secondApprovalRequest,
+  };
+  const recipient = await serverGetFinalApproverEmail();
   
   const formData = {
     templateName: "booking_detail",
@@ -615,9 +616,9 @@ export const serverApproveEvent = async (id: string, tenant?: string) => {
   // Get tenant email configuration for approval notice
   const emailConfig = await getTenantEmailConfig(tenant);
 
-  const userHeaderMessage = `Your request has been approved! Please see below for next steps.<br /><br />${emailConfig.approvalNotice}`;
+  const userHeaderMessage = `Your request has been approved! Please see below for next steps.<br /><br />${emailConfig.emailMessages.approvalNotice}`;
 
-  const otherHeaderMessage = `This is a confirmation email.<br /><br />${emailConfig.approvalNotice}`;
+  const otherHeaderMessage = `This is a confirmation email.<br /><br />${emailConfig.emailMessages.approvalNotice}`;
 
   // for client
   serverSendBookingDetailEmail({
@@ -655,7 +656,7 @@ export const serverApproveEvent = async (id: string, tenant?: string) => {
       targetEmail: contents.sponsorEmail,
       headerMessage:
         "A reservation that you are the Sponsor of has been approved.<br /><br />" +
-        emailConfig.approvalNotice,
+        emailConfig.emailMessages.approvalNotice,
       status: BookingStatusLabel.APPROVED,
       replyTo: guestEmail,
       tenant,

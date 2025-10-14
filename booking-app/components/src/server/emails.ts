@@ -15,19 +15,45 @@ export const getEmailBranchTag = () => {
 
 export interface TenantEmailConfig {
   schemaName: string;
-  emailHeaderMessage: string;
-  approvalNotice: string;
+  emailMessages: {
+    requestConfirmation: string;
+    firstApprovalRequest: string;
+    secondApprovalRequest: string;
+    walkInConfirmation: string;
+    vipConfirmation: string;
+    checkoutConfirmation: string;
+    checkinConfirmation: string;
+    declined: string;
+    canceled: string;
+    lateCancel: string;
+    noShow: string;
+    closed: string;
+    approvalNotice: string;
+  };
 }
 
 /**
- * Helper function to get tenant email configuration (schema name, header message, and approval notice)
+ * Helper function to get tenant email configuration (schema name, header messages, and approval notice)
  * @param tenant - The tenant identifier
  * @returns Promise<TenantEmailConfig> - The email configuration with fallbacks
  */
 export const getTenantEmailConfig = async (tenant?: string): Promise<TenantEmailConfig> => {
   let schemaName = "Media Commons"; // fallback
-  let emailHeaderMessage = "";
-  let approvalNotice = "";
+  let emailMessages = {
+    requestConfirmation: "",
+    firstApprovalRequest: "",
+    secondApprovalRequest: "",
+    walkInConfirmation: "",
+    vipConfirmation: "",
+    checkoutConfirmation: "",
+    checkinConfirmation: "",
+    declined: "",
+    canceled: "",
+    lateCancel: "",
+    noShow: "",
+    closed: "",
+    approvalNotice: "",
+  };
   
   if (tenant) {
     try {
@@ -38,18 +64,33 @@ export const getTenantEmailConfig = async (tenant?: string): Promise<TenantEmail
       if (schema?.name) {
         schemaName = schema.name;
       }
-      if (schema?.emailHeaderMessage) {
-        emailHeaderMessage = schema.emailHeaderMessage;
-      }
-      if (schema?.approvalNotice) {
-        approvalNotice = "\n" + schema.approvalNotice + "\n";
+      if (schema?.emailMessages) {
+        // Use the nested emailMessages object from schema
+        emailMessages = {
+          requestConfirmation: schema.emailMessages.requestConfirmation || "",
+          firstApprovalRequest: schema.emailMessages.firstApprovalRequest || "",
+          secondApprovalRequest: schema.emailMessages.secondApprovalRequest || "",
+          walkInConfirmation: schema.emailMessages.walkInConfirmation || "",
+          vipConfirmation: schema.emailMessages.vipConfirmation || "",
+          checkoutConfirmation: schema.emailMessages.checkoutConfirmation || "",
+          checkinConfirmation: schema.emailMessages.checkinConfirmation || "",
+          declined: schema.emailMessages.declined || "",
+          canceled: schema.emailMessages.canceled || "",
+          lateCancel: schema.emailMessages.lateCancel || "",
+          noShow: schema.emailMessages.noShow || "",
+          closed: schema.emailMessages.closed || "",
+          approvalNotice: schema.emailMessages.approvalNotice || "",
+        };
       }
     } catch (error) {
       console.error("Error fetching tenant schema for email:", error);
     }
   }
   
-  return { schemaName, emailHeaderMessage, approvalNotice };
+  return { 
+    schemaName, 
+    emailMessages
+  };
 };
 
 /**

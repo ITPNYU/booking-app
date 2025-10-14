@@ -415,7 +415,7 @@ async function handleBookingApprovalEmails(
       email,
       startDate: bookingCalendarInfo?.startStr,
       endDate: bookingCalendarInfo?.endStr,
-      headerMessage: "This is a request email for first approval.",
+      headerMessage: emailConfig.emailMessages.firstApprovalRequest,
       requestNumber: sequentialId,
       origin: formatOrigin(data.origin) ?? BookingOrigin.USER,
     };
@@ -451,7 +451,7 @@ async function handleBookingApprovalEmails(
     await serverSendBookingDetailEmail({
       calendarEventId,
       targetEmail: email,
-      headerMessage: emailConfig.emailHeaderMessage,
+      headerMessage: emailConfig.emailMessages.requestConfirmation,
       status: BookingStatusLabel.REQUESTED,
       replyTo: email,
       tenant,

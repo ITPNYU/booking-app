@@ -47,8 +47,22 @@ export type SchemaContextType = {
   supportVIP: boolean;
   supportWalkIn: boolean;
   resourceName: string;
-  emailHeaderMessage: string;
-  approvalNotice: string;
+  // Email messages for all scenarios
+  emailMessages: {
+    requestConfirmation: string;
+    firstApprovalRequest: string;
+    secondApprovalRequest: string;
+    walkInConfirmation: string;
+    vipConfirmation: string;
+    checkoutConfirmation: string;
+    checkinConfirmation: string;
+    declined: string;
+    canceled: string;
+    lateCancel: string;
+    noShow: string;
+    closed: string;
+    approvalNotice: string;
+  };
 };
 
 export const SchemaContext = createContext<SchemaContextType>({
@@ -73,8 +87,21 @@ export const SchemaContext = createContext<SchemaContextType>({
   resourceName: "",
   programMapping: {},
   roleMapping: {},
-  emailHeaderMessage: "",
-  approvalNotice: "",
+  emailMessages: {
+    requestConfirmation: "",
+    firstApprovalRequest: "",
+    secondApprovalRequest: "",
+    walkInConfirmation: "",
+    vipConfirmation: "",
+    checkoutConfirmation: "",
+    checkinConfirmation: "",
+    declined: "",
+    canceled: "",
+    lateCancel: "",
+    noShow: "",
+    closed: "",
+    approvalNotice: "",
+  },
 });
 
 export const useTenantSchema = () => useContext(SchemaContext);
