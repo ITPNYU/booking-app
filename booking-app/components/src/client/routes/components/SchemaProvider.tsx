@@ -20,6 +20,17 @@ export type Resource = {
     student: number;
     faculty: number;
     admin: number;
+    studentWalkIn: number;
+    facultyWalkIn: number;
+    adminWalkIn: number;
+  };
+  minHour: {
+    student: number;
+    faculty: number;
+    admin: number;
+    studentWalkIn: number;
+    facultyWalkIn: number;
+    adminWalkIn: number;
   };
   staffingServices?: string[]; // Specific staffing service options for this room
   staffingSections?: { name: string; indexes: number[] }[];

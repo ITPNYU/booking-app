@@ -9,6 +9,7 @@ import { useContext, useEffect, useState } from "react";
 import { createActor } from "xstate";
 import { useTenantSchema } from "../../components/SchemaProvider";
 import { BookingContext } from "../bookingProvider";
+import { getBookingHourLimits } from "../utils/bookingHourLimits";
 
 export function selectedAutoApprovalRooms(
   selectedRoomIds: number[],
@@ -27,7 +28,7 @@ export function selectedAutoApprovalRooms(
 }
 
 export default function useCheckAutoApproval(isWalkIn = false) {
-  const { bookingCalendarInfo, selectedRooms, formData } =
+  const { bookingCalendarInfo, selectedRooms, formData, role } =
     useContext(BookingContext);
   const schema = useTenantSchema();
 
@@ -182,17 +183,48 @@ export default function useCheckAutoApproval(isWalkIn = false) {
     }
 
     // Traditional logic for non-ITP tenants
-    // EVENT DURATION > 4 HOURS
+    // Check booking duration against role and room-specific limits
     if (bookingCalendarInfo != null) {
       const startDate = bookingCalendarInfo.start;
       const endDate = bookingCalendarInfo.end;
       const duration = endDate.getTime() - startDate.getTime();
-      if (duration > 3.6e6 * 4) {
-        throwError("Event duration exceeds 4 hours");
+      const durationInHours = duration / (1000 * 60 * 60); // Convert ms to hours
+
+      // Get the hour limits based on role and selected rooms
+      const { maxHours, minHours } = getBookingHourLimits(
+        selectedRooms,
+        role,
+        isWalkIn
+      );
+
+      console.log(
+        `⏱️ DURATION CHECK [${schema.tenant?.toUpperCase() || "UNKNOWN"}]:`,
+        {
+          role,
+          isWalkIn,
+          durationInHours,
+          maxHours,
+          minHours,
+          selectedRooms: selectedRooms.map((r) => ({
+            roomId: r.roomId,
+            name: r.name,
+            maxHour: r.maxHour,
+            minHour: r.minHour,
+          })),
+        }
+      );
+
+      if (durationInHours > maxHours) {
+        throwError(
+          `Event duration exceeds ${maxHours} hours for ${role || "student"} ${isWalkIn ? "walk-in" : ""} booking`
+        );
         return;
       }
-      if (isWalkIn && duration < 3.6e6) {
-        throwError("Walk-in event duration must be at least 1 hour");
+
+      if (durationInHours < minHours) {
+        throwError(
+          `${isWalkIn ? "Walk-in" : ""} event duration must be at least ${minHours} hours for ${role || "student"} booking`
+        );
         return;
       }
     }
@@ -232,7 +264,6 @@ export default function useCheckAutoApproval(isWalkIn = false) {
 
     // HAS EQUIPMENT SERVICES
     if (!isWalkIn && formData?.equipmentServices?.length > 0) {
-
       throwError(
         "Requesting equipment services for an event will require approval"
       );

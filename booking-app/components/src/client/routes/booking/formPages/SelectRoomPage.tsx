@@ -37,6 +37,7 @@ export default function SelectRoomPage({
     
     // Convert schema resources to RoomSetting format for compatibility
     const convertedResources = resources.map((resource) => ({
+      ...resource,
       roomId: resource.roomId,
       name: resource.name,
       capacity: resource.capacity.toString(),
@@ -50,6 +51,7 @@ export default function SelectRoomPage({
       isEquipment: resource.isEquipment,
       services: resource.services,
       maxHour: resource.maxHour,
+      minHour: resource.minHour,
       staffingServices: resource.staffingServices,
       staffingSections: resource.staffingSections,
     }));

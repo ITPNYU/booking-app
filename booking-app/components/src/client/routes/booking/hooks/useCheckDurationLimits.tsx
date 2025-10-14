@@ -2,16 +2,20 @@ import { useContext, useEffect, useState } from "react";
 import { useTenantSchema } from "../../components/SchemaProvider";
 import { BookingContext } from "../bookingProvider";
 import { Role } from "../../../../types";
+import { getBookingHourLimits } from "../utils/bookingHourLimits";
 
 interface DurationLimitError {
   roomId: number;
   roomName: string;
   currentDuration: number;
   maxDuration: number;
+  minDuration: number;
   role: Role;
+  isWalkIn: boolean;
+  errorType: "max" | "min";
 }
 
-export default function useCheckDurationLimits() {
+export default function useCheckDurationLimits(isWalkIn = false) {
   const { bookingCalendarInfo, selectedRooms, role } = useContext(BookingContext);
   const schema = useTenantSchema();
 
@@ -21,48 +25,47 @@ export default function useCheckDurationLimits() {
     // Reset error state
     setDurationError(null);
 
-    // Check duration limits based on resource maxHour
-    if (bookingCalendarInfo != null && role && selectedRooms.length > 0) {
+    // Check duration limits based on resource maxHour and minHour
+    if (bookingCalendarInfo != null && selectedRooms.length > 0) {
       const startDate = bookingCalendarInfo.start;
       const endDate = bookingCalendarInfo.end;
       const duration = endDate.getTime() - startDate.getTime();
       const durationHours = duration / (1000 * 60 * 60);
 
-      // Check each selected room's duration limit
-      for (const room of selectedRooms) {
-        const resource = schema.resources.find((r) => r.roomId === room.roomId);
-        if (resource?.maxHour) {
-          let maxHours: number;
-          switch (role) {
-            case Role.STUDENT:
-              maxHours = resource.maxHour.student;
-              break;
-            case Role.FACULTY:
-              maxHours = resource.maxHour.faculty;
-              break;
-            case Role.ADMIN_STAFF:
-            case Role.CHAIR_PROGRAM_DIRECTOR:
-            case Role.RESIDENT_FELLOW:
-              maxHours = resource.maxHour.admin;
-              break;
-            default:
-              maxHours = resource.maxHour.admin;
-          }
+      // Get the hour limits based on role and selected rooms
+      const { maxHours, minHours } = getBookingHourLimits(selectedRooms, role, isWalkIn);
 
-          if (durationHours > maxHours) {
-            setDurationError({
-              roomId: room.roomId,
-              roomName: room.name,
-              currentDuration: durationHours,
-              maxDuration: maxHours,
-              role,
-            });
-            return; // Return early on first error found
-          }
-        }
+      // Check maximum duration
+      if (durationHours > maxHours) {
+        setDurationError({
+          roomId: selectedRooms[0].roomId,
+          roomName: selectedRooms[0].name,
+          currentDuration: durationHours,
+          maxDuration: maxHours,
+          minDuration: minHours,
+          role: role || Role.STUDENT,
+          isWalkIn,
+          errorType: "max"
+        });
+        return;
+      }
+
+      // Check minimum duration
+      if (durationHours < minHours) {
+        setDurationError({
+          roomId: selectedRooms[0].roomId,
+          roomName: selectedRooms[0].name,
+          currentDuration: durationHours,
+          maxDuration: maxHours,
+          minDuration: minHours,
+          role: role || Role.STUDENT,
+          isWalkIn,
+          errorType: "min"
+        });
+        return;
       }
     }
-  }, [bookingCalendarInfo, selectedRooms, role, schema.resources]);
+  }, [bookingCalendarInfo, selectedRooms, role, schema.resources, isWalkIn]);
 
   return { durationError };
 }
