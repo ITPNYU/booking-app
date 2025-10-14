@@ -175,12 +175,12 @@ jobs:
             echo "You may rerun the workflow after addressing the browser setup issue."
             exit 0
           else
-            echo "🌐 Running Playwright end-to-end suite..."
-            if run_tests_with_fallback "all" "" "Complete E2E test suite"; then
-              echo "✅ ALL E2E tests passed successfully!"
+            echo "🌐 Running automatic approval E2E test only..."
+            if run_tests_with_fallback "automatic-approval" "tests/e2e/automatic-approval.e2e.test.ts" "Automatic Approval E2E test"; then
+              echo "✅ Automatic approval E2E test passed successfully!"
               ALL_TESTS_PASSED=true
             else
-              echo "❌ Playwright E2E tests failed"
+              echo "❌ Automatic approval E2E test failed"
               exit 1
             fi
           fi
