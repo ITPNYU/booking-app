@@ -1,7 +1,5 @@
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { Role } from "@/components/src/types";
-import { getBookingHourLimits } from "@/components/src/client/routes/booking/utils/bookingHourLimits";
 
 // Mock the form context and providers
 const mockBookingContext = {
@@ -223,25 +221,7 @@ describe("Booking Form Integration Tests", () => {
   describe("Auto-Approval Logic", () => {
     interface AutoApprovalData {
       duration: number; // in milliseconds
-      selectedRooms: {
-        roomId: string;
-        maxHour?: {
-          student?: number;
-          studentWalkIn?: number;
-          faculty?: number;
-          facultyWalkIn?: number;
-          admin?: number;
-          adminWalkIn?: number;
-        };
-        minHour?: {
-          student?: number;
-          studentWalkIn?: number;
-          faculty?: number;
-          facultyWalkIn?: number;
-          admin?: number;
-          adminWalkIn?: number;
-        };
-      }[];
+      selectedRooms: string[];
       formData: {
         roomSetup?: string;
         mediaServices?: string[];
@@ -250,27 +230,19 @@ describe("Booking Form Integration Tests", () => {
         catering?: string;
       };
       isWalkIn: boolean;
-      role?: "Student" | "Faculty" | "Admin";
     }
 
     const checkAutoApproval = (data: AutoApprovalData) => {
       const errors: string[] = [];
 
-      // Get hour limits based on role and room settings
-      const { maxHours, minHours } = getBookingHourLimits(
-        data.selectedRooms,
-        data.role as Role,
-        data.isWalkIn
-      );
-
-      // Duration check
-      const durationInHours = data.duration / (1000 * 60 * 60);
-      if (durationInHours > maxHours) {
-        errors.push(`Event duration exceeds ${maxHours} hours for ${data.role || "student"} ${data.isWalkIn ? "walk-in" : ""} booking`);
+      // Duration check (4 hours = 14,400,000 ms)
+      if (data.duration > 14400000) {
+        errors.push("Event duration exceeds 4 hours");
       }
 
-      if (durationInHours < minHours) {
-        errors.push(`${data.isWalkIn ? "Walk-in" : ""} event duration must be at least ${minHours} hours for ${data.role || "student"} booking`);
+      // Walk-in minimum duration (1 hour = 3,600,000 ms)
+      if (data.isWalkIn && data.duration < 3600000) {
+        errors.push("Walk-in event duration must be at least 1 hour");
       }
 
       // Room setup requires approval
@@ -313,13 +285,12 @@ describe("Booking Form Integration Tests", () => {
       };
     };
 
-    it("approves simple booking automatically with default limits", () => {
+    it("approves simple booking automatically", () => {
       const data: AutoApprovalData = {
         duration: 7200000, // 2 hours
-        selectedRooms: [{ roomId: "room1" }],
+        selectedRooms: ["room1"],
         formData: {},
         isWalkIn: false,
-        role: "Student"
       };
 
       const result = checkAutoApproval(data);
@@ -327,104 +298,25 @@ describe("Booking Form Integration Tests", () => {
       expect(result.errors).toHaveLength(0);
     });
 
-    it("uses role-specific hour limits", () => {
+    it("requires approval for long events", () => {
       const data: AutoApprovalData = {
-        duration: 10800000, // 3 hours
-        selectedRooms: [{
-          roomId: "room1",
-          maxHour: {
-            student: 2, // More restrictive for students
-            faculty: 4,
-            admin: 6
-          }
-        }],
+        duration: 18000000, // 5 hours
+        selectedRooms: ["room1"],
         formData: {},
         isWalkIn: false,
-        role: "Student"
       };
 
       const result = checkAutoApproval(data);
       expect(result.isAutoApproval).toBe(false);
-      expect(result.errors).toContain("Event duration exceeds 2 hours for Student booking");
-
-      // Same duration should be approved for faculty
-      const facultyResult = checkAutoApproval({ ...data, role: "Faculty" });
-      expect(facultyResult.isAutoApproval).toBe(true);
-    });
-
-    it("uses walk-in specific limits when available", () => {
-      const data: AutoApprovalData = {
-        duration: 5400000, // 1.5 hours
-        selectedRooms: [{
-          roomId: "room1",
-          maxHour: {
-            student: 4,
-            studentWalkIn: 1 // More restrictive for walk-ins
-          },
-          minHour: {
-            student: 0.5,
-            studentWalkIn: 1 // Higher minimum for walk-ins
-          }
-        }],
-        formData: {},
-        isWalkIn: true,
-        role: "Student"
-      };
-
-      const result = checkAutoApproval(data);
-      expect(result.isAutoApproval).toBe(false);
-      expect(result.errors).toContain("Event duration exceeds 1 hours for Student walk-in booking");
-    });
-
-    it("falls back to regular role limits when walk-in limits not defined", () => {
-      const data: AutoApprovalData = {
-        duration: 5400000, // 1.5 hours
-        selectedRooms: [{
-          roomId: "room1",
-          maxHour: {
-            student: 2 // Only regular student limit defined
-          }
-        }],
-        formData: {},
-        isWalkIn: true,
-        role: "Student"
-      };
-
-      const result = checkAutoApproval(data);
-      expect(result.isAutoApproval).toBe(true);
-      // Should use regular student limit of 2 hours
-    });
-
-    it("uses most restrictive limits across multiple rooms", () => {
-      const data: AutoApprovalData = {
-        duration: 5400000, // 1.5 hours
-        selectedRooms: [
-          {
-            roomId: "room1",
-            maxHour: { student: 2 }
-          },
-          {
-            roomId: "room2",
-            maxHour: { student: 1 } // More restrictive
-          }
-        ],
-        formData: {},
-        isWalkIn: false,
-        role: "Student"
-      };
-
-      const result = checkAutoApproval(data);
-      expect(result.isAutoApproval).toBe(false);
-      expect(result.errors).toContain("Event duration exceeds 1 hours for Student booking");
+      expect(result.errors).toContain("Event duration exceeds 4 hours");
     });
 
     it("requires approval for events with room setup", () => {
       const data: AutoApprovalData = {
-        duration: 3600000, // 1 hour
-        selectedRooms: [{ roomId: "room1" }],
+        duration: 7200000, // 2 hours
+        selectedRooms: ["room1"],
         formData: { roomSetup: "yes" },
         isWalkIn: false,
-        role: "Student"
       };
 
       const result = checkAutoApproval(data);
@@ -436,11 +328,10 @@ describe("Booking Form Integration Tests", () => {
 
     it("requires approval for events with equipment services", () => {
       const data: AutoApprovalData = {
-        duration: 3600000, // 1 hour
-        selectedRooms: [{ roomId: "room1" }],
+        duration: 7200000, // 2 hours
+        selectedRooms: ["room1"],
         formData: { equipmentServices: ["camera"] },
         isWalkIn: false,
-        role: "Student"
       };
 
       const result = checkAutoApproval(data);
@@ -452,11 +343,10 @@ describe("Booking Form Integration Tests", () => {
 
     it("requires approval for events with staffing services", () => {
       const data: AutoApprovalData = {
-        duration: 3600000, // 1 hour
-        selectedRooms: [{ roomId: "room1" }],
+        duration: 7200000, // 2 hours
+        selectedRooms: ["room1"],
         formData: { staffingServices: ["audio tech"] },
         isWalkIn: false,
-        role: "Student"
       };
 
       const result = checkAutoApproval(data);
@@ -468,17 +358,31 @@ describe("Booking Form Integration Tests", () => {
 
     it("requires approval for events with catering", () => {
       const data: AutoApprovalData = {
-        duration: 3600000, // 1 hour
-        selectedRooms: [{ roomId: "room1" }],
+        duration: 7200000, // 2 hours
+        selectedRooms: ["room1"],
         formData: { catering: "yes" },
         isWalkIn: false,
-        role: "Student"
       };
 
       const result = checkAutoApproval(data);
       expect(result.isAutoApproval).toBe(false);
       expect(result.errors).toContain(
         "Providing catering for an event will require approval"
+      );
+    });
+
+    it("validates walk-in minimum duration", () => {
+      const data: AutoApprovalData = {
+        duration: 1800000, // 30 minutes
+        selectedRooms: ["room1"],
+        formData: {},
+        isWalkIn: true,
+      };
+
+      const result = checkAutoApproval(data);
+      expect(result.isAutoApproval).toBe(false);
+      expect(result.errors).toContain(
+        "Walk-in event duration must be at least 1 hour"
       );
     });
   });
