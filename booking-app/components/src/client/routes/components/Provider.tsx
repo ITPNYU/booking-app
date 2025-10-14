@@ -490,6 +490,7 @@ export const DatabaseProvider = ({
         name: resource.name,
         capacity: resource.capacity.toString(),
         calendarId: resource.calendarId,
+        ...resource,
       }));
 
       filtered.sort((a, b) => a.roomId - b.roomId);
