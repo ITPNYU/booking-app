@@ -88,6 +88,7 @@ export default defineConfig({
         NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: "123456789",
         NEXT_PUBLIC_FIREBASE_APP_ID: "test-app-id",
         NEXT_PUBLIC_MEASUREMENT_ID: "test-measurement-id",
+        NEXT_PUBLIC_DATABASE_NAME: "test-database",
         NEXT_PUBLIC_BRANCH_NAME: "development-local",
       },
       // Use system browser or fallback gracefully
