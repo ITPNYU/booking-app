@@ -364,7 +364,7 @@ export const Bookings: React.FC<BookingsProps> = ({
                   active ? "rgba(0, 0, 0, 0.8)" : "rgba(0, 0, 0, 0.08)";
 
                 const items: { label: string; Icon: any; active: boolean }[] = [
-                  { label: "Room Setup", Icon: TableBar, active: isActive.tableSetup },
+                  { label: "Setup", Icon: TableBar, active: isActive.tableSetup },
                   { label: "Equipment", Icon: Headset, active: isActive.equipmentServices },
                   { label: "Staffing", Icon: PeopleAlt, active: isActive.staffingServices },
                   { label: "Catering", Icon: LocalDining, active: isActive.cateringService },
