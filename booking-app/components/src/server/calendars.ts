@@ -282,7 +282,6 @@ export const insertEvent = async ({
         dateTime: new Date(endTime).toISOString(),
       },
       attendees: roomEmails.map((email: string) => ({ email })),
-      colorId: "8", // Gray
     },
   });
   return event.data;
