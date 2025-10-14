@@ -1,6 +1,7 @@
 import { TENANTS } from "@/components/src/constants/tenants";
 import { TableNames } from "@/components/src/policy";
 import { serverUpdateDataByCalendarEventId } from "@/components/src/server/admin";
+import { getTenantEmailConfig } from "@/components/src/server/emails";
 import { BookingStatusLabel } from "@/components/src/types";
 import {
   getMediaCommonsServices,
@@ -181,8 +182,8 @@ async function handleStateTransitions(
         const { serverSendBookingDetailEmail } = await import(
           "@/components/src/server/admin"
         );
-        let headerMessage =
-          "Your reservation request for Media Commons has been declined.";
+        const emailConfig = await getTenantEmailConfig(tenant);
+        let headerMessage = emailConfig.emailMessages.declined;
 
         // Check which services were declined and include them in the message
         const declinedServices = [];
@@ -708,8 +709,8 @@ async function handleStateTransitions(
               const { serverSendBookingDetailEmail } = await import(
                 "@/components/src/server/admin"
               );
-              const headerMessage =
-                "Your reservation request for Media Commons has been checked out. Thank you for choosing Media Commons.";
+              const emailConfig = await getTenantEmailConfig(tenant);
+              const headerMessage = emailConfig.emailMessages.checkoutConfirmation;
 
               await serverSendBookingDetailEmail({
                 calendarEventId,
@@ -1650,9 +1651,8 @@ export async function executeXStateTransition(
         const violationCount = preBanLogs.length;
 
         const guestEmail = doc.email;
-        const headerMessage = `You have been marked as a 'No Show' and your reservation has been canceled due to not checking in within the first 30 minutes of your reservation.<br /><br />
-We want to remind you that the Media Commons has a revocation policy regarding Late Cancellations and No Shows (<a href="https://sites.google.com/nyu.edu/370jmediacommons/about/our-policy" target="_blank">IV. Cancellation / V. 'No Show'</a>). Currently, you have <b>${violationCount}</b> violation(s).<br /><br />
-We understand that unexpected situations come up, and we encourage you to cancel reservations at least 24 hours in advance whenever possible to help maintain a fair system for everyone. You can easily cancel through the <a href="https://sites.google.com/nyu.edu/370jmediacommons/reservations/booking-tool" target="_blank">booking tool on our website</a> or by emailing us at mediacommons.reservations@nyu.edu.<br /><br />`;
+        const emailConfig = await getTenantEmailConfig(tenant);
+        const headerMessage = emailConfig.emailMessages.noShow.replace('${violationCount}', violationCount.toString());
 
         // Send emails using server-side function
         await serverSendBookingDetailEmail({
@@ -2037,9 +2037,8 @@ async function sendCanceledEmail(
     const guestEmail = (bookingDoc as any)?.email;
 
     if (guestEmail) {
-      const headerMessage =
-        "Your reservation has been canceled. " +
-        "If you have any questions, please don't hesitate to reach out.";
+      const emailConfig = await getTenantEmailConfig(tenant);
+      const headerMessage = emailConfig.emailMessages.canceled;
 
       await serverSendBookingDetailEmail({
         calendarEventId,

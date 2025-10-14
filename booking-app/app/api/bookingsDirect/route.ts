@@ -3,6 +3,7 @@ import {
   serverGetRoomCalendarId,
   serverSendBookingDetailEmail,
 } from "@/components/src/server/admin";
+import { getTenantEmailConfig } from "@/components/src/server/emails";
 import { BookingOrigin, BookingStatusLabel } from "@/components/src/types";
 import {
   getMediaCommonsServices,
@@ -496,12 +497,18 @@ export async function POST(request: NextRequest) {
   });
 
   if (shouldSendEmails) {
+    // Get tenant email configuration
+    const emailConfig = await getTenantEmailConfig(tenant);
+    const confirmationMessage = type === "vip" 
+      ? emailConfig.emailMessages.vipConfirmation 
+      : emailConfig.emailMessages.walkInConfirmation;
+    
     const sendWalkInNofificationEmail = async (recipients: string[]) => {
       const emailPromises = recipients.map(recipient =>
         serverSendBookingDetailEmail({
           calendarEventId,
           targetEmail: recipient,
-          headerMessage: `Your ${type} reservation has been confirmed!`,
+          headerMessage: confirmationMessage,
           status: bookingStatus,
           tenant,
         }),
@@ -513,7 +520,7 @@ export async function POST(request: NextRequest) {
     serverSendBookingDetailEmail({
       calendarEventId,
       targetEmail: email,
-      headerMessage: `Your ${type} reservation for Media Commons is confirmed.`,
+      headerMessage: confirmationMessage,
       status: bookingStatus,
       tenant,
     });
