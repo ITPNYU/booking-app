@@ -43,6 +43,8 @@ export default defineConfig({
   use: {
     headless: process.env.CI ? true : false,
     trace: 'on-first-retry',
+    screenshot: 'only-on-failure',
+    video: 'retain-on-failure',
     baseURL: 'http://localhost:3000',
 
     // Set environment variables for E2E tests
@@ -101,8 +103,6 @@ export default defineConfig({
     ignoreHTTPSErrors: true,
 
     // Enhanced debugging for CI
-    video: 'off', // Disable video to avoid ffmpeg issues
-    screenshot: process.env.CI ? 'only-on-failure' : 'off',
   },
 
   projects: [

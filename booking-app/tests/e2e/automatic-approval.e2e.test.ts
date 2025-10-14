@@ -29,15 +29,15 @@ async function ensureRoleSelectionPage(page) {
   const requestButton = page.getByRole("button", {
     name: /Request a Reservation/i,
   });
-  await requestButton.waitFor({ state: "visible", timeout: 15000 });
+  await requestButton.waitFor({ state: "visible", timeout: 5000 });
   await requestButton.click();
 
-  await page.waitForURL("**/mc/book", { timeout: 15000 });
+  await page.waitForURL("**/mc/book", { timeout: 5000 });
   const acceptButton = page.getByRole("button", { name: /^I accept$/i });
-  await acceptButton.waitFor({ state: "visible", timeout: 15000 });
+  await acceptButton.waitFor({ state: "visible", timeout: 5000 });
   await acceptButton.click();
 
-  await page.waitForURL("**/mc/book/role", { timeout: 15000 });
+  await page.waitForURL("**/mc/book/role", { timeout: 5000 });
   await page.waitForLoadState("networkidle");
 
   // Wait for department dropdown to be ready
@@ -86,7 +86,7 @@ async function chooseOption(
 ) {
   if (menuTestId) {
     const menu = page.getByTestId(`${menuTestId}-menu`);
-    await menu.waitFor({ state: "visible", timeout: 15000 });
+    await menu.waitFor({ state: "visible", timeout: 5000 });
 
     const optionIndex =
       DROPDOWN_OPTION_INDEX[labelFromTestId(menuTestId)]?.[optionText];
@@ -167,7 +167,7 @@ async function chooseOption(
     .locator('li[role="option"]')
     .filter({ hasText: optionText })
     .first();
-  await fallbackMenu.waitFor({ state: "visible", timeout: 15000 });
+  await fallbackMenu.waitFor({ state: "visible", timeout: 5000 });
   await fallbackMenu.click();
   await page.waitForTimeout(200);
 }
@@ -208,7 +208,7 @@ async function selectRoomAndTime(page) {
   await page.getByTestId(`room-option-${ROOM_ID}`).check();
 
   const calendar = page.locator('[data-testid="booking-calendar-wrapper"]');
-  await calendar.waitFor({ state: "visible", timeout: 15000 });
+  await calendar.waitFor({ state: "visible", timeout: 5000 });
 
   // Pick a slot that starts one hour from "now" to keep the selection in the future.
   const now = new Date();
