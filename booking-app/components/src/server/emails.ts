@@ -93,12 +93,4 @@ export const getTenantEmailConfig = async (tenant?: string): Promise<TenantEmail
   };
 };
 
-/**
- * Helper function to get tenant schema name for email subjects
- * @param tenant - The tenant identifier
- * @returns Promise<string> - The schema name or "Media Commons" as fallback
- */
-export const getTenantSchemaName = async (tenant?: string): Promise<string> => {
-  const config = await getTenantEmailConfig(tenant);
-  return config.schemaName;
-};
+

@@ -28,7 +28,6 @@ import {
 
 import { shouldUseXState } from "@/components/src/utils/tenantUtils";
 import { clientUpdateDataByCalendarEventId } from "@/lib/firebase/client/clientDb";
-import { getTenantEmailConfig } from "./emails";
 import { getBookingToolDeployUrl } from "./ui";
 
 // Helper function to call XState transition API
@@ -269,6 +268,7 @@ export const decline = async (
   }
   //@ts-ignore
   const guestEmail = doc ? doc.email : null;
+  const { getTenantEmailConfig } = await import("./emails");
   const emailConfig = await getTenantEmailConfig(tenant);
   let headerMessage = emailConfig.emailMessages.declined;
 
@@ -436,6 +436,7 @@ export const processCloseBooking = async (
   });
 
   // Unified email message for all close operations
+  const { getTenantEmailConfig } = await import("./emails");
   const emailConfig = await getTenantEmailConfig(tenant);
   const emailMessage = emailConfig.emailMessages.closed;
   const emailStatus = BookingStatusLabel.CLOSED;
@@ -547,6 +548,7 @@ export const processCancelBooking = async (
 
   if (isLateCancel(doc)) {
     const violationCount = await getViolationCount(netId, tenant);
+    const { getTenantEmailConfig } = await import("./emails");
     const emailConfig = await getTenantEmailConfig(tenant);
     headerMessage = emailConfig.emailMessages.lateCancel.replace('${violationCount}', violationCount.toString());
     // ccHeaderMessage remains the original cancel message
@@ -790,6 +792,7 @@ export const checkin = async (id: string, email: string, tenant?: string) => {
   //@ts-ignore
   const guestEmail = doc ? doc.email : null;
 
+  const { getTenantEmailConfig } = await import("./emails");
   const emailConfig = await getTenantEmailConfig(tenant);
   const headerMessage = emailConfig.emailMessages.checkinConfirmation;
   clientSendBookingDetailEmail(
@@ -994,6 +997,7 @@ export const executeTraditionalNoShow = async (
   const guestEmail = doc ? doc.email : null;
 
   const violationCount = await getViolationCount(netId);
+  const { getTenantEmailConfig } = await import("./emails");
   const emailConfig = await getTenantEmailConfig(tenant);
   const headerMessage = emailConfig.emailMessages.noShow.replace('${violationCount}', violationCount.toString());
   clientSendBookingDetailEmail(
