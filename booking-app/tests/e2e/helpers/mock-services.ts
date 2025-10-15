@@ -3,48 +3,54 @@
  * These mocks help isolate the XState flow testing from external dependencies
  */
 
-import { Page } from '@playwright/test';
+import { Page } from "@playwright/test";
 
 export class MockServices {
+  private sideEffects: Array<{
+    type: string;
+    payload: any;
+    timestamp: number;
+  }> = [];
+
   constructor(private page: Page) {}
 
   /**
    * Mock calendar API responses to avoid actual calendar operations during testing
    */
   async mockCalendarAPI(): Promise<void> {
-    await this.page.route('**/api/calendarEvents', async route => {
+    await this.page.route("**/api/calendarEvents", async (route) => {
       const method = route.request().method();
-      
-      if (method === 'POST') {
+
+      if (method === "POST") {
         // Mock calendar event creation
         await route.fulfill({
           status: 200,
-          contentType: 'application/json',
+          contentType: "application/json",
           body: JSON.stringify({
             success: true,
-            eventId: 'mock-calendar-event-' + Date.now(),
-            message: 'Calendar event created successfully (mock)'
-          })
+            eventId: "mock-calendar-event-" + Date.now(),
+            message: "Calendar event created successfully (mock)",
+          }),
         });
-      } else if (method === 'PUT') {
+      } else if (method === "PUT") {
         // Mock calendar event update
         await route.fulfill({
           status: 200,
-          contentType: 'application/json',
+          contentType: "application/json",
           body: JSON.stringify({
             success: true,
-            message: 'Calendar event updated successfully (mock)'
-          })
+            message: "Calendar event updated successfully (mock)",
+          }),
         });
-      } else if (method === 'DELETE') {
+      } else if (method === "DELETE") {
         // Mock calendar event deletion
         await route.fulfill({
           status: 200,
-          contentType: 'application/json',
+          contentType: "application/json",
           body: JSON.stringify({
             success: true,
-            message: 'Calendar event deleted successfully (mock)'
-          })
+            message: "Calendar event deleted successfully (mock)",
+          }),
         });
       }
     });
@@ -54,15 +60,15 @@ export class MockServices {
    * Mock email service to avoid sending actual emails during testing
    */
   async mockEmailService(): Promise<void> {
-    await this.page.route('**/api/sendEmail', async route => {
+    await this.page.route("**/api/sendEmail", async (route) => {
       await route.fulfill({
         status: 200,
-        contentType: 'application/json',
+        contentType: "application/json",
         body: JSON.stringify({
           success: true,
-          messageId: 'mock-email-' + Date.now(),
-          message: 'Email sent successfully (mock)'
-        })
+          messageId: "mock-email-" + Date.now(),
+          message: "Email sent successfully (mock)",
+        }),
       });
     });
   }
@@ -72,37 +78,51 @@ export class MockServices {
    */
   async mockDatabaseOperations(): Promise<void> {
     // Mock booking creation
-    await this.page.route('**/api/bookings', async route => {
+    await this.page.route("**/api/bookings", async (route) => {
       const method = route.request().method();
-      
-      if (method === 'POST') {
+
+      if (method === "POST") {
         const body = route.request().postDataJSON();
+        const status = this.determineInitialStatus(body);
+
+        // Record booking creation side effect
+        this.recordSideEffect("booking:create", {
+          request: body,
+          response: { status },
+        });
+
+        // Record email side effect
+        this.recordSideEffect("email:send", {
+          status: status,
+          recipients: { user: body.email },
+        });
+
         await route.fulfill({
           status: 200,
-          contentType: 'application/json',
+          contentType: "application/json",
           body: JSON.stringify({
             success: true,
-            bookingId: 'mock-booking-' + Date.now(),
-            calendarEventId: 'mock-calendar-event-' + Date.now(),
-            status: this.determineInitialStatus(body),
-            data: body
-          })
+            bookingId: "mock-booking-" + Date.now(),
+            calendarEventId: "mock-calendar-event-" + Date.now(),
+            status: status,
+            data: body,
+          }),
         });
       }
     });
 
     // Mock booking updates
-    await this.page.route('**/api/bookings/**', async route => {
+    await this.page.route("**/api/bookings/**", async (route) => {
       const method = route.request().method();
-      
-      if (method === 'PUT') {
+
+      if (method === "PUT") {
         await route.fulfill({
           status: 200,
-          contentType: 'application/json',
+          contentType: "application/json",
           body: JSON.stringify({
             success: true,
-            message: 'Booking updated successfully (mock)'
-          })
+            message: "Booking updated successfully (mock)",
+          }),
         });
       }
     });
@@ -127,31 +147,112 @@ export class MockServices {
   }
 
   /**
+   * Reset side effects tracking
+   */
+  resetSideEffects(): void {
+    this.sideEffects = [];
+  }
+
+  /**
+   * Get side effects of a specific type
+   */
+  getSideEffects(
+    type: string
+  ): Array<{ type: string; payload: any; timestamp: number }> {
+    return this.sideEffects.filter((effect) => effect.type === type);
+  }
+
+  /**
+   * Wait for a specific side effect to occur
+   */
+  async waitForSideEffect(
+    predicate: (effect: {
+      type: string;
+      payload: any;
+      timestamp: number;
+    }) => boolean,
+    timeoutMs: number = 10000
+  ): Promise<{ type: string; payload: any; timestamp: number }> {
+    const startTime = Date.now();
+
+    while (Date.now() - startTime < timeoutMs) {
+      const matchingEffect = this.sideEffects.find(predicate);
+      if (matchingEffect) {
+        return matchingEffect;
+      }
+      await this.page.waitForTimeout(100);
+    }
+
+    throw new Error("Timeout waiting for side effect");
+  }
+
+  /**
+   * Record a side effect
+   */
+  private recordSideEffect(type: string, payload: any): void {
+    this.sideEffects.push({
+      type,
+      payload,
+      timestamp: Date.now(),
+    });
+  }
+
+  /**
+   * Approve the latest booking (simulate admin action)
+   */
+  approveLatestBooking(): void {
+    this.recordSideEffect("booking:update", {
+      status: "Approved",
+      label: "Approved",
+      timestamp: Date.now(),
+    });
+
+    this.recordSideEffect("calendar:create", {
+      calendarEventId: "mock-calendar-" + Date.now(),
+      title: "[Approved] Mock Booking",
+      timestamp: Date.now(),
+    });
+
+    this.recordSideEffect("email:send", {
+      status: "Approved",
+      recipients: { user: "test@nyu.edu" },
+      timestamp: Date.now(),
+    });
+
+    this.recordSideEffect("history:record", {
+      status: "Approved",
+      action: "Booking approved by admin",
+      timestamp: Date.now(),
+    });
+  }
+
+  /**
    * Determine initial booking status based on booking data and XState rules
    */
   private determineInitialStatus(bookingData: any): string {
     // Implement XState auto-approval logic for mocking
     const isVip = bookingData.isVip || false;
     const isWalkIn = bookingData.isWalkIn || false;
-    const hasServices = bookingData.servicesRequested && 
+    const hasServices =
+      bookingData.servicesRequested &&
       Object.values(bookingData.servicesRequested).some(Boolean);
     const shouldAutoApprove = bookingData.shouldAutoApprove || false;
 
     // Auto-approval conditions (simplified for mocking)
     if (shouldAutoApprove || isWalkIn) {
-      return 'Approved';
+      return "Approved";
     }
 
     if (isVip && hasServices) {
-      return 'Services Request';
+      return "Services Request";
     }
 
     if (isVip && !hasServices) {
-      return 'Approved';
+      return "Approved";
     }
 
     // Default to requested for standard bookings
-    return 'Requested';
+    return "Requested";
   }
 }
 
@@ -160,39 +261,49 @@ export class MockServices {
  */
 export class MockDataGenerator {
   static generateBookingId(): string {
-    return 'mock-booking-' + Date.now() + '-' + Math.random().toString(36).substring(2, 8);
+    return (
+      "mock-booking-" +
+      Date.now() +
+      "-" +
+      Math.random().toString(36).substring(2, 8)
+    );
   }
 
   static generateCalendarEventId(): string {
-    return 'mock-calendar-event-' + Date.now() + '-' + Math.random().toString(36).substring(2, 8);
+    return (
+      "mock-calendar-event-" +
+      Date.now() +
+      "-" +
+      Math.random().toString(36).substring(2, 8)
+    );
   }
 
   static generateTestDate(daysFromNow: number = 1): string {
     const date = new Date();
     date.setDate(date.getDate() + daysFromNow);
-    return date.toISOString().split('T')[0];
+    return date.toISOString().split("T")[0];
   }
 
   static generateTimeSlot(): { start: string; end: string } {
     const startHour = Math.floor(Math.random() * 8) + 9; // 9 AM to 5 PM
     const endHour = startHour + 2; // 2-hour slots
-    
+
     return {
-      start: `${startHour.toString().padStart(2, '0')}:00`,
-      end: `${endHour.toString().padStart(2, '0')}:00`
+      start: `${startHour.toString().padStart(2, "0")}:00`,
+      end: `${endHour.toString().padStart(2, "0")}:00`,
     };
   }
 
   static generateMockBookingData(overrides: any = {}) {
     return {
-      title: 'Mock Test Booking',
-      department: 'ITP / IMA / Low Res',
-      role: 'Student',
-      expectedAttendance: '15',
-      description: 'Generated mock booking for testing',
+      title: "Mock Test Booking",
+      department: "ITP / IMA / Low Res",
+      role: "Student",
+      expectedAttendance: "15",
+      description: "Generated mock booking for testing",
       date: this.generateTestDate(),
       timeSlot: this.generateTimeSlot(),
-      ...overrides
+      ...overrides,
     };
   }
 }
@@ -210,12 +321,16 @@ export class XStateTestUtils {
     await this.page.addInitScript(() => {
       window.__XSTATE_DEBUG__ = true;
       window.__XSTATE_LOGS__ = [];
-      
+
       // Capture XState logs for test verification
       const originalConsoleLog = console.log;
       console.log = (...args) => {
-        if (args[0] && typeof args[0] === 'string' && args[0].includes('XSTATE')) {
-          window.__XSTATE_LOGS__.push(args.join(' '));
+        if (
+          args[0] &&
+          typeof args[0] === "string" &&
+          args[0].includes("XSTATE")
+        ) {
+          window.__XSTATE_LOGS__.push(args.join(" "));
         }
         originalConsoleLog.apply(console, args);
       };
@@ -232,10 +347,13 @@ export class XStateTestUtils {
   /**
    * Verify specific XState transitions occurred
    */
-  async verifyStateTransition(fromState: string, toState: string): Promise<boolean> {
+  async verifyStateTransition(
+    fromState: string,
+    toState: string
+  ): Promise<boolean> {
     const logs = await this.getXStateLogs();
     const transitionPattern = new RegExp(`.*${fromState}.*→.*${toState}.*`);
-    return logs.some(log => transitionPattern.test(log));
+    return logs.some((log) => transitionPattern.test(log));
   }
 
   /**
@@ -243,7 +361,7 @@ export class XStateTestUtils {
    */
   async verifyGuardExecution(guardName: string): Promise<boolean> {
     const logs = await this.getXStateLogs();
-    return logs.some(log => log.includes(`GUARD: ${guardName}`));
+    return logs.some((log) => log.includes(`GUARD: ${guardName}`));
   }
 
   /**
@@ -251,23 +369,26 @@ export class XStateTestUtils {
    */
   async verifyActionExecution(actionName: string): Promise<boolean> {
     const logs = await this.getXStateLogs();
-    return logs.some(log => log.includes(`ACTION: ${actionName}`));
+    return logs.some((log) => log.includes(`ACTION: ${actionName}`));
   }
 
   /**
    * Wait for specific XState state to be reached
    */
-  async waitForState(stateName: string, timeoutMs: number = 10000): Promise<void> {
+  async waitForState(
+    stateName: string,
+    timeoutMs: number = 10000
+  ): Promise<void> {
     const startTime = Date.now();
-    
+
     while (Date.now() - startTime < timeoutMs) {
       const logs = await this.getXStateLogs();
-      if (logs.some(log => log.includes(`Entered '${stateName}' state`))) {
+      if (logs.some((log) => log.includes(`Entered '${stateName}' state`))) {
         return;
       }
       await this.page.waitForTimeout(100);
     }
-    
+
     throw new Error(`Timeout waiting for XState to reach '${stateName}' state`);
   }
 }

@@ -15,6 +15,7 @@ async function globalSetup(config: FullConfig) {
   process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID = '123456789';
   process.env.NEXT_PUBLIC_FIREBASE_APP_ID = 'test-app-id';
   process.env.NEXT_PUBLIC_MEASUREMENT_ID = 'test-measurement-id';
+  process.env.NEXT_PUBLIC_DATABASE_NAME = 'test-database';
   process.env.NEXT_PUBLIC_BRANCH_NAME = 'development-local';
   
   console.log('🚀 E2E Global Setup: Configuring authentication bypass environment');

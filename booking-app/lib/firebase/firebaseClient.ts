@@ -1,4 +1,5 @@
 // firebaseClient.ts
+import { isTestEnvironment } from "@/lib/utils/testEnvironment";
 import { initializeApp } from "firebase/app";
 import {
   getAuth,
@@ -8,6 +9,16 @@ import {
   signInWithRedirect,
 } from "firebase/auth";
 import { Firestore, initializeFirestore } from "firebase/firestore";
+
+// Check for test environment synchronously from environment variables
+const isTestEnv = isTestEnvironment();
+
+// Debug logging for environment detection
+console.log("🔍 Firebase Client Debug:");
+console.log("BYPASS_AUTH:", process.env.BYPASS_AUTH);
+console.log("E2E_TESTING:", process.env.E2E_TESTING);
+console.log("NODE_ENV:", process.env.NODE_ENV);
+console.log("isTestEnv:", isTestEnv);
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -27,9 +38,41 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
   measurementId: process.env.NEXT_PUBLIC_MEASUREMENT_ID,
 };
-const app = initializeApp(firebaseConfig);
+
+// Only initialize Firebase app if not in test environment
+let app: any = null;
+if (!isTestEnv) {
+  app = initializeApp(firebaseConfig);
+} else {
+  console.log("Skipping Firebase initialization in test environment");
+  // Create a mock app for test environment
+  app = {
+    name: "test-app",
+    options: firebaseConfig,
+  };
+}
 let db: Firestore;
 export const initializeDb = () => {
+  if (isTestEnv) {
+    // Return a mock database for test environment
+    console.log("Using mock database in test environment");
+    return {
+      collection: () => ({
+        doc: () => ({
+          get: () => Promise.resolve({ exists: false, data: () => ({}) }),
+          set: () => Promise.resolve(),
+          update: () => Promise.resolve(),
+          delete: () => Promise.resolve(),
+        }),
+        add: () => Promise.resolve({ id: "mock-doc-id" }),
+        where: () => ({
+          get: () => Promise.resolve({ docs: [] }),
+        }),
+        get: () => Promise.resolve({ docs: [] }),
+      }),
+    } as any;
+  }
+
   const options: any = {
     experimentalForceLongPolling: true,
     experimentalAutoDetectLongPolling: false,
@@ -45,15 +88,11 @@ export const getDb = () => {
   return db;
 };
 
-// Check for test environment synchronously from environment variables
-const isTestEnvironment = process.env.BYPASS_AUTH === "true" || 
-                         process.env.E2E_TESTING === "true";
-
 let authInstance: any = null;
 let providerInstance: any = null;
 
 // Initialize Firebase Auth conditionally
-if (!isTestEnvironment) {
+if (!isTestEnv) {
   authInstance = getAuth(app);
   providerInstance = new GoogleAuthProvider();
 } else {
@@ -72,27 +111,34 @@ if (!isTestEnvironment) {
 export const auth = authInstance;
 export const googleProvider = providerInstance;
 
-let isTestEnv = isTestEnvironment; // Start with the environment check
+let dynamicTestEnv = isTestEnv; // Start with the environment check
 
 // Only fetch from API if we're not already in test environment and we have a valid base URL
-if (!isTestEnvironment && process.env.NEXT_PUBLIC_BASE_URL && typeof window !== 'undefined') {
+if (
+  !isTestEnv &&
+  process.env.NEXT_PUBLIC_BASE_URL &&
+  typeof window !== "undefined"
+) {
   fetch(process.env.NEXT_PUBLIC_BASE_URL + "/api/isTestEnv")
     .then((res) => res.json())
     .then((data) => {
-      isTestEnv = data.isOnTestEnv;
-      console.log("isTestEnv", isTestEnv);
-      if (!isTestEnv && googleProvider) {
+      dynamicTestEnv = data.isOnTestEnv;
+      console.log("dynamicTestEnv", dynamicTestEnv);
+      if (!dynamicTestEnv && googleProvider) {
         googleProvider.setCustomParameters({
           hd: "nyu.edu",
         });
       }
     })
     .catch((error) => {
-      console.log("Failed to fetch isTestEnv, using environment check:", isTestEnvironment);
-      isTestEnv = isTestEnvironment;
+      console.log(
+        "Failed to fetch isTestEnv, using environment check:",
+        isTestEnv
+      );
+      dynamicTestEnv = isTestEnv;
     });
 } else {
-  console.log("Using environment-based test detection:", isTestEnvironment);
+  console.log("Using environment-based test detection:", isTestEnv);
 }
 
 // Check if running on localhost
@@ -103,7 +149,7 @@ const isLocalhost =
 
 export const signInWithGoogle = async () => {
   // In test environment, return a mock user instead of trying to sign in
-  if (isTestEnvironment) {
+  if (isTestEnv) {
     return {
       uid: "test-user-id",
       email: "test@nyu.edu",
@@ -118,7 +164,7 @@ export const signInWithGoogle = async () => {
       // Use popup for localhost to avoid cross-domain issues
       const result = await signInWithPopup(auth, googleProvider);
       const user = result.user;
-      if (!user.email?.endsWith("@nyu.edu") && !isTestEnv) {
+      if (!user.email?.endsWith("@nyu.edu") && !dynamicTestEnv) {
         await auth.signOut();
         throw new Error("Only nyu.edu email addresses are allowed.");
       }
@@ -136,7 +182,7 @@ export const signInWithGoogle = async () => {
 
 export const getGoogleRedirectResult = async () => {
   // In test environment, always return null (no redirect result)
-  if (isTestEnvironment) {
+  if (isTestEnv) {
     return null;
   }
 
@@ -149,7 +195,7 @@ export const getGoogleRedirectResult = async () => {
     const result = await getRedirectResult(auth);
     if (result) {
       const user = result.user;
-      if (!user.email?.endsWith("@nyu.edu") && !isTestEnv) {
+      if (!user.email?.endsWith("@nyu.edu") && !dynamicTestEnv) {
         await auth.signOut();
         throw new Error("Only nyu.edu email addresses are allowed.");
       }

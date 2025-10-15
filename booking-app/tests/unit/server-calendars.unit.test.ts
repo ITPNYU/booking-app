@@ -366,6 +366,7 @@ describe("Server Calendar Functions", () => {
       expect(result).toContain("<strong>NetID:</strong> none");
       expect(result).toContain("<strong>Name:</strong> none");
       expect(result).toContain("<strong>Department:</strong> none");
+
     });
   });
 });
