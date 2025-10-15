@@ -143,18 +143,102 @@ The following mocks are configured:
 
 Current test status:
 
-- **Unit Tests**: 186 tests passing
-- **Test Files**: 10 files
+- **Unit Tests**: 759 tests passing
+- **Test Files**: 53 files
 - **Success Rate**: 100%
 
+## API and Server-Side Testing
+
+### API Route Tests
+
+The following API routes have comprehensive unit test coverage:
+
+1. **`api-approve.unit.test.ts`** - Booking approval endpoint
+   - XState transition handling
+   - Fallback to traditional approval
+   - Final approval flow
+   - Pre-approval flow
+   - Services request transitions
+
+2. **`api-booking-logs.unit.test.ts`** - Booking history logging
+   - GET endpoint: Retrieve booking logs by request number
+   - POST endpoint: Create new booking log entries
+   - Validation of required fields
+   - Error handling for database operations
+
+3. **`api-cancel-processing.unit.test.ts`** - Booking cancellation
+   - Cancel booking with calendar deletion
+   - Multiple room calendar handling
+   - Error resilience for calendar API failures
+   - Booking not found scenarios
+
+4. **`api-checkout-processing.unit.test.ts`** - Checkout operations
+   - Checkout timestamp recording
+   - Email notifications to guests
+   - Calendar event status updates
+   - History logging
+   - Error handling for missing bookings
+
+5. **`api-close-processing.unit.test.ts`** - Booking closure
+   - Close booking validation
+   - Required field validation
+   - Error handling
+
+6. **`api-getData.unit.test.ts`** - Admin data fetching
+   - Default tenant handling
+   - Custom tenant from headers
+   - Empty result sets
+   - Firestore error handling
+
+7. **`api-send-email.unit.test.ts`** - Email sending
+   - Email template handling
+   - Tenant-specific emails
+   - Error handling
+
+8. **`api-calendar-events.unit.test.ts`** - Calendar event management
+   - Event creation and updates
+   - Calendar integration
+
+9. **`equipment-api.unit.test.ts`** - Equipment management
+   - Equipment checkout operations
+   - Timestamp handling
+   - Request validation
+
+10. **`webcheckout-api.unit.test.ts`** - Web checkout integration
+    - Cart number lookups
+    - Equipment allocation search
+    - Error handling
+
+### Server-Side Function Tests
+
+1. **`server-admin.unit.test.ts`** - Administrative server functions
+   - Booking content formatting
+   - Approval workflows
+   - Admin user management
+
+2. **`server-calendars.unit.test.ts`** - Google Calendar operations
+   - Calendar event patching
+   - User invitations to events
+   - Booking description generation
+   - Missing value handling
+
+3. **`calendar-description.unit.test.ts`** - Calendar description formatting
+   - HTML description generation
+   - Request information formatting
+   - Requester details
+   - Event details
+   - Services information
+
+### Coverage Areas
+
+- **API Endpoints**: Core booking operations (approve, cancel, close, checkout)
+- **Data Operations**: Booking logs, admin data retrieval
+- **Calendar Integration**: Google Calendar event management
+- **Email Notifications**: Booking status change notifications
+- **Equipment Management**: Equipment checkout and tracking
+- **Error Handling**: Comprehensive error scenarios for all operations
+
 ## Future Expansions
-
-### Planned Additional Tests
-
-1. **Component Tests** - React component rendering & interaction
-2. **API Tests** - Backend API functionality
-3. **Integration Tests** - Frontend and backend integration
-4. **Performance Tests** - Response time & memory usage
 
 ### Best Practices
 
