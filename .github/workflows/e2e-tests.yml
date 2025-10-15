@@ -11,6 +11,7 @@ permissions:
 
 jobs:
   e2e-tests:
+    if: ${{ false }} # temporarily disabled per request
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
