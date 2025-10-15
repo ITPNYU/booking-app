@@ -1,3 +1,11 @@
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const resolveStub = (relativePath) => path.join(__dirname, relativePath);
+
 /** @type {import('next').NextConfig} */
 
 const nextConfig = {
@@ -40,6 +48,18 @@ const nextConfig = {
         "firebase-admin/app": false,
         "firebase-admin/firestore": false,
         "firebase-admin/auth": false,
+      };
+    }
+
+    if (process.env.E2E_TESTING === 'true') {
+      config.resolve.alias = {
+        ...config.resolve.alias,
+        'firebase/app': resolveStub('lib/firebase/stubs/firebaseAppStub.ts'),
+        'firebase/auth': resolveStub('lib/firebase/stubs/firebaseAuthStub.ts'),
+        'firebase/firestore': resolveStub('lib/firebase/stubs/firebaseFirestoreStub.ts'),
+        '@firebase/app': resolveStub('lib/firebase/stubs/firebaseAppStub.ts'),
+        '@firebase/auth': resolveStub('lib/firebase/stubs/firebaseAuthStub.ts'),
+        '@firebase/firestore': resolveStub('lib/firebase/stubs/firebaseFirestoreStub.ts'),
       };
     }
 

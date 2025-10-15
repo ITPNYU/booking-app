@@ -179,6 +179,7 @@ export default function UserRolePage({
           updateValue={setDepartment}
           options={Object.keys(tenantSchema.programMapping)}
           placeholder="Choose a Department"
+          dataTestId="department-select"
           sx={{ marginTop: 4 }}
         />
         {showOther && (
@@ -197,6 +198,7 @@ export default function UserRolePage({
           }}
           options={tenantSchema.roles}
           placeholder="Choose a Role"
+          dataTestId="role-select"
           sx={{ marginTop: 4 }}
         />
         <Button
