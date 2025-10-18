@@ -507,12 +507,33 @@ export const DatabaseProvider = ({
           bookingType: item.bookingType,
           createdAt: item.createdAt,
         }));
+        
+        // If no booking types are available, add a default "Other" option
+        const bookingTypes = filtered.length > 0 ? filtered : [
+          {
+            id: 'default-other',
+            bookingType: 'Other',
+            createdAt: new Date().toISOString(),
+          }
+        ];
+        
         setSettings((prev) => ({
           ...prev,
-          bookingTypes: filtered as BookingType[],
+          bookingTypes: bookingTypes as BookingType[],
         }));
       })
-      .catch((error) => console.error("Error fetching data:", error));
+      .catch((error) => {
+        console.error("Error fetching data:", error);
+        // On error, also provide a default "Other" option
+        setSettings((prev) => ({
+          ...prev,
+          bookingTypes: [{
+            id: 'default-other',
+            bookingType: 'Other',
+            createdAt: new Date().toISOString(),
+          }] as BookingType[],
+        }));
+      });
   };
 
   const fetchOperationHours = async () => {
