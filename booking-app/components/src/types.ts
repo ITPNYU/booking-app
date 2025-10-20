@@ -291,6 +291,22 @@ export type RoomSetting = {
   services?: string[];
   staffingServices?: string[]; // Specific staffing service options for this room
   staffingSections?: { name: string; indexes: number[] }[];
+  maxHour?: {
+    student: number;
+    faculty: number;
+    admin: number;
+    studentWalkIn: number;
+    facultyWalkIn: number;
+    adminWalkIn: number;
+  };
+  minHour?: {
+    student: number;
+    faculty: number;
+    admin: number;
+    studentWalkIn: number;
+    facultyWalkIn: number;
+    adminWalkIn: number;
+  };
 };
 
 export type SafetyTraining = {
