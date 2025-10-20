@@ -11,6 +11,17 @@ const baseMediaCommonsSchema: SchemaContextType = {
     "ITP / IMA / Low Res": ["ITP"],
     "General Department": ["GENERAL"],
   },
+  schoolOptions: [
+    "Tisch School of the Arts",
+    "Tandon School of Engineering",
+    "Stern School of Business",
+    "Steinhardt School of Culture, Education, and Human Development",
+    "College of Arts & Science",
+  ],
+  departmentToSchool: {
+    "ITP / IMA / Low Res": "Tisch School of the Arts",
+    "General Department": "College of Arts & Science",
+  },
   roles: ["Student", "Faculty", "Staff"],
   roleMapping: {
     Student: ["STUDENT"],

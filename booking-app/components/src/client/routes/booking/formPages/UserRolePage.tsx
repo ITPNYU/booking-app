@@ -8,7 +8,7 @@ import { Department, FormContextLevel, Inputs, Role } from "../../../../types";
 import { useAuth } from "../../components/AuthProvider";
 import { DatabaseContext } from "../../components/Provider";
 import { BookingContext } from "../bookingProvider";
-import { BookingFormTextField } from "../components/BookingFormInputs";
+import { BookingFormDropdown, BookingFormTextField } from "../components/BookingFormInputs";
 import Dropdown from "../components/Dropdown";
 import { useParams } from "next/navigation";
 import { useTenantSchema } from "../../components/SchemaProvider";
@@ -80,10 +80,20 @@ export default function UserRolePage({
   const { tenant } = useParams();
   const tenantSchema = useTenantSchema();
 
+  // Default school options when not configured in tenant schema
+  const defaultSchoolOptions = [
+    "Tisch School of the Arts",
+    "Tandon School of Engineering", 
+    "Stern School of Business",
+    "Steinhardt School of Culture, Education, and Human Development",
+    "College of Arts & Science"
+  ];
+
   const {
     control,
     trigger,
     watch,
+    setValue,
     formState: { errors },
   } = useForm<Inputs>({
     defaultValues: {
@@ -130,14 +140,27 @@ export default function UserRolePage({
       if (mappedDepartment && !department) {
         setDepartment(mappedDepartment);
       }
+
+      // Default school if available and schema lists options/mapping
+      if (!formData?.school) {
+        const defaultSchool =
+          userApiData.school_name ||
+          (mappedDepartment && tenantSchema.departmentToSchool
+            ? tenantSchema.departmentToSchool[mappedDepartment]
+            : undefined);
+        if (defaultSchool) {
+          setFormData({ ...watchedFields, school: defaultSchool });
+        }
+      }
     }
   }, [userApiData, user, isVIP, isWalkIn]);
 
   useEffect(() => {
     if (
       !prevWatchedFieldsRef.current ||
-      prevWatchedFieldsRef.current.otherDepartment !==
-        watchedFields.otherDepartment
+      prevWatchedFieldsRef.current.otherDepartment !== watchedFields.otherDepartment ||
+      prevWatchedFieldsRef.current.school !== watchedFields.school ||
+      prevWatchedFieldsRef.current.otherSchool !== watchedFields.otherSchool
     ) {
       setFormData({ ...watchedFields });
       prevWatchedFieldsRef.current = watchedFields;
@@ -165,6 +188,16 @@ export default function UserRolePage({
     }
   };
 
+  // Auto-map school when department changes (if mapping provided by schema)
+  useEffect(() => {
+    if (department && tenantSchema.departmentToSchool) {
+      const mapped = tenantSchema.departmentToSchool[department as string];
+      if (mapped && formData?.school !== mapped) {
+        setFormData({ ...formData, school: mapped });
+      }
+    }
+  }, [department]);
+
   return (
     <Center>
       <Container
@@ -174,6 +207,31 @@ export default function UserRolePage({
         width={{ xs: "100%", md: "50%" }}
       >
         <Typography fontWeight={500}>{affiliationTitle}</Typography>
+        {((tenantSchema.schoolOptions && tenantSchema.schoolOptions.length > 0) || !tenantSchema.schoolOptions) && (
+          <>
+            <Dropdown
+              value={watchedFields.school || ""}
+              updateValue={(newSchool) => {
+                setValue("school", newSchool);
+                setFormData({ ...watchedFields, school: newSchool });
+              }}
+              options={tenantSchema.schoolOptions || defaultSchoolOptions}
+              placeholder="Choose a School"
+              dataTestId="school-select"
+              sx={{ marginTop: 4 }}
+            />
+            {watchedFields.school === "Other" && (
+              <BookingFormTextField
+                id="otherSchool"
+                label={formatFieldLabel("School")}
+                containerSx={{ marginBottom: 2, marginTop: 1, width: "100%" }}
+                fieldSx={{}}
+                required={false}
+                {...{ control, errors, trigger }}
+              />
+            )}
+          </>
+        )}
         <Dropdown
           value={department}
           updateValue={setDepartment}

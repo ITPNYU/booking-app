@@ -45,6 +45,9 @@ export type SchemaContextType = {
   programMapping: Record<string, string[]>;
   roles: string[];
   roleMapping: Record<string, string[]>;
+  // Optional school options and mapping for deriving school from department
+  schoolOptions?: string[];
+  departmentToSchool?: Record<string, string>;
   showNNumber: boolean;
   showSponsor: boolean;
   showSetup: boolean;
@@ -98,6 +101,8 @@ export const SchemaContext = createContext<SchemaContextType>({
   resourceName: "",
   programMapping: {},
   roleMapping: {},
+  schoolOptions: [],
+  departmentToSchool: {},
   emailMessages: {
     requestConfirmation: "",
     firstApprovalRequest: "",
