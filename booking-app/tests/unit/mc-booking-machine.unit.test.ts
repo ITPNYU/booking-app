@@ -100,6 +100,24 @@ const waitForMockCall = async (
   throw new Error("Timed out waiting for mock call");
 };
 
+const getPrimaryState = (
+  snapshot: ReturnType<BookingActor["getSnapshot"]>
+): string => {
+  const value = snapshot.value as unknown;
+  if (typeof value === "string") {
+    return value;
+  }
+
+  if (value && typeof value === "object") {
+    const keys = Object.keys(value as Record<string, unknown>);
+    if (keys.length > 0) {
+      return keys[0];
+    }
+  }
+
+  return "Unknown";
+};
+
 describe("mcBookingMachine", () => {
   beforeEach(() => {
     process.env.NEXT_PUBLIC_BASE_URL =
@@ -367,5 +385,38 @@ describe("mcBookingMachine", () => {
     actor.send({ type: "declineEquipment" });
 
     await waitForCondition(actor, (snapshot) => snapshot.matches("Declined"));
+  });
+
+  it("emits the official guideline state sequence for manual service approvals", async () => {
+    const actor = createTestActor({
+      selectedRooms: [{ roomId: 202, shouldAutoApprove: false }],
+      servicesRequested: { equipment: true, staff: true },
+    });
+
+    const stateSequence: string[] = [getPrimaryState(actor.getSnapshot())];
+
+    const subscription = actor.subscribe((snapshot) => {
+      const primary = getPrimaryState(snapshot);
+      if (stateSequence.at(-1) !== primary) {
+        stateSequence.push(primary);
+      }
+    });
+
+    // Recommended by the official XState testing guide: assert snapshots via subscribe().
+    actor.send({ type: "approve" });
+    actor.send({ type: "approve" });
+    actor.send({ type: "approveEquipment" });
+    actor.send({ type: "approveStaff" });
+
+    await waitForCondition(actor, (snapshot) => snapshot.matches("Approved"));
+
+    subscription.unsubscribe();
+
+    expect(stateSequence).toEqual([
+      "Requested",
+      "Pre-approved",
+      "Services Request",
+      "Approved",
+    ]);
   });
 });

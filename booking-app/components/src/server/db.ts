@@ -795,21 +795,32 @@ export const checkin = async (id: string, email: string, tenant?: string) => {
   //@ts-ignore
   const guestEmail = doc ? doc.email : null;
 
-  const { getTenantEmailConfig } = await import("./emails");
-  const emailConfig = await getTenantEmailConfig(tenant);
-  const headerMessage = emailConfig.emailMessages.checkinConfirmation;
-  clientSendBookingDetailEmail(
-    id,
-    guestEmail,
-    headerMessage,
-    BookingStatusLabel.CHECKED_IN,
-    tenant
-  );
+  try {
+    const { getTenantEmailConfig } = await import("./emails");
+    const emailConfig = await getTenantEmailConfig(tenant);
+    const headerMessage = emailConfig.emailMessages.checkinConfirmation;
+    await clientSendBookingDetailEmail(
+      id,
+      guestEmail,
+      headerMessage,
+      BookingStatusLabel.CHECKED_IN,
+      tenant
+    );
 
-  console.log(`📧 XSTATE CHECKIN EMAIL SENT [${tenant?.toUpperCase()}]:`, {
-    calendarEventId: id,
-    guestEmail,
-  });
+    console.log(`📧 XSTATE CHECKIN EMAIL SENT [${tenant?.toUpperCase()}]:`, {
+      calendarEventId: id,
+      guestEmail,
+    });
+  } catch (emailError) {
+    console.error(
+      `⚠️ XSTATE CHECKIN EMAIL FAILED [${tenant?.toUpperCase()}]:`,
+      {
+        calendarEventId: id,
+        error: emailError,
+      }
+    );
+    // Don't throw - email failure shouldn't fail the entire check-in
+  }
 };
 
 export const checkOut = async (id: string, email: string, tenant?: string) => {
