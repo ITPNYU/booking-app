@@ -186,4 +186,111 @@ describe("useSortBookingHistory - automatic approval history", () => {
 
     expect(users).toEqual(expectedUsers);
   });
+
+  it("displays decline reason note when booking has been declined with logs", async () => {
+    const declineReason = "Room is not available for requested time";
+    const logs = [
+      {
+        id: "log1",
+        status: BookingStatusLabel.REQUESTED,
+        changedBy: "user@nyu.edu",
+        changedAt: Timestamp.now(),
+        requestNumber,
+      },
+      {
+        id: "log2",
+        status: BookingStatusLabel.DECLINED,
+        changedBy: "admin@nyu.edu",
+        changedAt: Timestamp.now(),
+        requestNumber,
+        note: declineReason,
+      },
+    ];
+
+    mockFetch.mockResolvedValueOnce(logs);
+
+    const bookingRow: any = {
+      requestNumber,
+      email: "user@nyu.edu",
+    };
+
+    const { result } = renderHook(() => useSortBookingHistory(bookingRow));
+
+    await waitFor(() => {
+      expect(result.current.length).toBe(2);
+    });
+
+    // Get the note from the declined status row (should be second row, index 1)
+    const declinedRow = result.current[1];
+    const noteCell = declinedRow.props.children[3]; // Fourth column is the note
+    const note = noteCell.props.children;
+
+    expect(note).toBe(declineReason);
+  });
+
+  it("displays decline reason note in fallback mode when booking has declineReason", async () => {
+    mockFetch.mockResolvedValueOnce([]); // no logs, use fallback
+
+    const declineReason = "Event does not meet booking requirements";
+    const bookingRow: any = {
+      requestNumber,
+      email: "user@nyu.edu",
+      requestedAt: Timestamp.fromMillis(1000),
+      declinedAt: Timestamp.fromMillis(2000),
+      declinedBy: "admin@nyu.edu",
+      declineReason,
+    };
+
+    const { result } = renderHook(() => useSortBookingHistory(bookingRow));
+
+    await waitFor(() => {
+      expect(result.current.length).toBe(2); // REQUESTED and DECLINED
+    });
+
+    // Find the declined row by checking status
+    const declinedRow = result.current.find((row) => {
+      const statusCell = row.props.children[0];
+      const status = statusCell.props.children.props.status;
+      return status === BookingStatusLabel.DECLINED;
+    });
+
+    expect(declinedRow).toBeDefined();
+    const noteCell = declinedRow.props.children[3]; // Fourth column is the note
+    const note = noteCell.props.children;
+
+    expect(note).toBe(declineReason);
+  });
+
+  it("displays no note when booking is declined without a reason", async () => {
+    mockFetch.mockResolvedValueOnce([]); // no logs, use fallback
+
+    const bookingRow: any = {
+      requestNumber,
+      email: "user@nyu.edu",
+      requestedAt: Timestamp.fromMillis(1000),
+      declinedAt: Timestamp.fromMillis(2000),
+      declinedBy: "admin@nyu.edu",
+      // no declineReason provided
+    };
+
+    const { result } = renderHook(() => useSortBookingHistory(bookingRow));
+
+    await waitFor(() => {
+      expect(result.current.length).toBe(2); // REQUESTED and DECLINED
+    });
+
+    // Find the declined row
+    const declinedRow = result.current.find((row) => {
+      const statusCell = row.props.children[0];
+      const status = statusCell.props.children.props.status;
+      return status === BookingStatusLabel.DECLINED;
+    });
+
+    expect(declinedRow).toBeDefined();
+    const noteCell = declinedRow.props.children[3]; // Fourth column is the note
+    const note = noteCell.props.children;
+
+    // Note should be undefined when no declineReason is provided
+    expect(note).toBeUndefined();
+  });
 });
