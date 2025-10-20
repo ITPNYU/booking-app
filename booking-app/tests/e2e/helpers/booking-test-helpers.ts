@@ -467,7 +467,7 @@ export class BookingTestHelper {
     await this.page.getByRole("button", { name: "Next" }).click();
   }
 
-  async selectRoomAndTime(): Promise<void> {
+  async selectFirstAvailableRoomAndTime(): Promise<void> {
     await this.page.waitForURL(/selectRoom/);
     // Select first available room
     const roomSelector = this.page
@@ -584,7 +584,7 @@ export class BookingTestHelper {
   ): Promise<void> {
     await this.startBookingProcess(options);
     await this.fillBasicBookingForm(formData);
-    await this.selectRoomAndTime();
+    await this.selectFirstAvailableRoomAndTime();
     await this.fillEventDetails(formData);
 
     if (options.servicesRequested) {
