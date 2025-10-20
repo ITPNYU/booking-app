@@ -4,6 +4,7 @@ import {
   serverSendBookingDetailEmail,
   serverUpdateDataByCalendarEventId,
 } from "@/components/src/server/admin";
+import { getTenantEmailConfig } from "@/components/src/server/emails";
 import { updateCalendarEvent } from "@/components/src/server/calendars";
 import { BookingStatusLabel } from "@/components/src/types";
 import {
@@ -67,13 +68,12 @@ export async function POST(req: NextRequest) {
     try {
       const guestEmail = bookingDoc.email;
       if (guestEmail) {
-        const headerMessage =
-          "Your reservation request for Media Commons has been checked out. Thank you for choosing Media Commons.";
+        const emailConfig = await getTenantEmailConfig(tenant);
 
         await serverSendBookingDetailEmail({
           calendarEventId,
           targetEmail: guestEmail,
-          headerMessage,
+          headerMessage: emailConfig.emailMessages.checkoutConfirmation,
           status: BookingStatusLabel.CHECKED_OUT,
           tenant,
         });
