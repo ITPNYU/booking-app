@@ -195,7 +195,7 @@ describe("MoreInfoModal - Basic Rendering", () => {
 
       renderModal(booking, context);
 
-      expect(screen.getAllByText("none")).toHaveLength(6); // Secondary contact fields and other none values (services are now hidden when not used)
+      expect(screen.getAllByText("none")).toHaveLength(7); // Secondary contact fields and other none values
     });
 
     it("displays all booking details correctly", () => {
