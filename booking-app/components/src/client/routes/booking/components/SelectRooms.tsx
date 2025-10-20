@@ -4,9 +4,9 @@ import { useContext, useMemo } from "react";
 import { FormContextLevel, RoomSetting } from "../../../../types";
 
 import { ConfirmDialogControlled } from "../../components/ConfirmDialog";
+import { useTenantSchema } from "../../components/SchemaProvider";
 import { BookingContext } from "../bookingProvider";
 import { useBookingDateRestrictions } from "../hooks/useBookingDateRestrictions";
-import { useTenantSchema } from "../../components/SchemaProvider";
 
 interface Props {
   allRooms: RoomSetting[];
@@ -67,11 +67,13 @@ export const SelectRooms = ({
       return false;
     if (selectedIds.includes(roomId)) return false;
     if (selectedIds.length >= 2) return true;
-    
+
     // Check if both selected room and current room can book two
-    const selectedRoom = resources.find((r: any) => r.roomId === selectedIds[0]);
+    const selectedRoom = resources.find(
+      (r: any) => r.roomId === selectedIds[0]
+    );
     const currentRoom = resources.find((r: any) => r.roomId === roomId);
-    
+
     if (selectedRoom?.isWalkInCanBookTwo && currentRoom?.isWalkInCanBookTwo) {
       return false;
     }
@@ -91,11 +93,13 @@ export const SelectRooms = ({
     if (selectedIds.includes(roomId)) return null;
     if (selectedIds.length >= 2)
       return "Walk-in bookings are limited to 2 rooms maximum";
-    
+
     // Check if both selected room and current room can book two
-    const selectedRoom = resources.find((r: any) => r.roomId === selectedIds[0]);
+    const selectedRoom = resources.find(
+      (r: any) => r.roomId === selectedIds[0]
+    );
     const currentRoom = resources.find((r: any) => r.roomId === roomId);
-    
+
     if (selectedRoom?.isWalkInCanBookTwo && currentRoom?.isWalkInCanBookTwo) {
       return null;
     }
@@ -130,7 +134,10 @@ export const SelectRooms = ({
               <Checkbox
                 checked={selectedIds.includes(room.roomId)}
                 onChange={(e) => handleCheckChange(e, room)}
-                inputProps={{ "aria-label": "controlled" }}
+                inputProps={{
+                  "aria-label": `${room.roomId} ${room.name}`,
+                }}
+                data-testid={`room-option-${room.roomId}`}
                 disabled={disabled}
               />
             }

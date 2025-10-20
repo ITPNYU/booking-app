@@ -513,6 +513,7 @@ export default function FormInput({
             options={settings.bookingTypes
               .map((x) => x.bookingType)
               .sort((a, b) => a.localeCompare(b))}
+            dataTestId="booking-type-select"
             {...{ control, errors, trigger }}
           />
         )}
@@ -540,6 +541,7 @@ export default function FormInput({
               .
             </p>
           }
+          dataTestId="attendee-affiliation-select"
           {...{ control, errors, trigger }}
         />
       </Section>
@@ -549,7 +551,7 @@ export default function FormInput({
           <div style={{ marginBottom: 32 }}>
             <BookingFormSwitch
               id="roomSetup"
-              label="Room Setup Needed?"
+              label="Setup?"
               required={false}
               description={
                 <p>
@@ -652,7 +654,7 @@ export default function FormInput({
           <div style={{ marginBottom: 32 }}>
             <BookingFormSwitch
               id="catering"
-              label="Catering Services?"
+              label="Catering?"
               description={<p>Select if you need catering for your event.</p>}
               required={false}
               {...{ control, errors, trigger }}
@@ -678,7 +680,7 @@ export default function FormInput({
           <div style={{ marginBottom: 32 }}>
             <BookingFormSwitch
               id="cleaningService"
-              label="Cleaning Services?"
+              label="Cleaning?"
               description={
                 <p>Select if you need cleaning services for your event.</p>
               }
@@ -698,7 +700,7 @@ export default function FormInput({
           <div style={{ marginBottom: 32 }}>
             <BookingFormSwitch
               id="hireSecurity"
-              label="Hire Security?"
+              label="Security?"
               required={false}
               description={
                 <p>

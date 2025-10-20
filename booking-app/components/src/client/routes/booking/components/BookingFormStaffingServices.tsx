@@ -44,7 +44,7 @@ export default function BookingFormStaffingServices(props: Props) {
     (room) => room.staffingServices && room.staffingServices.length > 0
   );
 
-  const limitedContexts = [
+  const limitedContexts: FormContextLevel[] = [
     FormContextLevel.WALK_IN,
     FormContextLevel.MODIFICATION,
   ];
@@ -108,7 +108,7 @@ export default function BookingFormStaffingServices(props: Props) {
   if (limitedContexts.includes(formContext)) {
     return (
       <div style={{ marginBottom: 8 }}>
-        <Label htmlFor={id}>Staffing Services?</Label>
+        <Label htmlFor={id}>Staffing?</Label>
         <p style={{ fontSize: "0.75rem" }}>Request technicians and support</p>
         {toggle}
       </div>
@@ -117,7 +117,7 @@ export default function BookingFormStaffingServices(props: Props) {
 
   return (
     <div style={{ marginBottom: 8 }}>
-      <Label htmlFor={id}>Staffing Services?</Label>
+      <Label htmlFor={id}>Staffing?</Label>
       <p style={{ fontSize: "0.75rem" }}>
         Request audio technicians, lighting technicians, and technical support.
       </p>
@@ -132,8 +132,8 @@ export default function BookingFormStaffingServices(props: Props) {
                 // Render sectioned staffing services with radio buttons for each service
                 <div>
                   {staffingSections.map((section, sectionIndex) => {
-                    const selectedServices = field.value?.split(',') || [];
-                    
+                    const selectedServices = field.value?.split(",") || [];
+
                     return (
                       <div key={sectionIndex} style={{ marginBottom: 24 }}>
                         <FormLabel
@@ -142,26 +142,34 @@ export default function BookingFormStaffingServices(props: Props) {
                             fontSize: "0.875rem",
                             fontWeight: 500,
                             marginBottom: 1,
-                            display: "block"
+                            display: "block",
                           }}
                         >
                           {section.name}:
                         </FormLabel>
                         <FormControl component="fieldset">
                           <RadioGroup
-                            value={selectedServices.find(service => 
-                              section.indexes.some(index => staffingServices[index] === service)
-                            ) || ""}
+                            value={
+                              selectedServices.find((service) =>
+                                section.indexes.some(
+                                  (index) => staffingServices[index] === service
+                                )
+                              ) || ""
+                            }
                             onChange={(e) => {
                               // Remove any previously selected services from this section
-                              const otherServices = selectedServices.filter(service => 
-                                !section.indexes.some(index => staffingServices[index] === service)
+                              const otherServices = selectedServices.filter(
+                                (service) =>
+                                  !section.indexes.some(
+                                    (index) =>
+                                      staffingServices[index] === service
+                                  )
                               );
                               // Add the newly selected service
-                              const newServices = e.target.value 
+                              const newServices = e.target.value
                                 ? [...otherServices, e.target.value]
                                 : otherServices;
-                              field.onChange(newServices.join(','));
+                              field.onChange(newServices.join(","));
                               trigger(id);
                             }}
                             onBlur={() => trigger(id)}
@@ -174,10 +182,10 @@ export default function BookingFormStaffingServices(props: Props) {
                                   value={service}
                                   control={<Radio size="small" />}
                                   label={service}
-                                  sx={{ 
-                                    display: "block", 
+                                  sx={{
+                                    display: "block",
                                     fontSize: "0.75rem",
-                                    marginBottom: 0.5
+                                    marginBottom: 0.5,
                                   }}
                                 />
                               ) : null;
@@ -205,10 +213,10 @@ export default function BookingFormStaffingServices(props: Props) {
                         value={service}
                         control={<Radio size="small" />}
                         label={service}
-                        sx={{ 
-                          display: "block", 
+                        sx={{
+                          display: "block",
                           fontSize: "0.75rem",
-                          marginBottom: 0.5
+                          marginBottom: 0.5,
                         }}
                       />
                     ))}

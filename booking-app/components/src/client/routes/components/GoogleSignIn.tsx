@@ -4,7 +4,7 @@ import {
   signInWithGoogle,
 } from "@/lib/firebase/firebaseClient";
 import { Box, Button, styled } from "@mui/material";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useAuth } from "./AuthProvider";
 
@@ -20,6 +20,7 @@ const GoogleSignIn = () => {
   const router = useRouter();
   const params = useParams();
   const { isOnTestEnv } = useAuth();
+  const searchParams = useSearchParams();
 
   // Check if running on localhost
   const isLocalhost =
@@ -70,22 +71,33 @@ const GoogleSignIn = () => {
   return (
     <div>
       <Center>
-        <Button
-          variant="contained"
-          color="primary"
-          onClick={handleGoogleSignIn}
-          sx={{
-            alignSelf: "center",
-            marginTop: 6,
-          }}
-        >
-          Sign in with NYU Google Account
-        </Button>
-        <p>
-          {isLocalhost
-            ? "A popup window will open for NYU SSO login."
-            : "You'll be redirected to the NYU SSO login page to sign in securely."}
-        </p>
+        {isOnTestEnv ? (
+          <AutoRedirectMessage
+            tenant={
+              Array.isArray(params?.tenant) ? params.tenant[0] : params?.tenant
+            }
+            searchParams={searchParams}
+          />
+        ) : (
+          <>
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={handleGoogleSignIn}
+              sx={{
+                alignSelf: "center",
+                marginTop: 6,
+              }}
+            >
+              Sign in with NYU Google Account
+            </Button>
+            <p>
+              {isLocalhost
+                ? "A popup window will open for NYU SSO login."
+                : "You'll be redirected to the NYU SSO login page to sign in securely."}
+            </p>
+          </>
+        )}
         {error && <p style={{ color: "red" }}>{error}</p>}
       </Center>
     </div>
@@ -93,3 +105,27 @@ const GoogleSignIn = () => {
 };
 
 export default GoogleSignIn;
+
+const AutoRedirectMessage: React.FC<{
+  tenant?: string;
+  searchParams: ReturnType<typeof useSearchParams>;
+}> = ({ tenant, searchParams }) => {
+  const router = useRouter();
+
+  useEffect(() => {
+    const redirectTarget =
+      searchParams?.get("redirect") ?? (tenant ? `/${tenant}` : "/");
+    const timeoutId = setTimeout(() => {
+      router.replace(redirectTarget);
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
+  }, [router, searchParams, tenant]);
+
+  return (
+    <div>
+      <p>Test environment detected - authentication bypassed</p>
+      <p>Mock user automatically created: test@nyu.edu</p>
+    </div>
+  );
+};
