@@ -284,6 +284,7 @@ export type RoomSetting = {
   calendarRef?: any;
   // New schema fields for compatibility
   needsSafetyTraining?: boolean;
+  safetyTrainingFormUrl?: string;
   shouldAutoApprove?: boolean;
   isWalkIn?: boolean;
   isWalkInCanBookTwo?: boolean;
