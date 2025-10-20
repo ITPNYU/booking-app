@@ -12,11 +12,12 @@ export type Resource = {
   isEquipment: boolean; // renamed from checkable
   calendarId: string;
   needsSafetyTraining: boolean;
+  safetyTrainingFormUrl?: string; // URL to the Google Form for safety training verification
   shouldAutoApprove: boolean;
   isWalkIn: boolean;
   isWalkInCanBookTwo: boolean;
   services: string[]; // ["equipment", "staffing", "setup", "security", "cleaning", "catering", "campus-media"]
-  maxHour: {
+  maxHour?: {
     student: number;
     faculty: number;
     admin: number;

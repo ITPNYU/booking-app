@@ -70,6 +70,7 @@ export interface DatabaseContextType {
   preBanLogs: PreBanLog[];
   reloadPreBanLogs: () => Promise<void>;
   reloadSuperAdminUsers: () => Promise<void>;
+  checkSafetyTrainingForResource: (email: string, resourceId: string) => Promise<boolean>;
 }
 
 export const DatabaseContext = createContext<DatabaseContextType>({
@@ -112,6 +113,7 @@ export const DatabaseContext = createContext<DatabaseContextType>({
   preBanLogs: [],
   reloadPreBanLogs: async () => {},
   reloadSuperAdminUsers: async () => {},
+  checkSafetyTrainingForResource: async () => false,
 });
 
 export const DatabaseProvider = ({
@@ -347,7 +349,7 @@ export const DatabaseProvider = ({
     }
   };
 
-  const fetchSafetyTrainedUsers = async () => {
+  const fetchSafetyTrainedUsers = async (resourceId?: string) => {
     try {
       // Fetch data from Firestore
       const firestoreData = await clientFetchAllDataFromCollection(
@@ -367,20 +369,21 @@ export const DatabaseProvider = ({
         firestoreUsers.length
       );
 
-      // Fetch data from spreadsheet
-      const response = await fetch("/api/safety_training_users", {
+      // Fetch data from Google Form responses
+      const response = await fetch("/api/safety_training_form", {
         headers: {
           "x-tenant": tenant || DEFAULT_TENANT,
+          ...(resourceId && { "x-resource-id": resourceId }),
         },
       });
       if (!response.ok) {
-        throw new Error("Failed to fetch authorized emails from spreadsheet");
+        throw new Error("Failed to fetch authorized emails from form responses");
       }
-      const spreadsheetData = await response.json();
+      const formData = await response.json();
 
       console.log(
-        "FETCHED SAFETY TRAINED EMAILS FROM SPREADSHEET:",
-        spreadsheetData.emails.length
+        "FETCHED SAFETY TRAINED EMAILS FROM FORM:",
+        formData.emails.length
       );
       const currentDate = new Date().toISOString();
 
@@ -392,8 +395,8 @@ export const DatabaseProvider = ({
         userMap.set(user.email, user);
       });
 
-      // Add or update spreadsheet users
-      spreadsheetData.emails.forEach((email: string) => {
+      // Add or update form response users
+      formData.emails.forEach((email: string) => {
         if (!userMap.has(email)) {
           userMap.set(email, {
             id: email,
@@ -406,8 +409,17 @@ export const DatabaseProvider = ({
       // Convert map back to array
       const mergedUsers = Array.from(userMap.values());
       setSafetyTrainedUsers(mergedUsers);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching safety trained users:", error);
+      
+      // Use Firestore data as fallback if available
+      if (error?.response) {
+        const responseData = await error.response.json();
+        console.error("API Error:", responseData.error);
+      }
+      
+      // Set safety trained users to empty array on error
+      setSafetyTrainedUsers([]);
     }
   };
 
@@ -490,6 +502,15 @@ export const DatabaseProvider = ({
         name: resource.name,
         capacity: resource.capacity.toString(),
         calendarId: resource.calendarId,
+        needsSafetyTraining: resource.needsSafetyTraining || false,
+        safetyTrainingFormUrl: resource.safetyTrainingFormUrl,
+        shouldAutoApprove: resource.shouldAutoApprove || false,
+        isWalkIn: resource.isWalkIn || false,
+        isWalkInCanBookTwo: resource.isWalkInCanBookTwo || false,
+        isEquipment: resource.isEquipment || false,
+        services: resource.services || [],
+        staffingServices: resource.staffingServices,
+        staffingSections: resource.staffingSections,
       }));
 
       filtered.sort((a, b) => a.roomId - b.roomId);
@@ -594,6 +615,36 @@ export const DatabaseProvider = ({
     }
   };
 
+  // Function to check if a user has completed safety training for a specific resource
+  const checkSafetyTrainingForResource = async (email: string, resourceId: string): Promise<boolean> => {
+    try {
+      // Get the resource from room settings
+      const resource = roomSettings.find(room => room.roomId.toString() === resourceId);
+      if (!resource?.needsSafetyTraining || !resource?.safetyTrainingFormUrl) {
+        return true; // No safety training required
+      }
+
+      // Fetch safety trained users for this specific resource
+      const response = await fetch("/api/safety_training_form", {
+        headers: {
+          "x-tenant": tenant || DEFAULT_TENANT,
+          "x-resource-id": resourceId,
+        },
+      });
+
+      if (!response.ok) {
+        console.error("Failed to fetch safety training status");
+        return false; // Fail safe - require verification if we can't confirm
+      }
+
+      const data = await response.json();
+      return data.emails.includes(email);
+    } catch (error) {
+      console.error("Error checking safety training:", error);
+      return false; // Fail safe - require verification if we can't confirm
+    }
+  };
+
   const fetchSuperAdminUsers = async () => {
     try {
       // Fetch from original usersSuperAdmin collection (not tenant-specific)
@@ -657,6 +708,7 @@ export const DatabaseProvider = ({
         preBanLogs,
         reloadPreBanLogs: fetchPreBanLogs,
         reloadSuperAdminUsers: fetchSuperAdminUsers,
+        checkSafetyTrainingForResource,
       }}
     >
       {children}

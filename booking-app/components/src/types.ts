@@ -94,6 +94,7 @@ export enum BookingStatusLabel {
 }
 
 export type BookingType = {
+  id: string;
   bookingType: string;
   createdAt: string;
 };
@@ -283,6 +284,7 @@ export type RoomSetting = {
   calendarRef?: any;
   // New schema fields for compatibility
   needsSafetyTraining?: boolean;
+  safetyTrainingFormUrl?: string;
   shouldAutoApprove?: boolean;
   isWalkIn?: boolean;
   isWalkInCanBookTwo?: boolean;
