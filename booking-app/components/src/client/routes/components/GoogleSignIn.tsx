@@ -72,7 +72,12 @@ const GoogleSignIn = () => {
     <div>
       <Center>
         {isOnTestEnv ? (
-          <AutoRedirectMessage tenant={params?.tenant} searchParams={searchParams} />
+          <AutoRedirectMessage
+            tenant={
+              Array.isArray(params?.tenant) ? params.tenant[0] : params?.tenant
+            }
+            searchParams={searchParams}
+          />
         ) : (
           <>
             <Button
@@ -108,7 +113,8 @@ const AutoRedirectMessage: React.FC<{
   const router = useRouter();
 
   useEffect(() => {
-    const redirectTarget = searchParams?.get("redirect") ?? (tenant ? `/${tenant}` : "/");
+    const redirectTarget =
+      searchParams?.get("redirect") ?? (tenant ? `/${tenant}` : "/");
     const timeoutId = setTimeout(() => {
       router.replace(redirectTarget);
     }, 500);

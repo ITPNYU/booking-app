@@ -94,6 +94,7 @@ export enum BookingStatusLabel {
 }
 
 export type BookingType = {
+  id: string;
   bookingType: string;
   createdAt: string;
 };

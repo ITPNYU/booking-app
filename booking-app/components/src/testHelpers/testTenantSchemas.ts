@@ -42,6 +42,11 @@ const baseMediaCommonsSchema: SchemaContextType = {
       isWalkIn: false,
       isWalkInCanBookTwo: false,
       services: [],
+      maxHour: {
+        student: 4,
+        faculty: 8,
+        admin: 12,
+      },
     },
     {
       capacity: 20,
@@ -54,6 +59,11 @@ const baseMediaCommonsSchema: SchemaContextType = {
       isWalkIn: true,
       isWalkInCanBookTwo: false,
       services: [],
+      maxHour: {
+        student: 3,
+        faculty: 6,
+        admin: 10,
+      },
     },
   ],
   supportVIP: true,
@@ -63,9 +73,14 @@ const baseMediaCommonsSchema: SchemaContextType = {
 
 const schemaByTenant: Record<string, SchemaContextType> = {
   [TENANTS.MC]: baseMediaCommonsSchema,
-  [TENANTS.MEDIA_COMMONS]: { ...baseMediaCommonsSchema, tenant: TENANTS.MEDIA_COMMONS },
+  [TENANTS.MEDIA_COMMONS]: {
+    ...baseMediaCommonsSchema,
+    tenant: TENANTS.MEDIA_COMMONS,
+  },
 };
 
-export const getTestTenantSchema = (tenant: string): SchemaContextType | null => {
+export const getTestTenantSchema = (
+  tenant: string
+): SchemaContextType | null => {
   return schemaByTenant[tenant] ?? null;
 };
