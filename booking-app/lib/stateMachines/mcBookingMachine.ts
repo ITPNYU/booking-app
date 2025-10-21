@@ -430,7 +430,8 @@ export const mcBookingMachine = setup({
 
       try {
         const calendarEventId = context.calendarEventId;
-        const email = context.email || "system";
+        // Prioritize email from event (for cronjob auto-checkout), fallback to context email
+        const email = (event as any)?.email || context.email || "system";
         const tenant = context.tenant;
 
         if (calendarEventId) {
