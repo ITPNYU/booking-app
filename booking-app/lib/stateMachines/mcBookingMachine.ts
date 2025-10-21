@@ -2,6 +2,10 @@ import { TENANTS } from "@/components/src/constants/tenants";
 import { BookingLogger } from "@/lib/logger/bookingLogger";
 import { and, assign, fromPromise, setup } from "xstate";
 
+// Time constants for clarity
+const ONE_HOUR_IN_MS = 60 * 60 * 1000;
+const FOUR_HOURS_IN_MS = 4 * ONE_HOUR_IN_MS;
+
 // Define context type for type safety
 interface MediaCommonsBookingContext {
   tenant?: string;
@@ -426,7 +430,8 @@ export const mcBookingMachine = setup({
 
       try {
         const calendarEventId = context.calendarEventId;
-        const email = context.email || "system";
+        // Prioritize email from event (for cronjob auto-checkout), fallback to context email
+        const email = (event as any)?.email || context.email || "system";
         const tenant = context.tenant;
 
         if (calendarEventId) {
@@ -575,6 +580,22 @@ export const mcBookingMachine = setup({
           `🎯 XSTATE AUTO-APPROVAL GUARD RESULT: REJECTED (Wrong tenant)`
         );
         return false;
+      }
+
+      // Check event duration > 4 hours
+      if (context.bookingCalendarInfo) {
+        const startDate = new Date(context.bookingCalendarInfo.startStr);
+        const endDate = new Date(context.bookingCalendarInfo.endStr);
+        const duration = endDate.getTime() - startDate.getTime();
+        if (duration > FOUR_HOURS_IN_MS) {
+          console.log(
+            `🚫 XSTATE GUARD: Event duration exceeds 4 hours (${(duration / ONE_HOUR_IN_MS).toFixed(1)} hours)`
+          );
+          console.log(
+            `🎯 XSTATE AUTO-APPROVAL GUARD RESULT: REJECTED (Duration too long)`
+          );
+          return false;
+        }
       }
 
       // Check if any services are requested - if so, don't auto-approve (except for walk-ins)

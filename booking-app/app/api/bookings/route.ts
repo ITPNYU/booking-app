@@ -7,6 +7,7 @@ import {
   serverSendBookingDetailEmail,
   serverUpdateDataByCalendarEventId,
 } from "@/components/src/server/admin";
+import { getTenantEmailConfig } from "@/components/src/server/emails";
 import {
   bookingContentsToDescription,
   deleteEvent,
@@ -129,6 +130,7 @@ function cleanObjectForFirestore(obj: any): any {
 
   return cleaned;
 }
+
 
 // Helper function to extract tenant from request
 const extractTenantFromRequest = (request: NextRequest): string | undefined => {
@@ -290,6 +292,9 @@ async function handleBookingApprovalEmails(
     },
   );
 
+  // Get tenant email configuration
+  const emailConfig = await getTenantEmailConfig(tenant);
+
   const sendApprovalEmail = async (
     recipients: string[],
     contents: BookingFormDetails,
@@ -354,6 +359,7 @@ async function handleBookingApprovalEmails(
         body: "",
         approverType: ApproverType.LIAISON,
         replyTo: email,
+        schemaName: emailConfig.schemaName,
       });
     });
 
@@ -409,7 +415,7 @@ async function handleBookingApprovalEmails(
       email,
       startDate: bookingCalendarInfo?.startStr,
       endDate: bookingCalendarInfo?.endStr,
-      headerMessage: "This is a request email for first approval.",
+      headerMessage: emailConfig.emailMessages.firstApprovalRequest,
       requestNumber: sequentialId,
       origin: formatOrigin(data.origin) ?? BookingOrigin.USER,
     };
@@ -445,8 +451,7 @@ async function handleBookingApprovalEmails(
     await serverSendBookingDetailEmail({
       calendarEventId,
       targetEmail: email,
-      headerMessage:
-        "Your request has been received!<br />Please allow 3-5 days for review. If there are changes to your request or you would like to follow up, contact mediacommons.reservations@nyu.edu.<br />This email does not confirm your reservation. You will receive a confirmation email and Google Calendar invite once your request is completed.<br /> Thank you!",
+      headerMessage: emailConfig.emailMessages.requestConfirmation,
       status: BookingStatusLabel.REQUESTED,
       replyTo: email,
       tenant,
