@@ -213,7 +213,7 @@ async function handleStateTransitions(
           declineReason = `The following service(s) could not be fulfilled: ${servicesList}`;
         }
 
-        headerMessage += ` Reason: ${declineReason}. <br /><br />If you have any questions or need further assistance, please don't hesitate to reach out.`;
+        headerMessage += ` Reason: ${declineReason}. <br /><br />You have 24 hours to edit your request if you'd like to make changes. After 24 hours, your request will be automatically canceled. <br /><br />If you have any questions or need further assistance, please don't hesitate to reach out.`;
 
         await serverSendBookingDetailEmail({
           calendarEventId,
