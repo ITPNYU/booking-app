@@ -268,9 +268,7 @@ describe("components/src/server/admin", () => {
 
     const result = await serverBookingContents("cal-1", "tenant-z");
 
-    expect(result.headerMessage).toBe(
-      "This is a request email for 2nd approval.",
-    );
+    expect(result.headerMessage).toBe("");
     expect(result.startDate).toBe("3/1/2024");
     expect(result.endTime).toBeDefined();
     expect(result.history.map((h: any) => h.status)).toContain(

@@ -5,7 +5,7 @@ import { shouldUseXState } from "@/components/src/utils/tenantUtils";
 import { executeXStateTransition } from "@/lib/stateMachines/xstateUtilsV5";
 
 export async function POST(req: NextRequest) {
-  const { calendarEventId, serviceType, action, email } = await req.json();
+  const { calendarEventId, serviceType, action, email, reason } = await req.json();
 
   // Get tenant from x-tenant header, fallback to default tenant
   const tenant = req.headers.get("x-tenant") || DEFAULT_TENANT;
@@ -139,7 +139,11 @@ export async function POST(req: NextRequest) {
               : action === "decline"
                 ? "Declined"
                 : "Closed Out";
-          const serviceNote = `${serviceDisplayName} Service ${actionDisplayName}`;
+          const baseServiceNote = `${serviceDisplayName} Service ${actionDisplayName}`;
+          const serviceNote =
+            action === "decline" && reason && String(reason).trim().length > 0
+              ? `${baseServiceNote}: ${reason}`
+              : baseServiceNote;
 
           // Determine appropriate status for history log
           const historyStatus =
@@ -161,7 +165,7 @@ export async function POST(req: NextRequest) {
                 status: historyStatus, // PRE-APPROVED for approve/decline, CHECKED_OUT for closeout
                 changedBy: email,
                 requestNumber: doc.requestNumber,
-                note: serviceNote, // e.g., "Staff Service Approved", "Equipment Service Closed Out"
+                note: serviceNote, // e.g., "Staff Service Declined: out of stock"
               }),
             },
           );
@@ -207,7 +211,10 @@ export async function POST(req: NextRequest) {
                   status: BookingStatusLabel.DECLINED,
                   changedBy: "System",
                   requestNumber: doc.requestNumber,
-                  note: "Service request declined",
+                  note:
+                    reason && String(reason).trim().length > 0
+                      ? `Overall declined due to service: ${serviceDisplayName}. Reason: ${reason}`
+                      : `Overall declined due to service: ${serviceDisplayName}`,
                 }),
               },
             );
