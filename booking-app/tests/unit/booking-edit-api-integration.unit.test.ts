@@ -466,10 +466,10 @@ describe("Edit API Integration Tests", () => {
       });
       expect(newEvent.id).toBe("new-cal-456");
 
-      // 3. Log MODIFIED status
+      // 3. Log REQUESTED status (not MODIFIED)
       await mockLogServerBookingChange({
         bookingId: "booking-123",
-        status: "MODIFIED",
+        status: "REQUESTED",
         changedBy: "user@nyu.edu",
         requestNumber: 100,
         calendarEventId: "new-cal-456",
