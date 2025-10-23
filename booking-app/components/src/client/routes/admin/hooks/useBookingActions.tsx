@@ -130,21 +130,29 @@ export default function useBookingActions({
 
         // Detect service requests from booking data
         if (data) {
-          setServiceRequests(getMediaCommonsServices(data));
+            setServiceRequests(getMediaCommonsServices(data));
 
-          // Get XState v5 information for service approval status
-          if (data.xstateData) {
-            // Use unified XState utilities
-            const checker = createXStateChecker(data);
-            const currentStateValue = checker.getCurrentStateString();
-            setCurrentXState(currentStateValue);
+            // Get XState v5 information for service approval status
+            if (data.xstateData) {
+              // Use unified XState utilities
+              const checker = createXStateChecker(data);
+              const currentStateValue = checker.getCurrentStateString();
+              setCurrentXState(currentStateValue);
 
-            const context = getXStateContext(data) || {};
-            setServicesApproved({
-              staff:
-                context.servicesApproved?.staff ?? data.staffServiceApproved,
-              equipment:
-                context.servicesApproved?.equipment ??
+              const context = getXStateContext(data) || {};
+              const closeoutContext = context.servicesClosedOut ?? {};
+              const snapshotValue = data.xstateData?.snapshot?.value;
+              const serviceCloseoutStates =
+                typeof snapshotValue === "object" &&
+                snapshotValue &&
+                snapshotValue["Service Closeout"]
+                  ? snapshotValue["Service Closeout"]
+                  : {};
+              setServicesApproved({
+                staff:
+                  context.servicesApproved?.staff ?? data.staffServiceApproved,
+                equipment:
+                  context.servicesApproved?.equipment ??
                 data.equipmentServiceApproved,
               catering:
                 context.servicesApproved?.catering ??
@@ -157,34 +165,34 @@ export default function useBookingActions({
                 data.securityServiceApproved,
               setup:
                 context.servicesApproved?.setup ?? data.setupServiceApproved,
-            });
+              });
 
-            // Detect service closeout completion from XState parallel states
-            const serviceCloseoutStates =
-              typeof currentStateValue === "object" &&
-              currentStateValue &&
-              currentStateValue["Service Closeout"]
-                ? currentStateValue["Service Closeout"]
-                : {};
-
-            setServicesClosedOut({
-              staff:
-                serviceCloseoutStates["Staff Closeout"] === "Staff Closedout",
-              equipment:
-                serviceCloseoutStates["Equipment Closeout"] ===
-                "Equipment Closedout",
-              catering:
-                serviceCloseoutStates["Catering Closeout"] ===
-                "Catering Closedout",
-              cleaning:
-                serviceCloseoutStates["Cleaning Closeout"] ===
-                "Cleaning Closedout",
-              security:
-                serviceCloseoutStates["Security Closeout"] ===
-                "Security Closedout",
-              setup:
-                serviceCloseoutStates["Setup Closeout"] === "Setup Closedout",
-            });
+              setServicesClosedOut({
+                staff:
+                  closeoutContext.staff === true ||
+                  serviceCloseoutStates["Staff Closeout"] ===
+                    "Staff Closedout",
+                equipment:
+                  closeoutContext.equipment === true ||
+                  serviceCloseoutStates["Equipment Closeout"] ===
+                    "Equipment Closedout",
+                catering:
+                  closeoutContext.catering === true ||
+                  serviceCloseoutStates["Catering Closeout"] ===
+                    "Catering Closedout",
+                cleaning:
+                  closeoutContext.cleaning === true ||
+                  serviceCloseoutStates["Cleaning Closeout"] ===
+                    "Cleaning Closedout",
+                security:
+                  closeoutContext.security === true ||
+                  serviceCloseoutStates["Security Closeout"] ===
+                    "Security Closedout",
+                setup:
+                  closeoutContext.setup === true ||
+                  serviceCloseoutStates["Setup Closeout"] ===
+                    "Setup Closedout",
+              });
           } else {
             // Fallback to individual service approval fields if XState data is not available
             setCurrentXState("");

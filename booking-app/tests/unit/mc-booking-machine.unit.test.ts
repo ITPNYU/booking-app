@@ -350,6 +350,55 @@ describe("mcBookingMachine", () => {
 
     await waitForCondition(actor, (snapshot) => snapshot.matches("Closed"));
 
+    // Wait for async logBookingHistory action to complete
+    await waitForMockCall(
+      mockLogServerBookingChange,
+      (arg) => arg.status === "NO-SHOW"
+    );
+
+    expect(mockLogServerBookingChange).toHaveBeenCalled();
+  });
+
+  it("marks no show with services, transitions through Service Closeout, and closes", async () => {
+    // Create an approved booking with services
+    const actor = createTestActor({
+      isVip: true,
+      email: "user@nyu.edu",
+      servicesRequested: { equipment: true, staff: true },
+      servicesApproved: { equipment: true, staff: true },
+    });
+
+    // First, we need to approve the services to get to Approved state
+    actor.send({ type: "approveEquipment" });
+    actor.send({ type: "approveStaff" });
+    await waitForCondition(actor, (snapshot) => snapshot.matches("Approved"));
+
+    // Now send no show event
+    actor.send({ type: "noShow" });
+
+    // Should go through: No Show → Canceled → Service Closeout → Closed
+    // Wait for Service Closeout state
+    await waitForCondition(
+      actor,
+      (snapshot) =>
+        typeof snapshot.value === "object" &&
+        snapshot.value !== null &&
+        "Service Closeout" in snapshot.value
+    );
+
+    // Close out the services
+    actor.send({ type: "closeoutEquipment" });
+    actor.send({ type: "closeoutStaff" });
+
+    // Should now transition to Closed
+    await waitForCondition(actor, (snapshot) => snapshot.matches("Closed"));
+
+    // Wait for async logBookingHistory action to complete
+    await waitForMockCall(
+      mockLogServerBookingChange,
+      (arg) => arg.status === "NO-SHOW"
+    );
+
     expect(mockLogServerBookingChange).toHaveBeenCalled();
   });
 
