@@ -42,6 +42,14 @@ const baseMediaCommonsSchema: SchemaContextType = {
       isWalkIn: false,
       isWalkInCanBookTwo: false,
       services: [],
+      minHour: {
+        student: 1,
+        faculty: 1,
+        admin: 1,
+        studentWalkIn: 1,
+        facultyWalkIn: 1,
+        adminWalkIn: 1,
+      },
       maxHour: {
         student: 4,
         faculty: 8,
@@ -62,6 +70,14 @@ const baseMediaCommonsSchema: SchemaContextType = {
       isWalkIn: true,
       isWalkInCanBookTwo: false,
       services: [],
+      minHour: {
+        student: 1,
+        faculty: 1,
+        admin: 1,
+        studentWalkIn: 1,
+        facultyWalkIn: 1,
+        adminWalkIn: 1,
+      },
       maxHour: {
         student: 3,
         faculty: 6,
@@ -75,6 +91,21 @@ const baseMediaCommonsSchema: SchemaContextType = {
   supportVIP: true,
   supportWalkIn: true,
   resourceName: "Room(s)",
+  emailMessages: {
+    requestConfirmation: "Your booking request has been received.",
+    firstApprovalRequest: "A booking requires your approval.",
+    secondApprovalRequest: "A booking requires second approval.",
+    walkInConfirmation: "Your walk-in booking has been confirmed.",
+    vipConfirmation: "Your VIP booking has been confirmed.",
+    checkoutConfirmation: "You have successfully checked out.",
+    checkinConfirmation: "You have successfully checked in.",
+    declined: "Your booking request has been declined.",
+    canceled: "Your booking has been canceled.",
+    lateCancel: "Your booking has been canceled late.",
+    noShow: "You have been marked as no-show.",
+    closed: "Your booking has been closed.",
+    approvalNotice: "Your booking has been approved.",
+  },
 };
 
 const schemaByTenant: Record<string, SchemaContextType> = {
