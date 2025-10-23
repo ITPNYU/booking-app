@@ -153,7 +153,10 @@ describe("useBookingActions Hook", () => {
       Actions.CANCEL,
       Actions.EDIT,
     ]);
-    testUserContext(BookingStatusLabel.PRE_APPROVED, [Actions.CANCEL]);
+    testUserContext(BookingStatusLabel.PRE_APPROVED, [
+      Actions.CANCEL,
+      Actions.EDIT,
+    ]);
     testUserContext(BookingStatusLabel.APPROVED, [Actions.CANCEL]);
     testUserContext(BookingStatusLabel.EQUIPMENT, [Actions.CANCEL]);
     testUserContext(BookingStatusLabel.DECLINED, [
@@ -170,7 +173,7 @@ describe("useBookingActions Hook", () => {
     testUserContext(BookingStatusLabel.MODIFIED, [Actions.CANCEL]);
     testUserContext(BookingStatusLabel.UNKNOWN, [Actions.CANCEL]);
 
-    it("should not show EDIT for past REQUESTED bookings", () => {
+    it("should show EDIT for past REQUESTED bookings", () => {
       const pastDate = new Date();
       pastDate.setDate(pastDate.getDate() - 1);
 
@@ -182,10 +185,10 @@ describe("useBookingActions Hook", () => {
       );
 
       const options = result.current.options();
-      expect(options).toEqual([Actions.CANCEL]);
+      expect(options).toEqual([Actions.CANCEL, Actions.EDIT]);
     });
 
-    it("should not show EDIT for past DECLINED bookings", () => {
+    it("should show EDIT for past DECLINED bookings", () => {
       const pastDate = new Date();
       pastDate.setDate(pastDate.getDate() - 1);
 
@@ -197,7 +200,7 @@ describe("useBookingActions Hook", () => {
       );
 
       const options = result.current.options();
-      expect(options).toEqual([Actions.CANCEL]); // CANCEL is still shown for past DECLINED bookings
+      expect(options).toEqual([Actions.CANCEL, Actions.EDIT]); // Edit is now allowed for past events
     });
   });
 
@@ -617,7 +620,7 @@ describe("useBookingActions Hook", () => {
         expect(options).toContain(Actions.EDIT);
       });
 
-      it("should not show EDIT action for past REQUESTED bookings", () => {
+      it("should show EDIT action for past REQUESTED bookings", () => {
         const pastDate = new Date();
         pastDate.setDate(pastDate.getDate() - 1);
 
@@ -629,7 +632,7 @@ describe("useBookingActions Hook", () => {
         );
 
         const options = result.current.options();
-        expect(options).not.toContain(Actions.EDIT);
+        expect(options).toContain(Actions.EDIT);
       });
 
       it("should handle EDIT action for future DECLINED bookings", () => {
@@ -647,7 +650,7 @@ describe("useBookingActions Hook", () => {
         expect(options).toContain(Actions.EDIT);
       });
 
-      it("should not show EDIT action for past DECLINED bookings", () => {
+      it("should show EDIT action for past DECLINED bookings", () => {
         const pastDate = new Date();
         pastDate.setDate(pastDate.getDate() - 1);
 
@@ -659,7 +662,7 @@ describe("useBookingActions Hook", () => {
         );
 
         const options = result.current.options();
-        expect(options).not.toContain(Actions.EDIT);
+        expect(options).toContain(Actions.EDIT);
       });
     });
   });

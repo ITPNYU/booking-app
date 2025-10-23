@@ -7,12 +7,12 @@ import {
   serverSendBookingDetailEmail,
   serverUpdateDataByCalendarEventId,
 } from "@/components/src/server/admin";
-import { getTenantEmailConfig } from "@/components/src/server/emails";
 import {
   bookingContentsToDescription,
   deleteEvent,
   insertEvent,
 } from "@/components/src/server/calendars";
+import { getTenantEmailConfig } from "@/components/src/server/emails";
 import {
   ApproverType,
   BookingFormDetails,
@@ -131,7 +131,6 @@ function cleanObjectForFirestore(obj: any): any {
   return cleaned;
 }
 
-
 // Helper function to extract tenant from request
 const extractTenantFromRequest = (request: NextRequest): string | undefined => {
   // Try to get tenant from referer header
@@ -213,6 +212,7 @@ const buildBookingContents = (
       minute: "2-digit",
       hour12: true,
     }),
+    endDate: endDateObj.toLocaleDateString(),
     endTime: endDateObj.toLocaleTimeString([], {
       hour: "2-digit",
       minute: "2-digit",
@@ -936,6 +936,7 @@ export async function PUT(request: NextRequest) {
 
   // Track if booking was previously approved (for history re-recording)
   let wasApproved = false;
+  let existingBookingData: any = null;
 
   console.log(
     `🎯 MODIFICATION REQUEST [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
@@ -971,6 +972,9 @@ export async function PUT(request: NextRequest) {
         calendarEventId,
         tenant,
       );
+
+      // Store for later use
+      existingBookingData = bookingData;
 
       const currentXStateValue = (bookingData as any)?.xstateData?.snapshot
         ?.value;
@@ -1162,25 +1166,44 @@ export async function PUT(request: NextRequest) {
   const endDateObj2 = new Date(bookingCalendarInfo.endStr);
 
   // Determine appropriate status label based on XState processing
-  const statusLabelForCalendar =
-    xstateProcessed && xstateNewState === "Requested"
-      ? BookingStatusLabel.REQUESTED
-      : BookingStatusLabel.MODIFIED;
+  let statusLabelForCalendar: BookingStatusLabel;
+  if (wasApproved) {
+    // If booking was approved, maintain APPROVED status
+    statusLabelForCalendar = BookingStatusLabel.APPROVED;
+  } else if (xstateProcessed && xstateNewState === "Requested") {
+    // If XState processed and new state is Requested, use REQUESTED
+    statusLabelForCalendar = BookingStatusLabel.REQUESTED;
+  } else {
+    // Otherwise, use MODIFIED
+    statusLabelForCalendar = BookingStatusLabel.MODIFIED;
+  }
 
   const bookingContentsForDescMod = buildBookingContents(
     data,
     selectedRoomIds,
     startDateObj2,
     endDateObj2,
-    statusLabelForCalendar,
+    statusLabelForCalendar as BookingStatusLabel,
     data.requestNumber ?? existingContents.requestNumber,
     "user",
   );
 
-  const descriptionMod =
-    (await bookingContentsToDescription(bookingContentsForDescMod, tenant)) +
-    "<p>Your reservation is not yet confirmed. The coordinator will review and finalize your reservation within a few days.</p>" +
-    '<p>To cancel reservations please return to the Booking Tool, visit My Bookings, and click "cancel" on the booking at least 24 hours before the date of the event. Failure to cancel an unused booking is considered a no-show and may result in restricted use of the space.</p>';
+  // Build appropriate description message based on approval status
+  let descriptionMod = await bookingContentsToDescription(
+    bookingContentsForDescMod,
+    tenant,
+  );
+  if (wasApproved) {
+    // For approved bookings, add confirmation message
+    descriptionMod +=
+      "<p>Your reservation has been confirmed and approved.</p>" +
+      '<p>To cancel reservations please return to the Booking Tool, visit My Bookings, and click "cancel" on the booking at least 24 hours before the date of the event. Failure to cancel an unused booking is considered a no-show and may result in restricted use of the space.</p>';
+  } else {
+    // For non-approved bookings, add pending message
+    descriptionMod +=
+      "<p>Your reservation is not yet confirmed. The coordinator will review and finalize your reservation within a few days.</p>" +
+      '<p>To cancel reservations please return to the Booking Tool, visit My Bookings, and click "cancel" on the booking at least 24 hours before the date of the event. Failure to cancel an unused booking is considered a no-show and may result in restricted use of the space.</p>';
+  }
 
   let newCalendarEventId: string;
   try {
@@ -1199,36 +1222,41 @@ export async function PUT(request: NextRequest) {
     );
 
     console.log(`Created new calendar event with ID: ${newCalendarEventId}`);
+
     // Add a new history entry for the modification
-    // Use appropriate status and note based on XState processing
-    const isXStateResubmission =
-      xstateProcessed && xstateNewState === "Requested";
-    const historyStatus = isXStateResubmission
-      ? BookingStatusLabel.REQUESTED
-      : BookingStatusLabel.MODIFIED;
-    const historyNote = isXStateResubmission
-      ? "Booking edited and resubmitted"
-      : "Modified by " + modifiedBy;
+    // Note: In practice, due to UI constraints:
+    //   - wasApproved = true → This is a Modification (PA/Admin modifying approved booking)
+    //   - wasApproved = false → This is an Edit (User editing their non-approved booking)
+    //
+    // For Edit (non-approved bookings): add MODIFIED or REQUESTED log based on XState
+    // For Modification (approved bookings): skip MODIFIED log since finalApprove will add APPROVED log
+    if (!wasApproved) {
+      // Edit case: User editing their non-approved booking
+      const isXStateResubmission =
+        xstateProcessed && xstateNewState === "Requested";
+      const historyStatus = isXStateResubmission
+        ? BookingStatusLabel.REQUESTED
+        : BookingStatusLabel.MODIFIED;
+      const historyNote = isXStateResubmission
+        ? "Booking edited and resubmitted"
+        : "Modified by " + modifiedBy;
 
-    await logServerBookingChange({
-      bookingId: existingContents.id,
-      status: historyStatus,
-      changedBy: modifiedBy,
-      requestNumber: existingContents.requestNumber,
-      calendarEventId: newCalendarEventId,
-      note: historyNote,
-      tenant,
-    });
-
-    // If this was an approved booking, re-record the approved status after modification
-    // This ensures the history shows the booking is still approved after changes
-    if (usesXState && wasApproved) {
+      await logServerBookingChange({
+        bookingId: existingContents.id,
+        status: historyStatus,
+        changedBy: modifiedBy,
+        requestNumber: existingContents.requestNumber,
+        calendarEventId: newCalendarEventId,
+        note: historyNote,
+        tenant,
+      });
+    } else {
+      // Modification case: PA/Admin modifying approved booking
       console.log(
-        `📋 RE-RECORDING APPROVED STATUS AFTER MODIFICATION [${tenant?.toUpperCase()}]:`,
+        `⏭️ SKIPPING MODIFIED LOG FOR MODIFICATION (APPROVED BOOKING) [${tenant?.toUpperCase()}]:`,
         {
           calendarEventId: newCalendarEventId,
-          reason:
-            "Booking was previously approved and should remain approved after modification",
+          reason: "finalApprove will add APPROVED log entry instead",
         },
       );
     }
@@ -1241,10 +1269,11 @@ export async function PUT(request: NextRequest) {
   }
 
   // update booking contents WITH new calendarEventId
-  // but remove old approvals
+  // For approved bookings (modifications), preserve approval timestamps and service approvals
+  // For non-approved bookings (edits), remove old approvals
   const { id, ...formData } = data;
   console.log("newCalendarEventId", newCalendarEventId);
-  const updatedData = {
+  const updatedData: any = {
     ...formData,
     roomId: selectedRoomIds,
     startDate: toFirebaseTimestampFromString(bookingCalendarInfo.startStr),
@@ -1254,6 +1283,71 @@ export async function PUT(request: NextRequest) {
     requestedAt: Timestamp.now(),
     origin: BookingOrigin.USER,
   };
+
+  // If this was an approved booking, preserve approval timestamps and service approvals
+  if (wasApproved && existingBookingData) {
+    if (existingBookingData.finalApprovedAt) {
+      updatedData.finalApprovedAt = existingBookingData.finalApprovedAt;
+    }
+    if (existingBookingData.finalApprovedBy) {
+      updatedData.finalApprovedBy = existingBookingData.finalApprovedBy;
+    }
+    if (existingBookingData.firstApprovedAt) {
+      updatedData.firstApprovedAt = existingBookingData.firstApprovedAt;
+    }
+    if (existingBookingData.firstApprovedBy) {
+      updatedData.firstApprovedBy = existingBookingData.firstApprovedBy;
+    }
+
+    // Preserve service approvals for Media Commons
+    if (isMediaCommons) {
+      if (existingBookingData.staffServiceApproved !== undefined) {
+        updatedData.staffServiceApproved =
+          existingBookingData.staffServiceApproved;
+      }
+      if (existingBookingData.equipmentServiceApproved !== undefined) {
+        updatedData.equipmentServiceApproved =
+          existingBookingData.equipmentServiceApproved;
+      }
+      if (existingBookingData.cateringServiceApproved !== undefined) {
+        updatedData.cateringServiceApproved =
+          existingBookingData.cateringServiceApproved;
+      }
+      if (existingBookingData.cleaningServiceApproved !== undefined) {
+        updatedData.cleaningServiceApproved =
+          existingBookingData.cleaningServiceApproved;
+      }
+      if (existingBookingData.securityServiceApproved !== undefined) {
+        updatedData.securityServiceApproved =
+          existingBookingData.securityServiceApproved;
+      }
+      if (existingBookingData.setupServiceApproved !== undefined) {
+        updatedData.setupServiceApproved =
+          existingBookingData.setupServiceApproved;
+      }
+    }
+
+    console.log(
+      `✅ PRESERVED APPROVAL DATA FOR MODIFICATION [${tenant?.toUpperCase()}]:`,
+      {
+        calendarEventId: newCalendarEventId,
+        finalApprovedAt: updatedData.finalApprovedAt,
+        finalApprovedBy: updatedData.finalApprovedBy,
+        firstApprovedAt: updatedData.firstApprovedAt,
+        firstApprovedBy: updatedData.firstApprovedBy,
+        servicesApproved: isMediaCommons
+          ? {
+              staff: updatedData.staffServiceApproved,
+              equipment: updatedData.equipmentServiceApproved,
+              catering: updatedData.cateringServiceApproved,
+              cleaning: updatedData.cleaningServiceApproved,
+              security: updatedData.securityServiceApproved,
+              setup: updatedData.setupServiceApproved,
+            }
+          : undefined,
+      },
+    );
+  }
 
   try {
     // First update the booking data with the new calendar event ID
@@ -1265,12 +1359,34 @@ export async function PUT(request: NextRequest) {
     );
 
     // Delete approval and decline fields from the updated booking (using new calendarEventId since the entry was updated)
-    const fieldsToDelete = [
-      "finalApprovedAt",
-      "finalApprovedBy",
-      "firstApprovedAt",
-      "firstApprovedBy",
-    ];
+    // For approved bookings (modification requests), keep approval fields
+    // For non-approved bookings (edits), delete approval fields
+    const fieldsToDelete: string[] = [];
+
+    if (!wasApproved) {
+      // Only delete approval fields if this was not an approved booking
+      fieldsToDelete.push(
+        "finalApprovedAt",
+        "finalApprovedBy",
+        "firstApprovedAt",
+        "firstApprovedBy",
+      );
+      console.log(
+        `🗑️ DELETING APPROVAL FIELDS FOR EDIT [${tenant?.toUpperCase()}]:`,
+        {
+          calendarEventId: newCalendarEventId,
+          reason: "Booking was not approved - resetting to Requested status",
+        },
+      );
+    } else {
+      console.log(
+        `✅ KEEPING APPROVAL FIELDS FOR MODIFICATION [${tenant?.toUpperCase()}]:`,
+        {
+          calendarEventId: newCalendarEventId,
+          reason: "Booking was approved - maintaining Approved status",
+        },
+      );
+    }
 
     // Also delete decline fields if this was a declined booking being edited
     if (xstateProcessed && xstateNewState === "Requested") {
@@ -1286,36 +1402,88 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    await serverDeleteFieldsByCalendarEventId(
-      TableNames.BOOKING,
-      newCalendarEventId,
-      fieldsToDelete,
-      tenant,
-    );
+    // Only delete fields if there are any to delete
+    if (fieldsToDelete.length > 0) {
+      await serverDeleteFieldsByCalendarEventId(
+        TableNames.BOOKING,
+        newCalendarEventId,
+        fieldsToDelete,
+        tenant,
+      );
+    }
 
-    // If XState processing was successful, initialize new XState data for the new booking
-    if (xstateProcessed && xstateNewState) {
+    // Initialize new XState data for the new booking
+    // For approved bookings (modification requests), maintain Approved state
+    // For non-approved bookings (edits), use the transitioned state
+    if (usesXState && ((xstateProcessed && xstateNewState) || wasApproved)) {
+      const targetState = wasApproved ? "Approved" : xstateNewState;
+
       console.log(
         `🔄 INITIALIZING NEW XSTATE DATA FOR NEW BOOKING [${tenant?.toUpperCase()}]:`,
         {
           calendarEventId: newCalendarEventId,
-          newState: xstateNewState,
-          reason:
-            "Creating fresh XState data for the new booking after transition",
+          targetState,
+          wasApproved,
+          xstateProcessed,
+          xstateNewState,
+          reason: wasApproved
+            ? "Maintaining Approved state for modification request"
+            : "Creating fresh XState data for the new booking after transition",
         },
       );
+
+      // Get services data from the booking
+      const { getMediaCommonsServices } = await import(
+        "@/components/src/utils/tenantUtils"
+      );
+      const servicesRequested = isMediaCommons
+        ? getMediaCommonsServices(data)
+        : undefined;
+
+      // Get services approved from existing booking data (reuse existingBookingData if available)
+      let bookingDataForServices = existingBookingData;
+      if (!bookingDataForServices) {
+        const { serverGetDataByCalendarEventId: getDataById } = await import(
+          "@/lib/firebase/server/adminDb"
+        );
+        bookingDataForServices = await getDataById(
+          TableNames.BOOKING,
+          calendarEventId,
+          tenant,
+        );
+      }
+
+      const servicesApproved = isMediaCommons
+        ? {
+            staff:
+              (bookingDataForServices as any)?.staffServiceApproved || false,
+            equipment:
+              (bookingDataForServices as any)?.equipmentServiceApproved ||
+              false,
+            catering:
+              (bookingDataForServices as any)?.cateringServiceApproved || false,
+            cleaning:
+              (bookingDataForServices as any)?.cleaningServiceApproved || false,
+            security:
+              (bookingDataForServices as any)?.securityServiceApproved || false,
+            setup:
+              (bookingDataForServices as any)?.setupServiceApproved || false,
+          }
+        : undefined;
 
       // Create fresh XState data using the common function with proper context
       const freshXStateData = await createXStateSnapshotData(
         tenant,
         newCalendarEventId,
         email,
-        xstateNewState,
+        targetState,
         {
           // Pass relevant context data for the new booking
           selectedRooms: selectedRooms || [],
           formData: data || {},
           bookingCalendarInfo: bookingCalendarInfo || {},
+          servicesRequested,
+          servicesApproved,
         },
       );
 
@@ -1333,9 +1501,51 @@ export async function PUT(request: NextRequest) {
         `✅ NEW BOOKING INITIALIZED WITH FRESH XSTATE DATA [${tenant?.toUpperCase()}]:`,
         {
           calendarEventId: newCalendarEventId,
-          newState: xstateNewState,
+          targetState,
+          servicesRequested,
+          servicesApproved,
         },
       );
+    }
+
+    // If this was an approved booking (modification), run final approve processing
+    // This handles: logging APPROVED status, updating calendar to APPROVED, and sending approval email
+    if (usesXState && wasApproved) {
+      console.log(
+        `🎉 RUNNING FINAL APPROVE FOR MODIFIED APPROVED BOOKING [${tenant?.toUpperCase()}]:`,
+        {
+          calendarEventId: newCalendarEventId,
+          modifiedBy,
+          reason:
+            "Booking was approved before modification, maintaining approved status",
+        },
+      );
+
+      try {
+        const { finalApprove } = await import("@/components/src/server/admin");
+
+        // finalApprove handles:
+        // 1. serverFinalApprove (update finalApprovedAt/By timestamps)
+        // 2. logServerBookingChange (add APPROVED entry to history)
+        // 3. serverApproveEvent (update calendar event to APPROVED and send email)
+        await finalApprove(newCalendarEventId, modifiedBy, tenant);
+
+        console.log(
+          `✅ FINAL APPROVE COMPLETED FOR MODIFIED BOOKING [${tenant?.toUpperCase()}]:`,
+          {
+            calendarEventId: newCalendarEventId,
+            modifiedBy,
+          },
+        );
+      } catch (error) {
+        console.error(
+          `🚨 FINAL APPROVE FAILED FOR MODIFIED BOOKING [${tenant?.toUpperCase()}]:`,
+          {
+            calendarEventId: newCalendarEventId,
+            error: error.message,
+          },
+        );
+      }
     }
   } catch (err) {
     console.error(err);
@@ -1345,16 +1555,20 @@ export async function PUT(request: NextRequest) {
     );
   }
 
-  await handleBookingApprovalEmails(
-    isAutoApproval,
-    newCalendarEventId,
-    existingContents.requestNumber,
-    data,
-    selectedRoomIds,
-    bookingCalendarInfo,
-    email,
-    tenant,
-  );
+  // Only send approval emails for non-approved bookings
+  // Approved bookings already handled by finalApprove above
+  if (!wasApproved) {
+    await handleBookingApprovalEmails(
+      isAutoApproval,
+      newCalendarEventId,
+      existingContents.requestNumber,
+      data,
+      selectedRoomIds,
+      bookingCalendarInfo,
+      email,
+      tenant,
+    );
+  }
 
   return NextResponse.json({
     result: "success",
