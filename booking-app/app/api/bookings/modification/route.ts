@@ -109,7 +109,7 @@ export async function PUT(request: NextRequest) {
       calendarEventId,
       tenant,
     );
-    const oldRoomIds = existingContents.roomId.split(",").map(x => x.trim());
+    const oldRoomIds = existingContents.roomId.split(",").map(roomId => roomId.trim());
 
     // Get rooms
     const tenantRooms = await getTenantRooms(tenant);
