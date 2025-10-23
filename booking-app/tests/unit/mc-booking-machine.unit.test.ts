@@ -468,4 +468,43 @@ describe("mcBookingMachine", () => {
       "Approved",
     ]);
   });
+
+  it("maintains Approved state when modifying an approved booking (Modify event)", () => {
+    // Create an actor that auto-approves (no services, auto-approvable room)
+    const actor = createTestActor({
+      selectedRooms: [{ roomId: 202, shouldAutoApprove: true }],
+    });
+
+    // Verify initial state is Approved (auto-approved)
+    expect(actor.getSnapshot().matches("Approved")).toBe(true);
+
+    // Send Modify event (simulating a modification request)
+    actor.send({ type: "Modify" });
+
+    // Verify it stays in Approved state (modification should not change approval status)
+    expect(actor.getSnapshot().matches("Approved")).toBe(true);
+  });
+
+  it("transitions to Approved state when initialized with services requested and approved", () => {
+    // This simulates restoring a modified booking that was previously approved
+    // with services that are already approved
+    const actor = createTestActor({
+      selectedRooms: [{ roomId: 202, shouldAutoApprove: false }],
+      servicesRequested: { staff: true, equipment: true },
+      servicesApproved: { staff: true, equipment: true },
+      _restoredFromStatus: true, // Indicates this is a restored booking
+    });
+
+    // Initially should be in Requested state
+    expect(actor.getSnapshot().matches("Requested")).toBe(true);
+
+    // Approve to Pre-approved
+    actor.send({ type: "approve" });
+    expect(actor.getSnapshot().matches("Pre-approved")).toBe(true);
+
+    // Second approve should recognize that all services are already approved
+    // and go directly to Approved instead of Services Request
+    actor.send({ type: "approve" });
+    expect(actor.getSnapshot().matches("Approved")).toBe(true);
+  });
 });
