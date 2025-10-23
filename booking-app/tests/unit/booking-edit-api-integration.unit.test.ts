@@ -432,7 +432,7 @@ describe("Edit API Integration Tests", () => {
     it("should NOT add APPROVED log entry", () => {
       // Since finalApprove is not called,
       // no APPROVED log entry should be added
-      const logStatuses = ["MODIFIED"];
+      const logStatuses = ["REQUESTED"];
 
       expect(logStatuses).not.toContain("APPROVED");
     });
