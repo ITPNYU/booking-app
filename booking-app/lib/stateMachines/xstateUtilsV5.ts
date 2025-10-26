@@ -710,7 +710,8 @@ async function handleStateTransitions(
                 "@/components/src/server/admin"
               );
               const emailConfig = await getTenantEmailConfig(tenant);
-              const headerMessage = emailConfig.emailMessages.checkoutConfirmation;
+              const headerMessage =
+                emailConfig.emailMessages.checkoutConfirmation;
 
               await serverSendBookingDetailEmail({
                 calendarEventId,
@@ -1471,10 +1472,13 @@ export async function executeXStateTransition(
         unsubscribe = () => subscription.unsubscribe();
       }
 
-      // Execute the transition with reason if provided
+      // Execute the transition with reason and email if provided
       const event: any = { type: eventType as any };
       if (reason) {
         event.reason = reason;
+      }
+      if (email && eventType === "checkOut") {
+        event.email = email;
       }
       actor.send(event);
     } catch (subscribeError) {
@@ -1652,7 +1656,10 @@ export async function executeXStateTransition(
 
         const guestEmail = doc.email;
         const emailConfig = await getTenantEmailConfig(tenant);
-        const headerMessage = emailConfig.emailMessages.noShow.replace('${violationCount}', violationCount.toString());
+        const headerMessage = emailConfig.emailMessages.noShow.replace(
+          "${violationCount}",
+          violationCount.toString()
+        );
 
         // Send emails using server-side function
         await serverSendBookingDetailEmail({

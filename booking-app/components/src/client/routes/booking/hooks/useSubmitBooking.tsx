@@ -144,17 +144,16 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
         switch (formContext) {
           case FormContextLevel.EDIT:
             return {
-              endpoint: "/api/bookings",
+              endpoint: "/api/bookings/edit",
               method: "PUT",
               body: { calendarEventId, allRooms: roomSettings },
             };
           case FormContextLevel.MODIFICATION:
             return {
-              endpoint: "/api/bookings",
+              endpoint: "/api/bookings/modification",
               method: "PUT",
               body: {
                 calendarEventId,
-                isAutoApproval: true,
                 allRooms: roomSettings,
               },
             };

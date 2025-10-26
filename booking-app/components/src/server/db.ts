@@ -550,7 +550,10 @@ export const processCancelBooking = async (
     const violationCount = await getViolationCount(netId, tenant);
     const { getTenantEmailConfig } = await import("./emails");
     const emailConfig = await getTenantEmailConfig(tenant);
-    headerMessage = emailConfig.emailMessages.lateCancel.replace('${violationCount}', violationCount.toString());
+    headerMessage = emailConfig.emailMessages.lateCancel.replace(
+      "${violationCount}",
+      violationCount.toString()
+    );
     // ccHeaderMessage remains the original cancel message
   }
 
@@ -792,21 +795,32 @@ export const checkin = async (id: string, email: string, tenant?: string) => {
   //@ts-ignore
   const guestEmail = doc ? doc.email : null;
 
-  const { getTenantEmailConfig } = await import("./emails");
-  const emailConfig = await getTenantEmailConfig(tenant);
-  const headerMessage = emailConfig.emailMessages.checkinConfirmation;
-  clientSendBookingDetailEmail(
-    id,
-    guestEmail,
-    headerMessage,
-    BookingStatusLabel.CHECKED_IN,
-    tenant
-  );
+  try {
+    const { getTenantEmailConfig } = await import("./emails");
+    const emailConfig = await getTenantEmailConfig(tenant);
+    const headerMessage = emailConfig.emailMessages.checkinConfirmation;
+    await clientSendBookingDetailEmail(
+      id,
+      guestEmail,
+      headerMessage,
+      BookingStatusLabel.CHECKED_IN,
+      tenant
+    );
 
-  console.log(`📧 XSTATE CHECKIN EMAIL SENT [${tenant?.toUpperCase()}]:`, {
-    calendarEventId: id,
-    guestEmail,
-  });
+    console.log(`📧 XSTATE CHECKIN EMAIL SENT [${tenant?.toUpperCase()}]:`, {
+      calendarEventId: id,
+      guestEmail,
+    });
+  } catch (emailError) {
+    console.error(
+      `⚠️ XSTATE CHECKIN EMAIL FAILED [${tenant?.toUpperCase()}]:`,
+      {
+        calendarEventId: id,
+        error: emailError,
+      }
+    );
+    // Don't throw - email failure shouldn't fail the entire check-in
+  }
 };
 
 export const checkOut = async (id: string, email: string, tenant?: string) => {
@@ -840,31 +854,7 @@ export const checkOut = async (id: string, email: string, tenant?: string) => {
     newState: xstateResult.newState,
   });
 
-  // XState handled the checkout successfully, now add history logging
-  const doc = await clientGetDataByCalendarEventId<{
-    id: string;
-    requestNumber: number;
-  }>(TableNames.BOOKING, id, tenant);
-
-  if (doc) {
-    await logClientBookingChange({
-      bookingId: doc.id,
-      calendarEventId: id,
-      status: BookingStatusLabel.CHECKED_OUT,
-      changedBy: email,
-      requestNumber: doc.requestNumber,
-      tenant,
-    });
-
-    console.log(
-      `📋 XSTATE CHECKOUT HISTORY LOGGED [${tenant?.toUpperCase()}]:`,
-      {
-        calendarEventId: id,
-        bookingId: doc.id,
-        requestNumber: doc.requestNumber,
-      }
-    );
-  }
+  // Booking log is created by checkout-processing API (called by XState machine)
 };
 
 export const noShow = async (
@@ -999,7 +989,10 @@ export const executeTraditionalNoShow = async (
   const violationCount = await getViolationCount(netId);
   const { getTenantEmailConfig } = await import("./emails");
   const emailConfig = await getTenantEmailConfig(tenant);
-  const headerMessage = emailConfig.emailMessages.noShow.replace('${violationCount}', violationCount.toString());
+  const headerMessage = emailConfig.emailMessages.noShow.replace(
+    "${violationCount}",
+    violationCount.toString()
+  );
   clientSendBookingDetailEmail(
     id,
     guestEmail,

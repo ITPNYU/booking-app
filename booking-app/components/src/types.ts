@@ -32,6 +32,10 @@ export type Booking = Inputs &
     roomId: string;
     requestNumber: number;
     equipmentCheckedOut: boolean;
+    equipmentServices: string;
+    equipmentServicesDetails: string;
+    staffingServices: string;
+    staffingServicesDetails: string;
   };
 
 // used for Booking table rows that show status
@@ -176,6 +180,10 @@ export type Inputs = {
   chartFieldForSecurity: string;
   chartFieldForRoomSetup: string;
   webcheckoutCartNumber?: string;
+  // Individual service fields for pregame parsing
+  equipment?: string;
+  staffing?: string;
+  cleaning?: string;
 };
 
 export type DepartmentType = {

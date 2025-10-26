@@ -4,8 +4,8 @@ import {
   serverSendBookingDetailEmail,
   serverUpdateDataByCalendarEventId,
 } from "@/components/src/server/admin";
-import { getTenantEmailConfig } from "@/components/src/server/emails";
 import { updateCalendarEvent } from "@/components/src/server/calendars";
+import { getTenantEmailConfig } from "@/components/src/server/emails";
 import { BookingStatusLabel } from "@/components/src/types";
 import {
   logServerBookingChange,
@@ -46,13 +46,12 @@ export async function POST(req: NextRequest) {
       throw new Error("Booking not found");
     }
 
-    // Update Firestore with checkout timestamp
-    const checkedOutAt = Timestamp.now();
+    // Update Firestore with checkout timestamp and checkedOutBy
     await serverUpdateDataByCalendarEventId(
       TableNames.BOOKING,
       calendarEventId,
       {
-        checkedOutAt,
+        checkedOutAt: Timestamp.now(),
         checkedOutBy: email,
       },
       tenant,

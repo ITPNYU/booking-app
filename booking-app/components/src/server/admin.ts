@@ -158,9 +158,17 @@ export const serverBookingContents = async (id: string, tenant?: string) => {
   const startDate = booking.startDate.toDate();
   const endDate = booking.endDate.toDate();
 
-  const updatedBookingObj = Object.assign({}, booking, {
-    headerMessage: "", // Will be set per email context
-    history: history,
+  const defaultHeaderMessage = "";
+  const currentHeaderMessage = (booking as BookingFormDetails).headerMessage;
+
+  const updatedBookingObj = {
+    ...booking,
+    headerMessage:
+      typeof currentHeaderMessage === "string" &&
+      currentHeaderMessage.trim().length > 0
+        ? currentHeaderMessage
+        : defaultHeaderMessage,
+    history,
     startDate: startDate.toLocaleDateString(),
     endDate: endDate.toLocaleDateString(),
     startTime: startDate.toLocaleTimeString([], {
@@ -173,12 +181,7 @@ export const serverBookingContents = async (id: string, tenant?: string) => {
       minute: "2-digit",
       hour12: true,
     }),
-    // Don't override status - let getStatusFromXState handle it using XState data
-    // status:
-    //   history.length > 0
-    //     ? history[history.length - 1].status
-    //     : BookingStatusLabel.REQUESTED,
-  });
+  };
 
   return updatedBookingObj as unknown as BookingFormDetails;
 };
