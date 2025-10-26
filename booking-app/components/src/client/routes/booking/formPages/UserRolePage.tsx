@@ -159,6 +159,22 @@ export default function UserRolePage({
   }, [department, departmentOptions, setDepartment]);
 
   useEffect(() => {
+    if (!watchedFields.school && department && department !== Department.OTHER) {
+      const matchingSchools: string[] = [];
+      for (const [schoolName, depts] of Object.entries(schemaSchoolMapping)) {
+        const deptList = mappingValuesToArray(depts);
+        if (deptList.includes(department)) {
+          matchingSchools.push(schoolName);
+        }
+      }
+      if (matchingSchools.length === 1) {
+        setValue("school", matchingSchools[0]);
+        setFormData({ ...watchedFields, school: matchingSchools[0], department });
+      }
+    }
+  }, [department, watchedFields.school, schemaSchoolMapping, setValue, setFormData, watchedFields]);
+
+  useEffect(() => {
     if (!user) {
       router.push("/signin");
       return;
