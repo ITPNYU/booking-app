@@ -2,7 +2,7 @@
 import { Box, Button, Typography } from "@mui/material";
 import { styled } from "@mui/material/styles";
 import { useRouter } from "next/navigation";
-import { useContext, useEffect, useRef } from "react";
+import { useContext, useEffect, useMemo, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { Department, FormContextLevel, Inputs, Role } from "../../../../types";
 import { useAuth } from "../../components/AuthProvider";
@@ -80,15 +80,6 @@ export default function UserRolePage({
   const { tenant } = useParams();
   const tenantSchema = useTenantSchema();
 
-  // Default school options when not configured in tenant schema
-  const defaultSchoolOptions = [
-    "Tisch School of the Arts",
-    "Tandon School of Engineering", 
-    "Stern School of Business",
-    "Steinhardt School of Culture, Education, and Human Development",
-    "College of Arts & Science"
-  ];
-
   const {
     control,
     trigger,
@@ -109,13 +100,63 @@ export default function UserRolePage({
   const isVIP = formContext === FormContextLevel.VIP;
   const isWalkIn = formContext === FormContextLevel.WALK_IN;
 
-  // Create prefix for affiliation header
   const prefix = isVIP ? "VIP" : isWalkIn ? "Walk-In" : "";
   const affiliationTitle = prefix ? `${prefix} Affiliation` : "Affiliation";
   
   const formatFieldLabel = (label: string) => {
     return `${prefix} ${label}`.trim();
   };
+
+  const schemaSchoolMapping = (tenantSchema as any).schoolMapping || {};
+
+  const mappingValuesToArray = (val: any): string[] => {
+    if (!val) return [];
+    if (Array.isArray(val)) return val;
+    if (typeof val === "object") {
+      return Object.values(val).filter((v) => typeof v === "string" && v.trim() !== "") as string[];
+    }
+    return [];
+  };
+
+  const isOtherSchool = (val?: string) => {
+    if (!val) return false;
+    return val.trim().toLowerCase() === "other";
+  };
+
+  const derivedSchoolOptions = useMemo(() => {
+    const keys = Object.keys(schemaSchoolMapping);
+    const hasOther = keys.some(isOtherSchool);
+    if (hasOther) {
+      return keys;
+    }
+    return keys.length > 0 ? [...keys, "Other"] : ["Other"];
+  }, [schemaSchoolMapping]);
+
+  const departmentOptions = useMemo(() => {
+    const allDepartments = Object.keys(tenantSchema.programMapping || {});
+    const selectedSchool = watchedFields.school;
+  
+    if (isOtherSchool(selectedSchool)) {
+      return allDepartments;
+    }
+  
+    let filtered: string[];
+    if (selectedSchool && schemaSchoolMapping[selectedSchool]) {
+      const allowedDepts = new Set(mappingValuesToArray(schemaSchoolMapping[selectedSchool]));
+      filtered = allDepartments.filter((dept) => allowedDepts.has(dept));
+    } else {
+      filtered = allDepartments;
+    }
+  
+    const hasOther = filtered.includes("Other");
+    return hasOther ? filtered : [...filtered, "Other"];
+  }, [tenantSchema.programMapping, watchedFields.school, schemaSchoolMapping]);
+
+  useEffect(() => {
+    if (department && !departmentOptions.includes(department)) {
+      setDepartment("" as any);
+    }
+  }, [department, departmentOptions, setDepartment]);
 
   useEffect(() => {
     if (!user) {
@@ -140,18 +181,6 @@ export default function UserRolePage({
       if (mappedDepartment && !department) {
         setDepartment(mappedDepartment);
       }
-
-      // Default school if available and schema lists options/mapping
-      if (!formData?.school) {
-        const defaultSchool =
-          userApiData.school_name ||
-          (mappedDepartment && tenantSchema.departmentToSchool
-            ? tenantSchema.departmentToSchool[mappedDepartment]
-            : undefined);
-        if (defaultSchool) {
-          setFormData({ ...watchedFields, school: defaultSchool });
-        }
-      }
     }
   }, [userApiData, user, isVIP, isWalkIn]);
 
@@ -168,9 +197,14 @@ export default function UserRolePage({
   }, [watchedFields, setFormData]);
 
   const getDisabled = () => {
+    if (isOtherSchool(watchedFields.school)) {
+      return !watchedFields.otherSchool?.trim() || !watchedFields.otherDepartment?.trim() || !role;
+    }
+    
     if (showOther && !watchedFields.otherDepartment) {
       return true;
     }
+    
     return !role || !department;
   };
 
@@ -188,16 +222,6 @@ export default function UserRolePage({
     }
   };
 
-  // Auto-map school when department changes (if mapping provided by schema)
-  useEffect(() => {
-    if (department && tenantSchema.departmentToSchool) {
-      const mapped = tenantSchema.departmentToSchool[department as string];
-      if (mapped && formData?.school !== mapped) {
-        setFormData({ ...formData, school: mapped });
-      }
-    }
-  }, [department]);
-
   return (
     <Center>
       <Container
@@ -207,48 +231,60 @@ export default function UserRolePage({
         width={{ xs: "100%", md: "50%" }}
       >
         <Typography fontWeight={500}>{affiliationTitle}</Typography>
-        {((tenantSchema.schoolOptions && tenantSchema.schoolOptions.length > 0) || !tenantSchema.schoolOptions) && (
-          <>
-            <Dropdown
-              value={watchedFields.school || ""}
-              updateValue={(newSchool) => {
-                setValue("school", newSchool);
-                setFormData({ ...watchedFields, school: newSchool });
-              }}
-              options={tenantSchema.schoolOptions || defaultSchoolOptions}
-              placeholder="Choose a School"
-              dataTestId="school-select"
-              sx={{ marginTop: 4 }}
-            />
-            {watchedFields.school === "Other" && (
+        <>
+          <Dropdown
+            value={watchedFields.school || ""}
+            updateValue={(newSchool) => {
+              setValue("school", newSchool);
+              setFormData({ ...watchedFields, school: newSchool, department: "" });
+            }}
+            options={derivedSchoolOptions}
+            placeholder="Choose a School"
+            dataTestId="school-select"
+            sx={{ marginTop: 4 }}
+          />
+        </>
+        {isOtherSchool(watchedFields.school) ? (
+            <>
               <BookingFormTextField
                 id="otherSchool"
                 label={formatFieldLabel("School")}
                 containerSx={{ marginBottom: 2, marginTop: 1, width: "100%" }}
                 fieldSx={{}}
-                required={false}
+                required={true}
                 {...{ control, errors, trigger }}
               />
-            )}
-          </>
-        )}
-        <Dropdown
-          value={department}
-          updateValue={setDepartment}
-          options={Object.keys(tenantSchema.programMapping)}
-          placeholder="Choose a Department"
-          dataTestId="department-select"
-          sx={{ marginTop: 4 }}
-        />
-        {showOther && (
-          <BookingFormTextField
-            id="otherDepartment"
-            label={formatFieldLabel("Department")}
-            containerSx={{ marginBottom: 2, marginTop: 1, width: "100%" }}
-            fieldSx={{}}
-            {...{ control, errors, trigger }}
-          />
-        )}
+              <BookingFormTextField
+                id="otherDepartment"
+                label={formatFieldLabel("Department")}
+                containerSx={{ marginBottom: 2, marginTop: 1, width: "100%" }}
+                fieldSx={{}}
+                required={true}
+                {...{ control, errors, trigger }}
+              />
+            </>
+          ) : (
+            <>
+              <Dropdown
+                value={department}
+                updateValue={setDepartment}
+                options={departmentOptions}
+                placeholder="Choose a Department"
+                dataTestId="department-select"
+                sx={{ marginTop: 4 }}
+              />
+              {showOther && (
+                <BookingFormTextField
+                  id="otherDepartment"
+                  label={formatFieldLabel("Department")}
+                  containerSx={{ marginBottom: 2, marginTop: 1, width: "100%" }}
+                  fieldSx={{}}
+                  required={true}
+                  {...{ control, errors, trigger }}
+                />
+              )}
+            </>
+          )}
         <Dropdown
           value={role}
           updateValue={(newRole) => {
