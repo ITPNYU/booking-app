@@ -665,8 +665,14 @@ export const DatabaseProvider = ({
     try {
       // Get the resource from room settings
       const resource = roomSettings.find(room => room.roomId.toString() === resourceId);
-      if (!resource?.needsSafetyTraining || !resource?.safetyTrainingFormUrl) {
+      if (!resource?.needsSafetyTraining) {
         return true; // No safety training required
+      }
+
+      // Get schema context to check if tenant has safety training form
+      const schemaContext = useContext(SchemaContext);
+      if (!schemaContext?.safetyTrainingGoogleFormId) {
+        return true; // No safety training form configured
       }
 
       // Fetch safety trained users for this specific resource

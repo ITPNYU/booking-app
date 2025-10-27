@@ -4,6 +4,7 @@ import { TENANTS } from "../constants/tenants";
 const baseMediaCommonsSchema: SchemaContextType = {
   tenant: TENANTS.MC,
   name: "Media Commons",
+  safetyTrainingGoogleFormId: "mock-safety-form-id",
   logo: "/mediaCommonsLogo.svg",
   nameForPolicy: "370J Media Commons",
   policy: "<p>Mock policy content for automated tests.</p>",
@@ -65,7 +66,7 @@ const baseMediaCommonsSchema: SchemaContextType = {
       roomId: 220,
       isEquipment: false,
       calendarId: "mock-calendar-220",
-      needsSafetyTraining: false,
+      needsSafetyTraining: true,
       shouldAutoApprove: false,
       isWalkIn: true,
       isWalkInCanBookTwo: false,

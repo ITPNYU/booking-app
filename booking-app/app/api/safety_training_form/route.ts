@@ -13,19 +13,6 @@ interface CacheEntry {
 // Cache by tenant and resource ID
 const responseCache = new Map<string, CacheEntry>();
 
-// Helper function to get form ID from URL
-function getFormIdFromUrl(url: string): string | null {
-  try {
-    const formUrl = new URL(url);
-    const pathParts = formUrl.pathname.split('/');
-    const formId = pathParts[pathParts.length - 1];
-    return formId || null;
-  } catch (error) {
-    console.error("Error parsing form URL:", error);
-    return null;
-  }
-}
-
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
@@ -33,53 +20,56 @@ export async function GET(request: NextRequest) {
   const resourceId = request.headers.get("x-resource-id");
 
   try {
-
     if (!tenant) {
       return NextResponse.json(
         { error: "Tenant header is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     // Get tenant schema
-    const schema = await serverGetDocumentById(TableNames.TENANT_SCHEMA, tenant);
+    const schema = await serverGetDocumentById(
+      TableNames.TENANT_SCHEMA,
+      tenant,
+    );
     if (!schema) {
       return NextResponse.json(
         { error: "Tenant schema not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
-    // Get all resources that need safety training
-    const safetyResources = schema.resources.filter(
-      (resource: any) => resource.needsSafetyTraining && resource.safetyTrainingFormUrl
-    );
+    // Check if tenant has safety training form configured
+    if (!schema.safetyTrainingGoogleFormId) {
+      return NextResponse.json(
+        { error: "Safety training form not configured for this tenant" },
+        { status: 404 },
+      );
+    }
 
+    // If resourceId is provided, verify it requires safety training
     if (resourceId) {
-      // If resourceId is provided, only get responses for that specific resource
-      const resource = safetyResources.find(
-        (r: any) => r.roomId.toString() === resourceId
+      const resource = schema.resources.find(
+        (r: any) => r.roomId.toString() === resourceId && r.needsSafetyTraining,
       );
       if (!resource) {
         return NextResponse.json(
           { error: "Resource not found or does not require safety training" },
-          { status: 404 }
+          { status: 404 },
         );
       }
-      safetyResources.length = 0;
-      safetyResources.push(resource);
     }
 
     const currentTime = Date.now();
-    const cacheKey = `${tenant}:${resourceId || 'all'}`;
-    
+    const cacheKey = `${tenant}:${resourceId || "all"}`;
+
     // Return cached results if they're still valid
     const cachedEntry = responseCache.get(cacheKey);
     if (cachedEntry && currentTime - cachedEntry.timestamp < CACHE_DURATION) {
       const res = NextResponse.json({ emails: cachedEntry.emails });
       res.headers.set(
         "Cache-Control",
-        "no-store, no-cache, must-revalidate, proxy-revalidate"
+        "no-store, no-cache, must-revalidate, proxy-revalidate",
       );
       res.headers.set("Expires", "0");
       return res;
@@ -89,43 +79,30 @@ export async function GET(request: NextRequest) {
     const logger = await getLoggingClient();
     const timestamp = currentTime;
 
-    // Fetch form responses for each resource
-    const allEmails = new Set<string>();
-    
-    for (const resource of safetyResources) {
-      const formId = getFormIdFromUrl(resource.safetyTrainingFormUrl);
-      if (!formId) {
-        console.error(`Invalid form URL for resource ${resource.roomId}: ${resource.safetyTrainingFormUrl}`);
-        continue;
+    // Fetch form responses from tenant's form
+    let emails: string[] = [];
+    try {
+      const response = await formsService.forms.responses.list({
+        formId: schema.safetyTrainingGoogleFormId,
+      });
+
+      if (response.data.responses) {
+        // Extract email addresses from form responses
+        emails = response.data.responses
+          .map(response => {
+            const answers = response.answers || {};
+            // Find the email question's answer
+            const emailAnswer = Object.values(answers).find(answer =>
+              answer.textAnswers?.answers?.[0]?.value?.includes("@"),
+            );
+            return emailAnswer?.textAnswers?.answers?.[0]?.value;
+          })
+          .filter((email): email is string => Boolean(email));
       }
-
-      try {
-        const response = await formsService.forms.responses.list({
-          formId,
-        });
-
-        if (response.data.responses) {
-          // Extract email addresses from form responses
-          const resourceEmails = response.data.responses
-            .map(response => {
-              const answers = response.answers || {};
-              // Find the email question's answer
-              const emailAnswer = Object.values(answers).find(
-                answer => answer.textAnswers?.answers?.[0]?.value?.includes("@")
-              );
-              return emailAnswer?.textAnswers?.answers?.[0]?.value;
-            })
-            .filter((email): email is string => Boolean(email));
-
-          // Add emails to the set
-          resourceEmails.forEach(email => allEmails.add(email));
-        }
-      } catch (error) {
-        console.error(`Error fetching responses for resource ${resource.roomId}:`, error);
-      }
+    } catch (error) {
+      console.error("Error fetching form responses:", error);
+      throw error;
     }
-
-    const emails = Array.from(allEmails);
 
     // Log the operation
     const logEntry = {
@@ -160,46 +137,46 @@ export async function GET(request: NextRequest) {
     const res = NextResponse.json({ emails });
     res.headers.set(
       "Cache-Control",
-      "no-store, no-cache, must-revalidate, proxy-revalidate"
+      "no-store, no-cache, must-revalidate, proxy-revalidate",
     );
     res.headers.set("Expires", "0");
     return res;
   } catch (error: any) {
     console.error("Failed to fetch form responses:", error);
-    
+
     if (error?.message?.includes("invalid_grant")) {
       return NextResponse.json(
         { error: "Authentication failed. Please check Google API credentials" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
     if (error?.message?.includes("Form not found")) {
       return NextResponse.json(
         { error: "Specified Google Form not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
     if (error?.message?.includes("permission_denied")) {
       return NextResponse.json(
         { error: "Permission denied. Please check API access settings" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
     // Return cached results if available during error
-    const cacheKey = `${tenant}:${resourceId || 'all'}`;
+    const cacheKey = `${tenant}:${resourceId || "all"}`;
     const cachedEntry = responseCache.get(cacheKey);
     if (cachedEntry) {
       console.log("Returning cached results due to API error");
-      const res = NextResponse.json({ 
+      const res = NextResponse.json({
         emails: cachedEntry.emails,
-        warning: "Using cached data due to API error"
+        warning: "Using cached data due to API error",
       });
       res.headers.set(
         "Cache-Control",
-        "no-store, no-cache, must-revalidate, proxy-revalidate"
+        "no-store, no-cache, must-revalidate, proxy-revalidate",
       );
       res.headers.set("Expires", "0");
       return res;
@@ -208,7 +185,7 @@ export async function GET(request: NextRequest) {
     // Generic error response
     return NextResponse.json(
       { error: "Failed to fetch form responses" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
