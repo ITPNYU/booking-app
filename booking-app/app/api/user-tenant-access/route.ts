@@ -30,8 +30,12 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const netId = searchParams.get("netId");
 
+    // Validate netId: only allow alphanumeric, underscore, dash, 2-32 chars
     if (!netId) {
       return NextResponse.json({ error: "NetID is required" }, { status: 400 });
+    }
+    if (!/^[a-zA-Z0-9_-]{2,32}$/.test(netId)) {
+      return NextResponse.json({ error: "Invalid NetID format" }, { status: 400 });
     }
 
     // Fetch tenant schemas for MC and ITP
