@@ -3,8 +3,52 @@
  */
 
 import { TENANTS } from "../constants/tenants";
+import { Department, Role } from "../types";
 
 export type Tenant = (typeof TENANTS)[keyof typeof TENANTS];
+
+/**
+ * Maps an affiliation to a role using roleMapping
+ * Used for auto-populating user roles from NYU Identity data
+ */
+export const mapAffiliationToRole = (
+  roleMapping: Record<string, string[]>,
+  affiliation?: string,
+): Role | undefined => {
+  if (!affiliation) return undefined;
+
+  const normalizedAffiliation = affiliation.toUpperCase();
+
+  for (const [role, affiliations] of Object.entries(roleMapping)) {
+    if (affiliations.includes(normalizedAffiliation)) {
+      return role as Role;
+    }
+  }
+
+  return undefined;
+};
+
+/**
+ * Maps a department code to a department using programMapping
+ * Used for auto-populating user departments from NYU Identity data
+ * Returns undefined if no match found (caller should handle default)
+ */
+export const mapDepartmentCode = (
+  programMapping: Record<string, string[]>,
+  deptCode?: string,
+): string | undefined => {
+  if (!deptCode) return undefined;
+
+  const normalizedCode = deptCode.toUpperCase();
+
+  for (const [dept, codes] of Object.entries(programMapping)) {
+    if (codes.includes(normalizedCode)) {
+      return dept;
+    }
+  }
+
+  return undefined;
+};
 
 /**
  * Check if a tenant is ITP

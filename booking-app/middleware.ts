@@ -1,11 +1,16 @@
-import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Handle auth paths
   if (pathname.startsWith("/__/auth/")) {
+    return NextResponse.next();
+  }
+
+  // Allow dashboard and signin pages
+  if (pathname === "/$dash" || pathname.startsWith("/signin")) {
     return NextResponse.next();
   }
 

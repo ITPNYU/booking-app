@@ -377,6 +377,21 @@ export interface UserApiData {
   preferred_first_name?: string;
 }
 
+export interface TenantAccessInfo {
+  dept_name?: string;
+  dept_code?: string;
+  reporting_dept_name?: string;
+  reporting_dept_code?: string;
+  school_name?: string;
+  mapped_department?: string; // Mapped department from programMapping
+}
+
+export interface TenantAccess {
+  tenants: string[];
+  userInfo?: TenantAccessInfo;
+  error?: string;
+}
+
 export type Filters = {
   dateRange: string | Date[];
   sortField: string;
