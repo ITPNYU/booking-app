@@ -158,9 +158,13 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    if (error?.message?.includes("permission_denied")) {
+    if (error?.message?.includes("permission_denied") || error?.message?.includes("Insufficient Permission")) {
       return NextResponse.json(
-        { error: "Permission denied. Please check API access settings" },
+        { 
+          error: "Permission denied. Please share the form with the service account",
+          details: "The service account needs at least Viewer access to the form",
+          code: 403
+        },
         { status: 403 },
       );
     }
@@ -182,9 +186,22 @@ export async function GET(request: NextRequest) {
       return res;
     }
 
-    // Generic error response
+    // Log the actual error details
+    console.error("Google Forms API error details:", {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
+      code: error.code,
+      details: error.details,
+    });
+
+    // Generic error response with more details
     return NextResponse.json(
-      { error: "Failed to fetch form responses" },
+      { 
+        error: "Failed to fetch form responses",
+        details: error.message,
+        code: error.code || 'UNKNOWN'
+      },
       { status: 500 },
     );
   }

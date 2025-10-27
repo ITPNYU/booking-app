@@ -410,7 +410,16 @@ export const DatabaseProvider = ({
         },
       });
       if (!response.ok) {
-        throw new Error("Failed to fetch authorized emails from form responses");
+        // Get the error details from the response
+        const errorData = await response.json();
+        console.log("Safety training form API error:", {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorData.error,
+          details: errorData.details,
+          code: errorData.code
+        });
+        throw new Error(errorData.error || "Failed to fetch authorized emails from form responses");
       }
       const formData = await response.json();
 
