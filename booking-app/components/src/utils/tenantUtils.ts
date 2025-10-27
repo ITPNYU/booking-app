@@ -36,14 +36,14 @@ export const mapAffiliationToRole = (
 export const mapDepartmentCode = (
   programMapping: Record<string, string[]>,
   deptCode?: string,
-): string | undefined => {
+): Department | undefined => {
   if (!deptCode) return undefined;
 
   const normalizedCode = deptCode.toUpperCase();
 
   for (const [dept, codes] of Object.entries(programMapping)) {
     if (codes.includes(normalizedCode)) {
-      return dept;
+      return dept as Department;
     }
   }
 
