@@ -22,6 +22,12 @@ export interface PersistedXStateData {
   lastTransition: string;
 }
 
+type CriticalUpdates = {
+  firstApprovedAt: admin.firestore.Timestamp;
+  firstApprovedBy?: string;
+  xstateData?: PersistedXStateData;
+};
+
 // Note: History logging is now handled by traditional functions only
 // XState only manages state transitions, not history logging
 // Unified state transition handler with history logging
@@ -575,34 +581,41 @@ async function handleStateTransitions(
         "@/components/src/server/admin"
       );
       const { TableNames } = await import("@/components/src/policy");
-            const criticalUpdates: any = {
-        firstApprovedAt: firestoreUpdates.firstApprovedAt,
-        firstApprovedBy: firestoreUpdates.firstApprovedBy,
+      const criticalUpdates: CriticalUpdates = {
+        firstApprovedAt:
+          firestoreUpdates.firstApprovedAt as admin.firestore.Timestamp,
+        ...(firestoreUpdates.firstApprovedBy
+          ? { firstApprovedBy: firestoreUpdates.firstApprovedBy as string }
+          : {}),
       };
-      
+
       if (firestoreUpdates.xstateData) {
-        criticalUpdates.xstateData = firestoreUpdates.xstateData;
+        criticalUpdates.xstateData =
+          firestoreUpdates.xstateData as PersistedXStateData;
       }
-      
+
       await serverUpdateDataByCalendarEventId(
         TableNames.BOOKING,
         calendarEventId,
         criticalUpdates,
         tenant
       );
-      
+
       console.log(
         `💾 PRE-APPROVED DATA SAVED TO DB BEFORE CALENDAR UPDATE [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-        { 
+        {
           calendarEventId,
           savedFields: Object.keys(criticalUpdates),
-          hasXStateData: !!criticalUpdates.xstateData
+          hasXStateData: !!criticalUpdates.xstateData,
         }
       );
     } catch (error) {
       console.error(
         `🚨 FAILED TO PRE-SAVE PRE-APPROVED DATA [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-        { calendarEventId, error: error.message }
+        {
+          calendarEventId,
+          error: error instanceof Error ? error.message : String(error),
+        }
       );
       // Don't throw - continue with calendar update even if DB save failed
     }
@@ -1752,7 +1765,10 @@ export async function executeXStateTransition(
             `🚨 NO SHOW CALENDAR UPDATE ERROR [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
             {
               calendarEventId,
-              error: calendarError.message,
+              error:
+                calendarError instanceof Error
+                  ? calendarError.message
+                  : String(calendarError),
             }
           );
         }
