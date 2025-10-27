@@ -89,11 +89,14 @@ export async function GET(request: NextRequest) {
         .get();
 
       if (bookingsSnapshot.empty) {
-        BookingLogger.debug("No eligible DECLINED bookings found for auto-cancel", {
-          tenant,
-          collection: collectionName,
-          criteria: "declinedAt more than 24 hours ago",
-        });
+        BookingLogger.debug(
+          "No eligible DECLINED bookings found for auto-cancel",
+          {
+            tenant,
+            collection: collectionName,
+            criteria: "declinedAt more than 24 hours ago",
+          },
+        );
         continue; // Continue to next tenant collection
       }
 
@@ -126,19 +129,6 @@ export async function GET(request: NextRequest) {
           continue;
         }
 
-        // Verify the booking is actually in DECLINED status
-        const isDeclined = booking.declinedAt && !booking.canceledAt;
-        if (!isDeclined) {
-          BookingLogger.debug("Skipping booking not in DECLINED status", {
-            bookingId,
-            calendarEventId: booking.calendarEventId,
-            tenant,
-            declinedAt: booking.declinedAt,
-            canceledAt: booking.canceledAt,
-          });
-          continue;
-        }
-
         if (isDryRun) {
           // For dry run, just log what would be done
           dryRunResults.push({
@@ -158,33 +148,47 @@ export async function GET(request: NextRequest) {
             "cancel",
             tenant,
             "system@mediacommons.nyu.edu", // System email for auto-cancel
-            "Auto-canceled after 24-hour grace period expired"
+            "Auto-canceled after 24-hour grace period expired",
           );
 
           if (xstateResult.success) {
-            BookingLogger.statusChange("DECLINED", "CANCELED", {
-              bookingId,
-              calendarEventId: booking.calendarEventId,
-              tenant,
-            }, "Auto-canceled after 24-hour grace period");
+            BookingLogger.statusChange(
+              "DECLINED",
+              "CANCELED",
+              {
+                bookingId,
+                calendarEventId: booking.calendarEventId,
+                tenant,
+              },
+              "Auto-canceled after 24-hour grace period",
+            );
 
             updatedBookingIds.push(bookingId);
             updatedCount++;
             totalUpdatedCount++;
             allUpdatedBookingIds.push({ id: bookingId, tenant });
           } else {
-            BookingLogger.xstateError("Failed to auto-cancel DECLINED booking", {
+            BookingLogger.xstateError(
+              "Failed to auto-cancel DECLINED booking",
+              {
+                bookingId,
+                calendarEventId: booking.calendarEventId,
+                tenant,
+              },
+              new Error(xstateResult.error),
+            );
+          }
+        } catch (error) {
+          BookingLogger.apiError(
+            "GET",
+            "/api/bookings/auto-cancel-declined",
+            {
               bookingId,
               calendarEventId: booking.calendarEventId,
               tenant,
-            }, new Error(xstateResult.error));
-          }
-        } catch (error) {
-          BookingLogger.apiError("GET", "/api/bookings/auto-cancel-declined", {
-            bookingId,
-            calendarEventId: booking.calendarEventId,
-            tenant,
-          }, error);
+            },
+            error,
+          );
         }
       }
 
@@ -207,10 +211,15 @@ export async function GET(request: NextRequest) {
       timestamp: new Date().toISOString(),
     };
 
-    BookingLogger.apiSuccess("GET", "/api/bookings/auto-cancel-declined", {
-      totalUpdatedCount,
-      isDryRun,
-    }, response);
+    BookingLogger.apiSuccess(
+      "GET",
+      "/api/bookings/auto-cancel-declined",
+      {
+        totalUpdatedCount,
+        isDryRun,
+      },
+      response,
+    );
 
     return NextResponse.json(response);
   } catch (error) {
@@ -222,8 +231,8 @@ export async function GET(request: NextRequest) {
     );
 
     return NextResponse.json(
-      { 
-        message: "Internal Server Error", 
+      {
+        message: "Internal Server Error",
         error: error.message,
         timestamp: new Date().toISOString(),
       },
