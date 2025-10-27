@@ -77,7 +77,6 @@ export interface DatabaseContextType {
   preBanLogs: PreBanLog[];
   reloadPreBanLogs: () => Promise<void>;
   reloadSuperAdminUsers: () => Promise<void>;
-  checkSafetyTrainingForResource: (email: string, resourceId: string) => Promise<boolean>;
 }
 
 export const DatabaseContext = createContext<DatabaseContextType>({
@@ -120,7 +119,6 @@ export const DatabaseContext = createContext<DatabaseContextType>({
   preBanLogs: [],
   reloadPreBanLogs: async () => {},
   reloadSuperAdminUsers: async () => {},
-  checkSafetyTrainingForResource: async () => false,
 });
 
 export const DatabaseProvider = ({
@@ -548,7 +546,6 @@ export const DatabaseProvider = ({
         capacity: resource.capacity.toString(),
         calendarId: resource.calendarId,
         needsSafetyTraining: resource.needsSafetyTraining || false,
-        safetyTrainingFormUrl: resource.safetyTrainingFormUrl,
         shouldAutoApprove: resource.shouldAutoApprove || false,
         isWalkIn: resource.isWalkIn || false,
         isWalkInCanBookTwo: resource.isWalkInCanBookTwo || false,
@@ -660,42 +657,6 @@ export const DatabaseProvider = ({
     }
   };
 
-  // Function to check if a user has completed safety training for a specific resource
-  const checkSafetyTrainingForResource = async (email: string, resourceId: string): Promise<boolean> => {
-    try {
-      // Get the resource from room settings
-      const resource = roomSettings.find(room => room.roomId.toString() === resourceId);
-      if (!resource?.needsSafetyTraining) {
-        return true; // No safety training required
-      }
-
-      // Get schema context to check if tenant has safety training form
-      const schemaContext = useContext(SchemaContext);
-      if (!schemaContext?.safetyTrainingGoogleFormId) {
-        return true; // No safety training form configured
-      }
-
-      // Fetch safety trained users for this specific resource
-      const response = await fetch("/api/safety_training_form", {
-        headers: {
-          "x-tenant": tenant || DEFAULT_TENANT,
-          "x-resource-id": resourceId,
-        },
-      });
-
-      if (!response.ok) {
-        console.error("Failed to fetch safety training status");
-        return false; // Fail safe - require verification if we can't confirm
-      }
-
-      const data = await response.json();
-      return data.emails.includes(email);
-    } catch (error) {
-      console.error("Error checking safety training:", error);
-      return false; // Fail safe - require verification if we can't confirm
-    }
-  };
-
   const fetchSuperAdminUsers = async () => {
     try {
       // Fetch from original usersSuperAdmin collection (not tenant-specific)
@@ -759,7 +720,6 @@ export const DatabaseProvider = ({
         preBanLogs,
         reloadPreBanLogs: fetchPreBanLogs,
         reloadSuperAdminUsers: fetchSuperAdminUsers,
-        checkSafetyTrainingForResource,
       }}
     >
       {children}
