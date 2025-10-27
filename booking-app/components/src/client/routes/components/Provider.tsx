@@ -29,6 +29,13 @@ import {
 import { clientFetchAllDataFromCollection } from "@/lib/firebase/firebase";
 import { useContext } from "react";
 import { SchemaContext } from "./SchemaProvider";
+import {
+  applyE2EMockAdminUsers,
+  applyE2EMockApprovers,
+  applyE2EMockBookings,
+  applyE2EMockPaUsers,
+  applyE2EMockSafetyUsers,
+} from "./e2eMockUtils";
 
 export interface DatabaseContextType {
   adminUsers: AdminUser[];
@@ -254,6 +261,13 @@ export const DatabaseProvider = ({
   const fetchFutureBookings = async () => {
     try {
       setBookingsLoading(true);
+      if (
+        applyE2EMockBookings({
+          setAllBookings,
+        })
+      ) {
+        return;
+      }
       const fetchedData = await fetchAllFutureBooking();
       setAllBookings(fetchedData as Booking[]);
     } catch (error) {
@@ -265,6 +279,15 @@ export const DatabaseProvider = ({
 
   const fetchBookings = async (clicked = false): Promise<void> => {
     try {
+      if (
+        applyE2EMockBookings({
+          setAllBookings,
+          resetPagination: () => setLastItem(null),
+        })
+      ) {
+        return Promise.resolve();
+      }
+
       if (filters.dateRange === "") {
         return Promise.resolve();
       }
@@ -301,6 +324,10 @@ export const DatabaseProvider = ({
 
   const fetchAdminUsers = async () => {
     try {
+      if (applyE2EMockAdminUsers(setAdminUsers)) {
+        return;
+      }
+
       // Fetch from usersRights and filter by isAdmin flag
       const fetchedData = await clientFetchAllDataFromCollection(
         TableNames.USERS_RIGHTS,
@@ -325,6 +352,10 @@ export const DatabaseProvider = ({
 
   const fetchPaUsers = async () => {
     try {
+      if (applyE2EMockPaUsers(setPaUsers)) {
+        return;
+      }
+
       // Fetch from usersRights and filter by isWorker flag
       const fetchedData = await clientFetchAllDataFromCollection(
         TableNames.USERS_RIGHTS,
@@ -349,6 +380,10 @@ export const DatabaseProvider = ({
 
   const fetchSafetyTrainedUsers = async () => {
     try {
+      if (applyE2EMockSafetyUsers(setSafetyTrainedUsers)) {
+        return;
+      }
+
       // Fetch data from Firestore
       const firestoreData = await clientFetchAllDataFromCollection(
         TableNames.SAFETY_TRAINING,
@@ -425,6 +460,16 @@ export const DatabaseProvider = ({
   };
 
   const fetchApproverUsers = async () => {
+    if (
+      applyE2EMockApprovers({
+        setLiaisonUsers,
+        setEquipmentUsers,
+        setPolicySettings,
+      })
+    ) {
+      return;
+    }
+
     clientFetchAllDataFromCollection(TableNames.APPROVERS, [], tenant)
       .then((fetchedData) => {
         const all = fetchedData.map((item: any) => ({
@@ -439,12 +484,11 @@ export const DatabaseProvider = ({
           (x) => x.level === ApproverLevel.EQUIPMENT
         );
 
-        const finalApprover = all.filter(
-          (x) => x.level === ApproverLevel.FINAL
-        )[0];
+        const finalApproverEmail =
+          all.find((x) => x.level === ApproverLevel.FINAL)?.email ?? "";
         setLiaisonUsers(liaisons);
         setEquipmentUsers(equipmentUsers);
-        setPolicySettings({ finalApproverEmail: finalApprover.email });
+        setPolicySettings({ finalApproverEmail });
       })
       .catch((error) => console.error("Error fetching data:", error));
   };
@@ -490,6 +534,7 @@ export const DatabaseProvider = ({
         name: resource.name,
         capacity: resource.capacity.toString(),
         calendarId: resource.calendarId,
+        ...resource,
       }));
 
       filtered.sort((a, b) => a.roomId - b.roomId);

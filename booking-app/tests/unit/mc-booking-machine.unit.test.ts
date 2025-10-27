@@ -100,6 +100,24 @@ const waitForMockCall = async (
   throw new Error("Timed out waiting for mock call");
 };
 
+const getPrimaryState = (
+  snapshot: ReturnType<BookingActor["getSnapshot"]>
+): string => {
+  const value = snapshot.value as unknown;
+  if (typeof value === "string") {
+    return value;
+  }
+
+  if (value && typeof value === "object") {
+    const keys = Object.keys(value as Record<string, unknown>);
+    if (keys.length > 0) {
+      return keys[0];
+    }
+  }
+
+  return "Unknown";
+};
+
 describe("mcBookingMachine", () => {
   beforeEach(() => {
     process.env.NEXT_PUBLIC_BASE_URL =
@@ -332,6 +350,55 @@ describe("mcBookingMachine", () => {
 
     await waitForCondition(actor, (snapshot) => snapshot.matches("Closed"));
 
+    // Wait for async logBookingHistory action to complete
+    await waitForMockCall(
+      mockLogServerBookingChange,
+      (arg) => arg.status === "NO-SHOW"
+    );
+
+    expect(mockLogServerBookingChange).toHaveBeenCalled();
+  });
+
+  it("marks no show with services, transitions through Service Closeout, and closes", async () => {
+    // Create an approved booking with services
+    const actor = createTestActor({
+      isVip: true,
+      email: "user@nyu.edu",
+      servicesRequested: { equipment: true, staff: true },
+      servicesApproved: { equipment: true, staff: true },
+    });
+
+    // First, we need to approve the services to get to Approved state
+    actor.send({ type: "approveEquipment" });
+    actor.send({ type: "approveStaff" });
+    await waitForCondition(actor, (snapshot) => snapshot.matches("Approved"));
+
+    // Now send no show event
+    actor.send({ type: "noShow" });
+
+    // Should go through: No Show → Canceled → Service Closeout → Closed
+    // Wait for Service Closeout state
+    await waitForCondition(
+      actor,
+      (snapshot) =>
+        typeof snapshot.value === "object" &&
+        snapshot.value !== null &&
+        "Service Closeout" in snapshot.value
+    );
+
+    // Close out the services
+    actor.send({ type: "closeoutEquipment" });
+    actor.send({ type: "closeoutStaff" });
+
+    // Should now transition to Closed
+    await waitForCondition(actor, (snapshot) => snapshot.matches("Closed"));
+
+    // Wait for async logBookingHistory action to complete
+    await waitForMockCall(
+      mockLogServerBookingChange,
+      (arg) => arg.status === "NO-SHOW"
+    );
+
     expect(mockLogServerBookingChange).toHaveBeenCalled();
   });
 
@@ -367,5 +434,77 @@ describe("mcBookingMachine", () => {
     actor.send({ type: "declineEquipment" });
 
     await waitForCondition(actor, (snapshot) => snapshot.matches("Declined"));
+  });
+
+  it("emits the official guideline state sequence for manual service approvals", async () => {
+    const actor = createTestActor({
+      selectedRooms: [{ roomId: 202, shouldAutoApprove: false }],
+      servicesRequested: { equipment: true, staff: true },
+    });
+
+    const stateSequence: string[] = [getPrimaryState(actor.getSnapshot())];
+
+    const subscription = actor.subscribe((snapshot) => {
+      const primary = getPrimaryState(snapshot);
+      if (stateSequence.at(-1) !== primary) {
+        stateSequence.push(primary);
+      }
+    });
+
+    // Recommended by the official XState testing guide: assert snapshots via subscribe().
+    actor.send({ type: "approve" });
+    actor.send({ type: "approve" });
+    actor.send({ type: "approveEquipment" });
+    actor.send({ type: "approveStaff" });
+
+    await waitForCondition(actor, (snapshot) => snapshot.matches("Approved"));
+
+    subscription.unsubscribe();
+
+    expect(stateSequence).toEqual([
+      "Requested",
+      "Pre-approved",
+      "Services Request",
+      "Approved",
+    ]);
+  });
+
+  it("maintains Approved state when modifying an approved booking (Modify event)", () => {
+    // Create an actor that auto-approves (no services, auto-approvable room)
+    const actor = createTestActor({
+      selectedRooms: [{ roomId: 202, shouldAutoApprove: true }],
+    });
+
+    // Verify initial state is Approved (auto-approved)
+    expect(actor.getSnapshot().matches("Approved")).toBe(true);
+
+    // Send Modify event (simulating a modification request)
+    actor.send({ type: "Modify" });
+
+    // Verify it stays in Approved state (modification should not change approval status)
+    expect(actor.getSnapshot().matches("Approved")).toBe(true);
+  });
+
+  it("transitions to Approved state when initialized with services requested and approved", () => {
+    // This simulates restoring a modified booking that was previously approved
+    // with services that are already approved
+    const actor = createTestActor({
+      selectedRooms: [{ roomId: 202, shouldAutoApprove: false }],
+      servicesRequested: { staff: true, equipment: true },
+      servicesApproved: { staff: true, equipment: true },
+      _restoredFromStatus: true, // Indicates this is a restored booking
+    });
+
+    // Initially should be in Requested state
+    expect(actor.getSnapshot().matches("Requested")).toBe(true);
+
+    // Approve to Pre-approved
+    actor.send({ type: "approve" });
+    expect(actor.getSnapshot().matches("Pre-approved")).toBe(true);
+
+    // Second approve should recognize that all services are already approved
+    // and go directly to Approved instead of Services Request
+    actor.send({ type: "approve" });
+    expect(actor.getSnapshot().matches("Approved")).toBe(true);
   });
 });
