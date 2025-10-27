@@ -340,15 +340,8 @@ export default function useBookingActions({
         ) {
           options.push(Actions.CANCEL);
         }
-        // Allow editing for REQUESTED, DECLINED, or PRE-APPROVED bookings
-        // Note: In production, you may want to restrict editing past events
-        if (
-          status === BookingStatusLabel.REQUESTED ||
-          status === BookingStatusLabel.DECLINED ||
-          status === BookingStatusLabel.PRE_APPROVED
-        ) {
-          options.push(Actions.EDIT);
-        }
+        // Always show Edit action for users, but it will be disabled when not appropriate
+        options.push(Actions.EDIT);
         break;
 
       case PageContextLevel.PA:
