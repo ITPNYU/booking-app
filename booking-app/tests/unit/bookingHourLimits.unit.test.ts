@@ -3,17 +3,17 @@ import { Role } from "@/components/src/types";
 import { getBookingHourLimits } from "@/components/src/client/routes/booking/utils/bookingHourLimits";
 
 describe("getBookingHourLimits", () => {
-  it("returns default limits when no rooms provided", () => {
+  it("returns unlimited duration when no rooms provided", () => {
     const { maxHours, minHours } = getBookingHourLimits([], Role.STUDENT, false);
-    expect(maxHours).toBe(4);
-    expect(minHours).toBe(0.5);
+    expect(maxHours).toBe(Number.POSITIVE_INFINITY);
+    expect(minHours).toBe(0);
   });
 
-  it("returns default limits when room has no hour settings", () => {
+  it("returns unlimited duration when room has no hour settings", () => {
     const rooms = [{ roomId: 1, name: "Test Room" }];
     const { maxHours, minHours } = getBookingHourLimits(rooms, Role.STUDENT, false);
-    expect(maxHours).toBe(4);
-    expect(minHours).toBe(0.5);
+    expect(maxHours).toBe(Number.POSITIVE_INFINITY);
+    expect(minHours).toBe(0);
   });
 
   it("uses regular role limits for non-walk-in booking", () => {
@@ -68,5 +68,24 @@ describe("getBookingHourLimits", () => {
     const { maxHours, minHours } = getBookingHourLimits(rooms, Role.STUDENT, false);
     expect(maxHours).toBe(2); // Uses lowest max
     expect(minHours).toBe(1); // Uses highest min
+  });
+
+  it("ignores rooms without limits when calculating restrictions", () => {
+    const rooms = [
+      {
+        roomId: 1,
+        name: "Room with limits",
+        maxHour: { student: 3 },
+        minHour: { student: 1 }
+      },
+      {
+        roomId: 2,
+        name: "Room without limits"
+        // No maxHour/minHour specified
+      }
+    ];
+    const { maxHours, minHours } = getBookingHourLimits(rooms, Role.STUDENT, false);
+    expect(maxHours).toBe(3); // Only considers the room with limits
+    expect(minHours).toBe(1); // Only considers the room with limits
   });
 });
