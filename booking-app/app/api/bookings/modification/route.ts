@@ -10,7 +10,11 @@ import {
   deleteEvent,
   insertEvent,
 } from "@/components/src/server/calendars";
-import { BookingOrigin, BookingStatusLabel } from "@/components/src/types";
+import {
+  Booking,
+  BookingOrigin,
+  BookingStatusLabel,
+} from "@/components/src/types";
 import { getMediaCommonsServices } from "@/components/src/utils/tenantUtils";
 import { serverGetDataByCalendarEventId } from "@/lib/firebase/server/adminDb";
 import { itpBookingMachine } from "@/lib/stateMachines/itpBookingMachine";
@@ -81,7 +85,7 @@ export async function PUT(request: NextRequest) {
 
   try {
     // Get existing booking data
-    const existingBookingData = await serverGetDataByCalendarEventId(
+    const existingBookingData = await serverGetDataByCalendarEventId<Booking>(
       TableNames.BOOKING,
       calendarEventId,
       tenant,
@@ -92,8 +96,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Verify this is an approved booking
-    const hasApprovedTimestamp = !!(existingBookingData as any)
-      ?.finalApprovedAt;
+    const hasApprovedTimestamp = !!existingBookingData.finalApprovedAt;
     if (!hasApprovedTimestamp) {
       console.warn(
         `⚠️ MODIFICATION attempted on non-approved booking [${tenant?.toUpperCase()}]:`,
@@ -109,7 +112,9 @@ export async function PUT(request: NextRequest) {
       calendarEventId,
       tenant,
     );
-    const oldRoomIds = existingContents.roomId.split(",").map(roomId => roomId.trim());
+    const oldRoomIds = existingContents.roomId
+      .split(",")
+      .map(roomId => roomId.trim());
 
     // Get rooms
     const tenantRooms = await getTenantRooms(tenant);
@@ -340,7 +345,12 @@ export async function PUT(request: NextRequest) {
       },
     );
 
-    await finalApprove(newCalendarEventId, modifiedBy, tenant);
+    await finalApprove(
+      newCalendarEventId,
+      modifiedBy,
+      tenant,
+      "Approved via booking modification",
+    );
 
     console.log(`✅ MODIFICATION COMPLETED [${tenant?.toUpperCase()}]:`, {
       calendarEventId: newCalendarEventId,
@@ -360,4 +370,3 @@ export async function PUT(request: NextRequest) {
     );
   }
 }
-
