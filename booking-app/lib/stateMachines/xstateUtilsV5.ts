@@ -570,11 +570,49 @@ async function handleStateTransitions(
       }
     );
 
-    // Note: History logging is now handled by traditional functions only
-    // XState only manages state transitions, not history logging
-
-    // Note: Email sending and history logging for PRE_APPROVED is now handled by /api/approve
-    // XState only manages state transitions, not side effects
+    // **CRITICAL: Save to Firestore FIRST so calendar update can read fresh data**
+    // We must save both xstateData AND timestamps before calling calendar API
+    // because the calendar description is regenerated using getStatusFromXState()
+    // which reads from the database
+    try {
+      const { serverUpdateDataByCalendarEventId } = await import(
+        "@/components/src/server/admin"
+      );
+      const { TableNames } = await import("@/components/src/policy");
+      
+      // Save both xstateData (for getStatusFromXState) and approval timestamps
+      const criticalUpdates: any = {
+        firstApprovedAt: firestoreUpdates.firstApprovedAt,
+        firstApprovedBy: firestoreUpdates.firstApprovedBy,
+      };
+      
+      // IMPORTANT: Also save xstateData so getStatusFromXState can read the correct state
+      if (firestoreUpdates.xstateData) {
+        criticalUpdates.xstateData = firestoreUpdates.xstateData;
+      }
+      
+      await serverUpdateDataByCalendarEventId(
+        TableNames.BOOKING,
+        calendarEventId,
+        criticalUpdates,
+        tenant
+      );
+      
+      console.log(
+        `💾 PRE-APPROVED DATA SAVED TO DB BEFORE CALENDAR UPDATE [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+        { 
+          calendarEventId,
+          savedFields: Object.keys(criticalUpdates),
+          hasXStateData: !!criticalUpdates.xstateData
+        }
+      );
+    } catch (error) {
+      console.error(
+        `🚨 FAILED TO PRE-SAVE PRE-APPROVED DATA [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+        { calendarEventId, error: error.message }
+      );
+      // Don't throw - continue with calendar update even if DB save failed
+    }
 
     // Update calendar event with PRE_APPROVED status
     try {
