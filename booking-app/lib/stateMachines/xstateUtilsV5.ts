@@ -570,23 +570,16 @@ async function handleStateTransitions(
       }
     );
 
-    // **CRITICAL: Save to Firestore FIRST so calendar update can read fresh data**
-    // We must save both xstateData AND timestamps before calling calendar API
-    // because the calendar description is regenerated using getStatusFromXState()
-    // which reads from the database
     try {
       const { serverUpdateDataByCalendarEventId } = await import(
         "@/components/src/server/admin"
       );
       const { TableNames } = await import("@/components/src/policy");
-      
-      // Save both xstateData (for getStatusFromXState) and approval timestamps
-      const criticalUpdates: any = {
+            const criticalUpdates: any = {
         firstApprovedAt: firestoreUpdates.firstApprovedAt,
         firstApprovedBy: firestoreUpdates.firstApprovedBy,
       };
       
-      // IMPORTANT: Also save xstateData so getStatusFromXState can read the correct state
       if (firestoreUpdates.xstateData) {
         criticalUpdates.xstateData = firestoreUpdates.xstateData;
       }
