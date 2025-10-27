@@ -1,8 +1,9 @@
 import { Role } from "@/components/src/types";
 import { Resource } from "../../components/SchemaProvider";
 
-const DEFAULT_MAX_HOURS = 4;
-const DEFAULT_MIN_HOURS = 0.5;
+// No default limits - allow any duration
+const DEFAULT_MAX_HOURS = Number.POSITIVE_INFINITY;
+const DEFAULT_MIN_HOURS = 0;
 
 /**
  * Maps Role enum to the appropriate field name for maxHour/minHour
@@ -68,6 +69,11 @@ export function getBookingHourLimits(
   let minHours = DEFAULT_MIN_HOURS;
 
   for (const room of selectedRooms) {
+    // Skip limits if maxHour/minHour is not provided for the room
+    if (!room.maxHour && !room.minHour) {
+      continue;
+    }
+
     // Get maxHour with fallback logic
     const roomMaxHour = isWalkIn
       ? (room.maxHour?.[walkInRoleField] ?? // Try walk-in specific limit
