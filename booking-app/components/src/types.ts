@@ -155,6 +155,9 @@ export type Inputs = {
   nNumber: string;
   netId: string;
   phoneNumber: string;
+  // School selection for auditing; optional to avoid blocking existing flows
+  school?: string;
+  otherSchool?: string;
   department: string;
   otherDepartment: string;
   role: string;

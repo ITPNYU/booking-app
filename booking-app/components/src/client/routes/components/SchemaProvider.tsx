@@ -45,6 +45,7 @@ export type SchemaContextType = {
   programMapping: Record<string, string[]>;
   roles: string[];
   roleMapping: Record<string, string[]>;
+  schoolMapping: Record<string, string[]>;
   showNNumber: boolean;
   showSponsor: boolean;
   showSetup: boolean;
@@ -98,6 +99,7 @@ export const SchemaContext = createContext<SchemaContextType>({
   resourceName: "",
   programMapping: {},
   roleMapping: {},
+  schoolMapping: {},
   emailMessages: {
     requestConfirmation: "",
     firstApprovalRequest: "",
