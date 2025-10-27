@@ -1,4 +1,4 @@
-import { MoreHoriz, TableBar, Headset, PeopleAlt, LocalDining, CleaningServices, LocalPolice, CheckCircle, Cancel, DoneAll, Recommend, HourglassTop, Check, Close, FileDownload, FileDownloadDone, DoNotDisturbOn, Replay } from "@mui/icons-material";
+import { MoreHoriz, TableBar, Headset, PeopleAlt, LocalDining, CleaningServices, LocalPolice, Check, Close, Replay } from "@mui/icons-material";
 import {
   Box,
   IconButton,
@@ -349,56 +349,69 @@ export const Bookings: React.FC<BookingsProps> = ({
 
                 const servicesRequested = bookingRow.xstateData?.snapshot?.context?.servicesRequested || {};
                 const servicesApproved = bookingRow.xstateData?.snapshot?.context?.servicesApproved || {};
-                const servicesClosedout = bookingRow.xstateData?.snapshot?.value?.["Service Closeout"] || {};
+
+                const rawXStateValue = bookingRow.xstateData?.snapshot?.value;
+                const isBookingClosed = typeof rawXStateValue === "string" && rawXStateValue === "Closed";
+                const servicesClosedout = typeof rawXStateValue === "object" ? rawXStateValue["Service Closeout"] : null;
+
+                const isServiceClosedOut = (closeoutKey: string, closedLabel: string) => {
+                  if (isBookingClosed) return true;
+                  
+                  // If no services closeout data exists, return false
+                  if (!servicesClosedout || typeof servicesClosedout !== "object") return false;
+
+                  const val = (servicesClosedout as any)[closeoutKey];
+                  return val === closedLabel;
+                };
 
                 const items: { label: string; Icon: any; requested: boolean; serviceKey: string; closeoutKey: string; closedout: boolean }[] = [
-                  { 
-                    label: "Setup", 
-                    Icon: TableBar, 
-                    requested: servicesRequested.setup || false, 
+                  {
+                    label: "Setup",
+                    Icon: TableBar,
+                    requested: servicesRequested.setup || false,
                     serviceKey: "setup",
                     closeoutKey: "Setup Closeout",
-                    closedout: servicesClosedout["Setup Closeout"] && !servicesClosedout["Setup Closeout"].includes("Pending")
+                    closedout: isServiceClosedOut("Setup Closeout", "Setup Closedout"),
                   },
-                  { 
-                    label: "Equipment", 
-                    Icon: Headset, 
-                    requested: servicesRequested.equipment || false, 
+                  {
+                    label: "Equipment",
+                    Icon: Headset,
+                    requested: servicesRequested.equipment || false,
                     serviceKey: "equipment",
                     closeoutKey: "Equipment Closeout",
-                    closedout: servicesClosedout["Equipment Closeout"] && !servicesClosedout["Equipment Closeout"].includes("Pending")
+                    closedout: isServiceClosedOut("Equipment Closeout", "Equipment Closedout"),
                   },
-                  { 
-                    label: "Staffing", 
-                    Icon: PeopleAlt, 
-                    requested: servicesRequested.staff || false, 
+                  {
+                    label: "Staffing",
+                    Icon: PeopleAlt,
+                    requested: servicesRequested.staff || false,
                     serviceKey: "staff",
                     closeoutKey: "Staff Closeout",
-                    closedout: servicesClosedout["Staff Closeout"] && !servicesClosedout["Staff Closeout"].includes("Pending")
+                    closedout: isServiceClosedOut("Staff Closeout", "Staff Closedout"),
                   },
-                  { 
-                    label: "Catering", 
-                    Icon: LocalDining, 
-                    requested: servicesRequested.catering || false, 
+                  {
+                    label: "Catering",
+                    Icon: LocalDining,
+                    requested: servicesRequested.catering || false,
                     serviceKey: "catering",
                     closeoutKey: "Catering Closeout",
-                    closedout: servicesClosedout["Catering Closeout"] && !servicesClosedout["Catering Closeout"].includes("Pending")
+                    closedout: isServiceClosedOut("Catering Closeout", "Catering Closedout"),
                   },
-                  { 
-                    label: "Cleaning", 
-                    Icon: CleaningServices, 
-                    requested: servicesRequested.cleaning || false, 
+                  {
+                    label: "Cleaning",
+                    Icon: CleaningServices,
+                    requested: servicesRequested.cleaning || false,
                     serviceKey: "cleaning",
                     closeoutKey: "Cleaning Closeout",
-                    closedout: servicesClosedout["Cleaning Closeout"] && !servicesClosedout["Cleaning Closeout"].includes("Pending")
+                    closedout: isServiceClosedOut("Cleaning Closeout", "Cleaning Closedout"),
                   },
-                  { 
-                    label: "Security", 
-                    Icon: LocalPolice, 
-                    requested: servicesRequested.security || false, 
+                  {
+                    label: "Security",
+                    Icon: LocalPolice,
+                    requested: servicesRequested.security || false,
                     serviceKey: "security",
                     closeoutKey: "Security Closeout",
-                    closedout: servicesClosedout["Security Closeout"] && !servicesClosedout["Security Closeout"].includes("Pending")
+                    closedout: isServiceClosedOut("Security Closeout", "Security Closedout"),
                   },
                 ];
 
@@ -424,6 +437,7 @@ export const Bookings: React.FC<BookingsProps> = ({
                                       borderRadius: "50%",
                                       strokeWidth: 1.4,
                                       stroke: "rgba(72, 196, 77, 1)",
+                                      color : "rgba(72, 196, 77, 1)",
                                     }} 
                                   />
                                 ) : (
@@ -435,6 +449,7 @@ export const Bookings: React.FC<BookingsProps> = ({
                                       borderRadius: "50%",
                                       strokeWidth: 1.4,
                                       stroke: "rgba(255, 26, 26, 1)",
+                                      color: "rgba(255, 26, 26, 1)",
                                     }} 
                                   />
                                 )}
@@ -449,6 +464,7 @@ export const Bookings: React.FC<BookingsProps> = ({
                                   borderRadius: "50%",
                                   strokeWidth: 1.0,
                                   stroke : "#333333",
+                                  color : "#333333",
                                 }} 
                               />
                             )}
