@@ -98,11 +98,14 @@ export async function GET(request: NextRequest) {
       accessibleTenants.push("mc", "itp");
     }
 
-    // Use MC's programMapping to get the mapped department for display
-    const mappedDepartment = mapDepartmentCode(
-      mcSchema.programMapping,
-      reportingDeptCode,
-    );
+    // Determine which programMapping to use for display
+    // Prefer ITP's programMapping if user has ITP access, otherwise use MC's
+    let mappedDepartment: string | undefined;
+    if (itpDepartment) {
+      mappedDepartment = itpDepartment;
+    } else if (mcDepartment) {
+      mappedDepartment = mcDepartment;
+    }
     console.log("mappedDepartment", mappedDepartment);
 
     const result: TenantAccess = {
