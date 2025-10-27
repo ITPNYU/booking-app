@@ -2,7 +2,6 @@ import { extractTenantFromCollectionName } from "@/components/src/policy";
 import { Booking } from "@/components/src/types";
 import admin from "@/lib/firebase/server/firebaseAdmin";
 import { BookingLogger } from "@/lib/logger/bookingLogger";
-import { executeXStateTransition } from "@/lib/stateMachines/xstateUtilsV5";
 import { Timestamp } from "firebase-admin/firestore";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -174,40 +173,46 @@ export async function GET(request: NextRequest) {
 
                 try {
                   if (booking.calendarEventId) {
-                    // Use XState checkout event
-                    const xstateResult = await executeXStateTransition(
-                      booking.calendarEventId,
-                      "checkOut",
-                      tenant,
-                      "system", // email
-                      "Auto-checkout: 30 minutes after scheduled end time",
+                    // Call XState transition API to trigger checkout (same as user checkout)
+                    const response = await fetch(
+                      `${process.env.NEXT_PUBLIC_BASE_URL}/api/xstate-transition`,
+                      {
+                        method: "POST",
+                        headers: {
+                          "Content-Type": "application/json",
+                          "x-tenant": tenant,
+                        },
+                        body: JSON.stringify({
+                          calendarEventId: booking.calendarEventId,
+                          eventType: "checkOut",
+                          email: "System",
+                          reason:
+                            "Auto-checkout: 30 minutes after scheduled end time",
+                        }),
+                      },
                     );
 
-                    if (xstateResult.success) {
-                      BookingLogger.xstateTransition(
-                        String(
-                          booking.xstateData?.snapshot?.value || "Unknown",
-                        ),
-                        String(xstateResult.newState),
-                        "checkOut",
-                        {
-                          calendarEventId: booking.calendarEventId,
-                          tenant,
-                          reason: "auto-checkout",
-                        },
-                      );
-                      updatedCount++;
-                      updatedBookingIds.push(bookingId);
-                    } else {
-                      BookingLogger.warning(
-                        "Auto-checkout XState transition failed",
-                        {
-                          calendarEventId: booking.calendarEventId,
-                          tenant,
-                          error: xstateResult.error,
-                        },
+                    if (!response.ok) {
+                      const errorData = await response.json();
+                      throw new Error(
+                        errorData.error || "XState transition failed",
                       );
                     }
+
+                    const xstateResult = await response.json();
+
+                    BookingLogger.xstateTransition(
+                      String(booking.xstateData?.snapshot?.value || "Unknown"),
+                      String(xstateResult.newState),
+                      "checkOut",
+                      {
+                        calendarEventId: booking.calendarEventId,
+                        tenant,
+                        reason: "auto-checkout",
+                      },
+                    );
+                    updatedCount++;
+                    updatedBookingIds.push(bookingId);
                   } else {
                     BookingLogger.warning(
                       "Auto-checkout skipped - no calendar event ID",
@@ -219,8 +224,8 @@ export async function GET(request: NextRequest) {
                   }
                 } catch (error) {
                   BookingLogger.apiError(
-                    "GET",
-                    "/api/bookings/auto-checkout",
+                    "POST",
+                    "/api/xstate-transition",
                     {
                       calendarEventId: booking.calendarEventId,
                       tenant,

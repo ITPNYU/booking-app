@@ -14,12 +14,17 @@ export const isTestEnvironment = (): boolean => {
 
   const result = bypassAuth || e2eTesting || nodeEnvTest;
 
-  // Debug logging
-  console.log("🔍 Test Environment Detection:");
-  console.log("  BYPASS_AUTH:", process.env.BYPASS_AUTH, "->", bypassAuth);
-  console.log("  E2E_TESTING:", process.env.E2E_TESTING, "->", e2eTesting);
-  console.log("  NODE_ENV:", process.env.NODE_ENV, "->", nodeEnvTest);
-  console.log("  Result:", result);
+  // Debug logging (only in development/test)
+  if (
+    process.env.NODE_ENV === "development" ||
+    process.env.NODE_ENV === "test"
+  ) {
+    console.log("🔍 Test Environment Detection:");
+    console.log("  BYPASS_AUTH:", process.env.BYPASS_AUTH, "->", bypassAuth);
+    console.log("  E2E_TESTING:", process.env.E2E_TESTING, "->", e2eTesting);
+    console.log("  NODE_ENV:", process.env.NODE_ENV, "->", nodeEnvTest);
+    console.log("  Result:", result);
+  }
 
   return result;
 };

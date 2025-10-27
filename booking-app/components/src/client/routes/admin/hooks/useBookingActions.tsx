@@ -140,6 +140,14 @@ export default function useBookingActions({
             setCurrentXState(currentStateValue);
 
             const context = getXStateContext(data) || {};
+            const closeoutContext = context.servicesClosedOut ?? {};
+            const snapshotValue = data.xstateData?.snapshot?.value;
+            const serviceCloseoutStates =
+              typeof snapshotValue === "object" &&
+              snapshotValue &&
+              snapshotValue["Service Closeout"]
+                ? snapshotValue["Service Closeout"]
+                : {};
             setServicesApproved({
               staff:
                 context.servicesApproved?.staff ?? data.staffServiceApproved,
@@ -159,30 +167,28 @@ export default function useBookingActions({
                 context.servicesApproved?.setup ?? data.setupServiceApproved,
             });
 
-            // Detect service closeout completion from XState parallel states
-            const serviceCloseoutStates =
-              typeof currentStateValue === "object" &&
-              currentStateValue &&
-              currentStateValue["Service Closeout"]
-                ? currentStateValue["Service Closeout"]
-                : {};
-
             setServicesClosedOut({
               staff:
+                closeoutContext.staff === true ||
                 serviceCloseoutStates["Staff Closeout"] === "Staff Closedout",
               equipment:
+                closeoutContext.equipment === true ||
                 serviceCloseoutStates["Equipment Closeout"] ===
-                "Equipment Closedout",
+                  "Equipment Closedout",
               catering:
+                closeoutContext.catering === true ||
                 serviceCloseoutStates["Catering Closeout"] ===
-                "Catering Closedout",
+                  "Catering Closedout",
               cleaning:
+                closeoutContext.cleaning === true ||
                 serviceCloseoutStates["Cleaning Closeout"] ===
-                "Cleaning Closedout",
+                  "Cleaning Closedout",
               security:
+                closeoutContext.security === true ||
                 serviceCloseoutStates["Security Closeout"] ===
-                "Security Closedout",
+                  "Security Closedout",
               setup:
+                closeoutContext.setup === true ||
                 serviceCloseoutStates["Setup Closeout"] === "Setup Closedout",
             });
           } else {
@@ -334,10 +340,12 @@ export default function useBookingActions({
         ) {
           options.push(Actions.CANCEL);
         }
+        // Allow editing for REQUESTED, DECLINED, or PRE-APPROVED bookings
+        // Note: In production, you may want to restrict editing past events
         if (
-          (status === BookingStatusLabel.REQUESTED ||
-            status === BookingStatusLabel.DECLINED) &&
-          startDate.toDate() > date
+          status === BookingStatusLabel.REQUESTED ||
+          status === BookingStatusLabel.DECLINED ||
+          status === BookingStatusLabel.PRE_APPROVED
         ) {
           options.push(Actions.EDIT);
         }

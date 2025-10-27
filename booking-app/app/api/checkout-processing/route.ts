@@ -5,6 +5,7 @@ import {
   serverUpdateDataByCalendarEventId,
 } from "@/components/src/server/admin";
 import { updateCalendarEvent } from "@/components/src/server/calendars";
+import { getTenantEmailConfig } from "@/components/src/server/emails";
 import { BookingStatusLabel } from "@/components/src/types";
 import {
   logServerBookingChange,
@@ -45,13 +46,12 @@ export async function POST(req: NextRequest) {
       throw new Error("Booking not found");
     }
 
-    // Update Firestore with checkout timestamp
-    const checkedOutAt = Timestamp.now();
+    // Update Firestore with checkout timestamp and checkedOutBy
     await serverUpdateDataByCalendarEventId(
       TableNames.BOOKING,
       calendarEventId,
       {
-        checkedOutAt,
+        checkedOutAt: Timestamp.now(),
         checkedOutBy: email,
       },
       tenant,
@@ -67,13 +67,12 @@ export async function POST(req: NextRequest) {
     try {
       const guestEmail = bookingDoc.email;
       if (guestEmail) {
-        const headerMessage =
-          "Your reservation request for Media Commons has been checked out. Thank you for choosing Media Commons.";
+        const emailConfig = await getTenantEmailConfig(tenant);
 
         await serverSendBookingDetailEmail({
           calendarEventId,
           targetEmail: guestEmail,
-          headerMessage,
+          headerMessage: emailConfig.emailMessages.checkoutConfirmation,
           status: BookingStatusLabel.CHECKED_OUT,
           tenant,
         });
