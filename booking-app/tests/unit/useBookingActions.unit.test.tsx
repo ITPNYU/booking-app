@@ -153,24 +153,27 @@ describe("useBookingActions Hook", () => {
       Actions.CANCEL,
       Actions.EDIT,
     ]);
-    testUserContext(BookingStatusLabel.PRE_APPROVED, [Actions.CANCEL, Actions.EDIT]);
-    testUserContext(BookingStatusLabel.APPROVED, [Actions.CANCEL, Actions.EDIT]);
-    testUserContext(BookingStatusLabel.EQUIPMENT, [Actions.CANCEL, Actions.EDIT]);
+    testUserContext(BookingStatusLabel.PRE_APPROVED, [
+      Actions.CANCEL,
+      Actions.EDIT,
+    ]);
+    testUserContext(BookingStatusLabel.APPROVED, [Actions.CANCEL]);
+    testUserContext(BookingStatusLabel.EQUIPMENT, [Actions.CANCEL]);
     testUserContext(BookingStatusLabel.DECLINED, [
       Actions.CANCEL,
       Actions.EDIT,
     ]); // CANCEL is always shown for USER context
-    testUserContext(BookingStatusLabel.CANCELED, [Actions.EDIT]);
-    testUserContext(BookingStatusLabel.CHECKED_IN, [Actions.EDIT]);
-    testUserContext(BookingStatusLabel.CHECKED_OUT, [Actions.EDIT]);
-    testUserContext(BookingStatusLabel.CLOSED, [Actions.EDIT]);
-    testUserContext(BookingStatusLabel.NO_SHOW, [Actions.EDIT]);
-    testUserContext(BookingStatusLabel.WALK_IN, [Actions.CANCEL, Actions.EDIT]);
-    testUserContext(BookingStatusLabel.PENDING, [Actions.CANCEL, Actions.EDIT]);
-    testUserContext(BookingStatusLabel.MODIFIED, [Actions.CANCEL, Actions.EDIT]);
-    testUserContext(BookingStatusLabel.UNKNOWN, [Actions.CANCEL, Actions.EDIT]);
+    testUserContext(BookingStatusLabel.CANCELED, []);
+    testUserContext(BookingStatusLabel.CHECKED_IN, []);
+    testUserContext(BookingStatusLabel.CHECKED_OUT, []);
+    testUserContext(BookingStatusLabel.CLOSED, []);
+    testUserContext(BookingStatusLabel.NO_SHOW, []);
+    testUserContext(BookingStatusLabel.WALK_IN, [Actions.CANCEL]);
+    testUserContext(BookingStatusLabel.PENDING, [Actions.CANCEL]);
+    testUserContext(BookingStatusLabel.MODIFIED, [Actions.CANCEL]);
+    testUserContext(BookingStatusLabel.UNKNOWN, [Actions.CANCEL]);
 
-    it("should show EDIT for past REQUESTED bookings (but will be disabled)", () => {
+    it("should show EDIT for past REQUESTED bookings", () => {
       const pastDate = new Date();
       pastDate.setDate(pastDate.getDate() - 1);
 
@@ -185,7 +188,7 @@ describe("useBookingActions Hook", () => {
       expect(options).toEqual([Actions.CANCEL, Actions.EDIT]);
     });
 
-    it("should show EDIT for past DECLINED bookings (but will be disabled)", () => {
+    it("should show EDIT for past DECLINED bookings", () => {
       const pastDate = new Date();
       pastDate.setDate(pastDate.getDate() - 1);
 
@@ -197,7 +200,7 @@ describe("useBookingActions Hook", () => {
       );
 
       const options = result.current.options();
-      expect(options).toEqual([Actions.CANCEL, Actions.EDIT]); // Both CANCEL and EDIT are shown for past DECLINED bookings (Edit will be disabled)
+      expect(options).toEqual([Actions.CANCEL, Actions.EDIT]); // Edit is now allowed for past events
     });
   });
 
@@ -617,7 +620,7 @@ describe("useBookingActions Hook", () => {
         expect(options).toContain(Actions.EDIT);
       });
 
-      it("should show EDIT action for past REQUESTED bookings (but will be disabled)", () => {
+      it("should show EDIT action for past REQUESTED bookings", () => {
         const pastDate = new Date();
         pastDate.setDate(pastDate.getDate() - 1);
 
@@ -629,7 +632,7 @@ describe("useBookingActions Hook", () => {
         );
 
         const options = result.current.options();
-        expect(options).toContain(Actions.EDIT); // Edit is shown but will be disabled
+        expect(options).toContain(Actions.EDIT);
       });
 
       it("should handle EDIT action for future DECLINED bookings", () => {
@@ -647,7 +650,7 @@ describe("useBookingActions Hook", () => {
         expect(options).toContain(Actions.EDIT);
       });
 
-      it("should show EDIT action for past DECLINED bookings (but will be disabled)", () => {
+      it("should show EDIT action for past DECLINED bookings", () => {
         const pastDate = new Date();
         pastDate.setDate(pastDate.getDate() - 1);
 
@@ -659,7 +662,7 @@ describe("useBookingActions Hook", () => {
         );
 
         const options = result.current.options();
-        expect(options).toContain(Actions.EDIT); // Edit is shown but will be disabled
+        expect(options).toContain(Actions.EDIT);
       });
     });
   });
@@ -848,7 +851,7 @@ describe("useBookingActions Hook", () => {
 
       describe("APPROVED status actions across contexts", () => {
         const expectedActionsByContext = {
-          [PageContextLevel.USER]: [Actions.CANCEL, Actions.EDIT],  // Show both CANCEL and EDIT (Edit will be disabled)
+          [PageContextLevel.USER]: [Actions.CANCEL],
           [PageContextLevel.PA]: [Actions.CHECK_IN, Actions.MODIFICATION],
           [PageContextLevel.LIAISON]: [Actions.DECLINE],
           [PageContextLevel.SERVICES]: [],
@@ -880,7 +883,7 @@ describe("useBookingActions Hook", () => {
 
       describe("CHECKED_IN status actions across contexts", () => {
         const expectedActionsByContext = {
-          [PageContextLevel.USER]: [Actions.EDIT], // Show Edit but it will be disabled
+          [PageContextLevel.USER]: [],
           [PageContextLevel.PA]: [Actions.CHECK_OUT],
           [PageContextLevel.LIAISON]: [Actions.DECLINE],
           [PageContextLevel.SERVICES]: [],
@@ -938,7 +941,7 @@ describe("useBookingActions Hook", () => {
 
       describe("CANCELED status actions across contexts", () => {
         const expectedActionsByContext = {
-          [PageContextLevel.USER]: [Actions.EDIT], // Show Edit but it will be disabled
+          [PageContextLevel.USER]: [],
           [PageContextLevel.PA]: [],
           [PageContextLevel.LIAISON]: [Actions.DECLINE],
           [PageContextLevel.SERVICES]: [],
@@ -965,7 +968,7 @@ describe("useBookingActions Hook", () => {
 
       describe("NO_SHOW status actions across contexts", () => {
         const expectedActionsByContext = {
-          [PageContextLevel.USER]: [Actions.EDIT], // Show Edit but it will be disabled
+          [PageContextLevel.USER]: [],
           [PageContextLevel.PA]: [Actions.CHECK_IN],
           [PageContextLevel.LIAISON]: [Actions.DECLINE],
           [PageContextLevel.SERVICES]: [],
@@ -996,7 +999,7 @@ describe("useBookingActions Hook", () => {
 
       describe("EQUIPMENT status actions across contexts", () => {
         const expectedActionsByContext = {
-          [PageContextLevel.USER]: [Actions.CANCEL, Actions.EDIT], // Show both CANCEL and EDIT (Edit will be disabled)
+          [PageContextLevel.USER]: [Actions.CANCEL],
           [PageContextLevel.PA]: [],
           [PageContextLevel.LIAISON]: [Actions.DECLINE],
           [PageContextLevel.SERVICES]: [],
