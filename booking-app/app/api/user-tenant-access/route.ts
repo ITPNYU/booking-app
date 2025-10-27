@@ -110,7 +110,6 @@ export async function GET(request: NextRequest) {
     } else if (mcDepartment) {
       mappedDepartment = mcDepartment;
     }
-    console.log("mappedDepartment", mappedDepartment);
 
     const result: TenantAccess = {
       tenants: accessibleTenants,
