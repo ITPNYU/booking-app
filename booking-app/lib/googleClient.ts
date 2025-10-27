@@ -57,11 +57,17 @@ const getLoggingClient = async () => {
   return google.logging({ version: "v2", auth: authClient });
 };
 
+const getFormsClient = async () => {
+  const authClient = await getAuthenticatedClient();
+  return google.forms({ version: "v1", auth: authClient });
+};
+
 const oauth2Client = createOAuth2Client();
 export {
   getCalendarClient,
   getGmailClient,
   getGoogleSheet,
+  getFormsClient,
   getLoggingClient,
   oauth2Client,
 };
