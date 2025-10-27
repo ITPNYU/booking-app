@@ -32,6 +32,10 @@ export type Booking = Inputs &
     roomId: string;
     requestNumber: number;
     equipmentCheckedOut: boolean;
+    equipmentServices: string;
+    equipmentServicesDetails: string;
+    staffingServices: string;
+    staffingServicesDetails: string;
   };
 
 // used for Booking table rows that show status
@@ -94,6 +98,7 @@ export enum BookingStatusLabel {
 }
 
 export type BookingType = {
+  id: string;
   bookingType: string;
   createdAt: string;
 };
@@ -172,6 +177,10 @@ export type Inputs = {
   chartFieldForSecurity: string;
   chartFieldForRoomSetup: string;
   webcheckoutCartNumber?: string;
+  // Individual service fields for pregame parsing
+  equipment?: string;
+  staffing?: string;
+  cleaning?: string;
 };
 
 export type DepartmentType = {
@@ -290,6 +299,22 @@ export type RoomSetting = {
   services?: string[];
   staffingServices?: string[]; // Specific staffing service options for this room
   staffingSections?: { name: string; indexes: number[] }[];
+  maxHour?: {
+    student: number;
+    faculty: number;
+    admin: number;
+    studentWalkIn: number;
+    facultyWalkIn: number;
+    adminWalkIn: number;
+  };
+  minHour?: {
+    student: number;
+    faculty: number;
+    admin: number;
+    studentWalkIn: number;
+    facultyWalkIn: number;
+    adminWalkIn: number;
+  };
 };
 
 export type SafetyTraining = {

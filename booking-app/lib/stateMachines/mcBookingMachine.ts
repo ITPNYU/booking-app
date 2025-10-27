@@ -1,6 +1,10 @@
 import { TENANTS } from "@/components/src/constants/tenants";
 import { BookingLogger } from "@/lib/logger/bookingLogger";
-import { and, assign, fromPromise, setup } from "xstate";
+import { and, assign, setup } from "xstate";
+
+// Time constants for clarity
+const ONE_HOUR_IN_MS = 60 * 60 * 1000;
+const FOUR_HOURS_IN_MS = 4 * ONE_HOUR_IN_MS;
 
 // Define context type for type safety
 interface MediaCommonsBookingContext {
@@ -74,88 +78,87 @@ export const mcBookingMachine = setup({
       | { type: "closeoutEquipment" }
       | { type: "autoCloseScript" },
   },
-  actors: {
-    handleCancelProcessing: fromPromise(
-      async ({ input }: { input: MediaCommonsBookingContext }) => {
-        console.log(`🎬 XSTATE ACTOR: handleCancelProcessing started`, {
-          input: {
-            context: {
-              tenant: input.tenant,
-              calendarEventId: input.calendarEventId,
-              email: input.email,
-            },
-          },
-        });
+  actors: {},
+  actions: {
+    handleCancelProcessing: async ({ context, event }) => {
+      console.log(`🎬 XSTATE ACTION: handleCancelProcessing started`, {
+        calendarEventId: context.calendarEventId,
+        tenant: context.tenant,
+        email: context.email,
+      });
 
-        try {
-          const calendarEventId = input.calendarEventId;
-          const email = input.email || "system";
-          const netId = email?.split("@")[0] || "system";
-          const tenant = input.tenant;
+      try {
+        const calendarEventId = context.calendarEventId;
+        const email = context.email || "system";
+        const netId = email?.split("@")[0] || "system";
+        const tenant = context.tenant;
 
-          if (calendarEventId) {
-            console.log(
-              `🎬 XSTATE ACTOR: About to call cancel processing API`,
-              {
+        if (calendarEventId) {
+          console.log(`🎬 XSTATE ACTION: About to call cancel processing API`, {
+            calendarEventId,
+            email,
+            netId,
+            tenant,
+          });
+
+          // Call the cancel processing API
+          const response = await fetch(
+            `${process.env.NEXT_PUBLIC_BASE_URL}/api/cancel-processing`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "x-tenant": tenant || "mc",
+              },
+              body: JSON.stringify({
                 calendarEventId,
                 email,
                 netId,
                 tenant,
-              }
-            );
-
-            // Call the cancel processing API
-            const response = await fetch(
-              `${process.env.NEXT_PUBLIC_BASE_URL}/api/cancel-processing`,
-              {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  "x-tenant": tenant || "mc",
-                },
-                body: JSON.stringify({
-                  calendarEventId,
-                  email,
-                  netId,
-                  tenant,
-                }),
-              }
-            );
-
-            if (response.ok) {
-              const result = await response.json();
-              console.log(
-                `✅ CANCEL PROCESSING API SUCCESS [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-                {
-                  calendarEventId,
-                  result,
-                }
-              );
-            } else {
-              console.error(
-                `🚨 CANCEL PROCESSING API FAILED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-                {
-                  calendarEventId,
-                  status: response.status,
-                  statusText: response.statusText,
-                }
-              );
+              }),
             }
-          }
-        } catch (error) {
-          console.error(`🚨 XSTATE CANCEL PROCESSING ERROR:`, {
-            calendarEventId: input.calendarEventId,
-            error: error.message,
-          });
-          throw error;
-        }
+          );
 
-        console.log(`🎬 XSTATE ACTOR: handleCancelProcessing completed`);
-        return { success: true };
+          if (response.ok) {
+            const result = await response.json();
+            console.log(
+              `✅ CANCEL PROCESSING API SUCCESS [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+              {
+                calendarEventId,
+                result,
+              }
+            );
+          } else {
+            const errorText = await response.text();
+            console.error(
+              `🚨 CANCEL PROCESSING API FAILED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+              {
+                calendarEventId,
+                status: response.status,
+                statusText: response.statusText,
+                error: errorText,
+              }
+            );
+          }
+        } else {
+          console.error(
+            `🚨 CANCEL PROCESSING API SKIPPED - NO CALENDAR EVENT ID [${tenant?.toUpperCase() || "UNKNOWN"}]`
+          );
+        }
+      } catch (error: any) {
+        console.error(
+          `🚨 XSTATE CANCEL PROCESSING ERROR [${context.tenant?.toUpperCase() || "UNKNOWN"}]:`,
+          {
+            calendarEventId: context.calendarEventId,
+            error: error.message,
+            stack: error.stack,
+          }
+        );
       }
-    ),
-  },
-  actions: {
+
+      console.log(`🎬 XSTATE ACTION: handleCancelProcessing completed`);
+    },
+
     sendHTMLEmail: ({ context, event }) => {
       // NOTE: This is a placeholder action for state machine logic only
       // Actual email sending is handled by traditional processing after XState
@@ -426,7 +429,8 @@ export const mcBookingMachine = setup({
 
       try {
         const calendarEventId = context.calendarEventId;
-        const email = context.email || "system";
+        // Prioritize email from event (for cronjob auto-checkout), fallback to context email
+        const email = (event as any)?.email || context.email || "system";
         const tenant = context.tenant;
 
         if (calendarEventId) {
@@ -575,6 +579,22 @@ export const mcBookingMachine = setup({
           `🎯 XSTATE AUTO-APPROVAL GUARD RESULT: REJECTED (Wrong tenant)`
         );
         return false;
+      }
+
+      // Check event duration > 4 hours
+      if (context.bookingCalendarInfo) {
+        const startDate = new Date(context.bookingCalendarInfo.startStr);
+        const endDate = new Date(context.bookingCalendarInfo.endStr);
+        const duration = endDate.getTime() - startDate.getTime();
+        if (duration > FOUR_HOURS_IN_MS) {
+          console.log(
+            `🚫 XSTATE GUARD: Event duration exceeds 4 hours (${(duration / ONE_HOUR_IN_MS).toFixed(1)} hours)`
+          );
+          console.log(
+            `🎯 XSTATE AUTO-APPROVAL GUARD RESULT: REJECTED (Duration too long)`
+          );
+          return false;
+        }
       }
 
       // Check if any services are requested - if so, don't auto-approve (except for walk-ins)
@@ -895,6 +915,17 @@ export const mcBookingMachine = setup({
       ],
     },
     Canceled: {
+      always: [
+        {
+          target: "Service Closeout",
+          guard: {
+            type: "servicesRequested",
+          },
+        },
+        {
+          target: "Closed",
+        },
+      ],
       entry: [
         ({ context }) => {
           console.log(
@@ -907,26 +938,10 @@ export const mcBookingMachine = setup({
             }
           );
         },
-      ],
-      invoke: {
-        id: "cancelProcessingActor",
-        src: "handleCancelProcessing",
-        input: ({ context }) => context,
-        onDone: [
-          {
-            target: "Service Closeout",
-            guard: {
-              type: "servicesRequested",
-            },
-          },
-          {
-            target: "Closed",
-          },
-        ],
-        onError: {
-          target: "Closed",
+        {
+          type: "handleCancelProcessing",
         },
-      },
+      ],
     },
     Declined: {
       on: {

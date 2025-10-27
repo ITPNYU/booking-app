@@ -197,7 +197,7 @@ describe("useBookingActions Hook", () => {
       );
 
       const options = result.current.options();
-      expect(options).toEqual([Actions.CANCEL, Actions.EDIT]); // Both CANCEL and EDIT are shown for past DECLINED bookings
+      expect(options).toEqual([Actions.CANCEL, Actions.EDIT]); // Both CANCEL and EDIT are shown for past DECLINED bookings (Edit will be disabled)
     });
   });
 

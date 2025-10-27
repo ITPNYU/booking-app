@@ -20,6 +20,17 @@ export type Resource = {
     student: number;
     faculty: number;
     admin: number;
+    studentWalkIn: number;
+    facultyWalkIn: number;
+    adminWalkIn: number;
+  };
+  minHour: {
+    student: number;
+    faculty: number;
+    admin: number;
+    studentWalkIn: number;
+    facultyWalkIn: number;
+    adminWalkIn: number;
   };
   staffingServices?: string[]; // Specific staffing service options for this room
   staffingSections?: { name: string; indexes: number[] }[];
@@ -47,6 +58,22 @@ export type SchemaContextType = {
   supportVIP: boolean;
   supportWalkIn: boolean;
   resourceName: string;
+  // Email messages for all scenarios
+  emailMessages: {
+    requestConfirmation: string;
+    firstApprovalRequest: string;
+    secondApprovalRequest: string;
+    walkInConfirmation: string;
+    vipConfirmation: string;
+    checkoutConfirmation: string;
+    checkinConfirmation: string;
+    declined: string;
+    canceled: string;
+    lateCancel: string;
+    noShow: string;
+    closed: string;
+    approvalNotice: string;
+  };
 };
 
 export const SchemaContext = createContext<SchemaContextType>({
@@ -71,6 +98,21 @@ export const SchemaContext = createContext<SchemaContextType>({
   resourceName: "",
   programMapping: {},
   roleMapping: {},
+  emailMessages: {
+    requestConfirmation: "",
+    firstApprovalRequest: "",
+    secondApprovalRequest: "",
+    walkInConfirmation: "",
+    vipConfirmation: "",
+    checkoutConfirmation: "",
+    checkinConfirmation: "",
+    declined: "",
+    canceled: "",
+    lateCancel: "",
+    noShow: "",
+    closed: "",
+    approvalNotice: "",
+  },
 });
 
 export const useTenantSchema = () => useContext(SchemaContext);
