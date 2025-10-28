@@ -341,7 +341,12 @@ export async function PUT(request: NextRequest) {
       },
     );
 
-    await finalApprove(newCalendarEventId, modifiedBy, tenant);
+    await finalApprove(
+      newCalendarEventId,
+      modifiedBy,
+      tenant,
+      "Approved via booking modification",
+    );
 
     console.log(`✅ MODIFICATION COMPLETED [${tenant?.toUpperCase()}]:`, {
       calendarEventId: newCalendarEventId,

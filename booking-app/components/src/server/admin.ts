@@ -9,8 +9,7 @@ import {
   serverUpdateInFirestore,
 } from "@/lib/firebase/server/adminDb";
 import { DEFAULT_TENANT } from "../constants/tenants";
-import { ApproverLevel, TableNames, getApprovalCcEmail } from "../policy";
-import { getTenantEmailConfig } from "./emails";
+import { TableNames, getApprovalCcEmail } from "../policy";
 import {
   AdminUser,
   Approver,
@@ -22,6 +21,7 @@ import {
   BookingStatusLabel,
 } from "../types";
 import { isMediaCommons } from "../utils/tenantUtils";
+import { getTenantEmailConfig } from "./emails";
 
 import { Timestamp } from "firebase-admin/firestore";
 
@@ -473,13 +473,13 @@ const firstApprove = async (id: string, email: string, tenant?: string) => {
 
   // Get tenant email configuration
   const emailConfig = await getTenantEmailConfig(tenant);
-  
+
   const emailContents = {
     ...contents,
     headerMessage: emailConfig.emailMessages.secondApprovalRequest,
   };
   const recipient = await serverGetFinalApproverEmail();
-  
+
   const formData = {
     templateName: "booking_detail",
     contents: emailContents,
@@ -488,10 +488,10 @@ const firstApprove = async (id: string, email: string, tenant?: string) => {
     eventTitle: contents.title || "",
     requestNumber: contents.requestNumber,
     bodyMessage: "",
-            approverType: ApproverType.FINAL_APPROVER,
-        replyTo: contents.email,
-        schemaName: emailConfig.schemaName,
-      };
+    approverType: ApproverType.FINAL_APPROVER,
+    replyTo: contents.email,
+    schemaName: emailConfig.schemaName,
+  };
   const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/sendEmail`, {
     method: "POST",
     headers: {
@@ -504,7 +504,8 @@ const firstApprove = async (id: string, email: string, tenant?: string) => {
 export const finalApprove = async (
   id: string,
   email: string,
-  tenant?: string
+  tenant?: string,
+  note?: string
 ) => {
   await serverFinalApprove(id, email, tenant);
 
@@ -520,7 +521,7 @@ export const finalApprove = async (
       changedBy: email,
       requestNumber: doc.requestNumber,
       calendarEventId: id,
-      note: "",
+      note: note || "",
       tenant,
     });
   }
@@ -557,10 +558,10 @@ export const serverSendBookingDetailEmail = async ({
 }: SendBookingEmailOptions) => {
   const contents = await serverBookingContents(calendarEventId, tenant);
   contents.headerMessage = headerMessage;
-  
+
   // Get tenant email configuration
   const emailConfig = await getTenantEmailConfig(tenant);
-  
+
   const formData = {
     templateName: "booking_detail",
     contents: contents,
@@ -872,5 +873,3 @@ export const serverGetRoomCalendarId = async (
     return null;
   }
 };
-
-
