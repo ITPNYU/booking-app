@@ -113,11 +113,12 @@ export default function useCheckAutoApproval(isWalkIn = false, isVIP = false) {
                 }
               : null,
             isWalkIn,
+            isVip: isVIP,
+            role,
             // Media Commons specific fields
             ...(isMediaCommonsTenant(schema.tenant) && {
               servicesRequested,
               servicesApproved: {}, // Initially no services are approved
-              isVip: false, // Regular user booking (not VIP)
               email: "user@example.com", // Placeholder
               calendarEventId: "temp-id", // Placeholder
             }),

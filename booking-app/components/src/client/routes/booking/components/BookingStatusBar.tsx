@@ -135,12 +135,12 @@ export default function BookingStatusBar({ formContext, ...props }: Props) {
         ),
         severity: "error",
       };
-    if (isWalkIn && !isAutoApproval) {
-      // walk-ins must be < 4 hours
+    if ((isWalkIn || isVIP) && !isAutoApproval && errorMessage) {
+      // Show actual error from auto-approval check (e.g., duration limits, services requested, multiple rooms, etc.)
       return {
         btnDisabled: true,
         btnDisabledMessage: errorMessage,
-        message: <p>Walk-ins must be between 0.5 and 4 hours in duration.</p>,
+        message: <p>{errorMessage}</p>,
         severity: "error",
       };
     }
