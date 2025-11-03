@@ -14,6 +14,7 @@ import {
   Booking,
   BookingOrigin,
   BookingStatusLabel,
+  Role,
 } from "@/components/src/types";
 import { getMediaCommonsServices } from "@/components/src/utils/tenantUtils";
 import { serverGetDataByCalendarEventId } from "@/lib/firebase/server/adminDb";
