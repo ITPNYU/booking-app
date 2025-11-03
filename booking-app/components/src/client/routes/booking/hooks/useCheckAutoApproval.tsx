@@ -27,7 +27,7 @@ export function selectedAutoApprovalRooms(
   return false;
 }
 
-export default function useCheckAutoApproval(isWalkIn = false) {
+export default function useCheckAutoApproval(isWalkIn = false, isVIP = false) {
   const { bookingCalendarInfo, selectedRooms, formData, role } =
     useContext(BookingContext);
   const schema = useTenantSchema();
@@ -194,7 +194,8 @@ export default function useCheckAutoApproval(isWalkIn = false) {
       const { maxHours, minHours } = getBookingHourLimits(
         selectedRooms,
         role,
-        isWalkIn
+        isWalkIn,
+        isVIP
       );
 
       console.log(
@@ -202,6 +203,7 @@ export default function useCheckAutoApproval(isWalkIn = false) {
         {
           role,
           isWalkIn,
+          isVIP,
           durationInHours,
           maxHours,
           minHours,

@@ -36,8 +36,9 @@ const NavGrid = styled(Box)`
 
 export default function BookingStatusBar({ formContext, ...props }: Props) {
   const isWalkIn = formContext === FormContextLevel.WALK_IN;
-  const { isAutoApproval, errorMessage } = useCheckAutoApproval(isWalkIn);
-  const { durationError } = useCheckDurationLimits();
+  const isVIP = formContext === FormContextLevel.VIP;
+  const { isAutoApproval, errorMessage } = useCheckAutoApproval(isWalkIn, isVIP);
+  const { durationError } = useCheckDurationLimits(isWalkIn, isVIP);
   const {
     bookingCalendarInfo,
     selectedRooms,
