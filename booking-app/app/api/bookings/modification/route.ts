@@ -283,7 +283,7 @@ export async function PUT(request: NextRequest) {
         selectedRooms: selectedRooms || [],
         formData: data || {},
         bookingCalendarInfo: bookingCalendarInfo || {},
-        role: data?.role as any, // Pass role from form data
+        role: data?.role as Role, // Pass role from form data
         servicesRequested,
         servicesApproved,
       },
