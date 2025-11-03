@@ -14,6 +14,7 @@ import {
   Booking,
   BookingOrigin,
   BookingStatusLabel,
+  Role,
 } from "@/components/src/types";
 import { getMediaCommonsServices } from "@/components/src/utils/tenantUtils";
 import { serverGetDataByCalendarEventId } from "@/lib/firebase/server/adminDb";
@@ -266,16 +267,12 @@ export async function PUT(request: NextRequest) {
       : undefined;
     const servicesApproved = isMediaCommons
       ? {
-          staff: (existingBookingData as any)?.staffServiceApproved || false,
-          equipment:
-            (existingBookingData as any)?.equipmentServiceApproved || false,
-          catering:
-            (existingBookingData as any)?.cateringServiceApproved || false,
-          cleaning:
-            (existingBookingData as any)?.cleaningServiceApproved || false,
-          security:
-            (existingBookingData as any)?.securityServiceApproved || false,
-          setup: (existingBookingData as any)?.setupServiceApproved || false,
+          staff: existingBookingData.staffServiceApproved || false,
+          equipment: existingBookingData.equipmentServiceApproved || false,
+          catering: existingBookingData.cateringServiceApproved || false,
+          cleaning: existingBookingData.cleaningServiceApproved || false,
+          security: existingBookingData.securityServiceApproved || false,
+          setup: existingBookingData.setupServiceApproved || false,
         }
       : undefined;
 
@@ -287,6 +284,7 @@ export async function PUT(request: NextRequest) {
         selectedRooms: selectedRooms || [],
         formData: data || {},
         bookingCalendarInfo: bookingCalendarInfo || {},
+        role: data?.role as Role, // Pass role from form data
         servicesRequested,
         servicesApproved,
       },
