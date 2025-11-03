@@ -217,6 +217,7 @@ export async function POST(request: NextRequest) {
           calendarEventId,
           email,
           isVip: origin === BookingOrigin.VIP,
+          role: data.role as any, // Pass role from form data
           servicesRequested,
         },
       });

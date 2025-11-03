@@ -313,6 +313,9 @@ export type RoomSetting = {
     studentWalkIn: number;
     facultyWalkIn: number;
     adminWalkIn: number;
+    studentVIP: number;
+    facultyVIP: number;
+    adminVIP: number;
   };
   minHour?: {
     student: number;
@@ -321,6 +324,9 @@ export type RoomSetting = {
     studentWalkIn: number;
     facultyWalkIn: number;
     adminWalkIn: number;
+    studentVIP: number;
+    facultyVIP: number;
+    adminVIP: number;
   };
 };
 
