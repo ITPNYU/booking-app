@@ -27,7 +27,7 @@ export function selectedAutoApprovalRooms(
   return false;
 }
 
-export default function useCheckAutoApproval(isWalkIn = false) {
+export default function useCheckAutoApproval(isWalkIn = false, isVIP = false) {
   const { bookingCalendarInfo, selectedRooms, formData, role } =
     useContext(BookingContext);
   const schema = useTenantSchema();
@@ -113,11 +113,12 @@ export default function useCheckAutoApproval(isWalkIn = false) {
                 }
               : null,
             isWalkIn,
+            isVip: isVIP,
+            role,
             // Media Commons specific fields
             ...(isMediaCommonsTenant(schema.tenant) && {
               servicesRequested,
               servicesApproved: {}, // Initially no services are approved
-              isVip: false, // Regular user booking (not VIP)
               email: "user@example.com", // Placeholder
               calendarEventId: "temp-id", // Placeholder
             }),
@@ -194,7 +195,8 @@ export default function useCheckAutoApproval(isWalkIn = false) {
       const { maxHours, minHours } = getBookingHourLimits(
         selectedRooms,
         role,
-        isWalkIn
+        isWalkIn,
+        isVIP
       );
 
       console.log(
@@ -202,6 +204,7 @@ export default function useCheckAutoApproval(isWalkIn = false) {
         {
           role,
           isWalkIn,
+          isVIP,
           durationInHours,
           maxHours,
           minHours,

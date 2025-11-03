@@ -77,6 +77,13 @@ export type BookingStatus = {
   walkedInAt: Timestamp;
   origin: BookingOrigin;
   xstateData?: any; // XState machine data for tenants using XState
+  // Media Commons service approval fields (optional)
+  staffServiceApproved?: boolean;
+  equipmentServiceApproved?: boolean;
+  cateringServiceApproved?: boolean;
+  cleaningServiceApproved?: boolean;
+  securityServiceApproved?: boolean;
+  setupServiceApproved?: boolean;
 };
 
 // the order here is the order these are displayed as table filters
@@ -305,6 +312,9 @@ export type RoomSetting = {
     studentWalkIn: number;
     facultyWalkIn: number;
     adminWalkIn: number;
+    studentVIP: number;
+    facultyVIP: number;
+    adminVIP: number;
   };
   minHour?: {
     student: number;
@@ -313,6 +323,9 @@ export type RoomSetting = {
     studentWalkIn: number;
     facultyWalkIn: number;
     adminWalkIn: number;
+    studentVIP: number;
+    facultyVIP: number;
+    adminVIP: number;
   };
 };
 
