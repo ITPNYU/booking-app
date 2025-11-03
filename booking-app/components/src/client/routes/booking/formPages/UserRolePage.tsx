@@ -224,6 +224,15 @@ export default function UserRolePage({
     return !role || !department;
   };
 
+  const hasSelectedSchool = !!(watchedFields.school && watchedFields.school !== "");
+  const isSchoolOther = isOtherSchool(watchedFields.school);
+  const isDepartmentSelected = !!department;
+  const isDepartmentStepComplete = isSchoolOther
+    ? !!(watchedFields.otherSchool?.trim() && watchedFields.otherDepartment?.trim())
+    : showOther
+      ? !!(watchedFields.otherDepartment?.trim())
+      : isDepartmentSelected;
+
   const handleNextClick = () => {
     if (formContext === FormContextLevel.EDIT && calendarEventId != null) {
       router.push(`/${tenant}/edit/selectRoom/${calendarEventId}`);
@@ -260,36 +269,18 @@ export default function UserRolePage({
             sx={{ marginTop: 4 }}
           />
         </>
-        {isOtherSchool(watchedFields.school) ? (
-            <>
-              <BookingFormTextField
-                id="otherSchool"
-                label={formatFieldLabel("School")}
-                containerSx={{ marginBottom: 2, marginTop: 1, width: "100%" }}
-                fieldSx={{}}
-                required={true}
-                {...{ control, errors, trigger }}
-              />
-              <BookingFormTextField
-                id="otherDepartment"
-                label={formatFieldLabel("Department")}
-                containerSx={{ marginBottom: 2, marginTop: 1, width: "100%" }}
-                fieldSx={{}}
-                required={true}
-                {...{ control, errors, trigger }}
-              />
-            </>
-          ) : (
-            <>
-              <Dropdown
-                value={department}
-                updateValue={setDepartment}
-                options={departmentOptions}
-                placeholder="Choose a Department"
-                dataTestId="department-select"
-                sx={{ marginTop: 4 }}
-              />
-              {showOther && (
+        {hasSelectedSchool && (
+          <>
+            {isSchoolOther ? (
+              <>
+                <BookingFormTextField
+                  id="otherSchool"
+                  label={formatFieldLabel("School")}
+                  containerSx={{ marginBottom: 2, marginTop: 1, width: "100%" }}
+                  fieldSx={{}}
+                  required={true}
+                  {...{ control, errors, trigger }}
+                />
                 <BookingFormTextField
                   id="otherDepartment"
                   label={formatFieldLabel("Department")}
@@ -298,19 +289,43 @@ export default function UserRolePage({
                   required={true}
                   {...{ control, errors, trigger }}
                 />
-              )}
-            </>
-          )}
-        <Dropdown
-          value={role}
-          updateValue={(newRole) => {
-            setRole(newRole as Role);
-          }}
-          options={tenantSchema.roles}
-          placeholder="Choose a Role"
-          dataTestId="role-select"
-          sx={{ marginTop: 4 }}
-        />
+              </>
+            ) : (
+              <>
+                <Dropdown
+                  value={department}
+                  updateValue={setDepartment}
+                  options={departmentOptions}
+                  placeholder="Choose a Department"
+                  dataTestId="department-select"
+                  sx={{ marginTop: 4 }}
+                />
+                {showOther && (
+                  <BookingFormTextField
+                    id="otherDepartment"
+                    label={formatFieldLabel("Department")}
+                    containerSx={{ marginBottom: 2, marginTop: 1, width: "100%" }}
+                    fieldSx={{}}
+                    required={true}
+                    {...{ control, errors, trigger }}
+                  />
+                )}
+              </>
+            )}
+          </>
+        )}
+        {isDepartmentStepComplete && (
+          <Dropdown
+            value={role}
+            updateValue={(newRole) => {
+              setRole(newRole as Role);
+            }}
+            options={tenantSchema.roles}
+            placeholder="Choose a Role"
+            dataTestId="role-select"
+            sx={{ marginTop: 4 }}
+          />
+        )}
         <Button
           onClick={handleNextClick}
           variant="contained"
