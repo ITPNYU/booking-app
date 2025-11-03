@@ -22,7 +22,7 @@ export interface PersistedXStateData {
   lastTransition: string;
 }
 
-type CriticalUpdates = {
+type PreApprovalUpdateData = {
   firstApprovedAt: admin.firestore.Timestamp;
   firstApprovedBy?: string;
   xstateData?: PersistedXStateData;
@@ -581,7 +581,7 @@ async function handleStateTransitions(
         "@/components/src/server/admin"
       );
       const { TableNames } = await import("@/components/src/policy");
-      const criticalUpdates: CriticalUpdates = {
+      const preApprovalUpdateData: PreApprovalUpdateData = {
         firstApprovedAt:
           firestoreUpdates.firstApprovedAt as admin.firestore.Timestamp,
         ...(firestoreUpdates.firstApprovedBy
@@ -590,14 +590,14 @@ async function handleStateTransitions(
       };
 
       if (firestoreUpdates.xstateData) {
-        criticalUpdates.xstateData =
+        preApprovalUpdateData.xstateData =
           firestoreUpdates.xstateData as PersistedXStateData;
       }
 
       await serverUpdateDataByCalendarEventId(
         TableNames.BOOKING,
         calendarEventId,
-        criticalUpdates,
+        preApprovalUpdateData,
         tenant
       );
 
@@ -605,8 +605,8 @@ async function handleStateTransitions(
         `💾 PRE-APPROVED DATA SAVED TO DB BEFORE CALENDAR UPDATE [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
         {
           calendarEventId,
-          savedFields: Object.keys(criticalUpdates),
-          hasXStateData: !!criticalUpdates.xstateData,
+          savedFields: Object.keys(preApprovalUpdateData),
+          hasXStateData: !!preApprovalUpdateData.xstateData,
         }
       );
     } catch (error) {
