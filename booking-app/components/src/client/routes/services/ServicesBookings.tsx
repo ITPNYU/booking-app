@@ -1,20 +1,41 @@
 import React, { useContext, useMemo } from "react";
 import { PageContextLevel } from "../../../types";
-import { XStateUtils } from "../../../utils/xstateUnified";
+import {
+  XStateUtils,
+  createXStateChecker,
+  getXStateContext,
+} from "../../../utils/xstateUnified";
 import { Bookings } from "../components/bookingTable/Bookings";
 import { DatabaseContext } from "../components/Provider";
 
 const ServicesBookings: React.FC = () => {
   const { allBookings } = useContext(DatabaseContext);
 
-  // Filter bookings to show only those with XState value "Service Requested"
+  // Filter bookings to show only those with a servicesRequested flag in XState context
+  // Primary rule: if xstateData.snapshot.context.servicesRequested has any true value,
+  // include the booking. Fallback: use the existing XState checker (for older shapes).
   const servicesRequestedBookings = useMemo(() => {
-    if (!allBookings || allBookings.length === 0) {
-      return [];
-    }
+    if (!allBookings || allBookings.length === 0) return [];
 
-    // Use the unified XState utility to filter services request bookings
-    const filtered = XStateUtils.getServicesRequestBookings(allBookings);
+    const filtered = allBookings.filter((booking) => {
+      try {
+        // Prefer explicit context.servicesRequested when present
+        const ctx = getXStateContext(booking) || (booking as any)?.xstateData?.snapshot?.context;
+        const servicesRequested = ctx?.servicesRequested;
+        if (servicesRequested && typeof servicesRequested === "object") {
+          // If any service is requested (true), include the booking
+          if (Object.values(servicesRequested).some((v) => v === true)) return true;
+        }
+
+        // Fallback to the old checker which inspects snapshot.value / currentState
+        const checker = createXStateChecker(booking as any);
+        return checker.isInServicesRequest();
+      } catch (err) {
+        // On error, exclude the booking to be safe
+        console.error("Error evaluating servicesRequested for booking", booking?.calendarEventId, err);
+        return false;
+      }
+    });
 
     // Debug logging for each filtered booking
     filtered.forEach((booking) => {
