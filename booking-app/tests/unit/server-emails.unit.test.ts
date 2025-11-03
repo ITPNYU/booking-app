@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 
+vi.mock("@/lib/firebase/server/adminDb", () => ({
+  serverGetDocumentById: vi.fn(),
+}));
+
 import { getEmailBranchTag } from "@/components/src/server/emails";
 
 describe("server/emails", () => {

@@ -87,13 +87,14 @@ export default function FormInput({
   const router = useRouter();
   const { tenant } = useParams();
   const registerEvent = useSubmitBooking(formContext);
-  const { isAutoApproval } = useCheckAutoApproval();
-
+  
   const isWalkIn = formContext === FormContextLevel.WALK_IN;
   const isMod = formContext === FormContextLevel.MODIFICATION;
   const isFullForm = formContext === FormContextLevel.FULL_FORM;
   const isVIP = formContext === FormContextLevel.VIP;
   const isBooking = !isWalkIn && !isVIP;
+  
+  const { isAutoApproval } = useCheckAutoApproval(isWalkIn, isVIP);
 
   const getDefaultValue = (key: keyof UserApiData): string => {
     // For VIP and walk-in bookings, we don't need identity data.

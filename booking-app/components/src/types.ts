@@ -32,6 +32,10 @@ export type Booking = Inputs &
     roomId: string;
     requestNumber: number;
     equipmentCheckedOut: boolean;
+    equipmentServices: string;
+    equipmentServicesDetails: string;
+    staffingServices: string;
+    staffingServicesDetails: string;
   };
 
 // used for Booking table rows that show status
@@ -73,6 +77,13 @@ export type BookingStatus = {
   walkedInAt: Timestamp;
   origin: BookingOrigin;
   xstateData?: any; // XState machine data for tenants using XState
+  // Media Commons service approval fields (optional)
+  staffServiceApproved?: boolean;
+  equipmentServiceApproved?: boolean;
+  cateringServiceApproved?: boolean;
+  cleaningServiceApproved?: boolean;
+  securityServiceApproved?: boolean;
+  setupServiceApproved?: boolean;
 };
 
 // the order here is the order these are displayed as table filters
@@ -173,6 +184,10 @@ export type Inputs = {
   chartFieldForSecurity: string;
   chartFieldForRoomSetup: string;
   webcheckoutCartNumber?: string;
+  // Individual service fields for pregame parsing
+  equipment?: string;
+  staffing?: string;
+  cleaning?: string;
 };
 
 export type DepartmentType = {
@@ -298,6 +313,9 @@ export type RoomSetting = {
     studentWalkIn: number;
     facultyWalkIn: number;
     adminWalkIn: number;
+    studentVIP: number;
+    facultyVIP: number;
+    adminVIP: number;
   };
   minHour?: {
     student: number;
@@ -306,6 +324,9 @@ export type RoomSetting = {
     studentWalkIn: number;
     facultyWalkIn: number;
     adminWalkIn: number;
+    studentVIP: number;
+    facultyVIP: number;
+    adminVIP: number;
   };
 };
 
