@@ -340,8 +340,14 @@ export default function useBookingActions({
         ) {
           options.push(Actions.CANCEL);
         }
-        // Always show Edit action for users, but it will be disabled when not appropriate
-        options.push(Actions.EDIT);
+        // Show Edit action for users in editable states (before final approval)
+        if (
+          status === BookingStatusLabel.REQUESTED ||
+          status === BookingStatusLabel.PRE_APPROVED ||
+          status === BookingStatusLabel.DECLINED
+        ) {
+          options.push(Actions.EDIT);
+        }
         break;
 
       case PageContextLevel.PA:
