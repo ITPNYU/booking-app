@@ -19,8 +19,26 @@ export async function POST(req: NextRequest) {
       },
     );
 
-    // Call the shared cancel processing function
-    await processCancelBooking(calendarEventId, email, netId, tenant);
+    // Get booking to check if this is an automatic cancellation from No Show
+    const booking = await serverGetDataByCalendarEventId(TableNames.BOOKING, calendarEventId, tenant) as any;
+    
+    // If booking has noShowedAt, this is an automatic cancellation from No Show
+    // In this case, use "System" as the email instead of the user's email
+    const effectiveEmail = booking?.noShowedAt ? "System" : email;
+    const effectiveNetId = booking?.noShowedAt ? "System" : netId;
+
+    console.log(
+      `🔍 CANCEL EMAIL DETERMINATION [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+      {
+        calendarEventId,
+        originalEmail: email,
+        effectiveEmail,
+        isAutomaticFromNoShow: !!booking?.noShowedAt,
+      },
+    );
+
+    // Call the shared cancel processing function with effective email
+    await processCancelBooking(calendarEventId, effectiveEmail, effectiveNetId, tenant);
 
     // Delete calendar events from Google Calendar for CANCELED bookings
     // This ensures true availability is reflected in the Google Calendar UI

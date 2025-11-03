@@ -423,6 +423,10 @@ export const processCloseBooking = async (
 
   await serverUpdateInFirestore(TableNames.BOOKING, doc.id, updateData, tenant);
 
+  // Add a small delay to ensure any concurrent check-in history logs are written first
+  // This prevents the Close log from appearing before Check-in log in history
+  await new Promise(resolve => setTimeout(resolve, 500));
+
   // Add Close history log
   // CLOSED state is always attributed to System
   await logServerBookingChange({
