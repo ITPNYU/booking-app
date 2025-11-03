@@ -15,7 +15,7 @@ interface DurationLimitError {
   errorType: "max" | "min";
 }
 
-export default function useCheckDurationLimits(isWalkIn = false) {
+export default function useCheckDurationLimits(isWalkIn = false, isVIP = false) {
   const { bookingCalendarInfo, selectedRooms, role } = useContext(BookingContext);
   const schema = useTenantSchema();
 
@@ -33,7 +33,7 @@ export default function useCheckDurationLimits(isWalkIn = false) {
       const durationHours = duration / (1000 * 60 * 60);
 
       // Get the hour limits based on role and selected rooms
-      const { maxHours, minHours } = getBookingHourLimits(selectedRooms, role, isWalkIn);
+      const { maxHours, minHours } = getBookingHourLimits(selectedRooms, role, isWalkIn, isVIP);
 
       // Check maximum duration
       if (durationHours > maxHours) {
@@ -65,7 +65,7 @@ export default function useCheckDurationLimits(isWalkIn = false) {
         return;
       }
     }
-  }, [bookingCalendarInfo, selectedRooms, role, schema.resources, isWalkIn]);
+  }, [bookingCalendarInfo, selectedRooms, role, schema.resources, isWalkIn, isVIP]);
 
   return { durationError };
 }

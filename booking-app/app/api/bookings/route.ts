@@ -627,6 +627,7 @@ export async function POST(request: NextRequest) {
         calendarEventId: null, // Will be set after calendar event creation
         servicesRequested: isMediaCommons ? servicesRequested : undefined,
         isVip: isMediaCommons ? isVip : false,
+        role: data.role as any, // Pass role from form data
       },
     });
 

@@ -23,6 +23,9 @@ export type Resource = {
     studentWalkIn: number;
     facultyWalkIn: number;
     adminWalkIn: number;
+    studentVIP: number;
+    facultyVIP: number;
+    adminVIP: number;
   };
   minHour: {
     student: number;
@@ -31,6 +34,9 @@ export type Resource = {
     studentWalkIn: number;
     facultyWalkIn: number;
     adminWalkIn: number;
+    studentVIP: number;
+    facultyVIP: number;
+    adminVIP: number;
   };
   staffingServices?: string[]; // Specific staffing service options for this room
   staffingSections?: { name: string; indexes: number[] }[];
