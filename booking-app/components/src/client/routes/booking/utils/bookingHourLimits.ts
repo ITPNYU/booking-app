@@ -86,25 +86,20 @@ export function getBookingHourLimits(
       continue;
     }
 
-    // Get maxHour with fallback logic
+    // Get maxHour and minHour based on booking type
     let roomMaxHour: number;
     let roomMinHour: number;
 
     if (isVIP) {
-      roomMaxHour = room.maxHour?.[vipRoleField] ?? // Try VIP specific limit
-                    room.maxHour?.[baseRoleField] ?? // Fall back to regular role limit
-                    DEFAULT_MAX_HOURS; // Finally use default
-      roomMinHour = room.minHour?.[vipRoleField] ?? // Try VIP specific limit
-                    room.minHour?.[baseRoleField] ?? // Fall back to regular role limit
-                    DEFAULT_MIN_HOURS; // Finally use default
+      // For VIP: no fallback to regular role limits
+      roomMaxHour = room.maxHour?.[vipRoleField] ?? DEFAULT_MAX_HOURS;
+      roomMinHour = room.minHour?.[vipRoleField] ?? DEFAULT_MIN_HOURS;
     } else if (isWalkIn) {
-      roomMaxHour = room.maxHour?.[walkInRoleField] ?? // Try walk-in specific limit
-                    room.maxHour?.[baseRoleField] ?? // Fall back to regular role limit
-                    DEFAULT_MAX_HOURS; // Finally use default
-      roomMinHour = room.minHour?.[walkInRoleField] ?? // Try walk-in specific limit
-                    room.minHour?.[baseRoleField] ?? // Fall back to regular role limit
-                    DEFAULT_MIN_HOURS; // Finally use default
+      // For walk-in: no fallback to regular role limits
+      roomMaxHour = room.maxHour?.[walkInRoleField] ?? DEFAULT_MAX_HOURS;
+      roomMinHour = room.minHour?.[walkInRoleField] ?? DEFAULT_MIN_HOURS;
     } else {
+      // For regular bookings: use role-specific limit or default
       roomMaxHour = room.maxHour?.[baseRoleField] ?? DEFAULT_MAX_HOURS;
       roomMinHour = room.minHour?.[baseRoleField] ?? DEFAULT_MIN_HOURS;
     }
