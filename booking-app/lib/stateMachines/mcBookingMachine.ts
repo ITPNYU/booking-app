@@ -1,10 +1,11 @@
 import { TENANTS } from "@/components/src/constants/tenants";
 import { BookingLogger } from "@/lib/logger/bookingLogger";
 import { and, assign, setup } from "xstate";
+import { getBookingHourLimits } from "@/components/src/client/routes/booking/utils/bookingHourLimits";
+import { Role } from "@/components/src/types";
 
 // Time constants for clarity
 const ONE_HOUR_IN_MS = 60 * 60 * 1000;
-const FOUR_HOURS_IN_MS = 4 * ONE_HOUR_IN_MS;
 
 // Define context type for type safety
 interface MediaCommonsBookingContext {
@@ -16,6 +17,7 @@ interface MediaCommonsBookingContext {
   calendarEventId?: string | null;
   email?: string;
   isVip?: boolean;
+  role?: Role;
   declineReason?: string;
   servicesRequested?: {
     staff?: boolean;
@@ -581,17 +583,37 @@ export const mcBookingMachine = setup({
         return false;
       }
 
-      // Check event duration > 4 hours
-      if (context.bookingCalendarInfo) {
+      // Check event duration against role-based limits
+      if (context.bookingCalendarInfo && context.selectedRooms) {
         const startDate = new Date(context.bookingCalendarInfo.startStr);
         const endDate = new Date(context.bookingCalendarInfo.endStr);
         const duration = endDate.getTime() - startDate.getTime();
-        if (duration > FOUR_HOURS_IN_MS) {
+        const durationHours = duration / ONE_HOUR_IN_MS;
+        
+        // Get dynamic hour limits based on role and booking type
+        const { maxHours, minHours } = getBookingHourLimits(
+          context.selectedRooms,
+          context.role,
+          context.isWalkIn || false,
+          context.isVip || false
+        );
+        
+        if (durationHours > maxHours) {
           console.log(
-            `🚫 XSTATE GUARD: Event duration exceeds 4 hours (${(duration / ONE_HOUR_IN_MS).toFixed(1)} hours)`
+            `🚫 XSTATE GUARD: Event duration exceeds maximum (${durationHours.toFixed(1)} hours > ${maxHours} hours max for ${context.role || "student"} ${context.isVip ? "VIP" : context.isWalkIn ? "walk-in" : "booking"})`
           );
           console.log(
-            `🎯 XSTATE AUTO-APPROVAL GUARD RESULT: REJECTED (Duration too long)`
+            `🎯 XSTATE AUTO-APPROVAL GUARD RESULT: REJECTED (Duration exceeds max limit)`
+          );
+          return false;
+        }
+        
+        if (durationHours < minHours) {
+          console.log(
+            `🚫 XSTATE GUARD: Event duration below minimum (${durationHours.toFixed(1)} hours < ${minHours} hours min for ${context.role || "student"} ${context.isVip ? "VIP" : context.isWalkIn ? "walk-in" : "booking"})`
+          );
+          console.log(
+            `🎯 XSTATE AUTO-APPROVAL GUARD RESULT: REJECTED (Duration below min limit)`
           );
           return false;
         }
