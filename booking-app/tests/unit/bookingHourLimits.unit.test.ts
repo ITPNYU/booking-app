@@ -28,7 +28,7 @@ describe("getBookingHourLimits", () => {
     expect(minHours).toBe(1);
   });
 
-  it("falls back to regular role limits when walk-in limits not defined", () => {
+  it("uses default limits when walk-in limits not defined (no fallback to regular role)", () => {
     const rooms = [{
       roomId: 1,
       name: "Test Room",
@@ -36,8 +36,8 @@ describe("getBookingHourLimits", () => {
       minHour: { student: 1 }
     }];
     const { maxHours, minHours } = getBookingHourLimits(rooms, Role.STUDENT, true);
-    expect(maxHours).toBe(2);
-    expect(minHours).toBe(1);
+    expect(maxHours).toBe(Number.POSITIVE_INFINITY);
+    expect(minHours).toBe(0);
   });
 
   it("uses walk-in limits when available", () => {
@@ -87,5 +87,140 @@ describe("getBookingHourLimits", () => {
     const { maxHours, minHours } = getBookingHourLimits(rooms, Role.STUDENT, false);
     expect(maxHours).toBe(3); // Only considers the room with limits
     expect(minHours).toBe(1); // Only considers the room with limits
+  });
+
+  it("uses VIP limits when available", () => {
+    const rooms = [{
+      roomId: 1,
+      name: "Test Room",
+      maxHour: { student: 2, studentVIP: 8 },
+      minHour: { student: 1, studentVIP: 0.5 }
+    }];
+    const { maxHours, minHours } = getBookingHourLimits(rooms, Role.STUDENT, false, true);
+    expect(maxHours).toBe(8);
+    expect(minHours).toBe(0.5);
+  });
+
+  it("uses default limits when VIP limits not defined (no fallback to regular role)", () => {
+    const rooms = [{
+      roomId: 1,
+      name: "Test Room",
+      maxHour: { student: 2 },
+      minHour: { student: 1 }
+    }];
+    const { maxHours, minHours } = getBookingHourLimits(rooms, Role.STUDENT, false, true);
+    expect(maxHours).toBe(Number.POSITIVE_INFINITY);
+    expect(minHours).toBe(0);
+  });
+
+  it("uses VIP faculty limits for faculty role", () => {
+    const rooms = [{
+      roomId: 1,
+      name: "Test Room",
+      maxHour: { faculty: 4, facultyVIP: 12 },
+      minHour: { faculty: 0.5, facultyVIP: 0.25 }
+    }];
+    const { maxHours, minHours } = getBookingHourLimits(rooms, Role.FACULTY, false, true);
+    expect(maxHours).toBe(12);
+    expect(minHours).toBe(0.25);
+  });
+
+  it("uses VIP admin limits for admin role", () => {
+    const rooms = [{
+      roomId: 1,
+      name: "Test Room",
+      maxHour: { admin: 6, adminVIP: 16 },
+      minHour: { admin: 0.5, adminVIP: 0.25 }
+    }];
+    const { maxHours, minHours } = getBookingHourLimits(rooms, Role.ADMIN_STAFF, false, true);
+    expect(maxHours).toBe(16);
+    expect(minHours).toBe(0.25);
+  });
+
+  it("uses VIP limits when both isVIP and isWalkIn are true (VIP takes precedence)", () => {
+    const rooms = [{
+      roomId: 1,
+      name: "Test Room",
+      maxHour: { student: 4, studentWalkIn: 2, studentVIP: 8 },
+      minHour: { student: 0.5, studentWalkIn: 1, studentVIP: 0.25 }
+    }];
+    // VIP should take precedence over walk-in
+    const { maxHours, minHours } = getBookingHourLimits(rooms, Role.STUDENT, true, true);
+    expect(maxHours).toBe(8);
+    expect(minHours).toBe(0.25);
+  });
+
+  it("VIP without defined limits defaults to Infinity/0 (no fallback to walk-in or regular)", () => {
+    const rooms = [{
+      roomId: 1,
+      name: "Test Room",
+      maxHour: { student: 4, studentWalkIn: 2 },
+      minHour: { student: 0.5, studentWalkIn: 1 }
+      // No VIP limits defined
+    }];
+    const { maxHours, minHours } = getBookingHourLimits(rooms, Role.STUDENT, true, true);
+    expect(maxHours).toBe(Number.POSITIVE_INFINITY);
+    expect(minHours).toBe(0);
+  });
+
+  it("walk-in without defined limits defaults to Infinity/0 (no fallback to regular)", () => {
+    const rooms = [{
+      roomId: 1,
+      name: "Test Room",
+      maxHour: { student: 4, faculty: 8 },
+      minHour: { student: 0.5, faculty: 1 }
+      // No walk-in limits defined
+    }];
+    const { maxHours, minHours } = getBookingHourLimits(rooms, Role.STUDENT, true, false);
+    expect(maxHours).toBe(Number.POSITIVE_INFINITY);
+    expect(minHours).toBe(0);
+  });
+
+  it("treats -1 as default for max hours (regular booking)", () => {
+    const rooms = [{
+      roomId: 1,
+      name: "Test Room",
+      maxHour: { student: -1 },
+      minHour: { student: 1 }
+    }];
+    const { maxHours, minHours } = getBookingHourLimits(rooms, Role.STUDENT, false, false);
+    expect(maxHours).toBe(Number.POSITIVE_INFINITY);
+    expect(minHours).toBe(1);
+  });
+
+  it("treats -1 as default for min hours (regular booking)", () => {
+    const rooms = [{
+      roomId: 1,
+      name: "Test Room",
+      maxHour: { student: 4 },
+      minHour: { student: -1 }
+    }];
+    const { maxHours, minHours } = getBookingHourLimits(rooms, Role.STUDENT, false, false);
+    expect(maxHours).toBe(4);
+    expect(minHours).toBe(0);
+  });
+
+  it("treats -1 as default for VIP bookings", () => {
+    const rooms = [{
+      roomId: 1,
+      name: "Test Room",
+      maxHour: { student: 2, studentVIP: -1 },
+      minHour: { student: 1, studentVIP: -1 }
+    }];
+    const { maxHours, minHours } = getBookingHourLimits(rooms, Role.STUDENT, false, true);
+    expect(maxHours).toBe(Number.POSITIVE_INFINITY);
+    expect(minHours).toBe(0);
+  });
+
+  it("treats -1 as default for walk-in bookings", () => {
+    const rooms = [{
+      roomId: 1,
+      name: "Test Room",
+      maxHour: { student: 2, studentWalkIn: -1 },
+      minHour: { student: 1, studentWalkIn: -1 }
+    }];
+    const { maxHours, minHours } = getBookingHourLimits(rooms, Role.STUDENT, true, false);
+    expect(maxHours).toBe(Number.POSITIVE_INFINITY);
+    expect(minHours).toBe(0);
   });
 });

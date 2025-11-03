@@ -9,15 +9,19 @@ const DEFAULT_MIN_HOURS = 0;
  * Maps Role enum to the appropriate field name for maxHour/minHour
  * @param role - The user's role
  * @param isWalkIn - Whether this is a walk-in booking
- * @returns The field name to use (e.g., "student", "studentWalkIn", "faculty", etc.)
+ * @param isVIP - Whether this is a VIP booking
+ * @returns The field name to use (e.g., "student", "studentWalkIn", "studentVIP", "faculty", etc.)
  */
 function getRoleFieldName(
   role: Role | undefined,
-  isWalkIn: boolean
+  isWalkIn: boolean,
+  isVIP: boolean
 ): keyof Resource["maxHour"] {
   if (!role) {
     // Default to student if role is not set
-    return isWalkIn ? "studentWalkIn" : "student";
+    if (isVIP) return "studentVIP";
+    if (isWalkIn) return "studentWalkIn";
+    return "student";
   }
 
   let baseRole: "student" | "faculty" | "admin";
@@ -38,6 +42,10 @@ function getRoleFieldName(
       baseRole = "student";
   }
 
+  if (isVIP) {
+    return `${baseRole}VIP` as keyof Resource["maxHour"];
+  }
+  
   return isWalkIn
     ? (`${baseRole}WalkIn` as keyof Resource["maxHour"])
     : baseRole;
@@ -48,21 +56,25 @@ function getRoleFieldName(
  * @param selectedRooms - The rooms selected for booking
  * @param role - The user's role
  * @param isWalkIn - Whether this is a walk-in booking
+ * @param isVIP - Whether this is a VIP booking
  * @returns Object with maxHours and minHours (defaults: 4 and 0.5)
  */
 export function getBookingHourLimits(
   selectedRooms: any[],
   role: Role | undefined,
-  isWalkIn: boolean
+  isWalkIn: boolean,
+  isVIP: boolean = false
 ): { maxHours: number; minHours: number } {
   if (!selectedRooms || selectedRooms.length === 0) {
     return { maxHours: DEFAULT_MAX_HOURS, minHours: DEFAULT_MIN_HOURS };
   }
 
-  // Get the base role field (without walk-in)
-  const baseRoleField = getRoleFieldName(role, false);
+  // Get the base role field (without walk-in or VIP)
+  const baseRoleField = getRoleFieldName(role, false, false);
   // Get the walk-in specific field
-  const walkInRoleField = getRoleFieldName(role, true);
+  const walkInRoleField = getRoleFieldName(role, true, false);
+  // Get the VIP specific field
+  const vipRoleField = getRoleFieldName(role, false, true);
 
   // Find the most restrictive limits across all selected rooms
   let maxHours = DEFAULT_MAX_HOURS;
@@ -74,19 +86,29 @@ export function getBookingHourLimits(
       continue;
     }
 
-    // Get maxHour with fallback logic
-    const roomMaxHour = isWalkIn
-      ? (room.maxHour?.[walkInRoleField] ?? // Try walk-in specific limit
-         room.maxHour?.[baseRoleField] ?? // Fall back to regular role limit
-         DEFAULT_MAX_HOURS) // Finally use default
-      : (room.maxHour?.[baseRoleField] ?? DEFAULT_MAX_HOURS);
+    // Get maxHour and minHour based on booking type
+    let roomMaxHour: number;
+    let roomMinHour: number;
 
-    // Get minHour with fallback logic
-    const roomMinHour = isWalkIn
-      ? (room.minHour?.[walkInRoleField] ?? // Try walk-in specific limit
-         room.minHour?.[baseRoleField] ?? // Fall back to regular role limit
-         DEFAULT_MIN_HOURS) // Finally use default
-      : (room.minHour?.[baseRoleField] ?? DEFAULT_MIN_HOURS);
+    if (isVIP) {
+      // For VIP: no fallback to regular role limits
+      const vipMax = room.maxHour?.[vipRoleField];
+      const vipMin = room.minHour?.[vipRoleField];
+      roomMaxHour = (vipMax === undefined || vipMax === -1) ? DEFAULT_MAX_HOURS : vipMax;
+      roomMinHour = (vipMin === undefined || vipMin === -1) ? DEFAULT_MIN_HOURS : vipMin;
+    } else if (isWalkIn) {
+      // For walk-in: no fallback to regular role limits
+      const walkInMax = room.maxHour?.[walkInRoleField];
+      const walkInMin = room.minHour?.[walkInRoleField];
+      roomMaxHour = (walkInMax === undefined || walkInMax === -1) ? DEFAULT_MAX_HOURS : walkInMax;
+      roomMinHour = (walkInMin === undefined || walkInMin === -1) ? DEFAULT_MIN_HOURS : walkInMin;
+    } else {
+      // For regular bookings: use role-specific limit or default
+      const regularMax = room.maxHour?.[baseRoleField];
+      const regularMin = room.minHour?.[baseRoleField];
+      roomMaxHour = (regularMax === undefined || regularMax === -1) ? DEFAULT_MAX_HOURS : regularMax;
+      roomMinHour = (regularMin === undefined || regularMin === -1) ? DEFAULT_MIN_HOURS : regularMin;
+    }
 
     // Use the most restrictive (lowest) maxHour
     if (roomMaxHour < maxHours) {
