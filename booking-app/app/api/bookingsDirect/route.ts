@@ -217,6 +217,7 @@ export async function POST(request: NextRequest) {
           calendarEventId,
           email,
           isVip: origin === BookingOrigin.VIP,
+          role: data.role as any, // Pass role from form data
           servicesRequested,
         },
       });
@@ -349,52 +350,62 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Update calendar event status if needed
-      if (bookingStatus !== BookingStatusLabel.APPROVED) {
-        try {
-          const calendarResponse = await fetch(
-            `${process.env.NEXT_PUBLIC_BASE_URL}/api/calendarEvents`,
-            {
-              method: "PUT",
-              headers: {
-                "Content-Type": "application/json",
-                "x-tenant": tenant || "mc",
-              },
-              body: JSON.stringify({
-                calendarEventId,
-                newValues: { statusPrefix: bookingStatus },
-              }),
-            },
-          );
-
-          if (calendarResponse.ok) {
-            console.log(
-              `📅 CALENDAR STATUS UPDATED [${tenant?.toUpperCase()}]:`,
-              {
-                calendarEventId,
-                from: BookingStatusLabel.APPROVED,
-                to: bookingStatus,
-                reason: "XState determined different status",
-              },
-            );
-          } else {
-            console.error(
-              `🚨 CALENDAR UPDATE FAILED [${tenant?.toUpperCase()}]:`,
-              {
-                calendarEventId,
-                status: calendarResponse.status,
-              },
-            );
+      try {
+        console.log(
+          `📅 UPDATING CALENDAR WITH FULL DESCRIPTION [${tenant?.toUpperCase()}]:`,
+          {
+            calendarEventId,
+            bookingStatus,
+            origin,
+            type,
+            note: "Regenerating full HTML description for walk-in/VIP booking",
           }
-        } catch (calendarError) {
-          console.error(
-            `🚨 CALENDAR UPDATE ERROR [${tenant?.toUpperCase()}]:`,
+        );
+
+        const calendarResponse = await fetch(
+          `${process.env.NEXT_PUBLIC_BASE_URL}/api/calendarEvents`,
+          {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+              "x-tenant": tenant || "mc",
+            },
+            body: JSON.stringify({
+              calendarEventId,
+              newValues: { statusPrefix: bookingStatus },
+            }),
+          },
+        );
+      
+        if (calendarResponse.ok) {
+          console.log(
+            `✅ CALENDAR UPDATED WITH FULL DESCRIPTION [${tenant?.toUpperCase()}]:`,
             {
               calendarEventId,
-              error: calendarError.message,
+              bookingStatus,
+              origin,
+              type,
+            },
+          );
+        } else {
+          console.error(
+            `🚨 CALENDAR UPDATE FAILED [${tenant?.toUpperCase()}]:`,
+            {
+              calendarEventId,
+              status: calendarResponse.status,
+              statusText: calendarResponse.statusText,
             },
           );
         }
+      } catch (calendarError) {
+        console.error(
+          `🚨 CALENDAR UPDATE ERROR [${tenant?.toUpperCase()}]:`,
+          {
+            calendarEventId,
+            error: calendarError.message,
+          },
+        );
+        // Don't fail the entire request if calendar update fails
       }
     } catch (error) {
       console.error(
@@ -445,6 +456,60 @@ export async function POST(request: NextRequest) {
         note: `${requestedBy} for ${email} as ${type} booking`,
         tenant,
       });
+
+      // Update calendar event with full description for traditional (non-XState) bookings
+      try {
+        console.log(
+          `📅 UPDATING CALENDAR (TRADITIONAL) WITH FULL DESCRIPTION [${tenant?.toUpperCase()}]:`,
+          {
+            calendarEventId,
+            bookingStatus,
+            origin,
+            type,
+          }
+        );
+
+        const calendarResponse = await fetch(
+          `${process.env.NEXT_PUBLIC_BASE_URL}/api/calendarEvents`,
+          {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+              "x-tenant": tenant || "mc",
+            },
+            body: JSON.stringify({
+              calendarEventId,
+              newValues: { statusPrefix: bookingStatus },
+            }),
+          },
+        );
+
+        if (calendarResponse.ok) {
+          console.log(
+            `✅ CALENDAR (TRADITIONAL) UPDATED WITH FULL DESCRIPTION [${tenant?.toUpperCase()}]:`,
+            {
+              calendarEventId,
+              bookingStatus,
+            }
+          );
+        } else {
+          console.error(
+            `🚨 CALENDAR (TRADITIONAL) UPDATE FAILED [${tenant?.toUpperCase()}]:`,
+            {
+              calendarEventId,
+              status: calendarResponse.status,
+            }
+          );
+        }
+      } catch (calendarError) {
+        console.error(
+          `🚨 CALENDAR (TRADITIONAL) UPDATE ERROR [${tenant?.toUpperCase()}]:`,
+          {
+            calendarEventId,
+            error: calendarError.message,
+          }
+        );
+      }
     }
   }
 

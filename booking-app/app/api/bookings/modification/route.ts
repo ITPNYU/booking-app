@@ -14,6 +14,7 @@ import {
   Booking,
   BookingOrigin,
   BookingStatusLabel,
+  Role,
 } from "@/components/src/types";
 import { getMediaCommonsServices } from "@/components/src/utils/tenantUtils";
 import { serverGetDataByCalendarEventId } from "@/lib/firebase/server/adminDb";
@@ -283,6 +284,7 @@ export async function PUT(request: NextRequest) {
         selectedRooms: selectedRooms || [],
         formData: data || {},
         bookingCalendarInfo: bookingCalendarInfo || {},
+        role: data?.role as Role, // Pass role from form data
         servicesRequested,
         servicesApproved,
       },
@@ -341,7 +343,12 @@ export async function PUT(request: NextRequest) {
       },
     );
 
-    await finalApprove(newCalendarEventId, modifiedBy, tenant);
+    await finalApprove(
+      newCalendarEventId,
+      modifiedBy,
+      tenant,
+      "Approved via booking modification",
+    );
 
     console.log(`✅ MODIFICATION COMPLETED [${tenant?.toUpperCase()}]:`, {
       calendarEventId: newCalendarEventId,
