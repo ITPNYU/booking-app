@@ -175,8 +175,6 @@ node scripts/copyCollection.js \
 
 **Step 1: Find the highest requestNumber in existing bookings**
 
-Option A - Using Firebase Console:
-
 1. Go to Firebase Console → Firestore Database
 2. Open the `bookings` or `mc-bookings` collection
 3. Sort by `requestNumber` field (descending)
@@ -194,25 +192,6 @@ In Firebase Console:
    - Field name: `count`
    - Field type: `number`
    - Value: `[MAX_REQUEST_NUMBER + 1]` (e.g., if max is 12500, set to 12501)
-
-Example document structure:
-
-```javascript
-// Collection: mc-counters
-// Document ID: bookings
-{
-  count: 12501; // Set this to (max requestNumber + 1)
-}
-```
-
-**Step 3: Verify counter initialization**
-
-```bash
-# In Firebase Console, check that:
-# - Collection mc-counters exists
-# - Document 'bookings' exists with correct count value
-# - count value is higher than any existing requestNumber
-```
 
 #### 3.3 Create Empty Collections for Logs
 
@@ -247,18 +226,6 @@ Run this verification checklist in Firebase Console:
 - [ ] `mc-counters` collection exists with correct `bookings` document
 - [ ] `mc-counters/bookings` has `count` field set to max requestNumber + 1
 
-### Phase 4: Migrate Existing Booking Data to XState (Optional)
-
-If existing booking data in mc-bookings doesn't have XState data, the application will automatically restore XState from the current status. However, if you want to migrate in advance:
-
-1. **Create Migration Script** (if needed)
-2. **Gradual Migration**: New bookings will automatically have XState attached
-
-The system includes automatic XState restoration in `lib/stateMachines/xstateUtilsV5.ts`:
-
-- When a booking without XState data is accessed, it automatically creates XState from the current status
-- This ensures backward compatibility with existing bookings
-
 ### Phase 5: Application Deployment
 
 #### 5.1 Set Environment Variables (Vercel/Production Environment)
@@ -286,7 +253,7 @@ vercel --prod
 
 #### 5.3 Post-Deployment Verification
 
-1. Access https://your-app.vercel.app/mc
+1. Access https://flowing-mantis-389917.uc.r.appspot.com/
 2. Verify tenant schema is loaded correctly
 3. Verify booking creation flow works properly
 4. Verify XState transitions are recorded correctly
