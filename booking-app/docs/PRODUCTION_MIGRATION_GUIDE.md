@@ -1,6 +1,7 @@
 # Multi-Tenant + XState Feature Production Environment Release Guide
 
 ## Overview
+
 The current Production environment does not have XState or multi-tenant functionality. To release these features, you need to create new collections for the Media Commons (mc) tenant and configure the tenant schema.
 
 ## Required mc-Prefix Collections
@@ -8,49 +9,60 @@ The current Production environment does not have XState or multi-tenant function
 The following collections need to be created in the Production database:
 
 ### 1. **mc-bookings** (Required)
+
 - Media Commons version of the existing `bookings` collection
 - Stores booking information including XState snapshot data
 
 ### 2. **mc-bookingLogs** (Required)
+
 - Records booking history and change logs
 - Tracks approval flows, status changes, etc.
 
 ### 3. **mc-bookingTypes** (Required)
+
 - Booking types (Class Session, General Event, Meeting, Workshop, etc.)
 - List of types users can select when making a booking
 
 ### 4. **mc-usersApprovers** (Required)
+
 - List of approvers
 - Approver information for level 1 (Liaison), level 2 (Admin), level 3 (Services)
 - Contains department, email, level fields
 
 ### 5. **mc-usersRights** (Required)
+
 - User permission management
 - Permission flags like isAdmin, isLiaison, isWorker
 
 ### 6. **mc-usersWhitelist** (Required)
+
 - List of users who have completed Safety Training
 - Required to book certain rooms
 
 ### 7. **mc-operationHours** (Recommended)
+
 - Facility operation hours settings
 - Opening and closing times for each day of the week
 
 ### 8. **mc-blackoutPeriods** (Recommended)
+
 - Settings for unbookable periods
 - Maintenance periods, holiday periods, etc.
 
 ### 9. **mc-preBanLogs** (Recommended)
+
 - User penalty logs
 - Records of No-shows, Late cancels, etc.
 
 ### 10. **mc-counters** (Required)
+
 - Sequential ID counters for booking numbers, etc.
 - Has a `count` field in the `bookings` document
 
 ## Tenant-Shared Collections (No mc-prefix)
 
 ### 11. **tenantSchema** (Required)
+
 - Collection storing tenant configurations
 - Document ID: `mc` or `mediaCommons`
 - Includes:
@@ -66,120 +78,19 @@ The following collections need to be created in the Production database:
 
 ### Phase 1: Preparation
 
-#### 1.1 Verify Environment Variables
+#### 1.1 Verify Environment Variables on Production deployment workflow
+
 ```bash
-# Confirm the following are set in .env.local
+# Confirm the following are set in deploy_production_app_engine.yml
 FIREBASE_PROJECT_ID=your-project-id
 FIREBASE_CLIENT_EMAIL=your-service-account@...
 FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n..."
 ```
 
-#### 1.2 Backup
-```bash
-# Backup the current Production bookings collection
-node scripts/copyCollection.js \
-  --source-database production \
-  --target-database production \
-  --source-collection bookings \
-  --target-collection bookings_backup_YYYYMMDD
-```
-
 ### Phase 2: Create Tenant Schema
 
-#### 2.1 Prepare Tenant Schema in Development Environment
-- Create `tenantSchema` collection in Firebase Console or admin interface
-- Document ID: `mc`
-- Create a complete schema document with the following fields:
+#### 2.1 Copy Tenant Schema to Production
 
-```javascript
-{
-  tenant: "mc",
-  name: "Media Commons",
-  logo: "/mediaCommonsLogo.svg",
-  nameForPolicy: "370J Media Commons",
-  policy: "<p>Policy HTML content...</p>",
-  programMapping: {
-    "ITP / IMA / Low Res": ["ITP"],
-    // ... other mappings
-  },
-  roles: ["Student", "Faculty", "Staff"],
-  roleMapping: {
-    Student: ["STUDENT"],
-    Faculty: ["FACULTY"],
-    Staff: ["STAFF"]
-  },
-  showNNumber: true,
-  showSponsor: true,
-  showSetup: true,
-  showEquipment: true,
-  showStaffing: true,
-  showCatering: true,
-  showHireSecurity: true,
-  showBookingTypes: true,
-  supportVIP: true,
-  supportWalkIn: true,
-  resourceName: "Room(s)",
-  agreements: [
-    { id: "checklist", html: "<p>Checklist content...</p>" },
-    { id: "resetRoom", html: "<p>Reset room content...</p>" },
-    { id: "bookingPolicy", html: "<p>Booking policy content...</p>" }
-  ],
-  resources: [
-    {
-      capacity: 30,
-      name: "Room Name",
-      roomId: 202,
-      isEquipment: false,
-      calendarId: "calendar-id@group.calendar.google.com",
-      needsSafetyTraining: false,
-      shouldAutoApprove: true,
-      isWalkIn: false,
-      isWalkInCanBookTwo: false,
-      services: ["equipment", "staffing", "setup"],
-      minHour: {
-        student: 1,
-        faculty: 1,
-        admin: 1,
-        studentWalkIn: 1,
-        facultyWalkIn: 1,
-        adminWalkIn: 1,
-        studentVIP: 1,
-        facultyVIP: 1,
-        adminVIP: 1
-      },
-      maxHour: {
-        student: 4,
-        faculty: 8,
-        admin: 12,
-        studentWalkIn: 4,
-        facultyWalkIn: 8,
-        adminWalkIn: 12,
-        studentVIP: 4,
-        facultyVIP: 8,
-        adminVIP: 12
-      }
-    }
-    // ... other resources
-  ],
-  emailMessages: {
-    requestConfirmation: "Your booking request has been received.",
-    firstApprovalRequest: "A booking requires your approval.",
-    secondApprovalRequest: "A booking requires second approval.",
-    walkInConfirmation: "Your walk-in booking has been confirmed.",
-    vipConfirmation: "Your VIP booking has been confirmed.",
-    checkoutConfirmation: "You have successfully checked out.",
-    checkinConfirmation: "You have successfully checked in.",
-    declined: "Your booking request has been declined.",
-    canceled: "Your booking has been canceled.",
-    lateCancel: "Your booking has been canceled late.",
-    noShow: "You have been marked as no-show.",
-    closed: "Your booking has been closed.",
-    approvalNotice: "Your booking has been approved."
-  }
-}
-```
-
-#### 2.2 Copy Tenant Schema to Production
 ```bash
 node scripts/copyCollection.js \
   --source-database development \
@@ -194,17 +105,8 @@ node scripts/copyCollection.js \
 
 Run the following commands in sequence. Each command copies data from existing collections to the new mc-prefixed collections.
 
-**Step 1: Copy tenant schema (shared collection, no prefix)**
-```bash
-# Copy tenant configuration
-node scripts/copyCollection.js \
-  --source-database development \
-  --target-database production \
-  --source-collection tenantSchema \
-  --target-collection tenantSchema
-```
+**Step 1: Copy existing tabel to mc-**
 
-**Step 2: Copy existing bookings to mc-bookings**
 ```bash
 # Migrate existing booking data to mc-bookings
 node scripts/copyCollection.js \
@@ -214,16 +116,7 @@ node scripts/copyCollection.js \
   --target-collection mc-bookings
 ```
 
-**Step 3: Copy bookingTypes to mc-bookingTypes**
 ```bash
-# Option A: Copy from production if it exists
-node scripts/copyCollection.js \
-  --source-database production \
-  --target-database production \
-  --source-collection bookingTypes \
-  --target-collection mc-bookingTypes
-
-# Option B: Copy from development if production doesn't have it
 node scripts/copyCollection.js \
   --source-database development \
   --target-database production \
@@ -231,7 +124,6 @@ node scripts/copyCollection.js \
   --target-collection mc-bookingTypes
 ```
 
-**Step 4: Copy user approvers to mc-usersApprovers**
 ```bash
 # Copy approver data
 node scripts/copyCollection.js \
@@ -241,7 +133,6 @@ node scripts/copyCollection.js \
   --target-collection mc-usersApprovers
 ```
 
-**Step 5: Copy user rights to mc-usersRights**
 ```bash
 # Copy user permission data
 node scripts/copyCollection.js \
@@ -251,7 +142,6 @@ node scripts/copyCollection.js \
   --target-collection mc-usersRights
 ```
 
-**Step 6: Copy safety training whitelist to mc-usersWhitelist**
 ```bash
 # Copy safety training user data
 node scripts/copyCollection.js \
@@ -261,7 +151,6 @@ node scripts/copyCollection.js \
   --target-collection mc-usersWhitelist
 ```
 
-**Step 7: Copy operation hours to mc-operationHours (if exists)**
 ```bash
 # Copy operation hours settings
 node scripts/copyCollection.js \
@@ -271,7 +160,6 @@ node scripts/copyCollection.js \
   --target-collection mc-operationHours
 ```
 
-**Step 8: Copy blackout periods to mc-blackoutPeriods (if exists)**
 ```bash
 # Copy blackout period settings
 node scripts/copyCollection.js \
@@ -288,37 +176,16 @@ node scripts/copyCollection.js \
 **Step 1: Find the highest requestNumber in existing bookings**
 
 Option A - Using Firebase Console:
+
 1. Go to Firebase Console → Firestore Database
 2. Open the `bookings` or `mc-bookings` collection
 3. Sort by `requestNumber` field (descending)
 4. Note the highest `requestNumber` value (e.g., 12500)
 
-Option B - Using a query script:
-```javascript
-// Run this in Node.js or Firebase Console
-const admin = require('firebase-admin');
-const db = admin.firestore();
-
-async function getMaxRequestNumber() {
-  const snapshot = await db.collection('bookings')
-    .orderBy('requestNumber', 'desc')
-    .limit(1)
-    .get();
-  
-  if (!snapshot.empty) {
-    const maxNumber = snapshot.docs[0].data().requestNumber;
-    console.log('Max requestNumber:', maxNumber);
-    return maxNumber;
-  }
-  return 0;
-}
-
-getMaxRequestNumber();
-```
-
 **Step 2: Create mc-counters collection with initial value**
 
 In Firebase Console:
+
 1. Go to Firestore Database
 2. Click "Start collection"
 3. Collection ID: `mc-counters`
@@ -329,15 +196,17 @@ In Firebase Console:
    - Value: `[MAX_REQUEST_NUMBER + 1]` (e.g., if max is 12500, set to 12501)
 
 Example document structure:
+
 ```javascript
 // Collection: mc-counters
 // Document ID: bookings
 {
-  count: 12501  // Set this to (max requestNumber + 1)
+  count: 12501; // Set this to (max requestNumber + 1)
 }
 ```
 
 **Step 3: Verify counter initialization**
+
 ```bash
 # In Firebase Console, check that:
 # - Collection mc-counters exists
@@ -350,12 +219,14 @@ Example document structure:
 The following collections will be automatically populated but can be initialized as empty:
 
 **mc-bookingLogs** (will be created automatically from new bookings):
+
 ```bash
 # No action needed - this collection will be created automatically
 # when the first booking creates a log entry
 ```
 
 **mc-preBanLogs** (for future penalty records):
+
 ```bash
 # No action needed - this collection will be created automatically
 # when the first penalty is recorded
@@ -384,12 +255,14 @@ If existing booking data in mc-bookings doesn't have XState data, the applicatio
 2. **Gradual Migration**: New bookings will automatically have XState attached
 
 The system includes automatic XState restoration in `lib/stateMachines/xstateUtilsV5.ts`:
+
 - When a booking without XState data is accessed, it automatically creates XState from the current status
 - This ensures backward compatibility with existing bookings
 
 ### Phase 5: Application Deployment
 
 #### 5.1 Set Environment Variables (Vercel/Production Environment)
+
 ```bash
 # Set the following environment variables in Production environment
 DEFAULT_TENANT=mc
@@ -399,6 +272,7 @@ FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n..."
 ```
 
 #### 5.2 Deploy Code
+
 ```bash
 # Merge branch to main
 git checkout main
@@ -411,6 +285,7 @@ vercel --prod
 ```
 
 #### 5.3 Post-Deployment Verification
+
 1. Access https://your-app.vercel.app/mc
 2. Verify tenant schema is loaded correctly
 3. Verify booking creation flow works properly
@@ -419,6 +294,7 @@ vercel --prod
 ### Phase 6: Testing and Verification
 
 #### 6.1 Basic Functionality Tests
+
 - [ ] Create new bookings (Walk-in, VIP, Regular)
 - [ ] Approval flow (Liaison → Admin)
 - [ ] Service request approval
@@ -426,6 +302,7 @@ vercel --prod
 - [ ] Check-in / Check-out
 
 #### 6.2 Data Verification
+
 ```bash
 # Verify the following in Firestore Console
 # - xstateData field exists in mc-bookings
@@ -434,6 +311,7 @@ vercel --prod
 ```
 
 #### 6.3 XState Operation Verification
+
 - XState functionality is working correctly
 - State transitions are recorded correctly
 - Existing bookings (without XState data) display and operate normally
@@ -508,6 +386,7 @@ node scripts/copyCollection.js --source-database development --target-database p
 ## Checklist
 
 ### Before Release:
+
 - [ ] Backup completed
 - [ ] Tenant schema created in development
 - [ ] All mc-collections created
@@ -517,6 +396,7 @@ node scripts/copyCollection.js --source-database development --target-database p
 - [ ] Environment variables set in production
 
 ### After Release:
+
 - [ ] New booking creation test
 - [ ] Approval flow test
 - [ ] XState data recording verification
@@ -535,7 +415,9 @@ node scripts/copyCollection.js --source-database development --target-database p
 ## Technical Architecture Notes
 
 ### Multi-Tenant Collection Strategy
+
 Collections are prefixed with tenant identifiers (e.g., `mc-bookings`) as defined in `getTenantCollectionName()` function in `components/src/policy.ts`. The following collections are tenant-specific:
+
 - bookings
 - bookingLogs
 - bookingTypes
@@ -548,12 +430,15 @@ Collections are prefixed with tenant identifiers (e.g., `mc-bookings`) as define
 - usersRights
 
 ### XState Integration
+
 The system uses XState v5 for state management:
+
 - **mcBookingMachine**: Handles Media Commons booking workflows with service requests
 - **itpBookingMachine**: Handles ITP booking workflows
 - **Automatic Restoration**: Bookings without XState data are automatically migrated on access
 
 ### Service Request Workflow
+
 Media Commons supports additional service requests (equipment, staffing, catering, cleaning, security, setup) with approval workflows managed through XState.
 
 ## Support and Troubleshooting
@@ -567,4 +452,3 @@ If you encounter issues during migration:
 5. Confirm tenant schema is correctly formatted
 
 For questions or issues, refer to the related files listed above or contact the development team.
-
