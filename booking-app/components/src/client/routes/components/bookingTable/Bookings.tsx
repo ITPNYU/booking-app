@@ -464,7 +464,7 @@ export const Bookings: React.FC<BookingsProps> = ({
                                   borderRadius: "50%",
                                   strokeWidth: 1.0,
                                   stroke : "#333333",
-                                  color : "#333333",
+                                  color: "#333333",
                                 }} 
                               />
                             )}
