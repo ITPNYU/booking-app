@@ -11,19 +11,14 @@ import { DatabaseContext } from "../components/Provider";
 const ServicesBookings: React.FC = () => {
   const { allBookings } = useContext(DatabaseContext);
 
-  // Filter bookings to show only those with a servicesRequested flag in XState context
-  // Primary rule: if xstateData.snapshot.context.servicesRequested has any true value,
-  // include the booking. Fallback: use the existing XState checker (for older shapes).
   const servicesRequestedBookings = useMemo(() => {
     if (!allBookings || allBookings.length === 0) return [];
 
     const filtered = allBookings.filter((booking) => {
       try {
-        // Prefer explicit context.servicesRequested when present
         const ctx = getXStateContext(booking) || (booking as any)?.xstateData?.snapshot?.context;
         const servicesRequested = ctx?.servicesRequested;
         if (servicesRequested && typeof servicesRequested === "object") {
-          // If any service is requested (true), include the booking
           if (Object.values(servicesRequested).some((v) => v === true)) return true;
         }
 
@@ -38,9 +33,9 @@ const ServicesBookings: React.FC = () => {
     });
 
     // Debug logging for each filtered booking
-    filtered.forEach((booking) => {
-      XStateUtils.debugXState(booking, "SERVICES FILTER DEBUG");
-    });
+    // filtered.forEach((booking) => {
+    //   XStateUtils.debugXState(booking, "SERVICES FILTER DEBUG");
+    // });
 
     return filtered;
   }, [allBookings]);
