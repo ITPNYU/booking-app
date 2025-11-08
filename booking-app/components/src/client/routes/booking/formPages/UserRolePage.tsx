@@ -201,12 +201,13 @@ export default function UserRolePage({
   }, [userApiData, user, isVIP, isWalkIn]);
 
   useEffect(() => {
-    if (
+    const haveWatchedFieldsChanged = 
       !prevWatchedFieldsRef.current ||
       prevWatchedFieldsRef.current.otherDepartment !== watchedFields.otherDepartment ||
       prevWatchedFieldsRef.current.school !== watchedFields.school ||
-      prevWatchedFieldsRef.current.otherSchool !== watchedFields.otherSchool
-    ) {
+      prevWatchedFieldsRef.current.otherSchool !== watchedFields.otherSchool;
+
+    if (haveWatchedFieldsChanged) {
       setFormData({ ...watchedFields });
       prevWatchedFieldsRef.current = watchedFields;
     }
@@ -227,11 +228,18 @@ export default function UserRolePage({
   const hasSelectedSchool = !!(watchedFields.school && watchedFields.school !== "");
   const isSchoolOther = isOtherSchool(watchedFields.school);
   const isDepartmentSelected = !!department;
-  const isDepartmentStepComplete = isSchoolOther
-    ? !!(watchedFields.otherSchool?.trim() && watchedFields.otherDepartment?.trim())
-    : showOther
-      ? !!(watchedFields.otherDepartment?.trim())
-      : isDepartmentSelected;
+  
+  let isDepartmentStepComplete = false;
+  if (isSchoolOther) {
+    isDepartmentStepComplete = !!(
+      watchedFields.otherSchool?.trim() &&
+      watchedFields.otherDepartment?.trim()
+    );
+  } else if (showOther) {
+    isDepartmentStepComplete = !!watchedFields.otherDepartment?.trim();
+  } else {
+    isDepartmentStepComplete = isDepartmentSelected;
+  }
 
   const handleNextClick = () => {
     if (formContext === FormContextLevel.EDIT && calendarEventId != null) {
