@@ -12,8 +12,7 @@ export default function useAllowedStatuses(pageContext: PageContextLevel) {
         BookingStatusLabel.NO_SHOW,
       ];
     } else if (pageContext === PageContextLevel.SERVICES) {
-      const { WALK_IN, ...displayableStatuses } = BookingStatusLabel;
-      return Object.values(displayableStatuses);
+      return [BookingStatusLabel.EQUIPMENT];
     } else {
       const { WALK_IN, ...displayableStatuses } = BookingStatusLabel;
       return Object.values(displayableStatuses);
