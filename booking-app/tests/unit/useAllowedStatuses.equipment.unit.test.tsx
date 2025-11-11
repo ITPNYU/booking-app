@@ -4,6 +4,11 @@ import { renderHook } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 describe("useAllowedStatuses Hook - Equipment Context", () => {
+  // For SERVICES page we expect the full set of displayable statuses (exclude WALK_IN)
+  const expectedServiceStatuses = Object.values(BookingStatusLabel).filter(
+    (status) => status !== BookingStatusLabel.WALK_IN
+  );
+
   describe("PageContextLevel.SERVICES", () => {
     it("should return only EQUIPMENT status for equipment context", () => {
       const { result } = renderHook(() =>
@@ -12,8 +17,8 @@ describe("useAllowedStatuses Hook - Equipment Context", () => {
 
       const allowedStatuses = result.current;
 
-      expect(allowedStatuses).toEqual([BookingStatusLabel.EQUIPMENT]);
-      expect(allowedStatuses).toHaveLength(1);
+      // Services now shows all displayable statuses
+      expect(allowedStatuses).toEqual(expectedServiceStatuses);
     });
 
     it("should not include other statuses for equipment context", () => {
@@ -65,7 +70,7 @@ describe("useAllowedStatuses Hook - Equipment Context", () => {
       );
 
       expect(equipmentResult.current).not.toEqual(paResult.current);
-      expect(equipmentResult.current).toEqual([BookingStatusLabel.EQUIPMENT]);
+      expect(equipmentResult.current).toEqual(expectedServiceStatuses);
       expect(paResult.current).toEqual([
         BookingStatusLabel.APPROVED,
         BookingStatusLabel.CHECKED_IN,
@@ -100,7 +105,7 @@ describe("useAllowedStatuses Hook - Equipment Context", () => {
       );
 
       expect(equipmentResult.current).not.toEqual(adminResult.current);
-      expect(equipmentResult.current).toEqual([BookingStatusLabel.EQUIPMENT]);
+      expect(equipmentResult.current).toEqual(expectedServiceStatuses);
 
       // Admin should have all displayable statuses
       const expectedAdminStatuses = Object.values(BookingStatusLabel).filter(
@@ -118,7 +123,7 @@ describe("useAllowedStatuses Hook - Equipment Context", () => {
       );
 
       expect(equipmentResult.current).not.toEqual(liaisonResult.current);
-      expect(equipmentResult.current).toEqual([BookingStatusLabel.EQUIPMENT]);
+      expect(equipmentResult.current).toEqual(expectedServiceStatuses);
 
       // Liaison should have all displayable statuses
       const expectedLiaisonStatuses = Object.values(BookingStatusLabel).filter(
@@ -152,7 +157,7 @@ describe("useAllowedStatuses Hook - Equipment Context", () => {
       );
 
       const equipmentResult = result.current;
-      expect(equipmentResult).toEqual([BookingStatusLabel.EQUIPMENT]);
+      expect(equipmentResult).toEqual(expectedServiceStatuses);
 
       // Change context to PA
       pageContext = PageContextLevel.PA;
@@ -176,7 +181,7 @@ describe("useAllowedStatuses Hook - Equipment Context", () => {
         useAllowedStatuses(PageContextLevel.SERVICES)
       );
 
-      expect(result.current).toEqual([BookingStatusLabel.EQUIPMENT]);
+      expect(result.current).toEqual(expectedServiceStatuses);
     });
 
     it("should return equipment statuses regardless of case sensitivity", () => {
