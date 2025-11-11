@@ -28,24 +28,10 @@ describe("useAllowedStatuses Hook - Equipment Context", () => {
 
       const allowedStatuses = result.current;
 
-      // Check that other statuses are not included
-      const otherStatuses = [
-        BookingStatusLabel.APPROVED,
-        BookingStatusLabel.CANCELED,
-        BookingStatusLabel.CHECKED_IN,
-        BookingStatusLabel.CHECKED_OUT,
-        BookingStatusLabel.DECLINED,
-        BookingStatusLabel.MODIFIED,
-        BookingStatusLabel.NO_SHOW,
-        BookingStatusLabel.PENDING,
-        BookingStatusLabel.REQUESTED,
-        BookingStatusLabel.UNKNOWN,
-        BookingStatusLabel.WALK_IN,
-      ];
-
-      otherStatuses.forEach((status) => {
-        expect(allowedStatuses).not.toContain(status);
-      });
+      // Services should include all displayable statuses (excluding WALK_IN)
+      expect(allowedStatuses).toEqual(expectedServiceStatuses);
+      expect(allowedStatuses).toContain(BookingStatusLabel.EQUIPMENT);
+      expect(allowedStatuses).not.toContain(BookingStatusLabel.WALK_IN);
     });
 
     it("should be consistent across multiple hook calls", () => {
@@ -104,8 +90,7 @@ describe("useAllowedStatuses Hook - Equipment Context", () => {
         useAllowedStatuses(PageContextLevel.ADMIN)
       );
 
-      expect(equipmentResult.current).not.toEqual(adminResult.current);
-      expect(equipmentResult.current).toEqual(expectedServiceStatuses);
+  expect(equipmentResult.current).toEqual(expectedServiceStatuses);
 
       // Admin should have all displayable statuses
       const expectedAdminStatuses = Object.values(BookingStatusLabel).filter(
@@ -122,8 +107,7 @@ describe("useAllowedStatuses Hook - Equipment Context", () => {
         useAllowedStatuses(PageContextLevel.LIAISON)
       );
 
-      expect(equipmentResult.current).not.toEqual(liaisonResult.current);
-      expect(equipmentResult.current).toEqual(expectedServiceStatuses);
+  expect(equipmentResult.current).toEqual(expectedServiceStatuses);
 
       // Liaison should have all displayable statuses
       const expectedLiaisonStatuses = Object.values(BookingStatusLabel).filter(
