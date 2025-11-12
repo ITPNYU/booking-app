@@ -532,7 +532,7 @@ export const processCancelBooking = async (
       : "";
 
   console.log(
-    `🔍 CANCEL PROCESSING CHECK [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+    "🔍 CANCEL PROCESSING CHECK [%s]:", tenant?.toUpperCase() || "UNKNOWN",
     {
       calendarEventId: id,
       hasNoShowLog,
