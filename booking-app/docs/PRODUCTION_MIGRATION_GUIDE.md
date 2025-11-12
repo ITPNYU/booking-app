@@ -8,60 +8,60 @@ The current Production environment does not have XState or multi-tenant function
 
 The following collections need to be created in the Production database:
 
-### 1. **mc-bookings** (Required)
+### 1. **mc-bookings**
 
 - Media Commons version of the existing `bookings` collection
 - Stores booking information including XState snapshot data
 
-### 2. **mc-bookingLogs** (Required)
+### 2. **mc-bookingLogs**
 
 - Records booking history and change logs
 - Tracks approval flows, status changes, etc.
 
-### 3. **mc-bookingTypes** (Required)
+### 3. **mc-bookingTypes**
 
 - Booking types (Class Session, General Event, Meeting, Workshop, etc.)
 - List of types users can select when making a booking
 
-### 4. **mc-usersApprovers** (Required)
+### 4. **mc-usersApprovers**
 
 - List of approvers
 - Approver information for level 1 (Liaison), level 2 (Admin), level 3 (Services)
 - Contains department, email, level fields
 
-### 5. **mc-usersRights** (Required)
+### 5. **mc-usersRights**
 
 - User permission management
 - Permission flags like isAdmin, isLiaison, isWorker
 
-### 6. **mc-usersWhitelist** (Required)
+### 6. **mc-usersWhitelist**
 
 - List of users who have completed Safety Training
 - Required to book certain rooms
 
-### 7. **mc-operationHours** (Recommended)
+### 7. **mc-operationHours**
 
 - Facility operation hours settings
 - Opening and closing times for each day of the week
 
-### 8. **mc-blackoutPeriods** (Recommended)
+### 8. **mc-blackoutPeriods**
 
 - Settings for unbookable periods
 - Maintenance periods, holiday periods, etc.
 
-### 9. **mc-preBanLogs** (Recommended)
+### 9. **mc-preBanLogs**
 
 - User penalty logs
 - Records of No-shows, Late cancels, etc.
 
-### 10. **mc-counters** (Required)
+### 10. **mc-counters**
 
 - Sequential ID counters for booking numbers, etc.
 - Has a `count` field in the `bookings` document
 
 ## Tenant-Shared Collections (No mc-prefix)
 
-### 11. **tenantSchema** (Required)
+### 11. **tenantSchema**
 
 - Collection storing tenant configurations
 - Document ID: `mc` or `mediaCommons`
@@ -76,18 +76,7 @@ The following collections need to be created in the Production database:
 
 ## Release Procedure
 
-### Phase 1: Preparation
-
-#### 1.1 Verify Environment Variables on Production deployment workflow
-
-```bash
-# Confirm the following are set in deploy_production_app_engine.yml
-FIREBASE_PROJECT_ID=your-project-id
-FIREBASE_CLIENT_EMAIL=your-service-account@...
-FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n..."
-```
-
-### Phase 2: Create Tenant Schema
+### Phase 1: Create Tenant Schema
 
 #### 2.1 Copy Tenant Schema to Production
 
@@ -99,13 +88,22 @@ node scripts/copyCollection.js \
   --target-collection tenantSchema
 ```
 
-### Phase 3: Create mc-Collections and Migrate Data
+### Phase 2: Create mc-Collections and Migrate Data
 
 #### 3.1 Execute All Collection Copy Commands
 
 Run the following commands in sequence. Each command copies data from existing collections to the new mc-prefixed collections.
 
 **Step 1: Copy existing tabel to mc-**
+
+```bash
+# Copy approver data
+node scripts/copyCollection.js \
+  --source-database development \
+  --target-database production \
+  --source-collection usersApprovers \
+  --target-collection mc-usersApprovers
+```
 
 ```bash
 # Migrate existing booking data to mc-bookings
@@ -122,15 +120,6 @@ node scripts/copyCollection.js \
   --target-database production \
   --source-collection bookingTypes \
   --target-collection mc-bookingTypes
-```
-
-```bash
-# Copy approver data
-node scripts/copyCollection.js \
-  --source-database development \
-  --target-database production \
-  --source-collection usersApprovers \
-  --target-collection mc-usersApprovers
 ```
 
 ```bash
@@ -176,22 +165,16 @@ node scripts/copyCollection.js \
 **Step 1: Find the highest requestNumber in existing bookings**
 
 1. Go to Firebase Console → Firestore Database
-2. Open the `bookings` or `mc-bookings` collection
-3. Sort by `requestNumber` field (descending)
-4. Note the highest `requestNumber` value (e.g., 12500)
+2. Open the `counters` collection
+3. Note the value (e.g., 1250)
 
 **Step 2: Create mc-counters collection with initial value**
 
 In Firebase Console:
 
 1. Go to Firestore Database
-2. Click "Start collection"
-3. Collection ID: `mc-counters`
-4. Document ID: `bookings`
-5. Add field:
-   - Field name: `count`
-   - Field type: `number`
-   - Value: `[MAX_REQUEST_NUMBER + 1]` (e.g., if max is 12500, set to 12501)
+2. Click `mc-counters`
+3. Update value
 
 #### 3.3 Create Empty Collections for Logs
 
@@ -228,30 +211,13 @@ Run this verification checklist in Firebase Console:
 
 ### Phase 5: Application Deployment
 
-#### 5.1 Set Environment Variables (Vercel/Production Environment)
+#### 5.1 Deployment
 
-```bash
-# Set the following environment variables in Production environment
-DEFAULT_TENANT=mc
-FIREBASE_PROJECT_ID=your-project-id
-FIREBASE_CLIENT_EMAIL=your-service-account@...
-FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n..."
-```
+1. Create a pull request from main to prod.
+2. Merge the pull request.
+3. Verify that the “Deploy PRODUCTION to App Engine” workflow has completed successfully.
 
-#### 5.2 Deploy Code
-
-```bash
-# Merge branch to main
-git checkout main
-git merge update-services-closedout-logic
-git push origin main
-
-# Vercel will automatically deploy
-# Or manual deployment
-vercel --prod
-```
-
-#### 5.3 Post-Deployment Verification
+#### 5.2 Post-Deployment Verification
 
 1. Access https://flowing-mantis-389917.uc.r.appspot.com/
 2. Verify tenant schema is loaded correctly
@@ -285,54 +251,10 @@ vercel --prod
 
 ### Phase 7: Rollback Procedure (If Issues Occur)
 
-```bash
-# 1. Revert to previous version
-git revert HEAD
-git push origin main
+Revert the pull request previously merged into prod.
 
-# 2. Rollback to previous deployment in Vercel
-# Or
-vercel rollback
-
-# 3. Restore data from backup if necessary
-node scripts/copyCollection.js \
-  --source-database production \
-  --target-database production \
-  --source-collection bookings_backup_YYYYMMDD \
-  --target-collection bookings
-```
-
-## Quick Copy Command Reference
-
-For easy copy-paste, here are all the copy commands in sequence:
-
-```bash
-# 1. Tenant Schema
-node scripts/copyCollection.js --source-database development --target-database production --source-collection tenantSchema --target-collection tenantSchema
-
-# 2. Bookings
-node scripts/copyCollection.js --source-database production --target-database production --source-collection bookings --target-collection mc-bookings
-
-# 3. Booking Types
-node scripts/copyCollection.js --source-database development --target-database production --source-collection bookingTypes --target-collection mc-bookingTypes
-
-# 4. User Approvers
-node scripts/copyCollection.js --source-database development --target-database production --source-collection usersApprovers --target-collection mc-usersApprovers
-
-# 5. User Rights
-node scripts/copyCollection.js --source-database development --target-database production --source-collection usersRights --target-collection mc-usersRights
-
-# 6. Safety Whitelist
-node scripts/copyCollection.js --source-database development --target-database production --source-collection usersWhitelist --target-collection mc-usersWhitelist
-
-# 7. Operation Hours (optional)
-node scripts/copyCollection.js --source-database development --target-database production --source-collection operationHours --target-collection mc-operationHours
-
-# 8. Blackout Periods (optional)
-node scripts/copyCollection.js --source-database development --target-database production --source-collection blackoutPeriods --target-collection mc-blackoutPeriods
-```
-
-**Note**: After running all copy commands, manually create the `mc-counters` collection in Firebase Console as described in Phase 3.2.
+1. 2. Open the merged PR on GitHub → click “Revert” → create a revert PR into prod.
+2. Merge the revert PR into prod.
 
 ## Important Notes
 
@@ -359,8 +281,6 @@ node scripts/copyCollection.js --source-database development --target-database p
 - [ ] All mc-collections created
 - [ ] mc-counters initialized with correct value
 - [ ] Approvers and permission users configured
-- [ ] Staging environment testing completed
-- [ ] Environment variables set in production
 
 ### After Release:
 
@@ -417,5 +337,3 @@ If you encounter issues during migration:
 3. Verify environment variables are set correctly
 4. Check `mc-counters` initialization
 5. Confirm tenant schema is correctly formatted
-
-For questions or issues, refer to the related files listed above or contact the development team.
