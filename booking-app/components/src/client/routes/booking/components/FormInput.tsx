@@ -178,6 +178,18 @@ export default function FormInput({
   const [showEquipmentServices, setShowEquipmentServices] = useState(false);
   const [showStaffingServices, setShowStaffingServices] = useState(false);
 
+  // Initialize service toggles based on existing form data (for modification forms)
+  useEffect(() => {
+    if (formData) {
+      if (formData.equipmentServices && formData.equipmentServices.length > 0) {
+        setShowEquipmentServices(true);
+      }
+      if (formData.staffingServices && formData.staffingServices.length > 0) {
+        setShowStaffingServices(true);
+      }
+    }
+  }, []); // Run only once on mount
+
   // agreements, skip for walk-ins
   const [checkedAgreements, setCheckedAgreements] = useState<
     Record<string, boolean>
@@ -776,46 +788,181 @@ export default function FormInput({
         />
       </Section>
       <Section title="Services">
-        <div style={{ marginBottom: 32 }}>
-          <BookingFormEquipmentServices
-            id="equipmentServices"
-            {...{
-              control,
-              trigger,
-              showEquipmentServices,
-              setShowEquipmentServices,
-              formContext,
-            }}
-          />
-          {watch("equipmentServices") !== undefined &&
-            watch("equipmentServices").length > 0 && (
+        {showSetup && (
+          <div style={{ marginBottom: 32 }}>
+            <BookingFormSwitch
+              id="roomSetup"
+              label="Setup?"
+              required={false}
+              description={
+                <p>
+                  This field is for requesting a room setup that requires hiring
+                  CBS through a work order.
+                </p>
+              }
+              {...{ control, errors, trigger }}
+            />
+            {watch("roomSetup") === "yes" && (
+              <>
+                <BookingFormTextField
+                  id="setupDetails"
+                  label="Room Setup Details"
+                  description="Please specify the number of chairs, tables, and your preferred room configuration."
+                  {...{ control, errors, trigger }}
+                />
+                <BookingFormTextField
+                  id="chartFieldForRoomSetup"
+                  label="ChartField for Room Setup"
+                  {...{ control, errors, trigger }}
+                />
+              </>
+            )}
+          </div>
+        )}
+        {showEquipment && (
+          <div style={{ marginBottom: 32 }}>
+            <BookingFormEquipmentServices
+              id="equipmentServices"
+              {...{
+                control,
+                trigger,
+                showEquipmentServices,
+                setShowEquipmentServices,
+                formContext,
+              }}
+            />
+            {watch("equipmentServices") !== undefined &&
+              watch("equipmentServices").length > 0 && (
+                <BookingFormTextField
+                  id="equipmentServicesDetails"
+                  label="Equipment Services Details"
+                  description={
+                    <p>
+                      If you selected Equipment Services above, please describe
+                      your needs in detail.
+                      <br />
+                      If you need to check out equipment, you can check our
+                      inventory and include your request below. (Ie. 2x Small
+                      Mocap Suits)
+                      <br />-{" "}
+                      <a
+                        href="https://sites.google.com/nyu.edu/370jmediacommons/rental-inventory"
+                        target="_blank"
+                        className="text-blue-600 hover:underline dark:text-blue-500 mx-1"
+                      >
+                        Media Commons Inventory
+                      </a>
+                      <br />
+                    </p>
+                  }
+                  {...{ control, errors, trigger }}
+                />
+              )}
+          </div>
+        )}
+        {showStaffing && (
+          <div style={{ marginBottom: 32 }}>
+            <BookingFormStaffingServices
+              id="staffingServices"
+              {...{
+                control,
+                trigger,
+                showStaffingServices,
+                setShowStaffingServices,
+                formContext,
+              }}
+            />
+            {watch("staffingServices") !== undefined &&
+              watch("staffingServices").length > 0 && (
+                <BookingFormTextField
+                  id="staffingServicesDetails"
+                  label="Staffing Services Details"
+                  description={
+                    <p>
+                      If you selected any Staffing Services above, please
+                      describe your needs in detail.
+                      <br />
+                      Please specify the type of technical support you require
+                      and any specific requirements for your event.
+                    </p>
+                  }
+                  {...{ control, errors, trigger }}
+                />
+              )}
+          </div>
+        )}
+        {showCatering && (
+          <div style={{ marginBottom: 32 }}>
+            <BookingFormSwitch
+              id="catering"
+              label="Catering?"
+              description={<p>Select if you need catering for your event.</p>}
+              required={false}
+              {...{ control, errors, trigger }}
+            />
+            {watch("catering") === "yes" && (
+              <>
+                <BookingFormDropdown
+                  id="cateringService"
+                  label="Catering Service"
+                  options={["Outside Catering", "NYU Plated"]}
+                  {...{ control, errors, trigger }}
+                />
+                <BookingFormTextField
+                  id="chartFieldForCatering"
+                  label="ChartField for Catering Services"
+                  {...{ control, errors, trigger }}
+                />
+              </>
+            )}
+          </div>
+        )}
+        {showCleaning && (
+          <div style={{ marginBottom: 32 }}>
+            <BookingFormSwitch
+              id="cleaningService"
+              label="Cleaning?"
+              description={
+                <p>Select if you need cleaning services for your event.</p>
+              }
+              required={false}
+              {...{ control, errors, trigger }}
+            />
+            {watch("cleaningService") === "yes" && (
               <BookingFormTextField
-                id="equipmentServicesDetails"
-                label="Equipment Services Details"
+                id="chartFieldForCleaning"
+                label="ChartField for CBS Cleaning Services"
                 {...{ control, errors, trigger }}
               />
             )}
-        </div>
-        <div style={{ marginBottom: 32 }}>
-          <BookingFormStaffingServices
-            id="staffingServices"
-            {...{
-              control,
-              trigger,
-              showStaffingServices,
-              setShowStaffingServices,
-              formContext,
-            }}
-          />
-          {watch("staffingServices") !== undefined &&
-            watch("staffingServices").length > 0 && (
+          </div>
+        )}
+        {showHireSecurity && (
+          <div style={{ marginBottom: 32 }}>
+            <BookingFormSwitch
+              id="hireSecurity"
+              label="Security?"
+              required={false}
+              description={
+                <p>
+                  Only for large events with 75+ attendees, and bookings in The
+                  Garage where the Willoughby entrance will be in use. It is
+                  required for the reservation holder to provide a chartfield so
+                  that the Media Commons Team can obtain Campus Safety Security
+                  Services.
+                </p>
+              }
+              {...{ control, errors, trigger }}
+            />
+            {watch("hireSecurity") === "yes" && (
               <BookingFormTextField
-                id="staffingServicesDetails"
-                label="Staffing Services Details"
+                id="chartFieldForSecurity"
+                label="ChartField for Security"
                 {...{ control, errors, trigger }}
               />
             )}
-        </div>
+          </div>
+        )}
       </Section>
       <Button type="submit" disabled={!isValid} variant="contained">
         Submit
