@@ -94,7 +94,7 @@ node scripts/copyCollection.js \
 
 Run the following commands in sequence. Each command copies data from existing collections to the new mc-prefixed collections.
 
-**Step 1: Copy existing tabel to mc-**
+**Step 1: Copy existing table to mc-**
 
 ```bash
 # Copy approver data
@@ -253,7 +253,7 @@ Run this verification checklist in Firebase Console:
 
 Revert the pull request previously merged into prod.
 
-1. 2. Open the merged PR on GitHub → click “Revert” → create a revert PR into prod.
+1. Open the merged PR on GitHub → click “Revert” → create a revert PR into prod.
 2. Merge the revert PR into prod.
 
 ## Important Notes
