@@ -69,7 +69,7 @@ vi.mock(
 vi.mock(
   "@/components/src/client/routes/booking/hooks/useCheckFormMissingData",
   () => ({
-    default: () => {},
+    default: () => null,
   })
 );
 
