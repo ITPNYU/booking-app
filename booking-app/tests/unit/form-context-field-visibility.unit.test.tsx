@@ -4,7 +4,7 @@ import { DatabaseContext } from "@/components/src/client/routes/components/Provi
 import { SchemaProvider } from "@/components/src/client/routes/components/SchemaProvider";
 import { FormContextLevel } from "@/components/src/types";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { useParams, useRouter } from "next/navigation";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
