@@ -26,8 +26,8 @@ The following collections need to be created in the Production database:
 ### 4. **mc-usersApprovers**
 
 - List of approvers
-- Approver information for level 1 (Liaison), level 2 (Admin), level 3 (Services)
-- Contains department, email, level fields
+- Approver information for Liaisons
+- Contains department, email
 
 ### 5. **mc-usersRights**
 
@@ -36,7 +36,7 @@ The following collections need to be created in the Production database:
 
 ### 6. **mc-usersWhitelist**
 
-- List of users who have completed Safety Training
+- List of users for whom training prerequisites do not apply
 - Required to book certain rooms
 
 ### 7. **mc-operationHours**
@@ -64,7 +64,7 @@ The following collections need to be created in the Production database:
 ### 11. **tenantSchema**
 
 - Collection storing tenant configurations
-- Document ID: `mc` or `mediaCommons`
+- Document ID: `mc`, `itp`, etc.
 - Includes:
   - tenant name, logo, policy
   - resources (room/equipment information)
@@ -78,7 +78,7 @@ The following collections need to be created in the Production database:
 
 ### Phase 1: Create Tenant Schema
 
-#### 2.1 Copy Tenant Schema to Production
+#### 1.1 Copy Tenant Schema to Production
 
 ```bash
 node scripts/copyCollection.js \
@@ -95,15 +95,6 @@ node scripts/copyCollection.js \
 Run the following commands in sequence. Each command copies data from existing collections to the new mc-prefixed collections.
 
 **Step 1: Copy existing table to mc-**
-
-```bash
-# Copy approver data
-node scripts/copyCollection.js \
-  --source-database development \
-  --target-database production \
-  --source-collection usersApprovers \
-  --target-collection mc-usersApprovers
-```
 
 ```bash
 # Migrate existing booking data to mc-bookings
@@ -123,6 +114,15 @@ node scripts/copyCollection.js \
 ```
 
 ```bash
+# Copy approver data
+node scripts/copyCollection.js \
+  --source-database production \
+  --target-database production \
+  --source-collection usersApprovers \
+  --target-collection mc-usersApprovers
+```
+
+```bash
 # Copy user permission data
 node scripts/copyCollection.js \
   --source-database development \
@@ -134,7 +134,7 @@ node scripts/copyCollection.js \
 ```bash
 # Copy safety training user data
 node scripts/copyCollection.js \
-  --source-database development \
+  --source-database production \
   --target-database production \
   --source-collection usersWhitelist \
   --target-collection mc-usersWhitelist
@@ -143,7 +143,7 @@ node scripts/copyCollection.js \
 ```bash
 # Copy operation hours settings
 node scripts/copyCollection.js \
-  --source-database development \
+  --source-database production \
   --target-database production \
   --source-collection operationHours \
   --target-collection mc-operationHours
@@ -152,10 +152,19 @@ node scripts/copyCollection.js \
 ```bash
 # Copy blackout period settings
 node scripts/copyCollection.js \
-  --source-database development \
+  --source-database production \
   --target-database production \
   --source-collection blackoutPeriods \
   --target-collection mc-blackoutPeriods
+```
+
+```bash
+# Copy preBanLogs data
+node scripts/copyCollection.js \
+  --source-database production \
+  --target-database production \
+  --source-collection preBanLogs \
+  --target-collection mc-preBanLogs
 ```
 
 #### 3.2 Initialize mc-counters Collection
@@ -176,25 +185,7 @@ In Firebase Console:
 2. Click `mc-counters`
 3. Update value
 
-#### 3.3 Create Empty Collections for Logs
-
-The following collections will be automatically populated but can be initialized as empty:
-
-**mc-bookingLogs** (will be created automatically from new bookings):
-
-```bash
-# No action needed - this collection will be created automatically
-# when the first booking creates a log entry
-```
-
-**mc-preBanLogs** (for future penalty records):
-
-```bash
-# No action needed - this collection will be created automatically
-# when the first penalty is recorded
-```
-
-#### 3.4 Verification After All Copies
+#### 3.3 Verification After All Copies
 
 Run this verification checklist in Firebase Console:
 
@@ -204,8 +195,8 @@ Run this verification checklist in Firebase Console:
 - [ ] `mc-usersApprovers` collection exists and has data
 - [ ] `mc-usersRights` collection exists and has data
 - [ ] `mc-usersWhitelist` collection exists and has data
-- [ ] `mc-operationHours` collection exists (if applicable)
-- [ ] `mc-blackoutPeriods` collection exists (if applicable)
+- [ ] `mc-operationHours` collection exists and has data
+- [ ] `mc-blackoutPeriods` collection exists and has data
 - [ ] `mc-counters` collection exists with correct `bookings` document
 - [ ] `mc-counters/bookings` has `count` field set to max requestNumber + 1
 
@@ -228,9 +219,9 @@ Run this verification checklist in Firebase Console:
 
 #### 6.1 Basic Functionality Tests
 
-- [ ] Create new bookings (Walk-in, VIP, Regular)
+- [ ] Create new bookings (User, Walk-in, VIP)
 - [ ] Approval flow (Liaison → Admin)
-- [ ] Service request approval
+- [ ] Approval flow (Liaison → Admin → Service(s) request(s))
 - [ ] Booking cancellation
 - [ ] Check-in / Check-out
 
@@ -268,17 +259,13 @@ Revert the pull request previously merged into prod.
    - Always set the initial count to be higher than the maximum existing requestNumber
    - The counter is automatically incremented by `serverGetNextSequentialId()` function when creating new bookings
 
-4. **Approver Setup**: Configure at least one level 2 (Admin) approver in `mc-usersApprovers`.
-
-5. **Auto-checkout**: Configure `/api/bookings/auto-checkout` to run periodically (Vercel Cron Jobs).
-
 ## Checklist
 
 ### Before Release:
 
 - [ ] Backup completed
-- [ ] Tenant schema created in development
-- [ ] All mc-collections created
+- [x] Tenant schema created in development
+- [x] All mc-collections created
 - [ ] mc-counters initialized with correct value
 - [ ] Approvers and permission users configured
 
@@ -305,23 +292,23 @@ Revert the pull request previously merged into prod.
 
 Collections are prefixed with tenant identifiers (e.g., `mc-bookings`) as defined in `getTenantCollectionName()` function in `components/src/policy.ts`. The following collections are tenant-specific:
 
-- bookings
+- blackoutPeriods
 - bookingLogs
 - bookingTypes
-- blackoutPeriods
+- bookings
 - counters
 - operationHours
 - preBanLogs
-- usersWhitelist
 - usersApprovers
 - usersRights
+- usersWhitelist
 
 ### XState Integration
 
 The system uses XState v5 for state management:
 
 - **mcBookingMachine**: Handles Media Commons booking workflows with service requests
-- **itpBookingMachine**: Handles ITP booking workflows
+- **itpBookingMachine**: Handles ITP booking workflows with service requests
 - **Automatic Restoration**: Bookings without XState data are automatically migrated on access
 
 ### Service Request Workflow
@@ -333,7 +320,7 @@ Media Commons supports additional service requests (equipment, staffing, caterin
 If you encounter issues during migration:
 
 1. Check Firebase Console for collection existence and data
-2. Review application logs in Vercel
+2. Review application logs
 3. Verify environment variables are set correctly
 4. Check `mc-counters` initialization
 5. Confirm tenant schema is correctly formatted
