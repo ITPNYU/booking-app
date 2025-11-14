@@ -110,7 +110,7 @@ export default function WalkInLandingPage({
           variant="contained"
           color="primary"
           onClick={() =>
-            router.push(isVIP ? `/${tenant}/vip/role` : `/${tenant}/walk-in/role`)
+            router.push(isVIP ? `/${tenant}/vip/role` : `/${tenant}/walk-in/netid`)
           }
           sx={{
             alignSelf: "center",
