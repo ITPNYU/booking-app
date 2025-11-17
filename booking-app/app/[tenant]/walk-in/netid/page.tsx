@@ -46,13 +46,13 @@ export default function WalkInNetIdPage() {
 
   const onSubmit = (data: Inputs) => {
     const netId = (data.walkInNetId || "").trim().toLowerCase();
-    
+
     // Basic validation
     if (!netId) {
       setError("Please enter a NetID");
       return;
     }
-    
+
     // Check if it looks like a valid NetID (alphanumeric, no @ symbol)
     if (netId.includes("@")) {
       setError("Please enter only the NetID without @nyu.edu");
@@ -80,11 +80,7 @@ export default function WalkInNetIdPage() {
         width={{ xs: "100%", md: "50%" }}
       >
         <Typography fontWeight={500} marginBottom={2} variant="h6">
-          Walk-In Visitor Information
-        </Typography>
-        
-        <Typography variant="body2" color="text.secondary" marginBottom={3} textAlign="center">
-          Enter the NetID of the person using the space (not the PA making the booking)
+          Walk-In NetID
         </Typography>
 
         {error && (
@@ -93,10 +89,18 @@ export default function WalkInNetIdPage() {
           </Alert>
         )}
 
-        <form onSubmit={handleSubmit(onSubmit)} style={{ width: "100%" }}>
+        <form
+          onSubmit={handleSubmit(onSubmit)}
+          style={{
+            width: "100%",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+          }}
+        >
           <BookingFormTextField
             id="walkInNetId"
-            label="Walk-In NetID"
+            label="NetID"
             containerSx={{ marginBottom: 2, width: "100%" }}
             fieldSx={{}}
             control={control}
@@ -108,12 +112,11 @@ export default function WalkInNetIdPage() {
               message: "NetID should only contain letters and numbers",
             }}
           />
-          
+
           <Button
             type="submit"
             variant="contained"
             color="primary"
-            fullWidth
             sx={{ marginTop: 2 }}
           >
             Next
@@ -123,4 +126,3 @@ export default function WalkInNetIdPage() {
     </Center>
   );
 }
-
