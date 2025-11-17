@@ -51,8 +51,7 @@ export default function WalkInNetIdPage() {
     setFormData({
       ...formData,
       walkInNetId: netId,
-      // Also set netId for compatibility with existing code
-      netId: netId,
+      // netId is intentionally not set here; for walk-in bookings, walkInNetId represents the visitor's NetID.
     } as any);
 
     // Navigate to role page
