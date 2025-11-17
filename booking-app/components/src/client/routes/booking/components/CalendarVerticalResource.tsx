@@ -416,6 +416,7 @@ export default function CalendarVerticalResource({
         data-testid="booking-calendar"
         initialDate={dateView}
         initialView="resourceTimeGridDay"
+        timeZone="America/New_York"
         plugins={[
           resourceTimeGridPlugin,
           googleCalendarPlugin,
