@@ -67,7 +67,7 @@ export async function GET(request: NextRequest) {
       console.error(`NYU Identity API call failed: ${response.status}`);
       // If Identity API fails, show both tenants
       return NextResponse.json({
-        tenants: ["mc", "itp"],
+        tenants: ["mc"],
         error: `NYU Identity API call failed: ${response.status}`,
       });
     }
@@ -99,7 +99,7 @@ export async function GET(request: NextRequest) {
     // If no mapping found, grant access to both tenants
     // This ensures users who don't have a department code can still access the system
     if (accessibleTenants.length === 0) {
-      accessibleTenants.push("mc", "itp");
+      accessibleTenants.push("mc");
     }
 
     // Determine which programMapping to use for display
