@@ -47,18 +47,6 @@ export default function WalkInNetIdPage() {
   const onSubmit = (data: Inputs) => {
     const netId = (data.walkInNetId || "").trim().toLowerCase();
 
-    // Basic validation
-    if (!netId) {
-      setError("Please enter a NetID");
-      return;
-    }
-
-    // Check if it looks like a valid NetID (alphanumeric, no @ symbol)
-    if (netId.includes("@")) {
-      setError("Please enter only the NetID without @nyu.edu");
-      return;
-    }
-
     // Store the walkInNetId in formData
     setFormData({
       ...formData,
