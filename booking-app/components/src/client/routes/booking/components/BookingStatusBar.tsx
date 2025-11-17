@@ -1,4 +1,4 @@
-import { Check, ChevronLeft, ChevronRight, Info } from "@mui/icons-material";
+import { Check, ChevronLeft, ChevronRight } from "@mui/icons-material";
 import {
   Alert,
   AlertColor,
@@ -7,7 +7,6 @@ import {
   Tooltip,
   useMediaQuery,
   useTheme,
-  Typography,
 } from "@mui/material";
 import React, { useContext } from "react";
 
@@ -37,7 +36,10 @@ const NavGrid = styled(Box)`
 export default function BookingStatusBar({ formContext, ...props }: Props) {
   const isWalkIn = formContext === FormContextLevel.WALK_IN;
   const isVIP = formContext === FormContextLevel.VIP;
-  const { isAutoApproval, errorMessage } = useCheckAutoApproval(isWalkIn, isVIP);
+  const { isAutoApproval, errorMessage } = useCheckAutoApproval(
+    isWalkIn,
+    isVIP
+  );
   const { durationError } = useCheckDurationLimits(isWalkIn, isVIP);
   const {
     bookingCalendarInfo,
@@ -141,7 +143,10 @@ export default function BookingStatusBar({ formContext, ...props }: Props) {
         btnDisabledMessage: `Duration exceeds maximum allowed for your role (${durationError.maxDuration} hours)`,
         message: (
           <p>
-            Event duration ({durationError.currentDuration.toFixed(1)} hours) exceeds the maximum allowed duration ({durationError.maxDuration} hours) for {durationError.roomName} based on your {durationError.role} role. Please select a shorter time slot.
+            Event duration ({durationError.currentDuration.toFixed(1)} hours)
+            exceeds the maximum allowed duration ({durationError.maxDuration}{" "}
+            hours) for {durationError.roomName} based on your{" "}
+            {durationError.role} role. Please select a shorter time slot.
           </p>
         ),
         severity: "error",
@@ -151,7 +156,14 @@ export default function BookingStatusBar({ formContext, ...props }: Props) {
       return {
         btnDisabled: true,
         btnDisabledMessage: errorMessage,
-        message: <p>{errorMessage}</p>,
+        message: (
+          <p>
+            This request will require approval.{" "}
+            <Tooltip title={errorMessage}>
+              <a>Why?</a>
+            </Tooltip>
+          </p>
+        ),
         severity: "error",
       };
     }

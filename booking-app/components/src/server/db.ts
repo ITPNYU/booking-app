@@ -487,8 +487,11 @@ export const processCancelBooking = async (
   tenant?: string
 ): Promise<void> => {
   // Import server-side functions and admin SDK
-  const { serverGetDataByCalendarEventId, serverUpdateInFirestore } =
-    await import("@/lib/firebase/server/adminDb");
+  const {
+    serverGetDataByCalendarEventId,
+    serverUpdateInFirestore,
+    serverFetchAllDataFromCollection,
+  } = await import("@/lib/firebase/server/adminDb");
   const admin = await import("firebase-admin");
 
   // Get booking document first to get the document ID
@@ -505,13 +508,48 @@ export const processCancelBooking = async (
     return;
   }
 
+  // Check if this is an automatic transition from No Show or Decline
+  // by checking booking logs for NO-SHOW or DECLINED status
+  const bookingLogs = await serverFetchAllDataFromCollection(
+    TableNames.BOOKING_LOGS,
+    [{ field: "calendarEventId", operator: "==", value: id }],
+    tenant
+  );
+
+  const hasNoShowLog = bookingLogs.some(
+    (log: any) => log.status === BookingStatusLabel.NO_SHOW
+  );
+  const hasDeclinedLog = bookingLogs.some(
+    (log: any) => log.status === BookingStatusLabel.DECLINED
+  );
+  const isAutomaticTransition = hasNoShowLog || hasDeclinedLog;
+
+  const changedBy = isAutomaticTransition ? "System" : email;
+  const note = hasNoShowLog
+    ? "Canceled due to no show"
+    : hasDeclinedLog
+      ? "Canceled due to decline"
+      : "";
+
+  console.log(
+    "🔍 CANCEL PROCESSING CHECK [%s]:", tenant?.toUpperCase() || "UNKNOWN",
+    {
+      calendarEventId: id,
+      hasNoShowLog,
+      hasDeclinedLog,
+      isAutomaticTransition,
+      changedBy,
+      note,
+    }
+  );
+
   // Update Firestore booking document using server-side Timestamp
   await serverUpdateInFirestore(
     TableNames.BOOKING,
     doc.id,
     {
       canceledAt: admin.firestore.Timestamp.now(),
-      canceledBy: email,
+      canceledBy: changedBy,
     },
     tenant
   );
@@ -530,12 +568,24 @@ export const processCancelBooking = async (
       {
         calendarEventId: id,
         status: BookingStatusLabel.CANCELED,
-        changedBy: email,
+        changedBy,
         changedAt: admin.firestore.Timestamp.now(),
-        note: "",
+        note,
         requestNumber: doc.requestNumber,
       },
       tenant
+    );
+
+    console.log(
+      `📋 CANCEL BOOKING LOG CREATED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+      {
+        calendarEventId: id,
+        changedBy,
+        hasNoShowLog,
+        hasDeclinedLog,
+        isAutomaticTransition,
+        note,
+      }
     );
   }
 
