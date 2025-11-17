@@ -42,11 +42,8 @@ export const Header = ({ formContext }: Props) => {
 
     switch (step) {
       case "selectRoom":
-        if (formContext === FormContextLevel.MODIFICATION) return () => {};
-        if (formContext === FormContextLevel.WALK_IN) {
+          if (formContext === FormContextLevel.MODIFICATION) return () => {};
           return () => router.push(`/${tenant}/${formContext}/role/${idSegment}`);
-        }
-        return () => router.push(`/${tenant}/${formContext}/role/${idSegment}`);
       case "form":
         return () => router.push(`/${tenant}/${formContext}/selectRoom/${idSegment}`);
       case "role":
