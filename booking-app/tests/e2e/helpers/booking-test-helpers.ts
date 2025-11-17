@@ -387,7 +387,7 @@ export class BookingTestHelper {
     await this.page.getByRole("button", { name: "I accept" }).click();
 
     const currentUrl = this.page.url();
-    if (!/\/mc\/(walk-in\/(netid|role)|vip\/role|book\/role)$/.test(currentUrl)) {
+    if (!/\/mc\/(walk-in\/|vip\/)?book\/role$/.test(currentUrl)) {
       if (currentUrl.endsWith("/mc") || currentUrl.endsWith("/mc/")) {
         await this.page
           .getByRole("button", { name: /Request a Reservation/i })
@@ -407,29 +407,7 @@ export class BookingTestHelper {
       }
     }
 
-    // For walk-in, wait for netid page first, then navigate to role page
-    if (options.isWalkIn) {
-      await this.page.waitForURL(/\/mc\/walk-in\/netid$/);
-    } else {
-      await this.page.waitForURL(/\/mc\/(vip\/)?book\/role$/);
-    }
-  }
-
-  async fillWalkInNetId(netId: string): Promise<void> {
-    // Fill in the walk-in person's NetID on the dedicated netid page
-    await this.page.waitForURL(/\/walk-in\/netid$/);
-    await this.page
-      .locator('input[name="walkInNetId"]')
-      .waitFor({ state: "visible" });
-    await this.page.locator('input[name="walkInNetId"]').fill(netId);
-    
-    await this.page
-      .getByRole("button", { name: "Next" })
-      .waitFor({ state: "visible" });
-    await this.page.getByRole("button", { name: "Next" }).click();
-    
-    // Wait for navigation to role page
-    await this.page.waitForURL(/\/walk-in\/role$/);
+    await this.page.waitForURL(/\/mc\/(walk-in\/|vip\/)?book\/role$/);
   }
 
   async fillBasicBookingForm(formData: BookingFormData): Promise<void> {
@@ -475,7 +453,7 @@ export class BookingTestHelper {
       .locator('textarea[name="description"]')
       .fill(formData.description);
 
-    // NetId for VIP bookings (walk-in now uses dedicated page)
+    // NetId for walk-in/VIP bookings
     if (formData.netId) {
       await this.page
         .locator('input[name="netId"]')
