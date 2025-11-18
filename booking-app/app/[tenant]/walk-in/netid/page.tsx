@@ -70,6 +70,10 @@ export default function WalkInNetIdPage() {
           Walk-In NetID
         </Typography>
 
+        <Typography variant="body2" color="text.secondary" marginBottom={3} textAlign="center">
+          Enter the NetID of the visitor using the space (not the requester's NetID)
+        </Typography>
+
         {error && (
           <Alert severity="error" sx={{ marginBottom: 2, width: "100%" }}>
             {error}
@@ -87,7 +91,7 @@ export default function WalkInNetIdPage() {
         >
           <BookingFormTextField
             id="walkInNetId"
-            label="NetID"
+            label="Walk-In NetID"
             containerSx={{ marginBottom: 2, width: "100%" }}
             fieldSx={{}}
             control={control}
