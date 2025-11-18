@@ -130,8 +130,10 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
 
       let email: string;
       setSubmitting("submitting");
-      if ((isWalkIn || isModification || isVIP) && data.netId) {
-        email = data.netId + "@nyu.edu";
+      if ((isWalkIn || isModification || isVIP) && (data.walkInNetId || data.netId)) {
+        // For walk-ins, use walkInNetId (the person using the space), not the PA's ID
+        const netIdToUse = data.walkInNetId || data.netId;
+        email = netIdToUse + "@nyu.edu";
       } else {
         email = userEmail || data.missingEmail;
       }

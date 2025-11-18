@@ -170,14 +170,14 @@ export default function useCheckAutoApproval(isWalkIn = false, isVIP = false) {
           );
           setIsAutoApproval(false);
           setErrorMessage(
-            "XState machine determined manual approval is required"
+            "This booking does not meet the auto-approval requirements"
           );
         }
       } catch (error) {
         console.error(`🚨 CLIENT-SIDE XSTATE ERROR [ITP]:`, error);
         // Fallback to traditional logic if XState fails
         setIsAutoApproval(false);
-        setErrorMessage("XState evaluation failed, manual approval required");
+        setErrorMessage("Unable to determine auto-approval eligibility");
       }
 
       return; // Exit early for ITP tenant

@@ -4,6 +4,7 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 const mockLogServerBookingChange = vi.fn();
 const mockServerGetDataByCalendarEventId = vi.fn();
 const mockServerUpdateDataByCalendarEventId = vi.fn();
+const mockServerUpdateInFirestore = vi.fn();
 const mockServerSaveDataToFirestore = vi.fn();
 const mockServerFetchAllDataFromCollection = vi.fn().mockResolvedValue([]);
 
@@ -25,6 +26,7 @@ vi.mock("@/lib/firebase/server/adminDb", () => ({
   logServerBookingChange: mockLogServerBookingChange,
   serverGetDataByCalendarEventId: mockServerGetDataByCalendarEventId,
   serverUpdateDataByCalendarEventId: mockServerUpdateDataByCalendarEventId,
+  serverUpdateInFirestore: mockServerUpdateInFirestore,
   serverSaveDataToFirestore: mockServerSaveDataToFirestore,
   serverFetchAllDataFromCollection: mockServerFetchAllDataFromCollection,
 }));
@@ -95,8 +97,10 @@ vi.mock("firebase/firestore", () => ({
 import { TableNames } from "@/components/src/policy";
 import { BookingStatusLabel } from "@/components/src/types";
 
-// Note: CANCELED history logging is now handled by processCancelBooking function
+// Note: CANCELED history logging is now handled by processCancelBooking function only
 // The XState handleStateTransitions no longer creates CANCELED logs to avoid duplication
+// processCancelBooking detects automatic transitions from No Show or Decline by querying
+// booking logs for NO-SHOW or DECLINED status, and attributes to "System" instead of user email
 
 // Helper function to simulate logBookingHistory action from mcBookingMachine
 const simulateLogBookingHistory = async (
@@ -140,8 +144,8 @@ describe("NO_SHOW System Attribution", () => {
   });
 
   describe("processCancelBooking Function", () => {
-    it("should attribute CANCELED transition to System when isAutomaticFromNoShow is true", async () => {
-      // Simulate processCancelBooking with isAutomaticFromNoShow = true
+    it("should attribute CANCELED transition to System when automatic from No Show", async () => {
+      // Simulate processCancelBooking with automatic transition from No Show
       const calendarEventId = "cal-event-123";
       const userEmail = "user@nyu.edu";
       
@@ -166,7 +170,33 @@ describe("NO_SHOW System Attribution", () => {
       });
     });
 
-    it("should attribute manual CANCELED transition to user when isAutomaticFromNoShow is false", async () => {
+    it("should attribute CANCELED transition to System when automatic from Decline", async () => {
+      // Simulate processCancelBooking with automatic transition from Decline
+      const calendarEventId = "cal-event-456";
+      const userEmail = "user@nyu.edu";
+      
+      // Mock the processCancelBooking logic
+      await mockLogServerBookingChange({
+        calendarEventId,
+        status: BookingStatusLabel.CANCELED,
+        changedBy: "System", // Should be System for automatic transitions
+        changedAt: { toDate: () => new Date("2025-01-01T10:00:00Z") },
+        note: "Canceled due to decline",
+        requestNumber: 123,
+      });
+
+      // Verify that the history log is created with "System" attribution
+      expect(mockLogServerBookingChange).toHaveBeenCalledWith({
+        calendarEventId,
+        status: BookingStatusLabel.CANCELED,
+        changedBy: "System",
+        changedAt: expect.any(Object),
+        note: "Canceled due to decline",
+        requestNumber: 123,
+      });
+    });
+
+    it("should attribute manual CANCELED transition to user", async () => {
       const calendarEventId = "cal-event-123";
       const userEmail = "admin@nyu.edu";
 
@@ -203,7 +233,7 @@ describe("NO_SHOW System Attribution", () => {
       await simulateLogBookingHistory(context, params);
 
       // mcBookingMachine logBookingHistory is only called for NO-SHOW status
-      // Automatic CANCELED transitions are handled by handleStateTransitions in xstateUtilsV5.ts
+      // Automatic CANCELED transitions are handled by processCancelBooking in db.ts
       expect(mockLogServerBookingChange).toHaveBeenCalledWith({
         bookingId: "booking-123",
         calendarEventId: "cal-event-123",
@@ -247,10 +277,11 @@ describe("NO_SHOW System Attribution", () => {
   });
 
   describe("Edge Cases", () => {
-    it("should handle different state transitions correctly using previousState logic", () => {
-      // The key insight is that automatic CANCELED transitions from NO_SHOW
-      // are detected by checking previousState === "No Show" in handleStateTransitions,
-      // not by parsing note content. This is more reliable and less error-prone.
+    it("should handle different state transitions correctly by checking booking logs", () => {
+      // The key insight is that automatic CANCELED transitions from NO_SHOW or DECLINED
+      // are detected by querying booking logs for NO-SHOW or DECLINED status entries
+      // in processCancelBooking, not by parsing note content, previousState, or timestamp fields.
+      // This is more reliable and less error-prone as it uses the actual history of state changes.
       expect(true).toBe(true); // Documentation test
     });
   });
@@ -263,6 +294,152 @@ describe("NO_SHOW System Attribution", () => {
       // Email content should indicate it was a system action for automatic transitions.
       expect(true).toBe(true); // Documentation test
     });
+  });
+});
+
+describe("processCancelBooking Integration Tests", () => {
+  const originalFetch = global.fetch;
+  let dbModule: typeof import("@/components/src/server/db");
+
+  beforeAll(async () => {
+    dbModule = await import("@/components/src/server/db");
+  });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockServerGetDataByCalendarEventId.mockResolvedValue({
+      id: "booking-123",
+      requestNumber: 123,
+      email: "user@nyu.edu",
+      startDate: { toDate: () => new Date("2025-01-05T10:00:00Z") },
+      endDate: { toDate: () => new Date("2025-01-05T12:00:00Z") },
+    });
+    mockServerFetchAllDataFromCollection.mockResolvedValue([]);
+    mockGetTenantEmailConfig.mockResolvedValue({
+      emailMessages: {
+        lateCancel: "Late cancellation notification",
+      },
+    });
+    
+    // Mock fetch for email sending and calendar updates
+    const fetchMock = vi.fn(async (input: any) => {
+      const url = typeof input === "string" ? input : input.url;
+      if (url.includes("/api/sendEmail") || url.includes("/api/calendarEvents")) {
+        return {
+          ok: true,
+          json: async () => ({ success: true }),
+        };
+      }
+      return {
+        ok: true,
+        json: async () => ({}),
+      };
+    });
+    global.fetch = fetchMock as any;
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+  });
+
+  it("should call processCancelBooking and attribute to System when NO-SHOW log exists", async () => {
+    // Mock booking logs with a NO-SHOW entry
+    mockServerFetchAllDataFromCollection.mockResolvedValue([
+      {
+        calendarEventId: "cal-event-123",
+        status: BookingStatusLabel.NO_SHOW,
+        changedBy: "staff@nyu.edu",
+        changedAt: { toDate: () => new Date("2025-01-01T09:00:00Z") },
+      },
+    ]);
+
+    await dbModule.processCancelBooking(
+      "cal-event-123",
+      "staff@nyu.edu",
+      "staff123",
+      "mc"
+    );
+
+    // Verify that booking logs were queried
+    expect(mockServerFetchAllDataFromCollection).toHaveBeenCalledWith(
+      TableNames.BOOKING_LOGS,
+      [{ field: "calendarEventId", operator: "==", value: "cal-event-123" }],
+      "mc"
+    );
+
+    // Verify that the cancel log was created with System attribution
+    expect(mockServerSaveDataToFirestore).toHaveBeenCalledWith(
+      TableNames.BOOKING_LOGS,
+      expect.objectContaining({
+        calendarEventId: "cal-event-123",
+        status: BookingStatusLabel.CANCELED,
+        changedBy: "System",
+        note: "Canceled due to no show",
+      }),
+      "mc"
+    );
+  });
+
+  it("should call processCancelBooking and attribute to System when DECLINED log exists", async () => {
+    // Mock booking logs with a DECLINED entry
+    mockServerFetchAllDataFromCollection.mockResolvedValue([
+      {
+        calendarEventId: "cal-event-456",
+        status: BookingStatusLabel.DECLINED,
+        changedBy: "admin@nyu.edu",
+        changedAt: { toDate: () => new Date("2025-01-01T09:00:00Z") },
+      },
+    ]);
+
+    await dbModule.processCancelBooking(
+      "cal-event-456",
+      "admin@nyu.edu",
+      "admin123",
+      "mc"
+    );
+
+    // Verify that the cancel log was created with System attribution
+    expect(mockServerSaveDataToFirestore).toHaveBeenCalledWith(
+      TableNames.BOOKING_LOGS,
+      expect.objectContaining({
+        calendarEventId: "cal-event-456",
+        status: BookingStatusLabel.CANCELED,
+        changedBy: "System",
+        note: "Canceled due to decline",
+      }),
+      "mc"
+    );
+  });
+
+  it("should call processCancelBooking and attribute to user when no NO-SHOW or DECLINED logs exist", async () => {
+    // Mock booking logs without NO-SHOW or DECLINED entries
+    mockServerFetchAllDataFromCollection.mockResolvedValue([
+      {
+        calendarEventId: "cal-event-789",
+        status: BookingStatusLabel.APPROVED,
+        changedBy: "staff@nyu.edu",
+        changedAt: { toDate: () => new Date("2025-01-01T09:00:00Z") },
+      },
+    ]);
+
+    await dbModule.processCancelBooking(
+      "cal-event-789",
+      "user@nyu.edu",
+      "user123",
+      "mc"
+    );
+
+    // Verify that the cancel log was created with user attribution
+    expect(mockServerSaveDataToFirestore).toHaveBeenCalledWith(
+      TableNames.BOOKING_LOGS,
+      expect.objectContaining({
+        calendarEventId: "cal-event-789",
+        status: BookingStatusLabel.CANCELED,
+        changedBy: "user@nyu.edu",
+        note: "",
+      }),
+      "mc"
+    );
   });
 });
 
