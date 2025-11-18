@@ -3,9 +3,10 @@
 import { Box, Button, Typography, Alert } from "@mui/material";
 import { styled } from "@mui/material/styles";
 import { useRouter, useParams } from "next/navigation";
-import { useContext, useState } from "react";
+import { useContext, useState, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { BookingContext } from "@/components/src/client/routes/booking/bookingProvider";
+import { DatabaseContext } from "@/components/src/client/routes/components/Provider";
 import { BookingFormTextField } from "@/components/src/client/routes/booking/components/BookingFormInputs";
 import { Inputs } from "@/components/src/types";
 
@@ -27,9 +28,16 @@ const Container = styled(Box)(({ theme }) => ({
 
 export default function WalkInNetIdPage() {
   const { formData, setFormData } = useContext(BookingContext);
+  const { userEmail } = useContext(DatabaseContext);
   const router = useRouter();
   const { tenant } = useParams();
   const [error, setError] = useState<string | null>(null);
+
+  // Extract requester's netID from email (e.g., "abc123@nyu.edu" -> "abc123")
+  const requesterNetId = useMemo(() => {
+    if (!userEmail) return null;
+    return userEmail.split("@")[0].toLowerCase();
+  }, [userEmail]);
 
   const {
     control,
@@ -46,6 +54,12 @@ export default function WalkInNetIdPage() {
 
   const onSubmit = (data: Inputs) => {
     const netId = (data.walkInNetId || "").trim().toLowerCase();
+
+    // Validate that the visitor's NetID is not the same as the requester's NetID
+    if (requesterNetId && netId === requesterNetId) {
+      setError("The visitor's NetID cannot be the same as the requester's NetID");
+      return;
+    }
 
     // Store the walkInNetId in formData
     setFormData({
@@ -101,6 +115,14 @@ export default function WalkInNetIdPage() {
             pattern={{
               value: /^[a-zA-Z0-9]+$/,
               message: "NetID should only contain letters and numbers",
+            }}
+            validate={(value) => {
+              if (!value) return true; // Required validation is handled separately
+              const enteredNetId = value.trim().toLowerCase();
+              if (requesterNetId && enteredNetId === requesterNetId) {
+                return "The visitor's NetID cannot be the same as the requester's NetID";
+              }
+              return true;
             }}
           />
 
