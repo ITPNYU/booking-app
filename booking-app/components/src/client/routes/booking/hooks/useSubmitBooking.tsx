@@ -1,4 +1,5 @@
 import { useCallback, useContext } from "react";
+import { DEFAULT_TENANT } from "../../../../constants/tenants";
 import {
   BookingOrigin,
   FormContextLevel,
@@ -6,12 +7,15 @@ import {
   PagePermission,
 } from "../../../../types";
 
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { DatabaseContext } from "../../components/Provider";
 import { BookingContext } from "../bookingProvider";
 import useCalculateOverlap from "./useCalculateOverlap";
 export default function useSubmitBooking(formContext: FormContextLevel) {
   const router = useRouter();
+  const params = useParams();
+  const tenant = (params?.tenant as string) || DEFAULT_TENANT;
+
   const {
     liaisonUsers,
     userEmail,
@@ -50,6 +54,37 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
   const registerEvent = useCallback(
     async (data: Inputs, isAutoApproval: boolean, calendarEventId?: string) => {
       const hasAffiliation = (role && department) || isModification;
+
+      console.log(
+        `🚀 SUBMIT BOOKING [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+        {
+          tenant,
+          isAutoApproval,
+          formContext,
+          isWalkIn,
+          isVIP,
+          isEdit,
+          isModification,
+          selectedRooms: selectedRooms?.map((r) => ({
+            roomId: r.roomId,
+            name: r.name,
+            shouldAutoApprove: r.shouldAutoApprove,
+          })),
+          bookingDuration: bookingCalendarInfo
+            ? `${((bookingCalendarInfo.end.getTime() - bookingCalendarInfo.start.getTime()) / (1000 * 60 * 60)).toFixed(1)} hours`
+            : "Not set",
+          formData: {
+            title: data?.title,
+            department,
+            role,
+            roomSetup: data?.roomSetup,
+            mediaServices: data?.mediaServices,
+            catering: data?.catering,
+            hireSecurity: data?.hireSecurity,
+          },
+        }
+      );
+
       if (
         !hasAffiliation ||
         selectedRooms.length === 0 ||
@@ -95,8 +130,10 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
 
       let email: string;
       setSubmitting("submitting");
-      if ((isWalkIn || isModification || isVIP) && data.netId) {
-        email = data.netId + "@nyu.edu";
+      if ((isWalkIn || isModification || isVIP) && (data.walkInNetId || data.netId)) {
+        // For walk-ins, use walkInNetId (the person using the space), not the PA's ID
+        const netIdToUse = data.walkInNetId || data.netId;
+        email = netIdToUse + "@nyu.edu";
       } else {
         email = userEmail || data.missingEmail;
       }
@@ -109,17 +146,16 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
         switch (formContext) {
           case FormContextLevel.EDIT:
             return {
-              endpoint: "/api/bookings",
+              endpoint: "/api/bookings/edit",
               method: "PUT",
               body: { calendarEventId, allRooms: roomSettings },
             };
           case FormContextLevel.MODIFICATION:
             return {
-              endpoint: "/api/bookings",
+              endpoint: "/api/bookings/modification",
               method: "PUT",
               body: {
                 calendarEventId,
-                isAutoApproval: true,
                 allRooms: roomSettings,
               },
             };
@@ -140,10 +176,42 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
         }
       })();
 
+      // Extract conditional fields to reduce duplication
+      const modificationFields = (isEdit || isModification) && {
+        modifiedBy: userEmail,
+      };
+
+      const requestBody = {
+        origin: isVIP ? BookingOrigin.VIP : BookingOrigin.WALK_IN,
+        type: isVIP ? BookingOrigin.VIP : BookingOrigin.WALK_IN,
+        email,
+        selectedRooms,
+        bookingCalendarInfo,
+        liaisonUsers,
+        data,
+        isAutoApproval,
+        // Add modifiedBy as a top-level parameter for edit/modification context
+        ...modificationFields,
+        ...(requestParams.body ?? {}),
+      };
+
+      console.log(
+        `📡 SENDING REQUEST [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+        {
+          endpoint: requestParams.endpoint,
+          method: requestParams.method,
+          tenant,
+          isAutoApproval,
+          email,
+          requestBody,
+        }
+      );
+
       fetch(`${process.env.NEXT_PUBLIC_BASE_URL}${requestParams.endpoint}`, {
         method: requestParams.method,
         headers: {
           "Content-Type": "application/json",
+          "x-tenant": tenant,
         },
         body: JSON.stringify({
           origin: isVIP ? BookingOrigin.VIP : BookingOrigin.WALK_IN,
@@ -154,12 +222,22 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
           liaisonUsers,
           data,
           isAutoApproval,
-          // Add modifiedBy as a top-level parameter for modification context
-          ...(isModification && { modifiedBy: userEmail }),
+          // Add modifiedBy as a top-level parameter for edit/modification context
+          ...modificationFields,
           ...(requestParams.body ?? {}),
         }),
       })
         .then((res) => {
+          console.log(
+            `📨 API RESPONSE [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+            {
+              status: res.status,
+              statusText: res.statusText,
+              endpoint: requestParams.endpoint,
+              isAutoApproval,
+            }
+          );
+
           if (res.status === 409) {
             setError(new Error("Booking time slot is no longer available"));
             setSubmitting("error");

@@ -1,13 +1,10 @@
 import { Checkbox, FormControlLabel, FormGroup, Tooltip } from "@mui/material";
 import dayjs from "dayjs";
 import { useContext, useMemo } from "react";
-import {
-  MOCAP_ROOMS,
-  WALK_IN_CAN_BOOK_TWO,
-} from "../../../../mediaCommonsPolicy";
 import { FormContextLevel, RoomSetting } from "../../../../types";
 
 import { ConfirmDialogControlled } from "../../components/ConfirmDialog";
+import { useTenantSchema } from "../../components/SchemaProvider";
 import { BookingContext } from "../bookingProvider";
 import { useBookingDateRestrictions } from "../hooks/useBookingDateRestrictions";
 
@@ -28,12 +25,19 @@ export const SelectRooms = ({
   const { hasShownMocapModal, setHasShownMocapModal, bookingCalendarInfo } =
     useContext(BookingContext);
   const { isBookingTimeInBlackout } = useBookingDateRestrictions();
+  const { resources } = useTenantSchema();
   const selectedIds = selected.map((room) => room.roomId);
 
+  // Sort rooms by room number for consistent display order
+  const sortedRooms = useMemo(() => {
+    return [...allRooms].sort((a, b) => a.roomId - b.roomId);
+  }, [allRooms]);
+
+  // Remove this
   const showMocapModal = useMemo(() => {
-    const mocapRoomSelected = MOCAP_ROOMS.some((roomId) =>
-      selectedIds.includes(roomId)
-    );
+    const mocapRoomSelected = false; // MOCAP_ROOMS.some((roomId) =>
+    //   selectedIds.includes(roomId)
+    // );
     const shouldShow = !hasShownMocapModal && mocapRoomSelected;
     return shouldShow;
   }, [selectedIds, hasShownMocapModal]);
@@ -63,11 +67,16 @@ export const SelectRooms = ({
       return false;
     if (selectedIds.includes(roomId)) return false;
     if (selectedIds.length >= 2) return true;
-    if (
-      WALK_IN_CAN_BOOK_TWO.includes(selectedIds[0]) &&
-      WALK_IN_CAN_BOOK_TWO.includes(roomId)
-    )
+
+    // Check if both selected room and current room can book two
+    const selectedRoom = resources.find(
+      (r: any) => r.roomId === selectedIds[0]
+    );
+    const currentRoom = resources.find((r: any) => r.roomId === roomId);
+
+    if (selectedRoom?.isWalkInCanBookTwo && currentRoom?.isWalkInCanBookTwo) {
       return false;
+    }
     return true;
   };
 
@@ -84,11 +93,16 @@ export const SelectRooms = ({
     if (selectedIds.includes(roomId)) return null;
     if (selectedIds.length >= 2)
       return "Walk-in bookings are limited to 2 rooms maximum";
-    if (
-      WALK_IN_CAN_BOOK_TWO.includes(selectedIds[0]) &&
-      WALK_IN_CAN_BOOK_TWO.includes(roomId)
-    )
+
+    // Check if both selected room and current room can book two
+    const selectedRoom = resources.find(
+      (r: any) => r.roomId === selectedIds[0]
+    );
+    const currentRoom = resources.find((r: any) => r.roomId === roomId);
+
+    if (selectedRoom?.isWalkInCanBookTwo && currentRoom?.isWalkInCanBookTwo) {
       return null;
+    }
 
     return "Walk-in bookings are limited to 1 room or 2 connected ballroom bays";
   };
@@ -97,18 +111,20 @@ export const SelectRooms = ({
     const newVal: boolean = e.target.checked;
     setSelected((prev: RoomSetting[]) => {
       if (newVal) {
-        return [...prev, room].sort(
-          (a, b) => Number(a.roomId) - Number(b.roomId)
+        const newSelection = [...prev, room].sort(
+          (a, b) => a.roomId - b.roomId
         );
+        return newSelection;
       } else {
-        return prev.filter((x: RoomSetting) => x.roomId != room.roomId);
+        const newSelection = prev.filter((r) => r.roomId !== room.roomId);
+        return newSelection;
       }
     });
   };
 
   return (
     <FormGroup>
-      {allRooms.map((room: RoomSetting) => {
+      {sortedRooms.map((room: RoomSetting) => {
         const disabled = isDisabled(room.roomId);
         const disabledReason = getDisabledReason(room.roomId);
 
@@ -118,7 +134,10 @@ export const SelectRooms = ({
               <Checkbox
                 checked={selectedIds.includes(room.roomId)}
                 onChange={(e) => handleCheckChange(e, room)}
-                inputProps={{ "aria-label": "controlled" }}
+                inputProps={{
+                  "aria-label": `${room.roomId} ${room.name}`,
+                }}
+                data-testid={`room-option-${room.roomId}`}
                 disabled={disabled}
               />
             }

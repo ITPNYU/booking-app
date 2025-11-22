@@ -291,9 +291,9 @@ describe("MoreInfoModal - WebCheckout (Simplified)", () => {
       ).not.toBeInTheDocument();
     });
 
-    it("does not show edit button for equipment users", () => {
+    it("does not show edit button for staffing users", () => {
       const booking = createMockBooking({ webcheckoutCartNumber: undefined });
-      const context = createMockDatabaseContext(PagePermission.EQUIPMENT);
+      const context = createMockDatabaseContext(PagePermission.SERVICES);
 
       renderModal(booking, context);
 

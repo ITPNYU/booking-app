@@ -1,14 +1,19 @@
 import { BookingStatusLabel, PageContextLevel } from "../../../../types";
 
-import { Box, TextField, InputAdornment, CircularProgress } from "@mui/material";
-import { DateRangeFilter } from "./hooks/getDateFilter";
-import Dropdown from "../../booking/components/Dropdown";
 import FilterList from "@mui/icons-material/FilterList";
 import SearchIcon from "@mui/icons-material/Search";
+import {
+  Box,
+  CircularProgress,
+  InputAdornment,
+  TextField,
+} from "@mui/material";
 import React, { useCallback, useContext, useEffect, useState } from "react";
-import StatusChip from "./StatusChip";
-import { DatabaseContext } from "../Provider";
 import { debounce } from "../../../utils/debounce";
+import Dropdown from "../../booking/components/Dropdown";
+import { DatabaseContext } from "../Provider";
+import { DateRangeFilter } from "./hooks/getDateFilter";
+import StatusChip from "./StatusChip";
 
 interface Props {
   allowedStatuses: BookingStatusLabel[];
@@ -71,32 +76,47 @@ export default function BookingTableFilters({
   };
 
   const handleClearSearch = useCallback(() => {
-    setLocalSearchQuery('');
-    setSearchQuery('');
+    setLocalSearchQuery("");
+    setSearchQuery("");
     setLoadMoreEnabled(true);
     setLastItem(null);
   }, [setSearchQuery, setLoadMoreEnabled, setLastItem]);
 
-  const handleDateRangeFilterClick = useCallback((
-    _: React.MouseEvent<HTMLElement>,
-    newFilter: DateRangeFilter | null
-  ) => {
-    if (newFilter != null) {
-      setSelectedDateRange(newFilter);
-      // Reset search when changing date range
-      if (localSearchQuery) {
-        handleClearSearch();
+  const handleDateRangeFilterClick = useCallback(
+    (_: React.MouseEvent<HTMLElement>, newFilter: DateRangeFilter | null) => {
+      if (newFilter != null) {
+        setSelectedDateRange(newFilter);
+        // Reset search when changing date range
+        if (localSearchQuery) {
+          handleClearSearch();
+        }
+        setLoadMoreEnabled(true);
+        setLastItem(null);
       }
-      setLoadMoreEnabled(true);
-      setLastItem(null);
-    }
-  }, [localSearchQuery, handleClearSearch, setSelectedDateRange, setLoadMoreEnabled, setLastItem]);
+    },
+    [
+      localSearchQuery,
+      handleClearSearch,
+      setSelectedDateRange,
+      setLoadMoreEnabled,
+      setLastItem,
+    ]
+  );
 
   const dateFilters = (
     <Dropdown
       value={selectedDateRange}
       updateValue={(x) => handleDateRangeFilterClick(null, x)}
-      options={["Today", "This Week", "All Future", "Past 24 hours", "Past Week", "Past Month", "Past 6 Months", "Past 9 Months"]}
+      options={[
+        "Today",
+        "This Week",
+        "All Future",
+        "Past 24 hours",
+        "Past Week",
+        "Past Month",
+        "Past 6 Months",
+        "Past 9 Months",
+      ]}
       placeholder={"Today"}
       sx={{ width: "125px", mr: 1 }}
     />
@@ -114,28 +134,29 @@ export default function BookingTableFilters({
             <SearchIcon fontSize="small" />
           </InputAdornment>
         ),
-        endAdornment: isSearching && localSearchQuery.trim() !== '' ? (
-          <InputAdornment position="end">
-            <CircularProgress size={20} />
-          </InputAdornment>
-        ) : localSearchQuery ? (
-          <InputAdornment position="end">
-            <Box 
-              component="span" 
-              sx={{ 
-                cursor: 'pointer',
-                fontSize: '0.75rem',
-                color: 'text.secondary',
-                '&:hover': {
-                  color: 'text.primary',
-                }
-              }}
-              onClick={handleClearSearch}
-            >
-              ✕
-            </Box>
-          </InputAdornment>
-        ) : null,
+        endAdornment:
+          isSearching && localSearchQuery.trim() !== "" ? (
+            <InputAdornment position="end">
+              <CircularProgress size={20} />
+            </InputAdornment>
+          ) : localSearchQuery ? (
+            <InputAdornment position="end">
+              <Box
+                component="span"
+                sx={{
+                  cursor: "pointer",
+                  fontSize: "0.75rem",
+                  color: "text.secondary",
+                  "&:hover": {
+                    color: "text.primary",
+                  },
+                }}
+                onClick={handleClearSearch}
+              >
+                ✕
+              </Box>
+            </InputAdornment>
+          ) : null,
       }}
       sx={{ width: "200px" }}
     />
@@ -143,6 +164,7 @@ export default function BookingTableFilters({
 
   return (
     <Box
+      data-testid="filters-section"
       sx={{
         display: "flex",
         justifyContent: "space-between",

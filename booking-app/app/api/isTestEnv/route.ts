@@ -1,13 +1,12 @@
+import { getTestEnvironmentStatus } from "@/lib/utils/testEnvironment";
 import { NextResponse } from "next/server";
 
 export const GET = async () => {
   try {
-    if(process.env.NEXT_PUBLIC_BRANCH_NAME === "development" && process.env.CI === "true") {
-      return NextResponse.json({ isOnTestEnv: true });
-    }
+    const testStatus = getTestEnvironmentStatus();
+    return NextResponse.json(testStatus);
   } catch (error) {
+    console.error("Error in isTestEnv API:", error);
     return NextResponse.json({ isOnTestEnv: false });
   }
-
-  return NextResponse.json({ isOnTestEnv: false });
-}
+};

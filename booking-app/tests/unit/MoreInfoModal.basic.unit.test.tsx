@@ -48,7 +48,7 @@ global.fetch = mockFetch;
 const createMockBooking = (
   overrides: Partial<BookingRow> = {}
 ): BookingRow => ({
-  requestNumber: "12345",
+  requestNumber: 12345,
   calendarEventId: "event-123",
   startDate: Timestamp.fromDate(new Date("2024-03-15T10:00:00")),
   endDate: Timestamp.fromDate(new Date("2024-03-15T12:00:00")),
@@ -74,12 +74,10 @@ const createMockBooking = (
   catering: "No",
   cateringService: "none",
   hireSecurity: "none",
-  securityDetails: "none",
   status: "PENDING" as any,
   bookingType: "Workshop",
-  requestedDate: Timestamp.fromDate(new Date("2024-01-15T10:00:00")),
-  checkedInDate: null,
-  actualEndDate: null,
+  requestedAt: Timestamp.fromDate(new Date("2024-01-15T10:00:00")),
+  checkedInAt: null,
   ...overrides,
 });
 
@@ -192,14 +190,12 @@ describe("MoreInfoModal - Basic Rendering", () => {
     it("handles missing optional fields gracefully", () => {
       const booking = createMockBooking({
         secondaryName: "",
-        secondaryContactEmail: "",
-        secondaryContactPhone: "",
       });
       const context = createMockDatabaseContext(PagePermission.BOOKING);
 
       renderModal(booking, context);
 
-      expect(screen.getAllByText("none")).toHaveLength(6); // Secondary contact fields and other none values
+      expect(screen.getAllByText("none")).toHaveLength(7); // Secondary contact fields and other none values
     });
 
     it("displays all booking details correctly", () => {

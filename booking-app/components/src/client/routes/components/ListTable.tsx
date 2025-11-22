@@ -3,8 +3,8 @@ import React, { useMemo } from "react";
 
 import ListTableRow from "./ListTableRow";
 import Table from "./Table";
-import { TableNames } from "../../../policy";
-import { clientDeleteDataFromFirestore } from "@/lib/firebase/firebase";
+import { TableNames, isLegacyUserCollection } from "../../../policy";
+import { clientDeleteDataFromFirestore, clientDeleteUserRightsData } from "@/lib/firebase/firebase";
 
 interface Props {
   columnFormatters?: {
@@ -56,7 +56,14 @@ export default function ListTable(props: Props) {
           removeRow={() =>
             props.onRemoveRow
               ? props.onRemoveRow(row)
-              : clientDeleteDataFromFirestore(props.tableName, row.id)
+              : (() => {
+                  // Check if this is a legacy user collection that should use the new logic
+                  if (isLegacyUserCollection(props.tableName)) {
+                    return clientDeleteUserRightsData(props.tableName, row.id);
+                  } else {
+                    return clientDeleteDataFromFirestore(props.tableName, row.id);
+                  }
+                })()
           }
           columnNames={columnNames}
           columnFormatters={columnFormatters}

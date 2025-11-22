@@ -4,51 +4,42 @@ import { renderHook } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 describe("useAllowedStatuses Hook - Equipment Context", () => {
-  describe("PageContextLevel.EQUIPMENT", () => {
+  // For SERVICES page we expect the full set of displayable statuses (exclude WALK_IN)
+  const expectedServiceStatuses = Object.values(BookingStatusLabel).filter(
+    (status) => status !== BookingStatusLabel.WALK_IN
+  );
+
+  describe("PageContextLevel.SERVICES", () => {
     it("should return only EQUIPMENT status for equipment context", () => {
       const { result } = renderHook(() =>
-        useAllowedStatuses(PageContextLevel.EQUIPMENT)
+        useAllowedStatuses(PageContextLevel.SERVICES)
       );
 
       const allowedStatuses = result.current;
 
-      expect(allowedStatuses).toEqual([BookingStatusLabel.EQUIPMENT]);
-      expect(allowedStatuses).toHaveLength(1);
+      // Services now shows all displayable statuses
+      expect(allowedStatuses).toEqual(expectedServiceStatuses);
     });
 
     it("should not include other statuses for equipment context", () => {
       const { result } = renderHook(() =>
-        useAllowedStatuses(PageContextLevel.EQUIPMENT)
+        useAllowedStatuses(PageContextLevel.SERVICES)
       );
 
       const allowedStatuses = result.current;
 
-      // Check that other statuses are not included
-      const otherStatuses = [
-        BookingStatusLabel.APPROVED,
-        BookingStatusLabel.CANCELED,
-        BookingStatusLabel.CHECKED_IN,
-        BookingStatusLabel.CHECKED_OUT,
-        BookingStatusLabel.DECLINED,
-        BookingStatusLabel.MODIFIED,
-        BookingStatusLabel.NO_SHOW,
-        BookingStatusLabel.PENDING,
-        BookingStatusLabel.REQUESTED,
-        BookingStatusLabel.UNKNOWN,
-        BookingStatusLabel.WALK_IN,
-      ];
-
-      otherStatuses.forEach((status) => {
-        expect(allowedStatuses).not.toContain(status);
-      });
+      // Services should include all displayable statuses (excluding WALK_IN)
+      expect(allowedStatuses).toEqual(expectedServiceStatuses);
+      expect(allowedStatuses).toContain(BookingStatusLabel.EQUIPMENT);
+      expect(allowedStatuses).not.toContain(BookingStatusLabel.WALK_IN);
     });
 
     it("should be consistent across multiple hook calls", () => {
       const { result: result1 } = renderHook(() =>
-        useAllowedStatuses(PageContextLevel.EQUIPMENT)
+        useAllowedStatuses(PageContextLevel.SERVICES)
       );
       const { result: result2 } = renderHook(() =>
-        useAllowedStatuses(PageContextLevel.EQUIPMENT)
+        useAllowedStatuses(PageContextLevel.SERVICES)
       );
 
       expect(result1.current).toEqual(result2.current);
@@ -58,14 +49,14 @@ describe("useAllowedStatuses Hook - Equipment Context", () => {
   describe("Comparison with other contexts", () => {
     it("should return different statuses for PA context", () => {
       const { result: equipmentResult } = renderHook(() =>
-        useAllowedStatuses(PageContextLevel.EQUIPMENT)
+        useAllowedStatuses(PageContextLevel.SERVICES)
       );
       const { result: paResult } = renderHook(() =>
         useAllowedStatuses(PageContextLevel.PA)
       );
 
       expect(equipmentResult.current).not.toEqual(paResult.current);
-      expect(equipmentResult.current).toEqual([BookingStatusLabel.EQUIPMENT]);
+      expect(equipmentResult.current).toEqual(expectedServiceStatuses);
       expect(paResult.current).toEqual([
         BookingStatusLabel.APPROVED,
         BookingStatusLabel.CHECKED_IN,
@@ -93,14 +84,13 @@ describe("useAllowedStatuses Hook - Equipment Context", () => {
 
     it("should return different statuses for ADMIN context", () => {
       const { result: equipmentResult } = renderHook(() =>
-        useAllowedStatuses(PageContextLevel.EQUIPMENT)
+        useAllowedStatuses(PageContextLevel.SERVICES)
       );
       const { result: adminResult } = renderHook(() =>
         useAllowedStatuses(PageContextLevel.ADMIN)
       );
 
-      expect(equipmentResult.current).not.toEqual(adminResult.current);
-      expect(equipmentResult.current).toEqual([BookingStatusLabel.EQUIPMENT]);
+  expect(equipmentResult.current).toEqual(expectedServiceStatuses);
 
       // Admin should have all displayable statuses
       const expectedAdminStatuses = Object.values(BookingStatusLabel).filter(
@@ -111,14 +101,13 @@ describe("useAllowedStatuses Hook - Equipment Context", () => {
 
     it("should return different statuses for LIAISON context", () => {
       const { result: equipmentResult } = renderHook(() =>
-        useAllowedStatuses(PageContextLevel.EQUIPMENT)
+        useAllowedStatuses(PageContextLevel.SERVICES)
       );
       const { result: liaisonResult } = renderHook(() =>
         useAllowedStatuses(PageContextLevel.LIAISON)
       );
 
-      expect(equipmentResult.current).not.toEqual(liaisonResult.current);
-      expect(equipmentResult.current).toEqual([BookingStatusLabel.EQUIPMENT]);
+  expect(equipmentResult.current).toEqual(expectedServiceStatuses);
 
       // Liaison should have all displayable statuses
       const expectedLiaisonStatuses = Object.values(BookingStatusLabel).filter(
@@ -131,7 +120,7 @@ describe("useAllowedStatuses Hook - Equipment Context", () => {
   describe("Hook behavior", () => {
     it("should memoize the result", () => {
       const { result, rerender } = renderHook(() =>
-        useAllowedStatuses(PageContextLevel.EQUIPMENT)
+        useAllowedStatuses(PageContextLevel.SERVICES)
       );
 
       const firstResult = result.current;
@@ -146,13 +135,13 @@ describe("useAllowedStatuses Hook - Equipment Context", () => {
     });
 
     it("should update when context changes", () => {
-      let pageContext = PageContextLevel.EQUIPMENT;
+      let pageContext = PageContextLevel.SERVICES;
       const { result, rerender } = renderHook(() =>
         useAllowedStatuses(pageContext)
       );
 
       const equipmentResult = result.current;
-      expect(equipmentResult).toEqual([BookingStatusLabel.EQUIPMENT]);
+      expect(equipmentResult).toEqual(expectedServiceStatuses);
 
       // Change context to PA
       pageContext = PageContextLevel.PA;
@@ -171,17 +160,17 @@ describe("useAllowedStatuses Hook - Equipment Context", () => {
 
   describe("Edge cases", () => {
     it("should handle numeric enum values correctly", () => {
-      // PageContextLevel.EQUIPMENT is likely a numeric enum
-      const { result } = renderHook(
-        () => useAllowedStatuses(3 as PageContextLevel.EQUIPMENT) // Assuming EQUIPMENT = 3
+      // PageContextLevel.SERVICES is now the correct enum value
+      const { result } = renderHook(() =>
+        useAllowedStatuses(PageContextLevel.SERVICES)
       );
 
-      expect(result.current).toEqual([BookingStatusLabel.EQUIPMENT]);
+      expect(result.current).toEqual(expectedServiceStatuses);
     });
 
     it("should return equipment statuses regardless of case sensitivity", () => {
       const { result } = renderHook(() =>
-        useAllowedStatuses(PageContextLevel.EQUIPMENT)
+        useAllowedStatuses(PageContextLevel.SERVICES)
       );
 
       const allowedStatuses = result.current;

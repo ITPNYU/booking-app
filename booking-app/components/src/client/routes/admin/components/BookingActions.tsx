@@ -104,7 +104,30 @@ export default function BookingActions(props: Props) {
       );
     }
 
-    if (actions[selectedAction].confirmation === true) {
+    // For service declines (e.g., "Decline Staff", "Decline Equipment", etc.),
+    // also collect a reason using the same dialog component
+    if (
+      typeof selectedAction === "string" &&
+      selectedAction.startsWith("Decline ")
+    ) {
+      return (
+        <DeclineReasonDialog
+          callback={handleDialogChoice}
+          value={reason}
+          setValue={setReason}
+        >
+          <IconButton color={"primary"}>
+            <Check />
+          </IconButton>
+        </DeclineReasonDialog>
+      );
+    }
+
+    // Check if action exists and has confirmation property
+    if (
+      "confirmation" in actions[selectedAction] &&
+      actions[selectedAction].confirmation === true
+    ) {
       return (
         <ConfirmDialog
           message="Are you sure? This action can't be undone."

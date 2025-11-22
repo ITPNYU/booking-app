@@ -1,4 +1,4 @@
-import { MoreHoriz } from "@mui/icons-material";
+import { MoreHoriz, TableBar, Headset, PeopleAlt, LocalDining, CleaningServices, LocalPolice, Check, Close, Replay } from "@mui/icons-material";
 import {
   Box,
   IconButton,
@@ -17,6 +17,7 @@ import {
 import { TableEmpty } from "../Table";
 import StackedTableCell from "./StackedTableCell";
 
+import { useParams } from "next/navigation";
 import { formatOrigin } from "../../../../utils/formatters";
 import { formatDateTable, formatTimeAmPm } from "../../../utils/date";
 import BookingActions from "../../admin/components/BookingActions";
@@ -45,6 +46,8 @@ export const Bookings: React.FC<BookingsProps> = ({
   const { bookingsLoading, setLastItem, fetchAllBookings, allBookings } =
     useContext(DatabaseContext);
   const { resourceName } = useTenantSchema();
+  const params = useParams();
+  const tenant = params?.tenant as string;
   const allowedStatuses = useAllowedStatuses(pageContext);
 
   const [modalData, setModalData] = useState<BookingRow>(null);
@@ -332,6 +335,148 @@ export const Bookings: React.FC<BookingsProps> = ({
       ...(!isUserView
         ? [
             {
+              field: "services",
+              headerName: "Services",
+              minWidth: 240,
+              flex: 1,
+              renderHeader: () => <TableCell>Services</TableCell>,
+              filterable: false,
+              renderCell: (params) => {
+                const bookingRow = params.row as BookingRow;
+
+                const colorFor = (requested: boolean) =>
+                  requested ? "rgba(0, 0, 0, 0.8)" : "rgba(0, 0, 0, 0.08)";
+
+                const servicesRequested = bookingRow.xstateData?.snapshot?.context?.servicesRequested || {};
+                const servicesApproved = bookingRow.xstateData?.snapshot?.context?.servicesApproved || {};
+
+                const rawXStateValue = bookingRow.xstateData?.snapshot?.value;
+                const isBookingClosed = typeof rawXStateValue === "string" && rawXStateValue === "Closed";
+                const servicesClosedout = typeof rawXStateValue === "object" ? rawXStateValue["Service Closeout"] : null;
+
+                const isServiceClosedOut = (closeoutKey: string, closedLabel: string) => {
+                  if (isBookingClosed) return true;
+                  
+                  // If no services closeout data exists, return false
+                  if (!servicesClosedout || typeof servicesClosedout !== "object") return false;
+
+                  const val = (servicesClosedout as any)[closeoutKey];
+                  return val === closedLabel;
+                };
+
+                const items: { label: string; Icon: any; requested: boolean; serviceKey: string; closeoutKey: string; closedout: boolean }[] = [
+                  {
+                    label: "Setup",
+                    Icon: TableBar,
+                    requested: servicesRequested.setup || false,
+                    serviceKey: "setup",
+                    closeoutKey: "Setup Closeout",
+                    closedout: isServiceClosedOut("Setup Closeout", "Setup Closedout"),
+                  },
+                  {
+                    label: "Equipment",
+                    Icon: Headset,
+                    requested: servicesRequested.equipment || false,
+                    serviceKey: "equipment",
+                    closeoutKey: "Equipment Closeout",
+                    closedout: isServiceClosedOut("Equipment Closeout", "Equipment Closedout"),
+                  },
+                  {
+                    label: "Staffing",
+                    Icon: PeopleAlt,
+                    requested: servicesRequested.staff || false,
+                    serviceKey: "staff",
+                    closeoutKey: "Staff Closeout",
+                    closedout: isServiceClosedOut("Staff Closeout", "Staff Closedout"),
+                  },
+                  {
+                    label: "Catering",
+                    Icon: LocalDining,
+                    requested: servicesRequested.catering || false,
+                    serviceKey: "catering",
+                    closeoutKey: "Catering Closeout",
+                    closedout: isServiceClosedOut("Catering Closeout", "Catering Closedout"),
+                  },
+                  {
+                    label: "Cleaning",
+                    Icon: CleaningServices,
+                    requested: servicesRequested.cleaning || false,
+                    serviceKey: "cleaning",
+                    closeoutKey: "Cleaning Closeout",
+                    closedout: isServiceClosedOut("Cleaning Closeout", "Cleaning Closedout"),
+                  },
+                  {
+                    label: "Security",
+                    Icon: LocalPolice,
+                    requested: servicesRequested.security || false,
+                    serviceKey: "security",
+                    closeoutKey: "Security Closeout",
+                    closedout: isServiceClosedOut("Security Closeout", "Security Closedout"),
+                  },
+                ];
+
+                return (
+                  <TableCell style={{ display: "flex", flexDirection: "row", gap: "6px" }}>
+                    {items.map(({ label, Icon, requested, serviceKey, closedout }) => {
+                      const approved = servicesApproved[serviceKey];
+                      const showApprovalBadge = requested && (approved === true || approved === false);
+                      const showCloseoutBadge = requested && approved === true && closedout;
+                      
+                      return (
+                        <Tooltip key={label} title={label} placement="top">
+                          <span style={{ display: "flex", flexDirection : "column", alignItems : "center", gap : "2px",  padding : "4px 6px", borderRadius : "6px" }}>
+                            <Icon style={{ fontSize: "18px", color: colorFor(requested) }} />
+                            {showApprovalBadge && !showCloseoutBadge && (
+                              <>
+                                {approved === true ? (
+                                  <Check 
+                                    sx={{ 
+                                      fontSize: "10px",
+                                      bottom: "-6px", 
+                                      right: "-6px",
+                                      borderRadius: "50%",
+                                      strokeWidth: 1.4,
+                                      stroke: "rgba(72, 196, 77, 1)",
+                                      color : "rgba(72, 196, 77, 1)",
+                                    }} 
+                                  />
+                                ) : (
+                                  <Close 
+                                    sx={{ 
+                                      fontSize: "10px",
+                                      bottom: "-6px", 
+                                      right: "-6px",
+                                      borderRadius: "50%",
+                                      strokeWidth: 1.4,
+                                      stroke: "rgba(255, 26, 26, 1)",
+                                      color: "rgba(255, 26, 26, 1)",
+                                    }} 
+                                  />
+                                )}
+                              </>
+                            )}
+                            {showCloseoutBadge && (
+                              <Replay
+                                sx={{ 
+                                  fontSize: "10px",
+                                  bottom: "-6px", 
+                                  right: "-6px",
+                                  borderRadius: "50%",
+                                  strokeWidth: 1.0,
+                                  stroke : "#333333",
+                                  color : "#333333",
+                                }} 
+                              />
+                            )}
+                          </span>
+                        </Tooltip>
+                      );
+                    })}
+                  </TableCell>
+                );
+              },
+            },
+            {
               field: "equip",
               headerName: "Equip.",
               minWidth: 80,
@@ -361,7 +506,7 @@ export const Bookings: React.FC<BookingsProps> = ({
         renderCell: (params) => (
           <TableCell width={200}>
             <BookingActions
-              status={getBookingStatus(params.row)}
+              status={getBookingStatus(params.row, tenant)}
               calendarEventId={params.row.calendarEventId}
               startDate={params.row.startDate}
               onSelect={() => {}}
