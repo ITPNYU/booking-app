@@ -62,6 +62,7 @@ describe("useAllowedStatuses Hook - Equipment Context", () => {
         BookingStatusLabel.CHECKED_IN,
         BookingStatusLabel.CHECKED_OUT,
         BookingStatusLabel.NO_SHOW,
+        BookingStatusLabel.CLOSED,
       ]);
     });
 
@@ -154,6 +155,7 @@ describe("useAllowedStatuses Hook - Equipment Context", () => {
         BookingStatusLabel.CHECKED_IN,
         BookingStatusLabel.CHECKED_OUT,
         BookingStatusLabel.NO_SHOW,
+        BookingStatusLabel.CLOSED,
       ]);
     });
   });
