@@ -225,8 +225,6 @@ describe("Booking Form Integration Tests", () => {
       formData: {
         roomSetup?: string;
         mediaServices?: string[];
-        equipmentServices?: string[];
-        staffingServices?: string[];
         catering?: string;
       };
       isWalkIn: boolean;
@@ -252,25 +250,14 @@ describe("Booking Form Integration Tests", () => {
         );
       }
 
-      // Equipment services require approval
+      // Media services require approval
       if (
         !data.isWalkIn &&
-        data.formData.equipmentServices &&
-        data.formData.equipmentServices.length > 0
+        data.formData.mediaServices &&
+        data.formData.mediaServices.length > 0
       ) {
         errors.push(
-          "Requesting equipment services for an event will require approval"
-        );
-      }
-
-      // Staffing services require approval
-      if (
-        !data.isWalkIn &&
-        data.formData.staffingServices &&
-        data.formData.staffingServices.length > 0
-      ) {
-        errors.push(
-          "Requesting staffing services for an event will require approval"
+          "Requesting media services for an event will require approval"
         );
       }
 
@@ -326,33 +313,18 @@ describe("Booking Form Integration Tests", () => {
       );
     });
 
-    it("requires approval for events with equipment services", () => {
+    it("requires approval for events with media services", () => {
       const data: AutoApprovalData = {
         duration: 7200000, // 2 hours
         selectedRooms: ["room1"],
-        formData: { equipmentServices: ["camera"] },
+        formData: { mediaServices: ["projector"] },
         isWalkIn: false,
       };
 
       const result = checkAutoApproval(data);
       expect(result.isAutoApproval).toBe(false);
       expect(result.errors).toContain(
-        "Requesting equipment services for an event will require approval"
-      );
-    });
-
-    it("requires approval for events with staffing services", () => {
-      const data: AutoApprovalData = {
-        duration: 7200000, // 2 hours
-        selectedRooms: ["room1"],
-        formData: { staffingServices: ["audio tech"] },
-        isWalkIn: false,
-      };
-
-      const result = checkAutoApproval(data);
-      expect(result.isAutoApproval).toBe(false);
-      expect(result.errors).toContain(
-        "Requesting staffing services for an event will require approval"
+        "Requesting media services for an event will require approval"
       );
     });
 

@@ -72,18 +72,8 @@ export type BookingStatus = {
   checkedOutBy: string;
   noShowedAt: Timestamp;
   noShowedBy: string;
-  closedAt: Timestamp;
-  closedBy: string;
   walkedInAt: Timestamp;
   origin: BookingOrigin;
-  xstateData?: any; // XState machine data for tenants using XState
-  // Media Commons service approval fields (optional)
-  staffServiceApproved?: boolean;
-  equipmentServiceApproved?: boolean;
-  cateringServiceApproved?: boolean;
-  cleaningServiceApproved?: boolean;
-  securityServiceApproved?: boolean;
-  setupServiceApproved?: boolean;
 };
 
 // the order here is the order these are displayed as table filters
@@ -92,11 +82,9 @@ export enum BookingStatusLabel {
   CANCELED = "CANCELED",
   CHECKED_IN = "CHECKED-IN",
   CHECKED_OUT = "CHECKED-OUT",
-  CLOSED = "CLOSED",
   EQUIPMENT = "EQUIPMENT",
   NO_SHOW = "NO-SHOW",
   PENDING = "PENDING",
-  PRE_APPROVED = "PRE-APPROVED",
   DECLINED = "DECLINED",
   MODIFIED = "MODIFIED",
   REQUESTED = "REQUESTED",
@@ -105,7 +93,6 @@ export enum BookingStatusLabel {
 }
 
 export type BookingType = {
-  id: string;
   bookingType: string;
   createdAt: string;
 };
@@ -154,7 +141,6 @@ export type Inputs = {
   secondaryName: string;
   nNumber: string;
   netId: string;
-  walkInNetId?: string; // NetID of the walk-in person (for safety training validation)
   phoneNumber: string;
   department: string;
   otherDepartment: string;
@@ -170,18 +156,12 @@ export type Inputs = {
   setupDetails: string;
   mediaServices: string;
   mediaServicesDetails: string;
-  equipmentServices: string;
-  equipmentServicesDetails: string;
-  staffingServices: string;
-  staffingServicesDetails: string;
   catering: string;
   hireSecurity: string;
   expectedAttendance: string;
   cateringService: string;
-  cleaningService: string;
   missingEmail?: string;
   chartFieldForCatering: string;
-  chartFieldForCleaning: string;
   chartFieldForSecurity: string;
   chartFieldForRoomSetup: string;
   webcheckoutCartNumber?: string;
@@ -204,27 +184,6 @@ export enum MediaServices {
   CHECKOUT_EQUIPMENT = "Checkout Equipment",
   LIGHTING_TECH_103 = "(Garage 103) Request a lighting technician",
   LIGHTING_DMX = "(Rooms 220-224) Using DMX lights in ceiling grid",
-}
-
-export enum EquipmentServices {
-  CHECKOUT_EQUIPMENT = "Checkout Equipment",
-}
-
-export enum StaffingServices {
-  AUDIO_TECH_103 = "(Garage 103) Request an audio technician",
-  AUDIO_TECH_230 = "(Audio Lab 230) Request an audio technician",
-  CAMPUS_MEDIA_SERVICES = "(Rooms 202 and 1201) Contact Campus Media for technical/event support",
-  LIGHTING_TECH_103 = "(Garage 103) Request a lighting technician",
-  LIGHTING_DMX = "(Rooms 220-224) Using DMX lights in ceiling grid",
-}
-
-export enum CateringServices {
-  OUTSIDE_CATERING = "Outside Catering",
-  NYU_PLATED = "NYU Plated",
-}
-
-export enum CleaningServices {
-  CBS_CLEANING = "CBS Cleaning Services",
 }
 
 export enum Days {
@@ -253,17 +212,17 @@ export type PaUser = {
 export enum PagePermission {
   BOOKING = "BOOKING",
   PA = "PA",
-  LIAISON = "LIAISON",
-  SERVICES = "SERVICES",
   ADMIN = "ADMIN",
+  LIAISON = "LIAISON",
+  EQUIPMENT = "EQUIPMENT",
   SUPER_ADMIN = "SUPER_ADMIN",
 }
 
 export enum PageContextLevel {
   USER = 0,
-  PA,
   LIAISON,
-  SERVICES,
+  PA,
+  EQUIPMENT,
   ADMIN,
 }
 
@@ -298,37 +257,6 @@ export type RoomSetting = {
   capacity: string;
   calendarId: string;
   calendarRef?: any;
-  // New schema fields for compatibility
-  needsSafetyTraining?: boolean;
-  shouldAutoApprove?: boolean;
-  isWalkIn?: boolean;
-  isWalkInCanBookTwo?: boolean;
-  isEquipment?: boolean;
-  services?: string[];
-  staffingServices?: string[]; // Specific staffing service options for this room
-  staffingSections?: { name: string; indexes: number[] }[];
-  maxHour?: {
-    student: number;
-    faculty: number;
-    admin: number;
-    studentWalkIn: number;
-    facultyWalkIn: number;
-    adminWalkIn: number;
-    studentVIP: number;
-    facultyVIP: number;
-    adminVIP: number;
-  };
-  minHour?: {
-    student: number;
-    faculty: number;
-    admin: number;
-    studentWalkIn: number;
-    facultyWalkIn: number;
-    adminWalkIn: number;
-    studentVIP: number;
-    facultyVIP: number;
-    adminVIP: number;
-  };
 };
 
 export type SafetyTraining = {

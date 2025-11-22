@@ -10,9 +10,9 @@ import { DatabaseContext } from "../../components/Provider";
 import { FormContextLevel } from "@/components/src/types";
 import Grid from "@mui/material/Unstable_Grid2";
 import { SelectRooms } from "../components/SelectRooms";
+import { WALK_IN_ROOMS } from "@/components/src/mediaCommonsPolicy";
 import useCheckFormMissingData from "../hooks/useCheckFormMissingData";
 import { useTenantSchema } from "../../components/SchemaProvider";
-
 interface Props {
   calendarEventId?: string;
   formContext?: FormContextLevel;
@@ -34,37 +34,15 @@ export default function SelectRoomPage({
 
   const roomsToShow = useMemo(() => {
     const { resources } = schema;
-    
-    // Convert schema resources to RoomSetting format for compatibility
-    const convertedResources = resources.map((resource) => ({
-      ...resource,
-      roomId: resource.roomId,
-      name: resource.name,
-      capacity: resource.capacity.toString(),
-      calendarId: resource.calendarId,
-      calendarRef: undefined,
-      // Include the new schema fields for compatibility
-      needsSafetyTraining: resource.needsSafetyTraining,
-      shouldAutoApprove: resource.shouldAutoApprove,
-      isWalkIn: resource.isWalkIn,
-      isWalkInCanBookTwo: resource.isWalkInCanBookTwo,
-      isEquipment: resource.isEquipment,
-      services: resource.services,
-      maxHour: resource.maxHour,
-      minHour: resource.minHour,
-      staffingServices: resource.staffingServices,
-      staffingSections: resource.staffingSections,
-    }));
-
     const allRooms = !isWalkIn
-      ? convertedResources
-      : convertedResources.filter((room) => {
-          const resource = schema.resources.find((r: any) => r.roomId === room.roomId);
-          return resource?.isWalkIn || false;
-        });
+      ? roomSettings
+      : roomSettings.filter((room) => WALK_IN_ROOMS.includes(room.roomId));
 
-    return allRooms;
-  }, [schema.resources, isWalkIn]);
+    // TODO: Request all rooms from schema API in database context.
+    return allRooms.filter((room) =>
+      resources.some((r) => r.roomId === room.roomId)
+    );
+  }, [roomSettings]);
 
   return (
     <Box sx={{ flexGrow: 1 }}>

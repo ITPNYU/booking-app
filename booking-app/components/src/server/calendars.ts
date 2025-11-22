@@ -59,9 +59,8 @@ export const inviteUserToCalendarEvent = async (
   }
 };
 
-export const bookingContentsToDescription = async (
-  bookingContents: BookingFormDetails,
-  tenant?: string
+export const bookingContentsToDescription = (
+  bookingContents: BookingFormDetails
 ) => {
   const listItem = (key: string, value: string) => {
     const displayValue =
@@ -76,11 +75,6 @@ export const bookingContentsToDescription = async (
     return obj[key]?.toString() || "";
   };
 
-  // Use shared status resolver
-  const { getStatusFromXState } = await import(
-    "@/components/src/utils/statusFromXState"
-  );
-
   // Request Section
   description += "<h3>Request</h3><ul>";
   description += listItem(
@@ -93,10 +87,7 @@ export const bookingContentsToDescription = async (
     "Time",
     `${getProperty(bookingContents, "startTime")} - ${getProperty(bookingContents, "endTime")}`
   );
-  description += listItem(
-    "Status",
-    getStatusFromXState(bookingContents as any, tenant)
-  );
+  description += listItem("Status", getProperty(bookingContents, "status"));
   description += listItem(
     "Origin",
     formatOrigin(getProperty(bookingContents, "origin"))
@@ -113,10 +104,7 @@ export const bookingContentsToDescription = async (
   );
   description += listItem(
     "Department",
-    getProperty(bookingContents, "department") === "Other" &&
-      getProperty(bookingContents, "otherDepartment")
-      ? getProperty(bookingContents, "otherDepartment")
-      : getProperty(bookingContents, "department")
+    getProperty(bookingContents, "department")
   );
   description += listItem("Role", getProperty(bookingContents, "role"));
   description += listItem("Email", getProperty(bookingContents, "email"));
@@ -171,80 +159,41 @@ export const bookingContentsToDescription = async (
       getProperty(bookingContents, "chartFieldForRoomSetup")
     );
   }
-  // Only show equipment service if it exists
-  const equipmentServices = getProperty(bookingContents, "equipmentServices");
-  if (equipmentServices) {
-    description += listItem("Equipment Service", equipmentServices);
-    const equipmentDetails = getProperty(
-      bookingContents,
-      "equipmentServicesDetails"
+  description += listItem(
+    "Media Service",
+    getProperty(bookingContents, "mediaServices")
+  );
+  if (getProperty(bookingContents, "mediaServicesDetails")) {
+    description += listItem(
+      "Media Services Details",
+      getProperty(bookingContents, "mediaServicesDetails")
     );
-    if (equipmentDetails) {
-      description += listItem("Equipment Service Details", equipmentDetails);
-    }
   }
-
-  // Only show staffing service if it exists
-  const staffingServices = getProperty(bookingContents, "staffingServices");
-  if (staffingServices) {
-    description += listItem("Staffing Service", staffingServices);
-    const staffingDetails = getProperty(
-      bookingContents,
-      "staffingServicesDetails"
-    );
-    if (staffingDetails) {
-      description += listItem("Staffing Service Details", staffingDetails);
-    }
-  }
-
   // Add WebCheckout Cart Number
   const cartNumber = getProperty(bookingContents, "webcheckoutCartNumber");
   if (cartNumber) {
     description += listItem("Cart Number", cartNumber);
   }
-
-  // Only show catering service if it's not "no" or "No"
-  const cateringService =
+  description += listItem(
+    "Catering",
     getProperty(bookingContents, "cateringService") ||
-    getProperty(bookingContents, "catering");
-  if (cateringService && cateringService !== "no" && cateringService !== "No") {
-    description += listItem("Catering Service", cateringService);
-    const cateringChartField = getProperty(
-      bookingContents,
-      "chartFieldForCatering"
+      getProperty(bookingContents, "catering")
+  );
+  if (getProperty(bookingContents, "chartFieldForCatering")) {
+    description += listItem(
+      "Catering Chart Field",
+      getProperty(bookingContents, "chartFieldForCatering")
     );
-    if (cateringChartField) {
-      description += listItem("Catering Chart Field", cateringChartField);
-    }
   }
-
-  // Only show cleaning service if it's not "no" or "No"
-  const cleaningService = getProperty(bookingContents, "cleaningService");
-  if (cleaningService && cleaningService !== "no" && cleaningService !== "No") {
-    description += listItem("Cleaning Service", "Yes");
-    const cleaningChartField = getProperty(
-      bookingContents,
-      "chartFieldForCleaning"
+  description += listItem(
+    "Security",
+    getProperty(bookingContents, "hireSecurity")
+  );
+  if (getProperty(bookingContents, "chartFieldForSecurity")) {
+    description += listItem(
+      "Security Chart Field",
+      getProperty(bookingContents, "chartFieldForSecurity")
     );
-    if (cleaningChartField) {
-      description += listItem(
-        "Cleaning Service Chart Field",
-        cleaningChartField
-      );
-    }
-  }
-
-  // Only show security service if it's not "no" or "No"
-  const securityService = getProperty(bookingContents, "hireSecurity");
-  if (securityService && securityService !== "no" && securityService !== "No") {
-    description += listItem("Security", securityService);
-    const securityChartField = getProperty(
-      bookingContents,
-      "chartFieldForSecurity"
-    );
-    if (securityChartField) {
-      description += listItem("Security Chart Field", securityChartField);
-    }
   }
   description += "</ul>";
 
@@ -282,6 +231,7 @@ export const insertEvent = async ({
         dateTime: new Date(endTime).toISOString(),
       },
       attendees: roomEmails.map((email: string) => ({ email })),
+      colorId: "8", // Gray
     },
   });
   return event.data;
@@ -290,13 +240,12 @@ export const insertEvent = async ({
 export const updateCalendarEvent = async (
   calendarEventId: string,
   newValues: {
-    end?: {
+    end: {
       dateTime: string;
     };
     statusPrefix?: BookingStatusLabel;
   },
-  bookingContents?: BookingFormDetails,
-  tenant?: string
+  bookingContents?: BookingFormDetails
 ) => {
   if (!bookingContents) {
     console.error("No booking contents provided for calendar event update");
@@ -340,10 +289,7 @@ export const updateCalendarEvent = async (
         updatedValues["end"] = newValues.end;
       }
 
-      let description = await bookingContentsToDescription(
-        bookingContents,
-        tenant
-      );
+      let description = bookingContentsToDescription(bookingContents);
       description +=
         'To cancel reservations please return to the Booking Tool, visit My Bookings, and click "cancel" on the booking at least 24 hours before the date of the event. Failure to cancel an unused booking is considered a no-show and may result in restricted use of the space.';
       updatedValues["description"] = description;
@@ -360,9 +306,7 @@ export const updateCalendarEvent = async (
       );
     } catch (error) {
       console.error(
-        "Error updating event %s in calendar %s:",
-        calendarEventId,
-        roomCalendarId,
+        `Error updating event ${calendarEventId} in calendar ${roomCalendarId}:`,
         error
       );
     }

@@ -9,7 +9,7 @@ interface EmailField {
 interface Props<T extends EmailField> {
   tableName: TableNames;
   title: string;
-  userList?: T[];
+  userList: T[];
   userListRefresh: () => Promise<void>;
 }
 
@@ -25,7 +25,7 @@ export default function AddEmail<T extends EmailField>({
       addFailedErrorMessage="Failed to add user"
       columnNameUniqueValue="email"
       inputPlaceholder="Add email"
-      rows={(userList || []) as unknown as { [key: string]: string }[]}
+      rows={userList as unknown as { [key: string]: string }[]}
       rowsRefresh={userListRefresh}
       {...{ tableName, title }}
     />

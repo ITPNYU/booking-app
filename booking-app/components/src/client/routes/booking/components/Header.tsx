@@ -46,11 +46,6 @@ export const Header = ({ formContext }: Props) => {
         return () => router.push(`/${tenant}/${formContext}/role/${idSegment}`);
       case "form":
         return () => router.push(`/${tenant}/${formContext}/selectRoom/${idSegment}`);
-      case "role":
-        if (formContext === FormContextLevel.WALK_IN) {
-          return () => router.push(`/${tenant}/${formContext}/netid`);
-        }
-        return () => {};
       default:
         return () => {};
     }

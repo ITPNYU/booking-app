@@ -31,8 +31,7 @@ import { BookingContext } from "../bookingProvider";
 import { mapAffiliationToRole } from "../formPages/UserRolePage";
 import useCheckAutoApproval from "../hooks/useCheckAutoApproval";
 import useSubmitBooking from "../hooks/useSubmitBooking";
-import BookingFormEquipmentServices from "./BookingFormEquipmentServices";
-import BookingFormStaffingServices from "./BookingFormStaffingServices";
+import BookingFormMediaServices from "./BookingFormMediaServices";
 import BookingSelection from "./BookingSelection";
 
 const Section = ({ title, children }) => (
@@ -87,14 +86,13 @@ export default function FormInput({
   const router = useRouter();
   const { tenant } = useParams();
   const registerEvent = useSubmitBooking(formContext);
+  const { isAutoApproval } = useCheckAutoApproval();
 
   const isWalkIn = formContext === FormContextLevel.WALK_IN;
   const isMod = formContext === FormContextLevel.MODIFICATION;
   const isFullForm = formContext === FormContextLevel.FULL_FORM;
   const isVIP = formContext === FormContextLevel.VIP;
   const isBooking = !isWalkIn && !isVIP;
-
-  const { isAutoApproval } = useCheckAutoApproval(isWalkIn, isVIP);
 
   const getDefaultValue = (key: keyof UserApiData): string => {
     // For VIP and walk-in bookings, we don't need identity data.
@@ -105,32 +103,10 @@ export default function FormInput({
   const {
     showNNumber,
     showSponsor,
-    showSetup,
-    showBookingTypes,
+    showHireSecurity,
     agreements,
     roleMapping,
   } = useTenantSchema();
-
-  // Determine which services to show based on selected rooms and schema resources
-  const showEquipment = useMemo(() => {
-    return selectedRooms.some((room) => room.services?.includes("equipment"));
-  }, [selectedRooms]);
-
-  const showStaffing = useMemo(() => {
-    return selectedRooms.some((room) => room.services?.includes("staffing"));
-  }, [selectedRooms]);
-
-  const showCatering = useMemo(() => {
-    return selectedRooms.some((room) => room.services?.includes("catering"));
-  }, [selectedRooms]);
-
-  const showHireSecurity = useMemo(() => {
-    return selectedRooms.some((room) => room.services?.includes("security"));
-  }, [selectedRooms]);
-
-  const showCleaning = useMemo(() => {
-    return selectedRooms.some((room) => room.services?.includes("cleaning"));
-  }, [selectedRooms]);
 
   const {
     control,
@@ -143,21 +119,17 @@ export default function FormInput({
     defaultValues: {
       setupDetails: "",
       cateringService: "",
-      cleaningService: "",
       sponsorFirstName: "",
       sponsorLastName: "",
       sponsorEmail: "",
       mediaServicesDetails: "",
-      equipmentServicesDetails: "",
-      staffingServicesDetails: "",
-      catering: "",
+      catering: "no",
       chartFieldForCatering: "",
-      chartFieldForCleaning: "",
       chartFieldForSecurity: "",
       chartFieldForRoomSetup: "",
-      hireSecurity: "",
+      hireSecurity: "no",
       attendeeAffiliation: "",
-      roomSetup: "",
+      roomSetup: "no",
       bookingType: "",
       secondaryName: "",
       otherDepartment: "",
@@ -174,21 +146,8 @@ export default function FormInput({
     resolver: undefined,
   });
 
-  // different from other switches b/c services don't have yes/no columns in DB
-  const [showEquipmentServices, setShowEquipmentServices] = useState(false);
-  const [showStaffingServices, setShowStaffingServices] = useState(false);
-
-  // Initialize service toggles based on existing form data (for modification forms)
-  useEffect(() => {
-    if (formData) {
-      if (formData.equipmentServices && formData.equipmentServices.length > 0) {
-        setShowEquipmentServices(true);
-      }
-      if (formData.staffingServices && formData.staffingServices.length > 0) {
-        setShowStaffingServices(true);
-      }
-    }
-  }, []); // Run only once on mount
+  // different from other switches b/c mediaServices doesn't have yes/no column in DB
+  const [showMediaServices, setShowMediaServices] = useState(false);
 
   // agreements, skip for walk-ins
   const [checkedAgreements, setCheckedAgreements] = useState<
@@ -402,66 +361,211 @@ export default function FormInput({
   const formatSectionTitle = (title: string) => {
     return `${prefix} ${title}`.trim();
   };
-
+  
   const formatFieldLabel = (label: string) => {
     return `${prefix} ${label}`.trim();
   };
 
-  // Common Services section used by both full form and modification form
-  const servicesSection = (
-    <Section title={formatSectionTitle("Services")}>
-      {!isWalkIn && showSetup && (
-        <div style={{ marginBottom: 32 }}>
-          <BookingFormSwitch
-            id="roomSetup"
-            label="Setup?"
-            required={false}
-            description={
-              <p>
-                This field is for requesting a room setup that requires hiring
-                CBS through a work order.
-              </p>
-            }
+  const fullFormFields = (
+    <>
+      <Section title={formatSectionTitle("Contact Information")}>
+        <BookingFormTextField
+          id="firstName"
+          label="First Name"
+          {...{ control, errors, trigger }}
+        />
+        <BookingFormTextField
+          id="lastName"
+          label="Last Name"
+          {...{ control, errors, trigger }}
+        />
+        <BookingFormTextField
+          id="secondaryName"
+          label="Secondary Point of Contact"
+          description="If the person submitting this request is not the Point of Contact for the reservation, please add their name and contact information here (i.e. event organizer, faculty member, etc.)"
+          required={false}
+          {...{ control, errors, trigger }}
+        />
+        {showNNumber && !isVIP && (
+          // TODO: Refactor this when design schema for inputs
+          <BookingFormTextField
+            id="nNumber"
+            label={formatFieldLabel("NYU N-Number")}
+            description="Your N-number begins with a capital 'N' followed by eight digits."
+            required
+            pattern={{
+              value: /N[0-9]{8}$/,
+              message: "Invalid N-Number",
+            }}
             {...{ control, errors, trigger }}
           />
-          {watch("roomSetup") === "yes" && (
-            <>
-              <BookingFormTextField
-                id="setupDetails"
-                label="Room Setup Details"
-                description="Please specify the number of chairs, tables, and your preferred room configuration."
-                {...{ control, errors, trigger }}
-              />
-              <BookingFormTextField
-                id="chartFieldForRoomSetup"
-                label="ChartField for Room Setup"
-                {...{ control, errors, trigger }}
-              />
-            </>
-          )}
-        </div>
+        )}
+        {showSponsor && (
+          <BookingFormTextField
+            id="netId"
+            label={formatFieldLabel("NYU Net ID")}
+            // TODO: Refactor this when design schema for inputs
+            description={
+              isVIP
+                ? "The VIP Net ID is the username portion of the VIP's official NYU email address. It begins with the VIP's initials followed by one or more numbers."
+                : "Your Net ID is the username portion of your official NYU email address. It begins with your initials followed by one or more numbers."
+            }
+            required
+            pattern={{
+              value: /^[a-zA-Z]{2,3}[0-9]{1,6}$/,
+              message: "Invalid Net ID",
+            }}
+            {...{ control, errors, trigger }}
+          />
+        )}
+        <BookingFormTextField
+          id="phoneNumber"
+          label={formatFieldLabel("Phone Number")}
+          required
+          pattern={{
+            value:
+              /^\(?([2-9][0-8][0-9])\)?[-. ]?([2-9][0-9]{2})[-. ]?([0-9]{4})$/,
+            message: "Please enter a valid 10 digit telephone number.",
+          }}
+          {...{ control, errors, trigger }}
+        />
+      </Section>
+
+      {watch("role") === "Student" && (
+        <Section title={formatSectionTitle("Sponsor")}>
+          <BookingFormTextField
+            id="sponsorFirstName"
+            label="Sponsor First Name"
+            description="Faculty, Staff, or Liaison related to your request."
+            required={watch("role") === Role.STUDENT}
+            {...{ control, errors, trigger }}
+          />
+
+          <BookingFormTextField
+            id="sponsorLastName"
+            label="Sponsor Last Name"
+            required={watch("role") === Role.STUDENT}
+            {...{ control, errors, trigger }}
+          />
+
+          <BookingFormTextField
+            id="sponsorEmail"
+            label="Sponsor Email"
+            description="Must be an nyu.edu email address."
+            required={watch("role") === Role.STUDENT}
+            pattern={{
+              value: /^[A-Z0-9._%+-]+@nyu.edu$/i,
+              message: "Invalid email address",
+            }}
+            validate={validateSponsorEmailSimple}
+            {...{ control, errors, trigger }}
+          />
+        </Section>
       )}
-      {showEquipment && (
+
+      <Section title={formatSectionTitle("Reservation Details")}>
+        <BookingFormTextField
+          id="title"
+          label="Reservation Title"
+          description="Please provide a short title for your reservation (25 character limit)."
+          fieldProps={{
+            inputProps: { maxLength: 25 },
+          }}
+          {...{ control, errors, trigger }}
+        />
+        <BookingFormTextField
+          id="description"
+          label="Reservation Description"
+          {...{ control, errors, trigger }}
+        />
+        <BookingFormDropdown
+          id="bookingType"
+          label="Booking Type"
+          options={settings.bookingTypes
+            .map((x) => x.bookingType)
+            .sort((a, b) => a.localeCompare(b))}
+          {...{ control, errors, trigger }}
+        />
+        <BookingFormTextField
+          id="expectedAttendance"
+          label="Expected Attendance"
+          validate={validateExpectedAttendance}
+          {...{ control, errors, trigger }}
+        />
+        <BookingFormDropdown
+          id="attendeeAffiliation"
+          label="Attendee Affiliation(s)"
+          options={Object.values(AttendeeAffiliation)}
+          description={
+            <p>
+              Non-NYU guests will need to be sponsored through JRNY. For more
+              information about visitor, vendor, and affiliate access,
+              <a
+                href="https://www.nyu.edu/about/visitor-information/sponsoring-visitors.html"
+                className="text-blue-600 hover:underline dark:text-blue-500 mx-1"
+                target="_blank"
+              >
+                click here
+              </a>
+              .
+            </p>
+          }
+          {...{ control, errors, trigger }}
+        />
+      </Section>
+
+      <Section title={formatSectionTitle("Services")}>
+        {!isWalkIn && (
+          <div style={{ marginBottom: 32 }}>
+            <BookingFormSwitch
+              id="roomSetup"
+              label="Room Setup Needed?"
+              required={false}
+              description={
+                <p>
+                  This field is for requesting a room setup that requires hiring
+                  CBS through a work order.
+                </p>
+              }
+              {...{ control, errors, trigger }}
+            />
+            {watch("roomSetup") === "yes" && (
+              <>
+                <BookingFormTextField
+                  id="setupDetails"
+                  label="Room Setup Details"
+                  description="Please specify the number of chairs, tables, and your preferred room configuration."
+                  {...{ control, errors, trigger }}
+                />
+                <BookingFormTextField
+                  id="chartFieldForRoomSetup"
+                  label="ChartField for Room Setup"
+                  {...{ control, errors, trigger }}
+                />
+              </>
+            )}
+          </div>
+        )}
         <div style={{ marginBottom: 32 }}>
-          <BookingFormEquipmentServices
-            id="equipmentServices"
+          <BookingFormMediaServices
+            id="mediaServices"
             {...{
               control,
               trigger,
-              showEquipmentServices,
-              setShowEquipmentServices,
+              showMediaServices,
+              setShowMediaServices,
               formContext,
             }}
           />
-          {watch("equipmentServices") !== undefined &&
-            watch("equipmentServices").length > 0 && (
+          {watch("mediaServices") !== undefined &&
+            watch("mediaServices").length > 0 && (
               <BookingFormTextField
-                id="equipmentServicesDetails"
-                label="Equipment Services Details"
+                id="mediaServicesDetails"
+                label="Media Services Details"
                 description={
                   <p>
-                    If you selected Equipment Services above, please describe
-                    your needs in detail.
+                    If you selected any of the Media Services above, please
+                    describe your needs in detail.
                     <br />
                     If you need to check out equipment, you can check our
                     inventory and include your request below. (Ie. 2x Small
@@ -481,273 +585,61 @@ export default function FormInput({
               />
             )}
         </div>
-      )}
-      {showStaffing && (
-        <div style={{ marginBottom: 32 }}>
-          <BookingFormStaffingServices
-            id="staffingServices"
-            {...{
-              control,
-              trigger,
-              showStaffingServices,
-              setShowStaffingServices,
-              formContext,
-            }}
-          />
-          {watch("staffingServices") !== undefined &&
-            watch("staffingServices").length > 0 && (
+        {!isWalkIn && (
+          <div style={{ marginBottom: 32 }}>
+            <BookingFormSwitch
+              id="catering"
+              label="Catering?"
+              description={<p></p>}
+              required={false}
+              {...{ control, errors, trigger }}
+            />
+            {watch("catering") === "yes" && (
+              <>
+                <BookingFormDropdown
+                  id="cateringService"
+                  label="Catering Information"
+                  options={["Outside Catering", "NYU Plated"]}
+                  {...{ control, errors, trigger }}
+                />
+                <BookingFormTextField
+                  id="chartFieldForCatering"
+                  label="ChartField for CBS Cleaning Services"
+                  {...{ control, errors, trigger }}
+                />
+              </>
+            )}
+          </div>
+        )}
+        {!isWalkIn && showHireSecurity && (
+          <div style={{ marginBottom: 32 }}>
+            <BookingFormSwitch
+              id="hireSecurity"
+              label="Hire Security?"
+              required={false}
+              description={
+                <p>
+                  Only for large events with 75+ attendees, and bookings in The
+                  Garage where the Willoughby entrance will be in use. It is
+                  required for the reservation holder to provide a chartfield so
+                  that the Media Commons Team can obtain Campus Safety Security
+                  Services.
+                </p>
+              }
+              {...{ control, errors, trigger }}
+            />
+            {watch("hireSecurity") === "yes" && (
               <BookingFormTextField
-                id="staffingServicesDetails"
-                label="Staffing Services Details"
-                description={
-                  <p>
-                    If you selected any Staffing Services above, please describe
-                    your needs in detail.
-                    <br />
-                    Please specify the type of technical support you require and
-                    any specific requirements for your event.
-                  </p>
-                }
+                id="chartFieldForSecurity"
+                label="ChartField for Security"
                 {...{ control, errors, trigger }}
               />
             )}
-        </div>
-      )}
-      {!isWalkIn && showCatering && (
-        <div style={{ marginBottom: 32 }}>
-          <BookingFormSwitch
-            id="catering"
-            label="Catering?"
-            description={<p>Select if you need catering for your event.</p>}
-            required={false}
-            {...{ control, errors, trigger }}
-          />
-          {watch("catering") === "yes" && (
-            <>
-              <BookingFormDropdown
-                id="cateringService"
-                label="Catering Service"
-                options={["Outside Catering", "NYU Plated"]}
-                {...{ control, errors, trigger }}
-              />
-              <BookingFormTextField
-                id="chartFieldForCatering"
-                label="ChartField for Catering Services"
-                {...{ control, errors, trigger }}
-              />
-            </>
-          )}
-        </div>
-      )}
-      {!isWalkIn && showCleaning && (
-        <div style={{ marginBottom: 32 }}>
-          <BookingFormSwitch
-            id="cleaningService"
-            label="Cleaning?"
-            description={
-              <p>Select if you need cleaning services for your event.</p>
-            }
-            required={false}
-            {...{ control, errors, trigger }}
-          />
-          {watch("cleaningService") === "yes" && (
-            <BookingFormTextField
-              id="chartFieldForCleaning"
-              label="ChartField for CBS Cleaning Services"
-              {...{ control, errors, trigger }}
-            />
-          )}
-        </div>
-      )}
-      {!isWalkIn && showHireSecurity && (
-        <div style={{ marginBottom: 32 }}>
-          <BookingFormSwitch
-            id="hireSecurity"
-            label="Security?"
-            required={false}
-            description={
-              <p>
-                Only for large events with 75+ attendees, and bookings in The
-                Garage where the Willoughby entrance will be in use. It is
-                required for the reservation holder to provide a chartfield so
-                that the Media Commons Team can obtain Campus Safety Security
-                Services.
-              </p>
-            }
-            {...{ control, errors, trigger }}
-          />
-          {watch("hireSecurity") === "yes" && (
-            <BookingFormTextField
-              id="chartFieldForSecurity"
-              label="ChartField for Security"
-              {...{ control, errors, trigger }}
-            />
-          )}
-        </div>
-      )}
-    </Section>
-  );
-
-  const formFields = (
-    <>
-      {/* Contact Information - only for full form, not for modification */}
-      {!isMod && (
-        <Section title={formatSectionTitle("Contact Information")}>
-          <BookingFormTextField
-            id="firstName"
-            label="First Name"
-            {...{ control, errors, trigger }}
-          />
-          <BookingFormTextField
-            id="lastName"
-            label="Last Name"
-            {...{ control, errors, trigger }}
-          />
-          <BookingFormTextField
-            id="secondaryName"
-            label="Secondary Point of Contact"
-            description="If the person submitting this request is not the Point of Contact for the reservation, please add their name and contact information here (i.e. event organizer, faculty member, etc.)"
-            required={false}
-            {...{ control, errors, trigger }}
-          />
-          {showNNumber && !isVIP && (
-            <BookingFormTextField
-              id="nNumber"
-              label={formatFieldLabel("NYU N-Number")}
-              description="Your N-number begins with a capital 'N' followed by eight digits."
-              required
-              pattern={{
-                value: /N[0-9]{8}$/,
-                message: "Invalid N-Number",
-              }}
-              {...{ control, errors, trigger }}
-            />
-          )}
-          {showSponsor && (
-            <BookingFormTextField
-              id="netId"
-              label={formatFieldLabel("NYU Net ID")}
-              description={
-                isVIP
-                  ? "The VIP Net ID is the username portion of the VIP's official NYU email address. It begins with the VIP's initials followed by one or more numbers."
-                  : "Your Net ID is the username portion of your official NYU email address. It begins with your initials followed by one or more numbers."
-              }
-              required
-              pattern={{
-                value: /^[a-zA-Z]{2,3}[0-9]{1,6}$/,
-                message: "Invalid Net ID",
-              }}
-              {...{ control, errors, trigger }}
-            />
-          )}
-          <BookingFormTextField
-            id="phoneNumber"
-            label={formatFieldLabel("Phone Number")}
-            required
-            pattern={{
-              value:
-                /^\(?([2-9][0-8][0-9])\)?[-. ]?([2-9][0-9]{2})[-. ]?([0-9]{4})$/,
-              message: "Please enter a valid 10 digit telephone number.",
-            }}
-            {...{ control, errors, trigger }}
-          />
-        </Section>
-      )}
-
-      {/* Sponsor - only for full form with student role */}
-      {!isMod && showSponsor && watch("role") === "Student" && (
-        <Section title={formatSectionTitle("Sponsor")}>
-          <BookingFormTextField
-            id="sponsorFirstName"
-            label="Sponsor First Name"
-            description="Faculty, Staff, or Liaison related to your request."
-            required={watch("role") === Role.STUDENT}
-            {...{ control, errors, trigger }}
-          />
-          <BookingFormTextField
-            id="sponsorLastName"
-            label="Sponsor Last Name"
-            required={watch("role") === Role.STUDENT}
-            {...{ control, errors, trigger }}
-          />
-          <BookingFormTextField
-            id="sponsorEmail"
-            label="Sponsor Email"
-            description="Must be an nyu.edu email address."
-            required={watch("role") === Role.STUDENT}
-            pattern={{
-              value: /^[A-Z0-9._%+-]+@nyu.edu$/i,
-              message: "Invalid email address",
-            }}
-            validate={validateSponsorEmailSimple}
-            {...{ control, errors, trigger }}
-          />
-        </Section>
-      )}
-
-      {/* Reservation Details - for all form types */}
-      <Section title={formatSectionTitle("Reservation Details")}>
-        <BookingFormTextField
-          id="title"
-          label="Reservation Title"
-          description="Please provide a short title for your reservation (25 character limit)."
-          fieldProps={{
-            inputProps: { maxLength: 25 },
-          }}
-          {...{ control, errors, trigger }}
-        />
-        <BookingFormTextField
-          id="description"
-          label="Reservation Description"
-          {...{ control, errors, trigger }}
-        />
-        {!isMod && showBookingTypes && (
-          <BookingFormDropdown
-            id="bookingType"
-            label="Booking Type"
-            options={settings.bookingTypes
-              .map((x) => x.bookingType)
-              .sort((a, b) => a.localeCompare(b))}
-            dataTestId="booking-type-select"
-            {...{ control, errors, trigger }}
-          />
-        )}
-        <BookingFormTextField
-          id="expectedAttendance"
-          label="Expected Attendance"
-          validate={validateExpectedAttendance}
-          {...{ control, errors, trigger }}
-        />
-        {!isMod && (
-          <BookingFormDropdown
-            id="attendeeAffiliation"
-            label="Attendee Affiliation(s)"
-            options={Object.values(AttendeeAffiliation)}
-            description={
-              <p>
-                Non-NYU guests will need to be sponsored through JRNY. For more
-                information about visitor, vendor, and affiliate access,
-                <a
-                  href="https://www.nyu.edu/about/visitor-information/sponsoring-visitors.html"
-                  className="text-blue-600 hover:underline dark:text-blue-500 mx-1"
-                  target="_blank"
-                >
-                  click here
-                </a>
-                .
-              </p>
-            }
-            dataTestId="attendee-affiliation-select"
-            {...{ control, errors, trigger }}
-          />
+          </div>
         )}
       </Section>
 
-      {/* Services - for all form types */}
-      {servicesSection}
-
-      {/* Agreement - only for full booking form */}
-      {!isMod && isBooking && (
+      {isBooking && (
         <Section title="Agreement">
           {agreements.map((agreement) => (
             <BookingFormAgreementCheckbox
@@ -767,17 +659,72 @@ export default function FormInput({
           ))}
         </Section>
       )}
-
-      {/* Submit button */}
-      <Button
-        type="submit"
-        disabled={isMod ? !isValid : disabledButton}
-        variant="contained"
-      >
+      <Button type="submit" disabled={disabledButton} variant="contained">
         Submit
       </Button>
     </>
   );
+
+  const modificationFormFields = (
+    <>
+      <Section title="Reservation Details">
+        <BookingFormTextField
+          id="title"
+          label="Reservation Title"
+          description="Please provide a short title for your reservation (25 character limit)."
+          fieldProps={{
+            inputProps: { maxLength: 25 },
+          }}
+          {...{ control, errors, trigger }}
+        />
+        <BookingFormTextField
+          id="description"
+          label="Reservation Description"
+          {...{ control, errors, trigger }}
+        />
+        <BookingFormTextField
+          id="expectedAttendance"
+          label="Expected Attendance"
+          validate={validateExpectedAttendance}
+          {...{ control, errors, trigger }}
+        />
+      </Section>
+      <Section title="Media Services">
+        <div style={{ marginBottom: 32 }}>
+          <BookingFormMediaServices
+            id="mediaServices"
+            {...{
+              control,
+              trigger,
+              showMediaServices,
+              setShowMediaServices,
+              formContext,
+            }}
+          />
+          {watch("mediaServices") !== undefined &&
+            watch("mediaServices").length > 0 && (
+              <BookingFormTextField
+                id="mediaServicesDetails"
+                label="Media Services Details"
+                {...{ control, errors, trigger }}
+              />
+            )}
+        </div>
+      </Section>
+      <Button type="submit" disabled={!isValid} variant="contained">
+        Submit
+      </Button>
+    </>
+  );
+
+  let formFields = <></>;
+  switch (formContext) {
+    case FormContextLevel.MODIFICATION:
+      formFields = modificationFormFields;
+      break;
+    default:
+      formFields = fullFormFields;
+  }
 
   return (
     <Center>

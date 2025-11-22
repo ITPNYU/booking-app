@@ -16,7 +16,7 @@ describe("Permissions Utility", () => {
         PagePermission.ADMIN,
         PagePermission.PA,
         PagePermission.LIAISON,
-        PagePermission.SERVICES,
+        PagePermission.EQUIPMENT,
         PagePermission.BOOKING,
       ];
 
@@ -32,7 +32,7 @@ describe("Permissions Utility", () => {
         PagePermission.ADMIN,
         PagePermission.PA,
         PagePermission.LIAISON,
-        PagePermission.SERVICES,
+        PagePermission.EQUIPMENT,
         PagePermission.BOOKING,
       ];
 
@@ -55,7 +55,7 @@ describe("Permissions Utility", () => {
         PagePermission.SUPER_ADMIN,
         PagePermission.ADMIN,
         PagePermission.LIAISON,
-        PagePermission.SERVICES,
+        PagePermission.EQUIPMENT,
       ];
 
       deniedPermissions.forEach((permission) => {
@@ -75,7 +75,7 @@ describe("Permissions Utility", () => {
         PagePermission.SUPER_ADMIN,
         PagePermission.ADMIN,
         PagePermission.PA,
-        PagePermission.SERVICES,
+        PagePermission.EQUIPMENT,
       ];
 
       deniedPermissions.forEach((permission) => {
@@ -83,12 +83,12 @@ describe("Permissions Utility", () => {
       });
     });
 
-    it("SERVICES should only have SERVICES and BOOKING permissions", () => {
+    it("EQUIPMENT should only have EQUIPMENT and BOOKING permissions", () => {
       expect(
-        hasPermission(PagePermission.SERVICES, PagePermission.SERVICES)
+        hasPermission(PagePermission.EQUIPMENT, PagePermission.EQUIPMENT)
       ).toBe(true);
       expect(
-        hasPermission(PagePermission.SERVICES, PagePermission.BOOKING)
+        hasPermission(PagePermission.EQUIPMENT, PagePermission.BOOKING)
       ).toBe(true);
 
       const deniedPermissions = [
@@ -99,7 +99,7 @@ describe("Permissions Utility", () => {
       ];
 
       deniedPermissions.forEach((permission) => {
-        expect(hasPermission(PagePermission.SERVICES, permission)).toBe(false);
+        expect(hasPermission(PagePermission.EQUIPMENT, permission)).toBe(false);
       });
     });
 
@@ -113,7 +113,7 @@ describe("Permissions Utility", () => {
         PagePermission.ADMIN,
         PagePermission.PA,
         PagePermission.LIAISON,
-        PagePermission.SERVICES,
+        PagePermission.EQUIPMENT,
       ];
 
       deniedPermissions.forEach((permission) => {
@@ -157,9 +157,9 @@ describe("Permissions Utility", () => {
   });
 
   describe("canAccessWebCheckout", () => {
-    it("should allow access for PA, SERVICES, ADMIN and SUPER_ADMIN", () => {
+    it("should allow access for PA, EQUIPMENT, ADMIN and SUPER_ADMIN", () => {
       expect(canAccessWebCheckout(PagePermission.PA)).toBe(true);
-      expect(canAccessWebCheckout(PagePermission.SERVICES)).toBe(true);
+      expect(canAccessWebCheckout(PagePermission.EQUIPMENT)).toBe(true);
       expect(canAccessWebCheckout(PagePermission.ADMIN)).toBe(true);
       expect(canAccessWebCheckout(PagePermission.SUPER_ADMIN)).toBe(true);
     });
@@ -176,11 +176,11 @@ describe("Permissions Utility", () => {
       expect(canAccessAdmin(PagePermission.SUPER_ADMIN)).toBe(true);
     });
 
-    it("should deny PA, BOOKING, LIAISON, and SERVICES users", () => {
+    it("should deny PA, BOOKING, LIAISON, and EQUIPMENT users", () => {
       expect(canAccessAdmin(PagePermission.PA)).toBe(false);
       expect(canAccessAdmin(PagePermission.BOOKING)).toBe(false);
       expect(canAccessAdmin(PagePermission.LIAISON)).toBe(false);
-      expect(canAccessAdmin(PagePermission.SERVICES)).toBe(false);
+      expect(canAccessAdmin(PagePermission.EQUIPMENT)).toBe(false);
     });
   });
 

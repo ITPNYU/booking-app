@@ -8,21 +8,24 @@ const PERMISSION_HIERARCHY: Record<PagePermission, PagePermission[]> = {
   [PagePermission.SUPER_ADMIN]: [
     PagePermission.SUPER_ADMIN,
     PagePermission.ADMIN,
-    PagePermission.SERVICES,
-    PagePermission.LIAISON,
     PagePermission.PA,
+    PagePermission.LIAISON,
+    PagePermission.EQUIPMENT,
     PagePermission.BOOKING,
   ],
   [PagePermission.ADMIN]: [
     PagePermission.ADMIN,
-    PagePermission.SERVICES,
-    PagePermission.LIAISON,
     PagePermission.PA,
+    PagePermission.LIAISON,
+    PagePermission.EQUIPMENT,
     PagePermission.BOOKING,
   ],
   [PagePermission.PA]: [PagePermission.PA, PagePermission.BOOKING],
   [PagePermission.LIAISON]: [PagePermission.LIAISON, PagePermission.BOOKING],
-  [PagePermission.SERVICES]: [PagePermission.SERVICES, PagePermission.BOOKING],
+  [PagePermission.EQUIPMENT]: [
+    PagePermission.EQUIPMENT,
+    PagePermission.BOOKING,
+  ],
   [PagePermission.BOOKING]: [PagePermission.BOOKING],
 };
 
@@ -55,7 +58,7 @@ export function hasAnyPermission(
 export function canAccessWebCheckout(userPermission: PagePermission): boolean {
   return hasAnyPermission(userPermission, [
     PagePermission.PA,
-    PagePermission.SERVICES,
+    PagePermission.EQUIPMENT,
     PagePermission.ADMIN,
     PagePermission.SUPER_ADMIN,
   ]);

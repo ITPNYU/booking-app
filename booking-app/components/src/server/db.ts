@@ -1,4 +1,3 @@
-import { DEFAULT_TENANT } from "../constants/tenants";
 import {
   Approver,
   Booking,
@@ -26,66 +25,16 @@ import {
   getCancelCcEmail,
 } from "../policy";
 
-import { shouldUseXState } from "@/components/src/utils/tenantUtils";
 import { clientUpdateDataByCalendarEventId } from "@/lib/firebase/client/clientDb";
+import { roundTimeUp } from "../client/utils/date";
 import { getBookingToolDeployUrl } from "./ui";
 
-// Helper function to call XState transition API
-async function callXStateTransitionAPI(
-  calendarEventId: string,
-  eventType: string,
-  email: string,
-  tenant?: string,
-  reason?: string
-): Promise<{ success: boolean; newState?: string; error?: string }> {
-  try {
-    const response = await fetch(
-      `${process.env.NEXT_PUBLIC_BASE_URL}/api/xstate-transition`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-tenant": tenant || DEFAULT_TENANT,
-        },
-        body: JSON.stringify({
-          calendarEventId,
-          eventType,
-          email,
-          reason,
-        }),
-      }
-    );
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      return {
-        success: false,
-        error: errorData.error,
-      };
-    }
-
-    const result = await response.json();
-    return {
-      success: true,
-      newState: result.newState,
-    };
-  } catch (error: any) {
-    return {
-      success: false,
-      error: error.message,
-    };
-  }
-}
-
-export const fetchAllFutureBooking = async <Booking>(
-  tenant?: string
-): Promise<Booking[]> => {
+export const fetchAllFutureBooking = async <Booking>(): Promise<Booking[]> => {
   const now = Timestamp.now();
   const futureQueryConstraints = [where("endDate", ">", now)];
   return clientFetchAllDataFromCollection<Booking>(
     TableNames.BOOKING,
-    futureQueryConstraints,
-    tenant
+    futureQueryConstraints
   );
 };
 
@@ -93,29 +42,16 @@ export const fetchAllBookings = async <Booking>(
   pagePermission: PagePermission,
   limit: number,
   filters: Filters,
-  last: any,
-  tenant?: string
+  last: any
 ): Promise<Booking[]> => {
   if (
     pagePermission === PagePermission.ADMIN ||
     pagePermission === PagePermission.LIAISON ||
     pagePermission === PagePermission.PA
   ) {
-    return getPaginatedData<Booking>(
-      TableNames.BOOKING,
-      limit,
-      filters,
-      last,
-      tenant
-    );
+    return getPaginatedData<Booking>(TableNames.BOOKING, limit, filters, last);
   } else {
-    return getPaginatedData<Booking>(
-      TableNames.BOOKING,
-      limit,
-      filters,
-      last,
-      tenant
-    );
+    return getPaginatedData<Booking>(TableNames.BOOKING, limit, filters, last);
   }
 };
 
@@ -150,109 +86,17 @@ export const getOldSafetyTrainingEmails = () => {
   //return combinedValues;
 };
 
-export const decline = async (
-  id: string,
-  email: string,
-  reason?: string,
-  tenant?: string
-) => {
-  console.log(`🎯 DECLINE REQUEST [${tenant?.toUpperCase() || "UNKNOWN"}]:`, {
-    calendarEventId: id,
-    email,
-    tenant,
-    reason,
-    usingXState: shouldUseXState(tenant),
+export const decline = async (id: string, email: string, reason?: string) => {
+  clientUpdateDataByCalendarEventId(TableNames.BOOKING, id, {
+    declinedAt: Timestamp.now(),
+    declinedBy: email,
+    declineReason: reason || null,
   });
-
-  // For ITP and Media Commons tenants, use XState transition via API
-  if (shouldUseXState(tenant)) {
-    console.log(`🎭 USING XSTATE API FOR DECLINE [${tenant?.toUpperCase()}]:`, {
-      calendarEventId: id,
-    });
-
-    const xstateResult = await callXStateTransitionAPI(
-      id,
-      "decline",
-      email,
-      tenant,
-      reason
-    );
-
-    if (!xstateResult.success) {
-      console.error(
-        `🚨 XSTATE DECLINE API FAILED [${tenant?.toUpperCase()}]:`,
-        {
-          calendarEventId: id,
-          error: xstateResult.error,
-        }
-      );
-
-      // Fallback to traditional decline if XState API fails
-      console.log(
-        `🔄 FALLING BACK TO TRADITIONAL DECLINE [${tenant?.toUpperCase()}]:`,
-        {
-          calendarEventId: id,
-        }
-      );
-    } else {
-      console.log(`✅ XSTATE DECLINE API SUCCESS [${tenant?.toUpperCase()}]:`, {
-        calendarEventId: id,
-        newState: xstateResult.newState,
-      });
-
-      // XState handled the decline successfully, now add history logging
-      const doc = await clientGetDataByCalendarEventId<{
-        id: string;
-        requestNumber: number;
-      }>(TableNames.BOOKING, id, tenant);
-
-      if (doc) {
-        await logClientBookingChange({
-          bookingId: doc.id,
-          calendarEventId: id,
-          status: BookingStatusLabel.DECLINED,
-          changedBy: email,
-          requestNumber: doc.requestNumber,
-          note: reason,
-          tenant,
-        });
-
-        console.log(
-          `📋 XSTATE DECLINE HISTORY LOGGED [${tenant?.toUpperCase()}]:`,
-          {
-            calendarEventId: id,
-            bookingId: doc.id,
-            requestNumber: doc.requestNumber,
-            reason,
-          }
-        );
-      }
-
-      // Skip the traditional processing below
-      return;
-    }
-  } else {
-    console.log(
-      `📝 USING TRADITIONAL DECLINE [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-      { calendarEventId: id }
-    );
-  }
-
-  clientUpdateDataByCalendarEventId(
-    TableNames.BOOKING,
-    id,
-    {
-      declinedAt: Timestamp.now(),
-      declinedBy: email,
-      declineReason: reason || null,
-    },
-    tenant
-  );
 
   const doc = await clientGetDataByCalendarEventId<{
     id: string;
     requestNumber: number;
-  }>(TableNames.BOOKING, id, tenant);
+  }>(TableNames.BOOKING, id);
 
   // Log the decline action
   if (doc) {
@@ -263,27 +107,24 @@ export const decline = async (
       changedBy: email,
       requestNumber: doc.requestNumber,
       note: reason,
-      tenant,
     });
   }
   //@ts-ignore
   const guestEmail = doc ? doc.email : null;
-  const { getTenantEmailConfig } = await import("./emails");
-  const emailConfig = await getTenantEmailConfig(tenant);
-  let headerMessage = emailConfig.emailMessages.declined;
+  let headerMessage =
+    "Your reservation request for Media Commons has been declined.";
 
   if (reason) {
-    headerMessage += ` Reason: ${reason}. <br /><br />If you have any questions or need further assistance, please don't hesitate to reach out.`;
+    headerMessage += ` Reason: ${reason}`;
   } else {
     headerMessage +=
-      "<br />If you have any questions or need further assistance, please don't hesitate to reach out.";
+      " For detailed reasons regarding this decision, please contact us at mediacommons.reservations@nyu.edu.";
   }
   clientSendBookingDetailEmail(
     id,
     guestEmail,
     headerMessage,
-    BookingStatusLabel.DECLINED,
-    tenant
+    BookingStatusLabel.DECLINED
   );
   const response = await fetch(
     `${process.env.NEXT_PUBLIC_BASE_URL}/api/calendarEvents`,
@@ -291,7 +132,6 @@ export const decline = async (
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
-        "x-tenant": tenant || DEFAULT_TENANT,
       },
       body: JSON.stringify({
         calendarEventId: id,
@@ -301,343 +141,81 @@ export const decline = async (
   );
 };
 
-function isPolicyViolation(doc: any): boolean {
-  // Exclude vip and walk-in
-  if (!doc || !doc.startDate || !doc.requestedAt) return false;
-  return true;
-}
+// If cancel within 24 hours of event or o, add to pre-ban logs.
+function checkAndLogLateCancellation(
+  doc: any,
+  bookingId: string,
+  netId: string
+) {
+  if (!doc) return;
 
-function isLateCancel(doc: any): boolean {
-  if (!isPolicyViolation(doc)) return false;
   const now = Timestamp.now();
   const eventDate = doc.startDate;
   const requestedAt = doc.requestedAt;
+
+  // Calculate time differences
   const timeToEvent = eventDate.toDate().getTime() - now.toDate().getTime();
   const hoursToEvent = timeToEvent / (1000 * 60 * 60);
+
+  // If event is more than 24 hours away, no penalty.
+  if (hoursToEvent > 24) return;
+
+  // If within 1 hour grace period of creation, no penalty.
   const timeSinceCreation =
     now.toDate().getTime() - requestedAt.toDate().getTime();
   const hoursSinceCreation = timeSinceCreation / (1000 * 60 * 60);
-  return hoursToEvent <= 24 && hoursSinceCreation > 1;
-}
+  if (hoursSinceCreation <= 1) return;
 
-async function checkAndLogLateCancellation(
-  doc: any,
-  bookingId: string,
-  netId: string,
-  tenant?: string
-) {
-  if (!isLateCancel(doc)) return;
-
-  const { serverSaveDataToFirestore } = await import(
-    "@/lib/firebase/server/adminDb"
-  );
-  const admin = await import("firebase-admin");
-  const now = admin.firestore.Timestamp.now();
+  // Add to pre-ban logs if outside grace period.
   const log = { netId, bookingId, lateCancelDate: now };
-  await serverSaveDataToFirestore(TableNames.PRE_BAN_LOGS, log, tenant);
+  clientSaveDataToFirestore(TableNames.PRE_BAN_LOGS, log);
 }
 
-async function getViolationCount(
-  netId: string,
-  tenant?: string
-): Promise<number> {
-  const { serverFetchAllDataFromCollection } = await import(
-    "@/lib/firebase/server/adminDb"
-  );
-
-  // For server-side, we'll query directly without where clause for now
-  // This is a simplified approach - in production you'd want proper filtering
-  const preBanLogs = await serverFetchAllDataFromCollection(
-    TableNames.PRE_BAN_LOGS,
-    undefined,
-    tenant
-  );
-
-  // Filter on the client side for now
-  const filteredLogs = preBanLogs.filter((log: any) => log.netId === netId);
-  return filteredLogs.length;
-}
-
-/**
- * Shared close processing function that handles all close-related operations
- * Used by both traditional close function and XState close processing
- */
-export const processCloseBooking = async (
-  id: string,
-  email: string,
-  tenant?: string
-): Promise<void> => {
-  // Import server-side functions and admin SDK
-  const { serverGetDataByCalendarEventId, serverUpdateInFirestore } =
-    await import("@/lib/firebase/server/adminDb");
-  const { serverSendBookingDetailEmail } = await import(
-    "@/components/src/server/admin"
-  );
-  const { logServerBookingChange } = await import(
-    "@/lib/firebase/server/adminDb"
-  );
-  const admin = await import("firebase-admin");
-
-  // Get booking document first to get the document ID
-  const doc = await serverGetDataByCalendarEventId<Booking>(
-    TableNames.BOOKING,
-    id,
-    tenant
-  );
-
-  if (!doc) {
-    console.error(
-      `🚨 CLOSE PROCESSING: Booking not found for calendarEventId: ${id}`
-    );
-    return;
-  }
-
-  // Update Firestore booking document using server-side Timestamp
-  // CLOSED state is always attributed to System
-  const updateData: any = {
-    closedAt: admin.firestore.Timestamp.now(),
-    closedBy: "System",
-  };
-
-  // If this booking uses XState, also update the XState snapshot to "Closed"
-  if (doc.xstateData?.snapshot) {
-    console.log(
-      `🎯 UPDATING XSTATE SNAPSHOT TO CLOSED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-      {
-        calendarEventId: id,
-        currentXStateValue: doc.xstateData.snapshot.value,
-        updatingTo: "Closed",
-      }
-    );
-
-    updateData.xstateData = {
-      ...doc.xstateData,
-      snapshot: {
-        ...doc.xstateData.snapshot,
-        value: "Closed",
-        status: "done",
-      },
-      lastTransition: new Date().toISOString(),
-    };
-  }
-
-  await serverUpdateInFirestore(TableNames.BOOKING, doc.id, updateData, tenant);
-
-  // Add Close history log
-  // CLOSED state is always attributed to System
-  await logServerBookingChange({
-    bookingId: doc.id,
-    calendarEventId: id,
-    status: BookingStatusLabel.CLOSED,
-    changedBy: "System",
-    requestNumber: doc.requestNumber || 0,
-    note: "",
-    tenant,
+export const cancel = async (id: string, email: string, netId: string) => {
+  clientUpdateDataByCalendarEventId(TableNames.BOOKING, id, {
+    canceledAt: Timestamp.now(),
+    canceledBy: email,
   });
 
-  // Unified email message for all close operations
-  const { getTenantEmailConfig } = await import("./emails");
-  const emailConfig = await getTenantEmailConfig(tenant);
-  const emailMessage = emailConfig.emailMessages.closed;
-  const emailStatus = BookingStatusLabel.CLOSED;
-
-  // Send email using server-side function
-  const guestEmail = doc.email;
-  if (guestEmail) {
-    await serverSendBookingDetailEmail({
-      calendarEventId: id,
-      targetEmail: guestEmail,
-      headerMessage: emailMessage,
-      status: emailStatus,
-      tenant,
-    });
-  }
-
-  // Update calendar
-  const response = await fetch(
-    `${process.env.NEXT_PUBLIC_BASE_URL}/api/calendarEvents`,
-    {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        "x-tenant": tenant || DEFAULT_TENANT,
-      },
-      body: JSON.stringify({
-        calendarEventId: id,
-        newValues: { statusPrefix: BookingStatusLabel.CLOSED },
-      }),
-    }
-  );
-
-  if (!response.ok) {
-    console.error(
-      `🚨 CLOSE CALENDAR UPDATE FAILED: ${response.status} ${response.statusText}`
-    );
-  }
-};
-
-/**
- * Shared cancel processing function that handles all cancel-related operations
- * Used by both traditional cancel function and XState cancel processing
- */
-export const processCancelBooking = async (
-  id: string,
-  email: string,
-  netId: string,
-  tenant?: string
-): Promise<void> => {
-  // Import server-side functions and admin SDK
-  const {
-    serverGetDataByCalendarEventId,
-    serverUpdateInFirestore,
-    serverFetchAllDataFromCollection,
-  } = await import("@/lib/firebase/server/adminDb");
-  const admin = await import("firebase-admin");
-
-  // Get booking document first to get the document ID
-  const doc = await serverGetDataByCalendarEventId<Booking>(
-    TableNames.BOOKING,
-    id,
-    tenant
-  );
-
-  if (!doc) {
-    console.error(
-      `🚨 CANCEL PROCESSING: Booking not found for calendarEventId: ${id}`
-    );
-    return;
-  }
-
-  // Check if this is an automatic transition from No Show or Decline
-  // by checking booking logs for NO-SHOW or DECLINED status
-  const bookingLogs = await serverFetchAllDataFromCollection(
-    TableNames.BOOKING_LOGS,
-    [{ field: "calendarEventId", operator: "==", value: id }],
-    tenant
-  );
-
-  const hasNoShowLog = bookingLogs.some(
-    (log: any) => log.status === BookingStatusLabel.NO_SHOW
-  );
-  const hasDeclinedLog = bookingLogs.some(
-    (log: any) => log.status === BookingStatusLabel.DECLINED
-  );
-  const isAutomaticTransition = hasNoShowLog || hasDeclinedLog;
-
-  const changedBy = isAutomaticTransition ? "System" : email;
-  const note = hasNoShowLog
-    ? "Canceled due to no show"
-    : hasDeclinedLog
-      ? "Canceled due to decline"
-      : "";
-
-  console.log(
-    "🔍 CANCEL PROCESSING CHECK [%s]:", tenant?.toUpperCase() || "UNKNOWN",
-    {
-      calendarEventId: id,
-      hasNoShowLog,
-      hasDeclinedLog,
-      isAutomaticTransition,
-      changedBy,
-      note,
-    }
-  );
-
-  // Update Firestore booking document using server-side Timestamp
-  await serverUpdateInFirestore(
-    TableNames.BOOKING,
-    doc.id,
-    {
-      canceledAt: admin.firestore.Timestamp.now(),
-      canceledBy: changedBy,
-    },
-    tenant
-  );
-
-  // Always call for pre-ban logging
-  await checkAndLogLateCancellation(doc, id, netId, tenant);
+  const doc = await clientGetDataByCalendarEventId<{
+    id: string;
+    requestNumber: number;
+  }>(TableNames.BOOKING, id);
+  checkAndLogLateCancellation(doc, id, netId);
 
   // Log the cancel action
   if (doc) {
-    const { serverSaveDataToFirestore } = await import(
-      "@/lib/firebase/server/adminDb"
-    );
-
-    await serverSaveDataToFirestore(
-      TableNames.BOOKING_LOGS,
-      {
-        calendarEventId: id,
-        status: BookingStatusLabel.CANCELED,
-        changedBy,
-        changedAt: admin.firestore.Timestamp.now(),
-        note,
-        requestNumber: doc.requestNumber,
-      },
-      tenant
-    );
-
-    console.log(
-      `📋 CANCEL BOOKING LOG CREATED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-      {
-        calendarEventId: id,
-        changedBy,
-        hasNoShowLog,
-        hasDeclinedLog,
-        isAutomaticTransition,
-        note,
-      }
-    );
+    await logClientBookingChange({
+      bookingId: doc.id,
+      calendarEventId: id,
+      status: BookingStatusLabel.CANCELED,
+      changedBy: email,
+      requestNumber: doc.requestNumber,
+    });
   }
 
   //@ts-ignore
   const guestEmail = doc ? doc.email : null;
-
-  let headerMessage =
-    "The request has been canceled.<br /><br />Thank you!<br />";
-  let ccHeaderMessage = headerMessage;
-
-  if (isLateCancel(doc)) {
-    const violationCount = await getViolationCount(netId, tenant);
-    const { getTenantEmailConfig } = await import("./emails");
-    const emailConfig = await getTenantEmailConfig(tenant);
-    headerMessage = emailConfig.emailMessages.lateCancel.replace(
-      "${violationCount}",
-      violationCount.toString()
-    );
-    // ccHeaderMessage remains the original cancel message
-  }
-
-  // Send emails using server-side function
-  const { serverSendBookingDetailEmail } = await import(
-    "@/components/src/server/admin"
+  const headerMessage =
+    "Your reservation request for Media Commons has been cancelled. For detailed reasons regarding this decision, please contact us at mediacommons.reservations@nyu.edu.";
+  clientSendBookingDetailEmail(
+    id,
+    guestEmail,
+    headerMessage,
+    BookingStatusLabel.CANCELED
   );
-
-  if (guestEmail) {
-    await serverSendBookingDetailEmail({
-      calendarEventId: id,
-      targetEmail: guestEmail,
-      headerMessage,
-      status: BookingStatusLabel.CANCELED,
-      tenant,
-    });
-
-    await serverSendBookingDetailEmail({
-      calendarEventId: id,
-      targetEmail: getCancelCcEmail(),
-      headerMessage: ccHeaderMessage,
-      status: BookingStatusLabel.CANCELED,
-      tenant,
-    });
-  }
-
-  // Update calendar
+  clientSendBookingDetailEmail(
+    id,
+    getCancelCcEmail(),
+    headerMessage,
+    BookingStatusLabel.CANCELED
+  );
   const response = await fetch(
     `${process.env.NEXT_PUBLIC_BASE_URL}/api/calendarEvents`,
     {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
-        "x-tenant": tenant || DEFAULT_TENANT,
       },
       body: JSON.stringify({
         calendarEventId: id,
@@ -645,86 +223,6 @@ export const processCancelBooking = async (
       }),
     }
   );
-
-  if (!response.ok) {
-    console.error(
-      `🚨 CANCEL CALENDAR UPDATE FAILED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-      {
-        calendarEventId: id,
-        status: response.status,
-        statusText: response.statusText,
-      }
-    );
-  } else {
-    console.log(
-      `📅 CANCEL CALENDAR UPDATED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-      {
-        calendarEventId: id,
-        statusPrefix: BookingStatusLabel.CANCELED,
-      }
-    );
-  }
-};
-export const cancel = async (
-  id: string,
-  email: string,
-  netId: string,
-  tenant?: string
-) => {
-  console.log(`🎯 CANCEL REQUEST [${tenant?.toUpperCase() || "UNKNOWN"}]:`, {
-    calendarEventId: id,
-    email,
-    tenant,
-    netId,
-    usingXState: shouldUseXState(tenant),
-  });
-
-  // For ITP and Media Commons tenants, use XState transition via API
-  console.log(`🎭 USING XSTATE API FOR CANCEL [${tenant?.toUpperCase()}]:`, {
-    calendarEventId: id,
-  });
-
-  const xstateResult = await callXStateTransitionAPI(
-    id,
-    "cancel",
-    email,
-    tenant
-  );
-
-  if (!xstateResult.success) {
-    console.error(`🚨 XSTATE CANCEL API FAILED [${tenant?.toUpperCase()}]:`, {
-      calendarEventId: id,
-      error: xstateResult.error,
-    });
-
-    // Fallback to traditional cancel if XState API fails
-    console.log(
-      `🔄 FALLING BACK TO TRADITIONAL CANCEL [${tenant?.toUpperCase()}]:`,
-      {
-        calendarEventId: id,
-      }
-    );
-
-    // Use the shared cancel processing function for fallback
-    await processCancelBooking(id, email, netId, tenant);
-  } else {
-    console.log(`✅ XSTATE CANCEL API SUCCESS [${tenant?.toUpperCase()}]:`, {
-      calendarEventId: id,
-      newState: xstateResult.newState,
-    });
-
-    // XState handled the cancel successfully, processing is done by machine actions
-    console.log(
-      `🎯 CANCEL PROCESSING HANDLED BY XSTATE [${tenant?.toUpperCase()}]:`,
-      {
-        calendarEventId: id,
-        note: "Cancel processing handled by XState machine actions",
-      }
-    );
-
-    // Skip the traditional processing below
-    return;
-  }
 };
 
 export const updateFinalApprover = async (updatedData: object) => {
@@ -782,44 +280,18 @@ export const updateOperationHours = async (
   }
 };
 
-export const checkin = async (id: string, email: string, tenant?: string) => {
-  console.log(`🎯 CHECKIN REQUEST [${tenant?.toUpperCase() || "UNKNOWN"}]:`, {
-    calendarEventId: id,
-    email,
-    tenant,
+export const checkin = async (id: string, email: string) => {
+  clientUpdateDataByCalendarEventId(TableNames.BOOKING, id, {
+    checkedInAt: Timestamp.now(),
+    checkedInBy: email,
   });
-
-  console.log(`🎭 USING XSTATE API FOR CHECKIN [${tenant?.toUpperCase()}]:`, {
-    calendarEventId: id,
-  });
-
-  const xstateResult = await callXStateTransitionAPI(
-    id,
-    "checkIn",
-    email,
-    tenant
-  );
-
-  if (!xstateResult.success) {
-    console.error(`🚨 XSTATE CHECKIN API FAILED [${tenant?.toUpperCase()}]:`, {
-      calendarEventId: id,
-      error: xstateResult.error,
-    });
-    throw new Error(`XState checkin failed: ${xstateResult.error}`);
-  }
-
-  console.log(`✅ XSTATE CHECKIN API SUCCESS [${tenant?.toUpperCase()}]:`, {
-    calendarEventId: id,
-    newState: xstateResult.newState,
-  });
-
-  // XState handled the checkin successfully, now add history logging and send email
-  // Add history logging here since XState doesn't handle history
   const doc = await clientGetDataByCalendarEventId<{
     id: string;
     requestNumber: number;
-  }>(TableNames.BOOKING, id, tenant);
+  }>(TableNames.BOOKING, id);
 
+  console.log("check in doc", doc);
+  // Log the check-in action
   if (doc) {
     await logClientBookingChange({
       bookingId: doc.id,
@@ -828,198 +300,105 @@ export const checkin = async (id: string, email: string, tenant?: string) => {
       changedBy: email,
       requestNumber: doc.requestNumber,
       note: "",
-      tenant,
     });
-
-    console.log(
-      `📋 XSTATE CHECKIN HISTORY LOGGED [${tenant?.toUpperCase()}]:`,
-      {
-        calendarEventId: id,
-        bookingId: doc.id,
-        requestNumber: doc.requestNumber,
-      }
-    );
   }
-
-  // Send check-in email after history logging
   //@ts-ignore
   const guestEmail = doc ? doc.email : null;
 
-  try {
-    const { getTenantEmailConfig } = await import("./emails");
-    const emailConfig = await getTenantEmailConfig(tenant);
-    const headerMessage = emailConfig.emailMessages.checkinConfirmation;
-    await clientSendBookingDetailEmail(
-      id,
-      guestEmail,
-      headerMessage,
-      BookingStatusLabel.CHECKED_IN,
-      tenant
-    );
-
-    console.log(`📧 XSTATE CHECKIN EMAIL SENT [${tenant?.toUpperCase()}]:`, {
-      calendarEventId: id,
-      guestEmail,
-    });
-  } catch (emailError) {
-    console.error(
-      `⚠️ XSTATE CHECKIN EMAIL FAILED [${tenant?.toUpperCase()}]:`,
-      {
-        calendarEventId: id,
-        error: emailError,
-      }
-    );
-    // Don't throw - email failure shouldn't fail the entire check-in
-  }
-};
-
-export const checkOut = async (id: string, email: string, tenant?: string) => {
-  console.log(`🎯 CHECKOUT REQUEST [${tenant?.toUpperCase() || "UNKNOWN"}]:`, {
-    calendarEventId: id,
-    email,
-    tenant,
-  });
-
-  console.log(`🎭 USING XSTATE API FOR CHECKOUT [${tenant?.toUpperCase()}]:`, {
-    calendarEventId: id,
-  });
-
-  const xstateResult = await callXStateTransitionAPI(
+  const headerMessage =
+    "Your reservation request for Media Commons has been checked in. Thank you for choosing Media Commons.";
+  clientSendBookingDetailEmail(
     id,
-    "checkOut",
-    email,
-    tenant
+    guestEmail,
+    headerMessage,
+    BookingStatusLabel.CHECKED_IN
   );
-
-  if (!xstateResult.success) {
-    console.error(`🚨 XSTATE CHECKOUT API FAILED [${tenant?.toUpperCase()}]:`, {
-      calendarEventId: id,
-      error: xstateResult.error,
-    });
-    throw new Error(`XState checkout failed: ${xstateResult.error}`);
-  }
-
-  console.log(`✅ XSTATE CHECKOUT API SUCCESS [${tenant?.toUpperCase()}]:`, {
-    calendarEventId: id,
-    newState: xstateResult.newState,
-  });
-
-  // Booking log is created by checkout-processing API (called by XState machine)
-};
-
-export const noShow = async (
-  id: string,
-  email: string,
-  netId: string,
-  tenant?: string
-) => {
-  console.log(`🎯 NO SHOW REQUEST [${tenant?.toUpperCase() || "UNKNOWN"}]:`, {
-    calendarEventId: id,
-    email,
-    tenant,
-    netId,
-    usingXState: shouldUseXState(tenant),
-  });
-
-  // For ITP and Media Commons tenants, use XState transition via API
-  if (shouldUseXState(tenant)) {
-    console.log(`🎭 USING XSTATE API FOR NO SHOW [${tenant?.toUpperCase()}]:`, {
-      calendarEventId: id,
-    });
-
-    const xstateResult = await callXStateTransitionAPI(
-      id,
-      "noShow",
-      email,
-      tenant
-    );
-
-    if (!xstateResult.success) {
-      console.error(
-        `🚨 XSTATE NO SHOW API FAILED [${tenant?.toUpperCase()}]:`,
-        {
-          calendarEventId: id,
-          error: xstateResult.error,
-        }
-      );
-
-      // Fallback to traditional no show if XState API fails
-      console.log(
-        `🔄 FALLING BACK TO TRADITIONAL NO SHOW [${tenant?.toUpperCase()}]:`,
-        {
-          calendarEventId: id,
-        }
-      );
-    } else {
-      console.log(`✅ XSTATE NO SHOW API SUCCESS [${tenant?.toUpperCase()}]:`, {
-        calendarEventId: id,
-        newState: xstateResult.newState,
-      });
-
-      // Check if XState reached 'No Show' state - only then execute traditional no show for side effects
-      if (xstateResult.newState === "No Show") {
-        console.log(
-          `🎉 XSTATE REACHED NO SHOW STATE - EXECUTING NO SHOW SIDE EFFECTS [${tenant?.toUpperCase()}]:`,
-          {
-            calendarEventId: id,
-            newState: xstateResult.newState,
-          }
-        );
-
-        // Execute traditional no show processing (database updates, emails, etc.)
-        await executeTraditionalNoShow(id, email, netId, tenant);
-      } else {
-        console.log(
-          `🚫 XSTATE DID NOT REACH NO SHOW STATE - SKIPPING NO SHOW SIDE EFFECTS [${tenant?.toUpperCase()}]:`,
-          {
-            calendarEventId: id,
-            newState: xstateResult.newState,
-            expectedState: "No Show",
-          }
-        );
-      }
-
-      return; // Exit early since XState handled the transition
-    }
-  } else {
-    console.log(
-      `📝 USING TRADITIONAL NO SHOW [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-      { calendarEventId: id }
-    );
-  }
-
-  // Execute traditional no show processing for non-XState tenants or XState failures
-  await executeTraditionalNoShow(id, email, netId, tenant);
-};
-
-// Helper function to execute traditional no show processing
-export const executeTraditionalNoShow = async (
-  id: string,
-  email: string,
-  netId: string,
-  tenant?: string
-) => {
-  clientUpdateDataByCalendarEventId(
-    TableNames.BOOKING,
-    id,
+  const response = await fetch(
+    `${process.env.NEXT_PUBLIC_BASE_URL}/api/calendarEvents`,
     {
-      noShowedAt: Timestamp.now(),
-      noShowedBy: email,
-    },
-    tenant
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        calendarEventId: id,
+        newValues: { statusPrefix: BookingStatusLabel.CHECKED_IN },
+      }),
+    }
   );
+};
 
-  const doc = await clientGetDataByCalendarEventId<Booking>(
-    TableNames.BOOKING,
-    id,
-    tenant
-  );
+export const checkOut = async (id: string, email: string) => {
+  const checkoutDate = roundTimeUp();
+  clientUpdateDataByCalendarEventId(TableNames.BOOKING, id, {
+    checkedOutAt: Timestamp.now(),
+    checkedOutBy: email,
+  });
+  clientUpdateDataByCalendarEventId(TableNames.BOOKING, id, {
+    endDate: Timestamp.fromDate(checkoutDate),
+  });
+  const doc = await clientGetDataByCalendarEventId<{
+    id: string;
+    requestNumber: number;
+  }>(TableNames.BOOKING, id);
+  console.log("check out doc", doc);
 
-  // Add to pre-ban logs only if policy violation
-  if (isPolicyViolation(doc)) {
-    const log = { netId, bookingId: id, noShowDate: Timestamp.now() };
-    clientSaveDataToFirestore(TableNames.PRE_BAN_LOGS, log);
+  // Log the check-out action
+  if (doc) {
+    await logClientBookingChange({
+      bookingId: doc.id,
+      calendarEventId: id,
+      status: BookingStatusLabel.CHECKED_OUT,
+      changedBy: email,
+      requestNumber: doc.requestNumber,
+    });
   }
+  //@ts-ignore
+  const guestEmail = doc ? doc.email : null;
+
+  const headerMessage =
+    "Your reservation request for Media Commons has been checked out. Thank you for choosing Media Commons.";
+  clientSendBookingDetailEmail(
+    id,
+    guestEmail,
+    headerMessage,
+    BookingStatusLabel.CHECKED_OUT
+  );
+
+  const response = await fetch(
+    `${process.env.NEXT_PUBLIC_BASE_URL}/api/calendarEvents`,
+    {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        calendarEventId: id,
+        newValues: {
+          statusPrefix: BookingStatusLabel.CHECKED_OUT,
+          end: {
+            dateTime: roundTimeUp().toISOString(),
+          },
+        },
+      }),
+    }
+  );
+};
+
+export const noShow = async (id: string, email: string, netId: string) => {
+  clientUpdateDataByCalendarEventId(TableNames.BOOKING, id, {
+    noShowedAt: Timestamp.now(),
+    noShowedBy: email,
+  });
+
+  const doc = await clientGetDataByCalendarEventId<{
+    id: string;
+    requestNumber: number;
+  }>(TableNames.BOOKING, id);
+
+  // Add to pre-ban logs
+  const log = { netId, bookingId: id, noShowDate: Timestamp.now() };
+  clientSaveDataToFirestore(TableNames.PRE_BAN_LOGS, log);
 
   // Log the no-show action
   if (doc) {
@@ -1029,39 +408,30 @@ export const executeTraditionalNoShow = async (
       status: BookingStatusLabel.NO_SHOW,
       changedBy: email,
       requestNumber: doc.requestNumber,
-      tenant,
     });
   }
 
   //@ts-ignore
   const guestEmail = doc ? doc.email : null;
 
-  const violationCount = await getViolationCount(netId);
-  const { getTenantEmailConfig } = await import("./emails");
-  const emailConfig = await getTenantEmailConfig(tenant);
-  const headerMessage = emailConfig.emailMessages.noShow.replace(
-    "${violationCount}",
-    violationCount.toString()
-  );
+  const headerMessage =
+    "You did not check-in for your Media Commons Reservation and have been marked as a no-show.";
   clientSendBookingDetailEmail(
     id,
     guestEmail,
     headerMessage,
-    BookingStatusLabel.NO_SHOW,
-    tenant
+    BookingStatusLabel.NO_SHOW
   );
   clientSendBookingDetailEmail(
     id,
     getApprovalCcEmail(process.env.NEXT_PUBLIC_BRANCH_NAME),
     headerMessage,
-    BookingStatusLabel.NO_SHOW,
-    tenant
+    BookingStatusLabel.NO_SHOW
   );
   clientSendConfirmationEmail(
     id,
     BookingStatusLabel.NO_SHOW,
-    `This is a no show email.`,
-    tenant
+    `This is a no show email.`
   );
   const response = await fetch(
     `${process.env.NEXT_PUBLIC_BASE_URL}/api/calendarEvents`,
@@ -1069,7 +439,6 @@ export const executeTraditionalNoShow = async (
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
-        "x-tenant": tenant || DEFAULT_TENANT,
       },
       body: JSON.stringify({
         calendarEventId: id,
@@ -1164,24 +533,10 @@ const getBookingHistory = async (booking: Booking) => {
 
   // Add walk in
   if (booking.walkedInAt) {
-    let walkedInDate: string;
-    if (booking.walkedInAt.toDate) {
-      // Firebase Timestamp object
-      walkedInDate = booking.walkedInAt.toDate().toLocaleString();
-    } else if (booking.walkedInAt.seconds) {
-      // Plain object with seconds/nanoseconds
-      walkedInDate = new Date(
-        booking.walkedInAt.seconds * 1000
-      ).toLocaleString();
-    } else {
-      // Fallback
-      walkedInDate = new Date().toLocaleString();
-    }
-
     history.push({
       status: BookingStatusLabel.WALK_IN,
       user: "PA",
-      date: walkedInDate,
+      date: booking.walkedInAt.toDate().toLocaleString(),
       note: "",
     });
   }
@@ -1192,36 +547,20 @@ const getBookingHistory = async (booking: Booking) => {
   );
 };
 
-export const clientBookingContents = async (id: string, tenant?: string) => {
+export const clientBookingContents = async (id: string) => {
   const bookingObj = await clientGetDataByCalendarEventId<Booking>(
     TableNames.BOOKING,
-    id,
-    tenant
+    id
   );
   if (!bookingObj) {
     throw new Error("Booking not found");
   }
   const history = await getBookingHistory(bookingObj);
 
-  // Format startTime and endTime from startDate and endDate
-  const startDateObj = new Date(bookingObj.startDate.toDate());
-  const endDateObj = new Date(bookingObj.endDate.toDate());
-
   const updatedBookingObj = Object.assign({}, bookingObj, {
     headerMessage: "This is a request email for final approval.",
     bookingToolUrl: getBookingToolDeployUrl(),
     history: history,
-    // Add formatted time fields for email template
-    startTime: startDateObj.toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
-    }),
-    endTime: endDateObj.toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
-    }),
   });
 
   return updatedBookingObj as unknown as BookingFormDetails;
@@ -1231,10 +570,9 @@ export const clientSendBookingDetailEmail = async (
   calendarEventId: string,
   email: string,
   headerMessage: string,
-  status: BookingStatusLabel,
-  tenant?: string
+  status: BookingStatusLabel
 ) => {
-  const contents = await clientBookingContents(calendarEventId, tenant);
+  const contents = await clientBookingContents(calendarEventId);
   contents.headerMessage = headerMessage;
   const formData = {
     templateName: "booking_detail",
@@ -1257,29 +595,17 @@ export const clientSendBookingDetailEmail = async (
 export const clientSendConfirmationEmail = async (
   calendarEventId: string,
   status: BookingStatusLabel,
-  headerMessage: string,
-  tenant?: string
+  headerMessage: string
 ) => {
   const email = await clientGetFinalApproverEmail();
-  clientSendBookingDetailEmail(
-    calendarEventId,
-    email,
-    headerMessage,
-    status,
-    tenant
-  );
+  clientSendBookingDetailEmail(calendarEventId, email, headerMessage, status);
 };
 
-export const clientApproveBooking = async (
-  id: string,
-  email: string,
-  tenant?: string
-) => {
+export const clientApproveBooking = async (id: string, email: string) => {
   const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/approve`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "x-tenant": tenant || DEFAULT_TENANT,
     },
     body: JSON.stringify({ id: id, email: email }),
   });
@@ -1350,7 +676,6 @@ const logClientBookingChange = async ({
   changedBy,
   requestNumber,
   note,
-  tenant,
 }: {
   bookingId: string;
   calendarEventId: string;
@@ -1358,7 +683,6 @@ const logClientBookingChange = async ({
   changedBy: string;
   requestNumber: number;
   note?: string;
-  tenant?: string;
 }) => {
   const response = await fetch(
     `${process.env.NEXT_PUBLIC_BASE_URL}/api/booking-logs`,
@@ -1366,7 +690,6 @@ const logClientBookingChange = async ({
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-tenant": tenant || DEFAULT_TENANT,
       },
       body: JSON.stringify({
         bookingId,

@@ -9,11 +9,11 @@ import {
   PagePermission,
 } from "@/components/src/types";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Timestamp } from "firebase/firestore";
 import React from "react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Mock dependencies
 vi.mock("@mui/x-data-grid", () => ({
@@ -166,8 +166,8 @@ const BookingManagementPage: React.FC<{ pageContext: PageContextLevel }> = ({
 
   return (
     <div>
-      {pageContext >= PageContextLevel.PA && (
-        <div>
+      {pageContext >= PageContextLevel.LIAISON && (
+        <div data-testid="filters-section">
           <BookingTableFilters
             allowedStatuses={allowedStatuses}
             pageContext={pageContext}
@@ -205,11 +205,6 @@ const renderIntegratedComponent = (pageContext: PageContextLevel) => {
 describe("BookingTable Sort Reset Integration - Timeframe Changes", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    cleanup();
-  });
-
-  afterEach(() => {
-    cleanup();
   });
 
   describe("Admin Workflow - Sort Reset on Timeframe Change", () => {

@@ -1,4 +1,4 @@
-import { Booking, EquipmentServices } from "@/components/src/types";
+import { Booking, MediaServices } from "@/components/src/types";
 import React, { useContext, useRef, useState } from "react";
 
 import { DatabaseContext } from "../Provider";
@@ -42,7 +42,7 @@ export default function EquipmentCheckoutToggle({ booking, status }: Props) {
     }
   };
 
-  if (!booking.equipmentServices?.includes(EquipmentServices.CHECKOUT_EQUIPMENT)) {
+  if (!booking.mediaServices?.includes(MediaServices.CHECKOUT_EQUIPMENT)) {
     return null;
   }
 

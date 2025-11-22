@@ -1,10 +1,14 @@
+import {
+  CAMPUS_MEDIA_SERVICES_ROOMS,
+  CHECKOUT_EQUIPMENT_ROOMS,
+  LIGHTING_DMX_ROOMS,
+} from "../../../../mediaCommonsPolicy";
 import { Checkbox, FormControlLabel, Switch } from "@mui/material";
 import { Control, Controller, UseFormTrigger } from "react-hook-form";
 import { FormContextLevel, Inputs, MediaServices } from "../../../../types";
 import React, { useContext, useMemo } from "react";
 
 import { BookingContext } from "../bookingProvider";
-import { useTenantSchema } from "../../components/SchemaProvider";
 import styled from "@emotion/styled";
 
 const Label = styled.label`
@@ -30,42 +34,35 @@ export default function BookingFormMediaServices(props: Props) {
     trigger,
     showMediaServices,
     setShowMediaServices,
-    formContext: _formContext,
+    formContext,
   } = props;
   const { selectedRooms } = useContext(BookingContext);
-  const schema = useTenantSchema();
-  const { showEquipment, showStaffing } = schema;
   const roomIds = selectedRooms.map((room) => room.roomId);
 
-  // Previously, walk-in/modification contexts were limited to equipment-only.
-  // This restriction has been removed, so technician options should be available in all contexts.
+  const limitedContexts = [
+    FormContextLevel.WALK_IN,
+    FormContextLevel.MODIFICATION,
+  ];
 
   const checkboxes = useMemo(() => {
     const options: MediaServices[] = [];
-
-    // If equipment is enabled in schema, allow checkout equipment regardless of room
-    if (showEquipment) {
+    const checkRoomMediaServices = (list: number[]) =>
+      roomIds.some((roomId) => list.includes(roomId));
+    if (checkRoomMediaServices(CHECKOUT_EQUIPMENT_ROOMS))
       options.push(MediaServices.CHECKOUT_EQUIPMENT);
+    if (checkRoomMediaServices([103])) {
+      options.push(MediaServices.AUDIO_TECH_103);
+      options.push(MediaServices.LIGHTING_TECH_103);
     }
-
-    // Check for specific room services
-    selectedRooms.forEach((room) => {
-      if (showStaffing) {
-        if (room.roomId === 103) {
-          options.push(MediaServices.AUDIO_TECH_103);
-          options.push(MediaServices.LIGHTING_TECH_103);
-        }
-        if (room.roomId === 230) {
-          options.push(MediaServices.AUDIO_TECH_230);
-        }
-        if (room.services?.includes("campus-media")) {
-          options.push(MediaServices.CAMPUS_MEDIA_SERVICES);
-        }
-      }
-    });
+    if (checkRoomMediaServices([230]))
+      options.push(MediaServices.AUDIO_TECH_230);
+    if (checkRoomMediaServices(CAMPUS_MEDIA_SERVICES_ROOMS))
+      options.push(MediaServices.CAMPUS_MEDIA_SERVICES);
+    if (checkRoomMediaServices(LIGHTING_DMX_ROOMS))
+      options.push(MediaServices.LIGHTING_DMX);
 
     return options;
-  }, [roomIds, selectedRooms, showEquipment, showStaffing]);
+  }, [roomIds]);
 
   const toggle = (
     <Controller
@@ -82,6 +79,8 @@ export default function BookingFormMediaServices(props: Props) {
                 if (!e.target.checked) {
                   // de-select boxes if switch says "no media services"
                   field.onChange("");
+                } else if (limitedContexts.includes(formContext)) {
+                  field.onChange(MediaServices.CHECKOUT_EQUIPMENT);
                 }
 
                 trigger(id);
@@ -94,11 +93,14 @@ export default function BookingFormMediaServices(props: Props) {
     ></Controller>
   );
 
-  // If both equipment and staffing are disabled at the schema level, hide the entire control
-  const mediaServicesEnabled = showEquipment || showStaffing;
-
-  if (!mediaServicesEnabled) {
-    return null;
+  if (limitedContexts.includes(formContext)) {
+    return (
+      <div style={{ marginBottom: 8 }}>
+        <Label htmlFor={id}>Media Services</Label>
+        <p style={{ fontSize: "0.75rem" }}>Check out equipment</p>
+        {toggle}
+      </div>
+    );
   }
 
   return (

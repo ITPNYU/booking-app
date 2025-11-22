@@ -102,10 +102,6 @@ export default function UserRolePage({
   // Create prefix for affiliation header
   const prefix = isVIP ? "VIP" : isWalkIn ? "Walk-In" : "";
   const affiliationTitle = prefix ? `${prefix} Affiliation` : "Affiliation";
-  
-  const formatFieldLabel = (label: string) => {
-    return `${prefix} ${label}`.trim();
-  };
 
   useEffect(() => {
     if (!user) {
@@ -177,15 +173,14 @@ export default function UserRolePage({
         <Dropdown
           value={department}
           updateValue={setDepartment}
-          options={Object.keys(tenantSchema.programMapping)}
+          options={tenantSchema.programs}
           placeholder="Choose a Department"
-          dataTestId="department-select"
           sx={{ marginTop: 4 }}
         />
         {showOther && (
           <BookingFormTextField
             id="otherDepartment"
-            label={formatFieldLabel("Department")}
+            label="Your Department"
             containerSx={{ marginBottom: 2, marginTop: 1, width: "100%" }}
             fieldSx={{}}
             {...{ control, errors, trigger }}
@@ -193,12 +188,9 @@ export default function UserRolePage({
         )}
         <Dropdown
           value={role}
-          updateValue={(newRole) => {
-            setRole(newRole as Role);
-          }}
+          updateValue={setRole}
           options={tenantSchema.roles}
           placeholder="Choose a Role"
-          dataTestId="role-select"
           sx={{ marginTop: 4 }}
         />
         <Button

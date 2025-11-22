@@ -79,7 +79,7 @@
   </head>
   <body>
     <div class="section">
-      <p>{{{ contents.headerMessage }}}</p>
+      <p>{{ contents.headerMessage }}</p>
       {{#if bookingLogs.length}}
       <div class="section-title">History</div>
       <table class="history-table">
@@ -150,19 +150,8 @@
         <tr>
           <td>Department</td>
           <td>
-            {{#if contents.department}}
-              {{#if (eq contents.department "Other")}}
-                {{#if contents.otherDepartment}}
-                  {{ contents.otherDepartment }}
-                {{else}}
-                  {{ contents.department }}
-                {{/if}}
-              {{else}}
-                {{ contents.department }}
-              {{/if}}
-            {{else}}
-              none
-            {{/if}}
+            {{#if contents.department}}{{ contents.department
+            }}{{else}}none{{/if}}
           </td>
         </tr>
         <tr>
@@ -252,42 +241,25 @@
             <br />{{ contents.chartFieldForRoomSetup }} {{/if}}
           </td>
         </tr>
-        {{#if contents.equipmentServices}}
         <tr>
-          <td>Equipment Service</td>
+          <td>Media Service</td>
           <td>
-            {{ contents.equipmentServices }} {{#if contents.equipmentServicesDetails}}
-            <br />{{ contents.equipmentServicesDetails }} {{/if}}
+            {{#if contents.mediaServices}}{{ contents.mediaServices
+            }}{{else}}none{{/if}} {{#if contents.mediaServicesDetails}}
+            <br />{{ contents.mediaServicesDetails }} {{/if}}
           </td>
         </tr>
-        {{/if}}
-        {{#if contents.staffingServices}}
         <tr>
-          <td>Staffing Service</td>
+          <td>Catering</td>
           <td>
-            {{ contents.staffingServices }} {{#if contents.staffingServicesDetails}}
-            <br />{{ contents.staffingServicesDetails }} {{/if}}
-          </td>
-        </tr>
-        {{/if}}
-        {{#if contents.cateringService}}{{#unless (eq contents.cateringService "no")}}
-        <tr>
-          <td>Catering Service</td>
-          <td>
-            {{ contents.cateringService }} {{#if contents.chartFieldForCatering}}
+            {{#if contents.cateringService}}{{ contents.cateringService
+            }}{{else}}{{#if contents.catering}}{{#unless (eq contents.catering
+            "no")}}{{ contents.catering
+            }}{{else}}none{{/unless}}{{else}}none{{/if}}{{/if}} {{#if
+            contents.chartFieldForCatering}}
             <br />{{ contents.chartFieldForCatering }} {{/if}}
           </td>
         </tr>
-        {{/unless}}{{/if}}
-        {{#if contents.cleaningService}}{{#unless (eq contents.cleaningService "no")}}
-        <tr>
-          <td>Cleaning Service</td>
-          <td>
-            Yes {{#if contents.chartFieldForCleaning}}
-            <br />{{ contents.chartFieldForCleaning }} {{/if}}
-          </td>
-        </tr>
-        {{/unless}}{{/if}}
         <tr>
           <td>Security</td>
           <td>

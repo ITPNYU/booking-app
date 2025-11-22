@@ -1,26 +1,16 @@
-import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
-import { getDb } from "@/lib/firebase/firebaseClient";
+import { NextResponse } from "next/server";
 import { collection, getDocs } from "firebase/firestore";
-import { NextRequest, NextResponse } from "next/server";
+import { getDb } from "@/lib/firebase/firebaseClient";
 
-export async function GET(req: NextRequest) {
-  // Get tenant from x-tenant header, fallback to default tenant
-  const tenant = req.headers.get("x-tenant") || DEFAULT_TENANT;
-
+export async function GET() {
   let data = [];
 
   try {
     const db = getDb();
-    // Use tenant-specific collection name for admin users
-    const collectionName = `${tenant}-adminUsers`;
-    console.log(
-      `Fetching data from collection: ${collectionName} for tenant: ${tenant}`,
-    );
-
-    const querySnapshot = await getDocs(collection(db, collectionName));
+    const querySnapshot = await getDocs(collection(db, "adminUsers"));
     data = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
   } catch (error) {
-    console.error(`Error getting documents for tenant: ${tenant}:`, error);
+    console.error("Error getting documents:", error);
     return NextResponse.error();
   }
 

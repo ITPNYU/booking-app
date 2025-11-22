@@ -20,67 +20,7 @@ export enum TableNames {
   SUPER_ADMINS = "usersSuperAdmin",
   POLICY_SETTINGS = "policySettings",
   BLACKOUT_PERIODS = "blackoutPeriods",
-  TENANT_SCHEMA = "tenantSchema",
-  USERS_RIGHTS = "usersRights",
 }
-
-// Utility function to get tenant-specific collection names
-export const getTenantCollectionName = (
-  baseCollection: string,
-  tenant?: string
-): string => {
-  if (!tenant) {
-    return baseCollection;
-  }
-
-  // Collections that should be tenant-specific
-  const tenantSpecificCollections = [
-    "bookings",
-    "bookingLogs",
-    "bookingTypes",
-    "blackoutPeriods",
-    "counters",
-    "operationHours",
-    "preBanLogs",
-    "usersWhitelist",
-    "usersApprovers",
-    "usersRights",
-    "counters",
-  ];
-
-  if (tenantSpecificCollections.includes(baseCollection)) {
-    return `${tenant}-${baseCollection}`;
-  }
-
-  return baseCollection;
-};
-
-// Helper function to get tenant-specific TableNames
-export const getTenantTableName = (
-  tableName: TableNames,
-  tenant?: string
-): string => {
-  const baseCollection = tableName;
-  return getTenantCollectionName(baseCollection, tenant);
-};
-
-// Helper function to extract tenant from collection name
-export const extractTenantFromCollectionName = (
-  collectionName: string
-): string | undefined => {
-  // Collection name format: "tenant-collection" or just "collection"
-  const parts = collectionName.split("-");
-  if (parts.length >= 2) {
-    return parts[0]; // Return the tenant part
-  }
-  return undefined; // No tenant (legacy collection)
-};
-
-// Migration period utility - will be removed after migration is complete
-export const isLegacyUserCollection = (collectionName: TableNames): boolean => {
-  const legacyUserCollections = [TableNames.ADMINS, TableNames.PAS];
-  return legacyUserCollections.includes(collectionName);
-};
 
 export const CALENDAR_HIDE_STATUS = [
   BookingStatusLabel.NO_SHOW,

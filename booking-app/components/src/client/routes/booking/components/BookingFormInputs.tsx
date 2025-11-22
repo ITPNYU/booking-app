@@ -40,7 +40,6 @@ interface Props {
 interface DropdownInputs extends Props {
   options: string[];
   description?: React.ReactNode;
-  dataTestId?: string;
 }
 
 export function BookingFormDropdown(props: DropdownInputs) {
@@ -53,7 +52,6 @@ export function BookingFormDropdown(props: DropdownInputs) {
     control,
     errors,
     trigger,
-    dataTestId,
   } = props;
 
   return (
@@ -82,7 +80,6 @@ export function BookingFormDropdown(props: DropdownInputs) {
               field.onChange(e);
               trigger(id);
             }}
-            data-testid={dataTestId}
             renderValue={(selected: React.ReactNode) => {
               if (selected === "" || selected == null) {
                 return <p style={{ color: "gray" }}>Select an option</p>;
@@ -90,27 +87,12 @@ export function BookingFormDropdown(props: DropdownInputs) {
               return selected;
             }}
             displayEmpty
-            MenuProps={
-              dataTestId
-                ? {
-                    PaperProps: {
-                      'data-testid': `${dataTestId}-menu`,
-                    },
-                  }
-                : undefined
-            }
           >
             <MenuItem value="" disabled>
               Select an option
             </MenuItem>
             {options.map((option, index) => (
-              <MenuItem
-                key={index}
-                value={option}
-                data-testid={
-                  dataTestId ? `${dataTestId}-option-${index}` : undefined
-                }
-              >
+              <MenuItem key={index} value={option}>
                 {option}
               </MenuItem>
             ))}

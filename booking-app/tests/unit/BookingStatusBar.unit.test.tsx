@@ -1,6 +1,6 @@
 import { BookingContext } from "@/components/src/client/routes/booking/bookingProvider";
 import BookingStatusBar from "@/components/src/client/routes/booking/components/BookingStatusBar";
-import { FormContextLevel, Role } from "@/components/src/types";
+import { FormContextLevel } from "@/components/src/types";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -24,35 +24,16 @@ const theme = createTheme();
 
 const mockBookingContext = {
   bookingCalendarInfo: {
-    start: new Date("2024-07-15T09:00:00"),
-    end: new Date("2024-07-15T10:00:00"),
-    startStr: "2024-07-15T09:00:00",
-    endStr: "2024-07-15T10:00:00",
+    start: new Date("2024-07-15"),
+    end: new Date("2024-07-15"),
+    startStr: "2024-07-15",
+    endStr: "2024-07-15",
     allDay: false,
     view: {} as any,
     jsEvent: {} as any,
     resource: undefined,
   },
-  selectedRooms: [{
-    roomId: 101,
-    name: "Room 101",
-    maxHour: {
-      student: 4,
-      studentWalkIn: 2,
-      faculty: 6,
-      facultyWalkIn: 3,
-      admin: 8,
-      adminWalkIn: 4
-    },
-    minHour: {
-      student: 0.5,
-      studentWalkIn: 1,
-      faculty: 0.5,
-      facultyWalkIn: 1,
-      admin: 0.5,
-      adminWalkIn: 1
-    }
-  }] as any[],
+  selectedRooms: [{ roomId: 101, name: "Room 101" }] as any[],
   isBanned: false,
   needsSafetyTraining: false,
   isInBlackoutPeriod: false,
@@ -63,7 +44,7 @@ const mockBookingContext = {
   hasShownMocapModal: false,
   isSafetyTrained: true,
   reloadExistingCalendarEvents: vi.fn(),
-  role: Role.STUDENT,
+  role: undefined,
   setBookingCalendarInfo: vi.fn(),
   setDepartment: vi.fn(),
   setFormData: vi.fn(),

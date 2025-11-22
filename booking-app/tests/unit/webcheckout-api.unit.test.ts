@@ -347,109 +347,24 @@ describe("WebCheckout API Route", () => {
       expect(data.error).toBe("Internal server error");
       expect(data.details).toBe("Network error");
     });
-  });
 
-  describe("Session Re-authentication", () => {
-    const mockAuthResponse = {
-      ok: true,
-      json: () =>
-        Promise.resolve({
-          status: "ok",
-          sessionToken: "mock-session-token",
-        }),
-    };
+    it("should handle unauthenticated response from allocation search", async () => {
+      const mockAuthResponse = {
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            status: "ok",
+            sessionToken: "mock-session-token",
+          }),
+      };
 
-    const mockReAuthResponse = {
-      ok: true,
-      json: () =>
-        Promise.resolve({
-          status: "ok",
-          sessionToken: "mock-new-session-token",
-        }),
-    };
-
-    const mockSearchResponse = {
-      ok: true,
-      json: () =>
-        Promise.resolve({
-          status: "ok",
-          payload: [
-            {
-              result: [
-                {
-                  oid: 12345,
-                  name: "CART123",
-                },
-              ],
-            },
-          ],
-        }),
-    };
-
-    const mockDetailResponse = {
-      ok: true,
-      json: () =>
-        Promise.resolve({
-          status: "ok",
-          payload: {
-            name: "CART123",
-            state: "CHECKOUT",
-            pickupTime: "2024-01-01T10:00:00Z",
-            returnTime: "2024-01-01T18:00:00Z",
-            allocationContentsSummary: {
-              groups: [
-                {
-                  label: "Checked out",
-                  items: [
-                    {
-                      label: "Camera",
-                      subitems: [
-                        { label: "Canon EOS R5 - Serial 001", due: null },
-                      ],
-                    },
-                  ],
-                },
-              ],
-            },
-          },
-        }),
-    };
-
-    it("should re-authenticate and retry when allocation search returns unauthenticated", async () => {
-      // First auth succeeds, search returns unauthenticated, re-auth succeeds, retry search succeeds, detail succeeds
-      mockFetch
-        .mockResolvedValueOnce(mockAuthResponse) // Initial auth
-        .mockResolvedValueOnce({
-          ok: true,
-          json: () => Promise.resolve({ status: "unauthenticated" }),
-        }) // Search returns unauthenticated
-        .mockResolvedValueOnce(mockReAuthResponse) // Re-auth
-        .mockResolvedValueOnce(mockSearchResponse) // Retry search
-        .mockResolvedValueOnce(mockDetailResponse); // Detail
-
-      const request = createMockRequest("CART123");
-      const params = createMockParams("CART123");
-
-      const response = await GET(request, params);
-      const data = await response.json();
-
-      expect(response.status).toBe(200);
-      expect(data.cartNumber).toBe("CART123");
-      expect(mockFetch).toHaveBeenCalledTimes(5); // auth + search + re-auth + retry search + detail
-    });
-
-    it("should return 401 when re-authentication fails after unauthenticated response", async () => {
-      mockFetch
-        .mockResolvedValueOnce(mockAuthResponse) // Initial auth
-        .mockResolvedValueOnce({
-          ok: true,
-          json: () => Promise.resolve({ status: "unauthenticated" }),
-        }) // Search returns unauthenticated
-        .mockResolvedValueOnce({
-          ok: false,
-          status: 401,
-          text: () => Promise.resolve("Re-auth failed"),
-        }); // Re-auth fails
+      mockFetch.mockResolvedValueOnce(mockAuthResponse).mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            status: "unauthenticated",
+          }),
+      });
 
       const request = createMockRequest("CART123");
       const params = createMockParams("CART123");
@@ -458,81 +373,7 @@ describe("WebCheckout API Route", () => {
       const data = await response.json();
 
       expect(response.status).toBe(401);
-      expect(data.error).toContain("WebCheckout authentication failed");
-    });
-
-    it("should return 401 when retry still returns unauthenticated", async () => {
-      mockFetch
-        .mockResolvedValueOnce(mockAuthResponse) // Initial auth
-        .mockResolvedValueOnce({
-          ok: true,
-          json: () => Promise.resolve({ status: "unauthenticated" }),
-        }) // Search returns unauthenticated
-        .mockResolvedValueOnce(mockReAuthResponse) // Re-auth succeeds
-        .mockResolvedValueOnce({
-          ok: true,
-          json: () => Promise.resolve({ status: "unauthenticated" }),
-        }); // Retry search still unauthenticated
-
-      const request = createMockRequest("CART123");
-      const params = createMockParams("CART123");
-
-      const response = await GET(request, params);
-      const data = await response.json();
-
-      expect(response.status).toBe(401);
-      expect(data.error).toBe(
-        "WebCheckout session is invalid or expired even after re-authentication"
-      );
-    });
-
-    it("should re-authenticate and retry when allocation/get returns unauthenticated", async () => {
-      // Auth succeeds, search succeeds, detail returns unauthenticated, re-auth succeeds, retry detail succeeds
-      mockFetch
-        .mockResolvedValueOnce(mockAuthResponse) // Initial auth
-        .mockResolvedValueOnce(mockSearchResponse) // Search succeeds
-        .mockResolvedValueOnce({
-          ok: true,
-          json: () => Promise.resolve({ status: "unauthenticated" }),
-        }) // Detail returns unauthenticated
-        .mockResolvedValueOnce(mockReAuthResponse) // Re-auth
-        .mockResolvedValueOnce(mockDetailResponse); // Retry detail
-
-      const request = createMockRequest("CART123");
-      const params = createMockParams("CART123");
-
-      const response = await GET(request, params);
-      const data = await response.json();
-
-      expect(response.status).toBe(200);
-      expect(data.cartNumber).toBe("CART123");
-      expect(mockFetch).toHaveBeenCalledTimes(5); // auth + search + detail + re-auth + retry detail
-    });
-
-    it("should return 401 when allocation/get retry still returns unauthenticated", async () => {
-      mockFetch
-        .mockResolvedValueOnce(mockAuthResponse) // Initial auth
-        .mockResolvedValueOnce(mockSearchResponse) // Search succeeds
-        .mockResolvedValueOnce({
-          ok: true,
-          json: () => Promise.resolve({ status: "unauthenticated" }),
-        }) // Detail returns unauthenticated
-        .mockResolvedValueOnce(mockReAuthResponse) // Re-auth succeeds
-        .mockResolvedValueOnce({
-          ok: true,
-          json: () => Promise.resolve({ status: "unauthenticated" }),
-        }); // Retry detail still unauthenticated
-
-      const request = createMockRequest("CART123");
-      const params = createMockParams("CART123");
-
-      const response = await GET(request, params);
-      const data = await response.json();
-
-      expect(response.status).toBe(401);
-      expect(data.error).toBe(
-        "WebCheckout session is invalid or expired even after re-authentication"
-      );
+      expect(data.error).toBe("WebCheckout session is invalid or expired");
     });
   });
 });
@@ -543,7 +384,6 @@ describe("UpdateWebcheckoutCart API Route", () => {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-tenant": "mc",
       },
       body: JSON.stringify(body),
     });
@@ -695,8 +535,7 @@ describe("UpdateWebcheckoutCart API Route", () => {
       expect(vi.mocked(serverUpdateDataByCalendarEventId)).toHaveBeenCalledWith(
         "bookings",
         "test-event-id",
-        { webcheckoutCartNumber: "CK-2614" },
-        "mc"
+        { webcheckoutCartNumber: "CK-2614" }
       );
     });
 
@@ -724,7 +563,6 @@ describe("UpdateWebcheckoutCart API Route", () => {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
-            "x-tenant": "mc",
           },
           body: JSON.stringify({
             calendarEventId: "test-event-id",
@@ -756,8 +594,7 @@ describe("UpdateWebcheckoutCart API Route", () => {
       expect(vi.mocked(serverUpdateDataByCalendarEventId)).toHaveBeenCalledWith(
         "bookings",
         "test-event-id",
-        { webcheckoutCartNumber: null },
-        "mc"
+        { webcheckoutCartNumber: null }
       );
     });
 

@@ -15,7 +15,6 @@ import { SAFETY_TRAINING_REQUIRED_ROOM } from "../../../mediaCommonsPolicy";
 import { getAffectingBlackoutPeriods } from "../../../utils/blackoutUtils";
 import { DatabaseContext } from "../components/Provider";
 import fetchCalendarEvents from "./hooks/fetchCalendarEvents";
-import { useTenantSchema } from "../components/SchemaProvider";
 
 export interface BookingContextType {
   bookingCalendarInfo: DateSelectArg | undefined;
@@ -78,7 +77,6 @@ export function BookingProvider({ children }) {
     blackoutPeriods,
   } = useContext(DatabaseContext);
   const pathname = usePathname();
-  const schema = useTenantSchema();
 
   const [bookingCalendarInfo, setBookingCalendarInfo] =
     useState<DateSelectArg>();
@@ -98,33 +96,31 @@ export function BookingProvider({ children }) {
   const isBanned = useMemo<boolean>(() => {
     const bannedEmails = bannedUsers.map((bannedUser) => bannedUser.email);
 
-    // For walk-in bookings, check if the walk-in person (not the PA) is banned
-    if (pathname.includes("/walk-in") && formData?.walkInNetId?.length > 0) {
-      return bannedEmails.includes(formData?.walkInNetId + "@nyu.edu");
+    if (pathname.includes("/walk-in/form") && formData?.netId?.length > 0) {
+      return bannedEmails.includes(formData?.netId + "@nyu.edu");
     }
 
     if (!userEmail) return false;
     return bannedEmails.includes(userEmail);
-  }, [userEmail, bannedUsers, formData?.walkInNetId, pathname]);
+  }, [userEmail, bannedUsers, formData?.netId, pathname]);
 
   const isSafetyTrained = useMemo(() => {
     const safetyTrainedEmails = safetyTrainedUsers.map((user) => user.email);
 
-    // For walk-in bookings, check if the walk-in person (not the PA) has safety training
-    if (pathname.includes("/walk-in") && formData?.walkInNetId?.length > 0) {
-      return safetyTrainedEmails.includes(formData?.walkInNetId + "@nyu.edu");
+    if (pathname.includes("/walk-in/form") && formData?.netId?.length > 0) {
+      return safetyTrainedEmails.includes(formData?.netId + "@nyu.edu");
     }
 
-    if (!userEmail) return false;
+    if (!userEmail) return;
     return safetyTrainedEmails.includes(userEmail);
-  }, [userEmail, safetyTrainedUsers, formData?.walkInNetId, pathname]);
+  }, [userEmail, safetyTrainedUsers, formData?.netId, pathname]);
 
   // block progressing in the form is safety training requirement isn't met
   const needsSafetyTraining = useMemo(() => {
     const isStudent = role === Role.STUDENT;
-    const roomRequiresSafetyTraining = selectedRooms.some((room) => {
-      return room.needsSafetyTraining || false;
-    });
+    const roomRequiresSafetyTraining = selectedRooms.some((room) =>
+      SAFETY_TRAINING_REQUIRED_ROOM.includes(room.roomId)
+    );
     return isStudent && roomRequiresSafetyTraining && !isSafetyTrained;
   }, [selectedRooms, role, isSafetyTrained]);
 

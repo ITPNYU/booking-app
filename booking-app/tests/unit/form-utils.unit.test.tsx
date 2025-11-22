@@ -70,8 +70,6 @@ describe("Form Utils", () => {
       lastName?: string;
       catering?: string;
       mediaServices?: string[];
-      equipmentServices?: string[];
-      staffingServices?: string[];
       expectedAttendance?: string;
     }
 
@@ -84,12 +82,6 @@ describe("Form Utils", () => {
         hasMediaServices: !!(
           data.mediaServices && data.mediaServices.length > 0
         ),
-        hasEquipmentServices: !!(
-          data.equipmentServices && data.equipmentServices.length > 0
-        ),
-        hasStaffingServices: !!(
-          data.staffingServices && data.staffingServices.length > 0
-        ),
         hasCatering: data.catering === "yes",
       };
     };
@@ -100,8 +92,6 @@ describe("Form Utils", () => {
         lastName: "Doe",
         catering: "yes",
         mediaServices: ["projector", "microphone"],
-        equipmentServices: ["camera"],
-        staffingServices: ["audio tech"],
         expectedAttendance: "25",
       };
 
@@ -111,31 +101,23 @@ describe("Form Utils", () => {
         lastName: "Doe",
         catering: "yes",
         mediaServices: ["projector", "microphone"],
-        equipmentServices: ["camera"],
-        staffingServices: ["audio tech"],
         expectedAttendance: 25,
         hasMediaServices: true,
-        hasEquipmentServices: true,
-        hasStaffingServices: true,
         hasCatering: true,
       });
     });
 
-    it("handles empty services", () => {
+    it("handles empty media services", () => {
       const formData: FormData = {
         firstName: "John",
         lastName: "Doe",
         catering: "no",
         mediaServices: [],
-        equipmentServices: [],
-        staffingServices: [],
         expectedAttendance: "10",
       };
 
       const transformed = transformFormDataForSubmission(formData);
       expect(transformed.hasMediaServices).toBe(false);
-      expect(transformed.hasEquipmentServices).toBe(false);
-      expect(transformed.hasStaffingServices).toBe(false);
       expect(transformed.hasCatering).toBe(false);
     });
 
@@ -234,8 +216,6 @@ describe("Form Utils", () => {
       roomSetup?: string;
       hireSecurity?: string;
       mediaServices?: string[];
-      equipmentServices?: string[];
-      staffingServices?: string[];
     }
 
     const getFieldDependencies = (formValues: FormValues) => {
@@ -246,10 +226,6 @@ describe("Form Utils", () => {
         showSecurityDetails: formValues.hireSecurity === "yes",
         showMediaServicesDetails:
           formValues.mediaServices && formValues.mediaServices.length > 0,
-        showEquipmentServicesDetails:
-          formValues.equipmentServices && formValues.equipmentServices.length > 0,
-        showStaffingServicesDetails:
-          formValues.staffingServices && formValues.staffingServices.length > 0,
       };
     };
 
@@ -288,30 +264,6 @@ describe("Form Utils", () => {
     it("hides media services details when no services selected", () => {
       const dependencies = getFieldDependencies({ mediaServices: [] });
       expect(dependencies.showMediaServicesDetails).toBe(false);
-    });
-
-    it("shows equipment services details when services are selected", () => {
-      const dependencies = getFieldDependencies({
-        equipmentServices: ["camera"],
-      });
-      expect(dependencies.showEquipmentServicesDetails).toBe(true);
-    });
-
-    it("hides equipment services details when no services selected", () => {
-      const dependencies = getFieldDependencies({ equipmentServices: [] });
-      expect(dependencies.showEquipmentServicesDetails).toBe(false);
-    });
-
-    it("shows staffing services details when services are selected", () => {
-      const dependencies = getFieldDependencies({
-        staffingServices: ["audio tech"],
-      });
-      expect(dependencies.showStaffingServicesDetails).toBe(true);
-    });
-
-    it("hides staffing services details when no services selected", () => {
-      const dependencies = getFieldDependencies({ staffingServices: [] });
-      expect(dependencies.showStaffingServicesDetails).toBe(false);
     });
   });
 

@@ -335,18 +335,6 @@ export default function CalendarVerticalResource({
 
   // for editing an existing reservation
   const existingCalEventsFiltered = useMemo(() => {
-    console.log(`Calendar events received:`, existingCalendarEvents.length);
-    console.log(
-      `Sample events:`,
-      existingCalendarEvents.slice(0, 3).map((e) => ({
-        id: e.id,
-        title: e.title,
-        start: e.start,
-        end: e.end,
-        resourceId: e.resourceId,
-      }))
-    );
-
     if (
       (formContext !== FormContextLevel.EDIT &&
         formContext !== FormContextLevel.MODIFICATION) ||
@@ -411,9 +399,8 @@ export default function CalendarVerticalResource({
   // don't use these values until we talk to Samantha/Jhanele
 
   return (
-    <FullCalendarWrapper data-testid="booking-calendar-wrapper">
+    <FullCalendarWrapper>
       <FullCalendar
-        data-testid="booking-calendar"
         initialDate={dateView}
         initialView="resourceTimeGridDay"
         plugins={[
@@ -431,7 +418,6 @@ export default function CalendarVerticalResource({
           resourceIds: resources.map((r) => r.id),
           overlap: false,
         }}
-        eventOverlap={false}
         schedulerLicenseKey="CC-Attribution-NonCommercial-NoDerivatives"
         resources={resources}
         resourceOrder={"index"}

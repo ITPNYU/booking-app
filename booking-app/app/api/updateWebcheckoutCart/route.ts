@@ -1,4 +1,3 @@
-import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
 import { TableNames } from "@/components/src/policy";
 import { serverUpdateDataByCalendarEventId } from "@/components/src/server/admin";
 import { serverFetchAllDataFromCollection } from "@/lib/firebase/server/adminDb";
@@ -8,9 +7,6 @@ import { NextRequest, NextResponse } from "next/server";
 export async function POST(req: NextRequest) {
   try {
     const { calendarEventId, cartNumber, userEmail } = await req.json();
-
-    // Get tenant from x-tenant header, fallback to default tenant
-    const tenant = req.headers.get("x-tenant") || DEFAULT_TENANT;
 
     if (!calendarEventId || !userEmail) {
       return NextResponse.json(
@@ -48,7 +44,6 @@ export async function POST(req: NextRequest) {
       {
         webcheckoutCartNumber: cartNumber || null,
       },
-      tenant,
     );
 
     // Update the calendar event description with the new cart number via API
@@ -59,7 +54,6 @@ export async function POST(req: NextRequest) {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
-            "x-tenant": tenant,
           },
           body: JSON.stringify({
             calendarEventId: calendarEventId,

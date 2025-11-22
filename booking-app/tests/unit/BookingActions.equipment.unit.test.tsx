@@ -30,6 +30,7 @@ vi.mock(
       MODIFICATION: "Modification",
       DECLINE: "Decline",
       EQUIPMENT_APPROVE: "Equipment Approve",
+      SEND_TO_EQUIPMENT: "Send to Equipment",
     },
     default: vi.fn(),
   })
@@ -76,7 +77,7 @@ const defaultProps = {
   startDate: Timestamp.fromDate(new Date("2024-02-15T10:00:00Z")),
   onSelect: vi.fn(),
   setOptimisticStatus: vi.fn(),
-  pageContext: PageContextLevel.SERVICES,
+  pageContext: PageContextLevel.EQUIPMENT,
 };
 
 const renderBookingActionsComponent = (props = {}, contextOverrides = {}) => {
@@ -190,6 +191,18 @@ describe("BookingActions Component - Equipment Context", () => {
 
       // Equipment actions are currently disabled (empty array)
       expect(screen.queryByText("Equipment Approve")).not.toBeInTheDocument();
+    });
+
+    it("should not show Send to Equipment action in equipment context", async () => {
+      const user = userEvent.setup();
+      renderBookingActionsComponent();
+
+      // Open the select to see the options
+      const selectElement = screen.getByRole("combobox");
+      await user.click(selectElement);
+
+      // Equipment context should not show send to equipment action
+      expect(screen.queryByText("Send to Equipment")).not.toBeInTheDocument();
     });
 
     it("should not show admin-only actions", async () => {
@@ -430,7 +443,7 @@ describe("BookingActions Component - Equipment Context", () => {
 
       expect(mockUseBookingActions).toHaveBeenCalledWith(
         expect.objectContaining({
-          pageContext: PageContextLevel.SERVICES,
+          pageContext: PageContextLevel.EQUIPMENT,
         })
       );
     });
@@ -445,7 +458,7 @@ describe("BookingActions Component - Equipment Context", () => {
         expect.objectContaining({
           calendarEventId: "equipment-event-456",
           status: BookingStatusLabel.EQUIPMENT,
-          pageContext: PageContextLevel.SERVICES,
+          pageContext: PageContextLevel.EQUIPMENT,
         })
       );
     });
@@ -536,7 +549,7 @@ describe("BookingActions Component - Equipment Context", () => {
       const user = userEvent.setup();
       renderBookingActionsComponent({
         status: BookingStatusLabel.EQUIPMENT,
-        pageContext: PageContextLevel.SERVICES,
+        pageContext: PageContextLevel.EQUIPMENT,
       });
 
       // Open the select to see the options
@@ -555,13 +568,13 @@ describe("BookingActions Component - Equipment Context", () => {
 
     it("should maintain equipment context consistency", () => {
       renderBookingActionsComponent({
-        pageContext: PageContextLevel.SERVICES,
+        pageContext: PageContextLevel.EQUIPMENT,
       });
 
       // Context should remain EQUIPMENT throughout the component lifecycle
       expect(mockUseBookingActions).toHaveBeenCalledWith(
         expect.objectContaining({
-          pageContext: PageContextLevel.SERVICES,
+          pageContext: PageContextLevel.EQUIPMENT,
         })
       );
     });

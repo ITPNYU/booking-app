@@ -11,7 +11,6 @@ import admin from "@/lib/firebase/server/firebaseAdmin";
 import { getCalendarClient } from "@/lib/googleClient";
 import { Timestamp } from "firebase/firestore";
 import { NextResponse } from "next/server";
-import { serverGetDocumentById } from "@/lib/firebase/server/adminDb";
 
 const db = admin.firestore();
 const areRoomIdsSame = (roomIds1: string, roomIds2: string): boolean => {
@@ -122,17 +121,12 @@ const findRoomIds = (event: any, resources: any[]): string => {
 export async function POST(request: Request) {
   try {
     const calendar = await getCalendarClient();
-    
-    // Get tenant from request headers or default to 'mc'
-    const tenant = request.headers.get('x-tenant') || 'mc';
-    
-    // Get resources from tenant schema instead of collection
-    const schema = await serverGetDocumentById(TableNames.TENANT_SCHEMA, tenant);
-    const resources = schema?.resources?.map((resource: any) => ({
-      id: resource.roomId.toString(),
-      calendarId: resource.calendarId,
-      roomId: resource.roomId,
-    })) || [];
+    const resourcesSnapshot = await db.collection("resources").get();
+    const resources = resourcesSnapshot.docs.map(doc => ({
+      id: doc.id,
+      calendarId: doc.data().calendarId,
+      roomId: doc.data().roomId,
+    }));
 
     let totalNewBookings = 0;
     let totalUpdatedBookings = 0;

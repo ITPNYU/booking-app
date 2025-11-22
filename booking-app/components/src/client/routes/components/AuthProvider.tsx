@@ -36,30 +36,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   useEffect(() => {
     const handleAuth = async () => {
       console.log("handleAuth triggered");
-      let testEnvStatus = false;
-      try {
-        const testEnvRes = await fetch(
-          window.location.origin + "/api/isTestEnv"
-        );
-        if (testEnvRes.ok) {
-          const { isOnTestEnv } = await testEnvRes.json();
-          testEnvStatus = isOnTestEnv;
-          setIsOnTestEnv(isOnTestEnv);
-        } else {
-          console.warn("Failed to fetch test env status:", testEnvRes.status);
-          setIsOnTestEnv(false);
-        }
-      } catch (error) {
-        console.warn("Error fetching test env status:", error);
-        setIsOnTestEnv(false);
-      }
+      const testEnvRes = await fetch(window.location.origin + "/api/isTestEnv");
+      const { isOnTestEnv } = await testEnvRes.json();
+      setIsOnTestEnv(isOnTestEnv);
+      console.log("isOnTestEnv:", isOnTestEnv);
 
       const user = auth.currentUser;
       console.log("auth.currentUser:", user);
 
       if (user) {
         console.log("User object exists:", user.email);
-        if (user.email?.endsWith("@nyu.edu") || testEnvStatus) {
+        if (user.email?.endsWith("@nyu.edu") || isOnTestEnv) {
           console.log("Setting user state:", user.email);
           setUser(user);
         } else {
@@ -70,37 +57,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         }
       } else {
         console.log("No user object found. Checking if sign-in needed.");
-        
-        // In test environment, create a mock user to bypass authentication
-        if (testEnvStatus) {
-          console.log("Test environment detected, creating mock user");
-          const mockUser = {
-            uid: "test-user-id",
-            email: "test@nyu.edu",
-            displayName: "Test User",
-            photoURL: null,
-            emailVerified: true,
-          } as User;
-          setUser(mockUser);
-          setLoading(false);
-          return;
-        }
-        
-        // Only attempt sign-in if NOT in test environment
-        if (!testEnvStatus) {
-          try {
-            if (!pathname.includes("signin")) {
-              console.log("Attempting signInWithGoogle...");
-              await signInWithGoogle();
-            }
-          } catch (error) {
-            console.error("Error during signInWithGoogle attempt:", error);
-            // Redirect to appropriate signin page based on tenant
-            const signinPath = params?.tenant
-              ? `/${params.tenant}/signin`
-              : "/signin";
-            router.push(signinPath);
+        try {
+          if (!pathname.includes("signin")) {
+            console.log("Attempting signInWithGoogle...");
+            await signInWithGoogle();
           }
+        } catch (error) {
+          console.error("Error during signInWithGoogle attempt:", error);
+          // Redirect to appropriate signin page based on tenant
+          const signinPath = params?.tenant
+            ? `/${params.tenant}/signin`
+            : "/signin";
+          router.push(signinPath);
         }
       }
       setLoading(false);

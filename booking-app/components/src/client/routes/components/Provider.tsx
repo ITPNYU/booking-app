@@ -1,4 +1,3 @@
-import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
 import { ApproverLevel, TableNames } from "@/components/src/policy";
 import React, { createContext, useEffect, useMemo, useState } from "react";
 import {
@@ -27,15 +26,6 @@ import {
   fetchAllFutureBooking,
 } from "@/components/src/server/db";
 import { clientFetchAllDataFromCollection } from "@/lib/firebase/firebase";
-import { useContext } from "react";
-import { SchemaContext } from "./SchemaProvider";
-import {
-  applyE2EMockAdminUsers,
-  applyE2EMockApprovers,
-  applyE2EMockBookings,
-  applyE2EMockPaUsers,
-  applyE2EMockSafetyUsers,
-} from "./e2eMockUtils";
 
 export interface DatabaseContextType {
   adminUsers: AdminUser[];
@@ -161,22 +151,14 @@ export const DatabaseProvider = ({
   const { user } = useAuth();
   const netId = useMemo(() => userEmail?.split("@")[0], [userEmail]);
 
-  // Get tenant from SchemaContext
-  const schemaContext = useContext(SchemaContext);
-  const tenant = schemaContext?.tenant;
-
   const [preBanLogs, setPreBanLogs] = useState<PreBanLog[]>([]);
   const [superAdminUsers, setSuperAdminUsers] = useState<AdminUser[]>([]);
 
   useEffect(() => {
     const fetchUserApiData = async () => {
-      if (!netId || !tenant) return;
+      if (!netId) return;
       try {
-        const response = await fetch(`/api/nyu/identity/${netId}`, {
-          headers: {
-            "x-tenant": tenant || DEFAULT_TENANT,
-          },
-        });
+        const response = await fetch(`/api/nyu/identity/${netId}`);
         if (response.ok) {
           const data = await response.json();
           setUserApiData(data);
@@ -186,7 +168,7 @@ export const DatabaseProvider = ({
       }
     };
     fetchUserApiData();
-  }, [netId, tenant]);
+  }, [netId]);
 
   // page permission updates with respect to user email, admin list, PA list
   const pagePermission = useMemo<PagePermission>(() => {
@@ -197,13 +179,13 @@ export const DatabaseProvider = ({
     const adminEmails = adminUsers.map((admin) => admin.email);
     const liaisonEmails = liaisonUsers.map((liaison) => liaison.email);
     const paEmails = paUsers.map((pa) => pa.email);
-    const servicesEmails = equipmentUsers.map((e) => e.email);
+    const equipmentEmails = equipmentUsers.map((e) => e.email);
     const superAdminEmails = superAdminUsers.map((admin) => admin.email);
 
     // Check permissions (ordered by hierarchy - highest to lowest)
     if (superAdminEmails.includes(userEmail)) return PagePermission.SUPER_ADMIN;
     if (adminEmails.includes(userEmail)) return PagePermission.ADMIN;
-    if (servicesEmails.includes(userEmail)) return PagePermission.SERVICES;
+    if (equipmentEmails.includes(userEmail)) return PagePermission.EQUIPMENT;
     if (liaisonEmails.includes(userEmail)) return PagePermission.LIAISON;
     if (paEmails.includes(userEmail)) return PagePermission.PA;
 
@@ -223,7 +205,7 @@ export const DatabaseProvider = ({
   }, [allBookings]);
 
   useEffect(() => {
-    if (!bookingsLoading && tenant) {
+    if (!bookingsLoading) {
       fetchSafetyTrainedUsers();
       fetchBannedUsers();
       fetchApproverUsers();
@@ -232,7 +214,7 @@ export const DatabaseProvider = ({
     } else {
       // fetchBookings();
     }
-  }, [bookingsLoading, user, tenant]);
+  }, [bookingsLoading, user]);
 
   useEffect(() => {
     fetchBookings();
@@ -240,18 +222,11 @@ export const DatabaseProvider = ({
 
   useEffect(() => {
     fetchActiveUserEmail();
-    if (tenant) {
-      fetchAdminUsers();
-      fetchPaUsers();
-      fetchSuperAdminUsers();
-    }
-  }, [user, tenant]);
-
-  useEffect(() => {
-    if (tenant) {
-      fetchRoomSettings();
-    }
-  }, [tenant]);
+    fetchAdminUsers();
+    fetchPaUsers();
+    fetchRoomSettings();
+    fetchSuperAdminUsers();
+  }, [user]);
 
   const fetchActiveUserEmail = () => {
     if (!user) return;
@@ -261,13 +236,6 @@ export const DatabaseProvider = ({
   const fetchFutureBookings = async () => {
     try {
       setBookingsLoading(true);
-      if (
-        applyE2EMockBookings({
-          setAllBookings,
-        })
-      ) {
-        return;
-      }
       const fetchedData = await fetchAllFutureBooking();
       setAllBookings(fetchedData as Booking[]);
     } catch (error) {
@@ -279,15 +247,6 @@ export const DatabaseProvider = ({
 
   const fetchBookings = async (clicked = false): Promise<void> => {
     try {
-      if (
-        applyE2EMockBookings({
-          setAllBookings,
-          resetPagination: () => setLastItem(null),
-        })
-      ) {
-        return Promise.resolve();
-      }
-
       if (filters.dateRange === "") {
         return Promise.resolve();
       }
@@ -296,8 +255,7 @@ export const DatabaseProvider = ({
         pagePermission,
         LIMIT,
         filters,
-        lastItem,
-        tenant
+        lastItem
       );
 
       if (clicked && bookingsResponse.length === 0) {
@@ -323,72 +281,36 @@ export const DatabaseProvider = ({
   };
 
   const fetchAdminUsers = async () => {
-    try {
-      if (applyE2EMockAdminUsers(setAdminUsers)) {
-        return;
-      }
-
-      // Fetch from usersRights and filter by isAdmin flag
-      const fetchedData = await clientFetchAllDataFromCollection(
-        TableNames.USERS_RIGHTS,
-        [],
-        tenant
-      );
-
-      const adminUsers = fetchedData
-        .filter((item: any) => item.isAdmin === true)
-        .map((item: any) => ({
+    clientFetchAllDataFromCollection(TableNames.ADMINS)
+      .then((fetchedData) => {
+        const adminUsers = fetchedData.map((item: any) => ({
           id: item.id,
           email: item.email,
           createdAt: item.createdAt,
         }));
-
-      setAdminUsers(adminUsers);
-    } catch (error) {
-      console.error("Error fetching admin users data:", error);
-      setAdminUsers([]); // Set empty array on error
-    }
+        setAdminUsers(adminUsers);
+      })
+      .catch((error) => console.error("Error fetching data:", error));
   };
 
   const fetchPaUsers = async () => {
-    try {
-      if (applyE2EMockPaUsers(setPaUsers)) {
-        return;
-      }
-
-      // Fetch from usersRights and filter by isWorker flag
-      const fetchedData = await clientFetchAllDataFromCollection(
-        TableNames.USERS_RIGHTS,
-        [],
-        tenant
-      );
-
-      const paUsers = fetchedData
-        .filter((item: any) => item.isWorker === true)
-        .map((item: any) => ({
+    clientFetchAllDataFromCollection(TableNames.PAS)
+      .then((fetchedData) => {
+        const paUsers = fetchedData.map((item: any) => ({
           id: item.id,
           email: item.email,
           createdAt: item.createdAt,
         }));
-
-      setPaUsers(paUsers);
-    } catch (error) {
-      console.error("Error fetching PA users data:", error);
-      setPaUsers([]); // Set empty array on error
-    }
+        setPaUsers(paUsers);
+      })
+      .catch((error) => console.error("Error fetching data:", error));
   };
 
   const fetchSafetyTrainedUsers = async () => {
     try {
-      if (applyE2EMockSafetyUsers(setSafetyTrainedUsers)) {
-        return;
-      }
-
       // Fetch data from Firestore
       const firestoreData = await clientFetchAllDataFromCollection(
-        TableNames.SAFETY_TRAINING,
-        [],
-        tenant
+        TableNames.SAFETY_TRAINING
       );
       const firestoreUsers: SafetyTraining[] = firestoreData.map(
         (item: any) => ({
@@ -403,11 +325,7 @@ export const DatabaseProvider = ({
       );
 
       // Fetch data from spreadsheet
-      const response = await fetch("/api/safety_training_users", {
-        headers: {
-          "x-tenant": tenant || DEFAULT_TENANT,
-        },
-      });
+      const response = await fetch("/api/safety_training_users");
       if (!response.ok) {
         throw new Error("Failed to fetch authorized emails from spreadsheet");
       }
@@ -430,24 +348,23 @@ export const DatabaseProvider = ({
       // Add or update spreadsheet users
       spreadsheetData.emails.forEach((email: string) => {
         if (!userMap.has(email)) {
-          userMap.set(email, {
-            id: email,
-            email,
-            completedAt: currentDate,
-          });
+          userMap.set(email, { email, id: null, completedAt: currentDate });
         }
       });
 
-      // Convert map back to array
-      const mergedUsers = Array.from(userMap.values());
-      setSafetyTrainedUsers(mergedUsers);
+      // Convert Map to SafetyTraining array
+      const uniqueUsers = Array.from(userMap.values());
+      console.log("TOTAL UNIQUE SAFETY TRAINED USER:", uniqueUsers.length);
+      // Update state
+      setSafetyTrainedUsers(uniqueUsers);
     } catch (error) {
       console.error("Error fetching safety trained users:", error);
+      throw error;
     }
   };
 
   const fetchBannedUsers = async () => {
-    clientFetchAllDataFromCollection(TableNames.BANNED, [], tenant)
+    clientFetchAllDataFromCollection(TableNames.BANNED)
       .then((fetchedData) => {
         const filtered = fetchedData.map((item: any) => ({
           id: item.id,
@@ -460,17 +377,7 @@ export const DatabaseProvider = ({
   };
 
   const fetchApproverUsers = async () => {
-    if (
-      applyE2EMockApprovers({
-        setLiaisonUsers,
-        setEquipmentUsers,
-        setPolicySettings,
-      })
-    ) {
-      return;
-    }
-
-    clientFetchAllDataFromCollection(TableNames.APPROVERS, [], tenant)
+    clientFetchAllDataFromCollection(TableNames.APPROVERS)
       .then((fetchedData) => {
         const all = fetchedData.map((item: any) => ({
           id: item.id,
@@ -484,17 +391,18 @@ export const DatabaseProvider = ({
           (x) => x.level === ApproverLevel.EQUIPMENT
         );
 
-        const finalApproverEmail =
-          all.find((x) => x.level === ApproverLevel.FINAL)?.email ?? "";
+        const finalApprover = all.filter(
+          (x) => x.level === ApproverLevel.FINAL
+        )[0];
         setLiaisonUsers(liaisons);
         setEquipmentUsers(equipmentUsers);
-        setPolicySettings({ finalApproverEmail });
+        setPolicySettings({ finalApproverEmail: finalApprover.email });
       })
       .catch((error) => console.error("Error fetching data:", error));
   };
 
   const fetchDepartmentNames = async () => {
-    clientFetchAllDataFromCollection(TableNames.DEPARTMENTS, [], tenant)
+    clientFetchAllDataFromCollection(TableNames.DEPARTMENTS)
       .then((fetchedData) => {
         const filtered = fetchedData.map((item: any) => ({
           id: item.id,
@@ -508,81 +416,39 @@ export const DatabaseProvider = ({
   };
 
   const fetchRoomSettings = async () => {
-    if (!tenant) {
-      console.warn("fetchRoomSettings called but tenant is not available yet");
-      return;
-    }
-
-    try {
-      console.log(`fetchRoomSettings called with tenant: "${tenant}"`);
-      // Get tenant schema from the API
-      const url = `/api/tenantSchema/${tenant}`;
-      console.log(`Fetching from URL: ${url}`);
-      const response = await fetch(url);
-      if (!response.ok) {
-        console.error(
-          `Failed to fetch tenant schema. Status: ${response.status}, URL: ${url}`
-        );
-        throw new Error("Failed to fetch tenant schema");
-      }
-      const schema = await response.json();
-
-      // Convert schema resources to RoomSetting format
-      const filtered = schema.resources.map((resource: any) => ({
-        id: resource.roomId.toString(), // Use roomId as id
-        roomId: resource.roomId,
-        name: resource.name,
-        capacity: resource.capacity.toString(),
-        calendarId: resource.calendarId,
-        ...resource,
-      }));
-
-      filtered.sort((a, b) => a.roomId - b.roomId);
-      setRoomSettings(filtered);
-    } catch (error) {
-      console.error("Error fetching room settings from schema:", error);
-    }
+    clientFetchAllDataFromCollection(TableNames.RESOURCES)
+      .then((fetchedData) => {
+        const filtered = fetchedData.map((item: any) => ({
+          id: item.id,
+          roomId: item.roomId,
+          name: item.name,
+          capacity: item.capacity,
+          calendarId: item.calendarId,
+        }));
+        filtered.sort((a, b) => a.roomId - b.roomId);
+        setRoomSettings(filtered);
+      })
+      .catch((error) => console.error("Error fetching data:", error));
   };
 
   const fetchBookingTypes = async () => {
-    clientFetchAllDataFromCollection(TableNames.BOOKING_TYPES, [], tenant)
+    clientFetchAllDataFromCollection(TableNames.BOOKING_TYPES)
       .then((fetchedData) => {
         const filtered = fetchedData.map((item: any) => ({
           id: item.id,
           bookingType: item.bookingType,
           createdAt: item.createdAt,
         }));
-        
-        // If no booking types are available, add a default "Other" option
-        const bookingTypes = filtered.length > 0 ? filtered : [
-          {
-            id: 'default-other',
-            bookingType: 'Other',
-            createdAt: new Date().toISOString(),
-          }
-        ];
-        
         setSettings((prev) => ({
           ...prev,
-          bookingTypes: bookingTypes as BookingType[],
+          bookingTypes: filtered as BookingType[],
         }));
       })
-      .catch((error) => {
-        console.error("Error fetching data:", error);
-        // On error, also provide a default "Other" option
-        setSettings((prev) => ({
-          ...prev,
-          bookingTypes: [{
-            id: 'default-other',
-            bookingType: 'Other',
-            createdAt: new Date().toISOString(),
-          }] as BookingType[],
-        }));
-      });
+      .catch((error) => console.error("Error fetching data:", error));
   };
 
   const fetchOperationHours = async () => {
-    clientFetchAllDataFromCollection(TableNames.OPERATION_HOURS, [], tenant)
+    clientFetchAllDataFromCollection(TableNames.OPERATION_HOURS)
       .then((fetchedData) => {
         setOperationHours(fetchedData as OperationHours[]);
       })
@@ -593,9 +459,7 @@ export const DatabaseProvider = ({
     try {
       const fetchedData =
         await clientFetchAllDataFromCollection<BlackoutPeriod>(
-          TableNames.BLACKOUT_PERIODS,
-          [],
-          tenant
+          TableNames.BLACKOUT_PERIODS
         );
       setBlackoutPeriods(
         fetchedData.sort(
@@ -622,9 +486,7 @@ export const DatabaseProvider = ({
   const fetchPreBanLogs = async () => {
     try {
       const fetchedData = await clientFetchAllDataFromCollection(
-        TableNames.PRE_BAN_LOGS,
-        [],
-        tenant
+        TableNames.PRE_BAN_LOGS
       );
       const logs = fetchedData.map((item: any) => ({
         id: item.id,
@@ -640,24 +502,18 @@ export const DatabaseProvider = ({
   };
 
   const fetchSuperAdminUsers = async () => {
-    try {
-      // Fetch from original usersSuperAdmin collection (not tenant-specific)
-      const fetchedData = await clientFetchAllDataFromCollection(
-        TableNames.SUPER_ADMINS,
-        []
+    clientFetchAllDataFromCollection(TableNames.SUPER_ADMINS)
+      .then((fetchedData) => {
+        const superAdminUsers = fetchedData.map((item: any) => ({
+          id: item.id,
+          email: item.email,
+          createdAt: item.createdAt,
+        }));
+        setSuperAdminUsers(superAdminUsers);
+      })
+      .catch((error) =>
+        console.error("Error fetching super admin data:", error)
       );
-
-      const superAdminUsers = fetchedData.map((item: any) => ({
-        id: item.id,
-        email: item.email,
-        createdAt: item.createdAt,
-      }));
-
-      setSuperAdminUsers(superAdminUsers);
-    } catch (error) {
-      console.error("Error fetching super admin data:", error);
-      setSuperAdminUsers([]); // Set empty array on error
-    }
   };
 
   return (

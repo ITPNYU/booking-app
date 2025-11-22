@@ -15,7 +15,6 @@ import { styled } from "@mui/system";
 import { BookingContext } from "../bookingProvider";
 import useCalculateOverlap from "../hooks/useCalculateOverlap";
 import useCheckAutoApproval from "../hooks/useCheckAutoApproval";
-import useCheckDurationLimits from "../hooks/useCheckDurationLimits";
 
 interface Props {
   formContext: FormContextLevel;
@@ -35,20 +34,13 @@ const NavGrid = styled(Box)`
 
 export default function BookingStatusBar({ formContext, ...props }: Props) {
   const isWalkIn = formContext === FormContextLevel.WALK_IN;
-  const isVIP = formContext === FormContextLevel.VIP;
-  const { isAutoApproval, errorMessage } = useCheckAutoApproval(
-    isWalkIn,
-    isVIP
-  );
-  const { durationError } = useCheckDurationLimits(isWalkIn, isVIP);
+  const { isAutoApproval, errorMessage } = useCheckAutoApproval(isWalkIn);
   const {
     bookingCalendarInfo,
     selectedRooms,
     isBanned,
     needsSafetyTraining,
     isInBlackoutPeriod,
-    role,
-    formData,
   } = useContext(BookingContext);
   const isOverlap = useCalculateOverlap();
 
@@ -59,7 +51,6 @@ export default function BookingStatusBar({ formContext, ...props }: Props) {
     isBanned ||
     needsSafetyTraining ||
     isInBlackoutPeriod ||
-    durationError !== null ||
     (bookingCalendarInfo != null && selectedRooms.length > 0);
 
   // order of precedence matters
@@ -77,29 +68,19 @@ export default function BookingStatusBar({ formContext, ...props }: Props) {
     if (isBanned)
       return {
         btnDisabled: true,
-        btnDisabledMessage: isWalkIn ? "Walk-in visitor is banned" : "You are banned",
-        message: (
-          <p>
-            {isWalkIn
-              ? `The walk-in visitor (${formData?.walkInNetId || 'user'}) is banned from booking with the Media Commons`
-              : "You are banned from booking with the Media Commons"}
-          </p>
-        ),
+        btnDisabledMessage: "You are banned",
+        message: <p>You are banned from booking with the Media Commons</p>,
         severity: "error",
         variant: "filled",
       };
     if (needsSafetyTraining)
       return {
         btnDisabled: true,
-        btnDisabledMessage: isWalkIn 
-          ? "Walk-in visitor needs safety training" 
-          : "You need to take safety training",
+        btnDisabledMessage: "You need to take safety training",
         message: (
           <p>
-            {isWalkIn 
-              ? `The walk-in visitor (${formData?.walkInNetId || 'user'}) has not taken safety training, which is required for at least one of the rooms you have selected.`
-              : "You have not taken safety training, which is required for at least one of the rooms you have selected."
-            }{" "}
+            You have not taken safety training, which is required for at least
+            one of the rooms you have selected.{" "}
             <a
               href="https://sites.google.com/nyu.edu/370jmediacommons/reservations/safety-training"
               target="_blank"
@@ -137,33 +118,12 @@ export default function BookingStatusBar({ formContext, ...props }: Props) {
         ),
         severity: "error",
       };
-    if (durationError)
-      return {
-        btnDisabled: true,
-        btnDisabledMessage: `Duration exceeds maximum allowed for your role (${durationError.maxDuration} hours)`,
-        message: (
-          <p>
-            Event duration ({durationError.currentDuration.toFixed(1)} hours)
-            exceeds the maximum allowed duration ({durationError.maxDuration}{" "}
-            hours) for {durationError.roomName} based on your{" "}
-            {durationError.role} role. Please select a shorter time slot.
-          </p>
-        ),
-        severity: "error",
-      };
-    if ((isWalkIn || isVIP) && !isAutoApproval && errorMessage) {
-      // Show actual error from auto-approval check (e.g., duration limits, services requested, multiple rooms, etc.)
+    if (isWalkIn && !isAutoApproval) {
+      // walk-ins must be < 4 hours
       return {
         btnDisabled: true,
         btnDisabledMessage: errorMessage,
-        message: (
-          <p>
-            This request will require approval.{" "}
-            <Tooltip title={errorMessage}>
-              <a>Why?</a>
-            </Tooltip>
-          </p>
-        ),
+        message: <p>Walk-ins must be between 1-4 hours in duration</p>,
         severity: "error",
       };
     }

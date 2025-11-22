@@ -86,17 +86,11 @@ describe("Calendar Description Functions", () => {
       setupDetails: "Tables in U-shape",
       mediaServices: "Audio/Visual equipment",
       mediaServicesDetails: "Projector and speakers",
-      equipmentServices: "Camera",
-      equipmentServicesDetails: "HD camera setup",
-      staffingServices: "Audio technician",
-      staffingServicesDetails: "Audio support for event",
       catering: "No",
       hireSecurity: "No",
       expectedAttendance: "25",
       cateringService: "None",
-      cleaningService: "no",
       chartFieldForCatering: "",
-      chartFieldForCleaning: "",
       chartFieldForSecurity: "",
       chartFieldForRoomSetup: "",
       status: BookingStatusLabel.REQUESTED,
@@ -106,8 +100,8 @@ describe("Calendar Description Functions", () => {
   });
 
   describe("bookingContentsToDescription", () => {
-    it("should generate HTML description with all main sections", async () => {
-      const result = await bookingContentsToDescription(mockBookingContents);
+    it("should generate HTML description with all main sections", () => {
+      const result = bookingContentsToDescription(mockBookingContents);
 
       // Check for main sections
       expect(result).toContain("<h3>Request</h3>");
@@ -123,16 +117,16 @@ describe("Calendar Description Functions", () => {
       expect(result).toContain("</li>");
     });
 
-    it("should include request information correctly", async () => {
-      const result = await bookingContentsToDescription(mockBookingContents);
+    it("should include request information correctly", () => {
+      const result = bookingContentsToDescription(mockBookingContents);
 
       expect(result).toContain("<strong>Request #:</strong> 12345");
       expect(result).toContain("<strong>Room(s):</strong> 101, 102");
       expect(result).toContain("<strong>Status:</strong> REQUESTED");
     });
 
-    it("should include requester information correctly", async () => {
-      const result = await bookingContentsToDescription(mockBookingContents);
+    it("should include requester information correctly", () => {
+      const result = bookingContentsToDescription(mockBookingContents);
 
       expect(result).toContain("<strong>NetID:</strong> jd123");
       expect(result).toContain("<strong>Name:</strong> John Doe");
@@ -150,8 +144,8 @@ describe("Calendar Description Functions", () => {
       );
     });
 
-    it("should include event details correctly", async () => {
-      const result = await bookingContentsToDescription(mockBookingContents);
+    it("should include event details correctly", () => {
+      const result = bookingContentsToDescription(mockBookingContents);
 
       expect(result).toContain("<strong>Title:</strong> Test Event Title");
       expect(result).toContain(
@@ -165,49 +159,39 @@ describe("Calendar Description Functions", () => {
       );
     });
 
-    it("should include services information correctly", async () => {
-      const result = await bookingContentsToDescription(mockBookingContents);
+    it("should include services information correctly", () => {
+      const result = bookingContentsToDescription(mockBookingContents);
 
       expect(result).toContain(
         "<strong>Room Setup:</strong> Tables in U-shape"
       );
-      expect(result).toContain("<strong>Equipment Service:</strong> Camera");
       expect(result).toContain(
-        "<strong>Equipment Service Details:</strong> HD camera setup"
+        "<strong>Media Service:</strong> Audio/Visual equipment"
       );
       expect(result).toContain(
-        "<strong>Staffing Service:</strong> Audio technician"
+        "<strong>Media Services Details:</strong> Projector and speakers"
       );
-      expect(result).toContain(
-        "<strong>Staffing Service Details:</strong> Audio support for event"
-      );
-      // Services that are not requested should not appear in the description
-      expect(result).not.toContain("Cleaning Service");
-      expect(result).not.toContain("Security");
+      expect(result).toContain("<strong>Catering:</strong> None");
+      expect(result).toContain("<strong>Security:</strong> none");
     });
 
-    it('should display "none" for "no" or "No" values', async () => {
+    it('should display "none" for "no" or "No" values', () => {
       const bookingWithNoValues = {
         ...mockBookingContents,
         catering: "no",
         cateringService: "no", // This takes priority over catering
         hireSecurity: "No",
         mediaServices: "",
-        equipmentServices: "",
-        staffingServices: "",
-        cleaningService: "no",
       };
 
-      const result = await bookingContentsToDescription(bookingWithNoValues);
+      const result = bookingContentsToDescription(bookingWithNoValues);
 
-      // Services that are not requested should not appear in the description
-      expect(result).not.toContain("Catering Service");
-      expect(result).not.toContain("Security");
-      expect(result).not.toContain("Equipment Service");
-      expect(result).not.toContain("Staffing Service");
+      expect(result).toContain("<strong>Catering:</strong> none");
+      expect(result).toContain("<strong>Security:</strong> none");
+      expect(result).toContain("<strong>Media Service:</strong> none");
     });
 
-    it("should handle empty or undefined values gracefully", async () => {
+    it("should handle empty or undefined values gracefully", () => {
       const bookingWithEmptyValues = {
         ...mockBookingContents,
         firstName: "",
@@ -216,25 +200,22 @@ describe("Calendar Description Functions", () => {
         expectedAttendance: null,
       };
 
-      const result = await bookingContentsToDescription(bookingWithEmptyValues);
+      const result = bookingContentsToDescription(bookingWithEmptyValues);
 
       expect(result).toContain("<strong>Name:</strong>");
       expect(result).toContain("<strong>Description:</strong> none");
       expect(result).toContain("<strong>Expected Attendance:</strong> none");
     });
 
-    it("should include chart fields when provided", async () => {
+    it("should include chart fields when provided", () => {
       const bookingWithChartFields = {
         ...mockBookingContents,
         chartFieldForRoomSetup: "12345-SETUP",
         chartFieldForCatering: "12345-CATERING",
-        chartFieldForCleaning: "12345-CLEANING",
         chartFieldForSecurity: "12345-SECURITY",
-        hireSecurity: "Yes", // Set to "Yes" so security service appears
-        cleaningService: "yes", // Set to "yes" so cleaning service appears
       };
 
-      const result = await bookingContentsToDescription(bookingWithChartFields);
+      const result = bookingContentsToDescription(bookingWithChartFields);
 
       expect(result).toContain(
         "<strong>Room Setup Chart Field:</strong> 12345-SETUP"
@@ -243,23 +224,19 @@ describe("Calendar Description Functions", () => {
         "<strong>Catering Chart Field:</strong> 12345-CATERING"
       );
       expect(result).toContain(
-        "<strong>Cleaning Service Chart Field:</strong> 12345-CLEANING"
-      );
-      expect(result).toContain(
         "<strong>Security Chart Field:</strong> 12345-SECURITY"
       );
     });
 
-    it("should not include chart fields when not provided", async () => {
-      const result = await bookingContentsToDescription(mockBookingContents);
+    it("should not include chart fields when not provided", () => {
+      const result = bookingContentsToDescription(mockBookingContents);
 
       expect(result).not.toContain("Room Setup Chart Field");
       expect(result).not.toContain("Catering Chart Field");
-      expect(result).not.toContain("Cleaning Services Chart Field");
       expect(result).not.toContain("Security Chart Field");
     });
 
-    it("should handle alternative property names", async () => {
+    it("should handle alternative property names", () => {
       const bookingWithAlternativeProps = {
         ...mockBookingContents,
         roomSetup: undefined,
@@ -268,24 +245,20 @@ describe("Calendar Description Functions", () => {
         catering: "Coffee and snacks",
       };
 
-      const result = await bookingContentsToDescription(
-        bookingWithAlternativeProps
-      );
+      const result = bookingContentsToDescription(bookingWithAlternativeProps);
 
       expect(result).toContain("<strong>Room Setup:</strong> U-shape setup");
-      expect(result).toContain(
-        "<strong>Catering Service:</strong> Coffee and snacks"
-      );
+      expect(result).toContain("<strong>Catering:</strong> Coffee and snacks");
     });
 
-    it("should handle time formatting correctly", async () => {
+    it("should handle time formatting correctly", () => {
       const bookingWithTimes = {
         ...mockBookingContents,
         startTime: "9:30 AM",
         endTime: "11:45 PM",
       };
 
-      const result = await bookingContentsToDescription(bookingWithTimes);
+      const result = bookingContentsToDescription(bookingWithTimes);
 
       expect(result).toContain("<strong>Time:</strong> 9:30 AM - 11:45 PM");
     });

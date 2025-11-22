@@ -9,7 +9,6 @@ interface Props {
 }
 
 const routeToStepNames = {
-  netid: "NetID",
   role: "Affiliation",
   selectRoom: "Select Time",
   form: "Details",
@@ -27,14 +26,6 @@ export default function BookingFormStepper({ formContext }: Props) {
         routeToStepNames.form,
         routeToStepNames.confirmation,
       ];
-    } else if (formContext === FormContextLevel.WALK_IN) {
-      return [
-        routeToStepNames.netid,
-        routeToStepNames.role,
-        routeToStepNames.selectRoom,
-        routeToStepNames.form,
-        routeToStepNames.confirmation,
-      ];
     } else {
       return [
         routeToStepNames.role,
@@ -43,18 +34,13 @@ export default function BookingFormStepper({ formContext }: Props) {
         routeToStepNames.confirmation,
       ];
     }
-  }, [formContext]);
+  }, [pathname]);
 
   useEffect(() => {
-    const step = pathname.split("/")[3]; // netid, role, selectRoom, form
-    const stepName = routeToStepNames[step];
-    if (stepName) {
-      const index = steps.indexOf(stepName);
-      setActiveStep(index >= 0 ? index : 0);
-    } else {
-      setActiveStep(0);
-    }
-  }, [pathname, steps]);
+    const step = pathname.split("/")[3]; // role, selectRoom, form
+    const index = steps.indexOf(routeToStepNames[step]) ?? 0;
+    setActiveStep(index);
+  }, [pathname, formContext]);
 
   return (
     <Box sx={{ width: "100%", padding: 4 }}>
