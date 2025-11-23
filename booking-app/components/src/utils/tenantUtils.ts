@@ -47,7 +47,7 @@ export const getMediaCommonsServices = (data: any) => {
   return {
     setup: !!data.roomSetup && data.roomSetup !== "no",
     staff: !!data.staffingServicesDetails && data.staffingServicesDetails !== "no",
-    equipment: !!data.equipmentServices && data.equipmentServices !== "no",
+    equipment: !!data.mediaServices && data.mediaServices !== "no",
     catering: !!data.catering && data.catering !== "no",
     cleaning: !!data.cleaningService && data.cleaningService !== "no",
     security: !!data.hireSecurity && data.hireSecurity !== "no",

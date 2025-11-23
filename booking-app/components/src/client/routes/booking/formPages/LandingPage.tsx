@@ -1,11 +1,10 @@
-import { Box, Link, Typography } from "@mui/material";
+import { Box, CircularProgress, Typography } from "@mui/material";
 
-import Button from "@mui/material/Button";
-import React from "react";
-import { styled } from "@mui/system";
-import { useRouter } from "next/navigation";
-import { useParams } from "next/navigation";
 import { useTenantSchema } from "@/components/src/client/routes/components/SchemaProvider";
+import Button from "@mui/material/Button";
+import { styled } from "@mui/system";
+import { useParams, useRouter } from "next/navigation";
+import { useState } from "react";
 
 const Center = styled(Box)`
   display: flex;
@@ -33,6 +32,12 @@ export default function LandingPage() {
   const router = useRouter();
   const { tenant } = useParams();
   const schema = useTenantSchema();
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleAccept = () => {
+    setIsLoading(true);
+    router.push(`/${tenant}/book/role`);
+  };
 
   return (
     <Center
@@ -52,13 +57,21 @@ export default function LandingPage() {
         <Button
           variant="contained"
           color="primary"
-          onClick={() => router.push(`/${tenant}/book/role`)}
+          onClick={handleAccept}
+          disabled={isLoading}
           sx={{
             alignSelf: "center",
             marginTop: 6,
           }}
         >
-          I accept
+          {isLoading ? (
+            <>
+              <CircularProgress size={20} sx={{ mr: 1, color: "white" }} />
+              Loading...
+            </>
+          ) : (
+            "I accept"
+          )}
         </Button>
       </Modal>
     </Center>

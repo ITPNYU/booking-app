@@ -131,6 +131,30 @@ node scripts/copyCollection.js \
   --target-collection mc-usersRights
 ```
 
+**Step 2: Manually add usersPA data to mc-usersRights**
+
+After copying the base permission data, you need to manually add PA (Program Assistant) users from the `usersPA` collection to `mc-usersRights`:
+
+1. Go to Firebase Console → Firestore Database
+2. Open the `usersPA` collection in Production
+3. For each PA user document:
+   - Note the user's email address
+   - Go to `mc-usersRights` collection
+   - Create or update a document with the user's email as the document ID
+   - Set the appropriate permission flags (e.g., `isPA: true`, `isLiaison: true`, etc.)
+
+Example document structure in `mc-usersRights`:
+
+```json
+{
+  "email": "pa-user@nyu.edu",
+  "isPA": true,
+  "isLiaison": true,
+  "isAdmin": false,
+  "isWorker": false
+}
+```
+
 ```bash
 # Copy safety training user data
 node scripts/copyCollection.js \
