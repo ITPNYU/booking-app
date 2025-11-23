@@ -9,6 +9,7 @@ import { COMPARATORS, ColumnSortOrder } from "./getColumnComparator";
 import { DATE_FILTERS, DateRangeFilter } from "./getDateFilter";
 
 import { BOOKING_TABLE_HIDE_STATUS_TIME_ELAPSED } from "@/components/src/policy";
+import { normalizeDepartment } from "@/components/src/utils/departmentUtils";
 import getBookingStatus from "../../../hooks/getBookingStatus";
 import { DatabaseContext } from "../../Provider";
 import useAllowedStatuses from "./useAllowedStatuses";
@@ -20,6 +21,7 @@ interface Props {
   selectedDateRange: DateRangeFilter;
   selectedStatusFilters: BookingStatusLabel[];
   searchQuery?: string;
+  tenant?: string;
 }
 
 function getDateRangeFromDateSelection(selectedDateRange: DateRangeFilter) {
@@ -148,11 +150,20 @@ class BookingFilter {
         (user) => user.email === userEmail
       );
       if (liaisonMatches.length > 0) {
-        const liaisonDepartments = liaisonMatches.map(
-          (user) => user.department
+        const liaisonDepartments = liaisonMatches.map((user) =>
+          normalizeDepartment(user.department, {
+            toLowerCase: true,
+            removeSpaces: true,
+          })
         );
+
         this.rows = this.rows.filter((row) =>
-          liaisonDepartments.includes(row.department)
+          liaisonDepartments.includes(
+            normalizeDepartment(row.department, {
+              toLowerCase: true,
+              removeSpaces: true,
+            })
+          )
         );
       }
     }
@@ -163,6 +174,7 @@ class BookingFilter {
     this.rows = this.rows.filter((row) =>
       this.allowedStatuses.includes(row.status)
     );
+
     return this;
   }
 
@@ -232,6 +244,7 @@ export function useBookingFilters(props: Props): BookingRow[] {
     selectedDateRange,
     selectedStatusFilters,
     searchQuery = "",
+    tenant,
   } = props;
   const { liaisonUsers, userEmail, allBookings, setFilters } =
     useContext(DatabaseContext);
@@ -247,10 +260,6 @@ export function useBookingFilters(props: Props): BookingRow[] {
   }, []);
 
   useEffect(() => {
-    console.log(
-      "selectedDateRange",
-      getDateRangeFromDateSelection(selectedDateRange)
-    );
     setFilters({
       dateRange: getDateRangeFromDateSelection(selectedDateRange),
       sortField: "startDate",
@@ -260,7 +269,7 @@ export function useBookingFilters(props: Props): BookingRow[] {
 
   const rows: BookingRow[] = useMemo(() => {
     return allBookings.map((booking) => {
-      const status = getBookingStatus(booking);
+      const status = getBookingStatus(booking, tenant);
 
       return {
         ...booking,
