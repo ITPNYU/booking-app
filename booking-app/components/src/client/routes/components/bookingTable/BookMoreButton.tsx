@@ -1,5 +1,6 @@
 import {
   Button,
+  CircularProgress,
   Table,
   TableBody,
   TableCell,
@@ -8,11 +9,10 @@ import {
 } from "@mui/material";
 
 import { Add } from "@mui/icons-material";
-import React from "react";
 import { styled } from "@mui/system";
+import { useParams, useRouter } from "next/navigation";
+import { useState } from "react";
 import useHandleStartBooking from "../../booking/hooks/useHandleStartBooking";
-import { useRouter } from "next/navigation";
-import { useParams } from "next/navigation";
 const BottomRow = styled(Table)({
   borderTop: "none",
   borderRadius: "0px 0px 4px 4px",
@@ -24,6 +24,13 @@ export default function BookMoreButton() {
   const theme = useTheme();
   const { tenant } = useParams();
   const handleStartBooking = useHandleStartBooking();
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleClick = () => {
+    setIsLoading(true);
+    handleStartBooking();
+    router.push(`/${tenant}/book`);
+  };
 
   return (
     <BottomRow>
@@ -31,18 +38,25 @@ export default function BookMoreButton() {
         <TableRow>
           <TableCell sx={{ padding: "4px", borderBottom: "none" }}>
             <Button
-              onClick={() => {
-                handleStartBooking();
-                router.push(`/${tenant}/book`);
-              }}
+              onClick={handleClick}
               variant="text"
+              disabled={isLoading}
               sx={{
                 background: theme.palette.primary[50],
                 color: theme.palette.primary.main,
                 width: "100%",
               }}
             >
-              <Add /> Request a Reservation
+              {isLoading ? (
+                <>
+                  <CircularProgress size={20} sx={{ mr: 1 }} />
+                  Loading...
+                </>
+              ) : (
+                <>
+                  <Add /> Request a Reservation
+                </>
+              )}
             </Button>
           </TableCell>
         </TableRow>
