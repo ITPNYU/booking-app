@@ -132,9 +132,6 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    console.log(
-      `Fetching calendar events for calendarId: ${calendarId}, tenant: ${tenant}`,
-    );
     const events = await getCalendarEvents(calendarId, tenant);
 
     const res = NextResponse.json(events);

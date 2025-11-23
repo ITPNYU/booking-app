@@ -479,7 +479,8 @@ export const DatabaseProvider = ({
           createdAt: item.createdAt,
           level: Number(item.level),
         }));
-        const liaisons = all.filter((x) => x.level === ApproverLevel.FIRST);
+        // All users in mc-usersApprovers are liaisons (level no longer used for liaison filtering)
+        const liaisons = all;
         const equipmentUsers = all.filter(
           (x) => x.level === ApproverLevel.EQUIPMENT
         );
