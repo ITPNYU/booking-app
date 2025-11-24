@@ -4,7 +4,8 @@ import { Box, Button, Typography, useTheme } from "@mui/material";
 import { Error, Event } from "@mui/icons-material";
 import React, { useContext } from "react";
 import { BookingContext } from "../bookingProvider";
-import { FormContextLevel } from "@/components/src/types";
+import { DatabaseContext } from "../../components/Provider";
+import { FormContextLevel, PagePermission } from "@/components/src/types";
 import Loading from "../../components/Loading";
 import { styled } from "@mui/system";
 import { useRouter, useParams } from "next/navigation";
@@ -24,12 +25,14 @@ interface Props {
 
 export default function BookingFormConfirmationPage({ formContext }: Props) {
   const { submitting, error } = useContext(BookingContext);
+  const { pagePermission } = useContext(DatabaseContext);
   const router = useRouter();
   const { tenant } = useParams();
   const theme = useTheme();
 
   const isWalkIn = formContext === FormContextLevel.WALK_IN;
   const isVIP = formContext === FormContextLevel.VIP;
+  const isMod = formContext === FormContextLevel.MODIFICATION;
 
   // don't submit form via useEffect here b/c it submits twice in development strict mode
 
@@ -91,7 +94,9 @@ export default function BookingFormConfirmationPage({ formContext }: Props) {
                   ? `/${tenant}/admin`
                   : isWalkIn
                     ? `/${tenant}/pa`
-                    : `/${tenant}`
+                    : isMod && pagePermission === PagePermission.PA
+                      ? `/${tenant}/pa`
+                      : `/${tenant}`
               )
             }
             variant="text"
