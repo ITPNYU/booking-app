@@ -130,7 +130,8 @@ export default function useBookingActions({
 
         // Detect service requests from booking data
         if (data) {
-          setServiceRequests(getMediaCommonsServices(data));
+          const detectedServiceRequests = getMediaCommonsServices(data);
+          setServiceRequests(detectedServiceRequests);
 
           // Get XState v5 information for service approval status
           if (data.xstateData) {
@@ -148,23 +149,33 @@ export default function useBookingActions({
               snapshotValue["Service Closeout"]
                 ? snapshotValue["Service Closeout"]
                 : {};
+
+            // Use servicesRequested as fallback if servicesApproved is not in XState context
             setServicesApproved({
               staff:
-                context.servicesApproved?.staff ?? data.staffServiceApproved,
+                context.servicesApproved?.staff ??
+                detectedServiceRequests.staff ??
+                false,
               equipment:
                 context.servicesApproved?.equipment ??
-                data.equipmentServiceApproved,
+                detectedServiceRequests.equipment ??
+                false,
               catering:
                 context.servicesApproved?.catering ??
-                data.cateringServiceApproved,
+                detectedServiceRequests.catering ??
+                false,
               cleaning:
                 context.servicesApproved?.cleaning ??
-                data.cleaningServiceApproved,
+                detectedServiceRequests.cleaning ??
+                false,
               security:
                 context.servicesApproved?.security ??
-                data.securityServiceApproved,
+                detectedServiceRequests.security ??
+                false,
               setup:
-                context.servicesApproved?.setup ?? data.setupServiceApproved,
+                context.servicesApproved?.setup ??
+                detectedServiceRequests.setup ??
+                false,
             });
 
             setServicesClosedOut({
@@ -192,15 +203,15 @@ export default function useBookingActions({
                 serviceCloseoutStates["Setup Closeout"] === "Setup Closedout",
             });
           } else {
-            // Fallback to individual service approval fields if XState data is not available
+            // Fallback: Use servicesRequested as servicesApproved if XState data is not available
             setCurrentXState("");
             setServicesApproved({
-              staff: data.staffServiceApproved,
-              equipment: data.equipmentServiceApproved,
-              catering: data.cateringServiceApproved,
-              cleaning: data.cleaningServiceApproved,
-              security: data.securityServiceApproved,
-              setup: data.setupServiceApproved,
+              staff: detectedServiceRequests.staff ?? false,
+              equipment: detectedServiceRequests.equipment ?? false,
+              catering: detectedServiceRequests.catering ?? false,
+              cleaning: detectedServiceRequests.cleaning ?? false,
+              security: detectedServiceRequests.security ?? false,
+              setup: detectedServiceRequests.setup ?? false,
             });
             setServicesClosedOut({}); // Reset closeout status if no XState data
           }

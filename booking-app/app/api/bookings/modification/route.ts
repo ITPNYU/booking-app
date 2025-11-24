@@ -213,36 +213,11 @@ export async function PUT(request: NextRequest) {
       updatedData.firstApprovedBy = existingBookingData.firstApprovedBy;
     }
 
-    // Preserve service approvals for Media Commons
-    if (isMediaCommons) {
-      if (existingBookingData.staffServiceApproved !== undefined) {
-        updatedData.staffServiceApproved =
-          existingBookingData.staffServiceApproved;
-      }
-      if (existingBookingData.equipmentServiceApproved !== undefined) {
-        updatedData.equipmentServiceApproved =
-          existingBookingData.equipmentServiceApproved;
-      }
-      if (existingBookingData.cateringServiceApproved !== undefined) {
-        updatedData.cateringServiceApproved =
-          existingBookingData.cateringServiceApproved;
-      }
-      if (existingBookingData.cleaningServiceApproved !== undefined) {
-        updatedData.cleaningServiceApproved =
-          existingBookingData.cleaningServiceApproved;
-      }
-      if (existingBookingData.securityServiceApproved !== undefined) {
-        updatedData.securityServiceApproved =
-          existingBookingData.securityServiceApproved;
-      }
-      if (existingBookingData.setupServiceApproved !== undefined) {
-        updatedData.setupServiceApproved =
-          existingBookingData.setupServiceApproved;
-      }
-    }
+    // Note: Service approvals are managed through XState context only
+    // Individual service approval fields will be written by XState transition handler
 
     console.log(
-      `✅ PRESERVED APPROVAL DATA FOR MODIFICATION [${tenant?.toUpperCase()}]:`,
+      `✅ PRESERVED APPROVAL TIMESTAMPS FOR MODIFICATION [${tenant?.toUpperCase()}]:`,
       {
         calendarEventId: newCalendarEventId,
         finalApprovedAt: updatedData.finalApprovedAt,
@@ -265,16 +240,44 @@ export async function PUT(request: NextRequest) {
     const servicesRequested = isMediaCommons
       ? getMediaCommonsServices(data)
       : undefined;
-    const servicesApproved = isMediaCommons
-      ? {
-          staff: existingBookingData.staffServiceApproved || false,
-          equipment: existingBookingData.equipmentServiceApproved || false,
-          catering: existingBookingData.cateringServiceApproved || false,
-          cleaning: existingBookingData.cleaningServiceApproved || false,
-          security: existingBookingData.securityServiceApproved || false,
-          setup: existingBookingData.setupServiceApproved || false,
+    
+    // Get servicesApproved from existing XState context, or use servicesRequested as default
+    let servicesApproved = undefined;
+    if (isMediaCommons) {
+      const existingServicesApproved = existingBookingData.xstateData?.snapshot?.context?.servicesApproved;
+      
+      if (existingServicesApproved) {
+        // Use existing approved services from XState, and approve any newly requested services
+        servicesApproved = {
+          staff: servicesRequested?.staff ? true : (existingServicesApproved.staff ?? false),
+          equipment: servicesRequested?.equipment ? true : (existingServicesApproved.equipment ?? false),
+          catering: servicesRequested?.catering ? true : (existingServicesApproved.catering ?? false),
+          cleaning: servicesRequested?.cleaning ? true : (existingServicesApproved.cleaning ?? false),
+          security: servicesRequested?.security ? true : (existingServicesApproved.security ?? false),
+          setup: servicesRequested?.setup ? true : (existingServicesApproved.setup ?? false),
+        };
+      } else {
+        // No existing XState, so approve all requested services (since we're in Approved state)
+        servicesApproved = {
+          staff: servicesRequested?.staff ? true : false,
+          equipment: servicesRequested?.equipment ? true : false,
+          catering: servicesRequested?.catering ? true : false,
+          cleaning: servicesRequested?.cleaning ? true : false,
+          security: servicesRequested?.security ? true : false,
+          setup: servicesRequested?.setup ? true : false,
+        };
+      }
+
+      console.log(
+        `🎯 SERVICES APPROVED FOR MODIFICATION [${tenant?.toUpperCase()}]:`,
+        {
+          calendarEventId: newCalendarEventId,
+          servicesRequested,
+          existingXStateServicesApproved: existingServicesApproved,
+          calculatedServicesApproved: servicesApproved,
         }
-      : undefined;
+      );
+    }
 
     const freshActor = createActor(machine, {
       input: {

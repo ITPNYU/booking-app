@@ -87,6 +87,60 @@ async function createXStateFromBookingStatus(
   // Get the appropriate machine for the tenant
   const machine = getMachineForTenant(tenant);
 
+  // Detect service requests from booking data
+  const servicesRequested = {
+    staff:
+      !!bookingData.staffService && bookingData.staffService !== "no",
+    equipment:
+      !!bookingData.equipmentService &&
+      bookingData.equipmentService !== "no",
+    catering:
+      !!bookingData.cateringService &&
+      bookingData.cateringService !== "no",
+    cleaning:
+      !!bookingData.cleaningService &&
+      bookingData.cleaningService !== "no",
+    security:
+      !!bookingData.securityService &&
+      bookingData.securityService !== "no",
+    setup:
+      !!bookingData.setupService && bookingData.setupService !== "no",
+  };
+
+  // Determine servicesApproved based on status
+  let servicesApproved;
+  if (status === BookingStatusLabel.APPROVED) {
+    // If APPROVED, all requested services should be approved
+    servicesApproved = {
+      staff: servicesRequested.staff ? true : false,
+      equipment: servicesRequested.equipment ? true : false,
+      catering: servicesRequested.catering ? true : false,
+      cleaning: servicesRequested.cleaning ? true : false,
+      security: servicesRequested.security ? true : false,
+      setup: servicesRequested.setup ? true : false,
+    };
+  } else {
+    // For other statuses, initialize all as false
+    servicesApproved = {
+      staff: false,
+      equipment: false,
+      catering: false,
+      cleaning: false,
+      security: false,
+      setup: false,
+    };
+  }
+
+  console.log(
+    `🎯 SERVICES APPROVED CALCULATION [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+    {
+      calendarEventId,
+      status,
+      servicesRequested,
+      calculatedServicesApproved: servicesApproved,
+    }
+  );
+
   // Create input context based on tenant
   const inputContext = isMediaCommons(tenant)
     ? {
@@ -101,32 +155,8 @@ async function createXStateFromBookingStatus(
         calendarEventId,
         email: bookingData.email,
         isVip: bookingData.isVip || false,
-        servicesRequested: {
-          staff:
-            !!bookingData.staffService && bookingData.staffService !== "no",
-          equipment:
-            !!bookingData.equipmentService &&
-            bookingData.equipmentService !== "no",
-          catering:
-            !!bookingData.cateringService &&
-            bookingData.cateringService !== "no",
-          cleaning:
-            !!bookingData.cleaningService &&
-            bookingData.cleaningService !== "no",
-          security:
-            !!bookingData.securityService &&
-            bookingData.securityService !== "no",
-          setup:
-            !!bookingData.setupService && bookingData.setupService !== "no",
-        },
-        servicesApproved: {
-          staff: bookingData.staffServiceApproved,
-          equipment: bookingData.equipmentServiceApproved,
-          catering: bookingData.cateringServiceApproved,
-          cleaning: bookingData.cleaningServiceApproved,
-          security: bookingData.securityServiceApproved,
-          setup: bookingData.setupServiceApproved,
-        },
+        servicesRequested,
+        servicesApproved,
       }
     : {
         tenant,
