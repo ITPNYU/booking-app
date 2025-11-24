@@ -433,7 +433,7 @@ export default function MoreInfoModal({
             </RoomDetails>
             <RoomDetails container>
               <label>Date:</label>
-              <p>{booking.startDate.toDate().toLocaleDateString()}</p>
+              <p>{booking.startDate.toDate().toLocaleDateString("en-US")}</p>
             </RoomDetails>
             <RoomDetails container>
               <label>Time:</label>
