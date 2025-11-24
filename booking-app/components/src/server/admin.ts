@@ -738,16 +738,14 @@ export const firstApproverEmails = async (department: string) => {
     })),
   });
 
-  // Normalize department names for comparison (remove extra spaces, normalize slashes)
-  const normalizeDepartment = (dept: string) => {
-    if (!dept) return dept;
+  // Import normalizeDepartment from utils
+  const { normalizeDepartment } = await import(
+    "@/components/src/utils/departmentUtils"
+  );
 
-    // Simple normalization: trim whitespace and convert to lowercase
-    // Complex slash processing is unnecessary for keyword-based matching
-    return dept.trim().toLowerCase();
-  };
-
-  const normalizedUserDepartment = normalizeDepartment(department);
+  const normalizedUserDepartment = normalizeDepartment(department, {
+    toLowerCase: true,
+  });
   console.log(`🔧 NORMALIZED USER DEPARTMENT:`, {
     original: department,
     normalized: normalizedUserDepartment,
@@ -757,7 +755,8 @@ export const firstApproverEmails = async (department: string) => {
     if (!approver.department) return false;
 
     const normalizedApproverDepartment = normalizeDepartment(
-      approver.department
+      approver.department,
+      { toLowerCase: true }
     );
 
     // Check if user department contains any of the key department identifiers
