@@ -22,6 +22,12 @@ export interface PersistedXStateData {
   lastTransition: string;
 }
 
+type PreApprovalUpdateData = {
+  firstApprovedAt: admin.firestore.Timestamp;
+  firstApprovedBy?: string;
+  xstateData?: PersistedXStateData;
+};
+
 // Note: History logging is now handled by traditional functions only
 // XState only manages state transitions, not history logging
 // Unified state transition handler with history logging
@@ -361,89 +367,6 @@ async function handleStateTransitions(
 
     // Close processing is now handled by XState machine action calling /api/close-processing
     // All close-related operations (logging, email, calendar update) are handled by the API
-  } else if (newState === "Canceled" && previousState !== "Canceled") {
-    // Canceled state handling
-    firestoreUpdates.canceledAt = admin.firestore.Timestamp.now();
-
-    // For automatic transitions from No Show, attribute to System, not the user
-    const isAutomaticFromNoShow = previousState === "No Show";
-    if (isAutomaticFromNoShow) {
-      firestoreUpdates.canceledBy = "System";
-    } else if (email) {
-      firestoreUpdates.canceledBy = email;
-    }
-
-    console.log(
-      `🚫 XSTATE REACHED CANCELED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-      {
-        calendarEventId,
-        previousState,
-        newState,
-        canceledAt: firestoreUpdates.canceledAt,
-        canceledBy: firestoreUpdates.canceledBy,
-        isAutomaticFromNoShow,
-      }
-    );
-
-    // Add history logging for Canceled state
-    try {
-      const { serverSaveDataToFirestore } = await import(
-        "@/lib/firebase/server/adminDb"
-      );
-      const { TableNames } = await import("@/components/src/policy");
-
-      // For automatic transitions from No Show, attribute to System
-      const changedBy = isAutomaticFromNoShow ? "System" : email || "system";
-
-      const historyEntry = {
-        calendarEventId,
-        status: BookingStatusLabel.CANCELED,
-        changedBy,
-        changedAt: admin.firestore.Timestamp.now(),
-        note:
-          previousState === "No Show"
-            ? "Canceled due to no show"
-            : "Booking canceled",
-        requestNumber: bookingDoc?.requestNumber || 0,
-      };
-
-      await serverSaveDataToFirestore(
-        TableNames.BOOKING_LOGS,
-        historyEntry,
-        tenant
-      );
-
-      console.log(
-        `📋 XSTATE CANCELED HISTORY LOGGED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-        {
-          calendarEventId,
-          status: BookingStatusLabel.CANCELED,
-          changedBy,
-          note: historyEntry.note,
-          isAutomaticFromNoShow,
-        }
-      );
-    } catch (error) {
-      console.error(
-        `🚨 XSTATE CANCELED HISTORY LOGGING FAILED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-        {
-          calendarEventId,
-          error: error.message,
-        }
-      );
-    }
-
-    // Cancel processing is now handled by XState machine actions
-    // Skip processing here to avoid duplication
-    console.log(
-      `🎯 XSTATE REACHED CANCELED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-      {
-        calendarEventId,
-        previousState,
-        newState,
-        note: "Cancel processing handled by XState action",
-      }
-    );
   } else if (newState === "Checked In" && previousState !== "Checked In") {
     // Check-in state handling
     firestoreUpdates.checkedInAt = admin.firestore.Timestamp.now();
@@ -570,11 +493,49 @@ async function handleStateTransitions(
       }
     );
 
-    // Note: History logging is now handled by traditional functions only
-    // XState only manages state transitions, not history logging
+    try {
+      const { serverUpdateDataByCalendarEventId } = await import(
+        "@/components/src/server/admin"
+      );
+      const { TableNames } = await import("@/components/src/policy");
+      const preApprovalUpdateData: PreApprovalUpdateData = {
+        firstApprovedAt:
+          firestoreUpdates.firstApprovedAt as admin.firestore.Timestamp,
+        ...(firestoreUpdates.firstApprovedBy
+          ? { firstApprovedBy: firestoreUpdates.firstApprovedBy as string }
+          : {}),
+      };
 
-    // Note: Email sending and history logging for PRE_APPROVED is now handled by /api/approve
-    // XState only manages state transitions, not side effects
+      if (firestoreUpdates.xstateData) {
+        preApprovalUpdateData.xstateData =
+          firestoreUpdates.xstateData as PersistedXStateData;
+      }
+
+      await serverUpdateDataByCalendarEventId(
+        TableNames.BOOKING,
+        calendarEventId,
+        preApprovalUpdateData,
+        tenant
+      );
+
+      console.log(
+        `💾 PRE-APPROVED DATA SAVED TO DB BEFORE CALENDAR UPDATE [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+        {
+          calendarEventId,
+          savedFields: Object.keys(preApprovalUpdateData),
+          hasXStateData: !!preApprovalUpdateData.xstateData,
+        }
+      );
+    } catch (error) {
+      console.error(
+        `🚨 FAILED TO PRE-SAVE PRE-APPROVED DATA [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+        {
+          calendarEventId,
+          error: error instanceof Error ? error.message : String(error),
+        }
+      );
+      // Don't throw - continue with calendar update even if DB save failed
+    }
 
     // Update calendar event with PRE_APPROVED status
     try {
@@ -1721,7 +1682,10 @@ export async function executeXStateTransition(
             `🚨 NO SHOW CALENDAR UPDATE ERROR [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
             {
               calendarEventId,
-              error: calendarError.message,
+              error:
+                calendarError instanceof Error
+                  ? calendarError.message
+                  : String(calendarError),
             }
           );
         }
