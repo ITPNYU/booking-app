@@ -52,14 +52,11 @@ export async function GET(request: NextRequest) {
         // Extract email addresses from form responses
         emails = response.data.responses
           .map(response => {
-            const answers = response.answers || {};
-            // Find the email question's answer
-            const emailAnswer = Object.values(answers).find(answer =>
-              answer.textAnswers?.answers?.[0]?.value?.includes("@"),
-            );
-            return emailAnswer?.textAnswers?.answers?.[0]?.value;
+            return response.respondentEmail;
           })
-          .filter((email): email is string => Boolean(email));
+          .filter(
+            (email): email is string => Boolean(email) && email.includes("@"),
+          );
       }
     } catch (error) {
       console.error("Error fetching form responses:", error);
