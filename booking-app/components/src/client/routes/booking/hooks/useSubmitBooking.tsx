@@ -213,14 +213,14 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
           "Content-Type": "application/json",
           "x-tenant": tenant,
         },
-        body: JSON.stringify({
+          body: JSON.stringify({
           origin: isVIP ? BookingOrigin.VIP : BookingOrigin.WALK_IN,
           type: isVIP ? BookingOrigin.VIP : BookingOrigin.WALK_IN,
           email,
           selectedRooms,
           bookingCalendarInfo,
           liaisonUsers,
-          data,
+            data,
           isAutoApproval,
           // Add modifiedBy as a top-level parameter for edit/modification context
           ...modificationFields,

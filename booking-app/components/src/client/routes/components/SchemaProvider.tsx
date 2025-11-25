@@ -56,6 +56,7 @@ export type SchemaContextType = {
   programMapping: Record<string, string[]>;
   roles: string[];
   roleMapping: Record<string, string[]>;
+  schoolMapping: Record<string, string[]>;
   showNNumber: boolean;
   showSponsor: boolean;
   showSetup: boolean;
@@ -169,7 +170,8 @@ export const defaultScheme: Omit<SchemaContextType, "tenant"> = {
   resources: defineObjectArrayWithDefaults(defaultResource),
   supportVIP: false,
   supportWalkIn: false,
-  resourceName: "Room(s)",
+  resourceName: "",
+  schoolMapping: {},
   emailMessages: {
     requestConfirmation: "",
     firstApprovalRequest: "",

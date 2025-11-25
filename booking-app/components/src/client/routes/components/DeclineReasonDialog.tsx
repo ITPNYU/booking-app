@@ -44,7 +44,9 @@ export default function DeclineReasonDialog({
       >
         <DialogContent>
           <DialogContentText id="alert-dialog-description">
-            Are you sure? This action can't be undone.
+            Are you sure? This action can't be undone. This will be counted as a
+            Late Cancelation if canceled less than 24 hours before the
+            reservation start time.
           </DialogContentText>
           <DialogContentText id="alert-dialog-description">
             Please give a reason for declining this request.

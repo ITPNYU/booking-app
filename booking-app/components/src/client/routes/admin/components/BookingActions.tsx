@@ -130,7 +130,7 @@ export default function BookingActions(props: Props) {
     ) {
       return (
         <ConfirmDialog
-          message="Are you sure? This action can't be undone."
+          message="Are you sure? This action can't be undone. This will be counted as a Late Cancelation if canceled less than 24 hours before the reservation start time."
           callback={handleDialogChoice}
         >
           <IconButton
