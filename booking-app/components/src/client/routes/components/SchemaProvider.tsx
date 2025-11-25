@@ -90,9 +90,14 @@ export type SchemaContextType = {
 // This is for the sync script to merge defaults into the existing array.
 // The script will check for the __defaults__ property and merge the defaults into the existing array.
 // If the __defaults__ property is not found, the script will skip the array.
-function defineObjectArrayWithDefaults<T>(defaults: T): T[] {
-  const value = [];
-  // @ts-ignore
+
+// An array with a __defaults__ property for sync script compatibility
+export interface ObjectArrayWithDefaults<T> extends Array<T> {
+  __defaults__: T;
+}
+
+function defineObjectArrayWithDefaults<T>(defaults: T): ObjectArrayWithDefaults<T> {
+  const value = [] as ObjectArrayWithDefaults<T>;
   value.__defaults__ = defaults;
   return value;
 }
