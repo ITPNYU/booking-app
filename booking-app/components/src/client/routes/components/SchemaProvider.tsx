@@ -11,7 +11,8 @@ export type Resource = {
   roomId: number;
   isEquipment: boolean; // renamed from checkable
   calendarId: string;
-  needsSafetyTraining: boolean;
+  needsSafetyTraining?: boolean; // Whether training is required for this resource
+  trainingFormUrl?: string; // URL of the Google Form that tracks trained users
   shouldAutoApprove: boolean;
   isWalkIn: boolean;
   isWalkInCanBookTwo: boolean;
@@ -45,7 +46,7 @@ export type Resource = {
 export type SchemaContextType = {
   tenant: string;
   name: string;
-  safetyTrainingGoogleFormId?: string;
+  safetyTrainingGoogleFormId?: string; // Deprecated: use resource-level trainingFormUrl instead
   logo: string;
   nameForPolicy: string;
   policy: string; // innerHTML
