@@ -156,6 +156,9 @@ export type Inputs = {
   netId: string;
   walkInNetId?: string; // NetID of the walk-in person (for safety training validation)
   phoneNumber: string;
+  // School selection for auditing; optional to avoid blocking existing flows
+  school?: string;
+  otherSchool?: string;
   department: string;
   otherDepartment: string;
   role: string;

@@ -2,13 +2,13 @@
 import { Box, Button, Typography } from "@mui/material";
 import { styled } from "@mui/material/styles";
 import { useRouter } from "next/navigation";
-import { useContext, useEffect, useRef } from "react";
+import { useContext, useEffect, useMemo, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { Department, FormContextLevel, Inputs, Role } from "../../../../types";
 import { useAuth } from "../../components/AuthProvider";
 import { DatabaseContext } from "../../components/Provider";
 import { BookingContext } from "../bookingProvider";
-import { BookingFormTextField } from "../components/BookingFormInputs";
+import { BookingFormDropdown, BookingFormTextField } from "../components/BookingFormInputs";
 import Dropdown from "../components/Dropdown";
 import { useParams } from "next/navigation";
 import { useTenantSchema } from "../../components/SchemaProvider";
@@ -84,6 +84,7 @@ export default function UserRolePage({
     control,
     trigger,
     watch,
+    setValue,
     formState: { errors },
   } = useForm<Inputs>({
     defaultValues: {
@@ -99,13 +100,79 @@ export default function UserRolePage({
   const isVIP = formContext === FormContextLevel.VIP;
   const isWalkIn = formContext === FormContextLevel.WALK_IN;
 
-  // Create prefix for affiliation header
   const prefix = isVIP ? "VIP" : isWalkIn ? "Walk-In" : "";
   const affiliationTitle = prefix ? `${prefix} Affiliation` : "Affiliation";
   
   const formatFieldLabel = (label: string) => {
     return `${prefix} ${label}`.trim();
   };
+
+  const schemaSchoolMapping = (tenantSchema as any).schoolMapping || {};
+
+  const mappingValuesToArray = (val: any): string[] => {
+    if (!val) return [];
+    if (Array.isArray(val)) return val;
+    if (typeof val === "object") {
+      return Object.values(val).filter((v) => typeof v === "string" && v.trim() !== "") as string[];
+    }
+    return [];
+  };
+
+  const isOtherSchool = (val?: string) => {
+    if (!val) return false;
+    return val.trim().toLowerCase() === "other";
+  };
+
+  const derivedSchoolOptions = useMemo(() => {
+    const keys = Object.keys(schemaSchoolMapping);
+    const hasOther = keys.some(isOtherSchool);
+    if (hasOther) {
+      return keys;
+    }
+    return keys.length > 0 ? [...keys, "Other"] : ["Other"];
+  }, [schemaSchoolMapping]);
+
+  const departmentOptions = useMemo(() => {
+    const allDepartments = Object.keys(tenantSchema.programMapping || {});
+    const selectedSchool = watchedFields.school;
+  
+    if (isOtherSchool(selectedSchool)) {
+      return allDepartments;
+    }
+  
+    let filtered: string[];
+    if (selectedSchool && schemaSchoolMapping[selectedSchool]) {
+      const allowedDepts = new Set(mappingValuesToArray(schemaSchoolMapping[selectedSchool]));
+      filtered = allDepartments.filter((dept) => allowedDepts.has(dept));
+    } else {
+      filtered = allDepartments;
+    }
+  
+    const hasOther = filtered.includes("Other");
+    return hasOther ? filtered : [...filtered, "Other"];
+  }, [tenantSchema.programMapping, watchedFields.school, schemaSchoolMapping]);
+
+  useEffect(() => {
+    if (department && !departmentOptions.includes(department)) {
+      setDepartment("" as any);
+    }
+  }, [department, departmentOptions, setDepartment]);
+
+  useEffect(() => {
+    if (!watchedFields.school && department && department !== Department.OTHER) {
+      const matchingSchools: string[] = [];
+      for (const [schoolName, depts] of Object.entries(schemaSchoolMapping)) {
+        const deptList = mappingValuesToArray(depts);
+        if (deptList.includes(department)) {
+          matchingSchools.push(schoolName);
+        }
+      }
+      if (matchingSchools.length === 1) {
+        setValue("school", matchingSchools[0]);
+        setFormData({ ...watchedFields, school: matchingSchools[0], department });
+      }
+    }
+  }, [department, watchedFields.school, schemaSchoolMapping, setValue, setFormData, watchedFields]);
 
   useEffect(() => {
     if (!user) {
@@ -134,22 +201,45 @@ export default function UserRolePage({
   }, [userApiData, user, isVIP, isWalkIn]);
 
   useEffect(() => {
-    if (
+    const haveWatchedFieldsChanged = 
       !prevWatchedFieldsRef.current ||
-      prevWatchedFieldsRef.current.otherDepartment !==
-        watchedFields.otherDepartment
-    ) {
+      prevWatchedFieldsRef.current.otherDepartment !== watchedFields.otherDepartment ||
+      prevWatchedFieldsRef.current.school !== watchedFields.school ||
+      prevWatchedFieldsRef.current.otherSchool !== watchedFields.otherSchool;
+
+    if (haveWatchedFieldsChanged) {
       setFormData({ ...watchedFields });
       prevWatchedFieldsRef.current = watchedFields;
     }
   }, [watchedFields, setFormData]);
 
   const getDisabled = () => {
+    if (isOtherSchool(watchedFields.school)) {
+      return !watchedFields.otherSchool?.trim() || !watchedFields.otherDepartment?.trim() || !role;
+    }
+    
     if (showOther && !watchedFields.otherDepartment) {
       return true;
     }
+    
     return !role || !department;
   };
+
+  const hasSelectedSchool = !!(watchedFields.school && watchedFields.school !== "");
+  const isSchoolOther = isOtherSchool(watchedFields.school);
+  const isDepartmentSelected = !!department;
+  
+  let isDepartmentStepComplete = false;
+  if (isSchoolOther) {
+    isDepartmentStepComplete = !!(
+      watchedFields.otherSchool?.trim() &&
+      watchedFields.otherDepartment?.trim()
+    );
+  } else if (showOther) {
+    isDepartmentStepComplete = !!watchedFields.otherDepartment?.trim();
+  } else {
+    isDepartmentStepComplete = isDepartmentSelected;
+  }
 
   const handleNextClick = () => {
     if (formContext === FormContextLevel.EDIT && calendarEventId != null) {
@@ -174,33 +264,76 @@ export default function UserRolePage({
         width={{ xs: "100%", md: "50%" }}
       >
         <Typography fontWeight={500}>{affiliationTitle}</Typography>
-        <Dropdown
-          value={department}
-          updateValue={setDepartment}
-          options={Object.keys(tenantSchema.programMapping)}
-          placeholder="Choose a Department"
-          dataTestId="department-select"
-          sx={{ marginTop: 4 }}
-        />
-        {showOther && (
-          <BookingFormTextField
-            id="otherDepartment"
-            label={formatFieldLabel("Department")}
-            containerSx={{ marginBottom: 2, marginTop: 1, width: "100%" }}
-            fieldSx={{}}
-            {...{ control, errors, trigger }}
+        <>
+          <Dropdown
+            value={watchedFields.school || ""}
+            updateValue={(newSchool) => {
+              setValue("school", newSchool);
+              setFormData({ ...watchedFields, school: newSchool, department: "" });
+            }}
+            options={derivedSchoolOptions}
+            placeholder="Choose a School"
+            dataTestId="school-select"
+            sx={{ marginTop: 4 }}
+          />
+        </>
+        {hasSelectedSchool && (
+          <>
+            {isSchoolOther ? (
+              <>
+                <BookingFormTextField
+                  id="otherSchool"
+                  label={formatFieldLabel("School")}
+                  containerSx={{ marginBottom: 2, marginTop: 1, width: "100%" }}
+                  fieldSx={{}}
+                  required={true}
+                  {...{ control, errors, trigger }}
+                />
+                <BookingFormTextField
+                  id="otherDepartment"
+                  label={formatFieldLabel("Department")}
+                  containerSx={{ marginBottom: 2, marginTop: 1, width: "100%" }}
+                  fieldSx={{}}
+                  required={true}
+                  {...{ control, errors, trigger }}
+                />
+              </>
+            ) : (
+              <>
+                <Dropdown
+                  value={department}
+                  updateValue={setDepartment}
+                  options={departmentOptions}
+                  placeholder="Choose a Department"
+                  dataTestId="department-select"
+                  sx={{ marginTop: 4 }}
+                />
+                {showOther && (
+                  <BookingFormTextField
+                    id="otherDepartment"
+                    label={formatFieldLabel("Department")}
+                    containerSx={{ marginBottom: 2, marginTop: 1, width: "100%" }}
+                    fieldSx={{}}
+                    required={true}
+                    {...{ control, errors, trigger }}
+                  />
+                )}
+              </>
+            )}
+          </>
+        )}
+        {isDepartmentStepComplete && (
+          <Dropdown
+            value={role}
+            updateValue={(newRole) => {
+              setRole(newRole as Role);
+            }}
+            options={tenantSchema.roles}
+            placeholder="Choose a Role"
+            dataTestId="role-select"
+            sx={{ marginTop: 4 }}
           />
         )}
-        <Dropdown
-          value={role}
-          updateValue={(newRole) => {
-            setRole(newRole as Role);
-          }}
-          options={tenantSchema.roles}
-          placeholder="Choose a Role"
-          dataTestId="role-select"
-          sx={{ marginTop: 4 }}
-        />
         <Button
           onClick={handleNextClick}
           variant="contained"
