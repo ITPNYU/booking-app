@@ -67,7 +67,7 @@ async function sendEditNotificationEmails(
     endDate: bookingCalendarInfo?.endStr,
     headerMessage: emailConfig.emailMessages.firstApprovalRequest,
     requestNumber: existingContents.requestNumber,
-    origin: BookingOrigin.USER,
+    origin: existingContents.origin || BookingOrigin.USER,
   };
 
   // Send approval request emails to first approvers
@@ -236,7 +236,7 @@ export async function PUT(request: NextRequest) {
       endDateObj,
       statusLabel,
       data.requestNumber ?? existingContents.requestNumber,
-      "user",
+      existingContents.origin || BookingOrigin.USER,
     );
 
     const description =
@@ -294,8 +294,14 @@ export async function PUT(request: NextRequest) {
       calendarEventId: newCalendarEventId,
       equipmentCheckedOut: false,
       requestedAt: Timestamp.now(),
-      origin: BookingOrigin.USER,
+      origin: existingContents.origin || BookingOrigin.USER,
     };
+
+    console.log(`✅ PRESERVED ORIGIN FOR EDIT [${tenant?.toUpperCase()}]:`, {
+      calendarEventId: newCalendarEventId,
+      originalOrigin: existingContents.origin,
+      newOrigin: updatedData.origin,
+    });
 
     await serverUpdateDataByCalendarEventId(
       TableNames.BOOKING,
