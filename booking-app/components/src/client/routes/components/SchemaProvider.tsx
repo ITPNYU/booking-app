@@ -5,6 +5,11 @@ export type Agreement = {
   html: string;
 };
 
+export type StaffingSection = {
+  name: string;
+  indexes: number[];
+};
+
 export type Resource = {
   capacity: number;
   name: string;
@@ -39,11 +44,11 @@ export type Resource = {
     adminVIP: number;
   };
   staffingServices?: string[]; // Specific staffing service options for this room
-  staffingSections?: { name: string; indexes: number[] }[];
+  staffingSections?: StaffingSection[];
 };
 
 export type SchemaContextType = {
-  tenant: string;
+  tenant: string; // No default - must be provided
   name: string;
   logo: string;
   nameForPolicy: string;
@@ -82,28 +87,84 @@ export type SchemaContextType = {
   };
 };
 
-export const SchemaContext = createContext<SchemaContextType>({
-  tenant: "",
+// This is for the sync script to merge defaults into the existing array.
+// The script will check for the __defaults__ property and merge the defaults into the existing array.
+// If the __defaults__ property is not found, the script will skip the array.
+function defineObjectArrayWithDefaults<T>(defaults: T): T[] {
+  const value = [];
+  // @ts-ignore
+  value.__defaults__ = defaults;
+  return value;
+}
+
+export const defaultStaffingSection: StaffingSection = {
+  name: "",
+  indexes: [],
+};
+
+export const defaultAgreement: Agreement = {
+  id: "",
+  html: "",
+};
+
+export const defaultResource: Resource = {
+  capacity: 0,
+  name: "",
+  roomId: 0,
+  isEquipment: false,
+  calendarId: "",
+  needsSafetyTraining: false,
+  shouldAutoApprove: false,
+  isWalkIn: false,
+  isWalkInCanBookTwo: false,
+  services: [],
+  maxHour: {
+    student: -1,
+    faculty: -1,
+    admin: -1,
+    studentWalkIn: -1,
+    facultyWalkIn: -1,
+    adminWalkIn: -1,
+    studentVIP: -1,
+    facultyVIP: -1,
+    adminVIP: -1,
+  },
+  minHour: {
+    student: -1,
+    faculty: -1,
+    admin: -1,
+    studentWalkIn: -1,
+    facultyWalkIn: -1,
+    adminWalkIn: -1,
+    studentVIP: -1,
+    facultyVIP: -1,
+    adminVIP: -1,
+  },
+  staffingServices: [],
+  staffingSections: defineObjectArrayWithDefaults(defaultStaffingSection),
+};
+
+export const defaultScheme: Omit<SchemaContextType, "tenant"> = {
   name: "",
   logo: "",
   nameForPolicy: "",
   policy: "",
+  programMapping: {},
   roles: [],
+  roleMapping: {},
   showNNumber: true,
   showSponsor: true,
-  showHireSecurity: true,
   showSetup: true,
   showEquipment: true,
   showStaffing: true,
   showCatering: true,
+  showHireSecurity: true,
   showBookingTypes: true,
-  agreements: [],
-  resources: [],
+  agreements: defineObjectArrayWithDefaults(defaultAgreement),
+  resources: defineObjectArrayWithDefaults(defaultResource),
   supportVIP: false,
   supportWalkIn: false,
-  resourceName: "",
-  programMapping: {},
-  roleMapping: {},
+  resourceName: "Room(s)",
   emailMessages: {
     requestConfirmation: "",
     firstApprovalRequest: "",
@@ -119,7 +180,21 @@ export const SchemaContext = createContext<SchemaContextType>({
     closed: "",
     approvalNotice: "",
   },
-});
+};
+
+/**
+ * Generate a complete default schema with tenant
+ */
+export function generateDefaultSchema(tenant: string): SchemaContextType {
+  return {
+    tenant,
+    ...defaultScheme,
+  };
+}
+
+export const SchemaContext = createContext<SchemaContextType>(
+  generateDefaultSchema("")
+);
 
 export const useTenantSchema = () => useContext(SchemaContext);
 
