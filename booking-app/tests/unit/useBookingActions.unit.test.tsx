@@ -31,7 +31,7 @@ vi.mock("../../components/src/server/db", () => ({
 }));
 
 // Mock firebase client
-vi.mock("../../../lib/firebase/firebase", () => ({
+vi.mock("@/lib/firebase/firebase", () => ({
   clientGetDataByCalendarEventId: vi.fn(() =>
     Promise.resolve({
       serviceRequests: {
@@ -50,7 +50,7 @@ vi.mock("../../../lib/firebase/firebase", () => ({
 }));
 
 // Mock tenant utils
-vi.mock("../../components/src/utils/tenantUtils", () => ({
+vi.mock("@/components/src/utils/tenantUtils", () => ({
   isMediaCommons: vi.fn(() => true),
   getMediaCommonsServices: vi.fn(() => []),
 }));
@@ -1368,19 +1368,18 @@ describe("useBookingActions Hook", () => {
     });
   });
 
-  // Note: servicesApproved fallback logic testing
-  // Testing the fallback logic for servicesApproved is complex because it involves
-  // asynchronous data fetching in useEffect. The fallback logic works as follows:
-  // 
-  // 1. If XState context has servicesApproved: use it
-  // 2. If XState context exists but servicesApproved is missing: use servicesRequested as fallback
-  // 3. If no XState data exists: use servicesRequested as fallback
-  //
-  // This logic is implemented in useBookingActions.tsx lines 151-206
-  //
-  // These tests would require mocking async data fetching and waiting for useEffect to complete,
-  // which is complex with the current test setup. Consider adding E2E tests for this functionality.
-});
+  describe("fetchBookingData", () => {
+    beforeEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("should use servicesApproved from XState context when available", async () => {
+      const { clientGetDataByCalendarEventId } = await vi.importMock<typeof import("@/lib/firebase/firebase")>("@/lib/firebase/firebase");
+      const { getMediaCommonsServices } = await vi.importMock<typeof import("@/components/src/utils/tenantUtils")>("@/components/src/utils/tenantUtils");
+      
+      (clientGetDataByCalendarEventId as any).mockResolvedValueOnce({
+        roomSetup: "yes",
+        staffingServicesDetails: "Need staff support",
         equipmentServices: "yes",
         catering: "yes",
         xstateData: {
@@ -1416,28 +1415,22 @@ describe("useBookingActions Hook", () => {
         Timestamp.fromDate(new Date())
       );
 
-      // Wait for fetchBookingData to complete
-      await waitFor(
-        () => {
-          return result.current.servicesApproved !== undefined;
-        },
-        { timeout: 1000 }
-      );
-
-      // servicesApproved should use values from XState context
-      expect(result.current.servicesApproved).toEqual({
-        staff: true,
-        equipment: true,
-        catering: false,
-        cleaning: false,
-        security: false,
-        setup: false,
+      // Wait for fetchBookingData to populate servicesApproved from XState
+      await waitFor(() => {
+        expect(result.current.servicesApproved).toEqual({
+          staff: true,
+          equipment: true,
+          catering: false,
+          cleaning: false,
+          security: false,
+          setup: false,
+        });
       });
     });
 
     it.skip("should fallback to servicesRequested when XState context exists but servicesApproved is missing", async () => {
-      const { clientGetDataByCalendarEventId } = await vi.importMock<typeof import("../../lib/firebase/firebase")>("../../lib/firebase/firebase");
-      const { getMediaCommonsServices } = await vi.importMock<typeof import("../../components/src/utils/tenantUtils")>("../../components/src/utils/tenantUtils");
+      const { clientGetDataByCalendarEventId } = await vi.importMock<typeof import("@/lib/firebase/firebase")>("@/lib/firebase/firebase");
+      const { getMediaCommonsServices } = await vi.importMock<typeof import("@/components/src/utils/tenantUtils")>("@/components/src/utils/tenantUtils");
       
       // Mock booking data with XState but no servicesApproved in context
       (clientGetDataByCalendarEventId as any).mockResolvedValueOnce({
@@ -1474,7 +1467,7 @@ describe("useBookingActions Hook", () => {
       // Wait for fetchBookingData to complete
       await waitFor(
         () => {
-          return result.current.servicesApproved !== undefined;
+          return result.current.servicesApproved?.equipment !== undefined;
         },
         { timeout: 1000 }
       );
@@ -1491,8 +1484,8 @@ describe("useBookingActions Hook", () => {
     });
 
     it.skip("should fallback to servicesRequested when no XState data exists", async () => {
-      const { clientGetDataByCalendarEventId } = await vi.importMock<typeof import("../../lib/firebase/firebase")>("../../lib/firebase/firebase");
-      const { getMediaCommonsServices } = await vi.importMock<typeof import("../../components/src/utils/tenantUtils")>("../../components/src/utils/tenantUtils");
+      const { clientGetDataByCalendarEventId } = await vi.importMock<typeof import("@/lib/firebase/firebase")>("@/lib/firebase/firebase");
+      const { getMediaCommonsServices } = await vi.importMock<typeof import("@/components/src/utils/tenantUtils")>("@/components/src/utils/tenantUtils");
       
       // Mock booking data without XState
       (clientGetDataByCalendarEventId as any).mockResolvedValueOnce({
@@ -1523,7 +1516,7 @@ describe("useBookingActions Hook", () => {
       // Wait for fetchBookingData to complete
       await waitFor(
         () => {
-          return result.current.servicesApproved !== undefined;
+          return result.current.servicesApproved?.staff !== undefined;
         },
         { timeout: 1000 }
       );
@@ -1540,8 +1533,8 @@ describe("useBookingActions Hook", () => {
     });
 
     it.skip("should use false for services not in servicesRequested when no XState exists", async () => {
-      const { clientGetDataByCalendarEventId } = await vi.importMock<typeof import("../../lib/firebase/firebase")>("../../lib/firebase/firebase");
-      const { getMediaCommonsServices } = await vi.importMock<typeof import("../../components/src/utils/tenantUtils")>("../../components/src/utils/tenantUtils");
+      const { clientGetDataByCalendarEventId } = await vi.importMock<typeof import("@/lib/firebase/firebase")>("@/lib/firebase/firebase");
+      const { getMediaCommonsServices } = await vi.importMock<typeof import("@/components/src/utils/tenantUtils")>("@/components/src/utils/tenantUtils");
       
       // Mock booking data without any services requested
       (clientGetDataByCalendarEventId as any).mockResolvedValueOnce({
@@ -1571,7 +1564,7 @@ describe("useBookingActions Hook", () => {
       // Wait for fetchBookingData to complete
       await waitFor(
         () => {
-          return result.current.servicesApproved !== undefined;
+          return result.current.servicesApproved?.staff !== undefined;
         },
         { timeout: 1000 }
       );
@@ -1588,8 +1581,8 @@ describe("useBookingActions Hook", () => {
     });
 
     it.skip("should prioritize XState context over servicesRequested", async () => {
-      const { clientGetDataByCalendarEventId } = await vi.importMock<typeof import("../../lib/firebase/firebase")>("../../lib/firebase/firebase");
-      const { getMediaCommonsServices } = await vi.importMock<typeof import("../../components/src/utils/tenantUtils")>("../../components/src/utils/tenantUtils");
+      const { clientGetDataByCalendarEventId } = await vi.importMock<typeof import("@/lib/firebase/firebase")>("@/lib/firebase/firebase");
+      const { getMediaCommonsServices } = await vi.importMock<typeof import("@/components/src/utils/tenantUtils")>("@/components/src/utils/tenantUtils");
       
       // Mock booking data where XState context differs from servicesRequested
       (clientGetDataByCalendarEventId as any).mockResolvedValueOnce({
