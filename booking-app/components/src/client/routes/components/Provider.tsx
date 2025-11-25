@@ -378,7 +378,7 @@ export const DatabaseProvider = ({
     }
   };
 
-  const fetchSafetyTrainedUsers = async (resourceId?: string) => {
+  const fetchSafetyTrainedUsers = async (resourceId?: string, trainingFormUrl?: string) => {
     try {
       if (applyE2EMockSafetyUsers(setSafetyTrainedUsers)) {
         return;
@@ -402,12 +402,22 @@ export const DatabaseProvider = ({
         firestoreUsers.length
       );
 
+      // Build headers for API request
+      const headers: Record<string, string> = {
+        "x-tenant": tenant || DEFAULT_TENANT,
+      };
+      
+      if (resourceId) {
+        headers["x-resource-id"] = resourceId;
+      }
+      
+      if (trainingFormUrl) {
+        headers["x-training-form-url"] = trainingFormUrl;
+      }
+
       // Fetch data from Google Form responses
       const response = await fetch("/api/safety_training_form", {
-        headers: {
-          "x-tenant": tenant || DEFAULT_TENANT,
-          ...(resourceId && { "x-resource-id": resourceId }),
-        },
+        headers,
       });
       if (!response.ok) {
         // Get the error details from the response
@@ -556,6 +566,7 @@ export const DatabaseProvider = ({
         capacity: resource.capacity.toString(),
         calendarId: resource.calendarId,
         needsSafetyTraining: resource.needsSafetyTraining || false,
+        trainingFormUrl: resource.trainingFormUrl,
         shouldAutoApprove: resource.shouldAutoApprove || false,
         isWalkIn: resource.isWalkIn || false,
         isWalkInCanBookTwo: resource.isWalkInCanBookTwo || false,

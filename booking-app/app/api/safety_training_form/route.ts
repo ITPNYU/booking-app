@@ -2,12 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { getFormsClient } from "@/lib/googleClient";
 import { serverGetDocumentById } from "@/lib/firebase/server/adminDb";
 import { TableNames } from "@/components/src/policy";
+import { extractGoogleFormId } from "@/components/src/utils/formUrlUtils";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
   const tenant = request.headers.get("x-tenant");
   const resourceId = request.headers.get("x-resource-id");
+  const trainingFormUrl = request.headers.get("x-training-form-url");
 
   try {
     if (!tenant) {
@@ -29,21 +31,50 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Check if tenant has safety training form configured
-    if (!schema.safetyTrainingGoogleFormId) {
+    // Determine which form to use: resource-specific or tenant-level (fallback)
+    let formId: string | null = null;
+
+    // Priority 1: Resource-specific form URL (passed via header)
+    if (trainingFormUrl) {
+      formId = extractGoogleFormId(trainingFormUrl);
+      if (!formId) {
+        return NextResponse.json(
+          { error: "Invalid training form URL format" },
+          { status: 400 },
+        );
+      }
+    }
+
+    // Priority 2: Find resource in schema and use its trainingFormUrl
+    else if (resourceId) {
+      const resource = schema.resources?.find(
+        (r: any) => r.roomId?.toString() === resourceId.toString(),
+      );
+      if (resource?.trainingFormUrl) {
+        formId = extractGoogleFormId(resource.trainingFormUrl);
+      }
+    }
+
+    // Priority 3: Fallback to tenant-level form (deprecated but kept for backward compatibility)
+    if (!formId && (schema as any).safetyTrainingGoogleFormId) {
+      formId = extractGoogleFormId((schema as any).safetyTrainingGoogleFormId);
+    }
+
+    // If no form found, return error
+    if (!formId) {
       return NextResponse.json(
-        { error: "Safety training form not configured for this tenant" },
+        { error: "No training form configured for this resource" },
         { status: 404 },
       );
     }
 
     const formsService = await getFormsClient();
 
-    // Fetch form responses from tenant's form
+    // Fetch form responses from the determined form
     let emails: string[] = [];
     try {
       const response = await formsService.forms.responses.list({
-        formId: schema.safetyTrainingGoogleFormId,
+        formId: formId,
       });
 
       if (response.data.responses) {
