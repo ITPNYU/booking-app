@@ -91,7 +91,7 @@ describe("BookingActions - Check In availability", () => {
     expect(checkInItem).toHaveAttribute("aria-disabled", "true");
   });
 
-  it("disables Check In when preceding hour has active booking", () => {
+  it("allows Check In when within 1 hour before start time", () => {
     const now = new Date("2025-01-01T12:30:00Z");
     const startDate = new Date(now.getTime() + 30 * 60 * 1000); // 30 minutes later
 
@@ -104,32 +104,19 @@ describe("BookingActions - Check In availability", () => {
       ),
     } as any;
 
-    // Active booking occupying preceding hour
-    const activeBooking = {
-      calendarEventId: "prev-active",
-      roomId: "101",
-      startDate: Timestamp.fromDate(
-        new Date(startDate.getTime() - 60 * 60 * 1000)
-      ),
-      endDate: Timestamp.fromDate(startDate),
-      finalApprovedAt: Timestamp.fromDate(
-        new Date(startDate.getTime() - 50 * 60 * 1000)
-      ),
-    } as any;
-
     renderBookingActions({
       now,
       startDate,
-      allBookings: [currentBooking, activeBooking],
+      allBookings: [currentBooking],
     });
 
     const checkInItem = screen.getByText(Actions.CHECK_IN);
-    expect(checkInItem).toHaveAttribute("aria-disabled", "true");
+    expect(checkInItem).not.toHaveAttribute("aria-disabled");
   });
 
-  it("allows Check In when preceding hour has only canceled booking", () => {
-    const now = new Date("2025-01-01T12:30:00Z");
-    const startDate = new Date(now.getTime() + 30 * 60 * 1000); // 30 minutes later
+  it("allows Check In when start time has passed", () => {
+    const now = new Date("2025-01-01T13:30:00Z");
+    const startDate = new Date(now.getTime() - 30 * 60 * 1000); // 30 minutes ago
 
     const currentBooking = {
       calendarEventId: "current",
@@ -140,23 +127,10 @@ describe("BookingActions - Check In availability", () => {
       ),
     } as any;
 
-    // Canceled booking occupying preceding hour
-    const canceledBooking = {
-      calendarEventId: "prev-canceled",
-      roomId: "101",
-      startDate: Timestamp.fromDate(
-        new Date(startDate.getTime() - 60 * 60 * 1000)
-      ),
-      endDate: Timestamp.fromDate(startDate),
-      canceledAt: Timestamp.fromDate(
-        new Date(startDate.getTime() - 50 * 60 * 1000)
-      ),
-    } as any;
-
     renderBookingActions({
       now,
       startDate,
-      allBookings: [currentBooking, canceledBooking],
+      allBookings: [currentBooking],
     });
 
     const checkInItem = screen.getByText(Actions.CHECK_IN);
