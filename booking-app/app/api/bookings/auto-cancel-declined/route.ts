@@ -1,5 +1,6 @@
 import { extractTenantFromCollectionName } from "@/components/src/policy";
-import { Booking } from "@/components/src/types";
+import { Booking, BookingStatusLabel } from "@/components/src/types";
+import { getStatusFromXState } from "@/components/src/utils/statusFromXState";
 import admin from "@/lib/firebase/server/firebaseAdmin";
 import { BookingLogger } from "@/lib/logger/bookingLogger";
 import { executeXStateTransition } from "@/lib/stateMachines/xstateUtilsV5";
@@ -125,6 +126,21 @@ export async function GET(request: NextRequest) {
             bookingId,
             calendarEventId: booking.calendarEventId,
             tenant,
+          });
+          continue;
+        }
+
+        // Verify the booking is actually in DECLINED status (not just has declinedAt timestamp)
+        // A booking could have been declined, then edited/approved, so we need to check current status
+        const currentStatus = getStatusFromXState(booking, tenant);
+        if (currentStatus !== BookingStatusLabel.DECLINED) {
+          BookingLogger.debug("Skipping booking not in DECLINED status", {
+            bookingId,
+            calendarEventId: booking.calendarEventId,
+            tenant,
+            currentStatus,
+            declinedAt: booking.declinedAt,
+            note: "Booking has declinedAt timestamp but is not currently in DECLINED status (may have been edited/approved)",
           });
           continue;
         }
