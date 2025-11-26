@@ -1,0 +1,55 @@
+name: Auto Cancel Declined Cron Job
+
+permissions:
+  contents: read
+
+on:
+  schedule:
+    # Run every hour
+    - cron: "0 * * * *"
+  workflow_dispatch:
+  push:
+    branches: [run_auto_cancel_declined_by_env]
+
+jobs:
+  trigger-auto-cancel-declined:
+    # Run once for each environment (dev, staging, production)
+    strategy:
+      matrix:
+        env_name: [dev, staging, production]
+
+    # Use the matrix value as the target GitHub Environment
+    environment: ${{ matrix.env_name }}
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Trigger Auto-Cancel Declined API
+        # Secrets / variables defined at the Environment level are injected here
+        env:
+          CRON_JOB_ENABLED: ${{ secrets.CRON_JOB_ENABLED }} # true/false flag
+          NEXT_PUBLIC_BASE_URL: ${{ secrets.NEXT_PUBLIC_BASE_URL }} # Environment-specific base URL
+          CRON_SECRET: ${{ secrets.CRON_SECRET }} # Environment-specific auth token
+          ENV_NAME: ${{ matrix.env_name }} # Matrix variable as environment variable
+        run: |
+          # --- Validate control flag and secrets ---
+          if [ "${CRON_JOB_ENABLED}" != "true" ]; then
+            echo "CRON_JOB_ENABLED ('${CRON_JOB_ENABLED}') is not 'true'. Skipping."
+            exit 0
+          fi
+
+          if [ -z "${NEXT_PUBLIC_BASE_URL}" ]; then
+            echo "Error: NEXT_PUBLIC_BASE_URL is not set."
+            exit 1
+          fi
+
+          if [ -z "${CRON_SECRET}" ]; then
+            echo "Error: CRON_SECRET is not set."
+            exit 1
+          fi
+          # --- End validation ---
+
+          echo "[$(date)] ${ENV_NAME}: triggering auto-cancel declined..."
+          curl --fail-with-body -X GET \
+            "${NEXT_PUBLIC_BASE_URL}/api/bookings/auto-cancel-declined" \
+            -H "Authorization: Bearer ${CRON_SECRET}"
