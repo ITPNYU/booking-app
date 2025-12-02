@@ -300,6 +300,8 @@ export type RoomSetting = {
   name: string;
   capacity: string;
   calendarId: string;
+  calendarStagingId?: string; // Optional: Calendar ID for staging environment
+  calendarProdId?: string; // Optional: Calendar ID for production environment
   calendarRef?: any;
   needsSafetyTraining?: boolean;
   shouldAutoApprove?: boolean;

@@ -12,6 +12,7 @@ import { getCalendarClient } from "@/lib/googleClient";
 import { Timestamp } from "firebase/firestore";
 import { NextResponse } from "next/server";
 import { serverGetDocumentById } from "@/lib/firebase/server/adminDb";
+import { getCalendarId } from "@/lib/utils/calendarUtils";
 
 const db = admin.firestore();
 const areRoomIdsSame = (roomIds1: string, roomIds2: string): boolean => {
@@ -99,7 +100,7 @@ const findRoomIds = (event: any, resources: any[]): string => {
 
   // Add the roomId of the current resource
   const currentResource = resources.find(
-    r => r.calendarId === event.organizer.email,
+    r => getCalendarId(r) === event.organizer.email,
   );
   if (currentResource) {
     roomIds.add(currentResource.roomId);
@@ -107,7 +108,7 @@ const findRoomIds = (event: any, resources: any[]): string => {
 
   // Add other room IDs
   attendees.forEach((attendee: any) => {
-    const resource = resources.find(r => r.calendarId === attendee.email);
+    const resource = resources.find(r => getCalendarId(r) === attendee.email);
     if (resource) {
       roomIds.add(resource.roomId);
     }
@@ -130,7 +131,9 @@ export async function POST(request: Request) {
     const schema = await serverGetDocumentById(TableNames.TENANT_SCHEMA, tenant);
     const resources = schema?.resources?.map((resource: any) => ({
       id: resource.roomId.toString(),
-      calendarId: resource.calendarId,
+      calendarId: getCalendarId(resource),
+      calendarStagingId: resource.calendarStagingId,
+      calendarProdId: resource.calendarProdId,
       roomId: resource.roomId,
     })) || [];
 
@@ -149,7 +152,7 @@ export async function POST(request: Request) {
         let pageToken: string | undefined;
         do {
           const events = await calendar.events.list({
-            calendarId: resource.calendarId,
+            calendarId: getCalendarId(resource),
             timeMin: timeMin,
             timeMax: timeMax,
             maxResults: 500,
@@ -226,7 +229,7 @@ export async function POST(request: Request) {
                 const newTitle = `[${BookingStatusLabel.APPROVED}] ${event.summary}`;
 
                 await calendar.events.patch({
-                  calendarId: resource.calendarId,
+                  calendarId: getCalendarId(resource),
                   eventId: event.id,
                   requestBody: {
                     summary: newTitle,
@@ -241,7 +244,7 @@ export async function POST(request: Request) {
         } while (pageToken);
       } catch (error) {
         console.error(
-          `Error processing calendar ${resource.calendarId}:`,
+          `Error processing calendar ${getCalendarId(resource)}:`,
           error,
         );
       }

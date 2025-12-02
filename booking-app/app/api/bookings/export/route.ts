@@ -7,6 +7,7 @@ import {
   serverFetchAllDataFromCollection,
   serverGetDocumentById,
 } from "@/lib/firebase/server/adminDb";
+import { getCalendarId } from "@/lib/utils/calendarUtils";
 import { format } from "date-fns";
 import { parse } from "json2csv";
 
@@ -25,7 +26,9 @@ export async function GET(request: NextRequest) {
       roomId: resource.roomId,
       name: resource.name,
       capacity: resource.capacity.toString(),
-      calendarId: resource.calendarId,
+      calendarId: getCalendarId(resource),
+      calendarStagingId: resource.calendarStagingId,
+      calendarProdId: resource.calendarProdId,
       calendarRef: undefined,
     })) || [];
 

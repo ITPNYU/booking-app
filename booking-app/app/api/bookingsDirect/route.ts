@@ -15,6 +15,7 @@ import {
   serverGetNextSequentialId,
   serverSaveDataToFirestore,
 } from "@/lib/firebase/server/adminDb";
+import { getCalendarId } from "@/lib/utils/calendarUtils";
 import { NextRequest, NextResponse } from "next/server";
 
 import { toFirebaseTimestampFromString } from "@/components/src/client/utils/serverDate";
@@ -65,9 +66,7 @@ export async function POST(request: NextRequest) {
   const selectedRoomIds = selectedRooms.map(
     (r: { roomId: number }) => r.roomId,
   );
-  const otherRoomIds = otherRooms.map(
-    (r: { calendarId: string }) => r.calendarId,
-  );
+  const otherRoomIds = otherRooms.map((r) => getCalendarId(r));
 
   // Determine booking status based on tenant and service requests
   let bookingStatus = BookingStatusLabel.APPROVED;

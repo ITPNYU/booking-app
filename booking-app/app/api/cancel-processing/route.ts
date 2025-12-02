@@ -3,6 +3,7 @@ import { processCancelBooking } from "@/components/src/server/db";
 import { serverGetDataByCalendarEventId, serverGetDocumentById } from "@/lib/firebase/server/adminDb";
 import { TableNames } from "@/components/src/policy";
 import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
+import { getCalendarId } from "@/lib/utils/calendarUtils";
 import { NextRequest } from "next/server";
 
 export async function POST(req: NextRequest) {
@@ -44,18 +45,19 @@ export async function POST(req: NextRequest) {
             {
               calendarEventId,
               roomIds,
-              rooms: rooms.map(r => ({ roomId: r.roomId, calendarId: r.calendarId })),
+              rooms: rooms.map(r => ({ roomId: r.roomId, calendarId: getCalendarId(r) })),
             }
           );
 
           // Delete calendar event from each room's calendar
           await Promise.all(
             rooms.map(async (room: any) => {
-              if (room.calendarId) {
+              const calendarIdToUse = getCalendarId(room);
+              if (calendarIdToUse) {
                 console.log(
-                  `🗑️ Deleting event ${calendarEventId} from calendar ${room.calendarId} (room ${room.roomId})`
+                  `🗑️ Deleting event ${calendarEventId} from calendar ${calendarIdToUse} (room ${room.roomId})`
                 );
-                await deleteEvent(room.calendarId, calendarEventId, room.roomId);
+                await deleteEvent(calendarIdToUse, calendarEventId, room.roomId);
               }
             })
           );
