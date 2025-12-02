@@ -1,0 +1,101 @@
+name: Sync Tenant Schema
+
+on:
+  push:
+    branches:
+      - main
+      - prod
+      - production
+  workflow_dispatch:
+    inputs:
+      target_environment:
+        description: 'Target environment to sync to'
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+
+jobs:
+  sync-to-staging:
+    name: Sync tenantSchema to Staging
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && github.event.inputs.target_environment == 'staging')
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        working-directory: ./booking-app
+        run: npm ci
+
+      - name: Create .env.local file
+        working-directory: ./booking-app
+        run: |
+          cat > .env.local << EOF
+          FIREBASE_PROJECT_ID=${{ secrets.FIREBASE_PROJECT_ID }}
+          FIREBASE_CLIENT_EMAIL=${{ secrets.FIREBASE_CLIENT_EMAIL }}
+          FIREBASE_PRIVATE_KEY="${{ secrets.FIREBASE_PRIVATE_KEY }}"
+          EOF
+
+      - name: Sync tenantSchema to Staging
+        working-directory: ./booking-app
+        run: |
+          node scripts/copyCollection.js \
+            --source-database development \
+            --target-database staging \
+            --source-collection tenantSchema \
+            --target-collection tenantSchema
+
+      - name: Sync Summary
+        if: always()
+        run: |
+          echo "✅ Tenant schema sync to staging completed"
+
+  sync-to-production:
+    name: Sync tenantSchema to Production
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/prod' || github.ref == 'refs/heads/production' || (github.event_name == 'workflow_dispatch' && github.event.inputs.target_environment == 'production')
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        working-directory: ./booking-app
+        run: npm ci
+
+      - name: Create .env.local file
+        working-directory: ./booking-app
+        run: |
+          cat > .env.local << EOF
+          FIREBASE_PROJECT_ID=${{ secrets.FIREBASE_PROJECT_ID }}
+          FIREBASE_CLIENT_EMAIL=${{ secrets.FIREBASE_CLIENT_EMAIL }}
+          FIREBASE_PRIVATE_KEY="${{ secrets.FIREBASE_PRIVATE_KEY }}"
+          EOF
+
+      - name: Sync tenantSchema to Production
+        working-directory: ./booking-app
+        run: |
+          node scripts/copyCollection.js \
+            --source-database development \
+            --target-database production \
+            --source-collection tenantSchema \
+            --target-collection tenantSchema
+
+      - name: Sync Summary
+        if: always()
+        run: |
+          echo "✅ Tenant schema sync to production completed"
+
