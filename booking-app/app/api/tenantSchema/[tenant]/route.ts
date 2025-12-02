@@ -19,6 +19,28 @@ export async function GET(
       );
     }
     
+    // Transform resources to use environment-appropriate calendar IDs.
+    // In production, use calendarProdId if available; in staging, use calendarStagingId if available.
+    // This allows downstream code to simply use calendarId without environment checks.
+    if (schema.resources) {
+      const branchName = process.env.NEXT_PUBLIC_BRANCH_NAME;
+      schema.resources = schema.resources.map((resource: any) => {
+        let calendarId = resource.calendarId;
+        
+        // Use environment-specific calendar ID if available
+        if (branchName === "production" && resource.calendarProdId) {
+          calendarId = resource.calendarProdId;
+        } else if (branchName === "staging" && resource.calendarStagingId) {
+          calendarId = resource.calendarStagingId;
+        }
+        
+        return {
+          ...resource,
+          calendarId,
+        };
+      });
+    }
+    
     return NextResponse.json(schema);
   } catch (error) {
     console.error("Error fetching tenant schema:", error);

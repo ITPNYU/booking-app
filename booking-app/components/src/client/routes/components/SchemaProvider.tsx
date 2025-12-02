@@ -11,6 +11,8 @@ export type Resource = {
   roomId: number;
   isEquipment: boolean; // renamed from checkable
   calendarId: string;
+  calendarStagingId?: string; // Optional: Calendar ID for staging environment
+  calendarProdId?: string; // Optional: Calendar ID for production environment
   needsSafetyTraining: boolean;
   shouldAutoApprove: boolean;
   isWalkIn: boolean;
