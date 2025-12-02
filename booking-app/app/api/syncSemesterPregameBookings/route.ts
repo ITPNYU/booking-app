@@ -371,7 +371,7 @@ export async function POST(request: Request) {
       //  break;
       //}
       const calendarId = getCalendarId(resource);
-      console.log("calendarId", calendarId);
+      console.log("Resolved calendarId for room", resource.roomId, ":", calendarId);
       try {
         let pageToken: string | undefined;
 
