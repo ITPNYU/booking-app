@@ -10,7 +10,6 @@ import {
   serverGetDocumentById,
   serverGetNextSequentialId,
 } from "@/lib/firebase/server/adminDb";
-import { getCalendarId } from "@/lib/utils/calendarUtils";
 import admin from "@/lib/firebase/server/firebaseAdmin";
 import { getCalendarClient } from "@/lib/googleClient";
 import { Timestamp } from "firebase/firestore";
@@ -341,7 +340,7 @@ export async function POST(request: Request) {
     const resources =
       schema?.resources?.map((resource: any) => ({
         id: resource.roomId.toString(),
-        calendarId: getCalendarId(resource),
+        calendarId: resource.calendarId,
         roomId: resource.roomId,
       })) || [];
 
@@ -368,8 +367,8 @@ export async function POST(request: Request) {
       //if (count > 1) {
       //  break;
       //}
-      const calendarId = getCalendarId(resource);
-      console.log("Resolved calendarId for room", resource.roomId, ":", calendarId);
+      console.log("calendarId", resource.calendarId);
+      const calendarId = resource.calendarId;
       try {
         let pageToken: string | undefined;
 
@@ -512,7 +511,7 @@ export async function POST(request: Request) {
         } while (pageToken);
       } catch (error) {
         console.error(
-          `Error processing calendar ${getCalendarId(resource)}:`,
+          `Error processing calendar ${resource.calendarId}:`,
           error,
         );
       }

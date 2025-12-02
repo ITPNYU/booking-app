@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { serverGetDocumentById } from "@/lib/firebase/server/adminDb";
 import { TableNames } from "@/components/src/policy";
-import { getCalendarId } from "@/lib/utils/calendarUtils";
 
 export async function GET(
   request: NextRequest,
@@ -21,14 +20,25 @@ export async function GET(
     }
     
     // Transform resources to use environment-appropriate calendar IDs.
-    // This updates the calendarId field value with the environment-specific calendar ID
-    // (calendarProdId for production, calendarStagingId for staging) so that all downstream
-    // code can use the calendarId field without needing environment-specific logic.
+    // In production, use calendarProdId if available; in staging, use calendarStagingId if available.
+    // This allows downstream code to simply use calendarId without environment checks.
     if (schema.resources) {
-      schema.resources = schema.resources.map((resource: any) => ({
-        ...resource,
-        calendarId: getCalendarId(resource),
-      }));
+      const branchName = process.env.NEXT_PUBLIC_BRANCH_NAME;
+      schema.resources = schema.resources.map((resource: any) => {
+        let calendarId = resource.calendarId;
+        
+        // Use environment-specific calendar ID if available
+        if (branchName === "production" && resource.calendarProdId) {
+          calendarId = resource.calendarProdId;
+        } else if (branchName === "staging" && resource.calendarStagingId) {
+          calendarId = resource.calendarStagingId;
+        }
+        
+        return {
+          ...resource,
+          calendarId,
+        };
+      });
     }
     
     return NextResponse.json(schema);

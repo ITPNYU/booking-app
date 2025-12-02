@@ -26,7 +26,6 @@ import { itpBookingMachine } from "@/lib/stateMachines/itpBookingMachine";
 import { mcBookingMachine } from "@/lib/stateMachines/mcBookingMachine";
 import { NextRequest, NextResponse } from "next/server";
 import { createActor } from "xstate";
-import { getCalendarId } from "@/lib/utils/calendarUtils";
 
 import { sendHTMLEmail } from "@/app/lib/sendHTMLEmail";
 import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
@@ -168,7 +167,7 @@ const getTenantRooms = async (tenant?: string) => {
       roomId: resource.roomId,
       name: resource.name,
       capacity: resource.capacity?.toString(),
-      calendarId: getCalendarId(resource),
+      calendarId: resource.calendarId,
     }));
   } catch (error) {
     console.error("Error fetching tenant rooms:", error);
@@ -230,7 +229,7 @@ async function createBookingCalendarEvent(
   description: string,
 ) {
   const [room, ...otherRooms] = selectedRooms;
-  const calendarId = getCalendarId(room);
+  const calendarId = room.calendarId;
 
   if (calendarId == null) {
     throw Error("calendarId not found for room " + room.roomId);
@@ -239,7 +238,9 @@ async function createBookingCalendarEvent(
   const selectedRoomIds = selectedRooms.map(
     (r: { roomId: number }) => r.roomId,
   );
-  const otherRoomEmails = otherRooms.map((r) => getCalendarId(r));
+  const otherRoomEmails = otherRooms.map(
+    (r: { calendarId: string }) => r.calendarId,
+  );
 
   // Limit title to 25 characters
   const truncatedTitle =
@@ -465,7 +466,7 @@ async function checkOverlap(
   // Check each selected room for overlaps
   for (const room of selectedRooms) {
     const events = await calendar.events.list({
-      calendarId: getCalendarId(room),
+      calendarId: room.calendarId,
       timeMin: bookingCalendarInfo.startStr,
       timeMax: bookingCalendarInfo.endStr,
       singleEvents: true,

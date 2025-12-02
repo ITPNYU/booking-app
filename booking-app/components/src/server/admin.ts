@@ -8,7 +8,6 @@ import {
   serverGetFinalApproverEmail,
   serverUpdateInFirestore,
 } from "@/lib/firebase/server/adminDb";
-import { getCalendarId } from "@/lib/utils/calendarUtils";
 import { DEFAULT_TENANT } from "../constants/tenants";
 import { TableNames, getApprovalCcEmail } from "../policy";
 import {
@@ -830,7 +829,7 @@ export const serverGetRoomCalendarIds = async (
     console.log(`Rooms: ${JSON.stringify(rooms)}`);
 
     return rooms
-      .map((room: any) => getCalendarId(room))
+      .map((room: any) => room.calendarId)
       .filter(
         (calendarId): calendarId is string =>
           calendarId !== undefined && calendarId !== null
@@ -863,7 +862,7 @@ export const serverGetRoomCalendarId = async (
     if (rooms.length > 0) {
       const room = rooms[0];
       console.log(`Room: ${JSON.stringify(room)}`);
-      return getCalendarId(room);
+      return room.calendarId;
     } else {
       console.log("No matching room found.");
       return null;

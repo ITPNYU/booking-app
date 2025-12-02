@@ -18,7 +18,6 @@ import {
 } from "@/components/src/types";
 import { getMediaCommonsServices } from "@/components/src/utils/tenantUtils";
 import { serverGetDataByCalendarEventId } from "@/lib/firebase/server/adminDb";
-import { getCalendarId } from "@/lib/utils/calendarUtils";
 import { itpBookingMachine } from "@/lib/stateMachines/itpBookingMachine";
 import { mcBookingMachine } from "@/lib/stateMachines/mcBookingMachine";
 import { Timestamp } from "firebase-admin/firestore";
@@ -132,7 +131,7 @@ export async function PUT(request: NextRequest) {
     // Delete old calendar events
     await Promise.all(
       oldRooms.map(async room => {
-        await deleteEvent(getCalendarId(room), calendarEventId, room.roomId);
+        await deleteEvent(room.calendarId, calendarEventId, room.roomId);
       }),
     );
 
@@ -160,13 +159,15 @@ export async function PUT(request: NextRequest) {
 
     // Create calendar event
     const [room, ...otherRooms] = selectedRooms;
-    const calendarId = getCalendarId(room);
+    const calendarId = room.calendarId;
 
     if (calendarId == null) {
       throw Error("calendarId not found for room " + room.roomId);
     }
 
-    const otherRoomEmails = otherRooms.map((r) => getCalendarId(r));
+    const otherRoomEmails = otherRooms.map(
+      (r: { calendarId: string }) => r.calendarId,
+    );
 
     const truncatedTitle =
       data.title.length > 25 ? data.title.substring(0, 25) + "..." : data.title;

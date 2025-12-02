@@ -3,7 +3,6 @@ import { TableNames } from "@/components/src/policy";
 import { BookingStatusLabel } from "@/components/src/types";
 import { isMediaCommons } from "@/components/src/utils/tenantUtils";
 import { serverGetDocumentById } from "@/lib/firebase/server/adminDb";
-import { getCalendarId } from "@/lib/utils/calendarUtils";
 import { NextRequest } from "next/server";
 
 export const extractTenantFromRequest = (request: NextRequest): string => {
@@ -38,7 +37,7 @@ export const getTenantRooms = async (tenant?: string) => {
       roomId: resource.roomId,
       name: resource.name,
       capacity: resource.capacity?.toString(),
-      calendarId: getCalendarId(resource),
+      calendarId: resource.calendarId,
     }));
   } catch (error) {
     console.error("Error fetching tenant rooms:", error);
