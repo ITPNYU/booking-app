@@ -27,8 +27,6 @@ export async function GET(request: NextRequest) {
       name: resource.name,
       capacity: resource.capacity.toString(),
       calendarId: getCalendarId(resource),
-      calendarStagingId: resource.calendarStagingId,
-      calendarProdId: resource.calendarProdId,
       calendarRef: undefined,
     })) || [];
 

@@ -132,8 +132,6 @@ export async function POST(request: Request) {
     const resources = schema?.resources?.map((resource: any) => ({
       id: resource.roomId.toString(),
       calendarId: getCalendarId(resource),
-      calendarStagingId: resource.calendarStagingId,
-      calendarProdId: resource.calendarProdId,
       roomId: resource.roomId,
     })) || [];
 

@@ -20,10 +20,10 @@ export async function GET(
       );
     }
     
-    // Transform resources to use environment-appropriate calendar IDs
-    // This overwrites calendarId with the environment-specific value (calendarProdId for production,
-    // calendarStagingId for staging) so that all downstream code can use the calendarId field
-    // without needing to know about environment-specific fields.
+    // Transform resources to use environment-appropriate calendar IDs.
+    // This updates the calendarId field value with the environment-specific calendar ID
+    // (calendarProdId for production, calendarStagingId for staging) so that all downstream
+    // code can use the calendarId field without needing environment-specific logic.
     if (schema.resources) {
       schema.resources = schema.resources.map((resource: any) => ({
         ...resource,

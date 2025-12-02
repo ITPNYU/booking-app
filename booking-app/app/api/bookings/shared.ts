@@ -39,8 +39,6 @@ export const getTenantRooms = async (tenant?: string) => {
       name: resource.name,
       capacity: resource.capacity?.toString(),
       calendarId: getCalendarId(resource),
-      calendarStagingId: resource.calendarStagingId,
-      calendarProdId: resource.calendarProdId,
     }));
   } catch (error) {
     console.error("Error fetching tenant rooms:", error);
