@@ -1,9 +1,9 @@
 import { extractTenantFromCollectionName } from "@/components/src/policy";
+import { callXStateTransitionAPI } from "@/components/src/server/db";
 import { Booking, BookingStatusLabel } from "@/components/src/types";
 import { getStatusFromXState } from "@/components/src/utils/statusFromXState";
 import admin from "@/lib/firebase/server/firebaseAdmin";
 import { BookingLogger } from "@/lib/logger/bookingLogger";
-import { executeXStateTransition } from "@/lib/stateMachines/xstateUtilsV5";
 import { Timestamp } from "firebase-admin/firestore";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -159,11 +159,11 @@ export async function GET(request: NextRequest) {
 
         try {
           // Use XState transition to cancel the booking
-          const xstateResult = await executeXStateTransition(
+          const xstateResult = await callXStateTransitionAPI(
             booking.calendarEventId,
             "cancel",
+            "system", // System identifier for automated actions
             tenant,
-            "system@mediacommons.nyu.edu", // System email for auto-cancel
             "Auto-canceled after 24-hour grace period expired",
           );
 

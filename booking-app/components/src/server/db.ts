@@ -31,7 +31,7 @@ import { clientUpdateDataByCalendarEventId } from "@/lib/firebase/client/clientD
 import { getBookingToolDeployUrl } from "./ui";
 
 // Helper function to call XState transition API
-async function callXStateTransitionAPI(
+export async function callXStateTransitionAPI(
   calendarEventId: string,
   eventType: string,
   email: string,
@@ -850,17 +850,17 @@ export const checkin = async (id: string, email: string, tenant?: string) => {
     const emailConfig = await getTenantEmailConfig(tenant);
     const headerMessage = emailConfig.emailMessages.checkinConfirmation;
     await clientSendBookingDetailEmail(
-      id,
-      guestEmail,
-      headerMessage,
-      BookingStatusLabel.CHECKED_IN,
-      tenant
-    );
+    id,
+    guestEmail,
+    headerMessage,
+    BookingStatusLabel.CHECKED_IN,
+    tenant
+  );
 
-    console.log(`📧 XSTATE CHECKIN EMAIL SENT [${tenant?.toUpperCase()}]:`, {
-      calendarEventId: id,
-      guestEmail,
-    });
+  console.log(`📧 XSTATE CHECKIN EMAIL SENT [${tenant?.toUpperCase()}]:`, {
+    calendarEventId: id,
+    guestEmail,
+  });
   } catch (emailError) {
     console.error(
       `⚠️ XSTATE CHECKIN EMAIL FAILED [${tenant?.toUpperCase()}]:`,

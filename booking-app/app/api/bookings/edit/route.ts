@@ -20,10 +20,10 @@ import {
   BookingOrigin,
   BookingStatusLabel,
 } from "@/components/src/types";
+import { callXStateTransitionAPI } from "@/components/src/server/db";
 import { getStatusFromXState } from "@/components/src/utils/statusFromXState";
 import { shouldUseXState } from "@/components/src/utils/tenantUtils";
 import { logServerBookingChange } from "@/lib/firebase/server/adminDb";
-import { executeXStateTransition } from "@/lib/stateMachines/xstateUtilsV5";
 import { Timestamp } from "firebase-admin/firestore";
 import { NextRequest, NextResponse } from "next/server";
 import {
@@ -359,11 +359,11 @@ export async function PUT(request: NextRequest) {
         },
       );
 
-      const xstateResult = await executeXStateTransition(
+      const xstateResult = await callXStateTransitionAPI(
         newCalendarEventId, // Use NEW calendarEventId since booking was just updated
         "edit",
-        tenant,
         modifiedBy,
+        tenant,
       );
 
       if (xstateResult.success) {
