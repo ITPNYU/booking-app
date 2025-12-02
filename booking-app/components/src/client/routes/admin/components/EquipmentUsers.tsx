@@ -36,9 +36,11 @@ export const EquipmentUsers = () => {
       const { level, ...other } = liaison;
       return other;
     });
-    const sorted = filtered.sort((a, b) =>
-      a.department.localeCompare(b.department)
-    );
+    const sorted = filtered.sort((a, b) => {
+      const deptA = a.department || "";
+      const deptB = b.department || "";
+      return deptA.localeCompare(deptB);
+    });
     return sorted as unknown as { [key: string]: string }[];
   }, [equipmentUsers]);
 
