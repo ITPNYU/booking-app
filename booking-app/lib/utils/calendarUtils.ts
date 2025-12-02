@@ -8,6 +8,9 @@ import { DevBranch } from "@/components/src/types";
  * - Staging environment: Use calendarStagingId if available, fallback to calendarId
  * - Development/other: Use calendarId
  * 
+ * Note: The branchName is cast to DevBranch type but defaults to calendarId for any
+ * unrecognized values, providing safe fallback behavior.
+ * 
  * @param resource - The resource object containing calendar IDs
  * @returns The appropriate calendar ID for the current environment
  */
