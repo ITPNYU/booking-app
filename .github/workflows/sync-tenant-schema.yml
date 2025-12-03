@@ -3,9 +3,8 @@ name: Sync Tenant Schema
 on:
   push:
     branches:
-      - main
+      - staging
       - prod
-      - production
   workflow_dispatch:
     inputs:
       target_environment:
@@ -20,7 +19,7 @@ jobs:
   sync-to-staging:
     name: Sync tenantSchema to Staging
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && github.event.inputs.target_environment == 'staging')
+    if: github.ref == 'refs/heads/staging' || (github.event_name == 'workflow_dispatch' && github.event.inputs.target_environment == 'staging')
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -61,7 +60,7 @@ jobs:
   sync-to-production:
     name: Sync tenantSchema to Production
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/prod' || github.ref == 'refs/heads/production' || (github.event_name == 'workflow_dispatch' && github.event.inputs.target_environment == 'production')
+    if: github.ref == 'refs/heads/prod' || (github.event_name == 'workflow_dispatch' && github.event.inputs.target_environment == 'production')
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
