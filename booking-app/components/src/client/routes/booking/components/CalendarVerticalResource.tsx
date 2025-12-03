@@ -28,6 +28,7 @@ import { DatabaseContext } from "../../components/Provider";
 import { BookingContext } from "../bookingProvider";
 import { useBookingDateRestrictions } from "../hooks/useBookingDateRestrictions";
 import { SLOT_UNIT } from "@/components/src/client/constants/slotUnit";
+import { roundTimeUp } from "@/components/src/client/utils/date";
 
 interface Props {
   calendarEventId?: string;
@@ -226,32 +227,16 @@ export default function CalendarVerticalResource({
     }
 
     const blocks = rooms.map((room) => {
-      const today = new Date();
-      const start = new Date();
       // derive slot start from prop or default to 9:00
+      const start = new Date();
       const [minHour, minMinute] = (slotMinTime || "9:00:00")
         .split(":")
         .map((s) => parseInt(s, 10));
       start.setHours(Number.isFinite(minHour) ? minHour : 9);
       start.setMinutes(Number.isFinite(minMinute) ? minMinute : 0);
 
-      // Round "today" up to the next SLOT_UNIT boundary
-      const mins = today.getMinutes();
-      const remainder = mins % SLOT_UNIT;
-      if (remainder === 0) {
-        // keep as is
-      } else {
-        const rounded = mins + (SLOT_UNIT - remainder);
-        if (rounded >= 60) {
-          today.setHours(today.getHours() + 1);
-          today.setMinutes(0);
-        } else {
-          today.setMinutes(rounded);
-        }
-      }
-
-      today.setSeconds(0);
-      today.setMilliseconds(0);
+      // Use shared rounding helper so logic is centralized
+      const today = roundTimeUp();
       return {
         start: start.toISOString(),
         end: today.toISOString(),
@@ -487,7 +472,7 @@ export default function CalendarVerticalResource({
         headerToolbar={false}
         slotDuration={minutesToDurationString(SLOT_UNIT)}
         snapDuration={minutesToDurationString(SLOT_UNIT)}
-        slotLabelInterval={minutesToDurationString(60)} // Keep 15-minute snapping but show labels only on the hour
+        slotLabelInterval={minutesToDurationString(60)}
         slotLabelContent={(arg) => ({ html: dayjs(arg.date).format("h A") })} // hour labels e.g. "9 AM"
         slotMinTime={slotMinTime ?? "9:00:00"}
         allDaySlot={false}
