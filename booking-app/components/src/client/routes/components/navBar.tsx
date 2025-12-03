@@ -135,6 +135,7 @@ export default function NavBar() {
   const handleSignOut = async () => {
     try {
       await signOut(auth);
+      sessionStorage.removeItem("hasRedirectedToDefaultContext");
       console.log("Sign-out successful");
       router.push("/signin");
       setUserEmail(null);
@@ -142,6 +143,43 @@ export default function NavBar() {
       console.error("Sign-out error", error);
     }
   };
+
+  useEffect(() => {
+    const isRoot = pathname === "/" || (tenant && pathname === `/${tenant}`);
+    if (!isRoot) return;
+
+    const hasRedirected = sessionStorage.getItem(
+      "hasRedirectedToDefaultContext"
+    );
+    if (hasRedirected) return;
+
+    if (pagePermission !== PagePermission.BOOKING) {
+      let targetPath = "";
+      switch (pagePermission) {
+        case PagePermission.PA:
+          targetPath = "pa";
+          break;
+        case PagePermission.ADMIN:
+          targetPath = "admin";
+          break;
+        case PagePermission.LIAISON:
+          targetPath = "liaison";
+          break;
+        case PagePermission.SERVICES:
+          targetPath = "services";
+          break;
+        case PagePermission.SUPER_ADMIN:
+          targetPath = "super";
+          break;
+      }
+
+      if (targetPath) {
+        const fullPath = tenant ? `/${tenant}/${targetPath}` : `/${targetPath}`;
+        router.push(fullPath);
+        sessionStorage.setItem("hasRedirectedToDefaultContext", "true");
+      }
+    }
+  }, [pagePermission, pathname, tenant, router]);
 
   const hasUserPermission = (roles: PagePermission[]) => {
     return roles.includes(pagePermission);
