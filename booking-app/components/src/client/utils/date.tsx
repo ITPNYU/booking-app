@@ -1,5 +1,6 @@
 import { Timestamp } from "firebase/firestore";
 import { format } from "date-fns";
+import { SLOT_UNIT } from "@/components/src/client/constants/slotUnit";
 
 export const formatDate = (
   oldDate:
@@ -63,14 +64,22 @@ export function roundTimeUp() {
   const now = new Date();
   const minutes = now.getMinutes();
 
-  // Round up to next half-hour or hour
-  const roundedMinutes = minutes > 30 ? 60 : 30;
+  const remainder = minutes % SLOT_UNIT;
 
-  if (roundedMinutes === 60) {
+  if (remainder === 0) {
+    // already aligned to slot boundary
+    now.setSeconds(0);
+    now.setMilliseconds(0);
+    return now;
+  }
+
+  const roundedMinutes = minutes + (SLOT_UNIT - remainder);
+
+  if (roundedMinutes >= 60) {
     now.setHours(now.getHours() + 1);
     now.setMinutes(0);
   } else {
-    now.setMinutes(30);
+    now.setMinutes(roundedMinutes);
   }
 
   now.setSeconds(0);

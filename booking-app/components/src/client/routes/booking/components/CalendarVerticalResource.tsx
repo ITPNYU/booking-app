@@ -27,6 +27,7 @@ import { getBlackoutTimeRangeForDate } from "../../../../utils/blackoutUtils";
 import { DatabaseContext } from "../../components/Provider";
 import { BookingContext } from "../bookingProvider";
 import { useBookingDateRestrictions } from "../hooks/useBookingDateRestrictions";
+import { SLOT_UNIT } from "@/components/src/client/constants/slotUnit";
 
 interface Props {
   calendarEventId?: string;
@@ -227,10 +228,22 @@ export default function CalendarVerticalResource({
       const start = new Date();
       start.setHours(9);
       start.setMinutes(0);
-      today.setHours(
-        today.getMinutes() > 30 ? today.getHours() + 1 : today.getHours()
-      );
-      today.setMinutes(today.getMinutes() <= 30 ? 30 : 0);
+
+      // Round "today" up to the next SLOT_UNIT boundary
+      const mins = today.getMinutes();
+      const remainder = mins % SLOT_UNIT;
+      if (remainder === 0) {
+        // keep as is
+      } else {
+        const rounded = mins + (SLOT_UNIT - remainder);
+        if (rounded >= 60) {
+          today.setHours(today.getHours() + 1);
+          today.setMinutes(0);
+        } else {
+          today.setMinutes(rounded);
+        }
+      }
+
       today.setSeconds(0);
       today.setMilliseconds(0);
       return {
@@ -410,6 +423,14 @@ export default function CalendarVerticalResource({
   // const slotMaxTime = `${operationHoursToday.close}:00:00`;
   // don't use these values until we talk to Samantha/Jhanele
 
+  function minutesToDurationString(minutes: number) {
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    const hh = hours.toString().padStart(2, "0");
+    const mm = mins.toString().padStart(2, "0");
+    return `${hh}:${mm}:00`;
+  }
+
   return (
     <FullCalendarWrapper data-testid="booking-calendar-wrapper">
       <FullCalendar
@@ -458,6 +479,10 @@ export default function CalendarVerticalResource({
         }
         eventDurationEditable={true}
         headerToolbar={false}
+        slotDuration={minutesToDurationString(SLOT_UNIT)}
+        snapDuration={minutesToDurationString(SLOT_UNIT)}
+        slotLabelInterval={minutesToDurationString(60)} // Keep 15-minute snapping but show labels only on the hour
+        slotLabelContent={(arg) => ({ html: dayjs(arg.date).format("h A") })} // hour labels e.g. "9 AM"
         slotMinTime="9:00:00"
         allDaySlot={false}
         aspectRatio={isMobile ? 0.5 : 1.5}
