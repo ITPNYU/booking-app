@@ -31,7 +31,7 @@ import { clientUpdateDataByCalendarEventId } from "@/lib/firebase/client/clientD
 import { getBookingToolDeployUrl } from "./ui";
 
 // Helper function to call XState transition API
-async function callXStateTransitionAPI(
+export async function callXStateTransitionAPI(
   calendarEventId: string,
   eventType: string,
   email: string,
@@ -273,10 +273,10 @@ export const decline = async (
   let headerMessage = emailConfig.emailMessages.declined;
 
   if (reason) {
-    headerMessage += ` Reason: ${reason}. <br /><br />If you have any questions or need further assistance, please don't hesitate to reach out.`;
+    headerMessage += ` Reason: ${reason}. <br /><br />You have 24 hours to edit your request if you'd like to make changes. After 24 hours, your request will be automatically canceled. <br /><br />If you have any questions or need further assistance, please don't hesitate to reach out.`;
   } else {
     headerMessage +=
-      "<br />If you have any questions or need further assistance, please don't hesitate to reach out.";
+      "<br />You have 24 hours to edit your request if you'd like to make changes. After 24 hours, your request will be automatically canceled. <br /><br />If you have any questions or need further assistance, please don't hesitate to reach out.";
   }
   clientSendBookingDetailEmail(
     id,
@@ -850,17 +850,17 @@ export const checkin = async (id: string, email: string, tenant?: string) => {
     const emailConfig = await getTenantEmailConfig(tenant);
     const headerMessage = emailConfig.emailMessages.checkinConfirmation;
     await clientSendBookingDetailEmail(
-      id,
-      guestEmail,
-      headerMessage,
-      BookingStatusLabel.CHECKED_IN,
-      tenant
-    );
+    id,
+    guestEmail,
+    headerMessage,
+    BookingStatusLabel.CHECKED_IN,
+    tenant
+  );
 
-    console.log(`📧 XSTATE CHECKIN EMAIL SENT [${tenant?.toUpperCase()}]:`, {
-      calendarEventId: id,
-      guestEmail,
-    });
+  console.log(`📧 XSTATE CHECKIN EMAIL SENT [${tenant?.toUpperCase()}]:`, {
+    calendarEventId: id,
+    guestEmail,
+  });
   } catch (emailError) {
     console.error(
       `⚠️ XSTATE CHECKIN EMAIL FAILED [${tenant?.toUpperCase()}]:`,
