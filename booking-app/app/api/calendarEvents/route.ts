@@ -132,23 +132,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    console.log(
-      `Fetching calendar events for calendarId: ${calendarId}, tenant: ${tenant}`,
-    );
     const events = await getCalendarEvents(calendarId, tenant);
-    console.log(
-      `Returning ${events.length} events for calendarId: ${calendarId}, tenant: ${tenant}`,
-    );
-    console.log(
-      `Events with booking data:`,
-      events
-        .filter(e => e.booking)
-        .map(e => ({
-          calendarEventId: e.calendarEventId,
-          title: e.title,
-          booking: e.booking,
-        })),
-    );
 
     const res = NextResponse.json(events);
     res.headers.set(

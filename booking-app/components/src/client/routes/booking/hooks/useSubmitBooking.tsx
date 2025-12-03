@@ -130,8 +130,10 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
 
       let email: string;
       setSubmitting("submitting");
-      if ((isWalkIn || isModification || isVIP) && data.netId) {
-        email = data.netId + "@nyu.edu";
+      if ((isWalkIn || isModification || isVIP) && (data.walkInNetId || data.netId)) {
+        // For walk-ins, use walkInNetId (the person using the space), not the PA's ID
+        const netIdToUse = data.walkInNetId || data.netId;
+        email = netIdToUse + "@nyu.edu";
       } else {
         email = userEmail || data.missingEmail;
       }
@@ -211,14 +213,14 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
           "Content-Type": "application/json",
           "x-tenant": tenant,
         },
-        body: JSON.stringify({
+          body: JSON.stringify({
           origin: isVIP ? BookingOrigin.VIP : BookingOrigin.WALK_IN,
           type: isVIP ? BookingOrigin.VIP : BookingOrigin.WALK_IN,
           email,
           selectedRooms,
           bookingCalendarInfo,
           liaisonUsers,
-          data,
+            data,
           isAutoApproval,
           // Add modifiedBy as a top-level parameter for edit/modification context
           ...modificationFields,

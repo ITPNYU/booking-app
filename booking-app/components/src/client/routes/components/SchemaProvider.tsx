@@ -16,7 +16,7 @@ export type Resource = {
   isWalkIn: boolean;
   isWalkInCanBookTwo: boolean;
   services: string[]; // ["equipment", "staffing", "setup", "security", "cleaning", "catering", "campus-media"]
-  maxHour: {
+  maxHour?: {
     student: number;
     faculty: number;
     admin: number;
@@ -45,12 +45,14 @@ export type Resource = {
 export type SchemaContextType = {
   tenant: string;
   name: string;
+  safetyTrainingGoogleFormId?: string;
   logo: string;
   nameForPolicy: string;
   policy: string; // innerHTML
   programMapping: Record<string, string[]>;
   roles: string[];
   roleMapping: Record<string, string[]>;
+  schoolMapping: Record<string, string[]>;
   showNNumber: boolean;
   showSponsor: boolean;
   showSetup: boolean;
@@ -104,6 +106,7 @@ export const SchemaContext = createContext<SchemaContextType>({
   resourceName: "",
   programMapping: {},
   roleMapping: {},
+  schoolMapping: {},
   emailMessages: {
     requestConfirmation: "",
     firstApprovalRequest: "",

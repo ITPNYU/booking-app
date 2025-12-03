@@ -42,9 +42,6 @@ export default function fetchCalendarEvents(allRooms: RoomSetting[]) {
     setFetchingStatus("loading");
     let response = null;
     try {
-      console.log(
-        `Fetching calendar events for room ${room.roomId} (${calendarId}) with tenant: ${tenant}`
-      );
       response = await fetch(
         `${process.env.NEXT_PUBLIC_BASE_URL}/api/calendarEvents?calendarId=${calendarId}`,
         {
@@ -67,15 +64,6 @@ export default function fetchCalendarEvents(allRooms: RoomSetting[]) {
     }
 
     const data = await response.json();
-    console.log(
-      `Received ${data.length} events for room ${room.roomId} (tenant: ${tenant}):`,
-      data.map((event) => ({
-        title: event.title,
-        calendarEventId: event.calendarEventId,
-        booking: event.booking,
-      }))
-    );
-
     const filteredEvents = data.filter((row: any) => {
       return !CALENDAR_HIDE_STATUS.some((status) =>
         row?.title?.includes(status)

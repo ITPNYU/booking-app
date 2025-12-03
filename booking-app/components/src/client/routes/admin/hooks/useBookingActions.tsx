@@ -804,5 +804,5 @@ export default function useBookingActions({
     return allOptions;
   };
 
-  return { actions, updateActions, options };
+  return { actions, updateActions, options, servicesApproved };
 }

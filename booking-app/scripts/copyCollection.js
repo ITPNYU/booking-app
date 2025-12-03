@@ -16,24 +16,24 @@ const parseArgs = () => {
     sourceCollection: null,
     targetCollection: null,
     sourceDatabase: "development",
-    targetDatabase: "development"
+    targetDatabase: "development",
   };
-  
+
   for (let i = 0; i < args.length; i++) {
     switch (args[i]) {
-      case '--source-collection':
+      case "--source-collection":
         options.sourceCollection = args[++i];
         break;
-      case '--target-collection':
+      case "--target-collection":
         options.targetCollection = args[++i];
         break;
-      case '--source-database':
+      case "--source-database":
         options.sourceDatabase = args[++i];
         break;
-      case '--target-database':
+      case "--target-database":
         options.targetDatabase = args[++i];
         break;
-      case '--help':
+      case "--help":
         console.log(`
 Usage: node copyCollection.js [options]
 
@@ -56,20 +56,20 @@ Examples:
         break;
     }
   }
-  
+
   // Validate required parameters
   if (!options.sourceCollection) {
     console.error("❌ Error: --source-collection is required");
     console.error("Use --help for usage information");
     process.exit(1);
   }
-  
+
   if (!options.targetCollection) {
     console.error("❌ Error: --target-collection is required");
     console.error("Use --help for usage information");
     process.exit(1);
   }
-  
+
   return options;
 };
 
@@ -84,16 +84,16 @@ const initializeSourceDb = (databaseName) => {
       }),
     });
   }
-  
+
   const sourceDb = admin.firestore();
-  
+
   // For the default database, don't set databaseId
   if (databaseName !== "default") {
     sourceDb.settings({
       databaseId: databaseName,
     });
   }
-  
+
   return sourceDb;
 };
 
@@ -101,7 +101,7 @@ const initializeSourceDb = (databaseName) => {
 const initializeTargetDb = (databaseName) => {
   // Create a new app instance for the target database
   const appName = `target-${databaseName}`;
-  
+
   let targetApp;
   try {
     targetApp = admin.app(appName);
@@ -117,16 +117,16 @@ const initializeTargetDb = (databaseName) => {
       appName
     );
   }
-  
+
   const targetDb = targetApp.firestore();
-  
+
   // For the default database, don't set databaseId
   if (databaseName !== "default") {
     targetDb.settings({
       databaseId: databaseName,
     });
   }
-  
+
   return targetDb;
 };
 
@@ -152,7 +152,9 @@ const testDatabaseConnection = async (db, databaseName) => {
       // PERMISSION_DENIED
       console.log(`🚫 Permission denied for ${databaseName}`);
       console.log(`💡 This could mean:`);
-      console.log(`   - Your service account doesn't have access to this database`);
+      console.log(
+        `   - Your service account doesn't have access to this database`
+      );
       console.log(`   - You need to grant permissions to your service account`);
     } else {
       console.log(`❌ Error connecting to ${databaseName}:`, error.message);
@@ -162,9 +164,17 @@ const testDatabaseConnection = async (db, databaseName) => {
 };
 
 // Copy collection from source to target database
-const copyCollection = async (sourceDb, targetDb, sourceCollection, targetCollection, databaseName) => {
+const copyCollection = async (
+  sourceDb,
+  targetDb,
+  sourceCollection,
+  targetCollection,
+  databaseName
+) => {
   try {
-    console.log(`\n🔄 Copying ${sourceCollection} to ${targetCollection} in ${databaseName}...`);
+    console.log(
+      `\n🔄 Copying ${sourceCollection} to ${targetCollection} in ${databaseName}...`
+    );
 
     // Test connection first
     const canConnect = await testDatabaseConnection(targetDb, databaseName);
@@ -181,7 +191,9 @@ const copyCollection = async (sourceDb, targetDb, sourceCollection, targetCollec
     const sourceSnapshot = await sourceDb.collection(sourceCollection).get();
 
     if (sourceSnapshot.empty) {
-      console.log(`❌ No ${sourceCollection} documents found in source database`);
+      console.log(
+        `❌ No ${sourceCollection} documents found in source database`
+      );
       return {
         success: false,
         copied: 0,
@@ -193,19 +205,37 @@ const copyCollection = async (sourceDb, targetDb, sourceCollection, targetCollec
       `📋 Found ${sourceSnapshot.size} ${sourceCollection} documents to copy`
     );
 
-    // Copy each document to target database
-    const batch = targetDb.batch();
+    // Copy documents in batches to avoid transaction size limits
+    const BATCH_SIZE = 500; // Firestore limit is 500 operations per batch
     let copiedCount = 0;
+    let currentBatch = targetDb.batch();
+    let operationsInBatch = 0;
 
-    sourceSnapshot.forEach((doc) => {
+    for (const doc of sourceSnapshot.docs) {
       const data = doc.data();
       const docRef = targetDb.collection(targetCollection).doc(doc.id);
-      batch.set(docRef, data);
+      currentBatch.set(docRef, data);
+      operationsInBatch++;
       copiedCount++;
-    });
 
-    // Commit the batch
-    await batch.commit();
+      // Commit batch when we reach the limit
+      if (operationsInBatch >= BATCH_SIZE) {
+        await currentBatch.commit();
+        console.log(
+          `  ✓ Committed batch of ${operationsInBatch} documents (${copiedCount}/${sourceSnapshot.size})`
+        );
+        currentBatch = targetDb.batch();
+        operationsInBatch = 0;
+      }
+    }
+
+    // Commit any remaining documents
+    if (operationsInBatch > 0) {
+      await currentBatch.commit();
+      console.log(
+        `  ✓ Committed final batch of ${operationsInBatch} documents`
+      );
+    }
 
     console.log(
       `✅ Successfully copied ${copiedCount} ${sourceCollection} documents to ${targetCollection} in ${databaseName}`
@@ -224,7 +254,7 @@ const copyCollection = async (sourceDb, targetDb, sourceCollection, targetCollec
 const main = async () => {
   try {
     const options = parseArgs();
-    
+
     console.log("🚀 Starting collection copy process...");
     console.log(`📊 Options:`, options);
     console.log(`📊 Using database names:`, DATABASES);
@@ -232,20 +262,22 @@ const main = async () => {
     // Validate source database
     if (!DATABASES[options.sourceDatabase]) {
       console.error(`❌ Invalid source database: ${options.sourceDatabase}`);
-      console.error(`Valid databases: ${Object.keys(DATABASES).join(', ')}`);
+      console.error(`Valid databases: ${Object.keys(DATABASES).join(", ")}`);
       process.exit(1);
     }
 
     // Validate target database
     if (!DATABASES[options.targetDatabase]) {
       console.error(`❌ Invalid target database: ${options.targetDatabase}`);
-      console.error(`Valid databases: ${Object.keys(DATABASES).join(', ')}`);
+      console.error(`Valid databases: ${Object.keys(DATABASES).join(", ")}`);
       process.exit(1);
     }
 
     // Initialize source database
     const sourceDb = initializeSourceDb(DATABASES[options.sourceDatabase]);
-    console.log(`📡 Connected to source database (${options.sourceDatabase} -> ${DATABASES[options.sourceDatabase]})`);
+    console.log(
+      `📡 Connected to source database (${options.sourceDatabase} -> ${DATABASES[options.sourceDatabase]})`
+    );
 
     // Test source database connection
     const sourceConnected = await testDatabaseConnection(
@@ -276,7 +308,9 @@ const main = async () => {
     if (successful.length > 0) {
       console.log(`✅ Successful copies: ${successful.length}`);
       successful.forEach((result) => {
-        console.log(`  - ${result.database}: ${result.copied} documents copied`);
+        console.log(
+          `  - ${result.database}: ${result.copied} documents copied`
+        );
       });
     }
 
@@ -314,4 +348,4 @@ if (require.main === module) {
   main();
 }
 
-module.exports = { copyCollection, DATABASES }; 
+module.exports = { copyCollection, DATABASES };

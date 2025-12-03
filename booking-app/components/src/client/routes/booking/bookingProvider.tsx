@@ -98,24 +98,26 @@ export function BookingProvider({ children }) {
   const isBanned = useMemo<boolean>(() => {
     const bannedEmails = bannedUsers.map((bannedUser) => bannedUser.email);
 
-    if (pathname.includes("/walk-in/form") && formData?.netId?.length > 0) {
-      return bannedEmails.includes(formData?.netId + "@nyu.edu");
+    // For walk-in bookings, check if the walk-in person (not the PA) is banned
+    if (pathname.includes("/walk-in") && formData?.walkInNetId?.length > 0) {
+      return bannedEmails.includes(formData?.walkInNetId + "@nyu.edu");
     }
 
     if (!userEmail) return false;
     return bannedEmails.includes(userEmail);
-  }, [userEmail, bannedUsers, formData?.netId, pathname]);
+  }, [userEmail, bannedUsers, formData?.walkInNetId, pathname]);
 
   const isSafetyTrained = useMemo(() => {
     const safetyTrainedEmails = safetyTrainedUsers.map((user) => user.email);
 
-    if (pathname.includes("/walk-in/form") && formData?.netId?.length > 0) {
-      return safetyTrainedEmails.includes(formData?.netId + "@nyu.edu");
+    // For walk-in bookings, check if the walk-in person (not the PA) has safety training
+    if (pathname.includes("/walk-in") && formData?.walkInNetId?.length > 0) {
+      return safetyTrainedEmails.includes(formData?.walkInNetId + "@nyu.edu");
     }
 
-    if (!userEmail) return;
+    if (!userEmail) return false;
     return safetyTrainedEmails.includes(userEmail);
-  }, [userEmail, safetyTrainedUsers, formData?.netId, pathname]);
+  }, [userEmail, safetyTrainedUsers, formData?.walkInNetId, pathname]);
 
   // block progressing in the form is safety training requirement isn't met
   const needsSafetyTraining = useMemo(() => {

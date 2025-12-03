@@ -48,6 +48,7 @@ export default function BookingStatusBar({ formContext, ...props }: Props) {
     needsSafetyTraining,
     isInBlackoutPeriod,
     role,
+    formData,
   } = useContext(BookingContext);
   const isOverlap = useCalculateOverlap();
 
@@ -76,19 +77,29 @@ export default function BookingStatusBar({ formContext, ...props }: Props) {
     if (isBanned)
       return {
         btnDisabled: true,
-        btnDisabledMessage: "You are banned",
-        message: <p>You are banned from booking with the Media Commons</p>,
+        btnDisabledMessage: isWalkIn ? "Walk-in visitor is banned" : "You are banned",
+        message: (
+          <p>
+            {isWalkIn
+              ? `The walk-in visitor (${formData?.walkInNetId || 'user'}) is banned from booking with the Media Commons`
+              : "You are banned from booking with the Media Commons"}
+          </p>
+        ),
         severity: "error",
         variant: "filled",
       };
     if (needsSafetyTraining)
       return {
         btnDisabled: true,
-        btnDisabledMessage: "You need to take safety training",
+        btnDisabledMessage: isWalkIn 
+          ? "Walk-in visitor needs safety training" 
+          : "You need to take safety training",
         message: (
           <p>
-            You have not taken safety training, which is required for at least
-            one of the rooms you have selected.{" "}
+            {isWalkIn 
+              ? `The walk-in visitor (${formData?.walkInNetId || 'user'}) has not taken safety training, which is required for at least one of the rooms you have selected.`
+              : "You have not taken safety training, which is required for at least one of the rooms you have selected."
+            }{" "}
             <a
               href="https://sites.google.com/nyu.edu/370jmediacommons/reservations/safety-training"
               target="_blank"
