@@ -138,6 +138,7 @@ export default function FormInput({
     trigger,
     watch,
     reset,
+    setValue,
     formState: { errors, isValid },
   } = useForm<Inputs>({
     defaultValues: {
@@ -159,7 +160,9 @@ export default function FormInput({
       attendeeAffiliation: "",
       roomSetup: "",
       bookingType: "",
-      secondaryName: "",
+      secondaryFirstName: "",
+      secondaryLastName: "",
+      secondaryEmail: "",
       otherDepartment: "",
       firstName: getDefaultValue("preferred_first_name"),
       lastName: getDefaultValue("preferred_last_name"),
@@ -218,6 +221,15 @@ export default function FormInput({
       }, 0),
     [selectedRooms]
   );
+
+  const expectedAttendanceValue = watch("expectedAttendance");
+  const isLargeEvent = parseInt(expectedAttendanceValue || "0") >= 75;
+
+  useEffect(() => {
+    if (isLargeEvent) {
+      setValue("hireSecurity", "yes", { shouldValidate: true });
+    }
+  }, [isLargeEvent, setValue]);
 
   const validateExpectedAttendance = useCallback(
     (value: string) => {
@@ -565,8 +577,14 @@ export default function FormInput({
             id="hireSecurity"
             label="Security?"
             required={false}
+            disabled={isLargeEvent}
             description={
               <p>
+                {isLargeEvent && (
+                  <span style={{ display: "block", marginBottom: "4px", fontWeight: 500 }}>
+                    Security is required for events with more than 75 attendees.
+                  </span>
+                )}
                 Only for large events with 75+ attendees, and bookings in The
                 Garage where the Willoughby entrance will be in use. It is
                 required for the reservation holder to provide a chartfield so
@@ -603,13 +621,41 @@ export default function FormInput({
             label="Last Name"
             {...{ control, errors, trigger }}
           />
-          <BookingFormTextField
-            id="secondaryName"
-            label="Secondary Point of Contact"
-            description="If the person submitting this request is not the Point of Contact for the reservation, please add their name and contact information here (i.e. event organizer, faculty member, etc.)"
-            required={false}
-            {...{ control, errors, trigger }}
-          />
+          <div style={{ marginTop: 20 }}>
+            <Typography
+              variant="body1"
+              style={{ fontWeight: 500, marginBottom: 8 }}
+            >
+              Secondary Point of Contact
+            </Typography>
+            <Typography variant="body2" style={{ marginBottom: 16 }}>
+              If the person submitting this request is not the Point of Contact
+              for the reservation, please add their name and contact information
+              here (i.e. event organizer, faculty member, etc.)
+            </Typography>
+            <BookingFormTextField
+              id="secondaryFirstName"
+              label="Secondary First Name"
+              required={false}
+              {...{ control, errors, trigger }}
+            />
+            <BookingFormTextField
+              id="secondaryLastName"
+              label="Secondary Last Name"
+              required={false}
+              {...{ control, errors, trigger }}
+            />
+            <BookingFormTextField
+              id="secondaryEmail"
+              label="Secondary Email"
+              required={false}
+              pattern={{
+                value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                message: "Invalid email address",
+              }}
+              {...{ control, errors, trigger }}
+            />
+          </div>
           {showNNumber && !isVIP && (
             <BookingFormTextField
               id="nNumber"
