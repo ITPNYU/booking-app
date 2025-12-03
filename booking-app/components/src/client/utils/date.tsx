@@ -3,7 +3,7 @@ import { format } from "date-fns";
 import { toZonedTime } from "date-fns-tz";
 
 // All times in the booking app are displayed in Eastern Time
-const TIMEZONE = "America/New_York";
+export const TIMEZONE = "America/New_York";
 
 export const formatDate = (
   oldDate:
@@ -33,7 +33,7 @@ export const formatDate = (
 
   // Convert to Eastern Time before formatting
   const zonedDate = toZonedTime(date, TIMEZONE);
-  return format(zonedDate, "yyyy-MM-dd hh:mm a", { timeZone: TIMEZONE } as any);
+  return format(zonedDate, "yyyy-MM-dd h:mm a");
 };
 
 export const formatDateTable = (date: Date) => {
@@ -62,7 +62,7 @@ export const formatTimeTable = (date: Date) => {
 export const formatTimeAmPm = (d: Date) => {
   // Convert to Eastern Time and format with AM/PM
   const zonedDate = toZonedTime(d, TIMEZONE);
-  return format(zonedDate, "h:mm a", { timeZone: TIMEZONE } as any);
+  return format(zonedDate, "h:mm a");
 };
 
 export function roundTimeUp() {

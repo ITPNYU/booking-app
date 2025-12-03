@@ -27,6 +27,7 @@ import { getBlackoutTimeRangeForDate } from "../../../../utils/blackoutUtils";
 import { DatabaseContext } from "../../components/Provider";
 import { BookingContext } from "../bookingProvider";
 import { useBookingDateRestrictions } from "../hooks/useBookingDateRestrictions";
+import { TIMEZONE } from "../../../utils/date";
 
 interface Props {
   calendarEventId?: string;
@@ -416,7 +417,7 @@ export default function CalendarVerticalResource({
         data-testid="booking-calendar"
         initialDate={dateView}
         initialView="resourceTimeGridDay"
-        timeZone="America/New_York"
+        timeZone={TIMEZONE}
         plugins={[
           resourceTimeGridPlugin,
           googleCalendarPlugin,

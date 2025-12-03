@@ -7,11 +7,11 @@ import { useContext, useEffect, useState } from "react";
 import { FormContextLevel } from "@/components/src/types";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { BookingContext } from "../bookingProvider";
+import { TIMEZONE } from "../../../utils/date";
 
 // Configure dayjs to use Eastern timezone
 dayjs.extend(utc);
 dayjs.extend(timezone);
-dayjs.tz.setDefault("America/New_York");
 
 interface Props {
   handleChange: (x: Date) => void;
@@ -20,7 +20,7 @@ interface Props {
 
 export const CalendarDatePicker = ({ handleChange, formContext }: Props) => {
   // Use Eastern timezone for the date picker
-  const [date, setDate] = useState<Dayjs | null>(dayjs.tz(new Date(), "America/New_York"));
+  const [date, setDate] = useState<Dayjs | null>(dayjs.tz(new Date(), TIMEZONE));
   const { bookingCalendarInfo } = useContext(BookingContext);
 
   const handleDateChange = (newVal: Dayjs) => {
@@ -33,14 +33,14 @@ export const CalendarDatePicker = ({ handleChange, formContext }: Props) => {
     // Only disable past dates - allow blackout periods to be selected
     // Time restrictions will be handled in the calendar view
     // Compare in Eastern timezone
-    return date.isBefore(dayjs.tz(undefined, "America/New_York"), "day");
+    return date.isBefore(dayjs.tz(undefined, TIMEZONE), "day");
   };
 
   // if go back to calendar from booking form, show currently selected date
   useEffect(() => {
     if (bookingCalendarInfo != null) {
       // Use Eastern timezone when showing the selected date
-      handleDateChange(dayjs.tz(bookingCalendarInfo.start, "America/New_York"));
+      handleDateChange(dayjs.tz(bookingCalendarInfo.start, TIMEZONE));
     }
   }, []);
 
