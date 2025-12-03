@@ -199,7 +199,21 @@ describe("XState Approval Real Integration Tests", () => {
       // Context for auto-approval
       const context = {
         tenant: testTenant,
-        selectedRooms: [{ roomId: "224", shouldAutoApprove: true }],
+        selectedRooms: [{ 
+          roomId: "224", 
+          autoApproval: {
+            minHour: { admin: -1, faculty: -1, student: -1 },
+            maxHour: { admin: -1, faculty: -1, student: -1 },
+            conditions: {
+              setup: false,
+              equipment: false,
+              staffing: false,
+              catering: false,
+              cleaning: false,
+              security: false,
+            }
+          }
+        }],
         servicesRequested: {}, // No services = auto-approve
         email: testEmail,
         calendarEventId: testCalendarEventId,
@@ -224,7 +238,10 @@ describe("XState Approval Real Integration Tests", () => {
       // Context that prevents auto-approval
       const context = {
         tenant: testTenant,
-        selectedRooms: [{ roomId: "224", shouldAutoApprove: false }],
+        selectedRooms: [{ 
+          roomId: "224", 
+          // No autoApproval config = disabled
+        }],
         servicesRequested: {},
         email: testEmail,
         calendarEventId: testCalendarEventId,
