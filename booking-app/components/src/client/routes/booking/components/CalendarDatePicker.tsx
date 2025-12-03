@@ -47,7 +47,6 @@ export const CalendarDatePicker = ({ handleChange, formContext }: Props) => {
         autoFocus
         disablePast
         shouldDisableDate={shouldDisableDate}
-        disabled={formContext === FormContextLevel.MODIFICATION}
         showDaysOutsideCurrentMonth
       />
     </LocalizationProvider>
