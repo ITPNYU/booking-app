@@ -34,6 +34,7 @@ interface Props {
   formContext: FormContextLevel;
   rooms: RoomSetting[];
   dateView: Date;
+  slotMinTime?: string;
 }
 
 const FullCalendarWrapper = styled(Box)({
@@ -113,6 +114,7 @@ export default function CalendarVerticalResource({
   formContext,
   rooms,
   dateView,
+  slotMinTime,
 }: Props) {
   const { operationHours, pagePermission } = useContext(DatabaseContext);
   const { getBlackoutPeriodsForDateAndRooms, isBookingTimeInBlackout } =
@@ -226,8 +228,12 @@ export default function CalendarVerticalResource({
     const blocks = rooms.map((room) => {
       const today = new Date();
       const start = new Date();
-      start.setHours(9);
-      start.setMinutes(0);
+      // derive slot start from prop or default to 9:00
+      const [minHour, minMinute] = (slotMinTime || "9:00:00")
+        .split(":")
+        .map((s) => parseInt(s, 10));
+      start.setHours(Number.isFinite(minHour) ? minHour : 9);
+      start.setMinutes(Number.isFinite(minMinute) ? minMinute : 0);
 
       // Round "today" up to the next SLOT_UNIT boundary
       const mins = today.getMinutes();
@@ -483,7 +489,7 @@ export default function CalendarVerticalResource({
         snapDuration={minutesToDurationString(SLOT_UNIT)}
         slotLabelInterval={minutesToDurationString(60)} // Keep 15-minute snapping but show labels only on the hour
         slotLabelContent={(arg) => ({ html: dayjs(arg.date).format("h A") })} // hour labels e.g. "9 AM"
-        slotMinTime="9:00:00"
+        slotMinTime={slotMinTime ?? "9:00:00"}
         allDaySlot={false}
         aspectRatio={isMobile ? 0.5 : 1.5}
         expandRows={true}

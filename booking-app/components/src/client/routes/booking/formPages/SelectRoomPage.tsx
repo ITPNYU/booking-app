@@ -94,6 +94,7 @@ export default function SelectRoomPage({
             rooms={selectedRooms}
             dateView={date}
             {...{ calendarEventId, formContext }}
+            slotMinTime={formContext === FormContextLevel.VIP ? "6:00:00" : "9:00:00"}
           />
         </Grid>
       </Grid>
