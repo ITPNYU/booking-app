@@ -1,0 +1,1 @@
+export const SLOT_UNIT = 15; // minutes

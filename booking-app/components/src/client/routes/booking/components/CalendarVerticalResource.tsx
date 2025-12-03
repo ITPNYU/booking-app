@@ -27,12 +27,15 @@ import { getBlackoutTimeRangeForDate } from "../../../../utils/blackoutUtils";
 import { DatabaseContext } from "../../components/Provider";
 import { BookingContext } from "../bookingProvider";
 import { useBookingDateRestrictions } from "../hooks/useBookingDateRestrictions";
+import { SLOT_UNIT } from "@/components/src/client/constants/slotUnit";
+import { roundTimeUp } from "@/components/src/client/utils/date";
 
 interface Props {
   calendarEventId?: string;
   formContext: FormContextLevel;
   rooms: RoomSetting[];
   dateView: Date;
+  slotMinTime?: string;
 }
 
 const FullCalendarWrapper = styled(Box)({
@@ -112,6 +115,7 @@ export default function CalendarVerticalResource({
   formContext,
   rooms,
   dateView,
+  slotMinTime,
 }: Props) {
   const { operationHours, pagePermission } = useContext(DatabaseContext);
   const { getBlackoutPeriodsForDateAndRooms, isBookingTimeInBlackout } =
@@ -223,16 +227,16 @@ export default function CalendarVerticalResource({
     }
 
     const blocks = rooms.map((room) => {
-      const today = new Date();
+      // derive slot start from prop or default to 9:00
       const start = new Date();
-      start.setHours(9);
-      start.setMinutes(0);
-      today.setHours(
-        today.getMinutes() > 30 ? today.getHours() + 1 : today.getHours()
-      );
-      today.setMinutes(today.getMinutes() <= 30 ? 30 : 0);
-      today.setSeconds(0);
-      today.setMilliseconds(0);
+      const [minHour, minMinute] = (slotMinTime || "9:00:00")
+        .split(":")
+        .map((s) => parseInt(s, 10));
+      start.setHours(Number.isFinite(minHour) ? minHour : 9);
+      start.setMinutes(Number.isFinite(minMinute) ? minMinute : 0);
+
+      // Use shared rounding helper so logic is centralized
+      const today = roundTimeUp();
       return {
         start: start.toISOString(),
         end: today.toISOString(),
@@ -410,6 +414,14 @@ export default function CalendarVerticalResource({
   // const slotMaxTime = `${operationHoursToday.close}:00:00`;
   // don't use these values until we talk to Samantha/Jhanele
 
+  function minutesToDurationString(minutes: number) {
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    const hh = hours.toString().padStart(2, "0");
+    const mm = mins.toString().padStart(2, "0");
+    return `${hh}:${mm}:00`;
+  }
+
   return (
     <FullCalendarWrapper data-testid="booking-calendar-wrapper">
       <FullCalendar
@@ -458,7 +470,11 @@ export default function CalendarVerticalResource({
         }
         eventDurationEditable={true}
         headerToolbar={false}
-        slotMinTime="9:00:00"
+        slotDuration={minutesToDurationString(SLOT_UNIT)}
+        snapDuration={minutesToDurationString(SLOT_UNIT)}
+        slotLabelInterval={minutesToDurationString(60)}
+        slotLabelContent={(arg) => ({ html: dayjs(arg.date).format("h A") })} // hour labels e.g. "9 AM"
+        slotMinTime={slotMinTime ?? "9:00:00"}
         allDaySlot={false}
         aspectRatio={isMobile ? 0.5 : 1.5}
         expandRows={true}
