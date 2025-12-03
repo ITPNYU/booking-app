@@ -130,8 +130,7 @@ describe("MoreInfoModal - Basic Rendering", () => {
       expect(screen.getByText("Request Number:")).toBeInTheDocument();
       expect(screen.getAllByText("12345")).toHaveLength(2); // Header and history
       expect(screen.getAllByText("202")).toHaveLength(2); // Header and history
-      expect(screen.getByText("3/15/2024")).toBeInTheDocument(); // Header
-      expect(screen.getByText("03/15/24")).toBeInTheDocument(); // Request section
+      expect(screen.getAllByText("03/15/24")).toHaveLength(2); // Header and Request section
       expect(screen.getAllByText("PENDING")).toHaveLength(2); // Header and history
     });
 
