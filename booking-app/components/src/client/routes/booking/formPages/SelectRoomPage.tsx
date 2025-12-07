@@ -95,7 +95,7 @@ export default function SelectRoomPage({
             rooms={selectedRooms}
             dateView={date}
             {...{ calendarEventId, formContext }}
-            slotMinTime={getStartHour(schema.startHour, formContext)}
+            startHour={getStartHour(schema.startHour, formContext)}
           />
         </Grid>
       </Grid>

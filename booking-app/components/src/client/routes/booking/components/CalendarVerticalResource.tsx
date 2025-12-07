@@ -35,7 +35,7 @@ interface Props {
   formContext: FormContextLevel;
   rooms: RoomSetting[];
   dateView: Date;
-  slotMinTime?: string;
+  startHour?: string;
 }
 
 const FullCalendarWrapper = styled(Box)({
@@ -115,7 +115,7 @@ export default function CalendarVerticalResource({
   formContext,
   rooms,
   dateView,
-  slotMinTime,
+  startHour,
 }: Props) {
   const { operationHours, pagePermission } = useContext(DatabaseContext);
   const { getBlackoutPeriodsForDateAndRooms, isBookingTimeInBlackout } =
@@ -227,9 +227,9 @@ export default function CalendarVerticalResource({
     }
 
     const blocks = rooms.map((room) => {
-      // derive slot start from prop or default to 9:00
-      const start = new Date();
-      const [minHour, minMinute] = (slotMinTime || "9:00:00")
+      // derive slot start from the date being viewed, using startHour from server data
+      const start = new Date(dateView);
+      const [minHour, minMinute] = (startHour || "9:00:00")
         .split(":")
         .map((s) => parseInt(s, 10));
       start.setHours(Number.isFinite(minHour) ? minHour : 9);
@@ -248,7 +248,7 @@ export default function CalendarVerticalResource({
       };
     });
     return blocks;
-  }, [rooms, formContext]);
+  }, [rooms, formContext, dateView, startHour]);
 
   const handleEventSelect = (selectInfo: DateSelectArg) => {
     // Check if the selection overlaps with any blackout periods before setting booking info
@@ -466,7 +466,7 @@ export default function CalendarVerticalResource({
         snapDuration={minutesToDurationString(SLOT_UNIT)}
         slotLabelInterval={minutesToDurationString(60)}
         slotLabelContent={(arg) => ({ html: dayjs(arg.date).format("h A") })} // hour labels e.g. "9 AM"
-        slotMinTime={slotMinTime ?? "9:00:00"}
+        slotMinTime={startHour ?? "9:00:00"}
         allDaySlot={false}
         aspectRatio={isMobile ? 0.5 : 1.5}
         expandRows={true}
