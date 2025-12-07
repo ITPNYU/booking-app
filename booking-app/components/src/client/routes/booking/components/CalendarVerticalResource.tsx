@@ -27,7 +27,7 @@ import { getBlackoutTimeRangeForDate } from "../../../../utils/blackoutUtils";
 import { DatabaseContext } from "../../components/Provider";
 import { BookingContext } from "../bookingProvider";
 import { useBookingDateRestrictions } from "../hooks/useBookingDateRestrictions";
-import { SLOT_UNIT } from "@/components/src/client/constants/slotUnit";
+import { SLOT_UNIT, minutesToDurationString } from "@/components/src/constants/tenants";
 import { roundTimeUp } from "@/components/src/client/utils/date";
 
 interface Props {
@@ -413,14 +413,6 @@ export default function CalendarVerticalResource({
   // const slotMinTime = `${operationHoursToday.open}:00:00`;
   // const slotMaxTime = `${operationHoursToday.close}:00:00`;
   // don't use these values until we talk to Samantha/Jhanele
-
-  function minutesToDurationString(minutes: number) {
-    const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
-    const hh = hours.toString().padStart(2, "0");
-    const mm = mins.toString().padStart(2, "0");
-    return `${hh}:${mm}:00`;
-  }
 
   return (
     <FullCalendarWrapper data-testid="booking-calendar-wrapper">

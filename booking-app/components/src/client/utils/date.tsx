@@ -1,6 +1,6 @@
 import { Timestamp } from "firebase/firestore";
 import { format } from "date-fns";
-import { SLOT_UNIT } from "@/components/src/client/constants/slotUnit";
+import { SLOT_UNIT } from "@/components/src/constants/tenants";
 
 export const formatDate = (
   oldDate:

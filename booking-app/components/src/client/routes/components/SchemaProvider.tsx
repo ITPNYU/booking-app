@@ -66,6 +66,10 @@ export type SchemaContextType = {
   supportVIP: boolean;
   supportWalkIn: boolean;
   resourceName: string;
+  startHour?: {
+    isVIP?: string;
+    isStudent?: string;
+  };
   // Email messages for all scenarios
   emailMessages: {
     requestConfirmation: string;

@@ -12,6 +12,7 @@ import Grid from "@mui/material/Unstable_Grid2";
 import { SelectRooms } from "../components/SelectRooms";
 import useCheckFormMissingData from "../hooks/useCheckFormMissingData";
 import { useTenantSchema } from "../../components/SchemaProvider";
+import { getStartHour } from "../utils/getStartHour";
 
 interface Props {
   calendarEventId?: string;
@@ -94,7 +95,7 @@ export default function SelectRoomPage({
             rooms={selectedRooms}
             dateView={date}
             {...{ calendarEventId, formContext }}
-            slotMinTime={formContext === FormContextLevel.VIP ? "6:00:00" : "9:00:00"}
+            slotMinTime={getStartHour(schema.startHour, formContext)}
           />
         </Grid>
       </Grid>
