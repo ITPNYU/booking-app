@@ -24,6 +24,14 @@ export const SLOT_UNIT = 15;
 
 // Convert minutes to FullCalendar duration string (HH:MM:00 format)
 export function minutesToDurationString(minutes: number) {
+  // Validate input
+  if (!Number.isFinite(minutes)) {
+    throw new Error(`Invalid input: minutesToDurationString expects a finite number, got ${minutes}`);
+  }
+  if (minutes < 0) {
+    throw new Error(`Invalid input: minutesToDurationString expects a non-negative number, got ${minutes}`);
+  }
+
   const hours = Math.floor(minutes / 60);
   const mins = minutes % 60;
   const hh = hours.toString().padStart(2, "0");

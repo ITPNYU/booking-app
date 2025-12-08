@@ -66,15 +66,15 @@ export type SchemaContextType = {
   supportVIP: boolean;
   supportWalkIn: boolean;
   resourceName: string;
-  startHour?: {
-    isVIP?: string;
-    isStudent?: string;
+  startHour: {
+    isVIP: string;
+    isStudent: string;
   };
-  warningMessage?: {
-    minThreshold?: number; // hours
-    isActive?: boolean;
-    message?: string;
-    policyLink?: string;
+  warningMessage: {
+    minThreshold: number; // hours
+    isActive: boolean;
+    message: string;
+    policyLink: string;
   };
   // Email messages for all scenarios
   emailMessages: {
@@ -114,11 +114,15 @@ export const SchemaContext = createContext<SchemaContextType>({
   supportVIP: false,
   supportWalkIn: false,
   resourceName: "",
+  startHour: {
+    isVIP: "6:00:00",
+    isStudent: "9:00:00",
+  },
   warningMessage: {
     minThreshold: 48,
-    isActive: false,
-    message: "",
-    policyLink: "",
+    isActive: true,
+    message: "message test",
+    policyLink: "policy link test",
   },
   programMapping: {},
   roleMapping: {},
