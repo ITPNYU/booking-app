@@ -1,0 +1,138 @@
+name: Sync Tenant Schema
+permissions:
+  contents: read
+
+on:
+  push:
+    branches:
+      - staging
+      - prod
+  workflow_dispatch:
+    inputs:
+      target_environment:
+        description: 'Target environment to sync to'
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+
+jobs:
+  sync-to-staging:
+    name: Dry Run - Analyze tenantSchema Sync to Staging
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/staging' || (github.event_name == 'workflow_dispatch' && github.event.inputs.target_environment == 'staging')
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        working-directory: ./booking-app
+        run: npm ci
+
+      - name: Create .env.local file
+        working-directory: ./booking-app
+        run: |
+          cat > .env.local << EOF
+          FIREBASE_PROJECT_ID=${{ secrets.FIREBASE_PROJECT_ID }}
+          FIREBASE_CLIENT_EMAIL=${{ secrets.FIREBASE_CLIENT_EMAIL }}
+          FIREBASE_PRIVATE_KEY="${{ secrets.FIREBASE_PRIVATE_KEY }}"
+          EOF
+
+      - name: Dry Run - Analyze tenantSchema Sync to Staging
+        working-directory: ./booking-app
+        run: |
+          node scripts/copyCollection.js \
+            --source-database development \
+            --target-database staging \
+            --source-collection tenantSchema \
+            --target-collection tenantSchema \
+            --dry-run > dry-run-staging-output.txt 2>&1 || true
+        continue-on-error: true
+
+      - name: Create Dry Run Report
+        working-directory: ./booking-app
+        run: |
+          echo "# Tenant Schema Sync Dry Run Report - Staging" > dry-run-staging-report.md
+          echo "" >> dry-run-staging-report.md
+          echo "**Generated:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> dry-run-staging-report.md
+          echo "**Source:** development → **Target:** staging" >> dry-run-staging-report.md
+          echo "**Collection:** tenantSchema" >> dry-run-staging-report.md
+          echo "" >> dry-run-staging-report.md
+          echo "## Output" >> dry-run-staging-report.md
+          echo "\`\`\`" >> dry-run-staging-report.md
+          cat dry-run-staging-output.txt >> dry-run-staging-report.md
+          echo "\`\`\`" >> dry-run-staging-report.md
+
+      - name: Upload Dry Run Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tenant-schema-dry-run-staging
+          path: booking-app/dry-run-staging-*.{txt,md}
+          retention-days: 30
+
+  sync-to-production:
+    name: Dry Run - Analyze tenantSchema Sync to Production
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/prod' || (github.event_name == 'workflow_dispatch' && github.event.inputs.target_environment == 'production')
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        working-directory: ./booking-app
+        run: npm ci
+
+      - name: Create .env.local file
+        working-directory: ./booking-app
+        run: |
+          cat > .env.local << EOF
+          FIREBASE_PROJECT_ID=${{ secrets.FIREBASE_PROJECT_ID }}
+          FIREBASE_CLIENT_EMAIL=${{ secrets.FIREBASE_CLIENT_EMAIL }}
+          FIREBASE_PRIVATE_KEY="${{ secrets.FIREBASE_PRIVATE_KEY }}"
+          EOF
+
+      - name: Dry Run - Analyze tenantSchema Sync to Production
+        working-directory: ./booking-app
+        run: |
+          node scripts/copyCollection.js \
+            --source-database development \
+            --target-database production \
+            --source-collection tenantSchema \
+            --target-collection tenantSchema \
+            --dry-run > dry-run-production-output.txt 2>&1 || true
+        continue-on-error: true
+
+      - name: Create Dry Run Report
+        working-directory: ./booking-app
+        run: |
+          echo "# Tenant Schema Sync Dry Run Report - Production" > dry-run-production-report.md
+          echo "" >> dry-run-production-report.md
+          echo "**Generated:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> dry-run-production-report.md
+          echo "**Source:** development → **Target:** production" >> dry-run-production-report.md
+          echo "**Collection:** tenantSchema" >> dry-run-production-report.md
+          echo "" >> dry-run-production-report.md
+          echo "## Output" >> dry-run-production-report.md
+          echo "\`\`\`" >> dry-run-production-report.md
+          cat dry-run-production-output.txt >> dry-run-production-report.md
+          echo "\`\`\`" >> dry-run-production-report.md
+
+      - name: Upload Dry Run Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tenant-schema-dry-run-production
+          path: booking-app/dry-run-production-*.{txt,md}
+          retention-days: 30
+
