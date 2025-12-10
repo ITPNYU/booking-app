@@ -178,11 +178,13 @@ function saveSchemaToFile(
 function getDifferences(
   existing: Partial<SchemaContextType>,
   updated: SchemaContextType
-): { added: string[]; modified: string[] } {
+): { added: string[]; modified: string[]; removed: string[] } {
   const added: string[] = [];
   const modified: string[] = [];
+  const removed: string[] = [];
 
   function compareObjects(path: string, oldObj: any, newObj: any) {
+    // Check for keys in newObj (template) that are missing in oldObj
     for (const key in newObj) {
       const currentPath = path ? `${path}.${key}` : key;
 
@@ -226,10 +228,18 @@ function getDifferences(
         }
       }
     }
+
+    // Check for keys in oldObj that are not in newObj (removed keys)
+    for (const key in oldObj) {
+      if (!(key in newObj)) {
+        const currentPath = path ? `${path}.${key}` : key;
+        removed.push(currentPath);
+      }
+    }
   }
 
   compareObjects("", existing, updated);
-  return { added, modified };
+  return { added, modified, removed };
 }
 
 // Sync a single tenant schema
@@ -239,7 +249,7 @@ async function syncTenantSchema(
   options: SyncOptions
 ): Promise<{
   success: boolean;
-  changes: { added: string[]; modified: string[] };
+  changes: { added: string[]; modified: string[]; removed: string[] };
 }> {
   console.log(`\n📋 Processing tenant: ${tenant}`);
 
@@ -256,7 +266,7 @@ async function syncTenantSchema(
         await writeTenantSchema(db, tenant, newSchema);
         return {
           success: true,
-          changes: { added: Object.keys(newSchema), modified: [] },
+          changes: { added: Object.keys(newSchema), modified: [], removed: [] },
         };
       } else {
         const newSchema = mergeSchemaDefaults({ tenant }, tenant);
@@ -267,7 +277,7 @@ async function syncTenantSchema(
         saveSchemaToFile(tenant, newSchema, options.database);
         return {
           success: true,
-          changes: { added: Object.keys(newSchema), modified: [] },
+          changes: { added: Object.keys(newSchema), modified: [], removed: [] },
         };
       }
     }
@@ -278,9 +288,9 @@ async function syncTenantSchema(
     // Compare to find changes
     const changes = getDifferences(existingSchema, updatedSchema);
 
-    if (changes.added.length === 0 && changes.modified.length === 0) {
+    if (changes.added.length === 0 && changes.modified.length === 0 && changes.removed.length === 0) {
       console.log(`  ✓ Schema is up to date (no changes needed)`);
-      return { success: true, changes: { added: [], modified: [] } };
+      return { success: true, changes: { added: [], modified: [], removed: [] } };
     }
 
     // Show what will change
@@ -292,6 +302,11 @@ async function syncTenantSchema(
     if (changes.modified.length > 0) {
       console.log(`  🔄 Fields to update: ${changes.modified.length}`);
       changes.modified.forEach((field) => console.log(`     - ${field}`));
+    }
+
+    if (changes.removed.length > 0) {
+      console.log(`  🗑️  Extra fields to remove: ${changes.removed.length}`);
+      changes.removed.forEach((field) => console.log(`     - ${field}`));
     }
 
     // Write back if not dry run
@@ -306,7 +321,7 @@ async function syncTenantSchema(
     return { success: true, changes };
   } catch (error) {
     console.error(`  ❌ Error syncing tenant ${tenant}:`, error);
-    return { success: false, changes: { added: [], modified: [] } };
+    return { success: false, changes: { added: [], modified: [], removed: [] } };
   }
 }
 
@@ -378,10 +393,10 @@ async function main() {
       console.log(`✅ Successfully processed: ${successful.length}`);
       successful.forEach((result) => {
         const totalChanges =
-          result.changes.added.length + result.changes.modified.length;
+          result.changes.added.length + result.changes.modified.length + result.changes.removed.length;
         if (totalChanges > 0) {
           console.log(
-            `  - ${result.tenant}: ${result.changes.added.length} added, ${result.changes.modified.length} modified`
+            `  - ${result.tenant}: ${result.changes.added.length} added, ${result.changes.modified.length} modified, ${result.changes.removed.length} removed`
           );
         } else {
           console.log(`  - ${result.tenant}: up to date`);

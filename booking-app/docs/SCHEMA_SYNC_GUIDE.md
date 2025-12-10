@@ -40,8 +40,9 @@ The sync script uses a recursive merging algorithm that:
 
 - **Preserves existing values** - Never overwrites data that already exists
 - **Adds missing fields** - Automatically adds new fields with default values
-- **Handles nested objects** - Recursively merges layer by layer
-- **Merges array items** - For arrays with `__defaults__`, merges defaults into each item
+- **Removes extra fields** - Removes keys that don't exist in the template (ensures schema matches template exactly)
+- **Handles nested objects** - Recursively merges layer by layer, removing extra keys at all levels
+- **Merges array items** - For arrays with `__defaults__`, merges defaults into each item and removes extra keys from array items
 - **Skips arrays without defaults** - Uses existing array values as-is
 
 ### 3. Array Defaults with `__defaults__`
