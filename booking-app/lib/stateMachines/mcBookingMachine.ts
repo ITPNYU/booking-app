@@ -583,6 +583,26 @@ export const mcBookingMachine = setup({
         return false;
       }
 
+      // Special case: VIP bookings with services should go to "Services Request" state, not auto-approve
+      // This allows the "isVip AND servicesRequested" guard to catch them
+      if (context.isVip) {
+        const hasServices =
+          context.servicesRequested &&
+          typeof context.servicesRequested === "object"
+            ? Object.values(context.servicesRequested).some(Boolean)
+            : false;
+        
+        if (hasServices) {
+          console.log(
+            `🚫 XSTATE GUARD: VIP booking with services should go to Services Request, not auto-approve`
+          );
+          console.log(
+            `🎯 XSTATE AUTO-APPROVAL GUARD RESULT: REJECTED (VIP with services)`
+          );
+          return false;
+        }
+      }
+
       // Calculate duration if calendar info is available
       let durationHours: number | undefined;
       if (context.bookingCalendarInfo) {
