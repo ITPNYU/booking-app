@@ -17,7 +17,7 @@ on:
 
 jobs:
   sync-to-staging:
-    name: Sync tenantSchema to Staging
+    name: Dry Run - Analyze tenantSchema Sync to Staging
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/staging' || (github.event_name == 'workflow_dispatch' && github.event.inputs.target_environment == 'staging')
     steps:
@@ -43,22 +43,40 @@ jobs:
           FIREBASE_PRIVATE_KEY="${{ secrets.FIREBASE_PRIVATE_KEY }}"
           EOF
 
-      - name: Sync tenantSchema to Staging
+      - name: Dry Run - Analyze tenantSchema Sync to Staging
         working-directory: ./booking-app
         run: |
           node scripts/copyCollection.js \
             --source-database development \
             --target-database staging \
             --source-collection tenantSchema \
-            --target-collection tenantSchema
+            --target-collection tenantSchema \
+            --dry-run > dry-run-staging-output.txt 2>&1 || true
+        continue-on-error: true
 
-      - name: Sync Summary
-        if: always()
+      - name: Create Dry Run Report
+        working-directory: ./booking-app
         run: |
-          echo "✅ Tenant schema sync to staging completed"
+          echo "# Tenant Schema Sync Dry Run Report - Staging" > dry-run-staging-report.md
+          echo "" >> dry-run-staging-report.md
+          echo "**Generated:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> dry-run-staging-report.md
+          echo "**Source:** development → **Target:** staging" >> dry-run-staging-report.md
+          echo "**Collection:** tenantSchema" >> dry-run-staging-report.md
+          echo "" >> dry-run-staging-report.md
+          echo "## Output" >> dry-run-staging-report.md
+          echo "\`\`\`" >> dry-run-staging-report.md
+          cat dry-run-staging-output.txt >> dry-run-staging-report.md
+          echo "\`\`\`" >> dry-run-staging-report.md
+
+      - name: Upload Dry Run Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tenant-schema-dry-run-staging
+          path: booking-app/dry-run-staging-*.{txt,md}
+          retention-days: 30
 
   sync-to-production:
-    name: Sync tenantSchema to Production
+    name: Dry Run - Analyze tenantSchema Sync to Production
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/prod' || (github.event_name == 'workflow_dispatch' && github.event.inputs.target_environment == 'production')
     steps:
@@ -84,17 +102,35 @@ jobs:
           FIREBASE_PRIVATE_KEY="${{ secrets.FIREBASE_PRIVATE_KEY }}"
           EOF
 
-      - name: Sync tenantSchema to Production
+      - name: Dry Run - Analyze tenantSchema Sync to Production
         working-directory: ./booking-app
         run: |
           node scripts/copyCollection.js \
             --source-database development \
             --target-database production \
             --source-collection tenantSchema \
-            --target-collection tenantSchema
+            --target-collection tenantSchema \
+            --dry-run > dry-run-production-output.txt 2>&1 || true
+        continue-on-error: true
 
-      - name: Sync Summary
-        if: always()
+      - name: Create Dry Run Report
+        working-directory: ./booking-app
         run: |
-          echo "✅ Tenant schema sync to production completed"
+          echo "# Tenant Schema Sync Dry Run Report - Production" > dry-run-production-report.md
+          echo "" >> dry-run-production-report.md
+          echo "**Generated:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> dry-run-production-report.md
+          echo "**Source:** development → **Target:** production" >> dry-run-production-report.md
+          echo "**Collection:** tenantSchema" >> dry-run-production-report.md
+          echo "" >> dry-run-production-report.md
+          echo "## Output" >> dry-run-production-report.md
+          echo "\`\`\`" >> dry-run-production-report.md
+          cat dry-run-production-output.txt >> dry-run-production-report.md
+          echo "\`\`\`" >> dry-run-production-report.md
+
+      - name: Upload Dry Run Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tenant-schema-dry-run-production
+          path: booking-app/dry-run-production-*.{txt,md}
+          retention-days: 30
 

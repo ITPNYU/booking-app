@@ -17,6 +17,7 @@ const parseArgs = () => {
     targetCollection: null,
     sourceDatabase: "development",
     targetDatabase: "development",
+    dryRun: false,
   };
 
   for (let i = 0; i < args.length; i++) {
@@ -33,6 +34,9 @@ const parseArgs = () => {
       case "--target-database":
         options.targetDatabase = args[++i];
         break;
+      case "--dry-run":
+        options.dryRun = true;
+        break;
       case "--help":
         console.log(`
 Usage: node copyCollection.js [options]
@@ -44,6 +48,7 @@ Required Options:
 Optional Options:
   --source-database <env>        Source database environment (default: development)
   --target-database <env>        Target database environment (default: development)
+  --dry-run                      Perform a dry run without actually copying data
   --help                         Show this help message
 
 Examples:
@@ -169,12 +174,19 @@ const copyCollection = async (
   targetDb,
   sourceCollection,
   targetCollection,
-  databaseName
+  databaseName,
+  dryRun = false
 ) => {
   try {
-    console.log(
-      `\n🔄 Copying ${sourceCollection} to ${targetCollection} in ${databaseName}...`
-    );
+    if (dryRun) {
+      console.log(
+        `\n🔍 [DRY RUN] Analyzing ${sourceCollection} to ${targetCollection} in ${databaseName}...`
+      );
+    } else {
+      console.log(
+        `\n🔄 Copying ${sourceCollection} to ${targetCollection} in ${databaseName}...`
+      );
+    }
 
     // Test connection first
     const canConnect = await testDatabaseConnection(targetDb, databaseName);
@@ -204,6 +216,29 @@ const copyCollection = async (
     console.log(
       `📋 Found ${sourceSnapshot.size} ${sourceCollection} documents to copy`
     );
+
+    if (dryRun) {
+      // In dry-run mode, just analyze and report what would be copied
+      const documents = [];
+      for (const doc of sourceSnapshot.docs) {
+        const data = doc.data();
+        documents.push({
+          id: doc.id,
+          data: data,
+        });
+        console.log(`  📄 Would copy document: ${doc.id}`);
+      }
+      console.log(
+        `✅ [DRY RUN] Would copy ${sourceSnapshot.size} ${sourceCollection} documents to ${targetCollection} in ${databaseName}`
+      );
+      return { 
+        success: true, 
+        copied: sourceSnapshot.size, 
+        errors: [],
+        dryRun: true,
+        documents: documents
+      };
+    }
 
     // Copy documents in batches to avoid transaction size limits
     const BATCH_SIZE = 500; // Firestore limit is 500 operations per batch
@@ -296,7 +331,8 @@ const main = async () => {
       targetDb,
       options.sourceCollection,
       options.targetCollection,
-      DATABASES[options.targetDatabase]
+      DATABASES[options.targetDatabase],
+      options.dryRun
     );
     const results = [{ database: options.targetDatabase, ...result }];
 
