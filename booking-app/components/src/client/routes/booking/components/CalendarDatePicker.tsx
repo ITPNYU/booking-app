@@ -5,6 +5,8 @@ import { useContext, useEffect, useState } from "react";
 import { FormContextLevel } from "@/components/src/types";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { BookingContext } from "../bookingProvider";
+import { DatabaseContext } from "../../components/Provider";
+import { canAccessAdmin } from "@/components/src/utils/permissions";
 
 interface Props {
   handleChange: (x: Date) => void;
@@ -14,6 +16,10 @@ interface Props {
 export const CalendarDatePicker = ({ handleChange, formContext }: Props) => {
   const [date, setDate] = useState<Dayjs | null>(dayjs(new Date()));
   const { bookingCalendarInfo } = useContext(BookingContext);
+  const { pagePermission } = useContext(DatabaseContext);
+
+  // Only admins can change dates in modification mode
+  const isAdmin = canAccessAdmin(pagePermission);
 
   const handleDateChange = (newVal: Dayjs) => {
     setDate(newVal);
@@ -47,6 +53,7 @@ export const CalendarDatePicker = ({ handleChange, formContext }: Props) => {
         autoFocus
         disablePast
         shouldDisableDate={shouldDisableDate}
+        disabled={!isAdmin}
         showDaysOutsideCurrentMonth
       />
     </LocalizationProvider>
