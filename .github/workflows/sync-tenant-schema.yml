@@ -1,4 +1,6 @@
 name: Sync Tenant Schema
+permissions:
+  contents: read
 
 on:
   push:
