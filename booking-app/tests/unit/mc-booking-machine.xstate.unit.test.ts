@@ -240,7 +240,21 @@ describe("@xstate/test coverage for mcBookingMachine", () => {
         calendarEventId: "cal-auto-equip",
         email: "auto-equip@nyu.edu",
         bookingCalendarInfo: makeCalendarInfo(),
-        selectedRooms: [{ roomId: 202, shouldAutoApprove: true }],
+        selectedRooms: [{ 
+          roomId: 202, 
+          autoApproval: {
+            minHour: { admin: -1, faculty: -1, student: -1 },
+            maxHour: { admin: -1, faculty: -1, student: -1 },
+            conditions: {
+              setup: false,
+              equipment: true,
+              staffing: false,
+              catering: false,
+              cleaning: false,
+              security: false,
+            }
+          }
+        }],
         servicesRequested: { equipment: true },
         servicesApproved: { equipment: true },
         isWalkIn: true,
@@ -260,7 +274,7 @@ describe("@xstate/test coverage for mcBookingMachine", () => {
         calendarEventId: "cal-manual",
         email: "manual@nyu.edu",
         bookingCalendarInfo: makeCalendarInfo(),
-        selectedRooms: [{ roomId: 202, shouldAutoApprove: false }],
+        selectedRooms: [{ roomId: 202 }], // No autoApproval = disabled
         servicesRequested: { equipment: true, staff: true },
       },
       events: [
@@ -278,7 +292,7 @@ describe("@xstate/test coverage for mcBookingMachine", () => {
         calendarEventId: "cal-decline",
         email: "decline@nyu.edu",
         bookingCalendarInfo: makeCalendarInfo(),
-        selectedRooms: [{ roomId: 202, shouldAutoApprove: false }],
+        selectedRooms: [{ roomId: 202 }], // No autoApproval = disabled
         servicesRequested: { equipment: true },
       },
       events: [
@@ -295,7 +309,7 @@ describe("@xstate/test coverage for mcBookingMachine", () => {
         calendarEventId: "cal-cancel-after-approved",
         email: "cancel@nyu.edu",
         bookingCalendarInfo: makeCalendarInfo(),
-        selectedRooms: [{ roomId: 202, shouldAutoApprove: false }],
+        selectedRooms: [{ roomId: 202 }], // No autoApproval = disabled
         servicesRequested: { staff: true },
         servicesApproved: { staff: true },
       },
@@ -309,7 +323,7 @@ describe("@xstate/test coverage for mcBookingMachine", () => {
         calendarEventId: "cal-no-services",
         email: "noservices@nyu.edu",
         bookingCalendarInfo: makeCalendarInfo(),
-        selectedRooms: [{ roomId: 303, shouldAutoApprove: false }],
+        selectedRooms: [{ roomId: 303 }], // No autoApproval = disabled
       },
       events: [{ type: "approve" }, { type: "approve" }],
       expected: "Approved",
@@ -322,7 +336,7 @@ describe("@xstate/test coverage for mcBookingMachine", () => {
         calendarEventId: "cal-pre-decline",
         email: "predecline@nyu.edu",
         bookingCalendarInfo: makeCalendarInfo(),
-        selectedRooms: [{ roomId: 404, shouldAutoApprove: false }],
+        selectedRooms: [{ roomId: 404 }], // No autoApproval = disabled
       },
       events: [{ type: "approve" }, { type: "decline" }],
       expected: "Declined",
@@ -339,7 +353,7 @@ describe("@xstate/test coverage for mcBookingMachine", () => {
         calendarEventId: "cal-request-decline",
         email: "reqdecline@nyu.edu",
         bookingCalendarInfo: makeCalendarInfo(),
-        selectedRooms: [{ roomId: 505, shouldAutoApprove: false }],
+        selectedRooms: [{ roomId: 505 }], // No autoApproval = disabled
       },
       events: [{ type: "decline" }],
       expected: "Declined",
@@ -351,7 +365,21 @@ describe("@xstate/test coverage for mcBookingMachine", () => {
         calendarEventId: "cal-noshow",
         email: "noshow@nyu.edu",
         bookingCalendarInfo: makeCalendarInfo(),
-        selectedRooms: [{ roomId: 606, shouldAutoApprove: true }],
+        selectedRooms: [{ 
+          roomId: 606, 
+          autoApproval: {
+            minHour: { admin: -1, faculty: -1, student: -1 },
+            maxHour: { admin: -1, faculty: -1, student: -1 },
+            conditions: {
+              setup: false,
+              equipment: false,
+              staffing: false,
+              catering: false,
+              cleaning: false,
+              security: false,
+            }
+          }
+        }],
         isWalkIn: true,
       },
       events: [{ type: "noShow" }],
@@ -364,7 +392,21 @@ describe("@xstate/test coverage for mcBookingMachine", () => {
         calendarEventId: "cal-autoclose",
         email: "autoclose@nyu.edu",
         bookingCalendarInfo: makeCalendarInfo(),
-        selectedRooms: [{ roomId: 707, shouldAutoApprove: true }],
+        selectedRooms: [{ 
+          roomId: 707, 
+          autoApproval: {
+            minHour: { admin: -1, faculty: -1, student: -1 },
+            maxHour: { admin: -1, faculty: -1, student: -1 },
+            conditions: {
+              setup: false,
+              equipment: false,
+              staffing: false,
+              catering: false,
+              cleaning: false,
+              security: false,
+            }
+          }
+        }],
       },
       events: [{ type: "autoCloseScript" }],
       expected: "Closed",
@@ -376,7 +418,21 @@ describe("@xstate/test coverage for mcBookingMachine", () => {
         calendarEventId: "cal-cancel-noservices",
         email: "cancelnoservices@nyu.edu",
         bookingCalendarInfo: makeCalendarInfo(),
-        selectedRooms: [{ roomId: 808, shouldAutoApprove: true }],
+        selectedRooms: [{ 
+          roomId: 808, 
+          autoApproval: {
+            minHour: { admin: -1, faculty: -1, student: -1 },
+            maxHour: { admin: -1, faculty: -1, student: -1 },
+            conditions: {
+              setup: false,
+              equipment: false,
+              staffing: false,
+              catering: false,
+              cleaning: false,
+              security: false,
+            }
+          }
+        }],
       },
       events: [{ type: "cancel" }],
       expected: "Closed",
