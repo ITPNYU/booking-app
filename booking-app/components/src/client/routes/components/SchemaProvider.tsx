@@ -66,6 +66,7 @@ export type SchemaContextType = {
   supportVIP: boolean;
   supportWalkIn: boolean;
   resourceName: string;
+  declinedGracePeriod?: number;
   // Email messages for all scenarios
   emailMessages: {
     requestConfirmation: string;
@@ -104,6 +105,7 @@ export const SchemaContext = createContext<SchemaContextType>({
   supportVIP: false,
   supportWalkIn: false,
   resourceName: "",
+  declinedGracePeriod: 24,
   programMapping: {},
   roleMapping: {},
   schoolMapping: {},
