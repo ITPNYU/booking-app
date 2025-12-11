@@ -27,8 +27,10 @@ import { getBlackoutTimeRangeForDate } from "../../../../utils/blackoutUtils";
 import { DatabaseContext } from "../../components/Provider";
 import { BookingContext } from "../bookingProvider";
 import { useBookingDateRestrictions } from "../hooks/useBookingDateRestrictions";
-import { SLOT_UNIT, minutesToDurationString } from "@/components/src/constants/tenants";
+import { minutesToDurationString } from "@/components/src/constants/tenants";
 import { roundTimeUp } from "@/components/src/client/utils/date";
+import { DEFAULT_START_HOUR } from "../utils/getStartHour";
+import { DEFAULT_SLOT_UNIT } from "../utils/getSlotUnit";
 
 interface Props {
   calendarEventId?: string;
@@ -36,6 +38,7 @@ interface Props {
   rooms: RoomSetting[];
   dateView: Date;
   startHour?: string;
+  slotUnit?: number;
 }
 
 const FullCalendarWrapper = styled(Box)({
@@ -116,6 +119,7 @@ export default function CalendarVerticalResource({
   rooms,
   dateView,
   startHour,
+  slotUnit,
 }: Props) {
   const { operationHours, pagePermission } = useContext(DatabaseContext);
   const { getBlackoutPeriodsForDateAndRooms, isBookingTimeInBlackout } =
@@ -229,14 +233,14 @@ export default function CalendarVerticalResource({
     const blocks = rooms.map((room) => {
       // derive slot start from the date being viewed, using startHour from server data
       const start = new Date(dateView);
-      const [minHour, minMinute] = (startHour || "9:00:00")
+      const [minHour, minMinute] = (startHour || DEFAULT_START_HOUR)
         .split(":")
         .map((s) => parseInt(s, 10));
       start.setHours(Number.isFinite(minHour) ? minHour : 9);
       start.setMinutes(Number.isFinite(minMinute) ? minMinute : 0);
 
       // Use shared rounding helper so logic is centralized
-      const today = roundTimeUp();
+      const today = roundTimeUp(slotUnit ?? DEFAULT_SLOT_UNIT);
       return {
         start: start.toISOString(),
         end: today.toISOString(),
@@ -462,11 +466,11 @@ export default function CalendarVerticalResource({
         }
         eventDurationEditable={true}
         headerToolbar={false}
-        slotDuration={minutesToDurationString(SLOT_UNIT)}
-        snapDuration={minutesToDurationString(SLOT_UNIT)}
+        slotDuration={minutesToDurationString(slotUnit ?? DEFAULT_SLOT_UNIT)}
+        snapDuration={minutesToDurationString(slotUnit ?? DEFAULT_SLOT_UNIT)}
         slotLabelInterval={minutesToDurationString(60)}
         slotLabelContent={(arg) => ({ html: dayjs(arg.date).format("h A") })} // hour labels e.g. "9 AM"
-        slotMinTime={startHour ?? "9:00:00"}
+        slotMinTime={startHour ?? DEFAULT_START_HOUR}
         allDaySlot={false}
         aspectRatio={isMobile ? 0.5 : 1.5}
         expandRows={true}

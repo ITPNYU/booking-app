@@ -19,9 +19,6 @@ export const isValidTenant = (tenant: string): tenant is TenantValue => {
   return ALLOWED_TENANTS.includes(tenant as TenantValue);
 };
 
-// Calendar slot unit / increment in minutes
-export const SLOT_UNIT = 15;
-
 // Convert minutes to FullCalendar duration string (HH:MM:00 format)
 export function minutesToDurationString(minutes: number) {
   const hours = Math.floor(minutes / 60);

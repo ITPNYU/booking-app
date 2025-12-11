@@ -1,18 +1,15 @@
 import { FormContextLevel, Role } from "@/components/src/types";
 
-export const DEFAULT_START_HOUR = "09:00:00";
+const DEFAULT_SLOT_UNIT = 15;
 
 /**
  * Builds a calendar config key from formContext and role
- * @example buildConfigKey(FormContextLevel.VIP, Role.STUDENT) => "studentVIP"
- * @example buildConfigKey(FormContextLevel.WALK_IN, Role.ADMIN_STAFF) => "adminWalkIn"
- * @example buildConfigKey(FormContextLevel.FULL_FORM, Role.STUDENT) => "student"
+ * (same logic as getStartHour for consistency)
  */
 function buildConfigKey(
   formContext: FormContextLevel,
   role: Role | undefined
 ): string {
-  // Map Role to a lowercase prefix
   const rolePrefix = (() => {
     switch (role) {
       case Role.STUDENT:
@@ -24,11 +21,10 @@ function buildConfigKey(
       case Role.CHAIR_PROGRAM_DIRECTOR:
         return "admin";
       default:
-        return "student"; // fallback
+        return "student";
     }
   })();
 
-  // Determine suffix based on formContext
   switch (formContext) {
     case FormContextLevel.VIP:
       return `${rolePrefix}VIP`;
@@ -43,13 +39,13 @@ function buildConfigKey(
 }
 
 /**
- * Gets the startHour for a given form context and role from the tenant schema
- * @param calendarConfig - The calendarConfig from the schema with startHour map
+ * Gets the slotUnit (in minutes) for a given form context and role from the tenant schema
+ * @param calendarConfig - The calendarConfig from the schema with slotUnit map
  * @param formContext - The current form context (VIP, WALK_IN, etc.)
  * @param role - The user's role (Student, Faculty, Admin, etc.)
- * @returns The start hour (e.g., "06:00:00" or "09:00:00")
+ * @returns The slot unit in minutes (e.g., 15)
  */
-export function getStartHour(
+export function getSlotUnit(
   calendarConfig:
     | {
         startHour?: Record<string, string>;
@@ -58,11 +54,13 @@ export function getStartHour(
     | undefined,
   formContext: FormContextLevel,
   role: Role | undefined
-): string {
-  if (!calendarConfig?.startHour) {
-    return DEFAULT_START_HOUR;
+): number {
+  if (!calendarConfig?.slotUnit) {
+    return DEFAULT_SLOT_UNIT;
   }
 
   const key = buildConfigKey(formContext, role);
-  return calendarConfig.startHour[key] || DEFAULT_START_HOUR;
+  return calendarConfig.slotUnit[key] || DEFAULT_SLOT_UNIT;
 }
+
+export { DEFAULT_SLOT_UNIT };

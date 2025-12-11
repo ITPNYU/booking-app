@@ -66,9 +66,9 @@ export type SchemaContextType = {
   supportVIP: boolean;
   supportWalkIn: boolean;
   resourceName: string;
-  startHour?: {
-    isVIP?: string;
-    isStudent?: string;
+  calendarConfig: {
+    startHour: Record<string, string>; // e.g., { studentVIP: "06:00:00", student: "09:00:00", ... }
+    slotUnit: Record<string, number>; // e.g., { student: 15, admin: 15, ... }
   };
   // Email messages for all scenarios
   emailMessages: {
@@ -108,6 +108,30 @@ export const SchemaContext = createContext<SchemaContextType>({
   supportVIP: false,
   supportWalkIn: false,
   resourceName: "",
+  calendarConfig: {
+    startHour: {
+      student: "09:00:00",
+      studentVIP: "06:00:00",
+      studentWalkIn: "09:00:00",
+      faculty: "09:00:00",
+      facultyVIP: "09:00:00",
+      facultyWalkIn: "09:00:00",
+      admin: "09:00:00",
+      adminVIP: "06:00:00",
+      adminWalkIn: "09:00:00",
+    },
+    slotUnit: {
+      student: 15,
+      studentVIP: 15,
+      studentWalkIn: 15,
+      faculty: 15,
+      facultyVIP: 15,
+      facultyWalkIn: 15,
+      admin: 15,
+      adminVIP: 15,
+      adminWalkIn: 15,
+    },
+  },
   programMapping: {},
   roleMapping: {},
   schoolMapping: {},
