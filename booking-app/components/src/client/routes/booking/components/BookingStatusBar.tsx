@@ -55,10 +55,10 @@ export default function BookingStatusBar({ formContext, ...props }: Props) {
   } = useContext(BookingContext);
   const isOverlap = useCalculateOverlap();
   const schema = useTenantSchema();
-  const warningConfig = schema.warningMessage;
+  const timeSensitiveRequestWarning = schema.timeSensitiveRequestWarning;
   const pathname = usePathname();
   const isSelectRoomPage = pathname.endsWith("/selectRoom");
-  const warningThresholdHours = warningConfig?.minThreshold ?? 48;
+  const warningThresholdHours = timeSensitiveRequestWarning?.hours ?? 48;
   const bookingStart = bookingCalendarInfo?.start
     ? dayjs(bookingCalendarInfo.start)
     : null;
@@ -67,7 +67,7 @@ export default function BookingStatusBar({ formContext, ...props }: Props) {
     : null;
   const shouldShowWarning = Boolean(
     isSelectRoomPage &&
-      warningConfig?.isActive &&
+      timeSensitiveRequestWarning?.isActive &&
       bookingStart &&
       hoursUntilStart !== null &&
       hoursUntilStart >= 0 &&
@@ -281,18 +281,18 @@ export default function BookingStatusBar({ formContext, ...props }: Props) {
         <Box>{backBtn}</Box>
         <Box>
           {alert}
-          {shouldShowWarning && warningConfig?.message && (
+          {shouldShowWarning && timeSensitiveRequestWarning?.message && (
             <Alert
               severity="warning"
               variant="filled"
               sx={{ padding: "0px 16px", width: "100%", margin: "5px 0px" }}
             >
-              <span>{warningConfig.message}</span>
-              {warningConfig.policyLink && (
+              <span>{timeSensitiveRequestWarning.message}</span>
+              {timeSensitiveRequestWarning.policyLink && (
                 <span>
                   {" "}
                   <a
-                    href={warningConfig.policyLink}
+                    href={timeSensitiveRequestWarning.policyLink}
                     target="_blank"
                     rel="noopener noreferrer"
                   >
