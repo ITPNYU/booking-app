@@ -57,7 +57,7 @@ export default function BookingStatusBar({ formContext, ...props }: Props) {
   const schema = useTenantSchema();
   const warningConfig = schema.warningMessage;
   const pathname = usePathname();
-  const isSelectRoomPage = pathname.includes("/selectRoom");
+  const isSelectRoomPage = pathname.endsWith("/selectRoom");
   const warningThresholdHours = warningConfig?.minThreshold ?? 48;
   const bookingStart = bookingCalendarInfo?.start
     ? dayjs(bookingCalendarInfo.start)
