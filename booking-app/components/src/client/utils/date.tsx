@@ -74,13 +74,11 @@ export function roundTimeUp(slotUnit: number = DEFAULT_SLOT_UNIT) {
   }
 
   const roundedMinutes = minutes + (slotUnit - remainder);
+  const hourIncrement = Math.floor(roundedMinutes / 60);
+  const finalMinutes = roundedMinutes % 60;
 
-  if (roundedMinutes >= 60) {
-    now.setHours(now.getHours() + 1);
-    now.setMinutes(0);
-  } else {
-    now.setMinutes(roundedMinutes);
-  }
+  now.setHours(now.getHours() + hourIncrement);
+  now.setMinutes(finalMinutes);
 
   now.setSeconds(0);
   now.setMilliseconds(0);

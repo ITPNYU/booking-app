@@ -114,7 +114,7 @@ export const SchemaContext = createContext<SchemaContextType>({
       studentVIP: "06:00:00",
       studentWalkIn: "09:00:00",
       faculty: "09:00:00",
-      facultyVIP: "09:00:00",
+      facultyVIP: "06:00:00",
       facultyWalkIn: "09:00:00",
       admin: "09:00:00",
       adminVIP: "06:00:00",

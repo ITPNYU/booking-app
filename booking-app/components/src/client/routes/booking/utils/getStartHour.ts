@@ -1,46 +1,7 @@
 import { FormContextLevel, Role } from "@/components/src/types";
+import { buildCalendarConfigKey } from "./buildCalendarConfigKey";
 
 export const DEFAULT_START_HOUR = "09:00:00";
-
-/**
- * Builds a calendar config key from formContext and role
- * @example buildConfigKey(FormContextLevel.VIP, Role.STUDENT) => "studentVIP"
- * @example buildConfigKey(FormContextLevel.WALK_IN, Role.ADMIN_STAFF) => "adminWalkIn"
- * @example buildConfigKey(FormContextLevel.FULL_FORM, Role.STUDENT) => "student"
- */
-function buildConfigKey(
-  formContext: FormContextLevel,
-  role: Role | undefined
-): string {
-  // Map Role to a lowercase prefix
-  const rolePrefix = (() => {
-    switch (role) {
-      case Role.STUDENT:
-        return "student";
-      case Role.FACULTY:
-      case Role.RESIDENT_FELLOW:
-        return "faculty";
-      case Role.ADMIN_STAFF:
-      case Role.CHAIR_PROGRAM_DIRECTOR:
-        return "admin";
-      default:
-        return "student"; // fallback
-    }
-  })();
-
-  // Determine suffix based on formContext
-  switch (formContext) {
-    case FormContextLevel.VIP:
-      return `${rolePrefix}VIP`;
-    case FormContextLevel.WALK_IN:
-      return `${rolePrefix}WalkIn`;
-    case FormContextLevel.FULL_FORM:
-    case FormContextLevel.EDIT:
-    case FormContextLevel.MODIFICATION:
-    default:
-      return rolePrefix;
-  }
-}
 
 /**
  * Gets the startHour for a given form context and role from the tenant schema
@@ -63,6 +24,6 @@ export function getStartHour(
     return DEFAULT_START_HOUR;
   }
 
-  const key = buildConfigKey(formContext, role);
+  const key = buildCalendarConfigKey(formContext, role);
   return calendarConfig.startHour[key] || DEFAULT_START_HOUR;
 }

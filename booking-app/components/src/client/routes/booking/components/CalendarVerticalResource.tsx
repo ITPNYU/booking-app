@@ -252,7 +252,7 @@ export default function CalendarVerticalResource({
       };
     });
     return blocks;
-  }, [rooms, formContext, dateView, startHour]);
+  }, [rooms, formContext, dateView, startHour, slotUnit]);
 
   const handleEventSelect = (selectInfo: DateSelectArg) => {
     // Check if the selection overlaps with any blackout periods before setting booking info
