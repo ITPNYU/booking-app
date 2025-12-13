@@ -122,7 +122,7 @@ export default function useSortBookingHistory(booking: BookingRow) {
               <TableCell>{row.user}</TableCell>
               <TableCell>
                 {formatDateTable(row.time.toDate())}{" "}
-                {formatTimeAmPm(row.time.toDate())}
+                {formatTimeAmPm(row.time.toDate())} ET
               </TableCell>
               <TableCell>{row.note}</TableCell>
             </TableRow>
