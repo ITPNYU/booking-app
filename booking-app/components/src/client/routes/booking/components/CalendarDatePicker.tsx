@@ -48,7 +48,8 @@ export const CalendarDatePicker = ({ handleChange, formContext }: Props) => {
       // Use Eastern timezone when showing the selected date
       handleDateChange(dayjs.tz(bookingCalendarInfo.start, TIMEZONE));
     }
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run on mount - handleChange is stable from props
 
   if (formContext === FormContextLevel.WALK_IN) {
     return <div />;
