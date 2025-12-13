@@ -474,7 +474,7 @@ export default function MoreInfoModal({
                   </TableCell>
                 </TableRow>
                 <TableRow>
-                  <LabelCell>Time (ET)</LabelCell>
+                  <LabelCell>Time</LabelCell>
                   <TableCell>
                     {booking.startDate && booking.endDate
                       ? `${formatTimeAmPm(booking.startDate.toDate())} - ${formatTimeAmPm(booking.endDate.toDate())} ET`
