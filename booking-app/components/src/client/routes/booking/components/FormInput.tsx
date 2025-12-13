@@ -225,9 +225,19 @@ export default function FormInput({
   const expectedAttendanceValue = watch("expectedAttendance");
   const isLargeEvent = parseInt(expectedAttendanceValue || "0") >= 75;
 
+  // Track if hireSecurity was auto-set by attendance logic
+  const hireSecurityWasAutoSet = useRef(false);
+
   useEffect(() => {
     if (isLargeEvent) {
       setValue("hireSecurity", "yes", { shouldValidate: true });
+      hireSecurityWasAutoSet.current = true;
+    } else {
+      // Only reset if it was auto-set previously
+      if (hireSecurityWasAutoSet.current) {
+        setValue("hireSecurity", "", { shouldValidate: true });
+        hireSecurityWasAutoSet.current = false;
+      }
     }
   }, [isLargeEvent, setValue]);
 
@@ -308,7 +318,7 @@ export default function FormInput({
 
       return true;
     },
-    [userEmail, fetchSponsorByNetId]
+    [userEmail, fetchSponsorByNetId, roleMapping]
   );
 
   // Watch the sponsor Net ID field specifically
@@ -350,7 +360,7 @@ export default function FormInput({
 
       return true;
     },
-    [userEmail, sponsorApiData]
+    [userEmail, sponsorApiData, roleMapping]
   );
 
   useEffect(() => {

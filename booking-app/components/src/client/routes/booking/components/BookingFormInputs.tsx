@@ -154,13 +154,23 @@ export function BookingFormTextField(props: TextFieldProps) {
       rules={{
         required: required && `${label} is required`,
         validate: (value) => {
+          // If field is not required and empty, allow it
+          if (!required && (!value || value.trim().length === 0)) return true;
+          
+          // Check for whitespace-only values
           if (value && typeof value === "string" && value.trim().length === 0) {
             return `${label} cannot be empty whitespace`;
           }
-          if (!required) return true;
-          const isNotEmpty = value?.trim().length > 0;
-          const isValid = validate(value);
-          return (isNotEmpty && isValid) || `${label} is required`;
+          
+          // For required fields, check if value is valid
+          if (required) {
+            const isNotEmpty = value?.trim().length > 0;
+            const isValid = validate(value);
+            return (isNotEmpty && isValid) || `${label} is required`;
+          }
+          
+          // For optional fields with a value, run custom validation
+          return validate(value);
         },
         pattern,
       }}
