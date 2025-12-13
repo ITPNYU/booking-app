@@ -177,9 +177,6 @@ export default function FormInput({
     resolver: undefined,
   });
 
-  const expectedAttendance = watch("expectedAttendance");
-  const [isSecurityLocked, setIsSecurityLocked] = useState(false);
-
   // different from other switches b/c services don't have yes/no columns in DB
   const [showEquipmentServices, setShowEquipmentServices] = useState(false);
   const [showStaffingServices, setShowStaffingServices] = useState(false);
@@ -224,6 +221,15 @@ export default function FormInput({
       }, 0),
     [selectedRooms]
   );
+
+  const expectedAttendanceValue = watch("expectedAttendance");
+  const isLargeEvent = parseInt(expectedAttendanceValue || "0") >= 75;
+
+  useEffect(() => {
+    if (isLargeEvent) {
+      setValue("hireSecurity", "yes", { shouldValidate: true });
+    }
+  }, [isLargeEvent, setValue]);
 
   const validateExpectedAttendance = useCallback(
     (value: string) => {
@@ -585,9 +591,14 @@ export default function FormInput({
             id="hireSecurity"
             label="Security?"
             required={false}
-            disabled={isSecurityLocked}
+            disabled={isLargeEvent}
             description={
               <p>
+                {isLargeEvent && (
+                  <span style={{ display: "block", marginBottom: "4px", fontWeight: 500 }}>
+                    Security is required for events with more than 75 attendees.
+                  </span>
+                )}
                 Only for large events with 75+ attendees, and bookings in The
                 Garage where the Willoughby entrance will be in use. It is
                 required for the reservation holder to provide a chartfield so
