@@ -138,6 +138,7 @@ export default function FormInput({
     trigger,
     watch,
     reset,
+    setValue,
     formState: { errors, isValid },
   } = useForm<Inputs>({
     defaultValues: {
@@ -175,6 +176,9 @@ export default function FormInput({
     mode: "onBlur",
     resolver: undefined,
   });
+
+  const expectedAttendance = watch("expectedAttendance");
+  const [isSecurityLocked, setIsSecurityLocked] = useState(false);
 
   // different from other switches b/c services don't have yes/no columns in DB
   const [showEquipmentServices, setShowEquipmentServices] = useState(false);
@@ -238,6 +242,17 @@ export default function FormInput({
     },
     [maxCapacity]
   );
+
+  // Security logic for high attendance
+  useEffect(() => {
+    const attendance = parseInt(expectedAttendance);
+    if (!isNaN(attendance) && attendance >= 75) {
+      setValue("hireSecurity", "yes");
+      setIsSecurityLocked(true);
+    } else {
+      setIsSecurityLocked(false);
+    }
+  }, [expectedAttendance, setValue]);
 
   // Add a state to store sponsor API data
   const [sponsorApiData, setSponsorApiData] = useState<UserApiData | null>(
@@ -437,6 +452,7 @@ export default function FormInput({
               <BookingFormTextField
                 id="chartFieldForRoomSetup"
                 label="ChartField for Room Setup"
+                required={true}
                 {...{ control, errors, trigger }}
               />
             </>
@@ -535,6 +551,7 @@ export default function FormInput({
               <BookingFormTextField
                 id="chartFieldForCatering"
                 label="ChartField for Catering Services"
+                required={true}
                 {...{ control, errors, trigger }}
               />
             </>
@@ -556,6 +573,7 @@ export default function FormInput({
             <BookingFormTextField
               id="chartFieldForCleaning"
               label="ChartField for CBS Cleaning Services"
+              required={true}
               {...{ control, errors, trigger }}
             />
           )}
@@ -567,6 +585,7 @@ export default function FormInput({
             id="hireSecurity"
             label="Security?"
             required={false}
+            disabled={isSecurityLocked}
             description={
               <p>
                 Only for large events with 75+ attendees, and bookings in The
@@ -582,6 +601,7 @@ export default function FormInput({
             <BookingFormTextField
               id="chartFieldForSecurity"
               label="ChartField for Security"
+              required={true}
               {...{ control, errors, trigger }}
             />
           )}

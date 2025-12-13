@@ -183,6 +183,7 @@ export function BookingFormTextField(props: TextFieldProps) {
 
 interface SwitchProps extends Props {
   description?: React.ReactElement;
+  disabled?: boolean;
 }
 
 export function BookingFormSwitch(props: SwitchProps) {
@@ -193,6 +194,7 @@ export function BookingFormSwitch(props: SwitchProps) {
     required = true,
     control,
     trigger,
+    disabled = false,
   } = props;
 
   const desc =
@@ -221,6 +223,7 @@ export function BookingFormSwitch(props: SwitchProps) {
                   field.onChange(e.target.checked ? "yes" : "no")
                 }
                 onBlur={() => trigger(id)}
+                disabled={disabled}
               />
             }
           />
