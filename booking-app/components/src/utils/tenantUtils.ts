@@ -45,9 +45,13 @@ export const getTenantFlags = (tenant?: string) => {
  */
 export const getMediaCommonsServices = (data: any) => {
   return {
-    setup: !!data.roomSetup && data.roomSetup !== "no",
     staff: !!data.staffingServicesDetails && data.staffingServicesDetails !== "no",
-    equipment: !!data.equipmentServices && data.equipmentServices !== "no",
+    setup: !!data.setupDetails && data.setupDetails !== "no",
+    equipment:
+      (!!data.mediaServices && data.mediaServices !== "no") ||
+      (!!data.equipmentServices && data.equipmentServices !== "no") ||
+      (!!data.equipmentServicesDetails &&
+        data.equipmentServicesDetails !== "no"),
     catering: !!data.catering && data.catering !== "no",
     cleaning: !!data.cleaningService && data.cleaningService !== "no",
     security: !!data.hireSecurity && data.hireSecurity !== "no",

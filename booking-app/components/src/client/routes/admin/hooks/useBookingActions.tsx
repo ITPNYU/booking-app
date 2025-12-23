@@ -340,12 +340,11 @@ export default function useBookingActions({
         ) {
           options.push(Actions.CANCEL);
         }
-        // Allow editing for REQUESTED, DECLINED, or PRE-APPROVED bookings
-        // Note: In production, you may want to restrict editing past events
+        // Show Edit action for users in editable states (before final approval)
         if (
           status === BookingStatusLabel.REQUESTED ||
-          status === BookingStatusLabel.DECLINED ||
-          status === BookingStatusLabel.PRE_APPROVED
+          status === BookingStatusLabel.PRE_APPROVED ||
+          status === BookingStatusLabel.DECLINED
         ) {
           options.push(Actions.EDIT);
         }
@@ -804,5 +803,5 @@ export default function useBookingActions({
     return allOptions;
   };
 
-  return { actions, updateActions, options };
+  return { actions, updateActions, options, servicesApproved };
 }
