@@ -44,29 +44,6 @@ export default function useCheckAutoApproval(isWalkIn = false, isVIP = false) {
     setErrorMessage(msg);
   };
 
-  console.log(
-    `🔍 AUTO-APPROVAL CHECK [${schema.tenant?.toUpperCase() || "UNKNOWN"}]:`,
-    {
-      tenant: schema.tenant,
-      isWalkIn,
-      selectedRoomsCount: selectedRooms?.length || 0,
-      selectedRooms: selectedRooms?.map((r) => ({
-        roomId: r.roomId,
-        name: r.name,
-        shouldAutoApprove: r.shouldAutoApprove,
-      })),
-      formData: {
-        roomSetup: formData?.roomSetup,
-        mediaServices: formData?.mediaServices,
-        catering: formData?.catering,
-        hireSecurity: formData?.hireSecurity,
-      },
-      bookingDuration: bookingCalendarInfo
-        ? `${((bookingCalendarInfo.end.getTime() - bookingCalendarInfo.start.getTime()) / (1000 * 60 * 60)).toFixed(1)} hours`
-        : "Not set",
-    }
-  );
-
   useEffect(() => {
     // For ITP and Media Commons tenants, use XState machine for auto-approval logic
     if (schema.tenant === TENANTS.ITP || isMediaCommonsTenant(schema.tenant)) {
@@ -308,21 +285,6 @@ export default function useCheckAutoApproval(isWalkIn = false, isVIP = false) {
     schema.tenant, // Added tenant to dependencies
     isWalkIn, // Added isWalkIn to dependencies
   ]);
-
-  console.log(
-    `📋 AUTO-APPROVAL RESULT [${schema.tenant?.toUpperCase() || "UNKNOWN"}]:`,
-    {
-      isAutoApproval,
-      errorMessage,
-      finalDecision: isAutoApproval ? "APPROVED" : "REJECTED",
-      usingXState:
-        schema.tenant === TENANTS.ITP || isMediaCommonsTenant(schema.tenant),
-      method:
-        schema.tenant === TENANTS.ITP || isMediaCommonsTenant(schema.tenant)
-          ? "XState Machine"
-          : "Traditional Logic",
-    }
-  );
 
   return { isAutoApproval, errorMessage };
 }
