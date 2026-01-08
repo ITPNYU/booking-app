@@ -13,7 +13,6 @@ const SCOPES = [
   "https://www.googleapis.com/auth/userinfo.email",
   "https://www.googleapis.com/auth/spreadsheets",
   "https://www.googleapis.com/auth/logging.write",
-  "https://www.googleapis.com/auth/forms.responses.readonly",
 ];
 
 const oauth2Client = new google.auth.OAuth2(
