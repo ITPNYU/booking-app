@@ -378,7 +378,7 @@ export const DatabaseProvider = ({
     }
   };
 
-  const fetchSafetyTrainedUsers = async (resourceId?: string) => {
+  const fetchSafetyTrainedUsers = async () => {
     try {
       if (applyE2EMockSafetyUsers(setSafetyTrainedUsers)) {
         return;
@@ -402,30 +402,20 @@ export const DatabaseProvider = ({
         firestoreUsers.length
       );
 
-      // Fetch data from Google Form responses
-      const response = await fetch("/api/safety_training_form", {
+      // Fetch data from spreadsheet
+      const response = await fetch("/api/safety_training_users", {
         headers: {
           "x-tenant": tenant || DEFAULT_TENANT,
-          ...(resourceId && { "x-resource-id": resourceId }),
         },
       });
       if (!response.ok) {
-        // Get the error details from the response
-        const errorData = await response.json();
-        console.log("Safety training form API error:", {
-          status: response.status,
-          statusText: response.statusText,
-          error: errorData.error,
-          details: errorData.details,
-          code: errorData.code
-        });
-        throw new Error(errorData.error || "Failed to fetch authorized emails from form responses");
+        throw new Error("Failed to fetch authorized emails from spreadsheet");
       }
-      const formData = await response.json();
+      const spreadsheetData = await response.json();
 
       console.log(
-        "FETCHED SAFETY TRAINED EMAILS FROM FORM:",
-        formData.emails.length
+        "FETCHED SAFETY TRAINED EMAILS FROM SPREADSHEET:",
+        spreadsheetData.emails.length
       );
       const currentDate = new Date().toISOString();
 
@@ -437,8 +427,8 @@ export const DatabaseProvider = ({
         userMap.set(user.email, user);
       });
 
-      // Add or update form response users
-      formData.emails.forEach((email: string) => {
+      // Add or update spreadsheet users
+      spreadsheetData.emails.forEach((email: string) => {
         if (!userMap.has(email)) {
           userMap.set(email, {
             id: email,
@@ -451,17 +441,8 @@ export const DatabaseProvider = ({
       // Convert map back to array
       const mergedUsers = Array.from(userMap.values());
       setSafetyTrainedUsers(mergedUsers);
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error fetching safety trained users:", error);
-      
-      // Use Firestore data as fallback if available
-      if (error?.response) {
-        const responseData = await error.response.json();
-        console.error("API Error:", responseData.error);
-      }
-      
-      // Set safety trained users to empty array on error
-      setSafetyTrainedUsers([]);
     }
   };
 
@@ -549,20 +530,12 @@ export const DatabaseProvider = ({
 
       // Convert schema resources to RoomSetting format
       const filtered = schema.resources.map((resource: any) => ({
-        ...resource,
         id: resource.roomId.toString(), // Use roomId as id
         roomId: resource.roomId,
         name: resource.name,
         capacity: resource.capacity.toString(),
         calendarId: resource.calendarId,
-        needsSafetyTraining: resource.needsSafetyTraining || false,
-        shouldAutoApprove: resource.shouldAutoApprove || false,
-        isWalkIn: resource.isWalkIn || false,
-        isWalkInCanBookTwo: resource.isWalkInCanBookTwo || false,
-        isEquipment: resource.isEquipment || false,
-        services: resource.services || [],
-        staffingServices: resource.staffingServices,
-        staffingSections: resource.staffingSections,
+        ...resource,
       }));
 
       filtered.sort((a, b) => a.roomId - b.roomId);
