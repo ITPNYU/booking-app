@@ -149,7 +149,7 @@ export async function PUT(request: NextRequest) {
       endDateObj,
       statusLabel,
       data.requestNumber ?? existingContents.requestNumber,
-      "modification",
+      existingBookingData.origin || BookingOrigin.USER,
     );
 
     const description =
@@ -196,8 +196,14 @@ export async function PUT(request: NextRequest) {
       calendarEventId: newCalendarEventId,
       equipmentCheckedOut: false,
       requestedAt: Timestamp.now(),
-      origin: BookingOrigin.USER,
+      origin: existingBookingData.origin || BookingOrigin.USER,
     };
+
+    console.log(`✅ PRESERVED ORIGIN FOR MODIFICATION [${tenant?.toUpperCase()}]:`, {
+      calendarEventId: newCalendarEventId,
+      originalOrigin: existingBookingData.origin,
+      newOrigin: updatedData.origin,
+    });
 
     // Preserve approval timestamps from existing booking
     if (existingBookingData.finalApprovedAt) {

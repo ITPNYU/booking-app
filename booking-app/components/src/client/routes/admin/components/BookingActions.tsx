@@ -130,7 +130,7 @@ export default function BookingActions(props: Props) {
     ) {
       return (
         <ConfirmDialog
-          message="Are you sure? This action can't be undone."
+          message="Are you sure? This action can't be undone. This will be counted as a Late Cancelation if canceled less than 24 hours before the reservation start time."
           callback={handleDialogChoice}
         >
           <IconButton
@@ -163,8 +163,18 @@ export default function BookingActions(props: Props) {
       calendarEventId,
       allBookings,
     });
-    return shouldDisable ? [Actions.CHECK_IN] : [];
-  }, [pageContext, startDate, allBookings, calendarEventId]);
+    const disabled = shouldDisable ? [Actions.CHECK_IN] : [];
+
+    // Disable Edit action for users when status is not REQUESTED or DECLINED, or when booking is in the past
+    if (pageContext === PageContextLevel.USER) {
+      const isEditDisabled = status !== BookingStatusLabel.DECLINED;
+      if (isEditDisabled) {
+        disabled.push(Actions.EDIT);
+      }
+    }
+
+    return disabled;
+  }, [pageContext, startDate, allBookings, calendarEventId, status]);
 
   if (options().length === 0) {
     return <></>;
