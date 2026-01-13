@@ -3,10 +3,10 @@ import dayjs, { Dayjs } from "dayjs";
 import { useContext, useEffect, useState } from "react";
 
 import { FormContextLevel } from "@/components/src/types";
-import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
-import { BookingContext } from "../bookingProvider";
-import { DatabaseContext } from "../../components/Provider";
 import { canAccessAdmin } from "@/components/src/utils/permissions";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import { DatabaseContext } from "../../components/Provider";
+import { BookingContext } from "../bookingProvider";
 
 interface Props {
   handleChange: (x: Date) => void;
@@ -53,7 +53,7 @@ export const CalendarDatePicker = ({ handleChange, formContext }: Props) => {
         autoFocus
         disablePast
         shouldDisableDate={shouldDisableDate}
-        disabled={!isAdmin}
+        disabled={formContext === FormContextLevel.MODIFICATION && !isAdmin}
         showDaysOutsideCurrentMonth
       />
     </LocalizationProvider>
