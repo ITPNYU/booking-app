@@ -124,7 +124,13 @@ export const bookingContentsToDescription = async (
   description += listItem("N-Number", getProperty(bookingContents, "nNumber"));
   description += listItem(
     "Secondary Contact",
-    getProperty(bookingContents, "secondaryName")
+    `${getProperty(bookingContents, "secondaryFirstName")} ${getProperty(bookingContents, "secondaryLastName")}`.trim() ||
+      getProperty(bookingContents, "secondaryName") ||
+      ""
+  );
+  description += listItem(
+    "Secondary Contact Email",
+    getProperty(bookingContents, "secondaryEmail")
   );
   description += listItem(
     "Sponsor Name",
