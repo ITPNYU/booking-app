@@ -309,11 +309,6 @@ const parseDescription = (
   // Set origin to pregame
   bookingDetails.origin = BookingOrigin.PREGAME;
 
-  console.log("📋 Parsed Services for Xstate:", {
-    servicesRequested: bookingDetails.servicesRequested,
-    rawValues: { roomSetup, equipment, staffing, catering, cleaning, security },
-  });
-
   return bookingDetails;
 };
 const isPregameEvent = (title: string, description): boolean => {
@@ -488,7 +483,6 @@ export async function POST(request: NextRequest) {
             orderBy: "startTime",
             pageToken: pageToken,
           });
-          console.log("events", events);
 
           for (const event of events.data.items || []) {
             //Skip not pregame events
@@ -613,7 +607,15 @@ export async function POST(request: NextRequest) {
 
                   // Start the actor to trigger initial state evaluation
                   bookingActor.start();
+
+                  // For pregame bookings, immediately move to Pre-approved state
+                  bookingActor.send({ type: "approve" });
+
                   const currentState = bookingActor.getSnapshot();
+
+                  console.log(
+                    `✅ PREGAME BOOKING XSTATE INITIALIZED: ${currentState.value}`,
+                  );
 
                   // Clean context by removing undefined values for Firestore compatibility (deep clean)
                   const cleanContext = cleanObjectForFirestore(
