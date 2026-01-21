@@ -405,9 +405,13 @@ export async function POST(request: NextRequest) {
   try {
     const calendar = await getCalendarClient();
 
-    // Get dryRun parameter from request body
+    // Get dryRun parameter from query params or request body
+    const { searchParams } = new URL(request.url);
     const body = await request.json().catch(() => ({}));
-    const dryRun = body.dryRun === true;
+    const dryRun =
+      searchParams.get("dryRun") === "true" || body.dryRun === true;
+
+    console.log("🔍 DRY RUN MODE:", dryRun);
 
     // Get tenant from request
     const tenant = extractTenantFromRequest(request);
