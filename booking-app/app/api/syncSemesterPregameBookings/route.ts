@@ -88,7 +88,9 @@ const findRoomIds = (title: string, description?: string): string => {
     const roomRegex = /•\s*Room\(s\):\s*([^\n•]+)/i;
     const roomMatch = description.match(roomRegex);
     if (roomMatch) {
-      return roomMatch[1].trim();
+      // Remove HTML tags from room IDs
+      const cleanRoomIds = roomMatch[1].trim().replace(/<[^>]*>/g, "");
+      return cleanRoomIds;
     }
   }
 
@@ -155,7 +157,14 @@ const parseDescription = (
     };
   } = {
     additionalEmails: [],
-    servicesRequested: {},
+    servicesRequested: {
+      setup: false,
+      equipment: false,
+      staff: false,
+      catering: false,
+      cleaning: false,
+      security: false,
+    },
   };
 
   // Helper function to extract field value from new format and remove HTML tags
@@ -268,21 +277,29 @@ const parseDescription = (
   const roomSetup = extractFieldValue("Room Setup");
   const hasRoomSetup = roomSetup.toLowerCase() === "true";
   bookingDetails.roomSetup = hasRoomSetup ? "yes" : "";
+  bookingDetails.setupDetails = hasRoomSetup ? "yes" : ""; // For getMediaCommonsServices
   bookingDetails.servicesRequested.setup = hasRoomSetup;
 
   const equipment = extractFieldValue("Equipment");
   const hasEquipment = equipment && equipment.toLowerCase() !== "none";
-  bookingDetails.equipmentServices = hasEquipment ? equipment : "";
+  // If equipment value is just "Equipment", treat it as "Checkout Equipment"
+  const equipmentValue = hasEquipment
+    ? equipment.toLowerCase() === "equipment"
+      ? "Checkout Equipment"
+      : equipment
+    : "";
+  bookingDetails.equipmentServices = equipmentValue;
   bookingDetails.servicesRequested.equipment = hasEquipment;
 
   // Still maintain mediaServices for compatibility
   if (hasEquipment) {
-    bookingDetails.mediaServices = equipment;
+    bookingDetails.mediaServices = equipmentValue;
   }
 
   const staffing = extractFieldValue("Staffing");
   const hasStaffing = staffing && staffing.toLowerCase() !== "none";
   bookingDetails.staffingServices = hasStaffing ? staffing : "";
+  bookingDetails.staffingServicesDetails = hasStaffing ? staffing : ""; // For getMediaCommonsServices
   bookingDetails.servicesRequested.staff = hasStaffing;
 
   const catering = extractFieldValue("Catering");
@@ -392,6 +409,7 @@ const createBookingWithDefaults = (
     equipmentServices: "",
     staffingServices: "",
     hireSecurity: "",
+    cleaningService: "",
 
     ...partialBooking,
   };
@@ -558,8 +576,15 @@ export async function POST(request: NextRequest) {
                   ? guestEmails[0].replace(/<[^>]*>/g, "").trim()
                   : "";
                 const cleanEmail = getGuestEmail(rawEmail);
+
+                // Remove servicesRequested from parsedDetails (only needed in XState context)
+                const {
+                  servicesRequested: _,
+                  ...parsedDetailsWithoutServices
+                } = parsedDetails;
+
                 const newBooking = createBookingWithDefaults({
-                  ...parsedDetails,
+                  ...parsedDetailsWithoutServices,
                   title: sanitizedTitle,
                   email: cleanEmail,
                   startDate: toFirebaseTimestampFromString(
@@ -643,9 +668,20 @@ export async function POST(request: NextRequest) {
                     calendarEventId,
                     initialState: currentState.value,
                     servicesRequested: parsedDetails.servicesRequested,
+                    contextServicesRequested: cleanContext.servicesRequested,
+                    xstateContextServicesRequested:
+                      currentState.context.servicesRequested,
                   });
 
-                  const newTitle = `[${BookingStatusLabel.PRE_APPROVED}] ${event.summary}`;
+                  // Add [PRE_APPROVED] prefix if not already present
+                  let newTitle = event.summary;
+                  if (
+                    !newTitle.startsWith("[") &&
+                    !newTitle.includes(`[${BookingStatusLabel.PRE_APPROVED}]`)
+                  ) {
+                    newTitle = `[${BookingStatusLabel.PRE_APPROVED}] ${newTitle}`;
+                  }
+
                   const bookingDocRef = await db
                     .collection(bookingCollection)
                     .add({
