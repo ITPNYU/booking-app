@@ -1,6 +1,6 @@
 import { getBookingHourLimits } from "@/components/src/client/routes/booking/utils/bookingHourLimits";
 import { TENANTS } from "@/components/src/constants/tenants";
-import { Role } from "@/components/src/types";
+import { BookingOrigin, Role } from "@/components/src/types";
 import { BookingLogger } from "@/lib/logger/bookingLogger";
 import { and, assign, setup } from "xstate";
 
@@ -572,8 +572,6 @@ export const mcBookingMachine = setup({
   },
   guards: {
     shouldAutoApprove: ({ context }) => {
-
-
       // If this is a newly created XState (converted from existing booking without XState data), don't auto-approve
       // This prevents auto-approval when converting existing bookings to XState
       if (context._restoredFromStatus) {
@@ -679,7 +677,6 @@ export const mcBookingMachine = setup({
           return false;
         }
       } else if (!context.isWalkIn && !context.isVip) {
-
         return false;
       }
 
@@ -872,8 +869,7 @@ export const mcBookingMachine = setup({
       return approved;
     },
     isPregameOrigin: ({ context }) => {
-      const isPregame =
-        context.origin === "pre-game" || context.origin === "pregame";
+      const isPregame = context.origin === BookingOrigin.PREGAME;
       console.log(`🎯 XSTATE GUARD: isPregameOrigin: ${isPregame}`, {
         origin: context.origin,
       });
@@ -1614,8 +1610,7 @@ export const mcBookingMachine = setup({
             tenant: context.tenant,
             timestamp: new Date().toISOString(),
             origin: context.origin,
-            isPregame:
-              context.origin === "pre-game" || context.origin === "pregame",
+            isPregame: context.origin === BookingOrigin.PREGAME,
           });
         },
         {
