@@ -13,8 +13,9 @@ import admin from "@/lib/firebase/server/firebaseAdmin";
 import { getCalendarClient } from "@/lib/googleClient";
 import { mcBookingMachine } from "@/lib/stateMachines/mcBookingMachine";
 import { Timestamp } from "firebase/firestore";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createActor } from "xstate";
+import { extractTenantFromRequest } from "../bookings/shared";
 
 const db = admin.firestore();
 
@@ -374,7 +375,7 @@ const createBookingWithDefaults = (
   };
 };
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     const calendar = await getCalendarClient();
 
@@ -382,8 +383,8 @@ export async function POST(request: Request) {
     const body = await request.json().catch(() => ({}));
     const dryRun = body.dryRun === true;
 
-    // Get tenant from request headers or default to 'mc'
-    const tenant = request.headers.get("x-tenant") || "mc";
+    // Get tenant from request
+    const tenant = extractTenantFromRequest(request);
 
     // Get resources from tenant schema instead of collection
     const schema = await serverGetDocumentById(
