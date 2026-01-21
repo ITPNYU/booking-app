@@ -18,6 +18,28 @@ import { createActor } from "xstate";
 
 const db = admin.firestore();
 
+// Helper function to check if we're in development environment
+const isDevelopmentEnvironment = (): boolean => {
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "";
+  return (
+    baseUrl.includes("localhost") ||
+    baseUrl.includes("127.0.0.1") ||
+    baseUrl.includes("dev") ||
+    process.env.NODE_ENV === "development"
+  );
+};
+
+// Get the appropriate email for the environment
+const getGuestEmail = (originalEmail: string): string => {
+  if (isDevelopmentEnvironment()) {
+    console.log(
+      `🔧 DEV ENVIRONMENT: Overriding email ${originalEmail} → booking-app@itp.nyu.edu`,
+    );
+    return "booking-app@itp.nyu.edu";
+  }
+  return originalEmail;
+};
+
 const parseEmails = (emailString: string): string[] => {
   // Match all email addresses that end with @nyu.edu
   const emailRegex = /[a-zA-Z0-9._%+-]+@nyu\.edu/g;
@@ -450,9 +472,10 @@ export async function POST(request: Request) {
                 );
 
                 const calendarEventId = event.id;
-                const cleanEmail = guestEmails[0]
+                const rawEmail = guestEmails[0]
                   ? guestEmails[0].replace(/<[^>]*>/g, "").trim()
                   : "";
+                const cleanEmail = getGuestEmail(rawEmail);
 
                 if (!dryRun) {
                   // Add [PRE_APPROVED]
@@ -484,9 +507,10 @@ export async function POST(request: Request) {
                 console.log("guestEmails[0]", guestEmails[0]);
 
                 const calendarEventId = event.id;
-                const cleanEmail = guestEmails[0]
+                const rawEmail = guestEmails[0]
                   ? guestEmails[0].replace(/<[^>]*>/g, "").trim()
                   : "";
+                const cleanEmail = getGuestEmail(rawEmail);
                 const newBooking = createBookingWithDefaults({
                   ...parsedDetails,
                   title: sanitizedTitle,
