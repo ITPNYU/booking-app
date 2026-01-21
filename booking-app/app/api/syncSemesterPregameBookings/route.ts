@@ -416,6 +416,21 @@ export async function POST(request: NextRequest) {
     // Get tenant from request
     const tenant = extractTenantFromRequest(request);
 
+    // This API is only for Media Commons tenant
+    if (tenant !== TENANTS.MC) {
+      console.error(
+        `❌ SYNC PREGAME BOOKINGS: Unsupported tenant "${tenant}". This API only supports Media Commons (${TENANTS.MC}) tenant.`,
+      );
+      return NextResponse.json(
+        {
+          error: `This API only supports Media Commons (${TENANTS.MC}) tenant. Current tenant: ${tenant}`,
+        },
+        { status: 400 },
+      );
+    }
+
+    console.log("✅ Tenant validation passed: Media Commons");
+
     // Get resources from tenant schema instead of collection
     const schema = await serverGetDocumentById(
       TableNames.TENANT_SCHEMA,
