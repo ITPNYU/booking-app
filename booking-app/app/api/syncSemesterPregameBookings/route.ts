@@ -1,5 +1,6 @@
 import { toFirebaseTimestampFromString } from "@/components/src/client/utils/serverDate";
-import { TableNames } from "@/components/src/policy";
+import { TENANTS } from "@/components/src/constants/tenants";
+import { TableNames, getTenantCollectionName } from "@/components/src/policy";
 import {
   Booking,
   BookingOrigin,
@@ -450,6 +451,12 @@ export async function POST(request: NextRequest) {
     // For dry-run: collect information about what would be processed
     const dryRunResults: any[] = [];
 
+    // Get tenant-specific booking collection name once
+    const bookingCollection = getTenantCollectionName(
+      TableNames.BOOKING,
+      TENANTS.MC,
+    );
+
     const now = new Date();
     const oneMonthsAgo = new Date(now.getFullYear(), now.getMonth(), 1);
     const fifthMonthsLater = new Date(
@@ -492,7 +499,7 @@ export async function POST(request: NextRequest) {
             );
             if (isPregameEvent(event.summary, event.description)) {
               const bookingRef = db
-                .collection("bookings")
+                .collection(bookingCollection)
                 .where("calendarEventId", "==", event.id);
               const bookingSnapshot = await bookingRef.get();
               const description = event.description || "";
@@ -506,7 +513,7 @@ export async function POST(request: NextRequest) {
               const sanitizedTitle = title.replace(/^\[.*?\]\s*/, ""); // `[PRE_APPROVED]` を削除
 
               const existingBookingSnapshot = await db
-                .collection("bookings")
+                .collection(bookingCollection)
                 .where("title", "==", sanitizedTitle)
                 .where("startDate", "==", startDate)
                 .get();
@@ -638,7 +645,7 @@ export async function POST(request: NextRequest) {
 
                   const newTitle = `[${BookingStatusLabel.PRE_APPROVED}] ${event.summary}`;
                   const bookingDocRef = await db
-                    .collection(TableNames.BOOKING)
+                    .collection(bookingCollection)
                     .add({
                       ...newBooking,
                       xstateData,
