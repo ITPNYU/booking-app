@@ -41,6 +41,32 @@ const getGuestEmail = (originalEmail: string): string => {
   return originalEmail;
 };
 
+// Clean object by removing undefined values for Firestore compatibility
+function cleanObjectForFirestore(obj: any): any {
+  if (obj === null || obj === undefined) {
+    return null;
+  }
+
+  if (typeof obj !== "object") {
+    return obj;
+  }
+
+  if (Array.isArray(obj)) {
+    return obj
+      .map(item => cleanObjectForFirestore(item))
+      .filter(item => item !== undefined);
+  }
+
+  const cleaned: any = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (value !== undefined) {
+      cleaned[key] = cleanObjectForFirestore(value);
+    }
+  }
+
+  return cleaned;
+}
+
 const parseEmails = (emailString: string): string[] => {
   // Match all email addresses that end with @nyu.edu
   const emailRegex = /[a-zA-Z0-9._%+-]+@nyu\.edu/g;
@@ -528,6 +554,7 @@ export async function POST(request: NextRequest) {
                 });
 
                 if (dryRun) {
+                  console.log("dryRun");
                   dryRunResults.push(newBooking);
                   totalNewBookings++;
                 } else {
@@ -562,11 +589,9 @@ export async function POST(request: NextRequest) {
                   bookingActor.start();
                   const currentState = bookingActor.getSnapshot();
 
-                  // Clean context by removing undefined values for Firestore compatibility
-                  const cleanContext = Object.fromEntries(
-                    Object.entries(currentState.context).filter(
-                      ([_, value]) => value !== undefined,
-                    ),
+                  // Clean context by removing undefined values for Firestore compatibility (deep clean)
+                  const cleanContext = cleanObjectForFirestore(
+                    currentState.context,
                   );
 
                   // Create XState data for persistence
@@ -576,9 +601,13 @@ export async function POST(request: NextRequest) {
                     snapshot: {
                       status: currentState.status,
                       value: currentState.value,
-                      historyValue: currentState.historyValue || {},
+                      historyValue: cleanObjectForFirestore(
+                        currentState.historyValue || {},
+                      ),
                       context: cleanContext,
-                      children: currentState.children || {},
+                      children: cleanObjectForFirestore(
+                        currentState.children || {},
+                      ),
                     },
                   };
 

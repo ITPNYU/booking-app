@@ -572,20 +572,7 @@ export const mcBookingMachine = setup({
   },
   guards: {
     shouldAutoApprove: ({ context }) => {
-      console.log(
-        `🎯 XSTATE AUTO-APPROVAL GUARD STARTED [${context.tenant?.toUpperCase() || "UNKNOWN"}]:`,
-        {
-          context,
-          tenant: context.tenant,
-          selectedRooms: context.selectedRooms?.length || 0,
-          formData: context.formData,
-          bookingDuration: context.bookingCalendarInfo
-            ? `${((new Date(context.bookingCalendarInfo.endStr).getTime() - new Date(context.bookingCalendarInfo.startStr).getTime()) / (1000 * 60 * 60)).toFixed(1)} hours`
-            : "Not set",
-          isWalkIn: context.isWalkIn,
-          isVip: context.isVip,
-        }
-      );
+
 
       // If this is a newly created XState (converted from existing booking without XState data), don't auto-approve
       // This prevents auto-approval when converting existing bookings to XState
@@ -692,13 +679,7 @@ export const mcBookingMachine = setup({
           return false;
         }
       } else if (!context.isWalkIn && !context.isVip) {
-        // If no rooms selected and not a walk-in or VIP, require manual approval
-        console.log(
-          `🚫 XSTATE GUARD: No rooms selected and not walk-in/VIP, requires manual approval`
-        );
-        console.log(
-          `🎯 XSTATE AUTO-APPROVAL GUARD RESULT: REJECTED (No rooms selected)`
-        );
+
         return false;
       }
 
