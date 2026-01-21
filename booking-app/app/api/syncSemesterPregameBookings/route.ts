@@ -4,7 +4,6 @@ import {
   Booking,
   BookingOrigin,
   BookingStatusLabel,
-  MediaServices,
 } from "@/components/src/types";
 import {
   serverGetDocumentById,
@@ -12,8 +11,10 @@ import {
 } from "@/lib/firebase/server/adminDb";
 import admin from "@/lib/firebase/server/firebaseAdmin";
 import { getCalendarClient } from "@/lib/googleClient";
+import { mcBookingMachine } from "@/lib/stateMachines/mcBookingMachine";
 import { Timestamp } from "firebase/firestore";
 import { NextResponse } from "next/server";
+import { createActor } from "xstate";
 
 const db = admin.firestore();
 
@@ -81,9 +82,30 @@ const getRequesterEmails = (description: string): string[] => {
 
 const parseDescription = (
   description: string,
-): Partial<Booking> & { additionalEmails: string[] } => {
-  const bookingDetails: Partial<Booking> & { additionalEmails: string[] } = {
+): Partial<Booking> & {
+  additionalEmails: string[];
+  servicesRequested: {
+    staff?: boolean;
+    equipment?: boolean;
+    catering?: boolean;
+    cleaning?: boolean;
+    security?: boolean;
+    setup?: boolean;
+  };
+} => {
+  const bookingDetails: Partial<Booking> & {
+    additionalEmails: string[];
+    servicesRequested: {
+      staff?: boolean;
+      equipment?: boolean;
+      catering?: boolean;
+      cleaning?: boolean;
+      security?: boolean;
+      setup?: boolean;
+    };
+  } = {
     additionalEmails: [],
+    servicesRequested: {},
   };
 
   // Helper function to extract field value from new format and remove HTML tags
@@ -194,44 +216,53 @@ const parseDescription = (
 
   // Parse Services section - record all fields individually
   const roomSetup = extractFieldValue("Room Setup");
-  bookingDetails.roomSetup = roomSetup !== "none" ? roomSetup : "";
-  // Note: roomSetup field is used for both Yes/No flag and actual value
+  const hasRoomSetup = roomSetup.toLowerCase() === "true";
+  bookingDetails.roomSetup = hasRoomSetup ? "yes" : "";
+  bookingDetails.servicesRequested.setup = hasRoomSetup;
 
   const equipment = extractFieldValue("Equipment");
-  bookingDetails.equipmentServices = equipment !== "none" ? equipment : "";
+  const hasEquipment = equipment && equipment.toLowerCase() !== "none";
+  bookingDetails.equipmentServices = hasEquipment ? equipment : "";
+  bookingDetails.servicesRequested.equipment = hasEquipment;
 
   // Still maintain mediaServices for compatibility
-  let mediaServicesArray: MediaServices[] = [];
-  if (equipment && equipment !== "none") {
+  if (hasEquipment) {
     bookingDetails.mediaServices = equipment;
   }
 
   const staffing = extractFieldValue("Staffing");
-  bookingDetails.staffingServices = staffing !== "none" ? staffing : "";
-
-  if (staffing && staffing !== "none") {
-    bookingDetails.staffingServices = staffing;
-  }
-
-  // Set media services if any were requested (for compatibility)
-  if (mediaServicesArray.length > 0) {
-    bookingDetails.mediaServices = mediaServicesArray.join(",");
-  }
+  const hasStaffing = staffing && staffing.toLowerCase() !== "none";
+  bookingDetails.staffingServices = hasStaffing ? staffing : "";
+  bookingDetails.servicesRequested.staff = hasStaffing;
 
   const catering = extractFieldValue("Catering");
-  bookingDetails.catering = catering !== "none" ? catering : "";
-  if (catering && catering !== "none") {
+  const hasCatering = catering.toLowerCase() === "true";
+  bookingDetails.catering = hasCatering ? "yes" : "";
+  if (hasCatering) {
     bookingDetails.cateringService = catering;
   }
+  bookingDetails.servicesRequested.catering = hasCatering;
 
   const cleaning = extractFieldValue("Cleaning");
-  bookingDetails.cleaning = cleaning !== "none" ? cleaning : "";
+  const hasCleaning = cleaning.toLowerCase() === "true";
+  bookingDetails.cleaning = hasCleaning ? "yes" : "";
+  if (hasCleaning) {
+    bookingDetails.cleaningService = cleaning;
+  }
+  bookingDetails.servicesRequested.cleaning = hasCleaning;
 
   const security = extractFieldValue("Security");
-  bookingDetails.hireSecurity = security !== "none" ? security : "";
+  const hasSecurity = security.toLowerCase() === "true";
+  bookingDetails.hireSecurity = hasSecurity ? "yes" : "";
+  bookingDetails.servicesRequested.security = hasSecurity;
 
   // Set origin to pregame
   bookingDetails.origin = BookingOrigin.PREGAME;
+
+  console.log("📋 Parsed Services for Xstate:", {
+    servicesRequested: bookingDetails.servicesRequested,
+    rawValues: { roomSetup, equipment, staffing, catering, cleaning, security },
+  });
 
   return bookingDetails;
 };
@@ -404,7 +435,7 @@ export async function POST(request: Request) {
                 event.start?.dateTime,
               ) as Timestamp;
               const title = event.summary;
-              const sanitizedTitle = title.replace(/^\[.*?\]\s*/, ""); // `[PENDING]` を削除
+              const sanitizedTitle = title.replace(/^\[.*?\]\s*/, ""); // `[PRE_APPROVED]` を削除
 
               const existingBookingSnapshot = await db
                 .collection("bookings")
@@ -424,12 +455,12 @@ export async function POST(request: Request) {
                   : "";
 
                 if (!dryRun) {
-                  // Add [PENDING]
+                  // Add [PRE_APPROVED]
                   if (
                     !title.startsWith("[") &&
-                    !title.includes(`[${BookingStatusLabel.PENDING}]`)
+                    !title.includes(`[${BookingStatusLabel.PRE_APPROVED}]`)
                   ) {
-                    const newTitle = `[${BookingStatusLabel.PENDING}] ${title}`;
+                    const newTitle = `[${BookingStatusLabel.PRE_APPROVED}] ${title}`;
                     console.log(
                       `Renaming existing event title from "${title}" to "${newTitle}".`,
                     );
@@ -476,11 +507,68 @@ export async function POST(request: Request) {
                   totalNewBookings++;
                 } else {
                   console.log("newBooking", newBooking);
-                  const newTitle = `[${BookingStatusLabel.PENDING}] ${event.summary}`;
+
+                  // Initialize Xstate for pregame booking
+                  console.log("🎭 INITIALIZING XSTATE FOR PREGAME BOOKING", {
+                    calendarEventId,
+                    servicesRequested: parsedDetails.servicesRequested,
+                    origin: BookingOrigin.PREGAME,
+                  });
+
+                  // Create XState actor for pregame booking
+                  const bookingActor = createActor(mcBookingMachine, {
+                    input: {
+                      tenant,
+                      formData: newBooking,
+                      bookingCalendarInfo: {
+                        startStr: event.start?.dateTime,
+                        endStr: event.end?.dateTime,
+                      },
+                      isWalkIn: false,
+                      calendarEventId: calendarEventId || "",
+                      email: cleanEmail,
+                      isVip: false,
+                      servicesRequested: parsedDetails.servicesRequested,
+                      origin: BookingOrigin.PREGAME,
+                    },
+                  });
+
+                  // Start the actor to trigger initial state evaluation
+                  bookingActor.start();
+                  const currentState = bookingActor.getSnapshot();
+
+                  // Clean context by removing undefined values for Firestore compatibility
+                  const cleanContext = Object.fromEntries(
+                    Object.entries(currentState.context).filter(
+                      ([_, value]) => value !== undefined,
+                    ),
+                  );
+
+                  // Create XState data for persistence
+                  const xstateData = {
+                    machineId: "MC Booking Request",
+                    lastTransition: new Date().toISOString(),
+                    snapshot: {
+                      status: currentState.status,
+                      value: currentState.value,
+                      historyValue: currentState.historyValue || {},
+                      context: cleanContext,
+                      children: currentState.children || {},
+                    },
+                  };
+
+                  console.log("✅ XSTATE INITIALIZED FOR PREGAME:", {
+                    calendarEventId,
+                    initialState: currentState.value,
+                    servicesRequested: parsedDetails.servicesRequested,
+                  });
+
+                  const newTitle = `[${BookingStatusLabel.PRE_APPROVED}] ${event.summary}`;
                   const bookingDocRef = await db
                     .collection(TableNames.BOOKING)
                     .add({
                       ...newBooking,
+                      xstateData,
                       requestedAt: admin.firestore.FieldValue.serverTimestamp(),
                       firstApprovedAt:
                         admin.firestore.FieldValue.serverTimestamp(),
