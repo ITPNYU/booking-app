@@ -136,11 +136,12 @@ export const SchemaContext = createContext<SchemaContextType>({
       adminVIP: 15,
       adminWalkIn: 15,
     },
-  timeSensitiveRequestWarning: {
-    hours: 48,
-    isActive: false,
-    message: "",
-    policyLink: "",
+    timeSensitiveRequestWarning: {
+      hours: 48,
+      isActive: false,
+      message: "",
+      policyLink: "",
+    },
   },
   programMapping: {},
   roleMapping: {},
