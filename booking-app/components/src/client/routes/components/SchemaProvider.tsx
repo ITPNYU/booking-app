@@ -69,6 +69,11 @@ export type SchemaContextType = {
   calendarConfig: {
     startHour: Record<string, string>; // e.g., { studentVIP: "06:00:00", student: "09:00:00", ... }
     slotUnit: Record<string, number>; // e.g., { student: 15, admin: 15, ... }
+  timeSensitiveRequestWarning?: {
+    hours?: number; // hours
+    isActive?: boolean;
+    message?: string;
+    policyLink?: string;
   };
   // Email messages for all scenarios
   emailMessages: {
@@ -131,6 +136,11 @@ export const SchemaContext = createContext<SchemaContextType>({
       adminVIP: 15,
       adminWalkIn: 15,
     },
+  timeSensitiveRequestWarning: {
+    hours: 48,
+    isActive: false,
+    message: "",
+    policyLink: "",
   },
   programMapping: {},
   roleMapping: {},
