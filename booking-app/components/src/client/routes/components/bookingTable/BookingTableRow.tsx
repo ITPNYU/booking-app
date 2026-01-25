@@ -83,7 +83,7 @@ export default function BookingTableRow({
         topText={formatDateTable(booking.startDate.toDate())}
         bottomText={`${formatTimeAmPm(booking.startDate.toDate())} - ${formatTimeAmPm(
           booking.endDate.toDate()
-        )}`}
+        )} ET`}
       />
       <TableCell sx={{ maxWidth: "150px" }}>{booking.roomId}</TableCell>
       {!isUserView && (
