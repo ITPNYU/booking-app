@@ -66,6 +66,12 @@ export type SchemaContextType = {
   supportVIP: boolean;
   supportWalkIn: boolean;
   resourceName: string;
+  timeSensitiveRequestWarning?: {
+    hours?: number; // hours
+    isActive?: boolean;
+    message?: string;
+    policyLink?: string;
+  };
   // Email messages for all scenarios
   emailMessages: {
     requestConfirmation: string;
@@ -104,6 +110,12 @@ export const SchemaContext = createContext<SchemaContextType>({
   supportVIP: false,
   supportWalkIn: false,
   resourceName: "",
+  timeSensitiveRequestWarning: {
+    hours: 48,
+    isActive: false,
+    message: "",
+    policyLink: "",
+  },
   programMapping: {},
   roleMapping: {},
   schoolMapping: {},
