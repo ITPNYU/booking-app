@@ -1,10 +1,10 @@
 import { toFirebaseTimestampFromString } from "@/components/src/client/utils/serverDate";
-import { TENANTS } from "@/components/src/constants/tenants";
-import { TableNames, getTenantCollectionName } from "@/components/src/policy";
+import { TableNames } from "@/components/src/policy";
 import {
   Booking,
   BookingOrigin,
   BookingStatusLabel,
+  MediaServices,
 } from "@/components/src/types";
 import {
   serverGetDocumentById,
@@ -12,61 +12,10 @@ import {
 } from "@/lib/firebase/server/adminDb";
 import admin from "@/lib/firebase/server/firebaseAdmin";
 import { getCalendarClient } from "@/lib/googleClient";
-import { mcBookingMachine } from "@/lib/stateMachines/mcBookingMachine";
 import { Timestamp } from "firebase/firestore";
-import { NextRequest, NextResponse } from "next/server";
-import { createActor } from "xstate";
-import { extractTenantFromRequest } from "../bookings/shared";
+import { NextResponse } from "next/server";
 
 const db = admin.firestore();
-
-// Helper function to check if we're in development environment
-const isDevelopmentEnvironment = (): boolean => {
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "";
-  return (
-    baseUrl.includes("localhost") ||
-    baseUrl.includes("127.0.0.1") ||
-    baseUrl.includes("dev") ||
-    process.env.NODE_ENV === "development"
-  );
-};
-
-// Get the appropriate email for the environment
-const getGuestEmail = (originalEmail: string): string => {
-  if (isDevelopmentEnvironment()) {
-    console.log(
-      `🔧 DEV ENVIRONMENT: Overriding email ${originalEmail} → booking-app@itp.nyu.edu`,
-    );
-    return "booking-app@itp.nyu.edu";
-  }
-  return originalEmail;
-};
-
-// Clean object by removing undefined values for Firestore compatibility
-function cleanObjectForFirestore(obj: any): any {
-  if (obj === null || obj === undefined) {
-    return null;
-  }
-
-  if (typeof obj !== "object") {
-    return obj;
-  }
-
-  if (Array.isArray(obj)) {
-    return obj
-      .map(item => cleanObjectForFirestore(item))
-      .filter(item => item !== undefined);
-  }
-
-  const cleaned: any = {};
-  for (const [key, value] of Object.entries(obj)) {
-    if (value !== undefined) {
-      cleaned[key] = cleanObjectForFirestore(value);
-    }
-  }
-
-  return cleaned;
-}
 
 const parseEmails = (emailString: string): string[] => {
   // Match all email addresses that end with @nyu.edu
@@ -88,9 +37,7 @@ const findRoomIds = (title: string, description?: string): string => {
     const roomRegex = /•\s*Room\(s\):\s*([^\n•]+)/i;
     const roomMatch = description.match(roomRegex);
     if (roomMatch) {
-      // Remove HTML tags and clean up the room IDs
-      const roomIds = roomMatch[1].replace(/<[^>]*>/g, "").trim();
-      return roomIds;
+      return roomMatch[1].trim();
     }
   }
 
@@ -134,37 +81,9 @@ const getRequesterEmails = (description: string): string[] => {
 
 const parseDescription = (
   description: string,
-): Partial<Booking> & {
-  additionalEmails: string[];
-  servicesRequested: {
-    staff?: boolean;
-    equipment?: boolean;
-    catering?: boolean;
-    cleaning?: boolean;
-    security?: boolean;
-    setup?: boolean;
-  };
-} => {
-  const bookingDetails: Partial<Booking> & {
-    additionalEmails: string[];
-    servicesRequested: {
-      staff?: boolean;
-      equipment?: boolean;
-      catering?: boolean;
-      cleaning?: boolean;
-      security?: boolean;
-      setup?: boolean;
-    };
-  } = {
+): Partial<Booking> & { additionalEmails: string[] } => {
+  const bookingDetails: Partial<Booking> & { additionalEmails: string[] } = {
     additionalEmails: [],
-    servicesRequested: {
-      setup: false,
-      equipment: false,
-      staff: false,
-      catering: false,
-      cleaning: false,
-      security: false,
-    },
   };
 
   // Helper function to extract field value from new format and remove HTML tags
@@ -177,9 +96,6 @@ const parseDescription = (
     if (!match) return "";
 
     let value = match[1].trim();
-
-    // Remove HTML tags from the value
-    value = value.replace(/<[^>]*>/g, "").trim();
 
     // If the value contains only "none" (case insensitive), return "none"
     if (value.toLowerCase().replace(/\s+/g, "") === "none") {
@@ -278,53 +194,41 @@ const parseDescription = (
 
   // Parse Services section - record all fields individually
   const roomSetup = extractFieldValue("Room Setup");
-  const hasRoomSetup = roomSetup.toLowerCase() === "true";
-  bookingDetails.roomSetup = hasRoomSetup ? "yes" : "";
-  bookingDetails.setupDetails = hasRoomSetup ? "yes" : ""; // For getMediaCommonsServices
-  bookingDetails.servicesRequested.setup = hasRoomSetup;
+  bookingDetails.roomSetup = roomSetup !== "none" ? roomSetup : "";
+  // Note: roomSetup field is used for both Yes/No flag and actual value
 
   const equipment = extractFieldValue("Equipment");
-  const hasEquipment = equipment && equipment.toLowerCase() !== "none";
-  // If equipment value is just "Equipment", treat it as "Checkout Equipment"
-  const equipmentValue = hasEquipment
-    ? equipment.toLowerCase() === "equipment"
-      ? "Checkout Equipment"
-      : equipment
-    : "";
-  bookingDetails.equipmentServices = equipmentValue;
-  bookingDetails.servicesRequested.equipment = hasEquipment;
+  bookingDetails.equipmentServices = equipment !== "none" ? equipment : "";
 
   // Still maintain mediaServices for compatibility
-  if (hasEquipment) {
-    bookingDetails.mediaServices = equipmentValue;
+  let mediaServicesArray: MediaServices[] = [];
+  if (equipment && equipment !== "none") {
+    bookingDetails.mediaServices = equipment;
   }
 
   const staffing = extractFieldValue("Staffing");
-  const hasStaffing = staffing && staffing.toLowerCase() !== "none";
-  bookingDetails.staffingServices = hasStaffing ? staffing : "";
-  bookingDetails.staffingServicesDetails = hasStaffing ? staffing : ""; // For getMediaCommonsServices
-  bookingDetails.servicesRequested.staff = hasStaffing;
+  bookingDetails.staffingServices = staffing !== "none" ? staffing : "";
+
+  if (staffing && staffing !== "none") {
+    bookingDetails.staffingServices = staffing;
+  }
+
+  // Set media services if any were requested (for compatibility)
+  if (mediaServicesArray.length > 0) {
+    bookingDetails.mediaServices = mediaServicesArray.join(",");
+  }
 
   const catering = extractFieldValue("Catering");
-  const hasCatering = catering.toLowerCase() === "true";
-  bookingDetails.catering = hasCatering ? "yes" : "";
-  if (hasCatering) {
+  bookingDetails.catering = catering !== "none" ? catering : "";
+  if (catering && catering !== "none") {
     bookingDetails.cateringService = catering;
   }
-  bookingDetails.servicesRequested.catering = hasCatering;
 
   const cleaning = extractFieldValue("Cleaning");
-  const hasCleaning = cleaning.toLowerCase() === "true";
-  bookingDetails.cleaning = hasCleaning ? "yes" : "";
-  if (hasCleaning) {
-    bookingDetails.cleaningService = cleaning;
-  }
-  bookingDetails.servicesRequested.cleaning = hasCleaning;
+  bookingDetails.cleaning = cleaning !== "none" ? cleaning : "";
 
   const security = extractFieldValue("Security");
-  const hasSecurity = security.toLowerCase() === "true";
-  bookingDetails.hireSecurity = hasSecurity ? "yes" : "";
-  bookingDetails.servicesRequested.security = hasSecurity;
+  bookingDetails.hireSecurity = security !== "none" ? security : "";
 
   // Set origin to pregame
   bookingDetails.origin = BookingOrigin.PREGAME;
@@ -412,41 +316,21 @@ const createBookingWithDefaults = (
     equipmentServices: "",
     staffingServices: "",
     hireSecurity: "",
-    cleaningService: "",
 
     ...partialBooking,
   };
 };
 
-export async function POST(request: NextRequest) {
+export async function POST(request: Request) {
   try {
     const calendar = await getCalendarClient();
 
-    // Get dryRun parameter from query params or request body
-    const { searchParams } = new URL(request.url);
+    // Get dryRun parameter from request body
     const body = await request.json().catch(() => ({}));
-    const dryRun =
-      searchParams.get("dryRun") === "true" || body.dryRun === true;
+    const dryRun = body.dryRun === true;
 
-    console.log("🔍 DRY RUN MODE:", dryRun);
-
-    // Get tenant from request
-    const tenant = extractTenantFromRequest(request);
-
-    // This API is only for Media Commons tenant
-    if (tenant !== TENANTS.MC) {
-      console.error(
-        `❌ SYNC PREGAME BOOKINGS: Unsupported tenant "${tenant}". This API only supports Media Commons (${TENANTS.MC}) tenant.`,
-      );
-      return NextResponse.json(
-        {
-          error: `This API only supports Media Commons (${TENANTS.MC}) tenant. Current tenant: ${tenant}`,
-        },
-        { status: 400 },
-      );
-    }
-
-    console.log("✅ Tenant validation passed: Media Commons");
+    // Get tenant from request headers or default to 'mc'
+    const tenant = request.headers.get("x-tenant") || "mc";
 
     // Get resources from tenant schema instead of collection
     const schema = await serverGetDocumentById(
@@ -466,12 +350,6 @@ export async function POST(request: NextRequest) {
 
     // For dry-run: collect information about what would be processed
     const dryRunResults: any[] = [];
-
-    // Get tenant-specific booking collection name once
-    const bookingCollection = getTenantCollectionName(
-      TableNames.BOOKING,
-      TENANTS.MC,
-    );
 
     const now = new Date();
     const oneMonthsAgo = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -504,6 +382,7 @@ export async function POST(request: NextRequest) {
             orderBy: "startTime",
             pageToken: pageToken,
           });
+          console.log("events", events);
 
           for (const event of events.data.items || []) {
             //Skip not pregame events
@@ -514,7 +393,7 @@ export async function POST(request: NextRequest) {
             );
             if (isPregameEvent(event.summary, event.description)) {
               const bookingRef = db
-                .collection(bookingCollection)
+                .collection("bookings")
                 .where("calendarEventId", "==", event.id);
               const bookingSnapshot = await bookingRef.get();
               const description = event.description || "";
@@ -525,10 +404,10 @@ export async function POST(request: NextRequest) {
                 event.start?.dateTime,
               ) as Timestamp;
               const title = event.summary;
-              const sanitizedTitle = title.replace(/^\[.*?\]\s*/, ""); // `[PRE_APPROVED]` を削除
+              const sanitizedTitle = title.replace(/^\[.*?\]\s*/, ""); // `[PENDING]` を削除
 
               const existingBookingSnapshot = await db
-                .collection(bookingCollection)
+                .collection("bookings")
                 .where("title", "==", sanitizedTitle)
                 .where("startDate", "==", startDate)
                 .get();
@@ -540,18 +419,17 @@ export async function POST(request: NextRequest) {
                 );
 
                 const calendarEventId = event.id;
-                const rawEmail = guestEmails[0]
+                const cleanEmail = guestEmails[0]
                   ? guestEmails[0].replace(/<[^>]*>/g, "").trim()
                   : "";
-                const cleanEmail = getGuestEmail(rawEmail);
 
                 if (!dryRun) {
-                  // Add [PRE_APPROVED]
+                  // Add [PENDING]
                   if (
                     !title.startsWith("[") &&
-                    !title.includes(`[${BookingStatusLabel.PRE_APPROVED}]`)
+                    !title.includes(`[${BookingStatusLabel.PENDING}]`)
                   ) {
-                    const newTitle = `[${BookingStatusLabel.PRE_APPROVED}] ${title}`;
+                    const newTitle = `[${BookingStatusLabel.PENDING}] ${title}`;
                     console.log(
                       `Renaming existing event title from "${title}" to "${newTitle}".`,
                     );
@@ -575,19 +453,11 @@ export async function POST(request: NextRequest) {
                 console.log("guestEmails[0]", guestEmails[0]);
 
                 const calendarEventId = event.id;
-                const rawEmail = guestEmails[0]
+                const cleanEmail = guestEmails[0]
                   ? guestEmails[0].replace(/<[^>]*>/g, "").trim()
                   : "";
-                const cleanEmail = getGuestEmail(rawEmail);
-
-                // Remove servicesRequested from parsedDetails (only needed in XState context)
-                const {
-                  servicesRequested: _,
-                  ...parsedDetailsWithoutServices
-                } = parsedDetails;
-
                 const newBooking = createBookingWithDefaults({
-                  ...parsedDetailsWithoutServices,
+                  ...parsedDetails,
                   title: sanitizedTitle,
                   email: cleanEmail,
                   startDate: toFirebaseTimestampFromString(
@@ -602,94 +472,15 @@ export async function POST(request: NextRequest) {
                 });
 
                 if (dryRun) {
-                  console.log("dryRun");
                   dryRunResults.push(newBooking);
                   totalNewBookings++;
                 } else {
                   console.log("newBooking", newBooking);
-
-                  // Initialize Xstate for pregame booking
-                  console.log("🎭 INITIALIZING XSTATE FOR PREGAME BOOKING", {
-                    calendarEventId,
-                    servicesRequested: parsedDetails.servicesRequested,
-                    origin: BookingOrigin.PREGAME,
-                  });
-
-                  // Create XState actor for pregame booking
-                  const bookingActor = createActor(mcBookingMachine, {
-                    input: {
-                      tenant,
-                      formData: newBooking,
-                      bookingCalendarInfo: {
-                        startStr: event.start?.dateTime,
-                        endStr: event.end?.dateTime,
-                      },
-                      isWalkIn: false,
-                      calendarEventId: calendarEventId || "",
-                      email: cleanEmail,
-                      isVip: false,
-                      servicesRequested: parsedDetails.servicesRequested,
-                      origin: BookingOrigin.PREGAME,
-                    },
-                  });
-
-                  // Start the actor to trigger initial state evaluation
-                  bookingActor.start();
-
-                  // For pregame bookings, immediately move to Pre-approved state
-                  bookingActor.send({ type: "approve" });
-
-                  const currentState = bookingActor.getSnapshot();
-
-                  console.log(
-                    `✅ PREGAME BOOKING XSTATE INITIALIZED: ${currentState.value}`,
-                  );
-
-                  // Clean context by removing undefined values for Firestore compatibility (deep clean)
-                  const cleanContext = cleanObjectForFirestore(
-                    currentState.context,
-                  );
-
-                  // Create XState data for persistence
-                  const xstateData = {
-                    machineId: "MC Booking Request",
-                    lastTransition: new Date().toISOString(),
-                    snapshot: {
-                      status: currentState.status,
-                      value: currentState.value,
-                      historyValue: cleanObjectForFirestore(
-                        currentState.historyValue || {},
-                      ),
-                      context: cleanContext,
-                      children: cleanObjectForFirestore(
-                        currentState.children || {},
-                      ),
-                    },
-                  };
-
-                  console.log("✅ XSTATE INITIALIZED FOR PREGAME:", {
-                    calendarEventId,
-                    initialState: currentState.value,
-                    servicesRequested: parsedDetails.servicesRequested,
-                    contextServicesRequested: cleanContext.servicesRequested,
-                    xstateContextServicesRequested:
-                      currentState.context.servicesRequested,
-                  });
-
-                  // Add [PRE_APPROVED] prefix if not already present
-                  let newTitle = event.summary;
-                  if (
-                    !newTitle.startsWith("[") &&
-                    !newTitle.includes(`[${BookingStatusLabel.PRE_APPROVED}]`)
-                  ) {
-                    newTitle = `[${BookingStatusLabel.PRE_APPROVED}] ${newTitle}`;
-                  }
-
+                  const newTitle = `[${BookingStatusLabel.PENDING}] ${event.summary}`;
                   const bookingDocRef = await db
-                    .collection(bookingCollection)
+                    .collection(TableNames.BOOKING)
                     .add({
                       ...newBooking,
-                      xstateData,
                       requestedAt: admin.firestore.FieldValue.serverTimestamp(),
                       firstApprovedAt:
                         admin.firestore.FieldValue.serverTimestamp(),
