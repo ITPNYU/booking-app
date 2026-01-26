@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getFormsClient } from "@/lib/googleClient";
+import { getFormsClient, getLoggingClient } from "@/lib/googleClient";
 import { serverGetDocumentById } from "@/lib/firebase/server/adminDb";
 import { TableNames } from "@/components/src/policy";
 import { extractGoogleFormId } from "@/components/src/utils/formUrlUtils";
@@ -69,6 +69,8 @@ export async function GET(request: NextRequest) {
     }
 
     const formsService = await getFormsClient();
+    const logger = await getLoggingClient();
+    const timestamp = Date.now();
 
     // Fetch form responses from the determined form
     let emails: string[] = [];
@@ -91,6 +93,30 @@ export async function GET(request: NextRequest) {
       console.error("Error fetching form responses:", error);
       throw error;
     }
+
+    // Log the operation
+    const logEntry = {
+      logName: process.env.NEXT_PUBLIC_GCP_LOG_NAME + "/safety-training",
+      resource: { type: "global" },
+      entries: [
+        {
+          jsonPayload: {
+            message: "Fetched emails from form responses",
+            tenant,
+            resourceId: resourceId || "all",
+            emails,
+            number: emails.length,
+            branchName: process.env.NEXT_PUBLIC_BRANCH_NAME,
+            timestamp,
+          },
+          severity: "INFO",
+        },
+      ],
+    };
+
+    logger.entries.write({
+      requestBody: logEntry,
+    });
 
     const res = NextResponse.json({ emails });
     res.headers.set(
