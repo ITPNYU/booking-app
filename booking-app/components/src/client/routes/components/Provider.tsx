@@ -1,6 +1,6 @@
 import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
 import { ApproverLevel, TableNames } from "@/components/src/policy";
-import React, { createContext, useEffect, useMemo, useState } from "react";
+import React, { createContext, useCallback, useEffect, useMemo, useState } from "react";
 import {
   AdminUser,
   Approver,
@@ -378,7 +378,7 @@ export const DatabaseProvider = ({
     }
   };
 
-  const fetchSafetyTrainedUsers = async (
+  const fetchSafetyTrainedUsers = useCallback(async (
     rooms?: Array<{ roomId: string; trainingFormUrl?: string }>
   ) => {
     try {
@@ -524,7 +524,7 @@ export const DatabaseProvider = ({
       // Set safety trained users to empty array on error
       setSafetyTrainedUsers([]);
     }
-  };
+  }, [tenant]);
 
   const fetchBannedUsers = async () => {
     clientFetchAllDataFromCollection(TableNames.BANNED, [], tenant)
