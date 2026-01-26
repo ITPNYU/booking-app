@@ -120,11 +120,13 @@ describe("BookingStatusBar - Blackout Period Handling", () => {
     mockUseTenantSchema.mockReturnValue({
       tenant: "media-commons",
       name: "Media Commons",
-      timeSensitiveRequestWarning: {
-        hours: 48,
-        isActive: false,
-        message: "",
-        policyLink: "",
+      calendarConfig: {
+        timeSensitiveRequestWarning: {
+          hours: 48,
+          isActive: false,
+          message: "",
+          policyLink: "",
+        },
       },
     });
   });
@@ -320,11 +322,13 @@ describe("BookingStatusBar - Time Sensitive Request Warning", () => {
     mockUseTenantSchema.mockReturnValue({
       tenant: "media-commons",
       name: "Media Commons",
-      timeSensitiveRequestWarning: {
-        hours: 48,
-        isActive: false,
-        message: "",
-        policyLink: "",
+      calendarConfig: {
+        timeSensitiveRequestWarning: {
+          hours: 48,
+          isActive: false,
+          message: "",
+          policyLink: "",
+        },
       },
     });
   });
@@ -338,11 +342,13 @@ describe("BookingStatusBar - Time Sensitive Request Warning", () => {
     mockUseTenantSchema.mockReturnValue({
       tenant: "media-commons",
       name: "Media Commons",
-      timeSensitiveRequestWarning: {
-        hours: 48,
-        isActive: true,
-        message: "Please note that requests made within 48 hours may not be approved in time.",
-        policyLink: "https://example.com/policy",
+      calendarConfig: {
+        timeSensitiveRequestWarning: {
+          hours: 48,
+          isActive: true,
+          message: "Please note that requests made within 48 hours may not be approved in time.",
+          policyLink: "https://example.com/policy",
+        },
       },
     });
 
@@ -370,11 +376,13 @@ describe("BookingStatusBar - Time Sensitive Request Warning", () => {
     mockUseTenantSchema.mockReturnValue({
       tenant: "media-commons",
       name: "Media Commons",
-      timeSensitiveRequestWarning: {
-        hours: 48,
-        isActive: false,
-        message: "Please note that requests made within 48 hours may not be approved in time.",
-        policyLink: "https://example.com/policy",
+      calendarConfig: {
+        timeSensitiveRequestWarning: {
+          hours: 48,
+          isActive: false,
+          message: "Please note that requests made within 48 hours may not be approved in time.",
+          policyLink: "https://example.com/policy",
+        },
       },
     });
 
@@ -402,11 +410,13 @@ describe("BookingStatusBar - Time Sensitive Request Warning", () => {
     mockUseTenantSchema.mockReturnValue({
       tenant: "media-commons",
       name: "Media Commons",
-      timeSensitiveRequestWarning: {
-        hours: 48,
-        isActive: true,
-        message: "Please note that requests made within 48 hours may not be approved in time.",
-        policyLink: "https://example.com/policy",
+      calendarConfig: {
+        timeSensitiveRequestWarning: {
+          hours: 48,
+          isActive: true,
+          message: "Please note that requests made within 48 hours may not be approved in time.",
+          policyLink: "https://example.com/policy",
+        },
       },
     });
 
@@ -436,11 +446,13 @@ describe("BookingStatusBar - Time Sensitive Request Warning", () => {
     mockUseTenantSchema.mockReturnValue({
       tenant: "media-commons",
       name: "Media Commons",
-      timeSensitiveRequestWarning: {
-        hours: 48,
-        isActive: true,
-        message: "Please note that requests made within 48 hours may not be approved in time.",
-        policyLink: "https://example.com/policy",
+      calendarConfig: {
+        timeSensitiveRequestWarning: {
+          hours: 48,
+          isActive: true,
+          message: "Please note that requests made within 48 hours may not be approved in time.",
+          policyLink: "https://example.com/policy",
+        },
       },
     });
 
@@ -468,11 +480,13 @@ describe("BookingStatusBar - Time Sensitive Request Warning", () => {
     mockUseTenantSchema.mockReturnValue({
       tenant: "media-commons",
       name: "Media Commons",
-      timeSensitiveRequestWarning: {
-        hours: 48,
-        isActive: true,
-        message: "Please note that requests made within 48 hours may not be approved in time.",
-        policyLink: "https://example.com/policy",
+      calendarConfig: {
+        timeSensitiveRequestWarning: {
+          hours: 48,
+          isActive: true,
+          message: "Please note that requests made within 48 hours may not be approved in time.",
+          policyLink: "https://example.com/policy",
+        },
       },
     });
 
@@ -501,11 +515,13 @@ describe("BookingStatusBar - Time Sensitive Request Warning", () => {
     mockUseTenantSchema.mockReturnValue({
       tenant: "media-commons",
       name: "Media Commons",
-      timeSensitiveRequestWarning: {
-        hours: 12,
-        isActive: true,
-        message: "Please note that requests made within 12 hours may not be approved in time.",
-        policyLink: "https://example.com/policy",
+      calendarConfig: {
+        timeSensitiveRequestWarning: {
+          hours: 12,
+          isActive: true,
+          message: "Please note that requests made within 12 hours may not be approved in time.",
+          policyLink: "https://example.com/policy",
+        },
       },
     });
 
@@ -534,11 +550,13 @@ describe("BookingStatusBar - Time Sensitive Request Warning", () => {
     mockUseTenantSchema.mockReturnValue({
       tenant: "media-commons",
       name: "Media Commons",
-      timeSensitiveRequestWarning: {
-        hours: 48,
-        isActive: true,
-        message: customMessage,
-        policyLink: "",
+      calendarConfig: {
+        timeSensitiveRequestWarning: {
+          hours: 48,
+          isActive: true,
+          message: customMessage,
+          policyLink: "",
+        },
       },
     });
 
@@ -567,11 +585,13 @@ describe("BookingStatusBar - Time Sensitive Request Warning", () => {
     mockUseTenantSchema.mockReturnValue({
       tenant: "media-commons",
       name: "Media Commons",
-      timeSensitiveRequestWarning: {
-        hours: 48,
-        isActive: true,
-        message: "Warning message",
-        policyLink: policyLink,
+      calendarConfig: {
+        timeSensitiveRequestWarning: {
+          hours: 48,
+          isActive: true,
+          message: "Warning message",
+          policyLink: policyLink,
+        },
       },
     });
 
@@ -602,11 +622,13 @@ describe("BookingStatusBar - Time Sensitive Request Warning", () => {
     mockUseTenantSchema.mockReturnValue({
       tenant: "media-commons",
       name: "Media Commons",
-      timeSensitiveRequestWarning: {
-        hours: 48,
-        isActive: true,
-        message: "Warning message",
-        policyLink: "",
+      calendarConfig: {
+        timeSensitiveRequestWarning: {
+          hours: 48,
+          isActive: true,
+          message: "Warning message",
+          policyLink: "",
+        },
       },
     });
 
