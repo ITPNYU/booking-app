@@ -46,7 +46,7 @@ export type Resource = {
 export type SchemaContextType = {
   tenant: string;
   name: string;
-  safetyTrainingGoogleFormId?: string; // Deprecated: use resource-level trainingFormUrl instead
+  safetyTrainingGoogleFormId?: string; // Lower priority: used as fallback when resource-level trainingFormUrl is not available
   logo: string;
   nameForPolicy: string;
   policy: string; // innerHTML

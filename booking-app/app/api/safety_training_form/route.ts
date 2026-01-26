@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Priority 3: Fallback to tenant-level form (deprecated but kept for backward compatibility)
+    // Priority 3: Fallback to tenant-level form (lower priority than resource-specific forms)
     if (!formId && (schema as any).safetyTrainingGoogleFormId) {
       formId = extractGoogleFormId((schema as any).safetyTrainingGoogleFormId);
     }
