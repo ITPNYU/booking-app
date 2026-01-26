@@ -27,7 +27,7 @@ export default function fetchCalendarEvents(allRooms: RoomSetting[]) {
       );
     } catch (e) {
       console.error(`Error fetching calendar events for room ${room.roomId}:`, e);
-      return []; // Return empty array instead of undefined
+      return []; // Return empty array instead of undefined to prevent issues
     }
 
     if (!response || !response.ok) {
@@ -94,11 +94,26 @@ export default function fetchCalendarEvents(allRooms: RoomSetting[]) {
     
     Promise.all(allRooms.map(fetchRoomCalendarEvents))
       .then((results) => {
-        const flatResults = results.flat().filter((event): event is CalendarEvent => event !== undefined);
+        // Filter out undefined values and flatten - each room returns an array
+        const flatResults = results
+          .filter((result): result is CalendarEvent[] => result !== undefined)
+          .flat();
+        
         console.log("FETCHED CALENDAR RESULTS:", flatResults.length);
         
-        // Always update events, even if empty, to prevent stale data
-        setEvents(flatResults);
+        // Filter out events with hidden statuses
+        const filtered = flatResults.filter(
+          (event) =>
+            event && // Ensure event exists
+            event.title && // Ensure title exists
+            !CALENDAR_HIDE_STATUS.some((hideStatus) =>
+              event.title.includes(hideStatus)
+            )
+        );
+        
+        // Always update events with the latest fetch results
+        // This ensures events from Google Calendar always appear, even if some rooms failed
+        setEvents(filtered);
         setFetchingStatus("loaded");
       })
       .catch((error) => {
