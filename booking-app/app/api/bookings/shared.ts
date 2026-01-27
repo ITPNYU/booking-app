@@ -33,7 +33,9 @@ export const getTenantRooms = async (tenant?: string) => {
       return [];
     }
 
-    return schema.resources.map((resource: any) => ({
+    const resourcesWithCorrectCalendarIds = applyEnvironmentCalendarIds(schema.resources);
+
+    return resourcesWithCorrectCalendarIds.map((resource: any) => ({
       roomId: resource.roomId,
       name: resource.name,
       capacity: resource.capacity?.toString(),

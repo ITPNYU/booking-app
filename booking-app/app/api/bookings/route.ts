@@ -145,7 +145,10 @@ const getTenantRooms = async (tenant?: string) => {
       return [];
     }
 
-    return schema.resources.map((resource: any) => ({
+    // Apply environment-based calendar ID selection
+    const resourcesWithCorrectCalendarIds = applyEnvironmentCalendarIds(schema.resources);
+
+    return resourcesWithCorrectCalendarIds.map((resource: any) => ({
       roomId: resource.roomId,
       name: resource.name,
       capacity: resource.capacity?.toString(),

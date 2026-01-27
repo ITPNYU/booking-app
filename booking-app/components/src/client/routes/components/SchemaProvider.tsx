@@ -10,7 +10,10 @@ export type Resource = {
   name: string;
   roomId: number;
   isEquipment: boolean; // renamed from checkable
-  calendarId: string;
+  calendarId: string; // Legacy: now used as dev calendar ID, kept for backwards compatibility
+  calendarIdDev?: string; // Development calendar ID - preferred field name
+  calendarIdProd?: string; // Production calendar ID - matches Firestore field name
+  calendarProdId?: string; // Alternative production field name - for backwards compatibility
   needsSafetyTraining: boolean;
   shouldAutoApprove: boolean;
   isWalkIn: boolean;

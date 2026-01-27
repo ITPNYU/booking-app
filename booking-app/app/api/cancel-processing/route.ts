@@ -34,8 +34,11 @@ export async function POST(req: NextRequest) {
         const schema = await serverGetDocumentById(TableNames.TENANT_SCHEMA, tenant || DEFAULT_TENANT);
         
         if (schema && schema.resources && booking.roomId) {
+          // Apply environment-based calendar ID selection
+          const resourcesWithCorrectCalendarIds = applyEnvironmentCalendarIds(schema.resources);
+          
           const roomIds = booking.roomId.split(",").map(x => x.trim());
-          const rooms = schema.resources.filter((resource: any) =>
+          const rooms = resourcesWithCorrectCalendarIds.filter((resource: any) =>
             roomIds.includes(resource.roomId + "")
           );
 
