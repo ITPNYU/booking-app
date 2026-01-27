@@ -91,7 +91,7 @@ describe("GET /api/safety_training_form", () => {
 
     expect(result.status).toBe(404);
     expect(result.data).toEqual({
-      error: "Safety training form not configured for this tenant",
+      error: "No training form configured for this resource",
     });
   });
 
