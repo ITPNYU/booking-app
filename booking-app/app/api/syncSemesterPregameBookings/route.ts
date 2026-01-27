@@ -13,6 +13,7 @@ import {
 import admin from "@/lib/firebase/server/firebaseAdmin";
 import { getCalendarClient } from "@/lib/googleClient";
 import { mcBookingMachine } from "@/lib/stateMachines/mcBookingMachine";
+import { applyEnvironmentCalendarIds } from "@/lib/utils/calendarEnvironment";
 import { Timestamp } from "firebase/firestore";
 import { NextRequest, NextResponse } from "next/server";
 import { createActor } from "xstate";
@@ -453,12 +454,17 @@ export async function POST(request: NextRequest) {
       TableNames.TENANT_SCHEMA,
       tenant,
     );
-    const resources =
-      schema?.resources?.map((resource: any) => ({
-        id: resource.roomId.toString(),
-        calendarId: resource.calendarId,
-        roomId: resource.roomId,
-      })) || [];
+    
+    // Apply environment-based calendar ID selection
+    const resourcesWithCorrectCalendarIds = schema?.resources 
+      ? applyEnvironmentCalendarIds(schema.resources)
+      : [];
+    
+    const resources = resourcesWithCorrectCalendarIds.map((resource: any) => ({
+      id: resource.roomId.toString(),
+      calendarId: resource.calendarId,
+      roomId: resource.roomId,
+    }));
 
     let totalNewBookings = 0;
     let existingBookings = 0;
