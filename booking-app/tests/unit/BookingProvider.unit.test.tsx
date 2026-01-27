@@ -63,6 +63,7 @@ const mockDatabaseContext = {
   safetyTrainedUsers: [],
   userEmail: "test@nyu.edu",
   blackoutPeriods: mockBlackoutPeriods,
+  reloadSafetyTrainedUsers: vi.fn(),
 };
 
 // Test component to access the BookingContext
