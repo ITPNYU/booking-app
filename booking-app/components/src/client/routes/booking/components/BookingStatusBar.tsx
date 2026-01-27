@@ -55,7 +55,7 @@ export default function BookingStatusBar({ formContext, ...props }: Props) {
   } = useContext(BookingContext);
   const isOverlap = useCalculateOverlap();
   const schema = useTenantSchema();
-  const timeSensitiveRequestWarning = schema.calendarConfig.timeSensitiveRequestWarning;
+  const timeSensitiveRequestWarning = schema.calendarConfig?.timeSensitiveRequestWarning;
   const pathname = usePathname();
   const isSelectRoomPage = pathname.endsWith("/selectRoom");
   const warningThresholdHours = timeSensitiveRequestWarning?.hours ?? 48;
