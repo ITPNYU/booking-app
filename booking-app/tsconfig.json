@@ -31,5 +31,5 @@
     ".next/types/**/*.ts",
     "scripts/getToken.js"
   ],
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules", "tests/**/*", "**/*.test.ts", "**/*.test.tsx"]
 }

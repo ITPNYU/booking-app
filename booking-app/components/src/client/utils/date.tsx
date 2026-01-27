@@ -1,5 +1,6 @@
 import { Timestamp } from "firebase/firestore";
 import { format } from "date-fns";
+import { DEFAULT_SLOT_UNIT } from "../routes/booking/utils/getSlotUnit";
 
 export const formatDate = (
   oldDate:
@@ -59,19 +60,25 @@ export const formatTimeAmPm = (d: Date) => {
   });
 };
 
-export function roundTimeUp() {
+export function roundTimeUp(slotUnit: number = DEFAULT_SLOT_UNIT) {
   const now = new Date();
   const minutes = now.getMinutes();
 
-  // Round up to next half-hour or hour
-  const roundedMinutes = minutes > 30 ? 60 : 30;
+  const remainder = minutes % slotUnit;
 
-  if (roundedMinutes === 60) {
-    now.setHours(now.getHours() + 1);
-    now.setMinutes(0);
-  } else {
-    now.setMinutes(30);
+  if (remainder === 0) {
+    // already aligned to slot boundary
+    now.setSeconds(0);
+    now.setMilliseconds(0);
+    return now;
   }
+
+  const roundedMinutes = minutes + (slotUnit - remainder);
+  const hourIncrement = Math.floor(roundedMinutes / 60);
+  const finalMinutes = roundedMinutes % 60;
+
+  now.setHours(now.getHours() + hourIncrement);
+  now.setMinutes(finalMinutes);
 
   now.setSeconds(0);
   now.setMilliseconds(0);

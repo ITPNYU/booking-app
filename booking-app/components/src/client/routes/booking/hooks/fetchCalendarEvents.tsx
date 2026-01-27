@@ -12,34 +12,8 @@ export default function fetchCalendarEvents(allRooms: RoomSetting[]) {
   >(null);
   const { tenant } = useParams();
 
-  const loadEvents = useCallback(() => {
-    if (allRooms.length === 0) {
-      return;
-    }
-    Promise.all(allRooms.map(fetchRoomCalendarEvents)).then((results) => {
-      const flatResults = results.flat();
-      console.log("FETCHED CALENDAR RESULTS:", flatResults.length);
-      const filtered = flatResults.filter(
-        (event) =>
-          !CALENDAR_HIDE_STATUS.some((hideStatus) =>
-            event.title?.includes(hideStatus)
-          )
-      );
-      if (filtered.length === 0 && events.length > 0) {
-        console.log("!!! RE-FETCHING CALENDAR EVENTS WAS EMPTY !!!");
-      } else {
-        setEvents(filtered);
-      }
-    });
-  }, [allRooms, events]);
-
-  useEffect(() => {
-    loadEvents();
-  }, [allRooms]);
-
-  const fetchRoomCalendarEvents = async (room: RoomSetting) => {
+  const fetchRoomCalendarEvents = useCallback(async (room: RoomSetting): Promise<CalendarEvent[]> => {
     const calendarId = room.calendarId;
-    setFetchingStatus("loading");
     let response = null;
     try {
       response = await fetch(
@@ -52,15 +26,13 @@ export default function fetchCalendarEvents(allRooms: RoomSetting[]) {
         }
       );
     } catch (e) {
-      console.error("Error fetching calendar events", e);
-      setFetchingStatus("error");
-      return; // Early return if fetch failed
+      console.error(`Error fetching calendar events for room ${room.roomId}:`, e);
+      return []; // Return empty array instead of undefined to prevent issues
     }
 
     if (!response || !response.ok) {
-      console.error("Failed to fetch calendar events:", response?.status);
-      setFetchingStatus("error");
-      return;
+      console.error(`Failed to fetch calendar events for room ${room.roomId}:`, response?.status);
+      return []; // Return empty array instead of undefined
     }
 
     const data = await response.json();
@@ -109,9 +81,51 @@ export default function fetchCalendarEvents(allRooms: RoomSetting[]) {
         constraint: "businessHours", // Optional: add constraint
       };
     });
-    setFetchingStatus("loaded");
     return rowsWithResourceIds;
-  };
+  }, [tenant]);
+
+  const loadEvents = useCallback(() => {
+    if (allRooms.length === 0) {
+      setEvents([]);
+      return;
+    }
+    
+    setFetchingStatus("loading");
+    
+    Promise.all(allRooms.map(fetchRoomCalendarEvents))
+      .then((results) => {
+        // Filter out undefined values and flatten - each room returns an array
+        const flatResults = results
+          .filter((result): result is CalendarEvent[] => result !== undefined)
+          .flat();
+        
+        console.log("FETCHED CALENDAR RESULTS:", flatResults.length);
+        
+        // Filter out events with hidden statuses
+        const filtered = flatResults.filter(
+          (event) =>
+            event && // Ensure event exists
+            event.title && // Ensure title exists
+            !CALENDAR_HIDE_STATUS.some((hideStatus) =>
+              event.title.includes(hideStatus)
+            )
+        );
+        
+        // Always update events with the latest fetch results
+        // This ensures events from Google Calendar always appear, even if some rooms failed
+        setEvents(filtered);
+        setFetchingStatus("loaded");
+      })
+      .catch((error) => {
+        console.error("Error loading calendar events:", error);
+        setFetchingStatus("error");
+        // Don't clear events on error - keep existing ones to avoid flickering
+      });
+  }, [allRooms, fetchRoomCalendarEvents]);
+
+  useEffect(() => {
+    loadEvents();
+  }, [loadEvents]);
 
   return {
     existingCalendarEvents: events,

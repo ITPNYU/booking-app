@@ -12,6 +12,8 @@ import Grid from "@mui/material/Unstable_Grid2";
 import { SelectRooms } from "../components/SelectRooms";
 import useCheckFormMissingData from "../hooks/useCheckFormMissingData";
 import { useTenantSchema } from "../../components/SchemaProvider";
+import { getStartHour } from "../utils/getStartHour";
+import { getSlotUnit } from "../utils/getSlotUnit";
 
 interface Props {
   calendarEventId?: string;
@@ -23,7 +25,7 @@ export default function SelectRoomPage({
   formContext = FormContextLevel.FULL_FORM,
 }: Props) {
   const { roomSettings } = useContext(DatabaseContext);
-  const { selectedRooms, setSelectedRooms } = useContext(BookingContext);
+  const { selectedRooms, setSelectedRooms, role } = useContext(BookingContext);
   const [date, setDate] = useState<Date>(new Date());
   useCheckFormMissingData();
   const theme = useTheme();
@@ -94,6 +96,8 @@ export default function SelectRoomPage({
             rooms={selectedRooms}
             dateView={date}
             {...{ calendarEventId, formContext }}
+            startHour={getStartHour(schema.calendarConfig, formContext, role)}
+            slotUnit={getSlotUnit(schema.calendarConfig, formContext, role)}
           />
         </Grid>
       </Grid>
