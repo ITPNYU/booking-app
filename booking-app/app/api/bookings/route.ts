@@ -37,6 +37,7 @@ import {
 } from "@/components/src/utils/tenantUtils";
 import { serverGetDocumentById } from "@/lib/firebase/server/adminDb";
 import { getCalendarClient } from "@/lib/googleClient";
+import { applyEnvironmentCalendarIds } from "@/lib/utils/calendarEnvironment";
 import { Timestamp } from "firebase-admin/firestore";
 import { DateSelectArg } from "fullcalendar";
 import { extractTenantFromRequest } from "./shared";
@@ -145,7 +146,10 @@ const getTenantRooms = async (tenant?: string) => {
       return [];
     }
 
-    return schema.resources.map((resource: any) => ({
+    // Apply environment-based calendar ID selection
+    const resourcesWithCorrectCalendarIds = applyEnvironmentCalendarIds(schema.resources);
+
+    return resourcesWithCorrectCalendarIds.map((resource: any) => ({
       roomId: resource.roomId,
       name: resource.name,
       capacity: resource.capacity?.toString(),

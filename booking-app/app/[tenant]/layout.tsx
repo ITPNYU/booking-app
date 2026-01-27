@@ -5,6 +5,7 @@ import SchemaProviderWrapper from "@/components/src/client/routes/components/Sch
 import { ALLOWED_TENANTS } from "@/components/src/constants/tenants";
 import { TableNames } from "@/components/src/policy";
 import { serverGetDocumentById } from "@/lib/firebase/server/adminDb";
+import { applyEnvironmentCalendarIds } from "@/lib/utils/calendarEnvironment";
 import { notFound } from "next/navigation";
 import React from "react";
 
@@ -38,6 +39,11 @@ const Layout: React.FC<LayoutProps> = async ({ children, params }) => {
     }
 
     console.log("Layout: Passing tenantSchema to SchemaProviderWrapper");
+
+    // Apply environment-based calendar ID selection
+    if (tenantSchema.resources && Array.isArray(tenantSchema.resources)) {
+      tenantSchema.resources = applyEnvironmentCalendarIds(tenantSchema.resources);
+    }
 
     // Ensure the data is properly serializable
     const serializedTenantSchema: SchemaContextType = {
