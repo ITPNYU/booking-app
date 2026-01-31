@@ -34,7 +34,7 @@ let autoId = 0;
 
 const clone = <T>(value: T): T => {
   if (Array.isArray(value)) {
-    return value.map(item => clone(item)) as unknown as T;
+    return value.map((item) => clone(item)) as unknown as T;
   }
 
   if (value && typeof value === "object") {
@@ -68,7 +68,11 @@ const createQuery = (
   limitValue?: number,
 ) => ({
   where(field: string, operator: string, value: unknown) {
-    return createQuery(collectionName, [...filters, { field, operator, value }], limitValue);
+    return createQuery(
+      collectionName,
+      [...filters, { field, operator, value }],
+      limitValue,
+    );
   },
   limit(nextLimit: number) {
     return createQuery(collectionName, filters, nextLimit);
@@ -145,7 +149,7 @@ const createCollectionRef = (collectionName: string) => ({
 });
 
 const resetFirestore = () => {
-  Object.values(firestoreStore).forEach(store => store.clear());
+  Object.values(firestoreStore).forEach((store) => store.clear());
   autoId = 0;
 };
 
@@ -162,7 +166,10 @@ const seedCollection = (
 
 const readCollection = (collectionName: string) => {
   const store = ensureCollectionStore(collectionName);
-  return Array.from(store.entries()).map(([id, data]) => ({ id, ...clone(data) }));
+  return Array.from(store.entries()).map(([id, data]) => ({
+    id,
+    ...clone(data),
+  }));
 };
 
 vi.mock("firebase-admin", () => {
@@ -224,7 +231,7 @@ vi.mock("@/components/src/policy", async () => {
   };
 });
 
-import { ApproverLevel, TableNames } from "@/components/src/policy";
+import { ApproverLevel } from "@/components/src/policy";
 import { BookingStatusLabel } from "@/components/src/types";
 
 describe("components/src/server/admin", () => {
@@ -246,8 +253,8 @@ describe("components/src/server/admin", () => {
           requestNumber: 77,
           title: "Animation Workshop",
           email: "requester@nyu.edu",
-          startDate: makeTimestamp("2024-03-01T15:00:00.000Z"),
-          endDate: makeTimestamp("2024-03-01T17:00:00.000Z"),
+          startDate: makeTimestamp("2024-03-01T05:00:00.000Z"),
+          endDate: makeTimestamp("2024-03-01T07:00:00.000Z"),
           requestedAt: makeTimestamp("2024-02-25T10:00:00.000Z"),
           firstApprovedAt: null,
           finalApprovedAt: null,
@@ -262,9 +269,8 @@ describe("components/src/server/admin", () => {
       },
     ]);
 
-    const { serverBookingContents } = await import(
-      "@/components/src/server/admin"
-    );
+    const { serverBookingContents } =
+      await import("@/components/src/server/admin");
 
     const result = await serverBookingContents("cal-1", "tenant-z");
 
@@ -315,9 +321,8 @@ describe("components/src/server/admin", () => {
 
     mockFetch.mockResolvedValue({ ok: true } as any);
 
-    const { serverFirstApproveOnly } = await import(
-      "@/components/src/server/admin"
-    );
+    const { serverFirstApproveOnly } =
+      await import("@/components/src/server/admin");
 
     await serverFirstApproveOnly("cal-2", "approver@nyu.edu", "tenant-y");
 
@@ -340,10 +345,15 @@ describe("components/src/server/admin", () => {
       "https://booking.test/api/sendEmail",
       expect.objectContaining({
         method: "POST",
-        headers: expect.objectContaining({ "Content-Type": "application/json" }),
+        headers: expect.objectContaining({
+          "Content-Type": "application/json",
+        }),
       }),
     );
-    const [, fetchOptions] = mockFetch.mock.calls[0] as [string, { body: string }];
+    const [, fetchOptions] = mockFetch.mock.calls[0] as [
+      string,
+      { body: string },
+    ];
     const body = JSON.parse(fetchOptions.body);
     expect(body.targetEmail).toBe("final@nyu.edu");
   });
@@ -367,5 +377,490 @@ describe("components/src/server/admin", () => {
     expect(result).toEqual([
       { id: "admin-1", email: "admin@nyu.edu", createdAt: "ts" },
     ]);
+  });
+
+  describe("firstApproverEmails", () => {
+    it("matches ITP/IMA/Low Res departments with each other", async () => {
+      seedCollection("usersApprovers", [
+        {
+          id: "approver-1",
+          data: {
+            email: "itp-approver@nyu.edu",
+            department: "ITP",
+            level: ApproverLevel.FIRST,
+            createdAt: "ts",
+          },
+        },
+        {
+          id: "approver-2",
+          data: {
+            email: "ima-approver@nyu.edu",
+            department: "IMA",
+            level: ApproverLevel.FIRST,
+            createdAt: "ts",
+          },
+        },
+        {
+          id: "approver-3",
+          data: {
+            email: "lowres-approver@nyu.edu",
+            department: "Low Res",
+            level: ApproverLevel.FIRST,
+            createdAt: "ts",
+          },
+        },
+        {
+          id: "approver-4",
+          data: {
+            email: "cdi-approver@nyu.edu",
+            department: "CDI",
+            level: ApproverLevel.FIRST,
+            createdAt: "ts",
+          },
+        },
+      ]);
+
+      const { firstApproverEmails } =
+        await import("@/components/src/server/admin");
+
+      // ITP user should match with ITP, IMA, and Low Res approvers
+      const itpResult = await firstApproverEmails("ITP");
+      expect(itpResult.sort()).toEqual([
+        "ima-approver@nyu.edu",
+        "itp-approver@nyu.edu",
+        "lowres-approver@nyu.edu",
+      ]);
+
+      // IMA user should match with ITP, IMA, and Low Res approvers
+      const imaResult = await firstApproverEmails("IMA");
+      expect(imaResult.sort()).toEqual([
+        "ima-approver@nyu.edu",
+        "itp-approver@nyu.edu",
+        "lowres-approver@nyu.edu",
+      ]);
+
+      // Low Res user should match with ITP, IMA, and Low Res approvers
+      const lowResResult = await firstApproverEmails("Low Res");
+      expect(lowResResult.sort()).toEqual([
+        "ima-approver@nyu.edu",
+        "itp-approver@nyu.edu",
+        "lowres-approver@nyu.edu",
+      ]);
+    });
+
+    it("matches full ITP / IMA / Low Res enum value with ITP group approvers", async () => {
+      seedCollection("usersApprovers", [
+        {
+          id: "approver-1",
+          data: {
+            email: "itp-approver@nyu.edu",
+            department: "ITP",
+            level: ApproverLevel.FIRST,
+            createdAt: "ts",
+          },
+        },
+        {
+          id: "approver-2",
+          data: {
+            email: "ima-approver@nyu.edu",
+            department: "IMA",
+            level: ApproverLevel.FIRST,
+            createdAt: "ts",
+          },
+        },
+        {
+          id: "approver-3",
+          data: {
+            email: "combined-approver@nyu.edu",
+            department: "ITP / IMA / Low Res",
+            level: ApproverLevel.FIRST,
+            createdAt: "ts",
+          },
+        },
+      ]);
+
+      const { firstApproverEmails } =
+        await import("@/components/src/server/admin");
+
+      // User with full enum value should match all ITP group approvers
+      const result = await firstApproverEmails("ITP / IMA / Low Res");
+      expect(result.sort()).toEqual([
+        "combined-approver@nyu.edu",
+        "ima-approver@nyu.edu",
+        "itp-approver@nyu.edu",
+      ]);
+    });
+
+    it("matches exact department names for non-ITP departments", async () => {
+      seedCollection("usersApprovers", [
+        {
+          id: "approver-1",
+          data: {
+            email: "cdi-approver@nyu.edu",
+            department: "CDI",
+            level: ApproverLevel.FIRST,
+            createdAt: "ts",
+          },
+        },
+        {
+          id: "approver-2",
+          data: {
+            email: "alt-approver@nyu.edu",
+            department: "ALT",
+            level: ApproverLevel.FIRST,
+            createdAt: "ts",
+          },
+        },
+        {
+          id: "approver-3",
+          data: {
+            email: "marl-approver@nyu.edu",
+            department: "MARL",
+            level: ApproverLevel.FIRST,
+            createdAt: "ts",
+          },
+        },
+        {
+          id: "approver-4",
+          data: {
+            email: "itp-approver@nyu.edu",
+            department: "ITP",
+            level: ApproverLevel.FIRST,
+            createdAt: "ts",
+          },
+        },
+      ]);
+
+      const { firstApproverEmails } =
+        await import("@/components/src/server/admin");
+
+      // CDI user should only match with CDI approver
+      const cdiResult = await firstApproverEmails("CDI");
+      expect(cdiResult).toEqual(["cdi-approver@nyu.edu"]);
+
+      // ALT user should only match with ALT approver
+      const altResult = await firstApproverEmails("ALT");
+      expect(altResult).toEqual(["alt-approver@nyu.edu"]);
+
+      // MARL user should only match with MARL approver
+      const marlResult = await firstApproverEmails("MARL");
+      expect(marlResult).toEqual(["marl-approver@nyu.edu"]);
+    });
+
+    it("handles case-insensitive matching through normalization", async () => {
+      seedCollection("usersApprovers", [
+        {
+          id: "approver-1",
+          data: {
+            email: "cdi-approver@nyu.edu",
+            department: "cdi",
+            level: ApproverLevel.FIRST,
+            createdAt: "ts",
+          },
+        },
+        {
+          id: "approver-2",
+          data: {
+            email: "itp-approver@nyu.edu",
+            department: "itp",
+            level: ApproverLevel.FIRST,
+            createdAt: "ts",
+          },
+        },
+      ]);
+
+      const { firstApproverEmails } =
+        await import("@/components/src/server/admin");
+
+      // CDI (uppercase) should match with cdi (lowercase) approver
+      const cdiResult = await firstApproverEmails("CDI");
+      expect(cdiResult).toEqual(["cdi-approver@nyu.edu"]);
+
+      // ITP (uppercase) should match with itp (lowercase) approver
+      const itpResult = await firstApproverEmails("ITP");
+      expect(itpResult).toEqual(["itp-approver@nyu.edu"]);
+    });
+
+    it("returns empty array when no matching approvers found", async () => {
+      seedCollection("usersApprovers", [
+        {
+          id: "approver-1",
+          data: {
+            email: "cdi-approver@nyu.edu",
+            department: "CDI",
+            level: ApproverLevel.FIRST,
+            createdAt: "ts",
+          },
+        },
+      ]);
+
+      const { firstApproverEmails } =
+        await import("@/components/src/server/admin");
+
+      // Game Center user should not match with CDI approver
+      const result = await firstApproverEmails("Game Center");
+      expect(result).toEqual([]);
+    });
+
+    it("filters out approvers without department", async () => {
+      seedCollection("usersApprovers", [
+        {
+          id: "approver-1",
+          data: {
+            email: "valid-approver@nyu.edu",
+            department: "CDI",
+            level: ApproverLevel.FIRST,
+            createdAt: "ts",
+          },
+        },
+        {
+          id: "approver-2",
+          data: {
+            email: "no-dept-approver@nyu.edu",
+            department: null,
+            level: ApproverLevel.FIRST,
+            createdAt: "ts",
+          },
+        },
+        {
+          id: "approver-3",
+          data: {
+            email: "undefined-dept-approver@nyu.edu",
+            level: ApproverLevel.FIRST,
+            createdAt: "ts",
+          },
+        },
+      ]);
+
+      const { firstApproverEmails } =
+        await import("@/components/src/server/admin");
+
+      const result = await firstApproverEmails("CDI");
+      expect(result).toEqual(["valid-approver@nyu.edu"]);
+    });
+
+    it("matches all Department enum values correctly", async () => {
+      seedCollection("usersApprovers", [
+        {
+          id: "approver-alt",
+          data: {
+            email: "alt-approver@nyu.edu",
+            department: "ALT",
+            level: ApproverLevel.FIRST,
+            createdAt: "ts",
+          },
+        },
+        {
+          id: "approver-cdi",
+          data: {
+            email: "cdi-approver@nyu.edu",
+            department: "CDI",
+            level: ApproverLevel.FIRST,
+            createdAt: "ts",
+          },
+        },
+        {
+          id: "approver-games",
+          data: {
+            email: "games-approver@nyu.edu",
+            department: "Game Center",
+            level: ApproverLevel.FIRST,
+            createdAt: "ts",
+          },
+        },
+        {
+          id: "approver-idm",
+          data: {
+            email: "idm-approver@nyu.edu",
+            department: "IDM",
+            level: ApproverLevel.FIRST,
+            createdAt: "ts",
+          },
+        },
+        {
+          id: "approver-itp",
+          data: {
+            email: "itp-approver@nyu.edu",
+            department: "ITP / IMA / Low Res",
+            level: ApproverLevel.FIRST,
+            createdAt: "ts",
+          },
+        },
+        {
+          id: "approver-marl",
+          data: {
+            email: "marl-approver@nyu.edu",
+            department: "MARL",
+            level: ApproverLevel.FIRST,
+            createdAt: "ts",
+          },
+        },
+        {
+          id: "approver-mpap",
+          data: {
+            email: "mpap-approver@nyu.edu",
+            department: "MPAP",
+            level: ApproverLevel.FIRST,
+            createdAt: "ts",
+          },
+        },
+        {
+          id: "approver-music",
+          data: {
+            email: "music-approver@nyu.edu",
+            department: "Music Tech",
+            level: ApproverLevel.FIRST,
+            createdAt: "ts",
+          },
+        },
+        {
+          id: "approver-other",
+          data: {
+            email: "other-approver@nyu.edu",
+            department: "Other",
+            level: ApproverLevel.FIRST,
+            createdAt: "ts",
+          },
+        },
+      ]);
+
+      const { firstApproverEmails } =
+        await import("@/components/src/server/admin");
+
+      // Test each Department enum value
+      const altResult = await firstApproverEmails("ALT");
+      expect(altResult).toEqual(["alt-approver@nyu.edu"]);
+
+      const cdiResult = await firstApproverEmails("CDI");
+      expect(cdiResult).toEqual(["cdi-approver@nyu.edu"]);
+
+      const gamesResult = await firstApproverEmails("Game Center");
+      expect(gamesResult).toEqual(["games-approver@nyu.edu"]);
+
+      const idmResult = await firstApproverEmails("IDM");
+      expect(idmResult).toEqual(["idm-approver@nyu.edu"]);
+
+      const itpResult = await firstApproverEmails("ITP / IMA / Low Res");
+      expect(itpResult).toEqual(["itp-approver@nyu.edu"]);
+
+      const marlResult = await firstApproverEmails("MARL");
+      expect(marlResult).toEqual(["marl-approver@nyu.edu"]);
+
+      const mpapResult = await firstApproverEmails("MPAP");
+      expect(mpapResult).toEqual(["mpap-approver@nyu.edu"]);
+
+      const musicResult = await firstApproverEmails("Music Tech");
+      expect(musicResult).toEqual(["music-approver@nyu.edu"]);
+
+      const otherResult = await firstApproverEmails("Other");
+      expect(otherResult).toEqual(["other-approver@nyu.edu"]);
+    });
+
+    it("handles departments with spaces correctly", async () => {
+      seedCollection("usersApprovers", [
+        {
+          id: "approver-1",
+          data: {
+            email: "games-approver@nyu.edu",
+            department: "Game Center",
+            level: ApproverLevel.FIRST,
+            createdAt: "ts",
+          },
+        },
+        {
+          id: "approver-2",
+          data: {
+            email: "music-approver@nyu.edu",
+            department: "Music Tech",
+            level: ApproverLevel.FIRST,
+            createdAt: "ts",
+          },
+        },
+        {
+          id: "approver-3",
+          data: {
+            email: "itp-full-approver@nyu.edu",
+            department: "ITP / IMA / Low Res",
+            level: ApproverLevel.FIRST,
+            createdAt: "ts",
+          },
+        },
+      ]);
+
+      const { firstApproverEmails } =
+        await import("@/components/src/server/admin");
+
+      // Test departments with spaces
+      const gamesResult = await firstApproverEmails("Game Center");
+      expect(gamesResult).toEqual(["games-approver@nyu.edu"]);
+
+      const musicResult = await firstApproverEmails("Music Tech");
+      expect(musicResult).toEqual(["music-approver@nyu.edu"]);
+
+      // ITP / IMA / Low Res should match via keyword matching
+      const itpFullResult = await firstApproverEmails("ITP / IMA / Low Res");
+      expect(itpFullResult).toEqual(["itp-full-approver@nyu.edu"]);
+    });
+
+    it("ensures departments do not cross-match incorrectly", async () => {
+      seedCollection("usersApprovers", [
+        {
+          id: "approver-alt",
+          data: {
+            email: "alt-approver@nyu.edu",
+            department: "ALT",
+            level: ApproverLevel.FIRST,
+            createdAt: "ts",
+          },
+        },
+        {
+          id: "approver-cdi",
+          data: {
+            email: "cdi-approver@nyu.edu",
+            department: "CDI",
+            level: ApproverLevel.FIRST,
+            createdAt: "ts",
+          },
+        },
+        {
+          id: "approver-idm",
+          data: {
+            email: "idm-approver@nyu.edu",
+            department: "IDM",
+            level: ApproverLevel.FIRST,
+            createdAt: "ts",
+          },
+        },
+        {
+          id: "approver-games",
+          data: {
+            email: "games-approver@nyu.edu",
+            department: "Game Center",
+            level: ApproverLevel.FIRST,
+            createdAt: "ts",
+          },
+        },
+      ]);
+
+      const { firstApproverEmails } =
+        await import("@/components/src/server/admin");
+
+      // ALT should only match ALT
+      const altResult = await firstApproverEmails("ALT");
+      expect(altResult).toEqual(["alt-approver@nyu.edu"]);
+      expect(altResult).not.toContain("cdi-approver@nyu.edu");
+      expect(altResult).not.toContain("idm-approver@nyu.edu");
+
+      // CDI should only match CDI
+      const cdiResult = await firstApproverEmails("CDI");
+      expect(cdiResult).toEqual(["cdi-approver@nyu.edu"]);
+      expect(cdiResult).not.toContain("alt-approver@nyu.edu");
+      expect(cdiResult).not.toContain("idm-approver@nyu.edu");
+
+      // Game Center should only match Game Center
+      const gamesResult = await firstApproverEmails("Game Center");
+      expect(gamesResult).toEqual(["games-approver@nyu.edu"]);
+      expect(gamesResult).not.toContain("alt-approver@nyu.edu");
+    });
   });
 });
