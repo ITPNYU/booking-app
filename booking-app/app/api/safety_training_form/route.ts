@@ -9,7 +9,6 @@ export const dynamic = "force-dynamic";
 export async function GET(request: NextRequest) {
   const tenant = request.headers.get("x-tenant");
   const resourceId = request.headers.get("x-resource-id");
-  const trainingFormUrl = request.headers.get("x-training-form-url");
 
   try {
     if (!tenant) {
@@ -19,7 +18,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get tenant schema
+    // Get tenant schema (includes training form URL per resource and tenant-level fallback)
     const schema = await serverGetDocumentById(
       TableNames.TENANT_SCHEMA,
       tenant,
@@ -31,22 +30,10 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Determine which form to use: resource-specific or tenant-level (fallback)
+    // Resolve training form from schema: resource by resourceId, then tenant-level fallback
     let formId: string | null = null;
 
-    // Priority 1: Resource-specific form URL (passed via header)
-    if (trainingFormUrl) {
-      formId = extractGoogleFormId(trainingFormUrl);
-      if (!formId) {
-        return NextResponse.json(
-          { error: "Invalid training form URL format" },
-          { status: 400 },
-        );
-      }
-    }
-
-    // Priority 2: Find resource in schema and use its trainingFormUrl
-    else if (resourceId) {
+    if (resourceId) {
       const resource = schema.resources?.find(
         (r: any) => r.roomId?.toString() === resourceId.toString(),
       );
@@ -55,7 +42,6 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Priority 3: Fallback to tenant-level form (lower priority than resource-specific forms)
     if (!formId && (schema as any).safetyTrainingGoogleFormId) {
       formId = extractGoogleFormId((schema as any).safetyTrainingGoogleFormId);
     }
