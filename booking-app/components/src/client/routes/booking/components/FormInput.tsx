@@ -244,6 +244,13 @@ export default function FormInput({
   // Add a state to track if we're currently fetching sponsor data
   const [isFetchingSponsor, setIsFetchingSponsor] = useState(false);
 
+  // Add a state to store VIP user API data
+  const [vipUserApiData, setVipUserApiData] = useState<UserApiData | null>(
+    null
+  );
+  // Add a state to track if we're currently fetching VIP data
+  const [isFetchingVipUser, setIsFetchingVipUser] = useState(false);
+
   // Add a function to fetch sponsor data by email
   const fetchSponsorByEmail = useCallback(async (email: string) => {
     if (!email || !email.endsWith("@nyu.edu")) return;
@@ -264,6 +271,40 @@ export default function FormInput({
       console.error("Failed to fetch sponsor data:", err);
     } finally {
       setIsFetchingSponsor(false);
+    }
+    return null;
+  }, []);
+
+  // Add a function to fetch VIP user data by NetID
+  const fetchVipUserByNetId = useCallback(async (netId: string) => {
+    if (!netId) return;
+
+    // Validate NetID format (e.g., abc123)
+    if (!/^[a-zA-Z]{2,3}[0-9]{1,6}$/.test(netId)) {
+      console.warn("Invalid NetID format:", netId);
+      return;
+    }
+
+    setIsFetchingVipUser(true);
+    try {
+      const response = await fetch(`/api/nyu/identity/${netId}`);
+      if (response.ok) {
+        const data = await response.json();
+        setVipUserApiData(data);
+        console.log("✅ VIP User API data fetched:", {
+          netId,
+          school: data.school_name,
+          department: data.reporting_dept_name,
+          deptCode: data.reporting_dept_code,
+        });
+        return data;
+      } else {
+        console.warn("Failed to fetch VIP user data:", response.status);
+      }
+    } catch (err) {
+      console.error("Failed to fetch VIP user data:", err);
+    } finally {
+      setIsFetchingVipUser(false);
     }
     return null;
   }, []);
@@ -307,6 +348,24 @@ export default function FormInput({
       fetchSponsorByEmail(sponsorEmail);
     }
   }, [sponsorEmail, fetchSponsorByEmail, userEmail]);
+
+  // Watch the VIP netId field specifically
+  const vipNetId = watch("netId");
+
+  // Fetch VIP user data when VIP NetID is entered (only for VIP bookings)
+  useEffect(() => {
+    if (isVIP && vipNetId && vipNetId.length >= 4) {
+      // Debounce the fetch to avoid too many API calls
+      const timer = setTimeout(() => {
+        fetchVipUserByNetId(vipNetId);
+      }, 500); // Wait 500ms after user stops typing
+
+      return () => clearTimeout(timer);
+    } else if (isVIP && !vipNetId) {
+      // Clear VIP data if NetID is cleared
+      setVipUserApiData(null);
+    }
+  }, [vipNetId, isVIP, fetchVipUserByNetId]);
 
   // Remove the API call from the validation function since we're now handling it separately
   const validateSponsorEmailSimple = useCallback(
@@ -367,7 +426,25 @@ export default function FormInput({
     setIsSubmitting(true);
     isSubmittingRef.current = true;
 
-    registerEvent(data, isAutoApproval, calendarEventId)
+    // Attach VIP user API data if available (for VIP bookings)
+    const submissionData = {
+      ...data,
+      ...(isVIP && vipUserApiData && {
+        vipUserApiData: vipUserApiData,
+      }),
+    };
+
+    console.log("📝 FORM SUBMISSION DATA:", {
+      isVIP,
+      hasVipUserApiData: !!vipUserApiData,
+      department: data.department,
+      otherDepartment: data.otherDepartment,
+      school: data.school,
+      otherSchool: data.otherSchool,
+      vipDeptFromApi: vipUserApiData?.reporting_dept_name,
+    });
+
+    registerEvent(submissionData, isAutoApproval, calendarEventId)
       .catch((error) => {
         console.error("Error submitting booking:", error);
       })

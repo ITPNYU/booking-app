@@ -192,6 +192,8 @@ export type Inputs = {
   equipment?: string;
   staffing?: string;
   cleaning?: string;
+  // VIP user data fetched from NYU API (for VIP bookings)
+  vipUserApiData?: UserApiData;
 };
 
 export type DepartmentType = {

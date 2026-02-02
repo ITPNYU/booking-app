@@ -57,10 +57,38 @@ export async function POST(request: NextRequest) {
   // Extract tenant from URL
   const tenant = extractTenantFromRequest(request);
 
-  console.log("data", data);
+  console.log("📥 BOOKING DIRECT API - Received data:", {
+    origin,
+    type,
+    email,
+    department: data?.department,
+    otherDepartment: data?.otherDepartment,
+    school: data?.school,
+    otherSchool: data?.otherSchool,
+    hasVipUserApiData: !!data?.vipUserApiData,
+  });
   console.log("tenant", tenant);
 
-  const { department } = data;
+  // Get the correct department value
+  // Priority: otherDepartment (if "Other" selected) > department enum value
+  let { department } = data;
+  let departmentDisplay = department;
+  
+  if (department === "Other") {
+    if (data.otherDepartment) {
+      departmentDisplay = data.otherDepartment;
+      console.log(`✅ Using manual "Other" department: ${departmentDisplay}`);
+    } else {
+      console.warn("⚠️ Department is 'Other' but no otherDepartment provided");
+    }
+  }
+  
+  // Get the correct school value
+  let schoolDisplay = data.school;
+  if (data.school === "Other" && data.otherSchool) {
+    schoolDisplay = data.otherSchool;
+    console.log(`✅ Using manual "Other" school: ${schoolDisplay}`);
+  }
   const [room, ...otherRooms] = selectedRooms;
   const selectedRoomIds = selectedRooms.map(
     (r: { roomId: number }) => r.roomId,
@@ -131,7 +159,7 @@ export async function POST(request: NextRequest) {
   const event = await insertEvent({
     calendarId,
     title: `[${bookingStatus}] ${selectedRoomIds.join(", ")} ${truncatedTitle}`,
-    description: `Department: ${department === "Other" && data.otherDepartment ? data.otherDepartment : department}\n\nThis reservation was made as a ${type}.`,
+    description: `School: ${schoolDisplay || "Not specified"}\nDepartment: ${departmentDisplay}\n\nThis reservation was made as a ${type}.`,
     startTime: bookingCalendarInfo.startStr,
     endTime: bookingCalendarInfo.endStr,
     roomEmails: otherRoomIds,
@@ -141,20 +169,42 @@ export async function POST(request: NextRequest) {
   // to ensure proper status determination
 
   const sequentialId = await serverGetNextSequentialId("bookings", tenant);
+  
+  // Prepare booking data with corrected department and school values
+  const bookingData = {
+    calendarEventId,
+    roomId: selectedRoomIds.join(", "),
+    email,
+    startDate: toFirebaseTimestampFromString(bookingCalendarInfo.startStr),
+    endDate: toFirebaseTimestampFromString(bookingCalendarInfo.endStr),
+    requestNumber: sequentialId,
+    walkedInAt: Timestamp.now(),
+    origin,
+    isVip: origin === BookingOrigin.VIP, // Explicitly set isVip for XState
+    ...data,
+    // Override with display values for "Other" selections
+    ...(department === "Other" && data.otherDepartment && {
+      departmentDisplay: data.otherDepartment,
+    }),
+    ...(data.school === "Other" && data.otherSchool && {
+      schoolDisplay: data.otherSchool,
+    }),
+  };
+  
+  console.log("💾 Saving booking data to Firestore:", {
+    calendarEventId,
+    department: bookingData.department,
+    departmentDisplay: bookingData.departmentDisplay,
+    otherDepartment: bookingData.otherDepartment,
+    school: bookingData.school,
+    schoolDisplay: bookingData.schoolDisplay,
+    otherSchool: bookingData.otherSchool,
+    hasVipUserApiData: !!bookingData.vipUserApiData,
+  });
+  
   const doc = await serverSaveDataToFirestore(
     TableNames.BOOKING,
-    {
-      calendarEventId,
-      roomId: selectedRoomIds.join(", "),
-      email,
-      startDate: toFirebaseTimestampFromString(bookingCalendarInfo.startStr),
-      endDate: toFirebaseTimestampFromString(bookingCalendarInfo.endStr),
-      requestNumber: sequentialId,
-      walkedInAt: Timestamp.now(),
-      origin,
-      isVip: origin === BookingOrigin.VIP, // Explicitly set isVip for XState
-      ...data,
-    },
+    bookingData,
     tenant,
   );
 
