@@ -185,13 +185,13 @@ export default function useCheckAutoApproval(isWalkIn = false, isVIP = false) {
       return;
     }
 
-    // Map formData to servicesRequested
+    // Map formData to servicesRequested (cleaningService shown when room.services includes "cleaning")
     const servicesRequested = formData ? {
       setup: formData.roomSetup === "yes",
       equipment: !isWalkIn && formData.equipmentServices?.length > 0,
       staffing: !isWalkIn && formData.staffingServices?.length > 0,
       catering: formData.catering === "yes",
-      cleaning: false, // Not typically exposed in form
+      cleaning: formData.cleaningService === "yes",
       security: formData.hireSecurity === "yes",
     } : undefined;
 
