@@ -28,12 +28,18 @@ import { DatabaseContext } from "../../components/Provider";
 import { BookingContext } from "../bookingProvider";
 import { useBookingDateRestrictions } from "../hooks/useBookingDateRestrictions";
 import { TIMEZONE } from "../../../utils/date";
+import { minutesToDurationString } from "@/components/src/constants/tenants";
+import { roundTimeUp } from "@/components/src/client/utils/date";
+import { DEFAULT_START_HOUR } from "../utils/getStartHour";
+import { DEFAULT_SLOT_UNIT } from "../utils/getSlotUnit";
 
 interface Props {
   calendarEventId?: string;
   formContext: FormContextLevel;
   rooms: RoomSetting[];
   dateView: Date;
+  startHour?: string;
+  slotUnit?: number;
 }
 
 const FullCalendarWrapper = styled(Box)({
@@ -113,6 +119,8 @@ export default function CalendarVerticalResource({
   formContext,
   rooms,
   dateView,
+  startHour,
+  slotUnit,
 }: Props) {
   const { operationHours, pagePermission } = useContext(DatabaseContext);
   const { getBlackoutPeriodsForDateAndRooms, isBookingTimeInBlackout } =
@@ -224,16 +232,16 @@ export default function CalendarVerticalResource({
     }
 
     const blocks = rooms.map((room) => {
-      const today = new Date();
-      const start = new Date();
-      start.setHours(9);
-      start.setMinutes(0);
-      today.setHours(
-        today.getMinutes() > 30 ? today.getHours() + 1 : today.getHours()
-      );
-      today.setMinutes(today.getMinutes() <= 30 ? 30 : 0);
-      today.setSeconds(0);
-      today.setMilliseconds(0);
+      // derive slot start from the date being viewed, using startHour from server data
+      const start = new Date(dateView);
+      const [minHour, minMinute] = (startHour || DEFAULT_START_HOUR)
+        .split(":")
+        .map((s) => parseInt(s, 10));
+      start.setHours(Number.isFinite(minHour) ? minHour : 9);
+      start.setMinutes(Number.isFinite(minMinute) ? minMinute : 0);
+
+      // Use shared rounding helper so logic is centralized
+      const today = roundTimeUp(slotUnit ?? DEFAULT_SLOT_UNIT);
       return {
         start: start.toISOString(),
         end: today.toISOString(),
@@ -245,7 +253,7 @@ export default function CalendarVerticalResource({
       };
     });
     return blocks;
-  }, [rooms, formContext]);
+  }, [rooms, formContext, dateView, startHour, slotUnit]);
 
   const handleEventSelect = (selectInfo: DateSelectArg) => {
     // Check if the selection overlaps with any blackout periods before setting booking info
@@ -460,7 +468,11 @@ export default function CalendarVerticalResource({
         }
         eventDurationEditable={true}
         headerToolbar={false}
-        slotMinTime="9:00:00"
+        slotDuration={minutesToDurationString(slotUnit ?? DEFAULT_SLOT_UNIT)}
+        snapDuration={minutesToDurationString(slotUnit ?? DEFAULT_SLOT_UNIT)}
+        slotLabelInterval={minutesToDurationString(60)}
+        slotLabelContent={(arg) => ({ html: dayjs(arg.date).format("h A") })} // hour labels e.g. "9 AM"
+        slotMinTime={startHour ?? DEFAULT_START_HOUR}
         allDaySlot={false}
         aspectRatio={isMobile ? 0.5 : 1.5}
         expandRows={true}

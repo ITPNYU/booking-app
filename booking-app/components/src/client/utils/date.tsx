@@ -1,6 +1,7 @@
 import { Timestamp } from "firebase/firestore";
 import { format } from "date-fns";
 import { toZonedTime } from "date-fns-tz";
+import { DEFAULT_SLOT_UNIT } from "../routes/booking/utils/getSlotUnit";
 
 // All times in the booking app are displayed in Eastern Time
 export const TIMEZONE = "America/New_York";
@@ -65,21 +66,27 @@ export const formatTimeAmPm = (d: Date) => {
   return format(zonedDate, "h:mm a");
 };
 
-export function roundTimeUp() {
+export function roundTimeUp(slotUnit: number = DEFAULT_SLOT_UNIT) {
   // Get current time in Eastern timezone
   const now = new Date();
   const easternNow = toZonedTime(now, TIMEZONE);
   const minutes = easternNow.getMinutes();
 
-  // Round up to next half-hour or hour
-  const roundedMinutes = minutes > 30 ? 60 : 30;
+  const remainder = minutes % slotUnit;
 
-  if (roundedMinutes === 60) {
-    easternNow.setHours(easternNow.getHours() + 1);
-    easternNow.setMinutes(0);
-  } else {
-    easternNow.setMinutes(30);
+  if (remainder === 0) {
+    // already aligned to slot boundary
+    easternNow.setSeconds(0);
+    easternNow.setMilliseconds(0);
+    return easternNow;
   }
+
+  const roundedMinutes = minutes + (slotUnit - remainder);
+  const hourIncrement = Math.floor(roundedMinutes / 60);
+  const finalMinutes = roundedMinutes % 60;
+
+  easternNow.setHours(easternNow.getHours() + hourIncrement);
+  easternNow.setMinutes(finalMinutes);
 
   easternNow.setSeconds(0);
   easternNow.setMilliseconds(0);
