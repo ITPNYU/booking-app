@@ -21,7 +21,7 @@ export type Resource = {
   isWalkIn: boolean;
   isWalkInCanBookTwo: boolean;
   services: string[]; // ["equipment", "staffing", "setup", "security", "cleaning", "catering", "campus-media"]
-  maxHour: {
+  maxHour?: {
     student: number;
     faculty: number;
     admin: number;
@@ -50,6 +50,7 @@ export type Resource = {
 export type SchemaContextType = {
   tenant: string; // No default - must be provided
   name: string;
+  safetyTrainingGoogleFormId?: string;
   logo: string;
   nameForPolicy: string;
   policy: string; // innerHTML
@@ -70,6 +71,16 @@ export type SchemaContextType = {
   supportVIP: boolean;
   supportWalkIn: boolean;
   resourceName: string;
+  calendarConfig?: {
+    startHour?: Record<string, string>; // e.g., { studentVIP: "06:00:00", student: "09:00:00", ... }
+    slotUnit?: Record<string, number>; // e.g., { student: 15, admin: 15, ... }
+    timeSensitiveRequestWarning?: {
+      hours?: number; // hours
+      isActive?: boolean;
+      message?: string;
+      policyLink?: string;
+    };
+  };
   // Email messages for all scenarios
   emailMessages: {
     requestConfirmation: string;
@@ -171,6 +182,36 @@ export const defaultScheme: Omit<SchemaContextType, "tenant"> = {
   supportVIP: false,
   supportWalkIn: false,
   resourceName: "",
+  calendarConfig: {
+    startHour: {
+      student: "09:00:00",
+      studentVIP: "06:00:00",
+      studentWalkIn: "09:00:00",
+      faculty: "09:00:00",
+      facultyVIP: "06:00:00",
+      facultyWalkIn: "09:00:00",
+      admin: "09:00:00",
+      adminVIP: "06:00:00",
+      adminWalkIn: "09:00:00",
+    },
+    slotUnit: {
+      student: 15,
+      studentVIP: 15,
+      studentWalkIn: 15,
+      faculty: 15,
+      facultyVIP: 15,
+      facultyWalkIn: 15,
+      admin: 15,
+      adminVIP: 15,
+      adminWalkIn: 15,
+    },
+    timeSensitiveRequestWarning: {
+      hours: 48,
+      isActive: false,
+      message: "",
+      policyLink: "",
+    },
+  },
   schoolMapping: {},
   emailMessages: {
     requestConfirmation: "",
