@@ -9,6 +9,7 @@ import {
   useTheme,
 } from "@mui/material";
 import React, { useContext } from "react";
+import dayjs from "dayjs";
 
 import { FormContextLevel } from "@/components/src/types";
 import { styled } from "@mui/system";
@@ -16,6 +17,8 @@ import { BookingContext } from "../bookingProvider";
 import useCalculateOverlap from "../hooks/useCalculateOverlap";
 import useCheckAutoApproval from "../hooks/useCheckAutoApproval";
 import useCheckDurationLimits from "../hooks/useCheckDurationLimits";
+import { useTenantSchema } from "../../components/SchemaProvider";
+import { usePathname } from "next/navigation";
 
 interface Props {
   formContext: FormContextLevel;
@@ -51,6 +54,25 @@ export default function BookingStatusBar({ formContext, ...props }: Props) {
     formData,
   } = useContext(BookingContext);
   const isOverlap = useCalculateOverlap();
+  const schema = useTenantSchema();
+  const timeSensitiveRequestWarning = schema.calendarConfig?.timeSensitiveRequestWarning;
+  const pathname = usePathname();
+  const isSelectRoomPage = pathname.endsWith("/selectRoom");
+  const warningThresholdHours = timeSensitiveRequestWarning?.hours ?? 48;
+  const bookingStart = bookingCalendarInfo?.start
+    ? dayjs(bookingCalendarInfo.start)
+    : null;
+  const hoursUntilStart = bookingStart
+    ? bookingStart.diff(dayjs(), "hour", true)
+    : null;
+  const shouldShowWarning = Boolean(
+    isSelectRoomPage &&
+      timeSensitiveRequestWarning?.isActive &&
+      bookingStart &&
+      hoursUntilStart !== null &&
+      hoursUntilStart >= 0 &&
+      hoursUntilStart <= warningThresholdHours
+  );
 
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
@@ -259,6 +281,27 @@ export default function BookingStatusBar({ formContext, ...props }: Props) {
         <Box>{backBtn}</Box>
         <Box>
           {alert}
+          {shouldShowWarning && timeSensitiveRequestWarning?.message && (
+            <Alert
+              severity="warning"
+              variant="filled"
+              sx={{ padding: "0px 16px", width: "100%", margin: "5px 0px" }}
+            >
+              <span>{timeSensitiveRequestWarning.message}</span>
+              {timeSensitiveRequestWarning.policyLink && (
+                <span>
+                  {" "}
+                  <a
+                    href={timeSensitiveRequestWarning.policyLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Learn more
+                  </a>
+                </span>
+              )}
+            </Alert>
+          )}
           <Alert
             severity="warning"
             variant="filled"
