@@ -50,6 +50,25 @@ const Divider = styled(Box)(({ theme }) => ({
   margin: "0px 20px",
 }));
 
+// Helper function to convert PagePermission to path segment
+const getPathFromPermission = (permission: PagePermission): string => {
+  switch (permission) {
+    case PagePermission.PA:
+      return "pa";
+    case PagePermission.ADMIN:
+      return "admin";
+    case PagePermission.LIAISON:
+      return "liaison";
+    case PagePermission.SERVICES:
+      return "services";
+    case PagePermission.SUPER_ADMIN:
+      return "super";
+    case PagePermission.BOOKING:
+    default:
+      return "";
+  }
+};
+
 export default function NavBar() {
   const router = useRouter();
   const { tenant } = useParams();
@@ -61,7 +80,6 @@ export default function NavBar() {
   const pathname = usePathname();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
-  const isRoot = pathname === "/";
   const tenantSchema = useContext(SchemaContext);
   const {
     name = "",
@@ -70,29 +88,12 @@ export default function NavBar() {
     supportWalkIn = false,
   } = tenantSchema || {};
 
-  const handleRoleChange = (e: any) => {
-    const pathOf = (x: string) => (tenant ? `/${tenant}/${x}` : `/${x}`);
+  const isRoot = pathname === "/" || (tenant && pathname === `/${tenant}`);
 
-    switch (e.target.value as PagePermission) {
-      case PagePermission.BOOKING:
-        router.push(pathOf(""));
-        break;
-      case PagePermission.PA:
-        router.push(pathOf("pa"));
-        break;
-      case PagePermission.ADMIN:
-        router.push(pathOf("admin"));
-        break;
-      case PagePermission.LIAISON:
-        router.push(pathOf("liaison"));
-        break;
-      case PagePermission.SERVICES:
-        router.push(pathOf("services"));
-        break;
-      case PagePermission.SUPER_ADMIN:
-        router.push(pathOf("super"));
-        break;
-    }
+  const handleRoleChange = (e: any) => {
+    const pathSegment = getPathFromPermission(e.target.value as PagePermission);
+    const fullPath = tenant ? `/${tenant}/${pathSegment}` : `/${pathSegment}`;
+    router.push(fullPath);
   };
 
   const handleClickHome = () => {
@@ -145,7 +146,6 @@ export default function NavBar() {
   };
 
   useEffect(() => {
-    const isRoot = pathname === "/" || (tenant && pathname === `/${tenant}`);
     if (!isRoot) return;
 
     const hasRedirected = sessionStorage.getItem(
@@ -154,24 +154,7 @@ export default function NavBar() {
     if (hasRedirected) return;
 
     if (pagePermission !== PagePermission.BOOKING) {
-      let targetPath = "";
-      switch (pagePermission) {
-        case PagePermission.PA:
-          targetPath = "pa";
-          break;
-        case PagePermission.ADMIN:
-          targetPath = "admin";
-          break;
-        case PagePermission.LIAISON:
-          targetPath = "liaison";
-          break;
-        case PagePermission.SERVICES:
-          targetPath = "services";
-          break;
-        case PagePermission.SUPER_ADMIN:
-          targetPath = "super";
-          break;
-      }
+      const targetPath = getPathFromPermission(pagePermission);
 
       if (targetPath) {
         const fullPath = tenant ? `/${tenant}/${targetPath}` : `/${targetPath}`;
@@ -179,7 +162,7 @@ export default function NavBar() {
         sessionStorage.setItem("hasRedirectedToDefaultContext", "true");
       }
     }
-  }, [pagePermission, pathname, tenant, router]);
+  }, [pagePermission, pathname, tenant, router, isRoot]);
 
   const hasUserPermission = (roles: PagePermission[]) => {
     return roles.includes(pagePermission);
