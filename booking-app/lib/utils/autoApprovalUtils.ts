@@ -5,8 +5,8 @@
  * based on the new autoApproval configuration in tenant schemas.
  */
 
-import { RoomSetting } from "@/components/src/types";
-import { getBaseRole } from "@/components/src/utils/roleUtils";
+import { Role, RoomSetting } from "@/components/src/types";
+import { getBookingHourLimits } from "@/components/src/client/routes/booking/utils/bookingHourLimits";
 
 export interface AutoApprovalContext {
   selectedRooms: RoomSetting[];
@@ -41,44 +41,25 @@ export function isRoomAutoApprovalEnabled(room: RoomSetting): boolean {
 }
 
 /**
- * Gets the min/max hour limits for a role from the room configuration
- */
-function getHourLimits(
-  room: RoomSetting,
-  normalizedRole: "admin" | "faculty" | "student"
-): { minHours: number; maxHours: number } {
-  const minHours = room.autoApproval?.minHour?.[normalizedRole] ?? -1;
-  const maxHours = room.autoApproval?.maxHour?.[normalizedRole] ?? -1;
-  return { minHours, maxHours };
-}
-
-/**
- * Gets the combined hour limits from all selected rooms (uses most restrictive)
+ * Gets the combined hour limits from all selected rooms (uses most restrictive).
+ * Delegates to getBookingHourLimits so limit logic lives in one place; returns -1 for "no limit" to match auto-approval callers.
  */
 export function getCombinedHourLimits(
   selectedRooms: RoomSetting[],
-  role?: string
+  role?: string,
+  isWalkIn?: boolean,
+  isVip?: boolean
 ): { minHours: number; maxHours: number } {
-  const normalizedRole = getBaseRole(role);
-  
-  let minHours = -1;
-  let maxHours = -1;
-  
-  for (const room of selectedRooms) {
-    const roomLimits = getHourLimits(room, normalizedRole);
-    
-    // For minimum: take the highest minimum (most restrictive)
-    if (roomLimits.minHours > 0) {
-      minHours = minHours < 0 ? roomLimits.minHours : Math.max(minHours, roomLimits.minHours);
-    }
-    
-    // For maximum: take the lowest maximum (most restrictive)
-    if (roomLimits.maxHours > 0) {
-      maxHours = maxHours < 0 ? roomLimits.maxHours : Math.min(maxHours, roomLimits.maxHours);
-    }
-  }
-  
-  return { minHours, maxHours };
+  const { minHours, maxHours } = getBookingHourLimits(
+    selectedRooms,
+    role as Role | undefined,
+    isWalkIn ?? false,
+    isVip ?? false
+  );
+  return {
+    minHours: minHours === 0 ? -1 : minHours,
+    maxHours: maxHours === Number.POSITIVE_INFINITY ? -1 : maxHours,
+  };
 }
 
 /**
@@ -175,10 +156,15 @@ export function checkAutoApprovalEligibility(
     };
   }
   
-  // Check duration limits if provided
+  // Check duration limits if provided (uses same logic as getBookingHourLimits)
   if (durationHours !== undefined) {
-    const { minHours, maxHours } = getCombinedHourLimits(selectedRooms, role);
-    
+    const { minHours, maxHours } = getCombinedHourLimits(
+      selectedRooms,
+      role,
+      isWalkIn ?? false,
+      isVip ?? false
+    );
+
     if (minHours > 0 && durationHours < minHours) {
       return {
         canAutoApprove: false,
