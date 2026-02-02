@@ -21,6 +21,7 @@ import {
   BookingFormSwitch,
   BookingFormTextField,
 } from "./BookingFormInputs";
+import { isValidNetIdFormat, NET_ID_REGEX } from "../../../../utils/validationHelpers";
 
 import { styled } from "@mui/system";
 import { useParams, useRouter } from "next/navigation";
@@ -272,7 +273,7 @@ export default function FormInput({
 
   // Add a function to fetch sponsor data by Net ID
   const fetchSponsorByNetId = useCallback(async (netId: string) => {
-    if (!netId || !/^[a-zA-Z]{2,3}[0-9]{1,6}$/.test(netId)) return;
+    if (!netId || !isValidNetIdFormat(netId)) return;
 
     setIsFetchingSponsor(true);
     try {
@@ -301,7 +302,7 @@ export default function FormInput({
       }
 
       // Only proceed with API validation if it's a valid Net ID format
-      if (value && /^[a-zA-Z]{2,3}[0-9]{1,6}$/.test(value)) {
+      if (value && isValidNetIdFormat(value)) {
         const data = await fetchSponsorByNetId(value);
 
         // Check if the sponsor is a student
@@ -330,7 +331,7 @@ export default function FormInput({
     const userNetId = userEmail?.split("@")[0];
     if (
       sponsorEmail &&
-      /^[a-zA-Z]{2,3}[0-9]{1,6}$/.test(sponsorEmail) &&
+      isValidNetIdFormat(sponsorEmail) &&
       sponsorEmail !== userNetId
     ) {
       fetchSponsorByNetId(sponsorEmail);
@@ -348,7 +349,7 @@ export default function FormInput({
       }
 
       // Use the already fetched data for validation
-      if (sponsorApiData && /^[a-zA-Z]{2,3}[0-9]{1,6}$/.test(value)) {
+      if (sponsorApiData && isValidNetIdFormat(value)) {
         const sponsorRole = mapAffiliationToRole(
           roleMapping,
           sponsorApiData.affiliation_sub_type
@@ -690,7 +691,7 @@ export default function FormInput({
               label="Secondary Email (NYU Net ID)"
               required={false}
               pattern={{
-                value: /^[a-zA-Z]{2,3}[0-9]{1,6}$/,
+                value: NET_ID_REGEX,
                 message: "Invalid Net ID",
               }}
               description="Enter the NYU Net ID (e.g., abc123)"
@@ -721,7 +722,7 @@ export default function FormInput({
               }
               required
               pattern={{
-                value: /^[a-zA-Z]{2,3}[0-9]{1,6}$/,
+                value: NET_ID_REGEX,
                 message: "Invalid Net ID",
               }}
               {...{ control, errors, trigger }}
@@ -763,7 +764,7 @@ export default function FormInput({
             description="Enter the sponsor's NYU Net ID (e.g., abc123)"
             required={watch("role") === Role.STUDENT}
             pattern={{
-              value: /^[a-zA-Z]{2,3}[0-9]{1,6}$/,
+              value: NET_ID_REGEX,
               message: "Invalid Net ID",
             }}
             validate={validateSponsorNetIdSimple}

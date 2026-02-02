@@ -20,6 +20,7 @@ import {
   BookingStatus,
   BookingStatusLabel,
 } from "../types";
+import { getSecondaryContactName } from "../utils/formatters";
 import { isMediaCommons } from "../utils/tenantUtils";
 import { getTenantEmailConfig } from "./emails";
 
@@ -181,6 +182,7 @@ export const serverBookingContents = async (id: string, tenant?: string) => {
       minute: "2-digit",
       hour12: true,
     }),
+    secondaryContactName: getSecondaryContactName(booking),
   };
 
   return updatedBookingObj as unknown as BookingFormDetails;
