@@ -45,6 +45,18 @@ export type Resource = {
   };
   staffingServices?: string[]; // Specific staffing service options for this room
   staffingSections?: StaffingSection[];
+  /** Optional URL for room-specific safety training form (stored in DB) */
+  trainingFormUrl?: string;
+  /** Production calendar ID for this resource (stored in DB) */
+  calendarIdProd?: string;
+};
+
+/** Time-sensitive request warning config (may live at top level in DB or under calendarConfig) */
+export type TimeSensitiveRequestWarning = {
+  hours?: number;
+  isActive?: boolean;
+  message?: string;
+  policyLink?: string;
 };
 
 export type SchemaContextType = {
@@ -71,15 +83,12 @@ export type SchemaContextType = {
   supportVIP: boolean;
   supportWalkIn: boolean;
   resourceName: string;
+  /** Top-level time-sensitive warning (DB stores here; also supported under calendarConfig) */
+  timeSensitiveRequestWarning?: TimeSensitiveRequestWarning;
   calendarConfig?: {
     startHour?: Record<string, string>; // e.g., { studentVIP: "06:00:00", student: "09:00:00", ... }
     slotUnit?: Record<string, number>; // e.g., { student: 15, admin: 15, ... }
-    timeSensitiveRequestWarning?: {
-      hours?: number; // hours
-      isActive?: boolean;
-      message?: string;
-      policyLink?: string;
-    };
+    timeSensitiveRequestWarning?: TimeSensitiveRequestWarning;
   };
   // Email messages for all scenarios
   emailMessages: {
@@ -159,10 +168,20 @@ export const defaultResource: Resource = {
   },
   staffingServices: [],
   staffingSections: defineObjectArrayWithDefaults(defaultStaffingSection),
+  trainingFormUrl: "",
+  calendarIdProd: "",
+};
+
+const defaultTimeSensitiveRequestWarning: TimeSensitiveRequestWarning = {
+  hours: 48,
+  isActive: false,
+  message: "",
+  policyLink: "",
 };
 
 export const defaultScheme: Omit<SchemaContextType, "tenant"> = {
   name: "",
+  safetyTrainingGoogleFormId: "",
   logo: "",
   nameForPolicy: "",
   policy: "",
@@ -182,6 +201,7 @@ export const defaultScheme: Omit<SchemaContextType, "tenant"> = {
   supportVIP: false,
   supportWalkIn: false,
   resourceName: "",
+  timeSensitiveRequestWarning: defaultTimeSensitiveRequestWarning,
   calendarConfig: {
     startHour: {
       student: "09:00:00",
@@ -205,12 +225,7 @@ export const defaultScheme: Omit<SchemaContextType, "tenant"> = {
       adminVIP: 15,
       adminWalkIn: 15,
     },
-    timeSensitiveRequestWarning: {
-      hours: 48,
-      isActive: false,
-      message: "",
-      policyLink: "",
-    },
+    timeSensitiveRequestWarning: defaultTimeSensitiveRequestWarning,
   },
   schoolMapping: {},
   emailMessages: {
