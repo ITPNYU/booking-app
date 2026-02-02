@@ -1,4 +1,5 @@
 import { Role } from "@/components/src/types";
+import { getBaseRole } from "@/components/src/utils/roleUtils";
 import { Resource } from "../../components/SchemaProvider";
 
 // No default limits - allow any duration
@@ -17,35 +18,12 @@ function getRoleFieldName(
   isWalkIn: boolean,
   isVIP: boolean
 ): keyof Resource["maxHour"] {
-  if (!role) {
-    // Default to student if role is not set
-    if (isVIP) return "studentVIP";
-    if (isWalkIn) return "studentWalkIn";
-    return "student";
-  }
-
-  let baseRole: "student" | "faculty" | "admin";
-
-  switch (role) {
-    case Role.STUDENT:
-      baseRole = "student";
-      break;
-    case Role.FACULTY:
-    case Role.RESIDENT_FELLOW:
-    case Role.CHAIR_PROGRAM_DIRECTOR:
-      baseRole = "faculty";
-      break;
-    case Role.ADMIN_STAFF:
-      baseRole = "admin";
-      break;
-    default:
-      baseRole = "student";
-  }
+  const baseRole = getBaseRole(role);
 
   if (isVIP) {
     return `${baseRole}VIP` as keyof Resource["maxHour"];
   }
-  
+
   return isWalkIn
     ? (`${baseRole}WalkIn` as keyof Resource["maxHour"])
     : baseRole;

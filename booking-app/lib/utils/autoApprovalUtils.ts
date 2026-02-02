@@ -6,6 +6,7 @@
  */
 
 import { RoomSetting } from "@/components/src/types";
+import { getBaseRole } from "@/components/src/utils/roleUtils";
 
 export interface AutoApprovalContext {
   selectedRooms: RoomSetting[];
@@ -27,25 +28,6 @@ export interface AutoApprovalResult {
   canAutoApprove: boolean;
   reason?: string;
   details?: Record<string, any>;
-}
-
-/**
- * Normalizes role names to standard format
- */
-function normalizeRole(role?: string): "admin" | "faculty" | "student" {
-  if (!role) return "student";
-  
-  const lowerRole = role.toLowerCase();
-  
-  if (lowerRole.includes("admin") || lowerRole.includes("staff") || lowerRole.includes("chair") || lowerRole.includes("director")) {
-    return "admin";
-  }
-  
-  if (lowerRole.includes("faculty") || lowerRole.includes("fellow") || lowerRole.includes("resident")) {
-    return "faculty";
-  }
-  
-  return "student";
 }
 
 /**
@@ -77,7 +59,7 @@ export function getCombinedHourLimits(
   selectedRooms: RoomSetting[],
   role?: string
 ): { minHours: number; maxHours: number } {
-  const normalizedRole = normalizeRole(role);
+  const normalizedRole = getBaseRole(role);
   
   let minHours = -1;
   let maxHours = -1;
