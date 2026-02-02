@@ -20,6 +20,9 @@ import {
   BookingOrigin,
   BookingStatusLabel,
 } from "@/components/src/types";
+import { callXStateTransitionAPI } from "@/components/src/server/db";
+import { getStatusFromXState } from "@/components/src/utils/statusFromXState";
+import { shouldUseXState } from "@/components/src/utils/tenantUtils";
 import { logServerBookingChange } from "@/lib/firebase/server/adminDb";
 import { Timestamp } from "firebase-admin/firestore";
 import { NextRequest, NextResponse } from "next/server";
@@ -157,10 +160,12 @@ async function sendEditNotificationEmails(
  *
  * Characteristics:
  * - User can only edit their own non-approved bookings
- * - XState remains in "Requested" state (no state transition)
+ * - For DECLINED bookings: Triggers XState "edit" transition (DECLINED → REQUESTED)
+ * - For other statuses: XState remains in current state (no state transition)
+ * - Clears declinedAt timestamp when editing declined bookings
  * - Only booking data is updated
  * - Sends notification email to first approvers
- * - Calendar event is recreated with [REQUESTED] or [MODIFIED] status
+ * - Calendar event is recreated with [REQUESTED] status
  */
 export async function PUT(request: NextRequest) {
   const {
@@ -180,6 +185,8 @@ export async function PUT(request: NextRequest) {
     email,
     tenant,
     modifiedBy,
+    endpoint: "/api/bookings/edit",
+    method: "PUT",
   });
 
   // Validation
@@ -204,6 +211,20 @@ export async function PUT(request: NextRequest) {
       tenant,
     );
     const oldRoomIds = existingContents.roomId.split(",").map(roomId => roomId.trim());
+
+    // Check if booking is currently in DECLINED status - we'll handle XState transition after creating new calendar event
+    const usesXState = shouldUseXState(tenant);
+    let wasDeclined = false;
+    if (usesXState) {
+      const currentStatus = getStatusFromXState(existingContents, tenant);
+      wasDeclined = currentStatus === BookingStatusLabel.DECLINED;
+      console.log(`🔍 EDIT: Current booking status [${tenant?.toUpperCase()}]:`, {
+        calendarEventId,
+        currentStatus,
+        hasDeclinedAt: !!existingContents.declinedAt,
+        wasDeclined,
+      });
+    }
 
     // Get rooms
     const tenantRooms = await getTenantRooms(tenant);
@@ -286,7 +307,7 @@ export async function PUT(request: NextRequest) {
 
     // Update booking data
     const { id, ...formData } = data;
-    const updatedData = {
+    const updatedData: any = {
       ...formData,
       roomId: selectedRoomIds,
       startDate: toFirebaseTimestampFromString(bookingCalendarInfo.startStr),
@@ -297,18 +318,73 @@ export async function PUT(request: NextRequest) {
       origin: existingContents.origin || BookingOrigin.USER,
     };
 
+    // If booking was declined, clear the declinedAt timestamp to ensure status shows as REQUESTED
+    if (existingContents.declinedAt) {
+      updatedData.declinedAt = null;
+      updatedData.declinedBy = null;
+      updatedData.declineReason = null;
+      console.log(
+        `🧹 EDIT: Cleared declinedAt timestamp [${tenant?.toUpperCase()}]:`,
+        {
+          calendarEventId: newCalendarEventId,
+          reason: "Booking edited, moving back to REQUESTED status",
+        },
+      );
+    }
+
     console.log(`✅ PRESERVED ORIGIN FOR EDIT [${tenant?.toUpperCase()}]:`, {
       calendarEventId: newCalendarEventId,
       originalOrigin: existingContents.origin,
       newOrigin: updatedData.origin,
     });
 
+    // Update booking with new calendarEventId first
     await serverUpdateDataByCalendarEventId(
       TableNames.BOOKING,
       calendarEventId,
       updatedData,
       tenant,
     );
+
+    // If booking was declined, trigger XState edit transition on the NEW calendarEventId
+    // This moves the booking from DECLINED to REQUESTED state
+    if (usesXState && wasDeclined) {
+      console.log(
+        `🔄 EDIT: Triggering XState edit transition for DECLINED booking [${tenant?.toUpperCase()}]:`,
+        {
+          oldCalendarEventId: calendarEventId,
+          newCalendarEventId,
+          fromStatus: "Declined",
+          toStatus: "Requested",
+        },
+      );
+
+      const xstateResult = await callXStateTransitionAPI(
+        newCalendarEventId, // Use NEW calendarEventId since booking was just updated
+        "edit",
+        modifiedBy,
+        tenant,
+      );
+
+      if (xstateResult.success) {
+        console.log(
+          `✅ EDIT: XState transition successful [${tenant?.toUpperCase()}]:`,
+          {
+            newCalendarEventId,
+            newState: xstateResult.newState,
+          },
+        );
+      } else {
+        console.error(
+          `🚨 EDIT: XState transition failed [${tenant?.toUpperCase()}]:`,
+          {
+            newCalendarEventId,
+            error: xstateResult.error,
+          },
+        );
+        // Continue with edit even if XState transition fails
+      }
+    }
 
     // For edit, we don't need to delete approval fields as they shouldn't exist
     // But do it anyway for safety
@@ -336,15 +412,33 @@ export async function PUT(request: NextRequest) {
       tenant,
     );
 
+    // Verify the final status after edit
+    const { serverGetDataByCalendarEventId } = await import(
+      "@/lib/firebase/server/adminDb"
+    );
+    const finalBooking = (await serverGetDataByCalendarEventId(
+      TableNames.BOOKING,
+      newCalendarEventId,
+      tenant,
+    )) as any;
+    const finalStatus = finalBooking
+      ? getStatusFromXState(finalBooking, tenant)
+      : "UNKNOWN";
+
     console.log(`✅ EDIT COMPLETED [${tenant?.toUpperCase()}]:`, {
-      calendarEventId: newCalendarEventId,
+      oldCalendarEventId: calendarEventId,
+      newCalendarEventId,
       modifiedBy,
+      finalStatus,
+      hasDeclinedAt: !!finalBooking?.declinedAt,
+      xstateValue: finalBooking?.xstateData?.snapshot?.value,
     });
 
     return NextResponse.json({
       result: "success",
       calendarEventId: newCalendarEventId,
       requestNumber: existingContents.requestNumber,
+      status: finalStatus, // Include status in response for debugging
     });
   } catch (error) {
     console.error(`❌ EDIT FAILED:`, error);
