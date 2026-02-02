@@ -20,6 +20,7 @@ import {
   BookingStatus,
   BookingStatusLabel,
 } from "../types";
+import { getSecondaryContactName } from "../utils/formatters";
 import { isMediaCommons } from "../utils/tenantUtils";
 import { getTenantEmailConfig } from "./emails";
 
@@ -181,6 +182,7 @@ export const serverBookingContents = async (id: string, tenant?: string) => {
       minute: "2-digit",
       hour12: true,
     }),
+    secondaryContactName: getSecondaryContactName(booking),
   };
 
   return updatedBookingObj as unknown as BookingFormDetails;
@@ -666,6 +668,34 @@ export const serverApproveEvent = async (id: string, tenant?: string) => {
       tenant,
     });
   }
+
+  // for secondary contact, if we have one
+  if (contents.secondaryEmail && contents.secondaryEmail.length > 0) {
+    serverSendBookingDetailEmail({
+      calendarEventId: id,
+      targetEmail: contents.secondaryEmail,
+      headerMessage:
+        "A reservation where you are listed as a Secondary Point of Contact has been approved.<br /><br />" +
+        emailConfig.emailMessages.approvalNotice,
+      status: BookingStatusLabel.APPROVED,
+      replyTo: guestEmail,
+      tenant,
+    });
+
+    const secondaryFormData = {
+      guestEmail: contents.secondaryEmail,
+      calendarEventId: id,
+      roomId: contents.roomId,
+    };
+    await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/inviteUser`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(secondaryFormData),
+    });
+  }
+
 
   const formDataForCalendarEvents = {
     calendarEventId: id,

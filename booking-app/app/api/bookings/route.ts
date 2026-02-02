@@ -17,6 +17,7 @@ import {
   BookingStatusLabel,
   RoomSetting,
 } from "@/components/src/types";
+import { getSecondaryContactName } from "@/components/src/utils/formatters";
 import {
   logServerBookingChange,
   serverGetNextSequentialId,
@@ -330,6 +331,7 @@ async function handleBookingApprovalEmails(
             hour12: true,
           }),
           requestNumber: contents.requestNumber + "",
+          secondaryContactName: getSecondaryContactName(contents),
         },
         targetEmail: recipient,
         status: BookingStatusLabel.REQUESTED,
