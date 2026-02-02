@@ -227,7 +227,7 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
           ...(requestParams.body ?? {}),
         }),
       })
-        .then((res) => {
+        .then(async (res) => {
           console.log(
             `📨 API RESPONSE [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
             {
@@ -243,6 +243,23 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
             setSubmitting("error");
             return;
           }
+
+          if (!res.ok) {
+            // Handle other error status codes
+            let errorMessage = "Sorry, an error occurred while submitting this request";
+            try {
+              const errorData = await res.json();
+              if (errorData.error || errorData.message) {
+                errorMessage = errorData.error || errorData.message;
+              }
+            } catch (e) {
+              // If response is not JSON, use default message
+            }
+            setError(new Error(errorMessage));
+            setSubmitting("error");
+            return;
+          }
+
           // clear stored booking data after submit confirmation
           setBookingCalendarInfo(undefined);
           setSelectedRooms([]);
@@ -254,6 +271,7 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
         })
         .catch((error) => {
           console.error("Error submitting booking:", error);
+          setError(new Error("Sorry, an error occurred while submitting this request"));
           setSubmitting("error");
         });
     },

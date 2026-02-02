@@ -39,6 +39,7 @@ import { serverGetDocumentById } from "@/lib/firebase/server/adminDb";
 import { getCalendarClient } from "@/lib/googleClient";
 import { Timestamp } from "firebase-admin/firestore";
 import { DateSelectArg } from "fullcalendar";
+import { extractTenantFromRequest } from "./shared";
 
 // Common function to create XState data structure
 export function createXStateData(
@@ -129,26 +130,7 @@ function cleanObjectForFirestore(obj: any): any {
 }
 
 // Helper function to extract tenant from request
-const extractTenantFromRequest = (request: NextRequest): string | undefined => {
-  // Try to get tenant from referer header
-  const referer = request.headers.get("referer");
-  if (referer) {
-    const url = new URL(referer);
-    const tenantMatch = url.pathname.match(/^\/([^\/]+)/);
-    if (tenantMatch && tenantMatch[1] !== "api") {
-      return tenantMatch[1];
-    }
-  }
 
-  // Try to get tenant from query parameter
-  const { searchParams } = new URL(request.url);
-  const tenant = searchParams.get("tenant");
-  if (tenant) {
-    return tenant;
-  }
-
-  return undefined;
-};
 
 // Helper function to get tenant-specific room information
 const getTenantRooms = async (tenant?: string) => {

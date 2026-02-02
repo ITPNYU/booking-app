@@ -1,7 +1,8 @@
+import { getBookingHourLimits } from "@/components/src/client/routes/booking/utils/bookingHourLimits";
 import { TENANTS } from "@/components/src/constants/tenants";
+import { BookingOrigin, Role } from "@/components/src/types";
 import { BookingLogger } from "@/lib/logger/bookingLogger";
 import { and, assign, setup } from "xstate";
-import { Role } from "@/components/src/types";
 import { checkAutoApprovalEligibility } from "@/lib/utils/autoApprovalUtils";
 
 // Time constants for clarity
@@ -19,6 +20,7 @@ interface MediaCommonsBookingContext {
   isVip?: boolean;
   role?: Role;
   declineReason?: string;
+  origin?: string;
   servicesRequested?: {
     staff?: boolean;
     equipment?: boolean;
@@ -330,6 +332,32 @@ export const mcBookingMachine = setup({
         setup: true,
       }),
     }),
+    // Auto-approve all requested services for pregame bookings
+    approveAllPregameServices: assign({
+      servicesApproved: ({ context }) => {
+        const approved: any = {};
+        if (context.servicesRequested) {
+          Object.keys(context.servicesRequested).forEach((service) => {
+            if (
+              context.servicesRequested?.[
+                service as keyof typeof context.servicesRequested
+              ]
+            ) {
+              approved[service] = true;
+            }
+          });
+        }
+        console.log(
+          `✅ AUTO-APPROVING ALL PREGAME SERVICES [${context.tenant?.toUpperCase()}]:`,
+          {
+            servicesRequested: context.servicesRequested,
+            servicesApproved: approved,
+            origin: context.origin,
+          }
+        );
+        return approved;
+      },
+    }),
 
     handleCloseProcessing: async ({ context, event }) => {
       console.log(`🎬 XSTATE ACTOR: handleCloseProcessing started`, {
@@ -545,21 +573,6 @@ export const mcBookingMachine = setup({
   },
   guards: {
     shouldAutoApprove: ({ context }) => {
-      console.log(
-        `🎯 XSTATE AUTO-APPROVAL GUARD STARTED [${context.tenant?.toUpperCase() || "UNKNOWN"}]:`,
-        {
-          context,
-          tenant: context.tenant,
-          selectedRooms: context.selectedRooms?.length || 0,
-          formData: context.formData,
-          bookingDuration: context.bookingCalendarInfo
-            ? `${((new Date(context.bookingCalendarInfo.endStr).getTime() - new Date(context.bookingCalendarInfo.startStr).getTime()) / (1000 * 60 * 60)).toFixed(1)} hours`
-            : "Not set",
-          isWalkIn: context.isWalkIn,
-          isVip: context.isVip,
-        }
-      );
-
       // If this is a newly created XState (converted from existing booking without XState data), don't auto-approve
       // This prevents auto-approval when converting existing bookings to XState
       if (context._restoredFromStatus) {
@@ -583,15 +596,99 @@ export const mcBookingMachine = setup({
         return false;
       }
 
+      // Check event duration against role-based limits
+      if (context.bookingCalendarInfo && context.selectedRooms) {
+        const startDate = new Date(context.bookingCalendarInfo.startStr);
+        const endDate = new Date(context.bookingCalendarInfo.endStr);
+        const duration = endDate.getTime() - startDate.getTime();
+        const durationHours = duration / ONE_HOUR_IN_MS;
+
+        // Get dynamic hour limits based on role and booking type
+        const { maxHours, minHours } = getBookingHourLimits(
+          context.selectedRooms,
+          context.role,
+          context.isWalkIn || false,
+          context.isVip || false
+        );
+
+        if (durationHours > maxHours) {
+          console.log(
+            `🚫 XSTATE GUARD: Event duration exceeds maximum (${durationHours.toFixed(1)} hours > ${maxHours} hours max for ${context.role || "student"} ${context.isVip ? "VIP" : context.isWalkIn ? "walk-in" : "booking"})`
+          );
+          console.log(
+            `🎯 XSTATE AUTO-APPROVAL GUARD RESULT: REJECTED (Duration exceeds max limit)`
+          );
+          return false;
+        }
+
+        if (durationHours < minHours) {
+          console.log(
+            `🚫 XSTATE GUARD: Event duration below minimum (${durationHours.toFixed(1)} hours < ${minHours} hours min for ${context.role || "student"} ${context.isVip ? "VIP" : context.isWalkIn ? "walk-in" : "booking"})`
+          );
+          console.log(
+            `🎯 XSTATE AUTO-APPROVAL GUARD RESULT: REJECTED (Duration below min limit)`
+          );
+          return false;
+        }
+      }
+
+      // Check if any services are requested - if so, don't auto-approve (except for walk-ins)
+      if (
+        context.servicesRequested &&
+        typeof context.servicesRequested === "object" &&
+        !context.isWalkIn
+      ) {
+        const hasServices = Object.values(context.servicesRequested).some(
+          Boolean
+        );
+        if (hasServices) {
+          console.log(
+            `🚫 XSTATE GUARD: Services requested, requires manual approval`
+          );
+          console.log(
+            `🎯 XSTATE AUTO-APPROVAL GUARD RESULT: REJECTED (Services requested)`
+          );
+          return false;
+        }
+      }
+
+      // Check rooms require approval (skip for VIP and walk-in bookings)
+      if (
+        context.selectedRooms &&
+        context.selectedRooms.length > 0 &&
+        !context.isWalkIn &&
+        !context.isVip
+      ) {
+        const allRoomsAutoApprove = context.selectedRooms.every(
+          (room) => (room && room.shouldAutoApprove) || false
+        );
+        if (!allRoomsAutoApprove) {
+          console.log(
+            `🚫 XSTATE GUARD: At least one room is not eligible for auto approval`,
+            {
+              roomsAutoApprove: context.selectedRooms.map((r) => ({
+                roomId: r?.roomId,
+                shouldAutoApprove: r?.shouldAutoApprove,
+              })),
+            }
+          );
+          console.log(
+            `🎯 XSTATE AUTO-APPROVAL GUARD RESULT: REJECTED (Room not auto-approvable)`
+          );
+          return false;
+        }
+      } else if (!context.isWalkIn && !context.isVip) {
+        return false;
+      }
+
       // Special case: VIP bookings with services should go to "Services Request" state, not auto-approve
-      // This allows the "isVip AND servicesRequested" guard to catch them
       if (context.isVip) {
         const hasServices =
           context.servicesRequested &&
           typeof context.servicesRequested === "object"
             ? Object.values(context.servicesRequested).some(Boolean)
             : false;
-        
+
         if (hasServices) {
           console.log(
             `🚫 XSTATE GUARD: VIP booking with services should go to Services Request, not auto-approve`
@@ -825,6 +922,13 @@ export const mcBookingMachine = setup({
       console.log(`🎯 XSTATE GUARD: securityApproved: ${approved}`);
       return approved;
     },
+    isPregameOrigin: ({ context }) => {
+      const isPregame = context.origin === BookingOrigin.PREGAME;
+      console.log(`🎯 XSTATE GUARD: isPregameOrigin: ${isPregame}`, {
+        origin: context.origin,
+      });
+      return isPregame;
+    },
   },
 }).createMachine({
   context: ({ input }: { input?: MediaCommonsBookingContext }) => ({
@@ -836,6 +940,7 @@ export const mcBookingMachine = setup({
     calendarEventId: input?.calendarEventId,
     email: input?.email,
     isVip: input?.isVip || false,
+    origin: input?.origin,
     servicesRequested:
       input?.servicesRequested && typeof input.servicesRequested === "object"
         ? input.servicesRequested
@@ -1522,6 +1627,13 @@ export const mcBookingMachine = setup({
           {
             target: "Approved",
             guard: {
+              type: "isPregameOrigin",
+            },
+            actions: "approveAllPregameServices",
+          },
+          {
+            target: "Approved",
+            guard: {
               type: "servicesApproved",
             },
           },
@@ -1551,6 +1663,8 @@ export const mcBookingMachine = setup({
           console.log(`🏁 XSTATE STATE: Entered 'Pre-approved' state`, {
             tenant: context.tenant,
             timestamp: new Date().toISOString(),
+            origin: context.origin,
+            isPregame: context.origin === BookingOrigin.PREGAME,
           });
         },
         {

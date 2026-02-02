@@ -42,6 +42,14 @@ vi.mock("@/components/src/types", () => ({
     CANCELED: "CANCELED",
     NO_SHOW: "NO-SHOW",
   },
+  BookingOrigin: {
+    USER: "user",
+    ADMIN: "admin",
+    WALK_IN: "walk-in",
+    VIP: "vip",
+    SYSTEM: "system",
+    PREGAME: "pre-game",
+  },
 }));
 
 type BookingActor = ActorRefFrom<(typeof mcBookingMachine)["createActor"]>;
