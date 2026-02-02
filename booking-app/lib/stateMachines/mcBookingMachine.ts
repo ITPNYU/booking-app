@@ -652,34 +652,8 @@ export const mcBookingMachine = setup({
         }
       }
 
-      // Check rooms require approval (skip for VIP and walk-in bookings)
-      if (
-        context.selectedRooms &&
-        context.selectedRooms.length > 0 &&
-        !context.isWalkIn &&
-        !context.isVip
-      ) {
-        const allRoomsAutoApprove = context.selectedRooms.every(
-          (room) => (room && room.shouldAutoApprove) || false
-        );
-        if (!allRoomsAutoApprove) {
-          console.log(
-            `🚫 XSTATE GUARD: At least one room is not eligible for auto approval`,
-            {
-              roomsAutoApprove: context.selectedRooms.map((r) => ({
-                roomId: r?.roomId,
-                shouldAutoApprove: r?.shouldAutoApprove,
-              })),
-            }
-          );
-          console.log(
-            `🎯 XSTATE AUTO-APPROVAL GUARD RESULT: REJECTED (Room not auto-approvable)`
-          );
-          return false;
-        }
-      } else if (!context.isWalkIn && !context.isVip) {
-        return false;
-      }
+      // Room eligibility and all other auto-approval rules are handled by checkAutoApprovalEligibility below
+      // (no longer using legacy room.shouldAutoApprove)
 
       // Special case: VIP bookings with services should go to "Services Request" state, not auto-approve
       if (context.isVip) {
