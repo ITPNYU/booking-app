@@ -436,12 +436,25 @@ export default function FormInput({
 
     console.log("📝 FORM SUBMISSION DATA:", {
       isVIP,
+      isWalkIn,
       hasVipUserApiData: !!vipUserApiData,
+      // Affiliation info
       department: data.department,
       otherDepartment: data.otherDepartment,
       school: data.school,
       otherSchool: data.otherSchool,
+      role: data.role,
+      // VIP/Walk-in specific
+      netId: data.netId,
       vipDeptFromApi: vipUserApiData?.reporting_dept_name,
+      // From context
+      departmentFromContext: department,
+      roleFromContext: role,
+      // Form data context
+      formDataDepartment: formData?.department,
+      formDataOtherDepartment: formData?.otherDepartment,
+      formDataSchool: formData?.school,
+      formDataOtherSchool: formData?.otherSchool,
     });
 
     registerEvent(submissionData, isAutoApproval, calendarEventId)
