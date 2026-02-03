@@ -1,4 +1,4 @@
-import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
+import { getApiHeaders } from "@/components/src/client/utils/apiHeaders";
 import { ApproverLevel, TableNames } from "@/components/src/policy";
 import React, { createContext, useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -173,9 +173,7 @@ export const DatabaseProvider = ({
       if (!netId || !tenant) return;
       try {
         const response = await fetch(`/api/nyu/identity/${netId}`, {
-          headers: {
-            "x-tenant": tenant || DEFAULT_TENANT,
-          },
+          headers: getApiHeaders(tenant),
         });
         if (response.ok) {
           const data = await response.json();
@@ -420,14 +418,9 @@ export const DatabaseProvider = ({
           // Fetch from all rooms and merge results
           const formPromises = roomsWithFormUrl.map(async (room) => {
             try {
-              const headers: Record<string, string> = {
-                "x-tenant": tenant || DEFAULT_TENANT,
+              const headers = getApiHeaders(tenant, {
                 "x-resource-id": room.roomId,
-              };
-
-              if (room.trainingFormUrl) {
-                headers["x-training-form-url"] = room.trainingFormUrl;
-              }
+              });
 
               const response = await fetch("/api/safety_training_form", {
                 headers,
@@ -477,12 +470,8 @@ export const DatabaseProvider = ({
       } else {
         // No rooms provided, fetch all (no resource filter)
         try {
-          const headers: Record<string, string> = {
-            "x-tenant": tenant || DEFAULT_TENANT,
-          };
-
           const response = await fetch("/api/safety_training_form", {
-            headers,
+            headers: getApiHeaders(tenant),
           });
 
           if (response.ok) {
