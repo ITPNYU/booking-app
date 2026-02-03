@@ -417,5 +417,95 @@ describe("autoApprovalUtils", () => {
       });
       expect(result.canAutoApprove).toBe(true);
     });
+
+    it("returns canAutoApprove true when duration equals minimum for role", () => {
+      const rooms = [
+        room({
+          autoApproval: {
+            minHour: { admin: -1, faculty: -1, student: 2 },
+            maxHour: { admin: -1, faculty: -1, student: 4 },
+            conditions: { setup: false, equipment: false, staffing: false, catering: false, cleaning: false, security: false },
+          },
+        }),
+      ];
+      const result = checkAutoApprovalEligibility({
+        selectedRooms: rooms,
+        role: "student",
+        durationHours: 2,
+        isWalkIn: false,
+        isVip: false,
+      });
+      expect(result.canAutoApprove).toBe(true);
+      expect(result.reason).toBe("All auto-approval conditions met");
+    });
+
+    it("returns canAutoApprove true when duration equals maximum for role", () => {
+      const rooms = [
+        room({
+          autoApproval: {
+            minHour: { admin: -1, faculty: -1, student: 0.5 },
+            maxHour: { admin: -1, faculty: -1, student: 3 },
+            conditions: { setup: false, equipment: false, staffing: false, catering: false, cleaning: false, security: false },
+          },
+        }),
+      ];
+      const result = checkAutoApprovalEligibility({
+        selectedRooms: rooms,
+        role: "student",
+        durationHours: 3,
+        isWalkIn: false,
+        isVip: false,
+      });
+      expect(result.canAutoApprove).toBe(true);
+      expect(result.reason).toBe("All auto-approval conditions met");
+    });
+
+    it("uses 'student' in reason when role is undefined and duration is below min", () => {
+      const rooms = [
+        room({
+          autoApproval: {
+            minHour: { admin: -1, faculty: -1, student: 2 },
+            maxHour: { admin: -1, faculty: -1, student: 4 },
+            conditions: { setup: false, equipment: false, staffing: false, catering: false, cleaning: false, security: false },
+          },
+        }),
+      ];
+      const result = checkAutoApprovalEligibility({
+        selectedRooms: rooms,
+        durationHours: 1,
+        isWalkIn: false,
+        isVip: false,
+      });
+      expect(result.canAutoApprove).toBe(false);
+      expect(result.reason).toContain("student");
+    });
+
+    it("returns canAutoApprove false when multiple services requested and one is not allowed", () => {
+      const rooms = [
+        room({
+          autoApproval: {
+            minHour: { admin: -1, faculty: -1, student: -1 },
+            maxHour: { admin: -1, faculty: -1, student: -1 },
+            conditions: {
+              setup: true,
+              equipment: true,
+              staffing: false,
+              catering: false,
+              cleaning: false,
+              security: false,
+            },
+          },
+        }),
+      ];
+      const result = checkAutoApprovalEligibility({
+        selectedRooms: rooms,
+        servicesRequested: { setup: true, equipment: true, catering: true },
+        isWalkIn: false,
+        isVip: false,
+      });
+      expect(result.canAutoApprove).toBe(false);
+      expect(result.reason).toContain("catering");
+      expect(result.reason).toContain("not allowed");
+    });
   });
 });
