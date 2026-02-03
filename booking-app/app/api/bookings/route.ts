@@ -39,7 +39,7 @@ import { serverGetDocumentById } from "@/lib/firebase/server/adminDb";
 import { getCalendarClient } from "@/lib/googleClient";
 import { Timestamp } from "firebase-admin/firestore";
 import { DateSelectArg } from "fullcalendar";
-import { extractTenantFromRequest } from "./shared";
+import { extractTenantFromRequest, getAffiliationDisplayValues, getOtherDisplayFields } from "./shared";
 
 // Common function to create XState data structure
 export function createXStateData(
@@ -507,15 +507,7 @@ export async function POST(request: NextRequest) {
   const { isITP, isMediaCommons, usesXState } = getTenantFlags(tenant);
 
   // Get the correct department and school display values
-  let departmentDisplay = data?.department;
-  if (data?.department === "Other" && data?.otherDepartment) {
-    departmentDisplay = data.otherDepartment;
-  }
-  
-  let schoolDisplay = data?.school;
-  if (data?.school === "Other" && data?.otherSchool) {
-    schoolDisplay = data.otherSchool;
-  }
+  const { departmentDisplay, schoolDisplay } = getAffiliationDisplayValues(data);
 
   console.log(`🏢 BOOKING API [${tenant?.toUpperCase() || "UNKNOWN"}]:`, {
     tenant,
@@ -822,12 +814,7 @@ export async function POST(request: NextRequest) {
       origin: BookingOrigin.USER,
       ...data,
       // Override with display values for "Other" selections
-      ...(data.department === "Other" && data.otherDepartment && {
-        departmentDisplay: data.otherDepartment,
-      }),
-      ...(data.school === "Other" && data.otherSchool && {
-        schoolDisplay: data.otherSchool,
-      }),
+      ...getOtherDisplayFields(data),
     };
 
     console.log("💾 Saving booking data to Firestore:", {

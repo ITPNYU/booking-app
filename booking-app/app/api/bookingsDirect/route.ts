@@ -20,6 +20,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { toFirebaseTimestampFromString } from "@/components/src/client/utils/serverDate";
 import { insertEvent } from "@/components/src/server/calendars";
 import { Timestamp } from "firebase-admin/firestore";
+import { getAffiliationDisplayValues, getOtherDisplayFields } from "@/app/api/bookings/shared";
 
 // Helper function to extract tenant from request
 const extractTenantFromRequest = (request: NextRequest): string | undefined => {
@@ -68,26 +69,9 @@ export async function POST(request: NextRequest) {
   });
   console.log("tenant", tenant);
 
-  // Get the correct department value
-  // Priority: otherDepartment (if "Other" selected) > department enum value
-  let { department } = data;
-  let departmentDisplay = department;
-  
-  if (department === "Other") {
-    if (data.otherDepartment) {
-      departmentDisplay = data.otherDepartment;
-      console.log(`Using manual "Other" department: ${departmentDisplay}`);
-    } else {
-      console.warn("⚠️ Department is 'Other' but no otherDepartment provided");
-    }
-  }
-  
-  // Get the correct school value
-  let schoolDisplay = data.school;
-  if (data.school === "Other" && data.otherSchool) {
-    schoolDisplay = data.otherSchool;
-    console.log(`Using manual "Other" school: ${schoolDisplay}`);
-  }
+  // Get the correct department and school display values using shared utility
+  const { department } = data;
+  const { departmentDisplay, schoolDisplay } = getAffiliationDisplayValues(data);
   const [room, ...otherRooms] = selectedRooms;
   const selectedRoomIds = selectedRooms.map(
     (r: { roomId: number }) => r.roomId,
@@ -182,12 +166,7 @@ export async function POST(request: NextRequest) {
     isVip: origin === BookingOrigin.VIP, // Explicitly set isVip for XState
     ...data,
     // Override with display values for "Other" selections
-    ...(department === "Other" && data.otherDepartment && {
-      departmentDisplay: data.otherDepartment,
-    }),
-    ...(data.school === "Other" && data.otherSchool && {
-      schoolDisplay: data.otherSchool,
-    }),
+    ...getOtherDisplayFields(data),
   };
   
   console.log("💾 Saving booking data to Firestore:", {

@@ -1,9 +1,61 @@
 import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
 import { TableNames } from "@/components/src/policy";
-import { BookingStatusLabel } from "@/components/src/types";
+import { BookingStatusLabel, Department } from "@/components/src/types";
 import { isMediaCommons } from "@/components/src/utils/tenantUtils";
 import { serverGetDocumentById } from "@/lib/firebase/server/adminDb";
 import { NextRequest } from "next/server";
+
+/**
+ * Checks if a school value represents "Other" selection.
+ * School uses a string comparison (not an enum).
+ */
+const isOtherSchool = (val?: string): boolean => {
+  if (!val) return false;
+  return val.trim().toLowerCase() === "other";
+};
+
+/**
+ * Extracts display values for department and school, handling "Other" selections.
+ * When department or school is "Other", uses the manually entered values instead.
+ */
+export const getAffiliationDisplayValues = (data: {
+  department?: string;
+  otherDepartment?: string;
+  school?: string;
+  otherSchool?: string;
+}) => {
+  let departmentDisplay = data?.department || "";
+  if (data?.department === Department.OTHER && data?.otherDepartment) {
+    departmentDisplay = data.otherDepartment;
+  }
+
+  let schoolDisplay = data?.school || "";
+  if (isOtherSchool(data?.school) && data?.otherSchool) {
+    schoolDisplay = data.otherSchool;
+  }
+
+  return { departmentDisplay, schoolDisplay };
+};
+
+/**
+ * Returns Firestore-compatible fields for storing "Other" display values.
+ * Only includes fields if "Other" was selected and a manual value was provided.
+ */
+export const getOtherDisplayFields = (data: {
+  department?: string;
+  otherDepartment?: string;
+  school?: string;
+  otherSchool?: string;
+}) => {
+  return {
+    ...(data?.department === Department.OTHER && data?.otherDepartment && {
+      departmentDisplay: data.otherDepartment,
+    }),
+    ...(isOtherSchool(data?.school) && data?.otherSchool && {
+      schoolDisplay: data.otherSchool,
+    }),
+  };
+};
 
 export const extractTenantFromRequest = (request: NextRequest): string => {
   const url = new URL(request.url);
