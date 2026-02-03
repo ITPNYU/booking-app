@@ -65,7 +65,6 @@ export async function POST(request: NextRequest) {
     otherDepartment: data?.otherDepartment,
     school: data?.school,
     otherSchool: data?.otherSchool,
-    hasVipUserApiData: !!data?.vipUserApiData,
   });
   console.log("tenant", tenant);
 
@@ -77,7 +76,7 @@ export async function POST(request: NextRequest) {
   if (department === "Other") {
     if (data.otherDepartment) {
       departmentDisplay = data.otherDepartment;
-      console.log(`✅ Using manual "Other" department: ${departmentDisplay}`);
+      console.log(`Using manual "Other" department: ${departmentDisplay}`);
     } else {
       console.warn("⚠️ Department is 'Other' but no otherDepartment provided");
     }
@@ -87,7 +86,7 @@ export async function POST(request: NextRequest) {
   let schoolDisplay = data.school;
   if (data.school === "Other" && data.otherSchool) {
     schoolDisplay = data.otherSchool;
-    console.log(`✅ Using manual "Other" school: ${schoolDisplay}`);
+    console.log(`Using manual "Other" school: ${schoolDisplay}`);
   }
   const [room, ...otherRooms] = selectedRooms;
   const selectedRoomIds = selectedRooms.map(
@@ -199,7 +198,6 @@ export async function POST(request: NextRequest) {
     school: bookingData.school,
     schoolDisplay: bookingData.schoolDisplay,
     otherSchool: bookingData.otherSchool,
-    hasVipUserApiData: !!bookingData.vipUserApiData,
   });
   
   const doc = await serverSaveDataToFirestore(
