@@ -1,9 +1,7 @@
-import { SchemaContextType } from "@/components/src/client/routes/components/SchemaProvider";
-import { extractTenantFromCollectionName, TableNames } from "@/components/src/policy";
+import { extractTenantFromCollectionName } from "@/components/src/policy";
 import { callXStateTransitionAPI } from "@/components/src/server/db";
 import { Booking, BookingStatusLabel } from "@/components/src/types";
 import { getStatusFromXState } from "@/components/src/utils/statusFromXState";
-import { serverGetDocumentById } from "@/lib/firebase/server/adminDb";
 import admin from "@/lib/firebase/server/firebaseAdmin";
 import { BookingLogger } from "@/lib/logger/bookingLogger";
 import { Timestamp } from "firebase-admin/firestore";
@@ -61,7 +59,11 @@ export async function GET(request: NextRequest) {
   // --- End Authorization Check ---
 
   try {
+    // Calculate the time 24 hours ago
     const now = new Date();
+    const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const twentyFourHoursAgoTimestamp = Timestamp.fromDate(twentyFourHoursAgo);
+
     let totalUpdatedCount = 0;
     const allUpdatedBookingIds: { id: string; tenant: string }[] = [];
     const dryRunResults: {
@@ -81,26 +83,10 @@ export async function GET(request: NextRequest) {
         collection: collectionName,
       });
 
-      // Fetch tenant schema to get declinedGracePeriod (default: 24 hours)
-      const schema = await serverGetDocumentById<SchemaContextType>(
-        TableNames.TENANT_SCHEMA,
-        tenant,
-      );
-      const gracePeriodHours = schema?.declinedGracePeriod ?? 24;
-      const gracePeriodMs = gracePeriodHours * 60 * 60 * 1000;
-      const gracePeriodAgo = new Date(now.getTime() - gracePeriodMs);
-      const gracePeriodAgoTimestamp = Timestamp.fromDate(gracePeriodAgo);
-
-      BookingLogger.debug("Using grace period from schema", {
-        tenant,
-        gracePeriodHours,
-        gracePeriodAgo: gracePeriodAgo.toISOString(),
-      });
-
-      // Fetch DECLINED bookings that were declined more than grace period ago
+      // Fetch DECLINED bookings that were declined more than 24 hours ago
       const bookingsSnapshot = await db
         .collection(collectionName)
-        .where("declinedAt", "<=", gracePeriodAgoTimestamp)
+        .where("declinedAt", "<=", twentyFourHoursAgoTimestamp)
         .get();
 
       if (bookingsSnapshot.empty) {
@@ -109,7 +95,7 @@ export async function GET(request: NextRequest) {
           {
             tenant,
             collection: collectionName,
-            criteria: `declinedAt more than ${gracePeriodHours} hours ago`,
+            criteria: "declinedAt more than 24 hours ago",
           },
         );
         continue; // Continue to next tenant collection
@@ -166,7 +152,7 @@ export async function GET(request: NextRequest) {
             tenant,
             calendarEventId: booking.calendarEventId,
             xstateValue: booking.xstateData?.value,
-            reason: `Would auto-cancel DECLINED booking after ${gracePeriodHours} hours`,
+            reason: "Would auto-cancel DECLINED booking after 24 hours",
           });
           continue;
         }
@@ -178,7 +164,7 @@ export async function GET(request: NextRequest) {
             "cancel",
             "system", // System identifier for automated actions
             tenant,
-            `Auto-canceled after ${gracePeriodHours}-hour grace period expired`,
+            "Auto-canceled after 24-hour grace period expired",
           );
 
           if (xstateResult.success) {
@@ -190,7 +176,7 @@ export async function GET(request: NextRequest) {
                 calendarEventId: booking.calendarEventId,
                 tenant,
               },
-              `Auto-canceled after ${gracePeriodHours}-hour grace period`,
+              "Auto-canceled after 24-hour grace period",
             );
 
             updatedBookingIds.push(bookingId);

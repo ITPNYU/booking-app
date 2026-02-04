@@ -66,7 +66,6 @@ export type SchemaContextType = {
   supportVIP: boolean;
   supportWalkIn: boolean;
   resourceName: string;
-  declinedGracePeriod?: number;
   calendarConfig?: {
     startHour?: Record<string, string>; // e.g., { studentVIP: "06:00:00", student: "09:00:00", ... }
     slotUnit?: Record<string, number>; // e.g., { student: 15, admin: 15, ... }
@@ -115,7 +114,6 @@ export const SchemaContext = createContext<SchemaContextType>({
   supportVIP: false,
   supportWalkIn: false,
   resourceName: "",
-  declinedGracePeriod: 24,
   calendarConfig: {
     startHour: {
       student: "09:00:00",

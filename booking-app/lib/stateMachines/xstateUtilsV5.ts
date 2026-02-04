@@ -1,4 +1,3 @@
-import { SchemaContextType } from "@/components/src/client/routes/components/SchemaProvider";
 import { TENANTS } from "@/components/src/constants/tenants";
 import { TableNames } from "@/components/src/policy";
 import { serverUpdateDataByCalendarEventId } from "@/components/src/server/admin";
@@ -9,10 +8,7 @@ import {
   isMediaCommons,
   shouldUseXState,
 } from "@/components/src/utils/tenantUtils";
-import {
-  serverGetDataByCalendarEventId,
-  serverGetDocumentById,
-} from "@/lib/firebase/server/adminDb";
+import { serverGetDataByCalendarEventId } from "@/lib/firebase/server/adminDb";
 import { BookingLogger } from "@/lib/logger/bookingLogger";
 import * as admin from "firebase-admin";
 import { createActor } from "xstate";
@@ -195,15 +191,6 @@ async function handleStateTransitions(
         const emailConfig = await getTenantEmailConfig(tenant);
         let headerMessage = emailConfig.emailMessages.declined;
 
-        // Fetch tenant schema to get declinedGracePeriod (default: 24 hours)
-        const schema = tenant
-          ? await serverGetDocumentById<SchemaContextType>(
-              TableNames.TENANT_SCHEMA,
-              tenant,
-            )
-          : null;
-        const gracePeriodHours = schema?.declinedGracePeriod ?? 24;
-
         // Check which services were declined and include them in the message
         const declinedServices = [];
         if (newSnapshot.context?.servicesApproved) {
@@ -232,7 +219,7 @@ async function handleStateTransitions(
           declineReason = `The following service(s) could not be fulfilled: ${servicesList}`;
         }
 
-        headerMessage += ` Reason: ${declineReason}. <br /><br />You have ${gracePeriodHours} hours to edit your request if you'd like to make changes. After ${gracePeriodHours} hours, your request will be automatically canceled. <br /><br />If you have any questions or need further assistance, please don't hesitate to reach out.`;
+        headerMessage += ` Reason: ${declineReason}. <br /><br />You have 24 hours to edit your request if you'd like to make changes. After 24 hours, your request will be automatically canceled. <br /><br />If you have any questions or need further assistance, please don't hesitate to reach out.`;
 
         await serverSendBookingDetailEmail({
           calendarEventId,
