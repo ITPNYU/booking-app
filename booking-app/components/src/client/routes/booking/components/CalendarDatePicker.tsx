@@ -10,6 +10,7 @@ import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { BookingContext } from "../bookingProvider";
 import { TIMEZONE } from "../../../utils/date";
 import { DatabaseContext } from "../../components/Provider";
+import { BookingContext } from "../bookingProvider";
 
 // Configure dayjs to use Eastern timezone
 dayjs.extend(utc);
