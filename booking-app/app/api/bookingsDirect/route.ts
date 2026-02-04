@@ -261,7 +261,7 @@ export async function POST(request: NextRequest) {
       );
 
       // Import common function to create XState data
-      const { createXStateData } = await import("@/app/api/bookings/xstateUtils");
+      const { createXStateData } = await import("@/app/api/bookings/route");
 
       // Prepare XState data for persistence using common function
       const xstateData = createXStateData(machine.id, {
