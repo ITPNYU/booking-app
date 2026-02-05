@@ -1,19 +1,12 @@
 import { DateCalendar, LocalizationProvider } from "@mui/x-date-pickers";
 import dayjs, { Dayjs } from "dayjs";
-import timezone from "dayjs/plugin/timezone";
-import utc from "dayjs/plugin/utc";
 import { useContext, useEffect, useState } from "react";
 
 import { FormContextLevel } from "@/components/src/types";
 import { canAccessAdmin } from "@/components/src/utils/permissions";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
-import { TIMEZONE } from "../../../utils/date";
 import { DatabaseContext } from "../../components/Provider";
 import { BookingContext } from "../bookingProvider";
-
-// Configure dayjs to use Eastern timezone
-dayjs.extend(utc);
-dayjs.extend(timezone);
 
 interface Props {
   handleChange: (x: Date) => void;
@@ -21,10 +14,7 @@ interface Props {
 }
 
 export const CalendarDatePicker = ({ handleChange, formContext }: Props) => {
-  // Use Eastern timezone for the date picker
-  const [date, setDate] = useState<Dayjs | null>(
-    dayjs.tz(new Date(), TIMEZONE),
-  );
+  const [date, setDate] = useState<Dayjs | null>(dayjs(new Date()));
   const { bookingCalendarInfo } = useContext(BookingContext);
   const { pagePermission } = useContext(DatabaseContext);
 
@@ -40,18 +30,15 @@ export const CalendarDatePicker = ({ handleChange, formContext }: Props) => {
   const shouldDisableDate = (date: Dayjs) => {
     // Only disable past dates - allow blackout periods to be selected
     // Time restrictions will be handled in the calendar view
-    // Compare in Eastern timezone
-    return date.isBefore(dayjs.tz(undefined, TIMEZONE), "day");
+    return date.isBefore(dayjs(), "day");
   };
 
   // if go back to calendar from booking form, show currently selected date
   useEffect(() => {
     if (bookingCalendarInfo != null) {
-      // Use Eastern timezone when showing the selected date
-      handleDateChange(dayjs.tz(bookingCalendarInfo.start, TIMEZONE));
+      handleDateChange(dayjs(bookingCalendarInfo.start));
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Only run on mount - handleChange is stable from props
+  }, []);
 
   if (formContext === FormContextLevel.WALK_IN) {
     return <div />;
