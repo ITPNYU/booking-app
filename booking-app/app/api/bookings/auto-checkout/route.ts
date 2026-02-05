@@ -57,8 +57,7 @@ export async function GET(request: NextRequest) {
   // --- End Authorization Check ---
 
   try {
-    // Calculate the time 24 hours ago in Eastern Time
-    // Use explicit timezone conversion instead of relying on server timezone
+    // Calculate the time 24 hours ago
     const now = new Date();
     const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
     const twentyFourHoursAgoTimestamp = Timestamp.fromDate(twentyFourHoursAgo);

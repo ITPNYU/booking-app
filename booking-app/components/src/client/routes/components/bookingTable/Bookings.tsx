@@ -211,13 +211,13 @@ export const Bookings: React.FC<BookingsProps> = ({
         headerName: "Date / Time",
         minWidth: 130,
         flex: 1,
-        renderHeader: () => <TableCell>Date / Time (ET)</TableCell>,
+        renderHeader: () => <TableCell>Date / Time</TableCell>,
         renderCell: (params) => (
           <StackedTableCell
             topText={formatDateTable(params.row.startDate.toDate())}
             bottomText={`${formatTimeAmPm(params.row.startDate.toDate())} - ${formatTimeAmPm(
               params.row.endDate.toDate()
-            )} ET`}
+            )}`}
           />
         ),
       },
