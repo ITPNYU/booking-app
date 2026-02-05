@@ -27,7 +27,7 @@ import {
   canAccessWebCheckout,
   hasAnyPermission,
 } from "../../../../utils/permissions";
-import { formatTimeAmPm } from "../../../utils/date";
+import { formatTimeAmPm, formatDateTable } from "../../../utils/date";
 import { RoomDetails } from "../../booking/components/BookingSelection";
 import useSortBookingHistory from "../../hooks/useSortBookingHistory";
 import { DatabaseContext } from "../Provider";
@@ -433,7 +433,7 @@ export default function MoreInfoModal({
             </RoomDetails>
             <RoomDetails container>
               <label>Date:</label>
-              <p>{booking.startDate.toDate().toLocaleDateString()}</p>
+              <p>{formatDateTable(booking.startDate.toDate())}</p>
             </RoomDetails>
             <RoomDetails container>
               <label>Time:</label>
@@ -469,7 +469,7 @@ export default function MoreInfoModal({
                   <LabelCell>Date</LabelCell>
                   <TableCell>
                     {booking.startDate
-                      ? booking.startDate.toDate().toLocaleDateString()
+                      ? formatDateTable(booking.startDate.toDate())
                       : BLANK}
                   </TableCell>
                 </TableRow>
@@ -477,7 +477,7 @@ export default function MoreInfoModal({
                   <LabelCell>Time</LabelCell>
                   <TableCell>
                     {booking.startDate && booking.endDate
-                      ? `${formatTimeAmPm(booking.startDate.toDate())} - ${formatTimeAmPm(booking.endDate.toDate())}`
+                      ? `${formatTimeAmPm(booking.startDate.toDate())} - ${formatTimeAmPm(booking.endDate.toDate())} ET`
                       : BLANK}
                   </TableCell>
                 </TableRow>
