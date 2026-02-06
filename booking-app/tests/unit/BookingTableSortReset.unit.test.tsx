@@ -153,45 +153,9 @@ const mockSchemaContext = {
 const BookingManagementPage: React.FC<{ pageContext: PageContextLevel }> = ({
   pageContext,
 }) => {
-  const [selectedDateRange, setSelectedDateRange] = React.useState(
-    "All Future" as any
-  );
-  // Added filters for origin, rooms, and services
-  const [selectedOrigin, setSelectedOrigin] = React.useState<string | null>("All");
-  const [selectedRooms, setSelectedRooms] = React.useState<string[]>([]);
-  const [selectedServices, setSelectedServices] = React.useState<string[]>([]);
-
-  const [statusFilters, setStatusFilters] = React.useState<
-    BookingStatusLabel[]
-  >([]);
-  const [searchQuery, setSearchQuery] = React.useState("");
-  const [isSearching, setIsSearching] = React.useState(false);
-
-  const allowedStatuses = Object.values(BookingStatusLabel);
 
   return (
     <div>
-      {pageContext >= PageContextLevel.PA && (
-        <div>
-          <BookingTableFilters
-            allowedStatuses={allowedStatuses}
-            pageContext={pageContext}
-            selectedStatuses={statusFilters}
-            setSelectedStatuses={setStatusFilters}
-            selectedDateRange={selectedDateRange}
-            setSelectedDateRange={setSelectedDateRange}
-            searchQuery={searchQuery}
-            setSearchQuery={setSearchQuery}
-            isSearching={isSearching}
-            selectedOrigin={selectedOrigin}
-            setSelectedOrigin={setSelectedOrigin}
-            selectedRooms={selectedRooms}
-            setSelectedRooms={setSelectedRooms}
-            selectedServices={selectedServices}
-            setSelectedServices={setSelectedServices}
-          />
-        </div>
-      )}
       <div data-testid="bookings-section">
         <Bookings pageContext={pageContext} />
       </div>
