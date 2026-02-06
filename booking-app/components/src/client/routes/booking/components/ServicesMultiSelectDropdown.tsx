@@ -49,7 +49,7 @@ export default function ServicesMultiSelectDropdown(props: ServicesMultiSelectDr
                 );
 
                 return (
-                    <Box sx={{ display: 'flex', alignItems: 'center', height: '24px', overflow: 'scroll', scrollbarWidth: 'none', '&::-webkit-scrollbar': { display: 'none' }, gap: 0.5 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', height: '23px', overflow: 'scroll', scrollbarWidth: 'none', '&::-webkit-scrollbar': { display: 'none' }, gap: 0.5 }}>
                         {sortedSelected.map((service) => {
                             const Icon = serviceIcons[service];
                             return Icon ? (
