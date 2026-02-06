@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { serverGetDocumentById } from "@/lib/firebase/server/adminDb";
 import { TableNames } from "@/components/src/policy";
+import { applyEnvironmentCalendarIds } from "@/lib/utils/calendarEnvironment";
 
 export async function GET(
   request: NextRequest,
@@ -17,6 +18,11 @@ export async function GET(
         { error: `Schema not found for tenant: ${tenant}` },
         { status: 404 }
       );
+    }
+    
+    // Apply environment-based calendar ID selection
+    if (schema.resources && Array.isArray(schema.resources)) {
+      schema.resources = applyEnvironmentCalendarIds(schema.resources);
     }
     
     return NextResponse.json(schema);
