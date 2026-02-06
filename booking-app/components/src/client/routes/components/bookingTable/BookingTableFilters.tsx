@@ -52,25 +52,12 @@ export default function BookingTableFilters({
   selectedServices,
   setSelectedServices,
 }: Props) {
-  const { setLoadMoreEnabled, setLastItem } = useContext(DatabaseContext);
+  const { setLoadMoreEnabled, setLastItem, roomSettings } = useContext(DatabaseContext);
   const [localSearchQuery, setLocalSearchQuery] = useState(searchQuery);
-
-  // Get room settings from the database context
-  const { roomSettings } = useContext(DatabaseContext);
-
   // Update local search query when the prop changes
   useEffect(() => {
     setLocalSearchQuery(searchQuery);
   }, [searchQuery]);
-
-  const handleChipClick = (status: BookingStatusLabel) => {
-    setSelectedStatuses((prev: BookingStatusLabel[]) => {
-      if (prev.includes(status)) {
-        return prev.filter((x) => x !== status);
-      }
-      return [...prev, status];
-    });
-  };
 
   // Debounced search handler
   const debouncedSearch = useCallback(
@@ -154,7 +141,7 @@ export default function BookingTableFilters({
   const statusFilters = (
     <StatusMultiSelectDropdown
       value={selectedStatuses}
-      updateValue={(x) => setSelectedStatuses(x)}
+      updateValue={(x) => setSelectedStatuses?.(x)}
       options={allowedStatuses.filter(s => s !== BookingStatusLabel.UNKNOWN)}
       placeholder="Status"
       sx={{ width: "180px" }}  // Wider to fit chips
@@ -165,7 +152,7 @@ export default function BookingTableFilters({
   const roomFilters = (
     <MultiSelectDropdown
       value={selectedRooms}
-      updateValue={(x) => setSelectedRooms(x)}
+      updateValue={(x) => setSelectedRooms?.(x)}
       options={roomSettings.map((room) => room.roomId.toString())}
       placeholder="Rooms"
       sx={{ width: "120px" }}
@@ -176,7 +163,7 @@ export default function BookingTableFilters({
   const serviceFilters = (
     <ServicesMultiSelectDropdown
       value={selectedServices}
-      updateValue={(x) => setSelectedServices(x)}
+      updateValue={(x) => setSelectedServices?.(x)}
       options={["Setup", "Equipment", "Staffing", "Catering", "Cleaning", "Security"]}
       placeholder="Services"
       sx={{ width: "120px" }}
