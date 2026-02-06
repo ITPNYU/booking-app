@@ -32,7 +32,7 @@ import { minutesToDurationString } from "@/components/src/constants/tenants";
 import { roundTimeUp } from "@/components/src/client/utils/date";
 import { DEFAULT_START_HOUR } from "../utils/getStartHour";
 import { DEFAULT_SLOT_UNIT } from "../utils/getSlotUnit";
-import momentTimezonePlugin from '@fullcalendar/moment-timezone';
+import momentTimezonePlugin from "@fullcalendar/moment-timezone";
 
 interface Props {
   calendarEventId?: string;
