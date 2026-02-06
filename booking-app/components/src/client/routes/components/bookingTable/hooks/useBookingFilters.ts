@@ -205,8 +205,8 @@ class BookingFilter {
     return this;
   }
 
-  filterByRooms(selectedRooms: string[]) {
-    if (selectedRooms.length > 0) {
+  filterByRooms(selectedRooms: string[] | null) {
+    if (selectedRooms && selectedRooms.length > 0) {
       this.rows = this.rows.filter((row) => {
         // Parse the roomId field
         const bookingRooms = row.roomId
@@ -222,8 +222,8 @@ class BookingFilter {
     return this;
   }
 
-  filterByServices(selectedServices: string[]) {
-    if (selectedServices.length > 0) {
+  filterByServices(selectedServices: string[] | null) {
+    if (selectedServices && selectedServices.length > 0) {
       this.rows = this.rows.filter((row) => {
         const servicesRequested = row.xstateData?.snapshot?.context?.servicesRequested || {};
         return selectedServices.some((service) => {
