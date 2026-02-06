@@ -39,7 +39,7 @@ import { serverGetDocumentById } from "@/lib/firebase/server/adminDb";
 import { getCalendarClient } from "@/lib/googleClient";
 import { Timestamp } from "firebase-admin/firestore";
 import { DateSelectArg } from "fullcalendar";
-import { extractTenantFromRequest } from "./shared";
+import { extractTenantFromRequest, getAffiliationDisplayValues, getOtherDisplayFields } from "./shared";
 
 // Common function to create XState data structure
 export function createXStateData(
@@ -506,6 +506,9 @@ export async function POST(request: NextRequest) {
   // Get tenant-specific flags
   const { isITP, isMediaCommons, usesXState } = getTenantFlags(tenant);
 
+  // Get the correct department and school display values
+  const { departmentDisplay, schoolDisplay } = getAffiliationDisplayValues(data);
+
   console.log(`🏢 BOOKING API [${tenant?.toUpperCase() || "UNKNOWN"}]:`, {
     tenant,
     tenantFlags: { isITP, isMediaCommons, usesXState },
@@ -522,6 +525,11 @@ export async function POST(request: NextRequest) {
     formData: {
       title: data?.title,
       department: data?.department,
+      departmentDisplay: departmentDisplay,
+      otherDepartment: data?.otherDepartment,
+      school: data?.school,
+      schoolDisplay: schoolDisplay,
+      otherSchool: data?.otherSchool,
       roomSetup: data?.roomSetup,
       mediaServices: data?.mediaServices,
       catering: data?.catering,
@@ -750,8 +758,15 @@ export async function POST(request: NextRequest) {
   const startDateObj = new Date(bookingCalendarInfo.startStr);
   const endDateObj = new Date(bookingCalendarInfo.endStr);
 
+  // Use display values for calendar description
+  const dataWithDisplayValues = {
+    ...data,
+    department: departmentDisplay,
+    school: schoolDisplay,
+  };
+
   const bookingContentsForDesc = buildBookingContents(
-    data,
+    dataWithDisplayValues,
     selectedRoomIds,
     startDateObj,
     endDateObj,
@@ -798,7 +813,19 @@ export async function POST(request: NextRequest) {
       requestedAt: Timestamp.now(),
       origin: BookingOrigin.USER,
       ...data,
+      // Override with display values for "Other" selections
+      ...getOtherDisplayFields(data),
     };
+
+    console.log("💾 Saving booking data to Firestore:", {
+      calendarEventId,
+      department: bookingData.department,
+      departmentDisplay: bookingData.departmentDisplay,
+      otherDepartment: bookingData.otherDepartment,
+      school: bookingData.school,
+      schoolDisplay: bookingData.schoolDisplay,
+      otherSchool: bookingData.otherSchool,
+    });
 
     // XState data will be saved separately after calendarEventId is available
 
