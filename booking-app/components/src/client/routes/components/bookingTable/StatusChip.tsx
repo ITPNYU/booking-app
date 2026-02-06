@@ -12,7 +12,7 @@ interface Props {
 
 const RectangleChip = styled(Chip)({
   borderRadius: 4,
-  height: 24,
+  height: 23,
   span: {
     padding: 6,
     fontWeight: 500,

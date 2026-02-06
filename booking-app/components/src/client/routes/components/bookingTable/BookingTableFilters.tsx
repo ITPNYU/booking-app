@@ -13,7 +13,9 @@ import { debounce } from "../../../utils/debounce";
 import Dropdown from "../../booking/components/Dropdown";
 import { DatabaseContext } from "../Provider";
 import { DateRangeFilter } from "./hooks/getDateFilter";
-import StatusChip from "./StatusChip";
+import MultiSelectDropdown from "../../booking/components/MultiSelectDropdown";
+import StatusMultiSelectDropdown from "../../booking/components/StatusMultiSelectDropdown";
+import ServicesMultiSelectDropdown from "../../booking/components/ServicesMultiSelectDropdown";
 
 interface Props {
   allowedStatuses: BookingStatusLabel[];
@@ -22,6 +24,12 @@ interface Props {
   setSelectedStatuses: any;
   selectedDateRange: DateRangeFilter;
   setSelectedDateRange: any;
+  selectedOrigin?: string | null;
+  setSelectedOrigin?: (origin: string | null) => void;
+  selectedRooms?: string[] | null;
+  setSelectedRooms?: (rooms: string[] | null) => void;
+  selectedServices?: string[] | null;
+  setSelectedServices?: (services: string[] | null) => void;
   searchQuery?: string;
   setSearchQuery?: (query: string) => void;
   isSearching?: boolean;
@@ -35,11 +43,20 @@ export default function BookingTableFilters({
   selectedDateRange,
   setSelectedDateRange,
   searchQuery = "",
-  setSearchQuery = () => {},
+  setSearchQuery = () => { },
   isSearching = false,
+  selectedOrigin,
+  setSelectedOrigin,
+  selectedRooms,
+  setSelectedRooms,
+  selectedServices,
+  setSelectedServices,
 }: Props) {
   const { setLoadMoreEnabled, setLastItem } = useContext(DatabaseContext);
   const [localSearchQuery, setLocalSearchQuery] = useState(searchQuery);
+
+  // Get room settings from the database context
+  const { roomSettings } = useContext(DatabaseContext);
 
   // Update local search query when the prop changes
   useEffect(() => {
@@ -118,7 +135,51 @@ export default function BookingTableFilters({
         "Past 9 Months",
       ]}
       placeholder={"Today"}
-      sx={{ width: "125px", mr: 1 }}
+      sx={{ width: "120px" }}
+    />
+  );
+
+  // Added filters for origin
+  const originFilters = (
+    <Dropdown
+      value={selectedOrigin}
+      updateValue={(x) => setSelectedOrigin?.(x)}
+      options={["All", "User", "Admin", "Walk-In", "VIP", "System", "Pregame"]}
+      placeholder="Origin"
+      sx={{ width: "120px" }}
+    />
+  );
+
+  // Updated filters for status
+  const statusFilters = (
+    <StatusMultiSelectDropdown
+      value={selectedStatuses}
+      updateValue={(x) => setSelectedStatuses(x)}
+      options={allowedStatuses.filter(s => s !== BookingStatusLabel.UNKNOWN)}
+      placeholder="Status"
+      sx={{ width: "180px" }}  // Wider to fit chips
+    />
+  );
+
+  // Added filters for rooms
+  const roomFilters = (
+    <MultiSelectDropdown
+      value={selectedRooms}
+      updateValue={(x) => setSelectedRooms(x)}
+      options={roomSettings.map((room) => room.roomId.toString())}
+      placeholder="Rooms"
+      sx={{ width: "120px" }}
+    />
+  );
+
+  // Added filters for services
+  const serviceFilters = (
+    <ServicesMultiSelectDropdown
+      value={selectedServices}
+      updateValue={(x) => setSelectedServices(x)}
+      options={["Setup", "Equipment", "Staffing", "Catering", "Cleaning", "Security"]}
+      placeholder="Services"
+      sx={{ width: "120px" }}
     />
   );
 
@@ -168,35 +229,22 @@ export default function BookingTableFilters({
       sx={{
         display: "flex",
         justifyContent: "space-between",
-        alignItems: "center",
-        paddingLeft: "16px",
-        paddingRight: 1,
+        alignItems: "flex-start",
+        flexWrap: "wrap",
+        padding: "0px 12px",
+        gap: 2,
       }}
     >
-      <Box>
-        <FilterList sx={{ marginRight: "14px", color: "rgba(0,0,0,0.8)" }} />
-        {allowedStatuses.map((status) =>
-          status === BookingStatusLabel.UNKNOWN ? null : (
-            <Box
-              onClick={() => handleChipClick(status)}
-              key={status}
-              sx={{
-                cursor: "pointer",
-                display: "inline-block",
-                padding: "0px 8px 0px 4px",
-              }}
-            >
-              <StatusChip
-                status={status}
-                disabled={!selectedStatuses.includes(status)}
-              />
-            </Box>
-          )
-        )}
+      <Box sx={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 2 }}>
+        <FilterList sx={{ marginLeft: "4px", color: "rgba(0,0,0,0.8)" }} />
+        {pageContext >= PageContextLevel.PA && originFilters}
+        {pageContext >= PageContextLevel.PA && statusFilters}
+        {pageContext >= PageContextLevel.PA && dateFilters}
+        {pageContext >= PageContextLevel.PA && roomFilters}
+        {pageContext >= PageContextLevel.PA && serviceFilters}
       </Box>
       <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
         {pageContext >= PageContextLevel.PA && searchBar}
-        {pageContext >= PageContextLevel.PA && dateFilters}
       </Box>
     </Box>
   );

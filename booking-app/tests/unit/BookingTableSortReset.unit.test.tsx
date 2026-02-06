@@ -12,7 +12,7 @@ import { ThemeProvider, createTheme } from "@mui/material/styles";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Timestamp } from "firebase/firestore";
-import React from "react";
+import React, { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Mock dependencies
@@ -156,6 +156,11 @@ const BookingManagementPage: React.FC<{ pageContext: PageContextLevel }> = ({
   const [selectedDateRange, setSelectedDateRange] = React.useState(
     "All Future" as any
   );
+  // Added filters for origin, rooms, and services
+  const [selectedOrigin, setSelectedOrigin] = React.useState<string | null>("All");
+  const [selectedRooms, setSelectedRooms] = React.useState<string[]>([]);
+  const [selectedServices, setSelectedServices] = React.useState<string[]>([]);
+
   const [statusFilters, setStatusFilters] = React.useState<
     BookingStatusLabel[]
   >([]);
@@ -178,6 +183,12 @@ const BookingManagementPage: React.FC<{ pageContext: PageContextLevel }> = ({
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
             isSearching={isSearching}
+            selectedOrigin={selectedOrigin}
+            setSelectedOrigin={setSelectedOrigin}
+            selectedRooms={selectedRooms}
+            setSelectedRooms={setSelectedRooms}
+            selectedServices={selectedServices}
+            setSelectedServices={setSelectedServices}
           />
         </div>
       )}
