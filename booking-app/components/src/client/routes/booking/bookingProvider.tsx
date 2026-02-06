@@ -1,4 +1,4 @@
-import { createContext, useContext, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import {
   CalendarEvent,
   Department,
@@ -76,6 +76,7 @@ export function BookingProvider({ children }) {
     safetyTrainedUsers,
     userEmail,
     blackoutPeriods,
+    reloadSafetyTrainedUsers,
   } = useContext(DatabaseContext);
   const pathname = usePathname();
   const schema = useTenantSchema();
@@ -94,6 +95,31 @@ export function BookingProvider({ children }) {
     fetchingStatus,
   } = fetchCalendarEvents(roomSettings);
   const [error, setError] = useState<Error | null>(null);
+
+  // Update safety trained users when selected rooms change
+  // Each room may have a different trainingFormUrl, so we need to merge results from all rooms
+  useEffect(() => {
+    if (selectedRooms.length > 0) {
+      // Collect all rooms that require safety training and have a trainingFormUrl
+      const roomsWithTraining = selectedRooms
+        .filter((room) => room.needsSafetyTraining && room.trainingFormUrl)
+        .map((room) => ({
+          roomId: room.roomId.toString(),
+          trainingFormUrl: room.trainingFormUrl,
+        }));
+
+      if (roomsWithTraining.length > 0) {
+        // Fetch and merge safety trained users from all selected rooms
+        reloadSafetyTrainedUsers(roomsWithTraining);
+      } else {
+        // If no room requires training or no trainingFormUrl, fetch all (no resource filter)
+        reloadSafetyTrainedUsers();
+      }
+    } else {
+      // No rooms selected, fetch all safety trained users
+      reloadSafetyTrainedUsers();
+    }
+  }, [selectedRooms, reloadSafetyTrainedUsers]);
 
   const isBanned = useMemo<boolean>(() => {
     const bannedEmails = bannedUsers.map((bannedUser) => bannedUser.email);
