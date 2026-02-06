@@ -554,8 +554,10 @@ export const processCancelBooking = async (
     tenant
   );
 
-  // Always call for pre-ban logging
-  await checkAndLogLateCancellation(doc, id, netId, tenant);
+  // Pre-ban logging: exclude automatic Decline→Cancel and NoShow→Cancel (requester should not be penalized)
+  if (!isAutomaticTransition) {
+    await checkAndLogLateCancellation(doc, id, netId, tenant);
+  }
 
   // Log the cancel action
   if (doc) {
@@ -596,7 +598,8 @@ export const processCancelBooking = async (
     "The request has been canceled.<br /><br />Thank you!<br />";
   let ccHeaderMessage = headerMessage;
 
-  if (isLateCancel(doc)) {
+  // Late-cancel penalty email only for user-initiated cancels; exclude auto Decline→Cancel and NoShow→Cancel
+  if (!isAutomaticTransition && isLateCancel(doc)) {
     const violationCount = await getViolationCount(netId, tenant);
     const { getTenantEmailConfig } = await import("./emails");
     const emailConfig = await getTenantEmailConfig(tenant);
