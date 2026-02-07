@@ -130,7 +130,7 @@ describe("MoreInfoModal - Basic Rendering", () => {
       expect(screen.getByText("Request Number:")).toBeInTheDocument();
       expect(screen.getAllByText("12345")).toHaveLength(2); // Header and history
       expect(screen.getAllByText("202")).toHaveLength(2); // Header and history
-      expect(screen.getAllByText("3/15/2024")).toHaveLength(2); // Header and history
+      expect(screen.getAllByText("03/15/24")).toHaveLength(2); // Header and Request section
       expect(screen.getAllByText("PENDING")).toHaveLength(2); // Header and history
     });
 
@@ -215,14 +215,15 @@ describe("MoreInfoModal - Basic Rendering", () => {
 
     it("formats dates and times correctly", () => {
       const booking = createMockBooking({
-        startDate: Timestamp.fromDate(new Date("2024-03-15T14:30:00")),
-        endDate: Timestamp.fromDate(new Date("2024-03-15T16:45:00")),
+        startDate: Timestamp.fromDate(new Date("2024-03-15T14:30:00-04:00")),
+        endDate: Timestamp.fromDate(new Date("2024-03-15T16:45:00-04:00")),
       });
       const context = createMockDatabaseContext(PagePermission.BOOKING);
 
       renderModal(booking, context);
 
-      expect(screen.getAllByText("2:30 PM - 4:45 PM")).toHaveLength(2); // Appears in both header and details
+      expect(screen.getByText("2:30 PM - 4:45 PM")).toBeInTheDocument(); // Header
+      expect(screen.getByText("2:30 PM - 4:45 PM ET")).toBeInTheDocument(); // Details
     });
   });
 });

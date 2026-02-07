@@ -1,6 +1,6 @@
 import { setup } from "xstate";
-import { getBookingHourLimits } from "@/components/src/client/routes/booking/utils/bookingHourLimits";
 import { Role } from "@/components/src/types";
+import { checkAutoApprovalEligibility } from "@/lib/utils/autoApprovalUtils";
 
 // Time constants for clarity
 const ONE_HOUR_IN_MS = 60 * 60 * 1000;
@@ -59,104 +59,52 @@ export const itpBookingMachine = setup({
         return false;
       }
 
-      // Check event duration against role-based limits
-      if (context.bookingCalendarInfo && context.selectedRooms) {
+      // Calculate duration if calendar info is available
+      let durationHours: number | undefined;
+      if (context.bookingCalendarInfo) {
         const startDate = new Date(context.bookingCalendarInfo.startStr);
         const endDate = new Date(context.bookingCalendarInfo.endStr);
         const duration = endDate.getTime() - startDate.getTime();
-        const durationHours = duration / ONE_HOUR_IN_MS;
-        
-        // Get dynamic hour limits based on role and booking type
-        const { maxHours, minHours } = getBookingHourLimits(
-          context.selectedRooms,
-          context.role,
-          context.isWalkIn || false,
-          context.isVip || false
-        );
-        
-        if (durationHours > maxHours) {
-          console.log(
-            `🚫 XSTATE GUARD: Event duration exceeds maximum (${durationHours.toFixed(1)} hours > ${maxHours} hours max for ${context.role || "student"} ${context.isVip ? "VIP" : context.isWalkIn ? "walk-in" : "booking"})`
-          );
-          console.log(
-            `🎯 XSTATE AUTO-APPROVAL GUARD RESULT: REJECTED (Duration exceeds max limit)`
-          );
-          return false;
-        }
-        
-        if (durationHours < minHours) {
-          console.log(
-            `🚫 XSTATE GUARD: Event duration below minimum (${durationHours.toFixed(1)} hours < ${minHours} hours min for ${context.role || "student"} ${context.isVip ? "VIP" : context.isWalkIn ? "walk-in" : "booking"})`
-          );
-          console.log(
-            `🎯 XSTATE AUTO-APPROVAL GUARD RESULT: REJECTED (Duration below min limit)`
-          );
-          return false;
-        }
+        durationHours = duration / ONE_HOUR_IN_MS;
       }
 
-      // Check rooms require approval
-      if (context.selectedRooms && !context.isWalkIn) {
-        const allRoomsAutoApprove = context.selectedRooms.every(
-          (room) => room.shouldAutoApprove || false
-        );
-        if (!allRoomsAutoApprove) {
-          console.log(
-            `🚫 XSTATE GUARD: At least one room is not eligible for auto approval`,
-            {
-              roomsAutoApprove: context.selectedRooms.map((r) => ({
-                roomId: r.roomId,
-                shouldAutoApprove: r.shouldAutoApprove,
-              })),
-            }
-          );
-          console.log(
-            `🎯 XSTATE AUTO-APPROVAL GUARD RESULT: REJECTED (Room not auto-approvable)`
-          );
-          return false;
-        }
+      // Map formData to servicesRequested format
+      const servicesRequested = context.formData
+        ? {
+            setup: context.formData.roomSetup === "yes",
+            equipment: context.formData.mediaServices?.length > 0 || false,
+            staffing: false, // ITP doesn't have separate staffing field in formData
+            catering: context.formData.catering === "yes",
+            cleaning: false, // ITP doesn't have separate cleaning field in formData
+            security: context.formData.hireSecurity === "yes",
+          }
+        : undefined;
+
+      // Use the new auto-approval utility
+      const result = checkAutoApprovalEligibility({
+        selectedRooms: context.selectedRooms || [],
+        role: context.role,
+        isWalkIn: context.isWalkIn,
+        isVip: false, // ITP doesn't support VIP
+        durationHours,
+        servicesRequested,
+      });
+
+      if (result.canAutoApprove) {
+        console.log(`✅ XSTATE GUARD: All conditions met for auto-approval`);
+        console.log(`🎯 XSTATE AUTO-APPROVAL GUARD RESULT: APPROVED`, {
+          reason: result.reason,
+          details: result.details,
+        });
+      } else {
+        console.log(`🚫 XSTATE GUARD: ${result.reason}`);
+        console.log(`🎯 XSTATE AUTO-APPROVAL GUARD RESULT: REJECTED`, {
+          reason: result.reason,
+          details: result.details,
+        });
       }
 
-      // Check form data conditions
-      if (context.formData) {
-        if (context.formData.roomSetup === "yes") {
-          console.log(`🚫 XSTATE GUARD: Room setup requires approval`);
-          console.log(
-            `🎯 XSTATE AUTO-APPROVAL GUARD RESULT: REJECTED (Room setup required)`
-          );
-          return false;
-        }
-
-        if (!context.isWalkIn && context.formData.mediaServices?.length > 0) {
-          console.log(`🚫 XSTATE GUARD: Media services require approval`, {
-            mediaServices: context.formData.mediaServices,
-          });
-          console.log(
-            `🎯 XSTATE AUTO-APPROVAL GUARD RESULT: REJECTED (Media services required)`
-          );
-          return false;
-        }
-
-        if (context.formData.catering === "yes") {
-          console.log(`🚫 XSTATE GUARD: Catering requires approval`);
-          console.log(
-            `🎯 XSTATE AUTO-APPROVAL GUARD RESULT: REJECTED (Catering required)`
-          );
-          return false;
-        }
-
-        if (context.formData.hireSecurity === "yes") {
-          console.log(`🚫 XSTATE GUARD: Security requires approval`);
-          console.log(
-            `🎯 XSTATE AUTO-APPROVAL GUARD RESULT: REJECTED (Security required)`
-          );
-          return false;
-        }
-      }
-
-      console.log(`✅ XSTATE GUARD: All conditions met for auto-approval`);
-      console.log(`🎯 XSTATE AUTO-APPROVAL GUARD RESULT: APPROVED`);
-      return true;
+      return result.canAutoApprove;
     },
   },
   actions: {
