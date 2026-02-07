@@ -526,7 +526,7 @@ export async function POST(request: NextRequest) {
     selectedRooms: selectedRooms?.map((r: any) => ({
       roomId: r.roomId,
       name: r.name,
-      shouldAutoApprove: r.shouldAutoApprove,
+      autoApproval: r.autoApproval,
     })),
     isAutoApproval,
     bookingDuration: bookingCalendarInfo
