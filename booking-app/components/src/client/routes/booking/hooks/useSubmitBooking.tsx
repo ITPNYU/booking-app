@@ -74,7 +74,7 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
           selectedRooms: selectedRooms?.map((r) => ({
             roomId: r.roomId,
             name: r.name,
-            shouldAutoApprove: r.shouldAutoApprove,
+            autoApproval: r.autoApproval,
           })),
           bookingDuration: bookingCalendarInfo
             ? `${((bookingCalendarInfo.end.getTime() - bookingCalendarInfo.start.getTime()) / (1000 * 60 * 60)).toFixed(1)} hours`
