@@ -1,5 +1,5 @@
 import { useParams } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { DEFAULT_TENANT } from "../../../../constants/tenants";
 import { CalendarEvent, RoomSetting } from "../../../../types";
 
@@ -12,7 +12,10 @@ export default function fetchCalendarEvents(allRooms: RoomSetting[]) {
   >(null);
   const { tenant } = useParams();
 
-  const fetchRoomCalendarEvents = useCallback(async (room: RoomSetting): Promise<CalendarEvent[]> => {
+  // Track in-flight request to prevent duplicate fetches
+  const inflightRef = useRef<AbortController | null>(null);
+
+  const fetchRoomCalendarEvents = useCallback(async (room: RoomSetting, signal?: AbortSignal): Promise<CalendarEvent[]> => {
     const calendarId = room.calendarId;
     let response = null;
     try {
@@ -23,9 +26,11 @@ export default function fetchCalendarEvents(allRooms: RoomSetting[]) {
             "Content-Type": "application/json",
             "x-tenant": (tenant as string) || DEFAULT_TENANT,
           },
+          signal,
         }
       );
-    } catch (e) {
+    } catch (e: any) {
+      if (e?.name === "AbortError") throw e; // Let abort propagate
       console.error(`Error fetching calendar events for room ${room.roomId}:`, e);
       return []; // Return empty array instead of undefined to prevent issues
     }
@@ -48,9 +53,6 @@ export default function fetchCalendarEvents(allRooms: RoomSetting[]) {
 
       if (row.booking) {
         const status = row.booking.status;
-        console.log(
-          `Event ${row.calendarEventId} has booking status: ${status}`
-        );
 
         switch (status) {
           case "REQUESTED":
@@ -89,17 +91,22 @@ export default function fetchCalendarEvents(allRooms: RoomSetting[]) {
       setEvents([]);
       return;
     }
-    
+
+    // Abort any in-flight request to avoid duplicate/stale fetches
+    if (inflightRef.current) {
+      inflightRef.current.abort();
+    }
+    const controller = new AbortController();
+    inflightRef.current = controller;
+
     setFetchingStatus("loading");
     
-    Promise.all(allRooms.map(fetchRoomCalendarEvents))
+    Promise.all(allRooms.map((room) => fetchRoomCalendarEvents(room, controller.signal)))
       .then((results) => {
         // Filter out undefined values and flatten - each room returns an array
         const flatResults = results
           .filter((result): result is CalendarEvent[] => result !== undefined)
           .flat();
-        
-        console.log("FETCHED CALENDAR RESULTS:", flatResults.length);
         
         // Filter out events with hidden statuses
         const filtered = flatResults.filter(
@@ -117,6 +124,7 @@ export default function fetchCalendarEvents(allRooms: RoomSetting[]) {
         setFetchingStatus("loaded");
       })
       .catch((error) => {
+        if (error?.name === "AbortError") return; // Silently ignore aborted requests
         console.error("Error loading calendar events:", error);
         setFetchingStatus("error");
         // Don't clear events on error - keep existing ones to avoid flickering
@@ -125,6 +133,12 @@ export default function fetchCalendarEvents(allRooms: RoomSetting[]) {
 
   useEffect(() => {
     loadEvents();
+    // Cleanup: abort on unmount
+    return () => {
+      if (inflightRef.current) {
+        inflightRef.current.abort();
+      }
+    };
   }, [loadEvents]);
 
   return {
