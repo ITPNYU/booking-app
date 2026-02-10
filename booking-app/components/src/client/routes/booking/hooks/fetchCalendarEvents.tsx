@@ -87,14 +87,15 @@ export default function fetchCalendarEvents(allRooms: RoomSetting[]) {
   }, [tenant]);
 
   const loadEvents = useCallback(() => {
+    // Abort any in-flight request to avoid stale updates
+    if (inflightRef.current) {
+      inflightRef.current.abort();
+      inflightRef.current = null;
+    }
+
     if (allRooms.length === 0) {
       setEvents([]);
       return;
-    }
-
-    // Abort any in-flight request to avoid duplicate/stale fetches
-    if (inflightRef.current) {
-      inflightRef.current.abort();
     }
     const controller = new AbortController();
     inflightRef.current = controller;
