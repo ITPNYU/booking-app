@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "eslint": "eslint . --ext .js,.jsx,.ts,.tsx",
+    "type-check": "tsc --noEmit",
     "seed": "node prisma/seed.mjs",
     "test:unit": "vitest --run",
     "test:e2e": "npx playwright test",
