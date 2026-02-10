@@ -53,7 +53,13 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
 
   const registerEvent = useCallback(
     async (data: Inputs, isAutoApproval: boolean, calendarEventId?: string) => {
-      const hasAffiliation = (role && department) || isModification;
+      // Check if we have valid affiliation info
+      // For "Other" department, we need the otherDepartment field to be filled
+      const hasDepartment = department && (
+        department !== "Other" || // Regular department selection
+        (department === "Other" && data?.otherDepartment?.trim()) // "Other" with manual entry
+      );
+      const hasAffiliation = (role && hasDepartment) || isModification;
 
       console.log(
         `🚀 SUBMIT BOOKING [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
@@ -68,7 +74,7 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
           selectedRooms: selectedRooms?.map((r) => ({
             roomId: r.roomId,
             name: r.name,
-            shouldAutoApprove: r.shouldAutoApprove,
+            autoApproval: r.autoApproval,
           })),
           bookingDuration: bookingCalendarInfo
             ? `${((bookingCalendarInfo.end.getTime() - bookingCalendarInfo.start.getTime()) / (1000 * 60 * 60)).toFixed(1)} hours`
@@ -90,7 +96,38 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
         selectedRooms.length === 0 ||
         !bookingCalendarInfo
       ) {
-        console.error("Missing info for submitting booking");
+        // Detailed error logging for debugging
+        const missingFields: string[] = [];
+        if (!role) missingFields.push("role");
+        if (!department) missingFields.push("department (from context)");
+        if (department === "Other" && !data?.otherDepartment?.trim()) {
+          missingFields.push("otherDepartment (required when department is 'Other')");
+        }
+        if (!hasDepartment) missingFields.push("valid department selection");
+        if (!hasAffiliation) missingFields.push("affiliation (role + department)");
+        if (selectedRooms.length === 0) missingFields.push("selectedRooms");
+        if (!bookingCalendarInfo) missingFields.push("bookingCalendarInfo");
+        
+        console.error("❌ SUBMISSION BLOCKED - Missing required fields:", {
+          missingFields,
+          role,
+          department,
+          hasDepartment,
+          hasAffiliation,
+          selectedRoomsCount: selectedRooms.length,
+          hasBookingCalendarInfo: !!bookingCalendarInfo,
+          formData: {
+            school: data?.school,
+            otherSchool: data?.otherSchool,
+            department: data?.department,
+            otherDepartment: data?.otherDepartment,
+          },
+          isVIP,
+          isWalkIn,
+          isModification,
+        });
+        
+        setError(new Error(`Missing required fields: ${missingFields.join(", ")}`));
         setSubmitting("error");
         return;
       }
@@ -227,7 +264,7 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
           ...(requestParams.body ?? {}),
         }),
       })
-        .then((res) => {
+        .then(async (res) => {
           console.log(
             `📨 API RESPONSE [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
             {
@@ -243,6 +280,23 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
             setSubmitting("error");
             return;
           }
+
+          if (!res.ok) {
+            // Handle other error status codes
+            let errorMessage = "Sorry, an error occurred while submitting this request";
+            try {
+              const errorData = await res.json();
+              if (errorData.error || errorData.message) {
+                errorMessage = errorData.error || errorData.message;
+              }
+            } catch (e) {
+              // If response is not JSON, use default message
+            }
+            setError(new Error(errorMessage));
+            setSubmitting("error");
+            return;
+          }
+
           // clear stored booking data after submit confirmation
           setBookingCalendarInfo(undefined);
           setSelectedRooms([]);
@@ -254,6 +308,7 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
         })
         .catch((error) => {
           console.error("Error submitting booking:", error);
+          setError(new Error("Sorry, an error occurred while submitting this request"));
           setSubmitting("error");
         });
     },

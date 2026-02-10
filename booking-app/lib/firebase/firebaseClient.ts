@@ -13,15 +13,6 @@ import { Firestore, initializeFirestore } from "firebase/firestore";
 // Check for test environment synchronously from environment variables
 const isTestEnv = isTestEnvironment();
 
-// Debug logging for environment detection (only in development)
-if (process.env.NODE_ENV === "development" || process.env.NODE_ENV === "test") {
-  console.log("🔍 Firebase Client Debug:");
-  console.log("BYPASS_AUTH:", process.env.BYPASS_AUTH);
-  console.log("E2E_TESTING:", process.env.E2E_TESTING);
-  console.log("NODE_ENV:", process.env.NODE_ENV);
-  console.log("isTestEnv:", isTestEnv);
-}
-
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain:
@@ -139,8 +130,6 @@ if (
       );
       dynamicTestEnv = isTestEnv;
     });
-} else {
-  console.log("Using environment-based test detection:", isTestEnv);
 }
 
 // Check if running on localhost

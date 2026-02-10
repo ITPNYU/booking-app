@@ -367,6 +367,27 @@ export default function FormInput({
     setIsSubmitting(true);
     isSubmittingRef.current = true;
 
+    console.log("📝 FORM SUBMISSION DATA:", {
+      isVIP,
+      isWalkIn,
+      // Affiliation info
+      department: data.department,
+      otherDepartment: data.otherDepartment,
+      school: data.school,
+      otherSchool: data.otherSchool,
+      role: data.role,
+      // VIP/Walk-in specific
+      netId: data.netId,
+      // From context
+      departmentFromContext: department,
+      roleFromContext: role,
+      // Form data context
+      formDataDepartment: formData?.department,
+      formDataOtherDepartment: formData?.otherDepartment,
+      formDataSchool: formData?.school,
+      formDataOtherSchool: formData?.otherSchool,
+    });
+
     registerEvent(data, isAutoApproval, calendarEventId)
       .catch((error) => {
         console.error("Error submitting booking:", error);

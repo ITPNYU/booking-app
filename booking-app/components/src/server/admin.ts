@@ -770,7 +770,13 @@ export const firstApproverEmails = async (department: string) => {
       normalizedApproverDepartment.includes(keyword)
     );
 
-    const matches = userHasKeywords && approverHasKeywords;
+    // ITP/IMA/Low Res departments should match with each other
+    const itpGroupMatches = userHasKeywords && approverHasKeywords;
+    
+    // For other departments, check exact match of normalized department names
+    const exactMatch = normalizedUserDepartment === normalizedApproverDepartment;
+    
+    const matches = itpGroupMatches || exactMatch;
 
     console.log(`🔍 DEPARTMENT COMPARISON:`, {
       userDepartment: department,
@@ -779,6 +785,8 @@ export const firstApproverEmails = async (department: string) => {
       normalizedApproverDepartment,
       userHasKeywords,
       approverHasKeywords,
+      itpGroupMatches,
+      exactMatch,
       matches,
     });
 
