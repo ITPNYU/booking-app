@@ -23,21 +23,16 @@ vi.mock("@/components/src/client/routes/hooks/getBookingStatus", () => ({
   default: vi.fn(),
 }));
 
-import {
-  DELETE,
-  GET,
-  POST,
-  PUT,
-  _resetBookingsCacheForTesting,
-} from "@/app/api/calendarEvents/route";
+import { DELETE, GET, POST, PUT } from "@/app/api/calendarEvents/route";
+import getBookingStatus from "@/components/src/client/routes/hooks/getBookingStatus";
+import { TableNames } from "@/components/src/policy";
+import { serverBookingContents } from "@/components/src/server/admin";
 import {
   deleteEvent,
   insertEvent,
   updateCalendarEvent,
 } from "@/components/src/server/calendars";
-import { serverBookingContents } from "@/components/src/server/admin";
-import { TableNames } from "@/components/src/policy";
-import getBookingStatus from "@/components/src/client/routes/hooks/getBookingStatus";
+import { _resetBookingsCacheForTesting } from "@/lib/bookingsCache";
 import { serverFetchAllDataFromCollection } from "@/lib/firebase/server/adminDb";
 import { getCalendarClient } from "@/lib/googleClient";
 
@@ -78,21 +73,19 @@ describe("/api/calendarEvents", () => {
 
   describe("GET", () => {
     it("returns enriched calendar events when data is available", async () => {
-      const listMock = vi
-        .fn()
-        .mockResolvedValueOnce({
-          data: {
-            items: [
-              {
-                id: "cal-event-1",
-                summary: "Orientation",
-                start: { dateTime: "2024-09-01T10:00:00.000Z" },
-                end: { dateTime: "2024-09-01T12:00:00.000Z" },
-              },
-            ],
-            nextPageToken: null,
-          },
-        });
+      const listMock = vi.fn().mockResolvedValueOnce({
+        data: {
+          items: [
+            {
+              id: "cal-event-1",
+              summary: "Orientation",
+              start: { dateTime: "2024-09-01T10:00:00.000Z" },
+              end: { dateTime: "2024-09-01T12:00:00.000Z" },
+            },
+          ],
+          nextPageToken: null,
+        },
+      });
 
       mockGetCalendarClient.mockResolvedValueOnce({
         events: { list: listMock },
@@ -230,7 +223,9 @@ describe("/api/calendarEvents", () => {
     } as const;
 
     it("updates a calendar event using the tenant context", async () => {
-      mockServerBookingContents.mockResolvedValueOnce({ id: "booking-1" } as any);
+      mockServerBookingContents.mockResolvedValueOnce({
+        id: "booking-1",
+      } as any);
 
       const request = {
         json: async () => payload,
@@ -271,7 +266,9 @@ describe("/api/calendarEvents", () => {
     });
 
     it("surfaces update failures", async () => {
-      mockServerBookingContents.mockResolvedValueOnce({ id: "booking-1" } as any);
+      mockServerBookingContents.mockResolvedValueOnce({
+        id: "booking-1",
+      } as any);
       mockUpdateCalendarEvent.mockRejectedValueOnce(new Error("Calendar API"));
 
       const request = {
@@ -330,16 +327,31 @@ describe("/api/calendarEvents", () => {
     const tenantB = "tenant-b";
 
     const bookingsA = [
-      { calendarEventId: "ev-1", requestNumber: 1, email: "a@nyu.edu", department: "ITP" },
+      {
+        calendarEventId: "ev-1",
+        requestNumber: 1,
+        email: "a@nyu.edu",
+        department: "ITP",
+      },
     ] as any[];
 
     const bookingsB = [
-      { calendarEventId: "ev-2", requestNumber: 2, email: "b@nyu.edu", department: "Tisch" },
+      {
+        calendarEventId: "ev-2",
+        requestNumber: 2,
+        email: "b@nyu.edu",
+        department: "Tisch",
+      },
     ] as any[];
 
     it("returns cached bookings on a second call within TTL (same tenant)", async () => {
       stubCalendarClient([
-        { id: "ev-1", summary: "Event 1", start: { dateTime: "2024-01-01T10:00:00Z" }, end: { dateTime: "2024-01-01T11:00:00Z" } },
+        {
+          id: "ev-1",
+          summary: "Event 1",
+          start: { dateTime: "2024-01-01T10:00:00Z" },
+          end: { dateTime: "2024-01-01T11:00:00Z" },
+        },
       ]);
       mockServerFetchAllDataFromCollection.mockResolvedValue(bookingsA);
       mockGetBookingStatus.mockReturnValue("approved");
@@ -351,7 +363,12 @@ describe("/api/calendarEvents", () => {
 
       // Re-stub the calendar client for the second call (it is NOT cached)
       stubCalendarClient([
-        { id: "ev-1", summary: "Event 1", start: { dateTime: "2024-01-01T10:00:00Z" }, end: { dateTime: "2024-01-01T11:00:00Z" } },
+        {
+          id: "ev-1",
+          summary: "Event 1",
+          start: { dateTime: "2024-01-01T10:00:00Z" },
+          end: { dateTime: "2024-01-01T11:00:00Z" },
+        },
       ]);
 
       // Second call – should use cached bookings, not fetch again
@@ -363,7 +380,12 @@ describe("/api/calendarEvents", () => {
 
     it("does NOT share cached bookings across different tenants", async () => {
       stubCalendarClient([
-        { id: "ev-1", summary: "Event 1", start: { dateTime: "2024-01-01T10:00:00Z" }, end: { dateTime: "2024-01-01T11:00:00Z" } },
+        {
+          id: "ev-1",
+          summary: "Event 1",
+          start: { dateTime: "2024-01-01T10:00:00Z" },
+          end: { dateTime: "2024-01-01T11:00:00Z" },
+        },
       ]);
       mockServerFetchAllDataFromCollection.mockResolvedValueOnce(bookingsA);
       mockGetBookingStatus.mockReturnValue("approved");
@@ -380,7 +402,12 @@ describe("/api/calendarEvents", () => {
 
       // Re-stub for tenant B
       stubCalendarClient([
-        { id: "ev-2", summary: "Event 2", start: { dateTime: "2024-02-01T10:00:00Z" }, end: { dateTime: "2024-02-01T11:00:00Z" } },
+        {
+          id: "ev-2",
+          summary: "Event 2",
+          start: { dateTime: "2024-02-01T10:00:00Z" },
+          end: { dateTime: "2024-02-01T11:00:00Z" },
+        },
       ]);
       mockServerFetchAllDataFromCollection.mockResolvedValueOnce(bookingsB);
 
@@ -416,12 +443,33 @@ describe("/api/calendarEvents", () => {
 
       // Stub calendar client to allow two concurrent GET calls
       const calEvents = [
-        { id: "ev-1", summary: "E1", start: { dateTime: "2024-01-01T10:00:00Z" }, end: { dateTime: "2024-01-01T11:00:00Z" } },
+        {
+          id: "ev-1",
+          summary: "E1",
+          start: { dateTime: "2024-01-01T10:00:00Z" },
+          end: { dateTime: "2024-01-01T11:00:00Z" },
+        },
       ];
       // Each GET call needs its own calendar client stub
       mockGetCalendarClient
-        .mockResolvedValueOnce({ events: { list: vi.fn().mockResolvedValue({ data: { items: calEvents, nextPageToken: null } }) } } as any)
-        .mockResolvedValueOnce({ events: { list: vi.fn().mockResolvedValue({ data: { items: calEvents, nextPageToken: null } }) } } as any);
+        .mockResolvedValueOnce({
+          events: {
+            list: vi
+              .fn()
+              .mockResolvedValue({
+                data: { items: calEvents, nextPageToken: null },
+              }),
+          },
+        } as any)
+        .mockResolvedValueOnce({
+          events: {
+            list: vi
+              .fn()
+              .mockResolvedValue({
+                data: { items: calEvents, nextPageToken: null },
+              }),
+          },
+        } as any);
       mockGetBookingStatus.mockReturnValue("approved");
 
       // Fire two concurrent GET calls for different rooms but SAME tenant
@@ -448,14 +496,31 @@ describe("/api/calendarEvents", () => {
       mockServerFetchAllDataFromCollection.mockReturnValueOnce(deferredA);
 
       const calEventsA = [
-        { id: "ev-1", summary: "E1", start: { dateTime: "2024-01-01T10:00:00Z" }, end: { dateTime: "2024-01-01T11:00:00Z" } },
+        {
+          id: "ev-1",
+          summary: "E1",
+          start: { dateTime: "2024-01-01T10:00:00Z" },
+          end: { dateTime: "2024-01-01T11:00:00Z" },
+        },
       ];
       // Calendar event for tenant B uses ev-2 so it matches bookingsB
       const calEventsB = [
-        { id: "ev-2", summary: "E2", start: { dateTime: "2024-02-01T10:00:00Z" }, end: { dateTime: "2024-02-01T11:00:00Z" } },
+        {
+          id: "ev-2",
+          summary: "E2",
+          start: { dateTime: "2024-02-01T10:00:00Z" },
+          end: { dateTime: "2024-02-01T11:00:00Z" },
+        },
       ];
-      mockGetCalendarClient
-        .mockResolvedValueOnce({ events: { list: vi.fn().mockResolvedValue({ data: { items: calEventsA, nextPageToken: null } }) } } as any);
+      mockGetCalendarClient.mockResolvedValueOnce({
+        events: {
+          list: vi
+            .fn()
+            .mockResolvedValue({
+              data: { items: calEventsA, nextPageToken: null },
+            }),
+        },
+      } as any);
       mockGetBookingStatus.mockReturnValue("approved");
 
       // Fire first request for tenant A (stays inflight)
@@ -499,7 +564,12 @@ describe("/api/calendarEvents", () => {
 
     it("clears inflight promise on Firestore error so next call retries", async () => {
       stubCalendarClient([
-        { id: "ev-1", summary: "E1", start: { dateTime: "2024-01-01T10:00:00Z" }, end: { dateTime: "2024-01-01T11:00:00Z" } },
+        {
+          id: "ev-1",
+          summary: "E1",
+          start: { dateTime: "2024-01-01T10:00:00Z" },
+          end: { dateTime: "2024-01-01T11:00:00Z" },
+        },
       ]);
       mockGetBookingStatus.mockReturnValue("approved");
 
@@ -516,7 +586,12 @@ describe("/api/calendarEvents", () => {
 
       // Re-stub calendar client for second call
       stubCalendarClient([
-        { id: "ev-1", summary: "E1", start: { dateTime: "2024-01-01T10:00:00Z" }, end: { dateTime: "2024-01-01T11:00:00Z" } },
+        {
+          id: "ev-1",
+          summary: "E1",
+          start: { dateTime: "2024-01-01T10:00:00Z" },
+          end: { dateTime: "2024-01-01T11:00:00Z" },
+        },
       ]);
 
       // Second call – Firestore succeeds this time
@@ -540,7 +615,12 @@ describe("/api/calendarEvents", () => {
       // First call at t=0
       dateNowSpy.mockReturnValue(realNow);
       stubCalendarClient([
-        { id: "ev-1", summary: "E1", start: { dateTime: "2024-01-01T10:00:00Z" }, end: { dateTime: "2024-01-01T11:00:00Z" } },
+        {
+          id: "ev-1",
+          summary: "E1",
+          start: { dateTime: "2024-01-01T10:00:00Z" },
+          end: { dateTime: "2024-01-01T11:00:00Z" },
+        },
       ]);
       mockServerFetchAllDataFromCollection.mockResolvedValueOnce(bookingsA);
       mockGetBookingStatus.mockReturnValue("approved");
@@ -553,7 +633,12 @@ describe("/api/calendarEvents", () => {
 
       // Re-stub for the next call
       stubCalendarClient([
-        { id: "ev-1", summary: "E1", start: { dateTime: "2024-01-01T10:00:00Z" }, end: { dateTime: "2024-01-01T11:00:00Z" } },
+        {
+          id: "ev-1",
+          summary: "E1",
+          start: { dateTime: "2024-01-01T10:00:00Z" },
+          end: { dateTime: "2024-01-01T11:00:00Z" },
+        },
       ]);
       mockServerFetchAllDataFromCollection.mockResolvedValueOnce(bookingsA);
 
