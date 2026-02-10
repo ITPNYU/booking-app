@@ -28,6 +28,7 @@ import {
   GET,
   POST,
   PUT,
+  _resetBookingsCacheForTesting,
 } from "@/app/api/calendarEvents/route";
 import {
   deleteEvent,
@@ -50,9 +51,29 @@ const mockServerFetchAllDataFromCollection = vi.mocked(
 const mockGetCalendarClient = vi.mocked(getCalendarClient);
 const mockGetBookingStatus = vi.mocked(getBookingStatus);
 
+// Helper: build a minimal GET request for a given calendarId + tenant
+function makeGETRequest(calendarId: string, tenant: string) {
+  return {
+    url: `https://example.com/api/calendarEvents?calendarId=${calendarId}`,
+    headers: new Headers({ "x-tenant": tenant }),
+  } as any;
+}
+
+// Helper: stub the Google Calendar client to return the given events
+function stubCalendarClient(events: any[] = []) {
+  const listMock = vi.fn().mockResolvedValue({
+    data: { items: events, nextPageToken: null },
+  });
+  mockGetCalendarClient.mockResolvedValue({
+    events: { list: listMock },
+  } as any);
+  return listMock;
+}
+
 describe("/api/calendarEvents", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    _resetBookingsCacheForTesting();
   });
 
   describe("GET", () => {
@@ -300,6 +321,247 @@ describe("/api/calendarEvents", () => {
       await expect(response.json()).resolves.toEqual({
         message: "Event deleted successfully",
       });
+    });
+  });
+
+  // ── Bookings cache / coalescing tests ──────────────────────────────
+  describe("bookings cache (getCachedBookings)", () => {
+    const tenantA = "tenant-a";
+    const tenantB = "tenant-b";
+
+    const bookingsA = [
+      { calendarEventId: "ev-1", requestNumber: 1, email: "a@nyu.edu", department: "ITP" },
+    ] as any[];
+
+    const bookingsB = [
+      { calendarEventId: "ev-2", requestNumber: 2, email: "b@nyu.edu", department: "Tisch" },
+    ] as any[];
+
+    it("returns cached bookings on a second call within TTL (same tenant)", async () => {
+      stubCalendarClient([
+        { id: "ev-1", summary: "Event 1", start: { dateTime: "2024-01-01T10:00:00Z" }, end: { dateTime: "2024-01-01T11:00:00Z" } },
+      ]);
+      mockServerFetchAllDataFromCollection.mockResolvedValue(bookingsA);
+      mockGetBookingStatus.mockReturnValue("approved");
+
+      // First call – populates the cache
+      const res1 = await GET(makeGETRequest("cal-1", tenantA));
+      expect(res1.status).toBe(200);
+      expect(mockServerFetchAllDataFromCollection).toHaveBeenCalledTimes(1);
+
+      // Re-stub the calendar client for the second call (it is NOT cached)
+      stubCalendarClient([
+        { id: "ev-1", summary: "Event 1", start: { dateTime: "2024-01-01T10:00:00Z" }, end: { dateTime: "2024-01-01T11:00:00Z" } },
+      ]);
+
+      // Second call – should use cached bookings, not fetch again
+      const res2 = await GET(makeGETRequest("cal-2", tenantA));
+      expect(res2.status).toBe(200);
+      // Firestore fetch still only called once (cache hit)
+      expect(mockServerFetchAllDataFromCollection).toHaveBeenCalledTimes(1);
+    });
+
+    it("does NOT share cached bookings across different tenants", async () => {
+      stubCalendarClient([
+        { id: "ev-1", summary: "Event 1", start: { dateTime: "2024-01-01T10:00:00Z" }, end: { dateTime: "2024-01-01T11:00:00Z" } },
+      ]);
+      mockServerFetchAllDataFromCollection.mockResolvedValueOnce(bookingsA);
+      mockGetBookingStatus.mockReturnValue("approved");
+
+      // First call with tenant A – populates the cache
+      const res1 = await GET(makeGETRequest("cal-1", tenantA));
+      expect(res1.status).toBe(200);
+      expect(mockServerFetchAllDataFromCollection).toHaveBeenCalledTimes(1);
+      expect(mockServerFetchAllDataFromCollection).toHaveBeenCalledWith(
+        TableNames.BOOKING,
+        [],
+        tenantA,
+      );
+
+      // Re-stub for tenant B
+      stubCalendarClient([
+        { id: "ev-2", summary: "Event 2", start: { dateTime: "2024-02-01T10:00:00Z" }, end: { dateTime: "2024-02-01T11:00:00Z" } },
+      ]);
+      mockServerFetchAllDataFromCollection.mockResolvedValueOnce(bookingsB);
+
+      // Second call with tenant B – cache MUST be invalidated
+      const res2 = await GET(makeGETRequest("cal-1", tenantB));
+      expect(res2.status).toBe(200);
+      // Firestore was called again with tenant B
+      expect(mockServerFetchAllDataFromCollection).toHaveBeenCalledTimes(2);
+      expect(mockServerFetchAllDataFromCollection).toHaveBeenLastCalledWith(
+        TableNames.BOOKING,
+        [],
+        tenantB,
+      );
+
+      // Verify the response actually contains tenant B's booking data
+      const payload2 = await res2.json();
+      expect(payload2[0].booking).toEqual(
+        expect.objectContaining({
+          requestNumber: 2,
+          email: "b@nyu.edu",
+          department: "Tisch",
+        }),
+      );
+    });
+
+    it("coalesces concurrent inflight requests for the same tenant", async () => {
+      // Use a deferred promise so we can control when the Firestore fetch resolves
+      let resolveBookings!: (value: any[]) => void;
+      const deferredBookings = new Promise<any[]>((resolve) => {
+        resolveBookings = resolve;
+      });
+      mockServerFetchAllDataFromCollection.mockReturnValue(deferredBookings);
+
+      // Stub calendar client to allow two concurrent GET calls
+      const calEvents = [
+        { id: "ev-1", summary: "E1", start: { dateTime: "2024-01-01T10:00:00Z" }, end: { dateTime: "2024-01-01T11:00:00Z" } },
+      ];
+      // Each GET call needs its own calendar client stub
+      mockGetCalendarClient
+        .mockResolvedValueOnce({ events: { list: vi.fn().mockResolvedValue({ data: { items: calEvents, nextPageToken: null } }) } } as any)
+        .mockResolvedValueOnce({ events: { list: vi.fn().mockResolvedValue({ data: { items: calEvents, nextPageToken: null } }) } } as any);
+      mockGetBookingStatus.mockReturnValue("approved");
+
+      // Fire two concurrent GET calls for different rooms but SAME tenant
+      const p1 = GET(makeGETRequest("room-cal-1", tenantA));
+      const p2 = GET(makeGETRequest("room-cal-2", tenantA));
+
+      // Resolve the single Firestore fetch
+      resolveBookings(bookingsA);
+
+      const [res1, res2] = await Promise.all([p1, p2]);
+      expect(res1.status).toBe(200);
+      expect(res2.status).toBe(200);
+
+      // Firestore was called only ONCE despite two concurrent requests
+      expect(mockServerFetchAllDataFromCollection).toHaveBeenCalledTimes(1);
+    });
+
+    it("does NOT coalesce inflight requests across different tenants", async () => {
+      // First tenant: use a deferred promise that stays pending
+      let resolveA!: (value: any[]) => void;
+      const deferredA = new Promise<any[]>((resolve) => {
+        resolveA = resolve;
+      });
+      mockServerFetchAllDataFromCollection.mockReturnValueOnce(deferredA);
+
+      const calEventsA = [
+        { id: "ev-1", summary: "E1", start: { dateTime: "2024-01-01T10:00:00Z" }, end: { dateTime: "2024-01-01T11:00:00Z" } },
+      ];
+      // Calendar event for tenant B uses ev-2 so it matches bookingsB
+      const calEventsB = [
+        { id: "ev-2", summary: "E2", start: { dateTime: "2024-02-01T10:00:00Z" }, end: { dateTime: "2024-02-01T11:00:00Z" } },
+      ];
+      mockGetCalendarClient
+        .mockResolvedValueOnce({ events: { list: vi.fn().mockResolvedValue({ data: { items: calEventsA, nextPageToken: null } }) } } as any);
+      mockGetBookingStatus.mockReturnValue("approved");
+
+      // Fire first request for tenant A (stays inflight)
+      const p1 = GET(makeGETRequest("cal-1", tenantA));
+
+      // Resolve tenant A so the inflight promise completes, then cache is for tenant A
+      resolveA(bookingsA);
+      await p1;
+
+      // Now set up tenant B mock
+      mockServerFetchAllDataFromCollection.mockReturnValueOnce(
+        Promise.resolve(bookingsB),
+      );
+      stubCalendarClient(calEventsB);
+
+      // Fire request for tenant B – must NOT reuse tenant A's cache
+      const res2 = await GET(makeGETRequest("cal-1", tenantB));
+      expect(res2.status).toBe(200);
+
+      // Verify Firestore was called separately for each tenant
+      expect(mockServerFetchAllDataFromCollection).toHaveBeenCalledTimes(2);
+      expect(mockServerFetchAllDataFromCollection).toHaveBeenNthCalledWith(
+        1,
+        TableNames.BOOKING,
+        [],
+        tenantA,
+      );
+      expect(mockServerFetchAllDataFromCollection).toHaveBeenNthCalledWith(
+        2,
+        TableNames.BOOKING,
+        [],
+        tenantB,
+      );
+
+      // Verify tenant B got its own data
+      const payload2 = await res2.json();
+      expect(payload2[0].booking).toEqual(
+        expect.objectContaining({ email: "b@nyu.edu" }),
+      );
+    });
+
+    it("clears inflight promise on Firestore error so next call retries", async () => {
+      stubCalendarClient([
+        { id: "ev-1", summary: "E1", start: { dateTime: "2024-01-01T10:00:00Z" }, end: { dateTime: "2024-01-01T11:00:00Z" } },
+      ]);
+      mockGetBookingStatus.mockReturnValue("approved");
+
+      // First call – Firestore rejects
+      mockServerFetchAllDataFromCollection.mockRejectedValueOnce(
+        new Error("Firestore unavailable"),
+      );
+
+      const res1 = await GET(makeGETRequest("cal-1", tenantA));
+      // The GET handler catches the error and returns events without bookings
+      expect(res1.status).toBe(200);
+      const payload1 = await res1.json();
+      expect(payload1[0].booking).toBeUndefined();
+
+      // Re-stub calendar client for second call
+      stubCalendarClient([
+        { id: "ev-1", summary: "E1", start: { dateTime: "2024-01-01T10:00:00Z" }, end: { dateTime: "2024-01-01T11:00:00Z" } },
+      ]);
+
+      // Second call – Firestore succeeds this time
+      mockServerFetchAllDataFromCollection.mockResolvedValueOnce(bookingsA);
+
+      const res2 = await GET(makeGETRequest("cal-1", tenantA));
+      expect(res2.status).toBe(200);
+      const payload2 = await res2.json();
+      expect(payload2[0].booking).toEqual(
+        expect.objectContaining({ email: "a@nyu.edu" }),
+      );
+
+      // Firestore was called twice (error cleared the inflight, so second call retried)
+      expect(mockServerFetchAllDataFromCollection).toHaveBeenCalledTimes(2);
+    });
+
+    it("refetches after TTL expires", async () => {
+      const realNow = Date.now();
+      const dateNowSpy = vi.spyOn(Date, "now");
+
+      // First call at t=0
+      dateNowSpy.mockReturnValue(realNow);
+      stubCalendarClient([
+        { id: "ev-1", summary: "E1", start: { dateTime: "2024-01-01T10:00:00Z" }, end: { dateTime: "2024-01-01T11:00:00Z" } },
+      ]);
+      mockServerFetchAllDataFromCollection.mockResolvedValueOnce(bookingsA);
+      mockGetBookingStatus.mockReturnValue("approved");
+
+      await GET(makeGETRequest("cal-1", tenantA));
+      expect(mockServerFetchAllDataFromCollection).toHaveBeenCalledTimes(1);
+
+      // Advance Date.now() beyond the 30s TTL
+      dateNowSpy.mockReturnValue(realNow + 31_000);
+
+      // Re-stub for the next call
+      stubCalendarClient([
+        { id: "ev-1", summary: "E1", start: { dateTime: "2024-01-01T10:00:00Z" }, end: { dateTime: "2024-01-01T11:00:00Z" } },
+      ]);
+      mockServerFetchAllDataFromCollection.mockResolvedValueOnce(bookingsA);
+
+      // Second call – cache expired, must refetch
+      await GET(makeGETRequest("cal-1", tenantA));
+      expect(mockServerFetchAllDataFromCollection).toHaveBeenCalledTimes(2);
+
+      dateNowSpy.mockRestore();
     });
   });
 });
