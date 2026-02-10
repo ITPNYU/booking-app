@@ -319,12 +319,12 @@ describe("Calendar Description Functions", () => {
           ...data,
           roomId: selectedRoomIds,
           startDate: startDateObj.toLocaleDateString(),
-          startTime: startDateObj.toLocaleTimeString([], {
+          startTime: startDateObj.toLocaleTimeString("en-US", {
             hour: "2-digit",
             minute: "2-digit",
             hour12: true,
           }),
-          endTime: endDateObj.toLocaleTimeString([], {
+          endTime: endDateObj.toLocaleTimeString("en-US", {
             hour: "2-digit",
             minute: "2-digit",
             hour12: true,
