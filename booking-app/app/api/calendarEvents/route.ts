@@ -26,7 +26,7 @@ let bookingsCacheData: {
 let bookingsInflightPromise: Promise<Booking[]> | null = null;
 
 /** @internal – exposed only for unit tests to reset module-level cache between runs */
-export function _resetBookingsCacheForTesting() {
+function _resetBookingsCacheForTesting() {
   bookingsCacheData = null;
   bookingsInflightPromise = null;
 }
@@ -50,12 +50,12 @@ async function getCachedBookings(tenant: string): Promise<Booking[]> {
       [],
       tenant,
     )
-      .then((data) => {
+      .then(data => {
         bookingsCacheData = { data, timestamp: Date.now(), tenant };
         bookingsInflightPromise = null;
         return data;
       })
-      .catch((err) => {
+      .catch(err => {
         bookingsInflightPromise = null;
         throw err;
       });
@@ -100,7 +100,7 @@ const getCalendarEvents = async (calendarId: string, tenant?: string) => {
 
   const [events, bookings] = await Promise.all([
     calendarPromise,
-    bookingsPromise.catch((error) => {
+    bookingsPromise.catch(error => {
       console.error("Error fetching tenant bookings:", error);
       return [] as Booking[];
     }),
