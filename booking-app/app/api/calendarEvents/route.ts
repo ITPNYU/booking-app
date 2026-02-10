@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from "next/server";
 import getBookingStatus from "@/components/src/client/routes/hooks/getBookingStatus";
 import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
 import { serverBookingContents } from "@/components/src/server/admin";
+import { Booking } from "@/components/src/types";
 import { getCachedBookings } from "@/lib/bookingsCache";
 import { getCalendarClient } from "@/lib/googleClient";
 import { calendar_v3 } from "googleapis/build/src/apis/calendar";
