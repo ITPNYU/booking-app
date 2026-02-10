@@ -33,7 +33,7 @@ jobs:
       - name: Check TypeScript types
         run: |
           cd booking-app
-          npm run type-check || echo "::warning::TypeScript type check found errors"
+          npm run type-check
 
       - name: Build Next.js application
         env:
