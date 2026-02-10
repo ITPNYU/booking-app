@@ -128,11 +128,17 @@ export async function POST(request: Request) {
     
     // Get resources from tenant schema instead of collection
     const schema = await serverGetDocumentById(TableNames.TENANT_SCHEMA, tenant);
-    const resources = schema?.resources?.map((resource: any) => ({
+    
+    // Apply environment-based calendar ID selection
+    const resourcesWithCorrectCalendarIds = schema?.resources 
+      ? applyEnvironmentCalendarIds(schema.resources)
+      : [];
+    
+    const resources = resourcesWithCorrectCalendarIds.map((resource: any) => ({
       id: resource.roomId.toString(),
       calendarId: resource.calendarId,
       roomId: resource.roomId,
-    })) || [];
+    }));
 
     let totalNewBookings = 0;
     let totalUpdatedBookings = 0;

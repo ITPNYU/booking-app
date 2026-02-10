@@ -3,6 +3,7 @@ import { TableNames } from "@/components/src/policy";
 import { BookingStatusLabel, Department } from "@/components/src/types";
 import { isMediaCommons } from "@/components/src/utils/tenantUtils";
 import { serverGetDocumentById } from "@/lib/firebase/server/adminDb";
+import { applyEnvironmentCalendarIds } from "@/lib/utils/calendarEnvironment";
 import { NextRequest } from "next/server";
 import { format, toZonedTime } from "date-fns-tz";
 
@@ -89,7 +90,9 @@ export const getTenantRooms = async (tenant?: string) => {
       return [];
     }
 
-    return schema.resources.map((resource: any) => ({
+    const resourcesWithCorrectCalendarIds = applyEnvironmentCalendarIds(schema.resources);
+
+    return resourcesWithCorrectCalendarIds.map((resource: any) => ({
       roomId: resource.roomId,
       name: resource.name,
       capacity: resource.capacity?.toString(),
