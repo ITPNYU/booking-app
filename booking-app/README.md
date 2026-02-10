@@ -33,15 +33,6 @@ The application should now be running on [http://localhost:3000](http://localhos
 
 This project uses environment variables for configuration. Make sure you have received the `.env` file from a project administrator and placed it in the root directory before running the application.
 
-### New Relic Monitoring (Optional)
-
-To enable New Relic APM, add your license key to `.env.local`:
-
-```
-NEW_RELIC_LICENSE_KEY=your_license_key_here
-NEW_RELIC_APP_NAME=ITP Booking App - Development
-```
-
 ## Deployment
 
 This project uses automated deployment pipelines:
