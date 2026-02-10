@@ -93,21 +93,24 @@ async function sendEditNotificationEmails(
       ]),
     );
 
-    // Use buildBookingContents for consistent Eastern Time formatting
-    const formattedContents = buildBookingContents(
-      otherContentsStrings,
-      [selectedRoomIds],
-      startDate,
-      endDate,
-      BookingStatusLabel.REQUESTED,
-      existingContents.requestNumber,
-    );
-
     const emailPromises = firstApprovers.map(recipient => {
       return sendHTMLEmail({
         templateName: "booking_detail",
         contents: {
-          ...formattedContents,
+          ...otherContentsStrings,
+          roomId: selectedRoomIds,
+          startDate: startDate.toLocaleDateString(),
+          endDate: endDate.toLocaleDateString(),
+          startTime: startDate.toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: true,
+          }),
+          endTime: endDate.toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: true,
+          }),
           requestNumber: existingContents.requestNumber + "",
         },
         targetEmail: recipient,

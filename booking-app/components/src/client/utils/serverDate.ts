@@ -1,6 +1,5 @@
 import { format, toZonedTime } from "date-fns-tz";
 import { Timestamp } from "firebase-admin/firestore";
-import { TIMEZONE } from "./date";
 
 type DateInput = Date | Timestamp | { [key: string]: any } | number | string;
 
@@ -17,7 +16,7 @@ const parseTimestamp = (value: DateInput): Timestamp => {
 
 export const serverFormatDate = (
   input: string,
-  timeZone: string = TIMEZONE
+  timeZone: string = "America/New_York"
 ): string => {
   if (!input) return "";
   try {
@@ -38,7 +37,7 @@ export const serverFormatDate = (
 
 export const serverFormatDateOnly = (
   input: string,
-  timeZone: string = TIMEZONE
+  timeZone: string = "America/New_York"
 ): string => {
   if (!input) return "";
   try {

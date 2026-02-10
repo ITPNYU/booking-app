@@ -4,10 +4,6 @@ import { BookingStatusLabel, Department } from "@/components/src/types";
 import { isMediaCommons } from "@/components/src/utils/tenantUtils";
 import { serverGetDocumentById } from "@/lib/firebase/server/adminDb";
 import { NextRequest } from "next/server";
-import { format, toZonedTime } from "date-fns-tz";
-
-// All times in the booking app are in Eastern Time
-const TIMEZONE = "America/New_York";
 
 /**
  * Checks if a school value represents "Other" selection.
@@ -110,17 +106,21 @@ export const buildBookingContents = (
   requestNumber: number,
   origin?: string,
 ) => {
-  // Convert to Eastern Time before formatting
-  const startDateET = toZonedTime(startDateObj, TIMEZONE);
-  const endDateET = toZonedTime(endDateObj, TIMEZONE);
-  
   return {
     ...data,
     roomId: selectedRoomIds,
-    startDate: format(startDateET, "M/d/yyyy"),
-    startTime: format(startDateET, "h:mm a"),
-    endDate: format(endDateET, "M/d/yyyy"),
-    endTime: format(endDateET, "h:mm a"),
+    startDate: startDateObj.toLocaleDateString(),
+    startTime: startDateObj.toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    }),
+    endDate: endDateObj.toLocaleDateString(),
+    endTime: endDateObj.toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    }),
     status,
     requestNumber,
     origin,

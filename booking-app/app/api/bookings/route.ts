@@ -39,11 +39,7 @@ import { serverGetDocumentById } from "@/lib/firebase/server/adminDb";
 import { getCalendarClient } from "@/lib/googleClient";
 import { Timestamp } from "firebase-admin/firestore";
 import { DateSelectArg } from "fullcalendar";
-import {
-  extractTenantFromRequest,
-  getAffiliationDisplayValues,
-  getOtherDisplayFields,
-} from "./shared";
+import { extractTenantFromRequest, getAffiliationDisplayValues, getOtherDisplayFields } from "./shared";
 
 // Common function to create XState data structure
 export function createXStateData(
@@ -72,8 +68,9 @@ async function createXStateSnapshotData(
   targetState: string,
   context?: any,
 ) {
-  const { mcBookingMachine } =
-    await import("@/lib/stateMachines/mcBookingMachine");
+  const { mcBookingMachine } = await import(
+    "@/lib/stateMachines/mcBookingMachine"
+  );
   const { createActor } = await import("xstate");
 
   // Create fresh XState actor
@@ -133,6 +130,7 @@ function cleanObjectForFirestore(obj: any): any {
 }
 
 // Helper function to extract tenant from request
+
 
 // Helper function to get tenant-specific room information
 const getTenantRooms = async (tenant?: string) => {
@@ -314,30 +312,23 @@ async function handleBookingApprovalEmails(
         },
       );
 
-      // Use buildBookingContents for consistent Eastern Time formatting
-      const formattedContents = buildBookingContents(
-        otherContentsStrings,
-        [selectedRoomIds],
-        startDate,
-        endDate,
-        BookingStatusLabel.REQUESTED,
-        contents.requestNumber ?? sequentialId,
-      );
-
-      // Convert all values to strings for sendHTMLEmail
-      const contentsAsStrings = Object.fromEntries(
-        Object.entries(formattedContents).map(([key, value]) => [
-          key,
-          value instanceof Timestamp
-            ? value.toDate().toISOString()
-            : String(value ?? ""),
-        ]),
-      );
-
       return sendHTMLEmail({
         templateName: "booking_detail",
         contents: {
-          ...contentsAsStrings,
+          ...otherContentsStrings,
+          roomId: selectedRoomIds,
+          startDate: startDate.toLocaleDateString(),
+          endDate: endDate.toLocaleDateString(),
+          startTime: startDate.toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: true,
+          }),
+          endTime: endDate.toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: true,
+          }),
           requestNumber: contents.requestNumber + "",
         },
         targetEmail: recipient,
@@ -516,8 +507,7 @@ export async function POST(request: NextRequest) {
   const { isITP, isMediaCommons, usesXState } = getTenantFlags(tenant);
 
   // Get the correct department and school display values
-  const { departmentDisplay, schoolDisplay } =
-    getAffiliationDisplayValues(data);
+  const { departmentDisplay, schoolDisplay } = getAffiliationDisplayValues(data);
 
   console.log(`🏢 BOOKING API [${tenant?.toUpperCase() || "UNKNOWN"}]:`, {
     tenant,
