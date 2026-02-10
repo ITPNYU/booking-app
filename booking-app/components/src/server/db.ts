@@ -1212,12 +1212,12 @@ export const clientBookingContents = async (id: string, tenant?: string) => {
     bookingToolUrl: getBookingToolDeployUrl(),
     history: history,
     // Add formatted time fields for email template
-    startTime: startDateObj.toLocaleTimeString([], {
+    startTime: startDateObj.toLocaleTimeString("en-US", {
       hour: "2-digit",
       minute: "2-digit",
       hour12: true,
     }),
-    endTime: endDateObj.toLocaleTimeString([], {
+    endTime: endDateObj.toLocaleTimeString("en-US", {
       hour: "2-digit",
       minute: "2-digit",
       hour12: true,
