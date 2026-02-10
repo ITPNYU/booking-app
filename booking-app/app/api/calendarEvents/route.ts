@@ -25,6 +25,12 @@ let bookingsCacheData: {
 } | null = null;
 let bookingsInflightPromise: Promise<Booking[]> | null = null;
 
+/** @internal – exposed only for unit tests to reset module-level cache between runs */
+export function _resetBookingsCacheForTesting() {
+  bookingsCacheData = null;
+  bookingsInflightPromise = null;
+}
+
 async function getCachedBookings(tenant: string): Promise<Booking[]> {
   const now = Date.now();
 
