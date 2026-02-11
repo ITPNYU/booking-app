@@ -12,7 +12,7 @@ export async function getNYUToken(): Promise<string | null> {
     }
 
     const basicAuth = Buffer.from(`${clientId}:${clientSecret}`).toString(
-      "base64"
+      "base64",
     );
 
     const params = new URLSearchParams({
@@ -29,7 +29,6 @@ export async function getNYUToken(): Promise<string | null> {
         "Content-Type": "application/x-www-form-urlencoded",
       },
       cache: "no-store",
-      next: { revalidate: 0 },
       body: params.toString(),
     });
 

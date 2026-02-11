@@ -112,6 +112,13 @@ export const bookingContentsToDescription = async (
       ""
   );
   description += listItem(
+    "School",
+    getProperty(bookingContents, "school") === "Other" &&
+      getProperty(bookingContents, "otherSchool")
+      ? getProperty(bookingContents, "otherSchool")
+      : getProperty(bookingContents, "school")
+  );
+  description += listItem(
     "Department",
     getProperty(bookingContents, "department") === "Other" &&
       getProperty(bookingContents, "otherDepartment")
