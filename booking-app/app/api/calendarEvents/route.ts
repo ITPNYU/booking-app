@@ -7,62 +7,11 @@ import { NextRequest, NextResponse } from "next/server";
 
 import getBookingStatus from "@/components/src/client/routes/hooks/getBookingStatus";
 import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
-import { TableNames } from "@/components/src/policy";
 import { serverBookingContents } from "@/components/src/server/admin";
 import { Booking } from "@/components/src/types";
-import { serverFetchAllDataFromCollection } from "@/lib/firebase/server/adminDb";
+import { getCachedBookings } from "@/lib/bookingsCache";
 import { getCalendarClient } from "@/lib/googleClient";
 import { calendar_v3 } from "googleapis/build/src/apis/calendar";
-
-// ── Bookings cache with request coalescing ──
-// When multiple rooms fire concurrent requests, bookings (identical for all rooms)
-// are fetched from Firestore only ONCE and shared across all concurrent requests.
-const BOOKINGS_CACHE_TTL = 30_000; // 30 seconds
-let bookingsCacheData: {
-  data: Booking[];
-  timestamp: number;
-  tenant: string;
-} | null = null;
-let bookingsInflightPromise: Promise<Booking[]> | null = null;
-
-/** @internal – exposed only for unit tests to reset module-level cache between runs */
-function _resetBookingsCacheForTesting() {
-  bookingsCacheData = null;
-  bookingsInflightPromise = null;
-}
-
-async function getCachedBookings(tenant: string): Promise<Booking[]> {
-  const now = Date.now();
-
-  // Return cached data if still fresh and for the same tenant
-  if (
-    bookingsCacheData &&
-    bookingsCacheData.tenant === tenant &&
-    now - bookingsCacheData.timestamp < BOOKINGS_CACHE_TTL
-  ) {
-    return bookingsCacheData.data;
-  }
-
-  // Coalesce concurrent requests – only the first caller fetches
-  if (!bookingsInflightPromise) {
-    bookingsInflightPromise = serverFetchAllDataFromCollection<Booking>(
-      TableNames.BOOKING,
-      [],
-      tenant,
-    )
-      .then(data => {
-        bookingsCacheData = { data, timestamp: Date.now(), tenant };
-        bookingsInflightPromise = null;
-        return data;
-      })
-      .catch(err => {
-        bookingsInflightPromise = null;
-        throw err;
-      });
-  }
-
-  return bookingsInflightPromise;
-}
 
 const getCalendarEvents = async (calendarId: string, tenant?: string) => {
   const now = new Date().toISOString();
