@@ -159,6 +159,7 @@ export default function StatusChip({
         bgcolor,
         color,
         transition: "background-color 150ms, color 150ms",
+        userSelect: "none",
       }}
     />
   );
