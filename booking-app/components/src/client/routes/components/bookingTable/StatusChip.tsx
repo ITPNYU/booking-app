@@ -12,7 +12,7 @@ interface Props {
 
 const RectangleChip = styled(Chip)({
   borderRadius: 4,
-  height: 23,
+  height: 24,
   span: {
     padding: 6,
     fontWeight: 500,
@@ -159,6 +159,7 @@ export default function StatusChip({
         bgcolor,
         color,
         transition: "background-color 150ms, color 150ms",
+        userSelect: "none",
       }}
     />
   );

@@ -48,7 +48,8 @@ export const Bookings: React.FC<BookingsProps> = ({
   const { resourceName } = useTenantSchema();
   const params = useParams();
   const tenant = params?.tenant as string;
-  const allowedStatuses = useAllowedStatuses(pageContext);
+  const excludedStatuses = [BookingStatusLabel.CANCELED, BookingStatusLabel.EQUIPMENT, BookingStatusLabel.NO_SHOW, BookingStatusLabel.PENDING, BookingStatusLabel.MODIFIED];
+  const allowedStatuses = useAllowedStatuses(pageContext).filter(status => !excludedStatuses.includes(status));
 
   const [modalData, setModalData] = useState<BookingRow>(null);
   const [statusFilters, setStatusFilters] = useState(() =>

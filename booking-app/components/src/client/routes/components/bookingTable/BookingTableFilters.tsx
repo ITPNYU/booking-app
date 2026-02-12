@@ -8,6 +8,14 @@ import {
   InputAdornment,
   TextField,
 } from "@mui/material";
+import {
+  TableBar,
+  Headset,
+  PeopleAlt,
+  LocalDining,
+  CleaningServices,
+  LocalPolice
+} from "@mui/icons-material";
 import React, { useCallback, useContext, useEffect, useState } from "react";
 import { debounce } from "../../../utils/debounce";
 import Dropdown from "../../booking/components/Dropdown";
@@ -16,6 +24,8 @@ import { DateRangeFilter } from "./hooks/getDateFilter";
 import MultiSelectDropdown from "../../booking/components/MultiSelectDropdown";
 import StatusMultiSelectDropdown from "../../booking/components/StatusMultiSelectDropdown";
 import ServicesMultiSelectDropdown from "../../booking/components/ServicesMultiSelectDropdown";
+import StatusChip from "./StatusChip";
+import FilterChip from "./FilterChip";
 
 interface Props {
   allowedStatuses: BookingStatusLabel[];
@@ -27,9 +37,9 @@ interface Props {
   selectedOrigin?: string | null;
   setSelectedOrigin?: (origin: string | null) => void;
   selectedRooms?: string[] | null;
-  setSelectedRooms?: (rooms: string[] | null) => void;
+  setSelectedRooms?: (rooms: string[] | null | ((prev: string[] | null) => string[] | null)) => void;
   selectedServices?: string[] | null;
-  setSelectedServices?: (services: string[] | null) => void;
+  setSelectedServices?: (services: string[] | null | ((prev: string[] | null) => string[] | null)) => void;
   searchQuery?: string;
   setSearchQuery?: (query: string) => void;
   isSearching?: boolean;
@@ -106,6 +116,15 @@ export default function BookingTableFilters({
       setLastItem,
     ]
   );
+
+  const serviceIcons: Record<string, React.ElementType> = {
+    "Setup": TableBar,
+    "Equipment": Headset,
+    "Staffing": PeopleAlt,
+    "Catering": LocalDining,
+    "Cleaning": CleaningServices,
+    "Security": LocalPolice,
+  };
 
   const dateFilters = (
     <Dropdown
@@ -222,15 +241,114 @@ export default function BookingTableFilters({
         gap: 2,
       }}
     >
-      <Box sx={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 2 }}>
-        <FilterList sx={{ marginLeft: "4px", color: "rgba(0,0,0,0.8)" }} />
-        {pageContext >= PageContextLevel.PA && originFilters}
+      <Box sx={{ display: "flex", alignItems: "flex-start", gap: 2 }}>
+        <FilterList sx={{ marginLeft: "4px", color: "rgba(0,0,0,0.8)", marginTop: "4px" }} />
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+          <Box sx={{ display: "flex", alignItems: "center", flexWrap: "wrap", rowGap: 1.5 }}>
+            {["All", "User", "Admin", "Walk-In", "VIP", "System", "Pregame"].map((origin) =>
+            (
+              <Box
+                onClick={() => setSelectedOrigin?.(origin)}
+                key={origin}
+                sx={{
+                  cursor: "pointer",
+                  display: "inline-block",
+                  padding: "0px 8px 0px 4px",
+                }}
+              >
+                <FilterChip
+                  selected={selectedOrigin === origin}
+                  text={origin}
+                />
+              </Box>
+            )
+            )}
+          </Box>
+          <Box sx={{ display: "flex", alignItems: "center", flexWrap: "wrap", rowGap: 1.5 }}>
+            {allowedStatuses.map((status) =>
+            (
+              <Box
+                onClick={() => setSelectedStatuses((prev: BookingStatusLabel[]) => {
+                  if (prev.includes(status)) {
+                    return prev.filter((x) => x !== status);
+                  }
+                  return [...prev, status];
+                })}
+                key={status}
+                sx={{
+                  cursor: "pointer",
+                  display: "inline-block",
+                  padding: "0px 8px 0px 4px",
+                }}
+              >
+                <StatusChip
+                  status={status}
+                  disabled={!selectedStatuses.includes(status)}
+                />
+              </Box>
+            )
+            )}
+          </Box>
+          <Box sx={{ display: "flex", alignItems: "center", flexWrap: "wrap", rowGap: 1.5 }}>
+            {roomSettings.map((room) => room.roomId.toString()).map((roomId) =>
+            (
+              <Box
+                onClick={() => setSelectedRooms?.((prev: string[] | null) => {
+                  if (prev?.includes(roomId)) {
+                    return prev?.filter((x) => x !== roomId);
+                  }
+                  return [...(prev || []), roomId];
+                })}
+                key={roomId}
+                sx={{
+                  cursor: "pointer",
+                  display: "inline-block",
+                  padding: "0px 8px 0px 4px",
+                }}
+              >
+                <FilterChip
+                  selected={selectedRooms?.includes(roomId)}
+                  text={roomId}
+                />
+              </Box>
+            )
+            )}
+          </Box>
+          <Box sx={{ display: "flex", alignItems: "center", flexWrap: "wrap", rowGap: 1.5 }}>
+            {["Setup", "Equipment", "Staffing", "Catering", "Cleaning", "Security"].map((service) =>
+            (
+              <Box
+                onClick={() => setSelectedServices?.((prev: string[] | null) => {
+                  if (prev?.includes(service)) {
+                    return prev?.filter((x) => x !== service);
+                  }
+                  return [...(prev || []), service];
+                })}
+                key={service}
+                sx={{
+                  cursor: "pointer",
+                  display: "inline-block",
+                  padding: "0px 8px 0px 4px",
+                }}
+              >
+                <FilterChip
+                  selected={selectedServices?.includes(service)}
+                  text={service}
+                  icon={serviceIcons[service] as React.ElementType}
+                />
+              </Box>
+            )
+            )}
+          </Box>
+        </Box>
+        {/* {pageContext >= PageContextLevel.PA && originFilters}
         {pageContext >= PageContextLevel.PA && statusFilters}
         {pageContext >= PageContextLevel.PA && dateFilters}
         {pageContext >= PageContextLevel.PA && roomFilters}
-        {pageContext >= PageContextLevel.PA && serviceFilters}
+        {pageContext >= PageContextLevel.PA && serviceFilters} */}
       </Box>
-      <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+      <Box sx={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 2 }}>
+        {pageContext >= PageContextLevel.PA && dateFilters}
         {pageContext >= PageContextLevel.PA && searchBar}
       </Box>
     </Box>
