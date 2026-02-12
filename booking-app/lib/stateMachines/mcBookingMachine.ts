@@ -340,7 +340,7 @@ export const mcBookingMachine = setup({
           Object.keys(context.servicesRequested).forEach((service) => {
             if (
               context.servicesRequested?.[
-                service as keyof typeof context.servicesRequested
+              service as keyof typeof context.servicesRequested
               ]
             ) {
               approved[service] = true;
@@ -659,7 +659,7 @@ export const mcBookingMachine = setup({
       if (context.isVip) {
         const hasServices =
           context.servicesRequested &&
-          typeof context.servicesRequested === "object"
+            typeof context.servicesRequested === "object"
             ? Object.values(context.servicesRequested).some(Boolean)
             : false;
 
@@ -686,13 +686,13 @@ export const mcBookingMachine = setup({
       // Map servicesRequested to format expected by autoApprovalUtils
       const servicesRequested = context.servicesRequested
         ? {
-            setup: context.servicesRequested.setup || false,
-            equipment: context.servicesRequested.equipment || false,
-            staffing: context.servicesRequested.staff || false,
-            catering: context.servicesRequested.catering || false,
-            cleaning: context.servicesRequested.cleaning || false,
-            security: context.servicesRequested.security || false,
-          }
+          setup: context.servicesRequested.setup || false,
+          equipment: context.servicesRequested.equipment || false,
+          staffing: context.servicesRequested.staff || false,
+          catering: context.servicesRequested.catering || false,
+          cleaning: context.servicesRequested.cleaning || false,
+          security: context.servicesRequested.security || false,
+        }
         : undefined;
 
       // Use the new auto-approval utility
@@ -732,7 +732,7 @@ export const mcBookingMachine = setup({
       ({ context }) => {
         const hasServices =
           context.servicesRequested &&
-          typeof context.servicesRequested === "object"
+            typeof context.servicesRequested === "object"
             ? Object.values(context.servicesRequested).some(Boolean)
             : false;
         console.log(
@@ -744,11 +744,21 @@ export const mcBookingMachine = setup({
     servicesRequested: ({ context }) => {
       const hasServices =
         context.servicesRequested &&
-        typeof context.servicesRequested === "object"
+          typeof context.servicesRequested === "object"
           ? Object.values(context.servicesRequested).some(Boolean)
           : false;
       console.log(`🎯 XSTATE GUARD: servicesRequested: ${hasServices}`);
       return hasServices;
+    },
+    noServicesRequested: ({ context }) => {
+      const hasServices =
+        context.servicesRequested &&
+          typeof context.servicesRequested === "object"
+          ? Object.values(context.servicesRequested).some(Boolean)
+          : false;
+      const noServices = !hasServices;
+      console.log(`🎯 XSTATE GUARD: noServicesRequested: ${noServices}`);
+      return noServices;
     },
     servicesApproved: ({ context }) => {
       if (
@@ -782,7 +792,7 @@ export const mcBookingMachine = setup({
           if (!requested) return true; // If not requested, consider it "approved"
           return (
             context.servicesApproved?.[
-              service as keyof typeof context.servicesApproved
+            service as keyof typeof context.servicesApproved
             ] === true
           );
         }
@@ -807,7 +817,7 @@ export const mcBookingMachine = setup({
         if (!requested) return true; // If not requested, it's considered "decided"
         const approval =
           context.servicesApproved?.[
-            service as keyof typeof context.servicesApproved
+          service as keyof typeof context.servicesApproved
           ];
         return typeof approval === "boolean"; // Must be explicitly true or false
       });
@@ -825,7 +835,7 @@ export const mcBookingMachine = setup({
           if (!requested) return false; // If not requested, can't be declined
           return (
             context.servicesApproved?.[
-              service as keyof typeof context.servicesApproved
+            service as keyof typeof context.servicesApproved
             ] === false
           );
         }
@@ -1619,6 +1629,9 @@ export const mcBookingMachine = setup({
           },
           {
             target: "Approved",
+            guard: {
+              type: "noServicesRequested",
+            },
           },
         ],
         cancel: {
