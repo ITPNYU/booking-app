@@ -229,14 +229,19 @@ export default function UserRolePage({
   }, [watchedFields, setFormData]);
 
   const getDisabled = () => {
+    // Always require school to be selected first
+    if (!hasSelectedSchool) {
+      return true;
+    }
+
     if (isOtherSchool(watchedFields.school)) {
       return !watchedFields.otherSchool?.trim() || !watchedFields.otherDepartment?.trim() || !role;
     }
-    
+
     if (showOther && !watchedFields.otherDepartment) {
       return true;
     }
-    
+
     return !role || !department;
   };
 
