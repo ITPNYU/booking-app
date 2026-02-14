@@ -58,5 +58,5 @@ export default function useCheckFormMissingData() {
         router.push(`/${tenant}/${base}/selectRoom${id ? `/${id}` : ""}`);
       }
     }
-  }, []);
+  }, [pathname, tenant, router, hasAffiliationFields, hasRoomSelectionFields, hasFormData]);
 }
