@@ -276,7 +276,7 @@ describe("useCheckFormMissingData - Redirect Behavior", () => {
       expect(mockPush).not.toHaveBeenCalled();
     });
 
-    it("allows modification page without affiliation check", () => {
+    it("allows modification page at selectRoom without affiliation check", () => {
       (usePathname as any).mockReturnValue(
         "/test-tenant/modification/selectRoom"
       );
@@ -293,6 +293,7 @@ describe("useCheckFormMissingData - Redirect Behavior", () => {
         wrapper: createWrapper(contextValue),
       });
 
+      // Modification bypasses affiliation check at selectRoom page
       expect(mockPush).not.toHaveBeenCalled();
     });
   });
@@ -349,8 +350,9 @@ describe("useCheckFormMissingData - Redirect Behavior", () => {
         wrapper: createWrapper(contextValue),
       });
 
-      // Modification page bypasses affiliation check
-      expect(mockPush).not.toHaveBeenCalled();
+      // Modification page bypasses affiliation check but still needs room selection for form page
+      // Since room selection is missing, it redirects to selectRoom
+      expect(mockPush).toHaveBeenCalledWith("/test-tenant/modification/selectRoom");
     });
   });
 
@@ -401,6 +403,15 @@ describe("useCheckFormMissingData - Redirect Behavior", () => {
       // This test documents that useCheckFormMissingData only checks role+department,
       // not school. The actual fix for the bug is in UserRolePage.getDisabled()
       // which prevents the Next button from working until school is selected.
+      //
+      // BUG CONTEXT (PR fix/affiliation-page-skip-bug):
+      // Users with auto-filled role/department (e.g., from Identity API mapping
+      // affiliation_sub_type: 'DEGREE' → role: 'Student') could proceed past the
+      // Affiliation page without selecting a school, causing submission to fail.
+      //
+      // FIX: UserRolePage.getDisabled() now checks hasSelectedSchool to keep the
+      // Next button disabled until school is selected, even when role/department
+      // are auto-filled.
       (usePathname as any).mockReturnValue("/test-tenant/book/selectRoom");
 
       const contextValue = {
