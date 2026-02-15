@@ -509,19 +509,31 @@ export const processCancelBooking = async (
   }
 
   // Check if this is an automatic transition from No Show or Decline
-  // by checking booking logs for NO-SHOW or DECLINED status
+  // by checking if the immediately preceding status was NO-SHOW or DECLINED
   const bookingLogs = await serverFetchAllDataFromCollection(
     TableNames.BOOKING_LOGS,
     [{ field: "calendarEventId", operator: "==", value: id }],
     tenant
   );
 
-  const hasNoShowLog = bookingLogs.some(
-    (log: any) => log.status === BookingStatusLabel.NO_SHOW
+  // Sort logs by changedAt descending to find the immediately preceding status.
+  // Only the most recent non-CANCELED status determines whether this is an
+  // automatic system transition (Decline→Cancel or NoShow→Cancel), not any
+  // historical log. A booking may have been DECLINED earlier, then edited back
+  // to REQUESTED→APPROVED, in which case a user-initiated cancel should still
+  // incur penalties.
+  const sortedLogs = [...bookingLogs].sort((a: any, b: any) => {
+    const timeA = a.changedAt?.toMillis?.() ?? a.changedAt?.seconds ?? 0;
+    const timeB = b.changedAt?.toMillis?.() ?? b.changedAt?.seconds ?? 0;
+    return timeB - timeA; // most recent first
+  });
+  const previousLog = sortedLogs.find(
+    (log: any) => log.status !== BookingStatusLabel.CANCELED
   );
-  const hasDeclinedLog = bookingLogs.some(
-    (log: any) => log.status === BookingStatusLabel.DECLINED
-  );
+  const previousStatus = previousLog?.status;
+
+  const hasNoShowLog = previousStatus === BookingStatusLabel.NO_SHOW;
+  const hasDeclinedLog = previousStatus === BookingStatusLabel.DECLINED;
   const isAutomaticTransition = hasNoShowLog || hasDeclinedLog;
 
   const changedBy = isAutomaticTransition ? "System" : email;
