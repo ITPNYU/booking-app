@@ -4,6 +4,35 @@ import { NextRequest, NextResponse } from "next/server";
 import { serverApproveBooking } from "@/components/src/server/admin";
 import { executeXStateTransition } from "@/lib/stateMachines/xstateUtilsV5";
 
+import { TableNames } from "@/components/src/policy";
+import { getMediaCommonsServices, isMediaCommons } from "@/components/src/utils/tenantUtils";
+import { serverGetDataByCalendarEventId } from "@/lib/firebase/server/adminDb";
+
+const SERVICE_APPROVED_FIELDS: Record<string, string> = {
+  staff: "staffServiceApproved",
+  equipment: "equipmentServiceApproved",
+  catering: "cateringServiceApproved",
+  cleaning: "cleaningServiceApproved",
+  security: "securityServiceApproved",
+  setup: "setupServiceApproved",
+};
+
+/**
+ * Returns true if the booking has at least one requested service that has not yet been
+ * approved or declined
+ */
+function hasUnprocessedServices(bookingData: any): boolean {
+  const servicesRequested = getMediaCommonsServices(bookingData);
+  for (const [service, requested] of Object.entries(servicesRequested)) {
+    if (!requested) continue;
+    const field = SERVICE_APPROVED_FIELDS[service];
+    if (!field) continue;
+    const value = (bookingData as any)[field];
+    if (typeof value !== "boolean") return true;
+  }
+  return false;
+}
+
 /**
  * Checks if the XState result indicates a transition to Services Request parallel state
  * This typically happens for Media Commons bookings with requested services
@@ -51,12 +80,33 @@ export async function POST(req: NextRequest) {
         error: xstateResult.error,
       });
 
-      // Fallback to traditional approval if XState fails
+      // For Media Commons, avoid final-approving when the booking is in the services flow
+      // (e.g. user approved again without reloading; XState rejects approve from "Services Request").
+      if (isMediaCommons(tenant)) {
+        const bookingData = await serverGetDataByCalendarEventId(
+          TableNames.BOOKING,
+          id,
+          tenant
+        );
+        if (bookingData && hasUnprocessedServices(bookingData)) {
+          console.log(
+            `🛑 BLOCKING FALLBACK: REQUEST HAS UNPROCESSED SERVICES [${tenant?.toUpperCase()}]:`,
+            { calendarEventId: id }
+          );
+          return NextResponse.json(
+            {
+              error:
+                "This request is in the services approval flow. Complete or decline each service request before final approval, or refresh the page.",
+            },
+            { status: 409 }
+          );
+        }
+      }
+
+      // Fallback to traditional approval if XState fails and it's safe to do so
       console.log(
         `🔄 FALLING BACK TO TRADITIONAL APPROVAL [${tenant?.toUpperCase()}]:`,
-        {
-          calendarEventId: id,
-        },
+        { calendarEventId: id }
       );
       await serverApproveBooking(id, email, tenant);
     } else {

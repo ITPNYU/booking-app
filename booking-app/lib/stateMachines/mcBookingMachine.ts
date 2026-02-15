@@ -750,16 +750,6 @@ export const mcBookingMachine = setup({
       console.log(`🎯 XSTATE GUARD: servicesRequested: ${hasServices}`);
       return hasServices;
     },
-    noServicesRequested: ({ context }) => {
-      const hasServices =
-        context.servicesRequested &&
-          typeof context.servicesRequested === "object"
-          ? Object.values(context.servicesRequested).some(Boolean)
-          : false;
-      const noServices = !hasServices;
-      console.log(`🎯 XSTATE GUARD: noServicesRequested: ${noServices}`);
-      return noServices;
-    },
     servicesApproved: ({ context }) => {
       if (
         !context.servicesRequested ||
@@ -1629,9 +1619,6 @@ export const mcBookingMachine = setup({
           },
           {
             target: "Approved",
-            guard: {
-              type: "noServicesRequested",
-            },
           },
         ],
         cancel: {
