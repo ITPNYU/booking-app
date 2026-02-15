@@ -19,6 +19,11 @@ vi.mock("@/lib/firebase/server/adminDb", () => ({
   serverGetDataByCalendarEventId: vi.fn(),
 }));
 
+vi.mock("@/components/src/utils/tenantUtils", () => ({
+  isMediaCommons: vi.fn(),
+  getMediaCommonsServices: vi.fn(),
+}));
+
 import { POST } from "@/app/api/approve/route";
 import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
 import {
@@ -28,6 +33,8 @@ import {
 } from "@/components/src/server/admin";
 import { executeXStateTransition } from "@/lib/stateMachines/xstateUtilsV5";
 import { serverGetDataByCalendarEventId } from "@/lib/firebase/server/adminDb";
+import { getMediaCommonsServices, isMediaCommons } from "@/components/src/utils/tenantUtils";
+
 
 type MockRequestBody = {
   id: string;
@@ -50,6 +57,9 @@ const mockServerGetDataByCalendarEventId = vi.mocked(
   serverGetDataByCalendarEventId,
 );
 
+const mockIsMediaCommons = vi.mocked(isMediaCommons);
+const mockGetMediaCommonsServices = vi.mocked(getMediaCommonsServices);
+
 const bookingId = "calendar-1";
 const approverEmail = "approver@nyu.edu";
 
@@ -61,6 +71,15 @@ const parseJson = async (response: Response) => {
 describe("POST /api/approve", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockIsMediaCommons.mockReturnValue(false);
+    mockGetMediaCommonsServices.mockReturnValue({
+      staff: false,
+      equipment: false,
+      catering: false,
+      cleaning: false,
+      security: false,
+      setup: false,
+    });
     mockServerGetDataByCalendarEventId.mockResolvedValue({
       id: "booking-db-id",
       requestNumber: 42,
@@ -96,6 +115,39 @@ describe("POST /api/approve", () => {
       status: 200,
       data: { message: "Approved successfully" },
     });
+  });
+
+  it("returns 409 and does not fall back when Media Commons booking has unprocessed services", async () => {
+    mockExecute.mockResolvedValue({
+      success: false,
+      error: "Invalid transition: Cannot execute 'approve' from state 'Services Request'",
+    });
+    mockIsMediaCommons.mockReturnValue(true);
+    mockServerGetDataByCalendarEventId.mockResolvedValue({
+      id: "booking-db-id",
+      staffingServicesDetails: "yes",  // requested
+      staffServiceApproved: undefined, // not yet processed
+    } as any);
+    mockGetMediaCommonsServices.mockReturnValue({
+      staff: true,
+      equipment: false,
+      catering: false,
+      cleaning: false,
+      security: false,
+      setup: false,
+    });
+
+    const response = await POST(
+      createRequest(
+        { id: bookingId, email: approverEmail },
+        { "x-tenant": "mc" },
+      ) as any,
+    );
+
+    expect(response.status).toBe(409);
+    const body = await response.json();
+    expect(body.error).toMatch(/services approval flow|unprocessed/i);
+    expect(mockServerApproveBooking).not.toHaveBeenCalled();
   });
 
   it("runs finalApprove when XState reaches Approved", async () => {
