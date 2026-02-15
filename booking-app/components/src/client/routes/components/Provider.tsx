@@ -607,7 +607,7 @@ export const DatabaseProvider = ({
         calendarId: resource.calendarId,
         needsSafetyTraining: resource.needsSafetyTraining || false,
         trainingFormUrl: resource.trainingFormUrl,
-        shouldAutoApprove: resource.shouldAutoApprove || false,
+        autoApproval: resource.autoApproval,
         isWalkIn: resource.isWalkIn || false,
         isWalkInCanBookTwo: resource.isWalkInCanBookTwo || false,
         isEquipment: resource.isEquipment || false,
