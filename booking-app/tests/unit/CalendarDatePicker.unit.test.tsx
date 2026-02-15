@@ -186,6 +186,9 @@ describe("CalendarDatePicker", () => {
 
   describe("Calendar functionality", () => {
     it("renders calendar with past dates disabled", () => {
+      // Fix system time so the visible month (June 2024) has past dates in the grid
+      vi.useFakeTimers({ now: new Date("2024-06-15T12:00:00") });
+
       renderCalendarDatePicker(
         FormContextLevel.FULL_FORM,
         PagePermission.BOOKING
@@ -194,13 +197,16 @@ describe("CalendarDatePicker", () => {
       const calendar = document.querySelector(".MuiDateCalendar-root");
       expect(calendar).toBeInTheDocument();
 
-      // Calendar should have disablePast prop applied
-      // Past dates will have .Mui-disabled class
-      const disabledDates = document.querySelectorAll(
-        ".MuiPickersDay-root.Mui-disabled"
+      const dayCells = calendar!.querySelectorAll(".MuiPickersDay-root");
+      expect(dayCells.length).toBeGreaterThan(0);
+
+      // With disablePast, past dates are disabled (MUI X uses .MuiPickersDay-disabled or [disabled])
+      const disabledDays = calendar!.querySelectorAll(
+        ".MuiPickersDay-root.MuiPickersDay-disabled, .MuiPickersDay-root[disabled], .MuiPickersDay-root[aria-disabled=\"true\"]"
       );
-      // There should be some disabled dates (past dates)
-      expect(disabledDates.length).toBeGreaterThan(0);
+      expect(disabledDays.length).toBeGreaterThan(0);
+
+      vi.useRealTimers();
     });
 
     it("initializes with bookingCalendarInfo when provided", () => {
