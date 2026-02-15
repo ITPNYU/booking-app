@@ -90,7 +90,7 @@ export default function useBookingActions({
   const router = useRouter();
   const { tenant } = useParams();
   const { reloadExistingCalendarEvents } = useContext(BookingContext);
-  const { userEmail, netId } = useContext(DatabaseContext);
+  const { userEmail, netId, fetchAllBookings } = useContext(DatabaseContext);
   const loadExistingBookingData = useExistingBooking();
   const [bookingData, setBookingData] = useState<any>(null);
   const [serviceRequests, setServiceRequests] = useState<{
@@ -265,6 +265,8 @@ export default function useBookingActions({
           userEmail,
           tenant as string,
         );
+        await fetchBookingData();
+        if (fetchAllBookings) await fetchAllBookings(false);
       },
       optimisticNextStatus: BookingStatusLabel.PRE_APPROVED,
     },
@@ -277,6 +279,8 @@ export default function useBookingActions({
           userEmail,
           tenant as string,
         );
+        await fetchBookingData();
+        if (fetchAllBookings) await fetchAllBookings(false);
       },
       optimisticNextStatus: BookingStatusLabel.APPROVED,
     },
