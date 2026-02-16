@@ -509,19 +509,31 @@ export const processCancelBooking = async (
   }
 
   // Check if this is an automatic transition from No Show or Decline
-  // by checking booking logs for NO-SHOW or DECLINED status
+  // by checking if the immediately preceding status was NO-SHOW or DECLINED
   const bookingLogs = await serverFetchAllDataFromCollection(
     TableNames.BOOKING_LOGS,
     [{ field: "calendarEventId", operator: "==", value: id }],
     tenant
   );
 
-  const hasNoShowLog = bookingLogs.some(
-    (log: any) => log.status === BookingStatusLabel.NO_SHOW
+  // Sort logs by changedAt descending to find the immediately preceding status.
+  // Only the most recent non-CANCELED status determines whether this is an
+  // automatic system transition (Decline→Cancel or NoShow→Cancel), not any
+  // historical log. A booking may have been DECLINED earlier, then edited back
+  // to REQUESTED→APPROVED, in which case a user-initiated cancel should still
+  // incur penalties.
+  const sortedLogs = [...bookingLogs].sort((a: any, b: any) => {
+    const timeA = a.changedAt?.toMillis?.() ?? a.changedAt?.seconds ?? 0;
+    const timeB = b.changedAt?.toMillis?.() ?? b.changedAt?.seconds ?? 0;
+    return timeB - timeA; // most recent first
+  });
+  const previousLog = sortedLogs.find(
+    (log: any) => log.status !== BookingStatusLabel.CANCELED
   );
-  const hasDeclinedLog = bookingLogs.some(
-    (log: any) => log.status === BookingStatusLabel.DECLINED
-  );
+  const previousStatus = previousLog?.status;
+
+  const hasNoShowLog = previousStatus === BookingStatusLabel.NO_SHOW;
+  const hasDeclinedLog = previousStatus === BookingStatusLabel.DECLINED;
   const isAutomaticTransition = hasNoShowLog || hasDeclinedLog;
 
   const changedBy = isAutomaticTransition ? "System" : email;
@@ -554,8 +566,10 @@ export const processCancelBooking = async (
     tenant
   );
 
-  // Always call for pre-ban logging
-  await checkAndLogLateCancellation(doc, id, netId, tenant);
+  // Pre-ban logging: exclude automatic Decline→Cancel and NoShow→Cancel (requester should not be penalized)
+  if (!isAutomaticTransition) {
+    await checkAndLogLateCancellation(doc, id, netId, tenant);
+  }
 
   // Log the cancel action
   if (doc) {
@@ -596,7 +610,8 @@ export const processCancelBooking = async (
     "The request has been canceled.<br /><br />Thank you!<br />";
   let ccHeaderMessage = headerMessage;
 
-  if (isLateCancel(doc)) {
+  // Late-cancel penalty email only for user-initiated cancels; exclude auto Decline→Cancel and NoShow→Cancel
+  if (!isAutomaticTransition && isLateCancel(doc)) {
     const violationCount = await getViolationCount(netId, tenant);
     const { getTenantEmailConfig } = await import("./emails");
     const emailConfig = await getTenantEmailConfig(tenant);
