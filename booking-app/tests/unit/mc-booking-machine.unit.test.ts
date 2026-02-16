@@ -42,6 +42,14 @@ vi.mock("@/components/src/types", () => ({
     CANCELED: "CANCELED",
     NO_SHOW: "NO-SHOW",
   },
+  BookingOrigin: {
+    USER: "user",
+    ADMIN: "admin",
+    WALK_IN: "walk-in",
+    VIP: "vip",
+    SYSTEM: "system",
+    PREGAME: "pre-game",
+  },
 }));
 
 type BookingActor = ActorRefFrom<(typeof mcBookingMachine)["createActor"]>;
@@ -56,7 +64,21 @@ const createTestActor = (
   const actor = createActor(mcBookingMachine, {
     input: {
       tenant: "mc",
-      selectedRooms: [{ roomId: 202, shouldAutoApprove: true }],
+      selectedRooms: [{ 
+        roomId: 202, 
+        autoApproval: {
+          minHour: { admin: -1, faculty: -1, student: -1 },
+          maxHour: { admin: -1, faculty: -1, student: -1 },
+          conditions: {
+            setup: false,
+            equipment: false,
+            staffing: false,
+            catering: false,
+            cleaning: false,
+            security: false,
+          }
+        }
+      }],
       bookingCalendarInfo: makeCalendarInfo(),
       calendarEventId: "cal-123",
       ...input,
@@ -154,7 +176,21 @@ describe("mcBookingMachine", () => {
         tenant: "mc",
         calendarEventId: "cal-123",
         email: "guest@nyu.edu",
-        selectedRooms: [{ roomId: 202, shouldAutoApprove: true }],
+        selectedRooms: [{ 
+          roomId: 202, 
+          autoApproval: {
+            minHour: { admin: -1, faculty: -1, student: -1 },
+            maxHour: { admin: -1, faculty: -1, student: -1 },
+            conditions: {
+              setup: false,
+              equipment: false,
+              staffing: false,
+              catering: false,
+              cleaning: false,
+              security: false,
+            }
+          }
+        }],
         bookingCalendarInfo: makeCalendarInfo(),
         formData: {
           email: "guest@nyu.edu",
@@ -176,7 +212,7 @@ describe("mcBookingMachine", () => {
     expect(snapshot.context.formData?.title).toBe(
       "Media Commons Auto Approval"
     );
-    expect(snapshot.context.selectedRooms?.[0]?.shouldAutoApprove).toBe(true);
+    expect(snapshot.context.selectedRooms?.[0]?.autoApproval).toBeDefined();
 
     // Wait for async actions to complete
     await new Promise((resolve) => setTimeout(resolve, 100));
@@ -196,7 +232,7 @@ describe("mcBookingMachine", () => {
         tenant: "mc",
         calendarEventId: "cal-request-123",
         email: "requestor@nyu.edu",
-        selectedRooms: [{ roomId: 202, shouldAutoApprove: false }],
+        selectedRooms: [{ roomId: 202 }], // No autoApproval = disabled
         bookingCalendarInfo: makeCalendarInfo(),
         formData: {
           email: "requestor@nyu.edu",
@@ -216,7 +252,7 @@ describe("mcBookingMachine", () => {
     expect(snapshot.context.email).toBe("requestor@nyu.edu");
     expect(snapshot.context.calendarEventId).toBe("cal-request-123");
     expect(snapshot.context.formData?.title).toBe("Manual Approval Needed");
-    expect(snapshot.context.selectedRooms?.[0]?.shouldAutoApprove).toBe(false);
+    expect(snapshot.context.selectedRooms?.[0]?.autoApproval).toBeUndefined();
 
     // Note: liaisonUsers may not be preserved in context depending on XState machine implementation
     // This test focuses on verifying the state transition and core context preservation
@@ -259,7 +295,7 @@ describe("mcBookingMachine", () => {
 
   it("moves from Pre-approved to Services Request when approvals are pending", () => {
     const actor = createTestActor({
-      selectedRooms: [{ roomId: 202, shouldAutoApprove: false }],
+      selectedRooms: [{ roomId: 202 }], // No autoApproval = disabled
       servicesRequested: { equipment: true },
       servicesApproved: {},
     });
@@ -273,7 +309,7 @@ describe("mcBookingMachine", () => {
 
   it("completes approval when all requested services are already approved", () => {
     const actor = createTestActor({
-      selectedRooms: [{ roomId: 202, shouldAutoApprove: false }],
+      selectedRooms: [{ roomId: 202 }], // No autoApproval = disabled
       servicesRequested: { staff: true },
       servicesApproved: { staff: true },
     });
@@ -287,7 +323,7 @@ describe("mcBookingMachine", () => {
 
   it("defaults decline reason when declining without a provided note", () => {
     const actor = createTestActor({
-      selectedRooms: [{ roomId: 202, shouldAutoApprove: false }],
+      selectedRooms: [{ roomId: 202 }], // No autoApproval = disabled
     });
 
     expect(actor.getSnapshot().matches("Requested")).toBe(true);
@@ -413,7 +449,7 @@ describe("mcBookingMachine", () => {
   it("approves requested services and transitions back to Approved", async () => {
     const actor = createTestActor({
       isVip: true,
-      selectedRooms: [{ roomId: 202, shouldAutoApprove: false }],
+      selectedRooms: [{ roomId: 202 }], // No autoApproval = disabled
       servicesRequested: { catering: true },
     });
 
@@ -426,7 +462,7 @@ describe("mcBookingMachine", () => {
   it("declines requested services and moves to Declined state", async () => {
     const actor = createTestActor({
       isVip: true,
-      selectedRooms: [{ roomId: 202, shouldAutoApprove: false }],
+      selectedRooms: [{ roomId: 202 }], // No autoApproval = disabled
       servicesRequested: { equipment: true },
     });
 
@@ -438,7 +474,7 @@ describe("mcBookingMachine", () => {
 
   it("emits the official guideline state sequence for manual service approvals", async () => {
     const actor = createTestActor({
-      selectedRooms: [{ roomId: 202, shouldAutoApprove: false }],
+      selectedRooms: [{ roomId: 202 }], // No autoApproval = disabled
       servicesRequested: { equipment: true, staff: true },
     });
 
@@ -472,7 +508,21 @@ describe("mcBookingMachine", () => {
   it("maintains Approved state when modifying an approved booking (Modify event)", () => {
     // Create an actor that auto-approves (no services, auto-approvable room)
     const actor = createTestActor({
-      selectedRooms: [{ roomId: 202, shouldAutoApprove: true }],
+      selectedRooms: [{ 
+        roomId: 202, 
+        autoApproval: {
+          minHour: { admin: -1, faculty: -1, student: -1 },
+          maxHour: { admin: -1, faculty: -1, student: -1 },
+          conditions: {
+            setup: false,
+            equipment: false,
+            staffing: false,
+            catering: false,
+            cleaning: false,
+            security: false,
+          }
+        }
+      }],
     });
 
     // Verify initial state is Approved (auto-approved)

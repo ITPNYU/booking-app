@@ -1,5 +1,10 @@
 import { Timestamp } from "firebase/firestore";
 import { format } from "date-fns";
+import { toZonedTime } from "date-fns-tz";
+import { DEFAULT_SLOT_UNIT } from "../routes/booking/utils/getSlotUnit";
+
+// All times in the booking app are displayed in Eastern Time
+export const TIMEZONE = "America/New_York";
 
 export const formatDate = (
   oldDate:
@@ -27,22 +32,26 @@ export const formatDate = (
     date = new Date(oldDate);
   }
 
-  return format(date, "yyyy-MM-dd hh:mm a");
+  // Convert to Eastern Time before formatting
+  const zonedDate = toZonedTime(date, TIMEZONE);
+  return format(zonedDate, "yyyy-MM-dd h:mm a");
 };
 
 export const formatDateTable = (date: Date) => {
-  // const date = new Date(d);
-  const month = (date.getMonth() + 1).toString().padStart(2, "0");
-  const day = date.getDate().toString().padStart(2, "0");
-  const year = date.getFullYear().toString().slice(-2);
+  // Convert to Eastern Time before extracting date components
+  const zonedDate = toZonedTime(date, TIMEZONE);
+  const month = (zonedDate.getMonth() + 1).toString().padStart(2, "0");
+  const day = zonedDate.getDate().toString().padStart(2, "0");
+  const year = zonedDate.getFullYear().toString().slice(-2);
 
   return `${month}/${day}/${year}`;
 };
 
 export const formatTimeTable = (date: Date) => {
-  // const date = new Date(d);
-  let hours = date.getHours();
-  const minutes = date.getMinutes().toString().padStart(2, "0");
+  // Convert to Eastern Time before extracting time components
+  const zonedDate = toZonedTime(date, TIMEZONE);
+  let hours = zonedDate.getHours();
+  const minutes = zonedDate.getMinutes().toString().padStart(2, "0");
 
   // Convert 24-hour format to 12-hour format
   hours = hours % 12;
@@ -52,29 +61,35 @@ export const formatTimeTable = (date: Date) => {
 };
 
 export const formatTimeAmPm = (d: Date) => {
-  return new Date(d).toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "numeric",
-    hour12: true,
-  });
+  // Convert to Eastern Time and format with AM/PM
+  const zonedDate = toZonedTime(d, TIMEZONE);
+  return format(zonedDate, "h:mm a");
 };
 
-export function roundTimeUp() {
+export function roundTimeUp(slotUnit: number = DEFAULT_SLOT_UNIT) {
+  // Get current time in Eastern timezone
   const now = new Date();
-  const minutes = now.getMinutes();
+  const easternNow = toZonedTime(now, TIMEZONE);
+  const minutes = easternNow.getMinutes();
 
-  // Round up to next half-hour or hour
-  const roundedMinutes = minutes > 30 ? 60 : 30;
+  const remainder = minutes % slotUnit;
 
-  if (roundedMinutes === 60) {
-    now.setHours(now.getHours() + 1);
-    now.setMinutes(0);
-  } else {
-    now.setMinutes(30);
+  if (remainder === 0) {
+    // already aligned to slot boundary
+    easternNow.setSeconds(0);
+    easternNow.setMilliseconds(0);
+    return easternNow;
   }
 
-  now.setSeconds(0);
-  now.setMilliseconds(0);
+  const roundedMinutes = minutes + (slotUnit - remainder);
+  const hourIncrement = Math.floor(roundedMinutes / 60);
+  const finalMinutes = roundedMinutes % 60;
 
-  return now;
+  easternNow.setHours(easternNow.getHours() + hourIncrement);
+  easternNow.setMinutes(finalMinutes);
+
+  easternNow.setSeconds(0);
+  easternNow.setMilliseconds(0);
+
+  return easternNow;
 }

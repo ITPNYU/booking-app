@@ -10,6 +10,7 @@ import { createActor } from "xstate";
 import { useTenantSchema } from "../../components/SchemaProvider";
 import { BookingContext } from "../bookingProvider";
 import { getBookingHourLimits } from "../utils/bookingHourLimits";
+import { checkAutoApprovalEligibility } from "@/lib/utils/autoApprovalUtils";
 
 export function selectedAutoApprovalRooms(
   selectedRoomIds: number[],
@@ -44,29 +45,6 @@ export default function useCheckAutoApproval(isWalkIn = false, isVIP = false) {
     setErrorMessage(msg);
   };
 
-  console.log(
-    `🔍 AUTO-APPROVAL CHECK [${schema.tenant?.toUpperCase() || "UNKNOWN"}]:`,
-    {
-      tenant: schema.tenant,
-      isWalkIn,
-      selectedRoomsCount: selectedRooms?.length || 0,
-      selectedRooms: selectedRooms?.map((r) => ({
-        roomId: r.roomId,
-        name: r.name,
-        shouldAutoApprove: r.shouldAutoApprove,
-      })),
-      formData: {
-        roomSetup: formData?.roomSetup,
-        mediaServices: formData?.mediaServices,
-        catering: formData?.catering,
-        hireSecurity: formData?.hireSecurity,
-      },
-      bookingDuration: bookingCalendarInfo
-        ? `${((bookingCalendarInfo.end.getTime() - bookingCalendarInfo.start.getTime()) / (1000 * 60 * 60)).toFixed(1)} hours`
-        : "Not set",
-    }
-  );
-
   useEffect(() => {
     // For ITP and Media Commons tenants, use XState machine for auto-approval logic
     if (schema.tenant === TENANTS.ITP || isMediaCommonsTenant(schema.tenant)) {
@@ -77,7 +55,7 @@ export default function useCheckAutoApproval(isWalkIn = false, isVIP = false) {
           selectedRooms: selectedRooms?.map((r) => ({
             roomId: r.roomId,
             name: r.name,
-            shouldAutoApprove: r.shouldAutoApprove,
+            autoApproval: r.autoApproval,
           })),
           formData,
           bookingCalendarInfo: bookingCalendarInfo
@@ -183,68 +161,18 @@ export default function useCheckAutoApproval(isWalkIn = false, isVIP = false) {
       return; // Exit early for ITP tenant
     }
 
-    // Traditional logic for non-ITP tenants
-    // Check booking duration against role and room-specific limits
+    // Traditional logic for non-ITP/MC tenants - now using new autoApprovalUtils
+    
+    // Calculate duration
+    let durationHours: number | undefined;
     if (bookingCalendarInfo != null) {
       const startDate = bookingCalendarInfo.start;
       const endDate = bookingCalendarInfo.end;
       const duration = endDate.getTime() - startDate.getTime();
-      const durationInHours = duration / (1000 * 60 * 60); // Convert ms to hours
-
-      // Get the hour limits based on role and selected rooms
-      const { maxHours, minHours } = getBookingHourLimits(
-        selectedRooms,
-        role,
-        isWalkIn,
-        isVIP
-      );
-
-      console.log(
-        `⏱️ DURATION CHECK [${schema.tenant?.toUpperCase() || "UNKNOWN"}]:`,
-        {
-          role,
-          isWalkIn,
-          isVIP,
-          durationInHours,
-          maxHours,
-          minHours,
-          selectedRooms: selectedRooms.map((r) => ({
-            roomId: r.roomId,
-            name: r.name,
-            maxHour: r.maxHour,
-            minHour: r.minHour,
-          })),
-        }
-      );
-
-      if (durationInHours > maxHours) {
-        throwError(
-          `Event duration exceeds ${maxHours} hours for ${role || "student"} ${isWalkIn ? "walk-in" : ""} booking`
-        );
-        return;
-      }
-
-      if (durationInHours < minHours) {
-        throwError(
-          `${isWalkIn ? "Walk-in" : ""} event duration must be at least ${minHours} hours for ${role || "student"} booking`
-        );
-        return;
-      }
+      durationHours = duration / (1000 * 60 * 60); // Convert ms to hours
     }
 
-    // ROOMS REQUIRE APPROVAL
-    if (
-      !isWalkIn &&
-      !selectedRooms.every((room) => {
-        return room.shouldAutoApprove || false;
-      })
-    ) {
-      throwError(
-        "At least one of the requested rooms is not eligible for auto approval"
-      );
-      return;
-    }
-
+    // Check multiple room restrictions (legacy check)
     if (
       !selectedAutoApprovalRooms(
         selectedRooms.map((room) => room.roomId),
@@ -257,45 +185,46 @@ export default function useCheckAutoApproval(isWalkIn = false, isVIP = false) {
       return;
     }
 
-    // ROOM SETUP
-    if (formData?.roomSetup === "yes") {
-      throwError(
-        "Requesting additional room setup for an event will require approval"
-      );
-      return;
-    }
+    // Map formData to servicesRequested (cleaningService shown when room.services includes "cleaning")
+    const servicesRequested = formData ? {
+      setup: formData.roomSetup === "yes",
+      equipment: !isWalkIn && formData.equipmentServices?.length > 0,
+      staffing: !isWalkIn && formData.staffingServices?.length > 0,
+      catering: formData.catering === "yes",
+      cleaning: formData.cleaningService === "yes",
+      security: formData.hireSecurity === "yes",
+    } : undefined;
 
-    // HAS EQUIPMENT SERVICES
-    if (!isWalkIn && formData?.equipmentServices?.length > 0) {
-      throwError(
-        "Requesting equipment services for an event will require approval"
-      );
-      return;
-    }
+    console.log(
+      `🔍 AUTO-APPROVAL CHECK USING NEW UTILS [${schema.tenant?.toUpperCase() || "UNKNOWN"}]:`,
+      {
+        role,
+        isWalkIn,
+        isVIP,
+        durationHours,
+        servicesRequested,
+        selectedRoomsCount: selectedRooms.length,
+      }
+    );
 
-    // HAS STAFFING SERVICES
-    if (!isWalkIn && formData?.staffingServices?.length > 0) {
-      throwError(
-        "Requesting staffing services for an event will require approval"
-      );
-      return;
-    }
+    // Use the new auto-approval utility
+    const result = checkAutoApprovalEligibility({
+      selectedRooms,
+      role,
+      isWalkIn,
+      isVip: isVIP,
+      durationHours,
+      servicesRequested,
+    });
 
-    // HAS CATERING
-    if (formData?.catering === "yes") {
-      throwError("Providing catering for an event will require approval");
-      return;
-    }
-
-    // HAS SECURITY
-    if (formData?.hireSecurity === "yes") {
-      throwError("Hiring security for an event will require approval");
+    if (!result.canAutoApprove) {
+      throwError(result.reason || "Booking does not meet auto-approval requirements");
       return;
     }
 
     console.log(
       `✅ AUTO-APPROVAL APPROVED [${schema.tenant?.toUpperCase() || "UNKNOWN"}]:`,
-      "All conditions met for auto-approval"
+      result.reason
     );
     setIsAutoApproval(true);
     setErrorMessage(null);
@@ -308,21 +237,6 @@ export default function useCheckAutoApproval(isWalkIn = false, isVIP = false) {
     schema.tenant, // Added tenant to dependencies
     isWalkIn, // Added isWalkIn to dependencies
   ]);
-
-  console.log(
-    `📋 AUTO-APPROVAL RESULT [${schema.tenant?.toUpperCase() || "UNKNOWN"}]:`,
-    {
-      isAutoApproval,
-      errorMessage,
-      finalDecision: isAutoApproval ? "APPROVED" : "REJECTED",
-      usingXState:
-        schema.tenant === TENANTS.ITP || isMediaCommonsTenant(schema.tenant),
-      method:
-        schema.tenant === TENANTS.ITP || isMediaCommonsTenant(schema.tenant)
-          ? "XState Machine"
-          : "Traditional Logic",
-    }
-  );
 
   return { isAutoApproval, errorMessage };
 }

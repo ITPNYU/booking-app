@@ -20,6 +20,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { toFirebaseTimestampFromString } from "@/components/src/client/utils/serverDate";
 import { insertEvent } from "@/components/src/server/calendars";
 import { Timestamp } from "firebase-admin/firestore";
+import { getAffiliationDisplayValues, getOtherDisplayFields } from "@/app/api/bookings/shared";
 
 // Helper function to extract tenant from request
 const extractTenantFromRequest = (request: NextRequest): string | undefined => {
@@ -57,10 +58,20 @@ export async function POST(request: NextRequest) {
   // Extract tenant from URL
   const tenant = extractTenantFromRequest(request);
 
-  console.log("data", data);
+  console.log("📥 BOOKING DIRECT API - Received data:", {
+    origin,
+    type,
+    email,
+    department: data?.department,
+    otherDepartment: data?.otherDepartment,
+    school: data?.school,
+    otherSchool: data?.otherSchool,
+  });
   console.log("tenant", tenant);
 
+  // Get the correct department and school display values using shared utility
   const { department } = data;
+  const { departmentDisplay, schoolDisplay } = getAffiliationDisplayValues(data);
   const [room, ...otherRooms] = selectedRooms;
   const selectedRoomIds = selectedRooms.map(
     (r: { roomId: number }) => r.roomId,
@@ -131,7 +142,7 @@ export async function POST(request: NextRequest) {
   const event = await insertEvent({
     calendarId,
     title: `[${bookingStatus}] ${selectedRoomIds.join(", ")} ${truncatedTitle}`,
-    description: `Department: ${department === "Other" && data.otherDepartment ? data.otherDepartment : department}\n\nThis reservation was made as a ${type}.`,
+    description: `School: ${schoolDisplay || "Not specified"}\nDepartment: ${departmentDisplay}\n\nThis reservation was made as a ${type}.`,
     startTime: bookingCalendarInfo.startStr,
     endTime: bookingCalendarInfo.endStr,
     roomEmails: otherRoomIds,
@@ -141,20 +152,36 @@ export async function POST(request: NextRequest) {
   // to ensure proper status determination
 
   const sequentialId = await serverGetNextSequentialId("bookings", tenant);
+  
+  // Prepare booking data with corrected department and school values
+  const bookingData = {
+    calendarEventId,
+    roomId: selectedRoomIds.join(", "),
+    email,
+    startDate: toFirebaseTimestampFromString(bookingCalendarInfo.startStr),
+    endDate: toFirebaseTimestampFromString(bookingCalendarInfo.endStr),
+    requestNumber: sequentialId,
+    walkedInAt: Timestamp.now(),
+    origin,
+    isVip: origin === BookingOrigin.VIP, // Explicitly set isVip for XState
+    ...data,
+    // Override with display values for "Other" selections
+    ...getOtherDisplayFields(data),
+  };
+  
+  console.log("💾 Saving booking data to Firestore:", {
+    calendarEventId,
+    department: bookingData.department,
+    departmentDisplay: bookingData.departmentDisplay,
+    otherDepartment: bookingData.otherDepartment,
+    school: bookingData.school,
+    schoolDisplay: bookingData.schoolDisplay,
+    otherSchool: bookingData.otherSchool,
+  });
+  
   const doc = await serverSaveDataToFirestore(
     TableNames.BOOKING,
-    {
-      calendarEventId,
-      roomId: selectedRoomIds.join(", "),
-      email,
-      startDate: toFirebaseTimestampFromString(bookingCalendarInfo.startStr),
-      endDate: toFirebaseTimestampFromString(bookingCalendarInfo.endStr),
-      requestNumber: sequentialId,
-      walkedInAt: Timestamp.now(),
-      origin,
-      isVip: origin === BookingOrigin.VIP, // Explicitly set isVip for XState
-      ...data,
-    },
+    bookingData,
     tenant,
   );
 

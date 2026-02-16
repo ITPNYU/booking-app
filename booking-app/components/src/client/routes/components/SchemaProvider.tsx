@@ -12,10 +12,29 @@ export type Resource = {
   isEquipment: boolean; // renamed from checkable
   calendarId: string;
   needsSafetyTraining: boolean;
-  shouldAutoApprove: boolean;
   isWalkIn: boolean;
   isWalkInCanBookTwo: boolean;
   services: string[]; // ["equipment", "staffing", "setup", "security", "cleaning", "catering", "campus-media"]
+  autoApproval?: {
+    minHour?: {
+      admin: number;
+      faculty: number;
+      student: number;
+    };
+    maxHour?: {
+      admin: number;
+      faculty: number;
+      student: number;
+    };
+    conditions?: {
+      setup: boolean;
+      equipment: boolean;
+      staffing: boolean;
+      catering: boolean;
+      cleaning: boolean;
+      security: boolean;
+    };
+  };
   maxHour?: {
     student: number;
     faculty: number;
@@ -27,7 +46,7 @@ export type Resource = {
     facultyVIP: number;
     adminVIP: number;
   };
-  minHour: {
+  minHour?: {
     student: number;
     faculty: number;
     admin: number;
@@ -66,6 +85,16 @@ export type SchemaContextType = {
   supportVIP: boolean;
   supportWalkIn: boolean;
   resourceName: string;
+  calendarConfig?: {
+    startHour?: Record<string, string>; // e.g., { studentVIP: "06:00:00", student: "09:00:00", ... }
+    slotUnit?: Record<string, number>; // e.g., { student: 15, admin: 15, ... }
+    timeSensitiveRequestWarning?: {
+      hours?: number; // hours
+      isActive?: boolean;
+      message?: string;
+      policyLink?: string;
+    };
+  };
   // Email messages for all scenarios
   emailMessages: {
     requestConfirmation: string;
@@ -104,6 +133,36 @@ export const SchemaContext = createContext<SchemaContextType>({
   supportVIP: false,
   supportWalkIn: false,
   resourceName: "",
+  calendarConfig: {
+    startHour: {
+      student: "09:00:00",
+      studentVIP: "06:00:00",
+      studentWalkIn: "09:00:00",
+      faculty: "09:00:00",
+      facultyVIP: "06:00:00",
+      facultyWalkIn: "09:00:00",
+      admin: "09:00:00",
+      adminVIP: "06:00:00",
+      adminWalkIn: "09:00:00",
+    },
+    slotUnit: {
+      student: 15,
+      studentVIP: 15,
+      studentWalkIn: 15,
+      faculty: 15,
+      facultyVIP: 15,
+      facultyWalkIn: 15,
+      admin: 15,
+      adminVIP: 15,
+      adminWalkIn: 15,
+    },
+    timeSensitiveRequestWarning: {
+      hours: 48,
+      isActive: false,
+      message: "",
+      policyLink: "",
+    },
+  },
   programMapping: {},
   roleMapping: {},
   schoolMapping: {},
