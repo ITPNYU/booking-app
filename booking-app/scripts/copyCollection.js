@@ -327,21 +327,23 @@ const main = async () => {
     // Copy to target database
     const targetDb = initializeTargetDb(DATABASES[options.targetDatabase]);
 
-    // If we're updating tenantSchema, first backup the current tenantSchema to tenantSchema-backup
+    // If we're updating tenantSchema, first backup the current tenantSchema with a date suffix
     const results = [];
     if (
       options.targetCollection === "tenantSchema" &&
       options.sourceCollection === "tenantSchema" &&
       options.sourceDatabase !== options.targetDatabase
     ) {
+      const dateSuffix = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+      const backupCollectionName = `tenantSchema-backup-${dateSuffix}`;
       console.log(
-        "\n📦 Step 1: Backing up current tenantSchema to tenantSchema-backup..."
+        `\n📦 Step 1: Backing up current tenantSchema to ${backupCollectionName}...`
       );
       const backupResult = await copyCollection(
         targetDb,
         targetDb,
         "tenantSchema",
-        "tenantSchema-backup",
+        backupCollectionName,
         DATABASES[options.targetDatabase],
         options.dryRun
       );
