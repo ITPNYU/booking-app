@@ -236,10 +236,16 @@ export class MockServices {
     const hasServices =
       bookingData.servicesRequested &&
       Object.values(bookingData.servicesRequested).some(Boolean);
-    const shouldAutoApprove = bookingData.shouldAutoApprove || false;
+    
+    // Check if rooms have autoApproval enabled
+    const hasAutoApprovalRooms = 
+      bookingData.selectedRooms &&
+      bookingData.selectedRooms.some((room: any) => 
+        room.autoApproval && Object.keys(room.autoApproval).length > 0
+      );
 
     // Auto-approval conditions (simplified for mocking)
-    if (shouldAutoApprove || isWalkIn) {
+    if (isWalkIn) {
       return "Approved";
     }
 
@@ -248,6 +254,11 @@ export class MockServices {
     }
 
     if (isVip && !hasServices) {
+      return "Approved";
+    }
+
+    // Check if auto-approval is enabled for selected rooms
+    if (hasAutoApprovalRooms && !hasServices) {
       return "Approved";
     }
 

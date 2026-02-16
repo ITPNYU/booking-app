@@ -17,10 +17,29 @@ export type Resource = {
   isEquipment: boolean; // renamed from checkable
   calendarId: string;
   needsSafetyTraining: boolean;
-  shouldAutoApprove: boolean;
   isWalkIn: boolean;
   isWalkInCanBookTwo: boolean;
   services: string[]; // ["equipment", "staffing", "setup", "security", "cleaning", "catering", "campus-media"]
+  autoApproval?: {
+    minHour?: {
+      admin: number;
+      faculty: number;
+      student: number;
+    };
+    maxHour?: {
+      admin: number;
+      faculty: number;
+      student: number;
+    };
+    conditions?: {
+      setup: boolean;
+      equipment: boolean;
+      staffing: boolean;
+      catering: boolean;
+      cleaning: boolean;
+      security: boolean;
+    };
+  };
   maxHour?: {
     student: number;
     faculty: number;
@@ -32,7 +51,7 @@ export type Resource = {
     facultyVIP: number;
     adminVIP: number;
   };
-  minHour: {
+  minHour?: {
     student: number;
     faculty: number;
     admin: number;

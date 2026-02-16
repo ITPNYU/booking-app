@@ -85,6 +85,12 @@ vi.mock("@fullcalendar/react", () => {
   };
 });
 
+// Mock moment-timezone plugin (required for timeZone prop to work correctly)
+vi.mock("@fullcalendar/moment-timezone", () => ({
+  __esModule: true,
+  default: { name: "moment-timezone" },
+}));
+
 // Mock Booking Date Restrictions hook for CalendarVerticalResource
 vi.mock(
   "@/components/src/client/routes/booking/hooks/useBookingDateRestrictions",
@@ -472,6 +478,46 @@ describe("Modification Features", () => {
       expect(fullCalendarProps).not.toBeNull();
       expect(fullCalendarProps.selectable).toBe(true);
       expect(fullCalendarProps.eventStartEditable).toBe(true);
+    });
+
+    it("sets timeZone to America/New_York to prevent 5-hour offset bug", () => {
+      renderWithProviders(
+        <CalendarVerticalResource
+          formContext={FormContextLevel.FIRST_APPROVE}
+          rooms={sampleRooms}
+          dateView={dateView}
+        />,
+        {
+          pagePermission: PagePermission.BOOKING,
+        }
+      );
+
+      expect(fullCalendarProps).not.toBeNull();
+      expect(fullCalendarProps.timeZone).toBe("America/New_York");
+    });
+
+    it("includes momentTimezonePlugin in plugins array for timezone support", () => {
+      renderWithProviders(
+        <CalendarVerticalResource
+          formContext={FormContextLevel.FIRST_APPROVE}
+          rooms={sampleRooms}
+          dateView={dateView}
+        />,
+        {
+          pagePermission: PagePermission.BOOKING,
+        }
+      );
+
+      expect(fullCalendarProps).not.toBeNull();
+      expect(fullCalendarProps.plugins).toBeDefined();
+      expect(Array.isArray(fullCalendarProps.plugins)).toBe(true);
+      // Verify momentTimezonePlugin is included (required for timeZone prop to work)
+      // Without this plugin, slotMinTime/slotMaxTime would have a 5-hour offset bug
+      expect(
+        fullCalendarProps.plugins.some(
+          (p: any) => p?.name === "moment-timezone"
+        )
+      ).toBe(true);
     });
   });
 });
