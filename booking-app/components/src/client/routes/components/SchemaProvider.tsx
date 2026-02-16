@@ -159,10 +159,21 @@ export const defaultResource: Resource = {
   isEquipment: false,
   calendarId: "",
   needsSafetyTraining: false,
-  shouldAutoApprove: false,
   isWalkIn: false,
   isWalkInCanBookTwo: false,
   services: [],
+  autoApproval: {
+    minHour: { admin: -1, faculty: -1, student: -1 },
+    maxHour: { admin: -1, faculty: -1, student: -1 },
+    conditions: {
+      setup: false,
+      equipment: false,
+      staffing: false,
+      catering: false,
+      cleaning: false,
+      security: false,
+    },
+  },
   maxHour: {
     student: -1,
     faculty: -1,
