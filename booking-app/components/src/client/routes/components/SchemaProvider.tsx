@@ -16,7 +16,8 @@ export type Resource = {
   roomId: number;
   isEquipment: boolean; // renamed from checkable
   calendarId: string;
-  needsSafetyTraining: boolean;
+  needsSafetyTraining?: boolean; // Whether training is required for this resource
+  trainingFormUrl?: string; // URL of the Google Form that tracks trained users
   isWalkIn: boolean;
   isWalkInCanBookTwo: boolean;
   services: string[]; // ["equipment", "staffing", "setup", "security", "cleaning", "catering", "campus-media"]
@@ -81,7 +82,7 @@ export type TimeSensitiveRequestWarning = {
 export type SchemaContextType = {
   tenant: string; // No default - must be provided
   name: string;
-  safetyTrainingGoogleFormId?: string;
+  safetyTrainingGoogleFormId?: string; // Lower priority: used as fallback when resource-level trainingFormUrl is not available
   logo: string;
   nameForPolicy: string;
   policy: string; // innerHTML
