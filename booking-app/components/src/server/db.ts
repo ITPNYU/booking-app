@@ -1,4 +1,4 @@
-import { SchemaContextType } from "../client/routes/components/SchemaProvider";
+import type { SchemaContextType } from "../client/routes/components/SchemaProvider";
 import { DEFAULT_TENANT } from "../constants/tenants";
 import {
   Approver,
@@ -29,7 +29,6 @@ import {
 
 import { shouldUseXState } from "@/components/src/utils/tenantUtils";
 import { clientUpdateDataByCalendarEventId } from "@/lib/firebase/client/clientDb";
-import { serverGetDocumentById } from "@/lib/firebase/server/adminDb";
 import { getBookingToolDeployUrl } from "./ui";
 
 // Helper function to call XState transition API
@@ -275,6 +274,10 @@ export const decline = async (
   let headerMessage = emailConfig.emailMessages.declined;
 
   // Fetch tenant schema to get declinedGracePeriod (default: 24 hours)
+  // Dynamic import to avoid pulling firebase-admin into client bundle
+  const { serverGetDocumentById } = await import(
+    "@/lib/firebase/server/adminDb"
+  );
   const schema = tenant
     ? await serverGetDocumentById<SchemaContextType>(
         TableNames.TENANT_SCHEMA,
