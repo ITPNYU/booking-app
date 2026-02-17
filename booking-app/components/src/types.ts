@@ -301,7 +301,8 @@ export type RoomSetting = {
   capacity: string;
   calendarId: string;
   calendarRef?: any;
-  needsSafetyTraining?: boolean;
+  needsSafetyTraining?: boolean; // Whether training is required for this resource
+  trainingFormUrl?: string; // URL of the Google Form that tracks trained users
   isWalkIn?: boolean;
   isWalkInCanBookTwo?: boolean;
   isEquipment?: boolean;

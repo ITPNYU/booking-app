@@ -56,6 +56,7 @@ vi.mock("@/components/src/types", () => ({
     CANCELED: "CANCELED",
     CLOSED: "CLOSED",
     APPROVED: "APPROVED",
+    DECLINED: "DECLINED",
   },
 }));
 
@@ -440,6 +441,68 @@ describe("processCancelBooking Integration Tests", () => {
       }),
       "mc"
     );
+  });
+
+  it("should NOT log to PRE_BAN_LOGS (late cancellation) when cancel is from auto Decline→Cancel", async () => {
+    mockServerFetchAllDataFromCollection.mockResolvedValue([
+      {
+        calendarEventId: "cal-event-declined",
+        status: BookingStatusLabel.DECLINED,
+        changedBy: "admin@nyu.edu",
+        changedAt: { toDate: () => new Date("2025-01-01T09:00:00Z") },
+      },
+    ]);
+    mockServerGetDataByCalendarEventId.mockResolvedValue({
+      id: "booking-declined",
+      requestNumber: 999,
+      email: "requester@nyu.edu",
+      startDate: { toDate: () => new Date("2025-01-10T10:00:00Z") },
+      endDate: { toDate: () => new Date("2025-01-10T12:00:00Z") },
+      requestedAt: { toDate: () => new Date("2025-01-01T08:00:00Z") },
+    });
+
+    await dbModule.processCancelBooking(
+      "cal-event-declined",
+      "system",
+      "requester123",
+      "mc"
+    );
+
+    const preBanLogCalls = mockServerSaveDataToFirestore.mock.calls.filter(
+      (call) => call[0] === TableNames.PRE_BAN_LOGS
+    );
+    expect(preBanLogCalls).toHaveLength(0);
+  });
+
+  it("should NOT log to PRE_BAN_LOGS (late cancellation) when cancel is from NoShow→Cancel", async () => {
+    mockServerFetchAllDataFromCollection.mockResolvedValue([
+      {
+        calendarEventId: "cal-event-noshow",
+        status: BookingStatusLabel.NO_SHOW,
+        changedBy: "staff@nyu.edu",
+        changedAt: { toDate: () => new Date("2025-01-01T09:00:00Z") },
+      },
+    ]);
+    mockServerGetDataByCalendarEventId.mockResolvedValue({
+      id: "booking-noshow",
+      requestNumber: 998,
+      email: "requester@nyu.edu",
+      startDate: { toDate: () => new Date("2025-01-10T10:00:00Z") },
+      endDate: { toDate: () => new Date("2025-01-10T12:00:00Z") },
+      requestedAt: { toDate: () => new Date("2025-01-01T08:00:00Z") },
+    });
+
+    await dbModule.processCancelBooking(
+      "cal-event-noshow",
+      "system",
+      "requester456",
+      "mc"
+    );
+
+    const preBanLogCalls = mockServerSaveDataToFirestore.mock.calls.filter(
+      (call) => call[0] === TableNames.PRE_BAN_LOGS
+    );
+    expect(preBanLogCalls).toHaveLength(0);
   });
 });
 
