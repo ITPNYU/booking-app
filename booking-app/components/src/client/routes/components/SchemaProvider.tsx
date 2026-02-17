@@ -11,11 +11,31 @@ export type Resource = {
   roomId: number;
   isEquipment: boolean; // renamed from checkable
   calendarId: string;
-  needsSafetyTraining: boolean;
-  shouldAutoApprove: boolean;
+  needsSafetyTraining?: boolean; // Whether training is required for this resource
+  trainingFormUrl?: string; // URL of the Google Form that tracks trained users
   isWalkIn: boolean;
   isWalkInCanBookTwo: boolean;
   services: string[]; // ["equipment", "staffing", "setup", "security", "cleaning", "catering", "campus-media"]
+  autoApproval?: {
+    minHour?: {
+      admin: number;
+      faculty: number;
+      student: number;
+    };
+    maxHour?: {
+      admin: number;
+      faculty: number;
+      student: number;
+    };
+    conditions?: {
+      setup: boolean;
+      equipment: boolean;
+      staffing: boolean;
+      catering: boolean;
+      cleaning: boolean;
+      security: boolean;
+    };
+  };
   maxHour?: {
     student: number;
     faculty: number;
@@ -27,7 +47,7 @@ export type Resource = {
     facultyVIP: number;
     adminVIP: number;
   };
-  minHour: {
+  minHour?: {
     student: number;
     faculty: number;
     admin: number;
@@ -45,7 +65,7 @@ export type Resource = {
 export type SchemaContextType = {
   tenant: string;
   name: string;
-  safetyTrainingGoogleFormId?: string;
+  safetyTrainingGoogleFormId?: string; // Lower priority: used as fallback when resource-level trainingFormUrl is not available
   logo: string;
   nameForPolicy: string;
   policy: string; // innerHTML

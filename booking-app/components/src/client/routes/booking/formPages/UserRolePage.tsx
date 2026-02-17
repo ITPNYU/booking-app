@@ -208,20 +208,40 @@ export default function UserRolePage({
       prevWatchedFieldsRef.current.otherSchool !== watchedFields.otherSchool;
 
     if (haveWatchedFieldsChanged) {
-      setFormData({ ...watchedFields });
+      // When school is "Other", ensure department context is also set to "Other"
+      // and include the department in formData for consistency
+      const formDataToSet = { 
+        ...watchedFields,
+        // Ensure department is included in formData when school is "Other"
+        department: isOtherSchool(watchedFields.school) ? Department.OTHER : watchedFields.department,
+      };
+      setFormData(formDataToSet);
       prevWatchedFieldsRef.current = watchedFields;
+      
+      console.log("📝 UserRolePage formData updated:", {
+        school: watchedFields.school,
+        otherSchool: watchedFields.otherSchool,
+        department: formDataToSet.department,
+        otherDepartment: watchedFields.otherDepartment,
+        isSchoolOther: isOtherSchool(watchedFields.school),
+      });
     }
   }, [watchedFields, setFormData]);
 
   const getDisabled = () => {
+    // Always require school to be selected first
+    if (!hasSelectedSchool) {
+      return true;
+    }
+
     if (isOtherSchool(watchedFields.school)) {
       return !watchedFields.otherSchool?.trim() || !watchedFields.otherDepartment?.trim() || !role;
     }
-    
+
     if (showOther && !watchedFields.otherDepartment) {
       return true;
     }
-    
+
     return !role || !department;
   };
 
@@ -269,7 +289,18 @@ export default function UserRolePage({
             value={watchedFields.school || ""}
             updateValue={(newSchool) => {
               setValue("school", newSchool);
-              setFormData({ ...watchedFields, school: newSchool, department: "" });
+              
+              // When "Other" school is selected, automatically set department to "Other"
+              // This ensures hasAffiliation check passes in useSubmitBooking
+              if (isOtherSchool(newSchool)) {
+                setDepartment(Department.OTHER);
+                setFormData({ ...watchedFields, school: newSchool, department: Department.OTHER });
+                console.log("📝 School set to 'Other' - automatically setting department to 'Other'");
+              } else {
+                // Reset department when changing to a non-Other school
+                setDepartment(undefined as any);
+                setFormData({ ...watchedFields, school: newSchool, department: "" });
+              }
             }}
             options={derivedSchoolOptions}
             placeholder="Choose a School"

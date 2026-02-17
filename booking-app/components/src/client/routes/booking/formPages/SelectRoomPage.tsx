@@ -45,9 +45,9 @@ export default function SelectRoomPage({
       capacity: resource.capacity.toString(),
       calendarId: resource.calendarId,
       calendarRef: undefined,
-      // Include the new schema fields for compatibility
       needsSafetyTraining: resource.needsSafetyTraining,
-      shouldAutoApprove: resource.shouldAutoApprove,
+      trainingFormUrl: resource.trainingFormUrl,
+      autoApproval: resource.autoApproval,
       isWalkIn: resource.isWalkIn,
       isWalkInCanBookTwo: resource.isWalkInCanBookTwo,
       isEquipment: resource.isEquipment,
