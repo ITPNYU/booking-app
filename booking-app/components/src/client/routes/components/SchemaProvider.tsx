@@ -65,8 +65,6 @@ export type Resource = {
   };
   staffingServices?: string[]; // Specific staffing service options for this room
   staffingSections?: StaffingSection[];
-  /** Optional URL for room-specific safety training form (stored in DB) */
-  trainingFormUrl?: string;
   /** Production calendar ID for this resource (stored in DB) */
   calendarIdProd?: string;
 };
