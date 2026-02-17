@@ -146,50 +146,6 @@ export default function BookingTableFilters({
     />
   );
 
-  // Added filters for origin
-  // const originFilters = (
-  //   <Dropdown
-  //     value={selectedOrigin}
-  //     updateValue={(x) => setSelectedOrigins?.(x)}
-  //     options={["All", "User", "Admin", "Walk-In", "VIP", "System", "Pregame"]}
-  //     placeholder="Origin"
-  //     sx={{ width: "120px" }}
-  //   />
-  // );
-
-  // Updated filters for status
-  // const statusFilters = (
-  //   <StatusMultiSelectDropdown
-  //     value={selectedStatuses}
-  //     updateValue={(x) => setSelectedStatuses?.(x)}
-  //     options={allowedStatuses.filter(s => s !== BookingStatusLabel.UNKNOWN)}
-  //     placeholder="Status"
-  //     sx={{ width: "180px" }}  // Wider to fit chips
-  //   />
-  // );
-
-  // Added filters for rooms
-  // const roomFilters = (
-  //   <MultiSelectDropdown
-  //     value={selectedRooms}
-  //     updateValue={(x) => setSelectedRooms?.(x)}
-  //     options={roomSettings.map((room) => room.roomId.toString())}
-  //     placeholder="Rooms"
-  //     sx={{ width: "120px" }}
-  //   />
-  // );
-
-  // Added filters for services
-  // const serviceFilters = (
-  //   <ServicesMultiSelectDropdown
-  //     value={selectedServices}
-  //     updateValue={(x) => setSelectedServices?.(x)}
-  //     options={["Setup", "Equipment", "Staffing", "Catering", "Cleaning", "Security"]}
-  //     placeholder="Services"
-  //     sx={{ width: "120px" }}
-  //   />
-  // );
-
   const searchBar = (
     <TextField
       size="small"
@@ -347,11 +303,6 @@ export default function BookingTableFilters({
             )}
           </Box>
         </Box>
-        {/* {pageContext >= PageContextLevel.PA && originFilters}
-        {pageContext >= PageContextLevel.PA && statusFilters}
-        {pageContext >= PageContextLevel.PA && dateFilters}
-        {pageContext >= PageContextLevel.PA && roomFilters}
-        {pageContext >= PageContextLevel.PA && serviceFilters} */}
       </Box>
       <Box sx={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 2 }}>
         {pageContext >= PageContextLevel.PA && dateFilters}
