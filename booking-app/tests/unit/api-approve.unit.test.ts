@@ -150,6 +150,80 @@ describe("POST /api/approve", () => {
     expect(mockServerApproveBooking).not.toHaveBeenCalled();
   });
 
+  it("falls back to serverApproveBooking when Media Commons XState fails but all requested services are already processed", async () => {
+    mockExecute.mockResolvedValue({
+      success: false,
+      error: "Invalid transition: Cannot execute 'approve' from state 'Services Request'",
+    });
+    mockIsMediaCommons.mockReturnValue(true);
+    mockServerGetDataByCalendarEventId.mockResolvedValue({
+      id: "booking-db-id",
+      staffingServicesDetails: "yes", // requested
+      staffServiceApproved: true, // already processed (approved)
+    } as any);
+    mockGetMediaCommonsServices.mockReturnValue({
+      staff: true,
+      equipment: false,
+      catering: false,
+      cleaning: false,
+      security: false,
+      setup: false,
+    });
+
+    const response = await POST(
+      createRequest(
+        { id: bookingId, email: approverEmail },
+        { "x-tenant": "mc" },
+      ) as any,
+    );
+
+    expect(mockServerApproveBooking).toHaveBeenCalledWith(
+      bookingId,
+      approverEmail,
+      "mc",
+    );
+    expect(response.status).toBe(200);
+    await expect(parseJson(response)).resolves.toEqual({
+      status: 200,
+      data: { message: "Approved successfully" },
+    });
+  });
+
+  it("falls back to serverApproveBooking when Media Commons XState fails and staff service was declined (already processed)", async () => {
+    mockExecute.mockResolvedValue({
+      success: false,
+      error: "XState transition failed",
+    });
+    mockIsMediaCommons.mockReturnValue(true);
+    mockServerGetDataByCalendarEventId.mockResolvedValue({
+      id: "booking-db-id",
+      staffingServicesDetails: "yes", // requested
+      staffServiceApproved: false, // already processed (declined)
+    } as any);
+    mockGetMediaCommonsServices.mockReturnValue({
+      staff: true,
+      equipment: false,
+      catering: false,
+      cleaning: false,
+      security: false,
+      setup: false,
+    });
+
+    const response = await POST(
+      createRequest(
+        { id: bookingId, email: approverEmail },
+        { "x-tenant": "mc" },
+      ) as any,
+    );
+
+    expect(mockServerApproveBooking).toHaveBeenCalledWith(
+      bookingId,
+      approverEmail,
+      "mc",
+    );
+    expect(response.status).toBe(200);
+  });
+
   it("runs finalApprove when XState reaches Approved", async () => {
     mockExecute.mockResolvedValue({ success: true, newState: "Approved" });
 
