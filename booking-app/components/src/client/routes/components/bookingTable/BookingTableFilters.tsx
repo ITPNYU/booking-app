@@ -26,6 +26,7 @@ import StatusMultiSelectDropdown from "../../booking/components/StatusMultiSelec
 import ServicesMultiSelectDropdown from "../../booking/components/ServicesMultiSelectDropdown";
 import StatusChip from "./StatusChip";
 import FilterChip from "./FilterChip";
+import { createEmitAndSemanticDiagnosticsBuilderProgram } from "typescript";
 
 interface Props {
   allowedStatuses: BookingStatusLabel[];
@@ -34,8 +35,8 @@ interface Props {
   setSelectedStatuses: any;
   selectedDateRange: DateRangeFilter;
   setSelectedDateRange: any;
-  selectedOrigin?: string | null;
-  setSelectedOrigin?: (origin: string | null) => void;
+  selectedOrigins?: string[] | null;
+  setSelectedOrigins?: (origins: string[] | null | ((prev: string[] | null) => string[] | null)) => void;
   selectedRooms?: string[] | null;
   setSelectedRooms?: (rooms: string[] | null | ((prev: string[] | null) => string[] | null)) => void;
   selectedServices?: string[] | null;
@@ -55,8 +56,8 @@ export default function BookingTableFilters({
   searchQuery = "",
   setSearchQuery = () => { },
   isSearching = false,
-  selectedOrigin,
-  setSelectedOrigin,
+  selectedOrigins,
+  setSelectedOrigins,
   selectedRooms,
   setSelectedRooms,
   selectedServices,
@@ -146,48 +147,48 @@ export default function BookingTableFilters({
   );
 
   // Added filters for origin
-  const originFilters = (
-    <Dropdown
-      value={selectedOrigin}
-      updateValue={(x) => setSelectedOrigin?.(x)}
-      options={["All", "User", "Admin", "Walk-In", "VIP", "System", "Pregame"]}
-      placeholder="Origin"
-      sx={{ width: "120px" }}
-    />
-  );
+  // const originFilters = (
+  //   <Dropdown
+  //     value={selectedOrigin}
+  //     updateValue={(x) => setSelectedOrigins?.(x)}
+  //     options={["All", "User", "Admin", "Walk-In", "VIP", "System", "Pregame"]}
+  //     placeholder="Origin"
+  //     sx={{ width: "120px" }}
+  //   />
+  // );
 
   // Updated filters for status
-  const statusFilters = (
-    <StatusMultiSelectDropdown
-      value={selectedStatuses}
-      updateValue={(x) => setSelectedStatuses?.(x)}
-      options={allowedStatuses.filter(s => s !== BookingStatusLabel.UNKNOWN)}
-      placeholder="Status"
-      sx={{ width: "180px" }}  // Wider to fit chips
-    />
-  );
+  // const statusFilters = (
+  //   <StatusMultiSelectDropdown
+  //     value={selectedStatuses}
+  //     updateValue={(x) => setSelectedStatuses?.(x)}
+  //     options={allowedStatuses.filter(s => s !== BookingStatusLabel.UNKNOWN)}
+  //     placeholder="Status"
+  //     sx={{ width: "180px" }}  // Wider to fit chips
+  //   />
+  // );
 
   // Added filters for rooms
-  const roomFilters = (
-    <MultiSelectDropdown
-      value={selectedRooms}
-      updateValue={(x) => setSelectedRooms?.(x)}
-      options={roomSettings.map((room) => room.roomId.toString())}
-      placeholder="Rooms"
-      sx={{ width: "120px" }}
-    />
-  );
+  // const roomFilters = (
+  //   <MultiSelectDropdown
+  //     value={selectedRooms}
+  //     updateValue={(x) => setSelectedRooms?.(x)}
+  //     options={roomSettings.map((room) => room.roomId.toString())}
+  //     placeholder="Rooms"
+  //     sx={{ width: "120px" }}
+  //   />
+  // );
 
   // Added filters for services
-  const serviceFilters = (
-    <ServicesMultiSelectDropdown
-      value={selectedServices}
-      updateValue={(x) => setSelectedServices?.(x)}
-      options={["Setup", "Equipment", "Staffing", "Catering", "Cleaning", "Security"]}
-      placeholder="Services"
-      sx={{ width: "120px" }}
-    />
-  );
+  // const serviceFilters = (
+  //   <ServicesMultiSelectDropdown
+  //     value={selectedServices}
+  //     updateValue={(x) => setSelectedServices?.(x)}
+  //     options={["Setup", "Equipment", "Staffing", "Catering", "Cleaning", "Security"]}
+  //     placeholder="Services"
+  //     sx={{ width: "120px" }}
+  //   />
+  // );
 
   const searchBar = (
     <TextField
@@ -245,10 +246,15 @@ export default function BookingTableFilters({
         <FilterList sx={{ marginLeft: "4px", color: "rgba(0,0,0,0.8)", marginTop: "4px" }} />
         <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
           <Box sx={{ display: "flex", alignItems: "center", flexWrap: "wrap", rowGap: 1.5 }}>
-            {["All", "User", "Admin", "Walk-In", "VIP", "System", "Pregame"].map((origin) =>
+            {["User", "Walk-In", "VIP", "Pregame"].map((origin) =>
             (
               <Box
-                onClick={() => setSelectedOrigin?.(origin)}
+                onClick={() => setSelectedOrigins?.((prev: string[] | null) => {
+                  if (prev?.includes(origin)) {
+                    return prev?.filter((o) => o !== origin);
+                  }
+                  return [...(prev || []), origin];
+                })}
                 key={origin}
                 sx={{
                   cursor: "pointer",
@@ -257,7 +263,7 @@ export default function BookingTableFilters({
                 }}
               >
                 <FilterChip
-                  selected={selectedOrigin === origin}
+                  selected={selectedOrigins?.includes(origin)}
                   text={origin}
                 />
               </Box>
@@ -265,7 +271,7 @@ export default function BookingTableFilters({
             )}
           </Box>
           <Box sx={{ display: "flex", alignItems: "center", flexWrap: "wrap", rowGap: 1.5 }}>
-            {allowedStatuses.map((status) =>
+            {[BookingStatusLabel.REQUESTED, BookingStatusLabel.PRE_APPROVED, BookingStatusLabel.APPROVED, BookingStatusLabel.CHECKED_IN, BookingStatusLabel.CHECKED_OUT, BookingStatusLabel.DECLINED, BookingStatusLabel.CLOSED, BookingStatusLabel.UNKNOWN].map((status) =>
             (
               <Box
                 onClick={() => setSelectedStatuses((prev: BookingStatusLabel[]) => {

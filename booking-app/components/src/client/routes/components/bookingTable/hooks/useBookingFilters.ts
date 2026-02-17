@@ -23,7 +23,7 @@ interface Props {
   selectedStatusFilters: BookingStatusLabel[];
   searchQuery?: string;
   tenant?: string;
-  selectedOrigin?: string | null;
+  selectedOrigins?: string[] | null;
   selectedRooms?: string[] | null;
   selectedServices?: string[] | null;
 }
@@ -198,9 +198,9 @@ class BookingFilter {
     return this;
   }
 
-  filterByOrigin(selectedOrigin: string | null) {
-    if (selectedOrigin && selectedOrigin !== "All") {
-      this.rows = this.rows.filter((row) => formatOrigin(row.origin) === selectedOrigin);
+  filterByOrigins(selectedOrigins: string[] | null) {
+    if (selectedOrigins && selectedOrigins.length > 0) {
+      this.rows = this.rows.filter((row) => selectedOrigins.includes(formatOrigin(row.origin)));
     }
     return this;
   }
@@ -287,7 +287,7 @@ export function useBookingFilters(props: Props): BookingRow[] {
     selectedStatusFilters,
     searchQuery = "",
     tenant,
-    selectedOrigin,
+    selectedOrigins,
     selectedRooms,
     selectedServices,
   } = props;
@@ -338,7 +338,7 @@ export function useBookingFilters(props: Props): BookingRow[] {
         .filterPageContext(userEmail, liaisonUsers)
         .filterAllowedStatuses()
         .filterStatusChips(selectedStatusFilters)
-        .filterByOrigin(selectedOrigin)
+        .filterByOrigins(selectedOrigins)
         .filterByRooms(selectedRooms)
         .filterByServices(selectedServices)
         // No need for client-side search filtering since it's done on the database side
@@ -351,7 +351,7 @@ export function useBookingFilters(props: Props): BookingRow[] {
     columnOrderBy,
     columnOrder,
     currentTime,
-    selectedOrigin,
+    selectedOrigins,
     selectedRooms,
     selectedServices,
     pageContext,

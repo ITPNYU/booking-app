@@ -61,7 +61,7 @@ export const Bookings: React.FC<BookingsProps> = ({
     useState<DateRangeFilter>("All Future");
 
   // Added filters for origin, rooms, and services
-  const [selectedOrigin, setSelectedOrigin] = useState<string | null>("All");
+  const [selectedOrigins, setSelectedOrigins] = useState<string[]>([]);
   const [selectedRooms, setSelectedRooms] = useState<string[]>([]);
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
 
@@ -113,7 +113,7 @@ export const Bookings: React.FC<BookingsProps> = ({
     selectedDateRange,
     selectedStatusFilters: statusFilters,
     searchQuery,
-    selectedOrigin,
+    selectedOrigins,
     selectedRooms,
     selectedServices,
   });
@@ -136,8 +136,8 @@ export const Bookings: React.FC<BookingsProps> = ({
 
     return (
       <BookingTableFilters
-        selectedOrigin={selectedOrigin}
-        setSelectedOrigin={setSelectedOrigin}
+        selectedOrigins={selectedOrigins}
+        setSelectedOrigins={setSelectedOrigins}
         selectedRooms={selectedRooms}
         setSelectedRooms={setSelectedRooms}
         selectedServices={selectedServices}
@@ -160,7 +160,7 @@ export const Bookings: React.FC<BookingsProps> = ({
     statusFilters,
     allowedStatuses,
     selectedDateRange,
-    selectedOrigin,
+    selectedOrigins,
     selectedRooms,
     selectedServices,
     searchQuery,
