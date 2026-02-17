@@ -1,6 +1,6 @@
-import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
+import { getApiHeaders } from "@/components/src/client/utils/apiHeaders";
 import { ApproverLevel, TableNames } from "@/components/src/policy";
-import React, { createContext, useEffect, useMemo, useState } from "react";
+import React, { createContext, useCallback, useEffect, useMemo, useState } from "react";
 import {
   AdminUser,
   Approver,
@@ -67,7 +67,7 @@ export interface DatabaseContextType {
   reloadOperationHours: () => Promise<void>;
   reloadPaUsers: () => Promise<void>;
   reloadBookingTypes: () => Promise<void>;
-  reloadSafetyTrainedUsers: () => Promise<void>;
+  reloadSafetyTrainedUsers: (rooms?: Array<{ roomId: string; trainingFormUrl?: string }>) => Promise<void>;
   reloadPolicySettings: () => Promise<void>;
   setUserEmail: (x: string) => void;
   fetchAllBookings: (clicked: boolean) => Promise<void>;
@@ -173,9 +173,7 @@ export const DatabaseProvider = ({
       if (!netId || !tenant) return;
       try {
         const response = await fetch(`/api/nyu/identity/${netId}`, {
-          headers: {
-            "x-tenant": tenant || DEFAULT_TENANT,
-          },
+          headers: getApiHeaders(tenant),
         });
         if (response.ok) {
           const data = await response.json();
@@ -378,7 +376,9 @@ export const DatabaseProvider = ({
     }
   };
 
-  const fetchSafetyTrainedUsers = async (resourceId?: string) => {
+  const fetchSafetyTrainedUsers = useCallback(async (
+    rooms?: Array<{ roomId: string; trainingFormUrl?: string }>
+  ) => {
     try {
       if (applyE2EMockSafetyUsers(setSafetyTrainedUsers)) {
         return;
@@ -402,34 +402,7 @@ export const DatabaseProvider = ({
         firestoreUsers.length
       );
 
-      // Fetch data from Google Form responses
-      const response = await fetch("/api/safety_training_form", {
-        headers: {
-          "x-tenant": tenant || DEFAULT_TENANT,
-          ...(resourceId && { "x-resource-id": resourceId }),
-        },
-      });
-      if (!response.ok) {
-        // Get the error details from the response
-        const errorData = await response.json();
-        console.log("Safety training form API error:", {
-          status: response.status,
-          statusText: response.statusText,
-          error: errorData.error,
-          details: errorData.details,
-          code: errorData.code
-        });
-        throw new Error(errorData.error || "Failed to fetch authorized emails from form responses");
-      }
-      const formData = await response.json();
-
-      console.log(
-        "FETCHED SAFETY TRAINED EMAILS FROM FORM:",
-        formData.emails.length
-      );
-      const currentDate = new Date().toISOString();
-
-      // Map to merge users
+      // Map to merge users from all sources
       const userMap = new Map<string, SafetyTraining>();
 
       // Add Firestore users to the map
@@ -437,33 +410,110 @@ export const DatabaseProvider = ({
         userMap.set(user.email, user);
       });
 
-      // Add or update form response users
-      formData.emails.forEach((email: string) => {
-        if (!userMap.has(email)) {
-          userMap.set(email, {
-            id: email,
-            email,
-            completedAt: currentDate,
+      // Fetch from Google Forms for each room that has a trainingFormUrl
+      if (rooms && rooms.length > 0) {
+        const roomsWithFormUrl = rooms.filter((room) => room.trainingFormUrl);
+        
+        if (roomsWithFormUrl.length > 0) {
+          // Fetch from all rooms and merge results
+          const formPromises = roomsWithFormUrl.map(async (room) => {
+            try {
+              const headers = getApiHeaders(tenant, {
+                "x-resource-id": room.roomId,
+              });
+
+              const response = await fetch("/api/safety_training_form", {
+                headers,
+              });
+
+              if (!response.ok) {
+                const errorData = await response.json();
+                console.log(`Safety training form API error for room ${room.roomId}:`, {
+                  status: response.status,
+                  statusText: response.statusText,
+                  error: errorData.error,
+                  details: errorData.details,
+                  code: errorData.code,
+                });
+                return []; // Return empty array on error for this room
+              }
+
+              const formData = await response.json();
+              return formData.emails || [];
+            } catch (error: any) {
+              console.error(`Error fetching form data for room ${room.roomId}:`, error);
+              return []; // Return empty array on error for this room
+            }
           });
+
+          // Wait for all form requests to complete
+          const allFormEmails = await Promise.all(formPromises);
+          const currentDate = new Date().toISOString();
+
+          // Merge all form response emails into the map
+          allFormEmails.flat().forEach((email: string) => {
+            if (email && email.includes("@") && !userMap.has(email)) {
+              userMap.set(email, {
+                id: email,
+                email,
+                completedAt: currentDate,
+              });
+            }
+          });
+
+          console.log(
+            "FETCHED SAFETY TRAINED EMAILS FROM FORMS:",
+            allFormEmails.flat().length,
+            `(from ${roomsWithFormUrl.length} room(s))`
+          );
         }
-      });
+      } else {
+        // No rooms provided, fetch all (no resource filter)
+        try {
+          const response = await fetch("/api/safety_training_form", {
+            headers: getApiHeaders(tenant),
+          });
+
+          if (response.ok) {
+            const formData = await response.json();
+            const currentDate = new Date().toISOString();
+
+            formData.emails?.forEach((email: string) => {
+              if (email && email.includes("@") && !userMap.has(email)) {
+                userMap.set(email, {
+                  id: email,
+                  email,
+                  completedAt: currentDate,
+                });
+              }
+            });
+
+            console.log(
+              "FETCHED SAFETY TRAINED EMAILS FROM FORM:",
+              formData.emails?.length || 0
+            );
+          }
+        } catch (error: any) {
+          console.error("Error fetching all safety trained users from form:", error);
+        }
+      }
 
       // Convert map back to array
       const mergedUsers = Array.from(userMap.values());
       setSafetyTrainedUsers(mergedUsers);
     } catch (error: any) {
       console.error("Error fetching safety trained users:", error);
-      
+
       // Use Firestore data as fallback if available
       if (error?.response) {
         const responseData = await error.response.json();
         console.error("API Error:", responseData.error);
       }
-      
+
       // Set safety trained users to empty array on error
       setSafetyTrainedUsers([]);
     }
-  };
+  }, [tenant]);
 
   const fetchBannedUsers = async () => {
     clientFetchAllDataFromCollection(TableNames.BANNED, [], tenant)
@@ -556,7 +606,8 @@ export const DatabaseProvider = ({
         capacity: resource.capacity.toString(),
         calendarId: resource.calendarId,
         needsSafetyTraining: resource.needsSafetyTraining || false,
-        shouldAutoApprove: resource.shouldAutoApprove || false,
+        trainingFormUrl: resource.trainingFormUrl,
+        autoApproval: resource.autoApproval,
         isWalkIn: resource.isWalkIn || false,
         isWalkInCanBookTwo: resource.isWalkInCanBookTwo || false,
         isEquipment: resource.isEquipment || false,

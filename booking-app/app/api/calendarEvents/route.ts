@@ -7,10 +7,9 @@ import { NextRequest, NextResponse } from "next/server";
 
 import getBookingStatus from "@/components/src/client/routes/hooks/getBookingStatus";
 import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
-import { TableNames } from "@/components/src/policy";
 import { serverBookingContents } from "@/components/src/server/admin";
 import { Booking } from "@/components/src/types";
-import { serverFetchAllDataFromCollection } from "@/lib/firebase/server/adminDb";
+import { getCachedBookings } from "@/lib/bookingsCache";
 import { getCalendarClient } from "@/lib/googleClient";
 import { calendar_v3 } from "googleapis/build/src/apis/calendar";
 
@@ -20,38 +19,41 @@ const getCalendarEvents = async (calendarId: string, tenant?: string) => {
   endOfRange.setMonth(endOfRange.getMonth() + 12);
   const endOfRangeISOString = endOfRange.toISOString();
 
-  let events: calendar_v3.Schema$Event[] = [];
-  const calendar = await getCalendarClient();
-  let pageToken: string | undefined = undefined;
+  // Fetch Google Calendar events and bookings in parallel
+  const calendarPromise = (async () => {
+    let events: calendar_v3.Schema$Event[] = [];
+    const calendar = await getCalendarClient();
+    let pageToken: string | undefined = undefined;
 
-  do {
-    const res = await calendar.events.list({
-      calendarId,
-      timeMin: now,
-      timeMax: endOfRangeISOString,
-      singleEvents: true,
-      orderBy: "startTime",
-      maxResults: 1000,
-      pageToken,
-    });
+    do {
+      const res = await calendar.events.list({
+        calendarId,
+        timeMin: now,
+        timeMax: endOfRangeISOString,
+        singleEvents: true,
+        orderBy: "startTime",
+        maxResults: 1000,
+        pageToken,
+      });
 
-    if (res.data.items) {
-      events.push(...res.data.items);
-    }
-    pageToken = res.data.nextPageToken || undefined;
-  } while (pageToken);
+      if (res.data.items) {
+        events.push(...res.data.items);
+      }
+      pageToken = res.data.nextPageToken || undefined;
+    } while (pageToken);
 
-  // Get tenant-specific booking data to enrich calendar events
-  let bookings: Booking[] = [];
-  try {
-    bookings = await serverFetchAllDataFromCollection<Booking>(
-      TableNames.BOOKING,
-      [],
-      tenant,
-    );
-  } catch (error) {
-    console.error("Error fetching tenant bookings:", error);
-  }
+    return events;
+  })();
+
+  const bookingsPromise = getCachedBookings(tenant || DEFAULT_TENANT);
+
+  const [events, bookings] = await Promise.all([
+    calendarPromise,
+    bookingsPromise.catch(error => {
+      console.error("Error fetching tenant bookings:", error);
+      return [] as Booking[];
+    }),
+  ]);
 
   // Create a map of calendarEventId to booking for quick lookup
   const bookingMap = new Map<string, Booking>();

@@ -3,6 +3,7 @@ import { TENANTS } from "@/components/src/constants/tenants";
 import { BookingOrigin, Role } from "@/components/src/types";
 import { BookingLogger } from "@/lib/logger/bookingLogger";
 import { and, assign, setup } from "xstate";
+import { checkAutoApprovalEligibility } from "@/lib/utils/autoApprovalUtils";
 
 // Time constants for clarity
 const ONE_HOUR_IN_MS = 60 * 60 * 1000;
@@ -651,49 +652,76 @@ export const mcBookingMachine = setup({
         }
       }
 
-      // Check rooms require approval (skip for VIP and walk-in bookings)
-      if (
-        context.selectedRooms &&
-        context.selectedRooms.length > 0 &&
-        !context.isWalkIn &&
-        !context.isVip
-      ) {
-        const allRoomsAutoApprove = context.selectedRooms.every(
-          (room) => (room && room.shouldAutoApprove) || false
-        );
-        if (!allRoomsAutoApprove) {
-          console.log(
-            `🚫 XSTATE GUARD: At least one room is not eligible for auto approval`,
-            {
-              roomsAutoApprove: context.selectedRooms.map((r) => ({
-                roomId: r?.roomId,
-                shouldAutoApprove: r?.shouldAutoApprove,
-              })),
-            }
-          );
-          console.log(
-            `🎯 XSTATE AUTO-APPROVAL GUARD RESULT: REJECTED (Room not auto-approvable)`
-          );
-          return false;
-        }
-      } else if (!context.isWalkIn && !context.isVip) {
-        return false;
-      }
+      // Room eligibility and all other auto-approval rules are handled by checkAutoApprovalEligibility below
+      // (no longer using legacy room.shouldAutoApprove)
 
-      console.log(`✅ XSTATE GUARD: All conditions met for auto-approval`);
-      console.log(`🎯 XSTATE AUTO-APPROVAL GUARD RESULT: APPROVED`, {
-        isWalkIn: context.isWalkIn,
-        isVip: context.isVip,
-        hasServices:
+      // Special case: VIP bookings with services should go to "Services Request" state, not auto-approve
+      if (context.isVip) {
+        const hasServices =
           context.servicesRequested &&
           typeof context.servicesRequested === "object"
             ? Object.values(context.servicesRequested).some(Boolean)
-            : false,
-        reason: context.isWalkIn
-          ? "Walk-in auto-approval"
-          : "Standard auto-approval",
+            : false;
+
+        if (hasServices) {
+          console.log(
+            `🚫 XSTATE GUARD: VIP booking with services should go to Services Request, not auto-approve`
+          );
+          console.log(
+            `🎯 XSTATE AUTO-APPROVAL GUARD RESULT: REJECTED (VIP with services)`
+          );
+          return false;
+        }
+      }
+
+      // Calculate duration if calendar info is available
+      let durationHours: number | undefined;
+      if (context.bookingCalendarInfo) {
+        const startDate = new Date(context.bookingCalendarInfo.startStr);
+        const endDate = new Date(context.bookingCalendarInfo.endStr);
+        const duration = endDate.getTime() - startDate.getTime();
+        durationHours = duration / ONE_HOUR_IN_MS;
+      }
+
+      // Map servicesRequested to format expected by autoApprovalUtils
+      const servicesRequested = context.servicesRequested
+        ? {
+            setup: context.servicesRequested.setup || false,
+            equipment: context.servicesRequested.equipment || false,
+            staffing: context.servicesRequested.staff || false,
+            catering: context.servicesRequested.catering || false,
+            cleaning: context.servicesRequested.cleaning || false,
+            security: context.servicesRequested.security || false,
+          }
+        : undefined;
+
+      // Use the new auto-approval utility
+      const result = checkAutoApprovalEligibility({
+        selectedRooms: context.selectedRooms || [],
+        role: context.role,
+        isWalkIn: context.isWalkIn,
+        isVip: context.isVip,
+        durationHours,
+        servicesRequested,
       });
-      return true;
+
+      if (result.canAutoApprove) {
+        console.log(`✅ XSTATE GUARD: All conditions met for auto-approval`);
+        console.log(`🎯 XSTATE AUTO-APPROVAL GUARD RESULT: APPROVED`, {
+          isWalkIn: context.isWalkIn,
+          isVip: context.isVip,
+          reason: result.reason,
+          details: result.details,
+        });
+      } else {
+        console.log(`🚫 XSTATE GUARD: ${result.reason}`);
+        console.log(`🎯 XSTATE AUTO-APPROVAL GUARD RESULT: REJECTED`, {
+          reason: result.reason,
+          details: result.details,
+        });
+      }
+
+      return result.canAutoApprove;
     },
     "isVip AND servicesRequested": and([
       ({ context }) => {

@@ -1,13 +1,12 @@
 import { DateCalendar, LocalizationProvider } from "@mui/x-date-pickers";
 import dayjs, { Dayjs } from "dayjs";
-import utc from "dayjs/plugin/utc";
 import timezone from "dayjs/plugin/timezone";
+import utc from "dayjs/plugin/utc";
 import { useContext, useEffect, useState } from "react";
 
 import { FormContextLevel } from "@/components/src/types";
 import { canAccessAdmin } from "@/components/src/utils/permissions";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
-import { BookingContext } from "../bookingProvider";
 import { TIMEZONE } from "../../../utils/date";
 import { DatabaseContext } from "../../components/Provider";
 import { BookingContext } from "../bookingProvider";
@@ -23,7 +22,9 @@ interface Props {
 
 export const CalendarDatePicker = ({ handleChange, formContext }: Props) => {
   // Use Eastern timezone for the date picker
-  const [date, setDate] = useState<Dayjs | null>(dayjs.tz(new Date(), TIMEZONE));
+  const [date, setDate] = useState<Dayjs | null>(
+    dayjs.tz(new Date(), TIMEZONE),
+  );
   const { bookingCalendarInfo } = useContext(BookingContext);
   const { pagePermission } = useContext(DatabaseContext);
 

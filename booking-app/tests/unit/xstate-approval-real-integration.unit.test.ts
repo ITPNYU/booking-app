@@ -199,7 +199,21 @@ describe("XState Approval Real Integration Tests", () => {
       // Context for auto-approval
       const context = {
         tenant: testTenant,
-        selectedRooms: [{ roomId: "224", shouldAutoApprove: true }],
+        selectedRooms: [{ 
+          roomId: "224", 
+          autoApproval: {
+            minHour: { admin: -1, faculty: -1, student: -1 },
+            maxHour: { admin: -1, faculty: -1, student: -1 },
+            conditions: {
+              setup: false,
+              equipment: false,
+              staffing: false,
+              catering: false,
+              cleaning: false,
+              security: false,
+            }
+          }
+        }],
         servicesRequested: {}, // No services = auto-approve
         email: testEmail,
         calendarEventId: testCalendarEventId,
@@ -224,7 +238,10 @@ describe("XState Approval Real Integration Tests", () => {
       // Context that prevents auto-approval
       const context = {
         tenant: testTenant,
-        selectedRooms: [{ roomId: "224", shouldAutoApprove: false }],
+        selectedRooms: [{ 
+          roomId: "224", 
+          // No autoApproval config = disabled
+        }],
         servicesRequested: {},
         email: testEmail,
         calendarEventId: testCalendarEventId,
@@ -256,7 +273,21 @@ describe("XState Approval Real Integration Tests", () => {
       // VIP booking with services
       const context = {
         tenant: testTenant,
-        selectedRooms: [{ roomId: "224", shouldAutoApprove: true }],
+        selectedRooms: [{ 
+          roomId: "224", 
+          autoApproval: {
+            minHour: { admin: -1, faculty: -1, student: -1 },
+            maxHour: { admin: -1, faculty: -1, student: -1 },
+            conditions: {
+              setup: false,
+              equipment: false,
+              staffing: false,
+              catering: false,
+              cleaning: false,
+              security: false,
+            }
+          }
+        }],
         servicesRequested: {
           cleaning: true,
           setup: true,
@@ -583,7 +614,21 @@ describe("XState Approval Real Integration Tests", () => {
         // Create booking context that will auto-approve
         const context = {
           tenant: testTenant,
-          selectedRooms: [{ roomId: "224", shouldAutoApprove: true }],
+          selectedRooms: [{ 
+            roomId: "224", 
+            autoApproval: {
+              minHour: { admin: -1, faculty: -1, student: -1 },
+              maxHour: { admin: -1, faculty: -1, student: -1 },
+              conditions: {
+                setup: false,
+                equipment: false,
+                staffing: false,
+                catering: false,
+                cleaning: false,
+                security: false,
+              }
+            }
+          }],
           servicesRequested: {}, // No services = auto-approve
           email: testEmail,
           calendarEventId: testCalendarEventId,
@@ -1040,7 +1085,21 @@ describe("XState Approval Real Integration Tests", () => {
         // Create booking context that starts in Approved state
         const context = {
           tenant: testTenant,
-          selectedRooms: [{ roomId: "224", shouldAutoApprove: true }],
+          selectedRooms: [{ 
+            roomId: "224", 
+            autoApproval: {
+              minHour: { admin: -1, faculty: -1, student: -1 },
+              maxHour: { admin: -1, faculty: -1, student: -1 },
+              conditions: {
+                setup: false,
+                equipment: false,
+                staffing: false,
+                catering: false,
+                cleaning: false,
+                security: false,
+              }
+            }
+          }],
           servicesRequested: {},
           email: testEmail,
           calendarEventId: testCalendarEventId,
@@ -1054,8 +1113,12 @@ describe("XState Approval Real Integration Tests", () => {
         actor.start();
 
         // First, transition to Approved state (simulate existing approved booking)
+        // Need two approves: Requested -> Pre-approved -> Approved
         if (actor.getSnapshot().value !== "Approved") {
-          actor.send({ type: "approve" });
+          actor.send({ type: "approve" }); // Requested -> Pre-approved
+          if (actor.getSnapshot().value !== "Approved") {
+            actor.send({ type: "approve" }); // Pre-approved -> Approved
+          }
         }
 
         // Verify we're in Approved state
