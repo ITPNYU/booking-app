@@ -1,3 +1,4 @@
+import type { SchemaContextType } from "../client/routes/components/SchemaProvider";
 import { DEFAULT_TENANT } from "../constants/tenants";
 import {
   Approver,
@@ -272,11 +273,23 @@ export const decline = async (
   const emailConfig = await getTenantEmailConfig(tenant);
   let headerMessage = emailConfig.emailMessages.declined;
 
+  // Fetch tenant schema to get declinedGracePeriod (default: 24 hours)
+  // Dynamic import to avoid pulling firebase-admin into client bundle
+  const { serverGetDocumentById } = await import(
+    "@/lib/firebase/server/adminDb"
+  );
+  const schema = tenant
+    ? await serverGetDocumentById<SchemaContextType>(
+        TableNames.TENANT_SCHEMA,
+        tenant
+      )
+    : null;
+  const gracePeriodHours = schema?.declinedGracePeriod ?? 24;
+
   if (reason) {
-    headerMessage += ` Reason: ${reason}. <br /><br />You have 24 hours to edit your request if you'd like to make changes. After 24 hours, your request will be automatically canceled. <br /><br />If you have any questions or need further assistance, please don't hesitate to reach out.`;
+    headerMessage += ` Reason: ${reason}. <br /><br />You have ${gracePeriodHours} hours to edit your request if you'd like to make changes. After ${gracePeriodHours} hours, your request will be automatically canceled. <br /><br />If you have any questions or need further assistance, please don't hesitate to reach out.`;
   } else {
-    headerMessage +=
-      "<br />You have 24 hours to edit your request if you'd like to make changes. After 24 hours, your request will be automatically canceled. <br /><br />If you have any questions or need further assistance, please don't hesitate to reach out.";
+    headerMessage += `<br />You have ${gracePeriodHours} hours to edit your request if you'd like to make changes. After ${gracePeriodHours} hours, your request will be automatically canceled. <br /><br />If you have any questions or need further assistance, please don't hesitate to reach out.`;
   }
   clientSendBookingDetailEmail(
     id,
@@ -544,7 +557,8 @@ export const processCancelBooking = async (
       : "";
 
   console.log(
-    "🔍 CANCEL PROCESSING CHECK [%s]:", tenant?.toUpperCase() || "UNKNOWN",
+    "🔍 CANCEL PROCESSING CHECK [%s]:",
+    tenant?.toUpperCase() || "UNKNOWN",
     {
       calendarEventId: id,
       hasNoShowLog,
@@ -865,17 +879,17 @@ export const checkin = async (id: string, email: string, tenant?: string) => {
     const emailConfig = await getTenantEmailConfig(tenant);
     const headerMessage = emailConfig.emailMessages.checkinConfirmation;
     await clientSendBookingDetailEmail(
-    id,
-    guestEmail,
-    headerMessage,
-    BookingStatusLabel.CHECKED_IN,
-    tenant
-  );
+      id,
+      guestEmail,
+      headerMessage,
+      BookingStatusLabel.CHECKED_IN,
+      tenant
+    );
 
-  console.log(`📧 XSTATE CHECKIN EMAIL SENT [${tenant?.toUpperCase()}]:`, {
-    calendarEventId: id,
-    guestEmail,
-  });
+    console.log(`📧 XSTATE CHECKIN EMAIL SENT [${tenant?.toUpperCase()}]:`, {
+      calendarEventId: id,
+      guestEmail,
+    });
   } catch (emailError) {
     console.error(
       `⚠️ XSTATE CHECKIN EMAIL FAILED [${tenant?.toUpperCase()}]:`,

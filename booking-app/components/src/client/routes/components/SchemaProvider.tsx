@@ -101,6 +101,7 @@ export type SchemaContextType = {
   supportVIP: boolean;
   supportWalkIn: boolean;
   resourceName: string;
+  declinedGracePeriod?: number;
   /** Top-level time-sensitive warning (DB stores here; also supported under calendarConfig) */
   timeSensitiveRequestWarning?: TimeSensitiveRequestWarning;
   calendarConfig?: {
@@ -230,6 +231,7 @@ export const defaultScheme: Omit<SchemaContextType, "tenant"> = {
   supportVIP: false,
   supportWalkIn: false,
   resourceName: "",
+  declinedGracePeriod: 24,
   timeSensitiveRequestWarning: defaultTimeSensitiveRequestWarning,
   calendarConfig: {
     startHour: {
