@@ -165,9 +165,11 @@ export default function BookingActions(props: Props) {
     });
     const disabled = shouldDisable ? [Actions.CHECK_IN] : [];
 
-    // Disable Edit action for users when status is not REQUESTED or DECLINED, or when booking is in the past
+    // Disable Edit action for users when status is not REQUESTED or DECLINED
     if (pageContext === PageContextLevel.USER) {
-      const isEditDisabled = status !== BookingStatusLabel.DECLINED;
+      const isEditDisabled =
+        status !== BookingStatusLabel.REQUESTED &&
+        status !== BookingStatusLabel.DECLINED;
       if (isEditDisabled) {
         disabled.push(Actions.EDIT);
       }
