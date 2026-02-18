@@ -10,6 +10,7 @@ import {
 import { SubmitHandler, useForm } from "react-hook-form";
 import {
   AttendeeAffiliation,
+  BookingOrigin,
   FormContextLevel,
   Inputs,
   Role,
@@ -91,7 +92,13 @@ export default function FormInput({
   const isWalkIn = formContext === FormContextLevel.WALK_IN;
   const isMod = formContext === FormContextLevel.MODIFICATION;
   const isFullForm = formContext === FormContextLevel.FULL_FORM;
-  const isVIP = formContext === FormContextLevel.VIP;
+  // When editing a declined VIP booking, formContext is EDIT but the booking's
+  // origin is still VIP — treat it as VIP so VIP-specific fields (e.g. N-number)
+  // are hidden correctly.
+  const isVIP =
+    formContext === FormContextLevel.VIP ||
+    (formContext === FormContextLevel.EDIT &&
+      formData?.origin === BookingOrigin.VIP);
   const isBooking = !isWalkIn && !isVIP;
 
   const { isAutoApproval } = useCheckAutoApproval(isWalkIn, isVIP);
