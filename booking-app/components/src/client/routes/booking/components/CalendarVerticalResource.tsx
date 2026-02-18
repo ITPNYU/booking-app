@@ -28,6 +28,7 @@ import { DatabaseContext } from "../../components/Provider";
 import { BookingContext } from "../bookingProvider";
 import { useBookingDateRestrictions } from "../hooks/useBookingDateRestrictions";
 import { TIMEZONE } from "../../../utils/date";
+import { toZonedTime } from "date-fns-tz";
 import { minutesToDurationString } from "@/components/src/constants/tenants";
 import { roundTimeUp } from "@/components/src/client/utils/date";
 import { DEFAULT_START_HOUR } from "../utils/getStartHour";
@@ -232,27 +233,55 @@ export default function CalendarVerticalResource({
       return [];
     }
 
-    const blocks = rooms.map((room) => {
-      // derive slot start from the date being viewed, using startHour from server data
-      const start = new Date(dateView);
-      const [minHour, minMinute] = (startHour || DEFAULT_START_HOUR)
-        .split(":")
-        .map((s) => parseInt(s, 10));
-      start.setHours(Number.isFinite(minHour) ? minHour : 9);
-      start.setMinutes(Number.isFinite(minMinute) ? minMinute : 0);
+    // Get current time in Eastern timezone for comparison
+    const now = new Date();
+    const easternNow = toZonedTime(now, TIMEZONE);
 
-      // Use shared rounding helper so logic is centralized
-      const today = roundTimeUp(slotUnit ?? DEFAULT_SLOT_UNIT);
-      return {
-        start: start.toISOString(),
-        end: today.toISOString(),
-        id: room.roomId + "bg",
-        resourceId: room.roomId + "",
-        overlap: false,
-        display: "background",
-        classNames: ["disabled"],
-      };
-    });
+    // Check if we're viewing today's date (in Eastern timezone)
+    const viewDate = new Date(dateView);
+    const isViewingToday =
+      viewDate.getFullYear() === easternNow.getFullYear() &&
+      viewDate.getMonth() === easternNow.getMonth() &&
+      viewDate.getDate() === easternNow.getDate();
+
+    // Only block past times when viewing today's date
+    // For future dates, all slots starting from startHour should be selectable
+    if (!isViewingToday) {
+      return [];
+    }
+
+    // Get the rounded-up current time as the block end
+    const roundedNow = roundTimeUp(slotUnit ?? DEFAULT_SLOT_UNIT);
+
+    const blocks = rooms
+      .map((room) => {
+        // derive slot start from the date being viewed, using startHour from server data
+        const start = new Date(dateView);
+        const [minHour, minMinute] = (startHour || DEFAULT_START_HOUR)
+          .split(":")
+          .map((s) => parseInt(s, 10));
+        start.setHours(Number.isFinite(minHour) ? minHour : 9);
+        start.setMinutes(Number.isFinite(minMinute) ? minMinute : 0);
+        start.setSeconds(0);
+        start.setMilliseconds(0);
+
+        // Skip if there's no past time to block (current rounded time is at or before startHour)
+        // This makes the first slot selectable when we're still before or at the startHour boundary
+        if (roundedNow <= start) {
+          return null;
+        }
+
+        return {
+          start: start.toISOString(),
+          end: roundedNow.toISOString(),
+          id: room.roomId + "bg",
+          resourceId: room.roomId + "",
+          overlap: false,
+          display: "background",
+          classNames: ["disabled"],
+        };
+      })
+      .filter(Boolean);
     return blocks;
   }, [rooms, formContext, dateView, startHour, slotUnit]);
 
