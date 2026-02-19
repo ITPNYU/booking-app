@@ -280,9 +280,9 @@ export const decline = async (
   );
   const schema = tenant
     ? await serverGetDocumentById<SchemaContextType>(
-        TableNames.TENANT_SCHEMA,
-        tenant
-      )
+      TableNames.TENANT_SCHEMA,
+      tenant
+    )
     : null;
   const gracePeriodHours = schema?.declinedGracePeriod ?? 24;
 
@@ -1047,7 +1047,7 @@ export const executeTraditionalNoShow = async (
   // Add to pre-ban logs only if policy violation
   if (isPolicyViolation(doc)) {
     const log = { netId, bookingId: id, noShowDate: Timestamp.now() };
-    clientSaveDataToFirestore(TableNames.PRE_BAN_LOGS, log);
+    clientSaveDataToFirestore(TableNames.PRE_BAN_LOGS, log, tenant);
   }
 
   // Log the no-show action
