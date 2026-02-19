@@ -138,10 +138,12 @@ export const clientDeleteUserRightsData = async (
 export const clientSaveDataToFirestore = async (
   collectionName: string,
   data: object,
+  tenant?: string,
 ) => {
   try {
     const db = getDb();
-    const docRef = await addDoc(collection(db, collectionName), data);
+    const tenantCollection = getTenantCollection(collectionName, tenant);
+    const docRef = await addDoc(collection(db, tenantCollection), data);
 
     console.log("Document successfully written with ID:", docRef.id);
   } catch (error) {
