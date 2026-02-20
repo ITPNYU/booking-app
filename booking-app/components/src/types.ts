@@ -304,14 +304,35 @@ export type RoomSetting = {
   capacity: string;
   calendarId: string;
   calendarRef?: any;
-  needsSafetyTraining?: boolean;
-  shouldAutoApprove?: boolean;
+  needsSafetyTraining?: boolean; // Whether training is required for this resource
+  trainingFormUrl?: string; // URL of the Google Form that tracks trained users
   isWalkIn?: boolean;
   isWalkInCanBookTwo?: boolean;
   isEquipment?: boolean;
   services?: string[];
   staffingServices?: string[]; // Specific staffing service options for this room
   staffingSections?: { name: string; indexes: number[] }[];
+  // Auto-approval configuration
+  autoApproval?: {
+    minHour?: {
+      admin: number;
+      faculty: number;
+      student: number;
+    };
+    maxHour?: {
+      admin: number;
+      faculty: number;
+      student: number;
+    };
+    conditions?: {
+      setup: boolean;        // Allow auto-approval with setup requests
+      equipment: boolean;    // Allow auto-approval with equipment requests
+      staffing: boolean;     // Allow auto-approval with staffing requests
+      catering: boolean;     // Allow auto-approval with catering requests
+      cleaning: boolean;     // Allow auto-approval with cleaning requests
+      security: boolean;     // Allow auto-approval with security requests
+    };
+  };
   maxHour?: {
     student: number;
     faculty: number;
