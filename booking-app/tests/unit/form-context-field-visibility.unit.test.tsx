@@ -182,7 +182,7 @@ describe("FormInput - Field Visibility by Form Context", () => {
       expect(screen.getByText("Sponsor")).toBeInTheDocument();
       expect(screen.getByText("Sponsor First Name*")).toBeInTheDocument();
       expect(screen.getByText("Sponsor Last Name*")).toBeInTheDocument();
-      expect(screen.getByText("Sponsor Email (NYU Net ID)*")).toBeInTheDocument();
+      expect(screen.getByText("Sponsor Email*")).toBeInTheDocument();
 
       // Reservation Details section
       expect(screen.getByText("Reservation Details")).toBeInTheDocument();
@@ -214,7 +214,7 @@ describe("FormInput - Field Visibility by Form Context", () => {
       expect(screen.queryByText("Sponsor")).not.toBeInTheDocument();
       expect(screen.queryByText("Sponsor First Name*")).not.toBeInTheDocument();
       expect(screen.queryByText("Sponsor Last Name*")).not.toBeInTheDocument();
-      expect(screen.queryByText("Sponsor Email (NYU Net ID)*")).not.toBeInTheDocument();
+      expect(screen.queryByText("Sponsor Email*")).not.toBeInTheDocument();
 
       // Reservation Details should be present
       expect(screen.getByText("Reservation Details")).toBeInTheDocument();
@@ -299,7 +299,7 @@ describe("FormInput - Field Visibility by Form Context", () => {
       expect(screen.getByText("VIP Sponsor")).toBeInTheDocument();
       expect(screen.getByText("Sponsor First Name*")).toBeInTheDocument();
       expect(screen.getByText("Sponsor Last Name*")).toBeInTheDocument();
-      expect(screen.getByText("Sponsor Email (NYU Net ID)*")).toBeInTheDocument();
+      expect(screen.getByText("Sponsor Email*")).toBeInTheDocument();
     });
 
     it("displays services section with all options", () => {
@@ -401,7 +401,7 @@ describe("FormInput - Field Visibility by Form Context", () => {
       expect(screen.getByText("Walk-In Sponsor")).toBeInTheDocument();
       expect(screen.getByText("Sponsor First Name*")).toBeInTheDocument();
       expect(screen.getByText("Sponsor Last Name*")).toBeInTheDocument();
-      expect(screen.getByText("Sponsor Email (NYU Net ID)*")).toBeInTheDocument();
+      expect(screen.getByText("Sponsor Email*")).toBeInTheDocument();
     });
   });
 
@@ -421,7 +421,7 @@ describe("FormInput - Field Visibility by Form Context", () => {
       expect(screen.queryByText("Sponsor")).not.toBeInTheDocument();
       expect(screen.queryByText("Sponsor First Name*")).not.toBeInTheDocument();
       expect(screen.queryByText("Sponsor Last Name*")).not.toBeInTheDocument();
-      expect(screen.queryByText("Sponsor Email (NYU Net ID)*")).not.toBeInTheDocument();
+      expect(screen.queryByText("Sponsor Email*")).not.toBeInTheDocument();
     });
 
     it("displays Reservation Details section (simplified)", () => {
