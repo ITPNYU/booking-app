@@ -1,5 +1,5 @@
 import { BookingFormDetails, BookingStatusLabel } from "../types";
-import { formatOrigin } from "../utils/formatters";
+import { formatOrigin, getSecondaryContactName } from "../utils/formatters";
 
 import { getCalendarClient } from "@/lib/googleClient";
 import { serverGetRoomCalendarIds } from "./admin";
@@ -131,7 +131,11 @@ export const bookingContentsToDescription = async (
   description += listItem("N-Number", getProperty(bookingContents, "nNumber"));
   description += listItem(
     "Secondary Contact",
-    getProperty(bookingContents, "secondaryName")
+    getSecondaryContactName(bookingContents)
+  );
+  description += listItem(
+    "Secondary Contact Email",
+    getProperty(bookingContents, "secondaryEmail")
   );
   description += listItem(
     "Sponsor Name",
