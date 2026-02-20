@@ -151,10 +151,7 @@ export enum FormContextLevel {
 export type Inputs = {
   firstName: string;
   lastName: string;
-  secondaryFirstName: string;
-  secondaryLastName: string;
-  secondaryEmail: string;
-  secondaryName?: string;
+  secondaryName: string;
   nNumber: string;
   netId: string;
   walkInNetId?: string; // NetID of the walk-in person (for safety training validation)

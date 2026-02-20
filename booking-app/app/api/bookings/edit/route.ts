@@ -20,7 +20,6 @@ import {
   BookingOrigin,
   BookingStatusLabel,
 } from "@/components/src/types";
-import { getSecondaryContactName } from "@/components/src/utils/formatters";
 import { callXStateTransitionAPI } from "@/components/src/server/db";
 import { getStatusFromXState } from "@/components/src/utils/statusFromXState";
 import { shouldUseXState } from "@/components/src/utils/tenantUtils";
@@ -110,7 +109,6 @@ async function sendEditNotificationEmails(
         contents: {
           ...formattedContents,
           requestNumber: existingContents.requestNumber + "",
-          secondaryContactName: getSecondaryContactName(userEventInputs as any),
         },
         targetEmail: recipient,
         status: BookingStatusLabel.REQUESTED,

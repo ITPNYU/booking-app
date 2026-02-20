@@ -154,23 +154,10 @@ export function BookingFormTextField(props: TextFieldProps) {
       rules={{
         required: required && `${label} is required`,
         validate: (value) => {
-          // If field is not required and empty, allow it
-          if (!required && (!value || value.trim().length === 0)) return true;
-          
-          // Check for whitespace-only values
-          if (value && typeof value === "string" && value.trim().length === 0) {
-            return `${label} cannot be empty whitespace`;
-          }
-          
-          // For required fields, check if value is valid
-          if (required) {
-            const isNotEmpty = value?.trim().length > 0;
-            const isValid = validate(value);
-            return (isNotEmpty && isValid) || `${label} is required`;
-          }
-          
-          // For optional fields with a value, run custom validation
-          return validate(value);
+          if (!required) return true;
+          const isNotEmpty = value?.trim().length > 0;
+          const isValid = validate(value);
+          return (isNotEmpty && isValid) || `${label} is required`;
         },
         pattern,
       }}
@@ -196,7 +183,6 @@ export function BookingFormTextField(props: TextFieldProps) {
 
 interface SwitchProps extends Props {
   description?: React.ReactElement;
-  disabled?: boolean;
 }
 
 export function BookingFormSwitch(props: SwitchProps) {
@@ -207,7 +193,6 @@ export function BookingFormSwitch(props: SwitchProps) {
     required = true,
     control,
     trigger,
-    disabled = false,
   } = props;
 
   const desc =
@@ -236,7 +221,6 @@ export function BookingFormSwitch(props: SwitchProps) {
                   field.onChange(e.target.checked ? "yes" : "no")
                 }
                 onBlur={() => trigger(id)}
-                disabled={disabled}
               />
             }
           />
