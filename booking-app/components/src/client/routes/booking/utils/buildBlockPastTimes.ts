@@ -1,6 +1,6 @@
 import { fromZonedTime, toZonedTime } from "date-fns-tz";
-
-export const BLOCK_PAST_TIMES_TIMEZONE = "America/New_York";
+import { TIMEZONE } from "@/components/src/client/utils/date";
+import { DEFAULT_START_HOUR } from "./getStartHour";
 
 export interface BlockPastTimeEvent {
   start: string;
@@ -31,11 +31,9 @@ export function buildBlockPastTimes(
   slotUnit: number,
   now: Date = new Date()
 ): BlockPastTimeEvent[] {
-  const tz = BLOCK_PAST_TIMES_TIMEZONE;
-
   // Convert both dates to Eastern so all comparisons use the same timezone.
-  const easternNow = toZonedTime(now, tz);
-  const easternView = toZonedTime(new Date(dateView), tz);
+  const easternNow = toZonedTime(now, TIMEZONE);
+  const easternView = toZonedTime(new Date(dateView), TIMEZONE);
 
   // Only block past slots when the user is viewing today (Eastern date).
   const isViewingToday =
@@ -48,7 +46,7 @@ export function buildBlockPastTimes(
   }
 
   // Parse startHour ("HH:MM:SS") into hour/minute components.
-  const [rawHour, rawMinute] = (startHour ?? "09:00:00")
+  const [rawHour, rawMinute] = (startHour ?? DEFAULT_START_HOUR)
     .split(":")
     .map((s) => parseInt(s, 10));
   const startH = Number.isFinite(rawHour) ? rawHour : 9;
@@ -67,7 +65,7 @@ export function buildBlockPastTimes(
       0,
       0
     ),
-    tz
+    TIMEZONE
   );
 
   // Round current Eastern time UP to the next slot boundary.
@@ -87,7 +85,7 @@ export function buildBlockPastTimes(
     );
   }
   // Convert the rounded Eastern time back to a proper UTC Date.
-  const blockEnd = fromZonedTime(roundedEastern, tz);
+  const blockEnd = fromZonedTime(roundedEastern, TIMEZONE);
 
   // Nothing to block if current rounded time is at or before the calendar start.
   if (blockEnd <= blockStart) {
