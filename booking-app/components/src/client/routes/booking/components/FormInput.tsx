@@ -226,21 +226,47 @@ export default function FormInput({
   const expectedAttendanceValue = watch("expectedAttendance");
   const isLargeEvent = parseInt(expectedAttendanceValue || "0") >= 75;
 
+  const hireSecurityValue = watch("hireSecurity");
   // Track if hireSecurity was auto-set by attendance logic
   const hireSecurityWasAutoSet = useRef(false);
+  // Track the last value we set automatically (e.g. "yes" or "")
+  const autoHireSecurityValueRef = useRef<string | undefined>(undefined);
+  // Track whether the user has manually overridden hireSecurity
+  const hireSecurityManuallySet = useRef(false);
+
+  // Detect manual changes to hireSecurity by comparing against the last auto-set value
+  useEffect(() => {
+    // If we have an auto baseline, and the current value differs, treat as manual override
+    if (
+      autoHireSecurityValueRef.current !== undefined &&
+      hireSecurityValue !== autoHireSecurityValueRef.current
+    ) {
+      hireSecurityManuallySet.current = true;
+      hireSecurityWasAutoSet.current = false;
+      autoHireSecurityValueRef.current = undefined;
+    }
+  }, [hireSecurityValue]);
 
   useEffect(() => {
+    // Do not auto-manage hireSecurity if the user has manually overridden it
+    if (hireSecurityManuallySet.current) {
+      return;
+    }
     if (isLargeEvent) {
-      setValue("hireSecurity", "yes", { shouldValidate: true });
-      hireSecurityWasAutoSet.current = true;
+      if (hireSecurityValue !== "yes") {
+        setValue("hireSecurity", "yes", { shouldValidate: true });
+        hireSecurityWasAutoSet.current = true;
+        autoHireSecurityValueRef.current = "yes";
+      }
     } else {
       // Only reset if it was auto-set previously
-      if (hireSecurityWasAutoSet.current) {
+      if (hireSecurityWasAutoSet.current && hireSecurityValue !== "") {
         setValue("hireSecurity", "", { shouldValidate: true });
         hireSecurityWasAutoSet.current = false;
+        autoHireSecurityValueRef.current = "";
       }
     }
-  }, [isLargeEvent, setValue]);
+  }, [isLargeEvent, hireSecurityValue, setValue]);
 
   const validateExpectedAttendance = useCallback(
     (value: string) => {
@@ -291,52 +317,21 @@ export default function FormInput({
     return null;
   }, []);
 
-  // Enhanced sponsor Net ID validation
-  const validateSponsorNetId = useCallback(
-    async (value: string) => {
-      // Get user's Net ID from email
-      const userNetId = userEmail?.split("@")[0];
-      
-      if (value === userNetId) {
-        return "Sponsor Net ID cannot be your own Net ID";
-      }
-
-      // Only proceed with API validation if it's a valid Net ID format
-      if (value && isValidNetIdFormat(value)) {
-        const data = await fetchSponsorByNetId(value);
-
-        // Check if the sponsor is a student
-        if (data) {
-          const sponsorRole = mapAffiliationToRole(
-            roleMapping,
-            data.affiliation_sub_type
-          );
-          if (sponsorRole === Role.STUDENT) {
-            return "Sponsor cannot be a student";
-          }
-        }
-      }
-
-      return true;
-    },
-    [userEmail, fetchSponsorByNetId, roleMapping]
-  );
-
   // Watch the sponsor Net ID field specifically
-  const sponsorEmail = watch("sponsorEmail");
+  const sponsorNetId = watch("sponsorEmail");
 
   // Only fetch sponsor data when the sponsor Net ID changes
   useEffect(() => {
     // Only fetch if there's a valid Net ID
     const userNetId = userEmail?.split("@")[0];
     if (
-      sponsorEmail &&
-      isValidNetIdFormat(sponsorEmail) &&
-      sponsorEmail !== userNetId
+      sponsorNetId &&
+      isValidNetIdFormat(sponsorNetId) &&
+      sponsorNetId !== userNetId
     ) {
-      fetchSponsorByNetId(sponsorEmail);
+      fetchSponsorByNetId(sponsorNetId);
     }
-  }, [sponsorEmail, fetchSponsorByNetId, userEmail]);
+  }, [sponsorNetId, fetchSponsorByNetId, userEmail]);
 
   // Remove the API call from the validation function since we're now handling it separately
   const validateSponsorNetIdSimple = useCallback(

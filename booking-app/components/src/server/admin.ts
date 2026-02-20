@@ -170,14 +170,14 @@ export const serverBookingContents = async (id: string, tenant?: string) => {
         ? currentHeaderMessage
         : defaultHeaderMessage,
     history,
-    startDate: startDate.toLocaleDateString(),
-    endDate: endDate.toLocaleDateString(),
-    startTime: startDate.toLocaleTimeString([], {
+    startDate: startDate.toLocaleDateString("en-US"),
+    endDate: endDate.toLocaleDateString("en-US"),
+    startTime: startDate.toLocaleTimeString("en-US", {
       hour: "2-digit",
       minute: "2-digit",
       hour12: true,
     }),
-    endTime: endDate.toLocaleTimeString([], {
+    endTime: endDate.toLocaleTimeString("en-US", {
       hour: "2-digit",
       minute: "2-digit",
       hour12: true,
@@ -670,10 +670,15 @@ export const serverApproveEvent = async (id: string, tenant?: string) => {
   }
 
   // for secondary contact, if we have one
+  // secondaryEmail stores Net ID, so convert to full email address
   if (contents.secondaryEmail && contents.secondaryEmail.length > 0) {
+    const secondaryEmailAddress = contents.secondaryEmail.includes("@")
+      ? contents.secondaryEmail
+      : `${contents.secondaryEmail}@nyu.edu`;
+    
     serverSendBookingDetailEmail({
       calendarEventId: id,
-      targetEmail: contents.secondaryEmail,
+      targetEmail: secondaryEmailAddress,
       headerMessage:
         "A reservation where you are listed as a Secondary Point of Contact has been approved.<br /><br />" +
         emailConfig.emailMessages.approvalNotice,
@@ -683,7 +688,7 @@ export const serverApproveEvent = async (id: string, tenant?: string) => {
     });
 
     const secondaryFormData = {
-      guestEmail: contents.secondaryEmail,
+      guestEmail: secondaryEmailAddress,
       calendarEventId: id,
       roomId: contents.roomId,
     };
