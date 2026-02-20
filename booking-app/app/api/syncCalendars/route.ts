@@ -7,6 +7,7 @@ import {
 import { toFirebaseTimestampFromString } from "@/components/src/client/utils/serverDate";
 import { TableNames } from "@/components/src/policy";
 import { serverGetNextSequentialId } from "@/lib/firebase/server/adminDb";
+import { applyEnvironmentCalendarIds } from "@/lib/utils/calendarEnvironment";
 import admin from "@/lib/firebase/server/firebaseAdmin";
 import { getCalendarClient } from "@/lib/googleClient";
 import { Timestamp } from "firebase/firestore";

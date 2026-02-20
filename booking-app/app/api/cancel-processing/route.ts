@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
             {
               calendarEventId,
               roomIds,
-              rooms: rooms.map(r => ({ roomId: r.roomId, calendarId: r.calendarId })),
+              rooms: rooms.map((r: any) => ({ roomId: r.roomId, calendarId: r.calendarId })),
             }
           );
 
