@@ -15,7 +15,11 @@
     "test:all": "npm run test:unit && npm run test:e2e",
     "copy:staging": "node scripts/copyCollection.js --source-database development --target-database staging --source-collection tenantSchema --target-collection tenantSchema",
     "copy:production": "node scripts/copyCollection.js --source-database development --target-database production --source-collection tenantSchema --target-collection tenantSchema",
-    "mergeUsers": "node scripts/mergeUsersCollections.js"
+    "mergeUsers": "node scripts/mergeUsersCollections.js",
+    "sync:schemas": "npx ts-node --transpile-only --compiler-options '{\"module\":\"commonjs\",\"jsx\":\"react\"}' scripts/syncTenantSchemas.ts",
+    "sync:schemas:dry-run": "npx ts-node --transpile-only --compiler-options '{\"module\":\"commonjs\",\"jsx\":\"react\"}' scripts/syncTenantSchemas.ts --dry-run",
+    "sync:schemas:staging": "npx ts-node --transpile-only --compiler-options '{\"module\":\"commonjs\",\"jsx\":\"react\"}' scripts/syncTenantSchemas.ts --database staging",
+    "sync:schemas:production": "npx ts-node --transpile-only --compiler-options '{\"module\":\"commonjs\",\"jsx\":\"react\"}' scripts/syncTenantSchemas.ts --database production"
   },
   "dependencies": {
     "@emotion/styled": "^11.13.0",
@@ -45,6 +49,7 @@
     "handlebars": "^4.7.8",
     "json2csv": "^6.0.0-alpha.2",
     "mysql2": "^3.10.1",
+    "newrelic": "^13.12.0",
     "next": "14.2.30",
     "prop-types": "^15.8.1",
     "react": "^18",
@@ -83,6 +88,7 @@
     "prettier": "^3.3.3",
     "tailwindcss": "^3.4.1",
     "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
     "typescript": "^5.5.3",
     "vite-tsconfig-paths": "^5.1.4",
     "vitest": "^3.2.4"
