@@ -183,7 +183,13 @@
         <tr>
           <td>Secondary Contact Name</td>
           <td>
-            {{#if contents.secondaryName}}{{ contents.secondaryName
+            {{#if contents.secondaryContactName}}{{ contents.secondaryContactName }}{{else}}none{{/if}}
+          </td>
+        </tr>
+        <tr>
+          <td>Secondary Contact Email</td>
+          <td>
+            {{#if contents.secondaryEmail}}{{ contents.secondaryEmail
             }}{{else}}none{{/if}}
           </td>
         </tr>

@@ -17,6 +17,7 @@ import {
   BookingStatusLabel,
   RoomSetting,
 } from "@/components/src/types";
+import { getSecondaryContactName } from "@/components/src/utils/formatters";
 import {
   logServerBookingChange,
   serverGetNextSequentialId,
@@ -191,14 +192,14 @@ const buildBookingContents = (
   return {
     ...data,
     roomId: selectedRoomIds,
-    startDate: startDateObj.toLocaleDateString(),
-    startTime: startDateObj.toLocaleTimeString([], {
+    startDate: startDateObj.toLocaleDateString("en-US"),
+    startTime: startDateObj.toLocaleTimeString("en-US", {
       hour: "2-digit",
       minute: "2-digit",
       hour12: true,
     }),
-    endDate: endDateObj.toLocaleDateString(),
-    endTime: endDateObj.toLocaleTimeString([], {
+    endDate: endDateObj.toLocaleDateString("en-US"),
+    endTime: endDateObj.toLocaleTimeString("en-US", {
       hour: "2-digit",
       minute: "2-digit",
       hour12: true,
@@ -343,6 +344,7 @@ async function handleBookingApprovalEmails(
         contents: {
           ...contentsAsStrings,
           requestNumber: contents.requestNumber + "",
+          secondaryContactName: getSecondaryContactName(contents),
         },
         targetEmail: recipient,
         status: BookingStatusLabel.REQUESTED,

@@ -20,3 +20,22 @@ export const formatOrigin = (origin: string | undefined): string => {
 
   return originMap[origin] ?? origin;
 };
+
+/**
+ * Gets the formatted secondary contact name from booking contents
+ * Handles both old format (secondaryName) and new format (secondaryFirstName + secondaryLastName)
+ * @param bookingContents - The booking contents object
+ * @returns Formatted secondary contact name or empty string
+ */
+export const getSecondaryContactName = (bookingContents: any): string => {
+  const firstName = bookingContents.secondaryFirstName?.toString() || "";
+  const lastName = bookingContents.secondaryLastName?.toString() || "";
+  const fullName = `${firstName} ${lastName}`.trim();
+  
+  if (fullName) {
+    return fullName;
+  }
+  
+  // Fallback to old format
+  return bookingContents.secondaryName?.toString() || "";
+};
