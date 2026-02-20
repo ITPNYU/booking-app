@@ -25,6 +25,7 @@ import { isMediaCommons } from "../utils/tenantUtils";
 import { getTenantEmailConfig } from "./emails";
 
 import { Timestamp } from "firebase-admin/firestore";
+import { applyEnvironmentCalendarIds } from "@/lib/utils/calendarEnvironment";
 
 interface HistoryItem {
   status: BookingStatusLabel;
@@ -865,7 +866,10 @@ export const serverGetRoomCalendarIds = async (
       return [];
     }
 
-    const rooms = schema.resources.filter(
+    const { applyEnvironmentCalendarIds } = await import("@/lib/utils/calendarEnvironment");
+    const resourcesWithCorrectCalendarIds = applyEnvironmentCalendarIds(schema.resources);
+
+    const rooms = resourcesWithCorrectCalendarIds.filter(
       (resource: any) => resource.roomId === roomId
     );
 
@@ -898,7 +902,10 @@ export const serverGetRoomCalendarId = async (
       return null;
     }
 
-    const rooms = schema.resources.filter(
+    const { applyEnvironmentCalendarIds } = await import("@/lib/utils/calendarEnvironment");
+    const resourcesWithCorrectCalendarIds = applyEnvironmentCalendarIds(schema.resources);
+
+    const rooms = resourcesWithCorrectCalendarIds.filter(
       (resource: any) => resource.roomId === roomId
     );
 
