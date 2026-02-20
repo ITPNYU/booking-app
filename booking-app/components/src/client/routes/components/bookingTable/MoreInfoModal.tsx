@@ -530,7 +530,15 @@ export default function MoreInfoModal({
                 </TableRow>
                 <TableRow>
                   <LabelCell>Secondary Contact Name</LabelCell>
-                  <TableCell>{booking.secondaryName || BLANK}</TableCell>
+                  <TableCell>
+                    {`${booking.secondaryFirstName ?? ""} ${booking.secondaryLastName ?? ""}`.trim() ||
+                      booking.secondaryName ||
+                      BLANK}
+                  </TableCell>
+                </TableRow>
+                <TableRow>
+                  <LabelCell>Secondary Contact Email</LabelCell>
+                  <TableCell>{booking.secondaryEmail || BLANK}</TableCell>
                 </TableRow>
                 <TableRow>
                   <LabelCell>Sponsor Name</LabelCell>

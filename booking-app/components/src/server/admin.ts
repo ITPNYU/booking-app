@@ -20,6 +20,7 @@ import {
   BookingStatus,
   BookingStatusLabel,
 } from "../types";
+import { getSecondaryContactName } from "../utils/formatters";
 import { isMediaCommons } from "../utils/tenantUtils";
 import { getTenantEmailConfig } from "./emails";
 
@@ -170,18 +171,19 @@ export const serverBookingContents = async (id: string, tenant?: string) => {
         ? currentHeaderMessage
         : defaultHeaderMessage,
     history,
-    startDate: startDate.toLocaleDateString(),
-    endDate: endDate.toLocaleDateString(),
-    startTime: startDate.toLocaleTimeString([], {
+    startDate: startDate.toLocaleDateString("en-US"),
+    endDate: endDate.toLocaleDateString("en-US"),
+    startTime: startDate.toLocaleTimeString("en-US", {
       hour: "2-digit",
       minute: "2-digit",
       hour12: true,
     }),
-    endTime: endDate.toLocaleTimeString([], {
+    endTime: endDate.toLocaleTimeString("en-US", {
       hour: "2-digit",
       minute: "2-digit",
       hour12: true,
     }),
+    secondaryContactName: getSecondaryContactName(booking),
   };
 
   return updatedBookingObj as unknown as BookingFormDetails;
@@ -667,6 +669,39 @@ export const serverApproveEvent = async (id: string, tenant?: string) => {
       tenant,
     });
   }
+
+  // for secondary contact, if we have one
+  // secondaryEmail stores Net ID, so convert to full email address
+  if (contents.secondaryEmail && contents.secondaryEmail.length > 0) {
+    const secondaryEmailAddress = contents.secondaryEmail.includes("@")
+      ? contents.secondaryEmail
+      : `${contents.secondaryEmail}@nyu.edu`;
+    
+    serverSendBookingDetailEmail({
+      calendarEventId: id,
+      targetEmail: secondaryEmailAddress,
+      headerMessage:
+        "A reservation where you are listed as a Secondary Point of Contact has been approved.<br /><br />" +
+        emailConfig.emailMessages.approvalNotice,
+      status: BookingStatusLabel.APPROVED,
+      replyTo: guestEmail,
+      tenant,
+    });
+
+    const secondaryFormData = {
+      guestEmail: secondaryEmailAddress,
+      calendarEventId: id,
+      roomId: contents.roomId,
+    };
+    await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/inviteUser`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(secondaryFormData),
+    });
+  }
+
 
   const formDataForCalendarEvents = {
     calendarEventId: id,
