@@ -39,7 +39,7 @@ const Title = styled(Typography)`
 `;
 
 const Nav = styled(Toolbar)(({ theme }) => ({
-  border: `1px solid ${theme.palette.custom.border}`,
+  borderBottom: `1px solid ${theme.palette.custom.border}`,
   justifyContent: "space-between",
 }));
 
