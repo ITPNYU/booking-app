@@ -8,7 +8,7 @@ import { NextRequest } from "next/server";
 import { format, toZonedTime } from "date-fns-tz";
 
 // All times in the booking app are in Eastern Time
-const TIMEZONE = "America/New_York";
+export const TIMEZONE = "America/New_York";
 
 /**
  * Checks if a school value represents "Other" selection.
