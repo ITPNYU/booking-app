@@ -6,6 +6,9 @@ const mockTenantSchema = {
   logo: "/mediaCommonsLogo.svg",
   nameForPolicy: "370J Media Commons",
   policy: "<p>Mock policy content for automated tests.</p>",
+  schoolMapping: {
+    "Tisch School of the Arts": ["ITP / IMA / Low Res", "General Department"],
+  },
   programMapping: {
     "ITP / IMA / Low Res": ["ITP"],
     "General Department": ["GENERAL"],
@@ -75,9 +78,9 @@ const mockTenantSchema = {
 
 const mockIdentityResponse = {
   affiliations: ["ITP"],
-  roles: ["Student"],
-  displayName: "Test User",
-  email: "test@nyu.edu",
+  roles: ["Faculty"],
+  displayName: "Test Faculty",
+  email: "tf123@nyu.edu",
 };
 
 const mockBookingResponse = {
@@ -116,124 +119,6 @@ const jsonHeaders = {
 };
 
 export async function registerBookingMocks(page: Page) {
-  // Simple approach: Mock the settings initial value
-  await page.addInitScript(() => {
-    const mockBookingTypesData = [
-      { bookingType: "Class Session", createdAt: "2024-01-01T00:00:00Z" },
-      { bookingType: "General Event", createdAt: "2024-01-01T00:00:00Z" },
-      { bookingType: "Meeting", createdAt: "2024-01-01T00:00:00Z" },
-      { bookingType: "Workshop", createdAt: "2024-01-01T00:00:00Z" },
-    ];
-
-    // Store mock data globally for access
-    (window as any).mockBookingTypes = mockBookingTypesData;
-
-    // Override Firestore SDK functions directly
-    (window as any).getDocs = function(queryRef) {
-      console.log("🔥 Mock getDocs called");
-      // Check if this is for booking types based on the collection name
-      if (queryRef && (queryRef._path || queryRef.path)) {
-        const path = queryRef._path || queryRef.path;
-        console.log("🔥 getDocs path:", path);
-        if (path && (path.includes('bookingTypes') || path.includes('mc-bookingTypes'))) {
-          console.log("🎯 Returning mock booking types from getDocs");
-          return Promise.resolve({
-            docs: mockBookingTypesData.map((item, index) => ({
-              id: `booking-type-${index + 1}`,
-              data: () => item,
-            })),
-          });
-        }
-      }
-      return Promise.resolve({ docs: [] });
-    };
-
-    // Also override collection and query functions
-    (window as any).collection = function(db, path) {
-      console.log("🔥 Mock collection called with path:", path);
-      return { _path: path, path: path };
-    };
-
-    (window as any).query = function(collectionRef, ...constraints) {
-      console.log("🔥 Mock query called");
-      return collectionRef;
-    };
-
-    // Override Firebase client function as fallback
-    (window as any).clientFetchAllDataFromCollection = function (
-      tableName,
-      constraints,
-      tenant
-    ) {
-      console.log(
-        `🔥 Mock clientFetchAllDataFromCollection called: ${tableName}, tenant: ${tenant}`
-      );
-      if (
-        tableName === "bookingTypes" ||
-        tableName.includes("bookingTypes") ||
-        tableName.includes("BOOKING_TYPES")
-      ) {
-        console.log("🎯 Returning mock booking types data");
-        // Return data with id field as expected by fetchBookingTypes function
-        return Promise.resolve(
-          mockBookingTypesData.map((item, index) => ({
-            id: `booking-type-${index + 1}`,
-            ...item,
-          }))
-        );
-      }
-      return Promise.resolve([]);
-    };
-
-    // Also try to override module imports using dynamic import interception
-    const originalImport =
-      (window as any).__webpack_require__ || (window as any).require;
-    if (originalImport) {
-      (window as any).__webpack_require__ = function (moduleId) {
-        const result = originalImport.apply(this, arguments);
-        if (result && result.clientFetchAllDataFromCollection) {
-          console.log(
-            "🔥 Intercepting webpack module with clientFetchAllDataFromCollection"
-          );
-          result.clientFetchAllDataFromCollection = (
-            window as any
-          ).clientFetchAllDataFromCollection;
-        }
-        return result;
-      };
-    }
-
-    // Wait for React to load and override the settings useState as fallback
-    setTimeout(() => {
-      console.log(
-        "🎯 Attempting to override settings initial value as fallback"
-      );
-
-      // Try to find and override React useState for settings
-      if ((window as any).React && (window as any).React.useState) {
-        const originalUseState = (window as any).React.useState;
-        (window as any).React.useState = function (initialState) {
-          // If this looks like the settings useState call (has bookingTypes property)
-          if (
-            initialState &&
-            typeof initialState === "object" &&
-            "bookingTypes" in initialState &&
-            Array.isArray(initialState.bookingTypes)
-          ) {
-            console.log(
-              "🔥 Intercepting settings useState, providing mock booking types"
-            );
-            return originalUseState({
-              ...initialState,
-              bookingTypes: mockBookingTypesData,
-            });
-          }
-          return originalUseState.apply(this, arguments);
-        };
-      }
-    }, 1000);
-  });
-
   // Set environment variables for test mode
   await page.addInitScript(() => {
     (window as any).process = (window as any).process || {};

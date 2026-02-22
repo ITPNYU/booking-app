@@ -12,10 +12,15 @@ export default function useCheckFormMissingData() {
   const pathname = usePathname();
   const router = useRouter();
 
-  const { role, department, selectedRooms, bookingCalendarInfo, formData } =
+  const { role, department, selectedRooms, bookingCalendarInfo, formData, submitting } =
     useContext(BookingContext);
 
   useEffect(() => {
+    // Don't redirect while a booking is being submitted or was just submitted.
+    // The submission flow clears context state (rooms, calendar info) on success,
+    // which would otherwise trigger a false redirect back to an earlier step.
+    if (submitting === "submitting" || submitting === "success") return;
+
     const parsed = parseBookingUrl(pathname);
     if (!parsed || !parsed.step) return;
 
@@ -52,5 +57,5 @@ export default function useCheckFormMissingData() {
       console.log("MISSING DATA - redirecting:", { pathname, flowType, step, id });
       router.push(buildBookingUrl(tenant, flowType, redirectStep, id));
     }
-  }, [pathname, router, role, department, selectedRooms, bookingCalendarInfo, formData]);
+  }, [pathname, router, role, department, selectedRooms, bookingCalendarInfo, formData, submitting]);
 }
