@@ -4,8 +4,9 @@ import { SchemaContextType } from "@/components/src/client/routes/components/Sch
 import SchemaProviderWrapper from "@/components/src/client/routes/components/SchemaProviderWrapper";
 import { ALLOWED_TENANTS } from "@/components/src/constants/tenants";
 import { TableNames } from "@/components/src/policy";
-import { serverGetDocumentById } from "@/lib/firebase/server/adminDb";
 import { applyEnvironmentCalendarIds } from "@/lib/utils/calendarEnvironment";
+import { shouldBypassAuth } from "@/lib/utils/testEnvironment";
+import { getTestTenantSchema } from "@/lib/utils/testTenantSchema";
 import { notFound } from "next/navigation";
 import React from "react";
 
@@ -23,10 +24,20 @@ const Layout: React.FC<LayoutProps> = async ({ children, params }) => {
 
   try {
     console.log("Layout: Fetching schema for tenant:", params.tenant);
-    const tenantSchema = await serverGetDocumentById<SchemaContextType>(
-      TableNames.TENANT_SCHEMA,
-      params.tenant,
-    );
+    let tenantSchema: SchemaContextType | null = null;
+
+    if (shouldBypassAuth()) {
+      tenantSchema = getTestTenantSchema(params.tenant);
+    } else {
+      const { serverGetDocumentById } = await import(
+        "@/lib/firebase/server/adminDb"
+      );
+      tenantSchema = await serverGetDocumentById<SchemaContextType>(
+        TableNames.TENANT_SCHEMA,
+        params.tenant,
+      );
+    }
+
     console.log("Layout: Retrieved tenantSchema:", {
       tenant: tenantSchema?.tenant,
       name: tenantSchema?.name,
