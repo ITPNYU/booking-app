@@ -52,6 +52,10 @@ export default defineConfig({
       name: "use-case-flows",
       testMatch: [
         "**/booking-flow.e2e.test.ts",
+        "**/walk-in-flow.e2e.test.ts",
+        "**/vip-flow.e2e.test.ts",
+        "**/auto-approval.e2e.test.ts",
+        "**/calendar-constraints.e2e.test.ts",
       ],
       use: {
         ...devices["Desktop Chrome"],

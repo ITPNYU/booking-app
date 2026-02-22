@@ -152,6 +152,14 @@ export async function registerBookingMocks(page: Page) {
     })
   );
 
+  await page.route("**/api/safety_training_form**", (route) =>
+    route.fulfill({
+      status: 200,
+      headers: jsonHeaders,
+      body: JSON.stringify({}),
+    })
+  );
+
   await page.route("**/api/nyu/identity/**", (route) =>
     route.fulfill({
       status: 200,
@@ -174,6 +182,27 @@ export async function registerBookingMocks(page: Page) {
         status: 200,
         headers: jsonHeaders,
         body: JSON.stringify(mockBookingResponse),
+      });
+    }
+    return route.fulfill({
+      status: 200,
+      headers: jsonHeaders,
+      body: JSON.stringify([]),
+    });
+  });
+
+  await page.route("**/api/bookingsDirect", async (route: Route) => {
+    if (route.request().method() === "POST") {
+      return route.fulfill({
+        status: 200,
+        headers: jsonHeaders,
+        body: JSON.stringify({
+          success: true,
+          booking: {
+            requestNumber: 12346,
+            status: "APPROVED",
+          },
+        }),
       });
     }
     return route.fulfill({
