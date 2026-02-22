@@ -152,6 +152,14 @@ export async function registerBookingMocks(page: Page) {
     })
   );
 
+  await page.route("**/api/safety_training_form**", (route) =>
+    route.fulfill({
+      status: 200,
+      headers: jsonHeaders,
+      body: JSON.stringify({}),
+    })
+  );
+
   await page.route("**/api/nyu/identity/**", (route) =>
     route.fulfill({
       status: 200,

@@ -4,7 +4,6 @@ import { SchemaContextType } from "@/components/src/client/routes/components/Sch
 import SchemaProviderWrapper from "@/components/src/client/routes/components/SchemaProviderWrapper";
 import { ALLOWED_TENANTS } from "@/components/src/constants/tenants";
 import { TableNames } from "@/components/src/policy";
-import { serverGetDocumentById } from "@/lib/firebase/server/adminDb";
 import { applyEnvironmentCalendarIds } from "@/lib/utils/calendarEnvironment";
 import { shouldBypassAuth } from "@/lib/utils/testEnvironment";
 import { getTestTenantSchema } from "@/lib/utils/testTenantSchema";
@@ -30,6 +29,9 @@ const Layout: React.FC<LayoutProps> = async ({ children, params }) => {
     if (shouldBypassAuth()) {
       tenantSchema = getTestTenantSchema(params.tenant);
     } else {
+      const { serverGetDocumentById } = await import(
+        "@/lib/firebase/server/adminDb"
+      );
       tenantSchema = await serverGetDocumentById<SchemaContextType>(
         TableNames.TENANT_SCHEMA,
         params.tenant,
