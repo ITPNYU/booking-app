@@ -66,6 +66,8 @@ export default defineConfig({
         "**/xstate-decline-approved.e2e.test.ts",
         "**/xstate-service-decline.e2e.test.ts",
         "**/xstate-service-closeout.e2e.test.ts",
+        "**/xstate-service-full-flow.e2e.test.ts",
+        "**/xstate-service-closeout-full-flow.e2e.test.ts",
       ],
       use: {
         ...devices["Desktop Chrome"],
