@@ -1,3 +1,5 @@
+"use client";
+
 import { DateCalendar, LocalizationProvider } from "@mui/x-date-pickers";
 import dayjs, { Dayjs } from "dayjs";
 import utc from "dayjs/plugin/utc";
