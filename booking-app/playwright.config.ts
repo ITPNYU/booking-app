@@ -61,6 +61,11 @@ export default defineConfig({
         // "**/services-approve.e2e.test.ts", // TODO: fix combobox click timeout after first service approval
         "**/status-transitions.e2e.test.ts",
         "**/approve-decline-pages.e2e.test.ts",
+        "**/xstate-lifecycle.e2e.test.ts",
+        "**/xstate-cancel-flows.e2e.test.ts",
+        "**/xstate-decline-approved.e2e.test.ts",
+        "**/xstate-service-decline.e2e.test.ts",
+        "**/xstate-service-closeout.e2e.test.ts",
       ],
       use: {
         ...devices["Desktop Chrome"],
