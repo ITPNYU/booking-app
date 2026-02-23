@@ -8,11 +8,15 @@ import {
   doc,
   getDoc,
   setDoc,
-  Timestamp,
 } from "../../lib/firebase/stubs/firebaseFirestoreStub";
 import { registerBookingMocks } from "./helpers/mock-routes";
-
-const jsonHeaders = { "content-type": "application/json" };
+import {
+  JSON_HEADERS,
+  TIMESTAMP_FIELDS,
+  createTimestamp,
+  serializeBookingRecord,
+  serializeGenericRecord,
+} from "./helpers/xstate-mocks";
 
 const BASE_URL =
   process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000";
@@ -26,28 +30,6 @@ const CALENDAR_EVENT_ID = BOOKING_DOC_ID;
 const USERS_RIGHTS_DOC_ID = "mock-decline-approved-rights";
 
 const REQUEST_NUMBER = 9860;
-
-const TIMESTAMP_FIELDS = [
-  "startDate",
-  "endDate",
-  "requestedAt",
-  "firstApprovedAt",
-  "finalApprovedAt",
-  "declinedAt",
-  "canceledAt",
-  "checkedInAt",
-  "checkedOutAt",
-  "noShowedAt",
-  "closedAt",
-  "walkedInAt",
-];
-
-const createTimestamp = (date: Date) => {
-  const ts = new Timestamp(date);
-  (ts as any).toMillis = () => date.getTime();
-  (ts as any).toJSON = () => date.toISOString();
-  return ts;
-};
 
 async function seedAdminUserData() {
   const now = createTimestamp(new Date());
@@ -165,45 +147,6 @@ async function seedApprovedBooking() {
   });
 }
 
-function serializeBookingRecord(record: any) {
-  const serialized: Record<string, any> = { ...record };
-
-  for (const field of TIMESTAMP_FIELDS) {
-    const value = record[field];
-    if (value && typeof value.toDate === "function") {
-      serialized[field] = value.toDate().toISOString();
-    }
-  }
-
-  if (record.startDate?.toDate) {
-    serialized.startDate = record.startDate.toDate().toISOString();
-  }
-  if (record.endDate?.toDate) {
-    serialized.endDate = record.endDate.toDate().toISOString();
-  }
-  if (record.requestedAt?.toDate) {
-    serialized.requestedAt = record.requestedAt.toDate().toISOString();
-  }
-
-  serialized.xstateData = record.xstateData
-    ? JSON.parse(JSON.stringify(record.xstateData))
-    : undefined;
-
-  return serialized;
-}
-
-function serializeGenericRecord(record: any) {
-  const serialized: Record<string, any> = { ...record };
-
-  Object.entries(serialized).forEach(([key, value]) => {
-    if (value && typeof (value as any).toDate === "function") {
-      serialized[key] = (value as any).toDate().toISOString();
-    }
-  });
-
-  return serialized;
-}
-
 async function registerMockBookingsFeed(page: Page) {
   const snapshot = await getDoc(
     doc({} as any, "mc-bookings", BOOKING_DOC_ID)
@@ -244,7 +187,7 @@ async function registerMockBookingsFeed(page: Page) {
 
     await route.fulfill({
       status: 200,
-      headers: jsonHeaders,
+      headers: JSON_HEADERS,
       body: JSON.stringify(payload),
     });
   });
@@ -337,7 +280,8 @@ async function registerMockBookingsFeed(page: Page) {
 
         if (
           normalizedTableName.includes("booking") &&
-          !normalizedTableName.includes("type")
+          !normalizedTableName.includes("type") &&
+          !normalizedTableName.includes("log")
         ) {
           return await ensureBookings();
         }
@@ -376,7 +320,8 @@ async function registerMockBookingsFeed(page: Page) {
         if (
           path &&
           path.includes("booking") &&
-          !path.includes("bookingTypes")
+          !path.includes("bookingTypes") &&
+          !path.includes("bookingLog")
         ) {
           const bookings = await ensureBookings();
           return {
@@ -514,7 +459,7 @@ async function mockTransitionEndpoints(page: Page) {
 
       await route.fulfill({
         status: 200,
-        headers: jsonHeaders,
+        headers: JSON_HEADERS,
         body: JSON.stringify({
           success: true,
           newState,
@@ -524,7 +469,7 @@ async function mockTransitionEndpoints(page: Page) {
     }
     await route.fulfill({
       status: 405,
-      headers: jsonHeaders,
+      headers: JSON_HEADERS,
       body: JSON.stringify({ error: "Method Not Allowed" }),
     });
   });
@@ -533,7 +478,7 @@ async function mockTransitionEndpoints(page: Page) {
     if (route.request().method() === "POST") {
       await route.fulfill({
         status: 200,
-        headers: jsonHeaders,
+        headers: JSON_HEADERS,
         body: JSON.stringify({ success: true }),
       });
       return;
@@ -541,7 +486,7 @@ async function mockTransitionEndpoints(page: Page) {
 
     await route.fulfill({
       status: 200,
-      headers: jsonHeaders,
+      headers: JSON_HEADERS,
       body: JSON.stringify([]),
     });
   });
