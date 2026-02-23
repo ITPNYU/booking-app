@@ -73,7 +73,7 @@ test.describe("Calendar Constraints", () => {
 
     await selectRole(page, { roleIndex: 1 }); // Faculty
 
-    await page.getByRole("button", { name: "Next" }).click();
+    await page.getByRole("button", { name: "Next", exact: true }).click();
 
     // ── 4. Room & time selection ──
     // selectTimeSlot picks 10-11am, existing event is at 2-3pm → no overlap
@@ -141,7 +141,7 @@ test.describe("Calendar Constraints", () => {
     await page.waitForURL("**/mc/book/role", { timeout: 15000 });
     await page.waitForLoadState("networkidle");
     await selectRole(page, { roleIndex: 1 });
-    await page.getByRole("button", { name: "Next" }).click();
+    await page.getByRole("button", { name: "Next", exact: true }).click();
 
     // selectTimeSlot picks 10-11am tomorrow, existing event is at 2-3pm → no overlap
     await page.waitForURL("**/mc/book/selectRoom", { timeout: 15000 });

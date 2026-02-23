@@ -64,7 +64,7 @@ test.describe("Auto-Approval", () => {
 
     await selectRole(page, { roleIndex: 1 }); // Faculty
 
-    await page.getByRole("button", { name: "Next" }).click();
+    await page.getByRole("button", { name: "Next", exact: true }).click();
 
     // ── 4. Room & time selection (room 202 = shouldAutoApprove: true) ──
     await page.waitForURL("**/mc/book/selectRoom", { timeout: 15000 });
@@ -147,7 +147,7 @@ test.describe("Auto-Approval", () => {
 
     await selectRole(page, { roleIndex: 1 }); // Faculty
 
-    await page.getByRole("button", { name: "Next" }).click();
+    await page.getByRole("button", { name: "Next", exact: true }).click();
 
     // ── 4. Room & time selection (room 220 = shouldAutoApprove: false) ──
     // Room 220 is walk-in only in schema, but for standard booking we use 202
