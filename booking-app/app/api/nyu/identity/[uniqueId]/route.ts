@@ -3,6 +3,17 @@ import { NextRequest, NextResponse } from "next/server";
 
 const NYU_API_BASE = "https://api.nyu.edu/identity-v2-sys";
 
+export function selectIdentityRecord(
+  data: unknown,
+): Record<string, unknown> | null {
+  if (!Array.isArray(data)) return (data as Record<string, unknown>) ?? null;
+  return (
+    data.find((r: Record<string, unknown>) => r.affiliation === "employee") ??
+    data[0] ??
+    null
+  );
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ uniqueId: string }> },
@@ -26,7 +37,7 @@ export async function GET(
     }
 
     const url = new URL(
-      `${NYU_API_BASE}/identity/unique-id/primary-affil/${uniqueId}`,
+      `${NYU_API_BASE}/identity/unique-id/${uniqueId}?partially_approved_dataset=true`,
     );
     url.searchParams.append("api_access_id", apiAccessId);
 
@@ -46,7 +57,9 @@ export async function GET(
     }
 
     const userData = await response.json();
-    return NextResponse.json(userData);
+    console.log("userData", userData);
+    const record = selectIdentityRecord(userData);
+    return NextResponse.json(record);
   } catch (error) {
     console.error("Identity API error:", error);
     return NextResponse.json(
