@@ -11,21 +11,22 @@ import React from "react";
 
 type LayoutProps = {
   children: React.ReactNode;
-  params: {
+  params: Promise<{
     tenant: string;
-  };
+  }>;
 };
 
 const Layout: React.FC<LayoutProps> = async ({ children, params }) => {
-  if (!ALLOWED_TENANTS.includes(params.tenant as any)) {
+  const { tenant } = await params;
+  if (!ALLOWED_TENANTS.includes(tenant as any)) {
     notFound();
   }
 
   try {
-    console.log("Layout: Fetching schema for tenant:", params.tenant);
+    console.log("Layout: Fetching schema for tenant:", tenant);
     const tenantSchema = await serverGetDocumentById<SchemaContextType>(
       TableNames.TENANT_SCHEMA,
-      params.tenant,
+      tenant,
     );
     console.log("Layout: Retrieved tenantSchema:", {
       tenant: tenantSchema?.tenant,
@@ -34,7 +35,7 @@ const Layout: React.FC<LayoutProps> = async ({ children, params }) => {
     });
 
     if (!tenantSchema) {
-      console.error("Layout: No tenant schema found for:", params.tenant);
+      console.error("Layout: No tenant schema found for:", tenant);
       notFound();
     }
 
@@ -48,7 +49,7 @@ const Layout: React.FC<LayoutProps> = async ({ children, params }) => {
     // Ensure the data is properly serializable
     const serializedTenantSchema: SchemaContextType = {
       ...tenantSchema,
-      tenant: tenantSchema.tenant || params.tenant, // Fallback to params.tenant
+      tenant: tenantSchema.tenant || tenant, // Fallback to params.tenant
     };
 
     console.log("Layout: Serialized tenantSchema:", {
