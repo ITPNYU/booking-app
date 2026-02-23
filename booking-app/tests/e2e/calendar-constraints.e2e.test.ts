@@ -1,7 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { registerBookingMocks } from "./helpers/mock-routes";
 import {
-  selectDropdown,
   selectTimeSlot,
   selectRole,
   fillBookingForm,
