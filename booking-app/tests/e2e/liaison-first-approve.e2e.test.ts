@@ -419,6 +419,34 @@ async function registerMockBookingsFeed(page: Page) {
     });
   });
 
+  // Intercept Object.defineProperty to force configurable: true on target exports
+  await page.addInitScript(() => {
+    const targetExports = new Set([
+      "clientGetDataByCalendarEventId",
+      "clientFetchAllDataFromCollection",
+      "getPaginatedData",
+    ]);
+    const origDefineProperty = Object.defineProperty;
+    Object.defineProperty = function (
+      obj: any,
+      prop: PropertyKey,
+      descriptor: PropertyDescriptor
+    ) {
+      if (
+        descriptor &&
+        descriptor.get &&
+        !descriptor.configurable &&
+        typeof prop === "string" &&
+        targetExports.has(prop)
+      ) {
+        descriptor = { ...descriptor, configurable: true };
+      }
+      return origDefineProperty.call(this, obj, prop, descriptor);
+    } as typeof Object.defineProperty;
+    Object.defineProperty.toString = () =>
+      "function defineProperty() { [native code] }";
+  });
+
   await page.addInitScript(
     ({
       timestampFields,
@@ -602,77 +630,95 @@ async function registerMockBookingsFeed(page: Page) {
         ];
       }
 
-      (window as any).__bookingE2EMocks = {
-        bookings: (window as any).__mockBookings,
+      const e2eMocks: Record<string, any> = {
         usersRights: usersRightsRecords,
         usersApprovers: usersApproverRecords,
       };
+      Object.defineProperty(e2eMocks, "bookings", {
+        get: () => (window as any).__mockBookings ?? [],
+        enumerable: true,
+        configurable: true,
+      });
+      (window as any).__bookingE2EMocks = e2eMocks;
 
-      const syncWebpackExports = () => {
-        const webpackRequire = (window as any).__webpack_require__;
-        const modules = webpackRequire?.c;
-        if (!modules) {
-          return;
+      const overrideMap: Record<string, Function | null> = {
+        clientFetchAllDataFromCollection:
+          (window as any).clientFetchAllDataFromCollection,
+        getPaginatedData: (window as any).getPaginatedData,
+        clientGetDataByCalendarEventId: async (
+          _tableName: any,
+          calendarEventId: string,
+          _tenant?: string
+        ) => {
+          const bookings = await ensureBookings();
+          const match = bookings.find(
+            (booking: any) => booking.calendarEventId === calendarEventId
+          );
+          if (!match) return null;
+          return {
+            id: match.id ?? match.calendarEventId,
+            ...match,
+          };
+        },
+      };
+
+      const patchWebpackModules = () => {
+        const chunk = (window as any).webpackChunk_N_E;
+        if (!chunk) return false;
+        let wpRequire: any;
+        try {
+          chunk.push([
+            ["__e2e_mock_" + Date.now()],
+            {},
+            (req: any) => {
+              wpRequire = req;
+            },
+          ]);
+        } catch (_) {
+          return false;
         }
-        Object.values(modules).forEach((mod: any) => {
-          if (mod?.exports) {
-            if ("clientFetchAllDataFromCollection" in mod.exports) {
-              mod.exports.clientFetchAllDataFromCollection =
-                (window as any).clientFetchAllDataFromCollection;
-            }
-            if ("getPaginatedData" in mod.exports) {
-              mod.exports.getPaginatedData = (window as any).getPaginatedData;
-            }
-            if ("clientGetDataByCalendarEventId" in mod.exports) {
-              mod.exports.clientGetDataByCalendarEventId = async (
-                _tableName: any,
-                calendarEventId: string,
-                tenant?: string
-              ) => {
-                const bookings = await ensureBookings();
-                const match = bookings.find(
-                  (booking: any) => booking.calendarEventId === calendarEventId
-                );
-                if (!match) return null;
-                return {
-                  id: match.id ?? match.calendarEventId,
-                  ...match,
-                };
-              };
+        if (!wpRequire?.c) return false;
+        let patched = false;
+        Object.values(wpRequire.c).forEach((mod: any) => {
+          if (
+            mod?.exports &&
+            typeof mod.exports === "object" &&
+            mod.exports !== null
+          ) {
+            for (const [key, fn] of Object.entries(overrideMap)) {
+              if (key in mod.exports && fn) {
+                try {
+                  Object.defineProperty(mod.exports, key, {
+                    value: fn,
+                    writable: true,
+                    configurable: true,
+                    enumerable: true,
+                  });
+                  patched = true;
+                } catch (_) {
+                  try {
+                    mod.exports[key] = fn;
+                    patched = true;
+                  } catch (_) {}
+                }
+              }
             }
           }
         });
+        return patched;
       };
 
-      if (!(window as any).__mockBookingsWebpackPatched) {
-        const webpackRequire = (window as any).__webpack_require__;
-        if (webpackRequire) {
-          const originalWebpackRequire = webpackRequire;
-          const patchedWebpackRequire = function () {
-            const result = originalWebpackRequire.apply(this, arguments);
-            try {
-              syncWebpackExports();
-            } catch (_err) {
-              // ignore sync errors
-            }
-            return result;
-          };
-          patchedWebpackRequire.m = originalWebpackRequire.m;
-          patchedWebpackRequire.c = originalWebpackRequire.c;
-          (window as any).__webpack_require__ = patchedWebpackRequire;
-          (window as any).__mockBookingsWebpackPatched = true;
-        }
-      }
-
-      try {
-        syncWebpackExports();
-      } catch (_err) {
-        // ignore sync errors
-      }
+      // Early patching interval
+      const _earlyPatchId = setInterval(() => {
+        try {
+          if (patchWebpackModules()) clearInterval(_earlyPatchId);
+        } catch (_) {}
+      }, 2);
+      setTimeout(() => clearInterval(_earlyPatchId), 10000);
 
       (window as any).__applyMockBookingsOverrides = () => {
         try {
-          syncWebpackExports();
+          patchWebpackModules();
         } catch (_err) {
           // ignore sync errors
         }
@@ -751,6 +797,69 @@ async function mockApproveEndpoint(page: Page) {
       status: 200,
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ message: "Approved successfully" }),
+    });
+  });
+
+  await page.route("**/api/xstate-transition", async (route) => {
+    if (route.request().method() !== "POST") {
+      await route.fulfill({
+        status: 405,
+        headers: jsonHeaders,
+        body: JSON.stringify({ error: "Method Not Allowed" }),
+      });
+      return;
+    }
+
+    const body = route.request().postDataJSON();
+    const eventType = body?.eventType;
+    const email = body?.email ?? LIAISON_EMAIL;
+
+    const bookingRef = doc({} as any, "mc-bookings", BOOKING_DOC_ID);
+    const bookingSnapshot = await getDoc(bookingRef);
+    const bookingData = bookingSnapshot.data() ?? {};
+
+    let newStatus: BookingStatusLabel;
+    let newXstateValue: string;
+
+    if (eventType === "decline") {
+      newStatus = BookingStatusLabel.DECLINED;
+      newXstateValue = "Declined";
+    } else {
+      await route.fulfill({
+        status: 200,
+        headers: jsonHeaders,
+        body: JSON.stringify({ success: true }),
+      });
+      return;
+    }
+
+    const updatedBooking = {
+      ...bookingData,
+      status: newStatus,
+      declinedAt: createTimestamp(new Date()),
+      declinedBy: email,
+      declineReason: body?.reason ?? "",
+      xstateData: {
+        ...(bookingData?.xstateData ?? {}),
+        lastTransition: eventType,
+        snapshot: {
+          ...(bookingData?.xstateData?.snapshot ?? {}),
+          value: newXstateValue,
+          status: newStatus,
+          context: {
+            ...(bookingData?.xstateData?.snapshot?.context ?? {}),
+            status: newStatus,
+            calendarEventId: CALENDAR_EVENT_ID,
+          },
+        },
+      },
+    };
+    await setDoc(bookingRef, updatedBooking);
+
+    await route.fulfill({
+      status: 200,
+      headers: jsonHeaders,
+      body: JSON.stringify({ success: true, newState: newXstateValue }),
     });
   });
 
