@@ -71,11 +71,13 @@ const getPathFromPermission = (permission: PagePermission): string => {
 
 export default function NavBar() {
   const router = useRouter();
-  const { tenant } = useParams();
+  const params = useParams();
+  const tenant =
+    typeof params.tenant === "string" ? params.tenant : params.tenant?.[0];
   const { pagePermission, netId, setUserEmail } = useContext(DatabaseContext);
   const handleStartBooking = useHandleStartBooking();
   const [selectedView, setSelectedView] = useState<PagePermission>(
-    PagePermission.BOOKING
+    PagePermission.BOOKING,
   );
   const pathname = usePathname();
   const theme = useTheme();
@@ -149,7 +151,7 @@ export default function NavBar() {
     if (!isRoot) return;
 
     const hasRedirected = sessionStorage.getItem(
-      "hasRedirectedToDefaultContext"
+      "hasRedirectedToDefaultContext",
     );
     if (hasRedirected) return;
 
