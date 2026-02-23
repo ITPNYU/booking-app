@@ -31,7 +31,7 @@ test.describe("VIP Booking Flow", () => {
     // School → Department → Role (Faculty = index 1)
     await selectRole(page, { roleIndex: 1 });
 
-    await page.getByRole("button", { name: "Next" }).click();
+    await page.getByRole("button", { name: "Next", exact: true }).click();
 
     // ── 3. Room & time selection ──
     await page.waitForURL("**/mc/vip/selectRoom", { timeout: 15000 });

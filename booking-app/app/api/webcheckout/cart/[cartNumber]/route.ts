@@ -74,10 +74,10 @@ async function authenticateWebCheckout(
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { cartNumber: string } },
+  { params }: { params: Promise<{ cartNumber: string }> },
 ) {
   try {
-    const { cartNumber } = params;
+    const { cartNumber } = await params;
 
     if (!cartNumber) {
       return NextResponse.json(

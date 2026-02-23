@@ -35,7 +35,7 @@ test.describe("Walk-In Booking Flow", () => {
     await netIdInput.waitFor({ state: "visible", timeout: 10000 });
     await netIdInput.fill("wv456");
 
-    const nextBtn = page.getByRole("button", { name: /Next/i });
+    const nextBtn = page.getByRole("button", { name: "Next", exact: true });
     await nextBtn.click();
 
     // ── 3. Role selection page ──
@@ -45,7 +45,7 @@ test.describe("Walk-In Booking Flow", () => {
     // School → Department → Role (Faculty = index 1, to skip sponsor)
     await selectRole(page, { roleIndex: 1 });
 
-    await page.getByRole("button", { name: "Next" }).click();
+    await page.getByRole("button", { name: "Next", exact: true }).click();
 
     // ── 4. Room & time selection ──
     await page.waitForURL("**/mc/walk-in/selectRoom", { timeout: 15000 });

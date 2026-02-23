@@ -462,9 +462,9 @@ export class BookingTestHelper {
     }
 
     await this.page
-      .getByRole("button", { name: "Next" })
+      .getByRole("button", { name: "Next", exact: true })
       .waitFor({ state: "visible" });
-    await this.page.getByRole("button", { name: "Next" }).click();
+    await this.page.getByRole("button", { name: "Next", exact: true }).click();
   }
 
   async selectFirstAvailableRoomAndTime(): Promise<void> {
@@ -509,9 +509,9 @@ export class BookingTestHelper {
     }
 
     await this.page
-      .getByRole("button", { name: "Next" })
+      .getByRole("button", { name: "Next", exact: true })
       .waitFor({ state: "visible" });
-    await this.page.getByRole("button", { name: "Next" }).click();
+    await this.page.getByRole("button", { name: "Next", exact: true }).click();
   }
 
   async fillEventDetails(formData: BookingFormData): Promise<void> {

@@ -51,7 +51,7 @@ test.describe("Booking Flow – complete reservation", () => {
     await selectDropdown(page, "role-select", 1);
 
     // Click Next
-    await page.getByRole("button", { name: "Next" }).click();
+    await page.getByRole("button", { name: "Next", exact: true }).click();
 
     // ── 4. Room & time selection ──
     await page.waitForURL("**/mc/book/selectRoom", { timeout: 15000 });
