@@ -1,11 +1,10 @@
 "use client";
 
 import Grid from "@mui/material/Unstable_Grid2";
-import { useState } from "react";
+import { useState, useContext } from "react";
 import { Divider, ListItemButton, ListItemText, Stack } from "@mui/material";
-import { useContext } from "react";
-import { DatabaseContext } from "../components/Provider";
 import { TableNames } from "@/components/src/policy";
+import { DatabaseContext } from "../components/Provider";
 import EmailListTable from "../components/EmailListTable";
 import { formatDate } from "../../utils/date";
 

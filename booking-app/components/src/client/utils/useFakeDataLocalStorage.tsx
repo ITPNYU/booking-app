@@ -1,14 +1,14 @@
 import { useEffect, useRef } from "react";
 
-import { STORAGE_KEY_BOOKING } from "../../mediaCommonsPolicy";
-//@ts-ignore
+// @ts-ignore
 import useWebSocket from "react-use-websocket";
+import { STORAGE_KEY_BOOKING } from "../../mediaCommonsPolicy";
 
 export default function useFakeDataLocalStorage(setBookings) {
   const { lastMessage } = useWebSocket(
     "ws://localhost:3001",
     { shouldReconnect: (closeEvent) => false },
-    process.env.BRANCH_NAME === "development"
+    process.env.BRANCH_NAME === "development",
   );
   const hasUpdated = useRef(false);
 
@@ -41,7 +41,7 @@ export default function useFakeDataLocalStorage(setBookings) {
       setBookings((prev) => {
         const existingIds = prev.map((row) => row.calendarEventId);
         const toAdd = json.bookingRows.filter(
-          (row) => !existingIds.includes(row.calendarEventId)
+          (row) => !existingIds.includes(row.calendarEventId),
         );
         return [...prev, ...toAdd];
       });
@@ -59,11 +59,11 @@ export default function useFakeDataLocalStorage(setBookings) {
 
   const update = (data: string) => {
     const existingFakeData = JSON.parse(
-      localStorage.getItem(STORAGE_KEY_BOOKING)
+      localStorage.getItem(STORAGE_KEY_BOOKING),
     );
     const json = JSON.parse(data);
     existingFakeData.bookingRows = existingFakeData.bookingRows.concat(
-      json.bookingRows
+      json.bookingRows,
     );
 
     localStorage.setItem(STORAGE_KEY_BOOKING, JSON.stringify(existingFakeData));

@@ -18,7 +18,7 @@ export function getStartHour(
       }
     | undefined,
   formContext: FormContextLevel,
-  role: Role | undefined
+  role: Role | undefined,
 ): string {
   if (!calendarConfig?.startHour) {
     return DEFAULT_START_HOUR;

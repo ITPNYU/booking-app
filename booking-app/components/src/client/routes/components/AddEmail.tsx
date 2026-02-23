@@ -1,6 +1,6 @@
-import AddRow from './AddRow';
-import React from 'react';
-import { TableNames } from '../../../policy';
+import React from "react";
+import AddRow from "./AddRow";
+import { TableNames } from "../../../policy";
 
 interface EmailField {
   email: string;

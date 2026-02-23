@@ -13,8 +13,8 @@ async function authenticateWebCheckout(
       Authorization: "Bearer Requested",
     },
     body: JSON.stringify({
-      userid: userid,
-      password: password,
+      userid,
+      password,
     }),
   });
 
@@ -77,7 +77,7 @@ export async function GET(
   { params }: { params: { cartNumber: string } },
 ) {
   try {
-    const cartNumber = params.cartNumber;
+    const { cartNumber } = params;
 
     if (!cartNumber) {
       return NextResponse.json(
@@ -106,7 +106,7 @@ export async function GET(
       );
     }
 
-    let sessionToken = authResult.sessionToken!;
+    let { sessionToken } = authResult;
 
     // Search for allocation using cart number
     const webCheckoutAPIUrl = `${baseUrl}/rest/allocation/search`;
@@ -152,11 +152,18 @@ export async function GET(
     // If session is invalid or expired, re-authenticate and retry
     if (webCheckoutResponse.status === "unauthenticated") {
       console.log("WebCheckout session expired, re-authenticating...");
-      
-      const reAuthResult = await authenticateWebCheckout(baseUrl, userid, password);
+
+      const reAuthResult = await authenticateWebCheckout(
+        baseUrl,
+        userid,
+        password,
+      );
       if (!reAuthResult.success) {
         return NextResponse.json(
-          { error: reAuthResult.error.message, details: reAuthResult.error.details },
+          {
+            error: reAuthResult.error.message,
+            details: reAuthResult.error.details,
+          },
           { status: reAuthResult.error.status },
         );
       }
@@ -187,7 +194,10 @@ export async function GET(
       try {
         webCheckoutResponse = await response.json();
       } catch (parseError) {
-        console.error("WebCheckout search response parsing error after retry:", parseError);
+        console.error(
+          "WebCheckout search response parsing error after retry:",
+          parseError,
+        );
         return NextResponse.json(
           {
             error: "WebCheckout API response failed - invalid JSON response",
@@ -200,7 +210,10 @@ export async function GET(
       // If still unauthenticated after retry, return error
       if (webCheckoutResponse.status === "unauthenticated") {
         return NextResponse.json(
-          { error: "WebCheckout session is invalid or expired even after re-authentication" },
+          {
+            error:
+              "WebCheckout session is invalid or expired even after re-authentication",
+          },
           { status: 401 },
         );
       }
@@ -296,12 +309,21 @@ export async function GET(
 
     // If session is invalid or expired during allocation/get, re-authenticate and retry
     if (allocationData.status === "unauthenticated") {
-      console.log("WebCheckout session expired during allocation/get, re-authenticating...");
-      
-      const reAuthResult = await authenticateWebCheckout(baseUrl, userid, password);
+      console.log(
+        "WebCheckout session expired during allocation/get, re-authenticating...",
+      );
+
+      const reAuthResult = await authenticateWebCheckout(
+        baseUrl,
+        userid,
+        password,
+      );
       if (!reAuthResult.success) {
         return NextResponse.json(
-          { error: reAuthResult.error.message, details: reAuthResult.error.details },
+          {
+            error: reAuthResult.error.message,
+            details: reAuthResult.error.details,
+          },
           { status: reAuthResult.error.status },
         );
       }
@@ -348,7 +370,10 @@ export async function GET(
       // If still unauthenticated after retry, return error
       if (allocationData.status === "unauthenticated") {
         return NextResponse.json(
-          { error: "WebCheckout session is invalid or expired even after re-authentication" },
+          {
+            error:
+              "WebCheckout session is invalid or expired even after re-authentication",
+          },
           { status: 401 },
         );
       }
@@ -376,14 +401,16 @@ export async function GET(
     const equipmentGroups = allocationContentsSummary?.groups || [];
 
     // Calculate total item count
-    const totalItems = equipmentGroups.reduce((total: number, group: any) => {
-      return (
+    const totalItems = equipmentGroups.reduce(
+      (total: number, group: any) =>
         total +
-        group.items.reduce((groupTotal: number, item: any) => {
-          return groupTotal + (item.subitems?.length || 0);
-        }, 0)
-      );
-    }, 0);
+        group.items.reduce(
+          (groupTotal: number, item: any) =>
+            groupTotal + (item.subitems?.length || 0),
+          0,
+        ),
+      0,
+    );
 
     // Build response data
     const responseData = {
@@ -392,8 +419,8 @@ export async function GET(
       status: detailedAllocation.state || "Unknown",
       checkoutTime: detailedAllocation.pickupTime,
       dueTime: detailedAllocation.returnTime,
-      totalItems: totalItems,
-      webCheckoutUrl: webCheckoutUrl,
+      totalItems,
+      webCheckoutUrl,
       equipmentGroups: equipmentGroups.map((group: any) => ({
         label: group.label,
         items: group.items.map((item: any) => ({

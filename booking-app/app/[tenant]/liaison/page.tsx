@@ -13,12 +13,10 @@ const LiaisonWithParams: React.FC = () => {
   return <Liaison calendarEventId={calendarEventId} />;
 };
 
-const LiaisonPage: React.FC = () => {
-  return (
-    <Suspense fallback={<div>Loading...</div>}>
-      <LiaisonWithParams />
-    </Suspense>
-  );
-};
+const LiaisonPage: React.FC = () => (
+  <Suspense fallback={<div>Loading...</div>}>
+    <LiaisonWithParams />
+  </Suspense>
+);
 
 export default LiaisonPage;

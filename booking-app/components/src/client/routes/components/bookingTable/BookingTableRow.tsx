@@ -8,6 +8,7 @@ import {
 } from "@mui/material";
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
+import MoreHoriz from "@mui/icons-material/MoreHoriz";
 import {
   BookingRow,
   BookingStatusLabel,
@@ -15,7 +16,6 @@ import {
 } from "../../../../types";
 import { formatDateTable, formatTimeAmPm } from "../../../utils/date";
 
-import MoreHoriz from "@mui/icons-material/MoreHoriz";
 import BookingActions from "../../admin/components/BookingActions";
 import getBookingStatus from "../../hooks/getBookingStatus";
 import EquipmentCheckoutToggle from "./EquipmentCheckoutToggle";
@@ -40,7 +40,7 @@ export default function BookingTableRow({
   const params = useParams();
   const tenant = params?.tenant as string;
   const [isHighlight, setHighlight] = useState(
-    calendarEventId && calendarEventId === booking.calendarEventId
+    calendarEventId && calendarEventId === booking.calendarEventId,
   );
 
   const isUserView = pageContext === PageContextLevel.USER;
@@ -48,9 +48,10 @@ export default function BookingTableRow({
   const [optimisticStatus, setOptimisticStatus] =
     useState<BookingStatusLabel>();
 
-  const actualStatus = useMemo(() => {
-    return getBookingStatus(booking, tenant);
-  }, [booking, tenant]);
+  const actualStatus = useMemo(
+    () => getBookingStatus(booking, tenant),
+    [booking, tenant],
+  );
 
   const displayStatus = useMemo(() => {
     if (optimisticStatus) {
@@ -82,7 +83,7 @@ export default function BookingTableRow({
       <StackedTableCell
         topText={formatDateTable(booking.startDate.toDate())}
         bottomText={`${formatTimeAmPm(booking.startDate.toDate())} - ${formatTimeAmPm(
-          booking.endDate.toDate()
+          booking.endDate.toDate(),
         )} ET`}
       />
       <TableCell sx={{ maxWidth: "150px" }}>{booking.roomId}</TableCell>

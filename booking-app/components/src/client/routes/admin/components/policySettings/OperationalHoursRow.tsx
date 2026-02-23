@@ -4,10 +4,10 @@ import { LocalizationProvider, TimePicker } from "@mui/x-date-pickers";
 import { useContext, useEffect, useState } from "react";
 
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
-import { DatabaseContext } from "../../../components/Provider";
 import dayjs from "dayjs";
 import styled from "styled-components";
 import { updateOperationHours } from "@/components/src/server/db";
+import { DatabaseContext } from "../../../components/Provider";
 
 const Row = styled(Box)`
   display: grid;
@@ -26,10 +26,10 @@ export default function OperationalHoursRow({ day, setting, roomId }: Props) {
 
   const [closed, setClosed] = useState(setting?.isClosed || false);
   const [openDate, setOpenDate] = useState(
-    dayjs(new Date().setHours(setting?.open, 0, 0, 0))
+    dayjs(new Date().setHours(setting?.open, 0, 0, 0)),
   );
   const [closeDate, setCloseDate] = useState(
-    dayjs(new Date().setHours(setting?.close, 0, 0, 0))
+    dayjs(new Date().setHours(setting?.close, 0, 0, 0)),
   );
 
   const handleSwitch = (e) => {
@@ -39,25 +39,23 @@ export default function OperationalHoursRow({ day, setting, roomId }: Props) {
       openDate.hour(),
       closeDate.hour(),
       !e.target.checked,
-      roomId
+      roomId,
     );
   };
 
   const handleOpenChange = (e) => {
     setOpenDate(e);
-    updateOperationHours(day, e["$H"], closeDate.hour(), closed, roomId);
+    updateOperationHours(day, e.$H, closeDate.hour(), closed, roomId);
   };
 
   const handleCloseChange = (e) => {
     setCloseDate(e);
-    updateOperationHours(day, openDate.hour(), e["$H"], closed, roomId);
+    updateOperationHours(day, openDate.hour(), e.$H, closed, roomId);
   };
 
   // when we leave the page, the app reloads the newly set operation hours
-  useEffect(() => {
-    return () => {
-      reloadOperationHours();
-    };
+  useEffect(() => () => {
+    reloadOperationHours();
   });
 
   return (

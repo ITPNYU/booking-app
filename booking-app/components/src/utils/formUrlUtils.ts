@@ -1,16 +1,18 @@
 /**
  * Extracts the form ID from a Google Form URL.
- * 
+ *
  * Google Form URLs can be in various formats:
  * - https://docs.google.com/forms/d/{FORM_ID}/viewform
  * - https://docs.google.com/forms/d/{FORM_ID}/edit
  * - https://docs.google.com/forms/d/{FORM_ID}/viewform?usp=sf_link
  * - Just the form ID itself
- * 
+ *
  * @param url - The Google Form URL or form ID
  * @returns The extracted form ID, or null if not found
  */
-export function extractGoogleFormId(url: string | undefined | null): string | null {
+export function extractGoogleFormId(
+  url: string | undefined | null,
+): string | null {
   if (!url) return null;
 
   // If it's already just a form ID (no URL structure), return it
@@ -28,4 +30,3 @@ export function extractGoogleFormId(url: string | undefined | null): string | nu
   // If no match found, return null
   return null;
 }
-

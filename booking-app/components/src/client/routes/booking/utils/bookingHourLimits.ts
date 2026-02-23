@@ -16,7 +16,7 @@ const DEFAULT_MIN_HOURS = 0;
 function getRoleFieldName(
   role: Role | undefined,
   isWalkIn: boolean,
-  isVIP: boolean
+  isVIP: boolean,
 ): keyof Resource["maxHour"] {
   const baseRole = getBaseRole(role);
 
@@ -41,7 +41,7 @@ export function getBookingHourLimits(
   selectedRooms: any[],
   role: Role | undefined,
   isWalkIn: boolean,
-  isVIP: boolean = false
+  isVIP: boolean = false,
 ): { maxHours: number; minHours: number } {
   if (!selectedRooms || selectedRooms.length === 0) {
     return { maxHours: DEFAULT_MAX_HOURS, minHours: DEFAULT_MIN_HOURS };
@@ -63,7 +63,10 @@ export function getBookingHourLimits(
   for (const room of selectedRooms) {
     // Prefer top-level maxHour/minHour; fall back to autoApproval (admin/faculty/student only)
     const useAutoApproval =
-      !room.maxHour && !room.minHour && room.autoApproval?.minHour != null && room.autoApproval?.maxHour != null;
+      !room.maxHour &&
+      !room.minHour &&
+      room.autoApproval?.minHour != null &&
+      room.autoApproval?.maxHour != null;
 
     if (!room.maxHour && !room.minHour && !useAutoApproval) {
       continue;
@@ -75,23 +78,39 @@ export function getBookingHourLimits(
     if (useAutoApproval) {
       const aMax = room.autoApproval?.maxHour?.[baseRole];
       const aMin = room.autoApproval?.minHour?.[baseRole];
-      roomMaxHour = (aMax === undefined || aMax === -1) ? DEFAULT_MAX_HOURS : aMax;
-      roomMinHour = (aMin === undefined || aMin === -1) ? DEFAULT_MIN_HOURS : aMin;
+      roomMaxHour =
+        aMax === undefined || aMax === -1 ? DEFAULT_MAX_HOURS : aMax;
+      roomMinHour =
+        aMin === undefined || aMin === -1 ? DEFAULT_MIN_HOURS : aMin;
     } else if (isVIP) {
       const vipMax = room.maxHour?.[vipRoleField];
       const vipMin = room.minHour?.[vipRoleField];
-      roomMaxHour = (vipMax === undefined || vipMax === -1) ? DEFAULT_MAX_HOURS : vipMax;
-      roomMinHour = (vipMin === undefined || vipMin === -1) ? DEFAULT_MIN_HOURS : vipMin;
+      roomMaxHour =
+        vipMax === undefined || vipMax === -1 ? DEFAULT_MAX_HOURS : vipMax;
+      roomMinHour =
+        vipMin === undefined || vipMin === -1 ? DEFAULT_MIN_HOURS : vipMin;
     } else if (isWalkIn) {
       const walkInMax = room.maxHour?.[walkInRoleField];
       const walkInMin = room.minHour?.[walkInRoleField];
-      roomMaxHour = (walkInMax === undefined || walkInMax === -1) ? DEFAULT_MAX_HOURS : walkInMax;
-      roomMinHour = (walkInMin === undefined || walkInMin === -1) ? DEFAULT_MIN_HOURS : walkInMin;
+      roomMaxHour =
+        walkInMax === undefined || walkInMax === -1
+          ? DEFAULT_MAX_HOURS
+          : walkInMax;
+      roomMinHour =
+        walkInMin === undefined || walkInMin === -1
+          ? DEFAULT_MIN_HOURS
+          : walkInMin;
     } else {
       const regularMax = room.maxHour?.[baseRoleField];
       const regularMin = room.minHour?.[baseRoleField];
-      roomMaxHour = (regularMax === undefined || regularMax === -1) ? DEFAULT_MAX_HOURS : regularMax;
-      roomMinHour = (regularMin === undefined || regularMin === -1) ? DEFAULT_MIN_HOURS : regularMin;
+      roomMaxHour =
+        regularMax === undefined || regularMax === -1
+          ? DEFAULT_MAX_HOURS
+          : regularMax;
+      roomMinHour =
+        regularMin === undefined || regularMin === -1
+          ? DEFAULT_MIN_HOURS
+          : regularMin;
     }
 
     if (roomMaxHour < maxHours) {

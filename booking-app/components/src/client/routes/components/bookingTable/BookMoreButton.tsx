@@ -13,6 +13,7 @@ import { styled } from "@mui/system";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import useHandleStartBooking from "../../booking/hooks/useHandleStartBooking";
+
 const BottomRow = styled(Table)({
   borderTop: "none",
   borderRadius: "0px 0px 4px 4px",

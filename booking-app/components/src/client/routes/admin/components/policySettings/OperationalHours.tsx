@@ -16,9 +16,9 @@ import {
 } from "@mui/material";
 import { useContext, useState } from "react";
 
-import { DatabaseContext } from "../../../components/Provider";
 import { Days } from "@/components/src/types";
 import { ExpandMore } from "@mui/icons-material";
+import { DatabaseContext } from "../../../components/Provider";
 import OperationalHoursRow from "./OperationalHoursRow";
 
 const ITEM_HEIGHT = 48;
@@ -36,8 +36,8 @@ export default function OperationalHours() {
   const { operationHours, roomSettings } = useContext(DatabaseContext);
   const [specialHourRooms, setSpecialHourRooms] = useState<number[]>(
     Array.from(
-      new Set(operationHours.map((x) => x.roomId).filter((x) => x != null))
-    ).sort((a, b) => a - b)
+      new Set(operationHours.map((x) => x.roomId).filter((x) => x != null)),
+    ).sort((a, b) => a - b),
   ); // roomIds
 
   const handleChange = (event: SelectChangeEvent<typeof specialHourRooms>) => {
@@ -45,7 +45,7 @@ export default function OperationalHours() {
       target: { value },
     } = event;
     // On autofill we get a stringified value.
-    let list =
+    const list =
       typeof value === "string"
         ? value.split(",").map((x) => Number(x))
         : value;
@@ -66,7 +66,7 @@ export default function OperationalHours() {
         <OperationalHoursRow
           day={day}
           setting={operationHours.find(
-            (x) => x.day === (day as Days) && x.roomId == null
+            (x) => x.day === day && x.roomId == null,
           )}
           key={day}
         />
@@ -121,7 +121,7 @@ export default function OperationalHours() {
                     <OperationalHoursRow
                       day={day}
                       setting={operationHours.find(
-                        (x) => x.day === (day as Days) && x.roomId === roomId
+                        (x) => x.day === day && x.roomId === roomId,
                       )}
                       roomId={roomId}
                       key={day}

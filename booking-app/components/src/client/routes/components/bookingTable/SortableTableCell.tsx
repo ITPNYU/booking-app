@@ -1,8 +1,8 @@
 import { TableCell, TableSortLabel } from "@mui/material";
 
+import React from "react";
 import { BookingRow } from "../../../../types";
 import { ColumnSortOrder } from "./hooks/getColumnComparator";
-import React from "react";
 
 interface Props {
   createSortHandler: any;

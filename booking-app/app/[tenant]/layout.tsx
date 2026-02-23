@@ -29,9 +29,8 @@ const Layout: React.FC<LayoutProps> = async ({ children, params }) => {
     if (shouldBypassAuth()) {
       tenantSchema = getTestTenantSchema(params.tenant);
     } else {
-      const { serverGetDocumentById } = await import(
-        "@/lib/firebase/server/adminDb"
-      );
+      const { serverGetDocumentById } =
+        await import("@/lib/firebase/server/adminDb");
       tenantSchema = await serverGetDocumentById<SchemaContextType>(
         TableNames.TENANT_SCHEMA,
         params.tenant,
@@ -53,7 +52,9 @@ const Layout: React.FC<LayoutProps> = async ({ children, params }) => {
 
     // Apply environment-based calendar ID selection
     if (tenantSchema.resources && Array.isArray(tenantSchema.resources)) {
-      tenantSchema.resources = applyEnvironmentCalendarIds(tenantSchema.resources);
+      tenantSchema.resources = applyEnvironmentCalendarIds(
+        tenantSchema.resources,
+      );
     }
 
     // Ensure the data is properly serializable

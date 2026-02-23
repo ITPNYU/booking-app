@@ -20,8 +20,8 @@ if (!admin.apps.length) {
     ? {
         credential: admin.credential.cert({
           projectId: FIREBASE_PROJECT_ID,
-          clientEmail: FIREBASE_CLIENT_EMAIL!,
-          privateKey: sanitizedPrivateKey!,
+          clientEmail: FIREBASE_CLIENT_EMAIL,
+          privateKey: sanitizedPrivateKey,
         }),
       }
     : fallbackOptions;
@@ -29,7 +29,7 @@ if (!admin.apps.length) {
   if (!hasServiceAccount) {
     console.error(
       "Firebase admin initialization error",
-      new Error("Missing Firebase service account credentials")
+      new Error("Missing Firebase service account credentials"),
     );
   }
 

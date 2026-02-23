@@ -1,6 +1,6 @@
+import { useContext } from "react";
 import { BookingContext } from "../bookingProvider";
 import { DatabaseContext } from "../../components/Provider";
-import { useContext } from "react";
 
 export default function useHandleStartBooking() {
   const { reloadSafetyTrainedUsers } = useContext(DatabaseContext);
