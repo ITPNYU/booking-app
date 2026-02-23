@@ -21,7 +21,7 @@ import {
   BookingFormSwitch,
   BookingFormTextField,
 } from "./BookingFormInputs";
-import { isValidNetIdFormat, NET_ID_REGEX } from "../../../../utils/validationHelpers";
+import { isValidNetIdFormat, NET_ID_REGEX, NYU_EMAIL_REGEX } from "../../../../utils/validationHelpers";
 
 import { styled } from "@mui/system";
 import { useParams, useRouter } from "next/navigation";
@@ -704,13 +704,13 @@ export default function FormInput({
             />
             <BookingFormTextField
               id="secondaryEmail"
-              label="Secondary Email (NYU Net ID)"
+              label="Secondary Email"
               required={false}
               pattern={{
-                value: NET_ID_REGEX,
-                message: "Invalid Net ID",
+                value: NYU_EMAIL_REGEX,
+                message: "Invalid NYU email format",
               }}
-              description="Enter the NYU Net ID (e.g., abc123)"
+              description="Enter the NYU email address (e.g., abc123@nyu.edu)"
               {...{ control, errors, trigger }}
             />
           </div>

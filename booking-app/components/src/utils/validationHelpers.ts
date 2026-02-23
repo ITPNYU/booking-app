@@ -9,10 +9,25 @@
 export const NET_ID_REGEX = /^[a-zA-Z]{2,3}[0-9]{1,6}$/;
 
 /**
+ * NYU Email regex pattern
+ * Format: any valid email ending with @nyu.edu (e.g., abc123@nyu.edu, john.doe@nyu.edu)
+ */
+export const NYU_EMAIL_REGEX = /^[^\s@]+@nyu\.edu$/i;
+
+/**
  * Validates if a string matches the NYU Net ID format
  * @param value - The string to validate
  * @returns true if the value matches Net ID format, false otherwise
  */
 export const isValidNetIdFormat = (value: string): boolean => {
   return NET_ID_REGEX.test(value);
+};
+
+/**
+ * Validates if a string matches the NYU email format (netid@nyu.edu)
+ * @param value - The string to validate
+ * @returns true if the value matches NYU email format, false otherwise
+ */
+export const isValidNyuEmailFormat = (value: string): boolean => {
+  return NYU_EMAIL_REGEX.test(value);
 };

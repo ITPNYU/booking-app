@@ -671,13 +671,15 @@ export const serverApproveEvent = async (id: string, tenant?: string) => {
   }
 
   // for secondary contact, if we have one
-  // secondaryEmail stores Net ID, so convert to full email address
+  // secondaryEmail now stores full NYU email (e.g., abc123@nyu.edu)
   if (contents.secondaryEmail && contents.secondaryEmail.length > 0) {
+    // Handle both legacy net ID format and new full email format
     const secondaryEmailAddress = contents.secondaryEmail.includes("@")
       ? contents.secondaryEmail
       : `${contents.secondaryEmail}@nyu.edu`;
     
-    serverSendBookingDetailEmail({
+    // Await the email to ensure it's sent before proceeding
+    await serverSendBookingDetailEmail({
       calendarEventId: id,
       targetEmail: secondaryEmailAddress,
       headerMessage:
