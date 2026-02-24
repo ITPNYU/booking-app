@@ -29,9 +29,9 @@ import { BookingContext } from "../bookingProvider";
 import { useBookingDateRestrictions } from "../hooks/useBookingDateRestrictions";
 import { TIMEZONE } from "../../../utils/date";
 import { minutesToDurationString } from "@/components/src/constants/tenants";
-import { roundTimeUp } from "@/components/src/client/utils/date";
 import { DEFAULT_START_HOUR } from "../utils/getStartHour";
 import { DEFAULT_SLOT_UNIT } from "../utils/getSlotUnit";
+import { buildBlockPastTimes } from "../utils/buildBlockPastTimes";
 import momentTimezonePlugin from "@fullcalendar/moment-timezone";
 
 interface Props {
@@ -232,28 +232,12 @@ export default function CalendarVerticalResource({
       return [];
     }
 
-    const blocks = rooms.map((room) => {
-      // derive slot start from the date being viewed, using startHour from server data
-      const start = new Date(dateView);
-      const [minHour, minMinute] = (startHour || DEFAULT_START_HOUR)
-        .split(":")
-        .map((s) => parseInt(s, 10));
-      start.setHours(Number.isFinite(minHour) ? minHour : 9);
-      start.setMinutes(Number.isFinite(minMinute) ? minMinute : 0);
-
-      // Use shared rounding helper so logic is centralized
-      const today = roundTimeUp(slotUnit ?? DEFAULT_SLOT_UNIT);
-      return {
-        start: start.toISOString(),
-        end: today.toISOString(),
-        id: room.roomId + "bg",
-        resourceId: room.roomId + "",
-        overlap: false,
-        display: "background",
-        classNames: ["disabled"],
-      };
-    });
-    return blocks;
+    return buildBlockPastTimes(
+      rooms,
+      dateView,
+      startHour ?? DEFAULT_START_HOUR,
+      slotUnit ?? DEFAULT_SLOT_UNIT
+    );
   }, [rooms, formContext, dateView, startHour, slotUnit]);
 
   const handleEventSelect = (selectInfo: DateSelectArg) => {
