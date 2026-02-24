@@ -318,7 +318,7 @@ describe("Calendar Description Functions", () => {
         return {
           ...data,
           roomId: selectedRoomIds,
-          startDate: startDateObj.toLocaleDateString(),
+          startDate: startDateObj.toLocaleDateString("en-US"),
           startTime: startDateObj.toLocaleTimeString("en-US", {
             hour: "2-digit",
             minute: "2-digit",

@@ -249,9 +249,18 @@ export default function FormInput({
 
   useEffect(() => {
     // Do not auto-manage hireSecurity if the user has manually overridden it
-    if (hireSecurityManuallySet.current) {
+    // BUT: if attendance crosses back above threshold (in auto-enabling direction), 
+    // reset the manual flag and auto-enable again
+    if (hireSecurityManuallySet.current && !isLargeEvent) {
+      // User manually changed it, and we're below threshold - respect their choice
       return;
     }
+    
+    // Reset manual flag when crossing threshold in auto-enabling direction
+    if (isLargeEvent && hireSecurityManuallySet.current) {
+      hireSecurityManuallySet.current = false;
+    }
+    
     if (isLargeEvent) {
       if (hireSecurityValue !== "yes") {
         setValue("hireSecurity", "yes", { shouldValidate: true });
@@ -486,8 +495,8 @@ export default function FormInput({
                 label="ChartField for Room Setup"
                 required={false}
                 pattern={{
-                  value: /^.{5}-.{2}-.{5}-.{5}$/,
-                  message: "Invalid ChartField format (should be: XXXXX-XX-XXXXX-XXXXX)",
+                  value: /^[A-Z0-9]{5}-[A-Z0-9]{2}-[A-Z0-9]{5}-[A-Z0-9]{5}$/,
+                  message: "Invalid ChartField format (should be: XXXXX-XX-XXXXX-XXXXX where X is alphanumeric)",
                 }}
                 {...{ control, errors, trigger }}
               />
@@ -589,8 +598,8 @@ export default function FormInput({
                 label="ChartField for Catering Services"
                 required={false}
                 pattern={{
-                  value: /^.{5}-.{2}-.{5}-.{5}$/,
-                  message: "Invalid ChartField format (should be: XXXXX-XX-XXXXX-XXXXX)",
+                  value: /^[A-Z0-9]{5}-[A-Z0-9]{2}-[A-Z0-9]{5}-[A-Z0-9]{5}$/,
+                  message: "Invalid ChartField format (should be: XXXXX-XX-XXXXX-XXXXX where X is alphanumeric)",
                 }}
                 {...{ control, errors, trigger }}
               />
@@ -615,8 +624,8 @@ export default function FormInput({
               label="ChartField for CBS Cleaning Services"
               required={false}
               pattern={{
-                value: /^.{5}-.{2}-.{5}-.{5}$/,
-                message: "Invalid ChartField format (should be: XXXXX-XX-XXXXX-XXXXX)",
+                value: /^[A-Z0-9]{5}-[A-Z0-9]{2}-[A-Z0-9]{5}-[A-Z0-9]{5}$/,
+                message: "Invalid ChartField format (should be: XXXXX-XX-XXXXX-XXXXX where X is alphanumeric)",
               }}
               {...{ control, errors, trigger }}
             />
@@ -652,8 +661,8 @@ export default function FormInput({
               label="ChartField for Security"
               required={false}
               pattern={{
-                value: /^.{5}-.{2}-.{5}-.{5}$/,
-                message: "Invalid ChartField format (should be: XXXXX-XX-XXXXX-XXXXX)",
+                value: /^[A-Z0-9]{5}-[A-Z0-9]{2}-[A-Z0-9]{5}-[A-Z0-9]{5}$/,
+                message: "Invalid ChartField format (should be: XXXXX-XX-XXXXX-XXXXX where X is alphanumeric)",
               }}
               {...{ control, errors, trigger }}
             />

@@ -125,6 +125,9 @@ export function BookingFormDropdown(props: DropdownInputs) {
 interface TextFieldProps extends Props {
   description?: React.ReactNode;
   pattern?: ValidationRule<RegExp>;
+  // Custom validation function for the field value
+  // Note: For optional fields, this will only be called if the field has a non-empty value
+  // If you need to validate empty values for optional fields, handle that case explicitly
   validate?: any;
   containerSx?: any;
   fieldSx?: any;

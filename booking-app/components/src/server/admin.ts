@@ -658,9 +658,14 @@ export const serverApproveEvent = async (id: string, tenant?: string) => {
   // for sponsor, if we have one
   const contents = await serverBookingContents(id, tenant);
   if (contents.role === "Student" && contents.sponsorEmail?.length > 0) {
+    // Handle both legacy full email format and new Net ID format
+    const sponsorEmailAddress = contents.sponsorEmail.includes("@")
+      ? contents.sponsorEmail
+      : `${contents.sponsorEmail}@nyu.edu`;
+    
     serverSendBookingDetailEmail({
       calendarEventId: id,
-      targetEmail: contents.sponsorEmail,
+      targetEmail: sponsorEmailAddress,
       headerMessage:
         "A reservation that you are the Sponsor of has been approved.<br /><br />" +
         emailConfig.emailMessages.approvalNotice,
@@ -695,6 +700,8 @@ export const serverApproveEvent = async (id: string, tenant?: string) => {
       calendarEventId: id,
       roomId: contents.roomId,
     };
+    // Intentionally awaiting without try-catch: if email delivery fails, 
+    // we want the approval process to fail with the API error message
     await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/inviteUser`, {
       method: "POST",
       headers: {
