@@ -1,46 +1,56 @@
 import { useContext, useEffect } from "react";
-import { usePathname, useRouter, useParams } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 import { BookingContext } from "../bookingProvider";
+import {
+  parseBookingUrl,
+  buildBookingUrl,
+  getAffiliationStep,
+} from "../utils/bookingUrlParser";
 
 export default function useCheckFormMissingData() {
   const pathname = usePathname();
   const router = useRouter();
-  const { tenant } = useParams();
 
   const { role, department, selectedRooms, bookingCalendarInfo, formData } =
     useContext(BookingContext);
 
-  const hasAffiliationFields =
-    (role && department) || pathname.includes("/modification");
-  const hasRoomSelectionFields =
-    selectedRooms &&
-    bookingCalendarInfo &&
-    bookingCalendarInfo.startStr &&
-    bookingCalendarInfo.endStr;
-
-  const hasFormData = formData;
-
   useEffect(() => {
+    const parsed = parseBookingUrl(pathname);
+    if (!parsed || !parsed.step) return;
+
+    const { tenant, flowType, step, id } = parsed;
+
+    const hasAffiliationFields =
+      (role && department) || flowType === "modification";
+    const hasRoomSelectionFields =
+      selectedRooms &&
+      bookingCalendarInfo &&
+      bookingCalendarInfo.startStr &&
+      bookingCalendarInfo.endStr;
+
+    // Check what's missing based on current step
     let isMissing = false;
-    if (pathname.includes("/selectRoom")) {
-      isMissing = !hasAffiliationFields;
-    } else if (pathname.includes("/form")) {
-      isMissing = !(hasAffiliationFields && hasRoomSelectionFields);
-    } else if (pathname.includes("/confirmation")) {
-      isMissing = !(
-        hasAffiliationFields &&
-        hasRoomSelectionFields &&
-        hasFormData
-      );
+    let redirectStep = "";
+
+    if (step === "selectRoom" && !hasAffiliationFields) {
+      isMissing = true;
+      redirectStep = getAffiliationStep(flowType);
+    } else if (step === "form" && !(hasAffiliationFields && hasRoomSelectionFields)) {
+      isMissing = true;
+      redirectStep = !hasAffiliationFields ? getAffiliationStep(flowType) : "selectRoom";
+    } else if (step === "confirmation" && !(hasAffiliationFields && hasRoomSelectionFields && formData)) {
+      isMissing = true;
+      if (!hasAffiliationFields) {
+        redirectStep = getAffiliationStep(flowType);
+      } else if (!hasRoomSelectionFields) {
+        redirectStep = "selectRoom";
+      }
     }
 
-    if (isMissing) {
-      const segments = pathname.split("/");
-      const base = segments[2];
-      const id = segments[3] ?? "";
-      console.log("MISSING ID", id, pathname);
-      router.push(`/${tenant}/${base}/${id}`);
+    if (isMissing && redirectStep) {
+      console.log("MISSING DATA - redirecting:", { pathname, flowType, step, id });
+      router.push(buildBookingUrl(tenant, flowType, redirectStep, id));
     }
-  }, []);
+  }, [pathname, router, role, department, selectedRooms, bookingCalendarInfo, formData]);
 }

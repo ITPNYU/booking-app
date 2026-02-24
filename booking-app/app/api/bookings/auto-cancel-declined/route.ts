@@ -1,4 +1,4 @@
-import { SchemaContextType } from "@/components/src/client/routes/components/SchemaProvider";
+import type { SchemaContextType } from "@/components/src/client/routes/components/SchemaProvider";
 import { extractTenantFromCollectionName, TableNames } from "@/components/src/policy";
 import { callXStateTransitionAPI } from "@/components/src/server/db";
 import { Booking, BookingStatusLabel } from "@/components/src/types";

@@ -1,4 +1,5 @@
 import { Role } from "@/components/src/types";
+import { getBaseRole } from "@/components/src/utils/roleUtils";
 import { Resource } from "../../components/SchemaProvider";
 
 // No default limits - allow any duration
@@ -17,35 +18,12 @@ function getRoleFieldName(
   isWalkIn: boolean,
   isVIP: boolean
 ): keyof Resource["maxHour"] {
-  if (!role) {
-    // Default to student if role is not set
-    if (isVIP) return "studentVIP";
-    if (isWalkIn) return "studentWalkIn";
-    return "student";
-  }
-
-  let baseRole: "student" | "faculty" | "admin";
-
-  switch (role) {
-    case Role.STUDENT:
-      baseRole = "student";
-      break;
-    case Role.FACULTY:
-    case Role.RESIDENT_FELLOW:
-    case Role.CHAIR_PROGRAM_DIRECTOR:
-      baseRole = "faculty";
-      break;
-    case Role.ADMIN_STAFF:
-      baseRole = "admin";
-      break;
-    default:
-      baseRole = "student";
-  }
+  const baseRole = getBaseRole(role);
 
   if (isVIP) {
     return `${baseRole}VIP` as keyof Resource["maxHour"];
   }
-  
+
   return isWalkIn
     ? (`${baseRole}WalkIn` as keyof Resource["maxHour"])
     : baseRole;
@@ -80,42 +58,45 @@ export function getBookingHourLimits(
   let maxHours = DEFAULT_MAX_HOURS;
   let minHours = DEFAULT_MIN_HOURS;
 
+  const baseRole = getBaseRole(role);
+
   for (const room of selectedRooms) {
-    // Skip limits if maxHour/minHour is not provided for the room
-    if (!room.maxHour && !room.minHour) {
+    // Prefer top-level maxHour/minHour; fall back to autoApproval (admin/faculty/student only)
+    const useAutoApproval =
+      !room.maxHour && !room.minHour && room.autoApproval?.minHour != null && room.autoApproval?.maxHour != null;
+
+    if (!room.maxHour && !room.minHour && !useAutoApproval) {
       continue;
     }
 
-    // Get maxHour and minHour based on booking type
     let roomMaxHour: number;
     let roomMinHour: number;
 
-    if (isVIP) {
-      // For VIP: no fallback to regular role limits
+    if (useAutoApproval) {
+      const aMax = room.autoApproval?.maxHour?.[baseRole];
+      const aMin = room.autoApproval?.minHour?.[baseRole];
+      roomMaxHour = (aMax === undefined || aMax === -1) ? DEFAULT_MAX_HOURS : aMax;
+      roomMinHour = (aMin === undefined || aMin === -1) ? DEFAULT_MIN_HOURS : aMin;
+    } else if (isVIP) {
       const vipMax = room.maxHour?.[vipRoleField];
       const vipMin = room.minHour?.[vipRoleField];
       roomMaxHour = (vipMax === undefined || vipMax === -1) ? DEFAULT_MAX_HOURS : vipMax;
       roomMinHour = (vipMin === undefined || vipMin === -1) ? DEFAULT_MIN_HOURS : vipMin;
     } else if (isWalkIn) {
-      // For walk-in: no fallback to regular role limits
       const walkInMax = room.maxHour?.[walkInRoleField];
       const walkInMin = room.minHour?.[walkInRoleField];
       roomMaxHour = (walkInMax === undefined || walkInMax === -1) ? DEFAULT_MAX_HOURS : walkInMax;
       roomMinHour = (walkInMin === undefined || walkInMin === -1) ? DEFAULT_MIN_HOURS : walkInMin;
     } else {
-      // For regular bookings: use role-specific limit or default
       const regularMax = room.maxHour?.[baseRoleField];
       const regularMin = room.minHour?.[baseRoleField];
       roomMaxHour = (regularMax === undefined || regularMax === -1) ? DEFAULT_MAX_HOURS : regularMax;
       roomMinHour = (regularMin === undefined || regularMin === -1) ? DEFAULT_MIN_HOURS : regularMin;
     }
 
-    // Use the most restrictive (lowest) maxHour
     if (roomMaxHour < maxHours) {
       maxHours = roomMaxHour;
     }
-
-    // Use the most restrictive (highest) minHour
     if (roomMinHour > minHours) {
       minHours = roomMinHour;
     }
