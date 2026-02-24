@@ -349,7 +349,7 @@ describe("Calendar Description Functions", () => {
       expect(result.status).toBe(BookingStatusLabel.REQUESTED);
       expect(result.requestNumber).toBe(12345);
       expect(result.origin).toBe("user");
-      expect(result.startDate).toBe(startDate.toLocaleDateString());
+      expect(result.startDate).toBe(startDate.toLocaleDateString("en-US"));
       // Test that time formatting includes expected patterns (avoiding timezone issues)
       expect(result.startTime).toMatch(/\d{1,2}:\d{2} (AM|PM)/);
       expect(result.endTime).toMatch(/\d{1,2}:\d{2} (AM|PM)/);
