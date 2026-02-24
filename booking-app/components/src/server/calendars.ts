@@ -20,6 +20,7 @@ export const patchCalendarEvent = async (
     calendarId: calendarId,
     eventId: eventId,
     requestBody: requestBody,
+    sendUpdates: 'all', // Send notifications to all attendees when calendar is updated
   });
 };
 
@@ -283,6 +284,7 @@ export const insertEvent = async ({
   const calendar = await getCalendarClient();
   const event = await calendar.events.insert({
     calendarId,
+    sendUpdates: 'all', // Send notifications to all attendees when calendar event is created
     requestBody: {
       summary: title,
       description,
@@ -390,6 +392,7 @@ export const deleteEvent = async (
     await calendar.events.delete({
       calendarId,
       eventId: calendarEventId,
+      sendUpdates: 'all', // Send cancellation notifications to all attendees
     });
     console.log("deleted calendar event for " + roomId);
   } catch (error) {
