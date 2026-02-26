@@ -1,3 +1,7 @@
+## Summary of Changes
+
+<!-- Briefly describe what was changed and why -->
+
 ## Checklist
 
 - [ ] I checked for existing implementations and confirmed there is no duplication

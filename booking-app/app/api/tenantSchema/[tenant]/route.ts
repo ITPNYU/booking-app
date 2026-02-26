@@ -5,10 +5,10 @@ import { applyEnvironmentCalendarIds } from "@/lib/utils/calendarEnvironment";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { tenant: string } }
+  { params }: { params: Promise<{ tenant: string }> }
 ) {
   try {
-    const tenant = params.tenant;
+    const { tenant } = await params;
     
     // Fetch the specific schema document using tenant as document ID
     const schema = await serverGetDocumentById(TableNames.TENANT_SCHEMA, tenant);
