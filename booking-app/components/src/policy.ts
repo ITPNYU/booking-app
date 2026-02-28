@@ -85,7 +85,6 @@ export const isLegacyUserCollection = (collectionName: TableNames): boolean => {
 export const CALENDAR_HIDE_STATUS = [
   BookingStatusLabel.NO_SHOW,
   BookingStatusLabel.CANCELED,
-  BookingStatusLabel.DECLINED,
   BookingStatusLabel.CHECKED_OUT,
 ];
 
