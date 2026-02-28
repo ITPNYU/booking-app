@@ -119,21 +119,21 @@ describe("Bookings - Date range default by role", () => {
     );
   });
 
-  it("defaults date range to Today for USER role", () => {
+  it("defaults date range to All Future for USER role", () => {
     renderBookings(PageContextLevel.USER);
 
     expect(captureUseBookingFiltersArgs.current).not.toBeNull();
     expect(captureUseBookingFiltersArgs.current.selectedDateRange).toBe(
-      "Today"
+      "All Future"
     );
   });
 
-  it("defaults date range to Today for LIAISON role", () => {
+  it("defaults date range to All Future for LIAISON role", () => {
     renderBookings(PageContextLevel.LIAISON);
 
     expect(captureUseBookingFiltersArgs.current).not.toBeNull();
     expect(captureUseBookingFiltersArgs.current.selectedDateRange).toBe(
-      "Today"
+      "All Future"
     );
   });
 });
