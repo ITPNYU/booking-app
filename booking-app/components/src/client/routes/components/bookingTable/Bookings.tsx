@@ -59,7 +59,7 @@ export const Bookings: React.FC<BookingsProps> = ({
   );
   const [selectedDateRange, setSelectedDateRange] =
     useState<DateRangeFilter>(() =>
-      pageContext === PageContextLevel.ADMIN ? "All Future" : "Today"
+      pageContext === PageContextLevel.PA ? "Today" : "All Future"
     );
 
   // Added filters for origin, rooms, and services
