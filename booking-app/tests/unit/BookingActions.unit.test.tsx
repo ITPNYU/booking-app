@@ -178,8 +178,9 @@ describe("BookingActions Component - Edit Logic", () => {
     expect(editOption).not.toHaveAttribute("aria-disabled", "true");
   });
 
-  it("should disable (grey out) Edit action for PRE_APPROVED bookings", async () => {
-    setupMockActions([Actions.CANCEL, Actions.EDIT]);
+  it("should not offer Edit action for PRE_APPROVED bookings", async () => {
+    // useBookingActions does not add EDIT for PRE_APPROVED — only REQUESTED and DECLINED
+    setupMockActions([Actions.CANCEL]);
     const user = userEvent.setup();
 
     renderBookingActionsComponent({
@@ -187,13 +188,11 @@ describe("BookingActions Component - Edit Logic", () => {
       pageContext: PageContextLevel.USER,
     });
 
-    // Open dropdown
     const selectElement = screen.getByRole("combobox");
     await user.click(selectElement);
 
-    // Verify Edit is present but disabled
-    const editOption = screen.getByRole("option", { name: "Edit" });
-    expect(editOption).toBeInTheDocument();
-    expect(editOption).toHaveAttribute("aria-disabled", "true");
+    // Edit should not be in the dropdown at all
+    const editOption = screen.queryByRole("option", { name: "Edit" });
+    expect(editOption).not.toBeInTheDocument();
   });
 });
