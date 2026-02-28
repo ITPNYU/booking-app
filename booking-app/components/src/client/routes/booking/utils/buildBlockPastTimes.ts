@@ -29,7 +29,7 @@ export function buildBlockPastTimes(
   dateView: Date,
   startHour: string | undefined,
   slotUnit: number,
-  now: Date = new Date()
+  now: Date = new Date(),
 ): BlockPastTimeEvent[] {
   // Convert both dates to Eastern so all comparisons use the same timezone.
   const easternNow = toZonedTime(now, TIMEZONE);
@@ -63,9 +63,9 @@ export function buildBlockPastTimes(
       startH,
       startM,
       0,
-      0
+      0,
     ),
-    TIMEZONE
+    TIMEZONE,
   );
 
   // Round current Eastern time UP to the next slot boundary.
@@ -81,7 +81,7 @@ export function buildBlockPastTimes(
       easternNow.getHours() + Math.floor(totalMinutes / 60),
       totalMinutes % 60,
       0,
-      0
+      0,
     );
   }
   // Convert the rounded Eastern time back to a proper UTC Date.

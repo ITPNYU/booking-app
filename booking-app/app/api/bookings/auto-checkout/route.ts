@@ -116,9 +116,8 @@ export async function GET(request: NextRequest) {
 
         if (booking.xstateData) {
           // Check if booking is in "Checked In" state using common helper
-          const { hasXStateValue, getXStateValue } = await import(
-            "@/components/src/utils/xstateHelpers"
-          );
+          const { hasXStateValue, getXStateValue } =
+            await import("@/components/src/utils/xstateHelpers");
           shouldAutoCheckout = hasXStateValue(booking, "Checked In");
           const currentXStateValue = getXStateValue(booking);
 
@@ -304,7 +303,8 @@ export async function GET(request: NextRequest) {
         },
         { status: 200 },
       );
-    } else if (totalUpdatedCount > 0) {
+    }
+    if (totalUpdatedCount > 0) {
       return NextResponse.json(
         {
           message: `Successfully auto-checked out ${totalUpdatedCount} bookings across all tenants.`,
@@ -313,18 +313,17 @@ export async function GET(request: NextRequest) {
         },
         { status: 200 },
       );
-    } else {
-      BookingLogger.debug("No bookings met time criteria across all tenants", {
-        processedTenants: TENANT_COLLECTIONS,
-      });
-      return NextResponse.json(
-        {
-          message: "No bookings met the time criteria for auto-checkout.",
-          mode: "production",
-        },
-        { status: 200 },
-      );
     }
+    BookingLogger.debug("No bookings met time criteria across all tenants", {
+      processedTenants: TENANT_COLLECTIONS,
+    });
+    return NextResponse.json(
+      {
+        message: "No bookings met the time criteria for auto-checkout.",
+        mode: "production",
+      },
+      { status: 200 },
+    );
   } catch (error) {
     BookingLogger.apiError("GET", "/api/bookings/auto-checkout", {}, error);
     // Check if error is an object and has a message property before accessing it

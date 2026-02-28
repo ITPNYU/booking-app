@@ -3,12 +3,12 @@
 import { Box, Stack, Typography, useMediaQuery, useTheme } from "@mui/material";
 import React, { useContext, useMemo, useState } from "react";
 
+import { FormContextLevel } from "@/components/src/types";
+import Grid from "@mui/material/Unstable_Grid2";
 import { BookingContext } from "../bookingProvider";
 import { CalendarDatePicker } from "../components/CalendarDatePicker";
 import CalendarVerticalResource from "../components/CalendarVerticalResource";
 import { DatabaseContext } from "../../components/Provider";
-import { FormContextLevel } from "@/components/src/types";
-import Grid from "@mui/material/Unstable_Grid2";
 import { SelectRooms } from "../components/SelectRooms";
 import useCheckFormMissingData from "../hooks/useCheckFormMissingData";
 import { useTenantSchema } from "../../components/SchemaProvider";
@@ -36,7 +36,7 @@ export default function SelectRoomPage({
 
   const roomsToShow = useMemo(() => {
     const { resources } = schema;
-    
+
     // Convert schema resources to RoomSetting format for compatibility
     const convertedResources = resources.map((resource) => ({
       ...resource,
@@ -61,7 +61,9 @@ export default function SelectRoomPage({
     const allRooms = !isWalkIn
       ? convertedResources
       : convertedResources.filter((room) => {
-          const resource = schema.resources.find((r: any) => r.roomId === room.roomId);
+          const resource = schema.resources.find(
+            (r: any) => r.roomId === room.roomId,
+          );
           return resource?.isWalkIn || false;
         });
 

@@ -2,10 +2,10 @@ import { Box, useScrollTrigger } from "@mui/material";
 import React, { useMemo } from "react";
 import { usePathname, useRouter, useParams } from "next/navigation";
 
-import BookingFormStepper from "./Stepper";
-import BookingStatusBar from "./BookingStatusBar";
 import { FormContextLevel } from "@/components/src/types";
 import { styled } from "@mui/system";
+import BookingFormStepper from "./Stepper";
+import BookingStatusBar from "./BookingStatusBar";
 
 const StickyScroll = styled(Box)`
   position: -webkit-sticky;
@@ -45,7 +45,8 @@ export const Header = ({ formContext }: Props) => {
         if (formContext === FormContextLevel.MODIFICATION) return () => {};
         return () => router.push(`/${tenant}/${formContext}/role/${idSegment}`);
       case "form":
-        return () => router.push(`/${tenant}/${formContext}/selectRoom/${idSegment}`);
+        return () =>
+          router.push(`/${tenant}/${formContext}/selectRoom/${idSegment}`);
       case "role":
         if (formContext === FormContextLevel.WALK_IN) {
           return () => router.push(`/${tenant}/${formContext}/netid`);

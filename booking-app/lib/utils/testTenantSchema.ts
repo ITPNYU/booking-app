@@ -12,10 +12,7 @@ export function getTestTenantSchema(tenant: string): SchemaContextType {
     nameForPolicy: "370J Media Commons",
     policy: "<p>Test policy.</p>",
     schoolMapping: {
-      "Tisch School of the Arts": [
-        "ITP / IMA / Low Res",
-        "General Department",
-      ],
+      "Tisch School of the Arts": ["ITP / IMA / Low Res", "General Department"],
     },
     programMapping: {
       "ITP / IMA / Low Res": ["ITP"],

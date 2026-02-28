@@ -16,7 +16,7 @@ export interface BlackoutTimeRange {
  */
 export function getBlackoutTimeRangeForDate(
   period: BlackoutPeriod,
-  checkDate: Dayjs
+  checkDate: Dayjs,
 ): BlackoutTimeRange | null {
   const startDate = dayjs(period.startDate.toDate());
   const endDate = dayjs(period.endDate.toDate());
@@ -47,7 +47,7 @@ export function getBlackoutTimeRangeForDate(
     const [startHour, startMinute] = period.startTime.split(":").map(Number);
     const [endHour, endMinute] = period.endTime.split(":").map(Number);
 
-    let blackoutStart = checkDate
+    const blackoutStart = checkDate
       .hour(startHour)
       .minute(startMinute)
       .second(0)
@@ -68,47 +68,46 @@ export function getBlackoutTimeRangeForDate(
       end: blackoutEnd,
       title: `🚫 ${period.name} (${period.startTime}-${period.endTime})`,
     };
-  } else {
-    // Multi-day blackout period
-    if (isStartDate) {
-      // Start date: blackout from start time to end of day
-      const [startHour, startMinute] = period.startTime.split(":").map(Number);
-      const blackoutStart = checkDate
-        .hour(startHour)
-        .minute(startMinute)
-        .second(0)
-        .millisecond(0);
-      const blackoutEnd = checkDate.endOf("day");
-
-      return {
-        start: blackoutStart,
-        end: blackoutEnd,
-        title: `🚫 ${period.name} (${period.startTime}→)`,
-      };
-    } else if (isEndDate) {
-      // End date: blackout from start of day to end time
-      const [endHour, endMinute] = period.endTime.split(":").map(Number);
-      const blackoutStart = checkDate.startOf("day");
-      const blackoutEnd = checkDate
-        .hour(endHour)
-        .minute(endMinute)
-        .second(0)
-        .millisecond(0);
-
-      return {
-        start: blackoutStart,
-        end: blackoutEnd,
-        title: `🚫 ${period.name}`,
-      };
-    } else {
-      // Middle day: blackout entire day
-      return {
-        start: checkDate.startOf("day"),
-        end: checkDate.endOf("day"),
-        title: `🚫 ${period.name} (all day)`,
-      };
-    }
   }
+  // Multi-day blackout period
+  if (isStartDate) {
+    // Start date: blackout from start time to end of day
+    const [startHour, startMinute] = period.startTime.split(":").map(Number);
+    const blackoutStart = checkDate
+      .hour(startHour)
+      .minute(startMinute)
+      .second(0)
+      .millisecond(0);
+    const blackoutEnd = checkDate.endOf("day");
+
+    return {
+      start: blackoutStart,
+      end: blackoutEnd,
+      title: `🚫 ${period.name} (${period.startTime}→)`,
+    };
+  }
+  if (isEndDate) {
+    // End date: blackout from start of day to end time
+    const [endHour, endMinute] = period.endTime.split(":").map(Number);
+    const blackoutStart = checkDate.startOf("day");
+    const blackoutEnd = checkDate
+      .hour(endHour)
+      .minute(endMinute)
+      .second(0)
+      .millisecond(0);
+
+    return {
+      start: blackoutStart,
+      end: blackoutEnd,
+      title: `🚫 ${period.name}`,
+    };
+  }
+  // Middle day: blackout entire day
+  return {
+    start: checkDate.startOf("day"),
+    end: checkDate.endOf("day"),
+    title: `🚫 ${period.name} (all day)`,
+  };
 }
 
 /**
@@ -118,7 +117,7 @@ export function doTimeRangesOverlap(
   range1Start: Dayjs,
   range1End: Dayjs,
   range2Start: Dayjs,
-  range2End: Dayjs
+  range2End: Dayjs,
 ): boolean {
   return (
     (range1Start.isBefore(range2End) && range1End.isAfter(range2Start)) ||
@@ -134,7 +133,7 @@ export function isBookingInBlackoutPeriod(
   period: BlackoutPeriod,
   bookingStart: Dayjs,
   bookingEnd: Dayjs,
-  selectedRoomIds: number[]
+  selectedRoomIds: number[],
 ): boolean {
   const startDate = dayjs(period.startDate.toDate());
   const endDate = dayjs(period.endDate.toDate());
@@ -142,7 +141,7 @@ export function isBookingInBlackoutPeriod(
   // Check room restrictions first
   if (period.roomIds && period.roomIds.length > 0) {
     const hasRoomOverlap = selectedRoomIds.some((roomId) =>
-      period.roomIds!.includes(roomId)
+      period.roomIds.includes(roomId),
     );
     if (!hasRoomOverlap) {
       return false; // No room overlap, booking is not affected
@@ -189,7 +188,7 @@ export function isBookingInBlackoutPeriod(
             dayBookingStart,
             dayBookingEnd,
             blackoutRange.start,
-            blackoutRange.end
+            blackoutRange.end,
           )
         ) {
           return true;
@@ -210,13 +209,18 @@ export function getAffectingBlackoutPeriods(
   blackoutPeriods: BlackoutPeriod[],
   bookingStart: Dayjs,
   bookingEnd: Dayjs,
-  selectedRoomIds: number[]
+  selectedRoomIds: number[],
 ): BlackoutPeriod[] {
   const activeBlackoutPeriods = blackoutPeriods.filter(
-    (period) => period.isActive
+    (period) => period.isActive,
   );
 
   return activeBlackoutPeriods.filter((period) =>
-    isBookingInBlackoutPeriod(period, bookingStart, bookingEnd, selectedRoomIds)
+    isBookingInBlackoutPeriod(
+      period,
+      bookingStart,
+      bookingEnd,
+      selectedRoomIds,
+    ),
   );
 }

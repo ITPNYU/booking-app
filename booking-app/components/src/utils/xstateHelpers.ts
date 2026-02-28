@@ -30,7 +30,7 @@ export function getXStateValue(booking: XStateBookingLike): string | null {
   // Try different possible locations for the current state
   // Priority order: snapshot.value (v5) -> currentState (legacy) -> value (direct)
   if (xstateData.snapshot?.value) {
-    const value = xstateData.snapshot.value;
+    const { value } = xstateData.snapshot;
     return typeof value === "string" ? value : JSON.stringify(value);
   }
 
@@ -54,7 +54,7 @@ export function getXStateValue(booking: XStateBookingLike): string | null {
  */
 export function hasXStateValue(
   booking: XStateBookingLike,
-  targetValue: string
+  targetValue: string,
 ): boolean {
   const currentValue = getXStateValue(booking);
   return currentValue === targetValue;
@@ -65,7 +65,7 @@ export function hasXStateValue(
  */
 export function hasAnyXStateValue(
   booking: XStateBookingLike,
-  targetValues: string[]
+  targetValues: string[],
 ): boolean {
   const currentValue = getXStateValue(booking);
   return currentValue ? targetValues.includes(currentValue) : false;
@@ -75,7 +75,7 @@ export function hasAnyXStateValue(
  * Gets XState context from booking data
  */
 export function getXStateContext(
-  booking: XStateBookingLike
+  booking: XStateBookingLike,
 ): Record<string, any> | null {
   if (!booking?.xstateData) {
     return null;
@@ -100,7 +100,7 @@ export function getXStateContext(
  */
 export function logXStateDebug(
   booking: XStateBookingLike,
-  label: string = "XSTATE DEBUG"
+  label: string = "XSTATE DEBUG",
 ): void {
   const currentValue = getXStateValue(booking);
   const context = getXStateContext(booking);

@@ -5,7 +5,7 @@ export const MEDIA_COMMONS_OPERATION_EMAIL = "mediacommons.operations@nyu.edu";
 
 export const STORAGE_KEY_BOOKING = "mediaCommonsDevBooking";
 
-/********** ROOMS ************/
+/** ******** ROOMS ************/
 
 export const SAFETY_TRAINING_REQUIRED_ROOM = [
   103, 220, 221, 222, 223, 224, 230,
@@ -30,7 +30,7 @@ export const MULTI_ROOMS = [233, 103, 260]; // Both Production and Event
 
 // Production-only rooms (not including multi-use rooms)
 export const PRODUCTION_ONLY_ROOMS = SAFETY_TRAINING_REQUIRED_ROOM.filter(
-  (id) => !MULTI_ROOMS.includes(id)
+  (id) => !MULTI_ROOMS.includes(id),
 );
 
 // Derived categories for blackout period selection

@@ -22,14 +22,14 @@ import {
   where,
 } from "firebase/firestore";
 
-import { getDb } from "./firebaseClient";
 import { Filters } from "@/components/src/types";
 import { SchemaContextType } from "@/components/src/client/routes/components/SchemaProvider";
+import { getDb } from "./firebaseClient";
 
 // Utility function to get current tenant from URL
 export const getCurrentTenant = (): string | undefined => {
   if (typeof window !== "undefined") {
-    const pathname = window.location.pathname;
+    const { pathname } = window.location;
     const tenantMatch = pathname.match(/^\/([^\/]+)/);
     return tenantMatch ? tenantMatch[1] : undefined;
   }
@@ -39,7 +39,7 @@ export const getCurrentTenant = (): string | undefined => {
 // Helper function to get tenant-specific collection name
 export const getTenantCollection = (
   baseCollection: TableNames,
-  tenant?: string
+  tenant?: string,
 ): string => {
   const tenantToUse = tenant || getCurrentTenant();
   return getTenantCollectionName(baseCollection, tenantToUse);
@@ -52,7 +52,7 @@ export type AdminUserData = {
 
 export const clientDeleteDataFromFirestore = async (
   collectionName: string,
-  docId: string
+  docId: string,
 ) => {
   try {
     const db = getDb();
@@ -67,23 +67,20 @@ export const clientDeleteDataFromFirestore = async (
 export const clientDeleteUserRightsData = async (
   collectionName: TableNames,
   docId: string,
-  tenant?: string
+  tenant?: string,
 ) => {
   try {
     const db = getDb();
 
     // Check if this is one of the user collections that should use usersRights
-    const userCollections = [
-      TableNames.ADMINS,
-      TableNames.PAS,
-    ];
+    const userCollections = [TableNames.ADMINS, TableNames.PAS];
 
     if (userCollections.includes(collectionName)) {
       // For user collections, we work directly with the usersRights collection
       // The docId passed is from the usersRights collection
       const usersRightsCollection = getTenantCollection(
         TableNames.USERS_RIGHTS,
-        tenant
+        tenant,
       );
 
       // Get the document from usersRights collection
@@ -94,7 +91,7 @@ export const clientDeleteUserRightsData = async (
       }
 
       const userData = userDoc.data();
-      const email = userData.email;
+      const { email } = userData;
 
       if (!email) {
         throw new Error("Email not found in user document");
@@ -113,14 +110,10 @@ export const clientDeleteUserRightsData = async (
       const updatedFlags = {
         isAdmin:
           collectionName === TableNames.ADMINS ? false : userData.isAdmin,
-        isWorker:
-          collectionName === TableNames.PAS ? false : userData.isWorker,
+        isWorker: collectionName === TableNames.PAS ? false : userData.isWorker,
       };
 
-      if (
-        !updatedFlags.isAdmin &&
-        !updatedFlags.isWorker
-      ) {
+      if (!updatedFlags.isAdmin && !updatedFlags.isWorker) {
         // All flags are false, remove the document
         await deleteDoc(doc(db, usersRightsCollection, docId));
         console.log("Removed user from usersRights as all flags are false");
@@ -131,10 +124,7 @@ export const clientDeleteUserRightsData = async (
       }
     } else {
       // Use original logic for non-user collections
-      const tenantCollection = getTenantCollection(
-        collectionName as TableNames,
-        tenant
-      );
+      const tenantCollection = getTenantCollection(collectionName, tenant);
       await deleteDoc(doc(db, tenantCollection, docId));
     }
 
@@ -147,7 +137,7 @@ export const clientDeleteUserRightsData = async (
 
 export const clientSaveDataToFirestore = async (
   collectionName: string,
-  data: object
+  data: object,
 ) => {
   try {
     const db = getDb();
@@ -163,24 +153,21 @@ export const clientSaveDataToFirestore = async (
 export const clientSaveUserRightsData = async (
   collectionName: TableNames,
   data: object,
-  tenant?: string
+  tenant?: string,
 ) => {
   try {
     const db = getDb();
 
     // Check if this is one of the user collections that should use usersRights
-    const userCollections = [
-      TableNames.ADMINS,
-      TableNames.PAS,
-    ];
+    const userCollections = [TableNames.ADMINS, TableNames.PAS];
 
     if (userCollections.includes(collectionName)) {
       // Use usersRights collection instead
       const usersRightsCollection = getTenantCollection(
         TableNames.USERS_RIGHTS,
-        tenant
+        tenant,
       );
-      const email = (data as any).email;
+      const { email } = data as any;
 
       if (!email) {
         throw new Error("Email is required for user rights operations");
@@ -189,7 +176,7 @@ export const clientSaveUserRightsData = async (
       // Check if user already exists in usersRights
       const existingUserQuery = query(
         collection(db, usersRightsCollection),
-        where("email", "==", email)
+        where("email", "==", email),
       );
       const existingUserSnapshot = await getDocs(existingUserQuery);
 
@@ -208,16 +195,16 @@ export const clientSaveUserRightsData = async (
 
         await updateDoc(
           doc(db, usersRightsCollection, existingUserDoc.id),
-          updateData
+          updateData,
         );
         console.log(
           "Updated existing user in usersRights with ID:",
-          existingUserDoc.id
+          existingUserDoc.id,
         );
       } else {
         // User doesn't exist, create new entry
         const newUserData = {
-          email: email,
+          email,
           createdAt: (data as any).createdAt || Timestamp.now(),
           isAdmin: collectionName === TableNames.ADMINS,
           isWorker: collectionName === TableNames.PAS,
@@ -233,7 +220,7 @@ export const clientSaveUserRightsData = async (
 
         const docRef = await addDoc(
           collection(db, usersRightsCollection),
-          newUserData
+          newUserData,
         );
         console.log("Created new user in usersRights with ID:", docRef.id);
       }
@@ -252,7 +239,7 @@ export const clientSaveUserRightsData = async (
 export const clientFetchAllDataFromCollection = async <T>(
   collectionName: TableNames,
   queryConstraints: QueryConstraint[] = [],
-  tenant?: string
+  tenant?: string,
 ): Promise<T[]> => {
   const db = getDb();
   const tenantCollection = getTenantCollection(collectionName, tenant);
@@ -270,7 +257,7 @@ export const clientFetchAllDataFromCollectionWithLimitAndOffset = async <T>(
   collectionName: TableNames,
   limitNumber: number,
   offset: number,
-  tenant?: string
+  tenant?: string,
 ): Promise<T[]> => {
   const db = getDb();
   const tenantCollection = getTenantCollection(collectionName, tenant);
@@ -289,7 +276,7 @@ export const getPaginatedData = async <T>(
   itemsPerPage = 10,
   filters: Filters,
   lastVisible = null,
-  tenant?: string
+  tenant?: string,
 ): Promise<T[]> => {
   try {
     const db = getDb();
@@ -328,7 +315,7 @@ export const getPaginatedData = async <T>(
       const baseQuery = query(
         colRef,
         ...queryParams,
-        orderBy(filters.sortField, "desc")
+        orderBy(filters.sortField, "desc"),
       );
 
       const snapshot = await getDocs(baseQuery);
@@ -369,7 +356,7 @@ export const getPaginatedData = async <T>(
         colRef,
         ...queryParams,
         orderBy(filters.sortField, "desc"),
-        startAfter(lastVisible[filters.sortField])
+        startAfter(lastVisible[filters.sortField]),
       );
     }
 
@@ -392,7 +379,7 @@ export const clientGetFinalApproverEmailFromDatabase = async (): Promise<
     const approversCollection = collection(db, TableNames.APPROVERS);
     const q = query(
       approversCollection,
-      where("level", "==", ApproverLevel.FINAL)
+      where("level", "==", ApproverLevel.FINAL),
     );
     const querySnapshot = await getDocs(q);
     if (!querySnapshot.empty) {
@@ -412,7 +399,7 @@ export const clientGetFinalApproverEmailFromDatabase = async (): Promise<
 export const clientGetDataByCalendarEventId = async <T>(
   collectionName: TableNames,
   calendarEventId: string,
-  tenant?: string
+  tenant?: string,
 ): Promise<(T & { id: string }) | null> => {
   try {
     const db = getDb();
@@ -439,13 +426,13 @@ export const clientUpdateDataInFirestore = async (
   collectionName: string,
   docId: string,
   updatedData: object,
-  tenant?: string
+  tenant?: string,
 ) => {
   try {
     const db = getDb();
     const tenantCollection = getTenantCollection(
       collectionName as TableNames,
-      tenant
+      tenant,
     );
     const docRef = doc(db, tenantCollection, docId);
     await updateDoc(docRef, updatedData);
@@ -456,7 +443,7 @@ export const clientUpdateDataInFirestore = async (
 };
 
 export const clientGetTenantSchema = async (
-  tenant: string
+  tenant: string,
 ): Promise<SchemaContextType | null> => {
   try {
     const db = getDb();

@@ -21,18 +21,20 @@ export async function GET(request: NextRequest) {
   ]);
 
   // Apply environment-based calendar ID selection
-  const resourcesWithCorrectCalendarIds = schema?.resources 
+  const resourcesWithCorrectCalendarIds = schema?.resources
     ? applyEnvironmentCalendarIds(schema.resources)
     : [];
 
   // Convert schema resources to RoomSetting format
-  const rooms: RoomSetting[] = resourcesWithCorrectCalendarIds.map((resource: any) => ({
-    roomId: resource.roomId,
-    name: resource.name,
-    capacity: resource.capacity.toString(),
-    calendarId: resource.calendarId,
-    calendarRef: undefined,
-  }));
+  const rooms: RoomSetting[] = resourcesWithCorrectCalendarIds.map(
+    (resource: any) => ({
+      roomId: resource.roomId,
+      name: resource.name,
+      capacity: resource.capacity.toString(),
+      calendarId: resource.calendarId,
+      calendarRef: undefined,
+    }),
+  );
 
   // Create room ID to name mapping
   const roomMap = new Map<number, string>();
@@ -91,7 +93,10 @@ export async function GET(request: NextRequest) {
           (booking as any).school === "Other" && (booking as any).otherSchool
             ? (booking as any).otherSchool
             : (booking as any).school || "",
-        Department: booking.department === "Other" && booking.otherDepartment ? booking.otherDepartment : booking.department,
+        Department:
+          booking.department === "Other" && booking.otherDepartment
+            ? booking.otherDepartment
+            : booking.department,
         "Role (Affiliation)": booking.role,
         "Room(s)": booking.roomId,
         "Booking Start Date": format(startDate, "M/d/yyyy"),
@@ -125,7 +130,8 @@ export async function GET(request: NextRequest) {
             : "No",
         "Staffing Service Details": booking.staffingServicesDetails || "",
         "Catering (Y/N)": booking.catering === "yes" ? "Yes" : "No",
-        "Cleaning Services (Y/N)": booking.cleaningService === "yes" ? "Yes" : "No",
+        "Cleaning Services (Y/N)":
+          booking.cleaningService === "yes" ? "Yes" : "No",
         "Hire Security (Y/N)": booking.hireSecurity === "yes" ? "Yes" : "No",
       };
     });
