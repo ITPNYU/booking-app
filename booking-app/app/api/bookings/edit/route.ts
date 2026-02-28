@@ -217,10 +217,6 @@ export async function PUT(request: NextRequest) {
       currentStatus !== BookingStatusLabel.REQUESTED &&
       currentStatus !== BookingStatusLabel.DECLINED
     ) {
-      console.log(`🚫 EDIT REJECTED: booking not editable [${tenant?.toUpperCase()}]:`, {
-        calendarEventId,
-        currentStatus,
-      });
       return NextResponse.json(
         {
           error: "Booking cannot be edited in its current status",
