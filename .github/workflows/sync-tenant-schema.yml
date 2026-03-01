@@ -7,15 +7,6 @@ on:
     branches:
       - staging
       - prod
-  pull_request:
-    branches:
-      - main
-      - staging
-      - prod
-    types:
-      - opened
-      - synchronize
-      - reopened
   workflow_dispatch:
     inputs:
       target_environment:
@@ -30,10 +21,7 @@ jobs:
   sync-to-staging:
     name: Dry Run - Analyze tenantSchema Sync to Staging
     runs-on: ubuntu-latest
-    if: |
-      (github.event_name == 'push' && github.ref == 'refs/heads/staging') ||
-      (github.event_name == 'pull_request' && (github.base_ref == 'staging' || github.base_ref == 'main')) ||
-      (github.event_name == 'workflow_dispatch' && github.event.inputs.target_environment == 'staging')
+    if: github.ref == 'refs/heads/staging' || (github.event_name == 'workflow_dispatch' && github.event.inputs.target_environment == 'staging')
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -43,7 +31,6 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
-          cache-dependency-path: booking-app/package-lock.json
 
       - name: Install dependencies
         working-directory: ./booking-app
@@ -66,6 +53,7 @@ jobs:
             --target-database staging \
             --source-collection tenantSchema \
             --target-collection tenantSchema \
+            --report-file dry-run-staging-details.json \
             --dry-run > dry-run-staging-output.txt 2>&1 || true
         continue-on-error: true
 
@@ -78,6 +66,11 @@ jobs:
           echo "**Source:** development → **Target:** staging" >> dry-run-staging-report.md
           echo "**Collection:** tenantSchema" >> dry-run-staging-report.md
           echo "" >> dry-run-staging-report.md
+          echo "## Key Differences by Document" >> dry-run-staging-report.md
+          echo "\`\`\`" >> dry-run-staging-report.md
+          awk '/^📄 Document:|^   Added keys|^     \+ |^   Deleted keys|^     - |^   Updated keys|^     ~ /{print}' dry-run-staging-output.txt >> dry-run-staging-report.md
+          echo "\`\`\`" >> dry-run-staging-report.md
+          echo "" >> dry-run-staging-report.md
           echo "## Output" >> dry-run-staging-report.md
           echo "\`\`\`" >> dry-run-staging-report.md
           cat dry-run-staging-output.txt >> dry-run-staging-report.md
@@ -87,18 +80,13 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: tenant-schema-dry-run-staging
-          path: |
-            booking-app/dry-run-staging-output.txt
-            booking-app/dry-run-staging-report.md
+          path: booking-app/dry-run-staging-*.{txt,md,json}
           retention-days: 30
 
   sync-to-production:
     name: Dry Run - Analyze tenantSchema Sync to Production
     runs-on: ubuntu-latest
-    if: |
-      (github.event_name == 'push' && github.ref == 'refs/heads/prod') ||
-      (github.event_name == 'pull_request' && (github.base_ref == 'prod' || github.base_ref == 'main')) ||
-      (github.event_name == 'workflow_dispatch' && github.event.inputs.target_environment == 'production')
+    if: github.ref == 'refs/heads/prod' || (github.event_name == 'workflow_dispatch' && github.event.inputs.target_environment == 'production')
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -108,7 +96,6 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
-          cache-dependency-path: booking-app/package-lock.json
 
       - name: Install dependencies
         working-directory: ./booking-app
@@ -131,6 +118,7 @@ jobs:
             --target-database production \
             --source-collection tenantSchema \
             --target-collection tenantSchema \
+            --report-file dry-run-production-details.json \
             --dry-run > dry-run-production-output.txt 2>&1 || true
         continue-on-error: true
 
@@ -143,6 +131,11 @@ jobs:
           echo "**Source:** development → **Target:** production" >> dry-run-production-report.md
           echo "**Collection:** tenantSchema" >> dry-run-production-report.md
           echo "" >> dry-run-production-report.md
+          echo "## Key Differences by Document" >> dry-run-production-report.md
+          echo "\`\`\`" >> dry-run-production-report.md
+          awk '/^📄 Document:|^   Added keys|^     \+ |^   Deleted keys|^     - |^   Updated keys|^     ~ /{print}' dry-run-production-output.txt >> dry-run-production-report.md
+          echo "\`\`\`" >> dry-run-production-report.md
+          echo "" >> dry-run-production-report.md
           echo "## Output" >> dry-run-production-report.md
           echo "\`\`\`" >> dry-run-production-report.md
           cat dry-run-production-output.txt >> dry-run-production-report.md
@@ -152,8 +145,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: tenant-schema-dry-run-production
-          path: |
-            booking-app/dry-run-production-output.txt
-            booking-app/dry-run-production-report.md
+          path: booking-app/dry-run-production-*.{txt,md,json}
           retention-days: 30
 
