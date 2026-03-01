@@ -90,7 +90,10 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: tenant-schema-dry-run-staging
-          path: booking-app/dry-run-staging-*.{txt,md,json}
+          path: |
+            booking-app/dry-run-staging-*.txt
+            booking-app/dry-run-staging-*.md
+            booking-app/dry-run-staging-*.json
           retention-days: 30
 
   sync-to-production:
@@ -156,6 +159,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: tenant-schema-dry-run-production
-          path: booking-app/dry-run-production-*.{txt,md,json}
+          path: |
+            booking-app/dry-run-production-*.txt
+            booking-app/dry-run-production-*.md
+            booking-app/dry-run-production-*.json
           retention-days: 30
 
