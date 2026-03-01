@@ -32,7 +32,7 @@ import type { SchemaContextType } from "../components/src/client/routes/componen
 // Hardcoded tenant names
 const TENANTS = ["mc", "itp"] as const;
 const TENANT_SCHEMA_COLLECTION = "tenantSchema";
-const BACKUP_COLLECTION_PREFIX = "tenantSchema-backup-sync-defaults";
+const BACKUP_TYPE_SYNC_DEFAULTS = "sync-defaults";
 
 // Database names for different environments
 const DATABASES = {
@@ -155,18 +155,19 @@ async function backupTenantSchema(
   tenant: string,
   existingSchema: Partial<SchemaContextType>
 ): Promise<void> {
-  const dateSuffix = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
-  const backupCollectionName = `${BACKUP_COLLECTION_PREFIX}-${dateSuffix}`;
+  const timestamp = new Date()
+    .toISOString()
+    .replace(/[:.]/g, "-")
+    .replace("T", "_")
+    .replace("Z", "");
+  const backupDocId = `${tenant}-backup-${BACKUP_TYPE_SYNC_DEFAULTS}-${timestamp}`;
 
   try {
-    // Match copyCollection.js backup convention:
-    // - Collection name: tenantSchema-backup-sync-defaults-YYYY-MM-DD
-    // - Document id: tenant id (mc/itp)
-    // - Payload: raw tenant schema document
-    const backupDocRef = db.collection(backupCollectionName).doc(tenant);
+    // Store backup as another document in tenantSchema collection.
+    const backupDocRef = db.collection(TENANT_SCHEMA_COLLECTION).doc(backupDocId);
     await backupDocRef.set(existingSchema, { merge: false });
     console.log(
-      `  📦 Backed up existing schema for tenant ${tenant} to ${backupCollectionName}`
+      `  📦 Backed up existing schema for tenant ${tenant} as document ${backupDocId}`
     );
   } catch (error) {
     console.error(`  ❌ Failed to back up schema for tenant ${tenant}:`, error);
