@@ -335,7 +335,7 @@ const main = async () => {
       options.sourceDatabase !== options.targetDatabase
     ) {
       const dateSuffix = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
-      const backupCollectionName = `tenantSchema-backup-${dateSuffix}`;
+      const backupCollectionName = `tenantSchema-backup-copy-${dateSuffix}`;
       console.log(
         `\n📦 Step 1: Backing up current tenantSchema to ${backupCollectionName}...`
       );

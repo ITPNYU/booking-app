@@ -32,6 +32,7 @@ import type { SchemaContextType } from "../components/src/client/routes/componen
 // Hardcoded tenant names
 const TENANTS = ["mc", "itp"] as const;
 const TENANT_SCHEMA_COLLECTION = "tenantSchema";
+const BACKUP_COLLECTION_PREFIX = "tenantSchema-backup-sync-defaults";
 
 // Database names for different environments
 const DATABASES = {
@@ -144,6 +145,31 @@ async function writeTenantSchema(
     console.log(`  ✅ Updated schema for tenant: ${tenant}`);
   } catch (error) {
     console.error(`❌ Error writing schema for tenant ${tenant}:`, error);
+    throw error;
+  }
+}
+
+// Back up current tenant schema before mutating it
+async function backupTenantSchema(
+  db: admin.firestore.Firestore,
+  tenant: string,
+  existingSchema: Partial<SchemaContextType>
+): Promise<void> {
+  const dateSuffix = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  const backupCollectionName = `${BACKUP_COLLECTION_PREFIX}-${dateSuffix}`;
+
+  try {
+    // Match copyCollection.js backup convention:
+    // - Collection name: tenantSchema-backup-sync-defaults-YYYY-MM-DD
+    // - Document id: tenant id (mc/itp)
+    // - Payload: raw tenant schema document
+    const backupDocRef = db.collection(backupCollectionName).doc(tenant);
+    await backupDocRef.set(existingSchema, { merge: false });
+    console.log(
+      `  📦 Backed up existing schema for tenant ${tenant} to ${backupCollectionName}`
+    );
+  } catch (error) {
+    console.error(`  ❌ Failed to back up schema for tenant ${tenant}:`, error);
     throw error;
   }
 }
@@ -311,6 +337,8 @@ async function syncTenantSchema(
 
     // Write back if not dry run
     if (!options.dryRun) {
+      // Safety first: backup current tenant schema before writing updates
+      await backupTenantSchema(db, tenant, existingSchema);
       await writeTenantSchema(db, tenant, updatedSchema);
     } else {
       console.log(`  🔍 [DRY RUN] Would update schema for tenant: ${tenant}`);
