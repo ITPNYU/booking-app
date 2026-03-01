@@ -407,14 +407,21 @@ const copyCollection = async (
           diff,
         });
 
-        console.log(`\n📄 Document: ${doc.id}`);
-        console.log(`   Target exists: ${existsInTarget ? "yes" : "no"}`);
-        console.log(`   Added keys (${diff.addedKeys.length})`);
-        diff.addedKeys.forEach((key) => console.log(`     + ${key}`));
-        console.log(`   Deleted keys (${diff.deletedKeys.length})`);
-        diff.deletedKeys.forEach((key) => console.log(`     - ${key}`));
-        console.log(`   Updated keys (${diff.updatedKeys.length})`);
-        diff.updatedKeys.forEach((key) => console.log(`     ~ ${key}`));
+        const hasChanges =
+          diff.addedKeys.length > 0 ||
+          diff.deletedKeys.length > 0 ||
+          diff.updatedKeys.length > 0;
+
+        if (hasChanges) {
+          console.log(`\n📄 Document: ${doc.id}`);
+          console.log(`   Target exists: ${existsInTarget ? "yes" : "no"}`);
+          console.log(`   Added keys (${diff.addedKeys.length})`);
+          diff.addedKeys.forEach((key) => console.log(`     + ${key}`));
+          console.log(`   Deleted keys (${diff.deletedKeys.length})`);
+          diff.deletedKeys.forEach((key) => console.log(`     - ${key}`));
+          console.log(`   Updated keys (${diff.updatedKeys.length})`);
+          diff.updatedKeys.forEach((key) => console.log(`     ~ ${key}`));
+        }
       }
 
       const changedDocuments =
