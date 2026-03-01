@@ -688,4 +688,4 @@ if (require.main === module) {
   main();
 }
 
-module.exports = { copyCollection, DATABASES };
+module.exports = { copyCollection, DATABASES, createBackupDocId };
