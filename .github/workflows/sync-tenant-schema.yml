@@ -30,7 +30,7 @@ jobs:
   sync-to-staging:
     name: Dry Run - Analyze tenantSchema Sync to Staging
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/staging' || (github.event_name == 'pull_request' && github.event.pull_request.base.ref == 'staging') || (github.event_name == 'workflow_dispatch' && github.event.inputs.target_environment == 'staging')
+    if: github.ref == 'refs/heads/staging' || (github.event_name == 'pull_request' && (github.event.pull_request.base.ref == 'staging' || github.event.pull_request.base.ref == 'main')) || (github.event_name == 'workflow_dispatch' && github.event.inputs.target_environment == 'staging')
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -96,7 +96,7 @@ jobs:
   sync-to-production:
     name: Dry Run - Analyze tenantSchema Sync to Production
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/prod' || (github.event_name == 'pull_request' && (github.event.pull_request.base.ref == 'prod' || github.event.pull_request.base.ref == 'main')) || (github.event_name == 'workflow_dispatch' && github.event.inputs.target_environment == 'production')
+    if: github.ref == 'refs/heads/prod' || (github.event_name == 'pull_request' && github.event.pull_request.base.ref == 'prod') || (github.event_name == 'workflow_dispatch' && github.event.inputs.target_environment == 'production')
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
