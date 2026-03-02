@@ -45,3 +45,6 @@ node_modules/
 
 # schema sync output files
 /scripts/output/
+/dry-run-*-output.txt
+/dry-run-*-report.md
+/dry-run-*-details.json
