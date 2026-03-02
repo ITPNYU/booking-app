@@ -3,7 +3,7 @@ import { getStatusFromXState } from "../../../utils/statusFromXState";
 
 export default function getBookingStatus(
   booking: Booking,
-  tenant?: string
+  tenant?: string,
 ): BookingStatusLabel {
   return getStatusFromXState(booking as any, tenant) as BookingStatusLabel;
 }

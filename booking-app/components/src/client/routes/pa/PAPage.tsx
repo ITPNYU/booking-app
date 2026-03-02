@@ -13,7 +13,7 @@ const PAPage = () => {
 
   const paEmails = useMemo<string[]>(
     () => paUsers.map((user) => user.email),
-    [paUsers]
+    [paUsers],
   );
 
   const userHasPermission = hasAnyPermission(pagePermission, [

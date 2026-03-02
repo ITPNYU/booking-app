@@ -32,7 +32,7 @@ type BookingLike = {
 
 export function getStatusFromXState(
   booking: BookingLike,
-  tenant?: string
+  tenant?: string,
 ): BookingStatusLabel | string {
   try {
     if (shouldUseXState(tenant) && booking?.xstateData) {

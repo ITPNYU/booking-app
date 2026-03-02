@@ -3,10 +3,11 @@
 "use client";
 
 import EditLandingPage from "@/components/src/client/routes/edit/EditLandingPage";
-import React from "react";
+import React, { use } from "react";
 
-const HomePage: React.FC = ({ params }: { params: { id: string } }) => (
-  <EditLandingPage calendarEventId={params.id} />
-);
+const HomePage = ({ params }: { params: Promise<{ id: string }> }) => {
+  const { id } = use(params);
+  return <EditLandingPage calendarEventId={id} />;
+};
 
 export default HomePage;

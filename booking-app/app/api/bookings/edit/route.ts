@@ -63,7 +63,7 @@ async function sendEditNotificationEmails(
 
   const userEventInputs: BookingFormDetails = {
     ...data,
-    calendarEventId: calendarEventId,
+    calendarEventId,
     roomId: selectedRoomIds,
     email,
     startDate: bookingCalendarInfo?.startStr,
@@ -103,12 +103,12 @@ async function sendEditNotificationEmails(
       existingContents.requestNumber,
     );
 
-    const emailPromises = firstApprovers.map(recipient => {
-      return sendHTMLEmail({
+    const emailPromises = firstApprovers.map(recipient =>
+      sendHTMLEmail({
         templateName: "booking_detail",
         contents: {
           ...formattedContents,
-          requestNumber: existingContents.requestNumber + "",
+          requestNumber: `${existingContents.requestNumber}`,
         },
         targetEmail: recipient,
         status: BookingStatusLabel.REQUESTED,
@@ -118,8 +118,8 @@ async function sendEditNotificationEmails(
         approverType: ApproverType.LIAISON,
         replyTo: email,
         schemaName: emailConfig.schemaName,
-      });
-    });
+      }),
+    );
 
     await Promise.all(emailPromises);
 
@@ -207,7 +207,9 @@ export async function PUT(request: NextRequest) {
       calendarEventId,
       tenant,
     );
-    const oldRoomIds = existingContents.roomId.split(",").map(roomId => roomId.trim());
+    const oldRoomIds = existingContents.roomId
+      .split(",")
+      .map(roomId => roomId.trim());
 
     const currentStatus = getStatusFromXState(existingContents, tenant);
     const usesXState = shouldUseXState(tenant);
@@ -228,25 +230,30 @@ export async function PUT(request: NextRequest) {
 
     let wasDeclined = currentStatus === BookingStatusLabel.DECLINED;
     if (usesXState) {
-      console.log(`🔍 EDIT: Current booking status [${tenant?.toUpperCase()}]:`, {
-        calendarEventId,
-        currentStatus,
-        hasDeclinedAt: !!existingContents.declinedAt,
-        wasDeclined,
-      });
+      const currentStatus = getStatusFromXState(existingContents, tenant);
+      wasDeclined = currentStatus === BookingStatusLabel.DECLINED;
+      console.log(
+        `🔍 EDIT: Current booking status [${tenant?.toUpperCase()}]:`,
+        {
+          calendarEventId,
+          currentStatus,
+          hasDeclinedAt: !!existingContents.declinedAt,
+          wasDeclined,
+        },
+      );
     }
 
     // Get rooms
     const tenantRooms = await getTenantRooms(tenant);
     const oldRooms = tenantRooms.filter((room: any) =>
-      oldRoomIds.includes(room.roomId + ""),
+      oldRoomIds.includes(`${room.roomId}`),
     );
 
     const selectedRoomIds = selectedRooms
       .map((r: { roomId: number }) => r.roomId)
       .join(", ");
 
-    console.log(`✏️ EDIT: Deleting old calendar events`);
+    console.log("✏️ EDIT: Deleting old calendar events");
     // Delete old calendar events
     await Promise.all(
       oldRooms.map(async room => {
@@ -254,7 +261,7 @@ export async function PUT(request: NextRequest) {
       }),
     );
 
-    console.log(`✏️ EDIT: Creating new calendar event`);
+    console.log("✏️ EDIT: Creating new calendar event");
     // Create new calendar event with REQUESTED/MODIFIED status
     const startDateObj = new Date(bookingCalendarInfo.startStr);
     const endDateObj = new Date(bookingCalendarInfo.endStr);
@@ -271,16 +278,18 @@ export async function PUT(request: NextRequest) {
     );
 
     const description =
-      (await bookingContentsToDescription(bookingContentsForDesc, tenant)) +
-      "<p>Your reservation is not yet confirmed. The coordinator will review and finalize your reservation within a few days.</p>" +
+      `${await bookingContentsToDescription(
+        bookingContentsForDesc,
+        tenant,
+      )}<p>Your reservation is not yet confirmed. The coordinator will review and finalize your reservation within a few days.</p>` +
       '<p>To cancel reservations please return to the Booking Tool, visit My Bookings, and click "cancel" on the booking at least 24 hours before the date of the event. Failure to cancel an unused booking is considered a no-show and may result in restricted use of the space.</p>';
 
     // Create calendar event
     const [room, ...otherRooms] = selectedRooms;
-    const calendarId = room.calendarId;
+    const { calendarId } = room;
 
     if (calendarId == null) {
-      throw Error("calendarId not found for room " + room.roomId);
+      throw Error(`calendarId not found for room ${room.roomId}`);
     }
 
     const otherRoomEmails = otherRooms.map(
@@ -288,7 +297,7 @@ export async function PUT(request: NextRequest) {
     );
 
     const truncatedTitle =
-      data.title.length > 25 ? data.title.substring(0, 25) + "..." : data.title;
+      data.title.length > 25 ? `${data.title.substring(0, 25)}...` : data.title;
 
     const event = await insertEvent({
       calendarId,
@@ -311,7 +320,7 @@ export async function PUT(request: NextRequest) {
       changedBy: modifiedBy,
       requestNumber: existingContents.requestNumber,
       calendarEventId: newCalendarEventId,
-      note: "Booking edited by user: " + modifiedBy,
+      note: `Booking edited by user: ${modifiedBy}`,
       tenant,
     });
 
@@ -411,7 +420,7 @@ export async function PUT(request: NextRequest) {
     );
 
     // Send email notifications
-    console.log(`📧 EDIT: Sending email notifications`);
+    console.log("📧 EDIT: Sending email notifications");
     await sendEditNotificationEmails(
       newCalendarEventId,
       data,
@@ -423,9 +432,8 @@ export async function PUT(request: NextRequest) {
     );
 
     // Verify the final status after edit
-    const { serverGetDataByCalendarEventId } = await import(
-      "@/lib/firebase/server/adminDb"
-    );
+    const { serverGetDataByCalendarEventId } =
+      await import("@/lib/firebase/server/adminDb");
     const finalBooking = (await serverGetDataByCalendarEventId(
       TableNames.BOOKING,
       newCalendarEventId,
@@ -451,7 +459,7 @@ export async function PUT(request: NextRequest) {
       status: finalStatus, // Include status in response for debugging
     });
   } catch (error) {
-    console.error(`❌ EDIT FAILED:`, error);
+    console.error("❌ EDIT FAILED:", error);
     return NextResponse.json(
       { result: "error", message: "Failed to edit booking" },
       { status: 500 },

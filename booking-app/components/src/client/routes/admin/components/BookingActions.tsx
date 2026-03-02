@@ -1,13 +1,13 @@
 import { IconButton, MenuItem, Select } from "@mui/material";
 import { useContext, useMemo, useState } from "react";
+import Check from "@mui/icons-material/Check";
+import { Timestamp } from "firebase/firestore";
 import { BookingStatusLabel, PageContextLevel } from "../../../../types";
 import useBookingActions, {
   ActionDefinition,
   Actions,
 } from "../hooks/useBookingActions";
 
-import Check from "@mui/icons-material/Check";
-import { Timestamp } from "firebase/firestore";
 import AlertToast from "../../components/AlertToast";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import DeclineReasonDialog from "../../components/DeclineReasonDialog";
@@ -35,7 +35,7 @@ export default function BookingActions(props: Props) {
   } = props;
   const [uiLoading, setUiLoading] = useState(false);
   const [selectedAction, setSelectedAction] = useState<Actions>(
-    Actions.PLACEHOLDER
+    Actions.PLACEHOLDER,
   );
   const { reloadFutureBookings, allBookings } = useContext(DatabaseContext);
   const [showError, setShowError] = useState(false);

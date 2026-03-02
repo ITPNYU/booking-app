@@ -39,7 +39,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       let testEnvStatus = false;
       try {
         const testEnvRes = await fetch(
-          window.location.origin + "/api/isTestEnv"
+          `${window.location.origin}/api/isTestEnv`,
         );
         if (testEnvRes.ok) {
           const { isOnTestEnv } = await testEnvRes.json();
@@ -70,7 +70,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         }
       } else {
         console.log("No user object found. Checking if sign-in needed.");
-        
+
         // In test environment, create a mock user to bypass authentication
         if (testEnvStatus) {
           console.log("Test environment detected, creating mock user");
@@ -85,7 +85,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           setLoading(false);
           return;
         }
-        
+
         // Only attempt sign-in if NOT in test environment
         if (!testEnvStatus) {
           try {

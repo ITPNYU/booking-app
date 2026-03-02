@@ -8,6 +8,7 @@ import React from "react";
 import { styled } from "@mui/system";
 import { useRouter, useParams } from "next/navigation";
 import { FormContextLevel } from "@/components/src/types";
+
 const Center = styled(Box)`
   display: flex;
   flex-direction: column;
@@ -110,7 +111,9 @@ export default function WalkInLandingPage({
           variant="contained"
           color="primary"
           onClick={() =>
-            router.push(isVIP ? `/${tenant}/vip/role` : `/${tenant}/walk-in/netid`)
+            router.push(
+              isVIP ? `/${tenant}/vip/role` : `/${tenant}/walk-in/netid`,
+            )
           }
           sx={{
             alignSelf: "center",

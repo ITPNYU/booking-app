@@ -12,10 +12,21 @@ export default function useCheckFormMissingData() {
   const pathname = usePathname();
   const router = useRouter();
 
-  const { role, department, selectedRooms, bookingCalendarInfo, formData } =
-    useContext(BookingContext);
+  const {
+    role,
+    department,
+    selectedRooms,
+    bookingCalendarInfo,
+    formData,
+    submitting,
+  } = useContext(BookingContext);
 
   useEffect(() => {
+    // Don't redirect while a booking is being submitted or was just submitted.
+    // The submission flow clears context state (rooms, calendar info) on success,
+    // which would otherwise trigger a false redirect back to an earlier step.
+    if (submitting === "submitting" || submitting === "success") return;
+
     const parsed = parseBookingUrl(pathname);
     if (!parsed || !parsed.step) return;
 
@@ -36,10 +47,18 @@ export default function useCheckFormMissingData() {
     if (step === "selectRoom" && !hasAffiliationFields) {
       isMissing = true;
       redirectStep = getAffiliationStep(flowType);
-    } else if (step === "form" && !(hasAffiliationFields && hasRoomSelectionFields)) {
+    } else if (
+      step === "form" &&
+      !(hasAffiliationFields && hasRoomSelectionFields)
+    ) {
       isMissing = true;
-      redirectStep = !hasAffiliationFields ? getAffiliationStep(flowType) : "selectRoom";
-    } else if (step === "confirmation" && !(hasAffiliationFields && hasRoomSelectionFields && formData)) {
+      redirectStep = !hasAffiliationFields
+        ? getAffiliationStep(flowType)
+        : "selectRoom";
+    } else if (
+      step === "confirmation" &&
+      !(hasAffiliationFields && hasRoomSelectionFields && formData)
+    ) {
       isMissing = true;
       if (!hasAffiliationFields) {
         redirectStep = getAffiliationStep(flowType);
@@ -49,8 +68,22 @@ export default function useCheckFormMissingData() {
     }
 
     if (isMissing && redirectStep) {
-      console.log("MISSING DATA - redirecting:", { pathname, flowType, step, id });
+      console.log("MISSING DATA - redirecting:", {
+        pathname,
+        flowType,
+        step,
+        id,
+      });
       router.push(buildBookingUrl(tenant, flowType, redirectStep, id));
     }
-  }, [pathname, router, role, department, selectedRooms, bookingCalendarInfo, formData]);
+  }, [
+    pathname,
+    router,
+    role,
+    department,
+    selectedRooms,
+    bookingCalendarInfo,
+    formData,
+    submitting,
+  ]);
 }
