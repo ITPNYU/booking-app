@@ -10,6 +10,8 @@ const DATABASES = {
   production: "booking-app-prod",
 };
 const BACKUP_TYPE_COPY = "copy";
+const TENANT_SCHEMA_COLLECTION = "tenantSchema";
+const TENANT_SCHEMA_BACKUP_COLLECTION = "tenantSchemaBackup";
 
 const isPlainObject = (value) =>
   value !== null && typeof value === "object" && !Array.isArray(value);
@@ -248,26 +250,30 @@ const backupTenantSchemaAsDocuments = async (
   dryRun = false
 ) => {
   try {
-    const targetSnapshot = await targetDb.collection("tenantSchema").get();
+    const targetSnapshot = await targetDb
+      .collection(TENANT_SCHEMA_COLLECTION)
+      .get();
 
     if (targetSnapshot.empty) {
-      console.log("ℹ️ No existing tenantSchema documents to back up");
+      console.log(`ℹ️ No existing ${TENANT_SCHEMA_COLLECTION} documents to back up`);
       return { success: true, copied: 0, errors: [] };
     }
 
     if (dryRun) {
       console.log(
-        `\n🔍 [DRY RUN] Would back up ${targetSnapshot.size} tenantSchema documents in ${databaseName} as backup documents`
+        `\n🔍 [DRY RUN] Would back up ${targetSnapshot.size} ${TENANT_SCHEMA_COLLECTION} documents in ${databaseName} to ${TENANT_SCHEMA_BACKUP_COLLECTION}`
       );
       targetSnapshot.docs.forEach((doc) => {
         const backupDocId = createBackupDocId(doc.id, BACKUP_TYPE_COPY);
-        console.log(`  📄 Would create backup document: ${backupDocId}`);
+        console.log(
+          `  📄 Would create backup document: ${TENANT_SCHEMA_BACKUP_COLLECTION}/${backupDocId}`
+        );
       });
       return { success: true, copied: targetSnapshot.size, errors: [] };
     }
 
     console.log(
-      `\n📦 Backing up ${targetSnapshot.size} tenantSchema documents in ${databaseName} as backup documents...`
+      `\n📦 Backing up ${targetSnapshot.size} ${TENANT_SCHEMA_COLLECTION} documents in ${databaseName} to ${TENANT_SCHEMA_BACKUP_COLLECTION}...`
     );
     let copiedCount = 0;
     let currentBatch = targetDb.batch();
@@ -276,7 +282,9 @@ const backupTenantSchemaAsDocuments = async (
 
     for (const doc of targetSnapshot.docs) {
       const backupDocId = createBackupDocId(doc.id, BACKUP_TYPE_COPY);
-      const backupDocRef = targetDb.collection("tenantSchema").doc(backupDocId);
+      const backupDocRef = targetDb
+        .collection(TENANT_SCHEMA_BACKUP_COLLECTION)
+        .doc(backupDocId);
       currentBatch.set(backupDocRef, doc.data(), { merge: false });
       operationsInBatch++;
       copiedCount++;
@@ -293,12 +301,12 @@ const backupTenantSchemaAsDocuments = async (
     }
 
     console.log(
-      `✅ Backed up ${copiedCount} tenantSchema documents in ${databaseName}`
+      `✅ Backed up ${copiedCount} ${TENANT_SCHEMA_COLLECTION} documents to ${TENANT_SCHEMA_BACKUP_COLLECTION} in ${databaseName}`
     );
     return { success: true, copied: copiedCount, errors: [] };
   } catch (error) {
     console.error(
-      `❌ Error backing up tenantSchema in ${databaseName}:`,
+      `❌ Error backing up ${TENANT_SCHEMA_COLLECTION} to ${TENANT_SCHEMA_BACKUP_COLLECTION} in ${databaseName}:`,
       error.message
     );
     return { success: false, copied: 0, errors: [error.message] };
@@ -688,4 +696,9 @@ if (require.main === module) {
   main();
 }
 
-module.exports = { copyCollection, DATABASES, createBackupDocId };
+module.exports = {
+  copyCollection,
+  backupTenantSchemaAsDocuments,
+  DATABASES,
+  createBackupDocId,
+};

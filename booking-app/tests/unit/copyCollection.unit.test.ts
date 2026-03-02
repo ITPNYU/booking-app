@@ -84,7 +84,8 @@ class MockFirestoreDb {
 }
 
 const requireModule = createRequire(import.meta.url);
-const { copyCollection, createBackupDocId } = requireModule(
+const { copyCollection, backupTenantSchemaAsDocuments, createBackupDocId } =
+  requireModule(
   "../../scripts/copyCollection.js",
 ) as {
   copyCollection: (
@@ -92,6 +93,11 @@ const { copyCollection, createBackupDocId } = requireModule(
     targetDb: MockFirestoreDb,
     sourceCollection: string,
     targetCollection: string,
+    databaseName: string,
+    dryRun?: boolean,
+  ) => Promise<any>;
+  backupTenantSchemaAsDocuments: (
+    targetDb: MockFirestoreDb,
     databaseName: string,
     dryRun?: boolean,
   ) => Promise<any>;
@@ -188,6 +194,42 @@ describe("scripts/copyCollection", () => {
     expect(copiedDocs.find((doc) => doc.id === "mc")?.data).toEqual({
       version: 1,
     });
+  });
+
+  it("backs up tenantSchema documents into tenantSchemaBackup collection", async () => {
+    const targetDb = new MockFirestoreDb({
+      tenantSchema: [
+        { id: "mc", data: { version: 1 } },
+        { id: "itp", data: { version: 2 } },
+      ],
+    });
+
+    const result = await backupTenantSchemaAsDocuments(
+      targetDb,
+      "booking-app-staging",
+      false,
+    );
+
+    expect(result).toMatchObject({
+      success: true,
+      copied: 2,
+      errors: [],
+    });
+
+    const tenantDocs = targetDb.readCollection("tenantSchema");
+    expect(tenantDocs).toHaveLength(2);
+    expect(
+      tenantDocs.some((doc) => doc.id.includes("-backup-copy-")),
+    ).toBe(false);
+
+    const backupDocs = targetDb.readCollection("tenantSchemaBackup");
+    expect(backupDocs).toHaveLength(2);
+    expect(
+      backupDocs.find((doc) => doc.id.startsWith("mc-backup-copy-"))?.data,
+    ).toEqual({ version: 1 });
+    expect(
+      backupDocs.find((doc) => doc.id.startsWith("itp-backup-copy-"))?.data,
+    ).toEqual({ version: 2 });
   });
 
   it("generates backup document ids with tenant and type", () => {
