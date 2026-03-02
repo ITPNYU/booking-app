@@ -28,11 +28,11 @@ import * as fs from "fs";
 import * as path from "path";
 import { mergeSchemaDefaults } from "./schemaDefaults";
 import type { SchemaContextType } from "../components/src/client/routes/components/SchemaProvider";
+const { backupTenantSchemaDocument } = require("./tenantSchemaBackup");
 
 // Hardcoded tenant names
 const TENANTS = ["mc", "itp"] as const;
 const TENANT_SCHEMA_COLLECTION = "tenantSchema";
-const TENANT_SCHEMA_BACKUP_COLLECTION = "tenantSchemaBackup";
 const BACKUP_TYPE_SYNC_DEFAULTS = "sync-defaults";
 
 // Database names for different environments
@@ -156,21 +156,15 @@ async function backupTenantSchema(
   tenant: string,
   existingSchema: Partial<SchemaContextType>
 ): Promise<void> {
-  const timestamp = new Date()
-    .toISOString()
-    .replace(/[:.]/g, "-")
-    .replace("T", "_")
-    .replace("Z", "");
-  const backupDocId = `${tenant}-backup-${BACKUP_TYPE_SYNC_DEFAULTS}-${timestamp}`;
-
   try {
-    // Keep backups isolated from live schemas to avoid query/update side effects.
-    const backupDocRef = db
-      .collection(TENANT_SCHEMA_BACKUP_COLLECTION)
-      .doc(backupDocId);
-    await backupDocRef.set(existingSchema, { merge: false });
+    const { backupDocId, backupCollection } = await backupTenantSchemaDocument(
+      db,
+      tenant,
+      existingSchema,
+      BACKUP_TYPE_SYNC_DEFAULTS
+    );
     console.log(
-      `  📦 Backed up existing schema for tenant ${tenant} to ${TENANT_SCHEMA_BACKUP_COLLECTION}/${backupDocId}`
+      `  📦 Backed up existing schema for tenant ${tenant} to ${backupCollection}/${backupDocId}`
     );
   } catch (error) {
     console.error(`  ❌ Failed to back up schema for tenant ${tenant}:`, error);
