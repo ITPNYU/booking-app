@@ -54,7 +54,7 @@ describe("scripts/syncTenantSchemas", () => {
     vi.clearAllMocks();
   });
 
-  it("backs up existing schema as backup document before applying updates", async () => {
+  it("backs up existing schema in tenantSchemaBackup before applying updates", async () => {
     const db = new MockFirestoreDb({
       tenantSchema: [
         {
@@ -82,14 +82,18 @@ describe("scripts/syncTenantSchemas", () => {
     expect(result.success).toBe(true);
     expect(result.changes.added).toContain("settings.newValue");
 
-    const docs = db.readCollection("tenantSchema");
-    const currentDoc = docs.find((doc) => doc.id === "mc");
+    const tenantDocs = db.readCollection("tenantSchema");
+    const currentDoc = tenantDocs.find((doc) => doc.id === "mc");
     expect(currentDoc?.data).toEqual({
       tenant: "mc",
       settings: { oldValue: true, newValue: "added" },
     });
+    expect(
+      tenantDocs.some((doc) => doc.id.includes("-backup-sync-defaults-")),
+    ).toBe(false);
 
-    const backupDoc = docs.find((doc) =>
+    const backupDocs = db.readCollection("tenantSchemaBackup");
+    const backupDoc = backupDocs.find((doc) =>
       /^mc-backup-sync-defaults-\d{4}-\d{2}-\d{2}_.+$/.test(doc.id),
     );
     expect(backupDoc).toBeDefined();
@@ -128,17 +132,18 @@ describe("scripts/syncTenantSchemas", () => {
     expect(result.success).toBe(true);
     expect(result.changes).toEqual({ added: [], modified: [], removed: [] });
 
-    const docs = db.readCollection("tenantSchema");
-    expect(docs).toHaveLength(1);
-    expect(docs[0]).toEqual({
+    const tenantDocs = db.readCollection("tenantSchema");
+    expect(tenantDocs).toHaveLength(1);
+    expect(tenantDocs[0]).toEqual({
       id: "itp",
       data: {
         tenant: "itp",
         settings: { version: 1 },
       },
     });
-    expect(docs.some((doc) => doc.id.includes("-backup-sync-defaults-"))).toBe(
-      false,
-    );
+    expect(
+      tenantDocs.some((doc) => doc.id.includes("-backup-sync-defaults-")),
+    ).toBe(false);
+    expect(db.readCollection("tenantSchemaBackup")).toHaveLength(0);
   });
 });
