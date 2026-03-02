@@ -2,13 +2,12 @@ import { google } from "googleapis";
 
 let cachedOAuth2Client = null;
 
-const createOAuth2Client = () => {
-  return new google.auth.OAuth2(
+const createOAuth2Client = () =>
+  new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID,
     process.env.GOOGLE_CLIENT_SECRET,
-    process.env.GOOGLE_REDIRECT_URI
+    process.env.GOOGLE_REDIRECT_URI,
   );
-};
 
 const refreshAccessTokenIfNeeded = async (oauth2Client) => {
   const currentTime = Date.now();

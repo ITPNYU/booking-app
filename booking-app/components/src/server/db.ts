@@ -1,3 +1,13 @@
+import {
+  clientFetchAllDataFromCollection,
+  clientGetDataByCalendarEventId,
+  clientSaveDataToFirestore,
+  clientUpdateDataInFirestore,
+  getPaginatedData,
+} from "@/lib/firebase/firebase";
+import { Timestamp, where } from "firebase/firestore";
+import { shouldUseXState } from "@/components/src/utils/tenantUtils";
+import { clientUpdateDataByCalendarEventId } from "@/lib/firebase/client/clientDb";
 import type { SchemaContextType } from "../client/routes/components/SchemaProvider";
 import { DEFAULT_TENANT } from "../constants/tenants";
 import {
@@ -12,14 +22,6 @@ import {
 } from "../types";
 
 import {
-  clientFetchAllDataFromCollection,
-  clientGetDataByCalendarEventId,
-  clientSaveDataToFirestore,
-  clientUpdateDataInFirestore,
-  getPaginatedData,
-} from "@/lib/firebase/firebase";
-import { Timestamp, where } from "firebase/firestore";
-import {
   ApproverLevel,
   TableNames,
   clientGetFinalApproverEmail,
@@ -27,8 +29,6 @@ import {
   getCancelCcEmail,
 } from "../policy";
 
-import { shouldUseXState } from "@/components/src/utils/tenantUtils";
-import { clientUpdateDataByCalendarEventId } from "@/lib/firebase/client/clientDb";
 import { getBookingToolDeployUrl } from "./ui";
 
 // Helper function to call XState transition API
@@ -37,7 +37,7 @@ export async function callXStateTransitionAPI(
   eventType: string,
   email: string,
   tenant?: string,
-  reason?: string
+  reason?: string,
 ): Promise<{ success: boolean; newState?: string; error?: string }> {
   try {
     const response = await fetch(
@@ -54,7 +54,7 @@ export async function callXStateTransitionAPI(
           email,
           reason,
         }),
-      }
+      },
     );
 
     if (!response.ok) {
@@ -79,14 +79,14 @@ export async function callXStateTransitionAPI(
 }
 
 export const fetchAllFutureBooking = async <Booking>(
-  tenant?: string
+  tenant?: string,
 ): Promise<Booking[]> => {
   const now = Timestamp.now();
   const futureQueryConstraints = [where("endDate", ">", now)];
   return clientFetchAllDataFromCollection<Booking>(
     TableNames.BOOKING,
     futureQueryConstraints,
-    tenant
+    tenant,
   );
 };
 
@@ -95,7 +95,7 @@ export const fetchAllBookings = async <Booking>(
   limit: number,
   filters: Filters,
   last: any,
-  tenant?: string
+  tenant?: string,
 ): Promise<Booking[]> => {
   if (
     pagePermission === PagePermission.ADMIN ||
@@ -107,55 +107,53 @@ export const fetchAllBookings = async <Booking>(
       limit,
       filters,
       last,
-      tenant
-    );
-  } else {
-    return getPaginatedData<Booking>(
-      TableNames.BOOKING,
-      limit,
-      filters,
-      last,
-      tenant
+      tenant,
     );
   }
+  return getPaginatedData<Booking>(
+    TableNames.BOOKING,
+    limit,
+    filters,
+    last,
+    tenant,
+  );
 };
 
-export const getOldSafetyTrainingEmails = () => {
-  //TODO: implement this
-  return [];
-  //const activeSpreadSheet = SpreadsheetApp.openById(
-  //  OLD_SAFETY_TRAINING_SHEET_ID
-  //);
-  //const activeSheet = activeSpreadSheet.getSheetByName(
-  //  OLD_SAFETY_TRAINING_SHEET_NAME
-  //);
-  //var lastRow = activeSheet.getLastRow();
+export const getOldSafetyTrainingEmails = () =>
+  // TODO: implement this
+  [];
+// const activeSpreadSheet = SpreadsheetApp.openById(
+//  OLD_SAFETY_TRAINING_SHEET_ID
+// );
+// const activeSheet = activeSpreadSheet.getSheetByName(
+//  OLD_SAFETY_TRAINING_SHEET_NAME
+// );
+// var lastRow = activeSheet.getLastRow();
 
-  //// get all row3(email) data
-  //var range = activeSheet.getRange(1, 5, lastRow);
-  //var values = range.getValues();
+// // get all row3(email) data
+// var range = activeSheet.getRange(1, 5, lastRow);
+// var values = range.getValues();
 
-  //const secondSpreadSheet = SpreadsheetApp.openById(
-  //  SECOND_OLD_SAFETY_TRAINING_SHEET_ID
-  //);
-  //const secondSheet = secondSpreadSheet
-  //  .getSheets()
-  //  .find(
-  //    (sheet) => sheet.getSheetId() === SECOND_OLD_SAFETY_TRAINING_SHEET_GID
-  //  );
-  //const secondLastRow = secondSheet.getLastRow();
-  //const secondRange = secondSheet.getRange(1, 2, secondLastRow);
-  //const secondValues = secondRange.getValues();
+// const secondSpreadSheet = SpreadsheetApp.openById(
+//  SECOND_OLD_SAFETY_TRAINING_SHEET_ID
+// );
+// const secondSheet = secondSpreadSheet
+//  .getSheets()
+//  .find(
+//    (sheet) => sheet.getSheetId() === SECOND_OLD_SAFETY_TRAINING_SHEET_GID
+//  );
+// const secondLastRow = secondSheet.getLastRow();
+// const secondRange = secondSheet.getRange(1, 2, secondLastRow);
+// const secondValues = secondRange.getValues();
 
-  //const combinedValues = [...values, ...secondValues];
-  //return combinedValues;
-};
+// const combinedValues = [...values, ...secondValues];
+// return combinedValues;
 
 export const decline = async (
   id: string,
   email: string,
   reason?: string,
-  tenant?: string
+  tenant?: string,
 ) => {
   console.log(`🎯 DECLINE REQUEST [${tenant?.toUpperCase() || "UNKNOWN"}]:`, {
     calendarEventId: id,
@@ -176,7 +174,7 @@ export const decline = async (
       "decline",
       email,
       tenant,
-      reason
+      reason,
     );
 
     if (!xstateResult.success) {
@@ -185,7 +183,7 @@ export const decline = async (
         {
           calendarEventId: id,
           error: xstateResult.error,
-        }
+        },
       );
 
       // Fallback to traditional decline if XState API fails
@@ -193,7 +191,7 @@ export const decline = async (
         `🔄 FALLING BACK TO TRADITIONAL DECLINE [${tenant?.toUpperCase()}]:`,
         {
           calendarEventId: id,
-        }
+        },
       );
     } else {
       console.log(`✅ XSTATE DECLINE API SUCCESS [${tenant?.toUpperCase()}]:`, {
@@ -225,7 +223,7 @@ export const decline = async (
             bookingId: doc.id,
             requestNumber: doc.requestNumber,
             reason,
-          }
+          },
         );
       }
 
@@ -235,7 +233,7 @@ export const decline = async (
   } else {
     console.log(
       `📝 USING TRADITIONAL DECLINE [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-      { calendarEventId: id }
+      { calendarEventId: id },
     );
   }
 
@@ -247,7 +245,7 @@ export const decline = async (
       declinedBy: email,
       declineReason: reason || null,
     },
-    tenant
+    tenant,
   );
 
   const doc = await clientGetDataByCalendarEventId<{
@@ -267,7 +265,7 @@ export const decline = async (
       tenant,
     });
   }
-  //@ts-ignore
+  // @ts-ignore
   const guestEmail = doc ? doc.email : null;
   const { getTenantEmailConfig } = await import("./emails");
   const emailConfig = await getTenantEmailConfig(tenant);
@@ -275,14 +273,13 @@ export const decline = async (
 
   // Fetch tenant schema to get declinedGracePeriod (default: 24 hours)
   // Dynamic import to avoid pulling firebase-admin into client bundle
-  const { serverGetDocumentById } = await import(
-    "@/lib/firebase/server/adminDb"
-  );
+  const { serverGetDocumentById } =
+    await import("@/lib/firebase/server/adminDb");
   const schema = tenant
     ? await serverGetDocumentById<SchemaContextType>(
-      TableNames.TENANT_SCHEMA,
-      tenant
-    )
+        TableNames.TENANT_SCHEMA,
+        tenant,
+      )
     : null;
   const gracePeriodHours = schema?.declinedGracePeriod ?? 24;
 
@@ -296,7 +293,7 @@ export const decline = async (
     guestEmail,
     headerMessage,
     BookingStatusLabel.DECLINED,
-    tenant
+    tenant,
   );
   const response = await fetch(
     `${process.env.NEXT_PUBLIC_BASE_URL}/api/calendarEvents`,
@@ -310,7 +307,7 @@ export const decline = async (
         calendarEventId: id,
         newValues: { statusPrefix: BookingStatusLabel.DECLINED },
       }),
-    }
+    },
   );
 };
 
@@ -324,7 +321,7 @@ function isLateCancel(doc: any): boolean {
   if (!isPolicyViolation(doc)) return false;
   const now = Timestamp.now();
   const eventDate = doc.startDate;
-  const requestedAt = doc.requestedAt;
+  const { requestedAt } = doc;
   const timeToEvent = eventDate.toDate().getTime() - now.toDate().getTime();
   const hoursToEvent = timeToEvent / (1000 * 60 * 60);
   const timeSinceCreation =
@@ -337,13 +334,12 @@ async function checkAndLogLateCancellation(
   doc: any,
   bookingId: string,
   netId: string,
-  tenant?: string
+  tenant?: string,
 ) {
   if (!isLateCancel(doc)) return;
 
-  const { serverSaveDataToFirestore } = await import(
-    "@/lib/firebase/server/adminDb"
-  );
+  const { serverSaveDataToFirestore } =
+    await import("@/lib/firebase/server/adminDb");
   const admin = await import("firebase-admin");
   const now = admin.firestore.Timestamp.now();
   const log = { netId, bookingId, lateCancelDate: now };
@@ -352,18 +348,17 @@ async function checkAndLogLateCancellation(
 
 async function getViolationCount(
   netId: string,
-  tenant?: string
+  tenant?: string,
 ): Promise<number> {
-  const { serverFetchAllDataFromCollection } = await import(
-    "@/lib/firebase/server/adminDb"
-  );
+  const { serverFetchAllDataFromCollection } =
+    await import("@/lib/firebase/server/adminDb");
 
   // For server-side, we'll query directly without where clause for now
   // This is a simplified approach - in production you'd want proper filtering
   const preBanLogs = await serverFetchAllDataFromCollection(
     TableNames.PRE_BAN_LOGS,
     undefined,
-    tenant
+    tenant,
   );
 
   // Filter on the client side for now
@@ -378,29 +373,27 @@ async function getViolationCount(
 export const processCloseBooking = async (
   id: string,
   email: string,
-  tenant?: string
+  tenant?: string,
 ): Promise<void> => {
   // Import server-side functions and admin SDK
   const { serverGetDataByCalendarEventId, serverUpdateInFirestore } =
     await import("@/lib/firebase/server/adminDb");
-  const { serverSendBookingDetailEmail } = await import(
-    "@/components/src/server/admin"
-  );
-  const { logServerBookingChange } = await import(
-    "@/lib/firebase/server/adminDb"
-  );
+  const { serverSendBookingDetailEmail } =
+    await import("@/components/src/server/admin");
+  const { logServerBookingChange } =
+    await import("@/lib/firebase/server/adminDb");
   const admin = await import("firebase-admin");
 
   // Get booking document first to get the document ID
   const doc = await serverGetDataByCalendarEventId<Booking>(
     TableNames.BOOKING,
     id,
-    tenant
+    tenant,
   );
 
   if (!doc) {
     console.error(
-      `🚨 CLOSE PROCESSING: Booking not found for calendarEventId: ${id}`
+      `🚨 CLOSE PROCESSING: Booking not found for calendarEventId: ${id}`,
     );
     return;
   }
@@ -420,7 +413,7 @@ export const processCloseBooking = async (
         calendarEventId: id,
         currentXStateValue: doc.xstateData.snapshot.value,
         updatingTo: "Closed",
-      }
+      },
     );
 
     updateData.xstateData = {
@@ -479,12 +472,12 @@ export const processCloseBooking = async (
         calendarEventId: id,
         newValues: { statusPrefix: BookingStatusLabel.CLOSED },
       }),
-    }
+    },
   );
 
   if (!response.ok) {
     console.error(
-      `🚨 CLOSE CALENDAR UPDATE FAILED: ${response.status} ${response.statusText}`
+      `🚨 CLOSE CALENDAR UPDATE FAILED: ${response.status} ${response.statusText}`,
     );
   }
 };
@@ -497,7 +490,7 @@ export const processCancelBooking = async (
   id: string,
   email: string,
   netId: string,
-  tenant?: string
+  tenant?: string,
 ): Promise<void> => {
   // Import server-side functions and admin SDK
   const {
@@ -511,12 +504,12 @@ export const processCancelBooking = async (
   const doc = await serverGetDataByCalendarEventId<Booking>(
     TableNames.BOOKING,
     id,
-    tenant
+    tenant,
   );
 
   if (!doc) {
     console.error(
-      `🚨 CANCEL PROCESSING: Booking not found for calendarEventId: ${id}`
+      `🚨 CANCEL PROCESSING: Booking not found for calendarEventId: ${id}`,
     );
     return;
   }
@@ -526,7 +519,7 @@ export const processCancelBooking = async (
   const bookingLogs = await serverFetchAllDataFromCollection(
     TableNames.BOOKING_LOGS,
     [{ field: "calendarEventId", operator: "==", value: id }],
-    tenant
+    tenant,
   );
 
   // Sort logs by changedAt descending to find the immediately preceding status.
@@ -541,7 +534,7 @@ export const processCancelBooking = async (
     return timeB - timeA; // most recent first
   });
   const previousLog = sortedLogs.find(
-    (log: any) => log.status !== BookingStatusLabel.CANCELED
+    (log: any) => log.status !== BookingStatusLabel.CANCELED,
   );
   const previousStatus = previousLog?.status;
 
@@ -566,7 +559,7 @@ export const processCancelBooking = async (
       isAutomaticTransition,
       changedBy,
       note,
-    }
+    },
   );
 
   // Update Firestore booking document using server-side Timestamp
@@ -577,7 +570,7 @@ export const processCancelBooking = async (
       canceledAt: admin.firestore.Timestamp.now(),
       canceledBy: changedBy,
     },
-    tenant
+    tenant,
   );
 
   // Pre-ban logging: exclude automatic Decline→Cancel and NoShow→Cancel (requester should not be penalized)
@@ -587,9 +580,8 @@ export const processCancelBooking = async (
 
   // Log the cancel action
   if (doc) {
-    const { serverSaveDataToFirestore } = await import(
-      "@/lib/firebase/server/adminDb"
-    );
+    const { serverSaveDataToFirestore } =
+      await import("@/lib/firebase/server/adminDb");
 
     await serverSaveDataToFirestore(
       TableNames.BOOKING_LOGS,
@@ -601,7 +593,7 @@ export const processCancelBooking = async (
         note,
         requestNumber: doc.requestNumber,
       },
-      tenant
+      tenant,
     );
 
     console.log(
@@ -613,16 +605,16 @@ export const processCancelBooking = async (
         hasDeclinedLog,
         isAutomaticTransition,
         note,
-      }
+      },
     );
   }
 
-  //@ts-ignore
+  // @ts-ignore
   const guestEmail = doc ? doc.email : null;
 
   let headerMessage =
     "The request has been canceled.<br /><br />Thank you!<br />";
-  let ccHeaderMessage = headerMessage;
+  const ccHeaderMessage = headerMessage;
 
   // Late-cancel penalty email only for user-initiated cancels; exclude auto Decline→Cancel and NoShow→Cancel
   if (!isAutomaticTransition && isLateCancel(doc)) {
@@ -631,15 +623,14 @@ export const processCancelBooking = async (
     const emailConfig = await getTenantEmailConfig(tenant);
     headerMessage = emailConfig.emailMessages.lateCancel.replace(
       "${violationCount}",
-      violationCount.toString()
+      violationCount.toString(),
     );
     // ccHeaderMessage remains the original cancel message
   }
 
   // Send emails using server-side function
-  const { serverSendBookingDetailEmail } = await import(
-    "@/components/src/server/admin"
-  );
+  const { serverSendBookingDetailEmail } =
+    await import("@/components/src/server/admin");
 
   if (guestEmail) {
     await serverSendBookingDetailEmail({
@@ -672,7 +663,7 @@ export const processCancelBooking = async (
         calendarEventId: id,
         newValues: { statusPrefix: BookingStatusLabel.CANCELED },
       }),
-    }
+    },
   );
 
   if (!response.ok) {
@@ -682,7 +673,7 @@ export const processCancelBooking = async (
         calendarEventId: id,
         status: response.status,
         statusText: response.statusText,
-      }
+      },
     );
   } else {
     console.log(
@@ -690,7 +681,7 @@ export const processCancelBooking = async (
       {
         calendarEventId: id,
         statusPrefix: BookingStatusLabel.CANCELED,
-      }
+      },
     );
   }
 };
@@ -698,7 +689,7 @@ export const cancel = async (
   id: string,
   email: string,
   netId: string,
-  tenant?: string
+  tenant?: string,
 ) => {
   console.log(`🎯 CANCEL REQUEST [${tenant?.toUpperCase() || "UNKNOWN"}]:`, {
     calendarEventId: id,
@@ -717,7 +708,7 @@ export const cancel = async (
     id,
     "cancel",
     email,
-    tenant
+    tenant,
   );
 
   if (!xstateResult.success) {
@@ -731,7 +722,7 @@ export const cancel = async (
       `🔄 FALLING BACK TO TRADITIONAL CANCEL [${tenant?.toUpperCase()}]:`,
       {
         calendarEventId: id,
-      }
+      },
     );
 
     // Use the shared cancel processing function for fallback
@@ -748,23 +739,22 @@ export const cancel = async (
       {
         calendarEventId: id,
         note: "Cancel processing handled by XState machine actions",
-      }
+      },
     );
 
     // Skip the traditional processing below
-    return;
   }
 };
 
 export const updateFinalApprover = async (updatedData: object) => {
   type ApproverDoc = Approver & { id: string };
   const approverDocs = await clientFetchAllDataFromCollection<ApproverDoc>(
-    TableNames.APPROVERS
+    TableNames.APPROVERS,
   );
 
   if (approverDocs.length > 0) {
     const finalApproverDoc = approverDocs.filter(
-      (doc) => doc.level === ApproverLevel.FINAL
+      (doc) => doc.level === ApproverLevel.FINAL,
     )[0]; // assuming only 1 final approver
     const docId = finalApproverDoc.id;
     await clientUpdateDataInFirestore(TableNames.APPROVERS, docId, updatedData);
@@ -778,7 +768,7 @@ export const updateOperationHours = async (
   open: number,
   close: number,
   isClosed: boolean,
-  roomId?: number
+  roomId?: number,
 ) => {
   const docs = await clientFetchAllDataFromCollection<
     OperationHours & { id: string }
@@ -826,7 +816,7 @@ export const checkin = async (id: string, email: string, tenant?: string) => {
     id,
     "checkIn",
     email,
-    tenant
+    tenant,
   );
 
   if (!xstateResult.success) {
@@ -866,12 +856,12 @@ export const checkin = async (id: string, email: string, tenant?: string) => {
         calendarEventId: id,
         bookingId: doc.id,
         requestNumber: doc.requestNumber,
-      }
+      },
     );
   }
 
   // Send check-in email after history logging
-  //@ts-ignore
+  // @ts-ignore
   const guestEmail = doc ? doc.email : null;
 
   try {
@@ -883,7 +873,7 @@ export const checkin = async (id: string, email: string, tenant?: string) => {
       guestEmail,
       headerMessage,
       BookingStatusLabel.CHECKED_IN,
-      tenant
+      tenant,
     );
 
     console.log(`📧 XSTATE CHECKIN EMAIL SENT [${tenant?.toUpperCase()}]:`, {
@@ -896,7 +886,7 @@ export const checkin = async (id: string, email: string, tenant?: string) => {
       {
         calendarEventId: id,
         error: emailError,
-      }
+      },
     );
     // Don't throw - email failure shouldn't fail the entire check-in
   }
@@ -917,7 +907,7 @@ export const checkOut = async (id: string, email: string, tenant?: string) => {
     id,
     "checkOut",
     email,
-    tenant
+    tenant,
   );
 
   if (!xstateResult.success) {
@@ -940,7 +930,7 @@ export const noShow = async (
   id: string,
   email: string,
   netId: string,
-  tenant?: string
+  tenant?: string,
 ) => {
   console.log(`🎯 NO SHOW REQUEST [${tenant?.toUpperCase() || "UNKNOWN"}]:`, {
     calendarEventId: id,
@@ -960,7 +950,7 @@ export const noShow = async (
       id,
       "noShow",
       email,
-      tenant
+      tenant,
     );
 
     if (!xstateResult.success) {
@@ -969,7 +959,7 @@ export const noShow = async (
         {
           calendarEventId: id,
           error: xstateResult.error,
-        }
+        },
       );
 
       // Fallback to traditional no show if XState API fails
@@ -977,7 +967,7 @@ export const noShow = async (
         `🔄 FALLING BACK TO TRADITIONAL NO SHOW [${tenant?.toUpperCase()}]:`,
         {
           calendarEventId: id,
-        }
+        },
       );
     } else {
       console.log(`✅ XSTATE NO SHOW API SUCCESS [${tenant?.toUpperCase()}]:`, {
@@ -992,7 +982,7 @@ export const noShow = async (
           {
             calendarEventId: id,
             newState: xstateResult.newState,
-          }
+          },
         );
 
         // Execute traditional no show processing (database updates, emails, etc.)
@@ -1004,7 +994,7 @@ export const noShow = async (
             calendarEventId: id,
             newState: xstateResult.newState,
             expectedState: "No Show",
-          }
+          },
         );
       }
 
@@ -1013,7 +1003,7 @@ export const noShow = async (
   } else {
     console.log(
       `📝 USING TRADITIONAL NO SHOW [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-      { calendarEventId: id }
+      { calendarEventId: id },
     );
   }
 
@@ -1026,7 +1016,7 @@ export const executeTraditionalNoShow = async (
   id: string,
   email: string,
   netId: string,
-  tenant?: string
+  tenant?: string,
 ) => {
   clientUpdateDataByCalendarEventId(
     TableNames.BOOKING,
@@ -1035,13 +1025,13 @@ export const executeTraditionalNoShow = async (
       noShowedAt: Timestamp.now(),
       noShowedBy: email,
     },
-    tenant
+    tenant,
   );
 
   const doc = await clientGetDataByCalendarEventId<Booking>(
     TableNames.BOOKING,
     id,
-    tenant
+    tenant,
   );
 
   // Add to pre-ban logs only if policy violation
@@ -1062,7 +1052,7 @@ export const executeTraditionalNoShow = async (
     });
   }
 
-  //@ts-ignore
+  // @ts-ignore
   const guestEmail = doc ? doc.email : null;
 
   const violationCount = await getViolationCount(netId);
@@ -1070,27 +1060,27 @@ export const executeTraditionalNoShow = async (
   const emailConfig = await getTenantEmailConfig(tenant);
   const headerMessage = emailConfig.emailMessages.noShow.replace(
     "${violationCount}",
-    violationCount.toString()
+    violationCount.toString(),
   );
   clientSendBookingDetailEmail(
     id,
     guestEmail,
     headerMessage,
     BookingStatusLabel.NO_SHOW,
-    tenant
+    tenant,
   );
   clientSendBookingDetailEmail(
     id,
     getApprovalCcEmail(process.env.NEXT_PUBLIC_BRANCH_NAME),
     headerMessage,
     BookingStatusLabel.NO_SHOW,
-    tenant
+    tenant,
   );
   clientSendConfirmationEmail(
     id,
     BookingStatusLabel.NO_SHOW,
-    `This is a no show email.`,
-    tenant
+    "This is a no show email.",
+    tenant,
   );
   const response = await fetch(
     `${process.env.NEXT_PUBLIC_BASE_URL}/api/calendarEvents`,
@@ -1104,7 +1094,7 @@ export const executeTraditionalNoShow = async (
         calendarEventId: id,
         newValues: { statusPrefix: BookingStatusLabel.NO_SHOW },
       }),
-    }
+    },
   );
 };
 
@@ -1200,7 +1190,7 @@ const getBookingHistory = async (booking: Booking) => {
     } else if (booking.walkedInAt.seconds) {
       // Plain object with seconds/nanoseconds
       walkedInDate = new Date(
-        booking.walkedInAt.seconds * 1000
+        booking.walkedInAt.seconds * 1000,
       ).toLocaleString();
     } else {
       // Fallback
@@ -1217,7 +1207,7 @@ const getBookingHistory = async (booking: Booking) => {
 
   // Sort by date
   return history.sort(
-    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
   );
 };
 
@@ -1225,7 +1215,7 @@ export const clientBookingContents = async (id: string, tenant?: string) => {
   const bookingObj = await clientGetDataByCalendarEventId<Booking>(
     TableNames.BOOKING,
     id,
-    tenant
+    tenant,
   );
   if (!bookingObj) {
     throw new Error("Booking not found");
@@ -1236,10 +1226,11 @@ export const clientBookingContents = async (id: string, tenant?: string) => {
   const startDateObj = new Date(bookingObj.startDate.toDate());
   const endDateObj = new Date(bookingObj.endDate.toDate());
 
-  const updatedBookingObj = Object.assign({}, bookingObj, {
+  const updatedBookingObj = {
+    ...bookingObj,
     headerMessage: "This is a request email for final approval.",
     bookingToolUrl: getBookingToolDeployUrl(),
-    history: history,
+    history,
     // Add formatted time fields for email template
     startTime: startDateObj.toLocaleTimeString([], {
       hour: "2-digit",
@@ -1251,7 +1242,7 @@ export const clientBookingContents = async (id: string, tenant?: string) => {
       minute: "2-digit",
       hour12: true,
     }),
-  });
+  };
 
   return updatedBookingObj as unknown as BookingFormDetails;
 };
@@ -1261,15 +1252,15 @@ export const clientSendBookingDetailEmail = async (
   email: string,
   headerMessage: string,
   status: BookingStatusLabel,
-  tenant?: string
+  tenant?: string,
 ) => {
   const contents = await clientBookingContents(calendarEventId, tenant);
   contents.headerMessage = headerMessage;
   const formData = {
     templateName: "booking_detail",
-    contents: contents,
+    contents,
     targetEmail: email,
-    status: status,
+    status,
     eventTitle: contents.title,
     requestNumber: contents.requestNumber ?? "--",
     bodyMessage: "",
@@ -1287,7 +1278,7 @@ export const clientSendConfirmationEmail = async (
   calendarEventId: string,
   status: BookingStatusLabel,
   headerMessage: string,
-  tenant?: string
+  tenant?: string,
 ) => {
   const email = await clientGetFinalApproverEmail();
   clientSendBookingDetailEmail(
@@ -1295,14 +1286,14 @@ export const clientSendConfirmationEmail = async (
     email,
     headerMessage,
     status,
-    tenant
+    tenant,
   );
 };
 
 export const clientApproveBooking = async (
   id: string,
   email: string,
-  tenant?: string
+  tenant?: string,
 ) => {
   const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/approve`, {
     method: "POST",
@@ -1310,12 +1301,12 @@ export const clientApproveBooking = async (
       "Content-Type": "application/json",
       "x-tenant": tenant || DEFAULT_TENANT,
     },
-    body: JSON.stringify({ id: id, email: email }),
+    body: JSON.stringify({ id, email }),
   });
 };
 
 export const clientEquipmentApprove = async (id: string, email: string) => {
-  //const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/equipment`, {
+  // const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/equipment`, {
   //  method: "POST",
   //  headers: {
   //    "Content-Type": "application/json",
@@ -1325,10 +1316,10 @@ export const clientEquipmentApprove = async (id: string, email: string) => {
   //    email: email,
   //    action: "EQUIPMENT_APPROVE",
   //  }),
-  //});
-  //if (!res.ok) {
+  // });
+  // if (!res.ok) {
   //  throw new Error("Failed to approve equipment");
-  //}
+  // }
 };
 
 export const clientSendToEquipment = async (id: string, email: string) => {
@@ -1338,8 +1329,8 @@ export const clientSendToEquipment = async (id: string, email: string) => {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      id: id,
-      email: email,
+      id,
+      email,
       action: "SEND_TO_EQUIPMENT",
     }),
   });
@@ -1350,11 +1341,11 @@ export const clientSendToEquipment = async (id: string, email: string) => {
 };
 
 export const clientGetBookingLogs = async (
-  requestNumber: number
+  requestNumber: number,
 ): Promise<{ status: BookingStatusLabel; changedAt: any }[]> => {
   try {
     const response = await fetch(
-      `${process.env.NEXT_PUBLIC_BASE_URL}/api/booking-logs?requestNumber=${requestNumber}`
+      `${process.env.NEXT_PUBLIC_BASE_URL}/api/booking-logs?requestNumber=${requestNumber}`,
     );
 
     if (!response.ok) {
@@ -1405,7 +1396,7 @@ const logClientBookingChange = async ({
         requestNumber,
         note: note ?? null,
       }),
-    }
+    },
   );
 
   if (!response.ok) {

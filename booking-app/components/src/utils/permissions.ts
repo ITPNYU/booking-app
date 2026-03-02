@@ -31,7 +31,7 @@ const PERMISSION_HIERARCHY: Record<PagePermission, PagePermission[]> = {
  */
 export function hasPermission(
   userPermission: PagePermission,
-  requiredPermission: PagePermission
+  requiredPermission: PagePermission,
 ): boolean {
   const allowedPermissions = PERMISSION_HIERARCHY[userPermission] || [];
   return allowedPermissions.includes(requiredPermission);
@@ -42,10 +42,10 @@ export function hasPermission(
  */
 export function hasAnyPermission(
   userPermission: PagePermission,
-  requiredPermissions: PagePermission[]
+  requiredPermissions: PagePermission[],
 ): boolean {
   return requiredPermissions.some((permission) =>
-    hasPermission(userPermission, permission)
+    hasPermission(userPermission, permission),
   );
 }
 
@@ -76,7 +76,7 @@ export function canAccessAdmin(userPermission: PagePermission): boolean {
  */
 export function hasMinimumPermission(
   userPermission: PagePermission,
-  minimumPermission: PagePermission
+  minimumPermission: PagePermission,
 ): boolean {
   return hasPermission(userPermission, minimumPermission);
 }

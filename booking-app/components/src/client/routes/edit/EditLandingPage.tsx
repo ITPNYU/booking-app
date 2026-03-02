@@ -54,7 +54,7 @@ export default function EditLandingPage({ calendarEventId }: Props) {
         <Button
           variant="contained"
           color="primary"
-          onClick={() => router.push("/edit/role/" + calendarEventId)}
+          onClick={() => router.push(`/edit/role/${calendarEventId}`)}
           sx={{
             alignSelf: "center",
             marginTop: 6,

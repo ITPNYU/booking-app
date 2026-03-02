@@ -29,9 +29,10 @@ export const SelectRooms = ({
   const selectedIds = selected.map((room) => room.roomId);
 
   // Sort rooms by room number for consistent display order
-  const sortedRooms = useMemo(() => {
-    return [...allRooms].sort((a, b) => a.roomId - b.roomId);
-  }, [allRooms]);
+  const sortedRooms = useMemo(
+    () => [...allRooms].sort((a, b) => a.roomId - b.roomId),
+    [allRooms],
+  );
 
   // Remove this
   const showMocapModal = useMemo(() => {
@@ -44,7 +45,7 @@ export const SelectRooms = ({
 
   // Check if a room is in blackout for the selected booking time
   const isRoomInBlackout = (
-    roomId: number
+    roomId: number,
   ): { inBlackout: boolean; periods: any[] } => {
     if (!bookingCalendarInfo) return { inBlackout: false, periods: [] };
 
@@ -70,7 +71,7 @@ export const SelectRooms = ({
 
     // Check if both selected room and current room can book two
     const selectedRoom = resources.find(
-      (r: any) => r.roomId === selectedIds[0]
+      (r: any) => r.roomId === selectedIds[0],
     );
     const currentRoom = resources.find((r: any) => r.roomId === roomId);
 
@@ -96,7 +97,7 @@ export const SelectRooms = ({
 
     // Check if both selected room and current room can book two
     const selectedRoom = resources.find(
-      (r: any) => r.roomId === selectedIds[0]
+      (r: any) => r.roomId === selectedIds[0],
     );
     const currentRoom = resources.find((r: any) => r.roomId === roomId);
 
@@ -112,13 +113,12 @@ export const SelectRooms = ({
     setSelected((prev: RoomSetting[]) => {
       if (newVal) {
         const newSelection = [...prev, room].sort(
-          (a, b) => a.roomId - b.roomId
+          (a, b) => a.roomId - b.roomId,
         );
         return newSelection;
-      } else {
-        const newSelection = prev.filter((r) => r.roomId !== room.roomId);
-        return newSelection;
       }
+      const newSelection = prev.filter((r) => r.roomId !== room.roomId);
+      return newSelection;
     });
   };
 

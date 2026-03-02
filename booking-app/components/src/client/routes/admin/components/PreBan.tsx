@@ -1,9 +1,4 @@
 import React, { useContext, useEffect, useState } from "react";
-import { DatabaseContext } from "../../components/Provider";
-import { formatDate } from "../../../utils/date";
-import { TableNames } from "../../../../policy";
-import ListTable from "../../components/ListTable";
-import { PreBanLog } from "../../../../types";
 import {
   Dialog,
   DialogTitle,
@@ -18,6 +13,11 @@ import {
 } from "@mui/material";
 import { Info } from "@mui/icons-material";
 import { clientDeleteDataFromFirestore } from "@/lib/firebase/firebase";
+import { DatabaseContext } from "../../components/Provider";
+import { formatDate } from "../../../utils/date";
+import { TableNames } from "../../../../policy";
+import ListTable from "../../components/ListTable";
+import { PreBanLog } from "../../../../types";
 
 interface PreBanDetails {
   date: string;
@@ -55,7 +55,7 @@ export const PreBannedUsers = () => {
           ? formatDate(log.lateCancelDate)
           : formatDate(log.noShowDate),
         status: log.lateCancelDate ? "Late Cancel" : "No Show",
-        id: log.id
+        id: log.id,
       });
       counts[email]++;
     });
@@ -65,10 +65,10 @@ export const PreBannedUsers = () => {
     setRows(
       Object.entries(counts).map(([email, count]) => ({
         id: email,
-        email: email,
+        email,
         count: String(count),
-        details: email
-      }))
+        details: email,
+      })),
     );
   }, [preBanLogs]);
 
@@ -81,19 +81,19 @@ export const PreBannedUsers = () => {
       <IconButton onClick={() => setSelectedEmail(value)}>
         <Info />
       </IconButton>
-    )
+    ),
   };
 
   const handleRemoveAllRecords = async (email: string) => {
     try {
       // Get all record IDs for this email
-      const recordIds = detailsByEmail[email]?.map(detail => detail.id) || [];
-      
+      const recordIds = detailsByEmail[email]?.map((detail) => detail.id) || [];
+
       // Delete all records in parallel
       await Promise.all(
-        recordIds.map(id => 
-          clientDeleteDataFromFirestore(TableNames.PRE_BAN_LOGS, id)
-        )
+        recordIds.map((id) =>
+          clientDeleteDataFromFirestore(TableNames.PRE_BAN_LOGS, id),
+        ),
       );
 
       // Refresh the table

@@ -7,14 +7,14 @@ import { itpBookingMachine } from "@/lib/stateMachines/itpBookingMachine";
 import { mcBookingMachine } from "@/lib/stateMachines/mcBookingMachine";
 import { useContext, useEffect, useState } from "react";
 import { createActor } from "xstate";
+import { checkAutoApprovalEligibility } from "@/lib/utils/autoApprovalUtils";
 import { useTenantSchema } from "../../components/SchemaProvider";
 import { BookingContext } from "../bookingProvider";
 import { getBookingHourLimits } from "../utils/bookingHourLimits";
-import { checkAutoApprovalEligibility } from "@/lib/utils/autoApprovalUtils";
 
 export function selectedAutoApprovalRooms(
   selectedRoomIds: number[],
-  selectedRooms: any[]
+  selectedRooms: any[],
 ) {
   if (selectedRoomIds.length < 2) return true;
   if (selectedRoomIds.length > 2) return false;
@@ -39,7 +39,7 @@ export default function useCheckAutoApproval(isWalkIn = false, isVIP = false) {
   const throwError = (msg: string) => {
     console.log(
       `🚫 AUTO-APPROVAL REJECTED [${schema.tenant?.toUpperCase() || "UNKNOWN"}]:`,
-      msg
+      msg,
     );
     setIsAutoApproval(false);
     setErrorMessage(msg);
@@ -66,7 +66,7 @@ export default function useCheckAutoApproval(isWalkIn = false, isVIP = false) {
               }
             : null,
           isWalkIn,
-        }
+        },
       );
 
       try {
@@ -123,36 +123,36 @@ export default function useCheckAutoApproval(isWalkIn = false, isVIP = false) {
                   .servicesRequested,
                 hasServices: (currentState.context as any).servicesRequested
                   ? Object.values(
-                      (currentState.context as any).servicesRequested
+                      (currentState.context as any).servicesRequested,
                     ).some(Boolean)
                   : false,
                 isVip: (currentState.context as any).isVip,
               }),
             },
-          }
+          },
         );
 
         bookingActor.stop();
 
         if (xstateDecision) {
           console.log(
-            `✅ AUTO-APPROVAL APPROVED [ITP]:`,
-            "XState machine approved auto-approval"
+            "✅ AUTO-APPROVAL APPROVED [ITP]:",
+            "XState machine approved auto-approval",
           );
           setIsAutoApproval(true);
           setErrorMessage(null);
         } else {
           console.log(
-            `🚫 AUTO-APPROVAL REJECTED [ITP]:`,
-            "XState machine rejected auto-approval"
+            "🚫 AUTO-APPROVAL REJECTED [ITP]:",
+            "XState machine rejected auto-approval",
           );
           setIsAutoApproval(false);
           setErrorMessage(
-            "This booking does not meet the auto-approval requirements"
+            "This booking does not meet the auto-approval requirements",
           );
         }
       } catch (error) {
-        console.error(`🚨 CLIENT-SIDE XSTATE ERROR [ITP]:`, error);
+        console.error("🚨 CLIENT-SIDE XSTATE ERROR [ITP]:", error);
         // Fallback to traditional logic if XState fails
         setIsAutoApproval(false);
         setErrorMessage("Unable to determine auto-approval eligibility");
@@ -162,7 +162,7 @@ export default function useCheckAutoApproval(isWalkIn = false, isVIP = false) {
     }
 
     // Traditional logic for non-ITP/MC tenants - now using new autoApprovalUtils
-    
+
     // Calculate duration
     let durationHours: number | undefined;
     if (bookingCalendarInfo != null) {
@@ -176,24 +176,26 @@ export default function useCheckAutoApproval(isWalkIn = false, isVIP = false) {
     if (
       !selectedAutoApprovalRooms(
         selectedRooms.map((room) => room.roomId),
-        selectedRooms
+        selectedRooms,
       )
     ) {
       throwError(
-        "Requests for multiple rooms (except for 2 ballrooms) will require full approval"
+        "Requests for multiple rooms (except for 2 ballrooms) will require full approval",
       );
       return;
     }
 
     // Map formData to servicesRequested (cleaningService shown when room.services includes "cleaning")
-    const servicesRequested = formData ? {
-      setup: formData.roomSetup === "yes",
-      equipment: !isWalkIn && formData.equipmentServices?.length > 0,
-      staffing: !isWalkIn && formData.staffingServices?.length > 0,
-      catering: formData.catering === "yes",
-      cleaning: formData.cleaningService === "yes",
-      security: formData.hireSecurity === "yes",
-    } : undefined;
+    const servicesRequested = formData
+      ? {
+          setup: formData.roomSetup === "yes",
+          equipment: !isWalkIn && formData.equipmentServices?.length > 0,
+          staffing: !isWalkIn && formData.staffingServices?.length > 0,
+          catering: formData.catering === "yes",
+          cleaning: formData.cleaningService === "yes",
+          security: formData.hireSecurity === "yes",
+        }
+      : undefined;
 
     console.log(
       `🔍 AUTO-APPROVAL CHECK USING NEW UTILS [${schema.tenant?.toUpperCase() || "UNKNOWN"}]:`,
@@ -204,7 +206,7 @@ export default function useCheckAutoApproval(isWalkIn = false, isVIP = false) {
         durationHours,
         servicesRequested,
         selectedRoomsCount: selectedRooms.length,
-      }
+      },
     );
 
     // Use the new auto-approval utility
@@ -218,13 +220,15 @@ export default function useCheckAutoApproval(isWalkIn = false, isVIP = false) {
     });
 
     if (!result.canAutoApprove) {
-      throwError(result.reason || "Booking does not meet auto-approval requirements");
+      throwError(
+        result.reason || "Booking does not meet auto-approval requirements",
+      );
       return;
     }
 
     console.log(
       `✅ AUTO-APPROVAL APPROVED [${schema.tenant?.toUpperCase() || "UNKNOWN"}]:`,
-      result.reason
+      result.reason,
     );
     setIsAutoApproval(true);
     setErrorMessage(null);

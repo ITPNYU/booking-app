@@ -124,7 +124,7 @@ export default function useBookingActions({
         const data = (await clientGetDataByCalendarEventId(
           TableNames.BOOKING,
           calendarEventId,
-          tenant as string
+          tenant as string,
         )) as any; // Type assertion to handle dynamic properties
         setBookingData(data);
 
@@ -251,7 +251,7 @@ export default function useBookingActions({
         await clientApproveBooking(
           calendarEventId,
           userEmail,
-          tenant as string
+          tenant as string,
         );
       },
       optimisticNextStatus: BookingStatusLabel.PRE_APPROVED,
@@ -263,7 +263,7 @@ export default function useBookingActions({
         await clientApproveBooking(
           calendarEventId,
           userEmail,
-          tenant as string
+          tenant as string,
         );
       },
       optimisticNextStatus: BookingStatusLabel.APPROVED,
@@ -319,7 +319,7 @@ export default function useBookingActions({
 
   // Common action definition function
   const getActionsForPageContext = (
-    pageContext: PageContextLevel
+    pageContext: PageContextLevel,
   ): Actions[] => {
     let options: Actions[] = [];
 
@@ -409,7 +409,7 @@ export default function useBookingActions({
           const addServiceActions = (
             serviceType: keyof typeof serviceRequests,
             approveAction: Actions,
-            declineAction: Actions
+            declineAction: Actions,
           ) => {
             if (
               serviceRequests[serviceType] &&
@@ -510,7 +510,7 @@ export default function useBookingActions({
           const addServiceActions = (
             serviceType: keyof typeof serviceRequests,
             approveAction: Actions,
-            declineAction: Actions
+            declineAction: Actions,
           ) => {
             if (
               serviceRequests[serviceType] &&
@@ -603,7 +603,7 @@ export default function useBookingActions({
   const executeServiceAction = async (
     serviceType: keyof typeof serviceRequests,
     action: "approve" | "decline" | "closeout",
-    reason?: string
+    reason?: string,
   ) => {
     // Check if service is actually requested (for approve and closeout actions)
     if (action === "approve" && !serviceRequests[serviceType]) {
@@ -616,7 +616,7 @@ export default function useBookingActions({
       (!serviceRequests[serviceType] || servicesApproved[serviceType] !== true)
     ) {
       console.warn(
-        `${serviceType} service not approved or not requested, skipping closeout`
+        `${serviceType} service not approved or not requested, skipping closeout`,
       );
       return;
     }
@@ -706,7 +706,7 @@ export default function useBookingActions({
           executeServiceAction(
             serviceType,
             "decline",
-            reason || `${capitalizedType} service declined`
+            reason || `${capitalizedType} service declined`,
           ),
         optimisticNextStatus: BookingStatusLabel.PENDING,
         confirmation: true,
@@ -752,7 +752,7 @@ export default function useBookingActions({
           executeServiceAction(
             serviceType,
             "decline",
-            reason || `${capitalizedType} service declined`
+            reason || `${capitalizedType} service declined`,
           ),
         optimisticNextStatus: BookingStatusLabel.PENDING,
         confirmation: true,
@@ -785,23 +785,22 @@ export default function useBookingActions({
   };
 
   // Get options for each PageContextLevel using common function
-  const allOptions = useMemo(() => {
-    return getActionsForPageContext(pageContext);
-  }, [
-    pageContext,
-    status,
-    startDate,
-    date,
-    tenant,
-    serviceRequests,
-    servicesApproved,
-    servicesClosedOut,
-    currentXState,
-  ]);
+  const allOptions = useMemo(
+    () => getActionsForPageContext(pageContext),
+    [
+      pageContext,
+      status,
+      startDate,
+      date,
+      tenant,
+      serviceRequests,
+      servicesApproved,
+      servicesClosedOut,
+      currentXState,
+    ],
+  );
 
-  const options = () => {
-    return allOptions;
-  };
+  const options = () => allOptions;
 
   return { actions, updateActions, options, servicesApproved };
 }

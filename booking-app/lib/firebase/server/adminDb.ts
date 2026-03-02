@@ -20,10 +20,8 @@ const db = admin.firestore();
 // Helper function to get tenant-specific collection name for server-side
 export const getServerTenantCollection = (
   baseCollection: TableNames,
-  tenant?: string
-): string => {
-  return getTenantCollectionName(baseCollection, tenant);
-};
+  tenant?: string,
+): string => getTenantCollectionName(baseCollection, tenant);
 
 export type AdminUserData = {
   email: string;
@@ -33,12 +31,12 @@ export type AdminUserData = {
 export const serverDeleteData = async (
   collectionName: string,
   docId: string,
-  tenant?: string
+  tenant?: string,
 ) => {
   try {
     const tenantCollection = getServerTenantCollection(
       collectionName as TableNames,
-      tenant
+      tenant,
     );
     await db.collection(tenantCollection).doc(docId).delete();
     console.log("Document successfully deleted with ID:", docId);
@@ -51,12 +49,12 @@ export const serverDeleteDocumentFields = async (
   collectionName: string,
   docId: string,
   fields: string[],
-  tenant?: string
+  tenant?: string,
 ) => {
   try {
     const tenantCollection = getServerTenantCollection(
       collectionName as TableNames,
-      tenant
+      tenant,
     );
     const updateData = fields.reduce((acc, field) => {
       acc[field] = FieldValue.delete();
@@ -72,12 +70,12 @@ export const serverDeleteDocumentFields = async (
 
 export const serverGetNextSequentialId = async (
   collectionName: string,
-  tenant?: string
+  tenant?: string,
 ) => {
   // For counters, we need to use the counters collection, not the target collection
   const counterCollection = getServerTenantCollection(
     "counters" as TableNames,
-    tenant
+    tenant,
   );
   const counterDocRef = db.collection(counterCollection).doc(collectionName);
   const counterDoc = await counterDocRef.get();
@@ -92,12 +90,12 @@ export const serverGetNextSequentialId = async (
 export const serverSaveDataToFirestore = async (
   collectionName: string,
   data: object,
-  tenant?: string
+  tenant?: string,
 ) => {
   try {
     const tenantCollection = getServerTenantCollection(
       collectionName as TableNames,
-      tenant
+      tenant,
     );
     const docRef = await db.collection(tenantCollection).add(data);
     console.log("Document successfully written with ID:", docRef.id);
@@ -111,7 +109,7 @@ export const serverSaveDataToFirestore = async (
 export const serverSaveDataToFirestoreWithId = async (
   collectionName: string,
   docId: string,
-  data: object
+  data: object,
 ) => {
   try {
     const docRef = db.collection(collectionName).doc(docId);
@@ -127,7 +125,7 @@ export const serverSaveDataToFirestoreWithId = async (
 export const serverGetDocumentById = async <T extends DocumentData>(
   collectionName: TableNames,
   docId: string,
-  tenant?: string
+  tenant?: string,
 ): Promise<T | null> => {
   try {
     const tenantCollection = getServerTenantCollection(collectionName, tenant);
@@ -153,11 +151,11 @@ export type Constraint = {
 export const serverFetchAllDataFromCollection = async <T extends DocumentData>(
   collectionName: TableNames,
   queryConstraints: Constraint[] = [],
-  tenant?: string
+  tenant?: string,
 ): Promise<T[]> => {
   const tenantCollection = getServerTenantCollection(collectionName, tenant);
   const collectionRef: CollectionReference<T> = db.collection(
-    tenantCollection
+    tenantCollection,
   ) as CollectionReference<T>;
 
   let query: Query<T> = collectionRef;
@@ -166,7 +164,7 @@ export const serverFetchAllDataFromCollection = async <T extends DocumentData>(
     query = query.where(
       constraint.field,
       constraint.operator,
-      constraint.value
+      constraint.value,
     );
   });
 
@@ -178,7 +176,7 @@ export const serverFetchAllDataFromCollection = async <T extends DocumentData>(
 export const serverGetDataByCalendarEventId = async <T>(
   collectionName: TableNames,
   calendarEventId: string,
-  tenant?: string
+  tenant?: string,
 ) => {
   try {
     const tenantCollection = getServerTenantCollection(collectionName, tenant);
@@ -203,12 +201,12 @@ export const serverUpdateInFirestore = async (
   collectionName: string,
   docId: string,
   updatedData: object,
-  tenant?: string
+  tenant?: string,
 ) => {
   try {
     const tenantCollection = getServerTenantCollection(
       collectionName as TableNames,
-      tenant
+      tenant,
     );
     await db.collection(tenantCollection).doc(docId).update(updatedData);
     console.log("Document successfully updated with ID:", docId);
@@ -277,12 +275,12 @@ export const logServerBookingChange = async ({
 
 export const getBookingLogs = async (
   requestNumber: number,
-  tenant?: string
+  tenant?: string,
 ): Promise<BookingLog[]> => {
   try {
     const tenantCollection = getServerTenantCollection(
       TableNames.BOOKING_LOGS,
-      tenant
+      tenant,
     );
     const logsRef = db.collection(tenantCollection);
     const q = logsRef.where("requestNumber", "==", requestNumber);
