@@ -10,6 +10,7 @@ import { FormContextLevel } from "@/components/src/types";
 import { canAccessAdmin } from "@/components/src/utils/permissions";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { TIMEZONE } from "../../../utils/date";
+import { BookingContext } from "../bookingProvider";
 import { DatabaseContext } from "../../components/Provider";
 
 // Configure dayjs to use Eastern timezone
