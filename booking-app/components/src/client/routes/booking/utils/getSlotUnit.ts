@@ -18,7 +18,7 @@ export function getSlotUnit(
       }
     | undefined,
   formContext: FormContextLevel,
-  role: Role | undefined
+  role: Role | undefined,
 ): number {
   if (!calendarConfig?.slotUnit) {
     return DEFAULT_SLOT_UNIT;

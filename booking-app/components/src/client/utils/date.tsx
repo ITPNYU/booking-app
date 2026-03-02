@@ -12,7 +12,7 @@ export const formatDate = (
     | Timestamp
     | { seconds: number; nanoseconds: number }
     | number
-    | string
+    | string,
 ) => {
   if (!oldDate) return "";
 
@@ -54,8 +54,8 @@ export const formatTimeTable = (date: Date) => {
   const minutes = zonedDate.getMinutes().toString().padStart(2, "0");
 
   // Convert 24-hour format to 12-hour format
-  hours = hours % 12;
-  hours = hours ? hours : 12;
+  hours %= 12;
+  hours = hours || 12;
 
   return `${hours}:${minutes}`;
 };

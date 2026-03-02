@@ -20,7 +20,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { toFirebaseTimestampFromString } from "@/components/src/client/utils/serverDate";
 import { insertEvent } from "@/components/src/server/calendars";
 import { Timestamp } from "firebase-admin/firestore";
-import { getAffiliationDisplayValues, getOtherDisplayFields } from "@/app/api/bookings/shared";
+import {
+  getAffiliationDisplayValues,
+  getOtherDisplayFields,
+} from "@/app/api/bookings/shared";
 
 // Helper function to extract tenant from request
 const extractTenantFromRequest = (request: NextRequest): string | undefined => {
@@ -71,7 +74,8 @@ export async function POST(request: NextRequest) {
 
   // Get the correct department and school display values using shared utility
   const { department } = data;
-  const { departmentDisplay, schoolDisplay } = getAffiliationDisplayValues(data);
+  const { departmentDisplay, schoolDisplay } =
+    getAffiliationDisplayValues(data);
   const [room, ...otherRooms] = selectedRooms;
   const selectedRoomIds = selectedRooms.map(
     (r: { roomId: number }) => r.roomId,
@@ -85,9 +89,8 @@ export async function POST(request: NextRequest) {
   let shouldInitializeXState = false;
 
   // Check if this tenant uses XState
-  const { shouldUseXState } = await import(
-    "@/components/src/utils/tenantUtils"
-  );
+  const { shouldUseXState } =
+    await import("@/components/src/utils/tenantUtils");
   if (shouldUseXState(tenant)) {
     shouldInitializeXState = true;
     console.log(`🎯 BOOKING WILL USE XSTATE [${tenant?.toUpperCase()}]:`, {
@@ -137,7 +140,7 @@ export async function POST(request: NextRequest) {
   }
 
   const truncatedTitle =
-    data.title.length > 25 ? data.title.substring(0, 25) + "..." : data.title;
+    data.title.length > 25 ? `${data.title.substring(0, 25)}...` : data.title;
 
   const event = await insertEvent({
     calendarId,
@@ -152,7 +155,7 @@ export async function POST(request: NextRequest) {
   // to ensure proper status determination
 
   const sequentialId = await serverGetNextSequentialId("bookings", tenant);
-  
+
   // Prepare booking data with corrected department and school values
   const bookingData = {
     calendarEventId,
@@ -168,7 +171,7 @@ export async function POST(request: NextRequest) {
     // Override with display values for "Other" selections
     ...getOtherDisplayFields(data),
   };
-  
+
   console.log("💾 Saving booking data to Firestore:", {
     calendarEventId,
     department: bookingData.department,
@@ -178,7 +181,7 @@ export async function POST(request: NextRequest) {
     schoolDisplay: bookingData.schoolDisplay,
     otherSchool: bookingData.otherSchool,
   });
-  
+
   const doc = await serverSaveDataToFirestore(
     TableNames.BOOKING,
     bookingData,
@@ -188,9 +191,8 @@ export async function POST(request: NextRequest) {
   // Initialize XState for tenants that use XState
   if (shouldInitializeXState && calendarEventId) {
     try {
-      const { executeXStateTransition } = await import(
-        "@/lib/stateMachines/xstateUtilsV5"
-      );
+      const { executeXStateTransition } =
+        await import("@/lib/stateMachines/xstateUtilsV5");
 
       // First log the booking creation as REQUESTED
       await logServerBookingChange({
@@ -198,7 +200,7 @@ export async function POST(request: NextRequest) {
         status: BookingStatusLabel.REQUESTED,
         changedBy: requestedBy,
         requestNumber: sequentialId,
-        calendarEventId: calendarEventId,
+        calendarEventId,
         note: `${requestedBy} for ${email} as ${type} booking`,
         tenant,
       });
@@ -206,17 +208,14 @@ export async function POST(request: NextRequest) {
       // Initialize XState for booking using machine evaluation (like regular bookings)
       // This will properly handle auto-approval logic for walk-ins
       const { createActor } = await import("xstate");
-      const { mcBookingMachine } = await import(
-        "@/lib/stateMachines/mcBookingMachine"
-      );
-      const { itpBookingMachine } = await import(
-        "@/lib/stateMachines/itpBookingMachine"
-      );
+      const { mcBookingMachine } =
+        await import("@/lib/stateMachines/mcBookingMachine");
+      const { itpBookingMachine } =
+        await import("@/lib/stateMachines/itpBookingMachine");
 
       // Get the updated booking data (with isVip and walkedInAt set)
-      const { serverGetDataByCalendarEventId } = await import(
-        "@/lib/firebase/server/adminDb"
-      );
+      const { serverGetDataByCalendarEventId } =
+        await import("@/lib/firebase/server/adminDb");
       const bookingData = await serverGetDataByCalendarEventId(
         TableNames.BOOKING,
         calendarEventId,
@@ -244,7 +243,7 @@ export async function POST(request: NextRequest) {
           calendarEventId,
           email,
           isVip: origin === BookingOrigin.VIP,
-          role: data.role as any, // Pass role from form data
+          role: data.role, // Pass role from form data
           servicesRequested,
         },
       });
@@ -290,11 +289,11 @@ export async function POST(request: NextRequest) {
       ) {
         bookingStatus = BookingStatusLabel.PRE_APPROVED;
         console.log(
-          `🎯 BOOKING: XState in Services Request - Status set to PRE_APPROVED`,
+          "🎯 BOOKING: XState in Services Request - Status set to PRE_APPROVED",
         );
       } else if (initialState === "Approved") {
         bookingStatus = BookingStatusLabel.APPROVED;
-        console.log(`🎯 BOOKING: XState in Approved - Status set to APPROVED`);
+        console.log("🎯 BOOKING: XState in Approved - Status set to APPROVED");
 
         // Log APPROVED status for walk-ins that were auto-approved by XState
         await logServerBookingChange({
@@ -303,7 +302,7 @@ export async function POST(request: NextRequest) {
           status: BookingStatusLabel.APPROVED,
           changedBy: "System",
           requestNumber: sequentialId,
-          note: ``,
+          note: "",
           tenant,
         });
 
@@ -317,14 +316,13 @@ export async function POST(request: NextRequest) {
       } else if (initialState === "Pre-approved") {
         bookingStatus = BookingStatusLabel.PRE_APPROVED;
         console.log(
-          `🎯 BOOKING: XState in Pre-approved - Status set to PRE_APPROVED`,
+          "🎯 BOOKING: XState in Pre-approved - Status set to PRE_APPROVED",
         );
       }
 
       // Save XState data to Firestore and set approval timestamps
-      const { serverUpdateDataByCalendarEventId } = await import(
-        "@/components/src/server/admin"
-      );
+      const { serverUpdateDataByCalendarEventId } =
+        await import("@/components/src/server/admin");
 
       // For bookings in Services Request, set first approval timestamps
       // This indicates that 1st approve is already done
@@ -386,7 +384,7 @@ export async function POST(request: NextRequest) {
             origin,
             type,
             note: "Regenerating full HTML description for walk-in/VIP booking",
-          }
+          },
         );
 
         const calendarResponse = await fetch(
@@ -403,7 +401,7 @@ export async function POST(request: NextRequest) {
             }),
           },
         );
-      
+
         if (calendarResponse.ok) {
           console.log(
             `✅ CALENDAR UPDATED WITH FULL DESCRIPTION [${tenant?.toUpperCase()}]:`,
@@ -425,13 +423,10 @@ export async function POST(request: NextRequest) {
           );
         }
       } catch (calendarError) {
-        console.error(
-          `🚨 CALENDAR UPDATE ERROR [${tenant?.toUpperCase()}]:`,
-          {
-            calendarEventId,
-            error: calendarError.message,
-          },
-        );
+        console.error(`🚨 CALENDAR UPDATE ERROR [${tenant?.toUpperCase()}]:`, {
+          calendarEventId,
+          error: calendarError.message,
+        });
         // Don't fail the entire request if calendar update fails
       }
     } catch (error) {
@@ -448,7 +443,7 @@ export async function POST(request: NextRequest) {
         status: BookingStatusLabel.REQUESTED,
         changedBy: requestedBy,
         requestNumber: sequentialId,
-        calendarEventId: calendarEventId,
+        calendarEventId,
         note: `${requestedBy} for ${email} as ${type} booking`,
         tenant,
       });
@@ -457,7 +452,7 @@ export async function POST(request: NextRequest) {
         status: BookingStatusLabel.APPROVED,
         changedBy: requestedBy,
         requestNumber: sequentialId,
-        calendarEventId: calendarEventId,
+        calendarEventId,
         note: `${requestedBy} for ${email} as ${type} booking`,
         tenant,
       });
@@ -470,7 +465,7 @@ export async function POST(request: NextRequest) {
         status: BookingStatusLabel.REQUESTED,
         changedBy: requestedBy,
         requestNumber: sequentialId,
-        calendarEventId: calendarEventId,
+        calendarEventId,
         note: `${requestedBy} for ${email} as ${type} booking`,
         tenant,
       });
@@ -479,7 +474,7 @@ export async function POST(request: NextRequest) {
         status: BookingStatusLabel.APPROVED,
         changedBy: requestedBy,
         requestNumber: sequentialId,
-        calendarEventId: calendarEventId,
+        calendarEventId,
         note: `${requestedBy} for ${email} as ${type} booking`,
         tenant,
       });
@@ -493,7 +488,7 @@ export async function POST(request: NextRequest) {
             bookingStatus,
             origin,
             type,
-          }
+          },
         );
 
         const calendarResponse = await fetch(
@@ -517,7 +512,7 @@ export async function POST(request: NextRequest) {
             {
               calendarEventId,
               bookingStatus,
-            }
+            },
           );
         } else {
           console.error(
@@ -525,7 +520,7 @@ export async function POST(request: NextRequest) {
             {
               calendarEventId,
               status: calendarResponse.status,
-            }
+            },
           );
         }
       } catch (calendarError) {
@@ -534,7 +529,7 @@ export async function POST(request: NextRequest) {
           {
             calendarEventId,
             error: calendarError.message,
-          }
+          },
         );
       }
     }
@@ -545,7 +540,7 @@ export async function POST(request: NextRequest) {
   if (bookingStatus === BookingStatusLabel.APPROVED) {
     const formData = {
       guestEmail: email,
-      calendarEventId: calendarEventId,
+      calendarEventId,
       roomId: room.roomId,
     };
     const res = await fetch(
@@ -591,10 +586,11 @@ export async function POST(request: NextRequest) {
   if (shouldSendEmails) {
     // Get tenant email configuration
     const emailConfig = await getTenantEmailConfig(tenant);
-    const confirmationMessage = type === "vip" 
-      ? emailConfig.emailMessages.vipConfirmation 
-      : emailConfig.emailMessages.walkInConfirmation;
-    
+    const confirmationMessage =
+      type === "vip"
+        ? emailConfig.emailMessages.vipConfirmation
+        : emailConfig.emailMessages.walkInConfirmation;
+
     const sendWalkInNofificationEmail = async (recipients: string[]) => {
       const emailPromises = recipients.map(recipient =>
         serverSendBookingDetailEmail({

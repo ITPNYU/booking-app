@@ -45,16 +45,16 @@ export const itpBookingMachine = setup({
             ? `${((new Date(context.bookingCalendarInfo.endStr).getTime() - new Date(context.bookingCalendarInfo.startStr).getTime()) / (1000 * 60 * 60)).toFixed(1)} hours`
             : "Not set",
           isWalkIn: context.isWalkIn,
-        }
+        },
       );
 
       // Implement actual auto-approval logic for ITP
       if (context.tenant !== "itp") {
         console.log(
-          `🚫 XSTATE GUARD: Not ITP tenant (${context.tenant}), rejecting auto-approval`
+          `🚫 XSTATE GUARD: Not ITP tenant (${context.tenant}), rejecting auto-approval`,
         );
         console.log(
-          `🎯 XSTATE AUTO-APPROVAL GUARD RESULT: REJECTED (Wrong tenant)`
+          "🎯 XSTATE AUTO-APPROVAL GUARD RESULT: REJECTED (Wrong tenant)",
         );
         return false;
       }
@@ -91,14 +91,14 @@ export const itpBookingMachine = setup({
       });
 
       if (result.canAutoApprove) {
-        console.log(`✅ XSTATE GUARD: All conditions met for auto-approval`);
-        console.log(`🎯 XSTATE AUTO-APPROVAL GUARD RESULT: APPROVED`, {
+        console.log("✅ XSTATE GUARD: All conditions met for auto-approval");
+        console.log("🎯 XSTATE AUTO-APPROVAL GUARD RESULT: APPROVED", {
           reason: result.reason,
           details: result.details,
         });
       } else {
         console.log(`🚫 XSTATE GUARD: ${result.reason}`);
-        console.log(`🎯 XSTATE AUTO-APPROVAL GUARD RESULT: REJECTED`, {
+        console.log("🎯 XSTATE AUTO-APPROVAL GUARD RESULT: REJECTED", {
           reason: result.reason,
           details: result.details,
         });
@@ -109,27 +109,27 @@ export const itpBookingMachine = setup({
   },
   actions: {
     createCalendarEvent: ({ context, event }) => {
-      console.log(`📅 XSTATE ACTION: createCalendarEvent executed`, {
+      console.log("📅 XSTATE ACTION: createCalendarEvent executed", {
         tenant: context.tenant,
         selectedRoomsCount: context.selectedRooms?.length,
         calendarEventId: context.calendarEventId,
       });
     },
     sendHTMLEmail: ({ context, event }) => {
-      console.log(`📧 XSTATE ACTION: sendHTMLEmail executed`, {
+      console.log("📧 XSTATE ACTION: sendHTMLEmail executed", {
         tenant: context.tenant,
         hasFormData: !!context.formData,
         email: context.email,
       });
     },
     updateCalendarEvent: ({ context, event }) => {
-      console.log(`📅 XSTATE ACTION: updateCalendarEvent executed`, {
+      console.log("📅 XSTATE ACTION: updateCalendarEvent executed", {
         tenant: context.tenant,
         calendarEventId: context.calendarEventId,
       });
     },
     deleteCalendarEvent: ({ context, event }) => {
-      console.log(`🗑️ XSTATE ACTION: deleteCalendarEvent executed`, {
+      console.log("🗑️ XSTATE ACTION: deleteCalendarEvent executed", {
         tenant: context.tenant,
         calendarEventId: context.calendarEventId,
       });
@@ -151,7 +151,7 @@ export const itpBookingMachine = setup({
     Requested: {
       entry: [
         ({ context }) => {
-          console.log(`🏁 XSTATE STATE: Entered 'Requested' state`, {
+          console.log("🏁 XSTATE STATE: Entered 'Requested' state", {
             tenant: context.tenant,
             timestamp: new Date().toISOString(),
           });
@@ -192,7 +192,7 @@ export const itpBookingMachine = setup({
     Canceled: {
       entry: [
         ({ context }) => {
-          console.log(`🏁 XSTATE STATE: Entered 'Canceled' state`, {
+          console.log("🏁 XSTATE STATE: Entered 'Canceled' state", {
             tenant: context.tenant,
             timestamp: new Date().toISOString(),
           });
@@ -214,7 +214,7 @@ export const itpBookingMachine = setup({
     Declined: {
       entry: [
         ({ context }) => {
-          console.log(`🏁 XSTATE STATE: Entered 'Declined' state`, {
+          console.log("🏁 XSTATE STATE: Entered 'Declined' state", {
             tenant: context.tenant,
             timestamp: new Date().toISOString(),
           });
@@ -240,11 +240,11 @@ export const itpBookingMachine = setup({
     Approved: {
       entry: [
         ({ context }) => {
-          console.log(`🏁 XSTATE STATE: Entered 'Approved' state`, {
+          console.log("🏁 XSTATE STATE: Entered 'Approved' state", {
             tenant: context.tenant,
             timestamp: new Date().toISOString(),
           });
-          console.log(`🎉 XSTATE: AUTO-APPROVAL SUCCESSFUL!`);
+          console.log("🎉 XSTATE: AUTO-APPROVAL SUCCESSFUL!");
         },
         {
           type: "sendHTMLEmail",
@@ -272,7 +272,7 @@ export const itpBookingMachine = setup({
       type: "final",
       entry: [
         ({ context }) => {
-          console.log(`🏁 XSTATE STATE: Entered 'Closed' state (final)`, {
+          console.log("🏁 XSTATE STATE: Entered 'Closed' state (final)", {
             tenant: context.tenant,
             timestamp: new Date().toISOString(),
           });
@@ -288,7 +288,7 @@ export const itpBookingMachine = setup({
     "Checked In": {
       entry: [
         ({ context }) => {
-          console.log(`🏁 XSTATE STATE: Entered 'Checked In' state`, {
+          console.log("🏁 XSTATE STATE: Entered 'Checked In' state", {
             tenant: context.tenant,
             timestamp: new Date().toISOString(),
           });
@@ -309,7 +309,7 @@ export const itpBookingMachine = setup({
     "No Show": {
       entry: [
         ({ context }) => {
-          console.log(`🏁 XSTATE STATE: Entered 'No Show' state`, {
+          console.log("🏁 XSTATE STATE: Entered 'No Show' state", {
             tenant: context.tenant,
             timestamp: new Date().toISOString(),
           });
@@ -325,7 +325,7 @@ export const itpBookingMachine = setup({
     "Checked Out": {
       entry: [
         ({ context }) => {
-          console.log(`🏁 XSTATE STATE: Entered 'Checked Out' state`, {
+          console.log("🏁 XSTATE STATE: Entered 'Checked Out' state", {
             tenant: context.tenant,
             timestamp: new Date().toISOString(),
           });

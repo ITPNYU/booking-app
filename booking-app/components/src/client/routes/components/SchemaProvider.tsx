@@ -136,7 +136,9 @@ export interface ObjectArrayWithDefaults<T> extends Array<T> {
   __defaults__: T;
 }
 
-function defineObjectArrayWithDefaults<T>(defaults: T): ObjectArrayWithDefaults<T> {
+function defineObjectArrayWithDefaults<T>(
+  defaults: T,
+): ObjectArrayWithDefaults<T> {
   const value = [] as ObjectArrayWithDefaults<T>;
   value.__defaults__ = defaults;
   return value;
@@ -287,7 +289,7 @@ export function generateDefaultSchema(tenant: string): SchemaContextType {
 }
 
 export const SchemaContext = createContext<SchemaContextType>(
-  generateDefaultSchema("")
+  generateDefaultSchema(""),
 );
 
 export const useTenantSchema = () => useContext(SchemaContext);

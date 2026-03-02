@@ -5,7 +5,8 @@ import { shouldUseXState } from "@/components/src/utils/tenantUtils";
 import { executeXStateTransition } from "@/lib/stateMachines/xstateUtilsV5";
 
 export async function POST(req: NextRequest) {
-  const { calendarEventId, serviceType, action, email, reason } = await req.json();
+  const { calendarEventId, serviceType, action, email, reason } =
+    await req.json();
 
   // Get tenant from x-tenant header, fallback to default tenant
   const tenant = req.headers.get("x-tenant") || DEFAULT_TENANT;
@@ -101,57 +102,102 @@ export async function POST(req: NextRequest) {
           { error: `XState service ${action} failed: ${xstateResult.error}` },
           { status: 500 },
         );
-      } else {
-        console.log(
-          `✅ XSTATE SERVICE ${action.toUpperCase()} SUCCESS [${tenant?.toUpperCase()}]:`,
+      }
+      console.log(
+        `✅ XSTATE SERVICE ${action.toUpperCase()} SUCCESS [${tenant?.toUpperCase()}]:`,
+        {
+          calendarEventId,
+          serviceType,
+          action,
+          newState: xstateResult.newState,
+        },
+      );
+
+      // Check if the overall booking transitioned to final states
+      const transitionedToDeclined = xstateResult.newState === "Declined";
+      const transitionedToApproved = xstateResult.newState === "Approved";
+      const transitionedToClosed = xstateResult.newState === "Closed";
+
+      // Add history logging for individual service approve/decline since XState doesn't handle history
+      const { serverGetDataByCalendarEventId } =
+        await import("@/lib/firebase/server/adminDb");
+      const { TableNames } = await import("@/components/src/policy");
+      const { BookingStatusLabel } = await import("@/components/src/types");
+
+      const doc = await serverGetDataByCalendarEventId<{
+        id: string;
+        requestNumber: number;
+      }>(TableNames.BOOKING, calendarEventId, tenant);
+
+      if (doc) {
+        // Create service-specific note for history
+        const serviceDisplayName =
+          serviceType.charAt(0).toUpperCase() + serviceType.slice(1);
+        const actionDisplayName =
+          action === "approve"
+            ? "Approved"
+            : action === "decline"
+              ? "Declined"
+              : "Closed Out";
+        const baseServiceNote = `${serviceDisplayName} Service ${actionDisplayName}`;
+        const serviceNote =
+          action === "decline" && reason && String(reason).trim().length > 0
+            ? `${baseServiceNote}: ${reason}`
+            : baseServiceNote;
+
+        // Determine appropriate status for history log
+        const historyStatus =
+          action === "closeout"
+            ? BookingStatusLabel.CHECKED_OUT
+            : BookingStatusLabel.PRE_APPROVED;
+
+        const logResponse = await fetch(
+          `${process.env.NEXT_PUBLIC_BASE_URL}/api/booking-logs`,
           {
-            calendarEventId,
-            serviceType,
-            action,
-            newState: xstateResult.newState,
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-tenant": tenant || DEFAULT_TENANT,
+            },
+            body: JSON.stringify({
+              bookingId: doc.id,
+              calendarEventId,
+              status: historyStatus, // PRE-APPROVED for approve/decline, CHECKED_OUT for closeout
+              changedBy: email,
+              requestNumber: doc.requestNumber,
+              note: serviceNote, // e.g., "Staff Service Declined: out of stock"
+            }),
           },
         );
 
-        // Check if the overall booking transitioned to final states
-        const transitionedToDeclined = xstateResult.newState === "Declined";
-        const transitionedToApproved = xstateResult.newState === "Approved";
-        const transitionedToClosed = xstateResult.newState === "Closed";
+        if (logResponse.ok) {
+          console.log(
+            `📋 XSTATE SERVICE ${action.toUpperCase()} HISTORY LOGGED [${tenant?.toUpperCase()}]:`,
+            {
+              calendarEventId,
+              bookingId: doc.id,
+              requestNumber: doc.requestNumber,
+              serviceType,
+              action,
+              note: serviceNote,
+            },
+          );
+        } else {
+          console.error(
+            `🚨 XSTATE SERVICE ${action.toUpperCase()} HISTORY LOG FAILED [${tenant?.toUpperCase()}]:`,
+            {
+              calendarEventId,
+              serviceType,
+              action,
+              status: logResponse.status,
+            },
+          );
+        }
 
-        // Add history logging for individual service approve/decline since XState doesn't handle history
-        const { serverGetDataByCalendarEventId } = await import(
-          "@/lib/firebase/server/adminDb"
-        );
-        const { TableNames } = await import("@/components/src/policy");
-        const { BookingStatusLabel } = await import("@/components/src/types");
-
-        const doc = await serverGetDataByCalendarEventId<{
-          id: string;
-          requestNumber: number;
-        }>(TableNames.BOOKING, calendarEventId, tenant);
-
-        if (doc) {
-          // Create service-specific note for history
-          const serviceDisplayName =
-            serviceType.charAt(0).toUpperCase() + serviceType.slice(1);
-          const actionDisplayName =
-            action === "approve"
-              ? "Approved"
-              : action === "decline"
-                ? "Declined"
-                : "Closed Out";
-          const baseServiceNote = `${serviceDisplayName} Service ${actionDisplayName}`;
-          const serviceNote =
-            action === "decline" && reason && String(reason).trim().length > 0
-              ? `${baseServiceNote}: ${reason}`
-              : baseServiceNote;
-
-          // Determine appropriate status for history log
-          const historyStatus =
-            action === "closeout"
-              ? BookingStatusLabel.CHECKED_OUT
-              : BookingStatusLabel.PRE_APPROVED;
-
-          const logResponse = await fetch(
+        // If the booking transitioned to Declined state, add a separate history log for the overall decline
+        // For multi-service declines, attribute final decline to System, not the last service decliner
+        if (transitionedToDeclined && doc) {
+          const declineLogResponse = await fetch(
             `${process.env.NEXT_PUBLIC_BASE_URL}/api/booking-logs`,
             {
               method: "POST",
@@ -162,133 +208,85 @@ export async function POST(req: NextRequest) {
               body: JSON.stringify({
                 bookingId: doc.id,
                 calendarEventId,
-                status: historyStatus, // PRE-APPROVED for approve/decline, CHECKED_OUT for closeout
-                changedBy: email,
+                status: BookingStatusLabel.DECLINED,
+                changedBy: "System",
                 requestNumber: doc.requestNumber,
-                note: serviceNote, // e.g., "Staff Service Declined: out of stock"
+                note:
+                  reason && String(reason).trim().length > 0
+                    ? `Overall declined due to service: ${serviceDisplayName}. Reason: ${reason}`
+                    : `Overall declined due to service: ${serviceDisplayName}`,
               }),
             },
           );
 
-          if (logResponse.ok) {
+          if (declineLogResponse.ok) {
             console.log(
-              `📋 XSTATE SERVICE ${action.toUpperCase()} HISTORY LOGGED [${tenant?.toUpperCase()}]:`,
+              `📋 OVERALL DECLINE HISTORY LOGGED [${tenant?.toUpperCase()}]:`,
               {
                 calendarEventId,
                 bookingId: doc.id,
                 requestNumber: doc.requestNumber,
-                serviceType,
-                action,
-                note: serviceNote,
+                status: BookingStatusLabel.DECLINED,
+                trigger: `${serviceType} service ${action}`,
               },
             );
           } else {
             console.error(
-              `🚨 XSTATE SERVICE ${action.toUpperCase()} HISTORY LOG FAILED [${tenant?.toUpperCase()}]:`,
+              `🚨 OVERALL DECLINE HISTORY LOG FAILED [${tenant?.toUpperCase()}]:`,
               {
                 calendarEventId,
-                serviceType,
-                action,
-                status: logResponse.status,
+                status: declineLogResponse.status,
               },
             );
           }
+        }
 
-          // If the booking transitioned to Declined state, add a separate history log for the overall decline
-          // For multi-service declines, attribute final decline to System, not the last service decliner
-          if (transitionedToDeclined && doc) {
-            const declineLogResponse = await fetch(
-              `${process.env.NEXT_PUBLIC_BASE_URL}/api/booking-logs`,
-              {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  "x-tenant": tenant || DEFAULT_TENANT,
-                },
-                body: JSON.stringify({
-                  bookingId: doc.id,
-                  calendarEventId,
-                  status: BookingStatusLabel.DECLINED,
-                  changedBy: "System",
-                  requestNumber: doc.requestNumber,
-                  note:
-                    reason && String(reason).trim().length > 0
-                      ? `Overall declined due to service: ${serviceDisplayName}. Reason: ${reason}`
-                      : `Overall declined due to service: ${serviceDisplayName}`,
-                }),
-              },
-            );
+        // Handle APPROVED state: use finalApprove function for consistent processing
+        if (transitionedToApproved && doc) {
+          try {
+            const { finalApprove } =
+              await import("@/components/src/server/admin");
 
-            if (declineLogResponse.ok) {
-              console.log(
-                `📋 OVERALL DECLINE HISTORY LOGGED [${tenant?.toUpperCase()}]:`,
-                {
-                  calendarEventId,
-                  bookingId: doc.id,
-                  requestNumber: doc.requestNumber,
-                  status: BookingStatusLabel.DECLINED,
-                  trigger: `${serviceType} service ${action}`,
-                },
-              );
-            } else {
-              console.error(
-                `🚨 OVERALL DECLINE HISTORY LOG FAILED [${tenant?.toUpperCase()}]:`,
-                {
-                  calendarEventId,
-                  status: declineLogResponse.status,
-                },
-              );
-            }
-          }
+            // Use finalApprove function which handles:
+            // 1. serverFinalApprove (booking update + service approvals)
+            // 2. Logging final approval action
+            // 3. serverApproveEvent (email + calendar update)
+            await finalApprove(calendarEventId, "System", tenant);
 
-          // Handle APPROVED state: use finalApprove function for consistent processing
-          if (transitionedToApproved && doc) {
-            try {
-              const { finalApprove } = await import(
-                "@/components/src/server/admin"
-              );
-
-              // Use finalApprove function which handles:
-              // 1. serverFinalApprove (booking update + service approvals)
-              // 2. Logging final approval action
-              // 3. serverApproveEvent (email + calendar update)
-              await finalApprove(calendarEventId, "System", tenant);
-
-              console.log(
-                `📧 APPROVED PROCESSING COMPLETED [${tenant?.toUpperCase()}]:`,
-                {
-                  calendarEventId,
-                  bookingId: doc.id,
-                  requestNumber: doc.requestNumber,
-                  trigger: `${serviceType} service ${action}`,
-                  note: "Used finalApprove function for consistent approval processing",
-                },
-              );
-            } catch (error) {
-              console.error(
-                `🚨 APPROVED PROCESSING FAILED [${tenant?.toUpperCase()}]:`,
-                {
-                  calendarEventId,
-                  error: error.message,
-                  trigger: `${serviceType} service ${action}`,
-                },
-              );
-            }
-          }
-
-          // CLOSED state logging is now handled by XState action calling /api/close-processing
-          // This avoids duplicate CLOSED logs in the history
-          if (transitionedToClosed) {
             console.log(
-              `🎯 TRANSITIONED TO CLOSED STATE [${tenant?.toUpperCase()}]:`,
+              `📧 APPROVED PROCESSING COMPLETED [${tenant?.toUpperCase()}]:`,
               {
                 calendarEventId,
-                serviceType,
-                action,
-                note: "CLOSED logging handled by XState close processing action with proper ordering",
+                bookingId: doc.id,
+                requestNumber: doc.requestNumber,
+                trigger: `${serviceType} service ${action}`,
+                note: "Used finalApprove function for consistent approval processing",
+              },
+            );
+          } catch (error) {
+            console.error(
+              `🚨 APPROVED PROCESSING FAILED [${tenant?.toUpperCase()}]:`,
+              {
+                calendarEventId,
+                error: error.message,
+                trigger: `${serviceType} service ${action}`,
               },
             );
           }
+        }
+
+        // CLOSED state logging is now handled by XState action calling /api/close-processing
+        // This avoids duplicate CLOSED logs in the history
+        if (transitionedToClosed) {
+          console.log(
+            `🎯 TRANSITIONED TO CLOSED STATE [${tenant?.toUpperCase()}]:`,
+            {
+              calendarEventId,
+              serviceType,
+              action,
+              note: "CLOSED logging handled by XState close processing action with proper ordering",
+            },
+          );
         }
       }
     } else {

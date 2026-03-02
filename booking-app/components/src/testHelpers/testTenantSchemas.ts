@@ -160,8 +160,5 @@ const schemaByTenant: Record<string, SchemaContextType> = {
   },
 };
 
-export const getTestTenantSchema = (
-  tenant: string
-): SchemaContextType | null => {
-  return schemaByTenant[tenant] ?? null;
-};
+export const getTestTenantSchema = (tenant: string): SchemaContextType | null =>
+  schemaByTenant[tenant] ?? null;

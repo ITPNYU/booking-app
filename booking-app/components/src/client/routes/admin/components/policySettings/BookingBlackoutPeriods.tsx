@@ -82,7 +82,7 @@ export default function BookingBlackoutPeriods() {
   } | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingPeriod, setEditingPeriod] = useState<BlackoutPeriod | null>(
-    null
+    null,
   );
 
   // Form state
@@ -110,13 +110,13 @@ export default function BookingBlackoutPeriods() {
     try {
       const fetchedData =
         await clientFetchAllDataFromCollection<BlackoutPeriod>(
-          TableNames.BLACKOUT_PERIODS
+          TableNames.BLACKOUT_PERIODS,
         );
       setBlackoutPeriods(
         fetchedData.sort(
           (a, b) =>
-            a.startDate.toDate().getTime() - b.startDate.toDate().getTime()
-        )
+            a.startDate.toDate().getTime() - b.startDate.toDate().getTime(),
+        ),
       );
     } catch (error) {
       console.error("Error fetching blackout periods:", error);
@@ -152,13 +152,13 @@ export default function BookingBlackoutPeriods() {
           .sort((a, b) => a - b);
         const periodRoomIds = [...period.roomIds].sort((a, b) => a - b);
         const productionRoomIds = PRODUCTION_ROOMS.filter((roomId) =>
-          roomSettings.some((room) => room.roomId === roomId)
+          roomSettings.some((room) => room.roomId === roomId),
         ).sort((a, b) => a - b);
         const eventRoomIds = EVENT_ROOMS.filter((roomId) =>
-          roomSettings.some((room) => room.roomId === roomId)
+          roomSettings.some((room) => room.roomId === roomId),
         ).sort((a, b) => a - b);
         const multiRoomIds = MULTI_ROOMS.filter((roomId) =>
-          roomSettings.some((room) => room.roomId === roomId)
+          roomSettings.some((room) => room.roomId === roomId),
         ).sort((a, b) => a - b);
 
         const isAllRooms =
@@ -266,17 +266,17 @@ export default function BookingBlackoutPeriods() {
           break;
         case "production":
           roomIds = PRODUCTION_ROOMS.filter((roomId) =>
-            roomSettings.some((room) => room.roomId === roomId)
+            roomSettings.some((room) => room.roomId === roomId),
           );
           break;
         case "event":
           roomIds = EVENT_ROOMS.filter((roomId) =>
-            roomSettings.some((room) => room.roomId === roomId)
+            roomSettings.some((room) => room.roomId === roomId),
           );
           break;
         case "multi":
           roomIds = MULTI_ROOMS.filter((roomId) =>
-            roomSettings.some((room) => room.roomId === roomId)
+            roomSettings.some((room) => room.roomId === roomId),
           );
           break;
         case "specific":
@@ -299,8 +299,8 @@ export default function BookingBlackoutPeriods() {
       if (editingPeriod) {
         await clientUpdateDataInFirestore(
           TableNames.BLACKOUT_PERIODS,
-          editingPeriod.id!,
-          periodData
+          editingPeriod.id,
+          periodData,
         );
         setMessage({
           type: "success",
@@ -309,7 +309,7 @@ export default function BookingBlackoutPeriods() {
       } else {
         await clientSaveDataToFirestore(
           TableNames.BLACKOUT_PERIODS,
-          periodData
+          periodData,
         );
         setMessage({
           type: "success",
@@ -339,7 +339,7 @@ export default function BookingBlackoutPeriods() {
     try {
       await clientDeleteDataFromFirestore(
         TableNames.BLACKOUT_PERIODS,
-        period.id!
+        period.id,
       );
       await fetchBlackoutPeriods();
       setMessage({
@@ -357,9 +357,8 @@ export default function BookingBlackoutPeriods() {
     }
   };
 
-  const formatDate = (timestamp: Timestamp) => {
-    return dayjs(timestamp.toDate()).format("MMM DD, YYYY");
-  };
+  const formatDate = (timestamp: Timestamp) =>
+    dayjs(timestamp.toDate()).format("MMM DD, YYYY");
 
   const formatDateTime = (dateTimestamp: Timestamp, timeString?: string) => {
     const dateStr = dayjs(dateTimestamp.toDate()).format("MMM DD, YYYY");
@@ -380,59 +379,58 @@ export default function BookingBlackoutPeriods() {
       .sort((a, b) => a - b);
     const periodRoomIds = [...period.roomIds].sort((a, b) => a - b);
     const productionRoomIds = PRODUCTION_ROOMS.filter((roomId) =>
-      roomSettings.some((room) => room.roomId === roomId)
+      roomSettings.some((room) => room.roomId === roomId),
     ).sort((a, b) => a - b);
     const eventRoomIds = EVENT_ROOMS.filter((roomId) =>
-      roomSettings.some((room) => room.roomId === roomId)
+      roomSettings.some((room) => room.roomId === roomId),
     ).sort((a, b) => a - b);
     const multiRoomIds = MULTI_ROOMS.filter((roomId) =>
-      roomSettings.some((room) => room.roomId === roomId)
+      roomSettings.some((room) => room.roomId === roomId),
     ).sort((a, b) => a - b);
 
     const isAllRooms = areSortedArraysEqual(allRoomIds, periodRoomIds);
     const isProductionRooms = areSortedArraysEqual(
       productionRoomIds,
-      periodRoomIds
+      periodRoomIds,
     );
     const isEventRooms = areSortedArraysEqual(eventRoomIds, periodRoomIds);
     const isMultiRooms = areSortedArraysEqual(multiRoomIds, periodRoomIds);
 
     if (isAllRooms) {
       return "All Rooms";
-    } else if (isProductionRooms) {
-      return `Production Rooms (${productionRoomIds.join(", ")})`;
-    } else if (isEventRooms) {
-      return `Event Rooms (${eventRoomIds.join(", ")})`;
-    } else if (isMultiRooms) {
-      return `Multi-Room (${multiRoomIds.join(", ")})`;
-    } else {
-      const selectedRoomNames = period.roomIds
-        .map((roomId) => {
-          const room = roomSettings.find((r) => r.roomId === roomId);
-          return room ? `${room.roomId} - ${room.name}` : `Room ${roomId}`;
-        })
-        .join(", ");
-      return selectedRoomNames || "Unknown Rooms";
     }
+    if (isProductionRooms) {
+      return `Production Rooms (${productionRoomIds.join(", ")})`;
+    }
+    if (isEventRooms) {
+      return `Event Rooms (${eventRoomIds.join(", ")})`;
+    }
+    if (isMultiRooms) {
+      return `Multi-Room (${multiRoomIds.join(", ")})`;
+    }
+    const selectedRoomNames = period.roomIds
+      .map((roomId) => {
+        const room = roomSettings.find((r) => r.roomId === roomId);
+        return room ? `${room.roomId} - ${room.name}` : `Room ${roomId}`;
+      })
+      .join(", ");
+    return selectedRoomNames || "Unknown Rooms";
   };
 
-  const getProductionRoomNumbers = () => {
-    return PRODUCTION_ROOMS.filter((roomId) =>
-      roomSettings.some((room) => room.roomId === roomId)
+  const getProductionRoomNumbers = () =>
+    PRODUCTION_ROOMS.filter((roomId) =>
+      roomSettings.some((room) => room.roomId === roomId),
     ).join(", ");
-  };
 
-  const getEventRoomNumbers = () => {
-    return EVENT_ROOMS.filter((roomId) =>
-      roomSettings.some((room) => room.roomId === roomId)
+  const getEventRoomNumbers = () =>
+    EVENT_ROOMS.filter((roomId) =>
+      roomSettings.some((room) => room.roomId === roomId),
     ).join(", ");
-  };
 
-  const getMultiRoomNumbers = () => {
-    return MULTI_ROOMS.filter((roomId) =>
-      roomSettings.some((room) => room.roomId === roomId)
+  const getMultiRoomNumbers = () =>
+    MULTI_ROOMS.filter((roomId) =>
+      roomSettings.some((room) => room.roomId === roomId),
     ).join(", ");
-  };
 
   return (
     <LocalizationProvider dateAdapter={AdapterDayjs}>
@@ -589,7 +587,7 @@ export default function BookingBlackoutPeriods() {
                   value={roomApplicationType}
                   onChange={(e) => {
                     setRoomApplicationType(
-                      e.target.value as RoomApplicationType
+                      e.target.value as RoomApplicationType,
                     );
                     if (e.target.value !== "specific") {
                       setSelectedRooms([]);
@@ -639,7 +637,7 @@ export default function BookingBlackoutPeriods() {
                       <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
                         {selected.map((value) => {
                           const room = roomSettings.find(
-                            (r) => r.roomId === value
+                            (r) => r.roomId === value,
                           );
                           return (
                             <Chip

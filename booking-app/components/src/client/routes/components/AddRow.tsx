@@ -4,7 +4,10 @@ import React, { useMemo, useState } from "react";
 import { Timestamp } from "firebase/firestore";
 import { AddCircleOutline } from "@mui/icons-material";
 import Grid from "@mui/material/Unstable_Grid2/Grid2";
-import { clientSaveDataToFirestore, clientSaveUserRightsData } from "../../../../../lib/firebase/firebase";
+import {
+  clientSaveDataToFirestore,
+  clientSaveUserRightsData,
+} from "../../../../../lib/firebase/firebase";
 import { TableNames, isLegacyUserCollection } from "../../../policy";
 import Loading from "./Loading";
 
@@ -31,7 +34,7 @@ export default function AddRow(props: Props) {
 
   const uniqueValues = useMemo<string[]>(
     () => rows.map((row) => row[props.columnNameUniqueValue]),
-    [rows]
+    [rows],
   );
 
   const addValue = async () => {
@@ -39,7 +42,7 @@ export default function AddRow(props: Props) {
 
     if (uniqueValues.includes(valueToAdd)) {
       alert(
-        props.addDuplicateErrorMessage ?? "This value has already been added"
+        props.addDuplicateErrorMessage ?? "This value has already been added",
       );
       return;
     }

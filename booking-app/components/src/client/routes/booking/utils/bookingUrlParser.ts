@@ -17,7 +17,7 @@ export function buildBookingUrl(
   tenant: string,
   flowType: string,
   step: string,
-  id?: string | null
+  id?: string | null,
 ): string {
   const parts = [tenant, flowType, step];
   if (id) parts.push(id);

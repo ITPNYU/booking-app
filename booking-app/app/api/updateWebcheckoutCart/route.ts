@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
             "x-tenant": tenant,
           },
           body: JSON.stringify({
-            calendarEventId: calendarEventId,
+            calendarEventId,
             newValues: {}, // Empty object since description is automatically updated based on booking contents
           }),
         },

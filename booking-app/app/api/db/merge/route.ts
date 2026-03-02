@@ -23,12 +23,12 @@ export async function POST(request: NextRequest) {
     });
 
     const calIdToBookingStatus = {};
-    for (let row of sourceRowsFiltered) {
+    for (const row of sourceRowsFiltered) {
       calIdToBookingStatus[row.calendarEventId] = row;
     }
 
     const docIdToCalId: { [key: string]: string } = {};
-    for (let row of destinationRows) {
+    for (const row of destinationRows) {
       docIdToCalId[row.id] = row.calendarEventId;
     }
 

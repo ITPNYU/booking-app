@@ -10,7 +10,7 @@ export function normalizeDepartment(
     toLowerCase?: boolean;
     collapseSpaces?: boolean;
     removeSpaces?: boolean;
-  } = {}
+  } = {},
 ): string {
   const {
     toLowerCase = false,
