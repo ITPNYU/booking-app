@@ -57,7 +57,9 @@ export default function WalkInNetIdPage() {
 
     // Validate that the visitor's NetID is not the same as the requester's NetID
     if (requesterNetId && netId === requesterNetId) {
-      setError("The visitor's NetID cannot be the same as the requester's NetID");
+      setError(
+        "The visitor's NetID cannot be the same as the requester's NetID",
+      );
       return;
     }
 
@@ -84,8 +86,14 @@ export default function WalkInNetIdPage() {
           Walk-In NetID
         </Typography>
 
-        <Typography variant="body2" color="text.secondary" marginBottom={3} textAlign="center">
-          Enter the NetID of the visitor using the space (not the requester's NetID)
+        <Typography
+          variant="body2"
+          color="text.secondary"
+          marginBottom={3}
+          textAlign="center"
+        >
+          Enter the NetID of the visitor using the space (not the requester's
+          NetID)
         </Typography>
 
         {error && (
@@ -116,7 +124,7 @@ export default function WalkInNetIdPage() {
               value: /^[a-zA-Z0-9]+$/,
               message: "NetID should only contain letters and numbers",
             }}
-            validate={(value) => {
+            validate={value => {
               if (!value) return true; // Required validation is handled separately
               const enteredNetId = value.trim().toLowerCase();
               if (requesterNetId && enteredNetId === requesterNetId) {

@@ -12,13 +12,13 @@ export default function useAllowedStatuses(pageContext: PageContextLevel) {
         BookingStatusLabel.NO_SHOW,
         BookingStatusLabel.CLOSED,
       ];
-    } else if (pageContext === PageContextLevel.SERVICES) {
-      const { WALK_IN, ...displayableStatuses } = BookingStatusLabel;
-      return Object.values(displayableStatuses);
-    } else {
+    }
+    if (pageContext === PageContextLevel.SERVICES) {
       const { WALK_IN, ...displayableStatuses } = BookingStatusLabel;
       return Object.values(displayableStatuses);
     }
+    const { WALK_IN, ...displayableStatuses } = BookingStatusLabel;
+    return Object.values(displayableStatuses);
   }, [pageContext]);
 
   return allowedStatuses;

@@ -1,11 +1,11 @@
 import { Alert, AlertTitle, Box, Typography } from "@mui/material";
 import React, { useContext } from "react";
 
-import { BookingContext } from "../bookingProvider";
 import { Event } from "@mui/icons-material";
 import Grid from "@mui/material/Unstable_Grid2";
-import { formatTimeAmPm } from "../../../utils/date";
 import { styled } from "@mui/system";
+import { formatTimeAmPm } from "../../../utils/date";
+import { BookingContext } from "../bookingProvider";
 
 export const RoomDetails = styled(Grid)`
   display: flex;
@@ -53,7 +53,7 @@ export default function BookingSelection() {
         <RoomDetails container>
           <label>Time:</label>
           <p>{`${formatTimeAmPm(
-            new Date(bookingCalendarInfo.startStr)
+            new Date(bookingCalendarInfo.startStr),
           )} - ${formatTimeAmPm(new Date(bookingCalendarInfo.endStr))}`}</p>
         </RoomDetails>
       </AlertHeader>

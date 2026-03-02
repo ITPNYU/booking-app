@@ -5,9 +5,10 @@ const NYU_API_BASE = "https://api.nyu.edu/identity-v2-sys";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { uniqueId: string } },
+  { params }: { params: Promise<{ uniqueId: string }> },
 ) {
   try {
+    const { uniqueId } = await params;
     const token = await getNYUToken();
     if (!token) {
       return NextResponse.json(
@@ -25,7 +26,7 @@ export async function GET(
     }
 
     const url = new URL(
-      `${NYU_API_BASE}/identity/unique-id/primary-affil/${params.uniqueId}`,
+      `${NYU_API_BASE}/identity/unique-id/primary-affil/${uniqueId}`,
     );
     url.searchParams.append("api_access_id", apiAccessId);
 

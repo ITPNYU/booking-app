@@ -112,7 +112,7 @@ if (
   process.env.NEXT_PUBLIC_BASE_URL &&
   typeof window !== "undefined"
 ) {
-  fetch(process.env.NEXT_PUBLIC_BASE_URL + "/api/isTestEnv")
+  fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/isTestEnv`)
     .then((res) => res.json())
     .then((data) => {
       dynamicTestEnv = data.isOnTestEnv;
@@ -126,7 +126,7 @@ if (
     .catch((error) => {
       console.log(
         "Failed to fetch isTestEnv, using environment check:",
-        isTestEnv
+        isTestEnv,
       );
       dynamicTestEnv = isTestEnv;
     });
@@ -154,17 +154,16 @@ export const signInWithGoogle = async () => {
     if (isLocalhost) {
       // Use popup for localhost to avoid cross-domain issues
       const result = await signInWithPopup(auth, googleProvider);
-      const user = result.user;
+      const { user } = result;
       if (!user.email?.endsWith("@nyu.edu") && !dynamicTestEnv) {
         await auth.signOut();
         throw new Error("Only nyu.edu email addresses are allowed.");
       }
       return user;
-    } else {
-      // Use redirect for deployed environments
-      await signInWithRedirect(auth, googleProvider);
-      // No return here, as the page will redirect
     }
+    // Use redirect for deployed environments
+    await signInWithRedirect(auth, googleProvider);
+    // No return here, as the page will redirect
   } catch (error) {
     console.error("Google sign-in error", error);
     throw error;
@@ -185,7 +184,7 @@ export const getGoogleRedirectResult = async () => {
   try {
     const result = await getRedirectResult(auth);
     if (result) {
-      const user = result.user;
+      const { user } = result;
       if (!user.email?.endsWith("@nyu.edu") && !dynamicTestEnv) {
         await auth.signOut();
         throw new Error("Only nyu.edu email addresses are allowed.");

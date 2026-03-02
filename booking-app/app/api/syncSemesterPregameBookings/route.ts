@@ -13,6 +13,7 @@ import {
 import admin from "@/lib/firebase/server/firebaseAdmin";
 import { getCalendarClient } from "@/lib/googleClient";
 import { mcBookingMachine } from "@/lib/stateMachines/mcBookingMachine";
+import { applyEnvironmentCalendarIds } from "@/lib/utils/calendarEnvironment";
 import { Timestamp } from "firebase/firestore";
 import { NextRequest, NextResponse } from "next/server";
 import { createActor } from "xstate";
@@ -369,11 +370,9 @@ const findGuestEmails = (event: any, description: string): string[] => {
   return Array.from(guestEmails);
 };
 
-const createBookingWithDefaults = (
-  partialBooking: Partial<Booking>,
-): Booking => {
-  //@ts-ignore
-  return {
+const createBookingWithDefaults = (partialBooking: Partial<Booking>): Booking =>
+  // @ts-ignore
+  ({
     title: "",
     description: "",
     email: "",
@@ -415,9 +414,7 @@ const createBookingWithDefaults = (
     cleaningService: "",
 
     ...partialBooking,
-  };
-};
-
+  });
 export async function POST(request: NextRequest) {
   try {
     const calendar = await getCalendarClient();
@@ -453,12 +450,17 @@ export async function POST(request: NextRequest) {
       TableNames.TENANT_SCHEMA,
       tenant,
     );
-    const resources =
-      schema?.resources?.map((resource: any) => ({
-        id: resource.roomId.toString(),
-        calendarId: resource.calendarId,
-        roomId: resource.roomId,
-      })) || [];
+
+    // Apply environment-based calendar ID selection
+    const resourcesWithCorrectCalendarIds = schema?.resources
+      ? applyEnvironmentCalendarIds(schema.resources)
+      : [];
+
+    const resources = resourcesWithCorrectCalendarIds.map((resource: any) => ({
+      id: resource.roomId.toString(),
+      calendarId: resource.calendarId,
+      roomId: resource.roomId,
+    }));
 
     let totalNewBookings = 0;
     let existingBookings = 0;
@@ -486,27 +488,27 @@ export async function POST(request: NextRequest) {
     let count = 0;
     for (const resource of resources) {
       count++;
-      //if (count > 1) {
+      // if (count > 1) {
       //  break;
-      //}
+      // }
       console.log("calendarId", resource.calendarId);
-      const calendarId = resource.calendarId;
+      const { calendarId } = resource;
       try {
         let pageToken: string | undefined;
 
         do {
           const events = await calendar.events.list({
-            calendarId: calendarId,
-            timeMin: timeMin,
-            timeMax: timeMax,
+            calendarId,
+            timeMin,
+            timeMax,
             maxResults: 500,
             singleEvents: true,
             orderBy: "startTime",
-            pageToken: pageToken,
+            pageToken,
           });
 
           for (const event of events.data.items || []) {
-            //Skip not pregame events
+            // Skip not pregame events
             console.log(event.summary);
             console.log(
               "Is it pregame event?",
@@ -557,8 +559,8 @@ export async function POST(request: NextRequest) {
                     );
 
                     await calendar.events.patch({
-                      calendarId: calendarId,
-                      eventId: event.id!,
+                      calendarId,
+                      eventId: event.id,
                       requestBody: {
                         summary: newTitle,
                       },
@@ -695,10 +697,10 @@ export async function POST(request: NextRequest) {
                         admin.firestore.FieldValue.serverTimestamp(),
                     });
 
-                  //Add all requesters as guests to the calendar event
+                  // Add all requesters as guests to the calendar event
                   if (event.id) {
                     await calendar.events.patch({
-                      calendarId: calendarId,
+                      calendarId,
                       eventId: event.id,
                       requestBody: {
                         summary: newTitle,
@@ -737,7 +739,7 @@ export async function POST(request: NextRequest) {
           summary: {
             totalEvents: dryRunResults.length,
             newBookings: targetBookings,
-            existingBookings: existingBookings,
+            existingBookings,
             skippedBookings: dryRunResults.filter(r => r.result === "skipped")
               .length,
           },
@@ -745,14 +747,13 @@ export async function POST(request: NextRequest) {
         },
         { status: 200 },
       );
-    } else {
-      return NextResponse.json(
-        {
-          message: `${totalNewBookings} new bookings have been synchronized. ${existingBookings} existing bookings have been updated with multiple rooms.`,
-        },
-        { status: 200 },
-      );
     }
+    return NextResponse.json(
+      {
+        message: `${totalNewBookings} new bookings have been synchronized. ${existingBookings} existing bookings have been updated with multiple rooms.`,
+      },
+      { status: 200 },
+    );
   } catch (error) {
     console.error("Error syncing calendars:", error);
     return NextResponse.json(

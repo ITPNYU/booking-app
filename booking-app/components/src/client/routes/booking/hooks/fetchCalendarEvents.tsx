@@ -15,76 +15,87 @@ export default function fetchCalendarEvents(allRooms: RoomSetting[]) {
   // Track in-flight request to prevent duplicate fetches
   const inflightRef = useRef<AbortController | null>(null);
 
-  const fetchRoomCalendarEvents = useCallback(async (room: RoomSetting, signal?: AbortSignal): Promise<CalendarEvent[]> => {
-    const calendarId = room.calendarId;
-    let response = null;
-    try {
-      response = await fetch(
-        `${process.env.NEXT_PUBLIC_BASE_URL}/api/calendarEvents?calendarId=${calendarId}`,
-        {
-          headers: {
-            "Content-Type": "application/json",
-            "x-tenant": (tenant as string) || DEFAULT_TENANT,
+  const fetchRoomCalendarEvents = useCallback(
+    async (
+      room: RoomSetting,
+      signal?: AbortSignal,
+    ): Promise<CalendarEvent[]> => {
+      const { calendarId } = room;
+      let response = null;
+      try {
+        response = await fetch(
+          `${process.env.NEXT_PUBLIC_BASE_URL}/api/calendarEvents?calendarId=${calendarId}`,
+          {
+            headers: {
+              "Content-Type": "application/json",
+              "x-tenant": (tenant as string) || DEFAULT_TENANT,
+            },
+            signal,
           },
-          signal,
-        }
-      );
-    } catch (e: any) {
-      if (e?.name === "AbortError") throw e; // Let abort propagate
-      console.error(`Error fetching calendar events for room ${room.roomId}:`, e);
-      return []; // Return empty array instead of undefined to prevent issues
-    }
-
-    if (!response || !response.ok) {
-      console.error(`Failed to fetch calendar events for room ${room.roomId}:`, response?.status);
-      return []; // Return empty array instead of undefined
-    }
-
-    const data = await response.json();
-    const filteredEvents = data.filter((row: any) => {
-      return !CALENDAR_HIDE_STATUS.some((status) =>
-        row?.title?.includes(status)
-      );
-    });
-    const rowsWithResourceIds = filteredEvents.map((row) => {
-      // Add visual indication for different booking statuses
-      let backgroundColor = "#3174ad"; // Default blue for approved/confirmed
-      let textColor = "white";
-
-      if (row.booking) {
-        const status = row.booking.status;
-
-        switch (status) {
-          case "REQUESTED":
-            backgroundColor = "#ff9800"; // Orange for requested
-            break;
-          case "PENDING":
-            backgroundColor = "#ffc107"; // Yellow for pending
-            break;
-          case "APPROVED":
-            backgroundColor = "#4caf50"; // Green for approved
-            break;
-          case "DECLINED":
-            backgroundColor = "#f44336"; // Red for declined
-            break;
-          case "CANCELED":
-            backgroundColor = "#9e9e9e"; // Gray for canceled
-            break;
-        }
+        );
+      } catch (e: any) {
+        if (e?.name === "AbortError") throw e; // Let abort propagate
+        console.error(
+          `Error fetching calendar events for room ${room.roomId}:`,
+          e,
+        );
+        return []; // Return empty array instead of undefined to prevent issues
       }
 
-      return {
-        ...row,
-        id: `${row.calendarEventId}:${room.roomId}:${row.start}`,
-        resourceId: room.roomId + "",
-        overlap: false, // Prevent overlapping with this event
-        backgroundColor,
-        textColor,
-        constraint: "businessHours", // Optional: add constraint
-      };
-    });
-    return rowsWithResourceIds;
-  }, [tenant]);
+      if (!response || !response.ok) {
+        console.error(
+          `Failed to fetch calendar events for room ${room.roomId}:`,
+          response?.status,
+        );
+        return []; // Return empty array instead of undefined
+      }
+
+      const data = await response.json();
+      const filteredEvents = data.filter(
+        (row: any) =>
+          !CALENDAR_HIDE_STATUS.some((status) => row?.title?.includes(status)),
+      );
+      const rowsWithResourceIds = filteredEvents.map((row) => {
+        // Add visual indication for different booking statuses
+        let backgroundColor = "#3174ad"; // Default blue for approved/confirmed
+        const textColor = "white";
+
+        if (row.booking) {
+          const { status } = row.booking;
+
+          switch (status) {
+            case "REQUESTED":
+              backgroundColor = "#ff9800"; // Orange for requested
+              break;
+            case "PENDING":
+              backgroundColor = "#ffc107"; // Yellow for pending
+              break;
+            case "APPROVED":
+              backgroundColor = "#4caf50"; // Green for approved
+              break;
+            case "DECLINED":
+              backgroundColor = "#f44336"; // Red for declined
+              break;
+            case "CANCELED":
+              backgroundColor = "#9e9e9e"; // Gray for canceled
+              break;
+          }
+        }
+
+        return {
+          ...row,
+          id: `${row.calendarEventId}:${room.roomId}:${row.start}`,
+          resourceId: `${room.roomId}`,
+          overlap: false, // Prevent overlapping with this event
+          backgroundColor,
+          textColor,
+          constraint: "businessHours", // Optional: add constraint
+        };
+      });
+      return rowsWithResourceIds;
+    },
+    [tenant],
+  );
 
   const loadEvents = useCallback(() => {
     // Abort any in-flight request to avoid stale updates
@@ -101,24 +112,26 @@ export default function fetchCalendarEvents(allRooms: RoomSetting[]) {
     inflightRef.current = controller;
 
     setFetchingStatus("loading");
-    
-    Promise.all(allRooms.map((room) => fetchRoomCalendarEvents(room, controller.signal)))
+
+    Promise.all(
+      allRooms.map((room) => fetchRoomCalendarEvents(room, controller.signal)),
+    )
       .then((results) => {
         // Filter out undefined values and flatten - each room returns an array
         const flatResults = results
           .filter((result): result is CalendarEvent[] => result !== undefined)
           .flat();
-        
+
         // Filter out events with hidden statuses
         const filtered = flatResults.filter(
           (event) =>
             event && // Ensure event exists
             event.title && // Ensure title exists
             !CALENDAR_HIDE_STATUS.some((hideStatus) =>
-              event.title.includes(hideStatus)
-            )
+              event.title.includes(hideStatus),
+            ),
         );
-        
+
         // Always update events with the latest fetch results
         // This ensures events from Google Calendar always appear, even if some rooms failed
         setEvents(filtered);
@@ -145,6 +158,6 @@ export default function fetchCalendarEvents(allRooms: RoomSetting[]) {
   return {
     existingCalendarEvents: events,
     reloadExistingCalendarEvents: loadEvents,
-    fetchingStatus: fetchingStatus,
+    fetchingStatus,
   };
 }

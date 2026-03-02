@@ -15,7 +15,7 @@ export default function Admin({ calendarEventId }) {
 
   const adminEmails = useMemo<string[]>(
     () => adminUsers.map((user) => user.email),
-    [adminUsers]
+    [adminUsers],
   );
 
   const userHasPermission = canAccessAdmin(pagePermission);

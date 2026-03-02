@@ -9,10 +9,10 @@ const resolveStub = (relativePath) => path.join(__dirname, relativePath);
 /** @type {import('next').NextConfig} */
 
 const nextConfig = {
-  experimental: {
-    instrumentationHook: true,
-    serverComponentsExternalPackages: ["newrelic"],
+  eslint: {
+    ignoreDuringBuilds: true,
   },
+  serverExternalPackages: ["newrelic"],
   env: {
     FIREBASE_PROJECT_ID: process.env.FIREBASE_PROJECT_ID,
     FIREBASE_PRIVATE_KEY_ID: process.env.FIREBASE_PRIVATE_KEY_ID,

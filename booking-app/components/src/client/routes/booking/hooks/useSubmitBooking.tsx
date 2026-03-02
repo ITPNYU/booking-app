@@ -1,4 +1,5 @@
 import { useCallback, useContext } from "react";
+import { useParams, useRouter } from "next/navigation";
 import { DEFAULT_TENANT } from "../../../../constants/tenants";
 import {
   BookingOrigin,
@@ -7,10 +8,10 @@ import {
   PagePermission,
 } from "../../../../types";
 
-import { useParams, useRouter } from "next/navigation";
 import { DatabaseContext } from "../../components/Provider";
 import { BookingContext } from "../bookingProvider";
 import useCalculateOverlap from "./useCalculateOverlap";
+
 export default function useSubmitBooking(formContext: FormContextLevel) {
   const router = useRouter();
   const params = useParams();
@@ -55,10 +56,10 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
     async (data: Inputs, isAutoApproval: boolean, calendarEventId?: string) => {
       // Check if we have valid affiliation info
       // For "Other" department, we need the otherDepartment field to be filled
-      const hasDepartment = department && (
-        department !== "Other" || // Regular department selection
-        (department === "Other" && data?.otherDepartment?.trim()) // "Other" with manual entry
-      );
+      const hasDepartment =
+        department &&
+        (department !== "Other" || // Regular department selection
+          (department === "Other" && data?.otherDepartment?.trim())); // "Other" with manual entry
       const hasAffiliation = (role && hasDepartment) || isModification;
 
       console.log(
@@ -88,7 +89,7 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
             catering: data?.catering,
             hireSecurity: data?.hireSecurity,
           },
-        }
+        },
       );
 
       if (
@@ -101,13 +102,16 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
         if (!role) missingFields.push("role");
         if (!department) missingFields.push("department (from context)");
         if (department === "Other" && !data?.otherDepartment?.trim()) {
-          missingFields.push("otherDepartment (required when department is 'Other')");
+          missingFields.push(
+            "otherDepartment (required when department is 'Other')",
+          );
         }
         if (!hasDepartment) missingFields.push("valid department selection");
-        if (!hasAffiliation) missingFields.push("affiliation (role + department)");
+        if (!hasAffiliation)
+          missingFields.push("affiliation (role + department)");
         if (selectedRooms.length === 0) missingFields.push("selectedRooms");
         if (!bookingCalendarInfo) missingFields.push("bookingCalendarInfo");
-        
+
         console.error("❌ SUBMISSION BLOCKED - Missing required fields:", {
           missingFields,
           role,
@@ -126,8 +130,10 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
           isWalkIn,
           isModification,
         });
-        
-        setError(new Error(`Missing required fields: ${missingFields.join(", ")}`));
+
+        setError(
+          new Error(`Missing required fields: ${missingFields.join(", ")}`),
+        );
         setSubmitting("error");
         return;
       }
@@ -153,7 +159,7 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
 
       if (isEdit && data.netId) {
         // block another person editing someone's booking
-        if (data.netId + "@nyu.edu" !== userEmail) {
+        if (`${data.netId}@nyu.edu` !== userEmail) {
           setSubmitting("error");
           return;
         }
@@ -167,10 +173,13 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
 
       let email: string;
       setSubmitting("submitting");
-      if ((isWalkIn || isModification || isVIP) && (data.walkInNetId || data.netId)) {
+      if (
+        (isWalkIn || isModification || isVIP) &&
+        (data.walkInNetId || data.netId)
+      ) {
         // For walk-ins, use walkInNetId (the person using the space), not the PA's ID
         const netIdToUse = data.walkInNetId || data.netId;
-        email = netIdToUse + "@nyu.edu";
+        email = `${netIdToUse}@nyu.edu`;
       } else {
         email = userEmail || data.missingEmail;
       }
@@ -178,7 +187,7 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
       const requestParams = ((): {
         endpoint: string;
         method: "POST" | "PUT";
-        body?: Object;
+        body?: object;
       } => {
         switch (formContext) {
           case FormContextLevel.EDIT:
@@ -241,7 +250,7 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
           isAutoApproval,
           email,
           requestBody,
-        }
+        },
       );
 
       fetch(`${process.env.NEXT_PUBLIC_BASE_URL}${requestParams.endpoint}`, {
@@ -250,14 +259,14 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
           "Content-Type": "application/json",
           "x-tenant": tenant,
         },
-          body: JSON.stringify({
+        body: JSON.stringify({
           origin: isVIP ? BookingOrigin.VIP : BookingOrigin.WALK_IN,
           type: isVIP ? BookingOrigin.VIP : BookingOrigin.WALK_IN,
           email,
           selectedRooms,
           bookingCalendarInfo,
           liaisonUsers,
-            data,
+          data,
           isAutoApproval,
           // Add modifiedBy as a top-level parameter for edit/modification context
           ...modificationFields,
@@ -272,7 +281,7 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
               statusText: res.statusText,
               endpoint: requestParams.endpoint,
               isAutoApproval,
-            }
+            },
           );
 
           if (res.status === 409) {
@@ -283,7 +292,8 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
 
           if (!res.ok) {
             // Handle other error status codes
-            let errorMessage = "Sorry, an error occurred while submitting this request";
+            let errorMessage =
+              "Sorry, an error occurred while submitting this request";
             try {
               const errorData = await res.json();
               if (errorData.error || errorData.message) {
@@ -308,7 +318,9 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
         })
         .catch((error) => {
           console.error("Error submitting booking:", error);
-          setError(new Error("Sorry, an error occurred while submitting this request"));
+          setError(
+            new Error("Sorry, an error occurred while submitting this request"),
+          );
           setSubmitting("error");
         });
     },
@@ -321,7 +333,7 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
       reloadFutureBookings,
       department,
       role,
-    ]
+    ],
   );
 
   return registerEvent;

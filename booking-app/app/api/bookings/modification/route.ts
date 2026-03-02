@@ -120,14 +120,14 @@ export async function PUT(request: NextRequest) {
     // Get rooms
     const tenantRooms = await getTenantRooms(tenant);
     const oldRooms = tenantRooms.filter((room: any) =>
-      oldRoomIds.includes(room.roomId + ""),
+      oldRoomIds.includes(`${room.roomId}`),
     );
 
     const selectedRoomIds = selectedRooms
       .map((r: { roomId: number }) => r.roomId)
       .join(", ");
 
-    console.log(`🔧 MODIFICATION: Deleting old calendar events`);
+    console.log("🔧 MODIFICATION: Deleting old calendar events");
     // Delete old calendar events
     await Promise.all(
       oldRooms.map(async room => {
@@ -135,7 +135,7 @@ export async function PUT(request: NextRequest) {
       }),
     );
 
-    console.log(`🔧 MODIFICATION: Creating new calendar event`);
+    console.log("🔧 MODIFICATION: Creating new calendar event");
     // Create new calendar event with APPROVED status
     const startDateObj = new Date(bookingCalendarInfo.startStr);
     const endDateObj = new Date(bookingCalendarInfo.endStr);
@@ -153,16 +153,18 @@ export async function PUT(request: NextRequest) {
     );
 
     const description =
-      (await bookingContentsToDescription(bookingContentsForDesc, tenant)) +
-      "<p>Your reservation has been confirmed and approved.</p>" +
+      `${await bookingContentsToDescription(
+        bookingContentsForDesc,
+        tenant,
+      )}<p>Your reservation has been confirmed and approved.</p>` +
       '<p>To cancel reservations please return to the Booking Tool, visit My Bookings, and click "cancel" on the booking at least 24 hours before the date of the event. Failure to cancel an unused booking is considered a no-show and may result in restricted use of the space.</p>';
 
     // Create calendar event
     const [room, ...otherRooms] = selectedRooms;
-    const calendarId = room.calendarId;
+    const { calendarId } = room;
 
     if (calendarId == null) {
-      throw Error("calendarId not found for room " + room.roomId);
+      throw Error(`calendarId not found for room ${room.roomId}`);
     }
 
     const otherRoomEmails = otherRooms.map(
@@ -170,7 +172,7 @@ export async function PUT(request: NextRequest) {
     );
 
     const truncatedTitle =
-      data.title.length > 25 ? data.title.substring(0, 25) + "..." : data.title;
+      data.title.length > 25 ? `${data.title.substring(0, 25)}...` : data.title;
 
     const event = await insertEvent({
       calendarId,
@@ -199,11 +201,14 @@ export async function PUT(request: NextRequest) {
       origin: existingBookingData.origin || BookingOrigin.USER,
     };
 
-    console.log(`✅ PRESERVED ORIGIN FOR MODIFICATION [${tenant?.toUpperCase()}]:`, {
-      calendarEventId: newCalendarEventId,
-      originalOrigin: existingBookingData.origin,
-      newOrigin: updatedData.origin,
-    });
+    console.log(
+      `✅ PRESERVED ORIGIN FOR MODIFICATION [${tenant?.toUpperCase()}]:`,
+      {
+        calendarEventId: newCalendarEventId,
+        originalOrigin: existingBookingData.origin,
+        newOrigin: updatedData.origin,
+      },
+    );
 
     // Preserve approval timestamps from existing booking
     if (existingBookingData.finalApprovedAt) {
@@ -367,7 +372,7 @@ export async function PUT(request: NextRequest) {
       requestNumber: existingContents.requestNumber,
     });
   } catch (error) {
-    console.error(`❌ MODIFICATION FAILED:`, error);
+    console.error("❌ MODIFICATION FAILED:", error);
     return NextResponse.json(
       { result: "error", message: "Failed to modify booking" },
       { status: 500 },

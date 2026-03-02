@@ -38,7 +38,7 @@ export async function DELETE(request: NextRequest) {
 
   const ids = {};
 
-  for (let row of rows) {
+  for (const row of rows) {
     if (!ids[row.calendarEventId]) {
       ids[row.calendarEventId] = [];
     }
@@ -47,7 +47,7 @@ export async function DELETE(request: NextRequest) {
 
   const deleteDocIds = [];
 
-  for (let key in ids) {
+  for (const key in ids) {
     const dups = ids[key];
     if (dups[0].requestedAt) {
       deleteDocIds.push(dups[1].id);

@@ -18,8 +18,8 @@ import {
 } from "react-hook-form";
 import React, { cloneElement } from "react";
 
-import { Inputs } from "../../../../types";
 import styled from "@emotion/styled";
+import { Inputs } from "../../../../types";
 
 const Label = styled.label`
   font-weight: 500;
@@ -94,7 +94,7 @@ export function BookingFormDropdown(props: DropdownInputs) {
               dataTestId
                 ? {
                     PaperProps: {
-                      'data-testid': `${dataTestId}-menu`,
+                      "data-testid": `${dataTestId}-menu`,
                     },
                   }
                 : undefined

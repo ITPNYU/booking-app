@@ -1,6 +1,6 @@
+import { clientGetFinalApproverEmailFromDatabase } from "@/lib/firebase/firebase";
 import { MEDIA_COMMONS_OPERATION_EMAIL } from "./mediaCommonsPolicy";
 
-import { clientGetFinalApproverEmailFromDatabase } from "@/lib/firebase/firebase";
 import { BookingStatusLabel } from "./types";
 
 export enum TableNames {
@@ -27,7 +27,7 @@ export enum TableNames {
 // Utility function to get tenant-specific collection names
 export const getTenantCollectionName = (
   baseCollection: string,
-  tenant?: string
+  tenant?: string,
 ): string => {
   if (!tenant) {
     return baseCollection;
@@ -58,7 +58,7 @@ export const getTenantCollectionName = (
 // Helper function to get tenant-specific TableNames
 export const getTenantTableName = (
   tableName: TableNames,
-  tenant?: string
+  tenant?: string,
 ): string => {
   const baseCollection = tableName;
   return getTenantCollectionName(baseCollection, tenant);
@@ -66,7 +66,7 @@ export const getTenantTableName = (
 
 // Helper function to extract tenant from collection name
 export const extractTenantFromCollectionName = (
-  collectionName: string
+  collectionName: string,
 ): string | undefined => {
   // Collection name format: "tenant-collection" or just "collection"
   const parts = collectionName.split("-");
@@ -100,7 +100,7 @@ export enum ApproverLevel {
   EQUIPMENT = 3,
 }
 
-/********** CONTACTS ************/
+/** ******** CONTACTS ************/
 
 export const clientGetFinalApproverEmail = async (): Promise<string> => {
   const finalApproverEmail = await clientGetFinalApproverEmailFromDatabase();

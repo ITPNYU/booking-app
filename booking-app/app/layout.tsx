@@ -6,8 +6,8 @@ import ClientProvider from "@/components/src/client/routes/components/ClientProv
 import { ThemeProvider } from "@mui/material";
 import CssBaseline from "@mui/material/CssBaseline";
 import { Roboto } from "next/font/google";
-import theme from "./theme/theme";
 import { AuthProvider } from "@/components/src/client/routes/components/AuthProvider";
+import theme from "./theme/theme";
 
 const roboto = Roboto({
   weight: ["300", "400", "500", "700"],

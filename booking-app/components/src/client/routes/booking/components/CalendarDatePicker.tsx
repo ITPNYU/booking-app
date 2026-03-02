@@ -38,13 +38,11 @@ export const CalendarDatePicker = ({ handleChange, formContext }: Props) => {
   };
 
   // Create a date validation function that only disables past dates
-  const shouldDisableDate = (date: Dayjs) => {
+  const shouldDisableDate = (date: Dayjs) =>
     // Only disable past dates - allow blackout periods to be selected
     // Time restrictions will be handled in the calendar view
     // Compare in Eastern timezone
-    return date.isBefore(dayjs.tz(undefined, TIMEZONE), "day");
-  };
-
+    date.isBefore(dayjs.tz(undefined, TIMEZONE), "day");
   // if go back to calendar from booking form, show currently selected date
   useEffect(() => {
     if (bookingCalendarInfo != null) {

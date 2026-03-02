@@ -1,8 +1,8 @@
 import { Box, Tab, Tabs } from "@mui/material";
 import { useContext, useState } from "react";
+import { hasAnyPermission } from "@/components/src/utils/permissions";
 import { PagePermission } from "../../../types";
 
-import { hasAnyPermission } from "@/components/src/utils/permissions";
 import { DatabaseContext } from "../components/Provider";
 import ServicesBookings from "./ServicesBookings";
 

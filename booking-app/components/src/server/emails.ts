@@ -1,6 +1,6 @@
-import { DevBranch } from "../types";
 import { TableNames } from "@/components/src/policy";
 import { serverGetDocumentById } from "@/lib/firebase/server/adminDb";
+import { DevBranch } from "../types";
 
 export const getEmailBranchTag = () => {
   switch (process.env.NEXT_PUBLIC_BRANCH_NAME as DevBranch) {
@@ -37,7 +37,9 @@ export interface TenantEmailConfig {
  * @param tenant - The tenant identifier
  * @returns Promise<TenantEmailConfig> - The email configuration with fallbacks
  */
-export const getTenantEmailConfig = async (tenant?: string): Promise<TenantEmailConfig> => {
+export const getTenantEmailConfig = async (
+  tenant?: string,
+): Promise<TenantEmailConfig> => {
   let schemaName = "Media Commons"; // fallback
   let emailMessages = {
     requestConfirmation: "",
@@ -54,12 +56,12 @@ export const getTenantEmailConfig = async (tenant?: string): Promise<TenantEmail
     closed: "",
     approvalNotice: "",
   };
-  
+
   if (tenant) {
     try {
       const schema = await serverGetDocumentById(
         TableNames.TENANT_SCHEMA,
-        tenant
+        tenant,
       );
       if (schema?.name) {
         schemaName = schema.name;
@@ -69,7 +71,8 @@ export const getTenantEmailConfig = async (tenant?: string): Promise<TenantEmail
         emailMessages = {
           requestConfirmation: schema.emailMessages.requestConfirmation || "",
           firstApprovalRequest: schema.emailMessages.firstApprovalRequest || "",
-          secondApprovalRequest: schema.emailMessages.secondApprovalRequest || "",
+          secondApprovalRequest:
+            schema.emailMessages.secondApprovalRequest || "",
           walkInConfirmation: schema.emailMessages.walkInConfirmation || "",
           vipConfirmation: schema.emailMessages.vipConfirmation || "",
           checkoutConfirmation: schema.emailMessages.checkoutConfirmation || "",
@@ -86,11 +89,9 @@ export const getTenantEmailConfig = async (tenant?: string): Promise<TenantEmail
       console.error("Error fetching tenant schema for email:", error);
     }
   }
-  
-  return { 
-    schemaName, 
-    emailMessages
+
+  return {
+    schemaName,
+    emailMessages,
   };
 };
-
-

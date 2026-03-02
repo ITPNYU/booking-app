@@ -1,10 +1,10 @@
 import { Booking, EquipmentServices } from "@/components/src/types";
 import React, { useContext, useRef, useState } from "react";
 
-import { DatabaseContext } from "../Provider";
 import { Switch } from "@mui/material";
 import { TableNames } from "@/components/src/policy";
 import { clientUpdateDataByCalendarEventId } from "@/lib/firebase/client/clientDb";
+import { DatabaseContext } from "../Provider";
 
 interface Props {
   booking: Booking;
@@ -18,7 +18,7 @@ export default function EquipmentCheckoutToggle({ booking, status }: Props) {
   const { reloadFutureBookings } = useContext(DatabaseContext);
 
   const handleEquipToggleChange = async (
-    event: React.ChangeEvent<HTMLInputElement>
+    event: React.ChangeEvent<HTMLInputElement>,
   ) => {
     const newStatus = event.target.checked;
     setOptimisticStatus(newStatus);
@@ -30,7 +30,7 @@ export default function EquipmentCheckoutToggle({ booking, status }: Props) {
         booking.calendarEventId,
         {
           equipmentCheckedOut: newStatus,
-        }
+        },
       );
       await reloadFutureBookings();
     } catch (ex) {
@@ -42,7 +42,9 @@ export default function EquipmentCheckoutToggle({ booking, status }: Props) {
     }
   };
 
-  if (!booking.equipmentServices?.includes(EquipmentServices.CHECKOUT_EQUIPMENT)) {
+  if (
+    !booking.equipmentServices?.includes(EquipmentServices.CHECKOUT_EQUIPMENT)
+  ) {
     return null;
   }
 

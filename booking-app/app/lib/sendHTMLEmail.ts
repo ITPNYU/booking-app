@@ -99,7 +99,7 @@ export const sendHTMLEmail = async (params: SendHTMLEmailParams) => {
   const templateSource = fs.readFileSync(templatePath, "utf8");
 
   // Register date formatting helper
-  Handlebars.registerHelper("formatDate", function (timestamp) {
+  Handlebars.registerHelper("formatDate", timestamp => {
     if (!timestamp) return "";
     try {
       return serverFormatDate(timestamp);
@@ -110,9 +110,7 @@ export const sendHTMLEmail = async (params: SendHTMLEmailParams) => {
   });
 
   // Register equality helper
-  Handlebars.registerHelper("eq", function (a, b) {
-    return a === b;
-  });
+  Handlebars.registerHelper("eq", (a, b) => a === b);
 
   const template = Handlebars.compile(templateSource);
   const approvalUrl = approverType
@@ -124,7 +122,7 @@ export const sendHTMLEmail = async (params: SendHTMLEmailParams) => {
     ...contents,
     startDate: serverFormatDateOnly(contents.startDate),
     endDate: serverFormatDateOnly(contents.endDate),
-    status: status,
+    status,
   };
 
   const htmlBody = template({

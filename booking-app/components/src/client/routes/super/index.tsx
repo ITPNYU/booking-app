@@ -2,11 +2,11 @@
 
 import { Box } from "@mui/material";
 import { useContext, useMemo, useState } from "react";
+import Tab from "@mui/material/Tab";
+import Tabs from "@mui/material/Tabs";
 import { DatabaseContext } from "../components/Provider";
 import { PagePermission } from "../../../types";
 import SuperAdminSettings from "./settings";
-import Tab from "@mui/material/Tab";
-import Tabs from "@mui/material/Tabs";
 import { CenterLoading } from "../components/Loading";
 
 export default function SuperAdmin() {
@@ -16,7 +16,7 @@ export default function SuperAdmin() {
 
   const superAdminEmails = useMemo<string[]>(
     () => superAdminUsers.map((user) => user.email),
-    [superAdminUsers]
+    [superAdminUsers],
   );
 
   const userHasPermission = pagePermission === PagePermission.SUPER_ADMIN;
