@@ -4,28 +4,40 @@ import { SchemaContextType } from "@/components/src/client/routes/components/Sch
 import SchemaProviderWrapper from "@/components/src/client/routes/components/SchemaProviderWrapper";
 import { ALLOWED_TENANTS } from "@/components/src/constants/tenants";
 import { TableNames } from "@/components/src/policy";
-import { serverGetDocumentById } from "@/lib/firebase/server/adminDb";
+import { applyEnvironmentCalendarIds } from "@/lib/utils/calendarEnvironment";
+import { shouldBypassAuth } from "@/lib/utils/testEnvironment";
+import { getTestTenantSchema } from "@/lib/utils/testTenantSchema";
 import { notFound } from "next/navigation";
 import React from "react";
 
 type LayoutProps = {
   children: React.ReactNode;
-  params: {
+  params: Promise<{
     tenant: string;
-  };
+  }>;
 };
 
 const Layout: React.FC<LayoutProps> = async ({ children, params }) => {
-  if (!ALLOWED_TENANTS.includes(params.tenant as any)) {
+  const { tenant } = await params;
+  if (!ALLOWED_TENANTS.includes(tenant as any)) {
     notFound();
   }
 
   try {
-    console.log("Layout: Fetching schema for tenant:", params.tenant);
-    const tenantSchema = await serverGetDocumentById<SchemaContextType>(
-      TableNames.TENANT_SCHEMA,
-      params.tenant,
-    );
+    console.log("Layout: Fetching schema for tenant:", tenant);
+    let tenantSchema: SchemaContextType | null = null;
+
+    if (shouldBypassAuth()) {
+      tenantSchema = getTestTenantSchema(tenant);
+    } else {
+      const { serverGetDocumentById } =
+        await import("@/lib/firebase/server/adminDb");
+      tenantSchema = await serverGetDocumentById<SchemaContextType>(
+        TableNames.TENANT_SCHEMA,
+        tenant,
+      );
+    }
+
     console.log("Layout: Retrieved tenantSchema:", {
       tenant: tenantSchema?.tenant,
       name: tenantSchema?.name,
@@ -33,16 +45,23 @@ const Layout: React.FC<LayoutProps> = async ({ children, params }) => {
     });
 
     if (!tenantSchema) {
-      console.error("Layout: No tenant schema found for:", params.tenant);
+      console.error("Layout: No tenant schema found for:", tenant);
       notFound();
     }
 
     console.log("Layout: Passing tenantSchema to SchemaProviderWrapper");
 
+    // Apply environment-based calendar ID selection
+    if (tenantSchema.resources && Array.isArray(tenantSchema.resources)) {
+      tenantSchema.resources = applyEnvironmentCalendarIds(
+        tenantSchema.resources,
+      );
+    }
+
     // Ensure the data is properly serializable
     const serializedTenantSchema: SchemaContextType = {
       ...tenantSchema,
-      tenant: tenantSchema.tenant || params.tenant, // Fallback to params.tenant
+      tenant: tenantSchema.tenant || tenant, // Fallback to params.tenant
     };
 
     console.log("Layout: Serialized tenantSchema:", {

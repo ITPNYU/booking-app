@@ -18,9 +18,11 @@ interface Props<T extends EmailField> {
 
 export default function EmailListTable<T extends EmailField>(props: Props<T>) {
   const addEmail = useMemo(() => <AddEmail {...props} />, [props]);
-  
+
   // Add safety check for userList
-  const sortedUserList = props.userList ? [...props.userList].sort((a, b) => a.email.localeCompare(b.email)) : [];
+  const sortedUserList = props.userList
+    ? [...props.userList].sort((a, b) => a.email.localeCompare(b.email))
+    : [];
 
   return (
     <ListTable

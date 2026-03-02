@@ -1,5 +1,9 @@
 import { TableNames } from "@/components/src/policy";
-import { BookingLog, BookingRow, BookingStatusLabel } from "@/components/src/types";
+import {
+  BookingLog,
+  BookingRow,
+  BookingStatusLabel,
+} from "@/components/src/types";
 import { clientFetchAllDataFromCollection } from "@/lib/firebase/firebase";
 import { TableCell, TableRow } from "@mui/material";
 import { Timestamp, where } from "firebase/firestore";
@@ -21,7 +25,7 @@ export default function useSortBookingHistory(booking: BookingRow) {
     const fetchLogs = async () => {
       const logs = await clientFetchAllDataFromCollection<BookingLog>(
         TableNames.BOOKING_LOGS,
-        [where("requestNumber", "==", booking.requestNumber)]
+        [where("requestNumber", "==", booking.requestNumber)],
       );
 
       if (logs.length > 0) {
@@ -48,7 +52,7 @@ export default function useSortBookingHistory(booking: BookingRow) {
         setRows(sortedRows);
       } else {
         // Fallback to original implementation
-        let data: HistoryRow[] = [];
+        const data: HistoryRow[] = [];
         data.push({
           status: BookingStatusLabel.REQUESTED,
           user: booking.email,

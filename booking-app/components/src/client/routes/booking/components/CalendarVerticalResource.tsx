@@ -7,14 +7,6 @@ import {
 } from "@fullcalendar/core";
 import { Box, Typography, useMediaQuery, useTheme } from "@mui/material";
 import { useContext, useEffect, useMemo, useRef } from "react";
-import {
-  Days,
-  FormContextLevel,
-  PagePermission,
-  RoomSetting,
-} from "../../../../types";
-import CalendarEventBlock, { NEW_TITLE_TAG } from "./CalendarEventBlock";
-
 import googleCalendarPlugin from "@fullcalendar/google-calendar";
 import interactionPlugin from "@fullcalendar/interaction"; // for selectable
 import FullCalendar from "@fullcalendar/react";
@@ -23,16 +15,24 @@ import { Error } from "@mui/icons-material";
 import { styled } from "@mui/system";
 import dayjs from "dayjs";
 import { EventResizeDoneArg } from "fullcalendar";
+import { minutesToDurationString } from "@/components/src/constants/tenants";
+import momentTimezonePlugin from "@fullcalendar/moment-timezone";
+import {
+  Days,
+  FormContextLevel,
+  PagePermission,
+  RoomSetting,
+} from "../../../../types";
+import CalendarEventBlock, { NEW_TITLE_TAG } from "./CalendarEventBlock";
+
 import { getBlackoutTimeRangeForDate } from "../../../../utils/blackoutUtils";
 import { DatabaseContext } from "../../components/Provider";
 import { BookingContext } from "../bookingProvider";
 import { useBookingDateRestrictions } from "../hooks/useBookingDateRestrictions";
 import { TIMEZONE } from "../../../utils/date";
-import { minutesToDurationString } from "@/components/src/constants/tenants";
-import { roundTimeUp } from "@/components/src/client/utils/date";
 import { DEFAULT_START_HOUR } from "../utils/getStartHour";
 import { DEFAULT_SLOT_UNIT } from "../utils/getSlotUnit";
-import momentTimezonePlugin from "@fullcalendar/moment-timezone";
+import { buildBlockPastTimes } from "../utils/buildBlockPastTimes";
 
 interface Props {
   calendarEventId?: string;
@@ -140,11 +140,11 @@ export default function CalendarVerticalResource({
   const resources = useMemo(
     () =>
       rooms.map((room) => ({
-        id: room.roomId + "",
+        id: `${room.roomId}`,
         title: `${room.roomId} ${room.name}`,
         index: Number(room.roomId),
       })),
-    [rooms]
+    [rooms],
   );
 
   const isAdminPermission = hasAnyPermission(pagePermission, [
@@ -173,7 +173,7 @@ export default function CalendarVerticalResource({
             start: blackoutRange.start.toISOString(),
             end: blackoutRange.end.toISOString(),
             id: `blackout-${room.roomId}-${period.id}`,
-            resourceId: room.roomId + "",
+            resourceId: `${room.roomId}`,
             title: blackoutRange.title,
             overlap: false,
             display: "background",
@@ -214,7 +214,7 @@ export default function CalendarVerticalResource({
       start: bookingCalendarInfo.startStr,
       end: bookingCalendarInfo.endStr,
       id: room.roomId + bookingCalendarInfo.startStr,
-      resourceId: room.roomId + "",
+      resourceId: `${room.roomId}`,
       title: NEW_TITLE_TAG,
       overlap: true,
       durationEditable: true,
@@ -232,28 +232,12 @@ export default function CalendarVerticalResource({
       return [];
     }
 
-    const blocks = rooms.map((room) => {
-      // derive slot start from the date being viewed, using startHour from server data
-      const start = new Date(dateView);
-      const [minHour, minMinute] = (startHour || DEFAULT_START_HOUR)
-        .split(":")
-        .map((s) => parseInt(s, 10));
-      start.setHours(Number.isFinite(minHour) ? minHour : 9);
-      start.setMinutes(Number.isFinite(minMinute) ? minMinute : 0);
-
-      // Use shared rounding helper so logic is centralized
-      const today = roundTimeUp(slotUnit ?? DEFAULT_SLOT_UNIT);
-      return {
-        start: start.toISOString(),
-        end: today.toISOString(),
-        id: room.roomId + "bg",
-        resourceId: room.roomId + "",
-        overlap: false,
-        display: "background",
-        classNames: ["disabled"],
-      };
-    });
-    return blocks;
+    return buildBlockPastTimes(
+      rooms,
+      dateView,
+      startHour ?? DEFAULT_START_HOUR,
+      slotUnit ?? DEFAULT_SLOT_UNIT,
+    );
   }, [rooms, formContext, dateView, startHour, slotUnit]);
 
   const handleEventSelect = (selectInfo: DateSelectArg) => {
@@ -345,16 +329,16 @@ export default function CalendarVerticalResource({
 
   // for editing an existing reservation
   const existingCalEventsFiltered = useMemo(() => {
-    console.log(`Calendar events received:`, existingCalendarEvents.length);
+    console.log("Calendar events received:", existingCalendarEvents.length);
     console.log(
-      `Sample events:`,
+      "Sample events:",
       existingCalendarEvents.slice(0, 3).map((e) => ({
         id: e.id,
         title: e.title,
         start: e.start,
         end: e.end,
         resourceId: e.resourceId,
-      }))
+      })),
     );
 
     if (
@@ -367,7 +351,7 @@ export default function CalendarVerticalResource({
 
     // based on how we format the id in fetchCalendarEvents
     return existingCalendarEvents.filter(
-      (event) => event.id.split(":")[0] !== calendarEventId
+      (event) => event.id.split(":")[0] !== calendarEventId,
     );
   }, [existingCalendarEvents, formContext]);
 
@@ -397,7 +381,7 @@ export default function CalendarVerticalResource({
   }
 
   const operationHoursToday = operationHours.find(
-    (setting) => Object.values(Days)[dateView.getDay()] === setting.day
+    (setting) => Object.values(Days)[dateView.getDay()] === setting.day,
   );
 
   if (fetchingStatus === "loading") {

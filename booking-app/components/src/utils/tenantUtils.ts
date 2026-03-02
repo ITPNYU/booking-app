@@ -9,9 +9,7 @@ export type Tenant = (typeof TENANTS)[keyof typeof TENANTS];
 /**
  * Check if a tenant is ITP
  */
-export const isITP = (tenant?: string): boolean => {
-  return tenant === TENANTS.ITP;
-};
+export const isITP = (tenant?: string): boolean => tenant === TENANTS.ITP;
 
 /**
  * Check if a tenant is Media Commons (supports both "mediaCommons" and "mc")
@@ -24,36 +22,30 @@ export const isMediaCommons = (tenant?: string): boolean => {
 /**
  * Check if a tenant should use XState
  */
-export const shouldUseXState = (tenant?: string): boolean => {
-  return true;
-};
+export const shouldUseXState = (tenant?: string): boolean => true;
 
 /**
  * Get tenant-specific flags
  */
-export const getTenantFlags = (tenant?: string) => {
-  return {
-    isITP: isITP(tenant),
-    isMediaCommons: isMediaCommons(tenant),
-    usesXState: shouldUseXState(tenant),
-  };
-};
+export const getTenantFlags = (tenant?: string) => ({
+  isITP: isITP(tenant),
+  isMediaCommons: isMediaCommons(tenant),
+  usesXState: shouldUseXState(tenant),
+});
 
 /**
  * Detect Media Commons service requests from booking data
  * This function provides consistent service detection logic across the application
  */
-export const getMediaCommonsServices = (data: any) => {
-  return {
-    staff: !!data.staffingServicesDetails && data.staffingServicesDetails !== "no",
-    setup: !!data.setupDetails && data.setupDetails !== "no",
-    equipment:
-      (!!data.mediaServices && data.mediaServices !== "no") ||
-      (!!data.equipmentServices && data.equipmentServices !== "no") ||
-      (!!data.equipmentServicesDetails &&
-        data.equipmentServicesDetails !== "no"),
-    catering: !!data.catering && data.catering !== "no",
-    cleaning: !!data.cleaningService && data.cleaningService !== "no",
-    security: !!data.hireSecurity && data.hireSecurity !== "no",
-  };
-};
+export const getMediaCommonsServices = (data: any) => ({
+  staff:
+    !!data.staffingServicesDetails && data.staffingServicesDetails !== "no",
+  setup: !!data.setupDetails && data.setupDetails !== "no",
+  equipment:
+    (!!data.mediaServices && data.mediaServices !== "no") ||
+    (!!data.equipmentServices && data.equipmentServices !== "no") ||
+    (!!data.equipmentServicesDetails && data.equipmentServicesDetails !== "no"),
+  catering: !!data.catering && data.catering !== "no",
+  cleaning: !!data.cleaningService && data.cleaningService !== "no",
+  security: !!data.hireSecurity && data.hireSecurity !== "no",
+});

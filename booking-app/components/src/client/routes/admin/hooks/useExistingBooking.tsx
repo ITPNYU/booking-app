@@ -1,8 +1,8 @@
 import { Department, Role } from "@/components/src/types";
 
+import { useContext } from "react";
 import { BookingContext } from "../../booking/bookingProvider";
 import { DatabaseContext } from "../../components/Provider";
-import { useContext } from "react";
 
 export default function useExistingBooking() {
   const {
@@ -16,7 +16,7 @@ export default function useExistingBooking() {
 
   const findBooking = (calendarEventId: string) =>
     allBookings.filter(
-      (booking) => booking.calendarEventId === calendarEventId
+      (booking) => booking.calendarEventId === calendarEventId,
     )[0];
 
   const loadExistingBookingData = (calendarEventId: string) => {
@@ -27,7 +27,7 @@ export default function useExistingBooking() {
 
     const roomIds = booking.roomId.split(", ").map((x) => Number(x));
     const rooms = roomSettings.filter((roomSetting) =>
-      roomIds.includes(roomSetting.roomId)
+      roomIds.includes(roomSetting.roomId),
     );
     setSelectedRooms(rooms);
 

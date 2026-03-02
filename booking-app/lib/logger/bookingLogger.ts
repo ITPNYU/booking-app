@@ -21,7 +21,7 @@ export class BookingLogger {
     emoji: string,
     category: string,
     action: string,
-    tenant?: string
+    tenant?: string,
   ): string {
     return `${emoji} ${category}: ${action} [${this.formatTenant(tenant)}]`;
   }
@@ -32,13 +32,13 @@ export class BookingLogger {
     category: string,
     action: string,
     context?: LogContext,
-    details?: any
+    details?: any,
   ): void {
     const message = this.formatMessage(
       emoji,
       category,
       action,
-      context?.tenant
+      context?.tenant,
     );
 
     if (details) {
@@ -55,14 +55,14 @@ export class BookingLogger {
     fromState: string,
     toState: string,
     eventType: string,
-    context: LogContext
+    context: LogContext,
   ): void {
     this.log(
       "log",
       "🔄",
       "XSTATE TRANSITION",
       `${fromState} → ${toState} (${eventType})`,
-      context
+      context,
     );
   }
 
@@ -89,7 +89,7 @@ export class BookingLogger {
   static apiRequest(
     method: string,
     endpoint: string,
-    context: LogContext
+    context: LogContext,
   ): void {
     this.log("log", "📡", "API REQUEST", `${method} ${endpoint}`, context);
   }
@@ -98,7 +98,7 @@ export class BookingLogger {
     method: string,
     endpoint: string,
     context: LogContext,
-    result?: any
+    result?: any,
   ): void {
     this.log(
       "log",
@@ -106,7 +106,7 @@ export class BookingLogger {
       "API SUCCESS",
       `${method} ${endpoint}`,
       context,
-      result
+      result,
     );
   }
 
@@ -114,7 +114,7 @@ export class BookingLogger {
     method: string,
     endpoint: string,
     context: LogContext,
-    error: any
+    error: any,
   ): void {
     this.log("error", "🚨", "API ERROR", `${method} ${endpoint}`, context, {
       error: error.message,
@@ -126,7 +126,7 @@ export class BookingLogger {
   static dbOperation(
     operation: string,
     table: string,
-    context: LogContext
+    context: LogContext,
   ): void {
     this.log("log", "💾", "DB OPERATION", `${operation} ${table}`, context);
   }
@@ -134,7 +134,7 @@ export class BookingLogger {
   static dbSuccess(
     operation: string,
     table: string,
-    context: LogContext
+    context: LogContext,
   ): void {
     this.log("log", "✅", "DB SUCCESS", `${operation} ${table}`, context);
   }
@@ -143,7 +143,7 @@ export class BookingLogger {
     operation: string,
     table: string,
     context: LogContext,
-    error: any
+    error: any,
   ): void {
     this.log("error", "🚨", "DB ERROR", `${operation} ${table}`, context, {
       error: error.message,
@@ -154,7 +154,7 @@ export class BookingLogger {
   static calendarUpdate(
     action: string,
     context: LogContext,
-    details?: any
+    details?: any,
   ): void {
     this.log("log", "📅", "CALENDAR UPDATE", action, context, details);
   }
@@ -169,7 +169,7 @@ export class BookingLogger {
   static emailSent(
     type: string,
     context: LogContext,
-    recipient?: string
+    recipient?: string,
   ): void {
     this.log("log", "📧", "EMAIL SENT", type, { ...context, recipient });
   }
@@ -185,14 +185,14 @@ export class BookingLogger {
     fromStatus: string,
     toStatus: string,
     context: LogContext,
-    reason?: string
+    reason?: string,
   ): void {
     this.log(
       "log",
       "🔄",
       "STATUS CHANGE",
       `${fromStatus} → ${toStatus}${reason ? ` (${reason})` : ""}`,
-      context
+      context,
     );
   }
 
@@ -204,14 +204,14 @@ export class BookingLogger {
   static serviceDeclined(
     serviceType: string,
     context: LogContext,
-    reason?: string
+    reason?: string,
   ): void {
     this.log(
       "log",
       "❌",
       "SERVICE DECLINED",
       `${serviceType}${reason ? ` (${reason})` : ""}`,
-      context
+      context,
     );
   }
 

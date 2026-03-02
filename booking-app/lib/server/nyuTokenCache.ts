@@ -5,7 +5,9 @@ const NYU_AUTH_URL = "https://auth.nyu.edu/oauth2/token";
 
 export class NYUTokenManager {
   private static instance: NYUTokenManager;
+
   private tokenCache: NYUTokenCache | null = null;
+
   private tokenRefreshPromise: Promise<NYUTokenCache | null> | null = null;
 
   private constructor() {}
@@ -62,7 +64,7 @@ export class NYUTokenManager {
   }
 
   private async refreshExistingToken(
-    refresh_token: string
+    refresh_token: string,
   ): Promise<TokenResponse> {
     const params = new URLSearchParams({
       grant_type: "refresh_token",
@@ -119,7 +121,7 @@ export class NYUTokenManager {
         try {
           console.log("Attempting to refresh token");
           tokenResponse = await this.refreshExistingToken(
-            this.tokenCache.refresh_token
+            this.tokenCache.refresh_token,
           );
         } catch (error) {
           console.log("Refresh token failed, fetching new token");
@@ -152,7 +154,7 @@ export class NYUTokenManager {
     access_token: string,
     expires_in: number,
     token_type: string = "Bearer",
-    refresh_token?: string
+    refresh_token?: string,
   ) {
     const now = Date.now();
     this.tokenCache = {

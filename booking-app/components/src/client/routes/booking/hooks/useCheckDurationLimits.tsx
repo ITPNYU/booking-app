@@ -15,11 +15,17 @@ interface DurationLimitError {
   errorType: "max" | "min";
 }
 
-export default function useCheckDurationLimits(isWalkIn = false, isVIP = false) {
-  const { bookingCalendarInfo, selectedRooms, role } = useContext(BookingContext);
+export default function useCheckDurationLimits(
+  isWalkIn = false,
+  isVIP = false,
+) {
+  const { bookingCalendarInfo, selectedRooms, role } =
+    useContext(BookingContext);
   const schema = useTenantSchema();
 
-  const [durationError, setDurationError] = useState<DurationLimitError | null>(null);
+  const [durationError, setDurationError] = useState<DurationLimitError | null>(
+    null,
+  );
 
   useEffect(() => {
     // Reset error state
@@ -33,7 +39,12 @@ export default function useCheckDurationLimits(isWalkIn = false, isVIP = false) 
       const durationHours = duration / (1000 * 60 * 60);
 
       // Get the hour limits based on role and selected rooms
-      const { maxHours, minHours } = getBookingHourLimits(selectedRooms, role, isWalkIn, isVIP);
+      const { maxHours, minHours } = getBookingHourLimits(
+        selectedRooms,
+        role,
+        isWalkIn,
+        isVIP,
+      );
 
       // Check maximum duration
       if (durationHours > maxHours) {
@@ -45,7 +56,7 @@ export default function useCheckDurationLimits(isWalkIn = false, isVIP = false) 
           minDuration: minHours,
           role: role || Role.STUDENT,
           isWalkIn,
-          errorType: "max"
+          errorType: "max",
         });
         return;
       }
@@ -60,12 +71,18 @@ export default function useCheckDurationLimits(isWalkIn = false, isVIP = false) 
           minDuration: minHours,
           role: role || Role.STUDENT,
           isWalkIn,
-          errorType: "min"
+          errorType: "min",
         });
-        return;
       }
     }
-  }, [bookingCalendarInfo, selectedRooms, role, schema.resources, isWalkIn, isVIP]);
+  }, [
+    bookingCalendarInfo,
+    selectedRooms,
+    role,
+    schema.resources,
+    isWalkIn,
+    isVIP,
+  ]);
 
   return { durationError };
 }

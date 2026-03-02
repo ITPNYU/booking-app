@@ -16,10 +16,13 @@ const ServicesBookings: React.FC = () => {
 
     const filtered = allBookings.filter((booking) => {
       try {
-        const ctx = getXStateContext(booking) || (booking as any)?.xstateData?.snapshot?.context;
+        const ctx =
+          getXStateContext(booking) ||
+          (booking as any)?.xstateData?.snapshot?.context;
         const servicesRequested = ctx?.servicesRequested;
         if (servicesRequested && typeof servicesRequested === "object") {
-          if (Object.values(servicesRequested).some((v) => v === true)) return true;
+          if (Object.values(servicesRequested).some((v) => v === true))
+            return true;
         }
 
         // Fallback to the old checker which inspects snapshot.value / currentState
@@ -27,7 +30,11 @@ const ServicesBookings: React.FC = () => {
         return checker.isInServicesRequest();
       } catch (err) {
         // On error, exclude the booking to be safe
-        console.error("Error evaluating servicesRequested for booking", booking?.calendarEventId, err);
+        console.error(
+          "Error evaluating servicesRequested for booking",
+          booking?.calendarEventId,
+          err,
+        );
         return false;
       }
     });
@@ -41,7 +48,7 @@ const ServicesBookings: React.FC = () => {
   }, [allBookings]);
 
   console.log(
-    `📋 SERVICES BOOKINGS: Found ${servicesRequestedBookings.length} bookings with "Service Requested" state`
+    `📋 SERVICES BOOKINGS: Found ${servicesRequestedBookings.length} bookings with "Service Requested" state`,
   );
 
   // Create a custom context that only shows Service Requested bookings

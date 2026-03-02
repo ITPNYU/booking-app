@@ -21,6 +21,7 @@ import {
   logServerBookingChange,
   serverGetNextSequentialId,
   serverSaveDataToFirestore,
+  serverGetDocumentById,
 } from "@/lib/firebase/server/adminDb";
 import { itpBookingMachine } from "@/lib/stateMachines/itpBookingMachine";
 import { mcBookingMachine } from "@/lib/stateMachines/mcBookingMachine";
@@ -35,8 +36,8 @@ import {
   getMediaCommonsServices,
   isMediaCommons,
 } from "@/components/src/utils/tenantUtils";
-import { serverGetDocumentById } from "@/lib/firebase/server/adminDb";
 import { getCalendarClient } from "@/lib/googleClient";
+import { applyEnvironmentCalendarIds } from "@/lib/utils/calendarEnvironment";
 import { Timestamp } from "firebase-admin/firestore";
 import { DateSelectArg } from "fullcalendar";
 import {
@@ -147,7 +148,12 @@ const getTenantRooms = async (tenant?: string) => {
       return [];
     }
 
-    return schema.resources.map((resource: any) => ({
+    // Apply environment-based calendar ID selection
+    const resourcesWithCorrectCalendarIds = applyEnvironmentCalendarIds(
+      schema.resources,
+    );
+
+    return resourcesWithCorrectCalendarIds.map((resource: any) => ({
       roomId: resource.roomId,
       name: resource.name,
       capacity: resource.capacity?.toString(),
@@ -160,13 +166,11 @@ const getTenantRooms = async (tenant?: string) => {
 };
 
 // Helper functions for tenant-specific logic
-const getTenantFlags = (tenant: string) => {
-  return {
-    isITP: tenant === "itp",
-    isMediaCommons: isMediaCommons(tenant),
-    usesXState: true,
-  };
-};
+const getTenantFlags = (tenant: string) => ({
+  isITP: tenant === "itp",
+  isMediaCommons: isMediaCommons(tenant),
+  usesXState: true,
+});
 
 const getXStateMachine = (tenant?: string) => {
   if (isMediaCommons(tenant)) return mcBookingMachine;
@@ -183,8 +187,8 @@ const buildBookingContents = (
   status: BookingStatusLabel,
   requestNumber: number,
   origin?: string,
-) => {
-  return {
+) =>
+  ({
     ...data,
     roomId: selectedRoomIds,
     startDate: startDateObj.toLocaleDateString(),
@@ -202,8 +206,7 @@ const buildBookingContents = (
     status,
     requestNumber,
     origin,
-  } as unknown as BookingFormDetails;
-};
+  }) as unknown as BookingFormDetails;
 
 async function createBookingCalendarEvent(
   selectedRooms: RoomSetting[],
@@ -213,10 +216,10 @@ async function createBookingCalendarEvent(
   description: string,
 ) {
   const [room, ...otherRooms] = selectedRooms;
-  const calendarId = room.calendarId;
+  const { calendarId } = room;
 
   if (calendarId == null) {
-    throw Error("calendarId not found for room " + room.roomId);
+    throw Error(`calendarId not found for room ${room.roomId}`);
   }
 
   const selectedRoomIds = selectedRooms.map(
@@ -228,7 +231,7 @@ async function createBookingCalendarEvent(
 
   // Limit title to 25 characters
   const truncatedTitle =
-    title.length > 25 ? title.substring(0, 25) + "..." : title;
+    title.length > 25 ? `${title.substring(0, 25)}...` : title;
 
   const event = await insertEvent({
     calendarId,
@@ -338,7 +341,7 @@ async function handleBookingApprovalEmails(
         templateName: "booking_detail",
         contents: {
           ...contentsAsStrings,
-          requestNumber: contents.requestNumber + "",
+          requestNumber: `${contents.requestNumber}`,
         },
         targetEmail: recipient,
         status: BookingStatusLabel.REQUESTED,
@@ -398,7 +401,7 @@ async function handleBookingApprovalEmails(
     );
     const userEventInputs: BookingFormDetails = {
       ...data,
-      calendarEventId: calendarEventId,
+      calendarEventId,
       roomId: selectedRoomIds,
       email,
       startDate: bookingCalendarInfo?.startStr,
@@ -485,7 +488,7 @@ async function checkOverlap(
       const eventEnd = new Date(event.end.dateTime || event.end.date);
       const requestStart = new Date(bookingCalendarInfo.startStr);
       const requestEnd = new Date(bookingCalendarInfo.endStr);
-      //log the event that overlaps and then return
+      // log the event that overlaps and then return
       if (
         (eventStart >= requestStart && eventStart < requestEnd) ||
         (eventEnd > requestStart && eventEnd <= requestEnd) ||
@@ -535,10 +538,10 @@ export async function POST(request: NextRequest) {
     formData: {
       title: data?.title,
       department: data?.department,
-      departmentDisplay: departmentDisplay,
+      departmentDisplay,
       otherDepartment: data?.otherDepartment,
       school: data?.school,
-      schoolDisplay: schoolDisplay,
+      schoolDisplay,
       otherSchool: data?.otherSchool,
       roomSetup: data?.roomSetup,
       mediaServices: data?.mediaServices,
@@ -562,14 +565,14 @@ export async function POST(request: NextRequest) {
   let shouldAutoApprove = isAutoApproval === true;
 
   // Declare xstateData in outer scope
-  let xstateData: any = undefined;
+  let xstateData: any;
 
   // Use XState machine for ITP and Media Commons tenant auto-approval logic
   if (usesXState) {
     console.log(
       `🎭 USING XSTATE FOR ${tenant?.toUpperCase()} AUTO-APPROVAL LOGIC`,
     );
-    console.log(`🎭 XSTATE INPUT DATA:`, {
+    console.log("🎭 XSTATE INPUT DATA:", {
       tenant,
       selectedRooms: selectedRooms?.map(r => ({
         roomId: r.roomId,
@@ -600,7 +603,7 @@ export async function POST(request: NextRequest) {
       // Check if user is VIP (you can customize this logic)
       isVip = data.isVip || false;
 
-      console.log(`🎭 XSTATE MEDIA COMMONS: Detected services`, {
+      console.log("🎭 XSTATE MEDIA COMMONS: Detected services", {
         servicesRequested,
         isVip,
         formData: {
@@ -615,7 +618,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create XState actor with booking context
-    console.log(`🎭 XSTATE: Creating actor...`);
+    console.log("🎭 XSTATE: Creating actor...");
     const bookingActor = createActor(machine, {
       input: {
         tenant,
@@ -627,19 +630,19 @@ export async function POST(request: NextRequest) {
         calendarEventId: null, // Will be set after calendar event creation
         servicesRequested: isMediaCommons ? servicesRequested : undefined,
         isVip: isMediaCommons ? isVip : false,
-        role: data.role as any, // Pass role from form data
+        role: data.role, // Pass role from form data
       },
     });
 
     // Start the actor to trigger initial state evaluation
-    console.log(`🎭 XSTATE: Starting actor...`);
+    console.log("🎭 XSTATE: Starting actor...");
     bookingActor.start();
-    console.log(`🎭 XSTATE: Actor started successfully`);
+    console.log("🎭 XSTATE: Actor started successfully");
 
     // Get the current state after initial evaluation
     const currentState = bookingActor.getSnapshot();
 
-    console.log(`🎭 XSTATE FINAL STATE RESULT:`, {
+    console.log("🎭 XSTATE FINAL STATE RESULT:", {
       value: currentState.value,
       context: {
         tenant: currentState.context.tenant,
@@ -718,9 +721,9 @@ export async function POST(request: NextRequest) {
     } else {
       // ITP specific events
       try {
-        canTransitionTo["close"] = currentState.can({ type: "close" as any });
+        canTransitionTo.close = currentState.can({ type: "close" as any });
       } catch (e) {
-        canTransitionTo["close"] = false;
+        canTransitionTo.close = false;
       }
     }
 
@@ -731,7 +734,7 @@ export async function POST(request: NextRequest) {
     // Use the common function to create XState data
     xstateData = createXStateData(machine.id, cleanSnapshot);
 
-    console.log(`🎭 XSTATE: Preparing state for persistence:`, {
+    console.log("🎭 XSTATE: Preparing state for persistence:", {
       currentState: cleanSnapshot?.value,
       hasSnapshot: !!cleanSnapshot,
       snapshotKeys: cleanSnapshot ? Object.keys(cleanSnapshot) : [],
@@ -739,9 +742,9 @@ export async function POST(request: NextRequest) {
     });
 
     // Stop the actor
-    console.log(`🎭 XSTATE: Stopping actor...`);
+    console.log("🎭 XSTATE: Stopping actor...");
     bookingActor.stop();
-    console.log(`🎭 XSTATE: Actor stopped`);
+    console.log("🎭 XSTATE: Actor stopped");
   }
 
   console.log(
@@ -786,8 +789,10 @@ export async function POST(request: NextRequest) {
   );
 
   const description =
-    (await bookingContentsToDescription(bookingContentsForDesc, tenant)) +
-    "<p>Your reservation is not yet confirmed. The coordinator will review and finalize your reservation within a few days.</p>" +
+    `${await bookingContentsToDescription(
+      bookingContentsForDesc,
+      tenant,
+    )}<p>Your reservation is not yet confirmed. The coordinator will review and finalize your reservation within a few days.</p>` +
     '<p>To cancel reservations please return to the Booking Tool, visit My Bookings, and click "cancel" on the booking at least 24 hours before the date of the event. Failure to cancel an unused booking is considered a no-show and may result in restricted use of the space.</p>';
 
   let calendarEventId: string;
@@ -855,7 +860,7 @@ export async function POST(request: NextRequest) {
       status: initialStatus,
       changedBy: email,
       requestNumber: sequentialId,
-      calendarEventId: calendarEventId,
+      calendarEventId,
       note: "",
       tenant,
     });
@@ -868,7 +873,7 @@ export async function POST(request: NextRequest) {
           ...xstateData,
           context: {
             ...xstateData.context,
-            calendarEventId: calendarEventId,
+            calendarEventId,
           },
         };
 

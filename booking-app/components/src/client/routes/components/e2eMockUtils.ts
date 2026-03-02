@@ -18,7 +18,7 @@ function getE2EMockData<T>(key: string): T | undefined {
 
 export function withE2EMockData<T>(
   key: string,
-  handler: (data: T) => void
+  handler: (data: T) => void,
 ): boolean {
   const data = getE2EMockData<T>(key);
   if (!data) {
@@ -39,7 +39,7 @@ export function applyE2EMockBookings(options: {
 }
 
 export function applyE2EMockAdminUsers(
-  setAdminUsers: (users: AdminUser[]) => void
+  setAdminUsers: (users: AdminUser[]) => void,
 ): boolean {
   return withE2EMockData<any[]>("usersRights", (records) => {
     const admins = records
@@ -53,7 +53,7 @@ export function applyE2EMockAdminUsers(
 }
 
 export function applyE2EMockPaUsers(
-  setPaUsers: (users: PaUser[]) => void
+  setPaUsers: (users: PaUser[]) => void,
 ): boolean {
   return withE2EMockData<any[]>("usersRights", (records) => {
     const users = records
@@ -67,11 +67,11 @@ export function applyE2EMockPaUsers(
 }
 
 export function applyE2EMockSafetyUsers(
-  setSafetyUsers: (users: SafetyTraining[]) => void
+  setSafetyUsers: (users: SafetyTraining[]) => void,
 ): boolean {
   return withE2EMockData<SafetyTraining[]>(
     "safetyTrainedUsers",
-    setSafetyUsers
+    setSafetyUsers,
   );
 }
 

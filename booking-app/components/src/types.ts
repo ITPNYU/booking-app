@@ -324,12 +324,12 @@ export type RoomSetting = {
       student: number;
     };
     conditions?: {
-      setup: boolean;        // Allow auto-approval with setup requests
-      equipment: boolean;    // Allow auto-approval with equipment requests
-      staffing: boolean;     // Allow auto-approval with staffing requests
-      catering: boolean;     // Allow auto-approval with catering requests
-      cleaning: boolean;     // Allow auto-approval with cleaning requests
-      security: boolean;     // Allow auto-approval with security requests
+      setup: boolean; // Allow auto-approval with setup requests
+      equipment: boolean; // Allow auto-approval with equipment requests
+      staffing: boolean; // Allow auto-approval with staffing requests
+      catering: boolean; // Allow auto-approval with catering requests
+      cleaning: boolean; // Allow auto-approval with cleaning requests
+      security: boolean; // Allow auto-approval with security requests
     };
   };
   maxHour?: {
@@ -451,7 +451,7 @@ export enum BookingOrigin {
 }
 
 export const formatOrigin = (
-  origin: BookingOrigin | string | undefined
+  origin: BookingOrigin | string | undefined,
 ): string => {
   if (!origin) return "User";
   switch (origin) {
