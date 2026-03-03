@@ -193,9 +193,11 @@ Step 3: Room & Time Selection → Booking Details → Confirmation
 
 ### 3.4 Edit Booking Flow
 
-For editing a previously submitted booking. Available when:
-- A booking is in **Declined** status (for regular users) — allows resubmission
-- Admin-editable statuses (for admins)
+For editing a previously submitted booking.
+
+**Who can edit:**
+- **Regular users** can edit their booking when it is in **Requested**, **Pre-approved**, or **Declined** status — i.e., any time before final approval, or after a decline (to fix and resubmit)
+- **Admins** can edit bookings in additional statuses
 
 ```
 Load Existing Booking Data
@@ -207,9 +209,15 @@ Role Selection → Room Selection → Booking Details Form
 Submit → Booking returns to Requested status
 ```
 
-### 3.5 Modification Flow
+After an edit, the booking goes back to **Requested** status and re-enters the approval workflow.
 
-For requesting modifications to an approved or in-progress booking.
+### 3.5 Modification Flow (Admin/PA Only)
+
+For making modifications to a booking that has already been approved or is in progress. This flow is only available to **Admins and PAs**, not regular users.
+
+**Available when:**
+- Booking is in **Approved** status
+- Booking is in **Walk-In** status
 
 ```
 Load Existing Booking Data
@@ -217,8 +225,10 @@ Load Existing Booking Data
 Modification Form → Room Selection → Confirmation
     │  Pre-filled with existing data
     ▼
-Submit → Booking updated
+Submit → Booking updated (stays in current status)
 ```
+
+Unlike editing, modification does not reset the booking to Requested status.
 
 ---
 
@@ -241,8 +251,10 @@ Every booking follows a state machine that controls which actions are available 
       │                                                   │
       │                              ┌── Has services? ───┤
       │                              │                     │
-      │                         Services Request      No services
-      │                         (parallel approval)        │
+      │                    Services under review      No services
+      │                    (each service approved/        │
+      │                     declined independently)       │
+      │                    (status stays Pre-approved)    │
       │                              │                     ▼
       │                     All approved? ────────────► Approved
       │                     Any declined? ────────────► Declined
@@ -291,7 +303,7 @@ Every booking follows a state machine that controls which actions are available 
 | Status | Description |
 |--------|-------------|
 | **Requested** | Booking has been submitted and is awaiting review |
-| **Pre-approved** | Liaison (first approver) has approved; awaiting final approval |
+| **Pre-approved** | Liaison (first approver) has approved; awaiting final approval or services are being reviewed |
 | **Approved** | Fully approved; the event is confirmed |
 | **Checked In** | Guest has arrived and been checked in by staff |
 | **Checked Out** | Guest has departed; event is complete |
@@ -807,12 +819,17 @@ Blackout periods are time ranges during which bookings are not allowed.
 | VIP → Form | Fill in booking details |
 | VIP → Confirmation | Submit and see success or error |
 
-### Edit & Modification Pages
+### Edit Pages (Users, Admins)
 
 | Page | Description |
 |------|-------------|
 | Edit → Landing | Load existing booking for editing |
-| Edit → Role / Room / Form | Modify booking details |
+| Edit → Role / Room / Form | Modify booking details, returns to Requested status |
+
+### Modification Pages (Admin/PA Only)
+
+| Page | Description |
+|------|-------------|
 | Modification → Landing | Load existing booking for modification |
 | Modification → Form / Room / Confirmation | Modify and confirm changes |
 
