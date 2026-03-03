@@ -153,10 +153,8 @@ describe("useBookingActions Hook", () => {
       Actions.CANCEL,
       Actions.EDIT,
     ]);
-    testUserContext(BookingStatusLabel.PRE_APPROVED, [
-      Actions.CANCEL,
-      Actions.EDIT,
-    ]);
+    // PRE_APPROVED: Edit not allowed — only REQUESTED and DECLINED are editable
+    testUserContext(BookingStatusLabel.PRE_APPROVED, [Actions.CANCEL]);
     testUserContext(BookingStatusLabel.APPROVED, [Actions.CANCEL]);
     testUserContext(BookingStatusLabel.EQUIPMENT, [Actions.CANCEL]);
     testUserContext(BookingStatusLabel.DECLINED, [
