@@ -68,6 +68,13 @@ export default defineConfig({
         "**/xstate-service-closeout.e2e.test.ts",
         "**/xstate-service-full-flow.e2e.test.ts",
         "**/xstate-service-closeout-full-flow.e2e.test.ts",
+        "**/edit-booking-flow.e2e.test.ts",
+        "**/auto-cancel-declined.e2e.test.ts",
+        "**/auto-checkout.e2e.test.ts",
+        "**/blackout-periods.e2e.test.ts",
+        "**/safety-training.e2e.test.ts",
+        "**/ban-enforcement.e2e.test.ts",
+        "**/form-validation.e2e.test.ts",
       ],
       use: {
         ...devices["Desktop Chrome"],
@@ -84,6 +91,7 @@ export default defineConfig({
       ...process.env,
       E2E_TESTING: "true",
       BYPASS_AUTH: "true",
+      CRON_SECRET: "test-cron-secret-for-e2e",
     },
   },
 });

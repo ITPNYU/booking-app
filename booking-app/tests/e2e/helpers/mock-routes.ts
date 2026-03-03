@@ -1,6 +1,6 @@
 import { Page, Route } from "@playwright/test";
 
-const mockTenantSchema = {
+export const mockTenantSchema = {
   tenant: "mc",
   name: "Media Commons",
   logo: "/mediaCommonsLogo.svg",
