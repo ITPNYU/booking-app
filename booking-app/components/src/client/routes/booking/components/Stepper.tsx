@@ -27,7 +27,8 @@ export default function BookingFormStepper({ formContext }: Props) {
         routeToStepNames.form,
         routeToStepNames.confirmation,
       ];
-    } else if (formContext === FormContextLevel.WALK_IN) {
+    }
+    if (formContext === FormContextLevel.WALK_IN) {
       return [
         routeToStepNames.netid,
         routeToStepNames.role,
@@ -35,14 +36,13 @@ export default function BookingFormStepper({ formContext }: Props) {
         routeToStepNames.form,
         routeToStepNames.confirmation,
       ];
-    } else {
-      return [
-        routeToStepNames.role,
-        routeToStepNames.selectRoom,
-        routeToStepNames.form,
-        routeToStepNames.confirmation,
-      ];
     }
+    return [
+      routeToStepNames.role,
+      routeToStepNames.selectRoom,
+      routeToStepNames.form,
+      routeToStepNames.confirmation,
+    ];
   }, [formContext]);
 
   useEffect(() => {

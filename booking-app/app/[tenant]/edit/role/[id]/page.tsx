@@ -1,3 +1,5 @@
+"use client";
+
 import { FormContextLevel } from "@/components/src/types";
 // app/edit/role/[id].tsx
 import React, { use } from "react";

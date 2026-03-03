@@ -1,5 +1,3 @@
-import { BookingStatusLabel, PageContextLevel } from "../../../../types";
-
 import FilterList from "@mui/icons-material/FilterList";
 import SearchIcon from "@mui/icons-material/Search";
 import {
@@ -14,9 +12,12 @@ import {
   PeopleAlt,
   LocalDining,
   CleaningServices,
-  LocalPolice
+  LocalPolice,
 } from "@mui/icons-material";
 import React, { useCallback, useContext, useEffect, useState } from "react";
+import { createEmitAndSemanticDiagnosticsBuilderProgram } from "typescript";
+import { BookingStatusLabel, PageContextLevel } from "../../../../types";
+
 import { debounce } from "../../../utils/debounce";
 import Dropdown from "../../booking/components/Dropdown";
 import { DatabaseContext } from "../Provider";
@@ -26,7 +27,6 @@ import StatusMultiSelectDropdown from "../../booking/components/StatusMultiSelec
 import ServicesMultiSelectDropdown from "../../booking/components/ServicesMultiSelectDropdown";
 import StatusChip from "./StatusChip";
 import FilterChip from "./FilterChip";
-import { createEmitAndSemanticDiagnosticsBuilderProgram } from "typescript";
 
 interface Props {
   allowedStatuses: BookingStatusLabel[];
@@ -36,11 +36,17 @@ interface Props {
   selectedDateRange: DateRangeFilter;
   setSelectedDateRange: any;
   selectedOrigins?: string[] | null;
-  setSelectedOrigins?: (origins: string[] | null | ((prev: string[] | null) => string[] | null)) => void;
+  setSelectedOrigins?: (
+    origins: string[] | null | ((prev: string[] | null) => string[] | null),
+  ) => void;
   selectedRooms?: string[] | null;
-  setSelectedRooms?: (rooms: string[] | null | ((prev: string[] | null) => string[] | null)) => void;
+  setSelectedRooms?: (
+    rooms: string[] | null | ((prev: string[] | null) => string[] | null),
+  ) => void;
   selectedServices?: string[] | null;
-  setSelectedServices?: (services: string[] | null | ((prev: string[] | null) => string[] | null)) => void;
+  setSelectedServices?: (
+    services: string[] | null | ((prev: string[] | null) => string[] | null),
+  ) => void;
   searchQuery?: string;
   setSearchQuery?: (query: string) => void;
   isSearching?: boolean;
@@ -54,7 +60,7 @@ export default function BookingTableFilters({
   selectedDateRange,
   setSelectedDateRange,
   searchQuery = "",
-  setSearchQuery = () => { },
+  setSearchQuery = () => {},
   isSearching = false,
   selectedOrigins,
   setSelectedOrigins,
@@ -63,7 +69,8 @@ export default function BookingTableFilters({
   selectedServices,
   setSelectedServices,
 }: Props) {
-  const { setLoadMoreEnabled, setLastItem, roomSettings } = useContext(DatabaseContext);
+  const { setLoadMoreEnabled, setLastItem, roomSettings } =
+    useContext(DatabaseContext);
   const [localSearchQuery, setLocalSearchQuery] = useState(searchQuery);
   // Update local search query when the prop changes
   useEffect(() => {
@@ -81,11 +88,11 @@ export default function BookingTableFilters({
         setLastItem(null);
       }
     }, 1000), // Increase debounce time to 1 second to prevent rapid fetches
-    [setSearchQuery, setLoadMoreEnabled, setLastItem, searchQuery]
+    [setSearchQuery, setLoadMoreEnabled, setLastItem, searchQuery],
   );
 
   const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const value = event.target.value;
+    const { value } = event.target;
     setLocalSearchQuery(value);
     debouncedSearch(value);
   };
@@ -115,16 +122,16 @@ export default function BookingTableFilters({
       setSelectedDateRange,
       setLoadMoreEnabled,
       setLastItem,
-    ]
+    ],
   );
 
   const serviceIcons: Record<string, React.ElementType> = {
-    "Setup": TableBar,
-    "Equipment": Headset,
-    "Staffing": PeopleAlt,
-    "Catering": LocalDining,
-    "Cleaning": CleaningServices,
-    "Security": LocalPolice,
+    Setup: TableBar,
+    Equipment: Headset,
+    Staffing: PeopleAlt,
+    Catering: LocalDining,
+    Cleaning: CleaningServices,
+    Security: LocalPolice,
   };
 
   const dateFilters = (
@@ -199,18 +206,28 @@ export default function BookingTableFilters({
       }}
     >
       <Box sx={{ display: "flex", alignItems: "flex-start", gap: 2 }}>
-        <FilterList sx={{ marginLeft: "4px", color: "rgba(0,0,0,0.8)", marginTop: "4px" }} />
+        <FilterList
+          sx={{ marginLeft: "4px", color: "rgba(0,0,0,0.8)", marginTop: "4px" }}
+        />
         <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-          <Box sx={{ display: "flex", alignItems: "center", flexWrap: "wrap", rowGap: 1.5 }}>
-            {["User", "Walk-In", "VIP", "Pregame"].map((origin) =>
-            (
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              flexWrap: "wrap",
+              rowGap: 1.5,
+            }}
+          >
+            {["User", "Walk-In", "VIP", "Pregame"].map((origin) => (
               <Box
-                onClick={() => setSelectedOrigins?.((prev: string[] | null) => {
-                  if (prev?.includes(origin)) {
-                    return prev?.filter((o) => o !== origin);
-                  }
-                  return [...(prev || []), origin];
-                })}
+                onClick={() =>
+                  setSelectedOrigins?.((prev: string[] | null) => {
+                    if (prev?.includes(origin)) {
+                      return prev?.filter((o) => o !== origin);
+                    }
+                    return [...(prev || []), origin];
+                  })
+                }
                 key={origin}
                 sx={{
                   cursor: "pointer",
@@ -223,19 +240,35 @@ export default function BookingTableFilters({
                   text={origin}
                 />
               </Box>
-            )
-            )}
+            ))}
           </Box>
-          <Box sx={{ display: "flex", alignItems: "center", flexWrap: "wrap", rowGap: 1.5 }}>
-            {[BookingStatusLabel.REQUESTED, BookingStatusLabel.PRE_APPROVED, BookingStatusLabel.APPROVED, BookingStatusLabel.CHECKED_IN, BookingStatusLabel.CHECKED_OUT, BookingStatusLabel.DECLINED, BookingStatusLabel.CLOSED, BookingStatusLabel.UNKNOWN].map((status) =>
-            (
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              flexWrap: "wrap",
+              rowGap: 1.5,
+            }}
+          >
+            {[
+              BookingStatusLabel.REQUESTED,
+              BookingStatusLabel.PRE_APPROVED,
+              BookingStatusLabel.APPROVED,
+              BookingStatusLabel.CHECKED_IN,
+              BookingStatusLabel.CHECKED_OUT,
+              BookingStatusLabel.DECLINED,
+              BookingStatusLabel.CLOSED,
+              BookingStatusLabel.UNKNOWN,
+            ].map((status) => (
               <Box
-                onClick={() => setSelectedStatuses((prev: BookingStatusLabel[]) => {
-                  if (prev.includes(status)) {
-                    return prev.filter((x) => x !== status);
-                  }
-                  return [...prev, status];
-                })}
+                onClick={() =>
+                  setSelectedStatuses((prev: BookingStatusLabel[]) => {
+                    if (prev.includes(status)) {
+                      return prev.filter((x) => x !== status);
+                    }
+                    return [...prev, status];
+                  })
+                }
                 key={status}
                 sx={{
                   cursor: "pointer",
@@ -248,44 +281,67 @@ export default function BookingTableFilters({
                   disabled={!selectedStatuses.includes(status)}
                 />
               </Box>
-            )
-            )}
+            ))}
           </Box>
-          <Box sx={{ display: "flex", alignItems: "center", flexWrap: "wrap", rowGap: 1.5 }}>
-            {roomSettings.map((room) => room.roomId.toString()).map((roomId) =>
-            (
-              <Box
-                onClick={() => setSelectedRooms?.((prev: string[] | null) => {
-                  if (prev?.includes(roomId)) {
-                    return prev?.filter((x) => x !== roomId);
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              flexWrap: "wrap",
+              rowGap: 1.5,
+            }}
+          >
+            {roomSettings
+              .map((room) => room.roomId.toString())
+              .map((roomId) => (
+                <Box
+                  onClick={() =>
+                    setSelectedRooms?.((prev: string[] | null) => {
+                      if (prev?.includes(roomId)) {
+                        return prev?.filter((x) => x !== roomId);
+                      }
+                      return [...(prev || []), roomId];
+                    })
                   }
-                  return [...(prev || []), roomId];
-                })}
-                key={roomId}
-                sx={{
-                  cursor: "pointer",
-                  display: "inline-block",
-                  padding: "0px 8px 0px 4px",
-                }}
-              >
-                <FilterChip
-                  selected={selectedRooms?.includes(roomId)}
-                  text={roomId}
-                />
-              </Box>
-            )
-            )}
+                  key={roomId}
+                  sx={{
+                    cursor: "pointer",
+                    display: "inline-block",
+                    padding: "0px 8px 0px 4px",
+                  }}
+                >
+                  <FilterChip
+                    selected={selectedRooms?.includes(roomId)}
+                    text={roomId}
+                  />
+                </Box>
+              ))}
           </Box>
-          <Box sx={{ display: "flex", alignItems: "center", flexWrap: "wrap", rowGap: 1.5 }}>
-            {["Setup", "Equipment", "Staffing", "Catering", "Cleaning", "Security"].map((service) =>
-            (
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              flexWrap: "wrap",
+              rowGap: 1.5,
+            }}
+          >
+            {[
+              "Setup",
+              "Equipment",
+              "Staffing",
+              "Catering",
+              "Cleaning",
+              "Security",
+            ].map((service) => (
               <Box
-                onClick={() => setSelectedServices?.((prev: string[] | null) => {
-                  if (prev?.includes(service)) {
-                    return prev?.filter((x) => x !== service);
-                  }
-                  return [...(prev || []), service];
-                })}
+                onClick={() =>
+                  setSelectedServices?.((prev: string[] | null) => {
+                    if (prev?.includes(service)) {
+                      return prev?.filter((x) => x !== service);
+                    }
+                    return [...(prev || []), service];
+                  })
+                }
                 key={service}
                 sx={{
                   cursor: "pointer",
@@ -296,15 +352,16 @@ export default function BookingTableFilters({
                 <FilterChip
                   selected={selectedServices?.includes(service)}
                   text={service}
-                  icon={serviceIcons[service] as React.ElementType}
+                  icon={serviceIcons[service]}
                 />
               </Box>
-            )
-            )}
+            ))}
           </Box>
         </Box>
       </Box>
-      <Box sx={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 2 }}>
+      <Box
+        sx={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 2 }}
+      >
         {pageContext >= PageContextLevel.PA && dateFilters}
         {pageContext >= PageContextLevel.PA && searchBar}
       </Box>

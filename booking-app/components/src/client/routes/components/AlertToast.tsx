@@ -1,6 +1,6 @@
-import { Alert, AlertColor, Snackbar } from '@mui/material';
+import { Alert, AlertColor, Snackbar } from "@mui/material";
 
-import React from 'react';
+import React from "react";
 
 interface Props {
   open: boolean;
@@ -17,13 +17,13 @@ export default function AlertToast(props: Props) {
       open={open}
       autoHideDuration={5000}
       onClose={handleClose}
-      anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      anchorOrigin={{ vertical: "top", horizontal: "center" }}
     >
       <Alert
         onClose={handleClose}
         severity={severity}
         variant="standard"
-        sx={{ width: '100%' }}
+        sx={{ width: "100%" }}
       >
         {message}
       </Alert>

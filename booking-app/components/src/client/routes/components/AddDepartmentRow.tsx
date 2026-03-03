@@ -3,9 +3,9 @@ import React, { useMemo, useState } from "react";
 
 import { AddCircleOutline } from "@mui/icons-material";
 import Grid from "@mui/material/Unstable_Grid2/Grid2";
+import { Timestamp } from "firebase/firestore";
 import Loading from "./Loading";
 import { TableNames } from "../../../policy";
-import { Timestamp } from "firebase/firestore";
 import { clientSaveDataToFirestore } from "../../../../../lib/firebase/firebase";
 
 interface Props {
@@ -27,7 +27,7 @@ export default function AddDepartmentRow(props: Props) {
 
   const uniqueValues = useMemo<string[]>(
     () => rows.map((row) => row[props.columnNameUniqueValue]),
-    [rows]
+    [rows],
   );
 
   const addValue = async () => {
@@ -35,7 +35,7 @@ export default function AddDepartmentRow(props: Props) {
 
     if (uniqueValues.includes(props.valueToAdd)) {
       alert(
-        props.addDuplicateErrorMessage ?? "This value has already been added"
+        props.addDuplicateErrorMessage ?? "This value has already been added",
       );
       return;
     }

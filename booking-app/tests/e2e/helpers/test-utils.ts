@@ -41,14 +41,24 @@ export async function selectTimeSlot(
 
   if (!skipDatePicker) {
     // Navigate to tomorrow via the CalendarDatePicker
+    const today = new Date();
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     const tomorrowDay = tomorrow.getDate().toString();
 
-    const calendarGrid = page.locator('div[role="grid"]');
-    await calendarGrid.waitFor({ state: "visible", timeout: 10000 });
-    await calendarGrid
+    const datePicker = page.locator(".MuiDateCalendar-root");
+    await datePicker.waitFor({ state: "visible", timeout: 10000 });
+
+    // If tomorrow is in a different month, navigate forward
+    if (tomorrow.getMonth() !== today.getMonth()) {
+      await datePicker.getByRole("button", { name: "Next month" }).click();
+      const monthName = tomorrow.toLocaleString("en-US", { month: "long" });
+      await datePicker.getByText(new RegExp(monthName)).waitFor();
+    }
+
+    await datePicker
       .getByRole("gridcell", { name: tomorrowDay, exact: true })
+      .first()
       .click();
   }
 

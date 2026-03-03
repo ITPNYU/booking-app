@@ -1,12 +1,74 @@
 //@ts-nocheck
 require("dotenv").config({ path: ".env.local" });
 const admin = require("firebase-admin");
+const fs = require("fs");
 
 // Database names for different environments - these can be overridden
 const DATABASES = {
   development: "default",
   staging: "booking-app-staging",
   production: "booking-app-prod",
+};
+const BACKUP_TYPE_COPY = "copy";
+const TENANT_SCHEMA_COLLECTION = "tenantSchema";
+const TENANT_SCHEMA_BACKUP_COLLECTION = "tenantSchemaBackup";
+
+const isPlainObject = (value) =>
+  value !== null && typeof value === "object" && !Array.isArray(value);
+
+const compareDocumentData = (before, after) => {
+  const addedKeys = [];
+  const deletedKeys = [];
+  const updatedKeys = [];
+  const updatedValues = [];
+
+  const compare = (oldObj, newObj, parentPath = "") => {
+    const safeOld = isPlainObject(oldObj) ? oldObj : {};
+    const safeNew = isPlainObject(newObj) ? newObj : {};
+    const allKeys = new Set([...Object.keys(safeOld), ...Object.keys(safeNew)]);
+
+    for (const key of allKeys) {
+      const currentPath = parentPath ? `${parentPath}.${key}` : key;
+      const hasOld = Object.prototype.hasOwnProperty.call(safeOld, key);
+      const hasNew = Object.prototype.hasOwnProperty.call(safeNew, key);
+
+      if (!hasOld && hasNew) {
+        addedKeys.push(currentPath);
+        continue;
+      }
+
+      if (hasOld && !hasNew) {
+        deletedKeys.push(currentPath);
+        continue;
+      }
+
+      const oldValue = safeOld[key];
+      const newValue = safeNew[key];
+
+      if (isPlainObject(oldValue) && isPlainObject(newValue)) {
+        compare(oldValue, newValue, currentPath);
+        continue;
+      }
+
+      if (JSON.stringify(oldValue) !== JSON.stringify(newValue)) {
+        updatedKeys.push(currentPath);
+        updatedValues.push({
+          key: currentPath,
+          before: oldValue,
+          after: newValue,
+        });
+      }
+    }
+  };
+
+  compare(before, after);
+
+  return {
+    addedKeys,
+    deletedKeys,
+    updatedKeys,
+    updatedValues,
+  };
 };
 
 // Parse command line arguments
@@ -18,6 +80,7 @@ const parseArgs = () => {
     sourceDatabase: "development",
     targetDatabase: "development",
     dryRun: false,
+    reportFile: null,
   };
 
   for (let i = 0; i < args.length; i++) {
@@ -37,6 +100,9 @@ const parseArgs = () => {
       case "--dry-run":
         options.dryRun = true;
         break;
+      case "--report-file":
+        options.reportFile = args[++i];
+        break;
       case "--help":
         console.log(`
 Usage: node copyCollection.js [options]
@@ -49,6 +115,7 @@ Optional Options:
   --source-database <env>        Source database environment (default: development)
   --target-database <env>        Target database environment (default: development)
   --dry-run                      Perform a dry run without actually copying data
+  --report-file <path>           Write detailed dry-run report JSON to file
   --help                         Show this help message
 
 Examples:
@@ -168,6 +235,84 @@ const testDatabaseConnection = async (db, databaseName) => {
   }
 };
 
+const createBackupDocId = (tenantId, backupType) => {
+  const timestamp = new Date()
+    .toISOString()
+    .replace(/[:.]/g, "-")
+    .replace("T", "_")
+    .replace("Z", "");
+  return `${tenantId}-backup-${backupType}-${timestamp}`;
+};
+
+const backupTenantSchemaAsDocuments = async (
+  targetDb,
+  databaseName,
+  dryRun = false
+) => {
+  try {
+    const targetSnapshot = await targetDb
+      .collection(TENANT_SCHEMA_COLLECTION)
+      .get();
+
+    if (targetSnapshot.empty) {
+      console.log(`ℹ️ No existing ${TENANT_SCHEMA_COLLECTION} documents to back up`);
+      return { success: true, copied: 0, errors: [] };
+    }
+
+    if (dryRun) {
+      console.log(
+        `\n🔍 [DRY RUN] Would back up ${targetSnapshot.size} ${TENANT_SCHEMA_COLLECTION} documents in ${databaseName} to ${TENANT_SCHEMA_BACKUP_COLLECTION}`
+      );
+      targetSnapshot.docs.forEach((doc) => {
+        const backupDocId = createBackupDocId(doc.id, BACKUP_TYPE_COPY);
+        console.log(
+          `  📄 Would create backup document: ${TENANT_SCHEMA_BACKUP_COLLECTION}/${backupDocId}`
+        );
+      });
+      return { success: true, copied: targetSnapshot.size, errors: [] };
+    }
+
+    console.log(
+      `\n📦 Backing up ${targetSnapshot.size} ${TENANT_SCHEMA_COLLECTION} documents in ${databaseName} to ${TENANT_SCHEMA_BACKUP_COLLECTION}...`
+    );
+    let copiedCount = 0;
+    let currentBatch = targetDb.batch();
+    let operationsInBatch = 0;
+    const BATCH_SIZE = 500;
+
+    for (const doc of targetSnapshot.docs) {
+      const backupDocId = createBackupDocId(doc.id, BACKUP_TYPE_COPY);
+      const backupDocRef = targetDb
+        .collection(TENANT_SCHEMA_BACKUP_COLLECTION)
+        .doc(backupDocId);
+      currentBatch.set(backupDocRef, doc.data(), { merge: false });
+      operationsInBatch++;
+      copiedCount++;
+
+      if (operationsInBatch >= BATCH_SIZE) {
+        await currentBatch.commit();
+        currentBatch = targetDb.batch();
+        operationsInBatch = 0;
+      }
+    }
+
+    if (operationsInBatch > 0) {
+      await currentBatch.commit();
+    }
+
+    console.log(
+      `✅ Backed up ${copiedCount} ${TENANT_SCHEMA_COLLECTION} documents to ${TENANT_SCHEMA_BACKUP_COLLECTION} in ${databaseName}`
+    );
+    return { success: true, copied: copiedCount, errors: [] };
+  } catch (error) {
+    console.error(
+      `❌ Error backing up ${TENANT_SCHEMA_COLLECTION} to ${TENANT_SCHEMA_BACKUP_COLLECTION} in ${databaseName}:`,
+      error.message
+    );
+    return { success: false, copied: 0, errors: [error.message] };
+  }
+};
+
 // Copy collection from source to target database
 const copyCollection = async (
   sourceDb,
@@ -219,24 +364,103 @@ const copyCollection = async (
 
     if (dryRun) {
       // In dry-run mode, just analyze and report what would be copied
+      const targetSnapshot = await targetDb.collection(targetCollection).get();
+      const targetDocumentsById = new Map();
+      targetSnapshot.docs.forEach((doc) => {
+        targetDocumentsById.set(doc.id, doc.data());
+      });
+
       const documents = [];
+      const totals = {
+        addedKeys: 0,
+        deletedKeys: 0,
+        updatedKeys: 0,
+        unchangedDocuments: 0,
+      };
+
+      console.log(
+        `📋 Found ${targetSnapshot.size} existing ${targetCollection} documents in target`
+      );
+      console.log("🔎 Calculating key-level diffs...");
+
       for (const doc of sourceSnapshot.docs) {
         const data = doc.data();
+        const existingData = targetDocumentsById.get(doc.id) || {};
+        const existsInTarget = targetDocumentsById.has(doc.id);
+        const diff = compareDocumentData(existingData, data);
+
+        totals.addedKeys += diff.addedKeys.length;
+        totals.deletedKeys += diff.deletedKeys.length;
+        totals.updatedKeys += diff.updatedKeys.length;
+
+        if (
+          diff.addedKeys.length === 0 &&
+          diff.deletedKeys.length === 0 &&
+          diff.updatedKeys.length === 0
+        ) {
+          totals.unchangedDocuments += 1;
+        }
+
         documents.push({
           id: doc.id,
-          data: data,
+          existsInTarget,
+          changeType:
+            diff.addedKeys.length === 0 &&
+            diff.deletedKeys.length === 0 &&
+            diff.updatedKeys.length === 0
+              ? "unchanged"
+              : existsInTarget
+                ? "update"
+                : "create",
+          diff,
         });
-        console.log(`  📄 Would copy document: ${doc.id}`);
+
+        const hasChanges =
+          diff.addedKeys.length > 0 ||
+          diff.deletedKeys.length > 0 ||
+          diff.updatedKeys.length > 0;
+
+        if (hasChanges) {
+          console.log(`\n📄 Document: ${doc.id}`);
+          console.log(`   Target exists: ${existsInTarget ? "yes" : "no"}`);
+          console.log(`   Added keys (${diff.addedKeys.length})`);
+          diff.addedKeys.forEach((key) => console.log(`     + ${key}`));
+          console.log(`   Deleted keys (${diff.deletedKeys.length})`);
+          diff.deletedKeys.forEach((key) => console.log(`     - ${key}`));
+          console.log(`   Updated keys (${diff.updatedKeys.length})`);
+          diff.updatedKeys.forEach((key) => console.log(`     ~ ${key}`));
+        }
       }
+
+      const changedDocuments =
+        sourceSnapshot.size - totals.unchangedDocuments;
+
+      console.log("\n📊 Dry Run Diff Summary");
+      console.log(`   Source documents: ${sourceSnapshot.size}`);
+      console.log(`   Target documents: ${targetSnapshot.size}`);
+      console.log(`   Changed documents: ${changedDocuments}`);
+      console.log(`   Unchanged documents: ${totals.unchangedDocuments}`);
+      console.log(`   Total added keys: ${totals.addedKeys}`);
+      console.log(`   Total deleted keys: ${totals.deletedKeys}`);
+      console.log(`   Total updated keys: ${totals.updatedKeys}`);
       console.log(
         `✅ [DRY RUN] Would copy ${sourceSnapshot.size} ${sourceCollection} documents to ${targetCollection} in ${databaseName}`
       );
-      return { 
-        success: true, 
-        copied: sourceSnapshot.size, 
+      return {
+        success: true,
+        copied: sourceSnapshot.size,
         errors: [],
         dryRun: true,
-        documents: documents
+        documents,
+        summary: {
+          sourceDocuments: sourceSnapshot.size,
+          targetDocuments: targetSnapshot.size,
+          changedDocuments,
+          unchangedDocuments: totals.unchangedDocuments,
+          addedKeys: totals.addedKeys,
+          deletedKeys: totals.deletedKeys,
+          updatedKeys: totals.updatedKeys,
+        },
       };
     }
 
@@ -327,23 +551,15 @@ const main = async () => {
     // Copy to target database
     const targetDb = initializeTargetDb(DATABASES[options.targetDatabase]);
 
-    // If we're updating tenantSchema, first backup the current tenantSchema with a date suffix
+    // If we're updating tenantSchema, first backup current tenantSchema as backup documents
     const results = [];
     if (
       options.targetCollection === "tenantSchema" &&
       options.sourceCollection === "tenantSchema" &&
       options.sourceDatabase !== options.targetDatabase
     ) {
-      const dateSuffix = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
-      const backupCollectionName = `tenantSchema-backup-${dateSuffix}`;
-      console.log(
-        `\n📦 Step 1: Backing up current tenantSchema to ${backupCollectionName}...`
-      );
-      const backupResult = await copyCollection(
+      const backupResult = await backupTenantSchemaAsDocuments(
         targetDb,
-        targetDb,
-        "tenantSchema",
-        backupCollectionName,
         DATABASES[options.targetDatabase],
         options.dryRun
       );
@@ -378,6 +594,39 @@ const main = async () => {
       step: results.length > 0 ? "update" : "copy",
       ...result,
     });
+
+    if (options.dryRun && options.reportFile) {
+      const dryRunReport = {
+        generatedAt: new Date().toISOString(),
+        options: {
+          sourceCollection: options.sourceCollection,
+          targetCollection: options.targetCollection,
+          sourceDatabase: options.sourceDatabase,
+          targetDatabase: options.targetDatabase,
+          dryRun: options.dryRun,
+        },
+        databaseIds: {
+          source: DATABASES[options.sourceDatabase],
+          target: DATABASES[options.targetDatabase],
+        },
+        results: results.map((resultItem) => ({
+          step: resultItem.step,
+          database: resultItem.database,
+          success: resultItem.success,
+          copied: resultItem.copied,
+          errors: resultItem.errors,
+          summary: resultItem.summary || null,
+          documents: resultItem.documents || [],
+        })),
+      };
+
+      fs.writeFileSync(
+        options.reportFile,
+        JSON.stringify(dryRunReport, null, 2),
+        "utf-8"
+      );
+      console.log(`💾 Wrote detailed dry-run report to ${options.reportFile}`);
+    }
 
     // Summary
     console.log("\n📊 Copy Summary:");
@@ -447,4 +696,9 @@ if (require.main === module) {
   main();
 }
 
-module.exports = { copyCollection, DATABASES };
+module.exports = {
+  copyCollection,
+  backupTenantSchemaAsDocuments,
+  DATABASES,
+  createBackupDocId,
+};

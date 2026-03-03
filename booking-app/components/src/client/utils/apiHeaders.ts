@@ -6,7 +6,7 @@ import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
  */
 export function getApiHeaders(
   tenant: string | undefined,
-  extra?: Record<string, string>
+  extra?: Record<string, string>,
 ): Record<string, string> {
   const headers: Record<string, string> = {
     "x-tenant": tenant || DEFAULT_TENANT,

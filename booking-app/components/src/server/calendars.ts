@@ -1,14 +1,14 @@
+import { getCalendarClient } from "@/lib/googleClient";
 import { BookingFormDetails, BookingStatusLabel } from "../types";
 import { formatOrigin, getSecondaryContactName } from "../utils/formatters";
 
-import { getCalendarClient } from "@/lib/googleClient";
 import { serverGetRoomCalendarIds } from "./admin";
 
 export const patchCalendarEvent = async (
   event: any,
   calendarId: string,
   eventId: string,
-  body: any
+  body: any,
 ) => {
   const calendar = await getCalendarClient();
   const requestBody = {
@@ -17,9 +17,9 @@ export const patchCalendarEvent = async (
     ...body,
   };
   await calendar.events.patch({
-    calendarId: calendarId,
-    eventId: eventId,
-    requestBody: requestBody,
+    calendarId,
+    eventId,
+    requestBody,
     sendUpdates: 'all', // Send notifications to all attendees when calendar is updated
   });
 };
@@ -27,7 +27,7 @@ export const patchCalendarEvent = async (
 export const inviteUserToCalendarEvent = async (
   calendarEventId: string,
   guestEmail: string,
-  roomId: number
+  roomId: number,
 ) => {
   const roomCalendarIds = await serverGetRoomCalendarIds(roomId);
   const calendar = await getCalendarClient();
@@ -44,17 +44,17 @@ export const inviteUserToCalendarEvent = async (
         const attendees = event.data.attendees || [];
         attendees.push({ email: guestEmail });
         await patchCalendarEvent(event, roomCalendarId, calendarEventId, {
-          attendees: attendees,
+          attendees,
         });
 
         console.log(
-          `Invited ${guestEmail} to room: ${roomCalendarId} event: ${calendarEventId}`
+          `Invited ${guestEmail} to room: ${roomCalendarId} event: ${calendarEventId}`,
         );
       }
     } catch (error) {
       console.error(
         `Error inviting ${guestEmail} to event ${calendarEventId} in calendar ${roomCalendarId}:`,
-        error
+        error,
       );
     }
   }
@@ -62,7 +62,7 @@ export const inviteUserToCalendarEvent = async (
 
 export const bookingContentsToDescription = async (
   bookingContents: BookingFormDetails,
-  tenant?: string
+  tenant?: string,
 ) => {
   const listItem = (key: string, value: string) => {
     const displayValue =
@@ -73,34 +73,32 @@ export const bookingContentsToDescription = async (
   let description = "";
 
   // Helper function to safely get property value
-  const getProperty = (obj: any, key: string): string => {
-    return obj[key]?.toString() || "";
-  };
+  const getProperty = (obj: any, key: string): string =>
+    obj[key]?.toString() || "";
 
   // Use shared status resolver
-  const { getStatusFromXState } = await import(
-    "@/components/src/utils/statusFromXState"
-  );
+  const { getStatusFromXState } =
+    await import("@/components/src/utils/statusFromXState");
 
   // Request Section
   description += "<h3>Request</h3><ul>";
   description += listItem(
     "Request #",
-    getProperty(bookingContents, "requestNumber")
+    getProperty(bookingContents, "requestNumber"),
   );
   description += listItem("Room(s)", getProperty(bookingContents, "roomId"));
   description += listItem("Date", getProperty(bookingContents, "startDate"));
   description += listItem(
     "Time",
-    `${getProperty(bookingContents, "startTime")} - ${getProperty(bookingContents, "endTime")}`
+    `${getProperty(bookingContents, "startTime")} - ${getProperty(bookingContents, "endTime")}`,
   );
   description += listItem(
     "Status",
-    getStatusFromXState(bookingContents as any, tenant)
+    getStatusFromXState(bookingContents as any, tenant),
   );
   description += listItem(
     "Origin",
-    formatOrigin(getProperty(bookingContents, "origin"))
+    formatOrigin(getProperty(bookingContents, "origin")),
   );
   description += "</ul>";
 
@@ -110,21 +108,21 @@ export const bookingContentsToDescription = async (
   description += listItem(
     "Name",
     `${getProperty(bookingContents, "firstName")} ${getProperty(bookingContents, "lastName")}`.trim() ||
-      ""
+      "",
   );
   description += listItem(
     "School",
     getProperty(bookingContents, "school") === "Other" &&
       getProperty(bookingContents, "otherSchool")
       ? getProperty(bookingContents, "otherSchool")
-      : getProperty(bookingContents, "school")
+      : getProperty(bookingContents, "school"),
   );
   description += listItem(
     "Department",
     getProperty(bookingContents, "department") === "Other" &&
       getProperty(bookingContents, "otherDepartment")
       ? getProperty(bookingContents, "otherDepartment")
-      : getProperty(bookingContents, "department")
+      : getProperty(bookingContents, "department"),
   );
   description += listItem("Role", getProperty(bookingContents, "role"));
   description += listItem("Email", getProperty(bookingContents, "email"));
@@ -141,11 +139,11 @@ export const bookingContentsToDescription = async (
   description += listItem(
     "Sponsor Name",
     `${getProperty(bookingContents, "sponsorFirstName")} ${getProperty(bookingContents, "sponsorLastName")}`.trim() ||
-      ""
+      "",
   );
   description += listItem(
     "Sponsor Email",
-    getProperty(bookingContents, "sponsorEmail")
+    getProperty(bookingContents, "sponsorEmail"),
   );
   description += "</ul>";
 
@@ -154,19 +152,19 @@ export const bookingContentsToDescription = async (
   description += listItem("Title", getProperty(bookingContents, "title"));
   description += listItem(
     "Description",
-    getProperty(bookingContents, "description")
+    getProperty(bookingContents, "description"),
   );
   description += listItem(
     "Booking Type",
-    getProperty(bookingContents, "bookingType")
+    getProperty(bookingContents, "bookingType"),
   );
   description += listItem(
     "Expected Attendance",
-    getProperty(bookingContents, "expectedAttendance")
+    getProperty(bookingContents, "expectedAttendance"),
   );
   description += listItem(
     "Attendee Affiliation",
-    getProperty(bookingContents, "attendeeAffiliation")
+    getProperty(bookingContents, "attendeeAffiliation"),
   );
   description += "</ul>";
 
@@ -175,12 +173,12 @@ export const bookingContentsToDescription = async (
   description += listItem(
     "Room Setup",
     getProperty(bookingContents, "setupDetails") ||
-      getProperty(bookingContents, "roomSetup")
+      getProperty(bookingContents, "roomSetup"),
   );
   if (getProperty(bookingContents, "chartFieldForRoomSetup")) {
     description += listItem(
       "Room Setup Chart Field",
-      getProperty(bookingContents, "chartFieldForRoomSetup")
+      getProperty(bookingContents, "chartFieldForRoomSetup"),
     );
   }
   // Only show equipment service if it exists
@@ -189,7 +187,7 @@ export const bookingContentsToDescription = async (
     description += listItem("Equipment Service", equipmentServices);
     const equipmentDetails = getProperty(
       bookingContents,
-      "equipmentServicesDetails"
+      "equipmentServicesDetails",
     );
     if (equipmentDetails) {
       description += listItem("Equipment Service Details", equipmentDetails);
@@ -202,7 +200,7 @@ export const bookingContentsToDescription = async (
     description += listItem("Staffing Service", staffingServices);
     const staffingDetails = getProperty(
       bookingContents,
-      "staffingServicesDetails"
+      "staffingServicesDetails",
     );
     if (staffingDetails) {
       description += listItem("Staffing Service Details", staffingDetails);
@@ -223,7 +221,7 @@ export const bookingContentsToDescription = async (
     description += listItem("Catering Service", cateringService);
     const cateringChartField = getProperty(
       bookingContents,
-      "chartFieldForCatering"
+      "chartFieldForCatering",
     );
     if (cateringChartField) {
       description += listItem("Catering Chart Field", cateringChartField);
@@ -236,12 +234,12 @@ export const bookingContentsToDescription = async (
     description += listItem("Cleaning Service", "Yes");
     const cleaningChartField = getProperty(
       bookingContents,
-      "chartFieldForCleaning"
+      "chartFieldForCleaning",
     );
     if (cleaningChartField) {
       description += listItem(
         "Cleaning Service Chart Field",
-        cleaningChartField
+        cleaningChartField,
       );
     }
   }
@@ -252,7 +250,7 @@ export const bookingContentsToDescription = async (
     description += listItem("Security", securityService);
     const securityChartField = getProperty(
       bookingContents,
-      "chartFieldForSecurity"
+      "chartFieldForSecurity",
     );
     if (securityChartField) {
       description += listItem("Security Chart Field", securityChartField);
@@ -309,7 +307,7 @@ export const updateCalendarEvent = async (
     statusPrefix?: BookingStatusLabel;
   },
   bookingContents?: BookingFormDetails,
-  tenant?: string
+  tenant?: string,
 ) => {
   if (!bookingContents) {
     console.error("No booking contents provided for calendar event update");
@@ -317,9 +315,9 @@ export const updateCalendarEvent = async (
   }
 
   const roomCalendarIds = await serverGetRoomCalendarIds(
-    typeof bookingContents.roomId == "string"
+    typeof bookingContents.roomId === "string"
       ? parseInt(bookingContents.roomId, 10)
-      : bookingContents.roomId
+      : bookingContents.roomId,
   );
   console.log(`Room Calendar Ids: ${roomCalendarIds}`);
   console.log("bookingContents", bookingContents);
@@ -344,7 +342,7 @@ export const updateCalendarEvent = async (
         const prefixRegex = /\[.*?\]/g;
         const newTitle = eventTitle.replace(
           prefixRegex,
-          `[${newValues.statusPrefix}]`
+          `[${newValues.statusPrefix}]`,
         );
         updatedValues["summary"] = newTitle;
       }
@@ -355,7 +353,7 @@ export const updateCalendarEvent = async (
 
       let description = await bookingContentsToDescription(
         bookingContents,
-        tenant
+        tenant,
       );
       description +=
         'To cancel reservations please return to the Booking Tool, visit My Bookings, and click "cancel" on the booking at least 24 hours before the date of the event. Failure to cancel an unused booking is considered a no-show and may result in restricted use of the space.';
@@ -365,18 +363,18 @@ export const updateCalendarEvent = async (
         event,
         roomCalendarId,
         calendarEventId,
-        updatedValues
+        updatedValues,
       );
 
       console.log(
-        `Updated event ${calendarEventId} in calendar ${roomCalendarId} with new values: ${JSON.stringify(newValues)}`
+        `Updated event ${calendarEventId} in calendar ${roomCalendarId} with new values: ${JSON.stringify(newValues)}`,
       );
     } catch (error) {
       console.error(
         "Error updating event %s in calendar %s:",
         calendarEventId,
         roomCalendarId,
-        error
+        error,
       );
     }
   }
@@ -385,7 +383,7 @@ export const updateCalendarEvent = async (
 export const deleteEvent = async (
   calendarId: string,
   calendarEventId: string,
-  roomId?: string
+  roomId?: string,
 ) => {
   const calendar = await getCalendarClient();
   try {
@@ -394,15 +392,15 @@ export const deleteEvent = async (
       eventId: calendarEventId,
       sendUpdates: 'all', // Send cancellation notifications to all attendees
     });
-    console.log("deleted calendar event for " + roomId);
+    console.log(`deleted calendar event for ${roomId}`);
   } catch (error) {
-    console.log("calendar event doesn't exist for room " + roomId);
+    console.log(`calendar event doesn't exist for room ${roomId}`);
   }
 };
 
 export const updateByCalendarEventId = async (
   calendarEventId: string,
-  newValues: any
+  newValues: any,
 ) => {
   // const allRooms: RoomSetting[] = await clientFetchAllDataFromCollection(
   //   TableNames.RESOURCES

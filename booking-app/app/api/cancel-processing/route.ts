@@ -1,6 +1,9 @@
 import { deleteEvent } from "@/components/src/server/calendars";
 import { processCancelBooking } from "@/components/src/server/db";
-import { serverGetDataByCalendarEventId, serverGetDocumentById } from "@/lib/firebase/server/adminDb";
+import {
+  serverGetDataByCalendarEventId,
+  serverGetDocumentById,
+} from "@/lib/firebase/server/adminDb";
 import { TableNames } from "@/components/src/policy";
 import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
 import { applyEnvironmentCalendarIds } from "@/lib/utils/calendarEnvironment";
@@ -27,20 +30,32 @@ export async function POST(req: NextRequest) {
     // This ensures true availability is reflected in the Google Calendar UI
     try {
       // Get booking information to find room calendar IDs
-      const booking = await serverGetDataByCalendarEventId(TableNames.BOOKING, calendarEventId, tenant) as any;
+      const booking = (await serverGetDataByCalendarEventId(
+        TableNames.BOOKING,
+        calendarEventId,
+        tenant,
+      )) as any;
       if (!booking) {
-        console.error("Booking not found for calendarEventId:", calendarEventId);
+        console.error(
+          "Booking not found for calendarEventId:",
+          calendarEventId,
+        );
       } else {
         // Get tenant schema to find room calendar IDs
-        const schema = await serverGetDocumentById(TableNames.TENANT_SCHEMA, tenant || DEFAULT_TENANT);
-        
+        const schema = await serverGetDocumentById(
+          TableNames.TENANT_SCHEMA,
+          tenant || DEFAULT_TENANT,
+        );
+
         if (schema && schema.resources && booking.roomId) {
           // Apply environment-based calendar ID selection
-          const resourcesWithCorrectCalendarIds = applyEnvironmentCalendarIds(schema.resources);
-          
+          const resourcesWithCorrectCalendarIds = applyEnvironmentCalendarIds(
+            schema.resources,
+          );
+
           const roomIds = booking.roomId.split(",").map(x => x.trim());
-          const rooms = resourcesWithCorrectCalendarIds.filter((resource: any) =>
-            roomIds.includes(resource.roomId + "")
+          const rooms = resourcesWithCorrectCalendarIds.filter(
+            (resource: any) => roomIds.includes(`${resource.roomId}`),
           );
 
           console.log(
@@ -48,8 +63,11 @@ export async function POST(req: NextRequest) {
             {
               calendarEventId,
               roomIds,
-              rooms: rooms.map((r: any) => ({ roomId: r.roomId, calendarId: r.calendarId })),
-            }
+              rooms: rooms.map((r: any) => ({
+                roomId: r.roomId,
+                calendarId: r.calendarId,
+              })),
+            },
           );
 
           // Delete calendar event from each room's calendar
@@ -57,11 +75,15 @@ export async function POST(req: NextRequest) {
             rooms.map(async (room: any) => {
               if (room.calendarId) {
                 console.log(
-                  `🗑️ Deleting event ${calendarEventId} from calendar ${room.calendarId} (room ${room.roomId})`
+                  `🗑️ Deleting event ${calendarEventId} from calendar ${room.calendarId} (room ${room.roomId})`,
                 );
-                await deleteEvent(room.calendarId, calendarEventId, room.roomId);
+                await deleteEvent(
+                  room.calendarId,
+                  calendarEventId,
+                  room.roomId,
+                );
               }
-            })
+            }),
           );
 
           console.log(
@@ -69,7 +91,7 @@ export async function POST(req: NextRequest) {
             {
               calendarEventId,
               deletedFromCalendars: rooms.length,
-            }
+            },
           );
         } else {
           console.warn(
@@ -79,7 +101,7 @@ export async function POST(req: NextRequest) {
               hasSchema: !!schema,
               hasResources: !!(schema && schema.resources),
               roomId: booking.roomId,
-            }
+            },
           );
         }
       }
@@ -89,7 +111,7 @@ export async function POST(req: NextRequest) {
         {
           calendarEventId,
           error: error.message,
-        }
+        },
       );
       // Don't throw error - calendar deletion failure shouldn't prevent booking cancellation
     }
@@ -105,7 +127,7 @@ export async function POST(req: NextRequest) {
 
     return Response.json({ success: true });
   } catch (error) {
-    console.error(`🚨 CANCEL PROCESSING API ERROR:`, {
+    console.error("🚨 CANCEL PROCESSING API ERROR:", {
       error: error.message,
       stack: error.stack,
     });

@@ -1,10 +1,10 @@
 import { FormControlLabel, Switch } from "@mui/material";
 import { Control, Controller, UseFormTrigger } from "react-hook-form";
-import { FormContextLevel, Inputs, EquipmentServices } from "../../../../types";
 import React from "react";
+import styled from "@emotion/styled";
+import { FormContextLevel, Inputs, EquipmentServices } from "../../../../types";
 
 import { useTenantSchema } from "../../components/SchemaProvider";
-import styled from "@emotion/styled";
 
 const Label = styled.label`
   font-weight: 500;
@@ -94,4 +94,3 @@ export default function BookingFormEquipmentServices(props: Props) {
     </div>
   );
 }
-

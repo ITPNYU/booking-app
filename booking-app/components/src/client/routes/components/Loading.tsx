@@ -1,6 +1,6 @@
-import { CircularProgress } from '@mui/material';
-import Grid from '@mui/material/Unstable_Grid2';
-import React from 'react';
+import { CircularProgress } from "@mui/material";
+import Grid from "@mui/material/Unstable_Grid2";
+import React from "react";
 
 interface Props {
   style?: any;

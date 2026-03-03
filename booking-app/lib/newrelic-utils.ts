@@ -27,14 +27,14 @@ export function withNewRelic<
     return handler;
   }
 
-  return (async (...args: any[]) => {
-    return await newrelic.startWebTransaction(transactionName, async () => {
+  return (async (...args: any[]) =>
+    await newrelic.startWebTransaction(transactionName, async () => {
       const transaction = newrelic.getTransaction();
 
       try {
         // Add request parameters as custom attributes
         if (args[0] instanceof NextRequest) {
-          const request = args[0] as NextRequest;
+          const request = args[0];
           const url = new URL(request.url);
 
           // Add custom attributes
@@ -63,8 +63,7 @@ export function withNewRelic<
       } finally {
         transaction?.end();
       }
-    });
-  }) as T;
+    })) as T;
 }
 
 /**

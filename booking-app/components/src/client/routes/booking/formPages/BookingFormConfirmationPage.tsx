@@ -3,12 +3,12 @@
 import { Box, Button, Typography, useTheme } from "@mui/material";
 import { Error, Event } from "@mui/icons-material";
 import React, { useContext } from "react";
-import { BookingContext } from "../bookingProvider";
-import { DatabaseContext } from "../../components/Provider";
 import { FormContextLevel, PagePermission } from "@/components/src/types";
-import Loading from "../../components/Loading";
 import { styled } from "@mui/system";
 import { useRouter, useParams } from "next/navigation";
+import { BookingContext } from "../bookingProvider";
+import { DatabaseContext } from "../../components/Provider";
+import Loading from "../../components/Loading";
 
 const Centered = styled(Box)`
   position: relative;
@@ -96,7 +96,7 @@ export default function BookingFormConfirmationPage({ formContext }: Props) {
                     ? `/${tenant}/pa`
                     : isMod && pagePermission === PagePermission.PA
                       ? `/${tenant}/pa`
-                      : `/${tenant}`
+                      : `/${tenant}`,
               )
             }
             variant="text"

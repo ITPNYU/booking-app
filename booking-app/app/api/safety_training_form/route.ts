@@ -62,15 +62,13 @@ export async function GET(request: NextRequest) {
     let emails: string[] = [];
     try {
       const response = await formsService.forms.responses.list({
-        formId: formId,
+        formId,
       });
 
       if (response.data.responses) {
         // Extract email addresses from form responses
         emails = response.data.responses
-          .map(response => {
-            return response.respondentEmail;
-          })
+          .map(response => response.respondentEmail)
           .filter(
             (email): email is string => Boolean(email) && email.includes("@"),
           );
@@ -82,7 +80,7 @@ export async function GET(request: NextRequest) {
 
     // Log the operation
     const logEntry = {
-      logName: process.env.NEXT_PUBLIC_GCP_LOG_NAME + "/safety-training",
+      logName: `${process.env.NEXT_PUBLIC_GCP_LOG_NAME}/safety-training`,
       resource: { type: "global" },
       entries: [
         {

@@ -1,10 +1,13 @@
 import { Box, TableCell, styled } from "@mui/material";
 import React, { useMemo } from "react";
 
+import {
+  clientDeleteDataFromFirestore,
+  clientDeleteUserRightsData,
+} from "@/lib/firebase/firebase";
 import ListTableRow from "./ListTableRow";
 import Table from "./Table";
 import { TableNames, isLegacyUserCollection } from "../../../policy";
-import { clientDeleteDataFromFirestore, clientDeleteUserRightsData } from "@/lib/firebase/firebase";
 
 interface Props {
   columnFormatters?: {
@@ -26,14 +29,14 @@ const ListTableWrapper = styled(Table)`
 
 export default function ListTable(props: Props) {
   const refresh = props.rowsRefresh;
-  const topRow = props.topRow;
+  const { topRow } = props;
   const columnFormatters = props.columnFormatters || {};
 
   const columnNames = useMemo<string[]>(() => {
     if (props.rows.length === 0) {
       return [];
     }
-    return Object.keys(props.rows[0]).filter((x) => x !== "id") as string[];
+    return Object.keys(props.rows[0]).filter((x) => x !== "id");
   }, [props.rows]);
 
   const columns = useMemo(
@@ -45,7 +48,7 @@ export default function ListTable(props: Props) {
         Action
       </TableCell>,
     ],
-    [columnNames]
+    [columnNames],
   );
 
   return (
@@ -60,9 +63,8 @@ export default function ListTable(props: Props) {
                   // Check if this is a legacy user collection that should use the new logic
                   if (isLegacyUserCollection(props.tableName)) {
                     return clientDeleteUserRightsData(props.tableName, row.id);
-                  } else {
-                    return clientDeleteDataFromFirestore(props.tableName, row.id);
                   }
+                  return clientDeleteDataFromFirestore(props.tableName, row.id);
                 })()
           }
           columnNames={columnNames}

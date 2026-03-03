@@ -8,6 +8,16 @@ import {
   useState,
 } from "react";
 import { SubmitHandler, useForm } from "react-hook-form";
+
+import { styled } from "@mui/system";
+import { useParams, useRouter } from "next/navigation";
+import isEqual from "react-fast-compare";
+import {
+  BookingFormAgreementCheckbox,
+  BookingFormDropdown,
+  BookingFormSwitch,
+  BookingFormTextField,
+} from "./BookingFormInputs";
 import {
   AttendeeAffiliation,
   FormContextLevel,
@@ -15,17 +25,7 @@ import {
   Role,
   UserApiData,
 } from "../../../../types";
-import {
-  BookingFormAgreementCheckbox,
-  BookingFormDropdown,
-  BookingFormSwitch,
-  BookingFormTextField,
-} from "./BookingFormInputs";
 import { isValidNetIdFormat, NET_ID_REGEX, NYU_EMAIL_REGEX } from "../../../../utils/validationHelpers";
-
-import { styled } from "@mui/system";
-import { useParams, useRouter } from "next/navigation";
-import isEqual from "react-fast-compare";
 import { DatabaseContext } from "../../components/Provider";
 import { useTenantSchema } from "../../components/SchemaProvider";
 import { BookingContext } from "../bookingProvider";
@@ -113,25 +113,30 @@ export default function FormInput({
   } = useTenantSchema();
 
   // Determine which services to show based on selected rooms and schema resources
-  const showEquipment = useMemo(() => {
-    return selectedRooms.some((room) => room.services?.includes("equipment"));
-  }, [selectedRooms]);
+  const showEquipment = useMemo(
+    () => selectedRooms.some((room) => room.services?.includes("equipment")),
+    [selectedRooms],
+  );
 
-  const showStaffing = useMemo(() => {
-    return selectedRooms.some((room) => room.services?.includes("staffing"));
-  }, [selectedRooms]);
+  const showStaffing = useMemo(
+    () => selectedRooms.some((room) => room.services?.includes("staffing")),
+    [selectedRooms],
+  );
 
-  const showCatering = useMemo(() => {
-    return selectedRooms.some((room) => room.services?.includes("catering"));
-  }, [selectedRooms]);
+  const showCatering = useMemo(
+    () => selectedRooms.some((room) => room.services?.includes("catering")),
+    [selectedRooms],
+  );
 
-  const showHireSecurity = useMemo(() => {
-    return selectedRooms.some((room) => room.services?.includes("security"));
-  }, [selectedRooms]);
+  const showHireSecurity = useMemo(
+    () => selectedRooms.some((room) => room.services?.includes("security")),
+    [selectedRooms],
+  );
 
-  const showCleaning = useMemo(() => {
-    return selectedRooms.some((room) => room.services?.includes("cleaning"));
-  }, [selectedRooms]);
+  const showCleaning = useMemo(
+    () => selectedRooms.some((room) => room.services?.includes("cleaning")),
+    [selectedRooms],
+  );
 
   const {
     control,
@@ -198,7 +203,7 @@ export default function FormInput({
   const [checkedAgreements, setCheckedAgreements] = useState<
     Record<string, boolean>
   >(
-    Object.fromEntries(agreements.map((agreement) => [agreement.id, isWalkIn]))
+    Object.fromEntries(agreements.map((agreement) => [agreement.id, isWalkIn])),
   );
 
   const watchedFields = watch();
@@ -216,11 +221,8 @@ export default function FormInput({
   }, [watchedFields, setFormData]);
 
   const maxCapacity = useMemo(
-    () =>
-      selectedRooms.reduce((sum, room) => {
-        return sum + parseInt(room.capacity);
-      }, 0),
-    [selectedRooms]
+    () => selectedRooms.reduce((sum, room) => sum + parseInt(room.capacity), 0),
+    [selectedRooms],
   );
 
   const expectedAttendanceValue = watch("expectedAttendance");
@@ -296,12 +298,12 @@ export default function FormInput({
       }
       return true;
     },
-    [maxCapacity]
+    [maxCapacity],
   );
 
   // Add a state to store sponsor API data
   const [sponsorApiData, setSponsorApiData] = useState<UserApiData | null>(
-    null
+    null,
   );
   // Add a state to track if we're currently fetching sponsor data
   const [isFetchingSponsor, setIsFetchingSponsor] = useState(false);
@@ -356,7 +358,7 @@ export default function FormInput({
       if (sponsorApiData && isValidNetIdFormat(value)) {
         const sponsorRole = mapAffiliationToRole(
           roleMapping,
-          sponsorApiData.affiliation_sub_type
+          sponsorApiData.affiliation_sub_type,
         );
         if (sponsorRole === Role.STUDENT) {
           return "Sponsor cannot be a student";
@@ -438,7 +440,7 @@ export default function FormInput({
               ? `/${tenant}/walk-in/confirmation`
               : isVIP
                 ? `/${tenant}/vip/confirmation`
-                : `/${tenant}/book/confirmation`
+                : `/${tenant}/book/confirmation`,
           );
         }
       });
@@ -457,13 +459,9 @@ export default function FormInput({
   };
 
   const prefix = isVIP ? "VIP" : isWalkIn ? "Walk-In" : "";
-  const formatSectionTitle = (title: string) => {
-    return `${prefix} ${title}`.trim();
-  };
+  const formatSectionTitle = (title: string) => `${prefix} ${title}`.trim();
 
-  const formatFieldLabel = (label: string) => {
-    return `${prefix} ${label}`.trim();
-  };
+  const formatFieldLabel = (label: string) => `${prefix} ${label}`.trim();
 
   // Common Services section used by both full form and modification form
   const servicesSection = (
