@@ -48,25 +48,6 @@ The Media Commons Booking App is a room and space reservation system for NYU Med
 - **Ban/pre-ban system** — track violations and block repeat offenders
 - **Full audit trail** — every status change is logged with timestamp and actor
 
-### Configurable Per-Tenant Settings
-
-The system behavior is driven by a tenant configuration that controls:
-
-| Setting | Description |
-|---------|-------------|
-| Display name & logo | Branding shown throughout the app |
-| Policy text | HTML policy shown during booking (must be accepted) |
-| Available roles | Which user roles appear in the booking form |
-| Available rooms/spaces | Rooms available for booking with per-room settings |
-| School → Department mapping | Auto-maps user's school to their department |
-| Show/hide form sections | Toggle visibility of N-Number, Sponsor, Setup, Equipment, Staffing, Catering, Security, Booking Types |
-| VIP & Walk-in support | Enable or disable VIP and Walk-in booking flows |
-| Agreements | Custom checkbox agreements users must accept |
-| Email messages | Customizable email content per booking status |
-| Declined grace period | Hours before auto-canceling declined bookings |
-| Calendar display settings | Start hour, time slot size |
-| Time-sensitive request warning | Warning for last-minute bookings |
-
 ---
 
 ## 2. User Roles & Permissions
