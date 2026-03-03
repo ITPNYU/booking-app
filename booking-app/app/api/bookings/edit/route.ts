@@ -230,8 +230,6 @@ export async function PUT(request: NextRequest) {
 
     let wasDeclined = currentStatus === BookingStatusLabel.DECLINED;
     if (usesXState) {
-      const currentStatus = getStatusFromXState(existingContents, tenant);
-      wasDeclined = currentStatus === BookingStatusLabel.DECLINED;
       console.log(
         `🔍 EDIT: Current booking status [${tenant?.toUpperCase()}]:`,
         {
