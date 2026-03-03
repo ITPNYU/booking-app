@@ -52,6 +52,7 @@ const nextConfig = {
         "firebase-admin/app": false,
         "firebase-admin/firestore": false,
         "firebase-admin/auth": false,
+        newrelic: false,
       };
     }
 
