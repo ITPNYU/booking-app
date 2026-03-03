@@ -1,7 +1,7 @@
-# Booking App - Comprehensive Features & Flows Documentation
+# Media Commons Booking App - Comprehensive Features & Flows Documentation
 
 > **Last Updated:** March 2026
-> **Application:** NYU Media Commons / ITP Booking System
+> **Application:** NYU Media Commons Booking System
 > **Stack:** Next.js (App Router), Firebase Firestore, Google Calendar API, XState v5, Material-UI
 
 ---
@@ -9,12 +9,12 @@
 ## Table of Contents
 
 1. [System Overview](#1-system-overview)
-2. [Multi-Tenant Architecture](#2-multi-tenant-architecture)
+2. [Tenant Configuration](#2-tenant-configuration)
 3. [User Roles & Permissions](#3-user-roles--permissions)
 4. [Booking Flows](#4-booking-flows)
-5. [Booking Lifecycle & State Machines](#5-booking-lifecycle--state-machines)
+5. [Booking Lifecycle & State Machine](#5-booking-lifecycle--state-machine)
 6. [Auto-Approval Logic](#6-auto-approval-logic)
-7. [Service Management (Media Commons)](#7-service-management-media-commons)
+7. [Service Management](#7-service-management)
 8. [Room & Resource Configuration](#8-room--resource-configuration)
 9. [Admin Panel & Settings](#9-admin-panel--settings)
 10. [Calendar Integration](#10-calendar-integration)
@@ -33,38 +33,33 @@
 
 ## 1. System Overview
 
-The Booking App is a multi-tenant room/space reservation system built for NYU. It supports two primary tenants:
-
-- **Media Commons (MC)** - Complex multi-level approval workflows with parallel service management
-- **ITP** - Streamlined booking with auto-approval capabilities
+The Media Commons Booking App is a room/space reservation system built for NYU Media Commons. It provides a full booking lifecycle with multi-level approvals, parallel service management, and Google Calendar integration.
 
 Key capabilities:
 - Multi-step booking form with role-based field display
 - Two-level approval workflow (Liaison → Final Approver)
 - Auto-approval for eligible bookings
 - Walk-in and VIP booking flows
+- Parallel service request management (staff, equipment, catering, cleaning, security, setup)
 - Google Calendar synchronization
 - Equipment checkout tracking
 - Safety training enforcement
 - Automated email notifications at every status change
 - Cron-based auto-checkout and auto-cancel of declined bookings
 - Booking modification and editing
-- Service request management (staff, equipment, catering, cleaning, security, setup)
 - Blackout period enforcement
 - Ban/pre-ban user management
 - Booking history audit trail
 
 ---
 
-## 2. Multi-Tenant Architecture
+## 2. Tenant Configuration
 
-### Tenant Configuration
-
-Each tenant has a schema stored in Firestore (`tenantSchema` collection) that controls:
+The Media Commons tenant has a schema stored in Firestore (`tenantSchema` collection) that controls all configurable behavior:
 
 | Setting | Description |
 |---------|-------------|
-| `name` | Display name of the tenant |
+| `name` | Display name ("Media Commons") |
 | `logo` | Logo image path |
 | `policy` | HTML policy text shown during booking |
 | `roles` | Available user roles |
@@ -88,19 +83,11 @@ Each tenant has a schema stored in Firestore (`tenantSchema` collection) that co
 | `calendarConfig` | Calendar display settings (start hour, slot units) |
 | `timeSensitiveRequestWarning` | Warning for last-minute bookings |
 
-### Tenant Routing
+### Routing
 
-- URL structure: `/{tenant}/...` (e.g., `/mc/book`, `/itp/admin`)
-- Root page (`/`) shows tenant selector with links to `/mc` and `/itp`
+- URL structure: `/mc/...` (e.g., `/mc/book`, `/mc/admin`)
 - Middleware redirects unprefixed routes to `/mc` by default
-- Each tenant has isolated Firestore collections: `{tenant}-bookings`, `{tenant}-bookingLogs`, etc.
-
-### Allowed Tenants
-
-| Key | URL Prefix | Description |
-|-----|-----------|-------------|
-| MC | `/mc` | Media Commons |
-| ITP | `/itp` | ITP / IMA / Low Res |
+- Firestore collections are tenant-scoped: `mc-bookings`, `mc-bookingLogs`, etc.
 
 ---
 
@@ -153,7 +140,7 @@ SUPER_ADMIN
 
 ## 4. Booking Flows
 
-### 4.1 Standard Booking Flow (`/book`)
+### 4.1 Standard Booking Flow (`/mc/book`)
 
 ```
 Landing Page (Policy Acceptance)
@@ -204,7 +191,7 @@ Confirmation
 Booking enters state machine → REQUESTED (or auto-approved → APPROVED)
 ```
 
-### 4.2 Walk-In Booking Flow (`/walk-in`)
+### 4.2 Walk-In Booking Flow (`/mc/walk-in`)
 
 Walk-in bookings are created by staff (PAs, Admins) on behalf of a visitor.
 
@@ -237,9 +224,9 @@ Booking auto-approved → APPROVED (walk-ins bypass approval)
 - Some rooms allow booking 2 consecutive hours (`isWalkInCanBookTwo`)
 - Walk-in bookings auto-approve (skip approval queue)
 - Walk-in person's safety training and ban status are checked
-- Origin is set to `BookingOrigin.WALK_IN`
+- Origin is set to `walk-in`
 
-### 4.3 VIP Booking Flow (`/vip`)
+### 4.3 VIP Booking Flow (`/mc/vip`)
 
 VIP bookings are expedited bookings typically created by admins.
 
@@ -260,9 +247,9 @@ Booking auto-approved → APPROVED (VIP bypasses approval)
 - VIP-specific hour limits per role apply
 - VIP bookings auto-approve (skip approval queue)
 - Only available if tenant schema has `supportVIP: true`
-- Origin is set to `BookingOrigin.VIP`
+- Origin is set to `vip`
 
-### 4.4 Edit Booking Flow (`/edit/[id]`)
+### 4.4 Edit Booking Flow (`/mc/edit/[id]`)
 
 For editing existing bookings (available when booking is in DECLINED status for users, or any editable status for admins).
 
@@ -278,7 +265,7 @@ Role Selection → Room Selection → Booking Details Form
 Submit edit → Booking returns to REQUESTED status
 ```
 
-### 4.5 Modification Flow (`/modification/[id]`)
+### 4.5 Modification Flow (`/mc/modification/[id]`)
 
 For requesting modifications to an existing approved booking.
 
@@ -296,86 +283,11 @@ Submit modification → Booking updated
 
 ---
 
-## 5. Booking Lifecycle & State Machines
+## 5. Booking Lifecycle & State Machine
 
-The system uses XState v5 state machines to manage booking lifecycles. Each tenant has its own machine definition.
+The system uses an XState v5 state machine to manage the Media Commons booking lifecycle. This machine features parallel states for service management, making it significantly more complex than a simple linear workflow.
 
-### 5.1 ITP Booking State Machine
-
-```
-                    ┌──────────┐
-                    │ Requested │◄──────── (edit from Declined)
-                    └────┬─────┘
-                         │
-              ┌──────────┼──────────┐
-              │          │          │
-         [auto-approve]  │     [decline]
-              │      [approve]      │
-              │          │          │
-              ▼          ▼          ▼
-         ┌─────────┐  ┌────────┐  ┌──────────┐
-         │ Approved │  │Approved│  │ Declined │
-         └────┬────┘  └───┬────┘  └────┬─────┘
-              │            │            │
-              └──────┬─────┘      [24h timeout]
-                     │                  │
-         ┌───────────┼──────────┐       ▼
-         │           │          │  ┌──────────┐
-     [cancel]    [check-in]  [no-show]│Canceled│
-         │           │          │  └────┬─────┘
-         ▼           ▼          ▼       │
-    ┌────────┐ ┌──────────┐ ┌────────┐  ▼
-    │Canceled│ │Checked In│ │No Show │ ┌──────┐
-    └───┬────┘ └────┬─────┘ └───┬────┘ │Closed│
-        │           │            │      └──────┘
-        ▼       [check-out]      ▼
-    ┌──────┐        │       ┌────────┐
-    │Closed│        ▼       │Canceled│
-    └──────┘  ┌───────────┐ └───┬────┘
-              │Checked Out│     │
-              └─────┬─────┘     ▼
-                    │       ┌──────┐
-                [close]     │Closed│
-                    │       └──────┘
-                    ▼
-               ┌──────┐
-               │Closed│
-               └──────┘
-```
-
-**ITP States & Transitions:**
-
-| State | Event | Target | Guard/Condition | Side Effects |
-|-------|-------|--------|-----------------|--------------|
-| Requested | (auto) | Approved | `shouldAutoApprove` | - |
-| Requested | approve | Approved | - | Email + calendar update |
-| Requested | decline | Declined | - | Email + calendar update |
-| Requested | cancel | Canceled | - | Email + calendar delete |
-| Requested | edit | Requested | - | - |
-| Declined | edit | Requested | - | - |
-| Declined | (24h timeout) | Canceled | - | Auto-cancel |
-| Approved | checkIn | Checked In | - | Email + calendar update |
-| Approved | cancel | Canceled | - | Email + calendar delete |
-| Approved | noShow | No Show | - | Email + calendar update |
-| Approved | Modify | Approved | - | - |
-| Approved | autoCloseScript | Closed | - | - |
-| Checked In | checkOut | Checked Out | - | Email + calendar update |
-| No Show | (auto) | Canceled | - | Calendar update |
-| Checked Out | close | Closed | - | Email + calendar update |
-| Canceled | (auto) | Closed | - | Email + calendar delete |
-
-**Entry Actions per State:**
-- **Requested**: Create Google Calendar event, send confirmation email
-- **Approved**: Send approval email, update calendar event
-- **Declined**: Send decline email (with reason), update calendar
-- **Canceled**: Send cancellation email, delete calendar event
-- **Checked In**: Send check-in email, update calendar
-- **Checked Out**: Send checkout email, update calendar
-- **Closed**: Send closure email, update calendar
-
-### 5.2 Media Commons Booking State Machine
-
-The MC machine is significantly more complex with parallel states for service management.
+### State Machine Diagram
 
 ```
 ┌──────────┐
@@ -449,7 +361,7 @@ The MC machine is significantly more complex with parallel states for service ma
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### 5.3 Booking Statuses
+### Booking Statuses
 
 | Status | Label | Description |
 |--------|-------|-------------|
@@ -462,9 +374,59 @@ The MC machine is significantly more complex with parallel states for service ma
 | DECLINED | Declined | Rejected by an approver |
 | CANCELED | Canceled | Canceled by user or system |
 | NO_SHOW | No Show | Guest did not arrive |
-| WALK_IN | Walk In | Walk-in booking (display only) |
 
-### 5.4 Booking Origins
+### State Transitions
+
+| From | Event | To | Guard/Condition | Side Effects |
+|------|-------|-----|-----------------|--------------|
+| Requested | (auto) | Approved | `shouldAutoApprove` | - |
+| Requested | (auto) | Services Request | VIP + services requested | - |
+| Requested | approve | Pre-approved | - | Email + calendar update |
+| Requested | decline | Declined | - | Email + calendar update |
+| Requested | cancel | Canceled | - | Email + calendar delete |
+| Requested | edit | Requested | - | - |
+| Pre-approved | approve | Approved | pregame origin | Auto-approve all services |
+| Pre-approved | approve | Approved | all services approved | - |
+| Pre-approved | approve | Services Request | services requested | - |
+| Pre-approved | approve | Approved | no services | - |
+| Pre-approved | decline | Declined | - | Set decline reason |
+| Pre-approved | cancel | Canceled | - | - |
+| Pre-approved | edit | Requested | - | - |
+| Declined | edit | Requested | - | - |
+| Declined | cancel | Canceled | - | - |
+| Declined | (24h timeout) | Service Closeout | services requested | - |
+| Declined | (24h timeout) | Canceled | no services | - |
+| Approved | checkIn | Checked In | - | Email + calendar update |
+| Approved | cancel | Canceled | - | Email + calendar delete |
+| Approved | decline | Declined | - | Set decline reason |
+| Approved | noShow | No Show | - | Email + calendar update |
+| Approved | Modify | Approved | - | - |
+| Approved | autoCloseScript | Closed | - | - |
+| Services Request | cancel | Canceled | - | - |
+| Services Request | (onDone) | Evaluate Services | all resolved | - |
+| Evaluate Services | (auto) | Approved | all services approved | - |
+| Evaluate Services | (auto) | Declined | any service declined | - |
+| Checked In | checkOut | Checked Out | - | Email + calendar update |
+| No Show | (auto) | Canceled | - | Calendar update + log |
+| Checked Out | (auto) | Service Closeout | services requested | Checkout processing |
+| Checked Out | (auto) | Closed | no services | Checkout processing |
+| Canceled | (auto) | Service Closeout | services requested | Cancel processing |
+| Canceled | (auto) | Closed | no services | Cancel processing |
+| Service Closeout | (onDone) | Closed | all closed out | - |
+
+### Entry Actions per State
+
+- **Requested**: Create Google Calendar event, send confirmation email
+- **Pre-approved**: Send second approval request email, update calendar
+- **Approved**: Send approval email, update calendar, invite user to calendar event
+- **Declined**: Send decline email (with reason and grace period), update calendar
+- **Canceled**: Send cancellation email, delete calendar event
+- **Checked In**: Send check-in email, update calendar
+- **Checked Out**: Send checkout email, update calendar
+- **Closed**: Send closure email, update calendar
+- **No Show**: Send no-show email (to guest + admin), update calendar
+
+### Booking Origins
 
 | Origin | Description |
 |--------|-------------|
@@ -506,44 +468,35 @@ Bookings can bypass the approval workflow and be automatically approved if all c
 6. All checks passed → Auto-approve ✓
 ```
 
-### ITP-Specific Auto-Approval Guard
-
-The ITP machine adds a tenant check before running auto-approval:
-1. Verify tenant is `"itp"`
-2. Calculate booking duration from calendar info
-3. Map form data to services requested format:
-   - `setup`: `roomSetup === "yes"`
-   - `equipment`: `mediaServices.length > 0`
-   - `catering`: `catering === "yes"`
-   - `security`: `hireSecurity === "yes"`
-4. Call `checkAutoApprovalEligibility()` with context
-
 ### MC-Specific Auto-Approval Guard
 
 The MC machine has additional conditions:
-1. Reject if booking was restored from existing status (`_restoredFromStatus`)
+1. Reject if booking was restored from existing status (`_restoredFromStatus` flag)
 2. Verify tenant is `"mc"`
-3. VIP with services → route to Services Request (not auto-approve)
-4. Otherwise follow standard eligibility check
+3. VIP with services → route to Services Request (not simple auto-approve)
+4. Walk-in/VIP without services → auto-approve
+5. Otherwise follow standard eligibility check (rooms, duration, services)
 
 ---
 
-## 7. Service Management (Media Commons)
+## 7. Service Management
 
-Media Commons supports six parallel service types that are managed independently.
+Media Commons supports six parallel service types that are managed independently alongside the main booking approval workflow.
 
 ### Service Types
 
-| Service | Form Field | Description |
-|---------|-----------|-------------|
-| Staff | `staffingServices` | Audio technician, lighting technician |
-| Equipment | `equipmentServices` | Equipment checkout |
+| Service | Form Field | Options |
+|---------|-----------|---------|
+| Staff | `staffingServices` | Audio technician (Garage 103), Audio technician (Audio Lab 230), Lighting technician (Garage 103), DMX lights (Rooms 220-224), Campus Media Services (Rooms 202/1201) |
+| Equipment | `equipmentServices` | Checkout Equipment |
 | Catering | `cateringService` | NYU Plated, Outside Catering |
 | Cleaning | `cleaningService` | CBS Cleaning Services |
-| Security | `hireSecurity` | Hired security |
-| Setup | `roomSetup` | Room arrangement/setup |
+| Security | `hireSecurity` | Hire Security (yes/no) |
+| Setup | `roomSetup` | Room Setup (yes/no) + details |
 
 ### Service Lifecycle
+
+Each requested service goes through its own independent lifecycle:
 
 ```
 Service Requested
@@ -551,15 +504,9 @@ Service Requested
     ├── [approve] → Service Approved
     │
     └── [decline] → Service Declined
-                        │
-                        ▼
-                  (may cause overall booking decline
-                   if evaluated and any service is declined)
 ```
 
-### Service Closeout
-
-After a booking is checked out (or canceled), each requested service must be individually closed out:
+After booking checkout or cancellation, each requested service must be closed out:
 
 ```
 Service Closeout Pending
@@ -568,6 +515,13 @@ Service Closeout Pending
 ```
 
 All services must be closed out before the booking reaches the final `Closed` state.
+
+### Service Resolution Logic
+
+When all parallel service requests are resolved:
+
+- **All services approved** → Booking moves to `Approved`
+- **Any service declined** → Booking moves to `Declined` (decline email includes list of declined services)
 
 ### Service Actions
 
@@ -592,16 +546,17 @@ All services must be closed out before the booking reaches the final `Closed` st
 | Decline Setup | `declineSetup` | Decline setup request |
 | Closeout Setup | `closeoutSetup` | Mark setup as complete |
 
-### Service Resolution Logic
-
-When all parallel service requests are resolved (all approved or any declined), the machine evaluates:
-
-- **All services approved** → Booking moves to `Approved`
-- **Any service declined** → Booking moves to `Declined`
-
 ### Pregame Service Handling
 
-Bookings with origin `pre-game` (imported from calendar sync) get all requested services auto-approved when the final approval is granted via `approveAllPregameServices` action.
+Bookings with origin `pre-game` (imported from calendar sync) get all requested services auto-approved when the final approval is granted.
+
+### Chart Fields
+
+Some services require a chart field (billing code) when selected:
+- `chartFieldForCatering` - Catering billing code
+- `chartFieldForCleaning` - Cleaning billing code
+- `chartFieldForSecurity` - Security billing code
+- `chartFieldForRoomSetup` - Setup billing code
 
 ---
 
@@ -611,67 +566,57 @@ Bookings with origin `pre-game` (imported from calendar sync) get all requested 
 
 Each room/resource has extensive configuration:
 
-```typescript
-{
-  roomId: number,              // Unique room identifier
-  name: string,                // Display name
-  capacity: string,            // Room capacity
-  calendarId: string,          // Google Calendar ID (production)
-  calendarIdDev: string,       // Google Calendar ID (development)
+```
+roomId               - Unique room identifier
+name                 - Display name
+capacity             - Room capacity
 
-  // Feature flags
-  needsSafetyTraining: boolean,  // Require safety training completion
-  trainingFormUrl: string,       // URL to Google Form for training
-  isWalkIn: boolean,             // Available for walk-in bookings
-  isWalkInCanBookTwo: boolean,   // Walk-ins can book 2 consecutive hours
-  isEquipment: boolean,          // Room involves equipment checkout
+Calendar:
+  calendarId         - Google Calendar ID (production)
+  calendarIdDev      - Google Calendar ID (development)
 
-  // Available services
-  services: string[],            // List of available services
-  staffingServices: string[],    // Available staffing options
-  staffingSections: [             // Grouped staffing sections
-    { name: string, indexes: number[] }
-  ],
+Feature Flags:
+  needsSafetyTraining  - Require safety training completion
+  trainingFormUrl      - URL to Google Form for training
+  isWalkIn             - Available for walk-in bookings
+  isWalkInCanBookTwo   - Walk-ins can book 2 consecutive hours
+  isEquipment          - Room involves equipment checkout
 
-  // Auto-approval configuration
-  autoApproval: {
-    conditions: {
-      setup: boolean,      // Allow auto-approve with setup
-      equipment: boolean,  // Allow auto-approve with equipment
-      staffing: boolean,   // Allow auto-approve with staffing
-      catering: boolean,   // Allow auto-approve with catering
-      cleaning: boolean,   // Allow auto-approve with cleaning
-      security: boolean    // Allow auto-approve with security
-    }
-  },
+Services:
+  services             - List of available services
+  staffingServices     - Available staffing options
+  staffingSections     - Grouped staffing sections
+                         [{ name: string, indexes: number[] }]
 
-  // Booking hour limits (per role)
-  maxHour: {
-    student: number,          faculty: number,          admin: number,
-    studentWalkIn: number,    facultyWalkIn: number,    adminWalkIn: number,
-    studentVIP: number,       facultyVIP: number,       adminVIP: number
-  },
-  minHour: {
-    student: number,          faculty: number,          admin: number,
-    studentWalkIn: number,    facultyWalkIn: number,    adminWalkIn: number,
-    studentVIP: number,       facultyVIP: number,       adminVIP: number
-  }
-}
+Auto-Approval:
+  autoApproval.conditions:
+    setup              - Allow auto-approve with setup
+    equipment          - Allow auto-approve with equipment
+    staffing           - Allow auto-approve with staffing
+    catering           - Allow auto-approve with catering
+    cleaning           - Allow auto-approve with cleaning
+    security           - Allow auto-approve with security
+
+Booking Hour Limits (per role):
+  maxHour:
+    student / faculty / admin           - Standard flow limits
+    studentWalkIn / facultyWalkIn / adminWalkIn  - Walk-in limits
+    studentVIP / facultyVIP / adminVIP  - VIP limits
+  minHour:
+    (same structure as maxHour)
 ```
 
 ### Operation Hours
 
 Each room can have per-day operating hours:
 
-```typescript
-{
-  day: "Monday" | "Tuesday" | ... | "Sunday",
-  open: number,     // Opening hour (0-23)
-  close: number,    // Closing hour (0-23)
-  isClosed: boolean, // Room closed this day
-  roomId: number     // Associated room
-}
-```
+| Field | Description |
+|-------|-------------|
+| `day` | Day of the week (Monday–Sunday) |
+| `open` | Opening hour (0-23) |
+| `close` | Closing hour (0-23) |
+| `isClosed` | Room closed this day |
+| `roomId` | Associated room |
 
 ---
 
@@ -692,11 +637,11 @@ The NavBar dynamically shows options based on user role:
 
 Users with multiple roles see a dropdown to switch between role views.
 
-### 9.2 Admin Page
+### 9.2 Admin Page (`/mc/admin`)
 
 Two tabs:
 
-1. **Bookings Tab**: Full booking table with management actions
+1. **Bookings Tab**: Full booking table with management actions, filtering, and search
 2. **Settings Tab**: Access to 11 configuration sections
 
 ### 9.3 Settings Sections
@@ -727,7 +672,7 @@ Two tabs:
 
 #### Pre-ban
 - View users with warning flags (late cancellations, no-shows)
-- See incident history per user
+- See incident history per user (date, type, count)
 - Clear warning flags
 
 #### Ban
@@ -740,8 +685,8 @@ Two tabs:
 - Add/remove custom types
 
 #### Policy Settings
-- **Blackout Periods**: Configure dates/times when bookings are blocked
-- **Final Approver**: Designate the final approver email
+- **Booking Blackout Periods**: Configure dates/times when bookings are blocked
+- **Final Approver**: Designate the person/role for final booking approval
 - **Operational Hours**: Set operating hours per day per room
 
 #### Export Database
@@ -753,30 +698,76 @@ Two tabs:
 - **Pregame Import**: Import pre-event calendar entries
   - Supports dry-run mode for preview before import
   - Shows summary: total events, new bookings, existing bookings, skipped
+  - Live import commits the pregame events to the database
 
-### 9.4 Liaison Page (`/liaison`)
+### 9.4 Liaison Page (`/mc/liaison`)
 
 - Shows bookings filtered to the liaison's department
 - First-level approve/decline actions
 - Available to: ADMIN, LIAISON, SUPER_ADMIN
 
-### 9.5 PA Page (`/pa`)
+### 9.5 PA Page (`/mc/pa`)
 
 - Manages day-of booking operations
 - Check-in/check-out actions
 - Equipment tracking
 - Available to: ADMIN, PA, SUPER_ADMIN
 
-### 9.6 Services Page (`/services`)
+### 9.6 Services Page (`/mc/services`)
 
 - Filters bookings to show only those with service requests
-- Approve/decline/closeout individual services
+- Approve/decline/closeout individual services independently
 - Available to: ADMIN, SERVICES, SUPER_ADMIN
 
-### 9.7 Super Admin Page (`/super`)
+### 9.7 Super Admin Page (`/mc/super`)
 
 - Manage super admin accounts
 - Only accessible by SUPER_ADMIN role
+
+### 9.8 Booking Table Features
+
+The booking table (used across all management pages) includes:
+
+**Columns:**
+- Status (color-coded chip)
+- Room name
+- Date & Time
+- Attendee name
+- Request number
+- Origin
+- Services indicators
+- Actions dropdown
+
+**Status Colors:**
+
+| Status | Color |
+|--------|-------|
+| APPROVED | Green |
+| REQUESTED | Orange |
+| MODIFIED | Orange |
+| PRE_APPROVED | Purple |
+| CHECKED_IN | Purple |
+| CHECKED_OUT | Light Purple |
+| EQUIPMENT | Gold |
+| NO_SHOW | Light Blue |
+| PENDING | Magenta |
+| DECLINED | Red |
+| CANCELED | Dark Gray |
+| CLOSED | Dark Gray |
+
+**Filters:**
+- Status multi-select
+- Date range (Today, Tomorrow, All Future, Custom Range)
+- Origin filter
+- Room filter
+- Service filter
+- Text search (name, email, etc.)
+
+**Booking Detail Modal:**
+- Full booking info (dates, room, attendee, contact)
+- Services selected
+- Equipment checkout cart number (editable for authorized users)
+- Booking history timeline (all status changes with timestamps and actors)
 
 ---
 
@@ -788,7 +779,6 @@ The system maintains bidirectional sync with Google Calendar:
 
 **Calendar Event Creation:**
 - Created when booking enters `Requested` state
-- Event title: booking title
 - Event description: structured HTML with all booking details
   - Request info (number, rooms, dates, status, origin)
   - Requester info (NetID, name, school, department, role, contact)
@@ -802,7 +792,7 @@ The system maintains bidirectional sync with Google Calendar:
 **Calendar Event Deletion:**
 - Deleted when booking is canceled
 
-**Calendar Display:**
+**Calendar Display Visibility:**
 - Events in these statuses are hidden from the calendar view:
   - NO_SHOW, CANCELED, DECLINED, CHECKED_OUT
 
@@ -811,14 +801,14 @@ The system maintains bidirectional sync with Google Calendar:
 | Branch | Calendar Used |
 |--------|--------------|
 | `development` | Development calendar (`calendarIdDev`) |
-| `staging` | Production calendar (`calendarId` or `calendarIdProd`) |
-| `production` | Production calendar (`calendarId` or `calendarIdProd`) |
+| `staging` | Production calendar (`calendarIdProd`) |
+| `production` | Production calendar (`calendarIdProd`) |
 
-### Calendar UI (SelectRoom Page)
+### Calendar UI (Room Selection Page)
 
 - Uses FullCalendar library with resource time grid view
 - Displays rooms as vertical columns
-- Time slots: 30-minute or 1-hour intervals (configurable per tenant)
+- Time slots: 30-minute or 1-hour intervals (configurable)
 - Click/drag to select booking time range
 - Shows existing bookings as event blocks
 - Blackout periods shown as grayed-out unselectable zones
@@ -864,8 +854,7 @@ The decline email includes:
 
 ### No-Show Email Details
 
-The no-show email includes:
-- Violation count for the user
+- Violation count for the user (e.g., "This is your 2nd no-show")
 - Sent to both the guest and the admin approval CC address
 
 ### Email Subject Line Prefixes
@@ -895,10 +884,10 @@ Each email includes:
 **Supports Dry Run:** `?dryRun=true`
 
 **Logic:**
-1. Fetch all DECLINED bookings across all tenant collections
+1. Fetch all DECLINED bookings from the `mc-bookings` collection
 2. Read tenant-specific `declinedGracePeriod` (default: 24 hours)
 3. Find bookings declined longer than the grace period ago
-4. Verify booking is still in DECLINED state (user may have edited)
+4. Verify booking is still in DECLINED state (user may have edited in the meantime)
 5. Execute XState `cancel` transition for each eligible booking
 6. Log status change: DECLINED → CANCELED
 
@@ -911,11 +900,11 @@ Each email includes:
 **Supports Dry Run:** `?dryRun=true`
 
 **Logic:**
-1. Fetch bookings with end dates in the past 24 hours
+1. Fetch bookings with end dates in the past 24 hours from `mc-bookings`
 2. Filter to only bookings in "Checked In" XState state
 3. Verify current time is 30+ minutes past the booking's scheduled end time
 4. Execute XState `checkOut` transition for each eligible booking
-5. Note: "Auto-checkout: 30 minutes after scheduled end time"
+5. Note logged: "Auto-checkout: 30 minutes after scheduled end time"
 
 **Purpose:** Automatically check out guests who remain checked in past their booking end time, preventing indefinite checked-in states.
 
@@ -927,7 +916,7 @@ Each email includes:
 
 1. Certain rooms require safety training (configured per room: `needsSafetyTraining: true`)
 2. Training is completed via a Google Form (URL stored per room: `trainingFormUrl`)
-3. Completed training is tracked in the `usersWhitelist` collection
+3. Completed training is tracked in the `mc-usersWhitelist` collection
 4. The system validates training status during booking:
    - For standard bookings: checks the requester's training
    - For walk-in bookings: checks the walk-in person's training (not the PA's)
@@ -972,17 +961,15 @@ The pre-ban system tracks policy violations:
 
 ### Configuration
 
-```typescript
-{
-  name: string,          // Descriptive name (e.g., "Winter Break")
-  startDate: Timestamp,  // Period start
-  endDate: Timestamp,    // Period end
-  startTime?: string,    // Optional daily start time (HH:mm)
-  endTime?: string,      // Optional daily end time (HH:mm)
-  isActive: boolean,     // Whether currently enforced
-  roomIds?: number[]     // Specific rooms (empty = all rooms)
-}
-```
+| Field | Description |
+|-------|-------------|
+| `name` | Descriptive name (e.g., "Winter Break") |
+| `startDate` | Period start timestamp |
+| `endDate` | Period end timestamp |
+| `startTime` | Optional daily start time (HH:mm) |
+| `endTime` | Optional daily end time (HH:mm) |
+| `isActive` | Whether currently enforced |
+| `roomIds` | Specific rooms (empty = applies to all rooms) |
 
 ### Enforcement
 
@@ -1032,11 +1019,6 @@ The pre-ban system tracks policy violations:
 - **Google OAuth tokens**: Cached with auto-refresh (60s before expiry)
 - **NYU API tokens**: Singleton `NYUTokenManager` with 5-minute refresh buffer
 - **Request coalescing**: Concurrent token requests share a single fetch
-
-### Test Environment
-
-- Auth bypass supported via `shouldBypassAuth()` utility
-- Test environment detection via `NEXT_PUBLIC_BRANCH_NAME` or `/api/isTestEnv`
 
 ---
 
@@ -1106,8 +1088,8 @@ Service Approval Flags:
   setupServiceApproved
 
 State Management:
-  origin             - BookingOrigin enum
-  xstateData         - Persisted XState snapshot
+  origin             - Booking origin (user/admin/walk-in/vip/system/pre-game)
+  xstateData         - Persisted XState v5 snapshot
   equipmentCheckedOut - Equipment checkout status
   webcheckoutCartNumber - Cart reference
 ```
@@ -1127,27 +1109,27 @@ State Management:
 
 ### Firestore Collections
 
-| Collection Name | Tenant-Scoped | Description |
-|----------------|---------------|-------------|
-| `bookings` | Yes (`{tenant}-bookings`) | All booking records |
-| `bookingLogs` | Yes | Booking change audit trail |
-| `bookingTypes` | Yes | Available booking types |
-| `blackoutPeriods` | Yes | Blackout period definitions |
-| `counters` | Yes | Sequential ID counters |
-| `operationHours` | Yes | Room operation hours |
-| `preBanLogs` | Yes | Pre-ban violation records |
-| `usersWhitelist` | Yes | Safety-trained users |
-| `usersApprovers` | Yes | Approver accounts |
-| `usersRights` | Yes | User permission assignments |
-| `usersAdmin` | No | Admin user accounts |
-| `usersPa` | No | PA user accounts |
-| `usersBanned` | No | Banned users |
-| `usersSuperAdmin` | No | Super admin accounts |
-| `resources` | No | Room/space definitions |
-| `departments` | No | Department definitions |
-| `settings` | No | System settings |
-| `policySettings` | No | Policy configuration |
-| `tenantSchema` | No | Tenant schema definitions |
+| Collection Name | Description |
+|----------------|-------------|
+| `mc-bookings` | All booking records |
+| `mc-bookingLogs` | Booking change audit trail |
+| `mc-bookingTypes` | Available booking types |
+| `mc-blackoutPeriods` | Blackout period definitions |
+| `mc-counters` | Sequential ID counters |
+| `mc-operationHours` | Room operation hours |
+| `mc-preBanLogs` | Pre-ban violation records |
+| `mc-usersWhitelist` | Safety-trained users |
+| `mc-usersApprovers` | Approver accounts |
+| `mc-usersRights` | User permission assignments |
+| `usersAdmin` | Admin user accounts |
+| `usersPa` | PA user accounts |
+| `usersBanned` | Banned users |
+| `usersSuperAdmin` | Super admin accounts |
+| `resources` | Room/space definitions |
+| `departments` | Department definitions |
+| `settings` | System settings |
+| `policySettings` | Policy configuration |
+| `tenantSchema` | Tenant schema definitions |
 
 ---
 
@@ -1169,7 +1151,7 @@ State Management:
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | POST | `/api/approve` | Approve a booking |
-| POST | `/api/xstate-transition` | Execute any XState event |
+| POST | `/api/xstate-transition` | Execute any XState event (approve, decline, cancel, checkIn, checkOut, noShow, close, service actions) |
 | GET | `/api/xstate-transition` | Query available transitions for current state |
 
 ### Processing
@@ -1184,8 +1166,8 @@ State Management:
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/bookings/auto-cancel-declined` | Cron: auto-cancel declined bookings |
-| GET | `/api/bookings/auto-checkout` | Cron: auto-checkout expired bookings |
+| GET | `/api/bookings/auto-cancel-declined` | Cron: auto-cancel declined bookings past grace period |
+| GET | `/api/bookings/auto-checkout` | Cron: auto-checkout bookings 30min past end time |
 
 ### Calendar & Sync
 
@@ -1233,22 +1215,12 @@ State Management:
 | POST | `/api/getData` | Fetch general data |
 | GET | `/api/booking-logs` | Get booking history logs |
 | GET | `/api/tenantSchema/[tenant]` | Get tenant configuration |
-| GET | `/api/isTestEnv` | Check if test environment |
 
 ### Authentication
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/auth/callback` | OAuth callback (code → tokens) |
-
-### Database Administration
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/db/addFields` | Add fields to database records |
-| POST | `/api/db/duplicate` | Duplicate database records |
-| POST | `/api/db/merge` | Merge database records |
-| POST | `/api/db/refactor` | Refactor database structure |
 
 ---
 
@@ -1258,73 +1230,71 @@ State Management:
 
 | Route | Description |
 |-------|-------------|
-| `/` | Root landing page (tenant selector) |
-| `/signin` | Global sign-in page |
-| `/[tenant]/signin` | Tenant-specific sign-in |
-| `/[tenant]/forbidden` | 403 page for non-NYU users |
+| `/mc/signin` | Sign-in page |
+| `/mc/forbidden` | 403 page for non-NYU users |
 
 ### User Routes
 
-| Route | Description | Form Context |
-|-------|-------------|-------------|
-| `/[tenant]` | My Bookings (home) | - |
-| `/[tenant]/my-bookings` | My Bookings list | - |
-| `/[tenant]/book` | Booking flow: policy | FULL_FORM |
-| `/[tenant]/book/role` | Booking flow: role selection | FULL_FORM |
-| `/[tenant]/book/selectRoom` | Booking flow: room & time | FULL_FORM |
-| `/[tenant]/book/form` | Booking flow: details form | FULL_FORM |
-| `/[tenant]/book/confirmation` | Booking flow: confirmation | FULL_FORM |
+| Route | Description |
+|-------|-------------|
+| `/mc` | My Bookings (home) |
+| `/mc/my-bookings` | My Bookings list |
+| `/mc/book` | Booking flow: policy acceptance |
+| `/mc/book/role` | Booking flow: role selection |
+| `/mc/book/selectRoom` | Booking flow: room & time |
+| `/mc/book/form` | Booking flow: details form |
+| `/mc/book/confirmation` | Booking flow: confirmation |
 
 ### Walk-In Routes
 
-| Route | Description | Form Context |
-|-------|-------------|-------------|
-| `/[tenant]/walk-in` | Walk-in landing | WALK_IN |
-| `/[tenant]/walk-in/netid` | Walk-in NetID entry | WALK_IN |
-| `/[tenant]/walk-in/role` | Walk-in role selection | WALK_IN |
-| `/[tenant]/walk-in/selectRoom` | Walk-in room selection | WALK_IN |
-| `/[tenant]/walk-in/form` | Walk-in details form | WALK_IN |
-| `/[tenant]/walk-in/confirmation` | Walk-in confirmation | WALK_IN |
+| Route | Description |
+|-------|-------------|
+| `/mc/walk-in` | Walk-in landing |
+| `/mc/walk-in/netid` | Walk-in NetID entry |
+| `/mc/walk-in/role` | Walk-in role selection |
+| `/mc/walk-in/selectRoom` | Walk-in room selection |
+| `/mc/walk-in/form` | Walk-in details form |
+| `/mc/walk-in/confirmation` | Walk-in confirmation |
 
 ### VIP Routes
 
-| Route | Description | Form Context |
-|-------|-------------|-------------|
-| `/[tenant]/vip` | VIP landing | VIP |
-| `/[tenant]/vip/role` | VIP role selection | VIP |
-| `/[tenant]/vip/selectRoom` | VIP room selection | VIP |
-| `/[tenant]/vip/form` | VIP details form | VIP |
-| `/[tenant]/vip/confirmation` | VIP confirmation | VIP |
+| Route | Description |
+|-------|-------------|
+| `/mc/vip` | VIP landing |
+| `/mc/vip/role` | VIP role selection |
+| `/mc/vip/selectRoom` | VIP room selection |
+| `/mc/vip/form` | VIP details form |
+| `/mc/vip/confirmation` | VIP confirmation |
 
 ### Edit & Modification Routes
 
-| Route | Description | Form Context |
-|-------|-------------|-------------|
-| `/[tenant]/edit/[id]` | Edit booking landing | EDIT |
-| `/[tenant]/edit/role/[id]` | Edit role selection | EDIT |
-| `/[tenant]/edit/selectRoom/[id]` | Edit room selection | EDIT |
-| `/[tenant]/edit/form/[id]` | Edit details form | EDIT |
-| `/[tenant]/modification/[id]` | Modification landing | MODIFICATION |
-| `/[tenant]/modification/form/[id]` | Modification form | MODIFICATION |
-| `/[tenant]/modification/selectRoom/[id]` | Modification room selection | MODIFICATION |
-| `/[tenant]/modification/confirmation` | Modification confirmation | MODIFICATION |
+| Route | Description |
+|-------|-------------|
+| `/mc/edit/[id]` | Edit booking landing |
+| `/mc/edit/role/[id]` | Edit role selection |
+| `/mc/edit/selectRoom/[id]` | Edit room selection |
+| `/mc/edit/form/[id]` | Edit details form |
+| `/mc/modification/[id]` | Modification landing |
+| `/mc/modification/form/[id]` | Modification form |
+| `/mc/modification/selectRoom/[id]` | Modification room selection |
+| `/mc/modification/confirmation` | Modification confirmation |
 
 ### Approval Routes
 
 | Route | Description |
 |-------|-------------|
-| `/[tenant]/approve?calendarEventId=X` | Approve booking (standalone) |
-| `/[tenant]/decline?calendarEventId=X` | Decline booking (standalone, requires reason) |
+| `/mc/approve?calendarEventId=X` | Approve booking (standalone page, linked from email) |
+| `/mc/decline?calendarEventId=X` | Decline booking (standalone page, requires reason) |
 
 ### Management Routes
 
-| Route | Description | Required Permission |
-|-------|-------------|-------------------|
-| `/[tenant]/admin` | Admin dashboard | ADMIN, SUPER_ADMIN |
-| `/[tenant]/liaison` | Liaison dashboard | LIAISON, ADMIN, SUPER_ADMIN |
-| `/[tenant]/pa` | PA dashboard | PA, ADMIN, SUPER_ADMIN |
-| `/[tenant]/services` | Services dashboard | SERVICES, ADMIN, SUPER_ADMIN |
-| `/[tenant]/super` | Super admin dashboard | SUPER_ADMIN |
+| Route | Required Permission | Description |
+|-------|-------------------|-------------|
+| `/mc/admin` | ADMIN, SUPER_ADMIN | Admin dashboard (bookings + settings) |
+| `/mc/liaison` | LIAISON, ADMIN, SUPER_ADMIN | Liaison dashboard (department bookings) |
+| `/mc/pa` | PA, ADMIN, SUPER_ADMIN | PA dashboard (day-of operations) |
+| `/mc/services` | SERVICES, ADMIN, SUPER_ADMIN | Services dashboard (service requests) |
+| `/mc/super` | SUPER_ADMIN | Super admin dashboard |
 
 ---
 
@@ -1342,13 +1312,6 @@ State Management:
 ---
 
 ## Appendix: Environment Configuration
-
-| Variable | Purpose |
-|----------|---------|
-| `NEXT_PUBLIC_BRANCH_NAME` | Environment identifier (development/staging/production) |
-| `CRON_SECRET` | Authentication for cron job endpoints |
-| `GOOGLE_REFRESH_TOKEN` | Google API OAuth refresh token |
-| `NEXT_PUBLIC_BASE_URL` | Application base URL |
 
 | Branch | Environment | Calendar | Email Prefix |
 |--------|------------|----------|-------------|
