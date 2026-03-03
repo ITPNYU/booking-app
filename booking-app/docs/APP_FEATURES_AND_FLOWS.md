@@ -73,14 +73,12 @@ The role category (Student, Faculty, Admin) determines booking hour limits and a
 | **Liaison** | All PA capabilities + first-level approve/decline for their department's bookings |
 | **Services** | All User capabilities + approve/decline/closeout individual services (catering, staffing, etc.) |
 | **Admin** | Full access to all bookings across all departments, all actions, and all settings |
-| **Super Admin** | All Admin capabilities + manage admin and super admin accounts |
 
 ### Permission Hierarchy
 
 ```
-Super Admin
-  └── Admin
-        ├── Services Staff
+Admin
+  ├── Services Staff
         ├── Liaison
         │     └── PA
         │           └── User
@@ -482,7 +480,6 @@ The navigation bar adapts based on the user's permission level:
 | Liaison | "Walk-In" button |
 | Services | "Walk-In" button |
 | Admin | "VIP" button + "Walk-In" button |
-| Super Admin | All buttons |
 
 Users with multiple roles see a dropdown to switch between views.
 
@@ -552,24 +549,19 @@ One-click CSV export of all booking data.
 
 - View and manage bookings for the liaison's assigned department
 - First-level approve or decline actions
-- Accessible to: Liaisons, Admins, Super Admins
+- Accessible to: Liaisons, Admins
 
 ### PA Dashboard
 
 - Manage day-of operations: check-in, check-out, no-show
 - Equipment tracking
-- Accessible to: PAs, Admins, Super Admins
+- Accessible to: PAs, Admins
 
 ### Services Dashboard
 
 - View only bookings that have service requests
 - Approve, decline, or closeout individual services
-- Accessible to: Services staff, Admins, Super Admins
-
-### Super Admin Dashboard
-
-- Manage super admin accounts
-- Only accessible by Super Admins
+- Accessible to: Services staff, Admins
 
 ---
 
@@ -836,8 +828,7 @@ Blackout periods are time ranges during which bookings are not allowed.
 
 | Page | Who Can Access | Description |
 |------|---------------|-------------|
-| Admin | Admin, Super Admin | Full booking management + system settings |
-| Liaison | Liaison, Admin, Super Admin | Department booking approval |
-| PA | PA, Admin, Super Admin | Day-of operations (check-in/out) |
-| Services | Services, Admin, Super Admin | Service request management |
-| Super Admin | Super Admin only | Manage admin accounts |
+| Admin | Admin | Full booking management + system settings |
+| Liaison | Liaison, Admin | Department booking approval |
+| PA | PA, Admin | Day-of operations (check-in/out) |
+| Services | Services, Admin | Service request management |
