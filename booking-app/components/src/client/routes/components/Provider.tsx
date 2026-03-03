@@ -197,7 +197,9 @@ export const DatabaseProvider = ({
   // page permission updates with respect to user email, admin list, PA list
   const pagePermission = useMemo<PagePermission>(() => {
     // Early return if no email
-    if (!userEmail) return PagePermission.BOOKING;
+    if (!userEmail) {
+      return PagePermission.BOOKING;
+    }
 
     // Pre-compute email lists once
     const adminEmails = adminUsers.map((admin) => admin.email);
@@ -207,11 +209,21 @@ export const DatabaseProvider = ({
     const superAdminEmails = superAdminUsers.map((admin) => admin.email);
 
     // Check permissions (ordered by hierarchy - highest to lowest)
-    if (superAdminEmails.includes(userEmail)) return PagePermission.SUPER_ADMIN;
-    if (adminEmails.includes(userEmail)) return PagePermission.ADMIN;
-    if (servicesEmails.includes(userEmail)) return PagePermission.SERVICES;
-    if (liaisonEmails.includes(userEmail)) return PagePermission.LIAISON;
-    if (paEmails.includes(userEmail)) return PagePermission.PA;
+    if (superAdminEmails.includes(userEmail)) {
+      return PagePermission.SUPER_ADMIN;
+    }
+    if (adminEmails.includes(userEmail)) {
+      return PagePermission.ADMIN;
+    }
+    if (servicesEmails.includes(userEmail)) {
+      return PagePermission.SERVICES;
+    }
+    if (liaisonEmails.includes(userEmail)) {
+      return PagePermission.LIAISON;
+    }
+    if (paEmails.includes(userEmail)) {
+      return PagePermission.PA;
+    }
 
     return PagePermission.BOOKING;
   }, [
@@ -224,15 +236,12 @@ export const DatabaseProvider = ({
     JSON.stringify(superAdminUsers),
   ]);
 
-  useEffect(() => {
-    console.log(allBookings.length);
-  }, [allBookings]);
+
 
   useEffect(() => {
     if (!bookingsLoading && tenant) {
       fetchSafetyTrainedUsers();
       fetchBannedUsers();
-      fetchApproverUsers();
       fetchDepartmentNames();
       fetchSettings();
     } else {
@@ -250,6 +259,7 @@ export const DatabaseProvider = ({
       fetchAdminUsers();
       fetchPaUsers();
       fetchSuperAdminUsers();
+      fetchApproverUsers();
     }
   }, [user, tenant]);
 

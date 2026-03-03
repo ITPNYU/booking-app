@@ -17,6 +17,7 @@ import { auth } from "@/lib/firebase/firebaseClient";
 import { styled } from "@mui/system";
 import { signOut } from "firebase/auth";
 import { PagePermission } from "../../../types";
+import { getPathFromPermission } from "../../../utils/permissionPaths";
 import useHandleStartBooking from "../booking/hooks/useHandleStartBooking";
 import ConfirmDialog from "./ConfirmDialog";
 import { DatabaseContext } from "./Provider";
@@ -50,25 +51,6 @@ const Divider = styled(Box)(({ theme }) => ({
   margin: "0px 20px",
 }));
 
-// Helper function to convert PagePermission to path segment
-const getPathFromPermission = (permission: PagePermission): string => {
-  switch (permission) {
-    case PagePermission.PA:
-      return "pa";
-    case PagePermission.ADMIN:
-      return "admin";
-    case PagePermission.LIAISON:
-      return "liaison";
-    case PagePermission.SERVICES:
-      return "services";
-    case PagePermission.SUPER_ADMIN:
-      return "super";
-    case PagePermission.BOOKING:
-    default:
-      return "";
-  }
-};
-
 export default function NavBar() {
   const router = useRouter();
   const params = useParams();
@@ -90,7 +72,11 @@ export default function NavBar() {
     supportWalkIn = false,
   } = tenantSchema || {};
 
-  const isRoot = pathname === "/" || (tenant && pathname === `/${tenant}`);
+  // Normalize pathname by removing trailing slash for comparison
+  const normalizedPathname = pathname.endsWith("/") && pathname.length > 1 
+    ? pathname.slice(0, -1) 
+    : pathname;
+  const isRoot = normalizedPathname === "/" || (tenant && normalizedPathname === `/${tenant}`);
 
   const handleRoleChange = (e: any) => {
     const pathSegment = getPathFromPermission(e.target.value as PagePermission);
@@ -100,11 +86,15 @@ export default function NavBar() {
 
   const handleClickHome = () => {
     setSelectedView(PagePermission.BOOKING);
+    // Clear redirect flag so user can be auto-redirected on next root visit
+    sessionStorage.removeItem("hasRedirectedToDefaultContext");
     router.push(`/${tenant || ""}`);
   };
 
   const handleClickRoot = () => {
     setSelectedView(PagePermission.BOOKING);
+    // Clear redirect flag so user can be auto-redirected on next root visit
+    sessionStorage.removeItem("hasRedirectedToDefaultContext");
     router.push("/");
   };
 
@@ -149,6 +139,7 @@ export default function NavBar() {
 
   useEffect(() => {
     if (!isRoot) return;
+    if (!tenant) return;
 
     const hasRedirected = sessionStorage.getItem(
       "hasRedirectedToDefaultContext",
@@ -159,7 +150,7 @@ export default function NavBar() {
       const targetPath = getPathFromPermission(pagePermission);
 
       if (targetPath) {
-        const fullPath = tenant ? `/${tenant}/${targetPath}` : `/${targetPath}`;
+        const fullPath = `/${tenant}/${targetPath}`;
         router.push(fullPath);
         sessionStorage.setItem("hasRedirectedToDefaultContext", "true");
       }
@@ -177,6 +168,7 @@ export default function NavBar() {
         PagePermission.ADMIN,
         PagePermission.PA,
         PagePermission.LIAISON,
+        PagePermission.SERVICES,
         PagePermission.SUPER_ADMIN,
       ])
     ) {

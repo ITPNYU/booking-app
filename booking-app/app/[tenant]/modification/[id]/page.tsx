@@ -3,10 +3,10 @@
 "use client";
 
 import ModificationLandingPage from "@/components/src/client/routes/modification/ModificationLandingPage";
-import React, { use } from "react";
+import React from "react";
 
-const HomePage = ({ params }: { params: Promise<{ id: string }> }) => {
-  const { id } = use(params);
+const HomePage = ({ params }: { params: { id: string } }) => {
+  const { id } = params;
   return <ModificationLandingPage calendarEventId={id} />;
 };
 

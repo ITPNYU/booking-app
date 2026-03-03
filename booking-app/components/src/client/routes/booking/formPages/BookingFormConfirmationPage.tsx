@@ -4,6 +4,7 @@ import { Box, Button, Typography, useTheme } from "@mui/material";
 import { Error, Event } from "@mui/icons-material";
 import React, { useContext } from "react";
 import { FormContextLevel, PagePermission } from "@/components/src/types";
+import { getPathFromPermission } from "@/components/src/utils/permissionPaths";
 import { styled } from "@mui/system";
 import { useRouter, useParams } from "next/navigation";
 import { BookingContext } from "../bookingProvider";
@@ -88,17 +89,18 @@ export default function BookingFormConfirmationPage({ formContext }: Props) {
           }}
         >
           <Button
-            onClick={() =>
-              router.push(
-                isVIP
-                  ? `/${tenant}/admin`
-                  : isWalkIn
-                    ? `/${tenant}/pa`
-                    : isMod && pagePermission === PagePermission.PA
-                      ? `/${tenant}/pa`
-                      : `/${tenant}`,
-              )
-            }
+            onClick={() => {
+              const getRedirectPath = () => {
+                if (isVIP) return `/${tenant}/admin`;
+                if (isWalkIn) return `/${tenant}/pa`;
+                if (isMod) {
+                  const targetPath = getPathFromPermission(pagePermission);
+                  return targetPath ? `/${tenant}/${targetPath}` : `/${tenant}`;
+                }
+                return `/${tenant}`;
+              };
+              router.push(getRedirectPath());
+            }}
             variant="text"
             sx={{
               background: theme.palette.primary[50],
