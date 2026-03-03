@@ -49,6 +49,7 @@ export interface DatabaseContextType {
   blackoutPeriods: BlackoutPeriod[];
   allBookings: Booking[];
   bookingsLoading: boolean;
+  permissionsLoading: boolean;
   liaisonUsers: Approver[];
   equipmentUsers: Approver[];
   departmentNames: DepartmentType[];
@@ -93,6 +94,7 @@ export const DatabaseContext = createContext<DatabaseContextType>({
   blackoutPeriods: [],
   allBookings: [],
   bookingsLoading: true,
+  permissionsLoading: true,
   liaisonUsers: [],
   equipmentUsers: [],
   departmentNames: [],
@@ -138,6 +140,7 @@ export const DatabaseProvider = ({
   const [blackoutPeriods, setBlackoutPeriods] = useState<BlackoutPeriod[]>([]);
   // const [futureBookings, setFutureBookings] = useState<Booking[]>([]);
   const [bookingsLoading, setBookingsLoading] = useState<boolean>(true);
+  const [permissionsLoading, setPermissionsLoading] = useState<boolean>(true);
   const [allBookings, setAllBookings] = useState<Booking[]>([]);
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
   const [liaisonUsers, setLiaisonUsers] = useState<Approver[]>([]);
@@ -245,12 +248,25 @@ export const DatabaseProvider = ({
   }, [filters]);
 
   useEffect(() => {
-    fetchActiveUserEmail();
-    if (tenant) {
-      fetchAdminUsers();
-      fetchPaUsers();
-      fetchSuperAdminUsers();
-    }
+    const loadPermissions = async () => {
+      fetchActiveUserEmail();
+      if (tenant) {
+        setPermissionsLoading(true);
+        try {
+          await Promise.all([
+            fetchAdminUsers(),
+            fetchPaUsers(),
+            fetchSuperAdminUsers(),
+            fetchApproverUsers(),
+          ]);
+        } finally {
+          setPermissionsLoading(false);
+        }
+      } else {
+        setPermissionsLoading(false);
+      }
+    };
+    loadPermissions();
   }, [user, tenant]);
 
   useEffect(() => {
@@ -783,6 +799,7 @@ export const DatabaseProvider = ({
         userEmail,
         netId,
         bookingsLoading,
+        permissionsLoading,
         userApiData,
         loadMoreEnabled,
         reloadAdminUsers: fetchAdminUsers,

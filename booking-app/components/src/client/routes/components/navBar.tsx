@@ -52,8 +52,8 @@ const Divider = styled(Box)(({ theme }) => ({
 
 export default function NavBar() {
   const router = useRouter();
-  const { tenant } = useParams();
-  const { pagePermission, netId, setUserEmail } = useContext(DatabaseContext);
+  const { tenant } = useParams<{ tenant: string }>();
+  const { pagePermission, permissionsLoading, netId, setUserEmail } = useContext(DatabaseContext);
   const handleStartBooking = useHandleStartBooking();
   const [selectedView, setSelectedView] = useState<PagePermission>(
     PagePermission.BOOKING,
@@ -61,7 +61,6 @@ export default function NavBar() {
   const pathname = usePathname();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
-  const isRoot = pathname === "/";
   const tenantSchema = useContext(SchemaContext);
   const {
     name = "",
@@ -69,6 +68,27 @@ export default function NavBar() {
     supportVIP = false,
     supportWalkIn = false,
   } = tenantSchema || {};
+
+  // Check if we're on the tenant root (where redirect should happen)
+  const isRoot = pathname === "/" || (tenant && pathname === `/${tenant}`);
+
+  // Helper function to get URL path from PagePermission
+  const getPathFromPermission = (permission: PagePermission): string => {
+    switch (permission) {
+      case PagePermission.PA:
+        return "pa";
+      case PagePermission.ADMIN:
+        return "admin";
+      case PagePermission.LIAISON:
+        return "liaison";
+      case PagePermission.SERVICES:
+        return "services";
+      case PagePermission.SUPER_ADMIN:
+        return "super";
+      default:
+        return "";
+    }
+  };
 
   const handleRoleChange = (e: any) => {
     const pathOf = (x: string) => (tenant ? `/${tenant}/${x}` : `/${x}`);
@@ -97,11 +117,13 @@ export default function NavBar() {
 
   const handleClickHome = () => {
     setSelectedView(PagePermission.BOOKING);
+    sessionStorage.removeItem("hasRedirectedToDefaultContext");
     router.push(`/${tenant || ""}`);
   };
 
   const handleClickRoot = () => {
     setSelectedView(PagePermission.BOOKING);
+    sessionStorage.removeItem("hasRedirectedToDefaultContext");
     router.push("/");
   };
 
@@ -135,6 +157,7 @@ export default function NavBar() {
   const handleSignOut = async () => {
     try {
       await signOut(auth);
+      sessionStorage.removeItem("hasRedirectedToDefaultContext");
       console.log("Sign-out successful");
       router.push("/signin");
       setUserEmail(null);
@@ -142,6 +165,25 @@ export default function NavBar() {
       console.error("Sign-out error", error);
     }
   };
+
+  // Auto-redirect to highest priority role on tenant root
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (permissionsLoading) return;
+    if (!isRoot) return;
+    if (!tenant) return;
+
+    const hasRedirected = sessionStorage.getItem("hasRedirectedToDefaultContext");
+    if (hasRedirected) return;
+
+    if (pagePermission !== PagePermission.BOOKING) {
+      const targetPath = getPathFromPermission(pagePermission);
+      if (targetPath) {
+        router.push(`/${tenant}/${targetPath}`);
+        sessionStorage.setItem("hasRedirectedToDefaultContext", "true");
+      }
+    }
+  }, [pagePermission, permissionsLoading, tenant, router, isRoot]);
 
   const hasUserPermission = (roles: PagePermission[]) =>
     roles.includes(pagePermission);
@@ -153,6 +195,7 @@ export default function NavBar() {
         PagePermission.ADMIN,
         PagePermission.PA,
         PagePermission.LIAISON,
+        PagePermission.SERVICES,
         PagePermission.SUPER_ADMIN,
       ])
     ) {
