@@ -6,9 +6,9 @@
 
 - [ ] I checked for existing implementations and confirmed there is no duplication
 - [ ] I thoroughly tested this feature locally
-- [ ] I added or updated unit tests (or explained why not in comments)
+- [ ] I added or updated unit tests (or explained why not in the PR description)
 - [ ] I attached screenshots or a video demonstrating the feature
-- [ ] I incorporated Copilot's feedback (or explained why not in comments), and marked conversation as resolved
+- [ ] I incorporated Copilot's feedback (or explained why not in the PR description), and marked conversation as resolved
 - [ ] I confirmed my PR passed all unit & E2E tests
 - [ ] I confirmed there are no conflicts
 - [ ] I requested a code review from at least one other teammate
