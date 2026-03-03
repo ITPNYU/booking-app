@@ -467,13 +467,6 @@ Each room can enable or disable auto-approval, and specify which services are al
 | With Cleaning | Configurable |
 | With Security | Configurable |
 
-### Operation Hours
-
-Each room has configurable daily operation hours:
-- Open/close times per day of the week
-- Rooms can be marked as closed on specific days
-- Bookings can only be made during operation hours
-
 ---
 
 ## 8. Admin Panel & Management
@@ -547,7 +540,6 @@ Configure the options available in the booking type dropdown.
 #### Policy Settings
 - **Blackout Periods**: Configure dates/times when bookings are blocked
 - **Final Approver**: Designate the final approval authority
-- **Operational Hours**: Set daily operating hours per room
 
 #### Export Database
 One-click CSV export of all booking data.
