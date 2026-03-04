@@ -573,7 +573,7 @@ export const DatabaseProvider = ({
       return;
     }
 
-    clientFetchAllDataFromCollection(TableNames.APPROVERS, [], tenant)
+    return clientFetchAllDataFromCollection(TableNames.APPROVERS, [], tenant)
       .then((fetchedData) => {
         const all = fetchedData.map((item: any) => ({
           id: item.id,

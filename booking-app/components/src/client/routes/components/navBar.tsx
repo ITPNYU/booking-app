@@ -91,28 +91,10 @@ export default function NavBar() {
   };
 
   const handleRoleChange = (e: any) => {
-    const pathOf = (x: string) => (tenant ? `/${tenant}/${x}` : `/${x}`);
-
-    switch (e.target.value as PagePermission) {
-      case PagePermission.BOOKING:
-        router.push(pathOf(""));
-        break;
-      case PagePermission.PA:
-        router.push(pathOf("pa"));
-        break;
-      case PagePermission.ADMIN:
-        router.push(pathOf("admin"));
-        break;
-      case PagePermission.LIAISON:
-        router.push(pathOf("liaison"));
-        break;
-      case PagePermission.SERVICES:
-        router.push(pathOf("services"));
-        break;
-      case PagePermission.SUPER_ADMIN:
-        router.push(pathOf("super"));
-        break;
-    }
+    const role = e.target.value as PagePermission;
+    const path = getPathFromPermission(role);
+    const fullPath = tenant ? `/${tenant}/${path}` : `/${path}`;
+    router.push(fullPath);
   };
 
   const handleClickHome = () => {
