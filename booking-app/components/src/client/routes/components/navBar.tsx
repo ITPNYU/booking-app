@@ -152,6 +152,12 @@ export default function NavBar() {
     } else if (pathname.includes("/super")) {
       setSelectedView(PagePermission.SUPER_ADMIN);
     }
+
+    // Clear redirect flag when navigating away from root
+    // so auto-redirect works when returning
+    if (!(pathname === "/" || isTenantRoot)) {
+      sessionStorage.removeItem("hasRedirectedToDefaultContext");
+    }
   }, [pathname]);
 
   const handleSignOut = async () => {
