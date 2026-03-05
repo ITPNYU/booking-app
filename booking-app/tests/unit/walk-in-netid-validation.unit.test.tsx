@@ -283,12 +283,12 @@ describe("WalkInNetIdPage - NetID Validation", () => {
           screen.getByText("NetID should only contain letters and numbers")
         ).toBeInTheDocument();
       });
-      
+
       // Now try without leading/trailing spaces but still matching
       await user.clear(input);
       await user.type(input, "test");
       await user.tab();
-      
+
       await waitFor(() => {
         // Now the custom validation should catch the matching netId
         expect(
@@ -491,7 +491,7 @@ describe("WalkInNetIdPage - NetID Validation", () => {
           )
         ).toBeInTheDocument();
       });
-      
+
       // Should not navigate or set form data
       expect(mockSetFormData).not.toHaveBeenCalled();
       expect(mockRouter.push).not.toHaveBeenCalled();
@@ -502,7 +502,7 @@ describe("WalkInNetIdPage - NetID Validation", () => {
       renderWalkInNetIdPage("test@nyu.edu");
 
       const input = screen.getByRole("textbox");
-      
+
       // Enter a netId that passes form validation (alphanumeric, non-empty)
       // but fails onSubmit validation (matches requester)
       await user.type(input, "test");
@@ -525,7 +525,7 @@ describe("WalkInNetIdPage - NetID Validation", () => {
 
       const input = screen.getByRole("textbox");
       await user.type(input, "visitor123");
-      
+
       const nextButton = screen.getByRole("button", { name: "Next" });
       await user.click(nextButton);
 
