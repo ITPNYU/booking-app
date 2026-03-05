@@ -51,12 +51,14 @@ export type AdminUserData = {
 };
 
 export const clientDeleteDataFromFirestore = async (
-  collectionName: string,
+  collectionName: TableNames,
   docId: string,
+  tenant?: string,
 ) => {
   try {
     const db = getDb();
-    await deleteDoc(doc(db, collectionName, docId));
+    const tenantCollection = getTenantCollection(collectionName, tenant);
+    await deleteDoc(doc(db, tenantCollection, docId));
     console.log("Document successfully deleted with ID:", docId);
   } catch (error) {
     console.error("Error deleting document: ", error);
