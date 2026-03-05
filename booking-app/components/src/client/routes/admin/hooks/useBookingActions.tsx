@@ -90,7 +90,7 @@ export default function useBookingActions({
   const router = useRouter();
   const { tenant } = useParams();
   const { reloadExistingCalendarEvents } = useContext(BookingContext);
-  const { userEmail, netId, fetchAllBookings } = useContext(DatabaseContext);
+  const { userEmail, netId, updateBookingInList } = useContext(DatabaseContext);
   const loadExistingBookingData = useExistingBooking();
   const [bookingData, setBookingData] = useState<any>(null);
   const [serviceRequests, setServiceRequests] = useState<{
@@ -119,15 +119,17 @@ export default function useBookingActions({
   }>({});
   const [currentXState, setCurrentXState] = useState<any>("");
 
-  // Function to fetch booking data and update states
-  const fetchBookingData = useCallback(async () => {
-    if (isMediaCommons(tenant as string) && calendarEventId) {
-      try {
-        const data = (await clientGetDataByCalendarEventId(
-          TableNames.BOOKING,
-          calendarEventId,
-          tenant as string,
-        )) as any; // Type assertion to handle dynamic properties
+  // Function to fetch booking data and update states. Returns fetched data for row-level table updates.
+  const fetchBookingData = useCallback(async (): Promise<any> => {
+    if (!calendarEventId) return undefined;
+    try {
+      const data = (await clientGetDataByCalendarEventId(
+        TableNames.BOOKING,
+        calendarEventId,
+        tenant as string
+      )) as any; // Type assertion to handle dynamic properties
+
+      if (isMediaCommons(tenant as string)) {
         setBookingData(data);
 
         // Detect service requests from booking data
@@ -207,9 +209,12 @@ export default function useBookingActions({
             setServicesClosedOut({}); // Reset closeout status if no XState data
           }
         }
-      } catch (error) {
-        console.error("Error fetching booking data:", error);
       }
+
+      return data ?? undefined;
+    } catch (error) {
+      console.error("Error fetching booking data:", error);
+      return undefined;
     }
   }, [calendarEventId, tenant]);
 
@@ -265,8 +270,8 @@ export default function useBookingActions({
           userEmail,
           tenant as string,
         );
-        await fetchBookingData();
-        if (fetchAllBookings) await fetchAllBookings(false);
+        const data = await fetchBookingData();
+        if (data && updateBookingInList) updateBookingInList(calendarEventId, data);
       },
       optimisticNextStatus: BookingStatusLabel.PRE_APPROVED,
     },
@@ -279,8 +284,8 @@ export default function useBookingActions({
           userEmail,
           tenant as string,
         );
-        await fetchBookingData();
-        if (fetchAllBookings) await fetchAllBookings(false);
+        const data = await fetchBookingData();
+        if (data && updateBookingInList) updateBookingInList(calendarEventId, data);
       },
       optimisticNextStatus: BookingStatusLabel.APPROVED,
     },
