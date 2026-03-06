@@ -40,10 +40,12 @@ jobs:
           else
             MIN=0
           fi
-          echo "Setting min_instances=$MIN for version ${{ steps.version.outputs.version }}"
-          gcloud app versions update ${{ steps.version.outputs.version }} \
-            --service=staging \
-            --min-instances=$MIN \
-            --project=${{ secrets.GCP_PROJECT_ID }} \
-            --quiet
+          VERSION="${{ steps.version.outputs.version }}"
+          echo "Setting min_instances=$MIN for version $VERSION"
+          TOKEN=$(gcloud auth print-access-token)
+          curl -sf -X PATCH \
+            "https://appengine.googleapis.com/v1/apps/${{ secrets.GCP_PROJECT_ID }}/services/staging/versions/${VERSION}?updateMask=automaticScaling.standardSchedulerSettings.minInstances" \
+            -H "Authorization: Bearer ${TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d "{\"automaticScaling\": {\"standardSchedulerSettings\": {\"minInstances\": ${MIN}}}}"
           echo "Done. Staging is now ${{ inputs.action }}ed."

@@ -84,7 +84,12 @@ jobs:
         run: |
           VERSION=$(gcloud app versions list --service=staging --sort-by=~version --limit=1 --format="value(version.id)")
           echo "Setting min_instances=1 for version: $VERSION"
-          gcloud app versions update $VERSION --service=staging --min-instances=1 --project=${{ secrets.GCP_PROJECT_ID }} --quiet
+          TOKEN=$(gcloud auth print-access-token)
+          curl -X PATCH \
+            "https://appengine.googleapis.com/v1/apps/${{ secrets.GCP_PROJECT_ID }}/services/staging/versions/${VERSION}?updateMask=automaticScaling.standardSchedulerSettings.minInstances" \
+            -H "Authorization: Bearer ${TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d '{"automaticScaling": {"standardSchedulerSettings": {"minInstances": 1}}}'
 
       - name: Delete old versions
         run: |
