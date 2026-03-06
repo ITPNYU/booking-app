@@ -11,6 +11,8 @@ on:
           - stop
           - start
 
+permissions: {}
+
 jobs:
   control:
     runs-on: ubuntu-latest
@@ -28,7 +30,13 @@ jobs:
 
       - name: "${{ inputs.action == 'start' && 'Start' || 'Stop' }} staging"
         run: |
-          VERSION=$(gcloud app versions list --service=staging --sort-by=~version --limit=1 --format="value(version.id)")
-          echo "${{ inputs.action }}ing staging version: $VERSION"
-          gcloud app versions ${{ inputs.action }} $VERSION --service=staging --project=${{ secrets.GCP_PROJECT_ID }} --quiet
-          echo "Done. Staging is now ${{ inputs.action }}ed."
+          if [ "${{ inputs.action }}" = "stop" ]; then
+            VERSIONS=$(gcloud app versions list --service=staging --filter="SERVING_STATUS=SERVING" --format="value(version.id)")
+          else
+            VERSIONS=$(gcloud app versions list --service=staging --sort-by=~version --limit=1 --format="value(version.id)")
+          fi
+          for VERSION in $VERSIONS; do
+            echo "${{ inputs.action }}ing staging version: $VERSION"
+            gcloud app versions ${{ inputs.action }} $VERSION --service=staging --project=${{ secrets.GCP_PROJECT_ID }} --quiet
+          done
+          echo "Done. Staging is now ${{ inputs.action == 'start' && 'started' || 'stopped' }}."
