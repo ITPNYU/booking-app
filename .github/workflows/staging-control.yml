@@ -26,26 +26,9 @@ jobs:
         with:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
 
-      - name: Get latest version
-        id: version
-        run: |
-          VERSION=$(gcloud app versions list --service=staging --sort-by=~version --limit=1 --format="value(version.id)")
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "Latest staging version: $VERSION"
-
       - name: "${{ inputs.action == 'start' && 'Start' || 'Stop' }} staging"
         run: |
-          if [ "${{ inputs.action }}" = "start" ]; then
-            MIN=1
-          else
-            MIN=0
-          fi
-          VERSION="${{ steps.version.outputs.version }}"
-          echo "Setting min_instances=$MIN for version $VERSION"
-          TOKEN=$(gcloud auth print-access-token)
-          curl -sf -X PATCH \
-            "https://appengine.googleapis.com/v1/apps/${{ secrets.GCP_PROJECT_ID }}/services/staging/versions/${VERSION}?updateMask=automaticScaling.standardSchedulerSettings.minInstances" \
-            -H "Authorization: Bearer ${TOKEN}" \
-            -H "Content-Type: application/json" \
-            -d "{\"automaticScaling\": {\"standardSchedulerSettings\": {\"minInstances\": ${MIN}}}}"
+          VERSION=$(gcloud app versions list --service=staging --sort-by=~version --limit=1 --format="value(version.id)")
+          echo "${{ inputs.action }}ing staging version: $VERSION"
+          gcloud app versions ${{ inputs.action }} $VERSION --service=staging --project=${{ secrets.GCP_PROJECT_ID }} --quiet
           echo "Done. Staging is now ${{ inputs.action }}ed."
