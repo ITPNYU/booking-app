@@ -3,7 +3,7 @@ instance_class: F1
 service: staging
 
 automatic_scaling:
-  min_instances: 1
+  min_instances: 0
   max_instances: 10
   target_cpu_utilization: 0.65
 

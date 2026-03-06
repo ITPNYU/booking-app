@@ -80,6 +80,12 @@ jobs:
         run: |
           cd booking-app
           gcloud app deploy app.staging.yaml --project=${{ secrets.GCP_PROJECT_ID }} --quiet
+      - name: Set min instances to 1 for immediate availability
+        run: |
+          VERSION=$(gcloud app versions list --service=staging --sort-by=~version --limit=1 --format="value(version.id)")
+          echo "Setting min_instances=1 for version: $VERSION"
+          gcloud app versions update $VERSION --service=staging --min-instances=1 --project=${{ secrets.GCP_PROJECT_ID }} --quiet
+
       - name: Delete old versions
         run: |
           CURRENT_VERSION=$(gcloud app versions list --service=staging --sort-by=~version --limit=1 --format="value(version.id)")

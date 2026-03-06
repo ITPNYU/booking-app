@@ -1,0 +1,49 @@
+name: Staging Start/Stop
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "Start or stop the staging environment"
+        required: true
+        type: choice
+        options:
+          - stop
+          - start
+
+jobs:
+  control:
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: ${{ secrets.SERVICE_ACCOUNT_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v1
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+      - name: Get latest version
+        id: version
+        run: |
+          VERSION=$(gcloud app versions list --service=staging --sort-by=~version --limit=1 --format="value(version.id)")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Latest staging version: $VERSION"
+
+      - name: "${{ inputs.action == 'start' && 'Start' || 'Stop' }} staging"
+        run: |
+          if [ "${{ inputs.action }}" = "start" ]; then
+            MIN=1
+          else
+            MIN=0
+          fi
+          echo "Setting min_instances=$MIN for version ${{ steps.version.outputs.version }}"
+          gcloud app versions update ${{ steps.version.outputs.version }} \
+            --service=staging \
+            --min-instances=$MIN \
+            --project=${{ secrets.GCP_PROJECT_ID }} \
+            --quiet
+          echo "Done. Staging is now ${{ inputs.action }}ed."
