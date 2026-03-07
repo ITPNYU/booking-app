@@ -22,12 +22,12 @@ function createMockExistingBooking() {
     id: CALENDAR_EVENT_ID,
     calendarEventId: CALENDAR_EVENT_ID,
     requestNumber: 55555,
-    email: "tf123@nyu.edu",
+    email: "test@nyu.edu",
     firstName: "Test",
     lastName: "Faculty",
     secondaryName: "",
     nNumber: "N12345678",
-    netId: "tf123",
+    netId: "test",
     phoneNumber: "2125551234",
     department: "ITP",
     otherDepartment: "",
@@ -284,7 +284,7 @@ test.describe("Edit Booking Flow", () => {
     await fillBookingForm(page, {
       firstName: "Edited",
       lastName: "Faculty",
-      netId: "tf123",
+      netId: "test",
       title: "Edited Booking Title",
     });
 

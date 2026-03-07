@@ -95,7 +95,9 @@ test.describe("Form Validation – overlap and duration errors", () => {
       ),
     };
 
-    // Override tenant schema
+    await registerBookingMocks(page);
+
+    // Override tenant schema AFTER registerBookingMocks (Playwright uses LIFO routing)
     await page.route("**/api/tenantSchema/mc", (route) =>
       route.fulfill({
         status: 200,
@@ -103,8 +105,6 @@ test.describe("Form Validation – overlap and duration errors", () => {
         body: JSON.stringify(modifiedSchema),
       }),
     );
-
-    await registerBookingMocks(page);
 
     // Navigate through the booking flow
     await page.goto(`${BASE_URL}/mc`, { waitUntil: "domcontentloaded" });

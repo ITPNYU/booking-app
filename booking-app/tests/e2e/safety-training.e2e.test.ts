@@ -30,7 +30,9 @@ test.describe("Safety Training – untrained student blocked", () => {
       ],
     };
 
-    // Override tenant schema route before registering other mocks
+    await registerBookingMocks(page);
+
+    // Override tenant schema route AFTER registerBookingMocks (Playwright uses LIFO routing)
     await page.route("**/api/tenantSchema/mc", (route) =>
       route.fulfill({
         status: 200,
@@ -38,8 +40,6 @@ test.describe("Safety Training – untrained student blocked", () => {
         body: JSON.stringify(modifiedSchema),
       }),
     );
-
-    await registerBookingMocks(page);
 
     // Override safety training to return empty list (user is NOT trained)
     await page.route("**/api/safety_training_users**", (route) =>
