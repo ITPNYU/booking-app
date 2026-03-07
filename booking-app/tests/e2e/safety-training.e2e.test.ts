@@ -177,7 +177,7 @@ test.describe("Safety Training – untrained student blocked", () => {
     await page.waitForURL("**/mc/book/role", { timeout: 15000 });
     await page.waitForLoadState("networkidle");
     await selectRole(page, { roleIndex: 0 });
-    await page.getByRole("button", { name: "Next" }).click();
+    await page.getByRole("button", { name: "Next", exact: true }).click();
 
     // Room & time selection – select room 230 (requires safety training)
     await page.waitForURL("**/mc/book/selectRoom", { timeout: 15000 });

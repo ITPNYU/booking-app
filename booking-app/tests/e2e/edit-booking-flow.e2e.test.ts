@@ -263,7 +263,7 @@ test.describe("Edit Booking Flow", () => {
     });
     await page.waitForLoadState("networkidle");
     await selectRole(page, { roleIndex: 1 });
-    await page.getByRole("button", { name: "Next" }).click();
+    await page.getByRole("button", { name: "Next", exact: true }).click();
 
     // Room & time selection
     await page.waitForURL(`**/edit/selectRoom/${CALENDAR_EVENT_ID}`, {

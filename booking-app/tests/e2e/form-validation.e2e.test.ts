@@ -60,7 +60,7 @@ test.describe("Form Validation – overlap and duration errors", () => {
     await page.waitForURL("**/mc/book/role", { timeout: 15000 });
     await page.waitForLoadState("networkidle");
     await selectRole(page, { roleIndex: 1 });
-    await page.getByRole("button", { name: "Next" }).click();
+    await page.getByRole("button", { name: "Next", exact: true }).click();
 
     // Room & time – selectTimeSlot picks 10-11am tomorrow for room 202
     await page.waitForURL("**/mc/book/selectRoom", { timeout: 15000 });
@@ -125,7 +125,7 @@ test.describe("Form Validation – overlap and duration errors", () => {
     await page.waitForURL("**/mc/book/role", { timeout: 15000 });
     await page.waitForLoadState("networkidle");
     await selectRole(page, { roleIndex: 1 });
-    await page.getByRole("button", { name: "Next" }).click();
+    await page.getByRole("button", { name: "Next", exact: true }).click();
 
     // Room & time – selectTimeSlot picks 10-11am (1 hour), maxHour is 0.5
     await page.waitForURL("**/mc/book/selectRoom", { timeout: 15000 });

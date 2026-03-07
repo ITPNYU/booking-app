@@ -141,7 +141,7 @@ test.describe("Blackout Periods – booking blocked", () => {
     await page.waitForURL("**/mc/book/role", { timeout: 15000 });
     await page.waitForLoadState("networkidle");
     await selectRole(page, { roleIndex: 1 });
-    await page.getByRole("button", { name: "Next" }).click();
+    await page.getByRole("button", { name: "Next", exact: true }).click();
 
     // Room & time selection – select room 202 and tomorrow's timeslot
     await page.waitForURL("**/mc/book/selectRoom", { timeout: 15000 });
