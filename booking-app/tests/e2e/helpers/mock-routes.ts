@@ -1,6 +1,6 @@
 import { Page, Route } from "@playwright/test";
 
-const mockTenantSchema = {
+export const mockTenantSchema = {
   tenant: "mc",
   name: "Media Commons",
   logo: "/mediaCommonsLogo.svg",
@@ -70,6 +70,31 @@ const mockTenantSchema = {
       isWalkInCanBookTwo: false,
       services: [],
     },
+    {
+      capacity: 25,
+      name: "Seminar 203",
+      roomId: 203,
+      isEquipment: false,
+      calendarId: "mock-calendar-203",
+      needsSafetyTraining: false,
+      shouldAutoApprove: false,
+      isWalkIn: false,
+      isWalkInCanBookTwo: false,
+      services: [],
+      maxHour: { faculty: 0.5 },
+    },
+    {
+      capacity: 15,
+      name: "Workshop 230",
+      roomId: 230,
+      isEquipment: false,
+      calendarId: "mock-calendar-230",
+      needsSafetyTraining: true,
+      shouldAutoApprove: false,
+      isWalkIn: false,
+      isWalkInCanBookTwo: false,
+      services: [],
+    },
   ],
   supportVIP: true,
   supportWalkIn: true,
@@ -92,7 +117,7 @@ const mockBookingResponse = {
 };
 
 const mockSafetyTraining = {
-  emails: ["test@nyu.edu", "vip@nyu.edu", "walkin@nyu.edu"],
+  emails: ["tf123@nyu.edu", "vip@nyu.edu", "walkin@nyu.edu"],
 };
 
 const mockBookingTypes = [
@@ -126,6 +151,18 @@ export async function registerBookingMocks(page: Page) {
     (window as any).process.env.BYPASS_AUTH = "true";
     (window as any).process.env.E2E_TESTING = "true";
     (window as any).process.env.NEXT_PUBLIC_BASE_URL = "http://localhost:3000";
+  });
+
+  // Hide Next.js Dev Tools overlay that can obscure page elements during tests
+  await page.addInitScript(() => {
+    const hideDevTools = () => {
+      const style = document.createElement("style");
+      style.textContent =
+        "nextjs-portal, #__next-build-indicator { display: none !important; }";
+      (document.head || document.documentElement).appendChild(style);
+    };
+    if (document.head) hideDevTools();
+    else document.addEventListener("DOMContentLoaded", hideDevTools);
   });
 
   await page.route("**/api/isTestEnv", (route) =>

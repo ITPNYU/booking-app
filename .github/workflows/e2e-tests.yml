@@ -26,6 +26,7 @@ jobs:
       NEXT_PUBLIC_MEASUREMENT_ID: test-measurement-id
       NEXT_PUBLIC_DATABASE_NAME: test-database
       NEXT_PUBLIC_BRANCH_NAME: development-local
+      CRON_SECRET: test-cron-secret-for-e2e
 
     steps:
       - name: Checkout repository

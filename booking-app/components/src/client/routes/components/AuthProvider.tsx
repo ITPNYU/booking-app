@@ -76,7 +76,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           console.log("Test environment detected, creating mock user");
           const mockUser = {
             uid: "test-user-id",
-            email: "test@nyu.edu",
+            email: "tf123@nyu.edu",
             displayName: "Test User",
             photoURL: null,
             emailVerified: true,
