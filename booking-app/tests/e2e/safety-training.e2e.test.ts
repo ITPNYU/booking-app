@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { registerBookingMocks, mockTenantSchema } from "./helpers/mock-routes";
+import { registerBookingMocks } from "./helpers/mock-routes";
 import { registerDefinePropertyInterceptor } from "./helpers/xstate-mocks";
 import { selectRole, selectTimeSlot } from "./helpers/test-utils";
 
@@ -10,36 +10,8 @@ test.describe("Safety Training – untrained student blocked", () => {
   test("blocks untrained student from booking rooms requiring safety training", async ({
     page,
   }) => {
-    // Create a modified tenant schema with a room that requires safety training
-    const modifiedSchema = {
-      ...mockTenantSchema,
-      resources: [
-        ...mockTenantSchema.resources,
-        {
-          capacity: 15,
-          name: "Workshop 230",
-          roomId: 230,
-          isEquipment: false,
-          calendarId: "mock-calendar-230",
-          needsSafetyTraining: true,
-          shouldAutoApprove: false,
-          isWalkIn: false,
-          isWalkInCanBookTwo: false,
-          services: [],
-        },
-      ],
-    };
-
+    // Room 230 (needsSafetyTraining: true) is already in the base test schema.
     await registerBookingMocks(page);
-
-    // Override tenant schema route AFTER registerBookingMocks (Playwright uses LIFO routing)
-    await page.route("**/api/tenantSchema/mc", (route) =>
-      route.fulfill({
-        status: 200,
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(modifiedSchema),
-      }),
-    );
 
     // Override safety training to return empty list (user is NOT trained)
     await page.route("**/api/safety_training_users**", (route) =>

@@ -22,7 +22,7 @@ test.describe("Ban Enforcement – banned user blocked", () => {
       const mockBannedUsers = [
         {
           id: "ban-1",
-          email: "test@nyu.edu",
+          email: "tf123@nyu.edu",
           bannedAt: new Date().toISOString(),
           createdAt: makeTimestamp(new Date()),
         },

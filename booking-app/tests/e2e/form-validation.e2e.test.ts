@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { registerBookingMocks, mockTenantSchema } from "./helpers/mock-routes";
+import { registerBookingMocks } from "./helpers/mock-routes";
 import { registerDefinePropertyInterceptor } from "./helpers/xstate-mocks";
 import { selectRole, selectTimeSlot } from "./helpers/test-utils";
 
@@ -82,29 +82,8 @@ test.describe("Form Validation – overlap and duration errors", () => {
   test("shows duration error when booking exceeds maximum allowed duration", async ({
     page,
   }) => {
-    // Create a modified tenant schema with maxHour restriction on room 202
-    const modifiedSchema = {
-      ...mockTenantSchema,
-      resources: mockTenantSchema.resources.map((r) =>
-        r.roomId === 202
-          ? {
-              ...r,
-              maxHour: { faculty: 0.5 },
-            }
-          : r,
-      ),
-    };
-
+    // Room 203 (Seminar) has maxHour: { faculty: 0.5 } in the base test schema.
     await registerBookingMocks(page);
-
-    // Override tenant schema AFTER registerBookingMocks (Playwright uses LIFO routing)
-    await page.route("**/api/tenantSchema/mc", (route) =>
-      route.fulfill({
-        status: 200,
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(modifiedSchema),
-      }),
-    );
 
     // Navigate through the booking flow
     await page.goto(`${BASE_URL}/mc`, { waitUntil: "domcontentloaded" });
@@ -127,9 +106,9 @@ test.describe("Form Validation – overlap and duration errors", () => {
     await selectRole(page, { roleIndex: 1 });
     await page.getByRole("button", { name: "Next", exact: true }).click();
 
-    // Room & time – selectTimeSlot picks 10-11am (1 hour), maxHour is 0.5
+    // Room & time – selectTimeSlot picks 10-11am (1 hour), room 203 maxHour is 0.5
     await page.waitForURL("**/mc/book/selectRoom", { timeout: 15000 });
-    await selectTimeSlot(page, "202");
+    await selectTimeSlot(page, "203");
     await page.waitForTimeout(500);
 
     // Verify duration error alert is shown
