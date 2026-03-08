@@ -53,10 +53,15 @@ export type AdminUserData = {
 export const clientDeleteDataFromFirestore = async (
   collectionName: string,
   docId: string,
+  tenant?: string,
 ) => {
   try {
     const db = getDb();
-    await deleteDoc(doc(db, collectionName, docId));
+    const tenantCollection = getTenantCollection(
+      collectionName as TableNames,
+      tenant,
+    );
+    await deleteDoc(doc(db, tenantCollection, docId));
     console.log("Document successfully deleted with ID:", docId);
   } catch (error) {
     console.error("Error deleting document: ", error);
@@ -138,10 +143,15 @@ export const clientDeleteUserRightsData = async (
 export const clientSaveDataToFirestore = async (
   collectionName: string,
   data: object,
+  tenant?: string,
 ) => {
   try {
     const db = getDb();
-    const docRef = await addDoc(collection(db, collectionName), data);
+    const tenantCollection = getTenantCollection(
+      collectionName as TableNames,
+      tenant,
+    );
+    const docRef = await addDoc(collection(db, tenantCollection), data);
 
     console.log("Document successfully written with ID:", docRef.id);
   } catch (error) {
