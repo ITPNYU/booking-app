@@ -17,6 +17,7 @@ import { formatOrigin } from "@/components/src/utils/formatters";
 import { Cancel, Check, Edit, Event } from "@mui/icons-material";
 import Grid from "@mui/material/Unstable_Grid2/Grid2";
 import { styled } from "@mui/system";
+import { useParams } from "next/navigation";
 import React, { useContext, useState } from "react";
 import {
   BookingRow,
@@ -98,6 +99,8 @@ export default function MoreInfoModal({
 }: Props) {
   const historyRows = useSortBookingHistory(booking);
   const { pagePermission, userEmail } = useContext(DatabaseContext);
+  const params = useParams();
+  const tenant = params?.tenant as string;
 
   const [isEditingCart, setIsEditingCart] = useState(false);
   const [cartNumber, setCartNumber] = useState(
@@ -120,6 +123,7 @@ export default function MoreInfoModal({
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          ...(tenant ? { "x-tenant": tenant } : {}),
         },
         body: JSON.stringify({
           calendarEventId: booking.calendarEventId,
@@ -185,7 +189,14 @@ export default function MoreInfoModal({
       PagePermission.SUPER_ADMIN,
     ]);
 
-    if (!canViewWebCheckout || pageContext === PageContextLevel.USER) {
+    const isUserView = pageContext === PageContextLevel.USER;
+
+    // Regular users can view cart contents (read-only) if a cart is assigned
+    if (!canViewWebCheckout && !isUserView) {
+      return null;
+    }
+    // Don't show the section to users if no cart has been assigned yet
+    if (isUserView && !booking.webcheckoutCartNumber) {
       return null;
     }
 
@@ -232,6 +243,12 @@ export default function MoreInfoModal({
                   <Box display="flex" alignItems="center" gap={1}>
                     {booking.webcheckoutCartNumber ? (
                       <Box display="flex" flexDirection="column" gap={2}>
+
+                        {/* Always show cart number */}
+                        <Typography variant="body2">
+                          {booking.webcheckoutCartNumber}
+                        </Typography>
+
                         {/* Loading State */}
                         {isLoadingUrl && (
                           <Typography variant="body2" color="text.secondary">

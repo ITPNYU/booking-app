@@ -13,7 +13,11 @@ import {
 } from "vitest";
 import MoreInfoModal from "../../components/src/client/routes/components/bookingTable/MoreInfoModal";
 import { DatabaseContext } from "../../components/src/client/routes/components/Provider";
-import { BookingRow, PagePermission } from "../../components/src/types";
+import {
+  BookingRow,
+  PageContextLevel,
+  PagePermission,
+} from "../../components/src/types";
 
 // Mock clipboard API - avoid conflicts with userEvent
 const mockWriteText = vi.fn();
@@ -150,12 +154,17 @@ const createMockDatabaseContext = (
 const renderModal = (
   booking: BookingRow,
   databaseContext: any,
-  closeModal = vi.fn()
+  closeModal = vi.fn(),
+  pageContext?: PageContextLevel
 ) => {
   return render(
     <ThemeProvider theme={mockTheme}>
       <DatabaseContext.Provider value={databaseContext}>
-        <MoreInfoModal booking={booking} closeModal={closeModal} />
+        <MoreInfoModal
+          booking={booking}
+          closeModal={closeModal}
+          pageContext={pageContext}
+        />
       </DatabaseContext.Provider>
     </ThemeProvider>
   );
@@ -399,6 +408,60 @@ describe("MoreInfoModal - WebCheckout (Simplified)", () => {
 
       // Should still render the component without crashing
       expect(screen.getByText("Cart Number")).toBeInTheDocument();
+    });
+  });
+
+  describe("User view (read-only cart contents)", () => {
+    it("shows WebCheckout section for users when a cart is assigned", () => {
+      const booking = createMockBooking({ webcheckoutCartNumber: "CK-2614" });
+      const context = createMockDatabaseContext(PagePermission.BOOKING);
+
+      renderModal(booking, context, vi.fn(), PageContextLevel.USER);
+
+      expect(screen.getByText("WebCheckout")).toBeInTheDocument();
+      expect(screen.getByText("Cart Number")).toBeInTheDocument();
+      expect(screen.getByText("CK-2614")).toBeInTheDocument();
+    });
+
+    it("hides WebCheckout section for users when no cart is assigned", () => {
+      const booking = createMockBooking({ webcheckoutCartNumber: undefined });
+      const context = createMockDatabaseContext(PagePermission.BOOKING);
+
+      renderModal(booking, context, vi.fn(), PageContextLevel.USER);
+
+      expect(screen.queryByText("WebCheckout")).not.toBeInTheDocument();
+      expect(screen.queryByText("Cart Number")).not.toBeInTheDocument();
+    });
+
+    it("does not show edit button for users even when a cart is assigned", () => {
+      const booking = createMockBooking({ webcheckoutCartNumber: "CK-2614" });
+      const context = createMockDatabaseContext(PagePermission.BOOKING);
+
+      renderModal(booking, context, vi.fn(), PageContextLevel.USER);
+
+      expect(screen.queryByLabelText("Edit cart number")).not.toBeInTheDocument();
+    });
+
+    it("fetches cart data for users when a cart number is assigned", async () => {
+      const booking = createMockBooking({ webcheckoutCartNumber: "CK-2614" });
+      const context = createMockDatabaseContext(PagePermission.BOOKING);
+
+      renderModal(booking, context, vi.fn(), PageContextLevel.USER);
+
+      await waitFor(() => {
+        expect(mockFetch).toHaveBeenCalledWith("/api/webcheckout/cart/CK-2614");
+      });
+    });
+
+    it("displays equipment list for users after data loads", async () => {
+      const booking = createMockBooking({ webcheckoutCartNumber: "CK-2614" });
+      const context = createMockDatabaseContext(PagePermission.BOOKING);
+
+      renderModal(booking, context, vi.fn(), PageContextLevel.USER);
+
+      await waitFor(() => {
+        expect(screen.getByText(/Cart: CK-2614/)).toBeInTheDocument();
+      });
     });
   });
 });

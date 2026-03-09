@@ -19,23 +19,27 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Check if user has PA or Admin permissions
-    const [adminUsers, paUsers] = await Promise.all([
-      serverFetchAllDataFromCollection(TableNames.ADMINS),
-      serverFetchAllDataFromCollection(TableNames.PAS),
+    // Check if user has PA, Admin, or Super Admin permissions
+    const [adminUsers, paUsers, superAdminUsers] = await Promise.all([
+      serverFetchAllDataFromCollection(TableNames.ADMINS, [], tenant),
+      serverFetchAllDataFromCollection(TableNames.PAS, [], tenant),
+      serverFetchAllDataFromCollection(TableNames.SUPER_ADMINS, [], tenant),
     ]);
 
     const adminEmails = adminUsers.map((admin: any) => admin.email);
     const paEmails = paUsers.map((pa: any) => pa.email);
+    const superAdminEmails = superAdminUsers.map((sa: any) => sa.email);
 
     const isAuthorized =
-      adminEmails.includes(userEmail) || paEmails.includes(userEmail);
+      adminEmails.includes(userEmail) ||
+      paEmails.includes(userEmail) ||
+      superAdminEmails.includes(userEmail);
 
     if (!isAuthorized) {
       return NextResponse.json(
         {
           error:
-            "Unauthorized: Only PA and Admin users can update cart numbers",
+            "Unauthorized: Only PA, Admin, and Super Admin users can update cart numbers",
         },
         { status: 403 },
       );
