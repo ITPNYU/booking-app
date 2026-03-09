@@ -4,10 +4,11 @@
 
 import BookingFormDetailsPage from "@/components/src/client/routes/booking/formPages/BookingFormDetailsPage";
 import { FormContextLevel } from "@/components/src/types";
-import React, { use } from "react";
+import { useParams } from "next/navigation";
+import React from "react";
 
-const Form = ({ params }: { params: Promise<{ id: string }> }) => {
-  const { id } = use(params);
+const Form = () => {
+  const { id } = useParams<{ id: string }>();
   return (
     <BookingFormDetailsPage
       calendarEventId={id}
