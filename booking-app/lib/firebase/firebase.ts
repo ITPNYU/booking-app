@@ -38,7 +38,7 @@ export const getCurrentTenant = (): string | undefined => {
 
 // Helper function to get tenant-specific collection name
 export const getTenantCollection = (
-  baseCollection: TableNames,
+  baseCollection: string,
   tenant?: string,
 ): string => {
   const tenantToUse = tenant || getCurrentTenant();
@@ -57,10 +57,7 @@ export const clientDeleteDataFromFirestore = async (
 ) => {
   try {
     const db = getDb();
-    const tenantCollection = getTenantCollection(
-      collectionName as TableNames,
-      tenant,
-    );
+    const tenantCollection = getTenantCollection(collectionName, tenant);
     await deleteDoc(doc(db, tenantCollection, docId));
     console.log("Document successfully deleted with ID:", docId);
   } catch (error) {
@@ -147,10 +144,7 @@ export const clientSaveDataToFirestore = async (
 ) => {
   try {
     const db = getDb();
-    const tenantCollection = getTenantCollection(
-      collectionName as TableNames,
-      tenant,
-    );
+    const tenantCollection = getTenantCollection(collectionName, tenant);
     const docRef = await addDoc(collection(db, tenantCollection), data);
 
     console.log("Document successfully written with ID:", docRef.id);

@@ -51,6 +51,10 @@ describe("clientDeleteDataFromFirestore — tenant collection resolution", () =>
     vi.clearAllMocks();
   });
 
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it("uses the tenant-prefixed collection when the URL contains a tenant segment", async () => {
     vi.stubGlobal("location", { pathname: "/mc/admin/settings/policy" });
 
@@ -113,6 +117,10 @@ describe("clientSaveDataToFirestore — tenant collection resolution", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it("uses the tenant-prefixed collection when the URL contains a tenant segment", async () => {
