@@ -13,21 +13,48 @@ vi.mock("@/components/src/server/admin", () => ({
   serverApproveBooking: vi.fn(),
   finalApprove: vi.fn(),
   serverFirstApproveOnly: vi.fn(),
+  serverBookingContents: vi.fn(),
 }));
 
 vi.mock("@/lib/firebase/server/adminDb", () => ({
   serverGetDataByCalendarEventId: vi.fn(),
+  serverFetchAllDataFromCollection: vi.fn(),
 }));
+
+vi.mock("@/components/src/server/emails", () => ({
+  getTenantEmailConfig: vi.fn(async () => ({ schemaName: "Media Commons" })),
+}));
+
+vi.mock("@/components/src/utils/tenantUtils", async () => {
+  const actual = await vi.importActual<
+    typeof import("@/components/src/utils/tenantUtils")
+  >("@/components/src/utils/tenantUtils");
+  return {
+    ...actual,
+    getMediaCommonsServices: vi.fn(() => ({
+      setup: true,
+      equipment: false,
+      staff: false,
+      catering: false,
+      cleaning: false,
+      security: false,
+    })),
+  };
+});
 
 import { POST } from "@/app/api/approve/route";
 import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
 import {
   finalApprove,
   serverApproveBooking,
+  serverBookingContents,
   serverFirstApproveOnly,
 } from "@/components/src/server/admin";
 import { executeXStateTransition } from "@/lib/stateMachines/xstateUtilsV5";
-import { serverGetDataByCalendarEventId } from "@/lib/firebase/server/adminDb";
+import {
+  serverFetchAllDataFromCollection,
+  serverGetDataByCalendarEventId,
+} from "@/lib/firebase/server/adminDb";
 
 type MockRequestBody = {
   id: string;
@@ -46,8 +73,12 @@ const mockExecute = vi.mocked(executeXStateTransition);
 const mockServerApproveBooking = vi.mocked(serverApproveBooking);
 const mockFinalApprove = vi.mocked(finalApprove);
 const mockServerFirstApproveOnly = vi.mocked(serverFirstApproveOnly);
+const mockServerBookingContents = vi.mocked(serverBookingContents);
 const mockServerGetDataByCalendarEventId = vi.mocked(
   serverGetDataByCalendarEventId,
+);
+const mockServerFetchAllDataFromCollection = vi.mocked(
+  serverFetchAllDataFromCollection,
 );
 
 const bookingId = "calendar-1";
@@ -64,6 +95,17 @@ describe("POST /api/approve", () => {
     mockServerGetDataByCalendarEventId.mockResolvedValue({
       id: "booking-db-id",
       requestNumber: 42,
+      title: "Media Commons Session",
+      email: "requester@nyu.edu",
+    } as any);
+    mockServerFetchAllDataFromCollection.mockResolvedValue([
+      { email: "setup-approver@nyu.edu", isSetup: true },
+    ] as any);
+    mockServerBookingContents.mockResolvedValue({
+      title: "Media Commons Session",
+      requestNumber: 42,
+      email: "requester@nyu.edu",
+      calendarEventId: bookingId,
     } as any);
     mockFetch.mockResolvedValue({ ok: true });
   });
