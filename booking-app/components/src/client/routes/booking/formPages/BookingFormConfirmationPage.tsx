@@ -4,6 +4,7 @@ import { Box, Button, Typography, useTheme } from "@mui/material";
 import { Error, Event } from "@mui/icons-material";
 import React, { useContext } from "react";
 import { FormContextLevel, PagePermission } from "@/components/src/types";
+import { PERMISSION_PATH } from "@/components/src/utils/permissions";
 import { styled } from "@mui/system";
 import { useRouter, useParams } from "next/navigation";
 import { BookingContext } from "../bookingProvider";
@@ -34,23 +35,9 @@ export default function BookingFormConfirmationPage({ formContext }: Props) {
   const isVIP = formContext === FormContextLevel.VIP;
   const isMod = formContext === FormContextLevel.MODIFICATION;
 
-  /** Return path after modification: privileged users go straight to their
-   *  default context so they never flash through the User bookings table. */
   const getModReturnPath = (): string => {
-    switch (pagePermission) {
-      case PagePermission.SUPER_ADMIN:
-        return `/${tenant}/super`;
-      case PagePermission.ADMIN:
-        return `/${tenant}/admin`;
-      case PagePermission.SERVICES:
-        return `/${tenant}/services`;
-      case PagePermission.LIAISON:
-        return `/${tenant}/liaison`;
-      case PagePermission.PA:
-        return `/${tenant}/pa`;
-      default:
-        return `/${tenant}`;
-    }
+    const path = PERMISSION_PATH[pagePermission];
+    return path ? `/${tenant}/${path}` : `/${tenant}`;
   };
 
   if (submitting === "submitting") {

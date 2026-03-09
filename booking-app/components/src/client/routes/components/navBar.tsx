@@ -72,23 +72,9 @@ export default function NavBar() {
   // True app root ("/") — used to hide navbar chrome (no tenant context yet)
   const isAppRoot = pathname === "/";
 
-  // Helper function to get URL path from PagePermission
-  const getPathFromPermission = (permission: PagePermission): string => {
-    switch (permission) {
-      case PagePermission.PA:
-        return "pa";
-      case PagePermission.ADMIN:
-        return "admin";
-      case PagePermission.LIAISON:
-        return "liaison";
-      case PagePermission.SERVICES:
-        return "services";
-      case PagePermission.SUPER_ADMIN:
-        return "super";
-      default:
-        return "";
-    }
-  };
+  const getPathFromPermission = (permission: PagePermission): string =>
+    PERMISSION_PATH[permission] ?? "";
+
 
   const handleRoleChange = (e: any) => {
     const role = e.target.value as PagePermission;
