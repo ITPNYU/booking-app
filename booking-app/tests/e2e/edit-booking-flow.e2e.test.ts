@@ -1,6 +1,9 @@
 import { expect, test } from "@playwright/test";
 import { registerBookingMocks } from "./helpers/mock-routes";
-import { registerDefinePropertyInterceptor } from "./helpers/xstate-mocks";
+import {
+  registerDefinePropertyInterceptor,
+  registerWebpackPatcher,
+} from "./helpers/xstate-mocks";
 import {
   selectRole,
   selectTimeSlot,
@@ -162,81 +165,16 @@ test.describe("Edit Booking Flow", () => {
           return [];
         };
 
-        const overrideMap: Record<string, Function> = {
-          clientGetDataByCalendarEventId:
-            (window as any).clientGetDataByCalendarEventId,
-          clientFetchAllDataFromCollection:
-            (window as any).clientFetchAllDataFromCollection,
-        };
-
-        const patchWebpackModules = () => {
-          const chunk = (window as any).webpackChunk_N_E;
-          if (!chunk) return false;
-          let wpRequire: any;
-          try {
-            chunk.push([
-              ["__e2e_edit_" + Date.now()],
-              {},
-              (req: any) => {
-                wpRequire = req;
-              },
-            ]);
-          } catch (_) {
-            return false;
-          }
-          if (!wpRequire?.c) return false;
-          let patched = false;
-          Object.values(wpRequire.c).forEach((mod: any) => {
-            if (
-              mod?.exports &&
-              typeof mod.exports === "object" &&
-              mod.exports !== null
-            ) {
-              for (const [key, fn] of Object.entries(overrideMap)) {
-                if (key in mod.exports && fn) {
-                  try {
-                    Object.defineProperty(mod.exports, key, {
-                      value: fn,
-                      writable: true,
-                      configurable: true,
-                      enumerable: true,
-                    });
-                    patched = true;
-                  } catch (_) {
-                    try {
-                      mod.exports[key] = fn;
-                      patched = true;
-                    } catch (_) {}
-                  }
-                }
-              }
-            }
-          });
-          return patched;
-        };
-
-        let patchSucceeded = false;
-
-        const _earlyPatchId = setInterval(() => {
-          try {
-            if (patchWebpackModules()) {
-              patchSucceeded = true;
-              clearInterval(_earlyPatchId);
-            }
-          } catch (_) {}
-        }, 50);
-        setTimeout(() => clearInterval(_earlyPatchId), 30000);
-
-        (window as any).__applyMockBookingsOverrides = () => {
-          try {
-            if (patchWebpackModules()) patchSucceeded = true;
-          } catch (_) {}
-        };
-
-        (window as any).__isMockPatchApplied = () => patchSucceeded;
       },
       { booking: mockBooking },
     );
+
+    await registerWebpackPatcher(page, {
+      exports: [
+        "clientFetchAllDataFromCollection",
+        "clientGetDataByCalendarEventId",
+      ],
+    });
 
     // Mock PUT /api/bookings/edit
     await page.route("**/api/bookings/edit", async (route) => {
@@ -258,17 +196,6 @@ test.describe("Edit Booking Flow", () => {
       waitUntil: "domcontentloaded",
     });
     await page.waitForLoadState("networkidle");
-
-    // Wait for webpack mock patching to succeed before proceeding
-    await page.waitForFunction(
-      () => typeof (window as any).__applyMockBookingsOverrides === "function",
-      { timeout: 15000 },
-    );
-    await page.evaluate(() => (window as any).__applyMockBookingsOverrides());
-    await page.waitForFunction(
-      () => (window as any).__isMockPatchApplied?.() === true,
-      { timeout: 15000 },
-    );
 
     // Click Start
     const startBtn = page.getByRole("button", { name: "Start" });

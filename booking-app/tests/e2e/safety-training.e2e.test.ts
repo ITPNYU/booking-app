@@ -1,6 +1,9 @@
 import { expect, test } from "@playwright/test";
 import { registerBookingMocks } from "./helpers/mock-routes";
-import { registerDefinePropertyInterceptor } from "./helpers/xstate-mocks";
+import {
+  registerDefinePropertyInterceptor,
+  registerWebpackPatcher,
+} from "./helpers/xstate-mocks";
 import { selectRole, selectTimeSlot } from "./helpers/test-utils";
 
 const BASE_URL =
@@ -26,7 +29,6 @@ test.describe("Safety Training – untrained student blocked", () => {
 
     // Override clientFetchAllDataFromCollection for safety training whitelist
     await page.addInitScript(() => {
-      // Override safety-trained users to be empty
       (window as any).__bookingE2EMocks =
         (window as any).__bookingE2EMocks || {};
       (window as any).__bookingE2EMocks.safetyTrainedUsers = [];
@@ -50,71 +52,9 @@ test.describe("Safety Training – untrained student blocked", () => {
         }
         return [];
       };
-
-      const overrideMap: Record<string, Function> = {
-        clientFetchAllDataFromCollection:
-          (window as any).clientFetchAllDataFromCollection,
-      };
-
-      const patchWebpackModules = () => {
-        const chunk = (window as any).webpackChunk_N_E;
-        if (!chunk) return false;
-        let wpRequire: any;
-        try {
-          chunk.push([
-            ["__e2e_safety_" + Date.now()],
-            {},
-            (req: any) => {
-              wpRequire = req;
-            },
-          ]);
-        } catch (_) {
-          return false;
-        }
-        if (!wpRequire?.c) return false;
-        let patched = false;
-        Object.values(wpRequire.c).forEach((mod: any) => {
-          if (
-            mod?.exports &&
-            typeof mod.exports === "object" &&
-            mod.exports !== null
-          ) {
-            for (const [key, fn] of Object.entries(overrideMap)) {
-              if (key in mod.exports && fn) {
-                try {
-                  Object.defineProperty(mod.exports, key, {
-                    value: fn,
-                    writable: true,
-                    configurable: true,
-                    enumerable: true,
-                  });
-                  patched = true;
-                } catch (_) {
-                  try {
-                    mod.exports[key] = fn;
-                    patched = true;
-                  } catch (_) {}
-                }
-              }
-            }
-          }
-        });
-        return patched;
-      };
-
-      const _earlyPatchId = setInterval(() => {
-        try {
-          if (patchWebpackModules()) clearInterval(_earlyPatchId);
-        } catch (_) {}
-      }, 2);
-      setTimeout(() => clearInterval(_earlyPatchId), 10000);
-
-      (window as any).__applyMockBookingsOverrides = () => {
-        try {
-          patchWebpackModules();
-        } catch (_) {}
-      };
     });
+
+    await registerWebpackPatcher(page);
 
     // Override identity to return Student affiliations
     await page.route("**/api/nyu/identity/**", (route) =>

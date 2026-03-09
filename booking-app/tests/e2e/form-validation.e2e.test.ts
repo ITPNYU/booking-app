@@ -1,6 +1,5 @@
 import { expect, test } from "@playwright/test";
 import { registerBookingMocks } from "./helpers/mock-routes";
-import { registerDefinePropertyInterceptor } from "./helpers/xstate-mocks";
 import { selectRole, selectTimeSlot } from "./helpers/test-utils";
 
 const BASE_URL =
