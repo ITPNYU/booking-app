@@ -105,7 +105,7 @@ const mockIdentityResponse = {
   affiliations: ["ITP"],
   roles: ["Faculty"],
   displayName: "Test Faculty",
-  email: "tf123@nyu.edu",
+  email: "test@nyu.edu",
 };
 
 const mockBookingResponse = {
