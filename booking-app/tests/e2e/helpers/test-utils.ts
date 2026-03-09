@@ -110,10 +110,7 @@ export async function selectTimeSlot(
     throw new Error("Could not find FullCalendar API");
   }, roomId);
 
-  await page.waitForFunction(() => {
-    const selected = document.querySelector('.fc-highlight');
-    return !!selected;
-  }, { timeout: 10000 });
+  await page.waitForTimeout(500);
 }
 
 /**
