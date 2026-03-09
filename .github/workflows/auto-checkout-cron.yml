@@ -58,7 +58,7 @@ jobs:
           if [ "$HTTP_STATUS" -ge 200 ] 2>/dev/null && [ "$HTTP_STATUS" -lt 400 ] 2>/dev/null; then
             echo "${ENV_NAME}: success (HTTP ${HTTP_STATUS})"
             cat /tmp/response.txt
-          elif [ "${ENV_NAME}" = "staging" ] && { [ "$HTTP_STATUS" = "000" ] || [ "$HTTP_STATUS" = "502" ] || [ "$HTTP_STATUS" = "503" ]; }; then
+          elif [ "${ENV_NAME}" = "staging" ] && { [ "$HTTP_STATUS" = "000" ] || [ "$HTTP_STATUS" = "404" ] || [ "$HTTP_STATUS" = "502" ] || [ "$HTTP_STATUS" = "503" ]; }; then
             echo "::warning::${ENV_NAME}: server unreachable (HTTP ${HTTP_STATUS}). Environment may be stopped."
           else
             echo "${ENV_NAME}: failed (HTTP ${HTTP_STATUS})"
