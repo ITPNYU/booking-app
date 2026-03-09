@@ -50,6 +50,18 @@ jobs:
           # --- End validation ---
 
           echo "[$(date)] ${ENV_NAME}: triggering auto-cancel declined..."
-          curl --fail-with-body -X GET \
+          HTTP_STATUS=$(curl -s -o /tmp/response.txt -w "%{http_code}" -X GET \
             "${NEXT_PUBLIC_BASE_URL}/api/bookings/auto-cancel-declined" \
-            -H "Authorization: Bearer ${CRON_SECRET}"
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            --connect-timeout 10 --max-time 30 || echo "000")
+
+          if [ "$HTTP_STATUS" -ge 200 ] 2>/dev/null && [ "$HTTP_STATUS" -lt 400 ] 2>/dev/null; then
+            echo "${ENV_NAME}: success (HTTP ${HTTP_STATUS})"
+            cat /tmp/response.txt
+          elif [ "${ENV_NAME}" = "staging" ] && { [ "$HTTP_STATUS" = "000" ] || [ "$HTTP_STATUS" = "502" ] || [ "$HTTP_STATUS" = "503" ]; }; then
+            echo "::warning::${ENV_NAME}: server unreachable (HTTP ${HTTP_STATUS}). Environment may be stopped."
+          else
+            echo "${ENV_NAME}: failed (HTTP ${HTTP_STATUS})"
+            cat /tmp/response.txt
+            exit 1
+          fi
