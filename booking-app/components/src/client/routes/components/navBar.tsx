@@ -17,6 +17,7 @@ import { auth } from "@/lib/firebase/firebaseClient";
 import { styled } from "@mui/system";
 import { signOut } from "firebase/auth";
 import { PagePermission } from "../../../types";
+import { PERMISSION_PATH } from "../../../utils/permissions";
 import useHandleStartBooking from "../booking/hooks/useHandleStartBooking";
 import ConfirmDialog from "./ConfirmDialog";
 import { DatabaseContext } from "./Provider";
@@ -52,7 +53,7 @@ const Divider = styled(Box)(({ theme }) => ({
 
 export default function NavBar() {
   const router = useRouter();
-  const { tenant } = useParams();
+  const { tenant } = useParams<{ tenant: string }>();
   const { pagePermission, netId, setUserEmail } = useContext(DatabaseContext);
   const handleStartBooking = useHandleStartBooking();
   const [selectedView, setSelectedView] = useState<PagePermission>(
@@ -61,7 +62,6 @@ export default function NavBar() {
   const pathname = usePathname();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
-  const isRoot = pathname === "/";
   const tenantSchema = useContext(SchemaContext);
   const {
     name = "",
@@ -70,38 +70,37 @@ export default function NavBar() {
     supportWalkIn = false,
   } = tenantSchema || {};
 
-  const handleRoleChange = (e: any) => {
-    const pathOf = (x: string) => (tenant ? `/${tenant}/${x}` : `/${x}`);
+  // True app root ("/") — used to hide navbar chrome (no tenant context yet)
+  const isAppRoot = pathname === "/";
 
-    switch (e.target.value as PagePermission) {
-      case PagePermission.BOOKING:
-        router.push(pathOf(""));
-        break;
-      case PagePermission.PA:
-        router.push(pathOf("pa"));
-        break;
-      case PagePermission.ADMIN:
-        router.push(pathOf("admin"));
-        break;
-      case PagePermission.LIAISON:
-        router.push(pathOf("liaison"));
-        break;
-      case PagePermission.SERVICES:
-        router.push(pathOf("services"));
-        break;
-      case PagePermission.SUPER_ADMIN:
-        router.push(pathOf("super"));
-        break;
+  const getPathFromPermission = (permission: PagePermission): string =>
+    PERMISSION_PATH[permission] ?? "";
+
+
+  const handleRoleChange = (e: any) => {
+    const role = e.target.value as PagePermission;
+    const path = getPathFromPermission(role);
+    // Build path without trailing slash when switching to User context (path="")
+    const fullPath = path
+      ? tenant ? `/${tenant}/${path}` : `/${path}`
+      : `/${tenant || ""}`;
+    // When user explicitly selects User (BOOKING) context, prevent auto-redirect
+    // so they aren't immediately bounced back to their highest-privilege view.
+    if (role === PagePermission.BOOKING) {
+      sessionStorage.setItem("hasRedirectedToDefaultContext", "true");
     }
+    router.push(fullPath);
   };
 
   const handleClickHome = () => {
     setSelectedView(PagePermission.BOOKING);
+    sessionStorage.removeItem("hasRedirectedToDefaultContext");
     router.push(`/${tenant || ""}`);
   };
 
   const handleClickRoot = () => {
     setSelectedView(PagePermission.BOOKING);
+    sessionStorage.removeItem("hasRedirectedToDefaultContext");
     router.push("/");
   };
 
@@ -130,11 +129,18 @@ export default function NavBar() {
     } else if (pathname.includes("/super")) {
       setSelectedView(PagePermission.SUPER_ADMIN);
     }
+
+    // Clear redirect flag when navigating away from root
+    // so auto-redirect works when returning
+    if (!(pathname === "/" || isTenantRoot)) {
+      sessionStorage.removeItem("hasRedirectedToDefaultContext");
+    }
   }, [pathname]);
 
   const handleSignOut = async () => {
     try {
       await signOut(auth);
+      sessionStorage.removeItem("hasRedirectedToDefaultContext");
       console.log("Sign-out successful");
       router.push("/signin");
       setUserEmail(null);
@@ -153,6 +159,7 @@ export default function NavBar() {
         PagePermission.ADMIN,
         PagePermission.PA,
         PagePermission.LIAISON,
+        PagePermission.SERVICES,
         PagePermission.SUPER_ADMIN,
       ])
     ) {
@@ -272,7 +279,7 @@ export default function NavBar() {
             style={{ transform: "translateY(4px)", marginRight: 15 }}
           />
         </LogoBox> */}
-        {!isRoot && (
+        {!isAppRoot && (
           <LogoBox onClick={handleClickHome}>
             <img src={logo} alt={`${name} logo`} style={{ height: 40 }} />
             {!isMobile && (
@@ -284,7 +291,7 @@ export default function NavBar() {
         )}
       </div>
       <Box display="flex" alignItems="center">
-        {!isRoot && (
+        {!isAppRoot && (
           <>
             {button}
             {dropdown}

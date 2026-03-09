@@ -15,7 +15,7 @@ const Stacked = styled(TableCell)({
 
 export default function StackedTableCell({ topText, bottomText }: Props) {
   return (
-    <Stacked>
+    <Stacked component={"div" as any}>
       <p>{topText}</p>
       <label>{bottomText}</label>
     </Stacked>
