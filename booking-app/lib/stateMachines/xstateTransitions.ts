@@ -87,57 +87,15 @@ export async function executeXStateTransition(
       };
     }
 
-    // Set up transition listener to capture all state changes
-    const transitionStates: string[] = [];
-    let unsubscribe: (() => void) | undefined;
-
-    try {
-      const subscription = actor.subscribe((snapshot) => {
-        const state =
-          typeof snapshot.value === "string"
-            ? snapshot.value
-            : JSON.stringify(snapshot.value);
-
-        // Only track meaningful state changes (not initial state)
-        if (transitionStates.length > 0 || state !== currentSnapshot.value) {
-          transitionStates.push(state);
-        }
-      });
-
-      // Handle different return types from subscribe
-      if (typeof subscription === "function") {
-        unsubscribe = subscription;
-      } else if (
-        subscription &&
-        typeof subscription.unsubscribe === "function"
-      ) {
-        unsubscribe = () => subscription.unsubscribe();
-      }
-
-      // Execute the transition with reason and email if provided
-      const event: any = { type: eventType as any };
-      if (reason) {
-        event.reason = reason;
-      }
-      if (email && eventType === "checkOut") {
-        event.email = email;
-      }
-      actor.send(event);
-    } catch (subscribeError) {
-      console.error(
-        `[XState] subscription error [${tenant?.toUpperCase() || "UNKNOWN"}]`,
-        { calendarEventId, error: subscribeError.message },
-      );
-    } finally {
-      // Unsubscribe if possible
-      if (unsubscribe && typeof unsubscribe === "function") {
-        try {
-          unsubscribe();
-        } catch (unsubError) {
-          // Silently ignore unsubscribe errors
-        }
-      }
+    // Execute the transition with reason and email if provided
+    const event: any = { type: eventType as any };
+    if (reason) {
+      event.reason = reason;
     }
+    if (email && eventType === "checkOut") {
+      event.email = email;
+    }
+    actor.send(event);
     const newSnapshot = actor.getSnapshot();
 
     BookingLogger.xstateTransition(
@@ -303,7 +261,6 @@ export async function executeXStateTransition(
       firestoreUpdates,
       actor,
       eventType === "noShow",
-      false,
       reason,
     );
 

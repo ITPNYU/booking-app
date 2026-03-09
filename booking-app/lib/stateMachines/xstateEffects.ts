@@ -24,12 +24,11 @@ export async function handleStateTransitions(
   currentSnapshot: any,
   newSnapshot: any,
   calendarEventId: string,
-  email: string,
-  tenant: string,
-  firestoreUpdates: any,
-  actor: any,
+  email?: string,
+  tenant?: string,
+  firestoreUpdates: any = {},
+  actor?: any,
   skipCalendarForServiceCloseout = false,
-  isXStateCreation = false,
   reason?: string,
 ) {
   const previousState =
@@ -546,7 +545,7 @@ export async function sendCanceledEmail(
       tenant,
     );
 
-    const guestEmail = (bookingDoc as any)?.email;
+    const guestEmail = (bookingDoc as any)?.email || email;
 
     if (guestEmail) {
       const emailConfig = await getTenantEmailConfig(tenant);
