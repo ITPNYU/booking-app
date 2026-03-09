@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PagePermission } from "../../components/src/types";
+import { PERMISSION_PATH } from "../../components/src/utils/permissions";
 
 // Mock sessionStorage
 const createMockSessionStorage = () => {
@@ -20,27 +21,13 @@ const createMockSessionStorage = () => {
 };
 
 /**
- * Helper function matching navBar.tsx getPathFromPermission
+ * Helper function using the shared PERMISSION_PATH mapping from permissions.ts
  */
-const getPathFromPermission = (permission: PagePermission): string => {
-  switch (permission) {
-    case PagePermission.PA:
-      return "pa";
-    case PagePermission.ADMIN:
-      return "admin";
-    case PagePermission.LIAISON:
-      return "liaison";
-    case PagePermission.SERVICES:
-      return "services";
-    case PagePermission.SUPER_ADMIN:
-      return "super";
-    default:
-      return "";
-  }
-};
+const getPathFromPermission = (permission: PagePermission): string =>
+  PERMISSION_PATH[permission] ?? "";
 
 /**
- * Simulates the core redirect logic from navBar.tsx useEffect
+ * Simulates the core redirect logic from app/[tenant]/page.tsx useEffect
  */
 const simulateRedirectLogic = (params: {
   isRoot: boolean;
@@ -51,7 +38,7 @@ const simulateRedirectLogic = (params: {
 }): { shouldRedirect: boolean; targetPath: string | null } => {
   const { isRoot, tenant, pagePermission, permissionsLoading, hasRedirectedFlag } = params;
 
-  // Match navBar.tsx conditions
+  // Match page.tsx conditions
   if (permissionsLoading) return { shouldRedirect: false, targetPath: null };
   if (!isRoot) return { shouldRedirect: false, targetPath: null };
   if (!tenant) return { shouldRedirect: false, targetPath: null };
@@ -68,7 +55,7 @@ const simulateRedirectLogic = (params: {
 };
 
 /**
- * Simulates isRedirectRoot from navBar.tsx (used only for auto-redirect trigger)
+ * Simulates the tenant-root check used in app/[tenant]/page.tsx (auto-redirect trigger)
  */
 const calculateIsRedirectRoot = (pathname: string, tenant: string | undefined): boolean => {
   return pathname === "/" || (!!tenant && pathname === `/${tenant}`);
