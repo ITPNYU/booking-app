@@ -249,10 +249,12 @@ export const DatabaseProvider = ({
 
   useEffect(() => {
     const loadPermissions = async () => {
-      fetchActiveUserEmail();
       if (tenant) {
         setPermissionsLoading(true);
         try {
+          // Set user email synchronously so pagePermission is correct
+          // when we mark loading as done.
+          fetchActiveUserEmail();
           await Promise.all([
             fetchAdminUsers(),
             fetchPaUsers(),
@@ -260,7 +262,12 @@ export const DatabaseProvider = ({
             fetchApproverUsers(),
           ]);
         } finally {
-          setPermissionsLoading(false);
+          // Only mark done once we actually have a user email.  If auth hasn't
+          // resolved yet (user === null) keep the loading state so the redirect
+          // logic in NavBar doesn't fire prematurely with pagePermission=BOOKING.
+          if (user) {
+            setPermissionsLoading(false);
+          }
         }
       } else {
         setPermissionsLoading(false);

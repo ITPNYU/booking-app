@@ -68,10 +68,17 @@ const simulateRedirectLogic = (params: {
 };
 
 /**
- * Simulates the isRoot calculation from navBar.tsx
+ * Simulates isRedirectRoot from navBar.tsx (used only for auto-redirect trigger)
  */
-const calculateIsRoot = (pathname: string, tenant: string | undefined): boolean => {
+const calculateIsRedirectRoot = (pathname: string, tenant: string | undefined): boolean => {
   return pathname === "/" || (!!tenant && pathname === `/${tenant}`);
+};
+
+/**
+ * Simulates isAppRoot from navBar.tsx (used for hiding navbar chrome)
+ */
+const calculateIsAppRoot = (pathname: string): boolean => {
+  return pathname === "/";
 };
 
 describe("NavBar Redirect Logic", () => {
@@ -111,19 +118,35 @@ describe("NavBar Redirect Logic", () => {
     });
   });
 
-  describe("calculateIsRoot", () => {
+  describe("calculateIsRedirectRoot", () => {
     it("returns true for root path '/'", () => {
-      expect(calculateIsRoot("/", undefined)).toBe(true);
+      expect(calculateIsRedirectRoot("/", undefined)).toBe(true);
     });
 
     it("returns true for tenant root '/media-commons'", () => {
-      expect(calculateIsRoot("/media-commons", "media-commons")).toBe(true);
+      expect(calculateIsRedirectRoot("/media-commons", "media-commons")).toBe(true);
     });
 
     it("returns false for non-root paths", () => {
-      expect(calculateIsRoot("/media-commons/admin", "media-commons")).toBe(false);
-      expect(calculateIsRoot("/media-commons/pa", "media-commons")).toBe(false);
-      expect(calculateIsRoot("/media-commons/modification/123", "media-commons")).toBe(false);
+      expect(calculateIsRedirectRoot("/media-commons/admin", "media-commons")).toBe(false);
+      expect(calculateIsRedirectRoot("/media-commons/pa", "media-commons")).toBe(false);
+      expect(calculateIsRedirectRoot("/media-commons/modification/123", "media-commons")).toBe(false);
+    });
+  });
+
+  describe("calculateIsAppRoot (navbar chrome visibility)", () => {
+    it("returns true only for the literal app root '/'", () => {
+      expect(calculateIsAppRoot("/")).toBe(true);
+    });
+
+    it("returns false for tenant root — dropdown/logo must be visible on User page", () => {
+      expect(calculateIsAppRoot("/media-commons")).toBe(false);
+    });
+
+    it("returns false for all sub-pages", () => {
+      expect(calculateIsAppRoot("/media-commons/admin")).toBe(false);
+      expect(calculateIsAppRoot("/media-commons/pa")).toBe(false);
+      expect(calculateIsAppRoot("/media-commons/modification/123")).toBe(false);
     });
   });
 
@@ -345,6 +368,100 @@ describe("NavBar Redirect Logic", () => {
 
       expect(result.shouldRedirect).toBe(true);
       expect(result.targetPath).toBe("/media-commons/pa");
+    });
+  });
+
+  describe("User tab accessibility (bug fix)", () => {
+    /**
+     * Simulates handleRoleChange selecting BOOKING (User) tab.
+     * The fix: set the hasRedirectedToDefaultContext flag before navigating to root
+     * so the auto-redirect useEffect does NOT immediately bounce the user back.
+     */
+    const simulateHandleRoleChangeToUser = (
+      tenant: string,
+      storage: ReturnType<typeof createMockSessionStorage>
+    ): string => {
+      const role = PagePermission.BOOKING;
+      const path = ""; // getPathFromPermission(BOOKING) returns ""
+      // Fixed path construction: no trailing slash when path is empty
+      const fullPath = path ? `/${tenant}/${path}` : `/${tenant}`;
+      // Fix: set flag so auto-redirect does not fire
+      storage.setItem("hasRedirectedToDefaultContext", "true");
+      return fullPath;
+    };
+
+    it("Admin can navigate to User context without being bounced back", () => {
+      // Step 1: admin was auto-redirected to /admin earlier, which cleared the flag
+      mockSessionStorage.removeItem("hasRedirectedToDefaultContext");
+
+      // Step 2: admin selects 'User' from dropdown
+      const targetPath = simulateHandleRoleChangeToUser("media-commons", mockSessionStorage);
+      expect(targetPath).toBe("/media-commons");
+
+      // Step 3: flag should now be set to prevent auto-redirect
+      expect(mockSessionStorage.getItem("hasRedirectedToDefaultContext")).toBe("true");
+
+      // Step 4: auto-redirect logic should NOT redirect away from root
+      const result = simulateRedirectLogic({
+        isRoot: true,
+        tenant: "media-commons",
+        pagePermission: PagePermission.ADMIN,
+        permissionsLoading: false,
+        hasRedirectedFlag: mockSessionStorage.getItem("hasRedirectedToDefaultContext") === "true",
+      });
+
+      expect(result.shouldRedirect).toBe(false);
+    });
+
+    it("PA can navigate to User context without being bounced back", () => {
+      mockSessionStorage.removeItem("hasRedirectedToDefaultContext");
+
+      simulateHandleRoleChangeToUser("media-commons", mockSessionStorage);
+
+      const result = simulateRedirectLogic({
+        isRoot: true,
+        tenant: "media-commons",
+        pagePermission: PagePermission.PA,
+        permissionsLoading: false,
+        hasRedirectedFlag: mockSessionStorage.getItem("hasRedirectedToDefaultContext") === "true",
+      });
+
+      expect(result.shouldRedirect).toBe(false);
+    });
+
+    it("after User tab visit, navigating away clears flag and next root visit redirects to default", () => {
+      // User selects 'User' tab → flag set
+      simulateHandleRoleChangeToUser("media-commons", mockSessionStorage);
+      expect(mockSessionStorage.getItem("hasRedirectedToDefaultContext")).toBe("true");
+
+      // User navigates to /mc/book (non-root) → flag cleared by pathname effect
+      const bookPath = "/media-commons/book";
+      const isTenantRoot = /^\/[^/]+$/.test(bookPath);
+      if (!(bookPath === "/" || isTenantRoot)) {
+        mockSessionStorage.removeItem("hasRedirectedToDefaultContext");
+      }
+      expect(mockSessionStorage.getItem("hasRedirectedToDefaultContext")).toBeNull();
+
+      // User returns to root → auto-redirect fires again (PA/Admin goes to their default)
+      const result = simulateRedirectLogic({
+        isRoot: true,
+        tenant: "media-commons",
+        pagePermission: PagePermission.ADMIN,
+        permissionsLoading: false,
+        hasRedirectedFlag: false,
+      });
+
+      expect(result.shouldRedirect).toBe(true);
+      expect(result.targetPath).toBe("/media-commons/admin");
+    });
+
+    it("User context path has no trailing slash", () => {
+      // Regression: old code produced '/${tenant}/' which is different from isRoot check
+      const path = ""; // getPathFromPermission(BOOKING)
+      const tenant = "mc";
+      const fullPath = path ? `/${tenant}/${path}` : `/${tenant}`;
+      expect(fullPath).toBe("/mc");
+      expect(fullPath.endsWith("/")).toBe(false);
     });
   });
 });

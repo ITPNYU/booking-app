@@ -34,7 +34,24 @@ export default function BookingFormConfirmationPage({ formContext }: Props) {
   const isVIP = formContext === FormContextLevel.VIP;
   const isMod = formContext === FormContextLevel.MODIFICATION;
 
-  // don't submit form via useEffect here b/c it submits twice in development strict mode
+  /** Return path after modification: privileged users go straight to their
+   *  default context so they never flash through the User bookings table. */
+  const getModReturnPath = (): string => {
+    switch (pagePermission) {
+      case PagePermission.SUPER_ADMIN:
+        return `/${tenant}/super`;
+      case PagePermission.ADMIN:
+        return `/${tenant}/admin`;
+      case PagePermission.SERVICES:
+        return `/${tenant}/services`;
+      case PagePermission.LIAISON:
+        return `/${tenant}/liaison`;
+      case PagePermission.PA:
+        return `/${tenant}/pa`;
+      default:
+        return `/${tenant}`;
+    }
+  };
 
   if (submitting === "submitting") {
     return (
@@ -94,8 +111,8 @@ export default function BookingFormConfirmationPage({ formContext }: Props) {
                   ? `/${tenant}/admin`
                   : isWalkIn
                     ? `/${tenant}/pa`
-                    : isMod && pagePermission === PagePermission.PA
-                      ? `/${tenant}/pa`
+                    : isMod
+                      ? getModReturnPath()
                       : `/${tenant}`,
               )
             }

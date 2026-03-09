@@ -53,7 +53,7 @@ const Divider = styled(Box)(({ theme }) => ({
 export default function NavBar() {
   const router = useRouter();
   const { tenant } = useParams<{ tenant: string }>();
-  const { pagePermission, permissionsLoading, netId, setUserEmail } = useContext(DatabaseContext);
+  const { pagePermission, netId, setUserEmail } = useContext(DatabaseContext);
   const handleStartBooking = useHandleStartBooking();
   const [selectedView, setSelectedView] = useState<PagePermission>(
     PagePermission.BOOKING,
@@ -69,8 +69,8 @@ export default function NavBar() {
     supportWalkIn = false,
   } = tenantSchema || {};
 
-  // Check if we're on the tenant root (where redirect should happen)
-  const isRoot = pathname === "/" || (tenant && pathname === `/${tenant}`);
+  // True app root ("/") — used to hide navbar chrome (no tenant context yet)
+  const isAppRoot = pathname === "/";
 
   // Helper function to get URL path from PagePermission
   const getPathFromPermission = (permission: PagePermission): string => {
@@ -93,7 +93,15 @@ export default function NavBar() {
   const handleRoleChange = (e: any) => {
     const role = e.target.value as PagePermission;
     const path = getPathFromPermission(role);
-    const fullPath = tenant ? `/${tenant}/${path}` : `/${path}`;
+    // Build path without trailing slash when switching to User context (path="")
+    const fullPath = path
+      ? tenant ? `/${tenant}/${path}` : `/${path}`
+      : `/${tenant || ""}`;
+    // When user explicitly selects User (BOOKING) context, prevent auto-redirect
+    // so they aren't immediately bounced back to their highest-privilege view.
+    if (role === PagePermission.BOOKING) {
+      sessionStorage.setItem("hasRedirectedToDefaultContext", "true");
+    }
     router.push(fullPath);
   };
 
@@ -153,25 +161,6 @@ export default function NavBar() {
       console.error("Sign-out error", error);
     }
   };
-
-  // Auto-redirect to highest priority role on tenant root
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (permissionsLoading) return;
-    if (!isRoot) return;
-    if (!tenant) return;
-
-    const hasRedirected = sessionStorage.getItem("hasRedirectedToDefaultContext");
-    if (hasRedirected) return;
-
-    if (pagePermission !== PagePermission.BOOKING) {
-      const targetPath = getPathFromPermission(pagePermission);
-      if (targetPath) {
-        router.push(`/${tenant}/${targetPath}`);
-        sessionStorage.setItem("hasRedirectedToDefaultContext", "true");
-      }
-    }
-  }, [pagePermission, permissionsLoading, tenant, router, isRoot]);
 
   const hasUserPermission = (roles: PagePermission[]) =>
     roles.includes(pagePermission);
@@ -303,7 +292,7 @@ export default function NavBar() {
             style={{ transform: "translateY(4px)", marginRight: 15 }}
           />
         </LogoBox> */}
-        {!isRoot && (
+        {!isAppRoot && (
           <LogoBox onClick={handleClickHome}>
             <img src={logo} alt={`${name} logo`} style={{ height: 40 }} />
             {!isMobile && (
@@ -315,7 +304,7 @@ export default function NavBar() {
         )}
       </div>
       <Box display="flex" alignItems="center">
-        {!isRoot && (
+        {!isAppRoot && (
           <>
             {button}
             {dropdown}
