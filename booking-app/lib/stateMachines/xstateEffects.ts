@@ -3,7 +3,6 @@ import { TableNames } from "@/components/src/policy";
 import { getTenantEmailConfig } from "@/components/src/server/emails";
 import { BookingStatusLabel } from "@/components/src/types";
 import {
-  serverGetDataByCalendarEventId,
   serverGetDocumentById,
 } from "@/lib/firebase/server/adminDb";
 import { BookingLogger } from "@/lib/logger/bookingLogger";

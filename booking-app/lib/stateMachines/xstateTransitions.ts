@@ -239,10 +239,6 @@ export async function executeXStateTransition(
 
       // Execute No Show side effects (emails, pre-ban logs, etc.)
       try {
-        const { serverGetDataByCalendarEventId } =
-          await import("@/lib/firebase/server/adminDb");
-        const { TableNames } = await import("@/components/src/policy");
-
         const doc = await serverGetDataByCalendarEventId<any>(
           TableNames.BOOKING,
           calendarEventId,
@@ -269,7 +265,6 @@ export async function executeXStateTransition(
         const { serverSendBookingDetailEmail } =
           await import("@/components/src/server/admin");
         const { getApprovalCcEmail } = await import("@/components/src/policy");
-        const { BookingStatusLabel } = await import("@/components/src/types");
 
         // Check policy violation and add to pre-ban logs
         const isPolicyViolation = (doc: any): boolean => {
