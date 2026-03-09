@@ -15,6 +15,15 @@ export const NET_ID_REGEX = /^[a-zA-Z]{2,3}[0-9]{1,6}$/;
 export const NYU_EMAIL_REGEX = /^[^\s@]+@nyu\.edu$/i;
 
 /**
+ * ChartField regex pattern
+ * Format: XXXXX-XX-XXXXX-XXXXX where X is alphanumeric (e.g., AB123-CD-EF456-GH789)
+ */
+export const CHARTFIELD_REGEX = /^[A-Z0-9]{5}-[A-Z0-9]{2}-[A-Z0-9]{5}-[A-Z0-9]{5}$/;
+
+export const CHARTFIELD_PATTERN_MESSAGE =
+  "Invalid ChartField format (should be: XXXXX-XX-XXXXX-XXXXX where X is alphanumeric)";
+
+/**
  * Validates if a string matches the NYU Net ID format
  * @param value - The string to validate
  * @returns true if the value matches Net ID format, false otherwise

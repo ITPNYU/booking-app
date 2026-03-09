@@ -697,15 +697,30 @@ export const serverApproveEvent = async (id: string, tenant?: string) => {
       calendarEventId: id,
       roomId: contents.roomId,
     };
-    // Intentionally awaiting without try-catch: if email delivery fails, 
-    // we want the approval process to fail with the API error message
-    await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/inviteUser`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
+    // Intentionally awaiting without try-catch: if email delivery fails,
+    // we want the approval process to fail with the API error message.
+    const inviteSecondaryResponse = await fetch(
+      `${process.env.NEXT_PUBLIC_BASE_URL}/api/inviteUser`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(secondaryFormData),
       },
-      body: JSON.stringify(secondaryFormData),
-    });
+    );
+    if (!inviteSecondaryResponse.ok) {
+      let errorBody = "";
+      try {
+        errorBody = await inviteSecondaryResponse.text();
+      } catch {
+        // ignore body read errors
+      }
+      throw new Error(
+        `Failed to invite secondary contact (status ${inviteSecondaryResponse.status} ${inviteSecondaryResponse.statusText})` +
+          (errorBody ? `: ${errorBody}` : ""),
+      );
+    }
   }
 
 

@@ -25,7 +25,7 @@ import {
   Role,
   UserApiData,
 } from "../../../../types";
-import { isValidNetIdFormat, NET_ID_REGEX, NYU_EMAIL_REGEX } from "../../../../utils/validationHelpers";
+import { isValidNetIdFormat, NET_ID_REGEX, NYU_EMAIL_REGEX, CHARTFIELD_REGEX, CHARTFIELD_PATTERN_MESSAGE } from "../../../../utils/validationHelpers";
 import { DatabaseContext } from "../../components/Provider";
 import { useTenantSchema } from "../../components/SchemaProvider";
 import { BookingContext } from "../bookingProvider";
@@ -493,8 +493,8 @@ export default function FormInput({
                 label="ChartField for Room Setup"
                 required={false}
                 pattern={{
-                  value: /^[A-Z0-9]{5}-[A-Z0-9]{2}-[A-Z0-9]{5}-[A-Z0-9]{5}$/,
-                  message: "Invalid ChartField format (should be: XXXXX-XX-XXXXX-XXXXX where X is alphanumeric)",
+                  value: CHARTFIELD_REGEX,
+                  message: CHARTFIELD_PATTERN_MESSAGE,
                 }}
                 {...{ control, errors, trigger }}
               />
@@ -596,8 +596,8 @@ export default function FormInput({
                 label="ChartField for Catering Services"
                 required={false}
                 pattern={{
-                  value: /^[A-Z0-9]{5}-[A-Z0-9]{2}-[A-Z0-9]{5}-[A-Z0-9]{5}$/,
-                  message: "Invalid ChartField format (should be: XXXXX-XX-XXXXX-XXXXX where X is alphanumeric)",
+                  value: CHARTFIELD_REGEX,
+                  message: CHARTFIELD_PATTERN_MESSAGE,
                 }}
                 {...{ control, errors, trigger }}
               />
@@ -622,8 +622,8 @@ export default function FormInput({
               label="ChartField for CBS Cleaning Services"
               required={false}
               pattern={{
-                value: /^[A-Z0-9]{5}-[A-Z0-9]{2}-[A-Z0-9]{5}-[A-Z0-9]{5}$/,
-                message: "Invalid ChartField format (should be: XXXXX-XX-XXXXX-XXXXX where X is alphanumeric)",
+                value: CHARTFIELD_REGEX,
+                message: CHARTFIELD_PATTERN_MESSAGE,
               }}
               {...{ control, errors, trigger }}
             />
@@ -659,8 +659,8 @@ export default function FormInput({
               label="ChartField for Security"
               required={false}
               pattern={{
-                value: /^[A-Z0-9]{5}-[A-Z0-9]{2}-[A-Z0-9]{5}-[A-Z0-9]{5}$/,
-                message: "Invalid ChartField format (should be: XXXXX-XX-XXXXX-XXXXX where X is alphanumeric)",
+                value: CHARTFIELD_REGEX,
+                message: CHARTFIELD_PATTERN_MESSAGE,
               }}
               {...{ control, errors, trigger }}
             />
