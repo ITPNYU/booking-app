@@ -93,7 +93,7 @@ export const mcBookingMachine = setup({
 
       try {
         const { calendarEventId } = context;
-        const email = context.email || "system";
+        const email = (event as any).email || context.email || "system";
         const netId = email?.split("@")[0] || "system";
         const { tenant } = context;
 
