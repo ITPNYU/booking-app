@@ -12,7 +12,12 @@ permissions:
 jobs:
   e2e-tests:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        shardIndex: [1, 2, 3, 4]
+        shardTotal: [4]
 
     env:
       E2E_TESTING: "true"
@@ -46,13 +51,13 @@ jobs:
         run: cd booking-app && npx playwright install chromium --with-deps
 
       - name: Run E2E tests
-        run: cd booking-app && npx playwright test --project=use-case-flows
+        run: cd booking-app && npx playwright test --project=use-case-flows --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
 
       - name: Upload test artifacts
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: e2e-artifacts
+          name: e2e-artifacts-${{ matrix.shardIndex }}
           path: |
             booking-app/playwright-report/
             booking-app/test-results/
