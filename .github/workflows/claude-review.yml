@@ -27,6 +27,7 @@ jobs:
             1. Critical bugs and their reproduction steps
             2. Potential bugs (race conditions, edge cases, unhandled errors)
             3. Design concerns (architectural issues, maintainability risks)
+            4. Duplication - check if the PR re-implements logic that already exists elsewhere in the codebase. Flag cases where existing utilities, constants, or functions should be reused instead.
 
             Do NOT include: praise, positive feedback, minor style issues, or nitpicks.
             Be concise and actionable. Write in English.
