@@ -22,7 +22,7 @@ function createMockExistingBooking() {
     id: CALENDAR_EVENT_ID,
     calendarEventId: CALENDAR_EVENT_ID,
     requestNumber: 55555,
-    email: "tf123@nyu.edu",
+    email: "test@nyu.edu",
     firstName: "Test",
     lastName: "Faculty",
     secondaryName: "",

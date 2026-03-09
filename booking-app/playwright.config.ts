@@ -32,7 +32,7 @@ export default defineConfig({
             ]
           : []),
       ],
-      slowMo: process.env.CI ? 100 : 0,
+      slowMo: 0,
     },
 
     navigationTimeout: 90000,

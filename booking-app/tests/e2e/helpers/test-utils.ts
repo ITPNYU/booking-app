@@ -19,7 +19,7 @@ export async function selectDropdown(
   await option.waitFor({ state: "visible", timeout: 5000 });
   await option.click();
 
-  await page.waitForTimeout(300);
+  await menu.waitFor({ state: "hidden", timeout: 5000 });
 }
 
 /**
@@ -64,7 +64,10 @@ export async function selectTimeSlot(
 
   const calendar = page.locator('[data-testid="booking-calendar-wrapper"]');
   await calendar.waitFor({ state: "visible", timeout: 15000 });
-  await page.waitForTimeout(1500);
+  await page.waitForFunction(() => {
+    const fc = document.querySelector('.fc');
+    return fc && fc.querySelector('.fc-timegrid-slot');
+  }, { timeout: 15000 });
 
   // Use FullCalendar API via React fiber to programmatically select a time.
   // Always use tomorrow 10-11am to avoid timezone/past-time issues in CI (UTC).
@@ -107,7 +110,10 @@ export async function selectTimeSlot(
     throw new Error("Could not find FullCalendar API");
   }, roomId);
 
-  await page.waitForTimeout(500);
+  await page.waitForFunction(() => {
+    const selected = document.querySelector('.fc-highlight');
+    return !!selected;
+  }, { timeout: 10000 });
 }
 
 /**
@@ -132,6 +138,33 @@ export async function selectRole(
   const roleSelect = page.getByTestId("role-select");
   await roleSelect.waitFor({ state: "visible", timeout: 10000 });
   await selectDropdown(page, "role-select", roleIndex);
+}
+
+/**
+ * Wait for webpack mock overrides to be ready, apply them, and retry until patching succeeds.
+ * Replaces the fragile two-step waitForFunction + evaluate pattern.
+ */
+export async function applyMockOverrides(page: Page) {
+  await page.waitForFunction(
+    () => typeof (window as any).__applyMockBookingsOverrides === "function",
+    { timeout: 30000 },
+  );
+  // Retry applying overrides - webpack modules may not be ready on first attempt
+  await page.waitForFunction(
+    () => {
+      if (typeof (window as any).__applyMockBookingsOverrides === "function") {
+        (window as any).__applyMockBookingsOverrides();
+      }
+      // Check if patching succeeded via the flag (set by xstate-mocks.ts)
+      if (typeof (window as any).__isMockPatchApplied === "function") {
+        return (window as any).__isMockPatchApplied();
+      }
+      // For inline mocks without the flag, check if webpack chunk is available
+      const chunk = (window as any).webpackChunk_N_E;
+      return !!chunk && chunk.length > 0;
+    },
+    { timeout: 15000 },
+  );
 }
 
 /**

@@ -125,7 +125,7 @@ test.describe("Safety Training – untrained student blocked", () => {
           affiliations: ["ITP"],
           roles: ["Student"],
           displayName: "Test Student",
-          email: "tf123@nyu.edu",
+          email: "test@nyu.edu",
         }),
       }),
     );

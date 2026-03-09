@@ -117,7 +117,7 @@ const mockBookingResponse = {
 };
 
 const mockSafetyTraining = {
-  emails: ["tf123@nyu.edu", "vip@nyu.edu", "walkin@nyu.edu"],
+  emails: ["test@nyu.edu", "vip@nyu.edu", "walkin@nyu.edu"],
 };
 
 const mockBookingTypes = [

@@ -463,28 +463,37 @@ export async function registerMockBookingsFeed(
         return patched;
       };
 
+      let patchSucceeded = false;
+
       const _earlyPatchId = setInterval(() => {
         try {
           if (patchWebpackModules()) {
+            patchSucceeded = true;
             clearInterval(_earlyPatchId);
           }
         } catch (_) {}
-      }, 2);
-      setTimeout(() => clearInterval(_earlyPatchId), 10000);
+      }, 50);
+      setTimeout(() => clearInterval(_earlyPatchId), 30000);
 
       try {
-        patchWebpackModules();
+        if (patchWebpackModules()) {
+          patchSucceeded = true;
+        }
       } catch (_err) {
         // ignore sync errors
       }
 
       (window as any).__applyMockBookingsOverrides = () => {
         try {
-          patchWebpackModules();
+          if (patchWebpackModules()) {
+            patchSucceeded = true;
+          }
         } catch (_err) {
           // ignore sync errors
         }
       };
+
+      (window as any).__isMockPatchApplied = () => patchSucceeded;
     },
     {
       timestampFields: TIMESTAMP_FIELDS_WITH_BY,
