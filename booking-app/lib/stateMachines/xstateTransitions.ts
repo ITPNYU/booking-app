@@ -32,12 +32,8 @@ export async function executeXStateTransition(
 ): Promise<{ success: boolean; newState?: string; error?: string }> {
   try {
     console.log(
-      `🎬 EXECUTING XSTATE TRANSITION [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-      {
-        calendarEventId,
-        eventType,
-        tenant,
-      },
+      `[XState] executing transition [${tenant?.toUpperCase() || "UNKNOWN"}]`,
+      { calendarEventId, eventType },
     );
 
     // Restore the actor from Firestore
@@ -56,36 +52,10 @@ export async function executeXStateTransition(
     let currentSnapshot;
     try {
       currentSnapshot = actor.getSnapshot();
-      console.log(
-        `📸 CURRENT SNAPSHOT BEFORE TRANSITION [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-        {
-          calendarEventId,
-          currentState: currentSnapshot.value,
-          hasContext: !!currentSnapshot.context,
-          contextKeys: currentSnapshot.context
-            ? Object.keys(currentSnapshot.context)
-            : [],
-          contextPreview: currentSnapshot.context
-            ? {
-                tenant: currentSnapshot.context.tenant,
-                calendarEventId: currentSnapshot.context.calendarEventId,
-                selectedRooms: Array.isArray(
-                  currentSnapshot.context.selectedRooms,
-                )
-                  ? `Array(${currentSnapshot.context.selectedRooms.length})`
-                  : currentSnapshot.context.selectedRooms || "undefined",
-                servicesRequested: currentSnapshot.context.servicesRequested,
-              }
-            : null,
-        },
-      );
     } catch (error) {
       console.error(
-        `🚨 ERROR GETTING CURRENT SNAPSHOT [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-        {
-          calendarEventId,
-          error: error.message,
-        },
+        `[XState] failed to get snapshot [${tenant?.toUpperCase() || "UNKNOWN"}]`,
+        { calendarEventId, error: error.message },
       );
       actor.stop();
       return {
@@ -98,21 +68,14 @@ export async function executeXStateTransition(
     const canTransition = currentSnapshot.can({ type: eventType as any });
 
     if (!canTransition) {
-      console.log(
-        `🚫 INVALID XSTATE TRANSITION [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+      console.warn(
+        `[XState] invalid transition [${tenant?.toUpperCase() || "UNKNOWN"}]`,
         {
           currentState: currentSnapshot.value,
           attemptedEvent: eventType,
           availableEvents: [
-            "approve",
-            "decline",
-            "cancel",
-            "edit",
-            "checkIn",
-            "checkOut",
-            "noShow",
-            "close",
-            "autoCloseScript",
+            "approve", "decline", "cancel", "edit",
+            "checkIn", "checkOut", "noShow", "close", "autoCloseScript",
           ].filter((event) => currentSnapshot.can({ type: event as any })),
         },
       );
@@ -138,14 +101,6 @@ export async function executeXStateTransition(
         // Only track meaningful state changes (not initial state)
         if (transitionStates.length > 0 || state !== currentSnapshot.value) {
           transitionStates.push(state);
-          console.log(
-            `📝 XSTATE TRANSITION CAPTURED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-            {
-              calendarEventId,
-              state,
-              transitionIndex: transitionStates.length,
-            },
-          );
         }
       });
 
@@ -170,11 +125,8 @@ export async function executeXStateTransition(
       actor.send(event);
     } catch (subscribeError) {
       console.error(
-        `🚨 XSTATE SUBSCRIPTION ERROR [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-        {
-          calendarEventId,
-          error: subscribeError.message,
-        },
+        `[XState] subscription error [${tenant?.toUpperCase() || "UNKNOWN"}]`,
+        { calendarEventId, error: subscribeError.message },
       );
     } finally {
       // Unsubscribe if possible
@@ -182,13 +134,7 @@ export async function executeXStateTransition(
         try {
           unsubscribe();
         } catch (unsubError) {
-          console.error(
-            `🚨 XSTATE UNSUBSCRIBE ERROR [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-            {
-              calendarEventId,
-              error: unsubError.message,
-            },
-          );
+          // Silently ignore unsubscribe errors
         }
       }
     }
@@ -227,16 +173,6 @@ export async function executeXStateTransition(
     // Special handling for noShow event - execute side effects immediately
     // This is needed because noShow triggers a chain of transitions (No Show -> Canceled -> Service Closeout)
     if (eventType === "noShow") {
-      console.log(
-        `🚫 NO SHOW EVENT DETECTED - EXECUTING NO SHOW SIDE EFFECTS [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-        {
-          calendarEventId,
-          eventType,
-          previousState: currentSnapshot.value,
-          finalState: newSnapshot.value,
-        },
-      );
-
       // Execute No Show side effects (emails, pre-ban logs, etc.)
       try {
         const doc = await serverGetDataByCalendarEventId<any>(
@@ -250,15 +186,6 @@ export async function executeXStateTransition(
         }
 
         const netId = doc.netId || "unknown";
-
-        console.log(
-          `🔄 EXECUTING NO SHOW SIDE EFFECTS [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-          {
-            calendarEventId,
-            email,
-            netId,
-          },
-        );
 
         const { serverSaveDataToFirestore, serverFetchAllDataFromCollection } =
           await import("@/lib/firebase/server/adminDb");
@@ -274,20 +201,6 @@ export async function executeXStateTransition(
           return true;
         };
 
-        console.log(
-          `🔍 NO SHOW POLICY VIOLATION CHECK [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-          {
-            calendarEventId,
-            netId,
-            isVip: doc.isVip,
-            origin: doc.origin,
-            walkedInAt: !!doc.walkedInAt,
-            hasStartDate: !!doc.startDate,
-            hasRequestedAt: !!doc.requestedAt,
-            isPolicyViolation: isPolicyViolation(doc),
-          },
-        );
-
         if (isPolicyViolation(doc)) {
           const log = {
             netId,
@@ -295,24 +208,6 @@ export async function executeXStateTransition(
             noShowDate: admin.firestore.Timestamp.now(),
           };
           await serverSaveDataToFirestore(TableNames.PRE_BAN_LOGS, log, tenant);
-
-          console.log(
-            `📋 NO SHOW PRE-BAN LOG CREATED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-            {
-              calendarEventId,
-              netId,
-              bookingId: calendarEventId,
-            },
-          );
-        } else {
-          console.log(
-            `⏭️ NO SHOW PRE-BAN LOG SKIPPED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-            {
-              calendarEventId,
-              netId,
-              reason: "Not a policy violation (VIP or walk-in booking)",
-            },
-          );
         }
 
         // Get violation count
@@ -367,54 +262,27 @@ export async function executeXStateTransition(
             },
           );
 
-          if (calendarUpdateResponse.ok) {
-            console.log(
-              `📅 NO SHOW CALENDAR UPDATED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-              {
-                calendarEventId,
-                statusPrefix: BookingStatusLabel.NO_SHOW,
-              },
-            );
-          } else {
+          if (!calendarUpdateResponse.ok) {
             console.error(
-              `🚨 NO SHOW CALENDAR UPDATE FAILED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-              {
-                calendarEventId,
-                status: calendarUpdateResponse.status,
-                statusText: calendarUpdateResponse.statusText,
-              },
+              `[XState] no-show calendar update failed [${tenant?.toUpperCase() || "UNKNOWN"}]`,
+              { calendarEventId, status: calendarUpdateResponse.status },
             );
           }
         } catch (calendarError) {
           console.error(
-            `🚨 NO SHOW CALENDAR UPDATE ERROR [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-            {
-              calendarEventId,
-              error:
-                calendarError instanceof Error
-                  ? calendarError.message
-                  : String(calendarError),
-            },
+            `[XState] no-show calendar update error [${tenant?.toUpperCase() || "UNKNOWN"}]`,
+            { calendarEventId, error: calendarError instanceof Error ? calendarError.message : String(calendarError) },
           );
         }
 
         console.log(
-          `✅ NO SHOW SIDE EFFECTS COMPLETED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-          {
-            calendarEventId,
-            guestEmail,
-            violationCount,
-          },
+          `[XState] no-show side effects completed [${tenant?.toUpperCase() || "UNKNOWN"}]`,
+          { calendarEventId, violationCount },
         );
       } catch (error) {
         console.error(
-          `🚨 NO SHOW SIDE EFFECTS FAILED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-          {
-            calendarEventId,
-            email,
-            tenant,
-            error: error.message,
-          },
+          `[XState] no-show side effects failed [${tenant?.toUpperCase() || "UNKNOWN"}]`,
+          { calendarEventId, error: error.message },
         );
       }
 
@@ -439,17 +307,6 @@ export async function executeXStateTransition(
       reason,
     );
 
-    // For No Show events, do not send canceled email as NO SHOW email was already sent
-    if (eventType === "noShow") {
-      console.log(
-        `🚫 CANCELED EMAIL SKIPPED FOR NO SHOW [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-        {
-          calendarEventId,
-          note: "NO SHOW email already sent with appropriate message",
-        },
-      );
-    }
-
     // If this is Media Commons and servicesApproved context changed, update individual service fields
     if (isMediaCommons(tenant) && newSnapshot.context?.servicesApproved) {
       const { servicesApproved } = newSnapshot.context;
@@ -472,40 +329,9 @@ export async function executeXStateTransition(
       if (typeof servicesApproved.setup === "boolean") {
         firestoreUpdates.setupServiceApproved = servicesApproved.setup;
       }
-
-      console.log(
-        `🔄 UPDATING INDIVIDUAL SERVICE FIELDS [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-        {
-          calendarEventId,
-          serviceUpdates: {
-            staffServiceApproved: firestoreUpdates.staffServiceApproved,
-            equipmentServiceApproved: firestoreUpdates.equipmentServiceApproved,
-            cateringServiceApproved: firestoreUpdates.cateringServiceApproved,
-            cleaningServiceApproved: firestoreUpdates.cleaningServiceApproved,
-            securityServiceApproved: firestoreUpdates.securityServiceApproved,
-            setupServiceApproved: firestoreUpdates.setupServiceApproved,
-          },
-        },
-      );
     }
 
     // Save updated state to Firestore
-    console.log(
-      `🔍 FIRESTORE UPDATE DEBUG [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-      {
-        calendarEventId,
-        firestoreUpdatesKeys: Object.keys(firestoreUpdates),
-        hasXStateData: !!firestoreUpdates.xstateData,
-        xstateDataPreview: firestoreUpdates.xstateData
-          ? {
-              machineId: firestoreUpdates.xstateData.machineId,
-              hasSnapshot: !!firestoreUpdates.xstateData.snapshot,
-              lastTransition: firestoreUpdates.xstateData.lastTransition,
-            }
-          : null,
-      },
-    );
-
     await serverUpdateDataByCalendarEventId(
       TableNames.BOOKING,
       calendarEventId,
@@ -514,23 +340,8 @@ export async function executeXStateTransition(
     );
 
     console.log(
-      `💾 XSTATE STATE UPDATED IN FIRESTORE [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-      {
-        calendarEventId,
-        newState: newSnapshot.value,
-        machineId: updatedXStateData.machineId,
-        savedSnapshot: {
-          hasContext: !!cleanUpdatedSnapshot.context,
-          contextServicesApproved:
-            cleanUpdatedSnapshot.context?.servicesApproved,
-        },
-        individualServiceFieldsUpdated:
-          isMediaCommons(tenant) && newSnapshot.context?.servicesApproved
-            ? Object.keys(firestoreUpdates).filter((key) =>
-                key.endsWith("ServiceApproved"),
-              )
-            : [],
-      },
+      `[XState] saved to Firestore [${tenant?.toUpperCase() || "UNKNOWN"}]`,
+      { calendarEventId, newState: newSnapshot.value },
     );
 
     actor.stop();
@@ -541,12 +352,8 @@ export async function executeXStateTransition(
     };
   } catch (error) {
     console.error(
-      `🚨 XSTATE TRANSITION ERROR [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-      {
-        calendarEventId,
-        eventType,
-        error: error.message,
-      },
+      `[XState] transition error [${tenant?.toUpperCase() || "UNKNOWN"}]`,
+      { calendarEventId, eventType, error: error.message },
     );
     return {
       success: false,
@@ -575,11 +382,6 @@ export async function getAvailableXStateTransitions(
       !bookingData.xstateData
     ) {
       if (bookingData && shouldUseXState(tenant)) {
-        console.log(
-          `🔧 CREATING XSTATE FOR TRANSITIONS [${tenant?.toUpperCase()}]:`,
-          { calendarEventId },
-        );
-
         await createXStateDataFromBookingStatus(
           calendarEventId,
           bookingData,
@@ -614,23 +416,11 @@ export async function getAvailableXStateTransitions(
 
     actor.stop();
 
-    console.log(
-      `📋 AVAILABLE XSTATE TRANSITIONS [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-      {
-        calendarEventId,
-        currentState: snapshot.value,
-        availableTransitions,
-      },
-    );
-
     return availableTransitions;
   } catch (error) {
     console.error(
-      `🚨 ERROR GETTING AVAILABLE TRANSITIONS [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-      {
-        calendarEventId,
-        error: error.message,
-      },
+      `[XState] error getting available transitions [${tenant?.toUpperCase() || "UNKNOWN"}]`,
+      { calendarEventId, error: error.message },
     );
     return [];
   }

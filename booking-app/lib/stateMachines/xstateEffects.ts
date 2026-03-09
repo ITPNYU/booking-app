@@ -43,27 +43,12 @@ export async function handleStateTransitions(
 
   // Skip if no state change
   if (previousState === newState) {
-    console.log(
-      `⏭️ SKIPPING HISTORY LOG - NO STATE CHANGE [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-      {
-        calendarEventId,
-        previousState,
-        newState,
-        reason: "Same state, no transition needed",
-      },
-    );
     return;
   }
 
   console.log(
-    `🔄 XSTATE STATE TRANSITION DETECTED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-    {
-      calendarEventId,
-      previousState,
-      newState,
-      email,
-      willLogToHistory: false,
-    },
+    `[XState] transition ${previousState} → ${newState} [${tenant?.toUpperCase() || "UNKNOWN"}]`,
+    { calendarEventId, email },
   );
 
   // Get booking data from Firestore (not from XState context)
@@ -79,23 +64,10 @@ export async function handleStateTransitions(
     );
   } catch (error) {
     console.error(
-      `🚨 ERROR GETTING BOOKING DATA FOR STATE TRANSITIONS [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-      {
-        calendarEventId,
-        error: error.message,
-      },
+      `[XState] failed to get booking data [${tenant?.toUpperCase() || "UNKNOWN"}]`,
+      { calendarEventId, error: error.message },
     );
   }
-
-  console.log(
-    `🔄 XSTATE STATE TRANSITION DETECTED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-    {
-      calendarEventId,
-      previousState,
-      newState,
-      email,
-    },
-  );
 
   // Handle specific state transitions
   if (newState === "Approved" && previousState !== "Approved") {
@@ -103,13 +75,13 @@ export async function handleStateTransitions(
   } else if (newState === "Declined" && previousState !== "Declined") {
     await handleDeclinedTransition(calendarEventId, email, tenant, firestoreUpdates, previousState, newState, newSnapshot, bookingDoc, reason);
   } else if (newState === "Requested" && previousState !== "Requested") {
-    handleRequestedTransition(calendarEventId, tenant, previousState, newState);
+    // No side effects needed for Requested state
   } else if (newState === "No Show" && previousState !== "No Show") {
-    handleNoShowTransition(calendarEventId, email, tenant, firestoreUpdates, previousState, newState);
+    handleNoShowTransition(calendarEventId, email, tenant, firestoreUpdates);
   } else if (newState === "Canceled" && previousState !== "Canceled") {
-    handleCanceledTransition(calendarEventId, email, tenant, firestoreUpdates, previousState, newState);
+    handleCanceledTransition(calendarEventId, email, tenant, firestoreUpdates);
   } else if (newState === "Closed" && previousState !== "Closed") {
-    handleClosedTransition(calendarEventId, tenant, previousState, newState);
+    // No side effects needed for Closed state
   } else if (newState === "Checked In" && previousState !== "Checked In") {
     await handleCheckedInTransition(calendarEventId, email, tenant, firestoreUpdates, previousState, newState, actor, currentSnapshot, newSnapshot);
   } else if (newState === "Pre-approved" && previousState !== "Pre-approved") {
@@ -131,27 +103,6 @@ function handleApprovedTransition(
   if (email) {
     firestoreUpdates.finalApprovedBy = email;
   }
-
-  console.log(
-    `🎉 XSTATE REACHED APPROVED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-    {
-      calendarEventId,
-      previousState,
-      newState,
-      finalApprovedAt: firestoreUpdates.finalApprovedAt,
-      finalApprovedBy: firestoreUpdates.finalApprovedBy,
-    },
-  );
-
-  console.log(
-    `📝 XSTATE APPROVED STATE REACHED - SIDE EFFECTS HANDLED EXTERNALLY [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-    {
-      calendarEventId,
-      email,
-      tenant,
-      note: "Approval side effects handled by /api/services or /api/approve",
-    },
-  );
 }
 
 async function handleDeclinedTransition(
@@ -170,36 +121,9 @@ async function handleDeclinedTransition(
     firestoreUpdates.declinedBy = email;
   }
 
-  console.log(
-    `❌ XSTATE REACHED DECLINED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-    {
-      calendarEventId,
-      previousState,
-      newState,
-      declinedAt: firestoreUpdates.declinedAt,
-      declinedBy: firestoreUpdates.declinedBy,
-      reason: "Service(s) declined",
-      servicesApproved: newSnapshot.context?.servicesApproved,
-    },
-  );
-
   // Send decline email to guest using booking document email
   try {
     const guestEmail = bookingDoc?.email;
-
-    console.log(
-      `🔍 XSTATE DECLINE EMAIL DEBUG [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-      {
-        calendarEventId,
-        hasNewSnapshot: !!newSnapshot,
-        hasContext: !!newSnapshot.context,
-        contextKeys: newSnapshot.context
-          ? Object.keys(newSnapshot.context)
-          : [],
-        guestEmail,
-        contextEmail: bookingDoc?.email,
-      },
-    );
 
     if (guestEmail) {
       const { serverSendBookingDetailEmail } =
@@ -254,33 +178,19 @@ async function handleDeclinedTransition(
       });
 
       console.log(
-        `📧 XSTATE DECLINE EMAIL SENT [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-        {
-          calendarEventId,
-          guestEmail,
-          reason: declineReason,
-        },
+        `[XState] decline email sent [${tenant?.toUpperCase() || "UNKNOWN"}]`,
+        { calendarEventId, guestEmail },
       );
     } else {
       console.warn(
-        `⚠️ XSTATE DECLINE EMAIL SKIPPED - NO EMAIL IN CONTEXT [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-        {
-          calendarEventId,
-          contextKeys: newSnapshot.context
-            ? Object.keys(newSnapshot.context)
-            : [],
-        },
+        `[XState] decline email skipped — no guest email [${tenant?.toUpperCase() || "UNKNOWN"}]`,
+        { calendarEventId },
       );
     }
   } catch (error) {
     console.error(
-      `🚨 XSTATE DECLINE EMAIL FAILED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-      {
-        calendarEventId,
-        email,
-        tenant,
-        error: error.message,
-      },
+      `[XState] decline email failed [${tenant?.toUpperCase() || "UNKNOWN"}]`,
+      { calendarEventId, error: error.message },
     );
   }
 
@@ -301,50 +211,18 @@ async function handleDeclinedTransition(
       },
     );
 
-    if (response.ok) {
-      console.log(
-        `📅 XSTATE DECLINE CALENDAR UPDATED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-        {
-          calendarEventId,
-          statusPrefix: BookingStatusLabel.DECLINED,
-        },
-      );
-    } else {
+    if (!response.ok) {
       console.error(
-        `🚨 XSTATE DECLINE CALENDAR UPDATE FAILED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-        {
-          calendarEventId,
-          status: response.status,
-          statusText: response.statusText,
-        },
+        `[XState] decline calendar update failed [${tenant?.toUpperCase() || "UNKNOWN"}]`,
+        { calendarEventId, status: response.status },
       );
     }
   } catch (error) {
     console.error(
-      `🚨 XSTATE DECLINE CALENDAR UPDATE ERROR [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-      {
-        calendarEventId,
-        error: error.message,
-      },
+      `[XState] decline calendar update error [${tenant?.toUpperCase() || "UNKNOWN"}]`,
+      { calendarEventId, error: error.message },
     );
   }
-}
-
-function handleRequestedTransition(
-  calendarEventId: string,
-  tenant: string,
-  previousState: string,
-  newState: string,
-) {
-  console.log(
-    `🔄 XSTATE REACHED REQUESTED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-    {
-      calendarEventId,
-      previousState,
-      newState,
-      note: "Decline field cleanup handled by calling API",
-    },
-  );
 }
 
 function handleNoShowTransition(
@@ -352,24 +230,11 @@ function handleNoShowTransition(
   email: string,
   tenant: string,
   firestoreUpdates: any,
-  previousState: string,
-  newState: string,
 ) {
   firestoreUpdates.noShowedAt = admin.firestore.Timestamp.now();
   if (email) {
     firestoreUpdates.noShowedBy = email;
   }
-
-  console.log(
-    `🚫 XSTATE REACHED NO SHOW [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-    {
-      calendarEventId,
-      previousState,
-      newState,
-      noShowedAt: firestoreUpdates.noShowedAt,
-      noShowedBy: firestoreUpdates.noShowedBy,
-    },
-  );
 }
 
 function handleCanceledTransition(
@@ -377,41 +242,11 @@ function handleCanceledTransition(
   email: string,
   tenant: string,
   firestoreUpdates: any,
-  previousState: string,
-  newState: string,
 ) {
   firestoreUpdates.canceledAt = admin.firestore.Timestamp.now();
   if (email) {
     firestoreUpdates.canceledBy = email;
   }
-
-  console.log(
-    `🔄 XSTATE REACHED CANCELED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-    {
-      calendarEventId,
-      previousState,
-      newState,
-      canceledAt: firestoreUpdates.canceledAt,
-      canceledBy: firestoreUpdates.canceledBy,
-    },
-  );
-}
-
-function handleClosedTransition(
-  calendarEventId: string,
-  tenant: string,
-  previousState: string,
-  newState: string,
-) {
-  console.log(
-    `🎯 XSTATE REACHED CLOSED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-    {
-      calendarEventId,
-      previousState,
-      newState,
-      note: "Close processing handled by XState action",
-    },
-  );
 }
 
 async function handleCheckedInTransition(
@@ -429,17 +264,6 @@ async function handleCheckedInTransition(
   if (email) {
     firestoreUpdates.checkedInBy = email;
   }
-
-  console.log(
-    `📥 XSTATE REACHED CHECKED IN [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-    {
-      calendarEventId,
-      previousState,
-      newState,
-      checkedInAt: firestoreUpdates.checkedInAt,
-      checkedInBy: firestoreUpdates.checkedInBy,
-    },
-  );
 
   // Persist latest XState snapshot and checked-in timestamps BEFORE calendar update
   try {
@@ -466,21 +290,9 @@ async function handleCheckedInTransition(
       },
       tenant,
     );
-
-    console.log(
-      `💾 XSTATE CHECK-IN: STATE PERSISTED BEFORE CAL UPDATE [${
-        tenant?.toUpperCase() || "UNKNOWN"
-      }]:`,
-      {
-        calendarEventId,
-        savedState: "Checked In",
-      },
-    );
   } catch (error) {
     console.error(
-      `🚨 XSTATE CHECK-IN: FAILED TO PERSIST BEFORE CAL UPDATE [${
-        tenant?.toUpperCase() || "UNKNOWN"
-      }]:`,
+      `[XState] check-in pre-persist failed [${tenant?.toUpperCase() || "UNKNOWN"}]`,
       { calendarEventId, error: error?.message },
     );
   }
@@ -502,23 +314,16 @@ async function handleCheckedInTransition(
       },
     );
 
-    if (response.ok) {
-      console.log(
-        `📅 XSTATE CHECK-IN CALENDAR UPDATED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-        {
-          calendarEventId,
-          statusPrefix: BookingStatusLabel.CHECKED_IN,
-          note: "Status will be read from XState data",
-        },
+    if (!response.ok) {
+      console.error(
+        `[XState] check-in calendar update failed [${tenant?.toUpperCase() || "UNKNOWN"}]`,
+        { calendarEventId, status: response.status },
       );
     }
   } catch (error) {
     console.error(
-      `🚨 XSTATE CHECK-IN CALENDAR UPDATE ERROR [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-      {
-        calendarEventId,
-        error: error.message,
-      },
+      `[XState] check-in calendar update error [${tenant?.toUpperCase() || "UNKNOWN"}]`,
+      { calendarEventId, error: error.message },
     );
   }
 }
@@ -535,17 +340,6 @@ async function handlePreApprovedTransition(
   if (email) {
     firestoreUpdates.firstApprovedBy = email;
   }
-
-  console.log(
-    `⏳ XSTATE REACHED PRE-APPROVED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-    {
-      calendarEventId,
-      previousState,
-      newState,
-      firstApprovedAt: firestoreUpdates.firstApprovedAt,
-      firstApprovedBy: firestoreUpdates.firstApprovedBy,
-    },
-  );
 
   try {
     const { serverUpdateDataByCalendarEventId } =
@@ -570,22 +364,10 @@ async function handlePreApprovedTransition(
       preApprovalUpdateData,
       tenant,
     );
-
-    console.log(
-      `💾 PRE-APPROVED DATA SAVED TO DB BEFORE CALENDAR UPDATE [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-      {
-        calendarEventId,
-        savedFields: Object.keys(preApprovalUpdateData),
-        hasXStateData: !!preApprovalUpdateData.xstateData,
-      },
-    );
   } catch (error) {
     console.error(
-      `🚨 FAILED TO PRE-SAVE PRE-APPROVED DATA [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-      {
-        calendarEventId,
-        error: error instanceof Error ? error.message : String(error),
-      },
+      `[XState] pre-approved data save failed [${tenant?.toUpperCase() || "UNKNOWN"}]`,
+      { calendarEventId, error: error instanceof Error ? error.message : String(error) },
     );
   }
 
@@ -606,31 +388,16 @@ async function handlePreApprovedTransition(
       },
     );
 
-    if (response.ok) {
-      console.log(
-        `📅 XSTATE PRE-APPROVED CALENDAR UPDATED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-        {
-          calendarEventId,
-          statusPrefix: BookingStatusLabel.PRE_APPROVED,
-        },
-      );
-    } else {
+    if (!response.ok) {
       console.error(
-        `🚨 XSTATE PRE-APPROVED CALENDAR UPDATE FAILED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-        {
-          calendarEventId,
-          status: response.status,
-          statusText: response.statusText,
-        },
+        `[XState] pre-approved calendar update failed [${tenant?.toUpperCase() || "UNKNOWN"}]`,
+        { calendarEventId, status: response.status },
       );
     }
   } catch (error) {
     console.error(
-      `🚨 XSTATE PRE-APPROVED CALENDAR UPDATE ERROR [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-      {
-        calendarEventId,
-        error: error.message,
-      },
+      `[XState] pre-approved calendar update error [${tenant?.toUpperCase() || "UNKNOWN"}]`,
+      { calendarEventId, error: error.message },
     );
   }
 }
@@ -646,16 +413,6 @@ async function handleGenericTransition(
   bookingDoc: any,
   skipCalendarForServiceCloseout: boolean,
 ) {
-  console.log(
-    `🔄 XSTATE GENERIC STATE CHANGE [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-    {
-      calendarEventId,
-      previousState,
-      newState,
-      email,
-    },
-  );
-
   // Try to map XState to BookingStatusLabel for generic states
   let statusLabel: BookingStatusLabel | undefined;
   if (typeof newState === "string") {
@@ -673,39 +430,11 @@ async function handleGenericTransition(
     // Handle parallel states
     if (newState["Services Request"]) {
       statusLabel = BookingStatusLabel.PRE_APPROVED;
-      console.log(
-        `🔀 XSTATE PARALLEL STATE: Services Request [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-        {
-          calendarEventId,
-          previousState,
-          newState,
-          statusLabel,
-        },
-      );
     } else if (newState["Service Closeout"]) {
       statusLabel = BookingStatusLabel.CHECKED_OUT;
-      console.log(
-        `🔀 XSTATE PARALLEL STATE: Service Closeout [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-        {
-          calendarEventId,
-          previousState,
-          newState,
-          statusLabel,
-          skipCalendarUpdate: skipCalendarForServiceCloseout,
-        },
-      );
 
       // Handle check-out email for Service Closeout state (Media Commons)
       if (previousState === "Checked In" && !skipCalendarForServiceCloseout) {
-        console.log(
-          `📧 SENDING CHECK-OUT EMAIL FOR SERVICE CLOSEOUT [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-          {
-            calendarEventId,
-            previousState,
-            newState: "Service Closeout",
-          },
-        );
-
         // Set check-out timestamps for Firestore
         firestoreUpdates.checkedOutAt = admin.firestore.Timestamp.now();
         if (email) {
@@ -715,18 +444,6 @@ async function handleGenericTransition(
         // Send check-out email to guest
         try {
           const guestEmail = bookingDoc?.email;
-
-          console.log(
-            `🔍 XSTATE SERVICE CLOSEOUT EMAIL DEBUG [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-            {
-              calendarEventId,
-              hasBookingDoc: !!bookingDoc,
-              bookingDocKeys: bookingDoc ? Object.keys(bookingDoc) : [],
-              guestEmail,
-              guestEmailType: typeof guestEmail,
-              bookingDocEmail: bookingDoc?.email,
-            },
-          );
 
           if (guestEmail) {
             const { serverSendBookingDetailEmail } =
@@ -744,31 +461,19 @@ async function handleGenericTransition(
             });
 
             console.log(
-              `📧 XSTATE SERVICE CLOSEOUT EMAIL SENT [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-              {
-                calendarEventId,
-                guestEmail,
-              },
+              `[XState] checkout email sent [${tenant?.toUpperCase() || "UNKNOWN"}]`,
+              { calendarEventId, guestEmail },
             );
           } else {
             console.warn(
-              `⚠️ XSTATE SERVICE CLOSEOUT EMAIL SKIPPED - NO EMAIL [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-              {
-                calendarEventId,
-                hasBookingDoc: !!bookingDoc,
-                bookingDocKeys: bookingDoc ? Object.keys(bookingDoc) : [],
-              },
+              `[XState] checkout email skipped — no guest email [${tenant?.toUpperCase() || "UNKNOWN"}]`,
+              { calendarEventId },
             );
           }
         } catch (error) {
           console.error(
-            `🚨 XSTATE SERVICE CLOSEOUT EMAIL FAILED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-            {
-              calendarEventId,
-              email,
-              tenant,
-              error: error.message,
-            },
+            `[XState] checkout email failed [${tenant?.toUpperCase() || "UNKNOWN"}]`,
+            { calendarEventId, error: error.message },
           );
         }
 
@@ -809,13 +514,6 @@ async function handleGenericTransition(
 
       // Skip calendar update if this Service Closeout was triggered by No Show
       if (skipCalendarForServiceCloseout) {
-        console.log(
-          `⏭️ SKIPPING SERVICE CLOSEOUT CALENDAR UPDATE - HANDLED BY NO SHOW [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-          {
-            calendarEventId,
-            reason: "No Show processing already updated calendar",
-          },
-        );
         statusLabel = null; // Prevent generic history logging too
       }
     }
@@ -824,16 +522,6 @@ async function handleGenericTransition(
   // Apply status label to Firestore updates if determined
   if (statusLabel) {
     firestoreUpdates.status = statusLabel;
-    console.log(
-      `📋 XSTATE STATUS UPDATE [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-      {
-        calendarEventId,
-        previousState,
-        newState,
-        statusLabel,
-        willUpdateDatabaseStatus: true,
-      },
-    );
   }
 }
 
@@ -873,27 +561,19 @@ export async function sendCanceledEmail(
       });
 
       console.log(
-        `📧 CANCELED EMAIL SENT [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-        {
-          calendarEventId,
-          guestEmail,
-        },
+        `[XState] canceled email sent [${tenant?.toUpperCase() || "UNKNOWN"}]`,
+        { calendarEventId, guestEmail },
       );
     } else {
       console.warn(
-        `⚠️ CANCELED EMAIL SKIPPED - NO EMAIL [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-        {
-          calendarEventId,
-        },
+        `[XState] canceled email skipped — no guest email [${tenant?.toUpperCase() || "UNKNOWN"}]`,
+        { calendarEventId },
       );
     }
   } catch (error) {
     console.error(
-      `🚨 CANCELED EMAIL FAILED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-      {
-        calendarEventId,
-        error: error.message,
-      },
+      `[XState] canceled email failed [${tenant?.toUpperCase() || "UNKNOWN"}]`,
+      { calendarEventId, error: error.message },
     );
   }
 }

@@ -86,7 +86,7 @@ export function mapBookingStatusToXState(status: string): string {
       return "No Show";
     default:
       console.warn(
-        `Unknown booking status: ${status}, defaulting to Requested`,
+        `[XState] unknown booking status: ${status}, defaulting to Requested`,
       );
       return "Requested";
   }
@@ -114,14 +114,6 @@ export async function createXStateDataFromBookingStatus(
   bookingData: any,
   tenant?: string,
 ): Promise<PersistedXStateData> {
-  console.log(
-    `🏗️ CREATING XSTATE DATA FROM BOOKING STATUS [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-    {
-      calendarEventId,
-      tenant,
-    },
-  );
-
   const machine = getMachineForTenant(tenant);
   const bookingStatus = getBookingStatusFromData(bookingData);
   const xstateState = mapBookingStatusToXState(bookingStatus);
@@ -130,23 +122,6 @@ export async function createXStateDataFromBookingStatus(
   const servicesRequested = isMediaCommons(tenant)
     ? getMediaCommonsServices(bookingData)
     : {};
-
-  console.log(
-    `🔍 XSTATE CONTEXT DEBUG [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-    {
-      calendarEventId,
-      bookingDataKeys: Object.keys(bookingData || {}),
-      servicesRequestedResult: servicesRequested,
-      bookingDataServiceFields: {
-        roomSetup: bookingData?.roomSetup,
-        staffingServicesDetails: bookingData?.staffingServicesDetails,
-        equipmentServices: bookingData?.equipmentServices,
-        catering: bookingData?.catering,
-        cleaningService: bookingData?.cleaningService,
-        hireSecurity: bookingData?.hireSecurity,
-      },
-    },
-  );
 
   const inputContext = isMediaCommons(tenant)
     ? {
@@ -186,16 +161,6 @@ export async function createXStateDataFromBookingStatus(
         _restoredFromStatus: true,
       };
 
-  // Create actor starting from the target state directly (without transitions)
-  console.log(
-    `🎯 CREATING XSTATE DIRECTLY IN TARGET STATE [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-    {
-      calendarEventId,
-      targetState: xstateState,
-      bookingStatus,
-    },
-  );
-
   // Create actor directly in target state without executing transitions
   const actor = createActor(machine, {
     input: inputContext,
@@ -205,16 +170,6 @@ export async function createXStateDataFromBookingStatus(
   // Manually set the state to target without triggering transitions
   // This prevents automatic history logging during XState creation
   if (xstateState !== "Requested") {
-    console.log(
-      `🔧 MANUALLY SETTING XSTATE TO TARGET STATE [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-      {
-        calendarEventId,
-        fromState: "Requested",
-        toState: xstateState,
-        reason: "Skip transition side effects during XState creation",
-      },
-    );
-
     // Use internal method to set state without triggering side effects
     // This is safe for XState creation from existing booking status
     const currentSnapshot = actor.getSnapshot();
@@ -230,30 +185,8 @@ export async function createXStateDataFromBookingStatus(
   // Get the persisted snapshot using XState v5 method
   const persistedSnapshot = actor.getPersistedSnapshot();
 
-  console.log(
-    `🔍 RAW PERSISTED SNAPSHOT [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-    {
-      calendarEventId,
-      hasSnapshot: !!persistedSnapshot,
-      snapshotKeys: persistedSnapshot ? Object.keys(persistedSnapshot) : [],
-      snapshotPreview: persistedSnapshot
-        ? {
-            status: persistedSnapshot.status,
-            value: (persistedSnapshot as any).value,
-            hasContext: !!(persistedSnapshot as any).context,
-          }
-        : null,
-    },
-  );
-
   // Clean snapshot by removing undefined values for Firestore compatibility
   const cleanSnapshot = cleanObjectForFirestore(persistedSnapshot);
-
-  console.log(`🧹 CLEANED SNAPSHOT [${tenant?.toUpperCase() || "UNKNOWN"}]:`, {
-    calendarEventId,
-    hasCleanSnapshot: !!cleanSnapshot,
-    cleanSnapshotKeys: cleanSnapshot ? Object.keys(cleanSnapshot) : [],
-  });
 
   // Create XState data using proper v5 snapshot
   const xstateData: PersistedXStateData = {
@@ -273,12 +206,8 @@ export async function createXStateDataFromBookingStatus(
   );
 
   console.log(
-    `💾 XSTATE DATA CREATED AND SAVED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-    {
-      calendarEventId,
-      createdState: xstateState,
-      machineId: xstateData.machineId,
-    },
+    `[XState] created from booking status [${tenant?.toUpperCase() || "UNKNOWN"}]`,
+    { calendarEventId, state: xstateState, machineId: xstateData.machineId },
   );
 
   return xstateData;
@@ -292,14 +221,6 @@ export async function restoreXStateFromFirestore(
   tenant?: string,
 ): Promise<any> {
   try {
-    console.log(
-      `🔄 RESTORING XSTATE FROM FIRESTORE [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-      {
-        calendarEventId,
-        tenant,
-      },
-    );
-
     // Get booking data from Firestore
     // Try tenant-specific collection first, then fallback to legacy bookings collection
     let bookingData = await serverGetDataByCalendarEventId(
@@ -312,14 +233,6 @@ export async function restoreXStateFromFirestore(
 
     // If not found in tenant collection, try legacy bookings collection (no tenant)
     if (!bookingData && tenant) {
-      console.log(
-        `🔍 BOOKING NOT FOUND IN TENANT COLLECTION, TRYING LEGACY [${tenant?.toUpperCase()}]:`,
-        {
-          calendarEventId,
-          triedTenant: tenant,
-        },
-      );
-
       bookingData = await serverGetDataByCalendarEventId(
         TableNames.BOOKING,
         calendarEventId,
@@ -328,10 +241,6 @@ export async function restoreXStateFromFirestore(
 
       if (bookingData) {
         actualTenant = undefined; // Use undefined for legacy bookings
-        console.log(`✅ FOUND LEGACY BOOKING [${tenant?.toUpperCase()}]:`, {
-          calendarEventId,
-          usingLegacyCollection: true,
-        });
       }
     }
 
@@ -340,19 +249,6 @@ export async function restoreXStateFromFirestore(
       !("xstateData" in bookingData) ||
       !bookingData.xstateData
     ) {
-      console.log(
-        `❌ NO XSTATE DATA FOUND IN FIRESTORE [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-        {
-          calendarEventId,
-          hasBookingData: !!bookingData,
-          hasXStateData: !!(
-            bookingData &&
-            "xstateData" in bookingData &&
-            bookingData.xstateData
-          ),
-        },
-      );
-
       // Try to create XState data from booking status
       if (bookingData) {
         try {
@@ -369,22 +265,11 @@ export async function restoreXStateFromFirestore(
             snapshot: xstateData.snapshot,
           });
 
-          console.log(
-            `✅ XSTATE ACTOR CREATED FROM BOOKING STATUS [${tenant?.toUpperCase()}]:`,
-            {
-              calendarEventId,
-              machineId: xstateData.machineId,
-            },
-          );
-
           return restoredActor;
         } catch (error) {
           console.error(
-            `🚨 ERROR CREATING XSTATE FROM BOOKING STATUS [${tenant?.toUpperCase()}]:`,
-            {
-              calendarEventId,
-              error: error.message,
-            },
+            `[XState] failed to create from booking status [${tenant?.toUpperCase()}]`,
+            { calendarEventId, error: error.message },
           );
           return null;
         }
@@ -395,40 +280,8 @@ export async function restoreXStateFromFirestore(
 
     const rawXStateData = (bookingData as any).xstateData;
 
-    console.log(
-      `📥 FOUND XSTATE DATA IN FIRESTORE [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-      {
-        machineId: rawXStateData.machineId,
-        lastTransition: rawXStateData.lastTransition,
-        hasSnapshot: !!rawXStateData.snapshot,
-        snapshotKeys: rawXStateData.snapshot
-          ? Object.keys(rawXStateData.snapshot)
-          : [],
-        snapshotPreview: rawXStateData.snapshot
-          ? {
-              status: rawXStateData.snapshot.status,
-              value: rawXStateData.snapshot.value,
-              hasContext: !!rawXStateData.snapshot.context,
-              contextKeys: rawXStateData.snapshot.context
-                ? Object.keys(rawXStateData.snapshot.context)
-                : [],
-            }
-          : null,
-        isLegacyFormat: !rawXStateData.snapshot && !!rawXStateData.currentState,
-      },
-    );
-
     // Check if this is legacy XState v4 format and needs migration
     if (!rawXStateData.snapshot && rawXStateData.currentState) {
-      console.log(
-        `🔄 MIGRATING LEGACY XSTATE DATA [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-        {
-          calendarEventId,
-          oldCurrentState: rawXStateData.currentState,
-          hasOldContext: !!rawXStateData.context,
-        },
-      );
-
       // Create new XState data from current booking status
       try {
         const newXStateData = await createXStateDataFromBookingStatus(
@@ -444,22 +297,11 @@ export async function restoreXStateFromFirestore(
           snapshot: newXStateData.snapshot,
         });
 
-        console.log(
-          `✅ LEGACY XSTATE DATA MIGRATED [${tenant?.toUpperCase()}]:`,
-          {
-            calendarEventId,
-            machineId: newXStateData.machineId,
-          },
-        );
-
         return restoredActor;
       } catch (error) {
         console.error(
-          `🚨 ERROR MIGRATING LEGACY XSTATE [${tenant?.toUpperCase()}]:`,
-          {
-            calendarEventId,
-            error: error.message,
-          },
+          `[XState] legacy migration failed [${tenant?.toUpperCase()}]`,
+          { calendarEventId, error: error.message },
         );
         return null;
       }
@@ -473,12 +315,8 @@ export async function restoreXStateFromFirestore(
     // Validate machine ID
     if (machine.id !== xstateData.machineId) {
       console.warn(
-        `⚠️ MACHINE ID MISMATCH [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-        {
-          expectedMachineId: machine.id,
-          foundMachineId: xstateData.machineId,
-          calendarEventId,
-        },
+        `[XState] machine ID mismatch [${tenant?.toUpperCase() || "UNKNOWN"}]`,
+        { expected: machine.id, found: xstateData.machineId, calendarEventId },
       );
     }
 
@@ -494,17 +332,6 @@ export async function restoreXStateFromFirestore(
         security: (bookingData as any).securityServiceApproved,
         setup: (bookingData as any).setupServiceApproved,
       };
-
-      console.log(
-        `🔄 UPDATING XSTATE CONTEXT WITH CURRENT SERVICES [${tenant?.toUpperCase()}]:`,
-        {
-          calendarEventId,
-          oldServicesRequested: updatedSnapshot.context.servicesRequested,
-          newServicesRequested: currentServicesRequested,
-          oldServicesApproved: updatedSnapshot.context.servicesApproved,
-          newServicesApproved: currentServicesApproved,
-        },
-      );
 
       updatedSnapshot.context = {
         ...updatedSnapshot.context,
@@ -524,19 +351,8 @@ export async function restoreXStateFromFirestore(
       });
     } catch (error) {
       console.error(
-        `🚨 ERROR CREATING XSTATE ACTOR [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-        {
-          calendarEventId,
-          error: error.message,
-          snapshotValue: updatedSnapshot?.value,
-          hasContext: !!updatedSnapshot?.context,
-        },
-      );
-
-      // If snapshot restoration fails, create new XState data
-      console.log(
-        `🔄 FALLING BACK TO NEW XSTATE DATA CREATION [${tenant?.toUpperCase()}]:`,
-        { calendarEventId },
+        `[XState] actor creation failed, falling back to new data [${tenant?.toUpperCase() || "UNKNOWN"}]`,
+        { calendarEventId, error: error.message },
       );
 
       const newXStateData = await createXStateDataFromBookingStatus(
@@ -550,24 +366,11 @@ export async function restoreXStateFromFirestore(
       });
     }
 
-    console.log(
-      `✅ XSTATE ACTOR RESTORED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-      {
-        calendarEventId,
-        machineId: xstateData.machineId,
-        restoredSuccessfully: true,
-        contextUpdated: isMediaCommons(tenant),
-      },
-    );
-
     return restoredActor;
   } catch (error) {
     console.error(
-      `🚨 ERROR RESTORING XSTATE [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-      {
-        calendarEventId,
-        error: error.message,
-      },
+      `[XState] restore failed [${tenant?.toUpperCase() || "UNKNOWN"}]`,
+      { calendarEventId, error: error.message },
     );
     return null;
   }
