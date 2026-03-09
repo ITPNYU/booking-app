@@ -17,6 +17,7 @@ import { auth } from "@/lib/firebase/firebaseClient";
 import { styled } from "@mui/system";
 import { signOut } from "firebase/auth";
 import { PagePermission } from "../../../types";
+import { PERMISSION_PATH } from "../../../utils/permissions";
 import useHandleStartBooking from "../booking/hooks/useHandleStartBooking";
 import ConfirmDialog from "./ConfirmDialog";
 import { DatabaseContext } from "./Provider";
