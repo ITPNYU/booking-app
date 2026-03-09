@@ -1,4 +1,5 @@
 import { getCalendarClient } from "@/lib/googleClient";
+import { traceExternalCall } from "@/lib/newrelic-utils";
 import { BookingFormDetails, BookingStatusLabel } from "../types";
 import { formatOrigin, getSecondaryContactName } from "../utils/formatters";
 
@@ -16,12 +17,14 @@ export const patchCalendarEvent = async (
     end: event.end,
     ...body,
   };
-  await calendar.events.patch({
-    calendarId,
-    eventId,
-    requestBody,
-    sendUpdates: "all", // Send notifications to all attendees when calendar is updated
-  });
+  await traceExternalCall("GoogleCalendar", "events.patch", () =>
+    calendar.events.patch({
+      calendarId,
+      eventId,
+      requestBody,
+      sendUpdates: "all", // Send notifications to all attendees when calendar is updated
+    }),
+  );
 };
 
 export const inviteUserToCalendarEvent = async (
@@ -34,10 +37,12 @@ export const inviteUserToCalendarEvent = async (
 
   for (const roomCalendarId of roomCalendarIds) {
     try {
-      const event = await calendar.events.get({
-        calendarId: roomCalendarId,
-        eventId: calendarEventId,
-      });
+      const event = await traceExternalCall("GoogleCalendar", "events.get", () =>
+        calendar.events.get({
+          calendarId: roomCalendarId,
+          eventId: calendarEventId,
+        }),
+      );
 
       if (event) {
         const eventData = event.data;
@@ -280,21 +285,26 @@ export const insertEvent = async ({
   roomEmails,
 }: InsertEventType) => {
   const calendar = await getCalendarClient();
-  const event = await calendar.events.insert({
-    calendarId,
-    sendUpdates: "all", // Send notifications to all attendees when calendar event is created
-    requestBody: {
-      summary: title,
-      description,
-      start: {
-        dateTime: new Date(startTime).toISOString(),
-      },
-      end: {
-        dateTime: new Date(endTime).toISOString(),
-      },
-      attendees: roomEmails.map((email: string) => ({ email })),
-    },
-  });
+  const event = await traceExternalCall(
+    "GoogleCalendar",
+    "events.insert",
+    () =>
+      calendar.events.insert({
+        calendarId,
+        sendUpdates: "all", // Send notifications to all attendees when calendar event is created
+        requestBody: {
+          summary: title,
+          description,
+          start: {
+            dateTime: new Date(startTime).toISOString(),
+          },
+          end: {
+            dateTime: new Date(endTime).toISOString(),
+          },
+          attendees: roomEmails.map((email: string) => ({ email })),
+        },
+      }),
+  );
   return event.data;
 };
 
@@ -325,10 +335,12 @@ export const updateCalendarEvent = async (
 
   for (const roomCalendarId of roomCalendarIds) {
     try {
-      const event = await calendar.events.get({
-        calendarId: roomCalendarId,
-        eventId: calendarEventId,
-      });
+      const event = await traceExternalCall("GoogleCalendar", "events.get", () =>
+        calendar.events.get({
+          calendarId: roomCalendarId,
+          eventId: calendarEventId,
+        }),
+      );
 
       if (!event) {
         throw new Error("event not found with specified id");
@@ -387,11 +399,13 @@ export const deleteEvent = async (
 ) => {
   const calendar = await getCalendarClient();
   try {
-    await calendar.events.delete({
-      calendarId,
-      eventId: calendarEventId,
-      sendUpdates: "all", // Send cancellation notifications to all attendees
-    });
+    await traceExternalCall("GoogleCalendar", "events.delete", () =>
+      calendar.events.delete({
+        calendarId,
+        eventId: calendarEventId,
+        sendUpdates: "all", // Send cancellation notifications to all attendees
+      }),
+    );
     console.log(`deleted calendar event for ${roomId}`);
   } catch (error) {
     console.log(`calendar event doesn't exist for room ${roomId}`);
