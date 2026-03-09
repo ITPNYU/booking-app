@@ -17,7 +17,7 @@ const parseTimestamp = (value: DateInput): Timestamp => {
 
 export const serverFormatDate = (
   input: string,
-  timeZone: string = TIMEZONE
+  timeZone: string = TIMEZONE,
 ): string => {
   if (!input) return "";
   try {
@@ -38,7 +38,7 @@ export const serverFormatDate = (
 
 export const serverFormatDateOnly = (
   input: string,
-  timeZone: string = TIMEZONE
+  timeZone: string = TIMEZONE,
 ): string => {
   if (!input) return "";
   try {
@@ -61,7 +61,7 @@ export const toFirebaseTimestamp = (date: Date | string | number): Timestamp =>
   parseTimestamp(date);
 
 export const toFirebaseTimestampFromString = (
-  dateString: string
+  dateString: string,
 ): Timestamp => {
   try {
     const date = new Date(dateString);
@@ -74,7 +74,7 @@ export const toFirebaseTimestampFromString = (
       "Error converting string to Timestamp:",
       error,
       "Input:",
-      dateString
+      dateString,
     );
     throw error;
   }

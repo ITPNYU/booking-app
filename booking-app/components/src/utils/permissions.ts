@@ -1,6 +1,18 @@
 import { PagePermission } from "../types";
 
 /**
+ * Maps privileged PagePermission values to their URL path segment.
+ * BOOKING is omitted — it maps to the tenant root, not a sub-path.
+ */
+export const PERMISSION_PATH: Partial<Record<PagePermission, string>> = {
+  [PagePermission.SUPER_ADMIN]: "super",
+  [PagePermission.ADMIN]: "admin",
+  [PagePermission.SERVICES]: "services",
+  [PagePermission.LIAISON]: "liaison",
+  [PagePermission.PA]: "pa",
+};
+
+/**
  * Permission hierarchy definition
  * Defines which lower-level permissions each permission includes
  */
@@ -31,7 +43,7 @@ const PERMISSION_HIERARCHY: Record<PagePermission, PagePermission[]> = {
  */
 export function hasPermission(
   userPermission: PagePermission,
-  requiredPermission: PagePermission
+  requiredPermission: PagePermission,
 ): boolean {
   const allowedPermissions = PERMISSION_HIERARCHY[userPermission] || [];
   return allowedPermissions.includes(requiredPermission);
@@ -42,10 +54,10 @@ export function hasPermission(
  */
 export function hasAnyPermission(
   userPermission: PagePermission,
-  requiredPermissions: PagePermission[]
+  requiredPermissions: PagePermission[],
 ): boolean {
   return requiredPermissions.some((permission) =>
-    hasPermission(userPermission, permission)
+    hasPermission(userPermission, permission),
   );
 }
 
@@ -76,7 +88,7 @@ export function canAccessAdmin(userPermission: PagePermission): boolean {
  */
 export function hasMinimumPermission(
   userPermission: PagePermission,
-  minimumPermission: PagePermission
+  minimumPermission: PagePermission,
 ): boolean {
   return hasPermission(userPermission, minimumPermission);
 }

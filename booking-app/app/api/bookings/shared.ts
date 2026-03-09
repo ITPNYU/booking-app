@@ -8,7 +8,7 @@ import { NextRequest } from "next/server";
 import { format, toZonedTime } from "date-fns-tz";
 
 // All times in the booking app are in Eastern Time
-const TIMEZONE = "America/New_York";
+export const TIMEZONE = "America/New_York";
 
 /**
  * Checks if a school value represents "Other" selection.
@@ -51,16 +51,16 @@ export const getOtherDisplayFields = (data: {
   otherDepartment?: string;
   school?: string;
   otherSchool?: string;
-}) => {
-  return {
-    ...(data?.department === Department.OTHER && data?.otherDepartment && {
+}) => ({
+  ...(data?.department === Department.OTHER &&
+    data?.otherDepartment && {
       departmentDisplay: data.otherDepartment,
     }),
-    ...(isOtherSchool(data?.school) && data?.otherSchool && {
+  ...(isOtherSchool(data?.school) &&
+    data?.otherSchool && {
       schoolDisplay: data.otherSchool,
     }),
-  };
-};
+});
 
 export const extractTenantFromRequest = (request: NextRequest): string => {
   const url = new URL(request.url);
@@ -70,13 +70,11 @@ export const extractTenantFromRequest = (request: NextRequest): string => {
   return tenant && tenant !== "api" ? tenant : DEFAULT_TENANT;
 };
 
-export const getTenantFlags = (tenant: string) => {
-  return {
-    isITP: tenant === "itp",
-    isMediaCommons: isMediaCommons(tenant),
-    usesXState: true,
-  };
-};
+export const getTenantFlags = (tenant: string) => ({
+  isITP: tenant === "itp",
+  isMediaCommons: isMediaCommons(tenant),
+  usesXState: true,
+});
 
 export const getTenantRooms = async (tenant?: string) => {
   try {
@@ -90,7 +88,9 @@ export const getTenantRooms = async (tenant?: string) => {
       return [];
     }
 
-    const resourcesWithCorrectCalendarIds = applyEnvironmentCalendarIds(schema.resources);
+    const resourcesWithCorrectCalendarIds = applyEnvironmentCalendarIds(
+      schema.resources,
+    );
 
     return resourcesWithCorrectCalendarIds.map((resource: any) => ({
       roomId: resource.roomId,
@@ -116,7 +116,7 @@ export const buildBookingContents = (
   // Convert to Eastern Time before formatting
   const startDateET = toZonedTime(startDateObj, TIMEZONE);
   const endDateET = toZonedTime(endDateObj, TIMEZONE);
-  
+
   return {
     ...data,
     roomId: selectedRoomIds,

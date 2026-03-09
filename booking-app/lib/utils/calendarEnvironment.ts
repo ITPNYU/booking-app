@@ -1,6 +1,5 @@
-export const isProductionEnvironment = (): boolean => {
-  return process.env.NEXT_PUBLIC_BRANCH_NAME === "production";
-};
+export const isProductionEnvironment = (): boolean =>
+  process.env.NEXT_PUBLIC_BRANCH_NAME === "production";
 
 export const getEnvironmentCalendarId = (resource: {
   calendarId: string;
@@ -9,20 +8,22 @@ export const getEnvironmentCalendarId = (resource: {
 }): string => {
   if (isProductionEnvironment()) {
     if (!resource.calendarIdProd) {
-      throw new Error(`Production calendar ID not configured for resource`);
+      throw new Error("Production calendar ID not configured for resource");
     }
     return resource.calendarIdProd;
   }
-  
+
   return resource.calendarIdDev || resource.calendarId;
 };
 
-export const applyEnvironmentCalendarId = <T extends { 
-  calendarId: string; 
-  calendarIdDev?: string;
-  calendarIdProd?: string;
-}>(
-  resource: T
+export const applyEnvironmentCalendarId = <
+  T extends {
+    calendarId: string;
+    calendarIdDev?: string;
+    calendarIdProd?: string;
+  },
+>(
+  resource: T,
 ): T => {
   const selectedCalendarId = getEnvironmentCalendarId(resource);
   return {
@@ -31,13 +32,12 @@ export const applyEnvironmentCalendarId = <T extends {
   };
 };
 
-export const applyEnvironmentCalendarIds = <T extends { 
-  calendarId: string; 
-  calendarIdDev?: string;
-  calendarIdProd?: string;
-}>(
-  resources: T[]
-): T[] => {
-  return resources.map(applyEnvironmentCalendarId);
-};
-
+export const applyEnvironmentCalendarIds = <
+  T extends {
+    calendarId: string;
+    calendarIdDev?: string;
+    calendarIdProd?: string;
+  },
+>(
+  resources: T[],
+): T[] => resources.map(applyEnvironmentCalendarId);

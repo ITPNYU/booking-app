@@ -1,4 +1,8 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
+
+import { DateSelectArg } from "@fullcalendar/core";
+import dayjs from "dayjs";
+import { usePathname } from "next/navigation";
 import {
   CalendarEvent,
   Department,
@@ -7,10 +11,6 @@ import {
   RoomSetting,
   SubmitStatus,
 } from "../../../types";
-
-import { DateSelectArg } from "@fullcalendar/core";
-import dayjs from "dayjs";
-import { usePathname } from "next/navigation";
 import { SAFETY_TRAINING_REQUIRED_ROOM } from "../../../mediaCommonsPolicy";
 import { getAffectingBlackoutPeriods } from "../../../utils/blackoutUtils";
 import { DatabaseContext } from "../components/Provider";
@@ -126,7 +126,7 @@ export function BookingProvider({ children }) {
 
     // For walk-in bookings, check if the walk-in person (not the PA) is banned
     if (pathname.includes("/walk-in") && formData?.walkInNetId?.length > 0) {
-      return bannedEmails.includes(formData?.walkInNetId + "@nyu.edu");
+      return bannedEmails.includes(`${formData?.walkInNetId}@nyu.edu`);
     }
 
     if (!userEmail) return false;
@@ -138,7 +138,7 @@ export function BookingProvider({ children }) {
 
     // For walk-in bookings, check if the walk-in person (not the PA) has safety training
     if (pathname.includes("/walk-in") && formData?.walkInNetId?.length > 0) {
-      return safetyTrainedEmails.includes(formData?.walkInNetId + "@nyu.edu");
+      return safetyTrainedEmails.includes(`${formData?.walkInNetId}@nyu.edu`);
     }
 
     if (!userEmail) return false;
@@ -148,9 +148,9 @@ export function BookingProvider({ children }) {
   // block progressing in the form is safety training requirement isn't met
   const needsSafetyTraining = useMemo(() => {
     const isStudent = role === Role.STUDENT;
-    const roomRequiresSafetyTraining = selectedRooms.some((room) => {
-      return room.needsSafetyTraining || false;
-    });
+    const roomRequiresSafetyTraining = selectedRooms.some(
+      (room) => room.needsSafetyTraining || false,
+    );
     return isStudent && roomRequiresSafetyTraining && !isSafetyTrained;
   }, [selectedRooms, role, isSafetyTrained]);
 
@@ -166,7 +166,7 @@ export function BookingProvider({ children }) {
       blackoutPeriods,
       bookingStart,
       bookingEnd,
-      selectedRoomIds
+      selectedRoomIds,
     );
 
     return affectingPeriods.length > 0;

@@ -13,6 +13,7 @@ import {
 } from "firebase-admin/firestore";
 
 import { BookingLog, BookingStatusLabel } from "@/components/src/types";
+import { traceDatabase } from "@/lib/newrelic-utils";
 import admin from "./firebaseAdmin";
 
 const db = admin.firestore();
@@ -20,10 +21,8 @@ const db = admin.firestore();
 // Helper function to get tenant-specific collection name for server-side
 export const getServerTenantCollection = (
   baseCollection: TableNames,
-  tenant?: string
-): string => {
-  return getTenantCollectionName(baseCollection, tenant);
-};
+  tenant?: string,
+): string => getTenantCollectionName(baseCollection, tenant);
 
 export type AdminUserData = {
   email: string;
@@ -33,14 +32,16 @@ export type AdminUserData = {
 export const serverDeleteData = async (
   collectionName: string,
   docId: string,
-  tenant?: string
+  tenant?: string,
 ) => {
   try {
     const tenantCollection = getServerTenantCollection(
       collectionName as TableNames,
-      tenant
+      tenant,
     );
-    await db.collection(tenantCollection).doc(docId).delete();
+    await traceDatabase("delete", `Firestore/${tenantCollection}`, () =>
+      db.collection(tenantCollection).doc(docId).delete(),
+    );
     console.log("Document successfully deleted with ID:", docId);
   } catch (error) {
     console.error("Error deleting document: ", error);
@@ -51,19 +52,21 @@ export const serverDeleteDocumentFields = async (
   collectionName: string,
   docId: string,
   fields: string[],
-  tenant?: string
+  tenant?: string,
 ) => {
   try {
     const tenantCollection = getServerTenantCollection(
       collectionName as TableNames,
-      tenant
+      tenant,
     );
     const updateData = fields.reduce((acc, field) => {
       acc[field] = FieldValue.delete();
       return acc;
     }, {});
 
-    await db.collection(tenantCollection).doc(docId).update(updateData);
+    await traceDatabase("deleteFields", `Firestore/${tenantCollection}`, () =>
+      db.collection(tenantCollection).doc(docId).update(updateData),
+    );
     console.log("Fields successfully deleted from document:", docId);
   } catch (error) {
     console.error("Error deleting fields from document:", error);
@@ -72,34 +75,40 @@ export const serverDeleteDocumentFields = async (
 
 export const serverGetNextSequentialId = async (
   collectionName: string,
-  tenant?: string
+  tenant?: string,
 ) => {
   // For counters, we need to use the counters collection, not the target collection
   const counterCollection = getServerTenantCollection(
     "counters" as TableNames,
-    tenant
+    tenant,
   );
   const counterDocRef = db.collection(counterCollection).doc(collectionName);
-  const counterDoc = await counterDocRef.get();
+  const counterDoc = await traceDatabase("get", "Firestore/counters", () =>
+    counterDocRef.get(),
+  );
   let currentCount = 1;
   if (counterDoc.exists) {
     currentCount = (counterDoc.data()?.count || 0) + 1;
   }
-  await counterDocRef.set({ count: currentCount }, { merge: true });
+  await traceDatabase("set", "Firestore/counters", () =>
+    counterDocRef.set({ count: currentCount }, { merge: true }),
+  );
   return currentCount;
 };
 
 export const serverSaveDataToFirestore = async (
   collectionName: string,
   data: object,
-  tenant?: string
+  tenant?: string,
 ) => {
   try {
     const tenantCollection = getServerTenantCollection(
       collectionName as TableNames,
-      tenant
+      tenant,
     );
-    const docRef = await db.collection(tenantCollection).add(data);
+    const docRef = await traceDatabase("add", `Firestore/${tenantCollection}`, () =>
+      db.collection(tenantCollection).add(data),
+    );
     console.log("Document successfully written with ID:", docRef.id);
     return docRef;
   } catch (error) {
@@ -111,11 +120,13 @@ export const serverSaveDataToFirestore = async (
 export const serverSaveDataToFirestoreWithId = async (
   collectionName: string,
   docId: string,
-  data: object
+  data: object,
 ) => {
   try {
     const docRef = db.collection(collectionName).doc(docId);
-    await docRef.set(data);
+    await traceDatabase("set", `Firestore/${collectionName}`, () =>
+      docRef.set(data),
+    );
     console.log("Document successfully written with ID:", docId);
     return docRef;
   } catch (error) {
@@ -127,12 +138,14 @@ export const serverSaveDataToFirestoreWithId = async (
 export const serverGetDocumentById = async <T extends DocumentData>(
   collectionName: TableNames,
   docId: string,
-  tenant?: string
+  tenant?: string,
 ): Promise<T | null> => {
   try {
     const tenantCollection = getServerTenantCollection(collectionName, tenant);
     const docRef = db.collection(tenantCollection).doc(docId);
-    const docSnap = await docRef.get();
+    const docSnap = await traceDatabase("get", `Firestore/${tenantCollection}`, () =>
+      docRef.get(),
+    );
 
     if (docSnap.exists) {
       return docSnap.data() as T;
@@ -153,11 +166,11 @@ export type Constraint = {
 export const serverFetchAllDataFromCollection = async <T extends DocumentData>(
   collectionName: TableNames,
   queryConstraints: Constraint[] = [],
-  tenant?: string
+  tenant?: string,
 ): Promise<T[]> => {
   const tenantCollection = getServerTenantCollection(collectionName, tenant);
   const collectionRef: CollectionReference<T> = db.collection(
-    tenantCollection
+    tenantCollection,
   ) as CollectionReference<T>;
 
   let query: Query<T> = collectionRef;
@@ -166,11 +179,15 @@ export const serverFetchAllDataFromCollection = async <T extends DocumentData>(
     query = query.where(
       constraint.field,
       constraint.operator,
-      constraint.value
+      constraint.value,
     );
   });
 
-  const snapshot: QuerySnapshot<T> = await query.get();
+  const snapshot: QuerySnapshot<T> = await traceDatabase(
+    "query",
+    `Firestore/${tenantCollection}`,
+    () => query.get(),
+  );
 
   return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
 };
@@ -178,15 +195,20 @@ export const serverFetchAllDataFromCollection = async <T extends DocumentData>(
 export const serverGetDataByCalendarEventId = async <T>(
   collectionName: TableNames,
   calendarEventId: string,
-  tenant?: string
+  tenant?: string,
 ) => {
   try {
     const tenantCollection = getServerTenantCollection(collectionName, tenant);
-    const snapshot = await db
-      .collection(tenantCollection)
-      .where("calendarEventId", "==", calendarEventId)
-      .limit(1)
-      .get();
+    const snapshot = await traceDatabase(
+      "query",
+      `Firestore/${tenantCollection}`,
+      () =>
+        db
+          .collection(tenantCollection)
+          .where("calendarEventId", "==", calendarEventId)
+          .limit(1)
+          .get(),
+    );
     if (!snapshot.empty) {
       const doc = snapshot.docs[0];
       return { id: doc.id, ...(doc.data() as T) };
@@ -203,14 +225,16 @@ export const serverUpdateInFirestore = async (
   collectionName: string,
   docId: string,
   updatedData: object,
-  tenant?: string
+  tenant?: string,
 ) => {
   try {
     const tenantCollection = getServerTenantCollection(
       collectionName as TableNames,
-      tenant
+      tenant,
     );
-    await db.collection(tenantCollection).doc(docId).update(updatedData);
+    await traceDatabase("update", `Firestore/${tenantCollection}`, () =>
+      db.collection(tenantCollection).doc(docId).update(updatedData),
+    );
     console.log("Document successfully updated with ID:", docId);
   } catch (error) {
     console.error("Error updating document: ", error);
@@ -221,9 +245,11 @@ export const serverGetFinalApproverEmailFromDatabase = async (): Promise<
 > => {
   try {
     const policyCollection = db.collection(TableNames.APPROVERS);
-    const querySnapshot = await policyCollection
-      .where("level", "==", ApproverLevel.FINAL)
-      .get();
+    const querySnapshot = await traceDatabase(
+      "query",
+      "Firestore/approvers",
+      () => policyCollection.where("level", "==", ApproverLevel.FINAL).get(),
+    );
     if (!querySnapshot.empty) {
       const doc = querySnapshot.docs[0];
       const finalApproverEmail = doc.data().email;
@@ -277,17 +303,21 @@ export const logServerBookingChange = async ({
 
 export const getBookingLogs = async (
   requestNumber: number,
-  tenant?: string
+  tenant?: string,
 ): Promise<BookingLog[]> => {
   try {
     const tenantCollection = getServerTenantCollection(
       TableNames.BOOKING_LOGS,
-      tenant
+      tenant,
     );
     const logsRef = db.collection(tenantCollection);
     const q = logsRef.where("requestNumber", "==", requestNumber);
 
-    const querySnapshot = await q.get();
+    const querySnapshot = await traceDatabase(
+      "query",
+      "Firestore/bookingLogs",
+      () => q.get(),
+    );
 
     const results = querySnapshot.docs.map((doc) => {
       const data = doc.data();

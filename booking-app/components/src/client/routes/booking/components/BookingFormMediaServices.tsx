@@ -1,11 +1,11 @@
 import { Checkbox, FormControlLabel, Switch } from "@mui/material";
 import { Control, Controller, UseFormTrigger } from "react-hook-form";
-import { FormContextLevel, Inputs, MediaServices } from "../../../../types";
 import React, { useContext, useMemo } from "react";
+import styled from "@emotion/styled";
+import { FormContextLevel, Inputs, MediaServices } from "../../../../types";
 
 import { BookingContext } from "../bookingProvider";
 import { useTenantSchema } from "../../components/SchemaProvider";
-import styled from "@emotion/styled";
 
 const Label = styled.label`
   font-weight: 500;
@@ -131,7 +131,7 @@ export default function BookingFormMediaServices(props: Props) {
                           newValue = [...values, checkbox];
                         } else {
                           newValue = values.filter(
-                            (value) => value !== checkbox
+                            (value) => value !== checkbox,
                           );
                         }
                         field.onChange(newValue.join(", "));

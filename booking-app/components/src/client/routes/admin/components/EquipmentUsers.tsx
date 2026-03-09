@@ -6,29 +6,27 @@ import AddRow from "../../components/AddRow";
 import ListTable from "../../components/ListTable";
 import { DatabaseContext } from "../../components/Provider";
 
-const AddEquipmentForm = ({ equipmentEmails, reloadEquipmentEmails }) => {
-  return (
-    <AddRow
-      addDuplicateErrorMessage="This user is already registered"
-      addFailedErrorMessage="Failed to add user as equipments"
-      columnNameUniqueValue="email"
-      inputPlaceholder="Add email"
-      tableName={TableNames.APPROVERS}
-      rows={equipmentEmails}
-      rowsRefresh={reloadEquipmentEmails}
-      title="Equipment Users"
-      extra={{
-        values: { level: ApproverLevel.EQUIPMENT },
-      }}
-    />
-  );
-};
+const AddEquipmentForm = ({ equipmentEmails, reloadEquipmentEmails }) => (
+  <AddRow
+    addDuplicateErrorMessage="This user is already registered"
+    addFailedErrorMessage="Failed to add user as equipments"
+    columnNameUniqueValue="email"
+    inputPlaceholder="Add email"
+    tableName={TableNames.APPROVERS}
+    rows={equipmentEmails}
+    rowsRefresh={reloadEquipmentEmails}
+    title="Equipment Users"
+    extra={{
+      values: { level: ApproverLevel.EQUIPMENT },
+    }}
+  />
+);
 
 export const EquipmentUsers = () => {
   const { equipmentUsers, reloadApproverUsers } = useContext(DatabaseContext);
   const equipmentEmails = useMemo<string[]>(
     () => equipmentUsers.map((user) => user.email),
-    [equipmentUsers]
+    [equipmentUsers],
   );
 
   const rows = useMemo(() => {

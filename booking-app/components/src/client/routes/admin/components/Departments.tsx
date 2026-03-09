@@ -1,8 +1,8 @@
 import React, { useContext, useMemo, useState } from "react";
 
+import { Box } from "@mui/material";
 import AddDepartmentRow from "../../components/AddDepartmentRow";
 import AddRow from "../../components/AddRow";
-import { Box } from "@mui/material";
 import { DatabaseContext } from "../../components/Provider";
 import { Department } from "../../../../types";
 import Dropdown from "../../booking/components/Dropdown";
@@ -25,7 +25,7 @@ const AddDepartmentForm = ({ departments, reloadDepartments }) => {
         />
       </Box>
     ),
-    [departmentName]
+    [departmentName],
   );
 
   const departmentTierDropdown = useMemo(
@@ -39,7 +39,7 @@ const AddDepartmentForm = ({ departments, reloadDepartments }) => {
         />
       </Box>
     ),
-    [departmentTier]
+    [departmentTier],
   );
 
   return (
@@ -64,23 +64,21 @@ export const Departments = () => {
 
   const departments = useMemo<string[]>(
     () => departmentNames.map((user) => user.department),
-    [departmentNames]
+    [departmentNames],
   );
 
-  const formatDepartmentTier = (departmentTier) => {
-    return departmentTier;
-  };
+  const formatDepartmentTier = (departmentTier) => departmentTier;
 
-  const formattedDepartmentNames = useMemo(() => {
-    return departmentNames
-      .map((user) => {
-        return {
+  const formattedDepartmentNames = useMemo(
+    () =>
+      departmentNames
+        .map((user) => ({
           ...user,
           departmentTier: user.departmentTier || "Unknown", // Display empty string if departmentTier is falsy
-        };
-      })
-      .sort((a, b) => a.department.localeCompare(b.department));
-  }, [departmentNames]);
+        }))
+        .sort((a, b) => a.department.localeCompare(b.department)),
+    [departmentNames],
+  );
 
   return (
     <ListTable

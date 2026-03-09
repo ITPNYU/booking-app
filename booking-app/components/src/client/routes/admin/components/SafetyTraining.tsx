@@ -10,7 +10,7 @@ export default function SafetyTrainedUsers() {
     useContext(DatabaseContext);
 
   const safetyTrainUsersFromFirestore = safetyTrainedUsers.filter(
-    (user) => user.id !== null
+    (user) => user.id !== null,
   );
 
   return (

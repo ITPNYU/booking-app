@@ -6,6 +6,8 @@ import WalkInLandingPage from "@/components/src/client/routes/walk-in/DirectLand
 import { FormContextLevel } from "@/components/src/types";
 import React from "react";
 
-const VIPHomePage: React.FC = () => <WalkInLandingPage formContext={FormContextLevel.VIP} />;
+const VIPHomePage: React.FC = () => (
+  <WalkInLandingPage formContext={FormContextLevel.VIP} />
+);
 
 export default VIPHomePage;

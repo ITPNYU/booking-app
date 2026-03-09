@@ -42,7 +42,7 @@ interface Props {
 }
 
 const modalStyle = {
-  position: "absolute" as "absolute",
+  position: "absolute" as const,
   top: "50%",
   left: "50%",
   transform: "translate(-50%, -50%)",
@@ -101,7 +101,7 @@ export default function MoreInfoModal({
 
   const [isEditingCart, setIsEditingCart] = useState(false);
   const [cartNumber, setCartNumber] = useState(
-    booking.webcheckoutCartNumber || ""
+    booking.webcheckoutCartNumber || "",
   );
   const [isUpdating, setIsUpdating] = useState(false);
   const [webCheckoutUrl, setWebCheckoutUrl] = useState<string | null>(null);
@@ -124,7 +124,7 @@ export default function MoreInfoModal({
         body: JSON.stringify({
           calendarEventId: booking.calendarEventId,
           cartNumber: cartNumber.trim(),
-          userEmail: userEmail,
+          userEmail,
         }),
       });
 
@@ -262,7 +262,7 @@ export default function MoreInfoModal({
                                   size="small"
                                   onClick={() =>
                                     navigator.clipboard.writeText(
-                                      webCheckoutUrl
+                                      webCheckoutUrl,
                                     )
                                   }
                                   sx={{
@@ -359,7 +359,7 @@ export default function MoreInfoModal({
                                               item.subitems.map(
                                                 (
                                                   subitem: any,
-                                                  subIndex: number
+                                                  subIndex: number,
                                                 ) => (
                                                   <Typography
                                                     key={subIndex}
@@ -374,13 +374,13 @@ export default function MoreInfoModal({
                                                   >
                                                     - {subitem.label}
                                                   </Typography>
-                                                )
+                                                ),
                                               )}
                                           </Box>
-                                        )
+                                        ),
                                       )}
                                     </Box>
-                                  )
+                                  ),
                                 )}
                               </Box>
                             </Box>
@@ -438,7 +438,7 @@ export default function MoreInfoModal({
             <RoomDetails container>
               <label>Time:</label>
               <p>{`${formatTimeAmPm(booking.startDate.toDate())} - ${formatTimeAmPm(
-                booking.endDate.toDate()
+                booking.endDate.toDate(),
               )}`}</p>
             </RoomDetails>
             <RoomDetails container>
@@ -513,7 +513,7 @@ export default function MoreInfoModal({
                   <TableCell>
                     {booking.department === "Other" && booking.otherDepartment
                       ? booking.otherDepartment
-                      : booking.department ?? BLANK}
+                      : (booking.department ?? BLANK)}
                   </TableCell>
                 </TableRow>
                 <TableRow>

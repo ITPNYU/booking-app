@@ -38,7 +38,7 @@ function mapBookingStatusToXState(status: string): string {
       return "No Show";
     default:
       console.warn(
-        `Unknown booking status: ${status}, defaulting to Requested`
+        `Unknown booking status: ${status}, defaulting to Requested`,
       );
       return "Requested";
   }
@@ -70,9 +70,9 @@ function shouldUseXState(tenant?: string): boolean {
 async function createXStateFromBookingStatus(
   bookingData: any,
   calendarEventId: string,
-  tenant?: string
+  tenant?: string,
 ): Promise<PersistedXStateData> {
-  const status = (bookingData as any).status || BookingStatusLabel.REQUESTED;
+  const status = bookingData.status || BookingStatusLabel.REQUESTED;
   const xstateState = mapBookingStatusToXState(status);
 
   console.log(
@@ -81,7 +81,7 @@ async function createXStateFromBookingStatus(
       calendarEventId,
       bookingStatus: status,
       mappedXStateState: xstateState,
-    }
+    },
   );
 
   // Get the appropriate machine for the tenant
@@ -253,7 +253,9 @@ async function createXStateFromBookingStatus(
 
   // Clean context by removing undefined values for Firestore compatibility
   const cleanContext = Object.fromEntries(
-    Object.entries(snapshot.context).filter(([_, value]) => value !== undefined)
+    Object.entries(snapshot.context).filter(
+      ([_, value]) => value !== undefined,
+    ),
   );
 
   // Create XState data based on the current booking status
@@ -268,14 +270,13 @@ async function createXStateFromBookingStatus(
   tempActor.stop();
 
   // Save the created XState data to Firestore
-  const { serverUpdateDataByCalendarEventId } = await import(
-    "@/components/src/server/admin"
-  );
+  const { serverUpdateDataByCalendarEventId } =
+    await import("@/components/src/server/admin");
   await serverUpdateDataByCalendarEventId(
     TableNames.BOOKING,
     calendarEventId,
     { xstateData },
-    tenant
+    tenant,
   );
 
   console.log(
@@ -286,7 +287,7 @@ async function createXStateFromBookingStatus(
       availableTransitions: Object.entries(xstateData.canTransitionTo)
         .filter(([_, canTransition]) => canTransition)
         .map(([event, _]) => event),
-    }
+    },
   );
 
   return xstateData;
@@ -297,7 +298,7 @@ async function createXStateFromBookingStatus(
  */
 export async function restoreXStateFromFirestore(
   calendarEventId: string,
-  tenant?: string
+  tenant?: string,
 ): Promise<any> {
   try {
     console.log(
@@ -305,14 +306,14 @@ export async function restoreXStateFromFirestore(
       {
         calendarEventId,
         tenant,
-      }
+      },
     );
 
     // Get booking data from Firestore
     const bookingData = await serverGetDataByCalendarEventId(
       TableNames.BOOKING,
       calendarEventId,
-      tenant
+      tenant,
     );
 
     if (
@@ -330,7 +331,7 @@ export async function restoreXStateFromFirestore(
             "xstateData" in bookingData &&
             bookingData.xstateData
           ),
-        }
+        },
       );
 
       // If we have booking data but no XState data, create XState from booking status
@@ -340,14 +341,14 @@ export async function restoreXStateFromFirestore(
           {
             calendarEventId,
             bookingStatus: (bookingData as any).status,
-          }
+          },
         );
 
         try {
           const xstateData = await createXStateFromBookingStatus(
             bookingData,
             calendarEventId,
-            tenant
+            tenant,
           );
 
           // Get the appropriate machine for the tenant
@@ -371,7 +372,7 @@ export async function restoreXStateFromFirestore(
               calendarEventId,
               createdState: xstateData.currentState,
               contextKeys: Object.keys(xstateData.context || {}),
-            }
+            },
           );
 
           return restoredActor;
@@ -381,7 +382,7 @@ export async function restoreXStateFromFirestore(
             {
               calendarEventId,
               error: error.message,
-            }
+            },
           );
           return null;
         }
@@ -401,7 +402,7 @@ export async function restoreXStateFromFirestore(
         availableTransitions: Object.entries(xstateData.canTransitionTo)
           .filter(([_, canTransition]) => canTransition)
           .map(([event, _]) => event),
-      }
+      },
     );
 
     // Get the appropriate machine for the tenant
@@ -414,7 +415,7 @@ export async function restoreXStateFromFirestore(
         {
           expected: machine.id,
           found: xstateData.machineId,
-        }
+        },
       );
       return null;
     }
@@ -436,9 +437,9 @@ export async function restoreXStateFromFirestore(
       {
         calendarEventId,
         currentState: currentSnapshot.value,
-        targetState: targetState,
+        targetState,
         contextKeys: Object.keys(xstateData.context || {}),
-      }
+      },
     );
 
     // Navigate to the target state if not already there
@@ -451,7 +452,7 @@ export async function restoreXStateFromFirestore(
             currentSnapshot.can({ type: "approve" })
           ) {
             restoredActor.send({ type: "approve" });
-            console.log(`🎯 RESTORED STATE: Requested → Pre-approved`);
+            console.log("🎯 RESTORED STATE: Requested → Pre-approved");
           }
           break;
         case "Approved":
@@ -468,7 +469,7 @@ export async function restoreXStateFromFirestore(
             ) {
               restoredActor.send({ type: "approve" });
               console.log(
-                `🎯 RESTORED STATE: Requested → Pre-approved → Approved`
+                "🎯 RESTORED STATE: Requested → Pre-approved → Approved",
               );
             }
           }
@@ -479,31 +480,31 @@ export async function restoreXStateFromFirestore(
             currentSnapshot.can({ type: "decline" })
           ) {
             restoredActor.send({ type: "decline" });
-            console.log(`🎯 RESTORED STATE: Requested → Declined`);
+            console.log("🎯 RESTORED STATE: Requested → Declined");
           }
           break;
         case "Canceled":
           if (currentSnapshot.can({ type: "cancel" })) {
             restoredActor.send({ type: "cancel" });
-            console.log(`🎯 RESTORED STATE: → Canceled`);
+            console.log("🎯 RESTORED STATE: → Canceled");
           }
           break;
         case "Checked In":
           if (currentSnapshot.can({ type: "checkIn" })) {
             restoredActor.send({ type: "checkIn" });
-            console.log(`🎯 RESTORED STATE: → Checked In`);
+            console.log("🎯 RESTORED STATE: → Checked In");
           }
           break;
         case "Checked Out":
           if (currentSnapshot.can({ type: "checkOut" })) {
             restoredActor.send({ type: "checkOut" });
-            console.log(`🎯 RESTORED STATE: → Checked Out`);
+            console.log("🎯 RESTORED STATE: → Checked Out");
           }
           break;
         case "No Show":
           if (currentSnapshot.can({ type: "noShow" })) {
             restoredActor.send({ type: "noShow" });
-            console.log(`🎯 RESTORED STATE: → No Show`);
+            console.log("🎯 RESTORED STATE: → No Show");
           }
           break;
       }
@@ -515,9 +516,9 @@ export async function restoreXStateFromFirestore(
       {
         calendarEventId,
         restoredState: finalSnapshot.value,
-        targetState: targetState,
+        targetState,
         successfullyRestored: finalSnapshot.value === targetState,
-      }
+      },
     );
 
     return restoredActor;
@@ -527,7 +528,7 @@ export async function restoreXStateFromFirestore(
       {
         calendarEventId,
         error: error.message,
-      }
+      },
     );
     return null;
   }
@@ -539,7 +540,7 @@ export async function restoreXStateFromFirestore(
 export async function executeXStateTransition(
   calendarEventId: string,
   eventType: string,
-  tenant?: string
+  tenant?: string,
 ): Promise<{ success: boolean; newState?: string; error?: string }> {
   try {
     console.log(
@@ -548,7 +549,7 @@ export async function executeXStateTransition(
         calendarEventId,
         eventType,
         tenant,
-      }
+      },
     );
 
     // Restore the actor from Firestore
@@ -584,7 +585,7 @@ export async function executeXStateTransition(
             "close",
             "autoCloseScript",
           ].filter((event) => currentSnapshot.can({ type: event as any })),
-        }
+        },
       );
 
       actor.stop();
@@ -605,14 +606,14 @@ export async function executeXStateTransition(
         newState: newSnapshot.value,
         eventType,
         transitionPath: `${currentSnapshot.value} → ${newSnapshot.value}`,
-      }
+      },
     );
 
     // Clean context by removing undefined values for Firestore compatibility
     const cleanNewContext = Object.fromEntries(
       Object.entries(newSnapshot.context).filter(
-        ([_, value]) => value !== undefined
-      )
+        ([_, value]) => value !== undefined,
+      ),
     );
 
     // Get the appropriate machine for the tenant to get the correct machine ID
@@ -638,14 +639,13 @@ export async function executeXStateTransition(
     };
 
     // Save updated state to Firestore
-    const { serverUpdateDataByCalendarEventId } = await import(
-      "@/components/src/server/admin"
-    );
+    const { serverUpdateDataByCalendarEventId } =
+      await import("@/components/src/server/admin");
     await serverUpdateDataByCalendarEventId(
       TableNames.BOOKING,
       calendarEventId,
       { xstateData: updatedXStateData },
-      tenant
+      tenant,
     );
 
     console.log(
@@ -656,7 +656,7 @@ export async function executeXStateTransition(
         availableTransitions: Object.entries(updatedXStateData.canTransitionTo)
           .filter(([_, canTransition]) => canTransition)
           .map(([event, _]) => event),
-      }
+      },
     );
 
     actor.stop();
@@ -672,7 +672,7 @@ export async function executeXStateTransition(
         calendarEventId,
         eventType,
         error: error.message,
-      }
+      },
     );
     return {
       success: false,
@@ -686,13 +686,13 @@ export async function executeXStateTransition(
  */
 export async function getAvailableXStateTransitions(
   calendarEventId: string,
-  tenant?: string
+  tenant?: string,
 ): Promise<string[]> {
   try {
     const bookingData = await serverGetDataByCalendarEventId(
       TableNames.BOOKING,
       calendarEventId,
-      tenant
+      tenant,
     );
 
     if (
@@ -707,21 +707,21 @@ export async function getAvailableXStateTransitions(
           {
             calendarEventId,
             bookingStatus: (bookingData as any).status,
-          }
+          },
         );
 
         try {
           const xstateData = await createXStateFromBookingStatus(
             bookingData,
             calendarEventId,
-            tenant
+            tenant,
           );
 
           return Object.entries(xstateData.canTransitionTo)
             .filter(([_, canTransition]) => canTransition)
             .map(([event, _]) => event);
         } catch (error) {
-          console.error(`Error creating XState for transitions:`, error);
+          console.error("Error creating XState for transitions:", error);
           return [];
         }
       }
@@ -735,7 +735,7 @@ export async function getAvailableXStateTransitions(
       .filter(([_, canTransition]) => canTransition)
       .map(([event, _]) => event);
   } catch (error) {
-    console.error(`Error getting available XState transitions:`, error);
+    console.error("Error getting available XState transitions:", error);
     return [];
   }
 }

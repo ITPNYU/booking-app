@@ -1,7 +1,7 @@
 import React, { useContext, useMemo, useState } from "react";
 
-import AddRow from "../../components/AddRow";
 import { Box } from "@mui/material";
+import AddRow from "../../components/AddRow";
 import { DatabaseContext } from "../../components/Provider";
 import { Department } from "../../../../types";
 import Dropdown from "../../booking/components/Dropdown";
@@ -23,7 +23,7 @@ const AddLiaisonForm = ({ liaisonEmails, reloadLiaisonEmails }) => {
         />
       </Box>
     ),
-    [department]
+    [department],
   );
 
   return (
@@ -50,7 +50,7 @@ export const Liaisons = () => {
 
   const liaisonEmails = useMemo<string[]>(
     () => liaisonUsers.map((user) => user.email),
-    [liaisonUsers]
+    [liaisonUsers],
   );
 
   const rows = useMemo(() => {

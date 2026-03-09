@@ -27,14 +27,14 @@ export function withNewRelic<
     return handler;
   }
 
-  return (async (...args: any[]) => {
-    return await newrelic.startWebTransaction(transactionName, async () => {
+  return (async (...args: any[]) =>
+    await newrelic.startWebTransaction(transactionName, async () => {
       const transaction = newrelic.getTransaction();
 
       try {
         // Add request parameters as custom attributes
         if (args[0] instanceof NextRequest) {
-          const request = args[0] as NextRequest;
+          const request = args[0];
           const url = new URL(request.url);
 
           // Add custom attributes
@@ -63,8 +63,7 @@ export function withNewRelic<
       } finally {
         transaction?.end();
       }
-    });
-  }) as T;
+    })) as T;
 }
 
 /**
@@ -124,11 +123,11 @@ export function noticeError(
 }
 
 /**
- * Trace database queries
+ * Trace database queries as segments in the current transaction.
  *
  * Example:
- * await traceDatabase('SELECT', 'bookings', async () => {
- *   return await prisma.booking.findMany();
+ * await traceDatabase('Firestore/bookings/get', async () => {
+ *   return await db.collection('bookings').doc(id).get();
  * });
  */
 export async function traceDatabase<T>(
@@ -140,30 +139,25 @@ export async function traceDatabase<T>(
     return callback();
   }
 
-  const startTime = Date.now();
-  try {
-    const result = await callback();
-    const duration = Date.now() - startTime;
-
-    // Record database operation metrics
-    recordMetric(`Database/${table}/${operation}`, duration);
-
-    return result;
-  } catch (error) {
-    noticeError(error as Error, {
-      "db.operation": operation,
-      "db.table": table,
-    });
-    throw error;
-  }
+  return newrelic.startSegment(`${table}/${operation}`, true, async () => {
+    try {
+      return await callback();
+    } catch (error) {
+      noticeError(error as Error, {
+        "db.operation": operation,
+        "db.table": table,
+      });
+      throw error;
+    }
+  });
 }
 
 /**
- * Trace external API calls
+ * Trace external API calls as segments in the current transaction.
  *
  * Example:
- * await traceExternalCall('Google Calendar API', 'GET', async () => {
- *   return await fetch('https://www.googleapis.com/calendar/v3/...');
+ * await traceExternalCall('GoogleCalendar', 'events.insert', async () => {
+ *   return await calendar.events.insert({ ... });
  * });
  */
 export async function traceExternalCall<T>(
@@ -175,22 +169,17 @@ export async function traceExternalCall<T>(
     return callback();
   }
 
-  const startTime = Date.now();
-  try {
-    const result = await callback();
-    const duration = Date.now() - startTime;
-
-    // Record external service call metrics
-    recordMetric(`External/${serviceName}/${method}`, duration);
-
-    return result;
-  } catch (error) {
-    noticeError(error as Error, {
-      "external.service": serviceName,
-      "external.method": method,
-    });
-    throw error;
-  }
+  return newrelic.startSegment(`${serviceName}/${method}`, true, async () => {
+    try {
+      return await callback();
+    } catch (error) {
+      noticeError(error as Error, {
+        "external.service": serviceName,
+        "external.method": method,
+      });
+      throw error;
+    }
+  });
 }
 
 export { newrelic };

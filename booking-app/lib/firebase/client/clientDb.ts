@@ -8,12 +8,12 @@ export const clientUpdateDataByCalendarEventId = async (
   collectionName: TableNames,
   calendarEventId: string,
   updatedData: object,
-  tenant?: string
+  tenant?: string,
 ) => {
   const data = await clientGetDataByCalendarEventId(
     collectionName,
     calendarEventId,
-    tenant
+    tenant,
   );
 
   if (data) {

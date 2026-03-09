@@ -8,23 +8,24 @@ import {
   useState,
 } from "react";
 import { SubmitHandler, useForm } from "react-hook-form";
-import {
-  AttendeeAffiliation,
-  FormContextLevel,
-  Inputs,
-  Role,
-  UserApiData,
-} from "../../../../types";
+
+import { styled } from "@mui/system";
+import { useParams, useRouter } from "next/navigation";
+import isEqual from "react-fast-compare";
 import {
   BookingFormAgreementCheckbox,
   BookingFormDropdown,
   BookingFormSwitch,
   BookingFormTextField,
 } from "./BookingFormInputs";
-
-import { styled } from "@mui/system";
-import { useParams, useRouter } from "next/navigation";
-import isEqual from "react-fast-compare";
+import {
+  AttendeeAffiliation,
+  BookingOrigin,
+  FormContextLevel,
+  Inputs,
+  Role,
+  UserApiData,
+} from "../../../../types";
 import { DatabaseContext } from "../../components/Provider";
 import { useTenantSchema } from "../../components/SchemaProvider";
 import { BookingContext } from "../bookingProvider";
@@ -91,7 +92,13 @@ export default function FormInput({
   const isWalkIn = formContext === FormContextLevel.WALK_IN;
   const isMod = formContext === FormContextLevel.MODIFICATION;
   const isFullForm = formContext === FormContextLevel.FULL_FORM;
-  const isVIP = formContext === FormContextLevel.VIP;
+  // When editing a declined VIP booking, formContext is EDIT but the booking's
+  // origin is still VIP — treat it as VIP so VIP-specific fields (e.g. N-number)
+  // are hidden correctly.
+  const isVIP =
+    formContext === FormContextLevel.VIP ||
+    (formContext === FormContextLevel.EDIT &&
+      formData?.origin === BookingOrigin.VIP);
   const isBooking = !isWalkIn && !isVIP;
 
   const { isAutoApproval } = useCheckAutoApproval(isWalkIn, isVIP);
@@ -112,25 +119,30 @@ export default function FormInput({
   } = useTenantSchema();
 
   // Determine which services to show based on selected rooms and schema resources
-  const showEquipment = useMemo(() => {
-    return selectedRooms.some((room) => room.services?.includes("equipment"));
-  }, [selectedRooms]);
+  const showEquipment = useMemo(
+    () => selectedRooms.some((room) => room.services?.includes("equipment")),
+    [selectedRooms],
+  );
 
-  const showStaffing = useMemo(() => {
-    return selectedRooms.some((room) => room.services?.includes("staffing"));
-  }, [selectedRooms]);
+  const showStaffing = useMemo(
+    () => selectedRooms.some((room) => room.services?.includes("staffing")),
+    [selectedRooms],
+  );
 
-  const showCatering = useMemo(() => {
-    return selectedRooms.some((room) => room.services?.includes("catering"));
-  }, [selectedRooms]);
+  const showCatering = useMemo(
+    () => selectedRooms.some((room) => room.services?.includes("catering")),
+    [selectedRooms],
+  );
 
-  const showHireSecurity = useMemo(() => {
-    return selectedRooms.some((room) => room.services?.includes("security"));
-  }, [selectedRooms]);
+  const showHireSecurity = useMemo(
+    () => selectedRooms.some((room) => room.services?.includes("security")),
+    [selectedRooms],
+  );
 
-  const showCleaning = useMemo(() => {
-    return selectedRooms.some((room) => room.services?.includes("cleaning"));
-  }, [selectedRooms]);
+  const showCleaning = useMemo(
+    () => selectedRooms.some((room) => room.services?.includes("cleaning")),
+    [selectedRooms],
+  );
 
   const {
     control,
@@ -194,7 +206,7 @@ export default function FormInput({
   const [checkedAgreements, setCheckedAgreements] = useState<
     Record<string, boolean>
   >(
-    Object.fromEntries(agreements.map((agreement) => [agreement.id, isWalkIn]))
+    Object.fromEntries(agreements.map((agreement) => [agreement.id, isWalkIn])),
   );
 
   const watchedFields = watch();
@@ -212,11 +224,8 @@ export default function FormInput({
   }, [watchedFields, setFormData]);
 
   const maxCapacity = useMemo(
-    () =>
-      selectedRooms.reduce((sum, room) => {
-        return sum + parseInt(room.capacity);
-      }, 0),
-    [selectedRooms]
+    () => selectedRooms.reduce((sum, room) => sum + parseInt(room.capacity), 0),
+    [selectedRooms],
   );
 
   const validateExpectedAttendance = useCallback(
@@ -234,12 +243,12 @@ export default function FormInput({
         `Expected attendance exceeds maximum capacity of ${maxCapacity}`
       );
     },
-    [maxCapacity]
+    [maxCapacity],
   );
 
   // Add a state to store sponsor API data
   const [sponsorApiData, setSponsorApiData] = useState<UserApiData | null>(
-    null
+    null,
   );
   // Add a state to track if we're currently fetching sponsor data
   const [isFetchingSponsor, setIsFetchingSponsor] = useState(false);
@@ -290,7 +299,7 @@ export default function FormInput({
 
       return true;
     },
-    [userEmail, fetchSponsorByEmail]
+    [userEmail, fetchSponsorByEmail],
   );
 
   // Watch the sponsor email field specifically
@@ -319,7 +328,7 @@ export default function FormInput({
       if (sponsorApiData && value.endsWith("@nyu.edu")) {
         const sponsorRole = mapAffiliationToRole(
           roleMapping,
-          sponsorApiData.affiliation_sub_type
+          sponsorApiData.affiliation_sub_type,
         );
         if (sponsorRole === Role.STUDENT) {
           return "Sponsor cannot be a student";
@@ -328,7 +337,7 @@ export default function FormInput({
 
       return true;
     },
-    [userEmail, sponsorApiData]
+    [userEmail, sponsorApiData],
   );
 
   useEffect(() => {
@@ -401,7 +410,7 @@ export default function FormInput({
               ? `/${tenant}/walk-in/confirmation`
               : isVIP
                 ? `/${tenant}/vip/confirmation`
-                : `/${tenant}/book/confirmation`
+                : `/${tenant}/book/confirmation`,
           );
         }
       });
@@ -420,13 +429,9 @@ export default function FormInput({
   };
 
   const prefix = isVIP ? "VIP" : isWalkIn ? "Walk-In" : "";
-  const formatSectionTitle = (title: string) => {
-    return `${prefix} ${title}`.trim();
-  };
+  const formatSectionTitle = (title: string) => `${prefix} ${title}`.trim();
 
-  const formatFieldLabel = (label: string) => {
-    return `${prefix} ${label}`.trim();
-  };
+  const formatFieldLabel = (label: string) => `${prefix} ${label}`.trim();
 
   // Common Services section used by both full form and modification form
   const servicesSection = (

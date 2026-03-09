@@ -1,6 +1,20 @@
 import { getApiHeaders } from "@/components/src/client/utils/apiHeaders";
 import { ApproverLevel, TableNames } from "@/components/src/policy";
-import React, { createContext, useCallback, useEffect, useMemo, useState } from "react";
+import React, {
+  createContext,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  useContext,
+} from "react";
+
+import { useAuth } from "@/components/src/client/routes/components/AuthProvider";
+import {
+  fetchAllBookings,
+  fetchAllFutureBooking,
+} from "@/components/src/server/db";
+import { clientFetchAllDataFromCollection } from "@/lib/firebase/firebase";
 import {
   AdminUser,
   Approver,
@@ -20,14 +34,6 @@ import {
   Settings,
   UserApiData,
 } from "../../../types";
-
-import { useAuth } from "@/components/src/client/routes/components/AuthProvider";
-import {
-  fetchAllBookings,
-  fetchAllFutureBooking,
-} from "@/components/src/server/db";
-import { clientFetchAllDataFromCollection } from "@/lib/firebase/firebase";
-import { useContext } from "react";
 import { SchemaContext } from "./SchemaProvider";
 import {
   applyE2EMockAdminUsers,
@@ -43,6 +49,7 @@ export interface DatabaseContextType {
   blackoutPeriods: BlackoutPeriod[];
   allBookings: Booking[];
   bookingsLoading: boolean;
+  permissionsLoading: boolean;
   liaisonUsers: Approver[];
   equipmentUsers: Approver[];
   departmentNames: DepartmentType[];
@@ -67,7 +74,9 @@ export interface DatabaseContextType {
   reloadOperationHours: () => Promise<void>;
   reloadPaUsers: () => Promise<void>;
   reloadBookingTypes: () => Promise<void>;
-  reloadSafetyTrainedUsers: (rooms?: Array<{ roomId: string; trainingFormUrl?: string }>) => Promise<void>;
+  reloadSafetyTrainedUsers: (
+    rooms?: Array<{ roomId: string; trainingFormUrl?: string }>,
+  ) => Promise<void>;
   reloadPolicySettings: () => Promise<void>;
   setUserEmail: (x: string) => void;
   fetchAllBookings: (clicked: boolean) => Promise<void>;
@@ -85,6 +94,7 @@ export const DatabaseContext = createContext<DatabaseContextType>({
   blackoutPeriods: [],
   allBookings: [],
   bookingsLoading: true,
+  permissionsLoading: true,
   liaisonUsers: [],
   equipmentUsers: [],
   departmentNames: [],
@@ -130,6 +140,7 @@ export const DatabaseProvider = ({
   const [blackoutPeriods, setBlackoutPeriods] = useState<BlackoutPeriod[]>([]);
   // const [futureBookings, setFutureBookings] = useState<Booking[]>([]);
   const [bookingsLoading, setBookingsLoading] = useState<boolean>(true);
+  const [permissionsLoading, setPermissionsLoading] = useState<boolean>(true);
   const [allBookings, setAllBookings] = useState<Booking[]>([]);
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
   const [liaisonUsers, setLiaisonUsers] = useState<Approver[]>([]);
@@ -149,7 +160,7 @@ export const DatabaseProvider = ({
   const [settings, setSettings] = useState<Settings>({ bookingTypes: [] });
   const [userEmail, setUserEmail] = useState<string | undefined>();
   const [userApiData, setUserApiData] = useState<UserApiData | undefined>(
-    undefined
+    undefined,
   );
   const [lastItem, setLastItem] = useState<any>(null);
   const [filters, setFilters] = useState<Filters>({
@@ -237,12 +248,32 @@ export const DatabaseProvider = ({
   }, [filters]);
 
   useEffect(() => {
-    fetchActiveUserEmail();
-    if (tenant) {
-      fetchAdminUsers();
-      fetchPaUsers();
-      fetchSuperAdminUsers();
-    }
+    const loadPermissions = async () => {
+      if (tenant) {
+        setPermissionsLoading(true);
+        try {
+          // Set user email synchronously so pagePermission is correct
+          // when we mark loading as done.
+          fetchActiveUserEmail();
+          await Promise.all([
+            fetchAdminUsers(),
+            fetchPaUsers(),
+            fetchSuperAdminUsers(),
+            fetchApproverUsers(),
+          ]);
+        } finally {
+          // Only mark done once we actually have a user email.  If auth hasn't
+          // resolved yet (user === null) keep the loading state so the redirect
+          // logic in NavBar doesn't fire prematurely with pagePermission=BOOKING.
+          if (user) {
+            setPermissionsLoading(false);
+          }
+        }
+      } else {
+        setPermissionsLoading(false);
+      }
+    };
+    loadPermissions();
   }, [user, tenant]);
 
   useEffect(() => {
@@ -295,7 +326,7 @@ export const DatabaseProvider = ({
         LIMIT,
         filters,
         lastItem,
-        tenant
+        tenant,
       );
 
       if (clicked && bookingsResponse.length === 0) {
@@ -330,7 +361,7 @@ export const DatabaseProvider = ({
       const fetchedData = await clientFetchAllDataFromCollection(
         TableNames.USERS_RIGHTS,
         [],
-        tenant
+        tenant,
       );
 
       const adminUsers = fetchedData
@@ -358,7 +389,7 @@ export const DatabaseProvider = ({
       const fetchedData = await clientFetchAllDataFromCollection(
         TableNames.USERS_RIGHTS,
         [],
-        tenant
+        tenant,
       );
 
       const paUsers = fetchedData
@@ -376,109 +407,87 @@ export const DatabaseProvider = ({
     }
   };
 
-  const fetchSafetyTrainedUsers = useCallback(async (
-    rooms?: Array<{ roomId: string; trainingFormUrl?: string }>
-  ) => {
-    try {
-      if (applyE2EMockSafetyUsers(setSafetyTrainedUsers)) {
-        return;
-      }
+  const fetchSafetyTrainedUsers = useCallback(
+    async (rooms?: Array<{ roomId: string; trainingFormUrl?: string }>) => {
+      try {
+        if (applyE2EMockSafetyUsers(setSafetyTrainedUsers)) {
+          return;
+        }
 
-      // Fetch data from Firestore
-      const firestoreData = await clientFetchAllDataFromCollection(
-        TableNames.SAFETY_TRAINING,
-        [],
-        tenant
-      );
-      const firestoreUsers: SafetyTraining[] = firestoreData.map(
-        (item: any) => ({
-          id: item.id,
-          email: item.email,
-          completedAt: item.completedAt || new Date().toISOString(), // Use current time if completedAt is missing
-        })
-      );
-      console.log(
-        "FETCHED SAFETY TRAINED EMAILS FROM DB:",
-        firestoreUsers.length
-      );
+        // Fetch data from Firestore
+        const firestoreData = await clientFetchAllDataFromCollection(
+          TableNames.SAFETY_TRAINING,
+          [],
+          tenant,
+        );
+        const firestoreUsers: SafetyTraining[] = firestoreData.map(
+          (item: any) => ({
+            id: item.id,
+            email: item.email,
+            completedAt: item.completedAt || new Date().toISOString(), // Use current time if completedAt is missing
+          }),
+        );
+        console.log(
+          "FETCHED SAFETY TRAINED EMAILS FROM DB:",
+          firestoreUsers.length,
+        );
 
-      // Map to merge users from all sources
-      const userMap = new Map<string, SafetyTraining>();
+        // Map to merge users from all sources
+        const userMap = new Map<string, SafetyTraining>();
 
-      // Add Firestore users to the map
-      firestoreUsers.forEach((user) => {
-        userMap.set(user.email, user);
-      });
+        // Add Firestore users to the map
+        firestoreUsers.forEach((user) => {
+          userMap.set(user.email, user);
+        });
 
-      // Fetch from Google Forms for each room that has a trainingFormUrl
-      if (rooms && rooms.length > 0) {
-        const roomsWithFormUrl = rooms.filter((room) => room.trainingFormUrl);
-        
-        if (roomsWithFormUrl.length > 0) {
-          // Fetch from all rooms and merge results
-          const formPromises = roomsWithFormUrl.map(async (room) => {
-            try {
-              const headers = getApiHeaders(tenant, {
-                "x-resource-id": room.roomId,
-              });
+        // Fetch from Google Forms for each room that has a trainingFormUrl
+        if (rooms && rooms.length > 0) {
+          const roomsWithFormUrl = rooms.filter((room) => room.trainingFormUrl);
 
-              const response = await fetch("/api/safety_training_form", {
-                headers,
-              });
-
-              if (!response.ok) {
-                const errorData = await response.json();
-                console.log(`Safety training form API error for room ${room.roomId}:`, {
-                  status: response.status,
-                  statusText: response.statusText,
-                  error: errorData.error,
-                  details: errorData.details,
-                  code: errorData.code,
+          if (roomsWithFormUrl.length > 0) {
+            // Fetch from all rooms and merge results
+            const formPromises = roomsWithFormUrl.map(async (room) => {
+              try {
+                const headers = getApiHeaders(tenant, {
+                  "x-resource-id": room.roomId,
                 });
+
+                const response = await fetch("/api/safety_training_form", {
+                  headers,
+                });
+
+                if (!response.ok) {
+                  const errorData = await response.json();
+                  console.log(
+                    `Safety training form API error for room ${room.roomId}:`,
+                    {
+                      status: response.status,
+                      statusText: response.statusText,
+                      error: errorData.error,
+                      details: errorData.details,
+                      code: errorData.code,
+                    },
+                  );
+                  return []; // Return empty array on error for this room
+                }
+
+                const formData = await response.json();
+                return formData.emails || [];
+              } catch (error: any) {
+                console.error(
+                  `Error fetching form data for room ${room.roomId}:`,
+                  error,
+                );
                 return []; // Return empty array on error for this room
               }
+            });
 
-              const formData = await response.json();
-              return formData.emails || [];
-            } catch (error: any) {
-              console.error(`Error fetching form data for room ${room.roomId}:`, error);
-              return []; // Return empty array on error for this room
-            }
-          });
-
-          // Wait for all form requests to complete
-          const allFormEmails = await Promise.all(formPromises);
-          const currentDate = new Date().toISOString();
-
-          // Merge all form response emails into the map
-          allFormEmails.flat().forEach((email: string) => {
-            if (email && email.includes("@") && !userMap.has(email)) {
-              userMap.set(email, {
-                id: email,
-                email,
-                completedAt: currentDate,
-              });
-            }
-          });
-
-          console.log(
-            "FETCHED SAFETY TRAINED EMAILS FROM FORMS:",
-            allFormEmails.flat().length,
-            `(from ${roomsWithFormUrl.length} room(s))`
-          );
-        }
-      } else {
-        // No rooms provided, fetch all (no resource filter)
-        try {
-          const response = await fetch("/api/safety_training_form", {
-            headers: getApiHeaders(tenant),
-          });
-
-          if (response.ok) {
-            const formData = await response.json();
+            // Wait for all form requests to complete
+            const allFormEmails = await Promise.all(formPromises);
             const currentDate = new Date().toISOString();
 
-            formData.emails?.forEach((email: string) => {
+            // Merge all form response emails into the map
+            allFormEmails.flat().forEach((email: string) => {
               if (email && email.includes("@") && !userMap.has(email)) {
                 userMap.set(email, {
                   id: email,
@@ -489,31 +498,63 @@ export const DatabaseProvider = ({
             });
 
             console.log(
-              "FETCHED SAFETY TRAINED EMAILS FROM FORM:",
-              formData.emails?.length || 0
+              "FETCHED SAFETY TRAINED EMAILS FROM FORMS:",
+              allFormEmails.flat().length,
+              `(from ${roomsWithFormUrl.length} room(s))`,
             );
           }
-        } catch (error: any) {
-          console.error("Error fetching all safety trained users from form:", error);
+        } else {
+          // No rooms provided, fetch all (no resource filter)
+          try {
+            const response = await fetch("/api/safety_training_form", {
+              headers: getApiHeaders(tenant),
+            });
+
+            if (response.ok) {
+              const formData = await response.json();
+              const currentDate = new Date().toISOString();
+
+              formData.emails?.forEach((email: string) => {
+                if (email && email.includes("@") && !userMap.has(email)) {
+                  userMap.set(email, {
+                    id: email,
+                    email,
+                    completedAt: currentDate,
+                  });
+                }
+              });
+
+              console.log(
+                "FETCHED SAFETY TRAINED EMAILS FROM FORM:",
+                formData.emails?.length || 0,
+              );
+            }
+          } catch (error: any) {
+            console.error(
+              "Error fetching all safety trained users from form:",
+              error,
+            );
+          }
         }
+
+        // Convert map back to array
+        const mergedUsers = Array.from(userMap.values());
+        setSafetyTrainedUsers(mergedUsers);
+      } catch (error: any) {
+        console.error("Error fetching safety trained users:", error);
+
+        // Use Firestore data as fallback if available
+        if (error?.response) {
+          const responseData = await error.response.json();
+          console.error("API Error:", responseData.error);
+        }
+
+        // Set safety trained users to empty array on error
+        setSafetyTrainedUsers([]);
       }
-
-      // Convert map back to array
-      const mergedUsers = Array.from(userMap.values());
-      setSafetyTrainedUsers(mergedUsers);
-    } catch (error: any) {
-      console.error("Error fetching safety trained users:", error);
-
-      // Use Firestore data as fallback if available
-      if (error?.response) {
-        const responseData = await error.response.json();
-        console.error("API Error:", responseData.error);
-      }
-
-      // Set safety trained users to empty array on error
-      setSafetyTrainedUsers([]);
-    }
-  }, [tenant]);
+    },
+    [tenant],
+  );
 
   const fetchBannedUsers = async () => {
     clientFetchAllDataFromCollection(TableNames.BANNED, [], tenant)
@@ -539,7 +580,7 @@ export const DatabaseProvider = ({
       return;
     }
 
-    clientFetchAllDataFromCollection(TableNames.APPROVERS, [], tenant)
+    return clientFetchAllDataFromCollection(TableNames.APPROVERS, [], tenant)
       .then((fetchedData) => {
         const all = fetchedData.map((item: any) => ({
           id: item.id,
@@ -551,7 +592,7 @@ export const DatabaseProvider = ({
         // All users in mc-usersApprovers are liaisons (level no longer used for liaison filtering)
         const liaisons = all;
         const equipmentUsers = all.filter(
-          (x) => x.level === ApproverLevel.EQUIPMENT
+          (x) => x.level === ApproverLevel.EQUIPMENT,
         );
 
         const finalApproverEmail =
@@ -591,7 +632,7 @@ export const DatabaseProvider = ({
       const response = await fetch(url);
       if (!response.ok) {
         console.error(
-          `Failed to fetch tenant schema. Status: ${response.status}, URL: ${url}`
+          `Failed to fetch tenant schema. Status: ${response.status}, URL: ${url}`,
         );
         throw new Error("Failed to fetch tenant schema");
       }
@@ -631,16 +672,19 @@ export const DatabaseProvider = ({
           bookingType: item.bookingType,
           createdAt: item.createdAt,
         }));
-        
+
         // If no booking types are available, add a default "Other" option
-        const bookingTypes = filtered.length > 0 ? filtered : [
-          {
-            id: 'default-other',
-            bookingType: 'Other',
-            createdAt: new Date().toISOString(),
-          }
-        ];
-        
+        const bookingTypes =
+          filtered.length > 0
+            ? filtered
+            : [
+                {
+                  id: "default-other",
+                  bookingType: "Other",
+                  createdAt: new Date().toISOString(),
+                },
+              ];
+
         setSettings((prev) => ({
           ...prev,
           bookingTypes: bookingTypes as BookingType[],
@@ -651,11 +695,13 @@ export const DatabaseProvider = ({
         // On error, also provide a default "Other" option
         setSettings((prev) => ({
           ...prev,
-          bookingTypes: [{
-            id: 'default-other',
-            bookingType: 'Other',
-            createdAt: new Date().toISOString(),
-          }] as BookingType[],
+          bookingTypes: [
+            {
+              id: "default-other",
+              bookingType: "Other",
+              createdAt: new Date().toISOString(),
+            },
+          ] as BookingType[],
         }));
       });
   };
@@ -674,13 +720,13 @@ export const DatabaseProvider = ({
         await clientFetchAllDataFromCollection<BlackoutPeriod>(
           TableNames.BLACKOUT_PERIODS,
           [],
-          tenant
+          tenant,
         );
       setBlackoutPeriods(
         fetchedData.sort(
           (a, b) =>
-            a.startDate.toDate().getTime() - b.startDate.toDate().getTime()
-        )
+            a.startDate.toDate().getTime() - b.startDate.toDate().getTime(),
+        ),
       );
     } catch (error) {
       console.error("Error fetching blackout periods:", error);
@@ -703,7 +749,7 @@ export const DatabaseProvider = ({
       const fetchedData = await clientFetchAllDataFromCollection(
         TableNames.PRE_BAN_LOGS,
         [],
-        tenant
+        tenant,
       );
       const logs = fetchedData.map((item: any) => ({
         id: item.id,
@@ -723,7 +769,7 @@ export const DatabaseProvider = ({
       // Fetch from original usersSuperAdmin collection (not tenant-specific)
       const fetchedData = await clientFetchAllDataFromCollection(
         TableNames.SUPER_ADMINS,
-        []
+        [],
       );
 
       const superAdminUsers = fetchedData.map((item: any) => ({
@@ -760,6 +806,7 @@ export const DatabaseProvider = ({
         userEmail,
         netId,
         bookingsLoading,
+        permissionsLoading,
         userApiData,
         loadMoreEnabled,
         reloadAdminUsers: fetchAdminUsers,
@@ -775,7 +822,7 @@ export const DatabaseProvider = ({
         reloadPolicySettings: fetchPolicySettings,
         setUserEmail,
         fetchAllBookings: fetchBookings,
-        setFilters: setFilters,
+        setFilters,
         setLoadMoreEnabled,
         setLastItem,
         preBanLogs,

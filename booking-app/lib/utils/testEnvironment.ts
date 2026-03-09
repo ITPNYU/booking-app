@@ -20,29 +20,22 @@ export const isTestEnvironment = (): boolean => {
 /**
  * Check if we're in E2E testing mode specifically
  */
-export const isE2ETesting = (): boolean => {
-  return process.env.NODE_ENV === "test" && process.env.E2E_TESTING === "true";
-};
+export const isE2ETesting = (): boolean =>
+  process.env.NODE_ENV === "test" && process.env.E2E_TESTING === "true";
 
 /**
  * Check if we're in CI environment with development branch
  */
-export const isCIDevelopment = (): boolean => {
-  return (
-    process.env.CI === "true" &&
-    process.env.NEXT_PUBLIC_BRANCH_NAME === "development"
-  );
-};
+export const isCIDevelopment = (): boolean =>
+  process.env.CI === "true" &&
+  process.env.NEXT_PUBLIC_BRANCH_NAME === "development";
 
 /**
  * Check if authentication should be bypassed
  * This combines all the conditions that should enable test mode
  */
-export const shouldBypassAuth = (): boolean => {
-  return (
-    isCIDevelopment() || isE2ETesting() || process.env.BYPASS_AUTH === "true"
-  );
-};
+export const shouldBypassAuth = (): boolean =>
+  isCIDevelopment() || isE2ETesting() || process.env.BYPASS_AUTH === "true";
 
 /**
  * Get test environment status for API responses
