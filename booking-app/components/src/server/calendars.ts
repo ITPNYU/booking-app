@@ -30,8 +30,9 @@ export const inviteUserToCalendarEvent = async (
   calendarEventId: string,
   guestEmail: string,
   roomId: number,
+  tenant?: string,
 ) => {
-  const roomCalendarIds = await serverGetRoomCalendarIds(roomId);
+  const roomCalendarIds = await serverGetRoomCalendarIds(roomId, tenant);
   const calendar = await getCalendarClient();
 
   for (const roomCalendarId of roomCalendarIds) {
@@ -322,6 +323,7 @@ export const updateCalendarEvent = async (
     typeof bookingContents.roomId === "string"
       ? parseInt(bookingContents.roomId, 10)
       : bookingContents.roomId,
+    tenant,
   );
   console.log(`Room Calendar Ids: ${roomCalendarIds}`);
   console.log("bookingContents", bookingContents);

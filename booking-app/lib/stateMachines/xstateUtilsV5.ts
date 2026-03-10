@@ -1,5 +1,5 @@
 import type { SchemaContextType } from "@/components/src/client/routes/components/SchemaProvider";
-import { TENANTS } from "@/components/src/constants/tenants";
+import { DEFAULT_TENANT, TENANTS } from "@/components/src/constants/tenants";
 import { TableNames } from "@/components/src/policy";
 import { serverUpdateDataByCalendarEventId } from "@/components/src/server/admin";
 import { getTenantEmailConfig } from "@/components/src/server/emails";
@@ -279,7 +279,7 @@ async function handleStateTransitions(
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
-            "x-tenant": tenant || "mc",
+            "x-tenant": tenant || DEFAULT_TENANT,
           },
           body: JSON.stringify({
             calendarEventId,
@@ -457,7 +457,7 @@ async function handleStateTransitions(
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
-            "x-tenant": tenant || "mc",
+            "x-tenant": tenant || DEFAULT_TENANT,
           },
           body: JSON.stringify({
             calendarEventId,
@@ -554,7 +554,7 @@ async function handleStateTransitions(
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
-            "x-tenant": tenant || "mc",
+            "x-tenant": tenant || DEFAULT_TENANT,
           },
           body: JSON.stringify({
             calendarEventId,
@@ -727,7 +727,7 @@ async function handleStateTransitions(
                 method: "PUT",
                 headers: {
                   "Content-Type": "application/json",
-                  "x-tenant": tenant || "mc",
+                  "x-tenant": tenant || DEFAULT_TENANT,
                 },
                 body: JSON.stringify({
                   calendarEventId,
@@ -1654,7 +1654,7 @@ export async function executeXStateTransition(
               method: "PUT",
               headers: {
                 "Content-Type": "application/json",
-                "x-tenant": tenant || "mc",
+                "x-tenant": tenant || DEFAULT_TENANT,
               },
               body: JSON.stringify({
                 calendarEventId,

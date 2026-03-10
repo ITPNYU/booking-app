@@ -690,6 +690,7 @@ export const serverApproveEvent = async (id: string, tenant?: string) => {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        "x-tenant": tenant || DEFAULT_TENANT,
       },
       body: JSON.stringify(formData),
     },
