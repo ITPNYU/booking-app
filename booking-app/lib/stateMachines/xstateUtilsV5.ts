@@ -1640,7 +1640,7 @@ export async function executeXStateTransition(
         // Send CC to admin
         await serverSendBookingDetailEmail({
           calendarEventId,
-          targetEmail: getApprovalCcEmail(process.env.NEXT_PUBLIC_BRANCH_NAME),
+          targetEmail: getApprovalCcEmail(process.env.NEXT_PUBLIC_BRANCH_NAME, tenant),
           headerMessage,
           status: BookingStatusLabel.NO_SHOW,
           tenant,
