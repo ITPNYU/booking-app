@@ -1,3 +1,4 @@
+import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
 import { TableNames, getApprovalCcEmail } from "@/components/src/policy";
 import {
   serverGetRoomCalendarId,
@@ -35,6 +36,12 @@ const extractTenantFromRequest = (request: NextRequest): string | undefined => {
     if (tenantMatch && tenantMatch[1] !== "api") {
       return tenantMatch[1];
     }
+  }
+
+  // Try to get tenant from x-tenant header
+  const headerTenant = request.headers.get("x-tenant");
+  if (headerTenant) {
+    return headerTenant;
   }
 
   // Try to get tenant from query parameter
@@ -393,7 +400,7 @@ export async function POST(request: NextRequest) {
             method: "PUT",
             headers: {
               "Content-Type": "application/json",
-              "x-tenant": tenant || "mc",
+              "x-tenant": tenant || DEFAULT_TENANT,
             },
             body: JSON.stringify({
               calendarEventId,
@@ -497,7 +504,7 @@ export async function POST(request: NextRequest) {
             method: "PUT",
             headers: {
               "Content-Type": "application/json",
-              "x-tenant": tenant || "mc",
+              "x-tenant": tenant || DEFAULT_TENANT,
             },
             body: JSON.stringify({
               calendarEventId,

@@ -495,6 +495,7 @@ const firstApprove = async (id: string, email: string, tenant?: string) => {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      "x-tenant": tenant || DEFAULT_TENANT,
     },
     body: JSON.stringify(formData),
   });
@@ -578,6 +579,7 @@ export const serverSendBookingDetailEmail = async ({
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      "x-tenant": tenant || DEFAULT_TENANT,
     },
     body: JSON.stringify(formData),
   });

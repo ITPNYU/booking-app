@@ -1269,6 +1269,7 @@ export const clientSendBookingDetailEmail = async (
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      "x-tenant": tenant || DEFAULT_TENANT,
     },
     body: JSON.stringify(formData),
   });
