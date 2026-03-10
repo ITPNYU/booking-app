@@ -11,6 +11,7 @@ import {
 import { Timestamp } from "firebase-admin/firestore";
 import { applyEnvironmentCalendarIds } from "@/lib/utils/calendarEnvironment";
 import { DEFAULT_TENANT } from "../constants/tenants";
+import { ITP_DEPT_NAME_KEYWORDS } from "../utils/tenantUtils";
 import { TableNames, getApprovalCcEmail } from "../policy";
 import {
   AdminUser,
@@ -758,7 +759,7 @@ export const firstApproverEmails = async (department: string) => {
     );
 
     // Check if user department contains any of the key department identifiers
-    const itpDeptKeywords = ["itp", "ima", "low res"];
+    const itpDeptKeywords = ITP_DEPT_NAME_KEYWORDS;
 
     const userHasKeywords = itpDeptKeywords.some((keyword) =>
       normalizedUserDepartment.includes(keyword),

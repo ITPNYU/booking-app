@@ -4,6 +4,17 @@
 
 import { TENANTS } from "../constants/tenants";
 
+/**
+ * Keywords matched case-insensitively against department name fields to identify
+ * ITP / IMA / Low Res affiliated users.
+ */
+export const ITP_DEPT_NAME_KEYWORDS = [
+  "interactive telecommunications", // ITP
+  "interactive media arts", // IMA (e.g. "Interactive Media Arts UG Program")
+  "low res", // Low Residence program
+  "low-res",
+];
+
 export type Tenant = (typeof TENANTS)[keyof typeof TENANTS];
 
 /**
