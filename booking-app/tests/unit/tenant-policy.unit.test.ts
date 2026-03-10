@@ -132,10 +132,13 @@ describe("getCancelCcEmailForTenant", () => {
     );
   });
 
-  it("falls back to operationEmail when cancelCcEmail is not configured (ITP)", () => {
+  it("returns distinct cancelCc dev email for ITP", () => {
     expect(getCancelCcEmailForTenant("itp", "development")).toBe(
-      "booking-app-devs+operation@itp.nyu.edu",
+      "booking-app-devs+cancelcc@itp.nyu.edu",
     );
+  });
+
+  it("returns ITP operation email for ITP production", () => {
     expect(getCancelCcEmailForTenant("itp", "production")).toBe(
       ITP_OPERATION_EMAIL,
     );

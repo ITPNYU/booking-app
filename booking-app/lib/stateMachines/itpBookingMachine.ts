@@ -72,7 +72,7 @@ export const itpBookingMachine = setup({
       const servicesRequested = context.formData
         ? {
             setup: context.formData.roomSetup === "yes",
-            equipment: context.formData.mediaServices?.length > 0 || false,
+            equipment: context.formData.equipmentServices?.length > 0 || false,
             staffing: false, // ITP doesn't have separate staffing field in formData
             catering: context.formData.catering === "yes",
             cleaning: false, // ITP doesn't have separate cleaning field in formData

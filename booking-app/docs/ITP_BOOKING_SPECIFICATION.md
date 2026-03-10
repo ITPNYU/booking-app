@@ -11,15 +11,25 @@ The ITP booking system allows ITP community members to reserve rooms through a w
 
 ---
 
-## 2. User Roles & Permissions
+## 2. Rollout Phases
 
-### Booking Roles (Selected During Booking)
+| Phase | Scope | Goal |
+|-------|-------|------|
+| **Phase 1** | Huddle Rooms only, auto-approval, no VIP/Walk-in | Simplest prototype — test how ITP uses the booking system |
+| **Phase 2** | Add Walk-in and VIP support | Expand booking options based on Phase 1 feedback |
+| **Phase 3** | Add remaining rooms (Doc Lab, Phone Booths, Assembly, Shops, etc.) | Full room coverage |
 
-| Role | Description |
-|------|-------------|
-| Student | NYU student (ITP / IMA / Low Res) |
-| Faculty | NYU faculty member |
-| Admin/Staff | Administrative staff |
+---
+
+## 3. User Roles & Permissions
+
+### Booking Roles (Determined by NYU Identity API)
+
+| Role | Identity API Affiliation |
+|------|-------------------------|
+| Student | STUDENT |
+| Faculty | FACULTY |
+| Admin/Staff | STAFF |
 
 ### System Permission Levels
 
@@ -32,7 +42,7 @@ The ITP booking system allows ITP community members to reserve rooms through a w
 
 ---
 
-## 3. Rooms
+## 4. Rooms
 
 ### Phase 1 — Huddle Rooms Only
 
@@ -50,6 +60,8 @@ The ITP booking system allows ITP community members to reserve rooms through a w
 - Safety training: Not required
 - Walk-in: Not enabled (Phase 2)
 - VIP: Not supported (Phase 2)
+- Slot unit: 15 minutes
+- Booking policy: Generic agreement text
 
 ### Phase 3 — Additional Rooms (Future)
 
@@ -63,16 +75,16 @@ The ITP booking system allows ITP community members to reserve rooms through a w
 
 ---
 
-## 4. Booking Flow
+## 5. Booking Flow
 
-### 4.1 Standard Booking Flow
+### 5.1 Standard Booking Flow
 
 ```
 Step 1: Policy Acceptance
          │  Read and accept the ITP booking policy
          ▼
 Step 2: Role & Affiliation
-         │  Select Role (Student, Faculty, Admin/Staff)
+         │  Role auto-detected via NYU Identity API
          │  No N-Number, no Sponsor required
          ▼
 Step 3: Room & Time Selection
@@ -88,10 +100,10 @@ Step 4: Booking Details
          │  Accept booking policy agreement
          ▼
 Step 5: Confirmation
-         Submit → Success or Error display
+         Submit → Auto-approved (if within limits) or Awaiting approval
 ```
 
-### 4.2 Edit Booking Flow
+### 5.2 Edit Booking Flow
 
 Users can edit their booking when it is in **Requested** or **Declined** status.
 
@@ -104,7 +116,7 @@ Role Selection → Room Selection → Booking Details Form
 Submit → Booking returns to Requested status
 ```
 
-### 4.3 Modification Flow (Admin/PA Only)
+### 5.3 Modification Flow (Admin/PA Only)
 
 Available when booking is in **Approved** status.
 
@@ -115,7 +127,7 @@ Load Existing Booking Data → Modification Form → Submit
 
 ---
 
-## 5. Booking Lifecycle (State Machine)
+## 6. Booking Lifecycle (State Machine)
 
 ### State Diagram
 
@@ -188,7 +200,7 @@ Load Existing Booking Data → Modification Form → Submit
 
 ---
 
-## 6. Auto-Approval
+## 7. Auto-Approval
 
 Auto-approval is **enabled** for all Huddle Rooms:
 
@@ -202,7 +214,7 @@ Bookings within the duration limit are automatically approved. Bookings exceedin
 
 ---
 
-## 7. Admin Panel
+## 8. Admin Panel
 
 ### Available Actions by Status
 
@@ -221,7 +233,7 @@ Bookings within the duration limit are automatically approved. Bookings exceedin
 
 ---
 
-## 8. Email Notifications
+## 9. Email Notifications
 
 ### Operations Email
 
@@ -233,23 +245,24 @@ Bookings within the duration limit are automatically approved. Bookings exceedin
 
 ### Email Templates
 
-| Template | Trigger | Current Status |
-|----------|---------|---------------|
-| Request Confirmation | Booking submitted | **Empty — needs content** |
-| Approval Notice | Booking approved | **Empty — needs content** |
-| Declined | Booking declined | **Empty — needs content** |
-| Canceled | Booking canceled | **Empty — needs content** |
-| Late Cancel | Cancel within 24h of start | **Empty — needs content** |
-| No Show | Guest didn't show up | **Empty — needs content** |
-| Check-in Confirmation | Guest checked in | **Empty — needs content** |
-| Checkout Confirmation | Guest checked out | **Empty — needs content** |
-| Closed | Booking closed | **Empty — needs content** |
+Configured with generic content. Can be customized via the schema editor.
 
-Email templates have been configured with generic content. Can be customized via the schema editor.
+| Template | Trigger |
+|----------|---------|
+| Request Confirmation | Booking submitted |
+| Approval Request | Sent to approvers for review |
+| Approval Notice | Booking approved |
+| Declined | Booking declined |
+| Canceled | Booking canceled |
+| Late Cancel | Cancel within 24h of start |
+| No Show | Guest didn't show up |
+| Check-in Confirmation | Guest checked in |
+| Checkout Confirmation | Guest checked out |
+| Closed | Booking closed |
 
 ---
 
-## 9. Automated Processes
+## 10. Automated Processes
 
 | Process | Behavior | Schedule |
 |---------|----------|----------|
@@ -259,7 +272,7 @@ Email templates have been configured with generic content. Can be customized via
 
 ---
 
-## 10. Calendar Integration
+## 11. Calendar Integration
 
 - Every booking creates a Google Calendar event on the room's calendar
 - Calendar IDs are configured per room (separate for dev and production)
@@ -269,25 +282,10 @@ Email templates have been configured with generic content. Can be customized via
 
 ---
 
-## 11. Configuration Summary
+## 12. Future Decisions (Phase 2+)
 
-### Tenant Schema Settings
-
-| Setting | Value |
-|---------|-------|
-| `tenant` | `itp` |
-| `name` | `ITP` |
-| `logo` | `/nyuLogo.png` |
-| `showNNumber` | false |
-| `showSponsor` | false |
-| `showSetup` | false |
-| `showEquipment` | true |
-| `showStaffing` | false |
-| `showCatering` | false |
-| `showHireSecurity` | false |
-| `showBookingTypes` | false |
-| `supportVIP` | false |
-| `supportWalkIn` | false |
-| `declinedGracePeriod` | 24 hours |
-| `calendarConfig.startHour` | `00:00:00` (all roles, 24h) |
-| `calendarConfig.slotUnit` | 15 minutes |
+| Decision | Phase | Notes |
+|----------|-------|-------|
+| Walk-in booking support | Phase 2 | Enable for Huddle Rooms? Consecutive slots? |
+| VIP booking support | Phase 2 | Which roles qualify as VIP? |
+| Additional room configuration | Phase 3 | Auto-approval rules, duration limits per room type |
