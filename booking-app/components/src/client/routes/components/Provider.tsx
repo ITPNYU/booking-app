@@ -49,6 +49,7 @@ export interface DatabaseContextType {
   blackoutPeriods: BlackoutPeriod[];
   allBookings: Booking[];
   bookingsLoading: boolean;
+  permissionsLoading: boolean;
   liaisonUsers: Approver[];
   equipmentUsers: Approver[];
   departmentNames: DepartmentType[];
@@ -93,6 +94,7 @@ export const DatabaseContext = createContext<DatabaseContextType>({
   blackoutPeriods: [],
   allBookings: [],
   bookingsLoading: true,
+  permissionsLoading: true,
   liaisonUsers: [],
   equipmentUsers: [],
   departmentNames: [],
@@ -138,6 +140,7 @@ export const DatabaseProvider = ({
   const [blackoutPeriods, setBlackoutPeriods] = useState<BlackoutPeriod[]>([]);
   // const [futureBookings, setFutureBookings] = useState<Booking[]>([]);
   const [bookingsLoading, setBookingsLoading] = useState<boolean>(true);
+  const [permissionsLoading, setPermissionsLoading] = useState<boolean>(true);
   const [allBookings, setAllBookings] = useState<Booking[]>([]);
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
   const [liaisonUsers, setLiaisonUsers] = useState<Approver[]>([]);
@@ -245,12 +248,32 @@ export const DatabaseProvider = ({
   }, [filters]);
 
   useEffect(() => {
-    fetchActiveUserEmail();
-    if (tenant) {
-      fetchAdminUsers();
-      fetchPaUsers();
-      fetchSuperAdminUsers();
-    }
+    const loadPermissions = async () => {
+      if (tenant) {
+        setPermissionsLoading(true);
+        try {
+          // Set user email synchronously so pagePermission is correct
+          // when we mark loading as done.
+          fetchActiveUserEmail();
+          await Promise.all([
+            fetchAdminUsers(),
+            fetchPaUsers(),
+            fetchSuperAdminUsers(),
+            fetchApproverUsers(),
+          ]);
+        } finally {
+          // Only mark done once we actually have a user email.  If auth hasn't
+          // resolved yet (user === null) keep the loading state so the redirect
+          // logic in NavBar doesn't fire prematurely with pagePermission=BOOKING.
+          if (user) {
+            setPermissionsLoading(false);
+          }
+        }
+      } else {
+        setPermissionsLoading(false);
+      }
+    };
+    loadPermissions();
   }, [user, tenant]);
 
   useEffect(() => {
@@ -557,7 +580,7 @@ export const DatabaseProvider = ({
       return;
     }
 
-    clientFetchAllDataFromCollection(TableNames.APPROVERS, [], tenant)
+    return clientFetchAllDataFromCollection(TableNames.APPROVERS, [], tenant)
       .then((fetchedData) => {
         const all = fetchedData.map((item: any) => ({
           id: item.id,
@@ -783,6 +806,7 @@ export const DatabaseProvider = ({
         userEmail,
         netId,
         bookingsLoading,
+        permissionsLoading,
         userApiData,
         loadMoreEnabled,
         reloadAdminUsers: fetchAdminUsers,

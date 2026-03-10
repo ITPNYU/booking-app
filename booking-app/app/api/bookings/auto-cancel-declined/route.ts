@@ -63,6 +63,17 @@ export async function GET(request: NextRequest) {
   }
   // --- End Authorization Check ---
 
+  // In E2E testing, Firestore is unavailable; return a mock dry-run response
+  if (process.env.E2E_TESTING === "true" && isDryRun) {
+    return NextResponse.json({
+      message: "Dry run completed",
+      totalUpdatedCount: 0,
+      updatedBookingIds: [],
+      dryRunResults: [],
+      timestamp: new Date().toISOString(),
+    });
+  }
+
   try {
     const now = new Date();
     let totalUpdatedCount = 0;

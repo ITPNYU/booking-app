@@ -3,10 +3,11 @@
 "use client";
 
 import EditLandingPage from "@/components/src/client/routes/edit/EditLandingPage";
-import React, { use } from "react";
+import { useParams } from "next/navigation";
+import React from "react";
 
-const HomePage = ({ params }: { params: Promise<{ id: string }> }) => {
-  const { id } = use(params);
+const HomePage = () => {
+  const { id } = useParams<{ id: string }>();
   return <EditLandingPage calendarEventId={id} />;
 };
 

@@ -196,6 +196,8 @@ export type Inputs = {
   equipment?: string;
   staffing?: string;
   cleaning?: string;
+  // origin of the booking
+  origin?: BookingOrigin
 };
 
 export type DepartmentType = {

@@ -14,7 +14,10 @@ interface Props {
   numrooms: number;
 }
 
-const Block = styled(Box)<Props>(({ theme, bgcolor, isnew, numrooms }) => ({
+const Block = styled(Box, {
+  shouldForwardProp: (prop) =>
+    prop !== "isnew" && prop !== "numrooms" && prop !== "bgcolor",
+})<Props>(({ theme, bgcolor, isnew, numrooms }) => ({
   backgroundColor: bgcolor || theme.palette.primary.main,
   border: `2px solid ${bgcolor || theme.palette.primary.main}`,
   borderRadius: "4px",
