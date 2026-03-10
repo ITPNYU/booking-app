@@ -576,10 +576,9 @@ describe("xstateEffects", () => {
       });
     });
 
-    describe("Service Closeout (generic transition)", () => {
-      const serviceCloseoutState = { "Service Closeout": "some-state" };
-
-      it("should send checkout email when transitioning from Checked In", async () => {
+    describe("Parallel states (Service Closeout, Services Request)", () => {
+      it("should not trigger side effects for Service Closeout (handled by /api/checkout-processing)", async () => {
+        const serviceCloseoutState = { "Service Closeout": "some-state" };
         const firestoreUpdates: any = {};
         await handleStateTransitions(
           makeSnapshot("Checked In"),
@@ -590,94 +589,14 @@ describe("xstateEffects", () => {
           firestoreUpdates,
         );
 
-        expect(mockServerSendBookingDetailEmail).toHaveBeenCalledWith(
-          expect.objectContaining({
-            calendarEventId,
-            targetEmail: "guest@nyu.edu",
-            status: "CHECKED-OUT",
-            tenant,
-          }),
-        );
-      });
-
-      it("should set checkedOutAt and checkedOutBy", async () => {
-        const firestoreUpdates: any = {};
-        await handleStateTransitions(
-          makeSnapshot("Checked In"),
-          makeSnapshot(serviceCloseoutState),
-          calendarEventId,
-          email,
-          tenant,
-          firestoreUpdates,
-        );
-
-        expect(firestoreUpdates.checkedOutAt).toBeDefined();
-        expect(firestoreUpdates.checkedOutBy).toBe(email);
-      });
-
-      it("should update calendar with CHECKED_OUT status", async () => {
-        const firestoreUpdates: any = {};
-        await handleStateTransitions(
-          makeSnapshot("Checked In"),
-          makeSnapshot(serviceCloseoutState),
-          calendarEventId,
-          email,
-          tenant,
-          firestoreUpdates,
-        );
-
-        expect(mockFetch).toHaveBeenCalledWith(
-          "http://localhost:3000/api/calendarEvents",
-          expect.objectContaining({
-            method: "PUT",
-            body: JSON.stringify({
-              calendarEventId,
-              newValues: { statusPrefix: "CHECKED-OUT" },
-            }),
-          }),
-        );
-      });
-
-      it("should skip checkout email and calendar when skipCalendarForServiceCloseout is true", async () => {
-        const firestoreUpdates: any = {};
-        await handleStateTransitions(
-          makeSnapshot("Checked In"),
-          makeSnapshot(serviceCloseoutState),
-          calendarEventId,
-          email,
-          tenant,
-          firestoreUpdates,
-          undefined,
-          true, // skipCalendarForServiceCloseout
-        );
-
+        // No emails, calendar updates, or timestamp fields from handleStateTransitions
         expect(mockServerSendBookingDetailEmail).not.toHaveBeenCalled();
         expect(mockFetch).not.toHaveBeenCalled();
+        expect(firestoreUpdates.checkedOutAt).toBeUndefined();
       });
 
-      it("should skip checkout email when no guest email", async () => {
-        mockServerGetDataByCalendarEventId.mockResolvedValue({
-          email: null,
-        });
-
-        const firestoreUpdates: any = {};
-        await handleStateTransitions(
-          makeSnapshot("Checked In"),
-          makeSnapshot(serviceCloseoutState),
-          calendarEventId,
-          email,
-          tenant,
-          firestoreUpdates,
-        );
-
-        expect(mockServerSendBookingDetailEmail).not.toHaveBeenCalled();
-      });
-    });
-
-    describe("Services Request (generic transition)", () => {
-      const servicesRequestState = { "Services Request": "some-state" };
-
-      it("should set status to PRE_APPROVED", async () => {
+      it("should not trigger side effects for Services Request (handled by /api/services)", async () => {
+        const servicesRequestState = { "Services Request": "some-state" };
         const firestoreUpdates: any = {};
         await handleStateTransitions(
           makeSnapshot("Requested"),
@@ -688,7 +607,9 @@ describe("xstateEffects", () => {
           firestoreUpdates,
         );
 
-        expect(firestoreUpdates.status).toBe("PRE-APPROVED");
+        expect(mockServerSendBookingDetailEmail).not.toHaveBeenCalled();
+        expect(mockFetch).not.toHaveBeenCalled();
+        expect(firestoreUpdates.status).toBeUndefined();
       });
     });
   });

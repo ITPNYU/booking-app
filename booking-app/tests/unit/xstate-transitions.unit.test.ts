@@ -276,7 +276,6 @@ describe("xstateTransitions", () => {
         tenant,
         expect.any(Object), // firestoreUpdates
         actor,
-        false, // skipCalendarForServiceCloseout
         "Service unavailable", // reason
       );
     });
@@ -434,7 +433,6 @@ describe("xstateTransitions", () => {
           tenant,
           expect.any(Object),
           actor,
-          true, // skipCalendarForServiceCloseout = true for noShow
           undefined, // reason
         );
       });

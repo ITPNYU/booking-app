@@ -260,7 +260,6 @@ export async function executeXStateTransition(
       tenant,
       firestoreUpdates,
       actor,
-      eventType === "noShow",
       reason,
     );
 
