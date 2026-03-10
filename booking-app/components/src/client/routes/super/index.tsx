@@ -41,7 +41,7 @@ export default function SuperAdmin() {
           >
             <Tab value="settings" label="Settings" />
             <Tab value="schema" label="Schema Editor" />
-            <Tab value="compare" label="Env Compare" />
+            <Tab value="compare" label="Schema Diff (Dev/Stg/Prod)" />
           </Tabs>
           {tab === "settings" && <SuperAdminSettings />}
           {tab === "schema" && <SchemaEditor />}
