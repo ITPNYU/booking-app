@@ -6,6 +6,7 @@ import {
 } from "@/lib/firebase/server/adminDb";
 import { TableNames } from "@/components/src/policy";
 import { applyEnvironmentCalendarIds } from "@/lib/utils/calendarEnvironment";
+import { isValidTenant } from "@/components/src/constants/tenants";
 import admin from "@/lib/firebase/server/firebaseAdmin";
 
 export async function GET(
@@ -28,8 +29,10 @@ export async function GET(
       );
     }
 
-    // Apply environment-based calendar ID selection
-    if (schema.resources && Array.isArray(schema.resources)) {
+    // Skip environment calendar ID rewriting when raw=1 is requested
+    // (used by schema editor to avoid data corruption on round-trip)
+    const raw = request.nextUrl.searchParams.get("raw") === "1";
+    if (!raw && schema.resources && Array.isArray(schema.resources)) {
       schema.resources = applyEnvironmentCalendarIds(schema.resources);
     }
 
@@ -49,6 +52,14 @@ export async function PUT(
 ) {
   try {
     const { tenant } = await params;
+
+    // Validate tenant
+    if (!isValidTenant(tenant)) {
+      return NextResponse.json(
+        { error: `Invalid tenant: ${tenant}` },
+        { status: 400 },
+      );
+    }
 
     // Verify super admin permission via email header
     const userEmail = request.headers.get("x-user-email");
@@ -75,12 +86,16 @@ export async function PUT(
 
     const newSchema = await request.json();
 
+    // Enforce tenant field consistency with URL param
+    newSchema.tenant = tenant;
+
     // Backup current schema before overwriting
     const existingSchema = await serverGetDocumentById(
       TableNames.TENANT_SCHEMA,
       tenant,
     );
 
+    let backupCreated = false;
     if (existingSchema) {
       const db = admin.firestore();
       const timestamp = new Date()
@@ -93,6 +108,7 @@ export async function PUT(
         .collection("tenantSchemaBackup")
         .doc(backupDocId)
         .set(existingSchema, { merge: false });
+      backupCreated = true;
     }
 
     // Write the updated schema
@@ -102,7 +118,7 @@ export async function PUT(
       newSchema,
     );
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, backupCreated });
   } catch (error) {
     console.error("Error updating tenant schema:", error);
     return NextResponse.json(

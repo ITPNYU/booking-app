@@ -28,6 +28,7 @@ import {
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
+import type { ChangeEvent } from "react";
 import { useCallback, useContext, useEffect, useRef, useState } from "react";
 import { DatabaseContext } from "../components/Provider";
 import type {
@@ -35,6 +36,7 @@ import type {
   Resource,
   Agreement,
 } from "../components/SchemaProvider";
+import { defaultResource } from "../components/SchemaProvider";
 import {
   computeDiff,
   formatValue,
@@ -199,7 +201,7 @@ function JsonEditor({
       <Box
         component="textarea"
         value={text}
-        onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+        onChange={(e: ChangeEvent<HTMLTextAreaElement>) =>
           handleChange(e.target.value)
         }
         spellCheck={false}
@@ -412,7 +414,7 @@ function AgreementsSection({
   return (
     <>
       {agreements.map((ag, i) => (
-        <Box key={i} sx={{ mb: 2, p: 2, border: "1px solid #e0e0e0", borderRadius: 1 }}>
+        <Box key={ag.id || `agreement-${i}`} sx={{ mb: 2, p: 2, border: "1px solid #e0e0e0", borderRadius: 1 }}>
           <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
             <Typography variant="subtitle2">Agreement {i + 1}</Typography>
             <IconButton size="small" onClick={() => removeAgreement(i)} color="error">
@@ -764,19 +766,7 @@ function ResourcesSection({
   const addResource = () => {
     onUpdateSchema((prev) => ({
       ...prev,
-      resources: [
-        ...(prev.resources ?? []),
-        {
-          name: "",
-          roomId: 0,
-          capacity: 0,
-          isEquipment: false,
-          calendarId: "",
-          isWalkIn: false,
-          isWalkInCanBookTwo: false,
-          services: [],
-        },
-      ],
+      resources: [...(prev.resources ?? []), { ...defaultResource }],
     }));
   };
 
@@ -784,7 +774,7 @@ function ResourcesSection({
     <>
       {resources.map((r, i) => (
         <ResourceEditor
-          key={i}
+          key={r.roomId || `resource-${i}`}
           resource={r}
           index={i}
           onUpdate={updateResource}
@@ -823,7 +813,8 @@ function MappingEditor({
   };
 
   const addEntry = () => {
-    onChange({ ...mapping, "": [] });
+    const tempKey = `new_key_${Date.now()}`;
+    onChange({ ...mapping, [tempKey]: [] });
   };
 
   const removeEntry = (key: string) => {
@@ -838,7 +829,7 @@ function MappingEditor({
         {label}
       </Typography>
       {entries.map(([key, values], i) => (
-        <Box key={i} display="flex" gap={1} mb={1} alignItems="center">
+        <Box key={key || `entry-${i}`} display="flex" gap={1} mb={1} alignItems="center">
           <TextField
             label="Key"
             value={key}
@@ -1068,7 +1059,7 @@ export default function SchemaEditor() {
   const fetchSchema = useCallback(async (tenantId: string) => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/tenantSchema/${tenantId}`);
+      const res = await fetch(`/api/tenantSchema/${tenantId}?raw=1`);
       if (!res.ok) throw new Error(`Failed to fetch schema: ${res.status}`);
       const data = await res.json();
       setSchema(data);
@@ -1126,16 +1117,19 @@ export default function SchemaEditor() {
         body: JSON.stringify(schema),
       });
 
+      const result = await res.json();
       if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || `Failed: ${res.status}`);
+        throw new Error(result.error || `Failed: ${res.status}`);
       }
 
       setOriginalSchema(JSON.stringify(schema));
       setDiffDialogOpen(false);
+      const backupMsg = result.backupCreated
+        ? " A backup of the previous schema was created."
+        : "";
       setSnack({
         open: true,
-        message: `Schema for "${tenant}" saved successfully. A backup was created automatically.`,
+        message: `Schema for "${tenant}" saved successfully.${backupMsg}`,
         severity: "success",
       });
     } catch (err: any) {
@@ -1152,7 +1146,7 @@ export default function SchemaEditor() {
   };
 
   const isDirty = schema
-    ? JSON.stringify(schema) !== originalSchema
+    ? computeDiff(JSON.parse(originalSchema), schema).length > 0
     : false;
   const canSave = isDirty && !saving && !!tenant;
 

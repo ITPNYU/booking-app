@@ -28,6 +28,10 @@ vi.mock("@/lib/utils/calendarEnvironment", () => ({
   applyEnvironmentCalendarIds: (resources: any[]) => resources,
 }));
 
+vi.mock("@/components/src/constants/tenants", () => ({
+  isValidTenant: (tenant: string) => ["mc", "itp", "mediaCommons"].includes(tenant),
+}));
+
 import { GET, PUT } from "@/app/api/tenantSchema/[tenant]/route";
 import { NextRequest } from "next/server";
 
@@ -140,6 +144,7 @@ describe("PUT /api/tenantSchema/[tenant]", () => {
 
     expect(status).toBe(200);
     expect(data.success).toBe(true);
+    expect(data.backupCreated).toBe(true);
 
     // Verify backup was created
     expect(mockFirestoreCollection).toHaveBeenCalledWith(
@@ -177,12 +182,54 @@ describe("PUT /api/tenantSchema/[tenant]", () => {
 
     expect(status).toBe(200);
     expect(data.success).toBe(true);
+    expect(data.backupCreated).toBe(false);
 
     // Backup should NOT have been created
     expect(mockFirestoreCollection).not.toHaveBeenCalled();
 
     // Schema should still be saved
     expect(mockServerSaveDataToFirestoreWithId).toHaveBeenCalled();
+  });
+
+  it("returns 400 for invalid tenant", async () => {
+    const invalidParams = Promise.resolve({ tenant: "invalid_tenant" });
+
+    const response = await PUT(
+      createRequest("PUT", mockSchema, {
+        "x-user-email": "admin@nyu.edu",
+      }),
+      { params: invalidParams },
+    );
+    const { data, status } = await parseJson(response);
+
+    expect(status).toBe(400);
+    expect(data.error).toContain("Invalid tenant");
+  });
+
+  it("enforces tenant field from URL param", async () => {
+    mockServerFetchAllDataFromCollection.mockResolvedValue([
+      { id: "1", email: "admin@nyu.edu" },
+    ]);
+    mockServerGetDocumentById.mockResolvedValue(null);
+    mockServerSaveDataToFirestoreWithId.mockResolvedValue(undefined);
+
+    const schemaWithWrongTenant = { ...mockSchema, tenant: "wrong" };
+
+    const response = await PUT(
+      createRequest("PUT", schemaWithWrongTenant, {
+        "x-user-email": "admin@nyu.edu",
+      }),
+      { params },
+    );
+    const { status } = await parseJson(response);
+
+    expect(status).toBe(200);
+    // Verify the saved schema has tenant = "mc" (from URL), not "wrong"
+    expect(mockServerSaveDataToFirestoreWithId).toHaveBeenCalledWith(
+      "tenantSchema",
+      "mc",
+      expect.objectContaining({ tenant: "mc" }),
+    );
   });
 
   it("email comparison is case-insensitive", async () => {
