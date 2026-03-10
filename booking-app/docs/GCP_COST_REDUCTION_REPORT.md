@@ -20,24 +20,105 @@ Running 3 services on App Engine Standard (Node.js 20):
 
 ## 1. App Engine Instance Hours (Largest Cost Driver)
 
-Actual data from Cloud Monitoring (last 30 days):
+Actual data from Cloud Monitoring — per-version, per-zone idle instance counts (last 30 days):
 
-| Service | Avg Instances | Max Instances | Est. Monthly Instance-Hours | Requests/Day |
-|---------|--------------|---------------|----------------------------|-------------|
-| **default (prod)** | 3.13 | 6.65 | ~2,255h | 5,866 |
-| **development** | 2.52 | 8.29 | ~1,811h | 305 |
-| **staging** | 1.25 | 3.44 | ~901h | 109 |
-| **Total** | **6.90** | - | **~4,967h/mo** | - |
+| Service | Avg Instances | Max Instances | Requests/Day |
+|---------|--------------|---------------|-------------|
+| **default (prod)** | 3.0 | 6.3 | 5,866 |
+| **development** | 2.6 | 8.4 | 305 |
+| **staging** | 1.2 | 2.5 | 109 |
 
-F1 instance: $0.05/h → **Estimated ~$248/mo (instance hours only)**
+### Daily Cost Breakdown (All Services Combined)
 
-### Key Issues
+```
+Date        Prod  Zn   Dev  Zn   Stg  Zn   Total    Cost
+2026-02-10   3.2   2   2.0   2   1.0   1     6.2  $ 7.46
+2026-02-11   5.7   2   5.4   2   1.0   1    12.2  $14.60
+2026-02-12   1.9   1   2.0   1   1.0   1     4.9  $ 5.87
+2026-02-13   1.8   1   1.0   1   1.0   1     3.8  $ 4.59
+2026-02-14   1.9   1   1.0   1   1.0   1     3.9  $ 4.69
+2026-02-15   1.2   1   1.0   1   1.0   1     3.2  $ 3.89
+2026-02-16   1.4   1   1.0   1   1.0   1     3.4  $ 4.11
+2026-02-17   1.4   1   3.0   2   1.0   1     5.4  $ 6.50
+2026-02-18   6.2   2   6.4   2   2.0   1    14.7  $17.60
+2026-02-19   1.9   1   1.1   1   1.0   1     4.0  $ 4.78
+2026-02-20   2.7   2   1.0   1   1.0   1     4.7  $ 5.67
+2026-02-21   3.8   1   7.0   2   2.5   1    13.2  $15.87
+2026-02-22   3.5   2   1.2   1   1.9   2     6.5  $ 7.79
+2026-02-23   1.6   1   1.0   1   2.0   2     4.6  $ 5.52
+2026-02-24   3.3   2   4.4   2   1.0   1     8.7  $10.44
+2026-02-25   3.3   2   1.0   1   1.0   1     5.3  $ 6.36
+2026-02-26   3.9   2   2.0   2   1.0   1     6.8  $ 8.22
+2026-02-27   6.3   2   1.0   1   2.0   2     9.4  $11.27
+2026-02-28   3.7   2   1.0   1   2.0   2     6.8  $ 8.14
+2026-03-01   2.5   2   3.3   2   1.0   1     6.7  $ 8.09
+2026-03-02   2.0   2   2.0   2   1.0   1     5.0  $ 6.00
+2026-03-03   3.7   2   2.0   2   1.0   1     6.7  $ 8.08
+2026-03-04   3.7   2   7.9   2   1.1   1    12.6  $15.16
+2026-03-05   3.5   2   1.0   1   1.0   1     5.6  $ 6.74
+2026-03-06   2.9   2   2.0   2   2.0   2     6.9  $ 8.26
+2026-03-07   2.4   2   2.0   2   1.0   1     5.4  $ 6.50
+2026-03-08   2.8   2   1.1   1   0.8   1     4.7  $ 5.65
+2026-03-09   1.2   1   1.0   1   0.8   1     3.0  $ 3.60
+2026-03-10   2.9   2   8.4   2   1.3   1    12.6  $15.17
+2026-03-11   2.0   2   1.0   1   0.0   0     3.0  $ 3.61
+```
 
-- **Development environment**: Only 305 requests/day yet running 2.52 instances on average — nearly the same resource consumption as production (5,866 requests/day). `min_instances: 1` + `automatic_scaling` keeps at least 1 instance running 24/7, even with near-zero traffic.
-- **Staging environment**: 109 requests/day with 1.25 average instances. The basic_scaling `idle_timeout` of 5m is too long.
-- **Production**: `max_instances: 10` but actual peak is only 6.65. No need to allow up to 10.
+"Zn" = number of GCP zones the service was running in on that day.
 
-## 2. Response Latency
+### Cost Summary
+
+- **Avg daily: $7.97**
+- **Min daily: $3.60** (03-09) — all services in 1 zone, ~1 instance each
+- **Max daily: $17.60** (02-18) — multiple services in 2 zones with spikes
+- **Est. monthly: ~$240**
+
+### Cost by Service (29-day period)
+
+| Service | Cost | Share |
+|---------|------|-------|
+| Production | $105 | 45% |
+| Development | $83 | 36% |
+| Staging | $43 | 19% |
+| **Total** | **$231** | |
+
+---
+
+## 2. Root Cause: Why Daily Costs Vary by $3–$18
+
+We tested correlations between daily cost and several potential drivers:
+
+| Factor Pair | Correlation (r) | Interpretation |
+|-------------|----------------|----------------|
+| **Total cost vs Zone count** | **0.593** | Strongest — multi-zone deployment is the primary driver |
+| Instances vs HTTP Requests | 0.153 | Very weak — request volume does NOT drive cost |
+| Instances vs Firestore Reads | 0.074 | No correlation |
+
+### The real driver: Automatic multi-zone deployment
+
+App Engine automatically distributes instances across GCP zones for reliability. When a service runs in **2 zones instead of 1**, `min_instances: 1` applies **per zone**, effectively doubling the minimum instance count.
+
+| Pattern | Prod | Dev | Stg | Example | Daily Cost |
+|---------|------|-----|-----|---------|-----------|
+| All services in 1 zone | ~1 | ~1 | ~1 | 03-09 | **~$3.60** |
+| Prod in 2 zones | ~2+ | ~1 | ~1 | 02-25 | **~$6** |
+| Prod + Dev in 2 zones | ~3+ | ~2+ | ~1 | 02-24, 03-03 | **~$8–10** |
+| All spiking + multi-zone | ~6+ | ~7+ | ~2+ | 02-18, 02-21 | **~$15–18** |
+
+**Development is the worst offender.** On 03-04 it ran 7.9 instances ($9.48 in one day) serving only ~305 requests. On 03-10, it hit 8.4 instances. This is a dev environment with nearly zero traffic — the cost is pure waste from multi-zone scaling.
+
+### Why request count and Firestore reads don't correlate
+
+| Date | HTTP Req | Firestore Reads | Instances | Cost |
+|------|----------|----------------|-----------|------|
+| 03-03 | **14,201** | **4,575,558** | 6.7 | $8.08 |
+| 02-18 | 4,831 | 1,731,189 | **14.7** | **$17.60** |
+
+Days with 3x the traffic can cost **less** than low-traffic days. The instance count is driven by zone distribution and auto-scaler behavior, not by aggregate request or read volume.
+
+---
+
+## 3. Response Latency
 
 | Service | P50 Latency |
 |---------|------------|
@@ -45,45 +126,11 @@ F1 instance: $0.05/h → **Estimated ~$248/mo (instance hours only)**
 | development | 3,536ms |
 | staging | 1,335ms |
 
-Production P50 exceeding **4 seconds** is very slow. Long request processing times keep instances occupied, causing the Auto Scaler to spin up additional instances — a direct driver of increased costs.
+Production P50 exceeding 4 seconds is very slow. When instances are occupied processing slow requests, the auto-scaler adds more instances to handle incoming traffic — contributing to cost spikes.
 
-## 2.5. Root Cause Analysis: What Drives Daily Cost Variation?
+---
 
-Daily billing fluctuates significantly. To identify the root cause, we computed correlations across 30 days of production data:
-
-| Factor Pair | Correlation (r) | Interpretation |
-|-------------|----------------|----------------|
-| Instances vs Requests | **0.244** | Very weak — request volume is NOT the main cost driver |
-| Instances vs Latency | 0.031 | No correlation |
-| Requests vs Latency | 0.477 | Moderate — more requests tend to mean slower responses |
-
-### Evidence: Instance spikes happen on moderate-traffic days
-
-| Date | Avg Instances | Requests | Latency | Est. Cost |
-|------|--------------|----------|---------|-----------|
-| 02-18 | **6.65** | 4,831 | 1,694ms | **$7.98** |
-| 02-21 | **6.32** | 4,131 | 1,456ms | **$7.58** |
-| 03-03 | 3.82 | **14,201** | 4,204ms | $4.58 |
-| 02-09 | 2.84 | **12,872** | 3,587ms | $3.41 |
-
-Days with 3x more requests often use **fewer** instances than moderate-traffic days.
-
-### Conclusion
-
-The primary cost driver is **request burst patterns (concurrent requests at a given moment)**, not total daily request volume. App Engine's auto-scaler responds to concurrent request load, not aggregate counts. Likely triggers for spikes include:
-
-- Multiple admin users loading data-heavy pages simultaneously
-- Cron jobs running during active hours
-- Slow API responses holding instances busy, compounding with new incoming requests
-
-### Estimated Daily Cost Range (Production only)
-
-- Min: **$1.52/day** (02-15, weekend)
-- Max: **$7.98/day** (02-18, spike day)
-- Avg: **$3.81/day**
-- Variation: **$6.46/day** swing between min and max
-
-## 3. Cloud Storage
+## 4. Cloud Storage
 
 | Bucket | Size | Notes |
 |--------|------|-------|
@@ -97,7 +144,9 @@ The primary cost driver is **request burst patterns (concurrent requests at a gi
 
 The **26.6 GB staging bucket** stands out. Deploy artifacts accumulate with each deployment.
 
-## 4. Firestore
+---
+
+## 5. Firestore
 
 ### Database Inventory
 
@@ -119,9 +168,11 @@ The **26.6 GB staging bucket** stands out. Deploy artifacts accumulate with each
 | Reads | **86,645,573** | 2,795,018 |
 | Writes | 8,238 | 275 |
 
-Read volume is extremely high (~86.6M/mo). The read-to-write ratio is approximately 10,000:1, suggesting significant room for caching optimization.
+Read-to-write ratio is approximately 10,000:1. While read volume does not directly correlate with instance costs, high read volume means Firestore read charges themselves may be significant. Caching could reduce both Firestore costs and response latency.
 
-## 5. Cloud Logging
+---
+
+## 6. Cloud Logging
 
 - Last 30 days ingestion: **2.76 GB** (daily avg: 94 MB)
 - Free tier: 50 GB/mo → **Within free tier, no action needed**
@@ -134,29 +185,31 @@ Read volume is extremely high (~86.6M/mo). The read-to-write ratio is approximat
 
 | # | Action | Est. Monthly Savings | Risk |
 |---|--------|---------------------|------|
-| 1 | **development: set `min_instances: 0`** | ~$90 | Cold starts will occur (acceptable for dev) |
+| 1 | **development: set `min_instances: 0`** | **~$80–90** | Cold starts will occur (acceptable for dev) |
 | 2 | **development: set `max_instances: 3`** | Caps spike costs | 305 req/day easily handled by 3 instances |
-| 3 | **staging: reduce `idle_timeout` to `2m`** | ~$20 | Slightly increased response latency |
-| 4 | **staging: set `max_instances: 3`** | Caps spike costs | 109 req/day easily handled by 3 instances |
-| 5 | **production: set `max_instances: 5`** | Caps spike costs | Peak was 6.65 — needs monitoring |
+| 3 | **production: set `max_instances: 5`** | Caps spike costs | Peak was 6.3 — needs monitoring |
 
-**Phase 1 estimated savings: ~$110/mo (~44% reduction)**
+> Note: Staging has already been shut down (~$45/mo saved).
+
+`min_instances: 0` on development is the single highest-impact change. It prevents idle instances from being maintained in each zone, eliminating the multi-zone cost multiplication that causes $10–15 spike days on a dev environment.
+
+**Phase 1 estimated savings: ~$80–90/mo (~35% reduction from current $240/mo)**
 
 ### Phase 2: Medium-Term Cleanup
 
 | # | Action | Savings | Effort |
 |---|--------|---------|--------|
-| 6 | **Delete unused Firestore backup DBs** (`booking-app-prod-backup-20251122`, `media-commons1`, etc.) | DB storage cost reduction | Low (verify they're truly unused first) |
-| 7 | **Clean up staging bucket** (26.6 GB of deploy artifacts) | Storage cost reduction | Low |
-| 8 | **Delete empty bucket `booking-backup20250903`** | Minimal | Low |
+| 4 | **Delete unused Firestore backup DBs** (`booking-app-prod-backup-20251122`, `media-commons1`, etc.) | DB storage cost reduction | Low (verify they're truly unused first) |
+| 5 | **Clean up staging deploy bucket** (26.6 GB) | Storage cost reduction | Low |
+| 6 | **Delete empty bucket `booking-backup20250903`** | Minimal | Low |
 
 ### Phase 3: Fundamental Improvements (Medium–Large Effort)
 
 | # | Action | Impact | Effort |
 |---|--------|--------|--------|
-| 9 | **Improve production latency** (P50: 4,183ms → target < 1,000ms) | Better instance efficiency → fewer instances needed | Large |
-| 10 | **Optimize Firestore read caching** (86.6M reads/mo) | Reduce Firestore read costs | Medium |
-| 11 | **Evaluate migration to Cloud Run** | Per-request billing model is more cost-efficient | Large |
+| 7 | **Improve production latency** (P50: 4,183ms → target < 1,000ms) | Fewer instances needed to handle same traffic | Large |
+| 8 | **Optimize Firestore read caching** (86.6M reads/mo, 10,000:1 read/write ratio) | Reduce Firestore read costs + improve latency | Medium |
+| 9 | **Evaluate migration to Cloud Run** | Per-request billing instead of per-instance | Large |
 
 ---
 
@@ -175,25 +228,9 @@ automatic_scaling:
 # After
 instance_class: F1
 automatic_scaling:
-  min_instances: 0          # Changed: stop always-on instance
+  min_instances: 0          # Changed: no always-on instances — prevents multi-zone idle cost
   max_instances: 3           # Changed: 10 → 3
   target_cpu_utilization: 0.65
-```
-
-### app.staging.yaml
-
-```yaml
-# Before
-instance_class: B1
-basic_scaling:
-  max_instances: 10
-  idle_timeout: 5m
-
-# After
-instance_class: B1
-basic_scaling:
-  max_instances: 3           # Changed: 10 → 3
-  idle_timeout: 2m           # Changed: 5m → 2m
 ```
 
 ### app.production.yaml
@@ -210,7 +247,7 @@ automatic_scaling:
 instance_class: F1
 automatic_scaling:
   min_instances: 1
-  max_instances: 5           # Changed: 10 → 5
+  max_instances: 5           # Changed: 10 → 5 (actual peak is 6.3 across 2 zones)
   target_cpu_utilization: 0.65
 ```
 
@@ -221,4 +258,8 @@ automatic_scaling:
 - **F1 instance**: 600MHz CPU, 256MB RAM — $0.05/hour
 - **B1 instance**: 600MHz CPU, 256MB RAM — $0.05/hour
 - Free tier: 28 instance-hours/day (F1)
-- Current usage (~4,967h/mo = ~166h/day) far exceeds the free tier (28h/day)
+- Current usage far exceeds the free tier
+
+## Methodology
+
+All data was collected from Cloud Monitoring API (`appengine.googleapis.com/system/instance_count`) with per-version, per-zone granularity over a 30-day window (2026-02-09 to 2026-03-11). Instance counts reflect the `idle` state metric, which represents actual running (billable) instances. Correlations computed as Pearson's r across daily aggregated values.
