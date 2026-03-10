@@ -151,7 +151,11 @@ export enum FormContextLevel {
 export type Inputs = {
   firstName: string;
   lastName: string;
-  secondaryName: string;
+  // Secondary contact fields - optional for backwards compatibility with old bookings that used secondaryName
+  secondaryFirstName?: string;
+  secondaryLastName?: string;
+  secondaryEmail?: string;
+  secondaryName?: string; // Legacy field - old bookings have this instead of split fields
   nNumber: string;
   netId: string;
   walkInNetId?: string; // NetID of the walk-in person (for safety training validation)

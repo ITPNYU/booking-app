@@ -1,7 +1,7 @@
 import { getCalendarClient } from "@/lib/googleClient";
 import { traceExternalCall } from "@/lib/newrelic-utils";
 import { BookingFormDetails, BookingStatusLabel } from "../types";
-import { formatOrigin } from "../utils/formatters";
+import { formatOrigin, getSecondaryContactName } from "../utils/formatters";
 
 import { serverGetRoomCalendarIds } from "./admin";
 
@@ -22,6 +22,7 @@ export const patchCalendarEvent = async (
       calendarId,
       eventId,
       requestBody,
+      sendUpdates: "all", // Send notifications to all attendees when calendar is updated
     }),
   );
 };
@@ -134,7 +135,11 @@ export const bookingContentsToDescription = async (
   description += listItem("N-Number", getProperty(bookingContents, "nNumber"));
   description += listItem(
     "Secondary Contact",
-    getProperty(bookingContents, "secondaryName"),
+    getSecondaryContactName(bookingContents)
+  );
+  description += listItem(
+    "Secondary Contact Email",
+    getProperty(bookingContents, "secondaryEmail")
   );
   description += listItem(
     "Sponsor Name",
@@ -286,6 +291,7 @@ export const insertEvent = async ({
     () =>
       calendar.events.insert({
         calendarId,
+        sendUpdates: "all", // Send notifications to all attendees when calendar event is created
         requestBody: {
           summary: title,
           description,
@@ -397,6 +403,7 @@ export const deleteEvent = async (
       calendar.events.delete({
         calendarId,
         eventId: calendarEventId,
+        sendUpdates: "all", // Send cancellation notifications to all attendees
       }),
     );
     console.log(`deleted calendar event for ${roomId}`);
