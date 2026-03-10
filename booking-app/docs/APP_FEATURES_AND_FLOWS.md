@@ -69,7 +69,7 @@ The role category (Student, Faculty, Admin) determines booking hour limits and a
 | Permission | What They Can Do |
 |-----------|-----------------|
 | **User** | Create bookings, view own bookings, cancel own bookings |
-| **PA (Production Assistant)** | All User capabilities + check guests in/out, mark no-shows, manage day-of operations |
+| **PA** | All User capabilities + check guests in/out, mark no-shows, manage day-of operations |
 | **Liaison** | All PA capabilities + first-level approve/decline for their department's bookings |
 | **Services** | All User capabilities + approve/decline/closeout individual services (catering, staffing, etc.) |
 | **Admin** | Full access to all bookings across all departments, all actions, and all settings |
@@ -333,7 +333,7 @@ Every booking follows a state machine that controls which actions are available 
 | Walk-in | Created through the walk-in flow |
 | VIP | Created through the VIP flow |
 | System | Created by an automated process |
-| Pre-game | Imported from pre-game calendar sync |
+| Pregame | Imported from pregame calendar sync |
 
 ---
 
@@ -513,7 +513,7 @@ Two main tabs:
 Manage users who have completed safety training. Add or remove users, track completion dates.
 
 #### PA Users
-Add or remove Production Assistant accounts by email.
+Add or remove PA accounts by email.
 
 #### Admin Users
 Add or remove administrator accounts by email. Only users on this list can access the admin panel.
@@ -581,10 +581,12 @@ The calendar event description includes structured booking details:
 - Event details (title, description, type, attendance)
 - Services requested
 
-### Calendar Visibility
+### Calendar Event Behavior by Status
 
-Bookings in these statuses are **hidden** from the calendar:
-- No Show, Canceled, Declined, Checked Out
+- **Canceled** bookings: the Google Calendar event is **deleted**, so the booking no longer appears on the calendar
+- **Declined** bookings: the Google Calendar event remains visible, but its title is updated with a `[DECLINED]` prefix
+- **No Show** bookings: the Google Calendar event remains visible, but its title is updated with a `[NO_SHOW]` prefix
+- **Checked Out** bookings: the Google Calendar event remains visible, but its title is updated with a `[CHECKED_OUT]` prefix
 
 ### Calendar UI (Room Selection)
 
@@ -749,7 +751,7 @@ Blackout periods are time ranges during which bookings are not allowed.
 
 - Equipment requests follow the standard service approval workflow
 - Equipment-specific approvers can approve or decline requests
-- Equipment checkout status is togglable in the booking detail modal
+- Equipment checkout status is toggleable in the booking detail modal
 
 ---
 
