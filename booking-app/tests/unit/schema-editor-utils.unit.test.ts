@@ -110,17 +110,81 @@ describe("computeDiff", () => {
     ]);
   });
 
-  it("detects changed arrays as a whole", () => {
+  it("recurses into arrays of objects element by element", () => {
+    const old = {
+      resources: [
+        { name: "Room A", capacity: 10 },
+        { name: "Room B", capacity: 20 },
+      ],
+    };
+    const updated = {
+      resources: [
+        { name: "Room A", capacity: 15 },
+        { name: "Room B", capacity: 20 },
+      ],
+    };
+    const diffs = computeDiff(old, updated);
+    expect(diffs).toEqual([
+      {
+        path: "resources[0].capacity",
+        type: "changed",
+        oldValue: 10,
+        newValue: 15,
+      },
+    ]);
+  });
+
+  it("detects added array elements", () => {
+    const old = { items: [{ name: "a" }] };
+    const updated = { items: [{ name: "a" }, { name: "b" }] };
+    const diffs = computeDiff(old, updated);
+    expect(diffs).toEqual([
+      { path: "items[1]", type: "added", newValue: { name: "b" } },
+    ]);
+  });
+
+  it("detects removed array elements", () => {
+    const old = { items: [{ name: "a" }, { name: "b" }] };
+    const updated = { items: [{ name: "a" }] };
+    const diffs = computeDiff(old, updated);
+    expect(diffs).toEqual([
+      { path: "items[1]", type: "removed", oldValue: { name: "b" } },
+    ]);
+  });
+
+  it("detects changed primitive array elements", () => {
     const diffs = computeDiff(
       { services: ["a", "b"] },
       { services: ["a", "c"] },
     );
     expect(diffs).toEqual([
       {
-        path: "services",
+        path: "services[1]",
         type: "changed",
-        oldValue: ["a", "b"],
-        newValue: ["a", "c"],
+        oldValue: "b",
+        newValue: "c",
+      },
+    ]);
+  });
+
+  it("recurses into deeply nested array objects", () => {
+    const old = {
+      resources: [
+        { name: "Room", autoApproval: { minHour: { admin: 8 } } },
+      ],
+    };
+    const updated = {
+      resources: [
+        { name: "Room", autoApproval: { minHour: { admin: 10 } } },
+      ],
+    };
+    const diffs = computeDiff(old, updated);
+    expect(diffs).toEqual([
+      {
+        path: "resources[0].autoApproval.minHour.admin",
+        type: "changed",
+        oldValue: 8,
+        newValue: 10,
       },
     ]);
   });
@@ -190,11 +254,16 @@ describe("formatValue", () => {
     expect(formatValue("hello")).toBe("hello");
   });
 
-  it("truncates long strings", () => {
-    const longStr = "a".repeat(100);
+  it("truncates long strings at 200 chars", () => {
+    const longStr = "a".repeat(250);
     const result = formatValue(longStr);
-    expect(result.length).toBe(83); // 80 + "..."
+    expect(result.length).toBe(203); // 200 + "..."
     expect(result.endsWith("...")).toBe(true);
+  });
+
+  it("keeps strings under 200 chars as-is", () => {
+    const str = "a".repeat(200);
+    expect(formatValue(str)).toBe(str);
   });
 
   it("formats numbers", () => {
@@ -205,18 +274,22 @@ describe("formatValue", () => {
     expect(formatValue(true)).toBe("true");
   });
 
-  it("formats short objects as JSON", () => {
-    expect(formatValue({ a: 1 })).toBe('{"a":1}');
+  it("formats short objects as pretty JSON", () => {
+    const result = formatValue({ a: 1 });
+    expect(result).toContain('"a": 1');
   });
 
-  it("truncates long objects", () => {
-    const bigObj = { key: "a".repeat(100) };
+  it("truncates long objects at 300 chars", () => {
+    const bigObj = { key: "a".repeat(300) };
     const result = formatValue(bigObj);
-    expect(result.length).toBe(83);
+    expect(result.length).toBe(303); // 300 + "..."
     expect(result.endsWith("...")).toBe(true);
   });
 
-  it("formats arrays as JSON", () => {
-    expect(formatValue([1, 2, 3])).toBe("[1,2,3]");
+  it("formats arrays as pretty JSON", () => {
+    const result = formatValue([1, 2, 3]);
+    expect(result).toContain("1");
+    expect(result).toContain("2");
+    expect(result).toContain("3");
   });
 });
