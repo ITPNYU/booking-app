@@ -141,6 +141,105 @@ export function isBookingsTable(normalizedTableName: string): boolean {
 }
 
 /**
+ * Registers a webpack module patcher that overrides specified exports.
+ * Each test should first set its override functions on `window` (e.g.
+ * `window.clientFetchAllDataFromCollection = ...`) via addInitScript,
+ * then call this helper to patch those overrides into webpack modules.
+ *
+ * @param exports - Names of window properties to patch into webpack modules.
+ *   Defaults to ['clientFetchAllDataFromCollection'].
+ */
+export async function registerWebpackPatcher(
+  page: Page,
+  options: { exports?: string[] } = {},
+) {
+  const exportNames = options.exports ?? [
+    "clientFetchAllDataFromCollection",
+  ];
+
+  await page.addInitScript((exportNames: string[]) => {
+    const buildOverrideMap = (): Record<string, Function> => {
+      const map: Record<string, Function> = {};
+      for (const name of exportNames) {
+        if (typeof (window as any)[name] === "function") {
+          map[name] = (window as any)[name];
+        }
+      }
+      return map;
+    };
+
+    const patchWebpackModules = () => {
+      const overrideMap = buildOverrideMap();
+      if (Object.keys(overrideMap).length === 0) return false;
+
+      const chunk = (window as any).webpackChunk_N_E;
+      if (!chunk) return false;
+      let wpRequire: any;
+      try {
+        chunk.push([
+          ["__e2e_patch_" + Date.now()],
+          {},
+          (req: any) => {
+            wpRequire = req;
+          },
+        ]);
+      } catch (_) {
+        return false;
+      }
+      if (!wpRequire?.c) return false;
+      let patched = false;
+      Object.values(wpRequire.c).forEach((mod: any) => {
+        if (
+          mod?.exports &&
+          typeof mod.exports === "object" &&
+          mod.exports !== null
+        ) {
+          for (const [key, fn] of Object.entries(overrideMap)) {
+            if (key in mod.exports && fn) {
+              try {
+                Object.defineProperty(mod.exports, key, {
+                  value: fn,
+                  writable: true,
+                  configurable: true,
+                  enumerable: true,
+                });
+                patched = true;
+              } catch (_) {
+                try {
+                  mod.exports[key] = fn;
+                  patched = true;
+                } catch (_) {}
+              }
+            }
+          }
+        }
+      });
+      return patched;
+    };
+
+    let patchSucceeded = false;
+
+    const _earlyPatchId = setInterval(() => {
+      try {
+        if (patchWebpackModules()) {
+          patchSucceeded = true;
+          clearInterval(_earlyPatchId);
+        }
+      } catch (_) {}
+    }, 50);
+    setTimeout(() => clearInterval(_earlyPatchId), 30000);
+
+    (window as any).__applyMockBookingsOverrides = () => {
+      try {
+        if (patchWebpackModules()) patchSucceeded = true;
+      } catch (_) {}
+    };
+
+    (window as any).__isMockPatchApplied = () => patchSucceeded;
+  }, exportNames);
+}
+
+/**
  * Shared helper that registers the mock bookings feed for xstate E2E tests.
  * Sets up route interception, webpack module patching, and data fetching overrides.
  */
@@ -463,28 +562,37 @@ export async function registerMockBookingsFeed(
         return patched;
       };
 
+      let patchSucceeded = false;
+
       const _earlyPatchId = setInterval(() => {
         try {
           if (patchWebpackModules()) {
+            patchSucceeded = true;
             clearInterval(_earlyPatchId);
           }
         } catch (_) {}
-      }, 2);
-      setTimeout(() => clearInterval(_earlyPatchId), 10000);
+      }, 50);
+      setTimeout(() => clearInterval(_earlyPatchId), 30000);
 
       try {
-        patchWebpackModules();
+        if (patchWebpackModules()) {
+          patchSucceeded = true;
+        }
       } catch (_err) {
         // ignore sync errors
       }
 
       (window as any).__applyMockBookingsOverrides = () => {
         try {
-          patchWebpackModules();
+          if (patchWebpackModules()) {
+            patchSucceeded = true;
+          }
         } catch (_err) {
           // ignore sync errors
         }
       };
+
+      (window as any).__isMockPatchApplied = () => patchSucceeded;
     },
     {
       timestampFields: TIMESTAMP_FIELDS_WITH_BY,
