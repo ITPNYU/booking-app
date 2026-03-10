@@ -10,6 +10,7 @@ import { shouldUseXState } from "@/components/src/utils/tenantUtils";
 import { clientUpdateDataByCalendarEventId } from "@/lib/firebase/client/clientDb";
 import type { SchemaContextType } from "../client/routes/components/SchemaProvider";
 import { DEFAULT_TENANT } from "../constants/tenants";
+import { getSecondaryContactName } from "../utils/formatters";
 import {
   Approver,
   Booking,
@@ -1226,11 +1227,15 @@ export const clientBookingContents = async (id: string, tenant?: string) => {
   const startDateObj = new Date(bookingObj.startDate.toDate());
   const endDateObj = new Date(bookingObj.endDate.toDate());
 
+  // Derive secondaryContactName for email template
+  const secondaryContactName = getSecondaryContactName(bookingObj);
+
   const updatedBookingObj = {
     ...bookingObj,
     headerMessage: "This is a request email for final approval.",
     bookingToolUrl: getBookingToolDeployUrl(),
     history,
+    secondaryContactName,
     // Add formatted time fields for email template
     startTime: startDateObj.toLocaleTimeString("en-US", {
       hour: "2-digit",
