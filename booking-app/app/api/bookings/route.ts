@@ -827,6 +827,7 @@ export async function POST(request: NextRequest) {
       equipmentCheckedOut: false,
       requestedAt: Timestamp.now(),
       origin: BookingOrigin.USER,
+      tenant,
       ...data,
       // Override with display values for "Other" selections
       ...getOtherDisplayFields(data),

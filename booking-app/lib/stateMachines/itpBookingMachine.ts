@@ -142,6 +142,8 @@ export const itpBookingMachine = setup({
     formData: input?.formData,
     bookingCalendarInfo: input?.bookingCalendarInfo,
     isWalkIn: input?.isWalkIn || false,
+    isVip: input?.isVip || false,
+    role: input?.role,
     calendarEventId: input?.calendarEventId,
     email: input?.email,
   }),

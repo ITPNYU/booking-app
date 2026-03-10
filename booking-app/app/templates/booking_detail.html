@@ -187,6 +187,7 @@
             }}{{else}}none{{/if}}
           </td>
         </tr>
+        {{#unless (eq contents.tenant "itp")}}
         <tr>
           <td>Sponsor Name</td>
           <td>
@@ -201,6 +202,7 @@
             }}{{else}}none{{/if}}
           </td>
         </tr>
+        {{/unless}}
       </table>
 
       <div class="section-title">Details</div>
@@ -239,6 +241,7 @@
         </tr>
       </table>
 
+      {{#unless (eq contents.tenant "itp")}}
       <div class="section-title">Services</div>
       <table class="info-table">
         <tr>
@@ -300,6 +303,7 @@
           </td>
         </tr>
       </table>
+      {{/unless}}
     </div>
 
     {{#if approvalUrl}}
