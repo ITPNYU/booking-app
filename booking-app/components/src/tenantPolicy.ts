@@ -53,6 +53,11 @@ const ITP_POLICY: TenantPolicy = {
       staging: ITP_OPERATION_EMAIL,
       production: ITP_OPERATION_EMAIL,
     },
+    cancelCcEmail: {
+      development: "booking-app-devs+cancelcc@itp.nyu.edu",
+      staging: ITP_OPERATION_EMAIL,
+      production: ITP_OPERATION_EMAIL,
+    },
   },
   approvalLevels: 1,
   hasServiceRequests: false,

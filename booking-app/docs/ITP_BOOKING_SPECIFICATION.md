@@ -45,11 +45,11 @@ The ITP booking system allows ITP community members to reserve rooms through a w
 | Huddle Room | 448 | 4 | 24 hours | ✅ Dev + Prod |
 
 **Configuration:**
-- Auto-approval: Disabled (all bookings require manual approval)
+- Auto-approval: Enabled (Student ≤1h, Faculty/Admin ≤4h)
 - Services: None
 - Safety training: Not required
-- Walk-in: Not enabled
-- VIP: Not supported
+- Walk-in: Not enabled (Phase 2)
+- VIP: Not supported (Phase 2)
 
 ### Phase 3 — Additional Rooms (Future)
 
@@ -188,11 +188,17 @@ Load Existing Booking Data → Modification Form → Submit
 
 ---
 
-## 6. Auto-Approval (Currently Disabled)
+## 6. Auto-Approval
 
-Auto-approval is **disabled** for Phase 1. All bookings require manual approval.
+Auto-approval is **enabled** for all Huddle Rooms:
 
-> **PM Decision Needed:** Confirm auto-approval rules before enabling. See `docs/ITP_SCHEMA_DECISIONS.md` §1.
+| Role | Max Duration |
+|------|-------------|
+| Student | 1 hour |
+| Faculty | 4 hours |
+| Admin/Staff | 4 hours |
+
+Bookings within the duration limit are automatically approved. Bookings exceeding the limit require manual approval by a Liaison or Admin.
 
 ---
 
@@ -222,10 +228,8 @@ Auto-approval is **disabled** for Phase 1. All bookings require manual approval.
 | Environment | Email |
 |-------------|-------|
 | Development | `booking-app-devs+operation@itp.nyu.edu` |
-| Staging | TBD (using dev placeholder) |
-| Production | TBD (using dev placeholder) |
-
-> **PM Decision Needed:** Confirm ITP operations email address. See `docs/ITP_SCHEMA_DECISIONS.md` §4.
+| Staging | `booking-app+itp@itp.nyu.edu` |
+| Production | `booking-app+itp@itp.nyu.edu` |
 
 ### Email Templates
 
@@ -241,7 +245,7 @@ Auto-approval is **disabled** for Phase 1. All bookings require manual approval.
 | Checkout Confirmation | Guest checked out | **Empty — needs content** |
 | Closed | Booking closed | **Empty — needs content** |
 
-> **PM Decision Needed:** Email template content. See `docs/ITP_SCHEMA_DECISIONS.md` §3.
+Email templates have been configured with generic content. Can be customized via the schema editor.
 
 ---
 
