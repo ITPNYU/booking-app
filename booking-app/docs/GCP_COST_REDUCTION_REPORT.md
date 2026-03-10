@@ -2,7 +2,7 @@
 
 **Date**: 2026-03-10
 **Project**: flowing-mantis-389917
-**Billing Account**: 010C45-1E6DA4-045B07
+**Billing Account**: [REDACTED — see GCP console]
 
 ---
 
@@ -187,7 +187,7 @@ Read-to-write ratio is approximately 10,000:1. While read volume does not direct
 |---|--------|---------------------|------|
 | 1 | **development: set `min_instances: 0`** | **~$80–90** | Cold starts will occur (acceptable for dev) |
 | 2 | **development: set `max_instances: 3`** | Caps spike costs | 305 req/day easily handled by 3 instances |
-| 3 | **production: set `max_instances: 5`** | Caps spike costs | Peak was 6.3 — needs monitoring |
+| 3 | **production: set `max_instances: 7`** | Caps spike costs | Above observed peak of 6.3; safe headroom |
 
 > Note: Staging has already been shut down (~$45/mo saved).
 
@@ -247,7 +247,7 @@ automatic_scaling:
 instance_class: F1
 automatic_scaling:
   min_instances: 1
-  max_instances: 5           # Changed: 10 → 5 (actual peak is 6.3 across 2 zones)
+  max_instances: 7           # Changed: 10 → 7 (observed peak is 6.3; keeps safe headroom)
   target_cpu_utilization: 0.65
 ```
 
@@ -259,6 +259,7 @@ automatic_scaling:
 - **B1 instance**: 600MHz CPU, 256MB RAM — $0.05/hour
 - Free tier: 28 instance-hours/day (F1)
 - Current usage far exceeds the free tier
+- Source: [App Engine Pricing](https://cloud.google.com/appengine/pricing) (retrieved 2026-03-10). Prices may vary by region and change over time.
 
 ## Methodology
 
