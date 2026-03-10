@@ -1,8 +1,13 @@
 import type { SchemaContextType } from "@/components/src/client/routes/components/SchemaProvider";
 import { TableNames } from "@/components/src/policy";
+import {
+  serverSendBookingDetailEmail,
+  serverUpdateDataByCalendarEventId,
+} from "@/components/src/server/admin";
 import { getTenantEmailConfig } from "@/components/src/server/emails";
 import { BookingStatusLabel } from "@/components/src/types";
 import {
+  serverGetDataByCalendarEventId,
   serverGetDocumentById,
 } from "@/lib/firebase/server/adminDb";
 import * as admin from "firebase-admin";
@@ -51,9 +56,6 @@ export async function handleStateTransitions(
   // Get booking data from Firestore (not from XState context)
   let bookingDoc: any = null;
   try {
-    const { serverGetDataByCalendarEventId } =
-      await import("@/lib/firebase/server/adminDb");
-    const { TableNames } = await import("@/components/src/policy");
     bookingDoc = await serverGetDataByCalendarEventId<any>(
       TableNames.BOOKING,
       calendarEventId,
@@ -68,21 +70,29 @@ export async function handleStateTransitions(
 
   // Handle specific state transitions
   if (newState === "Approved" && previousState !== "Approved") {
-    handleApprovedTransition(calendarEventId, email, tenant, firestoreUpdates, previousState, newState);
+    handleApprovedTransition(calendarEventId, email, firestoreUpdates);
   } else if (newState === "Declined" && previousState !== "Declined") {
-    await handleDeclinedTransition(calendarEventId, email, tenant, firestoreUpdates, previousState, newState, newSnapshot, bookingDoc, reason);
+    await handleDeclinedTransition(
+      calendarEventId, email, tenant, firestoreUpdates,
+      newSnapshot, bookingDoc, reason,
+    );
   } else if (newState === "Requested" && previousState !== "Requested") {
     // No side effects needed for Requested state
   } else if (newState === "No Show" && previousState !== "No Show") {
-    handleNoShowTransition(calendarEventId, email, tenant, firestoreUpdates);
+    handleNoShowTransition(email, firestoreUpdates);
   } else if (newState === "Canceled" && previousState !== "Canceled") {
-    handleCanceledTransition(calendarEventId, email, tenant, firestoreUpdates);
+    handleCanceledTransition(email, firestoreUpdates);
   } else if (newState === "Closed" && previousState !== "Closed") {
     // No side effects needed for Closed state
   } else if (newState === "Checked In" && previousState !== "Checked In") {
-    await handleCheckedInTransition(calendarEventId, email, tenant, firestoreUpdates, previousState, newState, actor, currentSnapshot, newSnapshot);
+    await handleCheckedInTransition(
+      calendarEventId, email, tenant, firestoreUpdates,
+      actor, currentSnapshot, newSnapshot,
+    );
   } else if (newState === "Pre-approved" && previousState !== "Pre-approved") {
-    await handlePreApprovedTransition(calendarEventId, email, tenant, firestoreUpdates, previousState, newState);
+    await handlePreApprovedTransition(
+      calendarEventId, email, tenant, firestoreUpdates,
+    );
   }
   // Parallel states (Services Request, Service Closeout) are handled by their
   // respective API routes (/api/services, /api/checkout-processing) called
@@ -91,11 +101,8 @@ export async function handleStateTransitions(
 
 function handleApprovedTransition(
   calendarEventId: string,
-  email: string,
-  tenant: string,
-  firestoreUpdates: any,
-  previousState: string,
-  newState: string,
+  email?: string,
+  firestoreUpdates: any = {},
 ) {
   firestoreUpdates.finalApprovedAt = admin.firestore.Timestamp.now();
   if (email) {
@@ -105,13 +112,11 @@ function handleApprovedTransition(
 
 async function handleDeclinedTransition(
   calendarEventId: string,
-  email: string,
-  tenant: string,
-  firestoreUpdates: any,
-  previousState: string,
-  newState: string,
-  newSnapshot: any,
-  bookingDoc: any,
+  email?: string,
+  tenant?: string,
+  firestoreUpdates: any = {},
+  newSnapshot?: any,
+  bookingDoc?: any,
   reason?: string,
 ) {
   firestoreUpdates.declinedAt = admin.firestore.Timestamp.now();
@@ -124,8 +129,6 @@ async function handleDeclinedTransition(
     const guestEmail = bookingDoc?.email;
 
     if (guestEmail) {
-      const { serverSendBookingDetailEmail } =
-        await import("@/components/src/server/admin");
       const emailConfig = await getTenantEmailConfig(tenant);
       let headerMessage = emailConfig.emailMessages.declined;
 
@@ -224,10 +227,8 @@ async function handleDeclinedTransition(
 }
 
 function handleNoShowTransition(
-  calendarEventId: string,
-  email: string,
-  tenant: string,
-  firestoreUpdates: any,
+  email?: string,
+  firestoreUpdates: any = {},
 ) {
   firestoreUpdates.noShowedAt = admin.firestore.Timestamp.now();
   if (email) {
@@ -236,10 +237,8 @@ function handleNoShowTransition(
 }
 
 function handleCanceledTransition(
-  calendarEventId: string,
-  email: string,
-  tenant: string,
-  firestoreUpdates: any,
+  email?: string,
+  firestoreUpdates: any = {},
 ) {
   firestoreUpdates.canceledAt = admin.firestore.Timestamp.now();
   if (email) {
@@ -249,14 +248,12 @@ function handleCanceledTransition(
 
 async function handleCheckedInTransition(
   calendarEventId: string,
-  email: string,
-  tenant: string,
-  firestoreUpdates: any,
-  previousState: string,
-  newState: string,
-  actor: any,
-  currentSnapshot: any,
-  newSnapshot: any,
+  email?: string,
+  tenant?: string,
+  firestoreUpdates: any = {},
+  actor?: any,
+  currentSnapshot?: any,
+  newSnapshot?: any,
 ) {
   firestoreUpdates.checkedInAt = admin.firestore.Timestamp.now();
   if (email) {
@@ -265,11 +262,7 @@ async function handleCheckedInTransition(
 
   // Persist latest XState snapshot and checked-in timestamps BEFORE calendar update
   try {
-    const { serverUpdateDataByCalendarEventId } =
-      await import("@/components/src/server/admin");
-    const { TableNames } = await import("@/components/src/policy");
-
-    const persistedSnapshot = actor.getPersistedSnapshot();
+    const persistedSnapshot = actor?.getPersistedSnapshot();
     const cleanedSnapshot = cleanObjectForFirestore(persistedSnapshot);
 
     const xstateDataToPersist = {
@@ -328,11 +321,9 @@ async function handleCheckedInTransition(
 
 async function handlePreApprovedTransition(
   calendarEventId: string,
-  email: string,
-  tenant: string,
-  firestoreUpdates: any,
-  previousState: string,
-  newState: string,
+  email?: string,
+  tenant?: string,
+  firestoreUpdates: any = {},
 ) {
   firestoreUpdates.firstApprovedAt = admin.firestore.Timestamp.now();
   if (email) {
@@ -340,9 +331,6 @@ async function handlePreApprovedTransition(
   }
 
   try {
-    const { serverUpdateDataByCalendarEventId } =
-      await import("@/components/src/server/admin");
-    const { TableNames } = await import("@/components/src/policy");
     const preApprovalUpdateData: PreApprovalUpdateData = {
       firstApprovedAt:
         firestoreUpdates.firstApprovedAt as admin.firestore.Timestamp,
@@ -405,16 +393,10 @@ async function handlePreApprovedTransition(
  */
 export async function sendCanceledEmail(
   calendarEventId: string,
-  email: string,
-  tenant: string,
+  email?: string,
+  tenant?: string,
 ) {
   try {
-    const { serverGetDataByCalendarEventId } =
-      await import("@/lib/firebase/server/adminDb");
-    const { serverSendBookingDetailEmail } =
-      await import("@/components/src/server/admin");
-    const { TableNames } = await import("@/components/src/policy");
-
     const bookingDoc = await serverGetDataByCalendarEventId(
       TableNames.BOOKING,
       calendarEventId,

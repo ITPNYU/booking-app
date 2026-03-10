@@ -1,5 +1,8 @@
-import { TableNames } from "@/components/src/policy";
-import { serverUpdateDataByCalendarEventId } from "@/components/src/server/admin";
+import { TableNames, getApprovalCcEmail } from "@/components/src/policy";
+import {
+  serverSendBookingDetailEmail,
+  serverUpdateDataByCalendarEventId,
+} from "@/components/src/server/admin";
 import { getTenantEmailConfig } from "@/components/src/server/emails";
 import { BookingStatusLabel } from "@/components/src/types";
 import {
@@ -7,7 +10,9 @@ import {
   shouldUseXState,
 } from "@/components/src/utils/tenantUtils";
 import {
+  serverFetchAllDataFromCollection,
   serverGetDataByCalendarEventId,
+  serverSaveDataToFirestore,
 } from "@/lib/firebase/server/adminDb";
 import { BookingLogger } from "@/lib/logger/bookingLogger";
 import * as admin from "firebase-admin";
@@ -145,12 +150,6 @@ export async function executeXStateTransition(
 
         const netId = doc.netId || "unknown";
 
-        const { serverSaveDataToFirestore, serverFetchAllDataFromCollection } =
-          await import("@/lib/firebase/server/adminDb");
-        const { serverSendBookingDetailEmail } =
-          await import("@/components/src/server/admin");
-        const { getApprovalCcEmail } = await import("@/components/src/policy");
-
         // Check policy violation and add to pre-ban logs
         const isPolicyViolation = (doc: any): boolean => {
           if (!doc || !doc.startDate || !doc.requestedAt) return false;
@@ -229,7 +228,13 @@ export async function executeXStateTransition(
         } catch (calendarError) {
           console.error(
             `[XState] no-show calendar update error [${tenant?.toUpperCase() || "UNKNOWN"}]`,
-            { calendarEventId, error: calendarError instanceof Error ? calendarError.message : String(calendarError) },
+            {
+              calendarEventId,
+              error:
+                calendarError instanceof Error
+                  ? calendarError.message
+                  : String(calendarError),
+            },
           );
         }
 

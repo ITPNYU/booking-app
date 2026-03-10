@@ -87,7 +87,7 @@ vi.mock("@/lib/logger/bookingLogger", () => ({
   },
 }));
 
-vi.mock("./xstatePersistence", () => ({
+vi.mock("@/lib/stateMachines/xstatePersistence", () => ({
   cleanObjectForFirestore: (obj: any) => obj,
 }));
 
