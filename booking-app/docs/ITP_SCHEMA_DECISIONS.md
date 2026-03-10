@@ -10,19 +10,15 @@ This document lists configuration decisions required from the PM before ITP room
 
 **Current state:** All rooms require manual approval (auto-approval disabled).
 
-**Decisions needed per room:**
+**Decisions needed (Huddle Rooms only for initial launch):**
 
 | Room | Room ID | Question |
 |------|---------|----------|
-| Doc Lab | 402 | Should any roles get auto-approval? If so, max duration? |
 | Huddle Room | 421 | Should any roles get auto-approval? If so, max duration? |
 | Huddle Room | 422 | (same as above) |
 | Huddle Room | 446 | (same as above) |
 | Huddle Room | 447 | (same as above) |
 | Huddle Room | 448 | (same as above) |
-| Phone Booth | 467 | Should any roles get auto-approval? If so, max duration? |
-| Phone Booth | 469 | (same as above) |
-| Phone Booth | 477 | (same as above) |
 
 **Example (Media Commons):** Huddle rooms in MC auto-approve for all roles up to 4 hours. Studios require manual approval.
 
@@ -92,8 +88,7 @@ This document lists configuration decisions required from the PM before ITP room
 **Current state:** Disabled (`supportWalkIn: false`)
 
 **Decisions needed:**
-- Should walk-in booking be enabled for ITP?
-- If yes, which rooms support walk-in? (e.g., Huddle Rooms and Phone Booths, but not Doc Lab)
+- Should walk-in booking be enabled for ITP Huddle Rooms?
 - Can walk-in users book two consecutive slots? (MC allows this for some rooms)
 
 ---
@@ -144,33 +139,17 @@ This document lists configuration decisions required from the PM before ITP room
 
 **Current state:** No limits set (all `-1`, meaning unlimited).
 
-**Decisions needed per room type:**
+**Decisions needed (Huddle Rooms only for initial launch):**
 
 | Room Type | Min duration? | Max duration? | Varies by role? |
 |-----------|--------------|---------------|-----------------|
-| Doc Lab | | | |
 | Huddle Room | | | |
-| Phone Booth | | | |
 
 ---
 
 ## 10. ~~Missing Production Calendar ID~~ — RESOLVED
 
 Room 448's production calendar ID has been found in the spreadsheet and will be updated.
-
----
-
-## 11. Room Names — Confirmation Needed
-
-The spreadsheet lists different names from what is currently in Firestore for some Huddle Rooms. Please confirm which names to use:
-
-| Room ID | Current name in Firestore | Name in spreadsheet | Which to use? |
-|---------|--------------------------|---------------------|---------------|
-| 421 | Huddle Room | Podcast Studio | |
-| 422 | Huddle Room | Phil's Office | |
-| 446 | Huddle Room | Huddle Room | (same) |
-| 447 | Huddle Room | Huddle Room | (same) |
-| 448 | Huddle Room | Huddle Room | (same) |
 
 ---
 

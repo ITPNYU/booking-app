@@ -58,8 +58,6 @@ The ITP booking system shares the same platform as the Media Commons booking sys
 | Huddle Room | 447 | 4 | 24 hours | ✅ Dev + Prod |
 | Huddle Room | 448 | 4 | 24 hours | ✅ Dev + Prod |
 
-> **PM Decision Needed:** Rooms 421 and 422 are listed as "Podcast Studio" and "Phil's Office" in the spreadsheet. Confirm display names. See `docs/ITP_SCHEMA_DECISIONS.md` §11.
-
 ### Room Configuration
 
 - **Auto-approval:** Disabled for initial launch (all bookings require manual approval)
