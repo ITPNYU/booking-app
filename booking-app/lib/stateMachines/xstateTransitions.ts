@@ -182,23 +182,30 @@ export async function executeXStateTransition(
           violationCount.toString(),
         );
 
-        // Send emails using server-side function
-        await serverSendBookingDetailEmail({
-          calendarEventId,
-          targetEmail: guestEmail,
-          headerMessage,
-          status: BookingStatusLabel.NO_SHOW,
-          tenant,
-        });
+        if (!guestEmail) {
+          console.warn(
+            `[XState] no-show email skipped — no guest email [${tenant?.toUpperCase() || "UNKNOWN"}]`,
+            { calendarEventId },
+          );
+        } else {
+          // Send emails using server-side function
+          await serverSendBookingDetailEmail({
+            calendarEventId,
+            targetEmail: guestEmail,
+            headerMessage,
+            status: BookingStatusLabel.NO_SHOW,
+            tenant,
+          });
 
-        // Send CC to admin
-        await serverSendBookingDetailEmail({
-          calendarEventId,
-          targetEmail: getApprovalCcEmail(process.env.NEXT_PUBLIC_BRANCH_NAME),
-          headerMessage,
-          status: BookingStatusLabel.NO_SHOW,
-          tenant,
-        });
+          // Send CC to admin
+          await serverSendBookingDetailEmail({
+            calendarEventId,
+            targetEmail: getApprovalCcEmail(process.env.NEXT_PUBLIC_BRANCH_NAME),
+            headerMessage,
+            status: BookingStatusLabel.NO_SHOW,
+            tenant,
+          });
+        }
 
         // Update calendar event status
         try {

@@ -417,7 +417,7 @@ describe("xstateTransitions", () => {
         );
       });
 
-      it("should pass skipCalendarForServiceCloseout=true to handleStateTransitions", async () => {
+      it("should pass noShow context to handleStateTransitions", async () => {
         const actor = createMockActor("Approved");
         mockRestoreXStateFromFirestore.mockResolvedValue(actor);
 

@@ -143,7 +143,7 @@ async function handleDeclinedTransition(
 
       // Check which services were declined and include them in the message
       const declinedServices = [];
-      if (newSnapshot.context?.servicesApproved) {
+      if (newSnapshot?.context?.servicesApproved) {
         const { servicesApproved } = newSnapshot.context;
         const servicesRequested = newSnapshot.context.servicesRequested || {};
 
@@ -158,7 +158,7 @@ async function handleDeclinedTransition(
 
       // Use decline reason from XState context if available, fallback to reason parameter
       let declineReason =
-        newSnapshot.context?.declineReason ||
+        newSnapshot?.context?.declineReason ||
         reason ||
         "Service requirements could not be fulfilled";
 
