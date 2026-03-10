@@ -337,10 +337,9 @@ export const itpBookingMachine = setup({
           type: "updateCalendarEvent",
         },
       ],
-      on: {
-        close: {
-          target: "Closed",
-        },
+      // ITP has no service closeout, so auto-close immediately
+      always: {
+        target: "Closed",
       },
     },
   },
