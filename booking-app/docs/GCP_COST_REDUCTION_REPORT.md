@@ -47,6 +47,42 @@ F1 instance: $0.05/h → **Estimated ~$248/mo (instance hours only)**
 
 Production P50 exceeding **4 seconds** is very slow. Long request processing times keep instances occupied, causing the Auto Scaler to spin up additional instances — a direct driver of increased costs.
 
+## 2.5. Root Cause Analysis: What Drives Daily Cost Variation?
+
+Daily billing fluctuates significantly. To identify the root cause, we computed correlations across 30 days of production data:
+
+| Factor Pair | Correlation (r) | Interpretation |
+|-------------|----------------|----------------|
+| Instances vs Requests | **0.244** | Very weak — request volume is NOT the main cost driver |
+| Instances vs Latency | 0.031 | No correlation |
+| Requests vs Latency | 0.477 | Moderate — more requests tend to mean slower responses |
+
+### Evidence: Instance spikes happen on moderate-traffic days
+
+| Date | Avg Instances | Requests | Latency | Est. Cost |
+|------|--------------|----------|---------|-----------|
+| 02-18 | **6.65** | 4,831 | 1,694ms | **$7.98** |
+| 02-21 | **6.32** | 4,131 | 1,456ms | **$7.58** |
+| 03-03 | 3.82 | **14,201** | 4,204ms | $4.58 |
+| 02-09 | 2.84 | **12,872** | 3,587ms | $3.41 |
+
+Days with 3x more requests often use **fewer** instances than moderate-traffic days.
+
+### Conclusion
+
+The primary cost driver is **request burst patterns (concurrent requests at a given moment)**, not total daily request volume. App Engine's auto-scaler responds to concurrent request load, not aggregate counts. Likely triggers for spikes include:
+
+- Multiple admin users loading data-heavy pages simultaneously
+- Cron jobs running during active hours
+- Slow API responses holding instances busy, compounding with new incoming requests
+
+### Estimated Daily Cost Range (Production only)
+
+- Min: **$1.52/day** (02-15, weekend)
+- Max: **$7.98/day** (02-18, spike day)
+- Avg: **$3.81/day**
+- Variation: **$6.46/day** swing between min and max
+
 ## 3. Cloud Storage
 
 | Bucket | Size | Notes |
