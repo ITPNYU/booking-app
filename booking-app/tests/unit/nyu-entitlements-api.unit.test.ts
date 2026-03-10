@@ -126,26 +126,30 @@ describe("GET /api/nyu/entitlements/[netId]", () => {
   });
 
   describe("authentication and configuration errors", () => {
-    it("returns 401 when token retrieval fails", async () => {
-      mockGetNYUToken.mockResolvedValue(null);
+    it("uses NEXT_PUBLIC_BASE_URL to construct the identity API URL", async () => {
+      vi.stubEnv("NEXT_PUBLIC_BASE_URL", "https://custom-base.example.com");
+      mockFetch.mockResolvedValue(makeNYUApiResponse({ reporting_dept_name: "" }));
 
-      const response = await GET(createRequest(), { params: createParams("hz1234") });
-      const result = await parseJson(response);
+      await GET(createRequest(), { params: createParams("hz1234") });
 
-      expect(result.status).toBe(401);
-      expect(result.data).toEqual({ error: "Authentication failed" });
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining("https://custom-base.example.com"),
+      );
+
+      vi.stubEnv("NEXT_PUBLIC_BASE_URL", "");
     });
 
-    it("returns 500 when NYU_API_ACCESS_ID is not configured", async () => {
-      vi.stubEnv("NYU_API_ACCESS_ID", "");
+    it("falls back to localhost:3000 when NEXT_PUBLIC_BASE_URL is not set", async () => {
+      vi.stubEnv("NEXT_PUBLIC_BASE_URL", "");
+      mockFetch.mockResolvedValue(makeNYUApiResponse({ reporting_dept_name: "" }));
 
-      const response = await GET(createRequest(), { params: createParams("hz1234") });
-      const result = await parseJson(response);
+      await GET(createRequest(), { params: createParams("hz1234") });
 
-      expect(result.status).toBe(500);
-      expect(result.data).toEqual({ error: "API access ID not configured" });
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining("localhost:3000"),
+      );
 
-      vi.stubEnv("NYU_API_ACCESS_ID", "test-access-id");
+      vi.stubEnv("NEXT_PUBLIC_BASE_URL", "");
     });
   });
 
@@ -325,7 +329,6 @@ describe("GET /api/nyu/entitlements/[netId]", () => {
 
       expect(mockFetch).toHaveBeenCalledWith(
         expect.stringContaining("abc123"),
-        expect.any(Object),
       );
     });
   });

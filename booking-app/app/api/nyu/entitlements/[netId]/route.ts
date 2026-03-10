@@ -60,7 +60,7 @@ export async function GET(
       }
     }
 
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000";
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
     const identityRes = await fetch(`${baseUrl}/api/nyu/identity/${netId}`);
 
     if (!identityRes.ok) {

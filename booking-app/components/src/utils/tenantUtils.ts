@@ -15,6 +15,13 @@ export const ITP_DEPT_NAME_KEYWORDS = [
   "low-res",
 ];
 
+/**
+ * Short-form department abbreviations used in approver records that belong to
+ * the ITP / IMA / Low Res group. Matched with exact (case-insensitive) equality
+ * to avoid substring false-positives (e.g. "ima" inside "imaging sciences").
+ */
+export const ITP_GROUP_SHORT_NAMES = ["itp", "ima"];
+
 export type Tenant = (typeof TENANTS)[keyof typeof TENANTS];
 
 /**
