@@ -124,24 +124,54 @@ export async function POST(req: NextRequest) {
           },
         );
 
-        // Handle side effects (history logging and email) outside of XState
+        // Handle side effects (history logging, email, and calendar update) outside of XState
         try {
           const { serverFirstApproveOnly } =
             await import("@/components/src/server/admin");
+          const { BookingStatusLabel } = await import("@/components/src/types");
 
           await serverFirstApproveOnly(id, email, tenant);
 
+          // Update calendar event with PRE_APPROVED status
+          try {
+            const calendarResponse = await fetch(
+              `${process.env.NEXT_PUBLIC_BASE_URL}/api/calendarEvents`,
+              {
+                method: "PUT",
+                headers: {
+                  "Content-Type": "application/json",
+                  "x-tenant": tenant || "mc",
+                },
+                body: JSON.stringify({
+                  calendarEventId: id,
+                  newValues: { statusPrefix: BookingStatusLabel.PRE_APPROVED },
+                }),
+              },
+            );
+
+            if (!calendarResponse.ok) {
+              console.error(
+                `[approve] pre-approved calendar update failed [${tenant?.toUpperCase()}]`,
+                { calendarEventId: id, status: calendarResponse.status },
+              );
+            }
+          } catch (calendarError) {
+            console.error(
+              `[approve] pre-approved calendar update error [${tenant?.toUpperCase()}]`,
+              {
+                calendarEventId: id,
+                error: calendarError instanceof Error ? calendarError.message : String(calendarError),
+              },
+            );
+          }
+
           console.log(
-            `✅ PRE-APPROVED SIDE EFFECTS COMPLETED [${tenant?.toUpperCase()}]:`,
-            {
-              calendarEventId: id,
-              email,
-              note: "History logging and email sending completed via serverFirstApproveOnly",
-            },
+            `[approve] pre-approved processing completed [${tenant?.toUpperCase()}]`,
+            { calendarEventId: id, email },
           );
         } catch (error) {
           console.error(
-            `🚨 PRE-APPROVED SIDE EFFECTS FAILED [${tenant?.toUpperCase()}]:`,
+            `[approve] pre-approved processing failed [${tenant?.toUpperCase()}]`,
             {
               calendarEventId: id,
               email,

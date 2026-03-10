@@ -2,7 +2,7 @@
 // Consumers can import directly from the specific modules instead:
 //   - xstatePersistence: PersistedXStateData, restoreXStateFromFirestore, createXStateDataFromBookingStatus
 //   - xstateTransitions: executeXStateTransition, getAvailableXStateTransitions
-//   - xstateEffects: handleStateTransitions, sendCanceledEmail
+//   - xstateEffects: handleStateTransitions (logging only; side effects handled by processing routes)
 
 export type { PersistedXStateData } from "./xstatePersistence";
 export {

@@ -41,14 +41,10 @@ interface MediaCommonsBookingContext {
   _restoredFromStatus?: boolean;
 }
 
-// ⚠️ XSTATE PURITY CONSTRAINT:
-// This XState machine should ONLY handle state transitions and logging
-// DO NOT add side effects like:
-// - Database operations (Firestore writes)
-// - Email sending (actual API calls)
-// - External API calls
-// - File operations
-// These should be handled in traditional processing after XState transitions
+// XState machine with side effects declared as machine actions.
+// Each state entry action calls its processing API route (e.g., /api/decline-processing).
+// The processing routes handle: Firestore writes, emails, calendar updates, history logging.
+// Context-only actions (assign) are used for service approval/decline state.
 
 export const mcBookingMachine = setup({
   types: {
@@ -84,6 +80,103 @@ export const mcBookingMachine = setup({
   },
   actors: {},
   actions: {
+    handleDeclineProcessing: async ({ context, event }) => {
+      try {
+        const { calendarEventId, tenant, email } = context;
+        const reason = (event as any)?.reason || context.declineReason;
+
+        if (calendarEventId) {
+          // Collect declined services info from context
+          const declinedServices: string[] = [];
+          if (context.servicesApproved && context.servicesRequested) {
+            Object.entries(context.servicesApproved).forEach(
+              ([service, approved]) => {
+                if (
+                  context.servicesRequested?.[
+                    service as keyof typeof context.servicesRequested
+                  ] &&
+                  approved === false
+                ) {
+                  declinedServices.push(
+                    service.charAt(0).toUpperCase() + service.slice(1),
+                  );
+                }
+              },
+            );
+          }
+
+          const response = await fetch(
+            `${process.env.NEXT_PUBLIC_BASE_URL}/api/decline-processing`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "x-tenant": tenant || "mc",
+              },
+              body: JSON.stringify({
+                calendarEventId,
+                email,
+                tenant,
+                reason,
+                declinedServices,
+                declineReason: context.declineReason,
+              }),
+            },
+          );
+
+          if (!response.ok) {
+            const errorText = await response.text();
+            console.error(
+              `[XState] decline processing failed [${tenant?.toUpperCase() || "UNKNOWN"}]`,
+              { calendarEventId, status: response.status, error: errorText },
+            );
+          }
+        }
+      } catch (error: any) {
+        console.error(
+          `[XState] decline processing error [${context.tenant?.toUpperCase() || "UNKNOWN"}]`,
+          { calendarEventId: context.calendarEventId, error: error.message },
+        );
+      }
+    },
+
+    handleCheckinProcessing: async ({ context, event }) => {
+      try {
+        const { calendarEventId, tenant, email } = context;
+
+        if (calendarEventId) {
+          const response = await fetch(
+            `${process.env.NEXT_PUBLIC_BASE_URL}/api/checkin-processing`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "x-tenant": tenant || "mc",
+              },
+              body: JSON.stringify({
+                calendarEventId,
+                email,
+                tenant,
+              }),
+            },
+          );
+
+          if (!response.ok) {
+            const errorText = await response.text();
+            console.error(
+              `[XState] checkin processing failed [${tenant?.toUpperCase() || "UNKNOWN"}]`,
+              { calendarEventId, status: response.status, error: errorText },
+            );
+          }
+        }
+      } catch (error: any) {
+        console.error(
+          `[XState] checkin processing error [${context.tenant?.toUpperCase() || "UNKNOWN"}]`,
+          { calendarEventId: context.calendarEventId, error: error.message },
+        );
+      }
+    },
+
     handleCancelProcessing: async ({ context, event }) => {
       console.log("🎬 XSTATE ACTION: handleCancelProcessing started", {
         calendarEventId: context.calendarEventId,
@@ -1029,17 +1122,11 @@ export const mcBookingMachine = setup({
         ],
       },
       entry: [
-        ({ context }) => {
-          console.log("🏁 XSTATE STATE: Entered 'Declined' state", {
-            tenant: context.tenant,
-            timestamp: new Date().toISOString(),
-          });
+        {
+          type: "setDeclineReason",
         },
         {
-          type: "sendHTMLEmail",
-        },
-        {
-          type: "updateCalendarEvent",
+          type: "handleDeclineProcessing",
         },
       ],
     },
@@ -2065,17 +2152,8 @@ export const mcBookingMachine = setup({
         },
       },
       entry: [
-        ({ context }) => {
-          console.log("🏁 XSTATE STATE: Entered 'Checked In' state", {
-            tenant: context.tenant,
-            timestamp: new Date().toISOString(),
-          });
-        },
         {
-          type: "sendHTMLEmail",
-        },
-        {
-          type: "updateCalendarEvent",
+          type: "handleCheckinProcessing",
         },
       ],
     },

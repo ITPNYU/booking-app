@@ -108,31 +108,162 @@ export const itpBookingMachine = setup({
     },
   },
   actions: {
+    handleDeclineProcessing: async ({ context, event }) => {
+      try {
+        const { calendarEventId, tenant, email } = context;
+
+        if (calendarEventId) {
+          const response = await fetch(
+            `${process.env.NEXT_PUBLIC_BASE_URL}/api/decline-processing`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "x-tenant": tenant || "itp",
+              },
+              body: JSON.stringify({
+                calendarEventId,
+                email,
+                tenant,
+              }),
+            },
+          );
+
+          if (!response.ok) {
+            const errorText = await response.text();
+            console.error(
+              `[XState] decline processing failed [${tenant?.toUpperCase() || "UNKNOWN"}]`,
+              { calendarEventId, status: response.status, error: errorText },
+            );
+          }
+        }
+      } catch (error: any) {
+        console.error(
+          `[XState] decline processing error [${context.tenant?.toUpperCase() || "UNKNOWN"}]`,
+          { calendarEventId: context.calendarEventId, error: error.message },
+        );
+      }
+    },
+    handleCheckinProcessing: async ({ context, event }) => {
+      try {
+        const { calendarEventId, tenant, email } = context;
+
+        if (calendarEventId) {
+          const response = await fetch(
+            `${process.env.NEXT_PUBLIC_BASE_URL}/api/checkin-processing`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "x-tenant": tenant || "itp",
+              },
+              body: JSON.stringify({
+                calendarEventId,
+                email,
+                tenant,
+              }),
+            },
+          );
+
+          if (!response.ok) {
+            const errorText = await response.text();
+            console.error(
+              `[XState] checkin processing failed [${tenant?.toUpperCase() || "UNKNOWN"}]`,
+              { calendarEventId, status: response.status, error: errorText },
+            );
+          }
+        }
+      } catch (error: any) {
+        console.error(
+          `[XState] checkin processing error [${context.tenant?.toUpperCase() || "UNKNOWN"}]`,
+          { calendarEventId: context.calendarEventId, error: error.message },
+        );
+      }
+    },
+    handleCancelProcessing: async ({ context, event }) => {
+      try {
+        const { calendarEventId, tenant, email } = context;
+
+        if (calendarEventId) {
+          const response = await fetch(
+            `${process.env.NEXT_PUBLIC_BASE_URL}/api/cancel-processing`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "x-tenant": tenant || "itp",
+              },
+              body: JSON.stringify({
+                calendarEventId,
+                email: email || "system",
+                netId: email?.split("@")[0] || "system",
+                tenant,
+              }),
+            },
+          );
+
+          if (!response.ok) {
+            const errorText = await response.text();
+            console.error(
+              `[XState] cancel processing failed [${tenant?.toUpperCase() || "UNKNOWN"}]`,
+              { calendarEventId, status: response.status, error: errorText },
+            );
+          }
+        }
+      } catch (error: any) {
+        console.error(
+          `[XState] cancel processing error [${context.tenant?.toUpperCase() || "UNKNOWN"}]`,
+          { calendarEventId: context.calendarEventId, error: error.message },
+        );
+      }
+    },
+    handleCloseProcessing: async ({ context, event }) => {
+      try {
+        const { calendarEventId, tenant, email } = context;
+
+        if (calendarEventId) {
+          const response = await fetch(
+            `${process.env.NEXT_PUBLIC_BASE_URL}/api/close-processing`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "x-tenant": tenant || "itp",
+              },
+              body: JSON.stringify({
+                calendarEventId,
+                email: email || "system",
+                tenant,
+              }),
+            },
+          );
+
+          if (!response.ok) {
+            const errorText = await response.text();
+            console.error(
+              `[XState] close processing failed [${tenant?.toUpperCase() || "UNKNOWN"}]`,
+              { calendarEventId, status: response.status, error: errorText },
+            );
+          }
+        }
+      } catch (error: any) {
+        console.error(
+          `[XState] close processing error [${context.tenant?.toUpperCase() || "UNKNOWN"}]`,
+          { calendarEventId: context.calendarEventId, error: error.message },
+        );
+      }
+    },
     createCalendarEvent: ({ context, event }) => {
-      console.log("📅 XSTATE ACTION: createCalendarEvent executed", {
-        tenant: context.tenant,
-        selectedRoomsCount: context.selectedRooms?.length,
-        calendarEventId: context.calendarEventId,
-      });
+      // Placeholder — actual calendar creation handled outside XState
     },
     sendHTMLEmail: ({ context, event }) => {
-      console.log("📧 XSTATE ACTION: sendHTMLEmail executed", {
-        tenant: context.tenant,
-        hasFormData: !!context.formData,
-        email: context.email,
-      });
+      // Placeholder — actual email sending handled by processing routes
     },
     updateCalendarEvent: ({ context, event }) => {
-      console.log("📅 XSTATE ACTION: updateCalendarEvent executed", {
-        tenant: context.tenant,
-        calendarEventId: context.calendarEventId,
-      });
+      // Placeholder — actual calendar update handled by processing routes
     },
     deleteCalendarEvent: ({ context, event }) => {
-      console.log("🗑️ XSTATE ACTION: deleteCalendarEvent executed", {
-        tenant: context.tenant,
-        calendarEventId: context.calendarEventId,
-      });
+      // Placeholder — actual calendar deletion handled by processing routes
     },
   },
 }).createMachine({
@@ -191,20 +322,8 @@ export const itpBookingMachine = setup({
     },
     Canceled: {
       entry: [
-        ({ context }) => {
-          console.log("🏁 XSTATE STATE: Entered 'Canceled' state", {
-            tenant: context.tenant,
-            timestamp: new Date().toISOString(),
-          });
-        },
         {
-          type: "sendHTMLEmail",
-        },
-        {
-          type: "updateCalendarEvent",
-        },
-        {
-          type: "deleteCalendarEvent",
+          type: "handleCancelProcessing",
         },
       ],
       always: {
@@ -213,17 +332,8 @@ export const itpBookingMachine = setup({
     },
     Declined: {
       entry: [
-        ({ context }) => {
-          console.log("🏁 XSTATE STATE: Entered 'Declined' state", {
-            tenant: context.tenant,
-            timestamp: new Date().toISOString(),
-          });
-        },
         {
-          type: "sendHTMLEmail",
-        },
-        {
-          type: "updateCalendarEvent",
+          type: "handleDeclineProcessing",
         },
       ],
       on: {
@@ -271,33 +381,15 @@ export const itpBookingMachine = setup({
     Closed: {
       type: "final",
       entry: [
-        ({ context }) => {
-          console.log("🏁 XSTATE STATE: Entered 'Closed' state (final)", {
-            tenant: context.tenant,
-            timestamp: new Date().toISOString(),
-          });
-        },
         {
-          type: "sendHTMLEmail",
-        },
-        {
-          type: "updateCalendarEvent",
+          type: "handleCloseProcessing",
         },
       ],
     },
     "Checked In": {
       entry: [
-        ({ context }) => {
-          console.log("🏁 XSTATE STATE: Entered 'Checked In' state", {
-            tenant: context.tenant,
-            timestamp: new Date().toISOString(),
-          });
-        },
         {
-          type: "sendHTMLEmail",
-        },
-        {
-          type: "updateCalendarEvent",
+          type: "handleCheckinProcessing",
         },
       ],
       on: {
@@ -307,36 +399,11 @@ export const itpBookingMachine = setup({
       },
     },
     "No Show": {
-      entry: [
-        ({ context }) => {
-          console.log("🏁 XSTATE STATE: Entered 'No Show' state", {
-            tenant: context.tenant,
-            timestamp: new Date().toISOString(),
-          });
-        },
-        {
-          type: "updateCalendarEvent",
-        },
-      ],
       always: {
         target: "Canceled",
       },
     },
     "Checked Out": {
-      entry: [
-        ({ context }) => {
-          console.log("🏁 XSTATE STATE: Entered 'Checked Out' state", {
-            tenant: context.tenant,
-            timestamp: new Date().toISOString(),
-          });
-        },
-        {
-          type: "sendHTMLEmail",
-        },
-        {
-          type: "updateCalendarEvent",
-        },
-      ],
       on: {
         close: {
           target: "Closed",
