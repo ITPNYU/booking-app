@@ -1,7 +1,8 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import {
   getTenantPolicy,
   getOperationEmail,
+  getCancelCcEmailForTenant,
 } from "@/components/src/tenantPolicy";
 import { getApprovalCcEmail, getCancelCcEmail } from "@/components/src/policy";
 import { MEDIA_COMMONS_OPERATION_EMAIL } from "@/components/src/mediaCommonsPolicy";
@@ -41,6 +42,12 @@ describe("getTenantPolicy", () => {
     const policy = getTenantPolicy("ITP");
     expect(policy.approvalLevels).toBe(1);
   });
+
+  it("resolves 'mediaCommons' alias to MC policy", () => {
+    const policy = getTenantPolicy("mediaCommons");
+    expect(policy.approvalLevels).toBe(2);
+    expect(policy.hasServiceRequests).toBe(true);
+  });
 });
 
 describe("getOperationEmail", () => {
@@ -70,6 +77,17 @@ describe("getOperationEmail", () => {
     });
   });
 
+  describe("MC via mediaCommons alias", () => {
+    it("returns same emails as 'mc'", () => {
+      expect(getOperationEmail("mediaCommons", "development")).toBe(
+        getOperationEmail("mc", "development"),
+      );
+      expect(getOperationEmail("mediaCommons", "production")).toBe(
+        getOperationEmail("mc", "production"),
+      );
+    });
+  });
+
   describe("ITP tenant", () => {
     it("returns dev email for development", () => {
       expect(getOperationEmail("itp", "development")).toBe(
@@ -94,11 +112,33 @@ describe("getOperationEmail", () => {
     });
 
     it("returns MC email when both params are undefined", () => {
-      // undefined branch resolves to "production"
       expect(getOperationEmail(undefined, undefined)).toBe(
         MEDIA_COMMONS_OPERATION_EMAIL,
       );
     });
+  });
+});
+
+describe("getCancelCcEmailForTenant", () => {
+  it("returns distinct cancelCc dev email for MC", () => {
+    expect(getCancelCcEmailForTenant("mc", "development")).toBe(
+      "booking-app-devs+cancelcc@itp.nyu.edu",
+    );
+  });
+
+  it("returns MC operation email for MC production", () => {
+    expect(getCancelCcEmailForTenant("mc", "production")).toBe(
+      MEDIA_COMMONS_OPERATION_EMAIL,
+    );
+  });
+
+  it("falls back to operationEmail when cancelCcEmail is not configured (ITP)", () => {
+    expect(getCancelCcEmailForTenant("itp", "development")).toBe(
+      "booking-app-devs+operation@itp.nyu.edu",
+    );
+    expect(getCancelCcEmailForTenant("itp", "production")).toBe(
+      ITP_OPERATION_EMAIL,
+    );
   });
 });
 
@@ -133,10 +173,10 @@ describe("getCancelCcEmail", () => {
     process.env.NEXT_PUBLIC_BRANCH_NAME = originalEnv;
   });
 
-  it("uses NEXT_PUBLIC_BRANCH_NAME for environment resolution", () => {
+  it("uses distinct cancelCc email for MC in development", () => {
     process.env.NEXT_PUBLIC_BRANCH_NAME = "development";
     expect(getCancelCcEmail("mc")).toBe(
-      "booking-app-devs+operation@itp.nyu.edu",
+      "booking-app-devs+cancelcc@itp.nyu.edu",
     );
   });
 
@@ -153,5 +193,10 @@ describe("getCancelCcEmail", () => {
   it("falls back to MC when no tenant (backward compatible)", () => {
     process.env.NEXT_PUBLIC_BRANCH_NAME = "production";
     expect(getCancelCcEmail()).toBe(MEDIA_COMMONS_OPERATION_EMAIL);
+  });
+
+  it("uses cancelCc dev email for MC fallback when no tenant in dev", () => {
+    process.env.NEXT_PUBLIC_BRANCH_NAME = "development";
+    expect(getCancelCcEmail()).toBe("booking-app-devs+cancelcc@itp.nyu.edu");
   });
 });

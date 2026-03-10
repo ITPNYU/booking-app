@@ -1,7 +1,7 @@
 import { clientGetFinalApproverEmailFromDatabase } from "@/lib/firebase/firebase";
 
 import { BookingStatusLabel } from "./types";
-import { getOperationEmail } from "./tenantPolicy";
+import { getOperationEmail, getCancelCcEmailForTenant } from "./tenantPolicy";
 
 export enum TableNames {
   ADMINS = "usersAdmin",
@@ -109,8 +109,9 @@ export const clientGetFinalApproverEmail = async (): Promise<string> => {
   );
 };
 
+// Note: branchName is first for backward compatibility with existing call sites
 export const getApprovalCcEmail = (branchName: string, tenant?: string) =>
   getOperationEmail(tenant, branchName);
 
 export const getCancelCcEmail = (tenant?: string) =>
-  getOperationEmail(tenant, process.env.NEXT_PUBLIC_BRANCH_NAME);
+  getCancelCcEmailForTenant(tenant, process.env.NEXT_PUBLIC_BRANCH_NAME);
