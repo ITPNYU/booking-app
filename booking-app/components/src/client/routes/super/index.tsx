@@ -8,6 +8,7 @@ import { DatabaseContext } from "../components/Provider";
 import { PagePermission } from "../../../types";
 import SuperAdminSettings from "./settings";
 import SchemaEditor from "./schemaEditor";
+import SchemaCompare from "./schemaCompare";
 import { CenterLoading } from "../components/Loading";
 
 export default function SuperAdmin() {
@@ -40,9 +41,11 @@ export default function SuperAdmin() {
           >
             <Tab value="settings" label="Settings" />
             <Tab value="schema" label="Schema Editor" />
+            <Tab value="compare" label="Env Compare" />
           </Tabs>
           {tab === "settings" && <SuperAdminSettings />}
           {tab === "schema" && <SchemaEditor />}
+          {tab === "compare" && <SchemaCompare />}
         </div>
       )}
     </Box>
