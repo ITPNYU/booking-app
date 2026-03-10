@@ -7,6 +7,7 @@ import Tabs from "@mui/material/Tabs";
 import { DatabaseContext } from "../components/Provider";
 import { PagePermission } from "../../../types";
 import SuperAdminSettings from "./settings";
+import SchemaEditor from "./schemaEditor";
 import { CenterLoading } from "../components/Loading";
 
 export default function SuperAdmin() {
@@ -38,8 +39,10 @@ export default function SuperAdmin() {
             indicatorColor="primary"
           >
             <Tab value="settings" label="Settings" />
+            <Tab value="schema" label="Schema Editor" />
           </Tabs>
           {tab === "settings" && <SuperAdminSettings />}
+          {tab === "schema" && <SchemaEditor />}
         </div>
       )}
     </Box>
