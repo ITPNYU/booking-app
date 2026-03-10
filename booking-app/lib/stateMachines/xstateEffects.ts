@@ -413,9 +413,11 @@ async function handleGenericTransition(
   skipCalendarForServiceCloseout: boolean,
 ) {
   // Try to map XState to BookingStatusLabel for generic states
+  // Use newSnapshot.value (raw) for parallel state detection, since newState is stringified
+  const rawNewState = newSnapshot.value;
   let statusLabel: BookingStatusLabel | undefined;
-  if (typeof newState === "string") {
-    switch (newState) {
+  if (typeof rawNewState === "string") {
+    switch (rawNewState) {
       case "Requested":
         statusLabel = BookingStatusLabel.REQUESTED;
         break;
@@ -425,11 +427,11 @@ async function handleGenericTransition(
       default:
         break;
     }
-  } else if (typeof newState === "object" && newState) {
+  } else if (typeof rawNewState === "object" && rawNewState) {
     // Handle parallel states
-    if (newState["Services Request"]) {
+    if (rawNewState["Services Request"]) {
       statusLabel = BookingStatusLabel.PRE_APPROVED;
-    } else if (newState["Service Closeout"]) {
+    } else if (rawNewState["Service Closeout"]) {
       statusLabel = BookingStatusLabel.CHECKED_OUT;
 
       // Handle check-out email for Service Closeout state (Media Commons)
