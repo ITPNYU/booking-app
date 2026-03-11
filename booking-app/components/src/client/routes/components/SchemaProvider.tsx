@@ -100,6 +100,8 @@ export type SchemaContextType = {
   resources: Resource[];
   supportVIP: boolean;
   supportWalkIn: boolean;
+  supportPA?: boolean;
+  supportLiaison?: boolean;
   resourceName: string;
   declinedGracePeriod?: number;
   /** Top-level time-sensitive warning (DB stores here; also supported under calendarConfig) */

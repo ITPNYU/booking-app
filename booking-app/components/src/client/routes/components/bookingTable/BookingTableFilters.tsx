@@ -14,9 +14,10 @@ import {
   CleaningServices,
   LocalPolice,
 } from "@mui/icons-material";
-import React, { useCallback, useContext, useEffect, useState } from "react";
+import React, { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { createEmitAndSemanticDiagnosticsBuilderProgram } from "typescript";
 import { BookingStatusLabel, PageContextLevel } from "../../../../types";
+import { useTenantSchema } from "../../components/SchemaProvider";
 
 import { debounce } from "../../../utils/debounce";
 import Dropdown from "../../booking/components/Dropdown";
@@ -71,6 +72,14 @@ export default function BookingTableFilters({
 }: Props) {
   const { setLoadMoreEnabled, setLastItem, roomSettings } =
     useContext(DatabaseContext);
+  const schema = useTenantSchema();
+  const originFilters = useMemo(() => {
+    const origins = ["User"];
+    if (schema.supportWalkIn) origins.push("Walk-In");
+    if (schema.supportVIP) origins.push("VIP");
+    origins.push("Pregame");
+    return origins;
+  }, [schema.supportWalkIn, schema.supportVIP]);
   const [localSearchQuery, setLocalSearchQuery] = useState(searchQuery);
   // Update local search query when the prop changes
   useEffect(() => {
@@ -218,7 +227,7 @@ export default function BookingTableFilters({
               rowGap: 1.5,
             }}
           >
-            {["User", "Walk-In", "VIP", "Pregame"].map((origin) => (
+            {originFilters.map((origin) => (
               <Box
                 onClick={() =>
                   setSelectedOrigins?.((prev: string[] | null) => {
@@ -317,46 +326,48 @@ export default function BookingTableFilters({
                 </Box>
               ))}
           </Box>
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              flexWrap: "wrap",
-              rowGap: 1.5,
-            }}
-          >
-            {[
-              "Setup",
-              "Equipment",
-              "Staffing",
-              "Catering",
-              "Cleaning",
-              "Security",
-            ].map((service) => (
-              <Box
-                onClick={() =>
-                  setSelectedServices?.((prev: string[] | null) => {
-                    if (prev?.includes(service)) {
-                      return prev?.filter((x) => x !== service);
-                    }
-                    return [...(prev || []), service];
-                  })
-                }
-                key={service}
-                sx={{
-                  cursor: "pointer",
-                  display: "inline-block",
-                  padding: "0px 8px 0px 4px",
-                }}
-              >
-                <FilterChip
-                  selected={selectedServices?.includes(service)}
-                  text={service}
-                  icon={serviceIcons[service]}
-                />
-              </Box>
-            ))}
-          </Box>
+          {(schema.showSetup || schema.showEquipment || schema.showStaffing || schema.showCatering || schema.showHireSecurity) && (
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                flexWrap: "wrap",
+                rowGap: 1.5,
+              }}
+            >
+              {[
+                "Setup",
+                "Equipment",
+                "Staffing",
+                "Catering",
+                "Cleaning",
+                "Security",
+              ].map((service) => (
+                <Box
+                  onClick={() =>
+                    setSelectedServices?.((prev: string[] | null) => {
+                      if (prev?.includes(service)) {
+                        return prev?.filter((x) => x !== service);
+                      }
+                      return [...(prev || []), service];
+                    })
+                  }
+                  key={service}
+                  sx={{
+                    cursor: "pointer",
+                    display: "inline-block",
+                    padding: "0px 8px 0px 4px",
+                  }}
+                >
+                  <FilterChip
+                    selected={selectedServices?.includes(service)}
+                    text={service}
+                    icon={serviceIcons[service]}
+                  />
+                </Box>
+              ))}
+            </Box>
+          )}
         </Box>
       </Box>
       <Box

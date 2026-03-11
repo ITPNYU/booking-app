@@ -71,7 +71,9 @@ const mockItpTenantSchema = {
     },
   ],
   supportVIP: false,
-  supportWalkIn: true,
+  supportWalkIn: false,
+  supportPA: false,
+  supportLiaison: false,
   resourceName: "Room(s)",
 };
 

@@ -427,6 +427,21 @@ test.describe("ITP Admin UI – schema-driven visibility", () => {
       '[role="columnheader"]'
     ).filter({ hasText: "Services" });
     await expect(servicesHeader).toHaveCount(0);
+
+    // VIP and Walk-In filter chips should NOT be visible
+    await expect(page.getByText("VIP", { exact: true })).toHaveCount(0);
+    await expect(page.getByText("Walk-In", { exact: true })).toHaveCount(0);
+
+    // Walk In button in NavBar should NOT be visible
+    await expect(page.getByRole("button", { name: "Walk In" })).toHaveCount(0);
+
+    // Service filter chips should NOT be visible
+    await expect(page.getByText("Setup", { exact: true })).toHaveCount(0);
+    await expect(page.getByText("Equipment", { exact: true })).toHaveCount(0);
+    await expect(page.getByText("Staffing", { exact: true })).toHaveCount(0);
+    await expect(page.getByText("Catering", { exact: true })).toHaveCount(0);
+    await expect(page.getByText("Cleaning", { exact: true })).toHaveCount(0);
+    await expect(page.getByText("Security", { exact: true })).toHaveCount(0);
   });
 
   test("should not show Booking Type, Sponsor, or Services in detail modal for ITP", async ({
@@ -475,5 +490,33 @@ test.describe("ITP Admin UI – schema-driven visibility", () => {
     // Requester fields should still appear
     await expect(modal.getByText("Name", { exact: true })).toHaveCount(1);
     await expect(modal.getByText("Email", { exact: true })).toHaveCount(1);
+  });
+
+  test("should not show PA, Liaison, or Services in nav dropdown for ITP", async ({
+    page,
+  }) => {
+    await page.goto(`${BASE_URL}/itp/admin`, {
+      waitUntil: "domcontentloaded",
+    });
+    await page.waitForLoadState("networkidle");
+
+    // Wait for booking row to confirm page loaded
+    const bookingRow = page.locator(`[data-id="${ITP_CALENDAR_ID}"]`);
+    await bookingRow.waitFor({ state: "visible", timeout: 15_000 });
+
+    // Open the role dropdown in the NavBar (MUI Select with "Admin" text)
+    const roleDropdown = page.locator('.MuiSelect-select').filter({ hasText: "Admin" });
+    await roleDropdown.click();
+
+    // Wait for dropdown menu to open
+    await page.locator('[role="listbox"]').waitFor({ state: "visible", timeout: 5_000 });
+
+    // PA, Liaison, and Services menu items should NOT appear
+    await expect(page.getByRole("option", { name: "PA" })).toHaveCount(0);
+    await expect(page.getByRole("option", { name: "Liaison" })).toHaveCount(0);
+    await expect(page.getByRole("option", { name: "Services" })).toHaveCount(0);
+
+    // Admin should still appear
+    await expect(page.getByRole("option", { name: "Admin" })).toHaveCount(1);
   });
 });
