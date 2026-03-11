@@ -27,6 +27,7 @@ import {
   canAccessWebCheckout,
   hasAnyPermission,
 } from "../../../../utils/permissions";
+import { useTenantSchema } from "../../components/SchemaProvider";
 import { formatTimeAmPm, formatDateTable } from "../../../utils/date";
 import { RoomDetails } from "../../booking/components/BookingSelection";
 import useSortBookingHistory from "../../hooks/useSortBookingHistory";
@@ -98,6 +99,8 @@ export default function MoreInfoModal({
 }: Props) {
   const historyRows = useSortBookingHistory(booking);
   const { pagePermission, userEmail } = useContext(DatabaseContext);
+  const schema = useTenantSchema();
+  const hasServices = schema.showSetup || schema.showEquipment || schema.showStaffing || schema.showCatering || schema.showHireSecurity;
 
   const [isEditingCart, setIsEditingCart] = useState(false);
   const [cartNumber, setCartNumber] = useState(
@@ -532,17 +535,21 @@ export default function MoreInfoModal({
                   <LabelCell>Secondary Contact Name</LabelCell>
                   <TableCell>{booking.secondaryName || BLANK}</TableCell>
                 </TableRow>
-                <TableRow>
-                  <LabelCell>Sponsor Name</LabelCell>
-                  <TableCell>
-                    {`${booking.sponsorFirstName ?? ""} ${booking.sponsorLastName ?? ""}`.trim() ||
-                      BLANK}
-                  </TableCell>
-                </TableRow>
-                <TableRow>
-                  <LabelCell>Sponsor Email</LabelCell>
-                  <TableCell>{booking.sponsorEmail || BLANK}</TableCell>
-                </TableRow>
+                {schema.showSponsor && (
+                  <TableRow>
+                    <LabelCell>Sponsor Name</LabelCell>
+                    <TableCell>
+                      {`${booking.sponsorFirstName ?? ""} ${booking.sponsorLastName ?? ""}`.trim() ||
+                        BLANK}
+                    </TableCell>
+                  </TableRow>
+                )}
+                {schema.showSponsor && (
+                  <TableRow>
+                    <LabelCell>Sponsor Email</LabelCell>
+                    <TableCell>{booking.sponsorEmail || BLANK}</TableCell>
+                  </TableRow>
+                )}
               </TableBody>
             </Table>
 
@@ -557,10 +564,12 @@ export default function MoreInfoModal({
                   <LabelCell>Description</LabelCell>
                   <TableCell>{booking.description ?? BLANK}</TableCell>
                 </TableRow>
-                <TableRow>
-                  <LabelCell>Booking Type</LabelCell>
-                  <TableCell>{booking.bookingType ?? BLANK}</TableCell>
-                </TableRow>
+                {schema.showBookingTypes && (
+                  <TableRow>
+                    <LabelCell>Booking Type</LabelCell>
+                    <TableCell>{booking.bookingType ?? BLANK}</TableCell>
+                  </TableRow>
+                )}
                 <TableRow>
                   <LabelCell>Expected Attendance</LabelCell>
                   <TableCell>{booking.expectedAttendance ?? BLANK}</TableCell>
@@ -572,88 +581,92 @@ export default function MoreInfoModal({
               </TableBody>
             </Table>
 
-            <SectionTitle>Services</SectionTitle>
-            <Table size="small">
-              <TableBody>
-                <TableRow>
-                  <LabelCell>Room Setup</LabelCell>
-                  <StackedTableCell
-                    topText={
-                      booking.setupDetails ||
-                      (booking.roomSetup === "no"
-                        ? "none"
-                        : booking.roomSetup || "none")
-                    }
-                    bottomText={booking.chartFieldForRoomSetup || "none"}
-                  />
-                </TableRow>
-                {booking.equipmentServices &&
-                  booking.equipmentServices.length > 0 && (
+            {hasServices && (
+              <>
+                <SectionTitle>Services</SectionTitle>
+                <Table size="small">
+                  <TableBody>
                     <TableRow>
-                      <LabelCell>Equipment Service</LabelCell>
-                      <TableCell>
-                        {booking.equipmentServices
-                          .split(", ")
-                          .map((service) => (
+                      <LabelCell>Room Setup</LabelCell>
+                      <StackedTableCell
+                        topText={
+                          booking.setupDetails ||
+                          (booking.roomSetup === "no"
+                            ? "none"
+                            : booking.roomSetup || "none")
+                        }
+                        bottomText={booking.chartFieldForRoomSetup || "none"}
+                      />
+                    </TableRow>
+                    {booking.equipmentServices &&
+                      booking.equipmentServices.length > 0 && (
+                        <TableRow>
+                          <LabelCell>Equipment Service</LabelCell>
+                          <TableCell>
+                            {booking.equipmentServices
+                              .split(", ")
+                              .map((service) => (
+                                <p key={service}>{service.trim()}</p>
+                              ))}
+                            <p>{booking.equipmentServicesDetails || ""}</p>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    {booking.staffingServices &&
+                      booking.staffingServices.length > 0 && (
+                        <TableRow>
+                          <LabelCell>Staffing Service</LabelCell>
+                          <TableCell>
+                            {booking.staffingServices.split(", ").map((service) => (
+                              <p key={service}>{service.trim()}</p>
+                            ))}
+                            <p>{booking.staffingServicesDetails || ""}</p>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    {booking.mediaServices && booking.mediaServices.length > 0 && (
+                      <TableRow>
+                        <LabelCell>Media Service</LabelCell>
+                        <TableCell>
+                          {booking.mediaServices.split(", ").map((service) => (
                             <p key={service}>{service.trim()}</p>
                           ))}
-                        <p>{booking.equipmentServicesDetails || ""}</p>
-                      </TableCell>
-                    </TableRow>
-                  )}
-                {booking.staffingServices &&
-                  booking.staffingServices.length > 0 && (
+                          <p>{booking.mediaServicesDetails || ""}</p>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                    {(booking.catering === "yes" || booking.cateringService) && (
+                      <TableRow>
+                        <LabelCell>Catering Service</LabelCell>
+                        <StackedTableCell
+                          topText={
+                            booking.cateringService ||
+                            (booking.catering === "yes" ? "Yes" : "")
+                          }
+                          bottomText={booking.chartFieldForCatering || ""}
+                        />
+                      </TableRow>
+                    )}
+                    {booking.cleaningService === "yes" && (
+                      <TableRow>
+                        <LabelCell>Cleaning Service</LabelCell>
+                        <StackedTableCell
+                          topText="Yes"
+                          bottomText={booking.chartFieldForCleaning || ""}
+                        />
+                      </TableRow>
+                    )}
                     <TableRow>
-                      <LabelCell>Staffing Service</LabelCell>
-                      <TableCell>
-                        {booking.staffingServices.split(", ").map((service) => (
-                          <p key={service}>{service.trim()}</p>
-                        ))}
-                        <p>{booking.staffingServicesDetails || ""}</p>
-                      </TableCell>
+                      <LabelCell>Security</LabelCell>
+                      <StackedTableCell
+                        topText={booking.hireSecurity === "yes" ? "Yes" : "none"}
+                        bottomText={booking.chartFieldForSecurity || "none"}
+                      />
                     </TableRow>
-                  )}
-                {booking.mediaServices && booking.mediaServices.length > 0 && (
-                  <TableRow>
-                    <LabelCell>Media Service</LabelCell>
-                    <TableCell>
-                      {booking.mediaServices.split(", ").map((service) => (
-                        <p key={service}>{service.trim()}</p>
-                      ))}
-                      <p>{booking.mediaServicesDetails || ""}</p>
-                    </TableCell>
-                  </TableRow>
-                )}
-                {(booking.catering === "yes" || booking.cateringService) && (
-                  <TableRow>
-                    <LabelCell>Catering Service</LabelCell>
-                    <StackedTableCell
-                      topText={
-                        booking.cateringService ||
-                        (booking.catering === "yes" ? "Yes" : "")
-                      }
-                      bottomText={booking.chartFieldForCatering || ""}
-                    />
-                  </TableRow>
-                )}
-                {booking.cleaningService === "yes" && (
-                  <TableRow>
-                    <LabelCell>Cleaning Service</LabelCell>
-                    <StackedTableCell
-                      topText="Yes"
-                      bottomText={booking.chartFieldForCleaning || ""}
-                    />
-                  </TableRow>
-                )}
-                <TableRow>
-                  <LabelCell>Security</LabelCell>
-                  <StackedTableCell
-                    topText={booking.hireSecurity === "yes" ? "Yes" : "none"}
-                    bottomText={booking.chartFieldForSecurity || "none"}
-                  />
-                </TableRow>
-              </TableBody>
-            </Table>
+                  </TableBody>
+                </Table>
+              </>
+            )}
           </Grid>
         </ScrollableContent>
 
