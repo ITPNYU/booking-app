@@ -1,7 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { renderHook } from "@testing-library/react";
+import { describe, it, expect } from "vitest";
 import { Actions } from "@/components/src/client/routes/admin/hooks/useBookingActions";
-import { BookingStatusLabel, PageContextLevel } from "@/components/src/types";
 import { getTenantPolicy } from "@/components/src/tenantPolicy";
 
 // Test tenant policy integration with booking actions

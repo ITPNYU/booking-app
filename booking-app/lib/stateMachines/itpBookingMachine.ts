@@ -23,7 +23,6 @@ export const itpBookingMachine = setup({
     context: {} as BookingContext,
     events: {} as
       | { type: "edit" }
-      | { type: "close" }
       | { type: "cancel" }
       | { type: "noShow" }
       | { type: "approve" }

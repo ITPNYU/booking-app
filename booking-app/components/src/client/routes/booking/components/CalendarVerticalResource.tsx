@@ -289,7 +289,7 @@ export default function CalendarVerticalResource({
     }
 
     // Enforce maxHours limit on calendar selection
-    if (maxHours && maxHours !== Number.POSITIVE_INFINITY) {
+    if (maxHours != null && maxHours !== Number.POSITIVE_INFINITY) {
       const durationHours = bookingEnd.diff(bookingStart, "hour", true);
       if (durationHours > maxHours) {
         return false;
