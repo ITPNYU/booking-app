@@ -1,4 +1,4 @@
-import { selectIdentityRecord } from "@/app/api/nyu/identity/[uniqueId]/route";
+import { selectIdentityRecord } from "@/lib/utils/identityRecord";
 import { mapAffiliationToRole } from "@/components/src/client/routes/booking/formPages/UserRolePage";
 import { Role } from "@/components/src/types";
 

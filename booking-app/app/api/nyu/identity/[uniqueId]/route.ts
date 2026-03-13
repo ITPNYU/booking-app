@@ -1,22 +1,9 @@
 import { getNYUToken } from "@/lib/server/nyuApiAuth";
+import { selectIdentityRecord } from "@/lib/utils/identityRecord";
 import { NextRequest, NextResponse } from "next/server";
 
 const NYU_API_BASE = "https://api.nyu.edu/identity-v2-sys";
 const NYU_API_ACCESS_ID = "20201957";
-
-export function selectIdentityRecord(
-  data: unknown,
-): Record<string, unknown> | null {
-  if (!Array.isArray(data)) return (data as Record<string, unknown>) ?? null;
-  return (
-    data.find(
-      (r: Record<string, unknown>) => r.affiliation_number === "1",
-    ) ??
-    data.find((r: Record<string, unknown>) => r.affiliation === "employee") ??
-    data[0] ??
-    null
-  );
-}
 
 export async function GET(
   request: NextRequest,
