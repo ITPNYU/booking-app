@@ -768,6 +768,45 @@ export const cancel = async (
         { calendarEventId: id, error: error.message },
       );
     }
+
+    // When cancel transitions directly to Closed (e.g., cancel without services)
+    if (xstateResult.newState === "Closed") {
+      try {
+        const closeResponse = await fetch(
+          `${process.env.NEXT_PUBLIC_BASE_URL}/api/close-processing`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-tenant": tenant || DEFAULT_TENANT,
+            },
+            body: JSON.stringify({
+              calendarEventId: id,
+              email,
+              tenant,
+            }),
+          },
+        );
+
+        if (closeResponse.ok) {
+          console.log(
+            `✅ CLOSE-PROCESSING API SUCCESS [${tenant?.toUpperCase()}]:`,
+            { calendarEventId: id },
+          );
+        } else {
+          const errorData = await closeResponse.json();
+          console.error(
+            `🚨 CLOSE-PROCESSING API FAILED [${tenant?.toUpperCase()}]:`,
+            { calendarEventId: id, error: errorData },
+          );
+        }
+      } catch (error: any) {
+        console.error(
+          `🚨 CLOSE-PROCESSING API ERROR [${tenant?.toUpperCase()}]:`,
+          { calendarEventId: id, error: error.message },
+        );
+      }
+    }
   }
 };
 
@@ -1060,7 +1099,48 @@ export const noShow = async (
 
         // Execute traditional no show processing (database updates, emails, etc.)
         await executeTraditionalNoShow(id, email, netId, tenant);
-      } else {
+      }
+
+      // When noShow transitions directly to Closed
+      if (xstateResult.newState === "Closed") {
+        try {
+          const closeResponse = await fetch(
+            `${process.env.NEXT_PUBLIC_BASE_URL}/api/close-processing`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "x-tenant": tenant || DEFAULT_TENANT,
+              },
+              body: JSON.stringify({
+                calendarEventId: id,
+                email,
+                tenant,
+              }),
+            },
+          );
+
+          if (closeResponse.ok) {
+            console.log(
+              `✅ CLOSE-PROCESSING API SUCCESS [${tenant?.toUpperCase()}]:`,
+              { calendarEventId: id },
+            );
+          } else {
+            const errorData = await closeResponse.json();
+            console.error(
+              `🚨 CLOSE-PROCESSING API FAILED [${tenant?.toUpperCase()}]:`,
+              { calendarEventId: id, error: errorData },
+            );
+          }
+        } catch (error: any) {
+          console.error(
+            `🚨 CLOSE-PROCESSING API ERROR [${tenant?.toUpperCase()}]:`,
+            { calendarEventId: id, error: error.message },
+          );
+        }
+      }
+
+      if (xstateResult.newState !== "No Show") {
         console.log(
           `🚫 XSTATE DID NOT REACH NO SHOW STATE - SKIPPING NO SHOW SIDE EFFECTS [${tenant?.toUpperCase()}]:`,
           {

@@ -289,95 +289,13 @@ export const mcBookingMachine = setup({
       },
     }),
 
-    handleCloseProcessing: async ({ context, event }) => {
-      console.log("🎬 XSTATE ACTOR: handleCloseProcessing started", {
-        input: {
-          context: {
-            tenant: context.tenant,
-            calendarEventId: context.calendarEventId,
-            email: context.email,
-          },
-        },
+    // Close processing is now handled by callers (db.ts, cron, /api/services) after XState transition
+    // to keep the same pattern across all tenants (MC, ITP, etc.)
+    handleCloseProcessing: ({ context }) => {
+      console.log("🎬 XSTATE ACTION: handleCloseProcessing (no-op, handled by callers)", {
+        calendarEventId: context.calendarEventId,
+        tenant: context.tenant,
       });
-
-      try {
-        const { calendarEventId } = context;
-        const email = context.email || "system";
-        const { tenant } = context;
-
-        if (calendarEventId) {
-          // Add delay to allow service closeout processing to complete first
-          // This ensures proper order: Service Closeout → Close Processing
-          console.log(
-            `⏳ WAITING FOR SERVICE CLOSEOUT COMPLETION [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-            {
-              calendarEventId,
-              delay: "500ms",
-            },
-          );
-
-          await new Promise((resolve) => setTimeout(resolve, 500));
-
-          console.log("🎬 XSTATE ACTOR: About to call close processing API", {
-            calendarEventId,
-            email,
-            tenant,
-          });
-
-          // Call the close processing API
-          const response = await fetch(
-            `${process.env.NEXT_PUBLIC_BASE_URL}/api/close-processing`,
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                "x-tenant": tenant || "mc",
-              },
-              body: JSON.stringify({
-                calendarEventId,
-                email,
-                tenant,
-              }),
-            },
-          );
-
-          if (response.ok) {
-            const result = await response.json();
-            console.log(
-              `✅ CLOSE PROCESSING API SUCCESS [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-              {
-                calendarEventId,
-                result,
-              },
-            );
-          } else {
-            const errorText = await response.text();
-            console.error(
-              `🚨 CLOSE PROCESSING API FAILED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-              {
-                calendarEventId,
-                status: response.status,
-                statusText: response.statusText,
-                error: errorText,
-              },
-            );
-          }
-        } else {
-          console.error(
-            `🚨 CLOSE PROCESSING API SKIPPED - NO CALENDAR EVENT ID [${tenant?.toUpperCase() || "UNKNOWN"}]`,
-          );
-        }
-      } catch (error: any) {
-        console.error(
-          `🚨 CLOSE PROCESSING API ERROR [${context.tenant?.toUpperCase() || "UNKNOWN"}]:`,
-          {
-            error: error.message,
-            stack: error.stack,
-          },
-        );
-      }
-
-      console.log("🎬 XSTATE ACTOR: handleCloseProcessing completed");
     },
 
     // Checkout processing is now handled by db.ts after XState transition

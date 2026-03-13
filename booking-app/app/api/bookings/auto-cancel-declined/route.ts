@@ -232,6 +232,34 @@ export async function GET(request: NextRequest) {
               );
             }
 
+            // If cancel transitions directly to Closed, call close-processing
+            if (xstateResult.newState === "Closed") {
+              try {
+                await fetch(
+                  `${process.env.NEXT_PUBLIC_BASE_URL}/api/close-processing`,
+                  {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json",
+                      "x-tenant": tenant,
+                    },
+                    body: JSON.stringify({
+                      calendarEventId: booking.calendarEventId,
+                      email: "system",
+                      tenant,
+                    }),
+                  },
+                );
+              } catch (procError) {
+                BookingLogger.apiError(
+                  "POST",
+                  "/api/close-processing",
+                  { calendarEventId: booking.calendarEventId, tenant },
+                  procError,
+                );
+              }
+            }
+
             updatedBookingIds.push(bookingId);
             updatedCount++;
             totalUpdatedCount++;
