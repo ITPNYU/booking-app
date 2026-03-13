@@ -256,8 +256,7 @@ export const DatabaseProvider = ({
           // when we mark loading as done.
           fetchActiveUserEmail();
           await Promise.all([
-            fetchAdminUsers(),
-            fetchPaUsers(),
+            fetchUsersRights(),
             fetchSuperAdminUsers(),
             fetchApproverUsers(),
           ]);
@@ -276,11 +275,30 @@ export const DatabaseProvider = ({
     loadPermissions();
   }, [user, tenant]);
 
+  // Derive roomSettings from SchemaContext instead of re-fetching from API
   useEffect(() => {
-    if (tenant) {
-      fetchRoomSettings();
+    if (schemaContext?.resources && Array.isArray(schemaContext.resources)) {
+      const filtered = schemaContext.resources.map((resource: any) => ({
+        ...resource,
+        id: resource.roomId.toString(),
+        roomId: resource.roomId,
+        name: resource.name,
+        capacity: resource.capacity.toString(),
+        calendarId: resource.calendarId,
+        needsSafetyTraining: resource.needsSafetyTraining || false,
+        trainingFormUrl: resource.trainingFormUrl,
+        autoApproval: resource.autoApproval,
+        isWalkIn: resource.isWalkIn || false,
+        isWalkInCanBookTwo: resource.isWalkInCanBookTwo || false,
+        isEquipment: resource.isEquipment || false,
+        services: resource.services || [],
+        staffingServices: resource.staffingServices,
+        staffingSections: resource.staffingSections,
+      }));
+      filtered.sort((a: any, b: any) => a.roomId - b.roomId);
+      setRoomSettings(filtered);
     }
-  }, [tenant]);
+  }, [schemaContext?.resources]);
 
   const fetchActiveUserEmail = () => {
     if (!user) return;
@@ -351,13 +369,52 @@ export const DatabaseProvider = ({
     }
   };
 
+  // Combined fetch: reads USERS_RIGHTS once and sets both admin and PA users
+  const fetchUsersRights = async () => {
+    try {
+      if (applyE2EMockAdminUsers(setAdminUsers)) {
+        applyE2EMockPaUsers(setPaUsers);
+        return;
+      }
+
+      const fetchedData = await clientFetchAllDataFromCollection(
+        TableNames.USERS_RIGHTS,
+        [],
+        tenant,
+      );
+
+      const admins = fetchedData
+        .filter((item: any) => item.isAdmin === true)
+        .map((item: any) => ({
+          id: item.id,
+          email: item.email,
+          createdAt: item.createdAt,
+        }));
+
+      const pas = fetchedData
+        .filter((item: any) => item.isWorker === true)
+        .map((item: any) => ({
+          id: item.id,
+          email: item.email,
+          createdAt: item.createdAt,
+        }));
+
+      setAdminUsers(admins);
+      setPaUsers(pas);
+    } catch (error) {
+      console.error("Error fetching users rights data:", error);
+      setAdminUsers([]);
+      setPaUsers([]);
+    }
+  };
+
+  // Individual reload functions (used by admin pages)
   const fetchAdminUsers = async () => {
     try {
       if (applyE2EMockAdminUsers(setAdminUsers)) {
         return;
       }
 
-      // Fetch from usersRights and filter by isAdmin flag
       const fetchedData = await clientFetchAllDataFromCollection(
         TableNames.USERS_RIGHTS,
         [],
@@ -375,7 +432,7 @@ export const DatabaseProvider = ({
       setAdminUsers(adminUsers);
     } catch (error) {
       console.error("Error fetching admin users data:", error);
-      setAdminUsers([]); // Set empty array on error
+      setAdminUsers([]);
     }
   };
 
@@ -385,7 +442,6 @@ export const DatabaseProvider = ({
         return;
       }
 
-      // Fetch from usersRights and filter by isWorker flag
       const fetchedData = await clientFetchAllDataFromCollection(
         TableNames.USERS_RIGHTS,
         [],
@@ -403,7 +459,7 @@ export const DatabaseProvider = ({
       setPaUsers(paUsers);
     } catch (error) {
       console.error("Error fetching PA users data:", error);
-      setPaUsers([]); // Set empty array on error
+      setPaUsers([]);
     }
   };
 

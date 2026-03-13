@@ -139,9 +139,8 @@ export async function GET(req: NextRequest) {
     const res = NextResponse.json(events);
     res.headers.set(
       "Cache-Control",
-      "no-store, no-cache, must-revalidate, proxy-revalidate",
+      "public, max-age=60, stale-while-revalidate=120",
     );
-    res.headers.set("Expires", "0");
     return res;
   } catch (error) {
     console.error("Error fetching calendar events:", error);
