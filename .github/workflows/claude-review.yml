@@ -1,0 +1,33 @@
+name: Claude Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+permissions:
+  contents: read
+  pull-requests: write
+  id-token: write
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            Review this PR. Focus only on:
+            1. Critical bugs and their reproduction steps
+            2. Potential bugs (race conditions, edge cases, unhandled errors)
+            3. Design concerns (architectural issues, maintainability risks)
+            4. Duplication - check if the PR re-implements logic that already exists elsewhere in the codebase. Flag cases where existing utilities, constants, or functions should be reused instead.
+
+            Do NOT include: praise, positive feedback, minor style issues, or nitpicks.
+            Be concise and actionable. Write in English.
