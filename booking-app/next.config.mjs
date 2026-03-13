@@ -1,3 +1,4 @@
+import { withSentryConfig } from "@sentry/nextjs";
 import path from "path";
 import { fileURLToPath } from "url";
 
@@ -12,7 +13,6 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
-  serverExternalPackages: ["newrelic"],
   env: {
     FIREBASE_PROJECT_ID: process.env.FIREBASE_PROJECT_ID,
     FIREBASE_PRIVATE_KEY_ID: process.env.FIREBASE_PRIVATE_KEY_ID,
@@ -52,7 +52,6 @@ const nextConfig = {
         "firebase-admin/app": false,
         "firebase-admin/firestore": false,
         "firebase-admin/auth": false,
-        newrelic: false,
       };
     }
 
@@ -88,15 +87,6 @@ const nextConfig = {
     config.module.rules.push({
       test: /farmhash.*\.wasm$/,
       type: "webassembly/async",
-    });
-
-    // Ignore README.md files in node_modules (fixes New Relic webpack issue)
-    config.module.rules.push({
-      test: /\.md$/,
-      type: "asset/resource",
-      generator: {
-        emit: false,
-      },
     });
 
     // Ensure WebAssembly files are properly handled
@@ -155,4 +145,7 @@ const nextConfig = {
   },
 };
 
-export default nextConfig;
+export default withSentryConfig(nextConfig, {
+  silent: true,
+  disableSourceMapUpload: true,
+});

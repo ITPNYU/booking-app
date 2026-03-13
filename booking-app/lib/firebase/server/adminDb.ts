@@ -13,7 +13,7 @@ import {
 } from "firebase-admin/firestore";
 
 import { BookingLog, BookingStatusLabel } from "@/components/src/types";
-import { traceDatabase } from "@/lib/newrelic-utils";
+import { traceDatabase } from "@/lib/tracing";
 import admin from "./firebaseAdmin";
 
 const db = admin.firestore();

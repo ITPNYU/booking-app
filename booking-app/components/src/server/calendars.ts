@@ -1,5 +1,5 @@
 import { getCalendarClient } from "@/lib/googleClient";
-import { traceExternalCall } from "@/lib/newrelic-utils";
+import { traceExternalCall } from "@/lib/tracing";
 import { BookingFormDetails, BookingStatusLabel } from "../types";
 import { formatOrigin, getSecondaryContactName } from "../utils/formatters";
 
