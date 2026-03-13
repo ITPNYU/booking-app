@@ -3,24 +3,38 @@ import { mapAffiliationToRole } from "@/components/src/client/routes/booking/for
 import { Role } from "@/components/src/types";
 
 describe("selectIdentityRecord", () => {
-  it("returns the employee record when present in array", () => {
+  it("prefers primary affiliation (affiliation_number=1)", () => {
     const data = [
-      { affiliation: "student", name: "Alice" },
-      { affiliation: "employee", name: "Bob" },
+      { affiliation: "affiliate", affiliation_number: "2", name: "Secondary" },
+      { affiliation: "student", affiliation_number: "1", name: "Primary" },
+    ];
+    expect(selectIdentityRecord(data)).toEqual({
+      affiliation: "student",
+      affiliation_number: "1",
+      name: "Primary",
+    });
+  });
+
+  it("falls back to employee when no affiliation_number=1", () => {
+    const data = [
+      { affiliation: "student", affiliation_number: "2", name: "Alice" },
+      { affiliation: "employee", affiliation_number: "3", name: "Bob" },
     ];
     expect(selectIdentityRecord(data)).toEqual({
       affiliation: "employee",
+      affiliation_number: "3",
       name: "Bob",
     });
   });
 
-  it("returns the first record when no employee in array", () => {
+  it("falls back to first record when no primary or employee", () => {
     const data = [
-      { affiliation: "student", name: "Alice" },
-      { affiliation: "faculty", name: "Carol" },
+      { affiliation: "student", affiliation_number: "2", name: "Alice" },
+      { affiliation: "faculty", affiliation_number: "3", name: "Carol" },
     ];
     expect(selectIdentityRecord(data)).toEqual({
       affiliation: "student",
+      affiliation_number: "2",
       name: "Alice",
     });
   });
@@ -42,24 +56,26 @@ describe("selectIdentityRecord", () => {
     expect(selectIdentityRecord(undefined)).toBeNull();
   });
 
-  it("returns affiliate record (first) when no employee exists", () => {
+  it("selects primary affiliation from real-world multi-record response", () => {
     const data = [
       {
         affiliation: "affiliate",
+        affiliation_number: "2",
         affiliation_sub_type: "contractor",
         reporting_dept_code: "PROVOST",
         school_name: "Provost",
       },
       {
         affiliation: "student",
+        affiliation_number: "1",
         affiliation_sub_type: "degree",
         reporting_dept_code: "ITP",
         school_name: "TSOA",
       },
     ];
     const result = selectIdentityRecord(data);
-    expect(result?.affiliation).toBe("affiliate");
-    expect(result?.reporting_dept_code).toBe("PROVOST");
+    expect(result?.affiliation).toBe("student");
+    expect(result?.reporting_dept_code).toBe("ITP");
   });
 });
 
