@@ -9,22 +9,25 @@ jobs:
     environment: production
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: "20"
+          cache: "npm"
+          cache-dependency-path: booking-app/package-lock.json
 
       - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v1
+        uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.SERVICE_ACCOUNT_KEY }}
 
       - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v1
+        uses: google-github-actions/setup-gcloud@v2
         with:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
+
       - name: Create .env file
         run: |
           cd booking-app
@@ -43,19 +46,19 @@ jobs:
           echo "FIREBASE_CLIENT_ID=${{ secrets.FIREBASE_CLIENT_ID }}" >> .env.production
           echo "FIREBASE_AUTH_URI=${{ secrets.FIREBASE_AUTH_URI }}" >> .env.production
           echo "FIREBASE_TOKEN_URI=${{ secrets.FIREBASE_TOKEN_URI }}" >> .env.production
-          echo "FIREBASE_AUTH_PROVIDER_X509_CERT_URL=${{ secrets.FIREBASE_AUTH_PROVIDER_X509_CERT_URL }}" >> .env.production  
+          echo "FIREBASE_AUTH_PROVIDER_X509_CERT_URL=${{ secrets.FIREBASE_AUTH_PROVIDER_X509_CERT_URL }}" >> .env.production
           echo "FIREBASE_CLIENT_X509_CERT_URL=${{ secrets.FIREBASE_CLIENT_X509_CERT_URL }}" >> .env.production
           echo "NEXT_PUBLIC_FIREBASE_API_KEY=${{ secrets.NEXT_PUBLIC_FIREBASE_API_KEY }}" >> .env.production
           echo "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=${{ secrets.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN }}" >> .env.production
           echo "NEXT_PUBLIC_FIREBASE_PROJECT_ID=${{ secrets.NEXT_PUBLIC_FIREBASE_PROJECT_ID }}" >> .env.production
-          echo "NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=${{ secrets.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET }}" >> .env.production 
-          echo "NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=${{ secrets.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID }}" >> .env.production 
+          echo "NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=${{ secrets.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET }}" >> .env.production
+          echo "NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=${{ secrets.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID }}" >> .env.production
           echo "NEXT_PUBLIC_FIREBASE_APP_ID=${{ secrets.NEXT_PUBLIC_FIREBASE_APP_ID }}" >> .env.production
           echo "NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=${{ secrets.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID }}" >> .env.production
           echo "NEXT_PUBLIC_DATABASE_NAME=${{ secrets.NEXT_PUBLIC_DATABASE_NAME }}" >> .env.production
           echo "NEXT_PUBLIC_BRANCH_NAME=${{ secrets.NEXT_PUBLIC_BRANCH_NAME }}" >> .env.production
           echo "NEXT_PUBLIC_GCP_LOG_NAME=${{ secrets.NEXT_PUBLIC_GCP_LOG_NAME }}" >> .env.production
-           echo "NYU_API_CLIENT_ID=${{ secrets.NYU_API_CLIENT_ID }}" >> .env.production
+          echo "NYU_API_CLIENT_ID=${{ secrets.NYU_API_CLIENT_ID }}" >> .env.production
           echo "NYU_API_CLIENT_SECRET=${{ secrets.NYU_API_CLIENT_SECRET }}" >> .env.production
           echo "NYU_API_USER_NAME=${{ secrets.NYU_API_USER_NAME }}" >> .env.production
           echo "NYU_API_PASSWORD=${{ secrets.NYU_API_PASSWORD }}" >> .env.production
@@ -72,14 +75,25 @@ jobs:
           cd booking-app
           npm ci
 
+      - name: Restore Next.js build cache
+        uses: actions/cache@v4
+        with:
+          path: booking-app/.next/cache
+          key: nextjs-build-${{ hashFiles('booking-app/package-lock.json') }}-${{ hashFiles('booking-app/**/*.ts', 'booking-app/**/*.tsx') }}
+          restore-keys: |
+            nextjs-build-${{ hashFiles('booking-app/package-lock.json') }}-
+            nextjs-build-
+
       - name: Build
         run: |
           cd booking-app
           npm run build
+
       - name: Deploy to App Engine
         run: |
           cd booking-app
           gcloud app deploy app.production.yaml --project=${{ secrets.GCP_PROJECT_ID }} --quiet
+
       - name: Delete old versions
         run: |
           CURRENT_VERSION=$(gcloud app versions list --service=default --sort-by=~version --limit=1 --format="value(version.id)")
