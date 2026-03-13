@@ -28,9 +28,13 @@ vi.mock("@/lib/utils/calendarEnvironment", () => ({
   applyEnvironmentCalendarIds: (resources: any[]) => resources,
 }));
 
-vi.mock("@/components/src/constants/tenants", () => ({
-  isValidTenant: (tenant: string) => ["mc", "itp", "mediaCommons"].includes(tenant),
-}));
+vi.mock("@/components/src/constants/tenants", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/components/src/constants/tenants")>();
+  return {
+    ...actual,
+    isValidTenant: (tenant: string) => ["mc", "itp", "mediaCommons"].includes(tenant),
+  };
+});
 
 import { GET, PUT } from "@/app/api/tenantSchema/[tenant]/route";
 import { NextRequest } from "next/server";
