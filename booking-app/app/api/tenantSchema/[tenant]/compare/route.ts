@@ -3,7 +3,7 @@ import {
   serverFetchAllDataFromCollection,
 } from "@/lib/firebase/server/adminDb";
 import { TableNames } from "@/components/src/policy";
-import { getFirestore } from "firebase-admin/firestore";
+import admin from "@/lib/firebase/server/firebaseAdmin";
 
 const DATABASES: Record<string, string> = {
   development: "(default)",
@@ -11,12 +11,40 @@ const DATABASES: Record<string, string> = {
   production: "booking-app-prod",
 };
 
+/**
+ * Get a Firestore instance for a specific named database.
+ *
+ * We create a dedicated named Firebase App per database so that we bypass
+ * the default app's `.settings({ databaseId })` override applied in
+ * firebaseAdmin.ts.  Without this, `getFirestore("(default)")` on a prod
+ * server returns the cached instance that was already redirected to
+ * "booking-app-prod", making dev vs prod comparisons show no differences.
+ */
+function getFirestoreForDatabase(databaseId: string) {
+  const appName = `schema-compare-${databaseId}`;
+  let app;
+  try {
+    app = admin.app(appName);
+  } catch {
+    app = admin.initializeApp(admin.app().options, appName);
+  }
+  const db = app.firestore();
+  if (databaseId !== "(default)") {
+    try {
+      db.settings({ databaseId });
+    } catch {
+      // settings() can only be called once per instance — ignore if already set
+    }
+  }
+  return db;
+}
+
 async function getSchemaFromDatabase(
   databaseId: string,
   tenant: string,
 ): Promise<Record<string, any> | null> {
   try {
-    const db = getFirestore(databaseId);
+    const db = getFirestoreForDatabase(databaseId);
     const docRef = db.collection(TableNames.TENANT_SCHEMA).doc(tenant);
     const docSnap = await docRef.get();
     return docSnap.exists ? (docSnap.data() as Record<string, any>) : null;
