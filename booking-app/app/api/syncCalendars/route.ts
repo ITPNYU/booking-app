@@ -6,21 +6,20 @@ import {
 
 import { toFirebaseTimestampFromString } from "@/components/src/client/utils/serverDate";
 import { TableNames } from "@/components/src/policy";
-import { serverGetNextSequentialId } from "@/lib/firebase/server/adminDb";
+import {
+  serverGetNextSequentialId,
+  serverGetDocumentById,
+} from "@/lib/firebase/server/adminDb";
 import { applyEnvironmentCalendarIds } from "@/lib/utils/calendarEnvironment";
 import admin from "@/lib/firebase/server/firebaseAdmin";
 import { getCalendarClient } from "@/lib/googleClient";
 import { Timestamp } from "firebase/firestore";
 import { NextResponse } from "next/server";
-import { serverGetDocumentById } from "@/lib/firebase/server/adminDb";
 
 const db = admin.firestore();
 const areRoomIdsSame = (roomIds1: string, roomIds2: string): boolean => {
-  const toArray = (ids: string): string[] => {
-    return ids.includes(",")
-      ? ids.split(",").map(id => id.trim())
-      : [ids.trim()];
-  };
+  const toArray = (ids: string): string[] =>
+    ids.includes(",") ? ids.split(",").map(id => id.trim()) : [ids.trim()];
 
   const sortedRoomIds1 = toArray(String(roomIds1)).sort();
   const sortedRoomIds2 = toArray(String(roomIds2)).sort();
@@ -38,11 +37,9 @@ const areRoomIdsSame = (roomIds1: string, roomIds2: string): boolean => {
 
   return areEqual;
 };
-const createBookingWithDefaults = (
-  partialBooking: Partial<Booking>,
-): Booking => {
-  //@ts-ignore
-  return {
+const createBookingWithDefaults = (partialBooking: Partial<Booking>): Booking =>
+  // @ts-ignore
+  ({
     title: "",
     description: "",
     email: "",
@@ -83,9 +80,7 @@ const createBookingWithDefaults = (
     finalApprovedAt: undefined,
     finalApprovedBy: "",
     ...partialBooking,
-  };
-};
-
+  });
 const findGuestEmail = (event: any): string => {
   const attendees = event.attendees || [];
   const guestEmail = attendees.find(
@@ -123,18 +118,21 @@ const findRoomIds = (event: any, resources: any[]): string => {
 export async function POST(request: Request) {
   try {
     const calendar = await getCalendarClient();
-    
+
     // Get tenant from request headers or default to 'mc'
-    const tenant = request.headers.get('x-tenant') || 'mc';
-    
+    const tenant = request.headers.get("x-tenant") || "mc";
+
     // Get resources from tenant schema instead of collection
-    const schema = await serverGetDocumentById(TableNames.TENANT_SCHEMA, tenant);
-    
+    const schema = await serverGetDocumentById(
+      TableNames.TENANT_SCHEMA,
+      tenant,
+    );
+
     // Apply environment-based calendar ID selection
-    const resourcesWithCorrectCalendarIds = schema?.resources 
+    const resourcesWithCorrectCalendarIds = schema?.resources
       ? applyEnvironmentCalendarIds(schema.resources)
       : [];
-    
+
     const resources = resourcesWithCorrectCalendarIds.map((resource: any) => ({
       id: resource.roomId.toString(),
       calendarId: resource.calendarId,
@@ -142,7 +140,7 @@ export async function POST(request: Request) {
     }));
 
     let totalNewBookings = 0;
-    let totalUpdatedBookings = 0;
+    const totalUpdatedBookings = 0;
     let targetBookings = 0;
 
     const now = new Date();
@@ -157,12 +155,12 @@ export async function POST(request: Request) {
         do {
           const events = await calendar.events.list({
             calendarId: resource.calendarId,
-            timeMin: timeMin,
-            timeMax: timeMax,
+            timeMin,
+            timeMax,
             maxResults: 500,
             singleEvents: true,
             orderBy: "startTime",
-            pageToken: pageToken,
+            pageToken,
           });
 
           for (const event of events.data.items || []) {
@@ -196,7 +194,7 @@ export async function POST(request: Request) {
               event.start?.dateTime === undefined &&
               event.end?.dateTime === undefined
             ) {
-              //All day event
+              // All day event
               continue;
             }
 

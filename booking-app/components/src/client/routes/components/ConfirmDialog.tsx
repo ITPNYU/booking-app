@@ -5,8 +5,8 @@ import {
   DialogContent,
   DialogContentText,
   DialogTitle,
-} from '@mui/material';
-import React, { cloneElement, useState } from 'react';
+} from "@mui/material";
+import React, { cloneElement, useState } from "react";
 
 interface Props {
   message: string;

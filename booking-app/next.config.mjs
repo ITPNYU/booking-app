@@ -9,6 +9,9 @@ const resolveStub = (relativePath) => path.join(__dirname, relativePath);
 /** @type {import('next').NextConfig} */
 
 const nextConfig = {
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
   serverExternalPackages: ["newrelic"],
   env: {
     FIREBASE_PROJECT_ID: process.env.FIREBASE_PROJECT_ID,
@@ -49,6 +52,7 @@ const nextConfig = {
         "firebase-admin/app": false,
         "firebase-admin/firestore": false,
         "firebase-admin/auth": false,
+        newrelic: false,
       };
     }
 

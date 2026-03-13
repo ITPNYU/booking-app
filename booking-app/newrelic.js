@@ -1,4 +1,3 @@
-"use strict";
 /**
  * New Relic agent configuration.
  *
@@ -37,6 +36,7 @@ exports.config = {
      * production applications.
      */
     level: process.env.NEW_RELIC_LOG_LEVEL || "info",
+    filepath: "/tmp/newrelic_agent.log",
   },
   /**
    * When true, all request headers except for those listed in attributes.exclude

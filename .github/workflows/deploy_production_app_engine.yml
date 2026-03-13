@@ -64,6 +64,8 @@ jobs:
           echo "WEBCHECKOUT_USERNAME=${{ secrets.WEBCHECKOUT_USERNAME }}" >> .env.production
           echo "WEBCHECKOUT_PASSWORD=${{ secrets.WEBCHECKOUT_PASSWORD }}" >> .env.production
           echo "WEBCHECKOUT_API_BASE_URL=${{ secrets.WEBCHECKOUT_API_BASE_URL }}" >> .env.production
+          echo "NEW_RELIC_LICENSE_KEY=${{ secrets.NEW_RELIC_LICENSE_KEY }}" >> .env.production
+          echo "NEW_RELIC_APP_NAME=${{ vars.NEW_RELIC_APP_NAME }}" >> .env.production
 
       - name: Install dependencies
         run: |

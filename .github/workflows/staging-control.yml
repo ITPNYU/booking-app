@@ -1,0 +1,59 @@
+name: Staging Start/Stop
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "Start or stop the staging environment"
+        required: true
+        type: choice
+        options:
+          - stop
+          - start
+
+permissions: {}
+
+jobs:
+  control:
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: ${{ secrets.SERVICE_ACCOUNT_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v1
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+      - name: "${{ inputs.action == 'start' && 'Start' || 'Stop' }} staging"
+        run: |
+          if [ "${{ inputs.action }}" = "stop" ]; then
+            VERSIONS=$(gcloud app versions list --service=staging --filter="SERVING_STATUS=SERVING" --format="value(version.id)")
+          else
+            VERSIONS=$(gcloud app versions list --service=staging --sort-by=~version --limit=1 --format="value(version.id)")
+          fi
+          for VERSION in $VERSIONS; do
+            echo "${{ inputs.action }}ing staging version: $VERSION"
+            gcloud app versions ${{ inputs.action }} $VERSION --service=staging --project=${{ secrets.GCP_PROJECT_ID }} --quiet
+          done
+          echo "Done. Staging is now ${{ inputs.action == 'start' && 'started' || 'stopped' }}."
+
+      - name: Verify staging is accessible
+        if: inputs.action == 'start'
+        run: |
+          URL="https://staging-dot-${{ secrets.GCP_PROJECT_ID }}.uc.r.appspot.com/"
+          echo "Waiting for staging to become accessible at $URL"
+          for i in $(seq 1 30); do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$URL" || true)
+            echo "Attempt $i: HTTP $STATUS"
+            if [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 400 ]; then
+              echo "Staging is up and responding."
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "ERROR: Staging did not become accessible within 5 minutes."
+          exit 1

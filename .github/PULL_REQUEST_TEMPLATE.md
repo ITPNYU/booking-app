@@ -5,12 +5,12 @@
 ## Checklist
 
 - [ ] I checked for existing implementations and confirmed there is no duplication
-- [ ] I tested this feature locally
-- [ ] I had Copilot review the PR and incorporated feedback (or explained why not)
-- [ ] I confirmed there are no conflicts
-- [ ] I confirmed my PR passed all tests
-- [ ] I added or updated unit tests (or explained why not)
+- [ ] I thoroughly tested this feature locally
+- [ ] I added or updated unit tests (or explained why not in the PR description)
 - [ ] I attached screenshots or a video demonstrating the feature
+- [ ] I incorporated Copilot's feedback (or explained why not in the PR description), and marked conversation as resolved
+- [ ] I confirmed my PR passed all unit and end-to-end (E2E) tests
+- [ ] I confirmed there are no conflicts
 - [ ] I requested a code review from at least one other teammate
 
 ## Screenshots / Video

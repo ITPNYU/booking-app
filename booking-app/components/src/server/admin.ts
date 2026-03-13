@@ -8,6 +8,8 @@ import {
   serverGetFinalApproverEmail,
   serverUpdateInFirestore,
 } from "@/lib/firebase/server/adminDb";
+import { Timestamp } from "firebase-admin/firestore";
+import { applyEnvironmentCalendarIds } from "@/lib/utils/calendarEnvironment";
 import { DEFAULT_TENANT } from "../constants/tenants";
 import { TableNames, getApprovalCcEmail } from "../policy";
 import {
@@ -20,11 +22,9 @@ import {
   BookingStatus,
   BookingStatusLabel,
 } from "../types";
+import { getSecondaryContactName } from "../utils/formatters";
 import { isMediaCommons } from "../utils/tenantUtils";
 import { getTenantEmailConfig } from "./emails";
-
-import { Timestamp } from "firebase-admin/firestore";
-import { applyEnvironmentCalendarIds } from "@/lib/utils/calendarEnvironment";
 
 interface HistoryItem {
   status: BookingStatusLabel;
@@ -35,7 +35,7 @@ interface HistoryItem {
 
 const getBookingHistory = async (
   booking: Booking,
-  tenant?: string
+  tenant?: string,
 ): Promise<HistoryItem[]> => {
   const history: HistoryItem[] = [];
 
@@ -49,7 +49,7 @@ const getBookingHistory = async (
         value: booking.calendarEventId,
       },
     ],
-    tenant
+    tenant,
   );
 
   if (logs.length > 0) {
@@ -139,7 +139,7 @@ const getBookingHistory = async (
   }
 
   return history.sort(
-    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
   );
 };
 
@@ -147,7 +147,7 @@ export const serverBookingContents = async (id: string, tenant?: string) => {
   const booking = await serverGetDataByCalendarEventId<Booking>(
     TableNames.BOOKING,
     id,
-    tenant
+    tenant,
   );
   if (!booking) {
     throw new Error("Booking not found");
@@ -170,18 +170,19 @@ export const serverBookingContents = async (id: string, tenant?: string) => {
         ? currentHeaderMessage
         : defaultHeaderMessage,
     history,
-    startDate: startDate.toLocaleDateString(),
-    endDate: endDate.toLocaleDateString(),
-    startTime: startDate.toLocaleTimeString([], {
+    startDate: startDate.toLocaleDateString("en-US"),
+    endDate: endDate.toLocaleDateString("en-US"),
+    startTime: startDate.toLocaleTimeString("en-US", {
       hour: "2-digit",
       minute: "2-digit",
       hour12: true,
     }),
-    endTime: endDate.toLocaleTimeString([], {
+    endTime: endDate.toLocaleTimeString("en-US", {
       hour: "2-digit",
       minute: "2-digit",
       hour12: true,
     }),
+    secondaryContactName: getSecondaryContactName(booking),
   };
 
   return updatedBookingObj as unknown as BookingFormDetails;
@@ -191,12 +192,12 @@ export const serverUpdateDataByCalendarEventId = async (
   collectionName: TableNames,
   calendarEventId: string,
   updatedData: object,
-  tenant?: string
+  tenant?: string,
 ) => {
   const booking = await serverGetDataByCalendarEventId<Booking>(
     collectionName,
     calendarEventId,
-    tenant
+    tenant,
   );
   if (!booking) {
     throw new Error("Booking not found");
@@ -205,7 +206,7 @@ export const serverUpdateDataByCalendarEventId = async (
     collectionName,
     booking.id,
     updatedData,
-    tenant
+    tenant,
   );
 };
 
@@ -213,12 +214,12 @@ export const serverDeleteFieldsByCalendarEventId = async (
   collectionName: TableNames,
   calendarEventId: string,
   fields: string[],
-  tenant?: string
+  tenant?: string,
 ) => {
   const booking = await serverGetDataByCalendarEventId<Booking>(
     collectionName,
     calendarEventId,
-    tenant
+    tenant,
   );
   if (!booking) {
     throw new Error("Booking not found");
@@ -229,12 +230,12 @@ export const serverDeleteFieldsByCalendarEventId = async (
 export const serverDeleteDataByCalendarEventId = async (
   collectionName: TableNames,
   calendarEventId: string,
-  tenant?: string
+  tenant?: string,
 ) => {
   const booking = await serverGetDataByCalendarEventId<Booking>(
     collectionName,
     calendarEventId,
-    tenant
+    tenant,
   );
   if (!booking) {
     throw new Error("Booking not found");
@@ -251,7 +252,7 @@ const serverFirstApprove = (id: string, email?: string, tenant?: string) => {
       firstApprovedAt: Timestamp.now(),
       firstApprovedBy: email,
     },
-    tenant
+    tenant,
   );
 };
 
@@ -259,7 +260,7 @@ const serverFirstApprove = (id: string, email?: string, tenant?: string) => {
 export const serverFirstApproveOnly = async (
   id: string,
   email?: string,
-  tenant?: string
+  tenant?: string,
 ) => {
   console.log(
     `🎯 SERVER FIRST APPROVE ONLY [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
@@ -267,7 +268,7 @@ export const serverFirstApproveOnly = async (
       calendarEventId: id,
       email,
       tenant,
-    }
+    },
   );
 
   // Update booking with first approval fields and status
@@ -279,7 +280,7 @@ export const serverFirstApproveOnly = async (
       firstApprovedBy: email,
       status: BookingStatusLabel.PRE_APPROVED,
     },
-    tenant
+    tenant,
   );
 
   // Log the first approval action
@@ -338,20 +339,20 @@ export const serverFirstApproveOnly = async (
       calendarEventId: id,
       emailSent: res.ok,
       status: BookingStatusLabel.PRE_APPROVED,
-    }
+    },
   );
 };
 
 export const serverFinalApprove = async (
   id: string,
   email?: string,
-  tenant?: string
+  tenant?: string,
 ) => {
   // Get the booking data to check for services
   const bookingData = await serverGetDataByCalendarEventId(
     TableNames.BOOKING,
     id,
-    tenant
+    tenant,
   );
 
   const updateData: any = {
@@ -362,26 +363,25 @@ export const serverFinalApprove = async (
   serverUpdateDataByCalendarEventId(TableNames.BOOKING, id, updateData, tenant);
 };
 
-//server
+// server
 export const serverApproveInstantBooking = async (
   id: string,
   email: string,
-  tenant?: string
+  tenant?: string,
 ) => {
   // For Media Commons VIP bookings, check if services are requested
   // If so, only do first approval to allow service request flow
   const bookingData = await serverGetDataByCalendarEventId(
     TableNames.BOOKING,
     id,
-    tenant
+    tenant,
   );
 
   let shouldDoFinalApproval = true;
 
   if (isMediaCommons(tenant) && bookingData) {
-    const { getMediaCommonsServices } = await import(
-      "@/components/src/utils/tenantUtils"
-    );
+    const { getMediaCommonsServices } =
+      await import("@/components/src/utils/tenantUtils");
     const servicesRequested = getMediaCommonsServices(bookingData);
     const hasServices = Object.values(servicesRequested).some(Boolean);
 
@@ -391,7 +391,7 @@ export const serverApproveInstantBooking = async (
         {
           calendarEventId: id,
           servicesRequested,
-        }
+        },
       );
       shouldDoFinalApproval = false;
     }
@@ -410,13 +410,13 @@ export const serverApproveInstantBooking = async (
 export const serverApproveBooking = async (
   id: string,
   email: string,
-  tenant?: string
+  tenant?: string,
 ) => {
   try {
     const bookingStatus = await serverGetDataByCalendarEventId<BookingStatus>(
       TableNames.BOOKING,
       id,
-      tenant
+      tenant,
     );
     const isFinalApproval = bookingStatus?.firstApprovedAt?.toDate() ?? null;
 
@@ -468,7 +468,7 @@ const firstApprove = async (id: string, email: string, tenant?: string) => {
           statusPrefix: BookingStatusLabel.PRE_APPROVED,
         },
       }),
-    }
+    },
   );
   const contents = await serverBookingContents(id, tenant);
 
@@ -506,7 +506,7 @@ export const finalApprove = async (
   id: string,
   email: string,
   tenant?: string,
-  note?: string
+  note?: string,
 ) => {
   await serverFinalApprove(id, email, tenant);
 
@@ -565,7 +565,7 @@ export const serverSendBookingDetailEmail = async ({
 
   const formData = {
     templateName: "booking_detail",
-    contents: contents,
+    contents,
     targetEmail,
     status,
     eventTitle: contents.title,
@@ -603,12 +603,12 @@ export const serverSendConfirmationEmail = async ({
   });
 };
 
-//server
+// server
 export const serverApproveEvent = async (id: string, tenant?: string) => {
   const doc = await serverGetDataByCalendarEventId(
     TableNames.BOOKING,
     id,
-    tenant
+    tenant,
   );
   if (!doc) {
     console.error("Booking status not found for calendar event id: ", id);
@@ -639,7 +639,7 @@ export const serverApproveEvent = async (id: string, tenant?: string) => {
     calendarEventId: id,
     status: BookingStatusLabel.APPROVED,
     headerMessage: otherHeaderMessage,
-    guestEmail: guestEmail,
+    guestEmail,
     tenant,
   });
 
@@ -656,17 +656,73 @@ export const serverApproveEvent = async (id: string, tenant?: string) => {
   // for sponsor, if we have one
   const contents = await serverBookingContents(id, tenant);
   if (contents.role === "Student" && contents.sponsorEmail?.length > 0) {
+    // Handle both legacy full email format and new Net ID format
+    const sponsorEmailAddress = contents.sponsorEmail.includes("@")
+      ? contents.sponsorEmail
+      : `${contents.sponsorEmail}@nyu.edu`;
+    
     serverSendBookingDetailEmail({
       calendarEventId: id,
-      targetEmail: contents.sponsorEmail,
+      targetEmail: sponsorEmailAddress,
       headerMessage:
-        "A reservation that you are the Sponsor of has been approved.<br /><br />" +
-        emailConfig.emailMessages.approvalNotice,
+        `A reservation that you are the Sponsor of has been approved.<br /><br />${emailConfig.emailMessages.approvalNotice}`,
       status: BookingStatusLabel.APPROVED,
       replyTo: guestEmail,
       tenant,
     });
   }
+
+  // for secondary contact, if we have one
+  // secondaryEmail now stores full NYU email (e.g., abc123@nyu.edu)
+  if (contents.secondaryEmail && contents.secondaryEmail.length > 0) {
+    // Handle both legacy net ID format and new full email format
+    const secondaryEmailAddress = contents.secondaryEmail.includes("@")
+      ? contents.secondaryEmail
+      : `${contents.secondaryEmail}@nyu.edu`;
+    
+    // Await the email to ensure it's sent before proceeding
+    await serverSendBookingDetailEmail({
+      calendarEventId: id,
+      targetEmail: secondaryEmailAddress,
+      headerMessage:
+        "A reservation where you are listed as a Secondary Point of Contact has been approved.<br /><br />" +
+        emailConfig.emailMessages.approvalNotice,
+      status: BookingStatusLabel.APPROVED,
+      replyTo: guestEmail,
+      tenant,
+    });
+
+    const secondaryFormData = {
+      guestEmail: secondaryEmailAddress,
+      calendarEventId: id,
+      roomId: contents.roomId,
+    };
+    // Intentionally awaiting without try-catch: if email delivery fails,
+    // we want the approval process to fail with the API error message.
+    const inviteSecondaryResponse = await fetch(
+      `${process.env.NEXT_PUBLIC_BASE_URL}/api/inviteUser`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(secondaryFormData),
+      },
+    );
+    if (!inviteSecondaryResponse.ok) {
+      let errorBody = "";
+      try {
+        errorBody = await inviteSecondaryResponse.text();
+      } catch {
+        // ignore body read errors
+      }
+      throw new Error(
+        `Failed to invite secondary contact (status ${inviteSecondaryResponse.status} ${inviteSecondaryResponse.statusText})` +
+          (errorBody ? `: ${errorBody}` : ""),
+      );
+    }
+  }
+
 
   const formDataForCalendarEvents = {
     calendarEventId: id,
@@ -682,7 +738,7 @@ export const serverApproveEvent = async (id: string, tenant?: string) => {
   });
 
   const formData = {
-    guestEmail: guestEmail,
+    guestEmail,
     calendarEventId: id,
     roomId: contents.roomId,
   };
@@ -694,7 +750,7 @@ export const serverApproveEvent = async (id: string, tenant?: string) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify(formData),
-    }
+    },
   );
 };
 
@@ -710,7 +766,7 @@ export const admins = async (): Promise<AdminUser[]> => {
 
 export const approvers = async (): Promise<Approver[]> => {
   const fetchedData = await serverFetchAllDataFromCollection(
-    TableNames.APPROVERS
+    TableNames.APPROVERS,
   );
   const filtered = fetchedData.map((item: any) => ({
     id: item.id,
@@ -723,13 +779,13 @@ export const approvers = async (): Promise<Approver[]> => {
 };
 
 export const firstApproverEmails = async (department: string) => {
-  console.log(`🔍 FIRST APPROVER EMAILS DEBUG:`, {
+  console.log("🔍 FIRST APPROVER EMAILS DEBUG:", {
     department,
     function: "firstApproverEmails",
   });
 
   const approversData = await approvers();
-  console.log(`📋 APPROVERS DATA:`, {
+  console.log("📋 APPROVERS DATA:", {
     department,
     totalApprovers: approversData.length,
     approvers: approversData.map((a) => ({
@@ -740,14 +796,13 @@ export const firstApproverEmails = async (department: string) => {
   });
 
   // Import normalizeDepartment from utils
-  const { normalizeDepartment } = await import(
-    "@/components/src/utils/departmentUtils"
-  );
+  const { normalizeDepartment } =
+    await import("@/components/src/utils/departmentUtils");
 
   const normalizedUserDepartment = normalizeDepartment(department, {
     toLowerCase: true,
   });
-  console.log(`🔧 NORMALIZED USER DEPARTMENT:`, {
+  console.log("🔧 NORMALIZED USER DEPARTMENT:", {
     original: department,
     normalized: normalizedUserDepartment,
   });
@@ -757,28 +812,29 @@ export const firstApproverEmails = async (department: string) => {
 
     const normalizedApproverDepartment = normalizeDepartment(
       approver.department,
-      { toLowerCase: true }
+      { toLowerCase: true },
     );
 
     // Check if user department contains any of the key department identifiers
     const itpDeptKeywords = ["itp", "ima", "low res"];
 
     const userHasKeywords = itpDeptKeywords.some((keyword) =>
-      normalizedUserDepartment.includes(keyword)
+      normalizedUserDepartment.includes(keyword),
     );
     const approverHasKeywords = itpDeptKeywords.some((keyword) =>
-      normalizedApproverDepartment.includes(keyword)
+      normalizedApproverDepartment.includes(keyword),
     );
 
     // ITP/IMA/Low Res departments should match with each other
     const itpGroupMatches = userHasKeywords && approverHasKeywords;
-    
+
     // For other departments, check exact match of normalized department names
-    const exactMatch = normalizedUserDepartment === normalizedApproverDepartment;
-    
+    const exactMatch =
+      normalizedUserDepartment === normalizedApproverDepartment;
+
     const matches = itpGroupMatches || exactMatch;
 
-    console.log(`🔍 DEPARTMENT COMPARISON:`, {
+    console.log("🔍 DEPARTMENT COMPARISON:", {
       userDepartment: department,
       normalizedUserDepartment,
       approverDepartment: approver.department,
@@ -793,7 +849,7 @@ export const firstApproverEmails = async (department: string) => {
     return matches;
   });
 
-  console.log(`🎯 FILTERED APPROVERS:`, {
+  console.log("🎯 FILTERED APPROVERS:", {
     department,
     normalizedDepartment: normalizedUserDepartment,
     filteredCount: filteredApprovers.length,
@@ -806,7 +862,7 @@ export const firstApproverEmails = async (department: string) => {
 
   const result = filteredApprovers.map((approver) => approver.email);
 
-  console.log(`📧 FIRST APPROVER EMAILS RESULT:`, {
+  console.log("📧 FIRST APPROVER EMAILS RESULT:", {
     department,
     normalizedDepartment: normalizedUserDepartment,
     result,
@@ -818,24 +874,27 @@ export const firstApproverEmails = async (department: string) => {
 
 export const serverGetRoomCalendarIds = async (
   roomId: number,
-  tenant?: string
+  tenant?: string,
 ): Promise<string[]> => {
   try {
     // Get tenant schema
     const schema = await serverGetDocumentById(
       TableNames.TENANT_SCHEMA,
-      tenant || DEFAULT_TENANT
+      tenant || DEFAULT_TENANT,
     );
     if (!schema || !schema.resources) {
       console.log("No schema or resources found");
       return [];
     }
 
-    const { applyEnvironmentCalendarIds } = await import("@/lib/utils/calendarEnvironment");
-    const resourcesWithCorrectCalendarIds = applyEnvironmentCalendarIds(schema.resources);
+    const { applyEnvironmentCalendarIds } =
+      await import("@/lib/utils/calendarEnvironment");
+    const resourcesWithCorrectCalendarIds = applyEnvironmentCalendarIds(
+      schema.resources,
+    );
 
     const rooms = resourcesWithCorrectCalendarIds.filter(
-      (resource: any) => resource.roomId === roomId
+      (resource: any) => resource.roomId === roomId,
     );
 
     console.log(`Rooms: ${JSON.stringify(rooms)}`);
@@ -844,7 +903,7 @@ export const serverGetRoomCalendarIds = async (
       .map((room: any) => room.calendarId)
       .filter(
         (calendarId): calendarId is string =>
-          calendarId !== undefined && calendarId !== null
+          calendarId !== undefined && calendarId !== null,
       );
   } catch (error) {
     console.error("Error fetching room calendar IDs from schema:", error);
@@ -854,34 +913,36 @@ export const serverGetRoomCalendarIds = async (
 
 export const serverGetRoomCalendarId = async (
   roomId: number,
-  tenant?: string
+  tenant?: string,
 ): Promise<string | null> => {
   try {
     // Get tenant schema
     const schema = await serverGetDocumentById(
       TableNames.TENANT_SCHEMA,
-      tenant || DEFAULT_TENANT
+      tenant || DEFAULT_TENANT,
     );
     if (!schema || !schema.resources) {
       console.log("No schema or resources found");
       return null;
     }
 
-    const { applyEnvironmentCalendarIds } = await import("@/lib/utils/calendarEnvironment");
-    const resourcesWithCorrectCalendarIds = applyEnvironmentCalendarIds(schema.resources);
+    const { applyEnvironmentCalendarIds } =
+      await import("@/lib/utils/calendarEnvironment");
+    const resourcesWithCorrectCalendarIds = applyEnvironmentCalendarIds(
+      schema.resources,
+    );
 
     const rooms = resourcesWithCorrectCalendarIds.filter(
-      (resource: any) => resource.roomId === roomId
+      (resource: any) => resource.roomId === roomId,
     );
 
     if (rooms.length > 0) {
       const room = rooms[0];
       console.log(`Room: ${JSON.stringify(room)}`);
       return room.calendarId;
-    } else {
-      console.log("No matching room found.");
-      return null;
     }
+    console.log("No matching room found.");
+    return null;
   } catch (error) {
     console.error("Error fetching room calendar ID from schema:", error);
     return null;

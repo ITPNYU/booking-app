@@ -16,7 +16,7 @@ const SyncCalendars = () => {
   const [loading, setLoading] = useState(false);
   const [showAlert, setShowAlert] = useState(false);
   const [alertSeverity, setAlertSeverity] = useState<"error" | "success">(
-    "success"
+    "success",
   );
   const [message, setMessage] = useState("");
 
@@ -78,7 +78,7 @@ const SyncCalendars = () => {
         "/api/syncSemesterPregameBookings?dryRun=true",
         {
           method: "POST",
-        }
+        },
       );
       const data = await response.json();
       if (response.ok) {

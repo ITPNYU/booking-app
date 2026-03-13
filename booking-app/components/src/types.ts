@@ -151,7 +151,11 @@ export enum FormContextLevel {
 export type Inputs = {
   firstName: string;
   lastName: string;
-  secondaryName: string;
+  // Secondary contact fields - optional for backwards compatibility with old bookings that used secondaryName
+  secondaryFirstName?: string;
+  secondaryLastName?: string;
+  secondaryEmail?: string;
+  secondaryName?: string; // Legacy field - old bookings have this instead of split fields
   nNumber: string;
   netId: string;
   walkInNetId?: string; // NetID of the walk-in person (for safety training validation)
@@ -192,6 +196,8 @@ export type Inputs = {
   equipment?: string;
   staffing?: string;
   cleaning?: string;
+  // origin of the booking
+  origin?: BookingOrigin
 };
 
 export type DepartmentType = {
@@ -322,12 +328,12 @@ export type RoomSetting = {
       student: number;
     };
     conditions?: {
-      setup: boolean;        // Allow auto-approval with setup requests
-      equipment: boolean;    // Allow auto-approval with equipment requests
-      staffing: boolean;     // Allow auto-approval with staffing requests
-      catering: boolean;     // Allow auto-approval with catering requests
-      cleaning: boolean;     // Allow auto-approval with cleaning requests
-      security: boolean;     // Allow auto-approval with security requests
+      setup: boolean; // Allow auto-approval with setup requests
+      equipment: boolean; // Allow auto-approval with equipment requests
+      staffing: boolean; // Allow auto-approval with staffing requests
+      catering: boolean; // Allow auto-approval with catering requests
+      cleaning: boolean; // Allow auto-approval with cleaning requests
+      security: boolean; // Allow auto-approval with security requests
     };
   };
   maxHour?: {
@@ -449,7 +455,7 @@ export enum BookingOrigin {
 }
 
 export const formatOrigin = (
-  origin: BookingOrigin | string | undefined
+  origin: BookingOrigin | string | undefined,
 ): string => {
   if (!origin) return "User";
   switch (origin) {

@@ -124,7 +124,7 @@ export default function useBookingActions({
         const data = (await clientGetDataByCalendarEventId(
           TableNames.BOOKING,
           calendarEventId,
-          tenant as string
+          tenant as string,
         )) as any; // Type assertion to handle dynamic properties
         setBookingData(data);
 
@@ -144,8 +144,8 @@ export default function useBookingActions({
             const snapshotValue = data.xstateData?.snapshot?.value;
             const serviceCloseoutStates =
               typeof snapshotValue === "object" &&
-              snapshotValue &&
-              snapshotValue["Service Closeout"]
+                snapshotValue &&
+                snapshotValue["Service Closeout"]
                 ? snapshotValue["Service Closeout"]
                 : {};
             setServicesApproved({
@@ -174,19 +174,19 @@ export default function useBookingActions({
               equipment:
                 closeoutContext.equipment === true ||
                 serviceCloseoutStates["Equipment Closeout"] ===
-                  "Equipment Closedout",
+                "Equipment Closedout",
               catering:
                 closeoutContext.catering === true ||
                 serviceCloseoutStates["Catering Closeout"] ===
-                  "Catering Closedout",
+                "Catering Closedout",
               cleaning:
                 closeoutContext.cleaning === true ||
                 serviceCloseoutStates["Cleaning Closeout"] ===
-                  "Cleaning Closedout",
+                "Cleaning Closedout",
               security:
                 closeoutContext.security === true ||
                 serviceCloseoutStates["Security Closeout"] ===
-                  "Security Closedout",
+                "Security Closedout",
               setup:
                 closeoutContext.setup === true ||
                 serviceCloseoutStates["Setup Closeout"] === "Setup Closedout",
@@ -251,7 +251,7 @@ export default function useBookingActions({
         await clientApproveBooking(
           calendarEventId,
           userEmail,
-          tenant as string
+          tenant as string,
         );
       },
       optimisticNextStatus: BookingStatusLabel.PRE_APPROVED,
@@ -263,7 +263,7 @@ export default function useBookingActions({
         await clientApproveBooking(
           calendarEventId,
           userEmail,
-          tenant as string
+          tenant as string,
         );
       },
       optimisticNextStatus: BookingStatusLabel.APPROVED,
@@ -319,7 +319,7 @@ export default function useBookingActions({
 
   // Common action definition function
   const getActionsForPageContext = (
-    pageContext: PageContextLevel
+    pageContext: PageContextLevel,
   ): Actions[] => {
     let options: Actions[] = [];
 
@@ -340,10 +340,9 @@ export default function useBookingActions({
         ) {
           options.push(Actions.CANCEL);
         }
-        // Show Edit action for users in editable states (before final approval)
+        // Show Edit action only for REQUESTED or DECLINED (not PRE_APPROVED — pre-approved requests must not be edited)
         if (
           status === BookingStatusLabel.REQUESTED ||
-          status === BookingStatusLabel.PRE_APPROVED ||
           status === BookingStatusLabel.DECLINED
         ) {
           options.push(Actions.EDIT);
@@ -409,7 +408,7 @@ export default function useBookingActions({
           const addServiceActions = (
             serviceType: keyof typeof serviceRequests,
             approveAction: Actions,
-            declineAction: Actions
+            declineAction: Actions,
           ) => {
             if (
               serviceRequests[serviceType] &&
@@ -510,7 +509,7 @@ export default function useBookingActions({
           const addServiceActions = (
             serviceType: keyof typeof serviceRequests,
             approveAction: Actions,
-            declineAction: Actions
+            declineAction: Actions,
           ) => {
             if (
               serviceRequests[serviceType] &&
@@ -525,11 +524,11 @@ export default function useBookingActions({
             // Use enum values (not enum names) to match the action keys
             const approveAction =
               Actions[
-                `APPROVE_${serviceType.toUpperCase()}_SERVICE` as keyof typeof Actions
+              `APPROVE_${serviceType.toUpperCase()}_SERVICE` as keyof typeof Actions
               ];
             const declineAction =
               Actions[
-                `DECLINE_${serviceType.toUpperCase()}_SERVICE` as keyof typeof Actions
+              `DECLINE_${serviceType.toUpperCase()}_SERVICE` as keyof typeof Actions
               ];
             addServiceActions(serviceType, approveAction, declineAction);
           });
@@ -561,7 +560,7 @@ export default function useBookingActions({
             ) {
               const closeoutAction =
                 Actions[
-                  `CLOSEOUT_${serviceType.toUpperCase()}_SERVICE` as keyof typeof Actions
+                `CLOSEOUT_${serviceType.toUpperCase()}_SERVICE` as keyof typeof Actions
                 ];
               options.push(closeoutAction);
             }
@@ -603,7 +602,7 @@ export default function useBookingActions({
   const executeServiceAction = async (
     serviceType: keyof typeof serviceRequests,
     action: "approve" | "decline" | "closeout",
-    reason?: string
+    reason?: string,
   ) => {
     // Check if service is actually requested (for approve and closeout actions)
     if (action === "approve" && !serviceRequests[serviceType]) {
@@ -616,7 +615,7 @@ export default function useBookingActions({
       (!serviceRequests[serviceType] || servicesApproved[serviceType] !== true)
     ) {
       console.warn(
-        `${serviceType} service not approved or not requested, skipping closeout`
+        `${serviceType} service not approved or not requested, skipping closeout`,
       );
       return;
     }
@@ -706,7 +705,7 @@ export default function useBookingActions({
           executeServiceAction(
             serviceType,
             "decline",
-            reason || `${capitalizedType} service declined`
+            reason || `${capitalizedType} service declined`,
           ),
         optimisticNextStatus: BookingStatusLabel.PENDING,
         confirmation: true,
@@ -735,7 +734,7 @@ export default function useBookingActions({
       // Approve actions - use the enum value directly as key for proper enum-based matching
       const approveActionKey =
         Actions[
-          `APPROVE_${serviceType.toUpperCase()}_SERVICE` as keyof typeof Actions
+        `APPROVE_${serviceType.toUpperCase()}_SERVICE` as keyof typeof Actions
         ];
       serviceActions[approveActionKey] = {
         action: () => executeServiceAction(serviceType, "approve"),
@@ -745,14 +744,14 @@ export default function useBookingActions({
       // Decline actions - use the enum value directly as key for proper enum-based matching
       const declineActionKey =
         Actions[
-          `DECLINE_${serviceType.toUpperCase()}_SERVICE` as keyof typeof Actions
+        `DECLINE_${serviceType.toUpperCase()}_SERVICE` as keyof typeof Actions
         ];
       serviceActions[declineActionKey] = {
         action: () =>
           executeServiceAction(
             serviceType,
             "decline",
-            reason || `${capitalizedType} service declined`
+            reason || `${capitalizedType} service declined`,
           ),
         optimisticNextStatus: BookingStatusLabel.PENDING,
         confirmation: true,
@@ -761,7 +760,7 @@ export default function useBookingActions({
       // Closeout actions - use the enum value directly as key for proper enum-based matching
       const closeoutActionKey =
         Actions[
-          `CLOSEOUT_${serviceType.toUpperCase()}_SERVICE` as keyof typeof Actions
+        `CLOSEOUT_${serviceType.toUpperCase()}_SERVICE` as keyof typeof Actions
         ];
       serviceActions[closeoutActionKey] = {
         action: () => executeServiceAction(serviceType, "closeout"),
@@ -779,29 +778,28 @@ export default function useBookingActions({
     ...serviceActions,
     // never used, just make typescript happy
     [Actions.PLACEHOLDER]: {
-      action: async () => {},
+      action: async () => { },
       optimisticNextStatus: BookingStatusLabel.UNKNOWN,
     },
   };
 
   // Get options for each PageContextLevel using common function
-  const allOptions = useMemo(() => {
-    return getActionsForPageContext(pageContext);
-  }, [
-    pageContext,
-    status,
-    startDate,
-    date,
-    tenant,
-    serviceRequests,
-    servicesApproved,
-    servicesClosedOut,
-    currentXState,
-  ]);
+  const allOptions = useMemo(
+    () => getActionsForPageContext(pageContext),
+    [
+      pageContext,
+      status,
+      startDate,
+      date,
+      tenant,
+      serviceRequests,
+      servicesApproved,
+      servicesClosedOut,
+      currentXState,
+    ],
+  );
 
-  const options = () => {
-    return allOptions;
-  };
+  const options = () => allOptions;
 
   return { actions, updateActions, options, servicesApproved };
 }

@@ -3,12 +3,13 @@
 import { Box, Button, Typography, useTheme } from "@mui/material";
 import { Error, Event } from "@mui/icons-material";
 import React, { useContext } from "react";
-import { BookingContext } from "../bookingProvider";
-import { DatabaseContext } from "../../components/Provider";
 import { FormContextLevel, PagePermission } from "@/components/src/types";
-import Loading from "../../components/Loading";
+import { PERMISSION_PATH } from "@/components/src/utils/permissions";
 import { styled } from "@mui/system";
 import { useRouter, useParams } from "next/navigation";
+import { BookingContext } from "../bookingProvider";
+import { DatabaseContext } from "../../components/Provider";
+import Loading from "../../components/Loading";
 
 const Centered = styled(Box)`
   position: relative;
@@ -34,7 +35,10 @@ export default function BookingFormConfirmationPage({ formContext }: Props) {
   const isVIP = formContext === FormContextLevel.VIP;
   const isMod = formContext === FormContextLevel.MODIFICATION;
 
-  // don't submit form via useEffect here b/c it submits twice in development strict mode
+  const getModReturnPath = (): string => {
+    const path = PERMISSION_PATH[pagePermission];
+    return path ? `/${tenant}/${path}` : `/${tenant}`;
+  };
 
   if (submitting === "submitting") {
     return (
@@ -94,9 +98,9 @@ export default function BookingFormConfirmationPage({ formContext }: Props) {
                   ? `/${tenant}/admin`
                   : isWalkIn
                     ? `/${tenant}/pa`
-                    : isMod && pagePermission === PagePermission.PA
-                      ? `/${tenant}/pa`
-                      : `/${tenant}`
+                    : isMod
+                      ? getModReturnPath()
+                      : `/${tenant}`,
               )
             }
             variant="text"

@@ -2,11 +2,13 @@
 
 import { Box } from "@mui/material";
 import { useContext, useMemo, useState } from "react";
+import Tab from "@mui/material/Tab";
+import Tabs from "@mui/material/Tabs";
 import { DatabaseContext } from "../components/Provider";
 import { PagePermission } from "../../../types";
 import SuperAdminSettings from "./settings";
-import Tab from "@mui/material/Tab";
-import Tabs from "@mui/material/Tabs";
+import SchemaEditor from "./schemaEditor";
+import SchemaCompare from "./schemaCompare";
 import { CenterLoading } from "../components/Loading";
 
 export default function SuperAdmin() {
@@ -16,7 +18,7 @@ export default function SuperAdmin() {
 
   const superAdminEmails = useMemo<string[]>(
     () => superAdminUsers.map((user) => user.email),
-    [superAdminUsers]
+    [superAdminUsers],
   );
 
   const userHasPermission = pagePermission === PagePermission.SUPER_ADMIN;
@@ -38,8 +40,12 @@ export default function SuperAdmin() {
             indicatorColor="primary"
           >
             <Tab value="settings" label="Settings" />
+            <Tab value="schema" label="Schema Editor" />
+            <Tab value="compare" label="Schema Diff (Dev/Stg/Prod)" />
           </Tabs>
           {tab === "settings" && <SuperAdminSettings />}
+          {tab === "schema" && <SchemaEditor />}
+          {tab === "compare" && <SchemaCompare />}
         </div>
       )}
     </Box>
