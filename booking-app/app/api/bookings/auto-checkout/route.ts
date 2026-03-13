@@ -56,6 +56,16 @@ export async function GET(request: NextRequest) {
   }
   // --- End Authorization Check ---
 
+  // In E2E testing, Firestore is unavailable; return a mock dry-run response
+  if (process.env.E2E_TESTING === "true" && isDryRun) {
+    return NextResponse.json({
+      message: "Dry run completed",
+      mode: "dry-run",
+      candidateBookings: [],
+      summary: { totalCandidates: 0, byTenant: {} },
+    });
+  }
+
   try {
     // Calculate the time 24 hours ago in Eastern Time
     // Use explicit timezone conversion instead of relying on server timezone

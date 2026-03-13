@@ -226,10 +226,10 @@ describe("Calendar Description Functions", () => {
     it("should include chart fields when provided", async () => {
       const bookingWithChartFields = {
         ...mockBookingContents,
-        chartFieldForRoomSetup: "12345-SETUP",
-        chartFieldForCatering: "12345-CATERING",
-        chartFieldForCleaning: "12345-CLEANING",
-        chartFieldForSecurity: "12345-SECURITY",
+        chartFieldForRoomSetup: "12345-SE-TUP01-00001",
+        chartFieldForCatering: "12345-CA-TERI0-00001",
+        chartFieldForCleaning: "12345-CL-EAN01-00001",
+        chartFieldForSecurity: "12345-SE-CUR01-00001",
         hireSecurity: "Yes", // Set to "Yes" so security service appears
         cleaningService: "yes", // Set to "yes" so cleaning service appears
       };
@@ -237,16 +237,16 @@ describe("Calendar Description Functions", () => {
       const result = await bookingContentsToDescription(bookingWithChartFields);
 
       expect(result).toContain(
-        "<strong>Room Setup Chart Field:</strong> 12345-SETUP"
+        "<strong>Room Setup Chart Field:</strong> 12345-SE-TUP01-00001"
       );
       expect(result).toContain(
-        "<strong>Catering Chart Field:</strong> 12345-CATERING"
+        "<strong>Catering Chart Field:</strong> 12345-CA-TERI0-00001"
       );
       expect(result).toContain(
-        "<strong>Cleaning Service Chart Field:</strong> 12345-CLEANING"
+        "<strong>Cleaning Service Chart Field:</strong> 12345-CL-EAN01-00001"
       );
       expect(result).toContain(
-        "<strong>Security Chart Field:</strong> 12345-SECURITY"
+        "<strong>Security Chart Field:</strong> 12345-SE-CUR01-00001"
       );
     });
 
@@ -318,13 +318,13 @@ describe("Calendar Description Functions", () => {
         return {
           ...data,
           roomId: selectedRoomIds,
-          startDate: startDateObj.toLocaleDateString(),
-          startTime: startDateObj.toLocaleTimeString([], {
+          startDate: startDateObj.toLocaleDateString("en-US"),
+          startTime: startDateObj.toLocaleTimeString("en-US", {
             hour: "2-digit",
             minute: "2-digit",
             hour12: true,
           }),
-          endTime: endDateObj.toLocaleTimeString([], {
+          endTime: endDateObj.toLocaleTimeString("en-US", {
             hour: "2-digit",
             minute: "2-digit",
             hour12: true,
@@ -349,7 +349,7 @@ describe("Calendar Description Functions", () => {
       expect(result.status).toBe(BookingStatusLabel.REQUESTED);
       expect(result.requestNumber).toBe(12345);
       expect(result.origin).toBe("user");
-      expect(result.startDate).toBe(startDate.toLocaleDateString());
+      expect(result.startDate).toBe(startDate.toLocaleDateString("en-US"));
       // Test that time formatting includes expected patterns (avoiding timezone issues)
       expect(result.startTime).toMatch(/\d{1,2}:\d{2} (AM|PM)/);
       expect(result.endTime).toMatch(/\d{1,2}:\d{2} (AM|PM)/);
