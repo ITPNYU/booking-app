@@ -346,7 +346,9 @@ describe("mcBookingMachine", () => {
     actor.send({ type: "cancel" });
     await waitForCondition(actor, (snapshot) => snapshot.matches("Closed"));
 
-    expect(mockFetch).toHaveBeenCalled();
+    // Cancel processing is now handled by db.ts, not by XState machine action
+    // So we only verify the state transition here
+    expect(actor.getSnapshot().matches("Closed")).toBe(true);
   });
 
   it("cancels with approved services and waits for closeout before closing", async () => {
