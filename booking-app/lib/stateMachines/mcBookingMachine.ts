@@ -84,83 +84,13 @@ export const mcBookingMachine = setup({
   },
   actors: {},
   actions: {
-    handleCancelProcessing: async ({ context, event }) => {
-      console.log("🎬 XSTATE ACTION: handleCancelProcessing started", {
+    // Cancel processing is now handled by db.ts after XState transition
+    // to keep the same pattern across all tenants (MC, ITP, etc.)
+    handleCancelProcessing: ({ context }) => {
+      console.log("🎬 XSTATE ACTION: handleCancelProcessing (no-op, handled by db.ts)", {
         calendarEventId: context.calendarEventId,
         tenant: context.tenant,
-        email: context.email,
       });
-
-      try {
-        const { calendarEventId } = context;
-        const email = context.email || "system";
-        const netId = email?.split("@")[0] || "system";
-        const { tenant } = context;
-
-        if (calendarEventId) {
-          console.log("🎬 XSTATE ACTION: About to call cancel processing API", {
-            calendarEventId,
-            email,
-            netId,
-            tenant,
-          });
-
-          // Call the cancel processing API
-          const response = await fetch(
-            `${process.env.NEXT_PUBLIC_BASE_URL}/api/cancel-processing`,
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                "x-tenant": tenant || "mc",
-              },
-              body: JSON.stringify({
-                calendarEventId,
-                email,
-                netId,
-                tenant,
-              }),
-            },
-          );
-
-          if (response.ok) {
-            const result = await response.json();
-            console.log(
-              `✅ CANCEL PROCESSING API SUCCESS [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-              {
-                calendarEventId,
-                result,
-              },
-            );
-          } else {
-            const errorText = await response.text();
-            console.error(
-              `🚨 CANCEL PROCESSING API FAILED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-              {
-                calendarEventId,
-                status: response.status,
-                statusText: response.statusText,
-                error: errorText,
-              },
-            );
-          }
-        } else {
-          console.error(
-            `🚨 CANCEL PROCESSING API SKIPPED - NO CALENDAR EVENT ID [${tenant?.toUpperCase() || "UNKNOWN"}]`,
-          );
-        }
-      } catch (error: any) {
-        console.error(
-          `🚨 XSTATE CANCEL PROCESSING ERROR [${context.tenant?.toUpperCase() || "UNKNOWN"}]:`,
-          {
-            calendarEventId: context.calendarEventId,
-            error: error.message,
-            stack: error.stack,
-          },
-        );
-      }
-
-      console.log("🎬 XSTATE ACTION: handleCancelProcessing completed");
     },
 
     sendHTMLEmail: ({ context, event }) => {
@@ -450,84 +380,10 @@ export const mcBookingMachine = setup({
       console.log("🎬 XSTATE ACTOR: handleCloseProcessing completed");
     },
 
-    handleCheckoutProcessing: async ({ context, event }) => {
-      BookingLogger.xstateActorStarted("handleCheckoutProcessing", {
-        calendarEventId: context.calendarEventId,
-        tenant: context.tenant,
-        email: context.email,
-      });
-
-      try {
-        const { calendarEventId } = context;
-        // Prioritize email from event (for cronjob auto-checkout), fallback to context email
-        const email = (event as any)?.email || context.email || "system";
-        const { tenant } = context;
-
-        if (calendarEventId) {
-          BookingLogger.apiRequest("POST", "/api/checkout-processing", {
-            calendarEventId,
-            email,
-            tenant,
-          });
-
-          // Call the checkout processing API
-          const response = await fetch(
-            `${process.env.NEXT_PUBLIC_BASE_URL}/api/checkout-processing`,
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                "x-tenant": tenant || "mc",
-              },
-              body: JSON.stringify({
-                calendarEventId,
-                email,
-                tenant,
-              }),
-            },
-          );
-
-          if (response.ok) {
-            const result = await response.json();
-            BookingLogger.apiSuccess(
-              "POST",
-              "/api/checkout-processing",
-              {
-                calendarEventId,
-                tenant,
-              },
-              result,
-            );
-          } else {
-            const errorText = await response.text();
-            BookingLogger.apiError(
-              "POST",
-              "/api/checkout-processing",
-              {
-                calendarEventId,
-                tenant,
-              },
-              {
-                message: errorText,
-                status: response.status,
-              },
-            );
-          }
-        } else {
-          BookingLogger.warning(
-            "Checkout processing API skipped - no calendar event ID",
-            { tenant },
-          );
-        }
-      } catch (error: any) {
-        BookingLogger.xstateError(
-          "Checkout processing API error",
-          { calendarEventId: context.calendarEventId, tenant: context.tenant },
-          error,
-        );
-      }
-
-      BookingLogger.xstateActorCompleted("handleCheckoutProcessing", {
+    // Checkout processing is now handled by db.ts after XState transition
+    // to keep the same pattern across all tenants (MC, ITP, etc.)
+    handleCheckoutProcessing: ({ context }) => {
+      console.log("🎬 XSTATE ACTION: handleCheckoutProcessing (no-op, handled by db.ts)", {
         calendarEventId: context.calendarEventId,
         tenant: context.tenant,
       });

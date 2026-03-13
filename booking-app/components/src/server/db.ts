@@ -9,7 +9,7 @@ import { Timestamp, where } from "firebase/firestore";
 import { shouldUseXState } from "@/components/src/utils/tenantUtils";
 import { clientUpdateDataByCalendarEventId } from "@/lib/firebase/client/clientDb";
 import type { SchemaContextType } from "../client/routes/components/SchemaProvider";
-import { DEFAULT_TENANT, isMediaCommonsTenant } from "../constants/tenants";
+import { DEFAULT_TENANT } from "../constants/tenants";
 import {
   Approver,
   Booking,
@@ -733,42 +733,39 @@ export const cancel = async (
       newState: xstateResult.newState,
     });
 
-    // Delegate cancel processing to /api/cancel-processing
-    // Skip for MC - MC's XState machine action (handleCancelProcessing) already calls this API
-    if (!isMediaCommonsTenant(tenant)) {
-      try {
-        const response = await fetch(
-          `${process.env.NEXT_PUBLIC_BASE_URL}/api/cancel-processing`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              calendarEventId: id,
-              email,
-              netId,
-              tenant,
-            }),
-          },
-        );
+    // Delegate cancel processing to /api/cancel-processing for all tenants
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_BASE_URL}/api/cancel-processing`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            calendarEventId: id,
+            email,
+            netId,
+            tenant,
+          }),
+        },
+      );
 
-        if (response.ok) {
-          console.log(
-            `✅ CANCEL-PROCESSING API SUCCESS [${tenant?.toUpperCase()}]:`,
-            { calendarEventId: id },
-          );
-        } else {
-          const errorData = await response.json();
-          console.error(
-            `🚨 CANCEL-PROCESSING API FAILED [${tenant?.toUpperCase()}]:`,
-            { calendarEventId: id, error: errorData },
-          );
-        }
-      } catch (error: any) {
+      if (response.ok) {
+        console.log(
+          `✅ CANCEL-PROCESSING API SUCCESS [${tenant?.toUpperCase()}]:`,
+          { calendarEventId: id },
+        );
+      } else {
+        const errorData = await response.json();
         console.error(
-          `🚨 CANCEL-PROCESSING API ERROR [${tenant?.toUpperCase()}]:`,
-          { calendarEventId: id, error: error.message },
+          `🚨 CANCEL-PROCESSING API FAILED [${tenant?.toUpperCase()}]:`,
+          { calendarEventId: id, error: errorData },
         );
       }
+    } catch (error: any) {
+      console.error(
+        `🚨 CANCEL-PROCESSING API ERROR [${tenant?.toUpperCase()}]:`,
+        { calendarEventId: id, error: error.message },
+      );
     }
   }
 };
@@ -926,16 +923,52 @@ export const checkOut = async (id: string, email: string, tenant?: string) => {
     newState: xstateResult.newState,
   });
 
-  // Delegate checkout/close processing to APIs
-  // Skip for MC - MC's XState machine action (handleCheckoutProcessing) already calls checkout-processing
-  if (!isMediaCommonsTenant(tenant)) {
-    // Call checkout-processing API
+  // Delegate checkout processing to /api/checkout-processing for all tenants
+  try {
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_BASE_URL}/api/checkout-processing`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          calendarEventId: id,
+          email,
+          tenant,
+        }),
+      },
+    );
+
+    if (response.ok) {
+      console.log(
+        `✅ CHECKOUT-PROCESSING API SUCCESS [${tenant?.toUpperCase()}]:`,
+        { calendarEventId: id },
+      );
+    } else {
+      const errorData = await response.json();
+      console.error(
+        `🚨 CHECKOUT-PROCESSING API FAILED [${tenant?.toUpperCase()}]:`,
+        { calendarEventId: id, error: errorData },
+      );
+    }
+  } catch (error: any) {
+    console.error(
+      `🚨 CHECKOUT-PROCESSING API ERROR [${tenant?.toUpperCase()}]:`,
+      { calendarEventId: id, error: error.message },
+    );
+  }
+
+  // Auto-close: when XState transitions directly to Closed (e.g., ITP: Checked Out → Closed)
+  // Call close-processing to log Close history, send close email, update calendar
+  if (xstateResult.newState === "Closed") {
     try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_BASE_URL}/api/checkout-processing`,
+      const closeResponse = await fetch(
+        `${process.env.NEXT_PUBLIC_BASE_URL}/api/close-processing`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "x-tenant": tenant || DEFAULT_TENANT,
+          },
           body: JSON.stringify({
             calendarEventId: id,
             email,
@@ -944,63 +977,23 @@ export const checkOut = async (id: string, email: string, tenant?: string) => {
         },
       );
 
-      if (response.ok) {
+      if (closeResponse.ok) {
         console.log(
-          `✅ CHECKOUT-PROCESSING API SUCCESS [${tenant?.toUpperCase()}]:`,
+          `✅ CLOSE-PROCESSING API SUCCESS [${tenant?.toUpperCase()}]:`,
           { calendarEventId: id },
         );
       } else {
-        const errorData = await response.json();
+        const errorData = await closeResponse.json();
         console.error(
-          `🚨 CHECKOUT-PROCESSING API FAILED [${tenant?.toUpperCase()}]:`,
+          `🚨 CLOSE-PROCESSING API FAILED [${tenant?.toUpperCase()}]:`,
           { calendarEventId: id, error: errorData },
         );
       }
     } catch (error: any) {
       console.error(
-        `🚨 CHECKOUT-PROCESSING API ERROR [${tenant?.toUpperCase()}]:`,
+        `🚨 CLOSE-PROCESSING API ERROR [${tenant?.toUpperCase()}]:`,
         { calendarEventId: id, error: error.message },
       );
-    }
-
-    // ITP auto-closes after checkout (Checked Out → Closed via always transition)
-    // Call close-processing to log Close history, send close email, update calendar
-    if (xstateResult.newState === "Closed") {
-      try {
-        const closeResponse = await fetch(
-          `${process.env.NEXT_PUBLIC_BASE_URL}/api/close-processing`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "x-tenant": tenant || DEFAULT_TENANT,
-            },
-            body: JSON.stringify({
-              calendarEventId: id,
-              email,
-              tenant,
-            }),
-          },
-        );
-
-        if (closeResponse.ok) {
-          console.log(
-            `✅ CLOSE-PROCESSING API SUCCESS [${tenant?.toUpperCase()}]:`,
-            { calendarEventId: id },
-          );
-        } else {
-          const errorData = await closeResponse.json();
-          console.error(
-            `🚨 CLOSE-PROCESSING API FAILED [${tenant?.toUpperCase()}]:`,
-            { calendarEventId: id, error: errorData },
-          );
-        }
-      } catch (error: any) {
-        console.error(
-          `🚨 CLOSE-PROCESSING API ERROR [${tenant?.toUpperCase()}]:`,
-          { calendarEventId: id, error: error.message },
-        );
-      }
     }
   }
 };
