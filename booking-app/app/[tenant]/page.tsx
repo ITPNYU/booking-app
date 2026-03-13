@@ -28,12 +28,17 @@ const HomePage: React.FC = () => {
     }
   }, [permissionsLoading, pagePermission, tenant, router]);
 
-  // Render nothing while loading or while a redirect is about to fire.
-  if (permissionsLoading) return null;
+  // Show MyBookingsPage immediately (optimistic: most users are BOOKING).
+  // Admin/PA users will be redirected once permissions resolve.
   const hasChosen =
     typeof window !== "undefined" &&
     sessionStorage.getItem(FLAG_KEY) === "true";
-  if (pagePermission !== PagePermission.BOOKING && !hasChosen) return null;
+  if (
+    !permissionsLoading &&
+    pagePermission !== PagePermission.BOOKING &&
+    !hasChosen
+  )
+    return null;
 
   return <MyBookingsPage />;
 };
