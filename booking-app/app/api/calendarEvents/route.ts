@@ -136,9 +136,6 @@ export async function GET(req: NextRequest) {
     if (ids.length === 0) {
       return NextResponse.json({ error: "Invalid calendarIds" }, { status: 400 });
     }
-    if (ids.length > 20) {
-      return NextResponse.json({ error: "Too many calendarIds (max 20)" }, { status: 400 });
-    }
 
     try {
       const results = await Promise.all(
