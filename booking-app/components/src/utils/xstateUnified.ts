@@ -12,7 +12,9 @@ export { getXStateContext, getXStateValue } from "./xstateHelpers";
  */
 export class XStateChecker {
   private booking: Booking;
+
   private currentValue: string | null;
+
   private parsedValue: any;
 
   constructor(booking: Booking) {

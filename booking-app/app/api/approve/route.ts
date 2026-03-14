@@ -127,9 +127,8 @@ export async function POST(req: NextRequest) {
         );
 
         // Add history logging for final approval since XState doesn't handle history
-        const { serverGetDataByCalendarEventId } = await import(
-          "@/lib/firebase/server/adminDb"
-        );
+        const { serverGetDataByCalendarEventId } =
+          await import("@/lib/firebase/server/adminDb");
         const { TableNames } = await import("@/components/src/policy");
         const { BookingStatusLabel } = await import("@/components/src/types");
 
@@ -140,9 +139,8 @@ export async function POST(req: NextRequest) {
 
         // Use finalApprove function for complete and consistent processing
         try {
-          const { finalApprove } = await import(
-            "@/components/src/server/admin"
-          );
+          const { finalApprove } =
+            await import("@/components/src/server/admin");
 
           // finalApprove handles: serverFinalApprove + logging + serverApproveEvent
           await finalApprove(id, email, tenant);
@@ -178,9 +176,8 @@ export async function POST(req: NextRequest) {
 
         // Handle side effects (history logging and email) outside of XState
         try {
-          const { serverFirstApproveOnly } = await import(
-            "@/components/src/server/admin"
-          );
+          const { serverFirstApproveOnly } =
+            await import("@/components/src/server/admin");
 
           await serverFirstApproveOnly(id, email, tenant);
 
@@ -215,9 +212,8 @@ export async function POST(req: NextRequest) {
         );
 
         // Add history logging for Services Request transition
-        const { serverGetDataByCalendarEventId } = await import(
-          "@/lib/firebase/server/adminDb"
-        );
+        const { serverGetDataByCalendarEventId } =
+          await import("@/lib/firebase/server/adminDb");
         const { TableNames } = await import("@/components/src/policy");
         const { BookingStatusLabel } = await import("@/components/src/types");
 

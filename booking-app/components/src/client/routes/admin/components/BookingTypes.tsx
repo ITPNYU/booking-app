@@ -20,12 +20,12 @@ export default function BookingTypes() {
         title="Booking Form Booking Types"
       />
     ),
-    [settings.bookingTypes, reloadBookingTypes]
+    [settings.bookingTypes, reloadBookingTypes],
   );
 
   const rows = useMemo(() => {
     const sorted = settings.bookingTypes.sort((a, b) =>
-      a.bookingType.localeCompare(b.bookingType)
+      a.bookingType.localeCompare(b.bookingType),
     );
     return sorted as unknown as { [key: string]: string }[];
   }, [settings.bookingTypes]);

@@ -9,7 +9,7 @@ import { FormContextLevel, Role } from "@/components/src/types";
  */
 export function buildCalendarConfigKey(
   formContext: FormContextLevel,
-  role: Role | undefined
+  role: Role | undefined,
 ): string {
   const rolePrefix = (() => {
     switch (role) {

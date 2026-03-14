@@ -30,12 +30,12 @@ export async function GET(request: NextRequest) {
 
     const response = await sheetsService.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: range,
+      range,
       fields: "values",
     });
 
     const logEntry = {
-      logName: process.env.NEXT_PUBLIC_GCP_LOG_NAME + "/safety-training",
+      logName: `${process.env.NEXT_PUBLIC_GCP_LOG_NAME}/safety-training`,
       resource: { type: "global" },
       entries: [
         {

@@ -1,16 +1,19 @@
 "use client";
+
 import { Box, Button, Typography } from "@mui/material";
 import { styled } from "@mui/material/styles";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { useContext, useEffect, useMemo, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { Department, FormContextLevel, Inputs, Role } from "../../../../types";
 import { useAuth } from "../../components/AuthProvider";
 import { DatabaseContext } from "../../components/Provider";
 import { BookingContext } from "../bookingProvider";
-import { BookingFormDropdown, BookingFormTextField } from "../components/BookingFormInputs";
+import {
+  BookingFormDropdown,
+  BookingFormTextField,
+} from "../components/BookingFormInputs";
 import Dropdown from "../components/Dropdown";
-import { useParams } from "next/navigation";
 import { useTenantSchema } from "../../components/SchemaProvider";
 
 const Center = styled(Box)`
@@ -31,7 +34,7 @@ const Container = styled(Box)(({ theme }) => ({
 
 export const mapAffiliationToRole = (
   roleMapping: Record<string, string[]>,
-  affiliation?: string
+  affiliation?: string,
 ): Role | undefined => {
   if (!affiliation) return undefined;
 
@@ -48,7 +51,7 @@ export const mapAffiliationToRole = (
 
 const mapDepartmentCode = (
   programMapping: Record<string, string[]>,
-  deptCode?: string
+  deptCode?: string,
 ): Department | undefined => {
   if (!deptCode) return undefined;
 
@@ -102,10 +105,8 @@ export default function UserRolePage({
 
   const prefix = isVIP ? "VIP" : isWalkIn ? "Walk-In" : "";
   const affiliationTitle = prefix ? `${prefix} Affiliation` : "Affiliation";
-  
-  const formatFieldLabel = (label: string) => {
-    return `${prefix} ${label}`.trim();
-  };
+
+  const formatFieldLabel = (label: string) => `${prefix} ${label}`.trim();
 
   const schemaSchoolMapping = (tenantSchema as any).schoolMapping || {};
 
@@ -113,7 +114,9 @@ export default function UserRolePage({
     if (!val) return [];
     if (Array.isArray(val)) return val;
     if (typeof val === "object") {
-      return Object.values(val).filter((v) => typeof v === "string" && v.trim() !== "") as string[];
+      return Object.values(val).filter(
+        (v) => typeof v === "string" && v.trim() !== "",
+      ) as string[];
     }
     return [];
   };
@@ -135,19 +138,21 @@ export default function UserRolePage({
   const departmentOptions = useMemo(() => {
     const allDepartments = Object.keys(tenantSchema.programMapping || {});
     const selectedSchool = watchedFields.school;
-  
+
     if (isOtherSchool(selectedSchool)) {
       return allDepartments;
     }
-  
+
     let filtered: string[];
     if (selectedSchool && schemaSchoolMapping[selectedSchool]) {
-      const allowedDepts = new Set(mappingValuesToArray(schemaSchoolMapping[selectedSchool]));
+      const allowedDepts = new Set(
+        mappingValuesToArray(schemaSchoolMapping[selectedSchool]),
+      );
       filtered = allDepartments.filter((dept) => allowedDepts.has(dept));
     } else {
       filtered = allDepartments;
     }
-  
+
     const hasOther = filtered.includes("Other");
     return hasOther ? filtered : [...filtered, "Other"];
   }, [tenantSchema.programMapping, watchedFields.school, schemaSchoolMapping]);
@@ -159,7 +164,11 @@ export default function UserRolePage({
   }, [department, departmentOptions, setDepartment]);
 
   useEffect(() => {
-    if (!watchedFields.school && department && department !== Department.OTHER) {
+    if (
+      !watchedFields.school &&
+      department &&
+      department !== Department.OTHER
+    ) {
       const matchingSchools: string[] = [];
       for (const [schoolName, depts] of Object.entries(schemaSchoolMapping)) {
         const deptList = mappingValuesToArray(depts);
@@ -169,10 +178,21 @@ export default function UserRolePage({
       }
       if (matchingSchools.length === 1) {
         setValue("school", matchingSchools[0]);
-        setFormData({ ...watchedFields, school: matchingSchools[0], department });
+        setFormData({
+          ...watchedFields,
+          school: matchingSchools[0],
+          department,
+        });
       }
     }
-  }, [department, watchedFields.school, schemaSchoolMapping, setValue, setFormData, watchedFields]);
+  }, [
+    department,
+    watchedFields.school,
+    schemaSchoolMapping,
+    setValue,
+    setFormData,
+    watchedFields,
+  ]);
 
   useEffect(() => {
     if (!user) {
@@ -183,11 +203,11 @@ export default function UserRolePage({
     if (userApiData && !isVIP && !isWalkIn) {
       const mappedRole = mapAffiliationToRole(
         tenantSchema.roleMapping,
-        userApiData.affiliation_sub_type
+        userApiData.affiliation_sub_type,
       );
       const mappedDepartment = mapDepartmentCode(
         tenantSchema.programMapping,
-        userApiData.reporting_dept_code
+        userApiData.reporting_dept_code,
       );
 
       if (mappedRole && !role) {
@@ -201,23 +221,26 @@ export default function UserRolePage({
   }, [userApiData, user, isVIP, isWalkIn]);
 
   useEffect(() => {
-    const haveWatchedFieldsChanged = 
+    const haveWatchedFieldsChanged =
       !prevWatchedFieldsRef.current ||
-      prevWatchedFieldsRef.current.otherDepartment !== watchedFields.otherDepartment ||
+      prevWatchedFieldsRef.current.otherDepartment !==
+        watchedFields.otherDepartment ||
       prevWatchedFieldsRef.current.school !== watchedFields.school ||
       prevWatchedFieldsRef.current.otherSchool !== watchedFields.otherSchool;
 
     if (haveWatchedFieldsChanged) {
       // When school is "Other", ensure department context is also set to "Other"
       // and include the department in formData for consistency
-      const formDataToSet = { 
+      const formDataToSet = {
         ...watchedFields,
         // Ensure department is included in formData when school is "Other"
-        department: isOtherSchool(watchedFields.school) ? Department.OTHER : watchedFields.department,
+        department: isOtherSchool(watchedFields.school)
+          ? Department.OTHER
+          : watchedFields.department,
       };
       setFormData(formDataToSet);
       prevWatchedFieldsRef.current = watchedFields;
-      
+
       console.log("📝 UserRolePage formData updated:", {
         school: watchedFields.school,
         otherSchool: watchedFields.otherSchool,
@@ -229,26 +252,36 @@ export default function UserRolePage({
   }, [watchedFields, setFormData]);
 
   const getDisabled = () => {
-    if (isOtherSchool(watchedFields.school)) {
-      return !watchedFields.otherSchool?.trim() || !watchedFields.otherDepartment?.trim() || !role;
+    // Always require school to be selected first
+    if (!hasSelectedSchool) {
+      return true;
     }
-    
+
+    if (isOtherSchool(watchedFields.school)) {
+      return (
+        !watchedFields.otherSchool?.trim() ||
+        !watchedFields.otherDepartment?.trim() ||
+        !role
+      );
+    }
+
     if (showOther && !watchedFields.otherDepartment) {
       return true;
     }
-    
+
     return !role || !department;
   };
 
-  const hasSelectedSchool = !!(watchedFields.school && watchedFields.school !== "");
+  const hasSelectedSchool = !!(
+    watchedFields.school && watchedFields.school !== ""
+  );
   const isSchoolOther = isOtherSchool(watchedFields.school);
   const isDepartmentSelected = !!department;
-  
+
   let isDepartmentStepComplete = false;
   if (isSchoolOther) {
     isDepartmentStepComplete = !!(
-      watchedFields.otherSchool?.trim() &&
-      watchedFields.otherDepartment?.trim()
+      watchedFields.otherSchool?.trim() && watchedFields.otherDepartment?.trim()
     );
   } else if (showOther) {
     isDepartmentStepComplete = !!watchedFields.otherDepartment?.trim();
@@ -265,7 +298,7 @@ export default function UserRolePage({
           ? `/${tenant}/walk-in/selectRoom`
           : isVIP
             ? `/${tenant}/vip/selectRoom`
-            : `/${tenant}/book/selectRoom`
+            : `/${tenant}/book/selectRoom`,
       );
     }
   };
@@ -284,17 +317,27 @@ export default function UserRolePage({
             value={watchedFields.school || ""}
             updateValue={(newSchool) => {
               setValue("school", newSchool);
-              
+
               // When "Other" school is selected, automatically set department to "Other"
               // This ensures hasAffiliation check passes in useSubmitBooking
               if (isOtherSchool(newSchool)) {
                 setDepartment(Department.OTHER);
-                setFormData({ ...watchedFields, school: newSchool, department: Department.OTHER });
-                console.log("📝 School set to 'Other' - automatically setting department to 'Other'");
+                setFormData({
+                  ...watchedFields,
+                  school: newSchool,
+                  department: Department.OTHER,
+                });
+                console.log(
+                  "📝 School set to 'Other' - automatically setting department to 'Other'",
+                );
               } else {
                 // Reset department when changing to a non-Other school
                 setDepartment(undefined as any);
-                setFormData({ ...watchedFields, school: newSchool, department: "" });
+                setFormData({
+                  ...watchedFields,
+                  school: newSchool,
+                  department: "",
+                });
               }
             }}
             options={derivedSchoolOptions}
@@ -338,7 +381,11 @@ export default function UserRolePage({
                   <BookingFormTextField
                     id="otherDepartment"
                     label={formatFieldLabel("Department")}
-                    containerSx={{ marginBottom: 2, marginTop: 1, width: "100%" }}
+                    containerSx={{
+                      marginBottom: 2,
+                      marginTop: 1,
+                      width: "100%",
+                    }}
                     fieldSx={{}}
                     required={true}
                     {...{ control, errors, trigger }}

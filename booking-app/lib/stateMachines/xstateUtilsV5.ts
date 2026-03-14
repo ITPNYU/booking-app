@@ -1,3 +1,4 @@
+import type { SchemaContextType } from "@/components/src/client/routes/components/SchemaProvider";
 import { TENANTS } from "@/components/src/constants/tenants";
 import { TableNames } from "@/components/src/policy";
 import { serverUpdateDataByCalendarEventId } from "@/components/src/server/admin";
@@ -8,7 +9,10 @@ import {
   isMediaCommons,
   shouldUseXState,
 } from "@/components/src/utils/tenantUtils";
-import { serverGetDataByCalendarEventId } from "@/lib/firebase/server/adminDb";
+import {
+  serverGetDataByCalendarEventId,
+  serverGetDocumentById,
+} from "@/lib/firebase/server/adminDb";
 import { BookingLogger } from "@/lib/logger/bookingLogger";
 import * as admin from "firebase-admin";
 import { createActor } from "xstate";
@@ -41,7 +45,7 @@ async function handleStateTransitions(
   actor: any,
   skipCalendarForServiceCloseout = false,
   isXStateCreation = false,
-  reason?: string
+  reason?: string,
 ) {
   const previousState =
     typeof currentSnapshot.value === "string"
@@ -61,7 +65,7 @@ async function handleStateTransitions(
         previousState,
         newState,
         reason: "Same state, no transition needed",
-      }
+      },
     );
     return;
   }
@@ -74,20 +78,19 @@ async function handleStateTransitions(
       newState,
       email,
       willLogToHistory: false,
-    }
+    },
   );
 
   // Get booking data from Firestore (not from XState context)
   let bookingDoc: any = null;
   try {
-    const { serverGetDataByCalendarEventId } = await import(
-      "@/lib/firebase/server/adminDb"
-    );
+    const { serverGetDataByCalendarEventId } =
+      await import("@/lib/firebase/server/adminDb");
     const { TableNames } = await import("@/components/src/policy");
     bookingDoc = await serverGetDataByCalendarEventId<any>(
       TableNames.BOOKING,
       calendarEventId,
-      tenant
+      tenant,
     );
   } catch (error) {
     console.error(
@@ -95,7 +98,7 @@ async function handleStateTransitions(
       {
         calendarEventId,
         error: error.message,
-      }
+      },
     );
   }
 
@@ -106,7 +109,7 @@ async function handleStateTransitions(
       previousState,
       newState,
       email,
-    }
+    },
   );
 
   // Handle specific state transitions
@@ -125,7 +128,7 @@ async function handleStateTransitions(
         newState,
         finalApprovedAt: firestoreUpdates.finalApprovedAt,
         finalApprovedBy: firestoreUpdates.finalApprovedBy,
-      }
+      },
     );
 
     // Note: History logging is now handled by traditional functions only
@@ -140,7 +143,7 @@ async function handleStateTransitions(
         email,
         tenant,
         note: "Approval side effects handled by /api/services or /api/approve",
-      }
+      },
     );
   } else if (newState === "Declined" && previousState !== "Declined") {
     // Declined state handling
@@ -159,7 +162,7 @@ async function handleStateTransitions(
         declinedBy: firestoreUpdates.declinedBy,
         reason: "Service(s) declined",
         servicesApproved: newSnapshot.context?.servicesApproved,
-      }
+      },
     );
 
     // Note: History logging is now handled by traditional functions only
@@ -181,20 +184,28 @@ async function handleStateTransitions(
             : [],
           guestEmail,
           contextEmail: bookingDoc?.email,
-        }
+        },
       );
 
       if (guestEmail) {
-        const { serverSendBookingDetailEmail } = await import(
-          "@/components/src/server/admin"
-        );
+        const { serverSendBookingDetailEmail } =
+          await import("@/components/src/server/admin");
         const emailConfig = await getTenantEmailConfig(tenant);
         let headerMessage = emailConfig.emailMessages.declined;
+
+        // Fetch tenant schema to get declinedGracePeriod (default: 24 hours)
+        const schema = tenant
+          ? await serverGetDocumentById<SchemaContextType>(
+              TableNames.TENANT_SCHEMA,
+              tenant,
+            )
+          : null;
+        const gracePeriodHours = schema?.declinedGracePeriod ?? 24;
 
         // Check which services were declined and include them in the message
         const declinedServices = [];
         if (newSnapshot.context?.servicesApproved) {
-          const servicesApproved = newSnapshot.context.servicesApproved;
+          const { servicesApproved } = newSnapshot.context;
           const servicesRequested = newSnapshot.context.servicesRequested || {};
 
           Object.entries(servicesApproved).forEach(([service, approved]) => {
@@ -219,7 +230,7 @@ async function handleStateTransitions(
           declineReason = `The following service(s) could not be fulfilled: ${servicesList}`;
         }
 
-        headerMessage += ` Reason: ${declineReason}. <br /><br />You have 24 hours to edit your request if you'd like to make changes. After 24 hours, your request will be automatically canceled. <br /><br />If you have any questions or need further assistance, please don't hesitate to reach out.`;
+        headerMessage += ` Reason: ${declineReason}. <br /><br />You have ${gracePeriodHours} hours to edit your request if you'd like to make changes. After ${gracePeriodHours} hours, your request will be automatically canceled. <br /><br />If you have any questions or need further assistance, please don't hesitate to reach out.`;
 
         await serverSendBookingDetailEmail({
           calendarEventId,
@@ -235,7 +246,7 @@ async function handleStateTransitions(
             calendarEventId,
             guestEmail,
             reason: declineReason,
-          }
+          },
         );
       } else {
         console.warn(
@@ -245,7 +256,7 @@ async function handleStateTransitions(
             contextKeys: newSnapshot.context
               ? Object.keys(newSnapshot.context)
               : [],
-          }
+          },
         );
       }
     } catch (error) {
@@ -256,7 +267,7 @@ async function handleStateTransitions(
           email,
           tenant,
           error: error.message,
-        }
+        },
       );
     }
 
@@ -274,7 +285,7 @@ async function handleStateTransitions(
             calendarEventId,
             newValues: { statusPrefix: BookingStatusLabel.DECLINED },
           }),
-        }
+        },
       );
 
       if (response.ok) {
@@ -283,7 +294,7 @@ async function handleStateTransitions(
           {
             calendarEventId,
             statusPrefix: BookingStatusLabel.DECLINED,
-          }
+          },
         );
       } else {
         console.error(
@@ -292,7 +303,7 @@ async function handleStateTransitions(
             calendarEventId,
             status: response.status,
             statusText: response.statusText,
-          }
+          },
         );
       }
     } catch (error) {
@@ -301,7 +312,7 @@ async function handleStateTransitions(
         {
           calendarEventId,
           error: error.message,
-        }
+        },
       );
     }
   } else if (newState === "Requested" && previousState !== "Requested") {
@@ -313,7 +324,7 @@ async function handleStateTransitions(
         previousState,
         newState,
         note: "Decline field cleanup handled by calling API",
-      }
+      },
     );
 
     // Note: History logging, calendar updates, and field cleanup are now handled by traditional functions only
@@ -333,7 +344,7 @@ async function handleStateTransitions(
         newState,
         noShowedAt: firestoreUpdates.noShowedAt,
         noShowedBy: firestoreUpdates.noShowedBy,
-      }
+      },
     );
   } else if (newState === "Canceled" && previousState !== "Canceled") {
     // Canceled state handling - update Firestore fields
@@ -350,7 +361,7 @@ async function handleStateTransitions(
         newState,
         canceledAt: firestoreUpdates.canceledAt,
         canceledBy: firestoreUpdates.canceledBy,
-      }
+      },
     );
   } else if (newState === "Closed" && previousState !== "Closed") {
     // Close processing is now handled by XState machine actions
@@ -362,7 +373,7 @@ async function handleStateTransitions(
         previousState,
         newState,
         note: "Close processing handled by XState action",
-      }
+      },
     );
 
     // Close processing is now handled by XState machine action calling /api/close-processing
@@ -382,7 +393,7 @@ async function handleStateTransitions(
         newState,
         checkedInAt: firestoreUpdates.checkedInAt,
         checkedInBy: firestoreUpdates.checkedInBy,
-      }
+      },
     );
 
     // Note: History logging is now handled by traditional functions only
@@ -392,9 +403,8 @@ async function handleStateTransitions(
 
     // Persist latest XState snapshot and checked-in timestamps BEFORE calendar update
     try {
-      const { serverUpdateDataByCalendarEventId } = await import(
-        "@/components/src/server/admin"
-      );
+      const { serverUpdateDataByCalendarEventId } =
+        await import("@/components/src/server/admin");
       const { TableNames } = await import("@/components/src/policy");
 
       // Get persisted snapshot from the new state to avoid circular references
@@ -417,7 +427,7 @@ async function handleStateTransitions(
           checkedInAt: firestoreUpdates.checkedInAt,
           checkedInBy: firestoreUpdates.checkedInBy,
         },
-        tenant
+        tenant,
       );
 
       console.log(
@@ -427,14 +437,14 @@ async function handleStateTransitions(
         {
           calendarEventId,
           savedState: "Checked In",
-        }
+        },
       );
     } catch (error) {
       console.error(
         `🚨 XSTATE CHECK-IN: FAILED TO PERSIST BEFORE CAL UPDATE [${
           tenant?.toUpperCase() || "UNKNOWN"
         }]:`,
-        { calendarEventId, error: (error as any)?.message }
+        { calendarEventId, error: error?.message },
       );
     }
 
@@ -453,7 +463,7 @@ async function handleStateTransitions(
             calendarEventId,
             newValues: { statusPrefix: BookingStatusLabel.CHECKED_IN },
           }),
-        }
+        },
       );
 
       if (response.ok) {
@@ -463,7 +473,7 @@ async function handleStateTransitions(
             calendarEventId,
             statusPrefix: BookingStatusLabel.CHECKED_IN,
             note: "Status will be read from XState data",
-          }
+          },
         );
       }
     } catch (error) {
@@ -472,7 +482,7 @@ async function handleStateTransitions(
         {
           calendarEventId,
           error: error.message,
-        }
+        },
       );
     }
   } else if (newState === "Pre-approved" && previousState !== "Pre-approved") {
@@ -490,13 +500,12 @@ async function handleStateTransitions(
         newState,
         firstApprovedAt: firestoreUpdates.firstApprovedAt,
         firstApprovedBy: firestoreUpdates.firstApprovedBy,
-      }
+      },
     );
 
     try {
-      const { serverUpdateDataByCalendarEventId } = await import(
-        "@/components/src/server/admin"
-      );
+      const { serverUpdateDataByCalendarEventId } =
+        await import("@/components/src/server/admin");
       const { TableNames } = await import("@/components/src/policy");
       const preApprovalUpdateData: PreApprovalUpdateData = {
         firstApprovedAt:
@@ -515,7 +524,7 @@ async function handleStateTransitions(
         TableNames.BOOKING,
         calendarEventId,
         preApprovalUpdateData,
-        tenant
+        tenant,
       );
 
       console.log(
@@ -524,7 +533,7 @@ async function handleStateTransitions(
           calendarEventId,
           savedFields: Object.keys(preApprovalUpdateData),
           hasXStateData: !!preApprovalUpdateData.xstateData,
-        }
+        },
       );
     } catch (error) {
       console.error(
@@ -532,7 +541,7 @@ async function handleStateTransitions(
         {
           calendarEventId,
           error: error instanceof Error ? error.message : String(error),
-        }
+        },
       );
       // Don't throw - continue with calendar update even if DB save failed
     }
@@ -551,7 +560,7 @@ async function handleStateTransitions(
             calendarEventId,
             newValues: { statusPrefix: BookingStatusLabel.PRE_APPROVED },
           }),
-        }
+        },
       );
 
       if (response.ok) {
@@ -560,7 +569,7 @@ async function handleStateTransitions(
           {
             calendarEventId,
             statusPrefix: BookingStatusLabel.PRE_APPROVED,
-          }
+          },
         );
       } else {
         console.error(
@@ -569,7 +578,7 @@ async function handleStateTransitions(
             calendarEventId,
             status: response.status,
             statusText: response.statusText,
-          }
+          },
         );
       }
     } catch (error) {
@@ -578,7 +587,7 @@ async function handleStateTransitions(
         {
           calendarEventId,
           error: error.message,
-        }
+        },
       );
     }
   } else {
@@ -590,7 +599,7 @@ async function handleStateTransitions(
         previousState,
         newState,
         email,
-      }
+      },
     );
 
     // Try to map XState to BookingStatusLabel for generic states
@@ -617,7 +626,7 @@ async function handleStateTransitions(
             previousState,
             newState,
             statusLabel,
-          }
+          },
         );
       } else if (newState["Service Closeout"]) {
         statusLabel = BookingStatusLabel.CHECKED_OUT;
@@ -629,7 +638,7 @@ async function handleStateTransitions(
             newState,
             statusLabel,
             skipCalendarUpdate: skipCalendarForServiceCloseout,
-          }
+          },
         );
 
         // Handle check-out email for Service Closeout state (Media Commons)
@@ -640,7 +649,7 @@ async function handleStateTransitions(
               calendarEventId,
               previousState,
               newState: "Service Closeout",
-            }
+            },
           );
 
           // Set check-out timestamps for Firestore
@@ -663,13 +672,12 @@ async function handleStateTransitions(
                 guestEmail,
                 guestEmailType: typeof guestEmail,
                 bookingDocEmail: bookingDoc?.email,
-              }
+              },
             );
 
             if (guestEmail) {
-              const { serverSendBookingDetailEmail } = await import(
-                "@/components/src/server/admin"
-              );
+              const { serverSendBookingDetailEmail } =
+                await import("@/components/src/server/admin");
               const emailConfig = await getTenantEmailConfig(tenant);
               const headerMessage =
                 emailConfig.emailMessages.checkoutConfirmation;
@@ -687,7 +695,7 @@ async function handleStateTransitions(
                 {
                   calendarEventId,
                   guestEmail,
-                }
+                },
               );
             } else {
               console.warn(
@@ -696,7 +704,7 @@ async function handleStateTransitions(
                   calendarEventId,
                   hasBookingDoc: !!bookingDoc,
                   bookingDocKeys: bookingDoc ? Object.keys(bookingDoc) : [],
-                }
+                },
               );
             }
           } catch (error) {
@@ -707,7 +715,7 @@ async function handleStateTransitions(
                 email,
                 tenant,
                 error: error.message,
-              }
+              },
             );
           }
 
@@ -727,21 +735,21 @@ async function handleStateTransitions(
                     statusPrefix: BookingStatusLabel.CHECKED_OUT,
                   },
                 }),
-              }
+              },
             );
 
             if (response.ok) {
               BookingLogger.calendarUpdate(
                 "Service Closeout status update",
                 { calendarEventId, tenant },
-                { statusPrefix: BookingStatusLabel.CHECKED_OUT }
+                { statusPrefix: BookingStatusLabel.CHECKED_OUT },
               );
             }
           } catch (error) {
             BookingLogger.calendarError(
               "Service Closeout calendar update",
               { calendarEventId, tenant },
-              error
+              error,
             );
           }
         }
@@ -753,7 +761,7 @@ async function handleStateTransitions(
             {
               calendarEventId,
               reason: "No Show processing already updated calendar",
-            }
+            },
           );
           statusLabel = null; // Prevent generic history logging too
         }
@@ -771,7 +779,7 @@ async function handleStateTransitions(
           newState,
           statusLabel,
           willUpdateDatabaseStatus: true,
-        }
+        },
       );
     }
 
@@ -803,7 +811,7 @@ function mapBookingStatusToXState(status: string): string {
       return "No Show";
     default:
       console.warn(
-        `Unknown booking status: ${status}, defaulting to Requested`
+        `Unknown booking status: ${status}, defaulting to Requested`,
       );
       return "Requested";
   }
@@ -833,14 +841,14 @@ function getMachineForTenant(tenant?: string) {
 export async function createXStateDataFromBookingStatus(
   calendarEventId: string,
   bookingData: any,
-  tenant?: string
+  tenant?: string,
 ): Promise<PersistedXStateData> {
   console.log(
     `🏗️ CREATING XSTATE DATA FROM BOOKING STATUS [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
     {
       calendarEventId,
       tenant,
-    }
+    },
   );
 
   const machine = getMachineForTenant(tenant);
@@ -866,7 +874,7 @@ export async function createXStateDataFromBookingStatus(
         cleaningService: bookingData?.cleaningService,
         hireSecurity: bookingData?.hireSecurity,
       },
-    }
+    },
   );
 
   const inputContext = isMediaCommons(tenant)
@@ -914,7 +922,7 @@ export async function createXStateDataFromBookingStatus(
       calendarEventId,
       targetState: xstateState,
       bookingStatus,
-    }
+    },
   );
 
   // Create actor directly in target state without executing transitions
@@ -933,7 +941,7 @@ export async function createXStateDataFromBookingStatus(
         fromState: "Requested",
         toState: xstateState,
         reason: "Skip transition side effects during XState creation",
-      }
+      },
     );
 
     // Use internal method to set state without triggering side effects
@@ -964,7 +972,7 @@ export async function createXStateDataFromBookingStatus(
             hasContext: !!(persistedSnapshot as any).context,
           }
         : null,
-    }
+    },
   );
 
   // Clean snapshot by removing undefined values for Firestore compatibility
@@ -990,7 +998,7 @@ export async function createXStateDataFromBookingStatus(
     TableNames.BOOKING,
     calendarEventId,
     { xstateData },
-    tenant
+    tenant,
   );
 
   console.log(
@@ -999,7 +1007,7 @@ export async function createXStateDataFromBookingStatus(
       calendarEventId,
       createdState: xstateState,
       machineId: xstateData.machineId,
-    }
+    },
   );
 
   return xstateData;
@@ -1010,7 +1018,7 @@ export async function createXStateDataFromBookingStatus(
  */
 export async function restoreXStateFromFirestore(
   calendarEventId: string,
-  tenant?: string
+  tenant?: string,
 ): Promise<any> {
   try {
     console.log(
@@ -1018,7 +1026,7 @@ export async function restoreXStateFromFirestore(
       {
         calendarEventId,
         tenant,
-      }
+      },
     );
 
     // Get booking data from Firestore
@@ -1026,7 +1034,7 @@ export async function restoreXStateFromFirestore(
     let bookingData = await serverGetDataByCalendarEventId(
       TableNames.BOOKING,
       calendarEventId,
-      tenant
+      tenant,
     );
 
     let actualTenant = tenant;
@@ -1038,13 +1046,13 @@ export async function restoreXStateFromFirestore(
         {
           calendarEventId,
           triedTenant: tenant,
-        }
+        },
       );
 
       bookingData = await serverGetDataByCalendarEventId(
         TableNames.BOOKING,
         calendarEventId,
-        undefined // No tenant for legacy bookings
+        undefined, // No tenant for legacy bookings
       );
 
       if (bookingData) {
@@ -1071,7 +1079,7 @@ export async function restoreXStateFromFirestore(
             "xstateData" in bookingData &&
             bookingData.xstateData
           ),
-        }
+        },
       );
 
       // Try to create XState data from booking status
@@ -1080,7 +1088,7 @@ export async function restoreXStateFromFirestore(
           const xstateData = await createXStateDataFromBookingStatus(
             calendarEventId,
             bookingData,
-            actualTenant // Use actualTenant instead of tenant
+            actualTenant, // Use actualTenant instead of tenant
           );
 
           const machine = getMachineForTenant(tenant);
@@ -1095,7 +1103,7 @@ export async function restoreXStateFromFirestore(
             {
               calendarEventId,
               machineId: xstateData.machineId,
-            }
+            },
           );
 
           return restoredActor;
@@ -1105,7 +1113,7 @@ export async function restoreXStateFromFirestore(
             {
               calendarEventId,
               error: error.message,
-            }
+            },
           );
           return null;
         }
@@ -1136,7 +1144,7 @@ export async function restoreXStateFromFirestore(
             }
           : null,
         isLegacyFormat: !rawXStateData.snapshot && !!rawXStateData.currentState,
-      }
+      },
     );
 
     // Check if this is legacy XState v4 format and needs migration
@@ -1147,7 +1155,7 @@ export async function restoreXStateFromFirestore(
           calendarEventId,
           oldCurrentState: rawXStateData.currentState,
           hasOldContext: !!rawXStateData.context,
-        }
+        },
       );
 
       // Create new XState data from current booking status
@@ -1155,7 +1163,7 @@ export async function restoreXStateFromFirestore(
         const newXStateData = await createXStateDataFromBookingStatus(
           calendarEventId,
           bookingData,
-          tenant
+          tenant,
         );
 
         const machine = getMachineForTenant(tenant);
@@ -1170,7 +1178,7 @@ export async function restoreXStateFromFirestore(
           {
             calendarEventId,
             machineId: newXStateData.machineId,
-          }
+          },
         );
 
         return restoredActor;
@@ -1180,7 +1188,7 @@ export async function restoreXStateFromFirestore(
           {
             calendarEventId,
             error: error.message,
-          }
+          },
         );
         return null;
       }
@@ -1199,7 +1207,7 @@ export async function restoreXStateFromFirestore(
           expectedMachineId: machine.id,
           foundMachineId: xstateData.machineId,
           calendarEventId,
-        }
+        },
       );
     }
 
@@ -1224,7 +1232,7 @@ export async function restoreXStateFromFirestore(
           newServicesRequested: currentServicesRequested,
           oldServicesApproved: updatedSnapshot.context.servicesApproved,
           newServicesApproved: currentServicesApproved,
-        }
+        },
       );
 
       updatedSnapshot.context = {
@@ -1251,19 +1259,19 @@ export async function restoreXStateFromFirestore(
           error: error.message,
           snapshotValue: updatedSnapshot?.value,
           hasContext: !!updatedSnapshot?.context,
-        }
+        },
       );
 
       // If snapshot restoration fails, create new XState data
       console.log(
         `🔄 FALLING BACK TO NEW XSTATE DATA CREATION [${tenant?.toUpperCase()}]:`,
-        { calendarEventId }
+        { calendarEventId },
       );
 
       const newXStateData = await createXStateDataFromBookingStatus(
         calendarEventId,
         bookingData,
-        tenant
+        tenant,
       );
 
       restoredActor = createActor(machine, {
@@ -1278,7 +1286,7 @@ export async function restoreXStateFromFirestore(
         machineId: xstateData.machineId,
         restoredSuccessfully: true,
         contextUpdated: isMediaCommons(tenant),
-      }
+      },
     );
 
     return restoredActor;
@@ -1288,7 +1296,7 @@ export async function restoreXStateFromFirestore(
       {
         calendarEventId,
         error: error.message,
-      }
+      },
     );
     return null;
   }
@@ -1302,7 +1310,7 @@ export async function executeXStateTransition(
   eventType: string,
   tenant?: string,
   email?: string,
-  reason?: string
+  reason?: string,
 ): Promise<{ success: boolean; newState?: string; error?: string }> {
   try {
     console.log(
@@ -1311,7 +1319,7 @@ export async function executeXStateTransition(
         calendarEventId,
         eventType,
         tenant,
-      }
+      },
     );
 
     // Restore the actor from Firestore
@@ -1344,14 +1352,14 @@ export async function executeXStateTransition(
                 tenant: currentSnapshot.context.tenant,
                 calendarEventId: currentSnapshot.context.calendarEventId,
                 selectedRooms: Array.isArray(
-                  currentSnapshot.context.selectedRooms
+                  currentSnapshot.context.selectedRooms,
                 )
                   ? `Array(${currentSnapshot.context.selectedRooms.length})`
                   : currentSnapshot.context.selectedRooms || "undefined",
                 servicesRequested: currentSnapshot.context.servicesRequested,
               }
             : null,
-        }
+        },
       );
     } catch (error) {
       console.error(
@@ -1359,7 +1367,7 @@ export async function executeXStateTransition(
         {
           calendarEventId,
           error: error.message,
-        }
+        },
       );
       actor.stop();
       return {
@@ -1388,7 +1396,7 @@ export async function executeXStateTransition(
             "close",
             "autoCloseScript",
           ].filter((event) => currentSnapshot.can({ type: event as any })),
-        }
+        },
       );
 
       actor.stop();
@@ -1418,7 +1426,7 @@ export async function executeXStateTransition(
               calendarEventId,
               state,
               transitionIndex: transitionStates.length,
-            }
+            },
           );
         }
       });
@@ -1448,7 +1456,7 @@ export async function executeXStateTransition(
         {
           calendarEventId,
           error: subscribeError.message,
-        }
+        },
       );
     } finally {
       // Unsubscribe if possible
@@ -1461,7 +1469,7 @@ export async function executeXStateTransition(
             {
               calendarEventId,
               error: unsubError.message,
-            }
+            },
           );
         }
       }
@@ -1477,7 +1485,7 @@ export async function executeXStateTransition(
         tenant,
         servicesRequested: newSnapshot.context?.servicesRequested,
         servicesApproved: newSnapshot.context?.servicesApproved,
-      }
+      },
     );
 
     // Get updated persisted snapshot
@@ -1485,7 +1493,7 @@ export async function executeXStateTransition(
 
     // Clean snapshot by removing undefined values for Firestore compatibility
     const cleanUpdatedSnapshot = cleanObjectForFirestore(
-      updatedPersistedSnapshot
+      updatedPersistedSnapshot,
     );
 
     // Create updated XState data
@@ -1508,23 +1516,22 @@ export async function executeXStateTransition(
           eventType,
           previousState: currentSnapshot.value,
           finalState: newSnapshot.value,
-        }
+        },
       );
 
       // Execute No Show side effects (emails, pre-ban logs, etc.)
       // Use server-side functions since this runs in XState server context
       try {
         // Import required modules first
-        const { serverGetDataByCalendarEventId } = await import(
-          "@/lib/firebase/server/adminDb"
-        );
+        const { serverGetDataByCalendarEventId } =
+          await import("@/lib/firebase/server/adminDb");
         const { TableNames } = await import("@/components/src/policy");
 
         // Get booking document first to extract netId
         const doc = await serverGetDataByCalendarEventId<any>(
           TableNames.BOOKING,
           calendarEventId,
-          tenant
+          tenant,
         );
 
         if (!doc) {
@@ -1540,15 +1547,14 @@ export async function executeXStateTransition(
             calendarEventId,
             email,
             netId,
-          }
+          },
         );
 
         // Import server-side functions (doc already retrieved above)
         const { serverSaveDataToFirestore, serverFetchAllDataFromCollection } =
           await import("@/lib/firebase/server/adminDb");
-        const { serverSendBookingDetailEmail } = await import(
-          "@/components/src/server/admin"
-        );
+        const { serverSendBookingDetailEmail } =
+          await import("@/components/src/server/admin");
         const { getApprovalCcEmail } = await import("@/components/src/policy");
         const { BookingStatusLabel } = await import("@/components/src/types");
 
@@ -1577,7 +1583,7 @@ export async function executeXStateTransition(
             hasStartDate: !!doc.startDate,
             hasRequestedAt: !!doc.requestedAt,
             isPolicyViolation: isPolicyViolation(doc),
-          }
+          },
         );
 
         if (isPolicyViolation(doc)) {
@@ -1594,7 +1600,7 @@ export async function executeXStateTransition(
               calendarEventId,
               netId,
               bookingId: calendarEventId,
-            }
+            },
           );
         } else {
           console.log(
@@ -1603,7 +1609,7 @@ export async function executeXStateTransition(
               calendarEventId,
               netId,
               reason: "Not a policy violation (VIP or walk-in booking)",
-            }
+            },
           );
         }
 
@@ -1611,7 +1617,7 @@ export async function executeXStateTransition(
         const preBanLogs = await serverFetchAllDataFromCollection<any>(
           TableNames.PRE_BAN_LOGS,
           [{ field: "netId", operator: "==", value: netId }],
-          tenant
+          tenant,
         );
         const violationCount = preBanLogs.length;
 
@@ -1619,7 +1625,7 @@ export async function executeXStateTransition(
         const emailConfig = await getTenantEmailConfig(tenant);
         const headerMessage = emailConfig.emailMessages.noShow.replace(
           "${violationCount}",
-          violationCount.toString()
+          violationCount.toString(),
         );
 
         // Send emails using server-side function
@@ -1656,7 +1662,7 @@ export async function executeXStateTransition(
                   statusPrefix: BookingStatusLabel.NO_SHOW,
                 },
               }),
-            }
+            },
           );
 
           if (calendarUpdateResponse.ok) {
@@ -1665,7 +1671,7 @@ export async function executeXStateTransition(
               {
                 calendarEventId,
                 statusPrefix: BookingStatusLabel.NO_SHOW,
-              }
+              },
             );
           } else {
             console.error(
@@ -1674,7 +1680,7 @@ export async function executeXStateTransition(
                 calendarEventId,
                 status: calendarUpdateResponse.status,
                 statusText: calendarUpdateResponse.statusText,
-              }
+              },
             );
           }
         } catch (calendarError) {
@@ -1686,7 +1692,7 @@ export async function executeXStateTransition(
                 calendarError instanceof Error
                   ? calendarError.message
                   : String(calendarError),
-            }
+            },
           );
         }
 
@@ -1696,7 +1702,7 @@ export async function executeXStateTransition(
             calendarEventId,
             guestEmail,
             violationCount,
-          }
+          },
         );
       } catch (error) {
         console.error(
@@ -1706,7 +1712,7 @@ export async function executeXStateTransition(
             email,
             tenant,
             error: error.message,
-          }
+          },
         );
       }
 
@@ -1733,7 +1739,7 @@ export async function executeXStateTransition(
       actor, // Pass actor instance
       eventType === "noShow", // Pass noShow flag to skip calendar updates for Service Closeout
       false, // isXStateCreation - false for normal transitions
-      reason // Pass reason for decline actions
+      reason, // Pass reason for decline actions
     );
 
     // For No Show events, do not send canceled email as NO SHOW email was already sent
@@ -1745,13 +1751,13 @@ export async function executeXStateTransition(
         {
           calendarEventId,
           note: "NO SHOW email already sent with appropriate message",
-        }
+        },
       );
     }
 
     // If this is Media Commons and servicesApproved context changed, update individual service fields
     if (isMediaCommons(tenant) && newSnapshot.context?.servicesApproved) {
-      const servicesApproved = newSnapshot.context.servicesApproved;
+      const { servicesApproved } = newSnapshot.context;
 
       // Map XState context to individual Firestore fields
       if (typeof servicesApproved.staff === "boolean") {
@@ -1785,7 +1791,7 @@ export async function executeXStateTransition(
             securityServiceApproved: firestoreUpdates.securityServiceApproved,
             setupServiceApproved: firestoreUpdates.setupServiceApproved,
           },
-        }
+        },
       );
     }
 
@@ -1803,14 +1809,14 @@ export async function executeXStateTransition(
               lastTransition: firestoreUpdates.xstateData.lastTransition,
             }
           : null,
-      }
+      },
     );
 
     await serverUpdateDataByCalendarEventId(
       TableNames.BOOKING,
       calendarEventId,
       firestoreUpdates,
-      tenant
+      tenant,
     );
 
     console.log(
@@ -1827,10 +1833,10 @@ export async function executeXStateTransition(
         individualServiceFieldsUpdated:
           isMediaCommons(tenant) && newSnapshot.context?.servicesApproved
             ? Object.keys(firestoreUpdates).filter((key) =>
-                key.endsWith("ServiceApproved")
+                key.endsWith("ServiceApproved"),
               )
             : [],
-      }
+      },
     );
 
     actor.stop();
@@ -1846,7 +1852,7 @@ export async function executeXStateTransition(
         calendarEventId,
         eventType,
         error: error.message,
-      }
+      },
     );
     return {
       success: false,
@@ -1860,13 +1866,13 @@ export async function executeXStateTransition(
  */
 export async function getAvailableXStateTransitions(
   calendarEventId: string,
-  tenant?: string
+  tenant?: string,
 ): Promise<string[]> {
   try {
     const bookingData = await serverGetDataByCalendarEventId(
       TableNames.BOOKING,
       calendarEventId,
-      tenant
+      tenant,
     );
 
     if (
@@ -1878,13 +1884,13 @@ export async function getAvailableXStateTransitions(
       if (bookingData && shouldUseXState(tenant)) {
         console.log(
           `🔧 CREATING XSTATE FOR TRANSITIONS [${tenant?.toUpperCase()}]:`,
-          { calendarEventId }
+          { calendarEventId },
         );
 
         await createXStateDataFromBookingStatus(
           calendarEventId,
           bookingData,
-          tenant
+          tenant,
         );
 
         // Recursively call this function to get transitions from newly created XState
@@ -1922,7 +1928,7 @@ export async function getAvailableXStateTransitions(
         calendarEventId,
         currentState: snapshot.value,
         availableTransitions,
-      }
+      },
     );
 
     return availableTransitions;
@@ -1932,7 +1938,7 @@ export async function getAvailableXStateTransitions(
       {
         calendarEventId,
         error: error.message,
-      }
+      },
     );
     return [];
   }
@@ -1987,22 +1993,20 @@ function getBookingStatusFromData(bookingData: any): string {
 async function sendCanceledEmail(
   calendarEventId: string,
   email: string,
-  tenant: string
+  tenant: string,
 ) {
   try {
-    const { serverGetDataByCalendarEventId } = await import(
-      "@/lib/firebase/server/adminDb"
-    );
-    const { serverSendBookingDetailEmail } = await import(
-      "@/components/src/server/admin"
-    );
+    const { serverGetDataByCalendarEventId } =
+      await import("@/lib/firebase/server/adminDb");
+    const { serverSendBookingDetailEmail } =
+      await import("@/components/src/server/admin");
     const { TableNames } = await import("@/components/src/policy");
 
     // Get booking document to get guest email
     const bookingDoc = await serverGetDataByCalendarEventId(
       TableNames.BOOKING,
       calendarEventId,
-      tenant
+      tenant,
     );
 
     const guestEmail = (bookingDoc as any)?.email;
@@ -2024,14 +2028,14 @@ async function sendCanceledEmail(
         {
           calendarEventId,
           guestEmail,
-        }
+        },
       );
     } else {
       console.warn(
         `⚠️ CANCELED EMAIL SKIPPED - NO EMAIL [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
         {
           calendarEventId,
-        }
+        },
       );
     }
   } catch (error) {
@@ -2040,7 +2044,7 @@ async function sendCanceledEmail(
       {
         calendarEventId,
         error: error.message,
-      }
+      },
     );
   }
 }

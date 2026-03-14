@@ -13,12 +13,10 @@ const AdminWithParams: React.FC = () => {
   return <Admin calendarEventId={calendarEventId} />;
 };
 
-const AdminPage: React.FC = () => {
-  return (
-    <Suspense fallback={<div>Loading...</div>}>
-      <AdminWithParams />
-    </Suspense>
-  );
-};
+const AdminPage: React.FC = () => (
+  <Suspense fallback={<div>Loading...</div>}>
+    <AdminWithParams />
+  </Suspense>
+);
 
 export default AdminPage;

@@ -13,12 +13,12 @@ import dayjs from "dayjs";
 
 import { FormContextLevel } from "@/components/src/types";
 import { styled } from "@mui/system";
+import { usePathname } from "next/navigation";
 import { BookingContext } from "../bookingProvider";
 import useCalculateOverlap from "../hooks/useCalculateOverlap";
 import useCheckAutoApproval from "../hooks/useCheckAutoApproval";
 import useCheckDurationLimits from "../hooks/useCheckDurationLimits";
 import { useTenantSchema } from "../../components/SchemaProvider";
-import { usePathname } from "next/navigation";
 
 interface Props {
   formContext: FormContextLevel;
@@ -41,7 +41,7 @@ export default function BookingStatusBar({ formContext, ...props }: Props) {
   const isVIP = formContext === FormContextLevel.VIP;
   const { isAutoApproval, errorMessage } = useCheckAutoApproval(
     isWalkIn,
-    isVIP
+    isVIP,
   );
   const { durationError } = useCheckDurationLimits(isWalkIn, isVIP);
   const {
@@ -55,7 +55,9 @@ export default function BookingStatusBar({ formContext, ...props }: Props) {
   } = useContext(BookingContext);
   const isOverlap = useCalculateOverlap();
   const schema = useTenantSchema();
-  const timeSensitiveRequestWarning = schema.calendarConfig?.timeSensitiveRequestWarning;
+  const timeSensitiveRequestWarning =
+    schema.timeSensitiveRequestWarning ??
+    schema.calendarConfig?.timeSensitiveRequestWarning;
   const pathname = usePathname();
   const isSelectRoomPage = pathname.endsWith("/selectRoom");
   const warningThresholdHours = timeSensitiveRequestWarning?.hours ?? 48;
@@ -67,11 +69,11 @@ export default function BookingStatusBar({ formContext, ...props }: Props) {
     : null;
   const shouldShowWarning = Boolean(
     isSelectRoomPage &&
-      timeSensitiveRequestWarning?.isActive &&
-      bookingStart &&
-      hoursUntilStart !== null &&
-      hoursUntilStart >= 0 &&
-      hoursUntilStart <= warningThresholdHours
+    timeSensitiveRequestWarning?.isActive &&
+    bookingStart &&
+    hoursUntilStart !== null &&
+    hoursUntilStart >= 0 &&
+    hoursUntilStart <= warningThresholdHours,
   );
 
   const theme = useTheme();
@@ -99,11 +101,13 @@ export default function BookingStatusBar({ formContext, ...props }: Props) {
     if (isBanned)
       return {
         btnDisabled: true,
-        btnDisabledMessage: isWalkIn ? "Walk-in visitor is banned" : "You are banned",
+        btnDisabledMessage: isWalkIn
+          ? "Walk-in visitor is banned"
+          : "You are banned",
         message: (
           <p>
             {isWalkIn
-              ? `The walk-in visitor (${formData?.walkInNetId || 'user'}) is banned from booking with the Media Commons`
+              ? `The walk-in visitor (${formData?.walkInNetId || "user"}) is banned from booking with the Media Commons`
               : "You are banned from booking with the Media Commons"}
           </p>
         ),
@@ -113,15 +117,14 @@ export default function BookingStatusBar({ formContext, ...props }: Props) {
     if (needsSafetyTraining)
       return {
         btnDisabled: true,
-        btnDisabledMessage: isWalkIn 
-          ? "Walk-in visitor needs safety training" 
+        btnDisabledMessage: isWalkIn
+          ? "Walk-in visitor needs safety training"
           : "You need to take safety training",
         message: (
           <p>
-            {isWalkIn 
-              ? `The walk-in visitor (${formData?.walkInNetId || 'user'}) has not taken safety training, which is required for at least one of the rooms you have selected.`
-              : "You have not taken safety training, which is required for at least one of the rooms you have selected."
-            }{" "}
+            {isWalkIn
+              ? `The walk-in visitor (${formData?.walkInNetId || "user"}) has not taken safety training, which is required for at least one of the rooms you have selected.`
+              : "You have not taken safety training, which is required for at least one of the rooms you have selected."}{" "}
             <a
               href="https://sites.google.com/nyu.edu/370jmediacommons/reservations/safety-training"
               target="_blank"
@@ -197,7 +200,7 @@ export default function BookingStatusBar({ formContext, ...props }: Props) {
         severity: "success",
         icon: <Check fontSize="inherit" />,
       };
-    else if (formContext !== FormContextLevel.MODIFICATION)
+    if (formContext !== FormContextLevel.MODIFICATION)
       return {
         btnDisabled: false,
         btnDisabledMessage: null,
@@ -211,9 +214,8 @@ export default function BookingStatusBar({ formContext, ...props }: Props) {
         ),
         severity: "warning",
       };
-    else {
-      return undefined;
-    }
+
+    return undefined;
   })();
 
   const [disabled, disabledMessage] = (() => {

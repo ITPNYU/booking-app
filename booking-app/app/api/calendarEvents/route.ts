@@ -21,9 +21,9 @@ const getCalendarEvents = async (calendarId: string, tenant?: string) => {
 
   // Fetch Google Calendar events and bookings in parallel
   const calendarPromise = (async () => {
-    let events: calendar_v3.Schema$Event[] = [];
+    const events: calendar_v3.Schema$Event[] = [];
     const calendar = await getCalendarClient();
-    let pageToken: string | undefined = undefined;
+    let pageToken: string | undefined;
 
     do {
       const res = await calendar.events.list({

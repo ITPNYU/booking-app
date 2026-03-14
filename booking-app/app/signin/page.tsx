@@ -1,4 +1,5 @@
 "use client";
+
 import GoogleSignIn from "@/components/src/client/routes/components/GoogleSignIn";
 import { Suspense } from "react";
 

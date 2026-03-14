@@ -1,4 +1,15 @@
-import { MoreHoriz, TableBar, Headset, PeopleAlt, LocalDining, CleaningServices, LocalPolice, Check, Close, Replay } from "@mui/icons-material";
+import {
+  MoreHoriz,
+  TableBar,
+  Headset,
+  PeopleAlt,
+  LocalDining,
+  CleaningServices,
+  LocalPolice,
+  Check,
+  Close,
+  Replay,
+} from "@mui/icons-material";
 import {
   Box,
   IconButton,
@@ -8,6 +19,7 @@ import {
 } from "@mui/material";
 import { DataGrid, GridSortModel } from "@mui/x-data-grid";
 import React, { useContext, useEffect, useMemo, useState } from "react";
+import { useParams } from "next/navigation";
 import {
   BookingOrigin,
   BookingRow,
@@ -17,7 +29,6 @@ import {
 import { TableEmpty } from "../Table";
 import StackedTableCell from "./StackedTableCell";
 
-import { useParams } from "next/navigation";
 import { formatOrigin } from "../../../../utils/formatters";
 import { formatDateTable, formatTimeAmPm } from "../../../utils/date";
 import BookingActions from "../../admin/components/BookingActions";
@@ -48,16 +59,31 @@ export const Bookings: React.FC<BookingsProps> = ({
   const { resourceName } = useTenantSchema();
   const params = useParams();
   const tenant = params?.tenant as string;
-  const allowedStatuses = useAllowedStatuses(pageContext);
+  const excludedStatuses = [
+    BookingStatusLabel.CANCELED,
+    BookingStatusLabel.EQUIPMENT,
+    BookingStatusLabel.NO_SHOW,
+    BookingStatusLabel.PENDING,
+    BookingStatusLabel.MODIFIED,
+  ];
+  const allowedStatuses = useAllowedStatuses(pageContext).filter(
+    (status) => !excludedStatuses.includes(status),
+  );
 
   const [modalData, setModalData] = useState<BookingRow>(null);
   const [statusFilters, setStatusFilters] = useState(() =>
     pageContext === PageContextLevel.LIAISON
       ? [BookingStatusLabel.REQUESTED]
-      : []
+      : [],
   );
   const [selectedDateRange, setSelectedDateRange] =
     useState<DateRangeFilter>("All Future");
+
+  // Added filters for origin, rooms, and services
+  const [selectedOrigins, setSelectedOrigins] = useState<string[]>([]);
+  const [selectedRooms, setSelectedRooms] = useState<string[]>([]);
+  const [selectedServices, setSelectedServices] = useState<string[]>([]);
+
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
 
@@ -69,11 +95,12 @@ export const Bookings: React.FC<BookingsProps> = ({
   const isUserView = pageContext === PageContextLevel.USER;
   const isAdminOrAbove = pageContext >= PageContextLevel.ADMIN;
 
-  useEffect(() => {
-    return () => {
+  useEffect(
+    () => () => {
       setLastItem(null);
-    };
-  }, []);
+    },
+    [],
+  );
 
   useEffect(() => {
     if (fetchAllBookings && searchQuery !== undefined) {
@@ -86,9 +113,8 @@ export const Bookings: React.FC<BookingsProps> = ({
           }
         }, 500);
         return () => clearTimeout(timer);
-      } else {
-        setIsSearching(false);
       }
+      setIsSearching(false);
     }
   }, [searchQuery, bookingsLoading]);
 
@@ -106,6 +132,9 @@ export const Bookings: React.FC<BookingsProps> = ({
     selectedDateRange,
     selectedStatusFilters: statusFilters,
     searchQuery,
+    selectedOrigins,
+    selectedRooms,
+    selectedServices,
   });
 
   const topRow = useMemo(() => {
@@ -126,6 +155,12 @@ export const Bookings: React.FC<BookingsProps> = ({
 
     return (
       <BookingTableFilters
+        selectedOrigins={selectedOrigins}
+        setSelectedOrigins={setSelectedOrigins}
+        selectedRooms={selectedRooms}
+        setSelectedRooms={setSelectedRooms}
+        selectedServices={selectedServices}
+        setSelectedServices={setSelectedServices}
         selectedStatuses={statusFilters}
         setSelectedStatuses={setStatusFilters}
         {...{
@@ -144,6 +179,9 @@ export const Bookings: React.FC<BookingsProps> = ({
     statusFilters,
     allowedStatuses,
     selectedDateRange,
+    selectedOrigins,
+    selectedRooms,
+    selectedServices,
     searchQuery,
     isSearching,
   ]);
@@ -216,7 +254,7 @@ export const Bookings: React.FC<BookingsProps> = ({
           <StackedTableCell
             topText={formatDateTable(params.row.startDate.toDate())}
             bottomText={`${formatTimeAmPm(params.row.startDate.toDate())} - ${formatTimeAmPm(
-              params.row.endDate.toDate()
+              params.row.endDate.toDate(),
             )} ET`}
           />
         ),
@@ -347,31 +385,57 @@ export const Bookings: React.FC<BookingsProps> = ({
                 const colorFor = (requested: boolean) =>
                   requested ? "rgba(0, 0, 0, 0.8)" : "rgba(0, 0, 0, 0.08)";
 
-                const servicesRequested = bookingRow.xstateData?.snapshot?.context?.servicesRequested || {};
-                const servicesApproved = bookingRow.xstateData?.snapshot?.context?.servicesApproved || {};
+                const servicesRequested =
+                  bookingRow.xstateData?.snapshot?.context?.servicesRequested ||
+                  {};
+                const servicesApproved =
+                  bookingRow.xstateData?.snapshot?.context?.servicesApproved ||
+                  {};
 
                 const rawXStateValue = bookingRow.xstateData?.snapshot?.value;
-                const isBookingClosed = typeof rawXStateValue === "string" && rawXStateValue === "Closed";
-                const servicesClosedout = typeof rawXStateValue === "object" ? rawXStateValue["Service Closeout"] : null;
+                const isBookingClosed =
+                  typeof rawXStateValue === "string" &&
+                  rawXStateValue === "Closed";
+                const servicesClosedout =
+                  typeof rawXStateValue === "object"
+                    ? rawXStateValue["Service Closeout"]
+                    : null;
 
-                const isServiceClosedOut = (closeoutKey: string, closedLabel: string) => {
+                const isServiceClosedOut = (
+                  closeoutKey: string,
+                  closedLabel: string,
+                ) => {
                   if (isBookingClosed) return true;
-                  
-                  // If no services closeout data exists, return false
-                  if (!servicesClosedout || typeof servicesClosedout !== "object") return false;
 
-                  const val = (servicesClosedout as any)[closeoutKey];
+                  // If no services closeout data exists, return false
+                  if (
+                    !servicesClosedout ||
+                    typeof servicesClosedout !== "object"
+                  )
+                    return false;
+
+                  const val = servicesClosedout[closeoutKey];
                   return val === closedLabel;
                 };
 
-                const items: { label: string; Icon: any; requested: boolean; serviceKey: string; closeoutKey: string; closedout: boolean }[] = [
+                const items: {
+                  label: string;
+                  Icon: any;
+                  requested: boolean;
+                  serviceKey: string;
+                  closeoutKey: string;
+                  closedout: boolean;
+                }[] = [
                   {
                     label: "Setup",
                     Icon: TableBar,
                     requested: servicesRequested.setup || false,
                     serviceKey: "setup",
                     closeoutKey: "Setup Closeout",
-                    closedout: isServiceClosedOut("Setup Closeout", "Setup Closedout"),
+                    closedout: isServiceClosedOut(
+                      "Setup Closeout",
+                      "Setup Closedout",
+                    ),
                   },
                   {
                     label: "Equipment",
@@ -379,7 +443,10 @@ export const Bookings: React.FC<BookingsProps> = ({
                     requested: servicesRequested.equipment || false,
                     serviceKey: "equipment",
                     closeoutKey: "Equipment Closeout",
-                    closedout: isServiceClosedOut("Equipment Closeout", "Equipment Closedout"),
+                    closedout: isServiceClosedOut(
+                      "Equipment Closeout",
+                      "Equipment Closedout",
+                    ),
                   },
                   {
                     label: "Staffing",
@@ -387,7 +454,10 @@ export const Bookings: React.FC<BookingsProps> = ({
                     requested: servicesRequested.staff || false,
                     serviceKey: "staff",
                     closeoutKey: "Staff Closeout",
-                    closedout: isServiceClosedOut("Staff Closeout", "Staff Closedout"),
+                    closedout: isServiceClosedOut(
+                      "Staff Closeout",
+                      "Staff Closedout",
+                    ),
                   },
                   {
                     label: "Catering",
@@ -395,7 +465,10 @@ export const Bookings: React.FC<BookingsProps> = ({
                     requested: servicesRequested.catering || false,
                     serviceKey: "catering",
                     closeoutKey: "Catering Closeout",
-                    closedout: isServiceClosedOut("Catering Closeout", "Catering Closedout"),
+                    closedout: isServiceClosedOut(
+                      "Catering Closeout",
+                      "Catering Closedout",
+                    ),
                   },
                   {
                     label: "Cleaning",
@@ -403,7 +476,10 @@ export const Bookings: React.FC<BookingsProps> = ({
                     requested: servicesRequested.cleaning || false,
                     serviceKey: "cleaning",
                     closeoutKey: "Cleaning Closeout",
-                    closedout: isServiceClosedOut("Cleaning Closeout", "Cleaning Closedout"),
+                    closedout: isServiceClosedOut(
+                      "Cleaning Closeout",
+                      "Cleaning Closedout",
+                    ),
                   },
                   {
                     label: "Security",
@@ -411,67 +487,95 @@ export const Bookings: React.FC<BookingsProps> = ({
                     requested: servicesRequested.security || false,
                     serviceKey: "security",
                     closeoutKey: "Security Closeout",
-                    closedout: isServiceClosedOut("Security Closeout", "Security Closedout"),
+                    closedout: isServiceClosedOut(
+                      "Security Closeout",
+                      "Security Closedout",
+                    ),
                   },
                 ];
 
                 return (
-                  <TableCell style={{ display: "flex", flexDirection: "row", gap: "6px" }}>
-                    {items.map(({ label, Icon, requested, serviceKey, closedout }) => {
-                      const approved = servicesApproved[serviceKey];
-                      const showApprovalBadge = requested && (approved === true || approved === false);
-                      const showCloseoutBadge = requested && approved === true && closedout;
-                      
-                      return (
-                        <Tooltip key={label} title={label} placement="top">
-                          <span style={{ display: "flex", flexDirection : "column", alignItems : "center", gap : "2px",  padding : "4px 6px", borderRadius : "6px" }}>
-                            <Icon style={{ fontSize: "18px", color: colorFor(requested) }} />
-                            {showApprovalBadge && !showCloseoutBadge && (
-                              <>
-                                {approved === true ? (
-                                  <Check 
-                                    sx={{ 
-                                      fontSize: "10px",
-                                      bottom: "-6px", 
-                                      right: "-6px",
-                                      borderRadius: "50%",
-                                      strokeWidth: 1.4,
-                                      stroke: "rgba(72, 196, 77, 1)",
-                                      color : "rgba(72, 196, 77, 1)",
-                                    }} 
-                                  />
-                                ) : (
-                                  <Close 
-                                    sx={{ 
-                                      fontSize: "10px",
-                                      bottom: "-6px", 
-                                      right: "-6px",
-                                      borderRadius: "50%",
-                                      strokeWidth: 1.4,
-                                      stroke: "rgba(255, 26, 26, 1)",
-                                      color: "rgba(255, 26, 26, 1)",
-                                    }} 
-                                  />
-                                )}
-                              </>
-                            )}
-                            {showCloseoutBadge && (
-                              <Replay
-                                sx={{ 
-                                  fontSize: "10px",
-                                  bottom: "-6px", 
-                                  right: "-6px",
-                                  borderRadius: "50%",
-                                  strokeWidth: 1.0,
-                                  stroke : "#333333",
-                                  color : "#333333",
-                                }} 
+                  <TableCell
+                    style={{
+                      display: "flex",
+                      flexDirection: "row",
+                      gap: "6px",
+                    }}
+                  >
+                    {items.map(
+                      ({ label, Icon, requested, serviceKey, closedout }) => {
+                        const approved = servicesApproved[serviceKey];
+                        const showApprovalBadge =
+                          requested &&
+                          (approved === true || approved === false);
+                        const showCloseoutBadge =
+                          requested && approved === true && closedout;
+
+                        return (
+                          <Tooltip key={label} title={label} placement="top">
+                            <span
+                              style={{
+                                display: "flex",
+                                flexDirection: "column",
+                                alignItems: "center",
+                                gap: "2px",
+                                padding: "4px 6px",
+                                borderRadius: "6px",
+                              }}
+                            >
+                              <Icon
+                                style={{
+                                  fontSize: "18px",
+                                  color: colorFor(requested),
+                                }}
                               />
-                            )}
-                          </span>
-                        </Tooltip>
-                      );
-                    })}
+                              {showApprovalBadge && !showCloseoutBadge && (
+                                <>
+                                  {approved === true ? (
+                                    <Check
+                                      sx={{
+                                        fontSize: "10px",
+                                        bottom: "-6px",
+                                        right: "-6px",
+                                        borderRadius: "50%",
+                                        strokeWidth: 1.4,
+                                        stroke: "rgba(72, 196, 77, 1)",
+                                        color: "rgba(72, 196, 77, 1)",
+                                      }}
+                                    />
+                                  ) : (
+                                    <Close
+                                      sx={{
+                                        fontSize: "10px",
+                                        bottom: "-6px",
+                                        right: "-6px",
+                                        borderRadius: "50%",
+                                        strokeWidth: 1.4,
+                                        stroke: "rgba(255, 26, 26, 1)",
+                                        color: "rgba(255, 26, 26, 1)",
+                                      }}
+                                    />
+                                  )}
+                                </>
+                              )}
+                              {showCloseoutBadge && (
+                                <Replay
+                                  sx={{
+                                    fontSize: "10px",
+                                    bottom: "-6px",
+                                    right: "-6px",
+                                    borderRadius: "50%",
+                                    strokeWidth: 1.0,
+                                    stroke: "#333333",
+                                    color: "#333333",
+                                  }}
+                                />
+                              )}
+                            </span>
+                          </Tooltip>
+                        );
+                      },
+                    )}
                   </TableCell>
                 );
               },
@@ -530,12 +634,23 @@ export const Bookings: React.FC<BookingsProps> = ({
   };
 
   const pageSize = 100;
-  const showFooter = useMemo(() => {
-    return filteredRows.length > pageSize;
-  }, [filteredRows.length, pageSize]);
+  const showFooter = useMemo(
+    () => filteredRows.length > pageSize,
+    [filteredRows.length, pageSize],
+  );
 
   return (
     <Box sx={{ marginTop: 4 }}>
+      <div
+        style={{
+          padding: "12px 0",
+          border: "1px solid rgba(224, 224, 224, 1)",
+          borderBottom: "none",
+          borderRadius: "4px 4px 0px 0px",
+        }}
+      >
+        {topRow}
+      </div>
       <DataGrid
         rows={filteredRows}
         columns={columns}
@@ -544,25 +659,13 @@ export const Bookings: React.FC<BookingsProps> = ({
         initialState={{
           pagination: {
             paginationModel: {
-              pageSize: pageSize,
+              pageSize,
             },
           },
         }}
         pageSizeOptions={[pageSize]}
         checkboxSelection={false}
         disableRowSelectionOnClick
-        slots={{
-          toolbar: () => (
-            <div
-              style={{
-                padding: "10px 0",
-                borderBottom: "1px solid rgba(224, 224, 224, 1)",
-              }}
-            >
-              {topRow}
-            </div>
-          ),
-        }}
         sx={{
           "& .MuiTableCell-root": {
             border: "none",
@@ -575,6 +678,7 @@ export const Bookings: React.FC<BookingsProps> = ({
           "& .MuiDataGrid-row--borderBottom": {
             backgroundColor: "#EEEEEE !important",
           },
+          borderRadius: "0px 0px 4px 4px",
         }}
         sortModel={sortModel}
         onSortModelChange={(newSortModel) => setSortModel(newSortModel)}

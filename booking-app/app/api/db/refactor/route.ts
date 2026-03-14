@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
     const sourceApproverCollection = TableNames.APPROVERS;
     const newApproverCollection = "usersApprovers";
     let res = await fetch(
-      process.env.NEXT_PUBLIC_BASE_URL + "/api/db/duplicate",
+      `${process.env.NEXT_PUBLIC_BASE_URL}/api/db/duplicate`,
       {
         method: "POST",
         headers: {
@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
     );
 
     if (!res.ok) {
-      let json = await res.json();
+      const json = await res.json();
       throw new Error(`Error ${res.status}: ${json.error}`);
     } else {
       log(
@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
     // 4. rename usersSafetyWhitelist to usersWhitelist
     const sourceWhitelistCollection = TableNames.SAFETY_TRAINING;
     const newWhitelistCollection = "usersWhitelist";
-    res = await fetch(process.env.NEXT_PUBLIC_BASE_URL + "/api/db/duplicate", {
+    res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/db/duplicate`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (!res.ok) {
-      let json = await res.json();
+      const json = await res.json();
       throw new Error(`Error ${res.status}: ${json.error}`);
     } else {
       log(
@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
     // 5. combine bookings and bookingStatus documents
     const sourceBookingStatus = "bookingStatus";
     const destinationBooking = TableNames.BOOKING;
-    res = await fetch(process.env.NEXT_PUBLIC_BASE_URL + "/api/db/merge", {
+    res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/db/merge`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -104,7 +104,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (!res.ok) {
-      let json = await res.json();
+      const json = await res.json();
       throw new Error(`Error ${res.status}: ${json.error}`);
     } else {
       log(logger, `Merged ${sourceBookingStatus} to ${destinationBooking}`);
@@ -122,8 +122,8 @@ export async function POST(request: NextRequest) {
 }
 
 function log(logger, msg) {
-  let logEntry = {
-    logName: process.env.NEXT_PUBLIC_GCP_LOG_NAME + "/db-refactor",
+  const logEntry = {
+    logName: `${process.env.NEXT_PUBLIC_GCP_LOG_NAME}/db-refactor`,
     resource: { type: "global" },
     entries: [
       {

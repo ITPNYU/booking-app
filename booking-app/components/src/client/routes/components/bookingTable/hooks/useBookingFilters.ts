@@ -2,14 +2,15 @@ import {
   Approver,
   BookingRow,
   BookingStatusLabel,
+  formatOrigin,
   PageContextLevel,
 } from "@/components/src/types";
 import { useContext, useEffect, useMemo, useState } from "react";
+import { BOOKING_TABLE_HIDE_STATUS_TIME_ELAPSED } from "@/components/src/policy";
+import { normalizeDepartment } from "@/components/src/utils/departmentUtils";
 import { COMPARATORS, ColumnSortOrder } from "./getColumnComparator";
 import { DATE_FILTERS, DateRangeFilter } from "./getDateFilter";
 
-import { BOOKING_TABLE_HIDE_STATUS_TIME_ELAPSED } from "@/components/src/policy";
-import { normalizeDepartment } from "@/components/src/utils/departmentUtils";
 import getBookingStatus from "../../../hooks/getBookingStatus";
 import { DatabaseContext } from "../../Provider";
 import useAllowedStatuses from "./useAllowedStatuses";
@@ -22,6 +23,9 @@ interface Props {
   selectedStatusFilters: BookingStatusLabel[];
   searchQuery?: string;
   tenant?: string;
+  selectedOrigins?: string[] | null;
+  selectedRooms?: string[] | null;
+  selectedServices?: string[] | null;
 }
 
 function getDateRangeFromDateSelection(selectedDateRange: DateRangeFilter) {
@@ -113,7 +117,9 @@ function getDateRangeFromDateSelection(selectedDateRange: DateRangeFilter) {
 
 class BookingFilter {
   rows: BookingRow[];
+
   allowedStatuses: BookingStatusLabel[];
+
   pageContext: PageContextLevel;
 
   constructor(obj: {
@@ -135,7 +141,7 @@ class BookingFilter {
           !(
             BOOKING_TABLE_HIDE_STATUS_TIME_ELAPSED.includes(row.status) &&
             row.endDate.toDate() < currentTime
-          )
+          ),
       );
     }
     return this;
@@ -147,14 +153,14 @@ class BookingFilter {
     }
     if (this.pageContext === PageContextLevel.LIAISON) {
       const liaisonMatches = liaisonUsers.filter(
-        (user) => user.email === userEmail
+        (user) => user.email === userEmail,
       );
       if (liaisonMatches.length > 0) {
         const liaisonDepartments = liaisonMatches.map((user) =>
           normalizeDepartment(user.department, {
             toLowerCase: true,
             removeSpaces: true,
-          })
+          }),
         );
 
         this.rows = this.rows.filter((row) =>
@@ -162,8 +168,8 @@ class BookingFilter {
             normalizeDepartment(row.department, {
               toLowerCase: true,
               removeSpaces: true,
-            })
-          )
+            }),
+          ),
         );
       }
     }
@@ -172,7 +178,7 @@ class BookingFilter {
 
   filterAllowedStatuses() {
     this.rows = this.rows.filter((row) =>
-      this.allowedStatuses.includes(row.status)
+      this.allowedStatuses.includes(row.status),
     );
 
     return this;
@@ -188,8 +194,50 @@ class BookingFilter {
   filterStatusChips(selectedStatusFilters: BookingStatusLabel[]) {
     if (selectedStatusFilters.length > 0) {
       this.rows = this.rows.filter((row) =>
-        selectedStatusFilters.includes(row.status)
+        selectedStatusFilters.includes(row.status),
       );
+    }
+    return this;
+  }
+
+  filterByOrigins(selectedOrigins: string[] | null) {
+    if (selectedOrigins && selectedOrigins.length > 0) {
+      this.rows = this.rows.filter((row) =>
+        selectedOrigins.includes(formatOrigin(row.origin)),
+      );
+    }
+    return this;
+  }
+
+  filterByRooms(selectedRooms: string[] | null) {
+    if (selectedRooms && selectedRooms.length > 0) {
+      this.rows = this.rows.filter((row) => {
+        // Parse the roomId field
+        const bookingRooms = row.roomId
+          ? row.roomId.split(",").map((r) => r.trim())
+          : [];
+
+        // Match if any selected room is in this booking's rooms
+        return selectedRooms.some((selectedRoom) =>
+          bookingRooms.includes(selectedRoom),
+        );
+      });
+    }
+    return this;
+  }
+
+  filterByServices(selectedServices: string[] | null) {
+    if (selectedServices && selectedServices.length > 0) {
+      this.rows = this.rows.filter((row) => {
+        const servicesRequested =
+          row.xstateData?.snapshot?.context?.servicesRequested || {};
+        return selectedServices.some((service) => {
+          // Map display names to keys
+          const serviceKey =
+            service === "Staffing" ? "staff" : service.toLowerCase();
+          return servicesRequested[serviceKey] === true;
+        });
+      });
     }
     return this;
   }
@@ -197,8 +245,8 @@ class BookingFilter {
   filterBySearchQuery(searchQuery: string) {
     if (searchQuery && searchQuery.trim() !== "") {
       const query = searchQuery.toLowerCase().trim();
-      this.rows = this.rows.filter((row) => {
-        return (
+      this.rows = this.rows.filter(
+        (row) =>
           // Search in request number
           (row.requestNumber && row.requestNumber.toString().includes(query)) ||
           // Search in department
@@ -214,9 +262,8 @@ class BookingFilter {
           (row.firstName && row.firstName.toLowerCase().includes(query)) ||
           (row.lastName && row.lastName.toLowerCase().includes(query)) ||
           // Search in roomId
-          (row.roomId && row.roomId.toLowerCase().includes(query))
-        );
-      });
+          (row.roomId && row.roomId.toLowerCase().includes(query)),
+      );
     }
     return this;
   }
@@ -245,6 +292,9 @@ export function useBookingFilters(props: Props): BookingRow[] {
     selectedStatusFilters,
     searchQuery = "",
     tenant,
+    selectedOrigins,
+    selectedRooms,
+    selectedServices,
   } = props;
   const { liaisonUsers, userEmail, allBookings, setFilters } =
     useContext(DatabaseContext);
@@ -263,21 +313,23 @@ export function useBookingFilters(props: Props): BookingRow[] {
     setFilters({
       dateRange: getDateRangeFromDateSelection(selectedDateRange),
       sortField: "startDate",
-      searchQuery: searchQuery,
+      searchQuery,
     });
   }, [selectedDateRange, setFilters, searchQuery]);
 
-  const rows: BookingRow[] = useMemo(() => {
-    return allBookings.map((booking) => {
-      const status = getBookingStatus(booking, tenant);
+  const rows: BookingRow[] = useMemo(
+    () =>
+      allBookings.map((booking) => {
+        const status = getBookingStatus(booking, tenant);
 
-      return {
-        ...booking,
-        status: status,
-        id: booking.calendarEventId,
-      };
-    });
-  }, [allBookings]);
+        return {
+          ...booking,
+          status,
+          id: booking.calendarEventId,
+        };
+      }),
+    [allBookings],
+  );
 
   const filteredRows = useMemo(() => {
     const filter = new BookingFilter({
@@ -293,6 +345,9 @@ export function useBookingFilters(props: Props): BookingRow[] {
         .filterPageContext(userEmail, liaisonUsers)
         .filterAllowedStatuses()
         .filterStatusChips(selectedStatusFilters)
+        .filterByOrigins(selectedOrigins)
+        .filterByRooms(selectedRooms)
+        .filterByServices(selectedServices)
         // No need for client-side search filtering since it's done on the database side
         // .filterBySearchQuery(searchQuery)
         .sortByColumn(columnOrderBy, columnOrder)
@@ -303,6 +358,9 @@ export function useBookingFilters(props: Props): BookingRow[] {
     columnOrderBy,
     columnOrder,
     currentTime,
+    selectedOrigins,
+    selectedRooms,
+    selectedServices,
     pageContext,
     // selectedDateRange,
     selectedStatusFilters,

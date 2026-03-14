@@ -17,6 +17,7 @@ const parseArgs = () => {
     targetCollection: null,
     sourceDatabase: "development",
     targetDatabase: "development",
+    dryRun: false,
   };
 
   for (let i = 0; i < args.length; i++) {
@@ -33,6 +34,9 @@ const parseArgs = () => {
       case "--target-database":
         options.targetDatabase = args[++i];
         break;
+      case "--dry-run":
+        options.dryRun = true;
+        break;
       case "--help":
         console.log(`
 Usage: node copyCollection.js [options]
@@ -44,6 +48,7 @@ Required Options:
 Optional Options:
   --source-database <env>        Source database environment (default: development)
   --target-database <env>        Target database environment (default: development)
+  --dry-run                      Perform a dry run without actually copying data
   --help                         Show this help message
 
 Examples:
@@ -169,12 +174,19 @@ const copyCollection = async (
   targetDb,
   sourceCollection,
   targetCollection,
-  databaseName
+  databaseName,
+  dryRun = false
 ) => {
   try {
-    console.log(
-      `\n🔄 Copying ${sourceCollection} to ${targetCollection} in ${databaseName}...`
-    );
+    if (dryRun) {
+      console.log(
+        `\n🔍 [DRY RUN] Analyzing ${sourceCollection} to ${targetCollection} in ${databaseName}...`
+      );
+    } else {
+      console.log(
+        `\n🔄 Copying ${sourceCollection} to ${targetCollection} in ${databaseName}...`
+      );
+    }
 
     // Test connection first
     const canConnect = await testDatabaseConnection(targetDb, databaseName);
@@ -204,6 +216,29 @@ const copyCollection = async (
     console.log(
       `📋 Found ${sourceSnapshot.size} ${sourceCollection} documents to copy`
     );
+
+    if (dryRun) {
+      // In dry-run mode, just analyze and report what would be copied
+      const documents = [];
+      for (const doc of sourceSnapshot.docs) {
+        const data = doc.data();
+        documents.push({
+          id: doc.id,
+          data: data,
+        });
+        console.log(`  📄 Would copy document: ${doc.id}`);
+      }
+      console.log(
+        `✅ [DRY RUN] Would copy ${sourceSnapshot.size} ${sourceCollection} documents to ${targetCollection} in ${databaseName}`
+      );
+      return { 
+        success: true, 
+        copied: sourceSnapshot.size, 
+        errors: [],
+        dryRun: true,
+        documents: documents
+      };
+    }
 
     // Copy documents in batches to avoid transaction size limits
     const BATCH_SIZE = 500; // Firestore limit is 500 operations per batch
@@ -291,14 +326,58 @@ const main = async () => {
 
     // Copy to target database
     const targetDb = initializeTargetDb(DATABASES[options.targetDatabase]);
+
+    // If we're updating tenantSchema, first backup the current tenantSchema with a date suffix
+    const results = [];
+    if (
+      options.targetCollection === "tenantSchema" &&
+      options.sourceCollection === "tenantSchema" &&
+      options.sourceDatabase !== options.targetDatabase
+    ) {
+      const dateSuffix = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+      const backupCollectionName = `tenantSchema-backup-${dateSuffix}`;
+      console.log(
+        `\n📦 Step 1: Backing up current tenantSchema to ${backupCollectionName}...`
+      );
+      const backupResult = await copyCollection(
+        targetDb,
+        targetDb,
+        "tenantSchema",
+        backupCollectionName,
+        DATABASES[options.targetDatabase],
+        options.dryRun
+      );
+      results.push({
+        database: options.targetDatabase,
+        step: "backup",
+        ...backupResult,
+      });
+
+      if (!backupResult.success && !options.dryRun) {
+        console.error(
+          "💥 Backup failed. Aborting update to prevent data loss."
+        );
+        process.exit(1);
+      }
+    }
+
+    // Now perform the actual copy/update
+    console.log(
+      `\n${results.length > 0 ? "📦 Step 2: " : ""}Copying ${options.sourceCollection} to ${options.targetCollection}...`
+    );
     const result = await copyCollection(
       sourceDb,
       targetDb,
       options.sourceCollection,
       options.targetCollection,
-      DATABASES[options.targetDatabase]
+      DATABASES[options.targetDatabase],
+      options.dryRun
     );
-    const results = [{ database: options.targetDatabase, ...result }];
+    results.push({
+      database: options.targetDatabase,
+      step: results.length > 0 ? "update" : "copy",
+      ...result,
+    });
 
     // Summary
     console.log("\n📊 Copy Summary:");
@@ -306,26 +385,46 @@ const main = async () => {
     const failed = results.filter((r) => !r.success);
 
     if (successful.length > 0) {
-      console.log(`✅ Successful copies: ${successful.length}`);
+      console.log(`✅ Successful operations: ${successful.length}`);
       successful.forEach((result) => {
+        const stepLabel =
+          result.step === "backup"
+            ? "Backup"
+            : result.step === "update"
+              ? "Update"
+              : "Copy";
         console.log(
-          `  - ${result.database}: ${result.copied} documents copied`
+          `  - ${stepLabel} (${result.database}): ${result.copied} documents ${options.dryRun ? "would be " : ""}${result.step === "backup" ? "backed up" : "copied"}`
         );
       });
     }
 
     if (failed.length > 0) {
-      console.log(`❌ Failed copies: ${failed.length}`);
+      console.log(`❌ Failed operations: ${failed.length}`);
       failed.forEach((result) => {
-        console.log(`  - ${result.database}: ${result.errors.join(", ")}`);
+        const stepLabel =
+          result.step === "backup"
+            ? "Backup"
+            : result.step === "update"
+              ? "Update"
+              : "Copy";
+        console.log(
+          `  - ${stepLabel} (${result.database}): ${result.errors.join(", ")}`
+        );
       });
     }
 
     if (successful.length > 0) {
-      console.log(`\n🎉 ${options.sourceCollection} copy process completed!`);
+      if (results.length > 1) {
+        console.log(
+          `\n🎉 ${options.sourceCollection} backup and update process completed!`
+        );
+      } else {
+        console.log(`\n🎉 ${options.sourceCollection} copy process completed!`);
+      }
     } else {
       console.log(
-        "\n💥 No copies were successful. Please check your database configuration."
+        "\n💥 No operations were successful. Please check your database configuration."
       );
       process.exit(1);
     }

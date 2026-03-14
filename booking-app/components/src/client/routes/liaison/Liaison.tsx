@@ -15,7 +15,7 @@ const Liaison = ({ calendarEventId }) => {
 
   const liaisonEmails = useMemo<string[]>(
     () => liaisonUsers.map((user) => user.email),
-    [liaisonUsers]
+    [liaisonUsers],
   );
 
   const userHasPermission = hasAnyPermission(pagePermission, [

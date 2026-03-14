@@ -1,4 +1,8 @@
-import { createContext, useContext, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
+
+import { DateSelectArg } from "@fullcalendar/core";
+import dayjs from "dayjs";
+import { usePathname } from "next/navigation";
 import {
   CalendarEvent,
   Department,
@@ -7,10 +11,6 @@ import {
   RoomSetting,
   SubmitStatus,
 } from "../../../types";
-
-import { DateSelectArg } from "@fullcalendar/core";
-import dayjs from "dayjs";
-import { usePathname } from "next/navigation";
 import { SAFETY_TRAINING_REQUIRED_ROOM } from "../../../mediaCommonsPolicy";
 import { getAffectingBlackoutPeriods } from "../../../utils/blackoutUtils";
 import { DatabaseContext } from "../components/Provider";
@@ -76,6 +76,7 @@ export function BookingProvider({ children }) {
     safetyTrainedUsers,
     userEmail,
     blackoutPeriods,
+    reloadSafetyTrainedUsers,
   } = useContext(DatabaseContext);
   const pathname = usePathname();
   const schema = useTenantSchema();
@@ -95,12 +96,37 @@ export function BookingProvider({ children }) {
   } = fetchCalendarEvents(roomSettings);
   const [error, setError] = useState<Error | null>(null);
 
+  // Update safety trained users when selected rooms change
+  // Each room may have a different trainingFormUrl, so we need to merge results from all rooms
+  useEffect(() => {
+    if (selectedRooms.length > 0) {
+      // Collect all rooms that require safety training and have a trainingFormUrl
+      const roomsWithTraining = selectedRooms
+        .filter((room) => room.needsSafetyTraining && room.trainingFormUrl)
+        .map((room) => ({
+          roomId: room.roomId.toString(),
+          trainingFormUrl: room.trainingFormUrl,
+        }));
+
+      if (roomsWithTraining.length > 0) {
+        // Fetch and merge safety trained users from all selected rooms
+        reloadSafetyTrainedUsers(roomsWithTraining);
+      } else {
+        // If no room requires training or no trainingFormUrl, fetch all (no resource filter)
+        reloadSafetyTrainedUsers();
+      }
+    } else {
+      // No rooms selected, fetch all safety trained users
+      reloadSafetyTrainedUsers();
+    }
+  }, [selectedRooms, reloadSafetyTrainedUsers]);
+
   const isBanned = useMemo<boolean>(() => {
     const bannedEmails = bannedUsers.map((bannedUser) => bannedUser.email);
 
     // For walk-in bookings, check if the walk-in person (not the PA) is banned
     if (pathname.includes("/walk-in") && formData?.walkInNetId?.length > 0) {
-      return bannedEmails.includes(formData?.walkInNetId + "@nyu.edu");
+      return bannedEmails.includes(`${formData?.walkInNetId}@nyu.edu`);
     }
 
     if (!userEmail) return false;
@@ -112,7 +138,7 @@ export function BookingProvider({ children }) {
 
     // For walk-in bookings, check if the walk-in person (not the PA) has safety training
     if (pathname.includes("/walk-in") && formData?.walkInNetId?.length > 0) {
-      return safetyTrainedEmails.includes(formData?.walkInNetId + "@nyu.edu");
+      return safetyTrainedEmails.includes(`${formData?.walkInNetId}@nyu.edu`);
     }
 
     if (!userEmail) return false;
@@ -122,9 +148,9 @@ export function BookingProvider({ children }) {
   // block progressing in the form is safety training requirement isn't met
   const needsSafetyTraining = useMemo(() => {
     const isStudent = role === Role.STUDENT;
-    const roomRequiresSafetyTraining = selectedRooms.some((room) => {
-      return room.needsSafetyTraining || false;
-    });
+    const roomRequiresSafetyTraining = selectedRooms.some(
+      (room) => room.needsSafetyTraining || false,
+    );
     return isStudent && roomRequiresSafetyTraining && !isSafetyTrained;
   }, [selectedRooms, role, isSafetyTrained]);
 
@@ -140,7 +166,7 @@ export function BookingProvider({ children }) {
       blackoutPeriods,
       bookingStart,
       bookingEnd,
-      selectedRoomIds
+      selectedRoomIds,
     );
 
     return affectingPeriods.length > 0;

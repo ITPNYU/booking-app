@@ -50,7 +50,8 @@ export async function POST(req: NextRequest) {
         { message: "Sent to equipment successfully" },
         { status: 200 },
       );
-    } else if (action === "EQUIPMENT_APPROVE") {
+    }
+    if (action === "EQUIPMENT_APPROVE") {
       // Update booking record with equipment approval timestamp
       await serverUpdateDataByCalendarEventId(
         TableNames.BOOKING,
@@ -75,9 +76,8 @@ export async function POST(req: NextRequest) {
         { message: "Equipment approved successfully" },
         { status: 200 },
       );
-    } else {
-      return NextResponse.json({ error: "Invalid action" }, { status: 400 });
     }
+    return NextResponse.json({ error: "Invalid action" }, { status: 400 });
   } catch (error) {
     console.error("Error processing equipment request", {
       booking_id: id,

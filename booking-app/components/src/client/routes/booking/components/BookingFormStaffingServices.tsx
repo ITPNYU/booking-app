@@ -8,10 +8,10 @@ import {
   FormLabel,
 } from "@mui/material";
 import { Control, Controller, UseFormTrigger } from "react-hook-form";
-import { FormContextLevel, Inputs, StaffingServices } from "../../../../types";
 import React, { useContext, useMemo } from "react";
-import { BookingContext } from "../bookingProvider";
 import styled from "@emotion/styled";
+import { FormContextLevel, Inputs, StaffingServices } from "../../../../types";
+import { BookingContext } from "../bookingProvider";
 
 const Label = styled.label`
   font-weight: 500;
@@ -41,14 +41,14 @@ export default function BookingFormStaffingServices(props: Props) {
   const { selectedRooms } = useContext(BookingContext);
   const roomIds = selectedRooms.map((room) => room.roomId);
   const showStaffing = selectedRooms.some(
-    (room) => room.staffingServices && room.staffingServices.length > 0
+    (room) => room.staffingServices && room.staffingServices.length > 0,
   );
 
   // Previously limited for walk-in/modification; restriction removed so full options show in all contexts
 
   const { staffingSections, staffingServices } = useMemo(() => {
     let sections: { name: string; indexes: number[] }[] = [];
-    let services: StaffingServices[] = [];
+    const services: StaffingServices[] = [];
 
     // Check for specific room services
     selectedRooms.forEach((room) => {
@@ -139,8 +139,9 @@ export default function BookingFormStaffingServices(props: Props) {
                             value={
                               selectedServices.find((service) =>
                                 section.indexes.some(
-                                  (index) => staffingServices[index] === service
-                                )
+                                  (index) =>
+                                    staffingServices[index] === service,
+                                ),
                               ) || ""
                             }
                             onChange={(e) => {
@@ -149,8 +150,8 @@ export default function BookingFormStaffingServices(props: Props) {
                                 (service) =>
                                   !section.indexes.some(
                                     (index) =>
-                                      staffingServices[index] === service
-                                  )
+                                      staffingServices[index] === service,
+                                  ),
                               );
                               // Add the newly selected service
                               const newServices = e.target.value

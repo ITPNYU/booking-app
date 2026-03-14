@@ -39,7 +39,7 @@ const Title = styled(Typography)`
 `;
 
 const Nav = styled(Toolbar)(({ theme }) => ({
-  border: `1px solid ${theme.palette.custom.border}`,
+  borderBottom: `1px solid ${theme.palette.custom.border}`,
   justifyContent: "space-between",
 }));
 
@@ -56,7 +56,7 @@ export default function NavBar() {
   const { pagePermission, netId, setUserEmail } = useContext(DatabaseContext);
   const handleStartBooking = useHandleStartBooking();
   const [selectedView, setSelectedView] = useState<PagePermission>(
-    PagePermission.BOOKING
+    PagePermission.BOOKING,
   );
   const pathname = usePathname();
   const theme = useTheme();
@@ -143,9 +143,8 @@ export default function NavBar() {
     }
   };
 
-  const hasUserPermission = (roles: PagePermission[]) => {
-    return roles.includes(pagePermission);
-  };
+  const hasUserPermission = (roles: PagePermission[]) =>
+    roles.includes(pagePermission);
 
   const dropdown = useMemo(() => {
     // First check if user has any admin privileges

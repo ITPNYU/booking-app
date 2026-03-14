@@ -1,6 +1,6 @@
-import { MenuItem, Select, SxProps, Theme } from '@mui/material';
+import { MenuItem, Select, SxProps, Theme } from "@mui/material";
 
-import React from 'react';
+import React from "react";
 
 interface DropdownProps<T extends React.ReactNode> {
   value: T;
@@ -17,12 +17,12 @@ export default function Dropdown<T extends string>(props: DropdownProps<T>) {
   return (
     <Select
       size="small"
-      value={value != null ? value : ''}
+      value={value != null ? value : ""}
       onChange={(e) => updateValue(e.target.value as T)}
       data-testid={dataTestId}
       renderValue={(selected) => {
-        if (selected === '') {
-          return <p style={{ color: 'gray' }}>{placeholder}</p>;
+        if (selected === "") {
+          return <p style={{ color: "gray" }}>{placeholder}</p>;
         }
         return selected;
       }}
@@ -33,7 +33,7 @@ export default function Dropdown<T extends string>(props: DropdownProps<T>) {
         dataTestId
           ? {
               PaperProps: {
-                'data-testid': `${dataTestId}-menu`,
+                "data-testid": `${dataTestId}-menu`,
               },
             }
           : undefined
@@ -43,9 +43,7 @@ export default function Dropdown<T extends string>(props: DropdownProps<T>) {
         <MenuItem
           key={index}
           value={label as string}
-          data-testid={
-            dataTestId ? `${dataTestId}-option-${index}` : undefined
-          }
+          data-testid={dataTestId ? `${dataTestId}-option-${index}` : undefined}
         >
           {label}
         </MenuItem>

@@ -12,7 +12,7 @@ import { ThemeProvider, createTheme } from "@mui/material/styles";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Timestamp } from "firebase/firestore";
-import React from "react";
+import React, { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Mock dependencies
@@ -153,34 +153,9 @@ const mockSchemaContext = {
 const BookingManagementPage: React.FC<{ pageContext: PageContextLevel }> = ({
   pageContext,
 }) => {
-  const [selectedDateRange, setSelectedDateRange] = React.useState(
-    "All Future" as any
-  );
-  const [statusFilters, setStatusFilters] = React.useState<
-    BookingStatusLabel[]
-  >([]);
-  const [searchQuery, setSearchQuery] = React.useState("");
-  const [isSearching, setIsSearching] = React.useState(false);
-
-  const allowedStatuses = Object.values(BookingStatusLabel);
 
   return (
     <div>
-      {pageContext >= PageContextLevel.PA && (
-        <div>
-          <BookingTableFilters
-            allowedStatuses={allowedStatuses}
-            pageContext={pageContext}
-            selectedStatuses={statusFilters}
-            setSelectedStatuses={setStatusFilters}
-            selectedDateRange={selectedDateRange}
-            setSelectedDateRange={setSelectedDateRange}
-            searchQuery={searchQuery}
-            setSearchQuery={setSearchQuery}
-            isSearching={isSearching}
-          />
-        </div>
-      )}
       <div data-testid="bookings-section">
         <Bookings pageContext={pageContext} />
       </div>

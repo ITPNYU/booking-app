@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-
 import { getFormsClient, getLoggingClient } from "@/lib/googleClient";
-
 import { serverGetDocumentById } from "@/lib/firebase/server/adminDb";
 import { TableNames } from "@/components/src/policy";
+import { extractGoogleFormId } from "@/components/src/utils/formUrlUtils";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +18,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get tenant schema
+    // Get tenant schema (includes training form URL per resource and tenant-level fallback)
     const schema = await serverGetDocumentById(
       TableNames.TENANT_SCHEMA,
       tenant,
@@ -31,10 +30,26 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Check if tenant has safety training form configured
-    if (!schema.safetyTrainingGoogleFormId) {
+    // Resolve training form from schema: resource by resourceId, then tenant-level fallback
+    let formId: string | null = null;
+
+    if (resourceId) {
+      const resource = schema.resources?.find(
+        (r: any) => r.roomId?.toString() === resourceId.toString(),
+      );
+      if (resource?.trainingFormUrl) {
+        formId = extractGoogleFormId(resource.trainingFormUrl);
+      }
+    }
+
+    if (!formId && (schema as any).safetyTrainingGoogleFormId) {
+      formId = extractGoogleFormId((schema as any).safetyTrainingGoogleFormId);
+    }
+
+    // If no form found, return error
+    if (!formId) {
       return NextResponse.json(
-        { error: "Safety training form not configured for this tenant" },
+        { error: "No training form configured for this resource" },
         { status: 404 },
       );
     }
@@ -43,19 +58,17 @@ export async function GET(request: NextRequest) {
     const logger = await getLoggingClient();
     const timestamp = Date.now();
 
-    // Fetch form responses from tenant's form
+    // Fetch form responses from the determined form
     let emails: string[] = [];
     try {
       const response = await formsService.forms.responses.list({
-        formId: schema.safetyTrainingGoogleFormId,
+        formId,
       });
 
       if (response.data.responses) {
         // Extract email addresses from form responses
         emails = response.data.responses
-          .map(response => {
-            return response.respondentEmail;
-          })
+          .map(response => response.respondentEmail)
           .filter(
             (email): email is string => Boolean(email) && email.includes("@"),
           );
@@ -67,7 +80,7 @@ export async function GET(request: NextRequest) {
 
     // Log the operation
     const logEntry = {
-      logName: process.env.NEXT_PUBLIC_GCP_LOG_NAME + "/safety-training",
+      logName: `${process.env.NEXT_PUBLIC_GCP_LOG_NAME}/safety-training`,
       resource: { type: "global" },
       entries: [
         {
