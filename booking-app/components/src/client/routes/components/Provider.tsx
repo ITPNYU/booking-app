@@ -278,25 +278,18 @@ export const DatabaseProvider = ({
   // Derive roomSettings from SchemaContext instead of re-fetching from API
   useEffect(() => {
     if (schemaContext?.resources && Array.isArray(schemaContext.resources)) {
-      const filtered = schemaContext.resources.map((resource: any) => ({
-        ...resource,
-        id: resource.roomId.toString(),
-        roomId: resource.roomId,
-        name: resource.name,
-        capacity: resource.capacity.toString(),
-        calendarId: resource.calendarId,
-        needsSafetyTraining: resource.needsSafetyTraining || false,
-        trainingFormUrl: resource.trainingFormUrl,
-        autoApproval: resource.autoApproval,
-        isWalkIn: resource.isWalkIn || false,
-        isWalkInCanBookTwo: resource.isWalkInCanBookTwo || false,
-        isEquipment: resource.isEquipment || false,
-        services: resource.services || [],
-        staffingServices: resource.staffingServices,
-        staffingSections: resource.staffingSections,
-      }));
-      filtered.sort((a: any, b: any) => a.roomId - b.roomId);
-      setRoomSettings(filtered);
+      const rooms: RoomSetting[] = schemaContext.resources
+        .map((resource) => ({
+          ...resource,
+          capacity: String(resource.capacity),
+          needsSafetyTraining: resource.needsSafetyTraining || false,
+          isWalkIn: resource.isWalkIn || false,
+          isWalkInCanBookTwo: resource.isWalkInCanBookTwo || false,
+          isEquipment: resource.isEquipment || false,
+          services: resource.services || [],
+        }))
+        .sort((a, b) => a.roomId - b.roomId);
+      setRoomSettings(rooms);
     }
   }, [schemaContext?.resources]);
 
