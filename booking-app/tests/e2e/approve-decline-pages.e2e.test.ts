@@ -59,6 +59,19 @@ test.describe("Approve/Decline Action Pages", () => {
           body: JSON.stringify({ success: true }),
         });
       }
+      const url = new URL(route.request().url());
+      const calendarIds = url.searchParams.get("calendarIds");
+      if (calendarIds) {
+        const grouped: Record<string, any[]> = {};
+        for (const id of calendarIds.split(",")) {
+          grouped[id] = [];
+        }
+        return route.fulfill({
+          status: 200,
+          headers: jsonHeaders,
+          body: JSON.stringify(grouped),
+        });
+      }
       return route.fulfill({
         status: 200,
         headers: jsonHeaders,

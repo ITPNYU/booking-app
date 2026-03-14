@@ -205,13 +205,26 @@ export async function registerBookingMocks(page: Page) {
     })
   );
 
-  await page.route("**/api/calendarEvents**", (route) =>
-    route.fulfill({
+  await page.route("**/api/calendarEvents**", (route) => {
+    const url = new URL(route.request().url());
+    const calendarIds = url.searchParams.get("calendarIds");
+    if (calendarIds) {
+      const grouped: Record<string, any[]> = {};
+      for (const id of calendarIds.split(",")) {
+        grouped[id] = [];
+      }
+      return route.fulfill({
+        status: 200,
+        headers: jsonHeaders,
+        body: JSON.stringify(grouped),
+      });
+    }
+    return route.fulfill({
       status: 200,
       headers: jsonHeaders,
       body: JSON.stringify([]),
-    })
-  );
+    });
+  });
 
   await page.route("**/api/bookings", async (route: Route) => {
     if (route.request().method() === "POST") {
