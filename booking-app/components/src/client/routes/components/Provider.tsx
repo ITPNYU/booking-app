@@ -80,6 +80,10 @@ export interface DatabaseContextType {
   reloadPolicySettings: () => Promise<void>;
   setUserEmail: (x: string) => void;
   fetchAllBookings: (clicked: boolean) => Promise<void>;
+  updateBookingInList: (
+    calendarEventId: string,
+    updatedFields: Partial<Booking>
+  ) => void;
   setFilters: (x: Filters) => void;
   setLoadMoreEnabled: (x: boolean) => void;
   setLastItem: (x: any) => void;
@@ -110,25 +114,26 @@ export const DatabaseContext = createContext<DatabaseContextType>({
   netId: undefined,
   userApiData: undefined,
   loadMoreEnabled: true,
-  reloadAdminUsers: async () => {},
-  reloadApproverUsers: async () => {},
-  reloadBannedUsers: async () => {},
-  reloadBlackoutPeriods: async () => {},
-  reloadFutureBookings: async () => {},
-  reloadDepartmentNames: async () => {},
-  reloadOperationHours: async () => {},
-  reloadPaUsers: async () => {},
-  reloadBookingTypes: async () => {},
-  reloadSafetyTrainedUsers: async () => {},
-  reloadPolicySettings: async () => {},
-  setUserEmail: (x: string) => {},
-  fetchAllBookings: async () => {},
-  setFilters: (x: Filters) => {},
-  setLoadMoreEnabled: (x: boolean) => {},
-  setLastItem: (x: any) => {},
+  reloadAdminUsers: async () => { },
+  reloadApproverUsers: async () => { },
+  reloadBannedUsers: async () => { },
+  reloadBlackoutPeriods: async () => { },
+  reloadFutureBookings: async () => { },
+  reloadDepartmentNames: async () => { },
+  reloadOperationHours: async () => { },
+  reloadPaUsers: async () => { },
+  reloadBookingTypes: async () => { },
+  reloadSafetyTrainedUsers: async () => { },
+  reloadPolicySettings: async () => { },
+  setUserEmail: (x: string) => { },
+  fetchAllBookings: async () => { },
+  updateBookingInList: () => { },
+  setFilters: (x: Filters) => { },
+  setLoadMoreEnabled: (x: boolean) => { },
+  setLastItem: (x: any) => { },
   preBanLogs: [],
-  reloadPreBanLogs: async () => {},
-  reloadSuperAdminUsers: async () => {},
+  reloadPreBanLogs: async () => { },
+  reloadSuperAdminUsers: async () => { },
 });
 
 export const DatabaseProvider = ({
@@ -349,6 +354,19 @@ export const DatabaseProvider = ({
     } finally {
       setBookingsLoading(false);
     }
+  };
+
+  const updateBookingInList = (
+    calendarEventId: string,
+    updatedFields: Partial<Booking>
+  ): void => {
+    setAllBookings((prev) =>
+      prev.map((b) =>
+        b.calendarEventId === calendarEventId
+          ? { ...b, ...updatedFields }
+          : b
+      )
+    );
   };
 
   const fetchAdminUsers = async () => {
@@ -678,12 +696,12 @@ export const DatabaseProvider = ({
           filtered.length > 0
             ? filtered
             : [
-                {
-                  id: "default-other",
-                  bookingType: "Other",
-                  createdAt: new Date().toISOString(),
-                },
-              ];
+              {
+                id: "default-other",
+                bookingType: "Other",
+                createdAt: new Date().toISOString(),
+              },
+            ];
 
         setSettings((prev) => ({
           ...prev,
@@ -822,7 +840,8 @@ export const DatabaseProvider = ({
         reloadPolicySettings: fetchPolicySettings,
         setUserEmail,
         fetchAllBookings: fetchBookings,
-        setFilters,
+        updateBookingInList,
+        setFilters: setFilters,
         setLoadMoreEnabled,
         setLastItem,
         preBanLogs,
