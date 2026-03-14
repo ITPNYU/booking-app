@@ -125,10 +125,52 @@ export async function POST(request: NextRequest) {
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const calendarId = searchParams.get("calendarId");
+  const calendarIds = searchParams.get("calendarIds");
 
   // Get tenant from x-tenant header, fallback to 'mc' as default
   const tenant = req.headers.get("x-tenant") || DEFAULT_TENANT;
 
+  // Batch mode: fetch multiple calendars in one request
+  if (calendarIds) {
+    const ids = calendarIds.split(",").filter(Boolean);
+    if (ids.length === 0) {
+      return NextResponse.json({ error: "Invalid calendarIds" }, { status: 400 });
+    }
+
+    try {
+      const results = await Promise.all(
+        ids.map(async (id) => {
+          try {
+            const events = await getCalendarEvents(id, tenant);
+            return { calendarId: id, events };
+          } catch (error) {
+            console.error(`Error fetching calendar events for ${id}:`, error);
+            return { calendarId: id, events: [] };
+          }
+        }),
+      );
+
+      const grouped: Record<string, any[]> = {};
+      for (const { calendarId, events } of results) {
+        grouped[calendarId] = events;
+      }
+
+      const res = NextResponse.json(grouped);
+      res.headers.set(
+        "Cache-Control",
+        "public, max-age=60, stale-while-revalidate=120",
+      );
+      return res;
+    } catch (error) {
+      console.error("Error fetching batch calendar events:", error);
+      return NextResponse.json(
+        { error: "Failed to fetch calendar events" },
+        { status: 500 },
+      );
+    }
+  }
+
+  // Single calendar mode (backwards compatible)
   if (!calendarId) {
     return NextResponse.json({ error: "Invalid calendarId" }, { status: 400 });
   }
