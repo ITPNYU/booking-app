@@ -475,6 +475,9 @@ export default function CalendarVerticalResource({
         aspectRatio={isMobile ? 0.5 : 1.5}
         expandRows={true}
         stickyHeaderDates={true}
+        longPressDelay={isMobile ? 0 : 1000}
+        selectLongPressDelay={isMobile ? 0 : 1000}
+        eventLongPressDelay={isMobile ? 0 : 1000}
         ref={ref}
       />
     </FullCalendarWrapper>
