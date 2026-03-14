@@ -158,7 +158,7 @@ export async function GET(req: NextRequest) {
       const res = NextResponse.json(grouped);
       res.headers.set(
         "Cache-Control",
-        "public, max-age=60, stale-while-revalidate=120",
+        "private, max-age=60, stale-while-revalidate=120",
       );
       return res;
     } catch (error) {
@@ -181,7 +181,7 @@ export async function GET(req: NextRequest) {
     const res = NextResponse.json(events);
     res.headers.set(
       "Cache-Control",
-      "public, max-age=60, stale-while-revalidate=120",
+      "private, max-age=60, stale-while-revalidate=120",
     );
     return res;
   } catch (error) {

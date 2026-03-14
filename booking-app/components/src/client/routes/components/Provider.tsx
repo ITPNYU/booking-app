@@ -674,52 +674,6 @@ export const DatabaseProvider = ({
       .catch((error) => console.error("Error fetching data:", error));
   };
 
-  const fetchRoomSettings = async () => {
-    if (!tenant) {
-      console.warn("fetchRoomSettings called but tenant is not available yet");
-      return;
-    }
-
-    try {
-      console.log(`fetchRoomSettings called with tenant: "${tenant}"`);
-      // Get tenant schema from the API
-      const url = `/api/tenantSchema/${tenant}`;
-      console.log(`Fetching from URL: ${url}`);
-      const response = await fetch(url);
-      if (!response.ok) {
-        console.error(
-          `Failed to fetch tenant schema. Status: ${response.status}, URL: ${url}`,
-        );
-        throw new Error("Failed to fetch tenant schema");
-      }
-      const schema = await response.json();
-
-      // Convert schema resources to RoomSetting format
-      const filtered = schema.resources.map((resource: any) => ({
-        ...resource,
-        id: resource.roomId.toString(), // Use roomId as id
-        roomId: resource.roomId,
-        name: resource.name,
-        capacity: resource.capacity.toString(),
-        calendarId: resource.calendarId,
-        needsSafetyTraining: resource.needsSafetyTraining || false,
-        trainingFormUrl: resource.trainingFormUrl,
-        autoApproval: resource.autoApproval,
-        isWalkIn: resource.isWalkIn || false,
-        isWalkInCanBookTwo: resource.isWalkInCanBookTwo || false,
-        isEquipment: resource.isEquipment || false,
-        services: resource.services || [],
-        staffingServices: resource.staffingServices,
-        staffingSections: resource.staffingSections,
-      }));
-
-      filtered.sort((a, b) => a.roomId - b.roomId);
-      setRoomSettings(filtered);
-    } catch (error) {
-      console.error("Error fetching room settings from schema:", error);
-    }
-  };
-
   const fetchBookingTypes = async () => {
     clientFetchAllDataFromCollection(TableNames.BOOKING_TYPES, [], tenant)
       .then((fetchedData) => {
