@@ -227,9 +227,6 @@ export const DatabaseProvider = ({
     JSON.stringify(superAdminUsers),
   ]);
 
-  useEffect(() => {
-    console.log(allBookings.length);
-  }, [allBookings]);
 
   useEffect(() => {
     if (!bookingsLoading && tenant) {
@@ -476,11 +473,6 @@ export const DatabaseProvider = ({
             completedAt: item.completedAt || new Date().toISOString(), // Use current time if completedAt is missing
           }),
         );
-        console.log(
-          "FETCHED SAFETY TRAINED EMAILS FROM DB:",
-          firestoreUsers.length,
-        );
-
         // Map to merge users from all sources
         const userMap = new Map<string, SafetyTraining>();
 
@@ -506,17 +498,6 @@ export const DatabaseProvider = ({
                 });
 
                 if (!response.ok) {
-                  const errorData = await response.json();
-                  console.log(
-                    `Safety training form API error for room ${room.roomId}:`,
-                    {
-                      status: response.status,
-                      statusText: response.statusText,
-                      error: errorData.error,
-                      details: errorData.details,
-                      code: errorData.code,
-                    },
-                  );
                   return []; // Return empty array on error for this room
                 }
 
@@ -546,11 +527,6 @@ export const DatabaseProvider = ({
               }
             });
 
-            console.log(
-              "FETCHED SAFETY TRAINED EMAILS FROM FORMS:",
-              allFormEmails.flat().length,
-              `(from ${roomsWithFormUrl.length} room(s))`,
-            );
           }
         } else {
           // No rooms provided, fetch all (no resource filter)
@@ -573,10 +549,6 @@ export const DatabaseProvider = ({
                 }
               });
 
-              console.log(
-                "FETCHED SAFETY TRAINED EMAILS FROM FORM:",
-                formData.emails?.length || 0,
-              );
             }
           } catch (error: any) {
             console.error(
