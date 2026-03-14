@@ -147,7 +147,7 @@ export async function GET(req: NextRequest) {
             const events = await getCalendarEvents(id, tenant);
             return { calendarId: id, events };
           } catch (error) {
-            console.error(`Error fetching calendar events for ${id}:`, error);
+            console.error("Error fetching calendar events for calendarId:", id, error);
             return { calendarId: id, events: [] };
           }
         }),
