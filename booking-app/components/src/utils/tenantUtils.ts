@@ -5,8 +5,14 @@
 import { TENANTS } from "../constants/tenants";
 
 /**
- * Keywords matched case-insensitively against department name fields to identify
- * ITP / IMA / Low Res affiliated users.
+ * NYU API dept_code values that identify ITP / IMA / Low Res affiliated users.
+ */
+export const ITP_DEPT_CODES = ["GTITPG", "UTIMNY", "TIIMA"];
+
+/**
+ * Keywords matched case-insensitively against department name fields.
+ * Used internally for matching approver records stored in Firestore (which use
+ * human-readable labels, not dept_codes). Not used for NYU API entitlement checks.
  */
 export const ITP_DEPT_NAME_KEYWORDS = [
   "interactive telecommunications", // ITP

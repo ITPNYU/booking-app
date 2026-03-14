@@ -111,7 +111,7 @@ describe("GET /api/nyu/entitlements/[netId]", () => {
     it("proceeds normally when the token matches the requested netId", async () => {
       mockVerifyIdToken.mockResolvedValue({ email: "hz1234@nyu.edu" } as any);
       mockFetch.mockResolvedValue(
-        makeNYUApiResponse({ reporting_dept_name: "Interactive Media Arts UG Program" }),
+        makeNYUApiResponse({ dept_code: "UTIMNY" }),
       );
 
       const response = await GET(
@@ -175,13 +175,23 @@ describe("GET /api/nyu/entitlements/[netId]", () => {
     });
   });
 
-  describe("ITP affiliation detection via reporting_dept_name", () => {
-    it("grants itp for an IMA user (e.g. 'Interactive Media Arts UG Program')", async () => {
+  describe("ITP affiliation detection via dept_code", () => {
+    it("grants itp for an ITP user (dept_code: GTITPG)", async () => {
       mockFetch.mockResolvedValue(
-        makeNYUApiResponse({
-          reporting_dept_name: "Interactive Media Arts UG Program",
-          reporting_dept_code: "I_MEDIA_ARTS_UGP",
-        }),
+        makeNYUApiResponse({ dept_code: "GTITPG" }),
+      );
+
+      const result = await parseJson(
+        await GET(createRequest(), { params: createParams("ab1234") }),
+      );
+
+      expect(result.data.entitledTenants).toContain("mc");
+      expect(result.data.entitledTenants).toContain("itp");
+    });
+
+    it("grants itp for an IMA user (dept_code: UTIMNY)", async () => {
+      mockFetch.mockResolvedValue(
+        makeNYUApiResponse({ dept_code: "UTIMNY" }),
       );
 
       const result = await parseJson(
@@ -192,71 +202,41 @@ describe("GET /api/nyu/entitlements/[netId]", () => {
       expect(result.data.entitledTenants).toContain("itp");
     });
 
-    it("grants itp for an ITP user (e.g. 'Interactive Telecommunications Program')", async () => {
+    it("grants itp for a Low Res user (dept_code: TIIMA)", async () => {
       mockFetch.mockResolvedValue(
-        makeNYUApiResponse({
-          reporting_dept_name: "Interactive Telecommunications Program",
-        }),
-      );
-
-      const result = await parseJson(
-        await GET(createRequest(), { params: createParams("ab1234") }),
-      );
-
-      expect(result.data.entitledTenants).toContain("itp");
-    });
-
-    it("grants itp for a Low Res user ('Low Res MFA Program')", async () => {
-      mockFetch.mockResolvedValue(
-        makeNYUApiResponse({ reporting_dept_name: "Low Res MFA Program" }),
+        makeNYUApiResponse({ dept_code: "TIIMA" }),
       );
 
       const result = await parseJson(
         await GET(createRequest(), { params: createParams("cd5678") }),
       );
 
+      expect(result.data.entitledTenants).toContain("mc");
       expect(result.data.entitledTenants).toContain("itp");
     });
 
-    it("grants itp when dept name contains 'low-res' (hyphenated)", async () => {
+    it("returns only mc when dept_code is absent", async () => {
       mockFetch.mockResolvedValue(
-        makeNYUApiResponse({ reporting_dept_name: "Low-Res Graduate Program" }),
+        makeNYUApiResponse({ dept_code: null }),
       );
 
       const result = await parseJson(
-        await GET(createRequest(), { params: createParams("ef9012") }),
+        await GET(createRequest(), { params: createParams("mn5678") }),
       );
 
-      expect(result.data.entitledTenants).toContain("itp");
+      expect(result.data.entitledTenants).toEqual(["mc"]);
     });
 
-    it("is case-insensitive when matching dept name keywords", async () => {
+    it("returns only mc when dept_code does not match a known ITP code", async () => {
       mockFetch.mockResolvedValue(
-        makeNYUApiResponse({
-          reporting_dept_name: "INTERACTIVE MEDIA ARTS GRADUATE PROGRAM",
-        }),
+        makeNYUApiResponse({ dept_code: "STERN_FINANCE" }),
       );
 
       const result = await parseJson(
-        await GET(createRequest(), { params: createParams("gh3456") }),
+        await GET(createRequest(), { params: createParams("kl1234") }),
       );
 
-      expect(result.data.entitledTenants).toContain("itp");
-    });
-
-    it("falls back to dept_name when reporting_dept_name is null", async () => {
-      mockFetch.mockResolvedValue(
-        makeNYUApiResponse({
-          reporting_dept_name: null,
-          dept_name: "Interactive Media Arts",
-        }),
-      );
-
-      const result = await parseJson(
-        await GET(createRequest(), { params: createParams("ij7890") }),
-      );
-
-      expect(result.data.entitledTenants).toContain("itp");
+      expect(result.data.entitledTenants).toEqual(["mc"]);
     });
   });
 
@@ -310,9 +290,7 @@ describe("GET /api/nyu/entitlements/[netId]", () => {
   describe("response structure", () => {
     it("always includes mc as the first entitled tenant", async () => {
       mockFetch.mockResolvedValue(
-        makeNYUApiResponse({
-          reporting_dept_name: "Interactive Media Arts UG Program",
-        }),
+        makeNYUApiResponse({ dept_code: "UTIMNY" }),
       );
 
       const result = await parseJson(

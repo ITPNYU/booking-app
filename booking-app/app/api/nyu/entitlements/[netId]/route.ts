@@ -1,6 +1,6 @@
 import { UserApiData } from "@/components/src/types";
 import { TENANTS, TenantValue } from "@/components/src/constants/tenants";
-import { ITP_DEPT_NAME_KEYWORDS } from "@/components/src/utils/tenantUtils";
+import { ITP_DEPT_CODES } from "@/components/src/utils/tenantUtils";
 import { shouldBypassAuth } from "@/lib/utils/testEnvironment";
 import admin from "@/lib/firebase/server/firebaseAdmin";
 import { NextRequest, NextResponse } from "next/server";
@@ -9,12 +9,7 @@ import { NextRequest, NextResponse } from "next/server";
 function getEntitledTenants(userData: UserApiData): TenantValue[] {
   const tenants: TenantValue[] = [TENANTS.MC];
 
-  const deptName = (userData.reporting_dept_name ?? userData.dept_name ?? "").toLowerCase();
-  const isITPAffiliated = ITP_DEPT_NAME_KEYWORDS.some((keyword) =>
-    deptName.includes(keyword),
-  );
-
-  if (isITPAffiliated) {
+  if (userData.dept_code && ITP_DEPT_CODES.includes(userData.dept_code)) {
     tenants.push(TENANTS.ITP);
   }
 
