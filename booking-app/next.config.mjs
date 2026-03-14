@@ -133,15 +133,6 @@ const nextConfig = {
           },
         ],
       },
-      {
-        source: "/api/calendarEvents",
-        headers: [
-          {
-            key: "Cache-Control",
-            value: "public, max-age=60, stale-while-revalidate=120",
-          },
-        ],
-      },
     ];
   },
   async rewrites() {
