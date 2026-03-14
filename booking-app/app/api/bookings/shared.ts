@@ -63,11 +63,22 @@ export const getOtherDisplayFields = (data: {
 });
 
 export const extractTenantFromRequest = (request: NextRequest): string => {
+  // First try URL path (e.g., /itp/api/bookings)
   const url = new URL(request.url);
   const pathParts = url.pathname.split("/");
   const tenantIndex = pathParts.findIndex(part => part === "api");
-  const tenant = pathParts[tenantIndex - 1];
-  return tenant && tenant !== "api" ? tenant : DEFAULT_TENANT;
+  const pathTenant = pathParts[tenantIndex - 1];
+  if (pathTenant && pathTenant !== "api") {
+    return pathTenant;
+  }
+
+  // Fallback to x-tenant header (e.g., POST /api/bookings with x-tenant: itp)
+  const headerTenant = request.headers.get("x-tenant");
+  if (headerTenant) {
+    return headerTenant;
+  }
+
+  return DEFAULT_TENANT;
 };
 
 export const getTenantFlags = (tenant: string) => ({

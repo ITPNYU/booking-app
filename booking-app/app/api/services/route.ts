@@ -275,18 +275,43 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        // CLOSED state logging is now handled by XState action calling /api/close-processing
-        // This avoids duplicate CLOSED logs in the history
+        // Close processing is handled by callers, not XState machine actions
         if (transitionedToClosed) {
-          console.log(
-            `🎯 TRANSITIONED TO CLOSED STATE [${tenant?.toUpperCase()}]:`,
-            {
-              calendarEventId,
-              serviceType,
-              action,
-              note: "CLOSED logging handled by XState close processing action with proper ordering",
-            },
-          );
+          try {
+            const closeResponse = await fetch(
+              `${process.env.NEXT_PUBLIC_BASE_URL}/api/close-processing`,
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "x-tenant": tenant || DEFAULT_TENANT,
+                },
+                body: JSON.stringify({
+                  calendarEventId,
+                  email,
+                  tenant,
+                }),
+              },
+            );
+
+            if (closeResponse.ok) {
+              console.log(
+                `✅ CLOSE-PROCESSING API SUCCESS [${tenant?.toUpperCase()}]:`,
+                { calendarEventId },
+              );
+            } else {
+              const errorData = await closeResponse.json();
+              console.error(
+                `🚨 CLOSE-PROCESSING API FAILED [${tenant?.toUpperCase()}]:`,
+                { calendarEventId, error: errorData },
+              );
+            }
+          } catch (closeError: any) {
+            console.error(
+              `🚨 CLOSE-PROCESSING API ERROR [${tenant?.toUpperCase()}]:`,
+              { calendarEventId, error: closeError.message },
+            );
+          }
         }
       }
     } else {

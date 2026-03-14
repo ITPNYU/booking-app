@@ -497,6 +497,7 @@ const firstApprove = async (id: string, email: string, tenant?: string) => {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      "x-tenant": tenant || DEFAULT_TENANT,
     },
     body: JSON.stringify(formData),
   });
@@ -580,6 +581,7 @@ export const serverSendBookingDetailEmail = async ({
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      "x-tenant": tenant || DEFAULT_TENANT,
     },
     body: JSON.stringify(formData),
   });
@@ -646,7 +648,7 @@ export const serverApproveEvent = async (id: string, tenant?: string) => {
   // for Samantha
   serverSendBookingDetailEmail({
     calendarEventId: id,
-    targetEmail: getApprovalCcEmail(process.env.NEXT_PUBLIC_BRANCH_NAME),
+    targetEmail: getApprovalCcEmail(process.env.NEXT_PUBLIC_BRANCH_NAME, tenant),
     headerMessage: otherHeaderMessage,
     status: BookingStatusLabel.APPROVED,
     replyTo: guestEmail,
@@ -748,6 +750,7 @@ export const serverApproveEvent = async (id: string, tenant?: string) => {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        "x-tenant": tenant || DEFAULT_TENANT,
       },
       body: JSON.stringify(formData),
     },

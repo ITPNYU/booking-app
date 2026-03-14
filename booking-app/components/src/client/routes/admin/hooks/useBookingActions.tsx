@@ -14,6 +14,7 @@ import {
   getMediaCommonsServices,
   isMediaCommons,
 } from "@/components/src/utils/tenantUtils";
+import { getTenantPolicy } from "@/components/src/tenantPolicy";
 import {
   createXStateChecker,
   getXStateContext,
@@ -32,6 +33,7 @@ export enum Actions {
   NO_SHOW = "No Show",
   CHECK_IN = "Check In",
   CHECK_OUT = "Check Out",
+  APPROVE = "Approve",
   FIRST_APPROVE = "1st Approve",
   FINAL_APPROVE = "2nd Approve",
   EQUIPMENT_APPROVE = "Equipment Approve",
@@ -246,6 +248,16 @@ export default function useBookingActions({
       },
       optimisticNextStatus: BookingStatusLabel.CHECKED_OUT,
     },
+    [Actions.APPROVE]: {
+      action: async () => {
+        await clientApproveBooking(
+          calendarEventId,
+          userEmail,
+          tenant as string,
+        );
+      },
+      optimisticNextStatus: BookingStatusLabel.APPROVED,
+    },
     [Actions.FIRST_APPROVE]: {
       action: async () => {
         await clientApproveBooking(
@@ -368,13 +380,19 @@ export default function useBookingActions({
         }
         break;
 
-      case PageContextLevel.LIAISON:
+      case PageContextLevel.LIAISON: {
         // Liaison actions
         options.push(Actions.DECLINE);
         if (status === BookingStatusLabel.REQUESTED) {
-          options.push(Actions.FIRST_APPROVE);
+          const policy = getTenantPolicy(tenant as string);
+          options.push(
+            policy.approvalLevels === 1
+              ? Actions.APPROVE
+              : Actions.FIRST_APPROVE,
+          );
         }
         break;
+      }
 
       case PageContextLevel.SERVICES:
         // Services actions
@@ -475,7 +493,12 @@ export default function useBookingActions({
 
         // Basic approval actions
         if (status === BookingStatusLabel.REQUESTED) {
-          options.push(Actions.FIRST_APPROVE);
+          const policy = getTenantPolicy(tenant as string);
+          options.push(
+            policy.approvalLevels === 1
+              ? Actions.APPROVE
+              : Actions.FIRST_APPROVE,
+          );
         } else if (status === BookingStatusLabel.PRE_APPROVED) {
           const isInServiceRequest =
             (typeof currentXState === "object" &&

@@ -399,7 +399,7 @@ describe("XState Approval Real Integration Tests", () => {
         "http://localhost:3000/api/sendEmail",
         expect.objectContaining({
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: expect.objectContaining({ "Content-Type": "application/json" }),
           body: expect.stringContaining(testEmail),
         })
       );
@@ -422,7 +422,7 @@ describe("XState Approval Real Integration Tests", () => {
         "http://localhost:3000/api/inviteUser",
         expect.objectContaining({
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: expect.objectContaining({ "Content-Type": "application/json" }),
           body: expect.stringContaining(testEmail),
         })
       );

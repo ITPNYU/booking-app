@@ -236,6 +236,270 @@ describe("server/db", () => {
     expect(payload.status).toBe("APPROVED");
   });
 
+  describe("cancel", () => {
+    const makeResponse = (data: any, ok = true) =>
+      ({
+        ok,
+        json: async () => data,
+        text: async () => JSON.stringify(data),
+      }) as Response;
+
+    it("calls /api/cancel-processing after successful XState transition (MC tenant)", async () => {
+      const fetchCalls: Array<{ href: string; options?: RequestInit }> = [];
+      mockFetch.mockImplementation((url: any, options: any) => {
+        const href = typeof url === "string" ? url : url.toString();
+        fetchCalls.push({ href, options });
+
+        if (href.includes("/api/xstate-transition")) {
+          return makeResponse({ newState: "Canceled" });
+        }
+        return makeResponse({});
+      });
+
+      const { cancel } = await import("@/components/src/server/db");
+      await cancel("cal-1", "user@nyu.edu", "net123", "media_commons");
+
+      const cancelProcessingCall = fetchCalls.find((c) =>
+        c.href.includes("/api/cancel-processing"),
+      );
+      expect(cancelProcessingCall).toBeDefined();
+      const payload = JSON.parse(String(cancelProcessingCall?.options?.body));
+      expect(payload).toMatchObject({
+        calendarEventId: "cal-1",
+        email: "user@nyu.edu",
+        netId: "net123",
+        tenant: "media_commons",
+      });
+    });
+
+    it("calls /api/cancel-processing after successful XState transition (ITP tenant)", async () => {
+      const fetchCalls: Array<{ href: string; options?: RequestInit }> = [];
+      mockFetch.mockImplementation((url: any, options: any) => {
+        const href = typeof url === "string" ? url : url.toString();
+        fetchCalls.push({ href, options });
+
+        if (href.includes("/api/xstate-transition")) {
+          return makeResponse({ newState: "Canceled" });
+        }
+        return makeResponse({});
+      });
+
+      const { cancel } = await import("@/components/src/server/db");
+      await cancel("cal-2", "user@nyu.edu", "net456", "itp");
+
+      const cancelProcessingCall = fetchCalls.find((c) =>
+        c.href.includes("/api/cancel-processing"),
+      );
+      expect(cancelProcessingCall).toBeDefined();
+      const payload = JSON.parse(String(cancelProcessingCall?.options?.body));
+      expect(payload).toMatchObject({
+        calendarEventId: "cal-2",
+        tenant: "itp",
+      });
+    });
+
+    it("does NOT call cancel-processing when XState transition fails (falls back)", async () => {
+      const fetchCalls: Array<{ href: string }> = [];
+      mockFetch.mockImplementation((url: any) => {
+        const href = typeof url === "string" ? url : url.toString();
+        fetchCalls.push({ href });
+
+        if (href.includes("/api/xstate-transition")) {
+          return makeResponse({ error: "boom" }, false);
+        }
+        return makeResponse({});
+      });
+
+      const { cancel } = await import("@/components/src/server/db");
+      await cancel("cal-3", "user@nyu.edu", "net789", "media_commons");
+
+      const cancelProcessingCall = fetchCalls.find((c) =>
+        c.href.includes("/api/cancel-processing"),
+      );
+      expect(cancelProcessingCall).toBeUndefined();
+    });
+  });
+
+  describe("checkin", () => {
+    const makeResponse = (data: any, ok = true) =>
+      ({
+        ok,
+        json: async () => data,
+        text: async () => JSON.stringify(data),
+      }) as Response;
+
+    it("calls /api/checkin-processing after successful XState transition (MC tenant)", async () => {
+      const fetchCalls: Array<{ href: string; options?: RequestInit }> = [];
+      mockFetch.mockImplementation((url: any, options: any) => {
+        const href = typeof url === "string" ? url : url.toString();
+        fetchCalls.push({ href, options });
+
+        if (href.includes("/api/xstate-transition")) {
+          return makeResponse({ newState: "Checked In" });
+        }
+        return makeResponse({});
+      });
+
+      const { checkin } = await import("@/components/src/server/db");
+      await checkin("cal-ci-1", "admin@nyu.edu", "media_commons");
+
+      const checkinProcessingCall = fetchCalls.find((c) =>
+        c.href.includes("/api/checkin-processing"),
+      );
+      expect(checkinProcessingCall).toBeDefined();
+      const payload = JSON.parse(String(checkinProcessingCall?.options?.body));
+      expect(payload).toMatchObject({
+        calendarEventId: "cal-ci-1",
+        email: "admin@nyu.edu",
+        tenant: "media_commons",
+      });
+    });
+
+    it("calls /api/checkin-processing after successful XState transition (ITP tenant)", async () => {
+      const fetchCalls: Array<{ href: string; options?: RequestInit }> = [];
+      mockFetch.mockImplementation((url: any, options: any) => {
+        const href = typeof url === "string" ? url : url.toString();
+        fetchCalls.push({ href, options });
+
+        if (href.includes("/api/xstate-transition")) {
+          return makeResponse({ newState: "Checked In" });
+        }
+        return makeResponse({});
+      });
+
+      const { checkin } = await import("@/components/src/server/db");
+      await checkin("cal-ci-2", "admin@nyu.edu", "itp");
+
+      const checkinProcessingCall = fetchCalls.find((c) =>
+        c.href.includes("/api/checkin-processing"),
+      );
+      expect(checkinProcessingCall).toBeDefined();
+      const payload = JSON.parse(String(checkinProcessingCall?.options?.body));
+      expect(payload).toMatchObject({
+        calendarEventId: "cal-ci-2",
+        tenant: "itp",
+      });
+    });
+
+    it("throws when XState transition fails", async () => {
+      mockFetch.mockImplementation((url: any) => {
+        const href = typeof url === "string" ? url : url.toString();
+        if (href.includes("/api/xstate-transition")) {
+          return makeResponse({ error: "invalid state" }, false);
+        }
+        return makeResponse({});
+      });
+
+      const { checkin } = await import("@/components/src/server/db");
+      await expect(
+        checkin("cal-ci-3", "admin@nyu.edu", "media_commons"),
+      ).rejects.toThrow("XState checkin failed");
+    });
+  });
+
+  describe("checkOut", () => {
+    const makeResponse = (data: any, ok = true) =>
+      ({
+        ok,
+        json: async () => data,
+        text: async () => JSON.stringify(data),
+      }) as Response;
+
+    it("calls /api/checkout-processing after successful XState transition (MC tenant)", async () => {
+      const fetchCalls: Array<{ href: string; options?: RequestInit }> = [];
+      mockFetch.mockImplementation((url: any, options: any) => {
+        const href = typeof url === "string" ? url : url.toString();
+        fetchCalls.push({ href, options });
+
+        if (href.includes("/api/xstate-transition")) {
+          return makeResponse({ newState: "Checked Out" });
+        }
+        return makeResponse({});
+      });
+
+      const { checkOut } = await import("@/components/src/server/db");
+      await checkOut("cal-co-1", "admin@nyu.edu", "media_commons");
+
+      const checkoutProcessingCall = fetchCalls.find((c) =>
+        c.href.includes("/api/checkout-processing"),
+      );
+      expect(checkoutProcessingCall).toBeDefined();
+      const payload = JSON.parse(String(checkoutProcessingCall?.options?.body));
+      expect(payload).toMatchObject({
+        calendarEventId: "cal-co-1",
+        email: "admin@nyu.edu",
+        tenant: "media_commons",
+      });
+    });
+
+    it("calls /api/checkout-processing after successful XState transition (ITP tenant)", async () => {
+      const fetchCalls: Array<{ href: string; options?: RequestInit }> = [];
+      mockFetch.mockImplementation((url: any, options: any) => {
+        const href = typeof url === "string" ? url : url.toString();
+        fetchCalls.push({ href, options });
+
+        if (href.includes("/api/xstate-transition")) {
+          return makeResponse({ newState: "Checked Out" });
+        }
+        return makeResponse({});
+      });
+
+      const { checkOut } = await import("@/components/src/server/db");
+      await checkOut("cal-co-2", "admin@nyu.edu", "itp");
+
+      const checkoutProcessingCall = fetchCalls.find((c) =>
+        c.href.includes("/api/checkout-processing"),
+      );
+      expect(checkoutProcessingCall).toBeDefined();
+    });
+
+    it("calls /api/close-processing when auto-close occurs (newState=Closed)", async () => {
+      const fetchCalls: Array<{ href: string; options?: RequestInit }> = [];
+      mockFetch.mockImplementation((url: any, options: any) => {
+        const href = typeof url === "string" ? url : url.toString();
+        fetchCalls.push({ href, options });
+
+        if (href.includes("/api/xstate-transition")) {
+          return makeResponse({ newState: "Closed" });
+        }
+        return makeResponse({});
+      });
+
+      const { checkOut } = await import("@/components/src/server/db");
+      await checkOut("cal-co-3", "admin@nyu.edu", "itp");
+
+      const checkoutCall = fetchCalls.find((c) =>
+        c.href.includes("/api/checkout-processing"),
+      );
+      expect(checkoutCall).toBeDefined();
+
+      const closeCall = fetchCalls.find((c) =>
+        c.href.includes("/api/close-processing"),
+      );
+      expect(closeCall).toBeDefined();
+      const payload = JSON.parse(String(closeCall?.options?.body));
+      expect(payload).toMatchObject({
+        calendarEventId: "cal-co-3",
+        tenant: "itp",
+      });
+    });
+
+    it("throws when XState transition fails", async () => {
+      mockFetch.mockImplementation((url: any) => {
+        const href = typeof url === "string" ? url : url.toString();
+        if (href.includes("/api/xstate-transition")) {
+          return makeResponse({ error: "invalid state" }, false);
+        }
+        return makeResponse({});
+      });
+
+      const { checkOut } = await import("@/components/src/server/db");
+      await expect(
+        checkOut("cal-co-4", "admin@nyu.edu", "media_commons"),
+      ).rejects.toThrow("XState checkout failed");
+    });
+  });
+
   describe("decline", () => {
     const makeResponse = (data: any, ok = true) =>
       ({

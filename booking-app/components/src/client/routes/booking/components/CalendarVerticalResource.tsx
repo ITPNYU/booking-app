@@ -41,6 +41,7 @@ interface Props {
   dateView: Date;
   startHour?: string;
   slotUnit?: number;
+  maxHours?: number;
 }
 
 const FullCalendarWrapper = styled(Box)({
@@ -122,6 +123,7 @@ export default function CalendarVerticalResource({
   dateView,
   startHour,
   slotUnit,
+  maxHours,
 }: Props) {
   const { operationHours, pagePermission } = useContext(DatabaseContext);
   const { getBlackoutPeriodsForDateAndRooms, isBookingTimeInBlackout } =
@@ -286,7 +288,15 @@ export default function CalendarVerticalResource({
       }
     }
 
-    // Allow selection if not in blackout period
+    // Enforce maxHours limit on calendar selection
+    if (maxHours != null && maxHours !== Number.POSITIVE_INFINITY) {
+      const durationHours = bookingEnd.diff(bookingStart, "hour", true);
+      if (durationHours > maxHours) {
+        return false;
+      }
+    }
+
+    // Allow selection if not in blackout period and within maxHours
     return true;
   };
 

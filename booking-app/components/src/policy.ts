@@ -1,7 +1,7 @@
 import { clientGetFinalApproverEmailFromDatabase } from "@/lib/firebase/firebase";
-import { MEDIA_COMMONS_OPERATION_EMAIL } from "./mediaCommonsPolicy";
 
 import { BookingStatusLabel } from "./types";
+import { getOperationEmail, getCancelCcEmailForTenant } from "./tenantPolicy";
 
 export enum TableNames {
   ADMINS = "usersAdmin",
@@ -109,12 +109,9 @@ export const clientGetFinalApproverEmail = async (): Promise<string> => {
   );
 };
 
-export const getApprovalCcEmail = (branchName: string) =>
-  branchName === "development"
-    ? "booking-app-devs+operation@itp.nyu.edu"
-    : MEDIA_COMMONS_OPERATION_EMAIL;
+// Note: branchName is first for backward compatibility with existing call sites
+export const getApprovalCcEmail = (branchName: string, tenant?: string) =>
+  getOperationEmail(tenant, branchName);
 
-export const getCancelCcEmail = () =>
-  process.env.NEXT_PUBLIC_BRANCH_NAME === "development"
-    ? "booking-app-devs+cancelcc@itp.nyu.edu"
-    : MEDIA_COMMONS_OPERATION_EMAIL;
+export const getCancelCcEmail = (tenant?: string) =>
+  getCancelCcEmailForTenant(tenant, process.env.NEXT_PUBLIC_BRANCH_NAME);

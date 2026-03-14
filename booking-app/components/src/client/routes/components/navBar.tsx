@@ -68,7 +68,15 @@ export default function NavBar() {
     logo = "/mediaCommonsLogo.svg",
     supportVIP = false,
     supportWalkIn = false,
+    supportPA = true,
+    supportLiaison = true,
+    showSetup = true,
+    showEquipment = true,
+    showStaffing = true,
+    showCatering = true,
+    showHireSecurity = true,
   } = tenantSchema || {};
+  const hasServices = showSetup || showEquipment || showStaffing || showCatering || showHireSecurity;
 
   // True app root ("/") — used to hide navbar chrome (no tenant context yet)
   const isAppRoot = pathname === "/";
@@ -166,13 +174,13 @@ export default function NavBar() {
       return null;
     }
 
-    const showPA = hasUserPermission([
+    const showPA = supportPA && hasUserPermission([
       PagePermission.PA,
       PagePermission.ADMIN,
       PagePermission.SUPER_ADMIN,
     ]);
 
-    const showLiaison = hasUserPermission([
+    const showLiaison = supportLiaison && hasUserPermission([
       PagePermission.LIAISON,
       PagePermission.ADMIN,
       PagePermission.SUPER_ADMIN,
@@ -183,7 +191,7 @@ export default function NavBar() {
       PagePermission.SUPER_ADMIN,
     ]);
 
-    const showServices = hasUserPermission([
+    const showServices = hasServices && hasUserPermission([
       PagePermission.SERVICES,
       PagePermission.ADMIN,
       PagePermission.SUPER_ADMIN,
@@ -207,7 +215,7 @@ export default function NavBar() {
         )}
       </Select>
     );
-  }, [pagePermission, selectedView]);
+  }, [pagePermission, selectedView, supportPA, supportLiaison, hasServices]);
 
   const button = useMemo(() => {
     // Do not show the button for super admin or liaison page.

@@ -14,6 +14,7 @@ import useCheckFormMissingData from "../hooks/useCheckFormMissingData";
 import { useTenantSchema } from "../../components/SchemaProvider";
 import { getStartHour } from "../utils/getStartHour";
 import { getSlotUnit } from "../utils/getSlotUnit";
+import { getBookingHourLimits } from "../utils/bookingHourLimits";
 
 interface Props {
   calendarEventId?: string;
@@ -32,7 +33,13 @@ export default function SelectRoomPage({
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
   const isWalkIn = formContext === FormContextLevel.WALK_IN;
+  const isVIP = formContext === FormContextLevel.VIP;
   const schema = useTenantSchema();
+
+  const { maxHours } = useMemo(
+    () => getBookingHourLimits(selectedRooms, role, isWalkIn, isVIP),
+    [selectedRooms, role, isWalkIn, isVIP],
+  );
 
   const roomsToShow = useMemo(() => {
     const { resources } = schema;
@@ -100,6 +107,7 @@ export default function SelectRoomPage({
             {...{ calendarEventId, formContext }}
             startHour={getStartHour(schema.calendarConfig, formContext, role)}
             slotUnit={getSlotUnit(schema.calendarConfig, formContext, role)}
+            maxHours={maxHours}
           />
         </Grid>
       </Grid>
