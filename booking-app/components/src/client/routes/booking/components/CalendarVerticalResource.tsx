@@ -165,8 +165,6 @@ export default function CalendarVerticalResource({
         room.roomId,
       ]);
 
-      console.log(`Room ${room.roomId} blackout periods:`, blackoutPeriods);
-
       blackoutPeriods.forEach((period) => {
         const blackoutRange = getBlackoutTimeRangeForDate(period, selectedDate);
 
@@ -188,13 +186,11 @@ export default function CalendarVerticalResource({
             },
           };
 
-          console.log("Adding blackout block:", blockEvent);
           blocks.push(blockEvent);
         }
       });
     });
 
-    console.log("Total blackout blocks generated:", blocks.length);
     return blocks;
   }, [rooms, dateView, getBlackoutPeriodsForDateAndRooms]);
 
@@ -308,10 +304,6 @@ export default function CalendarVerticalResource({
     return el.overlap;
   };
 
-  useEffect(() => {
-    console.log(fetchingStatus);
-  }, [fetchingStatus]);
-
   // clicking on created event should delete it
   // only if not in MODIFICATION mode
   const handleEventClick = (info: EventClickArg) => {
@@ -339,18 +331,6 @@ export default function CalendarVerticalResource({
 
   // for editing an existing reservation
   const existingCalEventsFiltered = useMemo(() => {
-    console.log("Calendar events received:", existingCalendarEvents.length);
-    console.log(
-      "Sample events:",
-      existingCalendarEvents.slice(0, 3).map((e) => ({
-        id: e.id,
-        title: e.title,
-        start: e.start,
-        end: e.end,
-        resourceId: e.resourceId,
-      })),
-    );
-
     if (
       (formContext !== FormContextLevel.EDIT &&
         formContext !== FormContextLevel.MODIFICATION) ||
