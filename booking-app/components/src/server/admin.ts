@@ -11,6 +11,7 @@ import {
 import { Timestamp } from "firebase-admin/firestore";
 import { applyEnvironmentCalendarIds } from "@/lib/utils/calendarEnvironment";
 import { DEFAULT_TENANT } from "../constants/tenants";
+import { ITP_DEPT_NAME_KEYWORDS, ITP_GROUP_SHORT_NAMES } from "../utils/tenantUtils";
 import { TableNames, getApprovalCcEmail } from "../policy";
 import {
   AdminUser,
@@ -782,33 +783,22 @@ export const approvers = async (): Promise<Approver[]> => {
 };
 
 export const firstApproverEmails = async (department: string) => {
-  console.log("🔍 FIRST APPROVER EMAILS DEBUG:", {
-    department,
-    function: "firstApproverEmails",
-  });
-
   const approversData = await approvers();
-  console.log("📋 APPROVERS DATA:", {
-    department,
-    totalApprovers: approversData.length,
-    approvers: approversData.map((a) => ({
-      email: a.email,
-      department: a.department,
-      level: a.level,
-    })),
-  });
 
-  // Import normalizeDepartment from utils
   const { normalizeDepartment } =
     await import("@/components/src/utils/departmentUtils");
 
   const normalizedUserDepartment = normalizeDepartment(department, {
     toLowerCase: true,
   });
-  console.log("🔧 NORMALIZED USER DEPARTMENT:", {
-    original: department,
-    normalized: normalizedUserDepartment,
-  });
+
+  // Returns true if a normalized department string belongs to the ITP/IMA/Low Res group.
+  // Checks short-form abbreviations (exact match) first to avoid false positives from
+  // substring matching (e.g. "ima" inside "imaging sciences"), then falls back to the
+  // long-form keyword list for full NYU API department names.
+  const isItpGroupMember = (normalizedDept: string) =>
+    ITP_GROUP_SHORT_NAMES.some((name) => normalizedDept === name) ||
+    ITP_DEPT_NAME_KEYWORDS.some((keyword) => normalizedDept.includes(keyword));
 
   const filteredApprovers = approversData.filter((approver) => {
     if (!approver.department) return false;
@@ -818,18 +808,10 @@ export const firstApproverEmails = async (department: string) => {
       { toLowerCase: true },
     );
 
-    // Check if user department contains any of the key department identifiers
-    const itpDeptKeywords = ["itp", "ima", "low res"];
-
-    const userHasKeywords = itpDeptKeywords.some((keyword) =>
-      normalizedUserDepartment.includes(keyword),
-    );
-    const approverHasKeywords = itpDeptKeywords.some((keyword) =>
-      normalizedApproverDepartment.includes(keyword),
-    );
-
     // ITP/IMA/Low Res departments should match with each other
-    const itpGroupMatches = userHasKeywords && approverHasKeywords;
+    const itpGroupMatches =
+      isItpGroupMember(normalizedUserDepartment) &&
+      isItpGroupMember(normalizedApproverDepartment);
 
     // For other departments, check exact match of normalized department names
     const exactMatch =
@@ -837,30 +819,7 @@ export const firstApproverEmails = async (department: string) => {
 
     const matches = itpGroupMatches || exactMatch;
 
-    console.log("🔍 DEPARTMENT COMPARISON:", {
-      userDepartment: department,
-      normalizedUserDepartment,
-      approverDepartment: approver.department,
-      normalizedApproverDepartment,
-      userHasKeywords,
-      approverHasKeywords,
-      itpGroupMatches,
-      exactMatch,
-      matches,
-    });
-
     return matches;
-  });
-
-  console.log("🎯 FILTERED APPROVERS:", {
-    department,
-    normalizedDepartment: normalizedUserDepartment,
-    filteredCount: filteredApprovers.length,
-    filteredApprovers: filteredApprovers.map((a) => ({
-      email: a.email,
-      department: a.department,
-      level: a.level,
-    })),
   });
 
   const result = filteredApprovers.map((approver) => approver.email);
