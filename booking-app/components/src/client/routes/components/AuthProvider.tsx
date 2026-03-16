@@ -21,6 +21,25 @@ const AuthContext = createContext<AuthContextType>({
 
 export const useAuth = () => useContext(AuthContext);
 
+// Cache isTestEnv result at module level — it never changes during a session
+let cachedTestEnvStatus: boolean | null = null;
+
+async function fetchTestEnvStatus(): Promise<boolean> {
+  if (cachedTestEnvStatus !== null) return cachedTestEnvStatus;
+  try {
+    const res = await fetch(`${window.location.origin}/api/isTestEnv`);
+    if (res.ok) {
+      const { isOnTestEnv } = await res.json();
+      cachedTestEnvStatus = isOnTestEnv;
+      return isOnTestEnv;
+    }
+  } catch {
+    // ignore
+  }
+  cachedTestEnvStatus = false;
+  return false;
+}
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
@@ -35,45 +54,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   useEffect(() => {
     const handleAuth = async () => {
-      console.log("handleAuth triggered");
-      let testEnvStatus = false;
-      try {
-        const testEnvRes = await fetch(
-          `${window.location.origin}/api/isTestEnv`,
-        );
-        if (testEnvRes.ok) {
-          const { isOnTestEnv } = await testEnvRes.json();
-          testEnvStatus = isOnTestEnv;
-          setIsOnTestEnv(isOnTestEnv);
-        } else {
-          console.warn("Failed to fetch test env status:", testEnvRes.status);
-          setIsOnTestEnv(false);
-        }
-      } catch (error) {
-        console.warn("Error fetching test env status:", error);
-        setIsOnTestEnv(false);
-      }
+      const testEnvStatus = await fetchTestEnvStatus();
+      setIsOnTestEnv(testEnvStatus);
 
       const user = auth.currentUser;
-      console.log("auth.currentUser:", user);
 
       if (user) {
-        console.log("User object exists:", user.email);
         if (user.email?.endsWith("@nyu.edu") || testEnvStatus) {
-          console.log("Setting user state:", user.email);
           setUser(user);
         } else {
-          console.log("Invalid email, signing out:", user.email);
           await auth.signOut();
           setUser(null);
           setError("Only nyu.edu email addresses are allowed.");
         }
       } else {
-        console.log("No user object found. Checking if sign-in needed.");
-
         // In test environment, create a mock user to bypass authentication
         if (testEnvStatus) {
-          console.log("Test environment detected, creating mock user");
           const mockUser = {
             uid: "test-user-id",
             email: "test@nyu.edu",
@@ -90,7 +86,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         if (!testEnvStatus) {
           try {
             if (!pathname.includes("signin")) {
-              console.log("Attempting signInWithGoogle...");
               await signInWithGoogle();
             }
           } catch (error) {

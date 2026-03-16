@@ -7,7 +7,7 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 3 : 1,
-  workers: process.env.CI ? 1 : undefined,
+  workers: process.env.CI ? 2 : undefined,
   reporter: process.env.CI ? [["list"], ["github"], ["html"]] : [["list"]],
 
   globalSetup: require.resolve("./tests/e2e/global-setup.ts"),
@@ -32,7 +32,7 @@ export default defineConfig({
             ]
           : []),
       ],
-      slowMo: process.env.CI ? 100 : 0,
+      slowMo: 0,
     },
 
     navigationTimeout: 90000,
@@ -68,6 +68,13 @@ export default defineConfig({
         "**/xstate-service-closeout.e2e.test.ts",
         "**/xstate-service-full-flow.e2e.test.ts",
         "**/xstate-service-closeout-full-flow.e2e.test.ts",
+        "**/edit-booking-flow.e2e.test.ts",
+        "**/auto-cancel-declined.e2e.test.ts",
+        "**/auto-checkout.e2e.test.ts",
+        "**/blackout-periods.e2e.test.ts",
+        "**/safety-training.e2e.test.ts",
+        "**/ban-enforcement.e2e.test.ts",
+        "**/form-validation.e2e.test.ts",
       ],
       use: {
         ...devices["Desktop Chrome"],
@@ -84,6 +91,7 @@ export default defineConfig({
       ...process.env,
       E2E_TESTING: "true",
       BYPASS_AUTH: "true",
+      CRON_SECRET: "test-cron-secret-for-e2e",
     },
   },
 });

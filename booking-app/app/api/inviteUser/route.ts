@@ -16,6 +16,7 @@ export async function POST(request: NextRequest) {
       calendarEventId,
       guestEmail,
       parseInt(roomId, 10),
+      tenant,
     );
     return NextResponse.json({ calendarEventId }, { status: 200 });
   } catch (error) {

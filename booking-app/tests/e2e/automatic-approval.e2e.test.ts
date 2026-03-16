@@ -786,6 +786,20 @@ test.describe("Automatic Approval Booking Flow", () => {
         return;
       }
 
+      const url = new URL(route.request().url());
+      const calendarIds = url.searchParams.get("calendarIds");
+      if (calendarIds) {
+        const grouped: Record<string, any[]> = {};
+        for (const id of calendarIds.split(",")) {
+          grouped[id] = [];
+        }
+        await route.fulfill({
+          status: 200,
+          headers: jsonHeaders,
+          body: JSON.stringify(grouped),
+        });
+        return;
+      }
       await route.fulfill({
         status: 200,
         headers: jsonHeaders,

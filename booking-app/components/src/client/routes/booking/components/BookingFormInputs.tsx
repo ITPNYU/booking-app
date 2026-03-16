@@ -125,6 +125,9 @@ export function BookingFormDropdown(props: DropdownInputs) {
 interface TextFieldProps extends Props {
   description?: React.ReactNode;
   pattern?: ValidationRule<RegExp>;
+  // Custom validation function for the field value
+  // Note: For optional fields, this will only be called if the field has a non-empty value
+  // If you need to validate empty values for optional fields, handle that case explicitly
   validate?: any;
   containerSx?: any;
   fieldSx?: any;
@@ -154,10 +157,23 @@ export function BookingFormTextField(props: TextFieldProps) {
       rules={{
         required: required && `${label} is required`,
         validate: (value) => {
-          if (!required) return true;
-          const isNotEmpty = value?.trim().length > 0;
-          const isValid = validate(value);
-          return (isNotEmpty && isValid) || `${label} is required`;
+          // Check for whitespace-only values (applies to both required and optional fields)
+          if (value && typeof value === "string" && value.trim().length === 0) {
+            return `${label} cannot be empty whitespace`;
+          }
+          
+          // If field is not required and truly empty (null/undefined/empty string), allow it
+          if (!required && (!value || value.length === 0)) return true;
+          
+          // For required fields, check if value is valid
+          if (required) {
+            const isNotEmpty = value?.trim().length > 0;
+            const isValid = validate(value);
+            return (isNotEmpty && isValid) || `${label} is required`;
+          }
+          
+          // For optional fields with a value, run custom validation
+          return validate(value);
         },
         pattern,
       }}
@@ -183,6 +199,7 @@ export function BookingFormTextField(props: TextFieldProps) {
 
 interface SwitchProps extends Props {
   description?: React.ReactElement;
+  disabled?: boolean;
 }
 
 export function BookingFormSwitch(props: SwitchProps) {
@@ -193,6 +210,7 @@ export function BookingFormSwitch(props: SwitchProps) {
     required = true,
     control,
     trigger,
+    disabled = false,
   } = props;
 
   const desc =
@@ -221,6 +239,7 @@ export function BookingFormSwitch(props: SwitchProps) {
                   field.onChange(e.target.checked ? "yes" : "no")
                 }
                 onBlur={() => trigger(id)}
+                disabled={disabled}
               />
             }
           />

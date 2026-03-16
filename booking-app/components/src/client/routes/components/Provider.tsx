@@ -49,6 +49,7 @@ export interface DatabaseContextType {
   blackoutPeriods: BlackoutPeriod[];
   allBookings: Booking[];
   bookingsLoading: boolean;
+  permissionsLoading: boolean;
   liaisonUsers: Approver[];
   equipmentUsers: Approver[];
   departmentNames: DepartmentType[];
@@ -93,6 +94,7 @@ export const DatabaseContext = createContext<DatabaseContextType>({
   blackoutPeriods: [],
   allBookings: [],
   bookingsLoading: true,
+  permissionsLoading: true,
   liaisonUsers: [],
   equipmentUsers: [],
   departmentNames: [],
@@ -138,6 +140,7 @@ export const DatabaseProvider = ({
   const [blackoutPeriods, setBlackoutPeriods] = useState<BlackoutPeriod[]>([]);
   // const [futureBookings, setFutureBookings] = useState<Booking[]>([]);
   const [bookingsLoading, setBookingsLoading] = useState<boolean>(true);
+  const [permissionsLoading, setPermissionsLoading] = useState<boolean>(true);
   const [allBookings, setAllBookings] = useState<Booking[]>([]);
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
   const [liaisonUsers, setLiaisonUsers] = useState<Approver[]>([]);
@@ -224,9 +227,6 @@ export const DatabaseProvider = ({
     JSON.stringify(superAdminUsers),
   ]);
 
-  useEffect(() => {
-    console.log(allBookings.length);
-  }, [allBookings]);
 
   useEffect(() => {
     if (!bookingsLoading && tenant) {
@@ -245,19 +245,50 @@ export const DatabaseProvider = ({
   }, [filters]);
 
   useEffect(() => {
-    fetchActiveUserEmail();
-    if (tenant) {
-      fetchAdminUsers();
-      fetchPaUsers();
-      fetchSuperAdminUsers();
-    }
+    const loadPermissions = async () => {
+      if (tenant) {
+        setPermissionsLoading(true);
+        try {
+          // Set user email synchronously so pagePermission is correct
+          // when we mark loading as done.
+          fetchActiveUserEmail();
+          await Promise.all([
+            fetchUsersRights(),
+            fetchSuperAdminUsers(),
+            fetchApproverUsers(),
+          ]);
+        } finally {
+          // Only mark done once we actually have a user email.  If auth hasn't
+          // resolved yet (user === null) keep the loading state so the redirect
+          // logic in NavBar doesn't fire prematurely with pagePermission=BOOKING.
+          if (user) {
+            setPermissionsLoading(false);
+          }
+        }
+      } else {
+        setPermissionsLoading(false);
+      }
+    };
+    loadPermissions();
   }, [user, tenant]);
 
+  // Derive roomSettings from SchemaContext instead of re-fetching from API
   useEffect(() => {
-    if (tenant) {
-      fetchRoomSettings();
+    if (schemaContext?.resources && Array.isArray(schemaContext.resources)) {
+      const rooms: RoomSetting[] = schemaContext.resources
+        .map((resource) => ({
+          ...resource,
+          capacity: String(resource.capacity),
+          needsSafetyTraining: resource.needsSafetyTraining || false,
+          isWalkIn: resource.isWalkIn || false,
+          isWalkInCanBookTwo: resource.isWalkInCanBookTwo || false,
+          isEquipment: resource.isEquipment || false,
+          services: resource.services || [],
+        }))
+        .sort((a, b) => a.roomId - b.roomId);
+      setRoomSettings(rooms);
     }
-  }, [tenant]);
+  }, [schemaContext?.resources]);
 
   const fetchActiveUserEmail = () => {
     if (!user) return;
@@ -328,13 +359,52 @@ export const DatabaseProvider = ({
     }
   };
 
+  // Combined fetch: reads USERS_RIGHTS once and sets both admin and PA users
+  const fetchUsersRights = async () => {
+    try {
+      if (applyE2EMockAdminUsers(setAdminUsers)) {
+        applyE2EMockPaUsers(setPaUsers);
+        return;
+      }
+
+      const fetchedData = await clientFetchAllDataFromCollection(
+        TableNames.USERS_RIGHTS,
+        [],
+        tenant,
+      );
+
+      const admins = fetchedData
+        .filter((item: any) => item.isAdmin === true)
+        .map((item: any) => ({
+          id: item.id,
+          email: item.email,
+          createdAt: item.createdAt,
+        }));
+
+      const pas = fetchedData
+        .filter((item: any) => item.isWorker === true)
+        .map((item: any) => ({
+          id: item.id,
+          email: item.email,
+          createdAt: item.createdAt,
+        }));
+
+      setAdminUsers(admins);
+      setPaUsers(pas);
+    } catch (error) {
+      console.error("Error fetching users rights data:", error);
+      setAdminUsers([]);
+      setPaUsers([]);
+    }
+  };
+
+  // Individual reload functions (used by admin pages)
   const fetchAdminUsers = async () => {
     try {
       if (applyE2EMockAdminUsers(setAdminUsers)) {
         return;
       }
 
-      // Fetch from usersRights and filter by isAdmin flag
       const fetchedData = await clientFetchAllDataFromCollection(
         TableNames.USERS_RIGHTS,
         [],
@@ -352,7 +422,7 @@ export const DatabaseProvider = ({
       setAdminUsers(adminUsers);
     } catch (error) {
       console.error("Error fetching admin users data:", error);
-      setAdminUsers([]); // Set empty array on error
+      setAdminUsers([]);
     }
   };
 
@@ -362,7 +432,6 @@ export const DatabaseProvider = ({
         return;
       }
 
-      // Fetch from usersRights and filter by isWorker flag
       const fetchedData = await clientFetchAllDataFromCollection(
         TableNames.USERS_RIGHTS,
         [],
@@ -380,7 +449,7 @@ export const DatabaseProvider = ({
       setPaUsers(paUsers);
     } catch (error) {
       console.error("Error fetching PA users data:", error);
-      setPaUsers([]); // Set empty array on error
+      setPaUsers([]);
     }
   };
 
@@ -404,11 +473,6 @@ export const DatabaseProvider = ({
             completedAt: item.completedAt || new Date().toISOString(), // Use current time if completedAt is missing
           }),
         );
-        console.log(
-          "FETCHED SAFETY TRAINED EMAILS FROM DB:",
-          firestoreUsers.length,
-        );
-
         // Map to merge users from all sources
         const userMap = new Map<string, SafetyTraining>();
 
@@ -434,17 +498,6 @@ export const DatabaseProvider = ({
                 });
 
                 if (!response.ok) {
-                  const errorData = await response.json();
-                  console.log(
-                    `Safety training form API error for room ${room.roomId}:`,
-                    {
-                      status: response.status,
-                      statusText: response.statusText,
-                      error: errorData.error,
-                      details: errorData.details,
-                      code: errorData.code,
-                    },
-                  );
                   return []; // Return empty array on error for this room
                 }
 
@@ -474,11 +527,6 @@ export const DatabaseProvider = ({
               }
             });
 
-            console.log(
-              "FETCHED SAFETY TRAINED EMAILS FROM FORMS:",
-              allFormEmails.flat().length,
-              `(from ${roomsWithFormUrl.length} room(s))`,
-            );
           }
         } else {
           // No rooms provided, fetch all (no resource filter)
@@ -501,10 +549,6 @@ export const DatabaseProvider = ({
                 }
               });
 
-              console.log(
-                "FETCHED SAFETY TRAINED EMAILS FROM FORM:",
-                formData.emails?.length || 0,
-              );
             }
           } catch (error: any) {
             console.error(
@@ -557,7 +601,7 @@ export const DatabaseProvider = ({
       return;
     }
 
-    clientFetchAllDataFromCollection(TableNames.APPROVERS, [], tenant)
+    return clientFetchAllDataFromCollection(TableNames.APPROVERS, [], tenant)
       .then((fetchedData) => {
         const all = fetchedData.map((item: any) => ({
           id: item.id,
@@ -593,52 +637,6 @@ export const DatabaseProvider = ({
         setDepartmentName(filtered);
       })
       .catch((error) => console.error("Error fetching data:", error));
-  };
-
-  const fetchRoomSettings = async () => {
-    if (!tenant) {
-      console.warn("fetchRoomSettings called but tenant is not available yet");
-      return;
-    }
-
-    try {
-      console.log(`fetchRoomSettings called with tenant: "${tenant}"`);
-      // Get tenant schema from the API
-      const url = `/api/tenantSchema/${tenant}`;
-      console.log(`Fetching from URL: ${url}`);
-      const response = await fetch(url);
-      if (!response.ok) {
-        console.error(
-          `Failed to fetch tenant schema. Status: ${response.status}, URL: ${url}`,
-        );
-        throw new Error("Failed to fetch tenant schema");
-      }
-      const schema = await response.json();
-
-      // Convert schema resources to RoomSetting format
-      const filtered = schema.resources.map((resource: any) => ({
-        ...resource,
-        id: resource.roomId.toString(), // Use roomId as id
-        roomId: resource.roomId,
-        name: resource.name,
-        capacity: resource.capacity.toString(),
-        calendarId: resource.calendarId,
-        needsSafetyTraining: resource.needsSafetyTraining || false,
-        trainingFormUrl: resource.trainingFormUrl,
-        autoApproval: resource.autoApproval,
-        isWalkIn: resource.isWalkIn || false,
-        isWalkInCanBookTwo: resource.isWalkInCanBookTwo || false,
-        isEquipment: resource.isEquipment || false,
-        services: resource.services || [],
-        staffingServices: resource.staffingServices,
-        staffingSections: resource.staffingSections,
-      }));
-
-      filtered.sort((a, b) => a.roomId - b.roomId);
-      setRoomSettings(filtered);
-    } catch (error) {
-      console.error("Error fetching room settings from schema:", error);
-    }
   };
 
   const fetchBookingTypes = async () => {
@@ -783,6 +781,7 @@ export const DatabaseProvider = ({
         userEmail,
         netId,
         bookingsLoading,
+        permissionsLoading,
         userApiData,
         loadMoreEnabled,
         reloadAdminUsers: fetchAdminUsers,

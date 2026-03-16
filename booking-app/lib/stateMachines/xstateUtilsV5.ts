@@ -1,5 +1,5 @@
 import type { SchemaContextType } from "@/components/src/client/routes/components/SchemaProvider";
-import { TENANTS } from "@/components/src/constants/tenants";
+import { DEFAULT_TENANT, TENANTS } from "@/components/src/constants/tenants";
 import { TableNames } from "@/components/src/policy";
 import { serverUpdateDataByCalendarEventId } from "@/components/src/server/admin";
 import { getTenantEmailConfig } from "@/components/src/server/emails";
@@ -279,7 +279,7 @@ async function handleStateTransitions(
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
-            "x-tenant": tenant || "mc",
+            "x-tenant": tenant || DEFAULT_TENANT,
           },
           body: JSON.stringify({
             calendarEventId,
@@ -364,22 +364,29 @@ async function handleStateTransitions(
       },
     );
   } else if (newState === "Closed" && previousState !== "Closed") {
-    // Close processing is now handled by XState machine actions
-    // Skip processing here to avoid duplication
     console.log(
       `🎯 XSTATE REACHED CLOSED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
       {
         calendarEventId,
         previousState,
         newState,
-        note: "Close processing handled by XState action",
       },
     );
 
-    // Close processing is now handled by XState machine action calling /api/close-processing
-    // All close-related operations (logging, email, calendar update) are handled by the API
+    // ITP: checkout auto-closes via always transition (Checked In → Checked Out → Closed)
+    // When previousState is "Checked In", checkout-processing is called from db.ts checkOut()
+    // after this API returns (to avoid self-referencing fetch deadlock)
+    if (previousState === "Checked In") {
+      console.log(
+        `📤 XSTATE CHECKOUT VIA AUTO-CLOSE [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+        { calendarEventId, previousState, newState, note: "checkout-processing will be called by client" },
+      );
+    }
+
+    // Close processing for other cases is handled by XState machine action calling /api/close-processing
   } else if (newState === "Checked In" && previousState !== "Checked In") {
-    // Check-in state handling
+    // Check-in state handling - persist XState snapshot only
+    // All other processing (Firestore timestamps, email, calendar, history) is handled by /api/checkin-processing
     firestoreUpdates.checkedInAt = admin.firestore.Timestamp.now();
     if (email) {
       firestoreUpdates.checkedInBy = email;
@@ -391,30 +398,21 @@ async function handleStateTransitions(
         calendarEventId,
         previousState,
         newState,
-        checkedInAt: firestoreUpdates.checkedInAt,
-        checkedInBy: firestoreUpdates.checkedInBy,
+        note: "checkin-processing will be called by client",
       },
     );
 
-    // Note: History logging is now handled by traditional functions only
-    // XState only manages state transitions, not history logging
-
-    // Email sending is handled after history logging in db.ts (checkin)
-
-    // Persist latest XState snapshot and checked-in timestamps BEFORE calendar update
+    // Persist XState snapshot so statusFromXState works correctly
     try {
       const { serverUpdateDataByCalendarEventId } =
         await import("@/components/src/server/admin");
       const { TableNames } = await import("@/components/src/policy");
 
-      // Get persisted snapshot from the new state to avoid circular references
       const persistedSnapshot = actor.getPersistedSnapshot();
-
-      // Clean snapshot by removing undefined values for Firestore compatibility
       const cleanedSnapshot = cleanObjectForFirestore(persistedSnapshot);
 
       const xstateDataToPersist = {
-        snapshot: cleanedSnapshot, // persist cleaned snapshot for statusFromXState
+        snapshot: cleanedSnapshot,
         machineId: newSnapshot?.machine?.id || currentSnapshot?.machine?.id,
         lastTransition: new Date().toISOString(),
       };
@@ -424,65 +422,18 @@ async function handleStateTransitions(
         calendarEventId,
         {
           xstateData: xstateDataToPersist,
-          checkedInAt: firestoreUpdates.checkedInAt,
-          checkedInBy: firestoreUpdates.checkedInBy,
         },
         tenant,
       );
 
       console.log(
-        `💾 XSTATE CHECK-IN: STATE PERSISTED BEFORE CAL UPDATE [${
-          tenant?.toUpperCase() || "UNKNOWN"
-        }]:`,
-        {
-          calendarEventId,
-          savedState: "Checked In",
-        },
+        `💾 XSTATE CHECK-IN: SNAPSHOT PERSISTED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+        { calendarEventId, savedState: "Checked In" },
       );
     } catch (error) {
       console.error(
-        `🚨 XSTATE CHECK-IN: FAILED TO PERSIST BEFORE CAL UPDATE [${
-          tenant?.toUpperCase() || "UNKNOWN"
-        }]:`,
+        `🚨 XSTATE CHECK-IN: FAILED TO PERSIST SNAPSHOT [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
         { calendarEventId, error: error?.message },
-      );
-    }
-
-    // Update calendar event with CHECKED_IN status
-    // Status will be read from XState data in bookingContentsToDescription
-    try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_BASE_URL}/api/calendarEvents`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            "x-tenant": tenant || "mc",
-          },
-          body: JSON.stringify({
-            calendarEventId,
-            newValues: { statusPrefix: BookingStatusLabel.CHECKED_IN },
-          }),
-        },
-      );
-
-      if (response.ok) {
-        console.log(
-          `📅 XSTATE CHECK-IN CALENDAR UPDATED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-          {
-            calendarEventId,
-            statusPrefix: BookingStatusLabel.CHECKED_IN,
-            note: "Status will be read from XState data",
-          },
-        );
-      }
-    } catch (error) {
-      console.error(
-        `🚨 XSTATE CHECK-IN CALENDAR UPDATE ERROR [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-        {
-          calendarEventId,
-          error: error.message,
-        },
       );
     }
   } else if (newState === "Pre-approved" && previousState !== "Pre-approved") {
@@ -554,7 +505,7 @@ async function handleStateTransitions(
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
-            "x-tenant": tenant || "mc",
+            "x-tenant": tenant || DEFAULT_TENANT,
           },
           body: JSON.stringify({
             calendarEventId,
@@ -727,7 +678,7 @@ async function handleStateTransitions(
                 method: "PUT",
                 headers: {
                   "Content-Type": "application/json",
-                  "x-tenant": tenant || "mc",
+                  "x-tenant": tenant || DEFAULT_TENANT,
                 },
                 body: JSON.stringify({
                   calendarEventId,
@@ -1211,38 +1162,35 @@ export async function restoreXStateFromFirestore(
       );
     }
 
-    // Update snapshot context with current booking data services
+    // Update snapshot context with current booking data
     const updatedSnapshot = { ...xstateData.snapshot };
-    if (isMediaCommons(tenant) && updatedSnapshot.context) {
-      const currentServicesRequested = getMediaCommonsServices(bookingData);
-      const currentServicesApproved = {
-        staff: (bookingData as any).staffServiceApproved,
-        equipment: (bookingData as any).equipmentServiceApproved,
-        catering: (bookingData as any).cateringServiceApproved,
-        cleaning: (bookingData as any).cleaningServiceApproved,
-        security: (bookingData as any).securityServiceApproved,
-        setup: (bookingData as any).setupServiceApproved,
-      };
-
-      console.log(
-        `🔄 UPDATING XSTATE CONTEXT WITH CURRENT SERVICES [${tenant?.toUpperCase()}]:`,
-        {
-          calendarEventId,
-          oldServicesRequested: updatedSnapshot.context.servicesRequested,
-          newServicesRequested: currentServicesRequested,
-          oldServicesApproved: updatedSnapshot.context.servicesApproved,
-          newServicesApproved: currentServicesApproved,
-        },
-      );
-
+    if (updatedSnapshot.context) {
+      // Always update core context fields for all tenants
       updatedSnapshot.context = {
         ...updatedSnapshot.context,
-        servicesRequested: currentServicesRequested,
-        servicesApproved: currentServicesApproved,
         tenant,
         calendarEventId,
         email: (bookingData as any).email,
       };
+
+      // Update MC-specific services data
+      if (isMediaCommons(tenant)) {
+        const currentServicesRequested = getMediaCommonsServices(bookingData);
+        const currentServicesApproved = {
+          staff: (bookingData as any).staffServiceApproved,
+          equipment: (bookingData as any).equipmentServiceApproved,
+          catering: (bookingData as any).cateringServiceApproved,
+          cleaning: (bookingData as any).cleaningServiceApproved,
+          security: (bookingData as any).securityServiceApproved,
+          setup: (bookingData as any).setupServiceApproved,
+        };
+
+        updatedSnapshot.context = {
+          ...updatedSnapshot.context,
+          servicesRequested: currentServicesRequested,
+          servicesApproved: currentServicesApproved,
+        };
+      }
     }
 
     // Create actor with updated snapshot with error handling
@@ -1640,7 +1588,7 @@ export async function executeXStateTransition(
         // Send CC to admin
         await serverSendBookingDetailEmail({
           calendarEventId,
-          targetEmail: getApprovalCcEmail(process.env.NEXT_PUBLIC_BRANCH_NAME),
+          targetEmail: getApprovalCcEmail(process.env.NEXT_PUBLIC_BRANCH_NAME, tenant),
           headerMessage,
           status: BookingStatusLabel.NO_SHOW,
           tenant,
@@ -1654,7 +1602,7 @@ export async function executeXStateTransition(
               method: "PUT",
               headers: {
                 "Content-Type": "application/json",
-                "x-tenant": tenant || "mc",
+                "x-tenant": tenant || DEFAULT_TENANT,
               },
               body: JSON.stringify({
                 calendarEventId,

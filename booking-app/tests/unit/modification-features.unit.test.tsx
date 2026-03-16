@@ -519,5 +519,71 @@ describe("Modification Features", () => {
         )
       ).toBe(true);
     });
+
+    it("sets longPressDelay to 0 on mobile for touch selection", () => {
+      // Mock matchMedia to simulate mobile viewport
+      const originalMatchMedia = window.matchMedia;
+      window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+        matches: true, // mobile
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      }));
+
+      renderWithProviders(
+        <CalendarVerticalResource
+          formContext={FormContextLevel.FIRST_APPROVE}
+          rooms={sampleRooms}
+          dateView={dateView}
+        />,
+        {
+          pagePermission: PagePermission.BOOKING,
+        }
+      );
+
+      expect(fullCalendarProps).not.toBeNull();
+      expect(fullCalendarProps.longPressDelay).toBe(0);
+      expect(fullCalendarProps.selectLongPressDelay).toBe(0);
+      expect(fullCalendarProps.eventLongPressDelay).toBe(0);
+
+      window.matchMedia = originalMatchMedia;
+    });
+
+    it("sets longPressDelay to 1000 on desktop", () => {
+      // Mock matchMedia to simulate desktop viewport
+      const originalMatchMedia = window.matchMedia;
+      window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+        matches: false, // desktop
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      }));
+
+      renderWithProviders(
+        <CalendarVerticalResource
+          formContext={FormContextLevel.FIRST_APPROVE}
+          rooms={sampleRooms}
+          dateView={dateView}
+        />,
+        {
+          pagePermission: PagePermission.BOOKING,
+        }
+      );
+
+      expect(fullCalendarProps).not.toBeNull();
+      expect(fullCalendarProps.longPressDelay).toBe(1000);
+      expect(fullCalendarProps.selectLongPressDelay).toBe(1000);
+      expect(fullCalendarProps.eventLongPressDelay).toBe(1000);
+
+      window.matchMedia = originalMatchMedia;
+    });
   });
 });

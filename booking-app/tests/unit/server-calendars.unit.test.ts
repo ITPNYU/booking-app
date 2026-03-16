@@ -66,6 +66,7 @@ describe("server/calendars", () => {
         end: existingEvent.end,
         summary: "Updated",
       },
+      sendUpdates: "all",
     });
   });
 
@@ -104,6 +105,7 @@ describe("server/calendars", () => {
           { email: "guest@nyu.edu" },
         ]),
       }),
+      sendUpdates: "all",
     });
   });
 
@@ -227,6 +229,28 @@ describe("server/calendars", () => {
         summary: "[APPROVED] Demo Event",
         description: expect.stringContaining("Request #"),
       }),
+      sendUpdates: "all",
+    });
+  });
+
+  it("deleteEvent sends cancellation notifications to all attendees", async () => {
+    const deleteMock = vi.fn();
+    mockGetCalendarClient.mockResolvedValue({
+      events: {
+        delete: deleteMock,
+      },
+    });
+
+    const { deleteEvent } = await import(
+      "@/components/src/server/calendars"
+    );
+
+    await deleteEvent("room-cal-1", "evt-1", "room-101");
+
+    expect(deleteMock).toHaveBeenCalledWith({
+      calendarId: "room-cal-1",
+      eventId: "evt-1",
+      sendUpdates: "all",
     });
   });
 });

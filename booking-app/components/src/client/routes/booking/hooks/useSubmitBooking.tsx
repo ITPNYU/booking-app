@@ -7,6 +7,7 @@ import {
   Inputs,
   PagePermission,
 } from "../../../../types";
+import { isValidNetIdFormat } from "../../../../utils/validationHelpers";
 
 import { DatabaseContext } from "../../components/Provider";
 import { BookingContext } from "../bookingProvider";
@@ -227,6 +228,15 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
         modifiedBy: userEmail,
       };
 
+      // Convert sponsorEmail from NetID format to email format if needed
+      // The form accepts NetID (e.g., "abc123") but the field should store email format
+      const transformedData = {
+        ...data,
+        sponsorEmail: data.sponsorEmail && isValidNetIdFormat(data.sponsorEmail)
+          ? `${data.sponsorEmail}@nyu.edu`
+          : data.sponsorEmail,
+      };
+
       const requestBody = {
         origin: isVIP ? BookingOrigin.VIP : BookingOrigin.WALK_IN,
         type: isVIP ? BookingOrigin.VIP : BookingOrigin.WALK_IN,
@@ -234,7 +244,7 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
         selectedRooms,
         bookingCalendarInfo,
         liaisonUsers,
-        data,
+        data: transformedData,
         isAutoApproval,
         // Add modifiedBy as a top-level parameter for edit/modification context
         ...modificationFields,

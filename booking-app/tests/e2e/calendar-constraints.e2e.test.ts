@@ -42,13 +42,26 @@ test.describe("Calendar Constraints", () => {
 
     // Override calendar events to include an existing event at 2-3pm tomorrow
     const mockEvents = createMockCalendarEvents();
-    await page.route("**/api/calendarEvents**", (route) =>
-      route.fulfill({
+    await page.route("**/api/calendarEvents**", (route) => {
+      const url = new URL(route.request().url());
+      const calendarIds = url.searchParams.get("calendarIds");
+      if (calendarIds) {
+        const grouped: Record<string, any[]> = {};
+        for (const id of calendarIds.split(",")) {
+          grouped[id] = id === "mock-calendar-202" ? mockEvents : [];
+        }
+        return route.fulfill({
+          status: 200,
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(grouped),
+        });
+      }
+      return route.fulfill({
         status: 200,
         headers: { "content-type": "application/json" },
         body: JSON.stringify(mockEvents),
-      }),
-    );
+      });
+    });
 
     // ── 1. Landing page ──
     await page.goto(`${BASE_URL}/mc`, { waitUntil: "domcontentloaded" });
@@ -116,13 +129,26 @@ test.describe("Calendar Constraints", () => {
 
     // Mock calendar events at 2-3pm tomorrow
     const mockEvents = createMockCalendarEvents();
-    await page.route("**/api/calendarEvents**", (route) =>
-      route.fulfill({
+    await page.route("**/api/calendarEvents**", (route) => {
+      const url = new URL(route.request().url());
+      const calendarIds = url.searchParams.get("calendarIds");
+      if (calendarIds) {
+        const grouped: Record<string, any[]> = {};
+        for (const id of calendarIds.split(",")) {
+          grouped[id] = id === "mock-calendar-202" ? mockEvents : [];
+        }
+        return route.fulfill({
+          status: 200,
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(grouped),
+        });
+      }
+      return route.fulfill({
         status: 200,
         headers: { "content-type": "application/json" },
         body: JSON.stringify(mockEvents),
-      }),
-    );
+      });
+    });
 
     // ── Standard booking flow with non-overlapping time (10-11am vs 2-3pm) ──
     await page.goto(`${BASE_URL}/mc`, { waitUntil: "domcontentloaded" });

@@ -17,6 +17,7 @@ import {
   BookingStatusLabel,
   RoomSetting,
 } from "@/components/src/types";
+import { getSecondaryContactName } from "@/components/src/utils/formatters";
 import {
   logServerBookingChange,
   serverGetNextSequentialId,
@@ -191,14 +192,14 @@ const buildBookingContents = (
   ({
     ...data,
     roomId: selectedRoomIds,
-    startDate: startDateObj.toLocaleDateString(),
-    startTime: startDateObj.toLocaleTimeString([], {
+    startDate: startDateObj.toLocaleDateString("en-US"),
+    startTime: startDateObj.toLocaleTimeString("en-US", {
       hour: "2-digit",
       minute: "2-digit",
       hour12: true,
     }),
-    endDate: endDateObj.toLocaleDateString(),
-    endTime: endDateObj.toLocaleTimeString([], {
+    endDate: endDateObj.toLocaleDateString("en-US"),
+    endTime: endDateObj.toLocaleTimeString("en-US", {
       hour: "2-digit",
       minute: "2-digit",
       hour12: true,
@@ -342,6 +343,7 @@ async function handleBookingApprovalEmails(
         contents: {
           ...contentsAsStrings,
           requestNumber: `${contents.requestNumber}`,
+          secondaryContactName: getSecondaryContactName(contents),
         },
         targetEmail: recipient,
         status: BookingStatusLabel.REQUESTED,
@@ -827,6 +829,7 @@ export async function POST(request: NextRequest) {
       equipmentCheckedOut: false,
       requestedAt: Timestamp.now(),
       origin: BookingOrigin.USER,
+      tenant,
       ...data,
       // Override with display values for "Other" selections
       ...getOtherDisplayFields(data),
@@ -868,12 +871,15 @@ export async function POST(request: NextRequest) {
     // Save XState data for ITP and Media Commons tenant after calendarEventId is available
     if (usesXState && typeof xstateData !== "undefined") {
       try {
-        // Update the XState context with the actual calendarEventId
+        // Update the XState snapshot context with the actual calendarEventId
         const updatedXStateData = {
           ...xstateData,
-          context: {
-            ...xstateData.context,
-            calendarEventId,
+          snapshot: {
+            ...xstateData.snapshot,
+            context: {
+              ...xstateData.snapshot?.context,
+              calendarEventId,
+            },
           },
         };
 

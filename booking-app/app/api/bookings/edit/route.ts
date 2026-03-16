@@ -20,6 +20,7 @@ import {
   BookingOrigin,
   BookingStatusLabel,
 } from "@/components/src/types";
+import { getSecondaryContactName } from "@/components/src/utils/formatters";
 import { callXStateTransitionAPI } from "@/components/src/server/db";
 import { getStatusFromXState } from "@/components/src/utils/statusFromXState";
 import { shouldUseXState } from "@/components/src/utils/tenantUtils";
@@ -109,6 +110,7 @@ async function sendEditNotificationEmails(
         contents: {
           ...formattedContents,
           requestNumber: `${existingContents.requestNumber}`,
+          secondaryContactName: getSecondaryContactName(userEventInputs as any),
         },
         targetEmail: recipient,
         status: BookingStatusLabel.REQUESTED,
@@ -211,12 +213,25 @@ export async function PUT(request: NextRequest) {
       .split(",")
       .map(roomId => roomId.trim());
 
-    // Check if booking is currently in DECLINED status - we'll handle XState transition after creating new calendar event
+    const currentStatus = getStatusFromXState(existingContents, tenant);
     const usesXState = shouldUseXState(tenant);
-    let wasDeclined = false;
+
+    // Only REQUESTED and DECLINED bookings may be edited; PRE_APPROVED and others may not
+    if (
+      currentStatus !== BookingStatusLabel.REQUESTED &&
+      currentStatus !== BookingStatusLabel.DECLINED
+    ) {
+      return NextResponse.json(
+        {
+          error: "Booking cannot be edited in its current status",
+          currentStatus,
+        },
+        { status: 403 },
+      );
+    }
+
+    let wasDeclined = currentStatus === BookingStatusLabel.DECLINED;
     if (usesXState) {
-      const currentStatus = getStatusFromXState(existingContents, tenant);
-      wasDeclined = currentStatus === BookingStatusLabel.DECLINED;
       console.log(
         `🔍 EDIT: Current booking status [${tenant?.toUpperCase()}]:`,
         {
