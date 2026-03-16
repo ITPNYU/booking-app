@@ -191,8 +191,8 @@ export default function MoreInfoModal({
   }, [booking.webcheckoutCartNumber]);
 
   const renderWebCheckoutSection = () => {
-    // Hide WebCheckout section for users without sufficient permissions
-    // Only PA, ADMIN, and SUPER_ADMIN should see WebCheckout section
+    // Show WebCheckout section for PA/ADMIN/SUPER_ADMIN users.
+    // In USER context, also show it as read-only when a cart is assigned.
     const canViewWebCheckout = hasAnyPermission(pagePermission, [
       PagePermission.PA,
       PagePermission.ADMIN,
