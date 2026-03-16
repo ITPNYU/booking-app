@@ -1,7 +1,7 @@
 import { AddCircleOutline } from "@mui/icons-material";
 import { IconButton, TextField } from "@mui/material";
 import Grid from "@mui/material/Unstable_Grid2/Grid2";
-import { Timestamp } from "firebase/firestore";
+import { Timestamp, where } from "firebase/firestore";
 import { useCallback, useContext, useEffect, useState } from "react";
 
 import ListTable from "../../components/ListTable";
@@ -40,12 +40,11 @@ export const ServiceApproverUsers = ({
   const loadServiceApprovers = useCallback(async () => {
     const fetchedData = await clientFetchAllDataFromCollection<any>(
       TableNames.USERS_RIGHTS,
-      [],
+      [where(flagField, "==", true)],
       tenant,
     );
 
     const filtered = fetchedData
-      .filter((item: any) => item[flagField] === true)
       .map((item: any) => ({
         id: item.id,
         email: item.email,
