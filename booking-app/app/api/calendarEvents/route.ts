@@ -13,6 +13,30 @@ import { getCachedBookings } from "@/lib/bookingsCache";
 import { getCalendarClient } from "@/lib/googleClient";
 import { calendar_v3 } from "googleapis/build/src/apis/calendar";
 
+function getCORSHeaders() {
+  return {
+    "Access-Control-Allow-Origin": "http://localhost:3001",
+    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, x-tenant",
+    "Access-Control-Max-Age": "3600",
+  };
+}
+
+function withCORS(response: NextResponse) {
+  const corsHeaders = getCORSHeaders();
+  Object.entries(corsHeaders).forEach(([key, value]) => {
+    response.headers.set(key, value);
+  });
+  return response;
+}
+
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 200,
+    headers: getCORSHeaders(),
+  });
+}
+
 const getCalendarEvents = async (calendarId: string, tenant?: string) => {
   const now = new Date().toISOString();
   const endOfRange = new Date();
@@ -134,7 +158,9 @@ export async function GET(req: NextRequest) {
   if (calendarIds) {
     const ids = calendarIds.split(",").filter(Boolean);
     if (ids.length === 0) {
-      return NextResponse.json({ error: "Invalid calendarIds" }, { status: 400 });
+      return withCORS(
+        NextResponse.json({ error: "Invalid calendarIds" }, { status: 400 }),
+      );
     }
 
     try {
@@ -160,19 +186,23 @@ export async function GET(req: NextRequest) {
         "Cache-Control",
         "private, max-age=60, stale-while-revalidate=120",
       );
-      return res;
+      return withCORS(res);
     } catch (error) {
       console.error("Error fetching batch calendar events:", error);
-      return NextResponse.json(
-        { error: "Failed to fetch calendar events" },
-        { status: 500 },
+      return withCORS(
+        NextResponse.json(
+          { error: "Failed to fetch calendar events" },
+          { status: 500 },
+        ),
       );
     }
   }
 
   // Single calendar mode (backwards compatible)
   if (!calendarId) {
-    return NextResponse.json({ error: "Invalid calendarId" }, { status: 400 });
+    return withCORS(
+      NextResponse.json({ error: "Invalid calendarId" }, { status: 400 }),
+    );
   }
 
   try {
@@ -183,12 +213,14 @@ export async function GET(req: NextRequest) {
       "Cache-Control",
       "private, max-age=60, stale-while-revalidate=120",
     );
-    return res;
+    return withCORS(res);
   } catch (error) {
     console.error("Error fetching calendar events:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch calendar events" },
-      { status: 500 },
+    return withCORS(
+      NextResponse.json(
+        { error: "Failed to fetch calendar events" },
+        { status: 500 },
+      ),
     );
   }
 }
