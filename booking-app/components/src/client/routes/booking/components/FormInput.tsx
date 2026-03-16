@@ -26,7 +26,14 @@ import {
   Role,
   UserApiData,
 } from "../../../../types";
-import { isValidNetIdFormat, NET_ID_REGEX, NYU_EMAIL_REGEX, CHARTFIELD_REGEX, CHARTFIELD_PATTERN_MESSAGE } from "../../../../utils/validationHelpers";
+import {
+  CHARTFIELD_PATTERN_MESSAGE,
+  CHARTFIELD_REGEX,
+  isValidNetIdEmailFormat,
+  isValidNetIdFormat,
+  NET_ID_EMAIL_REGEX,
+  NET_ID_REGEX,
+} from "../../../../utils/validationHelpers";
 import { DatabaseContext } from "../../components/Provider";
 import { useTenantSchema } from "../../components/SchemaProvider";
 import { BookingContext } from "../bookingProvider";
@@ -234,6 +241,13 @@ export default function FormInput({
 
   const expectedAttendanceValue = watch("expectedAttendance");
   const isLargeEvent = parseInt(expectedAttendanceValue || "0") >= 75;
+  const cateringValue = watch("catering");
+  const cateringServiceValue = watch("cateringService");
+
+  const shouldShowCateringChartField =
+    cateringValue === "yes" &&
+    !!cateringServiceValue &&
+    cateringServiceValue !== "Outside Catering";
 
   const hireSecurityValue = watch("hireSecurity");
   // Track if hireSecurity was auto-set by attendance logic
@@ -315,6 +329,12 @@ export default function FormInput({
   // Add a state to track if we're currently fetching sponsor data
   const [isFetchingSponsor, setIsFetchingSponsor] = useState(false);
 
+  useEffect(() => {
+    if (cateringValue !== "yes" || cateringServiceValue === "Outside Catering") {
+      setValue("chartFieldForCatering", "", { shouldValidate: false });
+    }
+  }, [cateringServiceValue, cateringValue, setValue]);
+
   // Add a function to fetch sponsor data by Net ID
   const fetchSponsorByNetId = useCallback(async (netId: string) => {
     if (!netId || !isValidNetIdFormat(netId)) return;
@@ -335,34 +355,36 @@ export default function FormInput({
     return null;
   }, []);
 
-  // Watch the sponsor Net ID field specifically
-  const sponsorNetId = watch("sponsorEmail");
+  // Watch sponsor email field specifically
+  const sponsorEmail = watch("sponsorEmail");
 
-  // Only fetch sponsor data when the sponsor Net ID changes
+  // Only fetch sponsor data when sponsor email changes and matches strict Net ID email format
   useEffect(() => {
-    // Only fetch if there's a valid Net ID
-    const userNetId = userEmail?.split("@")[0];
+    const normalizedSponsorEmail = sponsorEmail?.trim().toLowerCase();
+    const normalizedUserEmail = userEmail?.trim().toLowerCase();
+
     if (
-      sponsorNetId &&
-      isValidNetIdFormat(sponsorNetId) &&
-      sponsorNetId !== userNetId
+      normalizedSponsorEmail &&
+      isValidNetIdEmailFormat(normalizedSponsorEmail) &&
+      normalizedSponsorEmail !== normalizedUserEmail
     ) {
+      const sponsorNetId = normalizedSponsorEmail.split("@")[0];
       fetchSponsorByNetId(sponsorNetId);
     }
-  }, [sponsorNetId, fetchSponsorByNetId, userEmail]);
+  }, [sponsorEmail, fetchSponsorByNetId, userEmail]);
 
   // Remove the API call from the validation function since we're now handling it separately
-  const validateSponsorNetIdSimple = useCallback(
+  const validateSponsorEmailSimple = useCallback(
     (value: string) => {
-      // Get user's Net ID from email
-      const userNetId = userEmail?.split("@")[0];
-      
-      if (value === userNetId) {
-        return "Sponsor Net ID cannot be your own Net ID";
+      const normalizedValue = value?.trim().toLowerCase();
+      const normalizedUserEmail = userEmail?.trim().toLowerCase();
+
+      if (normalizedValue === normalizedUserEmail) {
+        return "Sponsor email cannot be your own email";
       }
 
       // Use the already fetched data for validation
-      if (sponsorApiData && isValidNetIdFormat(value)) {
+      if (sponsorApiData && normalizedValue && isValidNetIdEmailFormat(normalizedValue)) {
         const sponsorRole = mapAffiliationToRole(
           roleMapping,
           sponsorApiData.affiliation_sub_type,
@@ -374,7 +396,7 @@ export default function FormInput({
 
       return true;
     },
-    [userEmail, sponsorApiData, roleMapping]
+    [userEmail, sponsorApiData, roleMapping],
   );
 
   useEffect(() => {
@@ -590,7 +612,7 @@ export default function FormInput({
             required={false}
             {...{ control, errors, trigger }}
           />
-          {watch("catering") === "yes" && (
+          {cateringValue === "yes" && (
             <>
               <BookingFormDropdown
                 id="cateringService"
@@ -598,16 +620,18 @@ export default function FormInput({
                 options={["Outside Catering", "NYU Plated"]}
                 {...{ control, errors, trigger }}
               />
-              <BookingFormTextField
-                id="chartFieldForCatering"
-                label="ChartField for Catering Services"
-                required={false}
-                pattern={{
-                  value: CHARTFIELD_REGEX,
-                  message: CHARTFIELD_PATTERN_MESSAGE,
-                }}
-                {...{ control, errors, trigger }}
-              />
+              {shouldShowCateringChartField && (
+                <BookingFormTextField
+                  id="chartFieldForCatering"
+                  label="ChartField for Catering Services"
+                  required
+                  pattern={{
+                    value: CHARTFIELD_REGEX,
+                    message: CHARTFIELD_PATTERN_MESSAGE,
+                  }}
+                  {...{ control, errors, trigger }}
+                />
+              )}
             </>
           )}
         </div>
@@ -718,11 +742,11 @@ export default function FormInput({
             />
             <BookingFormTextField
               id="secondaryEmail"
-              label="Secondary Email"
+              label="Secondary Email (NYU Net ID)"
               required={false}
               pattern={{
-                value: NYU_EMAIL_REGEX,
-                message: "Invalid NYU email format",
+                value: NET_ID_EMAIL_REGEX,
+                message: "Invalid NYU Net ID email format (e.g., abc123@nyu.edu)",
               }}
               description="Enter the NYU email address (e.g., abc123@nyu.edu)"
               {...{ control, errors, trigger }}
@@ -791,13 +815,13 @@ export default function FormInput({
           <BookingFormTextField
             id="sponsorEmail"
             label="Sponsor Email (NYU Net ID)"
-            description="Enter the sponsor's NYU Net ID (e.g., abc123)"
+            description="Enter the NYU email address (e.g., abc123@nyu.edu)"
             required={watch("role") === Role.STUDENT}
             pattern={{
-              value: NET_ID_REGEX,
-              message: "Invalid Net ID",
+              value: NET_ID_EMAIL_REGEX,
+              message: "Invalid NYU Net ID email format (e.g., abc123@nyu.edu)",
             }}
-            validate={validateSponsorNetIdSimple}
+            validate={validateSponsorEmailSimple}
             {...{ control, errors, trigger }}
           />
         </Section>

@@ -276,7 +276,7 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
           selectedRooms,
           bookingCalendarInfo,
           liaisonUsers,
-          data,
+          data: transformedData,
           isAutoApproval,
           // Add modifiedBy as a top-level parameter for edit/modification context
           ...modificationFields,
