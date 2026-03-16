@@ -58,9 +58,11 @@ export default function BookingStatusBar({ formContext, ...props }: Props) {
   const timeSensitiveRequestWarning =
     schema.timeSensitiveRequestWarning ??
     schema.calendarConfig?.timeSensitiveRequestWarning;
+  const defaultSafetyTrainingInfoUrl =
+    "https://sites.google.com/nyu.edu/370jmediacommons/reservations/safety-training";
   const safetyTrainingInfoUrl =
     selectedRooms.find((room) => room.needsSafetyTraining && room.trainingInfoUrl)
-      ?.trainingInfoUrl;
+      ?.trainingInfoUrl || defaultSafetyTrainingInfoUrl;
   const pathname = usePathname();
   const isSelectRoomPage = pathname.endsWith("/selectRoom");
   const warningThresholdHours = timeSensitiveRequestWarning?.hours ?? 48;
