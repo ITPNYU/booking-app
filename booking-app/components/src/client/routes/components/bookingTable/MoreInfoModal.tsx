@@ -14,6 +14,7 @@ import {
 } from "@mui/material";
 
 import { formatOrigin } from "@/components/src/utils/formatters";
+import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
 import { Cancel, Check, Edit, Event } from "@mui/icons-material";
 import Grid from "@mui/material/Unstable_Grid2/Grid2";
 import { styled } from "@mui/system";
@@ -98,6 +99,8 @@ export default function MoreInfoModal({
   updateBooking,
   pageContext,
 }: Props) {
+  const params = useParams();
+  const tenant = (params?.tenant as string) || DEFAULT_TENANT;
   const historyRows = useSortBookingHistory(booking);
   const { pagePermission, userEmail } = useContext(DatabaseContext);
   const schema = useTenantSchema();
