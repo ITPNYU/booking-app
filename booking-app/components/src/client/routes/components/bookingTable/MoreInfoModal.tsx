@@ -117,7 +117,6 @@ export default function MoreInfoModal({
 
   // Check if user has permission to edit cart number
   console.log("pagePermission", pagePermission);
-  console.log("booking!!!!!!!!!!!!!!!!!!!!!", booking);
   const canEditCart = canAccessWebCheckout(pagePermission);
   const canEditCartInContext =
     canEditCart && pageContext !== PageContextLevel.USER;
