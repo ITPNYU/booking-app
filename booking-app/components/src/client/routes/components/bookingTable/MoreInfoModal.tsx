@@ -191,22 +191,14 @@ export default function MoreInfoModal({
   }, [booking.webcheckoutCartNumber]);
 
   const renderWebCheckoutSection = () => {
-    // Show WebCheckout section for PA/ADMIN/SUPER_ADMIN users.
-    // In USER context, also show it as read-only when a cart is assigned.
+    // Show WebCheckout section only for PA/ADMIN/SUPER_ADMIN users.
     const canViewWebCheckout = hasAnyPermission(pagePermission, [
       PagePermission.PA,
       PagePermission.ADMIN,
       PagePermission.SUPER_ADMIN,
     ]);
 
-    const isUserView = pageContext === PageContextLevel.USER;
-
-    // Regular users can view cart contents (read-only) if a cart is assigned
-    if (!canViewWebCheckout && !isUserView) {
-      return null;
-    }
-    // Don't show the section to users if no cart has been assigned yet
-    if (isUserView && !booking.webcheckoutCartNumber) {
+    if (!canViewWebCheckout) {
       return null;
     }
 
