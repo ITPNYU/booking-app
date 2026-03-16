@@ -116,7 +116,6 @@ export default function MoreInfoModal({
   const [webCheckoutData, setWebCheckoutData] = useState<any>(null);
 
   // Check if user has permission to edit cart number
-  console.log("pagePermission", pagePermission);
   const canEditCart = canAccessWebCheckout(pagePermission);
   const canEditCartInContext =
     canEditCart && pageContext !== PageContextLevel.USER;
@@ -190,12 +189,16 @@ export default function MoreInfoModal({
   }, [booking.webcheckoutCartNumber]);
 
   const renderWebCheckoutSection = () => {
-    // Show WebCheckout section only for PA/ADMIN/SUPER_ADMIN users.
-    const canViewWebCheckout = hasAnyPermission(pagePermission, [
-      PagePermission.PA,
-      PagePermission.ADMIN,
-      PagePermission.SUPER_ADMIN,
-    ]);
+    // Show WebCheckout section for PA/ADMIN/SUPER_ADMIN users.
+    // In USER context, show read-only cart details when a cart is assigned.
+    const canViewWebCheckout =
+      hasAnyPermission(pagePermission, [
+        PagePermission.PA,
+        PagePermission.ADMIN,
+        PagePermission.SUPER_ADMIN,
+      ]) ||
+      (pageContext === PageContextLevel.USER &&
+        Boolean(booking.webcheckoutCartNumber));
 
     if (!canViewWebCheckout) {
       return null;

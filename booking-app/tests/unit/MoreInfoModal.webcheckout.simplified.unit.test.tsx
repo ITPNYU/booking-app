@@ -74,7 +74,19 @@ global.fetch = mockFetch;
 const hasText =
   (text: string) =>
   (_content: string, node: Element | null): boolean =>
-    node?.textContent?.includes(text) ?? false;
+    Boolean(node) &&
+    (() => {
+      const normalizedText =
+        node?.textContent?.replace(/\s+/g, " ").trim() ?? "";
+      if (!normalizedText.includes(text)) {
+        return false;
+      }
+
+      return Array.from(node?.children ?? []).every((child) => {
+        const childText = child.textContent?.replace(/\s+/g, " ").trim() ?? "";
+        return !childText.includes(text);
+      });
+    })();
 
 // Mock WebCheckout API responses - avoid any real API calls
 const mockWebCheckoutResponse = {
