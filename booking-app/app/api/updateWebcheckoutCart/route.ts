@@ -44,7 +44,8 @@ export async function POST(req: NextRequest) {
     if (!isAuthorized) {
       return NextResponse.json(
         {
-          error: "Unauthorized: Only PA and Admin users can update cart numbers",
+          error:
+            "Unauthorized: Only PA, Admin, and Super Admin users can update cart numbers",
         },
         { status: 403 },
       );
