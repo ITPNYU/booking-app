@@ -54,6 +54,7 @@ export default function SelectRoomPage({
       calendarRef: undefined,
       needsSafetyTraining: resource.needsSafetyTraining,
       trainingFormUrl: resource.trainingFormUrl,
+      trainingInfoUrl: resource.trainingInfoUrl,
       autoApproval: resource.autoApproval,
       isWalkIn: resource.isWalkIn,
       isWalkInCanBookTwo: resource.isWalkInCanBookTwo,
