@@ -228,8 +228,8 @@ describe("MoreInfoModal - WebCheckout (Simplified)", () => {
 
       renderModal(booking, context);
 
-      expect(screen.getByText(hasText("WebCheckout"))).toBeInTheDocument();
-      expect(screen.getByText("Cart Number")).toBeInTheDocument();
+      expect(screen.getByText((content) => content.includes("WebCheckout"))).toBeInTheDocument();
+      expect(screen.getByText((content) => content.includes("Cart Number"))).toBeInTheDocument();
     });
 
     it("shows WebCheckout section for Admin users", () => {
@@ -238,8 +238,8 @@ describe("MoreInfoModal - WebCheckout (Simplified)", () => {
 
       renderModal(booking, context);
 
-      expect(screen.getByText(hasText("WebCheckout"))).toBeInTheDocument();
-      expect(screen.getByText("Cart Number")).toBeInTheDocument();
+      expect(screen.getByText((content) => content.includes("WebCheckout"))).toBeInTheDocument();
+      expect(screen.getByText((content) => content.includes("Cart Number"))).toBeInTheDocument();
     });
 
     it("shows WebCheckout section for Super Admin users", () => {
@@ -248,8 +248,8 @@ describe("MoreInfoModal - WebCheckout (Simplified)", () => {
 
       renderModal(booking, context);
 
-      expect(screen.getByText(hasText("WebCheckout"))).toBeInTheDocument();
-      expect(screen.getByText("Cart Number")).toBeInTheDocument();
+      expect(screen.getByText((content) => content.includes("WebCheckout"))).toBeInTheDocument();
+      expect(screen.getByText((content) => content.includes("Cart Number"))).toBeInTheDocument();
     });
 
     it("hides WebCheckout section for regular booking users", () => {
@@ -348,7 +348,7 @@ describe("MoreInfoModal - WebCheckout (Simplified)", () => {
       renderModal(booking, context);
 
       // Check that cart number is displayed in the table (even if API data hasn't loaded yet)
-      expect(screen.getByText("Cart Number")).toBeInTheDocument();
+      expect(screen.getByText((content) => content.includes("Cart Number"))).toBeInTheDocument();
 
       // Check that API is called with correct cart number
       await waitFor(() => {
@@ -363,8 +363,8 @@ describe("MoreInfoModal - WebCheckout (Simplified)", () => {
       renderModal(booking, context);
 
       // Check that WebCheckout section is visible
-      expect(screen.getByText(hasText("WebCheckout"))).toBeInTheDocument();
-      expect(screen.getByText("Cart Number")).toBeInTheDocument();
+      expect(screen.getByText((content) => content.includes("WebCheckout"))).toBeInTheDocument();
+      expect(screen.getByText((content) => content.includes("Cart Number"))).toBeInTheDocument();
 
       // Verify API call was made
       await waitFor(() => {
@@ -379,7 +379,7 @@ describe("MoreInfoModal - WebCheckout (Simplified)", () => {
       renderModal(booking, context);
 
       // Initially shows cart number without equipment data
-      expect(screen.getByText("Cart Number")).toBeInTheDocument();
+      expect(screen.getByText((content) => content.includes("Cart Number"))).toBeInTheDocument();
     });
 
     it("handles WebCheckout API errors gracefully", async () => {
@@ -391,7 +391,7 @@ describe("MoreInfoModal - WebCheckout (Simplified)", () => {
       renderModal(booking, context);
 
       // Should still show basic cart information even with API error
-      expect(screen.getByText("Cart Number")).toBeInTheDocument();
+      expect(screen.getByText((content) => content.includes("Cart Number"))).toBeInTheDocument();
     });
 
     it("only shows equipment information for users with proper permissions", () => {
@@ -424,7 +424,7 @@ describe("MoreInfoModal - WebCheckout (Simplified)", () => {
       renderModal(booking, context);
 
       // Should still render the component without crashing
-      expect(screen.getByText("Cart Number")).toBeInTheDocument();
+      expect(screen.getByText((content) => content.includes("Cart Number"))).toBeInTheDocument();
     });
   });
 
@@ -506,7 +506,7 @@ describe("MoreInfoModal - WebCheckout (Simplified)", () => {
       renderModal(booking, context, vi.fn(), PageContextLevel.USER);
 
       await waitFor(() => {
-        expect(screen.getByText(hasText("Cart: CK-2614"))).toBeInTheDocument();
+        expect(screen.getByText((content) => content.includes("Cart: CK-2614"))).toBeInTheDocument();
       });
     });
   });

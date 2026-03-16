@@ -182,8 +182,8 @@ describe("MoreInfoModal - WebCheckout", () => {
 
       renderModal(booking, context);
 
-      expect(screen.getByText(hasText("WebCheckout"))).toBeInTheDocument();
-      expect(screen.getByText("Cart Number")).toBeInTheDocument();
+      expect(screen.getByText((content) => content.includes("WebCheckout"))).toBeInTheDocument();
+      expect(screen.getByText((content) => content.includes("Cart Number"))).toBeInTheDocument();
     });
 
     it("shows WebCheckout section for Admin users", () => {
@@ -192,8 +192,8 @@ describe("MoreInfoModal - WebCheckout", () => {
 
       renderModal(booking, context);
 
-      expect(screen.getByText(hasText("WebCheckout"))).toBeInTheDocument();
-      expect(screen.getByText("Cart Number")).toBeInTheDocument();
+      expect(screen.getByText((content) => content.includes("WebCheckout"))).toBeInTheDocument();
+      expect(screen.getByText((content) => content.includes("Cart Number"))).toBeInTheDocument();
     });
 
     it("shows WebCheckout section for Super Admin users", () => {
@@ -202,8 +202,8 @@ describe("MoreInfoModal - WebCheckout", () => {
 
       renderModal(booking, context);
 
-      expect(screen.getByText(hasText("WebCheckout"))).toBeInTheDocument();
-      expect(screen.getByText("Cart Number")).toBeInTheDocument();
+      expect(screen.getByText((content) => content.includes("WebCheckout"))).toBeInTheDocument();
+      expect(screen.getByText((content) => content.includes("Cart Number"))).toBeInTheDocument();
     });
 
     it("hides WebCheckout section for regular booking users", () => {
@@ -222,7 +222,7 @@ describe("MoreInfoModal - WebCheckout", () => {
 
       renderModal(booking, context);
 
-      expect(screen.queryByText(hasText("WebCheckout"))).not.toBeInTheDocument();
+      expect(screen.queryByText((content) => content.includes("WebCheckout"))).not.toBeInTheDocument();
       expect(screen.queryByText("Cart Number")).not.toBeInTheDocument();
     });
 
@@ -232,7 +232,7 @@ describe("MoreInfoModal - WebCheckout", () => {
 
       renderModal(booking, context);
 
-      expect(screen.queryByText(hasText("WebCheckout"))).not.toBeInTheDocument();
+      expect(screen.queryByText((content) => content.includes("WebCheckout"))).not.toBeInTheDocument();
       expect(screen.queryByText("Cart Number")).not.toBeInTheDocument();
     });
   });
@@ -438,7 +438,7 @@ describe("MoreInfoModal - WebCheckout", () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText(hasText("Cart: CK-2614"))
+          screen.getByText((content) => content.includes("Cart: CK-2614") && content.includes("items"))
         ).toBeInTheDocument();
       });
     });
@@ -470,7 +470,7 @@ describe("MoreInfoModal - WebCheckout", () => {
       await waitFor(
         () => {
           expect(
-            screen.getByText(hasText("Cart: CK-2614"))
+            screen.getByText((content) => content.includes("Cart: CK-2614") && content.includes("items"))
           ).toBeInTheDocument();
         },
         { timeout: 3000 }
@@ -546,7 +546,7 @@ describe("MoreInfoModal - WebCheckout", () => {
       await waitFor(
         () => {
           // With empty equipment groups, just verify WebCheckout section exists and no crash occurs
-          expect(screen.getByText(hasText("WebCheckout"))).toBeInTheDocument();
+          expect(screen.getByText((content) => content.includes("WebCheckout"))).toBeInTheDocument();
           expect(screen.getByLabelText("Edit cart number")).toBeInTheDocument();
         },
         { timeout: 3000 }
@@ -560,7 +560,7 @@ describe("MoreInfoModal - WebCheckout", () => {
       renderModal(booking, context);
 
       // Should not show WebCheckout section at all
-      expect(screen.queryByText(hasText("WebCheckout"))).not.toBeInTheDocument();
+      expect(screen.queryByText((content) => content.includes("WebCheckout"))).not.toBeInTheDocument();
       expect(
         screen.queryByText("Loading equipment information...")
       ).not.toBeInTheDocument();
