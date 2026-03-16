@@ -50,6 +50,31 @@ export type AdminUserData = {
   createdAt: Timestamp;
 };
 
+export const USER_RIGHT_FLAG_FIELDS = [
+  "isAdmin",
+  "isWorker",
+  "isLiaison",
+  "isEquipment",
+  "isStaffing",
+  "isSetup",
+  "isCatering",
+  "isCleaning",
+  "isSecurity",
+] as const;
+
+export type UserRightFlagField = (typeof USER_RIGHT_FLAG_FIELDS)[number];
+
+const buildDefaultUserRightFlags = (
+  overrides: Partial<Record<UserRightFlagField, boolean>> = {},
+) =>
+  USER_RIGHT_FLAG_FIELDS.reduce(
+    (acc, currentFlag) => {
+      acc[currentFlag] = overrides[currentFlag] ?? false;
+      return acc;
+    },
+    {} as Record<UserRightFlagField, boolean>,
+  );
+
 export const clientDeleteDataFromFirestore = async (
   collectionName: string,
   docId: string,
@@ -203,18 +228,15 @@ export const clientSaveUserRightsData = async (
         );
       } else {
         // User doesn't exist, create new entry
+        const defaultFlags = buildDefaultUserRightFlags({
+          isAdmin: collectionName === TableNames.ADMINS,
+          isWorker: collectionName === TableNames.PAS,
+        });
+
         const newUserData = {
           email,
           createdAt: (data as any).createdAt || Timestamp.now(),
-          isAdmin: collectionName === TableNames.ADMINS,
-          isWorker: collectionName === TableNames.PAS,
-          isEquipment: false,
-          isStaffing: false,
-          isLiaison: false,
-          isSetup: false,
-          isCatering: false,
-          isCleaning: false,
-          isSecurity: false,
+          ...defaultFlags,
           ...(data as any),
         };
 
@@ -234,6 +256,81 @@ export const clientSaveUserRightsData = async (
     console.error("Error writing document: ", error);
     throw error;
   }
+};
+
+export const clientUpsertUserRightFlag = async (
+  email: string,
+  flag: UserRightFlagField,
+  tenant?: string,
+) => {
+  const trimmedEmail = email.trim();
+  if (!trimmedEmail) {
+    throw new Error("Email is required");
+  }
+
+  const db = getDb();
+  const usersRightsCollection = getTenantCollection(TableNames.USERS_RIGHTS, tenant);
+  const existingUserQuery = query(
+    collection(db, usersRightsCollection),
+    where("email", "==", trimmedEmail),
+  );
+  const existingUserSnapshot = await getDocs(existingUserQuery);
+
+  if (!existingUserSnapshot.empty) {
+    const existingUserDoc = existingUserSnapshot.docs[0];
+    await updateDoc(doc(db, usersRightsCollection, existingUserDoc.id), {
+      [flag]: true,
+    });
+    return;
+  }
+
+  const defaultFlags = buildDefaultUserRightFlags();
+
+  await addDoc(collection(db, usersRightsCollection), {
+    email: trimmedEmail,
+    createdAt: Timestamp.now(),
+    ...defaultFlags,
+    [flag]: true,
+  });
+};
+
+export const clientClearUserRightFlag = async (
+  docId: string,
+  flag: UserRightFlagField,
+  tenant?: string,
+) => {
+  const db = getDb();
+  const usersRightsCollection = getTenantCollection(TableNames.USERS_RIGHTS, tenant);
+  const targetDocRef = doc(db, usersRightsCollection, docId);
+  const userDoc = await getDoc(targetDocRef);
+
+  if (!userDoc.exists()) {
+    throw new Error("User document not found in usersRights collection");
+  }
+
+  const userData = userDoc.data() as Partial<Record<UserRightFlagField, boolean>>;
+  const updatedFlags = USER_RIGHT_FLAG_FIELDS.reduce(
+    (acc, currentFlag) => {
+      if (currentFlag === flag) {
+        acc[currentFlag] = false;
+      } else {
+        acc[currentFlag] = userData[currentFlag] === true;
+      }
+      return acc;
+    },
+    {} as Record<UserRightFlagField, boolean>,
+  );
+
+  const shouldDeleteDoc = USER_RIGHT_FLAG_FIELDS.every(
+    (currentFlag) => !updatedFlags[currentFlag],
+  );
+
+  if (shouldDeleteDoc) {
+    await deleteDoc(targetDocRef);
+    return;
+  }
+
+  await updateDoc(targetDocRef, { [flag]: false });
 };
 
 export const clientFetchAllDataFromCollection = async <T>(

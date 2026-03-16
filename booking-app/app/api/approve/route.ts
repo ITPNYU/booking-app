@@ -1,4 +1,7 @@
 import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
+import { TableNames } from "@/components/src/policy";
+import { BookingStatusLabel } from "@/components/src/types";
+import { serverGetDataByCalendarEventId } from "@/lib/firebase/server/adminDb";
 import { NextRequest, NextResponse } from "next/server";
 
 import { serverApproveBooking } from "@/components/src/server/admin";
@@ -16,6 +19,7 @@ function isServicesRequestState(newState: any): boolean {
     "Services Request" in (newState as Record<string, any>)
   );
 }
+
 
 export async function POST(req: NextRequest) {
   const { id, email } = await req.json();
@@ -77,11 +81,6 @@ export async function POST(req: NextRequest) {
         );
 
         // Add history logging for final approval since XState doesn't handle history
-        const { serverGetDataByCalendarEventId } =
-          await import("@/lib/firebase/server/adminDb");
-        const { TableNames } = await import("@/components/src/policy");
-        const { BookingStatusLabel } = await import("@/components/src/types");
-
         const doc = await serverGetDataByCalendarEventId<{
           id: string;
           requestNumber: number;
@@ -162,11 +161,6 @@ export async function POST(req: NextRequest) {
         );
 
         // Add history logging for Services Request transition
-        const { serverGetDataByCalendarEventId } =
-          await import("@/lib/firebase/server/adminDb");
-        const { TableNames } = await import("@/components/src/policy");
-        const { BookingStatusLabel } = await import("@/components/src/types");
-
         const doc = await serverGetDataByCalendarEventId<{
           id: string;
           requestNumber: number;
@@ -211,6 +205,7 @@ export async function POST(req: NextRequest) {
               },
             );
           }
+
         }
       } else {
         console.log(

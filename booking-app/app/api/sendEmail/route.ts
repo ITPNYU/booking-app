@@ -15,6 +15,7 @@ export async function POST(req: NextRequest) {
     approverType,
     replyTo,
     schemaName,
+    subjectStatusOverride,
   } = await req.json();
 
   // Get tenant from x-tenant header for logging purposes
@@ -43,6 +44,7 @@ export async function POST(req: NextRequest) {
       replyTo,
       tenant,
       schemaName,
+      subjectStatusOverride,
     });
     return NextResponse.json(
       { message: "Email sent successfully" },
