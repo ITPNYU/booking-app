@@ -600,7 +600,10 @@ export async function POST(request: NextRequest) {
                   ) as Timestamp,
                   calendarEventId: calendarEventId || "",
                   roomId: roomIds,
-                  requestNumber: await serverGetNextSequentialId("bookings"),
+                  requestNumber: await serverGetNextSequentialId(
+                    "bookings",
+                    tenant,
+                  ),
                 });
 
                 if (dryRun) {
