@@ -64,6 +64,17 @@ export const USER_RIGHT_FLAG_FIELDS = [
 
 export type UserRightFlagField = (typeof USER_RIGHT_FLAG_FIELDS)[number];
 
+const buildDefaultUserRightFlags = (
+  overrides: Partial<Record<UserRightFlagField, boolean>> = {},
+) =>
+  USER_RIGHT_FLAG_FIELDS.reduce(
+    (acc, currentFlag) => {
+      acc[currentFlag] = overrides[currentFlag] ?? false;
+      return acc;
+    },
+    {} as Record<UserRightFlagField, boolean>,
+  );
+
 export const clientDeleteDataFromFirestore = async (
   collectionName: string,
   docId: string,
@@ -217,18 +228,15 @@ export const clientSaveUserRightsData = async (
         );
       } else {
         // User doesn't exist, create new entry
+        const defaultFlags = buildDefaultUserRightFlags({
+          isAdmin: collectionName === TableNames.ADMINS,
+          isWorker: collectionName === TableNames.PAS,
+        });
+
         const newUserData = {
           email,
           createdAt: (data as any).createdAt || Timestamp.now(),
-          isAdmin: collectionName === TableNames.ADMINS,
-          isWorker: collectionName === TableNames.PAS,
-          isEquipment: false,
-          isStaffing: false,
-          isLiaison: false,
-          isSetup: false,
-          isCatering: false,
-          isCleaning: false,
-          isSecurity: false,
+          ...defaultFlags,
           ...(data as any),
         };
 
@@ -276,13 +284,7 @@ export const clientUpsertUserRightFlag = async (
     return;
   }
 
-  const defaultFlags = USER_RIGHT_FLAG_FIELDS.reduce(
-    (acc, currentFlag) => {
-      acc[currentFlag] = false;
-      return acc;
-    },
-    {} as Record<UserRightFlagField, boolean>,
-  );
+  const defaultFlags = buildDefaultUserRightFlags();
 
   await addDoc(collection(db, usersRightsCollection), {
     email: trimmedEmail,
