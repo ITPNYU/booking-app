@@ -18,6 +18,7 @@ export type Resource = {
   calendarId: string;
   needsSafetyTraining?: boolean; // Whether training is required for this resource
   trainingFormUrl?: string; // URL of the Google Form that tracks trained users
+  trainingInfoUrl?: string; // URL to share with users when training is required
   isWalkIn: boolean;
   isWalkInCanBookTwo: boolean;
   services: string[]; // ["equipment", "staffing", "setup", "security", "cleaning", "catering", "campus-media"]
@@ -203,6 +204,8 @@ export const defaultResource: Resource = {
   staffingServices: [],
   staffingSections: defineObjectArrayWithDefaults(defaultStaffingSection),
   trainingFormUrl: "",
+  trainingInfoUrl:
+    "https://sites.google.com/nyu.edu/370jmediacommons/reservations/safety-training",
   calendarIdProd: "",
 };
 
