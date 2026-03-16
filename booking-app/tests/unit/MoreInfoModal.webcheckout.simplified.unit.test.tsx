@@ -442,6 +442,35 @@ describe("MoreInfoModal - WebCheckout (Simplified)", () => {
       expect(screen.queryByLabelText("Edit cart number")).not.toBeInTheDocument();
     });
 
+    it("does not show edit button in USER context even for PA permission", () => {
+      const booking = createMockBooking({ webcheckoutCartNumber: "CK-2614" });
+      const context = createMockDatabaseContext(PagePermission.PA);
+
+      renderModal(booking, context, vi.fn(), PageContextLevel.USER);
+
+      expect(screen.queryByLabelText("Edit cart number")).not.toBeInTheDocument();
+    });
+
+    it("never calls update cart API in USER context", async () => {
+      const booking = createMockBooking({ webcheckoutCartNumber: "CK-2614" });
+      const context = createMockDatabaseContext(PagePermission.PA);
+
+      renderModal(booking, context, vi.fn(), PageContextLevel.USER);
+
+      await waitFor(() => {
+        expect(mockFetch).toHaveBeenCalledWith("/api/webcheckout/cart/CK-2614");
+      });
+
+      expect(screen.queryByLabelText("Edit cart number")).not.toBeInTheDocument();
+      expect(
+        mockFetch.mock.calls.some(
+          ([url]) =>
+            typeof url === "string" &&
+            url.includes("/api/updateWebcheckoutCart"),
+        ),
+      ).toBe(false);
+    });
+
     it("fetches cart data for users when a cart number is assigned", async () => {
       const booking = createMockBooking({ webcheckoutCartNumber: "CK-2614" });
       const context = createMockDatabaseContext(PagePermission.BOOKING);
