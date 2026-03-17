@@ -1,4 +1,4 @@
-import { SchemaContextType } from "./client/routes/components/SchemaProvider";
+import type { SchemaContextType } from "./client/routes/components/SchemaProvider";
 import {
   DEFAULT_TENANT,
   TENANTS,

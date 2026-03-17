@@ -624,7 +624,7 @@ export async function POST(request: NextRequest) {
       data.sponsorEmail ?? null,
       await serverGetFinalApproverEmail(),
       await getApprovalCcEmail(process.env.NEXT_PUBLIC_BRANCH_NAME, tenant),
-    ].filter(x => x != null);
+    ].filter(x => x != null && x !== "");
     await sendWalkInNofificationEmail(notifyEmails);
   } else {
     console.log(`⏳ EMAIL SENDING DEFERRED [${tenant?.toUpperCase()}]:`, {

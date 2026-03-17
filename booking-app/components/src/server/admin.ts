@@ -646,14 +646,17 @@ export const serverApproveEvent = async (id: string, tenant?: string) => {
   });
 
   // for Samantha
-  serverSendBookingDetailEmail({
-    calendarEventId: id,
-    targetEmail: await getApprovalCcEmail(process.env.NEXT_PUBLIC_BRANCH_NAME, tenant),
-    headerMessage: otherHeaderMessage,
-    status: BookingStatusLabel.APPROVED,
-    replyTo: guestEmail,
-    tenant,
-  });
+  const approvedCcEmail = await getApprovalCcEmail(process.env.NEXT_PUBLIC_BRANCH_NAME, tenant);
+  if (approvedCcEmail) {
+    serverSendBookingDetailEmail({
+      calendarEventId: id,
+      targetEmail: approvedCcEmail,
+      headerMessage: otherHeaderMessage,
+      status: BookingStatusLabel.APPROVED,
+      replyTo: guestEmail,
+      tenant,
+    });
+  }
 
   // for sponsor, if we have one
   const contents = await serverBookingContents(id, tenant);
