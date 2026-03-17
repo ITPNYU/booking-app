@@ -75,6 +75,18 @@ const mockItpTenantSchema = {
   supportPA: false,
   supportLiaison: false,
   resourceName: "Room(s)",
+  ccEmails: {
+    approved: {
+      development: "booking-app-devs+approved@itp.nyu.edu",
+      staging: "booking-app-devs+approved@itp.nyu.edu",
+      production: "booking-app-devs+approved@itp.nyu.edu",
+    },
+    canceled: {
+      development: "booking-app-devs+canceled@itp.nyu.edu",
+      staging: "booking-app-devs+canceled@itp.nyu.edu",
+      production: "booking-app-devs+canceled@itp.nyu.edu",
+    },
+  },
 };
 
 const mockIdentityResponse = {
