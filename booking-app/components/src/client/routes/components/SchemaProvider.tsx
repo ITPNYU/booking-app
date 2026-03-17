@@ -111,6 +111,11 @@ export type SchemaContextType = {
     slotUnit?: Record<string, number>; // e.g., { student: 15, admin: 15, ... }
     timeSensitiveRequestWarning?: TimeSensitiveRequestWarning;
   };
+  // CC email addresses for notifications, per environment
+  ccEmails?: {
+    approved: { development: string; staging: string; production: string };
+    canceled: { development: string; staging: string; production: string };
+  };
   // Email messages for all scenarios
   emailMessages: {
     requestConfirmation: string;
@@ -263,6 +268,10 @@ export const defaultScheme: Omit<SchemaContextType, "tenant"> = {
     timeSensitiveRequestWarning: defaultTimeSensitiveRequestWarning,
   },
   schoolMapping: {},
+  ccEmails: {
+    approved: { development: "", staging: "", production: "" },
+    canceled: { development: "", staging: "", production: "" },
+  },
   emailMessages: {
     requestConfirmation: "",
     firstApprovalRequest: "",

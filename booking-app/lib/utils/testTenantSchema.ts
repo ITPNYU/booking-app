@@ -111,6 +111,18 @@ function getMcTestSchema(tenant: string): SchemaContextType {
     supportVIP: true,
     supportWalkIn: true,
     resourceName: "Room(s)",
+    ccEmails: {
+      approved: {
+        development: "booking-app-devs+approved@itp.nyu.edu",
+        staging: "booking-app-devs+approved@itp.nyu.edu",
+        production: "booking-app-devs+approved@itp.nyu.edu",
+      },
+      canceled: {
+        development: "booking-app-devs+canceled@itp.nyu.edu",
+        staging: "booking-app-devs+canceled@itp.nyu.edu",
+        production: "booking-app-devs+canceled@itp.nyu.edu",
+      },
+    },
   } as unknown as SchemaContextType;
 }
 
@@ -190,5 +202,17 @@ function getItpTestSchema(): SchemaContextType {
     supportPA: false,
     supportLiaison: false,
     resourceName: "Room(s)",
+    ccEmails: {
+      approved: {
+        development: "booking-app-devs+approved@itp.nyu.edu",
+        staging: "booking-app-devs+approved@itp.nyu.edu",
+        production: "booking-app-devs+approved@itp.nyu.edu",
+      },
+      canceled: {
+        development: "booking-app-devs+canceled@itp.nyu.edu",
+        staging: "booking-app-devs+canceled@itp.nyu.edu",
+        production: "booking-app-devs+canceled@itp.nyu.edu",
+      },
+    },
   } as unknown as SchemaContextType;
 }
