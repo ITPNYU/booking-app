@@ -72,6 +72,16 @@ jobs:
           cd booking-app
           npm ci
 
+      - name: Validate tenant schemas
+        run: |
+          cd booking-app
+          cat > .env.local << EOF
+          FIREBASE_PROJECT_ID=${{ secrets.FIREBASE_PROJECT_ID }}
+          FIREBASE_CLIENT_EMAIL=${{ secrets.FIREBASE_CLIENT_EMAIL }}
+          FIREBASE_PRIVATE_KEY="${{ secrets.FIREBASE_PRIVATE_KEY }}"
+          EOF
+          npx ts-node scripts/validateTenantSchemas.ts --database production
+
       - name: Build
         run: |
           cd booking-app
