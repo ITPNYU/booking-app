@@ -87,6 +87,10 @@ jobs:
             booking-app/dry-run-staging-*.json
           retention-days: 30
 
+      - name: Validate tenant schemas (staging)
+        working-directory: ./booking-app
+        run: npx ts-node scripts/validateTenantSchemas.ts --database staging
+
   sync-to-production:
     name: Dry Run - Analyze tenantSchema Sync to Production
     runs-on: ubuntu-latest
@@ -155,4 +159,8 @@ jobs:
             booking-app/dry-run-production-*.md
             booking-app/dry-run-production-*.json
           retention-days: 30
+
+      - name: Validate tenant schemas (production)
+        working-directory: ./booking-app
+        run: npx ts-node scripts/validateTenantSchemas.ts --database production
 
