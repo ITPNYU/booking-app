@@ -123,9 +123,6 @@ function getMcTestSchema(tenant: string): SchemaContextType {
         production: "booking-app-devs+canceled@itp.nyu.edu",
       },
     },
-    approvalLevels: 2,
-    hasServiceRequests: true,
-    autoCloseOnCheckout: false,
   } as unknown as SchemaContextType;
 }
 
@@ -217,8 +214,5 @@ function getItpTestSchema(): SchemaContextType {
         production: "booking-app-devs+canceled@itp.nyu.edu",
       },
     },
-    approvalLevels: 1,
-    hasServiceRequests: false,
-    autoCloseOnCheckout: true,
   } as unknown as SchemaContextType;
 }

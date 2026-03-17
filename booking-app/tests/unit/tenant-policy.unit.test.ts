@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import {
   getTenantPolicy,
-  getTenantPolicyFromSchema,
   getApprovedCcEmail,
   getCanceledCcEmail,
 } from "@/components/src/tenantPolicy";
@@ -61,109 +60,35 @@ function makeMockSchema(overrides: Partial<SchemaContextType> = {}): SchemaConte
   } as SchemaContextType;
 }
 
-describe("getTenantPolicy (from schema)", () => {
-  it("extracts policy fields from schema", () => {
-    const schema = makeMockSchema({
-      ccEmails: {
-        approved: { development: "dev-approved@nyu.edu", staging: "stg@nyu.edu", production: "prod@nyu.edu" },
-        canceled: { development: "dev-canceled@nyu.edu", staging: "stg@nyu.edu", production: "prod@nyu.edu" },
-      },
-      approvalLevels: 1,
-      hasServiceRequests: false,
-      autoCloseOnCheckout: true,
-    });
-
-    // Set environment to production for this test
-    const orig = process.env.NEXT_PUBLIC_BRANCH_NAME;
-    process.env.NEXT_PUBLIC_BRANCH_NAME = "production";
-
-    const policy = getTenantPolicy(schema);
-    expect(policy.approvedCcEmail).toBe("prod@nyu.edu");
-    expect(policy.canceledCcEmail).toBe("prod@nyu.edu");
-    expect(policy.approvalLevels).toBe(1);
-    expect(policy.hasServiceRequests).toBe(false);
-    expect(policy.autoCloseOnCheckout).toBe(true);
-
-    process.env.NEXT_PUBLIC_BRANCH_NAME = orig;
-  });
-
-  it("resolves development email when branch is development", () => {
-    const schema = makeMockSchema({
-      ccEmails: {
-        approved: { development: "dev@nyu.edu", staging: "stg@nyu.edu", production: "prod@nyu.edu" },
-        canceled: { development: "dev-cancel@nyu.edu", staging: "stg@nyu.edu", production: "prod@nyu.edu" },
-      },
-    });
-
-    const orig = process.env.NEXT_PUBLIC_BRANCH_NAME;
-    process.env.NEXT_PUBLIC_BRANCH_NAME = "development";
-
-    const policy = getTenantPolicy(schema);
-    expect(policy.approvedCcEmail).toBe("dev@nyu.edu");
-    expect(policy.canceledCcEmail).toBe("dev-cancel@nyu.edu");
-
-    process.env.NEXT_PUBLIC_BRANCH_NAME = orig;
-  });
-
-  it("returns defaults when ccEmails is not configured", () => {
-    const schema = makeMockSchema();
-    const policy = getTenantPolicy(schema);
-    expect(policy.approvedCcEmail).toBe("");
-    expect(policy.canceledCcEmail).toBe("");
+describe("getTenantPolicy (hardcoded)", () => {
+  it("returns MC policy by default", () => {
+    const policy = getTenantPolicy();
     expect(policy.approvalLevels).toBe(2);
     expect(policy.hasServiceRequests).toBe(true);
     expect(policy.autoCloseOnCheckout).toBe(false);
   });
-});
 
-describe("getTenantPolicyFromSchema (async)", () => {
-  const originalEnv = process.env.NEXT_PUBLIC_BRANCH_NAME;
-
-  beforeEach(() => {
-    process.env.NEXT_PUBLIC_BRANCH_NAME = "production";
-    mockServerGetDocumentById.mockReset();
+  it("returns MC policy for 'mc' tenant", () => {
+    const policy = getTenantPolicy("mc");
+    expect(policy.approvalLevels).toBe(2);
+    expect(policy.hasServiceRequests).toBe(true);
+    expect(policy.autoCloseOnCheckout).toBe(false);
   });
 
-  afterEach(() => {
-    process.env.NEXT_PUBLIC_BRANCH_NAME = originalEnv;
-  });
-
-  it("fetches schema from Firestore and returns policy", async () => {
-    mockServerGetDocumentById.mockResolvedValue(
-      makeMockSchema({
-        ccEmails: {
-          approved: { development: "", staging: "", production: "ops@nyu.edu" },
-          canceled: { development: "", staging: "", production: "cancel@nyu.edu" },
-        },
-        approvalLevels: 1,
-      }),
-    );
-
-    const policy = await getTenantPolicyFromSchema("itp");
-    expect(policy.approvedCcEmail).toBe("ops@nyu.edu");
-    expect(policy.canceledCcEmail).toBe("cancel@nyu.edu");
+  it("returns ITP policy for 'itp' tenant", () => {
+    const policy = getTenantPolicy("itp");
     expect(policy.approvalLevels).toBe(1);
+    expect(policy.hasServiceRequests).toBe(false);
+    expect(policy.autoCloseOnCheckout).toBe(true);
   });
 
-  it("returns default policy when schema not found", async () => {
-    mockServerGetDocumentById.mockResolvedValue(null);
-
-    const policy = await getTenantPolicyFromSchema("unknown");
-    expect(policy.approvedCcEmail).toBe("");
-    expect(policy.canceledCcEmail).toBe("");
-    expect(policy.approvalLevels).toBe(2);
-  });
-
-  it("returns default policy when Firestore fetch fails", async () => {
-    mockServerGetDocumentById.mockRejectedValue(new Error("connection failed"));
-
-    const policy = await getTenantPolicyFromSchema("mc");
-    expect(policy.approvedCcEmail).toBe("");
+  it("falls back to MC policy for unknown tenant", () => {
+    const policy = getTenantPolicy("unknown");
     expect(policy.approvalLevels).toBe(2);
   });
 });
 
-describe("getApprovedCcEmail / getCanceledCcEmail", () => {
+describe("getApprovedCcEmail / getCanceledCcEmail (schema-driven)", () => {
   const originalEnv = process.env.NEXT_PUBLIC_BRANCH_NAME;
 
   beforeEach(() => {
@@ -175,7 +100,7 @@ describe("getApprovedCcEmail / getCanceledCcEmail", () => {
     process.env.NEXT_PUBLIC_BRANCH_NAME = originalEnv;
   });
 
-  it("returns approved CC email for tenant", async () => {
+  it("returns approved CC email from schema", async () => {
     mockServerGetDocumentById.mockResolvedValue(
       makeMockSchema({
         ccEmails: {
@@ -188,7 +113,7 @@ describe("getApprovedCcEmail / getCanceledCcEmail", () => {
     expect(await getApprovedCcEmail("mc")).toBe("approved@nyu.edu");
   });
 
-  it("returns canceled CC email for tenant", async () => {
+  it("returns canceled CC email from schema", async () => {
     mockServerGetDocumentById.mockResolvedValue(
       makeMockSchema({
         ccEmails: {
@@ -199,6 +124,42 @@ describe("getApprovedCcEmail / getCanceledCcEmail", () => {
     );
 
     expect(await getCanceledCcEmail("mc")).toBe("cancel@nyu.edu");
+  });
+
+  it("resolves development email when branch is development", async () => {
+    process.env.NEXT_PUBLIC_BRANCH_NAME = "development";
+    mockServerGetDocumentById.mockResolvedValue(
+      makeMockSchema({
+        ccEmails: {
+          approved: { development: "dev@nyu.edu", staging: "stg@nyu.edu", production: "prod@nyu.edu" },
+          canceled: { development: "dev-cancel@nyu.edu", staging: "stg@nyu.edu", production: "prod@nyu.edu" },
+        },
+      }),
+    );
+
+    expect(await getApprovedCcEmail("mc")).toBe("dev@nyu.edu");
+    expect(await getCanceledCcEmail("mc")).toBe("dev-cancel@nyu.edu");
+  });
+
+  it("returns empty string when schema not found", async () => {
+    mockServerGetDocumentById.mockResolvedValue(null);
+
+    expect(await getApprovedCcEmail("unknown")).toBe("");
+    expect(await getCanceledCcEmail("unknown")).toBe("");
+  });
+
+  it("returns empty string when Firestore fetch fails", async () => {
+    mockServerGetDocumentById.mockRejectedValue(new Error("connection failed"));
+
+    expect(await getApprovedCcEmail("mc")).toBe("");
+    expect(await getCanceledCcEmail("mc")).toBe("");
+  });
+
+  it("returns empty string when ccEmails is not configured", async () => {
+    mockServerGetDocumentById.mockResolvedValue(makeMockSchema());
+
+    expect(await getApprovedCcEmail("mc")).toBe("");
+    expect(await getCanceledCcEmail("mc")).toBe("");
   });
 });
 

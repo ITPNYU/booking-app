@@ -14,7 +14,7 @@ import {
   getMediaCommonsServices,
   isMediaCommons,
 } from "@/components/src/utils/tenantUtils";
-import { useTenantSchema } from "../../components/SchemaProvider";
+import { getTenantPolicy } from "@/components/src/tenantPolicy";
 import {
   createXStateChecker,
   getXStateContext,
@@ -91,7 +91,6 @@ export default function useBookingActions({
   const { tenant } = useParams();
   const { reloadExistingCalendarEvents } = useContext(BookingContext);
   const { userEmail, netId } = useContext(DatabaseContext);
-  const schema = useTenantSchema();
   const loadExistingBookingData = useExistingBooking();
   const [bookingData, setBookingData] = useState<any>(null);
   const [serviceRequests, setServiceRequests] = useState<{
@@ -385,8 +384,9 @@ export default function useBookingActions({
         // Liaison actions
         options.push(Actions.DECLINE);
         if (status === BookingStatusLabel.REQUESTED) {
+          const policy = getTenantPolicy(tenant as string);
           options.push(
-            schema.approvalLevels === 1
+            policy.approvalLevels === 1
               ? Actions.APPROVE
               : Actions.FIRST_APPROVE,
           );
@@ -493,8 +493,9 @@ export default function useBookingActions({
 
         // Basic approval actions
         if (status === BookingStatusLabel.REQUESTED) {
+          const policy = getTenantPolicy(tenant as string);
           options.push(
-            schema.approvalLevels === 1
+            policy.approvalLevels === 1
               ? Actions.APPROVE
               : Actions.FIRST_APPROVE,
           );
