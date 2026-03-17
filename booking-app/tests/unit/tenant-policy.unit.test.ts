@@ -5,7 +5,7 @@ import {
   getCanceledCcEmail,
 } from "@/components/src/tenantPolicy";
 import { getApprovalCcEmail, getCancelCcEmail } from "@/components/src/policy";
-import { SchemaContextType } from "@/components/src/client/routes/components/SchemaProvider";
+import type { SchemaContextType } from "@/components/src/client/routes/components/SchemaProvider";
 
 vi.mock("@/lib/firebase/firebase", () => ({
   clientGetFinalApproverEmailFromDatabase: vi.fn(),
@@ -89,15 +89,13 @@ describe("getTenantPolicy (hardcoded)", () => {
 });
 
 describe("getApprovedCcEmail / getCanceledCcEmail (schema-driven)", () => {
-  const originalEnv = process.env.NEXT_PUBLIC_BRANCH_NAME;
-
   beforeEach(() => {
-    process.env.NEXT_PUBLIC_BRANCH_NAME = "production";
+    vi.stubEnv("NEXT_PUBLIC_BRANCH_NAME", "production");
     mockServerGetDocumentById.mockReset();
   });
 
   afterEach(() => {
-    process.env.NEXT_PUBLIC_BRANCH_NAME = originalEnv;
+    vi.unstubAllEnvs();
   });
 
   it("returns approved CC email from schema", async () => {
@@ -164,15 +162,13 @@ describe("getApprovedCcEmail / getCanceledCcEmail (schema-driven)", () => {
 });
 
 describe("getApprovalCcEmail (policy.ts wrapper)", () => {
-  const originalEnv = process.env.NEXT_PUBLIC_BRANCH_NAME;
-
   beforeEach(() => {
-    process.env.NEXT_PUBLIC_BRANCH_NAME = "production";
+    vi.stubEnv("NEXT_PUBLIC_BRANCH_NAME", "production");
     mockServerGetDocumentById.mockReset();
   });
 
   afterEach(() => {
-    process.env.NEXT_PUBLIC_BRANCH_NAME = originalEnv;
+    vi.unstubAllEnvs();
   });
 
   it("returns empty string when tenant is undefined", async () => {
@@ -194,15 +190,13 @@ describe("getApprovalCcEmail (policy.ts wrapper)", () => {
 });
 
 describe("getCancelCcEmail (policy.ts wrapper)", () => {
-  const originalEnv = process.env.NEXT_PUBLIC_BRANCH_NAME;
-
   beforeEach(() => {
-    process.env.NEXT_PUBLIC_BRANCH_NAME = "production";
+    vi.stubEnv("NEXT_PUBLIC_BRANCH_NAME", "production");
     mockServerGetDocumentById.mockReset();
   });
 
   afterEach(() => {
-    process.env.NEXT_PUBLIC_BRANCH_NAME = originalEnv;
+    vi.unstubAllEnvs();
   });
 
   it("returns empty string when tenant is undefined", async () => {

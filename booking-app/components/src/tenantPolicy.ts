@@ -4,7 +4,8 @@ import {
   TENANTS,
   isMediaCommonsTenant,
 } from "./constants/tenants";
-import { TableNames } from "./policy";
+// Inlined to avoid circular dependency with policy.ts
+const TENANT_SCHEMA_COLLECTION = "tenantSchema";
 
 type Environment = "development" | "staging" | "production";
 
@@ -72,7 +73,7 @@ export async function getApprovedCcEmail(tenant: string): Promise<string> {
       "@/lib/firebase/server/adminDb"
     );
     const schema = await serverGetDocumentById<SchemaContextType>(
-      TableNames.TENANT_SCHEMA,
+      TENANT_SCHEMA_COLLECTION,
       tenant,
     );
     if (schema) {
@@ -94,7 +95,7 @@ export async function getCanceledCcEmail(tenant: string): Promise<string> {
       "@/lib/firebase/server/adminDb"
     );
     const schema = await serverGetDocumentById<SchemaContextType>(
-      TableNames.TENANT_SCHEMA,
+      TENANT_SCHEMA_COLLECTION,
       tenant,
     );
     if (schema) {
