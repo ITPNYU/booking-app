@@ -73,7 +73,7 @@ export async function getApprovedCcEmail(tenant: string): Promise<string> {
       "@/lib/firebase/server/adminDb"
     );
     const schema = await serverGetDocumentById<SchemaContextType>(
-      TENANT_SCHEMA_COLLECTION,
+      TENANT_SCHEMA_COLLECTION as any,
       tenant,
     );
     if (schema) {
@@ -95,7 +95,7 @@ export async function getCanceledCcEmail(tenant: string): Promise<string> {
       "@/lib/firebase/server/adminDb"
     );
     const schema = await serverGetDocumentById<SchemaContextType>(
-      TENANT_SCHEMA_COLLECTION,
+      TENANT_SCHEMA_COLLECTION as any,
       tenant,
     );
     if (schema) {
