@@ -1,205 +1,263 @@
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import {
   getTenantPolicy,
-  getOperationEmail,
-  getCancelCcEmailForTenant,
+  getTenantPolicyFromSchema,
+  getApprovedCcEmail,
+  getCanceledCcEmail,
 } from "@/components/src/tenantPolicy";
 import { getApprovalCcEmail, getCancelCcEmail } from "@/components/src/policy";
-import { MEDIA_COMMONS_OPERATION_EMAIL } from "@/components/src/mediaCommonsPolicy";
-import { ITP_OPERATION_EMAIL } from "@/components/src/itpPolicy";
+import { SchemaContextType } from "@/components/src/client/routes/components/SchemaProvider";
 
 vi.mock("@/lib/firebase/firebase", () => ({
   clientGetFinalApproverEmailFromDatabase: vi.fn(),
 }));
 
-describe("getTenantPolicy", () => {
-  it("returns MC policy by default when no tenant", () => {
-    const policy = getTenantPolicy();
+// Mock adminDb for async functions
+const mockServerGetDocumentById = vi.fn();
+vi.mock("@/lib/firebase/server/adminDb", () => ({
+  serverGetDocumentById: (...args: any[]) => mockServerGetDocumentById(...args),
+}));
+
+function makeMockSchema(overrides: Partial<SchemaContextType> = {}): SchemaContextType {
+  return {
+    tenant: "test",
+    name: "Test",
+    logo: "",
+    nameForPolicy: "",
+    policy: "",
+    programMapping: {},
+    roles: [],
+    roleMapping: {},
+    schoolMapping: {},
+    showNNumber: false,
+    showSponsor: false,
+    showSetup: false,
+    showEquipment: false,
+    showStaffing: false,
+    showCatering: false,
+    showHireSecurity: false,
+    showBookingTypes: false,
+    agreements: [],
+    resources: [],
+    supportVIP: false,
+    supportWalkIn: false,
+    resourceName: "",
+    emailMessages: {
+      requestConfirmation: "",
+      firstApprovalRequest: "",
+      secondApprovalRequest: "",
+      walkInConfirmation: "",
+      vipConfirmation: "",
+      checkoutConfirmation: "",
+      checkinConfirmation: "",
+      declined: "",
+      canceled: "",
+      lateCancel: "",
+      noShow: "",
+      closed: "",
+      approvalNotice: "",
+    },
+    ...overrides,
+  } as SchemaContextType;
+}
+
+describe("getTenantPolicy (from schema)", () => {
+  it("extracts policy fields from schema", () => {
+    const schema = makeMockSchema({
+      ccEmails: {
+        approved: { development: "dev-approved@nyu.edu", staging: "stg@nyu.edu", production: "prod@nyu.edu" },
+        canceled: { development: "dev-canceled@nyu.edu", staging: "stg@nyu.edu", production: "prod@nyu.edu" },
+      },
+      approvalLevels: 1,
+      hasServiceRequests: false,
+      autoCloseOnCheckout: true,
+    });
+
+    // Set environment to production for this test
+    const orig = process.env.NEXT_PUBLIC_BRANCH_NAME;
+    process.env.NEXT_PUBLIC_BRANCH_NAME = "production";
+
+    const policy = getTenantPolicy(schema);
+    expect(policy.approvedCcEmail).toBe("prod@nyu.edu");
+    expect(policy.canceledCcEmail).toBe("prod@nyu.edu");
+    expect(policy.approvalLevels).toBe(1);
+    expect(policy.hasServiceRequests).toBe(false);
+    expect(policy.autoCloseOnCheckout).toBe(true);
+
+    process.env.NEXT_PUBLIC_BRANCH_NAME = orig;
+  });
+
+  it("resolves development email when branch is development", () => {
+    const schema = makeMockSchema({
+      ccEmails: {
+        approved: { development: "dev@nyu.edu", staging: "stg@nyu.edu", production: "prod@nyu.edu" },
+        canceled: { development: "dev-cancel@nyu.edu", staging: "stg@nyu.edu", production: "prod@nyu.edu" },
+      },
+    });
+
+    const orig = process.env.NEXT_PUBLIC_BRANCH_NAME;
+    process.env.NEXT_PUBLIC_BRANCH_NAME = "development";
+
+    const policy = getTenantPolicy(schema);
+    expect(policy.approvedCcEmail).toBe("dev@nyu.edu");
+    expect(policy.canceledCcEmail).toBe("dev-cancel@nyu.edu");
+
+    process.env.NEXT_PUBLIC_BRANCH_NAME = orig;
+  });
+
+  it("returns defaults when ccEmails is not configured", () => {
+    const schema = makeMockSchema();
+    const policy = getTenantPolicy(schema);
+    expect(policy.approvedCcEmail).toBe("");
+    expect(policy.canceledCcEmail).toBe("");
     expect(policy.approvalLevels).toBe(2);
     expect(policy.hasServiceRequests).toBe(true);
     expect(policy.autoCloseOnCheckout).toBe(false);
   });
-
-  it("returns MC policy for 'mc'", () => {
-    const policy = getTenantPolicy("mc");
-    expect(policy.approvalLevels).toBe(2);
-    expect(policy.hasServiceRequests).toBe(true);
-  });
-
-  it("returns ITP policy for 'itp'", () => {
-    const policy = getTenantPolicy("itp");
-    expect(policy.approvalLevels).toBe(1);
-    expect(policy.hasServiceRequests).toBe(false);
-    expect(policy.autoCloseOnCheckout).toBe(true);
-  });
-
-  it("falls back to MC for unknown tenant", () => {
-    const policy = getTenantPolicy("unknown");
-    expect(policy.approvalLevels).toBe(2);
-  });
-
-  it("handles case-insensitive tenant", () => {
-    const policy = getTenantPolicy("ITP");
-    expect(policy.approvalLevels).toBe(1);
-  });
-
-  it("resolves 'mediaCommons' alias to MC policy", () => {
-    const policy = getTenantPolicy("mediaCommons");
-    expect(policy.approvalLevels).toBe(2);
-    expect(policy.hasServiceRequests).toBe(true);
-  });
 });
 
-describe("getOperationEmail", () => {
-  describe("MC tenant", () => {
-    it("returns dev email for development", () => {
-      expect(getOperationEmail("mc", "development")).toBe(
-        "booking-app-devs+operation@itp.nyu.edu",
-      );
-    });
-
-    it("returns MC operation email for staging", () => {
-      expect(getOperationEmail("mc", "staging")).toBe(
-        MEDIA_COMMONS_OPERATION_EMAIL,
-      );
-    });
-
-    it("returns MC operation email for production", () => {
-      expect(getOperationEmail("mc", "production")).toBe(
-        MEDIA_COMMONS_OPERATION_EMAIL,
-      );
-    });
-
-    it("returns MC operation email for unknown branch (defaults to production)", () => {
-      expect(getOperationEmail("mc", "some-feature-branch")).toBe(
-        MEDIA_COMMONS_OPERATION_EMAIL,
-      );
-    });
-  });
-
-  describe("MC via mediaCommons alias", () => {
-    it("returns same emails as 'mc'", () => {
-      expect(getOperationEmail("mediaCommons", "development")).toBe(
-        getOperationEmail("mc", "development"),
-      );
-      expect(getOperationEmail("mediaCommons", "production")).toBe(
-        getOperationEmail("mc", "production"),
-      );
-    });
-  });
-
-  describe("ITP tenant", () => {
-    it("returns dev email for development", () => {
-      expect(getOperationEmail("itp", "development")).toBe(
-        "booking-app-devs+operation@itp.nyu.edu",
-      );
-    });
-
-    it("returns ITP operation email for staging", () => {
-      expect(getOperationEmail("itp", "staging")).toBe(ITP_OPERATION_EMAIL);
-    });
-
-    it("returns ITP operation email for production", () => {
-      expect(getOperationEmail("itp", "production")).toBe(ITP_OPERATION_EMAIL);
-    });
-  });
-
-  describe("fallback behavior", () => {
-    it("returns MC email when tenant is undefined", () => {
-      expect(getOperationEmail(undefined, "production")).toBe(
-        MEDIA_COMMONS_OPERATION_EMAIL,
-      );
-    });
-
-    it("returns MC email when both params are undefined", () => {
-      expect(getOperationEmail(undefined, undefined)).toBe(
-        MEDIA_COMMONS_OPERATION_EMAIL,
-      );
-    });
-  });
-});
-
-describe("getCancelCcEmailForTenant", () => {
-  it("returns distinct cancelCc dev email for MC", () => {
-    expect(getCancelCcEmailForTenant("mc", "development")).toBe(
-      "booking-app-devs+cancelcc@itp.nyu.edu",
-    );
-  });
-
-  it("returns MC operation email for MC production", () => {
-    expect(getCancelCcEmailForTenant("mc", "production")).toBe(
-      MEDIA_COMMONS_OPERATION_EMAIL,
-    );
-  });
-
-  it("returns distinct cancelCc dev email for ITP", () => {
-    expect(getCancelCcEmailForTenant("itp", "development")).toBe(
-      "booking-app-devs+cancelcc@itp.nyu.edu",
-    );
-  });
-
-  it("returns ITP operation email for ITP production", () => {
-    expect(getCancelCcEmailForTenant("itp", "production")).toBe(
-      ITP_OPERATION_EMAIL,
-    );
-  });
-});
-
-describe("getApprovalCcEmail", () => {
-  it("delegates to getOperationEmail with correct param order", () => {
-    expect(getApprovalCcEmail("development", "itp")).toBe(
-      getOperationEmail("itp", "development"),
-    );
-  });
-
-  it("works without tenant (backward compatible)", () => {
-    expect(getApprovalCcEmail("production")).toBe(
-      MEDIA_COMMONS_OPERATION_EMAIL,
-    );
-  });
-
-  it("routes MC production correctly", () => {
-    expect(getApprovalCcEmail("production", "mc")).toBe(
-      MEDIA_COMMONS_OPERATION_EMAIL,
-    );
-  });
-
-  it("routes ITP production correctly", () => {
-    expect(getApprovalCcEmail("production", "itp")).toBe(ITP_OPERATION_EMAIL);
-  });
-});
-
-describe("getCancelCcEmail", () => {
+describe("getTenantPolicyFromSchema (async)", () => {
   const originalEnv = process.env.NEXT_PUBLIC_BRANCH_NAME;
+
+  beforeEach(() => {
+    process.env.NEXT_PUBLIC_BRANCH_NAME = "production";
+    mockServerGetDocumentById.mockReset();
+  });
 
   afterEach(() => {
     process.env.NEXT_PUBLIC_BRANCH_NAME = originalEnv;
   });
 
-  it("uses distinct cancelCc email for MC in development", () => {
-    process.env.NEXT_PUBLIC_BRANCH_NAME = "development";
-    expect(getCancelCcEmail("mc")).toBe(
-      "booking-app-devs+cancelcc@itp.nyu.edu",
+  it("fetches schema from Firestore and returns policy", async () => {
+    mockServerGetDocumentById.mockResolvedValue(
+      makeMockSchema({
+        ccEmails: {
+          approved: { development: "", staging: "", production: "ops@nyu.edu" },
+          canceled: { development: "", staging: "", production: "cancel@nyu.edu" },
+        },
+        approvalLevels: 1,
+      }),
     );
+
+    const policy = await getTenantPolicyFromSchema("itp");
+    expect(policy.approvedCcEmail).toBe("ops@nyu.edu");
+    expect(policy.canceledCcEmail).toBe("cancel@nyu.edu");
+    expect(policy.approvalLevels).toBe(1);
   });
 
-  it("returns MC production email when branch is production", () => {
+  it("returns default policy when schema not found", async () => {
+    mockServerGetDocumentById.mockResolvedValue(null);
+
+    const policy = await getTenantPolicyFromSchema("unknown");
+    expect(policy.approvedCcEmail).toBe("");
+    expect(policy.canceledCcEmail).toBe("");
+    expect(policy.approvalLevels).toBe(2);
+  });
+
+  it("returns default policy when Firestore fetch fails", async () => {
+    mockServerGetDocumentById.mockRejectedValue(new Error("connection failed"));
+
+    const policy = await getTenantPolicyFromSchema("mc");
+    expect(policy.approvedCcEmail).toBe("");
+    expect(policy.approvalLevels).toBe(2);
+  });
+});
+
+describe("getApprovedCcEmail / getCanceledCcEmail", () => {
+  const originalEnv = process.env.NEXT_PUBLIC_BRANCH_NAME;
+
+  beforeEach(() => {
     process.env.NEXT_PUBLIC_BRANCH_NAME = "production";
-    expect(getCancelCcEmail("mc")).toBe(MEDIA_COMMONS_OPERATION_EMAIL);
+    mockServerGetDocumentById.mockReset();
   });
 
-  it("returns ITP email for ITP tenant", () => {
+  afterEach(() => {
+    process.env.NEXT_PUBLIC_BRANCH_NAME = originalEnv;
+  });
+
+  it("returns approved CC email for tenant", async () => {
+    mockServerGetDocumentById.mockResolvedValue(
+      makeMockSchema({
+        ccEmails: {
+          approved: { development: "", staging: "", production: "approved@nyu.edu" },
+          canceled: { development: "", staging: "", production: "" },
+        },
+      }),
+    );
+
+    expect(await getApprovedCcEmail("mc")).toBe("approved@nyu.edu");
+  });
+
+  it("returns canceled CC email for tenant", async () => {
+    mockServerGetDocumentById.mockResolvedValue(
+      makeMockSchema({
+        ccEmails: {
+          approved: { development: "", staging: "", production: "" },
+          canceled: { development: "", staging: "", production: "cancel@nyu.edu" },
+        },
+      }),
+    );
+
+    expect(await getCanceledCcEmail("mc")).toBe("cancel@nyu.edu");
+  });
+});
+
+describe("getApprovalCcEmail (policy.ts wrapper)", () => {
+  const originalEnv = process.env.NEXT_PUBLIC_BRANCH_NAME;
+
+  beforeEach(() => {
     process.env.NEXT_PUBLIC_BRANCH_NAME = "production";
-    expect(getCancelCcEmail("itp")).toBe(ITP_OPERATION_EMAIL);
+    mockServerGetDocumentById.mockReset();
   });
 
-  it("falls back to MC when no tenant (backward compatible)", () => {
+  afterEach(() => {
+    process.env.NEXT_PUBLIC_BRANCH_NAME = originalEnv;
+  });
+
+  it("returns empty string when tenant is undefined", async () => {
+    expect(await getApprovalCcEmail("production")).toBe("");
+  });
+
+  it("fetches approved CC email for tenant", async () => {
+    mockServerGetDocumentById.mockResolvedValue(
+      makeMockSchema({
+        ccEmails: {
+          approved: { development: "", staging: "", production: "ops@nyu.edu" },
+          canceled: { development: "", staging: "", production: "" },
+        },
+      }),
+    );
+
+    expect(await getApprovalCcEmail("production", "mc")).toBe("ops@nyu.edu");
+  });
+});
+
+describe("getCancelCcEmail (policy.ts wrapper)", () => {
+  const originalEnv = process.env.NEXT_PUBLIC_BRANCH_NAME;
+
+  beforeEach(() => {
     process.env.NEXT_PUBLIC_BRANCH_NAME = "production";
-    expect(getCancelCcEmail()).toBe(MEDIA_COMMONS_OPERATION_EMAIL);
+    mockServerGetDocumentById.mockReset();
   });
 
-  it("uses cancelCc dev email for MC fallback when no tenant in dev", () => {
-    process.env.NEXT_PUBLIC_BRANCH_NAME = "development";
-    expect(getCancelCcEmail()).toBe("booking-app-devs+cancelcc@itp.nyu.edu");
+  afterEach(() => {
+    process.env.NEXT_PUBLIC_BRANCH_NAME = originalEnv;
+  });
+
+  it("returns empty string when tenant is undefined", async () => {
+    expect(await getCancelCcEmail()).toBe("");
+  });
+
+  it("fetches canceled CC email for tenant", async () => {
+    mockServerGetDocumentById.mockResolvedValue(
+      makeMockSchema({
+        ccEmails: {
+          approved: { development: "", staging: "", production: "" },
+          canceled: { development: "", staging: "", production: "cancel@nyu.edu" },
+        },
+      }),
+    );
+
+    expect(await getCancelCcEmail("mc")).toBe("cancel@nyu.edu");
   });
 });

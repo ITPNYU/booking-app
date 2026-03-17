@@ -111,6 +111,14 @@ export type SchemaContextType = {
     slotUnit?: Record<string, number>; // e.g., { student: 15, admin: 15, ... }
     timeSensitiveRequestWarning?: TimeSensitiveRequestWarning;
   };
+  // Tenant policy — previously hardcoded in tenantPolicy.ts, now schema-driven
+  ccEmails?: {
+    approved: { development: string; staging: string; production: string };
+    canceled: { development: string; staging: string; production: string };
+  };
+  approvalLevels?: 1 | 2;
+  hasServiceRequests?: boolean;
+  autoCloseOnCheckout?: boolean;
   // Email messages for all scenarios
   emailMessages: {
     requestConfirmation: string;
@@ -263,6 +271,13 @@ export const defaultScheme: Omit<SchemaContextType, "tenant"> = {
     timeSensitiveRequestWarning: defaultTimeSensitiveRequestWarning,
   },
   schoolMapping: {},
+  ccEmails: {
+    approved: { development: "", staging: "", production: "" },
+    canceled: { development: "", staging: "", production: "" },
+  },
+  approvalLevels: 2,
+  hasServiceRequests: true,
+  autoCloseOnCheckout: false,
   emailMessages: {
     requestConfirmation: "",
     firstApprovalRequest: "",

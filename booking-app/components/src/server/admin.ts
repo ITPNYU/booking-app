@@ -648,7 +648,7 @@ export const serverApproveEvent = async (id: string, tenant?: string) => {
   // for Samantha
   serverSendBookingDetailEmail({
     calendarEventId: id,
-    targetEmail: getApprovalCcEmail(process.env.NEXT_PUBLIC_BRANCH_NAME, tenant),
+    targetEmail: await getApprovalCcEmail(process.env.NEXT_PUBLIC_BRANCH_NAME, tenant),
     headerMessage: otherHeaderMessage,
     status: BookingStatusLabel.APPROVED,
     replyTo: guestEmail,

@@ -1,105 +1,90 @@
-import { MEDIA_COMMONS_OPERATION_EMAIL } from "./mediaCommonsPolicy";
-import { ITP_OPERATION_EMAIL } from "./itpPolicy";
-import {
-  DEFAULT_TENANT,
-  TENANTS,
-  isMediaCommonsTenant,
-} from "./constants/tenants";
+import { SchemaContextType } from "./client/routes/components/SchemaProvider";
+import { TableNames } from "./policy";
 
 type Environment = "development" | "staging" | "production";
 
-interface TenantEmailConfig {
-  operationEmail: {
-    development: string;
-    staging: string;
-    production: string;
-  };
-  cancelCcEmail?: {
-    development: string;
-    staging: string;
-    production: string;
-  };
-}
-
 export interface TenantPolicy {
-  emails: TenantEmailConfig;
+  approvedCcEmail: string;
+  canceledCcEmail: string;
   approvalLevels: 1 | 2;
   hasServiceRequests: boolean;
   autoCloseOnCheckout: boolean;
 }
 
-const MC_POLICY: TenantPolicy = {
-  emails: {
-    operationEmail: {
-      development: "booking-app-devs+operation@itp.nyu.edu",
-      staging: MEDIA_COMMONS_OPERATION_EMAIL,
-      production: MEDIA_COMMONS_OPERATION_EMAIL,
-    },
-    cancelCcEmail: {
-      development: "booking-app-devs+cancelcc@itp.nyu.edu",
-      staging: MEDIA_COMMONS_OPERATION_EMAIL,
-      production: MEDIA_COMMONS_OPERATION_EMAIL,
-    },
-  },
-  approvalLevels: 2,
-  hasServiceRequests: true,
-  autoCloseOnCheckout: false,
-};
-
-const ITP_POLICY: TenantPolicy = {
-  emails: {
-    operationEmail: {
-      development: "booking-app-devs+operation@itp.nyu.edu",
-      staging: ITP_OPERATION_EMAIL,
-      production: ITP_OPERATION_EMAIL,
-    },
-    cancelCcEmail: {
-      development: "booking-app-devs+cancelcc@itp.nyu.edu",
-      staging: ITP_OPERATION_EMAIL,
-      production: ITP_OPERATION_EMAIL,
-    },
-  },
-  approvalLevels: 1,
-  hasServiceRequests: false,
-  autoCloseOnCheckout: true,
-};
-
-const TENANT_POLICIES: Record<string, TenantPolicy> = {
-  [TENANTS.MC]: MC_POLICY,
-  [TENANTS.ITP]: ITP_POLICY,
-};
-
-function normalizeTenant(tenant?: string): string {
-  if (!tenant) return DEFAULT_TENANT;
-  if (isMediaCommonsTenant(tenant)) return TENANTS.MC;
-  return tenant.toLowerCase();
-}
-
-function resolveEnvironment(branchName?: string): Environment {
+function resolveEnvironment(): Environment {
+  const branchName = process.env.NEXT_PUBLIC_BRANCH_NAME;
   if (branchName === "development") return "development";
   if (branchName === "staging") return "staging";
   return "production";
 }
 
-export function getTenantPolicy(tenant?: string): TenantPolicy {
-  const key = normalizeTenant(tenant);
-  return TENANT_POLICIES[key] || TENANT_POLICIES[DEFAULT_TENANT];
+function resolveEmail(
+  emailConfig?: { development: string; staging: string; production: string },
+): string {
+  if (!emailConfig) return "";
+  return emailConfig[resolveEnvironment()] || "";
 }
 
-export function getOperationEmail(
-  tenant?: string,
-  branchName?: string,
-): string {
-  const policy = getTenantPolicy(tenant);
-  const env = resolveEnvironment(branchName);
-  return policy.emails.operationEmail[env];
+function policyFromSchema(schema: SchemaContextType): TenantPolicy {
+  return {
+    approvedCcEmail: resolveEmail(schema.ccEmails?.approved),
+    canceledCcEmail: resolveEmail(schema.ccEmails?.canceled),
+    approvalLevels: schema.approvalLevels ?? 2,
+    hasServiceRequests: schema.hasServiceRequests ?? true,
+    autoCloseOnCheckout: schema.autoCloseOnCheckout ?? false,
+  };
 }
 
-export function getCancelCcEmailForTenant(
-  tenant?: string,
-  branchName?: string,
-): string {
-  const policy = getTenantPolicy(tenant);
-  const env = resolveEnvironment(branchName);
-  return (policy.emails.cancelCcEmail || policy.emails.operationEmail)[env];
+/**
+ * Fetch tenant policy from Firestore schema.
+ * Use this on the server side where React context is not available.
+ */
+export async function getTenantPolicyFromSchema(
+  tenant: string,
+): Promise<TenantPolicy> {
+  try {
+    const { serverGetDocumentById } = await import(
+      "@/lib/firebase/server/adminDb"
+    );
+    const schema = await serverGetDocumentById<SchemaContextType>(
+      TableNames.TENANT_SCHEMA,
+      tenant,
+    );
+    if (schema) {
+      return policyFromSchema(schema);
+    }
+  } catch (error) {
+    console.error("Failed to fetch tenant schema for policy:", error);
+  }
+  return {
+    approvedCcEmail: "",
+    canceledCcEmail: "",
+    approvalLevels: 2,
+    hasServiceRequests: true,
+    autoCloseOnCheckout: false,
+  };
+}
+
+/**
+ * Build tenant policy from an already-loaded schema.
+ * Use this on the client side where schema is available via context.
+ */
+export function getTenantPolicy(schema: SchemaContextType): TenantPolicy {
+  return policyFromSchema(schema);
+}
+
+/**
+ * Get approved CC email from schema. Returns empty string if not configured.
+ */
+export async function getApprovedCcEmail(tenant: string): Promise<string> {
+  const policy = await getTenantPolicyFromSchema(tenant);
+  return policy.approvedCcEmail;
+}
+
+/**
+ * Get canceled CC email from schema. Returns empty string if not configured.
+ */
+export async function getCanceledCcEmail(tenant: string): Promise<string> {
+  const policy = await getTenantPolicyFromSchema(tenant);
+  return policy.canceledCcEmail;
 }

@@ -623,7 +623,7 @@ export async function POST(request: NextRequest) {
     const notifyEmails = [
       data.sponsorEmail ?? null,
       await serverGetFinalApproverEmail(),
-      getApprovalCcEmail(process.env.NEXT_PUBLIC_BRANCH_NAME, tenant),
+      await getApprovalCcEmail(process.env.NEXT_PUBLIC_BRANCH_NAME, tenant),
     ].filter(x => x != null);
     await sendWalkInNofificationEmail(notifyEmails);
   } else {

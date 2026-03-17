@@ -644,7 +644,7 @@ export const processCancelBooking = async (
 
     await serverSendBookingDetailEmail({
       calendarEventId: id,
-      targetEmail: getCancelCcEmail(tenant),
+      targetEmail: await getCancelCcEmail(tenant),
       headerMessage: ccHeaderMessage,
       status: BookingStatusLabel.CANCELED,
       tenant,
@@ -1224,7 +1224,7 @@ export const executeTraditionalNoShow = async (
   );
   clientSendBookingDetailEmail(
     id,
-    getApprovalCcEmail(process.env.NEXT_PUBLIC_BRANCH_NAME, tenant),
+    await getApprovalCcEmail(process.env.NEXT_PUBLIC_BRANCH_NAME, tenant),
     headerMessage,
     BookingStatusLabel.NO_SHOW,
     tenant,
