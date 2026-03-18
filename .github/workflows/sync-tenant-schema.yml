@@ -37,17 +37,12 @@ jobs:
         working-directory: ./booking-app
         run: npm ci
 
-      - name: Create .env.local file
-        working-directory: ./booking-app
-        run: |
-          cat > .env.local << EOF
-          FIREBASE_PROJECT_ID=${{ secrets.FIREBASE_PROJECT_ID }}
-          FIREBASE_CLIENT_EMAIL=${{ secrets.FIREBASE_CLIENT_EMAIL }}
-          FIREBASE_PRIVATE_KEY="${{ secrets.FIREBASE_PRIVATE_KEY }}"
-          EOF
-
       - name: Dry Run - Analyze tenantSchema Sync to Staging
         working-directory: ./booking-app
+        env:
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          FIREBASE_CLIENT_EMAIL: ${{ secrets.FIREBASE_CLIENT_EMAIL }}
+          FIREBASE_PRIVATE_KEY: ${{ secrets.FIREBASE_PRIVATE_KEY }}
         run: |
           node scripts/copyCollection.js \
             --source-database development \
@@ -89,7 +84,11 @@ jobs:
 
       - name: Validate tenant schemas (staging)
         working-directory: ./booking-app
-        run: npx ts-node scripts/validateTenantSchemas.ts --database staging
+        env:
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          FIREBASE_CLIENT_EMAIL: ${{ secrets.FIREBASE_CLIENT_EMAIL }}
+          FIREBASE_PRIVATE_KEY: ${{ secrets.FIREBASE_PRIVATE_KEY }}
+        run: npm run validate:schemas -- --database staging
 
   sync-to-production:
     name: Dry Run - Analyze tenantSchema Sync to Production
@@ -110,17 +109,12 @@ jobs:
         working-directory: ./booking-app
         run: npm ci
 
-      - name: Create .env.local file
-        working-directory: ./booking-app
-        run: |
-          cat > .env.local << EOF
-          FIREBASE_PROJECT_ID=${{ secrets.FIREBASE_PROJECT_ID }}
-          FIREBASE_CLIENT_EMAIL=${{ secrets.FIREBASE_CLIENT_EMAIL }}
-          FIREBASE_PRIVATE_KEY="${{ secrets.FIREBASE_PRIVATE_KEY }}"
-          EOF
-
       - name: Dry Run - Analyze tenantSchema Sync to Production
         working-directory: ./booking-app
+        env:
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          FIREBASE_CLIENT_EMAIL: ${{ secrets.FIREBASE_CLIENT_EMAIL }}
+          FIREBASE_PRIVATE_KEY: ${{ secrets.FIREBASE_PRIVATE_KEY }}
         run: |
           node scripts/copyCollection.js \
             --source-database development \
@@ -162,5 +156,9 @@ jobs:
 
       - name: Validate tenant schemas (production)
         working-directory: ./booking-app
-        run: npx ts-node scripts/validateTenantSchemas.ts --database production
+        env:
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          FIREBASE_CLIENT_EMAIL: ${{ secrets.FIREBASE_CLIENT_EMAIL }}
+          FIREBASE_PRIVATE_KEY: ${{ secrets.FIREBASE_PRIVATE_KEY }}
+        run: npm run validate:schemas -- --database production
 

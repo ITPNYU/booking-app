@@ -73,14 +73,12 @@ jobs:
           npm ci
 
       - name: Validate tenant schemas
-        run: |
-          cd booking-app
-          cat > .env.local << EOF
-          FIREBASE_PROJECT_ID=${{ secrets.FIREBASE_PROJECT_ID }}
-          FIREBASE_CLIENT_EMAIL=${{ secrets.FIREBASE_CLIENT_EMAIL }}
-          FIREBASE_PRIVATE_KEY="${{ secrets.FIREBASE_PRIVATE_KEY }}"
-          EOF
-          npx ts-node scripts/validateTenantSchemas.ts --database staging
+        working-directory: ./booking-app
+        env:
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          FIREBASE_CLIENT_EMAIL: ${{ secrets.FIREBASE_CLIENT_EMAIL }}
+          FIREBASE_PRIVATE_KEY: ${{ secrets.FIREBASE_PRIVATE_KEY }}
+        run: npm run validate:schemas -- --database staging
 
       - name: Build
         run: |
