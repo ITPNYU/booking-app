@@ -311,6 +311,47 @@ describe("BookingStatusBar - Blackout Period Handling", () => {
 
     expect(goBack).toHaveBeenCalled();
   });
+
+  it("uses resource-specific training info URL in safety training alert", () => {
+    renderComponent({
+      needsSafetyTraining: true,
+      selectedRooms: [
+        {
+          roomId: 230,
+          name: "Workshop 230",
+          capacity: "15",
+          needsSafetyTraining: true,
+          trainingInfoUrl: "https://example.edu/training/room-230",
+        },
+      ],
+    });
+
+    const signUpLink = screen.getByRole("link", { name: /sign up here/i });
+    expect(signUpLink).toHaveAttribute(
+      "href",
+      "https://example.edu/training/room-230",
+    );
+  });
+
+  it("falls back to default training URL when resource URL is missing", () => {
+    renderComponent({
+      needsSafetyTraining: true,
+      selectedRooms: [
+        {
+          roomId: 230,
+          name: "Workshop 230",
+          capacity: "15",
+          needsSafetyTraining: true,
+        },
+      ],
+    });
+
+    const signUpLink = screen.getByRole("link", { name: /sign up here/i });
+    expect(signUpLink).toHaveAttribute(
+      "href",
+      "https://sites.google.com/nyu.edu/370jmediacommons/reservations/safety-training",
+    );
+  });
 });
 
 describe("BookingStatusBar - Time Sensitive Request Warning", () => {
