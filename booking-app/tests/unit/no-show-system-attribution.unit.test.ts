@@ -628,6 +628,7 @@ describe("noShow function XState flow", () => {
         bookingId: "cal-event-123",
         noShowDate: expect.any(Object),
       }),
+      "mc",
     );
 
     const bookingLogCall = fetchMock.mock.calls.find(
@@ -783,6 +784,7 @@ describe("noShow function XState flow", () => {
         bookingId: "cal-event-789",
         noShowDate: expect.any(Object),
       }),
+      "mc",
     );
 
     const sendEmailCall = fetchMock.mock.calls.find(
