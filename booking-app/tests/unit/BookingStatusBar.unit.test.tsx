@@ -1,5 +1,6 @@
 import { BookingContext } from "@/components/src/client/routes/booking/bookingProvider";
 import BookingStatusBar from "@/components/src/client/routes/booking/components/BookingStatusBar";
+import { defaultSafetyTrainingInfoUrl } from "@/components/src/client/routes/components/SchemaProvider";
 import { FormContextLevel, Role } from "@/components/src/types";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import { render, screen } from "@testing-library/react";
@@ -29,11 +30,17 @@ vi.mock(
   })
 );
 
-// Mock SchemaProvider
+// Mock SchemaProvider (preserve defaultSafetyTrainingInfoUrl for BookingStatusBar)
 const mockUseTenantSchema = vi.fn();
-vi.mock("@/components/src/client/routes/components/SchemaProvider", () => ({
-  useTenantSchema: () => mockUseTenantSchema(),
-}));
+vi.mock("@/components/src/client/routes/components/SchemaProvider", async (importOriginal) => {
+  const mod = await importOriginal<
+    typeof import("@/components/src/client/routes/components/SchemaProvider")
+  >();
+  return {
+    ...mod,
+    useTenantSchema: () => mockUseTenantSchema(),
+  };
+});
 
 const theme = createTheme();
 
@@ -347,10 +354,7 @@ describe("BookingStatusBar - Blackout Period Handling", () => {
     });
 
     const signUpLink = screen.getByRole("link", { name: /sign up here/i });
-    expect(signUpLink).toHaveAttribute(
-      "href",
-      "https://sites.google.com/nyu.edu/370jmediacommons/reservations/safety-training",
-    );
+    expect(signUpLink).toHaveAttribute("href", defaultSafetyTrainingInfoUrl);
   });
 });
 

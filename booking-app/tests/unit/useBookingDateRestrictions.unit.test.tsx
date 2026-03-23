@@ -115,17 +115,25 @@ describe("useBookingDateRestrictions Hook", () => {
   });
 
   it("should not disable dates within inactive blackout periods", () => {
-    const { result } = renderHook(() => useBookingDateRestrictions(), {
-      wrapper: ({ children }) => (
-        <DatabaseContext.Provider value={mockDatabaseContext as any}>
-          {children}
-        </DatabaseContext.Provider>
-      ),
-    });
+    // Freeze "today" so the test date stays in the future; otherwise past-date
+    // logic hides whether inactive blackouts are ignored.
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-03-01T12:00:00.000Z"));
+    try {
+      const { result } = renderHook(() => useBookingDateRestrictions(), {
+        wrapper: ({ children }) => (
+          <DatabaseContext.Provider value={mockDatabaseContext as any}>
+            {children}
+          </DatabaseContext.Provider>
+        ),
+      });
 
-    // Test date within Maintenance Period (inactive period)
-    const maintenanceDate = dayjs("2026-03-17");
-    expect(result.current.isDateDisabled(maintenanceDate)).toBe(false);
+      // Test date within Maintenance Period (inactive period)
+      const maintenanceDate = dayjs("2026-03-17");
+      expect(result.current.isDateDisabled(maintenanceDate)).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("should not disable dates outside blackout periods", () => {

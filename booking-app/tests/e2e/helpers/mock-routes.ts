@@ -1,3 +1,4 @@
+import { defaultSafetyTrainingInfoUrl } from "@/components/src/constants/safetyTraining";
 import { Page, Route } from "@playwright/test";
 
 export const mockTenantSchema = {
@@ -93,8 +94,7 @@ export const mockTenantSchema = {
       isEquipment: false,
       calendarId: "mock-calendar-230",
       needsSafetyTraining: true,
-      trainingInfoUrl:
-        "https://sites.google.com/nyu.edu/370jmediacommons/reservations/safety-training",
+      trainingInfoUrl: defaultSafetyTrainingInfoUrl,
       shouldAutoApprove: false,
       isWalkIn: false,
       isWalkInCanBookTwo: false,

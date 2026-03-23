@@ -1,4 +1,7 @@
+import { defaultSafetyTrainingInfoUrl } from "@/components/src/constants/safetyTraining";
 import { createContext, useContext } from "react";
+
+export { defaultSafetyTrainingInfoUrl };
 
 export type Agreement = {
   id: string;
@@ -209,8 +212,7 @@ export const defaultResource: Resource = {
   staffingServices: [],
   staffingSections: defineObjectArrayWithDefaults(defaultStaffingSection),
   trainingFormUrl: "",
-  trainingInfoUrl:
-    "https://sites.google.com/nyu.edu/370jmediacommons/reservations/safety-training",
+  trainingInfoUrl: defaultSafetyTrainingInfoUrl,
   calendarIdProd: "",
 };
 
