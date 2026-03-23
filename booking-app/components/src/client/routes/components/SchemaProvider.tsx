@@ -1,4 +1,7 @@
+import { defaultSafetyTrainingInfoUrl } from "@/components/src/constants/safetyTraining";
 import { createContext, useContext } from "react";
+
+export { defaultSafetyTrainingInfoUrl };
 
 export type Agreement = {
   id: string;
@@ -161,10 +164,6 @@ export const defaultAgreement: Agreement = {
   id: "",
   html: "",
 };
-
-/** Default safety-training info URL when a resource requires training but has no resource-specific link. */
-export const defaultSafetyTrainingInfoUrl =
-  "https://sites.google.com/nyu.edu/370jmediacommons/reservations/safety-training";
 
 export const defaultResource: Resource = {
   capacity: 0,

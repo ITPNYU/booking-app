@@ -1,7 +1,5 @@
-import {
-  SchemaContextType,
-  defaultSafetyTrainingInfoUrl,
-} from "@/components/src/client/routes/components/SchemaProvider";
+import { defaultSafetyTrainingInfoUrl } from "@/components/src/constants/safetyTraining";
+import { SchemaContextType } from "@/components/src/client/routes/components/SchemaProvider";
 
 /**
  * Mock tenant schema used in e2e tests when BYPASS_AUTH is enabled.

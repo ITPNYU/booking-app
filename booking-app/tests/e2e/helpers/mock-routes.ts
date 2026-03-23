@@ -1,4 +1,4 @@
-import { defaultSafetyTrainingInfoUrl } from "@/components/src/client/routes/components/SchemaProvider";
+import { defaultSafetyTrainingInfoUrl } from "@/components/src/constants/safetyTraining";
 import { Page, Route } from "@playwright/test";
 
 export const mockTenantSchema = {
