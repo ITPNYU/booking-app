@@ -1,12 +1,11 @@
 import ClientProvider from "@/components/src/client/routes/components/ClientProvider";
 import NavBar from "@/components/src/client/routes/components/navBar";
-import { SchemaContextType } from "@/components/src/client/routes/components/SchemaProvider";
+import type { SchemaContextType } from "@/components/src/client/routes/components/SchemaProvider";
 import SchemaProviderWrapper from "@/components/src/client/routes/components/SchemaProviderWrapper";
 import { ALLOWED_TENANTS } from "@/components/src/constants/tenants";
-import { TableNames } from "@/components/src/policy";
+import { getCachedTenantSchema } from "@/lib/tenant/getCachedTenantSchema";
 import { applyEnvironmentCalendarIds } from "@/lib/utils/calendarEnvironment";
-import { shouldBypassAuth } from "@/lib/utils/testEnvironment";
-import { getTestTenantSchema } from "@/lib/utils/testTenantSchema";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import React from "react";
 
@@ -17,6 +16,39 @@ type LayoutProps = {
   }>;
 };
 
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ tenant: string }>;
+}): Promise<Metadata> {
+  const { tenant } = await params;
+  try {
+    const tenantSchema = await getCachedTenantSchema(tenant);
+    if (!tenantSchema?.name) {
+      notFound();
+    }
+    const title = `${tenantSchema.name} Booking`;
+    const description =
+      tenantSchema.nameForPolicy?.trim() ||
+      `${title} — NYU space reservation`;
+    return {
+      title,
+      description,
+      ...(tenantSchema.logo
+        ? {
+            icons: {
+              icon: tenantSchema.logo,
+              apple: tenantSchema.logo,
+            },
+          }
+        : {}),
+    };
+  } catch (error) {
+    console.error("generateMetadata: Error generating metadata:", error);
+    throw error;
+  }
+}
+
 const Layout: React.FC<LayoutProps> = async ({ children, params }) => {
   const { tenant } = await params;
   if (!ALLOWED_TENANTS.includes(tenant as any)) {
@@ -25,18 +57,7 @@ const Layout: React.FC<LayoutProps> = async ({ children, params }) => {
 
   try {
     console.log("Layout: Fetching schema for tenant:", tenant);
-    let tenantSchema: SchemaContextType | null = null;
-
-    if (shouldBypassAuth()) {
-      tenantSchema = getTestTenantSchema(tenant);
-    } else {
-      const { serverGetDocumentById } =
-        await import("@/lib/firebase/server/adminDb");
-      tenantSchema = await serverGetDocumentById<SchemaContextType>(
-        TableNames.TENANT_SCHEMA,
-        tenant,
-      );
-    }
+    const tenantSchema = await getCachedTenantSchema(tenant);
 
     console.log("Layout: Retrieved tenantSchema:", {
       tenant: tenantSchema?.tenant,
@@ -51,17 +72,15 @@ const Layout: React.FC<LayoutProps> = async ({ children, params }) => {
 
     console.log("Layout: Passing tenantSchema to SchemaProviderWrapper");
 
-    // Apply environment-based calendar ID selection
-    if (tenantSchema.resources && Array.isArray(tenantSchema.resources)) {
-      tenantSchema.resources = applyEnvironmentCalendarIds(
-        tenantSchema.resources,
-      );
-    }
+    const resources =
+      tenantSchema.resources && Array.isArray(tenantSchema.resources)
+        ? applyEnvironmentCalendarIds(tenantSchema.resources)
+        : tenantSchema.resources;
 
-    // Ensure the data is properly serializable
     const serializedTenantSchema: SchemaContextType = {
       ...tenantSchema,
-      tenant: tenantSchema.tenant || tenant, // Fallback to params.tenant
+      resources: resources ?? tenantSchema.resources,
+      tenant: tenantSchema.tenant || tenant,
     };
 
     console.log("Layout: Serialized tenantSchema:", {
