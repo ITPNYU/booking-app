@@ -614,7 +614,7 @@ describe("UpdateWebcheckoutCart API Route", () => {
 
       expect(response.status).toBe(403);
       expect(data.error).toBe(
-        "Unauthorized: Only PA and Admin users can update cart numbers"
+        "Unauthorized: Only PA, Admin, and Super Admin users can update cart numbers"
       );
     });
 

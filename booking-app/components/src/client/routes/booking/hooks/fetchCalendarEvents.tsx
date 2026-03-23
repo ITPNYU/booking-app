@@ -76,9 +76,12 @@ export default function fetchCalendarEvents(allRooms: RoomSetting[]) {
     setFetchingStatus("loading");
 
     const calendarIds = allRooms.map((room) => room.calendarId).join(",");
+    const query = new URLSearchParams({
+      calendarIds,
+    }).toString();
 
     fetch(
-      `${process.env.NEXT_PUBLIC_BASE_URL}/api/calendarEvents?calendarIds=${encodeURIComponent(calendarIds)}`,
+      `/api/calendarEvents?${query}`,
       {
         headers: {
           "Content-Type": "application/json",
