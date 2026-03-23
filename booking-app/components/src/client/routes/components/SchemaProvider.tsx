@@ -162,6 +162,10 @@ export const defaultAgreement: Agreement = {
   html: "",
 };
 
+/** Default safety-training info URL when a resource requires training but has no resource-specific link. */
+export const defaultSafetyTrainingInfoUrl =
+  "https://sites.google.com/nyu.edu/370jmediacommons/reservations/safety-training";
+
 export const defaultResource: Resource = {
   capacity: 0,
   name: "",
@@ -209,8 +213,7 @@ export const defaultResource: Resource = {
   staffingServices: [],
   staffingSections: defineObjectArrayWithDefaults(defaultStaffingSection),
   trainingFormUrl: "",
-  trainingInfoUrl:
-    "https://sites.google.com/nyu.edu/370jmediacommons/reservations/safety-training",
+  trainingInfoUrl: defaultSafetyTrainingInfoUrl,
   calendarIdProd: "",
 };
 

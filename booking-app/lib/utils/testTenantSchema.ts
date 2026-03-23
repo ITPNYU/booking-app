@@ -1,4 +1,7 @@
-import { SchemaContextType } from "@/components/src/client/routes/components/SchemaProvider";
+import {
+  SchemaContextType,
+  defaultSafetyTrainingInfoUrl,
+} from "@/components/src/client/routes/components/SchemaProvider";
 
 /**
  * Mock tenant schema used in e2e tests when BYPASS_AUTH is enabled.
@@ -105,8 +108,7 @@ function getMcTestSchema(tenant: string): SchemaContextType {
         isEquipment: false,
         calendarId: "mock-calendar-230",
         needsSafetyTraining: true,
-        trainingInfoUrl:
-          "https://sites.google.com/nyu.edu/370jmediacommons/reservations/safety-training",
+        trainingInfoUrl: defaultSafetyTrainingInfoUrl,
         shouldAutoApprove: false,
         isWalkIn: false,
         isWalkInCanBookTwo: false,

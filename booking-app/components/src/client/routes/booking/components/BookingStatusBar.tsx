@@ -18,7 +18,10 @@ import { BookingContext } from "../bookingProvider";
 import useCalculateOverlap from "../hooks/useCalculateOverlap";
 import useCheckAutoApproval from "../hooks/useCheckAutoApproval";
 import useCheckDurationLimits from "../hooks/useCheckDurationLimits";
-import { useTenantSchema } from "../../components/SchemaProvider";
+import {
+  defaultSafetyTrainingInfoUrl,
+  useTenantSchema,
+} from "../../components/SchemaProvider";
 
 interface Props {
   formContext: FormContextLevel;
@@ -58,8 +61,6 @@ export default function BookingStatusBar({ formContext, ...props }: Props) {
   const timeSensitiveRequestWarning =
     schema.timeSensitiveRequestWarning ??
     schema.calendarConfig?.timeSensitiveRequestWarning;
-  const defaultSafetyTrainingInfoUrl =
-    "https://sites.google.com/nyu.edu/370jmediacommons/reservations/safety-training";
   const safetyTrainingInfoUrl =
     selectedRooms.find((room) => room.needsSafetyTraining && room.trainingInfoUrl)
       ?.trainingInfoUrl || defaultSafetyTrainingInfoUrl;
