@@ -1,6 +1,6 @@
 import ClientProvider from "@/components/src/client/routes/components/ClientProvider";
 import NavBar from "@/components/src/client/routes/components/navBar";
-import { SchemaContextType } from "@/components/src/client/routes/components/SchemaProvider";
+import type { SchemaContextType } from "@/components/src/client/routes/components/SchemaProvider";
 import SchemaProviderWrapper from "@/components/src/client/routes/components/SchemaProviderWrapper";
 import { ALLOWED_TENANTS } from "@/components/src/constants/tenants";
 import { getCachedTenantSchema } from "@/lib/tenant/getCachedTenantSchema";
