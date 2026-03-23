@@ -43,8 +43,9 @@ export async function generateMetadata({
           }
         : {}),
     };
-  } catch {
-    notFound();
+  } catch (error) {
+    console.error("generateMetadata: Error generating metadata:", error);
+    throw error;
   }
 }
 
