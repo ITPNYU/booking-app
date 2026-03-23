@@ -32,6 +32,7 @@ import { itpBookingMachine } from "@/lib/stateMachines/itpBookingMachine";
 import { mcBookingMachine } from "@/lib/stateMachines/mcBookingMachine";
 import { NextRequest, NextResponse } from "next/server";
 import { createActor } from "xstate";
+import { sendHTMLEmail } from "@/app/lib/sendHTMLEmail";
 
 import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
 import { CALENDAR_HIDE_STATUS, TableNames } from "@/components/src/policy";
