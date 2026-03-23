@@ -4,6 +4,10 @@ import {
   serverGetRoomCalendarId,
   serverSendBookingDetailEmail,
 } from "@/components/src/server/admin";
+import {
+  isServicesRequestState,
+  notifyServiceApproversForRequestedServices,
+} from "@/components/src/server/serviceApproverNotifications";
 import { getTenantEmailConfig } from "@/components/src/server/emails";
 import { BookingOrigin, BookingStatusLabel } from "@/components/src/types";
 import {
@@ -380,6 +384,27 @@ export async function POST(request: NextRequest) {
             changedBy: requestedBy,
           },
         );
+      }
+
+      if (
+        isMediaCommons(tenant) &&
+        isServicesRequestState(initialState) &&
+        tenant
+      ) {
+        try {
+          await notifyServiceApproversForRequestedServices(calendarEventId, tenant);
+        } catch (notificationError) {
+          console.error(
+            `🚨 SERVICE APPROVER NOTIFICATION FAILED [${tenant?.toUpperCase()}]:`,
+            {
+              calendarEventId,
+              error:
+                notificationError instanceof Error
+                  ? notificationError.message
+                  : String(notificationError),
+            },
+          );
+        }
       }
 
       try {

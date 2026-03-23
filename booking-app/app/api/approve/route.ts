@@ -1,5 +1,6 @@
 import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
 import { TableNames } from "@/components/src/policy";
+import { notifyServiceApproversForRequestedServices } from "@/components/src/server/serviceApproverNotifications";
 import { BookingStatusLabel } from "@/components/src/types";
 import { serverGetDataByCalendarEventId } from "@/lib/firebase/server/adminDb";
 import { NextRequest, NextResponse } from "next/server";
@@ -206,6 +207,7 @@ export async function POST(req: NextRequest) {
             );
           }
 
+          await notifyServiceApproversForRequestedServices(id, tenant);
         }
       } else {
         console.log(

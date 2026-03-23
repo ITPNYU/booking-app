@@ -2,10 +2,13 @@ import { toFirebaseTimestampFromString } from "@/components/src/client/utils/ser
 import {
   firstApproverEmails,
   serverApproveInstantBooking,
-  serverBookingContents,
   serverSendBookingDetailEmail,
   serverUpdateDataByCalendarEventId,
 } from "@/components/src/server/admin";
+import {
+  isServicesRequestState,
+  notifyServiceApproversForRequestedServices,
+} from "@/components/src/server/serviceApproverNotifications";
 import {
   bookingContentsToDescription,
   insertEvent,
@@ -21,7 +24,6 @@ import {
 import { getSecondaryContactName } from "@/components/src/utils/formatters";
 import {
   logServerBookingChange,
-  serverFetchAllDataFromCollection,
   serverGetNextSequentialId,
   serverSaveDataToFirestore,
   serverGetDocumentById,
@@ -31,7 +33,6 @@ import { mcBookingMachine } from "@/lib/stateMachines/mcBookingMachine";
 import { NextRequest, NextResponse } from "next/server";
 import { createActor } from "xstate";
 
-import { sendHTMLEmail } from "@/app/lib/sendHTMLEmail";
 import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
 import { CALENDAR_HIDE_STATUS, TableNames } from "@/components/src/policy";
 import { formatOrigin } from "@/components/src/utils/formatters";
@@ -246,102 +247,6 @@ async function createBookingCalendarEvent(
   });
   return event.id;
 }
-
-const SERVICE_APPROVER_CONFIG = {
-  setup: {
-    flagField: "isSetup",
-    subjectStatus: "SETUP REQUESTED",
-    displayName: "setup",
-  },
-  equipment: {
-    flagField: "isEquipment",
-    subjectStatus: "EQUIPMENT REQUESTED",
-    displayName: "equipment",
-  },
-  staff: {
-    flagField: "isStaffing",
-    subjectStatus: "STAFFING REQUESTED",
-    displayName: "staffing",
-  },
-  catering: {
-    flagField: "isCatering",
-    subjectStatus: "CATERING REQUESTED",
-    displayName: "catering",
-  },
-  cleaning: {
-    flagField: "isCleaning",
-    subjectStatus: "CLEANUP REQUESTED",
-    displayName: "cleanup",
-  },
-  security: {
-    flagField: "isSecurity",
-    subjectStatus: "SECURITY REQUESTED",
-    displayName: "security",
-  },
-} as const;
-
-const notifyServiceApproversForRequestedServices = async (
-  calendarEventId: string,
-  requesterEmail: string,
-  servicesRequested: ReturnType<typeof getMediaCommonsServices>,
-  tenant: string,
-) => {
-  if (!Object.values(servicesRequested).some(Boolean)) {
-    return;
-  }
-
-  const usersRights = await serverFetchAllDataFromCollection<any>(
-    TableNames.USERS_RIGHTS,
-    [],
-    tenant,
-  );
-  const bookingContents = await serverBookingContents(calendarEventId, tenant);
-  const bookingContentsAsStrings = Object.fromEntries(
-    Object.entries(bookingContents).map(([key, value]) => [
-      key,
-      value instanceof Timestamp ? value.toDate().toISOString() : String(value ?? ""),
-    ]),
-  );
-  const emailConfig = await getTenantEmailConfig(tenant);
-
-  const emailJobs = Object.entries(SERVICE_APPROVER_CONFIG).flatMap(
-    ([serviceKey, config]) => {
-      if (!servicesRequested[serviceKey as keyof typeof servicesRequested]) {
-        return [];
-      }
-
-      const recipients = Array.from(
-        new Set(
-          usersRights
-            .filter((record) => record[config.flagField] === true)
-            .map((record) => record.email)
-            .filter(Boolean),
-        ),
-      );
-
-      return recipients.map((recipient) =>
-        sendHTMLEmail({
-          templateName: "booking_detail",
-          contents: {
-            ...bookingContentsAsStrings,
-            headerMessage: `A ${config.displayName} service approval is required for this request.`,
-          },
-          targetEmail: recipient,
-          status: BookingStatusLabel.REQUESTED,
-          subjectStatusOverride: config.subjectStatus,
-          eventTitle: bookingContents.title || "",
-          requestNumber: bookingContents.requestNumber,
-          body: "",
-          replyTo: requesterEmail,
-          tenant,
-          schemaName: emailConfig.schemaName,
-        }),
-      );
-    },
-  );
-
-  await Promise.all(emailJobs);
-};
 
 async function handleBookingApprovalEmails(
   isAutoApproval: boolean,
@@ -1015,15 +920,13 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    if (isMediaCommons) {
-      const servicesRequested = getMediaCommonsServices(data);
+    if (
+      isMediaCommons &&
+      isServicesRequestState(xstateData?.snapshot?.value) &&
+      tenant
+    ) {
       try {
-        await notifyServiceApproversForRequestedServices(
-          calendarEventId,
-          email,
-          servicesRequested,
-          tenant,
-        );
+        await notifyServiceApproversForRequestedServices(calendarEventId, tenant);
       } catch (notificationError) {
         console.error(
           `🚨 SERVICE APPROVER NOTIFICATION FAILED [${tenant?.toUpperCase()}]:`,
