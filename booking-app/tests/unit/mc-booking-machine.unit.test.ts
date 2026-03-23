@@ -474,6 +474,23 @@ describe("mcBookingMachine", () => {
     await waitForCondition(actor, (snapshot) => snapshot.matches("Declined"));
   });
 
+  it("directly declines a booking in Services Request state via the decline event", () => {
+    const actor = createTestActor({
+      isVip: true,
+      selectedRooms: [{ roomId: 202 }], // No autoApproval = disabled
+      servicesRequested: { equipment: true },
+    });
+
+    expect(actor.getSnapshot().matches("Services Request")).toBe(true);
+    expect(actor.getSnapshot().can({ type: "decline" })).toBe(true);
+
+    actor.send({ type: "decline", reason: "Outside operation hours" });
+
+    const snapshot = actor.getSnapshot();
+    expect(snapshot.matches("Declined")).toBe(true);
+    expect(snapshot.context.declineReason).toBe("Outside operation hours");
+  });
+
   it("emits the official guideline state sequence for manual service approvals", async () => {
     const actor = createTestActor({
       selectedRooms: [{ roomId: 202 }], // No autoApproval = disabled
