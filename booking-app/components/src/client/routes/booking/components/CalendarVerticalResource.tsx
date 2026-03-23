@@ -244,7 +244,7 @@ export default function CalendarVerticalResource({
     const bookingEnd = dayjs(selectInfo.end);
     const selectedResourceId = selectInfo.resource?.id;
 
-    if (selectedResourceId) {
+    if (!isAdminPermission && selectedResourceId) {
       const roomId = parseInt(selectedResourceId);
 
       // Use the new time-aware blackout checking
@@ -270,7 +270,7 @@ export default function CalendarVerticalResource({
     const bookingEnd = dayjs(selectInfo.end);
     const selectedResourceId = selectInfo.resource?.id;
 
-    if (selectedResourceId) {
+    if (!isAdminPermission && selectedResourceId) {
       const roomId = parseInt(selectedResourceId);
 
       // Use the new time-aware blackout checking
@@ -297,6 +297,8 @@ export default function CalendarVerticalResource({
   };
 
   const handleSelectOverlap = (el) => {
+    // Admins can overlap blackout period blocks
+    if (isAdminPermission) return true;
     // Don't allow overlap with blackout periods
     if (el.classNames && el.classNames.includes("blackout-period")) {
       return false;

@@ -13,6 +13,7 @@ import {
 } from "../../../types";
 import { SAFETY_TRAINING_REQUIRED_ROOM } from "../../../mediaCommonsPolicy";
 import { getAffectingBlackoutPeriods } from "../../../utils/blackoutUtils";
+import { canAccessAdmin } from "../../../utils/permissions";
 import { DatabaseContext } from "../components/Provider";
 import fetchCalendarEvents from "./hooks/fetchCalendarEvents";
 import { useTenantSchema } from "../components/SchemaProvider";
@@ -77,6 +78,7 @@ export function BookingProvider({ children }) {
     userEmail,
     blackoutPeriods,
     reloadSafetyTrainedUsers,
+    pagePermission,
   } = useContext(DatabaseContext);
   const pathname = usePathname();
   const schema = useTenantSchema();
@@ -154,8 +156,10 @@ export function BookingProvider({ children }) {
     return isStudent && roomRequiresSafetyTraining && !isSafetyTrained;
   }, [selectedRooms, role, isSafetyTrained]);
 
-  // Check if the booking falls within any active blackout period
+  // Check if the booking falls within any active blackout period.
+  // Admins and super admins are exempt from this restriction.
   const isInBlackoutPeriod = useMemo(() => {
+    if (canAccessAdmin(pagePermission)) return false;
     if (!bookingCalendarInfo || !blackoutPeriods) return false;
 
     const bookingStart = dayjs(bookingCalendarInfo.start);
@@ -170,7 +174,7 @@ export function BookingProvider({ children }) {
     );
 
     return affectingPeriods.length > 0;
-  }, [bookingCalendarInfo, blackoutPeriods, selectedRooms]);
+  }, [bookingCalendarInfo, blackoutPeriods, selectedRooms, pagePermission]);
 
   return (
     <BookingContext.Provider
