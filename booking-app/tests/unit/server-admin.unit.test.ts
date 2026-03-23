@@ -221,13 +221,15 @@ vi.mock("@/components/src/utils/tenantUtils", async () => {
   };
 });
 
+const mockGetApprovalCcEmail = vi.fn(() => "cc@nyu.edu");
+
 vi.mock("@/components/src/policy", async () => {
   const actual = await vi.importActual<
     typeof import("@/components/src/policy")
   >("@/components/src/policy");
   return {
     ...actual,
-    getApprovalCcEmail: vi.fn(() => "cc@nyu.edu"),
+    getApprovalCcEmail: (...args: any[]) => mockGetApprovalCcEmail(...args),
   };
 });
 
@@ -242,6 +244,7 @@ describe("components/src/server/admin", () => {
     mockFetch.mockReset();
     resetFirestore();
     mockIsMediaCommons.mockReturnValue(false);
+    mockGetApprovalCcEmail.mockReturnValue("cc@nyu.edu");
   });
 
   it("formats booking contents with fallback history when logs absent", async () => {
@@ -356,6 +359,52 @@ describe("components/src/server/admin", () => {
     ];
     const body = JSON.parse(fetchOptions.body);
     expect(body.targetEmail).toBe("final@nyu.edu");
+  });
+
+  it("skips CC email when getApprovalCcEmail returns empty string", async () => {
+    mockGetApprovalCcEmail.mockReturnValue("");
+
+    seedCollection("tenant-y-bookings", [
+      {
+        id: "booking-cc",
+        data: {
+          calendarEventId: "cal-cc",
+          requestNumber: 99,
+          title: "CC Test",
+          email: "requester@nyu.edu",
+          startDate: makeTimestamp("2024-03-04T10:00:00.000Z"),
+          endDate: makeTimestamp("2024-03-04T12:00:00.000Z"),
+          requestedAt: makeTimestamp("2024-03-01T08:00:00.000Z"),
+          firstApprovedAt: null,
+          finalApprovedAt: null,
+          declinedAt: null,
+          canceledAt: null,
+          checkedInAt: null,
+          checkedOutAt: null,
+          noShowedAt: null,
+          walkedInAt: null,
+          role: "Faculty",
+          status: BookingStatusLabel.APPROVED,
+        },
+      },
+    ]);
+
+    mockFetch.mockResolvedValue({ ok: true, json: async () => ({}) } as any);
+
+    const { serverApproveEvent } =
+      await import("@/components/src/server/admin");
+
+    await serverApproveEvent("cal-cc", "tenant-y");
+
+    // All fetch calls should be email sends — none should have CC email as target
+    const emailCalls = mockFetch.mock.calls.filter(
+      ([url]) => url === "https://booking.test/api/sendEmail",
+    );
+    const ccEmailCall = emailCalls.find(([, opts]) => {
+      const body = JSON.parse((opts as RequestInit).body as string);
+      return body.targetEmail === "cc@nyu.edu";
+    });
+    expect(ccEmailCall).toBeUndefined();
   });
 
   it("returns admin records with limited fields", async () => {

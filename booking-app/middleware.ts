@@ -14,9 +14,10 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Skip API routes and static files
+  // Skip API routes, App Engine health checks, and static files
   if (
     pathname.startsWith("/api") ||
+    pathname.startsWith("/_ah/") ||
     pathname.includes(".") ||
     pathname.startsWith("/$dash")
   ) {

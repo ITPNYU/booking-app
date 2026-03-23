@@ -151,7 +151,11 @@ export enum FormContextLevel {
 export type Inputs = {
   firstName: string;
   lastName: string;
-  secondaryName: string;
+  // Secondary contact fields - optional for backwards compatibility with old bookings that used secondaryName
+  secondaryFirstName?: string;
+  secondaryLastName?: string;
+  secondaryEmail?: string;
+  secondaryName?: string; // Legacy field - old bookings have this instead of split fields
   nNumber: string;
   netId: string;
   walkInNetId?: string; // NetID of the walk-in person (for safety training validation)
@@ -192,6 +196,8 @@ export type Inputs = {
   equipment?: string;
   staffing?: string;
   cleaning?: string;
+  // origin of the booking
+  origin?: BookingOrigin
 };
 
 export type DepartmentType = {
@@ -303,6 +309,7 @@ export type RoomSetting = {
   calendarRef?: any;
   needsSafetyTraining?: boolean; // Whether training is required for this resource
   trainingFormUrl?: string; // URL of the Google Form that tracks trained users
+  trainingInfoUrl?: string; // URL shown to users to complete required training
   isWalkIn?: boolean;
   isWalkInCanBookTwo?: boolean;
   isEquipment?: boolean;

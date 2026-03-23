@@ -1,6 +1,18 @@
 import { PagePermission } from "../types";
 
 /**
+ * Maps privileged PagePermission values to their URL path segment.
+ * BOOKING is omitted — it maps to the tenant root, not a sub-path.
+ */
+export const PERMISSION_PATH: Partial<Record<PagePermission, string>> = {
+  [PagePermission.SUPER_ADMIN]: "super",
+  [PagePermission.ADMIN]: "admin",
+  [PagePermission.SERVICES]: "services",
+  [PagePermission.LIAISON]: "liaison",
+  [PagePermission.PA]: "pa",
+};
+
+/**
  * Permission hierarchy definition
  * Defines which lower-level permissions each permission includes
  */

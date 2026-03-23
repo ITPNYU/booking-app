@@ -5,7 +5,8 @@ import {
 } from "@/components/src/types";
 
 import { toFirebaseTimestampFromString } from "@/components/src/client/utils/serverDate";
-import { TableNames } from "@/components/src/policy";
+import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
+import { TableNames, getTenantCollectionName } from "@/components/src/policy";
 import {
   serverGetNextSequentialId,
   serverGetDocumentById,
@@ -120,7 +121,7 @@ export async function POST(request: Request) {
     const calendar = await getCalendarClient();
 
     // Get tenant from request headers or default to 'mc'
-    const tenant = request.headers.get("x-tenant") || "mc";
+    const tenant = request.headers.get("x-tenant") || DEFAULT_TENANT;
 
     // Get resources from tenant schema instead of collection
     const schema = await serverGetDocumentById(
@@ -165,7 +166,7 @@ export async function POST(request: Request) {
 
           for (const event of events.data.items || []) {
             const bookingRef = db
-              .collection("bookings")
+              .collection(getTenantCollectionName(TableNames.BOOKING, tenant))
               .where("calendarEventId", "==", event.id);
             const bookingSnapshot = await bookingRef.get();
             const guestEmail = findGuestEmail(event);
@@ -214,12 +215,12 @@ export async function POST(request: Request) {
                 ) as Timestamp,
                 calendarEventId: calendarEventId || "",
                 roomId: roomIds,
-                requestNumber: await serverGetNextSequentialId("bookings"),
+                requestNumber: await serverGetNextSequentialId("bookings", tenant),
                 mediaServices: MediaServices.CHECKOUT_EQUIPMENT,
               });
               console.log("newBooking", newBooking);
               const bookingDocRef = await db
-                .collection(TableNames.BOOKING)
+                .collection(getTenantCollectionName(TableNames.BOOKING, tenant))
                 .add({
                   ...newBooking,
                   requestedAt: admin.firestore.FieldValue.serverTimestamp(),

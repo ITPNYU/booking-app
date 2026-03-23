@@ -56,6 +56,16 @@ export async function GET(request: NextRequest) {
   }
   // --- End Authorization Check ---
 
+  // In E2E testing, Firestore is unavailable; return a mock dry-run response
+  if (process.env.E2E_TESTING === "true" && isDryRun) {
+    return NextResponse.json({
+      message: "Dry run completed",
+      mode: "dry-run",
+      candidateBookings: [],
+      summary: { totalCandidates: 0, byTenant: {} },
+    });
+  }
+
   try {
     // Calculate the time 24 hours ago in Eastern Time
     // Use explicit timezone conversion instead of relying on server timezone
@@ -211,6 +221,59 @@ export async function GET(request: NextRequest) {
                         reason: "auto-checkout",
                       },
                     );
+
+                    // Call checkout-processing API for side effects (email, calendar, history)
+                    // Machine actions are no-ops; processing is delegated to APIs
+                    try {
+                      await fetch(
+                        `${process.env.NEXT_PUBLIC_BASE_URL}/api/checkout-processing`,
+                        {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            calendarEventId: booking.calendarEventId,
+                            email: "System",
+                            tenant,
+                          }),
+                        },
+                      );
+                    } catch (procError) {
+                      BookingLogger.apiError(
+                        "POST",
+                        "/api/checkout-processing",
+                        { calendarEventId: booking.calendarEventId, tenant },
+                        procError,
+                      );
+                    }
+
+                    // If auto-close occurred (e.g., ITP: Checked Out → Closed)
+                    if (xstateResult.newState === "Closed") {
+                      try {
+                        await fetch(
+                          `${process.env.NEXT_PUBLIC_BASE_URL}/api/close-processing`,
+                          {
+                            method: "POST",
+                            headers: {
+                              "Content-Type": "application/json",
+                              "x-tenant": tenant,
+                            },
+                            body: JSON.stringify({
+                              calendarEventId: booking.calendarEventId,
+                              email: "System",
+                              tenant,
+                            }),
+                          },
+                        );
+                      } catch (procError) {
+                        BookingLogger.apiError(
+                          "POST",
+                          "/api/close-processing",
+                          { calendarEventId: booking.calendarEventId, tenant },
+                          procError,
+                        );
+                      }
+                    }
+
                     updatedCount++;
                     updatedBookingIds.push(bookingId);
                   } else {

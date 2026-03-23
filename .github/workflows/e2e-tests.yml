@@ -12,7 +12,12 @@ permissions:
 jobs:
   e2e-tests:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        shardIndex: [1, 2, 3, 4]
+        shardTotal: [4]
 
     env:
       E2E_TESTING: "true"
@@ -26,6 +31,8 @@ jobs:
       NEXT_PUBLIC_MEASUREMENT_ID: test-measurement-id
       NEXT_PUBLIC_DATABASE_NAME: test-database
       NEXT_PUBLIC_BRANCH_NAME: development-local
+      NEXT_PUBLIC_BASE_URL: http://localhost:3000
+      CRON_SECRET: test-cron-secret-for-e2e
 
     steps:
       - name: Checkout repository
@@ -34,7 +41,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "18"
+          node-version: "20"
           cache: "npm"
           cache-dependency-path: booking-app/package-lock.json
 
@@ -45,13 +52,13 @@ jobs:
         run: cd booking-app && npx playwright install chromium --with-deps
 
       - name: Run E2E tests
-        run: cd booking-app && npx playwright test --project=use-case-flows
+        run: cd booking-app && npx playwright test --project=use-case-flows --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
 
       - name: Upload test artifacts
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: e2e-artifacts
+          name: e2e-artifacts-${{ matrix.shardIndex }}
           path: |
             booking-app/playwright-report/
             booking-app/test-results/

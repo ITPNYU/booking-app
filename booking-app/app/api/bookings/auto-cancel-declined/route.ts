@@ -63,6 +63,17 @@ export async function GET(request: NextRequest) {
   }
   // --- End Authorization Check ---
 
+  // In E2E testing, Firestore is unavailable; return a mock dry-run response
+  if (process.env.E2E_TESTING === "true" && isDryRun) {
+    return NextResponse.json({
+      message: "Dry run completed",
+      totalUpdatedCount: 0,
+      updatedBookingIds: [],
+      dryRunResults: [],
+      timestamp: new Date().toISOString(),
+    });
+  }
+
   try {
     const now = new Date();
     let totalUpdatedCount = 0;
@@ -195,6 +206,59 @@ export async function GET(request: NextRequest) {
               },
               `Auto-canceled after ${gracePeriodHours}-hour grace period`,
             );
+
+            // Call cancel-processing API for side effects (email, calendar, history)
+            // Machine actions are no-ops; processing is delegated to APIs
+            try {
+              await fetch(
+                `${process.env.NEXT_PUBLIC_BASE_URL}/api/cancel-processing`,
+                {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    calendarEventId: booking.calendarEventId,
+                    email: "system",
+                    netId: "system",
+                    tenant,
+                  }),
+                },
+              );
+            } catch (procError) {
+              BookingLogger.apiError(
+                "POST",
+                "/api/cancel-processing",
+                { calendarEventId: booking.calendarEventId, tenant },
+                procError,
+              );
+            }
+
+            // If cancel transitions directly to Closed, call close-processing
+            if (xstateResult.newState === "Closed") {
+              try {
+                await fetch(
+                  `${process.env.NEXT_PUBLIC_BASE_URL}/api/close-processing`,
+                  {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json",
+                      "x-tenant": tenant,
+                    },
+                    body: JSON.stringify({
+                      calendarEventId: booking.calendarEventId,
+                      email: "system",
+                      tenant,
+                    }),
+                  },
+                );
+              } catch (procError) {
+                BookingLogger.apiError(
+                  "POST",
+                  "/api/close-processing",
+                  { calendarEventId: booking.calendarEventId, tenant },
+                  procError,
+                );
+              }
+            }
 
             updatedBookingIds.push(bookingId);
             updatedCount++;

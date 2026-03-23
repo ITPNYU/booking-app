@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect } from "react";
+import { createContext, useContext } from "react";
 
 export type Agreement = {
   id: string;
@@ -18,6 +18,7 @@ export type Resource = {
   calendarId: string;
   needsSafetyTraining?: boolean; // Whether training is required for this resource
   trainingFormUrl?: string; // URL of the Google Form that tracks trained users
+  trainingInfoUrl?: string; // URL to share with users when training is required
   isWalkIn: boolean;
   isWalkInCanBookTwo: boolean;
   services: string[]; // ["equipment", "staffing", "setup", "security", "cleaning", "catering", "campus-media"]
@@ -100,6 +101,8 @@ export type SchemaContextType = {
   resources: Resource[];
   supportVIP: boolean;
   supportWalkIn: boolean;
+  supportPA?: boolean;
+  supportLiaison?: boolean;
   resourceName: string;
   declinedGracePeriod?: number;
   /** Top-level time-sensitive warning (DB stores here; also supported under calendarConfig) */
@@ -108,6 +111,11 @@ export type SchemaContextType = {
     startHour?: Record<string, string>; // e.g., { studentVIP: "06:00:00", student: "09:00:00", ... }
     slotUnit?: Record<string, number>; // e.g., { student: 15, admin: 15, ... }
     timeSensitiveRequestWarning?: TimeSensitiveRequestWarning;
+  };
+  // CC email addresses for notifications, per environment
+  ccEmails?: {
+    approved: { development: string; staging: string; production: string };
+    canceled: { development: string; staging: string; production: string };
   };
   // Email messages for all scenarios
   emailMessages: {
@@ -201,6 +209,8 @@ export const defaultResource: Resource = {
   staffingServices: [],
   staffingSections: defineObjectArrayWithDefaults(defaultStaffingSection),
   trainingFormUrl: "",
+  trainingInfoUrl:
+    "https://sites.google.com/nyu.edu/370jmediacommons/reservations/safety-training",
   calendarIdProd: "",
 };
 
@@ -261,6 +271,10 @@ export const defaultScheme: Omit<SchemaContextType, "tenant"> = {
     timeSensitiveRequestWarning: defaultTimeSensitiveRequestWarning,
   },
   schoolMapping: {},
+  ccEmails: {
+    approved: { development: "", staging: "", production: "" },
+    canceled: { development: "", staging: "", production: "" },
+  },
   emailMessages: {
     requestConfirmation: "",
     firstApprovalRequest: "",
@@ -298,20 +312,6 @@ export const SchemaProvider: React.FC<{
   value: SchemaContextType;
   children: React.ReactNode;
 }> = ({ value, children }) => {
-  console.log("SchemaProvider: Setting context value (render):", {
-    tenant: value?.tenant,
-    name: value?.name,
-    resourcesCount: value?.resources?.length || 0,
-  });
-
-  useEffect(() => {
-    console.log("SchemaProvider: Context value after hydration:", {
-      tenant: value?.tenant,
-      name: value?.name,
-      resourcesCount: value?.resources?.length || 0,
-    });
-  }, [value]);
-
   return (
     <SchemaContext.Provider value={value}>{children}</SchemaContext.Provider>
   );

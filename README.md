@@ -129,6 +129,27 @@ This project uses a CI/CD pipeline with automated deployments:
 3. Create pull requests for code review
 4. Merge to appropriate branch based on deployment target
 
+## Staging Environment Control
+
+The staging environment can be manually started and stopped via GitHub Actions to save costs when not in use.
+
+### Stopping Staging
+
+1. Go to **Actions** > **Staging Start/Stop** in the GitHub repository
+2. Click **Run workflow**
+3. Select **stop** from the dropdown
+4. Click **Run workflow**
+
+### Starting Staging
+
+1. Go to **Actions** > **Staging Start/Stop** in the GitHub repository
+2. Click **Run workflow**
+3. Select **start** from the dropdown
+4. Click **Run workflow**
+5. The workflow will automatically verify that staging is accessible before completing
+
+> Cron jobs (auto-checkout, auto-cancel-declined) will continue to run on schedule even when staging is stopped. They will log a warning instead of failing when the staging server is unreachable.
+
 ## 🔄 Regular Maintenance
 
 Remember to keep your local environment up to date:

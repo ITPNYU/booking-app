@@ -23,7 +23,6 @@ export const itpBookingMachine = setup({
     context: {} as BookingContext,
     events: {} as
       | { type: "edit" }
-      | { type: "close" }
       | { type: "cancel" }
       | { type: "noShow" }
       | { type: "approve" }
@@ -72,7 +71,7 @@ export const itpBookingMachine = setup({
       const servicesRequested = context.formData
         ? {
             setup: context.formData.roomSetup === "yes",
-            equipment: context.formData.mediaServices?.length > 0 || false,
+            equipment: context.formData.equipmentServices?.length > 0 || false,
             staffing: false, // ITP doesn't have separate staffing field in formData
             catering: context.formData.catering === "yes",
             cleaning: false, // ITP doesn't have separate cleaning field in formData
@@ -142,6 +141,8 @@ export const itpBookingMachine = setup({
     formData: input?.formData,
     bookingCalendarInfo: input?.bookingCalendarInfo,
     isWalkIn: input?.isWalkIn || false,
+    isVip: input?.isVip || false,
+    role: input?.role,
     calendarEventId: input?.calendarEventId,
     email: input?.email,
   }),
@@ -337,10 +338,9 @@ export const itpBookingMachine = setup({
           type: "updateCalendarEvent",
         },
       ],
-      on: {
-        close: {
-          target: "Closed",
-        },
+      // ITP has no service closeout, so auto-close immediately
+      always: {
+        target: "Closed",
       },
     },
   },

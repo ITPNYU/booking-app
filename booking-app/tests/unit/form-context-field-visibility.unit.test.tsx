@@ -2,7 +2,7 @@ import FormInput from "@/components/src/client/routes/booking/components/FormInp
 import { BookingContext } from "@/components/src/client/routes/booking/bookingProvider";
 import { DatabaseContext } from "@/components/src/client/routes/components/Provider";
 import { SchemaProvider } from "@/components/src/client/routes/components/SchemaProvider";
-import { FormContextLevel } from "@/components/src/types";
+import { BookingOrigin, FormContextLevel } from "@/components/src/types";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import { render, screen } from "@testing-library/react";
 import { useParams, useRouter } from "next/navigation";
@@ -182,7 +182,7 @@ describe("FormInput - Field Visibility by Form Context", () => {
       expect(screen.getByText("Sponsor")).toBeInTheDocument();
       expect(screen.getByText("Sponsor First Name*")).toBeInTheDocument();
       expect(screen.getByText("Sponsor Last Name*")).toBeInTheDocument();
-      expect(screen.getByText("Sponsor Email*")).toBeInTheDocument();
+      expect(screen.getByText("Sponsor Email (NYU Net ID)*")).toBeInTheDocument();
 
       // Reservation Details section
       expect(screen.getByText("Reservation Details")).toBeInTheDocument();
@@ -214,7 +214,7 @@ describe("FormInput - Field Visibility by Form Context", () => {
       expect(screen.queryByText("Sponsor")).not.toBeInTheDocument();
       expect(screen.queryByText("Sponsor First Name*")).not.toBeInTheDocument();
       expect(screen.queryByText("Sponsor Last Name*")).not.toBeInTheDocument();
-      expect(screen.queryByText("Sponsor Email*")).not.toBeInTheDocument();
+      expect(screen.queryByText("Sponsor Email (NYU Net ID)*")).not.toBeInTheDocument();
 
       // Reservation Details should be present
       expect(screen.getByText("Reservation Details")).toBeInTheDocument();
@@ -299,7 +299,7 @@ describe("FormInput - Field Visibility by Form Context", () => {
       expect(screen.getByText("VIP Sponsor")).toBeInTheDocument();
       expect(screen.getByText("Sponsor First Name*")).toBeInTheDocument();
       expect(screen.getByText("Sponsor Last Name*")).toBeInTheDocument();
-      expect(screen.getByText("Sponsor Email*")).toBeInTheDocument();
+      expect(screen.getByText("Sponsor Email (NYU Net ID)*")).toBeInTheDocument();
     });
 
     it("displays services section with all options", () => {
@@ -401,7 +401,7 @@ describe("FormInput - Field Visibility by Form Context", () => {
       expect(screen.getByText("Walk-In Sponsor")).toBeInTheDocument();
       expect(screen.getByText("Sponsor First Name*")).toBeInTheDocument();
       expect(screen.getByText("Sponsor Last Name*")).toBeInTheDocument();
-      expect(screen.getByText("Sponsor Email*")).toBeInTheDocument();
+      expect(screen.getByText("Sponsor Email (NYU Net ID)*")).toBeInTheDocument();
     });
   });
 
@@ -421,7 +421,7 @@ describe("FormInput - Field Visibility by Form Context", () => {
       expect(screen.queryByText("Sponsor")).not.toBeInTheDocument();
       expect(screen.queryByText("Sponsor First Name*")).not.toBeInTheDocument();
       expect(screen.queryByText("Sponsor Last Name*")).not.toBeInTheDocument();
-      expect(screen.queryByText("Sponsor Email*")).not.toBeInTheDocument();
+      expect(screen.queryByText("Sponsor Email (NYU Net ID)*")).not.toBeInTheDocument();
     });
 
     it("displays Reservation Details section (simplified)", () => {
@@ -459,6 +459,31 @@ describe("FormInput - Field Visibility by Form Context", () => {
 
       expect(screen.queryByText("Agreement")).not.toBeInTheDocument();
       expect(screen.queryByText("I agree")).not.toBeInTheDocument();
+    });
+  });
+
+  describe("Edit Context", () => {
+    it("does NOT display N-Number field when editing a VIP booking", () => {
+      renderFormInput(FormContextLevel.EDIT, {
+        formData: {
+          origin: BookingOrigin.VIP,
+        },
+      });
+
+      // N-Number should NOT be present because it's a VIP booking (even in EDIT context)
+      expect(screen.queryByText("VIP NYU N-Number*")).not.toBeInTheDocument();
+      expect(screen.queryByText("NYU N-Number*")).not.toBeInTheDocument();
+    });
+
+    it("displays N-Number field when editing a non-VIP booking", () => {
+      renderFormInput(FormContextLevel.EDIT, {
+        formData: {
+          origin: BookingOrigin.USER,
+        },
+      });
+
+      // N-Number SHOULD be present for standard user edits
+      expect(screen.getByText("NYU N-Number*")).toBeInTheDocument();
     });
   });
 

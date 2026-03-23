@@ -22,6 +22,7 @@ import {
   BookingStatus,
   BookingStatusLabel,
 } from "../types";
+import { getSecondaryContactName } from "../utils/formatters";
 import { isMediaCommons } from "../utils/tenantUtils";
 import { getTenantEmailConfig } from "./emails";
 
@@ -169,18 +170,19 @@ export const serverBookingContents = async (id: string, tenant?: string) => {
         ? currentHeaderMessage
         : defaultHeaderMessage,
     history,
-    startDate: startDate.toLocaleDateString(),
-    endDate: endDate.toLocaleDateString(),
-    startTime: startDate.toLocaleTimeString([], {
+    startDate: startDate.toLocaleDateString("en-US"),
+    endDate: endDate.toLocaleDateString("en-US"),
+    startTime: startDate.toLocaleTimeString("en-US", {
       hour: "2-digit",
       minute: "2-digit",
       hour12: true,
     }),
-    endTime: endDate.toLocaleTimeString([], {
+    endTime: endDate.toLocaleTimeString("en-US", {
       hour: "2-digit",
       minute: "2-digit",
       hour12: true,
     }),
+    secondaryContactName: getSecondaryContactName(booking),
   };
 
   return updatedBookingObj as unknown as BookingFormDetails;
@@ -495,6 +497,7 @@ const firstApprove = async (id: string, email: string, tenant?: string) => {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      "x-tenant": tenant || DEFAULT_TENANT,
     },
     body: JSON.stringify(formData),
   });
@@ -578,6 +581,7 @@ export const serverSendBookingDetailEmail = async ({
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      "x-tenant": tenant || DEFAULT_TENANT,
     },
     body: JSON.stringify(formData),
   });
@@ -642,29 +646,88 @@ export const serverApproveEvent = async (id: string, tenant?: string) => {
   });
 
   // for Samantha
-  serverSendBookingDetailEmail({
-    calendarEventId: id,
-    targetEmail: getApprovalCcEmail(process.env.NEXT_PUBLIC_BRANCH_NAME),
-    headerMessage: otherHeaderMessage,
-    status: BookingStatusLabel.APPROVED,
-    replyTo: guestEmail,
-    tenant,
-  });
-
-  // for sponsor, if we have one
-  const contents = await serverBookingContents(id, tenant);
-  if (contents.role === "Student" && contents.sponsorEmail?.length > 0) {
+  const approvedCcEmail = await getApprovalCcEmail(process.env.NEXT_PUBLIC_BRANCH_NAME, tenant);
+  if (approvedCcEmail) {
     serverSendBookingDetailEmail({
       calendarEventId: id,
-      targetEmail: contents.sponsorEmail,
-      headerMessage: `A reservation that you are the Sponsor of has been approved.<br /><br />${
-        emailConfig.emailMessages.approvalNotice
-      }`,
+      targetEmail: approvedCcEmail,
+      headerMessage: otherHeaderMessage,
       status: BookingStatusLabel.APPROVED,
       replyTo: guestEmail,
       tenant,
     });
   }
+
+  // for sponsor, if we have one
+  const contents = await serverBookingContents(id, tenant);
+  if (contents.role === "Student" && contents.sponsorEmail?.length > 0) {
+    // Handle both legacy full email format and new Net ID format
+    const sponsorEmailAddress = contents.sponsorEmail.includes("@")
+      ? contents.sponsorEmail
+      : `${contents.sponsorEmail}@nyu.edu`;
+    
+    serverSendBookingDetailEmail({
+      calendarEventId: id,
+      targetEmail: sponsorEmailAddress,
+      headerMessage:
+        `A reservation that you are the Sponsor of has been approved.<br /><br />${emailConfig.emailMessages.approvalNotice}`,
+      status: BookingStatusLabel.APPROVED,
+      replyTo: guestEmail,
+      tenant,
+    });
+  }
+
+  // for secondary contact, if we have one
+  // secondaryEmail now stores full NYU email (e.g., abc123@nyu.edu)
+  if (contents.secondaryEmail && contents.secondaryEmail.length > 0) {
+    // Handle both legacy net ID format and new full email format
+    const secondaryEmailAddress = contents.secondaryEmail.includes("@")
+      ? contents.secondaryEmail
+      : `${contents.secondaryEmail}@nyu.edu`;
+    
+    // Await the email to ensure it's sent before proceeding
+    await serverSendBookingDetailEmail({
+      calendarEventId: id,
+      targetEmail: secondaryEmailAddress,
+      headerMessage:
+        "A reservation where you are listed as a Secondary Point of Contact has been approved.<br /><br />" +
+        emailConfig.emailMessages.approvalNotice,
+      status: BookingStatusLabel.APPROVED,
+      replyTo: guestEmail,
+      tenant,
+    });
+
+    const secondaryFormData = {
+      guestEmail: secondaryEmailAddress,
+      calendarEventId: id,
+      roomId: contents.roomId,
+    };
+    // Intentionally awaiting without try-catch: if email delivery fails,
+    // we want the approval process to fail with the API error message.
+    const inviteSecondaryResponse = await fetch(
+      `${process.env.NEXT_PUBLIC_BASE_URL}/api/inviteUser`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(secondaryFormData),
+      },
+    );
+    if (!inviteSecondaryResponse.ok) {
+      let errorBody = "";
+      try {
+        errorBody = await inviteSecondaryResponse.text();
+      } catch {
+        // ignore body read errors
+      }
+      throw new Error(
+        `Failed to invite secondary contact (status ${inviteSecondaryResponse.status} ${inviteSecondaryResponse.statusText})` +
+          (errorBody ? `: ${errorBody}` : ""),
+      );
+    }
+  }
+
 
   const formDataForCalendarEvents = {
     calendarEventId: id,
@@ -690,6 +753,7 @@ export const serverApproveEvent = async (id: string, tenant?: string) => {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        "x-tenant": tenant || DEFAULT_TENANT,
       },
       body: JSON.stringify(formData),
     },

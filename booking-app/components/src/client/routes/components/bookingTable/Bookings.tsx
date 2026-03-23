@@ -56,7 +56,8 @@ export const Bookings: React.FC<BookingsProps> = ({
 }) => {
   const { bookingsLoading, setLastItem, fetchAllBookings, allBookings } =
     useContext(DatabaseContext);
-  const { resourceName } = useTenantSchema();
+  const { resourceName, showSetup, showEquipment, showStaffing, showCatering, showHireSecurity } = useTenantSchema();
+  const hasServices = showSetup || showEquipment || showStaffing || showCatering || showHireSecurity;
   const params = useParams();
   const tenant = params?.tenant as string;
   const excludedStatuses = [
@@ -214,9 +215,9 @@ export const Bookings: React.FC<BookingsProps> = ({
         headerName: "#",
         minWidth: 60,
         flex: 1,
-        renderHeader: () => <TableCell>Origin</TableCell>,
+        renderHeader: () => <TableCell component={"div" as any}>Origin</TableCell>,
         renderCell: (params) => (
-          <TableCell>
+          <TableCell component={"div" as any}>
             {formatOrigin(params.row.origin ?? BookingOrigin.USER)}
           </TableCell>
         ),
@@ -226,9 +227,9 @@ export const Bookings: React.FC<BookingsProps> = ({
         headerName: "#",
         minWidth: 80,
         flex: 1,
-        renderHeader: () => <TableCell>#</TableCell>,
+        renderHeader: () => <TableCell component={"div" as any}>#</TableCell>,
         renderCell: (params) => (
-          <TableCell>{params.row.requestNumber ?? "--"}</TableCell>
+          <TableCell component={"div" as any}>{params.row.requestNumber ?? "--"}</TableCell>
         ),
       },
       {
@@ -236,9 +237,9 @@ export const Bookings: React.FC<BookingsProps> = ({
         headerName: "Status",
         minWidth: 100,
         flex: 1,
-        renderHeader: () => <TableCell>Status</TableCell>,
+        renderHeader: () => <TableCell component={"div" as any}>Status</TableCell>,
         renderCell: (params) => (
-          <TableCell>
+          <TableCell component={"div" as any}>
             <StatusChip
               status={getBookingStatus(params.row)}
               allowTooltip={true}
@@ -251,7 +252,7 @@ export const Bookings: React.FC<BookingsProps> = ({
         headerName: "Date / Time",
         minWidth: 130,
         flex: 1,
-        renderHeader: () => <TableCell>Date / Time (ET)</TableCell>,
+        renderHeader: () => <TableCell component={"div" as any}>Date / Time (ET)</TableCell>,
         renderCell: (params) => (
           <StackedTableCell
             topText={formatDateTable(params.row.startDate.toDate())}
@@ -266,9 +267,9 @@ export const Bookings: React.FC<BookingsProps> = ({
         headerName: resourceName,
         minWidth: 100,
         flex: 1,
-        renderHeader: () => <TableCell>{resourceName}</TableCell>,
+        renderHeader: () => <TableCell component={"div" as any}>{resourceName}</TableCell>,
         renderCell: (params) => (
-          <TableCell sx={{ maxWidth: "150px" }}>{params.row.roomId}</TableCell>
+          <TableCell component={"div" as any} sx={{ maxWidth: "150px" }}>{params.row.roomId}</TableCell>
         ),
       },
       ...(!isUserView
@@ -278,7 +279,7 @@ export const Bookings: React.FC<BookingsProps> = ({
               headerName: "Department / Role",
               minWidth: 150,
               flex: 1,
-              renderHeader: () => <TableCell>Department / Role</TableCell>,
+              renderHeader: () => <TableCell component={"div" as any}>Department / Role</TableCell>,
               renderCell: (params) => (
                 <StackedTableCell
                   topText={
@@ -295,7 +296,7 @@ export const Bookings: React.FC<BookingsProps> = ({
               headerName: "Requestor",
               minWidth: 100,
               flex: 1,
-              renderHeader: () => <TableCell>Requestor</TableCell>,
+              renderHeader: () => <TableCell component={"div" as any}>Requestor</TableCell>,
               renderCell: (params) => (
                 <StackedTableCell
                   topText={params.row.netId}
@@ -308,7 +309,7 @@ export const Bookings: React.FC<BookingsProps> = ({
               headerName: "Contact Info",
               minWidth: 180,
               flex: 1,
-              renderHeader: () => <TableCell>Contact Info</TableCell>,
+              renderHeader: () => <TableCell component={"div" as any}>Contact Info</TableCell>,
               renderCell: (params) => (
                 <StackedTableCell
                   topText={params.row.email}
@@ -323,7 +324,7 @@ export const Bookings: React.FC<BookingsProps> = ({
         headerName: "Title",
         minWidth: 200,
         flex: 2,
-        renderHeader: () => <TableCell>Title</TableCell>,
+        renderHeader: () => <TableCell component={"div" as any}>Title</TableCell>,
         renderCell: (params) => (
           <Tooltip
             title={params.row.title}
@@ -344,6 +345,7 @@ export const Bookings: React.FC<BookingsProps> = ({
             }}
           >
             <TableCell
+              component={"div" as any}
               sx={{
                 maxWidth: "200px",
                 whiteSpace: "nowrap",
@@ -361,26 +363,26 @@ export const Bookings: React.FC<BookingsProps> = ({
         headerName: "Details",
         minWidth: 80,
         flex: 1,
-        renderHeader: () => <TableCell>Details</TableCell>,
         filterable: false,
         sortable: false,
+        renderHeader: () => <TableCell component={"div" as any}>Details</TableCell>,
         renderCell: (params) => (
-          <TableCell>
+          <TableCell component={"div" as any}>
             <IconButton onClick={() => setModalData(params.row)}>
               <MoreHoriz />
             </IconButton>
           </TableCell>
         ),
       },
-      ...(!isUserView
+      ...(!isUserView && hasServices
         ? [
             {
               field: "services",
               headerName: "Services",
               minWidth: 240,
               flex: 1,
-              renderHeader: () => <TableCell>Services</TableCell>,
               filterable: false,
+              renderHeader: () => <TableCell component={"div" as any}>Services</TableCell>,
               renderCell: (params) => {
                 const bookingRow = params.row as BookingRow;
 
@@ -498,6 +500,7 @@ export const Bookings: React.FC<BookingsProps> = ({
 
                 return (
                   <TableCell
+                    component={"div" as any}
                     style={{
                       display: "flex",
                       flexDirection: "row",
@@ -587,10 +590,10 @@ export const Bookings: React.FC<BookingsProps> = ({
               headerName: "Equip.",
               minWidth: 80,
               flex: 1,
-              renderHeader: () => <TableCell>Equip.</TableCell>,
               filterable: false,
+              renderHeader: () => <TableCell component={"div" as any}>Equip.</TableCell>,
               renderCell: (params) => (
-                <TableCell>
+                <TableCell component={"div" as any}>
                   <EquipmentCartDisplay
                     booking={params.row}
                     onCartClick={() => setModalData(params.row)}
@@ -606,11 +609,11 @@ export const Bookings: React.FC<BookingsProps> = ({
         headerName: "Action",
         minWidth: 200,
         flex: 1,
-        renderHeader: () => <TableCell>Action</TableCell>,
         filterable: false,
         sortable: false,
+        renderHeader: () => <TableCell component={"div" as any}>Action</TableCell>,
         renderCell: (params) => (
-          <TableCell width={200}>
+          <TableCell component={"div" as any} width={200}>
             <BookingActions
               status={getBookingStatus(params.row, tenant)}
               calendarEventId={params.row.calendarEventId}
