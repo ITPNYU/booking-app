@@ -139,7 +139,6 @@ describe("GET /api/nyu/entitlements/[netId]", () => {
       expect(mockFetch).toHaveBeenCalledWith(
         expect.stringContaining("https://custom-base.example.com"),
       );
-    
     });
   });
 
