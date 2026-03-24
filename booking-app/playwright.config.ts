@@ -71,6 +71,7 @@ export default defineConfig({
         "**/edit-booking-flow.e2e.test.ts",
         "**/auto-cancel-declined.e2e.test.ts",
         "**/auto-checkout.e2e.test.ts",
+        "**/auto-checkin.e2e.test.ts",
         "**/blackout-periods.e2e.test.ts",
         "**/safety-training.e2e.test.ts",
         "**/ban-enforcement.e2e.test.ts",
