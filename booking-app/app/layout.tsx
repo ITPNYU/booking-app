@@ -16,8 +16,8 @@ const roboto = Roboto({
 });
 
 export const metadata = {
-  title: "Media commons booking app",
-  description: "Media commons booking app",
+  title: "NYU room booking",
+  description: "NYU space reservation",
 };
 
 type LayoutProps = {
