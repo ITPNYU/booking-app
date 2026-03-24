@@ -40,6 +40,12 @@ export default function SchemaCompare() {
   const [syncing, setSyncing] = useState(false);
   const [dryRunning, setDryRunning] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [dryRunResult, setDryRunResult] = useState<{
+    added: string[];
+    removed: string[];
+    changed: string[];
+    unchanged: string[];
+  } | null>(null);
   const [snack, setSnack] = useState<SnackState>({
     open: false,
     message: "",
@@ -91,13 +97,9 @@ export default function SchemaCompare() {
         }
         const data = await res.json();
         if (dryRun) {
-          const { added, changed, removed, unchanged } = data.diff;
-          setSnack({
-            open: true,
-            severity: "info",
-            message: `Dry run: ${added.length} added, ${changed.length} changed, ${removed.length} removed, ${unchanged.length} unchanged`,
-          });
+          setDryRunResult(data.diff);
         } else {
+          setDryRunResult(null);
           setSnack({
             open: true,
             severity: "success",
@@ -231,6 +233,82 @@ export default function SchemaCompare() {
           <CircularProgress size={20} />
           <Typography variant="body2">
             Loading schemas from all environments...
+          </Typography>
+        </Box>
+      )}
+
+      {dryRunResult && (
+        <Box
+          sx={{
+            mb: 2,
+            p: 2,
+            border: "1px solid",
+            borderColor: "info.main",
+            borderRadius: 1,
+            backgroundColor: "#f0f7ff",
+          }}
+        >
+          <Typography variant="subtitle2" sx={{ mb: 1 }}>
+            Dry Run Result — {leftEnv} → {rightEnv}
+          </Typography>
+          {dryRunResult.changed.length > 0 && (
+            <Box sx={{ mb: 1 }}>
+              <Typography variant="body2" fontWeight="bold" color="warning.main">
+                Changed ({dryRunResult.changed.length}):
+              </Typography>
+              {dryRunResult.changed.map((key) => (
+                <Chip
+                  key={key}
+                  label={key}
+                  size="small"
+                  color="warning"
+                  variant="outlined"
+                  sx={{ mr: 0.5, mb: 0.5 }}
+                />
+              ))}
+            </Box>
+          )}
+          {dryRunResult.added.length > 0 && (
+            <Box sx={{ mb: 1 }}>
+              <Typography variant="body2" fontWeight="bold" color="success.main">
+                Added ({dryRunResult.added.length}):
+              </Typography>
+              {dryRunResult.added.map((key) => (
+                <Chip
+                  key={key}
+                  label={key}
+                  size="small"
+                  color="success"
+                  variant="outlined"
+                  sx={{ mr: 0.5, mb: 0.5 }}
+                />
+              ))}
+            </Box>
+          )}
+          {dryRunResult.removed.length > 0 && (
+            <Box sx={{ mb: 1 }}>
+              <Typography variant="body2" fontWeight="bold" color="error.main">
+                Removed ({dryRunResult.removed.length}):
+              </Typography>
+              {dryRunResult.removed.map((key) => (
+                <Chip
+                  key={key}
+                  label={key}
+                  size="small"
+                  color="error"
+                  variant="outlined"
+                  sx={{ mr: 0.5, mb: 0.5 }}
+                />
+              ))}
+            </Box>
+          )}
+          {dryRunResult.changed.length === 0 &&
+            dryRunResult.added.length === 0 &&
+            dryRunResult.removed.length === 0 && (
+              <Typography variant="body2">No changes would be applied.</Typography>
+            )}
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+            Unchanged: {dryRunResult.unchanged.length} key(s)
           </Typography>
         </Box>
       )}
