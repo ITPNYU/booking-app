@@ -21,6 +21,50 @@ import { useCallback, useContext, useState } from "react";
 import { DatabaseContext } from "../components/Provider";
 import { computeDiff, formatValue, type DiffEntry } from "./schemaEditorUtils";
 
+/** Full JSON string — never truncated. */
+function formatValueFull(val: unknown): string {
+  if (val === undefined) return "(undefined)";
+  if (val === null) return "(null)";
+  if (typeof val === "object") return JSON.stringify(val, null, 2);
+  return String(val);
+}
+
+/** Collapsible value cell for dry run results. */
+function DryRunValue({
+  value,
+  bg,
+}: {
+  value: unknown;
+  bg?: string;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const full = formatValueFull(value);
+  const isLong = full.length > 120;
+
+  return (
+    <Box
+      component="td"
+      sx={{
+        p: 1,
+        borderBottom: "1px solid #ddd",
+        fontFamily: "monospace",
+        fontSize: 11,
+        backgroundColor: bg,
+        wordBreak: "break-all",
+        whiteSpace: expanded ? "pre-wrap" : "nowrap",
+        maxWidth: expanded ? "none" : 400,
+        overflow: "hidden",
+        textOverflow: expanded ? "clip" : "ellipsis",
+        cursor: isLong ? "pointer" : "default",
+      }}
+      onClick={() => isLong && setExpanded(!expanded)}
+      title={isLong ? (expanded ? "Click to collapse" : "Click to expand") : undefined}
+    >
+      {expanded ? full : isLong ? full.slice(0, 120) + " ..." : full}
+    </Box>
+  );
+}
+
 const ENVIRONMENTS = ["development", "staging", "production"] as const;
 type Env = (typeof ENVIRONMENTS)[number];
 
@@ -293,12 +337,8 @@ export default function SchemaCompare() {
                     <Box component="td" sx={{ p: 1, borderBottom: "1px solid #ddd", color: "warning.main", fontWeight: "bold" }}>
                       changed
                     </Box>
-                    <Box component="td" sx={{ p: 1, borderBottom: "1px solid #ddd", fontFamily: "monospace", fontSize: 11, backgroundColor: "#f0fff0", wordBreak: "break-all", maxWidth: 300 }}>
-                      {formatValue(d.sourceValue)}
-                    </Box>
-                    <Box component="td" sx={{ p: 1, borderBottom: "1px solid #ddd", fontFamily: "monospace", fontSize: 11, backgroundColor: "#fff0f0", wordBreak: "break-all", maxWidth: 300 }}>
-                      {formatValue(d.targetValue)}
-                    </Box>
+                    <DryRunValue value={d.sourceValue} bg="#f0fff0" />
+                    <DryRunValue value={d.targetValue} bg="#fff0f0" />
                   </tr>
                 ))}
                 {dryRunResult.added.map((d) => (
@@ -309,11 +349,8 @@ export default function SchemaCompare() {
                     <Box component="td" sx={{ p: 1, borderBottom: "1px solid #ddd", color: "success.main", fontWeight: "bold" }}>
                       added
                     </Box>
-                    <Box component="td" sx={{ p: 1, borderBottom: "1px solid #ddd", fontFamily: "monospace", fontSize: 11, backgroundColor: "#f0fff0", wordBreak: "break-all", maxWidth: 300 }}>
-                      {formatValue(d.sourceValue)}
-                    </Box>
-                    <Box component="td" sx={{ p: 1, borderBottom: "1px solid #ddd" }}>
-                    </Box>
+                    <DryRunValue value={d.sourceValue} bg="#f0fff0" />
+                    <Box component="td" sx={{ p: 1, borderBottom: "1px solid #ddd" }} />
                   </tr>
                 ))}
                 {dryRunResult.removed.map((d) => (
@@ -324,11 +361,8 @@ export default function SchemaCompare() {
                     <Box component="td" sx={{ p: 1, borderBottom: "1px solid #ddd", color: "error.main", fontWeight: "bold" }}>
                       removed
                     </Box>
-                    <Box component="td" sx={{ p: 1, borderBottom: "1px solid #ddd" }}>
-                    </Box>
-                    <Box component="td" sx={{ p: 1, borderBottom: "1px solid #ddd", fontFamily: "monospace", fontSize: 11, backgroundColor: "#fff0f0", wordBreak: "break-all", maxWidth: 300 }}>
-                      {formatValue(d.targetValue)}
-                    </Box>
+                    <Box component="td" sx={{ p: 1, borderBottom: "1px solid #ddd" }} />
+                    <DryRunValue value={d.targetValue} bg="#fff0f0" />
                   </tr>
                 ))}
               </tbody>
