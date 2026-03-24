@@ -311,7 +311,7 @@ describe("components/src/server/admin", () => {
       },
     ]);
 
-    seedCollection("usersApprovers", [
+    seedCollection("tenant-y-usersApprovers", [
       {
         id: "approver-final",
         data: {
