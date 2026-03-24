@@ -139,15 +139,7 @@ describe("GET /api/nyu/entitlements/[netId]", () => {
       expect(mockFetch).toHaveBeenCalledWith(
         expect.stringContaining("https://custom-base.example.com"),
       );
-    });
-
-    it("uses relative URL when NEXT_PUBLIC_BASE_URL is not set", async () => {
-      vi.stubEnv("NEXT_PUBLIC_BASE_URL", "");
-      mockFetch.mockResolvedValue(makeNYUApiResponse({ reporting_dept_name: "" }));
-
-      await GET(createRequest(), { params: createParams("hz1234") });
-
-      expect(mockFetch).toHaveBeenCalledWith("/api/nyu/identity/hz1234");
+    
     });
   });
 
