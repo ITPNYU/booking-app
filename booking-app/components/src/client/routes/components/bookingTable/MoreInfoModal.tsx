@@ -14,9 +14,11 @@ import {
 } from "@mui/material";
 
 import { formatOrigin } from "@/components/src/utils/formatters";
+import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
 import { Cancel, Check, Edit, Event } from "@mui/icons-material";
 import Grid from "@mui/material/Unstable_Grid2/Grid2";
 import { styled } from "@mui/system";
+import { useParams } from "next/navigation";
 import React, { useContext, useState } from "react";
 import {
   BookingRow,
@@ -27,6 +29,7 @@ import {
   canAccessWebCheckout,
   hasAnyPermission,
 } from "../../../../utils/permissions";
+import { useTenantSchema } from "../../components/SchemaProvider";
 import { formatTimeAmPm, formatDateTable } from "../../../utils/date";
 import { RoomDetails } from "../../booking/components/BookingSelection";
 import useSortBookingHistory from "../../hooks/useSortBookingHistory";
@@ -96,8 +99,12 @@ export default function MoreInfoModal({
   updateBooking,
   pageContext,
 }: Props) {
+  const params = useParams();
+  const tenant = (params?.tenant as string) || DEFAULT_TENANT;
   const historyRows = useSortBookingHistory(booking);
   const { pagePermission, userEmail } = useContext(DatabaseContext);
+  const schema = useTenantSchema();
+  const hasServices = schema.showSetup || schema.showEquipment || schema.showStaffing || schema.showCatering || schema.showHireSecurity;
 
   const [isEditingCart, setIsEditingCart] = useState(false);
   const [cartNumber, setCartNumber] = useState(
@@ -109,17 +116,22 @@ export default function MoreInfoModal({
   const [webCheckoutData, setWebCheckoutData] = useState<any>(null);
 
   // Check if user has permission to edit cart number
-  console.log("pagePermission", pagePermission);
-  console.log("booking!!!!!!!!!!!!!!!!!!!!!", booking);
   const canEditCart = canAccessWebCheckout(pagePermission);
+  const canEditCartInContext =
+    canEditCart && pageContext !== PageContextLevel.USER;
 
   const handleSaveCartNumber = async () => {
+    if (!canEditCartInContext) {
+      return;
+    }
+
     setIsUpdating(true);
     try {
       const response = await fetch("/api/updateWebcheckoutCart", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          ...(tenant ? { "x-tenant": tenant } : {}),
         },
         body: JSON.stringify({
           calendarEventId: booking.calendarEventId,
@@ -177,15 +189,18 @@ export default function MoreInfoModal({
   }, [booking.webcheckoutCartNumber]);
 
   const renderWebCheckoutSection = () => {
-    // Hide WebCheckout section for users without sufficient permissions
-    // Only PA, ADMIN, and SUPER_ADMIN should see WebCheckout section
-    const canViewWebCheckout = hasAnyPermission(pagePermission, [
-      PagePermission.PA,
-      PagePermission.ADMIN,
-      PagePermission.SUPER_ADMIN,
-    ]);
+    // Show WebCheckout section for PA/ADMIN/SUPER_ADMIN users.
+    // In USER context, show read-only cart details when a cart is assigned.
+    const canViewWebCheckout =
+      hasAnyPermission(pagePermission, [
+        PagePermission.PA,
+        PagePermission.ADMIN,
+        PagePermission.SUPER_ADMIN,
+      ]) ||
+      (pageContext === PageContextLevel.USER &&
+        Boolean(booking.webcheckoutCartNumber));
 
-    if (!canViewWebCheckout || pageContext === PageContextLevel.USER) {
+    if (!canViewWebCheckout) {
       return null;
     }
 
@@ -232,6 +247,12 @@ export default function MoreInfoModal({
                   <Box display="flex" alignItems="center" gap={1}>
                     {booking.webcheckoutCartNumber ? (
                       <Box display="flex" flexDirection="column" gap={2}>
+
+                        {/* Always show cart number */}
+                        <Typography variant="body2">
+                          {booking.webcheckoutCartNumber}
+                        </Typography>
+
                         {/* Loading State */}
                         {isLoadingUrl && (
                           <Typography variant="body2" color="text.secondary">
@@ -391,7 +412,7 @@ export default function MoreInfoModal({
                         No cart assigned
                       </Typography>
                     )}
-                    {canEditCart && (
+                    {canEditCartInContext && (
                       <Tooltip title="Edit cart number">
                         <IconButton
                           onClick={() => setIsEditingCart(true)}
@@ -540,17 +561,21 @@ export default function MoreInfoModal({
                   <LabelCell>Secondary Contact Email</LabelCell>
                   <TableCell>{booking.secondaryEmail || BLANK}</TableCell>
                 </TableRow>
-                <TableRow>
-                  <LabelCell>Sponsor Name</LabelCell>
-                  <TableCell>
-                    {`${booking.sponsorFirstName ?? ""} ${booking.sponsorLastName ?? ""}`.trim() ||
-                      BLANK}
-                  </TableCell>
-                </TableRow>
-                <TableRow>
-                  <LabelCell>Sponsor Email</LabelCell>
-                  <TableCell>{booking.sponsorEmail || BLANK}</TableCell>
-                </TableRow>
+                {schema.showSponsor && (
+                  <TableRow>
+                    <LabelCell>Sponsor Name</LabelCell>
+                    <TableCell>
+                      {`${booking.sponsorFirstName ?? ""} ${booking.sponsorLastName ?? ""}`.trim() ||
+                        BLANK}
+                    </TableCell>
+                  </TableRow>
+                )}
+                {schema.showSponsor && (
+                  <TableRow>
+                    <LabelCell>Sponsor Email</LabelCell>
+                    <TableCell>{booking.sponsorEmail || BLANK}</TableCell>
+                  </TableRow>
+                )}
               </TableBody>
             </Table>
 
@@ -565,10 +590,12 @@ export default function MoreInfoModal({
                   <LabelCell>Description</LabelCell>
                   <TableCell>{booking.description ?? BLANK}</TableCell>
                 </TableRow>
-                <TableRow>
-                  <LabelCell>Booking Type</LabelCell>
-                  <TableCell>{booking.bookingType ?? BLANK}</TableCell>
-                </TableRow>
+                {schema.showBookingTypes && (
+                  <TableRow>
+                    <LabelCell>Booking Type</LabelCell>
+                    <TableCell>{booking.bookingType ?? BLANK}</TableCell>
+                  </TableRow>
+                )}
                 <TableRow>
                   <LabelCell>Expected Attendance</LabelCell>
                   <TableCell>{booking.expectedAttendance ?? BLANK}</TableCell>
@@ -580,88 +607,92 @@ export default function MoreInfoModal({
               </TableBody>
             </Table>
 
-            <SectionTitle>Services</SectionTitle>
-            <Table size="small">
-              <TableBody>
-                <TableRow>
-                  <LabelCell>Room Setup</LabelCell>
-                  <StackedTableCell
-                    topText={
-                      booking.setupDetails ||
-                      (booking.roomSetup === "no"
-                        ? "none"
-                        : booking.roomSetup || "none")
-                    }
-                    bottomText={booking.chartFieldForRoomSetup || "none"}
-                  />
-                </TableRow>
-                {booking.equipmentServices &&
-                  booking.equipmentServices.length > 0 && (
+            {hasServices && (
+              <>
+                <SectionTitle>Services</SectionTitle>
+                <Table size="small">
+                  <TableBody>
                     <TableRow>
-                      <LabelCell>Equipment Service</LabelCell>
-                      <TableCell>
-                        {booking.equipmentServices
-                          .split(", ")
-                          .map((service) => (
+                      <LabelCell>Room Setup</LabelCell>
+                      <StackedTableCell
+                        topText={
+                          booking.setupDetails ||
+                          (booking.roomSetup === "no"
+                            ? "none"
+                            : booking.roomSetup || "none")
+                        }
+                        bottomText={booking.chartFieldForRoomSetup || "none"}
+                      />
+                    </TableRow>
+                    {booking.equipmentServices &&
+                      booking.equipmentServices.length > 0 && (
+                        <TableRow>
+                          <LabelCell>Equipment Service</LabelCell>
+                          <TableCell>
+                            {booking.equipmentServices
+                              .split(", ")
+                              .map((service) => (
+                                <p key={service}>{service.trim()}</p>
+                              ))}
+                            <p>{booking.equipmentServicesDetails || ""}</p>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    {booking.staffingServices &&
+                      booking.staffingServices.length > 0 && (
+                        <TableRow>
+                          <LabelCell>Staffing Service</LabelCell>
+                          <TableCell>
+                            {booking.staffingServices.split(", ").map((service) => (
+                              <p key={service}>{service.trim()}</p>
+                            ))}
+                            <p>{booking.staffingServicesDetails || ""}</p>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    {booking.mediaServices && booking.mediaServices.length > 0 && (
+                      <TableRow>
+                        <LabelCell>Media Service</LabelCell>
+                        <TableCell>
+                          {booking.mediaServices.split(", ").map((service) => (
                             <p key={service}>{service.trim()}</p>
                           ))}
-                        <p>{booking.equipmentServicesDetails || ""}</p>
-                      </TableCell>
-                    </TableRow>
-                  )}
-                {booking.staffingServices &&
-                  booking.staffingServices.length > 0 && (
+                          <p>{booking.mediaServicesDetails || ""}</p>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                    {(booking.catering === "yes" || booking.cateringService) && (
+                      <TableRow>
+                        <LabelCell>Catering Service</LabelCell>
+                        <StackedTableCell
+                          topText={
+                            booking.cateringService ||
+                            (booking.catering === "yes" ? "Yes" : "")
+                          }
+                          bottomText={booking.chartFieldForCatering || ""}
+                        />
+                      </TableRow>
+                    )}
+                    {booking.cleaningService === "yes" && (
+                      <TableRow>
+                        <LabelCell>Cleaning Service</LabelCell>
+                        <StackedTableCell
+                          topText="Yes"
+                          bottomText={booking.chartFieldForCleaning || ""}
+                        />
+                      </TableRow>
+                    )}
                     <TableRow>
-                      <LabelCell>Staffing Service</LabelCell>
-                      <TableCell>
-                        {booking.staffingServices.split(", ").map((service) => (
-                          <p key={service}>{service.trim()}</p>
-                        ))}
-                        <p>{booking.staffingServicesDetails || ""}</p>
-                      </TableCell>
+                      <LabelCell>Security</LabelCell>
+                      <StackedTableCell
+                        topText={booking.hireSecurity === "yes" ? "Yes" : "none"}
+                        bottomText={booking.chartFieldForSecurity || "none"}
+                      />
                     </TableRow>
-                  )}
-                {booking.mediaServices && booking.mediaServices.length > 0 && (
-                  <TableRow>
-                    <LabelCell>Media Service</LabelCell>
-                    <TableCell>
-                      {booking.mediaServices.split(", ").map((service) => (
-                        <p key={service}>{service.trim()}</p>
-                      ))}
-                      <p>{booking.mediaServicesDetails || ""}</p>
-                    </TableCell>
-                  </TableRow>
-                )}
-                {(booking.catering === "yes" || booking.cateringService) && (
-                  <TableRow>
-                    <LabelCell>Catering Service</LabelCell>
-                    <StackedTableCell
-                      topText={
-                        booking.cateringService ||
-                        (booking.catering === "yes" ? "Yes" : "")
-                      }
-                      bottomText={booking.chartFieldForCatering || ""}
-                    />
-                  </TableRow>
-                )}
-                {booking.cleaningService === "yes" && (
-                  <TableRow>
-                    <LabelCell>Cleaning Service</LabelCell>
-                    <StackedTableCell
-                      topText="Yes"
-                      bottomText={booking.chartFieldForCleaning || ""}
-                    />
-                  </TableRow>
-                )}
-                <TableRow>
-                  <LabelCell>Security</LabelCell>
-                  <StackedTableCell
-                    topText={booking.hireSecurity === "yes" ? "Yes" : "none"}
-                    bottomText={booking.chartFieldForSecurity || "none"}
-                  />
-                </TableRow>
-              </TableBody>
-            </Table>
+                  </TableBody>
+                </Table>
+              </>
+            )}
           </Grid>
         </ScrollableContent>
 

@@ -642,13 +642,16 @@ export const processCancelBooking = async (
       tenant,
     });
 
-    await serverSendBookingDetailEmail({
-      calendarEventId: id,
-      targetEmail: getCancelCcEmail(),
-      headerMessage: ccHeaderMessage,
-      status: BookingStatusLabel.CANCELED,
-      tenant,
-    });
+    const cancelCcEmail = await getCancelCcEmail(tenant);
+    if (cancelCcEmail) {
+      await serverSendBookingDetailEmail({
+        calendarEventId: id,
+        targetEmail: cancelCcEmail,
+        headerMessage: ccHeaderMessage,
+        status: BookingStatusLabel.CANCELED,
+        tenant,
+      });
+    }
   }
 
   // Update calendar
@@ -734,16 +737,79 @@ export const cancel = async (
       newState: xstateResult.newState,
     });
 
-    // XState handled the cancel successfully, processing is done by machine actions
-    console.log(
-      `🎯 CANCEL PROCESSING HANDLED BY XSTATE [${tenant?.toUpperCase()}]:`,
-      {
-        calendarEventId: id,
-        note: "Cancel processing handled by XState machine actions",
-      },
-    );
+    // Delegate cancel processing to /api/cancel-processing for all tenants
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_BASE_URL}/api/cancel-processing`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            calendarEventId: id,
+            email,
+            netId,
+            tenant,
+          }),
+        },
+      );
 
-    // Skip the traditional processing below
+      if (response.ok) {
+        console.log(
+          `✅ CANCEL-PROCESSING API SUCCESS [${tenant?.toUpperCase()}]:`,
+          { calendarEventId: id },
+        );
+      } else {
+        const errorData = await response.json();
+        console.error(
+          `🚨 CANCEL-PROCESSING API FAILED [${tenant?.toUpperCase()}]:`,
+          { calendarEventId: id, error: errorData },
+        );
+      }
+    } catch (error: any) {
+      console.error(
+        `🚨 CANCEL-PROCESSING API ERROR [${tenant?.toUpperCase()}]:`,
+        { calendarEventId: id, error: error.message },
+      );
+    }
+
+    // When cancel transitions directly to Closed (e.g., cancel without services)
+    if (xstateResult.newState === "Closed") {
+      try {
+        const closeResponse = await fetch(
+          `${process.env.NEXT_PUBLIC_BASE_URL}/api/close-processing`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-tenant": tenant || DEFAULT_TENANT,
+            },
+            body: JSON.stringify({
+              calendarEventId: id,
+              email,
+              tenant,
+            }),
+          },
+        );
+
+        if (closeResponse.ok) {
+          console.log(
+            `✅ CLOSE-PROCESSING API SUCCESS [${tenant?.toUpperCase()}]:`,
+            { calendarEventId: id },
+          );
+        } else {
+          const errorData = await closeResponse.json();
+          console.error(
+            `🚨 CLOSE-PROCESSING API FAILED [${tenant?.toUpperCase()}]:`,
+            { calendarEventId: id, error: errorData },
+          );
+        }
+      } catch (error: any) {
+        console.error(
+          `🚨 CLOSE-PROCESSING API ERROR [${tenant?.toUpperCase()}]:`,
+          { calendarEventId: id, error: error.message },
+        );
+      }
+    }
   }
 };
 
@@ -833,63 +899,39 @@ export const checkin = async (id: string, email: string, tenant?: string) => {
     newState: xstateResult.newState,
   });
 
-  // XState handled the checkin successfully, now add history logging and send email
-  // Add history logging here since XState doesn't handle history
-  const doc = await clientGetDataByCalendarEventId<{
-    id: string;
-    requestNumber: number;
-  }>(TableNames.BOOKING, id, tenant);
-
-  if (doc) {
-    await logClientBookingChange({
-      bookingId: doc.id,
-      calendarEventId: id,
-      status: BookingStatusLabel.CHECKED_IN,
-      changedBy: email,
-      requestNumber: doc.requestNumber,
-      note: "",
-      tenant,
-    });
-
-    console.log(
-      `📋 XSTATE CHECKIN HISTORY LOGGED [${tenant?.toUpperCase()}]:`,
-      {
-        calendarEventId: id,
-        bookingId: doc.id,
-        requestNumber: doc.requestNumber,
-      },
-    );
-  }
-
-  // Send check-in email after history logging
-  // @ts-ignore
-  const guestEmail = doc ? doc.email : null;
-
+  // Delegate all checkin processing (Firestore update, email, calendar, history)
+  // to /api/checkin-processing
   try {
-    const { getTenantEmailConfig } = await import("./emails");
-    const emailConfig = await getTenantEmailConfig(tenant);
-    const headerMessage = emailConfig.emailMessages.checkinConfirmation;
-    await clientSendBookingDetailEmail(
-      id,
-      guestEmail,
-      headerMessage,
-      BookingStatusLabel.CHECKED_IN,
-      tenant,
-    );
-
-    console.log(`📧 XSTATE CHECKIN EMAIL SENT [${tenant?.toUpperCase()}]:`, {
-      calendarEventId: id,
-      guestEmail,
-    });
-  } catch (emailError) {
-    console.error(
-      `⚠️ XSTATE CHECKIN EMAIL FAILED [${tenant?.toUpperCase()}]:`,
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_BASE_URL}/api/checkin-processing`,
       {
-        calendarEventId: id,
-        error: emailError,
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          calendarEventId: id,
+          email,
+          tenant,
+        }),
       },
     );
-    // Don't throw - email failure shouldn't fail the entire check-in
+
+    if (response.ok) {
+      console.log(
+        `✅ CHECKIN-PROCESSING API SUCCESS [${tenant?.toUpperCase()}]:`,
+        { calendarEventId: id },
+      );
+    } else {
+      const errorData = await response.json();
+      console.error(
+        `🚨 CHECKIN-PROCESSING API FAILED [${tenant?.toUpperCase()}]:`,
+        { calendarEventId: id, error: errorData },
+      );
+    }
+  } catch (error: any) {
+    console.error(
+      `🚨 CHECKIN-PROCESSING API ERROR [${tenant?.toUpperCase()}]:`,
+      { calendarEventId: id, error: error.message },
+    );
   }
 };
 
@@ -924,7 +966,79 @@ export const checkOut = async (id: string, email: string, tenant?: string) => {
     newState: xstateResult.newState,
   });
 
-  // Booking log is created by checkout-processing API (called by XState machine)
+  // Delegate checkout processing to /api/checkout-processing for all tenants
+  try {
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_BASE_URL}/api/checkout-processing`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          calendarEventId: id,
+          email,
+          tenant,
+        }),
+      },
+    );
+
+    if (response.ok) {
+      console.log(
+        `✅ CHECKOUT-PROCESSING API SUCCESS [${tenant?.toUpperCase()}]:`,
+        { calendarEventId: id },
+      );
+    } else {
+      const errorData = await response.json();
+      console.error(
+        `🚨 CHECKOUT-PROCESSING API FAILED [${tenant?.toUpperCase()}]:`,
+        { calendarEventId: id, error: errorData },
+      );
+    }
+  } catch (error: any) {
+    console.error(
+      `🚨 CHECKOUT-PROCESSING API ERROR [${tenant?.toUpperCase()}]:`,
+      { calendarEventId: id, error: error.message },
+    );
+  }
+
+  // Auto-close: when XState transitions directly to Closed (e.g., ITP: Checked Out → Closed)
+  // Call close-processing to log Close history, send close email, update calendar
+  if (xstateResult.newState === "Closed") {
+    try {
+      const closeResponse = await fetch(
+        `${process.env.NEXT_PUBLIC_BASE_URL}/api/close-processing`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-tenant": tenant || DEFAULT_TENANT,
+          },
+          body: JSON.stringify({
+            calendarEventId: id,
+            email,
+            tenant,
+          }),
+        },
+      );
+
+      if (closeResponse.ok) {
+        console.log(
+          `✅ CLOSE-PROCESSING API SUCCESS [${tenant?.toUpperCase()}]:`,
+          { calendarEventId: id },
+        );
+      } else {
+        const errorData = await closeResponse.json();
+        console.error(
+          `🚨 CLOSE-PROCESSING API FAILED [${tenant?.toUpperCase()}]:`,
+          { calendarEventId: id, error: errorData },
+        );
+      }
+    } catch (error: any) {
+      console.error(
+        `🚨 CLOSE-PROCESSING API ERROR [${tenant?.toUpperCase()}]:`,
+        { calendarEventId: id, error: error.message },
+      );
+    }
+  }
 };
 
 export const noShow = async (
@@ -988,7 +1102,48 @@ export const noShow = async (
 
         // Execute traditional no show processing (database updates, emails, etc.)
         await executeTraditionalNoShow(id, email, netId, tenant);
-      } else {
+      }
+
+      // When noShow transitions directly to Closed
+      if (xstateResult.newState === "Closed") {
+        try {
+          const closeResponse = await fetch(
+            `${process.env.NEXT_PUBLIC_BASE_URL}/api/close-processing`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "x-tenant": tenant || DEFAULT_TENANT,
+              },
+              body: JSON.stringify({
+                calendarEventId: id,
+                email,
+                tenant,
+              }),
+            },
+          );
+
+          if (closeResponse.ok) {
+            console.log(
+              `✅ CLOSE-PROCESSING API SUCCESS [${tenant?.toUpperCase()}]:`,
+              { calendarEventId: id },
+            );
+          } else {
+            const errorData = await closeResponse.json();
+            console.error(
+              `🚨 CLOSE-PROCESSING API FAILED [${tenant?.toUpperCase()}]:`,
+              { calendarEventId: id, error: errorData },
+            );
+          }
+        } catch (error: any) {
+          console.error(
+            `🚨 CLOSE-PROCESSING API ERROR [${tenant?.toUpperCase()}]:`,
+            { calendarEventId: id, error: error.message },
+          );
+        }
+      }
+
+      if (xstateResult.newState !== "No Show") {
         console.log(
           `🚫 XSTATE DID NOT REACH NO SHOW STATE - SKIPPING NO SHOW SIDE EFFECTS [${tenant?.toUpperCase()}]:`,
           {
@@ -1070,13 +1225,16 @@ export const executeTraditionalNoShow = async (
     BookingStatusLabel.NO_SHOW,
     tenant,
   );
-  clientSendBookingDetailEmail(
-    id,
-    getApprovalCcEmail(process.env.NEXT_PUBLIC_BRANCH_NAME),
-    headerMessage,
-    BookingStatusLabel.NO_SHOW,
-    tenant,
-  );
+  const noShowCcEmail = await getApprovalCcEmail(process.env.NEXT_PUBLIC_BRANCH_NAME, tenant);
+  if (noShowCcEmail) {
+    clientSendBookingDetailEmail(
+      id,
+      noShowCcEmail,
+      headerMessage,
+      BookingStatusLabel.NO_SHOW,
+      tenant,
+    );
+  }
   clientSendConfirmationEmail(
     id,
     BookingStatusLabel.NO_SHOW,
@@ -1274,6 +1432,7 @@ export const clientSendBookingDetailEmail = async (
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      "x-tenant": tenant || DEFAULT_TENANT,
     },
     body: JSON.stringify(formData),
   });

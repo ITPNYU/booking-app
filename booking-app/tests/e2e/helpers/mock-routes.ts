@@ -1,3 +1,4 @@
+import { defaultSafetyTrainingInfoUrl } from "@/components/src/constants/safetyTraining";
 import { Page, Route } from "@playwright/test";
 
 export const mockTenantSchema = {
@@ -53,6 +54,7 @@ export const mockTenantSchema = {
       isEquipment: false,
       calendarId: "mock-calendar-202",
       needsSafetyTraining: false,
+      trainingInfoUrl: "",
       shouldAutoApprove: true,
       isWalkIn: false,
       isWalkInCanBookTwo: false,
@@ -65,6 +67,7 @@ export const mockTenantSchema = {
       isEquipment: false,
       calendarId: "mock-calendar-220",
       needsSafetyTraining: false,
+      trainingInfoUrl: "",
       shouldAutoApprove: false,
       isWalkIn: true,
       isWalkInCanBookTwo: false,
@@ -77,6 +80,7 @@ export const mockTenantSchema = {
       isEquipment: false,
       calendarId: "mock-calendar-203",
       needsSafetyTraining: false,
+      trainingInfoUrl: "",
       shouldAutoApprove: false,
       isWalkIn: false,
       isWalkInCanBookTwo: false,
@@ -90,6 +94,7 @@ export const mockTenantSchema = {
       isEquipment: false,
       calendarId: "mock-calendar-230",
       needsSafetyTraining: true,
+      trainingInfoUrl: defaultSafetyTrainingInfoUrl,
       shouldAutoApprove: false,
       isWalkIn: false,
       isWalkInCanBookTwo: false,
@@ -205,13 +210,26 @@ export async function registerBookingMocks(page: Page) {
     })
   );
 
-  await page.route("**/api/calendarEvents**", (route) =>
-    route.fulfill({
+  await page.route("**/api/calendarEvents**", (route) => {
+    const url = new URL(route.request().url());
+    const calendarIds = url.searchParams.get("calendarIds");
+    if (calendarIds) {
+      const grouped: Record<string, any[]> = {};
+      for (const id of calendarIds.split(",")) {
+        grouped[id] = [];
+      }
+      return route.fulfill({
+        status: 200,
+        headers: jsonHeaders,
+        body: JSON.stringify(grouped),
+      });
+    }
+    return route.fulfill({
       status: 200,
       headers: jsonHeaders,
       body: JSON.stringify([]),
-    })
-  );
+    });
+  });
 
   await page.route("**/api/bookings", async (route: Route) => {
     if (route.request().method() === "POST") {

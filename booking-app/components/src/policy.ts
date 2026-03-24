@@ -1,7 +1,7 @@
 import { clientGetFinalApproverEmailFromDatabase } from "@/lib/firebase/firebase";
-import { MEDIA_COMMONS_OPERATION_EMAIL } from "./mediaCommonsPolicy";
 
 import { BookingStatusLabel } from "./types";
+import { getApprovedCcEmail, getCanceledCcEmail } from "./tenantPolicy";
 
 export enum TableNames {
   ADMINS = "usersAdmin",
@@ -85,7 +85,6 @@ export const isLegacyUserCollection = (collectionName: TableNames): boolean => {
 export const CALENDAR_HIDE_STATUS = [
   BookingStatusLabel.NO_SHOW,
   BookingStatusLabel.CANCELED,
-  BookingStatusLabel.DECLINED,
   BookingStatusLabel.CHECKED_OUT,
 ];
 
@@ -109,12 +108,25 @@ export const clientGetFinalApproverEmail = async (): Promise<string> => {
   );
 };
 
-export const getApprovalCcEmail = (branchName: string) =>
-  branchName === "development"
-    ? "booking-app-devs+operation@itp.nyu.edu"
-    : MEDIA_COMMONS_OPERATION_EMAIL;
+/**
+ * Get CC email for approval notifications.
+ * branchName param kept for backward compatibility but no longer used
+ * (environment is resolved from NEXT_PUBLIC_BRANCH_NAME).
+ */
+export const getApprovalCcEmail = async (
+  _branchName: string,
+  tenant?: string,
+): Promise<string> => {
+  if (!tenant) return "";
+  return getApprovedCcEmail(tenant);
+};
 
-export const getCancelCcEmail = () =>
-  process.env.NEXT_PUBLIC_BRANCH_NAME === "development"
-    ? "booking-app-devs+cancelcc@itp.nyu.edu"
-    : MEDIA_COMMONS_OPERATION_EMAIL;
+/**
+ * Get CC email for cancellation notifications.
+ */
+export const getCancelCcEmail = async (
+  tenant?: string,
+): Promise<string> => {
+  if (!tenant) return "";
+  return getCanceledCcEmail(tenant);
+};

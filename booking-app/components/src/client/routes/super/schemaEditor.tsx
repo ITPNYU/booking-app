@@ -551,6 +551,16 @@ function ResourceEditor({
         />
 
         <TextField
+          label="Training Info URL"
+          value={resource.trainingInfoUrl ?? ""}
+          onChange={(e) => set("trainingInfoUrl", e.target.value)}
+          fullWidth
+          size="small"
+          sx={{ mb: 2 }}
+          helperText="Displayed in the safety training required alert as the Sign up here link."
+        />
+
+        <TextField
           label="Services (comma-separated)"
           value={Array.isArray(resource.services) ? resource.services.join(", ") : ""}
           onChange={(e) =>

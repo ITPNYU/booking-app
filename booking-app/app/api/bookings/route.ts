@@ -829,6 +829,7 @@ export async function POST(request: NextRequest) {
       equipmentCheckedOut: false,
       requestedAt: Timestamp.now(),
       origin: BookingOrigin.USER,
+      tenant,
       ...data,
       // Override with display values for "Other" selections
       ...getOtherDisplayFields(data),
@@ -870,12 +871,15 @@ export async function POST(request: NextRequest) {
     // Save XState data for ITP and Media Commons tenant after calendarEventId is available
     if (usesXState && typeof xstateData !== "undefined") {
       try {
-        // Update the XState context with the actual calendarEventId
+        // Update the XState snapshot context with the actual calendarEventId
         const updatedXStateData = {
           ...xstateData,
-          context: {
-            ...xstateData.context,
-            calendarEventId,
+          snapshot: {
+            ...xstateData.snapshot,
+            context: {
+              ...xstateData.snapshot?.context,
+              calendarEventId,
+            },
           },
         };
 

@@ -32,13 +32,28 @@ test.describe("Form Validation – overlap and duration errors", () => {
       },
     ];
 
-    await page.route("**/api/calendarEvents**", (route) =>
-      route.fulfill({
+    await page.route("**/api/calendarEvents**", (route) => {
+      const url = new URL(route.request().url());
+      const calendarIds = url.searchParams.get("calendarIds");
+      // Batch mode: return grouped by calendarId
+      if (calendarIds) {
+        const grouped: Record<string, any[]> = {};
+        for (const id of calendarIds.split(",")) {
+          grouped[id] = id === "mock-calendar-202" ? overlappingEvents : [];
+        }
+        return route.fulfill({
+          status: 200,
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(grouped),
+        });
+      }
+      // Single calendar mode fallback
+      return route.fulfill({
         status: 200,
         headers: { "content-type": "application/json" },
         body: JSON.stringify(overlappingEvents),
-      }),
-    );
+      });
+    });
 
     // Navigate through the booking flow
     await page.goto(`${BASE_URL}/mc`, { waitUntil: "domcontentloaded" });

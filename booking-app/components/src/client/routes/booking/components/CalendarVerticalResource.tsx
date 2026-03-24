@@ -41,6 +41,7 @@ interface Props {
   dateView: Date;
   startHour?: string;
   slotUnit?: number;
+  maxHours?: number;
 }
 
 const FullCalendarWrapper = styled(Box)({
@@ -122,6 +123,7 @@ export default function CalendarVerticalResource({
   dateView,
   startHour,
   slotUnit,
+  maxHours,
 }: Props) {
   const { operationHours, pagePermission } = useContext(DatabaseContext);
   const { getBlackoutPeriodsForDateAndRooms, isBookingTimeInBlackout } =
@@ -163,8 +165,6 @@ export default function CalendarVerticalResource({
         room.roomId,
       ]);
 
-      console.log(`Room ${room.roomId} blackout periods:`, blackoutPeriods);
-
       blackoutPeriods.forEach((period) => {
         const blackoutRange = getBlackoutTimeRangeForDate(period, selectedDate);
 
@@ -186,13 +186,11 @@ export default function CalendarVerticalResource({
             },
           };
 
-          console.log("Adding blackout block:", blockEvent);
           blocks.push(blockEvent);
         }
       });
     });
 
-    console.log("Total blackout blocks generated:", blocks.length);
     return blocks;
   }, [rooms, dateView, getBlackoutPeriodsForDateAndRooms]);
 
@@ -286,7 +284,15 @@ export default function CalendarVerticalResource({
       }
     }
 
-    // Allow selection if not in blackout period
+    // Enforce maxHours limit on calendar selection
+    if (maxHours != null && maxHours !== Number.POSITIVE_INFINITY) {
+      const durationHours = bookingEnd.diff(bookingStart, "hour", true);
+      if (durationHours > maxHours) {
+        return false;
+      }
+    }
+
+    // Allow selection if not in blackout period and within maxHours
     return true;
   };
 
@@ -297,10 +303,6 @@ export default function CalendarVerticalResource({
     }
     return el.overlap;
   };
-
-  useEffect(() => {
-    console.log(fetchingStatus);
-  }, [fetchingStatus]);
 
   // clicking on created event should delete it
   // only if not in MODIFICATION mode
@@ -329,18 +331,6 @@ export default function CalendarVerticalResource({
 
   // for editing an existing reservation
   const existingCalEventsFiltered = useMemo(() => {
-    console.log("Calendar events received:", existingCalendarEvents.length);
-    console.log(
-      "Sample events:",
-      existingCalendarEvents.slice(0, 3).map((e) => ({
-        id: e.id,
-        title: e.title,
-        start: e.start,
-        end: e.end,
-        resourceId: e.resourceId,
-      })),
-    );
-
     if (
       (formContext !== FormContextLevel.EDIT &&
         formContext !== FormContextLevel.MODIFICATION) ||
@@ -465,6 +455,9 @@ export default function CalendarVerticalResource({
         aspectRatio={isMobile ? 0.5 : 1.5}
         expandRows={true}
         stickyHeaderDates={true}
+        longPressDelay={isMobile ? 0 : 1000}
+        selectLongPressDelay={isMobile ? 0 : 1000}
+        eventLongPressDelay={isMobile ? 0 : 1000}
         ref={ref}
       />
     </FullCalendarWrapper>
