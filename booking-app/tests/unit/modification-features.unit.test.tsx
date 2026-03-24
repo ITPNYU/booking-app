@@ -648,7 +648,7 @@ describe("Modification Features", () => {
       expect(fullCalendarProps.selectOverlap(blackoutOverlapEl)).toBe(true);
     });
 
-    it("selectOverlap allows overlap with blackout blocks for PA", () => {
+    it("selectOverlap blocks blackout overlap for PA", () => {
       renderWithProviders(
         <CalendarVerticalResource
           formContext={FormContextLevel.FIRST_APPROVE}
@@ -659,7 +659,7 @@ describe("Modification Features", () => {
       );
 
       expect(fullCalendarProps).not.toBeNull();
-      expect(fullCalendarProps.selectOverlap(blackoutOverlapEl)).toBe(true);
+      expect(fullCalendarProps.selectOverlap(blackoutOverlapEl)).toBe(false);
     });
 
     it("selectAllow blocks selection in blackout time for booking users", () => {
@@ -692,6 +692,22 @@ describe("Modification Features", () => {
 
       expect(fullCalendarProps).not.toBeNull();
       expect(fullCalendarProps.selectAllow(selectInfoInBlackout)).toBe(true);
+    });
+
+    it("selectAllow blocks selection in blackout time for PA", () => {
+      mockIsBookingTimeInBlackout.mockReturnValue({ inBlackout: true });
+
+      renderWithProviders(
+        <CalendarVerticalResource
+          formContext={FormContextLevel.FIRST_APPROVE}
+          rooms={sampleRooms}
+          dateView={dateView}
+        />,
+        { pagePermission: PagePermission.PA }
+      );
+
+      expect(fullCalendarProps).not.toBeNull();
+      expect(fullCalendarProps.selectAllow(selectInfoInBlackout)).toBe(false);
     });
 
     it("select does not set booking calendar info when time is in blackout for booking users", () => {
@@ -734,6 +750,27 @@ describe("Modification Features", () => {
       expect(fullCalendarProps).not.toBeNull();
       fullCalendarProps.select(selectInfoInBlackout);
       expect(setBookingCalendarInfo).toHaveBeenCalledWith(selectInfoInBlackout);
+    });
+
+    it("select does not set booking calendar info when time is in blackout for PA", () => {
+      mockIsBookingTimeInBlackout.mockReturnValue({ inBlackout: true });
+      const setBookingCalendarInfo = vi.fn();
+
+      renderWithProviders(
+        <CalendarVerticalResource
+          formContext={FormContextLevel.FIRST_APPROVE}
+          rooms={sampleRooms}
+          dateView={dateView}
+        />,
+        {
+          pagePermission: PagePermission.PA,
+          bookingContextOverrides: { setBookingCalendarInfo },
+        }
+      );
+
+      expect(fullCalendarProps).not.toBeNull();
+      fullCalendarProps.select(selectInfoInBlackout);
+      expect(setBookingCalendarInfo).not.toHaveBeenCalled();
     });
   });
 });
