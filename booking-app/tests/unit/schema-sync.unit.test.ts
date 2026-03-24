@@ -5,14 +5,17 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 // computeDiffSummary — pure function tests
 // ---------------------------------------------------------------------------
 describe("computeDiffSummary", () => {
-  it("returns all keys as added when target is null", () => {
-    const source = { name: "ITP", logo: "logo.png", tenant: "itp" };
+  it("returns all keys as added with values when target is null", () => {
+    const source = { name: "ITP", logo: "logo.png" };
     const result = computeDiffSummary(source, null);
 
-    expect(result.added).toEqual(["name", "logo", "tenant"]);
+    expect(result.added).toEqual([
+      { key: "name", sourceValue: "ITP" },
+      { key: "logo", sourceValue: "logo.png" },
+    ]);
     expect(result.removed).toEqual([]);
     expect(result.changed).toEqual([]);
-    expect(result.unchanged).toEqual([]);
+    expect(result.unchangedCount).toBe(0);
   });
 
   it("detects unchanged keys when schemas are identical", () => {
@@ -22,36 +25,36 @@ describe("computeDiffSummary", () => {
     expect(result.added).toEqual([]);
     expect(result.removed).toEqual([]);
     expect(result.changed).toEqual([]);
-    expect(result.unchanged).toEqual(["name", "logo"]);
+    expect(result.unchangedCount).toBe(2);
   });
 
-  it("detects changed keys", () => {
+  it("detects changed keys with both values", () => {
     const source = { name: "ITP Updated", logo: "logo.png" };
     const target = { name: "ITP", logo: "logo.png" };
     const result = computeDiffSummary(source, target);
 
-    expect(result.changed).toEqual(["name"]);
-    expect(result.unchanged).toEqual(["logo"]);
-    expect(result.added).toEqual([]);
-    expect(result.removed).toEqual([]);
+    expect(result.changed).toEqual([
+      { key: "name", sourceValue: "ITP Updated", targetValue: "ITP" },
+    ]);
+    expect(result.unchangedCount).toBe(1);
   });
 
-  it("detects added keys (in source but not in target)", () => {
+  it("detects added keys with source value", () => {
     const source = { name: "ITP", newField: "value" };
     const target = { name: "ITP" };
     const result = computeDiffSummary(source, target);
 
-    expect(result.added).toEqual(["newField"]);
-    expect(result.unchanged).toEqual(["name"]);
+    expect(result.added).toEqual([{ key: "newField", sourceValue: "value" }]);
+    expect(result.unchangedCount).toBe(1);
   });
 
-  it("detects removed keys (in target but not in source)", () => {
+  it("detects removed keys with target value", () => {
     const source = { name: "ITP" };
     const target = { name: "ITP", oldField: "value" };
     const result = computeDiffSummary(source, target);
 
-    expect(result.removed).toEqual(["oldField"]);
-    expect(result.unchanged).toEqual(["name"]);
+    expect(result.removed).toEqual([{ key: "oldField", targetValue: "value" }]);
+    expect(result.unchangedCount).toBe(1);
   });
 
   it("handles all change types simultaneously", () => {
@@ -59,10 +62,12 @@ describe("computeDiffSummary", () => {
     const target = { same: "ok", changed: "old", removed: "bye" };
     const result = computeDiffSummary(source, target);
 
-    expect(result.unchanged).toEqual(["same"]);
-    expect(result.changed).toEqual(["changed"]);
-    expect(result.added).toEqual(["added"]);
-    expect(result.removed).toEqual(["removed"]);
+    expect(result.unchangedCount).toBe(1);
+    expect(result.changed).toEqual([
+      { key: "changed", sourceValue: "new", targetValue: "old" },
+    ]);
+    expect(result.added).toEqual([{ key: "added", sourceValue: "yes" }]);
+    expect(result.removed).toEqual([{ key: "removed", targetValue: "bye" }]);
   });
 
   it("detects changes in nested objects via JSON comparison", () => {
@@ -70,7 +75,10 @@ describe("computeDiffSummary", () => {
     const target = { resources: [{ id: 1, name: "Room B" }] };
     const result = computeDiffSummary(source, target);
 
-    expect(result.changed).toEqual(["resources"]);
+    expect(result.changed).toHaveLength(1);
+    expect(result.changed[0].key).toBe("resources");
+    expect(result.changed[0].sourceValue).toEqual([{ id: 1, name: "Room A" }]);
+    expect(result.changed[0].targetValue).toEqual([{ id: 1, name: "Room B" }]);
   });
 
   it("handles empty source with null target", () => {
@@ -79,7 +87,7 @@ describe("computeDiffSummary", () => {
     expect(result.added).toEqual([]);
     expect(result.removed).toEqual([]);
     expect(result.changed).toEqual([]);
-    expect(result.unchanged).toEqual([]);
+    expect(result.unchangedCount).toBe(0);
   });
 
   it("handles empty source and empty target", () => {
@@ -88,7 +96,7 @@ describe("computeDiffSummary", () => {
     expect(result.added).toEqual([]);
     expect(result.removed).toEqual([]);
     expect(result.changed).toEqual([]);
-    expect(result.unchanged).toEqual([]);
+    expect(result.unchangedCount).toBe(0);
   });
 });
 
@@ -230,8 +238,10 @@ describe("POST /api/tenantSchema/[tenant]/sync", () => {
 
     expect(status).toBe(200);
     expect(data.dryRun).toBe(true);
-    expect(data.diff.changed).toEqual(["name"]);
-    expect(data.diff.unchanged).toEqual(["logo"]);
+    expect(data.diff.changed).toEqual([
+      { key: "name", sourceValue: "ITP New", targetValue: "ITP Old" },
+    ]);
+    expect(data.diff.unchangedCount).toBe(1);
     // Verify no writes happened
     expect(mockSet).not.toHaveBeenCalled();
   });

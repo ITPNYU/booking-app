@@ -41,10 +41,10 @@ export default function SchemaCompare() {
   const [dryRunning, setDryRunning] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [dryRunResult, setDryRunResult] = useState<{
-    added: string[];
-    removed: string[];
-    changed: string[];
-    unchanged: string[];
+    added: { key: string; sourceValue?: unknown }[];
+    removed: { key: string; targetValue?: unknown }[];
+    changed: { key: string; sourceValue?: unknown; targetValue?: unknown }[];
+    unchangedCount: number;
   } | null>(null);
   const [snack, setSnack] = useState<SnackState>({
     open: false,
@@ -251,64 +251,91 @@ export default function SchemaCompare() {
           <Typography variant="subtitle2" sx={{ mb: 1 }}>
             Dry Run Result — {leftEnv} → {rightEnv}
           </Typography>
-          {dryRunResult.changed.length > 0 && (
-            <Box sx={{ mb: 1 }}>
-              <Typography variant="body2" fontWeight="bold" color="warning.main">
-                Changed ({dryRunResult.changed.length}):
-              </Typography>
-              {dryRunResult.changed.map((key) => (
-                <Chip
-                  key={key}
-                  label={key}
-                  size="small"
-                  color="warning"
-                  variant="outlined"
-                  sx={{ mr: 0.5, mb: 0.5 }}
-                />
-              ))}
-            </Box>
-          )}
-          {dryRunResult.added.length > 0 && (
-            <Box sx={{ mb: 1 }}>
-              <Typography variant="body2" fontWeight="bold" color="success.main">
-                Added ({dryRunResult.added.length}):
-              </Typography>
-              {dryRunResult.added.map((key) => (
-                <Chip
-                  key={key}
-                  label={key}
-                  size="small"
-                  color="success"
-                  variant="outlined"
-                  sx={{ mr: 0.5, mb: 0.5 }}
-                />
-              ))}
-            </Box>
-          )}
-          {dryRunResult.removed.length > 0 && (
-            <Box sx={{ mb: 1 }}>
-              <Typography variant="body2" fontWeight="bold" color="error.main">
-                Removed ({dryRunResult.removed.length}):
-              </Typography>
-              {dryRunResult.removed.map((key) => (
-                <Chip
-                  key={key}
-                  label={key}
-                  size="small"
-                  color="error"
-                  variant="outlined"
-                  sx={{ mr: 0.5, mb: 0.5 }}
-                />
-              ))}
-            </Box>
-          )}
           {dryRunResult.changed.length === 0 &&
             dryRunResult.added.length === 0 &&
             dryRunResult.removed.length === 0 && (
               <Typography variant="body2">No changes would be applied.</Typography>
             )}
+          {(dryRunResult.changed.length > 0 ||
+            dryRunResult.added.length > 0 ||
+            dryRunResult.removed.length > 0) && (
+            <Box
+              component="table"
+              sx={{
+                width: "100%",
+                borderCollapse: "collapse",
+                fontSize: 13,
+                mt: 1,
+              }}
+            >
+              <thead>
+                <tr>
+                  <Box component="th" sx={{ textAlign: "left", p: 1, borderBottom: "2px solid #ccc", width: "20%" }}>
+                    Key
+                  </Box>
+                  <Box component="th" sx={{ textAlign: "left", p: 1, borderBottom: "2px solid #ccc", width: "10%" }}>
+                    Change
+                  </Box>
+                  <Box component="th" sx={{ textAlign: "left", p: 1, borderBottom: "2px solid #ccc", width: "35%" }}>
+                    {leftEnv} (source)
+                  </Box>
+                  <Box component="th" sx={{ textAlign: "left", p: 1, borderBottom: "2px solid #ccc", width: "35%" }}>
+                    {rightEnv} (target)
+                  </Box>
+                </tr>
+              </thead>
+              <tbody>
+                {dryRunResult.changed.map((d) => (
+                  <tr key={d.key}>
+                    <Box component="td" sx={{ p: 1, borderBottom: "1px solid #ddd", fontFamily: "monospace", fontSize: 12 }}>
+                      {d.key}
+                    </Box>
+                    <Box component="td" sx={{ p: 1, borderBottom: "1px solid #ddd", color: "warning.main", fontWeight: "bold" }}>
+                      changed
+                    </Box>
+                    <Box component="td" sx={{ p: 1, borderBottom: "1px solid #ddd", fontFamily: "monospace", fontSize: 11, backgroundColor: "#f0fff0", wordBreak: "break-all", maxWidth: 300 }}>
+                      {formatValue(d.sourceValue)}
+                    </Box>
+                    <Box component="td" sx={{ p: 1, borderBottom: "1px solid #ddd", fontFamily: "monospace", fontSize: 11, backgroundColor: "#fff0f0", wordBreak: "break-all", maxWidth: 300 }}>
+                      {formatValue(d.targetValue)}
+                    </Box>
+                  </tr>
+                ))}
+                {dryRunResult.added.map((d) => (
+                  <tr key={d.key}>
+                    <Box component="td" sx={{ p: 1, borderBottom: "1px solid #ddd", fontFamily: "monospace", fontSize: 12 }}>
+                      {d.key}
+                    </Box>
+                    <Box component="td" sx={{ p: 1, borderBottom: "1px solid #ddd", color: "success.main", fontWeight: "bold" }}>
+                      added
+                    </Box>
+                    <Box component="td" sx={{ p: 1, borderBottom: "1px solid #ddd", fontFamily: "monospace", fontSize: 11, backgroundColor: "#f0fff0", wordBreak: "break-all", maxWidth: 300 }}>
+                      {formatValue(d.sourceValue)}
+                    </Box>
+                    <Box component="td" sx={{ p: 1, borderBottom: "1px solid #ddd" }}>
+                    </Box>
+                  </tr>
+                ))}
+                {dryRunResult.removed.map((d) => (
+                  <tr key={d.key}>
+                    <Box component="td" sx={{ p: 1, borderBottom: "1px solid #ddd", fontFamily: "monospace", fontSize: 12 }}>
+                      {d.key}
+                    </Box>
+                    <Box component="td" sx={{ p: 1, borderBottom: "1px solid #ddd", color: "error.main", fontWeight: "bold" }}>
+                      removed
+                    </Box>
+                    <Box component="td" sx={{ p: 1, borderBottom: "1px solid #ddd" }}>
+                    </Box>
+                    <Box component="td" sx={{ p: 1, borderBottom: "1px solid #ddd", fontFamily: "monospace", fontSize: 11, backgroundColor: "#fff0f0", wordBreak: "break-all", maxWidth: 300 }}>
+                      {formatValue(d.targetValue)}
+                    </Box>
+                  </tr>
+                ))}
+              </tbody>
+            </Box>
+          )}
           <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-            Unchanged: {dryRunResult.unchanged.length} key(s)
+            Unchanged: {dryRunResult.unchangedCount} key(s)
           </Typography>
         </Box>
       )}
