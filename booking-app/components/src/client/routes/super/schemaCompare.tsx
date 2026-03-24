@@ -51,16 +51,29 @@ function DryRunValue({
         fontSize: 11,
         backgroundColor: bg,
         wordBreak: "break-all",
-        whiteSpace: expanded ? "pre-wrap" : "nowrap",
-        maxWidth: expanded ? "none" : 400,
-        overflow: "hidden",
-        textOverflow: expanded ? "clip" : "ellipsis",
-        cursor: isLong ? "pointer" : "default",
+        whiteSpace: "pre-wrap",
       }}
-      onClick={() => isLong && setExpanded(!expanded)}
-      title={isLong ? (expanded ? "Click to collapse" : "Click to expand") : undefined}
     >
-      {expanded ? full : isLong ? full.slice(0, 120) + " ..." : full}
+      {isLong ? (
+        <>
+          {expanded ? full : full.slice(0, 120) + " ..."}
+          <Box
+            component="span"
+            onClick={() => setExpanded(!expanded)}
+            sx={{
+              ml: 1,
+              color: "primary.main",
+              cursor: "pointer",
+              fontSize: 11,
+              textDecoration: "underline",
+            }}
+          >
+            {expanded ? "collapse" : "expand"}
+          </Box>
+        </>
+      ) : (
+        full
+      )}
     </Box>
   );
 }
