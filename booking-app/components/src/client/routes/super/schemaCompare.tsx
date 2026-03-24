@@ -208,7 +208,7 @@ export default function SchemaCompare() {
                   size="small"
                   startIcon={dryRunning ? <CircularProgress size={16} /> : null}
                 >
-                  Dry Run
+                  Dry Run ({leftEnv} → {rightEnv})
                 </Button>
                 <Button
                   variant="contained"
