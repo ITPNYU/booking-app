@@ -10,8 +10,6 @@ import {
   itpSelectTimeSlot,
 } from "./helpers/itp-test-utils";
 
-const BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000";
-
 test.describe("ITP Blackout Periods – booking blocked", () => {
   test("blocks ITP booking when date falls within a blackout period", async ({
     page,

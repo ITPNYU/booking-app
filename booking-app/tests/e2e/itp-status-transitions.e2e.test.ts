@@ -8,9 +8,9 @@ import {
   doc,
   getDoc,
   setDoc,
-  Timestamp,
 } from "../../lib/firebase/stubs/firebaseFirestoreStub";
 import { registerItpBookingMocks } from "./helpers/itp-mock-routes";
+import { applyMockOverrides } from "./helpers/test-utils";
 import {
   createTimestamp,
   serializeBookingRecord,
@@ -156,18 +156,6 @@ async function seedItpBooking(opts: {
 }
 
 async function registerItpMockBookingsFeed(page: Page) {
-  const snapshot = await getDoc(
-    doc({} as any, "itp-bookings", BOOKING_DOC_ID),
-  );
-  const baseData = snapshot.data();
-  const basePayload = baseData
-    ? {
-        id: BOOKING_DOC_ID,
-        calendarEventId: CALENDAR_EVENT_ID,
-        ...serializeBookingRecord(baseData),
-      }
-    : null;
-
   const rightsSnapshot = await getDoc(
     doc({} as any, "itp-usersRights", USERS_RIGHTS_DOC_ID),
   );
@@ -205,7 +193,6 @@ async function registerItpMockBookingsFeed(page: Page) {
   await page.addInitScript(
     ({
       timestampFields,
-      initialBooking,
       initialUsersRights,
       adminEmail,
     }) => {
@@ -495,7 +482,6 @@ async function registerItpMockBookingsFeed(page: Page) {
     },
     {
       timestampFields: TIMESTAMP_FIELDS_WITH_BY,
-      initialBooking: basePayload,
       initialUsersRights: rightsPayload,
       adminEmail: ADMIN_EMAIL,
     },
@@ -549,6 +535,73 @@ async function mockItpTransitionEndpoints(page: Page) {
   });
 }
 
+/**
+ * Navigate to ITP admin page, apply mock overrides, and wait for the booking row.
+ * Returns { bookingRow, transitionRequestPromise, transitionResponsePromise }.
+ */
+async function navigateToItpAdminAndWaitForRow(page: Page) {
+  const transitionRequestPromise = page.waitForRequest(
+    (request) =>
+      request.url().includes("/api/xstate-transition") &&
+      request.method() === "POST",
+  );
+  const transitionResponsePromise = page.waitForResponse(
+    (response) =>
+      response.url().includes("/api/xstate-transition") &&
+      response.request().method() === "POST",
+  );
+
+  await page.goto(`${BASE_URL}/itp/admin`, {
+    waitUntil: "domcontentloaded",
+  });
+  await page.waitForLoadState("networkidle");
+  await applyMockOverrides(page);
+
+  const bookingRow = page
+    .locator('[role="row"]')
+    .filter({ hasText: "ITP Status Transition Test" })
+    .first();
+  await bookingRow.waitFor({ state: "visible", timeout: 15_000 });
+
+  return { bookingRow, transitionRequestPromise, transitionResponsePromise };
+}
+
+/**
+ * Select a status action from the combobox, confirm, and assert the transition payload.
+ */
+async function selectActionAndAssert(
+  page: Page,
+  bookingRow: ReturnType<Page["locator"]>,
+  actionName: string,
+  expectedEventType: string,
+  transitionRequestPromise: Promise<any>,
+  transitionResponsePromise: Promise<any>,
+  opts: { hasDialog?: boolean } = {},
+) {
+  await bookingRow.locator('[role="combobox"]').click();
+  await page.getByRole("option", { name: actionName }).click();
+
+  const confirmButton = bookingRow.locator(
+    'button:has(svg[data-testid="CheckIcon"])',
+  );
+  await confirmButton.waitFor({ state: "visible", timeout: 5_000 });
+  await confirmButton.click();
+
+  if (opts.hasDialog) {
+    const cancelDialog = page.getByRole("dialog");
+    await cancelDialog.getByRole("button", { name: "Ok" }).click();
+  }
+
+  const transitionRequest = await transitionRequestPromise;
+  await transitionResponsePromise;
+
+  const payload = transitionRequest.postDataJSON() ?? {};
+  expect(payload).toMatchObject({
+    calendarEventId: CALENDAR_EVENT_ID,
+    eventType: expectedEventType,
+  });
+}
+
 test.describe("ITP Status Transitions", () => {
   test("Admin can check-in an APPROVED ITP booking", async ({ page }) => {
     await registerItpBookingMocks(page);
@@ -568,56 +621,13 @@ test.describe("ITP Status Transitions", () => {
     await registerItpMockBookingsFeed(page);
     await mockItpTransitionEndpoints(page);
 
-    const transitionRequestPromise = page.waitForRequest(
-      (request) =>
-        request.url().includes("/api/xstate-transition") &&
-        request.method() === "POST",
+    const { bookingRow, transitionRequestPromise, transitionResponsePromise } =
+      await navigateToItpAdminAndWaitForRow(page);
+
+    await selectActionAndAssert(
+      page, bookingRow, "Check In", "checkIn",
+      transitionRequestPromise, transitionResponsePromise,
     );
-    const transitionResponsePromise = page.waitForResponse(
-      (response) =>
-        response.url().includes("/api/xstate-transition") &&
-        response.request().method() === "POST",
-    );
-
-    await page.goto(`${BASE_URL}/itp/admin`, {
-      waitUntil: "domcontentloaded",
-    });
-    await page.waitForLoadState("networkidle");
-    await page.waitForFunction(
-      () =>
-        typeof (window as any).__applyMockBookingsOverrides === "function",
-    );
-    await page.evaluate(() => {
-      if (
-        typeof (window as any).__applyMockBookingsOverrides === "function"
-      ) {
-        (window as any).__applyMockBookingsOverrides();
-      }
-    });
-
-    const bookingRow = page
-      .locator('[role="row"]')
-      .filter({ hasText: "ITP Status Transition Test" })
-      .first();
-    await bookingRow.waitFor({ state: "visible", timeout: 15_000 });
-
-    await bookingRow.locator('[role="combobox"]').click();
-    await page.getByRole("option", { name: "Check In" }).click();
-
-    const confirmButton = bookingRow.locator(
-      'button:has(svg[data-testid="CheckIcon"])',
-    );
-    await confirmButton.waitFor({ state: "visible", timeout: 5_000 });
-    await confirmButton.click();
-
-    const transitionRequest = await transitionRequestPromise;
-    await transitionResponsePromise;
-
-    const payload = transitionRequest.postDataJSON() ?? {};
-    expect(payload).toMatchObject({
-      calendarEventId: CALENDAR_EVENT_ID,
-      eventType: "checkIn",
-    });
   });
 
   test("Admin can check-out a CHECKED_IN ITP booking", async ({ page }) => {
@@ -640,56 +650,13 @@ test.describe("ITP Status Transitions", () => {
     await registerItpMockBookingsFeed(page);
     await mockItpTransitionEndpoints(page);
 
-    const transitionRequestPromise = page.waitForRequest(
-      (request) =>
-        request.url().includes("/api/xstate-transition") &&
-        request.method() === "POST",
+    const { bookingRow, transitionRequestPromise, transitionResponsePromise } =
+      await navigateToItpAdminAndWaitForRow(page);
+
+    await selectActionAndAssert(
+      page, bookingRow, "Check Out", "checkOut",
+      transitionRequestPromise, transitionResponsePromise,
     );
-    const transitionResponsePromise = page.waitForResponse(
-      (response) =>
-        response.url().includes("/api/xstate-transition") &&
-        response.request().method() === "POST",
-    );
-
-    await page.goto(`${BASE_URL}/itp/admin`, {
-      waitUntil: "domcontentloaded",
-    });
-    await page.waitForLoadState("networkidle");
-    await page.waitForFunction(
-      () =>
-        typeof (window as any).__applyMockBookingsOverrides === "function",
-    );
-    await page.evaluate(() => {
-      if (
-        typeof (window as any).__applyMockBookingsOverrides === "function"
-      ) {
-        (window as any).__applyMockBookingsOverrides();
-      }
-    });
-
-    const bookingRow = page
-      .locator('[role="row"]')
-      .filter({ hasText: "ITP Status Transition Test" })
-      .first();
-    await bookingRow.waitFor({ state: "visible", timeout: 15_000 });
-
-    await bookingRow.locator('[role="combobox"]').click();
-    await page.getByRole("option", { name: "Check Out" }).click();
-
-    const confirmButton = bookingRow.locator(
-      'button:has(svg[data-testid="CheckIcon"])',
-    );
-    await confirmButton.waitFor({ state: "visible", timeout: 5_000 });
-    await confirmButton.click();
-
-    const transitionRequest = await transitionRequestPromise;
-    await transitionResponsePromise;
-
-    const payload = transitionRequest.postDataJSON() ?? {};
-    expect(payload).toMatchObject({
-      calendarEventId: CALENDAR_EVENT_ID,
-      eventType: "checkOut",
-    });
   });
 
   test("Admin can mark no-show for APPROVED ITP booking 30+ minutes past start", async ({
@@ -712,56 +679,13 @@ test.describe("ITP Status Transitions", () => {
     await registerItpMockBookingsFeed(page);
     await mockItpTransitionEndpoints(page);
 
-    const transitionRequestPromise = page.waitForRequest(
-      (request) =>
-        request.url().includes("/api/xstate-transition") &&
-        request.method() === "POST",
+    const { bookingRow, transitionRequestPromise, transitionResponsePromise } =
+      await navigateToItpAdminAndWaitForRow(page);
+
+    await selectActionAndAssert(
+      page, bookingRow, "No Show", "noShow",
+      transitionRequestPromise, transitionResponsePromise,
     );
-    const transitionResponsePromise = page.waitForResponse(
-      (response) =>
-        response.url().includes("/api/xstate-transition") &&
-        response.request().method() === "POST",
-    );
-
-    await page.goto(`${BASE_URL}/itp/admin`, {
-      waitUntil: "domcontentloaded",
-    });
-    await page.waitForLoadState("networkidle");
-    await page.waitForFunction(
-      () =>
-        typeof (window as any).__applyMockBookingsOverrides === "function",
-    );
-    await page.evaluate(() => {
-      if (
-        typeof (window as any).__applyMockBookingsOverrides === "function"
-      ) {
-        (window as any).__applyMockBookingsOverrides();
-      }
-    });
-
-    const bookingRow = page
-      .locator('[role="row"]')
-      .filter({ hasText: "ITP Status Transition Test" })
-      .first();
-    await bookingRow.waitFor({ state: "visible", timeout: 15_000 });
-
-    await bookingRow.locator('[role="combobox"]').click();
-    await page.getByRole("option", { name: "No Show" }).click();
-
-    const confirmButton = bookingRow.locator(
-      'button:has(svg[data-testid="CheckIcon"])',
-    );
-    await confirmButton.waitFor({ state: "visible", timeout: 5_000 });
-    await confirmButton.click();
-
-    const transitionRequest = await transitionRequestPromise;
-    await transitionResponsePromise;
-
-    const payload = transitionRequest.postDataJSON() ?? {};
-    expect(payload).toMatchObject({
-      calendarEventId: CALENDAR_EVENT_ID,
-      eventType: "noShow",
-    });
   });
 
   test("Admin can cancel an APPROVED ITP booking", async ({ page }) => {
@@ -782,58 +706,13 @@ test.describe("ITP Status Transitions", () => {
     await registerItpMockBookingsFeed(page);
     await mockItpTransitionEndpoints(page);
 
-    const transitionRequestPromise = page.waitForRequest(
-      (request) =>
-        request.url().includes("/api/xstate-transition") &&
-        request.method() === "POST",
+    const { bookingRow, transitionRequestPromise, transitionResponsePromise } =
+      await navigateToItpAdminAndWaitForRow(page);
+
+    await selectActionAndAssert(
+      page, bookingRow, "Cancel", "cancel",
+      transitionRequestPromise, transitionResponsePromise,
+      { hasDialog: true },
     );
-    const transitionResponsePromise = page.waitForResponse(
-      (response) =>
-        response.url().includes("/api/xstate-transition") &&
-        response.request().method() === "POST",
-    );
-
-    await page.goto(`${BASE_URL}/itp/admin`, {
-      waitUntil: "domcontentloaded",
-    });
-    await page.waitForLoadState("networkidle");
-    await page.waitForFunction(
-      () =>
-        typeof (window as any).__applyMockBookingsOverrides === "function",
-    );
-    await page.evaluate(() => {
-      if (
-        typeof (window as any).__applyMockBookingsOverrides === "function"
-      ) {
-        (window as any).__applyMockBookingsOverrides();
-      }
-    });
-
-    const bookingRow = page
-      .locator('[role="row"]')
-      .filter({ hasText: "ITP Status Transition Test" })
-      .first();
-    await bookingRow.waitFor({ state: "visible", timeout: 15_000 });
-
-    await bookingRow.locator('[role="combobox"]').click();
-    await page.getByRole("option", { name: "Cancel" }).click();
-
-    const confirmButton = bookingRow.locator(
-      'button:has(svg[data-testid="CheckIcon"])',
-    );
-    await confirmButton.waitFor({ state: "visible", timeout: 5_000 });
-    await confirmButton.click();
-
-    const cancelDialog = page.getByRole("dialog");
-    await cancelDialog.getByRole("button", { name: "Ok" }).click();
-
-    const transitionRequest = await transitionRequestPromise;
-    await transitionResponsePromise;
-
-    const payload = transitionRequest.postDataJSON() ?? {};
-    expect(payload).toMatchObject({
-      calendarEventId: CALENDAR_EVENT_ID,
-      eventType: "cancel",
-    });
   });
 });

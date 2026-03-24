@@ -132,7 +132,8 @@ export async function itpFillBookingForm(
 
 /**
  * Complete the full ITP booking flow from landing to form submission.
- * Returns the page on the confirmation page.
+ * Clicks Submit but does NOT wait for the confirmation page — the caller
+ * should assert the confirmation URL / heading as needed.
  */
 export async function itpCompleteBookingFlow(
   page: Page,

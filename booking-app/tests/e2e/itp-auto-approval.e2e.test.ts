@@ -7,8 +7,6 @@ import {
   itpFillBookingForm,
 } from "./helpers/itp-test-utils";
 
-const BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000";
-
 test.describe("ITP Auto-Approval", () => {
   test.beforeEach(async ({ page }) => {
     await registerItpBookingMocks(page);

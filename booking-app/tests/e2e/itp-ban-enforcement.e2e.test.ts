@@ -10,8 +10,6 @@ import {
   itpSelectTimeSlot,
 } from "./helpers/itp-test-utils";
 
-const BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000";
-
 test.describe("ITP Ban Enforcement – banned user blocked", () => {
   test("blocks banned user from booking in ITP", async ({ page }) => {
     await registerItpBookingMocks(page);

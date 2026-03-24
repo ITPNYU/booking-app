@@ -6,8 +6,6 @@ import {
   itpSelectTimeSlot,
 } from "./helpers/itp-test-utils";
 
-const BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000";
-
 test.describe("ITP Form Validation – overlap and duration errors", () => {
   test("shows overlap error when time conflicts with existing ITP reservation", async ({
     page,
