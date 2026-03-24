@@ -77,13 +77,15 @@ const compareDocumentData = (before, after) => {
 const backupTenantSchemaAsDocuments = (
   targetDb,
   databaseName,
-  dryRun = false
+  dryRun = false,
+  docIds = []
 ) =>
   backupTenantSchemaCollection(
     targetDb,
     databaseName,
     BACKUP_TYPE_COPY,
-    dryRun
+    dryRun,
+    docIds
   );
 
 // Parse command line arguments
@@ -96,6 +98,7 @@ const parseArgs = () => {
     targetDatabase: "development",
     dryRun: false,
     reportFile: null,
+    docIds: [],
   };
 
   for (let i = 0; i < args.length; i++) {
@@ -118,6 +121,9 @@ const parseArgs = () => {
       case "--report-file":
         options.reportFile = args[++i];
         break;
+      case "--doc":
+        options.docIds.push(args[++i]);
+        break;
       case "--help":
         console.log(`
 Usage: node copyCollection.js [options]
@@ -131,6 +137,7 @@ Optional Options:
   --target-database <env>        Target database environment (default: development)
   --dry-run                      Perform a dry run without actually copying data
   --report-file <path>           Write detailed dry-run report JSON to file
+  --doc <id>                     Only copy specific document(s) by ID (repeatable)
   --help                         Show this help message
 
 Examples:
@@ -257,7 +264,8 @@ const copyCollection = async (
   sourceCollection,
   targetCollection,
   databaseName,
-  dryRun = false
+  dryRun = false,
+  docIds = []
 ) => {
   try {
     if (dryRun) {
@@ -281,10 +289,30 @@ const copyCollection = async (
       };
     }
 
-    // Get all documents from source collection in source database
-    const sourceSnapshot = await sourceDb.collection(sourceCollection).get();
+    // Get documents from source collection in source database
+    let sourceDocs;
+    if (docIds.length > 0) {
+      // Fetch only specific documents by ID
+      const docRefs = docIds.map((id) =>
+        sourceDb.collection(sourceCollection).doc(id)
+      );
+      const docSnapshots = await sourceDb.getAll(...docRefs);
+      sourceDocs = docSnapshots.filter((snap) => snap.exists);
 
-    if (sourceSnapshot.empty) {
+      const missingIds = docIds.filter(
+        (id) => !sourceDocs.find((doc) => doc.id === id)
+      );
+      if (missingIds.length > 0) {
+        console.log(
+          `⚠️  Documents not found in source: ${missingIds.join(", ")}`
+        );
+      }
+    } else {
+      const sourceSnapshot = await sourceDb.collection(sourceCollection).get();
+      sourceDocs = sourceDocs;
+    }
+
+    if (sourceDocs.length === 0) {
       console.log(
         `❌ No ${sourceCollection} documents found in source database`
       );
@@ -296,7 +324,7 @@ const copyCollection = async (
     }
 
     console.log(
-      `📋 Found ${sourceSnapshot.size} ${sourceCollection} documents to copy`
+      `📋 Found ${sourceDocs.length} ${sourceCollection} document(s) to copy`
     );
 
     if (dryRun) {
@@ -320,7 +348,7 @@ const copyCollection = async (
       );
       console.log("🔎 Calculating key-level diffs...");
 
-      for (const doc of sourceSnapshot.docs) {
+      for (const doc of sourceDocs) {
         const data = doc.data();
         const existingData = targetDocumentsById.get(doc.id) || {};
         const existsInTarget = targetDocumentsById.has(doc.id);
@@ -370,10 +398,10 @@ const copyCollection = async (
       }
 
       const changedDocuments =
-        sourceSnapshot.size - totals.unchangedDocuments;
+        sourceDocs.length - totals.unchangedDocuments;
 
       console.log("\n📊 Dry Run Diff Summary");
-      console.log(`   Source documents: ${sourceSnapshot.size}`);
+      console.log(`   Source documents: ${sourceDocs.length}`);
       console.log(`   Target documents: ${targetSnapshot.size}`);
       console.log(`   Changed documents: ${changedDocuments}`);
       console.log(`   Unchanged documents: ${totals.unchangedDocuments}`);
@@ -381,16 +409,16 @@ const copyCollection = async (
       console.log(`   Total deleted keys: ${totals.deletedKeys}`);
       console.log(`   Total updated keys: ${totals.updatedKeys}`);
       console.log(
-        `✅ [DRY RUN] Would copy ${sourceSnapshot.size} ${sourceCollection} documents to ${targetCollection} in ${databaseName}`
+        `✅ [DRY RUN] Would copy ${sourceDocs.length} ${sourceCollection} documents to ${targetCollection} in ${databaseName}`
       );
       return {
         success: true,
-        copied: sourceSnapshot.size,
+        copied: sourceDocs.length,
         errors: [],
         dryRun: true,
         documents,
         summary: {
-          sourceDocuments: sourceSnapshot.size,
+          sourceDocuments: sourceDocs.length,
           targetDocuments: targetSnapshot.size,
           changedDocuments,
           unchangedDocuments: totals.unchangedDocuments,
@@ -407,7 +435,7 @@ const copyCollection = async (
     let currentBatch = targetDb.batch();
     let operationsInBatch = 0;
 
-    for (const doc of sourceSnapshot.docs) {
+    for (const doc of sourceDocs) {
       const data = doc.data();
       const docRef = targetDb.collection(targetCollection).doc(doc.id);
       currentBatch.set(docRef, data);
@@ -418,7 +446,7 @@ const copyCollection = async (
       if (operationsInBatch >= BATCH_SIZE) {
         await currentBatch.commit();
         console.log(
-          `  ✓ Committed batch of ${operationsInBatch} documents (${copiedCount}/${sourceSnapshot.size})`
+          `  ✓ Committed batch of ${operationsInBatch} documents (${copiedCount}/${sourceDocs.length})`
         );
         currentBatch = targetDb.batch();
         operationsInBatch = 0;
@@ -498,7 +526,8 @@ const main = async () => {
       const backupResult = await backupTenantSchemaAsDocuments(
         targetDb,
         DATABASES[options.targetDatabase],
-        options.dryRun
+        options.dryRun,
+        options.docIds
       );
       results.push({
         database: options.targetDatabase,
@@ -524,7 +553,8 @@ const main = async () => {
       options.sourceCollection,
       options.targetCollection,
       DATABASES[options.targetDatabase],
-      options.dryRun
+      options.dryRun,
+      options.docIds
     );
     results.push({
       database: options.targetDatabase,

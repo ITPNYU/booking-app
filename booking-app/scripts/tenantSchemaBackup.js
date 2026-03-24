@@ -32,33 +32,44 @@ const backupTenantSchemaCollection = async (
   targetDb,
   databaseName,
   backupType,
-  dryRun = false
+  dryRun = false,
+  docIds = []
 ) => {
   try {
-    const targetSnapshot = await targetDb
-      .collection(TENANT_SCHEMA_COLLECTION)
-      .get();
+    let docs;
+    if (docIds.length > 0) {
+      const docRefs = docIds.map((id) =>
+        targetDb.collection(TENANT_SCHEMA_COLLECTION).doc(id)
+      );
+      const docSnapshots = await targetDb.getAll(...docRefs);
+      docs = docSnapshots.filter((snap) => snap.exists);
+    } else {
+      const targetSnapshot = await targetDb
+        .collection(TENANT_SCHEMA_COLLECTION)
+        .get();
+      docs = targetSnapshot.docs;
+    }
 
-    if (targetSnapshot.empty) {
+    if (docs.length === 0) {
       console.log(`ℹ️ No existing ${TENANT_SCHEMA_COLLECTION} documents to back up`);
       return { success: true, copied: 0, errors: [] };
     }
 
     if (dryRun) {
       console.log(
-        `\n🔍 [DRY RUN] Would back up ${targetSnapshot.size} ${TENANT_SCHEMA_COLLECTION} documents in ${databaseName} to ${TENANT_SCHEMA_BACKUP_COLLECTION}`
+        `\n🔍 [DRY RUN] Would back up ${docs.length} ${TENANT_SCHEMA_COLLECTION} document(s) in ${databaseName} to ${TENANT_SCHEMA_BACKUP_COLLECTION}`
       );
-      targetSnapshot.docs.forEach((doc) => {
+      docs.forEach((doc) => {
         const backupDocId = createBackupDocId(doc.id, backupType);
         console.log(
           `  📄 Would create backup document: ${TENANT_SCHEMA_BACKUP_COLLECTION}/${backupDocId}`
         );
       });
-      return { success: true, copied: targetSnapshot.size, errors: [] };
+      return { success: true, copied: docs.length, errors: [] };
     }
 
     console.log(
-      `\n📦 Backing up ${targetSnapshot.size} ${TENANT_SCHEMA_COLLECTION} documents in ${databaseName} to ${TENANT_SCHEMA_BACKUP_COLLECTION}...`
+      `\n📦 Backing up ${docs.length} ${TENANT_SCHEMA_COLLECTION} document(s) in ${databaseName} to ${TENANT_SCHEMA_BACKUP_COLLECTION}...`
     );
 
     let copiedCount = 0;
@@ -66,7 +77,7 @@ const backupTenantSchemaCollection = async (
     let operationsInBatch = 0;
     const BATCH_SIZE = 500;
 
-    for (const doc of targetSnapshot.docs) {
+    for (const doc of docs) {
       const backupDocId = createBackupDocId(doc.id, backupType);
       const backupDocRef = targetDb
         .collection(TENANT_SCHEMA_BACKUP_COLLECTION)
