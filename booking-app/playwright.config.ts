@@ -80,6 +80,23 @@ export default defineConfig({
         ...devices["Desktop Chrome"],
       },
     },
+    {
+      name: "itp-flows",
+      testMatch: [
+        "**/itp-booking-flow.e2e.test.ts",
+        "**/itp-auto-approval.e2e.test.ts",
+        "**/itp-form-validation.e2e.test.ts",
+        "**/itp-calendar-constraints.e2e.test.ts",
+        "**/itp-ban-enforcement.e2e.test.ts",
+        "**/itp-blackout-periods.e2e.test.ts",
+        "**/itp-edit-booking-flow.e2e.test.ts",
+        "**/itp-status-transitions.e2e.test.ts",
+        "**/itp-admin-ui-visibility.e2e.test.ts",
+      ],
+      use: {
+        ...devices["Desktop Chrome"],
+      },
+    },
   ],
 
   webServer: {
