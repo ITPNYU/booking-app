@@ -6,6 +6,10 @@ import {
   Button,
   Chip,
   CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   FormControl,
   InputLabel,
   MenuItem,
@@ -23,7 +27,7 @@ type Env = (typeof ENVIRONMENTS)[number];
 type SnackState = {
   open: boolean;
   message: string;
-  severity: "success" | "error";
+  severity: "success" | "error" | "info";
 };
 
 export default function SchemaCompare() {
@@ -33,6 +37,9 @@ export default function SchemaCompare() {
   const [leftEnv, setLeftEnv] = useState<Env>("development");
   const [rightEnv, setRightEnv] = useState<Env>("production");
   const [loading, setLoading] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [dryRunning, setDryRunning] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const [snack, setSnack] = useState<SnackState>({
     open: false,
     message: "",
@@ -57,6 +64,56 @@ export default function SchemaCompare() {
       }
     },
     [userEmail],
+  );
+
+  const callSync = useCallback(
+    async (dryRun: boolean) => {
+      if (!userEmail || !tenant) return;
+      if (dryRun) setDryRunning(true);
+      else setSyncing(true);
+
+      try {
+        const res = await fetch(`/api/tenantSchema/${tenant}/sync`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-user-email": userEmail,
+          },
+          body: JSON.stringify({
+            sourceEnv: leftEnv,
+            targetEnv: rightEnv,
+            dryRun,
+          }),
+        });
+        if (!res.ok) {
+          const data = await res.json();
+          throw new Error(data.error || `HTTP ${res.status}`);
+        }
+        const data = await res.json();
+        if (dryRun) {
+          const { added, changed, removed, unchanged } = data.diff;
+          setSnack({
+            open: true,
+            severity: "info",
+            message: `Dry run: ${added.length} added, ${changed.length} changed, ${removed.length} removed, ${unchanged.length} unchanged`,
+          });
+        } else {
+          setSnack({
+            open: true,
+            severity: "success",
+            message: `Synced "${tenant}" ${leftEnv} → ${rightEnv}. Backup: ${data.backupId ?? "N/A"}`,
+          });
+          fetchSchemas(tenant);
+        }
+      } catch (err: any) {
+        setSnack({ open: true, message: err.message, severity: "error" });
+      } finally {
+        setDryRunning(false);
+        setSyncing(false);
+        setConfirmOpen(false);
+      }
+    },
+    [userEmail, tenant, leftEnv, rightEnv, fetchSchemas],
   );
 
   const handleTenantChange = (tenantId: string) => {
@@ -133,14 +190,39 @@ export default function SchemaCompare() {
         </FormControl>
 
         {tenant && (
-          <Button
-            variant="outlined"
-            onClick={() => fetchSchemas(tenant)}
-            disabled={loading}
-            size="small"
-          >
-            Refresh
-          </Button>
+          <>
+            <Button
+              variant="outlined"
+              onClick={() => fetchSchemas(tenant)}
+              disabled={loading}
+              size="small"
+            >
+              Refresh
+            </Button>
+            {leftEnv !== rightEnv && changedCount + addedCount + removedCount > 0 && (
+              <>
+                <Button
+                  variant="outlined"
+                  onClick={() => callSync(true)}
+                  disabled={dryRunning || syncing}
+                  size="small"
+                  startIcon={dryRunning ? <CircularProgress size={16} /> : null}
+                >
+                  Dry Run
+                </Button>
+                <Button
+                  variant="contained"
+                  color="warning"
+                  onClick={() => setConfirmOpen(true)}
+                  disabled={dryRunning || syncing}
+                  size="small"
+                  startIcon={syncing ? <CircularProgress size={16} /> : null}
+                >
+                  Sync {leftEnv} → {rightEnv}
+                </Button>
+              </>
+            )}
+          </>
         )}
       </Box>
 
@@ -329,6 +411,30 @@ export default function SchemaCompare() {
           )}
         </>
       )}
+
+      <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)}>
+        <DialogTitle>Confirm Schema Sync</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Overwrite <strong>{rightEnv}</strong> schema for tenant{" "}
+            <strong>{tenant}</strong> with the <strong>{leftEnv}</strong>{" "}
+            version?
+          </Typography>
+          <Typography sx={{ mt: 1 }} variant="body2" color="text.secondary">
+            A backup will be saved to tenantSchemaBackup before overwriting.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmOpen(false)}>Cancel</Button>
+          <Button
+            variant="contained"
+            color="warning"
+            onClick={() => callSync(false)}
+          >
+            Sync
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Snackbar
         open={snack.open}
