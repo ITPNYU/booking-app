@@ -31,9 +31,9 @@ export async function selectDropdown(
 export async function selectTimeSlot(
   page: Page,
   roomId: string = "202",
-  options: { skipDatePicker?: boolean } = {},
+  options: { skipDatePicker?: boolean; durationHours?: number } = {},
 ) {
-  const { skipDatePicker = false } = options;
+  const { skipDatePicker = false, durationHours = 1 } = options;
 
   const roomCheckbox = page.getByTestId(`room-option-${roomId}`);
   await roomCheckbox.waitFor({ state: "visible", timeout: 15000 });
@@ -70,8 +70,8 @@ export async function selectTimeSlot(
   }, { timeout: 15000 });
 
   // Use FullCalendar API via React fiber to programmatically select a time.
-  // Always use tomorrow 10-11am to avoid timezone/past-time issues in CI (UTC).
-  await page.evaluate((rid) => {
+  // Always use tomorrow 10am + durationHours to avoid timezone/past-time issues in CI (UTC).
+  await page.evaluate(({ rid, hours }) => {
     const fcEl = document.querySelector(".fc") as any;
     if (!fcEl) throw new Error("No FullCalendar element found");
 
@@ -99,7 +99,7 @@ export async function selectTimeSlot(
         const start = new Date(tomorrow);
         start.setHours(10, 0, 0, 0);
         const end = new Date(tomorrow);
-        end.setHours(11, 0, 0, 0);
+        end.setHours(10 + hours, 0, 0, 0);
 
         api.select(start, end, { resourceId: rid });
         return;
@@ -108,7 +108,7 @@ export async function selectTimeSlot(
     }
 
     throw new Error("Could not find FullCalendar API");
-  }, roomId);
+  }, { rid: roomId, hours: durationHours });
 
   await page.waitForTimeout(500);
 }

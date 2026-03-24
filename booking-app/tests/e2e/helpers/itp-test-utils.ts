@@ -7,7 +7,7 @@ import { selectDropdown, selectTimeSlot } from "./test-utils";
  */
 export async function itpNavigateToRoleSelection(
   page: Page,
-  baseUrl: string = "http://localhost:3000",
+  baseUrl: string = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000",
 ) {
   await page.goto(`${baseUrl}/itp`, { waitUntil: "domcontentloaded" });
   await page.waitForLoadState("networkidle");
@@ -94,8 +94,16 @@ export async function itpFillBookingForm(
 
   await page.locator('input[name="firstName"]').fill(firstName);
   await page.locator('input[name="lastName"]').fill(lastName);
-  await page.locator('input[name="netId"]').fill(netId);
-  await page.locator('input[name="phoneNumber"]').fill(phoneNumber);
+
+  // netId and phoneNumber may not be rendered for ITP depending on schema
+  const netIdField = page.locator('input[name="netId"]');
+  if (await netIdField.isVisible({ timeout: 2000 }).catch(() => false)) {
+    await netIdField.fill(netId);
+  }
+  const phoneField = page.locator('input[name="phoneNumber"]');
+  if (await phoneField.isVisible({ timeout: 2000 }).catch(() => false)) {
+    await phoneField.fill(phoneNumber);
+  }
 
   await page.locator('input[name="title"]').fill(title);
   await page.locator('input[name="description"]').fill(description);

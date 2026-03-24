@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { registerItpBookingMocks } from "./helpers/itp-mock-routes";
+import { selectTimeSlot } from "./helpers/test-utils";
 import {
   itpNavigateToRoleSelection,
   itpSelectRole,
@@ -90,82 +91,7 @@ test.describe("ITP Form Validation – overlap and duration errors", () => {
 
     // Select room 408 and a 2-hour slot (exceeds student maxHour of 1)
     await page.waitForURL("**/itp/book/selectRoom", { timeout: 15000 });
-
-    const roomCheckbox = page.getByTestId("room-option-408");
-    await roomCheckbox.waitFor({ state: "visible", timeout: 15000 });
-    await roomCheckbox.check();
-
-    // Navigate to tomorrow
-    const today = new Date();
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const tomorrowDay = tomorrow.getDate().toString();
-
-    const datePicker = page.locator(".MuiDateCalendar-root");
-    await datePicker.waitFor({ state: "visible", timeout: 10000 });
-
-    if (tomorrow.getMonth() !== today.getMonth()) {
-      await datePicker.getByRole("button", { name: "Next month" }).click();
-      const monthName = tomorrow.toLocaleString("en-US", { month: "long" });
-      await datePicker.getByText(new RegExp(monthName)).waitFor();
-    }
-
-    await datePicker
-      .getByRole("gridcell", { name: tomorrowDay, exact: true })
-      .first()
-      .click();
-
-    // Wait for calendar
-    const calendar = page.locator('[data-testid="booking-calendar-wrapper"]');
-    await calendar.waitFor({ state: "visible", timeout: 15000 });
-    await page.waitForFunction(
-      () => {
-        const fc = document.querySelector(".fc");
-        return fc && fc.querySelector(".fc-timegrid-slot");
-      },
-      { timeout: 15000 },
-    );
-
-    // Select a 2-hour slot (10am-12pm) via FullCalendar API
-    await page.evaluate((rid) => {
-      const fcEl = document.querySelector(".fc") as any;
-      if (!fcEl) throw new Error("No FullCalendar element found");
-
-      const fiberKey = Object.keys(fcEl).find(
-        (k) =>
-          k.startsWith("__reactFiber$") ||
-          k.startsWith("__reactInternalInstance$"),
-      );
-      if (!fiberKey) throw new Error("No React fiber found");
-
-      let fiber = fcEl[fiberKey];
-      let attempts = 0;
-
-      while (fiber && attempts < 50) {
-        attempts++;
-        if (
-          fiber.stateNode &&
-          fiber.stateNode !== fcEl &&
-          typeof fiber.stateNode.getApi === "function"
-        ) {
-          const api = fiber.stateNode.getApi();
-          const tomorrow = new Date();
-          tomorrow.setDate(tomorrow.getDate() + 1);
-
-          const start = new Date(tomorrow);
-          start.setHours(10, 0, 0, 0);
-          const end = new Date(tomorrow);
-          end.setHours(12, 0, 0, 0); // 2 hours
-
-          api.select(start, end, { resourceId: rid });
-          return;
-        }
-        fiber = fiber.return;
-      }
-
-      throw new Error("Could not find FullCalendar API");
-    }, "408");
-
+    await selectTimeSlot(page, "408", { durationHours: 2 });
     await page.waitForTimeout(500);
 
     // Verify duration error alert is shown
