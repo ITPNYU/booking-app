@@ -30,8 +30,8 @@ vi.mock("../../components/src/server/db", () => ({
   decline: vi.fn(),
 }));
 
-// Mock firebase client
-vi.mock("../../../lib/firebase/firebase", () => ({
+// Mock firebase client (use same path as hook so the mock is applied)
+vi.mock("@/lib/firebase/firebase", () => ({
   clientGetDataByCalendarEventId: vi.fn(() =>
     Promise.resolve({
       serviceRequests: {
@@ -80,6 +80,7 @@ const mockDatabaseContext = {
   bookingsLoading: false,
   allBookings: [],
   reloadFutureBookings: vi.fn(),
+  updateBookingInList: vi.fn(),
 };
 
 const mockBookingContext = {
@@ -563,6 +564,54 @@ describe("useBookingActions Hook", () => {
         expect(actions[action]).toHaveProperty("optimisticNextStatus");
         expect(typeof actions[action].action).toBe("function");
       });
+    });
+  });
+
+  describe("Approve actions row-level update", () => {
+    const calendarEventId = "test-event-approve";
+    const futureDate = new Date();
+    futureDate.setDate(futureDate.getDate() + 1);
+
+    it("FIRST_APPROVE should call updateBookingInList with fetched data instead of full table refetch", async () => {
+      const { result } = renderUseBookingActions(
+        calendarEventId,
+        PageContextLevel.ADMIN,
+        BookingStatusLabel.REQUESTED,
+        Timestamp.fromDate(futureDate)
+      );
+
+      await result.current.actions[Actions.FIRST_APPROVE].action();
+
+      expect(mockDatabaseContext.updateBookingInList).toHaveBeenCalledTimes(1);
+      expect(mockDatabaseContext.updateBookingInList).toHaveBeenCalledWith(
+        calendarEventId,
+        expect.objectContaining({
+          serviceRequests: expect.any(Object),
+          servicesApproved: expect.any(Object),
+          servicesClosedOut: expect.any(Object),
+        })
+      );
+    });
+
+    it("FINAL_APPROVE should call updateBookingInList with fetched data instead of full table refetch", async () => {
+      const { result } = renderUseBookingActions(
+        calendarEventId,
+        PageContextLevel.ADMIN,
+        BookingStatusLabel.PRE_APPROVED,
+        Timestamp.fromDate(futureDate)
+      );
+
+      await result.current.actions[Actions.FINAL_APPROVE].action();
+
+      expect(mockDatabaseContext.updateBookingInList).toHaveBeenCalledTimes(1);
+      expect(mockDatabaseContext.updateBookingInList).toHaveBeenCalledWith(
+        calendarEventId,
+        expect.objectContaining({
+          serviceRequests: expect.any(Object),
+          servicesApproved: expect.any(Object),
+          servicesClosedOut: expect.any(Object),
+        })
+      );
     });
   });
 
