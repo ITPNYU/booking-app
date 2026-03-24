@@ -6,22 +6,17 @@ import {
 } from "../../components/src/types";
 import {
   doc,
-  getDoc,
   setDoc,
 } from "../../lib/firebase/stubs/firebaseFirestoreStub";
 import { registerItpBookingMocks } from "./helpers/itp-mock-routes";
 import { applyMockOverrides } from "./helpers/test-utils";
 import {
   createTimestamp,
-  serializeBookingRecord,
-  serializeGenericRecord,
-  TIMESTAMP_FIELDS_WITH_BY,
-  registerDefinePropertyInterceptor,
+  registerMockBookingsFeed,
 } from "./helpers/xstate-mocks";
 
-const jsonHeaders = { "content-type": "application/json" };
-
 const BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000";
+const jsonHeaders = { "content-type": "application/json" };
 
 const ADMIN_EMAIL = "test@nyu.edu";
 
@@ -155,337 +150,14 @@ async function seedItpBooking(opts: {
   });
 }
 
-async function registerItpMockBookingsFeed(page: Page) {
-  const rightsSnapshot = await getDoc(
-    doc({} as any, "itp-usersRights", USERS_RIGHTS_DOC_ID),
-  );
-  const rightsPayload = rightsSnapshot.data()
-    ? {
-        id: USERS_RIGHTS_DOC_ID,
-        ...serializeGenericRecord(rightsSnapshot.data()),
-      }
-    : null;
-
-  await page.route("**/api/__mock__/bookings", async (route) => {
-    const latestSnapshot = await getDoc(
-      doc({} as any, "itp-bookings", BOOKING_DOC_ID),
-    );
-    const latestData = latestSnapshot.data();
-    const payload = latestData
-      ? [
-          {
-            id: BOOKING_DOC_ID,
-            calendarEventId: CALENDAR_EVENT_ID,
-            ...serializeBookingRecord(latestData),
-          },
-        ]
-      : [];
-
-    await route.fulfill({
-      status: 200,
-      headers: jsonHeaders,
-      body: JSON.stringify(payload),
-    });
+async function setupItpMockBookingsFeed(page: Page) {
+  await registerMockBookingsFeed(page, {
+    bookingDocId: BOOKING_DOC_ID,
+    calendarEventId: CALENDAR_EVENT_ID,
+    usersRightsDocId: USERS_RIGHTS_DOC_ID,
+    adminEmail: ADMIN_EMAIL,
+    tenant: "itp",
   });
-
-  await registerDefinePropertyInterceptor(page);
-
-  await page.addInitScript(
-    ({
-      timestampFields,
-      initialUsersRights,
-      adminEmail,
-    }) => {
-      const makeTimestamp = (value: string | null | undefined) => {
-        if (!value) return null;
-        const baseDate = new Date(value);
-        return {
-          toDate: () => new Date(baseDate),
-          toMillis: () => baseDate.getTime(),
-          valueOf: () => baseDate.getTime(),
-        };
-      };
-
-      const enrichBooking = (raw: Record<string, any>) => {
-        const booking = { ...raw };
-        timestampFields.forEach((field: string) => {
-          if (booking[field]) {
-            booking[field] = makeTimestamp(booking[field]);
-          } else if (
-            booking[field] === null ||
-            booking[field] === undefined
-          ) {
-            booking[field] = null;
-          }
-        });
-        if (booking.startDate) {
-          booking.startDate = makeTimestamp(booking.startDate);
-        }
-        if (booking.endDate) {
-          booking.endDate = makeTimestamp(booking.endDate);
-        }
-        if (booking.requestedAt) {
-          booking.requestedAt = makeTimestamp(booking.requestedAt);
-        }
-        return booking;
-      };
-
-      async function loadBookings() {
-        const response = await fetch("/api/__mock__/bookings");
-        const raw = await response.json();
-        const bookings = raw.map(enrichBooking);
-        (window as any).__mockBookings = bookings;
-        (window as any).__bookingE2EMocks = {
-          bookings,
-          usersRights: (initialUsersRights ? [initialUsersRights] : []).map(
-            (record: any) => {
-              const enriched = { ...record };
-              ["createdAt", "updatedAt"].forEach((field) => {
-                if (enriched[field]) {
-                  enriched[field] = makeTimestamp(enriched[field]);
-                }
-              });
-              return enriched;
-            },
-          ),
-          usersApprovers: [
-            {
-              email: adminEmail,
-              department: "ITP",
-              level: 3,
-              createdAt: new Date().toISOString(),
-            },
-          ],
-          safetyTrainedUsers: [],
-        };
-        return bookings;
-      }
-
-      async function ensureBookings() {
-        if (!(window as any).__mockBookings) {
-          return await loadBookings();
-        }
-        return (window as any).__mockBookings;
-      }
-
-      (window as any).__refreshMockBookings = async () => {
-        return await loadBookings();
-      };
-
-      const originalClientFetch =
-        (window as any).clientFetchAllDataFromCollection;
-
-      const usersRightsRecords = (
-        initialUsersRights ? [initialUsersRights] : []
-      ).map((record: any) => {
-        const enriched = { ...record };
-        ["createdAt", "updatedAt"].forEach((field) => {
-          if (enriched[field]) {
-            enriched[field] = makeTimestamp(enriched[field]);
-          }
-        });
-        return enriched;
-      });
-
-      (window as any).__mockUsersRights = usersRightsRecords;
-
-      (window as any).clientFetchAllDataFromCollection = async function (
-        tableName: string,
-        constraints: unknown[],
-        tenant: string,
-      ) {
-        const normalizedTableName = tableName
-          ? tableName.toLowerCase()
-          : "";
-
-        if (
-          normalizedTableName.includes("booking") &&
-          !normalizedTableName.includes("type") &&
-          !normalizedTableName.includes("log")
-        ) {
-          return await ensureBookings();
-        }
-
-        if (normalizedTableName.includes("usersrights")) {
-          return usersRightsRecords;
-        }
-
-        if (normalizedTableName.includes("usersapprovers")) {
-          return [];
-        }
-
-        if (originalClientFetch) {
-          return await originalClientFetch(tableName, constraints, tenant);
-        }
-
-        return [];
-      };
-
-      const originalGetPaginatedData = (window as any).getPaginatedData;
-
-      (window as any).getPaginatedData = async function (
-        collectionName: string,
-        itemsPerPage: number,
-        filters: any,
-        lastVisible: any,
-        tenant?: string,
-      ) {
-        return await ensureBookings();
-      };
-
-      const originalGetDocs = (window as any).getDocs;
-
-      (window as any).getDocs = async function (queryRef: any) {
-        const path = queryRef && (queryRef._path || queryRef.path);
-        if (
-          path &&
-          path.includes("booking") &&
-          !path.includes("bookingTypes") &&
-          !path.includes("bookingLog")
-        ) {
-          const bookings = await ensureBookings();
-          return {
-            docs: bookings.map((booking: any) => ({
-              id: booking.id ?? booking.calendarEventId,
-              data: () => ({ ...booking }),
-            })),
-          };
-        }
-
-        if (path && path.includes("usersRights")) {
-          return {
-            docs: usersRightsRecords.map(
-              (record: any, index: number) => ({
-                id: record.id ?? `users-rights-${index}`,
-                data: () => ({ ...record }),
-              }),
-            ),
-          };
-        }
-
-        if (path && path.includes("usersApprovers")) {
-          return { docs: [] };
-        }
-
-        if (originalGetDocs) {
-          return await originalGetDocs(queryRef);
-        }
-
-        return { docs: [] };
-      };
-
-      void loadBookings().catch(() => {});
-
-      const overrideClientGetDataById = async (
-        calendarEventId: string,
-      ) => {
-        const bookings = await ensureBookings();
-        const match = bookings.find(
-          (booking: any) => booking.calendarEventId === calendarEventId,
-        );
-        if (!match) return null;
-        return {
-          id: match.id ?? match.calendarEventId,
-          ...match,
-        };
-      };
-
-      const overrideMap: Record<string, Function | undefined> = {
-        clientFetchAllDataFromCollection: (window as any)
-          .clientFetchAllDataFromCollection,
-        getPaginatedData: (window as any).getPaginatedData,
-        clientGetDataByCalendarEventId: async (
-          _tableName: any,
-          calendarEventId: string,
-          _tenant?: string,
-        ) => {
-          return await overrideClientGetDataById(calendarEventId);
-        },
-      };
-
-      const patchWebpackModules = () => {
-        const chunk = (window as any).webpackChunk_N_E;
-        if (!chunk) return false;
-
-        let wpRequire: any;
-        try {
-          chunk.push([
-            ["__e2e_itp_mock_" + Date.now()],
-            {},
-            (req: any) => {
-              wpRequire = req;
-            },
-          ]);
-        } catch (_) {
-          return false;
-        }
-
-        if (!wpRequire?.c) return false;
-
-        let patched = false;
-        Object.values(wpRequire.c).forEach((mod: any) => {
-          if (
-            mod?.exports &&
-            typeof mod.exports === "object" &&
-            mod.exports !== null
-          ) {
-            for (const [key, fn] of Object.entries(overrideMap)) {
-              if (key in mod.exports && fn) {
-                try {
-                  Object.defineProperty(mod.exports, key, {
-                    value: fn,
-                    writable: true,
-                    configurable: true,
-                    enumerable: true,
-                  });
-                  patched = true;
-                } catch (_) {
-                  try {
-                    mod.exports[key] = fn;
-                    patched = true;
-                  } catch (_) {}
-                }
-              }
-            }
-          }
-        });
-        return patched;
-      };
-
-      let patchSucceeded = false;
-
-      const _earlyPatchId = setInterval(() => {
-        try {
-          if (patchWebpackModules()) {
-            patchSucceeded = true;
-            clearInterval(_earlyPatchId);
-          }
-        } catch (_) {}
-      }, 50);
-      setTimeout(() => clearInterval(_earlyPatchId), 30000);
-
-      try {
-        if (patchWebpackModules()) {
-          patchSucceeded = true;
-        }
-      } catch (_err) {}
-
-      (window as any).__applyMockBookingsOverrides = () => {
-        try {
-          if (patchWebpackModules()) {
-            patchSucceeded = true;
-          }
-        } catch (_err) {}
-      };
-
-      (window as any).__isMockPatchApplied = () => patchSucceeded;
-    },
-    {
-      timestampFields: TIMESTAMP_FIELDS_WITH_BY,
-      initialUsersRights: rightsPayload,
-      adminEmail: ADMIN_EMAIL,
-    },
-  );
 }
 
 async function mockItpTransitionEndpoints(page: Page) {
@@ -618,7 +290,7 @@ test.describe("ITP Status Transitions", () => {
       endDate,
     });
 
-    await registerItpMockBookingsFeed(page);
+    await setupItpMockBookingsFeed(page);
     await mockItpTransitionEndpoints(page);
 
     const { bookingRow, transitionRequestPromise, transitionResponsePromise } =
@@ -647,7 +319,7 @@ test.describe("ITP Status Transitions", () => {
       checkedInAt,
     });
 
-    await registerItpMockBookingsFeed(page);
+    await setupItpMockBookingsFeed(page);
     await mockItpTransitionEndpoints(page);
 
     const { bookingRow, transitionRequestPromise, transitionResponsePromise } =
@@ -676,7 +348,7 @@ test.describe("ITP Status Transitions", () => {
       endDate,
     });
 
-    await registerItpMockBookingsFeed(page);
+    await setupItpMockBookingsFeed(page);
     await mockItpTransitionEndpoints(page);
 
     const { bookingRow, transitionRequestPromise, transitionResponsePromise } =
@@ -703,7 +375,7 @@ test.describe("ITP Status Transitions", () => {
       endDate,
     });
 
-    await registerItpMockBookingsFeed(page);
+    await setupItpMockBookingsFeed(page);
     await mockItpTransitionEndpoints(page);
 
     const { bookingRow, transitionRequestPromise, transitionResponsePromise } =
