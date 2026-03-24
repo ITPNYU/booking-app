@@ -6,6 +6,10 @@ import {
   Button,
   Chip,
   CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   FormControl,
   InputLabel,
   MenuItem,
@@ -17,13 +21,117 @@ import { useCallback, useContext, useState } from "react";
 import { DatabaseContext } from "../components/Provider";
 import { computeDiff, formatValue, type DiffEntry } from "./schemaEditorUtils";
 
+/** Full JSON string — never truncated. */
+function formatValueFull(val: unknown): string {
+  if (val === undefined) return "(undefined)";
+  if (val === null) return "(null)";
+  if (typeof val === "object") return JSON.stringify(val, null, 2);
+  return String(val);
+}
+
+/** Value cell that respects row-level expanded state. */
+function DryRunValue({
+  value,
+  bg,
+  expanded,
+}: {
+  value: unknown;
+  bg?: string;
+  expanded: boolean;
+}) {
+  const full = formatValueFull(value);
+  const isLong = full.length > 120;
+
+  return (
+    <Box
+      component="td"
+      sx={{
+        p: 1,
+        borderBottom: "1px solid #ddd",
+        fontFamily: "monospace",
+        fontSize: 11,
+        backgroundColor: bg,
+        wordBreak: "break-all",
+        whiteSpace: "pre-wrap",
+      }}
+    >
+      {isLong && !expanded ? full.slice(0, 120) + " ..." : full}
+    </Box>
+  );
+}
+
+/** Row with expand/collapse toggle that applies to both source and target. */
+function DryRunRow({
+  keyName,
+  changeType,
+  sourceValue,
+  targetValue,
+  sourceBg,
+  targetBg,
+}: {
+  keyName: string;
+  changeType: string;
+  sourceValue?: unknown;
+  targetValue?: unknown;
+  sourceBg?: string;
+  targetBg?: string;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const sourceStr = formatValueFull(sourceValue);
+  const targetStr = formatValueFull(targetValue);
+  const isLong = sourceStr.length > 120 || targetStr.length > 120;
+
+  const color =
+    changeType === "changed"
+      ? "warning.main"
+      : changeType === "added"
+        ? "success.main"
+        : "error.main";
+
+  return (
+    <tr>
+      <Box component="td" sx={{ p: 1, borderBottom: "1px solid #ddd", fontFamily: "monospace", fontSize: 12 }}>
+        {keyName}
+        {isLong && (
+          <Box
+            component="span"
+            onClick={() => setExpanded(!expanded)}
+            sx={{
+              ml: 1,
+              color: "primary.main",
+              cursor: "pointer",
+              fontSize: 11,
+              textDecoration: "underline",
+            }}
+          >
+            {expanded ? "collapse" : "expand"}
+          </Box>
+        )}
+      </Box>
+      <Box component="td" sx={{ p: 1, borderBottom: "1px solid #ddd", color, fontWeight: "bold" }}>
+        {changeType}
+      </Box>
+      {sourceValue !== undefined ? (
+        <DryRunValue value={sourceValue} bg={sourceBg} expanded={expanded} />
+      ) : (
+        <Box component="td" sx={{ p: 1, borderBottom: "1px solid #ddd" }} />
+      )}
+      {targetValue !== undefined ? (
+        <DryRunValue value={targetValue} bg={targetBg} expanded={expanded} />
+      ) : (
+        <Box component="td" sx={{ p: 1, borderBottom: "1px solid #ddd" }} />
+      )}
+    </tr>
+  );
+}
+
 const ENVIRONMENTS = ["development", "staging", "production"] as const;
 type Env = (typeof ENVIRONMENTS)[number];
 
 type SnackState = {
   open: boolean;
   message: string;
-  severity: "success" | "error";
+  severity: "success" | "error" | "info";
 };
 
 export default function SchemaCompare() {
@@ -33,6 +141,15 @@ export default function SchemaCompare() {
   const [leftEnv, setLeftEnv] = useState<Env>("development");
   const [rightEnv, setRightEnv] = useState<Env>("production");
   const [loading, setLoading] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [dryRunning, setDryRunning] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [dryRunResult, setDryRunResult] = useState<{
+    added: { key: string; sourceValue?: unknown }[];
+    removed: { key: string; targetValue?: unknown }[];
+    changed: { key: string; sourceValue?: unknown; targetValue?: unknown }[];
+    unchangedCount: number;
+  } | null>(null);
   const [snack, setSnack] = useState<SnackState>({
     open: false,
     message: "",
@@ -59,8 +176,55 @@ export default function SchemaCompare() {
     [userEmail],
   );
 
+  const callSync = useCallback(
+    async (dryRun: boolean) => {
+      if (!userEmail || !tenant) return;
+      if (dryRun) setDryRunning(true);
+      else setSyncing(true);
+
+      try {
+        const res = await fetch(`/api/tenantSchema/${tenant}/sync`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-user-email": userEmail,
+          },
+          body: JSON.stringify({
+            sourceEnv: leftEnv,
+            targetEnv: rightEnv,
+            dryRun,
+          }),
+        });
+        if (!res.ok) {
+          const data = await res.json();
+          throw new Error(data.error || `HTTP ${res.status}`);
+        }
+        const data = await res.json();
+        if (dryRun) {
+          setDryRunResult(data.diff);
+        } else {
+          setDryRunResult(null);
+          setSnack({
+            open: true,
+            severity: "success",
+            message: `Synced "${tenant}" ${leftEnv} → ${rightEnv}. Backup: ${data.backupId ?? "N/A"}`,
+          });
+          fetchSchemas(tenant);
+        }
+      } catch (err: any) {
+        setSnack({ open: true, message: err.message, severity: "error" });
+      } finally {
+        setDryRunning(false);
+        setSyncing(false);
+        setConfirmOpen(false);
+      }
+    },
+    [userEmail, tenant, leftEnv, rightEnv, fetchSchemas],
+  );
+
   const handleTenantChange = (tenantId: string) => {
     setTenant(tenantId);
+    setDryRunResult(null);
     if (tenantId) fetchSchemas(tenantId);
   };
 
@@ -105,7 +269,7 @@ export default function SchemaCompare() {
           <Select
             value={leftEnv}
             label="Left"
-            onChange={(e) => setLeftEnv(e.target.value as Env)}
+            onChange={(e) => { setLeftEnv(e.target.value as Env); setDryRunResult(null); }}
           >
             {ENVIRONMENTS.map((env) => (
               <MenuItem key={env} value={env}>
@@ -122,7 +286,7 @@ export default function SchemaCompare() {
           <Select
             value={rightEnv}
             label="Right"
-            onChange={(e) => setRightEnv(e.target.value as Env)}
+            onChange={(e) => { setRightEnv(e.target.value as Env); setDryRunResult(null); }}
           >
             {ENVIRONMENTS.map((env) => (
               <MenuItem key={env} value={env}>
@@ -133,14 +297,39 @@ export default function SchemaCompare() {
         </FormControl>
 
         {tenant && (
-          <Button
-            variant="outlined"
-            onClick={() => fetchSchemas(tenant)}
-            disabled={loading}
-            size="small"
-          >
-            Refresh
-          </Button>
+          <>
+            <Button
+              variant="outlined"
+              onClick={() => fetchSchemas(tenant)}
+              disabled={loading}
+              size="small"
+            >
+              Refresh
+            </Button>
+            {leftEnv !== rightEnv && changedCount + addedCount + removedCount > 0 && (
+              <>
+                <Button
+                  variant="outlined"
+                  onClick={() => callSync(true)}
+                  disabled={dryRunning || syncing}
+                  size="small"
+                  startIcon={dryRunning ? <CircularProgress size={16} /> : null}
+                >
+                  Dry Run ({leftEnv} → {rightEnv})
+                </Button>
+                <Button
+                  variant="contained"
+                  color="warning"
+                  onClick={() => setConfirmOpen(true)}
+                  disabled={dryRunning || syncing}
+                  size="small"
+                  startIcon={syncing ? <CircularProgress size={16} /> : null}
+                >
+                  Sync {leftEnv} → {rightEnv}
+                </Button>
+              </>
+            )}
+          </>
         )}
       </Box>
 
@@ -149,6 +338,92 @@ export default function SchemaCompare() {
           <CircularProgress size={20} />
           <Typography variant="body2">
             Loading schemas from all environments...
+          </Typography>
+        </Box>
+      )}
+
+      {dryRunResult && (
+        <Box
+          sx={{
+            mb: 2,
+            p: 2,
+            border: "1px solid",
+            borderColor: "info.main",
+            borderRadius: 1,
+            backgroundColor: "#f0f7ff",
+          }}
+        >
+          <Typography variant="subtitle2" sx={{ mb: 1 }}>
+            Dry Run Result — {leftEnv} → {rightEnv}
+          </Typography>
+          {dryRunResult.changed.length === 0 &&
+            dryRunResult.added.length === 0 &&
+            dryRunResult.removed.length === 0 && (
+              <Typography variant="body2">No changes would be applied.</Typography>
+            )}
+          {(dryRunResult.changed.length > 0 ||
+            dryRunResult.added.length > 0 ||
+            dryRunResult.removed.length > 0) && (
+            <Box
+              component="table"
+              sx={{
+                width: "100%",
+                borderCollapse: "collapse",
+                fontSize: 13,
+                mt: 1,
+              }}
+            >
+              <thead>
+                <tr>
+                  <Box component="th" sx={{ textAlign: "left", p: 1, borderBottom: "2px solid #ccc", width: "20%" }}>
+                    Key
+                  </Box>
+                  <Box component="th" sx={{ textAlign: "left", p: 1, borderBottom: "2px solid #ccc", width: "10%" }}>
+                    Change
+                  </Box>
+                  <Box component="th" sx={{ textAlign: "left", p: 1, borderBottom: "2px solid #ccc", width: "35%" }}>
+                    {leftEnv} (source)
+                  </Box>
+                  <Box component="th" sx={{ textAlign: "left", p: 1, borderBottom: "2px solid #ccc", width: "35%" }}>
+                    {rightEnv} (target)
+                  </Box>
+                </tr>
+              </thead>
+              <tbody>
+                {dryRunResult.changed.map((d) => (
+                  <DryRunRow
+                    key={d.key}
+                    keyName={d.key}
+                    changeType="changed"
+                    sourceValue={d.sourceValue}
+                    targetValue={d.targetValue}
+                    sourceBg="#f0fff0"
+                    targetBg="#fff0f0"
+                  />
+                ))}
+                {dryRunResult.added.map((d) => (
+                  <DryRunRow
+                    key={d.key}
+                    keyName={d.key}
+                    changeType="added"
+                    sourceValue={d.sourceValue}
+                    sourceBg="#f0fff0"
+                  />
+                ))}
+                {dryRunResult.removed.map((d) => (
+                  <DryRunRow
+                    key={d.key}
+                    keyName={d.key}
+                    changeType="removed"
+                    targetValue={d.targetValue}
+                    targetBg="#fff0f0"
+                  />
+                ))}
+              </tbody>
+            </Box>
+          )}
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+            Unchanged: {dryRunResult.unchangedCount} key(s)
           </Typography>
         </Box>
       )}
@@ -329,6 +604,30 @@ export default function SchemaCompare() {
           )}
         </>
       )}
+
+      <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)}>
+        <DialogTitle>Confirm Schema Sync</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Overwrite <strong>{rightEnv}</strong> schema for tenant{" "}
+            <strong>{tenant}</strong> with the <strong>{leftEnv}</strong>{" "}
+            version?
+          </Typography>
+          <Typography sx={{ mt: 1 }} variant="body2" color="text.secondary">
+            A backup will be saved to tenantSchemaBackup before overwriting.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmOpen(false)}>Cancel</Button>
+          <Button
+            variant="contained"
+            color="warning"
+            onClick={() => callSync(false)}
+          >
+            Sync
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Snackbar
         open={snack.open}
