@@ -1,7 +1,5 @@
-import { getNYUToken } from "@/lib/server/nyuApiAuth";
+import { getNYUToken, NYU_API_BASE } from "@/lib/server/nyuApiAuth";
 import { NextRequest, NextResponse } from "next/server";
-
-const NYU_API_BASE = "https://api.nyu.edu/identity-v2-sys";
 
 export async function GET(
   request: NextRequest,

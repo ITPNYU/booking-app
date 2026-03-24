@@ -4,6 +4,30 @@
 
 import { TENANTS } from "../constants/tenants";
 
+/**
+ * NYU API dept_code values that identify ITP / IMA / Low Res affiliated users.
+ */
+export const ITP_DEPT_CODES = ["GTITPG", "UTIMNY", "TIIMA"];
+
+/**
+ * Keywords matched case-insensitively against department name fields.
+ * Used internally for matching approver records stored in Firestore (which use
+ * human-readable labels, not dept_codes). Not used for NYU API entitlement checks.
+ */
+export const ITP_DEPT_NAME_KEYWORDS = [
+  "interactive telecommunications", // ITP
+  "interactive media arts", // IMA (e.g. "Interactive Media Arts UG Program")
+  "low res", // Low Residence program
+  "low-res",
+];
+
+/**
+ * Short-form department abbreviations used in approver records that belong to
+ * the ITP / IMA / Low Res group. Matched with exact (case-insensitive) equality
+ * to avoid substring false-positives (e.g. "ima" inside "imaging sciences").
+ */
+export const ITP_GROUP_SHORT_NAMES = ["itp", "ima"];
+
 export type Tenant = (typeof TENANTS)[keyof typeof TENANTS];
 
 /**
