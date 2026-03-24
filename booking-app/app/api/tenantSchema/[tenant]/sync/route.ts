@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { serverFetchAllDataFromCollection } from "@/lib/firebase/server/adminDb";
 import { TableNames } from "@/components/src/policy";
+import { computeDiffSummary } from "@/lib/utils/schemaDiff";
 import { getFirestore } from "firebase-admin/firestore";
 
 const DATABASES: Record<string, string> = {
@@ -10,40 +11,6 @@ const DATABASES: Record<string, string> = {
 };
 
 const BACKUP_COLLECTION = "tenantSchemaBackup";
-
-function computeDiffSummary(
-  source: Record<string, unknown>,
-  target: Record<string, unknown> | null,
-) {
-  if (!target) {
-    return {
-      added: Object.keys(source),
-      removed: [] as string[],
-      changed: [] as string[],
-      unchanged: [] as string[],
-    };
-  }
-  const allKeys = new Set([...Object.keys(source), ...Object.keys(target)]);
-  const added: string[] = [];
-  const removed: string[] = [];
-  const changed: string[] = [];
-  const unchanged: string[] = [];
-
-  for (const key of allKeys) {
-    const inSource = key in source;
-    const inTarget = key in target;
-    if (inSource && !inTarget) {
-      added.push(key);
-    } else if (!inSource && inTarget) {
-      removed.push(key);
-    } else if (JSON.stringify(source[key]) !== JSON.stringify(target[key])) {
-      changed.push(key);
-    } else {
-      unchanged.push(key);
-    }
-  }
-  return { added, removed, changed, unchanged };
-}
 
 /**
  * POST /api/tenantSchema/[tenant]/sync
