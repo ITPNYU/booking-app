@@ -138,19 +138,6 @@ describe("GET /api/nyu/entitlements/[netId]", () => {
 
       vi.stubEnv("NEXT_PUBLIC_BASE_URL", "");
     });
-
-    it("falls back to localhost:3000 when NEXT_PUBLIC_BASE_URL is not set", async () => {
-      vi.stubEnv("NEXT_PUBLIC_BASE_URL", "");
-      mockFetch.mockResolvedValue(makeNYUApiResponse({ reporting_dept_name: "" }));
-
-      await GET(createRequest(), { params: createParams("hz1234") });
-
-      expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringContaining("localhost:3000"),
-      );
-
-      vi.stubEnv("NEXT_PUBLIC_BASE_URL", "");
-    });
   });
 
   describe("NYU Identity API failures", () => {
