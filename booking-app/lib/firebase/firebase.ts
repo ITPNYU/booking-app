@@ -38,7 +38,7 @@ export const getCurrentTenant = (): string | undefined => {
 
 // Helper function to get tenant-specific collection name
 export const getTenantCollection = (
-  baseCollection: TableNames,
+  baseCollection: string,
   tenant?: string,
 ): string => {
   const tenantToUse = tenant || getCurrentTenant();
@@ -51,7 +51,7 @@ export type AdminUserData = {
 };
 
 export const clientDeleteDataFromFirestore = async (
-  collectionName: TableNames,
+  collectionName: string,
   docId: string,
   tenant?: string,
 ) => {
