@@ -110,6 +110,13 @@ export default function SchemaSync() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [dryRunResult, setDryRunResult] = useState<{
+    added: string[];
+    removed: string[];
+    changed: string[];
+    unchanged: string[];
+  } | null>(null);
+  const [dryRunning, setDryRunning] = useState(false);
 
   const diff = useMemo(() => {
     if (!schemas) return null;
@@ -144,11 +151,43 @@ export default function SchemaSync() {
     }
   };
 
+  const handleDryRun = async () => {
+    setDryRunning(true);
+    setError(null);
+    setSuccess(null);
+    setDryRunResult(null);
+
+    try {
+      const res = await fetch(`/api/tenantSchema/${tenant}/sync`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-email": userEmail ?? "",
+        },
+        body: JSON.stringify({ sourceEnv, targetEnv, dryRun: true }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || `HTTP ${res.status}`);
+      }
+      const data = await res.json();
+      setDryRunResult(data.diff);
+      setSuccess(
+        `Dry run complete: ${data.diff.added.length} added, ${data.diff.changed.length} changed, ${data.diff.removed.length} removed, ${data.diff.unchanged.length} unchanged.`,
+      );
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setDryRunning(false);
+    }
+  };
+
   const handleSync = async () => {
     setConfirmOpen(false);
     setSyncing(true);
     setError(null);
     setSuccess(null);
+    setDryRunResult(null);
 
     try {
       const res = await fetch(`/api/tenantSchema/${tenant}/sync`, {
@@ -274,6 +313,15 @@ export default function SchemaSync() {
                 : `${changesCount} difference(s) found.`}
             </Typography>
             {changesCount > 0 && (
+              <Box sx={{ display: "flex", gap: 1 }}>
+              <Button
+                variant="outlined"
+                onClick={handleDryRun}
+                disabled={dryRunning || syncing}
+                startIcon={dryRunning ? <CircularProgress size={18} /> : null}
+              >
+                Dry Run
+              </Button>
               <Button
                 variant="contained"
                 color="warning"
@@ -283,8 +331,39 @@ export default function SchemaSync() {
               >
                 Sync {sourceEnv} → {targetEnv}
               </Button>
+              </Box>
             )}
           </Box>
+
+          {dryRunResult && (
+            <Alert severity="info" sx={{ mb: 2 }}>
+              <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                Dry Run Result (server-side verification)
+              </Typography>
+              {dryRunResult.added.length > 0 && (
+                <Typography variant="body2">
+                  Added: {dryRunResult.added.join(", ")}
+                </Typography>
+              )}
+              {dryRunResult.changed.length > 0 && (
+                <Typography variant="body2">
+                  Changed: {dryRunResult.changed.join(", ")}
+                </Typography>
+              )}
+              {dryRunResult.removed.length > 0 && (
+                <Typography variant="body2">
+                  Removed: {dryRunResult.removed.join(", ")}
+                </Typography>
+              )}
+              {dryRunResult.added.length === 0 &&
+                dryRunResult.changed.length === 0 &&
+                dryRunResult.removed.length === 0 && (
+                  <Typography variant="body2">
+                    No changes would be applied.
+                  </Typography>
+                )}
+            </Alert>
+          )}
 
           <TableContainer
             sx={{ maxHeight: 600, border: "1px solid #e0e0e0", borderRadius: 1 }}

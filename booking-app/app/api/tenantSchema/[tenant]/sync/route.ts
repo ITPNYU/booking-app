@@ -11,11 +11,45 @@ const DATABASES: Record<string, string> = {
 
 const BACKUP_COLLECTION = "tenantSchemaBackup";
 
+function computeDiffSummary(
+  source: Record<string, unknown>,
+  target: Record<string, unknown> | null,
+) {
+  if (!target) {
+    return {
+      added: Object.keys(source),
+      removed: [] as string[],
+      changed: [] as string[],
+      unchanged: [] as string[],
+    };
+  }
+  const allKeys = new Set([...Object.keys(source), ...Object.keys(target)]);
+  const added: string[] = [];
+  const removed: string[] = [];
+  const changed: string[] = [];
+  const unchanged: string[] = [];
+
+  for (const key of allKeys) {
+    const inSource = key in source;
+    const inTarget = key in target;
+    if (inSource && !inTarget) {
+      added.push(key);
+    } else if (!inSource && inTarget) {
+      removed.push(key);
+    } else if (JSON.stringify(source[key]) !== JSON.stringify(target[key])) {
+      changed.push(key);
+    } else {
+      unchanged.push(key);
+    }
+  }
+  return { added, removed, changed, unchanged };
+}
+
 /**
  * POST /api/tenantSchema/[tenant]/sync
  * Copy a tenant schema from one environment to another with automatic backup.
  *
- * Body: { sourceEnv: string, targetEnv: string }
+ * Body: { sourceEnv: string, targetEnv: string, dryRun?: boolean }
  */
 export async function POST(
   request: NextRequest,
@@ -23,7 +57,7 @@ export async function POST(
 ) {
   try {
     const { tenant } = await params;
-    const { sourceEnv, targetEnv } = await request.json();
+    const { sourceEnv, targetEnv, dryRun = false } = await request.json();
 
     // Validate environments
     if (!DATABASES[sourceEnv] || !DATABASES[targetEnv]) {
@@ -87,6 +121,26 @@ export async function POST(
       .doc(tenant)
       .get();
 
+    // Compute diff for dry-run report
+    const sourceData = sourceSchema as Record<string, unknown>;
+    const targetData = (targetDoc.exists ? targetDoc.data() : null) as Record<
+      string,
+      unknown
+    > | null;
+    const diffSummary = computeDiffSummary(sourceData, targetData);
+
+    if (dryRun) {
+      return NextResponse.json({
+        success: true,
+        dryRun: true,
+        tenant,
+        sourceEnv,
+        targetEnv,
+        targetExists: targetDoc.exists,
+        diff: diffSummary,
+      });
+    }
+
     let backupId: string | null = null;
     if (targetDoc.exists) {
       const timestamp = new Date()
@@ -121,11 +175,13 @@ export async function POST(
 
     return NextResponse.json({
       success: true,
+      dryRun: false,
       tenant,
       sourceEnv,
       targetEnv,
       backupId,
       syncedBy: userEmail,
+      diff: diffSummary,
     });
   } catch (error) {
     console.error("Error syncing tenant schema:", error);
