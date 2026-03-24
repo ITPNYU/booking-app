@@ -13,7 +13,11 @@ import {
 } from "vitest";
 import MoreInfoModal from "../../components/src/client/routes/components/bookingTable/MoreInfoModal";
 import { DatabaseContext } from "../../components/src/client/routes/components/Provider";
-import { BookingRow, PagePermission } from "../../components/src/types";
+import {
+  BookingRow,
+  PageContextLevel,
+  PagePermission,
+} from "../../components/src/types";
 
 // Mock clipboard API - avoid conflicts with userEvent
 const mockWriteText = vi.fn();
@@ -66,6 +70,23 @@ vi.mock(
 // Mock global fetch
 const mockFetch = vi.fn();
 global.fetch = mockFetch;
+
+const hasText =
+  (text: string) =>
+  (_content: string, node: Element | null): boolean =>
+    Boolean(node) &&
+    (() => {
+      const normalizedText =
+        node?.textContent?.replace(/\s+/g, " ").trim() ?? "";
+      if (!normalizedText.includes(text)) {
+        return false;
+      }
+
+      return Array.from(node?.children ?? []).every((child) => {
+        const childText = child.textContent?.replace(/\s+/g, " ").trim() ?? "";
+        return !childText.includes(text);
+      });
+    })();
 
 // Mock WebCheckout API responses - avoid any real API calls
 const mockWebCheckoutResponse = {
@@ -150,12 +171,17 @@ const createMockDatabaseContext = (
 const renderModal = (
   booking: BookingRow,
   databaseContext: any,
-  closeModal = vi.fn()
+  closeModal = vi.fn(),
+  pageContext?: PageContextLevel
 ) => {
   return render(
     <ThemeProvider theme={mockTheme}>
       <DatabaseContext.Provider value={databaseContext}>
-        <MoreInfoModal booking={booking} closeModal={closeModal} />
+        <MoreInfoModal
+          booking={booking}
+          closeModal={closeModal}
+          pageContext={pageContext}
+        />
       </DatabaseContext.Provider>
     </ThemeProvider>
   );
@@ -202,8 +228,8 @@ describe("MoreInfoModal - WebCheckout (Simplified)", () => {
 
       renderModal(booking, context);
 
-      expect(screen.getByText("WebCheckout")).toBeInTheDocument();
-      expect(screen.getByText("Cart Number")).toBeInTheDocument();
+      expect(screen.getByText((content) => content.includes("WebCheckout"))).toBeInTheDocument();
+      expect(screen.getByText((content) => content.includes("Cart Number"))).toBeInTheDocument();
     });
 
     it("shows WebCheckout section for Admin users", () => {
@@ -212,8 +238,8 @@ describe("MoreInfoModal - WebCheckout (Simplified)", () => {
 
       renderModal(booking, context);
 
-      expect(screen.getByText("WebCheckout")).toBeInTheDocument();
-      expect(screen.getByText("Cart Number")).toBeInTheDocument();
+      expect(screen.getByText((content) => content.includes("WebCheckout"))).toBeInTheDocument();
+      expect(screen.getByText((content) => content.includes("Cart Number"))).toBeInTheDocument();
     });
 
     it("shows WebCheckout section for Super Admin users", () => {
@@ -222,8 +248,8 @@ describe("MoreInfoModal - WebCheckout (Simplified)", () => {
 
       renderModal(booking, context);
 
-      expect(screen.getByText("WebCheckout")).toBeInTheDocument();
-      expect(screen.getByText("Cart Number")).toBeInTheDocument();
+      expect(screen.getByText((content) => content.includes("WebCheckout"))).toBeInTheDocument();
+      expect(screen.getByText((content) => content.includes("Cart Number"))).toBeInTheDocument();
     });
 
     it("hides WebCheckout section for regular booking users", () => {
@@ -232,7 +258,7 @@ describe("MoreInfoModal - WebCheckout (Simplified)", () => {
 
       renderModal(booking, context);
 
-      expect(screen.queryByText("WebCheckout")).not.toBeInTheDocument();
+      expect(screen.queryByText(hasText("WebCheckout"))).not.toBeInTheDocument();
       expect(screen.queryByText("Cart Number")).not.toBeInTheDocument();
     });
   });
@@ -272,7 +298,7 @@ describe("MoreInfoModal - WebCheckout (Simplified)", () => {
       renderModal(booking, context);
 
       // WebCheckout section should not be visible at all for regular booking users
-      expect(screen.queryByText("WebCheckout")).not.toBeInTheDocument();
+      expect(screen.queryByText(hasText("WebCheckout"))).not.toBeInTheDocument();
       expect(
         screen.queryByLabelText("Edit cart number")
       ).not.toBeInTheDocument();
@@ -285,7 +311,7 @@ describe("MoreInfoModal - WebCheckout (Simplified)", () => {
       renderModal(booking, context);
 
       // WebCheckout section should not be visible at all for liaison users
-      expect(screen.queryByText("WebCheckout")).not.toBeInTheDocument();
+      expect(screen.queryByText(hasText("WebCheckout"))).not.toBeInTheDocument();
       expect(
         screen.queryByLabelText("Edit cart number")
       ).not.toBeInTheDocument();
@@ -298,7 +324,7 @@ describe("MoreInfoModal - WebCheckout (Simplified)", () => {
       renderModal(booking, context);
 
       // WebCheckout section should not be visible at all for equipment users
-      expect(screen.queryByText("WebCheckout")).not.toBeInTheDocument();
+      expect(screen.queryByText(hasText("WebCheckout"))).not.toBeInTheDocument();
       expect(
         screen.queryByLabelText("Edit cart number")
       ).not.toBeInTheDocument();
@@ -322,7 +348,7 @@ describe("MoreInfoModal - WebCheckout (Simplified)", () => {
       renderModal(booking, context);
 
       // Check that cart number is displayed in the table (even if API data hasn't loaded yet)
-      expect(screen.getByText("Cart Number")).toBeInTheDocument();
+      expect(screen.getByText((content) => content.includes("Cart Number"))).toBeInTheDocument();
 
       // Check that API is called with correct cart number
       await waitFor(() => {
@@ -337,8 +363,8 @@ describe("MoreInfoModal - WebCheckout (Simplified)", () => {
       renderModal(booking, context);
 
       // Check that WebCheckout section is visible
-      expect(screen.getByText("WebCheckout")).toBeInTheDocument();
-      expect(screen.getByText("Cart Number")).toBeInTheDocument();
+      expect(screen.getByText((content) => content.includes("WebCheckout"))).toBeInTheDocument();
+      expect(screen.getByText((content) => content.includes("Cart Number"))).toBeInTheDocument();
 
       // Verify API call was made
       await waitFor(() => {
@@ -353,7 +379,7 @@ describe("MoreInfoModal - WebCheckout (Simplified)", () => {
       renderModal(booking, context);
 
       // Initially shows cart number without equipment data
-      expect(screen.getByText("Cart Number")).toBeInTheDocument();
+      expect(screen.getByText((content) => content.includes("Cart Number"))).toBeInTheDocument();
     });
 
     it("handles WebCheckout API errors gracefully", async () => {
@@ -365,7 +391,7 @@ describe("MoreInfoModal - WebCheckout (Simplified)", () => {
       renderModal(booking, context);
 
       // Should still show basic cart information even with API error
-      expect(screen.getByText("Cart Number")).toBeInTheDocument();
+      expect(screen.getByText((content) => content.includes("Cart Number"))).toBeInTheDocument();
     });
 
     it("only shows equipment information for users with proper permissions", () => {
@@ -375,7 +401,7 @@ describe("MoreInfoModal - WebCheckout (Simplified)", () => {
       renderModal(booking, context);
 
       // WebCheckout section should not be visible for regular booking users
-      expect(screen.queryByText("WebCheckout")).not.toBeInTheDocument();
+      expect(screen.queryByText(hasText("WebCheckout"))).not.toBeInTheDocument();
     });
 
     it("makes API call with correct cart number", async () => {
@@ -398,7 +424,90 @@ describe("MoreInfoModal - WebCheckout (Simplified)", () => {
       renderModal(booking, context);
 
       // Should still render the component without crashing
+      expect(screen.getByText((content) => content.includes("Cart Number"))).toBeInTheDocument();
+    });
+  });
+
+  describe("User view (read-only cart contents)", () => {
+    it("shows WebCheckout section for users when a cart is assigned", () => {
+      const booking = createMockBooking({ webcheckoutCartNumber: "CK-2614" });
+      const context = createMockDatabaseContext(PagePermission.BOOKING);
+
+      renderModal(booking, context, vi.fn(), PageContextLevel.USER);
+
+      expect(screen.getByText(hasText("WebCheckout"))).toBeInTheDocument();
       expect(screen.getByText("Cart Number")).toBeInTheDocument();
+      expect(screen.getByText("CK-2614")).toBeInTheDocument();
+    });
+
+    it("hides WebCheckout section for users when no cart is assigned", () => {
+      const booking = createMockBooking({ webcheckoutCartNumber: undefined });
+      const context = createMockDatabaseContext(PagePermission.BOOKING);
+
+      renderModal(booking, context, vi.fn(), PageContextLevel.USER);
+
+      expect(screen.queryByText(hasText("WebCheckout"))).not.toBeInTheDocument();
+      expect(screen.queryByText("Cart Number")).not.toBeInTheDocument();
+    });
+
+    it("does not show edit button for users even when a cart is assigned", () => {
+      const booking = createMockBooking({ webcheckoutCartNumber: "CK-2614" });
+      const context = createMockDatabaseContext(PagePermission.BOOKING);
+
+      renderModal(booking, context, vi.fn(), PageContextLevel.USER);
+
+      expect(screen.queryByLabelText("Edit cart number")).not.toBeInTheDocument();
+    });
+
+    it("does not show edit button in USER context even for PA permission", () => {
+      const booking = createMockBooking({ webcheckoutCartNumber: "CK-2614" });
+      const context = createMockDatabaseContext(PagePermission.PA);
+
+      renderModal(booking, context, vi.fn(), PageContextLevel.USER);
+
+      expect(screen.queryByLabelText("Edit cart number")).not.toBeInTheDocument();
+    });
+
+    it("never calls update cart API in USER context", async () => {
+      const booking = createMockBooking({ webcheckoutCartNumber: "CK-2614" });
+      const context = createMockDatabaseContext(PagePermission.PA);
+
+      renderModal(booking, context, vi.fn(), PageContextLevel.USER);
+
+      await waitFor(() => {
+        expect(mockFetch).toHaveBeenCalledWith("/api/webcheckout/cart/CK-2614");
+      });
+
+      expect(screen.queryByLabelText("Edit cart number")).not.toBeInTheDocument();
+      expect(
+        mockFetch.mock.calls.some(
+          ([url]) =>
+            typeof url === "string" &&
+            url.includes("/api/updateWebcheckoutCart"),
+        ),
+      ).toBe(false);
+    });
+
+    it("fetches cart data for users when a cart number is assigned", async () => {
+      const booking = createMockBooking({ webcheckoutCartNumber: "CK-2614" });
+      const context = createMockDatabaseContext(PagePermission.BOOKING);
+
+      renderModal(booking, context, vi.fn(), PageContextLevel.USER);
+
+      await waitFor(() => {
+        expect(mockFetch).toHaveBeenCalledWith("/api/webcheckout/cart/CK-2614");
+      });
+    });
+
+    it("displays equipment list for users after data loads", async () => {
+      const booking = createMockBooking({ webcheckoutCartNumber: "CK-2614" });
+      const context = createMockDatabaseContext(PagePermission.BOOKING);
+
+      renderModal(booking, context, vi.fn(), PageContextLevel.USER);
+
+      await waitFor(() => {
+        expect(screen.getByText((content) => content.includes("Cart: CK-2614"))).toBeInTheDocument();
+      });
     });
   });
 });
