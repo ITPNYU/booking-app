@@ -1,0 +1,169 @@
+import { selectIdentityRecord } from "@/lib/utils/identityRecord";
+import { mapAffiliationToRole } from "@/components/src/client/routes/booking/formPages/UserRolePage";
+import { Role } from "@/components/src/types";
+
+describe("selectIdentityRecord", () => {
+  it("prefers primary affiliation (affiliation_number=1)", () => {
+    const data = [
+      { affiliation: "affiliate", affiliation_number: "2", name: "Secondary" },
+      { affiliation: "student", affiliation_number: "1", name: "Primary" },
+    ];
+    expect(selectIdentityRecord(data)).toEqual({
+      affiliation: "student",
+      affiliation_number: "1",
+      name: "Primary",
+    });
+  });
+
+  it("falls back to employee when no affiliation_number=1", () => {
+    const data = [
+      { affiliation: "student", affiliation_number: "2", name: "Alice" },
+      { affiliation: "employee", affiliation_number: "3", name: "Bob" },
+    ];
+    expect(selectIdentityRecord(data)).toEqual({
+      affiliation: "employee",
+      affiliation_number: "3",
+      name: "Bob",
+    });
+  });
+
+  it("falls back to first record when no primary or employee", () => {
+    const data = [
+      { affiliation: "student", affiliation_number: "2", name: "Alice" },
+      { affiliation: "faculty", affiliation_number: "3", name: "Carol" },
+    ];
+    expect(selectIdentityRecord(data)).toEqual({
+      affiliation: "student",
+      affiliation_number: "2",
+      name: "Alice",
+    });
+  });
+
+  it("returns null for an empty array", () => {
+    expect(selectIdentityRecord([])).toBeNull();
+  });
+
+  it("returns the object as-is for a single object (backward compat)", () => {
+    const data = { affiliation: "employee", name: "Bob" };
+    expect(selectIdentityRecord(data)).toEqual(data);
+  });
+
+  it("returns null for null input", () => {
+    expect(selectIdentityRecord(null)).toBeNull();
+  });
+
+  it("returns null for undefined input", () => {
+    expect(selectIdentityRecord(undefined)).toBeNull();
+  });
+
+  it("falls back to employee case-insensitively (e.g. EMPLOYEE)", () => {
+    const data = [
+      { affiliation: "student", affiliation_number: "2", name: "Alice" },
+      { affiliation: "EMPLOYEE", affiliation_number: "3", name: "Bob" },
+    ];
+    expect(selectIdentityRecord(data)).toEqual({
+      affiliation: "EMPLOYEE",
+      affiliation_number: "3",
+      name: "Bob",
+    });
+  });
+
+  it("handles numeric affiliation_number from upstream", () => {
+    const data = [
+      { affiliation: "student", affiliation_number: 2, name: "Alice" },
+      { affiliation: "faculty", affiliation_number: 1, name: "Primary" },
+    ];
+    expect(selectIdentityRecord(data)).toEqual({
+      affiliation: "faculty",
+      affiliation_number: 1,
+      name: "Primary",
+    });
+  });
+
+  it("returns null for primitive inputs", () => {
+    expect(selectIdentityRecord("string")).toBeNull();
+    expect(selectIdentityRecord(42)).toBeNull();
+    expect(selectIdentityRecord(true)).toBeNull();
+  });
+
+  it("skips null elements in array", () => {
+    const data = [null, { affiliation: "student", affiliation_number: "1" }];
+    expect(selectIdentityRecord(data)).toEqual({
+      affiliation: "student",
+      affiliation_number: "1",
+    });
+  });
+
+  it("selects primary affiliation from real-world multi-record response", () => {
+    const data = [
+      {
+        affiliation: "affiliate",
+        affiliation_number: "2",
+        affiliation_sub_type: "contractor",
+        reporting_dept_code: "PROVOST",
+        school_name: "Provost",
+      },
+      {
+        affiliation: "student",
+        affiliation_number: "1",
+        affiliation_sub_type: "degree",
+        reporting_dept_code: "ITP",
+        school_name: "TSOA",
+      },
+    ];
+    const result = selectIdentityRecord(data);
+    expect(result?.affiliation).toBe("student");
+    expect(result?.reporting_dept_code).toBe("ITP");
+  });
+});
+
+describe("mapAffiliationToRole", () => {
+  const roleMapping = {
+    Student: ["STUDENT", "DEGREE"],
+    "Resident/Fellow": ["FELLOW", "RESIDENT", "POST DOCTORAL FELLOW"],
+    Faculty: ["FACULTY", "PROFESSOR", "ADJUNCT FACULTY", "LECTURER"],
+    "Admin/Staff": ["ADMINISTRATOR", "STAFF", "EMPLOYEE", "CONTRACTOR"],
+    "Chair/Program Director": ["CHAIR", "PROGRAM DIRECTOR"],
+  };
+
+  it("maps 'degree' to Student", () => {
+    expect(mapAffiliationToRole(roleMapping, "degree")).toBe(Role.STUDENT);
+  });
+
+  it("maps 'contractor' to Admin/Staff", () => {
+    expect(mapAffiliationToRole(roleMapping, "contractor")).toBe(
+      Role.ADMIN_STAFF,
+    );
+  });
+
+  it("maps 'employee' to Admin/Staff", () => {
+    expect(mapAffiliationToRole(roleMapping, "employee")).toBe(
+      Role.ADMIN_STAFF,
+    );
+  });
+
+  it("maps 'faculty' to Faculty", () => {
+    expect(mapAffiliationToRole(roleMapping, "faculty")).toBe(Role.FACULTY);
+  });
+
+  it("maps 'adjunct faculty' to Faculty", () => {
+    expect(mapAffiliationToRole(roleMapping, "adjunct faculty")).toBe(
+      Role.FACULTY,
+    );
+  });
+
+  it("is case-insensitive", () => {
+    expect(mapAffiliationToRole(roleMapping, "CONTRACTOR")).toBe(
+      Role.ADMIN_STAFF,
+    );
+    expect(mapAffiliationToRole(roleMapping, "Degree")).toBe(Role.STUDENT);
+  });
+
+  it("returns undefined for unknown affiliation", () => {
+    expect(mapAffiliationToRole(roleMapping, "unknown")).toBeUndefined();
+  });
+
+  it("returns undefined for undefined input", () => {
+    expect(mapAffiliationToRole(roleMapping, undefined)).toBeUndefined();
+  });
+});
