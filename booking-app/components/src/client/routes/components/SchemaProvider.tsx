@@ -1,4 +1,7 @@
+import { defaultSafetyTrainingInfoUrl } from "@/components/src/constants/safetyTraining";
 import { createContext, useContext } from "react";
+
+export { defaultSafetyTrainingInfoUrl };
 
 export type Agreement = {
   id: string;
@@ -18,6 +21,7 @@ export type Resource = {
   calendarId: string;
   needsSafetyTraining?: boolean; // Whether training is required for this resource
   trainingFormUrl?: string; // URL of the Google Form that tracks trained users
+  trainingInfoUrl?: string; // URL to share with users when training is required
   isWalkIn: boolean;
   isWalkInCanBookTwo: boolean;
   services: string[]; // ["equipment", "staffing", "setup", "security", "cleaning", "catering", "campus-media"]
@@ -111,6 +115,11 @@ export type SchemaContextType = {
     slotUnit?: Record<string, number>; // e.g., { student: 15, admin: 15, ... }
     timeSensitiveRequestWarning?: TimeSensitiveRequestWarning;
   };
+  // CC email addresses for notifications, per environment
+  ccEmails?: {
+    approved: { development: string; staging: string; production: string };
+    canceled: { development: string; staging: string; production: string };
+  };
   // Email messages for all scenarios
   emailMessages: {
     requestConfirmation: string;
@@ -203,6 +212,7 @@ export const defaultResource: Resource = {
   staffingServices: [],
   staffingSections: defineObjectArrayWithDefaults(defaultStaffingSection),
   trainingFormUrl: "",
+  trainingInfoUrl: defaultSafetyTrainingInfoUrl,
   calendarIdProd: "",
 };
 
@@ -263,6 +273,10 @@ export const defaultScheme: Omit<SchemaContextType, "tenant"> = {
     timeSensitiveRequestWarning: defaultTimeSensitiveRequestWarning,
   },
   schoolMapping: {},
+  ccEmails: {
+    approved: { development: "", staging: "", production: "" },
+    canceled: { development: "", staging: "", production: "" },
+  },
   emailMessages: {
     requestConfirmation: "",
     firstApprovalRequest: "",

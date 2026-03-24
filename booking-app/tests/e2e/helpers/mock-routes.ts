@@ -1,3 +1,4 @@
+import { defaultSafetyTrainingInfoUrl } from "@/components/src/constants/safetyTraining";
 import { Page, Route } from "@playwright/test";
 
 export const mockTenantSchema = {
@@ -53,6 +54,7 @@ export const mockTenantSchema = {
       isEquipment: false,
       calendarId: "mock-calendar-202",
       needsSafetyTraining: false,
+      trainingInfoUrl: "",
       shouldAutoApprove: true,
       isWalkIn: false,
       isWalkInCanBookTwo: false,
@@ -65,6 +67,7 @@ export const mockTenantSchema = {
       isEquipment: false,
       calendarId: "mock-calendar-220",
       needsSafetyTraining: false,
+      trainingInfoUrl: "",
       shouldAutoApprove: false,
       isWalkIn: true,
       isWalkInCanBookTwo: false,
@@ -77,6 +80,7 @@ export const mockTenantSchema = {
       isEquipment: false,
       calendarId: "mock-calendar-203",
       needsSafetyTraining: false,
+      trainingInfoUrl: "",
       shouldAutoApprove: false,
       isWalkIn: false,
       isWalkInCanBookTwo: false,
@@ -90,6 +94,7 @@ export const mockTenantSchema = {
       isEquipment: false,
       calendarId: "mock-calendar-230",
       needsSafetyTraining: true,
+      trainingInfoUrl: defaultSafetyTrainingInfoUrl,
       shouldAutoApprove: false,
       isWalkIn: false,
       isWalkInCanBookTwo: false,

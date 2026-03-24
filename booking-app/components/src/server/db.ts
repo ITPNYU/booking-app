@@ -642,13 +642,16 @@ export const processCancelBooking = async (
       tenant,
     });
 
-    await serverSendBookingDetailEmail({
-      calendarEventId: id,
-      targetEmail: getCancelCcEmail(tenant),
-      headerMessage: ccHeaderMessage,
-      status: BookingStatusLabel.CANCELED,
-      tenant,
-    });
+    const cancelCcEmail = await getCancelCcEmail(tenant);
+    if (cancelCcEmail) {
+      await serverSendBookingDetailEmail({
+        calendarEventId: id,
+        targetEmail: cancelCcEmail,
+        headerMessage: ccHeaderMessage,
+        status: BookingStatusLabel.CANCELED,
+        tenant,
+      });
+    }
   }
 
   // Update calendar
@@ -1222,13 +1225,16 @@ export const executeTraditionalNoShow = async (
     BookingStatusLabel.NO_SHOW,
     tenant,
   );
-  clientSendBookingDetailEmail(
-    id,
-    getApprovalCcEmail(process.env.NEXT_PUBLIC_BRANCH_NAME, tenant),
-    headerMessage,
-    BookingStatusLabel.NO_SHOW,
-    tenant,
-  );
+  const noShowCcEmail = await getApprovalCcEmail(process.env.NEXT_PUBLIC_BRANCH_NAME, tenant);
+  if (noShowCcEmail) {
+    clientSendBookingDetailEmail(
+      id,
+      noShowCcEmail,
+      headerMessage,
+      BookingStatusLabel.NO_SHOW,
+      tenant,
+    );
+  }
   clientSendConfirmationEmail(
     id,
     BookingStatusLabel.NO_SHOW,
