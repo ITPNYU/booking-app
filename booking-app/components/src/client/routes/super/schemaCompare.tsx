@@ -29,15 +29,16 @@ function formatValueFull(val: unknown): string {
   return String(val);
 }
 
-/** Collapsible value cell for dry run results. */
+/** Value cell that respects row-level expanded state. */
 function DryRunValue({
   value,
   bg,
+  expanded,
 }: {
   value: unknown;
   bg?: string;
+  expanded: boolean;
 }) {
-  const [expanded, setExpanded] = useState(false);
   const full = formatValueFull(value);
   const isLong = full.length > 120;
 
@@ -54,9 +55,44 @@ function DryRunValue({
         whiteSpace: "pre-wrap",
       }}
     >
-      {isLong ? (
-        <>
-          {expanded ? full : full.slice(0, 120) + " ..."}
+      {isLong && !expanded ? full.slice(0, 120) + " ..." : full}
+    </Box>
+  );
+}
+
+/** Row with expand/collapse toggle that applies to both source and target. */
+function DryRunRow({
+  keyName,
+  changeType,
+  sourceValue,
+  targetValue,
+  sourceBg,
+  targetBg,
+}: {
+  keyName: string;
+  changeType: string;
+  sourceValue?: unknown;
+  targetValue?: unknown;
+  sourceBg?: string;
+  targetBg?: string;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const sourceStr = formatValueFull(sourceValue);
+  const targetStr = formatValueFull(targetValue);
+  const isLong = sourceStr.length > 120 || targetStr.length > 120;
+
+  const color =
+    changeType === "changed"
+      ? "warning.main"
+      : changeType === "added"
+        ? "success.main"
+        : "error.main";
+
+  return (
+    <tr>
+      <Box component="td" sx={{ p: 1, borderBottom: "1px solid #ddd", fontFamily: "monospace", fontSize: 12 }}>
+        {keyName}
+        {isLong && (
           <Box
             component="span"
             onClick={() => setExpanded(!expanded)}
@@ -70,11 +106,22 @@ function DryRunValue({
           >
             {expanded ? "collapse" : "expand"}
           </Box>
-        </>
+        )}
+      </Box>
+      <Box component="td" sx={{ p: 1, borderBottom: "1px solid #ddd", color, fontWeight: "bold" }}>
+        {changeType}
+      </Box>
+      {sourceValue !== undefined ? (
+        <DryRunValue value={sourceValue} bg={sourceBg} expanded={expanded} />
       ) : (
-        full
+        <Box component="td" sx={{ p: 1, borderBottom: "1px solid #ddd" }} />
       )}
-    </Box>
+      {targetValue !== undefined ? (
+        <DryRunValue value={targetValue} bg={targetBg} expanded={expanded} />
+      ) : (
+        <Box component="td" sx={{ p: 1, borderBottom: "1px solid #ddd" }} />
+      )}
+    </tr>
   );
 }
 
@@ -343,40 +390,33 @@ export default function SchemaCompare() {
               </thead>
               <tbody>
                 {dryRunResult.changed.map((d) => (
-                  <tr key={d.key}>
-                    <Box component="td" sx={{ p: 1, borderBottom: "1px solid #ddd", fontFamily: "monospace", fontSize: 12 }}>
-                      {d.key}
-                    </Box>
-                    <Box component="td" sx={{ p: 1, borderBottom: "1px solid #ddd", color: "warning.main", fontWeight: "bold" }}>
-                      changed
-                    </Box>
-                    <DryRunValue value={d.sourceValue} bg="#f0fff0" />
-                    <DryRunValue value={d.targetValue} bg="#fff0f0" />
-                  </tr>
+                  <DryRunRow
+                    key={d.key}
+                    keyName={d.key}
+                    changeType="changed"
+                    sourceValue={d.sourceValue}
+                    targetValue={d.targetValue}
+                    sourceBg="#f0fff0"
+                    targetBg="#fff0f0"
+                  />
                 ))}
                 {dryRunResult.added.map((d) => (
-                  <tr key={d.key}>
-                    <Box component="td" sx={{ p: 1, borderBottom: "1px solid #ddd", fontFamily: "monospace", fontSize: 12 }}>
-                      {d.key}
-                    </Box>
-                    <Box component="td" sx={{ p: 1, borderBottom: "1px solid #ddd", color: "success.main", fontWeight: "bold" }}>
-                      added
-                    </Box>
-                    <DryRunValue value={d.sourceValue} bg="#f0fff0" />
-                    <Box component="td" sx={{ p: 1, borderBottom: "1px solid #ddd" }} />
-                  </tr>
+                  <DryRunRow
+                    key={d.key}
+                    keyName={d.key}
+                    changeType="added"
+                    sourceValue={d.sourceValue}
+                    sourceBg="#f0fff0"
+                  />
                 ))}
                 {dryRunResult.removed.map((d) => (
-                  <tr key={d.key}>
-                    <Box component="td" sx={{ p: 1, borderBottom: "1px solid #ddd", fontFamily: "monospace", fontSize: 12 }}>
-                      {d.key}
-                    </Box>
-                    <Box component="td" sx={{ p: 1, borderBottom: "1px solid #ddd", color: "error.main", fontWeight: "bold" }}>
-                      removed
-                    </Box>
-                    <Box component="td" sx={{ p: 1, borderBottom: "1px solid #ddd" }} />
-                    <DryRunValue value={d.targetValue} bg="#fff0f0" />
-                  </tr>
+                  <DryRunRow
+                    key={d.key}
+                    keyName={d.key}
+                    changeType="removed"
+                    targetValue={d.targetValue}
+                    targetBg="#fff0f0"
+                  />
                 ))}
               </tbody>
             </Box>
