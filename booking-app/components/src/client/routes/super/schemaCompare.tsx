@@ -224,6 +224,7 @@ export default function SchemaCompare() {
 
   const handleTenantChange = (tenantId: string) => {
     setTenant(tenantId);
+    setDryRunResult(null);
     if (tenantId) fetchSchemas(tenantId);
   };
 
@@ -268,7 +269,7 @@ export default function SchemaCompare() {
           <Select
             value={leftEnv}
             label="Left"
-            onChange={(e) => setLeftEnv(e.target.value as Env)}
+            onChange={(e) => { setLeftEnv(e.target.value as Env); setDryRunResult(null); }}
           >
             {ENVIRONMENTS.map((env) => (
               <MenuItem key={env} value={env}>
@@ -285,7 +286,7 @@ export default function SchemaCompare() {
           <Select
             value={rightEnv}
             label="Right"
-            onChange={(e) => setRightEnv(e.target.value as Env)}
+            onChange={(e) => { setRightEnv(e.target.value as Env); setDryRunResult(null); }}
           >
             {ENVIRONMENTS.map((env) => (
               <MenuItem key={env} value={env}>

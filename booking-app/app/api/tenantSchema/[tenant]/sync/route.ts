@@ -1,14 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { serverFetchAllDataFromCollection } from "@/lib/firebase/server/adminDb";
 import { TableNames } from "@/components/src/policy";
+import { isValidTenant } from "@/components/src/constants/tenants";
+import { DATABASES } from "@/lib/firebase/server/databases";
 import { computeDiffSummary } from "@/lib/utils/schemaDiff";
 import { getFirestore } from "firebase-admin/firestore";
-
-const DATABASES: Record<string, string> = {
-  development: "(default)",
-  staging: "booking-app-staging",
-  production: "booking-app-prod",
-};
 
 const BACKUP_COLLECTION = "tenantSchemaBackup";
 
@@ -24,10 +20,23 @@ export async function POST(
 ) {
   try {
     const { tenant } = await params;
+
+    if (!isValidTenant(tenant)) {
+      return NextResponse.json(
+        { error: `Invalid tenant: ${tenant}` },
+        { status: 400 },
+      );
+    }
+
     const { sourceEnv, targetEnv, dryRun = false } = await request.json();
 
     // Validate environments
-    if (!DATABASES[sourceEnv] || !DATABASES[targetEnv]) {
+    if (
+      typeof sourceEnv !== "string" ||
+      typeof targetEnv !== "string" ||
+      !Object.hasOwn(DATABASES, sourceEnv) ||
+      !Object.hasOwn(DATABASES, targetEnv)
+    ) {
       return NextResponse.json(
         {
           error: `Invalid environment. Valid: ${Object.keys(DATABASES).join(", ")}`,
@@ -134,11 +143,11 @@ export async function POST(
         );
     }
 
-    // Write source schema to target
+    // Write source schema to target, enforcing tenant consistency
     await targetDb
       .collection(TableNames.TENANT_SCHEMA)
       .doc(tenant)
-      .set(sourceSchema, { merge: false });
+      .set({ ...sourceSchema, tenant }, { merge: false });
 
     return NextResponse.json({
       success: true,
