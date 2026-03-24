@@ -240,14 +240,18 @@ export const serverUpdateInFirestore = async (
     console.error("Error updating document: ", error);
   }
 };
-export const serverGetFinalApproverEmailFromDatabase = async (): Promise<
-  string | null
-> => {
+export const serverGetFinalApproverEmailFromDatabase = async (
+  tenant?: string,
+): Promise<string | null> => {
   try {
-    const policyCollection = db.collection(TableNames.APPROVERS);
+    const tenantCollection = getServerTenantCollection(
+      TableNames.APPROVERS,
+      tenant,
+    );
+    const policyCollection = db.collection(tenantCollection);
     const querySnapshot = await traceDatabase(
       "query",
-      "Firestore/approvers",
+      `Firestore/${tenantCollection}`,
       () => policyCollection.where("level", "==", ApproverLevel.FINAL).get(),
     );
     if (!querySnapshot.empty) {
@@ -264,8 +268,11 @@ export const serverGetFinalApproverEmailFromDatabase = async (): Promise<
   }
 };
 
-export const serverGetFinalApproverEmail = async (): Promise<string> => {
-  const finalApproverEmail = await serverGetFinalApproverEmailFromDatabase();
+export const serverGetFinalApproverEmail = async (
+  tenant?: string,
+): Promise<string> => {
+  const finalApproverEmail =
+    await serverGetFinalApproverEmailFromDatabase(tenant);
   return (
     finalApproverEmail || "booking-app-devs+notFoundFinalApprover@itp.nyu.edu"
   );
