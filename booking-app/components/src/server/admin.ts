@@ -315,7 +315,7 @@ export const serverFirstApproveOnly = async (
   };
   const recipient = await serverGetFinalApproverEmail(tenant);
   if (!recipient) {
-    console.warn("No final approver configured, skipping second approval request email");
+
     return;
   }
   const formData = {
@@ -486,7 +486,7 @@ const firstApprove = async (id: string, email: string, tenant?: string) => {
   };
   const recipient = await serverGetFinalApproverEmail(tenant);
   if (!recipient) {
-    console.warn("No final approver configured, skipping second approval request email");
+
     return;
   }
 
@@ -605,7 +605,7 @@ export const serverSendConfirmationEmail = async ({
 }: SendConfirmationEmailOptions) => {
   const email = await serverGetFinalApproverEmail(tenant);
   if (!email) {
-    console.warn("No final approver configured, skipping confirmation email");
+
     return;
   }
   serverSendBookingDetailEmail({
