@@ -314,6 +314,10 @@ export const serverFirstApproveOnly = async (
     headerMessage: emailConfig.emailMessages.secondApprovalRequest,
   };
   const recipient = await serverGetFinalApproverEmail(tenant);
+  if (!recipient) {
+    console.warn("No final approver configured, skipping second approval request email");
+    return;
+  }
   const formData = {
     templateName: "booking_detail",
     contents: emailContents,
@@ -481,6 +485,10 @@ const firstApprove = async (id: string, email: string, tenant?: string) => {
     headerMessage: emailConfig.emailMessages.secondApprovalRequest,
   };
   const recipient = await serverGetFinalApproverEmail(tenant);
+  if (!recipient) {
+    console.warn("No final approver configured, skipping second approval request email");
+    return;
+  }
 
   const formData = {
     templateName: "booking_detail",
@@ -596,6 +604,10 @@ export const serverSendConfirmationEmail = async ({
   tenant,
 }: SendConfirmationEmailOptions) => {
   const email = await serverGetFinalApproverEmail(tenant);
+  if (!email) {
+    console.warn("No final approver configured, skipping confirmation email");
+    return;
+  }
   serverSendBookingDetailEmail({
     calendarEventId,
     targetEmail: email,

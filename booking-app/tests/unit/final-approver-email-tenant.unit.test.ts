@@ -83,10 +83,10 @@ describe("serverGetFinalApproverEmail – tenant-aware collection lookup", () =>
     const email = await serverGetFinalApproverEmail("itp");
 
     expect(capturedCollectionName).toBe("itp-usersApprovers");
-    expect(email).toBe("booking-app-devs+notFoundFinalApprover@itp.nyu.edu");
+    expect(email).toBeNull();
   });
 
-  it("should return fallback when approver doc has no email field", async () => {
+  it("should return null when approver doc has no email field", async () => {
     mockGet.mockResolvedValue({
       empty: false,
       docs: [{ data: () => ({ level: 3 }) }],
@@ -97,7 +97,7 @@ describe("serverGetFinalApproverEmail – tenant-aware collection lookup", () =>
     );
     const email = await serverGetFinalApproverEmail("itp");
 
-    expect(email).toBe("booking-app-devs+notFoundFinalApprover@itp.nyu.edu");
+    expect(email).toBeNull();
   });
 
   it("should NOT mix tenants: ITP must not read MC approver data", async () => {

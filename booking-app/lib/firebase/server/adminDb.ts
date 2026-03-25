@@ -270,12 +270,8 @@ export const serverGetFinalApproverEmailFromDatabase = async (
 
 export const serverGetFinalApproverEmail = async (
   tenant?: string,
-): Promise<string> => {
-  const finalApproverEmail =
-    await serverGetFinalApproverEmailFromDatabase(tenant);
-  return (
-    finalApproverEmail || "booking-app-devs+notFoundFinalApprover@itp.nyu.edu"
-  );
+): Promise<string | null> => {
+  return serverGetFinalApproverEmailFromDatabase(tenant);
 };
 
 export const logServerBookingChange = async ({
