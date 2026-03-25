@@ -313,7 +313,11 @@ export const serverFirstApproveOnly = async (
     ...contents,
     headerMessage: emailConfig.emailMessages.secondApprovalRequest,
   };
-  const recipient = await serverGetFinalApproverEmail();
+  const recipient = await serverGetFinalApproverEmail(tenant);
+  if (!recipient) {
+
+    return;
+  }
   const formData = {
     templateName: "booking_detail",
     contents: emailContents,
@@ -480,7 +484,11 @@ const firstApprove = async (id: string, email: string, tenant?: string) => {
     ...contents,
     headerMessage: emailConfig.emailMessages.secondApprovalRequest,
   };
-  const recipient = await serverGetFinalApproverEmail();
+  const recipient = await serverGetFinalApproverEmail(tenant);
+  if (!recipient) {
+
+    return;
+  }
 
   const formData = {
     templateName: "booking_detail",
@@ -595,7 +603,11 @@ export const serverSendConfirmationEmail = async ({
   guestEmail,
   tenant,
 }: SendConfirmationEmailOptions) => {
-  const email = await serverGetFinalApproverEmail();
+  const email = await serverGetFinalApproverEmail(tenant);
+  if (!email) {
+
+    return;
+  }
   serverSendBookingDetailEmail({
     calendarEventId,
     targetEmail: email,
