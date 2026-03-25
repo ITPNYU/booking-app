@@ -74,7 +74,7 @@ describe("serverGetFinalApproverEmail – tenant-aware collection lookup", () =>
     expect(email).toBe("mc-admin@nyu.edu");
   });
 
-  it("should return fallback email when no approver is found", async () => {
+  it("should return null when no approver is found", async () => {
     mockGet.mockResolvedValue({ empty: true, docs: [] });
 
     const { serverGetFinalApproverEmail } = await import(
