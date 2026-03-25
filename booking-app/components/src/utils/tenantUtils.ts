@@ -9,6 +9,7 @@ import { TENANTS } from "../constants/tenants";
  */
 export const ITP_DEPT_CODES = [
   "GTITPG", // Interactive Telecommunications
+  "TIIMA",  // Low Res anomaly
   "TS1001", // Interactive Telecommunications Program (Administrators)
   "TS1067", // Interactive Telecommunications Program (Staff)
   "TS1068", // Interactive Telecommunications Program (Student Workers)
@@ -35,7 +36,7 @@ export const ITP_DEPT_CODES = [
   "TS3394", // Interactive Media Arts Low Residency Program (Technical Staff)
   "TS3395", // Interactive Media Arts Low Residency Program (Students)
   "UTIMNY", // Interactive Media Arts
-  "UTITPG"  // Interactive Telecommunications
+  "UTITPG", // Interactive Telecommunications
 ];
 
 /**
