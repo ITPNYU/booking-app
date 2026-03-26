@@ -18,7 +18,7 @@ import { getTenantPolicy } from "@/components/src/tenantPolicy";
 import {
   createXStateChecker,
   getXStateContext,
-} from "@/components/src/utils/xstateUnified";
+} from "@/components/src/utils/xstateQueries";
 import { clientGetDataByCalendarEventId } from "@/lib/firebase/firebase";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 
