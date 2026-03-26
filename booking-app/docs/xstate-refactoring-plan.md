@@ -8,27 +8,6 @@ Refactor XState code so that:
 2. **Side effects are pluggable** — email, calendar, DB writes are wired outside the machine
 3. **New features (e.g., revoke) are easy to add** — clean structure makes changes straightforward
 
-## Why Not Stately Studio for PM-Driven Changes
-
-We evaluated using Stately Studio so PMs could visually add/modify states without touching code. This is **not practical** for this project:
-
-1. **Adding a state always requires code changes.** Every new state needs action implementations (email templates, DB field updates, calendar integration, API routes). Stately can wire action names visually, but a developer must write the implementation. PM-only changes never fully work.
-
-2. **MC's parallel states are too complex for visual editing.** 6 services × 3 states = 18 parallel substates. The Stately visual editor becomes unusable at this scale.
-
-3. **Round-trip editing breaks factory-generated states.** Phase 2 uses a factory to reduce 1,300 lines of duplication. Stately exports flat state definitions, so the factory structure is lost on import.
-
-4. **Maintenance overhead.** The team would need to maintain Stately compatibility, manage export/import drift, and learn the tool — all for a workflow that still requires code changes every time.
-
-### Alternative: AI-Assisted Development (Vibe Coding)
-
-The PM's actual goal is "change business logic without deep code knowledge." AI tools (Claude Code, Codex, etc.) achieve this better than Stately:
-
-- **Natural language instructions** — "Add a revoke event that undoes approval and sends an email" generates machine changes + actions + API + tests in one pass
-- **Covers the full stack** — Stately only handles the state machine. AI handles email templates, DB schemas, UI buttons, and tests too
-- **No tool lock-in** — AI tools are interchangeable. Stately deprecation/pricing changes would require migration
-- **Works with messy code** — AI reads the existing codebase and adapts. Stately requires specific code structure
-
 The refactoring in this plan (Phases 0-2) makes the codebase **easier for both humans and AI to modify**, which is the right investment regardless of tooling choice.
 
 ## Current State
@@ -413,5 +392,4 @@ Phase 6 (Revoke)  ← requires Phase 3 for clean implementation
 | Duplicate code | ~1,500 lines | ~0 |
 | Magic strings | ~50+ | 0 |
 | Test coverage of transitions | minimal | comprehensive |
-| AI-friendly code structure | No (God Object) | Yes (focused modules) |
-| Time to add new state | Hours (manual) | Minutes (AI-assisted) |
+| Time to add new state | Hours | Minutes |
