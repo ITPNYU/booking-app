@@ -5,9 +5,31 @@
 Refactor XState code so that:
 
 1. **State machines are the single source of truth** — all booking logic is expressed in the machine definition
-2. **PMs can use Stately Studio** to visually add/modify states, events, and actions without touching code
-3. **Side effects are pluggable** — email, calendar, DB writes are wired outside the machine
-4. **New features (e.g., revoke) are easy to add** — just add a transition in Stately, export, done
+2. **Side effects are pluggable** — email, calendar, DB writes are wired outside the machine
+3. **New features (e.g., revoke) are easy to add** — clean structure makes changes straightforward
+
+## Why Not Stately Studio for PM-Driven Changes
+
+We evaluated using Stately Studio so PMs could visually add/modify states without touching code. This is **not practical** for this project:
+
+1. **Adding a state always requires code changes.** Every new state needs action implementations (email templates, DB field updates, calendar integration, API routes). Stately can wire action names visually, but a developer must write the implementation. PM-only changes never fully work.
+
+2. **MC's parallel states are too complex for visual editing.** 6 services × 3 states = 18 parallel substates. The Stately visual editor becomes unusable at this scale.
+
+3. **Round-trip editing breaks factory-generated states.** Phase 2 uses a factory to reduce 1,300 lines of duplication. Stately exports flat state definitions, so the factory structure is lost on import.
+
+4. **Maintenance overhead.** The team would need to maintain Stately compatibility, manage export/import drift, and learn the tool — all for a workflow that still requires code changes every time.
+
+### Alternative: AI-Assisted Development (Vibe Coding)
+
+The PM's actual goal is "change business logic without deep code knowledge." AI tools (Claude Code, Codex, etc.) achieve this better than Stately:
+
+- **Natural language instructions** — "Add a revoke event that undoes approval and sends an email" generates machine changes + actions + API + tests in one pass
+- **Covers the full stack** — Stately only handles the state machine. AI handles email templates, DB schemas, UI buttons, and tests too
+- **No tool lock-in** — AI tools are interchangeable. Stately deprecation/pricing changes would require migration
+- **Works with messy code** — AI reads the existing codebase and adapts. Stately requires specific code structure
+
+The refactoring in this plan (Phases 0-2) makes the codebase **easier for both humans and AI to modify**, which is the right investment regardless of tooling choice.
 
 ## Current State
 
@@ -202,7 +224,7 @@ function createServiceRequestStates(services: typeof SERVICE_TYPES) {
 
 ### Phase 3: Externalize side effects as named actions
 
-**Goal:** Make side effects visible to Stately Studio and testable in isolation.
+**Goal:** Make side effects testable in isolation and reduce the `handleStateTransitions()` dispatcher.
 
 **Before:**
 ```ts
@@ -236,10 +258,10 @@ const actor = createActor(mcBookingMachine, {
 });
 ```
 
-**Why this matters for Stately:**
-- Stately Studio shows action names in the visual editor
-- PMs can add/remove/reorder actions by dragging
-- Action implementations stay in code — only the wiring changes in Stately
+**Why this matters:**
+- Each side effect is independently testable
+- Adding a new state's side effects means adding a named action, not editing a 702-line if-else
+- Machine definition clearly shows what happens on each transition
 
 **Estimated reduction of `handleStateTransitions()`:** 702 → 0 lines (eliminated entirely)
 
@@ -331,40 +353,7 @@ actions: {
 }
 ```
 
-**In Stately Studio:** PM drags a "revoke" transition from "Approved" to "Pre-approved", adds the action names, exports. Done.
-
----
-
-## Vision: Stately Studio Workflow
-
-After all phases are complete:
-
-```
-PM edits state machine in Stately Studio
-    ↓
-Export as TypeScript
-    ↓
-Replace machine definition file (mcBookingMachine.ts / itpBookingMachine.ts)
-    ↓
-Action implementations already exist in code — no code changes needed
-    ↓
-Tests run automatically (CI)
-    ↓
-Deploy
-```
-
-### What PMs can do without code changes:
-- Add new states (e.g., "On Hold", "Waitlisted")
-- Add new transitions (e.g., "revoke", "escalate")
-- Reorder/add/remove entry/exit actions on states
-- Change guard conditions (by name, not implementation)
-- Add new service types (via factory + config)
-
-### What still requires code changes:
-- New action implementations (email templates, DB field updates)
-- New guard implementations (business logic)
-- New context fields
-- Firestore schema changes
+**With AI-assisted development:** PM describes "Add a revoke event that undoes approval and sends a notification email." AI generates the machine transition + action implementation + API route + tests.
 
 ---
 
@@ -388,20 +377,6 @@ The previous attempt at this (PR #1291) was closed as UNSTABLE. Must be validate
 - Ship Phase 0-2 first and let them stabilize in production
 - Phase 3 should be behind a feature flag or tenant-gated (test on ITP first, then MC)
 - Write comprehensive tests (Phase 5) before or during Phase 3, not after
-
-### Phase 3-6: Stately Studio integration — realistic expectations
-
-The vision of "PM adds a state in Stately and deploys without code changes" has limitations:
-
-1. **Adding a new state always requires a new action implementation** — PM can wire the action name in Stately, but a developer must write the email template, DB update, etc.
-2. **MC parallel states (6 services) are complex in Stately's visual editor** — may be hard to navigate
-3. **Factory-generated states (Phase 2) don't round-trip cleanly** — Stately exports flat state definitions, so the factory must re-wrap on import
-4. **Guard logic can't be edited visually** — PM can assign guard names, but implementation stays in code
-
-**Recommendation:** Before starting Phase 3, align with PM on specific use cases:
-- "What states do you want to add in the next 6 months?"
-- "What would you change if you could edit the machine visually?"
-- This will determine whether full Stately integration is worth the Phase 3 risk, or if Phase 0-2 alone provides enough value.
 
 ### Production safety
 
@@ -438,5 +413,5 @@ Phase 6 (Revoke)  ← requires Phase 3 for clean implementation
 | Duplicate code | ~1,500 lines | ~0 |
 | Magic strings | ~50+ | 0 |
 | Test coverage of transitions | minimal | comprehensive |
-| Stately Studio compatible | No | Yes |
-| Time to add new state | Hours (code changes) | Minutes (visual editor) |
+| AI-friendly code structure | No (God Object) | Yes (focused modules) |
+| Time to add new state | Hours (manual) | Minutes (AI-assisted) |
