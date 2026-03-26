@@ -1,10 +1,9 @@
 import React, { useContext, useMemo } from "react";
 import { PageContextLevel } from "../../../types";
 import {
-  XStateUtils,
   createXStateChecker,
   getXStateContext,
-} from "../../../utils/xstateUnified";
+} from "../../../utils/xstateQueries";
 import { Bookings } from "../components/bookingTable/Bookings";
 import { DatabaseContext } from "../components/Provider";
 
@@ -38,11 +37,6 @@ const ServicesBookings: React.FC = () => {
         return false;
       }
     });
-
-    // Debug logging for each filtered booking
-    // filtered.forEach((booking) => {
-    //   XStateUtils.debugXState(booking, "SERVICES FILTER DEBUG");
-    // });
 
     return filtered;
   }, [allBookings]);

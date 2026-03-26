@@ -20,7 +20,7 @@ import { itpBookingMachine } from "./itpBookingMachine";
 import { mcBookingMachine } from "./mcBookingMachine";
 
 // Type for persisted XState data using v5 snapshot
-export interface PersistedXStateData {
+interface PersistedXStateData {
   snapshot: any; // XState v5 snapshot object
   machineId: string;
   lastTransition: string;
@@ -789,7 +789,7 @@ function getMachineForTenant(tenant?: string) {
 /**
  * Create and save XState data from booking status using v5 snapshot
  */
-export async function createXStateDataFromBookingStatus(
+async function createXStateDataFromBookingStatus(
   calendarEventId: string,
   bookingData: any,
   tenant?: string,
@@ -967,7 +967,7 @@ export async function createXStateDataFromBookingStatus(
 /**
  * Restore XState actor from persisted snapshot
  */
-export async function restoreXStateFromFirestore(
+async function restoreXStateFromFirestore(
   calendarEventId: string,
   tenant?: string,
 ): Promise<any> {
