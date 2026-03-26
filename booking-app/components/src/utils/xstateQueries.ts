@@ -4,7 +4,7 @@
  * Consolidated from xstateHelpers.ts + xstateUnified.ts.
  */
 
-import { Booking } from "../types";
+import type { Booking } from "../types";
 
 // Minimal interface for functions that don't need a full Booking
 interface XStateBookingLike {
