@@ -302,10 +302,6 @@ export default function SchemaCompare() {
       ? computeDiff(leftSchema, rightSchema)
       : [];
 
-  const addedCount = diffs.filter((d) => d.type === "added").length;
-  const removedCount = diffs.filter((d) => d.type === "removed").length;
-  const changedCount = diffs.filter((d) => d.type === "changed").length;
-
   return (
     <Box>
       <Typography variant="h6" gutterBottom>
@@ -373,7 +369,7 @@ export default function SchemaCompare() {
             >
               Refresh
             </Button>
-            {leftEnv !== rightEnv && changedCount + addedCount + removedCount > 0 && (
+            {leftEnv !== rightEnv && diffs.length > 0 && (
               <>
                 <Button
                   variant="outlined"
@@ -497,19 +493,6 @@ export default function SchemaCompare() {
 
       {tenant && !loading && (
         <>
-          {/* Environment availability */}
-          <Box display="flex" gap={1} mb={2}>
-            {ENVIRONMENTS.map((env) => (
-              <Chip
-                key={env}
-                label={env}
-                color={schemas[env] ? "success" : "error"}
-                variant="outlined"
-                size="small"
-              />
-            ))}
-          </Box>
-
           {/* Schema Health Check — unconfigured fields per environment */}
           <SchemaHealthCheck schemas={schemas} />
 
@@ -527,150 +510,107 @@ export default function SchemaCompare() {
               No differences between {leftEnv} and {rightEnv}.
             </Alert>
           ) : (
-            <>
-              <Box display="flex" gap={1} mb={2}>
-                <Chip
-                  label={`${addedCount} added`}
-                  color="success"
-                  size="small"
-                />
-                <Chip
-                  label={`${removedCount} removed`}
-                  color="error"
-                  size="small"
-                />
-                <Chip
-                  label={`${changedCount} changed`}
-                  color="warning"
-                  size="small"
-                />
-              </Box>
-
-              <Box
-                component="table"
-                sx={{
-                  width: "100%",
-                  borderCollapse: "collapse",
-                  fontSize: 13,
-                }}
-              >
-                <thead>
-                  <tr>
+            <Box
+              component="table"
+              sx={{
+                width: "100%",
+                borderCollapse: "collapse",
+                fontSize: 13,
+              }}
+            >
+              <thead>
+                <tr>
+                  <Box
+                    component="th"
+                    sx={{
+                      textAlign: "left",
+                      p: 1,
+                      borderBottom: "2px solid #ddd",
+                      width: "30%",
+                    }}
+                  >
+                    Field
+                  </Box>
+                  <Box
+                    component="th"
+                    sx={{
+                      textAlign: "left",
+                      p: 1,
+                      borderBottom: "2px solid #ddd",
+                      width: "35%",
+                    }}
+                  >
+                    {leftEnv}
+                  </Box>
+                  <Box
+                    component="th"
+                    sx={{
+                      textAlign: "left",
+                      p: 1,
+                      borderBottom: "2px solid #ddd",
+                      width: "35%",
+                    }}
+                  >
+                    {rightEnv}
+                  </Box>
+                </tr>
+              </thead>
+              <tbody>
+                {diffs.map((d, i) => (
+                  <tr key={i}>
                     <Box
-                      component="th"
+                      component="td"
                       sx={{
-                        textAlign: "left",
                         p: 1,
-                        borderBottom: "2px solid #ddd",
-                        width: "30%",
+                        borderBottom: "1px solid #eee",
+                        fontFamily: "monospace",
+                        fontSize: 12,
                       }}
                     >
-                      Field
+                      {d.path}
                     </Box>
                     <Box
-                      component="th"
+                      component="td"
                       sx={{
-                        textAlign: "left",
                         p: 1,
-                        borderBottom: "2px solid #ddd",
-                        width: "10%",
+                        borderBottom: "1px solid #eee",
+                        fontFamily: "monospace",
+                        fontSize: 12,
+                        backgroundColor:
+                          d.type === "removed" || d.type === "changed"
+                            ? "#fff0f0"
+                            : d.type === "added"
+                              ? "#f5f5f5"
+                              : undefined,
+                        wordBreak: "break-all",
+                        maxWidth: 400,
                       }}
                     >
-                      Change
+                      {d.type !== "added" ? formatValue(d.oldValue) : "(not set)"}
                     </Box>
                     <Box
-                      component="th"
+                      component="td"
                       sx={{
-                        textAlign: "left",
                         p: 1,
-                        borderBottom: "2px solid #ddd",
-                        width: "30%",
+                        borderBottom: "1px solid #eee",
+                        fontFamily: "monospace",
+                        fontSize: 12,
+                        backgroundColor:
+                          d.type === "added" || d.type === "changed"
+                            ? "#f0fff0"
+                            : d.type === "removed"
+                              ? "#f5f5f5"
+                              : undefined,
+                        wordBreak: "break-all",
+                        maxWidth: 400,
                       }}
                     >
-                      {leftEnv}
-                    </Box>
-                    <Box
-                      component="th"
-                      sx={{
-                        textAlign: "left",
-                        p: 1,
-                        borderBottom: "2px solid #ddd",
-                        width: "30%",
-                      }}
-                    >
-                      {rightEnv}
+                      {d.type !== "removed" ? formatValue(d.newValue) : "(not set)"}
                     </Box>
                   </tr>
-                </thead>
-                <tbody>
-                  {diffs.map((d, i) => (
-                    <tr key={i}>
-                      <Box
-                        component="td"
-                        sx={{
-                          p: 1,
-                          borderBottom: "1px solid #eee",
-                          fontFamily: "monospace",
-                          fontSize: 12,
-                        }}
-                      >
-                        {d.path}
-                      </Box>
-                      <Box
-                        component="td"
-                        sx={{
-                          p: 1,
-                          borderBottom: "1px solid #eee",
-                          color:
-                            d.type === "added"
-                              ? "success.main"
-                              : d.type === "removed"
-                                ? "error.main"
-                                : "warning.main",
-                          fontWeight: "bold",
-                        }}
-                      >
-                        {d.type}
-                      </Box>
-                      <Box
-                        component="td"
-                        sx={{
-                          p: 1,
-                          borderBottom: "1px solid #eee",
-                          fontFamily: "monospace",
-                          fontSize: 12,
-                          backgroundColor:
-                            d.type === "removed" || d.type === "changed"
-                              ? "#fff0f0"
-                              : undefined,
-                          wordBreak: "break-all",
-                          maxWidth: 300,
-                        }}
-                      >
-                        {d.type !== "added" ? formatValue(d.oldValue) : ""}
-                      </Box>
-                      <Box
-                        component="td"
-                        sx={{
-                          p: 1,
-                          borderBottom: "1px solid #eee",
-                          fontFamily: "monospace",
-                          fontSize: 12,
-                          backgroundColor:
-                            d.type === "added" || d.type === "changed"
-                              ? "#f0fff0"
-                              : undefined,
-                          wordBreak: "break-all",
-                          maxWidth: 300,
-                        }}
-                      >
-                        {d.type !== "removed" ? formatValue(d.newValue) : ""}
-                      </Box>
-                    </tr>
-                  ))}
-                </tbody>
-              </Box>
-            </>
+                ))}
+              </tbody>
+            </Box>
           )}
         </>
       )}
