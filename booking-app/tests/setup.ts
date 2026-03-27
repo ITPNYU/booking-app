@@ -61,6 +61,19 @@ vi.mock("firebase/firestore", () => ({
   },
 }));
 
+// Mock next-auth
+vi.mock("next-auth/react", () => ({
+  useSession: vi.fn(() => ({
+    data: {
+      user: { email: "test@nyu.edu", name: "Test User", netId: "test" },
+    },
+    status: "authenticated",
+  })),
+  signIn: vi.fn(),
+  signOut: vi.fn(),
+  SessionProvider: ({ children }: { children: React.ReactNode }) => children,
+}));
+
 // Mock Next.js modules
 vi.mock("next/navigation", () => ({
   useRouter: vi.fn(() => ({

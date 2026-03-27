@@ -13,9 +13,8 @@ import {
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { useContext, useEffect, useMemo, useState } from "react";
 
-import { auth } from "@/lib/firebase/firebaseClient";
+import { signOut } from "next-auth/react";
 import { styled } from "@mui/system";
-import { signOut } from "firebase/auth";
 import { PagePermission } from "../../../types";
 import { PERMISSION_PATH } from "../../../utils/permissions";
 import useHandleStartBooking from "../booking/hooks/useHandleStartBooking";
@@ -154,11 +153,9 @@ export default function NavBar() {
 
   const handleSignOut = async () => {
     try {
-      await signOut(auth);
       sessionStorage.removeItem("hasRedirectedToDefaultContext");
-      console.log("Sign-out successful");
-      router.push("/signin");
       setUserEmail(null);
+      await signOut({ callbackUrl: "/signin" });
     } catch (error) {
       console.error("Sign-out error", error);
     }
