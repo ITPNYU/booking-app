@@ -1073,7 +1073,7 @@ function UnconfiguredFieldsBanner({
         <Button
           color="inherit"
           size="small"
-          onClick={() => setExpanded(!expanded)}
+          onClick={() => setExpanded((prev) => !prev)}
         >
           {expanded ? "Hide" : "Show"}
         </Button>

@@ -129,27 +129,27 @@ function DryRunRow({
 const ENVIRONMENTS = ["development", "staging", "production"] as const;
 type Env = (typeof ENVIRONMENTS)[number];
 
+const ALL_DEFAULT_KEYS = Object.keys(defaultScheme) as string[];
+
 // ─── Schema Health Check ───
 function SchemaHealthCheck({
   schemas,
 }: {
   schemas: Record<string, any | null>;
 }) {
-  const allDefaultKeys = Object.keys(defaultScheme) as string[];
-
   const healthData = useMemo(() => {
     const results: { env: string; missing: string[] }[] = [];
     for (const env of ENVIRONMENTS) {
       const schema = schemas[env];
       if (!schema) continue;
       const schemaKeys = Object.keys(schema);
-      const missing = allDefaultKeys.filter((key) => !schemaKeys.includes(key));
+      const missing = ALL_DEFAULT_KEYS.filter((key) => !schemaKeys.includes(key));
       if (missing.length > 0) {
         results.push({ env, missing });
       }
     }
     return results;
-  }, [schemas, allDefaultKeys]);
+  }, [schemas]);
 
   if (healthData.length === 0) return null;
 
@@ -541,7 +541,7 @@ export default function SchemaCompare() {
               </thead>
               <tbody>
                 {diffs.map((d, i) => (
-                  <tr key={i}>
+                  <tr key={`${d.path}:${d.type}`}>
                     <Box
                       component="td"
                       sx={{
