@@ -7,7 +7,9 @@ import {
   Alert,
   Box,
   Button,
+  Chip,
   CircularProgress,
+  Collapse,
   Dialog,
   DialogActions,
   DialogContent,
@@ -36,7 +38,7 @@ import type {
   Resource,
   Agreement,
 } from "../components/SchemaProvider";
-import { defaultResource } from "../components/SchemaProvider";
+import { defaultResource, defaultScheme } from "../components/SchemaProvider";
 import {
   computeDiff,
   formatValue,
@@ -1049,6 +1051,54 @@ function CalendarConfigSection({
   );
 }
 
+// ─── Unconfigured Fields Banner ───
+function UnconfiguredFieldsBanner({
+  schema,
+}: {
+  schema: SchemaContextType;
+}) {
+  const [expanded, setExpanded] = useState(false);
+
+  const allDefaultKeys = Object.keys(defaultScheme) as string[];
+  const schemaKeys = Object.keys(schema);
+  const unconfigured = allDefaultKeys.filter((key) => !schemaKeys.includes(key));
+
+  if (unconfigured.length === 0) return null;
+
+  return (
+    <Alert
+      severity="warning"
+      sx={{ mb: 2 }}
+      action={
+        <Button
+          color="inherit"
+          size="small"
+          onClick={() => setExpanded(!expanded)}
+        >
+          {expanded ? "Hide" : "Show"}
+        </Button>
+      }
+    >
+      <Typography variant="body2">
+        {unconfigured.length} field(s) not configured in Firestore (using code defaults)
+      </Typography>
+      <Collapse in={expanded}>
+        <Box sx={{ mt: 1, display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+          {unconfigured.map((key) => (
+            <Chip
+              key={key}
+              label={key}
+              size="small"
+              variant="outlined"
+              color="warning"
+            />
+          ))}
+        </Box>
+      </Collapse>
+    </Alert>
+  );
+}
+
 // ─── Main Component ───
 export default function SchemaEditor() {
   const { userEmail } = useContext(DatabaseContext);
@@ -1232,6 +1282,10 @@ export default function SchemaEditor() {
           <CircularProgress size={20} />
           <Typography variant="body2">Loading schema...</Typography>
         </Box>
+      )}
+
+      {schema && !loading && (
+        <UnconfiguredFieldsBanner schema={schema} />
       )}
 
       {schema && !loading && mode === "form" && (

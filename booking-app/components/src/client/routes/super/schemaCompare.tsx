@@ -17,8 +17,10 @@ import {
   Snackbar,
   Typography,
 } from "@mui/material";
-import { useCallback, useContext, useState } from "react";
+import { Collapse } from "@mui/material";
+import { useCallback, useContext, useMemo, useState } from "react";
 import { DatabaseContext } from "../components/Provider";
+import { defaultScheme } from "../components/SchemaProvider";
 import { computeDiff, formatValue, type DiffEntry } from "./schemaEditorUtils";
 
 /** Full JSON string — never truncated. */
@@ -128,6 +130,71 @@ function DryRunRow({
 const ENVIRONMENTS = ["development", "staging", "production"] as const;
 type Env = (typeof ENVIRONMENTS)[number];
 
+// ─── Schema Health Check ───
+function SchemaHealthCheck({
+  schemas,
+}: {
+  schemas: Record<string, any | null>;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const allDefaultKeys = Object.keys(defaultScheme) as string[];
+
+  const healthData = useMemo(() => {
+    const results: { env: string; missing: string[] }[] = [];
+    for (const env of ENVIRONMENTS) {
+      const schema = schemas[env];
+      if (!schema) continue;
+      const schemaKeys = Object.keys(schema);
+      const missing = allDefaultKeys.filter((key) => !schemaKeys.includes(key));
+      if (missing.length > 0) {
+        results.push({ env, missing });
+      }
+    }
+    return results;
+  }, [schemas, allDefaultKeys]);
+
+  if (healthData.length === 0) return null;
+
+  return (
+    <Alert
+      severity="info"
+      sx={{ mb: 2 }}
+      action={
+        <Button
+          color="inherit"
+          size="small"
+          onClick={() => setExpanded(!expanded)}
+        >
+          {expanded ? "Hide" : "Details"}
+        </Button>
+      }
+    >
+      <Typography variant="body2">
+        Schema Health: {healthData.length} environment(s) have unconfigured fields
+      </Typography>
+      <Collapse in={expanded}>
+        {healthData.map(({ env, missing }) => (
+          <Box key={env} sx={{ mt: 1 }}>
+            <Typography variant="body2" fontWeight="bold">
+              {env} — {missing.length} missing field(s):
+            </Typography>
+            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, mt: 0.5 }}>
+              {missing.map((key) => (
+                <Chip
+                  key={key}
+                  label={key}
+                  size="small"
+                  variant="outlined"
+                />
+              ))}
+            </Box>
+          </Box>
+        ))}
+      </Collapse>
+    </Alert>
+  );
+}
+
 type SnackState = {
   open: boolean;
   message: string;
@@ -207,7 +274,7 @@ export default function SchemaCompare() {
           setSnack({
             open: true,
             severity: "success",
-            message: `Synced "${tenant}" ${leftEnv} → ${rightEnv}. Backup: ${data.backupId ?? "N/A"}`,
+            message: `Overwrote "${tenant}" ${leftEnv} → ${rightEnv}. Backup: ${data.backupId ?? "N/A"}`,
           });
           fetchSchemas(tenant);
         }
@@ -325,7 +392,7 @@ export default function SchemaCompare() {
                   size="small"
                   startIcon={syncing ? <CircularProgress size={16} /> : null}
                 >
-                  Sync {leftEnv} → {rightEnv}
+                  Overwrite {leftEnv} → {rightEnv}
                 </Button>
               </>
             )}
@@ -442,6 +509,9 @@ export default function SchemaCompare() {
               />
             ))}
           </Box>
+
+          {/* Schema Health Check — unconfigured fields per environment */}
+          <SchemaHealthCheck schemas={schemas} />
 
           {leftEnv === rightEnv ? (
             <Alert severity="info">
@@ -606,12 +676,12 @@ export default function SchemaCompare() {
       )}
 
       <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)}>
-        <DialogTitle>Confirm Schema Sync</DialogTitle>
+        <DialogTitle>Confirm Schema Overwrite</DialogTitle>
         <DialogContent>
           <Typography>
             Overwrite <strong>{rightEnv}</strong> schema for tenant{" "}
             <strong>{tenant}</strong> with the <strong>{leftEnv}</strong>{" "}
-            version?
+            version? This cannot be undone (a backup will be saved).
           </Typography>
           <Typography sx={{ mt: 1 }} variant="body2" color="text.secondary">
             A backup will be saved to tenantSchemaBackup before overwriting.
@@ -624,7 +694,7 @@ export default function SchemaCompare() {
             color="warning"
             onClick={() => callSync(false)}
           >
-            Sync
+            Overwrite
           </Button>
         </DialogActions>
       </Dialog>

@@ -20,7 +20,7 @@ import { generateDefaultSchema as generateDefaultTenantSchema } from "../compone
  * For arrays: If the default array has a __defaults__ property, use that to merge
  * each item. Otherwise, use the existing array value and skip merging.
  */
-function deepMergeDefaults<T extends Record<string, any>>(
+export function deepMergeDefaults<T extends Record<string, any>>(
   existing: Partial<T>,
   defaults: T
 ): T {
@@ -78,8 +78,15 @@ function deepMergeDefaults<T extends Record<string, any>>(
         defaultValue !== null &&
         !Array.isArray(defaultValue)
       ) {
-        // Recursively merge nested object, removing extra keys
-        result[key] = deepMergeDefaults(existingValue, defaultValue as any);
+        // If default is empty object, preserve existing value as-is
+        // (e.g. roleMapping, schoolMapping, programMapping are Record<string, string[]>
+        // with default {}. Recursing into {} would strip all existing keys.)
+        if (Object.keys(defaultValue).length === 0) {
+          result[key] = existingValue;
+        } else {
+          // Recursively merge nested object, removing extra keys
+          result[key] = deepMergeDefaults(existingValue, defaultValue as any);
+        }
       } else {
         // Default is not an object - use existing
         result[key] = existingValue;
