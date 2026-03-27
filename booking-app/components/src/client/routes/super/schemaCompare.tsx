@@ -17,7 +17,6 @@ import {
   Snackbar,
   Typography,
 } from "@mui/material";
-import { Collapse } from "@mui/material";
 import { useCallback, useContext, useMemo, useState } from "react";
 import { DatabaseContext } from "../components/Provider";
 import { defaultScheme } from "../components/SchemaProvider";
@@ -136,7 +135,6 @@ function SchemaHealthCheck({
 }: {
   schemas: Record<string, any | null>;
 }) {
-  const [expanded, setExpanded] = useState(false);
   const allDefaultKeys = Object.keys(defaultScheme) as string[];
 
   const healthData = useMemo(() => {
@@ -156,41 +154,27 @@ function SchemaHealthCheck({
   if (healthData.length === 0) return null;
 
   return (
-    <Alert
-      severity="info"
-      sx={{ mb: 2 }}
-      action={
-        <Button
-          color="inherit"
-          size="small"
-          onClick={() => setExpanded(!expanded)}
-        >
-          {expanded ? "Hide" : "Details"}
-        </Button>
-      }
-    >
-      <Typography variant="body2">
+    <Alert severity="info" sx={{ mb: 2 }}>
+      <Typography variant="body2" sx={{ mb: 1 }}>
         Schema Health: {healthData.length} environment(s) have unconfigured fields
       </Typography>
-      <Collapse in={expanded}>
-        {healthData.map(({ env, missing }) => (
-          <Box key={env} sx={{ mt: 1 }}>
-            <Typography variant="body2" fontWeight="bold">
-              {env} — {missing.length} missing field(s):
-            </Typography>
-            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, mt: 0.5 }}>
-              {missing.map((key) => (
-                <Chip
-                  key={key}
-                  label={key}
-                  size="small"
-                  variant="outlined"
-                />
-              ))}
-            </Box>
+      {healthData.map(({ env, missing }) => (
+        <Box key={env} sx={{ mt: 1 }}>
+          <Typography variant="body2" fontWeight="bold">
+            {env} — {missing.length} missing field(s):
+          </Typography>
+          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, mt: 0.5 }}>
+            {missing.map((key) => (
+              <Chip
+                key={key}
+                label={key}
+                size="small"
+                variant="outlined"
+              />
+            ))}
           </Box>
-        ))}
-      </Collapse>
+        </Box>
+      ))}
     </Alert>
   );
 }
