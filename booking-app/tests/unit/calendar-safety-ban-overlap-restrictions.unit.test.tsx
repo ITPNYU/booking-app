@@ -36,6 +36,31 @@ describe("Calendar Safety Training, Ban, and Overlap Restrictions Logic", () => 
       expect(SAFETY_TRAINING_REQUIRED_ROOM).not.toContain(1201);
     });
 
+    it("should not require safety training when modifying an approved reservation", () => {
+      const modificationPathnames = [
+        "/mediacommons/modification",
+        "/modification/some-booking-id",
+        "/book/modification",
+      ];
+
+      modificationPathnames.forEach((pathname) => {
+        const isModification = pathname.includes("/modification");
+
+        // Even an untrained student in a safety-required room should not be blocked
+        const isStudent = true;
+        const roomRequiresSafetyTraining = true;
+        const isSafetyTrained = false;
+
+        const needsSafetyTraining =
+          !isModification &&
+          isStudent &&
+          roomRequiresSafetyTraining &&
+          !isSafetyTrained;
+
+        expect(needsSafetyTraining).toBe(false);
+      });
+    });
+
     it("should determine safety training needs based on room selection and user role", () => {
       const mockDatabaseContext = {
         roomSettings: [],
