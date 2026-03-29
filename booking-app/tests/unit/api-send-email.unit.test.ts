@@ -61,6 +61,29 @@ describe("POST /api/sendEmail", () => {
     });
   });
 
+  it("forwards subjectStatusOverride to sendHTMLEmail", async () => {
+    const subjectStatusOverride = "Staff approval required";
+    const request = {
+      json: async () => ({
+        ...basePayload,
+        schemaName: "Media Commons",
+        subjectStatusOverride,
+      }),
+      headers: new Headers({ "x-tenant": "mc" }),
+    } as any;
+
+    const response = await POST(request);
+
+    expect(mockSendHTMLEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        schemaName: "Media Commons",
+        subjectStatusOverride,
+        tenant: "mc",
+      }),
+    );
+    expect(response.status).toBe(200);
+  });
+
   it("falls back to the default tenant and surfaces send errors", async () => {
     mockSendHTMLEmail.mockRejectedValueOnce(new Error("Gmail down"));
 
