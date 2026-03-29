@@ -82,7 +82,7 @@ function deepAddDefaults<T extends Record<string, any>>(
 /**
  * Merge default values into an existing schema
  * Preserves existing values, only adds missing keys with defaults
- * Removes extra keys that don't exist in the template
+ * Non-destructive: preserves extra keys that don't exist in the template
  */
 export function mergeSchemaDefaults(
   existingSchema: Partial<SchemaContextType>,
