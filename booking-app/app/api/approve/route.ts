@@ -253,7 +253,18 @@ export async function POST(req: NextRequest) {
             );
           }
 
-          await notifyServiceApproversForRequestedServices(id, tenant);
+          try {
+            await notifyServiceApproversForRequestedServices(id, tenant);
+          } catch (notificationError: any) {
+            console.error(
+              `🚨 SERVICES REQUEST NOTIFICATION FAILED [${tenant?.toUpperCase()}]:`,
+              {
+                calendarEventId: id,
+                tenant,
+                error: notificationError?.message || notificationError,
+              },
+            );
+          }
         }
       } else {
         console.log(
