@@ -1,16 +1,12 @@
 import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
 import { TableNames } from "@/components/src/policy";
 import { notifyServiceApproversForRequestedServices } from "@/components/src/server/serviceApproverNotifications";
-import { BookingStatusLabel } from "@/components/src/types";
-import { serverGetDataByCalendarEventId } from "@/lib/firebase/server/adminDb";
-import { NextRequest, NextResponse } from "next/server";
-
 import { serverApproveBooking } from "@/components/src/server/admin";
-import { executeXStateTransition } from "@/lib/stateMachines/xstateUtilsV5";
-
-import { TableNames } from "@/components/src/policy";
+import { BookingStatusLabel } from "@/components/src/types";
 import { getMediaCommonsServices, isMediaCommons } from "@/components/src/utils/tenantUtils";
 import { serverGetDataByCalendarEventId } from "@/lib/firebase/server/adminDb";
+import { executeXStateTransition } from "@/lib/stateMachines/xstateUtilsV5";
+import { NextRequest, NextResponse } from "next/server";
 
 const SERVICE_APPROVED_FIELDS: Record<string, string> = {
   staff: "staffServiceApproved",
