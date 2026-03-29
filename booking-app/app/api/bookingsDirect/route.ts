@@ -647,7 +647,7 @@ export async function POST(request: NextRequest) {
 
     const notifyEmails = [
       data.sponsorEmail ?? null,
-      await serverGetFinalApproverEmail(),
+      await serverGetFinalApproverEmail(tenant),
       await getApprovalCcEmail(process.env.NEXT_PUBLIC_BRANCH_NAME, tenant),
     ].filter(x => x != null && x !== "");
     await sendWalkInNofificationEmail(notifyEmails);
