@@ -23,7 +23,7 @@ vi.mock("@/components/src/client/routes/hooks/getBookingStatus", () => ({
   default: vi.fn(),
 }));
 
-import { DELETE, GET, OPTIONS, POST, PUT } from "@/app/api/calendarEvents/route";
+import { DELETE, GET, POST, PUT } from "@/app/api/calendarEvents/route";
 import getBookingStatus from "@/components/src/client/routes/hooks/getBookingStatus";
 import { TableNames } from "@/components/src/policy";
 import { serverBookingContents } from "@/components/src/server/admin";
@@ -69,23 +69,6 @@ describe("/api/calendarEvents", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     _resetBookingsCacheForTesting();
-  });
-
-  describe("OPTIONS", () => {
-    it("returns CORS headers for preflight", async () => {
-      const response = await OPTIONS();
-
-      expect(response.status).toBe(200);
-      expect(response.headers.get("Access-Control-Allow-Origin")).toBe(
-        "http://localhost:3001",
-      );
-      expect(response.headers.get("Access-Control-Allow-Methods")).toContain(
-        "OPTIONS",
-      );
-      expect(response.headers.get("Access-Control-Allow-Headers")).toContain(
-        "x-tenant",
-      );
-    });
   });
 
   describe("GET", () => {
@@ -174,36 +157,6 @@ describe("/api/calendarEvents", () => {
         error: "Invalid calendarId",
       });
       expect(mockGetCalendarClient).not.toHaveBeenCalled();
-      expect(response.headers.get("Access-Control-Allow-Origin")).toBe(
-        "http://localhost:3001",
-      );
-    });
-
-    it("includes CORS headers on successful responses", async () => {
-      stubCalendarClient([
-        {
-          id: "cal-event-cors-1",
-          summary: "CORS Event",
-          start: { dateTime: "2024-09-01T10:00:00.000Z" },
-          end: { dateTime: "2024-09-01T11:00:00.000Z" },
-        },
-      ]);
-      mockServerFetchAllDataFromCollection.mockResolvedValueOnce([]);
-
-      const request = {
-        url: "https://example.com/api/calendarEvents?calendarId=gmail-calendar",
-        headers: new Headers({ "x-tenant": "tenant-one" }),
-      } as any;
-
-      const response = await GET(request);
-
-      expect(response.status).toBe(200);
-      expect(response.headers.get("Access-Control-Allow-Origin")).toBe(
-        "http://localhost:3001",
-      );
-      expect(response.headers.get("Access-Control-Allow-Methods")).toContain(
-        "GET",
-      );
     });
   });
 

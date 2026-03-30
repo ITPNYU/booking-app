@@ -30,7 +30,6 @@ import {
   CHARTFIELD_PATTERN_MESSAGE,
   CHARTFIELD_REGEX,
   isValidNetIdEmailFormat,
-  isValidNetIdFormat,
   NET_ID_EMAIL_REGEX,
   NET_ID_REGEX,
 } from "../../../../utils/validationHelpers";
@@ -159,6 +158,8 @@ export default function FormInput({
     watch,
     reset,
     setValue,
+    unregister,
+    clearErrors,
     formState: { errors, isValid },
   } = useForm<Inputs>({
     defaultValues: {
@@ -331,47 +332,53 @@ export default function FormInput({
 
   useEffect(() => {
     if (cateringValue !== "yes" || cateringServiceValue === "Outside Catering") {
-      setValue("chartFieldForCatering", "", { shouldValidate: false });
+      unregister("chartFieldForCatering");
+      clearErrors("chartFieldForCatering");
     }
-  }, [cateringServiceValue, cateringValue, setValue]);
-
-  // Add a function to fetch sponsor data by Net ID
-  const fetchSponsorByNetId = useCallback(async (netId: string) => {
-    if (!netId || !isValidNetIdFormat(netId)) return;
-
-    setIsFetchingSponsor(true);
-    try {
-      const response = await fetch(`/api/nyu/identity/${netId}`);
-      if (response.ok) {
-        const data = await response.json();
-        setSponsorApiData(data);
-        return data;
-      }
-    } catch (err) {
-      console.error("Failed to fetch sponsor data:", err);
-    } finally {
-      setIsFetchingSponsor(false);
-    }
-    return null;
-  }, []);
+  }, [cateringServiceValue, cateringValue, unregister, clearErrors]);
 
   // Watch sponsor email field specifically
   const sponsorEmail = watch("sponsorEmail");
 
-  // Only fetch sponsor data when sponsor email changes and matches strict Net ID email format
+  // Fetch sponsor data when email changes to a valid NYU Net ID email.
+  // Clears stale data immediately on change and aborts any in-flight request.
   useEffect(() => {
     const normalizedSponsorEmail = sponsorEmail?.trim().toLowerCase();
     const normalizedUserEmail = userEmail?.trim().toLowerCase();
 
+    // Always clear stale sponsor data when the email field changes
+    setSponsorApiData(null);
+
     if (
-      normalizedSponsorEmail &&
-      isValidNetIdEmailFormat(normalizedSponsorEmail) &&
-      normalizedSponsorEmail !== normalizedUserEmail
+      !normalizedSponsorEmail ||
+      !isValidNetIdEmailFormat(normalizedSponsorEmail) ||
+      normalizedSponsorEmail === normalizedUserEmail
     ) {
-      const sponsorNetId = normalizedSponsorEmail.split("@")[0];
-      fetchSponsorByNetId(sponsorNetId);
+      return;
     }
-  }, [sponsorEmail, fetchSponsorByNetId, userEmail]);
+
+    const controller = new AbortController();
+    const netId = normalizedSponsorEmail.split("@")[0];
+    setIsFetchingSponsor(true);
+
+    fetch(`/api/nyu/identity/${netId}`, { signal: controller.signal })
+      .then(async (res) => {
+        if (res.ok) {
+          const data = await res.json();
+          setSponsorApiData(data);
+        }
+      })
+      .catch((err) => {
+        if (err.name !== "AbortError") {
+          console.error("Failed to fetch sponsor data:", err);
+        }
+      })
+      .finally(() => {
+        setIsFetchingSponsor(false);
+      });
+
+    return () => controller.abort();
+  }, [sponsorEmail, userEmail]);
 
   // Remove the API call from the validation function since we're now handling it separately
   const validateSponsorEmailSimple = useCallback(
