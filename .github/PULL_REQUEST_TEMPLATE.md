@@ -1,3 +1,7 @@
+## Related Issues
+
+<!-- Link any related issues (e.g., Closes #123, Fixes #456) -->
+
 ## Summary of Changes
 
 <!-- Briefly describe what was changed and why -->
