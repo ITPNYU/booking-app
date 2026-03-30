@@ -149,7 +149,7 @@ describe("NO_SHOW System Attribution", () => {
       // Simulate processCancelBooking with automatic transition from No Show
       const calendarEventId = "cal-event-123";
       const userEmail = "user@nyu.edu";
-      
+
       // Mock the processCancelBooking logic
       await mockLogServerBookingChange({
         calendarEventId,
@@ -175,7 +175,7 @@ describe("NO_SHOW System Attribution", () => {
       // Simulate processCancelBooking with automatic transition from Decline
       const calendarEventId = "cal-event-456";
       const userEmail = "user@nyu.edu";
-      
+
       // Mock the processCancelBooking logic
       await mockLogServerBookingChange({
         calendarEventId,
@@ -321,7 +321,7 @@ describe("processCancelBooking Integration Tests", () => {
         lateCancel: "Late cancellation notification",
       },
     });
-    
+
     // Mock fetch for email sending and calendar updates
     const fetchMock = vi.fn(async (input: any) => {
       const url = typeof input === "string" ? input : input.url;
@@ -628,6 +628,7 @@ describe("noShow function XState flow", () => {
         bookingId: "cal-event-123",
         noShowDate: expect.any(Object),
       }),
+      "mc",
     );
 
     const bookingLogCall = fetchMock.mock.calls.find(
@@ -783,6 +784,7 @@ describe("noShow function XState flow", () => {
         bookingId: "cal-event-789",
         noShowDate: expect.any(Object),
       }),
+      "mc",
     );
 
     const sendEmailCall = fetchMock.mock.calls.find(

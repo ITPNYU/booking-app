@@ -16,8 +16,8 @@ const mockBlackoutPeriods: BlackoutPeriod[] = [
   {
     id: "1",
     name: "Summer Break",
-    startDate: Timestamp.fromDate(dayjs("2026-06-01").toDate()),
-    endDate: Timestamp.fromDate(dayjs("2026-08-31").toDate()),
+    startDate: Timestamp.fromDate(dayjs("2030-06-01").toDate()),
+    endDate: Timestamp.fromDate(dayjs("2030-08-31").toDate()),
     isActive: true,
     createdAt: Timestamp.now(),
     updatedAt: Timestamp.now(),
@@ -25,8 +25,8 @@ const mockBlackoutPeriods: BlackoutPeriod[] = [
   {
     id: "2",
     name: "Winter Holidays",
-    startDate: Timestamp.fromDate(dayjs("2026-12-20").toDate()),
-    endDate: Timestamp.fromDate(dayjs("2027-01-05").toDate()),
+    startDate: Timestamp.fromDate(dayjs("2030-12-20").toDate()),
+    endDate: Timestamp.fromDate(dayjs("2031-01-05").toDate()),
     isActive: true,
     createdAt: Timestamp.now(),
     updatedAt: Timestamp.now(),
@@ -34,8 +34,8 @@ const mockBlackoutPeriods: BlackoutPeriod[] = [
   {
     id: "3",
     name: "Maintenance Period",
-    startDate: Timestamp.fromDate(dayjs("2026-03-15").toDate()),
-    endDate: Timestamp.fromDate(dayjs("2026-03-20").toDate()),
+    startDate: Timestamp.fromDate(dayjs("2030-03-15").toDate()),
+    endDate: Timestamp.fromDate(dayjs("2030-03-20").toDate()),
     isActive: false, // This period is inactive
     createdAt: Timestamp.now(),
     updatedAt: Timestamp.now(),
@@ -43,8 +43,8 @@ const mockBlackoutPeriods: BlackoutPeriod[] = [
   {
     id: "4",
     name: "Room 221 Maintenance",
-    startDate: Timestamp.fromDate(dayjs("2026-04-01").toDate()),
-    endDate: Timestamp.fromDate(dayjs("2026-04-07").toDate()),
+    startDate: Timestamp.fromDate(dayjs("2030-04-01").toDate()),
+    endDate: Timestamp.fromDate(dayjs("2030-04-07").toDate()),
     isActive: true,
     roomIds: [221], // Only applies to room 221
     createdAt: Timestamp.now(),
@@ -53,8 +53,8 @@ const mockBlackoutPeriods: BlackoutPeriod[] = [
   {
     id: "5",
     name: "Audio Equipment Upgrade",
-    startDate: Timestamp.fromDate(dayjs("2026-05-01").toDate()),
-    endDate: Timestamp.fromDate(dayjs("2026-05-15").toDate()),
+    startDate: Timestamp.fromDate(dayjs("2030-05-01").toDate()),
+    endDate: Timestamp.fromDate(dayjs("2030-05-15").toDate()),
     isActive: true,
     roomIds: [230, 221], // Applies to rooms 230 and 221
     createdAt: Timestamp.now(),
@@ -106,11 +106,11 @@ describe("useBookingDateRestrictions Hook", () => {
     });
 
     // Test dates within Summer Break (active period)
-    const summerDate = dayjs("2026-07-15");
+    const summerDate = dayjs("2030-07-15");
     expect(result.current.isDateDisabled(summerDate)).toBe(true);
 
     // Test dates within Winter Holidays (active period)
-    const winterDate = dayjs("2026-12-25");
+    const winterDate = dayjs("2030-12-25");
     expect(result.current.isDateDisabled(winterDate)).toBe(true);
   });
 
@@ -124,7 +124,7 @@ describe("useBookingDateRestrictions Hook", () => {
     });
 
     // Test date within Maintenance Period (inactive period)
-    const maintenanceDate = dayjs("2026-03-17");
+    const maintenanceDate = dayjs("2030-03-17");
     expect(result.current.isDateDisabled(maintenanceDate)).toBe(false);
   });
 
@@ -137,9 +137,9 @@ describe("useBookingDateRestrictions Hook", () => {
       ),
     });
 
-    const normalDate1 = dayjs("2026-04-15"); // Between maintenance and summer
-    const normalDate2 = dayjs("2026-10-15"); // Between summer and winter
-    const normalDate3 = dayjs("2027-02-15"); // After winter
+    const normalDate1 = dayjs("2030-04-15"); // Between maintenance and summer
+    const normalDate2 = dayjs("2030-10-15"); // Between summer and winter
+    const normalDate3 = dayjs("2031-02-15"); // After winter
 
     expect(result.current.isDateDisabled(normalDate1)).toBe(false);
     expect(result.current.isDateDisabled(normalDate2)).toBe(false);
@@ -156,17 +156,17 @@ describe("useBookingDateRestrictions Hook", () => {
     });
 
     // Test start and end dates of Summer Break
-    const startDate = dayjs("2026-06-01");
-    const endDate = dayjs("2026-08-31");
+    const startDate = dayjs("2030-06-01");
+    const endDate = dayjs("2030-08-31");
     expect(result.current.isDateDisabled(startDate)).toBe(true);
     expect(result.current.isDateDisabled(endDate)).toBe(true);
 
     // Test day before Summer Break
-    const dayBefore = dayjs("2026-05-31");
+    const dayBefore = dayjs("2030-05-31");
     expect(result.current.isDateDisabled(dayBefore)).toBe(false);
 
     // Test day after Summer Break
-    const dayAfter = dayjs("2026-09-01");
+    const dayAfter = dayjs("2030-09-01");
     expect(result.current.isDateDisabled(dayAfter)).toBe(false);
   });
 
@@ -185,7 +185,7 @@ describe("useBookingDateRestrictions Hook", () => {
     });
 
     // Any future date should be allowed when no blackout periods exist
-    const testDate = dayjs("2026-07-15");
+    const testDate = dayjs("2030-07-15");
     expect(result.current.isDateDisabled(testDate)).toBe(false);
   });
 
@@ -204,7 +204,7 @@ describe("useBookingDateRestrictions Hook", () => {
     });
 
     // Should not throw error and should allow dates
-    const testDate = dayjs("2026-07-15");
+    const testDate = dayjs("2030-07-15");
     expect(result.current.isDateDisabled(testDate)).toBe(false);
   });
 
@@ -214,8 +214,8 @@ describe("useBookingDateRestrictions Hook", () => {
       {
         id: "4",
         name: "Overlapping Period",
-        startDate: Timestamp.fromDate(dayjs("2026-07-01").toDate()),
-        endDate: Timestamp.fromDate(dayjs("2026-07-31").toDate()),
+        startDate: Timestamp.fromDate(dayjs("2030-07-01").toDate()),
+        endDate: Timestamp.fromDate(dayjs("2030-07-31").toDate()),
         isActive: true,
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
@@ -236,7 +236,7 @@ describe("useBookingDateRestrictions Hook", () => {
     });
 
     // Date that falls in both Summer Break and Overlapping Period
-    const overlappingDate = dayjs("2026-07-15");
+    const overlappingDate = dayjs("2030-07-15");
     expect(result.current.isDateDisabled(overlappingDate)).toBe(true);
   });
 
@@ -245,8 +245,8 @@ describe("useBookingDateRestrictions Hook", () => {
       {
         id: "5",
         name: "Single Day Event",
-        startDate: Timestamp.fromDate(dayjs("2026-06-15").toDate()),
-        endDate: Timestamp.fromDate(dayjs("2026-06-15").toDate()),
+        startDate: Timestamp.fromDate(dayjs("2030-06-15").toDate()),
+        endDate: Timestamp.fromDate(dayjs("2030-06-15").toDate()),
         isActive: true,
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
@@ -267,12 +267,12 @@ describe("useBookingDateRestrictions Hook", () => {
     });
 
     // The exact date should be disabled
-    const exactDate = dayjs("2026-06-15");
+    const exactDate = dayjs("2030-06-15");
     expect(result.current.isDateDisabled(exactDate)).toBe(true);
 
     // Days before and after should not be disabled
-    const dayBefore = dayjs("2026-06-14");
-    const dayAfter = dayjs("2026-06-16");
+    const dayBefore = dayjs("2030-06-14");
+    const dayAfter = dayjs("2030-06-16");
     expect(result.current.isDateDisabled(dayBefore)).toBe(false);
     expect(result.current.isDateDisabled(dayAfter)).toBe(false);
   });
@@ -287,12 +287,12 @@ describe("useBookingDateRestrictions Hook", () => {
     });
 
     // Test getting blackout period for a date within Summer Break
-    const summerDate = dayjs("2026-07-15");
+    const summerDate = dayjs("2030-07-15");
     const blackoutPeriod = result.current.getBlackoutPeriodForDate(summerDate);
     expect(blackoutPeriod?.name).toBe("Summer Break");
 
     // Test getting blackout period for a date outside any period
-    const normalDate = dayjs("2026-04-15");
+    const normalDate = dayjs("2030-04-15");
     const noBlackoutPeriod =
       result.current.getBlackoutPeriodForDate(normalDate);
     expect(noBlackoutPeriod).toBeUndefined();
@@ -309,7 +309,7 @@ describe("useBookingDateRestrictions Hook", () => {
       });
 
       // Test room 221 during its maintenance period
-      const room221MaintenanceDate = dayjs("2026-04-03");
+      const room221MaintenanceDate = dayjs("2030-04-03");
       expect(
         result.current.isDateDisabledForRooms(room221MaintenanceDate, [221])
       ).toBe(true);
@@ -334,7 +334,7 @@ describe("useBookingDateRestrictions Hook", () => {
       });
 
       // Test during Audio Equipment Upgrade (affects rooms 230 and 221)
-      const audioUpgradeDate = dayjs("2026-05-10");
+      const audioUpgradeDate = dayjs("2030-05-10");
       expect(
         result.current.isDateDisabledForRooms(audioUpgradeDate, [230])
       ).toBe(true);
@@ -362,7 +362,7 @@ describe("useBookingDateRestrictions Hook", () => {
       });
 
       // Test getting blackout periods for room 221 during Audio Equipment Upgrade
-      const audioUpgradeDate = dayjs("2026-05-10");
+      const audioUpgradeDate = dayjs("2030-05-10");
       const periodsForRoom221 =
         result.current.getBlackoutPeriodsForDateAndRooms(audioUpgradeDate, [
           221,
@@ -378,7 +378,7 @@ describe("useBookingDateRestrictions Hook", () => {
       expect(periodsForRoom222).toHaveLength(0);
 
       // Test during global blackout period (Summer Break)
-      const summerDate = dayjs("2026-07-15");
+      const summerDate = dayjs("2030-07-15");
       const periodsForSummer = result.current.getBlackoutPeriodsForDateAndRooms(
         summerDate,
         [221, 222]
@@ -397,7 +397,7 @@ describe("useBookingDateRestrictions Hook", () => {
       });
 
       // Test during Summer Break (global blackout - affects all rooms)
-      const summerDate = dayjs("2026-07-15");
+      const summerDate = dayjs("2030-07-15");
       expect(result.current.isDateDisabledForRooms(summerDate, [221])).toBe(
         true
       );
@@ -422,13 +422,13 @@ describe("useBookingDateRestrictions Hook", () => {
       });
 
       // Test with empty room list during room-specific blackout
-      const room221MaintenanceDate = dayjs("2026-04-03");
+      const room221MaintenanceDate = dayjs("2030-04-03");
       expect(
         result.current.isDateDisabledForRooms(room221MaintenanceDate, [])
       ).toBe(false);
 
       // Test with empty room list during global blackout
-      const summerDate = dayjs("2026-07-15");
+      const summerDate = dayjs("2030-07-15");
       expect(result.current.isDateDisabledForRooms(summerDate, [])).toBe(true);
     });
 
@@ -438,8 +438,8 @@ describe("useBookingDateRestrictions Hook", () => {
         {
           id: "6",
           name: "Room 221 Summer Maintenance",
-          startDate: Timestamp.fromDate(dayjs("2026-07-01").toDate()),
-          endDate: Timestamp.fromDate(dayjs("2026-07-31").toDate()),
+          startDate: Timestamp.fromDate(dayjs("2030-07-01").toDate()),
+          endDate: Timestamp.fromDate(dayjs("2030-07-31").toDate()),
           isActive: true,
           roomIds: [221],
           createdAt: Timestamp.now(),
@@ -463,7 +463,7 @@ describe("useBookingDateRestrictions Hook", () => {
       });
 
       // Test during overlap (both Summer Break and Room 221 Summer Maintenance)
-      const overlapDate = dayjs("2026-07-15");
+      const overlapDate = dayjs("2030-07-15");
       const periodsForRoom221 =
         result.current.getBlackoutPeriodsForDateAndRooms(overlapDate, [221]);
       expect(periodsForRoom221).toHaveLength(2);

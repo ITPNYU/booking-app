@@ -154,6 +154,7 @@ export function BookingFormTextField(props: TextFieldProps) {
     <Controller
       name={id}
       control={control}
+      defaultValue=""
       rules={{
         required: required && `${label} is required`,
         validate: (value) => {
@@ -184,6 +185,7 @@ export function BookingFormTextField(props: TextFieldProps) {
           <TextField
             {...field}
             variant="outlined"
+            value={field.value ?? ""}
             error={errors[id] != null}
             helperText={errors[id]?.message}
             onBlur={() => trigger(id)}

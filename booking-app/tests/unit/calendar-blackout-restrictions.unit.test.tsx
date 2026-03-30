@@ -221,12 +221,12 @@ describe("Calendar Blackout Restrictions", () => {
               inBlackout: overlaps,
               affectedPeriods: overlaps
                 ? [
-                    {
-                      name: "Maintenance Period",
-                      startTime: "09:00",
-                      endTime: "17:00",
-                    },
-                  ]
+                  {
+                    name: "Maintenance Period",
+                    startTime: "09:00",
+                    endTime: "17:00",
+                  },
+                ]
                 : [],
             };
           }

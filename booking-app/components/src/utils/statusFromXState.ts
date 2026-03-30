@@ -1,5 +1,5 @@
 import { BookingStatusLabel } from "../types";
-import { getXStateValue } from "./xstateHelpers";
+import { getXStateValue } from "./xstateQueries";
 
 type XStateSnapshot = {
   value?: string | Record<string, any>;

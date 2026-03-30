@@ -263,25 +263,13 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
         },
       );
 
-      fetch(`${process.env.NEXT_PUBLIC_BASE_URL}${requestParams.endpoint}`, {
+      fetch(requestParams.endpoint, {
         method: requestParams.method,
         headers: {
           "Content-Type": "application/json",
           "x-tenant": tenant,
         },
-        body: JSON.stringify({
-          origin: isVIP ? BookingOrigin.VIP : BookingOrigin.WALK_IN,
-          type: isVIP ? BookingOrigin.VIP : BookingOrigin.WALK_IN,
-          email,
-          selectedRooms,
-          bookingCalendarInfo,
-          liaisonUsers,
-          data: transformedData,
-          isAutoApproval,
-          // Add modifiedBy as a top-level parameter for edit/modification context
-          ...modificationFields,
-          ...(requestParams.body ?? {}),
-        }),
+        body: JSON.stringify(requestBody),
       })
         .then(async (res) => {
           console.log(

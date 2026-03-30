@@ -1,3 +1,4 @@
+import { defaultSafetyTrainingInfoUrl } from "@/components/src/constants/safetyTraining";
 import { SchemaContextType } from "@/components/src/client/routes/components/SchemaProvider";
 
 /**
@@ -30,6 +31,13 @@ function getMcTestSchema(tenant: string): SchemaContextType {
       Student: ["STUDENT"],
       Faculty: ["FACULTY"],
       Staff: ["STAFF"],
+    },
+    permissionLabels: {
+      user: "User",
+      worker: "PA",
+      reviewer: "Liaison",
+      services: "Services",
+      admin: "Admin",
     },
     showNNumber: true,
     showSponsor: true,
@@ -65,6 +73,7 @@ function getMcTestSchema(tenant: string): SchemaContextType {
         isEquipment: false,
         calendarId: "mock-calendar-202",
         needsSafetyTraining: false,
+        trainingInfoUrl: "",
         shouldAutoApprove: true,
         isWalkIn: false,
         isWalkInCanBookTwo: false,
@@ -77,6 +86,7 @@ function getMcTestSchema(tenant: string): SchemaContextType {
         isEquipment: false,
         calendarId: "mock-calendar-220",
         needsSafetyTraining: false,
+        trainingInfoUrl: "",
         shouldAutoApprove: false,
         isWalkIn: true,
         isWalkInCanBookTwo: false,
@@ -89,6 +99,7 @@ function getMcTestSchema(tenant: string): SchemaContextType {
         isEquipment: false,
         calendarId: "mock-calendar-203",
         needsSafetyTraining: false,
+        trainingInfoUrl: "",
         shouldAutoApprove: false,
         isWalkIn: false,
         isWalkInCanBookTwo: false,
@@ -102,6 +113,7 @@ function getMcTestSchema(tenant: string): SchemaContextType {
         isEquipment: false,
         calendarId: "mock-calendar-230",
         needsSafetyTraining: true,
+        trainingInfoUrl: defaultSafetyTrainingInfoUrl,
         shouldAutoApprove: false,
         isWalkIn: false,
         isWalkInCanBookTwo: false,
@@ -111,6 +123,18 @@ function getMcTestSchema(tenant: string): SchemaContextType {
     supportVIP: true,
     supportWalkIn: true,
     resourceName: "Room(s)",
+    ccEmails: {
+      approved: {
+        development: "booking-app-devs+approved@itp.nyu.edu",
+        staging: "booking-app-devs+approved@itp.nyu.edu",
+        production: "booking-app-devs+approved@itp.nyu.edu",
+      },
+      canceled: {
+        development: "booking-app-devs+canceled@itp.nyu.edu",
+        staging: "booking-app-devs+canceled@itp.nyu.edu",
+        production: "booking-app-devs+canceled@itp.nyu.edu",
+      },
+    },
   } as unknown as SchemaContextType;
 }
 
@@ -132,6 +156,13 @@ function getItpTestSchema(): SchemaContextType {
       Student: ["STUDENT"],
       Faculty: ["FACULTY"],
       Admin: ["ADMIN"],
+    },
+    permissionLabels: {
+      user: "User",
+      worker: "ER",
+      reviewer: "1st Approver",
+      services: "Services",
+      admin: "Admin",
     },
     showNNumber: false,
     showSponsor: false,
@@ -159,6 +190,7 @@ function getItpTestSchema(): SchemaContextType {
         isEquipment: false,
         calendarId: "mock-calendar-408",
         needsSafetyTraining: false,
+        trainingInfoUrl: "",
         shouldAutoApprove: true,
         isWalkIn: false,
         isWalkInCanBookTwo: false,
@@ -175,6 +207,7 @@ function getItpTestSchema(): SchemaContextType {
         isEquipment: false,
         calendarId: "mock-calendar-410",
         needsSafetyTraining: false,
+        trainingInfoUrl: "",
         shouldAutoApprove: true,
         isWalkIn: true,
         isWalkInCanBookTwo: false,
@@ -190,5 +223,17 @@ function getItpTestSchema(): SchemaContextType {
     supportPA: false,
     supportLiaison: false,
     resourceName: "Room(s)",
+    ccEmails: {
+      approved: {
+        development: "booking-app-devs+approved@itp.nyu.edu",
+        staging: "booking-app-devs+approved@itp.nyu.edu",
+        production: "booking-app-devs+approved@itp.nyu.edu",
+      },
+      canceled: {
+        development: "booking-app-devs+canceled@itp.nyu.edu",
+        staging: "booking-app-devs+canceled@itp.nyu.edu",
+        production: "booking-app-devs+canceled@itp.nyu.edu",
+      },
+    },
   } as unknown as SchemaContextType;
 }

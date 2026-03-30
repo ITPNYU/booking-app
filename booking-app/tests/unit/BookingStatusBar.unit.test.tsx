@@ -1,5 +1,6 @@
 import { BookingContext } from "@/components/src/client/routes/booking/bookingProvider";
 import BookingStatusBar from "@/components/src/client/routes/booking/components/BookingStatusBar";
+import { defaultSafetyTrainingInfoUrl } from "@/components/src/client/routes/components/SchemaProvider";
 import { FormContextLevel, Role } from "@/components/src/types";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import { render, screen } from "@testing-library/react";
@@ -29,11 +30,17 @@ vi.mock(
   })
 );
 
-// Mock SchemaProvider
+// Mock SchemaProvider (preserve defaultSafetyTrainingInfoUrl for BookingStatusBar)
 const mockUseTenantSchema = vi.fn();
-vi.mock("@/components/src/client/routes/components/SchemaProvider", () => ({
-  useTenantSchema: () => mockUseTenantSchema(),
-}));
+vi.mock("@/components/src/client/routes/components/SchemaProvider", async (importOriginal) => {
+  const mod = await importOriginal<
+    typeof import("@/components/src/client/routes/components/SchemaProvider")
+  >();
+  return {
+    ...mod,
+    useTenantSchema: () => mockUseTenantSchema(),
+  };
+});
 
 const theme = createTheme();
 
@@ -310,6 +317,44 @@ describe("BookingStatusBar - Blackout Period Handling", () => {
     backButton.click();
 
     expect(goBack).toHaveBeenCalled();
+  });
+
+  it("uses resource-specific training info URL in safety training alert", () => {
+    renderComponent({
+      needsSafetyTraining: true,
+      selectedRooms: [
+        {
+          roomId: 230,
+          name: "Workshop 230",
+          capacity: "15",
+          needsSafetyTraining: true,
+          trainingInfoUrl: "https://example.edu/training/room-230",
+        },
+      ],
+    });
+
+    const signUpLink = screen.getByRole("link", { name: /sign up here/i });
+    expect(signUpLink).toHaveAttribute(
+      "href",
+      "https://example.edu/training/room-230",
+    );
+  });
+
+  it("falls back to default training URL when resource URL is missing", () => {
+    renderComponent({
+      needsSafetyTraining: true,
+      selectedRooms: [
+        {
+          roomId: 230,
+          name: "Workshop 230",
+          capacity: "15",
+          needsSafetyTraining: true,
+        },
+      ],
+    });
+
+    const signUpLink = screen.getByRole("link", { name: /sign up here/i });
+    expect(signUpLink).toHaveAttribute("href", defaultSafetyTrainingInfoUrl);
   });
 });
 
