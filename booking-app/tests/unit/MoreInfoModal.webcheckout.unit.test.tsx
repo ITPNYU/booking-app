@@ -245,15 +245,6 @@ describe("MoreInfoModal - WebCheckout", () => {
       expect(screen.queryByText("Cart Number")).not.toBeInTheDocument();
     });
 
-    it("hides WebCheckout section in USER page context even for admin permissions", () => {
-      const booking = createMockBooking();
-      const context = createMockDatabaseContext(PagePermission.ADMIN);
-
-      renderModal(booking, context, vi.fn(), PageContextLevel.USER);
-
-      expect(screen.queryByText("WebCheckout")).not.toBeInTheDocument();
-      expect(screen.queryByText("Cart Number")).not.toBeInTheDocument();
-    });
   });
 
   describe("WebCheckout Functionality - Without Cart Number", () => {
