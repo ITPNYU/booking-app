@@ -45,7 +45,41 @@ export default function useExistingBooking() {
       view: null,
     });
 
-    setFormData({ ...booking });
+    // Keep only form-relevant values in formData. Including full booking payload
+    // (notably xstateData snapshots) makes watched form deep-comparisons expensive.
+    const {
+      xstateData,
+      requestedAt,
+      startDate,
+      endDate,
+      finalApprovedAt,
+      finalApprovedBy,
+      firstApprovedAt,
+      firstApprovedBy,
+      canceledAt,
+      canceledBy,
+      checkedInAt,
+      checkedInBy,
+      checkedOutAt,
+      checkedOutBy,
+      noShowedAt,
+      noShowedBy,
+      declinedAt,
+      declinedBy,
+      modifiedAt,
+      modifiedBy,
+      closedAt,
+      closedBy,
+      preBannedAt,
+      preBannedBy,
+      bannedAt,
+      bannedBy,
+      createdAt,
+      updatedAt,
+      ...formValues
+    } = booking as any;
+
+    setFormData(formValues);
   };
 
   return loadExistingBookingData;
