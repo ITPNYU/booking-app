@@ -1,4 +1,4 @@
-import { setup } from "xstate";
+import { setup, assign } from "xstate";
 import { Role } from "@/components/src/types";
 import { checkAutoApprovalEligibility } from "@/lib/utils/autoApprovalUtils";
 
@@ -16,6 +16,7 @@ interface BookingContext {
   role?: Role;
   calendarEventId?: string | null;
   email?: string;
+  automationReason?: string; // Tracks automatic transitions ("no-show", "decline")
 }
 
 export const itpBookingMachine = setup({
@@ -133,6 +134,78 @@ export const itpBookingMachine = setup({
         calendarEventId: context.calendarEventId,
       });
     },
+    logCanceledAfterAutomaticTransition: async (
+      { context },
+    ): Promise<void> => {
+      // Log the CANCELED status when it's reached via automatic transition from NO_SHOW or DECLINED
+      // For user-initiated cancels, the traditional db.ts path handles logging
+      try {
+        const { logServerBookingChange, serverGetDataByCalendarEventId } =
+          await import("@/lib/firebase/server/adminDb");
+        const { TableNames } = await import("@/components/src/policy");
+        const { BookingStatusLabel } = await import("@/components/src/types");
+
+        // Only log if this is an automatic transition (automationReason is set)
+        if (!context.automationReason) {
+          console.log(
+            `⏭️ NO AUTOMATIC TRANSITION - CANCELED LOG SKIPPED [${context.tenant?.toUpperCase()}]:`,
+            { calendarEventId: context.calendarEventId },
+          );
+          return; // User-initiated cancel - traditional path handles logging
+        }
+
+        // Get booking document to get bookingId and requestNumber
+        const bookingDoc = await serverGetDataByCalendarEventId(
+          TableNames.BOOKING,
+          context.calendarEventId,
+          context.tenant,
+        );
+
+        if (!bookingDoc) {
+          console.error(
+            `❌ XSTATE AUTOMATIC CANCEL LOG: Booking not found [${context.tenant?.toUpperCase()}]`,
+            { calendarEventId: context.calendarEventId },
+          );
+          return;
+        }
+
+        // Determine the cancellation reason based on automationReason
+        const reasonMap = {
+          "no-show": "Canceled due to no show",
+          decline: "Canceled due to decline",
+        };
+        const note = reasonMap[context.automationReason] || "Automatic cancellation";
+
+        await logServerBookingChange({
+          bookingId: bookingDoc.id,
+          calendarEventId: context.calendarEventId,
+          status: BookingStatusLabel.CANCELED,
+          changedBy: "System", // Automatic transitions are always attributed to System
+          requestNumber: bookingDoc.requestNumber || 0,
+          note,
+          tenant: context.tenant,
+        });
+
+        console.log(
+          `📋 XSTATE AUTOMATIC CANCEL LOGGED [${context.tenant?.toUpperCase() || "UNKNOWN"}]:`,
+          {
+            calendarEventId: context.calendarEventId,
+            automationReason: context.automationReason,
+            note,
+            changedBy: "System",
+          },
+        );
+      } catch (error) {
+        console.error(
+          `🚨 XSTATE AUTOMATIC CANCEL LOG FAILED [${context.tenant?.toUpperCase() || "UNKNOWN"}]:`,
+          {
+            calendarEventId: context.calendarEventId,
+            automationReason: context.automationReason,
+            error: error.message,
+          },
+        );
+      }
+    },
   },
 }).createMachine({
   context: ({ input }: { input?: BookingContext }) => ({
@@ -207,6 +280,9 @@ export const itpBookingMachine = setup({
         {
           type: "deleteCalendarEvent",
         },
+        {
+          type: "logCanceledAfterAutomaticTransition",
+        },
       ],
       always: {
         target: "Closed",
@@ -235,6 +311,7 @@ export const itpBookingMachine = setup({
       after: {
         "86400000": {
           target: "Canceled",
+          actions: [assign({ automationReason: "decline" })],
         },
       },
     },
@@ -321,6 +398,7 @@ export const itpBookingMachine = setup({
       ],
       always: {
         target: "Canceled",
+        actions: [assign({ automationReason: "no-show" })],
       },
     },
     "Checked Out": {
