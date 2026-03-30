@@ -274,6 +274,8 @@ export const defaultScheme: Omit<SchemaContextType, "tenant"> = {
   resources: defineObjectArrayWithDefaults(defaultResource),
   supportVIP: false,
   supportWalkIn: false,
+  supportPA: false,
+  supportLiaison: false,
   resourceName: "",
   declinedGracePeriod: 24,
   timeSensitiveRequestWarning: defaultTimeSensitiveRequestWarning,
