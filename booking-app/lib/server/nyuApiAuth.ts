@@ -1,4 +1,5 @@
 const NYU_AUTH_URL = "https://auth.nyu.edu/oauth2/token";
+export const NYU_API_BASE = "https://api.nyu.edu/identity-v2-sys";
 
 export async function getNYUToken(): Promise<string | null> {
   try {

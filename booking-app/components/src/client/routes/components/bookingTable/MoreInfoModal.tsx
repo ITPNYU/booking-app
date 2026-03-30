@@ -14,9 +14,11 @@ import {
 } from "@mui/material";
 
 import { formatOrigin } from "@/components/src/utils/formatters";
+import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
 import { Cancel, Check, Edit, Event } from "@mui/icons-material";
 import Grid from "@mui/material/Unstable_Grid2/Grid2";
 import { styled } from "@mui/system";
+import { useParams } from "next/navigation";
 import React, { useContext, useState } from "react";
 import {
   BookingRow,
@@ -97,6 +99,8 @@ export default function MoreInfoModal({
   updateBooking,
   pageContext,
 }: Props) {
+  const params = useParams();
+  const tenant = (params?.tenant as string) || DEFAULT_TENANT;
   const historyRows = useSortBookingHistory(booking);
   const { pagePermission, userEmail } = useContext(DatabaseContext);
   const schema = useTenantSchema();
@@ -112,17 +116,22 @@ export default function MoreInfoModal({
   const [webCheckoutData, setWebCheckoutData] = useState<any>(null);
 
   // Check if user has permission to edit cart number
-  console.log("pagePermission", pagePermission);
-  console.log("booking!!!!!!!!!!!!!!!!!!!!!", booking);
   const canEditCart = canAccessWebCheckout(pagePermission);
+  const canEditCartInContext =
+    canEditCart && pageContext !== PageContextLevel.USER;
 
   const handleSaveCartNumber = async () => {
+    if (!canEditCartInContext) {
+      return;
+    }
+
     setIsUpdating(true);
     try {
       const response = await fetch("/api/updateWebcheckoutCart", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          ...(tenant ? { "x-tenant": tenant } : {}),
         },
         body: JSON.stringify({
           calendarEventId: booking.calendarEventId,
@@ -180,15 +189,18 @@ export default function MoreInfoModal({
   }, [booking.webcheckoutCartNumber]);
 
   const renderWebCheckoutSection = () => {
-    // Hide WebCheckout section for users without sufficient permissions
-    // Only PA, ADMIN, and SUPER_ADMIN should see WebCheckout section
-    const canViewWebCheckout = hasAnyPermission(pagePermission, [
-      PagePermission.PA,
-      PagePermission.ADMIN,
-      PagePermission.SUPER_ADMIN,
-    ]);
+    // Show WebCheckout section for PA/ADMIN/SUPER_ADMIN users.
+    // In USER context, show read-only cart details when a cart is assigned.
+    const canViewWebCheckout =
+      hasAnyPermission(pagePermission, [
+        PagePermission.PA,
+        PagePermission.ADMIN,
+        PagePermission.SUPER_ADMIN,
+      ]) ||
+      (pageContext === PageContextLevel.USER &&
+        Boolean(booking.webcheckoutCartNumber));
 
-    if (!canViewWebCheckout || pageContext === PageContextLevel.USER) {
+    if (!canViewWebCheckout) {
       return null;
     }
 
@@ -235,6 +247,12 @@ export default function MoreInfoModal({
                   <Box display="flex" alignItems="center" gap={1}>
                     {booking.webcheckoutCartNumber ? (
                       <Box display="flex" flexDirection="column" gap={2}>
+
+                        {/* Always show cart number */}
+                        <Typography variant="body2">
+                          {booking.webcheckoutCartNumber}
+                        </Typography>
+
                         {/* Loading State */}
                         {isLoadingUrl && (
                           <Typography variant="body2" color="text.secondary">
@@ -394,7 +412,7 @@ export default function MoreInfoModal({
                         No cart assigned
                       </Typography>
                     )}
-                    {canEditCart && (
+                    {canEditCartInContext && (
                       <Tooltip title="Edit cart number">
                         <IconButton
                           onClick={() => setIsEditingCart(true)}

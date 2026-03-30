@@ -1,4 +1,7 @@
+import { defaultSafetyTrainingInfoUrl } from "@/components/src/constants/safetyTraining";
 import { createContext, useContext } from "react";
+
+export { defaultSafetyTrainingInfoUrl };
 
 export type Agreement = {
   id: string;
@@ -18,6 +21,7 @@ export type Resource = {
   calendarId: string;
   needsSafetyTraining?: boolean; // Whether training is required for this resource
   trainingFormUrl?: string; // URL of the Google Form that tracks trained users
+  trainingInfoUrl?: string; // URL to share with users when training is required
   isWalkIn: boolean;
   isWalkInCanBookTwo: boolean;
   services: string[]; // ["equipment", "staffing", "setup", "security", "cleaning", "catering", "campus-media"]
@@ -77,6 +81,14 @@ export type TimeSensitiveRequestWarning = {
   policyLink?: string;
 };
 
+export type PermissionLabels = {
+  user: string;
+  worker: string;
+  reviewer: string;
+  services: string;
+  admin: string;
+};
+
 export type SchemaContextType = {
   tenant: string; // No default - must be provided
   name: string;
@@ -87,6 +99,7 @@ export type SchemaContextType = {
   programMapping: Record<string, string[]>;
   roles: string[];
   roleMapping: Record<string, string[]>;
+  permissionLabels: PermissionLabels;
   schoolMapping: Record<string, string[]>;
   showNNumber: boolean;
   showSponsor: boolean;
@@ -110,6 +123,11 @@ export type SchemaContextType = {
     startHour?: Record<string, string>; // e.g., { studentVIP: "06:00:00", student: "09:00:00", ... }
     slotUnit?: Record<string, number>; // e.g., { student: 15, admin: 15, ... }
     timeSensitiveRequestWarning?: TimeSensitiveRequestWarning;
+  };
+  // CC email addresses for notifications, per environment
+  ccEmails?: {
+    approved: { development: string; staging: string; production: string };
+    canceled: { development: string; staging: string; production: string };
   };
   // Email messages for all scenarios
   emailMessages: {
@@ -203,6 +221,7 @@ export const defaultResource: Resource = {
   staffingServices: [],
   staffingSections: defineObjectArrayWithDefaults(defaultStaffingSection),
   trainingFormUrl: "",
+  trainingInfoUrl: defaultSafetyTrainingInfoUrl,
   calendarIdProd: "",
 };
 
@@ -211,6 +230,26 @@ const defaultTimeSensitiveRequestWarning: TimeSensitiveRequestWarning = {
   isActive: false,
   message: "",
   policyLink: "",
+};
+
+const defaultPermissionLabelsByTenant = (tenant?: string): PermissionLabels => {
+  const normalized = (tenant || "").toLowerCase();
+  if (normalized === "itp") {
+    return {
+      user: "User",
+      worker: "ER",
+      reviewer: "1st Approver",
+      services: "Services",
+      admin: "Admin",
+    };
+  }
+  return {
+    user: "User",
+    worker: "PA",
+    reviewer: "Liaison",
+    services: "Services",
+    admin: "Admin",
+  };
 };
 
 export const defaultScheme: Omit<SchemaContextType, "tenant"> = {
@@ -222,6 +261,7 @@ export const defaultScheme: Omit<SchemaContextType, "tenant"> = {
   programMapping: {},
   roles: [],
   roleMapping: {},
+  permissionLabels: defaultPermissionLabelsByTenant(),
   showNNumber: true,
   showSponsor: true,
   showSetup: true,
@@ -263,6 +303,10 @@ export const defaultScheme: Omit<SchemaContextType, "tenant"> = {
     timeSensitiveRequestWarning: defaultTimeSensitiveRequestWarning,
   },
   schoolMapping: {},
+  ccEmails: {
+    approved: { development: "", staging: "", production: "" },
+    canceled: { development: "", staging: "", production: "" },
+  },
   emailMessages: {
     requestConfirmation: "",
     firstApprovalRequest: "",
@@ -287,6 +331,7 @@ export function generateDefaultSchema(tenant: string): SchemaContextType {
   return {
     tenant,
     ...defaultScheme,
+    permissionLabels: defaultPermissionLabelsByTenant(tenant),
   };
 }
 

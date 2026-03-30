@@ -127,7 +127,7 @@ export async function GET(request: NextRequest) {
         if (booking.xstateData) {
           // Check if booking is in "Checked In" state using common helper
           const { hasXStateValue, getXStateValue } =
-            await import("@/components/src/utils/xstateHelpers");
+            await import("@/components/src/utils/xstateQueries");
           shouldAutoCheckout = hasXStateValue(booking, "Checked In");
           const currentXStateValue = getXStateValue(booking);
 

@@ -250,12 +250,13 @@ export async function registerMockBookingsFeed(
     calendarEventId: string;
     usersRightsDocId: string;
     adminEmail: string;
+    tenant?: string;
   }
 ) {
-  const { bookingDocId, calendarEventId, usersRightsDocId, adminEmail } = opts;
+  const { bookingDocId, calendarEventId, usersRightsDocId, adminEmail, tenant = "mc" } = opts;
 
   const snapshot = await getDoc(
-    doc({} as any, "mc-bookings", bookingDocId)
+    doc({} as any, `${tenant}-bookings`, bookingDocId)
   );
   const baseData = snapshot.data();
   const basePayload = baseData
@@ -267,7 +268,7 @@ export async function registerMockBookingsFeed(
     : null;
 
   const rightsSnapshot = await getDoc(
-    doc({} as any, "mc-usersRights", usersRightsDocId)
+    doc({} as any, `${tenant}-usersRights`, usersRightsDocId)
   );
   const rightsPayload = rightsSnapshot.data()
     ? {
@@ -278,7 +279,7 @@ export async function registerMockBookingsFeed(
 
   await page.route("**/api/__mock__/bookings", async (route) => {
     const latestSnapshot = await getDoc(
-      doc({} as any, "mc-bookings", bookingDocId)
+      doc({} as any, `${tenant}-bookings`, bookingDocId)
     );
     const latestData = latestSnapshot.data();
     const payload = latestData

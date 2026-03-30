@@ -18,7 +18,10 @@ import { BookingContext } from "../bookingProvider";
 import useCalculateOverlap from "../hooks/useCalculateOverlap";
 import useCheckAutoApproval from "../hooks/useCheckAutoApproval";
 import useCheckDurationLimits from "../hooks/useCheckDurationLimits";
-import { useTenantSchema } from "../../components/SchemaProvider";
+import {
+  defaultSafetyTrainingInfoUrl,
+  useTenantSchema,
+} from "../../components/SchemaProvider";
 
 interface Props {
   formContext: FormContextLevel;
@@ -58,6 +61,9 @@ export default function BookingStatusBar({ formContext, ...props }: Props) {
   const timeSensitiveRequestWarning =
     schema.timeSensitiveRequestWarning ??
     schema.calendarConfig?.timeSensitiveRequestWarning;
+  const safetyTrainingInfoUrl =
+    selectedRooms.find((room) => room.needsSafetyTraining && room.trainingInfoUrl)
+      ?.trainingInfoUrl || defaultSafetyTrainingInfoUrl;
   const pathname = usePathname();
   const isSelectRoomPage = pathname.endsWith("/selectRoom");
   const warningThresholdHours = timeSensitiveRequestWarning?.hours ?? 48;
@@ -126,7 +132,7 @@ export default function BookingStatusBar({ formContext, ...props }: Props) {
               ? `The walk-in visitor (${formData?.walkInNetId || "user"}) has not taken safety training, which is required for at least one of the rooms you have selected.`
               : "You have not taken safety training, which is required for at least one of the rooms you have selected."}{" "}
             <a
-              href="https://sites.google.com/nyu.edu/370jmediacommons/reservations/safety-training"
+              href={safetyTrainingInfoUrl}
               target="_blank"
               rel="noopener noreferrer"
             >

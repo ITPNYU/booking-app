@@ -44,6 +44,7 @@ const mockItpTenantSchema = {
       isEquipment: false,
       calendarId: "mock-calendar-408",
       needsSafetyTraining: false,
+      trainingInfoUrl: "",
       shouldAutoApprove: true,
       isWalkIn: false,
       isWalkInCanBookTwo: false,
@@ -60,6 +61,7 @@ const mockItpTenantSchema = {
       isEquipment: false,
       calendarId: "mock-calendar-410",
       needsSafetyTraining: false,
+      trainingInfoUrl: "",
       shouldAutoApprove: true,
       isWalkIn: true,
       isWalkInCanBookTwo: false,
@@ -75,6 +77,18 @@ const mockItpTenantSchema = {
   supportPA: false,
   supportLiaison: false,
   resourceName: "Room(s)",
+  ccEmails: {
+    approved: {
+      development: "booking-app-devs+approved@itp.nyu.edu",
+      staging: "booking-app-devs+approved@itp.nyu.edu",
+      production: "booking-app-devs+approved@itp.nyu.edu",
+    },
+    canceled: {
+      development: "booking-app-devs+canceled@itp.nyu.edu",
+      staging: "booking-app-devs+canceled@itp.nyu.edu",
+      production: "booking-app-devs+canceled@itp.nyu.edu",
+    },
+  },
 };
 
 const mockIdentityResponse = {

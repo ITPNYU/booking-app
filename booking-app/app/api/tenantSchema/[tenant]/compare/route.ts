@@ -3,13 +3,8 @@ import {
   serverFetchAllDataFromCollection,
 } from "@/lib/firebase/server/adminDb";
 import { TableNames } from "@/components/src/policy";
+import { DATABASES } from "@/lib/firebase/server/databases";
 import { getFirestore } from "firebase-admin/firestore";
-
-const DATABASES: Record<string, string> = {
-  development: "(default)",
-  staging: "booking-app-staging",
-  production: "booking-app-prod",
-};
 
 async function getSchemaFromDatabase(
   databaseId: string,

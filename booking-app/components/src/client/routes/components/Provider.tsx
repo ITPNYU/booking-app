@@ -80,6 +80,10 @@ export interface DatabaseContextType {
   reloadPolicySettings: () => Promise<void>;
   setUserEmail: (x: string) => void;
   fetchAllBookings: (clicked: boolean) => Promise<void>;
+  updateBookingInList: (
+    calendarEventId: string,
+    updatedFields: Partial<Booking>
+  ) => void;
   setFilters: (x: Filters) => void;
   setLoadMoreEnabled: (x: boolean) => void;
   setLastItem: (x: any) => void;
@@ -123,6 +127,7 @@ export const DatabaseContext = createContext<DatabaseContextType>({
   reloadPolicySettings: async () => {},
   setUserEmail: (x: string) => {},
   fetchAllBookings: async () => {},
+  updateBookingInList: () => {},
   setFilters: (x: Filters) => {},
   setLoadMoreEnabled: (x: boolean) => {},
   setLastItem: (x: any) => {},
@@ -396,6 +401,17 @@ export const DatabaseProvider = ({
       setAdminUsers([]);
       setPaUsers([]);
     }
+  };
+
+  const updateBookingInList = (
+    calendarEventId: string,
+    updatedFields: Partial<Booking>,
+  ): void => {
+    setAllBookings((prev) =>
+      prev.map((b) =>
+        b.calendarEventId === calendarEventId ? { ...b, ...updatedFields } : b,
+      ),
+    );
   };
 
   // Individual reload functions (used by admin pages)
@@ -797,6 +813,7 @@ export const DatabaseProvider = ({
         reloadPolicySettings: fetchPolicySettings,
         setUserEmail,
         fetchAllBookings: fetchBookings,
+        updateBookingInList,
         setFilters,
         setLoadMoreEnabled,
         setLastItem,

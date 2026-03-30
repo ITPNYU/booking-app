@@ -7,7 +7,7 @@
  */
 
 import type { SchemaContextType } from "../components/src/client/routes/components/SchemaProvider";
-import { defaultScheme } from "../components/src/client/routes/components/SchemaProvider";
+import { generateDefaultSchema as generateDefaultTenantSchema } from "../components/src/client/routes/components/SchemaProvider";
 
 /**
  * Recursively merge defaults into an existing object
@@ -103,10 +103,7 @@ export function mergeSchemaDefaults(
   tenant: string
 ): SchemaContextType {
   // Start with default schema
-  const defaultSchema: SchemaContextType = {
-    tenant,
-    ...defaultScheme,
-  };
+  const defaultSchema: SchemaContextType = generateDefaultTenantSchema(tenant);
 
   // Recursively merge existing values
   // This will:
@@ -125,8 +122,5 @@ export function mergeSchemaDefaults(
  * Generate default schema with tenant
  */
 export function generateDefaultSchema(tenant: string): SchemaContextType {
-  return {
-    tenant,
-    ...defaultScheme,
-  };
+  return generateDefaultTenantSchema(tenant);
 }
