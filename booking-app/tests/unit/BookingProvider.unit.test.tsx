@@ -3,6 +3,7 @@ import {
   BookingProvider,
 } from "@/components/src/client/routes/booking/bookingProvider";
 import { DatabaseContext } from "@/components/src/client/routes/components/Provider";
+import { PagePermission } from "@/components/src/types";
 import { DateSelectArg } from "@fullcalendar/core";
 import { act, render, screen } from "@testing-library/react";
 import dayjs from "dayjs";
@@ -64,6 +65,7 @@ const mockDatabaseContext = {
   userEmail: "test@nyu.edu",
   blackoutPeriods: mockBlackoutPeriods,
   reloadSafetyTrainedUsers: vi.fn(),
+  pagePermission: PagePermission.BOOKING,
 };
 
 // Test component to access the BookingContext
@@ -394,6 +396,60 @@ describe("BookingProvider - isInBlackoutPeriod Logic", () => {
     );
 
     // The previously set date (2024-05-15) should now be in blackout
+    expect(screen.getByTestId("blackout-status")).toHaveTextContent(
+      "in-blackout"
+    );
+  });
+});
+
+describe("BookingProvider - admin exempt from blackout (isInBlackoutPeriod)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("returns not-in-blackout for ADMIN when date is inside an active blackout period", async () => {
+    const adminContext = {
+      ...mockDatabaseContext,
+      pagePermission: PagePermission.ADMIN,
+    };
+    renderWithProviders(adminContext);
+
+    await act(async () => {
+      screen.getByTestId("set-booking").click();
+    });
+
+    expect(screen.getByTestId("blackout-status")).toHaveTextContent(
+      "not-in-blackout"
+    );
+  });
+
+  it("returns not-in-blackout for SUPER_ADMIN when date is inside an active blackout period", async () => {
+    const superAdminContext = {
+      ...mockDatabaseContext,
+      pagePermission: PagePermission.SUPER_ADMIN,
+    };
+    renderWithProviders(superAdminContext);
+
+    await act(async () => {
+      screen.getByTestId("set-booking").click();
+    });
+
+    expect(screen.getByTestId("blackout-status")).toHaveTextContent(
+      "not-in-blackout"
+    );
+  });
+
+  it("still returns in-blackout for PA when date is inside an active blackout period", async () => {
+    const paContext = {
+      ...mockDatabaseContext,
+      pagePermission: PagePermission.PA,
+    };
+    renderWithProviders(paContext);
+
+    await act(async () => {
+      screen.getByTestId("set-booking").click();
+    });
+
     expect(screen.getByTestId("blackout-status")).toHaveTextContent(
       "in-blackout"
     );
