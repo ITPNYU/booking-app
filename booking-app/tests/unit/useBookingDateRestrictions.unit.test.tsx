@@ -4,10 +4,7 @@ import { BlackoutPeriod } from "@/components/src/types";
 import { renderHook } from "@testing-library/react";
 import dayjs from "dayjs";
 import { Timestamp } from "firebase/firestore";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-
-/** Frozen "today" so isDateDisabled() past-date checks don't flip as CI calendar time passes */
-const TEST_TODAY = new Date("2026-01-15T12:00:00.000Z");
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Mock dayjs plugins
 vi.mock("dayjs", async () => {
@@ -96,12 +93,7 @@ const mockDatabaseContext = {
 
 describe("useBookingDateRestrictions Hook", () => {
   beforeEach(() => {
-    vi.useFakeTimers({ now: TEST_TODAY });
     vi.clearAllMocks();
-  });
-
-  afterEach(() => {
-    vi.useRealTimers();
   });
 
   it("should disable dates within active blackout periods", () => {

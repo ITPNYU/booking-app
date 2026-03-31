@@ -1,4 +1,4 @@
-import { canAccessAdmin } from "@/components/src/utils/permissions";
+import { hasAnyPermission } from "@/components/src/utils/permissions";
 import {
   CalendarApi,
   DateSelectArg,
@@ -149,7 +149,11 @@ export default function CalendarVerticalResource({
     [rooms],
   );
 
-  const isAdmin = canAccessAdmin(pagePermission);
+  const isAdminPermission = hasAnyPermission(pagePermission, [
+    PagePermission.ADMIN,
+    PagePermission.SUPER_ADMIN,
+    PagePermission.PA,
+  ]);
 
   // Generate blackout blocks for rooms that are in blackout periods on the selected date
   const blackoutBlocks = useMemo(() => {
@@ -213,11 +217,11 @@ export default function CalendarVerticalResource({
       overlap: true,
       durationEditable: true,
       startEditable:
-        formContext !== FormContextLevel.MODIFICATION || isAdmin,
+        formContext !== FormContextLevel.MODIFICATION || isAdminPermission,
       groupId: "new",
       url: `${index}:${rooms.length}`, // some hackiness to let us render multiple events visually as one big block
     }));
-  }, [bookingCalendarInfo, rooms, formContext, isAdmin]);
+  }, [bookingCalendarInfo, rooms, formContext, isAdminPermission]);
 
   const blockPastTimes = useMemo(() => {
     // Only apply past time blocks if not in MODIFICATION mode
@@ -240,7 +244,7 @@ export default function CalendarVerticalResource({
     const bookingEnd = dayjs(selectInfo.end);
     const selectedResourceId = selectInfo.resource?.id;
 
-    if (!isAdmin && selectedResourceId) {
+    if (selectedResourceId) {
       const roomId = parseInt(selectedResourceId);
 
       // Use the new time-aware blackout checking
@@ -266,7 +270,7 @@ export default function CalendarVerticalResource({
     const bookingEnd = dayjs(selectInfo.end);
     const selectedResourceId = selectInfo.resource?.id;
 
-    if (!isAdmin && selectedResourceId) {
+    if (selectedResourceId) {
       const roomId = parseInt(selectedResourceId);
 
       // Use the new time-aware blackout checking
@@ -293,8 +297,6 @@ export default function CalendarVerticalResource({
   };
 
   const handleSelectOverlap = (el) => {
-    // Admins can overlap blackout period blocks
-    if (isAdmin) return true;
     // Don't allow overlap with blackout periods
     if (el.classNames && el.classNames.includes("blackout-period")) {
       return false;
@@ -408,7 +410,7 @@ export default function CalendarVerticalResource({
           interactionPlugin,
         ]}
         selectable={
-          formContext !== FormContextLevel.MODIFICATION || isAdmin
+          formContext !== FormContextLevel.MODIFICATION || isAdminPermission
         }
         select={handleEventSelect}
         selectAllow={handleEventSelecting}
@@ -440,7 +442,7 @@ export default function CalendarVerticalResource({
         editable={true}
         // Control specific edit behavior
         eventStartEditable={
-          formContext !== FormContextLevel.MODIFICATION || isAdmin
+          formContext !== FormContextLevel.MODIFICATION || isAdminPermission
         }
         eventDurationEditable={true}
         headerToolbar={false}

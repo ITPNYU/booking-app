@@ -13,13 +13,8 @@ import {
 } from "@/components/src/types";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import { render, screen, waitFor } from "@testing-library/react";
-import dayjs from "dayjs";
 import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
-const { mockIsBookingTimeInBlackout } = vi.hoisted(() => ({
-  mockIsBookingTimeInBlackout: vi.fn(() => ({ inBlackout: false })),
-}));
 
 // --------------------
 // Global mocks
@@ -102,7 +97,6 @@ vi.mock(
   () => ({
     useBookingDateRestrictions: () => ({
       getBlackoutPeriodsForDateAndRooms: () => [],
-      isBookingTimeInBlackout: mockIsBookingTimeInBlackout,
     }),
   })
 );
@@ -590,187 +584,6 @@ describe("Modification Features", () => {
       expect(fullCalendarProps.eventLongPressDelay).toBe(1000);
 
       window.matchMedia = originalMatchMedia;
-    });
-  });
-
-  describe("CalendarVerticalResource (blackout admin exemption)", () => {
-    const sampleRooms: RoomSetting[] = [
-      { roomId: 101, name: "Room 101", capacity: "20", calendarId: "cal1" },
-    ];
-    const dateView = new Date("2024-01-01T09:00:00");
-
-    const blackoutOverlapEl = {
-      classNames: ["blackout-period"],
-      overlap: true,
-    };
-
-    const selectInfoInBlackout = {
-      start: dayjs("2024-07-15T10:00:00").toDate(),
-      end: dayjs("2024-07-15T11:00:00").toDate(),
-      startStr: "2024-07-15T10:00:00",
-      endStr: "2024-07-15T11:00:00",
-      allDay: false,
-      resource: { id: "101" },
-      view: {} as any,
-      jsEvent: {} as any,
-    };
-
-    beforeEach(() => {
-      mockIsBookingTimeInBlackout.mockReset();
-      mockIsBookingTimeInBlackout.mockReturnValue({ inBlackout: false });
-    });
-
-    it("selectOverlap rejects blackout background events for booking users", () => {
-      renderWithProviders(
-        <CalendarVerticalResource
-          formContext={FormContextLevel.FIRST_APPROVE}
-          rooms={sampleRooms}
-          dateView={dateView}
-        />,
-        { pagePermission: PagePermission.BOOKING }
-      );
-
-      expect(fullCalendarProps).not.toBeNull();
-      expect(fullCalendarProps.selectOverlap(blackoutOverlapEl)).toBe(false);
-    });
-
-    it("selectOverlap allows overlap with blackout blocks for ADMIN", () => {
-      renderWithProviders(
-        <CalendarVerticalResource
-          formContext={FormContextLevel.FIRST_APPROVE}
-          rooms={sampleRooms}
-          dateView={dateView}
-        />,
-        { pagePermission: PagePermission.ADMIN }
-      );
-
-      expect(fullCalendarProps).not.toBeNull();
-      expect(fullCalendarProps.selectOverlap(blackoutOverlapEl)).toBe(true);
-    });
-
-    it("selectOverlap blocks blackout overlap for PA", () => {
-      renderWithProviders(
-        <CalendarVerticalResource
-          formContext={FormContextLevel.FIRST_APPROVE}
-          rooms={sampleRooms}
-          dateView={dateView}
-        />,
-        { pagePermission: PagePermission.PA }
-      );
-
-      expect(fullCalendarProps).not.toBeNull();
-      expect(fullCalendarProps.selectOverlap(blackoutOverlapEl)).toBe(false);
-    });
-
-    it("selectAllow blocks selection in blackout time for booking users", () => {
-      mockIsBookingTimeInBlackout.mockReturnValue({ inBlackout: true });
-
-      renderWithProviders(
-        <CalendarVerticalResource
-          formContext={FormContextLevel.FIRST_APPROVE}
-          rooms={sampleRooms}
-          dateView={dateView}
-        />,
-        { pagePermission: PagePermission.BOOKING }
-      );
-
-      expect(fullCalendarProps).not.toBeNull();
-      expect(fullCalendarProps.selectAllow(selectInfoInBlackout)).toBe(false);
-    });
-
-    it("selectAllow allows selection in blackout time for ADMIN", () => {
-      mockIsBookingTimeInBlackout.mockReturnValue({ inBlackout: true });
-
-      renderWithProviders(
-        <CalendarVerticalResource
-          formContext={FormContextLevel.FIRST_APPROVE}
-          rooms={sampleRooms}
-          dateView={dateView}
-        />,
-        { pagePermission: PagePermission.ADMIN }
-      );
-
-      expect(fullCalendarProps).not.toBeNull();
-      expect(fullCalendarProps.selectAllow(selectInfoInBlackout)).toBe(true);
-    });
-
-    it("selectAllow blocks selection in blackout time for PA", () => {
-      mockIsBookingTimeInBlackout.mockReturnValue({ inBlackout: true });
-
-      renderWithProviders(
-        <CalendarVerticalResource
-          formContext={FormContextLevel.FIRST_APPROVE}
-          rooms={sampleRooms}
-          dateView={dateView}
-        />,
-        { pagePermission: PagePermission.PA }
-      );
-
-      expect(fullCalendarProps).not.toBeNull();
-      expect(fullCalendarProps.selectAllow(selectInfoInBlackout)).toBe(false);
-    });
-
-    it("select does not set booking calendar info when time is in blackout for booking users", () => {
-      mockIsBookingTimeInBlackout.mockReturnValue({ inBlackout: true });
-      const setBookingCalendarInfo = vi.fn();
-
-      renderWithProviders(
-        <CalendarVerticalResource
-          formContext={FormContextLevel.FIRST_APPROVE}
-          rooms={sampleRooms}
-          dateView={dateView}
-        />,
-        {
-          pagePermission: PagePermission.BOOKING,
-          bookingContextOverrides: { setBookingCalendarInfo },
-        }
-      );
-
-      expect(fullCalendarProps).not.toBeNull();
-      fullCalendarProps.select(selectInfoInBlackout);
-      expect(setBookingCalendarInfo).not.toHaveBeenCalled();
-    });
-
-    it("select sets booking calendar info when time is in blackout for ADMIN", () => {
-      mockIsBookingTimeInBlackout.mockReturnValue({ inBlackout: true });
-      const setBookingCalendarInfo = vi.fn();
-
-      renderWithProviders(
-        <CalendarVerticalResource
-          formContext={FormContextLevel.FIRST_APPROVE}
-          rooms={sampleRooms}
-          dateView={dateView}
-        />,
-        {
-          pagePermission: PagePermission.ADMIN,
-          bookingContextOverrides: { setBookingCalendarInfo },
-        }
-      );
-
-      expect(fullCalendarProps).not.toBeNull();
-      fullCalendarProps.select(selectInfoInBlackout);
-      expect(setBookingCalendarInfo).toHaveBeenCalledWith(selectInfoInBlackout);
-    });
-
-    it("select does not set booking calendar info when time is in blackout for PA", () => {
-      mockIsBookingTimeInBlackout.mockReturnValue({ inBlackout: true });
-      const setBookingCalendarInfo = vi.fn();
-
-      renderWithProviders(
-        <CalendarVerticalResource
-          formContext={FormContextLevel.FIRST_APPROVE}
-          rooms={sampleRooms}
-          dateView={dateView}
-        />,
-        {
-          pagePermission: PagePermission.PA,
-          bookingContextOverrides: { setBookingCalendarInfo },
-        }
-      );
-
-      expect(fullCalendarProps).not.toBeNull();
-      fullCalendarProps.select(selectInfoInBlackout);
-      expect(setBookingCalendarInfo).not.toHaveBeenCalled();
     });
   });
 });
