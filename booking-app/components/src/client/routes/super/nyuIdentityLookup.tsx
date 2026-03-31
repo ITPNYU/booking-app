@@ -17,7 +17,7 @@ import {
   Typography,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
-import { useState } from "react";
+import { useRef, useState, type KeyboardEvent } from "react";
 
 type IdentityResult = Record<string, unknown>;
 
@@ -69,14 +69,16 @@ function IdentityTable({ data }: { data: IdentityResult }) {
 export default function NyuIdentityLookup() {
   const [netId, setNetId] = useState("");
   const [loading, setLoading] = useState(false);
+  const lookupInFlightRef = useRef(false);
   const [result, setResult] = useState<IdentityResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [queriedNetId, setQueriedNetId] = useState<string | null>(null);
 
   const handleLookup = async () => {
     const trimmed = netId.trim();
-    if (!trimmed) return;
+    if (!trimmed || lookupInFlightRef.current) return;
 
+    lookupInFlightRef.current = true;
     setLoading(true);
     setError(null);
     setResult(null);
@@ -96,11 +98,12 @@ export default function NyuIdentityLookup() {
     } catch {
       setError("Network error — could not reach the identity API.");
     } finally {
+      lookupInFlightRef.current = false;
       setLoading(false);
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") handleLookup();
   };
 
@@ -121,6 +124,7 @@ export default function NyuIdentityLookup() {
           value={netId}
           onChange={(e) => setNetId(e.target.value)}
           onKeyDown={handleKeyDown}
+          disabled={loading}
           size="small"
           sx={{ width: 260 }}
           InputProps={{
