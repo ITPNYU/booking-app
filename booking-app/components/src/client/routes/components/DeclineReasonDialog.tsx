@@ -4,6 +4,7 @@ import {
   DialogActions,
   DialogContent,
   DialogContentText,
+  DialogTitle,
   TextField,
 } from "@mui/material";
 import React, { cloneElement, useState } from "react";
@@ -41,6 +42,7 @@ export default function DeclineReasonDialog({
         aria-labelledby="alert-dialog-title"
         aria-describedby="alert-dialog-description"
       >
+        <DialogTitle id="alert-dialog-title">Decline Booking</DialogTitle>
         <DialogContent>
           <DialogContentText id="alert-dialog-description">
             Please give a reason for declining this request.
