@@ -1,6 +1,6 @@
 import { setup, assign } from "xstate";
 import { Role } from "@/components/src/types";
-import { logAutomaticCancellationTransition } from "@/lib/stateMachines/logAutomaticCancellationTransition";
+import { logAutomaticCancellationTransition, type AutomaticCancellationReason } from "@/lib/stateMachines/logAutomaticCancellationTransition";
 import { checkAutoApprovalEligibility } from "@/lib/utils/autoApprovalUtils";
 
 // Time constants for clarity
@@ -17,7 +17,7 @@ interface BookingContext {
   role?: Role;
   calendarEventId?: string | null;
   email?: string;
-  automationReason?: string; // Tracks automatic transitions ("no-show", "decline")
+  automationReason?: AutomaticCancellationReason; // Tracks automatic transitions
 }
 
 export const itpBookingMachine = setup({

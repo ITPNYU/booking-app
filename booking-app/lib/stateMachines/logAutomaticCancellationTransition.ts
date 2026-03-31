@@ -1,7 +1,7 @@
-type AutomaticCancellationReason = "no-show" | "decline";
+export type AutomaticCancellationReason = "no-show" | "decline";
 
 type AutomaticCancellationContext = {
-  automationReason?: string;
+  automationReason?: AutomaticCancellationReason;
   calendarEventId?: string | null;
   tenant?: string;
 };
@@ -55,8 +55,7 @@ export async function logAutomaticCancellationTransition(
       return;
     }
 
-    const automationReason =
-      context.automationReason as AutomaticCancellationReason;
+    const automationReason = context.automationReason;
     const note =
       AUTOMATIC_CANCELLATION_NOTES[automationReason] ||
       "Automatic cancellation";

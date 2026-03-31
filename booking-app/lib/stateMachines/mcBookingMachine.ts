@@ -2,7 +2,7 @@ import { getBookingHourLimits } from "@/components/src/client/routes/booking/uti
 import { TENANTS } from "@/components/src/constants/tenants";
 import { BookingOrigin, Role } from "@/components/src/types";
 import { BookingLogger } from "@/lib/logger/bookingLogger";
-import { logAutomaticCancellationTransition } from "@/lib/stateMachines/logAutomaticCancellationTransition";
+import { logAutomaticCancellationTransition, type AutomaticCancellationReason } from "@/lib/stateMachines/logAutomaticCancellationTransition";
 import { and, assign, setup } from "xstate";
 import { checkAutoApprovalEligibility } from "@/lib/utils/autoApprovalUtils";
 
@@ -22,7 +22,7 @@ interface MediaCommonsBookingContext {
   role?: Role;
   declineReason?: string;
   origin?: string;
-  automationReason?: string; // Tracks automatic transitions ("no-show", "decline")
+  automationReason?: AutomaticCancellationReason; // Tracks automatic transitions
   servicesRequested?: {
     staff?: boolean;
     equipment?: boolean;
@@ -800,19 +800,10 @@ export const mcBookingMachine = setup({
         },
       },
       after: {
-        "86400000": [
-          {
-            target: "Canceled",
-            guard: {
-              type: "servicesRequested",
-            },
-            actions: [assign({ automationReason: "decline" })],
-          },
-          {
-            target: "Canceled",
-            actions: [assign({ automationReason: "decline" })],
-          },
-        ],
+        "86400000": {
+          target: "Canceled",
+          actions: [assign({ automationReason: "decline" as const })],
+        },
       },
       entry: [
         ({ context }) => {
