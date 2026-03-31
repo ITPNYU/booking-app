@@ -4,9 +4,9 @@ vi.mock("@/app/lib/sendHTMLEmail", () => ({
   sendHTMLEmail: vi.fn(),
 }));
 
-import { POST } from "@/app/api/sendEmail/route";
-import { sendHTMLEmail } from "@/app/lib/sendHTMLEmail";
-import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
+import { POST } from "../../app/api/sendEmail/route";
+import { sendHTMLEmail } from "../../app/lib/sendHTMLEmail";
+import { DEFAULT_TENANT } from "../../components/src/constants/tenants";
 
 const mockSendHTMLEmail = vi.mocked(sendHTMLEmail);
 
@@ -40,23 +40,48 @@ describe("POST /api/sendEmail", () => {
 
     const response = await POST(request);
 
-    expect(mockSendHTMLEmail).toHaveBeenCalledWith({
-      templateName: basePayload.templateName,
-      contents: basePayload.contents,
-      targetEmail: basePayload.targetEmail,
-      status: basePayload.status,
-      eventTitle: basePayload.eventTitle,
-      requestNumber: basePayload.requestNumber,
-      body: basePayload.bodyMessage,
-      approverType: basePayload.approverType,
-      replyTo: basePayload.replyTo,
-      tenant: "tenant-media",
-    });
+    expect(mockSendHTMLEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        templateName: basePayload.templateName,
+        contents: basePayload.contents,
+        targetEmail: basePayload.targetEmail,
+        status: basePayload.status,
+        eventTitle: basePayload.eventTitle,
+        requestNumber: basePayload.requestNumber,
+        body: basePayload.bodyMessage,
+        approverType: basePayload.approverType,
+        replyTo: basePayload.replyTo,
+        tenant: "tenant-media",
+      }),
+    );
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({
       message: "Email sent successfully",
     });
+  });
+
+  it("forwards subjectStatusOverride to sendHTMLEmail", async () => {
+    const subjectStatusOverride = "Staff approval required";
+    const request = {
+      json: async () => ({
+        ...basePayload,
+        schemaName: "Media Commons",
+        subjectStatusOverride,
+      }),
+      headers: new Headers({ "x-tenant": "mc" }),
+    } as any;
+
+    const response = await POST(request);
+
+    expect(mockSendHTMLEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        schemaName: "Media Commons",
+        subjectStatusOverride,
+        tenant: "mc",
+      }),
+    );
+    expect(response.status).toBe(200);
   });
 
   it("falls back to the default tenant and surfaces send errors", async () => {
@@ -70,7 +95,10 @@ describe("POST /api/sendEmail", () => {
     const response = await POST(request);
 
     expect(mockSendHTMLEmail).toHaveBeenCalledWith(
-      expect.objectContaining({ tenant: DEFAULT_TENANT, body: basePayload.bodyMessage })
+      expect.objectContaining({
+        tenant: DEFAULT_TENANT,
+        body: basePayload.bodyMessage,
+      }),
     );
 
     expect(response.status).toBe(500);
