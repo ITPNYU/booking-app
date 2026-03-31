@@ -149,12 +149,14 @@ export function BookingProvider({ children }) {
 
   // block progressing in the form is safety training requirement isn't met
   const needsSafetyTraining = useMemo(() => {
+    // Safety training is not required when modifying an already-approved reservation
+    if (pathname.includes("/modification")) return false;
     const isStudent = role === Role.STUDENT;
     const roomRequiresSafetyTraining = selectedRooms.some(
       (room) => room.needsSafetyTraining || false,
     );
     return isStudent && roomRequiresSafetyTraining && !isSafetyTrained;
-  }, [selectedRooms, role, isSafetyTrained]);
+  }, [selectedRooms, role, isSafetyTrained, pathname]);
 
   // Check if the booking falls within any active blackout period.
   // Admins and super admins are exempt from this restriction.
