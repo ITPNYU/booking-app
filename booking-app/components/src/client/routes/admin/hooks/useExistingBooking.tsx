@@ -1,4 +1,4 @@
-import { Department, Role } from "@/components/src/types";
+import { Department, Inputs, Role } from "@/components/src/types";
 
 import { useContext } from "react";
 import { BookingContext } from "../../booking/bookingProvider";
@@ -45,39 +45,56 @@ export default function useExistingBooking() {
       view: null,
     });
 
-    // Keep only form-relevant values in formData. Including full booking payload
-    // (notably xstateData snapshots) makes watched form deep-comparisons expensive.
-    const {
-      xstateData,
-      requestedAt,
-      startDate,
-      endDate,
-      finalApprovedAt,
-      finalApprovedBy,
-      firstApprovedAt,
-      firstApprovedBy,
-      canceledAt,
-      canceledBy,
-      checkedInAt,
-      checkedInBy,
-      checkedOutAt,
-      checkedOutBy,
-      noShowedAt,
-      noShowedBy,
-      declinedAt,
-      declinedBy,
-      modifiedAt,
-      modifiedBy,
-      closedAt,
-      closedBy,
-      preBannedAt,
-      preBannedBy,
-      bannedAt,
-      bannedBy,
-      createdAt,
-      updatedAt,
-      ...formValues
-    } = booking as any;
+    // Explicitly pick only Inputs fields so non-form status/audit fields (Timestamps,
+    // xstateData snapshots, service flags, etc.) are never stored in formData and
+    // never trigger expensive deep-comparisons in watch().
+    const formValues: Inputs = {
+      firstName: booking.firstName,
+      lastName: booking.lastName,
+      secondaryFirstName: booking.secondaryFirstName,
+      secondaryLastName: booking.secondaryLastName,
+      secondaryEmail: booking.secondaryEmail,
+      secondaryName: booking.secondaryName,
+      nNumber: booking.nNumber,
+      netId: booking.netId,
+      walkInNetId: booking.walkInNetId,
+      phoneNumber: booking.phoneNumber,
+      school: booking.school,
+      otherSchool: booking.otherSchool,
+      department: booking.department,
+      otherDepartment: booking.otherDepartment,
+      role: booking.role,
+      sponsorFirstName: booking.sponsorFirstName,
+      sponsorLastName: booking.sponsorLastName,
+      sponsorEmail: booking.sponsorEmail,
+      title: booking.title,
+      description: booking.description,
+      bookingType: booking.bookingType,
+      attendeeAffiliation: booking.attendeeAffiliation,
+      roomSetup: booking.roomSetup,
+      setupDetails: booking.setupDetails,
+      mediaServices: booking.mediaServices,
+      mediaServicesDetails: booking.mediaServicesDetails,
+      equipmentServices: booking.equipmentServices,
+      equipmentServicesDetails: booking.equipmentServicesDetails,
+      staffingServices: booking.staffingServices,
+      staffingServicesDetails: booking.staffingServicesDetails,
+      catering: booking.catering,
+      hireSecurity: booking.hireSecurity,
+      expectedAttendance: booking.expectedAttendance,
+      cateringService: booking.cateringService,
+      cleaningService: booking.cleaningService,
+      missingEmail: booking.missingEmail,
+      chartFieldForCatering: booking.chartFieldForCatering,
+      chartFieldForCleaning: booking.chartFieldForCleaning,
+      chartFieldForSecurity: booking.chartFieldForSecurity,
+      chartFieldForRoomSetup: booking.chartFieldForRoomSetup,
+      webcheckoutCartNumber: booking.webcheckoutCartNumber,
+      equipment: booking.equipment,
+      staffing: booking.staffing,
+      cleaning: booking.cleaning,
+      origin: booking.origin,
+    };
 
     setFormData(formValues);
   };
