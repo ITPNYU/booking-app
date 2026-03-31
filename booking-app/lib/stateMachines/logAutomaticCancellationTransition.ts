@@ -6,6 +6,10 @@ type AutomaticCancellationContext = {
   tenant?: string;
 };
 
+type AutomaticCancellationBooking = {
+  requestNumber?: number;
+};
+
 const AUTOMATIC_CANCELLATION_NOTES: Record<
   AutomaticCancellationReason,
   string
@@ -37,7 +41,7 @@ export async function logAutomaticCancellationTransition(
     const { TableNames } = await import("@/components/src/policy");
     const { BookingStatusLabel } = await import("@/components/src/types");
 
-    const bookingDoc = await serverGetDataByCalendarEventId(
+    const bookingDoc = await serverGetDataByCalendarEventId<AutomaticCancellationBooking>(
       TableNames.BOOKING,
       context.calendarEventId,
       context.tenant,
