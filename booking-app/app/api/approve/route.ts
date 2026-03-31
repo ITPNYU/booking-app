@@ -1,6 +1,9 @@
 import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
 import { TableNames } from "@/components/src/policy";
-import { notifyServiceApproversForRequestedServices } from "@/components/src/server/serviceApproverNotifications";
+import {
+  isServicesRequestState,
+  notifyServiceApproversForRequestedServices,
+} from "@/components/src/server/serviceApproverNotifications";
 import { serverApproveBooking } from "@/components/src/server/admin";
 import { BookingStatusLabel } from "@/components/src/types";
 import { getMediaCommonsServices, isMediaCommons } from "@/components/src/utils/tenantUtils";
@@ -37,16 +40,6 @@ function hasUnprocessedServices(bookingData: any): boolean {
  * Checks if the XState result indicates a transition to Services Request parallel state
  * This typically happens for Media Commons bookings with requested services
  */
-function isServicesRequestState(newState: any): boolean {
-  return (
-    newState &&
-    typeof newState === "object" &&
-    newState !== null &&
-    "Services Request" in (newState as Record<string, any>)
-  );
-}
-
-
 export async function POST(req: NextRequest) {
   const { id, email } = await req.json();
 
