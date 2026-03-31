@@ -228,6 +228,9 @@ export default function BookingStatusBar({ formContext, ...props }: Props) {
     if (state?.btnDisabled ?? false) {
       return [true, state.btnDisabledMessage];
     }
+    if (selectedRooms.length === 0) {
+      return [true, "Select at least one space"];
+    }
     if (bookingCalendarInfo == null) {
       return [true, "Click and drag on the calendar to select a time slot"];
     }

@@ -145,6 +145,13 @@ describe("BookingStatusBar - Blackout Period Handling", () => {
     expect(nextButton).not.toBeDisabled();
   });
 
+  it("disables next when no rooms are selected even if a time slot is present", () => {
+    renderComponent({ selectedRooms: [] });
+
+    const nextButton = screen.getByRole("button", { name: /next/i });
+    expect(nextButton).toBeDisabled();
+  });
+
   it("renders next button as disabled when in blackout period", () => {
     renderComponent({ isInBlackoutPeriod: true });
 
