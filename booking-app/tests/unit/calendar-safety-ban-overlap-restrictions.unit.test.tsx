@@ -1,10 +1,16 @@
+import {
+  BookingContext,
+  BookingProvider,
+} from "@/components/src/client/routes/booking/bookingProvider";
 import { useBookingDateRestrictions } from "@/components/src/client/routes/booking/hooks/useBookingDateRestrictions";
 import { DatabaseContext } from "@/components/src/client/routes/components/Provider";
 import { SAFETY_TRAINING_REQUIRED_ROOM } from "@/components/src/mediaCommonsPolicy";
 import { Role } from "@/components/src/types";
-import { renderHook } from "@testing-library/react";
+import { render, renderHook, screen, waitFor } from "@testing-library/react";
 import dayjs from "dayjs";
 import { Timestamp } from "firebase/firestore";
+import { usePathname } from "next/navigation";
+import { useContext, useEffect } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 // Mock hooks
@@ -18,6 +24,10 @@ vi.mock(
     })),
   })
 );
+
+vi.mock("next/navigation", () => ({
+  usePathname: vi.fn(() => "/book"),
+}));
 
 describe("Calendar Safety Training, Ban, and Overlap Restrictions Logic", () => {
   describe("Safety Training Room Requirements", () => {
@@ -36,28 +46,75 @@ describe("Calendar Safety Training, Ban, and Overlap Restrictions Logic", () => 
       expect(SAFETY_TRAINING_REQUIRED_ROOM).not.toContain(1201);
     });
 
-    it("should not require safety training when modifying an approved reservation", () => {
+    const safetyTrainingBookingDbMock = {
+      roomSettings: [],
+      safetyTrainedUsers: [],
+      bannedUsers: [],
+      userEmail: "student@nyu.edu",
+      blackoutPeriods: [],
+      reloadSafetyTrainedUsers: vi.fn(),
+    };
+
+    function NeedsSafetyTrainingFromProviderProbe() {
+      const { needsSafetyTraining, setRole, setSelectedRooms } =
+        useContext(BookingContext);
+      useEffect(() => {
+        setRole(Role.STUDENT);
+        setSelectedRooms([
+          {
+            roomId: 103,
+            name: "Room 103",
+            capacity: "10",
+            calendarId: "cal-103",
+            needsSafetyTraining: true,
+          },
+        ]);
+      }, [setRole, setSelectedRooms]);
+      return (
+        <span data-testid="needs-safety-training">
+          {String(needsSafetyTraining)}
+        </span>
+      );
+    }
+
+    it("should not require safety training when modifying an approved reservation (BookingProvider)", async () => {
       const modificationPathnames = [
         "/mediacommons/modification",
         "/modification/some-booking-id",
         "/book/modification",
       ];
 
-      modificationPathnames.forEach((pathname) => {
-        const isModification = pathname.includes("/modification");
+      for (const pathname of modificationPathnames) {
+        vi.mocked(usePathname).mockReturnValue(pathname);
+        const { unmount } = render(
+          <DatabaseContext.Provider value={safetyTrainingBookingDbMock as any}>
+            <BookingProvider>
+              <NeedsSafetyTrainingFromProviderProbe />
+            </BookingProvider>
+          </DatabaseContext.Provider>
+        );
+        await waitFor(() => {
+          expect(screen.getByTestId("needs-safety-training")).toHaveTextContent(
+            "false"
+          );
+        });
+        unmount();
+      }
+    });
 
-        // Even an untrained student in a safety-required room should not be blocked
-        const isStudent = true;
-        const roomRequiresSafetyTraining = true;
-        const isSafetyTrained = false;
-
-        const needsSafetyTraining =
-          !isModification &&
-          isStudent &&
-          roomRequiresSafetyTraining &&
-          !isSafetyTrained;
-
-        expect(needsSafetyTraining).toBe(false);
+    it("should still require safety training on non-modification routes when student, safety room, and untrained (BookingProvider control)", async () => {
+      vi.mocked(usePathname).mockReturnValue("/tenant/book/selectRoom");
+      render(
+        <DatabaseContext.Provider value={safetyTrainingBookingDbMock as any}>
+          <BookingProvider>
+            <NeedsSafetyTrainingFromProviderProbe />
+          </BookingProvider>
+        </DatabaseContext.Provider>
+      );
+      await waitFor(() => {
+        expect(screen.getByTestId("needs-safety-training")).toHaveTextContent(
+          "true"
+        );
       });
     });
 
