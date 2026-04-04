@@ -127,27 +127,27 @@ export default function FormInput({
 
   // Determine which services to show based on selected rooms and schema resources
   const showEquipment = useMemo(
-    () => selectedRooms.some((room) => room.services?.includes("equipment")),
+    () => selectedRooms.some((room) => room.services?.some((s) => s.type === "equipment")),
     [selectedRooms],
   );
 
   const showStaffing = useMemo(
-    () => selectedRooms.some((room) => room.services?.includes("staffing")),
+    () => selectedRooms.some((room) => room.services?.some((s) => s.type === "staffing")),
     [selectedRooms],
   );
 
   const showCatering = useMemo(
-    () => selectedRooms.some((room) => room.services?.includes("catering")),
+    () => selectedRooms.some((room) => room.services?.some((s) => s.type === "catering")),
     [selectedRooms],
   );
 
   const showHireSecurity = useMemo(
-    () => selectedRooms.some((room) => room.services?.includes("security")),
+    () => selectedRooms.some((room) => room.services?.some((s) => s.type === "security")),
     [selectedRooms],
   );
 
   const showCleaning = useMemo(
-    () => selectedRooms.some((room) => room.services?.includes("cleaning")),
+    () => selectedRooms.some((room) => room.services?.some((s) => s.type === "cleaning")),
     [selectedRooms],
   );
 

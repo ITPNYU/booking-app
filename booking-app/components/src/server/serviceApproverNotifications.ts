@@ -4,9 +4,11 @@ import { serverBookingContents } from "@/components/src/server/admin";
 import { getTenantEmailConfig } from "@/components/src/server/emails";
 import { BookingStatusLabel } from "@/components/src/types";
 import { getMediaCommonsServices } from "@/components/src/utils/tenantUtils";
+import type { SchemaContextType } from "@/components/src/client/routes/components/SchemaProvider";
 import {
   serverFetchAllDataFromCollection,
   serverGetDataByCalendarEventId,
+  serverGetDocumentById,
 } from "@/lib/firebase/server/adminDb";
 
 const SERVICE_APPROVER_CONFIG = {
@@ -65,14 +67,21 @@ export const notifyServiceApproversForRequestedServices = async (
   }
 
   const servicesRequested = getMediaCommonsServices(booking);
-  const usersRights = await serverFetchAllDataFromCollection<any>(
-    TableNames.USERS_RIGHTS,
-    [],
-    tenant,
-  );
+
+  // Fetch tenantSchema and usersRights in parallel
+  const [schema, usersRights] = await Promise.all([
+    serverGetDocumentById<SchemaContextType>(TableNames.TENANT_SCHEMA, tenant),
+    serverFetchAllDataFromCollection<any>(TableNames.USERS_RIGHTS, [], tenant),
+  ]);
+
   const bookingContents = await serverBookingContents(calendarEventId, tenant);
   const emailConfig = await getTenantEmailConfig(tenant);
   const schemaName = emailConfig.schemaName;
+
+  // Find the resource matching this booking's roomId (booking.roomId is a string)
+  const matchingResource = schema?.resources?.find(
+    (r) => r.roomId.toString() === booking.roomId?.toString(),
+  );
 
   const emailJobs = Object.entries(SERVICE_APPROVER_CONFIG).flatMap(
     ([serviceKey, config]) => {
@@ -80,14 +89,39 @@ export const notifyServiceApproversForRequestedServices = async (
         return [];
       }
 
-      const recipients = Array.from(
-        new Set(
-          usersRights
-            .filter((record) => record[config.flagField] === true)
-            .map((record) => record.email)
-            .filter(Boolean),
-        ),
-      );
+      // Resolve recipients: prefer per-resource approvers, fall back to usersRights flags
+      let recipients: string[] = [];
+
+      if (matchingResource) {
+        // 1. Try per-service approvers first
+        // Normalize to handle Firestore data that hasn't been migrated from string[] yet
+        const serviceEntry = matchingResource.services
+          ?.map((s: any) =>
+            typeof s === "string"
+              ? { type: s, approvers: [] }
+              : { type: s.type ?? "", approvers: Array.isArray(s.approvers) ? s.approvers : [] },
+          )
+          .find((s) => s.type === serviceKey);
+
+        if (serviceEntry && serviceEntry.approvers.length > 0) {
+          recipients = Array.from(new Set(serviceEntry.approvers.filter(Boolean)));
+        } else if (Array.isArray(matchingResource.approvers) && matchingResource.approvers.length > 0) {
+          // 2. Fall back to resource-level approvers (used when no services are configured)
+          recipients = Array.from(new Set(matchingResource.approvers.filter(Boolean)));
+        }
+      }
+
+      // Fallback to legacy usersRights flags when no per-resource approvers are configured
+      if (recipients.length === 0) {
+        recipients = Array.from(
+          new Set(
+            usersRights
+              .filter((record) => record[config.flagField] === true)
+              .map((record) => record.email)
+              .filter(Boolean),
+          ),
+        );
+      }
 
       if (recipients.length === 0) {
         return [];
