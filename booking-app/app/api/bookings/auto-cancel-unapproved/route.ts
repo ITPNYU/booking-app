@@ -167,7 +167,7 @@ export async function GET(request: NextRequest) {
         if (!allowedStatuses.includes(currentStatus as BookingStatusLabel))
           continue;
 
-        const reason = `Auto-canceled: not approved ${minutesPriorToStart} minutes prior to start time`;
+        const reason = `Auto-canceled: not approved within the configured ${minutesPriorToStart}-minute window before start time`;
 
         if (isDryRun) {
           dryRunResults.push({
