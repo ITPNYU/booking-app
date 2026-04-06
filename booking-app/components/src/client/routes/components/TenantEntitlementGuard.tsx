@@ -39,9 +39,12 @@ const TenantEntitlementGuard: React.FC<{ children: React.ReactNode }> = ({
   useEffect(() => {
     if (authLoading) return;
 
-    // AuthProvider handles unauthenticated users; skip the entitlement check
-    // until we have a verified user.
-    if (!user || !netId || !tenant) return;
+    // No authenticated user yet — let unauthenticated pages (e.g. /signin)
+    // render normally; AuthProvider will drive the auth flow independently.
+    if (!user || !netId || !tenant) {
+      setEntitled(true);
+      return;
+    }
 
     // Test environments bypass entitlement enforcement.
     if (isOnTestEnv) {
@@ -74,8 +77,17 @@ const TenantEntitlementGuard: React.FC<{ children: React.ReactNode }> = ({
             setEntitled(false);
             router.replace("/");
           }
+        } else if (response.status === 401 || response.status === 403) {
+          // Auth failures mean the caller is not authenticated or not
+          // authorized — fail closed to avoid granting access on bad tokens.
+          console.warn(
+            `TenantEntitlementGuard: auth failure (${response.status}) — denying access`
+          );
+          setEntitled(false);
+          router.replace("/");
         } else {
-          // Fail open on non-OK responses to avoid blocking users unexpectedly.
+          // Transient upstream errors (5xx, etc.) — fail open so a flaky
+          // entitlements service doesn't lock out authenticated users.
           console.warn(
             `TenantEntitlementGuard: entitlements API returned ${response.status} — allowing access`
           );

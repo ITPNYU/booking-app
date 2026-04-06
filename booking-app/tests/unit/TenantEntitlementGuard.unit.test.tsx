@@ -161,33 +161,65 @@ describe("TenantEntitlementGuard", () => {
 
   // ---------------------------------------------------------------------------
 
-  describe("error handling — fail open", () => {
-    it("renders children when the entitlements API returns a non-ok response", async () => {
-      mockUseParams.mockReturnValue({ tenant: "itp" });
-      vi.mocked(global.fetch).mockResolvedValue(makeErrorFetch(503));
+  describe("error handling", () => {
+    describe("fail open — transient errors", () => {
+      it("renders children when the entitlements API returns a 503", async () => {
+        mockUseParams.mockReturnValue({ tenant: "itp" });
+        vi.mocked(global.fetch).mockResolvedValue(await makeErrorFetch(503));
 
-      render(
-        <TenantEntitlementGuard>
-          <div>Fallback content</div>
-        </TenantEntitlementGuard>
-      );
+        render(
+          <TenantEntitlementGuard>
+            <div>Fallback content</div>
+          </TenantEntitlementGuard>
+        );
 
-      await waitFor(() => screen.getByText("Fallback content"));
-      expect(mockReplace).not.toHaveBeenCalled();
+        await waitFor(() => screen.getByText("Fallback content"));
+        expect(mockReplace).not.toHaveBeenCalled();
+      });
+
+      it("renders children when fetch throws a network error", async () => {
+        mockUseParams.mockReturnValue({ tenant: "itp" });
+        vi.mocked(global.fetch).mockRejectedValue(new Error("network failure"));
+
+        render(
+          <TenantEntitlementGuard>
+            <div>Fallback content</div>
+          </TenantEntitlementGuard>
+        );
+
+        await waitFor(() => screen.getByText("Fallback content"));
+        expect(mockReplace).not.toHaveBeenCalled();
+      });
     });
 
-    it("renders children when fetch throws a network error", async () => {
-      mockUseParams.mockReturnValue({ tenant: "itp" });
-      vi.mocked(global.fetch).mockRejectedValue(new Error("network failure"));
+    describe("fail closed — auth failures", () => {
+      it("redirects to / and renders nothing when the API returns 401", async () => {
+        mockUseParams.mockReturnValue({ tenant: "itp" });
+        vi.mocked(global.fetch).mockResolvedValue(await makeErrorFetch(401));
 
-      render(
-        <TenantEntitlementGuard>
-          <div>Fallback content</div>
-        </TenantEntitlementGuard>
-      );
+        const { container } = render(
+          <TenantEntitlementGuard>
+            <div>Protected content</div>
+          </TenantEntitlementGuard>
+        );
 
-      await waitFor(() => screen.getByText("Fallback content"));
-      expect(mockReplace).not.toHaveBeenCalled();
+        await waitFor(() => expect(mockReplace).toHaveBeenCalledWith("/"));
+        expect(container).toBeEmptyDOMElement();
+      });
+
+      it("redirects to / and renders nothing when the API returns 403", async () => {
+        mockUseParams.mockReturnValue({ tenant: "itp" });
+        vi.mocked(global.fetch).mockResolvedValue(await makeErrorFetch(403));
+
+        const { container } = render(
+          <TenantEntitlementGuard>
+            <div>Protected content</div>
+          </TenantEntitlementGuard>
+        );
+
+        await waitFor(() => expect(mockReplace).toHaveBeenCalledWith("/"));
+        expect(container).toBeEmptyDOMElement();
+      });
     });
   });
 
@@ -211,6 +243,29 @@ describe("TenantEntitlementGuard", () => {
       );
 
       await waitFor(() => screen.getByText("Test env content"));
+      expect(fetchSpy).not.toHaveBeenCalledWith(
+        expect.stringContaining("/api/nyu/entitlements"),
+        expect.anything()
+      );
+      expect(mockReplace).not.toHaveBeenCalled();
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+
+  describe("unauthenticated bypass", () => {
+    it("renders children immediately when auth is done but user is null (e.g. signin page)", async () => {
+      mockUseParams.mockReturnValue({ tenant: "mc" });
+      mockUseAuth.mockReturnValue({ user: null, loading: false, isOnTestEnv: false, error: null });
+      const fetchSpy = vi.mocked(global.fetch);
+
+      render(
+        <TenantEntitlementGuard>
+          <div>Sign-in page</div>
+        </TenantEntitlementGuard>
+      );
+
+      await waitFor(() => screen.getByText("Sign-in page"));
       expect(fetchSpy).not.toHaveBeenCalledWith(
         expect.stringContaining("/api/nyu/entitlements"),
         expect.anything()
