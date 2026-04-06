@@ -222,28 +222,17 @@ export const DatabaseProvider = ({
     if (paEmails.includes(userEmail)) return PagePermission.PA;
 
     return PagePermission.BOOKING;
-  }, [
-    userEmail,
-    // Make sure we're using the actual arrays in dependencies
-    JSON.stringify(adminUsers),
-    JSON.stringify(liaisonUsers),
-    JSON.stringify(paUsers),
-    JSON.stringify(equipmentUsers),
-    JSON.stringify(superAdminUsers),
-  ]);
+  }, [userEmail, adminUsers, liaisonUsers, paUsers, equipmentUsers, superAdminUsers]);
 
 
   useEffect(() => {
     if (!bookingsLoading && tenant) {
       fetchSafetyTrainedUsers();
       fetchBannedUsers();
-      fetchApproverUsers();
       fetchDepartmentNames();
       fetchSettings();
-    } else {
-      // fetchBookings();
     }
-  }, [bookingsLoading, user, tenant]);
+  }, [bookingsLoading, tenant]);
 
   useEffect(() => {
     fetchBookings();
