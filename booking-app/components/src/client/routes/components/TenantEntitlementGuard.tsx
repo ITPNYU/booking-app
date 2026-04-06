@@ -17,8 +17,9 @@ const FALLBACK_TENANTS: TenantValue[] = [TENANTS.MC];
  * tenant. Redirects to the root URL if they are not.
  *
  * Wraps its children and renders a loading spinner while the check is in
- * flight. On API failure the guard fails open (allows access) to avoid
- * blocking users due to a transient error.
+ * flight. Auth failures (401/403) are treated as fail-closed (redirect).
+ * Transient upstream errors (5xx, network) are treated as fail-open to avoid
+ * locking out authenticated users due to a flaky entitlements service.
  */
 const TenantEntitlementGuard: React.FC<{ children: React.ReactNode }> = ({
   children,
@@ -38,6 +39,10 @@ const TenantEntitlementGuard: React.FC<{ children: React.ReactNode }> = ({
 
   useEffect(() => {
     if (authLoading) return;
+
+    // Reset to loading state so children don't render optimistically while a
+    // new check is in-flight (e.g. client-side navigation between tenants).
+    setEntitled(null);
 
     // No authenticated user yet — let unauthenticated pages (e.g. /signin)
     // render normally; AuthProvider will drive the auth flow independently.

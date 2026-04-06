@@ -243,10 +243,7 @@ describe("TenantEntitlementGuard", () => {
       );
 
       await waitFor(() => screen.getByText("Test env content"));
-      expect(fetchSpy).not.toHaveBeenCalledWith(
-        expect.stringContaining("/api/nyu/entitlements"),
-        expect.anything()
-      );
+      expect(fetchSpy).not.toHaveBeenCalled();
       expect(mockReplace).not.toHaveBeenCalled();
     });
   });
@@ -266,10 +263,7 @@ describe("TenantEntitlementGuard", () => {
       );
 
       await waitFor(() => screen.getByText("Sign-in page"));
-      expect(fetchSpy).not.toHaveBeenCalledWith(
-        expect.stringContaining("/api/nyu/entitlements"),
-        expect.anything()
-      );
+      expect(fetchSpy).not.toHaveBeenCalled();
       expect(mockReplace).not.toHaveBeenCalled();
     });
   });
