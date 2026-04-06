@@ -748,6 +748,7 @@ export const DatabaseProvider = ({
         netId: item.netId,
         lateCancelDate: item.lateCancelDate,
         noShowDate: item.noShowDate,
+        excused: item.excused === true,
       }));
       setPreBanLogs(logs);
     } catch (error) {
