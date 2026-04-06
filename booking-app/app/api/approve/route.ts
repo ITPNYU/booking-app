@@ -6,7 +6,7 @@ import {
 } from "@/components/src/server/serviceApproverNotifications";
 import { serverApproveBooking } from "@/components/src/server/admin";
 import { BookingStatusLabel } from "@/components/src/types";
-import { getMediaCommonsServices, isMediaCommons } from "@/components/src/utils/tenantUtils";
+import { getMediaCommonsServices } from "@/components/src/utils/tenantUtils";
 import { serverGetDataByCalendarEventId } from "@/lib/firebase/server/adminDb";
 import { executeXStateTransition } from "@/lib/stateMachines/xstateUtilsV5";
 import { NextRequest, NextResponse } from "next/server";
@@ -74,27 +74,25 @@ export async function POST(req: NextRequest) {
         error: xstateResult.error,
       });
 
-      // For Media Commons, avoid final-approving when the booking is in the services flow
+      // Avoid final-approving when the booking is in the services flow for any tenant
       // (e.g. user approved again without reloading; XState rejects approve from "Services Request").
-      if (isMediaCommons(tenant)) {
-        const bookingData = await serverGetDataByCalendarEventId(
-          TableNames.BOOKING,
-          id,
-          tenant
+      const bookingData = await serverGetDataByCalendarEventId(
+        TableNames.BOOKING,
+        id,
+        tenant
+      );
+      if (bookingData && hasUnprocessedServices(bookingData)) {
+        console.log(
+          `🛑 BLOCKING FALLBACK: REQUEST HAS UNPROCESSED SERVICES [${tenant?.toUpperCase()}]:`,
+          { calendarEventId: id }
         );
-        if (bookingData && hasUnprocessedServices(bookingData)) {
-          console.log(
-            `🛑 BLOCKING FALLBACK: REQUEST HAS UNPROCESSED SERVICES [${tenant?.toUpperCase()}]:`,
-            { calendarEventId: id }
-          );
-          return NextResponse.json(
-            {
-              error:
-                "This request is in the services approval flow. Complete or decline each service request before final approval, or refresh the page.",
-            },
-            { status: 409 }
-          );
-        }
+        return NextResponse.json(
+          {
+            error:
+              "This request is in the services approval flow. Complete or decline each service request before final approval, or refresh the page.",
+          },
+          { status: 409 }
+        );
       }
 
       // Fallback to traditional approval if XState fails and it's safe to do so
