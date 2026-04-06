@@ -66,7 +66,10 @@ export const initializeDb = () => {
     } as any;
   }
 
-  const options: any = {};
+  const options: any = {
+    experimentalForceLongPolling: true,
+    experimentalAutoDetectLongPolling: false,
+  };
 
   db = initializeFirestore(app, options, process.env.NEXT_PUBLIC_DATABASE_NAME);
   return db;
