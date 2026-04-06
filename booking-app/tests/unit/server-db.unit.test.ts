@@ -13,6 +13,13 @@ const mockGetTenantEmailConfig = vi.fn();
 const mockTimestampNow = vi.fn();
 const mockWhere = vi.fn();
 
+const mockServerGetDataByCalendarEventId = vi.fn();
+const mockServerUpdateInFirestore = vi.fn();
+const mockServerSaveDataToFirestore = vi.fn();
+const mockServerFetchAllDataFromCollection = vi.fn();
+const mockServerSendBookingDetailEmail = vi.fn();
+const mockAdminTimestampNow = vi.fn();
+
 vi.mock("firebase/firestore", () => ({
   Timestamp: { now: mockTimestampNow },
   where: mockWhere,
@@ -38,6 +45,7 @@ vi.mock("@/components/src/policy", () => ({
   TableNames: {
     BOOKING: "bookings",
     PRE_BAN_LOGS: "preBanLogs",
+    BOOKING_LOGS: "bookingLogs",
   },
   ApproverLevel: {
     FINAL: 2,
@@ -52,6 +60,7 @@ vi.mock("@/components/src/types", () => ({
     DECLINED: "DECLINED",
     APPROVED: "APPROVED",
     CANCELED: "CANCELED",
+    NO_SHOW: "NO_SHOW",
   },
   PagePermission: {
     ADMIN: "ADMIN",
@@ -65,6 +74,32 @@ vi.mock("@/components/src/server/emails", () => ({
   getTenantEmailConfig: mockGetTenantEmailConfig,
 }));
 
+vi.mock("@/lib/firebase/server/adminDb", () => ({
+  serverGetDataByCalendarEventId: (...args: any[]) =>
+    mockServerGetDataByCalendarEventId(...args),
+  serverUpdateInFirestore: (...args: any[]) =>
+    mockServerUpdateInFirestore(...args),
+  serverSaveDataToFirestore: (...args: any[]) =>
+    mockServerSaveDataToFirestore(...args),
+  serverFetchAllDataFromCollection: (...args: any[]) =>
+    mockServerFetchAllDataFromCollection(...args),
+  serverGetDocumentById: vi.fn(async () => null),
+  logServerBookingChange: vi.fn(),
+}));
+
+vi.mock("@/components/src/server/admin", () => ({
+  serverSendBookingDetailEmail: (...args: any[]) =>
+    mockServerSendBookingDetailEmail(...args),
+}));
+
+vi.mock("firebase-admin", () => ({
+  firestore: {
+    Timestamp: {
+      now: (...args: any[]) => mockAdminTimestampNow(...args),
+    },
+  },
+}));
+
 describe("server/db", () => {
   const mockFetch = vi.fn();
 
@@ -72,7 +107,9 @@ describe("server/db", () => {
     vi.resetModules();
     vi.clearAllMocks();
 
-    mockTimestampNow.mockReturnValue("now");
+    mockTimestampNow.mockReturnValue({
+      toDate: () => new Date("2024-05-01T00:00:00.000Z"),
+    });
     mockWhere.mockImplementation((field: string, operator: string, value: any) => ({
       field,
       operator,
@@ -95,12 +132,26 @@ describe("server/db", () => {
         checkinConfirmation: "",
         declined: "Declined message",
         canceled: "",
-        lateCancel: "",
+        lateCancel: "Late cancel count: ${violationCount}",
         noShow: "",
         closed: "",
         approvalNotice: "",
       },
     });
+
+    mockAdminTimestampNow.mockReturnValue("admin-now");
+    mockServerGetDataByCalendarEventId.mockResolvedValue({
+      id: "booking-1",
+      requestNumber: 42,
+      email: "guest@nyu.edu",
+      startDate: { toDate: () => new Date("2024-05-01T10:00:00.000Z") },
+      endDate: { toDate: () => new Date("2024-05-01T11:00:00.000Z") },
+      requestedAt: { toDate: () => new Date("2024-04-01T10:00:00.000Z") },
+    });
+    mockServerUpdateInFirestore.mockResolvedValue(undefined);
+    mockServerSaveDataToFirestore.mockResolvedValue(undefined);
+    mockServerSendBookingDetailEmail.mockResolvedValue(undefined);
+    mockServerFetchAllDataFromCollection.mockResolvedValue([]);
     mockClientGetDataByCalendarEventId.mockResolvedValue({
       id: "booking-1",
       requestNumber: 42,
@@ -132,13 +183,64 @@ describe("server/db", () => {
 
     const result = await fetchAllFutureBooking("tenant-1");
 
-    expect(mockWhere).toHaveBeenCalledWith("endDate", ">", "now");
+    expect(mockWhere).toHaveBeenCalledWith("endDate", ">", expect.anything());
     expect(mockClientFetchAllDataFromCollection).toHaveBeenCalledWith(
       "bookings",
       [expect.objectContaining({ field: "endDate", operator: ">" })],
       "tenant-1",
     );
     expect(result).toEqual([{ id: "booking" }]);
+  });
+
+  it("processCancelBooking ignores excused logs when computing violationCount (late cancel email)", async () => {
+    // Freeze "now" used by late-cancel detection inside server/db.ts
+    mockAdminTimestampNow.mockReturnValue({
+      toDate: () => new Date("2024-05-01T00:00:00.000Z"),
+    });
+
+    // Make cancel user-initiated (not automatic): prior status not NO_SHOW/DECLINED.
+    mockServerFetchAllDataFromCollection.mockImplementation(
+      async (tableName: string) => {
+        if (tableName === "bookingLogs") {
+          return [{ status: "APPROVED", changedAt: { seconds: 100 } }];
+        }
+        if (tableName === "preBanLogs") {
+          return [
+            { netId: "netX", excused: true },
+            { netId: "netX", excused: false },
+            { netId: "netX" }, // missing excused counts
+            { netId: "someoneElse", excused: false },
+          ];
+        }
+        return [];
+      },
+    );
+
+    // Force late-cancel condition: start within 24h of now, and booking created > 1h ago.
+    mockServerGetDataByCalendarEventId.mockResolvedValue({
+      id: "booking-99",
+      requestNumber: 99,
+      email: "guest@nyu.edu",
+      startDate: { toDate: () => new Date("2024-05-01T10:00:00.000Z") },
+      requestedAt: { toDate: () => new Date("2024-04-30T00:00:00.000Z") },
+    });
+
+    const { processCancelBooking } = await import("@/components/src/server/db");
+    await processCancelBooking(
+      "cal-lc-1",
+      "user@nyu.edu",
+      "netX",
+      "media_commons",
+    );
+
+    expect(mockServerSendBookingDetailEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        calendarEventId: "cal-lc-1",
+        targetEmail: "guest@nyu.edu",
+        headerMessage: "Late cancel count: 2",
+        status: "CANCELED",
+      }),
+    );
   });
 
   it("fetchAllBookings delegates to getPaginatedData", async () => {
@@ -594,7 +696,7 @@ describe("server/db", () => {
         "bookings",
         "cal-abc",
         expect.objectContaining({
-          declinedAt: "now",
+          declinedAt: expect.anything(),
           declinedBy: "admin@nyu.edu",
           declineReason: "Not allowed",
         }),
