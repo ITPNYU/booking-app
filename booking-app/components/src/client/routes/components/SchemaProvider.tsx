@@ -117,6 +117,21 @@ export type SchemaContextType = {
   supportLiaison?: boolean;
   resourceName: string;
   declinedGracePeriod?: number;
+  /**
+   * When enabled, automatically cancel requests within a time window prior to start time
+   * if they are still unapproved (Requested / Pre-approved depending on conditions).
+   *
+   * Stored as `false` by default for backwards compatibility with older schemas.
+   */
+  autoCancel?:
+    | false
+    | {
+        minutesPriorToStart: number; // -1 disables when stored as object
+        conditions: {
+          requested: boolean;
+          preApproved: boolean;
+        };
+      };
   /** Top-level time-sensitive warning (DB stores here; also supported under calendarConfig) */
   timeSensitiveRequestWarning?: TimeSensitiveRequestWarning;
   calendarConfig?: {
@@ -278,6 +293,7 @@ export const defaultScheme: Omit<SchemaContextType, "tenant"> = {
   supportLiaison: false,
   resourceName: "",
   declinedGracePeriod: 24,
+  autoCancel: false,
   timeSensitiveRequestWarning: defaultTimeSensitiveRequestWarning,
   calendarConfig: {
     startHour: {
