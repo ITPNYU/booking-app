@@ -31,10 +31,18 @@ export async function getCachedTenantSchema(
     return cached.data;
   }
 
-  // Evict stale entries to prevent unbounded growth
+  // Evict stale entries first, then evict the oldest remaining entry if the
+  // cache is still at capacity and this is a new tenant key.
   if (cache.size >= MAX_CACHE_SIZE) {
     for (const [key, entry] of cache) {
       if (now - entry.ts >= TTL_MS) cache.delete(key);
+    }
+
+    if (cache.size >= MAX_CACHE_SIZE && !cache.has(tenant)) {
+      const oldestKey = cache.keys().next().value;
+      if (oldestKey !== undefined) {
+        cache.delete(oldestKey);
+      }
     }
   }
 
