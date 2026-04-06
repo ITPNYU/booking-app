@@ -4,11 +4,13 @@ import { TableNames } from "@/components/src/policy";
 import { shouldBypassAuth } from "@/lib/utils/testEnvironment";
 import { getTestTenantSchema } from "@/lib/utils/testTenantSchema";
 
-// In-memory cache scoped to the current request lifecycle (Next.js server).
-// generateMetadata and the Layout component run in the same request,
-// so this avoids a duplicate Firestore read.
+// Module-level in-memory cache shared across requests within the same
+// Node worker instance until the TTL expires. This avoids a duplicate
+// Firestore read when generateMetadata and the Layout component run in
+// the same request, and may also serve cached data across requests.
 const cache = new Map<string, { data: SchemaContextType | null; ts: number }>();
 const TTL_MS = 30_000; // 30 seconds
+const MAX_CACHE_SIZE = 20;
 
 /**
  * Fetch tenant schema, shared by layout and generateMetadata.
@@ -27,6 +29,13 @@ export async function getCachedTenantSchema(
   const cached = cache.get(tenant);
   if (cached && now - cached.ts < TTL_MS) {
     return cached.data;
+  }
+
+  // Evict stale entries to prevent unbounded growth
+  if (cache.size >= MAX_CACHE_SIZE) {
+    for (const [key, entry] of cache) {
+      if (now - entry.ts >= TTL_MS) cache.delete(key);
+    }
   }
 
   const { serverGetDocumentById } =

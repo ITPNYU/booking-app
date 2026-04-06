@@ -227,11 +227,12 @@ export const DatabaseProvider = ({
 
   useEffect(() => {
     if (!bookingsLoading && tenant) {
+      fetchSafetyTrainedUsers();
       fetchBannedUsers();
       fetchDepartmentNames();
       fetchSettings();
     }
-  }, [bookingsLoading, user, tenant]);
+  }, [bookingsLoading, tenant]);
 
   useEffect(() => {
     fetchBookings();
