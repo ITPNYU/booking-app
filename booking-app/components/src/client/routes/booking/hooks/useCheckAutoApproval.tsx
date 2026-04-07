@@ -33,7 +33,7 @@ export default function useCheckAutoApproval(isWalkIn = false, isVIP = false) {
     useContext(BookingContext);
   const schema = useTenantSchema();
 
-  const [isAutoApproval, setIsAutoApproval] = useState(true);
+  const [isAutoApproval, setIsAutoApproval] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const throwError = (msg: string) => {
