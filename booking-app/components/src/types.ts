@@ -433,6 +433,7 @@ export interface PreBanLog {
   netId: string;
   lateCancelDate?: Timestamp;
   noShowDate?: Timestamp;
+  excused?: boolean;
 }
 
 export interface BookingLog {
