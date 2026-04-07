@@ -1,4 +1,6 @@
 import { Checkbox, FormControlLabel, FormGroup, Tooltip } from "@mui/material";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
 import dayjs from "dayjs";
 import { useContext, useMemo } from "react";
 import { FormContextLevel, RoomSetting } from "../../../../types";
@@ -163,6 +165,12 @@ export const SelectRooms = ({
               <Checkbox
                 checked={selectedIds.includes(room.roomId)}
                 onChange={(e) => handleCheckChange(e, room)}
+                icon={
+                  allowMultipleResourceSelect ? undefined : <RadioButtonUncheckedIcon />
+                }
+                checkedIcon={
+                  allowMultipleResourceSelect ? undefined : <CheckCircleIcon />
+                }
                 inputProps={{
                   "aria-label": `${room.roomId} ${room.name}`,
                 }}
@@ -175,7 +183,7 @@ export const SelectRooms = ({
             sx={{
               opacity: disabled ? 0.6 : 1,
               "& .MuiFormControlLabel-label": {
-                textDecoration: disabled ? "line-through" : "none",
+                color: disabled ? "text.disabled" : "text.primary",
               },
             }}
           />
