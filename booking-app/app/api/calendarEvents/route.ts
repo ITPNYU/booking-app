@@ -32,8 +32,10 @@ const getCalendarEvents = async (calendarId: string, tenant?: string) => {
         timeMax: endOfRangeISOString,
         singleEvents: true,
         orderBy: "startTime",
-        maxResults: 1000,
+        maxResults: 250,
         pageToken,
+        fields:
+          "nextPageToken,items(id,summary,start(dateTime,date),end(dateTime,date))",
       });
 
       if (res.data.items) {
