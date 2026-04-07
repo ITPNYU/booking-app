@@ -1,6 +1,6 @@
-import { act, renderHook } from "@testing-library/react";
+import { renderHook } from "@testing-library/react";
 import React from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 vi.mock("next/navigation", () => ({
   useRouter: vi.fn(() => ({ push: vi.fn() })),
@@ -59,22 +59,27 @@ function wrapper({ children }: { children: React.ReactNode }) {
 }
 
 describe("useCheckAutoApproval – initial state", () => {
-  it("should default isAutoApproval to false before eligibility check", () => {
-    // Capture the value on every render to verify the initial state
-    const renderValues: boolean[] = [];
+  it("should default isAutoApproval to false and isCheckingAutoApproval to true before eligibility check", () => {
+    // Capture values on every render to verify the initial state
+    const renderValues: { isAutoApproval: boolean; isCheckingAutoApproval: boolean }[] = [];
 
     const { result } = renderHook(() => {
       const hook = useCheckAutoApproval();
-      renderValues.push(hook.isAutoApproval);
+      renderValues.push({
+        isAutoApproval: hook.isAutoApproval,
+        isCheckingAutoApproval: hook.isCheckingAutoApproval,
+      });
       return hook;
     }, { wrapper });
 
-    // The very first render must be false — this is the regression test.
-    // Before the fix, useState(true) caused the first render to be true,
-    // which flashed the auto-approval banner before useEffect ran.
-    expect(renderValues[0]).toBe(false);
+    // The very first render must have isAutoApproval=false and isCheckingAutoApproval=true.
+    // Before the fix, useState(true) caused the first render to flash the
+    // auto-approval banner before useEffect ran.
+    expect(renderValues[0].isAutoApproval).toBe(false);
+    expect(renderValues[0].isCheckingAutoApproval).toBe(true);
 
-    // Final state should also be false (XState mock returns "Requested")
+    // Final state: check complete, auto-approval rejected (XState mock returns "Requested")
     expect(result.current.isAutoApproval).toBe(false);
+    expect(result.current.isCheckingAutoApproval).toBe(false);
   });
 });

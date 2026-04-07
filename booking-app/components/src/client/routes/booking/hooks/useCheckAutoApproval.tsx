@@ -34,6 +34,7 @@ export default function useCheckAutoApproval(isWalkIn = false, isVIP = false) {
   const schema = useTenantSchema();
 
   const [isAutoApproval, setIsAutoApproval] = useState(false);
+  const [isCheckingAutoApproval, setIsCheckingAutoApproval] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const throwError = (msg: string) => {
@@ -158,6 +159,7 @@ export default function useCheckAutoApproval(isWalkIn = false, isVIP = false) {
         setErrorMessage("Unable to determine auto-approval eligibility");
       }
 
+      setIsCheckingAutoApproval(false);
       return; // Exit early for ITP tenant
     }
 
@@ -182,6 +184,7 @@ export default function useCheckAutoApproval(isWalkIn = false, isVIP = false) {
       throwError(
         "Requests for multiple rooms (except for 2 ballrooms) will require full approval",
       );
+      setIsCheckingAutoApproval(false);
       return;
     }
 
@@ -223,6 +226,7 @@ export default function useCheckAutoApproval(isWalkIn = false, isVIP = false) {
       throwError(
         result.reason || "Booking does not meet auto-approval requirements",
       );
+      setIsCheckingAutoApproval(false);
       return;
     }
 
@@ -232,6 +236,7 @@ export default function useCheckAutoApproval(isWalkIn = false, isVIP = false) {
     );
     setIsAutoApproval(true);
     setErrorMessage(null);
+    setIsCheckingAutoApproval(false);
   }, [
     // WARNING WARNING make sure to update this dep list if relying on new props
     bookingCalendarInfo,
@@ -242,5 +247,5 @@ export default function useCheckAutoApproval(isWalkIn = false, isVIP = false) {
     isWalkIn, // Added isWalkIn to dependencies
   ]);
 
-  return { isAutoApproval, errorMessage };
+  return { isAutoApproval, isCheckingAutoApproval, errorMessage };
 }
