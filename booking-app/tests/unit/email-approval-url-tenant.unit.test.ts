@@ -1,11 +1,22 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { getApprovalUrl } from "../../app/lib/sendHTMLEmail";
+import { DEFAULT_TENANT } from "../../components/src/constants/tenants";
 import { ApproverType } from "../../components/src/types";
 
 describe("getApprovalUrl – tenant-aware URL generation", () => {
+  const originalBaseUrl = process.env.NEXT_PUBLIC_BASE_URL;
+
   beforeEach(() => {
     process.env.NEXT_PUBLIC_BASE_URL = "https://example.com";
+  });
+
+  afterEach(() => {
+    if (originalBaseUrl === undefined) {
+      delete process.env.NEXT_PUBLIC_BASE_URL;
+    } else {
+      process.env.NEXT_PUBLIC_BASE_URL = originalBaseUrl;
+    }
   });
 
   it("liaison URL includes tenant prefix when tenant is provided", () => {
@@ -22,17 +33,17 @@ describe("getApprovalUrl – tenant-aware URL generation", () => {
     );
   });
 
-  it("liaison URL has no tenant prefix when tenant is undefined", () => {
+  it("falls back to DEFAULT_TENANT when tenant is undefined", () => {
     const url = getApprovalUrl("evt-123", ApproverType.LIAISON);
     expect(url).toBe(
-      "https://example.com/liaison?calendarEventId=evt-123",
+      `https://example.com/${DEFAULT_TENANT}/liaison?calendarEventId=evt-123`,
     );
   });
 
-  it("admin URL has no tenant prefix when tenant is undefined", () => {
+  it("falls back to DEFAULT_TENANT for admin when tenant is undefined", () => {
     const url = getApprovalUrl("evt-123", ApproverType.FINAL_APPROVER);
     expect(url).toBe(
-      "https://example.com/admin?calendarEventId=evt-123",
+      `https://example.com/${DEFAULT_TENANT}/admin?calendarEventId=evt-123`,
     );
   });
 

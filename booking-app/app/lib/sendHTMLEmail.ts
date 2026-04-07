@@ -5,6 +5,7 @@ import {
 import { MEDIA_COMMONS_EMAIL } from "@/components/src/mediaCommonsPolicy";
 import { admins } from "@/components/src/server/admin";
 import { getEmailBranchTag } from "@/components/src/server/emails";
+import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
 import { ApproverType } from "@/components/src/types";
 import { getBookingLogs } from "@/lib/firebase/server/adminDb";
 import { getGmailClient } from "@/lib/googleClient";
@@ -42,14 +43,14 @@ export const getApprovalUrl = (
   approverType?: ApproverType,
   tenant?: string,
 ): string => {
-  const tenantPrefix = tenant ? `/${tenant}` : "";
+  const resolvedTenant = tenant || DEFAULT_TENANT;
   let urlPath: string;
   switch (approverType) {
     case ApproverType.LIAISON:
-      urlPath = `${tenantPrefix}/liaison`;
+      urlPath = `/${resolvedTenant}/liaison`;
       break;
     case ApproverType.FINAL_APPROVER:
-      urlPath = `${tenantPrefix}/admin`;
+      urlPath = `/${resolvedTenant}/admin`;
       break;
     default:
       urlPath = "/";
