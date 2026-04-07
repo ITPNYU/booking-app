@@ -25,7 +25,10 @@ export async function generateMetadata({
   try {
     const tenantSchema = await getCachedTenantSchema(tenant);
     if (!tenantSchema?.name) {
-      notFound();
+      return {
+        title: "NYU room booking",
+        description: "NYU space reservation",
+      };
     }
     const title = `${tenantSchema.name} Booking`;
     const description =
@@ -45,7 +48,10 @@ export async function generateMetadata({
     };
   } catch (error) {
     console.error("generateMetadata: Error generating metadata:", error);
-    throw error;
+    return {
+      title: "NYU room booking",
+      description: "NYU space reservation",
+    };
   }
 }
 
