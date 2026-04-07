@@ -38,11 +38,17 @@ export async function GET(
       );
     }
 
-    // Fetch schemas from all environments in parallel
+    // Fetch schemas from all environments in parallel.
+    // Catch per-env errors so one failing environment doesn't break the response.
     const results = await Promise.all(
       ENVIRONMENTS.map(async (env) => {
-        const schema = await getSchemaFromEnv(env, tenant);
-        return [env, schema] as const;
+        try {
+          const schema = await getSchemaFromEnv(env, tenant);
+          return [env, schema] as const;
+        } catch (error) {
+          console.error(`Error fetching schema for ${env}/${tenant}:`, error);
+          return [env, null] as const;
+        }
       }),
     );
 

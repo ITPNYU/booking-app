@@ -1,14 +1,9 @@
 import admin from "./firebaseAdmin";
+import { DATABASES } from "./databases";
 
-const DATABASE_IDS: Record<string, string> = {
-  development: "default",
-  staging: "booking-app-staging",
-  production: "booking-app-prod",
-};
+export type Environment = keyof typeof DATABASES;
 
-export type Environment = keyof typeof DATABASE_IDS;
-
-export const ENVIRONMENTS = Object.keys(DATABASE_IDS) as Environment[];
+export const ENVIRONMENTS = Object.keys(DATABASES) as Environment[];
 
 /**
  * Get a Firestore instance for a specific environment.
@@ -18,7 +13,7 @@ export const ENVIRONMENTS = Object.keys(DATABASE_IDS) as Environment[];
 export function getFirestoreForEnv(
   env: Environment,
 ): admin.firestore.Firestore {
-  const databaseId = DATABASE_IDS[env];
+  const databaseId = DATABASES[env];
   if (!databaseId) {
     throw new Error(`Unknown environment: ${env}`);
   }
@@ -29,12 +24,25 @@ export function getFirestoreForEnv(
   try {
     app = admin.app(appName);
   } catch {
-    const defaultApp = admin.app();
-    app = admin.initializeApp(defaultApp.options, appName);
+    try {
+      const defaultApp = admin.app();
+      app = admin.initializeApp(defaultApp.options, appName);
+    } catch (initError) {
+      // Handle race condition: another request may have initialized it
+      // between the first admin.app() check and initializeApp().
+      if (
+        initError instanceof Error &&
+        initError.message.includes("already exists")
+      ) {
+        app = admin.app(appName);
+      } else {
+        throw initError;
+      }
+    }
   }
 
   const db = app.firestore();
-  if (databaseId !== "default") {
+  if (databaseId !== "(default)") {
     try {
       db.settings({ databaseId });
     } catch {
