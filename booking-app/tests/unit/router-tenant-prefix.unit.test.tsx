@@ -1,12 +1,11 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
-import { useParams, usePathname, useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("next/navigation", () => ({
   useRouter: vi.fn(),
   useParams: vi.fn(),
-  usePathname: vi.fn(() => "/media-commons/booking"),
 }));
 
 const mockPush = vi.fn();
@@ -57,25 +56,5 @@ describe("EditLandingPage – tenant prefix in router.push", () => {
     expect(mockPush).toHaveBeenCalledWith(
       "/media-commons/edit/role/evt-123",
     );
-  });
-});
-
-describe("signin redirect – tenant prefix", () => {
-  it("navBar: sign-out constructs /{tenant}/signin", () => {
-    const tenant = "itp";
-    const signinPath = tenant ? `/${tenant}/signin` : "/signin";
-    expect(signinPath).toBe("/itp/signin");
-  });
-
-  it("UserRolePage: unauthenticated redirect constructs /{tenant}/signin", () => {
-    const tenant = "media-commons";
-    const signinPath = tenant ? `/${tenant}/signin` : "/signin";
-    expect(signinPath).toBe("/media-commons/signin");
-  });
-
-  it("falls back to /signin when tenant is undefined", () => {
-    const tenant = undefined;
-    const signinPath = tenant ? `/${tenant}/signin` : "/signin";
-    expect(signinPath).toBe("/signin");
   });
 });

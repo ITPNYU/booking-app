@@ -35,7 +35,7 @@ interface Props {
 
 export default function EditLandingPage({ calendarEventId }: Props) {
   const router = useRouter();
-  const { tenant } = useParams();
+  const { tenant } = useParams<{ tenant: string }>();
 
   return (
     <Center sx={{ width: "100vw", height: "90vh" }}>

@@ -80,7 +80,7 @@ export default function UserRolePage({
   const { userApiData } = useContext(DatabaseContext);
   const router = useRouter();
   const { user } = useAuth();
-  const { tenant } = useParams();
+  const { tenant } = useParams<{ tenant: string }>();
   const tenantSchema = useTenantSchema();
 
   const {
