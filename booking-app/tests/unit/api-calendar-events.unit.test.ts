@@ -133,8 +133,10 @@ describe("/api/calendarEvents", () => {
         timeMax: expect.any(String),
         singleEvents: true,
         orderBy: "startTime",
-        maxResults: 1000,
+        maxResults: 250,
         pageToken: undefined,
+        fields:
+          "nextPageToken,items(id,summary,start(dateTime,date),end(dateTime,date))",
       });
 
       expect(mockServerFetchAllDataFromCollection).toHaveBeenCalledWith(
