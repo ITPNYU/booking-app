@@ -102,12 +102,6 @@ export const SelectRooms = ({
       return `Room will be unavailable during selected time due to blackout period: ${periodNames}`;
     }
 
-    if (!allowMultipleResourceSelect) {
-      if (selectedIds.length === 0) return null;
-      if (selectedIds.includes(roomId)) return null;
-      return "Selecting multiple resources is currently disabled for this tenant";
-    }
-
     if (formContext !== FormContextLevel.WALK_IN) return null;
 
     if (selectedIds.length === 0) return null;
