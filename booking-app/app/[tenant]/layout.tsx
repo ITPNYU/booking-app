@@ -1,5 +1,6 @@
 import ClientProvider from "@/components/src/client/routes/components/ClientProvider";
 import NavBar from "@/components/src/client/routes/components/navBar";
+import SchemaDriftBanner from "@/components/src/client/routes/components/SchemaDriftBanner";
 import type { SchemaContextType } from "@/components/src/client/routes/components/SchemaProvider";
 import SchemaProviderWrapper from "@/components/src/client/routes/components/SchemaProviderWrapper";
 import TenantEntitlementGuard from "@/components/src/client/routes/components/TenantEntitlementGuard";
@@ -99,6 +100,7 @@ const Layout: React.FC<LayoutProps> = async ({ children, params }) => {
     return (
       <SchemaProviderWrapper value={serializedTenantSchema}>
         <ClientProvider>
+          <SchemaDriftBanner />
           <TenantEntitlementGuard>
             <NavBar />
             {children}
