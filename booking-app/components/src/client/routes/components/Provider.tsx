@@ -232,8 +232,8 @@ export const DatabaseProvider = ({
   const needsBookingData = useMemo(() => {
     if (!pathname) return false;
     const segments = pathname.split("/").filter(Boolean);
-    // e.g. /mc/book, /mc/admin, /mc/walk-in, /mc/vip, /mc/services, /mc/pa, /mc/liaison, /mc/modification
-    const dataRoutes = ["book", "admin", "walk-in", "vip", "services", "pa", "liaison", "modification"];
+    // e.g. /mc/book, /mc/edit, /mc/admin, /mc/walk-in, /mc/vip, /mc/services, /mc/pa, /mc/liaison, /mc/modification
+    const dataRoutes = ["book", "edit", "admin", "walk-in", "vip", "services", "pa", "liaison", "modification"];
     return segments.some((s) => dataRoutes.includes(s));
   }, [pathname]);
 
