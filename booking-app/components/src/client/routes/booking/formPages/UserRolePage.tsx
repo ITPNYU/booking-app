@@ -196,7 +196,7 @@ export default function UserRolePage({
 
   useEffect(() => {
     if (!user) {
-      router.push("/signin");
+      router.push(tenant ? `/${tenant}/signin` : "/signin");
       return;
     }
 
