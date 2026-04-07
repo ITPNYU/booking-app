@@ -3,11 +3,26 @@ import {
   serverFetchAllDataFromCollection,
 } from "@/lib/firebase/server/adminDb";
 import { TableNames } from "@/components/src/policy";
-import {
-  getSchemaFromEnv,
-  ENVIRONMENTS,
-  type Environment,
-} from "@/lib/firebase/server/multiDb";
+import { DATABASES } from "@/lib/firebase/server/databases";
+import { getFirestore } from "firebase-admin/firestore";
+
+async function getSchemaFromDatabase(
+  databaseId: string,
+  tenant: string,
+): Promise<Record<string, any> | null> {
+  try {
+    const db = getFirestore(databaseId);
+    const docRef = db.collection(TableNames.TENANT_SCHEMA).doc(tenant);
+    const docSnap = await docRef.get();
+    return docSnap.exists ? (docSnap.data() as Record<string, any>) : null;
+  } catch (error) {
+    console.error(
+      `Error fetching schema from ${databaseId} for ${tenant}:`,
+      error,
+    );
+    return null;
+  }
+}
 
 export async function GET(
   request: NextRequest,
@@ -41,13 +56,13 @@ export async function GET(
 
     // Fetch schemas from all environments in parallel
     const results = await Promise.all(
-      ENVIRONMENTS.map(async (env) => {
-        const schema = await getSchemaFromEnv(env, tenant);
+      Object.entries(DATABASES).map(async ([env, dbId]) => {
+        const schema = await getSchemaFromDatabase(dbId, tenant);
         return [env, schema] as const;
       }),
     );
 
-    const schemas: Record<string, Record<string, unknown> | null> = {};
+    const schemas: Record<string, Record<string, any> | null> = {};
     for (const [env, schema] of results) {
       schemas[env] = schema;
     }

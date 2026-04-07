@@ -4,7 +4,7 @@ import { TableNames } from "@/components/src/policy";
 import { isValidTenant } from "@/components/src/constants/tenants";
 import { DATABASES } from "@/lib/firebase/server/databases";
 import { computeDiffSummary } from "@/lib/utils/schemaDiff";
-import { getFirestoreForEnv, type Environment } from "@/lib/firebase/server/multiDb";
+import { getFirestore } from "firebase-admin/firestore";
 
 const BACKUP_COLLECTION = "tenantSchemaBackup";
 
@@ -75,7 +75,7 @@ export async function POST(
     }
 
     // Fetch source schema
-    const sourceDb = getFirestoreForEnv(sourceEnv as Environment);
+    const sourceDb = getFirestore(DATABASES[sourceEnv]);
     const sourceDoc = await sourceDb
       .collection(TableNames.TENANT_SCHEMA)
       .doc(tenant)
@@ -89,7 +89,7 @@ export async function POST(
     }
 
     const sourceSchema = sourceDoc.data()!;
-    const targetDb = getFirestoreForEnv(targetEnv as Environment);
+    const targetDb = getFirestore(DATABASES[targetEnv]);
 
     // Backup existing target schema before overwriting
     const targetDoc = await targetDb
