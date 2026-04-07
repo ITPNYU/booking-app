@@ -1,12 +1,15 @@
 import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
-import { NextRequest, NextResponse } from "next/server";
-
-import { serverApproveBooking } from "@/components/src/server/admin";
-import { executeXStateTransition } from "@/lib/stateMachines/xstateUtilsV5";
-
 import { TableNames } from "@/components/src/policy";
+import {
+  isServicesRequestState,
+  notifyServiceApproversForRequestedServices,
+} from "@/components/src/server/serviceApproverNotifications";
+import { serverApproveBooking } from "@/components/src/server/admin";
+import { BookingStatusLabel } from "@/components/src/types";
 import { getMediaCommonsServices, isMediaCommons } from "@/components/src/utils/tenantUtils";
 import { serverGetDataByCalendarEventId } from "@/lib/firebase/server/adminDb";
+import { executeXStateTransition } from "@/lib/stateMachines/xstateUtilsV5";
+import { NextRequest, NextResponse } from "next/server";
 
 const SERVICE_APPROVED_FIELDS: Record<string, string> = {
   staff: "staffServiceApproved",
@@ -37,15 +40,6 @@ function hasUnprocessedServices(bookingData: any): boolean {
  * Checks if the XState result indicates a transition to Services Request parallel state
  * This typically happens for Media Commons bookings with requested services
  */
-function isServicesRequestState(newState: any): boolean {
-  return (
-    newState &&
-    typeof newState === "object" &&
-    newState !== null &&
-    "Services Request" in (newState as Record<string, any>)
-  );
-}
-
 export async function POST(req: NextRequest) {
   const { id, email } = await req.json();
 
@@ -127,11 +121,6 @@ export async function POST(req: NextRequest) {
         );
 
         // Add history logging for final approval since XState doesn't handle history
-        const { serverGetDataByCalendarEventId } =
-          await import("@/lib/firebase/server/adminDb");
-        const { TableNames } = await import("@/components/src/policy");
-        const { BookingStatusLabel } = await import("@/components/src/types");
-
         const doc = await serverGetDataByCalendarEventId<{
           id: string;
           requestNumber: number;
@@ -212,11 +201,6 @@ export async function POST(req: NextRequest) {
         );
 
         // Add history logging for Services Request transition
-        const { serverGetDataByCalendarEventId } =
-          await import("@/lib/firebase/server/adminDb");
-        const { TableNames } = await import("@/components/src/policy");
-        const { BookingStatusLabel } = await import("@/components/src/types");
-
         const doc = await serverGetDataByCalendarEventId<{
           id: string;
           requestNumber: number;
@@ -258,6 +242,19 @@ export async function POST(req: NextRequest) {
               {
                 calendarEventId: id,
                 status: logResponse.status,
+              },
+            );
+          }
+
+          try {
+            await notifyServiceApproversForRequestedServices(id, tenant);
+          } catch (notificationError: any) {
+            console.error(
+              `🚨 SERVICES REQUEST NOTIFICATION FAILED [${tenant?.toUpperCase()}]:`,
+              {
+                calendarEventId: id,
+                tenant,
+                error: notificationError?.message || notificationError,
               },
             );
           }

@@ -270,7 +270,7 @@ export default function NavBar() {
         <Button
           onClick={() => {
             handleStartBooking();
-            router.push("/vip");
+            router.push(`/${tenant}/vip`);
           }}
           variant="outlined"
           sx={{ height: "40px", marginRight: 2 }}
