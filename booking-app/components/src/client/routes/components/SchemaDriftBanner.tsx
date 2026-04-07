@@ -3,13 +3,9 @@
 import { Alert, Box, Typography } from "@mui/material";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useContext, useEffect, useState } from "react";
+import { computeDiffSummary } from "@/lib/utils/schemaDiff";
 import { PagePermission } from "../../../types";
 import { DatabaseContext } from "./Provider";
-
-type TenantDrift = {
-  tenant: string;
-  changedCount: number;
-};
 
 const CHECK_INTERVAL_MS = 5 * 60 * 1000; // re-check every 5 minutes
 
@@ -17,7 +13,7 @@ export default function SchemaDriftBanner() {
   const { pagePermission, userEmail } = useContext(DatabaseContext);
   const { tenant } = useParams<{ tenant: string }>();
   const router = useRouter();
-  const [drifts, setDrifts] = useState<TenantDrift[]>([]);
+  const [changedCount, setChangedCount] = useState(0);
   const [checked, setChecked] = useState(false);
 
   const checkDrift = useCallback(async () => {
@@ -27,7 +23,10 @@ export default function SchemaDriftBanner() {
       const res = await fetch(`/api/tenantSchema/${tenant}/compare`, {
         headers: { "x-user-email": userEmail },
       });
-      if (!res.ok) return;
+      if (!res.ok) {
+        setChangedCount(0);
+        return;
+      }
 
       const data: Record<string, Record<string, unknown> | null> =
         await res.json();
@@ -36,30 +35,15 @@ export default function SchemaDriftBanner() {
       const prod = data.production;
 
       if (!dev || !prod) {
-        setDrifts([]);
+        setChangedCount(0);
         setChecked(true);
         return;
       }
 
-      const allKeys = new Set([...Object.keys(dev), ...Object.keys(prod)]);
-      let changedCount = 0;
-      for (const key of allKeys) {
-        const inDev = key in dev;
-        const inProd = key in prod;
-        if (inDev !== inProd) {
-          changedCount++;
-        } else if (JSON.stringify(dev[key]) !== JSON.stringify(prod[key])) {
-          changedCount++;
-        }
-      }
-
-      if (changedCount > 0) {
-        setDrifts([{ tenant, changedCount }]);
-      } else {
-        setDrifts([]);
-      }
+      const diff = computeDiffSummary(dev, prod);
+      setChangedCount(diff.added.length + diff.removed.length + diff.changed.length);
     } catch {
-      // Silently fail — banner just won't show
+      setChangedCount(0);
     } finally {
       setChecked(true);
     }
@@ -73,16 +57,25 @@ export default function SchemaDriftBanner() {
     return () => clearInterval(id);
   }, [pagePermission, checkDrift]);
 
-  if (pagePermission !== PagePermission.SUPER_ADMIN || !checked || drifts.length === 0) {
+  if (pagePermission !== PagePermission.SUPER_ADMIN || !checked || changedCount === 0) {
     return null;
   }
 
-  const totalChanges = drifts.reduce((sum, d) => sum + d.changedCount, 0);
+  const handleNavigate = () => router.push(`/${tenant}/super`);
 
   return (
     <Box
       sx={{ cursor: "pointer" }}
-      onClick={() => router.push(`/${tenant}/super`)}
+      role="link"
+      tabIndex={0}
+      aria-label={`Review schema drift details for tenant ${tenant}`}
+      onClick={handleNavigate}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          handleNavigate();
+        }
+      }}
     >
       <Alert
         severity="warning"
@@ -93,8 +86,8 @@ export default function SchemaDriftBanner() {
         }}
       >
         <Typography variant="body2">
-          <strong>Schema drift detected:</strong> {totalChanges} field
-          {totalChanges !== 1 ? "s" : ""} differ between Development and
+          <strong>Schema drift detected:</strong> {changedCount} field
+          {changedCount !== 1 ? "s" : ""} differ between Development and
           Production for tenant &quot;{tenant}&quot;.{" "}
           <Typography
             component="span"
