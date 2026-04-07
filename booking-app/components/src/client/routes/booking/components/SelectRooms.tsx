@@ -22,8 +22,12 @@ export const SelectRooms = ({
   setSelected,
 }: Props) => {
   // if this isn't stored in the Provider then the modal will reshow when backtracking in the form which is annoying
-  const { hasShownMocapModal, setHasShownMocapModal, bookingCalendarInfo } =
-    useContext(BookingContext);
+  const {
+    hasShownMocapModal,
+    setHasShownMocapModal,
+    bookingCalendarInfo,
+    setBookingCalendarInfo,
+  } = useContext(BookingContext);
   const { isBookingTimeInBlackout } = useBookingDateRestrictions();
   const { resources } = useTenantSchema();
   const selectedIds = selected.map((room) => room.roomId);
@@ -118,6 +122,9 @@ export const SelectRooms = ({
         return newSelection;
       }
       const newSelection = prev.filter((r) => r.roomId !== room.roomId);
+      if (newSelection.length === 0) {
+        setBookingCalendarInfo(null);
+      }
       return newSelection;
     });
   };

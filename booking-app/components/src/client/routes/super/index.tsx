@@ -9,6 +9,7 @@ import { PagePermission } from "../../../types";
 import SuperAdminSettings from "./settings";
 import SchemaEditor from "./schemaEditor";
 import SchemaCompare from "./schemaCompare";
+import NyuIdentityLookup from "./nyuIdentityLookup";
 import { CenterLoading } from "../components/Loading";
 
 export default function SuperAdmin() {
@@ -42,10 +43,12 @@ export default function SuperAdmin() {
             <Tab value="settings" label="Settings" />
             <Tab value="schema" label="Schema Editor" />
             <Tab value="compare" label="Schema Diff (Dev/Stg/Prod)" />
+            <Tab value="identity" label="NYU Identity Lookup" />
           </Tabs>
           {tab === "settings" && <SuperAdminSettings />}
           {tab === "schema" && <SchemaEditor />}
           {tab === "compare" && <SchemaCompare />}
+          {tab === "identity" && <NyuIdentityLookup />}
         </div>
       )}
     </Box>
