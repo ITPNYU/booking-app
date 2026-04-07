@@ -81,6 +81,14 @@ export type TimeSensitiveRequestWarning = {
   policyLink?: string;
 };
 
+export type PermissionLabels = {
+  user: string;
+  worker: string;
+  reviewer: string;
+  services: string;
+  admin: string;
+};
+
 export type SchemaContextType = {
   tenant: string; // No default - must be provided
   name: string;
@@ -91,6 +99,7 @@ export type SchemaContextType = {
   programMapping: Record<string, string[]>;
   roles: string[];
   roleMapping: Record<string, string[]>;
+  permissionLabels: PermissionLabels;
   schoolMapping: Record<string, string[]>;
   showNNumber: boolean;
   showSponsor: boolean;
@@ -223,6 +232,26 @@ const defaultTimeSensitiveRequestWarning: TimeSensitiveRequestWarning = {
   policyLink: "",
 };
 
+const defaultPermissionLabelsByTenant = (tenant?: string): PermissionLabels => {
+  const normalized = (tenant || "").toLowerCase();
+  if (normalized === "itp") {
+    return {
+      user: "User",
+      worker: "ER",
+      reviewer: "1st Approver",
+      services: "Services",
+      admin: "Admin",
+    };
+  }
+  return {
+    user: "User",
+    worker: "PA",
+    reviewer: "Liaison",
+    services: "Services",
+    admin: "Admin",
+  };
+};
+
 export const defaultScheme: Omit<SchemaContextType, "tenant"> = {
   name: "",
   safetyTrainingGoogleFormId: "",
@@ -232,6 +261,7 @@ export const defaultScheme: Omit<SchemaContextType, "tenant"> = {
   programMapping: {},
   roles: [],
   roleMapping: {},
+  permissionLabels: defaultPermissionLabelsByTenant(),
   showNNumber: true,
   showSponsor: true,
   showSetup: true,
@@ -244,6 +274,8 @@ export const defaultScheme: Omit<SchemaContextType, "tenant"> = {
   resources: defineObjectArrayWithDefaults(defaultResource),
   supportVIP: false,
   supportWalkIn: false,
+  supportPA: false,
+  supportLiaison: false,
   resourceName: "",
   declinedGracePeriod: 24,
   timeSensitiveRequestWarning: defaultTimeSensitiveRequestWarning,
@@ -301,6 +333,7 @@ export function generateDefaultSchema(tenant: string): SchemaContextType {
   return {
     tenant,
     ...defaultScheme,
+    permissionLabels: defaultPermissionLabelsByTenant(tenant),
   };
 }
 

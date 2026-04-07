@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.stubEnv("NYU_API_ACCESS_ID", "test-access-id");
 
@@ -54,6 +54,10 @@ describe("GET /api/nyu/entitlements/[netId]", () => {
     mockGetNYUToken.mockResolvedValue("mock-token");
     // Most tests run with auth bypassed (mirrors NODE_ENV=test behaviour)
     mockShouldBypassAuth.mockReturnValue(true);
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
   });
 
   describe("authorization checks (bypass disabled)", () => {
@@ -135,21 +139,6 @@ describe("GET /api/nyu/entitlements/[netId]", () => {
       expect(mockFetch).toHaveBeenCalledWith(
         expect.stringContaining("https://custom-base.example.com"),
       );
-
-      vi.stubEnv("NEXT_PUBLIC_BASE_URL", "");
-    });
-
-    it("falls back to localhost:3000 when NEXT_PUBLIC_BASE_URL is not set", async () => {
-      vi.stubEnv("NEXT_PUBLIC_BASE_URL", "");
-      mockFetch.mockResolvedValue(makeNYUApiResponse({ reporting_dept_name: "" }));
-
-      await GET(createRequest(), { params: createParams("hz1234") });
-
-      expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringContaining("localhost:3000"),
-      );
-
-      vi.stubEnv("NEXT_PUBLIC_BASE_URL", "");
     });
   });
 

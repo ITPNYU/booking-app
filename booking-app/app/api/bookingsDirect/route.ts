@@ -4,6 +4,10 @@ import {
   serverGetRoomCalendarId,
   serverSendBookingDetailEmail,
 } from "@/components/src/server/admin";
+import {
+  isServicesRequestState,
+  notifyServiceApproversForRequestedServices,
+} from "@/components/src/server/serviceApproverNotifications";
 import { getTenantEmailConfig } from "@/components/src/server/emails";
 import { BookingOrigin, BookingStatusLabel } from "@/components/src/types";
 import {
@@ -382,6 +386,27 @@ export async function POST(request: NextRequest) {
         );
       }
 
+      if (
+        isMediaCommons(tenant) &&
+        isServicesRequestState(initialState) &&
+        tenant
+      ) {
+        try {
+          await notifyServiceApproversForRequestedServices(calendarEventId, tenant);
+        } catch (notificationError) {
+          console.error(
+            `🚨 SERVICE APPROVER NOTIFICATION FAILED [${tenant?.toUpperCase()}]:`,
+            {
+              calendarEventId,
+              error:
+                notificationError instanceof Error
+                  ? notificationError.message
+                  : String(notificationError),
+            },
+          );
+        }
+      }
+
       try {
         console.log(
           `📅 UPDATING CALENDAR WITH FULL DESCRIPTION [${tenant?.toUpperCase()}]:`,
@@ -622,7 +647,7 @@ export async function POST(request: NextRequest) {
 
     const notifyEmails = [
       data.sponsorEmail ?? null,
-      await serverGetFinalApproverEmail(),
+      await serverGetFinalApproverEmail(tenant),
       await getApprovalCcEmail(process.env.NEXT_PUBLIC_BRANCH_NAME, tenant),
     ].filter(x => x != null && x !== "");
     await sendWalkInNofificationEmail(notifyEmails);

@@ -75,6 +75,13 @@ export default function NavBar() {
     showStaffing = true,
     showCatering = true,
     showHireSecurity = true,
+    permissionLabels = {
+      user: "User",
+      worker: "PA",
+      reviewer: "Liaison",
+      services: "Services",
+      admin: "Admin",
+    },
   } = tenantSchema || {};
   const hasServices = showSetup || showEquipment || showStaffing || showCatering || showHireSecurity;
 
@@ -201,21 +208,38 @@ export default function NavBar() {
 
     return (
       <Select size="small" value={selectedView} onChange={handleRoleChange}>
-        <MenuItem value={PagePermission.BOOKING}>User</MenuItem>
-        {showPA && <MenuItem value={PagePermission.PA}>PA</MenuItem>}
+        <MenuItem value={PagePermission.BOOKING}>{permissionLabels.user}</MenuItem>
+        {showPA && <MenuItem value={PagePermission.PA}>{permissionLabels.worker}</MenuItem>}
         {showLiaison && (
-          <MenuItem value={PagePermission.LIAISON}>Liaison</MenuItem>
+          <MenuItem value={PagePermission.LIAISON}>
+            {permissionLabels.reviewer}
+          </MenuItem>
         )}
         {showServices && (
-          <MenuItem value={PagePermission.SERVICES}>Services</MenuItem>
+          <MenuItem value={PagePermission.SERVICES}>
+            {permissionLabels.services}
+          </MenuItem>
         )}
-        {showAdmin && <MenuItem value={PagePermission.ADMIN}>Admin</MenuItem>}
+        {showAdmin && (
+          <MenuItem value={PagePermission.ADMIN}>{permissionLabels.admin}</MenuItem>
+        )}
         {showSuperAdmin && (
           <MenuItem value={PagePermission.SUPER_ADMIN}>Super</MenuItem>
         )}
       </Select>
     );
-  }, [pagePermission, selectedView, supportPA, supportLiaison, hasServices]);
+  }, [
+    hasServices,
+    pagePermission,
+    permissionLabels.admin,
+    permissionLabels.reviewer,
+    permissionLabels.services,
+    permissionLabels.user,
+    permissionLabels.worker,
+    selectedView,
+    supportLiaison,
+    supportPA,
+  ]);
 
   const button = useMemo(() => {
     // Do not show the button for super admin or liaison page.
@@ -246,7 +270,7 @@ export default function NavBar() {
         <Button
           onClick={() => {
             handleStartBooking();
-            router.push("/vip");
+            router.push(`/${tenant}/vip`);
           }}
           variant="outlined"
           sx={{ height: "40px", marginRight: 2 }}

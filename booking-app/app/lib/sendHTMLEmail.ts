@@ -34,6 +34,7 @@ interface SendHTMLEmailParams {
   replyTo?: string;
   tenant?: string;
   schemaName?: string;
+  subjectStatusOverride?: string;
 }
 
 export const sendHTMLEmail = async (params: SendHTMLEmailParams) => {
@@ -49,6 +50,7 @@ export const sendHTMLEmail = async (params: SendHTMLEmailParams) => {
     replyTo = MEDIA_COMMONS_EMAIL,
     tenant,
     schemaName = "Media Commons",
+    subjectStatusOverride,
   } = params;
 
   // Check if we're in development and if the target email is an admin
@@ -67,7 +69,8 @@ export const sendHTMLEmail = async (params: SendHTMLEmailParams) => {
   }
   console.log("finalTargetEmail", finalTargetEmail);
 
-  const subj = `${getEmailBranchTag()}${status} - ${schemaName} Request #${requestNumber}: "${eventTitle}"`;
+  const subjectStatus = subjectStatusOverride || status;
+  const subj = `${getEmailBranchTag()}${subjectStatus} - ${schemaName} Request #${requestNumber}: "${eventTitle}"`;
 
   const getUrlPathByApproverType = (
     calendarEventId,

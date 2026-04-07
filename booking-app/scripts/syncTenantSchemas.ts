@@ -142,7 +142,10 @@ async function writeTenantSchema(
 ): Promise<void> {
   try {
     const docRef = db.collection(TENANT_SCHEMA_COLLECTION).doc(tenant);
-    await docRef.set(schema, { merge: false }); // Use set to replace entire document
+    // Non-destructive write:
+    // - Never deletes existing keys (even if schema object is missing them)
+    // - Only sets fields provided in `schema`
+    await docRef.set(schema, { merge: true });
     console.log(`  ✅ Updated schema for tenant: ${tenant}`);
   } catch (error) {
     console.error(`❌ Error writing schema for tenant ${tenant}:`, error);
@@ -205,7 +208,7 @@ function getDifferences(
 ): { added: string[]; modified: string[]; removed: string[] } {
   const added: string[] = [];
   const modified: string[] = [];
-  const removed: string[] = [];
+  const removed: string[] = []; // sync is add-only; removals are intentionally unsupported
 
   function compareObjects(path: string, oldObj: any, newObj: any) {
     // Check for keys in newObj (template) that are missing in oldObj
@@ -250,14 +253,6 @@ function getDifferences(
         if (oldObj[key] !== undefined) {
           modified.push(currentPath);
         }
-      }
-    }
-
-    // Check for keys in oldObj that are not in newObj (removed keys)
-    for (const key in oldObj) {
-      if (!(key in newObj)) {
-        const currentPath = path ? `${path}.${key}` : key;
-        removed.push(currentPath);
       }
     }
   }

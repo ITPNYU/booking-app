@@ -17,6 +17,13 @@ const baseMediaCommonsSchema: SchemaContextType = {
     Faculty: ["FACULTY"],
     Staff: ["STAFF"],
   },
+  permissionLabels: {
+    user: "User",
+    worker: "PA",
+    reviewer: "Liaison",
+    services: "Services",
+    admin: "Admin",
+  },
   schoolMapping: {
     "Tisch School of the Arts": ["TISCH"],
     "Tandon School of Engineering": ["TANDON"],
