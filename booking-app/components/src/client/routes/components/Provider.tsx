@@ -8,6 +8,7 @@ import React, {
   useState,
   useContext,
 } from "react";
+import { usePathname } from "next/navigation";
 
 import { useAuth } from "@/components/src/client/routes/components/AuthProvider";
 import {
@@ -225,14 +226,24 @@ export const DatabaseProvider = ({
   }, [userEmail, adminUsers, liaisonUsers, paUsers, equipmentUsers, superAdminUsers]);
 
 
+  // Defer non-permission data fetches to pages that actually need them.
+  // The landing page only needs permissions; booking/admin data loads on navigation.
+  const pathname = usePathname();
+  const needsBookingData = useMemo(() => {
+    if (!pathname) return false;
+    const segments = pathname.split("/").filter(Boolean);
+    // e.g. /mc/book, /mc/edit, /mc/admin, /mc/walk-in, /mc/vip, /mc/services, /mc/pa, /mc/liaison, /mc/modification
+    const dataRoutes = ["book", "edit", "admin", "walk-in", "vip", "services", "pa", "liaison", "modification"];
+    return segments.some((s) => dataRoutes.includes(s));
+  }, [pathname]);
+
   useEffect(() => {
-    if (!bookingsLoading && tenant) {
-      fetchSafetyTrainedUsers();
+    if (!bookingsLoading && tenant && needsBookingData) {
       fetchBannedUsers();
       fetchDepartmentNames();
       fetchSettings();
     }
-  }, [bookingsLoading, tenant]);
+  }, [bookingsLoading, tenant, needsBookingData]);
 
   useEffect(() => {
     fetchBookings();
