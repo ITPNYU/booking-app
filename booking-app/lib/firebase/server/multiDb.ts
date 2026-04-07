@@ -1,5 +1,6 @@
 import admin from "./firebaseAdmin";
 import { DATABASES } from "./databases";
+import { TableNames } from "@/components/src/policy";
 
 export type Environment = keyof typeof DATABASES;
 
@@ -45,8 +46,14 @@ export function getFirestoreForEnv(
   if (databaseId !== "(default)") {
     try {
       db.settings({ databaseId });
-    } catch {
-      // settings already applied
+    } catch (err) {
+      // Only suppress "already called settings" errors
+      if (
+        !(err instanceof Error) ||
+        !err.message.includes("has already been called")
+      ) {
+        throw err;
+      }
     }
   }
   return db;
@@ -60,6 +67,6 @@ export async function getSchemaFromEnv(
   tenant: string,
 ): Promise<Record<string, unknown> | null> {
   const db = getFirestoreForEnv(env);
-  const doc = await db.collection("tenantSchema").doc(tenant).get();
+  const doc = await db.collection(TableNames.TENANT_SCHEMA).doc(tenant).get();
   return doc.exists ? (doc.data() as Record<string, unknown>) : null;
 }
