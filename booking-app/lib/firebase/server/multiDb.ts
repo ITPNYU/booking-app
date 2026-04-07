@@ -6,6 +6,14 @@ export type Environment = keyof typeof DATABASES;
 
 export const ENVIRONMENTS = Object.keys(DATABASES) as Environment[];
 
+// Cache Firestore instances so settings() is only called once per environment
+const firestoreCache = new Map<string, admin.firestore.Firestore>();
+
+/** @internal Exposed for testing only. */
+export function clearFirestoreCache() {
+  firestoreCache.clear();
+}
+
 /**
  * Get a Firestore instance for a specific environment.
  * Creates a named Firebase app per environment so multiple databases
@@ -14,6 +22,11 @@ export const ENVIRONMENTS = Object.keys(DATABASES) as Environment[];
 export function getFirestoreForEnv(
   env: Environment,
 ): admin.firestore.Firestore {
+  const cached = firestoreCache.get(env);
+  if (cached) {
+    return cached;
+  }
+
   const databaseId = DATABASES[env];
   if (!databaseId) {
     throw new Error(`Unknown environment: ${env}`);
@@ -44,18 +57,9 @@ export function getFirestoreForEnv(
 
   const db = app.firestore();
   if (databaseId !== "(default)") {
-    try {
-      db.settings({ databaseId });
-    } catch (err) {
-      // Only suppress "already called settings" errors
-      if (
-        !(err instanceof Error) ||
-        !err.message.includes("has already been called")
-      ) {
-        throw err;
-      }
-    }
+    db.settings({ databaseId });
   }
+  firestoreCache.set(env, db);
   return db;
 }
 
