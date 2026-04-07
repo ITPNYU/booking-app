@@ -52,6 +52,8 @@ export async function getCachedTenantSchema(
     TableNames.TENANT_SCHEMA,
     tenant,
   );
-  cache.set(tenant, { data, ts: now });
+  if (data !== null) {
+    cache.set(tenant, { data, ts: now });
+  }
   return data;
 }
