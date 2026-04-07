@@ -12,6 +12,7 @@ import admin from "@/lib/firebase/server/firebaseAdmin";
 import {
   getFirestoreForEnv,
   getSchemaFromEnv,
+  clearFirestoreCache,
   ENVIRONMENTS,
   type Environment,
 } from "@/lib/firebase/server/multiDb";
@@ -29,6 +30,7 @@ function createFakeApp(opts?: { settingsFn?: ReturnType<typeof vi.fn> }) {
 describe("multiDb", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    clearFirestoreCache();
   });
 
   describe("ENVIRONMENTS", () => {
@@ -112,6 +114,19 @@ describe("multiDb", () => {
 
       expect(result).toBeDefined();
       expect(mockApp).toHaveBeenCalledTimes(3);
+    });
+
+    it("returns cached Firestore instance on subsequent calls", () => {
+      const settingsFn = vi.fn();
+      const fakeApp = createFakeApp({ settingsFn });
+      mockApp.mockReturnValue(fakeApp as any);
+
+      const first = getFirestoreForEnv("production");
+      const second = getFirestoreForEnv("production");
+
+      expect(first).toBe(second);
+      // settings() should only be called once thanks to caching
+      expect(settingsFn).toHaveBeenCalledTimes(1);
     });
 
     it("throws for unknown environments", () => {
