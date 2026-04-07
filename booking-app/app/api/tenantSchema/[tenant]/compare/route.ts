@@ -3,26 +3,10 @@ import {
   serverFetchAllDataFromCollection,
 } from "@/lib/firebase/server/adminDb";
 import { TableNames } from "@/components/src/policy";
-import { DATABASES } from "@/lib/firebase/server/databases";
-import { getFirestore } from "firebase-admin/firestore";
-
-async function getSchemaFromDatabase(
-  databaseId: string,
-  tenant: string,
-): Promise<Record<string, any> | null> {
-  try {
-    const db = getFirestore(databaseId);
-    const docRef = db.collection(TableNames.TENANT_SCHEMA).doc(tenant);
-    const docSnap = await docRef.get();
-    return docSnap.exists ? (docSnap.data() as Record<string, any>) : null;
-  } catch (error) {
-    console.error(
-      `Error fetching schema from ${databaseId} for ${tenant}:`,
-      error,
-    );
-    return null;
-  }
-}
+import {
+  getSchemaFromEnv,
+  ENVIRONMENTS,
+} from "@/lib/firebase/server/multiDb";
 
 export async function GET(
   request: NextRequest,
@@ -54,15 +38,21 @@ export async function GET(
       );
     }
 
-    // Fetch schemas from all environments in parallel
+    // Fetch schemas from all environments in parallel.
+    // Catch per-env errors so one failing environment doesn't break the response.
     const results = await Promise.all(
-      Object.entries(DATABASES).map(async ([env, dbId]) => {
-        const schema = await getSchemaFromDatabase(dbId, tenant);
-        return [env, schema] as const;
+      ENVIRONMENTS.map(async (env) => {
+        try {
+          const schema = await getSchemaFromEnv(env, tenant);
+          return [env, schema] as const;
+        } catch (error) {
+          console.error(`Error fetching schema for ${env}/${tenant}:`, error);
+          return [env, null] as const;
+        }
       }),
     );
 
-    const schemas: Record<string, Record<string, any> | null> = {};
+    const schemas: Record<string, Record<string, unknown> | null> = {};
     for (const [env, schema] of results) {
       schemas[env] = schema;
     }

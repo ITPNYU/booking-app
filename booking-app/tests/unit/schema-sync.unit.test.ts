@@ -111,10 +111,11 @@ const mockDoc = vi.fn(() => ({
   set: mockSet,
 }));
 const mockCollection = vi.fn(() => ({ doc: mockDoc }));
-const mockGetFirestore = vi.fn(() => ({ collection: mockCollection }));
+const mockFirestore = { collection: mockCollection };
 
-vi.mock("firebase-admin/firestore", () => ({
-  getFirestore: (...args: unknown[]) => mockGetFirestore(...args),
+vi.mock("@/lib/firebase/server/multiDb", () => ({
+  getFirestoreForEnv: () => mockFirestore,
+  ENVIRONMENTS: ["development", "staging", "production"],
 }));
 
 const mockServerFetch = vi.fn();
