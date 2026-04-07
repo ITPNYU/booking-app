@@ -7,7 +7,7 @@ export type Environment = keyof typeof DATABASES;
 export const ENVIRONMENTS = Object.keys(DATABASES) as Environment[];
 
 // Cache Firestore instances so settings() is only called once per environment
-const firestoreCache = new Map<string, admin.firestore.Firestore>();
+const firestoreCache = new Map<Environment, admin.firestore.Firestore>();
 
 /** @internal Exposed for testing only. */
 export function clearFirestoreCache() {
