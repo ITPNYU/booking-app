@@ -37,6 +37,27 @@ interface SendHTMLEmailParams {
   subjectStatusOverride?: string;
 }
 
+export const getApprovalUrl = (
+  calendarEventId: string,
+  approverType?: ApproverType,
+  tenant?: string,
+): string => {
+  const tenantPrefix = tenant ? `/${tenant}` : "";
+  let urlPath: string;
+  switch (approverType) {
+    case ApproverType.LIAISON:
+      urlPath = `${tenantPrefix}/liaison`;
+      break;
+    case ApproverType.FINAL_APPROVER:
+      urlPath = `${tenantPrefix}/admin`;
+      break;
+    default:
+      urlPath = "/";
+  }
+
+  return `${process.env.NEXT_PUBLIC_BASE_URL}${urlPath}?calendarEventId=${calendarEventId}`;
+};
+
 export const sendHTMLEmail = async (params: SendHTMLEmailParams) => {
   const {
     templateName,
@@ -72,25 +93,6 @@ export const sendHTMLEmail = async (params: SendHTMLEmailParams) => {
   const subjectStatus = subjectStatusOverride || status;
   const subj = `${getEmailBranchTag()}${subjectStatus} - ${schemaName} Request #${requestNumber}: "${eventTitle}"`;
 
-  const getUrlPathByApproverType = (
-    calendarEventId,
-    approverType?: ApproverType,
-  ): string => {
-    let path: string;
-    switch (approverType) {
-      case ApproverType.LIAISON:
-        path = "/liaison";
-        break;
-      case ApproverType.FINAL_APPROVER:
-        path = "/admin";
-        break;
-      default:
-        path = "/";
-    }
-
-    return `${process.env.NEXT_PUBLIC_BASE_URL}${path}?calendarEventId=${calendarEventId}`;
-  };
-
   // Get booking logs
   const bookingLogs = await getBookingLogs(requestNumber, tenant);
 
@@ -117,7 +119,7 @@ export const sendHTMLEmail = async (params: SendHTMLEmailParams) => {
 
   const template = Handlebars.compile(templateSource);
   const approvalUrl = approverType
-    ? getUrlPathByApproverType(contents.calendarEventId, approverType)
+    ? getApprovalUrl(contents.calendarEventId, approverType, tenant)
     : undefined;
 
   // Update contents with formatted data for the template
