@@ -61,7 +61,7 @@ export default function SchemaDriftBanner() {
     return null;
   }
 
-  const handleNavigate = () => router.push(`/${tenant}/super`);
+  const handleNavigate = () => router.push(`/${tenant}/super?tab=compare`);
 
   return (
     <Box

@@ -2,6 +2,7 @@
 
 import { Box } from "@mui/material";
 import { useContext, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Tab from "@mui/material/Tab";
 import Tabs from "@mui/material/Tabs";
 import { DatabaseContext } from "../components/Provider";
@@ -12,8 +13,14 @@ import SchemaCompare from "./schemaCompare";
 import NyuIdentityLookup from "./nyuIdentityLookup";
 import { CenterLoading } from "../components/Loading";
 
+const VALID_TABS = ["settings", "schema", "compare", "identity"] as const;
+
 export default function SuperAdmin() {
-  const [tab, setTab] = useState("settings");
+  const searchParams = useSearchParams();
+  const initialTab = VALID_TABS.includes(searchParams.get("tab") as any)
+    ? searchParams.get("tab")!
+    : "settings";
+  const [tab, setTab] = useState(initialTab);
   const { pagePermission, userEmail, superAdminUsers } =
     useContext(DatabaseContext);
 
