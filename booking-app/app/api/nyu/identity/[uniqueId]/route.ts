@@ -18,12 +18,7 @@ export async function GET(
       return err;
     }
 
-    const res = NextResponse.json(record);
-    res.headers.set(
-      "Cache-Control",
-      "private, max-age=604800, stale-while-revalidate=604800",
-    );
-    return res;
+    return NextResponse.json(record);
   } catch (error) {
     console.error("Identity API error:", error);
     const err = NextResponse.json(

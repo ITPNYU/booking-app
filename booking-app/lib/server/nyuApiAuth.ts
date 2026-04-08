@@ -62,9 +62,8 @@ async function refreshNYUToken(): Promise<string | null> {
 
     const data = await response.json();
     cachedToken = data.access_token;
-    // expires_in is in seconds; default to 3600 if absent
-    const expiresInMs = ((data.expires_in as number) ?? 3600) * 1000;
-    tokenExpiresAt = Date.now() + expiresInMs - EXPIRY_MARGIN_MS;
+    const expiresIn = Number(data.expires_in) || 3600;
+    tokenExpiresAt = Date.now() + expiresIn * 1000 - EXPIRY_MARGIN_MS;
     return cachedToken;
   } catch (error) {
     console.error("Failed to get NYU token:", error);

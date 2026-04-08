@@ -6,7 +6,8 @@ const __dirname = path.dirname(__filename);
 
 const resolveStub = (relativePath) => path.join(__dirname, relativePath);
 
-// Compute test environment status at build time so the client can check synchronously
+// Mirrors shouldBypassAuth() from lib/utils/testEnvironment.ts at build time
+// so the client can check synchronously without an API call.
 const isTestEnv =
   (process.env.CI === "true" &&
     process.env.NEXT_PUBLIC_BRANCH_NAME === "development") ||
