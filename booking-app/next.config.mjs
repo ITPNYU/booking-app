@@ -6,6 +6,15 @@ const __dirname = path.dirname(__filename);
 
 const resolveStub = (relativePath) => path.join(__dirname, relativePath);
 
+// Mirrors shouldBypassAuth() from lib/utils/testEnvironment.ts at build time
+// so the client can check synchronously without an API call.
+const isTestEnv =
+  (process.env.CI === "true" &&
+    process.env.NEXT_PUBLIC_BRANCH_NAME === "development") ||
+  (process.env.NODE_ENV === "test" &&
+    process.env.E2E_TESTING === "true") ||
+  process.env.BYPASS_AUTH === "true";
+
 /** @type {import('next').NextConfig} */
 
 const nextConfig = {
@@ -14,6 +23,7 @@ const nextConfig = {
   },
   serverExternalPackages: ["newrelic"],
   env: {
+    NEXT_PUBLIC_IS_TEST_ENV: isTestEnv ? "true" : "false",
     FIREBASE_PROJECT_ID: process.env.FIREBASE_PROJECT_ID,
     FIREBASE_PRIVATE_KEY_ID: process.env.FIREBASE_PRIVATE_KEY_ID,
     FIREBASE_PRIVATE_KEY: process.env.FIREBASE_PRIVATE_KEY,

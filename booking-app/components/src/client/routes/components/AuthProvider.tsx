@@ -21,24 +21,8 @@ const AuthContext = createContext<AuthContextType>({
 
 export const useAuth = () => useContext(AuthContext);
 
-// Cache isTestEnv result at module level — it never changes during a session
-let cachedTestEnvStatus: boolean | null = null;
-
-async function fetchTestEnvStatus(): Promise<boolean> {
-  if (cachedTestEnvStatus !== null) return cachedTestEnvStatus;
-  try {
-    const res = await fetch(`${window.location.origin}/api/isTestEnv`);
-    if (res.ok) {
-      const { isOnTestEnv } = await res.json();
-      cachedTestEnvStatus = isOnTestEnv;
-      return isOnTestEnv;
-    }
-  } catch {
-    // ignore
-  }
-  cachedTestEnvStatus = false;
-  return false;
-}
+// Resolved at build time via NEXT_PUBLIC_IS_TEST_ENV (no API call needed)
+const isTestEnvBuildTime = process.env.NEXT_PUBLIC_IS_TEST_ENV === "true";
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
@@ -46,7 +30,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isOnTestEnv, setIsOnTestEnv] = useState<boolean>(false);
+  const isOnTestEnv = isTestEnvBuildTime;
 
   const router = useRouter();
   const pathname = usePathname();
@@ -54,8 +38,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   useEffect(() => {
     const handleAuth = async () => {
-      const testEnvStatus = await fetchTestEnvStatus();
-      setIsOnTestEnv(testEnvStatus);
+      const testEnvStatus = isTestEnvBuildTime;
 
       const user = auth.currentUser;
 

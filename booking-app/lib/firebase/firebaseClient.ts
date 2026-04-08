@@ -101,32 +101,14 @@ if (!isTestEnv) {
 export const auth = authInstance;
 export const googleProvider = providerInstance;
 
-let dynamicTestEnv = isTestEnv; // Start with the environment check
+// Use build-time env var instead of runtime API call
+const dynamicTestEnv =
+  isTestEnv || process.env.NEXT_PUBLIC_IS_TEST_ENV === "true";
 
-// Only fetch from API if we're not already in test environment and we have a valid base URL
-if (
-  !isTestEnv &&
-  process.env.NEXT_PUBLIC_BASE_URL &&
-  typeof window !== "undefined"
-) {
-  fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/isTestEnv`)
-    .then((res) => res.json())
-    .then((data) => {
-      dynamicTestEnv = data.isOnTestEnv;
-      console.log("dynamicTestEnv", dynamicTestEnv);
-      if (!dynamicTestEnv && googleProvider) {
-        googleProvider.setCustomParameters({
-          hd: "nyu.edu",
-        });
-      }
-    })
-    .catch((error) => {
-      console.log(
-        "Failed to fetch isTestEnv, using environment check:",
-        isTestEnv,
-      );
-      dynamicTestEnv = isTestEnv;
-    });
+if (!dynamicTestEnv && googleProvider) {
+  googleProvider.setCustomParameters({
+    hd: "nyu.edu",
+  });
 }
 
 // Check if running on localhost

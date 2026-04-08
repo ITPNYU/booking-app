@@ -1,7 +1,29 @@
 const NYU_AUTH_URL = "https://auth.nyu.edu/oauth2/token";
 export const NYU_API_BASE = "https://api.nyu.edu/identity-v2-sys";
 
+// Cache the OAuth token in memory. Refresh 60s before actual expiry.
+let cachedToken: string | null = null;
+let tokenExpiresAt = 0;
+let refreshPromise: Promise<string | null> | null = null;
+const EXPIRY_MARGIN_MS = 60_000;
+
 export async function getNYUToken(): Promise<string | null> {
+  if (cachedToken && Date.now() < tokenExpiresAt) {
+    return cachedToken;
+  }
+
+  // Deduplicate concurrent refresh requests
+  if (refreshPromise) return refreshPromise;
+  refreshPromise = refreshNYUToken();
+  try {
+    return await refreshPromise;
+  } finally {
+    refreshPromise = null;
+  }
+}
+
+async function refreshNYUToken(): Promise<string | null> {
+
   try {
     const clientId = process.env.NYU_API_CLIENT_ID;
     const clientSecret = process.env.NYU_API_CLIENT_SECRET;
@@ -39,8 +61,10 @@ export async function getNYUToken(): Promise<string | null> {
     }
 
     const data = await response.json();
-    console.log("token", data.access_token);
-    return data.access_token;
+    cachedToken = data.access_token;
+    const expiresIn = Number(data.expires_in) || 3600;
+    tokenExpiresAt = Date.now() + expiresIn * 1000 - EXPIRY_MARGIN_MS;
+    return cachedToken;
   } catch (error) {
     console.error("Failed to get NYU token:", error);
     return null;
