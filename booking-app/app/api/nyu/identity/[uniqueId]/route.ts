@@ -10,23 +10,27 @@ export async function GET(
     const record = await fetchNYUIdentity(uniqueId);
 
     if (!record) {
-      return NextResponse.json(
+      const err = NextResponse.json(
         { error: "Failed to fetch identity data" },
         { status: 502 },
       );
+      err.headers.set("Cache-Control", "private, no-store");
+      return err;
     }
 
     const res = NextResponse.json(record);
     res.headers.set(
       "Cache-Control",
-      "private, max-age=604800, stale-while-revalidate=2592000",
+      "private, max-age=604800, stale-while-revalidate=604800",
     );
     return res;
   } catch (error) {
     console.error("Identity API error:", error);
-    return NextResponse.json(
+    const err = NextResponse.json(
       { error: "Failed to fetch identity data" },
       { status: 500 },
     );
+    err.headers.set("Cache-Control", "private, no-store");
+    return err;
   }
 }

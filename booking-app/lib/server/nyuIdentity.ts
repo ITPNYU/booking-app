@@ -12,7 +12,12 @@ export async function fetchNYUIdentity(
   uniqueId: string,
 ): Promise<Record<string, unknown> | null> {
   const token = await getNYUToken();
-  if (!token) return null;
+  if (!token) {
+    console.warn("Failed to fetch NYU identity: missing NYU API token", {
+      uniqueId,
+    });
+    return null;
+  }
 
   const url = new URL(`${NYU_API_BASE}/identity/unique-id/${uniqueId}`);
   url.searchParams.append("api_access_id", NYU_API_ACCESS_ID);
@@ -22,9 +27,16 @@ export async function fetchNYUIdentity(
       Authorization: `Bearer ${token}`,
       Accept: "application/json",
     },
+    cache: "no-store",
   });
 
-  if (!response.ok) return null;
+  if (!response.ok) {
+    console.warn("Failed to fetch NYU identity: upstream returned non-OK", {
+      uniqueId,
+      status: response.status,
+    });
+    return null;
+  }
 
   const userData = await response.json();
   return selectIdentityRecord(userData);

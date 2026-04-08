@@ -60,7 +60,9 @@ export async function GET(
 
     if (!userData) {
       console.error(`NYU Identity API error for netId ${netId}`);
-      return NextResponse.json({ entitledTenants: [TENANTS.MC] });
+      const fallback = NextResponse.json({ entitledTenants: [TENANTS.MC] });
+      fallback.headers.set("Cache-Control", "private, no-store");
+      return fallback;
     }
 
     const entitledTenants = getEntitledTenants(userData as UserApiData);
@@ -68,11 +70,13 @@ export async function GET(
     const res = NextResponse.json({ entitledTenants });
     res.headers.set(
       "Cache-Control",
-      "private, max-age=604800, stale-while-revalidate=2592000",
+      "private, max-age=604800, stale-while-revalidate=604800",
     );
     return res;
   } catch (error) {
     console.error("Entitlements API error:", error);
-    return NextResponse.json({ entitledTenants: [TENANTS.MC] });
+    const fallback = NextResponse.json({ entitledTenants: [TENANTS.MC] });
+    fallback.headers.set("Cache-Control", "private, no-store");
+    return fallback;
   }
 }
