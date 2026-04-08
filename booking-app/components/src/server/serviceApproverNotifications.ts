@@ -89,11 +89,10 @@ export const notifyServiceApproversForRequestedServices = async (
         return [];
       }
 
-      // Resolve recipients: prefer per-resource approvers, fall back to usersRights flags
+      // Resolve recipients from per-service approvers configured in the tenant schema
       let recipients: string[] = [];
 
       if (matchingResource) {
-        // 1. Try per-service approvers first
         // Normalize to handle Firestore data that hasn't been migrated from string[] yet
         const serviceEntry = matchingResource.services
           ?.map((s: any) =>
@@ -105,13 +104,10 @@ export const notifyServiceApproversForRequestedServices = async (
 
         if (serviceEntry && serviceEntry.approvers.length > 0) {
           recipients = Array.from(new Set(serviceEntry.approvers.filter(Boolean)));
-        } else if (Array.isArray(matchingResource.approvers) && matchingResource.approvers.length > 0) {
-          // 2. Fall back to resource-level approvers (used when no services are configured)
-          recipients = Array.from(new Set(matchingResource.approvers.filter(Boolean)));
         }
       }
 
-      // Fallback to legacy usersRights flags when no per-resource approvers are configured
+      // Fallback to legacy usersRights flags when no per-service approvers are configured in the schema
       if (recipients.length === 0) {
         recipients = Array.from(
           new Set(
