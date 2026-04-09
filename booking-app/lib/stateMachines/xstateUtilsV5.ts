@@ -1567,7 +1567,9 @@ export async function executeXStateTransition(
           [{ field: "netId", operator: "==", value: netId }],
           tenant,
         );
-        const violationCount = preBanLogs.length;
+        const violationCount = preBanLogs.filter(
+          (log: any) => log?.excused !== true,
+        ).length;
 
         const guestEmail = doc.email;
         const emailConfig = await getTenantEmailConfig(tenant);

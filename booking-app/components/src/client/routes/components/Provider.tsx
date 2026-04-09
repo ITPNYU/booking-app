@@ -8,6 +8,7 @@ import React, {
   useState,
   useContext,
 } from "react";
+import { usePathname } from "next/navigation";
 
 import { useAuth } from "@/components/src/client/routes/components/AuthProvider";
 import {
@@ -222,28 +223,27 @@ export const DatabaseProvider = ({
     if (paEmails.includes(userEmail)) return PagePermission.PA;
 
     return PagePermission.BOOKING;
-  }, [
-    userEmail,
-    // Make sure we're using the actual arrays in dependencies
-    JSON.stringify(adminUsers),
-    JSON.stringify(liaisonUsers),
-    JSON.stringify(paUsers),
-    JSON.stringify(equipmentUsers),
-    JSON.stringify(superAdminUsers),
-  ]);
+  }, [userEmail, adminUsers, liaisonUsers, paUsers, equipmentUsers, superAdminUsers]);
 
+
+  // Defer non-permission data fetches to pages that actually need them.
+  // The landing page only needs permissions; booking/admin data loads on navigation.
+  const pathname = usePathname();
+  const needsBookingData = useMemo(() => {
+    if (!pathname) return false;
+    const segments = pathname.split("/").filter(Boolean);
+    // e.g. /mc/book, /mc/edit, /mc/admin, /mc/walk-in, /mc/vip, /mc/services, /mc/pa, /mc/liaison, /mc/modification
+    const dataRoutes = ["book", "edit", "admin", "walk-in", "vip", "services", "pa", "liaison", "modification"];
+    return segments.some((s) => dataRoutes.includes(s));
+  }, [pathname]);
 
   useEffect(() => {
-    if (!bookingsLoading && tenant) {
-      fetchSafetyTrainedUsers();
+    if (!bookingsLoading && tenant && needsBookingData) {
       fetchBannedUsers();
-      fetchApproverUsers();
       fetchDepartmentNames();
       fetchSettings();
-    } else {
-      // fetchBookings();
     }
-  }, [bookingsLoading, user, tenant]);
+  }, [bookingsLoading, tenant, needsBookingData]);
 
   useEffect(() => {
     fetchBookings();
@@ -748,6 +748,7 @@ export const DatabaseProvider = ({
         netId: item.netId,
         lateCancelDate: item.lateCancelDate,
         noShowDate: item.noShowDate,
+        excused: item.excused === true,
       }));
       setPreBanLogs(logs);
     } catch (error) {

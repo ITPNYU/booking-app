@@ -13,6 +13,7 @@ import {
 } from "../../../types";
 import { SAFETY_TRAINING_REQUIRED_ROOM } from "../../../mediaCommonsPolicy";
 import { getAffectingBlackoutPeriods } from "../../../utils/blackoutUtils";
+import { canAccessAdmin } from "../../../utils/permissions";
 import { DatabaseContext } from "../components/Provider";
 import fetchCalendarEvents from "./hooks/fetchCalendarEvents";
 import { useTenantSchema } from "../components/SchemaProvider";
@@ -77,6 +78,7 @@ export function BookingProvider({ children }) {
     userEmail,
     blackoutPeriods,
     reloadSafetyTrainedUsers,
+    pagePermission,
   } = useContext(DatabaseContext);
   const pathname = usePathname();
   const schema = useTenantSchema();
@@ -99,24 +101,18 @@ export function BookingProvider({ children }) {
   // Update safety trained users when selected rooms change
   // Each room may have a different trainingFormUrl, so we need to merge results from all rooms
   useEffect(() => {
-    if (selectedRooms.length > 0) {
-      // Collect all rooms that require safety training and have a trainingFormUrl
-      const roomsWithTraining = selectedRooms
-        .filter((room) => room.needsSafetyTraining && room.trainingFormUrl)
-        .map((room) => ({
-          roomId: room.roomId.toString(),
-          trainingFormUrl: room.trainingFormUrl,
-        }));
+    if (selectedRooms.length === 0) return;
 
-      if (roomsWithTraining.length > 0) {
-        // Fetch and merge safety trained users from all selected rooms
-        reloadSafetyTrainedUsers(roomsWithTraining);
-      } else {
-        // If no room requires training or no trainingFormUrl, fetch all (no resource filter)
-        reloadSafetyTrainedUsers();
-      }
+    const roomsWithTraining = selectedRooms
+      .filter((room) => room.needsSafetyTraining && room.trainingFormUrl)
+      .map((room) => ({
+        roomId: room.roomId.toString(),
+        trainingFormUrl: room.trainingFormUrl,
+      }));
+
+    if (roomsWithTraining.length > 0) {
+      reloadSafetyTrainedUsers(roomsWithTraining);
     } else {
-      // No rooms selected, fetch all safety trained users
       reloadSafetyTrainedUsers();
     }
   }, [selectedRooms, reloadSafetyTrainedUsers]);
@@ -156,8 +152,10 @@ export function BookingProvider({ children }) {
     return isStudent && roomRequiresSafetyTraining && !isSafetyTrained;
   }, [selectedRooms, role, isSafetyTrained, pathname]);
 
-  // Check if the booking falls within any active blackout period
+  // Check if the booking falls within any active blackout period.
+  // Admins and super admins are exempt from this restriction.
   const isInBlackoutPeriod = useMemo(() => {
+    if (canAccessAdmin(pagePermission)) return false;
     if (!bookingCalendarInfo || !blackoutPeriods) return false;
 
     const bookingStart = dayjs(bookingCalendarInfo.start);
@@ -172,7 +170,7 @@ export function BookingProvider({ children }) {
     );
 
     return affectingPeriods.length > 0;
-  }, [bookingCalendarInfo, blackoutPeriods, selectedRooms]);
+  }, [bookingCalendarInfo, blackoutPeriods, selectedRooms, pagePermission]);
 
   return (
     <BookingContext.Provider

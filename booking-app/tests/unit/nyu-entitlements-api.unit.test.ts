@@ -1,12 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.stubEnv("NYU_API_ACCESS_ID", "test-access-id");
-
-const mockFetch = vi.fn();
-global.fetch = mockFetch as unknown as typeof fetch;
-
-vi.mock("@/lib/server/nyuApiAuth", () => ({
-  getNYUToken: vi.fn(),
+vi.mock("@/lib/server/nyuIdentity", () => ({
+  fetchNYUIdentity: vi.fn(),
 }));
 
 vi.mock("@/lib/utils/testEnvironment", () => ({
@@ -22,11 +17,11 @@ vi.mock("@/lib/firebase/server/firebaseAdmin", () => ({
 }));
 
 import { GET } from "@/app/api/nyu/entitlements/[netId]/route";
-import { getNYUToken } from "@/lib/server/nyuApiAuth";
+import { fetchNYUIdentity } from "@/lib/server/nyuIdentity";
 import { shouldBypassAuth } from "@/lib/utils/testEnvironment";
 import admin from "@/lib/firebase/server/firebaseAdmin";
 
-const mockGetNYUToken = vi.mocked(getNYUToken);
+const mockFetchNYUIdentity = vi.mocked(fetchNYUIdentity);
 const mockShouldBypassAuth = vi.mocked(shouldBypassAuth);
 const mockVerifyIdToken = vi.mocked(admin.auth().verifyIdToken);
 
@@ -41,17 +36,9 @@ const parseJson = async (response: Response) => {
   return { data, status: response.status };
 };
 
-const makeNYUApiResponse = (userData: object, ok = true) =>
-  ({
-    ok,
-    status: ok ? 200 : 500,
-    json: async () => userData,
-  }) as Response;
-
 describe("GET /api/nyu/entitlements/[netId]", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockGetNYUToken.mockResolvedValue("mock-token");
     // Most tests run with auth bypassed (mirrors NODE_ENV=test behaviour)
     mockShouldBypassAuth.mockReturnValue(true);
   });
@@ -114,9 +101,7 @@ describe("GET /api/nyu/entitlements/[netId]", () => {
 
     it("proceeds normally when the token matches the requested netId", async () => {
       mockVerifyIdToken.mockResolvedValue({ email: "hz1234@nyu.edu" } as any);
-      mockFetch.mockResolvedValue(
-        makeNYUApiResponse({ dept_code: "UTIMNY" }),
-      );
+      mockFetchNYUIdentity.mockResolvedValue({ dept_code: "UTIMNY" });
 
       const response = await GET(
         createRequest({ authorization: "Bearer valid-token" }),
@@ -129,22 +114,9 @@ describe("GET /api/nyu/entitlements/[netId]", () => {
     });
   });
 
-  describe("authentication and configuration errors", () => {
-    it("uses NEXT_PUBLIC_BASE_URL to construct the identity API URL", async () => {
-      vi.stubEnv("NEXT_PUBLIC_BASE_URL", "https://custom-base.example.com");
-      mockFetch.mockResolvedValue(makeNYUApiResponse({ reporting_dept_name: "" }));
-
-      await GET(createRequest(), { params: createParams("hz1234") });
-
-      expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringContaining("https://custom-base.example.com"),
-      );
-    });
-  });
-
   describe("NYU Identity API failures", () => {
-    it("falls back to mc-only when the NYU API returns a non-ok response", async () => {
-      mockFetch.mockResolvedValue(makeNYUApiResponse({}, false));
+    it("falls back to mc-only when fetchNYUIdentity returns null", async () => {
+      mockFetchNYUIdentity.mockResolvedValue(null);
 
       const response = await GET(createRequest(), { params: createParams("hz1234") });
       const result = await parseJson(response);
@@ -153,8 +125,8 @@ describe("GET /api/nyu/entitlements/[netId]", () => {
       expect(result.data.entitledTenants).toEqual(["mc"]);
     });
 
-    it("falls back to mc-only when fetch throws an unexpected error", async () => {
-      mockFetch.mockRejectedValue(new Error("network error"));
+    it("falls back to mc-only when fetchNYUIdentity throws an unexpected error", async () => {
+      mockFetchNYUIdentity.mockRejectedValue(new Error("network error"));
 
       const response = await GET(createRequest(), { params: createParams("hz1234") });
       const result = await parseJson(response);
@@ -166,9 +138,7 @@ describe("GET /api/nyu/entitlements/[netId]", () => {
 
   describe("ITP affiliation detection via dept_code", () => {
     it("grants itp for an ITP user (dept_code: GTITPG)", async () => {
-      mockFetch.mockResolvedValue(
-        makeNYUApiResponse({ dept_code: "GTITPG" }),
-      );
+      mockFetchNYUIdentity.mockResolvedValue({ dept_code: "GTITPG" });
 
       const result = await parseJson(
         await GET(createRequest(), { params: createParams("ab1234") }),
@@ -179,9 +149,7 @@ describe("GET /api/nyu/entitlements/[netId]", () => {
     });
 
     it("grants itp for an IMA user (dept_code: UTIMNY)", async () => {
-      mockFetch.mockResolvedValue(
-        makeNYUApiResponse({ dept_code: "UTIMNY" }),
-      );
+      mockFetchNYUIdentity.mockResolvedValue({ dept_code: "UTIMNY" });
 
       const result = await parseJson(
         await GET(createRequest(), { params: createParams("hz3942") }),
@@ -192,9 +160,7 @@ describe("GET /api/nyu/entitlements/[netId]", () => {
     });
 
     it("grants itp for a Low Res user (dept_code: TIIMA)", async () => {
-      mockFetch.mockResolvedValue(
-        makeNYUApiResponse({ dept_code: "TIIMA" }),
-      );
+      mockFetchNYUIdentity.mockResolvedValue({ dept_code: "TIIMA" });
 
       const result = await parseJson(
         await GET(createRequest(), { params: createParams("cd5678") }),
@@ -205,9 +171,7 @@ describe("GET /api/nyu/entitlements/[netId]", () => {
     });
 
     it("returns only mc when dept_code is absent", async () => {
-      mockFetch.mockResolvedValue(
-        makeNYUApiResponse({ dept_code: null }),
-      );
+      mockFetchNYUIdentity.mockResolvedValue({ dept_code: null });
 
       const result = await parseJson(
         await GET(createRequest(), { params: createParams("mn5678") }),
@@ -217,9 +181,7 @@ describe("GET /api/nyu/entitlements/[netId]", () => {
     });
 
     it("returns only mc when dept_code does not match a known ITP code", async () => {
-      mockFetch.mockResolvedValue(
-        makeNYUApiResponse({ dept_code: "STERN_FINANCE" }),
-      );
+      mockFetchNYUIdentity.mockResolvedValue({ dept_code: "STERN_FINANCE" });
 
       const result = await parseJson(
         await GET(createRequest(), { params: createParams("kl1234") }),
@@ -231,12 +193,10 @@ describe("GET /api/nyu/entitlements/[netId]", () => {
 
   describe("non-ITP users", () => {
     it("returns only mc for a Stern business student", async () => {
-      mockFetch.mockResolvedValue(
-        makeNYUApiResponse({
-          reporting_dept_name: "Undergraduate Finance",
-          school_abbr: "STERN",
-        }),
-      );
+      mockFetchNYUIdentity.mockResolvedValue({
+        reporting_dept_name: "Undergraduate Finance",
+        school_abbr: "STERN",
+      });
 
       const result = await parseJson(
         await GET(createRequest(), { params: createParams("kl1234") }),
@@ -246,12 +206,10 @@ describe("GET /api/nyu/entitlements/[netId]", () => {
     });
 
     it("returns only mc when dept names are null/missing", async () => {
-      mockFetch.mockResolvedValue(
-        makeNYUApiResponse({
-          reporting_dept_name: null,
-          dept_name: null,
-        }),
-      );
+      mockFetchNYUIdentity.mockResolvedValue({
+        reporting_dept_name: null,
+        dept_name: null,
+      });
 
       const result = await parseJson(
         await GET(createRequest(), { params: createParams("mn5678") }),
@@ -261,12 +219,10 @@ describe("GET /api/nyu/entitlements/[netId]", () => {
     });
 
     it("returns only mc for a Tandon engineering student", async () => {
-      mockFetch.mockResolvedValue(
-        makeNYUApiResponse({
-          reporting_dept_name: "Computer Science and Engineering",
-          school_abbr: "TANDON",
-        }),
-      );
+      mockFetchNYUIdentity.mockResolvedValue({
+        reporting_dept_name: "Computer Science and Engineering",
+        school_abbr: "TANDON",
+      });
 
       const result = await parseJson(
         await GET(createRequest(), { params: createParams("op9012") }),
@@ -278,9 +234,7 @@ describe("GET /api/nyu/entitlements/[netId]", () => {
 
   describe("response structure", () => {
     it("always includes mc as the first entitled tenant", async () => {
-      mockFetch.mockResolvedValue(
-        makeNYUApiResponse({ dept_code: "UTIMNY" }),
-      );
+      mockFetchNYUIdentity.mockResolvedValue({ dept_code: "UTIMNY" });
 
       const result = await parseJson(
         await GET(createRequest(), { params: createParams("hz3942") }),
@@ -289,14 +243,12 @@ describe("GET /api/nyu/entitlements/[netId]", () => {
       expect(result.data.entitledTenants[0]).toBe("mc");
     });
 
-    it("passes the netId to the NYU Identity API URL", async () => {
-      mockFetch.mockResolvedValue(makeNYUApiResponse({ reporting_dept_name: "" }));
+    it("passes the netId to fetchNYUIdentity", async () => {
+      mockFetchNYUIdentity.mockResolvedValue({ reporting_dept_name: "" });
 
       await GET(createRequest(), { params: createParams("abc123") });
 
-      expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringContaining("abc123"),
-      );
+      expect(mockFetchNYUIdentity).toHaveBeenCalledWith("abc123");
     });
   });
 });

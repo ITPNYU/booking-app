@@ -157,7 +157,7 @@ export default function NavBar() {
       await signOut(auth);
       sessionStorage.removeItem("hasRedirectedToDefaultContext");
       console.log("Sign-out successful");
-      router.push("/signin");
+      router.push(tenant ? `/${tenant}/signin` : "/signin");
       setUserEmail(null);
     } catch (error) {
       console.error("Sign-out error", error);

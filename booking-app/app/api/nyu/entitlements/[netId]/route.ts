@@ -2,6 +2,7 @@ import { UserApiData } from "@/components/src/types";
 import { TENANTS, TenantValue } from "@/components/src/constants/tenants";
 import { ITP_DEPT_CODES } from "@/components/src/utils/tenantUtils";
 import { shouldBypassAuth } from "@/lib/utils/testEnvironment";
+import { fetchNYUIdentity } from "@/lib/server/nyuIdentity";
 import admin from "@/lib/firebase/server/firebaseAdmin";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -55,23 +56,27 @@ export async function GET(
       }
     }
 
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
-    const identityRes = await fetch(`${baseUrl}/api/nyu/identity/${netId}`);
+    const userData = await fetchNYUIdentity(netId);
 
-    if (!identityRes.ok) {
-      console.error(`NYU Identity API error for netId ${netId}: ${identityRes.status}`);
-      // On API failure, fall back to mc-only entitlement rather than blocking the user
-      return NextResponse.json({ entitledTenants: [TENANTS.MC] });
+    if (!userData) {
+      console.error(`NYU Identity API error for netId ${netId}`);
+      const fallback = NextResponse.json({ entitledTenants: [TENANTS.MC] });
+      fallback.headers.set("Cache-Control", "private, no-store");
+      return fallback;
     }
 
-    const userData: UserApiData = await identityRes.json();
+    const entitledTenants = getEntitledTenants(userData as UserApiData);
 
-    const entitledTenants = getEntitledTenants(userData);
-
-    return NextResponse.json({ entitledTenants });
+    const res = NextResponse.json({ entitledTenants });
+    res.headers.set(
+      "Cache-Control",
+      "private, max-age=604800, stale-while-revalidate=604800",
+    );
+    return res;
   } catch (error) {
     console.error("Entitlements API error:", error);
-    // On unexpected error, fall back to mc-only entitlement
-    return NextResponse.json({ entitledTenants: [TENANTS.MC] });
+    const fallback = NextResponse.json({ entitledTenants: [TENANTS.MC] });
+    fallback.headers.set("Cache-Control", "private, no-store");
+    return fallback;
   }
 }

@@ -2,6 +2,7 @@ import { getBookingHourLimits } from "@/components/src/client/routes/booking/uti
 import { TENANTS } from "@/components/src/constants/tenants";
 import { BookingOrigin, Role } from "@/components/src/types";
 import { BookingLogger } from "@/lib/logger/bookingLogger";
+import { logAutomaticCancellationTransition, type AutomaticCancellationReason } from "@/lib/stateMachines/logAutomaticCancellationTransition";
 import { and, assign, setup } from "xstate";
 import { checkAutoApprovalEligibility } from "@/lib/utils/autoApprovalUtils";
 
@@ -21,6 +22,7 @@ interface MediaCommonsBookingContext {
   role?: Role;
   declineReason?: string;
   origin?: string;
+  automationReason?: AutomaticCancellationReason; // Tracks automatic transitions
   servicesRequested?: {
     staff?: boolean;
     equipment?: boolean;
@@ -225,6 +227,11 @@ export const mcBookingMachine = setup({
         return "Service requirements could not be fulfilled";
       },
     }),
+    logCanceledAfterAutomaticTransition: async (
+      { context },
+    ): Promise<void> => {
+      await logAutomaticCancellationTransition(context);
+    },
     // Service approval actions that update context
     approveStaffService: assign({
       servicesApproved: ({ context }) => ({
@@ -778,6 +785,9 @@ export const mcBookingMachine = setup({
         {
           type: "handleCancelProcessing",
         },
+        {
+          type: "logCanceledAfterAutomaticTransition",
+        },
       ],
     },
     Declined: {
@@ -790,17 +800,10 @@ export const mcBookingMachine = setup({
         },
       },
       after: {
-        "86400000": [
-          {
-            target: "Service Closeout",
-            guard: {
-              type: "servicesRequested",
-            },
-          },
-          {
-            target: "Canceled",
-          },
-        ],
+        "86400000": {
+          target: "Canceled",
+          actions: [assign({ automationReason: "decline" as const })],
+        },
       },
       entry: [
         ({ context }) => {
@@ -1856,6 +1859,7 @@ export const mcBookingMachine = setup({
     "No Show": {
       always: {
         target: "Canceled",
+        actions: [assign({ automationReason: "no-show" })],
       },
       entry: [
         ({ context }) => {
