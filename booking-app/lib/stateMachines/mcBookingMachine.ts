@@ -41,7 +41,7 @@ function createServiceRequestState(config: ServiceConfig) {
           { target: `${config.name} Approved` },
         ],
         entry: [
-          ({ context }: any) => {
+          ({ context }: { context: MediaCommonsBookingContext }) => {
             console.log(
               `🔍 XSTATE SUBSTATE: Evaluating ${config.name} Request [MEDIA COMMONS]`,
               { tenant: context.tenant, [`${config.contextKey}Requested`]: context.servicesRequested?.[config.contextKey], timestamp: new Date().toISOString() },
@@ -55,7 +55,7 @@ function createServiceRequestState(config: ServiceConfig) {
           [config.approveEvent]: { target: `${config.name} Approved`, actions: config.approveAction },
         },
         entry: [
-          ({ context }: any) => {
+          ({ context }: { context: MediaCommonsBookingContext }) => {
             console.log(
               `⏳ XSTATE SUBSTATE: ${config.name} Request Pending Approval [MEDIA COMMONS]`,
               { tenant: context.tenant, timestamp: new Date().toISOString() },
@@ -66,7 +66,7 @@ function createServiceRequestState(config: ServiceConfig) {
       [`${config.name} Approved`]: {
         type: "final" as const,
         entry: [
-          ({ context }: any) => {
+          ({ context }: { context: MediaCommonsBookingContext }) => {
             console.log(
               `✅ XSTATE SUBSTATE: ${config.name} Request APPROVED [MEDIA COMMONS]`,
               { tenant: context.tenant, timestamp: new Date().toISOString() },
@@ -77,7 +77,7 @@ function createServiceRequestState(config: ServiceConfig) {
       [`${config.name} Declined`]: {
         type: "final" as const,
         entry: [
-          ({ context }: any) => {
+          ({ context }: { context: MediaCommonsBookingContext }) => {
             console.log(
               `❌ XSTATE SUBSTATE: ${config.name} Request DECLINED [MEDIA COMMONS]`,
               { tenant: context.tenant, timestamp: new Date().toISOString() },
@@ -99,7 +99,7 @@ function createServiceCloseoutState(config: ServiceConfig) {
           { target: `${config.name} Closedout` },
         ],
         entry: [
-          ({ context }: any) => {
+          ({ context }: { context: MediaCommonsBookingContext }) => {
             console.log(
               `🔍 XSTATE CLOSEOUT: Evaluating ${config.name} Closeout [MEDIA COMMONS]`,
               { tenant: context.tenant, [`${config.contextKey}Approved`]: context.servicesApproved?.[config.contextKey], timestamp: new Date().toISOString() },
@@ -112,7 +112,7 @@ function createServiceCloseoutState(config: ServiceConfig) {
           [config.closeoutEvent]: { target: `${config.name} Closedout` },
         },
         entry: [
-          ({ context }: any) => {
+          ({ context }: { context: MediaCommonsBookingContext }) => {
             console.log(
               `⏳ XSTATE CLOSEOUT: ${config.name} Closeout Pending [MEDIA COMMONS]`,
               { tenant: context.tenant, timestamp: new Date().toISOString() },
@@ -123,7 +123,7 @@ function createServiceCloseoutState(config: ServiceConfig) {
       [`${config.name} Closedout`]: {
         type: "final" as const,
         entry: [
-          ({ context }: any) => {
+          ({ context }: { context: MediaCommonsBookingContext }) => {
             console.log(
               `✅ XSTATE CLOSEOUT: ${config.name} CLOSED OUT [MEDIA COMMONS]`,
               { tenant: context.tenant, timestamp: new Date().toISOString() },
@@ -136,16 +136,16 @@ function createServiceCloseoutState(config: ServiceConfig) {
 }
 
 function createServiceActions(configs: ServiceConfig[]) {
-  const actions: Record<string, any> = {};
+  const actions: Record<string, ReturnType<typeof assign>> = {};
   for (const config of configs) {
     actions[config.approveAction] = assign({
-      servicesApproved: ({ context }: any) => ({
+      servicesApproved: ({ context }: { context: MediaCommonsBookingContext }) => ({
         ...context.servicesApproved,
         [config.contextKey]: true,
       }),
     });
     actions[config.declineAction] = assign({
-      servicesApproved: ({ context }: any) => ({
+      servicesApproved: ({ context }: { context: MediaCommonsBookingContext }) => ({
         ...context.servicesApproved,
         [config.contextKey]: false,
       }),
@@ -155,14 +155,14 @@ function createServiceActions(configs: ServiceConfig[]) {
 }
 
 function createServiceGuards(configs: ServiceConfig[]) {
-  const guards: Record<string, any> = {};
+  const guards: Record<string, (args: { context: MediaCommonsBookingContext }) => boolean> = {};
   for (const config of configs) {
-    guards[config.requestGuard] = ({ context }: any) => {
+    guards[config.requestGuard] = ({ context }: { context: MediaCommonsBookingContext }) => {
       const requested = context.servicesRequested?.[config.contextKey] || false;
       console.log(`🎯 XSTATE GUARD: ${config.requestGuard}: ${requested}`);
       return requested;
     };
-    guards[config.approvedGuard] = ({ context }: any) => {
+    guards[config.approvedGuard] = ({ context }: { context: MediaCommonsBookingContext }) => {
       const approved = context.servicesApproved?.[config.contextKey] === true;
       console.log(`🎯 XSTATE GUARD: ${config.approvedGuard}: ${approved}`);
       return approved;
@@ -915,6 +915,8 @@ export const mcBookingMachine = setup({
           );
         },
       ],
+      // Type assertion required: XState's setup() infers literal string unions for state keys,
+      // which Object.fromEntries cannot produce from a runtime array.
       states: Object.fromEntries(
         SERVICE_CONFIGS.map(c => [`${c.name} Request`, createServiceRequestState(c)])
       ) as any,
@@ -987,6 +989,7 @@ export const mcBookingMachine = setup({
           );
         },
       ],
+      // Type assertion required: same XState literal key limitation as Services Request above.
       states: Object.fromEntries(
         SERVICE_CONFIGS.map(c => [`${c.name} Closeout`, createServiceCloseoutState(c)])
       ) as any,
