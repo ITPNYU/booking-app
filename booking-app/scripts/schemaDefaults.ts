@@ -91,20 +91,23 @@ function migrateServicesFormat(schema: SchemaContextType): SchemaContextType {
   const migratedResources = schema.resources.map((resource: any) => {
     if (!Array.isArray(resource.services)) return resource;
 
-    const migratedServices = resource.services.map((svc: any) => {
-      // Already in the new format
-      if (svc && typeof svc === "object" && typeof svc.type === "string") {
-        return {
-          type: svc.type,
-          approvers: Array.isArray(svc.approvers) ? svc.approvers : [],
-        };
-      }
-      // Old string format — migrate to new shape with empty approvers
-      if (typeof svc === "string") {
-        return { type: svc, approvers: [] };
-      }
-      return svc;
-    });
+    const migratedServices = resource.services
+      .map((svc: any) => {
+        // Already in the new format
+        if (svc && typeof svc === "object" && typeof svc.type === "string") {
+          return {
+            type: svc.type,
+            approvers: Array.isArray(svc.approvers) ? svc.approvers : [],
+          };
+        }
+        // Old string format — migrate to new shape with empty approvers
+        if (typeof svc === "string") {
+          return { type: svc, approvers: [] };
+        }
+        // null, undefined, number, or any other unexpected value — discard
+        return null;
+      })
+      .filter((svc: any) => svc !== null);
 
     return { ...resource, services: migratedServices };
   });

@@ -66,7 +66,7 @@ export async function POST(
       action: "add" | "remove";
     };
 
-    if (!resourceRoomId || !email || !action) {
+    if (typeof resourceRoomId !== "number" || !email || !action) {
       return NextResponse.json(
         { error: "Missing required fields: resourceRoomId, email, action" },
         { status: 400 },
@@ -131,11 +131,15 @@ export async function POST(
       // Per-service approvers
       // Normalize to handle Firestore data that hasn't been migrated from string[] yet
       const services = Array.isArray(resource.services)
-        ? resource.services.map((s: any) =>
-            typeof s === "string"
-              ? { type: s, approvers: [] }
-              : { type: s.type ?? "", approvers: Array.isArray(s.approvers) ? [...s.approvers] : [] },
-          )
+        ? resource.services
+            .map((s: any) =>
+              typeof s === "string"
+                ? { type: s, approvers: [] }
+                : s != null && typeof s === "object"
+                  ? { type: s.type ?? "", approvers: Array.isArray(s.approvers) ? [...s.approvers] : [] }
+                  : null,
+            )
+            .filter((s): s is { type: string; approvers: string[] } => s !== null)
         : [];
 
       const serviceIndex = services.findIndex((s) => s.type === serviceType);

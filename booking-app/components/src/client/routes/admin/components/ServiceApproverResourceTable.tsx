@@ -35,6 +35,7 @@ import { isValidNetIdEmailFormat } from "../../../../utils/validationHelpers";
  */
 function normalizeService(s: ResourceService | string): ResourceService {
   if (typeof s === "string") return { type: s, approvers: [] };
+  if (s == null || typeof s !== "object") return { type: "", approvers: [] };
   return { type: s.type ?? "", approvers: Array.isArray(s.approvers) ? s.approvers : [] };
 }
 

@@ -16,31 +16,39 @@ const SERVICE_APPROVER_CONFIG = {
     flagField: "isSetup",
     subjectStatus: "SETUP REQUESTED",
     displayName: "setup",
+    schemaServiceType: "setup",
   },
   equipment: {
     flagField: "isEquipment",
     subjectStatus: "EQUIPMENT REQUESTED",
     displayName: "equipment",
+    schemaServiceType: "equipment",
   },
+  // booking state machine uses the key "staff" internally, but the tenant schema
+  // stores this service type as "staffing" — use schemaServiceType for schema lookups
   staff: {
     flagField: "isStaffing",
     subjectStatus: "STAFFING REQUESTED",
     displayName: "staffing",
+    schemaServiceType: "staffing",
   },
   catering: {
     flagField: "isCatering",
     subjectStatus: "CATERING REQUESTED",
     displayName: "catering",
+    schemaServiceType: "catering",
   },
   cleaning: {
     flagField: "isCleaning",
     subjectStatus: "CLEANUP REQUESTED",
     displayName: "cleanup",
+    schemaServiceType: "cleaning",
   },
   security: {
     flagField: "isSecurity",
     subjectStatus: "SECURITY REQUESTED",
     displayName: "security",
+    schemaServiceType: "security",
   },
 } as const;
 
@@ -93,14 +101,18 @@ export const notifyServiceApproversForRequestedServices = async (
       let recipients: string[] = [];
 
       if (matchingResource) {
-        // Normalize to handle Firestore data that hasn't been migrated from string[] yet
+        // Normalize to handle Firestore data that hasn't been migrated from string[] yet.
+        // Use schemaServiceType (e.g. "staffing") rather than serviceKey (e.g. "staff")
+        // because the schema stores the type under the display name, not the internal key.
         const serviceEntry = matchingResource.services
           ?.map((s: any) =>
             typeof s === "string"
               ? { type: s, approvers: [] }
-              : { type: s.type ?? "", approvers: Array.isArray(s.approvers) ? s.approvers : [] },
+              : s != null && typeof s === "object"
+                ? { type: s.type ?? "", approvers: Array.isArray(s.approvers) ? s.approvers : [] }
+                : { type: "", approvers: [] },
           )
-          .find((s) => s.type === serviceKey);
+          .find((s) => s.type === config.schemaServiceType);
 
         if (serviceEntry && serviceEntry.approvers.length > 0) {
           recipients = Array.from(new Set(serviceEntry.approvers.filter(Boolean)));
