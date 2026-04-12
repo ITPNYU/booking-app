@@ -165,8 +165,8 @@ export const PreBannedUsers = () => {
             </TableHead>
             <TableBody>
               {selectedEmail &&
-                detailsByEmail[selectedEmail]?.map((detail, index) => (
-                  <TableRow key={index}>
+                detailsByEmail[selectedEmail]?.map((detail) => (
+                  <TableRow key={detail.id}>
                     <TableCell>{detail.date}</TableCell>
                     <TableCell>{detail.status}</TableCell>
                     <TableCell>{detail.bookingId ?? "--"}</TableCell>
