@@ -25,7 +25,7 @@ interface PreBanDetails {
   date: string;
   status: "Late Cancel" | "No Show";
   id: string;
-  bookingId: string;
+  bookingId?: string;
   excused: boolean;
 }
 
@@ -169,7 +169,7 @@ export const PreBannedUsers = () => {
                   <TableRow key={index}>
                     <TableCell>{detail.date}</TableCell>
                     <TableCell>{detail.status}</TableCell>
-                    <TableCell>{detail.bookingId}</TableCell>
+                    <TableCell>{detail.bookingId ?? "--"}</TableCell>
                     <TableCell>
                       <Checkbox
                         checked={detail.excused}
