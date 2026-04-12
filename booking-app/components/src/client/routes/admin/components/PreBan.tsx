@@ -159,7 +159,7 @@ export const PreBannedUsers = () => {
               <TableRow>
                 <TableCell>Date</TableCell>
                 <TableCell>Status</TableCell>
-                <TableCell>Booking Number</TableCell>
+                <TableCell>Booking ID</TableCell>
                 <TableCell>Excused</TableCell>
               </TableRow>
             </TableHead>
