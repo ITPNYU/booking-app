@@ -1,6 +1,7 @@
 import { getBookingHourLimits } from "@/components/src/client/routes/booking/utils/bookingHourLimits";
 import { TENANTS } from "@/components/src/constants/tenants";
-import { BookingOrigin, Role } from "@/components/src/types";
+import { BookingOrigin, Inputs, Role, RoomSetting } from "@/components/src/types";
+import type { DateSelectArg } from "fullcalendar";
 import { BookingLogger } from "@/lib/logger/bookingLogger";
 import { logAutomaticCancellationTransition, type AutomaticCancellationReason } from "@/lib/stateMachines/logAutomaticCancellationTransition";
 import { and, assign, setup } from "xstate";
@@ -181,9 +182,9 @@ function createServiceGuards(configs: readonly ServiceConfig[]) {
 // Define context type for type safety
 interface MediaCommonsBookingContext {
   tenant?: string;
-  selectedRooms?: any[];
-  formData?: any;
-  bookingCalendarInfo?: any;
+  selectedRooms?: RoomSetting[];
+  formData?: Inputs;
+  bookingCalendarInfo?: DateSelectArg;
   isWalkIn?: boolean;
   calendarEventId?: string | null;
   email?: string;
