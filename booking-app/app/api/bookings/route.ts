@@ -307,6 +307,7 @@ async function enforceRequestLimits({
         TableNames.BOOKING,
         [
           { field: "email", operator: "==", value: email },
+          { field: "role", operator: "==", value: role },
           { field: "requestedAt", operator: ">=", value: startTs },
           { field: "requestedAt", operator: "<", value: endTs },
           // Active-only: count bookings that are not canceled and not declined
