@@ -34,7 +34,7 @@ export const SelectRooms = ({
   const { resources, calendarConfig } = useTenantSchema();
   const selectedIds = selected.map((room) => room.roomId);
   const allowMultipleResourceSelect =
-    calendarConfig?.multipleResourceSelect ?? false;
+    calendarConfig?.multipleResourceSelect ?? true;
 
   // Sort rooms by room number for consistent display order
   const sortedRooms = useMemo(
