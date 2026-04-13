@@ -11,6 +11,7 @@ import * as admin from "firebase-admin";
 import type { PersistedXStateData, PreApprovalUpdateData } from "./xstateTypes";
 import { cleanObjectForFirestore } from "./xstatePersistence";
 import { handleApprovedEntry } from "./effects/approvedEffects";
+import { handleRequestedEntry } from "./effects/requestedEffects";
 import type { HandlerContext, StateHandler } from "./effects/types";
 
 // Registry of per-state entry handlers. As branches are extracted from
@@ -18,6 +19,7 @@ import type { HandlerContext, StateHandler } from "./effects/types";
 // land here and the corresponding branch is removed from the function.
 const stateHandlers: Partial<Record<string, StateHandler>> = {
   "Approved": handleApprovedEntry,
+  "Requested": handleRequestedEntry,
 };
 
 // Note: History logging is now handled by traditional functions only
@@ -292,20 +294,6 @@ export async function handleStateTransitions(
         },
       );
     }
-  } else if (newState === "Requested" && previousState !== "Requested") {
-    // Requested state handling
-    console.log(
-      `🔄 XSTATE REACHED REQUESTED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-      {
-        calendarEventId,
-        previousState,
-        newState,
-        note: "Decline field cleanup handled by calling API",
-      },
-    );
-
-    // Note: History logging, calendar updates, and field cleanup are now handled by traditional functions only
-    // XState only manages state transitions, not side effects
   } else if (newState === "No Show" && previousState !== "No Show") {
     // No Show state handling - update Firestore fields
     firestoreUpdates.noShowedAt = admin.firestore.Timestamp.now();
