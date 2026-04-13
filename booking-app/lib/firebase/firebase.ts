@@ -10,6 +10,7 @@ import {
   addDoc,
   collection,
   deleteDoc,
+  deleteField,
   doc,
   getDoc,
   getDocs,
@@ -496,6 +497,79 @@ export const clientGetFinalApproverEmailFromDatabase = async (): Promise<
     console.error("Error fetching finalApproverEmail:", error);
     return null;
   }
+};
+
+/** Document ID for the single resource-approvers document in the usersApprovers collection. */
+export const RESOURCE_APPROVERS_DOC_ID = "resourceApprovers";
+
+export type ResourceApproversData = {
+  resources: Record<string, { approvers: { finalApprover: string } }>;
+};
+
+/**
+ * Fetches the resource approvers document for the current (or specified) tenant.
+ * The document is stored under RESOURCE_APPROVERS_DOC_ID in the ${tenant}-usersApprovers collection.
+ */
+export const clientGetResourceApprovers = async (
+  tenant?: string,
+): Promise<ResourceApproversData | null> => {
+  try {
+    const db = getDb();
+    const tenantCollection = getTenantCollection(TableNames.APPROVERS, tenant);
+    const docRef = doc(db, tenantCollection, RESOURCE_APPROVERS_DOC_ID);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+      return docSnap.data() as ResourceApproversData;
+    }
+    return null;
+  } catch (error) {
+    console.error("Error fetching resource approvers:", error);
+    return null;
+  }
+};
+
+/**
+ * Sets the final approver email for a specific resource.
+ *
+ * @param roomId - The numeric roomId of the resource (used as the map key)
+ * @param email  - The approver's email address
+ * @param tenant - The tenant identifier
+ */
+export const clientSetResourceFinalApprover = async (
+  roomId: number | string,
+  email: string,
+  tenant?: string,
+): Promise<void> => {
+  const db = getDb();
+  const tenantCollection = getTenantCollection(TableNames.APPROVERS, tenant);
+  const docRef = doc(db, tenantCollection, RESOURCE_APPROVERS_DOC_ID);
+  await setDoc(
+    docRef,
+    {
+      resources: {
+        [String(roomId)]: { approvers: { finalApprover: email } },
+      },
+    },
+    { merge: true },
+  );
+};
+
+/**
+ * Clears the final approver email for a specific resource.
+ *
+ * @param roomId - The numeric roomId of the resource
+ * @param tenant - The tenant identifier
+ */
+export const clientClearResourceFinalApprover = async (
+  roomId: number | string,
+  tenant?: string,
+): Promise<void> => {
+  const db = getDb();
+  const tenantCollection = getTenantCollection(TableNames.APPROVERS, tenant);
+  const docRef = doc(db, tenantCollection, RESOURCE_APPROVERS_DOC_ID);
+  await updateDoc(docRef, {
+    [`resources.${String(roomId)}.approvers.finalApprover`]: deleteField(),
+  });
 };
 export const clientGetDataByCalendarEventId = async <T>(
   collectionName: TableNames,

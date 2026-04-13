@@ -1,6 +1,7 @@
 import { Stack, Typography } from "@mui/material";
 import { EquipmentUsers } from "./EquipmentUsers";
 import { Liaisons } from "./Liaisons";
+import { ResourceApprovers } from "./ResourceApprovers";
 import { ServiceApproverUsers } from "./ServiceApproverUsers";
 
 export const Approvers = () => (
@@ -24,5 +25,14 @@ export const Approvers = () => (
       <ServiceApproverUsers title="Cleanup Approvers" flagField="isCleaning" />
       <ServiceApproverUsers title="Security Approvers" flagField="isSecurity" />
     </Stack>
+    <Typography style={{ marginTop: 48, marginBottom: 8 }} variant="h6">
+      Final Approvers per Resource
+    </Typography>
+    <Typography variant="body2" color="text.secondary" style={{ marginBottom: 16 }}>
+      Assign a dedicated final approver for each resource. When set, this
+      address overrides the tenant-level final approver for bookings of that
+      resource.
+    </Typography>
+    <ResourceApprovers />
   </div>
 );

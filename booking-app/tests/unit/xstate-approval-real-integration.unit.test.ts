@@ -106,6 +106,7 @@ const mockServerDeleteData = vi.fn();
 const mockServerDeleteDocumentFields = vi.fn();
 const mockServerGetDocumentById = vi.fn();
 const mockServerGetFinalApproverEmail = vi.fn();
+const mockServerGetFinalApproverEmailForResource = vi.fn();
 
 // Mock XState utilities - but we'll use real XState machine in tests
 const mockExecuteXStateTransition = vi.fn();
@@ -120,6 +121,7 @@ vi.mock("@/lib/firebase/server/adminDb", () => ({
   serverDeleteDocumentFields: mockServerDeleteDocumentFields,
   serverGetDocumentById: mockServerGetDocumentById,
   serverGetFinalApproverEmail: mockServerGetFinalApproverEmail,
+  serverGetFinalApproverEmailForResource: mockServerGetFinalApproverEmailForResource,
 }));
 
 // Don't mock XState utilities - we want to test the real XState machine
@@ -188,6 +190,7 @@ describe("XState Approval Real Integration Tests", () => {
     mockServerDeleteDocumentFields.mockResolvedValue(undefined);
     mockServerGetDocumentById.mockResolvedValue(null);
     mockServerGetFinalApproverEmail.mockResolvedValue("finalapprover@nyu.edu");
+    mockServerGetFinalApproverEmailForResource.mockResolvedValue("finalapprover@nyu.edu");
   });
 
   describe("1. XState Machine Transitions", () => {

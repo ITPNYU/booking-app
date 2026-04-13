@@ -5,7 +5,7 @@ import {
   serverFetchAllDataFromCollection,
   serverGetDataByCalendarEventId,
   serverGetDocumentById,
-  serverGetFinalApproverEmail,
+  serverGetFinalApproverEmailForResource,
   serverUpdateInFirestore,
 } from "@/lib/firebase/server/adminDb";
 import { Timestamp } from "firebase-admin/firestore";
@@ -288,6 +288,7 @@ export const serverFirstApproveOnly = async (
   const doc = await serverGetDataByCalendarEventId<{
     id: string;
     requestNumber: number;
+    roomId?: string;
   }>(TableNames.BOOKING, id, tenant);
 
   if (!doc) {
@@ -313,7 +314,13 @@ export const serverFirstApproveOnly = async (
     ...contents,
     headerMessage: emailConfig.emailMessages.secondApprovalRequest,
   };
-  const recipient = await serverGetFinalApproverEmail(tenant);
+
+  // Resolve the primary roomId from the booking (roomId may be "101" or "101, 102")
+  const primaryRoomId = doc.roomId
+    ? parseInt(String(doc.roomId).split(",")[0].trim(), 10)
+    : undefined;
+
+  const recipient = await serverGetFinalApproverEmailForResource(tenant, primaryRoomId);
   if (!recipient) {
 
     return;
@@ -442,6 +449,7 @@ const firstApprove = async (id: string, email: string, tenant?: string) => {
   const doc = await serverGetDataByCalendarEventId<{
     id: string;
     requestNumber: number;
+    roomId?: string;
   }>(TableNames.BOOKING, id, tenant);
   if (!doc) {
     console.error("Booking document not found for calendar event id:", id);
@@ -484,7 +492,13 @@ const firstApprove = async (id: string, email: string, tenant?: string) => {
     ...contents,
     headerMessage: emailConfig.emailMessages.secondApprovalRequest,
   };
-  const recipient = await serverGetFinalApproverEmail(tenant);
+
+  // Resolve the primary roomId from the booking (roomId may be "101" or "101, 102")
+  const primaryRoomId = doc.roomId
+    ? parseInt(String(doc.roomId).split(",")[0].trim(), 10)
+    : undefined;
+
+  const recipient = await serverGetFinalApproverEmailForResource(tenant, primaryRoomId);
   if (!recipient) {
 
     return;
@@ -556,6 +570,8 @@ interface SendConfirmationEmailOptions {
   headerMessage: string;
   guestEmail: string;
   tenant?: string;
+  /** Optional primary roomId for resource-specific final approver lookup */
+  roomId?: number | string;
 }
 
 export const serverSendBookingDetailEmail = async ({
@@ -602,8 +618,9 @@ export const serverSendConfirmationEmail = async ({
   headerMessage,
   guestEmail,
   tenant,
+  roomId,
 }: SendConfirmationEmailOptions) => {
-  const email = await serverGetFinalApproverEmail(tenant);
+  const email = await serverGetFinalApproverEmailForResource(tenant, roomId);
   if (!email) {
 
     return;
@@ -632,6 +649,12 @@ export const serverApproveEvent = async (id: string, tenant?: string) => {
 
   // @ts-ignore
   const guestEmail = doc.email;
+  // @ts-ignore
+  const bookingRoomId: string | undefined = doc.roomId;
+  // Resolve the primary roomId for resource-specific final approver lookup
+  const primaryRoomId = bookingRoomId
+    ? parseInt(String(bookingRoomId).split(",")[0].trim(), 10)
+    : undefined;
 
   // Get tenant email configuration for approval notice
   const emailConfig = await getTenantEmailConfig(tenant);
@@ -649,13 +672,14 @@ export const serverApproveEvent = async (id: string, tenant?: string) => {
     tenant,
   });
 
-  // for second approver
+  // for second approver (resource-specific if configured)
   serverSendConfirmationEmail({
     calendarEventId: id,
     status: BookingStatusLabel.APPROVED,
     headerMessage: otherHeaderMessage,
     guestEmail,
     tenant,
+    roomId: primaryRoomId,
   });
 
   // for Samantha
