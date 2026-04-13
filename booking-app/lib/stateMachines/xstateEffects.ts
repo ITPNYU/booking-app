@@ -11,6 +11,7 @@ import * as admin from "firebase-admin";
 import type { PersistedXStateData, PreApprovalUpdateData } from "./xstateTypes";
 import { cleanObjectForFirestore } from "./xstatePersistence";
 import { handleApprovedEntry } from "./effects/approvedEffects";
+import { handleNoShowEntry } from "./effects/noShowEffects";
 import { handleRequestedEntry } from "./effects/requestedEffects";
 import type { HandlerContext, StateHandler } from "./effects/types";
 
@@ -20,6 +21,7 @@ import type { HandlerContext, StateHandler } from "./effects/types";
 const stateHandlers: Partial<Record<string, StateHandler>> = {
   "Approved": handleApprovedEntry,
   "Requested": handleRequestedEntry,
+  "No Show": handleNoShowEntry,
 };
 
 // Note: History logging is now handled by traditional functions only
@@ -294,23 +296,6 @@ export async function handleStateTransitions(
         },
       );
     }
-  } else if (newState === "No Show" && previousState !== "No Show") {
-    // No Show state handling - update Firestore fields
-    firestoreUpdates.noShowedAt = admin.firestore.Timestamp.now();
-    if (email) {
-      firestoreUpdates.noShowedBy = email;
-    }
-
-    console.log(
-      `🚫 XSTATE REACHED NO SHOW [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-      {
-        calendarEventId,
-        previousState,
-        newState,
-        noShowedAt: firestoreUpdates.noShowedAt,
-        noShowedBy: firestoreUpdates.noShowedBy,
-      },
-    );
   } else if (newState === "Canceled" && previousState !== "Canceled") {
     // Canceled state handling - update Firestore fields
     firestoreUpdates.canceledAt = admin.firestore.Timestamp.now();
