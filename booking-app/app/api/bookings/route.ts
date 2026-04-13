@@ -255,7 +255,8 @@ async function enforceRequestLimits({
     tenant,
   );
 
-  if (!schema?.resources || schema.resources.length === 0) return { ok: true };
+  if (!schema?.resources || schema.resources.length === 0)
+    return { ok: true } as const;
 
   const resourcesByRoomId = new Map<number, any>();
   for (const r of schema.resources) {
@@ -307,12 +308,12 @@ async function enforceRequestLimits({
         return {
           ok: false,
           message: `Request limit reached for ${resourceName} (${period}). Limit: ${limit}.`,
-        };
+        } as const;
       }
     }
   }
 
-  return { ok: true };
+  return { ok: true } as const;
 }
 
 // Helper to build booking contents object for calendar descriptions
@@ -714,7 +715,7 @@ export async function POST(request: NextRequest) {
         selectedRoomIds: selectedRoomIdsNums,
       });
 
-      if (!enforcement.ok) {
+      if (enforcement.ok === false) {
         return NextResponse.json(
           { error: enforcement.message },
           { status: 429 },
