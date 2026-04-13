@@ -10,6 +10,15 @@ import { BookingLogger } from "@/lib/logger/bookingLogger";
 import * as admin from "firebase-admin";
 import type { PersistedXStateData, PreApprovalUpdateData } from "./xstateTypes";
 import { cleanObjectForFirestore } from "./xstatePersistence";
+import { handleApprovedEntry } from "./effects/approvedEffects";
+import type { HandlerContext, StateHandler } from "./effects/types";
+
+// Registry of per-state entry handlers. As branches are extracted from
+// the inline if-else chain in `handleStateTransitions`, their handlers
+// land here and the corresponding branch is removed from the function.
+const stateHandlers: Partial<Record<string, StateHandler>> = {
+  "Approved": handleApprovedEntry,
+};
 
 // Note: History logging is now handled by traditional functions only
 // XState only manages state transitions, not history logging
@@ -91,39 +100,28 @@ export async function handleStateTransitions(
     },
   );
 
-  // Handle specific state transitions
-  if (newState === "Approved" && previousState !== "Approved") {
-    // Approved state handling
-    firestoreUpdates.finalApprovedAt = admin.firestore.Timestamp.now();
-    if (email) {
-      firestoreUpdates.finalApprovedBy = email;
-    }
+  // Per-state dispatch: if an extracted handler exists for this string
+  // state and the previous state differs, delegate to it. Otherwise fall
+  // through to the inline branches still living in this function.
+  const extractedHandler =
+    typeof newState === "string" && newState !== previousState
+      ? stateHandlers[newState]
+      : undefined;
 
-    console.log(
-      `🎉 XSTATE REACHED APPROVED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-      {
-        calendarEventId,
-        previousState,
-        newState,
-        finalApprovedAt: firestoreUpdates.finalApprovedAt,
-        finalApprovedBy: firestoreUpdates.finalApprovedBy,
-      },
-    );
-
-    // Note: History logging is now handled by traditional functions only
-    // XState only manages state transitions, not history logging
-
-    // Note: Side effects (emails, calendar updates, history logging) are now handled
-    // by traditional processing after XState transitions to maintain separation of concerns
-    console.log(
-      `📝 XSTATE APPROVED STATE REACHED - SIDE EFFECTS HANDLED EXTERNALLY [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-      {
-        calendarEventId,
-        email,
-        tenant,
-        note: "Approval side effects handled by /api/services or /api/approve",
-      },
-    );
+  if (extractedHandler) {
+    const handlerCtx: HandlerContext = {
+      previousState,
+      newState,
+      calendarEventId,
+      email,
+      tenant,
+      firestoreUpdates,
+      bookingDoc,
+      skipCalendarForServiceCloseout,
+      isXStateCreation,
+      reason,
+    };
+    await extractedHandler(handlerCtx);
   } else if (newState === "Declined" && previousState !== "Declined") {
     // Declined state handling
     firestoreUpdates.declinedAt = admin.firestore.Timestamp.now();
