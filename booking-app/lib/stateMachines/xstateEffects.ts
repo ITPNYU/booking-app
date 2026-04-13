@@ -12,6 +12,7 @@ import type { PersistedXStateData, PreApprovalUpdateData } from "./xstateTypes";
 import { cleanObjectForFirestore } from "./xstatePersistence";
 import { handleApprovedEntry } from "./effects/approvedEffects";
 import { handleCanceledEntry } from "./effects/canceledEffects";
+import { handleClosedEntry } from "./effects/closedEffects";
 import { handleNoShowEntry } from "./effects/noShowEffects";
 import { handleRequestedEntry } from "./effects/requestedEffects";
 import type { HandlerContext, StateHandler } from "./effects/types";
@@ -24,6 +25,7 @@ const stateHandlers: Partial<Record<string, StateHandler>> = {
   "Requested": handleRequestedEntry,
   "No Show": handleNoShowEntry,
   "Canceled": handleCanceledEntry,
+  "Closed": handleClosedEntry,
 };
 
 // Note: History logging is now handled by traditional functions only
@@ -298,27 +300,6 @@ export async function handleStateTransitions(
         },
       );
     }
-  } else if (newState === "Closed" && previousState !== "Closed") {
-    console.log(
-      `🎯 XSTATE REACHED CLOSED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-      {
-        calendarEventId,
-        previousState,
-        newState,
-      },
-    );
-
-    // ITP: checkout auto-closes via always transition (Checked In → Checked Out → Closed)
-    // When previousState is "Checked In", checkout-processing is called from db.ts checkOut()
-    // after this API returns (to avoid self-referencing fetch deadlock)
-    if (previousState === "Checked In") {
-      console.log(
-        `📤 XSTATE CHECKOUT VIA AUTO-CLOSE [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-        { calendarEventId, previousState, newState, note: "checkout-processing will be called by client" },
-      );
-    }
-
-    // Close processing for other cases is handled by XState machine action calling /api/close-processing
   } else if (newState === "Checked In" && previousState !== "Checked In") {
     // Check-in state handling - persist XState snapshot only
     // All other processing (Firestore timestamps, email, calendar, history) is handled by /api/checkin-processing
