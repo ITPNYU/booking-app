@@ -51,7 +51,10 @@ import {
   getAffiliationDisplayValues,
   getOtherDisplayFields,
 } from "./shared";
-import type { SchemaContextType } from "@/components/src/client/routes/components/SchemaProvider";
+import type {
+  RequestLimitPeriod,
+  SchemaContextType,
+} from "@/components/src/client/routes/components/SchemaProvider";
 
 // Common function to create XState data structure
 export function createXStateData(
@@ -184,8 +187,6 @@ const getXStateMachine = (tenant?: string) => {
   if (tenant === "itp") return itpBookingMachine;
   return null;
 };
-
-type RequestLimitPeriod = "perDay" | "perWeek" | "perMonth" | "perSemester";
 
 function getUtcWindowForPeriod(now: Date, period: RequestLimitPeriod): { start: Date; end: Date } {
   const y = now.getUTCFullYear();
