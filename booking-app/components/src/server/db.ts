@@ -363,7 +363,9 @@ async function getViolationCount(
   );
 
   // Filter on the client side for now
-  const filteredLogs = preBanLogs.filter((log: any) => log.netId === netId);
+  const filteredLogs = preBanLogs.filter(
+    (log: any) => log.netId === netId && log?.excused !== true,
+  );
   return filteredLogs.length;
 }
 

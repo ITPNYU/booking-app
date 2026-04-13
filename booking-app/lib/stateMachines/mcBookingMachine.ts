@@ -2,11 +2,174 @@ import { getBookingHourLimits } from "@/components/src/client/routes/booking/uti
 import { TENANTS } from "@/components/src/constants/tenants";
 import { BookingOrigin, Role } from "@/components/src/types";
 import { BookingLogger } from "@/lib/logger/bookingLogger";
+import { logAutomaticCancellationTransition, type AutomaticCancellationReason } from "@/lib/stateMachines/logAutomaticCancellationTransition";
 import { and, assign, setup } from "xstate";
 import { checkAutoApprovalEligibility } from "@/lib/utils/autoApprovalUtils";
 
 // Time constants for clarity
 const ONE_HOUR_IN_MS = 60 * 60 * 1000;
+
+// Service configuration for factory-generated states
+interface ServiceConfig {
+  name: string;
+  contextKey: keyof NonNullable<MediaCommonsBookingContext["servicesRequested"]>;
+  requestGuard: string;
+  approvedGuard: string;
+  approveEvent: string;
+  declineEvent: string;
+  closeoutEvent: string;
+  approveAction: string;
+  declineAction: string;
+}
+
+const SERVICE_CONFIGS: ServiceConfig[] = [
+  { name: "Staff",     contextKey: "staff",     requestGuard: "staffRequested",    approvedGuard: "staffApproved",    approveEvent: "approveStaff",     declineEvent: "declineStaff",     closeoutEvent: "closeoutStaff",     approveAction: "approveStaffService",     declineAction: "declineStaffService" },
+  { name: "Catering",  contextKey: "catering",  requestGuard: "caterRequested",    approvedGuard: "cateringApproved", approveEvent: "approveCatering",  declineEvent: "declineCatering",  closeoutEvent: "closeoutCatering",  approveAction: "approveCateringService",  declineAction: "declineCateringService" },
+  { name: "Setup",     contextKey: "setup",     requestGuard: "setupRequested",    approvedGuard: "setupApproved",    approveEvent: "approveSetup",     declineEvent: "declineSetup",     closeoutEvent: "closeoutSetup",     approveAction: "approveSetupService",     declineAction: "declineSetupService" },
+  { name: "Cleaning",  contextKey: "cleaning",  requestGuard: "cleanRequested",    approvedGuard: "cleanApproved",    approveEvent: "approveCleaning",  declineEvent: "declineCleaning",  closeoutEvent: "closeoutCleaning",  approveAction: "approveCleaningService",  declineAction: "declineCleaningService" },
+  { name: "Security",  contextKey: "security",  requestGuard: "securityRequested", approvedGuard: "securityApproved", approveEvent: "approveSecurity",  declineEvent: "declineSecurity",  closeoutEvent: "closeoutSecurity",  approveAction: "approveSecurityService",  declineAction: "declineSecurityService" },
+  { name: "Equipment", contextKey: "equipment", requestGuard: "equipRequested",    approvedGuard: "equipApproved",    approveEvent: "approveEquipment", declineEvent: "declineEquipment", closeoutEvent: "closeoutEquipment", approveAction: "approveEquipmentService", declineAction: "declineEquipmentService" },
+];
+
+function createServiceRequestState(config: ServiceConfig) {
+  return {
+    initial: `Evaluate ${config.name} Request`,
+    states: {
+      [`Evaluate ${config.name} Request`]: {
+        always: [
+          { target: `${config.name} Requested`, guard: { type: config.requestGuard } },
+          { target: `${config.name} Approved` },
+        ],
+        entry: [
+          ({ context }: { context: MediaCommonsBookingContext }) => {
+            console.log(
+              `🔍 XSTATE SUBSTATE: Evaluating ${config.name} Request [MEDIA COMMONS]`,
+              { tenant: context.tenant, [`${config.contextKey}Requested`]: context.servicesRequested?.[config.contextKey], timestamp: new Date().toISOString() },
+            );
+          },
+        ],
+      },
+      [`${config.name} Requested`]: {
+        on: {
+          [config.declineEvent]: { target: `${config.name} Declined`, actions: config.declineAction },
+          [config.approveEvent]: { target: `${config.name} Approved`, actions: config.approveAction },
+        },
+        entry: [
+          ({ context }: { context: MediaCommonsBookingContext }) => {
+            console.log(
+              `⏳ XSTATE SUBSTATE: ${config.name} Request Pending Approval [MEDIA COMMONS]`,
+              { tenant: context.tenant, timestamp: new Date().toISOString() },
+            );
+          },
+        ],
+      },
+      [`${config.name} Approved`]: {
+        type: "final" as const,
+        entry: [
+          ({ context }: { context: MediaCommonsBookingContext }) => {
+            console.log(
+              `✅ XSTATE SUBSTATE: ${config.name} Request APPROVED [MEDIA COMMONS]`,
+              { tenant: context.tenant, timestamp: new Date().toISOString() },
+            );
+          },
+        ],
+      },
+      [`${config.name} Declined`]: {
+        type: "final" as const,
+        entry: [
+          ({ context }: { context: MediaCommonsBookingContext }) => {
+            console.log(
+              `❌ XSTATE SUBSTATE: ${config.name} Request DECLINED [MEDIA COMMONS]`,
+              { tenant: context.tenant, timestamp: new Date().toISOString() },
+            );
+          },
+        ],
+      },
+    },
+  };
+}
+
+function createServiceCloseoutState(config: ServiceConfig) {
+  return {
+    initial: `Evaluate ${config.name}`,
+    states: {
+      [`Evaluate ${config.name}`]: {
+        always: [
+          { target: `${config.name} Closeout Pending`, guard: { type: config.approvedGuard } },
+          { target: `${config.name} Closedout` },
+        ],
+        entry: [
+          ({ context }: { context: MediaCommonsBookingContext }) => {
+            console.log(
+              `🔍 XSTATE CLOSEOUT: Evaluating ${config.name} Closeout [MEDIA COMMONS]`,
+              { tenant: context.tenant, [`${config.contextKey}Approved`]: context.servicesApproved?.[config.contextKey], timestamp: new Date().toISOString() },
+            );
+          },
+        ],
+      },
+      [`${config.name} Closeout Pending`]: {
+        on: {
+          [config.closeoutEvent]: { target: `${config.name} Closedout` },
+        },
+        entry: [
+          ({ context }: { context: MediaCommonsBookingContext }) => {
+            console.log(
+              `⏳ XSTATE CLOSEOUT: ${config.name} Closeout Pending [MEDIA COMMONS]`,
+              { tenant: context.tenant, timestamp: new Date().toISOString() },
+            );
+          },
+        ],
+      },
+      [`${config.name} Closedout`]: {
+        type: "final" as const,
+        entry: [
+          ({ context }: { context: MediaCommonsBookingContext }) => {
+            console.log(
+              `✅ XSTATE CLOSEOUT: ${config.name} CLOSED OUT [MEDIA COMMONS]`,
+              { tenant: context.tenant, timestamp: new Date().toISOString() },
+            );
+          },
+        ],
+      },
+    },
+  };
+}
+
+function createServiceActions(configs: ServiceConfig[]) {
+  const actions: Record<string, ReturnType<typeof assign>> = {};
+  for (const config of configs) {
+    actions[config.approveAction] = assign({
+      servicesApproved: ({ context }: { context: MediaCommonsBookingContext }) => ({
+        ...context.servicesApproved,
+        [config.contextKey]: true,
+      }),
+    });
+    actions[config.declineAction] = assign({
+      servicesApproved: ({ context }: { context: MediaCommonsBookingContext }) => ({
+        ...context.servicesApproved,
+        [config.contextKey]: false,
+      }),
+    });
+  }
+  return actions;
+}
+
+function createServiceGuards(configs: ServiceConfig[]) {
+  const guards: Record<string, (args: { context: MediaCommonsBookingContext }) => boolean> = {};
+  for (const config of configs) {
+    guards[config.requestGuard] = ({ context }: { context: MediaCommonsBookingContext }) => {
+      const requested = context.servicesRequested?.[config.contextKey] || false;
+      console.log(`🎯 XSTATE GUARD: ${config.requestGuard}: ${requested}`);
+      return requested;
+    };
+    guards[config.approvedGuard] = ({ context }: { context: MediaCommonsBookingContext }) => {
+      const approved = context.servicesApproved?.[config.contextKey] === true;
+      console.log(`🎯 XSTATE GUARD: ${config.approvedGuard}: ${approved}`);
+      return approved;
+    };
+  }
+  return guards;
+}
 
 // Define context type for type safety
 interface MediaCommonsBookingContext {
@@ -21,6 +184,7 @@ interface MediaCommonsBookingContext {
   role?: Role;
   declineReason?: string;
   origin?: string;
+  automationReason?: AutomaticCancellationReason; // Tracks automatic transitions
   servicesRequested?: {
     staff?: boolean;
     equipment?: boolean;
@@ -225,43 +389,13 @@ export const mcBookingMachine = setup({
         return "Service requirements could not be fulfilled";
       },
     }),
-    // Service approval actions that update context
-    approveStaffService: assign({
-      servicesApproved: ({ context }) => ({
-        ...context.servicesApproved,
-        staff: true,
-      }),
-    }),
-    approveEquipmentService: assign({
-      servicesApproved: ({ context }) => ({
-        ...context.servicesApproved,
-        equipment: true,
-      }),
-    }),
-    approveCateringService: assign({
-      servicesApproved: ({ context }) => ({
-        ...context.servicesApproved,
-        catering: true,
-      }),
-    }),
-    approveCleaningService: assign({
-      servicesApproved: ({ context }) => ({
-        ...context.servicesApproved,
-        cleaning: true,
-      }),
-    }),
-    approveSecurityService: assign({
-      servicesApproved: ({ context }) => ({
-        ...context.servicesApproved,
-        security: true,
-      }),
-    }),
-    approveSetupService: assign({
-      servicesApproved: ({ context }) => ({
-        ...context.servicesApproved,
-        setup: true,
-      }),
-    }),
+    logCanceledAfterAutomaticTransition: async (
+      { context },
+    ): Promise<void> => {
+      await logAutomaticCancellationTransition(context);
+    },
+    // Service approval/decline actions generated from config
+    ...createServiceActions(SERVICE_CONFIGS),
     // Auto-approve all requested services for pregame bookings
     approveAllPregameServices: assign({
       servicesApproved: ({ context }) => {
@@ -307,43 +441,6 @@ export const mcBookingMachine = setup({
       });
     },
 
-    // Service decline actions that update context
-    declineStaffService: assign({
-      servicesApproved: ({ context }) => ({
-        ...context.servicesApproved,
-        staff: false,
-      }),
-    }),
-    declineEquipmentService: assign({
-      servicesApproved: ({ context }) => ({
-        ...context.servicesApproved,
-        equipment: false,
-      }),
-    }),
-    declineCateringService: assign({
-      servicesApproved: ({ context }) => ({
-        ...context.servicesApproved,
-        catering: false,
-      }),
-    }),
-    declineCleaningService: assign({
-      servicesApproved: ({ context }) => ({
-        ...context.servicesApproved,
-        cleaning: false,
-      }),
-    }),
-    declineSecurityService: assign({
-      servicesApproved: ({ context }) => ({
-        ...context.servicesApproved,
-        security: false,
-      }),
-    }),
-    declineSetupService: assign({
-      servicesApproved: ({ context }) => ({
-        ...context.servicesApproved,
-        setup: false,
-      }),
-    }),
   },
   guards: {
     shouldAutoApprove: ({ context }) => {
@@ -610,66 +707,8 @@ export const mcBookingMachine = setup({
       );
       return anyDeclined;
     },
-    staffRequested: ({ context }) => {
-      const requested = context.servicesRequested?.staff || false;
-      console.log(`🎯 XSTATE GUARD: staffRequested: ${requested}`);
-      return requested;
-    },
-    equipRequested: ({ context }) => {
-      const requested = context.servicesRequested?.equipment || false;
-      console.log(`🎯 XSTATE GUARD: equipRequested: ${requested}`);
-      return requested;
-    },
-    caterRequested: ({ context }) => {
-      const requested = context.servicesRequested?.catering || false;
-      console.log(`🎯 XSTATE GUARD: caterRequested: ${requested}`);
-      return requested;
-    },
-    cleanRequested: ({ context }) => {
-      const requested = context.servicesRequested?.cleaning || false;
-      console.log(`🎯 XSTATE GUARD: cleanRequested: ${requested}`);
-      return requested;
-    },
-    securityRequested: ({ context }) => {
-      const requested = context.servicesRequested?.security || false;
-      console.log(`🎯 XSTATE GUARD: securityRequested: ${requested}`);
-      return requested;
-    },
-    setupRequested: ({ context }) => {
-      const requested = context.servicesRequested?.setup || false;
-      console.log(`🎯 XSTATE GUARD: setupRequested: ${requested}`);
-      return requested;
-    },
-    equipApproved: ({ context }) => {
-      const approved = context.servicesApproved?.equipment === true;
-      console.log(`🎯 XSTATE GUARD: equipApproved: ${approved}`);
-      return approved;
-    },
-    staffApproved: ({ context }) => {
-      const approved = context.servicesApproved?.staff === true;
-      console.log(`🎯 XSTATE GUARD: staffApproved: ${approved}`);
-      return approved;
-    },
-    setupApproved: ({ context }) => {
-      const approved = context.servicesApproved?.setup === true;
-      console.log(`🎯 XSTATE GUARD: setupApproved: ${approved}`);
-      return approved;
-    },
-    cleanApproved: ({ context }) => {
-      const approved = context.servicesApproved?.cleaning === true;
-      console.log(`🎯 XSTATE GUARD: cleanApproved: ${approved}`);
-      return approved;
-    },
-    cateringApproved: ({ context }) => {
-      const approved = context.servicesApproved?.catering === true;
-      console.log(`🎯 XSTATE GUARD: cateringApproved: ${approved}`);
-      return approved;
-    },
-    securityApproved: ({ context }) => {
-      const approved = context.servicesApproved?.security === true;
-      console.log(`🎯 XSTATE GUARD: securityApproved: ${approved}`);
-      return approved;
-    },
+    // Per-service requested/approved guards generated from config
+    ...createServiceGuards(SERVICE_CONFIGS),
     isPregameOrigin: ({ context }) => {
       const isPregame = context.origin === BookingOrigin.PREGAME;
       console.log(`🎯 XSTATE GUARD: isPregameOrigin: ${isPregame}`, {
@@ -778,6 +817,9 @@ export const mcBookingMachine = setup({
         {
           type: "handleCancelProcessing",
         },
+        {
+          type: "logCanceledAfterAutomaticTransition",
+        },
       ],
     },
     Declined: {
@@ -790,17 +832,10 @@ export const mcBookingMachine = setup({
         },
       },
       after: {
-        "86400000": [
-          {
-            target: "Service Closeout",
-            guard: {
-              type: "servicesRequested",
-            },
-          },
-          {
-            target: "Canceled",
-          },
-        ],
+        "86400000": {
+          target: "Canceled",
+          actions: [assign({ automationReason: "decline" as const })],
+        },
       },
       entry: [
         ({ context }) => {
@@ -880,494 +915,11 @@ export const mcBookingMachine = setup({
           );
         },
       ],
-      states: {
-        "Staff Request": {
-          initial: "Evaluate Staff Request",
-          states: {
-            "Evaluate Staff Request": {
-              always: [
-                {
-                  target: "Staff Requested",
-                  guard: {
-                    type: "staffRequested",
-                  },
-                },
-                {
-                  target: "Staff Approved",
-                },
-              ],
-              entry: [
-                ({ context }) => {
-                  console.log(
-                    "🔍 XSTATE SUBSTATE: Evaluating Staff Request [MEDIA COMMONS]",
-                    {
-                      tenant: context.tenant,
-                      staffRequested: context.servicesRequested?.staff,
-                      timestamp: new Date().toISOString(),
-                    },
-                  );
-                },
-              ],
-            },
-            "Staff Requested": {
-              on: {
-                declineStaff: {
-                  target: "Staff Declined",
-                  actions: "declineStaffService",
-                },
-                approveStaff: {
-                  target: "Staff Approved",
-                  actions: "approveStaffService",
-                },
-              },
-              entry: [
-                ({ context }) => {
-                  console.log(
-                    "⏳ XSTATE SUBSTATE: Staff Request Pending Approval [MEDIA COMMONS]",
-                    {
-                      tenant: context.tenant,
-                      timestamp: new Date().toISOString(),
-                    },
-                  );
-                },
-              ],
-            },
-            "Staff Approved": {
-              type: "final",
-              entry: [
-                ({ context }) => {
-                  console.log(
-                    "✅ XSTATE SUBSTATE: Staff Request APPROVED [MEDIA COMMONS]",
-                    {
-                      tenant: context.tenant,
-                      timestamp: new Date().toISOString(),
-                    },
-                  );
-                },
-              ],
-            },
-            "Staff Declined": {
-              type: "final",
-              entry: [
-                ({ context }) => {
-                  console.log(
-                    "❌ XSTATE SUBSTATE: Staff Request DECLINED [MEDIA COMMONS]",
-                    {
-                      tenant: context.tenant,
-                      timestamp: new Date().toISOString(),
-                    },
-                  );
-                },
-              ],
-            },
-          },
-        },
-        "Catering Request": {
-          initial: "Evaluate Catering Request",
-          states: {
-            "Evaluate Catering Request": {
-              always: [
-                {
-                  target: "Catering Requested",
-                  guard: {
-                    type: "caterRequested",
-                  },
-                },
-                {
-                  target: "Catering Approved",
-                },
-              ],
-              entry: [
-                ({ context }) => {
-                  console.log(
-                    "🔍 XSTATE SUBSTATE: Evaluating Catering Request [MEDIA COMMONS]",
-                    {
-                      tenant: context.tenant,
-                      cateringRequested: context.servicesRequested?.catering,
-                      timestamp: new Date().toISOString(),
-                    },
-                  );
-                },
-              ],
-            },
-            "Catering Requested": {
-              on: {
-                approveCatering: {
-                  target: "Catering Approved",
-                  actions: "approveCateringService",
-                },
-                declineCatering: {
-                  target: "Catering Declined",
-                  actions: "declineCateringService",
-                },
-              },
-              entry: [
-                ({ context }) => {
-                  console.log(
-                    "⏳ XSTATE SUBSTATE: Catering Request Pending Approval [MEDIA COMMONS]",
-                    {
-                      tenant: context.tenant,
-                      timestamp: new Date().toISOString(),
-                    },
-                  );
-                },
-              ],
-            },
-            "Catering Approved": {
-              type: "final",
-              entry: [
-                ({ context }) => {
-                  console.log(
-                    "✅ XSTATE SUBSTATE: Catering Request APPROVED [MEDIA COMMONS]",
-                    {
-                      tenant: context.tenant,
-                      timestamp: new Date().toISOString(),
-                    },
-                  );
-                },
-              ],
-            },
-            "Catering Declined": {
-              type: "final",
-              entry: [
-                ({ context }) => {
-                  console.log(
-                    "❌ XSTATE SUBSTATE: Catering Request DECLINED [MEDIA COMMONS]",
-                    {
-                      tenant: context.tenant,
-                      timestamp: new Date().toISOString(),
-                    },
-                  );
-                },
-              ],
-            },
-          },
-        },
-        "Setup Request": {
-          initial: "Evaluate Setup Request",
-          states: {
-            "Evaluate Setup Request": {
-              always: [
-                {
-                  target: "Setup Requested",
-                  guard: {
-                    type: "setupRequested",
-                  },
-                },
-                {
-                  target: "Setup Approved",
-                },
-              ],
-              entry: [
-                ({ context }) => {
-                  console.log(
-                    "🔍 XSTATE SUBSTATE: Evaluating Setup Request [MEDIA COMMONS]",
-                    {
-                      tenant: context.tenant,
-                      setupRequested: context.servicesRequested?.setup,
-                      timestamp: new Date().toISOString(),
-                    },
-                  );
-                },
-              ],
-            },
-            "Setup Requested": {
-              on: {
-                declineSetup: {
-                  target: "Setup Declined",
-                  actions: "declineSetupService",
-                },
-                approveSetup: {
-                  target: "Setup Approved",
-                  actions: "approveSetupService",
-                },
-              },
-              entry: [
-                ({ context }) => {
-                  console.log(
-                    "⏳ XSTATE SUBSTATE: Setup Request Pending Approval [MEDIA COMMONS]",
-                    {
-                      tenant: context.tenant,
-                      timestamp: new Date().toISOString(),
-                    },
-                  );
-                },
-              ],
-            },
-            "Setup Approved": {
-              type: "final",
-              entry: [
-                ({ context }) => {
-                  console.log(
-                    "✅ XSTATE SUBSTATE: Setup Request APPROVED [MEDIA COMMONS]",
-                    {
-                      tenant: context.tenant,
-                      timestamp: new Date().toISOString(),
-                    },
-                  );
-                },
-              ],
-            },
-            "Setup Declined": {
-              type: "final",
-              entry: [
-                ({ context }) => {
-                  console.log(
-                    "❌ XSTATE SUBSTATE: Setup Request DECLINED [MEDIA COMMONS]",
-                    {
-                      tenant: context.tenant,
-                      timestamp: new Date().toISOString(),
-                    },
-                  );
-                },
-              ],
-            },
-          },
-        },
-        "Cleaning Request": {
-          initial: "Evaluate Cleaning Request",
-          states: {
-            "Evaluate Cleaning Request": {
-              always: [
-                {
-                  target: "Cleaning Requested",
-                  guard: {
-                    type: "cleanRequested",
-                  },
-                },
-                {
-                  target: "Cleaning Approved",
-                },
-              ],
-              entry: [
-                ({ context }) => {
-                  console.log(
-                    "🔍 XSTATE SUBSTATE: Evaluating Cleaning Request [MEDIA COMMONS]",
-                    {
-                      tenant: context.tenant,
-                      cleaningRequested: context.servicesRequested?.cleaning,
-                      timestamp: new Date().toISOString(),
-                    },
-                  );
-                },
-              ],
-            },
-            "Cleaning Requested": {
-              on: {
-                approveCleaning: {
-                  target: "Cleaning Approved",
-                  actions: "approveCleaningService",
-                },
-                declineCleaning: {
-                  target: "Cleaning Declined",
-                  actions: "declineCleaningService",
-                },
-              },
-              entry: [
-                ({ context }) => {
-                  console.log(
-                    "⏳ XSTATE SUBSTATE: Cleaning Request Pending Approval [MEDIA COMMONS]",
-                    {
-                      tenant: context.tenant,
-                      timestamp: new Date().toISOString(),
-                    },
-                  );
-                },
-              ],
-            },
-            "Cleaning Approved": {
-              type: "final",
-              entry: [
-                ({ context }) => {
-                  console.log(
-                    "✅ XSTATE SUBSTATE: Cleaning Request APPROVED [MEDIA COMMONS]",
-                    {
-                      tenant: context.tenant,
-                      timestamp: new Date().toISOString(),
-                    },
-                  );
-                },
-              ],
-            },
-            "Cleaning Declined": {
-              type: "final",
-              entry: [
-                ({ context }) => {
-                  console.log(
-                    "❌ XSTATE SUBSTATE: Cleaning Request DECLINED [MEDIA COMMONS]",
-                    {
-                      tenant: context.tenant,
-                      timestamp: new Date().toISOString(),
-                    },
-                  );
-                },
-              ],
-            },
-          },
-        },
-        "Security Request": {
-          initial: "Evaluate Security Request",
-          states: {
-            "Evaluate Security Request": {
-              always: [
-                {
-                  target: "Security Requested",
-                  guard: {
-                    type: "securityRequested",
-                  },
-                },
-                {
-                  target: "Security Approved",
-                },
-              ],
-              entry: [
-                ({ context }) => {
-                  console.log(
-                    "🔍 XSTATE SUBSTATE: Evaluating Security Request [MEDIA COMMONS]",
-                    {
-                      tenant: context.tenant,
-                      securityRequested: context.servicesRequested?.security,
-                      timestamp: new Date().toISOString(),
-                    },
-                  );
-                },
-              ],
-            },
-            "Security Requested": {
-              on: {
-                approveSecurity: {
-                  target: "Security Approved",
-                  actions: "approveSecurityService",
-                },
-                declineSecurity: {
-                  target: "Security Declined",
-                  actions: "declineSecurityService",
-                },
-              },
-              entry: [
-                ({ context }) => {
-                  console.log(
-                    "⏳ XSTATE SUBSTATE: Security Request Pending Approval [MEDIA COMMONS]",
-                    {
-                      tenant: context.tenant,
-                      timestamp: new Date().toISOString(),
-                    },
-                  );
-                },
-              ],
-            },
-            "Security Approved": {
-              type: "final",
-              entry: [
-                ({ context }) => {
-                  console.log(
-                    "✅ XSTATE SUBSTATE: Security Request APPROVED [MEDIA COMMONS]",
-                    {
-                      tenant: context.tenant,
-                      timestamp: new Date().toISOString(),
-                    },
-                  );
-                },
-              ],
-            },
-            "Security Declined": {
-              type: "final",
-              entry: [
-                ({ context }) => {
-                  console.log(
-                    "❌ XSTATE SUBSTATE: Security Request DECLINED [MEDIA COMMONS]",
-                    {
-                      tenant: context.tenant,
-                      timestamp: new Date().toISOString(),
-                    },
-                  );
-                },
-              ],
-            },
-          },
-        },
-        "Equipment Request": {
-          initial: "Evaluate Equipment Request",
-          states: {
-            "Evaluate Equipment Request": {
-              always: [
-                {
-                  target: "Equipment Requested",
-                  guard: {
-                    type: "equipRequested",
-                  },
-                },
-                {
-                  target: "Equipment Approved",
-                },
-              ],
-              entry: [
-                ({ context }) => {
-                  console.log(
-                    "🔍 XSTATE SUBSTATE: Evaluating Equipment Request [MEDIA COMMONS]",
-                    {
-                      tenant: context.tenant,
-                      equipmentRequested: context.servicesRequested?.equipment,
-                      timestamp: new Date().toISOString(),
-                    },
-                  );
-                },
-              ],
-            },
-            "Equipment Requested": {
-              on: {
-                approveEquipment: {
-                  target: "Equipment Approved",
-                  actions: "approveEquipmentService",
-                },
-                declineEquipment: {
-                  target: "Equipment Declined",
-                  actions: "declineEquipmentService",
-                },
-              },
-              entry: [
-                ({ context }) => {
-                  console.log(
-                    "⏳ XSTATE SUBSTATE: Equipment Request Pending Approval [MEDIA COMMONS]",
-                    {
-                      tenant: context.tenant,
-                      timestamp: new Date().toISOString(),
-                    },
-                  );
-                },
-              ],
-            },
-            "Equipment Approved": {
-              type: "final",
-              entry: [
-                ({ context }) => {
-                  console.log(
-                    "✅ XSTATE SUBSTATE: Equipment Request APPROVED [MEDIA COMMONS]",
-                    {
-                      tenant: context.tenant,
-                      timestamp: new Date().toISOString(),
-                    },
-                  );
-                },
-              ],
-            },
-            "Equipment Declined": {
-              type: "final",
-              entry: [
-                ({ context }) => {
-                  console.log(
-                    "❌ XSTATE SUBSTATE: Equipment Request DECLINED [MEDIA COMMONS]",
-                    {
-                      tenant: context.tenant,
-                      timestamp: new Date().toISOString(),
-                    },
-                  );
-                },
-              ],
-            },
-          },
-        },
-      },
+      // Type assertion required: XState's setup() infers literal string unions for state keys,
+      // which Object.fromEntries cannot produce from a runtime array.
+      states: Object.fromEntries(
+        SERVICE_CONFIGS.map(c => [`${c.name} Request`, createServiceRequestState(c)])
+      ) as any,
     },
     "Pre-approved": {
       on: {
@@ -1437,380 +989,10 @@ export const mcBookingMachine = setup({
           );
         },
       ],
-      states: {
-        "Equipment Closeout": {
-          initial: "Evaluate Equipment",
-          states: {
-            "Evaluate Equipment": {
-              always: [
-                {
-                  target: "Equipment Closeout Pending",
-                  guard: {
-                    type: "equipApproved",
-                  },
-                },
-                {
-                  target: "Equipment Closedout",
-                },
-              ],
-              entry: [
-                ({ context }) => {
-                  console.log(
-                    "🔍 XSTATE CLOSEOUT: Evaluating Equipment Closeout [MEDIA COMMONS]",
-                    {
-                      tenant: context.tenant,
-                      equipmentApproved: context.servicesApproved?.equipment,
-                      timestamp: new Date().toISOString(),
-                    },
-                  );
-                },
-              ],
-            },
-            "Equipment Closeout Pending": {
-              on: {
-                closeoutEquipment: {
-                  target: "Equipment Closedout",
-                },
-              },
-              entry: [
-                ({ context }) => {
-                  console.log(
-                    "⏳ XSTATE CLOSEOUT: Equipment Closeout Pending [MEDIA COMMONS]",
-                    {
-                      tenant: context.tenant,
-                      timestamp: new Date().toISOString(),
-                    },
-                  );
-                },
-              ],
-            },
-            "Equipment Closedout": {
-              type: "final",
-              entry: [
-                ({ context }) => {
-                  console.log(
-                    "✅ XSTATE CLOSEOUT: Equipment CLOSED OUT [MEDIA COMMONS]",
-                    {
-                      tenant: context.tenant,
-                      timestamp: new Date().toISOString(),
-                    },
-                  );
-                },
-              ],
-            },
-          },
-        },
-        "Staff Closeout": {
-          initial: "Evaluate Staff",
-          states: {
-            "Evaluate Staff": {
-              always: [
-                {
-                  target: "Staff Closeout Pending",
-                  guard: {
-                    type: "staffApproved",
-                  },
-                },
-                {
-                  target: "Staff Closedout",
-                },
-              ],
-              entry: [
-                ({ context }) => {
-                  console.log(
-                    "🔍 XSTATE CLOSEOUT: Evaluating Staff Closeout [MEDIA COMMONS]",
-                    {
-                      tenant: context.tenant,
-                      staffApproved: context.servicesApproved?.staff,
-                      timestamp: new Date().toISOString(),
-                    },
-                  );
-                },
-              ],
-            },
-            "Staff Closeout Pending": {
-              on: {
-                closeoutStaff: {
-                  target: "Staff Closedout",
-                },
-              },
-              entry: [
-                ({ context }) => {
-                  console.log(
-                    "⏳ XSTATE CLOSEOUT: Staff Closeout Pending [MEDIA COMMONS]",
-                    {
-                      tenant: context.tenant,
-                      timestamp: new Date().toISOString(),
-                    },
-                  );
-                },
-              ],
-            },
-            "Staff Closedout": {
-              type: "final",
-              entry: [
-                ({ context }) => {
-                  console.log(
-                    "✅ XSTATE CLOSEOUT: Staff CLOSED OUT [MEDIA COMMONS]",
-                    {
-                      tenant: context.tenant,
-                      timestamp: new Date().toISOString(),
-                    },
-                  );
-                },
-              ],
-            },
-          },
-        },
-        "Setup Closeout": {
-          initial: "Evaluate Setup",
-          states: {
-            "Evaluate Setup": {
-              always: [
-                {
-                  target: "Setup Closeout Pending",
-                  guard: {
-                    type: "setupApproved",
-                  },
-                },
-                {
-                  target: "Setup Closedout",
-                },
-              ],
-              entry: [
-                ({ context }) => {
-                  console.log(
-                    "🔍 XSTATE CLOSEOUT: Evaluating Setup Closeout [MEDIA COMMONS]",
-                    {
-                      tenant: context.tenant,
-                      setupApproved: context.servicesApproved?.setup,
-                      timestamp: new Date().toISOString(),
-                    },
-                  );
-                },
-              ],
-            },
-            "Setup Closeout Pending": {
-              on: {
-                closeoutSetup: {
-                  target: "Setup Closedout",
-                },
-              },
-              entry: [
-                ({ context }) => {
-                  console.log(
-                    "⏳ XSTATE CLOSEOUT: Setup Closeout Pending [MEDIA COMMONS]",
-                    {
-                      tenant: context.tenant,
-                      timestamp: new Date().toISOString(),
-                    },
-                  );
-                },
-              ],
-            },
-            "Setup Closedout": {
-              type: "final",
-              entry: [
-                ({ context }) => {
-                  console.log(
-                    "✅ XSTATE CLOSEOUT: Setup CLOSED OUT [MEDIA COMMONS]",
-                    {
-                      tenant: context.tenant,
-                      timestamp: new Date().toISOString(),
-                    },
-                  );
-                },
-              ],
-            },
-          },
-        },
-        "Catering Closeout": {
-          initial: "Evaluate Catering",
-          states: {
-            "Evaluate Catering": {
-              always: [
-                {
-                  target: "Catering Closeout Pending",
-                  guard: {
-                    type: "cateringApproved",
-                  },
-                },
-                {
-                  target: "Catering Closedout",
-                },
-              ],
-              entry: [
-                ({ context }) => {
-                  console.log(
-                    "🔍 XSTATE CLOSEOUT: Evaluating Catering Closeout [MEDIA COMMONS]",
-                    {
-                      tenant: context.tenant,
-                      cateringApproved: context.servicesApproved?.catering,
-                      timestamp: new Date().toISOString(),
-                    },
-                  );
-                },
-              ],
-            },
-            "Catering Closeout Pending": {
-              on: {
-                closeoutCatering: {
-                  target: "Catering Closedout",
-                },
-              },
-              entry: [
-                ({ context }) => {
-                  console.log(
-                    "⏳ XSTATE CLOSEOUT: Catering Closeout Pending [MEDIA COMMONS]",
-                    {
-                      tenant: context.tenant,
-                      timestamp: new Date().toISOString(),
-                    },
-                  );
-                },
-              ],
-            },
-            "Catering Closedout": {
-              type: "final",
-              entry: [
-                ({ context }) => {
-                  console.log(
-                    "✅ XSTATE CLOSEOUT: Catering CLOSED OUT [MEDIA COMMONS]",
-                    {
-                      tenant: context.tenant,
-                      timestamp: new Date().toISOString(),
-                    },
-                  );
-                },
-              ],
-            },
-          },
-        },
-        "Security Closeout": {
-          initial: "Evaluate Security",
-          states: {
-            "Evaluate Security": {
-              always: [
-                {
-                  target: "Security Closeout Pending",
-                  guard: {
-                    type: "securityApproved",
-                  },
-                },
-                {
-                  target: "Security Closedout",
-                },
-              ],
-              entry: [
-                ({ context }) => {
-                  console.log(
-                    "🔍 XSTATE CLOSEOUT: Evaluating Security Closeout [MEDIA COMMONS]",
-                    {
-                      tenant: context.tenant,
-                      securityApproved: context.servicesApproved?.security,
-                      timestamp: new Date().toISOString(),
-                    },
-                  );
-                },
-              ],
-            },
-            "Security Closeout Pending": {
-              on: {
-                closeoutSecurity: {
-                  target: "Security Closedout",
-                },
-              },
-              entry: [
-                ({ context }) => {
-                  console.log(
-                    "⏳ XSTATE CLOSEOUT: Security Closeout Pending [MEDIA COMMONS]",
-                    {
-                      tenant: context.tenant,
-                      timestamp: new Date().toISOString(),
-                    },
-                  );
-                },
-              ],
-            },
-            "Security Closedout": {
-              type: "final",
-              entry: [
-                ({ context }) => {
-                  console.log(
-                    "✅ XSTATE CLOSEOUT: Security CLOSED OUT [MEDIA COMMONS]",
-                    {
-                      tenant: context.tenant,
-                      timestamp: new Date().toISOString(),
-                    },
-                  );
-                },
-              ],
-            },
-          },
-        },
-        "Cleaning Closeout": {
-          initial: "Evaluate Cleaning",
-          states: {
-            "Evaluate Cleaning": {
-              always: [
-                {
-                  target: "Cleaning Closeout Pending",
-                  guard: {
-                    type: "cleanApproved",
-                  },
-                },
-                {
-                  target: "Cleaning Closedout",
-                },
-              ],
-              entry: [
-                ({ context }) => {
-                  console.log(
-                    "🔍 XSTATE CLOSEOUT: Evaluating Cleaning Closeout [MEDIA COMMONS]",
-                    {
-                      tenant: context.tenant,
-                      cleaningApproved: context.servicesApproved?.cleaning,
-                      timestamp: new Date().toISOString(),
-                    },
-                  );
-                },
-              ],
-            },
-            "Cleaning Closeout Pending": {
-              on: {
-                closeoutCleaning: {
-                  target: "Cleaning Closedout",
-                },
-              },
-              entry: [
-                ({ context }) => {
-                  console.log(
-                    "⏳ XSTATE CLOSEOUT: Cleaning Closeout Pending [MEDIA COMMONS]",
-                    {
-                      tenant: context.tenant,
-                      timestamp: new Date().toISOString(),
-                    },
-                  );
-                },
-              ],
-            },
-            "Cleaning Closedout": {
-              type: "final",
-              entry: [
-                ({ context }) => {
-                  console.log(
-                    "✅ XSTATE CLOSEOUT: Cleaning CLOSED OUT [MEDIA COMMONS]",
-                    {
-                      tenant: context.tenant,
-                      timestamp: new Date().toISOString(),
-                    },
-                  );
-                },
-              ],
-            },
-          },
-        },
-      },
+      // Type assertion required: same XState literal key limitation as Services Request above.
+      states: Object.fromEntries(
+        SERVICE_CONFIGS.map(c => [`${c.name} Closeout`, createServiceCloseoutState(c)])
+      ) as any,
     },
     Closed: {
       type: "final",
@@ -1856,6 +1038,7 @@ export const mcBookingMachine = setup({
     "No Show": {
       always: {
         target: "Canceled",
+        actions: [assign({ automationReason: "no-show" })],
       },
       entry: [
         ({ context }) => {

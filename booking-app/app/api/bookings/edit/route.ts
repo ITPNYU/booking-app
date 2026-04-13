@@ -120,6 +120,7 @@ async function sendEditNotificationEmails(
         approverType: ApproverType.LIAISON,
         replyTo: email,
         schemaName: emailConfig.schemaName,
+        tenant,
       }),
     );
 

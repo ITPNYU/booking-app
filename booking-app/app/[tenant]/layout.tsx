@@ -1,7 +1,9 @@
 import ClientProvider from "@/components/src/client/routes/components/ClientProvider";
 import NavBar from "@/components/src/client/routes/components/navBar";
+import SchemaDriftBanner from "@/components/src/client/routes/components/SchemaDriftBanner";
 import type { SchemaContextType } from "@/components/src/client/routes/components/SchemaProvider";
 import SchemaProviderWrapper from "@/components/src/client/routes/components/SchemaProviderWrapper";
+import TenantEntitlementGuard from "@/components/src/client/routes/components/TenantEntitlementGuard";
 import { ALLOWED_TENANTS } from "@/components/src/constants/tenants";
 import { getCachedTenantSchema } from "@/lib/tenant/getCachedTenantSchema";
 import { applyEnvironmentCalendarIds } from "@/lib/utils/calendarEnvironment";
@@ -25,7 +27,10 @@ export async function generateMetadata({
   try {
     const tenantSchema = await getCachedTenantSchema(tenant);
     if (!tenantSchema?.name) {
-      notFound();
+      return {
+        title: "NYU room booking",
+        description: "NYU space reservation",
+      };
     }
     const title = `${tenantSchema.name} Booking`;
     const description =
@@ -45,7 +50,10 @@ export async function generateMetadata({
     };
   } catch (error) {
     console.error("generateMetadata: Error generating metadata:", error);
-    throw error;
+    return {
+      title: "NYU room booking",
+      description: "NYU space reservation",
+    };
   }
 }
 
@@ -92,8 +100,11 @@ const Layout: React.FC<LayoutProps> = async ({ children, params }) => {
     return (
       <SchemaProviderWrapper value={serializedTenantSchema}>
         <ClientProvider>
-          <NavBar />
-          {children}
+          <SchemaDriftBanner />
+          <TenantEntitlementGuard>
+            <NavBar />
+            {children}
+          </TenantEntitlementGuard>
         </ClientProvider>
       </SchemaProviderWrapper>
     );

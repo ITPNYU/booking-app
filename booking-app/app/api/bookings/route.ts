@@ -357,6 +357,7 @@ async function handleBookingApprovalEmails(
         approverType: ApproverType.LIAISON,
         replyTo: email,
         schemaName: emailConfig.schemaName,
+        tenant,
       });
     });
 
