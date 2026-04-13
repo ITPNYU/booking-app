@@ -59,20 +59,28 @@ export async function POST(
     }
 
     const body = await request.json();
-    const { resourceRoomId, serviceType, email, action } = body as {
+    const { resourceRoomId, serviceType, email: rawEmail, action } = body as {
       resourceRoomId: number;
       serviceType?: string; // omit for resource-level approvers
       email: string;
       action: "add" | "remove";
     };
+    const email = typeof rawEmail === "string" ? rawEmail.trim() : "";
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-    if (typeof resourceRoomId !== "number" || !email || !action) {
+    if (!Number.isFinite(resourceRoomId) || !email || !action) {
       return NextResponse.json(
         { error: "Missing required fields: resourceRoomId, email, action" },
         { status: 400 },
       );
     }
 
+    if (!emailPattern.test(email)) {
+      return NextResponse.json(
+        { error: "Invalid email" },
+        { status: 400 },
+      );
+    }
     if (action !== "add" && action !== "remove") {
       return NextResponse.json(
         { error: "action must be 'add' or 'remove'" },
