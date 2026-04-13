@@ -1,6 +1,7 @@
 import { getBookingHourLimits } from "@/components/src/client/routes/booking/utils/bookingHourLimits";
 import { TENANTS } from "@/components/src/constants/tenants";
-import { BookingOrigin, Role } from "@/components/src/types";
+import { BookingOrigin, Inputs, Role, RoomSetting } from "@/components/src/types";
+import type { DateSelectArg } from "fullcalendar";
 import { BookingLogger } from "@/lib/logger/bookingLogger";
 import { logAutomaticCancellationTransition, type AutomaticCancellationReason } from "@/lib/stateMachines/logAutomaticCancellationTransition";
 import { and, assign, setup } from "xstate";
@@ -22,14 +23,21 @@ interface ServiceConfig {
   declineAction: string;
 }
 
-const SERVICE_CONFIGS: ServiceConfig[] = [
+const SERVICE_CONFIGS = [
   { name: "Staff",     contextKey: "staff",     requestGuard: "staffRequested",    approvedGuard: "staffApproved",    approveEvent: "approveStaff",     declineEvent: "declineStaff",     closeoutEvent: "closeoutStaff",     approveAction: "approveStaffService",     declineAction: "declineStaffService" },
   { name: "Catering",  contextKey: "catering",  requestGuard: "caterRequested",    approvedGuard: "cateringApproved", approveEvent: "approveCatering",  declineEvent: "declineCatering",  closeoutEvent: "closeoutCatering",  approveAction: "approveCateringService",  declineAction: "declineCateringService" },
   { name: "Setup",     contextKey: "setup",     requestGuard: "setupRequested",    approvedGuard: "setupApproved",    approveEvent: "approveSetup",     declineEvent: "declineSetup",     closeoutEvent: "closeoutSetup",     approveAction: "approveSetupService",     declineAction: "declineSetupService" },
   { name: "Cleaning",  contextKey: "cleaning",  requestGuard: "cleanRequested",    approvedGuard: "cleanApproved",    approveEvent: "approveCleaning",  declineEvent: "declineCleaning",  closeoutEvent: "closeoutCleaning",  approveAction: "approveCleaningService",  declineAction: "declineCleaningService" },
   { name: "Security",  contextKey: "security",  requestGuard: "securityRequested", approvedGuard: "securityApproved", approveEvent: "approveSecurity",  declineEvent: "declineSecurity",  closeoutEvent: "closeoutSecurity",  approveAction: "approveSecurityService",  declineAction: "declineSecurityService" },
   { name: "Equipment", contextKey: "equipment", requestGuard: "equipRequested",    approvedGuard: "equipApproved",    approveEvent: "approveEquipment", declineEvent: "declineEquipment", closeoutEvent: "closeoutEquipment", approveAction: "approveEquipmentService", declineAction: "declineEquipmentService" },
-];
+] as const satisfies readonly ServiceConfig[];
+
+// Derived event union — single source of truth is SERVICE_CONFIGS above.
+// Adding a service to SERVICE_CONFIGS automatically extends the event types.
+type ServiceEvent =
+  | { type: (typeof SERVICE_CONFIGS)[number]["approveEvent"] }
+  | { type: (typeof SERVICE_CONFIGS)[number]["declineEvent"] }
+  | { type: (typeof SERVICE_CONFIGS)[number]["closeoutEvent"] };
 
 function createServiceRequestState(config: ServiceConfig) {
   return {
@@ -135,7 +143,7 @@ function createServiceCloseoutState(config: ServiceConfig) {
   };
 }
 
-function createServiceActions(configs: ServiceConfig[]) {
+function createServiceActions(configs: readonly ServiceConfig[]) {
   const actions: Record<string, ReturnType<typeof assign>> = {};
   for (const config of configs) {
     actions[config.approveAction] = assign({
@@ -154,7 +162,7 @@ function createServiceActions(configs: ServiceConfig[]) {
   return actions;
 }
 
-function createServiceGuards(configs: ServiceConfig[]) {
+function createServiceGuards(configs: readonly ServiceConfig[]) {
   const guards: Record<string, (args: { context: MediaCommonsBookingContext }) => boolean> = {};
   for (const config of configs) {
     guards[config.requestGuard] = ({ context }: { context: MediaCommonsBookingContext }) => {
@@ -174,9 +182,9 @@ function createServiceGuards(configs: ServiceConfig[]) {
 // Define context type for type safety
 interface MediaCommonsBookingContext {
   tenant?: string;
-  selectedRooms?: any[];
-  formData?: any;
-  bookingCalendarInfo?: any;
+  selectedRooms?: RoomSetting[];
+  formData?: Inputs;
+  bookingCalendarInfo?: DateSelectArg;
   isWalkIn?: boolean;
   calendarEventId?: string | null;
   email?: string;
@@ -226,25 +234,8 @@ export const mcBookingMachine = setup({
       | { type: "checkIn" }
       | { type: "decline"; reason?: string }
       | { type: "checkOut" }
-      | { type: "approveSetup" }
-      | { type: "approveStaff" }
-      | { type: "declineSetup" }
-      | { type: "declineStaff" }
-      | { type: "closeoutSetup" }
-      | { type: "closeoutStaff" }
-      | { type: "approveCatering" }
-      | { type: "approveCleaning" }
-      | { type: "approveSecurity" }
-      | { type: "declineCatering" }
-      | { type: "declineCleaning" }
-      | { type: "declineSecurity" }
-      | { type: "approveEquipment" }
-      | { type: "closeoutCatering" }
-      | { type: "closeoutCleaning" }
-      | { type: "closeoutSecurity" }
-      | { type: "declineEquipment" }
-      | { type: "closeoutEquipment" }
-      | { type: "autoCloseScript" },
+      | { type: "autoCloseScript" }
+      | ServiceEvent,
   },
   actors: {},
   actions: {
