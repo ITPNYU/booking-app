@@ -64,6 +64,7 @@ const baseMediaCommonsSchema: SchemaContextType = {
       facultyVIP: 15,
       adminVIP: 15,
     },
+    multipleResourceSelect: false,
     timeSensitiveRequestWarning: {
       hours: 48,
       isActive: false,
