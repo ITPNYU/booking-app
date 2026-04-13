@@ -13,6 +13,10 @@ export type StaffingSection = {
   indexes: number[];
 };
 
+export type RequestLimitPeriod = "perDay" | "perWeek" | "perMonth" | "perSemester";
+
+export type RequestLimits = Partial<Record<RequestLimitPeriod, Record<string, number>>>;
+
 export type Resource = {
   capacity: number;
   name: string;
@@ -25,6 +29,13 @@ export type Resource = {
   isWalkIn: boolean;
   isWalkInCanBookTwo: boolean;
   services: string[]; // ["equipment", "staffing", "setup", "security", "cleaning", "catering", "campus-media"]
+  /**
+   * Limit how many requests a user can make per period for this resource.
+   * Missing values mean “unlimited”.
+   *
+   * Shape: { perDay: { [role]: number }, perWeek: { ... }, perMonth: { ... }, perSemester: { ... } }
+   */
+  requestLimits?: RequestLimits;
   autoApproval?: {
     minHour?: {
       admin: number;
@@ -200,6 +211,7 @@ export const defaultResource: Resource = {
   isWalkIn: false,
   isWalkInCanBookTwo: false,
   services: [],
+  requestLimits: undefined,
   autoApproval: {
     minHour: { admin: -1, faculty: -1, student: -1 },
     maxHour: { admin: -1, faculty: -1, student: -1 },

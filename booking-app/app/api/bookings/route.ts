@@ -27,6 +27,7 @@ import {
   serverGetNextSequentialId,
   serverSaveDataToFirestore,
   serverGetDocumentById,
+  serverFetchAllDataFromCollection,
 } from "@/lib/firebase/server/adminDb";
 import { itpBookingMachine } from "@/lib/stateMachines/itpBookingMachine";
 import { mcBookingMachine } from "@/lib/stateMachines/mcBookingMachine";
@@ -50,6 +51,7 @@ import {
   getAffiliationDisplayValues,
   getOtherDisplayFields,
 } from "./shared";
+import type { SchemaContextType } from "@/components/src/client/routes/components/SchemaProvider";
 
 // Common function to create XState data structure
 export function createXStateData(
@@ -182,6 +184,136 @@ const getXStateMachine = (tenant?: string) => {
   if (tenant === "itp") return itpBookingMachine;
   return null;
 };
+
+type RequestLimitPeriod = "perDay" | "perWeek" | "perMonth" | "perSemester";
+
+function getUtcWindowForPeriod(now: Date, period: RequestLimitPeriod): { start: Date; end: Date } {
+  const y = now.getUTCFullYear();
+  const m = now.getUTCMonth(); // 0-11
+  const d = now.getUTCDate();
+
+  if (period === "perDay") {
+    const start = new Date(Date.UTC(y, m, d, 0, 0, 0, 0));
+    const end = new Date(Date.UTC(y, m, d + 1, 0, 0, 0, 0));
+    return { start, end };
+  }
+
+  if (period === "perWeek") {
+    // Week starts Monday (UTC)
+    const dayOfWeek = now.getUTCDay(); // 0=Sun..6=Sat
+    const daysSinceMonday = (dayOfWeek + 6) % 7; // Mon->0, Sun->6
+    const start = new Date(Date.UTC(y, m, d - daysSinceMonday, 0, 0, 0, 0));
+    const end = new Date(Date.UTC(y, m, d - daysSinceMonday + 7, 0, 0, 0, 0));
+    return { start, end };
+  }
+
+  if (period === "perMonth") {
+    const start = new Date(Date.UTC(y, m, 1, 0, 0, 0, 0));
+    const end = new Date(Date.UTC(y, m + 1, 1, 0, 0, 0, 0));
+    return { start, end };
+  }
+
+  // perSemester: 4-month windows starting in Jan (UTC): Jan–Apr, May–Aug, Sep–Dec
+  const semesterStartMonth = Math.floor(m / 4) * 4;
+  const start = new Date(Date.UTC(y, semesterStartMonth, 1, 0, 0, 0, 0));
+  const end = new Date(Date.UTC(y, semesterStartMonth + 4, 1, 0, 0, 0, 0));
+  return { start, end };
+}
+
+function parseRoomIdsFromBooking(doc: any): number[] {
+  if (Array.isArray(doc?.roomIds)) {
+    return doc.roomIds
+      .map((x: any) => Number(x))
+      .filter((n: number) => Number.isFinite(n));
+  }
+
+  const raw = doc?.roomId;
+  if (typeof raw === "string") {
+    return raw
+      .split(",")
+      .map((s) => Number(String(s).trim()))
+      .filter((n) => Number.isFinite(n));
+  }
+
+  return [];
+}
+
+async function enforceRequestLimits({
+  tenant,
+  email,
+  role,
+  selectedRoomIds,
+}: {
+  tenant: string;
+  email: string;
+  role: string;
+  selectedRoomIds: number[];
+}): Promise<{ ok: true } | { ok: false; message: string }> {
+  const schema = await serverGetDocumentById<SchemaContextType>(
+    TableNames.TENANT_SCHEMA,
+    tenant,
+    tenant,
+  );
+
+  if (!schema?.resources || schema.resources.length === 0) return { ok: true };
+
+  const resourcesByRoomId = new Map<number, any>();
+  for (const r of schema.resources) {
+    if (typeof (r as any)?.roomId === "number") {
+      resourcesByRoomId.set((r as any).roomId, r);
+    }
+  }
+
+  const now = new Date();
+  const periods: RequestLimitPeriod[] = [
+    "perDay",
+    "perWeek",
+    "perMonth",
+    "perSemester",
+  ];
+
+  for (const roomId of selectedRoomIds) {
+    const resource = resourcesByRoomId.get(roomId);
+    if (!resource) continue;
+
+    for (const period of periods) {
+      const limit = resource.requestLimits?.[period]?.[role];
+      if (limit == null) continue; // missing means unlimited
+      if (typeof limit !== "number" || !Number.isFinite(limit) || limit < 0) continue;
+
+      const { start, end } = getUtcWindowForPeriod(now, period);
+      const startTs = Timestamp.fromDate(start);
+      const endTs = Timestamp.fromDate(end);
+
+      const candidates = await serverFetchAllDataFromCollection<any>(
+        TableNames.BOOKING,
+        [
+          { field: "email", operator: "==", value: email },
+          { field: "requestedAt", operator: ">=", value: startTs },
+          { field: "requestedAt", operator: "<", value: endTs },
+          // Treat missing fields as null => excluded from count if canceled/declined
+          { field: "canceledAt", operator: "==", value: null },
+          { field: "declinedAt", operator: "==", value: null },
+        ],
+        tenant,
+      );
+
+      const count = candidates.filter((doc) =>
+        parseRoomIdsFromBooking(doc).includes(roomId),
+      ).length;
+
+      if (count >= limit) {
+        const resourceName = resource.name ? `"${resource.name}"` : `Room ${roomId}`;
+        return {
+          ok: false,
+          message: `Request limit reached for ${resourceName} (${period}). Limit: ${limit}.`,
+        };
+      }
+    }
+  }
+
+  return { ok: true };
+}
 
 // Helper to build booking contents object for calendar descriptions
 const buildBookingContents = (
@@ -565,6 +697,35 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // Enforce per-resource request limits (per user email + role)
+  try {
+    const role = String(data?.role ?? "").trim();
+    const selectedRoomIdsNums: number[] = Array.isArray(selectedRooms)
+      ? selectedRooms
+          .map((r: any) => Number(r?.roomId))
+          .filter((n: number) => Number.isFinite(n))
+      : [];
+
+    if (tenant && email && role && selectedRoomIdsNums.length > 0) {
+      const enforcement = await enforceRequestLimits({
+        tenant,
+        email,
+        role,
+        selectedRoomIds: selectedRoomIdsNums,
+      });
+
+      if (!enforcement.ok) {
+        return NextResponse.json(
+          { error: enforcement.message },
+          { status: 429 },
+        );
+      }
+    }
+  } catch (e: any) {
+    console.error("Error enforcing request limits:", e);
+    // Fail open to avoid blocking bookings if enforcement throws unexpectedly
+  }
+
   console.log("data", data);
 
   // Determine initial status and auto-approval using XState for ITP
@@ -773,6 +934,9 @@ export async function POST(request: NextRequest) {
   const selectedRoomIds = selectedRooms
     .map((r: { roomId: number }) => r.roomId)
     .join(", ");
+  const selectedRoomIdsArray = selectedRooms
+    .map((r: { roomId: number }) => r.roomId)
+    .filter((n: number) => Number.isFinite(n));
 
   // Build booking contents for description
   const startDateObj = new Date(bookingCalendarInfo.startStr);
@@ -827,6 +991,7 @@ export async function POST(request: NextRequest) {
     const bookingData = {
       calendarEventId,
       roomId: selectedRoomIds,
+      roomIds: selectedRoomIdsArray,
       email,
       startDate: toFirebaseTimestampFromString(bookingCalendarInfo.startStr),
       endDate: toFirebaseTimestampFromString(bookingCalendarInfo.endStr),
