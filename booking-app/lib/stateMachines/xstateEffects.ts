@@ -11,6 +11,7 @@ import * as admin from "firebase-admin";
 import type { PersistedXStateData, PreApprovalUpdateData } from "./xstateTypes";
 import { cleanObjectForFirestore } from "./xstatePersistence";
 import { handleApprovedEntry } from "./effects/approvedEffects";
+import { handleCanceledEntry } from "./effects/canceledEffects";
 import { handleNoShowEntry } from "./effects/noShowEffects";
 import { handleRequestedEntry } from "./effects/requestedEffects";
 import type { HandlerContext, StateHandler } from "./effects/types";
@@ -22,6 +23,7 @@ const stateHandlers: Partial<Record<string, StateHandler>> = {
   "Approved": handleApprovedEntry,
   "Requested": handleRequestedEntry,
   "No Show": handleNoShowEntry,
+  "Canceled": handleCanceledEntry,
 };
 
 // Note: History logging is now handled by traditional functions only
@@ -296,23 +298,6 @@ export async function handleStateTransitions(
         },
       );
     }
-  } else if (newState === "Canceled" && previousState !== "Canceled") {
-    // Canceled state handling - update Firestore fields
-    firestoreUpdates.canceledAt = admin.firestore.Timestamp.now();
-    if (email) {
-      firestoreUpdates.canceledBy = email;
-    }
-
-    console.log(
-      `🔄 XSTATE REACHED CANCELED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-      {
-        calendarEventId,
-        previousState,
-        newState,
-        canceledAt: firestoreUpdates.canceledAt,
-        canceledBy: firestoreUpdates.canceledBy,
-      },
-    );
   } else if (newState === "Closed" && previousState !== "Closed") {
     console.log(
       `🎯 XSTATE REACHED CLOSED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
