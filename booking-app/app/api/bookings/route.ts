@@ -273,15 +273,31 @@ async function enforceRequestLimits({
     "perSemester",
   ];
 
-  for (const roomId of selectedRoomIds) {
-    const resource = resourcesByRoomId.get(roomId);
-    if (!resource) continue;
+  // Only consider rooms that exist in schema (and dedupe)
+  const uniqueSelectedRoomIds = Array.from(new Set(selectedRoomIds)).filter(
+    (roomId) => resourcesByRoomId.has(roomId),
+  );
+  if (uniqueSelectedRoomIds.length === 0) return { ok: true } as const;
 
-    for (const period of periods) {
-      const limit = resource.requestLimits?.[period]?.[role];
-      if (limit == null) continue; // missing means unlimited
-      if (typeof limit !== "number" || !Number.isFinite(limit) || limit < 0) continue;
+  // Determine which periods actually have a limit configured for this role for any selected room.
+  const periodsToQuery = periods.filter((period) =>
+    uniqueSelectedRoomIds.some((roomId) => {
+      const resource = resourcesByRoomId.get(roomId);
+      const limit = resource?.requestLimits?.[period]?.[role];
+      return (
+        typeof limit === "number" && Number.isFinite(limit) && limit >= 0
+      );
+    }),
+  );
+  if (periodsToQuery.length === 0) return { ok: true } as const;
 
+  // Query once per relevant period, then aggregate counts per room in memory.
+  const countsByPeriod: Partial<
+    Record<RequestLimitPeriod, Map<number, number>>
+  > = {};
+
+  await Promise.all(
+    periodsToQuery.map(async (period) => {
       const { start, end } = getUtcWindowForPeriod(now, period);
       const startTs = Timestamp.fromDate(start);
       const endTs = Timestamp.fromDate(end);
@@ -292,19 +308,41 @@ async function enforceRequestLimits({
           { field: "email", operator: "==", value: email },
           { field: "requestedAt", operator: ">=", value: startTs },
           { field: "requestedAt", operator: "<", value: endTs },
-          // Treat missing fields as null => excluded from count if canceled/declined
+          // Active-only: count bookings that are not canceled and not declined
           { field: "canceledAt", operator: "==", value: null },
           { field: "declinedAt", operator: "==", value: null },
         ],
         tenant,
       );
 
-      const count = candidates.filter((doc) =>
-        parseRoomIdsFromBooking(doc).includes(roomId),
-      ).length;
+      const roomCounts = new Map<number, number>();
+      for (const doc of candidates) {
+        const roomIds = parseRoomIdsFromBooking(doc);
+        for (const roomId of roomIds) {
+          if (!resourcesByRoomId.has(roomId)) continue;
+          roomCounts.set(roomId, (roomCounts.get(roomId) ?? 0) + 1);
+        }
+      }
 
+      countsByPeriod[period] = roomCounts;
+    }),
+  );
+
+  for (const roomId of uniqueSelectedRoomIds) {
+    const resource = resourcesByRoomId.get(roomId);
+    if (!resource) continue;
+
+    for (const period of periodsToQuery) {
+      const limit = resource.requestLimits?.[period]?.[role];
+      if (limit == null) continue; // missing means unlimited
+      if (typeof limit !== "number" || !Number.isFinite(limit) || limit < 0)
+        continue;
+
+      const count = countsByPeriod[period]?.get(roomId) ?? 0;
       if (count >= limit) {
-        const resourceName = resource.name ? `"${resource.name}"` : `Room ${roomId}`;
+        const resourceName = resource.name
+          ? `"${resource.name}"`
+          : `Room ${roomId}`;
         return {
           ok: false,
           message: `Request limit reached for ${resourceName} (${period}). Limit: ${limit}.`,
