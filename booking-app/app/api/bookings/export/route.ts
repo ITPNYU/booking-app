@@ -2,7 +2,7 @@ import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
 import { NextRequest, NextResponse } from "next/server";
 
 import { TableNames } from "@/components/src/policy";
-import { Booking, BookingOrigin, RoomSetting } from "@/components/src/types";
+import { Booking, RoomSetting, formatOrigin } from "@/components/src/types";
 import {
   serverFetchAllDataFromCollection,
   serverGetDocumentById,
@@ -112,11 +112,7 @@ export async function GET(request: NextRequest) {
         "Reservation Title": booking.title,
         "Reservation Description": booking.description,
         "Expected Attendance": booking.expectedAttendance,
-        "Reservation Origin":
-          booking.origin ||
-          (!booking.department && !booking.role
-            ? BookingOrigin.PREGAME
-            : BookingOrigin.USER),
+        "Reservation Origin": booking.origin ? formatOrigin(booking.origin) : "",
         "Booking Type": booking.bookingType,
         "Attendee Affiliation(s)": booking.attendeeAffiliation,
         "End Event Status": getBookingStatus(booking),
