@@ -12,8 +12,9 @@ import type { HandlerContext, StateHandler } from "./effects/types";
 
 // States that have a dedicated per-state handler. Any other state
 // (including XState parallel states, whose `value` is normalized to a
-// JSON-stringified object below) falls through with no side effects
-// other than the transition log already emitted by this dispatcher.
+// JSON-stringified object below) falls through with no dedicated
+// per-state handler side effects; dispatcher-level work such as
+// transition logging and the booking-doc fetch still runs.
 type HandledState =
   | "Approved"
   | "Requested"
