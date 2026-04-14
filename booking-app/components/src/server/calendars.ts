@@ -414,6 +414,38 @@ export const deleteEvent = async (
   }
 };
 
+/**
+ * Delete a booking's calendar event from all room calendars associated with the booking.
+ * This is used for terminal statuses like Canceled / No Show to ensure the slot is freed
+ * in Google Calendar and therefore in availability calculations.
+ */
+export const deleteBookingCalendarEvents = async (
+  calendarEventId: string,
+  roomIdCsv: string | number | undefined | null,
+  tenant?: string,
+) => {
+  if (!calendarEventId) return;
+  if (roomIdCsv === undefined || roomIdCsv === null) return;
+
+  const roomIds = String(roomIdCsv)
+    .split(",")
+    .map(x => x.trim())
+    .filter(Boolean)
+    .map(x => Number.parseInt(x, 10))
+    .filter(n => Number.isFinite(n));
+
+  if (roomIds.length === 0) return;
+
+  for (const roomId of roomIds) {
+    const calendarIds = await serverGetRoomCalendarIds(roomId, tenant);
+    await Promise.all(
+      calendarIds.map(calendarId =>
+        deleteEvent(calendarId, calendarEventId, String(roomId)),
+      ),
+    );
+  }
+};
+
 export const updateByCalendarEventId = async (
   calendarEventId: string,
   newValues: any,

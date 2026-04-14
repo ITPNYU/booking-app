@@ -1108,6 +1108,34 @@ export const noShow = async (
 
       // When noShow transitions directly to Closed
       if (xstateResult.newState === "Closed") {
+        // Even if XState skips the explicit "No Show" state, this path still represents
+        // a no-show closure and should free the slot on Google Calendar.
+        try {
+          const deleteRes = await fetch(
+            `${process.env.NEXT_PUBLIC_BASE_URL}/api/deleteBookingCalendarEvents`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                calendarEventId: id,
+                tenant: tenant || DEFAULT_TENANT,
+              }),
+            },
+          );
+          if (!deleteRes.ok) {
+            const err = await deleteRes.json().catch(() => null);
+            console.error(
+              `🚨 NO SHOW→CLOSED CALENDAR DELETION FAILED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+              { calendarEventId: id, error: err },
+            );
+          }
+        } catch (error: any) {
+          console.error(
+            `🚨 NO SHOW→CLOSED CALENDAR DELETION ERROR [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+            { calendarEventId: id, error: error?.message },
+          );
+        }
+
         try {
           const closeResponse = await fetch(
             `${process.env.NEXT_PUBLIC_BASE_URL}/api/close-processing`,
@@ -1257,6 +1285,35 @@ export const executeTraditionalNoShow = async (
       }),
     },
   );
+
+  // Delete calendar events so the slot becomes available for walk-ins.
+  // This must be done server-side (Google client credentials), so call the API.
+  try {
+    const deleteRes = await fetch(
+      `${process.env.NEXT_PUBLIC_BASE_URL}/api/deleteBookingCalendarEvents`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          calendarEventId: id,
+          tenant: tenant || DEFAULT_TENANT,
+        }),
+      },
+    );
+
+    if (!deleteRes.ok) {
+      const err = await deleteRes.json().catch(() => null);
+      console.error(
+        `🚨 NO SHOW CALENDAR DELETION FAILED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+        { calendarEventId: id, error: err },
+      );
+    }
+  } catch (error: any) {
+    console.error(
+      `🚨 NO SHOW CALENDAR DELETION ERROR [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+      { calendarEventId: id, error: error?.message },
+    );
+  }
 };
 
 const getBookingHistory = async (booking: Booking) => {

@@ -422,6 +422,78 @@ describe("server/db", () => {
     });
   });
 
+  describe("noShow", () => {
+    const makeResponse = (data: any, ok = true) =>
+      ({
+        ok,
+        json: async () => data,
+        text: async () => JSON.stringify(data),
+      }) as Response;
+
+    it("executeTraditionalNoShow calls deleteBookingCalendarEvents API to free the slot", async () => {
+      const fetchCalls: Array<{ href: string; options?: RequestInit }> = [];
+      mockFetch.mockImplementation((url: any, options: any) => {
+        const href = typeof url === "string" ? url : url.toString();
+        fetchCalls.push({ href, options });
+        return makeResponse({});
+      });
+
+      const { executeTraditionalNoShow } = await import("@/components/src/server/db");
+      await executeTraditionalNoShow(
+        "cal-ns-1",
+        "admin@nyu.edu",
+        "net123",
+        "media_commons",
+      );
+
+      const calendarPrefixCall = fetchCalls.find((c) =>
+        c.href.includes("/api/calendarEvents"),
+      );
+      expect(calendarPrefixCall).toBeDefined();
+
+      const deleteCall = fetchCalls.find((c) =>
+        c.href.includes("/api/deleteBookingCalendarEvents"),
+      );
+      expect(deleteCall).toBeDefined();
+
+      const payload = JSON.parse(String(deleteCall?.options?.body));
+      expect(payload).toMatchObject({
+        calendarEventId: "cal-ns-1",
+        tenant: "media_commons",
+      });
+    });
+
+    it("noShow (XState) calls deleteBookingCalendarEvents when transition jumps directly to Closed", async () => {
+      mockShouldUseXState.mockReturnValue(true);
+
+      const fetchCalls: Array<{ href: string; options?: RequestInit }> = [];
+      mockFetch.mockImplementation((url: any, options: any) => {
+        const href = typeof url === "string" ? url : url.toString();
+        fetchCalls.push({ href, options });
+
+        if (href.includes("/api/xstate-transition")) {
+          return makeResponse({ newState: "Closed" });
+        }
+
+        return makeResponse({});
+      });
+
+      const { noShow } = await import("@/components/src/server/db");
+      await noShow("cal-ns-closed-1", "admin@nyu.edu", "net999", "itp");
+
+      const deleteCall = fetchCalls.find((c) =>
+        c.href.includes("/api/deleteBookingCalendarEvents"),
+      );
+      expect(deleteCall).toBeDefined();
+
+      const payload = JSON.parse(String(deleteCall?.options?.body));
+      expect(payload).toMatchObject({
+        calendarEventId: "cal-ns-closed-1",
+        tenant: "itp",
+      });
+    });
+  });
+
   describe("checkin", () => {
     const makeResponse = (data: any, ok = true) =>
       ({

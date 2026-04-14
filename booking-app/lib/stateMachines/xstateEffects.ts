@@ -325,6 +325,31 @@ export async function handleStateTransitions(
         noShowedBy: firestoreUpdates.noShowedBy,
       },
     );
+
+    // Ensure the Google Calendar event is removed so the slot becomes available again.
+    // (Google client creds are server-side; this API runs server-side as well.)
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_BASE_URL}/api/deleteBookingCalendarEvents`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ calendarEventId, tenant }),
+        },
+      );
+      if (!response.ok) {
+        const err = await response.json().catch(() => null);
+        console.error(
+          `🚨 XSTATE NO SHOW CALENDAR DELETION FAILED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+          { calendarEventId, error: err },
+        );
+      }
+    } catch (error: any) {
+      console.error(
+        `🚨 XSTATE NO SHOW CALENDAR DELETION ERROR [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+        { calendarEventId, error: error?.message },
+      );
+    }
   } else if (newState === "Canceled" && previousState !== "Canceled") {
     // Canceled state handling - update Firestore fields
     firestoreUpdates.canceledAt = admin.firestore.Timestamp.now();
@@ -342,6 +367,30 @@ export async function handleStateTransitions(
         canceledBy: firestoreUpdates.canceledBy,
       },
     );
+
+    // Backstop: remove calendar events here too (some flows may bypass /api/cancel-processing).
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_BASE_URL}/api/deleteBookingCalendarEvents`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ calendarEventId, tenant }),
+        },
+      );
+      if (!response.ok) {
+        const err = await response.json().catch(() => null);
+        console.error(
+          `🚨 XSTATE CANCELED CALENDAR DELETION FAILED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+          { calendarEventId, error: err },
+        );
+      }
+    } catch (error: any) {
+      console.error(
+        `🚨 XSTATE CANCELED CALENDAR DELETION ERROR [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+        { calendarEventId, error: error?.message },
+      );
+    }
   } else if (newState === "Closed" && previousState !== "Closed") {
     console.log(
       `🎯 XSTATE REACHED CLOSED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
