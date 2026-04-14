@@ -1,28 +1,20 @@
-import type { SchemaContextType } from "@/components/src/client/routes/components/SchemaProvider";
-import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
-import { TableNames } from "@/components/src/policy";
 import { getTenantEmailConfig } from "@/components/src/server/emails";
 import { BookingStatusLabel } from "@/components/src/types";
-import {
-  serverGetDocumentById,
-} from "@/lib/firebase/server/adminDb";
-import { BookingLogger } from "@/lib/logger/bookingLogger";
-import * as admin from "firebase-admin";
-import type { PersistedXStateData, PreApprovalUpdateData } from "./xstateTypes";
-import { cleanObjectForFirestore } from "./xstatePersistence";
 import { handleApprovedEntry } from "./effects/approvedEffects";
 import { handleCanceledEntry } from "./effects/canceledEffects";
 import { handleCheckedInEntry } from "./effects/checkedInEffects";
 import { handleClosedEntry } from "./effects/closedEffects";
 import { handleDeclinedEntry } from "./effects/declinedEffects";
+import { handleFallbackEntry } from "./effects/fallbackEffects";
 import { handleNoShowEntry } from "./effects/noShowEffects";
 import { handlePreApprovedEntry } from "./effects/preApprovedEffects";
 import { handleRequestedEntry } from "./effects/requestedEffects";
 import type { HandlerContext, StateHandler } from "./effects/types";
 
-// Registry of per-state entry handlers. As branches are extracted from
-// the inline if-else chain in `handleStateTransitions`, their handlers
-// land here and the corresponding branch is removed from the function.
+// Registry of per-state entry handlers. Dispatcher delegates to one of
+// these when `newState` is a string key present in the map. Otherwise
+// the fallback handler runs (for XState parallel states and the
+// catch-all generic status-label mapping).
 const stateHandlers: Partial<Record<string, StateHandler>> = {
   "Approved": handleApprovedEntry,
   "Requested": handleRequestedEntry,
@@ -122,218 +114,26 @@ export async function handleStateTransitions(
       ? stateHandlers[newState]
       : undefined;
 
+  const handlerCtx: HandlerContext = {
+    previousState,
+    newState,
+    currentSnapshot,
+    newSnapshot,
+    actor,
+    calendarEventId,
+    email,
+    tenant,
+    firestoreUpdates,
+    bookingDoc,
+    skipCalendarForServiceCloseout,
+    isXStateCreation,
+    reason,
+  };
+
   if (extractedHandler) {
-    const handlerCtx: HandlerContext = {
-      previousState,
-      newState,
-      currentSnapshot,
-      newSnapshot,
-      actor,
-      calendarEventId,
-      email,
-      tenant,
-      firestoreUpdates,
-      bookingDoc,
-      skipCalendarForServiceCloseout,
-      isXStateCreation,
-      reason,
-    };
     await extractedHandler(handlerCtx);
   } else {
-    // Generic state change - still log to history for tracking
-    console.log(
-      `🔄 XSTATE GENERIC STATE CHANGE [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-      {
-        calendarEventId,
-        previousState,
-        newState,
-        email,
-      },
-    );
-
-    // Try to map XState to BookingStatusLabel for generic states
-    let statusLabel: BookingStatusLabel | undefined;
-    if (typeof newState === "string") {
-      switch (newState) {
-        case "Requested":
-          statusLabel = BookingStatusLabel.REQUESTED;
-          break;
-        case "No Show":
-          statusLabel = BookingStatusLabel.NO_SHOW;
-          break;
-        default:
-          break;
-      }
-    } else if (typeof newState === "object" && newState) {
-      // Handle parallel states
-      if (newState["Services Request"]) {
-        statusLabel = BookingStatusLabel.PRE_APPROVED;
-        console.log(
-          `🔀 XSTATE PARALLEL STATE: Services Request [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-          {
-            calendarEventId,
-            previousState,
-            newState,
-            statusLabel,
-          },
-        );
-      } else if (newState["Service Closeout"]) {
-        statusLabel = BookingStatusLabel.CHECKED_OUT;
-        console.log(
-          `🔀 XSTATE PARALLEL STATE: Service Closeout [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-          {
-            calendarEventId,
-            previousState,
-            newState,
-            statusLabel,
-            skipCalendarUpdate: skipCalendarForServiceCloseout,
-          },
-        );
-
-        // Handle check-out email for Service Closeout state (Media Commons)
-        if (previousState === "Checked In" && !skipCalendarForServiceCloseout) {
-          console.log(
-            `📧 SENDING CHECK-OUT EMAIL FOR SERVICE CLOSEOUT [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-            {
-              calendarEventId,
-              previousState,
-              newState: "Service Closeout",
-            },
-          );
-
-          // Set check-out timestamps for Firestore
-          firestoreUpdates.checkedOutAt = admin.firestore.Timestamp.now();
-          if (email) {
-            firestoreUpdates.checkedOutBy = email;
-          }
-
-          // Send check-out email to guest
-          try {
-            // Use email from booking document (not from XState context)
-            const guestEmail = bookingDoc?.email;
-
-            console.log(
-              `🔍 XSTATE SERVICE CLOSEOUT EMAIL DEBUG [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-              {
-                calendarEventId,
-                hasBookingDoc: !!bookingDoc,
-                bookingDocKeys: bookingDoc ? Object.keys(bookingDoc) : [],
-                guestEmail,
-                guestEmailType: typeof guestEmail,
-                bookingDocEmail: bookingDoc?.email,
-              },
-            );
-
-            if (guestEmail) {
-              const { serverSendBookingDetailEmail } =
-                await import("@/components/src/server/admin");
-              const emailConfig = await getTenantEmailConfig(tenant);
-              const headerMessage =
-                emailConfig.emailMessages.checkoutConfirmation;
-
-              await serverSendBookingDetailEmail({
-                calendarEventId,
-                targetEmail: guestEmail,
-                headerMessage,
-                status: BookingStatusLabel.CHECKED_OUT,
-                tenant,
-              });
-
-              console.log(
-                `📧 XSTATE SERVICE CLOSEOUT EMAIL SENT [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-                {
-                  calendarEventId,
-                  guestEmail,
-                },
-              );
-            } else {
-              console.warn(
-                `⚠️ XSTATE SERVICE CLOSEOUT EMAIL SKIPPED - NO EMAIL [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-                {
-                  calendarEventId,
-                  hasBookingDoc: !!bookingDoc,
-                  bookingDocKeys: bookingDoc ? Object.keys(bookingDoc) : [],
-                },
-              );
-            }
-          } catch (error) {
-            console.error(
-              `🚨 XSTATE SERVICE CLOSEOUT EMAIL FAILED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-              {
-                calendarEventId,
-                email,
-                tenant,
-                error: error.message,
-              },
-            );
-          }
-
-          // Update calendar event with CHECKED_OUT status
-          try {
-            const response = await fetch(
-              `${process.env.NEXT_PUBLIC_BASE_URL}/api/calendarEvents`,
-              {
-                method: "PUT",
-                headers: {
-                  "Content-Type": "application/json",
-                  "x-tenant": tenant || DEFAULT_TENANT,
-                },
-                body: JSON.stringify({
-                  calendarEventId,
-                  newValues: {
-                    statusPrefix: BookingStatusLabel.CHECKED_OUT,
-                  },
-                }),
-              },
-            );
-
-            if (response.ok) {
-              BookingLogger.calendarUpdate(
-                "Service Closeout status update",
-                { calendarEventId, tenant },
-                { statusPrefix: BookingStatusLabel.CHECKED_OUT },
-              );
-            }
-          } catch (error) {
-            BookingLogger.calendarError(
-              "Service Closeout calendar update",
-              { calendarEventId, tenant },
-              error,
-            );
-          }
-        }
-
-        // Skip calendar update if this Service Closeout was triggered by No Show
-        if (skipCalendarForServiceCloseout) {
-          console.log(
-            `⏭️ SKIPPING SERVICE CLOSEOUT CALENDAR UPDATE - HANDLED BY NO SHOW [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-            {
-              calendarEventId,
-              reason: "No Show processing already updated calendar",
-            },
-          );
-          statusLabel = null; // Prevent generic history logging too
-        }
-      }
-    }
-
-    // Apply status label to Firestore updates if determined
-    if (statusLabel) {
-      firestoreUpdates.status = statusLabel;
-      console.log(
-        `📋 XSTATE STATUS UPDATE [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-        {
-          calendarEventId,
-          previousState,
-          newState,
-          statusLabel,
-          willUpdateDatabaseStatus: true,
-        },
-      );
-    }
-
-    // Note: History logging is now handled by traditional functions only
-    // XState only manages state transitions, not history logging
+    await handleFallbackEntry(handlerCtx);
   }
 }
 
