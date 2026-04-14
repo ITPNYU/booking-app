@@ -5,14 +5,16 @@ import { handleCanceledEntry } from "./effects/canceledEffects";
 import { handleCheckedInEntry } from "./effects/checkedInEffects";
 import { handleClosedEntry } from "./effects/closedEffects";
 import { handleDeclinedEntry } from "./effects/declinedEffects";
-import { handleFallbackEntry } from "./effects/fallbackEffects";
 import { handleNoShowEntry } from "./effects/noShowEffects";
 import { handlePreApprovedEntry } from "./effects/preApprovedEffects";
 import { handleRequestedEntry } from "./effects/requestedEffects";
 import type { HandlerContext, StateHandler } from "./effects/types";
 
-// States that have a dedicated per-state handler. Any string state
-// not in this union falls through to `handleFallbackEntry`.
+// States that have a dedicated per-state handler. Any other state
+// (including XState parallel states, whose `value` is normalized to a
+// JSON-stringified object below) falls through with no dedicated
+// per-state handler side effects; dispatcher-level work such as
+// transition logging and the booking-doc fetch still runs.
 type HandledState =
   | "Approved"
   | "Requested"
@@ -23,15 +25,11 @@ type HandledState =
   | "Checked In"
   | "Pre-approved";
 
-// Registry of per-state entry handlers. Dispatcher delegates to one of
-// these when `newState` is a string key present in the map. Otherwise
-// the fallback handler runs (for XState parallel states and the
-// catch-all generic status-label mapping).
-//
-// `satisfies` enforces that every key in HandledState is wired up —
-// adding a new state to HandledState without adding a handler is a
-// compile-time error. Keys must still be looked up with a string index
-// since `newState` is typed `string`.
+// Registry of per-state entry handlers. `satisfies` enforces that every
+// key in HandledState has a wired handler — adding a new state to
+// HandledState without adding a handler is a compile-time error. Keys
+// must still be looked up via a string index since `newState` is typed
+// as `string`.
 const stateHandlers = {
   "Approved": handleApprovedEntry,
   "Requested": handleRequestedEntry,
@@ -123,14 +121,18 @@ export async function handleStateTransitions(
     },
   );
 
-  // Per-state dispatch: if an extracted handler exists for this string
-  // state and the previous state differs, delegate to it. Otherwise the
-  // fallback handler runs (XState parallel states, generic status
-  // mapping, and Service Closeout check-out email/calendar path).
-  const extractedHandler =
-    typeof newState === "string" && newState !== previousState
-      ? (stateHandlers as Record<string, StateHandler>)[newState]
-      : undefined;
+  // Per-state dispatch. `newState` is always a string at this point
+  // (object snapshots are JSON-stringified above), so parallel states
+  // and any other string not in `stateHandlers` simply no-op here —
+  // their side effects are driven by the calling API layer (see e.g.
+  // `db.ts:checkOut` → `/api/checkout-processing` after the XState
+  // transition to Service Closeout).
+  const extractedHandler = (stateHandlers as Record<string, StateHandler>)[
+    newState
+  ];
+  if (!extractedHandler) {
+    return;
+  }
 
   const handlerCtx: HandlerContext = {
     previousState,
@@ -148,11 +150,7 @@ export async function handleStateTransitions(
     reason,
   };
 
-  if (extractedHandler) {
-    await extractedHandler(handlerCtx);
-  } else {
-    await handleFallbackEntry(handlerCtx);
-  }
+  await extractedHandler(handlerCtx);
 }
 
 /**
