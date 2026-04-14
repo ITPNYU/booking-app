@@ -8,11 +8,10 @@ import {
   serverGetDocumentById,
 } from "@/lib/firebase/server/adminDb";
 import { applyEnvironmentCalendarIds } from "@/lib/utils/calendarEnvironment";
-import { format } from "date-fns";
 import { formatInTimeZone } from "date-fns-tz";
 import { parse } from "json2csv";
 
-const EXPORT_TIME_ZONE = "America/New_York";
+import { TIMEZONE } from "../shared";
 
 export async function GET(request: NextRequest) {
   // Get tenant from request headers or default to 'mc'
@@ -102,10 +101,10 @@ export async function GET(request: NextRequest) {
             : booking.department,
         "Role (Affiliation)": booking.role,
         "Room(s)": booking.roomId,
-        "Booking Start Date": formatInTimeZone(startDate, EXPORT_TIME_ZONE, "M/d/yyyy"),
-        "Booking End Date": formatInTimeZone(endDate, EXPORT_TIME_ZONE, "M/d/yyyy"),
-        "Booking Start Time": formatInTimeZone(startDate, EXPORT_TIME_ZONE, "h:mm a"),
-        "Booking End Time": formatInTimeZone(endDate, EXPORT_TIME_ZONE, "h:mm a"),
+        "Booking Start Date": formatInTimeZone(startDate, TIMEZONE, "M/d/yyyy"),
+        "Booking End Date": formatInTimeZone(endDate, TIMEZONE, "M/d/yyyy"),
+        "Booking Start Time": formatInTimeZone(startDate, TIMEZONE, "h:mm a"),
+        "Booking End Time": formatInTimeZone(endDate, TIMEZONE, "h:mm a"),
         "Time In Use, Hours": timeInUse,
         "# rooms used": roomCount,
         "ACTUAL hours": timeInUse * roomCount,
@@ -137,7 +136,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const csv = parse(csvData);
-    const currentDate = format(new Date(), "yyyy-MM-dd");
+    const currentDate = formatInTimeZone(new Date(), TIMEZONE, "yyyy-MM-dd");
     return new NextResponse(csv, {
       status: 200,
       headers: {
