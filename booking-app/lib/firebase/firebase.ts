@@ -503,7 +503,13 @@ export const clientGetFinalApproverEmailFromDatabase = async (): Promise<
 export const RESOURCE_APPROVERS_DOC_ID = "resourceApprovers";
 
 export type ResourceApproversData = {
-  resources: Record<string, { approvers: { finalApprover: string } }>;
+  resources?:
+    | Record<
+        string,
+        | { approvers?: { finalApprover?: string | null } | null }
+        | null
+      >
+    | null;
 };
 
 /**
@@ -567,9 +573,13 @@ export const clientClearResourceFinalApprover = async (
   const db = getDb();
   const tenantCollection = getTenantCollection(TableNames.APPROVERS, tenant);
   const docRef = doc(db, tenantCollection, RESOURCE_APPROVERS_DOC_ID);
-  await updateDoc(docRef, {
-    [`resources.${String(roomId)}.approvers.finalApprover`]: deleteField(),
-  });
+  // setDoc+merge is used instead of updateDoc so this is idempotent when the
+  // document doesn't yet exist (updateDoc throws NOT_FOUND in that case).
+  await setDoc(
+    docRef,
+    { [`resources.${String(roomId)}.approvers.finalApprover`]: deleteField() },
+    { merge: true },
+  );
 };
 export const clientGetDataByCalendarEventId = async <T>(
   collectionName: TableNames,

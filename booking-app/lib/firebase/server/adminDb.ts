@@ -244,7 +244,13 @@ export const serverUpdateInFirestore = async (
 export const RESOURCE_APPROVERS_DOC_ID = "resourceApprovers";
 
 export type ResourceApproversData = {
-  resources: Record<string, { approvers: { finalApprover: string } }>;
+  resources?:
+    | Record<
+        string,
+        | { approvers?: { finalApprover?: string | null } | null }
+        | null
+      >
+    | null;
 };
 
 export const serverGetFinalApproverEmailFromDatabase = async (
@@ -365,14 +371,22 @@ export const serverSetResourceFinalApprover = async (
       ),
     );
   } else {
-    // Clear the field
+    // Clear the field. update() throws NOT_FOUND if the doc was never written;
+    // treat that as a no-op so clearing is always idempotent.
     const { FieldValue } = await import("firebase-admin/firestore");
-    await traceDatabase("update", `Firestore/${tenantCollection}`, () =>
-      docRef.update({
-        [`resources.${String(roomId)}.approvers.finalApprover`]:
-          FieldValue.delete(),
-      }),
-    );
+    try {
+      await traceDatabase("update", `Firestore/${tenantCollection}`, () =>
+        docRef.update({
+          [`resources.${String(roomId)}.approvers.finalApprover`]:
+            FieldValue.delete(),
+        }),
+      );
+    } catch (err: any) {
+      if (err?.code === 5 /* NOT_FOUND */ || err?.code === "not-found") {
+        return; // doc never existed — nothing to clear
+      }
+      throw err;
+    }
   }
 };
 

@@ -22,7 +22,7 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
-import { useCallback, useContext, useEffect, useState } from "react";
+import { useCallback, useContext, useEffect, useRef, useState } from "react";
 
 import {
   clientClearResourceFinalApprover,
@@ -47,6 +47,16 @@ export const ResourceApprovers = () => {
   const [loading, setLoading] = useState(true);
   const [globalError, setGlobalError] = useState<string | null>(null);
   const [savedRoomId, setSavedRoomId] = useState<number | null>(null);
+  const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Clear the success-indicator timer if the component unmounts before it fires.
+  useEffect(
+    () => () => {
+      if (successTimerRef.current !== null)
+        clearTimeout(successTimerRef.current);
+    },
+    [],
+  );
 
   /** Load resource approvers from Firestore and merge with tenantSchema resources */
   const loadApprovers = useCallback(async () => {
@@ -124,11 +134,15 @@ export const ResourceApprovers = () => {
         isSaving: false,
       });
       setSavedRoomId(roomId);
-      // Hide success indicator after 2 s
-      setTimeout(
-        () => setSavedRoomId((prev) => (prev === roomId ? null : prev)),
-        2000,
-      );
+      // Clear any prior timer, then hide success indicator after 2 s.
+      // The ref is also cleared in the component's unmount effect.
+      if (successTimerRef.current !== null) {
+        clearTimeout(successTimerRef.current);
+      }
+      successTimerRef.current = setTimeout(() => {
+        setSavedRoomId((prev) => (prev === roomId ? null : prev));
+        successTimerRef.current = null;
+      }, 2000);
     } catch {
       updateRow(roomId, { isSaving: false });
       setGlobalError(

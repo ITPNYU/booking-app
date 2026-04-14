@@ -251,12 +251,12 @@ vi.mock("@/lib/newrelic-utils", () => ({
 // ─── Mock: newrelic.js ────────────────────────────────────────────────────────
 vi.mock("@/newrelic.js", () => ({}));
 
-// ─── Use real policy values ───────────────────────────────────────────────────
+// ─── Use real policy values, with getApprovalCcEmail stubbed out ─────────────
 vi.mock("@/components/src/policy", async () => {
   const actual = await vi.importActual<
     typeof import("@/components/src/policy")
   >("@/components/src/policy");
-  return { ...actual };
+  return { ...actual, getApprovalCcEmail: vi.fn().mockReturnValue("") };
 });
 
 vi.mock("@/components/src/types", async () => {
@@ -271,13 +271,6 @@ vi.mock("@/components/src/utils/tenantUtils", async () => {
     typeof import("@/components/src/utils/tenantUtils")
   >("@/components/src/utils/tenantUtils");
   return { ...actual, isMediaCommons: vi.fn().mockReturnValue(false) };
-});
-
-vi.mock("@/components/src/policy", async () => {
-  const actual = await vi.importActual<
-    typeof import("@/components/src/policy")
-  >("@/components/src/policy");
-  return { ...actual, getApprovalCcEmail: vi.fn().mockReturnValue("") };
 });
 
 import { ApproverLevel } from "@/components/src/policy";

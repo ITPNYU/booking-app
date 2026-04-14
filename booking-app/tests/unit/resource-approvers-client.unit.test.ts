@@ -267,14 +267,15 @@ describe("clientClearResourceFinalApprover", () => {
     vi.unstubAllGlobals();
   });
 
-  it("calls updateDoc with a deleteField sentinel on the dotted path", async () => {
+  it("calls setDoc with merge:true and a deleteField sentinel on the dotted path", async () => {
     vi.stubGlobal("location", { pathname: "/mc/admin" });
 
     await clientClearResourceFinalApprover(101, "mc");
 
-    expect(mockUpdateDoc).toHaveBeenCalledTimes(1);
-    const [, update] = mockUpdateDoc.mock.calls[0];
-    expect(update).toHaveProperty(
+    expect(mockSetDoc).toHaveBeenCalledTimes(1);
+    const [, data, options] = mockSetDoc.mock.calls[0];
+    expect(options).toEqual({ merge: true });
+    expect(data).toHaveProperty(
       "resources.101.approvers.finalApprover",
       { __deleteField: true },
     );
@@ -297,8 +298,8 @@ describe("clientClearResourceFinalApprover", () => {
 
     await clientClearResourceFinalApprover(42, "mc");
 
-    const [, update] = mockUpdateDoc.mock.calls[0];
-    expect(Object.keys(update)).toContain("resources.42.approvers.finalApprover");
+    const [, data] = mockSetDoc.mock.calls[0];
+    expect(Object.keys(data)).toContain("resources.42.approvers.finalApprover");
   });
 
   it("accepts a string roomId and forms the correct dotted path", async () => {
@@ -306,8 +307,8 @@ describe("clientClearResourceFinalApprover", () => {
 
     await clientClearResourceFinalApprover("303", "mc");
 
-    const [, update] = mockUpdateDoc.mock.calls[0];
-    expect(Object.keys(update)).toContain(
+    const [, data] = mockSetDoc.mock.calls[0];
+    expect(Object.keys(data)).toContain(
       "resources.303.approvers.finalApprover",
     );
   });
