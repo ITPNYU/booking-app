@@ -159,7 +159,7 @@ export const PreBannedUsers = () => {
               <TableRow>
                 <TableCell>Date</TableCell>
                 <TableCell>Status</TableCell>
-                <TableCell>Booking ID</TableCell>
+                <TableCell sx={{ maxWidth: 320 }}>Booking ID</TableCell>
                 <TableCell>Excused</TableCell>
               </TableRow>
             </TableHead>
@@ -169,7 +169,9 @@ export const PreBannedUsers = () => {
                   <TableRow key={detail.id}>
                     <TableCell>{detail.date}</TableCell>
                     <TableCell>{detail.status}</TableCell>
-                    <TableCell>{detail.bookingId ?? "--"}</TableCell>
+                    <TableCell sx={{ maxWidth: 320, wordBreak: "break-all" }}>
+                      {detail.bookingId ?? "--"}
+                    </TableCell>
                     <TableCell>
                       <Checkbox
                         checked={detail.excused}
