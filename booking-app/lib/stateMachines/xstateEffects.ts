@@ -11,11 +11,28 @@ import { handlePreApprovedEntry } from "./effects/preApprovedEffects";
 import { handleRequestedEntry } from "./effects/requestedEffects";
 import type { HandlerContext, StateHandler } from "./effects/types";
 
+// States that have a dedicated per-state handler. Any string state
+// not in this union falls through to `handleFallbackEntry`.
+type HandledState =
+  | "Approved"
+  | "Requested"
+  | "No Show"
+  | "Canceled"
+  | "Closed"
+  | "Declined"
+  | "Checked In"
+  | "Pre-approved";
+
 // Registry of per-state entry handlers. Dispatcher delegates to one of
 // these when `newState` is a string key present in the map. Otherwise
 // the fallback handler runs (for XState parallel states and the
 // catch-all generic status-label mapping).
-const stateHandlers: Partial<Record<string, StateHandler>> = {
+//
+// `satisfies` enforces that every key in HandledState is wired up —
+// adding a new state to HandledState without adding a handler is a
+// compile-time error. Keys must still be looked up with a string index
+// since `newState` is typed `string`.
+const stateHandlers = {
   "Approved": handleApprovedEntry,
   "Requested": handleRequestedEntry,
   "No Show": handleNoShowEntry,
@@ -24,7 +41,7 @@ const stateHandlers: Partial<Record<string, StateHandler>> = {
   "Declined": handleDeclinedEntry,
   "Checked In": handleCheckedInEntry,
   "Pre-approved": handlePreApprovedEntry,
-};
+} satisfies Record<HandledState, StateHandler>;
 
 // Note: History logging is now handled by traditional functions only
 // XState only manages state transitions, not history logging
@@ -107,11 +124,12 @@ export async function handleStateTransitions(
   );
 
   // Per-state dispatch: if an extracted handler exists for this string
-  // state and the previous state differs, delegate to it. Otherwise fall
-  // through to the inline branches still living in this function.
+  // state and the previous state differs, delegate to it. Otherwise the
+  // fallback handler runs (XState parallel states, generic status
+  // mapping, and Service Closeout check-out email/calendar path).
   const extractedHandler =
     typeof newState === "string" && newState !== previousState
-      ? stateHandlers[newState]
+      ? (stateHandlers as Record<string, StateHandler>)[newState]
       : undefined;
 
   const handlerCtx: HandlerContext = {

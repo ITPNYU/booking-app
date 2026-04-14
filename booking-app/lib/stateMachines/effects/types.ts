@@ -16,8 +16,8 @@ export interface HandlerContext {
   newSnapshot: any;
   actor: any;
   calendarEventId: string;
-  email: string;
-  tenant: string;
+  email?: string;
+  tenant?: string;
   firestoreUpdates: any;
   bookingDoc: any;
   skipCalendarForServiceCloseout: boolean;
