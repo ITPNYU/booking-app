@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // -------------------------------------------------------------------------
 // Shared test scaffolding
@@ -17,7 +17,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 //     `serverUpdateDataByCalendarEventId` / `serverGetDocumentById` helpers
 // -------------------------------------------------------------------------
 
-process.env.NEXT_PUBLIC_BASE_URL = "http://localhost:3000";
+// Save original values so we can restore them in `afterEach` — avoids
+// leaking `process.env.NEXT_PUBLIC_BASE_URL` and `global.fetch` into
+// other test files that share the same Vitest worker.
+const originalBaseUrl = process.env.NEXT_PUBLIC_BASE_URL;
+const originalFetch = global.fetch;
 
 const testCalendarEventId = "test-cal-event-xyz";
 const testEmail = "actor@nyu.edu";
@@ -54,9 +58,11 @@ vi.mock("@/components/src/server/emails", () => ({
 }));
 
 // --- Global fetch mock (calendar API) ------------------------------------
+// `global.fetch` is assigned/restored per-test in beforeEach/afterEach so
+// neither the override nor accumulated mock state leaks into sibling
+// test files running in the same Vitest worker.
 
 const mockFetch = vi.fn();
-global.fetch = mockFetch as any;
 
 // --- Helpers -------------------------------------------------------------
 
@@ -124,6 +130,9 @@ const findCalendarPutCall = () =>
 beforeEach(() => {
   vi.clearAllMocks();
 
+  process.env.NEXT_PUBLIC_BASE_URL = "http://localhost:3000";
+  global.fetch = mockFetch as any;
+
   mockServerGetDataByCalendarEventId.mockResolvedValue(buildBookingDoc());
   mockServerGetDocumentById.mockResolvedValue(null);
   mockServerSendBookingDetailEmail.mockResolvedValue(undefined);
@@ -144,6 +153,15 @@ beforeEach(() => {
     json: () => Promise.resolve({ success: true }),
     text: () => Promise.resolve("OK"),
   });
+});
+
+afterEach(() => {
+  if (originalBaseUrl === undefined) {
+    delete process.env.NEXT_PUBLIC_BASE_URL;
+  } else {
+    process.env.NEXT_PUBLIC_BASE_URL = originalBaseUrl;
+  }
+  global.fetch = originalFetch;
 });
 
 // -------------------------------------------------------------------------
@@ -367,7 +385,10 @@ describe("handleStateTransitions — per-state handler side effects", () => {
         undefined,
       );
 
-      // No handler matched → no firestoreUpdates mutations, no side effects
+      // No handler matched → no handler-level side effects. The dispatcher
+      // itself still runs its transition log and fetches the booking doc
+      // via `serverGetDataByCalendarEventId`; that dispatcher-level work
+      // is expected and intentionally not asserted against here.
       expect(firestoreUpdates).toEqual({});
       expect(mockFetch).not.toHaveBeenCalled();
       expect(mockServerSendBookingDetailEmail).not.toHaveBeenCalled();
