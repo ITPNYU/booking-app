@@ -1,0 +1,90 @@
+name: PR Prod Schema Diff
+
+permissions:
+  contents: read
+  pull-requests: write
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - prod
+
+jobs:
+  schema-diff:
+    name: Dry Run - development vs production tenantSchema
+    if: github.base_ref == 'prod' && github.head_ref == 'main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: booking-app/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./booking-app
+        run: npm ci
+
+      - name: Create .env.local file
+        working-directory: ./booking-app
+        run: |
+          cat > .env.local << EOF
+          FIREBASE_PROJECT_ID=${{ secrets.FIREBASE_PROJECT_ID }}
+          FIREBASE_CLIENT_EMAIL=${{ secrets.FIREBASE_CLIENT_EMAIL }}
+          FIREBASE_PRIVATE_KEY="${{ secrets.FIREBASE_PRIVATE_KEY }}"
+          EOF
+
+      - name: Dry Run - development → production
+        working-directory: ./booking-app
+        run: |
+          node scripts/copyCollection.js \
+            --source-database development \
+            --target-database production \
+            --source-collection tenantSchema \
+            --target-collection tenantSchema \
+            --report-file dry-run-pr-production-details.json \
+            --dry-run > dry-run-pr-production-output.txt 2>&1 || true
+        continue-on-error: true
+
+      - name: Build diff comment
+        working-directory: ./booking-app
+        run: |
+          {
+            echo "## Tenant Schema Diff (development → production)"
+            echo ""
+            echo "This PR targets \`prod\`. Review the diff below and confirm every change is acceptable before merging."
+            echo ""
+            echo "### Key Differences by Document"
+            echo '```'
+            awk '/^📄 Document:|^   Added keys|^     \+ |^   Deleted keys|^     - |^   Updated keys|^     ~ /{print}' dry-run-pr-production-output.txt || true
+            echo '```'
+            echo ""
+            echo "<details><summary>Full dry-run output</summary>"
+            echo ""
+            echo '```'
+            cat dry-run-pr-production-output.txt
+            echo '```'
+            echo ""
+            echo "</details>"
+          } > dry-run-pr-production-comment.md
+
+      - name: Post or update PR comment
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: tenant-schema-prod-diff
+          path: booking-app/dry-run-pr-production-comment.md
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tenant-schema-dry-run-pr-production
+          path: |
+            booking-app/dry-run-pr-production-*.txt
+            booking-app/dry-run-pr-production-*.md
+            booking-app/dry-run-pr-production-*.json
+          retention-days: 30
