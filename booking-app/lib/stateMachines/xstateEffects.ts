@@ -12,6 +12,7 @@ import type { PersistedXStateData, PreApprovalUpdateData } from "./xstateTypes";
 import { cleanObjectForFirestore } from "./xstatePersistence";
 import { handleApprovedEntry } from "./effects/approvedEffects";
 import { handleCanceledEntry } from "./effects/canceledEffects";
+import { handleCheckedInEntry } from "./effects/checkedInEffects";
 import { handleClosedEntry } from "./effects/closedEffects";
 import { handleDeclinedEntry } from "./effects/declinedEffects";
 import { handleNoShowEntry } from "./effects/noShowEffects";
@@ -28,6 +29,7 @@ const stateHandlers: Partial<Record<string, StateHandler>> = {
   "Canceled": handleCanceledEntry,
   "Closed": handleClosedEntry,
   "Declined": handleDeclinedEntry,
+  "Checked In": handleCheckedInEntry,
 };
 
 // Note: History logging is now handled by traditional functions only
@@ -124,6 +126,7 @@ export async function handleStateTransitions(
       newState,
       currentSnapshot,
       newSnapshot,
+      actor,
       calendarEventId,
       email,
       tenant,
@@ -134,58 +137,6 @@ export async function handleStateTransitions(
       reason,
     };
     await extractedHandler(handlerCtx);
-  } else if (newState === "Checked In" && previousState !== "Checked In") {
-    // Check-in state handling - persist XState snapshot only
-    // All other processing (Firestore timestamps, email, calendar, history) is handled by /api/checkin-processing
-    firestoreUpdates.checkedInAt = admin.firestore.Timestamp.now();
-    if (email) {
-      firestoreUpdates.checkedInBy = email;
-    }
-
-    console.log(
-      `📥 XSTATE REACHED CHECKED IN [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-      {
-        calendarEventId,
-        previousState,
-        newState,
-        note: "checkin-processing will be called by client",
-      },
-    );
-
-    // Persist XState snapshot so statusFromXState works correctly
-    try {
-      const { serverUpdateDataByCalendarEventId } =
-        await import("@/components/src/server/admin");
-      const { TableNames } = await import("@/components/src/policy");
-
-      const persistedSnapshot = actor.getPersistedSnapshot();
-      const cleanedSnapshot = cleanObjectForFirestore(persistedSnapshot);
-
-      const xstateDataToPersist = {
-        snapshot: cleanedSnapshot,
-        machineId: newSnapshot?.machine?.id || currentSnapshot?.machine?.id,
-        lastTransition: new Date().toISOString(),
-      };
-
-      await serverUpdateDataByCalendarEventId(
-        TableNames.BOOKING,
-        calendarEventId,
-        {
-          xstateData: xstateDataToPersist,
-        },
-        tenant,
-      );
-
-      console.log(
-        `💾 XSTATE CHECK-IN: SNAPSHOT PERSISTED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-        { calendarEventId, savedState: "Checked In" },
-      );
-    } catch (error) {
-      console.error(
-        `🚨 XSTATE CHECK-IN: FAILED TO PERSIST SNAPSHOT [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-        { calendarEventId, error: error?.message },
-      );
-    }
   } else if (newState === "Pre-approved" && previousState !== "Pre-approved") {
     // Pre-approved state handling
     firestoreUpdates.firstApprovedAt = admin.firestore.Timestamp.now();

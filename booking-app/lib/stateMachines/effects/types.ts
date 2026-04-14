@@ -14,6 +14,7 @@ export interface HandlerContext {
   newState: string | object;
   currentSnapshot: any;
   newSnapshot: any;
+  actor: any;
   calendarEventId: string;
   email: string;
   tenant: string;
