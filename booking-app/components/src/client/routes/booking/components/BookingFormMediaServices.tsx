@@ -58,7 +58,7 @@ export default function BookingFormMediaServices(props: Props) {
         if (room.roomId === 230) {
           options.push(MediaServices.AUDIO_TECH_230);
         }
-        if (room.services?.some((s) => s.type === "campus-media")) {
+        if (room.services?.some((s) => (typeof s === "string" ? s : s?.type) === "campus-media")) {
           options.push(MediaServices.CAMPUS_MEDIA_SERVICES);
         }
       }

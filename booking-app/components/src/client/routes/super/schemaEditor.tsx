@@ -566,7 +566,12 @@ function ResourceEditor({
           label="Services (comma-separated)"
           value={
             Array.isArray(resource.services)
-              ? resource.services.map((s) => (typeof s === "string" ? s : s.type)).join(", ")
+              ? resource.services
+                  .map((s) =>
+                    typeof s === "string" ? s : s && typeof s === "object" ? s.type : null,
+                  )
+                  .filter(Boolean)
+                  .join(", ")
               : ""
           }
           onChange={(e) => {
@@ -577,7 +582,7 @@ function ResourceEditor({
             const existing: Record<string, string[]> = {};
             if (Array.isArray(resource.services)) {
               resource.services.forEach((s) => {
-                if (typeof s !== "string") existing[s.type] = s.approvers;
+                if (s && typeof s === "object") existing[s.type] = s.approvers;
               });
             }
             set(

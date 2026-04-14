@@ -55,13 +55,16 @@ export const ServiceApproverResourceTable = ({ resource }: Props) => {
   const hasServices = resource.services.length > 0;
 
   const [services, setServices] = useState<ResourceService[]>(
-    resource.services.map((s) => normalizeService(s as ResourceService | string)),
+    resource.services
+      .map((s) => normalizeService(s as ResourceService | string))
+      .filter((s) => s.type !== ""),
   );
-  const [selectedServiceType, setSelectedServiceType] = useState<string>(
-    resource.services[0]
-      ? normalizeService(resource.services[0] as ResourceService | string).type
-      : "",
-  );
+  const [selectedServiceType, setSelectedServiceType] = useState<string>(() => {
+    const first = resource.services
+      .map((s) => normalizeService(s as ResourceService | string))
+      .find((s) => s.type !== "");
+    return first?.type ?? "";
+  });
 
   const [emailInput, setEmailInput] = useState("");
   const [emailError, setEmailError] = useState<string | null>(null);
