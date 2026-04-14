@@ -9,12 +9,11 @@ on:
     types: [opened, synchronize, reopened]
     branches:
       - prod
-      - main # TEMP: remove before merge
 
 jobs:
   schema-diff:
     name: Dry Run - development vs production tenantSchema
-    if: (github.base_ref == 'prod' && github.head_ref == 'main') || github.head_ref == 'worktree-pr-prod-schema-check'
+    if: github.base_ref == 'prod' && github.head_ref == 'main'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
