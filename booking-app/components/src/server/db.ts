@@ -343,7 +343,7 @@ async function checkAndLogLateCancellation(
     await import("@/lib/firebase/server/adminDb");
   const admin = await import("firebase-admin");
   const now = admin.firestore.Timestamp.now();
-  const log = { netId, bookingId, lateCancelDate: now };
+  const log = { netId, bookingId, lateCancelDate: now, requestNumber: doc.requestNumber };
   await serverSaveDataToFirestore(TableNames.PRE_BAN_LOGS, log, tenant);
 }
 

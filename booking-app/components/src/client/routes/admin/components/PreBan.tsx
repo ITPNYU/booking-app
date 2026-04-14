@@ -25,7 +25,7 @@ interface PreBanDetails {
   date: string;
   status: "Late Cancel" | "No Show";
   id: string;
-  bookingId?: string;
+  requestNumber?: number;
   excused: boolean;
 }
 
@@ -63,7 +63,7 @@ export const PreBannedUsers = () => {
           : formatDate(log.noShowDate),
         status: log.lateCancelDate ? "Late Cancel" : "No Show",
         id: log.id,
-        bookingId: log.bookingId,
+        requestNumber: log.requestNumber,
         excused: log.excused === true,
       });
       if (log.excused !== true) {
@@ -159,7 +159,7 @@ export const PreBannedUsers = () => {
               <TableRow>
                 <TableCell>Date</TableCell>
                 <TableCell>Status</TableCell>
-                <TableCell sx={{ maxWidth: 320 }}>Booking ID</TableCell>
+                <TableCell>Request #</TableCell>
                 <TableCell>Excused</TableCell>
               </TableRow>
             </TableHead>
@@ -169,9 +169,7 @@ export const PreBannedUsers = () => {
                   <TableRow key={detail.id}>
                     <TableCell>{detail.date}</TableCell>
                     <TableCell>{detail.status}</TableCell>
-                    <TableCell sx={{ maxWidth: 320, wordBreak: "break-all" }}>
-                      {detail.bookingId ?? "--"}
-                    </TableCell>
+                    <TableCell>{detail.requestNumber ?? "--"}</TableCell>
                     <TableCell>
                       <Checkbox
                         checked={detail.excused}
