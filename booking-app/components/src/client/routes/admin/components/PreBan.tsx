@@ -54,6 +54,8 @@ export const PreBannedUsers = () => {
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
+
     const details: DetailsByEmail = {};
     const counts: { [email: string]: number } = {};
 
@@ -87,7 +89,9 @@ export const PreBannedUsers = () => {
       })),
     );
 
-    // Fetch request numbers for all unique bookingIds
+    // Reset stale request numbers before the new fetch resolves
+    setRequestNumberByBookingId({});
+
     const uniqueBookingIds = [...new Set(preBanLogs.map((log) => log.bookingId))];
     Promise.all(
       uniqueBookingIds.map((bookingId) =>
@@ -98,13 +102,18 @@ export const PreBannedUsers = () => {
         ).then((booking) => ({ bookingId, requestNumber: booking?.requestNumber })),
       ),
     ).then((results) => {
+      if (cancelled) return;
       const map: Record<string, number | undefined> = {};
       results.forEach(({ bookingId, requestNumber }) => {
         map[bookingId] = requestNumber;
       });
       setRequestNumberByBookingId(map);
     });
-  }, [preBanLogs]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [preBanLogs, tenant]);
 
   const handleCloseDetails = () => {
     setSelectedEmail(null);
