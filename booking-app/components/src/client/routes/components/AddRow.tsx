@@ -33,7 +33,10 @@ export default function AddRow(props: Props) {
   const [loading, setLoading] = useState(false);
 
   const uniqueValues = useMemo<string[]>(
-    () => rows.map((row) => row[props.columnNameUniqueValue]),
+    () =>
+      rows
+        .filter((row) => row != null)
+        .map((row) => row[props.columnNameUniqueValue]),
     [rows],
   );
 
