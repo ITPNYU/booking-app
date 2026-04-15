@@ -310,7 +310,6 @@ export async function executeXStateTransition(
             netId,
             bookingId: calendarEventId,
             noShowDate: admin.firestore.Timestamp.now(),
-            requestNumber: doc.requestNumber,
           };
           await serverSaveDataToFirestore(TableNames.PRE_BAN_LOGS, log, tenant);
 
