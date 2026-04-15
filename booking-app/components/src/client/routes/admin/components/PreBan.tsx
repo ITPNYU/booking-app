@@ -10,22 +10,25 @@ import {
   TableCell,
   TableBody,
   IconButton,
-  Typography,
 } from "@mui/material";
 import { Info } from "@mui/icons-material";
-import { clientDeleteDataFromFirestore } from "@/lib/firebase/firebase";
+import {
+  clientDeleteDataFromFirestore,
+  clientGetDataByCalendarEventId,
+  clientUpdateDataInFirestore,
+} from "@/lib/firebase/firebase";
 import { DatabaseContext } from "../../components/Provider";
 import { formatDate } from "../../../utils/date";
 import { TableNames } from "../../../../policy";
 import ListTable from "../../components/ListTable";
-import { PreBanLog } from "../../../../types";
-import { clientUpdateDataInFirestore } from "@/lib/firebase/firebase";
+import { Booking } from "../../../../types";
+import { useTenant } from "../../hooks/useTenant";
 
 interface PreBanDetails {
   date: string;
   status: "Late Cancel" | "No Show";
   id: string;
-  requestNumber?: number;
+  bookingId: string;
   excused: boolean;
 }
 
@@ -35,11 +38,15 @@ interface DetailsByEmail {
 
 export const PreBannedUsers = () => {
   const { preBanLogs, reloadPreBanLogs } = useContext(DatabaseContext);
+  const tenant = useTenant();
   const [selectedEmail, setSelectedEmail] = useState<string | null>(null);
   const [detailsByEmail, setDetailsByEmail] = useState<DetailsByEmail>({});
   const [rows, setRows] = useState<Array<{ [key: string]: string }>>([]);
   const [excuseSavingById, setExcuseSavingById] = useState<
     Record<string, boolean>
+  >({});
+  const [requestNumberByBookingId, setRequestNumberByBookingId] = useState<
+    Record<string, number | undefined>
   >({});
 
   useEffect(() => {
@@ -50,7 +57,6 @@ export const PreBannedUsers = () => {
     const details: DetailsByEmail = {};
     const counts: { [email: string]: number } = {};
 
-    // Process logs into details and counts
     preBanLogs.forEach((log) => {
       const email = `${log.netId}@nyu.edu`;
       if (!details[email]) {
@@ -63,7 +69,7 @@ export const PreBannedUsers = () => {
           : formatDate(log.noShowDate),
         status: log.lateCancelDate ? "Late Cancel" : "No Show",
         id: log.id,
-        requestNumber: log.requestNumber,
+        bookingId: log.bookingId,
         excused: log.excused === true,
       });
       if (log.excused !== true) {
@@ -71,7 +77,6 @@ export const PreBannedUsers = () => {
       }
     });
 
-    // Update state
     setDetailsByEmail(details);
     setRows(
       Object.entries(counts).map(([email, count]) => ({
@@ -81,6 +86,24 @@ export const PreBannedUsers = () => {
         details: email,
       })),
     );
+
+    // Fetch request numbers for all unique bookingIds
+    const uniqueBookingIds = [...new Set(preBanLogs.map((log) => log.bookingId))];
+    Promise.all(
+      uniqueBookingIds.map((bookingId) =>
+        clientGetDataByCalendarEventId<Booking>(
+          TableNames.BOOKING,
+          bookingId,
+          tenant ?? undefined,
+        ).then((booking) => ({ bookingId, requestNumber: booking?.requestNumber })),
+      ),
+    ).then((results) => {
+      const map: Record<string, number | undefined> = {};
+      results.forEach(({ bookingId, requestNumber }) => {
+        map[bookingId] = requestNumber;
+      });
+      setRequestNumberByBookingId(map);
+    });
   }, [preBanLogs]);
 
   const handleCloseDetails = () => {
@@ -169,7 +192,7 @@ export const PreBannedUsers = () => {
                   <TableRow key={detail.id}>
                     <TableCell>{detail.date}</TableCell>
                     <TableCell>{detail.status}</TableCell>
-                    <TableCell>{detail.requestNumber ?? "--"}</TableCell>
+                    <TableCell>{requestNumberByBookingId[detail.bookingId] ?? "--"}</TableCell>
                     <TableCell>
                       <Checkbox
                         checked={detail.excused}

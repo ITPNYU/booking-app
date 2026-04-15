@@ -434,7 +434,6 @@ export interface PreBanLog {
   lateCancelDate?: Timestamp;
   noShowDate?: Timestamp;
   excused?: boolean;
-  requestNumber?: number;
 }
 
 export interface BookingLog {
