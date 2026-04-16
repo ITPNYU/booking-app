@@ -68,6 +68,22 @@ describe("getLatestStatusChangeMs", () => {
     expect(getLatestStatusChangeMs(row)).toBe(date.getTime());
   });
 
+  it("handles plain Date objects (e.g. from fake/test data)", () => {
+    const date = new Date("2024-06-15T12:00:00Z");
+    const row = makeRow({ requestedAt: date as any });
+    expect(getLatestStatusChangeMs(row)).toBe(date.getTime());
+  });
+
+  it("picks the latest across mixed Timestamp and plain Date values", () => {
+    const earlier = new Date("2024-06-10T10:00:00Z");
+    const later = new Date("2024-06-15T14:00:00Z");
+    const row = makeRow({
+      requestedAt: Timestamp.fromDate(earlier),
+      firstApprovedAt: later as any,
+    });
+    expect(getLatestStatusChangeMs(row)).toBe(later.getTime());
+  });
+
   it("handles all status timestamp fields correctly", () => {
     const base = new Date("2024-01-01T00:00:00Z");
     const fields = [
@@ -146,5 +162,12 @@ describe("getInterimHours", () => {
     const row = makeRow({ requestedAt: Timestamp.fromDate(future) });
 
     expect(getInterimHours(row)).toBe(0);
+  });
+
+  it("works correctly with a plain Date object (fake/test data)", () => {
+    const twoHoursAgo = new Date("2024-06-20T10:00:00Z");
+    const row = makeRow({ requestedAt: twoHoursAgo as any });
+
+    expect(getInterimHours(row)).toBeCloseTo(2.0, 1);
   });
 });

@@ -254,6 +254,12 @@ export const Bookings: React.FC<BookingsProps> = ({
         minWidth: 110,
         flex: 1,
         valueGetter: (_value: unknown, row: BookingRow) => getInterimHours(row),
+        sortComparator: (a: number | null, b: number | null) => {
+          if (a == null && b == null) return 0;
+          if (a == null) return 1;
+          if (b == null) return -1;
+          return a - b;
+        },
         renderHeader: () => (
           <TableCell component={"div" as any}>Interim (hrs)</TableCell>
         ),

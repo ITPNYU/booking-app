@@ -19,10 +19,13 @@ export function getLatestStatusChangeMs(row: BookingRow): number {
   let latestMs = 0;
   for (const field of STATUS_TIMESTAMP_FIELDS) {
     const ts = row[field];
-    if (ts && typeof ts.toDate === "function") {
-      const ms = ts.toDate().getTime();
-      if (ms > latestMs) latestMs = ms;
+    let ms: number | null = null;
+    if (ts instanceof Date) {
+      ms = ts.getTime();
+    } else if (ts && typeof (ts as any).toDate === "function") {
+      ms = (ts as any).toDate().getTime();
     }
+    if (ms !== null && ms > latestMs) latestMs = ms;
   }
   return latestMs;
 }
