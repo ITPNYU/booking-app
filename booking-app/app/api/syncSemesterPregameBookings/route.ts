@@ -32,13 +32,28 @@ const isDevelopmentEnvironment = (): boolean => {
   );
 };
 
-// Get the appropriate email for the environment
-const getGuestEmail = (originalEmail: string): string => {
+const TEST_MODE_GUEST_EMAIL = "booking-app+pregame@itp.nyu.edu";
+const DEV_FALLBACK_GUEST_EMAIL = "booking-app@itp.nyu.edu";
+
+// Get the appropriate email for the environment.
+// In testMode, always redirect to a dedicated +pregame alias so real
+// requesters never receive calendar invites from a test run, regardless
+// of which environment the code is executing in.
+const resolveGuestEmail = (
+  originalEmail: string,
+  { testMode }: { testMode: boolean },
+): string => {
+  if (testMode) {
+    console.log(
+      `🧪 TEST MODE: Overriding email ${originalEmail} → ${TEST_MODE_GUEST_EMAIL}`,
+    );
+    return TEST_MODE_GUEST_EMAIL;
+  }
   if (isDevelopmentEnvironment()) {
     console.log(
-      `🔧 DEV ENVIRONMENT: Overriding email ${originalEmail} → booking-app@itp.nyu.edu`,
+      `🔧 DEV ENVIRONMENT: Overriding email ${originalEmail} → ${DEV_FALLBACK_GUEST_EMAIL}`,
     );
-    return "booking-app@itp.nyu.edu";
+    return DEV_FALLBACK_GUEST_EMAIL;
   }
   return originalEmail;
 };
@@ -370,6 +385,61 @@ const findGuestEmails = (event: any, description: string): string[] => {
   return Array.from(guestEmails);
 };
 
+// Validates a pregame booking that would be created. Returns a list of
+// human-readable issue strings. Used by dry-run to surface suspicious rows
+// (missing room, empty email, bad timestamps, etc.) so admins don't have
+// to eyeball raw JSON.
+const validateBooking = (
+  booking: any,
+  {
+    rawEmail,
+    testMode,
+  }: { rawEmail: string; testMode: boolean },
+): string[] => {
+  const issues: string[] = [];
+
+  // Room IDs must be a comma-separated list of digits. findRoomIds returns
+  // "" on no match, and real Firestore rows have shown literal "000", which
+  // breaks every downstream room lookup.
+  if (!booking?.roomId) {
+    issues.push("Missing room");
+  } else if (!/^\d+(,\s*\d+)*$/.test(booking.roomId)) {
+    issues.push(`Invalid roomId "${booking.roomId}"`);
+  } else if (/^0+(,|$)/.test(booking.roomId)) {
+    issues.push(`Suspicious roomId "${booking.roomId}"`);
+  }
+
+  // Email: validate against the *source* email (pre-override), since in
+  // testMode the stored email is always the +pregame alias.
+  const sourceEmail = testMode ? rawEmail : booking?.email;
+  if (!sourceEmail) {
+    issues.push("Missing email");
+  } else if (!/@(nyu|itp\.nyu)\.edu$/i.test(sourceEmail)) {
+    issues.push(`Non-NYU email "${sourceEmail}"`);
+  }
+
+  // Dates.
+  const startSecs =
+    booking?.startDate?.seconds ?? booking?.startDate?._seconds;
+  const endSecs = booking?.endDate?.seconds ?? booking?.endDate?._seconds;
+  if (typeof startSecs !== "number") issues.push("Missing startDate");
+  if (typeof endSecs !== "number") issues.push("Missing endDate");
+  if (typeof startSecs === "number" && typeof endSecs === "number") {
+    if (endSecs <= startSecs) {
+      issues.push("endDate ≤ startDate");
+    } else {
+      const durationHours = (endSecs - startSecs) / 3600;
+      if (durationHours > 8) {
+        issues.push(`Long duration: ${durationHours.toFixed(1)}h`);
+      }
+    }
+  }
+
+  if (!booking?.title) issues.push("Missing title");
+
+  return issues;
+};
+
 const createBookingWithDefaults = (partialBooking: Partial<Booking>): Booking =>
   // @ts-ignore
   ({
@@ -419,13 +489,63 @@ export async function POST(request: NextRequest) {
   try {
     const calendar = await getCalendarClient();
 
-    // Get dryRun parameter from query params or request body
+    // Get dryRun / testMode parameters from query params or request body
     const { searchParams } = new URL(request.url);
     const body = await request.json().catch(() => ({}));
     const dryRun =
       searchParams.get("dryRun") === "true" || body.dryRun === true;
+    const testMode =
+      searchParams.get("testMode") === "true" || body.testMode === true;
 
     console.log("🔍 DRY RUN MODE:", dryRun);
+    console.log("🧪 TEST MODE:", testMode);
+
+    // Safety: testMode is intended for dev/staging validation only.
+    // It reads from prod calendars and skips real calendar patches, so
+    // accidentally invoking it against the production deployment would
+    // bypass guards that keep real data clean. Refuse outright.
+    if (testMode && process.env.NEXT_PUBLIC_BRANCH_NAME === "production") {
+      return NextResponse.json(
+        {
+          error:
+            "testMode is not allowed on the production deployment. Use a dev or staging environment.",
+        },
+        { status: 400 },
+      );
+    }
+
+    // Additional safety: if the server is configured to write to the
+    // production Firestore database (e.g. a local .env.local pointing at
+    // booking-app-prod), refuse testMode so a local run can't plant test
+    // records in the real mc-bookings collection.
+    if (testMode && process.env.NEXT_PUBLIC_DATABASE_NAME === "booking-app-prod") {
+      return NextResponse.json(
+        {
+          error:
+            "testMode refused: NEXT_PUBLIC_DATABASE_NAME is booking-app-prod. Point it at a dev/staging database (e.g. (default) or booking-app-staging) before running testMode.",
+        },
+        { status: 400 },
+      );
+    }
+
+    // Real imports (not dry-run, not testMode) are only meaningful on the
+    // production deployment, because pregame events only land on prod
+    // calendars. Allowing them elsewhere invites confusion (0-result runs)
+    // and can process ad-hoc test events that happen to sit on dev
+    // calendars with "Origin: Pregame" in the description.
+    if (
+      !dryRun &&
+      !testMode &&
+      process.env.NEXT_PUBLIC_BRANCH_NAME !== "production"
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Real pregame import is only allowed on the production deployment. Use testMode or dryRun on dev/staging.",
+        },
+        { status: 400 },
+      );
+    }
 
     // Get tenant from request
     const tenant = extractTenantFromRequest(request);
@@ -451,9 +571,18 @@ export async function POST(request: NextRequest) {
       tenant,
     );
 
-    // Apply environment-based calendar ID selection
+    // Pregame events live on prod calendars only (the Google Apps Script
+    // that creates them writes to production). In testMode we intentionally
+    // override the env-based selection so non-prod deployments can still
+    // read real events for validation; otherwise we follow the normal
+    // calendarIdDev/calendarIdProd resolution.
     const resourcesWithCorrectCalendarIds = schema?.resources
-      ? applyEnvironmentCalendarIds(schema.resources)
+      ? testMode
+        ? schema.resources.map((r: any) => ({
+            ...r,
+            calendarId: r.calendarIdProd || r.calendarId,
+          }))
+        : applyEnvironmentCalendarIds(schema.resources)
       : [];
 
     const resources = resourcesWithCorrectCalendarIds.map((resource: any) => ({
@@ -461,6 +590,13 @@ export async function POST(request: NextRequest) {
       calendarId: resource.calendarId,
       roomId: resource.roomId,
     }));
+
+    if (testMode) {
+      console.log(
+        "🧪 TEST MODE: using production calendar IDs",
+        resources.map(r => ({ roomId: r.roomId, calendarId: r.calendarId })),
+      );
+    }
 
     let totalNewBookings = 0;
     let existingBookings = 0;
@@ -545,9 +681,9 @@ export async function POST(request: NextRequest) {
                 const rawEmail = guestEmails[0]
                   ? guestEmails[0].replace(/<[^>]*>/g, "").trim()
                   : "";
-                const cleanEmail = getGuestEmail(rawEmail);
+                const cleanEmail = resolveGuestEmail(rawEmail, { testMode });
 
-                if (!dryRun) {
+                if (!dryRun && !testMode) {
                   // Add [PRE_APPROVED]
                   if (
                     !title.startsWith("[") &&
@@ -566,6 +702,10 @@ export async function POST(request: NextRequest) {
                       },
                     });
                   }
+                } else if (testMode) {
+                  console.log(
+                    `🧪 TEST MODE: skipping calendar event rename for "${title}"`,
+                  );
                 }
                 continue;
               }
@@ -580,13 +720,21 @@ export async function POST(request: NextRequest) {
                 const rawEmail = guestEmails[0]
                   ? guestEmails[0].replace(/<[^>]*>/g, "").trim()
                   : "";
-                const cleanEmail = getGuestEmail(rawEmail);
+                const cleanEmail = resolveGuestEmail(rawEmail, { testMode });
 
                 // Remove servicesRequested from parsedDetails (only needed in XState context)
                 const {
                   servicesRequested: _,
                   ...parsedDetailsWithoutServices
                 } = parsedDetails;
+
+                // Only allocate a real sequential requestNumber for real
+                // writes. Calling serverGetNextSequentialId during dry-run
+                // would bump the tenant counter without a corresponding
+                // booking doc, burning numbers every preview.
+                const requestNumber = dryRun
+                  ? 0
+                  : await serverGetNextSequentialId("bookings", tenant);
 
                 const newBooking = createBookingWithDefaults({
                   ...parsedDetailsWithoutServices,
@@ -600,15 +748,16 @@ export async function POST(request: NextRequest) {
                   ) as Timestamp,
                   calendarEventId: calendarEventId || "",
                   roomId: roomIds,
-                  requestNumber: await serverGetNextSequentialId(
-                    "bookings",
-                    tenant,
-                  ),
+                  requestNumber,
                 });
 
                 if (dryRun) {
                   console.log("dryRun");
-                  dryRunResults.push(newBooking);
+                  const issues = validateBooking(newBooking, {
+                    rawEmail,
+                    testMode,
+                  });
+                  dryRunResults.push({ ...newBooking, _issues: issues });
                   totalNewBookings++;
                 } else {
                   console.log("newBooking", newBooking);
@@ -701,7 +850,7 @@ export async function POST(request: NextRequest) {
                     });
 
                   // Add all requesters as guests to the calendar event
-                  if (event.id) {
+                  if (event.id && !testMode) {
                     await calendar.events.patch({
                       calendarId,
                       eventId: event.id,
@@ -709,6 +858,10 @@ export async function POST(request: NextRequest) {
                         summary: newTitle,
                       },
                     });
+                  } else if (testMode) {
+                    console.log(
+                      `🧪 TEST MODE: skipping calendar event rename for new booking "${newTitle}"`,
+                    );
                   }
 
                   console.log(
@@ -735,16 +888,21 @@ export async function POST(request: NextRequest) {
     console.log("totalNewBookings", totalNewBookings);
 
     if (dryRun) {
+      const issuesCount = dryRunResults.filter(
+        r => Array.isArray(r._issues) && r._issues.length > 0,
+      ).length;
       return NextResponse.json(
         {
-          message: `DRY RUN: Found ${dryRunResults.length} target bookings to process.`,
+          message: `DRY RUN${testMode ? " (TEST MODE)" : ""}: Found ${dryRunResults.length} target bookings to process.`,
           dryRun: true,
+          testMode,
           summary: {
             totalEvents: dryRunResults.length,
             newBookings: targetBookings,
             existingBookings,
             skippedBookings: dryRunResults.filter(r => r.result === "skipped")
               .length,
+            issuesCount,
           },
           results: dryRunResults,
         },
@@ -753,7 +911,8 @@ export async function POST(request: NextRequest) {
     }
     return NextResponse.json(
       {
-        message: `${totalNewBookings} new bookings have been synchronized. ${existingBookings} existing bookings have been updated with multiple rooms.`,
+        message: `${testMode ? "TEST MODE: " : ""}${totalNewBookings} new bookings have been synchronized. ${existingBookings} existing bookings have been updated with multiple rooms.`,
+        testMode,
       },
       { status: 200 },
     );
