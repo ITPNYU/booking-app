@@ -257,8 +257,8 @@ export const Bookings: React.FC<BookingsProps> = ({
         renderHeader: () => (
           <TableCell component={"div" as any}>Interim (hrs)</TableCell>
         ),
-        renderCell: (params: { row: BookingRow }) => {
-          const hours = getInterimHours(params.row);
+        renderCell: (params) => {
+          const hours = params.value as number | null;
           return (
             <TableCell component={"div" as any}>
               {hours != null ? Math.round(hours) : "--"}

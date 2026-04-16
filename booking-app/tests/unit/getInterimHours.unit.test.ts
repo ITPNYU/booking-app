@@ -140,4 +140,11 @@ describe("getInterimHours", () => {
 
     expect(getInterimHours(row)).toBeCloseTo(0, 1);
   });
+
+  it("clamps to 0 when the latest timestamp is in the future (clock skew)", () => {
+    const future = new Date("2024-06-20T14:00:00Z");
+    const row = makeRow({ requestedAt: Timestamp.fromDate(future) });
+
+    expect(getInterimHours(row)).toBe(0);
+  });
 });
