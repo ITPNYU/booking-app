@@ -27,6 +27,7 @@ import KeyboardArrowRightIcon from "@mui/icons-material/KeyboardArrowRight";
 import { useState } from "react";
 
 import AlertToast from "../../components/AlertToast";
+import { TIMEZONE } from "../../../utils/date";
 
 const formatFirestoreTimestamp = (value: any): string => {
   if (!value) return "";
@@ -34,7 +35,7 @@ const formatFirestoreTimestamp = (value: any): string => {
   if (typeof seconds !== "number") return String(value);
   const date = new Date(seconds * 1000);
   return date.toLocaleString("en-US", {
-    timeZone: "America/New_York",
+    timeZone: TIMEZONE,
     year: "numeric",
     month: "short",
     day: "2-digit",
@@ -74,7 +75,12 @@ const DryRunRow = ({ booking, index }: { booking: any; index: number }) => {
         }
       >
         <TableCell sx={{ width: 40, pr: 0 }}>
-          <IconButton size="small" onClick={() => setOpen(v => !v)}>
+          <IconButton
+            size="small"
+            aria-label={open ? "Collapse booking details" : "Expand booking details"}
+            aria-expanded={open}
+            onClick={() => setOpen(v => !v)}
+          >
             {open ? <KeyboardArrowDownIcon /> : <KeyboardArrowRightIcon />}
           </IconButton>
         </TableCell>
@@ -443,11 +449,6 @@ const SyncCalendars = () => {
                 <Chip
                   label={`Existing: ${dryRunData.summary?.existingBookings ?? 0}`}
                   color="warning"
-                  size="small"
-                />
-                <Chip
-                  label={`Skipped: ${dryRunData.summary?.skippedBookings ?? 0}`}
-                  color="error"
                   size="small"
                 />
                 {(dryRunData.summary?.issuesCount ?? 0) > 0 && (

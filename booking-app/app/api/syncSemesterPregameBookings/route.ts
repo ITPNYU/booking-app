@@ -35,6 +35,14 @@ const isDevelopmentEnvironment = (): boolean => {
 const TEST_MODE_GUEST_EMAIL = "booking-app+pregame@itp.nyu.edu";
 const DEV_FALLBACK_GUEST_EMAIL = "booking-app@itp.nyu.edu";
 
+// Keep requester PII out of logs: only retain the domain, which is
+// enough to spot override-vs-passthrough without leaking NetIDs.
+const redactEmailForLogs = (email: string): string => {
+  if (!email) return "(none)";
+  const at = email.lastIndexOf("@");
+  return at === -1 ? "(local)" : `(local)@${email.slice(at + 1)}`;
+};
+
 // Get the appropriate email for the environment.
 // In testMode, always redirect to a dedicated +pregame alias so real
 // requesters never receive calendar invites from a test run, regardless
@@ -45,13 +53,13 @@ const resolveGuestEmail = (
 ): string => {
   if (testMode) {
     console.log(
-      `🧪 TEST MODE: Overriding email ${originalEmail} → ${TEST_MODE_GUEST_EMAIL}`,
+      `🧪 TEST MODE: Overriding email ${redactEmailForLogs(originalEmail)} → ${TEST_MODE_GUEST_EMAIL}`,
     );
     return TEST_MODE_GUEST_EMAIL;
   }
   if (isDevelopmentEnvironment()) {
     console.log(
-      `🔧 DEV ENVIRONMENT: Overriding email ${originalEmail} → ${DEV_FALLBACK_GUEST_EMAIL}`,
+      `🔧 DEV ENVIRONMENT: Overriding email ${redactEmailForLogs(originalEmail)} → ${DEV_FALLBACK_GUEST_EMAIL}`,
     );
     return DEV_FALLBACK_GUEST_EMAIL;
   }
@@ -900,8 +908,6 @@ export async function POST(request: NextRequest) {
             totalEvents: dryRunResults.length,
             newBookings: targetBookings,
             existingBookings,
-            skippedBookings: dryRunResults.filter(r => r.result === "skipped")
-              .length,
             issuesCount,
           },
           results: dryRunResults,
