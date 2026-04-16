@@ -42,34 +42,9 @@ import EquipmentCartDisplay from "./EquipmentCartDisplay";
 import MoreInfoModal from "./MoreInfoModal";
 import StatusChip from "./StatusChip";
 import { DateRangeFilter } from "./hooks/getDateFilter";
+import { getInterimHours } from "./hooks/getInterimHours";
 import useAllowedStatuses from "./hooks/useAllowedStatuses";
 import { useBookingFilters } from "./hooks/useBookingFilters";
-
-function getInterimHours(row: BookingRow): number | null {
-  let latestMs = 0;
-  const timestamps = [
-    row.requestedAt,
-    row.firstApprovedAt,
-    row.finalApprovedAt,
-    row.equipmentAt,
-    row.equipmentApprovedAt,
-    row.declinedAt,
-    row.canceledAt,
-    row.checkedInAt,
-    row.checkedOutAt,
-    row.noShowedAt,
-    row.closedAt,
-    row.walkedInAt,
-  ];
-  for (const ts of timestamps) {
-    if (ts && typeof ts.toDate === "function") {
-      const ms = ts.toDate().getTime();
-      if (ms > latestMs) latestMs = ms;
-    }
-  }
-  if (latestMs === 0) return null;
-  return (Date.now() - latestMs) / (1000 * 60 * 60);
-}
 
 interface BookingsProps {
   pageContext: PageContextLevel;

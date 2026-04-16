@@ -1,31 +1,7 @@
 import { BookingRow } from "@/components/src/types";
+import { getLatestStatusChangeMs } from "./getInterimHours";
 
 export type ColumnSortOrder = "asc" | "desc";
-
-function getLatestStatusChangeMs(row: BookingRow): number {
-  let latestMs = 0;
-  const timestamps = [
-    row.requestedAt,
-    row.firstApprovedAt,
-    row.finalApprovedAt,
-    row.equipmentAt,
-    row.equipmentApprovedAt,
-    row.declinedAt,
-    row.canceledAt,
-    row.checkedInAt,
-    row.checkedOutAt,
-    row.noShowedAt,
-    row.closedAt,
-    row.walkedInAt,
-  ];
-  for (const ts of timestamps) {
-    if (ts && typeof ts.toDate === "function") {
-      const ms = ts.toDate().getTime();
-      if (ms > latestMs) latestMs = ms;
-    }
-  }
-  return latestMs;
-}
 
 export const COMPARATORS: {
   [property: string]: (a: BookingRow, b: BookingRow) => number;
