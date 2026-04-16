@@ -30,5 +30,6 @@ export function getLatestStatusChangeMs(row: BookingRow): number {
 export function getInterimHours(row: BookingRow): number | null {
   const latestMs = getLatestStatusChangeMs(row);
   if (latestMs === 0) return null;
-  return (Date.now() - latestMs) / (1000 * 60 * 60);
+  const elapsedMs = Math.max(0, Date.now() - latestMs);
+  return elapsedMs / (1000 * 60 * 60);
 }
