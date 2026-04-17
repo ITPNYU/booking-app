@@ -42,14 +42,6 @@ vi.mock("firebase/app", () => ({
   getApp: vi.fn(() => ({})),
 }));
 
-vi.mock("firebase/auth", () => ({
-  getAuth: vi.fn(() => ({})),
-  GoogleAuthProvider: class {
-    addScope() {}
-    setCustomParameters() {}
-  },
-}));
-
 vi.mock("firebase/firestore", () => ({
   getFirestore: vi.fn(() => ({})),
   Timestamp: {
