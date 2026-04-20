@@ -10,6 +10,8 @@ export type Approver = {
   department: string;
   createdAt: string;
   level: number;
+  /** Room IDs this approver has resource-approver privileges for */
+  resourceRoomIds?: number[];
 };
 
 export enum AttendeeAffiliation {

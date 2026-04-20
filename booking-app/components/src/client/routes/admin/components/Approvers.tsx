@@ -26,12 +26,12 @@ export const Approvers = () => (
       <ServiceApproverUsers title="Security Approvers" flagField="isSecurity" />
     </Stack>
     <Typography style={{ marginTop: 48, marginBottom: 8 }} variant="h6">
-      Final Approvers per Resource
+      Resource Approvers
     </Typography>
     <Typography variant="body2" color="text.secondary" style={{ marginBottom: 16 }}>
-      Assign a dedicated final approver for each resource. When set, this
-      address overrides the tenant-level final approver for bookings of that
-      resource.
+      Assign one or more resource approvers per resource. Multiple approvers
+      (A or B) can each approve bookings for the same resource. When set, these
+      addresses override the tenant-level final approver for that resource.
     </Typography>
     <ResourceApprovers />
   </div>

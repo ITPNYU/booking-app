@@ -8,6 +8,8 @@ import {
   QueryConstraint,
   Timestamp,
   addDoc,
+  arrayRemove,
+  arrayUnion,
   collection,
   deleteDoc,
   deleteField,
@@ -499,87 +501,98 @@ export const clientGetFinalApproverEmailFromDatabase = async (): Promise<
   }
 };
 
-/** Document ID for the single resource-approvers document in the usersApprovers collection. */
-export const RESOURCE_APPROVERS_DOC_ID = "resourceApprovers";
-
-export type ResourceApproversData = {
-  resources?:
-    | Record<
-        string,
-        | { approvers?: { finalApprover?: string | null } | null }
-        | null
-      >
-    | null;
-};
-
 /**
- * Fetches the resource approvers document for the current (or specified) tenant.
- * The document is stored under RESOURCE_APPROVERS_DOC_ID in the ${tenant}-usersApprovers collection.
- */
-export const clientGetResourceApprovers = async (
-  tenant?: string,
-): Promise<ResourceApproversData | null> => {
-  try {
-    const db = getDb();
-    const tenantCollection = getTenantCollection(TableNames.APPROVERS, tenant);
-    const docRef = doc(db, tenantCollection, RESOURCE_APPROVERS_DOC_ID);
-    const docSnap = await getDoc(docRef);
-    if (docSnap.exists()) {
-      return docSnap.data() as ResourceApproversData;
-    }
-    return null;
-  } catch (error) {
-    console.error("Error fetching resource approvers:", error);
-    return null;
-  }
-};
-
-/**
- * Sets the final approver email for a specific resource.
- *
- * @param roomId - The numeric roomId of the resource (used as the map key)
- * @param email  - The approver's email address
- * @param tenant - The tenant identifier
- */
-export const clientSetResourceFinalApprover = async (
-  roomId: number | string,
-  email: string,
-  tenant?: string,
-): Promise<void> => {
-  const db = getDb();
-  const tenantCollection = getTenantCollection(TableNames.APPROVERS, tenant);
-  const docRef = doc(db, tenantCollection, RESOURCE_APPROVERS_DOC_ID);
-  await setDoc(
-    docRef,
-    {
-      resources: {
-        [String(roomId)]: { approvers: { finalApprover: email } },
-      },
-    },
-    { merge: true },
-  );
-};
-
-/**
- * Clears the final approver email for a specific resource.
+ * Returns all approver emails for a specific room by querying
+ * user documents whose `resourceRoomIds` array contains the given roomId.
  *
  * @param roomId - The numeric roomId of the resource
  * @param tenant - The tenant identifier
  */
-export const clientClearResourceFinalApprover = async (
-  roomId: number | string,
+export const clientGetResourceApproverEmailsForRoom = async (
+  roomId: number,
+  tenant?: string,
+): Promise<string[]> => {
+  try {
+    const db = getDb();
+    const tenantCollection = getTenantCollection(TableNames.APPROVERS, tenant);
+    const q = query(
+      collection(db, tenantCollection),
+      where("resourceRoomIds", "array-contains", roomId),
+    );
+    const snapshot = await getDocs(q);
+    return snapshot.docs
+      .map((d) => d.data().email as string | undefined)
+      .filter((e): e is string => Boolean(e));
+  } catch (error) {
+    console.error("Error fetching resource approvers for room:", error);
+    return [];
+  }
+};
+
+/**
+ * Returns all approver user documents with their assigned resourceRoomIds
+ * for the given tenant — used by the admin UI to display the current state.
+ *
+ * @param tenant - The tenant identifier
+ */
+export const clientGetAllApproversWithRooms = async (
+  tenant?: string,
+): Promise<Array<{ id: string; email: string; resourceRoomIds: number[] }>> => {
+  try {
+    const db = getDb();
+    const tenantCollection = getTenantCollection(TableNames.APPROVERS, tenant);
+    const snapshot = await getDocs(collection(db, tenantCollection));
+    return snapshot.docs
+      .filter((d) => d.id !== "resourceApprovers") // ignore legacy singleton if present
+      .map((d) => ({
+        id: d.id,
+        email: d.data().email as string,
+        resourceRoomIds: (d.data().resourceRoomIds as number[] | undefined) ?? [],
+      }))
+      .filter((a) => Boolean(a.email));
+  } catch (error) {
+    console.error("Error fetching approvers with rooms:", error);
+    return [];
+  }
+};
+
+/**
+ * Grants a user resource-approver privileges for a specific room by adding
+ * the roomId to their `resourceRoomIds` array.
+ *
+ * @param approverDocId - The Firestore document ID of the approver user
+ * @param roomId        - The numeric roomId to grant privileges for
+ * @param tenant        - The tenant identifier
+ */
+export const clientAddResourceRoomToApprover = async (
+  approverDocId: string,
+  roomId: number,
   tenant?: string,
 ): Promise<void> => {
   const db = getDb();
   const tenantCollection = getTenantCollection(TableNames.APPROVERS, tenant);
-  const docRef = doc(db, tenantCollection, RESOURCE_APPROVERS_DOC_ID);
-  // setDoc+merge is used instead of updateDoc so this is idempotent when the
-  // document doesn't yet exist (updateDoc throws NOT_FOUND in that case).
-  await setDoc(
-    docRef,
-    { [`resources.${String(roomId)}.approvers.finalApprover`]: deleteField() },
-    { merge: true },
-  );
+  await updateDoc(doc(db, tenantCollection, approverDocId), {
+    resourceRoomIds: arrayUnion(roomId),
+  });
+};
+
+/**
+ * Revokes a user's resource-approver privileges for a specific room.
+ *
+ * @param approverDocId - The Firestore document ID of the approver user
+ * @param roomId        - The numeric roomId to revoke privileges for
+ * @param tenant        - The tenant identifier
+ */
+export const clientRemoveResourceRoomFromApprover = async (
+  approverDocId: string,
+  roomId: number,
+  tenant?: string,
+): Promise<void> => {
+  const db = getDb();
+  const tenantCollection = getTenantCollection(TableNames.APPROVERS, tenant);
+  await updateDoc(doc(db, tenantCollection, approverDocId), {
+    resourceRoomIds: arrayRemove(roomId),
+  });
 };
 export const clientGetDataByCalendarEventId = async <T>(
   collectionName: TableNames,

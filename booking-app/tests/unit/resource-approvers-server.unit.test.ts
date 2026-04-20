@@ -1,13 +1,13 @@
 /**
- * Unit tests for per-resource final-approver server-side functions:
- *   - serverGetResourceApprovers
- *   - serverGetFinalApproverEmailForResource
- *   - serverSetResourceFinalApprover
+ * Unit tests for per-resource approver server-side functions:
+ *   - serverGetResourceApproverEmailsForResource
+ *   - serverAddResourceRoomToApprover
+ *   - serverRemoveResourceRoomFromApprover
  *
  * And admin.ts approval routing:
- *   - serverFirstApproveOnly uses the resource-specific approver
+ *   - serverFirstApproveOnly emails all resource approvers for the booking's roomId
  *   - serverFirstApproveOnly falls back to tenant-level approver
- *   - serverApproveEvent routes roomId into serverSendConfirmationEmail
+ *   - Auto-approved bookings skip resource approver emails
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -22,14 +22,8 @@ type FirestoreStore = Record<string, Map<string, Record<string, any>>>;
 const firestoreStore: FirestoreStore = {};
 let autoId = 0;
 
-/**
- * Recursive clone that preserves function values (e.g. Timestamp.toDate).
- * JSON.parse/JSON.stringify would strip functions, breaking Timestamp mocks.
- */
 const clone = <T>(value: T): T => {
-  if (Array.isArray(value)) {
-    return value.map((item) => clone(item)) as unknown as T;
-  }
+  if (Array.isArray(value)) return value.map((item) => clone(item)) as unknown as T;
   if (value && typeof value === "object") {
     const result: Record<string, unknown> = {};
     Object.entries(value as Record<string, unknown>).forEach(([k, v]) => {
@@ -37,7 +31,6 @@ const clone = <T>(value: T): T => {
     });
     return result as T;
   }
-  // primitives and functions returned as-is
   return value;
 };
 
@@ -63,29 +56,6 @@ const deepMerge = (
   return result;
 };
 
-// Dot-notation helpers for update()
-const setNestedValue = (obj: Record<string, any>, path: string, value: any) => {
-  const parts = path.split(".");
-  let cursor = obj;
-  for (let i = 0; i < parts.length - 1; i++) {
-    if (!cursor[parts[i]] || typeof cursor[parts[i]] !== "object") {
-      cursor[parts[i]] = {};
-    }
-    cursor = cursor[parts[i]];
-  }
-  cursor[parts[parts.length - 1]] = value;
-};
-
-const deleteNestedValue = (obj: Record<string, any>, path: string) => {
-  const parts = path.split(".");
-  let cursor = obj;
-  for (let i = 0; i < parts.length - 1; i++) {
-    if (!cursor[parts[i]]) return;
-    cursor = cursor[parts[i]];
-  }
-  delete cursor[parts[parts.length - 1]];
-};
-
 const ensureCollection = (name: string) => {
   if (!firestoreStore[name]) firestoreStore[name] = new Map();
   return firestoreStore[name];
@@ -105,11 +75,7 @@ const seedCollection = (
   docs.forEach(({ id, data }) => col.set(id, clone(data)));
 };
 
-const readDoc = (collection: string, docId: string) => {
-  return firestoreStore[collection]?.get(docId);
-};
-
-// ─── Mock: firebase-admin (in-memory Firestore) ───────────────────────────────
+// ─── Mock: firebase-admin (in-memory Firestore) ──────────────────────────────
 const mockTimestampNow = vi.fn(() => ({
   toDate: () => new Date("2024-01-01T00:00:00.000Z"),
   toMillis: () => Date.parse("2024-01-01T00:00:00.000Z"),
@@ -117,7 +83,6 @@ const mockTimestampNow = vi.fn(() => ({
 
 type QueryFilter = { field: string; operator: string; value: unknown };
 
-// Firebase Admin SDK: `exists` is a boolean property (not a function)
 const createSnapshot = (id: string, data?: Record<string, any>) => ({
   id,
   data: () => clone(data ?? {}),
@@ -145,6 +110,10 @@ const createQuery = (
     filters.forEach(({ field, operator, value }) => {
       if (operator === "==")
         entries = entries.filter(([, d]) => d[field] === value);
+      if (operator === "array-contains")
+        entries = entries.filter(
+          ([, d]) => Array.isArray(d[field]) && d[field].includes(value),
+        );
     });
     if (typeof limitValue === "number") entries = entries.slice(0, limitValue);
     return {
@@ -171,17 +140,26 @@ const createDocRef = (collectionName: string, docId: string) => ({
   },
   async update(data: Record<string, any>) {
     const store = ensureCollection(collectionName);
-    const existing = store.get(docId) ?? {};
+    const existing = store.get(docId);
+    if (!existing) throw Object.assign(new Error("NOT_FOUND"), { code: 5 });
     const next: Record<string, any> = clone(existing);
     Object.entries(data).forEach(([key, value]) => {
-      const isDel =
-        value && typeof value === "object" && "__delete" in (value as any);
-      if (key.includes(".")) {
-        isDel
-          ? deleteNestedValue(next, key)
-          : setNestedValue(next, key, clone(value));
+      const isArrayUnion =
+        value && typeof value === "object" && "__arrayUnion" in value;
+      const isArrayRemove =
+        value && typeof value === "object" && "__arrayRemove" in value;
+      if (isArrayUnion) {
+        next[key] = Array.isArray(next[key])
+          ? [...new Set([...next[key], ...(value as any).__arrayUnion])]
+          : [...(value as any).__arrayUnion];
+      } else if (isArrayRemove) {
+        next[key] = Array.isArray(next[key])
+          ? next[key].filter(
+              (v: unknown) => !(value as any).__arrayRemove.includes(v),
+            )
+          : [];
       } else {
-        isDel ? delete next[key] : (next[key] = clone(value));
+        next[key] = clone(value);
       }
     });
     store.set(docId, next);
@@ -212,7 +190,11 @@ const createCollectionRef = (collectionName: string) => ({
 
 vi.mock("firebase-admin", () => {
   const Timestamp = { now: mockTimestampNow };
-  const FieldValue = { delete: () => ({ __delete: true }) };
+  const FieldValue = {
+    delete: () => ({ __delete: true }),
+    arrayUnion: (...items: unknown[]) => ({ __arrayUnion: items }),
+    arrayRemove: (...items: unknown[]) => ({ __arrayRemove: items }),
+  };
 
   const firestoreInstance = {
     settings: vi.fn(),
@@ -239,19 +221,20 @@ vi.mock("firebase-admin", () => {
 
 vi.mock("firebase-admin/firestore", () => ({
   Timestamp: { now: mockTimestampNow },
-  FieldValue: { delete: () => ({ __delete: true }) },
+  FieldValue: {
+    delete: () => ({ __delete: true }),
+    arrayUnion: (...items: unknown[]) => ({ __arrayUnion: items }),
+    arrayRemove: (...items: unknown[]) => ({ __arrayRemove: items }),
+  },
 }));
 
-// ─── Mock: newrelic (pass-through) ───────────────────────────────────────────
 vi.mock("@/lib/newrelic-utils", () => ({
   traceDatabase: async (_op: string, _label: string, fn: () => Promise<any>) =>
     fn(),
 }));
 
-// ─── Mock: newrelic.js ────────────────────────────────────────────────────────
 vi.mock("@/newrelic.js", () => ({}));
 
-// ─── Use real policy values, with getApprovalCcEmail stubbed out ─────────────
 vi.mock("@/components/src/policy", async () => {
   const actual = await vi.importActual<
     typeof import("@/components/src/policy")
@@ -281,278 +264,230 @@ const makeTs = (value: string) => ({
   toMillis: () => Date.parse(value),
 });
 
-// ─── Tests: serverGetResourceApprovers ───────────────────────────────────────
-describe("serverGetResourceApprovers", () => {
+// ─── Tests: serverGetResourceApproverEmailsForResource ───────────────────────
+describe("serverGetResourceApproverEmailsForResource", () => {
   beforeEach(() => {
     vi.resetModules();
     resetFirestore();
   });
 
-  it("returns null when the resourceApprovers document does not exist", async () => {
-    // Collection is empty
-    const { serverGetResourceApprovers } = await import(
-      "@/lib/firebase/server/adminDb"
-    );
-    const result = await serverGetResourceApprovers("itp");
-    expect(result).toBeNull();
-  });
-
-  it("returns the full document when it exists", async () => {
+  it("returns emails of approvers whose resourceRoomIds contains the roomId", async () => {
     seedCollection("itp-usersApprovers", [
       {
-        id: "resourceApprovers",
-        data: {
-          resources: {
-            "101": { approvers: { finalApprover: "room101@nyu.edu" } },
-          },
-        },
+        id: "approver-1",
+        data: { email: "alice@nyu.edu", level: ApproverLevel.FIRST, resourceRoomIds: [101, 202] },
+      },
+      {
+        id: "approver-2",
+        data: { email: "bob@nyu.edu", level: ApproverLevel.FIRST, resourceRoomIds: [101] },
+      },
+      {
+        id: "approver-3",
+        data: { email: "carol@nyu.edu", level: ApproverLevel.FIRST, resourceRoomIds: [202] },
       },
     ]);
-    const { serverGetResourceApprovers } = await import(
+    const { serverGetResourceApproverEmailsForResource } = await import(
       "@/lib/firebase/server/adminDb"
     );
-    const result = await serverGetResourceApprovers("itp");
-    expect(result).toMatchObject({
-      resources: { "101": { approvers: { finalApprover: "room101@nyu.edu" } } },
-    });
+    const emails = await serverGetResourceApproverEmailsForResource("itp", 101);
+    expect(emails).toHaveLength(2);
+    expect(emails).toContain("alice@nyu.edu");
+    expect(emails).toContain("bob@nyu.edu");
+    expect(emails).not.toContain("carol@nyu.edu");
   });
 
-  it("reads from the correct tenant-prefixed collection", async () => {
+  it("does not cross-contaminate between rooms", async () => {
+    seedCollection("itp-usersApprovers", [
+      {
+        id: "approver-1",
+        data: { email: "alice@nyu.edu", level: ApproverLevel.FIRST, resourceRoomIds: [101] },
+      },
+      {
+        id: "approver-2",
+        data: { email: "bob@nyu.edu", level: ApproverLevel.FIRST, resourceRoomIds: [202] },
+      },
+    ]);
+    const { serverGetResourceApproverEmailsForResource } = await import(
+      "@/lib/firebase/server/adminDb"
+    );
+    const emails101 = await serverGetResourceApproverEmailsForResource("itp", 101);
+    expect(emails101).toEqual(["alice@nyu.edu"]);
+
+    const emails202 = await serverGetResourceApproverEmailsForResource("itp", 202);
+    expect(emails202).toEqual(["bob@nyu.edu"]);
+  });
+
+  it("falls back to tenant-level FINAL approver when no user has the roomId", async () => {
+    seedCollection("itp-usersApprovers", [
+      {
+        id: "tenant-final",
+        data: { email: "final@nyu.edu", level: ApproverLevel.FINAL },
+      },
+    ]);
+    const { serverGetResourceApproverEmailsForResource } = await import(
+      "@/lib/firebase/server/adminDb"
+    );
+    const emails = await serverGetResourceApproverEmailsForResource("itp", 101);
+    expect(emails).toEqual(["final@nyu.edu"]);
+  });
+
+  it("returns [] when no resource approver and no tenant-level approver", async () => {
+    const { serverGetResourceApproverEmailsForResource } = await import(
+      "@/lib/firebase/server/adminDb"
+    );
+    const emails = await serverGetResourceApproverEmailsForResource("itp", 101);
+    expect(emails).toEqual([]);
+  });
+
+  it("skips resource lookup and falls back when roomId is undefined", async () => {
+    seedCollection("itp-usersApprovers", [
+      {
+        id: "tenant-final",
+        data: { email: "final@nyu.edu", level: ApproverLevel.FINAL },
+      },
+    ]);
+    const { serverGetResourceApproverEmailsForResource } = await import(
+      "@/lib/firebase/server/adminDb"
+    );
+    const emails = await serverGetResourceApproverEmailsForResource("itp", undefined);
+    expect(emails).toEqual(["final@nyu.edu"]);
+  });
+
+  it("does not cross-tenant leak (mc vs itp)", async () => {
     seedCollection("mc-usersApprovers", [
       {
-        id: "resourceApprovers",
-        data: { resources: { "50": { approvers: { finalApprover: "mc-room50@nyu.edu" } } } },
+        id: "mc-approver",
+        data: { email: "mc-approver@nyu.edu", level: ApproverLevel.FIRST, resourceRoomIds: [5] },
       },
     ]);
-    // itp collection is empty
-    const { serverGetResourceApprovers } = await import(
+    const { serverGetResourceApproverEmailsForResource } = await import(
       "@/lib/firebase/server/adminDb"
     );
-    const itpResult = await serverGetResourceApprovers("itp");
-    expect(itpResult).toBeNull();
+    const itpResult = await serverGetResourceApproverEmailsForResource("itp", 5);
+    expect(itpResult).toEqual([]);
 
-    const mcResult = await serverGetResourceApprovers("mc");
-    expect(mcResult?.resources["50"].approvers.finalApprover).toBe(
-      "mc-room50@nyu.edu",
-    );
+    const mcResult = await serverGetResourceApproverEmailsForResource("mc", 5);
+    expect(mcResult).toContain("mc-approver@nyu.edu");
   });
 
-  it("returns null when tenant is undefined (base collection, no doc)", async () => {
-    const { serverGetResourceApprovers } = await import(
+  it("accepts string roomId by parsing to numeric", async () => {
+    seedCollection("itp-usersApprovers", [
+      {
+        id: "approver-1",
+        data: { email: "alice@nyu.edu", level: ApproverLevel.FIRST, resourceRoomIds: [101] },
+      },
+    ]);
+    const { serverGetResourceApproverEmailsForResource } = await import(
       "@/lib/firebase/server/adminDb"
     );
-    const result = await serverGetResourceApprovers(undefined);
-    expect(result).toBeNull();
+    const emails = await serverGetResourceApproverEmailsForResource("itp", "101");
+    expect(emails).toContain("alice@nyu.edu");
   });
 });
 
-// ─── Tests: serverGetFinalApproverEmailForResource ───────────────────────────
-describe("serverGetFinalApproverEmailForResource", () => {
+// ─── Tests: serverAddResourceRoomToApprover ───────────────────────────────────
+describe("serverAddResourceRoomToApprover", () => {
   beforeEach(() => {
     vi.resetModules();
     resetFirestore();
   });
 
-  it("returns the resource-specific email when set for the given roomId", async () => {
+  it("adds a roomId to an existing approver document", async () => {
     seedCollection("itp-usersApprovers", [
       {
-        id: "resourceApprovers",
-        data: {
-          resources: {
-            "101": { approvers: { finalApprover: "specific@nyu.edu" } },
-            "202": { approvers: { finalApprover: "other@nyu.edu" } },
-          },
-        },
+        id: "approver-1",
+        data: { email: "alice@nyu.edu", level: ApproverLevel.FIRST, resourceRoomIds: [] },
       },
     ]);
-    const { serverGetFinalApproverEmailForResource } = await import(
+    const { serverAddResourceRoomToApprover } = await import(
       "@/lib/firebase/server/adminDb"
     );
-    const email = await serverGetFinalApproverEmailForResource("itp", 101);
-    expect(email).toBe("specific@nyu.edu");
+    await serverAddResourceRoomToApprover("approver-1", 101, "itp");
+
+    const doc = firestoreStore["itp-usersApprovers"]?.get("approver-1");
+    expect(doc?.resourceRoomIds).toContain(101);
   });
 
-  it("does not cross-contaminate between resources", async () => {
+  it("does not duplicate an already-assigned roomId", async () => {
     seedCollection("itp-usersApprovers", [
       {
-        id: "resourceApprovers",
-        data: {
-          resources: {
-            "101": { approvers: { finalApprover: "room101@nyu.edu" } },
-            "202": { approvers: { finalApprover: "room202@nyu.edu" } },
-          },
-        },
+        id: "approver-1",
+        data: { email: "alice@nyu.edu", level: ApproverLevel.FIRST, resourceRoomIds: [101] },
       },
     ]);
-    const { serverGetFinalApproverEmailForResource } = await import(
+    const { serverAddResourceRoomToApprover } = await import(
       "@/lib/firebase/server/adminDb"
     );
-    const email202 = await serverGetFinalApproverEmailForResource("itp", 202);
-    expect(email202).toBe("room202@nyu.edu");
-    const email101 = await serverGetFinalApproverEmailForResource("itp", 101);
-    expect(email101).toBe("room101@nyu.edu");
-  });
+    await serverAddResourceRoomToApprover("approver-1", 101, "itp");
 
-  it("falls back to tenant-level FINAL approver when no resource-specific entry exists", async () => {
-    // No resourceApprovers doc — only the legacy FINAL-level approver
-    seedCollection("itp-usersApprovers", [
-      {
-        id: "tenant-final",
-        data: { email: "tenant-final@nyu.edu", level: ApproverLevel.FINAL },
-      },
-    ]);
-    const { serverGetFinalApproverEmailForResource } = await import(
-      "@/lib/firebase/server/adminDb"
-    );
-    const email = await serverGetFinalApproverEmailForResource("itp", 101);
-    expect(email).toBe("tenant-final@nyu.edu");
-  });
-
-  it("falls back to tenant-level approver when roomId is present but has no approver configured", async () => {
-    seedCollection("itp-usersApprovers", [
-      {
-        id: "resourceApprovers",
-        data: {
-          resources: {
-            "999": { approvers: { finalApprover: "room999@nyu.edu" } },
-          },
-        },
-      },
-      {
-        id: "tenant-final",
-        data: { email: "tenant-final@nyu.edu", level: ApproverLevel.FINAL },
-      },
-    ]);
-    const { serverGetFinalApproverEmailForResource } = await import(
-      "@/lib/firebase/server/adminDb"
-    );
-    // Room 101 is not in the resourceApprovers map → fall back
-    const email = await serverGetFinalApproverEmailForResource("itp", 101);
-    expect(email).toBe("tenant-final@nyu.edu");
-  });
-
-  it("returns null when neither resource-specific nor tenant-level approver exists", async () => {
-    const { serverGetFinalApproverEmailForResource } = await import(
-      "@/lib/firebase/server/adminDb"
-    );
-    const email = await serverGetFinalApproverEmailForResource("itp", 101);
-    expect(email).toBeNull();
-  });
-
-  it("skips resource lookup and falls back immediately when roomId is undefined", async () => {
-    seedCollection("itp-usersApprovers", [
-      {
-        id: "tenant-final",
-        data: { email: "tenant-final@nyu.edu", level: ApproverLevel.FINAL },
-      },
-    ]);
-    const { serverGetFinalApproverEmailForResource } = await import(
-      "@/lib/firebase/server/adminDb"
-    );
-    const email = await serverGetFinalApproverEmailForResource("itp", undefined);
-    expect(email).toBe("tenant-final@nyu.edu");
-  });
-
-  it("uses the correct tenant-prefixed collection (no cross-tenant leakage)", async () => {
-    seedCollection("mc-usersApprovers", [
-      {
-        id: "resourceApprovers",
-        data: {
-          resources: { "5": { approvers: { finalApprover: "mc-room5@nyu.edu" } } },
-        },
-      },
-    ]);
-    const { serverGetFinalApproverEmailForResource } = await import(
-      "@/lib/firebase/server/adminDb"
-    );
-    // ITP tenant should not find MC's resource approver
-    const itpResult = await serverGetFinalApproverEmailForResource("itp", 5);
-    expect(itpResult).toBeNull();
-
-    const mcResult = await serverGetFinalApproverEmailForResource("mc", 5);
-    expect(mcResult).toBe("mc-room5@nyu.edu");
-  });
-});
-
-// ─── Tests: serverSetResourceFinalApprover ────────────────────────────────────
-describe("serverSetResourceFinalApprover", () => {
-  beforeEach(() => {
-    vi.resetModules();
-    resetFirestore();
-  });
-
-  it("creates the resourceApprovers document and sets the email", async () => {
-    const { serverSetResourceFinalApprover, serverGetResourceApprovers } =
-      await import("@/lib/firebase/server/adminDb");
-
-    await serverSetResourceFinalApprover(101, "room101@nyu.edu", "itp");
-
-    const doc = await serverGetResourceApprovers("itp");
-    expect(doc?.resources["101"].approvers.finalApprover).toBe(
-      "room101@nyu.edu",
-    );
-  });
-
-  it("merges multiple resources without overwriting existing ones", async () => {
-    const { serverSetResourceFinalApprover, serverGetResourceApprovers } =
-      await import("@/lib/firebase/server/adminDb");
-
-    await serverSetResourceFinalApprover(101, "room101@nyu.edu", "itp");
-    await serverSetResourceFinalApprover(202, "room202@nyu.edu", "itp");
-
-    const doc = await serverGetResourceApprovers("itp");
-    expect(doc?.resources["101"].approvers.finalApprover).toBe(
-      "room101@nyu.edu",
-    );
-    expect(doc?.resources["202"].approvers.finalApprover).toBe(
-      "room202@nyu.edu",
-    );
+    const doc = firestoreStore["itp-usersApprovers"]?.get("approver-1");
+    expect(doc?.resourceRoomIds.filter((id: number) => id === 101)).toHaveLength(1);
   });
 
   it("writes to the correct tenant-prefixed collection", async () => {
-    const { serverSetResourceFinalApprover, serverGetResourceApprovers } =
-      await import("@/lib/firebase/server/adminDb");
-
-    await serverSetResourceFinalApprover(50, "mc-room50@nyu.edu", "mc");
-
-    const itpDoc = await serverGetResourceApprovers("itp");
-    expect(itpDoc).toBeNull();
-
-    const mcDoc = await serverGetResourceApprovers("mc");
-    expect(mcDoc?.resources["50"].approvers.finalApprover).toBe(
-      "mc-room50@nyu.edu",
+    seedCollection("mc-usersApprovers", [
+      {
+        id: "mc-approver",
+        data: { email: "mc@nyu.edu", level: ApproverLevel.FIRST, resourceRoomIds: [] },
+      },
+    ]);
+    const { serverAddResourceRoomToApprover } = await import(
+      "@/lib/firebase/server/adminDb"
     );
+    await serverAddResourceRoomToApprover("mc-approver", 50, "mc");
+
+    const mcDoc = firestoreStore["mc-usersApprovers"]?.get("mc-approver");
+    expect(mcDoc?.resourceRoomIds).toContain(50);
+
+    // ITP collection should be untouched (empty or undefined)
+    const itpStore = firestoreStore["itp-usersApprovers"];
+    expect(!itpStore || itpStore.size === 0).toBe(true);
+  });
+});
+
+// ─── Tests: serverRemoveResourceRoomFromApprover ──────────────────────────────
+describe("serverRemoveResourceRoomFromApprover", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    resetFirestore();
   });
 
-  it("clears the email when null is passed (dot-notation delete)", async () => {
-    const { serverSetResourceFinalApprover, serverGetFinalApproverEmailForResource } =
-      await import("@/lib/firebase/server/adminDb");
+  it("removes a roomId from an approver's resourceRoomIds", async () => {
+    seedCollection("itp-usersApprovers", [
+      {
+        id: "approver-1",
+        data: { email: "alice@nyu.edu", level: ApproverLevel.FIRST, resourceRoomIds: [101, 202] },
+      },
+    ]);
+    const { serverRemoveResourceRoomFromApprover } = await import(
+      "@/lib/firebase/server/adminDb"
+    );
+    await serverRemoveResourceRoomFromApprover("approver-1", 101, "itp");
 
-    // First set
-    await serverSetResourceFinalApprover(101, "room101@nyu.edu", "itp");
-    const before = await serverGetFinalApproverEmailForResource("itp", 101);
-    expect(before).toBe("room101@nyu.edu");
-
-    // Then clear
-    await serverSetResourceFinalApprover(101, null, "itp");
-    const after = await serverGetFinalApproverEmailForResource("itp", 101);
-    // After clearing, should fall back to tenant-level (none seeded → null)
-    expect(after).toBeNull();
+    const doc = firestoreStore["itp-usersApprovers"]?.get("approver-1");
+    expect(doc?.resourceRoomIds).not.toContain(101);
+    expect(doc?.resourceRoomIds).toContain(202);
   });
 
-  it("accepts string roomId as well as number", async () => {
-    const { serverSetResourceFinalApprover, serverGetFinalApproverEmailForResource } =
-      await import("@/lib/firebase/server/adminDb");
+  it("is a no-op when roomId is not in the array", async () => {
+    seedCollection("itp-usersApprovers", [
+      {
+        id: "approver-1",
+        data: { email: "alice@nyu.edu", level: ApproverLevel.FIRST, resourceRoomIds: [202] },
+      },
+    ]);
+    const { serverRemoveResourceRoomFromApprover } = await import(
+      "@/lib/firebase/server/adminDb"
+    );
+    await serverRemoveResourceRoomFromApprover("approver-1", 101, "itp");
 
-    await serverSetResourceFinalApprover("101", "str-room@nyu.edu", "itp");
-
-    const email = await serverGetFinalApproverEmailForResource("itp", 101);
-    expect(email).toBe("str-room@nyu.edu");
+    const doc = firestoreStore["itp-usersApprovers"]?.get("approver-1");
+    expect(doc?.resourceRoomIds).toEqual([202]);
   });
 });
 
 // ─── Tests: admin.ts — serverFirstApproveOnly routing ────────────────────────
-describe("serverFirstApproveOnly – resource-specific approver routing", () => {
+describe("serverFirstApproveOnly – resource approver routing", () => {
   beforeEach(() => {
     vi.resetModules();
     resetFirestore();
@@ -580,18 +515,18 @@ describe("serverFirstApproveOnly – resource-specific approver routing", () => 
     ...extra,
   });
 
-  it("emails the resource-specific final approver when configured for the booking's roomId", async () => {
+  it("emails all resource approvers for the booking's roomId", async () => {
     seedCollection("tenant-r-bookings", [
       { id: "booking-r1", data: baseBooking({ roomId: "101" }) },
     ]);
     seedCollection("tenant-r-usersApprovers", [
       {
-        id: "resourceApprovers",
-        data: {
-          resources: {
-            "101": { approvers: { finalApprover: "resource-approver@nyu.edu" } },
-          },
-        },
+        id: "approver-a",
+        data: { email: "alice@nyu.edu", level: ApproverLevel.FIRST, resourceRoomIds: [101] },
+      },
+      {
+        id: "approver-b",
+        data: { email: "bob@nyu.edu", level: ApproverLevel.FIRST, resourceRoomIds: [101] },
       },
     ]);
 
@@ -605,17 +540,17 @@ describe("serverFirstApproveOnly – resource-specific approver routing", () => 
     const emailCalls = mockFetch.mock.calls.filter(
       ([url]: [string]) => url === "https://booking.test/api/sendEmail",
     );
-    expect(emailCalls.length).toBeGreaterThanOrEqual(1);
-    const [, opts] = emailCalls[0] as [string, { body: string }];
-    const body = JSON.parse(opts.body);
-    expect(body.targetEmail).toBe("resource-approver@nyu.edu");
+    const recipients = emailCalls.map(([, opts]: [string, { body: string }]) =>
+      JSON.parse(opts.body).targetEmail,
+    );
+    expect(recipients).toContain("alice@nyu.edu");
+    expect(recipients).toContain("bob@nyu.edu");
   });
 
-  it("falls back to tenant-level approver when no resource-specific approver is configured", async () => {
+  it("falls back to tenant-level approver when no user has the roomId", async () => {
     seedCollection("tenant-r-bookings", [
       { id: "booking-r2", data: baseBooking({ roomId: "202" }) },
     ]);
-    // No resourceApprovers doc — only tenant-level FINAL
     seedCollection("tenant-r-usersApprovers", [
       {
         id: "tenant-final",
@@ -635,16 +570,13 @@ describe("serverFirstApproveOnly – resource-specific approver routing", () => 
     );
     expect(emailCalls.length).toBeGreaterThanOrEqual(1);
     const [, opts] = emailCalls[0] as [string, { body: string }];
-    const body = JSON.parse(opts.body);
-    expect(body.targetEmail).toBe("tenant-final@nyu.edu");
+    expect(JSON.parse(opts.body).targetEmail).toBe("tenant-final@nyu.edu");
   });
 
-  it("skips sending email (no recipient) when no approver is configured at all", async () => {
+  it("skips sending email when no approver configured at all", async () => {
     seedCollection("tenant-r-bookings", [
       { id: "booking-r3", data: baseBooking({ roomId: "303" }) },
     ]);
-    // No approvers at all
-
     mockFetch.mockResolvedValue({ ok: true } as any);
 
     const { serverFirstApproveOnly } = await import(
@@ -652,29 +584,20 @@ describe("serverFirstApproveOnly – resource-specific approver routing", () => 
     );
     await serverFirstApproveOnly("cal-res-1", "first@nyu.edu", "tenant-r");
 
-    // No /api/sendEmail call since there's no recipient
     const emailCalls = mockFetch.mock.calls.filter(
       ([url]: [string]) => url === "https://booking.test/api/sendEmail",
     );
     expect(emailCalls).toHaveLength(0);
   });
 
-  it("uses the first roomId when booking has multiple rooms (e.g. '101, 202')", async () => {
+  it("uses the first roomId when booking has multiple rooms ('101, 202')", async () => {
     seedCollection("tenant-r-bookings", [
-      {
-        id: "booking-r4",
-        data: baseBooking({ roomId: "101, 202" }),
-      },
+      { id: "booking-r4", data: baseBooking({ roomId: "101, 202" }) },
     ]);
     seedCollection("tenant-r-usersApprovers", [
       {
-        id: "resourceApprovers",
-        data: {
-          resources: {
-            "101": { approvers: { finalApprover: "primary-room@nyu.edu" } },
-            "202": { approvers: { finalApprover: "secondary-room@nyu.edu" } },
-          },
-        },
+        id: "approver-a",
+        data: { email: "primary-room@nyu.edu", level: ApproverLevel.FIRST, resourceRoomIds: [101] },
       },
     ]);
 
@@ -689,10 +612,9 @@ describe("serverFirstApproveOnly – resource-specific approver routing", () => 
       ([url]: [string]) => url === "https://booking.test/api/sendEmail",
     );
     expect(emailCalls.length).toBeGreaterThanOrEqual(1);
-    const [, opts] = emailCalls[0] as [string, { body: string }];
-    const body = JSON.parse(opts.body);
-    // Should use the primary (first) roomId
-    expect(body.targetEmail).toBe("primary-room@nyu.edu");
+    expect(JSON.parse((emailCalls[0] as [string, { body: string }])[1].body).targetEmail).toBe(
+      "primary-room@nyu.edu",
+    );
   });
 
   it("marks booking as PRE_APPROVED and creates a log entry", async () => {
@@ -701,12 +623,8 @@ describe("serverFirstApproveOnly – resource-specific approver routing", () => 
     ]);
     seedCollection("tenant-r-usersApprovers", [
       {
-        id: "resourceApprovers",
-        data: {
-          resources: {
-            "101": { approvers: { finalApprover: "approver@nyu.edu" } },
-          },
-        },
+        id: "approver-a",
+        data: { email: "approver@nyu.edu", level: ApproverLevel.FIRST, resourceRoomIds: [101] },
       },
     ]);
 
@@ -729,15 +647,5 @@ describe("serverFirstApproveOnly – resource-specific approver routing", () => 
       status: BookingStatusLabel.PRE_APPROVED,
       changedBy: "first-approver@nyu.edu",
     });
-  });
-});
-
-// ─── Tests: RESOURCE_APPROVERS_DOC_ID constant ───────────────────────────────
-describe("RESOURCE_APPROVERS_DOC_ID", () => {
-  it("has the value 'resourceApprovers'", async () => {
-    const { RESOURCE_APPROVERS_DOC_ID } = await import(
-      "@/lib/firebase/server/adminDb"
-    );
-    expect(RESOURCE_APPROVERS_DOC_ID).toBe("resourceApprovers");
   });
 });

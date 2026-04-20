@@ -240,19 +240,6 @@ export const serverUpdateInFirestore = async (
     console.error("Error updating document: ", error);
   }
 };
-/** Document ID for the single resource-approvers document in the usersApprovers collection. */
-export const RESOURCE_APPROVERS_DOC_ID = "resourceApprovers";
-
-export type ResourceApproversData = {
-  resources?:
-    | Record<
-        string,
-        | { approvers?: { finalApprover?: string | null } | null }
-        | null
-      >
-    | null;
-};
-
 export const serverGetFinalApproverEmailFromDatabase = async (
   tenant?: string,
 ): Promise<string | null> => {
@@ -288,106 +275,100 @@ export const serverGetFinalApproverEmail = async (
 };
 
 /**
- * Fetches the entire resource approvers document for a tenant.
- * Stored as a single document (RESOURCE_APPROVERS_DOC_ID) in ${tenant}-usersApprovers.
- */
-export const serverGetResourceApprovers = async (
-  tenant?: string,
-): Promise<ResourceApproversData | null> => {
-  try {
-    const tenantCollection = getServerTenantCollection(
-      TableNames.APPROVERS,
-      tenant,
-    );
-    const docRef = db.collection(tenantCollection).doc(RESOURCE_APPROVERS_DOC_ID);
-    const docSnap = await traceDatabase(
-      "get",
-      `Firestore/${tenantCollection}`,
-      () => docRef.get(),
-    );
-    if (docSnap.exists) {
-      return docSnap.data() as ResourceApproversData;
-    }
-    return null;
-  } catch (error) {
-    console.error("Error fetching resource approvers:", error);
-    return null;
-  }
-};
-
-/**
- * Returns the final approver email for a specific resource.
- * Falls back to the tenant-level final approver if no resource-specific one is set.
+ * Returns all resource approver emails for a specific room by querying
+ * user documents in ${tenant}-usersApprovers whose `resourceRoomIds`
+ * array contains the given roomId.
+ *
+ * Falls back to the tenant-level final approver when no per-room approvers
+ * are configured, or when roomId is not provided.
  *
  * @param tenant - The tenant identifier
- * @param roomId - The numeric roomId of the resource
+ * @param roomId - The numeric (or string) roomId of the resource
  */
-export const serverGetFinalApproverEmailForResource = async (
+export const serverGetResourceApproverEmailsForResource = async (
   tenant?: string,
   roomId?: number | string,
-): Promise<string | null> => {
+): Promise<string[]> => {
   if (roomId !== undefined) {
     try {
-      const data = await serverGetResourceApprovers(tenant);
-      const resourceEmail = data?.resources?.[String(roomId)]?.approvers?.finalApprover;
-      if (resourceEmail) {
-        return resourceEmail;
+      const numericRoomId =
+        typeof roomId === "string" ? parseInt(roomId, 10) : roomId;
+      const tenantCollection = getServerTenantCollection(
+        TableNames.APPROVERS,
+        tenant,
+      );
+      const querySnapshot = await traceDatabase(
+        "query",
+        `Firestore/${tenantCollection}`,
+        () =>
+          db
+            .collection(tenantCollection)
+            .where("resourceRoomIds", "array-contains", numericRoomId)
+            .get(),
+      );
+      if (!querySnapshot.empty) {
+        const emails = querySnapshot.docs
+          .map((d) => d.data().email as string | undefined)
+          .filter((e): e is string => Boolean(e));
+        if (emails.length > 0) return emails;
       }
     } catch (error) {
-      console.error("Error fetching resource-specific final approver:", error);
+      console.error("Error fetching resource-specific approvers:", error);
     }
   }
-  // Fall back to tenant-level approver
-  return serverGetFinalApproverEmailFromDatabase(tenant);
+  // Fall back to the tenant-level final approver
+  const fallback = await serverGetFinalApproverEmailFromDatabase(tenant);
+  return fallback ? [fallback] : [];
 };
 
 /**
- * Sets or clears the final approver email for a specific resource.
+ * Adds a roomId to a user's `resourceRoomIds` array in the approvers collection.
  *
- * @param roomId - The numeric roomId of the resource
- * @param email  - Email to set, or empty string / null to clear
- * @param tenant - The tenant identifier
+ * @param approverDocId - The Firestore document ID of the approver user
+ * @param roomId        - The roomId to grant resource-approver privileges for
+ * @param tenant        - The tenant identifier
  */
-export const serverSetResourceFinalApprover = async (
-  roomId: number | string,
-  email: string | null,
+export const serverAddResourceRoomToApprover = async (
+  approverDocId: string,
+  roomId: number,
   tenant?: string,
 ): Promise<void> => {
   const tenantCollection = getServerTenantCollection(
     TableNames.APPROVERS,
     tenant,
   );
-  const docRef = db.collection(tenantCollection).doc(RESOURCE_APPROVERS_DOC_ID);
+  const { FieldValue } = await import("firebase-admin/firestore");
+  await traceDatabase("update", `Firestore/${tenantCollection}`, () =>
+    db
+      .collection(tenantCollection)
+      .doc(approverDocId)
+      .update({ resourceRoomIds: FieldValue.arrayUnion(roomId) }),
+  );
+};
 
-  if (email) {
-    await traceDatabase("set", `Firestore/${tenantCollection}`, () =>
-      docRef.set(
-        {
-          resources: {
-            [String(roomId)]: { approvers: { finalApprover: email } },
-          },
-        },
-        { merge: true },
-      ),
-    );
-  } else {
-    // Clear the field. update() throws NOT_FOUND if the doc was never written;
-    // treat that as a no-op so clearing is always idempotent.
-    const { FieldValue } = await import("firebase-admin/firestore");
-    try {
-      await traceDatabase("update", `Firestore/${tenantCollection}`, () =>
-        docRef.update({
-          [`resources.${String(roomId)}.approvers.finalApprover`]:
-            FieldValue.delete(),
-        }),
-      );
-    } catch (err: any) {
-      if (err?.code === 5 /* NOT_FOUND */ || err?.code === "not-found") {
-        return; // doc never existed — nothing to clear
-      }
-      throw err;
-    }
-  }
+/**
+ * Removes a roomId from a user's `resourceRoomIds` array.
+ *
+ * @param approverDocId - The Firestore document ID of the approver user
+ * @param roomId        - The roomId to revoke resource-approver privileges for
+ * @param tenant        - The tenant identifier
+ */
+export const serverRemoveResourceRoomFromApprover = async (
+  approverDocId: string,
+  roomId: number,
+  tenant?: string,
+): Promise<void> => {
+  const tenantCollection = getServerTenantCollection(
+    TableNames.APPROVERS,
+    tenant,
+  );
+  const { FieldValue } = await import("firebase-admin/firestore");
+  await traceDatabase("update", `Firestore/${tenantCollection}`, () =>
+    db
+      .collection(tenantCollection)
+      .doc(approverDocId)
+      .update({ resourceRoomIds: FieldValue.arrayRemove(roomId) }),
+  );
 };
 
 export const logServerBookingChange = async ({
