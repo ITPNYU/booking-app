@@ -258,7 +258,7 @@ describe("Modification Features", () => {
           name: "Room 101",
           capacity: "20",
           calendarId: "cal1",
-          services: ["staffing"],
+          services: [{ type: "staffing", approvers: [] }],
           staffingServices: ["Audio Technician", "Lighting Technician"],
         } as RoomSetting,
       ];
@@ -295,7 +295,7 @@ describe("Modification Features", () => {
           name: "Room 101",
           capacity: "20",
           calendarId: "cal1",
-          services: ["equipment"],
+          services: [{ type: "equipment", approvers: [] }],
         } as RoomSetting,
       ];
 
@@ -331,7 +331,7 @@ describe("Modification Features", () => {
           name: "Room 101",
           capacity: "20",
           calendarId: "cal1",
-          services: ["staffing", "equipment"],
+          services: [{ type: "staffing", approvers: [] }, { type: "equipment", approvers: [] }],
           staffingServices: ["Audio Technician"],
         } as RoomSetting,
       ];
@@ -396,7 +396,12 @@ describe("Modification Features", () => {
           name: "Room 101",
           capacity: "20",
           calendarId: "cal1",
-          services: ["staffing", "equipment", "catering", "security"],
+          services: [
+            { type: "staffing", approvers: [] },
+            { type: "equipment", approvers: [] },
+            { type: "catering", approvers: [] },
+            { type: "security", approvers: [] },
+          ],
           staffingServices: ["Audio Technician"],
         } as RoomSetting,
       ];

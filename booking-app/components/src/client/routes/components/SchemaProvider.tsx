@@ -13,6 +13,11 @@ export type StaffingSection = {
   indexes: number[];
 };
 
+export type ResourceService = {
+  type: string; // e.g. "equipment", "staffing", "setup", "security", "cleaning", "catering", "campus-media"
+  approvers: string[]; // NetID email addresses
+};
+
 export type Resource = {
   capacity: number;
   name: string;
@@ -24,7 +29,7 @@ export type Resource = {
   trainingInfoUrl?: string; // URL to share with users when training is required
   isWalkIn: boolean;
   isWalkInCanBookTwo: boolean;
-  services: string[]; // ["equipment", "staffing", "setup", "security", "cleaning", "catering", "campus-media"]
+  services: ResourceService[];
   autoApproval?: {
     minHour?: {
       admin: number;
@@ -71,6 +76,8 @@ export type Resource = {
   staffingSections?: StaffingSection[];
   /** Production calendar ID for this resource (stored in DB) */
   calendarIdProd?: string;
+  /** Resource-level approvers — used when no per-service approvers are configured */
+  approvers?: string[];
 };
 
 /** Time-sensitive request warning config (may live at top level in DB or under calendarConfig) */
@@ -239,6 +246,7 @@ export const defaultResource: Resource = {
   trainingFormUrl: "",
   trainingInfoUrl: defaultSafetyTrainingInfoUrl,
   calendarIdProd: "",
+  approvers: [],
 };
 
 const defaultTimeSensitiveRequestWarning: TimeSensitiveRequestWarning = {

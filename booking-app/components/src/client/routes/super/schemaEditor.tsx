@@ -564,20 +564,36 @@ function ResourceEditor({
 
         <TextField
           label="Services (comma-separated)"
-          value={Array.isArray(resource.services) ? resource.services.join(", ") : ""}
-          onChange={(e) =>
+          value={
+            Array.isArray(resource.services)
+              ? resource.services
+                  .map((s) =>
+                    typeof s === "string" ? s : s && typeof s === "object" ? s.type : null,
+                  )
+                  .filter(Boolean)
+                  .join(", ")
+              : ""
+          }
+          onChange={(e) => {
+            const newTypes = e.target.value
+              .split(",")
+              .map((s) => s.trim())
+              .filter(Boolean);
+            const existing: Record<string, string[]> = {};
+            if (Array.isArray(resource.services)) {
+              resource.services.forEach((s) => {
+                if (s && typeof s === "object") existing[s.type] = s.approvers;
+              });
+            }
             set(
               "services",
-              e.target.value
-                .split(",")
-                .map((s) => s.trim())
-                .filter(Boolean),
-            )
-          }
+              newTypes.map((type) => ({ type, approvers: existing[type] ?? [] })),
+            );
+          }}
           fullWidth
           size="small"
           sx={{ mb: 2 }}
-          helperText="e.g. equipment, staffing, setup, security, cleaning, catering"
+          helperText="e.g. equipment, staffing, setup, security, cleaning, catering — approvers are managed in Admin › Settings › Approvers"
         />
 
         <TextField

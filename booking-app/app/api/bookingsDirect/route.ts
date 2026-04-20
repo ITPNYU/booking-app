@@ -386,11 +386,7 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      if (
-        isMediaCommons(tenant) &&
-        isServicesRequestState(initialState) &&
-        tenant
-      ) {
+      if (isServicesRequestState(initialState) && tenant) {
         try {
           await notifyServiceApproversForRequestedServices(calendarEventId, tenant);
         } catch (notificationError) {

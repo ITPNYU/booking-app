@@ -1,4 +1,5 @@
 import { Timestamp } from "firebase/firestore";
+import type { ResourceService } from "@/components/src/client/routes/components/SchemaProvider";
 
 export type AdminUser = {
   email: string;
@@ -313,7 +314,7 @@ export type RoomSetting = {
   isWalkIn?: boolean;
   isWalkInCanBookTwo?: boolean;
   isEquipment?: boolean;
-  services?: string[];
+  services?: ResourceService[];
   staffingServices?: string[]; // Specific staffing service options for this room
   staffingSections?: { name: string; indexes: number[] }[];
   // Auto-approval configuration

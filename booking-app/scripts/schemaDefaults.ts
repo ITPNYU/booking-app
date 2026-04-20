@@ -80,6 +80,42 @@ function deepAddDefaults<T extends Record<string, any>>(
 }
 
 /**
+ * Migrate resources[i].services from the old string[] format to
+ * the new ResourceService[] format ({ type: string; approvers: string[] }[]).
+ * Existing ResourceService entries are preserved as-is (approvers kept).
+ * Mixed arrays (partially migrated) are handled gracefully.
+ */
+function migrateServicesFormat(schema: SchemaContextType): SchemaContextType {
+  if (!Array.isArray(schema.resources)) return schema;
+
+  const migratedResources = schema.resources.map((resource: any) => {
+    if (!Array.isArray(resource.services)) return resource;
+
+    const migratedServices = resource.services
+      .map((svc: any) => {
+        // Already in the new format
+        if (svc && typeof svc === "object" && typeof svc.type === "string") {
+          return {
+            type: svc.type,
+            approvers: Array.isArray(svc.approvers) ? svc.approvers : [],
+          };
+        }
+        // Old string format — migrate to new shape with empty approvers
+        if (typeof svc === "string") {
+          return { type: svc, approvers: [] };
+        }
+        // null, undefined, number, or any other unexpected value — discard
+        return null;
+      })
+      .filter((svc: any) => svc !== null);
+
+    return { ...resource, services: migratedServices };
+  });
+
+  return { ...schema, resources: migratedResources };
+}
+
+/**
  * Merge default values into an existing schema
  * Preserves existing values, only adds missing keys with defaults
  * Non-destructive: preserves extra keys that don't exist in the template
@@ -99,7 +135,8 @@ export function mergeSchemaDefaults(
   // Ensure tenant is set (use existing if available, otherwise use provided)
   merged.tenant = existingSchema.tenant || tenant;
 
-  return merged;
+  // Migrate services from string[] to ResourceService[] if needed
+  return migrateServicesFormat(merged);
 }
 
 /**

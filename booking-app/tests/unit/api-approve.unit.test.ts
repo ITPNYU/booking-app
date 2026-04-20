@@ -26,7 +26,6 @@ vi.mock("@/components/src/server/emails", () => ({
 }));
 
 vi.mock("@/components/src/utils/tenantUtils", () => ({
-  isMediaCommons: vi.fn(),
   getMediaCommonsServices: vi.fn(),
 }));
 import { POST } from "@/app/api/approve/route";
@@ -42,10 +41,7 @@ import {
   serverFetchAllDataFromCollection,
   serverGetDataByCalendarEventId,
 } from "@/lib/firebase/server/adminDb";
-import {
-  getMediaCommonsServices,
-  isMediaCommons,
-} from "@/components/src/utils/tenantUtils";
+import { getMediaCommonsServices } from "@/components/src/utils/tenantUtils";
 
 type MockRequestBody = {
   id: string;
@@ -72,7 +68,6 @@ const mockServerFetchAllDataFromCollection = vi.mocked(
   serverFetchAllDataFromCollection,
 );
 
-const mockIsMediaCommons = vi.mocked(isMediaCommons);
 const mockGetMediaCommonsServices = vi.mocked(getMediaCommonsServices);
 
 const bookingId = "calendar-1";
@@ -86,7 +81,6 @@ const parseJson = async (response: Response) => {
 describe("POST /api/approve", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockIsMediaCommons.mockReturnValue(false);
     mockGetMediaCommonsServices.mockReturnValue({
       staff: false,
       equipment: false,
@@ -143,12 +137,11 @@ describe("POST /api/approve", () => {
     });
   });
 
-  it("returns 409 and does not fall back when Media Commons booking has unprocessed services", async () => {
+  it("returns 409 and does not fall back when a booking has unprocessed services", async () => {
     mockExecute.mockResolvedValue({
       success: false,
       error: "Invalid transition: Cannot execute 'approve' from state 'Services Request'",
     });
-    mockIsMediaCommons.mockReturnValue(true);
     mockServerGetDataByCalendarEventId.mockResolvedValue({
       id: "booking-db-id",
       staffingServicesDetails: "yes",  // requested
@@ -176,12 +169,43 @@ describe("POST /api/approve", () => {
     expect(mockServerApproveBooking).not.toHaveBeenCalled();
   });
 
-  it("falls back to serverApproveBooking when Media Commons XState fails but all requested services are already processed", async () => {
+  it("returns 409 for non-MC tenants (e.g. itp) when the booking has unprocessed services", async () => {
     mockExecute.mockResolvedValue({
       success: false,
       error: "Invalid transition: Cannot execute 'approve' from state 'Services Request'",
     });
-    mockIsMediaCommons.mockReturnValue(true);
+    mockServerGetDataByCalendarEventId.mockResolvedValue({
+      id: "booking-db-id",
+      staffingServicesDetails: "yes",
+      staffServiceApproved: undefined,
+    } as any);
+    mockGetMediaCommonsServices.mockReturnValue({
+      staff: true,
+      equipment: false,
+      catering: false,
+      cleaning: false,
+      security: false,
+      setup: false,
+    });
+
+    const response = await POST(
+      createRequest(
+        { id: bookingId, email: approverEmail },
+        { "x-tenant": "itp" },
+      ) as any,
+    );
+
+    expect(response.status).toBe(409);
+    const body = await response.json();
+    expect(body.error).toMatch(/services approval flow|unprocessed/i);
+    expect(mockServerApproveBooking).not.toHaveBeenCalled();
+  });
+
+  it("falls back to serverApproveBooking when XState fails but all requested services are already processed", async () => {
+    mockExecute.mockResolvedValue({
+      success: false,
+      error: "Invalid transition: Cannot execute 'approve' from state 'Services Request'",
+    });
     mockServerGetDataByCalendarEventId.mockResolvedValue({
       id: "booking-db-id",
       staffingServicesDetails: "yes", // requested
@@ -215,12 +239,11 @@ describe("POST /api/approve", () => {
     });
   });
 
-  it("falls back to serverApproveBooking when Media Commons XState fails and staff service was declined (already processed)", async () => {
+  it("falls back to serverApproveBooking when XState fails and staff service was declined (already processed)", async () => {
     mockExecute.mockResolvedValue({
       success: false,
       error: "XState transition failed",
     });
-    mockIsMediaCommons.mockReturnValue(true);
     mockServerGetDataByCalendarEventId.mockResolvedValue({
       id: "booking-db-id",
       staffingServicesDetails: "yes", // requested

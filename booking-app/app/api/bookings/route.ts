@@ -922,11 +922,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    if (
-      isMediaCommons &&
-      isServicesRequestState(xstateData?.snapshot?.value) &&
-      tenant
-    ) {
+    if (isServicesRequestState(xstateData?.snapshot?.value) && tenant) {
       try {
         await notifyServiceApproversForRequestedServices(calendarEventId, tenant);
       } catch (notificationError) {

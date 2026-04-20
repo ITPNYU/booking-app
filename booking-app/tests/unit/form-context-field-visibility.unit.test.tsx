@@ -74,7 +74,13 @@ describe("FormInput - Field Visibility by Form Context", () => {
       {
         roomId: "room1",
         capacity: "20",
-        services: ["equipment", "staffing", "catering", "security", "cleaning"],
+        services: [
+          { type: "equipment", approvers: [] },
+          { type: "staffing", approvers: [] },
+          { type: "catering", approvers: [] },
+          { type: "security", approvers: [] },
+          { type: "cleaning", approvers: [] },
+        ],
         staffingServices: ["audio-tech", "lighting-tech"],
       },
     ],
