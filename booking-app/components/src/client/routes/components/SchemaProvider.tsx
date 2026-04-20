@@ -124,6 +124,8 @@ export type SchemaContextType = {
   supportLiaison?: boolean;
   resourceName: string;
   declinedGracePeriod?: number;
+  /** Hours pending approval before a row is highlighted on the admin bookings dashboard (default 18) */
+  interimHighlightThresholdHours?: number;
   /** Top-level time-sensitive warning (DB stores here; also supported under calendarConfig) */
   timeSensitiveRequestWarning?: TimeSensitiveRequestWarning;
   calendarConfig?: {
@@ -286,6 +288,7 @@ export const defaultScheme: Omit<SchemaContextType, "tenant"> = {
   supportLiaison: false,
   resourceName: "",
   declinedGracePeriod: 24,
+  interimHighlightThresholdHours: 18,
   timeSensitiveRequestWarning: defaultTimeSensitiveRequestWarning,
   calendarConfig: {
     startHour: {

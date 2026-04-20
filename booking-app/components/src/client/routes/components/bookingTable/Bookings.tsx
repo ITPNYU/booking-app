@@ -17,6 +17,7 @@ import {
   Tooltip,
   tooltipClasses,
 } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import { DataGrid, GridSortModel } from "@mui/x-data-grid";
 import React, { useContext, useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
@@ -33,6 +34,11 @@ import { formatOrigin } from "../../../../utils/formatters";
 import { formatDateTable, formatTimeAmPm } from "../../../utils/date";
 import BookingActions from "../../admin/components/BookingActions";
 import getBookingStatus from "../../hooks/getBookingStatus";
+import {
+  formatBookingInterimHours,
+  getBookingInterimHours,
+  shouldHighlightBookingInterim,
+} from "../../../../utils/bookingInterimHours";
 import Loading from "../Loading";
 import { DatabaseContext } from "../Provider";
 import { useTenantSchema } from "../SchemaProvider";
@@ -56,8 +62,17 @@ export const Bookings: React.FC<BookingsProps> = ({
 }) => {
   const { bookingsLoading, setLastItem, fetchAllBookings, allBookings } =
     useContext(DatabaseContext);
-  const { resourceName, showSetup, showEquipment, showStaffing, showCatering, showHireSecurity } = useTenantSchema();
+  const {
+    resourceName,
+    showSetup,
+    showEquipment,
+    showStaffing,
+    showCatering,
+    showHireSecurity,
+    interimHighlightThresholdHours = 18,
+  } = useTenantSchema();
   const hasServices = showSetup || showEquipment || showStaffing || showCatering || showHireSecurity;
+  const theme = useTheme();
   const params = useParams();
   const tenant = params?.tenant as string;
   const excludedStatuses = [
@@ -247,6 +262,41 @@ export const Bookings: React.FC<BookingsProps> = ({
           </TableCell>
         ),
       },
+      ...(!isUserView
+        ? [
+            {
+              field: "interim",
+              type: "number" as const,
+              headerName: "Interim",
+              minWidth: 88,
+              flex: 0.75,
+              renderHeader: () => (
+                <TableCell component={"div" as any}>
+                  <Tooltip title="Hours since request while still pending approval. Shows 0 after approval.">
+                    <span>Interim (h)</span>
+                  </Tooltip>
+                </TableCell>
+              ),
+              renderCell: (params: { row: BookingRow }) => (
+                <TableCell component={"div" as any}>
+                  {formatBookingInterimHours(
+                    getBookingInterimHours(params.row, tenant),
+                  )}
+                </TableCell>
+              ),
+              sortComparator: (_v1, _v2, cp1, cp2) => {
+                const rowA = cp1.api.getRow(cp1.id) as BookingRow;
+                const rowB = cp2.api.getRow(cp2.id) as BookingRow;
+                const a = getBookingInterimHours(rowA, tenant);
+                const b = getBookingInterimHours(rowB, tenant);
+                if (a == null && b == null) return 0;
+                if (a == null) return 1;
+                if (b == null) return -1;
+                return a - b;
+              },
+            },
+          ]
+        : []),
       {
         field: "startDate",
         headerName: "Date / Time",
@@ -628,7 +678,7 @@ export const Bookings: React.FC<BookingsProps> = ({
     ].filter(Boolean);
 
     return baseColumns;
-  }, [isUserView, pageContext]);
+  }, [isUserView, pageContext, tenant, resourceName, hasServices]);
 
   // Function to update a booking in the local state
   const updateBookingInState = (updatedBooking: BookingRow) => {
@@ -660,6 +710,16 @@ export const Bookings: React.FC<BookingsProps> = ({
         rows={filteredRows}
         columns={columns}
         getRowId={(row) => row.calendarEventId}
+        getRowClassName={(params) =>
+          !isUserView &&
+          shouldHighlightBookingInterim(
+            params.row,
+            tenant,
+            interimHighlightThresholdHours,
+          )
+            ? "booking-row-interim-over-threshold"
+            : ""
+        }
         hideFooter={!showFooter}
         initialState={{
           pagination: {
@@ -683,6 +743,19 @@ export const Bookings: React.FC<BookingsProps> = ({
           "& .MuiDataGrid-row--borderBottom": {
             backgroundColor: "#EEEEEE !important",
           },
+          "& .booking-row-interim-over-threshold": {
+            backgroundColor: `${theme.palette.secondary.light} !important`,
+          },
+          "& .booking-row-interim-over-threshold .MuiDataGrid-cell[data-field=\"interim\"]":
+            {
+              fontWeight: 500,
+              color: theme.palette.primary.main,
+            },
+          "& .booking-row-interim-over-threshold .MuiDataGrid-cell[data-field=\"interim\"] .MuiTableCell-root":
+            {
+              fontWeight: 500,
+              color: theme.palette.primary.main,
+            },
           borderRadius: "0px 0px 4px 4px",
         }}
         sortModel={sortModel}
