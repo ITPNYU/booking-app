@@ -1,4 +1,5 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, { useContext, useEffect, useMemo, useState } from "react";
+import { Timestamp } from "firebase/firestore";
 import {
   Dialog,
   DialogTitle,
@@ -10,6 +11,7 @@ import {
   TableCell,
   TableBody,
   IconButton,
+  TableSortLabel,
 } from "@mui/material";
 import { Info } from "@mui/icons-material";
 import {
@@ -21,15 +23,62 @@ import { DatabaseContext } from "../../components/Provider";
 import { formatDate } from "../../../utils/date";
 import { TableNames } from "../../../../policy";
 import ListTable from "../../components/ListTable";
-import { Booking } from "../../../../types";
+import { Booking, PreBanLog } from "../../../../types";
 import { useTenant } from "../../hooks/useTenant";
+
+type DetailSortColumn = "date" | "status" | "requestNumber" | "excused";
 
 interface PreBanDetails {
   date: string;
+  eventTimeMs: number;
   status: "Late Cancel" | "No Show";
   id: string;
   bookingId: string;
   excused: boolean;
+}
+
+function preBanEventMillis(log: PreBanLog): number {
+  const t = log.lateCancelDate ?? log.noShowDate;
+  if (!t) return 0;
+  return t instanceof Timestamp
+    ? t.toMillis()
+    : new Timestamp(
+        (t as { seconds: number }).seconds,
+        (t as { nanoseconds: number }).nanoseconds ?? 0,
+      ).toMillis();
+}
+
+function comparePreBanDetails(
+  a: PreBanDetails,
+  b: PreBanDetails,
+  column: DetailSortColumn,
+  order: "asc" | "desc",
+  requestNumberByBookingId: Record<string, number | undefined>,
+): number {
+  const dir = order === "asc" ? 1 : -1;
+  let cmp = 0;
+  switch (column) {
+    case "date":
+      cmp = a.eventTimeMs - b.eventTimeMs;
+      break;
+    case "status":
+      cmp = a.status.localeCompare(b.status);
+      break;
+    case "requestNumber": {
+      const na = requestNumberByBookingId[a.bookingId];
+      const nb = requestNumberByBookingId[b.bookingId];
+      const va = na ?? Number.MAX_SAFE_INTEGER;
+      const vb = nb ?? Number.MAX_SAFE_INTEGER;
+      cmp = va - vb;
+      break;
+    }
+    case "excused":
+      cmp = Number(a.excused) - Number(b.excused);
+      break;
+    default:
+      break;
+  }
+  return cmp * dir;
 }
 
 interface DetailsByEmail {
@@ -48,6 +97,11 @@ export const PreBannedUsers = () => {
   const [requestNumberByBookingId, setRequestNumberByBookingId] = useState<
     Record<string, number | undefined>
   >({});
+  const [detailSortBy, setDetailSortBy] =
+    useState<DetailSortColumn>("date");
+  const [detailSortOrder, setDetailSortOrder] = useState<"asc" | "desc">(
+    "desc",
+  );
 
   useEffect(() => {
     reloadPreBanLogs();
@@ -69,6 +123,7 @@ export const PreBannedUsers = () => {
         date: log.lateCancelDate
           ? formatDate(log.lateCancelDate)
           : formatDate(log.noShowDate),
+        eventTimeMs: preBanEventMillis(log),
         status: log.lateCancelDate ? "Late Cancel" : "No Show",
         id: log.id,
         bookingId: log.bookingId,
@@ -114,6 +169,43 @@ export const PreBannedUsers = () => {
       cancelled = true;
     };
   }, [preBanLogs, tenant]);
+
+  useEffect(() => {
+    if (selectedEmail) {
+      setDetailSortBy("date");
+      setDetailSortOrder("desc");
+    }
+  }, [selectedEmail]);
+
+  const sortedDetailsForOverlay = useMemo(() => {
+    if (!selectedEmail) return [];
+    const list = detailsByEmail[selectedEmail];
+    if (!list?.length) return [];
+    return [...list].sort((a, b) =>
+      comparePreBanDetails(
+        a,
+        b,
+        detailSortBy,
+        detailSortOrder,
+        requestNumberByBookingId,
+      ),
+    );
+  }, [
+    selectedEmail,
+    detailsByEmail,
+    detailSortBy,
+    detailSortOrder,
+    requestNumberByBookingId,
+  ]);
+
+  const handleDetailSort = (column: DetailSortColumn) => {
+    if (detailSortBy === column) {
+      setDetailSortOrder((o) => (o === "asc" ? "desc" : "asc"));
+    } else {
+      setDetailSortBy(column);
+      setDetailSortOrder(column === "date" ? "desc" : "asc");
+    }
+  };
 
   const handleCloseDetails = () => {
     setSelectedEmail(null);
@@ -189,15 +281,73 @@ export const PreBannedUsers = () => {
           <Table>
             <TableHead>
               <TableRow>
-                <TableCell>Date</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell>Request #</TableCell>
-                <TableCell>Excused</TableCell>
+                <TableCell
+                  sortDirection={
+                    detailSortBy === "date" ? detailSortOrder : false
+                  }
+                >
+                  <TableSortLabel
+                    active={detailSortBy === "date"}
+                    direction={
+                      detailSortBy === "date" ? detailSortOrder : "asc"
+                    }
+                    onClick={() => handleDetailSort("date")}
+                  >
+                    Date
+                  </TableSortLabel>
+                </TableCell>
+                <TableCell
+                  sortDirection={
+                    detailSortBy === "status" ? detailSortOrder : false
+                  }
+                >
+                  <TableSortLabel
+                    active={detailSortBy === "status"}
+                    direction={
+                      detailSortBy === "status" ? detailSortOrder : "asc"
+                    }
+                    onClick={() => handleDetailSort("status")}
+                  >
+                    Status
+                  </TableSortLabel>
+                </TableCell>
+                <TableCell
+                  sortDirection={
+                    detailSortBy === "requestNumber" ? detailSortOrder : false
+                  }
+                >
+                  <TableSortLabel
+                    active={detailSortBy === "requestNumber"}
+                    direction={
+                      detailSortBy === "requestNumber"
+                        ? detailSortOrder
+                        : "asc"
+                    }
+                    onClick={() => handleDetailSort("requestNumber")}
+                  >
+                    Request #
+                  </TableSortLabel>
+                </TableCell>
+                <TableCell
+                  sortDirection={
+                    detailSortBy === "excused" ? detailSortOrder : false
+                  }
+                >
+                  <TableSortLabel
+                    active={detailSortBy === "excused"}
+                    direction={
+                      detailSortBy === "excused" ? detailSortOrder : "asc"
+                    }
+                    onClick={() => handleDetailSort("excused")}
+                  >
+                    Excused
+                  </TableSortLabel>
+                </TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {selectedEmail &&
-                detailsByEmail[selectedEmail]?.map((detail) => (
+                sortedDetailsForOverlay.map((detail) => (
                   <TableRow key={detail.id}>
                     <TableCell>{detail.date}</TableCell>
                     <TableCell>{detail.status}</TableCell>
