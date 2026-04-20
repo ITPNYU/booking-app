@@ -126,7 +126,7 @@ export const ResourceApprovers = () => {
       <Box display="flex" alignItems="center" gap={1} mt={2}>
         <CircularProgress size={20} />
         <Typography variant="body2" color="text.secondary">
-          Loading approvers…
+          Loading approvers...
         </Typography>
       </Box>
     );
