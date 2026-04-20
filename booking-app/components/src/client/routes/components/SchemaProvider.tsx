@@ -117,6 +117,8 @@ export type SchemaContextType = {
   supportLiaison?: boolean;
   resourceName: string;
   declinedGracePeriod?: number;
+  /** Hours pending before a row is highlighted on the admin bookings dashboard (default 18) */
+  interimHighlightThresholdHours?: number;
   /**
    * When enabled, automatically cancel requests within a time window prior to start time
    * if they are still unapproved (Requested / Pre-approved depending on conditions).
@@ -294,6 +296,7 @@ export const defaultScheme: Omit<SchemaContextType, "tenant"> = {
   supportLiaison: false,
   resourceName: "",
   declinedGracePeriod: 24,
+  interimHighlightThresholdHours: 18,
   autoCancel: false,
   timeSensitiveRequestWarning: defaultTimeSensitiveRequestWarning,
   calendarConfig: {
