@@ -106,8 +106,10 @@ export const serverSaveDataToFirestore = async (
       collectionName as TableNames,
       tenant,
     );
-    const docRef = await traceDatabase("add", `Firestore/${tenantCollection}`, () =>
-      db.collection(tenantCollection).add(data),
+    const docRef = await traceDatabase(
+      "add",
+      `Firestore/${tenantCollection}`,
+      () => db.collection(tenantCollection).add(data),
     );
     console.log("Document successfully written with ID:", docRef.id);
     return docRef;
@@ -143,8 +145,10 @@ export const serverGetDocumentById = async <T extends DocumentData>(
   try {
     const tenantCollection = getServerTenantCollection(collectionName, tenant);
     const docRef = db.collection(tenantCollection).doc(docId);
-    const docSnap = await traceDatabase("get", `Firestore/${tenantCollection}`, () =>
-      docRef.get(),
+    const docSnap = await traceDatabase(
+      "get",
+      `Firestore/${tenantCollection}`,
+      () => docRef.get(),
     );
 
     if (docSnap.exists) {
@@ -270,9 +274,7 @@ export const serverGetFinalApproverEmailFromDatabase = async (
 
 export const serverGetFinalApproverEmail = async (
   tenant?: string,
-): Promise<string | null> => {
-  return serverGetFinalApproverEmailFromDatabase(tenant);
-};
+): Promise<string | null> => serverGetFinalApproverEmailFromDatabase(tenant);
 
 /**
  * Returns all resource approver emails for a specific room by querying
@@ -293,24 +295,26 @@ export const serverGetResourceApproverEmailsForResource = async (
     try {
       const numericRoomId =
         typeof roomId === "string" ? parseInt(roomId, 10) : roomId;
-      const tenantCollection = getServerTenantCollection(
-        TableNames.APPROVERS,
-        tenant,
-      );
-      const querySnapshot = await traceDatabase(
-        "query",
-        `Firestore/${tenantCollection}`,
-        () =>
-          db
-            .collection(tenantCollection)
-            .where("resourceRoomIds", "array-contains", numericRoomId)
-            .get(),
-      );
-      if (!querySnapshot.empty) {
-        const emails = querySnapshot.docs
-          .map((d) => d.data().email as string | undefined)
-          .filter((e): e is string => Boolean(e));
-        if (emails.length > 0) return emails;
+      if (Number.isFinite(numericRoomId)) {
+        const tenantCollection = getServerTenantCollection(
+          TableNames.APPROVERS,
+          tenant,
+        );
+        const querySnapshot = await traceDatabase(
+          "query",
+          `Firestore/${tenantCollection}`,
+          () =>
+            db
+              .collection(tenantCollection)
+              .where("resourceRoomIds", "array-contains", numericRoomId)
+              .get(),
+        );
+        if (!querySnapshot.empty) {
+          const emails = querySnapshot.docs
+            .map((d) => d.data().email as string | undefined)
+            .filter((e): e is string => Boolean(e));
+          if (emails.length > 0) return emails;
+        }
       }
     } catch (error) {
       console.error("Error fetching resource-specific approvers:", error);
