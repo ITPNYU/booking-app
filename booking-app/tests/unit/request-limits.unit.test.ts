@@ -173,5 +173,58 @@ describe("Request limits enforcement (POST /api/bookings)", () => {
 
     vi.useRealTimers();
   });
+
+  it("uses configured term ranges for perSemester windows (fallTerm)", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-15T12:00:00Z"));
+
+    mockServerGetDocumentById.mockResolvedValue({
+      tenant: "mc",
+      termConfig: {
+        fallTerm: [9, 12],
+        springTerm: [1, 5],
+        summerTerm: [6, 8],
+      },
+      resources: [
+        {
+          roomId: 1201,
+          name: "Room 1201",
+          requestLimits: {
+            perSemester: { student: 99 },
+          },
+        },
+      ],
+    });
+
+    mockServerFetchAllDataFromCollection.mockResolvedValue([]);
+
+    const { POST } = await import("@/app/api/bookings/route");
+    const req = new Request("http://localhost:3000/api/bookings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: "student@nyu.edu",
+        selectedRooms: [{ roomId: "1201", calendarId: "cal-1201", name: "Room 1201" }],
+        bookingCalendarInfo: {
+          startStr: "2026-09-20T14:00:00Z",
+          endStr: "2026-09-20T15:00:00Z",
+        },
+        data: {
+          role: "student",
+          title: "Test",
+          department: "ITP",
+        },
+        isAutoApproval: false,
+      }),
+    }) as any;
+
+    await POST(req);
+
+    const calledDates = mockTimestampFromDate.mock.calls.map((c) => c[0] as Date);
+    expect(calledDates.some((d) => d.toISOString() === "2026-09-01T00:00:00.000Z")).toBe(true);
+    expect(calledDates.some((d) => d.toISOString() === "2027-01-01T00:00:00.000Z")).toBe(true);
+
+    vi.useRealTimers();
+  });
 });
 

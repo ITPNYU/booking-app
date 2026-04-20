@@ -31,7 +31,7 @@ export type Resource = {
   services: string[]; // ["equipment", "staffing", "setup", "security", "cleaning", "catering", "campus-media"]
   /**
    * Limit how many requests a user can make per period for this resource.
-   * Missing values mean “unlimited”.
+   * Convention: `-1` (or missing) means “unlimited”.
    *
    * Shape: { perDay: { [role]: number }, perWeek: { ... }, perMonth: { ... }, perSemester: { ... } }
    */
@@ -100,6 +100,14 @@ export type PermissionLabels = {
   admin: string;
 };
 
+export type TermRange = [number, number]; // [startMonth, endMonth], 1-12 inclusive
+
+export type TermConfig = {
+  fallTerm: TermRange; // e.g. [9, 12]
+  springTerm: TermRange; // e.g. [1, 5]
+  summerTerm: TermRange; // e.g. [6, 8]
+};
+
 export type SchemaContextType = {
   tenant: string; // No default - must be provided
   name: string;
@@ -145,6 +153,8 @@ export type SchemaContextType = {
       };
   /** Top-level time-sensitive warning (DB stores here; also supported under calendarConfig) */
   timeSensitiveRequestWarning?: TimeSensitiveRequestWarning;
+  /** Term/semester configuration for "perSemester" request limits */
+  termConfig?: TermConfig;
   calendarConfig?: {
     startHour?: Record<string, string>; // e.g., { studentVIP: "06:00:00", student: "09:00:00", ... }
     slotUnit?: Record<string, number>; // e.g., { student: 15, admin: 15, ... }
@@ -211,7 +221,52 @@ export const defaultResource: Resource = {
   isWalkIn: false,
   isWalkInCanBookTwo: false,
   services: [],
-  requestLimits: undefined,
+  requestLimits: {
+    perDay: {
+      student: -1,
+      studentVIP: -1,
+      studentWalkIn: -1,
+      faculty: -1,
+      facultyVIP: -1,
+      facultyWalkIn: -1,
+      admin: -1,
+      adminVIP: -1,
+      adminWalkIn: -1,
+    },
+    perWeek: {
+      student: -1,
+      studentVIP: -1,
+      studentWalkIn: -1,
+      faculty: -1,
+      facultyVIP: -1,
+      facultyWalkIn: -1,
+      admin: -1,
+      adminVIP: -1,
+      adminWalkIn: -1,
+    },
+    perMonth: {
+      student: -1,
+      studentVIP: -1,
+      studentWalkIn: -1,
+      faculty: -1,
+      facultyVIP: -1,
+      facultyWalkIn: -1,
+      admin: -1,
+      adminVIP: -1,
+      adminWalkIn: -1,
+    },
+    perSemester: {
+      student: -1,
+      studentVIP: -1,
+      studentWalkIn: -1,
+      faculty: -1,
+      facultyVIP: -1,
+      facultyWalkIn: -1,
+      admin: -1,
+      adminVIP: -1,
+      adminWalkIn: -1,
+    },
+  },
   autoApproval: {
     minHour: { admin: -1, faculty: -1, student: -1 },
     maxHour: { admin: -1, faculty: -1, student: -1 },
@@ -258,6 +313,12 @@ const defaultTimeSensitiveRequestWarning: TimeSensitiveRequestWarning = {
   isActive: false,
   message: "",
   policyLink: "",
+};
+
+const defaultTermConfig: TermConfig = {
+  fallTerm: [9, 12],
+  springTerm: [1, 5],
+  summerTerm: [6, 8],
 };
 
 const defaultPermissionLabelsByTenant = (tenant?: string): PermissionLabels => {
@@ -308,6 +369,7 @@ export const defaultScheme: Omit<SchemaContextType, "tenant"> = {
   declinedGracePeriod: 24,
   autoCancel: false,
   timeSensitiveRequestWarning: defaultTimeSensitiveRequestWarning,
+  termConfig: defaultTermConfig,
   calendarConfig: {
     startHour: {
       student: "09:00:00",

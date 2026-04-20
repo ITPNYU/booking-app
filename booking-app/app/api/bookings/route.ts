@@ -188,7 +188,11 @@ const getXStateMachine = (tenant?: string) => {
   return null;
 };
 
-function getUtcWindowForPeriod(now: Date, period: RequestLimitPeriod): { start: Date; end: Date } {
+function getUtcWindowForPeriod(
+  now: Date,
+  period: RequestLimitPeriod,
+  termConfig?: SchemaContextType["termConfig"],
+): { start: Date; end: Date } {
   const y = now.getUTCFullYear();
   const m = now.getUTCMonth(); // 0-11
   const d = now.getUTCDate();
@@ -214,7 +218,47 @@ function getUtcWindowForPeriod(now: Date, period: RequestLimitPeriod): { start: 
     return { start, end };
   }
 
-  // perSemester: 4-month windows starting in Jan (UTC): Jan–Apr, May–Aug, Sep–Dec
+  // perSemester: configurable term ranges (UTC), fallback to 4-month windows starting in Jan.
+  const month = m + 1; // 1-12
+
+  const ranges =
+    termConfig && termConfig.fallTerm && termConfig.springTerm && termConfig.summerTerm
+      ? [
+          { name: "spring", range: termConfig.springTerm },
+          { name: "summer", range: termConfig.summerTerm },
+          { name: "fall", range: termConfig.fallTerm },
+        ]
+      : null;
+
+  if (ranges) {
+    const inRange = (range: [number, number]) => {
+      const [startMonth, endMonth] = range;
+      if (
+        !Number.isFinite(startMonth) ||
+        !Number.isFinite(endMonth) ||
+        startMonth < 1 ||
+        startMonth > 12 ||
+        endMonth < 1 ||
+        endMonth > 12 ||
+        startMonth > endMonth
+      ) {
+        return false;
+      }
+      return month >= startMonth && month <= endMonth;
+    };
+
+    const active = ranges.find((r) => inRange(r.range));
+    if (active) {
+      const [startMonth, endMonth] = active.range;
+      const start = new Date(Date.UTC(y, startMonth - 1, 1, 0, 0, 0, 0));
+      const endYear = endMonth === 12 ? y + 1 : y;
+      const endMonthIndex = endMonth === 12 ? 0 : endMonth; // month after endMonth
+      const end = new Date(Date.UTC(endYear, endMonthIndex, 1, 0, 0, 0, 0));
+      return { start, end };
+    }
+  }
+
+  // Fallback: 4-month windows starting in Jan (UTC): Jan–Apr, May–Aug, Sep–Dec
   const semesterStartMonth = Math.floor(m / 4) * 4;
   const start = new Date(Date.UTC(y, semesterStartMonth, 1, 0, 0, 0, 0));
   const end = new Date(Date.UTC(y, semesterStartMonth + 4, 1, 0, 0, 0, 0));
@@ -299,7 +343,7 @@ async function enforceRequestLimits({
 
   await Promise.all(
     periodsToQuery.map(async (period) => {
-      const { start, end } = getUtcWindowForPeriod(now, period);
+      const { start, end } = getUtcWindowForPeriod(now, period, schema.termConfig);
       const startTs = Timestamp.fromDate(start);
       const endTs = Timestamp.fromDate(end);
 
@@ -976,7 +1020,7 @@ export async function POST(request: NextRequest) {
     .map((r: { roomId: number }) => r.roomId)
     .join(", ");
   const selectedRoomIdsArray = selectedRooms
-    .map((r: { roomId: number }) => r.roomId)
+    .map((r: { roomId: number | string }) => Number((r as any)?.roomId))
     .filter((n: number) => Number.isFinite(n));
 
   // Build booking contents for description
