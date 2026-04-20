@@ -537,7 +537,7 @@ export const clientGetResourceApproverEmailsForRoom = async (
  */
 export const clientGetAllApproversWithRooms = async (
   tenant?: string,
-): Promise<Array<{ id: string; email: string; resourceRoomIds: number[] }>> => {
+): Promise<Array<{ id: string; email: string; resourceRoomIds: number[]; createdAt?: Timestamp }>> => {
   try {
     const db = getDb();
     const tenantCollection = getTenantCollection(TableNames.APPROVERS, tenant);
@@ -548,6 +548,7 @@ export const clientGetAllApproversWithRooms = async (
         id: d.id,
         email: d.data().email as string,
         resourceRoomIds: (d.data().resourceRoomIds as number[] | undefined) ?? [],
+        createdAt: d.data().createdAt as Timestamp | undefined,
       }))
       .filter((a) => Boolean(a.email));
   } catch (error) {
