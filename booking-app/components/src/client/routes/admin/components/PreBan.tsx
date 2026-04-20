@@ -1,5 +1,4 @@
 import React, { useContext, useEffect, useMemo, useState } from "react";
-import { Timestamp } from "firebase/firestore";
 import {
   Dialog,
   DialogTitle,
@@ -23,63 +22,14 @@ import { DatabaseContext } from "../../components/Provider";
 import { formatDate } from "../../../utils/date";
 import { TableNames } from "../../../../policy";
 import ListTable from "../../components/ListTable";
-import { Booking, PreBanLog } from "../../../../types";
+import { Booking } from "../../../../types";
 import { useTenant } from "../../hooks/useTenant";
-
-type DetailSortColumn = "date" | "status" | "requestNumber" | "excused";
-
-interface PreBanDetails {
-  date: string;
-  eventTimeMs: number;
-  status: "Late Cancel" | "No Show";
-  id: string;
-  bookingId: string;
-  excused: boolean;
-}
-
-function preBanEventMillis(log: PreBanLog): number {
-  const t = log.lateCancelDate ?? log.noShowDate;
-  if (!t) return 0;
-  return t instanceof Timestamp
-    ? t.toMillis()
-    : new Timestamp(
-        (t as { seconds: number }).seconds,
-        (t as { nanoseconds: number }).nanoseconds ?? 0,
-      ).toMillis();
-}
-
-function comparePreBanDetails(
-  a: PreBanDetails,
-  b: PreBanDetails,
-  column: DetailSortColumn,
-  order: "asc" | "desc",
-  requestNumberByBookingId: Record<string, number | undefined>,
-): number {
-  const dir = order === "asc" ? 1 : -1;
-  let cmp = 0;
-  switch (column) {
-    case "date":
-      cmp = a.eventTimeMs - b.eventTimeMs;
-      break;
-    case "status":
-      cmp = a.status.localeCompare(b.status);
-      break;
-    case "requestNumber": {
-      const na = requestNumberByBookingId[a.bookingId];
-      const nb = requestNumberByBookingId[b.bookingId];
-      const va = na ?? Number.MAX_SAFE_INTEGER;
-      const vb = nb ?? Number.MAX_SAFE_INTEGER;
-      cmp = va - vb;
-      break;
-    }
-    case "excused":
-      cmp = Number(a.excused) - Number(b.excused);
-      break;
-    default:
-      break;
-  }
-  return cmp * dir;
-}
+import {
+  comparePreBanDetails,
+  DetailSortColumn,
+  PreBanDetails,
+  preBanEventMillis,
+} from "./preBanDetailsUtils";
 
 interface DetailsByEmail {
   [email: string]: PreBanDetails[];
