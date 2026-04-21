@@ -28,10 +28,11 @@ export async function GET(
     // Skipped in test environments (BYPASS_AUTH / E2E_TESTING / NODE_ENV=test).
     if (!shouldBypassAuth()) {
       const session = await auth();
-      if (!session?.user?.email) {
+      const email = session?.user?.email?.trim().toLowerCase();
+      if (!email || !email.endsWith("@nyu.edu")) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
-      const callerNetId = session.user.email.split("@")[0];
+      const callerNetId = email.split("@")[0];
       if (callerNetId !== netId) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }

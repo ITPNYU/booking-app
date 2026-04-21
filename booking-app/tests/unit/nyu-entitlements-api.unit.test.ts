@@ -67,6 +67,16 @@ describe("GET /api/nyu/entitlements/[netId]", () => {
       expect(result.data).toEqual({ error: "Unauthorized" });
     });
 
+    it("returns 401 when the session email is not an @nyu.edu address", async () => {
+      mockAuth.mockResolvedValue({ user: { email: "intruder@example.com" } });
+
+      const response = await GET(createRequest(), { params: createParams("hz1234") });
+      const result = await parseJson(response);
+
+      expect(result.status).toBe(401);
+      expect(result.data).toEqual({ error: "Unauthorized" });
+    });
+
     it("returns 403 when the session belongs to a different user", async () => {
       mockAuth.mockResolvedValue({ user: { email: "other@nyu.edu" } });
 

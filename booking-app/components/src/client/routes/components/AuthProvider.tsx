@@ -13,14 +13,12 @@ export type AppUser = {
 type AuthContextType = {
   user: AppUser | null;
   loading: boolean;
-  error: string | null;
   isOnTestEnv: boolean;
 };
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: true,
-  error: null,
   isOnTestEnv: false,
 });
 
@@ -35,7 +33,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const { data: session, status } = useSession();
   const [user, setUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const isOnTestEnv = isTestEnvBuildTime;
 
   const router = useRouter();
@@ -87,7 +84,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [session, status, router, params, pathname]);
 
   return (
-    <AuthContext.Provider value={{ user, loading, error, isOnTestEnv }}>
+    <AuthContext.Provider value={{ user, loading, isOnTestEnv }}>
       {children}
     </AuthContext.Provider>
   );
