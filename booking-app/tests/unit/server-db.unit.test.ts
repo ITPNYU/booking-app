@@ -422,6 +422,65 @@ describe("server/db", () => {
     });
   });
 
+  describe("noShow", () => {
+    const makeResponse = (data: any, ok = true) =>
+      ({
+        ok,
+        json: async () => data,
+        text: async () => JSON.stringify(data),
+      }) as Response;
+
+    it("calls /api/cancel-processing when XState noShow returns Canceled (auto-transition)", async () => {
+      const fetchCalls: Array<{ href: string; options?: RequestInit }> = [];
+      mockShouldUseXState.mockReturnValue(true);
+
+      mockFetch.mockImplementation((url: any, options: any) => {
+        const href = typeof url === "string" ? url : url.toString();
+        fetchCalls.push({ href, options });
+
+        if (href.includes("/api/xstate-transition")) {
+          // Simulate ITP machine auto-transitioning No Show → Canceled.
+          return makeResponse({ newState: "Canceled" });
+        }
+
+        // Allow downstream processing calls (calendarEvents PUT, cancel-processing, etc.)
+        return makeResponse({});
+      });
+
+      const { noShow } = await import("@/components/src/server/db");
+      await noShow("cal-ns-1", "System", "net123", "itp");
+
+      // Traditional no-show side effects should still run (audit field update).
+      expect(mockClientUpdateDataByCalendarEventId).toHaveBeenCalledWith(
+        "bookings",
+        "cal-ns-1",
+        expect.objectContaining({
+          noShowedAt: expect.anything(),
+          noShowedBy: "System",
+        }),
+        "itp",
+      );
+
+      const cancelProcessingCall = fetchCalls.find((c) =>
+        c.href.includes("/api/cancel-processing"),
+      );
+      expect(cancelProcessingCall).toBeDefined();
+
+      // Verify tenant is set both in header and body payload.
+      expect(cancelProcessingCall?.options?.headers).toMatchObject({
+        "Content-Type": "application/json",
+        "x-tenant": "itp",
+      });
+      const payload = JSON.parse(String(cancelProcessingCall?.options?.body));
+      expect(payload).toMatchObject({
+        calendarEventId: "cal-ns-1",
+        email: "System",
+        netId: "net123",
+        tenant: "itp",
+      });
+    });
+  });
+
   describe("checkin", () => {
     const makeResponse = (data: any, ok = true) =>
       ({

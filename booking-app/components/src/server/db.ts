@@ -1092,10 +1092,17 @@ export const noShow = async (
         newState: xstateResult.newState,
       });
 
-      // Check if XState reached 'No Show' state - only then execute traditional no show for side effects
-      if (xstateResult.newState === "No Show") {
+      // In ITP, the machine immediately auto-transitions No Show → Canceled via an `always` transition.
+      // That means the returned `newState` can be "Canceled" even though the "noShow" event was accepted.
+      // We still need to run the no-show/cancel side effects so the Google Calendar event is removed
+      // and availability is restored for walk-ins.
+      const noShowTriggeredCancel =
+        xstateResult.newState === "Canceled" || xstateResult.newState === "Closed";
+
+      // Execute no-show side effects if XState reached 'No Show' OR auto-canceled from a no-show.
+      if (xstateResult.newState === "No Show" || noShowTriggeredCancel) {
         console.log(
-          `🎉 XSTATE REACHED NO SHOW STATE - EXECUTING NO SHOW SIDE EFFECTS [${tenant?.toUpperCase()}]:`,
+          `🎉 XSTATE NO SHOW ACCEPTED - EXECUTING NO SHOW SIDE EFFECTS [${tenant?.toUpperCase()}]:`,
           {
             calendarEventId: id,
             newState: xstateResult.newState,
@@ -1104,6 +1111,47 @@ export const noShow = async (
 
         // Execute traditional no show processing (database updates, emails, etc.)
         await executeTraditionalNoShow(id, email, netId, tenant);
+      }
+
+      // If the no-show caused (or ended in) cancellation, run cancel-processing to delete the
+      // Google Calendar event from all room calendars. This is what unblocks walk-in reservations.
+      if (noShowTriggeredCancel) {
+        try {
+          const response = await fetch(
+            `${process.env.NEXT_PUBLIC_BASE_URL}/api/cancel-processing`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "x-tenant": tenant || DEFAULT_TENANT,
+              },
+              body: JSON.stringify({
+                calendarEventId: id,
+                email,
+                netId,
+                tenant,
+              }),
+            },
+          );
+
+          if (response.ok) {
+            console.log(
+              `✅ CANCEL-PROCESSING API SUCCESS (NO-SHOW) [${tenant?.toUpperCase()}]:`,
+              { calendarEventId: id, newState: xstateResult.newState },
+            );
+          } else {
+            const errorData = await response.json();
+            console.error(
+              `🚨 CANCEL-PROCESSING API FAILED (NO-SHOW) [${tenant?.toUpperCase()}]:`,
+              { calendarEventId: id, error: errorData, newState: xstateResult.newState },
+            );
+          }
+        } catch (error: any) {
+          console.error(
+            `🚨 CANCEL-PROCESSING API ERROR (NO-SHOW) [${tenant?.toUpperCase()}]:`,
+            { calendarEventId: id, error: error.message, newState: xstateResult.newState },
+          );
+        }
       }
 
       // When noShow transitions directly to Closed
