@@ -1,4 +1,6 @@
 import { Checkbox, FormControlLabel, FormGroup, Tooltip } from "@mui/material";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
 import dayjs from "dayjs";
 import { useContext, useMemo } from "react";
 import { FormContextLevel, RoomSetting } from "../../../../types";
@@ -29,8 +31,10 @@ export const SelectRooms = ({
     setBookingCalendarInfo,
   } = useContext(BookingContext);
   const { isBookingTimeInBlackout } = useBookingDateRestrictions();
-  const { resources } = useTenantSchema();
+  const { resources, calendarConfig } = useTenantSchema();
   const selectedIds = selected.map((room) => room.roomId);
+  const allowMultipleResourceSelect =
+    calendarConfig?.multipleResourceSelect ?? true;
 
   // Sort rooms by room number for consistent display order
   const sortedRooms = useMemo(
@@ -66,6 +70,12 @@ export const SelectRooms = ({
 
   // walk-ins can only book 1 room unless it's 2 ballroom bays (221-224)
   const isDisabled = (roomId: number) => {
+    if (!allowMultipleResourceSelect) {
+      if (selectedIds.length === 0) return false;
+      if (selectedIds.includes(roomId)) return false;
+      return true;
+    }
+
     // Don't disable rooms for blackout periods - let the calendar handle time restrictions
     // Only apply walk-in restrictions
     if (formContext !== FormContextLevel.WALK_IN || selectedIds.length === 0)
@@ -116,6 +126,14 @@ export const SelectRooms = ({
     const newVal: boolean = e.target.checked;
     setSelected((prev: RoomSetting[]) => {
       if (newVal) {
+        if (
+          !allowMultipleResourceSelect &&
+          prev.length > 0 &&
+          !prev.some((r) => r.roomId === room.roomId)
+        ) {
+          return prev;
+        }
+
         const newSelection = [...prev, room].sort(
           (a, b) => a.roomId - b.roomId,
         );
@@ -141,6 +159,12 @@ export const SelectRooms = ({
               <Checkbox
                 checked={selectedIds.includes(room.roomId)}
                 onChange={(e) => handleCheckChange(e, room)}
+                icon={
+                  allowMultipleResourceSelect ? undefined : <RadioButtonUncheckedIcon />
+                }
+                checkedIcon={
+                  allowMultipleResourceSelect ? undefined : <CheckCircleIcon />
+                }
                 inputProps={{
                   "aria-label": `${room.roomId} ${room.name}`,
                 }}
@@ -153,7 +177,7 @@ export const SelectRooms = ({
             sx={{
               opacity: disabled ? 0.6 : 1,
               "& .MuiFormControlLabel-label": {
-                textDecoration: disabled ? "line-through" : "none",
+                color: disabled ? "text.disabled" : "text.primary",
               },
             }}
           />
