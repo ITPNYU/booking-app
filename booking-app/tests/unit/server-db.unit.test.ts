@@ -463,7 +463,7 @@ describe("server/db", () => {
       });
     });
 
-    it("noShow (XState) calls deleteBookingCalendarEvents when transition jumps directly to Closed", async () => {
+    it("noShow (XState) does not call deleteBookingCalendarEvents when transition jumps directly to Closed", async () => {
       mockShouldUseXState.mockReturnValue(true);
 
       const fetchCalls: Array<{ href: string; options?: RequestInit }> = [];
@@ -484,13 +484,12 @@ describe("server/db", () => {
       const deleteCall = fetchCalls.find((c) =>
         c.href.includes("/api/deleteBookingCalendarEvents"),
       );
-      expect(deleteCall).toBeDefined();
+      expect(deleteCall).toBeUndefined();
 
-      const payload = JSON.parse(String(deleteCall?.options?.body));
-      expect(payload).toMatchObject({
-        calendarEventId: "cal-ns-closed-1",
-        tenant: "itp",
-      });
+      const closeCall = fetchCalls.find((c) =>
+        c.href.includes("/api/close-processing"),
+      );
+      expect(closeCall).toBeDefined();
     });
   });
 
