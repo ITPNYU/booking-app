@@ -1,7 +1,7 @@
 "use client";
 
 import { signIn } from "next-auth/react";
-import { Box, Button, styled } from "@mui/material";
+import { Box, styled } from "@mui/material";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect } from "react";
 import { useAuth } from "./AuthProvider";
@@ -14,44 +14,30 @@ const Center = styled(Box)`
 `;
 
 const SsoSignIn = () => {
-  const router = useRouter();
   const params = useParams();
   const { isOnTestEnv } = useAuth();
   const searchParams = useSearchParams();
 
-  const handleSignIn = () => {
-    const callbackUrl = params?.tenant ? `/${params.tenant}` : "/";
+  const tenant = Array.isArray(params?.tenant)
+    ? params.tenant[0]
+    : params?.tenant;
+
+  useEffect(() => {
+    if (isOnTestEnv) return;
+    const callbackUrl = tenant ? `/${tenant}` : "/";
     signIn("nyu-sso", { callbackUrl });
-  };
+  }, [isOnTestEnv, tenant]);
 
   return (
     <div>
       <Center>
         {isOnTestEnv ? (
           <AutoRedirectMessage
-            tenant={
-              Array.isArray(params?.tenant) ? params.tenant[0] : params?.tenant
-            }
+            tenant={tenant}
             searchParams={searchParams}
           />
         ) : (
-          <>
-            <Button
-              variant="contained"
-              color="primary"
-              onClick={handleSignIn}
-              sx={{
-                alignSelf: "center",
-                marginTop: 6,
-              }}
-            >
-              Sign in with NYU
-            </Button>
-            <p>
-              You'll be redirected to the NYU SSO login page to sign in
-              securely.
-            </p>
-          </>
+          <p style={{ marginTop: 48 }}>Redirecting to NYU sign-in…</p>
         )}
       </Center>
     </div>
