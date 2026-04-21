@@ -117,11 +117,27 @@ export type SchemaContextType = {
   supportLiaison?: boolean;
   resourceName: string;
   declinedGracePeriod?: number;
+  /**
+   * When enabled, automatically cancel requests within a time window prior to start time
+   * if they are still unapproved (Requested / Pre-approved depending on conditions).
+   *
+   * Stored as `false` by default for backwards compatibility with older schemas.
+   */
+  autoCancel?:
+    | false
+    | {
+        minutesPriorToStart: number; // -1 disables when stored as object
+        conditions: {
+          requested: boolean;
+          preApproved: boolean;
+        };
+      };
   /** Top-level time-sensitive warning (DB stores here; also supported under calendarConfig) */
   timeSensitiveRequestWarning?: TimeSensitiveRequestWarning;
   calendarConfig?: {
     startHour?: Record<string, string>; // e.g., { studentVIP: "06:00:00", student: "09:00:00", ... }
     slotUnit?: Record<string, number>; // e.g., { student: 15, admin: 15, ... }
+    multipleResourceSelect?: boolean;
     timeSensitiveRequestWarning?: TimeSensitiveRequestWarning;
   };
   // CC email addresses for notifications, per environment
@@ -274,8 +290,11 @@ export const defaultScheme: Omit<SchemaContextType, "tenant"> = {
   resources: defineObjectArrayWithDefaults(defaultResource),
   supportVIP: false,
   supportWalkIn: false,
+  supportPA: false,
+  supportLiaison: false,
   resourceName: "",
   declinedGracePeriod: 24,
+  autoCancel: false,
   timeSensitiveRequestWarning: defaultTimeSensitiveRequestWarning,
   calendarConfig: {
     startHour: {
@@ -300,6 +319,7 @@ export const defaultScheme: Omit<SchemaContextType, "tenant"> = {
       adminVIP: 15,
       adminWalkIn: 15,
     },
+    multipleResourceSelect: false,
     timeSensitiveRequestWarning: defaultTimeSensitiveRequestWarning,
   },
   schoolMapping: {},

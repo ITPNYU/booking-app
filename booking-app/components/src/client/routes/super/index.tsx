@@ -2,6 +2,7 @@
 
 import { Box } from "@mui/material";
 import { useContext, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Tab from "@mui/material/Tab";
 import Tabs from "@mui/material/Tabs";
 import { DatabaseContext } from "../components/Provider";
@@ -9,10 +10,17 @@ import { PagePermission } from "../../../types";
 import SuperAdminSettings from "./settings";
 import SchemaEditor from "./schemaEditor";
 import SchemaCompare from "./schemaCompare";
+import NyuIdentityLookup from "./nyuIdentityLookup";
 import { CenterLoading } from "../components/Loading";
 
+const VALID_TABS = ["settings", "schema", "compare", "identity"] as const;
+
 export default function SuperAdmin() {
-  const [tab, setTab] = useState("settings");
+  const searchParams = useSearchParams();
+  const initialTab = VALID_TABS.includes(searchParams.get("tab") as any)
+    ? searchParams.get("tab")!
+    : "settings";
+  const [tab, setTab] = useState(initialTab);
   const { pagePermission, userEmail, superAdminUsers } =
     useContext(DatabaseContext);
 
@@ -42,10 +50,12 @@ export default function SuperAdmin() {
             <Tab value="settings" label="Settings" />
             <Tab value="schema" label="Schema Editor" />
             <Tab value="compare" label="Schema Diff (Dev/Stg/Prod)" />
+            <Tab value="identity" label="NYU Identity Lookup" />
           </Tabs>
           {tab === "settings" && <SuperAdminSettings />}
           {tab === "schema" && <SchemaEditor />}
           {tab === "compare" && <SchemaCompare />}
+          {tab === "identity" && <NyuIdentityLookup />}
         </div>
       )}
     </Box>

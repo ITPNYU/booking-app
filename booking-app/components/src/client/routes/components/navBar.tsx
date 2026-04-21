@@ -155,7 +155,7 @@ export default function NavBar() {
     try {
       sessionStorage.removeItem("hasRedirectedToDefaultContext");
       setUserEmail(null);
-      await signOut({ callbackUrl: "/signin" });
+      await signOut({ callbackUrl: tenant ? `/${tenant}/signin` : "/signin" });
     } catch (error) {
       console.error("Sign-out error", error);
     }
@@ -267,7 +267,7 @@ export default function NavBar() {
         <Button
           onClick={() => {
             handleStartBooking();
-            router.push("/vip");
+            router.push(`/${tenant}/vip`);
           }}
           variant="outlined"
           sx={{ height: "40px", marginRight: 2 }}

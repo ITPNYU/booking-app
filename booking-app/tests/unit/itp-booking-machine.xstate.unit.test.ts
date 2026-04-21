@@ -418,6 +418,7 @@ describe("Cancellation", () => {
     expect(stateOf(actor)).toBe("Closed");
     actor.stop();
   });
+
 });
 
 // ===== 5. Decline =====
@@ -556,6 +557,7 @@ describe("Auto Close Script", () => {
     expect(stateOf(actor)).toBe("Closed");
     actor.stop();
   });
+
 });
 
 // ===== 8. Edit Self-Loop =====

@@ -1,6 +1,6 @@
 import { deepPurple } from "@mui/material/colors";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Timestamp } from "firebase/firestore";
 import {
@@ -14,7 +14,11 @@ import {
 } from "vitest";
 import MoreInfoModal from "../../components/src/client/routes/components/bookingTable/MoreInfoModal";
 import { DatabaseContext } from "../../components/src/client/routes/components/Provider";
-import { BookingRow, PagePermission } from "../../components/src/types";
+import {
+  BookingRow,
+  PageContextLevel,
+  PagePermission,
+} from "../../components/src/types";
 
 // Mock clipboard API - avoid conflicts with userEvent
 const mockWriteText = vi.fn();
@@ -151,12 +155,17 @@ const createMockDatabaseContext = (
 const renderModal = (
   booking: BookingRow,
   databaseContext: any,
-  closeModal = vi.fn()
+  closeModal = vi.fn(),
+  pageContext?: PageContextLevel
 ) => {
   return render(
     <ThemeProvider theme={mockTheme}>
       <DatabaseContext.Provider value={databaseContext}>
-        <MoreInfoModal booking={booking} closeModal={closeModal} />
+        <MoreInfoModal
+          booking={booking}
+          closeModal={closeModal}
+          pageContext={pageContext}
+        />
       </DatabaseContext.Provider>
     </ThemeProvider>
   );
@@ -235,6 +244,7 @@ describe("MoreInfoModal - WebCheckout", () => {
       expect(screen.queryByText((content) => content.includes("WebCheckout"))).not.toBeInTheDocument();
       expect(screen.queryByText("Cart Number")).not.toBeInTheDocument();
     });
+
   });
 
   describe("WebCheckout Functionality - Without Cart Number", () => {
@@ -453,6 +463,29 @@ describe("MoreInfoModal - WebCheckout", () => {
         const copyButton = screen.getByText("Copy Cart URL");
         expect(copyButton).toBeInTheDocument();
       });
+    });
+
+    it("copies the WebCheckout URL to clipboard when Copy Cart URL is clicked", async () => {
+      const writeTextSpy = vi.fn();
+      Object.defineProperty(navigator, "clipboard", {
+        value: {
+          writeText: writeTextSpy,
+        },
+        configurable: true,
+        writable: true,
+      });
+
+      const booking = createMockBooking({ webcheckoutCartNumber: "CK-2614" });
+      const context = createMockDatabaseContext(PagePermission.PA);
+
+      renderModal(booking, context);
+
+      const copyButton = await screen.findByText("Copy Cart URL");
+      fireEvent.click(copyButton);
+
+      expect(writeTextSpy).toHaveBeenCalledWith(
+        mockWebCheckoutData.webCheckoutUrl
+      );
     });
 
     it("displays equipment groups with proper styling", async () => {

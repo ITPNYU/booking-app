@@ -5,6 +5,7 @@ import {
 import { MEDIA_COMMONS_EMAIL } from "@/components/src/mediaCommonsPolicy";
 import { admins } from "@/components/src/server/admin";
 import { getEmailBranchTag } from "@/components/src/server/emails";
+import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
 import { ApproverType } from "@/components/src/types";
 import { getBookingLogs } from "@/lib/firebase/server/adminDb";
 import { getGmailClient } from "@/lib/googleClient";
@@ -34,7 +35,29 @@ interface SendHTMLEmailParams {
   replyTo?: string;
   tenant?: string;
   schemaName?: string;
+  subjectStatusOverride?: string;
 }
+
+export const getApprovalUrl = (
+  calendarEventId: string,
+  approverType?: ApproverType,
+  tenant?: string,
+): string => {
+  const resolvedTenant = tenant || DEFAULT_TENANT;
+  let urlPath: string;
+  switch (approverType) {
+    case ApproverType.LIAISON:
+      urlPath = `/${resolvedTenant}/liaison`;
+      break;
+    case ApproverType.FINAL_APPROVER:
+      urlPath = `/${resolvedTenant}/admin`;
+      break;
+    default:
+      urlPath = "/";
+  }
+
+  return `${process.env.NEXT_PUBLIC_BASE_URL}${urlPath}?calendarEventId=${calendarEventId}`;
+};
 
 export const sendHTMLEmail = async (params: SendHTMLEmailParams) => {
   const {
@@ -49,6 +72,7 @@ export const sendHTMLEmail = async (params: SendHTMLEmailParams) => {
     replyTo = MEDIA_COMMONS_EMAIL,
     tenant,
     schemaName = "Media Commons",
+    subjectStatusOverride,
   } = params;
 
   // Check if we're in development and if the target email is an admin
@@ -67,26 +91,8 @@ export const sendHTMLEmail = async (params: SendHTMLEmailParams) => {
   }
   console.log("finalTargetEmail", finalTargetEmail);
 
-  const subj = `${getEmailBranchTag()}${status} - ${schemaName} Request #${requestNumber}: "${eventTitle}"`;
-
-  const getUrlPathByApproverType = (
-    calendarEventId,
-    approverType?: ApproverType,
-  ): string => {
-    let path: string;
-    switch (approverType) {
-      case ApproverType.LIAISON:
-        path = "/liaison";
-        break;
-      case ApproverType.FINAL_APPROVER:
-        path = "/admin";
-        break;
-      default:
-        path = "/";
-    }
-
-    return `${process.env.NEXT_PUBLIC_BASE_URL}${path}?calendarEventId=${calendarEventId}`;
-  };
+  const subjectStatus = subjectStatusOverride || status;
+  const subj = `${getEmailBranchTag()}${subjectStatus} - ${schemaName} Request #${requestNumber}: "${eventTitle}"`;
 
   // Get booking logs
   const bookingLogs = await getBookingLogs(requestNumber, tenant);
@@ -114,7 +120,7 @@ export const sendHTMLEmail = async (params: SendHTMLEmailParams) => {
 
   const template = Handlebars.compile(templateSource);
   const approvalUrl = approverType
-    ? getUrlPathByApproverType(contents.calendarEventId, approverType)
+    ? getApprovalUrl(contents.calendarEventId, approverType, tenant)
     : undefined;
 
   // Update contents with formatted data for the template

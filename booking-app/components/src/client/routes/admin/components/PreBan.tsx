@@ -3,6 +3,7 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
+  Checkbox,
   Table,
   TableHead,
   TableRow,
@@ -18,11 +19,13 @@ import { formatDate } from "../../../utils/date";
 import { TableNames } from "../../../../policy";
 import ListTable from "../../components/ListTable";
 import { PreBanLog } from "../../../../types";
+import { clientUpdateDataInFirestore } from "@/lib/firebase/firebase";
 
 interface PreBanDetails {
   date: string;
   status: "Late Cancel" | "No Show";
   id: string;
+  excused: boolean;
 }
 
 interface DetailsByEmail {
@@ -34,6 +37,9 @@ export const PreBannedUsers = () => {
   const [selectedEmail, setSelectedEmail] = useState<string | null>(null);
   const [detailsByEmail, setDetailsByEmail] = useState<DetailsByEmail>({});
   const [rows, setRows] = useState<Array<{ [key: string]: string }>>([]);
+  const [excuseSavingById, setExcuseSavingById] = useState<
+    Record<string, boolean>
+  >({});
 
   useEffect(() => {
     reloadPreBanLogs();
@@ -56,8 +62,11 @@ export const PreBannedUsers = () => {
           : formatDate(log.noShowDate),
         status: log.lateCancelDate ? "Late Cancel" : "No Show",
         id: log.id,
+        excused: log.excused === true,
       });
-      counts[email]++;
+      if (log.excused !== true) {
+        counts[email]++;
+      }
     });
 
     // Update state
@@ -104,6 +113,26 @@ export const PreBannedUsers = () => {
     }
   };
 
+  const handleToggleExcused = async (
+    logId: string,
+    nextExcused: boolean,
+  ) => {
+    try {
+      setExcuseSavingById((prev) => ({ ...prev, [logId]: true }));
+      await clientUpdateDataInFirestore(
+        TableNames.PRE_BAN_LOGS,
+        logId,
+        { excused: nextExcused },
+      );
+      await reloadPreBanLogs();
+    } catch (error) {
+      console.error("Failed to update excused:", error);
+      alert("Failed to update excused");
+    } finally {
+      setExcuseSavingById((prev) => ({ ...prev, [logId]: false }));
+    }
+  };
+
   return (
     <>
       <ListTable
@@ -128,6 +157,7 @@ export const PreBannedUsers = () => {
               <TableRow>
                 <TableCell>Date</TableCell>
                 <TableCell>Status</TableCell>
+                <TableCell>Excused</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -136,6 +166,18 @@ export const PreBannedUsers = () => {
                   <TableRow key={index}>
                     <TableCell>{detail.date}</TableCell>
                     <TableCell>{detail.status}</TableCell>
+                    <TableCell>
+                      <Checkbox
+                        checked={detail.excused}
+                        disabled={excuseSavingById[detail.id] === true}
+                        onChange={(e) =>
+                          handleToggleExcused(detail.id, e.target.checked)
+                        }
+                        inputProps={{
+                          "aria-label": `Excused ${detail.status} on ${detail.date}`,
+                        }}
+                      />
+                    </TableCell>
                   </TableRow>
                 ))}
             </TableBody>

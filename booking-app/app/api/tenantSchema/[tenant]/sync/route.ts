@@ -2,9 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { serverFetchAllDataFromCollection } from "@/lib/firebase/server/adminDb";
 import { TableNames } from "@/components/src/policy";
 import { isValidTenant } from "@/components/src/constants/tenants";
-import { DATABASES } from "@/lib/firebase/server/databases";
 import { computeDiffSummary } from "@/lib/utils/schemaDiff";
-import { getFirestore } from "firebase-admin/firestore";
+import { getFirestoreForEnv, ENVIRONMENTS, type Environment } from "@/lib/firebase/server/multiDb";
 
 const BACKUP_COLLECTION = "tenantSchemaBackup";
 
@@ -31,15 +30,12 @@ export async function POST(
     const { sourceEnv, targetEnv, dryRun = false } = await request.json();
 
     // Validate environments
-    if (
-      typeof sourceEnv !== "string" ||
-      typeof targetEnv !== "string" ||
-      !Object.hasOwn(DATABASES, sourceEnv) ||
-      !Object.hasOwn(DATABASES, targetEnv)
-    ) {
+    const isValidEnv = (v: unknown): v is Environment =>
+      typeof v === "string" && ENVIRONMENTS.includes(v as Environment);
+    if (!isValidEnv(sourceEnv) || !isValidEnv(targetEnv)) {
       return NextResponse.json(
         {
-          error: `Invalid environment. Valid: ${Object.keys(DATABASES).join(", ")}`,
+          error: `Invalid environment. Valid: ${ENVIRONMENTS.join(", ")}`,
         },
         { status: 400 },
       );
@@ -75,7 +71,7 @@ export async function POST(
     }
 
     // Fetch source schema
-    const sourceDb = getFirestore(DATABASES[sourceEnv]);
+    const sourceDb = getFirestoreForEnv(sourceEnv);
     const sourceDoc = await sourceDb
       .collection(TableNames.TENANT_SCHEMA)
       .doc(tenant)
@@ -89,7 +85,7 @@ export async function POST(
     }
 
     const sourceSchema = sourceDoc.data()!;
-    const targetDb = getFirestore(DATABASES[targetEnv]);
+    const targetDb = getFirestoreForEnv(targetEnv);
 
     // Backup existing target schema before overwriting
     const targetDoc = await targetDb

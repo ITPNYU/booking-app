@@ -1,5 +1,6 @@
-import { setup } from "xstate";
+import { setup, assign } from "xstate";
 import { Role } from "@/components/src/types";
+import { logAutomaticCancellationTransition, type AutomaticCancellationReason } from "@/lib/stateMachines/logAutomaticCancellationTransition";
 import { checkAutoApprovalEligibility } from "@/lib/utils/autoApprovalUtils";
 
 // Time constants for clarity
@@ -16,6 +17,7 @@ interface BookingContext {
   role?: Role;
   calendarEventId?: string | null;
   email?: string;
+  automationReason?: AutomaticCancellationReason; // Tracks automatic transitions
 }
 
 export const itpBookingMachine = setup({
@@ -133,6 +135,11 @@ export const itpBookingMachine = setup({
         calendarEventId: context.calendarEventId,
       });
     },
+    logCanceledAfterAutomaticTransition: async (
+      { context },
+    ): Promise<void> => {
+      await logAutomaticCancellationTransition(context);
+    },
   },
 }).createMachine({
   context: ({ input }: { input?: BookingContext }) => ({
@@ -207,6 +214,9 @@ export const itpBookingMachine = setup({
         {
           type: "deleteCalendarEvent",
         },
+        {
+          type: "logCanceledAfterAutomaticTransition",
+        },
       ],
       always: {
         target: "Closed",
@@ -235,6 +245,7 @@ export const itpBookingMachine = setup({
       after: {
         "86400000": {
           target: "Canceled",
+          actions: [assign({ automationReason: "decline" })],
         },
       },
     },
@@ -321,6 +332,7 @@ export const itpBookingMachine = setup({
       ],
       always: {
         target: "Canceled",
+        actions: [assign({ automationReason: "no-show" })],
       },
     },
     "Checked Out": {

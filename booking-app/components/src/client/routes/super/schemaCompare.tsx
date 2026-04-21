@@ -17,8 +17,9 @@ import {
   Snackbar,
   Typography,
 } from "@mui/material";
-import { useCallback, useContext, useState } from "react";
+import { useCallback, useContext, useMemo, useState } from "react";
 import { DatabaseContext } from "../components/Provider";
+import { defaultScheme } from "../components/SchemaProvider";
 import { computeDiff, formatValue, type DiffEntry } from "./schemaEditorUtils";
 
 /** Full JSON string — never truncated. */
@@ -128,6 +129,56 @@ function DryRunRow({
 const ENVIRONMENTS = ["development", "staging", "production"] as const;
 type Env = (typeof ENVIRONMENTS)[number];
 
+const ALL_DEFAULT_KEYS = Object.keys(defaultScheme) as string[];
+
+// ─── Schema Health Check ───
+function SchemaHealthCheck({
+  schemas,
+}: {
+  schemas: Record<string, any | null>;
+}) {
+  const healthData = useMemo(() => {
+    const results: { env: string; missing: string[] }[] = [];
+    for (const env of ENVIRONMENTS) {
+      const schema = schemas[env];
+      if (!schema) continue;
+      const schemaKeys = Object.keys(schema);
+      const missing = ALL_DEFAULT_KEYS.filter((key) => !schemaKeys.includes(key));
+      if (missing.length > 0) {
+        results.push({ env, missing });
+      }
+    }
+    return results;
+  }, [schemas]);
+
+  if (healthData.length === 0) return null;
+
+  return (
+    <Alert severity="info" sx={{ mb: 2 }}>
+      <Typography variant="body2" sx={{ mb: 1 }}>
+        Schema Health: {healthData.length} environment(s) have unconfigured fields
+      </Typography>
+      {healthData.map(({ env, missing }) => (
+        <Box key={env} sx={{ mt: 1 }}>
+          <Typography variant="body2" fontWeight="bold">
+            {env} — {missing.length} missing field(s):
+          </Typography>
+          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, mt: 0.5 }}>
+            {missing.map((key) => (
+              <Chip
+                key={key}
+                label={key}
+                size="small"
+                variant="outlined"
+              />
+            ))}
+          </Box>
+        </Box>
+      ))}
+    </Alert>
+  );
+}
+
 type SnackState = {
   open: boolean;
   message: string;
@@ -207,7 +258,7 @@ export default function SchemaCompare() {
           setSnack({
             open: true,
             severity: "success",
-            message: `Synced "${tenant}" ${leftEnv} → ${rightEnv}. Backup: ${data.backupId ?? "N/A"}`,
+            message: `Overwrote "${tenant}" ${leftEnv} → ${rightEnv}. Backup: ${data.backupId ?? "N/A"}`,
           });
           fetchSchemas(tenant);
         }
@@ -234,10 +285,6 @@ export default function SchemaCompare() {
     leftSchema && rightSchema
       ? computeDiff(leftSchema, rightSchema)
       : [];
-
-  const addedCount = diffs.filter((d) => d.type === "added").length;
-  const removedCount = diffs.filter((d) => d.type === "removed").length;
-  const changedCount = diffs.filter((d) => d.type === "changed").length;
 
   return (
     <Box>
@@ -306,7 +353,7 @@ export default function SchemaCompare() {
             >
               Refresh
             </Button>
-            {leftEnv !== rightEnv && changedCount + addedCount + removedCount > 0 && (
+            {leftEnv !== rightEnv && diffs.length > 0 && (
               <>
                 <Button
                   variant="outlined"
@@ -325,7 +372,7 @@ export default function SchemaCompare() {
                   size="small"
                   startIcon={syncing ? <CircularProgress size={16} /> : null}
                 >
-                  Sync {leftEnv} → {rightEnv}
+                  Overwrite {leftEnv} → {rightEnv}
                 </Button>
               </>
             )}
@@ -430,18 +477,8 @@ export default function SchemaCompare() {
 
       {tenant && !loading && (
         <>
-          {/* Environment availability */}
-          <Box display="flex" gap={1} mb={2}>
-            {ENVIRONMENTS.map((env) => (
-              <Chip
-                key={env}
-                label={env}
-                color={schemas[env] ? "success" : "error"}
-                variant="outlined"
-                size="small"
-              />
-            ))}
-          </Box>
+          {/* Schema Health Check — unconfigured fields per environment */}
+          <SchemaHealthCheck schemas={schemas} />
 
           {leftEnv === rightEnv ? (
             <Alert severity="info">
@@ -457,161 +494,118 @@ export default function SchemaCompare() {
               No differences between {leftEnv} and {rightEnv}.
             </Alert>
           ) : (
-            <>
-              <Box display="flex" gap={1} mb={2}>
-                <Chip
-                  label={`${addedCount} added`}
-                  color="success"
-                  size="small"
-                />
-                <Chip
-                  label={`${removedCount} removed`}
-                  color="error"
-                  size="small"
-                />
-                <Chip
-                  label={`${changedCount} changed`}
-                  color="warning"
-                  size="small"
-                />
-              </Box>
-
-              <Box
-                component="table"
-                sx={{
-                  width: "100%",
-                  borderCollapse: "collapse",
-                  fontSize: 13,
-                }}
-              >
-                <thead>
-                  <tr>
+            <Box
+              component="table"
+              sx={{
+                width: "100%",
+                borderCollapse: "collapse",
+                fontSize: 13,
+              }}
+            >
+              <thead>
+                <tr>
+                  <Box
+                    component="th"
+                    sx={{
+                      textAlign: "left",
+                      p: 1,
+                      borderBottom: "2px solid #ddd",
+                      width: "30%",
+                    }}
+                  >
+                    Field
+                  </Box>
+                  <Box
+                    component="th"
+                    sx={{
+                      textAlign: "left",
+                      p: 1,
+                      borderBottom: "2px solid #ddd",
+                      width: "35%",
+                    }}
+                  >
+                    {leftEnv}
+                  </Box>
+                  <Box
+                    component="th"
+                    sx={{
+                      textAlign: "left",
+                      p: 1,
+                      borderBottom: "2px solid #ddd",
+                      width: "35%",
+                    }}
+                  >
+                    {rightEnv}
+                  </Box>
+                </tr>
+              </thead>
+              <tbody>
+                {diffs.map((d, i) => (
+                  <tr key={`${d.path}:${d.type}`}>
                     <Box
-                      component="th"
+                      component="td"
                       sx={{
-                        textAlign: "left",
                         p: 1,
-                        borderBottom: "2px solid #ddd",
-                        width: "30%",
+                        borderBottom: "1px solid #eee",
+                        fontFamily: "monospace",
+                        fontSize: 12,
                       }}
                     >
-                      Field
+                      {d.path}
                     </Box>
                     <Box
-                      component="th"
+                      component="td"
                       sx={{
-                        textAlign: "left",
                         p: 1,
-                        borderBottom: "2px solid #ddd",
-                        width: "10%",
+                        borderBottom: "1px solid #eee",
+                        fontFamily: "monospace",
+                        fontSize: 12,
+                        backgroundColor:
+                          d.type === "removed" || d.type === "changed"
+                            ? "#fff0f0"
+                            : d.type === "added"
+                              ? "#f5f5f5"
+                              : undefined,
+                        wordBreak: "break-all",
+                        maxWidth: 400,
                       }}
                     >
-                      Change
+                      {d.type !== "added" ? formatValue(d.oldValue) : "(not set)"}
                     </Box>
                     <Box
-                      component="th"
+                      component="td"
                       sx={{
-                        textAlign: "left",
                         p: 1,
-                        borderBottom: "2px solid #ddd",
-                        width: "30%",
+                        borderBottom: "1px solid #eee",
+                        fontFamily: "monospace",
+                        fontSize: 12,
+                        backgroundColor:
+                          d.type === "added" || d.type === "changed"
+                            ? "#f0fff0"
+                            : d.type === "removed"
+                              ? "#f5f5f5"
+                              : undefined,
+                        wordBreak: "break-all",
+                        maxWidth: 400,
                       }}
                     >
-                      {leftEnv}
-                    </Box>
-                    <Box
-                      component="th"
-                      sx={{
-                        textAlign: "left",
-                        p: 1,
-                        borderBottom: "2px solid #ddd",
-                        width: "30%",
-                      }}
-                    >
-                      {rightEnv}
+                      {d.type !== "removed" ? formatValue(d.newValue) : "(not set)"}
                     </Box>
                   </tr>
-                </thead>
-                <tbody>
-                  {diffs.map((d, i) => (
-                    <tr key={i}>
-                      <Box
-                        component="td"
-                        sx={{
-                          p: 1,
-                          borderBottom: "1px solid #eee",
-                          fontFamily: "monospace",
-                          fontSize: 12,
-                        }}
-                      >
-                        {d.path}
-                      </Box>
-                      <Box
-                        component="td"
-                        sx={{
-                          p: 1,
-                          borderBottom: "1px solid #eee",
-                          color:
-                            d.type === "added"
-                              ? "success.main"
-                              : d.type === "removed"
-                                ? "error.main"
-                                : "warning.main",
-                          fontWeight: "bold",
-                        }}
-                      >
-                        {d.type}
-                      </Box>
-                      <Box
-                        component="td"
-                        sx={{
-                          p: 1,
-                          borderBottom: "1px solid #eee",
-                          fontFamily: "monospace",
-                          fontSize: 12,
-                          backgroundColor:
-                            d.type === "removed" || d.type === "changed"
-                              ? "#fff0f0"
-                              : undefined,
-                          wordBreak: "break-all",
-                          maxWidth: 300,
-                        }}
-                      >
-                        {d.type !== "added" ? formatValue(d.oldValue) : ""}
-                      </Box>
-                      <Box
-                        component="td"
-                        sx={{
-                          p: 1,
-                          borderBottom: "1px solid #eee",
-                          fontFamily: "monospace",
-                          fontSize: 12,
-                          backgroundColor:
-                            d.type === "added" || d.type === "changed"
-                              ? "#f0fff0"
-                              : undefined,
-                          wordBreak: "break-all",
-                          maxWidth: 300,
-                        }}
-                      >
-                        {d.type !== "removed" ? formatValue(d.newValue) : ""}
-                      </Box>
-                    </tr>
-                  ))}
-                </tbody>
-              </Box>
-            </>
+                ))}
+              </tbody>
+            </Box>
           )}
         </>
       )}
 
       <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)}>
-        <DialogTitle>Confirm Schema Sync</DialogTitle>
+        <DialogTitle>Confirm Schema Overwrite</DialogTitle>
         <DialogContent>
           <Typography>
             Overwrite <strong>{rightEnv}</strong> schema for tenant{" "}
             <strong>{tenant}</strong> with the <strong>{leftEnv}</strong>{" "}
-            version?
+            version? This cannot be undone (a backup will be saved).
           </Typography>
           <Typography sx={{ mt: 1 }} variant="body2" color="text.secondary">
             A backup will be saved to tenantSchemaBackup before overwriting.
@@ -624,7 +618,7 @@ export default function SchemaCompare() {
             color="warning"
             onClick={() => callSync(false)}
           >
-            Sync
+            Overwrite
           </Button>
         </DialogActions>
       </Dialog>

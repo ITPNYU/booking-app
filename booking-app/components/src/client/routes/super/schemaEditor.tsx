@@ -7,7 +7,9 @@ import {
   Alert,
   Box,
   Button,
+  Chip,
   CircularProgress,
+  Collapse,
   Dialog,
   DialogActions,
   DialogContent,
@@ -36,7 +38,7 @@ import type {
   Resource,
   Agreement,
 } from "../components/SchemaProvider";
-import { defaultResource } from "../components/SchemaProvider";
+import { defaultResource, defaultScheme } from "../components/SchemaProvider";
 import {
   computeDiff,
   formatValue,
@@ -987,6 +989,23 @@ function CalendarConfigSection({
           </Box>
         </Box>
       )}
+      <Box mb={2}>
+        <FormControlLabel
+          control={
+            <Switch
+              checked={config.multipleResourceSelect ?? false}
+              onChange={(e) =>
+                onChange(
+                  "calendarConfig.multipleResourceSelect",
+                  e.target.checked,
+                )
+              }
+              size="small"
+            />
+          }
+          label="Allow selecting multiple resources"
+        />
+      </Box>
       <Box>
         <Typography variant="subtitle2" sx={{ mb: 1 }}>
           Time Sensitive Request Warning
@@ -1046,6 +1065,54 @@ function CalendarConfigSection({
         </Box>
       </Box>
     </>
+  );
+}
+
+// ─── Unconfigured Fields Banner ───
+function UnconfiguredFieldsBanner({
+  schema,
+}: {
+  schema: SchemaContextType;
+}) {
+  const [expanded, setExpanded] = useState(false);
+
+  const allDefaultKeys = Object.keys(defaultScheme) as string[];
+  const schemaKeys = Object.keys(schema);
+  const unconfigured = allDefaultKeys.filter((key) => !schemaKeys.includes(key));
+
+  if (unconfigured.length === 0) return null;
+
+  return (
+    <Alert
+      severity="warning"
+      sx={{ mb: 2 }}
+      action={
+        <Button
+          color="inherit"
+          size="small"
+          onClick={() => setExpanded((prev) => !prev)}
+        >
+          {expanded ? "Hide" : "Show"}
+        </Button>
+      }
+    >
+      <Typography variant="body2">
+        {unconfigured.length} field(s) not configured in Firestore (using code defaults)
+      </Typography>
+      <Collapse in={expanded}>
+        <Box sx={{ mt: 1, display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+          {unconfigured.map((key) => (
+            <Chip
+              key={key}
+              label={key}
+              size="small"
+              variant="outlined"
+              color="warning"
+            />
+          ))}
+        </Box>
+      </Collapse>
+    </Alert>
   );
 }
 
@@ -1232,6 +1299,10 @@ export default function SchemaEditor() {
           <CircularProgress size={20} />
           <Typography variant="body2">Loading schema...</Typography>
         </Box>
+      )}
+
+      {schema && !loading && (
+        <UnconfiguredFieldsBanner schema={schema} />
       )}
 
       {schema && !loading && mode === "form" && (

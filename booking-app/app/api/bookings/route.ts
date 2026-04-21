@@ -6,6 +6,10 @@ import {
   serverUpdateDataByCalendarEventId,
 } from "@/components/src/server/admin";
 import {
+  isServicesRequestState,
+  notifyServiceApproversForRequestedServices,
+} from "@/components/src/server/serviceApproverNotifications";
+import {
   bookingContentsToDescription,
   insertEvent,
 } from "@/components/src/server/calendars";
@@ -28,8 +32,8 @@ import { itpBookingMachine } from "@/lib/stateMachines/itpBookingMachine";
 import { mcBookingMachine } from "@/lib/stateMachines/mcBookingMachine";
 import { NextRequest, NextResponse } from "next/server";
 import { createActor } from "xstate";
-
 import { sendHTMLEmail } from "@/app/lib/sendHTMLEmail";
+
 import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
 import { CALENDAR_HIDE_STATUS, TableNames } from "@/components/src/policy";
 import { formatOrigin } from "@/components/src/utils/formatters";
@@ -353,6 +357,7 @@ async function handleBookingApprovalEmails(
         approverType: ApproverType.LIAISON,
         replyTo: email,
         schemaName: emailConfig.schemaName,
+        tenant,
       });
     });
 
@@ -914,6 +919,27 @@ export async function POST(request: NextRequest) {
           },
         );
         // Don't fail the entire booking if XState save fails
+      }
+    }
+
+    if (
+      isMediaCommons &&
+      isServicesRequestState(xstateData?.snapshot?.value) &&
+      tenant
+    ) {
+      try {
+        await notifyServiceApproversForRequestedServices(calendarEventId, tenant);
+      } catch (notificationError) {
+        console.error(
+          `🚨 SERVICE APPROVER NOTIFICATION FAILED [${tenant?.toUpperCase()}]:`,
+          {
+            calendarEventId,
+            error:
+              notificationError instanceof Error
+                ? notificationError.message
+                : String(notificationError),
+          },
+        );
       }
     }
 
