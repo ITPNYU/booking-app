@@ -1,8 +1,6 @@
 /**
  * Unit tests for per-resource approver server-side functions:
  *   - serverGetResourceApproverEmailsForResource
- *   - serverAddResourceRoomToApprover
- *   - serverRemoveResourceRoomFromApprover
  *
  * And admin.ts approval routing:
  *   - serverFirstApproveOnly emails all resource approvers for the booking's roomId
@@ -382,107 +380,6 @@ describe("serverGetResourceApproverEmailsForResource", () => {
     );
     const emails = await serverGetResourceApproverEmailsForResource("itp", "101");
     expect(emails).toContain("alice@nyu.edu");
-  });
-});
-
-// ─── Tests: serverAddResourceRoomToApprover ───────────────────────────────────
-describe("serverAddResourceRoomToApprover", () => {
-  beforeEach(() => {
-    vi.resetModules();
-    resetFirestore();
-  });
-
-  it("adds a roomId to an existing approver document", async () => {
-    seedCollection("itp-usersApprovers", [
-      {
-        id: "approver-1",
-        data: { email: "alice@nyu.edu", level: ApproverLevel.FIRST, resourceRoomIds: [] },
-      },
-    ]);
-    const { serverAddResourceRoomToApprover } = await import(
-      "@/lib/firebase/server/adminDb"
-    );
-    await serverAddResourceRoomToApprover("approver-1", 101, "itp");
-
-    const doc = firestoreStore["itp-usersApprovers"]?.get("approver-1");
-    expect(doc?.resourceRoomIds).toContain(101);
-  });
-
-  it("does not duplicate an already-assigned roomId", async () => {
-    seedCollection("itp-usersApprovers", [
-      {
-        id: "approver-1",
-        data: { email: "alice@nyu.edu", level: ApproverLevel.FIRST, resourceRoomIds: [101] },
-      },
-    ]);
-    const { serverAddResourceRoomToApprover } = await import(
-      "@/lib/firebase/server/adminDb"
-    );
-    await serverAddResourceRoomToApprover("approver-1", 101, "itp");
-
-    const doc = firestoreStore["itp-usersApprovers"]?.get("approver-1");
-    expect(doc?.resourceRoomIds.filter((id: number) => id === 101)).toHaveLength(1);
-  });
-
-  it("writes to the correct tenant-prefixed collection", async () => {
-    seedCollection("mc-usersApprovers", [
-      {
-        id: "mc-approver",
-        data: { email: "mc@nyu.edu", level: ApproverLevel.FIRST, resourceRoomIds: [] },
-      },
-    ]);
-    const { serverAddResourceRoomToApprover } = await import(
-      "@/lib/firebase/server/adminDb"
-    );
-    await serverAddResourceRoomToApprover("mc-approver", 50, "mc");
-
-    const mcDoc = firestoreStore["mc-usersApprovers"]?.get("mc-approver");
-    expect(mcDoc?.resourceRoomIds).toContain(50);
-
-    // ITP collection should be untouched (empty or undefined)
-    const itpStore = firestoreStore["itp-usersApprovers"];
-    expect(!itpStore || itpStore.size === 0).toBe(true);
-  });
-});
-
-// ─── Tests: serverRemoveResourceRoomFromApprover ──────────────────────────────
-describe("serverRemoveResourceRoomFromApprover", () => {
-  beforeEach(() => {
-    vi.resetModules();
-    resetFirestore();
-  });
-
-  it("removes a roomId from an approver's resourceRoomIds", async () => {
-    seedCollection("itp-usersApprovers", [
-      {
-        id: "approver-1",
-        data: { email: "alice@nyu.edu", level: ApproverLevel.FIRST, resourceRoomIds: [101, 202] },
-      },
-    ]);
-    const { serverRemoveResourceRoomFromApprover } = await import(
-      "@/lib/firebase/server/adminDb"
-    );
-    await serverRemoveResourceRoomFromApprover("approver-1", 101, "itp");
-
-    const doc = firestoreStore["itp-usersApprovers"]?.get("approver-1");
-    expect(doc?.resourceRoomIds).not.toContain(101);
-    expect(doc?.resourceRoomIds).toContain(202);
-  });
-
-  it("is a no-op when roomId is not in the array", async () => {
-    seedCollection("itp-usersApprovers", [
-      {
-        id: "approver-1",
-        data: { email: "alice@nyu.edu", level: ApproverLevel.FIRST, resourceRoomIds: [202] },
-      },
-    ]);
-    const { serverRemoveResourceRoomFromApprover } = await import(
-      "@/lib/firebase/server/adminDb"
-    );
-    await serverRemoveResourceRoomFromApprover("approver-1", 101, "itp");
-
-    const doc = firestoreStore["itp-usersApprovers"]?.get("approver-1");
-    expect(doc?.resourceRoomIds).toEqual([202]);
   });
 });
 

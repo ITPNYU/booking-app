@@ -325,56 +325,6 @@ export const serverGetResourceApproverEmailsForResource = async (
   return fallback ? [fallback] : [];
 };
 
-/**
- * Adds a roomId to a user's `resourceRoomIds` array in the approvers collection.
- *
- * @param approverDocId - The Firestore document ID of the approver user
- * @param roomId        - The roomId to grant resource-approver privileges for
- * @param tenant        - The tenant identifier
- */
-export const serverAddResourceRoomToApprover = async (
-  approverDocId: string,
-  roomId: number,
-  tenant?: string,
-): Promise<void> => {
-  const tenantCollection = getServerTenantCollection(
-    TableNames.APPROVERS,
-    tenant,
-  );
-  const { FieldValue } = await import("firebase-admin/firestore");
-  await traceDatabase("update", `Firestore/${tenantCollection}`, () =>
-    db
-      .collection(tenantCollection)
-      .doc(approverDocId)
-      .update({ resourceRoomIds: FieldValue.arrayUnion(roomId) }),
-  );
-};
-
-/**
- * Removes a roomId from a user's `resourceRoomIds` array.
- *
- * @param approverDocId - The Firestore document ID of the approver user
- * @param roomId        - The roomId to revoke resource-approver privileges for
- * @param tenant        - The tenant identifier
- */
-export const serverRemoveResourceRoomFromApprover = async (
-  approverDocId: string,
-  roomId: number,
-  tenant?: string,
-): Promise<void> => {
-  const tenantCollection = getServerTenantCollection(
-    TableNames.APPROVERS,
-    tenant,
-  );
-  const { FieldValue } = await import("firebase-admin/firestore");
-  await traceDatabase("update", `Firestore/${tenantCollection}`, () =>
-    db
-      .collection(tenantCollection)
-      .doc(approverDocId)
-      .update({ resourceRoomIds: FieldValue.arrayRemove(roomId) }),
-  );
-};
-
 export const logServerBookingChange = async ({
   bookingId,
   status,
