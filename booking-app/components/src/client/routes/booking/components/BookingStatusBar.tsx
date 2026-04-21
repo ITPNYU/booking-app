@@ -18,6 +18,7 @@ import { BookingContext } from "../bookingProvider";
 import useCalculateOverlap from "../hooks/useCalculateOverlap";
 import useCheckAutoApproval from "../hooks/useCheckAutoApproval";
 import useCheckDurationLimits from "../hooks/useCheckDurationLimits";
+import useCheckRequestLimits from "../hooks/useCheckRequestLimits";
 import {
   defaultSafetyTrainingInfoUrl,
   useTenantSchema,
@@ -47,6 +48,8 @@ export default function BookingStatusBar({ formContext, ...props }: Props) {
     isVIP,
   );
   const { durationError } = useCheckDurationLimits(isWalkIn, isVIP);
+  const { requestLimitError, requestLimitChecking } =
+    useCheckRequestLimits(formContext);
   const {
     bookingCalendarInfo,
     selectedRooms,
@@ -90,6 +93,8 @@ export default function BookingStatusBar({ formContext, ...props }: Props) {
     needsSafetyTraining ||
     isInBlackoutPeriod ||
     durationError !== null ||
+    requestLimitError != null ||
+    requestLimitChecking ||
     (bookingCalendarInfo != null && selectedRooms.length > 0);
 
   // order of precedence matters
@@ -118,6 +123,14 @@ export default function BookingStatusBar({ formContext, ...props }: Props) {
           </p>
         ),
         severity: "error",
+        variant: "filled",
+      };
+    if (requestLimitChecking)
+      return {
+        btnDisabled: true,
+        btnDisabledMessage: "Checking request limits…",
+        message: <p>Checking request limits…</p>,
+        severity: "info",
         variant: "filled",
       };
     if (needsSafetyTraining)
@@ -167,6 +180,14 @@ export default function BookingStatusBar({ formContext, ...props }: Props) {
           </p>
         ),
         severity: "error",
+      };
+    if (requestLimitError)
+      return {
+        btnDisabled: true,
+        btnDisabledMessage: requestLimitError,
+        message: <p>{requestLimitError}</p>,
+        severity: "error",
+        variant: "filled",
       };
     if (durationError)
       return {

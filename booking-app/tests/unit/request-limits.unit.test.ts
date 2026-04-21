@@ -59,11 +59,8 @@ vi.mock("./shared", () => ({
   getOtherDisplayFields: () => ({}),
 }));
 
-const mockTimestampFromDate = vi.fn((d: Date) => ({ __date: d }));
-
 vi.mock("firebase-admin/firestore", () => ({
   Timestamp: {
-    fromDate: (d: Date) => mockTimestampFromDate(d),
     now: () => ({ toDate: () => new Date(), toMillis: () => Date.now() }),
   },
 }));
@@ -74,6 +71,9 @@ describe("Request limits enforcement (POST /api/bookings)", () => {
   });
 
   it("blocks when the per-period limit is reached for a resource+role", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-04-13T12:00:00Z"));
+
     mockServerGetDocumentById.mockResolvedValue({
       tenant: "mc",
       resources: [
@@ -89,7 +89,14 @@ describe("Request limits enforcement (POST /api/bookings)", () => {
 
     mockServerFetchAllDataFromCollection.mockResolvedValue([
       // Active booking in-window for same resource
-      { id: "b1", roomIds: [1201], canceledAt: null, declinedAt: null },
+      {
+        id: "b1",
+        roomIds: [1201],
+        role: "Student",
+        requestedAt: { toMillis: () => new Date("2026-04-13T10:00:00Z").getTime() },
+        canceledAt: null,
+        declinedAt: null,
+      },
     ]);
 
     const { POST } = await import("@/app/api/bookings/route");
@@ -104,7 +111,7 @@ describe("Request limits enforcement (POST /api/bookings)", () => {
           endStr: "2026-04-13T15:00:00Z",
         },
         data: {
-          role: "student",
+          role: "Student",
           title: "Test",
           department: "ITP",
         },
@@ -118,113 +125,36 @@ describe("Request limits enforcement (POST /api/bookings)", () => {
     expect(res.status).toBe(429);
     expect(body.error).toContain("Request limit reached");
     expect(body.error).toContain("perSemester");
-  });
-
-  it("uses 4-month semester windows starting in Jan (May 1 starts a new window)", async () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-05-01T12:00:00Z"));
-
-    mockServerGetDocumentById.mockResolvedValue({
-      tenant: "mc",
-      resources: [
-        {
-          roomId: 1201,
-          name: "Room 1201",
-          requestLimits: {
-            perSemester: { student: 99 },
-          },
-        },
-      ],
-    });
-
-    mockServerFetchAllDataFromCollection.mockResolvedValue([]);
-
-    const { POST } = await import("@/app/api/bookings/route");
-    const req = new Request("http://localhost:3000/api/bookings", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        email: "student@nyu.edu",
-        selectedRooms: [{ roomId: 1201, calendarId: "cal-1201", name: "Room 1201" }],
-        bookingCalendarInfo: {
-          startStr: "2026-05-10T14:00:00Z",
-          endStr: "2026-05-10T15:00:00Z",
-        },
-        data: {
-          role: "student",
-          title: "Test",
-          department: "ITP",
-        },
-        isAutoApproval: false,
-      }),
-    }) as any;
-
-    // We expect this not to fail due to limits; we only validate the window calculation inputs
-    await POST(req);
-
-    // Find at least one Timestamp.fromDate call for semester start at 2026-05-01T00:00:00Z
-    const calledDates = mockTimestampFromDate.mock.calls.map((c) => c[0] as Date);
-    const hasSemesterStart = calledDates.some(
-      (d) =>
-        d.toISOString() === "2026-05-01T00:00:00.000Z",
-    );
-
-    expect(hasSemesterStart).toBe(true);
 
     vi.useRealTimers();
   });
 
-  it("uses configured term ranges for perSemester windows (fallTerm)", async () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-09-15T12:00:00Z"));
+  it("uses 4-month semester windows starting in Jan (May 1 starts a new window)", async () => {
+    const { getUtcWindowForPeriod } = await import("@/lib/bookingRequestLimits");
+    const { start, end } = getUtcWindowForPeriod(
+      new Date("2026-05-01T12:00:00Z"),
+      "perSemester",
+      undefined,
+    );
 
-    mockServerGetDocumentById.mockResolvedValue({
-      tenant: "mc",
-      termConfig: {
+    expect(start.toISOString()).toBe("2026-05-01T00:00:00.000Z");
+    expect(end.toISOString()).toBe("2026-09-01T00:00:00.000Z");
+  });
+
+  it("uses configured term ranges for perSemester windows (fallTerm)", async () => {
+    const { getUtcWindowForPeriod } = await import("@/lib/bookingRequestLimits");
+    const { start, end } = getUtcWindowForPeriod(
+      new Date("2026-09-15T12:00:00Z"),
+      "perSemester",
+      {
         fallTerm: [9, 12],
         springTerm: [1, 5],
         summerTerm: [6, 8],
       },
-      resources: [
-        {
-          roomId: 1201,
-          name: "Room 1201",
-          requestLimits: {
-            perSemester: { student: 99 },
-          },
-        },
-      ],
-    });
+    );
 
-    mockServerFetchAllDataFromCollection.mockResolvedValue([]);
-
-    const { POST } = await import("@/app/api/bookings/route");
-    const req = new Request("http://localhost:3000/api/bookings", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        email: "student@nyu.edu",
-        selectedRooms: [{ roomId: "1201", calendarId: "cal-1201", name: "Room 1201" }],
-        bookingCalendarInfo: {
-          startStr: "2026-09-20T14:00:00Z",
-          endStr: "2026-09-20T15:00:00Z",
-        },
-        data: {
-          role: "student",
-          title: "Test",
-          department: "ITP",
-        },
-        isAutoApproval: false,
-      }),
-    }) as any;
-
-    await POST(req);
-
-    const calledDates = mockTimestampFromDate.mock.calls.map((c) => c[0] as Date);
-    expect(calledDates.some((d) => d.toISOString() === "2026-09-01T00:00:00.000Z")).toBe(true);
-    expect(calledDates.some((d) => d.toISOString() === "2027-01-01T00:00:00.000Z")).toBe(true);
-
-    vi.useRealTimers();
+    expect(start.toISOString()).toBe("2026-09-01T00:00:00.000Z");
+    expect(end.toISOString()).toBe("2027-01-01T00:00:00.000Z");
   });
 });
 

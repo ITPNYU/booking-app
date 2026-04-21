@@ -9,13 +9,18 @@ import {
   notifyServiceApproversForRequestedServices,
 } from "@/components/src/server/serviceApproverNotifications";
 import { getTenantEmailConfig } from "@/components/src/server/emails";
-import { BookingOrigin, BookingStatusLabel } from "@/components/src/types";
+import {
+  BookingOrigin,
+  BookingStatusLabel,
+  FormContextLevel,
+} from "@/components/src/types";
 import {
   getMediaCommonsServices,
   isMediaCommons,
 } from "@/components/src/utils/tenantUtils";
 import {
   logServerBookingChange,
+  serverGetDocumentById,
   serverGetFinalApproverEmail,
   serverGetNextSequentialId,
   serverSaveDataToFirestore,
@@ -29,6 +34,11 @@ import {
   getAffiliationDisplayValues,
   getOtherDisplayFields,
 } from "@/app/api/bookings/shared";
+import type { SchemaContextType } from "@/components/src/client/routes/components/SchemaProvider";
+import {
+  enforceRequestLimits,
+  getRequestLimitRoleKey,
+} from "@/lib/bookingRequestLimits";
 
 // Helper function to extract tenant from request
 const extractTenantFromRequest = (request: NextRequest): string | undefined => {
@@ -94,6 +104,52 @@ export async function POST(request: NextRequest) {
   const otherRoomIds = otherRooms.map(
     (r: { calendarId: string }) => r.calendarId,
   );
+
+  try {
+    const bookingRoleField = String(data?.role ?? "").trim();
+    const formContextForLimits =
+      origin === BookingOrigin.VIP
+        ? FormContextLevel.VIP
+        : FormContextLevel.WALK_IN;
+    const limitRoleKey = getRequestLimitRoleKey(
+      formContextForLimits,
+      bookingRoleField,
+    );
+    const selectedRoomIdsNums = selectedRoomIds
+      .map((id: number | string) => Number(id))
+      .filter((n: number) => Number.isFinite(n));
+
+    if (
+      tenant &&
+      email &&
+      bookingRoleField &&
+      selectedRoomIdsNums.length > 0
+    ) {
+      const tenantSchema = await serverGetDocumentById<SchemaContextType>(
+        TableNames.TENANT_SCHEMA,
+        tenant,
+        tenant,
+      );
+
+      const enforcement = await enforceRequestLimits({
+        tenant,
+        email,
+        bookingRoleField,
+        limitRoleKey,
+        selectedRoomIds: selectedRoomIdsNums,
+        schema: tenantSchema,
+      });
+
+      if (enforcement.ok === false) {
+        return NextResponse.json(
+          { result: "error", message: enforcement.message },
+          { status: 429 },
+        );
+      }
+    }
+  } catch (e) {
+    console.error("Error enforcing request limits (bookingsDirect):", e);
+  }
 
   // Determine booking status based on tenant and service requests
   let bookingStatus = BookingStatusLabel.APPROVED;

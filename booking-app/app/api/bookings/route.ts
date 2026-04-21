@@ -19,6 +19,7 @@ import {
   BookingFormDetails,
   BookingOrigin,
   BookingStatusLabel,
+  FormContextLevel,
   RoomSetting,
 } from "@/components/src/types";
 import { getSecondaryContactName } from "@/components/src/utils/formatters";
@@ -27,7 +28,6 @@ import {
   serverGetNextSequentialId,
   serverSaveDataToFirestore,
   serverGetDocumentById,
-  serverFetchAllDataFromCollection,
 } from "@/lib/firebase/server/adminDb";
 import { itpBookingMachine } from "@/lib/stateMachines/itpBookingMachine";
 import { mcBookingMachine } from "@/lib/stateMachines/mcBookingMachine";
@@ -51,10 +51,11 @@ import {
   getAffiliationDisplayValues,
   getOtherDisplayFields,
 } from "./shared";
-import type {
-  RequestLimitPeriod,
-  SchemaContextType,
-} from "@/components/src/client/routes/components/SchemaProvider";
+import {
+  enforceRequestLimits,
+  getRequestLimitRoleKey,
+} from "@/lib/bookingRequestLimits";
+import type { SchemaContextType } from "@/components/src/client/routes/components/SchemaProvider";
 
 // Common function to create XState data structure
 export function createXStateData(
@@ -187,218 +188,6 @@ const getXStateMachine = (tenant?: string) => {
   if (tenant === "itp") return itpBookingMachine;
   return null;
 };
-
-function getUtcWindowForPeriod(
-  now: Date,
-  period: RequestLimitPeriod,
-  termConfig?: SchemaContextType["termConfig"],
-): { start: Date; end: Date } {
-  const y = now.getUTCFullYear();
-  const m = now.getUTCMonth(); // 0-11
-  const d = now.getUTCDate();
-
-  if (period === "perDay") {
-    const start = new Date(Date.UTC(y, m, d, 0, 0, 0, 0));
-    const end = new Date(Date.UTC(y, m, d + 1, 0, 0, 0, 0));
-    return { start, end };
-  }
-
-  if (period === "perWeek") {
-    // Week starts Monday (UTC)
-    const dayOfWeek = now.getUTCDay(); // 0=Sun..6=Sat
-    const daysSinceMonday = (dayOfWeek + 6) % 7; // Mon->0, Sun->6
-    const start = new Date(Date.UTC(y, m, d - daysSinceMonday, 0, 0, 0, 0));
-    const end = new Date(Date.UTC(y, m, d - daysSinceMonday + 7, 0, 0, 0, 0));
-    return { start, end };
-  }
-
-  if (period === "perMonth") {
-    const start = new Date(Date.UTC(y, m, 1, 0, 0, 0, 0));
-    const end = new Date(Date.UTC(y, m + 1, 1, 0, 0, 0, 0));
-    return { start, end };
-  }
-
-  // perSemester: configurable term ranges (UTC), fallback to 4-month windows starting in Jan.
-  const month = m + 1; // 1-12
-
-  const ranges =
-    termConfig && termConfig.fallTerm && termConfig.springTerm && termConfig.summerTerm
-      ? [
-          { name: "spring", range: termConfig.springTerm },
-          { name: "summer", range: termConfig.summerTerm },
-          { name: "fall", range: termConfig.fallTerm },
-        ]
-      : null;
-
-  if (ranges) {
-    const inRange = (range: [number, number]) => {
-      const [startMonth, endMonth] = range;
-      if (
-        !Number.isFinite(startMonth) ||
-        !Number.isFinite(endMonth) ||
-        startMonth < 1 ||
-        startMonth > 12 ||
-        endMonth < 1 ||
-        endMonth > 12 ||
-        startMonth > endMonth
-      ) {
-        return false;
-      }
-      return month >= startMonth && month <= endMonth;
-    };
-
-    const active = ranges.find((r) => inRange(r.range));
-    if (active) {
-      const [startMonth, endMonth] = active.range;
-      const start = new Date(Date.UTC(y, startMonth - 1, 1, 0, 0, 0, 0));
-      const endYear = endMonth === 12 ? y + 1 : y;
-      const endMonthIndex = endMonth === 12 ? 0 : endMonth; // month after endMonth
-      const end = new Date(Date.UTC(endYear, endMonthIndex, 1, 0, 0, 0, 0));
-      return { start, end };
-    }
-  }
-
-  // Fallback: 4-month windows starting in Jan (UTC): Jan–Apr, May–Aug, Sep–Dec
-  const semesterStartMonth = Math.floor(m / 4) * 4;
-  const start = new Date(Date.UTC(y, semesterStartMonth, 1, 0, 0, 0, 0));
-  const end = new Date(Date.UTC(y, semesterStartMonth + 4, 1, 0, 0, 0, 0));
-  return { start, end };
-}
-
-function parseRoomIdsFromBooking(doc: any): number[] {
-  if (Array.isArray(doc?.roomIds)) {
-    return doc.roomIds
-      .map((x: any) => Number(x))
-      .filter((n: number) => Number.isFinite(n));
-  }
-
-  const raw = doc?.roomId;
-  if (typeof raw === "string") {
-    return raw
-      .split(",")
-      .map((s) => Number(String(s).trim()))
-      .filter((n) => Number.isFinite(n));
-  }
-
-  return [];
-}
-
-async function enforceRequestLimits({
-  tenant,
-  email,
-  role,
-  selectedRoomIds,
-}: {
-  tenant: string;
-  email: string;
-  role: string;
-  selectedRoomIds: number[];
-}): Promise<{ ok: true } | { ok: false; message: string }> {
-  const schema = await serverGetDocumentById<SchemaContextType>(
-    TableNames.TENANT_SCHEMA,
-    tenant,
-    tenant,
-  );
-
-  if (!schema?.resources || schema.resources.length === 0)
-    return { ok: true } as const;
-
-  const resourcesByRoomId = new Map<number, any>();
-  for (const r of schema.resources) {
-    if (typeof (r as any)?.roomId === "number") {
-      resourcesByRoomId.set((r as any).roomId, r);
-    }
-  }
-
-  const now = new Date();
-  const periods: RequestLimitPeriod[] = [
-    "perDay",
-    "perWeek",
-    "perMonth",
-    "perSemester",
-  ];
-
-  // Only consider rooms that exist in schema (and dedupe)
-  const uniqueSelectedRoomIds = Array.from(new Set(selectedRoomIds)).filter(
-    (roomId) => resourcesByRoomId.has(roomId),
-  );
-  if (uniqueSelectedRoomIds.length === 0) return { ok: true } as const;
-
-  // Determine which periods actually have a limit configured for this role for any selected room.
-  const periodsToQuery = periods.filter((period) =>
-    uniqueSelectedRoomIds.some((roomId) => {
-      const resource = resourcesByRoomId.get(roomId);
-      const limit = resource?.requestLimits?.[period]?.[role];
-      return (
-        typeof limit === "number" && Number.isFinite(limit) && limit >= 0
-      );
-    }),
-  );
-  if (periodsToQuery.length === 0) return { ok: true } as const;
-
-  // Query once per relevant period, then aggregate counts per room in memory.
-  const countsByPeriod: Partial<
-    Record<RequestLimitPeriod, Map<number, number>>
-  > = {};
-
-  await Promise.all(
-    periodsToQuery.map(async (period) => {
-      const { start, end } = getUtcWindowForPeriod(now, period, schema.termConfig);
-      const startTs = Timestamp.fromDate(start);
-      const endTs = Timestamp.fromDate(end);
-
-      const candidates = await serverFetchAllDataFromCollection<any>(
-        TableNames.BOOKING,
-        [
-          { field: "email", operator: "==", value: email },
-          { field: "role", operator: "==", value: role },
-          { field: "requestedAt", operator: ">=", value: startTs },
-          { field: "requestedAt", operator: "<", value: endTs },
-          // Active-only: count bookings that are not canceled and not declined
-          { field: "canceledAt", operator: "==", value: null },
-          { field: "declinedAt", operator: "==", value: null },
-        ],
-        tenant,
-      );
-
-      const roomCounts = new Map<number, number>();
-      for (const doc of candidates) {
-        const roomIds = parseRoomIdsFromBooking(doc);
-        for (const roomId of roomIds) {
-          if (!resourcesByRoomId.has(roomId)) continue;
-          roomCounts.set(roomId, (roomCounts.get(roomId) ?? 0) + 1);
-        }
-      }
-
-      countsByPeriod[period] = roomCounts;
-    }),
-  );
-
-  for (const roomId of uniqueSelectedRoomIds) {
-    const resource = resourcesByRoomId.get(roomId);
-    if (!resource) continue;
-
-    for (const period of periodsToQuery) {
-      const limit = resource.requestLimits?.[period]?.[role];
-      if (limit == null) continue; // missing means unlimited
-      if (typeof limit !== "number" || !Number.isFinite(limit) || limit < 0)
-        continue;
-
-      const count = countsByPeriod[period]?.get(roomId) ?? 0;
-      if (count >= limit) {
-        const resourceName = resource.name
-          ? `"${resource.name}"`
-          : `Room ${roomId}`;
-        return {
-          ok: false,
-          message: `Request limit reached for ${resourceName} (${period}). Limit: ${limit}.`,
-        } as const;
-      }
-    }
-  }
-
-  return { ok: true } as const;
-}
 
 // Helper to build booking contents object for calendar descriptions
 const buildBookingContents = (
@@ -784,19 +573,31 @@ export async function POST(request: NextRequest) {
 
   // Enforce per-resource request limits (per user email + role)
   try {
-    const role = String(data?.role ?? "").trim();
+    const bookingRoleField = String(data?.role ?? "").trim();
+    const limitRoleKey = getRequestLimitRoleKey(
+      FormContextLevel.FULL_FORM,
+      bookingRoleField,
+    );
     const selectedRoomIdsNums: number[] = Array.isArray(selectedRooms)
       ? selectedRooms
           .map((r: any) => Number(r?.roomId))
           .filter((n: number) => Number.isFinite(n))
       : [];
 
-    if (tenant && email && role && selectedRoomIdsNums.length > 0) {
+    if (tenant && email && bookingRoleField && selectedRoomIdsNums.length > 0) {
+      const tenantSchema = await serverGetDocumentById<SchemaContextType>(
+        TableNames.TENANT_SCHEMA,
+        tenant,
+        tenant,
+      );
+
       const enforcement = await enforceRequestLimits({
         tenant,
         email,
-        role,
+        bookingRoleField,
+        limitRoleKey,
         selectedRoomIds: selectedRoomIdsNums,
+        schema: tenantSchema,
       });
 
       if (enforcement.ok === false) {
