@@ -35,7 +35,8 @@ export function isAwaitingApprovalStatus(status: BookingStatusLabel): boolean {
 }
 
 /**
- * Hours since request while still awaiting final approval.
+ * Hours since `requestedAt` while still awaiting final approval (not “hours since last
+ * status change” — booking logs are not consulted).
  * Returns 0 once the booking is approved (or checked in/out / closed).
  * Returns null when not applicable (declined, canceled, unknown, missing requestedAt).
  */

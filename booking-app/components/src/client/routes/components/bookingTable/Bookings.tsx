@@ -275,6 +275,8 @@ export const Bookings: React.FC<BookingsProps> = ({
               headerName: "Interim",
               minWidth: 88,
               flex: 0.75,
+              valueGetter: (_value: unknown, row: BookingRow) =>
+                getBookingInterimHours(row, tenant),
               renderHeader: () => (
                 <TableCell component={"div" as any}>
                   <Tooltip title="Hours since request while still pending approval. Shows 0 after approval.">
@@ -289,11 +291,9 @@ export const Bookings: React.FC<BookingsProps> = ({
                   )}
                 </TableCell>
               ),
-              sortComparator: (_v1, _v2, cp1, cp2) => {
-                const rowA = cp1.api.getRow(cp1.id) as BookingRow;
-                const rowB = cp2.api.getRow(cp2.id) as BookingRow;
-                const a = getBookingInterimHours(rowA, tenant);
-                const b = getBookingInterimHours(rowB, tenant);
+              sortComparator: (v1, v2) => {
+                const a = v1 as number | null;
+                const b = v2 as number | null;
                 if (a == null && b == null) return 0;
                 if (a == null) return 1;
                 if (b == null) return -1;

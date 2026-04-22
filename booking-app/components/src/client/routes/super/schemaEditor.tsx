@@ -269,16 +269,18 @@ function BasicInfoSection({
       <TextField
         label="Bookings dashboard: highlight pending after (hours)"
         type="number"
+        inputProps={{ min: 0 }}
         value={schema.interimHighlightThresholdHours ?? ""}
-        onChange={(e) =>
+        onChange={(e) => {
+          const raw = e.target.value;
           onChange(
             "interimHighlightThresholdHours",
-            Number(e.target.value) || 0,
-          )
-        }
+            raw === "" ? undefined : Number(raw),
+          );
+        }}
         size="small"
         sx={{ mb: 2 }}
-        helperText="Pending-row highlight when interim reaches this many hours."
+        helperText="Leave empty to use the default (18h). Pending rows highlight when interim reaches this many hours."
       />
     </>
   );
