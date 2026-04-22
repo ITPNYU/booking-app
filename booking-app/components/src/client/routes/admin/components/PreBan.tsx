@@ -98,7 +98,7 @@ export const PreBannedUsers = () => {
     setRequestNumberByBookingId({});
 
     const uniqueBookingIds = [...new Set(preBanLogs.map((log) => log.bookingId))];
-    Promise.all(
+    Promise.allSettled(
       uniqueBookingIds.map((bookingId) =>
         clientGetDataByCalendarEventId<Booking>(
           TableNames.BOOKING,
@@ -109,9 +109,20 @@ export const PreBannedUsers = () => {
     ).then((results) => {
       if (cancelled) return;
       const map: Record<string, number | undefined> = {};
-      results.forEach(({ bookingId, requestNumber }) => {
-        map[bookingId] = requestNumber;
+      let failureCount = 0;
+      results.forEach((result) => {
+        if (result.status === "fulfilled") {
+          const { bookingId: id, requestNumber } = result.value;
+          map[id] = requestNumber;
+        } else {
+          failureCount += 1;
+        }
       });
+      if (failureCount > 0) {
+        console.warn(
+          `PreBan: could not load requestNumber for ${failureCount} of ${uniqueBookingIds.length} booking(s); those cells will show "--".`,
+        );
+      }
       setRequestNumberByBookingId(map);
     });
 
