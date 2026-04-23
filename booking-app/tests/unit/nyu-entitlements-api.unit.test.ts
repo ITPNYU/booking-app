@@ -8,22 +8,17 @@ vi.mock("@/lib/utils/testEnvironment", () => ({
   shouldBypassAuth: vi.fn().mockReturnValue(true),
 }));
 
-vi.mock("@/lib/firebase/server/firebaseAdmin", () => ({
-  default: {
-    auth: vi.fn().mockReturnValue({
-      verifyIdToken: vi.fn(),
-    }),
-  },
+const mockAuth = vi.fn();
+vi.mock("@/lib/auth", () => ({
+  auth: (...args: unknown[]) => mockAuth(...args),
 }));
 
 import { GET } from "@/app/api/nyu/entitlements/[netId]/route";
 import { fetchNYUIdentity } from "@/lib/server/nyuIdentity";
 import { shouldBypassAuth } from "@/lib/utils/testEnvironment";
-import admin from "@/lib/firebase/server/firebaseAdmin";
 
 const mockFetchNYUIdentity = vi.mocked(fetchNYUIdentity);
 const mockShouldBypassAuth = vi.mocked(shouldBypassAuth);
-const mockVerifyIdToken = vi.mocked(admin.auth().verifyIdToken);
 
 const createRequest = (headers: Record<string, string> = {}) =>
   ({ headers: new Headers(headers) }) as any;
@@ -52,7 +47,9 @@ describe("GET /api/nyu/entitlements/[netId]", () => {
       mockShouldBypassAuth.mockReturnValue(false);
     });
 
-    it("returns 401 when Authorization header is missing", async () => {
+    it("returns 401 when no session exists", async () => {
+      mockAuth.mockResolvedValue(null);
+
       const response = await GET(createRequest(), { params: createParams("hz1234") });
       const result = await parseJson(response);
 
@@ -60,24 +57,31 @@ describe("GET /api/nyu/entitlements/[netId]", () => {
       expect(result.data).toEqual({ error: "Unauthorized" });
     });
 
-    it("returns 401 when the Firebase ID token is invalid", async () => {
-      mockVerifyIdToken.mockRejectedValue(new Error("invalid token"));
+    it("returns 401 when session has no email", async () => {
+      mockAuth.mockResolvedValue({ user: { email: null } });
 
-      const response = await GET(
-        createRequest({ authorization: "Bearer bad-token" }),
-        { params: createParams("hz1234") },
-      );
+      const response = await GET(createRequest(), { params: createParams("hz1234") });
       const result = await parseJson(response);
 
       expect(result.status).toBe(401);
       expect(result.data).toEqual({ error: "Unauthorized" });
     });
 
-    it("returns 403 when the token belongs to a different user", async () => {
-      mockVerifyIdToken.mockResolvedValue({ email: "other@nyu.edu" } as any);
+    it("returns 401 when the session email is not an @nyu.edu address", async () => {
+      mockAuth.mockResolvedValue({ user: { email: "intruder@example.com" } });
+
+      const response = await GET(createRequest(), { params: createParams("hz1234") });
+      const result = await parseJson(response);
+
+      expect(result.status).toBe(401);
+      expect(result.data).toEqual({ error: "Unauthorized" });
+    });
+
+    it("returns 403 when the session belongs to a different user", async () => {
+      mockAuth.mockResolvedValue({ user: { email: "other@nyu.edu" } });
 
       const response = await GET(
-        createRequest({ authorization: "Bearer valid-token" }),
+        createRequest(),
         { params: createParams("hz1234") },
       );
       const result = await parseJson(response);
@@ -86,25 +90,12 @@ describe("GET /api/nyu/entitlements/[netId]", () => {
       expect(result.data).toEqual({ error: "Forbidden" });
     });
 
-    it("returns 401 when the token email is not an @nyu.edu address", async () => {
-      mockVerifyIdToken.mockResolvedValue({ email: "user@gmail.com" } as any);
-
-      const response = await GET(
-        createRequest({ authorization: "Bearer valid-token" }),
-        { params: createParams("hz1234") },
-      );
-      const result = await parseJson(response);
-
-      expect(result.status).toBe(401);
-      expect(result.data).toEqual({ error: "Unauthorized" });
-    });
-
-    it("proceeds normally when the token matches the requested netId", async () => {
-      mockVerifyIdToken.mockResolvedValue({ email: "hz1234@nyu.edu" } as any);
+    it("proceeds normally when the session matches the requested netId", async () => {
+      mockAuth.mockResolvedValue({ user: { email: "hz1234@nyu.edu" } });
       mockFetchNYUIdentity.mockResolvedValue({ dept_code: "UTIMNY" });
 
       const response = await GET(
-        createRequest({ authorization: "Bearer valid-token" }),
+        createRequest(),
         { params: createParams("hz1234") },
       );
       const result = await parseJson(response);
