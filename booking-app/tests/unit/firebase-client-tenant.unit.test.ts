@@ -3,95 +3,63 @@ import {
   clientDeleteDataFromFirestore,
   clientSaveDataToFirestore,
 } from "@/lib/firebase/firebase";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const mockDeleteDoc = vi.fn().mockResolvedValue(undefined);
-const mockAddDoc = vi.fn().mockResolvedValue({ id: "new-doc-id" });
-const mockDoc = vi.fn((_db, collectionName, docId) => ({
-  _collection: collectionName,
-  _id: docId,
-}));
-const mockCollection = vi.fn((_db, collectionName) => ({
-  _collection: collectionName,
-}));
-
-vi.mock("firebase/firestore", () => ({
-  deleteDoc: (...args: any[]) => mockDeleteDoc(...args),
-  addDoc: (...args: any[]) => mockAddDoc(...args),
-  doc: (...args: any[]) => mockDoc(...args),
-  collection: (...args: any[]) => mockCollection(...args),
-  getDocs: vi.fn().mockResolvedValue({ docs: [] }),
-  getDoc: vi.fn(),
-  updateDoc: vi.fn(),
-  setDoc: vi.fn(),
-  query: vi.fn((ref) => ref),
-  where: vi.fn(),
-  orderBy: vi.fn(),
-  limit: vi.fn(),
-  startAfter: vi.fn(),
-  Timestamp: {
-    now: vi.fn(() => ({ toDate: () => new Date() })),
-    fromDate: vi.fn((d: Date) => ({ toDate: () => d })),
-  },
-}));
-
-vi.mock("@/lib/firebase/firebaseClient", () => ({
-  getDb: vi.fn().mockReturnValue({}),
-  initializeDb: vi.fn(),
-}));
-
-vi.mock("@/components/src/types", async (importOriginal) => {
-  const actual = await importOriginal();
-  return { ...actual };
-});
 vi.mock("@/components/src/client/routes/components/SchemaProvider", () => ({}));
 
-describe("clientDeleteDataFromFirestore — tenant collection resolution", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
+/**
+ * After the SSO migration, client-side helpers POST to `/api/firestore/*`
+ * instead of touching Firestore directly. The contract these tests guard:
+ *   1. The request goes to the right endpoint
+ *   2. The body's `collection` and `tenant` fields match the URL-derived /
+ *      explicit tenant input
+ *   3. Tenant prefixing happens server-side, so the helper just forwards the
+ *      raw collection name + resolved tenant
+ */
 
-  afterEach(() => {
-    vi.unstubAllGlobals();
-  });
+const fetchMock = vi.fn(async () => ({
+  ok: true,
+  json: async () => ({ id: "new-doc-id" }),
+}));
 
-  it("uses the tenant-prefixed collection when the URL contains a tenant segment", async () => {
+beforeEach(() => {
+  fetchMock.mockClear();
+  vi.stubGlobal("fetch", fetchMock as unknown as typeof fetch);
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
+function lastBody() {
+  const call = fetchMock.mock.calls.at(-1);
+  if (!call) throw new Error("fetch was not called");
+  const init = call[1] as RequestInit;
+  return JSON.parse(init.body as string);
+}
+
+describe("clientDeleteDataFromFirestore — request contract", () => {
+  it("forwards tenant derived from URL", async () => {
     vi.stubGlobal("location", { pathname: "/mc/admin/settings/policy" });
 
-    await clientDeleteDataFromFirestore(TableNames.BLACKOUT_PERIODS, "period-1");
+    await clientDeleteDataFromFirestore(TableNames.BLACKOUT_PERIODS, "p1");
 
-    expect(mockDoc).toHaveBeenCalledWith(
-      expect.anything(),
-      "mc-blackoutPeriods",
-      "period-1",
-    );
-    expect(mockDeleteDoc).toHaveBeenCalledTimes(1);
+    const call = fetchMock.mock.calls.at(-1)!;
+    expect(call[0]).toBe("/api/firestore/mutate");
+    expect(lastBody()).toMatchObject({
+      op: "delete",
+      collection: "blackoutPeriods",
+      tenant: "mc",
+      docId: "p1",
+    });
   });
 
-  it("uses the base collection name for non-tenant-specific collections", async () => {
-    vi.stubGlobal("location", { pathname: "/mc/admin/settings/policy" });
-
-    await clientDeleteDataFromFirestore("settings", "settings-1");
-
-    expect(mockDoc).toHaveBeenCalledWith(
-      expect.anything(),
-      "settings",
-      "settings-1",
-    );
-    expect(mockDeleteDoc).toHaveBeenCalledTimes(1);
-  });
-
-  it("uses the base collection name when no tenant is in the URL", async () => {
+  it("omits tenant when the URL has none", async () => {
     vi.stubGlobal("location", { pathname: "/" });
 
-    await clientDeleteDataFromFirestore(TableNames.BLACKOUT_PERIODS, "period-1");
+    await clientDeleteDataFromFirestore(TableNames.BLACKOUT_PERIODS, "p1");
 
-    expect(mockDoc).toHaveBeenCalledWith(
-      expect.anything(),
-      "blackoutPeriods",
-      "period-1",
-    );
-    expect(mockDeleteDoc).toHaveBeenCalledTimes(1);
+    expect(lastBody().tenant).toBeUndefined();
   });
 
   it("respects an explicit tenant argument over the URL", async () => {
@@ -99,64 +67,38 @@ describe("clientDeleteDataFromFirestore — tenant collection resolution", () =>
 
     await clientDeleteDataFromFirestore(
       TableNames.BLACKOUT_PERIODS,
-      "period-1",
+      "p1",
       "mc",
     );
 
-    expect(mockDoc).toHaveBeenCalledWith(
-      expect.anything(),
-      "mc-blackoutPeriods",
-      "period-1",
-    );
-    expect(mockDeleteDoc).toHaveBeenCalledTimes(1);
+    expect(lastBody().tenant).toBe("mc");
   });
 });
 
-describe("clientSaveDataToFirestore — tenant collection resolution", () => {
+describe("clientSaveDataToFirestore — request contract", () => {
   const sampleData = { name: "Winter Break", isActive: true };
 
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  afterEach(() => {
-    vi.unstubAllGlobals();
-  });
-
-  it("uses the tenant-prefixed collection when the URL contains a tenant segment", async () => {
+  it("forwards tenant derived from URL", async () => {
     vi.stubGlobal("location", { pathname: "/mc/admin/settings/policy" });
 
     await clientSaveDataToFirestore(TableNames.BLACKOUT_PERIODS, sampleData);
 
-    expect(mockCollection).toHaveBeenCalledWith(
-      expect.anything(),
-      "mc-blackoutPeriods",
-    );
-    expect(mockAddDoc).toHaveBeenCalledTimes(1);
+    const call = fetchMock.mock.calls.at(-1)!;
+    expect(call[0]).toBe("/api/firestore/mutate");
+    expect(lastBody()).toMatchObject({
+      op: "create",
+      collection: "blackoutPeriods",
+      tenant: "mc",
+      data: sampleData,
+    });
   });
 
-  it("uses the base collection name for non-tenant-specific collections", async () => {
-    vi.stubGlobal("location", { pathname: "/mc/admin/settings/policy" });
-
-    await clientSaveDataToFirestore("departments", sampleData);
-
-    expect(mockCollection).toHaveBeenCalledWith(
-      expect.anything(),
-      "departments",
-    );
-    expect(mockAddDoc).toHaveBeenCalledTimes(1);
-  });
-
-  it("uses the base collection name when no tenant is in the URL", async () => {
+  it("omits tenant when the URL has none", async () => {
     vi.stubGlobal("location", { pathname: "/" });
 
     await clientSaveDataToFirestore(TableNames.BLACKOUT_PERIODS, sampleData);
 
-    expect(mockCollection).toHaveBeenCalledWith(
-      expect.anything(),
-      "blackoutPeriods",
-    );
-    expect(mockAddDoc).toHaveBeenCalledTimes(1);
+    expect(lastBody().tenant).toBeUndefined();
   });
 
   it("respects an explicit tenant argument over the URL", async () => {
@@ -168,10 +110,6 @@ describe("clientSaveDataToFirestore — tenant collection resolution", () => {
       "mc",
     );
 
-    expect(mockCollection).toHaveBeenCalledWith(
-      expect.anything(),
-      "mc-blackoutPeriods",
-    );
-    expect(mockAddDoc).toHaveBeenCalledTimes(1);
+    expect(lastBody().tenant).toBe("mc");
   });
 });

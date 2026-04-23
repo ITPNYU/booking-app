@@ -183,10 +183,17 @@ describe("server/db", () => {
 
     const result = await fetchAllFutureBooking("tenant-1");
 
-    expect(mockWhere).toHaveBeenCalledWith("endDate", ">", expect.anything());
+    // After SSO migration the helper no longer goes through Firestore SDK
+    // `where()`; it passes a serializable WhereSpec straight to the API proxy.
     expect(mockClientFetchAllDataFromCollection).toHaveBeenCalledWith(
       "bookings",
-      [expect.objectContaining({ field: "endDate", operator: ">" })],
+      [
+        expect.objectContaining({
+          field: "endDate",
+          op: ">",
+          value: expect.objectContaining({ __ts: expect.any(Number) }),
+        }),
+      ],
       "tenant-1",
     );
     expect(result).toEqual([{ id: "booking" }]);

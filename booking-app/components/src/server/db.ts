@@ -82,11 +82,10 @@ export async function callXStateTransitionAPI(
 export const fetchAllFutureBooking = async <Booking>(
   tenant?: string,
 ): Promise<Booking[]> => {
-  const now = Timestamp.now();
-  const futureQueryConstraints = [where("endDate", ">", now)];
+  const nowMs = Date.now();
   return clientFetchAllDataFromCollection<Booking>(
     TableNames.BOOKING,
-    futureQueryConstraints,
+    [{ field: "endDate", op: ">", value: { __ts: nowMs } }],
     tenant,
   );
 };
