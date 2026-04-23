@@ -137,6 +137,7 @@ export type SchemaContextType = {
   calendarConfig?: {
     startHour?: Record<string, string>; // e.g., { studentVIP: "06:00:00", student: "09:00:00", ... }
     slotUnit?: Record<string, number>; // e.g., { student: 15, admin: 15, ... }
+    multipleResourceSelect?: boolean;
     timeSensitiveRequestWarning?: TimeSensitiveRequestWarning;
   };
   // CC email addresses for notifications, per environment
@@ -318,6 +319,7 @@ export const defaultScheme: Omit<SchemaContextType, "tenant"> = {
       adminVIP: 15,
       adminWalkIn: 15,
     },
+    multipleResourceSelect: false,
     timeSensitiveRequestWarning: defaultTimeSensitiveRequestWarning,
   },
   schoolMapping: {},

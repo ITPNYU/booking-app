@@ -2,35 +2,28 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 
 vi.mock("@/lib/firebase/server/firebaseAdmin", () => ({
   default: {
-    app: vi.fn(),
-    initializeApp: vi.fn(),
+    app: vi.fn(() => ({ name: "[DEFAULT]" })),
     firestore: { Firestore: class {} },
   },
 }));
 
-import admin from "@/lib/firebase/server/firebaseAdmin";
+vi.mock("firebase-admin/firestore", () => ({
+  getFirestore: vi.fn(),
+}));
+
+import { getFirestore } from "firebase-admin/firestore";
 import {
   getFirestoreForEnv,
   getSchemaFromEnv,
-  clearFirestoreCache,
   ENVIRONMENTS,
   type Environment,
 } from "@/lib/firebase/server/multiDb";
 
-const mockApp = vi.mocked(admin.app);
-const mockInitializeApp = vi.mocked(admin.initializeApp);
-
-function createFakeApp(opts?: { settingsFn?: ReturnType<typeof vi.fn> }) {
-  const settingsFn = opts?.settingsFn ?? vi.fn();
-  return {
-    firestore: () => ({ settings: settingsFn }),
-  };
-}
+const mockGetFirestore = vi.mocked(getFirestore);
 
 describe("multiDb", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    clearFirestoreCache();
   });
 
   describe("ENVIRONMENTS", () => {
@@ -43,90 +36,43 @@ describe("multiDb", () => {
   });
 
   describe("getFirestoreForEnv", () => {
-    it("reuses an existing named app", () => {
-      const fakeApp = createFakeApp();
-      mockApp.mockReturnValue(fakeApp as any);
-
-      getFirestoreForEnv("development");
-
-      expect(mockApp).toHaveBeenCalledWith("multi-db-development");
-      expect(mockInitializeApp).not.toHaveBeenCalled();
-    });
-
-    it("creates a new named app when one does not exist", () => {
-      const fakeDefaultApp = { options: { projectId: "test" } };
-      const fakeNewApp = createFakeApp();
-
-      mockApp
-        .mockImplementationOnce(() => {
-          throw new Error("does not exist");
-        })
-        .mockReturnValueOnce(fakeDefaultApp as any);
-
-      mockInitializeApp.mockReturnValue(fakeNewApp as any);
-
-      getFirestoreForEnv("staging");
-
-      expect(mockInitializeApp).toHaveBeenCalledWith(
-        fakeDefaultApp.options,
-        "multi-db-staging",
-      );
-    });
-
-    it("applies databaseId settings for non-default databases", () => {
-      const settingsFn = vi.fn();
-      const fakeApp = createFakeApp({ settingsFn });
-      mockApp.mockReturnValue(fakeApp as any);
-
-      getFirestoreForEnv("production");
-
-      expect(settingsFn).toHaveBeenCalledWith({
-        databaseId: "booking-app-prod",
-      });
-    });
-
-    it("skips databaseId settings for the default database", () => {
-      const settingsFn = vi.fn();
-      const fakeApp = createFakeApp({ settingsFn });
-      mockApp.mockReturnValue(fakeApp as any);
-
-      getFirestoreForEnv("development");
-
-      expect(settingsFn).not.toHaveBeenCalled();
-    });
-
-    it("handles race condition when another request initializes the app concurrently", () => {
-      const fakeDefaultApp = { options: { projectId: "test" } };
-      const fakeApp = createFakeApp();
-
-      mockApp
-        .mockImplementationOnce(() => {
-          throw new Error("does not exist");
-        })
-        .mockReturnValueOnce(fakeDefaultApp as any)
-        .mockReturnValueOnce(fakeApp as any);
-
-      mockInitializeApp.mockImplementation(() => {
-        throw new Error('Firebase app named "multi-db-development" already exists');
-      });
+    it("calls getFirestore with (default) for development", () => {
+      const fakeDb = {};
+      mockGetFirestore.mockReturnValue(fakeDb as any);
 
       const result = getFirestoreForEnv("development");
 
-      expect(result).toBeDefined();
-      expect(mockApp).toHaveBeenCalledTimes(3);
+      expect(mockGetFirestore).toHaveBeenCalledWith(
+        expect.objectContaining({ name: "[DEFAULT]" }),
+        "(default)",
+      );
+      expect(result).toBe(fakeDb);
     });
 
-    it("returns cached Firestore instance on subsequent calls", () => {
-      const settingsFn = vi.fn();
-      const fakeApp = createFakeApp({ settingsFn });
-      mockApp.mockReturnValue(fakeApp as any);
+    it("calls getFirestore with booking-app-prod for production", () => {
+      const fakeDb = {};
+      mockGetFirestore.mockReturnValue(fakeDb as any);
 
-      const first = getFirestoreForEnv("production");
-      const second = getFirestoreForEnv("production");
+      const result = getFirestoreForEnv("production");
 
-      expect(first).toBe(second);
-      // settings() should only be called once thanks to caching
-      expect(settingsFn).toHaveBeenCalledTimes(1);
+      expect(mockGetFirestore).toHaveBeenCalledWith(
+        expect.anything(),
+        "booking-app-prod",
+      );
+      expect(result).toBe(fakeDb);
+    });
+
+    it("calls getFirestore with booking-app-staging for staging", () => {
+      const fakeDb = {};
+      mockGetFirestore.mockReturnValue(fakeDb as any);
+
+      const result = getFirestoreForEnv("staging");
+
+      expect(mockGetFirestore).toHaveBeenCalledWith(
+        expect.anything(),
+        "booking-app-staging",
+      );
+      expect(result).toBe(fakeDb);
     });
 
     it("throws for unknown environments", () => {
@@ -145,10 +91,7 @@ describe("multiDb", () => {
       });
       const mockDoc = vi.fn(() => ({ get: mockGet }));
       const mockCollection = vi.fn(() => ({ doc: mockDoc }));
-      const fakeApp = {
-        firestore: () => ({ settings: vi.fn(), collection: mockCollection }),
-      };
-      mockApp.mockReturnValue(fakeApp as any);
+      mockGetFirestore.mockReturnValue({ collection: mockCollection } as any);
 
       const result = await getSchemaFromEnv("development", "mc");
 
@@ -161,10 +104,7 @@ describe("multiDb", () => {
       const mockGet = vi.fn().mockResolvedValue({ exists: false });
       const mockDoc = vi.fn(() => ({ get: mockGet }));
       const mockCollection = vi.fn(() => ({ doc: mockDoc }));
-      const fakeApp = {
-        firestore: () => ({ settings: vi.fn(), collection: mockCollection }),
-      };
-      mockApp.mockReturnValue(fakeApp as any);
+      mockGetFirestore.mockReturnValue({ collection: mockCollection } as any);
 
       const result = await getSchemaFromEnv("development", "nonexistent");
 

@@ -989,6 +989,23 @@ function CalendarConfigSection({
           </Box>
         </Box>
       )}
+      <Box mb={2}>
+        <FormControlLabel
+          control={
+            <Switch
+              checked={config.multipleResourceSelect ?? false}
+              onChange={(e) =>
+                onChange(
+                  "calendarConfig.multipleResourceSelect",
+                  e.target.checked,
+                )
+              }
+              size="small"
+            />
+          }
+          label="Allow selecting multiple resources"
+        />
+      </Box>
       <Box>
         <Typography variant="subtitle2" sx={{ mb: 1 }}>
           Time Sensitive Request Warning
