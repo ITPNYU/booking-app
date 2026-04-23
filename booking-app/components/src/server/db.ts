@@ -738,40 +738,9 @@ export const cancel = async (
       newState: xstateResult.newState,
     });
 
-    // Delegate cancel processing to /api/cancel-processing for all tenants
-    try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_BASE_URL}/api/cancel-processing`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            calendarEventId: id,
-            email,
-            netId,
-            tenant,
-          }),
-        },
-      );
-
-      if (response.ok) {
-        console.log(
-          `✅ CANCEL-PROCESSING API SUCCESS [${tenant?.toUpperCase()}]:`,
-          { calendarEventId: id },
-        );
-      } else {
-        const errorData = await response.json();
-        console.error(
-          `🚨 CANCEL-PROCESSING API FAILED [${tenant?.toUpperCase()}]:`,
-          { calendarEventId: id, error: errorData },
-        );
-      }
-    } catch (error: any) {
-      console.error(
-        `🚨 CANCEL-PROCESSING API ERROR [${tenant?.toUpperCase()}]:`,
-        { calendarEventId: id, error: error.message },
-      );
-    }
+    // cancel-processing is now triggered by the machine's Canceled state entry
+    // via queueCancelProcessing → xstate-transition executor. No manual fetch
+    // here — see lib/stateMachines/xstateTransitions.ts::executeSideEffect.
 
     // When cancel transitions directly to Closed (e.g., cancel without services)
     if (xstateResult.newState === "Closed") {
