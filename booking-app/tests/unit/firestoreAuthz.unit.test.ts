@@ -72,8 +72,13 @@ describe("authorizeWrite", () => {
     expect(decision.ok).toBe(true);
   });
 
-  it("denies writes to bookings (must use /api/bookings/*)", async () => {
-    superSnap.mockReturnValue([{ email: session.email }]);
+  it("allows PA write to bookings (e.g. equipment checkout toggle)", async () => {
+    usersRightsSnap.mockReturnValue([{ isWorker: true }]);
+    const decision = await authorizeWrite(session, "mc", "bookings");
+    expect(decision.ok).toBe(true);
+  });
+
+  it("blocks regular booking-role user write to bookings", async () => {
     const decision = await authorizeWrite(session, "mc", "bookings");
     expect(decision.ok).toBe(false);
   });

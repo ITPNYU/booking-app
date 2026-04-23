@@ -120,10 +120,15 @@ const POLICY: Record<string, Policy> = {
   // current implementation filters client-side (`filterPageContext` in
   // `useBookingFilters.ts`). Tightening this to server-side filtering is
   // the right next step but out of scope for the SSO regression fix.
-  // Writes go through dedicated `/api/bookings/*` routes that handle the
-  // XState lifecycle and per-user authorization in their own logic.
-  [TableNames.BOOKING]: { read: "anyNYU", write: "deny" },
-  [TableNames.BOOKING_LOGS]: { read: "anyNYU", write: "deny" },
+  //
+  // Writes go through dedicated `/api/bookings/*` routes for the XState
+  // lifecycle, but a few staff UI controls (e.g. `EquipmentCheckoutToggle`
+  // calling `clientUpdateDataByCalendarEventId`) still flip booking fields
+  // directly. Allow PA and above so those controls keep working; further
+  // tightening belongs in a followup that routes those mutations through
+  // dedicated endpoints.
+  [TableNames.BOOKING]: { read: "anyNYU", write: "paOrAbove" },
+  [TableNames.BOOKING_LOGS]: { read: "anyNYU", write: "paOrAbove" },
 };
 
 const DEFAULT_POLICY: Policy = { read: "deny", write: "deny" };
