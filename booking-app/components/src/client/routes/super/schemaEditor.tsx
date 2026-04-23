@@ -280,7 +280,7 @@ function BasicInfoSection({
         }}
         size="small"
         sx={{ mb: 2 }}
-        helperText="Leave empty to use the default (18h). Pending rows highlight when interim reaches this many hours."
+        helperText="Leave empty for default (18h). When interim reaches this many hours, the Interim column text is emphasized (not the whole row)."
       />
     </>
   );

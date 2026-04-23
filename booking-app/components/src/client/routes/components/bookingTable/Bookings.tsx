@@ -715,14 +715,15 @@ export const Bookings: React.FC<BookingsProps> = ({
         rows={filteredRows}
         columns={columns}
         getRowId={(row) => row.calendarEventId}
-        getRowClassName={(params) =>
+        getCellClassName={(params) =>
           !isUserView &&
+          params.field === "interim" &&
           shouldHighlightBookingInterim(
-            params.row,
+            params.row as BookingRow,
             tenant,
             interimHighlightThresholdHours,
           )
-            ? "booking-row-interim-over-threshold"
+            ? "booking-cell-interim-over-threshold"
             : ""
         }
         hideFooter={!showFooter}
@@ -748,17 +749,13 @@ export const Bookings: React.FC<BookingsProps> = ({
           "& .MuiDataGrid-row--borderBottom": {
             backgroundColor: "#EEEEEE !important",
           },
-          "& .booking-row-interim-over-threshold": {
-            backgroundColor: `${theme.palette.secondary.light} !important`,
+          "& .MuiDataGrid-cell.booking-cell-interim-over-threshold": {
+            fontWeight: 600,
+            color: theme.palette.primary.main,
           },
-          "& .booking-row-interim-over-threshold .MuiDataGrid-cell[data-field=\"interim\"]":
+          "& .MuiDataGrid-cell.booking-cell-interim-over-threshold .MuiTableCell-root":
             {
-              fontWeight: 500,
-              color: theme.palette.primary.main,
-            },
-          "& .booking-row-interim-over-threshold .MuiDataGrid-cell[data-field=\"interim\"] .MuiTableCell-root":
-            {
-              fontWeight: 500,
+              fontWeight: 600,
               color: theme.palette.primary.main,
             },
           borderRadius: "0px 0px 4px 4px",
