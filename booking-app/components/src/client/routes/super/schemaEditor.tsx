@@ -273,9 +273,14 @@ function BasicInfoSection({
         value={schema.interimHighlightThresholdHours ?? ""}
         onChange={(e) => {
           const raw = e.target.value;
+          if (raw === "") {
+            onChange("interimHighlightThresholdHours", undefined);
+            return;
+          }
+          const parsed = Number(raw);
           onChange(
             "interimHighlightThresholdHours",
-            raw === "" ? undefined : Number(raw),
+            Number.isFinite(parsed) ? Math.max(0, parsed) : undefined,
           );
         }}
         size="small"

@@ -47,7 +47,6 @@ import useAllowedStatuses from "./hooks/useAllowedStatuses";
 import {
   formatBookingInterimHours,
   getBookingInterimHours,
-  shouldHighlightBookingInterim,
 } from "../../../../utils/bookingInterimHours";
 import { useBookingFilters } from "./hooks/useBookingFilters";
 
@@ -284,11 +283,9 @@ export const Bookings: React.FC<BookingsProps> = ({
                   </Tooltip>
                 </TableCell>
               ),
-              renderCell: (params: { row: BookingRow }) => (
+              renderCell: (params: { value?: number | null }) => (
                 <TableCell component={"div" as any}>
-                  {formatBookingInterimHours(
-                    getBookingInterimHours(params.row, tenant),
-                  )}
+                  {formatBookingInterimHours(params.value ?? null)}
                 </TableCell>
               ),
               sortComparator: (v1, v2) => {
@@ -718,11 +715,8 @@ export const Bookings: React.FC<BookingsProps> = ({
         getCellClassName={(params) =>
           !isUserView &&
           params.field === "interim" &&
-          shouldHighlightBookingInterim(
-            params.row as BookingRow,
-            tenant,
-            interimHighlightThresholdHours,
-          )
+          typeof params.value === "number" &&
+          params.value >= interimHighlightThresholdHours
             ? "booking-cell-interim-over-threshold"
             : ""
         }
