@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import admin from "@/lib/firebase/server/firebaseAdmin";
 import { requireSession } from "@/lib/api/requireSession";
+import { authorizeWrite, isAccessDenied } from "@/lib/api/authz";
 import { resolveCollectionName, reviveValue } from "@/lib/api/firestoreServer";
 import { TableNames } from "@/components/src/policy";
 import {
@@ -41,6 +42,21 @@ export async function POST(req: NextRequest) {
     body = (await req.json()) as UserRightsRequest;
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+
+  // All actions on this route ultimately mutate the usersRights collection
+  // (or its legacy aliases ADMINS / PAS, which carry the same access level).
+  // Gate against USERS_RIGHTS once.
+  const decision = await authorizeWrite(
+    session,
+    body.tenant,
+    TableNames.USERS_RIGHTS,
+  );
+  if (isAccessDenied(decision)) {
+    return NextResponse.json(
+      { error: decision.reason },
+      { status: decision.status },
+    );
   }
 
   try {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import admin from "@/lib/firebase/server/firebaseAdmin";
 import { requireSession } from "@/lib/api/requireSession";
+import { authorizeWrite, isAccessDenied } from "@/lib/api/authz";
 import { resolveCollectionName, reviveValue } from "@/lib/api/firestoreServer";
 import type { MutateRequest } from "@/lib/api/firestoreShared";
 
@@ -19,6 +20,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       { error: "op and collection required" },
       { status: 400 },
+    );
+  }
+  const decision = await authorizeWrite(session, body.tenant, body.collection);
+  if (isAccessDenied(decision)) {
+    return NextResponse.json(
+      { error: decision.reason },
+      { status: decision.status },
     );
   }
   const collectionName = resolveCollectionName(body.collection, body.tenant);

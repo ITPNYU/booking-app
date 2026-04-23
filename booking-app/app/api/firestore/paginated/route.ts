@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import admin from "@/lib/firebase/server/firebaseAdmin";
 import { requireSession } from "@/lib/api/requireSession";
+import { authorizeRead, isAccessDenied } from "@/lib/api/authz";
 import { resolveCollectionName } from "@/lib/api/firestoreServer";
 import type { PaginatedRequest } from "@/lib/api/firestoreShared";
 
@@ -42,6 +43,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       { error: "collection and filters.sortField required" },
       { status: 400 },
+    );
+  }
+  const decision = await authorizeRead(session, body.tenant, body.collection);
+  if (isAccessDenied(decision)) {
+    return NextResponse.json(
+      { error: decision.reason },
+      { status: decision.status },
     );
   }
   try {
