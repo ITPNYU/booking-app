@@ -705,7 +705,7 @@ describe("noShow function XState flow", () => {
 
     await dbModule.noShow("cal-event-456", "staff@nyu.edu", "staff456", "mc");
 
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    // Traditional NoShow flow is skipped when XState doesn't reach "No Show"
     expect(mockClientUpdateDataByCalendarEventId).not.toHaveBeenCalled();
     expect(mockClientSaveDataToFirestore).not.toHaveBeenCalled();
     expect(mockClientGetDataByCalendarEventId).not.toHaveBeenCalled();
@@ -714,6 +714,13 @@ describe("noShow function XState flow", () => {
         ([url]) => typeof url === "string" && url.includes("/api/sendEmail"),
       ),
     ).toBe(false);
+    // #1367: cancel-processing must still run so Google Calendar event is deleted
+    expect(
+      fetchMock.mock.calls.some(
+        ([url]) =>
+          typeof url === "string" && url.includes("/api/cancel-processing"),
+      ),
+    ).toBe(true);
   });
 
   it("falls back to traditional flow when XState API fails", async () => {

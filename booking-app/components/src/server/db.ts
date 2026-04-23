@@ -1106,6 +1106,33 @@ export const noShow = async (
         await executeTraditionalNoShow(id, email, netId, tenant);
       }
 
+      // #1367: noShow transitions through Canceled via always; cancel-processing
+      // must run so the Google Calendar event gets deleted.
+      try {
+        const cancelResponse = await fetch(
+          `${process.env.NEXT_PUBLIC_BASE_URL}/api/cancel-processing`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-tenant": tenant || DEFAULT_TENANT,
+            },
+            body: JSON.stringify({ calendarEventId: id, email, netId, tenant }),
+          },
+        );
+        if (!cancelResponse.ok) {
+          console.error(
+            `🚨 NO SHOW CANCEL-PROCESSING FAILED [${tenant?.toUpperCase()}]:`,
+            { calendarEventId: id, status: cancelResponse.status },
+          );
+        }
+      } catch (error: any) {
+        console.error(
+          `🚨 NO SHOW CANCEL-PROCESSING ERROR [${tenant?.toUpperCase()}]:`,
+          { calendarEventId: id, error: error.message },
+        );
+      }
+
       // When noShow transitions directly to Closed
       if (xstateResult.newState === "Closed") {
         try {

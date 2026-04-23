@@ -422,6 +422,98 @@ describe("server/db", () => {
     });
   });
 
+  describe("noShow", () => {
+    const makeResponse = (data: any, ok = true) =>
+      ({
+        ok,
+        json: async () => data,
+        text: async () => JSON.stringify(data),
+      }) as Response;
+
+    it("calls /api/cancel-processing after successful XState transition so calendar event is deleted (MC tenant, #1367)", async () => {
+      mockShouldUseXState.mockReturnValue(true);
+
+      const fetchCalls: Array<{ href: string; options?: RequestInit }> = [];
+      mockFetch.mockImplementation((url: any, options: any) => {
+        const href = typeof url === "string" ? url : url.toString();
+        fetchCalls.push({ href, options });
+
+        if (href.includes("/api/xstate-transition")) {
+          // noShow → No Show → (always) → Canceled → Service Closeout (with services)
+          return makeResponse({ newState: "Service Closeout" });
+        }
+        return makeResponse({});
+      });
+
+      const { noShow } = await import("@/components/src/server/db");
+      await noShow("cal-ns-1", "admin@nyu.edu", "admin", "media_commons");
+
+      const cancelProcessingCall = fetchCalls.find((c) =>
+        c.href.includes("/api/cancel-processing"),
+      );
+      expect(cancelProcessingCall).toBeDefined();
+      const payload = JSON.parse(String(cancelProcessingCall?.options?.body));
+      expect(payload).toMatchObject({
+        calendarEventId: "cal-ns-1",
+        email: "admin@nyu.edu",
+        netId: "admin",
+        tenant: "media_commons",
+      });
+    });
+
+    it("calls /api/cancel-processing after successful XState transition (ITP tenant, #1367)", async () => {
+      mockShouldUseXState.mockReturnValue(true);
+
+      const fetchCalls: Array<{ href: string; options?: RequestInit }> = [];
+      mockFetch.mockImplementation((url: any, options: any) => {
+        const href = typeof url === "string" ? url : url.toString();
+        fetchCalls.push({ href, options });
+
+        if (href.includes("/api/xstate-transition")) {
+          // ITP: noShow → No Show → Canceled → Closed (no services in ITP)
+          return makeResponse({ newState: "Closed" });
+        }
+        return makeResponse({});
+      });
+
+      const { noShow } = await import("@/components/src/server/db");
+      await noShow("cal-ns-2", "admin@nyu.edu", "admin", "itp");
+
+      const cancelProcessingCall = fetchCalls.find((c) =>
+        c.href.includes("/api/cancel-processing"),
+      );
+      expect(cancelProcessingCall).toBeDefined();
+      const payload = JSON.parse(String(cancelProcessingCall?.options?.body));
+      expect(payload).toMatchObject({
+        calendarEventId: "cal-ns-2",
+        tenant: "itp",
+      });
+    });
+
+    it("does NOT call cancel-processing when XState transition fails", async () => {
+      mockShouldUseXState.mockReturnValue(true);
+
+      const fetchCalls: Array<{ href: string }> = [];
+      mockFetch.mockImplementation((url: any) => {
+        const href = typeof url === "string" ? url : url.toString();
+        fetchCalls.push({ href });
+
+        if (href.includes("/api/xstate-transition")) {
+          return makeResponse({ error: "boom" }, false);
+        }
+        return makeResponse({});
+      });
+
+      const { noShow } = await import("@/components/src/server/db");
+      await noShow("cal-ns-3", "admin@nyu.edu", "admin", "media_commons");
+
+      const cancelProcessingCall = fetchCalls.find((c) =>
+        c.href.includes("/api/cancel-processing"),
+      );
+      expect(cancelProcessingCall).toBeUndefined();
+    });
+  });
+
   describe("checkin", () => {
     const makeResponse = (data: any, ok = true) =>
       ({
