@@ -52,8 +52,11 @@ export type AdminUserData = {
  * back into `Timestamp` instances. The admin SDK serializes Timestamp as
  * `{ _seconds, _nanoseconds }`; the client SDK's Timestamp class restores
  * `.toDate()` / `.toMillis()` semantics.
+ *
+ * Exported so callers that hit other admin-SDK-backed JSON endpoints
+ * (e.g. `/api/permissions`) can apply the same revival.
  */
-function reviveTimestamps(value: unknown): unknown {
+export function reviveTimestamps(value: unknown): unknown {
   if (value === null || value === undefined) return value;
   if (Array.isArray(value)) return value.map(reviveTimestamps);
   if (typeof value === "object") {
