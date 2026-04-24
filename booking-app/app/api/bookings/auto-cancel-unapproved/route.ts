@@ -186,6 +186,7 @@ export async function GET(request: NextRequest) {
           "system",
           tenant,
           reason,
+          "system", // netId
         );
 
         if (!xstateResult.success) {

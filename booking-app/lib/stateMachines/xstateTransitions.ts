@@ -25,13 +25,25 @@ import type { PersistedXStateData } from "./xstateTypes";
  * Drain and execute a single side effect declared by a state entry action
  * (via `queueCancelProcessing` or similar assign). Keeps the machine pure
  * while still making state entry the trigger for real-world work.
+ *
+ * netId is passed through from the caller (authoritative from session) rather
+ * than reconstructed from email, because some effects (pre-ban logging inside
+ * /api/cancel-processing) key off it — alias emails where the local-part !=
+ * netId would otherwise penalize the wrong user.
  */
 async function executeSideEffect(
   effect: string,
-  ctx: { calendarEventId: string; tenant?: string; email?: string },
+  ctx: {
+    calendarEventId: string;
+    tenant?: string;
+    email?: string;
+    netId?: string;
+  },
 ): Promise<void> {
-  const { calendarEventId, tenant, email } = ctx;
-  const netId = email && email.includes("@") ? email.split("@")[0] : "system";
+  const { calendarEventId, tenant, email, netId: passedNetId } = ctx;
+  const netId =
+    passedNetId ||
+    (email && email.includes("@") ? email.split("@")[0] : "system");
 
   if (effect === "cancelProcessing") {
     try {
@@ -81,6 +93,7 @@ export async function executeXStateTransition(
   tenant?: string,
   email?: string,
   reason?: string,
+  netId?: string,
 ): Promise<{ success: boolean; newState?: string; error?: string }> {
   try {
     console.log(
@@ -576,7 +589,7 @@ export async function executeXStateTransition(
     // the snapshot so we can clear the queue — otherwise a restore would re-fire.
     const pendingEffects = (newSnapshot.context as any)?.pendingSideEffects ?? [];
     for (const effect of pendingEffects) {
-      await executeSideEffect(effect, { calendarEventId, tenant, email });
+      await executeSideEffect(effect, { calendarEventId, tenant, email, netId });
     }
     if (pendingEffects.length > 0 && firestoreUpdates.xstateData?.snapshot?.context) {
       (firestoreUpdates.xstateData.snapshot.context as any).pendingSideEffects = [];

@@ -606,6 +606,7 @@ describe("noShow function XState flow", () => {
           calendarEventId: "cal-event-123",
           eventType: "noShow",
           email: "staff@nyu.edu",
+          netId: "staff123",
           reason: undefined,
         }),
       }),

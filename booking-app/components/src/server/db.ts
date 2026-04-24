@@ -33,12 +33,17 @@ import {
 import { getBookingToolDeployUrl } from "./ui";
 
 // Helper function to call XState transition API
+//
+// netId is threaded through to the xstate-transition route because side effects
+// queued by state entry actions (e.g., /api/cancel-processing for pre-ban
+// logging) need the authoritative netId, not one guessed from email local-part.
 export async function callXStateTransitionAPI(
   calendarEventId: string,
   eventType: string,
   email: string,
   tenant?: string,
   reason?: string,
+  netId?: string,
 ): Promise<{ success: boolean; newState?: string; error?: string }> {
   try {
     const response = await fetch(
@@ -53,6 +58,7 @@ export async function callXStateTransitionAPI(
           calendarEventId,
           eventType,
           email,
+          netId,
           reason,
         }),
       },
@@ -714,6 +720,8 @@ export const cancel = async (
     "cancel",
     email,
     tenant,
+    undefined, // reason
+    netId,
   );
 
   if (!xstateResult.success) {
@@ -1036,6 +1044,8 @@ export const noShow = async (
       "noShow",
       email,
       tenant,
+      undefined, // reason
+      netId,
     );
 
     if (!xstateResult.success) {

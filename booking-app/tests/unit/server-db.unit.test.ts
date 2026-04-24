@@ -377,6 +377,10 @@ describe("server/db", () => {
         calendarEventId: "cal-1",
         eventType: "cancel",
         email: "user@nyu.edu",
+        // netId must be passed through so the executor's /api/cancel-processing
+        // call uses the authoritative value (not email.split("@")[0], which
+        // would misattribute pre-ban penalties for alias emails).
+        netId: "net123",
       });
 
       // db.ts cancel() no longer fetches cancel-processing directly.

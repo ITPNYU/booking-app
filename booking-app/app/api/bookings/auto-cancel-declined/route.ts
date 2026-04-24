@@ -193,6 +193,7 @@ export async function GET(request: NextRequest) {
             "system", // System identifier for automated actions
             tenant,
             `Auto-canceled after ${gracePeriodHours}-hour grace period expired`,
+            "system", // netId
           );
 
           if (xstateResult.success) {
