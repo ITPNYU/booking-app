@@ -252,7 +252,21 @@ export const DatabaseProvider = ({
   useEffect(() => {
     const loadPermissions = async () => {
       if (tenant) {
-        setPermissionsLoading(true);
+        // Only show the blocking loading state on the first resolution.
+        // NextAuth's `useSession()` re-fetches on window focus, which gives
+        // `user` a new object reference even when the user hasn't changed;
+        // flipping `permissionsLoading` back to `true` on every focus made
+        // `[tenant]/page.tsx` blank the screen for the duration of the new
+        // round-trip (white flash on tab return).
+        const isFirstLoad =
+          adminUsers.length === 0 &&
+          superAdminUsers.length === 0 &&
+          liaisonUsers.length === 0 &&
+          equipmentUsers.length === 0 &&
+          paUsers.length === 0;
+        if (isFirstLoad) {
+          setPermissionsLoading(true);
+        }
         try {
           // Set user email synchronously so pagePermission is correct
           // when we mark loading as done.
@@ -275,7 +289,9 @@ export const DatabaseProvider = ({
       }
     };
     loadPermissions();
-  }, [user, tenant]);
+    // Depend on `user?.email` (a stable primitive) instead of the `user`
+    // object so a NextAuth focus refetch doesn't retrigger this effect.
+  }, [user?.email, tenant]);
 
   // Derive roomSettings from SchemaContext instead of re-fetching from API
   useEffect(() => {
