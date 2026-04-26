@@ -10,8 +10,17 @@ const MAX_MESSAGE_LEN = 4000;
 
 type SiteBannerBody = {
   tenant?: string;
-  siteBanner?: { enabled?: unknown; message?: unknown };
+  siteBanner?: unknown;
 };
+
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    !Array.isArray(value) &&
+    Object.getPrototypeOf(value) === Object.prototype
+  );
+}
 
 /**
  * Upserts `settings/{tenant}` with `siteBanner` only for callers who are
@@ -44,23 +53,48 @@ export async function PUT(req: NextRequest) {
   }
 
   const raw = body.siteBanner;
-  if (!raw || typeof raw !== "object") {
+  if (raw === undefined) {
     return NextResponse.json({ error: "siteBanner required" }, { status: 400 });
   }
+  if (!isPlainRecord(raw)) {
+    return NextResponse.json(
+      { error: "siteBanner must be a plain object" },
+      { status: 400 },
+    );
+  }
+  if (!("enabled" in raw) || typeof raw.enabled !== "boolean") {
+    return NextResponse.json(
+      { error: "siteBanner.enabled must be a boolean" },
+      { status: 400 },
+    );
+  }
+  if (!("message" in raw) || typeof raw.message !== "string") {
+    return NextResponse.json(
+      { error: "siteBanner.message must be a string" },
+      { status: 400 },
+    );
+  }
 
-  const enabled = Boolean(raw.enabled);
-  const message =
-    typeof raw.message === "string" ? raw.message.slice(0, MAX_MESSAGE_LEN) : "";
+  const enabled = raw.enabled;
+  const message = raw.message.slice(0, MAX_MESSAGE_LEN);
 
   const db = admin.firestore();
   const ref = db.collection(TableNames.SETTINGS).doc(tenant);
-  await ref.set(
-    {
-      siteBanner: { enabled, message },
-      siteBannerUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    },
-    { merge: true },
-  );
+  try {
+    await ref.set(
+      {
+        siteBanner: { enabled, message },
+        siteBannerUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true },
+    );
+  } catch (error) {
+    console.error("[/api/tenant-site-banner][PUT] Firestore write failed:", error);
+    return NextResponse.json(
+      { error: "Failed to save site banner" },
+      { status: 500 },
+    );
+  }
 
   return NextResponse.json({ ok: true });
 }
