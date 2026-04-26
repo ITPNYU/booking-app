@@ -34,15 +34,33 @@ export function isAwaitingApprovalStatus(status: BookingStatusLabel): boolean {
   );
 }
 
+/** Fallback when booking logs are unavailable for the current status. */
+function getStatusEntryTimestamp(
+  booking: BookingLikeForInterim,
+  status: BookingStatusLabel,
+): unknown {
+  if (status === BookingStatusLabel.PRE_APPROVED) {
+    return booking.firstApprovedAt ?? booking.requestedAt;
+  }
+  return booking.requestedAt;
+}
+
 /**
- * Hours since `requestedAt` while still awaiting final approval (not “hours since last
- * status change” — booking logs are not consulted).
+ * Hours since the booking entered its current awaiting-approval status.
+ *
+ * Prefer `latestStatusChangedAt` from BOOKING_LOGS when available. Falls back to
+ * per-status timestamps already on the booking document:
+ *   REQUESTED    -> since requestedAt
+ *   PRE_APPROVED -> since firstApprovedAt (second-approval wait clock)
+ *   MODIFIED / PENDING -> since requestedAt (no modifiedAt field on document)
+ *
  * Returns 0 once the booking is approved (or checked in/out / closed).
- * Returns null when not applicable (declined, canceled, unknown, missing requestedAt).
+ * Returns null when not applicable (declined, canceled, unknown, missing timestamp).
  */
 export function getBookingInterimHours(
   booking: BookingLikeForInterim,
   tenant?: string,
+  latestStatusChangedAt?: unknown,
 ): number | null {
   const status = getStatusFromXState(booking, tenant) as BookingStatusLabel;
 
@@ -59,7 +77,9 @@ export function getBookingInterimHours(
     return null;
   }
 
-  const ms = timestampToMillis(booking.requestedAt);
+  const ms = timestampToMillis(
+    latestStatusChangedAt ?? getStatusEntryTimestamp(booking, status),
+  );
   if (ms == null) return null;
 
   const hours = (Date.now() - ms) / (1000 * 60 * 60);

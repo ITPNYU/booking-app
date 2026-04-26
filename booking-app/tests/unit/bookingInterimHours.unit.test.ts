@@ -70,6 +70,44 @@ describe("getBookingInterimHours", () => {
     });
     expect(getBookingInterimHours(row)).toBeCloseTo(1.5, 1);
   });
+
+  it("uses firstApprovedAt (not requestedAt) for PRE_APPROVED status", () => {
+    const requestedFourHoursAgo = new Date("2024-06-20T08:00:00Z");
+    const firstApprovedOneHourAgo = new Date("2024-06-20T11:00:00Z");
+    const row = makeRow({
+      status: BookingStatusLabel.PRE_APPROVED,
+      requestedAt: Timestamp.fromDate(requestedFourHoursAgo),
+      firstApprovedAt: Timestamp.fromDate(firstApprovedOneHourAgo),
+    });
+    expect(getBookingInterimHours(row)).toBeCloseTo(1.0, 1);
+  });
+
+  it("falls back to requestedAt for PRE_APPROVED when firstApprovedAt is missing", () => {
+    const requestedTwoHoursAgo = new Date("2024-06-20T10:00:00Z");
+    const row = makeRow({
+      status: BookingStatusLabel.PRE_APPROVED,
+      requestedAt: Timestamp.fromDate(requestedTwoHoursAgo),
+    });
+    expect(getBookingInterimHours(row)).toBeCloseTo(2.0, 1);
+  });
+
+  it("uses latest status log timestamp when provided", () => {
+    const requestedFourHoursAgo = new Date("2024-06-20T08:00:00Z");
+    const latestStatusChangeThirtyMinutesAgo = new Date(
+      "2024-06-20T11:30:00Z",
+    );
+    const row = makeRow({
+      status: BookingStatusLabel.MODIFIED,
+      requestedAt: Timestamp.fromDate(requestedFourHoursAgo),
+    });
+    expect(
+      getBookingInterimHours(
+        row,
+        undefined,
+        latestStatusChangeThirtyMinutesAgo.getTime(),
+      ),
+    ).toBeCloseTo(0.5, 1);
+  });
 });
 
 describe("shouldHighlightBookingInterim", () => {

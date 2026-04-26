@@ -348,3 +348,94 @@ export const getBookingLogs = async (
     throw error;
   }
 };
+
+export type LatestBookingStatusLogRequest = {
+  calendarEventId: string;
+  status: BookingStatusLabel;
+};
+
+export type LatestBookingStatusLog = {
+  calendarEventId: string;
+  status: BookingStatusLabel;
+  changedAt: number;
+};
+
+function chunkArray<T>(items: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let index = 0; index < items.length; index += size) {
+    chunks.push(items.slice(index, index + size));
+  }
+  return chunks;
+}
+
+function timestampToMillis(value: any): number | null {
+  if (!value) return null;
+  if (typeof value.toMillis === "function") return value.toMillis();
+  if (typeof value.toDate === "function") return value.toDate().getTime();
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+
+  const seconds = value.seconds ?? value._seconds;
+  const nanoseconds = value.nanoseconds ?? value._nanoseconds ?? 0;
+  if (typeof seconds === "number") {
+    return (
+      seconds * 1000 +
+      (typeof nanoseconds === "number" ? Math.floor(nanoseconds / 1e6) : 0)
+    );
+  }
+  return null;
+}
+
+export const getLatestBookingStatusLogs = async (
+  bookings: LatestBookingStatusLogRequest[],
+  tenant?: string,
+): Promise<Record<string, LatestBookingStatusLog>> => {
+  if (bookings.length === 0) return {};
+
+  const desiredStatusByCalendarEventId = new Map(
+    bookings.map(({ calendarEventId, status }) => [calendarEventId, status]),
+  );
+  const calendarEventIds = [...desiredStatusByCalendarEventId.keys()];
+  const tenantCollection = getServerTenantCollection(
+    TableNames.BOOKING_LOGS,
+    tenant,
+  );
+  const logsRef = db.collection(tenantCollection);
+  const latestByCalendarEventId: Record<string, LatestBookingStatusLog> = {};
+
+  await Promise.all(
+    chunkArray(calendarEventIds, 30).map(async (calendarEventIdChunk) => {
+      const querySnapshot = await traceDatabase(
+        "query",
+        "Firestore/bookingLogs/latestBatch",
+        () =>
+          logsRef.where("calendarEventId", "in", calendarEventIdChunk).get(),
+      );
+
+      querySnapshot.docs.forEach((doc) => {
+        const data = doc.data();
+        const calendarEventId = data.calendarEventId;
+        const status = data.status as BookingStatusLabel;
+        if (
+          typeof calendarEventId !== "string" ||
+          desiredStatusByCalendarEventId.get(calendarEventId) !== status
+        ) {
+          return;
+        }
+
+        const changedAt = timestampToMillis(data.changedAt);
+        if (changedAt == null) return;
+
+        const existing = latestByCalendarEventId[calendarEventId];
+        if (!existing || changedAt > existing.changedAt) {
+          latestByCalendarEventId[calendarEventId] = {
+            calendarEventId,
+            status,
+            changedAt,
+          };
+        }
+      });
+    }),
+  );
+
+  return latestByCalendarEventId;
+};

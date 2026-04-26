@@ -47,8 +47,14 @@ import useAllowedStatuses from "./hooks/useAllowedStatuses";
 import {
   formatBookingInterimHours,
   getBookingInterimHours,
+  isAwaitingApprovalStatus,
 } from "../../../../utils/bookingInterimHours";
 import { useBookingFilters } from "./hooks/useBookingFilters";
+
+type LatestBookingStatusLog = {
+  status: BookingStatusLabel;
+  changedAt: number;
+};
 
 interface BookingsProps {
   pageContext: PageContextLevel;
@@ -113,6 +119,8 @@ export const Bookings: React.FC<BookingsProps> = ({
   const [sortModel, setSortModel] = useState<GridSortModel>([
     { field: "startDate", sort: "asc" },
   ]);
+  const [latestStatusLogsByBookingId, setLatestStatusLogsByBookingId] =
+    useState<Record<string, LatestBookingStatusLog>>({});
 
   const isUserView = pageContext === PageContextLevel.USER;
   const isAdminOrAbove = pageContext >= PageContextLevel.ADMIN;
@@ -158,6 +166,65 @@ export const Bookings: React.FC<BookingsProps> = ({
     selectedRooms,
     selectedServices,
   });
+
+  const latestStatusLogRequests = useMemo(() => {
+    if (isUserView) return [];
+
+    const requestsByCalendarEventId = new Map<
+      string,
+      { calendarEventId: string; status: BookingStatusLabel }
+    >();
+    filteredRows.forEach((row) => {
+      const status = getBookingStatus(row, tenant);
+      if (!isAwaitingApprovalStatus(status) || !row.calendarEventId) return;
+      requestsByCalendarEventId.set(row.calendarEventId, {
+        calendarEventId: row.calendarEventId,
+        status,
+      });
+    });
+
+    return [...requestsByCalendarEventId.values()];
+  }, [filteredRows, isUserView, tenant]);
+
+  useEffect(() => {
+    if (latestStatusLogRequests.length === 0) {
+      setLatestStatusLogsByBookingId({});
+      return;
+    }
+
+    const controller = new AbortController();
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    if (tenant) {
+      headers["x-tenant"] = tenant;
+    }
+
+    fetch("/api/booking-logs/latest", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ bookings: latestStatusLogRequests }),
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error(
+            `Failed to fetch latest booking logs: ${response.status}`,
+          );
+        }
+        return response.json();
+      })
+      .then((latestLogs: Record<string, LatestBookingStatusLog>) => {
+        setLatestStatusLogsByBookingId(latestLogs);
+      })
+      .catch((error) => {
+        if (error.name === "AbortError") return;
+        console.error("Error fetching latest booking logs:", error);
+        setLatestStatusLogsByBookingId({});
+      });
+
+    return () => controller.abort();
+  }, [latestStatusLogRequests, tenant]);
 
   const topRow = useMemo(() => {
     if (pageContext === PageContextLevel.USER) {
@@ -274,11 +341,22 @@ export const Bookings: React.FC<BookingsProps> = ({
               headerName: "Interim",
               minWidth: 88,
               flex: 0.75,
-              valueGetter: (_value: unknown, row: BookingRow) =>
-                getBookingInterimHours(row, tenant),
+              valueGetter: (_value: unknown, row: BookingRow) => {
+                const status = getBookingStatus(row, tenant);
+                const latestLog =
+                  latestStatusLogsByBookingId[row.calendarEventId];
+                const latestStatusChangedAt =
+                  latestLog?.status === status ? latestLog.changedAt : undefined;
+
+                return getBookingInterimHours(
+                  row,
+                  tenant,
+                  latestStatusChangedAt,
+                );
+              },
               renderHeader: () => (
                 <TableCell component={"div" as any}>
-                  <Tooltip title="Hours since request while still pending approval. Shows 0 after approval.">
+                  <Tooltip title="Hours in current approval stage. REQUESTED: since submitted. PRE-APPROVED: since first approval. Shows 0 once fully approved.">
                     <span>Interim (h)</span>
                   </Tooltip>
                 </TableCell>
@@ -680,7 +758,14 @@ export const Bookings: React.FC<BookingsProps> = ({
     ].filter(Boolean);
 
     return baseColumns;
-  }, [isUserView, pageContext, tenant, resourceName, hasServices]);
+  }, [
+    isUserView,
+    pageContext,
+    tenant,
+    resourceName,
+    hasServices,
+    latestStatusLogsByBookingId,
+  ]);
 
   // Function to update a booking in the local state
   const updateBookingInState = (updatedBooking: BookingRow) => {

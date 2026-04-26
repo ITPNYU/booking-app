@@ -84,6 +84,8 @@ const createQuery = (
     filters.forEach(({ field, operator, value }) => {
       if (operator === "==") {
         entries = entries.filter(([, data]) => data[field] === value);
+      } else if (operator === "in" && Array.isArray(value)) {
+        entries = entries.filter(([, data]) => value.includes(data[field]));
       }
     });
 
@@ -245,6 +247,84 @@ describe("components/src/server/admin", () => {
     resetFirestore();
     mockIsMediaCommons.mockReturnValue(false);
     mockGetApprovalCcEmail.mockReturnValue("cc@nyu.edu");
+  });
+
+  it("gets latest booking logs by calendar event id and matching current status", async () => {
+    seedCollection("tenant-log-bookingLogs", [
+      {
+        id: "older-matching",
+        data: {
+          bookingId: "booking-1",
+          calendarEventId: "cal-1",
+          status: BookingStatusLabel.REQUESTED,
+          changedBy: "requester@nyu.edu",
+          changedAt: makeTimestamp("2024-03-01T10:00:00.000Z"),
+          requestNumber: 1,
+        },
+      },
+      {
+        id: "latest-matching",
+        data: {
+          bookingId: "booking-1",
+          calendarEventId: "cal-1",
+          status: BookingStatusLabel.REQUESTED,
+          changedBy: "requester@nyu.edu",
+          changedAt: makeTimestamp("2024-03-01T11:00:00.000Z"),
+          requestNumber: 1,
+        },
+      },
+      {
+        id: "newer-nonmatching-status",
+        data: {
+          bookingId: "booking-1",
+          calendarEventId: "cal-1",
+          status: BookingStatusLabel.PRE_APPROVED,
+          changedBy: "approver@nyu.edu",
+          changedAt: makeTimestamp("2024-03-01T12:00:00.000Z"),
+          requestNumber: 1,
+        },
+      },
+      {
+        id: "other-booking",
+        data: {
+          bookingId: "booking-2",
+          calendarEventId: "cal-2",
+          status: BookingStatusLabel.MODIFIED,
+          changedBy: "requester@nyu.edu",
+          changedAt: makeTimestamp("2024-03-01T13:00:00.000Z"),
+          requestNumber: 2,
+        },
+      },
+    ]);
+
+    const { getLatestBookingStatusLogs } = await import(
+      "@/lib/firebase/server/adminDb"
+    );
+
+    const result = await getLatestBookingStatusLogs(
+      [
+        {
+          calendarEventId: "cal-1",
+          status: BookingStatusLabel.REQUESTED,
+        },
+        {
+          calendarEventId: "cal-2",
+          status: BookingStatusLabel.MODIFIED,
+        },
+      ],
+      "tenant-log",
+    );
+
+    expect(result["cal-1"]).toEqual({
+      calendarEventId: "cal-1",
+      status: BookingStatusLabel.REQUESTED,
+      changedAt: Date.parse("2024-03-01T11:00:00.000Z"),
+    });
+    expect(result["cal-2"]).toEqual({
+      calendarEventId: "cal-2",
+      status: BookingStatusLabel.MODIFIED,
+      changedAt: Date.parse("2024-03-01T13:00:00.000Z"),
+    });
   });
 
   it("formats booking contents with fallback history when logs absent", async () => {
