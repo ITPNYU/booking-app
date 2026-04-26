@@ -6,7 +6,22 @@ import {
   TableNames,
   getTenantCollectionName,
 } from "@/components/src/policy";
-import { PagePermission } from "@/components/src/types";
+import { isValidTenant } from "@/components/src/constants/tenants";
+import { PagePermission, SiteBannerSettings } from "@/components/src/types";
+
+function parseSiteBannerFromDoc(
+  data: Record<string, unknown> | undefined,
+): SiteBannerSettings {
+  const sb = data?.siteBanner;
+  if (sb && typeof sb === "object" && sb !== null && !Array.isArray(sb)) {
+    const o = sb as Record<string, unknown>;
+    return {
+      enabled: o.enabled === true,
+      message: typeof o.message === "string" ? o.message : "",
+    };
+  }
+  return { enabled: false, message: "" };
+}
 
 /**
  * Single round-trip endpoint for the permission-resolution data
@@ -39,11 +54,18 @@ export async function GET(req: NextRequest) {
       getTenantCollectionName(TableNames.APPROVERS, tenant),
     );
 
-    const [usersRightsSnap, superAdminSnap, approversSnap] = await Promise.all([
-      usersRightsRef.get(),
-      superAdminRef.get(),
-      approversRef.get(),
-    ]);
+    const settingsDocPromise =
+      tenant && isValidTenant(tenant)
+        ? db.collection(TableNames.SETTINGS).doc(tenant).get()
+        : Promise.resolve(null);
+
+    const [usersRightsSnap, superAdminSnap, approversSnap, settingsSnap] =
+      await Promise.all([
+        usersRightsRef.get(),
+        superAdminRef.get(),
+        approversRef.get(),
+        settingsDocPromise,
+      ]);
 
     const userRightsRecords = usersRightsSnap.docs.map((d) => ({
       id: d.id,
@@ -107,6 +129,11 @@ export async function GET(req: NextRequest) {
       pagePermission = PagePermission.PA;
     }
 
+    const siteBanner =
+      settingsSnap && settingsSnap.exists
+        ? parseSiteBannerFromDoc(settingsSnap.data() as Record<string, unknown>)
+        : { enabled: false, message: "" };
+
     return NextResponse.json({
       pagePermission,
       adminUsers,
@@ -115,6 +142,7 @@ export async function GET(req: NextRequest) {
       equipmentUsers,
       superAdminUsers,
       policySettings: { finalApproverEmail },
+      siteBanner,
     });
   } catch (error) {
     console.error("[/api/permissions] error:", error);

@@ -13,6 +13,7 @@ import PolicySettings from "./PolicySettings";
 import SafetyTrainedUsers from "./SafetyTraining";
 import SyncCalendars from "./SyncCalendars";
 import { PreBannedUsers } from "./PreBan";
+import SiteBannerSettings from "./SiteBannerSettings";
 
 const tabs = [
   { label: "Safety Training", id: "safetyTraining" },
@@ -26,6 +27,7 @@ const tabs = [
   { label: "Policy Settings", id: "policy" },
   { label: "Export", id: "export" },
   { label: "Sync Calendars", id: "syncCalendars" },
+  { label: "Site banner", id: "siteBanner" },
 ];
 
 export default function Settings() {
@@ -61,6 +63,7 @@ export default function Settings() {
         {tab === "policy" && <PolicySettings />}
         {tab === "export" && <ExportDatabase />}
         {tab === "syncCalendars" && <SyncCalendars />}
+        {tab === "siteBanner" && <SiteBannerSettings />}
       </Grid>
     </Grid>
   );
