@@ -33,12 +33,17 @@ import {
 import { getBookingToolDeployUrl } from "./ui";
 
 // Helper function to call XState transition API
+//
+// netId is threaded through to the xstate-transition route because side effects
+// queued by state entry actions (e.g., /api/cancel-processing for pre-ban
+// logging) need the authoritative netId, not one guessed from email local-part.
 export async function callXStateTransitionAPI(
   calendarEventId: string,
   eventType: string,
   email: string,
   tenant?: string,
   reason?: string,
+  netId?: string,
 ): Promise<{ success: boolean; newState?: string; error?: string }> {
   try {
     const response = await fetch(
@@ -53,6 +58,7 @@ export async function callXStateTransitionAPI(
           calendarEventId,
           eventType,
           email,
+          netId,
           reason,
         }),
       },
@@ -714,6 +720,8 @@ export const cancel = async (
     "cancel",
     email,
     tenant,
+    undefined, // reason
+    netId,
   );
 
   if (!xstateResult.success) {
@@ -738,40 +746,9 @@ export const cancel = async (
       newState: xstateResult.newState,
     });
 
-    // Delegate cancel processing to /api/cancel-processing for all tenants
-    try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_BASE_URL}/api/cancel-processing`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            calendarEventId: id,
-            email,
-            netId,
-            tenant,
-          }),
-        },
-      );
-
-      if (response.ok) {
-        console.log(
-          `✅ CANCEL-PROCESSING API SUCCESS [${tenant?.toUpperCase()}]:`,
-          { calendarEventId: id },
-        );
-      } else {
-        const errorData = await response.json();
-        console.error(
-          `🚨 CANCEL-PROCESSING API FAILED [${tenant?.toUpperCase()}]:`,
-          { calendarEventId: id, error: errorData },
-        );
-      }
-    } catch (error: any) {
-      console.error(
-        `🚨 CANCEL-PROCESSING API ERROR [${tenant?.toUpperCase()}]:`,
-        { calendarEventId: id, error: error.message },
-      );
-    }
+    // cancel-processing is now triggered by the machine's Canceled state entry
+    // via queueCancelProcessing → xstate-transition executor. No manual fetch
+    // here — see lib/stateMachines/xstateTransitions.ts::executeSideEffect.
 
     // When cancel transitions directly to Closed (e.g., cancel without services)
     if (xstateResult.newState === "Closed") {
@@ -1067,6 +1044,8 @@ export const noShow = async (
       "noShow",
       email,
       tenant,
+      undefined, // reason
+      netId,
     );
 
     if (!xstateResult.success) {
