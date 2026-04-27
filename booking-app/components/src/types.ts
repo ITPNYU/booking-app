@@ -293,6 +293,14 @@ export type PolicySettings = {
   finalApproverEmail: string;
 };
 
+/** Tenant-wide announcement bar (Firestore `settings/{tenant}`). */
+export type SiteBannerSettings = {
+  enabled: boolean;
+  message: string;
+  /** Accent `#rrggbb` (text, icon, border, tint). */
+  colorHex: string;
+};
+
 export enum Role {
   STUDENT = "Student",
   RESIDENT_FELLOW = "Resident/Fellow",

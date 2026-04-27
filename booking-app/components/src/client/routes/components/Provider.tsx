@@ -19,6 +19,7 @@ import {
   clientFetchAllDataFromCollection,
   reviveTimestamps,
 } from "@/lib/firebase/firebase";
+import { DEFAULT_SITE_BANNER_COLOR_HEX } from "@/lib/utils/siteBannerHex";
 import {
   AdminUser,
   Approver,
@@ -36,6 +37,7 @@ import {
   RoomSetting,
   SafetyTraining,
   Settings,
+  SiteBannerSettings,
   UserApiData,
 } from "../../../types";
 import { SchemaContext } from "./SchemaProvider";
@@ -62,6 +64,7 @@ export interface DatabaseContextType {
   paUsers: PaUser[];
   superAdminUsers: AdminUser[];
   policySettings: PolicySettings;
+  siteBanner: SiteBannerSettings;
   roomSettings: RoomSetting[];
   safetyTrainedUsers: SafetyTraining[];
   settings: Settings;
@@ -111,6 +114,11 @@ export const DatabaseContext = createContext<DatabaseContextType>({
   paUsers: [],
   superAdminUsers: [],
   policySettings: { finalApproverEmail: "" },
+  siteBanner: {
+    enabled: false,
+    message: "",
+    colorHex: DEFAULT_SITE_BANNER_COLOR_HEX,
+  },
   roomSettings: [],
   safetyTrainedUsers: [],
   settings: { bookingTypes: [] },
@@ -159,6 +167,11 @@ export const DatabaseProvider = ({
   const [paUsers, setPaUsers] = useState<PaUser[]>([]);
   const [policySettings, setPolicySettings] = useState<PolicySettings>({
     finalApproverEmail: "",
+  });
+  const [siteBanner, setSiteBanner] = useState<SiteBannerSettings>({
+    enabled: false,
+    message: "",
+    colorHex: DEFAULT_SITE_BANNER_COLOR_HEX,
   });
   const [loadMoreEnabled, setLoadMoreEnabled] = useState<boolean>(true);
 
@@ -416,6 +429,7 @@ export const DatabaseProvider = ({
         equipmentUsers: Approver[];
         superAdminUsers: AdminUser[];
         policySettings: PolicySettings;
+        siteBanner?: SiteBannerSettings;
       };
       setAdminUsers(data.adminUsers ?? []);
       setPaUsers(data.paUsers ?? []);
@@ -424,6 +438,13 @@ export const DatabaseProvider = ({
       setSuperAdminUsers(data.superAdminUsers ?? []);
       setPolicySettings(
         data.policySettings ?? { finalApproverEmail: "" },
+      );
+      setSiteBanner(
+        data.siteBanner ?? {
+          enabled: false,
+          message: "",
+          colorHex: DEFAULT_SITE_BANNER_COLOR_HEX,
+        },
       );
     } catch (error) {
       console.error("Error fetching permissions:", error);
@@ -722,6 +743,7 @@ export const DatabaseProvider = ({
         superAdminUsers,
         pagePermission,
         policySettings,
+        siteBanner,
         roomSettings,
         safetyTrainedUsers,
         settings,
