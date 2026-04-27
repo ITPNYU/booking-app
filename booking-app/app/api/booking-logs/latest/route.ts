@@ -29,44 +29,43 @@ function isBookingLogRequest(
   );
 }
 
+const emailEq = (emailLower: string) => ({
+  field: "email",
+  operator: "==" as const,
+  value: emailLower,
+});
+
 async function isStaffAuthorizedForTenantLogs(
   emailLower: string,
   tenant: string,
 ): Promise<boolean> {
-  const [superAdmins, usersRights, approvers] = await Promise.all([
-    serverFetchAllDataFromCollection<{ email?: string }>(
-      TableNames.SUPER_ADMINS,
-      [],
-    ),
-    serverFetchAllDataFromCollection<{
-      email?: string;
-      isAdmin?: boolean;
-      isWorker?: boolean;
-    }>(TableNames.USERS_RIGHTS, [], tenant),
-    serverFetchAllDataFromCollection<{ email?: string }>(
-      TableNames.APPROVERS,
-      [],
-      tenant,
-    ),
-  ]);
-
+  const superMatch = await serverFetchAllDataFromCollection<{
+    email?: string;
+  }>(TableNames.SUPER_ADMINS, [emailEq(emailLower)], undefined, 1);
   if (
-    superAdmins.some((u) => u.email?.trim().toLowerCase() === emailLower)
+    superMatch.some((u) => u.email?.trim().toLowerCase() === emailLower)
   ) {
     return true;
   }
 
+  const rightsMatch = await serverFetchAllDataFromCollection<{
+    email?: string;
+    isAdmin?: boolean;
+    isWorker?: boolean;
+  }>(TableNames.USERS_RIGHTS, [emailEq(emailLower)], tenant, 1);
+  const rights = rightsMatch[0];
   if (
-    usersRights.some(
-      (u) =>
-        u.email?.trim().toLowerCase() === emailLower &&
-        (u.isAdmin === true || u.isWorker === true),
-    )
+    rights &&
+    rights.email?.trim().toLowerCase() === emailLower &&
+    (rights.isAdmin === true || rights.isWorker === true)
   ) {
     return true;
   }
 
-  return approvers.some(
+  const approverMatch = await serverFetchAllDataFromCollection<{
+    email?: string;
+  }>(TableNames.APPROVERS, [emailEq(emailLower)], tenant, 1);
+  return approverMatch.some(
     (a) => a.email?.trim().toLowerCase() === emailLower,
   );
 }

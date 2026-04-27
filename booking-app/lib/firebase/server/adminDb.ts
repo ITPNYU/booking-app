@@ -168,6 +168,7 @@ export const serverFetchAllDataFromCollection = async <T extends DocumentData>(
   collectionName: TableNames,
   queryConstraints: Constraint[] = [],
   tenant?: string,
+  maxDocs?: number,
 ): Promise<T[]> => {
   const tenantCollection = getServerTenantCollection(collectionName, tenant);
   const collectionRef: CollectionReference<T> = db.collection(
@@ -183,6 +184,10 @@ export const serverFetchAllDataFromCollection = async <T extends DocumentData>(
       constraint.value,
     );
   });
+
+  if (typeof maxDocs === "number") {
+    query = query.limit(maxDocs);
+  }
 
   const snapshot: QuerySnapshot<T> = await traceDatabase(
     "query",
