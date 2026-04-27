@@ -19,7 +19,13 @@ import {
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { DataGrid, GridSortModel } from "@mui/x-data-grid";
-import React, { useContext, useEffect, useMemo, useState } from "react";
+import React, {
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useParams } from "next/navigation";
 import {
   BookingOrigin,
@@ -35,6 +41,7 @@ import { formatDateTable, formatTimeAmPm } from "../../../utils/date";
 import BookingActions from "../../admin/components/BookingActions";
 import getBookingStatus from "../../hooks/getBookingStatus";
 import Loading from "../Loading";
+import { useAuth } from "../AuthProvider";
 import { DatabaseContext } from "../Provider";
 import { useTenantSchema } from "../SchemaProvider";
 import BookMoreButton from "./BookMoreButton";
@@ -119,8 +126,9 @@ export const Bookings: React.FC<BookingsProps> = ({
   const [sortModel, setSortModel] = useState<GridSortModel>([
     { field: "startDate", sort: "asc" },
   ]);
-  const [latestStatusLogsByBookingId, setLatestStatusLogsByBookingId] =
+  const [latestStatusLogsByCalendarEventId, setLatestStatusLogsByCalendarEventId] =
     useState<Record<string, LatestBookingStatusLog>>({});
+  const { user, isOnTestEnv } = useAuth();
 
   const isUserView = pageContext === PageContextLevel.USER;
   const isAdminOrAbove = pageContext >= PageContextLevel.ADMIN;
@@ -167,8 +175,10 @@ export const Bookings: React.FC<BookingsProps> = ({
     selectedServices,
   });
 
-  const latestStatusLogRequests = useMemo(() => {
-    if (isUserView) return [];
+  const { statusLogRequestSignature, latestStatusLogRequests } = useMemo(() => {
+    if (isUserView) {
+      return { statusLogRequestSignature: "", latestStatusLogRequests: [] };
+    }
 
     const requestsByCalendarEventId = new Map<
       string,
@@ -183,48 +193,85 @@ export const Bookings: React.FC<BookingsProps> = ({
       });
     });
 
-    return [...requestsByCalendarEventId.values()];
+    const latestStatusLogRequests = [...requestsByCalendarEventId.values()];
+    const statusLogRequestSignature = [...latestStatusLogRequests]
+      .sort((a, b) =>
+        a.calendarEventId === b.calendarEventId
+          ? String(a.status).localeCompare(String(b.status))
+          : a.calendarEventId.localeCompare(b.calendarEventId),
+      )
+      .map((r) => `${r.calendarEventId}:${r.status}`)
+      .join("|");
+
+    return { statusLogRequestSignature, latestStatusLogRequests };
   }, [filteredRows, isUserView, tenant]);
 
+  const latestStatusLogRequestsRef = useRef(latestStatusLogRequests);
+  latestStatusLogRequestsRef.current = latestStatusLogRequests;
+
+  const [debouncedLogRequests, setDebouncedLogRequests] = useState<
+    { calendarEventId: string; status: BookingStatusLabel }[]
+  >([]);
+
   useEffect(() => {
-    if (latestStatusLogRequests.length === 0) {
-      setLatestStatusLogsByBookingId({});
+    if (statusLogRequestSignature === "") {
+      setDebouncedLogRequests([]);
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      setDebouncedLogRequests([...latestStatusLogRequestsRef.current]);
+    }, 350);
+    return () => window.clearTimeout(timer);
+  }, [statusLogRequestSignature]);
+
+  useEffect(() => {
+    if (debouncedLogRequests.length === 0) {
+      setLatestStatusLogsByCalendarEventId({});
+      return;
+    }
+
+    if (!isOnTestEnv && !user) {
+      setLatestStatusLogsByCalendarEventId({});
       return;
     }
 
     const controller = new AbortController();
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-    };
-    if (tenant) {
-      headers["x-tenant"] = tenant;
-    }
 
-    fetch("/api/booking-logs/latest", {
-      method: "POST",
-      headers,
-      body: JSON.stringify({ bookings: latestStatusLogRequests }),
-      signal: controller.signal,
-    })
-      .then(async (response) => {
+    (async () => {
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      if (tenant) {
+        headers["x-tenant"] = tenant;
+      }
+      if (user) {
+        headers.Authorization = `Bearer ${await user.getIdToken()}`;
+      }
+
+      try {
+        const response = await fetch("/api/booking-logs/latest", {
+          method: "POST",
+          headers,
+          body: JSON.stringify({ bookings: debouncedLogRequests }),
+          signal: controller.signal,
+        });
         if (!response.ok) {
           throw new Error(
             `Failed to fetch latest booking logs: ${response.status}`,
           );
         }
-        return response.json();
-      })
-      .then((latestLogs: Record<string, LatestBookingStatusLog>) => {
-        setLatestStatusLogsByBookingId(latestLogs);
-      })
-      .catch((error) => {
-        if (error.name === "AbortError") return;
+        const latestLogs: Record<string, LatestBookingStatusLog> =
+          await response.json();
+        setLatestStatusLogsByCalendarEventId(latestLogs);
+      } catch (error: unknown) {
+        if ((error as { name?: string })?.name === "AbortError") return;
         console.error("Error fetching latest booking logs:", error);
-        setLatestStatusLogsByBookingId({});
-      });
+        setLatestStatusLogsByCalendarEventId({});
+      }
+    })();
 
     return () => controller.abort();
-  }, [latestStatusLogRequests, tenant]);
+  }, [debouncedLogRequests, tenant, user, isOnTestEnv]);
 
   const topRow = useMemo(() => {
     if (pageContext === PageContextLevel.USER) {
@@ -344,7 +391,7 @@ export const Bookings: React.FC<BookingsProps> = ({
               valueGetter: (_value: unknown, row: BookingRow) => {
                 const status = getBookingStatus(row, tenant);
                 const latestLog =
-                  latestStatusLogsByBookingId[row.calendarEventId];
+                  latestStatusLogsByCalendarEventId[row.calendarEventId];
                 const latestStatusChangedAt =
                   latestLog?.status === status ? latestLog.changedAt : undefined;
 
@@ -764,7 +811,7 @@ export const Bookings: React.FC<BookingsProps> = ({
     tenant,
     resourceName,
     hasServices,
-    latestStatusLogsByBookingId,
+    latestStatusLogsByCalendarEventId,
   ]);
 
   // Function to update a booking in the local state

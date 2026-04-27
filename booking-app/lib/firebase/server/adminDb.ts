@@ -8,6 +8,7 @@ import {
   DocumentData,
   FieldValue,
   Query,
+  QueryDocumentSnapshot,
   QuerySnapshot,
   WhereFilterOp,
 } from "firebase-admin/firestore";
@@ -391,10 +392,13 @@ export const getLatestBookingStatusLogs = async (
 ): Promise<Record<string, LatestBookingStatusLog>> => {
   if (bookings.length === 0) return {};
 
-  const desiredStatusByCalendarEventId = new Map(
-    bookings.map(({ calendarEventId, status }) => [calendarEventId, status]),
-  );
-  const calendarEventIds = [...desiredStatusByCalendarEventId.keys()];
+  const calendarEventIdsByStatus = new Map<BookingStatusLabel, string[]>();
+  for (const { calendarEventId, status } of bookings) {
+    const list = calendarEventIdsByStatus.get(status) ?? [];
+    list.push(calendarEventId);
+    calendarEventIdsByStatus.set(status, list);
+  }
+
   const tenantCollection = getServerTenantCollection(
     TableNames.BOOKING_LOGS,
     tenant,
@@ -402,39 +406,47 @@ export const getLatestBookingStatusLogs = async (
   const logsRef = db.collection(tenantCollection);
   const latestByCalendarEventId: Record<string, LatestBookingStatusLog> = {};
 
+  const mergeDocsForStatus = (
+    status: BookingStatusLabel,
+    docs: QueryDocumentSnapshot[],
+  ) => {
+    docs.forEach((docSnap) => {
+      const data = docSnap.data();
+      const calendarEventId = data.calendarEventId;
+      const docStatus = data.status as BookingStatusLabel;
+      if (typeof calendarEventId !== "string" || docStatus !== status) {
+        return;
+      }
+
+      const changedAt = timestampToMillis(data.changedAt);
+      if (changedAt == null) return;
+
+      const existing = latestByCalendarEventId[calendarEventId];
+      if (!existing || changedAt > existing.changedAt) {
+        latestByCalendarEventId[calendarEventId] = {
+          calendarEventId,
+          status,
+          changedAt,
+        };
+      }
+    });
+  };
+
   await Promise.all(
-    chunkArray(calendarEventIds, 30).map(async (calendarEventIdChunk) => {
-      const querySnapshot = await traceDatabase(
-        "query",
-        "Firestore/bookingLogs/latestBatch",
-        () =>
-          logsRef.where("calendarEventId", "in", calendarEventIdChunk).get(),
-      );
-
-      querySnapshot.docs.forEach((doc) => {
-        const data = doc.data();
-        const calendarEventId = data.calendarEventId;
-        const status = data.status as BookingStatusLabel;
-        if (
-          typeof calendarEventId !== "string" ||
-          desiredStatusByCalendarEventId.get(calendarEventId) !== status
-        ) {
-          return;
-        }
-
-        const changedAt = timestampToMillis(data.changedAt);
-        if (changedAt == null) return;
-
-        const existing = latestByCalendarEventId[calendarEventId];
-        if (!existing || changedAt > existing.changedAt) {
-          latestByCalendarEventId[calendarEventId] = {
-            calendarEventId,
-            status,
-            changedAt,
-          };
-        }
-      });
-    }),
+    [...calendarEventIdsByStatus.entries()].flatMap(([status, ids]) =>
+      chunkArray(ids, 30).map(async (calendarEventIdChunk) => {
+        const querySnapshot = await traceDatabase(
+          "query",
+          "Firestore/bookingLogs/latestBatchByStatus",
+          () =>
+            logsRef
+              .where("calendarEventId", "in", calendarEventIdChunk)
+              .where("status", "==", status)
+              .get(),
+        );
+        mergeDocsForStatus(status, querySnapshot.docs);
+      }),
+    ),
   );
 
   return latestByCalendarEventId;
