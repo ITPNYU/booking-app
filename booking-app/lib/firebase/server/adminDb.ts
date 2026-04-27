@@ -12,7 +12,11 @@ import {
   WhereFilterOp,
 } from "firebase-admin/firestore";
 
-import { BookingLog, BookingStatusLabel } from "@/components/src/types";
+import {
+  BookingLog,
+  BookingStatusLabel,
+  normalizeApprover,
+} from "@/components/src/types";
 import { traceDatabase } from "@/lib/newrelic-utils";
 import admin from "./firebaseAdmin";
 
@@ -252,18 +256,31 @@ export const serverGetFinalApproverEmailFromDatabase = async (
       TableNames.APPROVERS,
       tenant,
     );
-    const policyCollection = db.collection(tenantCollection);
     const querySnapshot = await traceDatabase(
       "query",
       `Firestore/${tenantCollection}`,
-      () => policyCollection.where("level", "==", ApproverLevel.FINAL).get(),
+      () =>
+        db
+          .collection(tenantCollection)
+          .where("level", "==", ApproverLevel.FINAL)
+          .get(),
     );
     if (!querySnapshot.empty) {
-      const doc = querySnapshot.docs[0];
-      const finalApproverEmail = doc.data().email;
-      if (finalApproverEmail) {
-        return finalApproverEmail;
-      }
+      // Prefer documents explicitly scoped to 'tenant'; fall back to legacy
+      // documents that predate the scope field (normalizeApprover infers it).
+      const tenantApprover = querySnapshot.docs.find((d) => {
+        const normalized = normalizeApprover({
+          email: d.data().email,
+          department: d.data().department ?? "",
+          createdAt: d.data().createdAt ?? "",
+          level: d.data().level,
+          scope: d.data().scope,
+          resourceRoomIds: d.data().resourceRoomIds,
+        });
+        return normalized.scope === "tenant";
+      });
+      const email = tenantApprover?.data().email;
+      if (email) return email;
     }
     return null;
   } catch (error) {
@@ -310,7 +327,19 @@ export const serverGetResourceApproverEmailsForResource = async (
               .get(),
         );
         if (!querySnapshot.empty) {
+          // Filter to per-resource approvers, supporting legacy docs without scope.
           const emails = querySnapshot.docs
+            .filter((d) => {
+              const normalized = normalizeApprover({
+                email: d.data().email,
+                department: d.data().department ?? "",
+                createdAt: d.data().createdAt ?? "",
+                level: d.data().level,
+                scope: d.data().scope,
+                resourceRoomIds: d.data().resourceRoomIds,
+              });
+              return normalized.scope === "resource";
+            })
             .map((d) => d.data().email as string | undefined)
             .filter((e): e is string => Boolean(e));
           if (emails.length > 0) return emails;

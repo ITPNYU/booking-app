@@ -3,7 +3,19 @@ import {
   TableNames,
   getTenantCollectionName,
 } from "@/components/src/policy";
-import { Timestamp } from "firebase/firestore";
+import {
+  Timestamp,
+  arrayRemove,
+  arrayUnion,
+  collection,
+  doc,
+  getDocs,
+  getFirestore,
+  query,
+  updateDoc,
+  where,
+} from "firebase/firestore";
+import { normalizeApprover } from "@/components/src/types";
 
 import { Filters } from "@/components/src/types";
 import { SchemaContextType } from "@/components/src/client/routes/components/SchemaProvider";
@@ -325,16 +337,13 @@ export const clientGetResourceApproverEmailsForRoom = async (
   tenant?: string,
 ): Promise<string[]> => {
   try {
-    const { docs } = await postJson<
-      ListRequest,
-      { docs: Array<{ email?: string }> }
-    >("/api/firestore/list", {
-      collection: TableNames.APPROVERS,
-      tenant: resolveTenantArg(tenant),
-      where: [{ field: "resourceRoomIds", op: "array-contains", value: roomId }],
-    });
-    return docs
-      .map((d) => d.email)
+    const db = getFirestore();
+    const col = getTenantCollection(TableNames.APPROVERS, resolveTenantArg(tenant));
+    const snap = await getDocs(
+      query(collection(db, col), where("resourceRoomIds", "array-contains", roomId)),
+    );
+    return snap.docs
+      .map((d) => (d.data() as { email?: string }).email)
       .filter((e): e is string => Boolean(e));
   } catch (error) {
     console.error("Error fetching resource approvers for room:", error);
@@ -344,23 +353,39 @@ export const clientGetResourceApproverEmailsForRoom = async (
 
 export const clientGetAllApproversWithRooms = async (
   tenant?: string,
-): Promise<Array<{ id: string; email: string; resourceRoomIds: number[]; createdAt?: Timestamp }>> => {
+): Promise<
+  Array<{
+    id: string;
+    email: string;
+    scope: "tenant" | "resource";
+    resourceRoomIds: number[];
+    createdAt?: Timestamp;
+  }>
+> => {
   try {
-    const { docs } = await postJson<
-      ListRequest,
-      { docs: Array<Record<string, unknown> & { id: string }> }
-    >("/api/firestore/list", {
-      collection: TableNames.APPROVERS,
-      tenant: resolveTenantArg(tenant),
-    });
-    return docs
+    const db = getFirestore();
+    const col = getTenantCollection(TableNames.APPROVERS, resolveTenantArg(tenant));
+    const snap = await getDocs(collection(db, col));
+    return snap.docs
       .filter((d) => d.id !== "resourceApprovers")
-      .map((d) => ({
-        id: d.id,
-        email: d.email as string,
-        resourceRoomIds: (d.resourceRoomIds as number[] | undefined) ?? [],
-        createdAt: d.createdAt as Timestamp | undefined,
-      }))
+      .map((d) => {
+        const data = d.data() as Record<string, unknown>;
+        const normalized = normalizeApprover({
+          email: data.email as string,
+          department: (data.department as string) ?? "",
+          createdAt: (data.createdAt as string) ?? "",
+          level: (data.level as number) ?? 0,
+          scope: data.scope as "tenant" | "resource" | undefined,
+          resourceRoomIds: (data.resourceRoomIds as number[] | undefined) ?? [],
+        });
+        return {
+          id: d.id,
+          email: normalized.email,
+          scope: normalized.scope,
+          resourceRoomIds: normalized.resourceRoomIds ?? [],
+          createdAt: data.createdAt as Timestamp | undefined,
+        };
+      })
       .filter((a) => Boolean(a.email));
   } catch (error) {
     console.error("Error fetching approvers with rooms:", error);
@@ -373,12 +398,11 @@ export const clientAddResourceRoomToApprover = async (
   roomId: number,
   tenant?: string,
 ): Promise<void> => {
-  await postJson<MutateRequest>("/api/firestore/mutate", {
-    op: "update",
-    collection: TableNames.APPROVERS,
-    tenant: resolveTenantArg(tenant),
-    docId: approverDocId,
-    data: { resourceRoomIds: { __arrayUnion: [roomId] } },
+  const db = getFirestore();
+  const col = getTenantCollection(TableNames.APPROVERS, resolveTenantArg(tenant));
+  await updateDoc(doc(db, col, approverDocId), {
+    resourceRoomIds: arrayUnion(roomId),
+    scope: "resource",
   });
 };
 
@@ -387,12 +411,10 @@ export const clientRemoveResourceRoomFromApprover = async (
   roomId: number,
   tenant?: string,
 ): Promise<void> => {
-  await postJson<MutateRequest>("/api/firestore/mutate", {
-    op: "update",
-    collection: TableNames.APPROVERS,
-    tenant: resolveTenantArg(tenant),
-    docId: approverDocId,
-    data: { resourceRoomIds: { __arrayRemove: [roomId] } },
+  const db = getFirestore();
+  const col = getTenantCollection(TableNames.APPROVERS, resolveTenantArg(tenant));
+  await updateDoc(doc(db, col, approverDocId), {
+    resourceRoomIds: arrayRemove(roomId),
   });
 };
 
