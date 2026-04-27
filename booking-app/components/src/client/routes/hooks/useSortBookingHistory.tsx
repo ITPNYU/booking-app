@@ -6,7 +6,7 @@ import {
 } from "@/components/src/types";
 import { clientFetchAllDataFromCollection } from "@/lib/firebase/firebase";
 import { TableCell, TableRow } from "@mui/material";
-import { Timestamp, where } from "firebase/firestore";
+import { Timestamp } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import { formatDateTable, formatTimeAmPm } from "../../utils/date";
 import StatusChip from "../components/bookingTable/StatusChip";
@@ -25,7 +25,7 @@ export default function useSortBookingHistory(booking: BookingRow) {
     const fetchLogs = async () => {
       const logs = await clientFetchAllDataFromCollection<BookingLog>(
         TableNames.BOOKING_LOGS,
-        [where("requestNumber", "==", booking.requestNumber)],
+        [{ field: "requestNumber", op: "==", value: booking.requestNumber }],
       );
 
       if (logs.length > 0) {

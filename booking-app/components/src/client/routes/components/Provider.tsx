@@ -15,7 +15,10 @@ import {
   fetchAllBookings,
   fetchAllFutureBooking,
 } from "@/components/src/server/db";
-import { clientFetchAllDataFromCollection } from "@/lib/firebase/firebase";
+import {
+  clientFetchAllDataFromCollection,
+  reviveTimestamps,
+} from "@/lib/firebase/firebase";
 import {
   AdminUser,
   Approver,
@@ -252,16 +255,29 @@ export const DatabaseProvider = ({
   useEffect(() => {
     const loadPermissions = async () => {
       if (tenant) {
-        setPermissionsLoading(true);
+        // Only show the blocking loading state on the first resolution.
+        // NextAuth's `useSession()` re-fetches on window focus, which gives
+        // `user` a new object reference even when the user hasn't changed;
+        // flipping `permissionsLoading` back to `true` on every focus made
+        // `[tenant]/page.tsx` blank the screen for the duration of the new
+        // round-trip (white flash on tab return).
+        const isFirstLoad =
+          adminUsers.length === 0 &&
+          superAdminUsers.length === 0 &&
+          liaisonUsers.length === 0 &&
+          equipmentUsers.length === 0 &&
+          paUsers.length === 0;
+        if (isFirstLoad) {
+          setPermissionsLoading(true);
+        }
         try {
           // Set user email synchronously so pagePermission is correct
           // when we mark loading as done.
           fetchActiveUserEmail();
-          await Promise.all([
-            fetchUsersRights(),
-            fetchSuperAdminUsers(),
-            fetchApproverUsers(),
-          ]);
+          // Single round-trip: usersRights + usersSuperAdmin + usersApprovers
+          // are fetched and joined server-side. Replaces three parallel
+          // /api/firestore/list calls with one /api/permissions GET.
+          await fetchPermissions();
         } finally {
           // Only mark done once we actually have a user email.  If auth hasn't
           // resolved yet (user === null) keep the loading state so the redirect
@@ -275,7 +291,9 @@ export const DatabaseProvider = ({
       }
     };
     loadPermissions();
-  }, [user, tenant]);
+    // Depend on `user?.email` (a stable primitive) instead of the `user`
+    // object so a NextAuth focus refetch doesn't retrigger this effect.
+  }, [user?.email, tenant]);
 
   // Derive roomSettings from SchemaContext instead of re-fetching from API
   useEffect(() => {
@@ -364,42 +382,53 @@ export const DatabaseProvider = ({
     }
   };
 
-  // Combined fetch: reads USERS_RIGHTS once and sets both admin and PA users
-  const fetchUsersRights = async () => {
+  // Single round-trip permission load. Replaces the old fan-out of
+  // fetchUsersRights + fetchSuperAdminUsers + fetchApproverUsers (three
+  // /api/firestore/list calls) with one /api/permissions request that
+  // joins everything server-side.
+  const fetchPermissions = async () => {
+    // E2E test path: short-circuit if window.__bookingE2EMocks holds
+    // any of the relevant collections, matching the legacy behaviour.
+    const adminMocked = applyE2EMockAdminUsers(setAdminUsers);
+    const paMocked = applyE2EMockPaUsers(setPaUsers);
+    const approverMocked = applyE2EMockApprovers({
+      setLiaisonUsers,
+      setEquipmentUsers,
+      setPolicySettings,
+    });
+    if (adminMocked || paMocked || approverMocked) {
+      return;
+    }
+
     try {
-      if (applyE2EMockAdminUsers(setAdminUsers)) {
-        applyE2EMockPaUsers(setPaUsers);
-        return;
+      const url = tenant
+        ? `/api/permissions?tenant=${encodeURIComponent(tenant)}`
+        : "/api/permissions";
+      const res = await fetch(url);
+      if (!res.ok) {
+        throw new Error(`/api/permissions failed: ${res.status}`);
       }
-
-      const fetchedData = await clientFetchAllDataFromCollection(
-        TableNames.USERS_RIGHTS,
-        [],
-        tenant,
+      const raw = (await res.json()) as Record<string, unknown>;
+      const data = reviveTimestamps(raw) as {
+        adminUsers: AdminUser[];
+        paUsers: PaUser[];
+        liaisonUsers: Approver[];
+        equipmentUsers: Approver[];
+        superAdminUsers: AdminUser[];
+        policySettings: PolicySettings;
+      };
+      setAdminUsers(data.adminUsers ?? []);
+      setPaUsers(data.paUsers ?? []);
+      setLiaisonUsers(data.liaisonUsers ?? []);
+      setEquipmentUsers(data.equipmentUsers ?? []);
+      setSuperAdminUsers(data.superAdminUsers ?? []);
+      setPolicySettings(
+        data.policySettings ?? { finalApproverEmail: "" },
       );
-
-      const admins = fetchedData
-        .filter((item: any) => item.isAdmin === true)
-        .map((item: any) => ({
-          id: item.id,
-          email: item.email,
-          createdAt: item.createdAt,
-        }));
-
-      const pas = fetchedData
-        .filter((item: any) => item.isWorker === true)
-        .map((item: any) => ({
-          id: item.id,
-          email: item.email,
-          createdAt: item.createdAt,
-        }));
-
-      setAdminUsers(admins);
-      setPaUsers(pas);
     } catch (error) {
-      console.error("Error fetching users rights data:", error);
-      setAdminUsers([]);
-      setPaUsers([]);
+      console.error("Error fetching permissions:", error);
+      // Don't blow away whatever was already in state; just leave it stale.
+      // The caller can decide to retry.
     }
   };
 
@@ -414,60 +443,11 @@ export const DatabaseProvider = ({
     );
   };
 
-  // Individual reload functions (used by admin pages)
-  const fetchAdminUsers = async () => {
-    try {
-      if (applyE2EMockAdminUsers(setAdminUsers)) {
-        return;
-      }
-
-      const fetchedData = await clientFetchAllDataFromCollection(
-        TableNames.USERS_RIGHTS,
-        [],
-        tenant,
-      );
-
-      const adminUsers = fetchedData
-        .filter((item: any) => item.isAdmin === true)
-        .map((item: any) => ({
-          id: item.id,
-          email: item.email,
-          createdAt: item.createdAt,
-        }));
-
-      setAdminUsers(adminUsers);
-    } catch (error) {
-      console.error("Error fetching admin users data:", error);
-      setAdminUsers([]);
-    }
-  };
-
-  const fetchPaUsers = async () => {
-    try {
-      if (applyE2EMockPaUsers(setPaUsers)) {
-        return;
-      }
-
-      const fetchedData = await clientFetchAllDataFromCollection(
-        TableNames.USERS_RIGHTS,
-        [],
-        tenant,
-      );
-
-      const paUsers = fetchedData
-        .filter((item: any) => item.isWorker === true)
-        .map((item: any) => ({
-          id: item.id,
-          email: item.email,
-          createdAt: item.createdAt,
-        }));
-
-      setPaUsers(paUsers);
-    } catch (error) {
-      console.error("Error fetching PA users data:", error);
-      setPaUsers([]);
-    }
-  };
+  // Individual reload functions (used by admin pages after add/delete).
+  // Delegate to the unified fetchPermissions so we don't re-read the same
+  // usersRights collection three times for one user action.
+  const fetchAdminUsers = fetchPermissions;
+  const fetchPaUsers = fetchPermissions;
 
   const fetchSafetyTrainedUsers = useCallback(
     async (rooms?: Array<{ roomId: string; trainingFormUrl?: string }>) => {
@@ -606,40 +586,8 @@ export const DatabaseProvider = ({
       .catch((error) => console.error("Error fetching data:", error));
   };
 
-  const fetchApproverUsers = async () => {
-    if (
-      applyE2EMockApprovers({
-        setLiaisonUsers,
-        setEquipmentUsers,
-        setPolicySettings,
-      })
-    ) {
-      return;
-    }
-
-    return clientFetchAllDataFromCollection(TableNames.APPROVERS, [], tenant)
-      .then((fetchedData) => {
-        const all = fetchedData.map((item: any) => ({
-          id: item.id,
-          email: item.email,
-          department: item.department,
-          createdAt: item.createdAt,
-          level: Number(item.level),
-        }));
-        // All users in mc-usersApprovers are liaisons (level no longer used for liaison filtering)
-        const liaisons = all;
-        const equipmentUsers = all.filter(
-          (x) => x.level === ApproverLevel.EQUIPMENT,
-        );
-
-        const finalApproverEmail =
-          all.find((x) => x.level === ApproverLevel.FINAL)?.email ?? "";
-        setLiaisonUsers(liaisons);
-        setEquipmentUsers(equipmentUsers);
-        setPolicySettings({ finalApproverEmail });
-      })
-      .catch((error) => console.error("Error fetching data:", error));
-  };
+  // Approver / liaison reload now goes through the unified endpoint.
+  const fetchApproverUsers = fetchPermissions;
 
   const fetchDepartmentNames = async () => {
     clientFetchAllDataFromCollection(TableNames.DEPARTMENTS, [], tenant)
@@ -756,26 +704,8 @@ export const DatabaseProvider = ({
     }
   };
 
-  const fetchSuperAdminUsers = async () => {
-    try {
-      // Fetch from original usersSuperAdmin collection (not tenant-specific)
-      const fetchedData = await clientFetchAllDataFromCollection(
-        TableNames.SUPER_ADMINS,
-        [],
-      );
-
-      const superAdminUsers = fetchedData.map((item: any) => ({
-        id: item.id,
-        email: item.email,
-        createdAt: item.createdAt,
-      }));
-
-      setSuperAdminUsers(superAdminUsers);
-    } catch (error) {
-      console.error("Error fetching super admin data:", error);
-      setSuperAdminUsers([]); // Set empty array on error
-    }
-  };
+  // Super-admin reload now goes through the unified endpoint.
+  const fetchSuperAdminUsers = fetchPermissions;
 
   return (
     <DatabaseContext.Provider

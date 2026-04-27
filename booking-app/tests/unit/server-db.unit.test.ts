@@ -183,10 +183,17 @@ describe("server/db", () => {
 
     const result = await fetchAllFutureBooking("tenant-1");
 
-    expect(mockWhere).toHaveBeenCalledWith("endDate", ">", expect.anything());
+    // After SSO migration the helper no longer goes through Firestore SDK
+    // `where()`; it passes a serializable WhereSpec straight to the API proxy.
     expect(mockClientFetchAllDataFromCollection).toHaveBeenCalledWith(
       "bookings",
-      [expect.objectContaining({ field: "endDate", operator: ">" })],
+      [
+        expect.objectContaining({
+          field: "endDate",
+          op: ">",
+          value: expect.objectContaining({ __ts: expect.any(Number) }),
+        }),
+      ],
       "tenant-1",
     );
     expect(result).toEqual([{ id: "booking" }]);
@@ -346,7 +353,7 @@ describe("server/db", () => {
         text: async () => JSON.stringify(data),
       }) as Response;
 
-    it("calls /api/cancel-processing after successful XState transition (MC tenant)", async () => {
+    it("triggers XState cancel transition and does NOT fetch /api/cancel-processing directly (machine-driven via queueCancelProcessing)", async () => {
       const fetchCalls: Array<{ href: string; options?: RequestInit }> = [];
       mockFetch.mockImplementation((url: any, options: any) => {
         const href = typeof url === "string" ? url : url.toString();
@@ -361,46 +368,52 @@ describe("server/db", () => {
       const { cancel } = await import("@/components/src/server/db");
       await cancel("cal-1", "user@nyu.edu", "net123", "media_commons");
 
+      const xstateCall = fetchCalls.find((c) =>
+        c.href.includes("/api/xstate-transition"),
+      );
+      expect(xstateCall).toBeDefined();
+      const xstatePayload = JSON.parse(String(xstateCall?.options?.body));
+      expect(xstatePayload).toMatchObject({
+        calendarEventId: "cal-1",
+        eventType: "cancel",
+        email: "user@nyu.edu",
+        // netId must be passed through so the executor's /api/cancel-processing
+        // call uses the authoritative value (not email.split("@")[0], which
+        // would misattribute pre-ban penalties for alias emails).
+        netId: "net123",
+      });
+
+      // db.ts cancel() no longer fetches cancel-processing directly.
+      // The Canceled state entry queues cancelProcessing; the xstate-transition
+      // route's executor drains the queue and calls /api/cancel-processing
+      // inside the same request (not visible at this layer).
       const cancelProcessingCall = fetchCalls.find((c) =>
         c.href.includes("/api/cancel-processing"),
       );
-      expect(cancelProcessingCall).toBeDefined();
-      const payload = JSON.parse(String(cancelProcessingCall?.options?.body));
-      expect(payload).toMatchObject({
-        calendarEventId: "cal-1",
-        email: "user@nyu.edu",
-        netId: "net123",
-        tenant: "media_commons",
-      });
+      expect(cancelProcessingCall).toBeUndefined();
     });
 
-    it("calls /api/cancel-processing after successful XState transition (ITP tenant)", async () => {
-      const fetchCalls: Array<{ href: string; options?: RequestInit }> = [];
-      mockFetch.mockImplementation((url: any, options: any) => {
+    it("still calls /api/close-processing when XState cancel transitions directly to Closed", async () => {
+      const fetchCalls: Array<{ href: string }> = [];
+      mockFetch.mockImplementation((url: any) => {
         const href = typeof url === "string" ? url : url.toString();
-        fetchCalls.push({ href, options });
+        fetchCalls.push({ href });
 
         if (href.includes("/api/xstate-transition")) {
-          return makeResponse({ newState: "Canceled" });
+          return makeResponse({ newState: "Closed" });
         }
         return makeResponse({});
       });
 
       const { cancel } = await import("@/components/src/server/db");
-      await cancel("cal-2", "user@nyu.edu", "net456", "itp");
+      await cancel("cal-2", "user@nyu.edu", "net456", "media_commons");
 
-      const cancelProcessingCall = fetchCalls.find((c) =>
-        c.href.includes("/api/cancel-processing"),
-      );
-      expect(cancelProcessingCall).toBeDefined();
-      const payload = JSON.parse(String(cancelProcessingCall?.options?.body));
-      expect(payload).toMatchObject({
-        calendarEventId: "cal-2",
-        tenant: "itp",
-      });
+      expect(
+        fetchCalls.some((c) => c.href.includes("/api/close-processing")),
+      ).toBe(true);
     });
 
-    it("does NOT call cancel-processing when XState transition fails (falls back)", async () => {
+    it("falls back to processCancelBooking when XState transition fails", async () => {
       const fetchCalls: Array<{ href: string }> = [];
       mockFetch.mockImplementation((url: any) => {
         const href = typeof url === "string" ? url : url.toString();
@@ -415,10 +428,12 @@ describe("server/db", () => {
       const { cancel } = await import("@/components/src/server/db");
       await cancel("cal-3", "user@nyu.edu", "net789", "media_commons");
 
-      const cancelProcessingCall = fetchCalls.find((c) =>
-        c.href.includes("/api/cancel-processing"),
-      );
-      expect(cancelProcessingCall).toBeUndefined();
+      // No fetch to /api/cancel-processing from db.ts itself.
+      // Fallback path calls processCancelBooking in-process which updates
+      // Firestore and sends emails directly (not via fetch).
+      expect(
+        fetchCalls.some((c) => c.href.includes("/api/cancel-processing")),
+      ).toBe(false);
     });
   });
 

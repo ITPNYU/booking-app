@@ -186,6 +186,7 @@ export async function GET(request: NextRequest) {
           "system",
           tenant,
           reason,
+          "system", // netId
         );
 
         if (!xstateResult.success) {
@@ -197,26 +198,8 @@ export async function GET(request: NextRequest) {
           continue;
         }
 
-        // Side effects are processed via APIs (matches existing cron patterns)
-        try {
-          await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/cancel-processing`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              calendarEventId: booking.calendarEventId,
-              email: "system",
-              netId: "system",
-              tenant,
-            }),
-          });
-        } catch (procError) {
-          BookingLogger.apiError(
-            "POST",
-            "/api/cancel-processing",
-            { calendarEventId: booking.calendarEventId, tenant },
-            procError,
-          );
-        }
+        // cancel-processing is triggered by the machine's Canceled state
+        // entry via queueCancelProcessing. No manual fetch here.
 
         if (xstateResult.newState === "Closed") {
           try {

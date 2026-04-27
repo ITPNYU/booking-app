@@ -42,14 +42,6 @@ vi.mock("firebase/app", () => ({
   getApp: vi.fn(() => ({})),
 }));
 
-vi.mock("firebase/auth", () => ({
-  getAuth: vi.fn(() => ({})),
-  GoogleAuthProvider: class {
-    addScope() {}
-    setCustomParameters() {}
-  },
-}));
-
 vi.mock("firebase/firestore", () => ({
   getFirestore: vi.fn(() => ({})),
   Timestamp: {
@@ -59,6 +51,19 @@ vi.mock("firebase/firestore", () => ({
       toMillis: () => date.getTime(),
     }),
   },
+}));
+
+// Mock next-auth
+vi.mock("next-auth/react", () => ({
+  useSession: vi.fn(() => ({
+    data: {
+      user: { email: "test@nyu.edu", name: "Test User", netId: "test" },
+    },
+    status: "authenticated",
+  })),
+  signIn: vi.fn(),
+  signOut: vi.fn(),
+  SessionProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
 // Mock Next.js modules

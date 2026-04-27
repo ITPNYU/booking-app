@@ -1,27 +1,30 @@
-import { Box, Typography } from "@mui/material";
+import { Box, Tab, Tabs } from "@mui/material";
+import { useContext, useState } from "react";
 
 import { PageContextLevel } from "@/components/src/types";
-import { styled } from "@mui/system";
-import { useTenantSchema } from "../components/SchemaProvider";
 import { Bookings } from "../components/bookingTable/Bookings";
-
-const Center = styled(Box)`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-`;
+import { CenterLoading } from "../components/Loading";
+import { DatabaseContext } from "../components/Provider";
 
 export default function MyBookingsPage() {
-  const schema = useTenantSchema();
+  const { userEmail } = useContext(DatabaseContext);
+  const [tab, setTab] = useState("bookings");
+
+  if (userEmail === undefined) {
+    return <CenterLoading />;
+  }
 
   return (
-    <Center>
-      <Box width={{ xs: "90%", md: "65%" }} margin={6}>
-        <Typography variant="h6">
-          Welcome to the {schema.name} booking tool!
-        </Typography>
-        <Bookings pageContext={PageContextLevel.USER} />
-      </Box>
-    </Center>
+    <Box margin={3}>
+      <Tabs
+        value={tab}
+        onChange={(_, newVal) => setTab(newVal)}
+        textColor="primary"
+        indicatorColor="primary"
+      >
+        <Tab value="bookings" label="Bookings" />
+      </Tabs>
+      {tab === "bookings" && <Bookings pageContext={PageContextLevel.USER} />}
+    </Box>
   );
 }
