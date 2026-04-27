@@ -1,4 +1,5 @@
-import { deepPurple } from "@mui/material/colors";
+/** Must stay aligned with the site-banner write route (`/api/tenant-site-banner`). */
+export const SITE_BANNER_MESSAGE_MAX_LEN = 4000;
 
 /**
  * Accepts `#RGB` or `#RRGGBB` (case-insensitive). Returns lowercase `#rrggbb` or null.
@@ -19,12 +20,10 @@ export function normalizeSiteBannerColorHex(input: string): string | null {
 }
 
 /**
- * Same purple as tenant UI primary actions: `deepPurple.A700` →
- * `palette.primary.main` in `app/theme/theme.ts` (contained buttons, etc.).
+ * Same as MUI `deepPurple.A700` (`palette.primary.main` in `app/theme/theme.ts`).
+ * Hardcoded so server routes do not import `@mui/material/colors`.
  */
-export const DEFAULT_SITE_BANNER_COLOR_HEX = normalizeSiteBannerColorHex(
-  deepPurple.A700,
-)!;
+export const DEFAULT_SITE_BANNER_COLOR_HEX = "#6200ea";
 
 export function parseStoredSiteBannerColorHex(value: unknown): string {
   if (typeof value !== "string") {

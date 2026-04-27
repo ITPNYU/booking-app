@@ -8,9 +8,8 @@ import { PagePermission } from "@/components/src/types";
 import {
   DEFAULT_SITE_BANNER_COLOR_HEX,
   normalizeSiteBannerColorHex,
+  SITE_BANNER_MESSAGE_MAX_LEN,
 } from "@/lib/utils/siteBannerHex";
-
-const MAX_MESSAGE_LEN = 4000;
 
 type SiteBannerBody = {
   tenant?: string;
@@ -80,7 +79,7 @@ export async function PUT(req: NextRequest) {
   }
 
   const enabled = raw.enabled;
-  const message = raw.message.slice(0, MAX_MESSAGE_LEN);
+  const message = raw.message.slice(0, SITE_BANNER_MESSAGE_MAX_LEN);
 
   if (!("colorHex" in raw) || typeof raw.colorHex !== "string") {
     return NextResponse.json(

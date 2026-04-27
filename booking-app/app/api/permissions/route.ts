@@ -11,6 +11,7 @@ import { PagePermission, SiteBannerSettings } from "@/components/src/types";
 import {
   DEFAULT_SITE_BANNER_COLOR_HEX,
   parseStoredSiteBannerColorHex,
+  SITE_BANNER_MESSAGE_MAX_LEN,
 } from "@/lib/utils/siteBannerHex";
 
 function parseSiteBannerFromDoc(
@@ -21,7 +22,10 @@ function parseSiteBannerFromDoc(
     const o = sb as Record<string, unknown>;
     return {
       enabled: o.enabled === true,
-      message: typeof o.message === "string" ? o.message : "",
+      message:
+        typeof o.message === "string"
+          ? o.message.slice(0, SITE_BANNER_MESSAGE_MAX_LEN)
+          : "",
       colorHex: parseStoredSiteBannerColorHex(o.colorHex),
     };
   }
@@ -52,6 +56,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const tenant = req.nextUrl.searchParams.get("tenant") ?? undefined;
+  if (tenant !== undefined && tenant !== "" && !isValidTenant(tenant)) {
+    return NextResponse.json({ error: "Invalid tenant" }, { status: 400 });
+  }
 
   try {
     const db = admin.firestore();
