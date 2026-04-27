@@ -40,7 +40,6 @@ import { formatOrigin } from "../../../../utils/formatters";
 import { formatDateTable, formatTimeAmPm } from "../../../utils/date";
 import BookingActions from "../../admin/components/BookingActions";
 import getBookingStatus from "../../hooks/getBookingStatus";
-import { auth } from "@/lib/firebase/firebaseClient";
 import Loading from "../Loading";
 import { useAuth } from "../AuthProvider";
 import { DatabaseContext } from "../Provider";
@@ -231,7 +230,7 @@ export const Bookings: React.FC<BookingsProps> = ({
       return;
     }
 
-    if (!isOnTestEnv && !auth.currentUser) {
+    if (!isOnTestEnv && !user) {
       setLatestStatusLogsByCalendarEventId({});
       return;
     }
@@ -245,14 +244,12 @@ export const Bookings: React.FC<BookingsProps> = ({
       if (tenant) {
         headers["x-tenant"] = tenant;
       }
-      if (auth.currentUser) {
-        headers.Authorization = `Bearer ${await auth.currentUser.getIdToken()}`;
-      }
 
       try {
         const response = await fetch("/api/booking-logs/latest", {
           method: "POST",
           headers,
+          credentials: "include",
           body: JSON.stringify({ bookings: debouncedLogRequests }),
           signal: controller.signal,
         });

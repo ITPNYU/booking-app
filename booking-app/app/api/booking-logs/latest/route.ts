@@ -5,7 +5,7 @@ import {
   getLatestBookingStatusLogs,
   serverFetchAllDataFromCollection,
 } from "@/lib/firebase/server/adminDb";
-import admin from "@/lib/firebase/server/firebaseAdmin";
+import { requireSession } from "@/lib/api/requireSession";
 import { shouldBypassAuth } from "@/lib/utils/testEnvironment";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -27,21 +27,6 @@ function isBookingLogRequest(
       request.status as BookingStatusLabel,
     )
   );
-}
-
-async function getVerifiedEmailLower(
-  request: NextRequest,
-): Promise<string | null> {
-  const authHeader = request.headers.get("authorization");
-  if (!authHeader?.startsWith("Bearer ")) return null;
-  const idToken = authHeader.slice(7);
-  try {
-    const decoded = await admin.auth().verifyIdToken(idToken);
-    const email = decoded.email?.trim().toLowerCase();
-    return email && email.length > 0 ? email : null;
-  } catch {
-    return null;
-  }
 }
 
 async function isStaffAuthorizedForTenantLogs(
@@ -92,12 +77,12 @@ export async function POST(req: NextRequest) {
     const tenant = req.headers.get("x-tenant") || DEFAULT_TENANT;
 
     if (!shouldBypassAuth()) {
-      const emailLower = await getVerifiedEmailLower(req);
-      if (!emailLower) {
+      const session = await requireSession();
+      if (!session) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
       const allowed = await isStaffAuthorizedForTenantLogs(
-        emailLower,
+        session.email,
         tenant,
       );
       if (!allowed) {
