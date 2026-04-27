@@ -1,6 +1,14 @@
 import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PagePermission } from "@/components/src/types";
+import { DEFAULT_SITE_BANNER_COLOR_HEX } from "@/lib/utils/siteBannerHex";
+
+const banner = (overrides: Record<string, unknown> = {}) => ({
+  enabled: false,
+  message: "",
+  colorHex: "#7b1fa2",
+  ...overrides,
+});
 
 const mocks = vi.hoisted(() => {
   const mockSet = vi.fn();
@@ -71,7 +79,7 @@ describe("PUT /api/tenant-site-banner", () => {
     const res = await PUT(
       createPutRequest({
         tenant: "mc",
-        siteBanner: { enabled: true, message: "Hi" },
+        siteBanner: banner({ enabled: true, message: "Hi" }),
       }),
     );
     const { data, status } = await parseJson(res);
@@ -85,7 +93,7 @@ describe("PUT /api/tenant-site-banner", () => {
     const res = await PUT(
       createPutRequest({
         tenant: "not-a-real-tenant",
-        siteBanner: { enabled: false, message: "" },
+        siteBanner: banner(),
       }),
     );
     const { data, status } = await parseJson(res);
@@ -101,7 +109,7 @@ describe("PUT /api/tenant-site-banner", () => {
     const res = await PUT(
       createPutRequest({
         tenant: "mc",
-        siteBanner: { enabled: true, message: "x" },
+        siteBanner: banner({ enabled: true, message: "x" }),
       }),
     );
     const { data, status } = await parseJson(res);
@@ -133,7 +141,7 @@ describe("PUT /api/tenant-site-banner", () => {
     const res = await PUT(
       createPutRequest({
         tenant: "mc",
-        siteBanner: { enabled: "false", message: "" },
+        siteBanner: banner({ enabled: "false", message: "" }),
       }),
     );
     const { data, status } = await parseJson(res);
@@ -146,7 +154,7 @@ describe("PUT /api/tenant-site-banner", () => {
     const res = await PUT(
       createPutRequest({
         tenant: "mc",
-        siteBanner: { enabled: false, message: null },
+        siteBanner: banner({ enabled: false, message: null }),
       }),
     );
     const { data, status } = await parseJson(res);
@@ -155,11 +163,79 @@ describe("PUT /api/tenant-site-banner", () => {
     expect(data.error).toBe("siteBanner.message must be a string");
   });
 
+  it("returns 400 when colorHex is missing", async () => {
+    const res = await PUT(
+      createPutRequest({
+        tenant: "mc",
+        siteBanner: { enabled: true, message: "x" },
+      }),
+    );
+    const { data, status } = await parseJson(res);
+
+    expect(status).toBe(400);
+    expect(data.error).toBe("siteBanner.colorHex must be a string");
+  });
+
+  it("returns 400 when colorHex is not a string", async () => {
+    const res = await PUT(
+      createPutRequest({
+        tenant: "mc",
+        siteBanner: banner({ enabled: true, message: "x", colorHex: 123 }),
+      }),
+    );
+    const { data, status } = await parseJson(res);
+
+    expect(status).toBe(400);
+    expect(data.error).toBe("siteBanner.colorHex must be a string");
+  });
+
+  it("returns 400 for invalid hex color", async () => {
+    const res = await PUT(
+      createPutRequest({
+        tenant: "mc",
+        siteBanner: banner({
+          enabled: true,
+          message: "x",
+          colorHex: "#gg0000",
+        }),
+      }),
+    );
+    const { data, status } = await parseJson(res);
+
+    expect(status).toBe(400);
+    expect(data.error).toBe("siteBanner.colorHex must be #RGB or #RRGGBB hex");
+  });
+
+  it("uses default hex when colorHex is whitespace-only", async () => {
+    const res = await PUT(
+      createPutRequest({
+        tenant: "mc",
+        siteBanner: banner({
+          enabled: true,
+          message: "Hi",
+          colorHex: "   ",
+        }),
+      }),
+    );
+    const { data, status } = await parseJson(res);
+
+    expect(status).toBe(200);
+    expect(mocks.mockSet).toHaveBeenCalledWith(
+      expect.objectContaining({
+        siteBanner: expect.objectContaining({
+          colorHex: DEFAULT_SITE_BANNER_COLOR_HEX,
+        }),
+      }),
+      { merge: true },
+    );
+    expect(data).toEqual({ ok: true });
+  });
+
   it("returns 200 and writes Firestore for valid admin payload", async () => {
     const res = await PUT(
       createPutRequest({
         tenant: "mc",
-        siteBanner: { enabled: true, message: "Hello" },
+        siteBanner: banner({ enabled: true, message: "Hello", colorHex: "#0066cc" }),
       }),
     );
     const { data, status } = await parseJson(res);
@@ -169,7 +245,11 @@ describe("PUT /api/tenant-site-banner", () => {
     expect(mocks.mockSet).toHaveBeenCalledTimes(1);
     expect(mocks.mockSet).toHaveBeenCalledWith(
       expect.objectContaining({
-        siteBanner: { enabled: true, message: "Hello" },
+        siteBanner: {
+          enabled: true,
+          message: "Hello",
+          colorHex: "#0066cc",
+        },
       }),
       { merge: true },
     );
@@ -181,7 +261,7 @@ describe("PUT /api/tenant-site-banner", () => {
     const res = await PUT(
       createPutRequest({
         tenant: "mc",
-        siteBanner: { enabled: false, message: "" },
+        siteBanner: banner(),
       }),
     );
     const { data, status } = await parseJson(res);

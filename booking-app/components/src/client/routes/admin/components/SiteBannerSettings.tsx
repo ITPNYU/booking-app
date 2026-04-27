@@ -10,6 +10,7 @@ import {
 } from "@mui/material";
 import { useContext, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import { DEFAULT_SITE_BANNER_COLOR_HEX } from "@/lib/utils/siteBannerHex";
 import { DatabaseContext } from "../../components/Provider";
 
 export default function SiteBannerSettings() {
@@ -20,13 +21,17 @@ export default function SiteBannerSettings() {
 
   const [enabled, setEnabled] = useState(siteBanner.enabled);
   const [message, setMessage] = useState(siteBanner.message);
+  const [colorHex, setColorHex] = useState(
+    siteBanner.colorHex || DEFAULT_SITE_BANNER_COLOR_HEX,
+  );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     setEnabled(siteBanner.enabled);
     setMessage(siteBanner.message);
-  }, [siteBanner.enabled, siteBanner.message]);
+    setColorHex(siteBanner.colorHex || DEFAULT_SITE_BANNER_COLOR_HEX);
+  }, [siteBanner.enabled, siteBanner.message, siteBanner.colorHex]);
 
   const handleSave = async () => {
     if (!tenant) return;
@@ -38,7 +43,7 @@ export default function SiteBannerSettings() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           tenant,
-          siteBanner: { enabled, message },
+          siteBanner: { enabled, message, colorHex },
         }),
       });
       if (!res.ok) {
@@ -85,6 +90,22 @@ export default function SiteBannerSettings() {
         sx={{ mt: 2 }}
         inputProps={{ maxLength: 4000 }}
         disabled={saving}
+      />
+
+      <TextField
+        label="Banner accent color"
+        value={colorHex}
+        onChange={(e) => setColorHex(e.target.value)}
+        placeholder={DEFAULT_SITE_BANNER_COLOR_HEX}
+        fullWidth
+        sx={{ mt: 2 }}
+        disabled={saving}
+        helperText={`Leave empty on save to use default color.`}
+        inputProps={{
+          maxLength: 7,
+          spellCheck: false,
+          "aria-label": "Banner accent hex color",
+        }}
       />
 
       <Box sx={{ mt: 2, display: "flex", alignItems: "center", gap: 2 }}>

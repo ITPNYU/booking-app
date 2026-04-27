@@ -19,6 +19,7 @@ import {
   clientFetchAllDataFromCollection,
   reviveTimestamps,
 } from "@/lib/firebase/firebase";
+import { DEFAULT_SITE_BANNER_COLOR_HEX } from "@/lib/utils/siteBannerHex";
 import {
   AdminUser,
   Approver,
@@ -113,7 +114,11 @@ export const DatabaseContext = createContext<DatabaseContextType>({
   paUsers: [],
   superAdminUsers: [],
   policySettings: { finalApproverEmail: "" },
-  siteBanner: { enabled: false, message: "" },
+  siteBanner: {
+    enabled: false,
+    message: "",
+    colorHex: DEFAULT_SITE_BANNER_COLOR_HEX,
+  },
   roomSettings: [],
   safetyTrainedUsers: [],
   settings: { bookingTypes: [] },
@@ -166,6 +171,7 @@ export const DatabaseProvider = ({
   const [siteBanner, setSiteBanner] = useState<SiteBannerSettings>({
     enabled: false,
     message: "",
+    colorHex: DEFAULT_SITE_BANNER_COLOR_HEX,
   });
   const [loadMoreEnabled, setLoadMoreEnabled] = useState<boolean>(true);
 
@@ -434,7 +440,11 @@ export const DatabaseProvider = ({
         data.policySettings ?? { finalApproverEmail: "" },
       );
       setSiteBanner(
-        data.siteBanner ?? { enabled: false, message: "" },
+        data.siteBanner ?? {
+          enabled: false,
+          message: "",
+          colorHex: DEFAULT_SITE_BANNER_COLOR_HEX,
+        },
       );
     } catch (error) {
       console.error("Error fetching permissions:", error);

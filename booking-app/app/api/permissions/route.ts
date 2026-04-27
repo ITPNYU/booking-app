@@ -8,6 +8,10 @@ import {
 } from "@/components/src/policy";
 import { isValidTenant } from "@/components/src/constants/tenants";
 import { PagePermission, SiteBannerSettings } from "@/components/src/types";
+import {
+  DEFAULT_SITE_BANNER_COLOR_HEX,
+  parseStoredSiteBannerColorHex,
+} from "@/lib/utils/siteBannerHex";
 
 function parseSiteBannerFromDoc(
   data: Record<string, unknown> | undefined,
@@ -18,9 +22,14 @@ function parseSiteBannerFromDoc(
     return {
       enabled: o.enabled === true,
       message: typeof o.message === "string" ? o.message : "",
+      colorHex: parseStoredSiteBannerColorHex(o.colorHex),
     };
   }
-  return { enabled: false, message: "" };
+  return {
+    enabled: false,
+    message: "",
+    colorHex: DEFAULT_SITE_BANNER_COLOR_HEX,
+  };
 }
 
 /**
@@ -132,7 +141,11 @@ export async function GET(req: NextRequest) {
     const siteBanner =
       settingsSnap && settingsSnap.exists
         ? parseSiteBannerFromDoc(settingsSnap.data() as Record<string, unknown>)
-        : { enabled: false, message: "" };
+        : {
+            enabled: false,
+            message: "",
+            colorHex: DEFAULT_SITE_BANNER_COLOR_HEX,
+          };
 
     return NextResponse.json({
       pagePermission,

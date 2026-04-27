@@ -5,6 +5,10 @@ import { isValidTenant } from "@/components/src/constants/tenants";
 import { requireSession } from "@/lib/api/requireSession";
 import { resolveCallerRole } from "@/lib/api/authz";
 import { PagePermission } from "@/components/src/types";
+import {
+  DEFAULT_SITE_BANNER_COLOR_HEX,
+  normalizeSiteBannerColorHex,
+} from "@/lib/utils/siteBannerHex";
 
 const MAX_MESSAGE_LEN = 4000;
 
@@ -78,12 +82,30 @@ export async function PUT(req: NextRequest) {
   const enabled = raw.enabled;
   const message = raw.message.slice(0, MAX_MESSAGE_LEN);
 
+  if (!("colorHex" in raw) || typeof raw.colorHex !== "string") {
+    return NextResponse.json(
+      { error: "siteBanner.colorHex must be a string" },
+      { status: 400 },
+    );
+  }
+  const colorTrimmed = raw.colorHex.trim();
+  const colorHex =
+    colorTrimmed.length === 0
+      ? DEFAULT_SITE_BANNER_COLOR_HEX
+      : normalizeSiteBannerColorHex(colorTrimmed);
+  if (!colorHex) {
+    return NextResponse.json(
+      { error: "siteBanner.colorHex must be #RGB or #RRGGBB hex" },
+      { status: 400 },
+    );
+  }
+
   const db = admin.firestore();
   const ref = db.collection(TableNames.SETTINGS).doc(tenant);
   try {
     await ref.set(
       {
-        siteBanner: { enabled, message },
+        siteBanner: { enabled, message, colorHex },
         siteBannerUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
       },
       { merge: true },

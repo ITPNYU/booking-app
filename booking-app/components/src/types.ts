@@ -297,6 +297,8 @@ export type PolicySettings = {
 export type SiteBannerSettings = {
   enabled: boolean;
   message: string;
+  /** Accent `#rrggbb` (text, icon, border, tint). */
+  colorHex: string;
 };
 
 export enum Role {

@@ -159,7 +159,7 @@ function renderWithProviders(
     paUsers: [],
     superAdminUsers: [],
     policySettings: { finalApproverEmail: "" },
-    siteBanner: { enabled: false, message: "" },
+    siteBanner: { enabled: false, message: "", colorHex: "#7b1fa2" },
     roomSettings: [],
     safetyTrainedUsers: [],
     settings: { bookingTypes: [] },
