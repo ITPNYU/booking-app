@@ -567,36 +567,7 @@ test.describe("Automatic Approval Booking Flow", () => {
 
     // Set up additional environment variables for test mode
     await page.addInitScript(() => {
-      // Ensure test environment is properly detected
       window.localStorage.setItem("test-mode", "true");
-
-      // Mock any additional Firebase operations that might be called
-      if ((window as any).firebase) {
-        (window as any).firebase.auth = () => ({
-          currentUser: {
-            uid: "test-user-id",
-            email: "test@nyu.edu",
-            displayName: "Test User",
-            photoURL: null,
-            emailVerified: true,
-          },
-          onAuthStateChanged: (callback) => {
-            setTimeout(
-              () =>
-                callback({
-                  uid: "test-user-id",
-                  email: "test@nyu.edu",
-                  displayName: "Test User",
-                  photoURL: null,
-                  emailVerified: true,
-                }),
-              0
-            );
-            return () => {};
-          },
-          signOut: () => Promise.resolve(),
-        });
-      }
     });
   });
 

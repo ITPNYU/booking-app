@@ -46,10 +46,7 @@ const HomePage: React.FC = () => {
       setLoadingEntitlements(true);
       setEntitlementsError(false);
       try {
-        const idToken = await user!.getIdToken();
-        const response = await fetch(`/api/nyu/entitlements/${netId}`, {
-          headers: { Authorization: `Bearer ${idToken}` },
-        });
+        const response = await fetch(`/api/nyu/entitlements/${netId}`);
         if (response.ok) {
           const data = await response.json();
           setEntitledTenants(data.entitledTenants ?? FALLBACK_TENANTS);
