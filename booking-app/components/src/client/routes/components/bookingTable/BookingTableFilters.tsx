@@ -372,7 +372,7 @@ export default function BookingTableFilters({
       <Box
         sx={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 2 }}
       >
-        {pageContext >= PageContextLevel.PA && dateFilters}
+        {pageContext >= PageContextLevel.USER && dateFilters}
         {pageContext >= PageContextLevel.PA && searchBar}
       </Box>
     </Box>
