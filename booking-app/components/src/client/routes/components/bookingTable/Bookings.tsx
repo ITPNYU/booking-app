@@ -40,6 +40,7 @@ import { formatOrigin } from "../../../../utils/formatters";
 import { formatDateTable, formatTimeAmPm } from "../../../utils/date";
 import BookingActions from "../../admin/components/BookingActions";
 import getBookingStatus from "../../hooks/getBookingStatus";
+import { auth } from "@/lib/firebase/firebaseClient";
 import Loading from "../Loading";
 import { useAuth } from "../AuthProvider";
 import { DatabaseContext } from "../Provider";
@@ -230,7 +231,7 @@ export const Bookings: React.FC<BookingsProps> = ({
       return;
     }
 
-    if (!isOnTestEnv && !user) {
+    if (!isOnTestEnv && !auth.currentUser) {
       setLatestStatusLogsByCalendarEventId({});
       return;
     }
@@ -244,8 +245,8 @@ export const Bookings: React.FC<BookingsProps> = ({
       if (tenant) {
         headers["x-tenant"] = tenant;
       }
-      if (user) {
-        headers.Authorization = `Bearer ${await user.getIdToken()}`;
+      if (auth.currentUser) {
+        headers.Authorization = `Bearer ${await auth.currentUser.getIdToken()}`;
       }
 
       try {
