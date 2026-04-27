@@ -9,7 +9,7 @@ import admin from "@/lib/firebase/server/firebaseAdmin";
 import { shouldBypassAuth } from "@/lib/utils/testEnvironment";
 import { NextRequest, NextResponse } from "next/server";
 
-const MAX_BOOKING_LOG_BATCH_SIZE = 200;
+const MAX_BOOKING_LOG_BATCH_SIZE = 500;
 
 type BookingLogRequest = {
   calendarEventId?: unknown;

@@ -57,7 +57,6 @@ import {
   isAwaitingApprovalStatus,
 } from "../../../../utils/bookingInterimHours";
 import { useBookingFilters } from "./hooks/useBookingFilters";
-import { auth } from "@/lib/firebase/firebaseClient";
 
 type LatestBookingStatusLog = {
   status: BookingStatusLabel;
@@ -231,8 +230,7 @@ export const Bookings: React.FC<BookingsProps> = ({
       return;
     }
 
-    const firebaseUser = auth.currentUser;
-    if (!isOnTestEnv && !firebaseUser) {
+    if (!isOnTestEnv && !user) {
       setLatestStatusLogsByCalendarEventId({});
       return;
     }
@@ -246,8 +244,8 @@ export const Bookings: React.FC<BookingsProps> = ({
       if (tenant) {
         headers["x-tenant"] = tenant;
       }
-      if (firebaseUser) {
-        headers.Authorization = `Bearer ${await firebaseUser.getIdToken()}`;
+      if (user) {
+        headers.Authorization = `Bearer ${await user.getIdToken()}`;
       }
 
       try {
