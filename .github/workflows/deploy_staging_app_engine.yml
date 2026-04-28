@@ -82,22 +82,44 @@ jobs:
           cd booking-app
           npm run build
 
-      - name: Install Firebase CLI
-        run: npm install -g firebase-tools@15.15.0
-
-      # Index deploy is currently a non-blocking step: if it fails, the App
-      # Engine deploy still proceeds so application updates aren't held up by
-      # an index sync issue. The `--debug` flag prints the underlying API
-      # error so the next failure surfaces a real diagnostic instead of
-      # firebase-tools' generic "An unexpected error has occurred" wrapper.
+      # Sync Firestore composite indexes for this environment's database.
+      # Uses gcloud directly (not `firebase deploy`) because firebase-tools
+      # 15.x throws TypeError on the multi-database `firestore` array in
+      # firebase.json, masking real failures behind a generic wrapper.
+      # gcloud is already authenticated via setup-gcloud above.
       - name: Deploy Firestore indexes
-        continue-on-error: true
+        timeout-minutes: 20
         run: |
-          cd booking-app
-          firebase deploy --only firestore:indexes \
-            --project ${{ secrets.GCP_PROJECT_ID }} \
-            --debug \
-            --non-interactive
+          DB='booking-app-staging'
+          PROJECT="${{ secrets.GCP_PROJECT_ID }}"
+
+          create_index() {
+            local CG="$1"
+            echo "Ensuring composite index on $CG (email asc, startDate desc) in $DB..."
+            set +e
+            OUTPUT=$(gcloud firestore indexes composite create \
+              --collection-group="$CG" \
+              --database="$DB" \
+              --project="$PROJECT" \
+              --field-config=field-path=email,order=ascending \
+              --field-config=field-path=startDate,order=descending \
+              --quiet 2>&1)
+            EXIT=$?
+            set -e
+            if [ $EXIT -ne 0 ]; then
+              if echo "$OUTPUT" | grep -qi "ALREADY_EXISTS"; then
+                echo "Index already exists for $CG, skipping"
+                return 0
+              fi
+              echo "Failed to create index for $CG:"
+              echo "$OUTPUT"
+              return 1
+            fi
+            echo "$OUTPUT"
+          }
+
+          create_index mc-bookings
+          create_index itp-bookings
 
       - name: Deploy to App Engine
         run: |

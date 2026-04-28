@@ -5,10 +5,5 @@
     "frameworksBackend": {
       "region": "us-central1"
     }
-  },
-  "firestore": [
-    { "database": "(default)", "indexes": "firestore.indexes.json" },
-    { "database": "booking-app-staging", "indexes": "firestore.indexes.json" },
-    { "database": "booking-app-prod", "indexes": "firestore.indexes.json" }
-  ]
+  }
 }
