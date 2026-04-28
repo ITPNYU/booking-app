@@ -56,10 +56,15 @@ export async function selectTimeSlot(
       await datePicker.getByText(new RegExp(monthName)).waitFor();
     }
 
-    await datePicker
-      .getByRole("gridcell", { name: tomorrowDay, exact: true })
-      .first()
-      .click();
+    // Exclude outside-month leak days (e.g. when April's grid shows 3/29 in
+    // its leading row, `name: '29'` matches both 3/29 and 4/29). The disabled
+    // outside-month cell would otherwise win `.first()` and time out the click.
+    const tomorrowCell = datePicker
+      .locator(
+        ".MuiPickersDay-root:not(.Mui-disabled):not(.MuiPickersDay-dayOutsideMonth)",
+      )
+      .filter({ hasText: new RegExp(`^${tomorrowDay}$`) });
+    await tomorrowCell.first().click();
   }
 
   const calendar = page.locator('[data-testid="booking-calendar-wrapper"]');
