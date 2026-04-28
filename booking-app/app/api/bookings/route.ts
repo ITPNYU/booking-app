@@ -19,6 +19,7 @@ import {
   BookingFormDetails,
   BookingOrigin,
   BookingStatusLabel,
+  FormContextLevel,
   RoomSetting,
 } from "@/components/src/types";
 import { getSecondaryContactName } from "@/components/src/utils/formatters";
@@ -50,6 +51,11 @@ import {
   getAffiliationDisplayValues,
   getOtherDisplayFields,
 } from "./shared";
+import {
+  enforceRequestLimits,
+  getRequestLimitRoleKey,
+} from "@/lib/bookingRequestLimits";
+import type { SchemaContextType } from "@/components/src/client/routes/components/SchemaProvider";
 
 // Common function to create XState data structure
 export function createXStateData(
@@ -565,6 +571,47 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // Enforce per-resource request limits (per user email + role)
+  try {
+    const bookingRoleField = String(data?.role ?? "").trim();
+    const limitRoleKey = getRequestLimitRoleKey(
+      FormContextLevel.FULL_FORM,
+      bookingRoleField,
+    );
+    const selectedRoomIdsNums: number[] = Array.isArray(selectedRooms)
+      ? selectedRooms
+          .map((r: any) => Number(r?.roomId))
+          .filter((n: number) => Number.isFinite(n))
+      : [];
+
+    if (tenant && email && bookingRoleField && selectedRoomIdsNums.length > 0) {
+      const tenantSchema = await serverGetDocumentById<SchemaContextType>(
+        TableNames.TENANT_SCHEMA,
+        tenant,
+        tenant,
+      );
+
+      const enforcement = await enforceRequestLimits({
+        tenant,
+        email,
+        bookingRoleField,
+        limitRoleKey,
+        selectedRoomIds: selectedRoomIdsNums,
+        schema: tenantSchema,
+      });
+
+      if (enforcement.ok === false) {
+        return NextResponse.json(
+          { error: enforcement.message },
+          { status: 429 },
+        );
+      }
+    }
+  } catch (e: any) {
+    console.error("Error enforcing request limits:", e);
+    // Fail open to avoid blocking bookings if enforcement throws unexpectedly
+  }
+
   console.log("data", data);
 
   // Determine initial status and auto-approval using XState for ITP
@@ -773,6 +820,9 @@ export async function POST(request: NextRequest) {
   const selectedRoomIds = selectedRooms
     .map((r: { roomId: number }) => r.roomId)
     .join(", ");
+  const selectedRoomIdsArray = selectedRooms
+    .map((r: { roomId: number | string }) => Number((r as any)?.roomId))
+    .filter((n: number) => Number.isFinite(n));
 
   // Build booking contents for description
   const startDateObj = new Date(bookingCalendarInfo.startStr);
@@ -827,6 +877,7 @@ export async function POST(request: NextRequest) {
     const bookingData = {
       calendarEventId,
       roomId: selectedRoomIds,
+      roomIds: selectedRoomIdsArray,
       email,
       startDate: toFirebaseTimestampFromString(bookingCalendarInfo.startStr),
       endDate: toFirebaseTimestampFromString(bookingCalendarInfo.endStr),

@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
+import EditLandingPage from "@/components/src/client/routes/edit/EditLandingPage";
 import { useParams, useRouter } from "next/navigation";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -41,12 +42,6 @@ describe("EditLandingPage – tenant prefix in router.push", () => {
   });
 
   it("navigates to /{tenant}/edit/role/{id} when Start is clicked", async () => {
-    const EditLandingPage = (
-      await import(
-        "@/components/src/client/routes/edit/EditLandingPage"
-      )
-    ).default;
-
     render(<EditLandingPage calendarEventId="evt-123" />, {
       wrapper: Wrapper,
     });

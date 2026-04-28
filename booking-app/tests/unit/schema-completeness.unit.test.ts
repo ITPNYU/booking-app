@@ -38,6 +38,7 @@ const ALL_SCHEMA_KEYS = [
   "declinedGracePeriod",
   "autoCancel",
   "timeSensitiveRequestWarning",
+  "termConfig",
   "calendarConfig",
   "ccEmails",
   "emailMessages",
