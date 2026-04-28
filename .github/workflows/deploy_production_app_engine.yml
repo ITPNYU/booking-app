@@ -85,11 +85,18 @@ jobs:
       - name: Install Firebase CLI
         run: npm install -g firebase-tools@15.15.0
 
+      # Index deploy is currently a non-blocking step: if it fails, the App
+      # Engine deploy still proceeds so application updates aren't held up by
+      # an index sync issue. The `--debug` flag prints the underlying API
+      # error so the next failure surfaces a real diagnostic instead of
+      # firebase-tools' generic "An unexpected error has occurred" wrapper.
       - name: Deploy Firestore indexes
+        continue-on-error: true
         run: |
           cd booking-app
           firebase deploy --only firestore:indexes \
             --project ${{ secrets.GCP_PROJECT_ID }} \
+            --debug \
             --non-interactive
 
       - name: Deploy to App Engine
