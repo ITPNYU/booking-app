@@ -70,6 +70,15 @@ export async function POST(req: NextRequest) {
         q = q.where("startDate", "<=", admin.firestore.Timestamp.fromDate(end));
     }
 
+    // Scope to a single user's bookings when requested. The /my-bookings view
+    // sets this so the LIMIT-bounded paginated result set is filtered server-
+    // side instead of being filled by tenant-wide far-future bookings before
+    // the client gets to filter by email.
+    const userEmail = body.filters.userEmail?.trim();
+    if (userEmail) {
+      q = q.where("email", "==", userEmail);
+    }
+
     const searchQuery = body.filters.searchQuery?.trim();
     if (searchQuery) {
       // Search path: fetch with date filter only, then filter in-process.
