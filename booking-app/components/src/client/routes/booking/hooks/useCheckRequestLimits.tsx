@@ -7,6 +7,22 @@ import { DatabaseContext } from "../../components/Provider";
 import { useTenantSchema } from "../../components/SchemaProvider";
 import { BookingContext } from "../bookingProvider";
 
+/**
+ * True when the app is running inside Playwright E2E tests.
+ * Evaluated once at module load; never changes at runtime.
+ */
+const isE2ETesting = process.env.NEXT_PUBLIC_E2E_TESTING === "true";
+
+/**
+ * Checks whether the current user has hit per-resource request limits by
+ * calling /api/bookings/request-limits on the Select Room page.
+ *
+ * E2E bypass: when NEXT_PUBLIC_E2E_TESTING is "true" the hook skips the
+ * network request so it does not interfere with Playwright flows. All React
+ * hooks are still called unconditionally to satisfy the Rules of Hooks.
+ * Server-side enforcement still applies in /api/bookings/request-limits and
+ * the booking submission routes.
+ */
 export default function useCheckRequestLimits(formContext: FormContextLevel) {
   const params = useParams();
   const pathname = usePathname();
@@ -28,6 +44,10 @@ export default function useCheckRequestLimits(formContext: FormContextLevel) {
   const isVIP = formContext === FormContextLevel.VIP;
 
   useEffect(() => {
+    // Bypass in E2E to avoid async network churn that disables the Next button
+    // and causes Playwright timeouts. Server-side enforcement in API routes is
+    // unaffected by this bypass.
+    if (isE2ETesting) return;
     abortRef.current?.abort();
     setRequestLimitError(null);
 

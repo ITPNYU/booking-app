@@ -203,6 +203,14 @@ export default function BookingStatusBar({ formContext, ...props }: Props) {
         ),
         severity: "error",
       };
+    if (requestLimitError)
+      return {
+        btnDisabled: true,
+        btnDisabledMessage: requestLimitError,
+        message: <p>{requestLimitError}</p>,
+        severity: "error",
+        variant: "filled",
+      };
     if ((isWalkIn || isVIP) && !isAutoApproval && errorMessage) {
       // Show actual error from auto-approval check (e.g., duration limits, services requested, multiple rooms, etc.)
       return {
