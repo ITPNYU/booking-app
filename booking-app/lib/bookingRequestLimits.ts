@@ -5,7 +5,6 @@ import type {
 import { FormContextLevel, Role } from "@/components/src/types";
 import { TableNames } from "@/components/src/policy";
 import { serverFetchAllDataFromCollection } from "@/lib/firebase/server/adminDb";
-import { Timestamp } from "firebase-admin/firestore";
 import { buildCalendarConfigKey } from "@/components/src/client/routes/booking/utils/buildCalendarConfigKey";
 
 export function parseRoleEnumFromLabel(label: string | undefined): Role | undefined {
@@ -131,17 +130,96 @@ function parseConfiguredRequestLimit(raw: unknown): number | undefined {
   return n;
 }
 
-function isActiveBooking(doc: any): boolean {
-  return doc?.canceledAt == null && doc?.declinedAt == null;
-}
-
 function getRequestedAtMillis(doc: any): number | null {
   const v = doc?.requestedAt;
   if (!v) return null;
   if (typeof v?.toMillis === "function") return v.toMillis();
   if (v instanceof Date) return v.getTime();
   if (typeof v === "number") return v;
+  if (typeof v?.seconds === "number") return v.seconds * 1000;
   return null;
+}
+
+function getChangedAtMillis(log: any): number {
+  const v = log?.changedAt;
+  const ms = getRequestedAtMillis({ requestedAt: v });
+  return ms ?? 0;
+}
+
+function chunk<T>(arr: T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+  return out;
+}
+
+function normalizeStatusUpper(v: unknown): string | null {
+  if (typeof v !== "string") return null;
+  const s = v.trim();
+  if (!s) return null;
+  return s.toUpperCase();
+}
+
+function isTerminalInactiveStatus(statusUpper: string | null): boolean {
+  if (!statusUpper) return false;
+  return statusUpper === "CANCELED" || statusUpper === "DECLINED";
+}
+
+async function getLatestLogStatusByRequestNumber(
+  requestNumbers: number[],
+  tenant?: string,
+): Promise<Map<number, string>> {
+  const out = new Map<number, string>();
+  if (requestNumbers.length === 0) return out;
+
+  // Firestore `in` supports up to 10 values.
+  const batches = chunk(requestNumbers, 10);
+  const logs = (
+    await Promise.all(
+      batches.map((nums) =>
+        serverFetchAllDataFromCollection<any>(
+          TableNames.BOOKING_LOGS,
+          [{ field: "requestNumber", operator: "in", value: nums }],
+          tenant,
+        ),
+      ),
+    )
+  ).flat();
+
+  const latestByReq = new Map<number, { ms: number; statusUpper: string }>();
+  for (const log of logs) {
+    const req = Number(log?.requestNumber);
+    if (!Number.isFinite(req)) continue;
+    const statusUpper = normalizeStatusUpper(log?.status);
+    if (!statusUpper) continue;
+    const ms = getChangedAtMillis(log);
+    const prev = latestByReq.get(req);
+    if (!prev || ms >= prev.ms) {
+      latestByReq.set(req, { ms, statusUpper });
+    }
+  }
+
+  for (const [req, v] of latestByReq.entries()) {
+    out.set(req, v.statusUpper);
+  }
+  return out;
+}
+
+function isActiveBookingByLastLog({
+  booking,
+  latestLogStatusByRequestNumber,
+}: {
+  booking: any;
+  latestLogStatusByRequestNumber: Map<number, string>;
+}): boolean {
+  const req = Number(booking?.requestNumber);
+  const last =
+    Number.isFinite(req) ? latestLogStatusByRequestNumber.get(req) ?? null : null;
+
+  // Strict "last-log wins": if we have a last log, use it.
+  if (last) return !isTerminalInactiveStatus(last);
+
+  // No logs: treat as active (legacy/missing-log bookings should still count).
+  return true;
 }
 
 export async function enforceRequestLimits({
@@ -205,9 +283,20 @@ export async function enforceRequestLimits({
     tenant,
   );
 
-  const relevant = allByEmail.filter(
-    (d: any) => isActiveBooking(d) && d?.role === bookingRoleField,
+  const requestNumbers = Array.from(
+    new Set(
+      allByEmail
+        .map((b: any) => Number(b?.requestNumber))
+        .filter((n: number) => Number.isFinite(n)),
+    ),
   );
+  const latestLogStatusByRequestNumber =
+    await getLatestLogStatusByRequestNumber(requestNumbers, tenant);
+
+  const relevant = allByEmail.filter((d: any) => {
+    if (d?.role !== bookingRoleField) return false;
+    return isActiveBookingByLastLog({ booking: d, latestLogStatusByRequestNumber });
+  });
 
   for (const period of periodsToQuery) {
     const { start, end } = getUtcWindowForPeriod(now, period, schema.termConfig);
