@@ -365,6 +365,10 @@ export const DatabaseProvider = ({
         return Promise.resolve();
       }
 
+      // `filters.userEmail` is set by `useBookingFilters` when the active view
+      // is the USER /my-bookings tab, regardless of the caller's role. Forward
+      // it to the paginated route so a user's own booking isn't crowded out of
+      // the LIMIT-bounded result set by tenant-wide far-future bookings.
       const bookingsResponse: Booking[] = await fetchAllBookings(
         pagePermission,
         LIMIT,
