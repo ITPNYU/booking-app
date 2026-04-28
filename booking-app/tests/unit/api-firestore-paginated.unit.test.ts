@@ -90,7 +90,7 @@ describe("POST /api/firestore/paginated — userEmail filter", () => {
     mocks.mockAuthorizeRead.mockResolvedValue({ ok: true, role: "BOOKING" });
   });
 
-  it("applies where('email','==',userEmail) when filters.userEmail is set", async () => {
+  it("applies where('email','==',session.email) when filters.userEmail is set", async () => {
     const res = await POST(
       request({
         collection: "bookings",
@@ -111,6 +111,28 @@ describe("POST /api/firestore/paginated — userEmail filter", () => {
       op: "==",
       value: "alice@nyu.edu",
     });
+  });
+
+  it("ignores client-supplied userEmail and uses session email instead", async () => {
+    // The route is the trust boundary: a caller can opt into per-user scoping,
+    // but the actual email used for the filter is taken from the verified
+    // session, never the request body.
+    const res = await POST(
+      request({
+        collection: "bookings",
+        tenant: "mc",
+        filters: {
+          dateRange: [new Date("2026-01-01").toISOString(), null],
+          sortField: "startDate",
+          userEmail: "someone-else@nyu.edu",
+        },
+        limit: 10,
+      }),
+    );
+
+    expect(res.status).toBe(200);
+    const emailFilter = mocks.whereCalls.find((w) => w.field === "email");
+    expect(emailFilter?.value).toBe("alice@nyu.edu");
   });
 
   it("does not apply email filter when filters.userEmail is absent", async () => {
@@ -148,7 +170,7 @@ describe("POST /api/firestore/paginated — userEmail filter", () => {
     expect(mocks.whereCalls.find((w) => w.field === "email")).toBeUndefined();
   });
 
-  it("applies email filter on the search path as well", async () => {
+  it("applies email filter on the search path as well, using session email", async () => {
     const res = await POST(
       request({
         collection: "bookings",

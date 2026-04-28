@@ -83,7 +83,7 @@ jobs:
           npm run build
 
       - name: Install Firebase CLI
-        run: npm install -g firebase-tools
+        run: npm install -g firebase-tools@15.15.0
 
       - name: Deploy Firestore indexes
         run: |
