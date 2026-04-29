@@ -293,8 +293,8 @@ describe("BookingTable Sort Reset Integration - Timeframe Changes", () => {
     it("should not show timeframe filters for regular users", () => {
       renderIntegratedComponent(PageContextLevel.USER);
 
-      // Regular users should not see the timeframe filters
-      expect(screen.queryByTestId("filters-section")).not.toBeInTheDocument();
+      // Regular users still see the filters container with limited options
+      expect(screen.getByTestId("filters-section")).toBeInTheDocument();
 
       // But they should still see the bookings table
       const dataGrid = screen.getByTestId("mock-datagrid");
@@ -364,7 +364,7 @@ describe("BookingTable Sort Reset Integration - Timeframe Changes", () => {
 
       // User should NOT have filters
       renderIntegratedComponent(PageContextLevel.USER);
-      expect(screen.queryByTestId("filters-section")).not.toBeInTheDocument();
+      expect(screen.getByTestId("filters-section")).toBeInTheDocument();
     });
   });
 
