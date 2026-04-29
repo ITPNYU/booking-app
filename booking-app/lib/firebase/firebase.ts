@@ -3,7 +3,19 @@ import {
   TableNames,
   getTenantCollectionName,
 } from "@/components/src/policy";
-import { Timestamp } from "firebase/firestore";
+import {
+  Timestamp,
+  arrayRemove,
+  arrayUnion,
+  collection,
+  doc,
+  getDocs,
+  getFirestore,
+  query,
+  updateDoc,
+  where,
+} from "firebase/firestore";
+import { normalizeApprover } from "@/components/src/types";
 
 import { Filters } from "@/components/src/types";
 import { SchemaContextType } from "@/components/src/client/routes/components/SchemaProvider";
@@ -319,6 +331,92 @@ export const clientGetFinalApproverEmailFromDatabase = async (): Promise<
     console.error("Error fetching finalApproverEmail:", error);
     return null;
   }
+};
+
+export const clientGetResourceApproverEmailsForRoom = async (
+  roomId: number,
+  tenant?: string,
+): Promise<string[]> => {
+  try {
+    const db = getFirestore();
+    const col = getTenantCollection(TableNames.APPROVERS, resolveTenantArg(tenant));
+    const snap = await getDocs(
+      query(collection(db, col), where("resourceRoomIds", "array-contains", roomId)),
+    );
+    return snap.docs
+      .map((d) => (d.data() as { email?: string }).email)
+      .filter((e): e is string => Boolean(e));
+  } catch (error) {
+    console.error("Error fetching resource approvers for room:", error);
+    return [];
+  }
+};
+
+export const clientGetAllApproversWithRooms = async (
+  tenant?: string,
+): Promise<
+  Array<{
+    id: string;
+    email: string;
+    scope: "tenant" | "resource";
+    resourceRoomIds: number[];
+    createdAt?: Timestamp;
+  }>
+> => {
+  try {
+    const db = getFirestore();
+    const col = getTenantCollection(TableNames.APPROVERS, resolveTenantArg(tenant));
+    const snap = await getDocs(collection(db, col));
+    return snap.docs
+      .filter((d) => d.id !== "resourceApprovers")
+      .map((d) => {
+        const data = d.data() as Record<string, unknown>;
+        const normalized = normalizeApprover({
+          email: data.email as string,
+          department: (data.department as string) ?? "",
+          createdAt: (data.createdAt as string) ?? "",
+          level: (data.level as number) ?? 0,
+          scope: data.scope as "tenant" | "resource" | undefined,
+          resourceRoomIds: (data.resourceRoomIds as number[] | undefined) ?? [],
+        });
+        return {
+          id: d.id,
+          email: normalized.email,
+          scope: normalized.scope,
+          resourceRoomIds: normalized.resourceRoomIds ?? [],
+          createdAt: data.createdAt as Timestamp | undefined,
+        };
+      })
+      .filter((a) => Boolean(a.email));
+  } catch (error) {
+    console.error("Error fetching approvers with rooms:", error);
+    return [];
+  }
+};
+
+export const clientAddResourceRoomToApprover = async (
+  approverDocId: string,
+  roomId: number,
+  tenant?: string,
+): Promise<void> => {
+  const db = getFirestore();
+  const col = getTenantCollection(TableNames.APPROVERS, resolveTenantArg(tenant));
+  await updateDoc(doc(db, col, approverDocId), {
+    resourceRoomIds: arrayUnion(roomId),
+    scope: "resource",
+  });
+};
+
+export const clientRemoveResourceRoomFromApprover = async (
+  approverDocId: string,
+  roomId: number,
+  tenant?: string,
+): Promise<void> => {
+  const db = getFirestore();
+  const col = getTenantCollection(TableNames.APPROVERS, resolveTenantArg(tenant));
+  await updateDoc(doc(db, col, approverDocId), {
+    resourceRoomIds: arrayRemove(roomId),
+  });
 };
 
 export const clientGetDataByCalendarEventId = async <T>(

@@ -12,7 +12,11 @@ import {
   WhereFilterOp,
 } from "firebase-admin/firestore";
 
-import { BookingLog, BookingStatusLabel } from "@/components/src/types";
+import {
+  BookingLog,
+  BookingStatusLabel,
+  normalizeApprover,
+} from "@/components/src/types";
 import { traceDatabase } from "@/lib/newrelic-utils";
 import admin from "./firebaseAdmin";
 
@@ -106,8 +110,10 @@ export const serverSaveDataToFirestore = async (
       collectionName as TableNames,
       tenant,
     );
-    const docRef = await traceDatabase("add", `Firestore/${tenantCollection}`, () =>
-      db.collection(tenantCollection).add(data),
+    const docRef = await traceDatabase(
+      "add",
+      `Firestore/${tenantCollection}`,
+      () => db.collection(tenantCollection).add(data),
     );
     console.log("Document successfully written with ID:", docRef.id);
     return docRef;
@@ -143,8 +149,10 @@ export const serverGetDocumentById = async <T extends DocumentData>(
   try {
     const tenantCollection = getServerTenantCollection(collectionName, tenant);
     const docRef = db.collection(tenantCollection).doc(docId);
-    const docSnap = await traceDatabase("get", `Firestore/${tenantCollection}`, () =>
-      docRef.get(),
+    const docSnap = await traceDatabase(
+      "get",
+      `Firestore/${tenantCollection}`,
+      () => docRef.get(),
     );
 
     if (docSnap.exists) {
@@ -248,18 +256,31 @@ export const serverGetFinalApproverEmailFromDatabase = async (
       TableNames.APPROVERS,
       tenant,
     );
-    const policyCollection = db.collection(tenantCollection);
     const querySnapshot = await traceDatabase(
       "query",
       `Firestore/${tenantCollection}`,
-      () => policyCollection.where("level", "==", ApproverLevel.FINAL).get(),
+      () =>
+        db
+          .collection(tenantCollection)
+          .where("level", "==", ApproverLevel.FINAL)
+          .get(),
     );
     if (!querySnapshot.empty) {
-      const doc = querySnapshot.docs[0];
-      const finalApproverEmail = doc.data().email;
-      if (finalApproverEmail) {
-        return finalApproverEmail;
-      }
+      // Prefer documents explicitly scoped to 'tenant'; fall back to legacy
+      // documents that predate the scope field (normalizeApprover infers it).
+      const tenantApprover = querySnapshot.docs.find((d) => {
+        const normalized = normalizeApprover({
+          email: d.data().email,
+          department: d.data().department ?? "",
+          createdAt: d.data().createdAt ?? "",
+          level: d.data().level,
+          scope: d.data().scope,
+          resourceRoomIds: d.data().resourceRoomIds,
+        });
+        return normalized.scope === "tenant";
+      });
+      const email = tenantApprover?.data().email;
+      if (email) return email;
     }
     return null;
   } catch (error) {
@@ -270,8 +291,67 @@ export const serverGetFinalApproverEmailFromDatabase = async (
 
 export const serverGetFinalApproverEmail = async (
   tenant?: string,
-): Promise<string | null> => {
-  return serverGetFinalApproverEmailFromDatabase(tenant);
+): Promise<string | null> => serverGetFinalApproverEmailFromDatabase(tenant);
+
+/**
+ * Returns all resource approver emails for a specific room by querying
+ * user documents in ${tenant}-usersApprovers whose `resourceRoomIds`
+ * array contains the given roomId.
+ *
+ * Falls back to the tenant-level final approver when no per-room approvers
+ * are configured, or when roomId is not provided.
+ *
+ * @param tenant - The tenant identifier
+ * @param roomId - The numeric (or string) roomId of the resource
+ */
+export const serverGetResourceApproverEmailsForResource = async (
+  tenant?: string,
+  roomId?: number | string,
+): Promise<string[]> => {
+  if (roomId !== undefined) {
+    try {
+      const numericRoomId =
+        typeof roomId === "string" ? parseInt(roomId, 10) : roomId;
+      if (Number.isFinite(numericRoomId)) {
+        const tenantCollection = getServerTenantCollection(
+          TableNames.APPROVERS,
+          tenant,
+        );
+        const querySnapshot = await traceDatabase(
+          "query",
+          `Firestore/${tenantCollection}`,
+          () =>
+            db
+              .collection(tenantCollection)
+              .where("resourceRoomIds", "array-contains", numericRoomId)
+              .get(),
+        );
+        if (!querySnapshot.empty) {
+          // Filter to per-resource approvers, supporting legacy docs without scope.
+          const emails = querySnapshot.docs
+            .filter((d) => {
+              const normalized = normalizeApprover({
+                email: d.data().email,
+                department: d.data().department ?? "",
+                createdAt: d.data().createdAt ?? "",
+                level: d.data().level,
+                scope: d.data().scope,
+                resourceRoomIds: d.data().resourceRoomIds,
+              });
+              return normalized.scope === "resource";
+            })
+            .map((d) => d.data().email as string | undefined)
+            .filter((e): e is string => Boolean(e));
+          if (emails.length > 0) return emails;
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching resource-specific approvers:", error);
+    }
+  }
+  // Fall back to the tenant-level final approver
+  const fallback = await serverGetFinalApproverEmailFromDatabase(tenant);
+  return fallback ? [fallback] : [];
 };
 
 export const logServerBookingChange = async ({
