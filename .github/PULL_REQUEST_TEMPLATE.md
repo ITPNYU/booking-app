@@ -2,6 +2,19 @@
 
 <!-- Briefly describe what was changed and why -->
 
+## Schema Changes
+
+<!-- Required for every PR. Pick exactly one. -->
+
+- [ ] No tenant schema changes
+- [ ] Schema changed (describe below)
+
+<!-- If schema changed, list affected tenants and what changed.
+Example:
+- mc: added `showCleaning` flag
+- itp: added new resource (roomId 999)
+-->
+
 ## Checklist
 
 - [ ] I linked relevant issue(s) in the Development section
