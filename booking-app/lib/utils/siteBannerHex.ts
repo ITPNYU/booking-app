@@ -1,5 +1,6 @@
 /** Must stay aligned with the site-banner write route (`/api/tenant-site-banner`). */
 export const SITE_BANNER_MESSAGE_MAX_LEN = 4000;
+export const SITE_BANNER_SETTINGS_DOC_ID = "siteBanner";
 
 /**
  * Accepts `#RGB` or `#RRGGBB` (case-insensitive). Returns lowercase `#rrggbb` or null.

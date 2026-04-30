@@ -1,7 +1,10 @@
 import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PagePermission } from "@/components/src/types";
-import { DEFAULT_SITE_BANNER_COLOR_HEX } from "@/lib/utils/siteBannerHex";
+import {
+  DEFAULT_SITE_BANNER_COLOR_HEX,
+  SITE_BANNER_SETTINGS_DOC_ID,
+} from "@/lib/utils/siteBannerHex";
 
 const banner = (overrides: Record<string, unknown> = {}) => ({
   enabled: false,
@@ -12,13 +15,15 @@ const banner = (overrides: Record<string, unknown> = {}) => ({
 
 const mocks = vi.hoisted(() => {
   const mockSet = vi.fn();
+  const mockDoc = vi.fn(() => ({
+    set: (...args: unknown[]) => mockSet(...args),
+  }));
+  const mockCollection = vi.fn(() => ({
+    doc: (...args: unknown[]) => mockDoc(...args),
+  }));
   const mockFirestoreFn = Object.assign(
     () => ({
-      collection: vi.fn(() => ({
-        doc: vi.fn(() => ({
-          set: (...args: unknown[]) => mockSet(...args),
-        })),
-      })),
+      collection: (...args: unknown[]) => mockCollection(...args),
     }),
     {
       FieldValue: {
@@ -29,6 +34,8 @@ const mocks = vi.hoisted(() => {
   return {
     mockRequireSession: vi.fn(),
     mockResolveCallerRole: vi.fn(),
+    mockCollection,
+    mockDoc,
     mockSet,
     mockFirestoreFn,
   };
@@ -39,7 +46,8 @@ vi.mock("@/lib/api/requireSession", () => ({
 }));
 
 vi.mock("@/lib/api/authz", () => ({
-  resolveCallerRole: (...args: unknown[]) => mocks.mockResolveCallerRole(...args),
+  resolveCallerRole: (...args: unknown[]) =>
+    mocks.mockResolveCallerRole(...args),
 }));
 
 vi.mock("@/lib/firebase/server/firebaseAdmin", () => ({
@@ -128,9 +136,7 @@ describe("PUT /api/tenant-site-banner", () => {
   });
 
   it("returns 400 when siteBanner is an array", async () => {
-    const res = await PUT(
-      createPutRequest({ tenant: "mc", siteBanner: [] }),
-    );
+    const res = await PUT(createPutRequest({ tenant: "mc", siteBanner: [] }));
     const { data, status } = await parseJson(res);
 
     expect(status).toBe(400);
@@ -235,13 +241,19 @@ describe("PUT /api/tenant-site-banner", () => {
     const res = await PUT(
       createPutRequest({
         tenant: "mc",
-        siteBanner: banner({ enabled: true, message: "Hello", colorHex: "#0066cc" }),
+        siteBanner: banner({
+          enabled: true,
+          message: "Hello",
+          colorHex: "#0066cc",
+        }),
       }),
     );
     const { data, status } = await parseJson(res);
 
     expect(status).toBe(200);
     expect(data).toEqual({ ok: true });
+    expect(mocks.mockCollection).toHaveBeenCalledWith("mc-settings");
+    expect(mocks.mockDoc).toHaveBeenCalledWith(SITE_BANNER_SETTINGS_DOC_ID);
     expect(mocks.mockSet).toHaveBeenCalledTimes(1);
     expect(mocks.mockSet).toHaveBeenCalledWith(
       expect.objectContaining({

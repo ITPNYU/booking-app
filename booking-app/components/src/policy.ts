@@ -42,6 +42,7 @@ export const getTenantCollectionName = (
     "counters",
     "operationHours",
     "preBanLogs",
+    "settings",
     "usersWhitelist",
     "usersApprovers",
     "usersRights",

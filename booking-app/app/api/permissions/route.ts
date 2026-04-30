@@ -10,6 +10,7 @@ import { isValidTenant } from "@/components/src/constants/tenants";
 import { PagePermission, SiteBannerSettings } from "@/components/src/types";
 import {
   DEFAULT_SITE_BANNER_COLOR_HEX,
+  SITE_BANNER_SETTINGS_DOC_ID,
   parseStoredSiteBannerColorHex,
   SITE_BANNER_MESSAGE_MAX_LEN,
 } from "@/lib/utils/siteBannerHex";
@@ -72,9 +73,11 @@ export async function GET(req: NextRequest) {
 
     const settingsDocPromise =
       tenant && isValidTenant(tenant)
-        ? db.collection(TableNames.SETTINGS).doc(tenant).get()
+        ? db
+            .collection(getTenantCollectionName(TableNames.SETTINGS, tenant))
+            .doc(SITE_BANNER_SETTINGS_DOC_ID)
+            .get()
         : Promise.resolve(null);
-
     const [usersRightsSnap, superAdminSnap, approversSnap, settingsSnap] =
       await Promise.all([
         usersRightsRef.get(),
@@ -83,7 +86,7 @@ export async function GET(req: NextRequest) {
         settingsDocPromise,
       ]);
 
-    const userRightsRecords = usersRightsSnap.docs.map((d) => ({
+    const userRightsRecords = usersRightsSnap.docs.map(d => ({
       id: d.id,
       ...(d.data() as Record<string, unknown>),
     }));
@@ -102,7 +105,7 @@ export async function GET(req: NextRequest) {
         createdAt: r.createdAt,
       }));
 
-    const approvers = approversSnap.docs.map((d) => {
+    const approvers = approversSnap.docs.map(d => {
       const data = d.data() as Record<string, unknown>;
       return {
         id: d.id,
@@ -114,14 +117,14 @@ export async function GET(req: NextRequest) {
     });
     const liaisonUsers = approvers;
     const equipmentUsers = approvers.filter(
-      (a) => a.level === ApproverLevel.EQUIPMENT,
+      a => a.level === ApproverLevel.EQUIPMENT,
     );
     const finalApproverEmail =
-      (approvers.find((a) => a.level === ApproverLevel.FINAL)?.email as
+      (approvers.find(a => a.level === ApproverLevel.FINAL)?.email as
         | string
         | undefined) ?? "";
 
-    const superAdminUsers = superAdminSnap.docs.map((d) => {
+    const superAdminUsers = superAdminSnap.docs.map(d => {
       const data = d.data() as Record<string, unknown>;
       return {
         id: d.id,
@@ -145,14 +148,27 @@ export async function GET(req: NextRequest) {
       pagePermission = PagePermission.PA;
     }
 
-    const siteBanner =
+    let siteBanner =
       settingsSnap && settingsSnap.exists
         ? parseSiteBannerFromDoc(settingsSnap.data() as Record<string, unknown>)
-        : {
-            enabled: false,
-            message: "",
-            colorHex: DEFAULT_SITE_BANNER_COLOR_HEX,
-          };
+        : null;
+    if (!siteBanner && tenant && isValidTenant(tenant)) {
+      // Legacy path before tenant-scoped settings collections.
+      const legacySettingsSnap = await db
+        .collection(TableNames.SETTINGS)
+        .doc(tenant)
+        .get();
+      siteBanner = legacySettingsSnap.exists
+        ? parseSiteBannerFromDoc(
+            legacySettingsSnap.data() as Record<string, unknown>,
+          )
+        : null;
+    }
+    siteBanner ??= {
+      enabled: false,
+      message: "",
+      colorHex: DEFAULT_SITE_BANNER_COLOR_HEX,
+    };
 
     return NextResponse.json({
       pagePermission,

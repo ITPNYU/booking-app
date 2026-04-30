@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import admin from "@/lib/firebase/server/firebaseAdmin";
-import { TableNames } from "@/components/src/policy";
+import { TableNames, getTenantCollectionName } from "@/components/src/policy";
 import { isValidTenant } from "@/components/src/constants/tenants";
 import { requireSession } from "@/lib/api/requireSession";
 import { resolveCallerRole } from "@/lib/api/authz";
 import { PagePermission } from "@/components/src/types";
 import {
   DEFAULT_SITE_BANNER_COLOR_HEX,
+  SITE_BANNER_SETTINGS_DOC_ID,
   normalizeSiteBannerColorHex,
   SITE_BANNER_MESSAGE_MAX_LEN,
 } from "@/lib/utils/siteBannerHex";
@@ -26,8 +27,8 @@ function isPlainRecord(value: unknown): value is Record<string, unknown> {
 }
 
 /**
- * Upserts `settings/{tenant}` with `siteBanner` only for callers who are
- * admin or super-admin for that tenant. Doc id always matches tenant slug.
+ * Upserts `{tenant}-settings/siteBanner` with `siteBanner` only for callers who are
+ * admin or super-admin for that tenant.
  */
 export async function PUT(req: NextRequest) {
   const session = await requireSession();
@@ -48,10 +49,7 @@ export async function PUT(req: NextRequest) {
   }
 
   const role = await resolveCallerRole(session, tenant);
-  if (
-    role !== PagePermission.ADMIN &&
-    role !== PagePermission.SUPER_ADMIN
-  ) {
+  if (role !== PagePermission.ADMIN && role !== PagePermission.SUPER_ADMIN) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -100,7 +98,9 @@ export async function PUT(req: NextRequest) {
   }
 
   const db = admin.firestore();
-  const ref = db.collection(TableNames.SETTINGS).doc(tenant);
+  const ref = db
+    .collection(getTenantCollectionName(TableNames.SETTINGS, tenant))
+    .doc(SITE_BANNER_SETTINGS_DOC_ID);
   try {
     await ref.set(
       {
@@ -110,7 +110,10 @@ export async function PUT(req: NextRequest) {
       { merge: true },
     );
   } catch (error) {
-    console.error("[/api/tenant-site-banner][PUT] Firestore write failed:", error);
+    console.error(
+      "[/api/tenant-site-banner][PUT] Firestore write failed:",
+      error,
+    );
     return NextResponse.json(
       { error: "Failed to save site banner" },
       { status: 500 },
