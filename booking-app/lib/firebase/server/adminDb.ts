@@ -8,6 +8,7 @@ import {
   DocumentData,
   FieldValue,
   Query,
+  QueryDocumentSnapshot,
   QuerySnapshot,
   WhereFilterOp,
 } from "firebase-admin/firestore";
@@ -167,6 +168,7 @@ export const serverFetchAllDataFromCollection = async <T extends DocumentData>(
   collectionName: TableNames,
   queryConstraints: Constraint[] = [],
   tenant?: string,
+  maxDocs?: number,
 ): Promise<T[]> => {
   const tenantCollection = getServerTenantCollection(collectionName, tenant);
   const collectionRef: CollectionReference<T> = db.collection(
@@ -182,6 +184,10 @@ export const serverFetchAllDataFromCollection = async <T extends DocumentData>(
       constraint.value,
     );
   });
+
+  if (typeof maxDocs === "number") {
+    query = query.limit(maxDocs);
+  }
 
   const snapshot: QuerySnapshot<T> = await traceDatabase(
     "query",
@@ -347,4 +353,106 @@ export const getBookingLogs = async (
     console.error("Error fetching booking logs:", error);
     throw error;
   }
+};
+
+export type LatestBookingStatusLogRequest = {
+  calendarEventId: string;
+  status: BookingStatusLabel;
+};
+
+export type LatestBookingStatusLog = {
+  calendarEventId: string;
+  status: BookingStatusLabel;
+  changedAt: number;
+};
+
+function chunkArray<T>(items: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let index = 0; index < items.length; index += size) {
+    chunks.push(items.slice(index, index + size));
+  }
+  return chunks;
+}
+
+function timestampToMillis(value: any): number | null {
+  if (!value) return null;
+  if (typeof value.toMillis === "function") return value.toMillis();
+  if (typeof value.toDate === "function") return value.toDate().getTime();
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+
+  const seconds = value.seconds ?? value._seconds;
+  const nanoseconds = value.nanoseconds ?? value._nanoseconds ?? 0;
+  if (typeof seconds === "number") {
+    return (
+      seconds * 1000 +
+      (typeof nanoseconds === "number" ? Math.floor(nanoseconds / 1e6) : 0)
+    );
+  }
+  return null;
+}
+
+export const getLatestBookingStatusLogs = async (
+  bookings: LatestBookingStatusLogRequest[],
+  tenant?: string,
+): Promise<Record<string, LatestBookingStatusLog>> => {
+  if (bookings.length === 0) return {};
+
+  const calendarEventIdsByStatus = new Map<BookingStatusLabel, string[]>();
+  for (const { calendarEventId, status } of bookings) {
+    const list = calendarEventIdsByStatus.get(status) ?? [];
+    list.push(calendarEventId);
+    calendarEventIdsByStatus.set(status, list);
+  }
+
+  const tenantCollection = getServerTenantCollection(
+    TableNames.BOOKING_LOGS,
+    tenant,
+  );
+  const logsRef = db.collection(tenantCollection);
+  const latestByCalendarEventId: Record<string, LatestBookingStatusLog> = {};
+
+  const mergeDocsForStatus = (
+    status: BookingStatusLabel,
+    docs: QueryDocumentSnapshot[],
+  ) => {
+    docs.forEach((docSnap) => {
+      const data = docSnap.data();
+      const calendarEventId = data.calendarEventId;
+      const docStatus = data.status as BookingStatusLabel;
+      if (typeof calendarEventId !== "string" || docStatus !== status) {
+        return;
+      }
+
+      const changedAt = timestampToMillis(data.changedAt);
+      if (changedAt == null) return;
+
+      const existing = latestByCalendarEventId[calendarEventId];
+      if (!existing || changedAt > existing.changedAt) {
+        latestByCalendarEventId[calendarEventId] = {
+          calendarEventId,
+          status,
+          changedAt,
+        };
+      }
+    });
+  };
+
+  await Promise.all(
+    [...calendarEventIdsByStatus.entries()].flatMap(([status, ids]) =>
+      chunkArray(ids, 30).map(async (calendarEventIdChunk) => {
+        const querySnapshot = await traceDatabase(
+          "query",
+          "Firestore/bookingLogs/latestBatchByStatus",
+          () =>
+            logsRef
+              .where("calendarEventId", "in", calendarEventIdChunk)
+              .where("status", "==", status)
+              .get(),
+        );
+        mergeDocsForStatus(status, querySnapshot.docs);
+      }),
+    ),
+  );
+
+  return latestByCalendarEventId;
 };

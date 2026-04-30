@@ -17,8 +17,15 @@ import {
   Tooltip,
   tooltipClasses,
 } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import { DataGrid, GridSortModel } from "@mui/x-data-grid";
-import React, { useContext, useEffect, useMemo, useState } from "react";
+import React, {
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useParams } from "next/navigation";
 import {
   BookingOrigin,
@@ -34,6 +41,7 @@ import { formatDateTable, formatTimeAmPm } from "../../../utils/date";
 import BookingActions from "../../admin/components/BookingActions";
 import getBookingStatus from "../../hooks/getBookingStatus";
 import Loading from "../Loading";
+import { useAuth } from "../AuthProvider";
 import { DatabaseContext } from "../Provider";
 import { useTenantSchema } from "../SchemaProvider";
 import BookMoreButton from "./BookMoreButton";
@@ -43,7 +51,17 @@ import MoreInfoModal from "./MoreInfoModal";
 import StatusChip from "./StatusChip";
 import { DateRangeFilter } from "./hooks/getDateFilter";
 import useAllowedStatuses from "./hooks/useAllowedStatuses";
+import {
+  formatBookingInterimHours,
+  getBookingInterimHours,
+  isAwaitingApprovalStatus,
+} from "../../../../utils/bookingInterimHours";
 import { useBookingFilters } from "./hooks/useBookingFilters";
+
+type LatestBookingStatusLog = {
+  status: BookingStatusLabel;
+  changedAt: number;
+};
 
 interface BookingsProps {
   pageContext: PageContextLevel;
@@ -56,8 +74,22 @@ export const Bookings: React.FC<BookingsProps> = ({
 }) => {
   const { bookingsLoading, setLastItem, fetchAllBookings, allBookings } =
     useContext(DatabaseContext);
-  const { resourceName, showSetup, showEquipment, showStaffing, showCatering, showHireSecurity } = useTenantSchema();
-  const hasServices = showSetup || showEquipment || showStaffing || showCatering || showHireSecurity;
+  const {
+    resourceName,
+    showSetup,
+    showEquipment,
+    showStaffing,
+    showCatering,
+    showHireSecurity,
+    interimHighlightThresholdHours = 18,
+  } = useTenantSchema();
+  const hasServices =
+    showSetup ||
+    showEquipment ||
+    showStaffing ||
+    showCatering ||
+    showHireSecurity;
+  const theme = useTheme();
   const params = useParams();
   const tenant = params?.tenant as string;
   const excludedStatuses = [
@@ -94,6 +126,9 @@ export const Bookings: React.FC<BookingsProps> = ({
   const [sortModel, setSortModel] = useState<GridSortModel>([
     { field: "startDate", sort: "asc" },
   ]);
+  const [latestStatusLogsByCalendarEventId, setLatestStatusLogsByCalendarEventId] =
+    useState<Record<string, LatestBookingStatusLog>>({});
+  const { user, isOnTestEnv } = useAuth();
 
   const isUserView = pageContext === PageContextLevel.USER;
   const isAdminOrAbove = pageContext >= PageContextLevel.ADMIN;
@@ -139,6 +174,102 @@ export const Bookings: React.FC<BookingsProps> = ({
     selectedRooms,
     selectedServices,
   });
+
+  const { statusLogRequestSignature, latestStatusLogRequests } = useMemo(() => {
+    if (isUserView) {
+      return { statusLogRequestSignature: "", latestStatusLogRequests: [] };
+    }
+
+    const requestsByCalendarEventId = new Map<
+      string,
+      { calendarEventId: string; status: BookingStatusLabel }
+    >();
+    filteredRows.forEach((row) => {
+      const status = getBookingStatus(row, tenant);
+      if (!isAwaitingApprovalStatus(status) || !row.calendarEventId) return;
+      requestsByCalendarEventId.set(row.calendarEventId, {
+        calendarEventId: row.calendarEventId,
+        status,
+      });
+    });
+
+    const latestStatusLogRequests = [...requestsByCalendarEventId.values()];
+    const statusLogRequestSignature = [...latestStatusLogRequests]
+      .sort((a, b) =>
+        a.calendarEventId === b.calendarEventId
+          ? String(a.status).localeCompare(String(b.status))
+          : a.calendarEventId.localeCompare(b.calendarEventId),
+      )
+      .map((r) => `${r.calendarEventId}:${r.status}`)
+      .join("|");
+
+    return { statusLogRequestSignature, latestStatusLogRequests };
+  }, [filteredRows, isUserView, tenant]);
+
+  const latestStatusLogRequestsRef = useRef(latestStatusLogRequests);
+  latestStatusLogRequestsRef.current = latestStatusLogRequests;
+
+  const [debouncedLogRequests, setDebouncedLogRequests] = useState<
+    { calendarEventId: string; status: BookingStatusLabel }[]
+  >([]);
+
+  useEffect(() => {
+    if (statusLogRequestSignature === "") {
+      setDebouncedLogRequests([]);
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      setDebouncedLogRequests([...latestStatusLogRequestsRef.current]);
+    }, 350);
+    return () => window.clearTimeout(timer);
+  }, [statusLogRequestSignature]);
+
+  useEffect(() => {
+    if (debouncedLogRequests.length === 0) {
+      setLatestStatusLogsByCalendarEventId({});
+      return;
+    }
+
+    if (!isOnTestEnv && !user) {
+      setLatestStatusLogsByCalendarEventId({});
+      return;
+    }
+
+    const controller = new AbortController();
+
+    (async () => {
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      if (tenant) {
+        headers["x-tenant"] = tenant;
+      }
+
+      try {
+        const response = await fetch("/api/booking-logs/latest", {
+          method: "POST",
+          headers,
+          credentials: "include",
+          body: JSON.stringify({ bookings: debouncedLogRequests }),
+          signal: controller.signal,
+        });
+        if (!response.ok) {
+          throw new Error(
+            `Failed to fetch latest booking logs: ${response.status}`,
+          );
+        }
+        const latestLogs: Record<string, LatestBookingStatusLog> =
+          await response.json();
+        setLatestStatusLogsByCalendarEventId(latestLogs);
+      } catch (error: unknown) {
+        if ((error as { name?: string })?.name === "AbortError") return;
+        console.error("Error fetching latest booking logs:", error);
+        setLatestStatusLogsByCalendarEventId({});
+      }
+    })();
+
+    return () => controller.abort();
+  }, [debouncedLogRequests, tenant, user, isOnTestEnv]);
 
   const topRow = useMemo(() => {
     return (
@@ -232,6 +363,50 @@ export const Bookings: React.FC<BookingsProps> = ({
           </TableCell>
         ),
       },
+      ...(!isUserView
+        ? [
+            {
+              field: "interim",
+              type: "number" as const,
+              headerName: "Interim",
+              minWidth: 88,
+              flex: 0.75,
+              valueGetter: (_value: unknown, row: BookingRow) => {
+                const status = getBookingStatus(row, tenant);
+                const latestLog =
+                  latestStatusLogsByCalendarEventId[row.calendarEventId];
+                const latestStatusChangedAt =
+                  latestLog?.status === status ? latestLog.changedAt : undefined;
+
+                return getBookingInterimHours(
+                  row,
+                  tenant,
+                  latestStatusChangedAt,
+                );
+              },
+              renderHeader: () => (
+                <TableCell component={"div" as any}>
+                  <Tooltip title="Hours in current approval stage. REQUESTED: since submitted. PRE-APPROVED: since first approval. Shows 0 once fully approved.">
+                    <span>Interim (h)</span>
+                  </Tooltip>
+                </TableCell>
+              ),
+              renderCell: (params: { value?: number | null }) => (
+                <TableCell component={"div" as any}>
+                  {formatBookingInterimHours(params.value ?? null)}
+                </TableCell>
+              ),
+              sortComparator: (v1, v2) => {
+                const a = v1 as number | null;
+                const b = v2 as number | null;
+                if (a == null && b == null) return 0;
+                if (a == null) return 1;
+                if (b == null) return -1;
+                return a - b;
+              },
+            },
+          ]
+        : []),
       {
         field: "startDate",
         headerName: "Date / Time",
@@ -613,7 +788,14 @@ export const Bookings: React.FC<BookingsProps> = ({
     ].filter(Boolean);
 
     return baseColumns;
-  }, [isUserView, pageContext]);
+  }, [
+    isUserView,
+    pageContext,
+    tenant,
+    resourceName,
+    hasServices,
+    latestStatusLogsByCalendarEventId,
+  ]);
 
   // Function to update a booking in the local state
   const updateBookingInState = (updatedBooking: BookingRow) => {
@@ -645,6 +827,14 @@ export const Bookings: React.FC<BookingsProps> = ({
         rows={filteredRows}
         columns={columns}
         getRowId={(row) => row.calendarEventId}
+        getCellClassName={(params) =>
+          !isUserView &&
+          params.field === "interim" &&
+          typeof params.value === "number" &&
+          params.value >= interimHighlightThresholdHours
+            ? "booking-cell-interim-over-threshold"
+            : ""
+        }
         hideFooter={!showFooter}
         initialState={{
           pagination: {
@@ -668,6 +858,15 @@ export const Bookings: React.FC<BookingsProps> = ({
           "& .MuiDataGrid-row--borderBottom": {
             backgroundColor: "#EEEEEE !important",
           },
+          "& .MuiDataGrid-cell.booking-cell-interim-over-threshold": {
+            fontWeight: 600,
+            color: theme.palette.primary.main,
+          },
+          "& .MuiDataGrid-cell.booking-cell-interim-over-threshold .MuiTableCell-root":
+            {
+              fontWeight: 600,
+              color: theme.palette.primary.main,
+            },
           borderRadius: "0px 0px 4px 4px",
         }}
         sortModel={sortModel}
