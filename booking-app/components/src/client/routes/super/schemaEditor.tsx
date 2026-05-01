@@ -267,7 +267,7 @@ function BasicInfoSection({
         sx={{ mb: 2 }}
       />
       <TextField
-        label="Bookings dashboard: highlight pending after (hours)"
+        label="Bookings dashboard: highlight Interim after (hours)"
         type="number"
         inputProps={{ min: 0 }}
         value={schema.interimHighlightThresholdHours ?? ""}

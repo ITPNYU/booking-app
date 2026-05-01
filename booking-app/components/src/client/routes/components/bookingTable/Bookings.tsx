@@ -128,6 +128,11 @@ export const Bookings: React.FC<BookingsProps> = ({
   ]);
   const [latestStatusLogsByCalendarEventId, setLatestStatusLogsByCalendarEventId] =
     useState<Record<string, LatestBookingStatusLog>>({});
+  const latestStatusLogsByCalendarEventIdRef = useRef<
+    Record<string, LatestBookingStatusLog>
+  >({});
+  latestStatusLogsByCalendarEventIdRef.current =
+    latestStatusLogsByCalendarEventId;
   const { user, isOnTestEnv } = useAuth();
 
   const isUserView = pageContext === PageContextLevel.USER;
@@ -389,7 +394,9 @@ export const Bookings: React.FC<BookingsProps> = ({
               valueGetter: (_value: unknown, row: BookingRow) => {
                 const status = getBookingStatus(row, tenant);
                 const latestLog =
-                  latestStatusLogsByCalendarEventId[row.calendarEventId];
+                  latestStatusLogsByCalendarEventIdRef.current[
+                    row.calendarEventId
+                  ];
                 const latestStatusChangedAt =
                   latestLog?.status === status ? latestLog.changedAt : undefined;
 
@@ -809,7 +816,6 @@ export const Bookings: React.FC<BookingsProps> = ({
     tenant,
     resourceName,
     hasServices,
-    latestStatusLogsByCalendarEventId,
   ]);
 
   // Function to update a booking in the local state

@@ -185,7 +185,18 @@ export const serverFetchAllDataFromCollection = async <T extends DocumentData>(
     );
   });
 
-  if (typeof maxDocs === "number") {
+  if (maxDocs !== undefined) {
+    if (
+      typeof maxDocs !== "number" ||
+      !Number.isFinite(maxDocs) ||
+      !Number.isInteger(maxDocs) ||
+      maxDocs < 0
+    ) {
+      throw new RangeError("maxDocs must be a finite non-negative integer");
+    }
+    if (maxDocs === 0) {
+      return [];
+    }
     query = query.limit(maxDocs);
   }
 
@@ -375,7 +386,7 @@ function chunkArray<T>(items: T[], size: number): T[][] {
 }
 
 function timestampToMillis(value: any): number | null {
-  if (!value) return null;
+  if (value == null) return null;
   if (typeof value.toMillis === "function") return value.toMillis();
   if (typeof value.toDate === "function") return value.toDate().getTime();
   if (typeof value === "number" && Number.isFinite(value)) return value;
