@@ -875,12 +875,12 @@ export const Bookings: React.FC<BookingsProps> = ({
           },
           "& .MuiDataGrid-cell.booking-cell-interim-over-threshold": {
             fontWeight: 600,
-            color: theme.palette.primary.main,
+            color: theme.palette.error.main,
           },
           "& .MuiDataGrid-cell.booking-cell-interim-over-threshold .MuiTableCell-root":
             {
               fontWeight: 600,
-              color: theme.palette.primary.main,
+              color: theme.palette.error.main,
             },
           borderRadius: "0px 0px 4px 4px",
         }}
