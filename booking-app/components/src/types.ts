@@ -313,6 +313,14 @@ export type PolicySettings = {
   finalApproverEmail: string;
 };
 
+/** Tenant-wide announcement bar (Firestore `settings/{tenant}`). */
+export type SiteBannerSettings = {
+  enabled: boolean;
+  message: string;
+  /** Accent `#rrggbb` (text, icon, border, tint). */
+  colorHex: string;
+};
+
 export enum Role {
   STUDENT = "Student",
   RESIDENT_FELLOW = "Resident/Fellow",
@@ -445,6 +453,8 @@ export type Filters = {
   dateRange: string | Date[];
   sortField: string;
   searchQuery?: string;
+  /** Set on the USER /my-bookings view to scope server-side fetch to one user. */
+  userEmail?: string;
 };
 
 export interface PreBanLog {

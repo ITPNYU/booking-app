@@ -141,21 +141,6 @@ export const Bookings: React.FC<BookingsProps> = ({
   });
 
   const topRow = useMemo(() => {
-    if (pageContext === PageContextLevel.USER) {
-      return (
-        <Box
-          sx={{
-            color: "rgba(0,0,0,0.6)",
-            display: "flex",
-            justifyContent: "flex-start",
-            paddingLeft: "16px",
-          }}
-        >
-          Your Bookings
-        </Box>
-      );
-    }
-
     return (
       <BookingTableFilters
         selectedOrigins={selectedOrigins}
@@ -374,7 +359,7 @@ export const Bookings: React.FC<BookingsProps> = ({
           </TableCell>
         ),
       },
-      ...(!isUserView && hasServices
+      ...(hasServices
         ? [
             {
               field: "services",

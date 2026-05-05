@@ -301,7 +301,8 @@ export const getPaginatedData = async <T>(
       filters: {
         dateRange: dateRange as any,
         sortField: filters.sortField,
-        searchQuery: (filters as any).searchQuery,
+        searchQuery: filters.searchQuery,
+        userEmail: filters.userEmail,
       },
       limit: itemsPerPage,
       lastVisible: serializedLast,

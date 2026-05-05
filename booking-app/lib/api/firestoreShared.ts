@@ -56,6 +56,12 @@ export type PaginatedRequest = {
     dateRange?: Array<string | null> | string;
     sortField: string;
     searchQuery?: string;
+    /**
+     * Limits results to bookings whose `email` field matches. Used by the
+     * USER `/my-bookings` view so a regular user's own booking isn't crowded
+     * out of the LIMIT-bounded result set by tenant-wide far-future bookings.
+     */
+    userEmail?: string;
   };
   limit?: number;
   /** lastVisible[sortField] value used for startAfter cursor. */
