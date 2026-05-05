@@ -1,13 +1,18 @@
 import {
-  Checkbox,
   FormControlLabel,
+  FormHelperText,
   Switch,
   Radio,
   RadioGroup,
   FormControl,
   FormLabel,
 } from "@mui/material";
-import { Control, Controller, UseFormTrigger } from "react-hook-form";
+import {
+  Control,
+  Controller,
+  FieldErrors,
+  UseFormTrigger,
+} from "react-hook-form";
 import React, { useContext, useMemo } from "react";
 import styled from "@emotion/styled";
 import { FormContextLevel, Inputs, StaffingServices } from "../../../../types";
@@ -23,16 +28,48 @@ const Label = styled.label`
 interface Props {
   id: keyof Inputs;
   control: Control<Inputs, any>;
+  errors: FieldErrors<Inputs>;
   trigger: UseFormTrigger<Inputs>;
   showStaffingServices: boolean;
   setShowStaffingServices: any;
   formContext: FormContextLevel;
 }
 
+const LOCKED_STAFFING_ROOM_IDS = new Set([103, 230]);
+
+function normalizeRoomName(name?: unknown) {
+  return typeof name === "string" ? name.trim().toLowerCase() : "";
+}
+
+export function roomRequiresLockedStaffing(room?: {
+  roomId?: unknown;
+  name?: unknown;
+}) {
+  if (!room) {
+    return false;
+  }
+
+  const normalizedRoomId = Number(room.roomId);
+  const normalizedName = normalizeRoomName(room.name);
+
+  return (
+    LOCKED_STAFFING_ROOM_IDS.has(normalizedRoomId) ||
+    normalizedName === "garage" ||
+    normalizedName === "audio lab"
+  );
+}
+
+export function selectionRequiresLockedStaffing(
+  selectedRooms: Array<{ roomId?: unknown; name?: unknown }>,
+) {
+  return selectedRooms.some((room) => roomRequiresLockedStaffing(room));
+}
+
 export default function BookingFormStaffingServices(props: Props) {
   const {
     id,
     control,
+    errors,
     trigger,
     showStaffingServices,
     setShowStaffingServices,
@@ -42,6 +79,25 @@ export default function BookingFormStaffingServices(props: Props) {
   const roomIds = selectedRooms.map((room) => room.roomId);
   const showStaffing = selectedRooms.some(
     (room) => room.staffingServices && room.staffingServices.length > 0,
+  );
+  const requiresLockedStaffing = useMemo(
+    () => selectionRequiresLockedStaffing(selectedRooms),
+    [selectedRooms],
+  );
+  const hasGarageSelected = useMemo(
+    () =>
+      selectedRooms.some(
+        (room) => Number(room.roomId) === 103 || normalizeRoomName(room.name) === "garage",
+      ),
+    [selectedRooms],
+  );
+  const hasAudioLabSelected = useMemo(
+    () =>
+      selectedRooms.some(
+        (room) =>
+          Number(room.roomId) === 230 || normalizeRoomName(room.name) === "audio lab",
+      ),
+    [selectedRooms],
   );
 
   // Previously limited for walk-in/modification; restriction removed so full options show in all contexts
@@ -69,6 +125,31 @@ export default function BookingFormStaffingServices(props: Props) {
 
     return { staffingSections: sections, staffingServices: services };
   }, [roomIds, selectedRooms, showStaffing]);
+
+  const isStaffingVisible = showStaffingServices || requiresLockedStaffing;
+
+  const getValidationMessage = (value?: string) => {
+    if (!isStaffingVisible) {
+      return true;
+    }
+
+    const selectedServices = value?.split(",").filter(Boolean) || [];
+    if (staffingSections.length === 0) {
+      return selectedServices.length > 0 || "Staffing selection is required";
+    }
+
+    const allSectionsSelected = staffingSections.every((section) =>
+      section.indexes.some((serviceIndex) => {
+        const service = staffingServices[serviceIndex];
+        return service ? selectedServices.includes(service) : false;
+      }),
+    );
+
+    return (
+      allSectionsSelected ||
+      "Select one staffing option for each required section"
+    );
+  };
 
   const toggle = (
     <Controller
@@ -104,16 +185,41 @@ export default function BookingFormStaffingServices(props: Props) {
 
   return (
     <div style={{ marginBottom: 8 }}>
-      <Label htmlFor={id}>Staffing?</Label>
-      <p style={{ fontSize: "0.75rem" }}>
-        Request audio technicians, lighting technicians, and technical support.
-      </p>
-      {toggle}
-      {showStaffingServices && (
+      <Label htmlFor={id}>{requiresLockedStaffing ? "Staffing" : "Staffing?"}</Label>
+      {requiresLockedStaffing ? (
+        <>
+          <p style={{ fontSize: "0.75rem" }}>
+            Please indicate the level of support needed.
+          </p>
+          {hasAudioLabSelected && (
+            <p style={{ fontSize: "0.75rem" }}>
+              Audio Lab 230 staffing is required. See Staffing Type Definitions
+              and the SAI Studio Audio Interface Playback Guide for the Plug &
+              Play options. The video projection system is only available with
+              an Audio Tech.
+            </p>
+          )}
+          {hasGarageSelected && (
+            <p style={{ fontSize: "0.75rem" }}>
+              Garage 103 staffing is required. See Staffing Type Definitions
+              and the Plug & Play Garage Guide for the available Plug & Play
+              options.
+            </p>
+          )}
+        </>
+      ) : (
+        <p style={{ fontSize: "0.75rem" }}>
+          Request audio technicians, lighting technicians, and technical
+          support.
+        </p>
+      )}
+      {!requiresLockedStaffing && toggle}
+      {isStaffingVisible && (
         <Controller
           name={id}
           control={control}
-          render={({ field }) => (
+          rules={{ validate: getValidationMessage }}
+          render={({ field, fieldState }) => (
             <div>
               {staffingSections.length > 0 ? (
                 // Render sectioned staffing services with radio buttons for each service
@@ -134,7 +240,7 @@ export default function BookingFormStaffingServices(props: Props) {
                         >
                           {section.name}:
                         </FormLabel>
-                        <FormControl component="fieldset">
+                        <FormControl component="fieldset" error={fieldState.invalid}>
                           <RadioGroup
                             value={
                               selectedServices.find((service) =>
@@ -209,6 +315,9 @@ export default function BookingFormStaffingServices(props: Props) {
                       />
                     ))}
                   </RadioGroup>
+                  <FormHelperText>
+                    {fieldState.error?.message || errors[id]?.message?.toString()}
+                  </FormHelperText>
                 </FormControl>
               )}
             </div>
