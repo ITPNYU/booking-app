@@ -1,8 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(grep -E \"\\\\.ts$|\\\\.tsx$\")",
-      "Bash(npx vitest *)"
-    ]
-  }
-}
