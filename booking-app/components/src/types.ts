@@ -293,7 +293,7 @@ export type PolicySettings = {
   finalApproverEmail: string;
 };
 
-/** Tenant-wide announcement bar (Firestore `settings/{tenant}`). */
+/** Tenant-wide announcement bar (Firestore `{tenant}-settings/siteBanner`). */
 export type SiteBannerSettings = {
   enabled: boolean;
   message: string;
