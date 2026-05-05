@@ -26,6 +26,8 @@ export type Resource = {
   isWalkInCanBookTwo: boolean;
   services: string[]; // ["equipment", "staffing", "setup", "security", "cleaning", "catering", "campus-media"]
   autoApproval?: {
+    /** Explicit enable/disable switch for auto-approval. */
+    shouldAutoApprove?: boolean;
     minHour?: {
       admin: number;
       faculty: number;
@@ -201,6 +203,7 @@ export const defaultResource: Resource = {
   isWalkInCanBookTwo: false,
   services: [],
   autoApproval: {
+    shouldAutoApprove: false,
     minHour: { admin: -1, faculty: -1, student: -1 },
     maxHour: { admin: -1, faculty: -1, student: -1 },
     conditions: {

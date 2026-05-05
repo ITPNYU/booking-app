@@ -326,6 +326,8 @@ export type RoomSetting = {
   staffingSections?: { name: string; indexes: number[] }[];
   // Auto-approval configuration
   autoApproval?: {
+    /** Explicit enable/disable switch for auto-approval. */
+    shouldAutoApprove?: boolean;
     minHour?: {
       admin: number;
       faculty: number;
