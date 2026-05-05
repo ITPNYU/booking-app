@@ -221,105 +221,113 @@ export default function BookingFormStaffingServices(props: Props) {
           rules={{ validate: getValidationMessage }}
           render={({ field, fieldState }) => (
             <div>
-              {staffingSections.length > 0 ? (
-                // Render sectioned staffing services with radio buttons for each service
-                <div>
-                  {staffingSections.map((section, sectionIndex) => {
-                    const selectedServices = field.value?.split(",") || [];
+              {(() => {
+                const errorMessage =
+                  fieldState.error?.message || errors[id]?.message?.toString();
 
-                    return (
-                      <div key={sectionIndex} style={{ marginBottom: 24 }}>
-                        <FormLabel
-                          component="legend"
+                return staffingSections.length > 0 ? (
+                  <>
+                    {/* Render sectioned staffing services with radio buttons for each service */}
+                    <div>
+                      {staffingSections.map((section, sectionIndex) => {
+                        const selectedServices = field.value?.split(",") || [];
+
+                        return (
+                          <div key={sectionIndex} style={{ marginBottom: 24 }}>
+                            <FormLabel
+                              component="legend"
+                              sx={{
+                                fontSize: "0.875rem",
+                                fontWeight: 500,
+                                marginBottom: 1,
+                                display: "block",
+                              }}
+                            >
+                              {section.name}:
+                            </FormLabel>
+                            <FormControl component="fieldset" error={fieldState.invalid}>
+                              <RadioGroup
+                                value={
+                                  selectedServices.find((service) =>
+                                    section.indexes.some(
+                                      (index) =>
+                                        staffingServices[index] === service,
+                                    ),
+                                  ) || ""
+                                }
+                                onChange={(e) => {
+                                  // Remove any previously selected services from this section
+                                  const otherServices = selectedServices.filter(
+                                    (service) =>
+                                      !section.indexes.some(
+                                        (index) =>
+                                          staffingServices[index] === service,
+                                      ),
+                                  );
+                                  // Add the newly selected service
+                                  const newServices = e.target.value
+                                    ? [...otherServices, e.target.value]
+                                    : otherServices;
+                                  field.onChange(newServices.join(","));
+                                  trigger(id);
+                                }}
+                                onBlur={() => trigger(id)}
+                              >
+                                {section.indexes.map((serviceIndex) => {
+                                  const service = staffingServices[serviceIndex];
+                                  return service ? (
+                                    <FormControlLabel
+                                      key={serviceIndex}
+                                      value={service}
+                                      control={<Radio size="small" />}
+                                      label={service}
+                                      sx={{
+                                        display: "block",
+                                        fontSize: "0.75rem",
+                                        marginBottom: 0.5,
+                                      }}
+                                    />
+                                  ) : null;
+                                })}
+                              </RadioGroup>
+                            </FormControl>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {errorMessage ? <FormHelperText error>{errorMessage}</FormHelperText> : null}
+                  </>
+                ) : (
+                  // Render radio buttons for non-sectioned services (single select for staffing)
+                  <FormControl component="fieldset" error={fieldState.invalid}>
+                    <RadioGroup
+                      value={field.value || ""}
+                      onChange={(e) => {
+                        field.onChange(e.target.value);
+                        trigger(id);
+                      }}
+                      onBlur={() => trigger(id)}
+                    >
+                      {staffingServices.map((service) => (
+                        <FormControlLabel
+                          key={service}
+                          value={service}
+                          control={<Radio size="small" />}
+                          label={service}
                           sx={{
-                            fontSize: "0.875rem",
-                            fontWeight: 500,
-                            marginBottom: 1,
                             display: "block",
+                            fontSize: "0.75rem",
+                            marginBottom: 0.5,
                           }}
-                        >
-                          {section.name}:
-                        </FormLabel>
-                        <FormControl component="fieldset" error={fieldState.invalid}>
-                          <RadioGroup
-                            value={
-                              selectedServices.find((service) =>
-                                section.indexes.some(
-                                  (index) =>
-                                    staffingServices[index] === service,
-                                ),
-                              ) || ""
-                            }
-                            onChange={(e) => {
-                              // Remove any previously selected services from this section
-                              const otherServices = selectedServices.filter(
-                                (service) =>
-                                  !section.indexes.some(
-                                    (index) =>
-                                      staffingServices[index] === service,
-                                  ),
-                              );
-                              // Add the newly selected service
-                              const newServices = e.target.value
-                                ? [...otherServices, e.target.value]
-                                : otherServices;
-                              field.onChange(newServices.join(","));
-                              trigger(id);
-                            }}
-                            onBlur={() => trigger(id)}
-                          >
-                            {section.indexes.map((serviceIndex) => {
-                              const service = staffingServices[serviceIndex];
-                              return service ? (
-                                <FormControlLabel
-                                  key={serviceIndex}
-                                  value={service}
-                                  control={<Radio size="small" />}
-                                  label={service}
-                                  sx={{
-                                    display: "block",
-                                    fontSize: "0.75rem",
-                                    marginBottom: 0.5,
-                                  }}
-                                />
-                              ) : null;
-                            })}
-                          </RadioGroup>
-                        </FormControl>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                // Render radio buttons for non-sectioned services (single select for staffing)
-                <FormControl component="fieldset">
-                  <RadioGroup
-                    value={field.value || ""}
-                    onChange={(e) => {
-                      field.onChange(e.target.value);
-                      trigger(id);
-                    }}
-                    onBlur={() => trigger(id)}
-                  >
-                    {staffingServices.map((service) => (
-                      <FormControlLabel
-                        key={service}
-                        value={service}
-                        control={<Radio size="small" />}
-                        label={service}
-                        sx={{
-                          display: "block",
-                          fontSize: "0.75rem",
-                          marginBottom: 0.5,
-                        }}
-                      />
-                    ))}
-                  </RadioGroup>
-                  <FormHelperText>
-                    {fieldState.error?.message || errors[id]?.message?.toString()}
-                  </FormHelperText>
-                </FormControl>
-              )}
+                        />
+                      ))}
+                    </RadioGroup>
+                    <FormHelperText error>
+                      {errorMessage}
+                    </FormHelperText>
+                  </FormControl>
+                );
+              })()}
             </div>
           )}
         ></Controller>
