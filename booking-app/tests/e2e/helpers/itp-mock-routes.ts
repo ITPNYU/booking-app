@@ -45,11 +45,11 @@ const mockItpTenantSchema = {
       calendarId: "mock-calendar-408",
       needsSafetyTraining: false,
       trainingInfoUrl: "",
-      shouldAutoApprove: true,
       isWalkIn: false,
       isWalkInCanBookTwo: false,
       services: [],
       autoApproval: {
+        shouldAutoApprove: true,
         maxHour: { student: 1, faculty: 4, admin: 4 },
         minHour: { student: 0.5, faculty: 0.5, admin: 0.5 },
       },
@@ -62,11 +62,11 @@ const mockItpTenantSchema = {
       calendarId: "mock-calendar-410",
       needsSafetyTraining: false,
       trainingInfoUrl: "",
-      shouldAutoApprove: true,
       isWalkIn: true,
       isWalkInCanBookTwo: false,
       services: [],
       autoApproval: {
+        shouldAutoApprove: true,
         maxHour: { student: 1, faculty: 4, admin: 4 },
         minHour: { student: 0.5, faculty: 0.5, admin: 0.5 },
       },
@@ -224,6 +224,46 @@ export async function registerItpBookingMocks(page: Page) {
       status: 200,
       headers: jsonHeaders,
       body: JSON.stringify({ documents: [] }),
+    })
+  );
+
+  // After the SSO migration, browser-side Firestore reads/writes go through
+  // /api/firestore/* which proxies via firebase-admin. CI has no service
+  // account credentials, so the real route returns 500. Stub them with the
+  // shapes Provider.tsx expects.
+  await page.route("**/api/firestore/list", (route) =>
+    route.fulfill({
+      status: 200,
+      headers: jsonHeaders,
+      body: JSON.stringify({ docs: [] }),
+    })
+  );
+  await page.route("**/api/firestore/getDoc", (route) =>
+    route.fulfill({
+      status: 200,
+      headers: jsonHeaders,
+      body: JSON.stringify({ doc: null }),
+    })
+  );
+  await page.route("**/api/firestore/paginated", (route) =>
+    route.fulfill({
+      status: 200,
+      headers: jsonHeaders,
+      body: JSON.stringify({ docs: [] }),
+    })
+  );
+  await page.route("**/api/firestore/mutate", (route) =>
+    route.fulfill({
+      status: 200,
+      headers: jsonHeaders,
+      body: JSON.stringify({ id: "mock-doc-id", ok: true }),
+    })
+  );
+  await page.route("**/api/firestore/userRights", (route) =>
+    route.fulfill({
+      status: 200,
+      headers: jsonHeaders,
+      body: JSON.stringify({ id: "mock-doc-id", ok: true }),
     })
   );
 

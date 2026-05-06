@@ -61,7 +61,6 @@ const nextConfig = {
         "firebase-admin": false,
         "firebase-admin/app": false,
         "firebase-admin/firestore": false,
-        "firebase-admin/auth": false,
         newrelic: false,
       };
     }
@@ -70,12 +69,10 @@ const nextConfig = {
       config.resolve.alias = {
         ...config.resolve.alias,
         "firebase/app": resolveStub("lib/firebase/stubs/firebaseAppStub.ts"),
-        "firebase/auth": resolveStub("lib/firebase/stubs/firebaseAuthStub.ts"),
         "firebase/firestore": resolveStub(
           "lib/firebase/stubs/firebaseFirestoreStub.ts",
         ),
         "@firebase/app": resolveStub("lib/firebase/stubs/firebaseAppStub.ts"),
-        "@firebase/auth": resolveStub("lib/firebase/stubs/firebaseAuthStub.ts"),
         "@firebase/firestore": resolveStub(
           "lib/firebase/stubs/firebaseFirestoreStub.ts",
         ),
@@ -146,13 +143,7 @@ const nextConfig = {
     ];
   },
   async rewrites() {
-    return [
-      {
-        source: "/__/auth/:path*",
-        destination:
-          "https://flowing-mantis-389917.firebaseapp.com/__/auth/:path*",
-      },
-    ];
+    return [];
   },
 };
 

@@ -61,10 +61,8 @@ const TenantEntitlementGuard: React.FC<{ children: React.ReactNode }> = ({
 
     const checkEntitlement = async () => {
       try {
-        const idToken = await user.getIdToken();
-        const response = await fetch(`/api/nyu/entitlements/${netId}`, {
-          headers: { Authorization: `Bearer ${idToken}` },
-        });
+        // NextAuth session cookie is sent automatically on same-origin requests.
+        const response = await fetch(`/api/nyu/entitlements/${netId}`);
 
         if (cancelled) return;
 

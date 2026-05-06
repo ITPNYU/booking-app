@@ -103,7 +103,7 @@ describe("TenantEntitlementGuard", () => {
       expect(mockReplace).not.toHaveBeenCalled();
     });
 
-    it("sends the Firebase ID token in the Authorization header", async () => {
+    it("relies on the NextAuth session cookie (no bearer token)", async () => {
       mockUseParams.mockReturnValue({ tenant: "mc" });
       const fetchSpy = vi.mocked(global.fetch).mockResolvedValue(
         await makeOkFetch(["mc"])
@@ -118,9 +118,6 @@ describe("TenantEntitlementGuard", () => {
       await waitFor(() => screen.getByText("Content"));
       expect(fetchSpy).toHaveBeenCalledWith(
         expect.stringContaining("/api/nyu/entitlements/ab1234"),
-        expect.objectContaining({
-          headers: expect.objectContaining({ Authorization: "Bearer mock-id-token" }),
-        })
       );
     });
   });

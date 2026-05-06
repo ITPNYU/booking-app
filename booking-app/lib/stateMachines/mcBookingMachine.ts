@@ -211,6 +211,10 @@ interface MediaCommonsBookingContext {
   };
   // Flag to indicate this XState was created from existing booking without prior xstateData
   _restoredFromStatus?: boolean;
+  // Queue of side effects declared by state entry actions. Machine stays pure
+  // (assign only); xstate-transition route drains and executes the list after
+  // the transition, then clears it before persisting the snapshot.
+  pendingSideEffects?: string[];
 }
 
 // ⚠️ XSTATE PURITY CONSTRAINT:
@@ -239,14 +243,15 @@ export const mcBookingMachine = setup({
   },
   actors: {},
   actions: {
-    // Cancel processing is now handled by db.ts after XState transition
-    // to keep the same pattern across all tenants (MC, ITP, etc.)
-    handleCancelProcessing: ({ context }) => {
-      console.log("🎬 XSTATE ACTION: handleCancelProcessing (no-op, handled by db.ts)", {
-        calendarEventId: context.calendarEventId,
-        tenant: context.tenant,
-      });
-    },
+    // Queue a side effect for the xstate-transition route to execute after
+    // the machine finishes transitioning. Pure assign — safe on both server
+    // and client.
+    queueCancelProcessing: assign({
+      pendingSideEffects: ({ context }) => [
+        ...(context.pendingSideEffects ?? []),
+        "cancelProcessing",
+      ],
+    }),
 
     sendHTMLEmail: ({ context, event }) => {
       // NOTE: This is a placeholder action for state machine logic only
@@ -806,7 +811,7 @@ export const mcBookingMachine = setup({
           );
         },
         {
-          type: "handleCancelProcessing",
+          type: "queueCancelProcessing",
         },
         {
           type: "logCanceledAfterAutomaticTransition",

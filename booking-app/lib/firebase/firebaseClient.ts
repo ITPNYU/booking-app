@@ -1,13 +1,6 @@
 // firebaseClient.ts
 import { isTestEnvironment } from "@/lib/utils/testEnvironment";
 import { initializeApp } from "firebase/app";
-import {
-  getAuth,
-  getRedirectResult,
-  GoogleAuthProvider,
-  signInWithPopup,
-  signInWithRedirect,
-} from "firebase/auth";
 import { Firestore, initializeFirestore } from "firebase/firestore";
 
 // Check for test environment synchronously from environment variables
@@ -76,103 +69,4 @@ export const getDb = () => {
     initializeDb();
   }
   return db;
-};
-
-let authInstance: any = null;
-let providerInstance: any = null;
-
-// Initialize Firebase Auth conditionally
-if (!isTestEnv) {
-  authInstance = getAuth(app);
-  providerInstance = new GoogleAuthProvider();
-} else {
-  // Create mock auth for test environment
-  authInstance = {
-    currentUser: null,
-    onAuthStateChanged: (callback: any) => {
-      setTimeout(() => callback(null), 0);
-      return () => {};
-    },
-    signOut: () => Promise.resolve(),
-  };
-  providerInstance = null;
-}
-
-export const auth = authInstance;
-export const googleProvider = providerInstance;
-
-// Use build-time env var instead of runtime API call
-const dynamicTestEnv =
-  isTestEnv || process.env.NEXT_PUBLIC_IS_TEST_ENV === "true";
-
-if (!dynamicTestEnv && googleProvider) {
-  googleProvider.setCustomParameters({
-    hd: "nyu.edu",
-  });
-}
-
-// Check if running on localhost
-const isLocalhost =
-  typeof window !== "undefined" &&
-  (window.location.hostname === "localhost" ||
-    window.location.hostname === "127.0.0.1");
-
-export const signInWithGoogle = async () => {
-  // In test environment, return a mock user instead of trying to sign in
-  if (isTestEnv) {
-    return {
-      uid: "test-user-id",
-      email: "test@nyu.edu",
-      displayName: "Test User",
-      photoURL: null,
-      emailVerified: true,
-    };
-  }
-
-  try {
-    if (isLocalhost) {
-      // Use popup for localhost to avoid cross-domain issues
-      const result = await signInWithPopup(auth, googleProvider);
-      const { user } = result;
-      if (!user.email?.endsWith("@nyu.edu") && !dynamicTestEnv) {
-        await auth.signOut();
-        throw new Error("Only nyu.edu email addresses are allowed.");
-      }
-      return user;
-    }
-    // Use redirect for deployed environments
-    await signInWithRedirect(auth, googleProvider);
-    // No return here, as the page will redirect
-  } catch (error) {
-    console.error("Google sign-in error", error);
-    throw error;
-  }
-};
-
-export const getGoogleRedirectResult = async () => {
-  // In test environment, always return null (no redirect result)
-  if (isTestEnv) {
-    return null;
-  }
-
-  if (isLocalhost) {
-    // No redirect result for localhost (popup is used)
-    return null;
-  }
-
-  try {
-    const result = await getRedirectResult(auth);
-    if (result) {
-      const { user } = result;
-      if (!user.email?.endsWith("@nyu.edu") && !dynamicTestEnv) {
-        await auth.signOut();
-        throw new Error("Only nyu.edu email addresses are allowed.");
-      }
-      return user;
-    }
-    return null;
-  } catch (error) {
-    console.error("Google redirect result error", error);
-    throw error;
-  }
 };

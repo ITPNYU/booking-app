@@ -1,11 +1,11 @@
 "use client";
 
-import GoogleSignIn from "@/components/src/client/routes/components/GoogleSignIn";
+import SsoSignIn from "@/components/src/client/routes/components/SsoSignIn";
 
 export default function TenantSignInPage() {
   return (
     <div>
-      <GoogleSignIn />
+      <SsoSignIn />
     </div>
   );
 }

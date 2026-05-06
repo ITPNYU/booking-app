@@ -55,10 +55,10 @@ export const mockTenantSchema = {
       calendarId: "mock-calendar-202",
       needsSafetyTraining: false,
       trainingInfoUrl: "",
-      shouldAutoApprove: true,
       isWalkIn: false,
       isWalkInCanBookTwo: false,
       services: [],
+      autoApproval: { shouldAutoApprove: true },
     },
     {
       capacity: 20,
@@ -68,10 +68,10 @@ export const mockTenantSchema = {
       calendarId: "mock-calendar-220",
       needsSafetyTraining: false,
       trainingInfoUrl: "",
-      shouldAutoApprove: false,
       isWalkIn: true,
       isWalkInCanBookTwo: false,
       services: [],
+      autoApproval: { shouldAutoApprove: false },
     },
     {
       capacity: 25,
@@ -81,11 +81,11 @@ export const mockTenantSchema = {
       calendarId: "mock-calendar-203",
       needsSafetyTraining: false,
       trainingInfoUrl: "",
-      shouldAutoApprove: false,
       isWalkIn: false,
       isWalkInCanBookTwo: false,
       services: [],
       maxHour: { faculty: 0.5 },
+      autoApproval: { shouldAutoApprove: false },
     },
     {
       capacity: 15,
@@ -95,10 +95,10 @@ export const mockTenantSchema = {
       calendarId: "mock-calendar-230",
       needsSafetyTraining: true,
       trainingInfoUrl: defaultSafetyTrainingInfoUrl,
-      shouldAutoApprove: false,
       isWalkIn: false,
       isWalkInCanBookTwo: false,
       services: [],
+      autoApproval: { shouldAutoApprove: false },
     },
   ],
   supportVIP: true,
@@ -281,6 +281,47 @@ export async function registerBookingMocks(page: Page) {
       status: 200,
       headers: jsonHeaders,
       body: JSON.stringify({ documents: [] }),
+    })
+  );
+
+  // After the SSO migration, browser-side Firestore reads/writes go through
+  // /api/firestore/* which proxies via firebase-admin. CI has no service
+  // account credentials, so the real route returns 500. Stub them with the
+  // shapes Provider.tsx expects so per-page mocks (registered after this
+  // helper) can still take precedence for endpoints they care about.
+  await page.route("**/api/firestore/list", (route) =>
+    route.fulfill({
+      status: 200,
+      headers: jsonHeaders,
+      body: JSON.stringify({ docs: [] }),
+    })
+  );
+  await page.route("**/api/firestore/getDoc", (route) =>
+    route.fulfill({
+      status: 200,
+      headers: jsonHeaders,
+      body: JSON.stringify({ doc: null }),
+    })
+  );
+  await page.route("**/api/firestore/paginated", (route) =>
+    route.fulfill({
+      status: 200,
+      headers: jsonHeaders,
+      body: JSON.stringify({ docs: [] }),
+    })
+  );
+  await page.route("**/api/firestore/mutate", (route) =>
+    route.fulfill({
+      status: 200,
+      headers: jsonHeaders,
+      body: JSON.stringify({ id: "mock-doc-id", ok: true }),
+    })
+  );
+  await page.route("**/api/firestore/userRights", (route) =>
+    route.fulfill({
+      status: 200,
+      headers: jsonHeaders,
+      body: JSON.stringify({ id: "mock-doc-id", ok: true }),
     })
   );
 

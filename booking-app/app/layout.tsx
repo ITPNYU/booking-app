@@ -6,6 +6,7 @@ import ClientProvider from "@/components/src/client/routes/components/ClientProv
 import { ThemeProvider } from "@mui/material";
 import CssBaseline from "@mui/material/CssBaseline";
 import { Roboto } from "next/font/google";
+import { SessionProvider } from "@/components/src/client/routes/components/SessionProvider";
 import { AuthProvider } from "@/components/src/client/routes/components/AuthProvider";
 import theme from "./theme/theme";
 
@@ -28,14 +29,16 @@ const RootLayout: React.FC<LayoutProps> = ({ children }) => (
   <html lang="en">
     <head></head>
     <body className={roboto.className}>
-      <AuthProvider>
-        <ClientProvider>
-          <ThemeProvider theme={theme}>
-            <CssBaseline />
-            {children}
-          </ThemeProvider>
-        </ClientProvider>
-      </AuthProvider>
+      <SessionProvider>
+        <AuthProvider>
+          <ClientProvider>
+            <ThemeProvider theme={theme}>
+              <CssBaseline />
+              {children}
+            </ThemeProvider>
+          </ClientProvider>
+        </AuthProvider>
+      </SessionProvider>
     </body>
   </html>
 );

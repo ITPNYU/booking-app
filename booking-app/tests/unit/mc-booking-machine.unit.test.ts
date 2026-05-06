@@ -541,7 +541,7 @@ describe("mcBookingMachine", () => {
     // This simulates restoring a modified booking that was previously approved
     // with services that are already approved
     const actor = createTestActor({
-      selectedRooms: [{ roomId: 202, shouldAutoApprove: false }],
+      selectedRooms: [{ roomId: 202, autoApproval: { shouldAutoApprove: false } }],
       servicesRequested: { staff: true, equipment: true },
       servicesApproved: { staff: true, equipment: true },
       _restoredFromStatus: true, // Indicates this is a restored booking
