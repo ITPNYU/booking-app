@@ -34,7 +34,11 @@ export interface AutoApprovalResult {
  * Checks if a room has auto-approval enabled
  */
 export function isRoomAutoApprovalEnabled(room: RoomSetting): boolean {
-  // If autoApproval exists but is null or empty object, treat as disabled
+  // Explicit switch takes precedence.
+  if (room.autoApproval?.shouldAutoApprove === true) return true;
+  if (room.autoApproval?.shouldAutoApprove === false) return false;
+
+  // Backwards-compat: if autoApproval exists but is null/empty object, treat as disabled.
   return (
     room.autoApproval !== undefined &&
     room.autoApproval !== null &&
@@ -161,6 +165,9 @@ export function checkAutoApprovalEligibility(
       reason: "One or more selected rooms do not have auto-approval enabled",
     };
   }
+
+  // If explicitly disabled via shouldAutoApprove, disregard all autoApproval config
+  // (conditions/minHour/maxHour) by short-circuiting above.
 
   // Check duration limits if provided (uses same logic as getBookingHourLimits)
   if (durationHours !== undefined) {

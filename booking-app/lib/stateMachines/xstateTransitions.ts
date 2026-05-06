@@ -22,6 +22,69 @@ import {
 import type { PersistedXStateData } from "./xstateTypes";
 
 /**
+ * Drain and execute a single side effect declared by a state entry action
+ * (via `queueCancelProcessing` or similar assign). Keeps the machine pure
+ * while still making state entry the trigger for real-world work.
+ *
+ * netId is passed through from the caller (authoritative from session) rather
+ * than reconstructed from email, because some effects (pre-ban logging inside
+ * /api/cancel-processing) key off it — alias emails where the local-part !=
+ * netId would otherwise penalize the wrong user.
+ */
+async function executeSideEffect(
+  effect: string,
+  ctx: {
+    calendarEventId: string;
+    tenant?: string;
+    email?: string;
+    netId?: string;
+  },
+): Promise<void> {
+  const { calendarEventId, tenant, email, netId: passedNetId } = ctx;
+  const netId =
+    passedNetId ||
+    (email && email.includes("@") ? email.split("@")[0] : "system");
+
+  if (effect === "cancelProcessing") {
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_BASE_URL}/api/cancel-processing`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-tenant": tenant || DEFAULT_TENANT,
+          },
+          body: JSON.stringify({
+            calendarEventId,
+            email: email || "system",
+            netId,
+            tenant,
+          }),
+        },
+      );
+      if (!response.ok) {
+        console.error(
+          `🚨 SIDE EFFECT FAILED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+          { effect, calendarEventId, status: response.status },
+        );
+      }
+    } catch (error: any) {
+      console.error(
+        `🚨 SIDE EFFECT ERROR [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+        { effect, calendarEventId, error: error.message },
+      );
+    }
+    return;
+  }
+
+  console.warn(
+    `⚠️ UNKNOWN SIDE EFFECT [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+    { effect, calendarEventId },
+  );
+}
+
+/**
  * Execute XState transition and save updated state to Firestore
  */
 export async function executeXStateTransition(
@@ -30,6 +93,7 @@ export async function executeXStateTransition(
   tenant?: string,
   email?: string,
   reason?: string,
+  netId?: string,
 ): Promise<{ success: boolean; newState?: string; error?: string }> {
   try {
     console.log(
@@ -517,6 +581,18 @@ export async function executeXStateTransition(
           },
         },
       );
+    }
+
+    // Drain side effects queued by state entry actions (see `queueCancelProcessing`
+     // etc. in machine definitions). Runs after handleStateTransitions so any
+    // firestoreUpdates they rely on are in the same save, and BEFORE persisting
+    // the snapshot so we can clear the queue — otherwise a restore would re-fire.
+    const pendingEffects = (newSnapshot.context as any)?.pendingSideEffects ?? [];
+    for (const effect of pendingEffects) {
+      await executeSideEffect(effect, { calendarEventId, tenant, email, netId });
+    }
+    if (pendingEffects.length > 0 && firestoreUpdates.xstateData?.snapshot?.context) {
+      (firestoreUpdates.xstateData.snapshot.context as any).pendingSideEffects = [];
     }
 
     // Save updated state to Firestore

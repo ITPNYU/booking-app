@@ -62,7 +62,10 @@ export function getBookingHourLimits(
 
   for (const room of selectedRooms) {
     // Prefer top-level maxHour/minHour; fall back to autoApproval (admin/faculty/student only)
+    const autoApprovalExplicitlyDisabled =
+      room.autoApproval?.shouldAutoApprove === false;
     const useAutoApproval =
+      !autoApprovalExplicitlyDisabled &&
       !room.maxHour &&
       !room.minHour &&
       room.autoApproval?.minHour != null &&

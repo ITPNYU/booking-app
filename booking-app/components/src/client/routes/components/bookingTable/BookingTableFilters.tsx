@@ -218,7 +218,7 @@ export default function BookingTableFilters({
           sx={{ marginLeft: "4px", color: "rgba(0,0,0,0.8)", marginTop: "4px" }}
         />
         <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-          <Box
+          {pageContext !== PageContextLevel.USER && <Box
             sx={{
               display: "flex",
               alignItems: "center",
@@ -249,7 +249,7 @@ export default function BookingTableFilters({
                 />
               </Box>
             ))}
-          </Box>
+          </Box>}
           <Box
             sx={{
               display: "flex",
@@ -325,7 +325,7 @@ export default function BookingTableFilters({
                 </Box>
               ))}
           </Box>
-          {(schema.showSetup || schema.showEquipment || schema.showStaffing || schema.showCatering || schema.showHireSecurity) && (
+          {pageContext !== PageContextLevel.USER && (schema.showSetup || schema.showEquipment || schema.showStaffing || schema.showCatering || schema.showHireSecurity) && (
             <Box
               sx={{
                 display: "flex",
@@ -372,7 +372,7 @@ export default function BookingTableFilters({
       <Box
         sx={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 2 }}
       >
-        {pageContext >= PageContextLevel.PA && dateFilters}
+        {pageContext >= PageContextLevel.USER && dateFilters}
         {pageContext >= PageContextLevel.PA && searchBar}
       </Box>
     </Box>

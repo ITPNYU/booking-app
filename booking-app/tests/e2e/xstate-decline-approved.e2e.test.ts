@@ -125,7 +125,7 @@ async function seedApprovedBooking() {
         roomId: 202,
         name: "Media Commons Room 202",
         calendarId: "mock-calendar-202",
-        shouldAutoApprove: false,
+        autoApproval: { shouldAutoApprove: false },
         isEquipment: false,
       },
     ],

@@ -310,12 +310,20 @@ export function useBookingFilters(props: Props): BookingRow[] {
   }, []);
 
   useEffect(() => {
+    // On the USER /my-bookings tab, scope the server-side fetch to this user's
+    // own bookings. Without this, the paginated route's LIMIT-bounded result
+    // set is filled with tenant-wide far-future bookings (ordered by startDate
+    // desc) and the user's own booking is crowded out before the client-side
+    // `filterPageContext` ever sees it. Gated on `pageContext`, not the
+    // caller's role, because admins / PAs also use /my-bookings to see their
+    // own bookings.
     setFilters({
       dateRange: getDateRangeFromDateSelection(selectedDateRange),
       sortField: "startDate",
       searchQuery,
+      userEmail: pageContext === PageContextLevel.USER ? userEmail : undefined,
     });
-  }, [selectedDateRange, setFilters, searchQuery]);
+  }, [selectedDateRange, setFilters, searchQuery, pageContext, userEmail]);
 
   const rows: BookingRow[] = useMemo(
     () =>
