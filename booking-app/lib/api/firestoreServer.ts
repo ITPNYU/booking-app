@@ -31,6 +31,12 @@ export function reviveValue(value: unknown): unknown {
   if (keys.length === 1 && "__ts" in obj) {
     return admin.firestore.Timestamp.fromMillis(obj.__ts as number);
   }
+  if (keys.length === 1 && "__arrayUnion" in obj) {
+    return admin.firestore.FieldValue.arrayUnion(...(obj.__arrayUnion as unknown[]));
+  }
+  if (keys.length === 1 && "__arrayRemove" in obj) {
+    return admin.firestore.FieldValue.arrayRemove(...(obj.__arrayRemove as unknown[]));
+  }
   if (
     keys.length === 2 &&
     typeof obj.seconds === "number" &&
