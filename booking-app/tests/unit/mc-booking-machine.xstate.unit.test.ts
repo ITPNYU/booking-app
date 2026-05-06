@@ -453,7 +453,9 @@ describe("@xstate/test coverage for mcBookingMachine", () => {
         calendarEventId: "cal-vip",
         email: "vip@nyu.edu",
         bookingCalendarInfo: makeCalendarInfo(),
-        selectedRooms: [{ roomId: 909, shouldAutoApprove: false }],
+        selectedRooms: [
+          { roomId: 909, autoApproval: { shouldAutoApprove: false } },
+        ],
         isVip: true,
         servicesRequested: { equipment: true, staff: true },
       },
@@ -468,7 +470,9 @@ describe("@xstate/test coverage for mcBookingMachine", () => {
         calendarEventId: "cal-pre-cancel",
         email: "precancel@nyu.edu",
         bookingCalendarInfo: makeCalendarInfo(),
-        selectedRooms: [{ roomId: 1001, shouldAutoApprove: false }],
+        selectedRooms: [
+          { roomId: 1001, autoApproval: { shouldAutoApprove: false } },
+        ],
         servicesRequested: { staff: true },
       },
       events: [{ type: "approve" }, { type: "cancel" }],
@@ -482,7 +486,9 @@ describe("@xstate/test coverage for mcBookingMachine", () => {
         calendarEventId: "cal-service-cancel",
         email: "servicecancel@nyu.edu",
         bookingCalendarInfo: makeCalendarInfo(),
-        selectedRooms: [{ roomId: 1102, shouldAutoApprove: false }],
+        selectedRooms: [
+          { roomId: 1102, autoApproval: { shouldAutoApprove: false } },
+        ],
         servicesRequested: { equipment: true, staff: true },
       },
       events: [
