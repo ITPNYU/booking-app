@@ -1,7 +1,8 @@
 # Media Commons Booking App - Features & Flows
 
-> **Last Updated:** March 2026
+> **Last Updated:** May 2026
 > **Application:** NYU Media Commons Booking System
+> **Scope:** This document describes the Media Commons booking experience. ITP uses a separate configuration and is documented separately.
 
 ---
 
@@ -507,7 +508,7 @@ Two main tabs:
 - Filters: status, date range, origin, room, service type, text search
 - Click any booking to see full details, contact info, services, and complete history timeline
 
-**2. Settings Tab** — 11 configuration sections:
+**2. Settings Tab** — configuration sections:
 
 #### Safety Training
 Manage users who have completed safety training. Add or remove users, track completion dates.
@@ -544,6 +545,13 @@ One-click CSV export of all booking data.
 #### Sync Calendars
 - **Manual Import**: Import manually created Google Calendar events into the system
 - **Pregame Import**: Import pre-event calendar entries with dry-run preview before committing
+
+#### Site Banner
+Show an announcement banner at the top of every page. Admins can:
+- Write the banner message
+- Choose the background color
+- Turn the banner on or off
+Useful for communicating outages, policy reminders, or upcoming events to all users at once.
 
 ### Liaison Dashboard
 
@@ -759,9 +767,9 @@ Blackout periods are time ranges during which bookings are not allowed.
 
 ### Sign-In
 
-- Users sign in with their **Google account** (NYU email required)
-- Only `@nyu.edu` email addresses are permitted
-- Non-NYU users see a "forbidden" page
+- Users sign in with their **NYU account through NYU Single Sign-On**
+- Opening the app automatically takes the user to the NYU sign-in page
+- Only NYU-affiliated users can access the system; anyone else is shown a "forbidden" page
 
 ### NYU Identity Integration
 
@@ -777,7 +785,7 @@ Blackout periods are time ranges during which bookings are not allowed.
 
 | Page | Description |
 |------|-------------|
-| Home / My Bookings | View all of the user's current and past bookings |
+| Home / My Bookings | View all of the user's current and past bookings; filter by status and by requested service type (staffing, equipment, catering, cleaning, security, room setup) |
 | Book → Policy | Accept the facility usage policy |
 | Book → Role | Select school, department, and role |
 | Book → Select Room | Choose room(s) and time from the calendar |
