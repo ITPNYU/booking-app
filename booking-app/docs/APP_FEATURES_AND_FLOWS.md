@@ -768,7 +768,7 @@ Blackout periods are time ranges during which bookings are not allowed.
 ### Sign-In
 
 - Users sign in with their **NYU account through NYU Single Sign-On**
-- Opening the app automatically takes the user to the NYU sign-in page
+- Unauthenticated users who open the app are redirected to the NYU sign-in page via `/signin`; already authenticated users land in the app normally
 - Only NYU-affiliated users can access the system; anyone else is shown a "forbidden" page
 
 ### NYU Identity Integration
