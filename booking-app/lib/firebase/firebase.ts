@@ -3,21 +3,8 @@ import {
   TableNames,
   getTenantCollectionName,
 } from "@/components/src/policy";
-import {
-  Timestamp,
-  arrayRemove,
-  arrayUnion,
-  collection,
-  doc,
-  getDocs,
-  getFirestore,
-  query,
-  updateDoc,
-  where,
-} from "firebase/firestore";
-import { normalizeApprover } from "@/components/src/types";
-
-import { Filters } from "@/components/src/types";
+import { Timestamp } from "firebase/firestore";
+import { Filters, normalizeApprover } from "@/components/src/types";
 import { SchemaContextType } from "@/components/src/client/routes/components/SchemaProvider";
 import {
   USER_RIGHT_FLAG_FIELDS,
@@ -338,14 +325,17 @@ export const clientGetResourceApproverEmailsForRoom = async (
   tenant?: string,
 ): Promise<string[]> => {
   try {
-    const db = getFirestore();
-    const col = getTenantCollection(TableNames.APPROVERS, resolveTenantArg(tenant));
-    const snap = await getDocs(
-      query(collection(db, col), where("resourceRoomIds", "array-contains", roomId)),
-    );
-    return snap.docs
-      .map((d) => (d.data() as { email?: string }).email)
-      .filter((e): e is string => Boolean(e));
+    const { docs } = await postJson<
+      ListRequest,
+      { docs: Array<{ email?: string }> }
+    >("/api/firestore/list", {
+      collection: TableNames.APPROVERS,
+      tenant: resolveTenantArg(tenant),
+      where: [
+        { field: "resourceRoomIds", op: "array-contains", value: roomId },
+      ],
+    });
+    return docs.map((d) => d.email).filter((e): e is string => Boolean(e));
   } catch (error) {
     console.error("Error fetching resource approvers for room:", error);
     return [];
@@ -364,13 +354,18 @@ export const clientGetAllApproversWithRooms = async (
   }>
 > => {
   try {
-    const db = getFirestore();
-    const col = getTenantCollection(TableNames.APPROVERS, resolveTenantArg(tenant));
-    const snap = await getDocs(collection(db, col));
-    return snap.docs
+    const { docs } = await postJson<
+      ListRequest,
+      { docs: Array<Record<string, unknown> & { id: string }> }
+    >("/api/firestore/list", {
+      collection: TableNames.APPROVERS,
+      tenant: resolveTenantArg(tenant),
+    });
+
+    return docs
       .filter((d) => d.id !== "resourceApprovers")
       .map((d) => {
-        const data = d.data() as Record<string, unknown>;
+        const data = d as Record<string, unknown>;
         const normalized = normalizeApprover({
           email: data.email as string,
           department: (data.department as string) ?? "",
@@ -399,11 +394,15 @@ export const clientAddResourceRoomToApprover = async (
   roomId: number,
   tenant?: string,
 ): Promise<void> => {
-  const db = getFirestore();
-  const col = getTenantCollection(TableNames.APPROVERS, resolveTenantArg(tenant));
-  await updateDoc(doc(db, col, approverDocId), {
-    resourceRoomIds: arrayUnion(roomId),
-    scope: "resource",
+  await postJson<MutateRequest>("/api/firestore/mutate", {
+    op: "update",
+    collection: TableNames.APPROVERS,
+    tenant: resolveTenantArg(tenant),
+    docId: approverDocId,
+    data: {
+      resourceRoomIds: { __arrayUnion: [roomId] },
+      scope: "resource",
+    },
   });
 };
 
@@ -412,10 +411,14 @@ export const clientRemoveResourceRoomFromApprover = async (
   roomId: number,
   tenant?: string,
 ): Promise<void> => {
-  const db = getFirestore();
-  const col = getTenantCollection(TableNames.APPROVERS, resolveTenantArg(tenant));
-  await updateDoc(doc(db, col, approverDocId), {
-    resourceRoomIds: arrayRemove(roomId),
+  await postJson<MutateRequest>("/api/firestore/mutate", {
+    op: "update",
+    collection: TableNames.APPROVERS,
+    tenant: resolveTenantArg(tenant),
+    docId: approverDocId,
+    data: {
+      resourceRoomIds: { __arrayRemove: [roomId] },
+    },
   });
 };
 
@@ -431,9 +434,7 @@ export const clientGetDataByCalendarEventId = async <T>(
     >("/api/firestore/list", {
       collection: collectionName,
       tenant: resolveTenantArg(tenant),
-      where: [
-        { field: "calendarEventId", op: "==", value: calendarEventId },
-      ],
+      where: [{ field: "calendarEventId", op: "==", value: calendarEventId }],
       limit: 1,
     });
     if (docs.length === 0) return null;

@@ -13,6 +13,7 @@ import { useCallback, useContext, useEffect, useState } from "react";
 
 import {
   clientAddResourceRoomToApprover,
+  clientDeleteDataFromFirestore,
   clientGetAllApproversWithRooms,
   clientRemoveResourceRoomFromApprover,
   clientSaveDataToFirestore,
@@ -216,12 +217,13 @@ export const ResourceSpecific = () => {
       } else {
         // No existing approver doc — create one with this roomId
         await clientSaveDataToFirestore(
-          `${tenant ? `${tenant}-` : ""}usersApprovers`,
+          TableNames.APPROVERS,
           {
             email,
             resourceRoomIds: [roomId],
             createdAt: Timestamp.now(),
           },
+          tenant,
         );
         await load();
       }
@@ -232,6 +234,17 @@ export const ResourceSpecific = () => {
   const handleRemoveResourceApprover = useCallback(
     async (roomId: number, row: { [key: string]: string }) => {
       await clientRemoveResourceRoomFromApprover(row.id, roomId, tenant);
+      const previous = allApprovers.find((a) => a.id === row.id);
+      const nextRoomIds = (previous?.resourceRoomIds ?? []).filter(
+        (id) => id !== roomId,
+      );
+      if (nextRoomIds.length === 0) {
+        await clientDeleteDataFromFirestore(
+          TableNames.APPROVERS,
+          row.id,
+          tenant,
+        );
+      }
       setAllApprovers((prev) =>
         prev.map((a) =>
           a.id === row.id
@@ -245,7 +258,7 @@ export const ResourceSpecific = () => {
         ),
       );
     },
-    [tenant],
+    [allApprovers, tenant],
   );
 
   const handleAddServiceApprover = useCallback(
