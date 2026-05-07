@@ -419,6 +419,31 @@ describe("Cancellation", () => {
     actor.stop();
   });
 
+  it("Canceled entry queues cancelProcessing side effect (user cancel)", () => {
+    const { machine } = createSpiedMachine();
+    const actor = createActor(machine, { input: manualInput });
+    actor.start();
+    actor.send({ type: "cancel" });
+    expect(
+      actor.getSnapshot().context.pendingSideEffects,
+    ).toContain("cancelProcessing");
+    actor.stop();
+  });
+
+  it("noShow → Canceled via always also queues cancelProcessing (#1367 structural fix)", () => {
+    const { machine } = createSpiedMachine();
+    const actor = createActor(machine, { input: manualInput });
+    actor.start();
+    actor.send({ type: "approve" });
+    actor.send({ type: "noShow" });
+    // noShow → No Show → (always) → Canceled → (always) → Closed
+    // Canceled entry must still fire and queue cancelProcessing
+    expect(
+      actor.getSnapshot().context.pendingSideEffects,
+    ).toContain("cancelProcessing");
+    actor.stop();
+  });
+
 });
 
 // ===== 5. Decline =====
@@ -519,8 +544,8 @@ describe("No Show", () => {
     actor.stop();
   });
 
-  it("deleteCalendarEvent fires during No Show → Canceled transition", () => {
-    const { machine, spies } = createSpiedMachine();
+  it("cancelProcessing is queued during No Show → Canceled transition (#1367)", () => {
+    const { machine } = createSpiedMachine();
     const actor = createActor(machine, {
       input: {
         tenant: "itp",
@@ -530,11 +555,16 @@ describe("No Show", () => {
       },
     });
     actor.start();
-    spies.deleteCalendarEvent.mockClear();
     actor.send({ type: "approve" });
     actor.send({ type: "noShow" });
-    // deleteCalendarEvent fires as part of Canceled entry actions
-    expect(spies.deleteCalendarEvent).toHaveBeenCalled();
+    // Canceled entry queues cancelProcessing; the xstate-transition route
+    // executor then fetches /api/cancel-processing which deletes the calendar
+    // event. This closes #1367 structurally — every path that traverses
+    // Canceled (user cancel, noShow, decline-24h, auto-cancel-unapproved)
+    // triggers the same side effect.
+    expect(
+      actor.getSnapshot().context.pendingSideEffects,
+    ).toContain("cancelProcessing");
     actor.stop();
   });
 });
@@ -715,18 +745,18 @@ describe("Entry Actions Verification", () => {
     actor.stop();
   });
 
-  it("Canceled: sendHTMLEmail + updateCalendarEvent + deleteCalendarEvent", () => {
-    const { machine, spies } = createSpiedMachine();
+  it("Canceled: queues cancelProcessing side effect (machine-driven)", () => {
+    const { machine } = createSpiedMachine();
     const actor = createActor(machine, { input: manualInput });
     actor.start();
-    spies.sendHTMLEmail.mockClear();
-    spies.updateCalendarEvent.mockClear();
-    spies.deleteCalendarEvent.mockClear();
     actor.send({ type: "cancel" });
-    // Canceled entry runs before transient → Closed
-    expect(spies.sendHTMLEmail).toHaveBeenCalled();
-    expect(spies.updateCalendarEvent).toHaveBeenCalled();
-    expect(spies.deleteCalendarEvent).toHaveBeenCalled();
+    // Canceled entry runs before transient → Closed and queues the effect.
+    // The xstate-transition route executor drains the queue after the
+    // transition completes; cancelProcessing → /api/cancel-processing
+    // which handles email + calendar delete + Firestore updates.
+    expect(
+      actor.getSnapshot().context.pendingSideEffects,
+    ).toContain("cancelProcessing");
     actor.stop();
   });
 
@@ -771,17 +801,18 @@ describe("Entry Actions Verification", () => {
     const emailCallsBefore = spies.sendHTMLEmail.mock.calls.length;
     actor.send({ type: "noShow" });
 
-    // updateCalendarEvent is called in No Show entry, Canceled entry, and Closed entry
-    expect(spies.updateCalendarEvent).toHaveBeenCalled();
-    // sendHTMLEmail is NOT called in No Show entry, but IS called in Canceled and Closed
-    // We verify No Show state's own entry only has updateCalendarEvent
-    // (The total calls include Canceled + Closed transient entries too)
+    // updateCalendarEvent is called in No Show and Closed entries.
+    // Canceled entry no longer has sendHTMLEmail/updateCalendarEvent/deleteCalendarEvent —
+    // it queues cancelProcessing instead (handled by the xstate-transition
+    // route executor, not via the machine action spies).
     const totalUpdateCalls = spies.updateCalendarEvent.mock.calls.length - updateCallsBefore;
     const totalEmailCalls = spies.sendHTMLEmail.mock.calls.length - emailCallsBefore;
-    // No Show(1 update) + Canceled(1 update) + Closed(1 update) = 3 updates
-    expect(totalUpdateCalls).toBe(3);
-    // Canceled(1 email) + Closed(1 email) = 2 emails (No Show has none)
-    expect(totalEmailCalls).toBe(2);
+    expect(totalUpdateCalls).toBe(2); // No Show(1) + Closed(1)
+    expect(totalEmailCalls).toBe(1); // Closed(1); No Show and Canceled have none
+    // Canceled side effect is queued instead of fired as a machine action
+    expect(
+      actor.getSnapshot().context.pendingSideEffects,
+    ).toContain("cancelProcessing");
     actor.stop();
   });
 

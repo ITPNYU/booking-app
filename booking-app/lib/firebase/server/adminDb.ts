@@ -106,10 +106,8 @@ export const serverSaveDataToFirestore = async (
       collectionName as TableNames,
       tenant,
     );
-    const docRef = await traceDatabase(
-      "add",
-      `Firestore/${tenantCollection}`,
-      () => db.collection(tenantCollection).add(data),
+    const docRef = await traceDatabase("add", `Firestore/${tenantCollection}`, () =>
+      db.collection(tenantCollection).add(data),
     );
     console.log("Document successfully written with ID:", docRef.id);
     return docRef;
@@ -145,10 +143,8 @@ export const serverGetDocumentById = async <T extends DocumentData>(
   try {
     const tenantCollection = getServerTenantCollection(collectionName, tenant);
     const docRef = db.collection(tenantCollection).doc(docId);
-    const docSnap = await traceDatabase(
-      "get",
-      `Firestore/${tenantCollection}`,
-      () => docRef.get(),
+    const docSnap = await traceDatabase("get", `Firestore/${tenantCollection}`, () =>
+      docRef.get(),
     );
 
     if (docSnap.exists) {
@@ -274,55 +270,8 @@ export const serverGetFinalApproverEmailFromDatabase = async (
 
 export const serverGetFinalApproverEmail = async (
   tenant?: string,
-): Promise<string | null> => serverGetFinalApproverEmailFromDatabase(tenant);
-
-/**
- * Returns all resource approver emails for a specific room by querying
- * user documents in ${tenant}-usersApprovers whose `resourceRoomIds`
- * array contains the given roomId.
- *
- * Falls back to the tenant-level final approver when no per-room approvers
- * are configured, or when roomId is not provided.
- *
- * @param tenant - The tenant identifier
- * @param roomId - The numeric (or string) roomId of the resource
- */
-export const serverGetResourceApproverEmailsForResource = async (
-  tenant?: string,
-  roomId?: number | string,
-): Promise<string[]> => {
-  if (roomId !== undefined) {
-    try {
-      const numericRoomId =
-        typeof roomId === "string" ? parseInt(roomId, 10) : roomId;
-      if (Number.isFinite(numericRoomId)) {
-        const tenantCollection = getServerTenantCollection(
-          TableNames.APPROVERS,
-          tenant,
-        );
-        const querySnapshot = await traceDatabase(
-          "query",
-          `Firestore/${tenantCollection}`,
-          () =>
-            db
-              .collection(tenantCollection)
-              .where("resourceRoomIds", "array-contains", numericRoomId)
-              .get(),
-        );
-        if (!querySnapshot.empty) {
-          const emails = querySnapshot.docs
-            .map((d) => d.data().email as string | undefined)
-            .filter((e): e is string => Boolean(e));
-          if (emails.length > 0) return emails;
-        }
-      }
-    } catch (error) {
-      console.error("Error fetching resource-specific approvers:", error);
-    }
-  }
-  // Fall back to the tenant-level final approver
-  const fallback = await serverGetFinalApproverEmailFromDatabase(tenant);
-  return fallback ? [fallback] : [];
+): Promise<string | null> => {
+  return serverGetFinalApproverEmailFromDatabase(tenant);
 };
 
 export const logServerBookingChange = async ({

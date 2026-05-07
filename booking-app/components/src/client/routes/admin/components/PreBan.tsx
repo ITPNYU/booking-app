@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, { useContext, useEffect, useMemo, useState } from "react";
 import {
   Dialog,
   DialogTitle,
@@ -10,23 +10,26 @@ import {
   TableCell,
   TableBody,
   IconButton,
-  Typography,
+  TableSortLabel,
 } from "@mui/material";
 import { Info } from "@mui/icons-material";
-import { clientDeleteDataFromFirestore } from "@/lib/firebase/firebase";
+import {
+  clientDeleteDataFromFirestore,
+  clientGetDataByCalendarEventId,
+  clientUpdateDataInFirestore,
+} from "@/lib/firebase/firebase";
 import { DatabaseContext } from "../../components/Provider";
 import { formatDate } from "../../../utils/date";
 import { TableNames } from "../../../../policy";
 import ListTable from "../../components/ListTable";
-import { PreBanLog } from "../../../../types";
-import { clientUpdateDataInFirestore } from "@/lib/firebase/firebase";
-
-interface PreBanDetails {
-  date: string;
-  status: "Late Cancel" | "No Show";
-  id: string;
-  excused: boolean;
-}
+import { Booking } from "../../../../types";
+import { useTenant } from "../../hooks/useTenant";
+import {
+  comparePreBanDetails,
+  DetailSortColumn,
+  PreBanDetails,
+  preBanEventMillis,
+} from "./preBanDetailsUtils";
 
 interface DetailsByEmail {
   [email: string]: PreBanDetails[];
@@ -34,22 +37,32 @@ interface DetailsByEmail {
 
 export const PreBannedUsers = () => {
   const { preBanLogs, reloadPreBanLogs } = useContext(DatabaseContext);
+  const tenant = useTenant();
   const [selectedEmail, setSelectedEmail] = useState<string | null>(null);
   const [detailsByEmail, setDetailsByEmail] = useState<DetailsByEmail>({});
   const [rows, setRows] = useState<Array<{ [key: string]: string }>>([]);
   const [excuseSavingById, setExcuseSavingById] = useState<
     Record<string, boolean>
   >({});
+  const [requestNumberByBookingId, setRequestNumberByBookingId] = useState<
+    Record<string, number | undefined>
+  >({});
+  const [detailSortBy, setDetailSortBy] =
+    useState<DetailSortColumn>("date");
+  const [detailSortOrder, setDetailSortOrder] = useState<"asc" | "desc">(
+    "desc",
+  );
 
   useEffect(() => {
     reloadPreBanLogs();
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
+
     const details: DetailsByEmail = {};
     const counts: { [email: string]: number } = {};
 
-    // Process logs into details and counts
     preBanLogs.forEach((log) => {
       const email = `${log.netId}@nyu.edu`;
       if (!details[email]) {
@@ -60,8 +73,10 @@ export const PreBannedUsers = () => {
         date: log.lateCancelDate
           ? formatDate(log.lateCancelDate)
           : formatDate(log.noShowDate),
+        eventTimeMs: preBanEventMillis(log),
         status: log.lateCancelDate ? "Late Cancel" : "No Show",
         id: log.id,
+        bookingId: log.bookingId,
         excused: log.excused === true,
       });
       if (log.excused !== true) {
@@ -69,7 +84,6 @@ export const PreBannedUsers = () => {
       }
     });
 
-    // Update state
     setDetailsByEmail(details);
     setRows(
       Object.entries(counts).map(([email, count]) => ({
@@ -79,7 +93,80 @@ export const PreBannedUsers = () => {
         details: email,
       })),
     );
-  }, [preBanLogs]);
+
+    // Reset stale request numbers before the new fetch resolves
+    setRequestNumberByBookingId({});
+
+    const uniqueBookingIds = [...new Set(preBanLogs.map((log) => log.bookingId))];
+    Promise.allSettled(
+      uniqueBookingIds.map((bookingId) =>
+        clientGetDataByCalendarEventId<Booking>(
+          TableNames.BOOKING,
+          bookingId,
+          tenant ?? undefined,
+        ).then((booking) => ({ bookingId, requestNumber: booking?.requestNumber })),
+      ),
+    ).then((results) => {
+      if (cancelled) return;
+      const map: Record<string, number | undefined> = {};
+      let failureCount = 0;
+      results.forEach((result) => {
+        if (result.status === "fulfilled") {
+          const { bookingId: id, requestNumber } = result.value;
+          map[id] = requestNumber;
+        } else {
+          failureCount += 1;
+        }
+      });
+      if (failureCount > 0) {
+        console.warn(
+          `PreBan: could not load requestNumber for ${failureCount} of ${uniqueBookingIds.length} booking(s); those cells will show "--".`,
+        );
+      }
+      setRequestNumberByBookingId(map);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [preBanLogs, tenant]);
+
+  useEffect(() => {
+    if (selectedEmail) {
+      setDetailSortBy("date");
+      setDetailSortOrder("desc");
+    }
+  }, [selectedEmail]);
+
+  const sortedDetailsForOverlay = useMemo(() => {
+    if (!selectedEmail) return [];
+    const list = detailsByEmail[selectedEmail];
+    if (!list?.length) return [];
+    return [...list].sort((a, b) =>
+      comparePreBanDetails(
+        a,
+        b,
+        detailSortBy,
+        detailSortOrder,
+        requestNumberByBookingId,
+      ),
+    );
+  }, [
+    selectedEmail,
+    detailsByEmail,
+    detailSortBy,
+    detailSortOrder,
+    requestNumberByBookingId,
+  ]);
+
+  const handleDetailSort = (column: DetailSortColumn) => {
+    if (detailSortBy === column) {
+      setDetailSortOrder((o) => (o === "asc" ? "desc" : "asc"));
+    } else {
+      setDetailSortBy(column);
+      setDetailSortOrder(column === "date" ? "desc" : "asc");
+    }
+  };
 
   const handleCloseDetails = () => {
     setSelectedEmail(null);
@@ -155,17 +242,77 @@ export const PreBannedUsers = () => {
           <Table>
             <TableHead>
               <TableRow>
-                <TableCell>Date</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell>Excused</TableCell>
+                <TableCell
+                  sortDirection={
+                    detailSortBy === "date" ? detailSortOrder : false
+                  }
+                >
+                  <TableSortLabel
+                    active={detailSortBy === "date"}
+                    direction={
+                      detailSortBy === "date" ? detailSortOrder : "asc"
+                    }
+                    onClick={() => handleDetailSort("date")}
+                  >
+                    Date
+                  </TableSortLabel>
+                </TableCell>
+                <TableCell
+                  sortDirection={
+                    detailSortBy === "status" ? detailSortOrder : false
+                  }
+                >
+                  <TableSortLabel
+                    active={detailSortBy === "status"}
+                    direction={
+                      detailSortBy === "status" ? detailSortOrder : "asc"
+                    }
+                    onClick={() => handleDetailSort("status")}
+                  >
+                    Status
+                  </TableSortLabel>
+                </TableCell>
+                <TableCell
+                  sortDirection={
+                    detailSortBy === "requestNumber" ? detailSortOrder : false
+                  }
+                >
+                  <TableSortLabel
+                    active={detailSortBy === "requestNumber"}
+                    direction={
+                      detailSortBy === "requestNumber"
+                        ? detailSortOrder
+                        : "asc"
+                    }
+                    onClick={() => handleDetailSort("requestNumber")}
+                  >
+                    Request #
+                  </TableSortLabel>
+                </TableCell>
+                <TableCell
+                  sortDirection={
+                    detailSortBy === "excused" ? detailSortOrder : false
+                  }
+                >
+                  <TableSortLabel
+                    active={detailSortBy === "excused"}
+                    direction={
+                      detailSortBy === "excused" ? detailSortOrder : "asc"
+                    }
+                    onClick={() => handleDetailSort("excused")}
+                  >
+                    Excused
+                  </TableSortLabel>
+                </TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {selectedEmail &&
-                detailsByEmail[selectedEmail]?.map((detail, index) => (
-                  <TableRow key={index}>
+                sortedDetailsForOverlay.map((detail) => (
+                  <TableRow key={detail.id}>
                     <TableCell>{detail.date}</TableCell>
                     <TableCell>{detail.status}</TableCell>
+                    <TableCell>{requestNumberByBookingId[detail.bookingId] ?? "--"}</TableCell>
                     <TableCell>
                       <Checkbox
                         checked={detail.excused}

@@ -106,7 +106,6 @@ const mockServerDeleteData = vi.fn();
 const mockServerDeleteDocumentFields = vi.fn();
 const mockServerGetDocumentById = vi.fn();
 const mockServerGetFinalApproverEmail = vi.fn();
-const mockServerGetResourceApproverEmailsForResource = vi.fn();
 
 // Mock XState utilities - but we'll use real XState machine in tests
 const mockExecuteXStateTransition = vi.fn();
@@ -121,7 +120,6 @@ vi.mock("@/lib/firebase/server/adminDb", () => ({
   serverDeleteDocumentFields: mockServerDeleteDocumentFields,
   serverGetDocumentById: mockServerGetDocumentById,
   serverGetFinalApproverEmail: mockServerGetFinalApproverEmail,
-  serverGetResourceApproverEmailsForResource: mockServerGetResourceApproverEmailsForResource,
 }));
 
 // Don't mock XState utilities - we want to test the real XState machine
@@ -190,7 +188,6 @@ describe("XState Approval Real Integration Tests", () => {
     mockServerDeleteDocumentFields.mockResolvedValue(undefined);
     mockServerGetDocumentById.mockResolvedValue(null);
     mockServerGetFinalApproverEmail.mockResolvedValue("finalapprover@nyu.edu");
-    mockServerGetResourceApproverEmailsForResource.mockResolvedValue(["finalapprover@nyu.edu"]);
   });
 
   describe("1. XState Machine Transitions", () => {
@@ -743,7 +740,9 @@ describe("XState Approval Real Integration Tests", () => {
         // Create booking context that requires manual approval
         const context = {
           tenant: testTenant,
-          selectedRooms: [{ roomId: "224", shouldAutoApprove: false }],
+          selectedRooms: [
+            { roomId: "224", autoApproval: { shouldAutoApprove: false } },
+          ],
           servicesRequested: {},
           email: testEmail,
           calendarEventId: testCalendarEventId,
@@ -854,7 +853,9 @@ describe("XState Approval Real Integration Tests", () => {
         // VIP booking with services
         const context = {
           tenant: testTenant,
-          selectedRooms: [{ roomId: "224", shouldAutoApprove: true }],
+          selectedRooms: [
+            { roomId: "224", autoApproval: { shouldAutoApprove: true } },
+          ],
           servicesRequested: {
             cleaning: true,
             setup: true,
@@ -918,7 +919,9 @@ describe("XState Approval Real Integration Tests", () => {
         // Create a new VIP actor that starts in Services Request
         const vipServicesContext = {
           tenant: testTenant,
-          selectedRooms: [{ roomId: "224", shouldAutoApprove: true }],
+          selectedRooms: [
+            { roomId: "224", autoApproval: { shouldAutoApprove: true } },
+          ],
           servicesRequested: {
             cleaning: true,
             setup: true,
@@ -989,7 +992,9 @@ describe("XState Approval Real Integration Tests", () => {
         // Walk-in with services - should still auto-approve
         const context = {
           tenant: testTenant,
-          selectedRooms: [{ roomId: "224", shouldAutoApprove: false }],
+          selectedRooms: [
+            { roomId: "224", autoApproval: { shouldAutoApprove: false } },
+          ],
           servicesRequested: {
             cleaning: true,
             equipment: true,
@@ -1195,7 +1200,9 @@ describe("XState Approval Real Integration Tests", () => {
         // Walk-in booking context that auto-approves
         const context = {
           tenant: testTenant,
-          selectedRooms: [{ roomId: "224", shouldAutoApprove: false }],
+          selectedRooms: [
+            { roomId: "224", autoApproval: { shouldAutoApprove: false } },
+          ],
           servicesRequested: {
             cleaning: true,
           },

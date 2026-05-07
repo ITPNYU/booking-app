@@ -18,6 +18,10 @@ interface BookingContext {
   calendarEventId?: string | null;
   email?: string;
   automationReason?: AutomaticCancellationReason; // Tracks automatic transitions
+  // Queue of side effects declared by state entry actions. Machine stays pure
+  // (assign only); xstate-transition route drains and executes the list after
+  // the transition, then clears it before persisting the snapshot.
+  pendingSideEffects?: string[];
 }
 
 export const itpBookingMachine = setup({
@@ -135,6 +139,15 @@ export const itpBookingMachine = setup({
         calendarEventId: context.calendarEventId,
       });
     },
+    // Queue a side effect for the xstate-transition route to execute after
+    // the machine finishes transitioning. Pure assign — safe on both server
+    // and client.
+    queueCancelProcessing: assign({
+      pendingSideEffects: ({ context }) => [
+        ...(context.pendingSideEffects ?? []),
+        "cancelProcessing",
+      ],
+    }),
     logCanceledAfterAutomaticTransition: async (
       { context },
     ): Promise<void> => {
@@ -206,13 +219,7 @@ export const itpBookingMachine = setup({
           });
         },
         {
-          type: "sendHTMLEmail",
-        },
-        {
-          type: "updateCalendarEvent",
-        },
-        {
-          type: "deleteCalendarEvent",
+          type: "queueCancelProcessing",
         },
         {
           type: "logCanceledAfterAutomaticTransition",

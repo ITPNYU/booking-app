@@ -10,8 +10,6 @@ export type Approver = {
   department: string;
   createdAt: string;
   level: number;
-  /** Room IDs this approver has resource-approver privileges for */
-  resourceRoomIds?: number[];
 };
 
 export enum AttendeeAffiliation {
@@ -295,6 +293,14 @@ export type PolicySettings = {
   finalApproverEmail: string;
 };
 
+/** Tenant-wide announcement bar (Firestore `{tenant}-settings/siteBanner`). */
+export type SiteBannerSettings = {
+  enabled: boolean;
+  message: string;
+  /** Accent `#rrggbb` (text, icon, border, tint). */
+  colorHex: string;
+};
+
 export enum Role {
   STUDENT = "Student",
   RESIDENT_FELLOW = "Resident/Fellow",
@@ -320,6 +326,8 @@ export type RoomSetting = {
   staffingSections?: { name: string; indexes: number[] }[];
   // Auto-approval configuration
   autoApproval?: {
+    /** Explicit enable/disable switch for auto-approval. */
+    shouldAutoApprove?: boolean;
     minHour?: {
       admin: number;
       faculty: number;
@@ -427,6 +435,8 @@ export type Filters = {
   dateRange: string | Date[];
   sortField: string;
   searchQuery?: string;
+  /** Set on the USER /my-bookings view to scope server-side fetch to one user. */
+  userEmail?: string;
 };
 
 export interface PreBanLog {

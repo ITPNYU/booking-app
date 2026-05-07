@@ -60,6 +60,11 @@ jobs:
           echo "NYU_API_USER_NAME=${{ secrets.NYU_API_USER_NAME }}" >> .env.production
           echo "NYU_API_PASSWORD=${{ secrets.NYU_API_PASSWORD }}" >> .env.production
           echo "NYU_API_ACCESS_ID=${{ secrets.NYU_API_ACCESS_ID }}" >> .env.production
+          echo "OIDC_ISSUER=${{ vars.OIDC_ISSUER }}" >> .env.production
+          echo "OIDC_CLIENT_ID=${{ vars.OIDC_CLIENT_ID }}" >> .env.production
+          echo "OIDC_CLIENT_SECRET=${{ secrets.OIDC_CLIENT_SECRET }}" >> .env.production
+          echo "AUTH_SECRET=${{ secrets.AUTH_SECRET }}" >> .env.production
+          echo "AUTH_URL=${{ vars.AUTH_URL }}" >> .env.production
           echo "CRON_SECRET=${{ secrets.CRON_SECRET }}" >> .env.production
           echo "WEBCHECKOUT_USERNAME=${{ secrets.WEBCHECKOUT_USERNAME }}" >> .env.production
           echo "WEBCHECKOUT_PASSWORD=${{ secrets.WEBCHECKOUT_PASSWORD }}" >> .env.production
@@ -76,6 +81,46 @@ jobs:
         run: |
           cd booking-app
           npm run build
+
+      # Sync Firestore composite indexes for this environment's database.
+      # Uses gcloud directly (not `firebase deploy`) because firebase-tools
+      # 15.x throws TypeError on the multi-database `firestore` array in
+      # firebase.json, masking real failures behind a generic wrapper.
+      # gcloud is already authenticated via setup-gcloud above.
+      - name: Deploy Firestore indexes
+        timeout-minutes: 20
+        run: |
+          DB='booking-app-prod'
+          PROJECT="${{ secrets.GCP_PROJECT_ID }}"
+
+          create_index() {
+            local CG="$1"
+            echo "Ensuring composite index on $CG (email asc, startDate desc) in $DB..."
+            set +e
+            OUTPUT=$(gcloud firestore indexes composite create \
+              --collection-group="$CG" \
+              --database="$DB" \
+              --project="$PROJECT" \
+              --field-config=field-path=email,order=ascending \
+              --field-config=field-path=startDate,order=descending \
+              --quiet 2>&1)
+            EXIT=$?
+            set -e
+            if [ $EXIT -ne 0 ]; then
+              if echo "$OUTPUT" | grep -qi "ALREADY_EXISTS"; then
+                echo "Index already exists for $CG, skipping"
+                return 0
+              fi
+              echo "Failed to create index for $CG:"
+              echo "$OUTPUT"
+              return 1
+            fi
+            echo "$OUTPUT"
+          }
+
+          create_index mc-bookings
+          create_index itp-bookings
+
       - name: Deploy to App Engine
         run: |
           cd booking-app

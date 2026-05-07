@@ -9,10 +9,14 @@ import {
 /**
  * Execute XState transition for ITP bookings
  * POST /api/xstate-transition
- * Body: { calendarEventId: string, eventType: string, email?: string }
+ * Body: { calendarEventId: string, eventType: string, email?: string, netId?: string, reason?: string }
+ *
+ * netId is the authoritative user id from the caller's session — needed because
+ * some queued side effects (pre-ban logging inside /api/cancel-processing) key
+ * off it. Reconstructing from email.split("@")[0] is wrong for aliases.
  */
 export async function POST(req: NextRequest) {
-  const { calendarEventId, eventType, email, reason } = await req.json();
+  const { calendarEventId, eventType, email, netId, reason } = await req.json();
 
   // Get tenant from x-tenant header, fallback to default tenant
   const tenant = req.headers.get("x-tenant") || DEFAULT_TENANT;
@@ -90,6 +94,7 @@ export async function POST(req: NextRequest) {
       tenant,
       email, // Pass email for finalApprovedBy
       reason, // Pass reason for decline actions
+      netId, // Pass authoritative netId for side effects (pre-ban logging)
     );
 
     if (!result.success) {
