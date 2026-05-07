@@ -189,7 +189,7 @@ export const DatabaseProvider = ({
     dateRange: "",
     sortField: "startDate",
   });
-  const LIMIT = 10;
+  const LIMIT = 500;
 
   const { user } = useAuth();
   const netId = useMemo(() => userEmail?.split("@")[0], [userEmail]);
