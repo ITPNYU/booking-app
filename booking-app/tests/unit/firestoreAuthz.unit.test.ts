@@ -13,14 +13,17 @@ function snapshot(docs: Array<Record<string, unknown>>) {
 
 vi.mock("@/lib/firebase/server/firebaseAdmin", () => {
   const collection = vi.fn((name: string) => {
+    const runQuery = async () => {
+      if (name === "usersSuperAdmin") return snapshot(superSnap());
+      if (name.endsWith("usersRights")) return snapshot(usersRightsSnap());
+      if (name.endsWith("usersApprovers")) return snapshot(approverSnap());
+      return snapshot([]);
+    };
+
     const where = (_field: string, _op: string, _value: unknown) => ({
+      get: runQuery,
       limit: () => ({
-        get: async () => {
-          if (name === "usersSuperAdmin") return snapshot(superSnap());
-          if (name.endsWith("usersRights")) return snapshot(usersRightsSnap());
-          if (name.endsWith("usersApprovers")) return snapshot(approverSnap());
-          return snapshot([]);
-        },
+        get: runQuery,
       }),
     });
     return { where };
