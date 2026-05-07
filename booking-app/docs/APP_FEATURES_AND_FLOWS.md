@@ -785,7 +785,7 @@ Blackout periods are time ranges during which bookings are not allowed.
 
 | Page | Description |
 |------|-------------|
-| Home / My Bookings | View all of the user's current and past bookings; filter by status and by requested service type (staffing, equipment, catering, cleaning, security, room setup) |
+| Home / My Bookings | View all of the user's current and past bookings; filter by status, date range, and room |
 | Book → Policy | Accept the facility usage policy |
 | Book → Role | Select school, department, and role |
 | Book → Select Room | Choose room(s) and time from the calendar |
