@@ -549,7 +549,7 @@ One-click CSV export of all booking data.
 #### Site Banner
 Show an announcement banner at the top of every page. Admins can:
 - Write the banner message
-- Choose the background color
+- Choose the banner accent color
 - Turn the banner on or off
 Useful for communicating outages, policy reminders, or upcoming events to all users at once.
 
