@@ -52,13 +52,20 @@ export async function resolveCallerRole(
   const approverSnap = await db
     .collection(approversCollection)
     .where("email", "==", email)
-    .limit(1)
     .get();
   if (!approverSnap.empty) {
-    const data = approverSnap.docs[0].data() as Record<string, unknown>;
-    const level = Number(data.level);
-    if (level === ApproverLevel.EQUIPMENT) return PagePermission.SERVICES;
-    return PagePermission.LIAISON;
+    const levels = approverSnap.docs
+      .map((d) => Number((d.data() as Record<string, unknown>).level))
+      .filter((n) => Number.isFinite(n));
+
+    if (levels.includes(ApproverLevel.EQUIPMENT)) {
+      return PagePermission.SERVICES;
+    }
+    // Only level-bearing approver records should grant liaison-level access.
+    // Resource/all-room approver docs do not set `level`.
+    if (levels.length > 0) {
+      return PagePermission.LIAISON;
+    }
   }
 
   if (userRights?.isWorker === true) return PagePermission.PA;

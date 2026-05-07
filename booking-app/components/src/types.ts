@@ -14,21 +14,28 @@ export type Approver = {
   scope?: "tenant" | "resource";
   /** Room IDs this approver has resource-approver privileges for */
   resourceRoomIds?: number[];
+  /**
+   * When true, this approver is granted approval rights for every room in the
+   * tenant without needing individual resourceRoomIds entries.
+   */
+  allResources?: boolean;
 };
 
 /**
  * Fills in `scope` for legacy Approver documents that predate the field.
- * resourceRoomIds presence takes priority — if a document was explicitly
- * assigned room IDs it must be per-resource, regardless of level.
- * Documents without roomIds default to tenant scope.
+ * allResources or resourceRoomIds presence implies resource scope.
+ * Documents without either default to tenant scope.
  */
 export function normalizeApprover(
   approver: Approver,
 ): Approver & { scope: "tenant" | "resource" } {
   if (approver.scope) return approver as Approver & { scope: "tenant" | "resource" };
+  const isResource =
+    approver.allResources === true ||
+    (approver.resourceRoomIds?.length ?? 0) > 0;
   return {
     ...approver,
-    scope: (approver.resourceRoomIds?.length ?? 0) > 0 ? "resource" : "tenant",
+    scope: isResource ? "resource" : "tenant",
   };
 }
 

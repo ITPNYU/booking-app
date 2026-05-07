@@ -350,6 +350,7 @@ export const clientGetAllApproversWithRooms = async (
     email: string;
     scope: "tenant" | "resource";
     resourceRoomIds: number[];
+    allResources: boolean;
     createdAt?: Timestamp;
   }>
 > => {
@@ -373,12 +374,16 @@ export const clientGetAllApproversWithRooms = async (
           level: (data.level as number) ?? 0,
           scope: data.scope as "tenant" | "resource" | undefined,
           resourceRoomIds: (data.resourceRoomIds as number[] | undefined) ?? [],
+          // `allResources` is legacy. Scope is the source of truth.
+          allResources: undefined,
         });
+        const normalizedRoomIds = normalized.resourceRoomIds ?? [];
         return {
           id: d.id,
           email: normalized.email,
           scope: normalized.scope,
-          resourceRoomIds: normalized.resourceRoomIds ?? [],
+          resourceRoomIds: normalizedRoomIds,
+          allResources: normalized.scope === "resource",
           createdAt: data.createdAt as Timestamp | undefined,
         };
       })
@@ -389,13 +394,44 @@ export const clientGetAllApproversWithRooms = async (
   }
 };
 
+export const clientAddAllResourcesApprover = async (
+  email: string,
+  tenant?: string,
+): Promise<void> => {
+  await postJson<MutateRequest>("/api/firestore/mutate", {
+    op: "create",
+    collection: TableNames.APPROVERS,
+    tenant: resolveTenantArg(tenant),
+    data: {
+      email,
+      scope: "resource",
+      resourceRoomIds: [],
+      createdAt: { __ts: Date.now() },
+    },
+  });
+};
+
+export const clientRemoveAllResourcesApprover = async (
+  approverDocId: string,
+  tenant?: string,
+): Promise<void> => {
+  await postJson<MutateRequest>("/api/firestore/mutate", {
+    op: "delete",
+    collection: TableNames.APPROVERS,
+    tenant: resolveTenantArg(tenant),
+    docId: approverDocId,
+  });
+};
+
 export const clientAddResourceRoomToApprover = async (
   approverDocId: string,
   roomId: number,
   tenant?: string,
 ): Promise<void> => {
+  // Use op:"set" (merge) so this is an upsert — it works even when the doc
+  // doesn't yet exist in the tenant-prefixed collection (e.g. legacy data).
   await postJson<MutateRequest>("/api/firestore/mutate", {
-    op: "update",
+    op: "set",
     collection: TableNames.APPROVERS,
     tenant: resolveTenantArg(tenant),
     docId: approverDocId,

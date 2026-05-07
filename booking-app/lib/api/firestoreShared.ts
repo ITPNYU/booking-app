@@ -83,6 +83,17 @@ export type MutateRequest =
       data: Record<string, unknown>;
     }
   | {
+      /**
+       * Like "update" but creates the document if it does not exist
+       * (Firestore set with merge:true semantics).
+       */
+      op: "set";
+      collection: string;
+      tenant?: string;
+      docId: string;
+      data: Record<string, unknown>;
+    }
+  | {
       op: "delete";
       collection: string;
       tenant?: string;

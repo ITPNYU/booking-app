@@ -344,6 +344,25 @@ export const serverGetResourceApproverEmailsForResource = async (
             .filter((e): e is string => Boolean(e));
           if (emails.length > 0) return emails;
         }
+        // Also pick up all-resource approvers (scope: "resource") as fallback
+        // before going to the tenant-level final approver.
+        try {
+          const allResourcesSnap = await traceDatabase(
+            "query",
+            `Firestore/${tenantCollection}/allResources`,
+            () =>
+              db
+                .collection(tenantCollection)
+                .where("scope", "==", "resource")
+                .get(),
+          );
+          const allResourceEmails = allResourcesSnap.docs
+            .map((d) => d.data().email as string | undefined)
+            .filter((e): e is string => Boolean(e));
+          if (allResourceEmails.length > 0) return allResourceEmails;
+        } catch (err) {
+          console.error("Error fetching all-resource approvers:", err);
+        }
       }
     } catch (error) {
       console.error("Error fetching resource-specific approvers:", error);
