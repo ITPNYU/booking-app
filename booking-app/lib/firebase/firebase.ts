@@ -4,7 +4,7 @@ import {
   getTenantCollectionName,
 } from "@/components/src/policy";
 import { Timestamp } from "firebase/firestore";
-import { Filters, normalizeApprover } from "@/components/src/types";
+import { Filters } from "@/components/src/types";
 import { SchemaContextType } from "@/components/src/client/routes/components/SchemaProvider";
 import {
   USER_RIGHT_FLAG_FIELDS,
@@ -329,11 +329,9 @@ export const clientGetResourceApproverEmailsForRoom = async (
       ListRequest,
       { docs: Array<{ email?: string }> }
     >("/api/firestore/list", {
-      collection: TableNames.APPROVERS,
+      collection: TableNames.RESOURCE_APPROVERS,
       tenant: resolveTenantArg(tenant),
-      where: [
-        { field: "resourceRoomIds", op: "array-contains", value: roomId },
-      ],
+      where: [{ field: "resource", op: "==", value: roomId }],
     });
     return docs.map((d) => d.email).filter((e): e is string => Boolean(e));
   } catch (error) {
@@ -342,15 +340,13 @@ export const clientGetResourceApproverEmailsForRoom = async (
   }
 };
 
-export const clientGetAllApproversWithRooms = async (
+export const clientGetAllResourceApprovers = async (
   tenant?: string,
 ): Promise<
   Array<{
     id: string;
     email: string;
-    scope: "tenant" | "resource";
-    resourceRoomIds: number[];
-    allResources: boolean;
+    resource: number;
     createdAt?: Timestamp;
   }>
 > => {
@@ -359,102 +355,72 @@ export const clientGetAllApproversWithRooms = async (
       ListRequest,
       { docs: Array<Record<string, unknown> & { id: string }> }
     >("/api/firestore/list", {
-      collection: TableNames.APPROVERS,
+      collection: TableNames.RESOURCE_APPROVERS,
       tenant: resolveTenantArg(tenant),
     });
 
     return docs
-      .filter((d) => d.id !== "resourceApprovers")
       .map((d) => {
         const data = d as Record<string, unknown>;
-        const normalized = normalizeApprover({
-          email: data.email as string,
-          department: (data.department as string) ?? "",
-          createdAt: (data.createdAt as string) ?? "",
-          level: (data.level as number) ?? 0,
-          scope: data.scope as "tenant" | "resource" | undefined,
-          resourceRoomIds: (data.resourceRoomIds as number[] | undefined) ?? [],
-          // `allResources` is legacy. Scope is the source of truth.
-          allResources: undefined,
-        });
-        const normalizedRoomIds = normalized.resourceRoomIds ?? [];
         return {
           id: d.id,
-          email: normalized.email,
-          scope: normalized.scope,
-          resourceRoomIds: normalizedRoomIds,
-          allResources: normalized.scope === "resource",
+          email: String(data.email ?? "")
+            .trim()
+            .toLowerCase(),
+          resource: Number(data.resource),
           createdAt: data.createdAt as Timestamp | undefined,
         };
       })
-      .filter((a) => Boolean(a.email));
+      .filter((a) => Boolean(a.email) && Number.isFinite(a.resource));
   } catch (error) {
-    console.error("Error fetching approvers with rooms:", error);
+    console.error("Error fetching resource approvers:", error);
     return [];
   }
 };
 
-export const clientAddAllResourcesApprover = async (
+export const clientAddResourceApprover = async (
+  roomId: number,
   email: string,
   tenant?: string,
 ): Promise<void> => {
+  const normalizedEmail = email.trim().toLowerCase();
+  if (!normalizedEmail) return;
+
+  const existing = await postJson<
+    ListRequest,
+    { docs: Array<Record<string, unknown> & { id: string }> }
+  >("/api/firestore/list", {
+    collection: TableNames.RESOURCE_APPROVERS,
+    tenant: resolveTenantArg(tenant),
+    where: [
+      { field: "email", op: "==", value: normalizedEmail },
+      { field: "resource", op: "==", value: roomId },
+    ],
+  });
+
+  if (existing.docs.length > 0) return;
+
   await postJson<MutateRequest>("/api/firestore/mutate", {
     op: "create",
-    collection: TableNames.APPROVERS,
+    collection: TableNames.RESOURCE_APPROVERS,
     tenant: resolveTenantArg(tenant),
     data: {
-      email,
-      scope: "resource",
-      resourceRoomIds: [],
+      email: normalizedEmail,
+      resource: roomId,
       createdAt: { __ts: Date.now() },
     },
   });
 };
 
-export const clientRemoveAllResourcesApprover = async (
+export const clientRemoveResourceApprover = async (
   approverDocId: string,
   tenant?: string,
 ): Promise<void> => {
   await postJson<MutateRequest>("/api/firestore/mutate", {
     op: "delete",
-    collection: TableNames.APPROVERS,
+    collection: TableNames.RESOURCE_APPROVERS,
     tenant: resolveTenantArg(tenant),
     docId: approverDocId,
-  });
-};
-
-export const clientAddResourceRoomToApprover = async (
-  approverDocId: string,
-  roomId: number,
-  tenant?: string,
-): Promise<void> => {
-  // Use op:"set" (merge) so this is an upsert — it works even when the doc
-  // doesn't yet exist in the tenant-prefixed collection (e.g. legacy data).
-  await postJson<MutateRequest>("/api/firestore/mutate", {
-    op: "set",
-    collection: TableNames.APPROVERS,
-    tenant: resolveTenantArg(tenant),
-    docId: approverDocId,
-    data: {
-      resourceRoomIds: { __arrayUnion: [roomId] },
-      scope: "resource",
-    },
-  });
-};
-
-export const clientRemoveResourceRoomFromApprover = async (
-  approverDocId: string,
-  roomId: number,
-  tenant?: string,
-): Promise<void> => {
-  await postJson<MutateRequest>("/api/firestore/mutate", {
-    op: "update",
-    collection: TableNames.APPROVERS,
-    tenant: resolveTenantArg(tenant),
-    docId: approverDocId,
-    data: {
-      resourceRoomIds: { __arrayRemove: [roomId] },
-    },
   });
 };
 

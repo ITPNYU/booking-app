@@ -1,7 +1,7 @@
 import { Stack, Typography } from "@mui/material";
 import { EquipmentUsers } from "./EquipmentUsers";
 import { Liaisons } from "./Liaisons";
-import { AllRoomApprovers, ResourceSpecific } from "./ResourceSpecific";
+import { ResourceSpecific } from "./ResourceSpecific";
 import { ServiceApproverUsers } from "./ServiceApproverUsers";
 
 export const Approvers = () => (
@@ -28,10 +28,6 @@ export const Approvers = () => (
       <ServiceApproverUsers title="Cleanup Approvers" flagField="isCleaning" />
       <ServiceApproverUsers title="Security Approvers" flagField="isSecurity" />
     </Stack>
-    <Typography style={{ marginTop: 48, marginBottom: 8 }} variant="h6">
-      All-Room Approvers
-    </Typography>
-    <AllRoomApprovers />
     <Typography style={{ marginTop: 48, marginBottom: 8 }} variant="h6">
       Resource Specific
     </Typography>

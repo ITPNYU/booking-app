@@ -269,19 +269,23 @@ describe("serverGetResourceApproverEmailsForResource", () => {
     resetFirestore();
   });
 
-  it("returns emails of approvers whose resourceRoomIds contains the roomId", async () => {
-    seedCollection("itp-usersApprovers", [
+  it("returns emails of approvers whose resource equals the roomId", async () => {
+    seedCollection("itp-usersResourceApprovers", [
       {
-        id: "approver-1",
-        data: { email: "alice@nyu.edu", level: ApproverLevel.FIRST, resourceRoomIds: [101, 202] },
+        id: "approver-1a",
+        data: { email: "alice@nyu.edu", resource: 101 },
+      },
+      {
+        id: "approver-1b",
+        data: { email: "alice@nyu.edu", resource: 202 },
       },
       {
         id: "approver-2",
-        data: { email: "bob@nyu.edu", level: ApproverLevel.FIRST, resourceRoomIds: [101] },
+        data: { email: "bob@nyu.edu", resource: 101 },
       },
       {
         id: "approver-3",
-        data: { email: "carol@nyu.edu", level: ApproverLevel.FIRST, resourceRoomIds: [202] },
+        data: { email: "carol@nyu.edu", resource: 202 },
       },
     ]);
     const { serverGetResourceApproverEmailsForResource } = await import(
@@ -295,14 +299,14 @@ describe("serverGetResourceApproverEmailsForResource", () => {
   });
 
   it("does not cross-contaminate between rooms", async () => {
-    seedCollection("itp-usersApprovers", [
+    seedCollection("itp-usersResourceApprovers", [
       {
         id: "approver-1",
-        data: { email: "alice@nyu.edu", level: ApproverLevel.FIRST, resourceRoomIds: [101] },
+        data: { email: "alice@nyu.edu", resource: 101 },
       },
       {
         id: "approver-2",
-        data: { email: "bob@nyu.edu", level: ApproverLevel.FIRST, resourceRoomIds: [202] },
+        data: { email: "bob@nyu.edu", resource: 202 },
       },
     ]);
     const { serverGetResourceApproverEmailsForResource } = await import(
@@ -352,10 +356,10 @@ describe("serverGetResourceApproverEmailsForResource", () => {
   });
 
   it("does not cross-tenant leak (mc vs itp)", async () => {
-    seedCollection("mc-usersApprovers", [
+    seedCollection("mc-usersResourceApprovers", [
       {
         id: "mc-approver",
-        data: { email: "mc-approver@nyu.edu", level: ApproverLevel.FIRST, resourceRoomIds: [5] },
+        data: { email: "mc-approver@nyu.edu", resource: 5 },
       },
     ]);
     const { serverGetResourceApproverEmailsForResource } = await import(
@@ -369,10 +373,10 @@ describe("serverGetResourceApproverEmailsForResource", () => {
   });
 
   it("accepts string roomId by parsing to numeric", async () => {
-    seedCollection("itp-usersApprovers", [
+    seedCollection("itp-usersResourceApprovers", [
       {
         id: "approver-1",
-        data: { email: "alice@nyu.edu", level: ApproverLevel.FIRST, resourceRoomIds: [101] },
+        data: { email: "alice@nyu.edu", resource: 101 },
       },
     ]);
     const { serverGetResourceApproverEmailsForResource } = await import(
@@ -416,14 +420,14 @@ describe("serverFirstApproveOnly – resource approver routing", () => {
     seedCollection("tenant-r-bookings", [
       { id: "booking-r1", data: baseBooking({ roomId: "101" }) },
     ]);
-    seedCollection("tenant-r-usersApprovers", [
+    seedCollection("tenant-r-usersResourceApprovers", [
       {
         id: "approver-a",
-        data: { email: "alice@nyu.edu", level: ApproverLevel.FIRST, resourceRoomIds: [101] },
+        data: { email: "alice@nyu.edu", resource: 101 },
       },
       {
         id: "approver-b",
-        data: { email: "bob@nyu.edu", level: ApproverLevel.FIRST, resourceRoomIds: [101] },
+        data: { email: "bob@nyu.edu", resource: 101 },
       },
     ]);
 
@@ -491,10 +495,10 @@ describe("serverFirstApproveOnly – resource approver routing", () => {
     seedCollection("tenant-r-bookings", [
       { id: "booking-r4", data: baseBooking({ roomId: "101, 202" }) },
     ]);
-    seedCollection("tenant-r-usersApprovers", [
+    seedCollection("tenant-r-usersResourceApprovers", [
       {
         id: "approver-a",
-        data: { email: "primary-room@nyu.edu", level: ApproverLevel.FIRST, resourceRoomIds: [101] },
+        data: { email: "primary-room@nyu.edu", resource: 101 },
       },
     ]);
 
@@ -518,10 +522,10 @@ describe("serverFirstApproveOnly – resource approver routing", () => {
     seedCollection("tenant-r-bookings", [
       { id: "booking-r5", data: baseBooking({ roomId: "101" }) },
     ]);
-    seedCollection("tenant-r-usersApprovers", [
+    seedCollection("tenant-r-usersResourceApprovers", [
       {
         id: "approver-a",
-        data: { email: "approver@nyu.edu", level: ApproverLevel.FIRST, resourceRoomIds: [101] },
+        data: { email: "approver@nyu.edu", resource: 101 },
       },
     ]);
 

@@ -8,17 +8,12 @@ import {
   Alert,
   CircularProgress,
 } from "@mui/material";
-import { Timestamp } from "firebase/firestore";
 import { useCallback, useContext, useEffect, useState } from "react";
 
 import {
-  clientAddResourceRoomToApprover,
-  clientDeleteDataFromFirestore,
-  clientGetAllApproversWithRooms,
-  clientRemoveAllResourcesApprover,
-  clientRemoveResourceRoomFromApprover,
-  clientSaveDataToFirestore,
-  clientUpdateDataInFirestore,
+  clientAddResourceApprover,
+  clientGetAllResourceApprovers,
+  clientRemoveResourceApprover,
 } from "@/lib/firebase/firebase";
 import { formatDate } from "../../../utils/date";
 import ListTable from "../../components/ListTable";
@@ -32,20 +27,14 @@ type ApproverEntry = {
   createdAt?: any;
 };
 
-type AllApproverEntry = {
+type ResourceApproverDoc = {
   id: string;
   email: string;
-  scope: "tenant" | "resource";
-  resourceRoomIds: number[];
-  createdAt?: Timestamp;
+  resource: number;
+  createdAt?: any;
 };
 
 const normalizeApproverEmail = (email: string) => email.trim().toLowerCase();
-
-const uniqueRoomIds = (ids: number[]): number[] => [...new Set(ids)];
-
-const isAllRoomApprover = (approver: AllApproverEntry): boolean =>
-  approver.scope === "resource";
 
 type ResourceApproverSectionProps = {
   title: string;
@@ -196,7 +185,9 @@ const ResourceSection = ({
 export const ResourceSpecific = () => {
   const { resources, tenant } = useContext(SchemaContext);
 
-  const [allApprovers, setAllApprovers] = useState<AllApproverEntry[]>([]);
+  const [resourceApprovers, setResourceApprovers] = useState<
+    ResourceApproverDoc[]
+  >([]);
   const [loading, setLoading] = useState(true);
   const [globalError, setGlobalError] = useState<string | null>(null);
 
@@ -204,8 +195,8 @@ export const ResourceSpecific = () => {
     setLoading(true);
     setGlobalError(null);
     try {
-      const data = await clientGetAllApproversWithRooms(tenant);
-      setAllApprovers(data);
+      const data = await clientGetAllResourceApprovers(tenant);
+      setResourceApprovers(data);
     } catch {
       setGlobalError("Failed to load approvers.");
     } finally {
@@ -222,145 +213,16 @@ export const ResourceSpecific = () => {
       const normalizedEmail = normalizeApproverEmail(email);
       if (!normalizedEmail) return;
 
-      const latest = await clientGetAllApproversWithRooms(tenant);
-      const matches = latest.filter(
-        (a) => normalizeApproverEmail(a.email) === normalizedEmail,
-      );
-
-      if (matches.length > 0) {
-        const canonical =
-          matches.find((a) => isAllRoomApprover(a)) ??
-          matches.find((a) => (a.resourceRoomIds?.length ?? 0) > 0) ??
-          matches[0];
-
-        const mergedRoomIds = uniqueRoomIds([
-          ...matches.flatMap((a) => a.resourceRoomIds ?? []),
-          roomId,
-        ]);
-
-        await clientUpdateDataInFirestore(
-          TableNames.APPROVERS,
-          canonical.id,
-          {
-            email: normalizedEmail,
-            resourceRoomIds: mergedRoomIds,
-          },
-          tenant,
-        );
-
-        const duplicates = matches.filter((a) => a.id !== canonical.id);
-        await Promise.all(
-          duplicates.map((d) =>
-            clientDeleteDataFromFirestore(TableNames.APPROVERS, d.id, tenant),
-          ),
-        );
-
-        await load();
-      } else {
-        // No existing approver doc — create one with this roomId
-        await clientSaveDataToFirestore(
-          TableNames.APPROVERS,
-          {
-            email: normalizedEmail,
-            resourceRoomIds: [roomId],
-            createdAt: Timestamp.now(),
-          },
-          tenant,
-        );
-        await load();
-      }
-    },
-    [tenant, load],
-  );
-
-  const handleRemoveResourceApprover = useCallback(
-    async (roomId: number, row: { [key: string]: string }) => {
-      await clientRemoveResourceRoomFromApprover(row.id, roomId, tenant);
-      const previous = allApprovers.find((a) => a.id === row.id);
-      const nextRoomIds = (previous?.resourceRoomIds ?? []).filter(
-        (id) => id !== roomId,
-      );
-      if (nextRoomIds.length === 0) {
-        await clientDeleteDataFromFirestore(
-          TableNames.APPROVERS,
-          row.id,
-          tenant,
-        );
-      }
-      setAllApprovers((prev) =>
-        prev.map((a) =>
-          a.id === row.id
-            ? {
-                ...a,
-                resourceRoomIds: a.resourceRoomIds.filter(
-                  (id) => id !== roomId,
-                ),
-              }
-            : a,
-        ),
-      );
-    },
-    [allApprovers, tenant],
-  );
-
-  const handleAddAllResourcesApprover = useCallback(
-    async (email: string) => {
-      const normalizedEmail = normalizeApproverEmail(email);
-      if (!normalizedEmail) return;
-
-      const latest = await clientGetAllApproversWithRooms(tenant);
-      const matches = latest.filter(
-        (a) => normalizeApproverEmail(a.email) === normalizedEmail,
-      );
-      const alreadyAllRoom = matches.some((a) => isAllRoomApprover(a));
-      const existing =
-        matches.find((a) => isAllRoomApprover(a)) ??
-        matches.find((a) => (a.resourceRoomIds?.length ?? 0) > 0) ??
-        matches[0];
-      if (alreadyAllRoom) {
-        // eslint-disable-next-line no-alert
-        window.alert("This user is already an all-room approver");
-        return;
-      }
-
-      if (existing) {
-        await clientUpdateDataInFirestore(
-          TableNames.APPROVERS,
-          existing.id,
-          {
-            email: normalizedEmail,
-            scope: "resource",
-          },
-          tenant,
-        );
-
-        const duplicates = matches.filter((a) => a.id !== existing.id);
-        await Promise.all(
-          duplicates.map((d) =>
-            clientDeleteDataFromFirestore(TableNames.APPROVERS, d.id, tenant),
-          ),
-        );
-      } else {
-        await clientSaveDataToFirestore(
-          TableNames.APPROVERS,
-          {
-            email: normalizedEmail,
-            scope: "resource",
-            resourceRoomIds: [],
-            createdAt: Timestamp.now(),
-          },
-          tenant,
-        );
-      }
+      await clientAddResourceApprover(roomId, normalizedEmail, tenant);
       await load();
     },
     [tenant, load],
   );
 
-  const handleRemoveAllResourcesApprover = useCallback(
-    async (row: { [key: string]: string }) => {
-      await clientRemoveAllResourcesApprover(row.id, tenant);
-      setAllApprovers((prev) => prev.filter((a) => a.id !== row.id));
+  const handleRemoveResourceApprover = useCallback(
+    async (_roomId: number, row: { [key: string]: string }) => {
+      await clientRemoveResourceApprover(row.id, tenant);
+      setResourceApprovers((prev) => prev.filter((a) => a.id !== row.id));
     },
     [tenant],
   );
@@ -407,15 +269,15 @@ export const ResourceSpecific = () => {
         </Typography>
       )}
       {resources.map((resource) => {
-        const resourceApprovers = allApprovers
-          .filter((a) => a.resourceRoomIds.includes(resource.roomId))
+        const rows = resourceApprovers
+          .filter((a) => a.resource === resource.roomId)
           .map((a) => ({ id: a.id, email: a.email, createdAt: a.createdAt }));
 
         return (
           <ResourceSection
             key={resource.roomId}
             resource={resource}
-            resourceApprovers={resourceApprovers}
+            resourceApprovers={rows}
             serviceApprovers={[]}
             onAddResourceApprover={handleAddResourceApprover}
             onRemoveResourceApprover={handleRemoveResourceApprover}
@@ -430,127 +292,3 @@ export const ResourceSpecific = () => {
 };
 
 export const ResourceApprovers = ResourceSpecific;
-
-/**
- * Standalone component rendering only the All-Room Approvers table.
- * Place this above the "Resource Specific" heading in Approvers.tsx.
- */
-export const AllRoomApprovers = () => {
-  const { tenant } = useContext(SchemaContext);
-  const [allApprovers, setAllApprovers] = useState<AllApproverEntry[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [globalError, setGlobalError] = useState<string | null>(null);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    setGlobalError(null);
-    try {
-      const data = await clientGetAllApproversWithRooms(tenant);
-      setAllApprovers(data);
-    } catch {
-      setGlobalError("Failed to load approvers.");
-    } finally {
-      setLoading(false);
-    }
-  }, [tenant]);
-
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  const handleAdd = useCallback(
-    async (email: string) => {
-      const normalizedEmail = normalizeApproverEmail(email);
-      if (!normalizedEmail) return;
-
-      const latest = await clientGetAllApproversWithRooms(tenant);
-      const matches = latest.filter(
-        (a) => normalizeApproverEmail(a.email) === normalizedEmail,
-      );
-      const alreadyAllRoom = matches.some((a) => isAllRoomApprover(a));
-      const existing =
-        matches.find((a) => isAllRoomApprover(a)) ??
-        matches.find((a) => (a.resourceRoomIds?.length ?? 0) > 0) ??
-        matches[0];
-      if (alreadyAllRoom) {
-        // eslint-disable-next-line no-alert
-        window.alert("This user is already an all-room approver");
-        return;
-      }
-
-      if (existing) {
-        await clientUpdateDataInFirestore(
-          TableNames.APPROVERS,
-          existing.id,
-          {
-            email: normalizedEmail,
-            scope: "resource",
-          },
-          tenant,
-        );
-
-        const duplicates = matches.filter((a) => a.id !== existing.id);
-        await Promise.all(
-          duplicates.map((d) =>
-            clientDeleteDataFromFirestore(TableNames.APPROVERS, d.id, tenant),
-          ),
-        );
-      } else {
-        await clientSaveDataToFirestore(
-          TableNames.APPROVERS,
-          {
-            email: normalizedEmail,
-            scope: "resource",
-            resourceRoomIds: [],
-            createdAt: Timestamp.now(),
-          },
-          tenant,
-        );
-      }
-      await load();
-    },
-    [tenant, load],
-  );
-
-  const handleRemove = useCallback(
-    async (row: { [key: string]: string }) => {
-      await clientRemoveAllResourcesApprover(row.id, tenant);
-      setAllApprovers((prev) => prev.filter((a) => a.id !== row.id));
-    },
-    [tenant],
-  );
-
-  if (loading) {
-    return (
-      <Box display="flex" alignItems="center" gap={1} mt={2}>
-        <CircularProgress size={20} />
-        <Typography variant="body2" color="text.secondary">
-          Loading...
-        </Typography>
-      </Box>
-    );
-  }
-
-  return (
-    <Box mt={1}>
-      {globalError && (
-        <Alert
-          severity="error"
-          onClose={() => setGlobalError(null)}
-          sx={{ mb: 2 }}
-        >
-          {globalError}
-        </Alert>
-      )}
-      <ResourceApproverSection
-        title="All-Room Approvers"
-        rows={allApprovers
-          .filter((a) => isAllRoomApprover(a))
-          .map((a) => ({ id: a.id, email: a.email, createdAt: a.createdAt }))}
-        onAdd={handleAdd}
-        onRemove={handleRemove}
-        refresh={load}
-      />
-    </Box>
-  );
-};

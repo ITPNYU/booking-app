@@ -295,14 +295,11 @@ export const serverGetFinalApproverEmail = async (
 
 /**
  * Returns all resource approver emails for a specific room by querying
- * user documents in ${tenant}-usersApprovers whose `resourceRoomIds`
- * array contains the given roomId.
+ * user documents in ${tenant}-usersResourceApprovers where `resource`
+ * equals the given roomId.
  *
  * Falls back to the tenant-level final approver when no per-room approvers
  * are configured, or when roomId is not provided.
- *
- * @param tenant - The tenant identifier
- * @param roomId - The numeric (or string) roomId of the resource
  */
 export const serverGetResourceApproverEmailsForResource = async (
   tenant?: string,
@@ -314,7 +311,7 @@ export const serverGetResourceApproverEmailsForResource = async (
         typeof roomId === "string" ? parseInt(roomId, 10) : roomId;
       if (Number.isFinite(numericRoomId)) {
         const tenantCollection = getServerTenantCollection(
-          TableNames.APPROVERS,
+          TableNames.RESOURCE_APPROVERS,
           tenant,
         );
         const querySnapshot = await traceDatabase(
@@ -323,45 +320,14 @@ export const serverGetResourceApproverEmailsForResource = async (
           () =>
             db
               .collection(tenantCollection)
-              .where("resourceRoomIds", "array-contains", numericRoomId)
+              .where("resource", "==", numericRoomId)
               .get(),
         );
         if (!querySnapshot.empty) {
-          // Filter to per-resource approvers, supporting legacy docs without scope.
           const emails = querySnapshot.docs
-            .filter((d) => {
-              const normalized = normalizeApprover({
-                email: d.data().email,
-                department: d.data().department ?? "",
-                createdAt: d.data().createdAt ?? "",
-                level: d.data().level,
-                scope: d.data().scope,
-                resourceRoomIds: d.data().resourceRoomIds,
-              });
-              return normalized.scope === "resource";
-            })
             .map((d) => d.data().email as string | undefined)
             .filter((e): e is string => Boolean(e));
           if (emails.length > 0) return emails;
-        }
-        // Also pick up all-resource approvers (scope: "resource") as fallback
-        // before going to the tenant-level final approver.
-        try {
-          const allResourcesSnap = await traceDatabase(
-            "query",
-            `Firestore/${tenantCollection}/allResources`,
-            () =>
-              db
-                .collection(tenantCollection)
-                .where("scope", "==", "resource")
-                .get(),
-          );
-          const allResourceEmails = allResourcesSnap.docs
-            .map((d) => d.data().email as string | undefined)
-            .filter((e): e is string => Boolean(e));
-          if (allResourceEmails.length > 0) return allResourceEmails;
-        } catch (err) {
-          console.error("Error fetching all-resource approvers:", err);
         }
       }
     } catch (error) {
