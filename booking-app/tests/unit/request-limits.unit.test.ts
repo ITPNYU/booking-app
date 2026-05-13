@@ -129,26 +129,40 @@ describe("Request limits enforcement (POST /api/bookings)", () => {
     vi.useRealTimers();
   });
 
-  it("uses 4-month semester windows starting in Jan (May 1 starts a new window)", async () => {
-    const { getLocalWindowForPeriod } = await import("@/lib/bookingRequestLimits");
-    const now = new Date(2026, 4, 1, 12, 0, 0, 0); // local May 1 noon
-    const { start, end } = getLocalWindowForPeriod(now, "perSemester", undefined);
+  it("uses 4-month semester windows in America/New_York (May 1 starts a new window)", async () => {
+    const { getNewYorkWindowForPeriod, REQUEST_LIMITS_TIME_ZONE } =
+      await import("@/lib/bookingRequestLimits");
+    const { toDate } = await import("date-fns-tz");
+    const tz = REQUEST_LIMITS_TIME_ZONE;
+    const now = toDate("2026-05-01T12:00:00.000", { timeZone: tz });
+    const { start, end } = getNewYorkWindowForPeriod(now, "perSemester", undefined);
 
-    expect(start.getTime()).toBe(new Date(2026, 4, 1, 0, 0, 0, 0).getTime());
-    expect(end.getTime()).toBe(new Date(2026, 8, 1, 0, 0, 0, 0).getTime());
+    expect(start.getTime()).toBe(
+      toDate("2026-05-01T00:00:00.000", { timeZone: tz }).getTime(),
+    );
+    expect(end.getTime()).toBe(
+      toDate("2026-09-01T00:00:00.000", { timeZone: tz }).getTime(),
+    );
   });
 
-  it("uses configured term ranges for perSemester windows (fallTerm)", async () => {
-    const { getLocalWindowForPeriod } = await import("@/lib/bookingRequestLimits");
-    const now = new Date(2026, 8, 15, 12, 0, 0, 0); // local Sep 15 noon
-    const { start, end } = getLocalWindowForPeriod(now, "perSemester", {
+  it("uses configured term ranges for perSemester windows (fallTerm) in America/New_York", async () => {
+    const { getNewYorkWindowForPeriod, REQUEST_LIMITS_TIME_ZONE } =
+      await import("@/lib/bookingRequestLimits");
+    const { toDate } = await import("date-fns-tz");
+    const tz = REQUEST_LIMITS_TIME_ZONE;
+    const now = toDate("2026-09-15T12:00:00.000", { timeZone: tz });
+    const { start, end } = getNewYorkWindowForPeriod(now, "perSemester", {
       fallTerm: [9, 12],
       springTerm: [1, 5],
       summerTerm: [6, 8],
     });
 
-    expect(start.getTime()).toBe(new Date(2026, 8, 1, 0, 0, 0, 0).getTime());
-    expect(end.getTime()).toBe(new Date(2027, 0, 1, 0, 0, 0, 0).getTime());
+    expect(start.getTime()).toBe(
+      toDate("2026-09-01T00:00:00.000", { timeZone: tz }).getTime(),
+    );
+    expect(end.getTime()).toBe(
+      toDate("2027-01-01T00:00:00.000", { timeZone: tz }).getTime(),
+    );
   });
 });
 

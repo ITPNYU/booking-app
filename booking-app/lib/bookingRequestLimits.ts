@@ -6,6 +6,34 @@ import type {
 import { FormContextLevel, Role } from "@/components/src/types";
 import { TableNames } from "@/components/src/policy";
 import { serverFetchAllDataFromCollection } from "@/lib/firebase/server/adminDb";
+import { formatInTimeZone, toDate } from "date-fns-tz";
+
+/** IANA zone used for request-limit calendar windows (day / week / month / semester). */
+export const REQUEST_LIMITS_TIME_ZONE = "America/New_York" as const;
+
+function pad2(n: number): string {
+  return String(n).padStart(2, "0");
+}
+
+/** Wall-clock calendar parts in {@link REQUEST_LIMITS_TIME_ZONE} for instant `now`. */
+function nyCalendarParts(now: Date) {
+  const tz = REQUEST_LIMITS_TIME_ZONE;
+  return {
+    y: Number(formatInTimeZone(now, tz, "yyyy")),
+    m: Number(formatInTimeZone(now, tz, "M")) - 1,
+    d: Number(formatInTimeZone(now, tz, "d")),
+    /** ISO weekday: 1 = Monday … 7 = Sunday */
+    isoDow: Number(formatInTimeZone(now, tz, "i")),
+  };
+}
+
+/** Start of that calendar date at 00:00 in {@link REQUEST_LIMITS_TIME_ZONE} (UTC instant). */
+function nyMidnight(y: number, monthIndex0: number, day: number): Date {
+  return toDate(
+    `${y}-${pad2(monthIndex0 + 1)}-${pad2(day)}T00:00:00.000`,
+    { timeZone: REQUEST_LIMITS_TIME_ZONE },
+  );
+}
 
 export function parseRoleEnumFromLabel(label: string | undefined): Role | undefined {
   if (!label) return undefined;
@@ -37,33 +65,51 @@ export function getRequestLimitRoleKey(
   }
 }
 
-/** Calendar windows for request limits, using the host’s local timezone (not UTC). */
-export function getLocalWindowForPeriod(
+/** Calendar windows for request limits in {@link REQUEST_LIMITS_TIME_ZONE} (handles DST). */
+export function getNewYorkWindowForPeriod(
   now: Date,
   period: RequestLimitPeriod,
   termConfig?: SchemaContextType["termConfig"],
 ): { start: Date; end: Date } {
-  const y = now.getFullYear();
-  const m = now.getMonth(); // 0-11
-  const d = now.getDate();
+  const parts = nyCalendarParts(now);
+  const { y, m, d, isoDow } = parts;
 
   if (period === "perDay") {
-    const start = new Date(y, m, d, 0, 0, 0, 0);
-    const end = new Date(y, m, d + 1, 0, 0, 0, 0);
+    const start = nyMidnight(y, m, d);
+    const next = new Date(Date.UTC(y, m, d + 1));
+    const end = nyMidnight(
+      next.getUTCFullYear(),
+      next.getUTCMonth(),
+      next.getUTCDate(),
+    );
     return { start, end };
   }
 
   if (period === "perWeek") {
-    const dayOfWeek = now.getDay();
-    const daysSinceMonday = (dayOfWeek + 6) % 7;
-    const start = new Date(y, m, d - daysSinceMonday, 0, 0, 0, 0);
-    const end = new Date(y, m, d - daysSinceMonday + 7, 0, 0, 0, 0);
+    const daysSinceMonday = (isoDow + 6) % 7;
+    const startDate = new Date(Date.UTC(y, m, d - daysSinceMonday));
+    const endDate = new Date(Date.UTC(y, m, d - daysSinceMonday + 7));
+    const start = nyMidnight(
+      startDate.getUTCFullYear(),
+      startDate.getUTCMonth(),
+      startDate.getUTCDate(),
+    );
+    const end = nyMidnight(
+      endDate.getUTCFullYear(),
+      endDate.getUTCMonth(),
+      endDate.getUTCDate(),
+    );
     return { start, end };
   }
 
   if (period === "perMonth") {
-    const start = new Date(y, m, 1, 0, 0, 0, 0);
-    const end = new Date(y, m + 1, 1, 0, 0, 0, 0);
+    const start = nyMidnight(y, m, 1);
+    const nextMonth = new Date(Date.UTC(y, m + 1, 1));
+    const end = nyMidnight(
+      nextMonth.getUTCFullYear(),
+      nextMonth.getUTCMonth(),
+      nextMonth.getUTCDate(),
+    );
     return { start, end };
   }
 
@@ -98,20 +144,30 @@ export function getLocalWindowForPeriod(
     const active = ranges.find((r) => inRange(r.range));
     if (active) {
       const [startMonth, endMonth] = active.range;
-      const start = new Date(y, startMonth - 1, 1, 0, 0, 0, 0);
-      const end =
-        endMonth === 12
-          ? new Date(y + 1, 0, 1, 0, 0, 0, 0)
-          : new Date(y, endMonth, 1, 0, 0, 0, 0);
+      const start = nyMidnight(y, startMonth - 1, 1);
+      const endExclusive = new Date(Date.UTC(y, endMonth, 1));
+      const end = nyMidnight(
+        endExclusive.getUTCFullYear(),
+        endExclusive.getUTCMonth(),
+        endExclusive.getUTCDate(),
+      );
       return { start, end };
     }
   }
 
-  const semesterStartMonth = Math.floor(m / 4) * 4;
-  const start = new Date(y, semesterStartMonth, 1, 0, 0, 0, 0);
-  const end = new Date(y, semesterStartMonth + 4, 1, 0, 0, 0, 0);
+  const semesterStartMonth0 = Math.floor(m / 4) * 4;
+  const start = nyMidnight(y, semesterStartMonth0, 1);
+  const endAnchor = new Date(Date.UTC(y, semesterStartMonth0 + 4, 1));
+  const end = nyMidnight(
+    endAnchor.getUTCFullYear(),
+    endAnchor.getUTCMonth(),
+    endAnchor.getUTCDate(),
+  );
   return { start, end };
 }
+
+/** @deprecated Use {@link getNewYorkWindowForPeriod} */
+export const getLocalWindowForPeriod = getNewYorkWindowForPeriod;
 
 export function parseRoomIdsFromBooking(doc: any): number[] {
   if (Array.isArray(doc?.roomIds)) {
@@ -315,7 +371,7 @@ export async function enforceRequestLimits({
   });
 
   for (const period of periodsToQuery) {
-    const { start, end } = getLocalWindowForPeriod(now, period, schema.termConfig);
+    const { start, end } = getNewYorkWindowForPeriod(now, period, schema.termConfig);
     const startMs = start.getTime();
     const endMs = end.getTime();
 
