@@ -1,6 +1,7 @@
 import { Page, Route } from "@playwright/test";
 import { getTestTenantSchema } from "@/lib/utils/testTenantSchema";
 
+/** Nested canonical tenant schema (same shape as GET /api/tenantSchema/[tenant]). */
 export const mockTenantSchema = getTestTenantSchema("mc");
 
 const mockIdentityResponse = {
@@ -95,7 +96,7 @@ export async function registerBookingMocks(page: Page) {
     route.fulfill({
       status: 200,
       headers: jsonHeaders,
-      body: JSON.stringify({}),
+      body: JSON.stringify({ emails: [] }),
     })
   );
 

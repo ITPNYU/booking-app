@@ -68,7 +68,7 @@ test.describe("Walk-In Booking Flow", () => {
     await page.waitForURL("**/mc/walk-in/form", { timeout: 15000 });
     await page.waitForLoadState("networkidle");
 
-    // Walk-in: agreements are pre-checked, nNumber is visible
+    // Walk-in: attestations are pre-checked, nNumber is visible
     await fillBookingForm(page, {
       firstName: "Walk-In",
       lastName: "Visitor",

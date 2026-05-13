@@ -105,7 +105,8 @@ function getMcTestSchema(tenant: string): SchemaContextType {
         isWalkIn: false,
         training: {
           required: true,
-          formId: "",
+          formId:
+            "https://docs.google.com/forms/d/e/e2e-mock-safety-form/viewform",
           infoUrl: defaultSafetyTrainingInfoUrl,
         },
         autoApproval: { shouldAutoApprove: false },
