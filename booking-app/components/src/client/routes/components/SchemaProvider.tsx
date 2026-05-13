@@ -37,6 +37,8 @@ export type Resource = {
    */
   requestLimits?: RequestLimits;
   autoApproval?: {
+    /** Explicit enable/disable switch for auto-approval. */
+    shouldAutoApprove?: boolean;
     minHour?: {
       admin: number;
       faculty: number;
@@ -268,6 +270,7 @@ export const defaultResource: Resource = {
     },
   },
   autoApproval: {
+    shouldAutoApprove: false,
     minHour: { admin: -1, faculty: -1, student: -1 },
     maxHour: { admin: -1, faculty: -1, student: -1 },
     conditions: {

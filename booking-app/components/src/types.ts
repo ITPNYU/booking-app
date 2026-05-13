@@ -293,7 +293,7 @@ export type PolicySettings = {
   finalApproverEmail: string;
 };
 
-/** Tenant-wide announcement bar (Firestore `settings/{tenant}`). */
+/** Tenant-wide announcement bar (Firestore `{tenant}-settings/siteBanner`). */
 export type SiteBannerSettings = {
   enabled: boolean;
   message: string;
@@ -326,6 +326,8 @@ export type RoomSetting = {
   staffingSections?: { name: string; indexes: number[] }[];
   // Auto-approval configuration
   autoApproval?: {
+    /** Explicit enable/disable switch for auto-approval. */
+    shouldAutoApprove?: boolean;
     minHour?: {
       admin: number;
       faculty: number;
@@ -433,6 +435,8 @@ export type Filters = {
   dateRange: string | Date[];
   sortField: string;
   searchQuery?: string;
+  /** Set on the USER /my-bookings view to scope server-side fetch to one user. */
+  userEmail?: string;
 };
 
 export interface PreBanLog {

@@ -127,7 +127,7 @@ async function seedItpBooking(opts: {
         roomId: 408,
         name: "Room 408",
         calendarId: "mock-calendar-408",
-        shouldAutoApprove: true,
+        autoApproval: { shouldAutoApprove: true },
         isEquipment: false,
       },
     ],
