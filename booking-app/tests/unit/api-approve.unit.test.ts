@@ -22,7 +22,10 @@ vi.mock("@/lib/firebase/server/adminDb", () => ({
 }));
 
 vi.mock("@/components/src/server/emails", () => ({
-  getTenantEmailConfig: vi.fn(async () => ({ schemaName: "Media Commons" })),
+  getTenantEmailConfig: vi.fn(async () => ({
+    schemaName: "Media Commons",
+    emailNotifications: {} as any,
+  })),
 }));
 
 vi.mock("@/components/src/utils/tenantUtils", () => ({

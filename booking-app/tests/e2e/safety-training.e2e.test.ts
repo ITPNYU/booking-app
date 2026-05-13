@@ -13,7 +13,7 @@ test.describe("Safety Training – untrained student blocked", () => {
   test("blocks untrained student from booking rooms requiring safety training", async ({
     page,
   }) => {
-    // Room 230 (needsSafetyTraining: true) is already in the base test schema.
+    // Room 230 (training.required: true) is already in the base test schema.
     await registerBookingMocks(page);
 
     // Override safety training to return empty list (user is NOT trained)

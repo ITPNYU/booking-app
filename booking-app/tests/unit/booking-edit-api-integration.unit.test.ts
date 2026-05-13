@@ -78,10 +78,10 @@ describe("Edit API Integration Tests", () => {
 
     mockGetTenantEmailConfig.mockResolvedValue({
       schemaName: "Media Commons",
-      emailMessages: {
-        requestConfirmation: "Thank you for your booking request.",
-        firstApprovalRequest: "Please review this booking request.",
-      },
+      emailNotifications: {
+        requestedUser: "Thank you for your booking request.",
+        requestedNeedsApproval: "Please review this booking request.",
+      } as any,
     });
 
     mockServerSendBookingDetailEmail.mockResolvedValue(undefined);

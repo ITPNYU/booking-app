@@ -1,6 +1,6 @@
 import MyBookingsPage from "@/components/src/client/routes/myBookings/myBookingsPage";
 import { DatabaseContext } from "@/components/src/client/routes/components/Provider";
-import { SchemaContext } from "@/components/src/client/routes/components/SchemaProvider";
+import { SchemaContext, generateDefaultSchema } from "@/components/src/client/routes/components/SchemaProvider";
 import { PageContextLevel, PagePermission } from "@/components/src/types";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import { render, screen } from "@testing-library/react";
@@ -31,9 +31,10 @@ vi.mock("@/components/src/client/routes/components/Loading", () => ({
 
 const theme = createTheme();
 
+const baseSchema = generateDefaultSchema("mc");
 const mockSchemaContext = {
-  resourceName: "Room",
-  schema: { name: "Media Commons" } as any,
+  ...baseSchema,
+  tenant: { ...baseSchema.tenant, name: "Media Commons" },
 };
 
 function buildDatabaseContext(overrides: Partial<{ userEmail: string | undefined }> = {}) {
@@ -62,7 +63,7 @@ function renderPage(dbCtx: ReturnType<typeof buildDatabaseContext>) {
   return render(
     <ThemeProvider theme={theme}>
       <DatabaseContext.Provider value={dbCtx}>
-        <SchemaContext.Provider value={mockSchemaContext as any}>
+        <SchemaContext.Provider value={mockSchemaContext}>
           <MyBookingsPage />
         </SchemaContext.Provider>
       </DatabaseContext.Provider>

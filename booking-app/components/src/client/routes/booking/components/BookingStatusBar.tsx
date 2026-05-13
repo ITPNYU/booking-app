@@ -59,7 +59,6 @@ export default function BookingStatusBar({ formContext, ...props }: Props) {
   const isOverlap = useCalculateOverlap();
   const schema = useTenantSchema();
   const timeSensitiveRequestWarning =
-    schema.timeSensitiveRequestWarning ??
     schema.calendarConfig?.timeSensitiveRequestWarning;
   const safetyTrainingInfoUrl =
     selectedRooms.find((room) => room.needsSafetyTraining && room.trainingInfoUrl)

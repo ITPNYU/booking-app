@@ -73,7 +73,7 @@ export const handleDeclinedEntry: StateHandler = async (
       const { serverSendBookingDetailEmail } =
         await import("@/components/src/server/admin");
       const emailConfig = await getTenantEmailConfig(tenant);
-      let headerMessage = emailConfig.emailMessages.declined;
+      let headerMessage = emailConfig.emailNotifications.declined;
 
       // Fetch tenant schema to get declinedGracePeriod (default: 24 hours)
       const schema = tenant

@@ -196,7 +196,7 @@ export const DatabaseProvider = ({
 
   // Get tenant from SchemaContext
   const schemaContext = useContext(SchemaContext);
-  const tenant = schemaContext?.tenant;
+  const tenant = schemaContext?.tenantId;
 
   const [preBanLogs, setPreBanLogs] = useState<PreBanLog[]>([]);
   const [superAdminUsers, setSuperAdminUsers] = useState<AdminUser[]>([]);
@@ -315,7 +315,9 @@ export const DatabaseProvider = ({
         .map((resource) => ({
           ...resource,
           capacity: String(resource.capacity),
-          needsSafetyTraining: resource.needsSafetyTraining || false,
+          needsSafetyTraining: resource.training?.required || false,
+          trainingFormUrl: resource.training?.formId || undefined,
+          trainingInfoUrl: resource.training?.infoUrl || undefined,
           isWalkIn: resource.isWalkIn || false,
           isWalkInCanBookTwo: resource.isWalkInCanBookTwo || false,
           isEquipment: resource.isEquipment || false,

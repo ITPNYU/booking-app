@@ -1,5 +1,21 @@
 import { defaultSafetyTrainingInfoUrl } from "@/components/src/constants/safetyTraining";
-import { SchemaContextType } from "@/components/src/client/routes/components/SchemaProvider";
+import {
+  defaultResource,
+  generateDefaultSchema,
+  type Resource,
+  type SchemaContextType,
+} from "@/components/src/client/routes/components/SchemaProvider";
+
+function resource(over: Partial<Resource>): Resource {
+  return {
+    ...defaultResource,
+    ...over,
+    training: {
+      ...defaultResource.training,
+      ...over.training,
+    },
+  };
+}
 
 /**
  * Mock tenant schema used in e2e tests when BYPASS_AUTH is enabled.
@@ -13,115 +29,93 @@ export function getTestTenantSchema(tenant: string): SchemaContextType {
 }
 
 function getMcTestSchema(tenant: string): SchemaContextType {
+  const base = generateDefaultSchema(tenant === "mc" ? "mc" : tenant);
   return {
-    tenant,
-    name: "Media Commons",
-    logo: "/mediaCommonsLogo.svg",
-    nameForPolicy: "370J Media Commons",
-    policy: "<p>Test policy.</p>",
-    schoolMapping: {
-      "Tisch School of the Arts": ["ITP / IMA / Low Res", "General Department"],
+    ...base,
+    tenant: {
+      ...base.tenant,
+      name: "Media Commons",
+      logo: "/mediaCommonsLogo.svg",
+      nameForPolicy: "370J Media Commons",
     },
-    programMapping: {
-      "ITP / IMA / Low Res": ["ITP"],
-      "General Department": ["GENERAL"],
+    policy: "<p>Test policy.</p>",
+    mappings: {
+      school: {
+        "Tisch School of the Arts": ["ITP / IMA / Low Res", "General Department"],
+      },
+      program: {
+        "ITP / IMA / Low Res": ["ITP"],
+        "General Department": ["GENERAL"],
+      },
+      role: {
+        Student: ["STUDENT"],
+        Faculty: ["FACULTY"],
+        Staff: ["STAFF"],
+      },
     },
     roles: ["Student", "Faculty", "Staff"],
-    roleMapping: {
-      Student: ["STUDENT"],
-      Faculty: ["FACULTY"],
-      Staff: ["STAFF"],
+    form: {
+      ...base.form,
+      showNNumber: true,
+      showSponsor: true,
+      services: {
+        showCatering: false,
+        showEquipment: false,
+        showSecurity: false,
+        showSetup: false,
+        showStaffing: false,
+      },
     },
-    permissionLabels: {
-      user: "User",
-      worker: "PA",
-      reviewer: "Liaison",
-      services: "Services",
-      admin: "Admin",
-    },
-    showNNumber: true,
-    showSponsor: true,
-    showSetup: false,
-    showEquipment: false,
-    showStaffing: false,
-    showCatering: false,
-    showHireSecurity: false,
-    showBookingTypes: true,
-    bookingTypes: [
-      "Class Session",
-      "General Event",
-      "Meeting",
-      "Workshop",
-      "Presentation",
-      "Rehearsal",
-    ],
-    attendeeAffiliations: [
-      "NYU Members with an active NYU ID",
-      "Non-NYU guests",
-      "All of the above",
-    ],
-    agreements: [
+    attestations: [
       { id: "checklist", html: "<p>Mock checklist agreement.</p>" },
       { id: "resetRoom", html: "<p>Reset room agreement.</p>" },
       { id: "bookingPolicy", html: "<p>Booking policy agreement.</p>" },
     ],
     resources: [
-      {
+      resource({
         capacity: 30,
         name: "Lecture Hall 202",
         roomId: 202,
-        isEquipment: false,
         calendarId: "mock-calendar-202",
-        needsSafetyTraining: false,
-        trainingInfoUrl: "",
         isWalkIn: false,
-        isWalkInCanBookTwo: false,
-        services: [],
         autoApproval: { shouldAutoApprove: true },
-      },
-      {
+      }),
+      resource({
         capacity: 20,
         name: "Studio 220",
         roomId: 220,
-        isEquipment: false,
         calendarId: "mock-calendar-220",
-        needsSafetyTraining: false,
-        trainingInfoUrl: "",
         isWalkIn: true,
-        isWalkInCanBookTwo: false,
-        services: [],
         autoApproval: { shouldAutoApprove: false },
-      },
-      {
+      }),
+      resource({
         capacity: 25,
         name: "Seminar 203",
         roomId: 203,
-        isEquipment: false,
         calendarId: "mock-calendar-203",
-        needsSafetyTraining: false,
-        trainingInfoUrl: "",
         isWalkIn: false,
-        isWalkInCanBookTwo: false,
-        services: [],
-        maxHour: { faculty: 0.5 },
+        maxHour: { ...defaultResource.maxHour, faculty: 0.5 },
         autoApproval: { shouldAutoApprove: false },
-      },
-      {
+      }),
+      resource({
         capacity: 15,
         name: "Workshop 230",
         roomId: 230,
-        isEquipment: false,
         calendarId: "mock-calendar-230",
-        needsSafetyTraining: true,
-        trainingInfoUrl: defaultSafetyTrainingInfoUrl,
         isWalkIn: false,
-        isWalkInCanBookTwo: false,
-        services: [],
+        training: {
+          required: true,
+          formId:
+            "https://docs.google.com/forms/d/e/e2e-mock-safety-form/viewform",
+          infoUrl: defaultSafetyTrainingInfoUrl,
+        },
         autoApproval: { shouldAutoApprove: false },
-      },
+      }),
     ],
-    supportVIP: true,
-    supportWalkIn: true,
+    origins: {
+      VIP: true,
+      walkIn: true,
+    },
     resourceName: "Room(s)",
     ccEmails: {
       approved: {
@@ -135,91 +129,81 @@ function getMcTestSchema(tenant: string): SchemaContextType {
         production: "booking-app-devs+canceled@itp.nyu.edu",
       },
     },
-  } as unknown as SchemaContextType;
+  };
 }
 
 function getItpTestSchema(): SchemaContextType {
+  const base = generateDefaultSchema("itp");
   return {
-    tenant: "itp",
-    name: "ITP",
-    logo: "/itpLogo.svg",
-    nameForPolicy: "ITP",
-    policy: "<p>Test ITP policy.</p>",
-    schoolMapping: {
-      "Tisch School of the Arts": ["ITP / IMA / Low Res"],
+    ...base,
+    tenant: {
+      ...base.tenant,
+      name: "ITP",
+      logo: "/itpLogo.svg",
+      nameForPolicy: "ITP",
     },
-    programMapping: {
-      "ITP / IMA / Low Res": ["ITP"],
+    policy: "<p>Test ITP policy.</p>",
+    mappings: {
+      school: {
+        "Tisch School of the Arts": ["ITP / IMA / Low Res"],
+      },
+      program: {
+        "ITP / IMA / Low Res": ["ITP"],
+      },
+      role: {
+        Student: ["STUDENT"],
+        Faculty: ["FACULTY"],
+        Admin: ["ADMIN"],
+      },
     },
     roles: ["Student", "Faculty", "Admin"],
-    roleMapping: {
-      Student: ["STUDENT"],
-      Faculty: ["FACULTY"],
-      Admin: ["ADMIN"],
+    form: {
+      ...base.form,
+      showBookingType: false,
+      showNNumber: false,
+      showSponsor: false,
+      services: {
+        showCatering: false,
+        showEquipment: false,
+        showSecurity: false,
+        showSetup: false,
+        showStaffing: false,
+      },
     },
-    permissionLabels: {
-      user: "User",
-      worker: "ER",
-      reviewer: "1st Approver",
-      services: "Services",
-      admin: "Admin",
-    },
-    showNNumber: false,
-    showSponsor: false,
-    showSetup: false,
-    showEquipment: false,
-    showStaffing: false,
-    showCatering: false,
-    showHireSecurity: false,
-    showBookingTypes: false,
-    bookingTypes: [],
-    attendeeAffiliations: [
-      "NYU Members with an active NYU ID",
-      "Non-NYU guests",
-      "All of the above",
-    ],
-    agreements: [
+    attestations: [
       { id: "checklist", html: "<p>ITP checklist agreement.</p>" },
       { id: "bookingPolicy", html: "<p>ITP booking policy agreement.</p>" },
     ],
     resources: [
-      {
+      resource({
         capacity: 20,
         name: "Room 408",
         roomId: 408,
-        isEquipment: false,
         calendarId: "mock-calendar-408",
-        needsSafetyTraining: false,
-        trainingInfoUrl: "",
         isWalkIn: false,
-        isWalkInCanBookTwo: false,
-        services: [],
         autoApproval: {
           shouldAutoApprove: true,
           maxHour: { student: 1, faculty: 4, admin: 4 },
           minHour: { student: 0.5, faculty: 0.5, admin: 0.5 },
         },
-      },
-      {
+      }),
+      resource({
         capacity: 10,
         name: "Room 410",
         roomId: 410,
-        isEquipment: false,
         calendarId: "mock-calendar-410",
-        needsSafetyTraining: false,
-        trainingInfoUrl: "",
         isWalkIn: true,
-        isWalkInCanBookTwo: false,
-        services: [],
         autoApproval: {
           shouldAutoApprove: true,
           maxHour: { student: 1, faculty: 4, admin: 4 },
           minHour: { student: 0.5, faculty: 0.5, admin: 0.5 },
         },
-      },
+      }),
     ],
-    supportVIP: false,
-    supportWalkIn: false,
+    origins: {
+      VIP: false,
+      walkIn: false,
+    },
     supportPA: false,
     supportLiaison: false,
     resourceName: "Room(s)",
@@ -235,5 +219,5 @@ function getItpTestSchema(): SchemaContextType {
         production: "booking-app-devs+canceled@itp.nyu.edu",
       },
     },
-  } as unknown as SchemaContextType;
+  };
 }

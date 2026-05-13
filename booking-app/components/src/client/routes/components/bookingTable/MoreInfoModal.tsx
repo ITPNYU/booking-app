@@ -104,7 +104,7 @@ export default function MoreInfoModal({
   const historyRows = useSortBookingHistory(booking);
   const { pagePermission, userEmail } = useContext(DatabaseContext);
   const schema = useTenantSchema();
-  const hasServices = schema.showSetup || schema.showEquipment || schema.showStaffing || schema.showCatering || schema.showHireSecurity;
+  const hasServices = schema.form.services.showSetup || schema.form.services.showEquipment || schema.form.services.showStaffing || schema.form.services.showCatering || schema.form.services.showSecurity;
 
   const [isEditingCart, setIsEditingCart] = useState(false);
   const [cartNumber, setCartNumber] = useState(
@@ -561,7 +561,7 @@ export default function MoreInfoModal({
                   <LabelCell>Secondary Contact Email</LabelCell>
                   <TableCell>{booking.secondaryEmail || BLANK}</TableCell>
                 </TableRow>
-                {schema.showSponsor && (
+                {schema.form.showSponsor && (
                   <TableRow>
                     <LabelCell>Sponsor Name</LabelCell>
                     <TableCell>
@@ -570,7 +570,7 @@ export default function MoreInfoModal({
                     </TableCell>
                   </TableRow>
                 )}
-                {schema.showSponsor && (
+                {schema.form.showSponsor && (
                   <TableRow>
                     <LabelCell>Sponsor Email</LabelCell>
                     <TableCell>{booking.sponsorEmail || BLANK}</TableCell>
@@ -590,7 +590,7 @@ export default function MoreInfoModal({
                   <LabelCell>Description</LabelCell>
                   <TableCell>{booking.description ?? BLANK}</TableCell>
                 </TableRow>
-                {schema.showBookingTypes && (
+                {schema.form.showBookingType && (
                   <TableRow>
                     <LabelCell>Booking Type</LabelCell>
                     <TableCell>{booking.bookingType ?? BLANK}</TableCell>

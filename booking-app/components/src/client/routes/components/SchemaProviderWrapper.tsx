@@ -13,15 +13,15 @@ const SchemaProviderWrapper: React.FC<SchemaProviderWrapperProps> = ({
   children,
 }) => {
   console.log("SchemaProviderWrapper: Received value (render):", {
-    tenant: value?.tenant,
-    name: value?.name,
+    tenantId: value?.tenantId,
+    name: value?.tenant?.name,
     resourcesCount: value?.resources?.length || 0,
   });
 
   useEffect(() => {
     console.log("SchemaProviderWrapper: Value after hydration:", {
-      tenant: value?.tenant,
-      name: value?.name,
+      tenantId: value?.tenantId,
+      name: value?.tenant?.name,
       resourcesCount: value?.resources?.length || 0,
     });
   }, [value]);

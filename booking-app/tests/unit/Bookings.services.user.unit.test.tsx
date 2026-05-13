@@ -1,6 +1,9 @@
 import { Bookings } from "@/components/src/client/routes/components/bookingTable/Bookings";
 import { DatabaseContext } from "@/components/src/client/routes/components/Provider";
-import { SchemaContext } from "@/components/src/client/routes/components/SchemaProvider";
+import {
+  SchemaContext,
+  generateDefaultSchema,
+} from "@/components/src/client/routes/components/SchemaProvider";
 import {
   BookingRow,
   BookingStatusLabel,
@@ -78,16 +81,32 @@ const mockDatabaseContext = {
   setLoadMoreEnabled: vi.fn(),
 } as any;
 
-function buildSchema(overrides: Record<string, boolean> = {}) {
+function buildSchema(
+  serviceOverrides: Partial<{
+    showSetup: boolean;
+    showEquipment: boolean;
+    showStaffing: boolean;
+    showCatering: boolean;
+    showSecurity: boolean;
+  }> = {},
+) {
+  const base = generateDefaultSchema("mc");
   return {
+    ...base,
     resourceName: "Room",
-    showSetup: false,
-    showEquipment: false,
-    showStaffing: false,
-    showCatering: false,
-    showHireSecurity: false,
-    ...overrides,
-  } as any;
+    form: {
+      ...base.form,
+      services: {
+        ...base.form.services,
+        showSetup: false,
+        showEquipment: false,
+        showStaffing: false,
+        showCatering: false,
+        showSecurity: false,
+        ...serviceOverrides,
+      },
+    },
+  };
 }
 
 function renderBookings(pageContext: PageContextLevel, schema: any) {

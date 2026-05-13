@@ -281,14 +281,14 @@ async function syncTenantSchema(
       console.log(`  💡 Creating new schema with defaults...`);
 
       if (!options.dryRun) {
-        const newSchema = mergeSchemaDefaults({ tenant }, tenant);
+        const newSchema = mergeSchemaDefaults({}, tenant);
         await writeTenantSchema(db, tenant, newSchema);
         return {
           success: true,
           changes: { added: Object.keys(newSchema), modified: [], removed: [] },
         };
       } else {
-        const newSchema = mergeSchemaDefaults({ tenant }, tenant);
+        const newSchema = mergeSchemaDefaults({}, tenant);
         console.log(
           `  📝 Would create new schema with ${Object.keys(newSchema).length} fields`
         );

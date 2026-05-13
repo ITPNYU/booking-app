@@ -56,7 +56,8 @@ export const Bookings: React.FC<BookingsProps> = ({
 }) => {
   const { bookingsLoading, setLastItem, fetchAllBookings, allBookings } =
     useContext(DatabaseContext);
-  const { resourceName, showSetup, showEquipment, showStaffing, showCatering, showHireSecurity } = useTenantSchema();
+  const { resourceName, form } = useTenantSchema();
+  const { showSetup, showEquipment, showStaffing, showCatering, showSecurity: showHireSecurity } = form.services;
   const hasServices = showSetup || showEquipment || showStaffing || showCatering || showHireSecurity;
   const params = useParams();
   const tenant = params?.tenant as string;
