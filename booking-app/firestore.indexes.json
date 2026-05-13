@@ -15,6 +15,22 @@
         { "fieldPath": "email", "order": "ASCENDING" },
         { "fieldPath": "startDate", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "mc-bookingLogs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "calendarEventId", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "itp-bookingLogs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "calendarEventId", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []
