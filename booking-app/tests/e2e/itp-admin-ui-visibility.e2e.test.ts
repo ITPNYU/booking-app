@@ -468,10 +468,10 @@ test.describe("ITP Admin UI – schema-driven visibility", () => {
     // Scope assertions to the MUI Modal's content area
     const modal = page.locator(".MuiModal-root");
 
-    // Booking Type should NOT appear (showBookingTypes is false for ITP)
+    // Booking Type should NOT appear (form.showBookingType is false for ITP)
     await expect(modal.getByText("Booking Type", { exact: true })).toHaveCount(0);
 
-    // Sponsor Name should NOT appear (showSponsor is false for ITP)
+    // Sponsor Name should NOT appear (form.showSponsor is false for ITP)
     await expect(modal.getByText("Sponsor Name", { exact: true })).toHaveCount(0);
 
     // Sponsor Email should NOT appear

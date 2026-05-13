@@ -316,6 +316,8 @@ export const DatabaseProvider = ({
           ...resource,
           capacity: String(resource.capacity),
           needsSafetyTraining: resource.training?.required || false,
+          trainingFormUrl: resource.training?.formId || undefined,
+          trainingInfoUrl: resource.training?.infoUrl || undefined,
           isWalkIn: resource.isWalkIn || false,
           isWalkInCanBookTwo: resource.isWalkInCanBookTwo || false,
           isEquipment: resource.isEquipment || false,
