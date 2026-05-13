@@ -84,6 +84,8 @@ const createQuery = (
     filters.forEach(({ field, operator, value }) => {
       if (operator === "==") {
         entries = entries.filter(([, data]) => data[field] === value);
+      } else if (operator === "in" && Array.isArray(value)) {
+        entries = entries.filter(([, data]) => value.includes(data[field]));
       }
     });
 
@@ -233,7 +235,7 @@ vi.mock("@/components/src/policy", async () => {
   };
 });
 
-import { ApproverLevel } from "@/components/src/policy";
+import { ApproverLevel, TableNames } from "@/components/src/policy";
 import { BookingStatusLabel } from "@/components/src/types";
 
 describe("components/src/server/admin", () => {
@@ -245,6 +247,145 @@ describe("components/src/server/admin", () => {
     resetFirestore();
     mockIsMediaCommons.mockReturnValue(false);
     mockGetApprovalCcEmail.mockReturnValue("cc@nyu.edu");
+  });
+
+  it("gets latest booking logs by calendar event id and matching current status", async () => {
+    seedCollection("tenant-log-bookingLogs", [
+      {
+        id: "older-matching",
+        data: {
+          bookingId: "booking-1",
+          calendarEventId: "cal-1",
+          status: BookingStatusLabel.REQUESTED,
+          changedBy: "requester@nyu.edu",
+          changedAt: makeTimestamp("2024-03-01T10:00:00.000Z"),
+          requestNumber: 1,
+        },
+      },
+      {
+        id: "latest-matching",
+        data: {
+          bookingId: "booking-1",
+          calendarEventId: "cal-1",
+          status: BookingStatusLabel.REQUESTED,
+          changedBy: "requester@nyu.edu",
+          changedAt: makeTimestamp("2024-03-01T11:00:00.000Z"),
+          requestNumber: 1,
+        },
+      },
+      {
+        id: "newer-nonmatching-status",
+        data: {
+          bookingId: "booking-1",
+          calendarEventId: "cal-1",
+          status: BookingStatusLabel.PRE_APPROVED,
+          changedBy: "approver@nyu.edu",
+          changedAt: makeTimestamp("2024-03-01T12:00:00.000Z"),
+          requestNumber: 1,
+        },
+      },
+      {
+        id: "other-booking",
+        data: {
+          bookingId: "booking-2",
+          calendarEventId: "cal-2",
+          status: BookingStatusLabel.MODIFIED,
+          changedBy: "requester@nyu.edu",
+          changedAt: makeTimestamp("2024-03-01T13:00:00.000Z"),
+          requestNumber: 2,
+        },
+      },
+    ]);
+
+    const { getLatestBookingStatusLogs } = await import(
+      "@/lib/firebase/server/adminDb"
+    );
+
+    const result = await getLatestBookingStatusLogs(
+      [
+        {
+          calendarEventId: "cal-1",
+          status: BookingStatusLabel.REQUESTED,
+        },
+        {
+          calendarEventId: "cal-2",
+          status: BookingStatusLabel.MODIFIED,
+        },
+      ],
+      "tenant-log",
+    );
+
+    expect(result["cal-1"]).toEqual({
+      calendarEventId: "cal-1",
+      status: BookingStatusLabel.REQUESTED,
+      changedAt: Date.parse("2024-03-01T11:00:00.000Z"),
+    });
+    expect(result["cal-2"]).toEqual({
+      calendarEventId: "cal-2",
+      status: BookingStatusLabel.MODIFIED,
+      changedAt: Date.parse("2024-03-01T13:00:00.000Z"),
+    });
+  });
+
+  it("keeps epoch timestamp booking logs", async () => {
+    seedCollection("tenant-log-bookingLogs", [
+      {
+        id: "epoch-log",
+        data: {
+          bookingId: "booking-epoch",
+          calendarEventId: "cal-epoch",
+          status: BookingStatusLabel.REQUESTED,
+          changedBy: "requester@nyu.edu",
+          changedAt: 0,
+          requestNumber: 1,
+        },
+      },
+    ]);
+
+    const { getLatestBookingStatusLogs } =
+      await import("@/lib/firebase/server/adminDb");
+
+    const result = await getLatestBookingStatusLogs(
+      [{ calendarEventId: "cal-epoch", status: BookingStatusLabel.REQUESTED }],
+      "tenant-log",
+    );
+
+    expect(result["cal-epoch"]).toEqual({
+      calendarEventId: "cal-epoch",
+      status: BookingStatusLabel.REQUESTED,
+      changedAt: 0,
+    });
+  });
+
+  it("validates maxDocs before applying Firestore limit", async () => {
+    const { serverFetchAllDataFromCollection } =
+      await import("@/lib/firebase/server/adminDb");
+
+    await expect(
+      serverFetchAllDataFromCollection(TableNames.BOOKING, [], "tenant-z", NaN),
+    ).rejects.toThrow("maxDocs must be a finite non-negative integer");
+    await expect(
+      serverFetchAllDataFromCollection(TableNames.BOOKING, [], "tenant-z", 1.5),
+    ).rejects.toThrow("maxDocs must be a finite non-negative integer");
+    await expect(
+      serverFetchAllDataFromCollection(TableNames.BOOKING, [], "tenant-z", -1),
+    ).rejects.toThrow("maxDocs must be a finite non-negative integer");
+  });
+
+  it("returns an empty result for maxDocs zero without querying Firestore", async () => {
+    seedCollection("tenant-z-bookings", [
+      {
+        id: "booking-1",
+        data: { calendarEventId: "cal-1" },
+      },
+    ]);
+
+    const { serverFetchAllDataFromCollection } =
+      await import("@/lib/firebase/server/adminDb");
+
+    await expect(
+      serverFetchAllDataFromCollection(TableNames.BOOKING, [], "tenant-z", 0),
+    ).resolves.toEqual([]);
   });
 
   it("formats booking contents with fallback history when logs absent", async () => {

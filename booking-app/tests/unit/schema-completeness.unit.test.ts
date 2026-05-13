@@ -36,6 +36,7 @@ const ALL_SCHEMA_KEYS = [
   "supportLiaison",
   "resourceName",
   "declinedGracePeriod",
+  "interimHighlightThresholdHours",
   "autoCancel",
   "timeSensitiveRequestWarning",
   "calendarConfig",
