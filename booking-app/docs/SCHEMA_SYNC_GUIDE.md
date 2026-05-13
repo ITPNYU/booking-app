@@ -55,3 +55,7 @@ resources: defineObjectArrayWithDefaults(defaultResource),
 ```
 
 This allows the merge process to automatically apply defaults to each item in the array.
+
+## See also
+
+- [Tenant schema CLI backup](./TENANT_SCHEMA_BACKUP.md) — back up `tenantSchema` to `tenantSchemaBackup`; use `--dry-run` for local JSON only.
