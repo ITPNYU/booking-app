@@ -740,7 +740,9 @@ describe("XState Approval Real Integration Tests", () => {
         // Create booking context that requires manual approval
         const context = {
           tenant: testTenant,
-          selectedRooms: [{ roomId: "224", shouldAutoApprove: false }],
+          selectedRooms: [
+            { roomId: "224", autoApproval: { shouldAutoApprove: false } },
+          ],
           servicesRequested: {},
           email: testEmail,
           calendarEventId: testCalendarEventId,
@@ -851,7 +853,9 @@ describe("XState Approval Real Integration Tests", () => {
         // VIP booking with services
         const context = {
           tenant: testTenant,
-          selectedRooms: [{ roomId: "224", shouldAutoApprove: true }],
+          selectedRooms: [
+            { roomId: "224", autoApproval: { shouldAutoApprove: true } },
+          ],
           servicesRequested: {
             cleaning: true,
             setup: true,
@@ -915,7 +919,9 @@ describe("XState Approval Real Integration Tests", () => {
         // Create a new VIP actor that starts in Services Request
         const vipServicesContext = {
           tenant: testTenant,
-          selectedRooms: [{ roomId: "224", shouldAutoApprove: true }],
+          selectedRooms: [
+            { roomId: "224", autoApproval: { shouldAutoApprove: true } },
+          ],
           servicesRequested: {
             cleaning: true,
             setup: true,
@@ -986,7 +992,9 @@ describe("XState Approval Real Integration Tests", () => {
         // Walk-in with services - should still auto-approve
         const context = {
           tenant: testTenant,
-          selectedRooms: [{ roomId: "224", shouldAutoApprove: false }],
+          selectedRooms: [
+            { roomId: "224", autoApproval: { shouldAutoApprove: false } },
+          ],
           servicesRequested: {
             cleaning: true,
             equipment: true,
@@ -1192,7 +1200,9 @@ describe("XState Approval Real Integration Tests", () => {
         // Walk-in booking context that auto-approves
         const context = {
           tenant: testTenant,
-          selectedRooms: [{ roomId: "224", shouldAutoApprove: false }],
+          selectedRooms: [
+            { roomId: "224", autoApproval: { shouldAutoApprove: false } },
+          ],
           servicesRequested: {
             cleaning: true,
           },

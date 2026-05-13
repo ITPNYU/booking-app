@@ -584,7 +584,7 @@ export async function POST(request: NextRequest) {
       selectedRooms: selectedRooms?.map(r => ({
         roomId: r.roomId,
         name: r.name,
-        shouldAutoApprove: r.shouldAutoApprove,
+        shouldAutoApprove: r.autoApproval?.shouldAutoApprove,
       })),
       formData: data,
       bookingCalendarInfo: {

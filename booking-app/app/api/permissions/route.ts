@@ -6,7 +6,36 @@ import {
   TableNames,
   getTenantCollectionName,
 } from "@/components/src/policy";
-import { PagePermission } from "@/components/src/types";
+import { isValidTenant } from "@/components/src/constants/tenants";
+import { PagePermission, SiteBannerSettings } from "@/components/src/types";
+import {
+  DEFAULT_SITE_BANNER_COLOR_HEX,
+  SITE_BANNER_SETTINGS_DOC_ID,
+  parseStoredSiteBannerColorHex,
+  SITE_BANNER_MESSAGE_MAX_LEN,
+} from "@/lib/utils/siteBannerHex";
+
+function parseSiteBannerFromDoc(
+  data: Record<string, unknown> | undefined,
+): SiteBannerSettings {
+  const sb = data?.siteBanner;
+  if (sb && typeof sb === "object" && sb !== null && !Array.isArray(sb)) {
+    const o = sb as Record<string, unknown>;
+    return {
+      enabled: o.enabled === true,
+      message:
+        typeof o.message === "string"
+          ? o.message.slice(0, SITE_BANNER_MESSAGE_MAX_LEN)
+          : "",
+      colorHex: parseStoredSiteBannerColorHex(o.colorHex),
+    };
+  }
+  return {
+    enabled: false,
+    message: "",
+    colorHex: DEFAULT_SITE_BANNER_COLOR_HEX,
+  };
+}
 
 /**
  * Single round-trip endpoint for the permission-resolution data
@@ -28,6 +57,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const tenant = req.nextUrl.searchParams.get("tenant") ?? undefined;
+  if (tenant !== undefined && tenant !== "" && !isValidTenant(tenant)) {
+    return NextResponse.json({ error: "Invalid tenant" }, { status: 400 });
+  }
 
   try {
     const db = admin.firestore();
@@ -39,13 +71,22 @@ export async function GET(req: NextRequest) {
       getTenantCollectionName(TableNames.APPROVERS, tenant),
     );
 
-    const [usersRightsSnap, superAdminSnap, approversSnap] = await Promise.all([
-      usersRightsRef.get(),
-      superAdminRef.get(),
-      approversRef.get(),
-    ]);
+    const settingsDocPromise =
+      tenant && isValidTenant(tenant)
+        ? db
+            .collection(getTenantCollectionName(TableNames.SETTINGS, tenant))
+            .doc(SITE_BANNER_SETTINGS_DOC_ID)
+            .get()
+        : Promise.resolve(null);
+    const [usersRightsSnap, superAdminSnap, approversSnap, settingsSnap] =
+      await Promise.all([
+        usersRightsRef.get(),
+        superAdminRef.get(),
+        approversRef.get(),
+        settingsDocPromise,
+      ]);
 
-    const userRightsRecords = usersRightsSnap.docs.map((d) => ({
+    const userRightsRecords = usersRightsSnap.docs.map(d => ({
       id: d.id,
       ...(d.data() as Record<string, unknown>),
     }));
@@ -64,7 +105,7 @@ export async function GET(req: NextRequest) {
         createdAt: r.createdAt,
       }));
 
-    const approvers = approversSnap.docs.map((d) => {
+    const approvers = approversSnap.docs.map(d => {
       const data = d.data() as Record<string, unknown>;
       return {
         id: d.id,
@@ -76,14 +117,14 @@ export async function GET(req: NextRequest) {
     });
     const liaisonUsers = approvers;
     const equipmentUsers = approvers.filter(
-      (a) => a.level === ApproverLevel.EQUIPMENT,
+      a => a.level === ApproverLevel.EQUIPMENT,
     );
     const finalApproverEmail =
-      (approvers.find((a) => a.level === ApproverLevel.FINAL)?.email as
+      (approvers.find(a => a.level === ApproverLevel.FINAL)?.email as
         | string
         | undefined) ?? "";
 
-    const superAdminUsers = superAdminSnap.docs.map((d) => {
+    const superAdminUsers = superAdminSnap.docs.map(d => {
       const data = d.data() as Record<string, unknown>;
       return {
         id: d.id,
@@ -107,6 +148,28 @@ export async function GET(req: NextRequest) {
       pagePermission = PagePermission.PA;
     }
 
+    let siteBanner =
+      settingsSnap && settingsSnap.exists
+        ? parseSiteBannerFromDoc(settingsSnap.data() as Record<string, unknown>)
+        : null;
+    if (!siteBanner && tenant && isValidTenant(tenant)) {
+      // Legacy path before tenant-scoped settings collections.
+      const legacySettingsSnap = await db
+        .collection(TableNames.SETTINGS)
+        .doc(tenant)
+        .get();
+      siteBanner = legacySettingsSnap.exists
+        ? parseSiteBannerFromDoc(
+            legacySettingsSnap.data() as Record<string, unknown>,
+          )
+        : null;
+    }
+    siteBanner ??= {
+      enabled: false,
+      message: "",
+      colorHex: DEFAULT_SITE_BANNER_COLOR_HEX,
+    };
+
     return NextResponse.json({
       pagePermission,
       adminUsers,
@@ -115,6 +178,7 @@ export async function GET(req: NextRequest) {
       equipmentUsers,
       superAdminUsers,
       policySettings: { finalApproverEmail },
+      siteBanner,
     });
   } catch (error) {
     console.error("[/api/permissions] error:", error);

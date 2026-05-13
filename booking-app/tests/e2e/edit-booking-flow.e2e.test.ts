@@ -66,7 +66,7 @@ function createMockExistingBooking() {
         roomId: 202,
         name: "Lecture Hall 202",
         calendarId: "mock-calendar-202",
-        shouldAutoApprove: true,
+        autoApproval: { shouldAutoApprove: true },
         isEquipment: false,
       },
     ],
