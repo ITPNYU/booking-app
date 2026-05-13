@@ -15,7 +15,12 @@ export type StaffingSection = {
 
 export type RequestLimitPeriod = "perDay" | "perWeek" | "perMonth" | "perSemester";
 
-export type RequestLimits = Partial<Record<RequestLimitPeriod, Record<string, number>>>;
+/** Keys in `resource.requestLimits` — one bucket per base role (VIP / walk-in share the same cap). */
+export type RequestLimitBucketKey = "admin" | "faculty" | "student";
+
+export type RequestLimits = Partial<
+  Record<RequestLimitPeriod, Partial<Record<RequestLimitBucketKey, number>>>
+>;
 
 export type Resource = {
   capacity: number;
@@ -33,7 +38,7 @@ export type Resource = {
    * Limit how many requests a user can make per period for this resource.
    * Convention: `-1` (or missing) means “unlimited”.
    *
-   * Shape: { perDay: { [role]: number }, perWeek: { ... }, perMonth: { ... }, perSemester: { ... } }
+   * Shape: each period has only `admin`, `faculty`, `student` — counts include all booking origins.
    */
   requestLimits?: RequestLimits;
   autoApproval?: {
@@ -224,50 +229,10 @@ export const defaultResource: Resource = {
   isWalkInCanBookTwo: false,
   services: [],
   requestLimits: {
-    perDay: {
-      student: -1,
-      studentVIP: -1,
-      studentWalkIn: -1,
-      faculty: -1,
-      facultyVIP: -1,
-      facultyWalkIn: -1,
-      admin: -1,
-      adminVIP: -1,
-      adminWalkIn: -1,
-    },
-    perWeek: {
-      student: -1,
-      studentVIP: -1,
-      studentWalkIn: -1,
-      faculty: -1,
-      facultyVIP: -1,
-      facultyWalkIn: -1,
-      admin: -1,
-      adminVIP: -1,
-      adminWalkIn: -1,
-    },
-    perMonth: {
-      student: -1,
-      studentVIP: -1,
-      studentWalkIn: -1,
-      faculty: -1,
-      facultyVIP: -1,
-      facultyWalkIn: -1,
-      admin: -1,
-      adminVIP: -1,
-      adminWalkIn: -1,
-    },
-    perSemester: {
-      student: -1,
-      studentVIP: -1,
-      studentWalkIn: -1,
-      faculty: -1,
-      facultyVIP: -1,
-      facultyWalkIn: -1,
-      admin: -1,
-      adminVIP: -1,
-      adminWalkIn: -1,
-    },
+    perDay: { admin: -1, faculty: -1, student: -1 },
+    perWeek: { admin: -1, faculty: -1, student: -1 },
+    perMonth: { admin: -1, faculty: -1, student: -1 },
+    perSemester: { admin: -1, faculty: -1, student: -1 },
   },
   autoApproval: {
     shouldAutoApprove: false,

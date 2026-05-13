@@ -37,6 +37,7 @@ import type {
   SchemaContextType,
   Resource,
   Agreement,
+  RequestLimitBucketKey,
 } from "../components/SchemaProvider";
 import { defaultResource, defaultScheme } from "../components/SchemaProvider";
 import {
@@ -454,13 +455,11 @@ function AgreementsSection({
 function ResourceEditor({
   resource,
   index,
-  roleKeys,
   onUpdate,
   onRemove,
 }: {
   resource: Resource;
   index: number;
-  roleKeys: string[];
   onUpdate: (index: number, resource: Resource) => void;
   onRemove: (index: number) => void;
 }) {
@@ -481,21 +480,15 @@ function ResourceEditor({
     { key: "perSemester", label: "Per Semester" },
   ] as const;
 
-  const derivedRoleKeys = Array.from(
-    new Set([
-      ...(Array.isArray(roleKeys) ? roleKeys : []),
-      ...Object.keys(resource.maxHour ?? {}),
-      ...Object.keys(resource.minHour ?? {}),
-      ...Object.keys(resource.requestLimits?.perDay ?? {}),
-      ...Object.keys(resource.requestLimits?.perWeek ?? {}),
-      ...Object.keys(resource.requestLimits?.perMonth ?? {}),
-      ...Object.keys(resource.requestLimits?.perSemester ?? {}),
-    ]),
-  ).filter(Boolean);
+  const requestLimitBucketKeys: RequestLimitBucketKey[] = [
+    "admin",
+    "faculty",
+    "student",
+  ];
 
   const setRequestLimit = (
     period: (typeof requestLimitPeriods)[number]["key"],
-    role: string,
+    role: RequestLimitBucketKey,
     nextValue: string,
   ) => {
     const trimmed = nextValue.trim();
@@ -805,7 +798,8 @@ function ResourceEditor({
           </AccordionSummary>
           <AccordionDetails>
             <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
-              Leave blank for unlimited. Limits apply per user (email), per resource, using the request creation time.
+              Leave blank for unlimited. Limits apply per user (email), per resource, by base role
+              (admin / faculty / student). VIP, walk-in, and regular requests share the same cap.
             </Typography>
 
             {requestLimitPeriods.map((p) => (
@@ -815,7 +809,7 @@ function ResourceEditor({
                 </AccordionSummary>
                 <AccordionDetails>
                   <Box display="flex" flexWrap="wrap" gap={1}>
-                    {derivedRoleKeys.map((role) => {
+                    {requestLimitBucketKeys.map((role) => {
                       const current =
                         (resource.requestLimits as any)?.[p.key]?.[role];
                       return (
@@ -863,7 +857,6 @@ function ResourcesSection({
   onUpdateSchema: (fn: (prev: SchemaContextType) => SchemaContextType) => void;
 }) {
   const resources = schema.resources ?? [];
-  const roleKeys = Array.isArray(schema.roles) ? schema.roles : [];
 
   const updateResource = (index: number, resource: Resource) => {
     onUpdateSchema((prev) => {
@@ -894,7 +887,6 @@ function ResourcesSection({
           key={r.roomId || `resource-${i}`}
           resource={r}
           index={i}
-          roleKeys={roleKeys}
           onUpdate={updateResource}
           onRemove={removeResource}
         />

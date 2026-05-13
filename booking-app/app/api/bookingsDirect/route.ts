@@ -107,12 +107,8 @@ export async function POST(request: NextRequest) {
 
   try {
     const bookingRoleField = String(data?.role ?? "").trim();
-    const formContextForLimits =
-      origin === BookingOrigin.VIP
-        ? FormContextLevel.VIP
-        : FormContextLevel.WALK_IN;
     const limitRoleKey = getRequestLimitRoleKey(
-      formContextForLimits,
+      FormContextLevel.FULL_FORM,
       bookingRoleField,
     );
     const selectedRoomIdsNums = selectedRoomIds

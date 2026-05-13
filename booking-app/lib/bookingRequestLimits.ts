@@ -1,11 +1,11 @@
 import type {
+  RequestLimitBucketKey,
   RequestLimitPeriod,
   SchemaContextType,
 } from "@/components/src/client/routes/components/SchemaProvider";
 import { FormContextLevel, Role } from "@/components/src/types";
 import { TableNames } from "@/components/src/policy";
 import { serverFetchAllDataFromCollection } from "@/lib/firebase/server/adminDb";
-import { buildCalendarConfigKey } from "@/components/src/client/routes/booking/utils/buildCalendarConfigKey";
 
 export function parseRoleEnumFromLabel(label: string | undefined): Role | undefined {
   if (!label) return undefined;
@@ -15,12 +15,26 @@ export function parseRoleEnumFromLabel(label: string | undefined): Role | undefi
   return match as Role | undefined;
 }
 
+/**
+ * Maps the booking's role (display label → Role enum) to the `requestLimits` map key.
+ * VIP / walk-in / full form share the same limits bucket (student / faculty / admin).
+ */
 export function getRequestLimitRoleKey(
-  formContext: FormContextLevel,
+  _formContext: FormContextLevel,
   roleLabel: string | undefined,
-): string {
+): RequestLimitBucketKey {
   const roleEnum = parseRoleEnumFromLabel(roleLabel);
-  return buildCalendarConfigKey(formContext, roleEnum);
+  switch (roleEnum) {
+    case Role.FACULTY:
+    case Role.RESIDENT_FELLOW:
+      return "faculty";
+    case Role.ADMIN_STAFF:
+    case Role.CHAIR_PROGRAM_DIRECTOR:
+      return "admin";
+    case Role.STUDENT:
+    default:
+      return "student";
+  }
 }
 
 export function getUtcWindowForPeriod(
@@ -234,8 +248,8 @@ export async function enforceRequestLimits({
   email: string;
   /** Value stored on booking documents (`data.role`), usually the display label (e.g. "Student"). */
   bookingRoleField: string;
-  /** Key used in `resource.requestLimits` maps (e.g. "studentVIP"). */
-  limitRoleKey: string;
+  /** Key used in `resource.requestLimits` maps: `student` | `faculty` | `admin` (no origin suffix). */
+  limitRoleKey: RequestLimitBucketKey;
   selectedRoomIds: number[];
   schema: SchemaContextType | null;
 }): Promise<{ ok: true } | { ok: false; message: string }> {
