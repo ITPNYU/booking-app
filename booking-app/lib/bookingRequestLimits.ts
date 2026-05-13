@@ -37,32 +37,33 @@ export function getRequestLimitRoleKey(
   }
 }
 
-export function getUtcWindowForPeriod(
+/** Calendar windows for request limits, using the host’s local timezone (not UTC). */
+export function getLocalWindowForPeriod(
   now: Date,
   period: RequestLimitPeriod,
   termConfig?: SchemaContextType["termConfig"],
 ): { start: Date; end: Date } {
-  const y = now.getUTCFullYear();
-  const m = now.getUTCMonth(); // 0-11
-  const d = now.getUTCDate();
+  const y = now.getFullYear();
+  const m = now.getMonth(); // 0-11
+  const d = now.getDate();
 
   if (period === "perDay") {
-    const start = new Date(Date.UTC(y, m, d, 0, 0, 0, 0));
-    const end = new Date(Date.UTC(y, m, d + 1, 0, 0, 0, 0));
+    const start = new Date(y, m, d, 0, 0, 0, 0);
+    const end = new Date(y, m, d + 1, 0, 0, 0, 0);
     return { start, end };
   }
 
   if (period === "perWeek") {
-    const dayOfWeek = now.getUTCDay();
+    const dayOfWeek = now.getDay();
     const daysSinceMonday = (dayOfWeek + 6) % 7;
-    const start = new Date(Date.UTC(y, m, d - daysSinceMonday, 0, 0, 0, 0));
-    const end = new Date(Date.UTC(y, m, d - daysSinceMonday + 7, 0, 0, 0, 0));
+    const start = new Date(y, m, d - daysSinceMonday, 0, 0, 0, 0);
+    const end = new Date(y, m, d - daysSinceMonday + 7, 0, 0, 0, 0);
     return { start, end };
   }
 
   if (period === "perMonth") {
-    const start = new Date(Date.UTC(y, m, 1, 0, 0, 0, 0));
-    const end = new Date(Date.UTC(y, m + 1, 1, 0, 0, 0, 0));
+    const start = new Date(y, m, 1, 0, 0, 0, 0);
+    const end = new Date(y, m + 1, 1, 0, 0, 0, 0);
     return { start, end };
   }
 
@@ -97,17 +98,18 @@ export function getUtcWindowForPeriod(
     const active = ranges.find((r) => inRange(r.range));
     if (active) {
       const [startMonth, endMonth] = active.range;
-      const start = new Date(Date.UTC(y, startMonth - 1, 1, 0, 0, 0, 0));
-      const endYear = endMonth === 12 ? y + 1 : y;
-      const endMonthIndex = endMonth === 12 ? 0 : endMonth;
-      const end = new Date(Date.UTC(endYear, endMonthIndex, 1, 0, 0, 0, 0));
+      const start = new Date(y, startMonth - 1, 1, 0, 0, 0, 0);
+      const end =
+        endMonth === 12
+          ? new Date(y + 1, 0, 1, 0, 0, 0, 0)
+          : new Date(y, endMonth, 1, 0, 0, 0, 0);
       return { start, end };
     }
   }
 
   const semesterStartMonth = Math.floor(m / 4) * 4;
-  const start = new Date(Date.UTC(y, semesterStartMonth, 1, 0, 0, 0, 0));
-  const end = new Date(Date.UTC(y, semesterStartMonth + 4, 1, 0, 0, 0, 0));
+  const start = new Date(y, semesterStartMonth, 1, 0, 0, 0, 0);
+  const end = new Date(y, semesterStartMonth + 4, 1, 0, 0, 0, 0);
   return { start, end };
 }
 
@@ -313,7 +315,7 @@ export async function enforceRequestLimits({
   });
 
   for (const period of periodsToQuery) {
-    const { start, end } = getUtcWindowForPeriod(now, period, schema.termConfig);
+    const { start, end } = getLocalWindowForPeriod(now, period, schema.termConfig);
     const startMs = start.getTime();
     const endMs = end.getTime();
 

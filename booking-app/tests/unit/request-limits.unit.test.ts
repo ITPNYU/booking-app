@@ -130,31 +130,25 @@ describe("Request limits enforcement (POST /api/bookings)", () => {
   });
 
   it("uses 4-month semester windows starting in Jan (May 1 starts a new window)", async () => {
-    const { getUtcWindowForPeriod } = await import("@/lib/bookingRequestLimits");
-    const { start, end } = getUtcWindowForPeriod(
-      new Date("2026-05-01T12:00:00Z"),
-      "perSemester",
-      undefined,
-    );
+    const { getLocalWindowForPeriod } = await import("@/lib/bookingRequestLimits");
+    const now = new Date(2026, 4, 1, 12, 0, 0, 0); // local May 1 noon
+    const { start, end } = getLocalWindowForPeriod(now, "perSemester", undefined);
 
-    expect(start.toISOString()).toBe("2026-05-01T00:00:00.000Z");
-    expect(end.toISOString()).toBe("2026-09-01T00:00:00.000Z");
+    expect(start.getTime()).toBe(new Date(2026, 4, 1, 0, 0, 0, 0).getTime());
+    expect(end.getTime()).toBe(new Date(2026, 8, 1, 0, 0, 0, 0).getTime());
   });
 
   it("uses configured term ranges for perSemester windows (fallTerm)", async () => {
-    const { getUtcWindowForPeriod } = await import("@/lib/bookingRequestLimits");
-    const { start, end } = getUtcWindowForPeriod(
-      new Date("2026-09-15T12:00:00Z"),
-      "perSemester",
-      {
-        fallTerm: [9, 12],
-        springTerm: [1, 5],
-        summerTerm: [6, 8],
-      },
-    );
+    const { getLocalWindowForPeriod } = await import("@/lib/bookingRequestLimits");
+    const now = new Date(2026, 8, 15, 12, 0, 0, 0); // local Sep 15 noon
+    const { start, end } = getLocalWindowForPeriod(now, "perSemester", {
+      fallTerm: [9, 12],
+      springTerm: [1, 5],
+      summerTerm: [6, 8],
+    });
 
-    expect(start.toISOString()).toBe("2026-09-01T00:00:00.000Z");
-    expect(end.toISOString()).toBe("2027-01-01T00:00:00.000Z");
+    expect(start.getTime()).toBe(new Date(2026, 8, 1, 0, 0, 0, 0).getTime());
+    expect(end.getTime()).toBe(new Date(2027, 0, 1, 0, 0, 0, 0).getTime());
   });
 });
 
