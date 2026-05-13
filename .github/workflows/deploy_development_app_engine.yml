@@ -95,14 +95,14 @@ jobs:
 
           create_index() {
             local CG="$1"
-            echo "Ensuring composite index on $CG (email asc, startDate desc) in $DB..."
+            shift
+            echo "Ensuring composite index on $CG in $DB..."
             set +e
             OUTPUT=$(gcloud firestore indexes composite create \
               --collection-group="$CG" \
               --database="$DB" \
               --project="$PROJECT" \
-              --field-config=field-path=email,order=ascending \
-              --field-config=field-path=startDate,order=descending \
+              "$@" \
               --quiet 2>&1)
             EXIT=$?
             set -e
@@ -118,8 +118,19 @@ jobs:
             echo "$OUTPUT"
           }
 
-          create_index mc-bookings
-          create_index itp-bookings
+          BOOKINGS_FIELDS=(
+            --field-config=field-path=email,order=ascending
+            --field-config=field-path=startDate,order=descending
+          )
+          BOOKING_LOGS_FIELDS=(
+            --field-config=field-path=calendarEventId,order=ascending
+            --field-config=field-path=status,order=ascending
+          )
+
+          create_index mc-bookings "${BOOKINGS_FIELDS[@]}"
+          create_index itp-bookings "${BOOKINGS_FIELDS[@]}"
+          create_index mc-bookingLogs "${BOOKING_LOGS_FIELDS[@]}"
+          create_index itp-bookingLogs "${BOOKING_LOGS_FIELDS[@]}"
 
       - name: Deploy to App Engine
         run: |
