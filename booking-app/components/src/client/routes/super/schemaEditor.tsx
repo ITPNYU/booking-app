@@ -37,7 +37,6 @@ import type {
   SchemaContextType,
   Resource,
   Agreement,
-  RequestLimitBucketKey,
 } from "../components/SchemaProvider";
 import { defaultResource, defaultScheme } from "../components/SchemaProvider";
 import {
@@ -473,60 +472,6 @@ function ResourceEditor({
     }
   };
 
-  const requestLimitPeriods = [
-    { key: "perDay", label: "Per Day" },
-    { key: "perWeek", label: "Per Week" },
-    { key: "perMonth", label: "Per Month" },
-    { key: "perSemester", label: "Per Semester" },
-  ] as const;
-
-  const requestLimitBucketKeys: RequestLimitBucketKey[] = [
-    "admin",
-    "faculty",
-    "student",
-  ];
-
-  const setRequestLimit = (
-    period: (typeof requestLimitPeriods)[number]["key"],
-    role: RequestLimitBucketKey,
-    nextValue: string,
-  ) => {
-    const trimmed = nextValue.trim();
-
-    const currentLimits = resource.requestLimits ?? {};
-    const periodLimits = { ...(currentLimits as any)[period] } as Record<
-      string,
-      number
-    >;
-
-    if (trimmed === "") {
-      delete periodLimits[role];
-    } else {
-      const n = Number(trimmed);
-      if (Number.isFinite(n) && n >= 0) {
-        periodLimits[role] = Math.floor(n);
-      }
-    }
-
-    const nextLimits: any = { ...currentLimits };
-    if (Object.keys(periodLimits).length === 0) {
-      delete nextLimits[period];
-    } else {
-      nextLimits[period] = periodLimits;
-    }
-
-    const hasAny =
-      Object.keys(nextLimits.perDay ?? {}).length > 0 ||
-      Object.keys(nextLimits.perWeek ?? {}).length > 0 ||
-      Object.keys(nextLimits.perMonth ?? {}).length > 0 ||
-      Object.keys(nextLimits.perSemester ?? {}).length > 0;
-
-    onUpdate(index, {
-      ...resource,
-      requestLimits: hasAny ? nextLimits : undefined,
-    });
-  };
-
   return (
     <Accordion>
       <AccordionSummary expandIcon={<ExpandMoreIcon />}>
@@ -790,49 +735,6 @@ function ResourceEditor({
             </AccordionDetails>
           </Accordion>
         )}
-
-        {/* Request Limits */}
-        <Accordion sx={{ mb: 1 }}>
-          <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-            <Typography variant="body2">Request Limits</Typography>
-          </AccordionSummary>
-          <AccordionDetails>
-            <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
-              Leave blank for unlimited. Limits apply per user (email), per resource, by base role
-              (admin / faculty / student). VIP, walk-in, and regular requests share the same cap.
-            </Typography>
-
-            {requestLimitPeriods.map((p) => (
-              <Accordion key={p.key} sx={{ mb: 1 }} disableGutters>
-                <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                  <Typography variant="body2">{p.label}</Typography>
-                </AccordionSummary>
-                <AccordionDetails>
-                  <Box display="flex" flexWrap="wrap" gap={1}>
-                    {requestLimitBucketKeys.map((role) => {
-                      const current =
-                        (resource.requestLimits as any)?.[p.key]?.[role];
-                      return (
-                        <TextField
-                          key={`${p.key}-${role}`}
-                          label={role}
-                          type="number"
-                          value={current ?? ""}
-                          onChange={(e) =>
-                            setRequestLimit(p.key, role, e.target.value)
-                          }
-                          size="small"
-                          sx={{ width: 140 }}
-                          inputProps={{ min: 0 }}
-                        />
-                      );
-                    })}
-                  </Box>
-                </AccordionDetails>
-              </Accordion>
-            ))}
-          </AccordionDetails>
-        </Accordion>
 
         <Box display="flex" justifyContent="flex-end" mt={1}>
           <Button
