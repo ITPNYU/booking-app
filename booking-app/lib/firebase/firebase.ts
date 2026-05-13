@@ -4,7 +4,6 @@ import {
   getTenantCollectionName,
 } from "@/components/src/policy";
 import { Timestamp } from "firebase/firestore";
-
 import { Filters } from "@/components/src/types";
 import { SchemaContextType } from "@/components/src/client/routes/components/SchemaProvider";
 import {
@@ -321,6 +320,110 @@ export const clientGetFinalApproverEmailFromDatabase = async (): Promise<
   }
 };
 
+export const clientGetResourceApproverEmailsForRoom = async (
+  roomId: number,
+  tenant?: string,
+): Promise<string[]> => {
+  try {
+    const { docs } = await postJson<
+      ListRequest,
+      { docs: Array<{ email?: string }> }
+    >("/api/firestore/list", {
+      collection: TableNames.RESOURCE_APPROVERS,
+      tenant: resolveTenantArg(tenant),
+      where: [{ field: "resource", op: "==", value: roomId }],
+    });
+    return docs.map((d) => d.email).filter((e): e is string => Boolean(e));
+  } catch (error) {
+    console.error("Error fetching resource approvers for room:", error);
+    return [];
+  }
+};
+
+export const clientGetAllResourceApprovers = async (
+  tenant?: string,
+): Promise<
+  Array<{
+    id: string;
+    email: string;
+    resource: number;
+    createdAt?: Timestamp;
+  }>
+> => {
+  try {
+    const { docs } = await postJson<
+      ListRequest,
+      { docs: Array<Record<string, unknown> & { id: string }> }
+    >("/api/firestore/list", {
+      collection: TableNames.RESOURCE_APPROVERS,
+      tenant: resolveTenantArg(tenant),
+    });
+
+    return docs
+      .map((d) => {
+        const data = d as Record<string, unknown>;
+        return {
+          id: d.id,
+          email: String(data.email ?? "")
+            .trim()
+            .toLowerCase(),
+          resource: Number(data.resource),
+          createdAt: data.createdAt as Timestamp | undefined,
+        };
+      })
+      .filter((a) => Boolean(a.email) && Number.isFinite(a.resource));
+  } catch (error) {
+    console.error("Error fetching resource approvers:", error);
+    return [];
+  }
+};
+
+export const clientAddResourceApprover = async (
+  roomId: number,
+  email: string,
+  tenant?: string,
+): Promise<void> => {
+  const normalizedEmail = email.trim().toLowerCase();
+  if (!normalizedEmail) return;
+
+  const existing = await postJson<
+    ListRequest,
+    { docs: Array<Record<string, unknown> & { id: string }> }
+  >("/api/firestore/list", {
+    collection: TableNames.RESOURCE_APPROVERS,
+    tenant: resolveTenantArg(tenant),
+    where: [
+      { field: "email", op: "==", value: normalizedEmail },
+      { field: "resource", op: "==", value: roomId },
+    ],
+  });
+
+  if (existing.docs.length > 0) return;
+
+  await postJson<MutateRequest>("/api/firestore/mutate", {
+    op: "create",
+    collection: TableNames.RESOURCE_APPROVERS,
+    tenant: resolveTenantArg(tenant),
+    data: {
+      email: normalizedEmail,
+      resource: roomId,
+      createdAt: { __ts: Date.now() },
+    },
+  });
+};
+
+export const clientRemoveResourceApprover = async (
+  approverDocId: string,
+  tenant?: string,
+): Promise<void> => {
+  await postJson<MutateRequest>("/api/firestore/mutate", {
+    op: "delete",
+    collection: TableNames.RESOURCE_APPROVERS,
+    tenant: resolveTenantArg(tenant),
+    docId: approverDocId,
+  });
+};
+
 export const clientGetDataByCalendarEventId = async <T>(
   collectionName: TableNames,
   calendarEventId: string,
@@ -333,9 +436,7 @@ export const clientGetDataByCalendarEventId = async <T>(
     >("/api/firestore/list", {
       collection: collectionName,
       tenant: resolveTenantArg(tenant),
-      where: [
-        { field: "calendarEventId", op: "==", value: calendarEventId },
-      ],
+      where: [{ field: "calendarEventId", op: "==", value: calendarEventId }],
       limit: 1,
     });
     if (docs.length === 0) return null;

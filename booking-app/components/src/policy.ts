@@ -6,6 +6,7 @@ import { getApprovedCcEmail, getCanceledCcEmail } from "./tenantPolicy";
 export enum TableNames {
   ADMINS = "usersAdmin",
   APPROVERS = "usersApprovers",
+  RESOURCE_APPROVERS = "usersResourceApprovers",
   BANNED = "usersBanned",
   BOOKING = "bookings",
   BOOKING_TYPES = "bookingTypes",
@@ -45,6 +46,7 @@ export const getTenantCollectionName = (
     "settings",
     "usersWhitelist",
     "usersApprovers",
+    "usersResourceApprovers",
     "usersRights",
     "counters",
   ];
@@ -125,9 +127,7 @@ export const getApprovalCcEmail = async (
 /**
  * Get CC email for cancellation notifications.
  */
-export const getCancelCcEmail = async (
-  tenant?: string,
-): Promise<string> => {
+export const getCancelCcEmail = async (tenant?: string): Promise<string> => {
   if (!tenant) return "";
   return getCanceledCcEmail(tenant);
 };

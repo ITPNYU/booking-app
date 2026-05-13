@@ -10,7 +10,34 @@ export type Approver = {
   department: string;
   createdAt: string;
   level: number;
+  /** Whether this approver covers the whole tenant or specific resources */
+  scope?: "tenant" | "resource";
+  /** Room IDs this approver has resource-approver privileges for */
+  resourceRoomIds?: number[];
+  /**
+   * When true, this approver is granted approval rights for every room in the
+   * tenant without needing individual resourceRoomIds entries.
+   */
+  allResources?: boolean;
 };
+
+/**
+ * Fills in `scope` for legacy Approver documents that predate the field.
+ * allResources or resourceRoomIds presence implies resource scope.
+ * Documents without either default to tenant scope.
+ */
+export function normalizeApprover(
+  approver: Approver,
+): Approver & { scope: "tenant" | "resource" } {
+  if (approver.scope) return approver as Approver & { scope: "tenant" | "resource" };
+  const isResource =
+    approver.allResources === true ||
+    (approver.resourceRoomIds?.length ?? 0) > 0;
+  return {
+    ...approver,
+    scope: isResource ? "resource" : "tenant",
+  };
+}
 
 export enum AttendeeAffiliation {
   NYU = "NYU Members with an active NYU ID",

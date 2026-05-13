@@ -115,7 +115,9 @@ export async function GET(req: NextRequest) {
         level: Number(data.level),
       };
     });
-    const liaisonUsers = approvers;
+    const liaisonUsers = approvers.filter(
+      a => a.level === ApproverLevel.FIRST,
+    );
     const equipmentUsers = approvers.filter(
       a => a.level === ApproverLevel.EQUIPMENT,
     );
