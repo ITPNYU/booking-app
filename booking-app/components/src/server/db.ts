@@ -275,7 +275,7 @@ export const decline = async (
   const guestEmail = doc ? doc.email : null;
   const { getTenantEmailConfig } = await import("./emails");
   const emailConfig = await getTenantEmailConfig(tenant);
-  let headerMessage = emailConfig.emailMessages.declined;
+  let headerMessage = emailConfig.emailNotifications.declined;
 
   // Fetch tenant schema to get declinedGracePeriod (default: 24 hours)
   // Dynamic import to avoid pulling firebase-admin into client bundle
@@ -452,7 +452,7 @@ export const processCloseBooking = async (
   // Unified email message for all close operations
   const { getTenantEmailConfig } = await import("./emails");
   const emailConfig = await getTenantEmailConfig(tenant);
-  const emailMessage = emailConfig.emailMessages.closed;
+  const emailMessage = emailConfig.emailNotifications.closed;
   const emailStatus = BookingStatusLabel.CLOSED;
 
   // Send email using server-side function
@@ -629,7 +629,7 @@ export const processCancelBooking = async (
     const violationCount = await getViolationCount(netId, tenant);
     const { getTenantEmailConfig } = await import("./emails");
     const emailConfig = await getTenantEmailConfig(tenant);
-    headerMessage = emailConfig.emailMessages.lateCancel.replace(
+    headerMessage = emailConfig.emailNotifications.canceledLate.replace(
       "${violationCount}",
       violationCount.toString(),
     );
@@ -1194,7 +1194,7 @@ export const executeTraditionalNoShow = async (
   const violationCount = await getViolationCount(netId);
   const { getTenantEmailConfig } = await import("./emails");
   const emailConfig = await getTenantEmailConfig(tenant);
-  const headerMessage = emailConfig.emailMessages.noShow.replace(
+  const headerMessage = emailConfig.emailNotifications.noShow.replace(
     "${violationCount}",
     violationCount.toString(),
   );

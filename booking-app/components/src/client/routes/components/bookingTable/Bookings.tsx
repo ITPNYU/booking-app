@@ -76,13 +76,16 @@ export const Bookings: React.FC<BookingsProps> = ({
     useContext(DatabaseContext);
   const {
     resourceName,
+    form,
+    interimHighlightThresholdHours = 18,
+  } = useTenantSchema();
+  const {
     showSetup,
     showEquipment,
     showStaffing,
     showCatering,
-    showHireSecurity,
-    interimHighlightThresholdHours = 18,
-  } = useTenantSchema();
+    showSecurity: showHireSecurity,
+  } = form.services;
   const hasServices =
     showSetup ||
     showEquipment ||

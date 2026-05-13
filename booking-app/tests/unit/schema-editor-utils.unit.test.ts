@@ -200,12 +200,12 @@ describe("computeDiff", () => {
     const old = {
       name: "MC",
       showVIP: true,
-      emailMessages: { declined: "old msg", canceled: "same" },
+      emailNotifications: { declined: "old msg", canceled: "same" },
     };
     const updated = {
       name: "Media Commons",
       showVIP: true,
-      emailMessages: { declined: "new msg", canceled: "same" },
+      emailNotifications: { declined: "new msg", canceled: "same" },
       newField: 42,
     };
     const diffs = computeDiff(old, updated);
@@ -217,7 +217,7 @@ describe("computeDiff", () => {
       newValue: "Media Commons",
     });
     expect(diffs).toContainEqual({
-      path: "emailMessages.declined",
+      path: "emailNotifications.declined",
       type: "changed",
       oldValue: "old msg",
       newValue: "new msg",

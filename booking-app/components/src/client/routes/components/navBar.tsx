@@ -73,26 +73,26 @@ export default function NavBar() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const tenantSchema = useContext(SchemaContext);
-  const {
-    name = "",
-    logo = "/mediaCommonsLogo.svg",
-    supportVIP = false,
-    supportWalkIn = false,
-    supportPA = true,
-    supportLiaison = true,
-    showSetup = true,
-    showEquipment = true,
-    showStaffing = true,
-    showCatering = true,
-    showHireSecurity = true,
-    permissionLabels = {
-      user: "User",
-      worker: "PA",
-      reviewer: "Liaison",
-      services: "Services",
-      admin: "Admin",
-    },
-  } = tenantSchema || {};
+  const defaultContextLabels = {
+    user: "User",
+    worker: "PA",
+    reviewer: "Liaison",
+    services: "Services",
+    admin: "Admin",
+  };
+  const name = tenantSchema?.tenant?.name ?? "";
+  const logo = tenantSchema?.tenant?.logo || "/mediaCommonsLogo.svg";
+  const permissionLabels =
+    tenantSchema?.tenant?.contextLabels ?? defaultContextLabels;
+  const supportVIP = tenantSchema?.origins?.VIP ?? false;
+  const supportWalkIn = tenantSchema?.origins?.walkIn ?? false;
+  const supportPA = tenantSchema?.supportPA ?? true;
+  const supportLiaison = tenantSchema?.supportLiaison ?? true;
+  const showSetup = tenantSchema?.form?.services?.showSetup ?? true;
+  const showEquipment = tenantSchema?.form?.services?.showEquipment ?? true;
+  const showStaffing = tenantSchema?.form?.services?.showStaffing ?? true;
+  const showCatering = tenantSchema?.form?.services?.showCatering ?? true;
+  const showHireSecurity = tenantSchema?.form?.services?.showSecurity ?? true;
   const hasServices =
     showSetup ||
     showEquipment ||
@@ -326,7 +326,7 @@ export default function NavBar() {
         </Button>
       );
     }
-  }, [pagePermission, selectedView, tenant]);
+  }, [pagePermission, selectedView, tenant, supportVIP, supportWalkIn]);
 
   return (
     <Nav>

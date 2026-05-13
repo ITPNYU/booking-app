@@ -620,8 +620,8 @@ export async function POST(request: NextRequest) {
     const emailConfig = await getTenantEmailConfig(tenant);
     const confirmationMessage =
       type === "vip"
-        ? emailConfig.emailMessages.vipConfirmation
-        : emailConfig.emailMessages.walkInConfirmation;
+        ? emailConfig.emailNotifications.approvedVIP
+        : emailConfig.emailNotifications.approvedWalkIn;
 
     const sendWalkInNofificationEmail = async (recipients: string[]) => {
       const emailPromises = recipients.map(recipient =>

@@ -45,13 +45,13 @@ export default function LandingPage() {
       height={{ xs: "unset" }}
       padding={{ xs: 3 }}
     >
-      <Title as="h1">{schema.nameForPolicy} Reservation Form</Title>
-      <p>Thank you for your interest in booking with the {schema.name}</p>
+      <Title as="h1">{schema.tenant.nameForPolicy} Reservation Form</Title>
+      <p>Thank you for your interest in booking with the {schema.tenant.name}</p>
       <Modal padding={4}>
         <Typography
           sx={{ fontWeight: 500, fontSize: "1rem", lineHeight: "1.5" }}
         >
-          Please read our policy for using the {schema.nameForPolicy}
+          Please read our policy for using the {schema.tenant.nameForPolicy}
         </Typography>
         <div dangerouslySetInnerHTML={{ __html: schema.policy }} />
         <Button

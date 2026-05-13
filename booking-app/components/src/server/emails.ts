@@ -1,5 +1,7 @@
 import { TableNames } from "@/components/src/policy";
 import { serverGetDocumentById } from "@/lib/firebase/server/adminDb";
+import { coerceTenantSchema } from "@/lib/tenant/coerceTenantSchema";
+import type { EmailNotifications } from "../client/routes/components/SchemaProvider";
 import { DevBranch } from "../types";
 
 export const getEmailBranchTag = () => {
@@ -15,74 +17,49 @@ export const getEmailBranchTag = () => {
 
 export interface TenantEmailConfig {
   schemaName: string;
-  emailMessages: {
-    requestConfirmation: string;
-    firstApprovalRequest: string;
-    secondApprovalRequest: string;
-    walkInConfirmation: string;
-    vipConfirmation: string;
-    checkoutConfirmation: string;
-    checkinConfirmation: string;
-    declined: string;
-    canceled: string;
-    lateCancel: string;
-    noShow: string;
-    closed: string;
-    approvalNotice: string;
-  };
+  emailNotifications: EmailNotifications;
 }
 
+const emptyEmailNotifications = (): EmailNotifications => ({
+  requestedUser: "",
+  requestedNeedsApproval: "",
+  reviewedNeedsApproval: "",
+  approvedWalkIn: "",
+  approvedVIP: "",
+  checkedOut: "",
+  checkedIn: "",
+  declined: "",
+  canceled: "",
+  canceledLate: "",
+  noShow: "",
+  closed: "",
+  approvedUser: "",
+});
+
 /**
- * Helper function to get tenant email configuration (schema name, header messages, and approval notice)
+ * Helper function to get tenant email configuration (schema name, header messages)
  * @param tenant - The tenant identifier
- * @returns Promise<TenantEmailConfig> - The email configuration with fallbacks
  */
 export const getTenantEmailConfig = async (
   tenant?: string,
 ): Promise<TenantEmailConfig> => {
-  let schemaName = "Media Commons"; // fallback
-  let emailMessages = {
-    requestConfirmation: "",
-    firstApprovalRequest: "",
-    secondApprovalRequest: "",
-    walkInConfirmation: "",
-    vipConfirmation: "",
-    checkoutConfirmation: "",
-    checkinConfirmation: "",
-    declined: "",
-    canceled: "",
-    lateCancel: "",
-    noShow: "",
-    closed: "",
-    approvalNotice: "",
-  };
+  let schemaName = "Media Commons";
+  let emailNotifications = emptyEmailNotifications();
 
   if (tenant) {
     try {
-      const schema = await serverGetDocumentById(
+      const raw = await serverGetDocumentById<Record<string, unknown>>(
         TableNames.TENANT_SCHEMA,
         tenant,
       );
-      if (schema?.name) {
-        schemaName = schema.name;
+      const schema = raw ? coerceTenantSchema(raw, tenant) : null;
+      if (schema?.tenant?.name) {
+        schemaName = schema.tenant.name;
       }
-      if (schema?.emailMessages) {
-        // Use the nested emailMessages object from schema
-        emailMessages = {
-          requestConfirmation: schema.emailMessages.requestConfirmation || "",
-          firstApprovalRequest: schema.emailMessages.firstApprovalRequest || "",
-          secondApprovalRequest:
-            schema.emailMessages.secondApprovalRequest || "",
-          walkInConfirmation: schema.emailMessages.walkInConfirmation || "",
-          vipConfirmation: schema.emailMessages.vipConfirmation || "",
-          checkoutConfirmation: schema.emailMessages.checkoutConfirmation || "",
-          checkinConfirmation: schema.emailMessages.checkinConfirmation || "",
-          declined: schema.emailMessages.declined || "",
-          canceled: schema.emailMessages.canceled || "",
-          lateCancel: schema.emailMessages.lateCancel || "",
-          noShow: schema.emailMessages.noShow || "",
-          closed: schema.emailMessages.closed || "",
-          approvalNotice: schema.emailMessages.approvalNotice || "",
+      if (schema?.emailNotifications) {
+        emailNotifications = {
+          ...emptyEmailNotifications(),
+          ...schema.emailNotifications,
         };
       }
     } catch (error) {
@@ -92,6 +69,6 @@ export const getTenantEmailConfig = async (
 
   return {
     schemaName,
-    emailMessages,
+    emailNotifications,
   };
 };

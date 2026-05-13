@@ -6,6 +6,7 @@ import {
 } from "@/lib/firebase/server/adminDb";
 import { TableNames } from "@/components/src/policy";
 import { applyEnvironmentCalendarIds } from "@/lib/utils/calendarEnvironment";
+import { coerceTenantSchema } from "@/lib/tenant/coerceTenantSchema";
 import { isValidTenant } from "@/components/src/constants/tenants";
 import admin from "@/lib/firebase/server/firebaseAdmin";
 
@@ -17,17 +18,19 @@ export async function GET(
     const { tenant } = await params;
 
     // Fetch the specific schema document using tenant as document ID
-    const schema = await serverGetDocumentById(
+    const rawDoc = await serverGetDocumentById<Record<string, unknown>>(
       TableNames.TENANT_SCHEMA,
       tenant,
     );
 
-    if (!schema) {
+    if (!rawDoc) {
       return NextResponse.json(
         { error: `Schema not found for tenant: ${tenant}` },
         { status: 404 },
       );
     }
+
+    const schema = coerceTenantSchema(rawDoc, tenant);
 
     // Skip environment calendar ID rewriting when raw=1 is requested
     // (used by schema editor to avoid data corruption on round-trip)
@@ -86,8 +89,8 @@ export async function PUT(
 
     const newSchema = await request.json();
 
-    // Enforce tenant field consistency with URL param
-    newSchema.tenant = tenant;
+    // Enforce tenant id consistency with URL param
+    newSchema.tenantId = tenant;
 
     // Backup current schema before overwriting
     const existingSchema = await serverGetDocumentById(

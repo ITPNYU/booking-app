@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
         await serverSendBookingDetailEmail({
           calendarEventId,
           targetEmail: guestEmail,
-          headerMessage: emailConfig.emailMessages.checkoutConfirmation,
+          headerMessage: emailConfig.emailNotifications.checkedOut,
           status: BookingStatusLabel.CHECKED_OUT,
           tenant,
         });

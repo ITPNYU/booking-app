@@ -117,12 +117,14 @@ export default function FormInput({
   };
 
   const {
-    showNNumber,
-    showSponsor,
-    showSetup,
-    showBookingTypes,
-    agreements,
-    roleMapping,
+    form: {
+      showNNumber,
+      showSponsor,
+      showBookingType,
+      services: { showSetup },
+    },
+    attestations,
+    mappings: { role: roleMapping },
   } = useTenantSchema();
 
   // Determine which services to show based on selected rooms and schema resources
@@ -218,7 +220,7 @@ export default function FormInput({
   const [checkedAgreements, setCheckedAgreements] = useState<
     Record<string, boolean>
   >(
-    Object.fromEntries(agreements.map((agreement) => [agreement.id, isWalkIn])),
+    Object.fromEntries(attestations.map((a) => [a.id, isWalkIn])),
   );
 
   const watchedFields = watch();
@@ -429,10 +431,10 @@ export default function FormInput({
   // Add a ref to track submission state to prevent race conditions
   const isSubmittingRef = useRef(false);
 
-  // Only check if there are agreements to submit
+  // Disable submit when required attestations are not all checked
   const agreementsChecked =
-    checkedAgreements.length &&
-    Object.values(checkedAgreements).every((value) => value);
+    attestations.length > 0 &&
+    !attestations.every((a) => checkedAgreements[a.id]);
 
   const disabledButton =
     agreementsChecked ||
@@ -865,7 +867,7 @@ export default function FormInput({
           label="Reservation Description"
           {...{ control, errors, trigger }}
         />
-        {!isMod && showBookingTypes && (
+        {!isMod && showBookingType && (
           <BookingFormDropdown
             id="bookingType"
             label="Booking Type"
@@ -914,7 +916,7 @@ export default function FormInput({
       {/* Agreement - only for full booking form */}
       {!isMod && isBooking && (
         <Section title="Agreement">
-          {agreements.map((agreement) => (
+          {attestations.map((agreement) => (
             <BookingFormAgreementCheckbox
               key={agreement.id}
               id={agreement.id}

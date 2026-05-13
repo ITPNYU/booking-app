@@ -31,7 +31,7 @@ export const ServiceApproverUsers = ({
   flagField,
 }: ServiceApproverUsersProps) => {
   const schemaContext = useContext(SchemaContext);
-  const tenant = schemaContext?.tenant;
+  const tenant = schemaContext?.tenantId;
 
   const [loading, setLoading] = useState(false);
   const [valueToAdd, setValueToAdd] = useState("");
