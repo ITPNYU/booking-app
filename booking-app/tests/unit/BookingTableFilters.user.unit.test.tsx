@@ -31,15 +31,21 @@ const theme = createTheme();
 
 // Schema with all origin/service toggles on so USER-context hiding is meaningful.
 const mockSchema = {
-  name: "Test",
+  tenant: { name: "Test" },
   resourceName: "Room",
-  showSetup: true,
-  showEquipment: true,
-  showStaffing: true,
-  showCatering: true,
-  showHireSecurity: true,
-  supportWalkIn: true,
-  supportVIP: true,
+  form: {
+    services: {
+      showSetup: true,
+      showEquipment: true,
+      showStaffing: true,
+      showCatering: true,
+      showSecurity: true,
+    },
+  },
+  origins: {
+    walkIn: true,
+    VIP: true,
+  },
 } as any;
 
 const mockDatabaseContext = {

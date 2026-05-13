@@ -3,30 +3,36 @@ import { createContext, useContext } from "react";
 
 export { defaultSafetyTrainingInfoUrl };
 
-export type Agreement = {
+export type Attestation = {
   id: string;
   html: string;
 };
+
+/** @deprecated Use Attestation */
+export type Agreement = Attestation;
 
 export type StaffingSection = {
   name: string;
   indexes: number[];
 };
 
+export type ResourceTraining = {
+  required?: boolean;
+  formId?: string;
+  infoUrl?: string;
+};
+
 export type Resource = {
   capacity: number;
   name: string;
   roomId: number;
-  isEquipment: boolean; // renamed from checkable
+  isEquipment: boolean;
   calendarId: string;
-  needsSafetyTraining?: boolean; // Whether training is required for this resource
-  trainingFormUrl?: string; // URL of the Google Form that tracks trained users
-  trainingInfoUrl?: string; // URL to share with users when training is required
+  training?: ResourceTraining;
   isWalkIn: boolean;
   isWalkInCanBookTwo: boolean;
-  services: string[]; // ["equipment", "staffing", "setup", "security", "cleaning", "catering", "campus-media"]
+  services: string[];
   autoApproval?: {
-    /** Explicit enable/disable switch for auto-approval. */
     shouldAutoApprove?: boolean;
     minHour?: {
       admin: number;
@@ -69,13 +75,11 @@ export type Resource = {
     facultyVIP: number;
     adminVIP: number;
   };
-  staffingServices?: string[]; // Specific staffing service options for this room
+  staffingServices?: string[];
   staffingSections?: StaffingSection[];
-  /** Production calendar ID for this resource (stored in DB) */
   calendarIdProd?: string;
 };
 
-/** Time-sensitive request warning config (may live at top level in DB or under calendarConfig) */
 export type TimeSensitiveRequestWarning = {
   hours?: number;
   isActive?: boolean;
@@ -83,7 +87,7 @@ export type TimeSensitiveRequestWarning = {
   policyLink?: string;
 };
 
-export type PermissionLabels = {
+export type ContextLabels = {
   user: string;
   worker: string;
   reviewer: string;
@@ -91,95 +95,108 @@ export type PermissionLabels = {
   admin: string;
 };
 
-export type SchemaContextType = {
-  tenant: string; // No default - must be provided
+/** @deprecated Use ContextLabels */
+export type PermissionLabels = ContextLabels;
+
+export type TenantBranding = {
   name: string;
-  safetyTrainingGoogleFormId?: string; // Lower priority: used as fallback when resource-level trainingFormUrl is not available
   logo: string;
   nameForPolicy: string;
-  policy: string; // innerHTML
-  programMapping: Record<string, string[]>;
-  roles: string[];
-  roleMapping: Record<string, string[]>;
-  permissionLabels: PermissionLabels;
-  schoolMapping: Record<string, string[]>;
+  contextLabels: ContextLabels;
+};
+
+export type FormServicesConfig = {
+  showCatering: boolean;
+  showEquipment: boolean;
+  showSecurity: boolean;
+  showSetup: boolean;
+  showStaffing: boolean;
+};
+
+export type FormConfig = {
+  showBookingType: boolean;
   showNNumber: boolean;
   showSponsor: boolean;
-  showSetup: boolean;
-  showEquipment: boolean;
-  showStaffing: boolean;
-  showCatering: boolean;
-  showHireSecurity: boolean;
-  showBookingTypes: boolean;
-  agreements: Agreement[]; // innerHTML[]
+  services: FormServicesConfig;
+};
+
+export type OriginsConfig = {
+  VIP: boolean;
+  walkIn: boolean;
+};
+
+export type MappingsConfig = {
+  program: Record<string, string[]>;
+  role: Record<string, string[]>;
+  school: Record<string, string[]>;
+};
+
+export type TrainingConfig = {
+  formId?: string;
+};
+
+export type EmailNotifications = {
+  requestedUser: string;
+  requestedNeedsApproval: string;
+  reviewedNeedsApproval: string;
+  approvedWalkIn: string;
+  approvedVIP: string;
+  checkedOut: string;
+  checkedIn: string;
+  declined: string;
+  canceled: string;
+  canceledLate: string;
+  noShow: string;
+  closed: string;
+  approvedUser: string;
+};
+
+export type SchemaContextType = {
+  /** Tenant slug / document id (e.g. mc, itp) */
+  tenantId: string;
+  tenant: TenantBranding;
+  policy: string;
+  mappings: MappingsConfig;
+  roles: string[];
+  form: FormConfig;
+  attestations: Attestation[];
   resources: Resource[];
-  supportVIP: boolean;
-  supportWalkIn: boolean;
+  origins: OriginsConfig;
+  training?: TrainingConfig;
   supportPA?: boolean;
   supportLiaison?: boolean;
   resourceName: string;
   declinedGracePeriod?: number;
-  /**
-   * When enabled, automatically cancel requests within a time window prior to start time
-   * if they are still unapproved (Requested / Pre-approved depending on conditions).
-   *
-   * Stored as `false` by default for backwards compatibility with older schemas.
-   */
   autoCancel?:
     | false
     | {
-        minutesPriorToStart: number; // -1 disables when stored as object
+        minutesPriorToStart: number;
         conditions: {
           requested: boolean;
           preApproved: boolean;
         };
       };
-  /** Top-level time-sensitive warning (DB stores here; also supported under calendarConfig) */
-  timeSensitiveRequestWarning?: TimeSensitiveRequestWarning;
   calendarConfig?: {
-    startHour?: Record<string, string>; // e.g., { studentVIP: "06:00:00", student: "09:00:00", ... }
-    slotUnit?: Record<string, number>; // e.g., { student: 15, admin: 15, ... }
+    startHour?: Record<string, string>;
+    slotUnit?: Record<string, number>;
     multipleResourceSelect?: boolean;
     timeSensitiveRequestWarning?: TimeSensitiveRequestWarning;
   };
-  // CC email addresses for notifications, per environment
   ccEmails?: {
     approved: { development: string; staging: string; production: string };
     canceled: { development: string; staging: string; production: string };
   };
-  // Email messages for all scenarios
-  emailMessages: {
-    requestConfirmation: string;
-    firstApprovalRequest: string;
-    secondApprovalRequest: string;
-    walkInConfirmation: string;
-    vipConfirmation: string;
-    checkoutConfirmation: string;
-    checkinConfirmation: string;
-    declined: string;
-    canceled: string;
-    lateCancel: string;
-    noShow: string;
-    closed: string;
-    approvalNotice: string;
-  };
+  emailNotifications: EmailNotifications;
 };
 
-// This is for the sync script to merge defaults into the existing array.
-// The script will check for the __defaults__ property and merge the defaults into the existing array.
-// If the __defaults__ property is not found, the script will skip the array.
-
-// An array with a __defaults__ property for sync script compatibility
-export interface ObjectArrayWithDefaults<T> extends Array<T> {
-  __defaults__: T;
-}
-
-function defineObjectArrayWithDefaults<T>(
-  defaults: T,
-): ObjectArrayWithDefaults<T> {
+function defineObjectArrayWithDefaults<T>(defaults: T): ObjectArrayWithDefaults<T> {
   const value = [] as ObjectArrayWithDefaults<T>;
   value.__defaults__ = defaults;
   return value;
+}
+
+export interface ObjectArrayWithDefaults<T> extends Array<T> {
+  __defaults__: T;
 }
 
 export const defaultStaffingSection: StaffingSection = {
@@ -187,10 +204,13 @@ export const defaultStaffingSection: StaffingSection = {
   indexes: [],
 };
 
-export const defaultAgreement: Agreement = {
+export const defaultAttestation: Attestation = {
   id: "",
   html: "",
 };
+
+/** @deprecated Use defaultAttestation */
+export const defaultAgreement = defaultAttestation;
 
 export const defaultResource: Resource = {
   capacity: 0,
@@ -198,7 +218,11 @@ export const defaultResource: Resource = {
   roomId: 0,
   isEquipment: false,
   calendarId: "",
-  needsSafetyTraining: false,
+  training: {
+    required: false,
+    formId: "",
+    infoUrl: defaultSafetyTrainingInfoUrl,
+  },
   isWalkIn: false,
   isWalkInCanBookTwo: false,
   services: [],
@@ -239,8 +263,6 @@ export const defaultResource: Resource = {
   },
   staffingServices: [],
   staffingSections: defineObjectArrayWithDefaults(defaultStaffingSection),
-  trainingFormUrl: "",
-  trainingInfoUrl: defaultSafetyTrainingInfoUrl,
   calendarIdProd: "",
 };
 
@@ -251,8 +273,8 @@ const defaultTimeSensitiveRequestWarning: TimeSensitiveRequestWarning = {
   policyLink: "",
 };
 
-const defaultPermissionLabelsByTenant = (tenant?: string): PermissionLabels => {
-  const normalized = (tenant || "").toLowerCase();
+const defaultContextLabelsByTenantId = (tenantId?: string): ContextLabels => {
+  const normalized = (tenantId || "").toLowerCase();
   if (normalized === "itp") {
     return {
       user: "User",
@@ -271,34 +293,48 @@ const defaultPermissionLabelsByTenant = (tenant?: string): PermissionLabels => {
   };
 };
 
-export const defaultScheme: Omit<SchemaContextType, "tenant"> = {
+const defaultTenantBranding = (tenantId?: string): TenantBranding => ({
   name: "",
-  safetyTrainingGoogleFormId: "",
   logo: "",
   nameForPolicy: "",
+  contextLabels: defaultContextLabelsByTenantId(tenantId),
+});
+
+export const defaultScheme: Omit<SchemaContextType, "tenantId"> = {
+  tenant: defaultTenantBranding(),
   policy: "",
-  programMapping: {},
+  mappings: {
+    program: {},
+    role: {},
+    school: {},
+  },
   roles: [],
-  roleMapping: {},
-  permissionLabels: defaultPermissionLabelsByTenant(),
-  showNNumber: true,
-  showSponsor: true,
-  showSetup: true,
-  showEquipment: true,
-  showStaffing: true,
-  showCatering: true,
-  showHireSecurity: true,
-  showBookingTypes: true,
-  agreements: defineObjectArrayWithDefaults(defaultAgreement),
+  form: {
+    showBookingType: true,
+    showNNumber: true,
+    showSponsor: true,
+    services: {
+      showCatering: true,
+      showEquipment: true,
+      showSecurity: true,
+      showSetup: true,
+      showStaffing: true,
+    },
+  },
+  attestations: defineObjectArrayWithDefaults(defaultAttestation),
   resources: defineObjectArrayWithDefaults(defaultResource),
-  supportVIP: false,
-  supportWalkIn: false,
+  origins: {
+    VIP: false,
+    walkIn: false,
+  },
+  training: {
+    formId: "",
+  },
   supportPA: false,
   supportLiaison: false,
   resourceName: "",
   declinedGracePeriod: 24,
   autoCancel: false,
-  timeSensitiveRequestWarning: defaultTimeSensitiveRequestWarning,
   calendarConfig: {
     startHour: {
       student: "09:00:00",
@@ -325,42 +361,39 @@ export const defaultScheme: Omit<SchemaContextType, "tenant"> = {
     multipleResourceSelect: false,
     timeSensitiveRequestWarning: defaultTimeSensitiveRequestWarning,
   },
-  schoolMapping: {},
   ccEmails: {
     approved: { development: "", staging: "", production: "" },
     canceled: { development: "", staging: "", production: "" },
   },
-  emailMessages: {
-    requestConfirmation: "",
-    firstApprovalRequest: "",
-    secondApprovalRequest: "",
-    walkInConfirmation: "",
-    vipConfirmation: "",
-    checkoutConfirmation: "",
-    checkinConfirmation: "",
+  emailNotifications: {
+    requestedUser: "",
+    requestedNeedsApproval: "",
+    reviewedNeedsApproval: "",
+    approvedWalkIn: "",
+    approvedVIP: "",
+    checkedOut: "",
+    checkedIn: "",
     declined: "",
     canceled: "",
-    lateCancel: "",
+    canceledLate: "",
     noShow: "",
     closed: "",
-    approvalNotice: "",
+    approvedUser: "",
   },
 };
 
-/**
- * Generate a complete default schema with tenant
- */
-export function generateDefaultSchema(tenant: string): SchemaContextType {
+export function generateDefaultSchema(tenantId: string): SchemaContextType {
   return {
-    tenant,
+    tenantId,
     ...defaultScheme,
-    permissionLabels: defaultPermissionLabelsByTenant(tenant),
+    tenant: {
+      ...defaultScheme.tenant,
+      contextLabels: defaultContextLabelsByTenantId(tenantId),
+    },
   };
 }
 
-export const SchemaContext = createContext<SchemaContextType>(
-  generateDefaultSchema(""),
-);
+export const SchemaContext = createContext<SchemaContextType>(generateDefaultSchema(""));
 
 export const useTenantSchema = () => useContext(SchemaContext);
 
@@ -368,7 +401,5 @@ export const SchemaProvider: React.FC<{
   value: SchemaContextType;
   children: React.ReactNode;
 }> = ({ value, children }) => {
-  return (
-    <SchemaContext.Provider value={value}>{children}</SchemaContext.Provider>
-  );
+  return <SchemaContext.Provider value={value}>{children}</SchemaContext.Provider>;
 };

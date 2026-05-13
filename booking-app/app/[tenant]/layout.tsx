@@ -27,24 +27,24 @@ export async function generateMetadata({
   const { tenant } = await params;
   try {
     const tenantSchema = await getCachedTenantSchema(tenant);
-    if (!tenantSchema?.name) {
+    if (!tenantSchema?.tenant?.name) {
       return {
         title: "NYU room booking",
         description: "NYU space reservation",
       };
     }
-    const title = `${tenantSchema.name} Booking`;
+    const title = `${tenantSchema.tenant.name} Booking`;
     const description =
-      tenantSchema.nameForPolicy?.trim() ||
+      tenantSchema.tenant.nameForPolicy?.trim() ||
       `${title} — NYU space reservation`;
     return {
       title,
       description,
-      ...(tenantSchema.logo
+      ...(tenantSchema.tenant.logo
         ? {
             icons: {
-              icon: tenantSchema.logo,
-              apple: tenantSchema.logo,
+              icon: tenantSchema.tenant.logo,
+              apple: tenantSchema.tenant.logo,
             },
           }
         : {}),
@@ -69,8 +69,8 @@ const Layout: React.FC<LayoutProps> = async ({ children, params }) => {
     const tenantSchema = await getCachedTenantSchema(tenant);
 
     console.log("Layout: Retrieved tenantSchema:", {
-      tenant: tenantSchema?.tenant,
-      name: tenantSchema?.name,
+      tenantId: tenantSchema?.tenantId,
+      name: tenantSchema?.tenant?.name,
       resourcesCount: tenantSchema?.resources?.length || 0,
     });
 
@@ -89,12 +89,12 @@ const Layout: React.FC<LayoutProps> = async ({ children, params }) => {
     const serializedTenantSchema: SchemaContextType = {
       ...tenantSchema,
       resources: resources ?? tenantSchema.resources,
-      tenant: tenantSchema.tenant || tenant,
+      tenantId: tenantSchema.tenantId || tenant,
     };
 
     console.log("Layout: Serialized tenantSchema:", {
-      tenant: serializedTenantSchema.tenant,
-      name: serializedTenantSchema.name,
+      tenantId: serializedTenantSchema.tenantId,
+      name: serializedTenantSchema.tenant.name,
       resourcesCount: serializedTenantSchema.resources?.length || 0,
     });
 

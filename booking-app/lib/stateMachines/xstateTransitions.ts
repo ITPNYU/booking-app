@@ -408,7 +408,7 @@ export async function executeXStateTransition(
 
         const guestEmail = doc.email;
         const emailConfig = await getTenantEmailConfig(tenant);
-        const headerMessage = emailConfig.emailMessages.noShow.replace(
+        const headerMessage = emailConfig.emailNotifications.noShow.replace(
           "${violationCount}",
           violationCount.toString(),
         );

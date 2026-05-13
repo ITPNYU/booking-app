@@ -17,9 +17,10 @@ const mockGetPaginatedData = vi.fn();
 
 const mockShouldUseXState = vi.fn();
 const mockGetTenantEmailConfig = vi.fn().mockResolvedValue({
-  emailMessages: {
+  schemaName: "Test",
+  emailNotifications: {
     noShow: "Booking marked as no show",
-  },
+  } as any,
 });
 
 vi.mock("@/lib/firebase/server/adminDb", () => ({
@@ -131,9 +132,10 @@ describe("NO_SHOW System Attribution", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockGetTenantEmailConfig.mockResolvedValue({
-      emailMessages: {
+      schemaName: "Test",
+      emailNotifications: {
         noShow: "Booking marked as no show",
-      },
+      } as any,
     });
 
     // Mock booking document
@@ -317,9 +319,10 @@ describe("processCancelBooking Integration Tests", () => {
     });
     mockServerFetchAllDataFromCollection.mockResolvedValue([]);
     mockGetTenantEmailConfig.mockResolvedValue({
-      emailMessages: {
-        lateCancel: "Late cancellation notification",
-      },
+      schemaName: "Test",
+      emailNotifications: {
+        canceledLate: "Late cancellation notification",
+      } as any,
     });
 
     // Mock fetch for email sending and calendar updates
@@ -524,9 +527,10 @@ describe("noShow function XState flow", () => {
     mockGetPaginatedData.mockReset();
     mockGetTenantEmailConfig.mockClear();
     mockGetTenantEmailConfig.mockResolvedValue({
-      emailMessages: {
+      schemaName: "Test",
+      emailNotifications: {
         noShow: "Booking marked as no show",
-      },
+      } as any,
     });
     global.fetch = originalFetch;
   });

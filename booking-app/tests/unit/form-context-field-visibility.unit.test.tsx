@@ -3,6 +3,7 @@ import { BookingContext } from "@/components/src/client/routes/booking/bookingPr
 import { DatabaseContext } from "@/components/src/client/routes/components/Provider";
 import { SchemaProvider } from "@/components/src/client/routes/components/SchemaProvider";
 import { BookingOrigin, FormContextLevel } from "@/components/src/types";
+import { coerceTenantSchema } from "@/lib/tenant/coerceTenantSchema";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import { render, screen } from "@testing-library/react";
 import { useParams, useRouter } from "next/navigation";
@@ -92,7 +93,7 @@ describe("FormInput - Field Visibility by Form Context", () => {
     ...overrides,
   });
 
-  const mockTenantSchema = {
+  const rawMockTenantSchema: Record<string, unknown> = {
     tenant: "media-commons",
     name: "Media Commons",
     logo: "",
@@ -135,6 +136,11 @@ describe("FormInput - Field Visibility by Form Context", () => {
       approvalNotice: "",
     },
   };
+
+  const mockTenantSchema = coerceTenantSchema(
+    rawMockTenantSchema,
+    "media-commons",
+  );
 
   const renderFormInput = (
     formContext: FormContextLevel,
@@ -489,10 +495,10 @@ describe("FormInput - Field Visibility by Form Context", () => {
 
   describe("Field Visibility Based on Tenant Schema", () => {
     it("hides N-Number when showNNumber is false", () => {
-      const schemaWithoutNNumber = {
-        ...mockTenantSchema,
-        showNNumber: false,
-      };
+      const schemaWithoutNNumber = coerceTenantSchema(
+        { ...rawMockTenantSchema, showNNumber: false },
+        "media-commons",
+      );
 
       render(
         <ThemeProvider theme={theme}>
@@ -513,10 +519,10 @@ describe("FormInput - Field Visibility by Form Context", () => {
     });
 
     it("hides Net ID when showSponsor is false", () => {
-      const schemaWithoutSponsor = {
-        ...mockTenantSchema,
-        showSponsor: false,
-      };
+      const schemaWithoutSponsor = coerceTenantSchema(
+        { ...rawMockTenantSchema, showSponsor: false },
+        "media-commons",
+      );
 
       render(
         <ThemeProvider theme={theme}>
@@ -537,10 +543,10 @@ describe("FormInput - Field Visibility by Form Context", () => {
     });
 
     it("hides Setup service when showSetup is false", () => {
-      const schemaWithoutSetup = {
-        ...mockTenantSchema,
-        showSetup: false,
-      };
+      const schemaWithoutSetup = coerceTenantSchema(
+        { ...rawMockTenantSchema, showSetup: false },
+        "media-commons",
+      );
 
       render(
         <ThemeProvider theme={theme}>
@@ -561,10 +567,10 @@ describe("FormInput - Field Visibility by Form Context", () => {
     });
 
     it("hides Booking Type when showBookingTypes is false", () => {
-      const schemaWithoutBookingTypes = {
-        ...mockTenantSchema,
-        showBookingTypes: false,
-      };
+      const schemaWithoutBookingTypes = coerceTenantSchema(
+        { ...rawMockTenantSchema, showBookingTypes: false },
+        "media-commons",
+      );
 
       render(
         <ThemeProvider theme={theme}>

@@ -139,12 +139,12 @@ beforeEach(() => {
   mockServerUpdateDataByCalendarEventId.mockResolvedValue(undefined);
   mockGetTenantEmailConfig.mockResolvedValue({
     schemaName: "mc",
-    emailMessages: {
+    emailNotifications: {
       declined: "Your booking has been declined.",
-      approvalNotice: "Approval notice.",
-      checkoutConfirmation: "Checkout confirmation.",
+      approvedUser: "Approval notice.",
+      checkedOut: "Checkout confirmation.",
       canceled: "Canceled.",
-    },
+    } as any,
   });
   mockFetch.mockResolvedValue({
     ok: true,

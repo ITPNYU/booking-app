@@ -196,7 +196,7 @@ export const DatabaseProvider = ({
 
   // Get tenant from SchemaContext
   const schemaContext = useContext(SchemaContext);
-  const tenant = schemaContext?.tenant;
+  const tenant = schemaContext?.tenantId;
 
   const [preBanLogs, setPreBanLogs] = useState<PreBanLog[]>([]);
   const [superAdminUsers, setSuperAdminUsers] = useState<AdminUser[]>([]);

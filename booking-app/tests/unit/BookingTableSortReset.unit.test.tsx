@@ -1,7 +1,7 @@
 import { Bookings } from "@/components/src/client/routes/components/bookingTable/Bookings";
 import BookingTableFilters from "@/components/src/client/routes/components/bookingTable/BookingTableFilters";
 import { DatabaseContext } from "@/components/src/client/routes/components/Provider";
-import { SchemaContext } from "@/components/src/client/routes/components/SchemaProvider";
+import { SchemaContext, generateDefaultSchema } from "@/components/src/client/routes/components/SchemaProvider";
 import {
   BookingRow,
   BookingStatusLabel,
@@ -144,10 +144,7 @@ const createMockDatabaseContext = (pageContext: PageContextLevel) => ({
   setLoadMoreEnabled: vi.fn(),
 });
 
-const mockSchemaContext = {
-  resourceName: "Room",
-  schema: {} as any,
-};
+const mockSchemaContext = generateDefaultSchema("mc");
 
 // Integrated component that includes both BookingTableFilters and Bookings
 const BookingManagementPage: React.FC<{ pageContext: PageContextLevel }> = ({

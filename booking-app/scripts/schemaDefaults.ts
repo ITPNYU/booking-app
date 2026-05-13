@@ -8,6 +8,7 @@
 
 import type { SchemaContextType } from "../components/src/client/routes/components/SchemaProvider";
 import { generateDefaultSchema as generateDefaultTenantSchema } from "../components/src/client/routes/components/SchemaProvider";
+import { coerceTenantSchema } from "../lib/tenant/coerceTenantSchema";
 
 /**
  * Recursively add defaults into an existing object (ADD-ONLY).
@@ -96,10 +97,18 @@ export function mergeSchemaDefaults(
   // - Preserves all existing values and keys (even if not in template)
   const merged = deepAddDefaults(existingSchema, defaultSchema);
 
-  // Ensure tenant is set (use existing if available, otherwise use provided)
-  merged.tenant = existingSchema.tenant || tenant;
-
-  return merged;
+  return coerceTenantSchema(
+    {
+      ...merged,
+      tenantId:
+        (merged as { tenantId?: string }).tenantId ||
+        (typeof (merged as { tenant?: unknown }).tenant === "string"
+          ? (merged as { tenant?: string }).tenant
+          : undefined) ||
+        tenant,
+    },
+    tenant,
+  );
 }
 
 /**

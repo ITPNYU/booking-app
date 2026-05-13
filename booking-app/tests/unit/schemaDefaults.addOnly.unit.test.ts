@@ -40,12 +40,12 @@ describe("scripts/schemaDefaults mergeSchemaDefaults (add-only)", () => {
     const merged = mergeSchemaDefaults(existingSchema, "mc") as any;
 
     // Never delete existing mapping keys or values
-    expect(merged.programMapping["Prod Only Program"]).toEqual([
+    expect(merged.mappings.program["Prod Only Program"]).toEqual([
       "PROD_CHILD_A",
       "PROD_CHILD_B",
     ]);
-    expect(merged.roleMapping.Student).toContain("PROD_EXTRA_ROLE_CHILD");
-    expect(merged.schoolMapping["Prod Only School"]).toEqual(["PROD_SCHOOL_CHILD"]);
+    expect(merged.mappings.role.Student).toContain("PROD_EXTRA_ROLE_CHILD");
+    expect(merged.mappings.school["Prod Only School"]).toEqual(["PROD_SCHOOL_CHILD"]);
 
     // Never overwrite existing configured values with template defaults
     // (it may still add missing role keys alongside the existing ones)
@@ -57,8 +57,7 @@ describe("scripts/schemaDefaults mergeSchemaDefaults (add-only)", () => {
     expect(merged.resources[0].extraResourceKey).toBe("keep-me");
 
     // Still adds missing template defaults (spot-check a known required field)
-    expect(merged.permissionLabels).toBeTruthy();
-    expect(typeof merged.permissionLabels.admin).toBe("string");
+    expect(merged.tenant.contextLabels).toBeTruthy();
+    expect(typeof merged.tenant.contextLabels.admin).toBe("string");
   });
 });
-
