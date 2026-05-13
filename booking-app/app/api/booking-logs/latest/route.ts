@@ -1,11 +1,8 @@
 import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
-import { TableNames } from "@/components/src/policy";
-import { BookingStatusLabel } from "@/components/src/types";
-import {
-  getLatestBookingStatusLogs,
-  serverFetchAllDataFromCollection,
-} from "@/lib/firebase/server/adminDb";
+import { BookingStatusLabel, PagePermission } from "@/components/src/types";
+import { getLatestBookingStatusLogs } from "@/lib/firebase/server/adminDb";
 import { requireSession } from "@/lib/api/requireSession";
+import { resolveCallerRole } from "@/lib/api/authz";
 import { shouldBypassAuth } from "@/lib/utils/testEnvironment";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -29,47 +26,6 @@ function isBookingLogRequest(
   );
 }
 
-const emailEq = (emailLower: string) => ({
-  field: "email",
-  operator: "==" as const,
-  value: emailLower,
-});
-
-async function isStaffAuthorizedForTenantLogs(
-  emailLower: string,
-  tenant: string,
-): Promise<boolean> {
-  const superMatch = await serverFetchAllDataFromCollection<{
-    email?: string;
-  }>(TableNames.SUPER_ADMINS, [emailEq(emailLower)], undefined, 1);
-  if (
-    superMatch.some((u) => u.email?.trim().toLowerCase() === emailLower)
-  ) {
-    return true;
-  }
-
-  const rightsMatch = await serverFetchAllDataFromCollection<{
-    email?: string;
-    isAdmin?: boolean;
-    isWorker?: boolean;
-  }>(TableNames.USERS_RIGHTS, [emailEq(emailLower)], tenant, 1);
-  const rights = rightsMatch[0];
-  if (
-    rights &&
-    rights.email?.trim().toLowerCase() === emailLower &&
-    (rights.isAdmin === true || rights.isWorker === true)
-  ) {
-    return true;
-  }
-
-  const approverMatch = await serverFetchAllDataFromCollection<{
-    email?: string;
-  }>(TableNames.APPROVERS, [emailEq(emailLower)], tenant, 1);
-  return approverMatch.some(
-    (a) => a.email?.trim().toLowerCase() === emailLower,
-  );
-}
-
 export async function POST(req: NextRequest) {
   try {
     const { bookings } = await req.json();
@@ -80,11 +36,8 @@ export async function POST(req: NextRequest) {
       if (!session) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
-      const allowed = await isStaffAuthorizedForTenantLogs(
-        session.email,
-        tenant,
-      );
-      if (!allowed) {
+      const role = await resolveCallerRole(session, tenant);
+      if (role === PagePermission.BOOKING) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
     }
