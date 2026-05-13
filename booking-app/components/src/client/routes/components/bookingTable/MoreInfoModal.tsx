@@ -561,7 +561,7 @@ export default function MoreInfoModal({
                   <LabelCell>Secondary Contact Email</LabelCell>
                   <TableCell>{booking.secondaryEmail || BLANK}</TableCell>
                 </TableRow>
-                {schema.showSponsor && (
+                {schema.form.showSponsor && (
                   <TableRow>
                     <LabelCell>Sponsor Name</LabelCell>
                     <TableCell>
@@ -570,7 +570,7 @@ export default function MoreInfoModal({
                     </TableCell>
                   </TableRow>
                 )}
-                {schema.showSponsor && (
+                {schema.form.showSponsor && (
                   <TableRow>
                     <LabelCell>Sponsor Email</LabelCell>
                     <TableCell>{booking.sponsorEmail || BLANK}</TableCell>

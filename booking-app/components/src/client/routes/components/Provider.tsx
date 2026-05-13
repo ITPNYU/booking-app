@@ -315,7 +315,7 @@ export const DatabaseProvider = ({
         .map((resource) => ({
           ...resource,
           capacity: String(resource.capacity),
-          needsSafetyTraining: resource.needsSafetyTraining || false,
+          needsSafetyTraining: resource.training?.required || false,
           isWalkIn: resource.isWalkIn || false,
           isWalkInCanBookTwo: resource.isWalkInCanBookTwo || false,
           isEquipment: resource.isEquipment || false,
