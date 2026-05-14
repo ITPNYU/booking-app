@@ -13,9 +13,13 @@ export function resolveCollectionName(
 /**
  * Convert a wire-format value back into the Firestore-native form.
  *
- * Recognises three serialized Timestamp shapes:
+ * Recognises four serialized Timestamp shapes:
  *  - `{ __ts: <epochMs> }` — the explicit wrapper produced by `wrapTimestamp`
  *  - `{ seconds, nanoseconds }` — what the client SDK's Timestamp.toJSON() emits
+ *  - `{ type: "firestore/timestamp/1.0", seconds, nanoseconds }` —
+ *    what `JSON.stringify` produces from a client SDK Timestamp instance via its
+ *    `toJSON()` (the `type` discriminator is what Firebase Studio / Functions
+ *    use to reconstruct it). Saved as a plain map if not revived here.
  *  - `{ _seconds, _nanoseconds }` — what admin SDK's Timestamp serializes as
  *
  * Also recurses into objects/arrays so nested fields in write payloads are
@@ -32,9 +36,10 @@ export function reviveValue(value: unknown): unknown {
     return admin.firestore.Timestamp.fromMillis(obj.__ts as number);
   }
   if (
-    keys.length === 2 &&
     typeof obj.seconds === "number" &&
-    typeof obj.nanoseconds === "number"
+    typeof obj.nanoseconds === "number" &&
+    (keys.length === 2 ||
+      (keys.length === 3 && obj.type === "firestore/timestamp/1.0"))
   ) {
     return new admin.firestore.Timestamp(
       obj.seconds as number,

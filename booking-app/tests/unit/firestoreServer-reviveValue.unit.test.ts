@@ -46,6 +46,17 @@ describe("reviveValue", () => {
     expect((result as FakeAdminTimestamp).nanoseconds).toBe(250);
   });
 
+  it("revives client-SDK `{type, seconds, nanoseconds}` shape (Timestamp.toJSON discriminator)", () => {
+    const result = reviveValue({
+      type: "firestore/timestamp/1.0",
+      seconds: 1788235200,
+      nanoseconds: 0,
+    });
+    expect(result).toBeInstanceOf(FakeAdminTimestamp);
+    expect((result as FakeAdminTimestamp).seconds).toBe(1788235200);
+    expect((result as FakeAdminTimestamp).nanoseconds).toBe(0);
+  });
+
   it("revives admin-SDK `{_seconds, _nanoseconds}` shape", () => {
     const result = reviveValue({ _seconds: 200, _nanoseconds: 750 });
     expect(result).toBeInstanceOf(FakeAdminTimestamp);
