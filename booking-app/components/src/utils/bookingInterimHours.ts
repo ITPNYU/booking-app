@@ -1,3 +1,4 @@
+import { serializedTimestampToMillis } from "@/lib/utils/timestampWire";
 import { BookingStatusLabel } from "../types";
 import { getStatusFromXState } from "./statusFromXState";
 
@@ -10,18 +11,7 @@ function timestampToMillis(ts: unknown): number | null {
   }
   if (ts instanceof Date) return ts.getTime();
   if (typeof ts === "number" && !Number.isNaN(ts)) return ts;
-  const sec = (ts as { seconds?: number; _seconds?: number }).seconds;
-  const secAlt = (ts as { seconds?: number; _seconds?: number })._seconds;
-  const nanos = (ts as { nanoseconds?: number; _nanoseconds?: number })
-    .nanoseconds;
-  const nanosAlt = (ts as { nanoseconds?: number; _nanoseconds?: number })
-    ._nanoseconds;
-  const s = sec ?? secAlt;
-  if (typeof s === "number") {
-    const n = nanos ?? nanosAlt ?? 0;
-    return s * 1000 + (typeof n === "number" ? Math.floor(n / 1e6) : 0);
-  }
-  return null;
+  return serializedTimestampToMillis(ts);
 }
 
 /** Statuses where time-in-queue (interim) still accumulates before final approval */
