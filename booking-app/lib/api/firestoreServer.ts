@@ -1,6 +1,7 @@
 import admin from "@/lib/firebase/server/firebaseAdmin";
 import { getTenantCollectionName } from "@/components/src/policy";
 import type { OrderBySpec, WhereSpec } from "@/lib/api/firestoreShared";
+import { reviveSerializedTimestamps } from "@/lib/utils/timestampWire";
 
 /** Resolve the tenant-prefixed collection name (mirrors getTenantCollectionName). */
 export function resolveCollectionName(
@@ -11,56 +12,16 @@ export function resolveCollectionName(
 }
 
 /**
- * Convert a wire-format value back into the Firestore-native form.
- *
- * Recognises four serialized Timestamp shapes:
- *  - `{ __ts: <epochMs> }` — the explicit wrapper produced by `wrapTimestamp`
- *  - `{ seconds, nanoseconds }` — what the client SDK's Timestamp.toJSON() emits
- *  - `{ type: "firestore/timestamp/1.0", seconds, nanoseconds }` —
- *    what `JSON.stringify` produces from a client SDK Timestamp instance via its
- *    `toJSON()` (the `type` discriminator is what Firebase Studio / Functions
- *    use to reconstruct it). Saved as a plain map if not revived here.
- *  - `{ _seconds, _nanoseconds }` — what admin SDK's Timestamp serializes as
- *
- * Also recurses into objects/arrays so nested fields in write payloads are
- * normalised.
+ * Convert a wire-format value back into the Firestore-native form by
+ * replacing any serialized Timestamp shape with a real admin SDK `Timestamp`.
+ * Recognised shapes are documented on `reviveSerializedTimestamps` in
+ * `@/lib/utils/timestampWire`.
  */
 export function reviveValue(value: unknown): unknown {
-  if (value === null || value === undefined) return value;
-  if (Array.isArray(value)) return value.map(reviveValue);
-  if (typeof value !== "object") return value;
-  const obj = value as Record<string, unknown>;
-  const keys = Object.keys(obj);
-
-  if (keys.length === 1 && "__ts" in obj) {
-    return admin.firestore.Timestamp.fromMillis(obj.__ts as number);
-  }
-  if (
-    typeof obj.seconds === "number" &&
-    typeof obj.nanoseconds === "number" &&
-    (keys.length === 2 ||
-      (keys.length === 3 && obj.type === "firestore/timestamp/1.0"))
-  ) {
-    return new admin.firestore.Timestamp(
-      obj.seconds as number,
-      obj.nanoseconds as number,
-    );
-  }
-  if (
-    keys.length === 2 &&
-    typeof obj._seconds === "number" &&
-    typeof obj._nanoseconds === "number"
-  ) {
-    return new admin.firestore.Timestamp(
-      obj._seconds as number,
-      obj._nanoseconds as number,
-    );
-  }
-  const out: Record<string, unknown> = {};
-  for (const [k, v] of Object.entries(obj)) {
-    out[k] = reviveValue(v);
-  }
-  return out;
+  return reviveSerializedTimestamps(
+    value,
+    (s, n) => new admin.firestore.Timestamp(s, n),
+  );
 }
 
 /** Apply the where/orderBy/limit clauses described by the wire request. */

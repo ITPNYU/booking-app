@@ -15,6 +15,7 @@ import {
 
 import { BookingLog, BookingStatusLabel } from "@/components/src/types";
 import { traceDatabase } from "@/lib/newrelic-utils";
+import { serializedTimestampToMillis } from "@/lib/utils/timestampWire";
 import admin from "./firebaseAdmin";
 
 const db = admin.firestore();
@@ -390,16 +391,7 @@ function timestampToMillis(value: any): number | null {
   if (typeof value.toMillis === "function") return value.toMillis();
   if (typeof value.toDate === "function") return value.toDate().getTime();
   if (typeof value === "number" && Number.isFinite(value)) return value;
-
-  const seconds = value.seconds ?? value._seconds;
-  const nanoseconds = value.nanoseconds ?? value._nanoseconds ?? 0;
-  if (typeof seconds === "number") {
-    return (
-      seconds * 1000 +
-      (typeof nanoseconds === "number" ? Math.floor(nanoseconds / 1e6) : 0)
-    );
-  }
-  return null;
+  return serializedTimestampToMillis(value);
 }
 
 export const getLatestBookingStatusLogs = async (

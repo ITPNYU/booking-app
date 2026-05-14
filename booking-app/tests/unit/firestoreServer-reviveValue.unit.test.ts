@@ -1,15 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/firebase/server/firebaseAdmin", () => {
-  const fromMillisMock = vi.fn(
-    (ms: number) => ({ kind: "fromMillis", ms }) as const,
-  );
   class FakeAdminTimestamp {
     constructor(
       public readonly seconds: number,
       public readonly nanoseconds: number,
     ) {}
-    static fromMillis = fromMillisMock;
   }
   return {
     default: {
@@ -26,17 +22,15 @@ const FakeAdminTimestamp = (adminModule.default as any).firestore
   s: number,
   n: number,
 ) => { seconds: number; nanoseconds: number };
-const fromMillisMock = (FakeAdminTimestamp as any).fromMillis as ReturnType<
-  typeof vi.fn
->;
 
 import { reviveValue } from "@/lib/api/firestoreServer";
 
 describe("reviveValue", () => {
-  it("revives `{__ts}` shape via Timestamp.fromMillis", () => {
-    const result = reviveValue({ __ts: 1700000000000 });
-    expect(fromMillisMock).toHaveBeenCalledWith(1700000000000);
-    expect(result).toEqual({ kind: "fromMillis", ms: 1700000000000 });
+  it("revives `{__ts}` shape into admin Timestamp", () => {
+    const result = reviveValue({ __ts: 1700000000500 });
+    expect(result).toBeInstanceOf(FakeAdminTimestamp);
+    expect((result as FakeAdminTimestamp).seconds).toBe(1700000000);
+    expect((result as FakeAdminTimestamp).nanoseconds).toBe(500_000_000);
   });
 
   it("revives client-SDK `{seconds, nanoseconds}` shape", () => {
@@ -67,21 +61,32 @@ describe("reviveValue", () => {
   it("recurses into nested objects", () => {
     const result = reviveValue({
       title: "x",
-      meta: { createdAt: { __ts: 5 }, value: 7 },
-    });
-    expect(result).toMatchObject({
-      title: "x",
-      meta: { createdAt: { kind: "fromMillis", ms: 5 }, value: 7 },
-    });
+      meta: { createdAt: { __ts: 5000 }, value: 7 },
+    }) as {
+      title: string;
+      meta: { createdAt: InstanceType<typeof FakeAdminTimestamp>; value: number };
+    };
+    expect(result.title).toBe("x");
+    expect(result.meta.createdAt).toBeInstanceOf(FakeAdminTimestamp);
+    expect(result.meta.createdAt.seconds).toBe(5);
+    expect(result.meta.value).toBe(7);
   });
 
   it("recurses into arrays", () => {
-    const result = reviveValue([{ __ts: 1 }, { __ts: 2 }, "noop"]);
-    expect(result).toEqual([
-      { kind: "fromMillis", ms: 1 },
-      { kind: "fromMillis", ms: 2 },
+    const result = reviveValue([
+      { __ts: 1000 },
+      { __ts: 2000 },
       "noop",
-    ]);
+    ]) as [
+      InstanceType<typeof FakeAdminTimestamp>,
+      InstanceType<typeof FakeAdminTimestamp>,
+      string,
+    ];
+    expect(result[0]).toBeInstanceOf(FakeAdminTimestamp);
+    expect(result[0].seconds).toBe(1);
+    expect(result[1]).toBeInstanceOf(FakeAdminTimestamp);
+    expect(result[1].seconds).toBe(2);
+    expect(result[2]).toBe("noop");
   });
 
   it("passes primitives through unchanged", () => {

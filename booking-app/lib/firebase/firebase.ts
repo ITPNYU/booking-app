@@ -5,6 +5,7 @@ import {
 } from "@/components/src/policy";
 import { Timestamp } from "firebase/firestore";
 
+import { reviveSerializedTimestamps } from "@/lib/utils/timestampWire";
 import { Filters } from "@/components/src/types";
 import { SchemaContextType } from "@/components/src/client/routes/components/SchemaProvider";
 import {
@@ -49,54 +50,15 @@ export type AdminUserData = {
 
 /**
  * Walk the parsed JSON tree and convert serialized Firestore Timestamps
- * back into `Timestamp` instances so callers can keep using `.toDate()` /
- * `.toMillis()` semantics.
- *
- * Recognises four serialized shapes:
- *  - `{ __ts: <epochMs> }` — the explicit wrapper produced by `wrapTimestamp`
- *  - `{ seconds, nanoseconds }` — client SDK `Timestamp.toJSON()` (newer)
- *  - `{ type: "firestore/timestamp/1.0", seconds, nanoseconds }` — client SDK
- *    `Timestamp.toJSON()` when the type discriminator is present. This shape
- *    can also appear as document data on Firestore if a client-serialized
- *    Timestamp was ever written without being coerced back to a real
- *    Timestamp on the server.
- *  - `{ _seconds, _nanoseconds }` — admin SDK `Timestamp` serialization
+ * back into client SDK `Timestamp` instances so callers can keep using
+ * `.toDate()` / `.toMillis()` semantics. The recognised serialized shapes
+ * are documented on `reviveSerializedTimestamps` in `@/lib/utils/timestampWire`.
  *
  * Exported so callers that hit other admin-SDK-backed JSON endpoints
  * (e.g. `/api/permissions`) can apply the same revival.
  */
 export function reviveTimestamps(value: unknown): unknown {
-  if (value === null || value === undefined) return value;
-  if (Array.isArray(value)) return value.map(reviveTimestamps);
-  if (typeof value === "object") {
-    const obj = value as Record<string, unknown>;
-    const keys = Object.keys(obj);
-
-    if (keys.length === 1 && typeof obj.__ts === "number") {
-      return Timestamp.fromMillis(obj.__ts);
-    }
-    if (
-      typeof obj.seconds === "number" &&
-      typeof obj.nanoseconds === "number" &&
-      (keys.length === 2 ||
-        (keys.length === 3 && obj.type === "firestore/timestamp/1.0"))
-    ) {
-      return new Timestamp(obj.seconds, obj.nanoseconds);
-    }
-    if (
-      keys.length === 2 &&
-      typeof obj._seconds === "number" &&
-      typeof obj._nanoseconds === "number"
-    ) {
-      return new Timestamp(obj._seconds, obj._nanoseconds);
-    }
-    const out: Record<string, unknown> = {};
-    for (const [k, v] of Object.entries(obj)) {
-      out[k] = reviveTimestamps(v);
-    }
-    return out;
-  }
-  return value;
+  return reviveSerializedTimestamps(value, (s, n) => new Timestamp(s, n));
 }
 
 /**
