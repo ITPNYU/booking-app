@@ -102,6 +102,16 @@ describe("extractSecondsNanos", () => {
     expect(extractSecondsNanos(null)).toBe(null);
     expect(extractSecondsNanos(42)).toBe(null);
   });
+
+  it("rejects objects whose `type` is present but not the Firestore discriminator", () => {
+    expect(
+      extractSecondsNanos({
+        type: "something/else/2.0",
+        seconds: 1,
+        nanoseconds: 0,
+      }),
+    ).toBe(null);
+  });
 });
 
 describe("serializedTimestampToMillis", () => {

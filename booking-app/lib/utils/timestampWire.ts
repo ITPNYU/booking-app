@@ -82,9 +82,12 @@ export function isSerializedTimestamp(
  * Read (seconds, nanoseconds) from any of the four serialized shapes. Returns
  * null if the value is not a recognised serialized timestamp.
  *
- * Intentionally permissive about extra keys when the caller has already
- * validated with `isSerializedTimestamp`, so the same helper works for both
- * strict-walk and ad-hoc lookups.
+ * Permissive about exact key count (so `isSerializedTimestamp` is not a
+ * prerequisite for ad-hoc callers) but strict about the `type` discriminator:
+ * if a `type` key is present and is not the Firestore discriminator, the
+ * value is rejected. This keeps the helper consistent with
+ * `isSerializedTimestamp` for the "wrong discriminator" case so that
+ * non-Firestore typed envelopes are not silently coerced.
  */
 export function extractSecondsNanos(
   value: unknown,
@@ -97,6 +100,10 @@ export function extractSecondsNanos(
       seconds: Math.floor(obj.__ts / 1000),
       nanoseconds: (obj.__ts % 1000) * 1e6,
     };
+  }
+
+  if ("type" in obj && obj.type !== FIRESTORE_TIMESTAMP_TYPE) {
+    return null;
   }
 
   const sec =
