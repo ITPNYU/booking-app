@@ -28,12 +28,13 @@ import { useState } from "react";
 
 import AlertToast from "../../components/AlertToast";
 import { TIMEZONE } from "../../../utils/date";
+import { serializedTimestampToMillis } from "@/lib/utils/timestampWire";
 
 const formatFirestoreTimestamp = (value: any): string => {
   if (!value) return "";
-  const seconds = value.seconds ?? value._seconds;
-  if (typeof seconds !== "number") return String(value);
-  const date = new Date(seconds * 1000);
+  const ms = serializedTimestampToMillis(value);
+  if (ms === null) return String(value);
+  const date = new Date(ms);
   return date.toLocaleString("en-US", {
     timeZone: TIMEZONE,
     year: "numeric",

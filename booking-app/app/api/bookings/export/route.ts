@@ -8,6 +8,7 @@ import {
   serverGetDocumentById,
 } from "@/lib/firebase/server/adminDb";
 import { applyEnvironmentCalendarIds } from "@/lib/utils/calendarEnvironment";
+import { toFirebaseTimestamp } from "@/components/src/client/utils/serverDate";
 import { formatInTimeZone } from "date-fns-tz";
 import { parse } from "json2csv";
 
@@ -60,6 +61,7 @@ export async function GET(request: NextRequest) {
   const calculateTimeInUse = (startDate: any, endDate: any): number => {
     const start = toDate(startDate);
     const end = toDate(endDate);
+    if (!start || !end) return 0;
     return (
       Math.round(((end.getTime() - start.getTime()) / (1000 * 60 * 60)) * 100) /
       100
@@ -72,20 +74,28 @@ export async function GET(request: NextRequest) {
     return roomIdStr.includes(",") ? roomIdStr.split(",").length : 1;
   };
 
-  // Helper function to convert Timestamp to Date
-  const toDate = (timestamp: any): Date => {
-    if (timestamp && typeof timestamp.toDate === "function") {
-      return timestamp.toDate();
+  // Parse any timestamp shape (admin Timestamp, {seconds, nanoseconds},
+  // {_seconds, _nanoseconds}, Date, string, number) via the shared helper.
+  // Returns null if missing or unparseable so the caller can render "".
+  const toDate = (timestamp: any): Date | null => {
+    if (timestamp == null) return null;
+    try {
+      const date = toFirebaseTimestamp(timestamp).toDate();
+      return isNaN(date.getTime()) ? null : date;
+    } catch {
+      return null;
     }
-    return new Date(timestamp);
+  };
+
+  const safeFormat = (timestamp: any, fmt: string): string => {
+    const date = toDate(timestamp);
+    return date ? formatInTimeZone(date, TIMEZONE, fmt) : "";
   };
 
   // Transform bookings to CSV format
   const csvData = bookings
     .sort((a, b) => a.requestNumber - b.requestNumber)
     .map(booking => {
-      const startDate = toDate(booking.startDate);
-      const endDate = toDate(booking.endDate);
       const timeInUse = calculateTimeInUse(booking.startDate, booking.endDate);
       const roomCount = countRooms(booking.roomId);
 
@@ -101,10 +111,10 @@ export async function GET(request: NextRequest) {
             : booking.department,
         "Role (Affiliation)": booking.role,
         "Room(s)": booking.roomId,
-        "Booking Start Date": formatInTimeZone(startDate, TIMEZONE, "M/d/yyyy"),
-        "Booking End Date": formatInTimeZone(endDate, TIMEZONE, "M/d/yyyy"),
-        "Booking Start Time": formatInTimeZone(startDate, TIMEZONE, "h:mm a"),
-        "Booking End Time": formatInTimeZone(endDate, TIMEZONE, "h:mm a"),
+        "Booking Start Date": safeFormat(booking.startDate, "M/d/yyyy"),
+        "Booking End Date": safeFormat(booking.endDate, "M/d/yyyy"),
+        "Booking Start Time": safeFormat(booking.startDate, "h:mm a"),
+        "Booking End Time": safeFormat(booking.endDate, "h:mm a"),
         "Time In Use, Hours": timeInUse,
         "# rooms used": roomCount,
         "ACTUAL hours": timeInUse * roomCount,
@@ -115,6 +125,15 @@ export async function GET(request: NextRequest) {
         "Booking Type": booking.bookingType,
         "Attendee Affiliation(s)": booking.attendeeAffiliation,
         "End Event Status": getBookingStatus(booking),
+        "Requested At": safeFormat(booking.requestedAt, "M/d/yyyy h:mm a"),
+        "First Approved At": safeFormat(booking.firstApprovedAt, "M/d/yyyy h:mm a"),
+        "Final Approved At": safeFormat(booking.finalApprovedAt, "M/d/yyyy h:mm a"),
+        "Declined At": safeFormat(booking.declinedAt, "M/d/yyyy h:mm a"),
+        "Checked In At": safeFormat(booking.checkedInAt, "M/d/yyyy h:mm a"),
+        "Checked Out At": safeFormat(booking.checkedOutAt, "M/d/yyyy h:mm a"),
+        "No Show At": safeFormat(booking.noShowedAt, "M/d/yyyy h:mm a"),
+        "Canceled At": safeFormat(booking.canceledAt, "M/d/yyyy h:mm a"),
+        "Closed At": safeFormat(booking.closedAt, "M/d/yyyy h:mm a"),
         "Room Setup Needed (Y/N)": booking.roomSetup === "yes" ? "Yes" : "No",
         "Room Setup Details": booking.setupDetails || "",
         "Equipment Services (Y/N)":

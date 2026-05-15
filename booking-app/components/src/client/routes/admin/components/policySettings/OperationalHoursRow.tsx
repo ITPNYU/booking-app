@@ -53,10 +53,15 @@ export default function OperationalHoursRow({ day, setting, roomId }: Props) {
     updateOperationHours(day, openDate.hour(), e.$H, closed, roomId);
   };
 
-  // when we leave the page, the app reloads the newly set operation hours
-  useEffect(() => () => {
-    reloadOperationHours();
-  });
+  // when we leave the page, the app reloads the newly set operation hours.
+  // Empty deps so the cleanup only fires on unmount; without it React runs the
+  // cleanup on every render, which loops re-fetches and exhausts browser sockets.
+  useEffect(
+    () => () => {
+      reloadOperationHours();
+    },
+    [],
+  );
 
   return (
     <Box sx={{ p: 1 }}>

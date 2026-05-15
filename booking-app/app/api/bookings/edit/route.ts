@@ -338,6 +338,22 @@ export async function PUT(request: NextRequest) {
       origin: existingContents.origin || BookingOrigin.USER,
     };
 
+    // If a request was previously declined, reset any per-service approval
+    // decisions on resubmission. Otherwise, the restored XState context can
+    // treat services as already decided (e.g. declined) and immediately
+    // re-decline the edited request.
+    //
+    // This is intentionally tenant-agnostic: clearing fields that don't exist
+    // is harmless, and it future-proofs tenants that add per-service approvals.
+    if (wasDeclined) {
+      updatedData.staffServiceApproved = null;
+      updatedData.equipmentServiceApproved = null;
+      updatedData.cateringServiceApproved = null;
+      updatedData.cleaningServiceApproved = null;
+      updatedData.securityServiceApproved = null;
+      updatedData.setupServiceApproved = null;
+    }
+
     // If booking was declined, clear the declinedAt timestamp to ensure status shows as REQUESTED
     if (existingContents.declinedAt) {
       updatedData.declinedAt = null;

@@ -1,5 +1,6 @@
 import { format, toZonedTime } from "date-fns-tz";
 import { Timestamp } from "firebase-admin/firestore";
+import { extractSecondsNanos } from "@/lib/utils/timestampWire";
 import { TIMEZONE } from "./date";
 
 type DateInput = Date | Timestamp | { [key: string]: any } | number | string;
@@ -8,9 +9,9 @@ const parseTimestamp = (value: DateInput): Timestamp => {
   if (value instanceof Timestamp) return value;
   if (value instanceof Date) return Timestamp.fromDate(value);
   if (typeof value === "object" && value !== null) {
-    const seconds = Number(value.seconds || value._seconds || 0);
-    const nanoseconds = Number(value.nanoseconds || value._nanoseconds || 0);
-    return new Timestamp(seconds, nanoseconds);
+    const sn = extractSecondsNanos(value);
+    if (sn !== null) return new Timestamp(sn.seconds, sn.nanoseconds);
+    return new Timestamp(0, 0);
   }
   return Timestamp.fromDate(new Date(value.toString()));
 };
