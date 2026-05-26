@@ -71,12 +71,17 @@ export function BookingFormDropdown(props: DropdownInputs) {
           sx={{ marginBottom: 4 }}
           fullWidth
         >
-          <Label htmlFor={id}>{`${label}${required ? "*" : ""}`}</Label>
+          <Label id={`${id}-label`} htmlFor={id}>{`${label}${
+            required ? "*" : ""
+          }`}</Label>
           {description && (
             <div style={{ fontSize: "0.75rem" }}>{description}</div>
           )}
           <Select
             {...field}
+            id={id}
+            aria-labelledby={`${id}-label`}
+            inputProps={{ "aria-required": required }}
             onBlur={() => trigger(id)}
             onChange={(e) => {
               field.onChange(e);
@@ -162,17 +167,17 @@ export function BookingFormTextField(props: TextFieldProps) {
           if (value && typeof value === "string" && value.trim().length === 0) {
             return `${label} cannot be empty whitespace`;
           }
-          
+
           // If field is not required and truly empty (null/undefined/empty string), allow it
           if (!required && (!value || value.length === 0)) return true;
-          
+
           // For required fields, check if value is valid
           if (required) {
             const isNotEmpty = value?.trim().length > 0;
             const isValid = validate(value);
             return (isNotEmpty && isValid) || `${label} is required`;
           }
-          
+
           // For optional fields with a value, run custom validation
           return validate(value);
         },
@@ -184,6 +189,7 @@ export function BookingFormTextField(props: TextFieldProps) {
           {description && <p style={{ fontSize: "0.75rem" }}>{description}</p>}
           <TextField
             {...field}
+            id={id}
             variant="outlined"
             value={field.value ?? ""}
             error={errors[id] != null}
@@ -192,6 +198,10 @@ export function BookingFormTextField(props: TextFieldProps) {
             sx={fieldSx ?? { marginBottom: 4 }}
             fullWidth
             {...fieldProps}
+            inputProps={{
+              "aria-required": required,
+              ...fieldProps?.inputProps,
+            }}
           />
         </Box>
       )}
@@ -236,6 +246,8 @@ export function BookingFormSwitch(props: SwitchProps) {
             label={field.value === "yes" ? "Yes" : "No"}
             control={
               <Switch
+                id={id}
+                inputProps={{ "aria-required": required }}
                 checked={field.value === "yes"}
                 onChange={(e) =>
                   field.onChange(e.target.checked ? "yes" : "no")

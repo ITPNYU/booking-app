@@ -273,18 +273,18 @@ export default function FormInput({
 
   useEffect(() => {
     // Do not auto-manage hireSecurity if the user has manually overridden it
-    // BUT: if attendance crosses back above threshold (in auto-enabling direction), 
+    // BUT: if attendance crosses back above threshold (in auto-enabling direction),
     // reset the manual flag and auto-enable again
     if (hireSecurityManuallySet.current && !isLargeEvent) {
       // User manually changed it, and we're below threshold - respect their choice
       return;
     }
-    
+
     // Reset manual flag when crossing threshold in auto-enabling direction
     if (isLargeEvent && hireSecurityManuallySet.current) {
       hireSecurityManuallySet.current = false;
     }
-    
+
     if (isLargeEvent) {
       if (hireSecurityValue !== "yes") {
         setValue("hireSecurity", "yes", { shouldValidate: true });
@@ -331,7 +331,10 @@ export default function FormInput({
   const [isFetchingSponsor, setIsFetchingSponsor] = useState(false);
 
   useEffect(() => {
-    if (cateringValue !== "yes" || cateringServiceValue === "Outside Catering") {
+    if (
+      cateringValue !== "yes" ||
+      cateringServiceValue === "Outside Catering"
+    ) {
       unregister("chartFieldForCatering");
       clearErrors("chartFieldForCatering");
     }
@@ -391,7 +394,11 @@ export default function FormInput({
       }
 
       // Use the already fetched data for validation
-      if (sponsorApiData && normalizedValue && isValidNetIdEmailFormat(normalizedValue)) {
+      if (
+        sponsorApiData &&
+        normalizedValue &&
+        isValidNetIdEmailFormat(normalizedValue)
+      ) {
         const sponsorRole = mapAffiliationToRole(
           roleMapping,
           sponsorApiData.affiliation_sub_type,
@@ -567,9 +574,10 @@ export default function FormInput({
                     <a
                       href="https://sites.google.com/nyu.edu/370jmediacommons/rental-inventory"
                       target="_blank"
+                      rel="noopener noreferrer"
                       className="text-blue-600 hover:underline dark:text-blue-500 mx-1"
                     >
-                      Media Commons Inventory
+                      Media Commons Inventory (opens in new tab)
                     </a>
                     <br />
                   </p>
@@ -678,7 +686,13 @@ export default function FormInput({
             description={
               <p>
                 {isLargeEvent && (
-                  <span style={{ display: "block", marginBottom: "4px", fontWeight: 500 }}>
+                  <span
+                    style={{
+                      display: "block",
+                      marginBottom: "4px",
+                      fontWeight: 500,
+                    }}
+                  >
                     Security is required for events with more than 75 attendees.
                   </span>
                 )}
@@ -753,7 +767,8 @@ export default function FormInput({
               required={false}
               pattern={{
                 value: NET_ID_EMAIL_REGEX,
-                message: "Invalid NYU Net ID email format (e.g., abc123@nyu.edu)",
+                message:
+                  "Invalid NYU Net ID email format (e.g., abc123@nyu.edu)",
               }}
               description="Enter the NYU email address (e.g., abc123@nyu.edu)"
               {...{ control, errors, trigger }}
@@ -880,8 +895,9 @@ export default function FormInput({
                   href="https://www.nyu.edu/about/visitor-information/sponsoring-visitors.html"
                   className="text-blue-600 hover:underline dark:text-blue-500 mx-1"
                   target="_blank"
+                  rel="noopener noreferrer"
                 >
-                  click here
+                  click here (opens in new tab)
                 </a>
                 .
               </p>

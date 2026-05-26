@@ -39,7 +39,7 @@ export default function BookingSelection() {
       <AlertHeader color="info" icon={<Event />} sx={{ marginBottom: 3 }}>
         <AlertTitle>Your Request</AlertTitle>
         <RoomDetails container>
-          <label>Rooms:</label>
+          <span>Rooms:</span>
           <p>
             {selectedRooms
               .map((room) => `${room.roomId} ${room.name}`)
@@ -47,11 +47,11 @@ export default function BookingSelection() {
           </p>
         </RoomDetails>
         <RoomDetails container>
-          <label>Date:</label>
+          <span>Date:</span>
           <p>{new Date(bookingCalendarInfo.startStr).toLocaleDateString()}</p>
         </RoomDetails>
         <RoomDetails container>
-          <label>Time:</label>
+          <span>Time:</span>
           <p>{`${formatTimeAmPm(
             new Date(bookingCalendarInfo.startStr),
           )} - ${formatTimeAmPm(new Date(bookingCalendarInfo.endStr))}`}</p>

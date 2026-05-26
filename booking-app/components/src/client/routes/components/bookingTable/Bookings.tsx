@@ -535,7 +535,10 @@ export const Bookings: React.FC<BookingsProps> = ({
         renderHeader: () => <TableCell component={"div" as any}>Details</TableCell>,
         renderCell: (params) => (
           <TableCell component={"div" as any}>
-            <IconButton onClick={() => setModalData(params.row)}>
+            <IconButton
+              onClick={() => setModalData(params.row)}
+              aria-label="Show booking details"
+            >
               <MoreHoriz />
             </IconButton>
           </TableCell>
