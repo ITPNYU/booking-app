@@ -191,4 +191,65 @@ describe("fetchNYUIdentity cache layer", () => {
     expect(mockFetch).not.toHaveBeenCalled();
     expect(mockCacheDocSet).not.toHaveBeenCalled();
   });
+
+  it("coalesces concurrent cache misses into a single upstream call", async () => {
+    const freshData = { netId: "abc", dept_code: "ITP" };
+    // Both concurrent calls see a cache miss.
+    mockCacheDocGet
+      .mockResolvedValueOnce({ exists: false, data: () => undefined })
+      .mockResolvedValueOnce({ exists: false, data: () => undefined });
+    // Upstream returns the same payload; we expect it to be called only once.
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => freshData,
+    } as Response);
+
+    const [a, b] = await Promise.all([
+      fetchNYUIdentity("abc"),
+      fetchNYUIdentity("abc"),
+    ]);
+
+    expect(a).toEqual(freshData);
+    expect(b).toEqual(freshData);
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("writes an expiresAt field so Firestore TTL can purge stale docs", async () => {
+    const freshData = { netId: "abc", dept_code: "ITP" };
+    mockCacheDocGet.mockResolvedValueOnce({ exists: false, data: () => undefined });
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => freshData,
+    } as Response);
+
+    const before = Date.now();
+    await fetchNYUIdentity("abc");
+    // Allow the fire-and-forget write to flush.
+    await new Promise((r) => setImmediate(r));
+    const after = Date.now();
+
+    expect(mockCacheDocSet).toHaveBeenCalledTimes(1);
+    const written = mockCacheDocSet.mock.calls[0][0];
+    expect(written.data).toEqual(freshData);
+    expect(written.cachedAt).toBeDefined();
+    expect(written.expiresAt).toBeDefined();
+    const expiresMs = written.expiresAt.toMillis();
+    const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
+    expect(expiresMs).toBeGreaterThanOrEqual(before + SEVEN_DAYS);
+    expect(expiresMs).toBeLessThanOrEqual(after + SEVEN_DAYS);
+  });
+
+  it("URL-encodes the uniqueId path segment", async () => {
+    mockCacheDocGet.mockResolvedValueOnce({ exists: false, data: () => undefined });
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({}),
+    } as Response);
+
+    await fetchNYUIdentity("ab/c?d");
+
+    const calledUrl = mockFetch.mock.calls[0][0] as string;
+    expect(calledUrl).toContain("/identity/unique-id/ab%2Fc%3Fd");
+    expect(calledUrl).not.toContain("/identity/unique-id/ab/c?d");
+  });
 });

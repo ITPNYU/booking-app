@@ -23,6 +23,13 @@ const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 type CachedRecord = {
   data: Record<string, unknown>;
   cachedAt: admin.firestore.Timestamp;
+  /**
+   * Pre-computed expiry timestamp. Enables a Firestore TTL policy on this
+   * field (Firestore console: TTL policy on `nyu_identity_cache.expiresAt`)
+   * so expired docs are purged automatically. The read-time check still
+   * uses `cachedAt + CACHE_TTL_MS` as the source of truth.
+   */
+  expiresAt: admin.firestore.Timestamp;
 };
 
 async function readCache(uniqueId: string): Promise<Record<string, unknown> | null> {
@@ -49,13 +56,15 @@ async function writeCache(
   data: Record<string, unknown>,
 ): Promise<void> {
   try {
+    const now = Date.now();
     await admin
       .firestore()
       .collection(CACHE_COLLECTION)
       .doc(uniqueId)
       .set({
         data,
-        cachedAt: admin.firestore.Timestamp.now(),
+        cachedAt: admin.firestore.Timestamp.fromMillis(now),
+        expiresAt: admin.firestore.Timestamp.fromMillis(now + CACHE_TTL_MS),
       });
   } catch (error) {
     console.warn("nyuIdentity cache write failed", { uniqueId, error });
@@ -73,7 +82,9 @@ async function fetchFromNYUAPI(
     return null;
   }
 
-  const url = new URL(`${NYU_API_BASE}/identity/unique-id/${uniqueId}`);
+  const url = new URL(
+    `${NYU_API_BASE}/identity/unique-id/${encodeURIComponent(uniqueId)}`,
+  );
   url.searchParams.append("api_access_id", NYU_API_ACCESS_ID);
 
   const response = await fetch(url.toString(), {
@@ -97,6 +108,14 @@ async function fetchFromNYUAPI(
 }
 
 /**
+ * In-flight upstream fetches keyed by uniqueId. Coalesces concurrent cache
+ * misses for the same user (e.g. /api/nyu/identity + /api/nyu/entitlements
+ * firing in parallel on first page load) so they share a single upstream
+ * call instead of each spending ~2.7s and ~MB of App Engine memory.
+ */
+const inFlight = new Map<string, Promise<Record<string, unknown> | null>>();
+
+/**
  * Fetch identity data for a given uniqueId from the NYU Identity API.
  *
  * Wraps the live upstream call with a Firestore-backed 7-day cache. The
@@ -110,11 +129,21 @@ export async function fetchNYUIdentity(
   const cached = await readCache(uniqueId);
   if (cached) return cached;
 
-  const fresh = await fetchFromNYUAPI(uniqueId);
-  if (fresh) {
-    // Fire-and-forget cache write so a slow Firestore write does not
-    // re-introduce upstream latency for the caller.
-    void writeCache(uniqueId, fresh);
-  }
-  return fresh;
+  const existing = inFlight.get(uniqueId);
+  if (existing) return existing;
+
+  const pending = (async () => {
+    const fresh = await fetchFromNYUAPI(uniqueId);
+    if (fresh) {
+      // Fire-and-forget cache write so a slow Firestore write does not
+      // re-introduce upstream latency for the caller.
+      void writeCache(uniqueId, fresh);
+    }
+    return fresh;
+  })().finally(() => {
+    inFlight.delete(uniqueId);
+  });
+
+  inFlight.set(uniqueId, pending);
+  return pending;
 }
