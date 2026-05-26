@@ -12,19 +12,29 @@ import { NextRequest } from "next/server";
 export async function POST(req: NextRequest) {
   try {
     const { calendarEventId, email, netId, tenant } = await req.json();
+    // Prefer explicit tenant from body, but allow callers that only set the header.
+    // Without a tenant, the booking lookup can hit the wrong collection and
+    // silently skip calendar deletion, leaving the room blocked in availability.
+    const effectiveTenant =
+      tenant || req.headers.get("x-tenant") || DEFAULT_TENANT;
 
     console.log(
-      `🔄 CANCEL PROCESSING API CALLED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+      `🔄 CANCEL PROCESSING API CALLED [${effectiveTenant?.toUpperCase() || "UNKNOWN"}]:`,
       {
         calendarEventId,
         email,
         netId,
-        tenant,
+        tenant: effectiveTenant,
+        tenantSource: tenant
+          ? "body"
+          : req.headers.get("x-tenant")
+            ? "header"
+            : "default",
       },
     );
 
     // Call the shared cancel processing function
-    await processCancelBooking(calendarEventId, email, netId, tenant);
+    await processCancelBooking(calendarEventId, email, netId, effectiveTenant);
 
     // Delete calendar events from Google Calendar for CANCELED bookings
     // This ensures true availability is reflected in the Google Calendar UI
@@ -33,7 +43,7 @@ export async function POST(req: NextRequest) {
       const booking = (await serverGetDataByCalendarEventId(
         TableNames.BOOKING,
         calendarEventId,
-        tenant,
+        effectiveTenant,
       )) as any;
       if (!booking) {
         console.error(
@@ -44,7 +54,7 @@ export async function POST(req: NextRequest) {
         // Get tenant schema to find room calendar IDs
         const schema = await serverGetDocumentById(
           TableNames.TENANT_SCHEMA,
-          tenant || DEFAULT_TENANT,
+          effectiveTenant || DEFAULT_TENANT,
         );
 
         if (schema && schema.resources && booking.roomId) {
@@ -59,7 +69,7 @@ export async function POST(req: NextRequest) {
           );
 
           console.log(
-            `🗑️ DELETING CANCELED CALENDAR EVENTS [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+            `🗑️ DELETING CANCELED CALENDAR EVENTS [${effectiveTenant?.toUpperCase() || "UNKNOWN"}]:`,
             {
               calendarEventId,
               roomIds,
@@ -87,7 +97,7 @@ export async function POST(req: NextRequest) {
           );
 
           console.log(
-            `✅ CANCELED CALENDAR EVENTS DELETED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+            `✅ CANCELED CALENDAR EVENTS DELETED [${effectiveTenant?.toUpperCase() || "UNKNOWN"}]:`,
             {
               calendarEventId,
               deletedFromCalendars: rooms.length,
@@ -95,7 +105,7 @@ export async function POST(req: NextRequest) {
           );
         } else {
           console.warn(
-            `⚠️ NO ROOM SCHEMA FOUND FOR CALENDAR DELETION [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+            `⚠️ NO ROOM SCHEMA FOUND FOR CALENDAR DELETION [${effectiveTenant?.toUpperCase() || "UNKNOWN"}]:`,
             {
               calendarEventId,
               hasSchema: !!schema,
@@ -107,7 +117,7 @@ export async function POST(req: NextRequest) {
       }
     } catch (error) {
       console.error(
-        `🚨 CANCEL CALENDAR DELETION FAILED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+        `🚨 CANCEL CALENDAR DELETION FAILED [${effectiveTenant?.toUpperCase() || "UNKNOWN"}]:`,
         {
           calendarEventId,
           error: error.message,
@@ -117,7 +127,7 @@ export async function POST(req: NextRequest) {
     }
 
     console.log(
-      `✅ CANCEL PROCESSING API SUCCESS [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+      `✅ CANCEL PROCESSING API SUCCESS [${effectiveTenant?.toUpperCase() || "UNKNOWN"}]:`,
       {
         calendarEventId,
         email,
