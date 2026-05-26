@@ -593,6 +593,7 @@ export default function FormInput({
             id="staffingServices"
             {...{
               control,
+              errors,
               trigger,
               showStaffingServices,
               setShowStaffingServices,
