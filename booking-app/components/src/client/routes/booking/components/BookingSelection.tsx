@@ -10,7 +10,7 @@ import { BookingContext } from "../bookingProvider";
 export const RoomDetails = styled(Grid)`
   display: flex;
   align-items: center;
-  label {
+  span {
     font-weight: 700;
     margin-right: 4px;
   }
