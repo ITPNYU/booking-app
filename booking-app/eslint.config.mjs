@@ -3,6 +3,7 @@ import js from "@eslint/js";
 import tseslint from "typescript-eslint";
 import prettierConfig from "eslint-config-prettier";
 import prettierPlugin from "eslint-plugin-prettier";
+import jsxA11y from "eslint-plugin-jsx-a11y";
 import globals from "globals";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -72,6 +73,17 @@ export default tseslint.config(
 
   // Prettier must be last to override formatting rules
   prettierConfig,
+
+  // jsx-a11y recommended rules for TSX/JSX
+  {
+    files: ["**/*.tsx", "**/*.jsx"],
+    plugins: { "jsx-a11y": jsxA11y },
+    rules: {
+      ...jsxA11y.configs.recommended.rules,
+      // Dialog primary buttons intentionally use autoFocus for focus management
+      "jsx-a11y/no-autofocus": "warn",
+    },
+  },
 
   // Project-wide settings and custom rules
   {
