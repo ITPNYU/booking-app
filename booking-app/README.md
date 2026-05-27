@@ -21,7 +21,7 @@ Follow these steps to run the application in your local environment.
    ```
 3. Install the dependencies:
    `npm install`
-4. Obtain the `.env` file from a project administrator and place it in the root directory of the project.
+4. Obtain the `.env` file from a project administrator and place it in the `booking-app` directory.
 
 ### Running the Application
 
@@ -31,7 +31,7 @@ The application should now be running on [http://localhost:3000](http://localhos
 
 ## Environment Variables
 
-This project uses environment variables for configuration. Make sure you have received the `.env` file from a project administrator and placed it in the root directory before running the application.
+This project uses environment variables for configuration. Make sure you have received the `.env` file from a project administrator and placed it in the `booking-app` directory before running the application.
 
 ## Deployment
 

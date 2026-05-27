@@ -31,7 +31,7 @@ cd booking-app/booking-app
 npm install
 ```
 
-4. 🔐 Obtain the `.env.local` file from a project administrator (Riho or Nima) and place it in the root directory of the project.
+4. 🔐 Obtain the `.env` file from a project administrator (Riho or Nima) and place it in the `booking-app` directory.
 
 ### Running the Application
 
@@ -52,7 +52,7 @@ Once the application is running, you should be able to:
 ## 🔒 Environment Variables
 
 This project relies on environment variables for secure configuration. Important notes:
-- Request the `.env.local` file from project admin or another dev
+- Request the `.env` file from project admin or another dev
 - Never commit the `.env` file to version control
 - Keep the environment variables secure and confidential
 
@@ -106,7 +106,7 @@ In the `package.json` file, the following test scripts are defined:
 3. View the results in the console. Fix any failing tests before proceeding with development or deployment.
 
 #### Notes
-- **Environment:** Ensure you have the **development** `.env.local` file properly configured for your testing environment.
+- **Environment:** Ensure you have the **development** `.env` file properly configured for your testing environment.
 - **Playwright Setup:** If running Playwright tests for the first time, install the required browsers:
   ```bash
   npx playwright install
