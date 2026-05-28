@@ -139,7 +139,10 @@ export default function BookingTableRow({
         </TableCell>
       </Tooltip>
       <TableCell>
-        <IconButton onClick={() => setModalData(booking)}>
+        <IconButton
+          onClick={() => setModalData(booking)}
+          aria-label="Show booking details"
+        >
           <MoreHoriz />
         </IconButton>
       </TableCell>

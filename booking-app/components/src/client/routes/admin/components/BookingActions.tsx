@@ -97,7 +97,7 @@ export default function BookingActions(props: Props) {
           value={reason}
           setValue={setReason}
         >
-          <IconButton color={"primary"}>
+          <IconButton color={"primary"} aria-label="Confirm decline">
             <Check />
           </IconButton>
         </DeclineReasonDialog>
@@ -116,7 +116,10 @@ export default function BookingActions(props: Props) {
           value={reason}
           setValue={setReason}
         >
-          <IconButton color={"primary"}>
+          <IconButton
+            color={"primary"}
+            aria-label={`Confirm ${selectedAction}`}
+          >
             <Check />
           </IconButton>
         </DeclineReasonDialog>
@@ -136,6 +139,7 @@ export default function BookingActions(props: Props) {
           <IconButton
             disabled={selectedAction === Actions.PLACEHOLDER}
             color={"primary"}
+            aria-label={`Confirm ${selectedAction}`}
           >
             <Check />
           </IconButton>
@@ -150,6 +154,7 @@ export default function BookingActions(props: Props) {
         onClick={() => {
           handleDialogChoice(true);
         }}
+        aria-label={`Confirm ${selectedAction}`}
       >
         <Check />
       </IconButton>

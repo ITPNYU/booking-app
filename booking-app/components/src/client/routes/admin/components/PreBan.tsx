@@ -47,8 +47,7 @@ export const PreBannedUsers = () => {
   const [requestNumberByBookingId, setRequestNumberByBookingId] = useState<
     Record<string, number | undefined>
   >({});
-  const [detailSortBy, setDetailSortBy] =
-    useState<DetailSortColumn>("date");
+  const [detailSortBy, setDetailSortBy] = useState<DetailSortColumn>("date");
   const [detailSortOrder, setDetailSortOrder] = useState<"asc" | "desc">(
     "desc",
   );
@@ -97,14 +96,19 @@ export const PreBannedUsers = () => {
     // Reset stale request numbers before the new fetch resolves
     setRequestNumberByBookingId({});
 
-    const uniqueBookingIds = [...new Set(preBanLogs.map((log) => log.bookingId))];
+    const uniqueBookingIds = [
+      ...new Set(preBanLogs.map((log) => log.bookingId)),
+    ];
     Promise.allSettled(
       uniqueBookingIds.map((bookingId) =>
         clientGetDataByCalendarEventId<Booking>(
           TableNames.BOOKING,
           bookingId,
           tenant ?? undefined,
-        ).then((booking) => ({ bookingId, requestNumber: booking?.requestNumber })),
+        ).then((booking) => ({
+          bookingId,
+          requestNumber: booking?.requestNumber,
+        })),
       ),
     ).then((results) => {
       if (cancelled) return;
@@ -174,7 +178,10 @@ export const PreBannedUsers = () => {
 
   const columnFormatters = {
     details: (value: string) => (
-      <IconButton onClick={() => setSelectedEmail(value)}>
+      <IconButton
+        onClick={() => setSelectedEmail(value)}
+        aria-label="View user details"
+      >
         <Info />
       </IconButton>
     ),
@@ -200,17 +207,12 @@ export const PreBannedUsers = () => {
     }
   };
 
-  const handleToggleExcused = async (
-    logId: string,
-    nextExcused: boolean,
-  ) => {
+  const handleToggleExcused = async (logId: string, nextExcused: boolean) => {
     try {
       setExcuseSavingById((prev) => ({ ...prev, [logId]: true }));
-      await clientUpdateDataInFirestore(
-        TableNames.PRE_BAN_LOGS,
-        logId,
-        { excused: nextExcused },
-      );
+      await clientUpdateDataInFirestore(TableNames.PRE_BAN_LOGS, logId, {
+        excused: nextExcused,
+      });
       await reloadPreBanLogs();
     } catch (error) {
       console.error("Failed to update excused:", error);
@@ -280,9 +282,7 @@ export const PreBannedUsers = () => {
                   <TableSortLabel
                     active={detailSortBy === "requestNumber"}
                     direction={
-                      detailSortBy === "requestNumber"
-                        ? detailSortOrder
-                        : "asc"
+                      detailSortBy === "requestNumber" ? detailSortOrder : "asc"
                     }
                     onClick={() => handleDetailSort("requestNumber")}
                   >
@@ -312,7 +312,9 @@ export const PreBannedUsers = () => {
                   <TableRow key={detail.id}>
                     <TableCell>{detail.date}</TableCell>
                     <TableCell>{detail.status}</TableCell>
-                    <TableCell>{requestNumberByBookingId[detail.bookingId] ?? "--"}</TableCell>
+                    <TableCell>
+                      {requestNumberByBookingId[detail.bookingId] ?? "--"}
+                    </TableCell>
                     <TableCell>
                       <Checkbox
                         checked={detail.excused}

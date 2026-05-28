@@ -266,6 +266,27 @@ function BasicInfoSection({
         size="small"
         sx={{ mb: 2 }}
       />
+      <TextField
+        label="Bookings dashboard: highlight Interim after (hours)"
+        type="number"
+        inputProps={{ min: 0 }}
+        value={schema.interimHighlightThresholdHours ?? ""}
+        onChange={(e) => {
+          const raw = e.target.value;
+          if (raw === "") {
+            onChange("interimHighlightThresholdHours", undefined);
+            return;
+          }
+          const parsed = Number(raw);
+          onChange(
+            "interimHighlightThresholdHours",
+            Number.isFinite(parsed) ? Math.max(0, parsed) : undefined,
+          );
+        }}
+        size="small"
+        sx={{ mb: 2 }}
+        helperText="Leave empty for default (18h). When interim reaches this many hours, the Interim column text is emphasized (not the whole row)."
+      />
     </>
   );
 }
@@ -419,7 +440,12 @@ function AgreementsSection({
         <Box key={ag.id || `agreement-${i}`} sx={{ mb: 2, p: 2, border: "1px solid #e0e0e0", borderRadius: 1 }}>
           <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
             <Typography variant="subtitle2">Agreement {i + 1}</Typography>
-            <IconButton size="small" onClick={() => removeAgreement(i)} color="error">
+            <IconButton
+              size="small"
+              onClick={() => removeAgreement(i)}
+              color="error"
+              aria-label={`Remove agreement ${i + 1}`}
+            >
               <DeleteIcon fontSize="small" />
             </IconButton>
           </Box>
@@ -870,7 +896,12 @@ function MappingEditor({
             size="small"
             sx={{ flex: 1 }}
           />
-          <IconButton size="small" onClick={() => removeEntry(key)} color="error">
+          <IconButton
+            size="small"
+            onClick={() => removeEntry(key)}
+            color="error"
+            aria-label={`Remove ${key}`}
+          >
             <DeleteIcon fontSize="small" />
           </IconButton>
         </Box>

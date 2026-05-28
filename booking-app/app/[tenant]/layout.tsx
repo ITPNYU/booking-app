@@ -35,8 +35,7 @@ export async function generateMetadata({
     }
     const title = `${tenantSchema.name} Booking`;
     const description =
-      tenantSchema.nameForPolicy?.trim() ||
-      `${title} — NYU space reservation`;
+      tenantSchema.nameForPolicy?.trim() || `${title} — NYU space reservation`;
     return {
       title,
       description,
@@ -104,8 +103,10 @@ const Layout: React.FC<LayoutProps> = async ({ children, params }) => {
           <SchemaDriftBanner />
           <TenantEntitlementGuard>
             <TenantSiteBanner />
-            <NavBar />
-            {children}
+            <header>
+              <NavBar />
+            </header>
+            <main>{children}</main>
           </TenantEntitlementGuard>
         </ClientProvider>
       </SchemaProviderWrapper>

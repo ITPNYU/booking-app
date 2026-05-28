@@ -104,7 +104,12 @@ export default function MoreInfoModal({
   const historyRows = useSortBookingHistory(booking);
   const { pagePermission, userEmail } = useContext(DatabaseContext);
   const schema = useTenantSchema();
-  const hasServices = schema.showSetup || schema.showEquipment || schema.showStaffing || schema.showCatering || schema.showHireSecurity;
+  const hasServices =
+    schema.showSetup ||
+    schema.showEquipment ||
+    schema.showStaffing ||
+    schema.showCatering ||
+    schema.showHireSecurity;
 
   const [isEditingCart, setIsEditingCart] = useState(false);
   const [cartNumber, setCartNumber] = useState(
@@ -232,6 +237,7 @@ export default function MoreInfoModal({
                       onClick={handleSaveCartNumber}
                       disabled={isUpdating}
                       color="primary"
+                      aria-label="Save cart number"
                     >
                       <Check />
                     </IconButton>
@@ -239,6 +245,7 @@ export default function MoreInfoModal({
                       onClick={handleCancelEdit}
                       disabled={isUpdating}
                       color="primary"
+                      aria-label="Cancel editing cart number"
                     >
                       <Cancel />
                     </IconButton>
@@ -247,7 +254,6 @@ export default function MoreInfoModal({
                   <Box display="flex" alignItems="center" gap={1}>
                     {booking.webcheckoutCartNumber ? (
                       <Box display="flex" flexDirection="column" gap={2}>
-
                         {/* Always show cart number */}
                         <Typography variant="body2">
                           {booking.webcheckoutCartNumber}
@@ -417,6 +423,7 @@ export default function MoreInfoModal({
                         <IconButton
                           onClick={() => setIsEditingCart(true)}
                           color="primary"
+                          aria-label="Edit cart number"
                         >
                           <Edit />
                         </IconButton>
@@ -445,25 +452,25 @@ export default function MoreInfoModal({
         <ScrollableContent padding={4}>
           <AlertHeader color="info" icon={<Event />} sx={{ marginBottom: 3 }}>
             <RoomDetails container>
-              <label>Request Number:</label>
+              <span>Request Number:</span>
               <p>{booking.requestNumber ?? "--"}</p>
             </RoomDetails>
             <RoomDetails container>
-              <label>Rooms:</label>
+              <span>Rooms:</span>
               <p>{booking.roomId}</p>
             </RoomDetails>
             <RoomDetails container>
-              <label>Date:</label>
+              <span>Date:</span>
               <p>{formatDateTable(booking.startDate.toDate())}</p>
             </RoomDetails>
             <RoomDetails container>
-              <label>Time:</label>
+              <span>Time:</span>
               <p>{`${formatTimeAmPm(booking.startDate.toDate())} - ${formatTimeAmPm(
                 booking.endDate.toDate(),
               )}`}</p>
             </RoomDetails>
             <RoomDetails container>
-              <label>Status:</label>
+              <span>Status:</span>
               <p>{booking.status}</p>
             </RoomDetails>
           </AlertHeader>
@@ -643,25 +650,31 @@ export default function MoreInfoModal({
                         <TableRow>
                           <LabelCell>Staffing Service</LabelCell>
                           <TableCell>
-                            {booking.staffingServices.split(", ").map((service) => (
-                              <p key={service}>{service.trim()}</p>
-                            ))}
+                            {booking.staffingServices
+                              .split(", ")
+                              .map((service) => (
+                                <p key={service}>{service.trim()}</p>
+                              ))}
                             <p>{booking.staffingServicesDetails || ""}</p>
                           </TableCell>
                         </TableRow>
                       )}
-                    {booking.mediaServices && booking.mediaServices.length > 0 && (
-                      <TableRow>
-                        <LabelCell>Media Service</LabelCell>
-                        <TableCell>
-                          {booking.mediaServices.split(", ").map((service) => (
-                            <p key={service}>{service.trim()}</p>
-                          ))}
-                          <p>{booking.mediaServicesDetails || ""}</p>
-                        </TableCell>
-                      </TableRow>
-                    )}
-                    {(booking.catering === "yes" || booking.cateringService) && (
+                    {booking.mediaServices &&
+                      booking.mediaServices.length > 0 && (
+                        <TableRow>
+                          <LabelCell>Media Service</LabelCell>
+                          <TableCell>
+                            {booking.mediaServices
+                              .split(", ")
+                              .map((service) => (
+                                <p key={service}>{service.trim()}</p>
+                              ))}
+                            <p>{booking.mediaServicesDetails || ""}</p>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    {(booking.catering === "yes" ||
+                      booking.cateringService) && (
                       <TableRow>
                         <LabelCell>Catering Service</LabelCell>
                         <StackedTableCell
@@ -685,7 +698,9 @@ export default function MoreInfoModal({
                     <TableRow>
                       <LabelCell>Security</LabelCell>
                       <StackedTableCell
-                        topText={booking.hireSecurity === "yes" ? "Yes" : "none"}
+                        topText={
+                          booking.hireSecurity === "yes" ? "Yes" : "none"
+                        }
                         bottomText={booking.chartFieldForSecurity || "none"}
                       />
                     </TableRow>
