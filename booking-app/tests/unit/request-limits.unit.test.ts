@@ -62,6 +62,10 @@ vi.mock("./shared", () => ({
 vi.mock("firebase-admin/firestore", () => ({
   Timestamp: {
     now: () => ({ toDate: () => new Date(), toMillis: () => Date.now() }),
+    fromDate: (d: Date) => ({
+      toDate: () => d,
+      toMillis: () => d.getTime(),
+    }),
   },
 }));
 
@@ -143,6 +147,67 @@ describe("Request limits enforcement (POST /api/bookings)", () => {
     expect(end.getTime()).toBe(
       toDate("2026-09-01T00:00:00.000", { timeZone: tz }).getTime(),
     );
+  });
+
+  it("bounds the Firestore bookings query by the earliest active window start", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-04-13T12:00:00Z"));
+
+    mockServerGetDocumentById.mockResolvedValue({
+      tenant: "mc",
+      resources: [
+        {
+          roomId: 1201,
+          name: "Room 1201",
+          requestLimits: {
+            // perDay limit forces the window to be the current calendar day,
+            // which is much narrower than the full booking history.
+            perDay: { student: 5 },
+          },
+        },
+      ],
+    });
+
+    mockServerFetchAllDataFromCollection.mockResolvedValue([]);
+
+    const { POST } = await import("@/app/api/bookings/route");
+    const req = new Request("http://localhost:3000/api/bookings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: "student@nyu.edu",
+        selectedRooms: [
+          { roomId: 1201, calendarId: "cal-1201", name: "Room 1201" },
+        ],
+        bookingCalendarInfo: {
+          startStr: "2026-04-13T14:00:00Z",
+          endStr: "2026-04-13T15:00:00Z",
+        },
+        data: { role: "Student", title: "Test", department: "ITP" },
+        isAutoApproval: false,
+      }),
+    }) as any;
+
+    await POST(req);
+
+    const bookingQueryCall = mockServerFetchAllDataFromCollection.mock.calls.find(
+      (call) => call[0] === "bookings",
+    );
+    expect(bookingQueryCall).toBeDefined();
+    const constraints = bookingQueryCall![1] as Array<{
+      field: string;
+      operator: string;
+      value: any;
+    }>;
+    const requestedAtBound = constraints.find(
+      (c) => c.field === "requestedAt" && c.operator === ">=",
+    );
+    expect(requestedAtBound).toBeDefined();
+    // perDay window in America/New_York for 2026-04-13 12:00Z (08:00 ET) → starts 2026-04-13 00:00 ET (= 04:00Z)
+    const lowerBoundMs = (requestedAtBound!.value as any).toMillis();
+    expect(lowerBoundMs).toBe(new Date("2026-04-13T04:00:00Z").getTime());
+
+    vi.useRealTimers();
   });
 
   it("uses configured term ranges for perSemester windows (fallTerm) in America/New_York", async () => {

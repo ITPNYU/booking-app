@@ -7,6 +7,7 @@ import { FormContextLevel, Role } from "@/components/src/types";
 import { TableNames } from "@/components/src/policy";
 import { serverFetchAllDataFromCollection } from "@/lib/firebase/server/adminDb";
 import { formatInTimeZone, toDate } from "date-fns-tz";
+import { Timestamp } from "firebase-admin/firestore";
 
 /** IANA zone used for request-limit calendar windows (day / week / month / semester). */
 export const REQUEST_LIMITS_TIME_ZONE = "America/New_York" as const;
@@ -347,11 +348,37 @@ export async function enforceRequestLimits({
     Record<RequestLimitPeriod, Map<number, number>>
   > = {};
 
-  // Avoid requiring Firestore composite indexes across tenants/environments by only
-  // querying on `email` (single-field index) and filtering the rest in memory.
+  // Pre-compute windows so we can bound the Firestore query by the earliest
+  // window start. Without this bound, heavy users fetch their full booking
+  // history on every request, which dominates the per-request Firestore read
+  // count and contributes to App Engine memory pressure.
+  // Requires a composite index `(email ASC, requestedAt ASC)` on each
+  // tenant's bookings collection — see firestore.indexes.json.
+  const windowsByPeriod = new Map<
+    RequestLimitPeriod,
+    { start: Date; end: Date }
+  >();
+  for (const period of periodsToQuery) {
+    windowsByPeriod.set(
+      period,
+      getNewYorkWindowForPeriod(now, period, schema.termConfig),
+    );
+  }
+  const earliestWindowStart = Array.from(windowsByPeriod.values()).reduce(
+    (min, w) => (w.start.getTime() < min.getTime() ? w.start : min),
+    Array.from(windowsByPeriod.values())[0].start,
+  );
+
   const allByEmail = await serverFetchAllDataFromCollection<any>(
     TableNames.BOOKING,
-    [{ field: "email", operator: "==", value: email }],
+    [
+      { field: "email", operator: "==", value: email },
+      {
+        field: "requestedAt",
+        operator: ">=",
+        value: Timestamp.fromDate(earliestWindowStart),
+      },
+    ],
     tenant,
   );
 
@@ -371,7 +398,7 @@ export async function enforceRequestLimits({
   });
 
   for (const period of periodsToQuery) {
-    const { start, end } = getNewYorkWindowForPeriod(now, period, schema.termConfig);
+    const { start, end } = windowsByPeriod.get(period)!;
     const startMs = start.getTime();
     const endMs = end.getTime();
 
