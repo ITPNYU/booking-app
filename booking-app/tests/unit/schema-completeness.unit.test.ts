@@ -39,6 +39,7 @@ const ALL_SCHEMA_KEYS = [
   "interimHighlightThresholdHours",
   "autoCancel",
   "timeSensitiveRequestWarning",
+  "termConfig",
   "calendarConfig",
   "ccEmails",
   "emailMessages",

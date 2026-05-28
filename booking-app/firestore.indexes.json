@@ -17,6 +17,22 @@
       ]
     },
     {
+      "collectionGroup": "mc-bookings",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "email", "order": "ASCENDING" },
+        { "fieldPath": "requestedAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "itp-bookings",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "email", "order": "ASCENDING" },
+        { "fieldPath": "requestedAt", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "mc-bookingLogs",
       "queryScope": "COLLECTION",
       "fields": [

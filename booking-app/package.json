@@ -17,8 +17,8 @@
     "copy:staging:dry-run": "node scripts/copyCollection.js --source-database development --target-database staging --source-collection tenantSchema --target-collection tenantSchema --dry-run --report-file dry-run-staging-details.json",
     "copy:production:dry-run": "node scripts/copyCollection.js --source-database development --target-database production --source-collection tenantSchema --target-collection tenantSchema --dry-run --report-file dry-run-production-details.json",
     "mergeUsers": "node scripts/mergeUsersCollections.js",
-    "sync:schemas": "npx ts-node --transpile-only --compiler-options '{\"module\":\"commonjs\",\"jsx\":\"react\"}' scripts/syncTenantSchemas.ts",
-    "sync:schemas:dry-run": "npx ts-node --transpile-only --compiler-options '{\"module\":\"commonjs\",\"jsx\":\"react\"}' scripts/syncTenantSchemas.ts --dry-run"
+    "sync:schemas": "npx ts-node --transpile-only -r tsconfig-paths/register --compiler-options '{\"module\":\"commonjs\",\"jsx\":\"react\"}' scripts/syncTenantSchemas.ts",
+    "sync:schemas:dry-run": "npx ts-node --transpile-only -r tsconfig-paths/register --compiler-options '{\"module\":\"commonjs\",\"jsx\":\"react\"}' scripts/syncTenantSchemas.ts --dry-run"
   },
   "dependencies": {
     "@emotion/styled": "^11.13.0",
