@@ -92,23 +92,25 @@ export function mergeSchemaDefaults(
   // Start with default schema
   const defaultSchema: SchemaContextType = generateDefaultTenantSchema(tenant);
 
+  // Coerce FIRST, then add defaults.
+  //
+  // Order matters: `deepAddDefaults` injects empty nested defaults
+  // (`emailNotifications`, `attestations`, `resource.training`, and the nested
+  // `tenant`/`mappings`/`form` objects). If we did that before coercion, a
+  // legacy document would suddenly look like the new nested shape, so
+  // `coerceTenantSchema` would take its new-shape branch and let those empty
+  // defaults shadow the real legacy values (`emailMessages`, `agreements`,
+  // `needsSafetyTraining`/training URLs) — silently blanking them.
+  //
+  // Coercing the raw document first maps every legacy field into the canonical
+  // nested shape; the subsequent add-only merge then only fills genuinely
+  // missing keys without overwriting anything coercion populated.
+  const coerced = coerceTenantSchema(existingSchema, tenant);
+
   // Add-only merge:
   // - Adds missing keys with defaults
   // - Preserves all existing values and keys (even if not in template)
-  const merged = deepAddDefaults(existingSchema, defaultSchema);
-
-  return coerceTenantSchema(
-    {
-      ...merged,
-      tenantId:
-        (merged as { tenantId?: string }).tenantId ||
-        (typeof (merged as { tenant?: unknown }).tenant === "string"
-          ? (merged as { tenant?: string }).tenant
-          : undefined) ||
-        tenant,
-    },
-    tenant,
-  );
+  return deepAddDefaults(coerced, defaultSchema);
 }
 
 /**

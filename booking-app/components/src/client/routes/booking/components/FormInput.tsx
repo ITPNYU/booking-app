@@ -431,13 +431,15 @@ export default function FormInput({
   // Add a ref to track submission state to prevent race conditions
   const isSubmittingRef = useRef(false);
 
-  // Disable submit when required attestations are not all checked
-  const agreementsChecked =
+  // Disable submit when required attestations are not all checked.
+  // Note: this is true when attestations are INCOMPLETE (the inverse of
+  // "all checked"), hence the name — do not confuse it with "all agreed".
+  const attestationsIncomplete =
     attestations.length > 0 &&
     !attestations.every((a) => checkedAgreements[a.id]);
 
   const disabledButton =
-    agreementsChecked ||
+    attestationsIncomplete ||
     isBanned ||
     needsSafetyTraining ||
     isInBlackoutPeriod ||

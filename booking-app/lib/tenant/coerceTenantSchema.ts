@@ -3,8 +3,8 @@ import type {
   Resource,
   SchemaContextType,
   TimeSensitiveRequestWarning,
-} from "@/components/src/client/routes/components/SchemaProvider";
-import { generateDefaultSchema } from "@/components/src/client/routes/components/SchemaProvider";
+} from "@/components/src/client/routes/components/schemaTypes";
+import { generateDefaultSchema } from "@/components/src/client/routes/components/schemaTypes";
 
 function mapLegacyEmailMessages(
   legacy: Record<string, string> | undefined,
@@ -27,21 +27,57 @@ function mapLegacyEmailMessages(
   };
 }
 
+/**
+ * Resolve the attestations array, preferring a populated `attestations`, then a
+ * populated legacy `agreements`, so an empty array (e.g. an injected default)
+ * never shadows real configured data. Falls back to the default schema.
+ */
+function pickAttestations(
+  raw: Record<string, unknown>,
+  base: SchemaContextType,
+): SchemaContextType["attestations"] {
+  const attestations = raw.attestations;
+  if (Array.isArray(attestations) && attestations.length > 0) {
+    return attestations as SchemaContextType["attestations"];
+  }
+  const agreements = raw.agreements;
+  if (Array.isArray(agreements) && agreements.length > 0) {
+    return agreements as SchemaContextType["attestations"];
+  }
+  if (Array.isArray(attestations)) {
+    return attestations as SchemaContextType["attestations"];
+  }
+  return base.attestations;
+}
+
 function migrateResource(r: Record<string, unknown>): Resource {
+  // Merge an existing nested `training` object with legacy flat fields so that
+  // partially-migrated resources (e.g. `{ training: { required: true },
+  // trainingInfoUrl: "..." }`) keep their legacy form/info URLs instead of
+  // dropping them. Nested values win per-field; legacy fills any gaps.
+  const nested =
+    r.training && typeof r.training === "object" && !Array.isArray(r.training)
+      ? (r.training as Partial<Resource["training"]>)
+      : undefined;
+
   const hasLegacyTraining =
     r.needsSafetyTraining !== undefined ||
     r.trainingFormUrl !== undefined ||
     r.trainingInfoUrl !== undefined;
 
-  const training: Resource["training"] =
-    (r.training as Resource["training"]) ||
-    (hasLegacyTraining
-      ? {
-          required: Boolean(r.needsSafetyTraining),
-          formId: (r.trainingFormUrl as string) || "",
-          infoUrl: (r.trainingInfoUrl as string) || "",
-        }
-      : { required: false, formId: "", infoUrl: "" });
+  const legacy = hasLegacyTraining
+    ? {
+        required: Boolean(r.needsSafetyTraining),
+        formId: (r.trainingFormUrl as string) || "",
+        infoUrl: (r.trainingInfoUrl as string) || "",
+      }
+    : undefined;
+
+  const training: Resource["training"] = {
+    required: nested?.required ?? legacy?.required ?? false,
+    formId: nested?.formId || legacy?.formId || "",
+    infoUrl: nested?.infoUrl || legacy?.infoUrl || "",
+  };
 
   const {
     needsSafetyTraining: _n,
@@ -54,6 +90,10 @@ function migrateResource(r: Record<string, unknown>): Resource {
 }
 
 function isNewSchemaShape(raw: Record<string, unknown>): boolean {
+  // The nested shape is identified by `tenant`/`mappings`/`form` being objects.
+  // `contextLabels` is optional and defaultable, so it must NOT be required
+  // here — otherwise a nested document that simply omits it would be treated as
+  // legacy and have its nested `tenant`/`mappings`/`form` blanked out.
   return Boolean(
     raw.mappings &&
       typeof raw.mappings === "object" &&
@@ -63,8 +103,7 @@ function isNewSchemaShape(raw: Record<string, unknown>): boolean {
       !Array.isArray(raw.form) &&
       raw.tenant &&
       typeof raw.tenant === "object" &&
-      !Array.isArray(raw.tenant) &&
-      "contextLabels" in (raw.tenant as object),
+      !Array.isArray(raw.tenant),
   );
 }
 
@@ -109,6 +148,12 @@ export function coerceTenantSchema(
       },
       emailNotifications: {
         ...base.emailNotifications,
+        // Partially-migrated documents may still carry legacy `emailMessages`;
+        // map them in first so nested `emailNotifications` only overrides them
+        // when it actually has values.
+        ...mapLegacyEmailMessages(
+          raw.emailMessages as Record<string, string> | undefined,
+        ),
         ...(raw.emailNotifications as EmailNotifications),
       },
       calendarConfig: {
@@ -122,9 +167,9 @@ export function coerceTenantSchema(
       resources: Array.isArray(raw.resources)
         ? raw.resources.map((x) => migrateResource(x as Record<string, unknown>))
         : base.resources,
-      attestations: Array.isArray(raw.attestations)
-        ? (raw.attestations as SchemaContextType["attestations"])
-        : base.attestations,
+      // Prefer a populated attestations array; fall back to legacy `agreements`
+      // when present so an empty nested array does not shadow real data.
+      attestations: pickAttestations(raw, base),
     } as SchemaContextType;
   }
 
@@ -181,11 +226,7 @@ export function coerceTenantSchema(
         showStaffing: (raw.showStaffing as boolean) ?? base.form.services.showStaffing,
       },
     },
-    attestations: Array.isArray(raw.attestations)
-      ? (raw.attestations as SchemaContextType["attestations"])
-      : Array.isArray(raw.agreements)
-        ? (raw.agreements as SchemaContextType["attestations"])
-        : base.attestations,
+    attestations: pickAttestations(raw, base),
     resources: Array.isArray(raw.resources)
       ? raw.resources.map((x) => migrateResource(x as Record<string, unknown>))
       : base.resources,

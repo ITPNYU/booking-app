@@ -4,7 +4,7 @@ import {
   generateDefaultSchema,
   type Resource,
   type SchemaContextType,
-} from "@/components/src/client/routes/components/SchemaProvider";
+} from "@/components/src/client/routes/components/schemaTypes";
 
 function resource(over: Partial<Resource>): Resource {
   return {
