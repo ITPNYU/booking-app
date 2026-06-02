@@ -434,7 +434,13 @@ export default function FormInput({
   // Disable submit when required attestations are not all checked.
   // Note: this is true when attestations are INCOMPLETE (the inverse of
   // "all checked"), hence the name — do not confuse it with "all agreed".
+  //
+  // Gate on `isBooking`: the Agreement section is only rendered for the regular
+  // booking form (`!isMod && isBooking`). VIP and walk-in flows never show the
+  // attestations, so they must not be blocked by them (otherwise their Submit
+  // button can never enable).
   const attestationsIncomplete =
+    isBooking &&
     attestations.length > 0 &&
     !attestations.every((a) => checkedAgreements[a.id]);
 

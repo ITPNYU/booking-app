@@ -7,7 +7,7 @@ import {
 } from "@/components/src/client/routes/components/schemaTypes";
 
 function resource(over: Partial<Resource>): Resource {
-  return {
+  const merged: Resource = {
     ...defaultResource,
     ...over,
     training: {
@@ -15,6 +15,14 @@ function resource(over: Partial<Resource>): Resource {
       ...over.training,
     },
   };
+  // Don't inherit defaultResource's placeholder (-1) top-level maxHour/minHour.
+  // These fixtures express real limits under `autoApproval`; a top-level
+  // maxHour/minHour would shadow them in getBookingHourLimits (which prefers
+  // top-level values). Only keep top-level limits when a room sets them
+  // explicitly (e.g. room 203).
+  if (!("maxHour" in over)) delete merged.maxHour;
+  if (!("minHour" in over)) delete merged.minHour;
+  return merged;
 }
 
 /**
