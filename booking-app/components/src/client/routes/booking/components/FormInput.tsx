@@ -117,12 +117,14 @@ export default function FormInput({
   };
 
   const {
-    showNNumber,
-    showSponsor,
-    showSetup,
-    showBookingTypes,
-    agreements,
-    roleMapping,
+    form: {
+      showNNumber,
+      showSponsor,
+      showBookingType,
+      services: { showSetup },
+    },
+    attestations,
+    mappings: { role: roleMapping },
   } = useTenantSchema();
 
   // Determine which services to show based on selected rooms and schema resources
@@ -218,7 +220,7 @@ export default function FormInput({
   const [checkedAgreements, setCheckedAgreements] = useState<
     Record<string, boolean>
   >(
-    Object.fromEntries(agreements.map((agreement) => [agreement.id, isWalkIn])),
+    Object.fromEntries(attestations.map((a) => [a.id, isWalkIn])),
   );
 
   const watchedFields = watch();
@@ -273,18 +275,18 @@ export default function FormInput({
 
   useEffect(() => {
     // Do not auto-manage hireSecurity if the user has manually overridden it
-    // BUT: if attendance crosses back above threshold (in auto-enabling direction), 
+    // BUT: if attendance crosses back above threshold (in auto-enabling direction),
     // reset the manual flag and auto-enable again
     if (hireSecurityManuallySet.current && !isLargeEvent) {
       // User manually changed it, and we're below threshold - respect their choice
       return;
     }
-    
+
     // Reset manual flag when crossing threshold in auto-enabling direction
     if (isLargeEvent && hireSecurityManuallySet.current) {
       hireSecurityManuallySet.current = false;
     }
-    
+
     if (isLargeEvent) {
       if (hireSecurityValue !== "yes") {
         setValue("hireSecurity", "yes", { shouldValidate: true });
@@ -331,7 +333,10 @@ export default function FormInput({
   const [isFetchingSponsor, setIsFetchingSponsor] = useState(false);
 
   useEffect(() => {
-    if (cateringValue !== "yes" || cateringServiceValue === "Outside Catering") {
+    if (
+      cateringValue !== "yes" ||
+      cateringServiceValue === "Outside Catering"
+    ) {
       unregister("chartFieldForCatering");
       clearErrors("chartFieldForCatering");
     }
@@ -391,7 +396,11 @@ export default function FormInput({
       }
 
       // Use the already fetched data for validation
-      if (sponsorApiData && normalizedValue && isValidNetIdEmailFormat(normalizedValue)) {
+      if (
+        sponsorApiData &&
+        normalizedValue &&
+        isValidNetIdEmailFormat(normalizedValue)
+      ) {
         const sponsorRole = mapAffiliationToRole(
           roleMapping,
           sponsorApiData.affiliation_sub_type,
@@ -422,13 +431,21 @@ export default function FormInput({
   // Add a ref to track submission state to prevent race conditions
   const isSubmittingRef = useRef(false);
 
-  // Only check if there are agreements to submit
-  const agreementsChecked =
-    checkedAgreements.length &&
-    Object.values(checkedAgreements).every((value) => value);
+  // Disable submit when required attestations are not all checked.
+  // Note: this is true when attestations are INCOMPLETE (the inverse of
+  // "all checked"), hence the name — do not confuse it with "all agreed".
+  //
+  // Gate on `isBooking`: the Agreement section is only rendered for the regular
+  // booking form (`!isMod && isBooking`). VIP and walk-in flows never show the
+  // attestations, so they must not be blocked by them (otherwise their Submit
+  // button can never enable).
+  const attestationsIncomplete =
+    isBooking &&
+    attestations.length > 0 &&
+    !attestations.every((a) => checkedAgreements[a.id]);
 
   const disabledButton =
-    agreementsChecked ||
+    attestationsIncomplete ||
     isBanned ||
     needsSafetyTraining ||
     isInBlackoutPeriod ||
@@ -567,9 +584,10 @@ export default function FormInput({
                     <a
                       href="https://sites.google.com/nyu.edu/370jmediacommons/rental-inventory"
                       target="_blank"
+                      rel="noopener noreferrer"
                       className="text-blue-600 hover:underline dark:text-blue-500 mx-1"
                     >
-                      Media Commons Inventory
+                      Media Commons Inventory (opens in new tab)
                     </a>
                     <br />
                   </p>
@@ -678,7 +696,13 @@ export default function FormInput({
             description={
               <p>
                 {isLargeEvent && (
-                  <span style={{ display: "block", marginBottom: "4px", fontWeight: 500 }}>
+                  <span
+                    style={{
+                      display: "block",
+                      marginBottom: "4px",
+                      fontWeight: 500,
+                    }}
+                  >
                     Security is required for events with more than 75 attendees.
                   </span>
                 )}
@@ -753,7 +777,8 @@ export default function FormInput({
               required={false}
               pattern={{
                 value: NET_ID_EMAIL_REGEX,
-                message: "Invalid NYU Net ID email format (e.g., abc123@nyu.edu)",
+                message:
+                  "Invalid NYU Net ID email format (e.g., abc123@nyu.edu)",
               }}
               description="Enter the NYU email address (e.g., abc123@nyu.edu)"
               {...{ control, errors, trigger }}
@@ -850,7 +875,7 @@ export default function FormInput({
           label="Reservation Description"
           {...{ control, errors, trigger }}
         />
-        {!isMod && showBookingTypes && (
+        {!isMod && showBookingType && (
           <BookingFormDropdown
             id="bookingType"
             label="Booking Type"
@@ -880,8 +905,9 @@ export default function FormInput({
                   href="https://www.nyu.edu/about/visitor-information/sponsoring-visitors.html"
                   className="text-blue-600 hover:underline dark:text-blue-500 mx-1"
                   target="_blank"
+                  rel="noopener noreferrer"
                 >
-                  click here
+                  click here (opens in new tab)
                 </a>
                 .
               </p>
@@ -898,7 +924,7 @@ export default function FormInput({
       {/* Agreement - only for full booking form */}
       {!isMod && isBooking && (
         <Section title="Agreement">
-          {agreements.map((agreement) => (
+          {attestations.map((agreement) => (
             <BookingFormAgreementCheckbox
               key={agreement.id}
               id={agreement.id}

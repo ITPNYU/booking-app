@@ -1,95 +1,8 @@
 import { Page, Route } from "@playwright/test";
+import { getTestTenantSchema } from "@/lib/utils/testTenantSchema";
 
-const mockItpTenantSchema = {
-  tenant: "itp",
-  name: "ITP",
-  logo: "/itpLogo.svg",
-  nameForPolicy: "ITP",
-  policy: "<p>Mock ITP policy content for automated tests.</p>",
-  schoolMapping: {
-    "Tisch School of the Arts": ["ITP / IMA / Low Res"],
-  },
-  programMapping: {
-    "ITP / IMA / Low Res": ["ITP"],
-  },
-  roles: ["Student", "Faculty", "Admin"],
-  roleMapping: {
-    Student: ["STUDENT"],
-    Faculty: ["FACULTY"],
-    Admin: ["ADMIN"],
-  },
-  showNNumber: false,
-  showSponsor: false,
-  showSetup: false,
-  showEquipment: false,
-  showStaffing: false,
-  showCatering: false,
-  showHireSecurity: false,
-  showBookingTypes: false,
-  bookingTypes: [],
-  attendeeAffiliations: [
-    "NYU Members with an active NYU ID",
-    "Non-NYU guests",
-    "All of the above",
-  ],
-  agreements: [
-    { id: "checklist", html: "<p>Mock ITP checklist agreement.</p>" },
-    { id: "bookingPolicy", html: "<p>ITP booking policy agreement.</p>" },
-  ],
-  resources: [
-    {
-      capacity: 20,
-      name: "Room 408",
-      roomId: 408,
-      isEquipment: false,
-      calendarId: "mock-calendar-408",
-      needsSafetyTraining: false,
-      trainingInfoUrl: "",
-      isWalkIn: false,
-      isWalkInCanBookTwo: false,
-      services: [],
-      autoApproval: {
-        shouldAutoApprove: true,
-        maxHour: { student: 1, faculty: 4, admin: 4 },
-        minHour: { student: 0.5, faculty: 0.5, admin: 0.5 },
-      },
-    },
-    {
-      capacity: 10,
-      name: "Room 410",
-      roomId: 410,
-      isEquipment: false,
-      calendarId: "mock-calendar-410",
-      needsSafetyTraining: false,
-      trainingInfoUrl: "",
-      isWalkIn: true,
-      isWalkInCanBookTwo: false,
-      services: [],
-      autoApproval: {
-        shouldAutoApprove: true,
-        maxHour: { student: 1, faculty: 4, admin: 4 },
-        minHour: { student: 0.5, faculty: 0.5, admin: 0.5 },
-      },
-    },
-  ],
-  supportVIP: false,
-  supportWalkIn: false,
-  supportPA: false,
-  supportLiaison: false,
-  resourceName: "Room(s)",
-  ccEmails: {
-    approved: {
-      development: "booking-app-devs+approved@itp.nyu.edu",
-      staging: "booking-app-devs+approved@itp.nyu.edu",
-      production: "booking-app-devs+approved@itp.nyu.edu",
-    },
-    canceled: {
-      development: "booking-app-devs+canceled@itp.nyu.edu",
-      staging: "booking-app-devs+canceled@itp.nyu.edu",
-      production: "booking-app-devs+canceled@itp.nyu.edu",
-    },
-  },
-};
+/** Nested canonical tenant schema (same shape as GET /api/tenantSchema/itp). */
+const mockItpTenantSchema = getTestTenantSchema("itp");
 
 const mockIdentityResponse = {
   affiliations: ["ITP"],
@@ -154,7 +67,7 @@ export async function registerItpBookingMocks(page: Page) {
     route.fulfill({
       status: 200,
       headers: jsonHeaders,
-      body: JSON.stringify({}),
+      body: JSON.stringify({ emails: [] }),
     })
   );
 

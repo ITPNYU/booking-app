@@ -26,9 +26,9 @@ vi.mock("@/components/src/server/admin", () => ({
 
 vi.mock("@/components/src/server/emails", () => ({
   getTenantEmailConfig: vi.fn().mockResolvedValue({
-    emailMessages: {
-      checkoutConfirmation: "Your booking has been checked out",
-    },
+    emailNotifications: {
+      checkedOut: "Your booking has been checked out",
+    } as any,
   }),
 }));
 

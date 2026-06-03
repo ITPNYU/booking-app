@@ -309,7 +309,7 @@ export class BookingTestHelper {
       );
     }
 
-    // Check required agreements
+    // Check required attestations
     await this.page.locator("#checklist").check();
     await this.page.locator("#resetRoom").check();
     await this.page.locator("#bookingPolicy").check();

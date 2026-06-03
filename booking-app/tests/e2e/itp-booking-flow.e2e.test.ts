@@ -125,7 +125,7 @@ test.describe("ITP Booking Flow – complete reservation", () => {
     await page.waitForURL("**/itp/book/form", { timeout: 15000 });
     await page.waitForLoadState("networkidle");
 
-    // N-number field should NOT be visible (showNNumber: false)
+    // N-number field should NOT be visible (form.showNNumber: false)
     const nNumberField = page.locator('input[name="nNumber"]');
     await expect(nNumberField).toHaveCount(0);
   });
@@ -145,7 +145,7 @@ test.describe("ITP Booking Flow – complete reservation", () => {
     await page.waitForURL("**/itp/book/form", { timeout: 15000 });
     await page.waitForLoadState("networkidle");
 
-    // Sponsor fields should NOT be visible (showSponsor: false)
+    // Sponsor fields should NOT be visible (form.showSponsor: false)
     const sponsorFirst = page.locator('input[name="sponsorFirstName"]');
     const sponsorLast = page.locator('input[name="sponsorLastName"]');
     const sponsorEmail = page.locator('input[name="sponsorEmail"]');
@@ -168,7 +168,7 @@ test.describe("ITP Booking Flow – complete reservation", () => {
     await page.waitForURL("**/itp/book/form", { timeout: 15000 });
     await page.waitForLoadState("networkidle");
 
-    // Booking type dropdown should NOT be visible (showBookingTypes: false)
+    // Booking type dropdown should NOT be visible (form.showBookingType: false)
     const bookingTypeSelect = page.getByTestId("booking-type-select");
     const isVisible = await bookingTypeSelect
       .isVisible({ timeout: 3000 })

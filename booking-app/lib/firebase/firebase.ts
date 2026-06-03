@@ -5,8 +5,9 @@ import {
 } from "@/components/src/policy";
 import { Timestamp } from "firebase/firestore";
 
+import { reviveSerializedTimestamps } from "@/lib/utils/timestampWire";
 import { Filters } from "@/components/src/types";
-import { SchemaContextType } from "@/components/src/client/routes/components/SchemaProvider";
+import type { SchemaContextType } from "@/components/src/client/routes/components/schemaTypes";
 import {
   USER_RIGHT_FLAG_FIELDS,
   type UserRightFlagField,
@@ -49,32 +50,15 @@ export type AdminUserData = {
 
 /**
  * Walk the parsed JSON tree and convert serialized Firestore Timestamps
- * back into `Timestamp` instances. The admin SDK serializes Timestamp as
- * `{ _seconds, _nanoseconds }`; the client SDK's Timestamp class restores
- * `.toDate()` / `.toMillis()` semantics.
+ * back into client SDK `Timestamp` instances so callers can keep using
+ * `.toDate()` / `.toMillis()` semantics. The recognised serialized shapes
+ * are documented on `reviveSerializedTimestamps` in `@/lib/utils/timestampWire`.
  *
  * Exported so callers that hit other admin-SDK-backed JSON endpoints
  * (e.g. `/api/permissions`) can apply the same revival.
  */
 export function reviveTimestamps(value: unknown): unknown {
-  if (value === null || value === undefined) return value;
-  if (Array.isArray(value)) return value.map(reviveTimestamps);
-  if (typeof value === "object") {
-    const obj = value as Record<string, unknown>;
-    if (
-      typeof obj._seconds === "number" &&
-      typeof obj._nanoseconds === "number" &&
-      Object.keys(obj).length === 2
-    ) {
-      return new Timestamp(obj._seconds, obj._nanoseconds);
-    }
-    const out: Record<string, unknown> = {};
-    for (const [k, v] of Object.entries(obj)) {
-      out[k] = reviveTimestamps(v);
-    }
-    return out;
-  }
-  return value;
+  return reviveSerializedTimestamps(value, (s, n) => new Timestamp(s, n));
 }
 
 /**

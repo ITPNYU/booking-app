@@ -67,7 +67,7 @@ export default function ListTableRow(props: Props) {
         </TableCell>
       ))}
       <TableCell align="right">
-        <IconButton onClick={onRemove}>
+        <IconButton onClick={onRemove} aria-label="Remove row">
           <Delete />
         </IconButton>
       </TableCell>

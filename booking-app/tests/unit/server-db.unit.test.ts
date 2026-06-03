@@ -122,20 +122,20 @@ describe("server/db", () => {
     mockShouldUseXState.mockReturnValue(false);
     mockGetTenantEmailConfig.mockResolvedValue({
       schemaName: "Media Commons",
-      emailMessages: {
-        requestConfirmation: "",
-        firstApprovalRequest: "",
-        secondApprovalRequest: "",
-        walkInConfirmation: "",
-        vipConfirmation: "",
-        checkoutConfirmation: "",
-        checkinConfirmation: "",
+      emailNotifications: {
+        requestedUser: "",
+        requestedNeedsApproval: "",
+        reviewedNeedsApproval: "",
+        approvedWalkIn: "",
+        approvedVIP: "",
+        checkedOut: "",
+        checkedIn: "",
         declined: "Declined message",
         canceled: "",
-        lateCancel: "Late cancel count: ${violationCount}",
+        canceledLate: "Late cancel count: ${violationCount}",
         noShow: "",
         closed: "",
-        approvalNotice: "",
+        approvedUser: "",
       },
     });
 

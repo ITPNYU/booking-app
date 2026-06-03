@@ -32,7 +32,7 @@ export default function BookingFormEquipmentServices(props: Props) {
     formContext,
   } = props;
   const schema = useTenantSchema();
-  const { showEquipment } = schema;
+  const { showEquipment } = schema.form.services;
 
   const limitedContexts = [
     FormContextLevel.WALK_IN,

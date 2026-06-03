@@ -100,7 +100,12 @@ export default function AddRow(props: Props) {
         {loading ? (
           <Loading style={{ height: "25px", width: "25px" }} />
         ) : (
-          <IconButton onClick={addValue} color="primary" sx={{ padding: 0 }}>
+          <IconButton
+            onClick={addValue}
+            color="primary"
+            sx={{ padding: 0 }}
+            aria-label={`Add ${title}`}
+          >
             <AddCircleOutline />
           </IconButton>
         )}

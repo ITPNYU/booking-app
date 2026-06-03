@@ -504,6 +504,7 @@ export default function BookingBlackoutPeriods() {
                         size="small"
                         onClick={() => handleOpenDialog(period)}
                         disabled={loading}
+                        aria-label="Edit blackout period"
                       >
                         <Edit />
                       </IconButton>
@@ -512,6 +513,7 @@ export default function BookingBlackoutPeriods() {
                         color="error"
                         onClick={() => handleDeletePeriod(period)}
                         disabled={loading}
+                        aria-label="Delete blackout period"
                       >
                         <Delete />
                       </IconButton>
