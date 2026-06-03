@@ -55,3 +55,7 @@ resources: defineObjectArrayWithDefaults(defaultResource),
 ```
 
 This allows the merge process to automatically apply defaults to each item in the array.
+
+## Related: one-time nested shape migration
+
+To **rewrite** stored documents from the legacy flat field layout to the nested canonical shape (and drop stale top-level keys), use the Firestore migration script described in [TENANT_SCHEMA_FIRESTORE_MIGRATION.md](./TENANT_SCHEMA_FIRESTORE_MIGRATION.md). That is separate from this add-only sync.
