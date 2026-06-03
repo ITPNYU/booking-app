@@ -69,16 +69,29 @@ function parseArgs(): MigrateOptions {
     skipBackup: false,
   };
 
+  // Consume the value following a flag, failing fast if it is missing or is
+  // actually another flag (e.g. `--tenant --database staging`).
+  const takeValue = (flag: string, i: number): string => {
+    const value = args[i + 1];
+    if (value === undefined || value.startsWith("--")) {
+      console.error(`Missing value for ${flag}`);
+      process.exit(1);
+    }
+    return value;
+  };
+
   for (let i = 0; i < args.length; i++) {
     switch (args[i]) {
       case "--dry-run":
         options.dryRun = true;
         break;
       case "--tenant":
-        options.tenant = args[++i];
+        options.tenant = takeValue("--tenant", i);
+        i++;
         break;
       case "--database":
-        options.database = (args[++i] || "development") as DatabaseEnv;
+        options.database = takeValue("--database", i) as DatabaseEnv;
+        i++;
         break;
       case "--force-all":
         options.forceAll = true;
