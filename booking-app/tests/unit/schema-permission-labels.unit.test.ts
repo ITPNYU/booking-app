@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { generateDefaultSchema } from "@/components/src/client/routes/components/SchemaProvider";
 
-describe("tenant schema permissionLabels defaults", () => {
+describe("tenant schema contextLabels defaults", () => {
   it("uses Media Commons labels for mc tenant", () => {
     const schema = generateDefaultSchema("mc");
 
-    expect(schema.permissionLabels).toEqual({
+    expect(schema.tenant.contextLabels).toEqual({
       user: "User",
       worker: "PA",
       reviewer: "Liaison",
@@ -17,7 +17,7 @@ describe("tenant schema permissionLabels defaults", () => {
   it("uses ITP labels for itp tenant", () => {
     const schema = generateDefaultSchema("itp");
 
-    expect(schema.permissionLabels).toEqual({
+    expect(schema.tenant.contextLabels).toEqual({
       user: "User",
       worker: "ER",
       reviewer: "1st Approver",

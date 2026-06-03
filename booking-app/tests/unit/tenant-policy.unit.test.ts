@@ -6,6 +6,7 @@ import {
 } from "@/components/src/tenantPolicy";
 import { getApprovalCcEmail, getCancelCcEmail } from "@/components/src/policy";
 import type { SchemaContextType } from "@/components/src/client/routes/components/SchemaProvider";
+import { generateDefaultSchema } from "@/components/src/client/routes/components/SchemaProvider";
 
 vi.mock("@/lib/firebase/firebase", () => ({
   clientGetFinalApproverEmailFromDatabase: vi.fn(),
@@ -18,46 +19,7 @@ vi.mock("@/lib/firebase/server/adminDb", () => ({
 }));
 
 function makeMockSchema(overrides: Partial<SchemaContextType> = {}): SchemaContextType {
-  return {
-    tenant: "test",
-    name: "Test",
-    logo: "",
-    nameForPolicy: "",
-    policy: "",
-    programMapping: {},
-    roles: [],
-    roleMapping: {},
-    schoolMapping: {},
-    showNNumber: false,
-    showSponsor: false,
-    showSetup: false,
-    showEquipment: false,
-    showStaffing: false,
-    showCatering: false,
-    showHireSecurity: false,
-    showBookingTypes: false,
-    agreements: [],
-    resources: [],
-    supportVIP: false,
-    supportWalkIn: false,
-    resourceName: "",
-    emailMessages: {
-      requestConfirmation: "",
-      firstApprovalRequest: "",
-      secondApprovalRequest: "",
-      walkInConfirmation: "",
-      vipConfirmation: "",
-      checkoutConfirmation: "",
-      checkinConfirmation: "",
-      declined: "",
-      canceled: "",
-      lateCancel: "",
-      noShow: "",
-      closed: "",
-      approvalNotice: "",
-    },
-    ...overrides,
-  } as SchemaContextType;
+  return { ...generateDefaultSchema("test"), ...overrides };
 }
 
 describe("getTenantPolicy (hardcoded)", () => {

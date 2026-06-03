@@ -3,6 +3,7 @@ import { getFormsClient, getLoggingClient } from "@/lib/googleClient";
 import { serverGetDocumentById } from "@/lib/firebase/server/adminDb";
 import { TableNames } from "@/components/src/policy";
 import { extractGoogleFormId } from "@/components/src/utils/formUrlUtils";
+import { coerceTenantSchema } from "@/lib/tenant/coerceTenantSchema";
 
 export const dynamic = "force-dynamic";
 
@@ -19,31 +20,34 @@ export async function GET(request: NextRequest) {
     }
 
     // Get tenant schema (includes training form URL per resource and tenant-level fallback)
-    const schema = await serverGetDocumentById(
+    const raw = await serverGetDocumentById<Record<string, unknown>>(
       TableNames.TENANT_SCHEMA,
       tenant,
     );
-    if (!schema) {
+    if (!raw) {
       return NextResponse.json(
         { error: "Tenant schema not found" },
         { status: 404 },
       );
     }
 
+    const schema = coerceTenantSchema(raw, tenant);
+
     // Resolve training form from schema: resource by resourceId, then tenant-level fallback
     let formId: string | null = null;
 
     if (resourceId) {
       const resource = schema.resources?.find(
-        (r: any) => r.roomId?.toString() === resourceId.toString(),
+        (r) => r.roomId?.toString() === resourceId.toString(),
       );
-      if (resource?.trainingFormUrl) {
-        formId = extractGoogleFormId(resource.trainingFormUrl);
+      const resourceForm = resource?.training?.formId;
+      if (resourceForm) {
+        formId = extractGoogleFormId(resourceForm);
       }
     }
 
-    if (!formId && (schema as any).safetyTrainingGoogleFormId) {
-      formId = extractGoogleFormId((schema as any).safetyTrainingGoogleFormId);
+    if (!formId && schema.training?.formId) {
+      formId = extractGoogleFormId(schema.training.formId);
     }
 
     // If no form found, return error

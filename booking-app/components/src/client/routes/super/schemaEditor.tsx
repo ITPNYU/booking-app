@@ -36,12 +36,13 @@ import { DatabaseContext } from "../components/Provider";
 import type {
   SchemaContextType,
   Resource,
-  Agreement,
+  Attestation,
 } from "../components/SchemaProvider";
 import { defaultResource, defaultScheme } from "../components/SchemaProvider";
 import {
   computeDiff,
   formatValue,
+  getByPath,
   setNestedValue,
   type DiffEntry,
 } from "./schemaEditorUtils";
@@ -236,21 +237,21 @@ function BasicInfoSection({
   onChange: (path: string, value: any) => void;
 }) {
   const fields = [
-    { key: "name", label: "Name" },
-    { key: "logo", label: "Logo URL" },
-    { key: "nameForPolicy", label: "Name for Policy" },
-    { key: "resourceName", label: "Resource Name" },
-    { key: "safetyTrainingGoogleFormId", label: "Safety Training Google Form ID" },
+    { path: "tenant.name", label: "Name" },
+    { path: "tenant.logo", label: "Logo URL" },
+    { path: "tenant.nameForPolicy", label: "Name for Policy" },
+    { path: "resourceName", label: "Resource Name" },
+    { path: "training.formId", label: "Safety Training Google Form ID" },
   ];
 
   return (
     <>
       {fields.map((f) => (
         <TextField
-          key={f.key}
+          key={f.path}
           label={f.label}
-          value={(schema as any)[f.key] ?? ""}
-          onChange={(e) => onChange(f.key, e.target.value)}
+          value={getByPath(schema, f.path) ?? ""}
+          onChange={(e) => onChange(f.path, e.target.value)}
           fullWidth
           size="small"
           sx={{ mb: 2 }}
@@ -300,27 +301,27 @@ function FeatureTogglesSection({
   onChange: (path: string, value: any) => void;
 }) {
   const toggles = [
-    { key: "showNNumber", label: "Show N-Number" },
-    { key: "showSponsor", label: "Show Sponsor" },
-    { key: "showSetup", label: "Show Setup" },
-    { key: "showEquipment", label: "Show Equipment" },
-    { key: "showStaffing", label: "Show Staffing" },
-    { key: "showCatering", label: "Show Catering" },
-    { key: "showHireSecurity", label: "Show Hire Security" },
-    { key: "showBookingTypes", label: "Show Booking Types" },
-    { key: "supportVIP", label: "Support VIP" },
-    { key: "supportWalkIn", label: "Support Walk-In" },
+    { path: "form.showNNumber", label: "Show N-Number" },
+    { path: "form.showSponsor", label: "Show Sponsor" },
+    { path: "form.services.showSetup", label: "Show Setup" },
+    { path: "form.services.showEquipment", label: "Show Equipment" },
+    { path: "form.services.showStaffing", label: "Show Staffing" },
+    { path: "form.services.showCatering", label: "Show Catering" },
+    { path: "form.services.showSecurity", label: "Show Hire Security" },
+    { path: "form.showBookingType", label: "Show Booking Types" },
+    { path: "origins.VIP", label: "Support VIP" },
+    { path: "origins.walkIn", label: "Support Walk-In" },
   ];
 
   return (
     <Box display="flex" flexWrap="wrap" gap={1}>
       {toggles.map((t) => (
         <FormControlLabel
-          key={t.key}
+          key={t.path}
           control={
             <Switch
-              checked={(schema as any)[t.key] ?? false}
-              onChange={(e) => onChange(t.key, e.target.checked)}
+              checked={!!getByPath(schema, t.path)}
+              onChange={(e) => onChange(t.path, e.target.checked)}
             />
           }
           label={t.label}
@@ -353,7 +354,7 @@ function PolicySection({
   );
 }
 
-// ─── Section: Email Messages ───
+// ─── Section: Email notifications ───
 function EmailMessagesSection({
   schema,
   onChange,
@@ -361,23 +362,23 @@ function EmailMessagesSection({
   schema: SchemaContextType;
   onChange: (path: string, value: any) => void;
 }) {
-  const messages = schema.emailMessages;
+  const messages = schema.emailNotifications;
   if (!messages) return null;
 
   const fields = [
-    { key: "requestConfirmation", label: "Request Confirmation" },
-    { key: "firstApprovalRequest", label: "First Approval Request" },
-    { key: "secondApprovalRequest", label: "Second Approval Request" },
-    { key: "walkInConfirmation", label: "Walk-In Confirmation" },
-    { key: "vipConfirmation", label: "VIP Confirmation" },
-    { key: "checkoutConfirmation", label: "Checkout Confirmation" },
-    { key: "checkinConfirmation", label: "Check-in Confirmation" },
+    { key: "requestedUser", label: "Request confirmation (user)" },
+    { key: "requestedNeedsApproval", label: "First approval request" },
+    { key: "reviewedNeedsApproval", label: "Second approval request" },
+    { key: "approvedWalkIn", label: "Walk-in confirmation" },
+    { key: "approvedVIP", label: "VIP confirmation" },
+    { key: "checkedOut", label: "Checkout confirmation" },
+    { key: "checkedIn", label: "Check-in confirmation" },
     { key: "declined", label: "Declined" },
     { key: "canceled", label: "Canceled" },
-    { key: "lateCancel", label: "Late Cancel" },
-    { key: "noShow", label: "No Show" },
+    { key: "canceledLate", label: "Late cancel" },
+    { key: "noShow", label: "No show" },
     { key: "closed", label: "Closed" },
-    { key: "approvalNotice", label: "Approval Notice" },
+    { key: "approvedUser", label: "Approval notice" },
   ];
 
   return (
@@ -388,7 +389,7 @@ function EmailMessagesSection({
           label={f.label}
           value={(messages as any)[f.key] ?? ""}
           onChange={(e) =>
-            onChange(`emailMessages.${f.key}`, e.target.value)
+            onChange(`emailNotifications.${f.key}`, e.target.value)
           }
           fullWidth
           multiline
@@ -402,49 +403,49 @@ function EmailMessagesSection({
   );
 }
 
-// ─── Section: Agreements ───
-function AgreementsSection({
+// ─── Section: Attestations ───
+function AttestationsSection({
   schema,
   onUpdateSchema,
 }: {
   schema: SchemaContextType;
   onUpdateSchema: (fn: (prev: SchemaContextType) => SchemaContextType) => void;
 }) {
-  const agreements = schema.agreements ?? [];
+  const attestations = schema.attestations ?? [];
 
-  const updateAgreement = (index: number, field: keyof Agreement, value: string) => {
+  const updateAttestation = (index: number, field: keyof Attestation, value: string) => {
     onUpdateSchema((prev) => {
-      const updated = [...(prev.agreements ?? [])];
+      const updated = [...(prev.attestations ?? [])];
       updated[index] = { ...updated[index], [field]: value };
-      return { ...prev, agreements: updated };
+      return { ...prev, attestations: updated };
     });
   };
 
-  const addAgreement = () => {
+  const addAttestation = () => {
     onUpdateSchema((prev) => ({
       ...prev,
-      agreements: [...(prev.agreements ?? []), { id: "", html: "" }],
+      attestations: [...(prev.attestations ?? []), { id: "", html: "" }],
     }));
   };
 
-  const removeAgreement = (index: number) => {
+  const removeAttestation = (index: number) => {
     onUpdateSchema((prev) => ({
       ...prev,
-      agreements: (prev.agreements ?? []).filter((_, i) => i !== index),
+      attestations: (prev.attestations ?? []).filter((_, i) => i !== index),
     }));
   };
 
   return (
     <>
-      {agreements.map((ag, i) => (
-        <Box key={ag.id || `agreement-${i}`} sx={{ mb: 2, p: 2, border: "1px solid #e0e0e0", borderRadius: 1 }}>
+      {attestations.map((ag, i) => (
+        <Box key={ag.id || `attestation-${i}`} sx={{ mb: 2, p: 2, border: "1px solid #e0e0e0", borderRadius: 1 }}>
           <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
-            <Typography variant="subtitle2">Agreement {i + 1}</Typography>
+            <Typography variant="subtitle2">Attestation {i + 1}</Typography>
             <IconButton
               size="small"
-              onClick={() => removeAgreement(i)}
+              onClick={() => removeAttestation(i)}
               color="error"
-              aria-label={`Remove agreement ${i + 1}`}
+              aria-label={`Remove attestation ${i + 1}`}
             >
               <DeleteIcon fontSize="small" />
             </IconButton>
@@ -452,7 +453,7 @@ function AgreementsSection({
           <TextField
             label="ID"
             value={ag.id ?? ""}
-            onChange={(e) => updateAgreement(i, "id", e.target.value)}
+            onChange={(e) => updateAttestation(i, "id", e.target.value)}
             fullWidth
             size="small"
             sx={{ mb: 1 }}
@@ -460,7 +461,7 @@ function AgreementsSection({
           <TextField
             label="HTML Content"
             value={ag.html ?? ""}
-            onChange={(e) => updateAgreement(i, "html", e.target.value)}
+            onChange={(e) => updateAttestation(i, "html", e.target.value)}
             fullWidth
             multiline
             minRows={2}
@@ -469,8 +470,8 @@ function AgreementsSection({
           />
         </Box>
       ))}
-      <Button startIcon={<AddIcon />} onClick={addAgreement} size="small">
-        Add Agreement
+      <Button startIcon={<AddIcon />} onClick={addAttestation} size="small">
+        Add attestation
       </Button>
     </>
   );
@@ -553,7 +554,6 @@ function ResourceEditor({
             { key: "isEquipment", label: "Equipment" },
             { key: "isWalkIn", label: "Walk-In" },
             { key: "isWalkInCanBookTwo", label: "Walk-In Can Book Two" },
-            { key: "needsSafetyTraining", label: "Needs Safety Training" },
           ].map((t) => (
             <FormControlLabel
               key={t.key}
@@ -567,21 +567,32 @@ function ResourceEditor({
               label={t.label}
             />
           ))}
+          <FormControlLabel
+            key="training-required"
+            control={
+              <Switch
+                checked={resource.training?.required ?? false}
+                onChange={(e) => set("training.required", e.target.checked)}
+                size="small"
+              />
+            }
+            label="Needs safety training"
+          />
         </Box>
 
         <TextField
-          label="Training Form URL"
-          value={resource.trainingFormUrl ?? ""}
-          onChange={(e) => set("trainingFormUrl", e.target.value)}
+          label="Training form ID or URL"
+          value={resource.training?.formId ?? ""}
+          onChange={(e) => set("training.formId", e.target.value)}
           fullWidth
           size="small"
           sx={{ mb: 2 }}
         />
 
         <TextField
-          label="Training Info URL"
-          value={resource.trainingInfoUrl ?? ""}
-          onChange={(e) => set("trainingInfoUrl", e.target.value)}
+          label="Training info URL"
+          value={resource.training?.infoUrl ?? ""}
+          onChange={(e) => set("training.infoUrl", e.target.value)}
           fullWidth
           size="small"
           sx={{ mb: 2 }}
@@ -942,20 +953,35 @@ function MappingsSection({
       />
       <MappingEditor
         label="Role Mapping"
-        mapping={schema.roleMapping ?? {}}
-        onChange={(v) => onUpdateSchema((prev) => ({ ...prev, roleMapping: v }))}
+        mapping={schema.mappings?.role ?? {}}
+        onChange={(v) =>
+          onUpdateSchema((prev) => ({
+            ...prev,
+            mappings: { ...prev.mappings, role: v },
+          }))
+        }
       />
       <Box sx={{ my: 2 }} />
       <MappingEditor
         label="Program Mapping"
-        mapping={schema.programMapping ?? {}}
-        onChange={(v) => onUpdateSchema((prev) => ({ ...prev, programMapping: v }))}
+        mapping={schema.mappings?.program ?? {}}
+        onChange={(v) =>
+          onUpdateSchema((prev) => ({
+            ...prev,
+            mappings: { ...prev.mappings, program: v },
+          }))
+        }
       />
       <Box sx={{ my: 2 }} />
       <MappingEditor
         label="School Mapping"
-        mapping={schema.schoolMapping ?? {}}
-        onChange={(v) => onUpdateSchema((prev) => ({ ...prev, schoolMapping: v }))}
+        mapping={schema.mappings?.school ?? {}}
+        onChange={(v) =>
+          onUpdateSchema((prev) => ({
+            ...prev,
+            mappings: { ...prev.mappings, school: v },
+          }))
+        }
       />
     </>
   );
@@ -1046,11 +1072,11 @@ function CalendarConfigSection({
             control={
               <Switch
                 checked={
-                  schema.timeSensitiveRequestWarning?.isActive ?? false
+                  config.timeSensitiveRequestWarning?.isActive ?? false
                 }
                 onChange={(e) =>
                   onChange(
-                    "timeSensitiveRequestWarning.isActive",
+                    "calendarConfig.timeSensitiveRequestWarning.isActive",
                     e.target.checked,
                   )
                 }
@@ -1062,10 +1088,10 @@ function CalendarConfigSection({
           <TextField
             label="Hours"
             type="number"
-            value={schema.timeSensitiveRequestWarning?.hours ?? 48}
+            value={config.timeSensitiveRequestWarning?.hours ?? 48}
             onChange={(e) =>
               onChange(
-                "timeSensitiveRequestWarning.hours",
+                "calendarConfig.timeSensitiveRequestWarning.hours",
                 Number(e.target.value),
               )
             }
@@ -1074,19 +1100,22 @@ function CalendarConfigSection({
           />
           <TextField
             label="Message"
-            value={schema.timeSensitiveRequestWarning?.message ?? ""}
+            value={config.timeSensitiveRequestWarning?.message ?? ""}
             onChange={(e) =>
-              onChange("timeSensitiveRequestWarning.message", e.target.value)
+              onChange(
+                "calendarConfig.timeSensitiveRequestWarning.message",
+                e.target.value,
+              )
             }
             size="small"
             sx={{ flex: 1, minWidth: 200 }}
           />
           <TextField
             label="Policy Link"
-            value={schema.timeSensitiveRequestWarning?.policyLink ?? ""}
+            value={config.timeSensitiveRequestWarning?.policyLink ?? ""}
             onChange={(e) =>
               onChange(
-                "timeSensitiveRequestWarning.policyLink",
+                "calendarConfig.timeSensitiveRequestWarning.policyLink",
                 e.target.value,
               )
             }
@@ -1263,10 +1292,10 @@ export default function SchemaEditor() {
     { id: "toggles", label: "Feature Toggles", content: schema && <FeatureTogglesSection schema={schema} onChange={handleFieldChange} /> },
     { id: "policy", label: "Policy", content: schema && <PolicySection schema={schema} onChange={handleFieldChange} /> },
     { id: "resources", label: `Resources (${schema?.resources?.length ?? 0})`, content: schema && <ResourcesSection schema={schema} onUpdateSchema={handleUpdateSchema} /> },
-    { id: "agreements", label: `Agreements (${schema?.agreements?.length ?? 0})`, content: schema && <AgreementsSection schema={schema} onUpdateSchema={handleUpdateSchema} /> },
+    { id: "attestations", label: `Attestations (${schema?.attestations?.length ?? 0})`, content: schema && <AttestationsSection schema={schema} onUpdateSchema={handleUpdateSchema} /> },
     { id: "mappings", label: "Roles & Mappings", content: schema && <MappingsSection schema={schema} onChange={handleFieldChange} onUpdateSchema={handleUpdateSchema} /> },
     { id: "calendar", label: "Calendar Config", content: schema && <CalendarConfigSection schema={schema} onChange={handleFieldChange} /> },
-    { id: "email", label: "Email Messages", content: schema && <EmailMessagesSection schema={schema} onChange={handleFieldChange} /> },
+    { id: "email", label: "Email notifications", content: schema && <EmailMessagesSection schema={schema} onChange={handleFieldChange} /> },
   ];
 
   return (

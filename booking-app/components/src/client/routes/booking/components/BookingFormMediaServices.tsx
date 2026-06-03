@@ -34,7 +34,7 @@ export default function BookingFormMediaServices(props: Props) {
   } = props;
   const { selectedRooms } = useContext(BookingContext);
   const schema = useTenantSchema();
-  const { showEquipment, showStaffing } = schema;
+  const { showEquipment, showStaffing } = schema.form.services;
   const roomIds = selectedRooms.map((room) => room.roomId);
 
   // Previously, walk-in/modification contexts were limited to equipment-only.
