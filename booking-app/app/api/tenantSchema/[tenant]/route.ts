@@ -6,6 +6,7 @@ import {
 } from "@/lib/firebase/server/adminDb";
 import { TableNames } from "@/components/src/policy";
 import { applyEnvironmentCalendarIds } from "@/lib/utils/calendarEnvironment";
+import { coerceTenantSchema } from "@/lib/tenant/coerceTenantSchema";
 import { isValidTenant } from "@/components/src/constants/tenants";
 import admin from "@/lib/firebase/server/firebaseAdmin";
 
@@ -17,20 +18,29 @@ export async function GET(
     const { tenant } = await params;
 
     // Fetch the specific schema document using tenant as document ID
-    const schema = await serverGetDocumentById(
+    const rawDoc = await serverGetDocumentById<Record<string, unknown>>(
       TableNames.TENANT_SCHEMA,
       tenant,
     );
 
-    if (!schema) {
+    if (!rawDoc) {
       return NextResponse.json(
         { error: `Schema not found for tenant: ${tenant}` },
         { status: 404 },
       );
     }
 
-    // Skip environment calendar ID rewriting when raw=1 is requested
-    // (used by schema editor to avoid data corruption on round-trip)
+    // Always coerce to the canonical (nested) shape. The schema editor needs
+    // the nested shape to render its fields, so it consumes this coerced
+    // payload and persists it on save — which is the intended lazy migration of
+    // a legacy document to the canonical shape (no data is lost; coercion maps
+    // every legacy field across). It is NOT a way to fetch the un-coerced
+    // document.
+    const schema = coerceTenantSchema(rawDoc, tenant);
+
+    // `raw=1` only skips environment-specific calendar ID rewriting, so the
+    // editor saves back the stored calendar IDs rather than env-substituted
+    // ones. It does not bypass coercion.
     const raw = request.nextUrl.searchParams.get("raw") === "1";
     if (!raw && schema.resources && Array.isArray(schema.resources)) {
       schema.resources = applyEnvironmentCalendarIds(schema.resources);
@@ -86,8 +96,8 @@ export async function PUT(
 
     const newSchema = await request.json();
 
-    // Enforce tenant field consistency with URL param
-    newSchema.tenant = tenant;
+    // Enforce tenant id consistency with URL param
+    newSchema.tenantId = tenant;
 
     // Backup current schema before overwriting
     const existingSchema = await serverGetDocumentById(

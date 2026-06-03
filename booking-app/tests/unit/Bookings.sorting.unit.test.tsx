@@ -1,6 +1,6 @@
 import { Bookings } from "@/components/src/client/routes/components/bookingTable/Bookings";
 import { DatabaseContext } from "@/components/src/client/routes/components/Provider";
-import { SchemaContext } from "@/components/src/client/routes/components/SchemaProvider";
+import { SchemaContext, generateDefaultSchema } from "@/components/src/client/routes/components/SchemaProvider";
 import {
   BookingRow,
   BookingStatusLabel,
@@ -110,10 +110,7 @@ const mockDatabaseContext = {
   setFilters: vi.fn(),
 };
 
-const mockSchemaContext = {
-  resourceName: "Room",
-  schema: {} as any,
-};
+const mockSchemaContext = generateDefaultSchema("mc");
 
 const defaultProps = {
   pageContext: PageContextLevel.ADMIN,

@@ -59,11 +59,11 @@ export default function BookingStatusBar({ formContext, ...props }: Props) {
   const isOverlap = useCalculateOverlap();
   const schema = useTenantSchema();
   const timeSensitiveRequestWarning =
-    schema.timeSensitiveRequestWarning ??
     schema.calendarConfig?.timeSensitiveRequestWarning;
   const safetyTrainingInfoUrl =
-    selectedRooms.find((room) => room.needsSafetyTraining && room.trainingInfoUrl)
-      ?.trainingInfoUrl || defaultSafetyTrainingInfoUrl;
+    selectedRooms.find(
+      (room) => room.needsSafetyTraining && room.trainingInfoUrl,
+    )?.trainingInfoUrl || defaultSafetyTrainingInfoUrl;
   const pathname = usePathname();
   const isSelectRoomPage = pathname.endsWith("/selectRoom");
   const warningThresholdHours = timeSensitiveRequestWarning?.hours ?? 48;
@@ -191,7 +191,21 @@ export default function BookingStatusBar({ formContext, ...props }: Props) {
           <p>
             This request will require approval.{" "}
             <Tooltip title={errorMessage}>
-              <a>Why?</a>
+              <button
+                type="button"
+                style={{
+                  background: "none",
+                  border: "none",
+                  padding: 0,
+                  color: "inherit",
+                  textDecoration: "underline",
+                  cursor: "help",
+                  font: "inherit",
+                }}
+                aria-label={`Why? ${errorMessage}`}
+              >
+                Why?
+              </button>
             </Tooltip>
           </p>
         ),
@@ -212,10 +226,29 @@ export default function BookingStatusBar({ formContext, ...props }: Props) {
         btnDisabledMessage: null,
         message: (
           <p>
-            This request will require approval.{" "}
-            <Tooltip title={errorMessage}>
-              <a>Why?</a>
-            </Tooltip>
+            This request will require approval.
+            {errorMessage && (
+              <>
+                {" "}
+                <Tooltip title={errorMessage}>
+                  <button
+                    type="button"
+                    style={{
+                      background: "none",
+                      border: "none",
+                      padding: 0,
+                      color: "inherit",
+                      textDecoration: "underline",
+                      cursor: "help",
+                      font: "inherit",
+                    }}
+                    aria-label={`Why? ${errorMessage}`}
+                  >
+                    Why?
+                  </button>
+                </Tooltip>
+              </>
+            )}
           </p>
         ),
         severity: "warning",

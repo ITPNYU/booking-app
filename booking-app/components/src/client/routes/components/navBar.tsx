@@ -22,13 +22,24 @@ import ConfirmDialog from "./ConfirmDialog";
 import { DatabaseContext } from "./Provider";
 import { SchemaContext } from "./SchemaProvider";
 
-const LogoBox = styled(Box)`
+const LogoBox = styled("button")`
   cursor: pointer;
   display: flex;
   align-items: flex-end;
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
 
   img {
     margin-right: 8px;
+  }
+
+  &:focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: 2px;
   }
 `;
 
@@ -62,27 +73,32 @@ export default function NavBar() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const tenantSchema = useContext(SchemaContext);
-  const {
-    name = "",
-    logo = "/mediaCommonsLogo.svg",
-    supportVIP = false,
-    supportWalkIn = false,
-    supportPA = true,
-    supportLiaison = true,
-    showSetup = true,
-    showEquipment = true,
-    showStaffing = true,
-    showCatering = true,
-    showHireSecurity = true,
-    permissionLabels = {
-      user: "User",
-      worker: "PA",
-      reviewer: "Liaison",
-      services: "Services",
-      admin: "Admin",
-    },
-  } = tenantSchema || {};
-  const hasServices = showSetup || showEquipment || showStaffing || showCatering || showHireSecurity;
+  const defaultContextLabels = {
+    user: "User",
+    worker: "PA",
+    reviewer: "Liaison",
+    services: "Services",
+    admin: "Admin",
+  };
+  const name = tenantSchema?.tenant?.name ?? "";
+  const logo = tenantSchema?.tenant?.logo || "/mediaCommonsLogo.svg";
+  const permissionLabels =
+    tenantSchema?.tenant?.contextLabels ?? defaultContextLabels;
+  const supportVIP = tenantSchema?.origins?.VIP ?? false;
+  const supportWalkIn = tenantSchema?.origins?.walkIn ?? false;
+  const supportPA = tenantSchema?.supportPA ?? true;
+  const supportLiaison = tenantSchema?.supportLiaison ?? true;
+  const showSetup = tenantSchema?.form?.services?.showSetup ?? true;
+  const showEquipment = tenantSchema?.form?.services?.showEquipment ?? true;
+  const showStaffing = tenantSchema?.form?.services?.showStaffing ?? true;
+  const showCatering = tenantSchema?.form?.services?.showCatering ?? true;
+  const showHireSecurity = tenantSchema?.form?.services?.showSecurity ?? true;
+  const hasServices =
+    showSetup ||
+    showEquipment ||
+    showStaffing ||
+    showCatering ||
+    showHireSecurity;
 
   // True app root ("/") — used to hide navbar chrome (no tenant context yet)
   const isAppRoot = pathname === "/";
@@ -90,13 +106,14 @@ export default function NavBar() {
   const getPathFromPermission = (permission: PagePermission): string =>
     PERMISSION_PATH[permission] ?? "";
 
-
   const handleRoleChange = (e: any) => {
     const role = e.target.value as PagePermission;
     const path = getPathFromPermission(role);
     // Build path without trailing slash when switching to User context (path="")
     const fullPath = path
-      ? tenant ? `/${tenant}/${path}` : `/${path}`
+      ? tenant
+        ? `/${tenant}/${path}`
+        : `/${path}`
       : `/${tenant || ""}`;
     // When user explicitly selects User (BOOKING) context, prevent auto-redirect
     // so they aren't immediately bounced back to their highest-privilege view.
@@ -178,35 +195,47 @@ export default function NavBar() {
       return null;
     }
 
-    const showPA = supportPA && hasUserPermission([
-      PagePermission.PA,
-      PagePermission.ADMIN,
-      PagePermission.SUPER_ADMIN,
-    ]);
+    const showPA =
+      supportPA &&
+      hasUserPermission([
+        PagePermission.PA,
+        PagePermission.ADMIN,
+        PagePermission.SUPER_ADMIN,
+      ]);
 
-    const showLiaison = supportLiaison && hasUserPermission([
-      PagePermission.LIAISON,
-      PagePermission.ADMIN,
-      PagePermission.SUPER_ADMIN,
-    ]);
+    const showLiaison =
+      supportLiaison &&
+      hasUserPermission([
+        PagePermission.LIAISON,
+        PagePermission.ADMIN,
+        PagePermission.SUPER_ADMIN,
+      ]);
 
     const showAdmin = hasUserPermission([
       PagePermission.ADMIN,
       PagePermission.SUPER_ADMIN,
     ]);
 
-    const showServices = hasServices && hasUserPermission([
-      PagePermission.SERVICES,
-      PagePermission.ADMIN,
-      PagePermission.SUPER_ADMIN,
-    ]);
+    const showServices =
+      hasServices &&
+      hasUserPermission([
+        PagePermission.SERVICES,
+        PagePermission.ADMIN,
+        PagePermission.SUPER_ADMIN,
+      ]);
 
     const showSuperAdmin = hasUserPermission([PagePermission.SUPER_ADMIN]);
 
     return (
       <Select size="small" value={selectedView} onChange={handleRoleChange}>
-        <MenuItem value={PagePermission.BOOKING}>{permissionLabels.user}</MenuItem>
-        {showPA && <MenuItem value={PagePermission.PA}>{permissionLabels.worker}</MenuItem>}
+        <MenuItem value={PagePermission.BOOKING}>
+          {permissionLabels.user}
+        </MenuItem>
+        {showPA && (
+          <MenuItem value={PagePermission.PA}>
+            {permissionLabels.worker}
+          </MenuItem>
+        )}
         {showLiaison && (
           <MenuItem value={PagePermission.LIAISON}>
             {permissionLabels.reviewer}
@@ -218,7 +247,9 @@ export default function NavBar() {
           </MenuItem>
         )}
         {showAdmin && (
-          <MenuItem value={PagePermission.ADMIN}>{permissionLabels.admin}</MenuItem>
+          <MenuItem value={PagePermission.ADMIN}>
+            {permissionLabels.admin}
+          </MenuItem>
         )}
         {showSuperAdmin && (
           <MenuItem value={PagePermission.SUPER_ADMIN}>Super</MenuItem>
@@ -295,7 +326,7 @@ export default function NavBar() {
         </Button>
       );
     }
-  }, [pagePermission, selectedView, tenant]);
+  }, [pagePermission, selectedView, tenant, supportVIP, supportWalkIn]);
 
   return (
     <Nav>
@@ -309,7 +340,11 @@ export default function NavBar() {
           />
         </LogoBox> */}
         {!isAppRoot && (
-          <LogoBox onClick={handleClickHome}>
+          <LogoBox
+            type="button"
+            onClick={handleClickHome}
+            aria-label="Go to home"
+          >
             <img src={logo} alt={`${name} logo`} style={{ height: 40 }} />
             {!isMobile && (
               <Title as="h1">
@@ -333,11 +368,23 @@ export default function NavBar() {
           title="Log Out"
         >
           <Typography
-            component="p"
+            component="button"
+            type="button"
             color="rgba(0,0,0,0.6)"
             minWidth="50px"
             textAlign="right"
-            sx={{ cursor: "pointer" }}
+            aria-label={`Log out ${netId}`}
+            sx={{
+              cursor: "pointer",
+              background: "none",
+              border: "none",
+              padding: 0,
+              font: "inherit",
+              "&:focus-visible": {
+                outline: "2px solid currentColor",
+                outlineOffset: "2px",
+              },
+            }}
           >
             {netId}
           </Typography>

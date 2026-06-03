@@ -49,7 +49,7 @@ test.describe("VIP Booking Flow", () => {
     await page.waitForURL("**/mc/vip/form", { timeout: 15000 });
     await page.waitForLoadState("networkidle");
 
-    // VIP: nNumber is hidden, agreements need manual checking
+    // VIP: nNumber is hidden, attestations need manual checking
     await fillBookingForm(page, {
       firstName: "VIP",
       lastName: "Guest",

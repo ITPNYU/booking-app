@@ -108,7 +108,7 @@ export async function itpFillBookingForm(
   await page.locator('input[name="title"]').fill(title);
   await page.locator('input[name="description"]').fill(description);
 
-  // ITP has no booking type dropdown (showBookingTypes: false)
+  // ITP has no booking type dropdown (form.showBookingType: false)
   // But the form may still render a fallback — only fill if visible
   const bookingTypeSelect = page.getByTestId("booking-type-select");
   if (

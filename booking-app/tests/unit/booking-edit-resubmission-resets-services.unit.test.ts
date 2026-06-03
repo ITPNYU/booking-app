@@ -118,10 +118,10 @@ describe("Edit resubmission resets declined services", () => {
     mockFirstApproverEmails.mockResolvedValue(["liaison@nyu.edu"]);
     mockGetTenantEmailConfig.mockResolvedValue({
       schemaName: "Media Commons",
-      emailMessages: {
-        requestConfirmation: "Thanks",
-        firstApprovalRequest: "Please review",
-      },
+      emailNotifications: {
+        requestedUser: "Thanks",
+        requestedNeedsApproval: "Please review",
+      } as any,
     });
     mockSendHTMLEmail.mockResolvedValue(undefined);
     mockServerSendBookingDetailEmail.mockResolvedValue(undefined);

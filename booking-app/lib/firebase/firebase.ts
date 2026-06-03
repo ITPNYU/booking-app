@@ -7,7 +7,7 @@ import { Timestamp } from "firebase/firestore";
 
 import { reviveSerializedTimestamps } from "@/lib/utils/timestampWire";
 import { Filters } from "@/components/src/types";
-import { SchemaContextType } from "@/components/src/client/routes/components/SchemaProvider";
+import type { SchemaContextType } from "@/components/src/client/routes/components/schemaTypes";
 import {
   USER_RIGHT_FLAG_FIELDS,
   type UserRightFlagField,

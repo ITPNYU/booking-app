@@ -74,11 +74,11 @@ export default function BookingTableFilters({
   const schema = useTenantSchema();
   const originFilters = useMemo(() => {
     const origins = ["User"];
-    if (schema.supportWalkIn) origins.push("Walk-In");
-    if (schema.supportVIP) origins.push("VIP");
+    if (schema.origins.walkIn) origins.push("Walk-In");
+    if (schema.origins.VIP) origins.push("VIP");
     origins.push("Pregame");
     return origins;
-  }, [schema.supportWalkIn, schema.supportVIP]);
+  }, [schema.origins.walkIn, schema.origins.VIP]);
   const [localSearchQuery, setLocalSearchQuery] = useState(searchQuery);
   // Update local search query when the prop changes
   useEffect(() => {
@@ -325,7 +325,7 @@ export default function BookingTableFilters({
                 </Box>
               ))}
           </Box>
-          {pageContext !== PageContextLevel.USER && (schema.showSetup || schema.showEquipment || schema.showStaffing || schema.showCatering || schema.showHireSecurity) && (
+          {pageContext !== PageContextLevel.USER && (schema.form.services.showSetup || schema.form.services.showEquipment || schema.form.services.showStaffing || schema.form.services.showCatering || schema.form.services.showSecurity) && (
             <Box
               sx={{
                 display: "flex",

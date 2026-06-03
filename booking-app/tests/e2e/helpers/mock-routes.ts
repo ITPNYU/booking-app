@@ -1,110 +1,8 @@
-import { defaultSafetyTrainingInfoUrl } from "@/components/src/constants/safetyTraining";
 import { Page, Route } from "@playwright/test";
+import { getTestTenantSchema } from "@/lib/utils/testTenantSchema";
 
-export const mockTenantSchema = {
-  tenant: "mc",
-  name: "Media Commons",
-  logo: "/mediaCommonsLogo.svg",
-  nameForPolicy: "370J Media Commons",
-  policy: "<p>Mock policy content for automated tests.</p>",
-  schoolMapping: {
-    "Tisch School of the Arts": ["ITP / IMA / Low Res", "General Department"],
-  },
-  programMapping: {
-    "ITP / IMA / Low Res": ["ITP"],
-    "General Department": ["GENERAL"],
-  },
-  roles: ["Student", "Faculty", "Staff"],
-  roleMapping: {
-    Student: ["STUDENT"],
-    Faculty: ["FACULTY"],
-    Staff: ["STAFF"],
-  },
-  showNNumber: true,
-  showSponsor: true,
-  showSetup: false,
-  showEquipment: false,
-  showStaffing: false,
-  showCatering: false,
-  showHireSecurity: false,
-  showBookingTypes: true,
-  bookingTypes: [
-    "Class Session",
-    "General Event",
-    "Meeting",
-    "Workshop",
-    "Presentation",
-    "Rehearsal",
-  ],
-  attendeeAffiliations: [
-    "NYU Members with an active NYU ID",
-    "Non-NYU guests",
-    "All of the above",
-  ],
-  agreements: [
-    { id: "checklist", html: "<p>Mock checklist agreement.</p>" },
-    { id: "resetRoom", html: "<p>Reset room agreement.</p>" },
-    { id: "bookingPolicy", html: "<p>Booking policy agreement.</p>" },
-  ],
-  resources: [
-    {
-      capacity: 30,
-      name: "Lecture Hall 202",
-      roomId: 202,
-      isEquipment: false,
-      calendarId: "mock-calendar-202",
-      needsSafetyTraining: false,
-      trainingInfoUrl: "",
-      isWalkIn: false,
-      isWalkInCanBookTwo: false,
-      services: [],
-      autoApproval: { shouldAutoApprove: true },
-    },
-    {
-      capacity: 20,
-      name: "Studio 220",
-      roomId: 220,
-      isEquipment: false,
-      calendarId: "mock-calendar-220",
-      needsSafetyTraining: false,
-      trainingInfoUrl: "",
-      isWalkIn: true,
-      isWalkInCanBookTwo: false,
-      services: [],
-      autoApproval: { shouldAutoApprove: false },
-    },
-    {
-      capacity: 25,
-      name: "Seminar 203",
-      roomId: 203,
-      isEquipment: false,
-      calendarId: "mock-calendar-203",
-      needsSafetyTraining: false,
-      trainingInfoUrl: "",
-      isWalkIn: false,
-      isWalkInCanBookTwo: false,
-      services: [],
-      maxHour: { faculty: 0.5 },
-      autoApproval: { shouldAutoApprove: false },
-    },
-    {
-      capacity: 15,
-      name: "Workshop 230",
-      roomId: 230,
-      isEquipment: false,
-      calendarId: "mock-calendar-230",
-      needsSafetyTraining: true,
-      trainingInfoUrl: defaultSafetyTrainingInfoUrl,
-      isWalkIn: false,
-      isWalkInCanBookTwo: false,
-      services: [],
-      autoApproval: { shouldAutoApprove: false },
-    },
-  ],
-  supportVIP: true,
-  supportWalkIn: true,
-  resourceName: "Room(s)",
-};
+/** Nested canonical tenant schema (same shape as GET /api/tenantSchema/[tenant]). */
+export const mockTenantSchema = getTestTenantSchema("mc");
 
 const mockIdentityResponse = {
   affiliations: ["ITP"],
@@ -198,7 +96,7 @@ export async function registerBookingMocks(page: Page) {
     route.fulfill({
       status: 200,
       headers: jsonHeaders,
-      body: JSON.stringify({}),
+      body: JSON.stringify({ emails: [] }),
     })
   );
 

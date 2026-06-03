@@ -69,7 +69,7 @@ async function sendEditNotificationEmails(
     email,
     startDate: bookingCalendarInfo?.startStr,
     endDate: bookingCalendarInfo?.endStr,
-    headerMessage: emailConfig.emailMessages.firstApprovalRequest,
+    headerMessage: emailConfig.emailNotifications.requestedNeedsApproval,
     requestNumber: existingContents.requestNumber,
     origin: existingContents.origin || BookingOrigin.USER,
   };
@@ -143,7 +143,7 @@ async function sendEditNotificationEmails(
   await serverSendBookingDetailEmail({
     calendarEventId,
     targetEmail: email,
-    headerMessage: emailConfig.emailMessages.requestConfirmation,
+    headerMessage: emailConfig.emailNotifications.requestedUser,
     status: BookingStatusLabel.REQUESTED,
     replyTo: email,
     tenant,

@@ -31,11 +31,13 @@ export const ServiceApproverUsers = ({
   flagField,
 }: ServiceApproverUsersProps) => {
   const schemaContext = useContext(SchemaContext);
-  const tenant = schemaContext?.tenant;
+  const tenant = schemaContext?.tenantId;
 
   const [loading, setLoading] = useState(false);
   const [valueToAdd, setValueToAdd] = useState("");
-  const [serviceApprovers, setServiceApprovers] = useState<UserRightsRecord[]>([]);
+  const [serviceApprovers, setServiceApprovers] = useState<UserRightsRecord[]>(
+    [],
+  );
 
   const loadServiceApprovers = useCallback(async () => {
     const fetchedData = await clientFetchAllDataFromCollection<any>(
@@ -105,7 +107,9 @@ export const ServiceApproverUsers = ({
       justifyContent={"space-between"}
       alignItems={"center"}
     >
-      <Grid sx={{ paddingLeft: "16px", color: "rgba(0,0,0,0.6)" }}>{title}</Grid>
+      <Grid sx={{ paddingLeft: "16px", color: "rgba(0,0,0,0.6)" }}>
+        {title}
+      </Grid>
       <Grid paddingLeft={0} paddingRight={4} display="flex" alignItems="center">
         <Grid container paddingRight={1}>
           <TextField
@@ -121,6 +125,7 @@ export const ServiceApproverUsers = ({
           color="primary"
           sx={{ padding: 0 }}
           disabled={loading}
+          aria-label="Add service approver"
         >
           <AddCircleOutline />
         </IconButton>

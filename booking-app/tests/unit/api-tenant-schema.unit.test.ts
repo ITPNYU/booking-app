@@ -81,7 +81,7 @@ describe("GET /api/tenantSchema/[tenant]", () => {
     const { data, status } = await parseJson(response);
 
     expect(status).toBe(200);
-    expect(data.name).toBe("Media Commons");
+    expect(data.tenant.name).toBe("Media Commons");
     expect(data.resources).toHaveLength(1);
   });
 
@@ -161,11 +161,11 @@ describe("PUT /api/tenantSchema/[tenant]", () => {
       merge: false,
     });
 
-    // Verify schema was saved
+    // Verify schema was saved (PUT enforces tenantId from URL)
     expect(mockServerSaveDataToFirestoreWithId).toHaveBeenCalledWith(
       "tenantSchema",
       "mc",
-      updatedSchema,
+      { ...updatedSchema, tenantId: "mc" },
     );
   });
 
@@ -217,10 +217,10 @@ describe("PUT /api/tenantSchema/[tenant]", () => {
     mockServerGetDocumentById.mockResolvedValue(null);
     mockServerSaveDataToFirestoreWithId.mockResolvedValue(undefined);
 
-    const schemaWithWrongTenant = { ...mockSchema, tenant: "wrong" };
+    const schemaWithWrongTenantId = { ...mockSchema, tenantId: "wrong" };
 
     const response = await PUT(
-      createRequest("PUT", schemaWithWrongTenant, {
+      createRequest("PUT", schemaWithWrongTenantId, {
         "x-user-email": "admin@nyu.edu",
       }),
       { params },
@@ -228,11 +228,11 @@ describe("PUT /api/tenantSchema/[tenant]", () => {
     const { status } = await parseJson(response);
 
     expect(status).toBe(200);
-    // Verify the saved schema has tenant = "mc" (from URL), not "wrong"
+    // Verify the saved schema has tenantId = "mc" (from URL), not "wrong"
     expect(mockServerSaveDataToFirestoreWithId).toHaveBeenCalledWith(
       "tenantSchema",
       "mc",
-      expect.objectContaining({ tenant: "mc" }),
+      expect.objectContaining({ tenantId: "mc" }),
     );
   });
 

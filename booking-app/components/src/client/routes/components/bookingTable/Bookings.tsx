@@ -76,13 +76,16 @@ export const Bookings: React.FC<BookingsProps> = ({
     useContext(DatabaseContext);
   const {
     resourceName,
+    form,
+    interimHighlightThresholdHours = 18,
+  } = useTenantSchema();
+  const {
     showSetup,
     showEquipment,
     showStaffing,
     showCatering,
-    showHireSecurity,
-    interimHighlightThresholdHours = 18,
-  } = useTenantSchema();
+    showSecurity: showHireSecurity,
+  } = form.services;
   const hasServices =
     showSetup ||
     showEquipment ||
@@ -535,7 +538,10 @@ export const Bookings: React.FC<BookingsProps> = ({
         renderHeader: () => <TableCell component={"div" as any}>Details</TableCell>,
         renderCell: (params) => (
           <TableCell component={"div" as any}>
-            <IconButton onClick={() => setModalData(params.row)}>
+            <IconButton
+              onClick={() => setModalData(params.row)}
+              aria-label="Show booking details"
+            >
               <MoreHoriz />
             </IconButton>
           </TableCell>

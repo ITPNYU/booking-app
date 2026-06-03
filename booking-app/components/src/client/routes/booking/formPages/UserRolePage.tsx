@@ -108,7 +108,7 @@ export default function UserRolePage({
 
   const formatFieldLabel = (label: string) => `${prefix} ${label}`.trim();
 
-  const schemaSchoolMapping = (tenantSchema as any).schoolMapping || {};
+  const schemaSchoolMapping = tenantSchema.mappings?.school || {};
 
   const mappingValuesToArray = (val: any): string[] => {
     if (!val) return [];
@@ -136,7 +136,7 @@ export default function UserRolePage({
   }, [schemaSchoolMapping]);
 
   const departmentOptions = useMemo(() => {
-    const allDepartments = Object.keys(tenantSchema.programMapping || {});
+    const allDepartments = Object.keys(tenantSchema.mappings?.program || {});
     const selectedSchool = watchedFields.school;
 
     if (isOtherSchool(selectedSchool)) {
@@ -155,7 +155,7 @@ export default function UserRolePage({
 
     const hasOther = filtered.includes("Other");
     return hasOther ? filtered : [...filtered, "Other"];
-  }, [tenantSchema.programMapping, watchedFields.school, schemaSchoolMapping]);
+  }, [tenantSchema.mappings?.program, watchedFields.school, schemaSchoolMapping]);
 
   useEffect(() => {
     if (department && !departmentOptions.includes(department)) {
@@ -202,11 +202,11 @@ export default function UserRolePage({
 
     if (userApiData && !isVIP && !isWalkIn) {
       const mappedRole = mapAffiliationToRole(
-        tenantSchema.roleMapping,
+        tenantSchema.mappings.role,
         userApiData.affiliation_sub_type,
       );
       const mappedDepartment = mapDepartmentCode(
-        tenantSchema.programMapping,
+        tenantSchema.mappings.program,
         userApiData.reporting_dept_code,
       );
 
