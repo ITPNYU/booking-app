@@ -161,6 +161,14 @@ export function coerceTenantSchema(
         ...rawCc,
         timeSensitiveRequestWarning: {
           ...base.calendarConfig?.timeSensitiveRequestWarning,
+          // A partially-migrated document may have new-shape tenant/mappings/form
+          // but still carry the warning at the legacy top level. Pick that up so
+          // the warning banner is not silently dropped; the nested value (the
+          // canonical location) wins when present.
+          ...(typeof raw.timeSensitiveRequestWarning === "object" &&
+          raw.timeSensitiveRequestWarning !== null
+            ? (raw.timeSensitiveRequestWarning as Record<string, unknown>)
+            : {}),
           ...rawCc?.timeSensitiveRequestWarning,
         },
       },

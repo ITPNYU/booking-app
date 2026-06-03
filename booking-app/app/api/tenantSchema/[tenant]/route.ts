@@ -30,10 +30,17 @@ export async function GET(
       );
     }
 
+    // Always coerce to the canonical (nested) shape. The schema editor needs
+    // the nested shape to render its fields, so it consumes this coerced
+    // payload and persists it on save — which is the intended lazy migration of
+    // a legacy document to the canonical shape (no data is lost; coercion maps
+    // every legacy field across). It is NOT a way to fetch the un-coerced
+    // document.
     const schema = coerceTenantSchema(rawDoc, tenant);
 
-    // Skip environment calendar ID rewriting when raw=1 is requested
-    // (used by schema editor to avoid data corruption on round-trip)
+    // `raw=1` only skips environment-specific calendar ID rewriting, so the
+    // editor saves back the stored calendar IDs rather than env-substituted
+    // ones. It does not bypass coercion.
     const raw = request.nextUrl.searchParams.get("raw") === "1";
     if (!raw && schema.resources && Array.isArray(schema.resources)) {
       schema.resources = applyEnvironmentCalendarIds(schema.resources);

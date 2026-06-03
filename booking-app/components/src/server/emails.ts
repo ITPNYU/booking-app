@@ -1,7 +1,7 @@
 import { TableNames } from "@/components/src/policy";
 import { serverGetDocumentById } from "@/lib/firebase/server/adminDb";
 import { coerceTenantSchema } from "@/lib/tenant/coerceTenantSchema";
-import type { EmailNotifications } from "../client/routes/components/SchemaProvider";
+import type { EmailNotifications } from "../client/routes/components/schemaTypes";
 import { DevBranch } from "../types";
 
 export const getEmailBranchTag = () => {
