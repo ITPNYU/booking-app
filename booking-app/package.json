@@ -17,8 +17,10 @@
     "copy:staging:dry-run": "node scripts/copyCollection.js --source-database development --target-database staging --source-collection tenantSchema --target-collection tenantSchema --dry-run --report-file dry-run-staging-details.json",
     "copy:production:dry-run": "node scripts/copyCollection.js --source-database development --target-database production --source-collection tenantSchema --target-collection tenantSchema --dry-run --report-file dry-run-production-details.json",
     "mergeUsers": "node scripts/mergeUsersCollections.js",
-    "sync:schemas": "npx ts-node --transpile-only -r tsconfig-paths/register --compiler-options '{\"module\":\"commonjs\",\"jsx\":\"react\"}' scripts/syncTenantSchemas.ts",
-    "sync:schemas:dry-run": "npx ts-node --transpile-only -r tsconfig-paths/register --compiler-options '{\"module\":\"commonjs\",\"jsx\":\"react\"}' scripts/syncTenantSchemas.ts --dry-run"
+    "sync:schemas": "npx ts-node -r tsconfig-paths/register --transpile-only --compiler-options '{\"module\":\"commonjs\",\"jsx\":\"react\"}' scripts/syncTenantSchemas.ts",
+    "sync:schemas:dry-run": "npx ts-node -r tsconfig-paths/register --transpile-only --compiler-options '{\"module\":\"commonjs\",\"jsx\":\"react\"}' scripts/syncTenantSchemas.ts --dry-run",
+    "migrate:tenant-schema": "npx ts-node -r tsconfig-paths/register --transpile-only --compiler-options '{\"module\":\"commonjs\",\"jsx\":\"react\"}' scripts/migrateTenantSchemaFirestore.ts",
+    "migrate:tenant-schema:dry-run": "npx ts-node -r tsconfig-paths/register --transpile-only --compiler-options '{\"module\":\"commonjs\",\"jsx\":\"react\"}' scripts/migrateTenantSchemaFirestore.ts --dry-run"
   },
   "dependencies": {
     "@emotion/styled": "^11.13.0",
@@ -37,7 +39,7 @@
     "@svgr/webpack": "^8.1.0",
     "@typescript-eslint/typescript-estree": "^7.16.0",
     "@xstate/react": "^6.0.0",
-    "axios": "^1.15.2",
+    "axios": "^1.16.0",
     "bootstrap": "^5.3.3",
     "date-fns": "^3.6.0",
     "date-fns-tz": "^3.1.3",

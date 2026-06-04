@@ -419,7 +419,7 @@ async function handleBookingApprovalEmails(
       email,
       startDate: bookingCalendarInfo?.startStr,
       endDate: bookingCalendarInfo?.endStr,
-      headerMessage: emailConfig.emailMessages.firstApprovalRequest,
+      headerMessage: emailConfig.emailNotifications.requestedNeedsApproval,
       requestNumber: sequentialId,
       origin: formatOrigin(data.origin) ?? BookingOrigin.USER,
     };
@@ -455,7 +455,7 @@ async function handleBookingApprovalEmails(
     await serverSendBookingDetailEmail({
       calendarEventId,
       targetEmail: email,
-      headerMessage: emailConfig.emailMessages.requestConfirmation,
+      headerMessage: emailConfig.emailNotifications.requestedUser,
       status: BookingStatusLabel.REQUESTED,
       replyTo: email,
       tenant,

@@ -10,7 +10,7 @@ import useBookingActions, {
 } from "../../components/src/client/routes/admin/hooks/useBookingActions";
 import { BookingContext } from "../../components/src/client/routes/booking/bookingProvider";
 import { DatabaseContext } from "../../components/src/client/routes/components/Provider";
-import { SchemaContext } from "../../components/src/client/routes/components/SchemaProvider";
+import { SchemaContext, generateDefaultSchema } from "../../components/src/client/routes/components/SchemaProvider";
 import {
   BookingStatusLabel,
   PageContextLevel,
@@ -64,10 +64,7 @@ const mockDatabaseContext = {
   reloadFutureBookings: vi.fn(),
 };
 
-const mockSchemaContext = {
-  resourceName: "Room",
-  schema: {} as any,
-};
+const mockSchemaContext = generateDefaultSchema("mc");
 
 const mockBookingContext = {
   reloadExistingCalendarEvents: vi.fn(),

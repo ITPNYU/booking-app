@@ -38,7 +38,7 @@ export default function useCheckAutoApproval(isWalkIn = false, isVIP = false) {
 
   const throwError = (msg: string) => {
     console.log(
-      `🚫 AUTO-APPROVAL REJECTED [${schema.tenant?.toUpperCase() || "UNKNOWN"}]:`,
+      `🚫 AUTO-APPROVAL REJECTED [${schema.tenantId?.toUpperCase() || "UNKNOWN"}]:`,
       msg,
     );
     setIsAutoApproval(false);
@@ -47,11 +47,11 @@ export default function useCheckAutoApproval(isWalkIn = false, isVIP = false) {
 
   useEffect(() => {
     // For ITP and Media Commons tenants, use XState machine for auto-approval logic
-    if (schema.tenant === TENANTS.ITP || isMediaCommonsTenant(schema.tenant)) {
+    if (schema.tenantId === TENANTS.ITP || isMediaCommonsTenant(schema.tenantId)) {
       console.log(
-        `🎭 CLIENT-SIDE XSTATE CHECK [${schema.tenant?.toUpperCase()}]:`,
+        `🎭 CLIENT-SIDE XSTATE CHECK [${schema.tenantId?.toUpperCase()}]:`,
         {
-          tenant: schema.tenant,
+          tenant: schema.tenantId,
           selectedRooms: selectedRooms?.map((r) => ({
             roomId: r.roomId,
             name: r.name,
@@ -72,16 +72,16 @@ export default function useCheckAutoApproval(isWalkIn = false, isVIP = false) {
       try {
         // Choose the appropriate machine based on tenant
         const machine =
-          schema.tenant === TENANTS.ITP ? itpBookingMachine : mcBookingMachine;
+          schema.tenantId === TENANTS.ITP ? itpBookingMachine : mcBookingMachine;
 
         // For Media Commons, prepare services data
-        const servicesRequested = isMediaCommonsTenant(schema.tenant)
+        const servicesRequested = isMediaCommonsTenant(schema.tenantId)
           ? getMediaCommonsServices(formData || {})
           : {};
 
         const bookingActor = createActor(machine, {
           input: {
-            tenant: schema.tenant,
+            tenant: schema.tenantId,
             selectedRooms,
             formData,
             bookingCalendarInfo: bookingCalendarInfo
@@ -94,7 +94,7 @@ export default function useCheckAutoApproval(isWalkIn = false, isVIP = false) {
             isVip: isVIP,
             role,
             // Media Commons specific fields
-            ...(isMediaCommonsTenant(schema.tenant) && {
+            ...(isMediaCommonsTenant(schema.tenantId) && {
               servicesRequested,
               servicesApproved: {}, // Initially no services are approved
               email: "user@example.com", // Placeholder
@@ -108,7 +108,7 @@ export default function useCheckAutoApproval(isWalkIn = false, isVIP = false) {
         const xstateDecision = currentState.value === "Approved";
 
         console.log(
-          `🎭 CLIENT-SIDE XSTATE RESULT [${schema.tenant?.toUpperCase()}]:`,
+          `🎭 CLIENT-SIDE XSTATE RESULT [${schema.tenantId?.toUpperCase()}]:`,
           {
             state: currentState.value,
             decision: xstateDecision ? "AUTO-APPROVE" : "MANUAL-APPROVAL",
@@ -118,7 +118,7 @@ export default function useCheckAutoApproval(isWalkIn = false, isVIP = false) {
               hasFormData: !!currentState.context.formData,
               isWalkIn: currentState.context.isWalkIn,
               // Media Commons specific context
-              ...(isMediaCommonsTenant(schema.tenant) && {
+              ...(isMediaCommonsTenant(schema.tenantId) && {
                 servicesRequested: (currentState.context as any)
                   .servicesRequested,
                 hasServices: (currentState.context as any).servicesRequested
@@ -198,7 +198,7 @@ export default function useCheckAutoApproval(isWalkIn = false, isVIP = false) {
       : undefined;
 
     console.log(
-      `🔍 AUTO-APPROVAL CHECK USING NEW UTILS [${schema.tenant?.toUpperCase() || "UNKNOWN"}]:`,
+      `🔍 AUTO-APPROVAL CHECK USING NEW UTILS [${schema.tenantId?.toUpperCase() || "UNKNOWN"}]:`,
       {
         role,
         isWalkIn,
@@ -227,7 +227,7 @@ export default function useCheckAutoApproval(isWalkIn = false, isVIP = false) {
     }
 
     console.log(
-      `✅ AUTO-APPROVAL APPROVED [${schema.tenant?.toUpperCase() || "UNKNOWN"}]:`,
+      `✅ AUTO-APPROVAL APPROVED [${schema.tenantId?.toUpperCase() || "UNKNOWN"}]:`,
       result.reason,
     );
     setIsAutoApproval(true);
@@ -238,7 +238,7 @@ export default function useCheckAutoApproval(isWalkIn = false, isVIP = false) {
     selectedRooms,
     formData,
     schema.resources,
-    schema.tenant, // Added tenant to dependencies
+    schema.tenantId, // Added tenant to dependencies
     isWalkIn, // Added isWalkIn to dependencies
   ]);
 

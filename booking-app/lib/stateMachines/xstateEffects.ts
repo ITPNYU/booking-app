@@ -179,7 +179,7 @@ export async function sendCanceledEmail(
 
     if (guestEmail) {
       const emailConfig = await getTenantEmailConfig(tenant);
-      const headerMessage = emailConfig.emailMessages.canceled;
+      const headerMessage = emailConfig.emailNotifications.canceled;
 
       await serverSendBookingDetailEmail({
         calendarEventId,

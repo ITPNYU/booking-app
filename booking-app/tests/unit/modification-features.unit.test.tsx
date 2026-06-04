@@ -26,25 +26,36 @@ const { mockIsBookingTimeInBlackout } = vi.hoisted(() => ({
 // --------------------
 
 // Mock SchemaProvider hook so FormInput doesn't depend on external schema
-vi.mock("@/components/src/client/routes/components/SchemaProvider", () => {
-  return {
-    __esModule: true,
-    useTenantSchema: () => ({
-      showNNumber: false,
-      showSponsor: false,
-      showSetup: true,
-      showEquipment: true,
-      showStaffing: true,
-      showCatering: true,
-      showHireSecurity: true,
-      showCleaning: true,
-      showBookingTypes: false,
-      agreements: [],
-      roleMapping: {},
-      resources: [],
-    }),
-  };
-});
+vi.mock(
+  "@/components/src/client/routes/components/SchemaProvider",
+  async (importOriginal) => {
+    const actual =
+      await importOriginal<
+        typeof import("@/components/src/client/routes/components/SchemaProvider")
+      >();
+    const base = actual.generateDefaultSchema("mc");
+    return {
+      ...actual,
+      useTenantSchema: () => ({
+        ...base,
+        form: {
+          ...base.form,
+          showNNumber: false,
+          showSponsor: false,
+          showBookingType: false,
+          services: {
+            ...base.form.services,
+            showSetup: true,
+            showEquipment: true,
+            showStaffing: true,
+            showCatering: true,
+            showSecurity: true,
+          },
+        },
+      }),
+    };
+  },
+);
 
 // Mock hooks that FormInput relies on
 vi.mock(

@@ -6,43 +6,29 @@ import { defaultScheme } from "../../components/src/client/routes/components/Sch
  * When you add a new field to SchemaContextType, add it here too — this test
  * will fail and remind you to also add a default value in defaultScheme.
  *
- * Note: "tenant" is omitted because defaultScheme is typed as
- * Omit<SchemaContextType, "tenant"> — tenant is set at runtime.
+ * Note: "tenantId" is omitted because defaultScheme is typed as
+ * Omit<SchemaContextType, "tenantId"> — tenantId is set at runtime.
  */
 const ALL_SCHEMA_KEYS = [
-  "name",
-  "safetyTrainingGoogleFormId",
-  "logo",
-  "nameForPolicy",
+  "tenant",
   "policy",
-  "programMapping",
+  "mappings",
   "roles",
-  "roleMapping",
-  "permissionLabels",
-  "schoolMapping",
-  "showNNumber",
-  "showSponsor",
-  "showSetup",
-  "showEquipment",
-  "showStaffing",
-  "showCatering",
-  "showHireSecurity",
-  "showBookingTypes",
-  "agreements",
+  "form",
+  "attestations",
   "resources",
-  "supportVIP",
-  "supportWalkIn",
+  "origins",
+  "training",
   "supportPA",
   "supportLiaison",
   "resourceName",
   "declinedGracePeriod",
   "interimHighlightThresholdHours",
   "autoCancel",
-  "timeSensitiveRequestWarning",
   "termConfig",
   "calendarConfig",
   "ccEmails",
-  "emailMessages",
+  "emailNotifications",
 ];
 
 describe("Schema completeness", () => {

@@ -1,6 +1,7 @@
 import type { SchemaContextType } from "@/components/src/client/routes/components/SchemaProvider";
 import { isValidTenant } from "@/components/src/constants/tenants";
 import { TableNames } from "@/components/src/policy";
+import { coerceTenantSchema } from "@/lib/tenant/coerceTenantSchema";
 import { shouldBypassAuth } from "@/lib/utils/testEnvironment";
 import { getTestTenantSchema } from "@/lib/utils/testTenantSchema";
 
@@ -22,7 +23,8 @@ export async function getCachedTenantSchema(
     return null;
   }
   if (shouldBypassAuth()) {
-    return getTestTenantSchema(tenant);
+    const test = getTestTenantSchema(tenant);
+    return test ? coerceTenantSchema(test as unknown as Record<string, unknown>, tenant) : null;
   }
 
   const now = Date.now();
@@ -48,12 +50,13 @@ export async function getCachedTenantSchema(
 
   const { serverGetDocumentById } =
     await import("@/lib/firebase/server/adminDb");
-  const data = await serverGetDocumentById<SchemaContextType>(
+  const data = await serverGetDocumentById<Record<string, unknown>>(
     TableNames.TENANT_SCHEMA,
     tenant,
   );
-  if (data !== null) {
-    cache.set(tenant, { data, ts: now });
+  const coerced = data !== null ? coerceTenantSchema(data, tenant) : null;
+  if (coerced !== null) {
+    cache.set(tenant, { data: coerced, ts: now });
   }
-  return data;
+  return coerced;
 }

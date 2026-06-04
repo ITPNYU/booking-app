@@ -4,6 +4,7 @@ import {
   TENANTS,
   isMediaCommonsTenant,
 } from "./constants/tenants";
+import { coerceTenantSchema } from "@/lib/tenant/coerceTenantSchema";
 // Inlined to avoid circular dependency with policy.ts
 const TENANT_SCHEMA_COLLECTION = "tenantSchema";
 
@@ -72,10 +73,11 @@ export async function getApprovedCcEmail(tenant: string): Promise<string> {
     const { serverGetDocumentById } = await import(
       "@/lib/firebase/server/adminDb"
     );
-    const schema = await serverGetDocumentById<SchemaContextType>(
+    const raw = await serverGetDocumentById<Record<string, unknown>>(
       TENANT_SCHEMA_COLLECTION as any,
       tenant,
     );
+    const schema = raw ? coerceTenantSchema(raw, tenant) : null;
     if (schema) {
       return resolveEmail(schema.ccEmails?.approved);
     }
@@ -94,10 +96,11 @@ export async function getCanceledCcEmail(tenant: string): Promise<string> {
     const { serverGetDocumentById } = await import(
       "@/lib/firebase/server/adminDb"
     );
-    const schema = await serverGetDocumentById<SchemaContextType>(
+    const raw = await serverGetDocumentById<Record<string, unknown>>(
       TENANT_SCHEMA_COLLECTION as any,
       tenant,
     );
+    const schema = raw ? coerceTenantSchema(raw, tenant) : null;
     if (schema) {
       return resolveEmail(schema.ccEmails?.canceled);
     }
