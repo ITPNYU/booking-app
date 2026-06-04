@@ -82,55 +82,17 @@ jobs:
           cd booking-app
           npm run build
 
-      # Sync Firestore composite indexes for this environment's database.
-      # Uses gcloud directly (not `firebase deploy`) because firebase-tools
-      # 15.x throws TypeError on the multi-database `firestore` array in
-      # firebase.json, masking real failures behind a generic wrapper.
+      # Sync Firestore composite indexes for this environment's database from
+      # firestore.indexes.json (single source of truth — add indexes there, not
+      # here). Uses gcloud directly (not `firebase deploy`) because
+      # firebase-tools 15.x throws TypeError on the multi-database `firestore`
+      # array in firebase.json, masking real failures behind a generic wrapper.
       # gcloud is already authenticated via setup-gcloud above.
       - name: Deploy Firestore indexes
         timeout-minutes: 20
         run: |
-          DB='booking-app-staging'
-          PROJECT="${{ secrets.GCP_PROJECT_ID }}"
-
-          create_index() {
-            local CG="$1"
-            shift
-            echo "Ensuring composite index on $CG in $DB..."
-            set +e
-            OUTPUT=$(gcloud firestore indexes composite create \
-              --collection-group="$CG" \
-              --database="$DB" \
-              --project="$PROJECT" \
-              "$@" \
-              --quiet 2>&1)
-            EXIT=$?
-            set -e
-            if [ $EXIT -ne 0 ]; then
-              if echo "$OUTPUT" | grep -qi "ALREADY_EXISTS"; then
-                echo "Index already exists for $CG, skipping"
-                return 0
-              fi
-              echo "Failed to create index for $CG:"
-              echo "$OUTPUT"
-              return 1
-            fi
-            echo "$OUTPUT"
-          }
-
-          BOOKINGS_FIELDS=(
-            --field-config=field-path=email,order=ascending
-            --field-config=field-path=startDate,order=descending
-          )
-          BOOKING_LOGS_FIELDS=(
-            --field-config=field-path=calendarEventId,order=ascending
-            --field-config=field-path=status,order=ascending
-          )
-
-          create_index mc-bookings "${BOOKINGS_FIELDS[@]}"
-          create_index itp-bookings "${BOOKINGS_FIELDS[@]}"
-          create_index mc-bookingLogs "${BOOKING_LOGS_FIELDS[@]}"
-          create_index itp-bookingLogs "${BOOKING_LOGS_FIELDS[@]}"
+          bash booking-app/scripts/deploy-firestore-indexes.sh \
+            'booking-app-staging' "${{ secrets.GCP_PROJECT_ID }}"
 
       - name: Deploy to App Engine
         run: |
