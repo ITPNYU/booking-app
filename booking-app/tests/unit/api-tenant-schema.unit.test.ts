@@ -63,9 +63,9 @@ const parseJson = async (response: Response) => {
 };
 
 const mockSchema = {
-  tenant: "mc",
-  name: "Media Commons",
-  showEquipment: true,
+  tenantId: "mc",
+  tenant: { name: "Media Commons", logo: "", nameForPolicy: "" },
+  form: { services: { showEquipment: true } },
   resources: [{ name: "Room 1", roomId: 1 }],
 };
 
