@@ -25,6 +25,7 @@ const ALL_SCHEMA_KEYS = [
   "declinedGracePeriod",
   "interimHighlightThresholdHours",
   "autoCancel",
+  "termConfig",
   "calendarConfig",
   "ccEmails",
   "emailNotifications",
