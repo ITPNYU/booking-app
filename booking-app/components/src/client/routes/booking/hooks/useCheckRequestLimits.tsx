@@ -33,7 +33,7 @@ export default function useCheckRequestLimits(formContext: FormContextLevel) {
 
     if (
       !isSelectRoomPage ||
-      !schema.tenant ||
+      !schema.tenantId ||
       !role ||
       selectedRooms.length === 0 ||
       bookingCalendarInfo == null
