@@ -108,6 +108,82 @@ function isNewSchemaShape(raw: Record<string, unknown>): boolean {
 }
 
 /**
+ * Top-level keys from the legacy flat schema. If any are still present on a
+ * document that otherwise looks "nested", Firestore should be rewritten so the
+ * canonical nested-only shape is stored (avoids ambiguous round-trips).
+ */
+export const STALE_LEGACY_TOP_LEVEL_TENANT_SCHEMA_KEYS = [
+  "name",
+  "logo",
+  "nameForPolicy",
+  "permissionLabels",
+  "programMapping",
+  "roleMapping",
+  "schoolMapping",
+  "showBookingTypes",
+  "showNNumber",
+  "showSponsor",
+  "showCatering",
+  "showEquipment",
+  "showHireSecurity",
+  "showSetup",
+  "showStaffing",
+  "supportVIP",
+  "supportWalkIn",
+  "safetyTrainingGoogleFormId",
+  "timeSensitiveRequestWarning",
+  "emailMessages",
+  "agreements",
+] as const;
+
+/** Legacy field names that may still live inside a `resources[]` entry. */
+const STALE_LEGACY_RESOURCE_KEYS = [
+  "needsSafetyTraining",
+  "trainingFormUrl",
+  "trainingInfoUrl",
+] as const;
+
+/** True when the stored document already matches the nested tenant schema shape. */
+export function isNestedTenantSchemaDocument(
+  raw: Record<string, unknown> | null | undefined,
+): boolean {
+  return Boolean(raw && typeof raw === "object" && isNewSchemaShape(raw));
+}
+
+/**
+ * Whether a Firestore tenantSchema document should be rewritten to the canonical
+ * nested shape (coerce + full replace). Used by one-off migration tooling.
+ */
+export function tenantSchemaFirestoreDocNeedsShapeMigration(
+  raw: Record<string, unknown> | null | undefined,
+): boolean {
+  if (!raw || typeof raw !== "object") return false;
+  if (typeof raw.tenant === "string") return true;
+  if (!isNewSchemaShape(raw)) return true;
+  const hasStaleTopLevel = STALE_LEGACY_TOP_LEVEL_TENANT_SCHEMA_KEYS.some(
+    (k) =>
+      Object.prototype.hasOwnProperty.call(raw, k) &&
+      raw[k as string] !== undefined,
+  );
+  if (hasStaleTopLevel) return true;
+  // A doc may be nested at the top level but still carry legacy fields inside
+  // its resource entries (e.g. needsSafetyTraining / trainingFormUrl). Those
+  // also need canonicalizing, so flag them too.
+  const resources = raw.resources;
+  if (Array.isArray(resources)) {
+    return resources.some(
+      (r) =>
+        r &&
+        typeof r === "object" &&
+        STALE_LEGACY_RESOURCE_KEYS.some((k) =>
+          Object.prototype.hasOwnProperty.call(r, k),
+        ),
+    );
+  }
+  return false;
+}
+
+/**
  * Normalizes a tenant schema document from Firestore (new or legacy shape)
  * into SchemaContextType.
  */
