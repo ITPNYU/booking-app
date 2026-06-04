@@ -14,9 +14,6 @@ export type Attestation = {
   html: string;
 };
 
-/** @deprecated Use Attestation */
-export type Agreement = Attestation;
-
 export type StaffingSection = {
   name: string;
   indexes: number[];
@@ -100,9 +97,6 @@ export type ContextLabels = {
   services: string;
   admin: string;
 };
-
-/** @deprecated Use ContextLabels */
-export type PermissionLabels = ContextLabels;
 
 export type TenantBranding = {
   name: string;
@@ -222,9 +216,6 @@ export const defaultAttestation: Attestation = {
   id: "",
   html: "",
 };
-
-/** @deprecated Use defaultAttestation */
-export const defaultAgreement = defaultAttestation;
 
 export const defaultResource: Resource = {
   capacity: 0,
