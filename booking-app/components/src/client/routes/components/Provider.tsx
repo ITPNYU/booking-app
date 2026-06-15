@@ -314,6 +314,7 @@ export const DatabaseProvider = ({
       const rooms: RoomSetting[] = schemaContext.resources
         .map((resource) => ({
           ...resource,
+          roomId: resource.resourceId,
           capacity: String(resource.capacity),
           needsSafetyTraining: resource.training?.required || false,
           trainingFormUrl: resource.training?.formId || undefined,
@@ -323,7 +324,9 @@ export const DatabaseProvider = ({
           isEquipment: resource.isEquipment || false,
           services: resource.services || [],
         }))
-        .sort((a, b) => a.roomId - b.roomId);
+        .sort((a, b) =>
+          a.roomId.localeCompare(b.roomId, undefined, { numeric: true }),
+        );
       setRoomSettings(rooms);
     }
   }, [schemaContext?.resources]);

@@ -37,9 +37,7 @@ export async function GET(request: NextRequest) {
     let formId: string | null = null;
 
     if (resourceId) {
-      const resource = schema.resources?.find(
-        (r) => r.roomId?.toString() === resourceId.toString(),
-      );
+      const resource = schema.resources?.find(r => r.resourceId === resourceId);
       const resourceForm = resource?.training?.formId;
       if (resourceForm) {
         formId = extractGoogleFormId(resourceForm);

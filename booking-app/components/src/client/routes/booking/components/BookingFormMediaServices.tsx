@@ -51,11 +51,11 @@ export default function BookingFormMediaServices(props: Props) {
     // Check for specific room services
     selectedRooms.forEach((room) => {
       if (showStaffing) {
-        if (room.roomId === 103) {
+        if (room.roomId === "103") {
           options.push(MediaServices.AUDIO_TECH_103);
           options.push(MediaServices.LIGHTING_TECH_103);
         }
-        if (room.roomId === 230) {
+        if (room.roomId === "230") {
           options.push(MediaServices.AUDIO_TECH_230);
         }
         if (room.services?.includes("campus-media")) {

@@ -47,7 +47,7 @@ export default function SelectRoomPage({
     // Convert schema resources to RoomSetting format for compatibility
     const convertedResources = resources.map((resource) => ({
       ...resource,
-      roomId: resource.roomId,
+      roomId: resource.resourceId,
       name: resource.name,
       capacity: resource.capacity.toString(),
       calendarId: resource.calendarId,
@@ -68,12 +68,7 @@ export default function SelectRoomPage({
 
     const allRooms = !isWalkIn
       ? convertedResources
-      : convertedResources.filter((room) => {
-          const resource = schema.resources.find(
-            (r: any) => r.roomId === room.roomId,
-          );
-          return resource?.isWalkIn || false;
-        });
+      : convertedResources.filter((room) => room.isWalkIn);
 
     return allRooms;
   }, [schema.resources, isWalkIn]);
