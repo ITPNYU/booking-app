@@ -94,7 +94,7 @@
     "typescript": "^5.5.3",
     "typescript-eslint": "^8.0.0",
     "vite-tsconfig-paths": "^5.1.4",
-    "vitest": "^3.2.4"
+    "vitest": "^3.2.6"
   },
   "overrides": {
     "eslint-config-airbnb-base": {
