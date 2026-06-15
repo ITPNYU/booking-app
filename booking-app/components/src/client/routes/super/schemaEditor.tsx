@@ -478,7 +478,7 @@ function AttestationsSection({
 }
 
 // ─── Section: Resources ───
-export function ResourceEditor({
+function ResourceEditor({
   resource,
   index,
   onUpdate,
@@ -505,7 +505,7 @@ export function ResourceEditor({
         <Box display="flex" alignItems="center" gap={1} width="100%">
           <Typography variant="subtitle2">
             {resource.name || `Resource ${index + 1}`}
-            {resource.resourceId ? ` (${resource.resourceId})` : ""}
+            {resource.roomId ? ` (Room ${resource.roomId})` : ""}
           </Typography>
         </Box>
       </AccordionSummary>
@@ -518,11 +518,12 @@ export function ResourceEditor({
             size="small"
           />
           <TextField
-            label="Resource ID"
-            value={resource.resourceId ?? ""}
-            onChange={(e) => set("resourceId", e.target.value)}
+            label="Room ID"
+            type="number"
+            value={resource.roomId ?? 0}
+            onChange={(e) => set("roomId", Number(e.target.value))}
             size="small"
-            sx={{ width: 180 }}
+            sx={{ width: 120 }}
           />
           <TextField
             label="Capacity"
@@ -822,7 +823,7 @@ function ResourcesSection({
     <>
       {resources.map((r, i) => (
         <ResourceEditor
-          key={r.resourceId || `resource-${i}`}
+          key={r.roomId || `resource-${i}`}
           resource={r}
           index={i}
           onUpdate={updateResource}

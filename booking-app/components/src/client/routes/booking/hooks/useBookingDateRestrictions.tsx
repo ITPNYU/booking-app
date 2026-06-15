@@ -16,15 +16,6 @@ export const useBookingDateRestrictions = () => {
     return blackoutPeriods.filter((period) => period.isActive);
   }, [blackoutPeriods]);
 
-  const stringIdBlackoutPeriods = useMemo(
-    () =>
-      activeBlackoutPeriods.map((period) => ({
-        ...period,
-        roomIds: period.roomIds?.map(String),
-      })),
-    [activeBlackoutPeriods],
-  );
-
   const isDateDisabled = (date: Dayjs) => {
     // Always disable past dates
     if (date.isBefore(dayjs(), "day")) {
@@ -42,12 +33,8 @@ export const useBookingDateRestrictions = () => {
       if (roomSettings && roomSettings.length > 0 && period.roomIds) {
         const allRoomIds = roomSettings
           .map((room) => room.roomId)
-          .sort((a, b) =>
-            String(a).localeCompare(String(b), undefined, { numeric: true }),
-          );
-        const periodRoomIds = period.roomIds
-          .map(String)
-          .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+          .sort((a, b) => a - b);
+        const periodRoomIds = [...period.roomIds].sort((a, b) => a - b);
         const isAllRooms =
           allRoomIds.length === periodRoomIds.length &&
           allRoomIds.every((id, index) => id === periodRoomIds[index]);
@@ -61,9 +48,7 @@ export const useBookingDateRestrictions = () => {
   };
 
   // Check if a specific date is disabled for specific rooms
-  const isDateDisabledForRooms = (date: Dayjs, roomIds: string[]) => {
-    const normalizedRoomIds = roomIds.map(String);
-
+  const isDateDisabledForRooms = (date: Dayjs, roomIds: number[]) => {
     // Always disable past dates
     if (date.isBefore(dayjs(), "day")) {
       return true;
@@ -78,10 +63,7 @@ export const useBookingDateRestrictions = () => {
 
       // If period has roomIds, check if any of the selected rooms are in the blackout period
       if (period.roomIds) {
-        const periodRoomIds = period.roomIds.map(String);
-        return normalizedRoomIds.some((roomId) =>
-          periodRoomIds.includes(roomId),
-        );
+        return roomIds.some((roomId) => period.roomIds.includes(roomId));
       }
 
       // If no roomIds, treat as global blackout that applies to all rooms
@@ -96,9 +78,8 @@ export const useBookingDateRestrictions = () => {
     });
 
   // Get blackout periods that apply to specific rooms for a specific date
-  const getBlackoutPeriodsForDateAndRooms = (date: Dayjs, roomIds: string[]) =>
+  const getBlackoutPeriodsForDateAndRooms = (date: Dayjs, roomIds: number[]) =>
     activeBlackoutPeriods.filter((period) => {
-      const normalizedRoomIds = roomIds.map(String);
       const blackoutRange = getBlackoutTimeRangeForDate(period, date);
       if (!blackoutRange) {
         return false; // Date not in blackout period
@@ -106,10 +87,7 @@ export const useBookingDateRestrictions = () => {
 
       // If period has roomIds, check if any of the selected rooms are in the blackout period
       if (period.roomIds) {
-        const periodRoomIds = period.roomIds.map(String);
-        return normalizedRoomIds.some((roomId) =>
-          periodRoomIds.includes(roomId),
-        );
+        return roomIds.some((roomId) => period.roomIds.includes(roomId));
       }
 
       // Include global blackout periods (those without roomIds)
@@ -120,17 +98,17 @@ export const useBookingDateRestrictions = () => {
   const isBookingTimeInBlackout = (
     bookingStart: Dayjs,
     bookingEnd: Dayjs,
-    roomIds: string[],
+    roomIds: number[],
   ): { inBlackout: boolean; affectedPeriods: any[] } => {
     if (!roomIds || roomIds.length === 0) {
       return { inBlackout: false, affectedPeriods: [] };
     }
 
     const affectedPeriods = getAffectingBlackoutPeriods(
-      stringIdBlackoutPeriods,
+      activeBlackoutPeriods,
       bookingStart,
       bookingEnd,
-      roomIds.map(String),
+      roomIds,
     );
 
     return {
@@ -143,17 +121,17 @@ export const useBookingDateRestrictions = () => {
   const getBlackoutPeriodsForBookingTime = (
     bookingStart: Dayjs,
     bookingEnd: Dayjs,
-    roomIds: string[],
+    roomIds: number[],
   ) =>
     getAffectingBlackoutPeriods(
-      stringIdBlackoutPeriods,
+      activeBlackoutPeriods,
       bookingStart,
       bookingEnd,
-      roomIds.map(String),
+      roomIds,
     );
 
   const shouldDisableDate = (date: Dayjs) => isDateDisabled(date);
-  const shouldDisableDateForRooms = (date: Dayjs, roomIds: string[]) =>
+  const shouldDisableDateForRooms = (date: Dayjs, roomIds: number[]) =>
     isDateDisabledForRooms(date, roomIds);
 
   return {

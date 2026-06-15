@@ -850,7 +850,7 @@ export const firstApproverEmails = async (department: string) => {
 };
 
 export const serverGetRoomCalendarIds = async (
-  roomId: string | number,
+  roomId: number,
   tenant?: string,
 ): Promise<string[]> => {
   try {
@@ -871,8 +871,7 @@ export const serverGetRoomCalendarIds = async (
     );
 
     const rooms = resourcesWithCorrectCalendarIds.filter(
-      (resource: any) =>
-        String(resource.resourceId ?? resource.roomId) === String(roomId),
+      (resource: any) => resource.roomId === roomId,
     );
 
     console.log(`Rooms: ${JSON.stringify(rooms)}`);
@@ -890,7 +889,7 @@ export const serverGetRoomCalendarIds = async (
 };
 
 export const serverGetRoomCalendarId = async (
-  roomId: string | number,
+  roomId: number,
   tenant?: string,
 ): Promise<string | null> => {
   try {
@@ -911,8 +910,7 @@ export const serverGetRoomCalendarId = async (
     );
 
     const rooms = resourcesWithCorrectCalendarIds.filter(
-      (resource: any) =>
-        String(resource.resourceId ?? resource.roomId) === String(roomId),
+      (resource: any) => resource.roomId === roomId,
     );
 
     if (rooms.length > 0) {

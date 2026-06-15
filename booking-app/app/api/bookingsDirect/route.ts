@@ -98,7 +98,9 @@ export async function POST(request: NextRequest) {
   const { departmentDisplay, schoolDisplay } =
     getAffiliationDisplayValues(data);
   const [room, ...otherRooms] = selectedRooms;
-  const selectedRoomIds = selectedRooms.map((r: { roomId: string }) => r.roomId);
+  const selectedRoomIds = selectedRooms.map(
+    (r: { roomId: number }) => r.roomId,
+  );
   const otherRoomIds = otherRooms.map(
     (r: { calendarId: string }) => r.calendarId,
   );

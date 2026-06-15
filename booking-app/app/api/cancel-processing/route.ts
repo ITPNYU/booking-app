@@ -55,8 +55,7 @@ export async function POST(req: NextRequest) {
 
           const roomIds = booking.roomId.split(",").map(x => x.trim());
           const rooms = resourcesWithCorrectCalendarIds.filter(
-            (resource: any) =>
-              roomIds.includes(String(resource.resourceId ?? resource.roomId)),
+            (resource: any) => roomIds.includes(`${resource.roomId}`),
           );
 
           console.log(
@@ -65,7 +64,7 @@ export async function POST(req: NextRequest) {
               calendarEventId,
               roomIds,
               rooms: rooms.map((r: any) => ({
-                roomId: String(r.resourceId ?? r.roomId),
+                roomId: r.roomId,
                 calendarId: r.calendarId,
               })),
             },

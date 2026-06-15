@@ -55,10 +55,7 @@ vi.mock("xstate", () => ({
 }));
 vi.mock("./shared", () => ({
   extractTenantFromRequest: () => "mc",
-  getAffiliationDisplayValues: () => ({
-    departmentDisplay: "",
-    schoolDisplay: "",
-  }),
+  getAffiliationDisplayValues: () => ({ departmentDisplay: "", schoolDisplay: "" }),
   getOtherDisplayFields: () => ({}),
 }));
 
@@ -85,7 +82,7 @@ describe("Request limits enforcement (POST /api/bookings)", () => {
       tenant: "mc",
       resources: [
         {
-          resourceId: "room-1201",
+          roomId: 1201,
           name: "Room 1201",
           requestLimits: {
             perSemester: { student: 1 },
@@ -98,11 +95,9 @@ describe("Request limits enforcement (POST /api/bookings)", () => {
       // Active booking in-window for same resource
       {
         id: "b1",
-        roomIds: ["room-1201"],
+        roomIds: [1201],
         role: "Student",
-        requestedAt: {
-          toMillis: () => new Date("2026-04-13T10:00:00Z").getTime(),
-        },
+        requestedAt: { toMillis: () => new Date("2026-04-13T10:00:00Z").getTime() },
         canceledAt: null,
         declinedAt: null,
       },
@@ -114,9 +109,7 @@ describe("Request limits enforcement (POST /api/bookings)", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         email: "student@nyu.edu",
-        selectedRooms: [
-          { roomId: "room-1201", calendarId: "cal-1201", name: "Room 1201" },
-        ],
+        selectedRooms: [{ roomId: 1201, calendarId: "cal-1201", name: "Room 1201" }],
         bookingCalendarInfo: {
           startStr: "2026-04-13T14:00:00Z",
           endStr: "2026-04-13T15:00:00Z",
@@ -140,86 +133,13 @@ describe("Request limits enforcement (POST /api/bookings)", () => {
     vi.useRealTimers();
   });
 
-  it("matches legacy numeric room IDs after coercing them to strings", async () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-04-13T12:00:00Z"));
-
-    mockServerGetDocumentById.mockResolvedValue({
-      tenant: "mc",
-      resources: [
-        {
-          roomId: 1201,
-          name: "Legacy Room 1201",
-          requestLimits: {
-            perDay: { student: 1 },
-          },
-        },
-      ],
-    });
-
-    mockServerFetchAllDataFromCollection.mockResolvedValue([
-      {
-        id: "b1",
-        roomIds: [1201],
-        role: "Student",
-        requestedAt: {
-          toMillis: () => new Date("2026-04-13T10:00:00Z").getTime(),
-        },
-      },
-    ]);
-
-    const { POST } = await import("@/app/api/bookings/route");
-    const req = new Request("http://localhost:3000/api/bookings", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        email: "student@nyu.edu",
-        selectedRooms: [
-          { roomId: 1201, calendarId: "cal-1201", name: "Legacy Room 1201" },
-        ],
-        bookingCalendarInfo: {
-          startStr: "2026-04-13T14:00:00Z",
-          endStr: "2026-04-13T15:00:00Z",
-        },
-        data: { role: "Student", title: "Test", department: "ITP" },
-        isAutoApproval: false,
-      }),
-    }) as any;
-
-    const res = await POST(req);
-
-    expect(res.status).toBe(429);
-    expect(await res.json()).toMatchObject({
-      error: expect.stringContaining("Legacy Room 1201"),
-    });
-
-    vi.useRealTimers();
-  });
-
-  it("parses opaque and legacy numeric booking resource IDs as strings", async () => {
-    const { parseRoomIdsFromBooking } =
-      await import("@/lib/bookingRequestLimits");
-
-    expect(
-      parseRoomIdsFromBooking({ roomIds: ["room-a", 1201, null] }),
-    ).toEqual(["room-a", "1201"]);
-    expect(parseRoomIdsFromBooking({ roomId: "room-a, 1201" })).toEqual([
-      "room-a",
-      "1201",
-    ]);
-  });
-
   it("uses 4-month semester windows in America/New_York (May 1 starts a new window)", async () => {
     const { getNewYorkWindowForPeriod, REQUEST_LIMITS_TIME_ZONE } =
       await import("@/lib/bookingRequestLimits");
     const { toDate } = await import("date-fns-tz");
     const tz = REQUEST_LIMITS_TIME_ZONE;
     const now = toDate("2026-05-01T12:00:00.000", { timeZone: tz });
-    const { start, end } = getNewYorkWindowForPeriod(
-      now,
-      "perSemester",
-      undefined,
-    );
+    const { start, end } = getNewYorkWindowForPeriod(now, "perSemester", undefined);
 
     expect(start.getTime()).toBe(
       toDate("2026-05-01T00:00:00.000", { timeZone: tz }).getTime(),
@@ -237,7 +157,7 @@ describe("Request limits enforcement (POST /api/bookings)", () => {
       tenant: "mc",
       resources: [
         {
-          resourceId: "room-1201",
+          roomId: 1201,
           name: "Room 1201",
           requestLimits: {
             // perDay limit forces the window to be the current calendar day,
@@ -257,7 +177,7 @@ describe("Request limits enforcement (POST /api/bookings)", () => {
       body: JSON.stringify({
         email: "student@nyu.edu",
         selectedRooms: [
-          { roomId: "room-1201", calendarId: "cal-1201", name: "Room 1201" },
+          { roomId: 1201, calendarId: "cal-1201", name: "Room 1201" },
         ],
         bookingCalendarInfo: {
           startStr: "2026-04-13T14:00:00Z",
@@ -270,10 +190,9 @@ describe("Request limits enforcement (POST /api/bookings)", () => {
 
     await POST(req);
 
-    const bookingQueryCall =
-      mockServerFetchAllDataFromCollection.mock.calls.find(
-        (call) => call[0] === "bookings",
-      );
+    const bookingQueryCall = mockServerFetchAllDataFromCollection.mock.calls.find(
+      (call) => call[0] === "bookings",
+    );
     expect(bookingQueryCall).toBeDefined();
     const constraints = bookingQueryCall![1] as Array<{
       field: string;
@@ -311,3 +230,4 @@ describe("Request limits enforcement (POST /api/bookings)", () => {
     );
   });
 });
+

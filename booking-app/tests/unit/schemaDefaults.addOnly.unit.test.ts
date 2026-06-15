@@ -58,8 +58,6 @@ describe("scripts/schemaDefaults mergeSchemaDefaults (add-only)", () => {
     // Never delete extra keys (top-level and within resource items)
     expect(merged.someExtraTopLevelKey).toEqual({ keepMe: true });
     expect(merged.resources[0].extraResourceKey).toBe("keep-me");
-    expect(merged.resources[0].resourceId).toBe("999");
-    expect(merged.resources[0]).not.toHaveProperty("roomId");
 
     // Still adds missing template defaults (spot-check a known required field)
     expect(merged.tenant.contextLabels).toBeTruthy();
@@ -117,7 +115,5 @@ describe("scripts/schemaDefaults mergeSchemaDefaults (add-only)", () => {
     expect(merged.resources[0].training.infoUrl).toBe(
       "https://info.example/abc",
     );
-    expect(merged.resources[0].resourceId).toBe("1234");
-    expect(merged.resources[0]).not.toHaveProperty("roomId");
   });
 });

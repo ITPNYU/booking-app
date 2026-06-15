@@ -30,14 +30,13 @@ function nyCalendarParts(now: Date) {
 
 /** Start of that calendar date at 00:00 in {@link REQUEST_LIMITS_TIME_ZONE} (UTC instant). */
 function nyMidnight(y: number, monthIndex0: number, day: number): Date {
-  return toDate(`${y}-${pad2(monthIndex0 + 1)}-${pad2(day)}T00:00:00.000`, {
-    timeZone: REQUEST_LIMITS_TIME_ZONE,
-  });
+  return toDate(
+    `${y}-${pad2(monthIndex0 + 1)}-${pad2(day)}T00:00:00.000`,
+    { timeZone: REQUEST_LIMITS_TIME_ZONE },
+  );
 }
 
-export function parseRoleEnumFromLabel(
-  label: string | undefined,
-): Role | undefined {
+export function parseRoleEnumFromLabel(label: string | undefined): Role | undefined {
   if (!label) return undefined;
   const normalized = label.trim().toLowerCase();
   const entries = Object.values(Role) as string[];
@@ -171,29 +170,19 @@ export function getNewYorkWindowForPeriod(
 /** @deprecated Use {@link getNewYorkWindowForPeriod} */
 export const getLocalWindowForPeriod = getNewYorkWindowForPeriod;
 
-function normalizeResourceId(value: unknown): string | null {
-  if (value == null) return null;
-  const resourceId = String(value).trim();
-  return resourceId || null;
-}
-
-export function parseRoomIdsFromBooking(doc: any): string[] {
+export function parseRoomIdsFromBooking(doc: any): number[] {
   if (Array.isArray(doc?.roomIds)) {
     return doc.roomIds
-      .map((x: unknown) => normalizeResourceId(x))
-      .filter(
-        (resourceId: string | null): resourceId is string => resourceId != null,
-      );
+      .map((x: any) => Number(x))
+      .filter((n: number) => Number.isFinite(n));
   }
 
   const raw = doc?.roomId;
-  if (raw != null) {
-    return String(raw)
+  if (typeof raw === "string") {
+    return raw
       .split(",")
-      .map((s) => normalizeResourceId(s))
-      .filter(
-        (resourceId: string | null): resourceId is string => resourceId != null,
-      );
+      .map((s) => Number(String(s).trim()))
+      .filter((n) => Number.isFinite(n));
   }
 
   return [];
@@ -296,9 +285,8 @@ function isActiveBookingByLastLog({
   latestLogStatusByRequestNumber: Map<number, string>;
 }): boolean {
   const req = Number(booking?.requestNumber);
-  const last = Number.isFinite(req)
-    ? (latestLogStatusByRequestNumber.get(req) ?? null)
-    : null;
+  const last =
+    Number.isFinite(req) ? latestLogStatusByRequestNumber.get(req) ?? null : null;
 
   // Strict "last-log wins": if we have a last log, use it.
   if (last) return !isTerminalInactiveStatus(last);
@@ -321,18 +309,17 @@ export async function enforceRequestLimits({
   bookingRoleField: string;
   /** Key used in `resource.requestLimits` maps: `student` | `faculty` | `admin` (no origin suffix). */
   limitRoleKey: RequestLimitBucketKey;
-  selectedRoomIds: string[];
+  selectedRoomIds: number[];
   schema: SchemaContextType | null;
 }): Promise<{ ok: true } | { ok: false; message: string }> {
   if (!schema?.resources || schema.resources.length === 0)
     return { ok: true } as const;
 
-  const resourcesByRoomId = new Map<string, any>();
+  const resourcesByRoomId = new Map<number, any>();
   for (const r of schema.resources) {
-    const resourceId =
-      normalizeResourceId((r as any)?.resourceId) ??
-      normalizeResourceId((r as any)?.roomId);
-    if (resourceId) resourcesByRoomId.set(resourceId, r);
+    if (typeof (r as any)?.roomId === "number") {
+      resourcesByRoomId.set((r as any).roomId, r);
+    }
   }
 
   const now = new Date();
@@ -358,7 +345,7 @@ export async function enforceRequestLimits({
   if (periodsToQuery.length === 0) return { ok: true } as const;
 
   const countsByPeriod: Partial<
-    Record<RequestLimitPeriod, Map<string, number>>
+    Record<RequestLimitPeriod, Map<number, number>>
   > = {};
 
   // Pre-compute windows so we can bound the Firestore query by the earliest
@@ -407,10 +394,7 @@ export async function enforceRequestLimits({
 
   const relevant = allByEmail.filter((d: any) => {
     if (d?.role !== bookingRoleField) return false;
-    return isActiveBookingByLastLog({
-      booking: d,
-      latestLogStatusByRequestNumber,
-    });
+    return isActiveBookingByLastLog({ booking: d, latestLogStatusByRequestNumber });
   });
 
   for (const period of periodsToQuery) {
@@ -418,7 +402,7 @@ export async function enforceRequestLimits({
     const startMs = start.getTime();
     const endMs = end.getTime();
 
-    const roomCounts = new Map<string, number>();
+    const roomCounts = new Map<number, number>();
     for (const doc of relevant) {
       const ms = getRequestedAtMillis(doc);
       if (ms == null) continue;
@@ -449,9 +433,7 @@ export async function enforceRequestLimits({
       // For limit 0, count < 0 is impossible, so booking is always blocked.
       if (count < limit) continue;
 
-      const resourceName = resource.name
-        ? `"${resource.name}"`
-        : `Room ${roomId}`;
+      const resourceName = resource.name ? `"${resource.name}"` : `Room ${roomId}`;
       return {
         ok: false,
         message: `Request limit reached for ${resourceName} (${period}). Limit: ${limit}.`,

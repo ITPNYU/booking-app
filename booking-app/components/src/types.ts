@@ -251,7 +251,7 @@ export type OperationHours = {
   open: number;
   close: number;
   isClosed: boolean;
-  roomId?: string;
+  roomId?: number;
 };
 
 export type PaUser = {
@@ -286,7 +286,7 @@ export type BlackoutPeriod = {
   isActive: boolean;
   createdAt: Timestamp;
   updatedAt?: Timestamp;
-  roomIds?: string[]; // Optional resource IDs; empty/undefined applies to all resources
+  roomIds?: number[]; // Optional array of room IDs - if empty/undefined, applies to all rooms
 };
 
 export type PolicySettings = {
@@ -310,7 +310,7 @@ export enum Role {
 }
 
 export type RoomSetting = {
-  roomId: string;
+  roomId: number;
   name: string;
   capacity: string;
   calendarId: string;

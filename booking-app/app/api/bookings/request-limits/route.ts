@@ -18,10 +18,10 @@ export async function POST(request: NextRequest) {
     const formContext = body?.formContext as FormContextLevel | undefined;
     const roomIdsRaw = body?.roomIds;
 
-    const roomIds: string[] = Array.isArray(roomIdsRaw)
+    const roomIds: number[] = Array.isArray(roomIdsRaw)
       ? roomIdsRaw
-          .map((x: unknown) => (x == null ? "" : String(x).trim()))
-          .filter((resourceId: string) => resourceId.length > 0)
+          .map((x: unknown) => Number(x))
+          .filter((n: number) => Number.isFinite(n))
       : [];
 
     const tenant = extractTenantFromRequest(request);

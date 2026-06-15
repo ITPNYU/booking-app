@@ -5,7 +5,7 @@ import { Role } from "../../../../types";
 import { getBookingHourLimits } from "../utils/bookingHourLimits";
 
 interface DurationLimitError {
-  roomId: string;
+  roomId: number;
   roomName: string;
   currentDuration: number;
   maxDuration: number;

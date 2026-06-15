@@ -133,7 +133,7 @@ export function isBookingInBlackoutPeriod(
   period: BlackoutPeriod,
   bookingStart: Dayjs,
   bookingEnd: Dayjs,
-  selectedRoomIds: string[],
+  selectedRoomIds: number[],
 ): boolean {
   const startDate = dayjs(period.startDate.toDate());
   const endDate = dayjs(period.endDate.toDate());
@@ -209,7 +209,7 @@ export function getAffectingBlackoutPeriods(
   blackoutPeriods: BlackoutPeriod[],
   bookingStart: Dayjs,
   bookingEnd: Dayjs,
-  selectedRoomIds: string[],
+  selectedRoomIds: number[],
 ): BlackoutPeriod[] {
   const activeBlackoutPeriods = blackoutPeriods.filter(
     (period) => period.isActive,

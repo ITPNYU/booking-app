@@ -30,7 +30,7 @@ export const patchCalendarEvent = async (
 export const inviteUserToCalendarEvent = async (
   calendarEventId: string,
   guestEmail: string,
-  roomId: string,
+  roomId: number,
   tenant?: string,
 ) => {
   const roomCalendarIds = await serverGetRoomCalendarIds(roomId, tenant);
@@ -326,7 +326,9 @@ export const updateCalendarEvent = async (
   }
 
   const roomCalendarIds = await serverGetRoomCalendarIds(
-    String(bookingContents.roomId).split(",")[0].trim(),
+    typeof bookingContents.roomId === "string"
+      ? parseInt(bookingContents.roomId, 10)
+      : bookingContents.roomId,
     tenant,
   );
   console.log(`Room Calendar Ids: ${roomCalendarIds}`);

@@ -37,7 +37,7 @@ export type RequestLimits = Partial<
 export type Resource = {
   capacity: number;
   name: string;
-  resourceId: string;
+  roomId: number;
   isEquipment: boolean;
   calendarId: string;
   training?: ResourceTraining;
@@ -246,7 +246,7 @@ export const defaultAttestation: Attestation = {
 export const defaultResource: Resource = {
   capacity: 0,
   name: "",
-  resourceId: "",
+  roomId: 0,
   isEquipment: false,
   calendarId: "",
   training: {

@@ -141,17 +141,11 @@ export default function CalendarVerticalResource({
 
   const resources = useMemo(
     () =>
-      [...rooms]
-        .sort((a, b) =>
-          String(a.roomId).localeCompare(String(b.roomId), undefined, {
-            numeric: true,
-          }),
-        )
-        .map((room, index) => ({
-          id: room.roomId,
-          title: `${room.roomId} ${room.name}`,
-          index,
-        })),
+      rooms.map((room) => ({
+        id: `${room.roomId}`,
+        title: `${room.roomId} ${room.name}`,
+        index: Number(room.roomId),
+      })),
     [rooms],
   );
 
@@ -175,7 +169,7 @@ export default function CalendarVerticalResource({
             start: blackoutRange.start.toISOString(),
             end: blackoutRange.end.toISOString(),
             id: `blackout-${room.roomId}-${period.id}`,
-            resourceId: room.roomId,
+            resourceId: `${room.roomId}`,
             title: blackoutRange.title,
             overlap: false,
             display: "background",
@@ -214,11 +208,12 @@ export default function CalendarVerticalResource({
       start: bookingCalendarInfo.startStr,
       end: bookingCalendarInfo.endStr,
       id: room.roomId + bookingCalendarInfo.startStr,
-      resourceId: room.roomId,
+      resourceId: `${room.roomId}`,
       title: NEW_TITLE_TAG,
       overlap: true,
       durationEditable: true,
-      startEditable: formContext !== FormContextLevel.MODIFICATION || isAdmin,
+      startEditable:
+        formContext !== FormContextLevel.MODIFICATION || isAdmin,
       groupId: "new",
       url: `${index}:${rooms.length}`, // some hackiness to let us render multiple events visually as one big block
     }));
@@ -246,9 +241,11 @@ export default function CalendarVerticalResource({
     const selectedResourceId = selectInfo.resource?.id;
 
     if (!isAdmin && selectedResourceId) {
+      const roomId = parseInt(selectedResourceId);
+
       // Use the new time-aware blackout checking
       const { inBlackout } = isBookingTimeInBlackout(bookingStart, bookingEnd, [
-        selectedResourceId,
+        roomId,
       ]);
 
       if (inBlackout) {
@@ -270,9 +267,11 @@ export default function CalendarVerticalResource({
     const selectedResourceId = selectInfo.resource?.id;
 
     if (!isAdmin && selectedResourceId) {
+      const roomId = parseInt(selectedResourceId);
+
       // Use the new time-aware blackout checking
       const { inBlackout } = isBookingTimeInBlackout(bookingStart, bookingEnd, [
-        selectedResourceId,
+        roomId,
       ]);
 
       if (inBlackout) {
@@ -408,7 +407,9 @@ export default function CalendarVerticalResource({
           googleCalendarPlugin,
           interactionPlugin,
         ]}
-        selectable={formContext !== FormContextLevel.MODIFICATION || isAdmin}
+        selectable={
+          formContext !== FormContextLevel.MODIFICATION || isAdmin
+        }
         select={handleEventSelect}
         selectAllow={handleEventSelecting}
         selectOverlap={handleSelectOverlap}

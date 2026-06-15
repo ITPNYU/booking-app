@@ -32,18 +32,13 @@ export const SelectRooms = ({
   } = useContext(BookingContext);
   const { isBookingTimeInBlackout } = useBookingDateRestrictions();
   const { resources, calendarConfig } = useTenantSchema();
-  const selectedIds = selected.map((room) => String(room.roomId));
+  const selectedIds = selected.map((room) => room.roomId);
   const allowMultipleResourceSelect =
     calendarConfig?.multipleResourceSelect ?? true;
 
   // Sort rooms by room number for consistent display order
   const sortedRooms = useMemo(
-    () =>
-      [...allRooms].sort((a, b) =>
-        String(a.roomId).localeCompare(String(b.roomId), undefined, {
-          numeric: true,
-        }),
-      ),
+    () => [...allRooms].sort((a, b) => a.roomId - b.roomId),
     [allRooms],
   );
 
@@ -58,7 +53,7 @@ export const SelectRooms = ({
 
   // Check if a room is in blackout for the selected booking time
   const isRoomInBlackout = (
-    roomId: string,
+    roomId: number,
   ): { inBlackout: boolean; periods: any[] } => {
     if (!bookingCalendarInfo) return { inBlackout: false, periods: [] };
 
@@ -74,7 +69,7 @@ export const SelectRooms = ({
   };
 
   // walk-ins can only book 1 room unless it's 2 ballroom bays (221-224)
-  const isDisabled = (roomId: string) => {
+  const isDisabled = (roomId: number) => {
     if (!allowMultipleResourceSelect) {
       if (selectedIds.length === 0) return false;
       if (selectedIds.includes(roomId)) return false;
@@ -90,11 +85,9 @@ export const SelectRooms = ({
 
     // Check if both selected room and current room can book two
     const selectedRoom = resources.find(
-      (resource) => resource.resourceId === selectedIds[0],
+      (r: any) => r.roomId === selectedIds[0],
     );
-    const currentRoom = resources.find(
-      (resource) => resource.resourceId === roomId,
-    );
+    const currentRoom = resources.find((r: any) => r.roomId === roomId);
 
     if (selectedRoom?.isWalkInCanBookTwo && currentRoom?.isWalkInCanBookTwo) {
       return false;
@@ -102,7 +95,7 @@ export const SelectRooms = ({
     return true;
   };
 
-  const getDisabledReason = (roomId: string): string | null => {
+  const getDisabledReason = (roomId: number): string | null => {
     const blackoutInfo = isRoomInBlackout(roomId);
     if (blackoutInfo.inBlackout) {
       const periodNames = blackoutInfo.periods.map((p) => p.name).join(", ");
@@ -118,11 +111,9 @@ export const SelectRooms = ({
 
     // Check if both selected room and current room can book two
     const selectedRoom = resources.find(
-      (resource) => resource.resourceId === selectedIds[0],
+      (r: any) => r.roomId === selectedIds[0],
     );
-    const currentRoom = resources.find(
-      (resource) => resource.resourceId === roomId,
-    );
+    const currentRoom = resources.find((r: any) => r.roomId === roomId);
 
     if (selectedRoom?.isWalkInCanBookTwo && currentRoom?.isWalkInCanBookTwo) {
       return null;
@@ -133,27 +124,22 @@ export const SelectRooms = ({
 
   const handleCheckChange = (e: any, room: RoomSetting) => {
     const newVal: boolean = e.target.checked;
-    const normalizedRoom = { ...room, roomId: String(room.roomId) };
     setSelected((prev: RoomSetting[]) => {
       if (newVal) {
         if (
           !allowMultipleResourceSelect &&
           prev.length > 0 &&
-          !prev.some((r) => String(r.roomId) === normalizedRoom.roomId)
+          !prev.some((r) => r.roomId === room.roomId)
         ) {
           return prev;
         }
 
-        const newSelection = [...prev, normalizedRoom].sort((a, b) =>
-          String(a.roomId).localeCompare(String(b.roomId), undefined, {
-            numeric: true,
-          }),
+        const newSelection = [...prev, room].sort(
+          (a, b) => a.roomId - b.roomId,
         );
         return newSelection;
       }
-      const newSelection = prev.filter(
-        (r) => String(r.roomId) !== normalizedRoom.roomId,
-      );
+      const newSelection = prev.filter((r) => r.roomId !== room.roomId);
       if (newSelection.length === 0) {
         setBookingCalendarInfo(null);
       }
@@ -164,20 +150,17 @@ export const SelectRooms = ({
   return (
     <FormGroup>
       {sortedRooms.map((room: RoomSetting) => {
-        const roomId = String(room.roomId);
-        const disabled = isDisabled(roomId);
-        const disabledReason = getDisabledReason(roomId);
+        const disabled = isDisabled(room.roomId);
+        const disabledReason = getDisabledReason(room.roomId);
 
         const checkbox = (
           <FormControlLabel
             control={
               <Checkbox
-                checked={selectedIds.includes(roomId)}
+                checked={selectedIds.includes(room.roomId)}
                 onChange={(e) => handleCheckChange(e, room)}
                 icon={
-                  allowMultipleResourceSelect ? undefined : (
-                    <RadioButtonUncheckedIcon />
-                  )
+                  allowMultipleResourceSelect ? undefined : <RadioButtonUncheckedIcon />
                 }
                 checkedIcon={
                   allowMultipleResourceSelect ? undefined : <CheckCircleIcon />

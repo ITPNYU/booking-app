@@ -18,18 +18,11 @@ const Row = styled(Box)`
 interface Props {
   day: Days;
   setting: OperationHours;
-  roomId?: string;
+  roomId?: number;
 }
 
 export default function OperationalHoursRow({ day, setting, roomId }: Props) {
   const { reloadOperationHours } = useContext(DatabaseContext);
-  const updateResourceOperationHours = updateOperationHours as unknown as (
-    day: Days,
-    open: number,
-    close: number,
-    isClosed: boolean,
-    roomId?: string,
-  ) => Promise<void>;
 
   const [closed, setClosed] = useState(setting?.isClosed || false);
   const [openDate, setOpenDate] = useState(
@@ -41,7 +34,7 @@ export default function OperationalHoursRow({ day, setting, roomId }: Props) {
 
   const handleSwitch = (e) => {
     setClosed(!e.target.checked);
-    updateResourceOperationHours(
+    updateOperationHours(
       day,
       openDate.hour(),
       closeDate.hour(),
@@ -52,12 +45,12 @@ export default function OperationalHoursRow({ day, setting, roomId }: Props) {
 
   const handleOpenChange = (e) => {
     setOpenDate(e);
-    updateResourceOperationHours(day, e.$H, closeDate.hour(), closed, roomId);
+    updateOperationHours(day, e.$H, closeDate.hour(), closed, roomId);
   };
 
   const handleCloseChange = (e) => {
     setCloseDate(e);
-    updateResourceOperationHours(day, openDate.hour(), e.$H, closed, roomId);
+    updateOperationHours(day, openDate.hour(), e.$H, closed, roomId);
   };
 
   // when we leave the page, the app reloads the newly set operation hours.

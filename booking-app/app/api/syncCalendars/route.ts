@@ -99,20 +99,20 @@ const findRoomIds = (event: any, resources: any[]): string => {
     r => r.calendarId === event.organizer.email,
   );
   if (currentResource) {
-    roomIds.add(String(currentResource.resourceId ?? currentResource.roomId));
+    roomIds.add(currentResource.roomId);
   }
 
   // Add other room IDs
   attendees.forEach((attendee: any) => {
     const resource = resources.find(r => r.calendarId === attendee.email);
     if (resource) {
-      roomIds.add(String(resource.resourceId ?? resource.roomId));
+      roomIds.add(resource.roomId);
     }
   });
 
-  // Resource IDs are opaque strings; numeric sorting is only a display aid.
+  // Convert to array, sort numerically, and join
   return Array.from(roomIds)
-    .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+    .sort((a, b) => parseInt(a) - parseInt(b))
     .join(",");
 };
 
@@ -135,9 +135,9 @@ export async function POST(request: Request) {
       : [];
 
     const resources = resourcesWithCorrectCalendarIds.map((resource: any) => ({
-      id: String(resource.resourceId ?? resource.roomId),
+      id: resource.roomId.toString(),
       calendarId: resource.calendarId,
-      roomId: String(resource.resourceId ?? resource.roomId),
+      roomId: resource.roomId,
     }));
 
     let totalNewBookings = 0;

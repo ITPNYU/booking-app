@@ -169,7 +169,7 @@ export async function GET(request: NextRequest) {
     : [];
   const rooms: RoomSetting[] = resourcesWithCorrectCalendarIds.map(
     (resource: any) => ({
-      roomId: String(resource.resourceId ?? resource.roomId),
+      roomId: resource.roomId,
       name: resource.name,
       capacity: resource.capacity.toString(),
       calendarId: resource.calendarId,
