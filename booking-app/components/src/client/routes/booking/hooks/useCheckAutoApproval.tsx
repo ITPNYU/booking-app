@@ -13,7 +13,7 @@ import { BookingContext } from "../bookingProvider";
 import { getBookingHourLimits } from "../utils/bookingHourLimits";
 
 export function selectedAutoApprovalRooms(
-  selectedRoomIds: number[],
+  selectedRoomIds: string[],
   selectedRooms: any[],
 ) {
   if (selectedRoomIds.length < 2) return true;
@@ -47,7 +47,10 @@ export default function useCheckAutoApproval(isWalkIn = false, isVIP = false) {
 
   useEffect(() => {
     // For ITP and Media Commons tenants, use XState machine for auto-approval logic
-    if (schema.tenantId === TENANTS.ITP || isMediaCommonsTenant(schema.tenantId)) {
+    if (
+      schema.tenantId === TENANTS.ITP ||
+      isMediaCommonsTenant(schema.tenantId)
+    ) {
       console.log(
         `🎭 CLIENT-SIDE XSTATE CHECK [${schema.tenantId?.toUpperCase()}]:`,
         {
@@ -72,7 +75,9 @@ export default function useCheckAutoApproval(isWalkIn = false, isVIP = false) {
       try {
         // Choose the appropriate machine based on tenant
         const machine =
-          schema.tenantId === TENANTS.ITP ? itpBookingMachine : mcBookingMachine;
+          schema.tenantId === TENANTS.ITP
+            ? itpBookingMachine
+            : mcBookingMachine;
 
         // For Media Commons, prepare services data
         const servicesRequested = isMediaCommonsTenant(schema.tenantId)

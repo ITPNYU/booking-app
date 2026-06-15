@@ -594,9 +594,9 @@ export async function POST(request: NextRequest) {
       : [];
 
     const resources = resourcesWithCorrectCalendarIds.map((resource: any) => ({
-      id: resource.roomId.toString(),
+      id: String(resource.resourceId ?? resource.roomId),
       calendarId: resource.calendarId,
-      roomId: resource.roomId,
+      roomId: String(resource.resourceId ?? resource.roomId),
     }));
 
     if (testMode) {
