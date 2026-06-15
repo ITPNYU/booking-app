@@ -124,7 +124,7 @@ export async function PUT(request: NextRequest) {
     );
 
     const selectedRoomIds = selectedRooms
-      .map((r: { roomId: number }) => r.roomId)
+      .map((r: { roomId: string }) => r.roomId)
       .join(", ");
 
     console.log("🔧 MODIFICATION: Deleting old calendar events");

@@ -25,7 +25,7 @@ export default function useExistingBooking() {
     setDepartment(booking.department as Department);
     setRole(booking.role as Role);
 
-    const roomIds = booking.roomId.split(", ").map((x) => Number(x));
+    const roomIds = booking.roomId.split(",").map((roomId) => roomId.trim());
     const rooms = roomSettings.filter((roomSetting) =>
       roomIds.includes(roomSetting.roomId),
     );

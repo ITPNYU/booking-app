@@ -52,9 +52,7 @@ export default function useCheckRequestLimits(formContext: FormContextLevel) {
       email = userEmail || formData?.missingEmail;
     }
 
-    const roomIds = selectedRooms
-      .map((r) => Number(r.roomId))
-      .filter((n) => Number.isFinite(n));
+    const roomIds = selectedRooms.map((room) => room.roomId);
 
     if (!email?.trim() || roomIds.length === 0) {
       setRequestLimitChecking(false);

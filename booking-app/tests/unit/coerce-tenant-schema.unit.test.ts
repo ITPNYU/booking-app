@@ -34,3 +34,68 @@ describe("coerceTenantSchema — timeSensitiveRequestWarning", () => {
     expect(c.calendarConfig?.timeSensitiveRequestWarning?.hours).toBe(99);
   });
 });
+
+describe("coerceTenantSchema — resources", () => {
+  it.each([
+    ["number", 202, "202"],
+    ["string", "studio-a", "studio-a"],
+  ])("coerces a legacy %s roomId to resourceId", (_, roomId, resourceId) => {
+    const resource = {
+      roomId,
+      name: "Studio",
+      capacity: 12,
+      customField: { keep: true },
+    };
+
+    const coerced = coerceTenantSchema({ resources: [resource] }, "mc");
+
+    expect(coerced.resources[0]).toEqual({
+      resourceId,
+      name: "Studio",
+      capacity: 12,
+      customField: { keep: true },
+    });
+    expect(coerced.resources[0]).not.toHaveProperty("roomId");
+  });
+
+  it("keeps a canonical resourceId and removes a matching legacy roomId", () => {
+    const coerced = coerceTenantSchema(
+      {
+        resources: [
+          {
+            resourceId: "canonical-id",
+            roomId: "canonical-id",
+            name: "Canonical resource",
+          },
+        ],
+      },
+      "mc",
+    );
+
+    expect(coerced.resources[0].resourceId).toBe("canonical-id");
+    expect(coerced.resources[0]).not.toHaveProperty("roomId");
+  });
+
+  it("rejects conflicting legacy and canonical IDs", () => {
+    expect(() =>
+      coerceTenantSchema(
+        { resources: [{ resourceId: "studio-a", roomId: 202 }] },
+        "mc",
+      ),
+    ).toThrow("conflicting resourceId and roomId");
+  });
+
+  it("rejects duplicate canonical IDs", () => {
+    expect(() =>
+      coerceTenantSchema(
+        {
+          resources: [
+            { resourceId: "studio-a" },
+            { roomId: "studio-a" },
+          ],
+        },
+        "mc",
+      ),
+    ).toThrow('duplicate resourceId "studio-a"');
+  });
+});

@@ -813,7 +813,7 @@ export const updateOperationHours = async (
   open: number,
   close: number,
   isClosed: boolean,
-  roomId?: number,
+  roomId?: string,
 ) => {
   const docs = await clientFetchAllDataFromCollection<
     OperationHours & { id: string }
