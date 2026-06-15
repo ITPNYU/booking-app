@@ -75,7 +75,7 @@
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "@types/styled-components": "^5.1.34",
-    "@vitejs/plugin-react": "^4.3.4",
+    "@vitejs/plugin-react": "^6.0.2",
     "@xstate/test": "^1.0.0-beta.5",
     "dotenv": "^16.4.5",
     "eslint": "^9.0.0",
@@ -96,7 +96,7 @@
     "typescript": "^5.5.3",
     "typescript-eslint": "^8.0.0",
     "vite-tsconfig-paths": "^5.1.4",
-    "vitest": "^3.2.6"
+    "vitest": "^4.1.9"
   },
   "overrides": {
     "eslint-config-airbnb-base": {
