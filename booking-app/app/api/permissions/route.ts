@@ -70,6 +70,9 @@ export async function GET(req: NextRequest) {
     const approversRef = db.collection(
       getTenantCollectionName(TableNames.APPROVERS, tenant),
     );
+    const serviceApproversRef = db.collection(
+      getTenantCollectionName(TableNames.SERVICE_APPROVERS, tenant),
+    );
 
     const settingsDocPromise =
       tenant && isValidTenant(tenant)
@@ -78,11 +81,18 @@ export async function GET(req: NextRequest) {
             .doc(SITE_BANNER_SETTINGS_DOC_ID)
             .get()
         : Promise.resolve(null);
-    const [usersRightsSnap, superAdminSnap, approversSnap, settingsSnap] =
+    const [
+      usersRightsSnap,
+      superAdminSnap,
+      approversSnap,
+      serviceApproversSnap,
+      settingsSnap,
+    ] =
       await Promise.all([
         usersRightsRef.get(),
         superAdminRef.get(),
         approversRef.get(),
+        serviceApproversRef.get(),
         settingsDocPromise,
       ]);
 
@@ -119,6 +129,26 @@ export async function GET(req: NextRequest) {
     const equipmentUsers = approvers.filter(
       a => a.level === ApproverLevel.EQUIPMENT,
     );
+    const serviceApproverUsers = Array.from(
+      new Map(
+        serviceApproversSnap.docs
+          .map((d) => {
+            const data = d.data() as Record<string, unknown>;
+            const email = typeof data.email === "string" ? data.email : "";
+            return [
+              email,
+              {
+                id: d.id,
+                email,
+                department: "",
+                createdAt: data.createdAt,
+                level: ApproverLevel.EQUIPMENT,
+              },
+            ] as const;
+          })
+          .filter(([email]) => email.length > 0),
+      ).values(),
+    );
     const finalApproverEmail =
       (approvers.find(a => a.level === ApproverLevel.FINAL)?.email as
         | string
@@ -140,7 +170,10 @@ export async function GET(req: NextRequest) {
       pagePermission = PagePermission.SUPER_ADMIN;
     } else if (adminUsers.some((u: any) => u.email === email)) {
       pagePermission = PagePermission.ADMIN;
-    } else if (equipmentUsers.some((u: any) => u.email === email)) {
+    } else if (
+      equipmentUsers.some((u: any) => u.email === email) ||
+      serviceApproverUsers.some((u: any) => u.email === email)
+    ) {
       pagePermission = PagePermission.SERVICES;
     } else if (liaisonUsers.some((u: any) => u.email === email)) {
       pagePermission = PagePermission.LIAISON;
@@ -175,7 +208,7 @@ export async function GET(req: NextRequest) {
       adminUsers,
       paUsers,
       liaisonUsers,
-      equipmentUsers,
+      equipmentUsers: [...equipmentUsers, ...serviceApproverUsers],
       superAdminUsers,
       policySettings: { finalApproverEmail },
       siteBanner,

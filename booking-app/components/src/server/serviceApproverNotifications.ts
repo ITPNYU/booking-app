@@ -5,8 +5,8 @@ import { getTenantEmailConfig } from "@/components/src/server/emails";
 import { BookingStatusLabel } from "@/components/src/types";
 import { getMediaCommonsServices } from "@/components/src/utils/tenantUtils";
 import {
-  serverFetchAllDataFromCollection,
   serverGetDataByCalendarEventId,
+  serverResolveServiceApproverEmails,
 } from "@/lib/firebase/server/adminDb";
 
 const SERVICE_APPROVER_CONFIG = {
@@ -42,6 +42,12 @@ const SERVICE_APPROVER_CONFIG = {
   },
 } as const;
 
+const parseBookingResourceIds = (roomId: unknown): string[] =>
+  String(roomId ?? "")
+    .split(",")
+    .map((resourceId) => resourceId.trim())
+    .filter(Boolean);
+
 export const isServicesRequestState = (newState: any): boolean =>
   !!(
     newState &&
@@ -64,29 +70,27 @@ export const notifyServiceApproversForRequestedServices = async (
     return;
   }
 
+  const resourceIds = parseBookingResourceIds(booking.roomId);
+  if (resourceIds.length === 0) {
+    return;
+  }
+
   const servicesRequested = getMediaCommonsServices(booking);
-  const usersRights = await serverFetchAllDataFromCollection<any>(
-    TableNames.USERS_RIGHTS,
-    [],
-    tenant,
-  );
   const bookingContents = await serverBookingContents(calendarEventId, tenant);
   const emailConfig = await getTenantEmailConfig(tenant);
   const schemaName = emailConfig.schemaName;
 
-  const emailJobs = Object.entries(SERVICE_APPROVER_CONFIG).flatMap(
-    ([serviceKey, config]) => {
+  const emailJobs = (
+    await Promise.all(
+      Object.entries(SERVICE_APPROVER_CONFIG).map(async ([serviceKey, config]) => {
       if (!servicesRequested[serviceKey as keyof typeof servicesRequested]) {
         return [];
       }
 
-      const recipients = Array.from(
-        new Set(
-          usersRights
-            .filter((record) => record[config.flagField] === true)
-            .map((record) => record.email)
-            .filter(Boolean),
-        ),
+      const recipients = await serverResolveServiceApproverEmails(
+        resourceIds,
+        serviceKey,
+        tenant,
       );
 
       if (recipients.length === 0) {
@@ -117,8 +121,9 @@ export const notifyServiceApproversForRequestedServices = async (
           }),
         }),
       );
-    },
-  );
+      }),
+    )
+  ).flat();
 
   await Promise.all(emailJobs);
 };

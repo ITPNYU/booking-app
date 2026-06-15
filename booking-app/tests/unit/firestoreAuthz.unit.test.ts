@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const superSnap = vi.fn();
 const usersRightsSnap = vi.fn();
 const approverSnap = vi.fn();
+const serviceApproverSnap = vi.fn();
 
 function snapshot(docs: Array<Record<string, unknown>>) {
   return {
@@ -19,6 +20,8 @@ vi.mock("@/lib/firebase/server/firebaseAdmin", () => {
           if (name === "usersSuperAdmin") return snapshot(superSnap());
           if (name.endsWith("usersRights")) return snapshot(usersRightsSnap());
           if (name.endsWith("usersApprovers")) return snapshot(approverSnap());
+          if (name.endsWith("usersServiceApprovers"))
+            return snapshot(serviceApproverSnap());
           return snapshot([]);
         },
       }),
@@ -40,6 +43,7 @@ beforeEach(() => {
   superSnap.mockReturnValue([]);
   usersRightsSnap.mockReturnValue([]);
   approverSnap.mockReturnValue([]);
+  serviceApproverSnap.mockReturnValue([]);
 });
 afterEach(() => {
   vi.clearAllMocks();
@@ -57,6 +61,16 @@ describe("authorizeWrite", () => {
   it("allows admin write to usersRights", async () => {
     usersRightsSnap.mockReturnValue([{ isAdmin: true }]);
     const decision = await authorizeWrite(session, "mc", "usersRights");
+    expect(decision.ok).toBe(true);
+  });
+
+  it("allows admin write to usersServiceApprovers", async () => {
+    usersRightsSnap.mockReturnValue([{ isAdmin: true }]);
+    const decision = await authorizeWrite(
+      session,
+      "mc",
+      "usersServiceApprovers",
+    );
     expect(decision.ok).toBe(true);
   });
 
@@ -101,6 +115,25 @@ describe("authorizeRead", () => {
     expect(decision.ok).toBe(true);
   });
 
+  it("blocks non-admin read of usersServiceApprovers", async () => {
+    const decision = await authorizeRead(
+      session,
+      "mc",
+      "usersServiceApprovers",
+    );
+    expect(decision.ok).toBe(false);
+  });
+
+  it("allows admin read of usersServiceApprovers", async () => {
+    usersRightsSnap.mockReturnValue([{ isAdmin: true }]);
+    const decision = await authorizeRead(
+      session,
+      "mc",
+      "usersServiceApprovers",
+    );
+    expect(decision.ok).toBe(true);
+  });
+
   it("blocks non-admin read of preBanLogs", async () => {
     const decision = await authorizeRead(session, "mc", "preBanLogs");
     expect(decision.ok).toBe(false);
@@ -118,5 +151,14 @@ describe("authorizeRead", () => {
   it("denies reads to unknown collection by default", async () => {
     const decision = await authorizeRead(session, "mc", "totally-fake");
     expect(decision.ok).toBe(false);
+  });
+});
+
+describe("resolveCallerRole", () => {
+  it("returns SERVICES for tenant service approvers", async () => {
+    serviceApproverSnap.mockReturnValue([{ email: session.email }]);
+    const { resolveCallerRole } = await import("@/lib/api/authz");
+
+    await expect(resolveCallerRole(session, "mc")).resolves.toBe("SERVICES");
   });
 });
