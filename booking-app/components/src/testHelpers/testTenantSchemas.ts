@@ -81,7 +81,7 @@ const baseMediaCommonsSchema: SchemaContextType = {
     {
       capacity: 30,
       name: "Lecture Hall 202",
-      roomId: 202,
+      resourceId: "202",
       isEquipment: false,
       calendarId: "mock-calendar-202",
       training: { required: false, formId: "", infoUrl: "" },
@@ -114,7 +114,7 @@ const baseMediaCommonsSchema: SchemaContextType = {
     {
       capacity: 20,
       name: "Studio 220",
-      roomId: 220,
+      resourceId: "220",
       isEquipment: false,
       calendarId: "mock-calendar-220",
       training: { required: false, formId: "", infoUrl: "" },
@@ -147,7 +147,7 @@ const baseMediaCommonsSchema: SchemaContextType = {
     {
       capacity: 15,
       name: "Training Room 230",
-      roomId: 230,
+      resourceId: "230",
       isEquipment: false,
       calendarId: "mock-calendar-230",
       training: { required: true, formId: "https://docs.google.com/forms/d/e/mock/viewform", infoUrl: "" },

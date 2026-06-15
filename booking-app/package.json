@@ -18,7 +18,9 @@
     "copy:production:dry-run": "node scripts/copyCollection.js --source-database development --target-database production --source-collection tenantSchema --target-collection tenantSchema --dry-run --report-file dry-run-production-details.json",
     "mergeUsers": "node scripts/mergeUsersCollections.js",
     "sync:schemas": "npx ts-node -r tsconfig-paths/register --transpile-only --compiler-options '{\"module\":\"commonjs\",\"jsx\":\"react\"}' scripts/syncTenantSchemas.ts",
-    "sync:schemas:dry-run": "npx ts-node -r tsconfig-paths/register --transpile-only --compiler-options '{\"module\":\"commonjs\",\"jsx\":\"react\"}' scripts/syncTenantSchemas.ts --dry-run"
+    "sync:schemas:dry-run": "npx ts-node -r tsconfig-paths/register --transpile-only --compiler-options '{\"module\":\"commonjs\",\"jsx\":\"react\"}' scripts/syncTenantSchemas.ts --dry-run",
+    "migrate:tenant-resource-ids": "node scripts/migrateTenantResourceIds.js",
+    "migrate:tenant-resource-ids:dry-run": "node scripts/migrateTenantResourceIds.js --dry-run"
   },
   "dependencies": {
     "@emotion/styled": "^11.13.0",
@@ -94,7 +96,7 @@
     "typescript": "^5.5.3",
     "typescript-eslint": "^8.0.0",
     "vite-tsconfig-paths": "^5.1.4",
-    "vitest": "^3.2.4"
+    "vitest": "^3.2.6"
   },
   "overrides": {
     "eslint-config-airbnb-base": {
