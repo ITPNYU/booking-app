@@ -6,6 +6,7 @@ import {
   serverGetDataByCalendarEventId,
   serverGetDocumentById,
   serverGetFinalApproverEmail,
+  serverResolveResourceApproverEmails,
   serverUpdateInFirestore,
 } from "@/lib/firebase/server/adminDb";
 import { Timestamp } from "firebase-admin/firestore";
@@ -33,6 +34,24 @@ interface HistoryItem {
   date: string;
   note?: string;
 }
+
+const parseBookingResourceIds = (roomId: unknown): string[] =>
+  String(roomId ?? "")
+    .split(",")
+    .map((resourceId) => resourceId.trim())
+    .filter(Boolean);
+
+const resolveBookingResourceApproverEmails = async (
+  roomId: unknown,
+  tenant?: string,
+): Promise<string[]> => {
+  const resourceIds = parseBookingResourceIds(roomId);
+  if (resourceIds.length > 0) {
+    return serverResolveResourceApproverEmails(resourceIds, tenant);
+  }
+  const fallback = await serverGetFinalApproverEmail(tenant);
+  return fallback ? [fallback] : [];
+};
 
 const getBookingHistory = async (
   booking: Booking,
@@ -288,6 +307,7 @@ export const serverFirstApproveOnly = async (
   const doc = await serverGetDataByCalendarEventId<{
     id: string;
     requestNumber: number;
+    roomId?: string;
   }>(TableNames.BOOKING, id, tenant);
 
   if (!doc) {
@@ -313,36 +333,41 @@ export const serverFirstApproveOnly = async (
     ...contents,
     headerMessage: emailConfig.emailNotifications.reviewedNeedsApproval,
   };
-  const recipient = await serverGetFinalApproverEmail(tenant);
-  if (!recipient) {
-
+  const recipients = await resolveBookingResourceApproverEmails(
+    doc.roomId,
+    tenant,
+  );
+  if (recipients.length === 0) {
     return;
   }
-  const formData = {
-    templateName: "booking_detail",
-    contents: emailContents,
-    targetEmail: recipient,
-    status: BookingStatusLabel.PRE_APPROVED,
-    eventTitle: contents.title || "",
-    requestNumber: contents.requestNumber,
-    bodyMessage: "",
-    approverType: ApproverType.FINAL_APPROVER,
-    replyTo: contents.email,
-  };
-  const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/sendEmail`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-tenant": tenant || DEFAULT_TENANT,
-    },
-    body: JSON.stringify(formData),
-  });
+  const results = await Promise.all(
+    recipients.map((recipient) =>
+      fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/sendEmail`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-tenant": tenant || DEFAULT_TENANT,
+        },
+        body: JSON.stringify({
+          templateName: "booking_detail",
+          contents: emailContents,
+          targetEmail: recipient,
+          status: BookingStatusLabel.PRE_APPROVED,
+          eventTitle: contents.title || "",
+          requestNumber: contents.requestNumber,
+          bodyMessage: "",
+          approverType: ApproverType.FINAL_APPROVER,
+          replyTo: contents.email,
+        }),
+      }),
+    ),
+  );
 
   console.log(
     `✅ FIRST APPROVAL COMPLETED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
     {
       calendarEventId: id,
-      emailSent: res.ok,
+      emailSent: results.some((result) => result.ok),
       status: BookingStatusLabel.PRE_APPROVED,
     },
   );
@@ -442,6 +467,7 @@ const firstApprove = async (id: string, email: string, tenant?: string) => {
   const doc = await serverGetDataByCalendarEventId<{
     id: string;
     requestNumber: number;
+    roomId?: string;
   }>(TableNames.BOOKING, id, tenant);
   if (!doc) {
     console.error("Booking document not found for calendar event id:", id);
@@ -484,32 +510,37 @@ const firstApprove = async (id: string, email: string, tenant?: string) => {
     ...contents,
     headerMessage: emailConfig.emailNotifications.reviewedNeedsApproval,
   };
-  const recipient = await serverGetFinalApproverEmail(tenant);
-  if (!recipient) {
-
+  const recipients = await resolveBookingResourceApproverEmails(
+    doc.roomId,
+    tenant,
+  );
+  if (recipients.length === 0) {
     return;
   }
 
-  const formData = {
-    templateName: "booking_detail",
-    contents: emailContents,
-    targetEmail: recipient,
-    status: BookingStatusLabel.PRE_APPROVED,
-    eventTitle: contents.title || "",
-    requestNumber: contents.requestNumber,
-    bodyMessage: "",
-    approverType: ApproverType.FINAL_APPROVER,
-    replyTo: contents.email,
-    schemaName: emailConfig.schemaName,
-  };
-  const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/sendEmail`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-tenant": tenant || DEFAULT_TENANT,
-    },
-    body: JSON.stringify(formData),
-  });
+  await Promise.all(
+    recipients.map((recipient) =>
+      fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/sendEmail`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-tenant": tenant || DEFAULT_TENANT,
+        },
+        body: JSON.stringify({
+          templateName: "booking_detail",
+          contents: emailContents,
+          targetEmail: recipient,
+          status: BookingStatusLabel.PRE_APPROVED,
+          eventTitle: contents.title || "",
+          requestNumber: contents.requestNumber,
+          bodyMessage: "",
+          approverType: ApproverType.FINAL_APPROVER,
+          replyTo: contents.email,
+          schemaName: emailConfig.schemaName,
+        }),
+      }),
+    ),
+  );
 };
 
 export const finalApprove = async (
@@ -556,6 +587,7 @@ interface SendConfirmationEmailOptions {
   headerMessage: string;
   guestEmail: string;
   tenant?: string;
+  roomId?: unknown;
 }
 
 export const serverSendBookingDetailEmail = async ({
@@ -602,20 +634,24 @@ export const serverSendConfirmationEmail = async ({
   headerMessage,
   guestEmail,
   tenant,
+  roomId,
 }: SendConfirmationEmailOptions) => {
-  const email = await serverGetFinalApproverEmail(tenant);
-  if (!email) {
-
+  const emails = await resolveBookingResourceApproverEmails(roomId, tenant);
+  if (emails.length === 0) {
     return;
   }
-  serverSendBookingDetailEmail({
-    calendarEventId,
-    targetEmail: email,
-    headerMessage,
-    status,
-    replyTo: guestEmail,
-    tenant,
-  });
+  await Promise.all(
+    emails.map((email) =>
+      serverSendBookingDetailEmail({
+        calendarEventId,
+        targetEmail: email,
+        headerMessage,
+        status,
+        replyTo: guestEmail,
+        tenant,
+      }),
+    ),
+  );
 };
 
 // server
@@ -632,6 +668,8 @@ export const serverApproveEvent = async (id: string, tenant?: string) => {
 
   // @ts-ignore
   const guestEmail = doc.email;
+  // @ts-ignore
+  const bookingRoomId = doc.roomId;
 
   // Get tenant email configuration for approval notice
   const emailConfig = await getTenantEmailConfig(tenant);
@@ -656,6 +694,7 @@ export const serverApproveEvent = async (id: string, tenant?: string) => {
     headerMessage: otherHeaderMessage,
     guestEmail,
     tenant,
+    roomId: bookingRoomId,
   });
 
   // for Samantha

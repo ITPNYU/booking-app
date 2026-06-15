@@ -6,6 +6,7 @@ import { getApprovedCcEmail, getCanceledCcEmail } from "./tenantPolicy";
 export enum TableNames {
   ADMINS = "usersAdmin",
   APPROVERS = "usersApprovers",
+  RESOURCE_APPROVERS = "usersResourceApprovers",
   BANNED = "usersBanned",
   BOOKING = "bookings",
   BOOKING_TYPES = "bookingTypes",
@@ -45,6 +46,7 @@ export const getTenantCollectionName = (
     "settings",
     "usersWhitelist",
     "usersApprovers",
+    "usersResourceApprovers",
     "usersRights",
     "counters",
   ];
@@ -99,6 +101,15 @@ export enum ApproverLevel {
   FINAL = 2,
   EQUIPMENT = 3,
 }
+
+export const getResourceApproverDocumentId = (
+  resourceId: string,
+  email: string,
+): string => {
+  const encodedResourceId = encodeURIComponent(resourceId);
+  const encodedEmail = encodeURIComponent(email.trim().toLowerCase());
+  return `${encodedResourceId.length}-${encodedResourceId}${encodedEmail}`;
+};
 
 /** ******** CONTACTS ************/
 
