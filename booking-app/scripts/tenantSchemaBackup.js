@@ -1,12 +1,15 @@
 const TENANT_SCHEMA_COLLECTION = "tenantSchema";
 const TENANT_SCHEMA_BACKUP_COLLECTION = "tenantSchemaBackup";
 
-const createBackupDocId = (tenantId, backupType) => {
-  const timestamp = new Date()
+const formatBackupTimestamp = () =>
+  new Date()
     .toISOString()
     .replace(/[:.]/g, "-")
     .replace("T", "_")
     .replace("Z", "");
+
+/** @param {string} [timestamp] Same stamp for all docs in a batch (e.g. disk export); omit for a new stamp per call. */
+const createBackupDocId = (tenantId, backupType, timestamp = formatBackupTimestamp()) => {
   return `${tenantId}-backup-${backupType}-${timestamp}`;
 };
 
@@ -102,6 +105,7 @@ const backupTenantSchemaCollection = async (
 module.exports = {
   TENANT_SCHEMA_COLLECTION,
   TENANT_SCHEMA_BACKUP_COLLECTION,
+  formatBackupTimestamp,
   createBackupDocId,
   backupTenantSchemaDocument,
   backupTenantSchemaCollection,

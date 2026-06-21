@@ -20,7 +20,8 @@
     "sync:schemas": "npx ts-node -r tsconfig-paths/register --transpile-only --compiler-options '{\"module\":\"commonjs\",\"jsx\":\"react\"}' scripts/syncTenantSchemas.ts",
     "sync:schemas:dry-run": "npx ts-node -r tsconfig-paths/register --transpile-only --compiler-options '{\"module\":\"commonjs\",\"jsx\":\"react\"}' scripts/syncTenantSchemas.ts --dry-run",
     "migrate:tenant-resource-ids": "node scripts/migrateTenantResourceIds.js",
-    "migrate:tenant-resource-ids:dry-run": "node scripts/migrateTenantResourceIds.js --dry-run"
+    "migrate:tenant-resource-ids:dry-run": "node scripts/migrateTenantResourceIds.js --dry-run",
+    "backup:tenant-schema": "npx ts-node -r tsconfig-paths/register --transpile-only --compiler-options '{\"module\":\"commonjs\",\"jsx\":\"react\"}' scripts/backupTenantSchemaToDisk.ts"
   },
   "dependencies": {
     "@emotion/styled": "^11.13.0",
