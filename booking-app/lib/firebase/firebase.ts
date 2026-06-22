@@ -59,9 +59,10 @@ export type ResourceApproverData = {
 const FIRESTORE_IN_QUERY_LIMIT = 30;
 
 const normalizeEmail = (email: string): string => email.trim().toLowerCase();
+const normalizeResourceId = (resourceId: string): string => resourceId.trim();
 
 const normalizeResourceIds = (resourceIds: string[]): string[] => [
-  ...new Set(resourceIds.map((resourceId) => resourceId.trim()).filter(Boolean)),
+  ...new Set(resourceIds.map(normalizeResourceId).filter(Boolean)),
 ];
 
 type ResourceApproverSetRequest = {
@@ -278,15 +279,16 @@ export const clientAddResourceApprover = async (
   email: string,
   tenant?: string,
 ): Promise<void> => {
+  const normalizedResourceId = normalizeResourceId(resourceId);
   const normalizedEmail = normalizeEmail(email);
   await postJson<ResourceApproverSetRequest>("/api/firestore/mutate", {
     op: "set",
     collection: TableNames.RESOURCE_APPROVERS,
     tenant: resolveTenantArg(tenant),
-    docId: getResourceApproverDocumentId(resourceId, normalizedEmail),
+    docId: getResourceApproverDocumentId(normalizedResourceId, normalizedEmail),
     data: {
       email: normalizedEmail,
-      resourceId,
+      resourceId: normalizedResourceId,
       createdAt: { __ts: Date.now() },
     },
   });
@@ -297,12 +299,13 @@ export const clientRemoveResourceApprover = async (
   email: string,
   tenant?: string,
 ): Promise<void> => {
+  const normalizedResourceId = normalizeResourceId(resourceId);
   const normalizedEmail = normalizeEmail(email);
   await postJson<MutateRequest>("/api/firestore/mutate", {
     op: "delete",
     collection: TableNames.RESOURCE_APPROVERS,
     tenant: resolveTenantArg(tenant),
-    docId: getResourceApproverDocumentId(resourceId, normalizedEmail),
+    docId: getResourceApproverDocumentId(normalizedResourceId, normalizedEmail),
   });
 };
 

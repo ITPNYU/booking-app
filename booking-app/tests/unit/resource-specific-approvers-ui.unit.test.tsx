@@ -46,12 +46,19 @@ describe("ResourceSpecific", () => {
       </SchemaProvider>,
     );
 
-    const input = await screen.findByLabelText(
-      "Approver email for Audio Studio",
+    expect(
+      await screen.findByText("studio/a:floor-2 Audio Studio"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Resource Approvers")).toBeInTheDocument();
+
+    const input = screen.getByLabelText(
+      "Resource approver email for studio/a:floor-2",
     );
     await user.type(input, " Person@NYU.EDU ");
     await user.click(
-      screen.getByRole("button", { name: "Add approver for Audio Studio" }),
+      screen.getByRole("button", {
+        name: "Add resource approver for studio/a:floor-2",
+      }),
     );
 
     await waitFor(() =>

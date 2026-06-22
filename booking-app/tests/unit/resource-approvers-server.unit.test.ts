@@ -77,8 +77,8 @@ describe("resource approver server helpers", () => {
     const { serverAddResourceApprover, serverRemoveResourceApprover } =
       await import("@/lib/firebase/server/adminDb");
 
-    await serverAddResourceApprover("room/a", " Person@NYU.EDU ", "mc");
-    await serverRemoveResourceApprover("room/a", " Person@NYU.EDU ", "mc");
+    await serverAddResourceApprover(" room/a ", " Person@NYU.EDU ", "mc");
+    await serverRemoveResourceApprover(" room/a ", " Person@NYU.EDU ", "mc");
 
     expect(setMock).toHaveBeenCalledWith(
       "mc-usersResourceApprovers",

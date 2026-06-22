@@ -42,8 +42,8 @@ describe("resource approver client helpers", () => {
   it("normalizes email and uses the same deterministic ID for add/remove", async () => {
     fetchMock.mockResolvedValue(response({ ok: true }));
 
-    await clientAddResourceApprover("room/a", " Person@NYU.EDU ", "mc");
-    await clientRemoveResourceApprover("room/a", " Person@NYU.EDU ", "mc");
+    await clientAddResourceApprover(" room/a ", " Person@NYU.EDU ", "mc");
+    await clientRemoveResourceApprover(" room/a ", " Person@NYU.EDU ", "mc");
 
     expect(bodyAt(0)).toMatchObject({
       op: "set",

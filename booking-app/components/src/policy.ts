@@ -106,7 +106,7 @@ export const getResourceApproverDocumentId = (
   resourceId: string,
   email: string,
 ): string => {
-  const encodedResourceId = encodeURIComponent(resourceId);
+  const encodedResourceId = encodeURIComponent(resourceId.trim());
   const encodedEmail = encodeURIComponent(email.trim().toLowerCase());
   return `${encodedResourceId.length}-${encodedResourceId}${encodedEmail}`;
 };
