@@ -16,16 +16,21 @@ const DATABASES = {
 const hasOwn = (value, key) =>
   Object.prototype.hasOwnProperty.call(value, key);
 
-const validateId = (id, path) => {
-  if (typeof id !== "string") {
-    throw new Error(`${path} must be a string`);
+const normalizeId = (id, path) => {
+  if (
+    (typeof id !== "string" && typeof id !== "number") ||
+    (typeof id === "number" && !Number.isFinite(id))
+  ) {
+    throw new Error(`${path} must be a string or finite number`);
   }
-  if (id.trim().length === 0) {
+  const normalizedId = String(id);
+  if (normalizedId.trim().length === 0) {
     throw new Error(`${path} must be non-empty`);
   }
-  if (id.includes(",")) {
+  if (normalizedId.includes(",")) {
     throw new Error(`${path} must not contain commas`);
   }
+  return normalizedId;
 };
 
 const migrateTenantSchemaData = (schema, tenantId = "unknown") => {
@@ -50,23 +55,15 @@ const migrateTenantSchemaData = (schema, tenantId = "unknown") => {
     const hasResourceId = hasOwn(resource, "resourceId");
     const hasRoomId = hasOwn(resource, "roomId");
     let resourceId;
+    let resourceIdChanged = false;
 
     if (hasResourceId) {
-      resourceId = resource.resourceId;
-      validateId(resourceId, `${path}.resourceId`);
+      resourceId = normalizeId(resource.resourceId, `${path}.resourceId`);
+      resourceIdChanged = resource.resourceId !== resourceId;
     }
 
     if (hasRoomId) {
-      const roomId = resource.roomId;
-      if (
-        (typeof roomId !== "string" && typeof roomId !== "number") ||
-        (typeof roomId === "number" && !Number.isFinite(roomId))
-      ) {
-        throw new Error(`${path}.roomId must be a string or finite number`);
-      }
-
-      const legacyResourceId = String(roomId);
-      validateId(legacyResourceId, `${path}.roomId`);
+      const legacyResourceId = normalizeId(resource.roomId, `${path}.roomId`);
       if (hasResourceId && resourceId !== legacyResourceId) {
         throw new Error(
           `${path} has conflicting resourceId "${resourceId}" and roomId "${legacyResourceId}"`
@@ -85,7 +82,7 @@ const migrateTenantSchemaData = (schema, tenantId = "unknown") => {
     }
     seenIds.add(resourceId);
 
-    if (!hasRoomId) {
+    if (!hasRoomId && !resourceIdChanged) {
       return resource;
     }
 
