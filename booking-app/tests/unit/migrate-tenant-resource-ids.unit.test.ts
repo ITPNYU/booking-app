@@ -88,6 +88,8 @@ describe("scripts/migrateTenantResourceIds", () => {
         { roomId: "room-two", name: "Two" },
         { resourceId: "canonical", name: "Three" },
         { resourceId: "same", roomId: "same", name: "Four" },
+        { resourceId: 202, name: "Five" },
+        { resourceId: 303, roomId: 303, name: "Six" },
       ],
     };
 
@@ -98,6 +100,8 @@ describe("scripts/migrateTenantResourceIds", () => {
       { resourceId: "room-two", name: "Two" },
       { resourceId: "canonical", name: "Three" },
       { resourceId: "same", name: "Four" },
+      { resourceId: "202", name: "Five" },
+      { resourceId: "303", name: "Six" },
     ]);
 
     const second = migrateTenantSchemaData(first.schema, "mc");
@@ -112,6 +116,7 @@ describe("scripts/migrateTenantResourceIds", () => {
     ],
     ["empty IDs", [{ roomId: " " }], /must be non-empty/],
     ["comma-containing IDs", [{ resourceId: "one,two" }], /must not contain commas/],
+    ["non-finite resource IDs", [{ resourceId: Number.NaN }], /must be a string or finite number/],
     [
       "duplicate canonical IDs",
       [{ roomId: 1 }, { resourceId: "1" }],

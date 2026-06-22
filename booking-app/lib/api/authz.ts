@@ -102,6 +102,7 @@ const POLICY: Record<string, Policy> = {
   [TableNames.USERS_RIGHTS]: { read: "anyNYU", write: "adminOrSuper" },
   [TableNames.SERVICE_APPROVERS]: { read: "adminOrSuper", write: "adminOrSuper" },
   [TableNames.APPROVERS]: { read: "anyNYU", write: "adminOrSuper" },
+  [TableNames.RESOURCE_APPROVERS]: { read: "adminOrSuper", write: "adminOrSuper" },
   [TableNames.ADMINS]: { read: "anyNYU", write: "adminOrSuper" },
   [TableNames.PAS]: { read: "anyNYU", write: "adminOrSuper" },
 

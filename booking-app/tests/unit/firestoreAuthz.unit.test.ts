@@ -74,6 +74,16 @@ describe("authorizeWrite", () => {
     expect(decision.ok).toBe(true);
   });
 
+  it("allows admin write to usersResourceApprovers", async () => {
+    usersRightsSnap.mockReturnValue([{ isAdmin: true }]);
+    const decision = await authorizeWrite(
+      session,
+      "mc",
+      "usersResourceApprovers",
+    );
+    expect(decision.ok).toBe(true);
+  });
+
   it("blocks admin from writing usersSuperAdmin (super-only)", async () => {
     usersRightsSnap.mockReturnValue([{ isAdmin: true }]);
     const decision = await authorizeWrite(session, "mc", "usersSuperAdmin");
@@ -124,12 +134,31 @@ describe("authorizeRead", () => {
     expect(decision.ok).toBe(false);
   });
 
+  it("blocks non-admin read of usersResourceApprovers", async () => {
+    const decision = await authorizeRead(
+      session,
+      "mc",
+      "usersResourceApprovers",
+    );
+    expect(decision.ok).toBe(false);
+  });
+
   it("allows admin read of usersServiceApprovers", async () => {
     usersRightsSnap.mockReturnValue([{ isAdmin: true }]);
     const decision = await authorizeRead(
       session,
       "mc",
       "usersServiceApprovers",
+    );
+    expect(decision.ok).toBe(true);
+  });
+
+  it("allows admin read of usersResourceApprovers", async () => {
+    usersRightsSnap.mockReturnValue([{ isAdmin: true }]);
+    const decision = await authorizeRead(
+      session,
+      "mc",
+      "usersResourceApprovers",
     );
     expect(decision.ok).toBe(true);
   });
