@@ -11,42 +11,30 @@ import {
 
 const SERVICE_APPROVER_CONFIG = {
   setup: {
-    flagField: "isSetup",
     subjectStatus: "SETUP REQUESTED",
     displayName: "setup",
   },
   equipment: {
-    flagField: "isEquipment",
     subjectStatus: "EQUIPMENT REQUESTED",
     displayName: "equipment",
   },
   staff: {
-    flagField: "isStaffing",
     subjectStatus: "STAFFING REQUESTED",
     displayName: "staffing",
   },
   catering: {
-    flagField: "isCatering",
     subjectStatus: "CATERING REQUESTED",
     displayName: "catering",
   },
   cleaning: {
-    flagField: "isCleaning",
     subjectStatus: "CLEANUP REQUESTED",
     displayName: "cleanup",
   },
   security: {
-    flagField: "isSecurity",
     subjectStatus: "SECURITY REQUESTED",
     displayName: "security",
   },
 } as const;
-
-const parseBookingResourceIds = (roomId: unknown): string[] =>
-  String(roomId ?? "")
-    .split(",")
-    .map((resourceId) => resourceId.trim())
-    .filter(Boolean);
 
 export const isServicesRequestState = (newState: any): boolean =>
   !!(
@@ -70,11 +58,6 @@ export const notifyServiceApproversForRequestedServices = async (
     return;
   }
 
-  const resourceIds = parseBookingResourceIds(booking.roomId);
-  if (resourceIds.length === 0) {
-    return;
-  }
-
   const servicesRequested = getMediaCommonsServices(booking);
   const bookingContents = await serverBookingContents(calendarEventId, tenant);
   const emailConfig = await getTenantEmailConfig(tenant);
@@ -83,44 +66,43 @@ export const notifyServiceApproversForRequestedServices = async (
   const emailJobs = (
     await Promise.all(
       Object.entries(SERVICE_APPROVER_CONFIG).map(async ([serviceKey, config]) => {
-      if (!servicesRequested[serviceKey as keyof typeof servicesRequested]) {
-        return [];
-      }
+        if (!servicesRequested[serviceKey as keyof typeof servicesRequested]) {
+          return [];
+        }
 
-      const recipients = await serverResolveServiceApproverEmails(
-        resourceIds,
-        serviceKey,
-        tenant,
-      );
+        const recipients = await serverResolveServiceApproverEmails(
+          serviceKey,
+          tenant,
+        );
 
-      if (recipients.length === 0) {
-        return [];
-      }
+        if (recipients.length === 0) {
+          return [];
+        }
 
-      return recipients.map((recipient) =>
-        fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/sendEmail`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-tenant": tenant || DEFAULT_TENANT,
-          },
-          body: JSON.stringify({
-            templateName: "booking_detail",
-            contents: {
-              ...bookingContents,
-              headerMessage: `A ${config.displayName} service approval is required for this request.`,
+        return recipients.map((recipient) =>
+          fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/sendEmail`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-tenant": tenant || DEFAULT_TENANT,
             },
-            targetEmail: recipient,
-            status: BookingStatusLabel.PRE_APPROVED,
-            subjectStatusOverride: config.subjectStatus,
-            eventTitle: bookingContents.title || "",
-            requestNumber: bookingContents.requestNumber,
-            bodyMessage: "",
-            replyTo: bookingContents.email,
-            schemaName,
+            body: JSON.stringify({
+              templateName: "booking_detail",
+              contents: {
+                ...bookingContents,
+                headerMessage: `A ${config.displayName} service approval is required for this request.`,
+              },
+              targetEmail: recipient,
+              status: BookingStatusLabel.PRE_APPROVED,
+              subjectStatusOverride: config.subjectStatus,
+              eventTitle: bookingContents.title || "",
+              requestNumber: bookingContents.requestNumber,
+              bodyMessage: "",
+              replyTo: bookingContents.email,
+              schemaName,
+            }),
           }),
-        }),
-      );
+        );
       }),
     )
   ).flat();

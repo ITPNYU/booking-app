@@ -11,15 +11,11 @@ describe("approver document IDs", () => {
     ).toEqual(getResourceApproverDocumentId("room/a", "person@nyu.edu"));
   });
 
-  it("normalizes service approver resource IDs, service types, and emails", () => {
+  it("normalizes service approver services and emails", () => {
     expect(
-      getServiceApproverDocumentId(
-        " room/a ",
-        " equipment ",
-        " Person@NYU.EDU ",
-      ),
+      getServiceApproverDocumentId(" equipment ", " Person@NYU.EDU "),
     ).toEqual(
-      getServiceApproverDocumentId("room/a", "equipment", "person@nyu.edu"),
+      getServiceApproverDocumentId("equipment", "person@nyu.edu"),
     );
   });
 });

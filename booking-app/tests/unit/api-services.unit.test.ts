@@ -10,7 +10,7 @@ vi.mock("@/lib/api/authz", () => ({
 
 vi.mock("@/lib/firebase/server/adminDb", () => ({
   serverGetDataByCalendarEventId: vi.fn(),
-  serverIsServiceApproverForAllResources: vi.fn(),
+  serverIsServiceApprover: vi.fn(),
 }));
 
 vi.mock("@/lib/stateMachines/xstateUtilsV5", () => ({
@@ -23,7 +23,7 @@ import { resolveCallerRole } from "@/lib/api/authz";
 import { requireSession } from "@/lib/api/requireSession";
 import {
   serverGetDataByCalendarEventId,
-  serverIsServiceApproverForAllResources,
+  serverIsServiceApprover,
 } from "@/lib/firebase/server/adminDb";
 import { executeXStateTransition } from "@/lib/stateMachines/xstateUtilsV5";
 
@@ -32,9 +32,7 @@ const mockResolveCallerRole = vi.mocked(resolveCallerRole);
 const mockServerGetDataByCalendarEventId = vi.mocked(
   serverGetDataByCalendarEventId,
 );
-const mockServerIsServiceApproverForAllResources = vi.mocked(
-  serverIsServiceApproverForAllResources,
-);
+const mockServerIsServiceApprover = vi.mocked(serverIsServiceApprover);
 const mockExecuteXStateTransition = vi.mocked(executeXStateTransition);
 
 const request = (
@@ -64,7 +62,7 @@ describe("POST /api/services", () => {
       requestNumber: 12,
       roomId: "room-a, room-b",
     } as any);
-    mockServerIsServiceApproverForAllResources.mockResolvedValue(true);
+    mockServerIsServiceApprover.mockResolvedValue(true);
     mockExecuteXStateTransition.mockResolvedValue({
       success: true,
       newState: { "Services Request": "pending" },
@@ -85,16 +83,15 @@ describe("POST /api/services", () => {
     });
   });
 
-  it("returns 403 when caller is not assigned to every booked resource", async () => {
-    mockServerIsServiceApproverForAllResources.mockResolvedValue(false);
+  it("returns 403 when caller is not assigned to the requested service", async () => {
+    mockServerIsServiceApprover.mockResolvedValue(false);
 
     const response = await POST(
       request({ calendarEventId: "cal", serviceType: "setup", action: "approve" }),
     );
 
-    expect(mockServerIsServiceApproverForAllResources).toHaveBeenCalledWith(
+    expect(mockServerIsServiceApprover).toHaveBeenCalledWith(
       "service@nyu.edu",
-      ["room-a", "room-b"],
       "setup",
       "mc",
     );
@@ -123,13 +120,13 @@ describe("POST /api/services", () => {
 
   it("allows admins without a service assignment", async () => {
     mockResolveCallerRole.mockResolvedValue(PagePermission.ADMIN);
-    mockServerIsServiceApproverForAllResources.mockResolvedValue(false);
+    mockServerIsServiceApprover.mockResolvedValue(false);
 
     const response = await POST(
       request({ calendarEventId: "cal", serviceType: "setup", action: "decline" }),
     );
 
-    expect(mockServerIsServiceApproverForAllResources).not.toHaveBeenCalled();
+    expect(mockServerIsServiceApprover).not.toHaveBeenCalled();
     expect(mockExecuteXStateTransition).toHaveBeenCalledWith(
       "cal",
       "declineSetup",

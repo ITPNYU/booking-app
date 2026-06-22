@@ -9,10 +9,9 @@ import { SchemaContext } from "../../components/SchemaProvider";
 import { formatDate } from "../../../utils/date";
 import { TableNames } from "../../../../policy";
 import {
-  UserRightFlagField,
-  clientClearUserRightFlag,
-  clientFetchAllDataFromCollection,
-  clientUpsertUserRightFlag,
+  clientAddServiceApprover,
+  clientListServiceApprovers,
+  clientRemoveServiceApprover,
 } from "@/lib/firebase/firebase";
 
 type UserRightsRecord = {
@@ -23,12 +22,12 @@ type UserRightsRecord = {
 
 interface ServiceApproverUsersProps {
   title: string;
-  flagField: UserRightFlagField;
+  service: string;
 }
 
 export const ServiceApproverUsers = ({
   title,
-  flagField,
+  service,
 }: ServiceApproverUsersProps) => {
   const schemaContext = useContext(SchemaContext);
   const tenant = schemaContext?.tenantId;
@@ -40,14 +39,11 @@ export const ServiceApproverUsers = ({
   );
 
   const loadServiceApprovers = useCallback(async () => {
-    const fetchedData = await clientFetchAllDataFromCollection<any>(
-      TableNames.USERS_RIGHTS,
-      [{ field: flagField, op: "==", value: true }],
-      tenant,
-    );
+    const fetchedData = await clientListServiceApprovers(tenant);
 
     const filtered = fetchedData
-      .map((item: any) => ({
+      .filter((item) => item.service === service)
+      .map((item) => ({
         id: item.id,
         email: item.email,
         createdAt: item.createdAt,
@@ -57,7 +53,7 @@ export const ServiceApproverUsers = ({
       );
 
     setServiceApprovers(filtered);
-  }, [flagField, tenant]);
+  }, [service, tenant]);
 
   const addServiceApprover = useCallback(async () => {
     const trimmedEmail = valueToAdd.trim();
@@ -75,7 +71,7 @@ export const ServiceApproverUsers = ({
 
     setLoading(true);
     try {
-      await clientUpsertUserRightFlag(trimmedEmail, flagField, tenant);
+      await clientAddServiceApprover(service, trimmedEmail, tenant);
       setValueToAdd("");
       await loadServiceApprovers();
     } catch (error) {
@@ -84,13 +80,13 @@ export const ServiceApproverUsers = ({
     } finally {
       setLoading(false);
     }
-  }, [flagField, loadServiceApprovers, serviceApprovers, tenant, valueToAdd]);
+  }, [loadServiceApprovers, service, serviceApprovers, tenant, valueToAdd]);
 
   const removeServiceApprover = useCallback(
     async (row: { [key: string]: string }) => {
-      await clientClearUserRightFlag(row.id, flagField, tenant);
+      await clientRemoveServiceApprover(service, row.email, tenant);
     },
-    [flagField, tenant],
+    [service, tenant],
   );
 
   useEffect(() => {
@@ -113,7 +109,8 @@ export const ServiceApproverUsers = ({
       <Grid paddingLeft={0} paddingRight={4} display="flex" alignItems="center">
         <Grid container paddingRight={1}>
           <TextField
-            id={`service-approver-${flagField}`}
+            id={`service-approver-${service}`}
+            inputProps={{ "aria-label": `Approver email for ${title}` }}
             onChange={(e) => setValueToAdd(e.target.value)}
             value={valueToAdd}
             placeholder="Add email"
@@ -125,7 +122,7 @@ export const ServiceApproverUsers = ({
           color="primary"
           sx={{ padding: 0 }}
           disabled={loading}
-          aria-label="Add service approver"
+          aria-label={`Add approver for ${title}`}
         >
           <AddCircleOutline />
         </IconButton>
@@ -135,7 +132,7 @@ export const ServiceApproverUsers = ({
 
   return (
     <ListTable
-      tableName={TableNames.USERS_RIGHTS}
+      tableName={TableNames.SERVICE_APPROVERS}
       columnNameToRemoveBy="email"
       rows={serviceApprovers as unknown as { [key: string]: string }[]}
       rowsRefresh={loadServiceApprovers}

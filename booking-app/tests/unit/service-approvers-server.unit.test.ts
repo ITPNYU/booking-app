@@ -59,15 +59,14 @@ describe("service approver server helpers", () => {
     deleteMock.mockReset();
   });
 
-  it("uses tenant collection, normalized email, service type, and deterministic IDs", async () => {
+  it("uses tenant collection, normalized email, service, and deterministic IDs", async () => {
     setMock.mockResolvedValue(undefined);
     deleteMock.mockResolvedValue(undefined);
     const { serverAddServiceApprover, serverRemoveServiceApprover } =
       await import("@/lib/firebase/server/adminDb");
 
-    await serverAddServiceApprover("room/a", "equipment", " Person@NYU.EDU ", "mc");
+    await serverAddServiceApprover(" equipment ", " Person@NYU.EDU ", "mc");
     await serverRemoveServiceApprover(
-      "room/a",
       "equipment",
       "person@nyu.edu",
       "mc",
@@ -78,8 +77,7 @@ describe("service approver server helpers", () => {
       deleteMock.mock.calls[0][1],
       {
         email: "person@nyu.edu",
-        resourceId: "room/a",
-        serviceType: "equipment",
+        service: "equipment",
         createdAt: "timestamp",
       },
       { merge: true },
@@ -90,55 +88,51 @@ describe("service approver server helpers", () => {
     );
   });
 
-  it("resolves only approvers assigned to every requested resource for the service", async () => {
+  it("resolves approvers assigned to the requested service", async () => {
     collections.set("mc-usersServiceApprovers", [
-      { id: "1", data: { resourceId: "a", serviceType: "setup", email: "one@nyu.edu" } },
-      { id: "2", data: { resourceId: "b", serviceType: "setup", email: "one@nyu.edu" } },
-      { id: "3", data: { resourceId: "b", serviceType: "setup", email: "two@nyu.edu" } },
-      { id: "4", data: { resourceId: "a", serviceType: "equipment", email: "other@nyu.edu" } },
+      { id: "1", data: { service: "setup", email: "one@nyu.edu" } },
+      { id: "2", data: { service: "setup", email: "ONE@nyu.edu" } },
+      { id: "3", data: { service: "setup", email: "two@nyu.edu" } },
+      { id: "4", data: { service: "equipment", email: "other@nyu.edu" } },
     ]);
     const { serverResolveServiceApproverEmails } =
       await import("@/lib/firebase/server/adminDb");
 
     await expect(
-      serverResolveServiceApproverEmails(["a", "b"], "setup", "mc"),
-    ).resolves.toEqual(["one@nyu.edu"]);
+      serverResolveServiceApproverEmails("setup", "mc"),
+    ).resolves.toEqual(["one@nyu.edu", "two@nyu.edu"]);
   });
 
-  it("returns empty when resources are only covered by different approvers", async () => {
+  it("returns empty when no approvers are assigned to the service", async () => {
     collections.set("mc-usersServiceApprovers", [
-      { id: "1", data: { resourceId: "a", serviceType: "setup", email: "one@nyu.edu" } },
-      { id: "2", data: { resourceId: "b", serviceType: "setup", email: "two@nyu.edu" } },
+      { id: "1", data: { service: "equipment", email: "one@nyu.edu" } },
     ]);
     const { serverResolveServiceApproverEmails } =
       await import("@/lib/firebase/server/adminDb");
 
     await expect(
-      serverResolveServiceApproverEmails(["a", "b"], "setup", "mc"),
+      serverResolveServiceApproverEmails("setup", "mc"),
     ).resolves.toEqual([]);
   });
 
-  it("checks whether a caller is assigned to every resource", async () => {
+  it("checks whether a caller is assigned to the service", async () => {
     collections.set("mc-usersServiceApprovers", [
-      { id: "1", data: { resourceId: "a", serviceType: "setup", email: "one@nyu.edu" } },
-      { id: "2", data: { resourceId: "b", serviceType: "setup", email: "one@nyu.edu" } },
-      { id: "3", data: { resourceId: "a", serviceType: "equipment", email: "one@nyu.edu" } },
+      { id: "1", data: { service: "setup", email: "one@nyu.edu" } },
+      { id: "2", data: { service: "equipment", email: "two@nyu.edu" } },
     ]);
-    const { serverIsServiceApproverForAllResources } =
+    const { serverIsServiceApprover } =
       await import("@/lib/firebase/server/adminDb");
 
     await expect(
-      serverIsServiceApproverForAllResources(
+      serverIsServiceApprover(
         "ONE@nyu.edu",
-        ["a", "b"],
         "setup",
         "mc",
       ),
     ).resolves.toBe(true);
     await expect(
-      serverIsServiceApproverForAllResources(
+      serverIsServiceApprover(
         "ONE@nyu.edu",
-        ["a", "b"],
         "equipment",
         "mc",
       ),

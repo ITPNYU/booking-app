@@ -36,8 +36,7 @@ export type AdminUserData = {
 
 export type ServiceApproverData = {
   id?: string;
-  resourceId: string;
-  serviceType: string;
+  service: string;
   email: string;
   createdAt?: admin.firestore.Timestamp;
 };
@@ -245,31 +244,24 @@ export const serverListServiceApprovers = async (
   );
 
 export const serverAddServiceApprover = async (
-  resourceId: string,
-  serviceType: string,
+  service: string,
   email: string,
   tenant?: string,
 ) => {
-  const normalizedResourceId = resourceId.trim();
-  const normalizedServiceType = serviceType.trim();
+  const normalizedService = service.trim();
   const normalizedEmail = normalizeApproverEmail(email);
-  if (!normalizedResourceId || !normalizedServiceType || !normalizedEmail) {
-    throw new Error("Resource, service type, and email are required");
+  if (!normalizedService || !normalizedEmail) {
+    throw new Error("Service and email are required");
   }
   const tenantCollection = getServerTenantCollection(
     TableNames.SERVICE_APPROVERS,
     tenant,
   );
-  const docId = getServiceApproverDocumentId(
-    normalizedResourceId,
-    normalizedServiceType,
-    normalizedEmail,
-  );
+  const docId = getServiceApproverDocumentId(normalizedService, normalizedEmail);
   await traceDatabase("set", `Firestore/${tenantCollection}`, () =>
     db.collection(tenantCollection).doc(docId).set(
       {
-        resourceId: normalizedResourceId,
-        serviceType: normalizedServiceType,
+        service: normalizedService,
         email: normalizedEmail,
         createdAt: admin.firestore.Timestamp.now(),
       },
@@ -279,8 +271,7 @@ export const serverAddServiceApprover = async (
 };
 
 export const serverRemoveServiceApprover = async (
-  resourceId: string,
-  serviceType: string,
+  service: string,
   email: string,
   tenant?: string,
 ) => {
@@ -288,79 +279,50 @@ export const serverRemoveServiceApprover = async (
     TableNames.SERVICE_APPROVERS,
     tenant,
   );
-  const docId = getServiceApproverDocumentId(resourceId, serviceType, email);
+  const docId = getServiceApproverDocumentId(service, email);
   await traceDatabase("delete", `Firestore/${tenantCollection}`, () =>
     db.collection(tenantCollection).doc(docId).delete(),
   );
 };
 
-const dedupeStrings = (values: string[]): string[] =>
-  Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)));
-
 export const serverResolveServiceApproverEmails = async (
-  resourceIds: string[],
-  serviceType: string,
+  service: string,
   tenant?: string,
 ): Promise<string[]> => {
-  const normalizedResourceIds = dedupeStrings(resourceIds);
-  const normalizedServiceType = serviceType.trim();
-  if (normalizedResourceIds.length === 0 || !normalizedServiceType) {
+  const normalizedService = service.trim();
+  if (!normalizedService) {
     return [];
   }
 
   const records = await serverFetchAllDataFromCollection<ServiceApproverData>(
     TableNames.SERVICE_APPROVERS,
-    [{ field: "serviceType", operator: "==", value: normalizedServiceType }],
+    [{ field: "service", operator: "==", value: normalizedService }],
     tenant,
   );
-  const requestedResourceIds = new Set(normalizedResourceIds);
-  const resourceIdsByEmail = new Map<string, Set<string>>();
-  records.forEach((record) => {
-    if (!requestedResourceIds.has(String(record.resourceId))) return;
-    const email = normalizeApproverEmail(record.email);
-    const approverResourceIds = resourceIdsByEmail.get(email) ?? new Set<string>();
-    approverResourceIds.add(String(record.resourceId));
-    resourceIdsByEmail.set(email, approverResourceIds);
-  });
-  return [...resourceIdsByEmail.entries()]
-    .filter(([, approverResourceIds]) =>
-      normalizedResourceIds.every((resourceId) =>
-        approverResourceIds.has(resourceId),
-      ),
-    )
-    .map(([email]) => email);
+  return Array.from(
+    new Set(records.map((record) => normalizeApproverEmail(record.email))),
+  ).filter(Boolean);
 };
 
-export const serverIsServiceApproverForAllResources = async (
+export const serverIsServiceApprover = async (
   email: string,
-  resourceIds: string[],
-  serviceType: string,
+  service: string,
   tenant?: string,
 ): Promise<boolean> => {
   const normalizedEmail = normalizeApproverEmail(email);
-  const normalizedResourceIds = dedupeStrings(resourceIds);
-  const normalizedServiceType = serviceType.trim();
-  if (
-    !normalizedEmail ||
-    normalizedResourceIds.length === 0 ||
-    !normalizedServiceType
-  ) {
+  const normalizedService = service.trim();
+  if (!normalizedEmail || !normalizedService) {
     return false;
   }
   const records = await serverFetchAllDataFromCollection<ServiceApproverData>(
     TableNames.SERVICE_APPROVERS,
     [
-      { field: "serviceType", operator: "==", value: normalizedServiceType },
+      { field: "service", operator: "==", value: normalizedService },
       { field: "email", operator: "==", value: normalizedEmail },
     ],
     tenant,
   );
-  const approvedResourceIds = new Set(
-    records.map((record) => String(record.resourceId)),
-  );
-  return normalizedResourceIds.every((resourceId) =>
-    approvedResourceIds.has(resourceId),
-  );
+  return records.length > 0;
 };
 
 export const serverGetDocumentById = async <T extends DocumentData>(

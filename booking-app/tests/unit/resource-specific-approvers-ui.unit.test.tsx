@@ -47,11 +47,13 @@ describe("ResourceSpecific", () => {
     );
 
     const input = await screen.findByLabelText(
-      "Approver email for Audio Studio",
+      "Approver email for Audio Studio (studio/a:floor-2)",
     );
     await user.type(input, " Person@NYU.EDU ");
     await user.click(
-      screen.getByRole("button", { name: "Add approver for Audio Studio" }),
+      screen.getByRole("button", {
+        name: "Add approver for Audio Studio (studio/a:floor-2)",
+      }),
     );
 
     await waitFor(() =>
