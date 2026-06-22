@@ -1,25 +1,33 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 type Doc = { id: string; data: Record<string, unknown> };
+type QueryFilter = { field: string; op: string; value: unknown };
 
 const collections = new Map<string, Doc[]>();
 const getFailures = new Map<string, Error>();
 const setMock = vi.fn();
 const deleteMock = vi.fn();
+const queryGetMock = vi.fn();
 
-function queryFor(name: string, filters: Array<[string, unknown]> = []) {
+function queryFor(name: string, filters: QueryFilter[] = []) {
   return {
     where(field: string, _op: string, value: unknown) {
-      return queryFor(name, [...filters, [field, value]]);
+      return queryFor(name, [...filters, { field, op: _op, value }]);
     },
     limit() {
       return this;
     },
     async get() {
+      queryGetMock(name, filters);
       const failure = getFailures.get(name);
       if (failure) throw failure;
       const docs = (collections.get(name) ?? []).filter(({ data }) =>
-        filters.every(([field, value]) => data[field] === value),
+        filters.every(({ field, op, value }) => {
+          if (op === "in" && Array.isArray(value)) {
+            return value.includes(data[field]);
+          }
+          return data[field] === value;
+        }),
       );
       return {
         empty: docs.length === 0,
@@ -60,6 +68,7 @@ describe("resource approver server helpers", () => {
     getFailures.clear();
     setMock.mockReset();
     deleteMock.mockReset();
+    queryGetMock.mockReset();
   });
 
   it("uses tenant collection, normalized email, and deterministic IDs", async () => {
@@ -69,7 +78,7 @@ describe("resource approver server helpers", () => {
       await import("@/lib/firebase/server/adminDb");
 
     await serverAddResourceApprover("room/a", " Person@NYU.EDU ", "mc");
-    await serverRemoveResourceApprover("room/a", "person@nyu.edu", "mc");
+    await serverRemoveResourceApprover("room/a", " Person@NYU.EDU ", "mc");
 
     expect(setMock).toHaveBeenCalledWith(
       "mc-usersResourceApprovers",
@@ -115,6 +124,27 @@ describe("resource approver server helpers", () => {
     await expect(
       serverResolveResourceApproverEmails(["a", "b"], "mc"),
     ).resolves.toEqual(["one@nyu.edu"]);
+    expect(queryGetMock).toHaveBeenCalledWith("mc-usersResourceApprovers", [
+      { field: "resourceId", op: "in", value: ["a", "b"] },
+    ]);
+  });
+
+  it("lists resource approvers by normalized email", async () => {
+    collections.set("mc-usersResourceApprovers", [
+      { id: "1", data: { resourceId: "a", email: "one@nyu.edu" } },
+      { id: "2", data: { resourceId: "b", email: "two@nyu.edu" } },
+    ]);
+    const { serverListResourceApproversByEmail } =
+      await import("@/lib/firebase/server/adminDb");
+
+    await expect(
+      serverListResourceApproversByEmail(" ONE@NYU.EDU ", "mc"),
+    ).resolves.toEqual([
+      { id: "1", resourceId: "a", email: "one@nyu.edu" },
+    ]);
+    expect(queryGetMock).toHaveBeenCalledWith("mc-usersResourceApprovers", [
+      { field: "email", op: "==", value: "one@nyu.edu" },
+    ]);
   });
 
   it("falls back when resources are only covered by different approvers", async () => {

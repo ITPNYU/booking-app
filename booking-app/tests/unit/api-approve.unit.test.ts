@@ -20,7 +20,7 @@ vi.mock("@/lib/firebase/server/adminDb", () => ({
   serverGetDataByCalendarEventId: vi.fn(),
   serverFetchAllDataFromCollection: vi.fn(),
   serverGetFinalApproverEmail: vi.fn(),
-  serverListResourceApprovers: vi.fn(),
+  serverListResourceApproversByEmail: vi.fn(),
 }));
 
 vi.mock("@/lib/api/requireSession", () => ({
@@ -56,7 +56,7 @@ import {
   serverFetchAllDataFromCollection,
   serverGetFinalApproverEmail,
   serverGetDataByCalendarEventId,
-  serverListResourceApprovers,
+  serverListResourceApproversByEmail,
 } from "@/lib/firebase/server/adminDb";
 import { resolveCallerRole } from "@/lib/api/authz";
 import { requireSession } from "@/lib/api/requireSession";
@@ -90,7 +90,9 @@ const mockServerFetchAllDataFromCollection = vi.mocked(
   serverFetchAllDataFromCollection,
 );
 const mockServerGetFinalApproverEmail = vi.mocked(serverGetFinalApproverEmail);
-const mockServerListResourceApprovers = vi.mocked(serverListResourceApprovers);
+const mockServerListResourceApproversByEmail = vi.mocked(
+  serverListResourceApproversByEmail,
+);
 const mockRequireSession = vi.mocked(requireSession);
 const mockResolveCallerRole = vi.mocked(resolveCallerRole);
 
@@ -115,7 +117,7 @@ describe("POST /api/approve", () => {
     } as any);
     mockResolveCallerRole.mockResolvedValue(PagePermission.ADMIN);
     mockServerGetFinalApproverEmail.mockResolvedValue(null);
-    mockServerListResourceApprovers.mockResolvedValue([]);
+    mockServerListResourceApproversByEmail.mockResolvedValue([]);
     mockIsMediaCommons.mockReturnValue(false);
     mockGetMediaCommonsServices.mockReturnValue({
       staff: false,
@@ -234,7 +236,7 @@ describe("POST /api/approve", () => {
       firstApprovedAt: "2026-06-14T12:00:00Z",
       roomId: "room-1, room-2",
     } as any);
-    mockServerListResourceApprovers.mockResolvedValue([
+    mockServerListResourceApproversByEmail.mockResolvedValue([
       { resourceId: "room-1", email: sessionEmail },
       { resourceId: "room-2", email: sessionEmail.toUpperCase() },
     ] as any);
@@ -244,7 +246,10 @@ describe("POST /api/approve", () => {
       createRequest({ id: bookingId, email: bodyEmail }) as any,
     );
 
-    expect(mockServerListResourceApprovers).toHaveBeenCalledWith(DEFAULT_TENANT);
+    expect(mockServerListResourceApproversByEmail).toHaveBeenCalledWith(
+      sessionEmail,
+      DEFAULT_TENANT,
+    );
     expect(mockFinalApprove).toHaveBeenCalledWith(
       bookingId,
       sessionEmail,
@@ -263,7 +268,7 @@ describe("POST /api/approve", () => {
       firstApprovedAt: "2026-06-14T12:00:00Z",
       roomId: "room-1, room-2",
     } as any);
-    mockServerListResourceApprovers.mockResolvedValue(assignments as any);
+    mockServerListResourceApproversByEmail.mockResolvedValue(assignments as any);
 
     const response = await POST(
       createRequest({ id: bookingId, email: bodyEmail }) as any,
@@ -295,7 +300,7 @@ describe("POST /api/approve", () => {
       sessionEmail,
       DEFAULT_TENANT,
     );
-    expect(mockServerListResourceApprovers).not.toHaveBeenCalled();
+    expect(mockServerListResourceApproversByEmail).not.toHaveBeenCalled();
   });
 
   it.each([PagePermission.ADMIN, PagePermission.SUPER_ADMIN])(

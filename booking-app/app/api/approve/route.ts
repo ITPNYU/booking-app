@@ -15,7 +15,7 @@ import { requireSession } from "@/lib/api/requireSession";
 import {
   serverGetDataByCalendarEventId,
   serverGetFinalApproverEmail,
-  serverListResourceApprovers,
+  serverListResourceApproversByEmail,
 } from "@/lib/firebase/server/adminDb";
 import { executeXStateTransition } from "@/lib/stateMachines/xstateUtilsV5";
 import { NextRequest, NextResponse } from "next/server";
@@ -77,14 +77,12 @@ async function authorizeApproval(
   const resourceIds = parseBookingResourceIds(booking.roomId);
   if (resourceIds.length === 0) return false;
 
-  const assignments = await serverListResourceApprovers(tenant);
+  const assignments = await serverListResourceApproversByEmail(
+    normalizedEmail,
+    tenant,
+  );
   const assignedResourceIds = new Set(
-    assignments
-      .filter(
-        (assignment) =>
-          assignment.email.trim().toLowerCase() === normalizedEmail,
-      )
-      .map((assignment) => assignment.resourceId),
+    assignments.map((assignment) => assignment.resourceId),
   );
   return resourceIds.every((resourceId) => assignedResourceIds.has(resourceId));
 }

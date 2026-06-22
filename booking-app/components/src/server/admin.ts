@@ -53,6 +53,37 @@ const resolveBookingResourceApproverEmails = async (
   return fallback ? [fallback] : [];
 };
 
+const logEmailSendFailure = (context: string, error: unknown) => {
+  console.error(`[${context}] Failed to send email:`, error);
+};
+
+const sendEmailFanout = async (
+  context: string,
+  senders: Array<() => Promise<Response>>,
+): Promise<Array<PromiseSettledResult<Response>>> => {
+  const results = await Promise.allSettled(senders.map((send) => send()));
+  results.forEach((result) => {
+    if (result.status === "rejected") {
+      logEmailSendFailure(context, result.reason);
+    } else if (!result.value.ok) {
+      logEmailSendFailure(
+        context,
+        `Email API returned ${result.value.status} ${result.value.statusText}`,
+      );
+    }
+  });
+  return results;
+};
+
+const wasAnyEmailSent = (
+  results: Array<PromiseSettledResult<Response>>,
+): boolean =>
+  results.some((result) => result.status === "fulfilled" && result.value.ok);
+
+const sendEmailInBackground = (context: string, promise: Promise<unknown>) => {
+  void promise.catch((error) => logEmailSendFailure(context, error));
+};
+
 const getBookingHistory = async (
   booking: Booking,
   tenant?: string,
@@ -340,8 +371,9 @@ export const serverFirstApproveOnly = async (
   if (recipients.length === 0) {
     return;
   }
-  const results = await Promise.all(
-    recipients.map((recipient) =>
+  const results = await sendEmailFanout(
+    "first approval",
+    recipients.map((recipient) => () =>
       fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/sendEmail`, {
         method: "POST",
         headers: {
@@ -367,7 +399,7 @@ export const serverFirstApproveOnly = async (
     `✅ FIRST APPROVAL COMPLETED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
     {
       calendarEventId: id,
-      emailSent: results.some((result) => result.ok),
+      emailSent: wasAnyEmailSent(results),
       status: BookingStatusLabel.PRE_APPROVED,
     },
   );
@@ -518,8 +550,9 @@ const firstApprove = async (id: string, email: string, tenant?: string) => {
     return;
   }
 
-  await Promise.all(
-    recipients.map((recipient) =>
+  await sendEmailFanout(
+    "booking modification first approval",
+    recipients.map((recipient) => () =>
       fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/sendEmail`, {
         method: "POST",
         headers: {
@@ -618,7 +651,7 @@ export const serverSendBookingDetailEmail = async ({
     tenant,
     schemaName: emailConfig.schemaName,
   };
-  const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/sendEmail`, {
+  return fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/sendEmail`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -640,8 +673,9 @@ export const serverSendConfirmationEmail = async ({
   if (emails.length === 0) {
     return;
   }
-  await Promise.all(
-    emails.map((email) =>
+  await sendEmailFanout(
+    "approval confirmation",
+    emails.map((email) => () =>
       serverSendBookingDetailEmail({
         calendarEventId,
         targetEmail: email,
@@ -679,35 +713,44 @@ export const serverApproveEvent = async (id: string, tenant?: string) => {
   const otherHeaderMessage = `This is a confirmation email.<br /><br />${emailConfig.emailNotifications.approvedUser}`;
 
   // for client
-  serverSendBookingDetailEmail({
-    calendarEventId: id,
-    targetEmail: guestEmail,
-    headerMessage: userHeaderMessage,
-    status: BookingStatusLabel.APPROVED,
-    tenant,
-  });
+  sendEmailInBackground(
+    "approval requester notification",
+    serverSendBookingDetailEmail({
+      calendarEventId: id,
+      targetEmail: guestEmail,
+      headerMessage: userHeaderMessage,
+      status: BookingStatusLabel.APPROVED,
+      tenant,
+    }),
+  );
 
   // for second approver
-  serverSendConfirmationEmail({
-    calendarEventId: id,
-    status: BookingStatusLabel.APPROVED,
-    headerMessage: otherHeaderMessage,
-    guestEmail,
-    tenant,
-    roomId: bookingRoomId,
-  });
+  sendEmailInBackground(
+    "approval resource approver confirmation",
+    serverSendConfirmationEmail({
+      calendarEventId: id,
+      status: BookingStatusLabel.APPROVED,
+      headerMessage: otherHeaderMessage,
+      guestEmail,
+      tenant,
+      roomId: bookingRoomId,
+    }),
+  );
 
   // for Samantha
   const approvedCcEmail = await getApprovalCcEmail(process.env.NEXT_PUBLIC_BRANCH_NAME, tenant);
   if (approvedCcEmail) {
-    serverSendBookingDetailEmail({
-      calendarEventId: id,
-      targetEmail: approvedCcEmail,
-      headerMessage: otherHeaderMessage,
-      status: BookingStatusLabel.APPROVED,
-      replyTo: guestEmail,
-      tenant,
-    });
+    sendEmailInBackground(
+      "approval cc notification",
+      serverSendBookingDetailEmail({
+        calendarEventId: id,
+        targetEmail: approvedCcEmail,
+        headerMessage: otherHeaderMessage,
+        status: BookingStatusLabel.APPROVED,
+        replyTo: guestEmail,
+        tenant,
+      }),
+    );
   }
 
   // for sponsor, if we have one
@@ -718,15 +761,18 @@ export const serverApproveEvent = async (id: string, tenant?: string) => {
       ? contents.sponsorEmail
       : `${contents.sponsorEmail}@nyu.edu`;
     
-    serverSendBookingDetailEmail({
-      calendarEventId: id,
-      targetEmail: sponsorEmailAddress,
-      headerMessage:
-        `A reservation that you are the Sponsor of has been approved.<br /><br />${emailConfig.emailNotifications.approvedUser}`,
-      status: BookingStatusLabel.APPROVED,
-      replyTo: guestEmail,
-      tenant,
-    });
+    sendEmailInBackground(
+      "approval sponsor notification",
+      serverSendBookingDetailEmail({
+        calendarEventId: id,
+        targetEmail: sponsorEmailAddress,
+        headerMessage:
+          `A reservation that you are the Sponsor of has been approved.<br /><br />${emailConfig.emailNotifications.approvedUser}`,
+        status: BookingStatusLabel.APPROVED,
+        replyTo: guestEmail,
+        tenant,
+      }),
+    );
   }
 
   // for secondary contact, if we have one
