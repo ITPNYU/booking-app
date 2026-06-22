@@ -1,6 +1,37 @@
 import { describe, expect, it } from "vitest";
+import {
+  formatTimeAmPm,
+  toBookingCalendarStr,
+} from "@/components/src/client/utils/date";
 
 describe("Date Utils", () => {
+  describe("toBookingCalendarStr", () => {
+    it("formats 9:00 AM Eastern as local calendar string without UTC suffix", () => {
+      // 9:00 AM EDT on 2026-04-07 = 13:00 UTC
+      const start = new Date("2026-04-07T13:00:00.000Z");
+      expect(toBookingCalendarStr(start)).toBe("2026-04-07T09:00:00");
+    });
+
+    it("formats 9:00 PM Eastern as local calendar string", () => {
+      // 9:00 PM EDT on 2026-04-07 = 01:00 UTC next day
+      const end = new Date("2026-04-08T01:00:00.000Z");
+      expect(toBookingCalendarStr(end)).toBe("2026-04-07T21:00:00");
+    });
+
+    it("does not produce UTC ISO strings that shift start time on resize", () => {
+      const start = new Date("2026-04-07T13:00:00.000Z");
+      const end = new Date("2026-04-08T01:00:00.000Z");
+
+      const startStr = toBookingCalendarStr(start);
+      const endStr = toBookingCalendarStr(end);
+
+      expect(startStr).not.toContain("Z");
+      expect(endStr).not.toContain("Z");
+      expect(formatTimeAmPm(start)).toBe("9:00 AM");
+      expect(formatTimeAmPm(end)).toBe("9:00 PM");
+    });
+  });
+
   describe("formatBookingTime", () => {
     const formatBookingTime = (dateStr: string) => {
       const date = new Date(dateStr);

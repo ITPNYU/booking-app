@@ -29,7 +29,7 @@ import { getBlackoutTimeRangeForDate } from "../../../../utils/blackoutUtils";
 import { DatabaseContext } from "../../components/Provider";
 import { BookingContext } from "../bookingProvider";
 import { useBookingDateRestrictions } from "../hooks/useBookingDateRestrictions";
-import { TIMEZONE } from "../../../utils/date";
+import { TIMEZONE, toBookingCalendarStr } from "../../../utils/date";
 import { DEFAULT_START_HOUR } from "../utils/getStartHour";
 import { DEFAULT_SLOT_UNIT } from "../utils/getSlotUnit";
 import { buildBlockPastTimes } from "../utils/buildBlockPastTimes";
@@ -316,11 +316,17 @@ export default function CalendarVerticalResource({
 
   // if change event duration via dragging edges or drag event block to move
   const handleEventEdit = (info: EventResizeDoneArg | EventDropArg) => {
-    // Always allow modification of end time, even for past events
+    if (info.event.start == null || info.event.end == null) {
+      return;
+    }
+
+    // Always allow modification of end time, even for past events.
+    // Normalize to Eastern local strings so resize/drag stays consistent with
+    // FullCalendar's timeZone and avoids UTC ISO strings corrupting start time.
     setBookingCalendarInfo({
-      startStr: info.event.startStr,
+      startStr: toBookingCalendarStr(info.event.start),
       start: info.event.start,
-      endStr: info.event.endStr,
+      endStr: toBookingCalendarStr(info.event.end),
       end: info.event.end,
       allDay: false,
       jsEvent: info.jsEvent,
