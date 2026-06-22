@@ -138,6 +138,9 @@ export const ServiceSpecificApprovers = () => {
                       <Grid xs={12} md={5}>
                         <TextField
                           fullWidth
+                          inputProps={{
+                            "aria-label": `Add ${service.label} approver email for ${resource.name}`,
+                          }}
                           size="small"
                           placeholder="Add email"
                           value={inputs[key] ?? ""}

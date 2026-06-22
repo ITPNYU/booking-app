@@ -123,8 +123,8 @@ export const getResourceApproverDocumentId = (
   resourceId: string,
   email: string,
 ): string => {
-  const encodedResourceId = encodeURIComponent(resourceId);
-  const encodedEmail = encodeURIComponent(email.trim().toLowerCase());
+  const encodedResourceId = encodeApproverIdPart(resourceId);
+  const encodedEmail = encodeApproverIdPart(normalizeApproverEmail(email));
   return `${encodedResourceId.length}-${encodedResourceId}${encodedEmail}`;
 };
 
