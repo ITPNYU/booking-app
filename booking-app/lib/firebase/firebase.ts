@@ -54,6 +54,7 @@ export type AdminUserData = {
 
 export type ServiceApproverData = {
   id: string;
+  resourceId: string;
   service: string;
   email: string;
   createdAt?: Timestamp;
@@ -189,6 +190,8 @@ export const clientListServiceApprovers = async (
     tenant,
   );
   return docs.sort((a, b) => {
+    const resourceCompare = a.resourceId.localeCompare(b.resourceId);
+    if (resourceCompare !== 0) return resourceCompare;
     const serviceCompare = a.service.localeCompare(b.service);
     if (serviceCompare !== 0) return serviceCompare;
     return a.email.localeCompare(b.email);
@@ -196,22 +199,29 @@ export const clientListServiceApprovers = async (
 };
 
 export const clientAddServiceApprover = async (
+  resourceId: string,
   service: string,
   email: string,
   tenant?: string,
 ) => {
+  const normalizedResourceId = resourceId.trim();
   const normalizedService = service.trim();
   const normalizedEmail = normalizeApproverEmail(email);
-  if (!normalizedService || !normalizedEmail) {
-    throw new Error("Service and email are required");
+  if (!normalizedResourceId || !normalizedService || !normalizedEmail) {
+    throw new Error("Resource, service, and email are required");
   }
-  const docId = getServiceApproverDocumentId(normalizedService, normalizedEmail);
+  const docId = getServiceApproverDocumentId(
+    normalizedResourceId,
+    normalizedService,
+    normalizedEmail,
+  );
   await postJson<MutateRequest>("/api/firestore/mutate", {
     op: "set",
     collection: TableNames.SERVICE_APPROVERS,
     tenant: resolveTenantArg(tenant),
     docId,
     data: {
+      resourceId: normalizedResourceId,
       service: normalizedService,
       email: normalizedEmail,
       createdAt: wrapTimestamp(Date.now()),
@@ -220,11 +230,12 @@ export const clientAddServiceApprover = async (
 };
 
 export const clientRemoveServiceApprover = async (
+  resourceId: string,
   service: string,
   email: string,
   tenant?: string,
 ) => {
-  const docId = getServiceApproverDocumentId(service, email);
+  const docId = getServiceApproverDocumentId(resourceId, service, email);
   await postJson<MutateRequest>("/api/firestore/mutate", {
     op: "delete",
     collection: TableNames.SERVICE_APPROVERS,

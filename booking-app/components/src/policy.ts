@@ -106,10 +106,13 @@ const encodeApproverIdPart = (value: string): string =>
   encodeURIComponent(value.trim());
 
 export const getServiceApproverDocumentId = (
+  resourceId: string,
   service: string,
   email: string,
 ): string =>
-  `${encodeApproverIdPart(service)}--${encodeApproverIdPart(
+  `${encodeApproverIdPart(resourceId)}--${encodeApproverIdPart(
+    service,
+  )}--${encodeApproverIdPart(
     normalizeApproverEmail(email),
   )}`;
 export enum ApproverLevel {

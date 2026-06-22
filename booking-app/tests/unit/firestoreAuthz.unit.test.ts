@@ -190,4 +190,11 @@ describe("resolveCallerRole", () => {
 
     await expect(resolveCallerRole(session, "mc")).resolves.toBe("SERVICES");
   });
+
+  it("returns SERVICES for legacy usersRights service approvers", async () => {
+    usersRightsSnap.mockReturnValue([{ email: session.email, isSetup: true }]);
+    const { resolveCallerRole } = await import("@/lib/api/authz");
+
+    await expect(resolveCallerRole(session, "mc")).resolves.toBe("SERVICES");
+  });
 });

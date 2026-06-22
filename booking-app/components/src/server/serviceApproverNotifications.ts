@@ -36,6 +36,12 @@ const SERVICE_APPROVER_CONFIG = {
   },
 } as const;
 
+const parseBookingResourceIds = (roomId: unknown): string[] =>
+  String(roomId ?? "")
+    .split(",")
+    .map((resourceId) => resourceId.trim())
+    .filter(Boolean);
+
 export const isServicesRequestState = (newState: any): boolean =>
   !!(
     newState &&
@@ -58,6 +64,11 @@ export const notifyServiceApproversForRequestedServices = async (
     return;
   }
 
+  const resourceIds = parseBookingResourceIds(booking.roomId);
+  if (resourceIds.length === 0) {
+    return;
+  }
+
   const servicesRequested = getMediaCommonsServices(booking);
   const bookingContents = await serverBookingContents(calendarEventId, tenant);
   const emailConfig = await getTenantEmailConfig(tenant);
@@ -71,6 +82,7 @@ export const notifyServiceApproversForRequestedServices = async (
         }
 
         const recipients = await serverResolveServiceApproverEmails(
+          resourceIds,
           serviceKey,
           tenant,
         );

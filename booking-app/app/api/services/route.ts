@@ -9,9 +9,15 @@ import { requireSession } from "@/lib/api/requireSession";
 import { resolveCallerRole } from "@/lib/api/authz";
 import {
   serverGetDataByCalendarEventId,
-  serverIsServiceApprover,
+  serverIsServiceApproverForAllResources,
 } from "@/lib/firebase/server/adminDb";
 import { executeXStateTransition } from "@/lib/stateMachines/xstateUtilsV5";
+
+const parseBookingResourceIds = (roomId: unknown): string[] =>
+  String(roomId ?? "")
+    .split(",")
+    .map((resourceId) => resourceId.trim())
+    .filter(Boolean);
 
 export async function POST(req: NextRequest) {
   const session = await requireSession();
@@ -78,8 +84,10 @@ export async function POST(req: NextRequest) {
   const isAdmin =
     role === PagePermission.ADMIN || role === PagePermission.SUPER_ADMIN;
   if (!isAdmin) {
-    const isAssigned = await serverIsServiceApprover(
+    const resourceIds = parseBookingResourceIds(booking.roomId);
+    const isAssigned = await serverIsServiceApproverForAllResources(
       email,
+      resourceIds,
       serviceType,
       tenant,
     );

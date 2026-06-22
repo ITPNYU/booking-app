@@ -129,24 +129,41 @@ export async function GET(req: NextRequest) {
     const equipmentUsers = approvers.filter(
       a => a.level === ApproverLevel.EQUIPMENT,
     );
+    const legacyServiceApproverUsers = userRightsRecords
+      .filter(
+        (r: any) =>
+          r.isSetup === true ||
+          r.isEquipment === true ||
+          r.isStaffing === true ||
+          r.isCatering === true ||
+          r.isCleaning === true ||
+          r.isSecurity === true,
+      )
+      .map((r: any) => ({
+        id: r.id,
+        email: r.email,
+        department: "",
+        createdAt: r.createdAt,
+        level: ApproverLevel.EQUIPMENT,
+      }));
     const serviceApproverUsers = Array.from(
       new Map(
-        serviceApproversSnap.docs
-          .map((d) => {
+        [
+          ...legacyServiceApproverUsers,
+          ...serviceApproversSnap.docs.map((d) => {
             const data = d.data() as Record<string, unknown>;
             const email = typeof data.email === "string" ? data.email : "";
-            return [
+            return {
+              id: d.id,
               email,
-              {
-                id: d.id,
-                email,
-                department: "",
-                createdAt: data.createdAt,
-                level: ApproverLevel.EQUIPMENT,
-              },
-            ] as const;
-          })
-          .filter(([email]) => email.length > 0),
+              department: "",
+              createdAt: data.createdAt,
+              level: ApproverLevel.EQUIPMENT,
+            };
+          }),
+        ]
+          .filter((user) => user.email)
+          .map((user) => [user.email, user] as const),
       ).values(),
     );
     const finalApproverEmail =

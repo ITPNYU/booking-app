@@ -36,6 +36,7 @@ export type AdminUserData = {
 
 export type ServiceApproverData = {
   id?: string;
+  resourceId: string;
   service: string;
   email: string;
   createdAt?: admin.firestore.Timestamp;
@@ -244,23 +245,30 @@ export const serverListServiceApprovers = async (
   );
 
 export const serverAddServiceApprover = async (
+  resourceId: string,
   service: string,
   email: string,
   tenant?: string,
 ) => {
+  const normalizedResourceId = resourceId.trim();
   const normalizedService = service.trim();
   const normalizedEmail = normalizeApproverEmail(email);
-  if (!normalizedService || !normalizedEmail) {
-    throw new Error("Service and email are required");
+  if (!normalizedResourceId || !normalizedService || !normalizedEmail) {
+    throw new Error("Resource, service, and email are required");
   }
   const tenantCollection = getServerTenantCollection(
     TableNames.SERVICE_APPROVERS,
     tenant,
   );
-  const docId = getServiceApproverDocumentId(normalizedService, normalizedEmail);
+  const docId = getServiceApproverDocumentId(
+    normalizedResourceId,
+    normalizedService,
+    normalizedEmail,
+  );
   await traceDatabase("set", `Firestore/${tenantCollection}`, () =>
     db.collection(tenantCollection).doc(docId).set(
       {
+        resourceId: normalizedResourceId,
         service: normalizedService,
         email: normalizedEmail,
         createdAt: admin.firestore.Timestamp.now(),
@@ -271,6 +279,7 @@ export const serverAddServiceApprover = async (
 };
 
 export const serverRemoveServiceApprover = async (
+  resourceId: string,
   service: string,
   email: string,
   tenant?: string,
@@ -279,18 +288,74 @@ export const serverRemoveServiceApprover = async (
     TableNames.SERVICE_APPROVERS,
     tenant,
   );
-  const docId = getServiceApproverDocumentId(service, email);
+  const docId = getServiceApproverDocumentId(resourceId, service, email);
   await traceDatabase("delete", `Firestore/${tenantCollection}`, () =>
     db.collection(tenantCollection).doc(docId).delete(),
   );
 };
 
-export const serverResolveServiceApproverEmails = async (
+const SERVICE_USER_RIGHT_FLAGS: Record<string, string> = {
+  setup: "isSetup",
+  equipment: "isEquipment",
+  staff: "isStaffing",
+  catering: "isCatering",
+  cleaning: "isCleaning",
+  security: "isSecurity",
+};
+
+const dedupeStrings = (values: string[]): string[] =>
+  Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)));
+
+const serverResolveLegacyServiceApproverEmails = async (
   service: string,
   tenant?: string,
 ): Promise<string[]> => {
+  const flagField = SERVICE_USER_RIGHT_FLAGS[service.trim()];
+  if (!flagField) return [];
+  const records = await serverFetchAllDataFromCollection<DocumentData>(
+    TableNames.USERS_RIGHTS,
+    [{ field: flagField, operator: "==", value: true }],
+    tenant,
+  );
+  return Array.from(
+    new Set(
+      records
+        .map((record) =>
+          typeof record.email === "string"
+            ? normalizeApproverEmail(record.email)
+            : "",
+        )
+        .filter(Boolean),
+    ),
+  );
+};
+
+const serverIsLegacyServiceApprover = async (
+  email: string,
+  service: string,
+  tenant?: string,
+): Promise<boolean> => {
+  const flagField = SERVICE_USER_RIGHT_FLAGS[service.trim()];
+  if (!flagField) return false;
+  const records = await serverFetchAllDataFromCollection<DocumentData>(
+    TableNames.USERS_RIGHTS,
+    [
+      { field: "email", operator: "==", value: normalizeApproverEmail(email) },
+      { field: flagField, operator: "==", value: true },
+    ],
+    tenant,
+  );
+  return records.length > 0;
+};
+
+export const serverResolveServiceApproverEmails = async (
+  resourceIds: string[],
+  service: string,
+  tenant?: string,
+): Promise<string[]> => {
+  const normalizedResourceIds = dedupeStrings(resourceIds);
   const normalizedService = service.trim();
-  if (!normalizedService) {
+  if (normalizedResourceIds.length === 0 || !normalizedService) {
     return [];
   }
 
@@ -299,19 +364,45 @@ export const serverResolveServiceApproverEmails = async (
     [{ field: "service", operator: "==", value: normalizedService }],
     tenant,
   );
-  return Array.from(
-    new Set(records.map((record) => normalizeApproverEmail(record.email))),
-  ).filter(Boolean);
+  const requestedResourceIds = new Set(normalizedResourceIds);
+  const matchingRecords = records.filter((record) =>
+    requestedResourceIds.has(String(record.resourceId)),
+  );
+  if (matchingRecords.length === 0) {
+    return serverResolveLegacyServiceApproverEmails(normalizedService, tenant);
+  }
+
+  const resourceIdsByEmail = new Map<string, Set<string>>();
+  matchingRecords.forEach((record) => {
+    const email = normalizeApproverEmail(record.email);
+    const approverResourceIds = resourceIdsByEmail.get(email) ?? new Set<string>();
+    approverResourceIds.add(String(record.resourceId));
+    resourceIdsByEmail.set(email, approverResourceIds);
+  });
+
+  return [...resourceIdsByEmail.entries()]
+    .filter(([, approverResourceIds]) =>
+      normalizedResourceIds.every((resourceId) =>
+        approverResourceIds.has(resourceId),
+      ),
+    )
+    .map(([email]) => email);
 };
 
-export const serverIsServiceApprover = async (
+export const serverIsServiceApproverForAllResources = async (
   email: string,
+  resourceIds: string[],
   service: string,
   tenant?: string,
 ): Promise<boolean> => {
   const normalizedEmail = normalizeApproverEmail(email);
+  const normalizedResourceIds = dedupeStrings(resourceIds);
   const normalizedService = service.trim();
-  if (!normalizedEmail || !normalizedService) {
+  if (
+    !normalizedEmail ||
+    normalizedResourceIds.length === 0 ||
+    !normalizedService
+  ) {
     return false;
   }
   const records = await serverFetchAllDataFromCollection<ServiceApproverData>(
@@ -322,7 +413,20 @@ export const serverIsServiceApprover = async (
     ],
     tenant,
   );
-  return records.length > 0;
+  const requestedResourceIds = new Set(normalizedResourceIds);
+  const matchingRecords = records.filter((record) =>
+    requestedResourceIds.has(String(record.resourceId)),
+  );
+  if (matchingRecords.length === 0) {
+    return serverIsLegacyServiceApprover(normalizedEmail, normalizedService, tenant);
+  }
+
+  const approvedResourceIds = new Set(
+    matchingRecords.map((record) => String(record.resourceId)),
+  );
+  return normalizedResourceIds.every((resourceId) =>
+    approvedResourceIds.has(resourceId),
+  );
 };
 
 export const serverGetDocumentById = async <T extends DocumentData>(

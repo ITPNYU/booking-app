@@ -22,12 +22,12 @@ export const Approvers = () => (
       Service Approvers
     </Typography>
     <Stack spacing={4}>
-      <ServiceApproverUsers title="Setup Approvers" service="setup" />
-      <ServiceApproverUsers title="Equipment Approvers" service="equipment" />
-      <ServiceApproverUsers title="Staffing Approvers" service="staff" />
-      <ServiceApproverUsers title="Catering Approvers" service="catering" />
-      <ServiceApproverUsers title="Cleanup Approvers" service="cleaning" />
-      <ServiceApproverUsers title="Security Approvers" service="security" />
+      <ServiceApproverUsers title="Setup Approvers" flagField="isSetup" />
+      <ServiceApproverUsers title="Equipment Approvers" flagField="isEquipment" />
+      <ServiceApproverUsers title="Staffing Approvers" flagField="isStaffing" />
+      <ServiceApproverUsers title="Catering Approvers" flagField="isCatering" />
+      <ServiceApproverUsers title="Cleanup Approvers" flagField="isCleaning" />
+      <ServiceApproverUsers title="Security Approvers" flagField="isSecurity" />
     </Stack>
   </div>
 );
