@@ -17,7 +17,7 @@ const Clip = styled(Box)`
 `;
 
 const TableCustom = styled(MuiTable)(({ theme }) => ({
-  border: `1px solid ${theme.palette.custom.border}`,
+  border: `1px solid ${theme.palette.custom?.border ?? theme.palette.divider}`,
   borderCollapse: "separate",
   borderRadius: "0px 0px 4px 4px",
   // overflowX: "scroll",
@@ -32,7 +32,7 @@ const TableCustom = styled(MuiTable)(({ theme }) => ({
 }));
 
 const ShadedHeader = styled(TableHead)(({ theme }) => ({
-  backgroundColor: theme.palette.custom.gray,
+  backgroundColor: theme.palette.custom?.gray ?? theme.palette.action.hover,
 }));
 
 export const TableTopRow = styled(MuiTable)`

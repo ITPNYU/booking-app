@@ -39,6 +39,8 @@ const SERVICE_OPTIONS = [
   { key: "security", label: "Security" },
 ] as const;
 
+type ServiceKey = (typeof SERVICE_OPTIONS)[number]["key"];
+
 type ResourceApproverTableProps = {
   resourceId: string;
   title: string;
@@ -154,7 +156,9 @@ const ServiceApproverTable = ({
 }: ServiceApproverTableProps) => {
   const { tenantId } = useTenantSchema();
   const [loading, setLoading] = useState(false);
-  const [serviceToAdd, setServiceToAdd] = useState(SERVICE_OPTIONS[0].key);
+  const [serviceToAdd, setServiceToAdd] = useState<ServiceKey>(
+    SERVICE_OPTIONS[0].key,
+  );
   const [valueToAdd, setValueToAdd] = useState("");
 
   const addServiceApprover = useCallback(async () => {
@@ -223,9 +227,7 @@ const ServiceApproverTable = ({
               id={`service-approver-service-${resourceId}`}
               inputProps={{ "aria-label": `Service for ${resourceId}` }}
               onChange={(e) =>
-                setServiceToAdd(
-                  e.target.value as (typeof SERVICE_OPTIONS)[number]["key"],
-                )
+                setServiceToAdd(e.target.value as ServiceKey)
               }
               value={serviceToAdd}
               size="small"
