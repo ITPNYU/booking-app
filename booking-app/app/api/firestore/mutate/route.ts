@@ -48,6 +48,17 @@ export async function POST(req: NextRequest) {
       await colRef.doc(body.docId).update(data);
       return NextResponse.json({ ok: true });
     }
+    if (body.op === "set") {
+      if (!body.docId) {
+        return NextResponse.json(
+          { error: "docId required" },
+          { status: 400 },
+        );
+      }
+      const data = reviveValue(body.data) as FirebaseFirestore.DocumentData;
+      await colRef.doc(body.docId).set(data);
+      return NextResponse.json({ ok: true });
+    }
     if (body.op === "delete") {
       if (!body.docId) {
         return NextResponse.json(
