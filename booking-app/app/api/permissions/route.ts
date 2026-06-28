@@ -9,11 +9,6 @@ import {
 import { isValidTenant } from "@/components/src/constants/tenants";
 import { PagePermission, SiteBannerSettings } from "@/components/src/types";
 import {
-  DEFAULT_MAINTENANCE_MODE_SETTINGS,
-  MAINTENANCE_MODE_SETTINGS_DOC_ID,
-  parseMaintenanceModeFromDoc,
-} from "@/lib/utils/maintenanceMode";
-import {
   DEFAULT_SITE_BANNER_COLOR_HEX,
   SITE_BANNER_SETTINGS_DOC_ID,
   parseStoredSiteBannerColorHex,
@@ -83,26 +78,13 @@ export async function GET(req: NextRequest) {
             .doc(SITE_BANNER_SETTINGS_DOC_ID)
             .get()
         : Promise.resolve(null);
-    const maintenanceDocPromise =
-      tenant && isValidTenant(tenant)
-        ? db
-            .collection(getTenantCollectionName(TableNames.SETTINGS, tenant))
-            .doc(MAINTENANCE_MODE_SETTINGS_DOC_ID)
-            .get()
-        : Promise.resolve(null);
-    const [
-      usersRightsSnap,
-      superAdminSnap,
-      approversSnap,
-      settingsSnap,
-      maintenanceSnap,
-    ] = await Promise.all([
-      usersRightsRef.get(),
-      superAdminRef.get(),
-      approversRef.get(),
-      settingsDocPromise,
-      maintenanceDocPromise,
-    ]);
+    const [usersRightsSnap, superAdminSnap, approversSnap, settingsSnap] =
+      await Promise.all([
+        usersRightsRef.get(),
+        superAdminRef.get(),
+        approversRef.get(),
+        settingsDocPromise,
+      ]);
 
     const userRightsRecords = usersRightsSnap.docs.map(d => ({
       id: d.id,
@@ -188,13 +170,6 @@ export async function GET(req: NextRequest) {
       colorHex: DEFAULT_SITE_BANNER_COLOR_HEX,
     };
 
-    const maintenanceMode =
-      maintenanceSnap && maintenanceSnap.exists
-        ? parseMaintenanceModeFromDoc(
-            maintenanceSnap.data() as Record<string, unknown>,
-          )
-        : DEFAULT_MAINTENANCE_MODE_SETTINGS;
-
     return NextResponse.json({
       pagePermission,
       adminUsers,
@@ -203,7 +178,6 @@ export async function GET(req: NextRequest) {
       equipmentUsers,
       superAdminUsers,
       policySettings: { finalApproverEmail },
-      maintenanceMode,
       siteBanner,
     });
   } catch (error) {

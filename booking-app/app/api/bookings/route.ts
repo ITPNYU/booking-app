@@ -22,10 +22,7 @@ import {
   FormContextLevel,
   RoomSetting,
 } from "@/components/src/types";
-import {
-  formatOrigin,
-  getSecondaryContactName,
-} from "@/components/src/utils/formatters";
+import { getSecondaryContactName } from "@/components/src/utils/formatters";
 import {
   logServerBookingChange,
   serverGetNextSequentialId,
@@ -40,18 +37,13 @@ import { sendHTMLEmail } from "@/app/lib/sendHTMLEmail";
 
 import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
 import { CALENDAR_HIDE_STATUS, TableNames } from "@/components/src/policy";
+import { formatOrigin } from "@/components/src/utils/formatters";
 import {
   getMediaCommonsServices,
   isMediaCommons,
 } from "@/components/src/utils/tenantUtils";
-import {
-  enforceRequestLimits,
-  getRequestLimitRoleKey,
-} from "@/lib/bookingRequestLimits";
 import { getCalendarClient } from "@/lib/googleClient";
-import { getMaintenanceModeSettings } from "@/lib/maintenanceModeServer";
 import { applyEnvironmentCalendarIds } from "@/lib/utils/calendarEnvironment";
-import type { SchemaContextType } from "@/components/src/client/routes/components/SchemaProvider";
 import { Timestamp } from "firebase-admin/firestore";
 import { DateSelectArg } from "fullcalendar";
 import {
@@ -59,6 +51,11 @@ import {
   getAffiliationDisplayValues,
   getOtherDisplayFields,
 } from "./shared";
+import {
+  enforceRequestLimits,
+  getRequestLimitRoleKey,
+} from "@/lib/bookingRequestLimits";
+import type { SchemaContextType } from "@/components/src/client/routes/components/SchemaProvider";
 
 // Common function to create XState data structure
 export function createXStateData(
@@ -236,7 +233,7 @@ async function createBookingCalendarEvent(
     throw Error(`calendarId not found for room ${room.roomId}`);
   }
 
-  const selectedRoomIds = selectedRooms.map(r => r.roomId);
+  const selectedRoomIds = selectedRooms.map((r) => r.roomId);
   const otherRoomEmails = otherRooms.map(
     (r: { calendarId: string }) => r.calendarId,
   );
@@ -529,14 +526,6 @@ export async function POST(request: NextRequest) {
 
   // Extract tenant from URL
   const tenant = extractTenantFromRequest(request);
-  const maintenanceMode = await getMaintenanceModeSettings(tenant);
-  if (maintenanceMode.enabled) {
-    return NextResponse.json(
-      { error: maintenanceMode.message, maintenanceMode: true },
-      { status: 503 },
-    );
-  }
-
   // Get tenant-specific flags
   const { isITP, isMediaCommons, usesXState } = getTenantFlags(tenant);
 
@@ -991,10 +980,7 @@ export async function POST(request: NextRequest) {
       tenant
     ) {
       try {
-        await notifyServiceApproversForRequestedServices(
-          calendarEventId,
-          tenant,
-        );
+        await notifyServiceApproversForRequestedServices(calendarEventId, tenant);
       } catch (notificationError) {
         console.error(
           `🚨 SERVICE APPROVER NOTIFICATION FAILED [${tenant?.toUpperCase()}]:`,
