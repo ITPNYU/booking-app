@@ -28,7 +28,11 @@ export function selectedAutoApprovalRooms(
   return false;
 }
 
-export default function useCheckAutoApproval(isWalkIn = false, isVIP = false) {
+export default function useCheckAutoApproval(
+  isWalkIn = false,
+  isVIP = false,
+  skipCheck = false,
+) {
   const { bookingCalendarInfo, selectedRooms, formData, role } =
     useContext(BookingContext);
   const schema = useTenantSchema();
@@ -46,6 +50,12 @@ export default function useCheckAutoApproval(isWalkIn = false, isVIP = false) {
   };
 
   useEffect(() => {
+    if (skipCheck) {
+      setIsAutoApproval(true);
+      setErrorMessage(null);
+      return;
+    }
+
     // For ITP and Media Commons tenants, use XState machine for auto-approval logic
     if (
       schema.tenantId === TENANTS.ITP ||
@@ -245,6 +255,7 @@ export default function useCheckAutoApproval(isWalkIn = false, isVIP = false) {
     schema.resources,
     schema.tenantId, // Added tenant to dependencies
     isWalkIn, // Added isWalkIn to dependencies
+    skipCheck,
   ]);
 
   return { isAutoApproval, errorMessage };

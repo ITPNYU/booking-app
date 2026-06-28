@@ -1,4 +1,4 @@
-import { oauth2Client } from "@/lib/googleClient";
+import { getOAuth2Client } from "@/lib/googleClient";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(req: NextRequest) {
@@ -12,6 +12,7 @@ export async function GET(req: NextRequest) {
     );
   }
 
+  const oauth2Client = await getOAuth2Client();
   const { tokens } = await oauth2Client.getToken(code);
   return NextResponse.json(tokens, { status: 200 });
 }

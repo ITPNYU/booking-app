@@ -14,7 +14,7 @@ import { useAuth } from "@/components/src/client/routes/components/AuthProvider"
 import {
   fetchAllBookings,
   fetchAllFutureBooking,
-} from "@/components/src/server/db";
+} from "@/lib/firebase/bookingQueries";
 import {
   clientFetchAllDataFromCollection,
   reviveTimestamps,

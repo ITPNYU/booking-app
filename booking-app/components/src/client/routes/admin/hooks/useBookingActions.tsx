@@ -8,7 +8,7 @@ import {
   clientSendToEquipment,
   decline,
   noShow,
-} from "@/components/src/server/db";
+} from "@/components/src/client/bookingActionClient";
 import { BookingStatusLabel, PageContextLevel } from "@/components/src/types";
 import {
   getMediaCommonsServices,
