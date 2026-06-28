@@ -11,7 +11,6 @@ import { useContext, useEffect, useState } from "react";
 import { checkAutoApprovalEligibility } from "@/lib/utils/autoApprovalUtils";
 import { useTenantSchema } from "../../components/SchemaProvider";
 import { BookingContext } from "../bookingProvider";
-import { getBookingHourLimits } from "../utils/bookingHourLimits";
 
 export function selectedAutoApprovalRooms(
   selectedRoomIds: string[],
@@ -82,7 +81,6 @@ export default function useCheckAutoApproval(
           : evaluateMcShouldAutoApprove({
               tenant: schema.tenantId,
               selectedRooms,
-              formData,
               bookingCalendarInfo: bookingCalendarInput,
               isWalkIn,
               isVip: isVIP,
@@ -140,7 +138,7 @@ export default function useCheckAutoApproval(
       : undefined;
 
     console.log(
-      `🔍 AUTO-APPROVAL CHECK USING NEW UTILS [${schema.tenantId?.toUpperCase() || "UNKNOWN"}]:`,
+      `🔍 AUTO-APPROVAL CHECK [${schema.tenantId?.toUpperCase() || "UNKNOWN"}]:`,
       {
         role,
         isWalkIn,
@@ -151,7 +149,6 @@ export default function useCheckAutoApproval(
       },
     );
 
-    // Use the new auto-approval utility
     const result = checkAutoApprovalEligibility({
       selectedRooms,
       role,
@@ -175,13 +172,14 @@ export default function useCheckAutoApproval(
     setIsAutoApproval(true);
     setErrorMessage(null);
   }, [
-    // WARNING WARNING make sure to update this dep list if relying on new props
     bookingCalendarInfo,
     selectedRooms,
     formData,
     schema.resources,
-    schema.tenantId, // Added tenant to dependencies
-    isWalkIn, // Added isWalkIn to dependencies
+    schema.tenantId,
+    isWalkIn,
+    isVIP,
+    role,
     skipCheck,
   ]);
 

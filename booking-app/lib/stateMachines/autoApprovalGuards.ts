@@ -1,5 +1,8 @@
 import { getBookingHourLimits } from "@/components/src/client/routes/booking/utils/bookingHourLimits";
-import { TENANTS } from "@/components/src/constants/tenants";
+import {
+  TENANTS,
+  isMediaCommonsTenant,
+} from "@/components/src/constants/tenants";
 import { Inputs, Role, RoomSetting } from "@/components/src/types";
 import { checkAutoApprovalEligibility } from "@/lib/utils/autoApprovalUtils";
 
@@ -8,7 +11,6 @@ const ONE_HOUR_IN_MS = 60 * 60 * 1000;
 export type McAutoApprovalContext = {
   tenant?: string;
   selectedRooms?: RoomSetting[];
-  formData?: Inputs;
   bookingCalendarInfo?: { startStr: string; endStr: string } | null;
   isWalkIn?: boolean;
   isVip?: boolean;
@@ -41,25 +43,28 @@ export function evaluateMcShouldAutoApprove(
     return false;
   }
 
-  if (context.tenant !== TENANTS.MC) {
+  if (!isMediaCommonsTenant(context.tenant)) {
     return false;
   }
 
-  if (context.bookingCalendarInfo && context.selectedRooms) {
+  let durationHours: number | undefined;
+  if (context.bookingCalendarInfo) {
     const startDate = new Date(context.bookingCalendarInfo.startStr);
     const endDate = new Date(context.bookingCalendarInfo.endStr);
-    const durationHours =
+    durationHours =
       (endDate.getTime() - startDate.getTime()) / ONE_HOUR_IN_MS;
 
-    const { maxHours, minHours } = getBookingHourLimits(
-      context.selectedRooms,
-      context.role,
-      context.isWalkIn || false,
-      context.isVip || false,
-    );
+    if (context.selectedRooms) {
+      const { maxHours, minHours } = getBookingHourLimits(
+        context.selectedRooms,
+        context.role,
+        context.isWalkIn || false,
+        context.isVip || false,
+      );
 
-    if (durationHours > maxHours || durationHours < minHours) {
-      return false;
+      if (durationHours > maxHours || durationHours < minHours) {
+        return false;
+      }
     }
   }
 
@@ -83,14 +88,6 @@ export function evaluateMcShouldAutoApprove(
     if (hasServices) {
       return false;
     }
-  }
-
-  let durationHours: number | undefined;
-  if (context.bookingCalendarInfo) {
-    const startDate = new Date(context.bookingCalendarInfo.startStr);
-    const endDate = new Date(context.bookingCalendarInfo.endStr);
-    durationHours =
-      (endDate.getTime() - startDate.getTime()) / ONE_HOUR_IN_MS;
   }
 
   const servicesRequested = context.servicesRequested

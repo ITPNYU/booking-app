@@ -93,7 +93,6 @@ export default function useBookingActions({
   const { userEmail, netId, updateBookingInList, allBookings } =
     useContext(DatabaseContext);
   const loadExistingBookingData = useExistingBooking();
-  const [bookingData, setBookingData] = useState<any>(null);
   const [serviceRequests, setServiceRequests] = useState<{
     staff?: boolean;
     equipment?: boolean;
@@ -123,7 +122,6 @@ export default function useBookingActions({
   const applyBookingData = useCallback((data: any) => {
     if (!data || !isMediaCommons(tenant as string)) return;
 
-    setBookingData(data);
     setServiceRequests(getMediaCommonsServices(data));
 
     if (data.xstateData) {
