@@ -8,6 +8,7 @@ import { BannedUsers } from "./Ban";
 import BookingTypes from "./BookingTypes";
 import { Departments } from "./Departments";
 import ExportDatabase from "./ExportDatabase";
+import MaintenanceModeSettings from "./MaintenanceModeSettings";
 import { PAUsers } from "./PAUsers";
 import PolicySettings from "./PolicySettings";
 import SafetyTrainedUsers from "./SafetyTraining";
@@ -25,6 +26,7 @@ const tabs = [
   { label: "Ban", id: "ban" },
   { label: "Booking Types", id: "bookingTypes" },
   { label: "Policy Settings", id: "policy" },
+  { label: "Maintenance mode", id: "maintenanceMode" },
   { label: "Export", id: "export" },
   { label: "Sync Calendars", id: "syncCalendars" },
   { label: "Site banner", id: "siteBanner" },
@@ -61,6 +63,7 @@ export default function Settings() {
         {tab === "departments" && <Departments />}
         {tab === "bookingTypes" && <BookingTypes />}
         {tab === "policy" && <PolicySettings />}
+        {tab === "maintenanceMode" && <MaintenanceModeSettings />}
         {tab === "export" && <ExportDatabase />}
         {tab === "syncCalendars" && <SyncCalendars />}
         {tab === "siteBanner" && <SiteBannerSettings />}
