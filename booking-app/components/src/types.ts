@@ -197,7 +197,7 @@ export type Inputs = {
   staffing?: string;
   cleaning?: string;
   // origin of the booking
-  origin?: BookingOrigin
+  origin?: BookingOrigin;
 };
 
 export type DepartmentType = {
@@ -299,6 +299,12 @@ export type SiteBannerSettings = {
   message: string;
   /** Accent `#rrggbb` (text, icon, border, tint). */
   colorHex: string;
+};
+
+/** Tenant-wide switch that disables new public booking requests. */
+export type MaintenanceModeSettings = {
+  enabled: boolean;
+  message: string;
 };
 
 export enum Role {
