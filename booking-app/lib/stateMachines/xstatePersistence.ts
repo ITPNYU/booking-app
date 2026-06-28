@@ -14,6 +14,37 @@ import { itpBookingMachine } from "./itpBookingMachine";
 import { mcBookingMachine } from "./mcBookingMachine";
 import type { PersistedXStateData } from "./xstateTypes";
 
+const SERVICE_APPROVAL_FIELD_MAP = {
+  staff: "staffServiceApproved",
+  equipment: "equipmentServiceApproved",
+  catering: "cateringServiceApproved",
+  cleaning: "cleaningServiceApproved",
+  security: "securityServiceApproved",
+  setup: "setupServiceApproved",
+} as const;
+
+/**
+ * Build XState servicesApproved context from Firestore booking fields.
+ * Only explicit boolean decisions are included so cleared/null fields do not
+ * retain a prior declined state after edit/resubmission.
+ */
+export function getServicesApprovedFromBookingData(
+  bookingData: any,
+): Record<string, boolean> {
+  const servicesApproved: Record<string, boolean> = {};
+
+  for (const [serviceKey, fieldName] of Object.entries(
+    SERVICE_APPROVAL_FIELD_MAP,
+  )) {
+    const value = bookingData?.[fieldName];
+    if (typeof value === "boolean") {
+      servicesApproved[serviceKey] = value;
+    }
+  }
+
+  return servicesApproved;
+}
+
 /**
  * Map booking status to XState state
  */
@@ -116,14 +147,7 @@ export async function createXStateDataFromBookingStatus(
         email: bookingData.email,
         isVip: bookingData.isVip || false,
         servicesRequested,
-        servicesApproved: {
-          staff: bookingData.staffServiceApproved,
-          equipment: bookingData.equipmentServiceApproved,
-          catering: bookingData.cateringServiceApproved,
-          cleaning: bookingData.cleaningServiceApproved,
-          security: bookingData.securityServiceApproved,
-          setup: bookingData.setupServiceApproved,
-        },
+        servicesApproved: getServicesApprovedFromBookingData(bookingData),
         // Flag to indicate this XState was created from existing booking without prior xstateData
         _restoredFromStatus: true,
       }
@@ -451,14 +475,8 @@ export async function restoreXStateFromFirestore(
       // Update MC-specific services data
       if (isMediaCommons(tenant)) {
         const currentServicesRequested = getMediaCommonsServices(bookingData);
-        const currentServicesApproved = {
-          staff: (bookingData as any).staffServiceApproved,
-          equipment: (bookingData as any).equipmentServiceApproved,
-          catering: (bookingData as any).cateringServiceApproved,
-          cleaning: (bookingData as any).cleaningServiceApproved,
-          security: (bookingData as any).securityServiceApproved,
-          setup: (bookingData as any).setupServiceApproved,
-        };
+        const currentServicesApproved =
+          getServicesApprovedFromBookingData(bookingData);
 
         updatedSnapshot.context = {
           ...updatedSnapshot.context,

@@ -1,13 +1,22 @@
-import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
+import {
+  DEFAULT_TENANT,
+  isValidTenant,
+} from "@/components/src/constants/tenants";
 import { TableNames } from "@/components/src/policy";
 import {
   isServicesRequestState,
   notifyServiceApproversForRequestedServices,
 } from "@/components/src/server/serviceApproverNotifications";
 import { serverApproveBooking } from "@/components/src/server/admin";
-import { BookingStatusLabel } from "@/components/src/types";
+import { BookingStatusLabel, PagePermission } from "@/components/src/types";
 import { getMediaCommonsServices, isMediaCommons } from "@/components/src/utils/tenantUtils";
-import { serverGetDataByCalendarEventId } from "@/lib/firebase/server/adminDb";
+import { resolveCallerRole } from "@/lib/api/authz";
+import { requireSession } from "@/lib/api/requireSession";
+import {
+  serverGetDataByCalendarEventId,
+  serverGetFinalApproverEmail,
+  serverListResourceApproversByEmail,
+} from "@/lib/firebase/server/adminDb";
 import { executeXStateTransition } from "@/lib/stateMachines/xstateUtilsV5";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -36,17 +45,83 @@ function hasUnprocessedServices(bookingData: any): boolean {
   return false;
 }
 
+const parseBookingResourceIds = (roomId: unknown): string[] =>
+  String(roomId ?? "")
+    .split(",")
+    .map((resourceId) => resourceId.trim())
+    .filter(Boolean);
+
+async function authorizeApproval(
+  email: string,
+  tenant: string,
+  booking: Record<string, unknown>,
+): Promise<boolean> {
+  const role = await resolveCallerRole({ email, netId: email.split("@")[0] }, tenant);
+  if (
+    role === PagePermission.ADMIN ||
+    role === PagePermission.SUPER_ADMIN
+  ) {
+    return true;
+  }
+
+  if (!booking.firstApprovedAt) {
+    return role === PagePermission.LIAISON;
+  }
+
+  const normalizedEmail = email.trim().toLowerCase();
+  const tenantFinalApprover = await serverGetFinalApproverEmail(tenant);
+  if (tenantFinalApprover?.trim().toLowerCase() === normalizedEmail) {
+    return true;
+  }
+
+  const resourceIds = parseBookingResourceIds(booking.roomId);
+  if (resourceIds.length === 0) return false;
+
+  const assignments = await serverListResourceApproversByEmail(
+    normalizedEmail,
+    tenant,
+  );
+  const assignedResourceIds = new Set(
+    assignments.map((assignment) => assignment.resourceId),
+  );
+  return resourceIds.every((resourceId) => assignedResourceIds.has(resourceId));
+}
+
 /**
  * Checks if the XState result indicates a transition to Services Request parallel state
  * This typically happens for Media Commons bookings with requested services
  */
 export async function POST(req: NextRequest) {
-  const { id, email } = await req.json();
+  const session = await requireSession();
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { id } = await req.json();
 
   // Get tenant from x-tenant header, fallback to default tenant
   const tenant = req.headers.get("x-tenant") || DEFAULT_TENANT;
+  if (!isValidTenant(tenant)) {
+    return NextResponse.json({ error: "Invalid tenant" }, { status: 400 });
+  }
+  const email = session.email;
 
   try {
+    const booking = await serverGetDataByCalendarEventId<Record<string, unknown>>(
+      TableNames.BOOKING,
+      id,
+      tenant,
+    );
+    if (!booking) {
+      return NextResponse.json({ error: "Booking not found" }, { status: 404 });
+    }
+    if (!(await authorizeApproval(email, tenant, booking))) {
+      return NextResponse.json(
+        { error: "You are not authorized to approve this booking" },
+        { status: 403 },
+      );
+    }
+
     console.log(
       `🎯 APPROVAL REQUEST [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
       {

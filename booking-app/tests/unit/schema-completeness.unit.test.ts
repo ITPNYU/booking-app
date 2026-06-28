@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { defaultScheme } from "../../components/src/client/routes/components/SchemaProvider";
+import {
+  defaultResource,
+  defaultScheme,
+} from "../../components/src/client/routes/components/SchemaProvider";
 
 /**
  * This list must match every key in SchemaContextType (including optional fields).
@@ -56,5 +59,16 @@ describe("Schema completeness", () => {
       `These defaultScheme keys are not in ALL_SCHEMA_KEYS. ` +
         `Add them to the list in schema-completeness.unit.test.ts: ${missingFromList.join(", ")}`,
     ).toEqual([]);
+  });
+
+  it("defaultResource template uses resourceId string, not legacy roomId", () => {
+    expect(defaultResource).toHaveProperty("resourceId");
+    expect(typeof defaultResource.resourceId).toBe("string");
+    expect(defaultResource).not.toHaveProperty("roomId");
+
+    const itemDefaults = (defaultScheme.resources as { __defaults__?: typeof defaultResource })
+      .__defaults__;
+    expect(itemDefaults?.resourceId).toBe("");
+    expect(itemDefaults).not.toHaveProperty("roomId");
   });
 });

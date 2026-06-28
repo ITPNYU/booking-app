@@ -1,7 +1,7 @@
-import { Stack, Typography } from "@mui/material";
+import { Typography } from "@mui/material";
 import { EquipmentUsers } from "./EquipmentUsers";
 import { Liaisons } from "./Liaisons";
-import { ServiceApproverUsers } from "./ServiceApproverUsers";
+import { ResourceSpecific } from "./ResourceSpecific";
 
 export const Approvers = () => (
   <div>
@@ -14,15 +14,8 @@ export const Approvers = () => (
     </Typography>
     <EquipmentUsers />
     <Typography style={{ marginTop: 48, marginBottom: 24 }} variant="h6">
-      Service Approvers
+      Resource Approvers
     </Typography>
-    <Stack spacing={4}>
-      <ServiceApproverUsers title="Setup Approvers" flagField="isSetup" />
-      <ServiceApproverUsers title="Equipment Approvers" flagField="isEquipment" />
-      <ServiceApproverUsers title="Staffing Approvers" flagField="isStaffing" />
-      <ServiceApproverUsers title="Catering Approvers" flagField="isCatering" />
-      <ServiceApproverUsers title="Cleanup Approvers" flagField="isCleaning" />
-      <ServiceApproverUsers title="Security Approvers" flagField="isSecurity" />
-    </Stack>
+    <ResourceSpecific />
   </div>
 );
