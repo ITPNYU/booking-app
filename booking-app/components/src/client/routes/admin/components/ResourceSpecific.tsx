@@ -1,13 +1,15 @@
 import { AddCircleOutline } from "@mui/icons-material";
-import { Box, IconButton, MenuItem, TextField, Typography } from "@mui/material";
+import {
+  Box,
+  IconButton,
+  MenuItem,
+  TextField,
+  Typography,
+} from "@mui/material";
 import Grid from "@mui/material/Unstable_Grid2/Grid2";
 import { Timestamp } from "firebase/firestore";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import ListTable from "../../components/ListTable";
-import { useTenantSchema } from "../../components/SchemaProvider";
-import { formatDate } from "../../../utils/date";
-import { TableNames } from "../../../../policy";
 import {
   clientAddResourceApprover,
   clientAddServiceApprover,
@@ -16,6 +18,10 @@ import {
   clientRemoveResourceApprover,
   clientRemoveServiceApprover,
 } from "@/lib/firebase/firebase";
+import ListTable from "../../components/ListTable";
+import { useTenantSchema } from "../../components/SchemaProvider";
+import { formatDate } from "../../../utils/date";
+import { TableNames } from "../../../../policy";
 
 type ResourceApproverRow = {
   id: string;
@@ -23,11 +29,19 @@ type ResourceApproverRow = {
   createdAt?: Timestamp;
 };
 
+type ResourceApprover = ResourceApproverRow & {
+  resourceId: string;
+};
+
 type ServiceApproverRow = {
   id: string;
   service: string;
   email: string;
   createdAt?: Timestamp;
+};
+
+type ServiceApprover = ServiceApproverRow & {
+  resourceId: string;
 };
 
 const SERVICE_OPTIONS = [
@@ -41,16 +55,16 @@ const SERVICE_OPTIONS = [
 
 type ServiceKey = (typeof SERVICE_OPTIONS)[number]["key"];
 
+const normalizeEmail = (email: string) => email.trim().toLowerCase();
+
 type ResourceApproverTableProps = {
   resourceId: string;
-  title: string;
   rows: ResourceApproverRow[];
   rowsRefresh: () => Promise<void>;
 };
 
 const ResourceApproverTable = ({
   resourceId,
-  title,
   rows,
   rowsRefresh,
 }: ResourceApproverTableProps) => {
@@ -59,17 +73,16 @@ const ResourceApproverTable = ({
   const [valueToAdd, setValueToAdd] = useState("");
 
   const addResourceApprover = useCallback(async () => {
-    const trimmedEmail = valueToAdd.trim();
-    if (!trimmedEmail) {
+    const normalizedEmail = normalizeEmail(valueToAdd);
+    if (!normalizedEmail) {
       return;
     }
-    const normalizedEmail = trimmedEmail.toLowerCase();
 
     const duplicate = rows.some(
-      (record) => record.email.toLowerCase() === normalizedEmail,
+      (record) => normalizeEmail(record.email) === normalizedEmail,
     );
     if (duplicate) {
-      alert("This user has already been added");
+      alert("This user is already a resource approver.");
       return;
     }
 
@@ -79,8 +92,8 @@ const ResourceApproverTable = ({
       setValueToAdd("");
       await rowsRefresh();
     } catch (error) {
-      console.error(error);
-      alert("Failed to add resource approver");
+      console.error("Failed to add resource approver:", error);
+      alert("Failed to add resource approver.");
     } finally {
       setLoading(false);
     }
@@ -102,7 +115,7 @@ const ResourceApproverTable = ({
       alignItems={"center"}
     >
       <Grid sx={{ paddingLeft: "16px", color: "rgba(0,0,0,0.6)" }}>
-        {title}
+        Resource Approvers
       </Grid>
       <Grid paddingLeft={0} paddingRight={4} display="flex" alignItems="center">
         <Grid container paddingRight={1}>
@@ -111,17 +124,23 @@ const ResourceApproverTable = ({
             inputProps={{
               "aria-label": `Resource approver email for ${resourceId}`,
             }}
-            onChange={(e) => setValueToAdd(e.target.value)}
+            onChange={(event) => setValueToAdd(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                void addResourceApprover();
+              }
+            }}
             value={valueToAdd}
             placeholder="Add email"
             size="small"
           />
         </Grid>
         <IconButton
-          onClick={addResourceApprover}
+          onClick={() => void addResourceApprover()}
           color="primary"
           sx={{ padding: 0 }}
-          disabled={loading}
+          disabled={loading || !valueToAdd.trim()}
           aria-label={`Add resource approver for ${resourceId}`}
         >
           <AddCircleOutline />
@@ -162,16 +181,15 @@ const ServiceApproverTable = ({
   const [valueToAdd, setValueToAdd] = useState("");
 
   const addServiceApprover = useCallback(async () => {
-    const trimmedEmail = valueToAdd.trim();
-    if (!trimmedEmail) {
+    const normalizedEmail = normalizeEmail(valueToAdd);
+    if (!normalizedEmail) {
       return;
     }
-    const normalizedEmail = trimmedEmail.toLowerCase();
 
     const duplicate = rows.some(
       (record) =>
         record.service === serviceToAdd &&
-        record.email.toLowerCase() === normalizedEmail,
+        normalizeEmail(record.email) === normalizedEmail,
     );
     if (duplicate) {
       alert("This user has already been added");
@@ -189,8 +207,8 @@ const ServiceApproverTable = ({
       setValueToAdd("");
       await rowsRefresh();
     } catch (error) {
-      console.error(error);
-      alert("Failed to add service approver");
+      console.error("Failed to add service approver:", error);
+      alert("Failed to add service approver.");
     } finally {
       setLoading(false);
     }
@@ -226,8 +244,8 @@ const ServiceApproverTable = ({
               select
               id={`service-approver-service-${resourceId}`}
               inputProps={{ "aria-label": `Service for ${resourceId}` }}
-              onChange={(e) =>
-                setServiceToAdd(e.target.value as ServiceKey)
+              onChange={(event) =>
+                setServiceToAdd(event.target.value as ServiceKey)
               }
               value={serviceToAdd}
               size="small"
@@ -245,7 +263,13 @@ const ServiceApproverTable = ({
               inputProps={{
                 "aria-label": `Service approver email for ${resourceId}`,
               }}
-              onChange={(e) => setValueToAdd(e.target.value)}
+              onChange={(event) => setValueToAdd(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  void addServiceApprover();
+                }
+              }}
               value={valueToAdd}
               placeholder="Add email"
               size="small"
@@ -253,10 +277,10 @@ const ServiceApproverTable = ({
           </Grid>
         </Grid>
         <IconButton
-          onClick={addServiceApprover}
+          onClick={() => void addServiceApprover()}
           color="primary"
           sx={{ padding: 0 }}
-          disabled={loading}
+          disabled={loading || !valueToAdd.trim()}
           aria-label={`Add service approver for ${resourceId}`}
         >
           <AddCircleOutline />
@@ -280,50 +304,49 @@ const ServiceApproverTable = ({
 
 export const ResourceSpecific = () => {
   const { resources, tenantId } = useTenantSchema();
-  const [approvers, setApprovers] = useState<
-    Array<ResourceApproverRow & { resourceId: string }>
-  >([]);
-  const [serviceApprovers, setServiceApprovers] = useState<
-    Array<ServiceApproverRow & { resourceId: string }>
-  >([]);
+  const [approvers, setApprovers] = useState<ResourceApprover[]>([]);
+  const [serviceApprovers, setServiceApprovers] = useState<ServiceApprover[]>(
+    [],
+  );
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const loadApprovers = useCallback(async () => {
-    const [fetchedResourceApprovers, fetchedServiceApprovers] =
-      await Promise.all([
-        clientListResourceApprovers(tenantId),
-        clientListServiceApprovers(tenantId),
-      ]);
-    setApprovers(
-      fetchedResourceApprovers
-        .map((item) => ({
+    setLoading(true);
+    setLoadError(null);
+    try {
+      const [fetchedResourceApprovers, fetchedServiceApprovers] =
+        await Promise.all([
+          clientListResourceApprovers(tenantId),
+          clientListServiceApprovers(tenantId),
+        ]);
+      setApprovers(
+        fetchedResourceApprovers.map((item) => ({
           id: item.id,
-          resourceId: item.resourceId,
-          email: item.email,
+          resourceId: item.resourceId.trim(),
+          email: normalizeEmail(item.email),
           createdAt: item.createdAt,
-        }))
-        .sort((a, b) => a.email.localeCompare(b.email)),
-    );
-    setServiceApprovers(
-      fetchedServiceApprovers
-        .map((item) => ({
+        })),
+      );
+      setServiceApprovers(
+        fetchedServiceApprovers.map((item) => ({
           id: item.id,
-          resourceId: item.resourceId,
-          service: item.service,
-          email: item.email,
+          resourceId: item.resourceId.trim(),
+          service: item.service.trim(),
+          email: normalizeEmail(item.email),
           createdAt: item.createdAt,
-        }))
-        .sort((a, b) => {
-          const serviceCompare = a.service.localeCompare(b.service);
-          if (serviceCompare !== 0) return serviceCompare;
-          return a.email.localeCompare(b.email);
-        }),
-    );
+        })),
+      );
+    } catch (error) {
+      console.error("Failed to load approvers:", error);
+      setLoadError("Failed to load approvers.");
+    } finally {
+      setLoading(false);
+    }
   }, [tenantId]);
 
   useEffect(() => {
-    loadApprovers().catch((error) =>
-      console.error("Error loading resource approvers:", error),
-    );
+    void loadApprovers();
   }, [loadApprovers]);
 
   const approversByResource = useMemo(() => {
@@ -333,6 +356,9 @@ export const ResourceSpecific = () => {
       rows.push(row);
       result.set(resourceId, rows);
     });
+    result.forEach((rows) =>
+      rows.sort((a, b) => a.email.localeCompare(b.email)),
+    );
     return result;
   }, [approvers]);
 
@@ -343,8 +369,27 @@ export const ResourceSpecific = () => {
       rows.push(row);
       result.set(resourceId, rows);
     });
+    result.forEach((rows) =>
+      rows.sort((a, b) => {
+        const serviceCompare = a.service.localeCompare(b.service);
+        if (serviceCompare !== 0) return serviceCompare;
+        return a.email.localeCompare(b.email);
+      }),
+    );
     return result;
   }, [serviceApprovers]);
+
+  if (loading) {
+    return <Typography color="text.secondary">Loading approvers...</Typography>;
+  }
+
+  if (loadError) {
+    return (
+      <Typography color="error">
+        {loadError} Refresh the page to retry.
+      </Typography>
+    );
+  }
 
   if (resources.length === 0) {
     return (
@@ -363,7 +408,6 @@ export const ResourceSpecific = () => {
           </Typography>
           <ResourceApproverTable
             resourceId={resource.resourceId}
-            title="Resource Approvers"
             rows={approversByResource.get(resource.resourceId) ?? []}
             rowsRefresh={loadApprovers}
           />

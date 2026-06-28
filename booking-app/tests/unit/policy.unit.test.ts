@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { CALENDAR_HIDE_STATUS } from "@/components/src/policy";
+import {
+  CALENDAR_HIDE_STATUS,
+  getResourceApproverDocumentId,
+} from "@/components/src/policy";
 import { BookingStatusLabel } from "@/components/src/types";
 
 describe("CALENDAR_HIDE_STATUS", () => {
@@ -11,5 +14,13 @@ describe("CALENDAR_HIDE_STATUS", () => {
     expect(CALENDAR_HIDE_STATUS).toContain(BookingStatusLabel.NO_SHOW);
     expect(CALENDAR_HIDE_STATUS).toContain(BookingStatusLabel.CANCELED);
     expect(CALENDAR_HIDE_STATUS).toContain(BookingStatusLabel.CHECKED_OUT);
+  });
+});
+
+describe("getResourceApproverDocumentId", () => {
+  it("normalizes resource ID whitespace and email case", () => {
+    expect(getResourceApproverDocumentId(" room/a ", " Person@NYU.EDU ")).toBe(
+      getResourceApproverDocumentId("room/a", "person@nyu.edu"),
+    );
   });
 });

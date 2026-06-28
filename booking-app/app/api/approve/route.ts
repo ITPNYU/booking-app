@@ -9,13 +9,16 @@ import {
 } from "@/components/src/server/serviceApproverNotifications";
 import { serverApproveBooking } from "@/components/src/server/admin";
 import { BookingStatusLabel, PagePermission } from "@/components/src/types";
-import { getMediaCommonsServices, isMediaCommons } from "@/components/src/utils/tenantUtils";
+import {
+  getMediaCommonsServices,
+  isMediaCommons,
+} from "@/components/src/utils/tenantUtils";
 import { resolveCallerRole } from "@/lib/api/authz";
 import { requireSession } from "@/lib/api/requireSession";
 import {
   serverGetDataByCalendarEventId,
   serverGetFinalApproverEmail,
-  serverListResourceApprovers,
+  serverListResourceApproversByEmail,
 } from "@/lib/firebase/server/adminDb";
 import { executeXStateTransition } from "@/lib/stateMachines/xstateUtilsV5";
 import { NextRequest, NextResponse } from "next/server";
@@ -48,7 +51,7 @@ function hasUnprocessedServices(bookingData: any): boolean {
 const parseBookingResourceIds = (roomId: unknown): string[] =>
   String(roomId ?? "")
     .split(",")
-    .map((resourceId) => resourceId.trim())
+    .map(resourceId => resourceId.trim())
     .filter(Boolean);
 
 async function authorizeApproval(
@@ -56,11 +59,11 @@ async function authorizeApproval(
   tenant: string,
   booking: Record<string, unknown>,
 ): Promise<boolean> {
-  const role = await resolveCallerRole({ email, netId: email.split("@")[0] }, tenant);
-  if (
-    role === PagePermission.ADMIN ||
-    role === PagePermission.SUPER_ADMIN
-  ) {
+  const role = await resolveCallerRole(
+    { email, netId: email.split("@")[0] },
+    tenant,
+  );
+  if (role === PagePermission.ADMIN || role === PagePermission.SUPER_ADMIN) {
     return true;
   }
 
@@ -77,16 +80,14 @@ async function authorizeApproval(
   const resourceIds = parseBookingResourceIds(booking.roomId);
   if (resourceIds.length === 0) return false;
 
-  const assignments = await serverListResourceApprovers(tenant);
-  const assignedResourceIds = new Set(
-    assignments
-      .filter(
-        (assignment) =>
-          assignment.email.trim().toLowerCase() === normalizedEmail,
-      )
-      .map((assignment) => assignment.resourceId),
+  const assignments = await serverListResourceApproversByEmail(
+    normalizedEmail,
+    tenant,
   );
-  return resourceIds.every((resourceId) => assignedResourceIds.has(resourceId));
+  const assignedResourceIds = new Set(
+    assignments.map(assignment => assignment.resourceId),
+  );
+  return resourceIds.every(resourceId => assignedResourceIds.has(resourceId));
 }
 
 /**
@@ -109,11 +110,9 @@ export async function POST(req: NextRequest) {
   const email = session.email;
 
   try {
-    const booking = await serverGetDataByCalendarEventId<Record<string, unknown>>(
-      TableNames.BOOKING,
-      id,
-      tenant,
-    );
+    const booking = await serverGetDataByCalendarEventId<
+      Record<string, unknown>
+    >(TableNames.BOOKING, id, tenant);
     if (!booking) {
       return NextResponse.json({ error: "Booking not found" }, { status: 404 });
     }
@@ -157,19 +156,19 @@ export async function POST(req: NextRequest) {
         const bookingData = await serverGetDataByCalendarEventId(
           TableNames.BOOKING,
           id,
-          tenant
+          tenant,
         );
         if (bookingData && hasUnprocessedServices(bookingData)) {
           console.log(
             `🛑 BLOCKING FALLBACK: REQUEST HAS UNPROCESSED SERVICES [${tenant?.toUpperCase()}]:`,
-            { calendarEventId: id }
+            { calendarEventId: id },
           );
           return NextResponse.json(
             {
               error:
                 "This request is in the services approval flow. Complete or decline each service request before final approval, or refresh the page.",
             },
-            { status: 409 }
+            { status: 409 },
           );
         }
       }
@@ -177,7 +176,7 @@ export async function POST(req: NextRequest) {
       // Fallback to traditional approval if XState fails and it's safe to do so
       console.log(
         `🔄 FALLING BACK TO TRADITIONAL APPROVAL [${tenant?.toUpperCase()}]:`,
-        { calendarEventId: id }
+        { calendarEventId: id },
       );
       await serverApproveBooking(id, email, tenant);
     } else {

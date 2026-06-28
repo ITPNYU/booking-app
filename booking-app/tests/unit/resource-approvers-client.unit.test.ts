@@ -42,8 +42,8 @@ describe("resource approver client helpers", () => {
   it("normalizes email and uses the same deterministic ID for add/remove", async () => {
     fetchMock.mockResolvedValue(response({ ok: true }));
 
-    await clientAddResourceApprover("room/a", " Person@NYU.EDU ", "mc");
-    await clientRemoveResourceApprover("room/a", "person@nyu.edu", "mc");
+    await clientAddResourceApprover(" room/a ", " Person@NYU.EDU ", "mc");
+    await clientRemoveResourceApprover(" room/a ", " Person@NYU.EDU ", "mc");
 
     expect(bodyAt(0)).toMatchObject({
       op: "set",
@@ -63,7 +63,7 @@ describe("resource approver client helpers", () => {
     });
   });
 
-  it("falls back only when a requested resource is uncovered and deduplicates", async () => {
+  it("falls back when no approver covers every requested resource", async () => {
     fetchMock
       .mockResolvedValueOnce(
         response({
@@ -78,8 +78,13 @@ describe("resource approver client helpers", () => {
 
     await expect(
       clientResolveResourceApproverEmails(["a", "b", "b"], "mc"),
-    ).resolves.toEqual(["same@nyu.edu", "final@nyu.edu"]);
+    ).resolves.toEqual(["final@nyu.edu"]);
     expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(bodyAt(0)).toMatchObject({
+      collection: "usersResourceApprovers",
+      tenant: "mc",
+      where: [{ field: "resourceId", op: "in", value: ["a", "b"] }],
+    });
     expect(bodyAt(1)).toMatchObject({
       collection: "usersApprovers",
       tenant: "mc",
@@ -91,7 +96,8 @@ describe("resource approver client helpers", () => {
     fetchMock.mockResolvedValue(
       response({
         docs: [
-          { resourceId: "a", email: "one@nyu.edu" },
+          { resourceId: "a", email: "ONE@nyu.edu" },
+          { resourceId: "b", email: "one@nyu.edu" },
           { resourceId: "b", email: "two@nyu.edu" },
         ],
       }),
@@ -99,8 +105,13 @@ describe("resource approver client helpers", () => {
 
     await expect(
       clientResolveResourceApproverEmails(["a", "b"], "mc"),
-    ).resolves.toEqual(["one@nyu.edu", "two@nyu.edu"]);
+    ).resolves.toEqual(["one@nyu.edu"]);
     expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(bodyAt(0)).toMatchObject({
+      collection: "usersResourceApprovers",
+      tenant: "mc",
+      where: [{ field: "resourceId", op: "in", value: ["a", "b"] }],
+    });
   });
 
   it("throws instead of silently falling back after a resource query failure", async () => {

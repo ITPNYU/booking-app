@@ -112,9 +112,7 @@ export const getServiceApproverDocumentId = (
 ): string =>
   `${encodeApproverIdPart(resourceId)}--${encodeApproverIdPart(
     service,
-  )}--${encodeApproverIdPart(
-    normalizeApproverEmail(email),
-  )}`;
+  )}--${encodeApproverIdPart(normalizeApproverEmail(email))}`;
 export enum ApproverLevel {
   FIRST = 1,
   FINAL = 2,
@@ -155,9 +153,7 @@ export const getApprovalCcEmail = async (
 /**
  * Get CC email for cancellation notifications.
  */
-export const getCancelCcEmail = async (
-  tenant?: string,
-): Promise<string> => {
+export const getCancelCcEmail = async (tenant?: string): Promise<string> => {
   if (!tenant) return "";
   return getCanceledCcEmail(tenant);
 };

@@ -55,7 +55,9 @@ describe("ResourceSpecific", () => {
       </SchemaProvider>,
     );
 
-    expect(await screen.findByText("studio/a:floor-2 Audio Studio")).toBeInTheDocument();
+    expect(
+      await screen.findByText("studio/a:floor-2 Audio Studio"),
+    ).toBeInTheDocument();
     expect(screen.getByText("Resource Approvers")).toBeInTheDocument();
     expect(screen.getByText("Service Approvers")).toBeInTheDocument();
 
