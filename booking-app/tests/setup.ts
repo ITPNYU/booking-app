@@ -106,20 +106,22 @@ Object.defineProperty(window, "matchMedia", {
   })),
 });
 
-// Mock IntersectionObserver
-global.IntersectionObserver = class IntersectionObserver {
+// Mock IntersectionObserver — must be a constructable class for components that use `new IntersectionObserver()`
+class IntersectionObserverMock {
   observe = vi.fn();
   unobserve = vi.fn();
   disconnect = vi.fn();
-  takeRecords = vi.fn(() => []);
-  root = null;
-  rootMargin = "";
-  thresholds = [];
-} as unknown as typeof IntersectionObserver;
+  constructor(_callback: IntersectionObserverCallback) {}
+}
+global.IntersectionObserver =
+  IntersectionObserverMock as unknown as typeof IntersectionObserver;
 
-// MUI Tabs uses `new ResizeObserver()` — must be a class, not a plain function.
-global.ResizeObserver = class ResizeObserver {
+// Mock ResizeObserver — must be a constructable class (MUI Tabs uses `new ResizeObserver()`)
+class ResizeObserverMock {
   observe = vi.fn();
   unobserve = vi.fn();
   disconnect = vi.fn();
-} as unknown as typeof ResizeObserver;
+  constructor(_callback: ResizeObserverCallback) {}
+}
+global.ResizeObserver =
+  ResizeObserverMock as unknown as typeof ResizeObserver;
