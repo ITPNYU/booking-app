@@ -13,6 +13,13 @@ vi.mock("@/lib/firebase/server/adminDb", () => ({
   serverSaveDataToFirestore: vi.fn(),
 }));
 
+vi.mock("@/lib/maintenanceModeServer", () => ({
+  getMaintenanceModeSettings: vi.fn(async () => ({
+    enabled: false,
+    message: "",
+  })),
+}));
+
 vi.mock("@/components/src/server/admin", () => ({}));
 vi.mock("@/components/src/server/serviceApproverNotifications", () => ({
   isServicesRequestState: () => false,
