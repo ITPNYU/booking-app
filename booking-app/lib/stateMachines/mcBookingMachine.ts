@@ -393,6 +393,9 @@ export const mcBookingMachine = setup({
     // Service approval/decline actions generated from config
     ...createServiceActions(SERVICE_CONFIGS),
     // Auto-approve all requested services for pregame bookings
+    resetServiceDecisionsOnEdit: assign({
+      servicesApproved: () => ({}),
+    }),
     approveAllPregameServices: assign({
       servicesApproved: ({ context }) => {
         const approved: any = {};
@@ -746,6 +749,7 @@ export const mcBookingMachine = setup({
         },
         edit: {
           target: "Requested",
+          actions: "resetServiceDecisionsOnEdit",
         },
         approve: {
           target: "Pre-approved",
@@ -825,6 +829,7 @@ export const mcBookingMachine = setup({
         },
         edit: {
           target: "Requested",
+          actions: "resetServiceDecisionsOnEdit",
         },
       },
       after: {
