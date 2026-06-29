@@ -12,7 +12,10 @@ import {
 import { Timestamp } from "firebase-admin/firestore";
 import { applyEnvironmentCalendarIds } from "@/lib/utils/calendarEnvironment";
 import { DEFAULT_TENANT } from "../constants/tenants";
-import { ITP_DEPT_NAME_KEYWORDS, ITP_GROUP_SHORT_NAMES } from "../utils/tenantUtils";
+import {
+  ITP_DEPT_NAME_KEYWORDS,
+  ITP_GROUP_SHORT_NAMES,
+} from "../utils/tenantUtils";
 import { TableNames, getApprovalCcEmail } from "../policy";
 import {
   AdminUser,
@@ -373,25 +376,26 @@ export const serverFirstApproveOnly = async (
   }
   const results = await sendEmailFanout(
     "first approval",
-    recipients.map((recipient) => () =>
-      fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/sendEmail`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-tenant": tenant || DEFAULT_TENANT,
-        },
-        body: JSON.stringify({
-          templateName: "booking_detail",
-          contents: emailContents,
-          targetEmail: recipient,
-          status: BookingStatusLabel.PRE_APPROVED,
-          eventTitle: contents.title || "",
-          requestNumber: contents.requestNumber,
-          bodyMessage: "",
-          approverType: ApproverType.FINAL_APPROVER,
-          replyTo: contents.email,
+    recipients.map(
+      (recipient) => () =>
+        fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/sendEmail`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-tenant": tenant || DEFAULT_TENANT,
+          },
+          body: JSON.stringify({
+            templateName: "booking_detail",
+            contents: emailContents,
+            targetEmail: recipient,
+            status: BookingStatusLabel.PRE_APPROVED,
+            eventTitle: contents.title || "",
+            requestNumber: contents.requestNumber,
+            bodyMessage: "",
+            approverType: ApproverType.FINAL_APPROVER,
+            replyTo: contents.email,
+          }),
         }),
-      }),
     ),
   );
 
@@ -552,26 +556,27 @@ const firstApprove = async (id: string, email: string, tenant?: string) => {
 
   await sendEmailFanout(
     "booking modification first approval",
-    recipients.map((recipient) => () =>
-      fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/sendEmail`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-tenant": tenant || DEFAULT_TENANT,
-        },
-        body: JSON.stringify({
-          templateName: "booking_detail",
-          contents: emailContents,
-          targetEmail: recipient,
-          status: BookingStatusLabel.PRE_APPROVED,
-          eventTitle: contents.title || "",
-          requestNumber: contents.requestNumber,
-          bodyMessage: "",
-          approverType: ApproverType.FINAL_APPROVER,
-          replyTo: contents.email,
-          schemaName: emailConfig.schemaName,
+    recipients.map(
+      (recipient) => () =>
+        fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/sendEmail`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-tenant": tenant || DEFAULT_TENANT,
+          },
+          body: JSON.stringify({
+            templateName: "booking_detail",
+            contents: emailContents,
+            targetEmail: recipient,
+            status: BookingStatusLabel.PRE_APPROVED,
+            eventTitle: contents.title || "",
+            requestNumber: contents.requestNumber,
+            bodyMessage: "",
+            approverType: ApproverType.FINAL_APPROVER,
+            replyTo: contents.email,
+            schemaName: emailConfig.schemaName,
+          }),
         }),
-      }),
     ),
   );
 };
@@ -675,15 +680,16 @@ export const serverSendConfirmationEmail = async ({
   }
   await sendEmailFanout(
     "approval confirmation",
-    emails.map((email) => () =>
-      serverSendBookingDetailEmail({
-        calendarEventId,
-        targetEmail: email,
-        headerMessage,
-        status,
-        replyTo: guestEmail,
-        tenant,
-      }),
+    emails.map(
+      (email) => () =>
+        serverSendBookingDetailEmail({
+          calendarEventId,
+          targetEmail: email,
+          headerMessage,
+          status,
+          replyTo: guestEmail,
+          tenant,
+        }),
     ),
   );
 };
@@ -738,7 +744,10 @@ export const serverApproveEvent = async (id: string, tenant?: string) => {
   );
 
   // for Samantha
-  const approvedCcEmail = await getApprovalCcEmail(process.env.NEXT_PUBLIC_BRANCH_NAME, tenant);
+  const approvedCcEmail = await getApprovalCcEmail(
+    process.env.NEXT_PUBLIC_BRANCH_NAME,
+    tenant,
+  );
   if (approvedCcEmail) {
     sendEmailInBackground(
       "approval cc notification",
@@ -760,14 +769,13 @@ export const serverApproveEvent = async (id: string, tenant?: string) => {
     const sponsorEmailAddress = contents.sponsorEmail.includes("@")
       ? contents.sponsorEmail
       : `${contents.sponsorEmail}@nyu.edu`;
-    
+
     sendEmailInBackground(
       "approval sponsor notification",
       serverSendBookingDetailEmail({
         calendarEventId: id,
         targetEmail: sponsorEmailAddress,
-        headerMessage:
-          `A reservation that you are the Sponsor of has been approved.<br /><br />${emailConfig.emailNotifications.approvedUser}`,
+        headerMessage: `A reservation that you are the Sponsor of has been approved.<br /><br />${emailConfig.emailNotifications.approvedUser}`,
         status: BookingStatusLabel.APPROVED,
         replyTo: guestEmail,
         tenant,
@@ -782,7 +790,7 @@ export const serverApproveEvent = async (id: string, tenant?: string) => {
     const secondaryEmailAddress = contents.secondaryEmail.includes("@")
       ? contents.secondaryEmail
       : `${contents.secondaryEmail}@nyu.edu`;
-    
+
     // Await the email to ensure it's sent before proceeding
     await serverSendBookingDetailEmail({
       calendarEventId: id,
@@ -825,7 +833,6 @@ export const serverApproveEvent = async (id: string, tenant?: string) => {
       );
     }
   }
-
 
   const formDataForCalendarEvents = {
     calendarEventId: id,

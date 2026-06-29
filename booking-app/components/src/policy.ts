@@ -23,6 +23,7 @@ export enum TableNames {
   BLACKOUT_PERIODS = "blackoutPeriods",
   TENANT_SCHEMA = "tenantSchema",
   USERS_RIGHTS = "usersRights",
+  SERVICE_APPROVERS = "usersServiceApprovers",
 }
 
 // Utility function to get tenant-specific collection names
@@ -48,6 +49,7 @@ export const getTenantCollectionName = (
     "usersApprovers",
     "usersResourceApprovers",
     "usersRights",
+    "usersServiceApprovers",
     "counters",
   ];
 
@@ -96,6 +98,21 @@ export const BOOKING_TABLE_HIDE_STATUS_TIME_ELAPSED = [
   BookingStatusLabel.CHECKED_OUT,
   BookingStatusLabel.CANCELED,
 ];
+
+export const normalizeApproverEmail = (email: string): string =>
+  email.trim().toLowerCase();
+
+const encodeApproverIdPart = (value: string): string =>
+  encodeURIComponent(value.trim());
+
+export const getServiceApproverDocumentId = (
+  resourceId: string,
+  service: string,
+  email: string,
+): string =>
+  `${encodeApproverIdPart(resourceId)}--${encodeApproverIdPart(
+    service,
+  )}--${encodeApproverIdPart(normalizeApproverEmail(email))}`;
 export enum ApproverLevel {
   FIRST = 1,
   FINAL = 2,
@@ -106,8 +123,8 @@ export const getResourceApproverDocumentId = (
   resourceId: string,
   email: string,
 ): string => {
-  const encodedResourceId = encodeURIComponent(resourceId.trim());
-  const encodedEmail = encodeURIComponent(email.trim().toLowerCase());
+  const encodedResourceId = encodeApproverIdPart(resourceId);
+  const encodedEmail = encodeApproverIdPart(normalizeApproverEmail(email));
   return `${encodedResourceId.length}-${encodedResourceId}${encodedEmail}`;
 };
 
@@ -136,9 +153,7 @@ export const getApprovalCcEmail = async (
 /**
  * Get CC email for cancellation notifications.
  */
-export const getCancelCcEmail = async (
-  tenant?: string,
-): Promise<string> => {
+export const getCancelCcEmail = async (tenant?: string): Promise<string> => {
   if (!tenant) return "";
   return getCanceledCcEmail(tenant);
 };

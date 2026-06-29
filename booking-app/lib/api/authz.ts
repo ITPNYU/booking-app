@@ -44,6 +44,13 @@ export async function resolveCallerRole(
     ? null
     : (usersRightsSnap.docs[0].data() as Record<string, unknown>);
   if (userRights?.isAdmin === true) return PagePermission.ADMIN;
+  const hasLegacyServiceRight =
+    userRights?.isSetup === true ||
+    userRights?.isEquipment === true ||
+    userRights?.isStaffing === true ||
+    userRights?.isCatering === true ||
+    userRights?.isCleaning === true ||
+    userRights?.isSecurity === true;
 
   const approversCollection = getTenantCollectionName(
     TableNames.APPROVERS,
@@ -59,6 +66,19 @@ export async function resolveCallerRole(
     const level = Number(data.level);
     if (level === ApproverLevel.EQUIPMENT) return PagePermission.SERVICES;
     return PagePermission.LIAISON;
+  }
+
+  const serviceApproversCollection = getTenantCollectionName(
+    TableNames.SERVICE_APPROVERS,
+    tenant,
+  );
+  const serviceApproverSnap = await db
+    .collection(serviceApproversCollection)
+    .where("email", "==", email)
+    .limit(1)
+    .get();
+  if (hasLegacyServiceRight || !serviceApproverSnap.empty) {
+    return PagePermission.SERVICES;
   }
 
   if (userRights?.isWorker === true) return PagePermission.PA;
@@ -89,6 +109,7 @@ const POLICY: Record<string, Policy> = {
   // browser needs them to compute its own role; writable by admins.
   [TableNames.SUPER_ADMINS]: { read: "anyNYU", write: "superOnly" },
   [TableNames.USERS_RIGHTS]: { read: "anyNYU", write: "adminOrSuper" },
+  [TableNames.SERVICE_APPROVERS]: { read: "adminOrSuper", write: "adminOrSuper" },
   [TableNames.APPROVERS]: { read: "anyNYU", write: "adminOrSuper" },
   [TableNames.RESOURCE_APPROVERS]: { read: "adminOrSuper", write: "adminOrSuper" },
   [TableNames.ADMINS]: { read: "anyNYU", write: "adminOrSuper" },

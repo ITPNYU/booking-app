@@ -2,6 +2,8 @@ import {
   ApproverLevel,
   TableNames,
   getResourceApproverDocumentId,
+  getServiceApproverDocumentId,
+  normalizeApproverEmail,
   getTenantCollectionName,
 } from "@/components/src/policy";
 import { Timestamp } from "firebase/firestore";
@@ -13,6 +15,7 @@ import {
   USER_RIGHT_FLAG_FIELDS,
   type UserRightFlagField,
 } from "@/lib/firebase/userRightsConstants";
+import { wrapTimestamp } from "@/lib/api/firestoreShared";
 import type {
   GetDocRequest,
   ListRequest,
@@ -47,6 +50,14 @@ export const getTenantCollection = (
 export type AdminUserData = {
   email: string;
   createdAt: Timestamp;
+};
+
+export type ServiceApproverData = {
+  id: string;
+  resourceId: string;
+  service: string;
+  email: string;
+  createdAt?: Timestamp;
 };
 
 export type ResourceApproverData = {
@@ -177,6 +188,69 @@ export const clientSaveDataToFirestore = async (
   } catch (error) {
     console.error("Error writing document: ", error);
   }
+};
+
+export const clientListServiceApprovers = async (
+  tenant?: string,
+): Promise<ServiceApproverData[]> => {
+  const docs = await clientFetchAllDataFromCollection<ServiceApproverData>(
+    TableNames.SERVICE_APPROVERS,
+    [],
+    tenant,
+  );
+  return docs.sort((a, b) => {
+    const resourceCompare = a.resourceId.localeCompare(b.resourceId);
+    if (resourceCompare !== 0) return resourceCompare;
+    const serviceCompare = a.service.localeCompare(b.service);
+    if (serviceCompare !== 0) return serviceCompare;
+    return a.email.localeCompare(b.email);
+  });
+};
+
+export const clientAddServiceApprover = async (
+  resourceId: string,
+  service: string,
+  email: string,
+  tenant?: string,
+) => {
+  const normalizedResourceId = resourceId.trim();
+  const normalizedService = service.trim();
+  const normalizedEmail = normalizeApproverEmail(email);
+  if (!normalizedResourceId || !normalizedService || !normalizedEmail) {
+    throw new Error("Resource, service, and email are required");
+  }
+  const docId = getServiceApproverDocumentId(
+    normalizedResourceId,
+    normalizedService,
+    normalizedEmail,
+  );
+  await postJson<MutateRequest>("/api/firestore/mutate", {
+    op: "set",
+    collection: TableNames.SERVICE_APPROVERS,
+    tenant: resolveTenantArg(tenant),
+    docId,
+    data: {
+      resourceId: normalizedResourceId,
+      service: normalizedService,
+      email: normalizedEmail,
+      createdAt: wrapTimestamp(Date.now()),
+    },
+  });
+};
+
+export const clientRemoveServiceApprover = async (
+  resourceId: string,
+  service: string,
+  email: string,
+  tenant?: string,
+) => {
+  const docId = getServiceApproverDocumentId(resourceId, service, email);
+  await postJson<MutateRequest>("/api/firestore/mutate", {
+    op: "delete",
+    collection: TableNames.SERVICE_APPROVERS,
+    tenant: resolveTenantArg(tenant),
+    docId,
+  });
 };
 
 export const clientSaveUserRightsData = async (
@@ -326,14 +400,17 @@ export const clientResolveResourceApproverEmails = async (
   for (const approver of approvers) {
     if (!requestedResourceIds.has(approver.resourceId)) continue;
     const email = normalizeEmail(approver.email);
-    const approverResourceIds = resourceIdsByEmail.get(email) ?? new Set<string>();
+    const approverResourceIds =
+      resourceIdsByEmail.get(email) ?? new Set<string>();
     approverResourceIds.add(approver.resourceId);
     resourceIdsByEmail.set(email, approverResourceIds);
   }
 
   const recipients = [...resourceIdsByEmail.entries()]
     .filter(([, approverResourceIds]) =>
-      uniqueResourceIds.every((resourceId) => approverResourceIds.has(resourceId)),
+      uniqueResourceIds.every((resourceId) =>
+        approverResourceIds.has(resourceId),
+      ),
     )
     .map(([email]) => email);
 
@@ -459,9 +536,7 @@ export const clientGetDataByCalendarEventId = async <T>(
     >("/api/firestore/list", {
       collection: collectionName,
       tenant: resolveTenantArg(tenant),
-      where: [
-        { field: "calendarEventId", op: "==", value: calendarEventId },
-      ],
+      where: [{ field: "calendarEventId", op: "==", value: calendarEventId }],
       limit: 1,
     });
     if (docs.length === 0) return null;
