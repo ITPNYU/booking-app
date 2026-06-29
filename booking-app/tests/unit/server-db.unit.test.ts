@@ -110,11 +110,13 @@ describe("server/db", () => {
     mockTimestampNow.mockReturnValue({
       toDate: () => new Date("2024-05-01T00:00:00.000Z"),
     });
-    mockWhere.mockImplementation((field: string, operator: string, value: any) => ({
-      field,
-      operator,
-      value,
-    }));
+    mockWhere.mockImplementation(
+      (field: string, operator: string, value: any) => ({
+        field,
+        operator,
+        value,
+      }),
+    );
 
     mockClientFetchAllDataFromCollection.mockResolvedValue([]);
     mockGetPaginatedData.mockResolvedValue([]);
@@ -173,9 +175,8 @@ describe("server/db", () => {
   });
 
   it("fetchAllFutureBooking queries future bookings for tenant", async () => {
-    const { fetchAllFutureBooking } = await import(
-      "@/components/src/server/db"
-    );
+    const { fetchAllFutureBooking } =
+      await import("@/components/src/server/db");
 
     mockClientFetchAllDataFromCollection.mockResolvedValueOnce([
       { id: "booking" },
@@ -250,10 +251,62 @@ describe("server/db", () => {
     );
   });
 
-  it("fetchAllBookings delegates to getPaginatedData", async () => {
-    const { fetchAllBookings } = await import(
-      "@/components/src/server/db"
+  it("executeTraditionalNoShow awaits the new log and ignores excused logs for tenant violationCount", async () => {
+    mockGetTenantEmailConfig.mockResolvedValue({
+      schemaName: "Media Commons",
+      emailNotifications: {
+        noShow: "No show count: ${violationCount}",
+      },
+    });
+    mockServerFetchAllDataFromCollection.mockImplementation(
+      async (tableName: string) => {
+        if (tableName === "preBanLogs") {
+          return [
+            { netId: "netX", excused: true },
+            { netId: "netX", excused: false },
+            { netId: "netX" },
+            { netId: "someoneElse", excused: false },
+          ];
+        }
+        return [];
+      },
     );
+
+    const { executeTraditionalNoShow } =
+      await import("@/components/src/server/db");
+    await executeTraditionalNoShow(
+      "cal-noshow-1",
+      "staff@nyu.edu",
+      "netX",
+      "mc",
+    );
+
+    expect(mockClientSaveDataToFirestore).toHaveBeenCalledWith(
+      "preBanLogs",
+      expect.objectContaining({
+        netId: "netX",
+        bookingId: "cal-noshow-1",
+      }),
+      "mc",
+    );
+    expect(mockServerFetchAllDataFromCollection).toHaveBeenCalledWith(
+      "preBanLogs",
+      undefined,
+      "mc",
+    );
+
+    const sendEmailCall = mockFetch.mock.calls.find(
+      ([url]) => url === "https://booking.test/api/sendEmail",
+    );
+    expect(sendEmailCall).toBeDefined();
+    const [, requestInit] = sendEmailCall!;
+    const payload = JSON.parse((requestInit as RequestInit).body as string);
+    expect(payload.targetEmail).toBe("guest@nyu.edu");
+    expect(payload.contents.headerMessage).toBe("No show count: 2");
+  });
+
+  it("fetchAllBookings delegates to getPaginatedData", async () => {
+    const { fetchAllBookings } = await import("@/components/src/server/db");
     const { PagePermission } = await import("@/components/src/types");
 
     mockGetPaginatedData.mockResolvedValueOnce(["booking-a"]);
@@ -284,9 +337,7 @@ describe("server/db", () => {
       ],
     } as Response);
 
-    const { clientGetBookingLogs } = await import(
-      "@/components/src/server/db"
-    );
+    const { clientGetBookingLogs } = await import("@/components/src/server/db");
 
     const logs = await clientGetBookingLogs(77);
 
@@ -696,12 +747,7 @@ describe("server/db", () => {
 
       const { decline } = await import("@/components/src/server/db");
 
-      await decline(
-        "cal-abc",
-        "admin@nyu.edu",
-        "Not allowed",
-        "tenant-abc",
-      );
+      await decline("cal-abc", "admin@nyu.edu", "Not allowed", "tenant-abc");
 
       // Allow asynchronous email/calendar operations to complete
       await Promise.resolve();
@@ -727,27 +773,27 @@ describe("server/db", () => {
       });
 
       const sendEmailCall = fetchCalls.find((call) =>
-        call.href.includes("/api/sendEmail")
+        call.href.includes("/api/sendEmail"),
       );
       expect(sendEmailCall).toBeDefined();
       const sendEmailPayload = JSON.parse(
-        String(sendEmailCall?.options?.body ?? "{}")
+        String(sendEmailCall?.options?.body ?? "{}"),
       );
       expect(sendEmailPayload).toMatchObject({
         targetEmail: "guest@nyu.edu",
         status: "DECLINED",
       });
       expect(sendEmailPayload.contents.headerMessage).toContain(
-        "Declined message"
+        "Declined message",
       );
       expect(sendEmailPayload.contents.headerMessage).toContain("Not allowed");
 
       const calendarCall = fetchCalls.find((call) =>
-        call.href.includes("/api/calendarEvents")
+        call.href.includes("/api/calendarEvents"),
       );
       expect(calendarCall).toBeDefined();
       const calendarPayload = JSON.parse(
-        String(calendarCall?.options?.body ?? "{}")
+        String(calendarCall?.options?.body ?? "{}"),
       );
       expect(calendarPayload).toMatchObject({
         calendarEventId: "cal-abc",
