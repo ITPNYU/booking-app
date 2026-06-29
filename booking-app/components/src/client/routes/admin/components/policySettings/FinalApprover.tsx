@@ -9,7 +9,7 @@ import {
 } from "@mui/material";
 import React, { useContext, useState } from "react";
 
-import { updateFinalApprover } from "@/components/src/server/db";
+import { updateFinalApprover } from "@/components/src/client/adminSettingsClient";
 import { DatabaseContext } from "../../../components/Provider";
 
 export default function FinalApprover() {

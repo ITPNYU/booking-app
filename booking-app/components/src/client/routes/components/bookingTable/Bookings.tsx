@@ -243,7 +243,7 @@ export const Bookings: React.FC<BookingsProps> = ({
       return;
     }
 
-    const controller = new AbortController();
+    let cancelled = false;
 
     (async () => {
       const headers: Record<string, string> = {
@@ -259,8 +259,8 @@ export const Bookings: React.FC<BookingsProps> = ({
           headers,
           credentials: "include",
           body: JSON.stringify({ bookings: debouncedLogRequests }),
-          signal: controller.signal,
         });
+        if (cancelled) return;
         if (!response.ok) {
           throw new Error(
             `Failed to fetch latest booking logs: ${response.status}`,
@@ -268,15 +268,18 @@ export const Bookings: React.FC<BookingsProps> = ({
         }
         const latestLogs: Record<string, LatestBookingStatusLog> =
           await response.json();
+        if (cancelled) return;
         setLatestStatusLogsByCalendarEventId(latestLogs);
       } catch (error: unknown) {
-        if ((error as { name?: string })?.name === "AbortError") return;
+        if (cancelled) return;
         console.error("Error fetching latest booking logs:", error);
         setLatestStatusLogsByCalendarEventId({});
       }
     })();
 
-    return () => controller.abort();
+    return () => {
+      cancelled = true;
+    };
   }, [debouncedLogRequests, tenant, user, isOnTestEnv]);
 
   const topRow = useMemo(() => {

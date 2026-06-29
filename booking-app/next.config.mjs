@@ -21,6 +21,14 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  experimental: {
+    optimizePackageImports: [
+      "@mui/material",
+      "@mui/icons-material",
+      "@mui/x-data-grid",
+      "@mui/x-date-pickers",
+    ],
+  },
   serverExternalPackages: ["newrelic"],
   env: {
     NEXT_PUBLIC_IS_TEST_ENV: isTestEnv ? "true" : "false",
