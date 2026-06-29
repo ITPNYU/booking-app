@@ -301,12 +301,6 @@ export type SiteBannerSettings = {
   colorHex: string;
 };
 
-/** Tenant-wide switch that disables new public booking requests. */
-export type MaintenanceModeSettings = {
-  enabled: boolean;
-  message: string;
-};
-
 export enum Role {
   STUDENT = "Student",
   RESIDENT_FELLOW = "Resident/Fellow",

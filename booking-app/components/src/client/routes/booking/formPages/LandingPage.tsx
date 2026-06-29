@@ -71,7 +71,7 @@ export default function LandingPage() {
             variant="contained"
             color="primary"
             onClick={handleAccept}
-            disabled={isLoading}
+            disabled={isLoading || permissionsLoading}
             sx={{
               alignSelf: "center",
               marginTop: 6,

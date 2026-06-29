@@ -10,7 +10,10 @@ import {
 } from "@mui/material";
 import { useParams } from "next/navigation";
 import { useContext, useEffect, useState } from "react";
-import { DEFAULT_MAINTENANCE_MODE_MESSAGE } from "@/lib/utils/maintenanceMode";
+import {
+  DEFAULT_MAINTENANCE_MODE_MESSAGE,
+  MAINTENANCE_MODE_MESSAGE_MAX_LEN,
+} from "@/lib/utils/maintenanceMode";
 import { DatabaseContext } from "../../components/Provider";
 
 export default function MaintenanceModeSettings() {
@@ -82,7 +85,7 @@ export default function MaintenanceModeSettings() {
         minRows={4}
         fullWidth
         sx={{ mt: 2 }}
-        inputProps={{ maxLength: 4000 }}
+        inputProps={{ maxLength: MAINTENANCE_MODE_MESSAGE_MAX_LEN }}
         disabled={saving}
       />
 

@@ -1,3 +1,4 @@
+import { isValidTenant } from "@/components/src/constants/tenants";
 import { TableNames, getTenantCollectionName } from "@/components/src/policy";
 import admin from "@/lib/firebase/server/firebaseAdmin";
 import {
@@ -10,7 +11,7 @@ import {
 export async function getMaintenanceModeSettings(
   tenant?: string,
 ): Promise<MaintenanceModeSettings> {
-  if (!tenant) {
+  if (!tenant || !isValidTenant(tenant)) {
     return DEFAULT_MAINTENANCE_MODE_SETTINGS;
   }
 

@@ -19,7 +19,10 @@ import {
   clientFetchAllDataFromCollection,
   reviveTimestamps,
 } from "@/lib/firebase/firebase";
-import { DEFAULT_MAINTENANCE_MODE_SETTINGS } from "@/lib/utils/maintenanceMode";
+import {
+  DEFAULT_MAINTENANCE_MODE_SETTINGS,
+  type MaintenanceModeSettings,
+} from "@/lib/utils/maintenanceMode";
 import { DEFAULT_SITE_BANNER_COLOR_HEX } from "@/lib/utils/siteBannerHex";
 import {
   AdminUser,
@@ -30,7 +33,6 @@ import {
   BookingType,
   DepartmentType,
   Filters,
-  MaintenanceModeSettings,
   OperationHours,
   PaUser,
   PagePermission,
