@@ -22,9 +22,13 @@ jobs:
     # Skip drafts, and skip Dependabot PRs — Dependabot-triggered runs don't get
     # the repo's Actions secrets, so the auth step can't load the OAuth token
     # and the check fails. Dep bumps don't need an AI code review anyway.
+    # Also skip fork PRs: they don't receive secrets either (the review can't
+    # auth), and gating on same-repo keeps the write-scoped GITHUB_TOKEN away
+    # from untrusted heads entirely.
     if: >-
       github.actor != 'dependabot[bot]' &&
-      github.event.pull_request.draft == false
+      github.event.pull_request.draft == false &&
+      github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     # A hung API call would otherwise hold the runner for the 6h default.
     # Sized to fit the --max-turns budget below (~25s/turn observed) with margin,
@@ -51,8 +55,8 @@ jobs:
           # The fixed "Submit review" step below makes the one hardcoded POST call.
           # Write is left unscoped on purpose: a path-scoped matcher (Write(/tmp/**))
           # silently blocked the /tmp/review.json write and the review never posted.
-          # The one workspace write with an execution path — this script itself — is
-          # neutralized by the submit step restoring it from HEAD before running it;
+          # The one workspace write with an execution path — submit_review.py — is
+          # neutralized by the submit step executing the BASE-ref copy of the script;
           # the runner is ephemeral, and the real injection lever (the API call) is gone.
           # max-turns must cover: read the diff, reason over every hunk, then
           # write /tmp/review.json. Large PRs keep exhausting smaller budgets
@@ -116,14 +120,24 @@ jobs:
           REPO: ${{ github.repository }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
-          # The model held an unscoped Write tool while reading an
-          # attacker-controlled diff, so the working-tree copy of this script
-          # is untrusted at this point. Restore the committed version before
-          # executing it, or a prompt injection could rewrite the "trusted"
-          # script instead of calling gh api directly.
-          git checkout HEAD -- .github/scripts/submit_review.py
+          # Execute the submit script from the trusted BASE ref, not the PR's
+          # copy. The PR checkout is untrusted twice over: the Claude step
+          # holds an unscoped Write tool (runtime tampering), and the PR
+          # itself may commit an edited submit_review.py (committed
+          # tampering). Neither version may run with the write-scoped token.
+          # Bootstrap fallback: if the base branch doesn't have the script
+          # yet (the PR introducing it), use the PR copy restored from its
+          # committed state.
+          BASE_REF="origin/${{ github.event.pull_request.base.ref }}"
+          if git show "$BASE_REF:.github/scripts/submit_review.py" > /tmp/submit_review.py 2>/dev/null; then
+            SCRIPT=/tmp/submit_review.py
+          else
+            echo "warning: submit_review.py not on $BASE_REF yet (bootstrap PR); using the PR's committed copy"
+            git checkout HEAD -- .github/scripts/submit_review.py
+            SCRIPT=.github/scripts/submit_review.py
+          fi
           if [ ! -f /tmp/review.json ]; then
             echo "No /tmp/review.json produced; nothing to submit."
             exit 0
           fi
-          python3 .github/scripts/submit_review.py
+          python3 "$SCRIPT"
