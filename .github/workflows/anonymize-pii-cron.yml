@@ -1,0 +1,172 @@
+name: Anonymize PII (annual)
+
+# Anonymizes PII (name / netId / nNumber / phone) in concluded bookings,
+# preBanLogs, and the NYU identity cache — issue #1218.
+#
+# Model (a human performs the real run; the cron just makes sure they notice):
+#   - The scheduled Sept 1 run is DRY-RUN only. It writes nothing and instead
+#     opens a GitHub Issue with the preview + instructions, so the annual task
+#     cannot be silently forgotten.
+#   - A real (writing) run is done by a human via "Run workflow" with
+#     dry_run=false. Writing to production also requires confirm_production=true.
+#   - Every real run uploads a JSON backup artifact of the original values.
+#     That artifact contains PII: download it, verify the run, then DELETE it.
+#     Retention is capped so it does not linger.
+
+permissions:
+  contents: read
+  issues: write
+
+on:
+  schedule:
+    # 06:00 UTC on September 1 — just after the academic year ends.
+    - cron: "0 6 1 9 *"
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment"
+        type: choice
+        options: ["dev", "staging", "production"]
+        default: "staging"
+      before:
+        description: "Cutoff date YYYY-MM-DD (blank = Sept 1 of the current year)"
+        type: string
+        default: ""
+      dry_run:
+        description: "Dry run (report only, no writes)"
+        type: boolean
+        default: true
+      confirm_production:
+        description: "Required to actually write to production"
+        type: boolean
+        default: false
+
+jobs:
+  anonymize:
+    # Scheduled runs are dry-run against dev + production. Manual runs use the
+    # chosen environment.
+    strategy:
+      matrix:
+        env_name: ${{ github.event_name == 'schedule' && fromJSON('["dev", "production"]') || fromJSON('["placeholder"]') }}
+    environment: ${{ github.event_name == 'schedule' && matrix.env_name || inputs.environment }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install dependencies
+        run: |
+          cd booking-app
+          npm ci
+
+      - name: Anonymize PII
+        env:
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          FIREBASE_CLIENT_EMAIL: ${{ secrets.FIREBASE_CLIENT_EMAIL }}
+          FIREBASE_PRIVATE_KEY: ${{ secrets.FIREBASE_PRIVATE_KEY }}
+          ANONYMIZATION_PEPPER: ${{ secrets.ANONYMIZATION_PEPPER }}
+          TARGET_ENV: ${{ github.event_name == 'schedule' && matrix.env_name || inputs.environment }}
+          INPUT_BEFORE: ${{ inputs.before }}
+          # Scheduled runs are always dry-run; manual runs honour the input.
+          DRY_RUN: ${{ github.event_name == 'schedule' && 'true' || inputs.dry_run }}
+          CONFIRM_PRODUCTION: ${{ inputs.confirm_production }}
+        run: |
+          set -eo pipefail
+          cd booking-app
+          BEFORE="${INPUT_BEFORE}"
+          if [ -z "${BEFORE}" ]; then
+            BEFORE="$(date -u +%Y)-09-01"
+          fi
+          # GitHub environment names are dev/staging/production; the script's
+          # --database keys are development/staging/production.
+          if [ "${TARGET_ENV}" = "dev" ]; then
+            DB_ENV="development"
+          else
+            DB_ENV="${TARGET_ENV}"
+          fi
+          echo "CUTOFF_BEFORE=${BEFORE}" >> "$GITHUB_ENV"
+          echo "Environment: ${TARGET_ENV} (db ${DB_ENV})  cutoff(before): ${BEFORE}  dry_run: ${DRY_RUN}"
+
+          ARGS="--database ${DB_ENV} --before ${BEFORE} --report-file anon-report.json"
+          if [ "${DRY_RUN}" = "true" ]; then
+            ARGS="${ARGS} --dry-run"
+          fi
+          if [ "${DB_ENV}" = "production" ] && [ "${DRY_RUN}" != "true" ]; then
+            if [ "${CONFIRM_PRODUCTION}" != "true" ]; then
+              echo "::error::Refusing to write to production without confirm_production=true"
+              exit 1
+            fi
+            ARGS="${ARGS} --confirm-production"
+          fi
+
+          node scripts/anonymizePII.js ${ARGS} | tee anon-summary.txt
+
+      - name: Open reminder issue (scheduled dry-run)
+        if: ${{ github.event_name == 'schedule' }}
+        uses: actions/github-script@v7
+        env:
+          TARGET_ENV: ${{ matrix.env_name }}
+        with:
+          script: |
+            const fs = require("fs");
+            let summary = "(summary unavailable)";
+            try {
+              summary = fs.readFileSync("booking-app/anon-summary.txt", "utf8").trim();
+            } catch (e) {}
+            const env = process.env.TARGET_ENV;
+            const before = process.env.CUTOFF_BEFORE;
+            const year = new Date().getUTCFullYear();
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const body = [
+              `## Annual PII anonymization is due — ${env}`,
+              "",
+              `The scheduled **dry-run** for \`${env}\` just ran (cutoff \`${before}\`). It wrote **nothing**. A human needs to review and perform the real run.`,
+              "",
+              "### Dry-run preview",
+              "```",
+              summary,
+              "```",
+              `Full report artifact + logs: ${runUrl}`,
+              "",
+              "### To perform the real anonymization",
+              "1. Review the preview above and the report artifact.",
+              "2. Actions → **Anonymize PII (annual)** → **Run workflow**:",
+              `   - environment: \`${env}\``,
+              `   - before: \`${before}\``,
+              "   - dry_run: **false**",
+              "   - confirm_production: **true** (production only)",
+              "3. After it finishes, download the backup artifact, verify, then **delete the backup** (it contains raw PII).",
+              "",
+              `Prerequisite: the \`ANONYMIZATION_PEPPER\` secret must be set for the \`${env}\` environment.`,
+              "",
+              "Close this issue once the real run is done.",
+            ].join("\n");
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `Annual PII anonymization due — ${env} ${year}`,
+              body,
+            });
+
+      - name: Upload report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: anon-report-${{ github.run_id }}-${{ strategy.job-index }}
+          path: booking-app/anon-report.json
+          retention-days: 30
+
+      - name: Upload PII backup (real runs only — delete after verifying)
+        uses: actions/upload-artifact@v4
+        if: ${{ (github.event_name != 'schedule') && (inputs.dry_run == false) }}
+        with:
+          name: anon-backup-${{ github.run_id }}-${{ strategy.job-index }}
+          path: booking-app/scripts/output/anon-backups/
+          retention-days: 7
