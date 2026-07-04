@@ -126,6 +126,7 @@ const parseArgs = (args = process.argv.slice(2)) => {
     database: "development",
     skipCache: false,
     confirmProduction: false,
+    backupOnly: false,
   };
   for (let index = 0; index < args.length; index++) {
     switch (args[index]) {
@@ -153,6 +154,12 @@ const parseArgs = (args = process.argv.slice(2)) => {
       case "--confirm-production":
         options.confirmProduction = true;
         break;
+      case "--backup-only":
+        options.backupOnly = true;
+        break;
+      case "--restore":
+        options.restore = args[++index];
+        break;
       case "--help":
         options.help = true;
         break;
@@ -169,15 +176,26 @@ const parseArgs = (args = process.argv.slice(2)) => {
       ).join(", ")}`,
     );
   }
-  if (!options.before) {
-    throw new Error("--before <YYYY-MM-DD> is required (the academic-year cutoff)");
+
+  // Restore mode reads a backup file and writes originals back; it needs no
+  // cutoff. Anonymize / backup-only mode needs the cutoff.
+  if (!options.restore) {
+    if (!options.before) {
+      throw new Error(
+        "--before <YYYY-MM-DD> is required (the academic-year cutoff)",
+      );
+    }
+    const cutoff = new Date(options.before);
+    if (Number.isNaN(cutoff.getTime())) {
+      throw new Error(`Invalid --before date: "${options.before}"`);
+    }
+    options.cutoff = cutoff;
   }
-  const cutoff = new Date(options.before);
-  if (Number.isNaN(cutoff.getTime())) {
-    throw new Error(`Invalid --before date: "${options.before}"`);
-  }
-  options.cutoff = cutoff;
-  if (options.database === "production" && !options.confirmProduction && !options.dryRun) {
+
+  // Production writes need explicit confirmation. --backup-only does not write
+  // to the database (it only reads and writes a local file), so it is exempt.
+  const willWrite = !options.dryRun && !options.backupOnly;
+  if (options.database === "production" && willWrite && !options.confirmProduction) {
     throw new Error(
       "Refusing to write to production without --confirm-production",
     );
@@ -230,6 +248,7 @@ const commitInBatches = async (db, ops) => {
     const batch = db.batch();
     for (const op of slice) {
       if (op.delete) batch.delete(op.ref);
+      else if (op.set) batch.set(op.ref, op.set);
       else batch.update(op.ref, op.patch);
     }
     await batch.commit();
@@ -237,7 +256,8 @@ const commitInBatches = async (db, ops) => {
 };
 
 const anonymize = async (db, options) => {
-  const hash = options.dryRun ? (v) => v : makeHasher(getPepper());
+  const hash =
+    options.dryRun || options.backupOnly ? (v) => v : makeHasher(getPepper());
   const cutoffTs = admin.firestore.Timestamp.fromDate(options.cutoff);
   const backup = { database: options.database, before: options.before, collections: {} };
   const report = {
@@ -316,9 +336,52 @@ const anonymize = async (db, options) => {
   if (!options.dryRun && ops.length > 0) {
     const backupPath = writeBackup(backup, options);
     console.log(`Backup written: ${backupPath}`);
-    await commitInBatches(db, ops);
+    if (!options.backupOnly) await commitInBatches(db, ops);
   }
 
+  if (options.reportFile) {
+    fs.writeFileSync(options.reportFile, JSON.stringify(report, null, 2));
+  }
+  return report;
+};
+
+/**
+ * Restore original values from a backup file produced by an earlier run.
+ * bookings / preBanLogs are patched back field-by-field; nyu_identity_cache
+ * docs (which were deleted) are re-created from the stored document data.
+ */
+const restore = async (db, options) => {
+  const backup = JSON.parse(fs.readFileSync(options.restore, "utf8"));
+  const report = {
+    database: options.database,
+    from: options.restore,
+    dryRun: options.dryRun,
+    collections: {},
+    totals: { restoredDocs: 0, restoredFields: 0 },
+  };
+  const ops = [];
+  for (const [name, docs] of Object.entries(backup.collections || {})) {
+    let restoredDocs = 0;
+    let restoredFields = 0;
+    for (const [docId, data] of Object.entries(docs)) {
+      const ref = db.collection(name).doc(docId);
+      if (name === CACHE_COLLECTION) {
+        // The cache doc was deleted; re-create it wholesale.
+        if (!options.dryRun) ops.push({ ref, set: data });
+      } else {
+        // Patch the original PII fields back onto the existing doc.
+        if (!options.dryRun) ops.push({ ref, patch: data });
+      }
+      restoredDocs += 1;
+      restoredFields += Object.keys(data).length;
+    }
+    report.collections[name] = { restoredDocs, restoredFields };
+    report.totals.restoredDocs += restoredDocs;
+    report.totals.restoredFields += restoredFields;
+  }
+  if (!options.dryRun && ops.length > 0) {
+    await commitInBatches(db, ops);
+  }
   if (options.reportFile) {
     fs.writeFileSync(options.reportFile, JSON.stringify(report, null, 2));
   }
@@ -355,10 +418,14 @@ and the NYU identity cache. Always backs up originals before writing.
 
 Options:
   --before <YYYY-MM-DD>    Academic-year cutoff; only records before this are
-                           anonymized (required)
+                           anonymized (required unless --restore)
   --database <env>         development (default), staging, or production
   --tenant <tenant>        Limit to one tenant prefix (e.g. mc, itp)
   --dry-run                Report the change set; write nothing, no backup
+  --backup-only            Write the JSON backup of the eligible records but
+                           make no changes (no hashing, no deletes, no pepper)
+  --restore <file>         Restore original values from a backup file (writes
+                           originals back; supports --dry-run)
   --backup-dir <path>      Where to write the JSON backup
                            (default scripts/output/anon-backups)
   --report-file <path>     Write a JSON summary report
@@ -366,17 +433,37 @@ Options:
   --confirm-production     Required to write when --database production
   --help                   Show this help
 
-Env: ANONYMIZATION_PEPPER (>=16 chars), FIREBASE_* (from .env.local)`);
+Env: ANONYMIZATION_PEPPER (>=16 chars, real runs only), FIREBASE_* (.env.local)`);
     return;
   }
 
-  const report = await anonymize(initializeDb(DATABASES[options.database]), options);
-  const prefix = options.dryRun ? "[DRY RUN] " : "";
+  const db = initializeDb(DATABASES[options.database]);
+
+  if (options.restore) {
+    const report = await restore(db, options);
+    console.log(
+      `${options.dryRun ? "[DRY RUN] " : ""}restore ${options.database} from ${options.restore}: ` +
+        `${report.totals.restoredDocs} docs, ${report.totals.restoredFields} fields ` +
+        `${options.dryRun ? "would be restored" : "restored"}.`,
+    );
+    for (const [name, stats] of Object.entries(report.collections)) {
+      console.log(`  ${name}: ${JSON.stringify(stats)}`);
+    }
+    return;
+  }
+
+  const report = await anonymize(db, options);
+  const willChange = options.dryRun || options.backupOnly;
+  const prefix = options.dryRun
+    ? "[DRY RUN] "
+    : options.backupOnly
+      ? "[BACKUP ONLY] "
+      : "";
   console.log(
     `${prefix}${options.database} (before ${options.before}): ` +
-      `${report.totals.docsChanged} docs ${options.dryRun ? "would change" : "changed"}, ` +
-      `${report.totals.fieldsHashed} fields hashed, ` +
-      `${report.totals.docsDeleted} cache docs ${options.dryRun ? "would be deleted" : "deleted"}.`,
+      `${report.totals.docsChanged} docs ${willChange ? "would change" : "changed"}, ` +
+      `${report.totals.fieldsHashed} fields ${willChange ? "would be hashed" : "hashed"}, ` +
+      `${report.totals.docsDeleted} cache docs ${willChange ? "would be deleted" : "deleted"}.`,
   );
   for (const [name, stats] of Object.entries(report.collections)) {
     console.log(`  ${name}: ${JSON.stringify(stats)}`);
@@ -406,4 +493,5 @@ module.exports = {
   computePreBanUpdate,
   preBanLogDateMillis,
   parseArgs,
+  restore,
 };

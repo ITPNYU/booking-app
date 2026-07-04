@@ -153,4 +153,26 @@ describe("scripts/anonymizePII parseArgs", () => {
     expect(opts.dryRun).toBe(true);
     expect(opts.database).toBe("production");
   });
+
+  it("allows --backup-only on production without confirmation (no DB writes)", () => {
+    const opts = parseArgs([
+      "--before",
+      "2026-09-01",
+      "--database",
+      "production",
+      "--backup-only",
+    ]);
+    expect(opts.backupOnly).toBe(true);
+  });
+
+  it("does not require --before in restore mode", () => {
+    const opts = parseArgs(["--restore", "backup.json", "--database", "development"]);
+    expect(opts.restore).toBe("backup.json");
+  });
+
+  it("requires --confirm-production to restore to production", () => {
+    expect(() =>
+      parseArgs(["--restore", "backup.json", "--database", "production"]),
+    ).toThrow(/confirm-production/);
+  });
 });
