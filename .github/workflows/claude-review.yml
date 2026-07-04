@@ -55,9 +55,11 @@ jobs:
           # The fixed "Submit review" step below makes the one hardcoded POST call.
           # Write is left unscoped on purpose: a path-scoped matcher (Write(/tmp/**))
           # silently blocked the /tmp/review.json write and the review never posted.
-          # The one workspace write with an execution path — submit_review.py — is
-          # neutralized by the submit step executing the BASE-ref copy of the script;
-          # the runner is ephemeral, and the real injection lever (the API call) is gone.
+          # The writes with an execution path — submit_review.py itself, and the
+          # $GITHUB_ENV/$GITHUB_PATH file commands — are neutralized by the submit
+          # step executing the BASE-ref copy via absolute paths under a clean
+          # `env -i` environment; the runner is ephemeral, and the real injection
+          # lever (the API call) is gone.
           # max-turns must cover: read the diff, reason over every hunk, then
           # write /tmp/review.json. Large PRs keep exhausting smaller budgets
           # before the write, ending in error_max_turns with no review posted.
@@ -125,19 +127,37 @@ jobs:
           # holds an unscoped Write tool (runtime tampering), and the PR
           # itself may commit an edited submit_review.py (committed
           # tampering). Neither version may run with the write-scoped token.
-          # Bootstrap fallback: if the base branch doesn't have the script
-          # yet (the PR introducing it), use the PR copy restored from its
-          # committed state.
+          #
+          # All binaries are invoked by absolute path and the script runs
+          # under `env -i` with an explicit allowlist: the Claude step's
+          # unscoped Write could poison $GITHUB_ENV/$GITHUB_PATH, and a
+          # shadowed `gh` on PATH or an injected GH_HOST would otherwise
+          # redirect the hardcoded API call (token included) elsewhere.
           BASE_REF="origin/${{ github.event.pull_request.base.ref }}"
-          if git show "$BASE_REF:.github/scripts/submit_review.py" > /tmp/submit_review.py 2>/dev/null; then
+          if ! /usr/bin/git rev-parse --verify --quiet "$BASE_REF^{commit}" > /dev/null; then
+            echo "error: cannot resolve $BASE_REF; refusing to fall back to the PR's copy of submit_review.py"
+            exit 1
+          fi
+          if /usr/bin/git cat-file -e "$BASE_REF:.github/scripts/submit_review.py" 2>/dev/null; then
+            /usr/bin/git show "$BASE_REF:.github/scripts/submit_review.py" > /tmp/submit_review.py
             SCRIPT=/tmp/submit_review.py
           else
-            echo "warning: submit_review.py not on $BASE_REF yet (bootstrap PR); using the PR's committed copy"
-            git checkout HEAD -- .github/scripts/submit_review.py
+            # Bootstrap-only: the base branch resolves but doesn't have the
+            # script yet (the PR introducing it). Any other git failure exits
+            # above instead of silently trusting the PR copy.
+            echo "bootstrap: submit_review.py not on $BASE_REF yet; using the PR's committed copy"
+            /usr/bin/git checkout HEAD -- .github/scripts/submit_review.py
             SCRIPT=.github/scripts/submit_review.py
           fi
           if [ ! -f /tmp/review.json ]; then
             echo "No /tmp/review.json produced; nothing to submit."
             exit 0
           fi
-          python3 "$SCRIPT"
+          /usr/bin/env -i \
+            PATH=/usr/bin:/bin \
+            HOME="$HOME" \
+            GH_TOKEN="$GH_TOKEN" \
+            PR_NUMBER="$PR_NUMBER" \
+            REPO="$REPO" \
+            HEAD_SHA="$HEAD_SHA" \
+            /usr/bin/python3 "$SCRIPT"
