@@ -142,22 +142,15 @@ jobs:
           # unscoped Write could poison $GITHUB_ENV/$GITHUB_PATH, and a
           # shadowed `gh` on PATH or an injected GH_HOST would otherwise
           # redirect the hardcoded API call (token included) elsewhere.
+          # Fail closed: if the script cannot be read from the base ref for
+          # ANY reason (unresolvable ref, deleted script, transient git
+          # error), skip the submit rather than ever executing the PR's copy.
           BASE_REF="origin/${{ github.event.pull_request.base.ref }}"
-          if ! /usr/bin/git rev-parse --verify --quiet "$BASE_REF^{commit}" > /dev/null; then
-            echo "error: cannot resolve $BASE_REF; refusing to fall back to the PR's copy of submit_review.py"
+          if ! /usr/bin/git show "$BASE_REF:.github/scripts/submit_review.py" > /tmp/submit_review.py 2>/dev/null; then
+            echo "error: could not read submit_review.py from $BASE_REF; refusing to run the PR's copy"
             exit 1
           fi
-          if /usr/bin/git cat-file -e "$BASE_REF:.github/scripts/submit_review.py" 2>/dev/null; then
-            /usr/bin/git show "$BASE_REF:.github/scripts/submit_review.py" > /tmp/submit_review.py
-            SCRIPT=/tmp/submit_review.py
-          else
-            # Bootstrap-only: the base branch resolves but doesn't have the
-            # script yet (the PR introducing it). Any other git failure exits
-            # above instead of silently trusting the PR copy.
-            echo "bootstrap: submit_review.py not on $BASE_REF yet; using the PR's committed copy"
-            /usr/bin/git checkout HEAD -- .github/scripts/submit_review.py
-            SCRIPT=.github/scripts/submit_review.py
-          fi
+          SCRIPT=/tmp/submit_review.py
           if [ ! -f /tmp/review.json ]; then
             echo "No /tmp/review.json produced; nothing to submit."
             exit 0
