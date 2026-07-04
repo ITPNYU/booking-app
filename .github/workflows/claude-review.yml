@@ -5,7 +5,9 @@ on:
     branches: [main]
     # ready_for_review is required so a draft promoted to ready gets reviewed —
     # without it the draft guard below would silently skip such PRs forever.
-    types: [opened, synchronize, ready_for_review]
+    # reopened is required for the same reason: a closed-then-reopened PR with
+    # no new commit would otherwise never be reviewed.
+    types: [opened, synchronize, ready_for_review, reopened]
 
 # One review per PR; a new push cancels the in-flight review instead of
 # stacking duplicate threads (and duplicate API spend).
@@ -52,6 +54,13 @@ jobs:
           # Claude only READS (gh pr diff) and WRITES the review payload to a file.
           # It is deliberately NOT given gh api: the PR diff is attacker-controlled,
           # so a prompt injection must not be able to choose which API endpoint runs.
+          # Accepted residual risk: the allowlist relies on Claude Code's permission
+          # engine, which evaluates compound commands (;, &&, |) per segment and
+          # rejects command substitution in non-interactive mode — not on naive
+          # string-prefix matching. If that engine were bypassed, the blast radius
+          # is contained by the submit step (base-ref script, env -i, absolute
+          # paths); token exfiltration from the agent's own step is inherent to
+          # running a hosted agent and is not mitigable at this layer.
           # The fixed "Submit review" step below makes the one hardcoded POST call.
           # Write is left unscoped on purpose: a path-scoped matcher (Write(/tmp/**))
           # silently blocked the /tmp/review.json write and the review never posted.
