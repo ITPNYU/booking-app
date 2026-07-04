@@ -29,6 +29,8 @@ export interface BookingContextType {
   needsSafetyTraining: boolean;
   isInBlackoutPeriod: boolean;
   reloadExistingCalendarEvents: () => void;
+  viewDate: Date;
+  setViewDate: (x: Date) => void;
   role: Role | undefined;
   selectedRooms: RoomSetting[];
   setBookingCalendarInfo: (x: DateSelectArg) => void;
@@ -55,6 +57,8 @@ export const BookingContext = createContext<BookingContextType>({
   needsSafetyTraining: false,
   isInBlackoutPeriod: false,
   reloadExistingCalendarEvents: () => {},
+  viewDate: new Date(),
+  setViewDate: (x: Date) => {},
   role: undefined,
   selectedRooms: [],
   setBookingCalendarInfo: (x: DateSelectArg) => {},
@@ -91,11 +95,12 @@ export function BookingProvider({ children }) {
   const [role, setRole] = useState<Role>();
   const [selectedRooms, setSelectedRooms] = useState<RoomSetting[]>([]);
   const [submitting, setSubmitting] = useState<SubmitStatus>("error");
+  const [viewDate, setViewDate] = useState<Date>(new Date());
   const {
     existingCalendarEvents,
     reloadExistingCalendarEvents,
     fetchingStatus,
-  } = fetchCalendarEvents(roomSettings);
+  } = fetchCalendarEvents(roomSettings, viewDate);
   const [error, setError] = useState<Error | null>(null);
 
   // Update safety trained users when selected rooms change
@@ -183,6 +188,8 @@ export function BookingProvider({ children }) {
         department,
         existingCalendarEvents,
         reloadExistingCalendarEvents,
+        viewDate,
+        setViewDate,
         formData,
         hasShownMocapModal,
         isBanned,

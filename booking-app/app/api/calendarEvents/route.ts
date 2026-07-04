@@ -10,48 +10,24 @@ import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
 import { serverBookingContents } from "@/components/src/server/admin";
 import { Booking } from "@/components/src/types";
 import { getCachedBookings } from "@/lib/bookingsCache";
-import { getCalendarClient } from "@/lib/googleClient";
-import { calendar_v3 } from "googleapis/build/src/apis/calendar";
+import { getCachedRawCalendarEvents } from "@/lib/calendarEventsCache";
 
-const getCalendarEvents = async (calendarId: string, tenant?: string) => {
-  const now = new Date().toISOString();
-  const endOfRange = new Date();
-  endOfRange.setMonth(endOfRange.getMonth() + 12);
-  const endOfRangeISOString = endOfRange.toISOString();
+// Default range when the caller does not pass start/end. The client always
+// sends the visible window; this is only a fallback for ad-hoc callers.
+const DEFAULT_RANGE_MONTHS = 3;
 
-  // Fetch Google Calendar events and bookings in parallel
-  const calendarPromise = (async () => {
-    const events: calendar_v3.Schema$Event[] = [];
-    const calendar = await getCalendarClient();
-    let pageToken: string | undefined;
-
-    do {
-      const res = await calendar.events.list({
-        calendarId,
-        timeMin: now,
-        timeMax: endOfRangeISOString,
-        singleEvents: true,
-        orderBy: "startTime",
-        maxResults: 250,
-        pageToken,
-        fields:
-          "nextPageToken,items(id,summary,start(dateTime,date),end(dateTime,date))",
-      });
-
-      if (res.data.items) {
-        events.push(...res.data.items);
-      }
-      pageToken = res.data.nextPageToken || undefined;
-    } while (pageToken);
-
-    return events;
-  })();
-
-  const bookingsPromise = getCachedBookings(tenant || DEFAULT_TENANT);
-
+const getCalendarEvents = async (
+  calendarId: string,
+  tenant: string | undefined,
+  timeMin: string,
+  timeMax: string,
+  fresh: boolean,
+) => {
+  // Raw Google events are cached per (calendarId, range); bookings come from
+  // their own cache. Both are fetched in parallel.
   const [events, bookings] = await Promise.all([
-    calendarPromise,
-    bookingsPromise.catch(error => {
+    getCachedRawCalendarEvents(calendarId, timeMin, timeMax, { fresh }),
+    getCachedBookings(tenant || DEFAULT_TENANT).catch(error => {
       console.error("Error fetching tenant bookings:", error);
       return [] as Booking[];
     }),
@@ -132,6 +108,21 @@ export async function GET(req: NextRequest) {
   // Get tenant from x-tenant header, fallback to 'mc' as default
   const tenant = req.headers.get("x-tenant") || DEFAULT_TENANT;
 
+  // Visible window: the client sends the range it is displaying. Fall back to a
+  // small default range for ad-hoc callers that omit it.
+  const startParam = searchParams.get("start");
+  const endParam = searchParams.get("end");
+  const timeMin = startParam || new Date().toISOString();
+  const timeMax =
+    endParam ||
+    (() => {
+      const d = new Date();
+      d.setMonth(d.getMonth() + DEFAULT_RANGE_MONTHS);
+      return d.toISOString();
+    })();
+  // `fresh=1` bypasses the calendar cache (used right after a booking changes).
+  const fresh = searchParams.get("fresh") === "1";
+
   // Batch mode: fetch multiple calendars in one request
   if (calendarIds) {
     const ids = calendarIds.split(",").filter(Boolean);
@@ -143,7 +134,7 @@ export async function GET(req: NextRequest) {
       const results = await Promise.all(
         ids.map(async (id) => {
           try {
-            const events = await getCalendarEvents(id, tenant);
+            const events = await getCalendarEvents(id, tenant, timeMin, timeMax, fresh);
             return { calendarId: id, events };
           } catch (error) {
             console.error("Error fetching calendar events for calendarId:", id, error);
@@ -178,7 +169,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const events = await getCalendarEvents(calendarId, tenant);
+    const events = await getCalendarEvents(calendarId, tenant, timeMin, timeMax, fresh);
 
     const res = NextResponse.json(events);
     res.headers.set(
