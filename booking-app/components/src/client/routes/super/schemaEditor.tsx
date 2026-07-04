@@ -1248,7 +1248,6 @@ export default function SchemaEditor() {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          "x-user-email": userEmail,
         },
         body: JSON.stringify(schema),
       });
