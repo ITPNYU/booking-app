@@ -33,6 +33,7 @@ import {
   updateCalendarEvent,
 } from "@/components/src/server/calendars";
 import { _resetBookingsCacheForTesting } from "@/lib/bookingsCache";
+import { _resetCalendarEventsCacheForTesting } from "@/lib/calendarEventsCache";
 import { serverFetchAllDataFromCollection } from "@/lib/firebase/server/adminDb";
 import { getCalendarClient } from "@/lib/googleClient";
 
@@ -69,6 +70,7 @@ describe("/api/calendarEvents", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     _resetBookingsCacheForTesting();
+    _resetCalendarEventsCacheForTesting();
   });
 
   describe("GET", () => {
@@ -413,6 +415,12 @@ describe("/api/calendarEvents", () => {
       ]);
       mockServerFetchAllDataFromCollection.mockResolvedValueOnce(bookingsB);
 
+      // Reset the Google events cache: both GETs hit the same calendarId and
+      // can land in the same millisecond (identical timeMin/timeMax → cache
+      // hit), which would serve tenant A's stubbed events. This test targets
+      // the bookings cache only.
+      _resetCalendarEventsCacheForTesting();
+
       // Second call with tenant B – cache MUST be invalidated
       const res2 = await GET(makeGETRequest("cal-1", tenantB));
       expect(res2.status).toBe(200);
@@ -537,6 +545,10 @@ describe("/api/calendarEvents", () => {
         Promise.resolve(bookingsB),
       );
       stubCalendarClient(calEventsB);
+
+      // Reset the Google events cache so tenant B's request (same calendarId,
+      // possibly same-millisecond range) doesn't get tenant A's stubbed events.
+      _resetCalendarEventsCacheForTesting();
 
       // Fire request for tenant B – must NOT reuse tenant A's cache
       const res2 = await GET(makeGETRequest("cal-1", tenantB));
