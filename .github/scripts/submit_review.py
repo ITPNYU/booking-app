@@ -135,11 +135,21 @@ def main() -> None:
             "not blocking the PR."
         )
         return
-    comments = review.get("comments") or []
-    body = review.get("body") or ""
-    base = {"event": review.get("event", "COMMENT")}
-    if review.get("commit_id"):
-        base["commit_id"] = review["commit_id"]
+    # review.json is untrusted model output: the review verdict is pinned to
+    # COMMENT (never APPROVE/REQUEST_CHANGES) and commit_id comes from the
+    # workflow env, so an injected payload can only influence comment text.
+    raw_comments = review.get("comments")
+    comments = (
+        [c for c in raw_comments if isinstance(c, dict)]
+        if isinstance(raw_comments, list)
+        else []
+    )
+    body = review.get("body")
+    body = body if isinstance(body, str) else ""
+    base = {"event": "COMMENT"}
+    head_sha = os.environ.get("HEAD_SHA")
+    if head_sha:
+        base["commit_id"] = head_sha
 
     valid: dict[str, set[int]] = {}
     try:
@@ -151,6 +161,12 @@ def main() -> None:
         print(f"warning: could not compute diff lines ({exc}); folding all inline comments")
 
     kept, folded = partition_comments(comments, valid)
+
+    # GitHub's create-review API requires start_side when start_line is set;
+    # a comment that omits it would 422 the whole review.
+    for c in kept:
+        if c.get("start_line") is not None:
+            c.setdefault("start_side", "RIGHT")
 
     def fold_into(text: str, items: list[dict], heading: str) -> str:
         if not items:

@@ -51,8 +51,9 @@ jobs:
           # The fixed "Submit review" step below makes the one hardcoded POST call.
           # Write is left unscoped on purpose: a path-scoped matcher (Write(/tmp/**))
           # silently blocked the /tmp/review.json write and the review never posted.
-          # Residual risk is low — workspace writes have no execution path here and the
-          # runner is ephemeral; the real injection lever (the API call) is already gone.
+          # The one workspace write with an execution path — this script itself — is
+          # neutralized by the submit step restoring it from HEAD before running it;
+          # the runner is ephemeral, and the real injection lever (the API call) is gone.
           # max-turns must cover: read the diff, reason over every hunk, then
           # write /tmp/review.json. Large PRs keep exhausting smaller budgets
           # before the write, ending in error_max_turns with no review posted.
@@ -113,7 +114,14 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           REPO: ${{ github.repository }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
+          # The model held an unscoped Write tool while reading an
+          # attacker-controlled diff, so the working-tree copy of this script
+          # is untrusted at this point. Restore the committed version before
+          # executing it, or a prompt injection could rewrite the "trusted"
+          # script instead of calling gh api directly.
+          git checkout HEAD -- .github/scripts/submit_review.py
           if [ ! -f /tmp/review.json ]; then
             echo "No /tmp/review.json produced; nothing to submit."
             exit 0
