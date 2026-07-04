@@ -248,7 +248,6 @@ const commitInBatches = async (db, ops) => {
     const batch = db.batch();
     for (const op of slice) {
       if (op.delete) batch.delete(op.ref);
-      else if (op.set) batch.set(op.ref, op.set);
       else batch.update(op.ref, op.patch);
     }
     await batch.commit();
@@ -347,8 +346,12 @@ const anonymize = async (db, options) => {
 
 /**
  * Restore original values from a backup file produced by an earlier run.
- * bookings / preBanLogs are patched back field-by-field; nyu_identity_cache
- * docs (which were deleted) are re-created from the stored document data.
+ * bookings / preBanLogs are patched back field-by-field.
+ *
+ * nyu_identity_cache is intentionally NOT restored: it is a regenerable 7-day
+ * TTL cache that self-populates on the next lookup, and its Timestamp fields do
+ * not survive the JSON backup round-trip. It is still captured in the backup
+ * file for reference.
  */
 const restore = async (db, options) => {
   const backup = JSON.parse(fs.readFileSync(options.restore, "utf8"));
@@ -357,21 +360,21 @@ const restore = async (db, options) => {
     from: options.restore,
     dryRun: options.dryRun,
     collections: {},
+    skipped: {},
     totals: { restoredDocs: 0, restoredFields: 0 },
   };
   const ops = [];
   for (const [name, docs] of Object.entries(backup.collections || {})) {
+    if (name === CACHE_COLLECTION) {
+      report.skipped[name] = { docs: Object.keys(docs).length };
+      continue;
+    }
     let restoredDocs = 0;
     let restoredFields = 0;
     for (const [docId, data] of Object.entries(docs)) {
       const ref = db.collection(name).doc(docId);
-      if (name === CACHE_COLLECTION) {
-        // The cache doc was deleted; re-create it wholesale.
-        if (!options.dryRun) ops.push({ ref, set: data });
-      } else {
-        // Patch the original PII fields back onto the existing doc.
-        if (!options.dryRun) ops.push({ ref, patch: data });
-      }
+      // Patch the original PII fields back onto the existing doc.
+      if (!options.dryRun) ops.push({ ref, patch: data });
       restoredDocs += 1;
       restoredFields += Object.keys(data).length;
     }
@@ -424,8 +427,9 @@ Options:
   --dry-run                Report the change set; write nothing, no backup
   --backup-only            Write the JSON backup of the eligible records but
                            make no changes (no hashing, no deletes, no pepper)
-  --restore <file>         Restore original values from a backup file (writes
-                           originals back; supports --dry-run)
+  --restore <file>         Restore original values from a backup file (bookings
+                           and preBanLogs only; the regenerable identity cache
+                           is not restored). Supports --dry-run.
   --backup-dir <path>      Where to write the JSON backup
                            (default scripts/output/anon-backups)
   --report-file <path>     Write a JSON summary report

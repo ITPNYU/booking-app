@@ -1,6 +1,10 @@
 import { createRequire } from "module";
 import { describe, expect, it } from "vitest";
 
+import fs from "fs";
+import os from "os";
+import path from "path";
+
 const requireModule = createRequire(import.meta.url);
 const {
   ANON_PREFIX,
@@ -9,6 +13,7 @@ const {
   computePreBanUpdate,
   preBanLogDateMillis,
   parseArgs,
+  restore,
 } = requireModule("../../scripts/anonymizePII.js") as {
   ANON_PREFIX: string;
   makeHasher: (pepper: string) => (value: unknown) => unknown;
@@ -22,6 +27,7 @@ const {
   ) => { patch: Record<string, any>; backup: Record<string, any> } | null;
   preBanLogDateMillis: (data: Record<string, any>) => number | null;
   parseArgs: (args: string[]) => any;
+  restore: (db: any, options: any) => Promise<any>;
 };
 
 const ts = (ms: number) => ({ toMillis: () => ms });
@@ -174,5 +180,43 @@ describe("scripts/anonymizePII parseArgs", () => {
     expect(() =>
       parseArgs(["--restore", "backup.json", "--database", "production"]),
     ).toThrow(/confirm-production/);
+  });
+});
+
+describe("scripts/anonymizePII restore", () => {
+  const stubDb = {
+    collection: (name: string) => ({ doc: (id: string) => ({ ref: `${name}/${id}` }) }),
+  };
+
+  it("restores bookings/preBanLogs but skips the identity cache", async () => {
+    const backup = {
+      database: "development",
+      collections: {
+        "mc-bookings": { b1: { firstName: "Ada", netId: "al123" } },
+        "mc-preBanLogs": { p1: { netId: "al123" } },
+        nyu_identity_cache: {
+          al123: { data: {}, cachedAt: { _seconds: 1 }, expiresAt: { _seconds: 2 } },
+        },
+      },
+    };
+    const file = path.join(os.tmpdir(), `anon-restore-test-${process.pid}.json`);
+    fs.writeFileSync(file, JSON.stringify(backup));
+    try {
+      const report = await restore(stubDb, {
+        database: "development",
+        restore: file,
+        dryRun: true,
+      });
+      expect(Object.keys(report.collections).sort()).toEqual([
+        "mc-bookings",
+        "mc-preBanLogs",
+      ]);
+      expect(report.collections.nyu_identity_cache).toBeUndefined();
+      expect(report.skipped.nyu_identity_cache).toEqual({ docs: 1 });
+      expect(report.totals.restoredDocs).toBe(2);
+      expect(report.totals.restoredFields).toBe(3);
+    } finally {
+      fs.unlinkSync(file);
+    }
   });
 });
