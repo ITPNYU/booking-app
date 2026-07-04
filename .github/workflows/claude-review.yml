@@ -1,0 +1,121 @@
+name: Claude PR Review
+
+on:
+  pull_request:
+    branches: [main]
+    # ready_for_review is required so a draft promoted to ready gets reviewed —
+    # without it the draft guard below would silently skip such PRs forever.
+    types: [opened, synchronize, ready_for_review]
+
+# One review per PR; a new push cancels the in-flight review instead of
+# stacking duplicate threads (and duplicate API spend).
+concurrency:
+  group: claude-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  review:
+    # Skip drafts, and skip Dependabot PRs — Dependabot-triggered runs don't get
+    # the repo's Actions secrets, so the auth step can't load the OAuth token
+    # and the check fails. Dep bumps don't need an AI code review anyway.
+    if: >-
+      github.actor != 'dependabot[bot]' &&
+      github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    # A hung API call would otherwise hold the runner for the 6h default.
+    # Sized to fit the --max-turns budget below (~25s/turn observed) with margin,
+    # so the turn cap — not this wall clock — stays the limiting factor.
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Claude review
+        # Pinned to the commit the v1 tag pointed at (mutable tags are a
+        # supply-chain risk for a step that runs with repo credentials).
+        uses: anthropics/claude-code-action@36a69b6a90b850823f86de06fdfd56264772ad98 # v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          # Claude subscription auth (no Bedrock / no API key). Generate with
+          # `claude setup-token` and store as the CLAUDE_CODE_OAUTH_TOKEN secret.
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # Claude only READS (gh pr diff) and WRITES the review payload to a file.
+          # It is deliberately NOT given gh api: the PR diff is attacker-controlled,
+          # so a prompt injection must not be able to choose which API endpoint runs.
+          # The fixed "Submit review" step below makes the one hardcoded POST call.
+          # Write is left unscoped on purpose: a path-scoped matcher (Write(/tmp/**))
+          # silently blocked the /tmp/review.json write and the review never posted.
+          # Residual risk is low — workspace writes have no execution path here and the
+          # runner is ephemeral; the real injection lever (the API call) is already gone.
+          # max-turns must cover: read the diff, reason over every hunk, then
+          # write /tmp/review.json. Large PRs keep exhausting smaller budgets
+          # before the write, ending in error_max_turns with no review posted.
+          # timeout-minutes above is sized to fit 80 turns (~25s/turn ≈ 33 min)
+          # so the turn cap stays the limiting factor.
+          claude_args: >-
+            --model claude-sonnet-5
+            --max-turns 80
+            --allowedTools "Bash(gh pr diff:*),Write"
+          prompt: |
+            You are reviewing pull request #${{ github.event.pull_request.number }}
+            in the repository ${{ github.repository }}. The head commit SHA is
+            ${{ github.event.pull_request.head.sha }}.
+
+            Report ONLY High and Medium severity findings:
+            - High: correctness bugs, security issues (auth, injection, secret
+              leakage, unsafe file handling), data loss, multi-tenant / app-scope
+              boundary breaks.
+            - Medium: likely-incorrect behavior, missing error handling, race
+              conditions, configuration that fails silently.
+            Do NOT report Low severity, nitpicks, style, formatting, naming, or
+            subjective preferences. If a finding is not clearly High or Medium, omit it.
+
+            Post everything as ONE single pull request review (GitHub Copilot style),
+            NOT as separate standalone comments. Steps:
+            1. Read the diff: gh pr diff ${{ github.event.pull_request.number }}
+            2. For each High/Medium finding, note the file path and the exact line
+               number in the NEW version of the file (the right side of the diff).
+            3. Use the Write tool to create /tmp/review.json with this shape:
+               {
+                 "event": "COMMENT",
+                 "commit_id": "${{ github.event.pull_request.head.sha }}",
+                 "body": "<1-2 sentence summary, e.g. '2 High, 1 Medium.'>",
+                 "comments": [
+                   {"path": "<file>", "line": <new-file line number>, "side": "RIGHT",
+                    "body": "**[High]** <concise issue + concrete fix>"}
+                 ]
+               }
+               Prefix every comment body with **[High]** or **[Medium]**. For a
+               multi-line span, also set "start_line" and "start_side": "RIGHT".
+            4. Do NOT submit the review yourself and do NOT call gh api — you do not
+               have that permission. Your only job is to WRITE /tmp/review.json. A
+               separate trusted workflow step submits it.
+            Always write /tmp/review.json. If there are no High or Medium findings,
+            write it with an empty "comments" array and body "No High or Medium
+            severity issues found."
+
+      # Trusted submit: the endpoint is hardcoded in the script, so even if a
+      # malicious PR injects instructions into the diff, it can only influence
+      # comment text — never which API call runs. Claude never holds an
+      # API-write tool. The script also drops inline comments GitHub can't
+      # anchor to the diff (which otherwise 422 the whole review) by folding
+      # them into the review body, so one bad line number no longer fails the
+      # job or loses the finding.
+      - name: Submit batched review
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          if [ ! -f /tmp/review.json ]; then
+            echo "No /tmp/review.json produced; nothing to submit."
+            exit 0
+          fi
+          python3 .github/scripts/submit_review.py
