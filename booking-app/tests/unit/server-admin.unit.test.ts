@@ -5,10 +5,12 @@ vi.stubEnv("NEXT_PUBLIC_BASE_URL", "https://booking.test");
 const mockFetch = vi.fn();
 global.fetch = mockFetch as unknown as typeof fetch;
 
-const mockIsMediaCommons = vi.fn();
-const mockTimestampNow = vi.fn(() => ({
-  toDate: () => new Date("2024-01-01T00:00:00.000Z"),
-  toMillis: () => Date.parse("2024-01-01T00:00:00.000Z"),
+const { mockIsMediaCommons, mockTimestampNow } = vi.hoisted(() => ({
+  mockIsMediaCommons: vi.fn(),
+  mockTimestampNow: vi.fn(() => ({
+    toDate: () => new Date("2024-01-01T00:00:00.000Z"),
+    toMillis: () => Date.parse("2024-01-01T00:00:00.000Z"),
+  })),
 }));
 
 type TimestampLike = {
@@ -389,6 +391,7 @@ describe("components/src/server/admin", () => {
   });
 
   it("formats booking contents with fallback history when logs absent", async () => {
+    const startTimestamp = makeTimestamp("2024-03-01T05:00:00.000Z");
     seedCollection("tenant-z-bookings", [
       {
         id: "booking-1",
@@ -397,7 +400,7 @@ describe("components/src/server/admin", () => {
           requestNumber: 77,
           title: "Animation Workshop",
           email: "requester@nyu.edu",
-          startDate: makeTimestamp("2024-03-01T05:00:00.000Z"),
+          startDate: startTimestamp,
           endDate: makeTimestamp("2024-03-01T07:00:00.000Z"),
           requestedAt: makeTimestamp("2024-02-25T10:00:00.000Z"),
           firstApprovedAt: null,
@@ -419,7 +422,9 @@ describe("components/src/server/admin", () => {
     const result = await serverBookingContents("cal-1", "tenant-z");
 
     expect(result.headerMessage).toBe("");
-    expect(result.startDate).toBe("3/1/2024");
+    expect(result.startDate).toBe(
+      startTimestamp.toDate().toLocaleDateString("en-US"),
+    );
     expect(result.endTime).toBeDefined();
     expect(result.history.map((h: any) => h.status)).toContain(
       BookingStatusLabel.REQUESTED,

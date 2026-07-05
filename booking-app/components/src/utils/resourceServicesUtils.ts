@@ -92,9 +92,11 @@ export function getRoomsWithVisibleService(
     if (!resourceHasService(room, key)) return false;
     const section = getServiceSectionConfig(room, key);
     if (!section) {
-      return key === "auxiliarySpace"
-        ? !!getResourceServicesConfig(room).auxiliarySpace?.enabled
-        : false;
+      if (key === "auxiliarySpace") {
+        return !!getResourceServicesConfig(room).auxiliarySpace?.enabled;
+      }
+      // Legacy string[] resources have no section config — show when offered.
+      return isLegacyServicesArray(room.services);
     }
     return shouldShowServiceSection(section, context);
   });

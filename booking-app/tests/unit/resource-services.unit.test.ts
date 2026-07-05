@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { getMediaCommonsServices } from "@/components/src/utils/tenantUtils";
+import {
+  anyRoomHasVisibleService,
+  getRoomsWithVisibleService,
+} from "@/components/src/utils/resourceServicesUtils";
 import { migrateResourceServices } from "@/lib/tenant/migrateResourceServices";
 
 describe("getMediaCommonsServices", () => {
@@ -33,6 +37,18 @@ describe("getMediaCommonsServices", () => {
         studentLoungeByRoom: { "202": "yes" },
       }).auxiliary,
     ).toBe(true);
+  });
+});
+
+describe("resource service visibility", () => {
+  const standardUser = { isVIP: false, isWalkIn: false, isStandardUser: true };
+
+  it("shows legacy string[] services when no object config exists", () => {
+    const rooms = [{ roomId: "room1", services: ["catering", "equipment"] }];
+    expect(anyRoomHasVisibleService(rooms, "catering", standardUser)).toBe(true);
+    expect(getRoomsWithVisibleService(rooms, "equipment", standardUser)).toHaveLength(
+      1,
+    );
   });
 });
 
