@@ -173,123 +173,184 @@ export default function BookingFormResourceServices({
 
   return (
     <>
-      {setupRooms.map((room) => {
-        const cfg = getServiceSectionConfig(room, "setup")!;
-        const resourceId = getServiceResourceId(room);
-        const mapValues =
-          (watch("roomSetupByRoom") as Record<string, string> | undefined) ?? {};
-        const chartMap =
-          (watch("chartFieldForRoomSetupByRoom") as
-            | Record<string, string>
-            | undefined) ?? {};
-        const selectedValue = mapValues[resourceId] ?? cfg.defaultValue ?? "";
-        const selectedOption = cfg.options?.find((o) => o.value === selectedValue);
-        const needsChart = !!selectedOption?.requiresChartField;
+      <Controller
+        name="roomSetupByRoom"
+        control={control}
+        rules={{
+          validate: (val) => {
+            const map = (val as Record<string, string>) ?? {};
+            for (const room of setupRooms) {
+              const cfg = getServiceSectionConfig(room, "setup")!;
+              if (!cfg.required) continue;
+              const resourceId = getServiceResourceId(room);
+              const v = map[resourceId] ?? cfg.defaultValue;
+              if (!v) {
+                return `Please select room setup for ${room.name ?? resourceId}`;
+              }
+            }
+            return true;
+          },
+        }}
+        render={({ field: setupField }) => (
+          <>
+            {setupRooms.map((room) => {
+              const cfg = getServiceSectionConfig(room, "setup")!;
+              const resourceId = getServiceResourceId(room);
+              const mapValues =
+                (setupField.value as Record<string, string> | undefined) ?? {};
+              const selectedValue =
+                mapValues[resourceId] ?? cfg.defaultValue ?? "";
+              const selectedOption = cfg.options?.find(
+                (o) => o.value === selectedValue,
+              );
+              const needsChart = !!selectedOption?.requiresChartField;
 
-        return (
-          <Subsection key={`setup-${resourceId}`}>
-            <Label>
-              {formatFieldLabel(`${room.name} — ${cfg.label ?? "Room Setup"}`)}
-            </Label>
-            <HtmlBlock html={cfg.descriptionHtml} />
-            <Controller
-              name="roomSetupByRoom"
-              control={control}
-              rules={{
-                validate: (val) => {
-                  if (!cfg.required) return true;
-                  const map = (val as Record<string, string>) ?? {};
-                  const v = map[resourceId] ?? cfg.defaultValue;
-                  return v ? true : "Please select a room setup";
-                },
-              }}
-              render={({ field }) => (
-                <FormControl component="fieldset" fullWidth>
-                  <RadioGroup
-                    value={selectedValue}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      const next = {
-                        ...((field.value as Record<string, string>) ?? {}),
-                        [resourceId]: value,
-                      };
-                      field.onChange(next);
-                      const opt = cfg.options?.find((o) => o.value === value);
-                      const details =
-                        (watch("setupDetailsByRoom") as
-                          | Record<string, string>
-                          | undefined) ?? {};
-                      setValue("setupDetailsByRoom", {
-                        ...details,
-                        [resourceId]: opt?.label ?? value,
-                      });
-                      if (selectedRooms.length === 1) {
-                        setValue("roomSetup", "yes");
-                        setValue("setupDetails", opt?.label ?? "");
-                      }
-                      trigger("roomSetupByRoom");
-                    }}
-                  >
-                    {cfg.options?.map((opt) => (
-                      <FormControlLabel
-                        key={opt.value}
-                        value={opt.value}
-                        control={<Radio />}
-                        label={opt.label}
-                      />
-                    ))}
-                  </RadioGroup>
-                </FormControl>
-              )}
-            />
-            {needsChart && (
-              <Controller
-                name="chartFieldForRoomSetupByRoom"
-                control={control}
-                rules={{
-                  validate: (val) => {
-                    const map = (val as Record<string, string>) ?? {};
-                    const v = map[resourceId] ?? "";
-                    if (!CHARTFIELD_REGEX.test(v)) {
-                      return CHARTFIELD_PATTERN_MESSAGE;
-                    }
-                    return true;
-                  },
-                }}
-                render={({ field }) => (
-                  <>
-                    <Label htmlFor={`chart-setup-${resourceId}`}>
-                      ChartField for Room Setup *
-                    </Label>
-                    <input
-                      id={`chart-setup-${resourceId}`}
-                      style={{
-                        width: "100%",
-                        padding: "8px",
-                        marginBottom: 16,
-                        border: "1px solid #ccc",
-                        borderRadius: 4,
-                      }}
-                      value={chartMap[resourceId] ?? ""}
+              return (
+                <Subsection key={`setup-${resourceId}`}>
+                  <Label>
+                    {formatFieldLabel(
+                      `${room.name} — ${cfg.label ?? "Room Setup"}`,
+                    )}
+                  </Label>
+                  <HtmlBlock html={cfg.descriptionHtml} />
+                  <FormControl component="fieldset" fullWidth>
+                    <RadioGroup
+                      value={selectedValue}
                       onChange={(e) => {
+                        const value = e.target.value;
                         const next = {
-                          ...((field.value as Record<string, string>) ?? {}),
-                          [resourceId]: e.target.value,
+                          ...((setupField.value as Record<string, string>) ??
+                            {}),
+                          [resourceId]: value,
                         };
-                        field.onChange(next);
+                        setupField.onChange(next);
+                        const opt = cfg.options?.find((o) => o.value === value);
+                        const details =
+                          (watch("setupDetailsByRoom") as
+                            | Record<string, string>
+                            | undefined) ?? {};
+                        setValue("setupDetailsByRoom", {
+                          ...details,
+                          [resourceId]: opt?.label ?? value,
+                        });
                         if (selectedRooms.length === 1) {
-                          setValue("chartFieldForRoomSetup", e.target.value);
+                          setValue("roomSetup", "yes");
+                          setValue("setupDetails", opt?.label ?? "");
                         }
+                        trigger("roomSetupByRoom");
+                        trigger("chartFieldForRoomSetupByRoom");
                       }}
-                      onBlur={() => trigger("chartFieldForRoomSetupByRoom")}
-                    />
-                  </>
-                )}
-              />
-            )}
-          </Subsection>
-        );
-      })}
+                    >
+                      {cfg.options?.map((opt) => (
+                        <FormControlLabel
+                          key={opt.value}
+                          value={opt.value}
+                          control={<Radio />}
+                          label={opt.label}
+                        />
+                      ))}
+                    </RadioGroup>
+                  </FormControl>
+                  {needsChart && (
+                    <>
+                      <Label htmlFor={`chart-setup-${resourceId}`}>
+                        ChartField for Room Setup *
+                      </Label>
+                      <input
+                        id={`chart-setup-${resourceId}`}
+                        style={{
+                          width: "100%",
+                          padding: "8px",
+                          marginBottom: 16,
+                          border: "1px solid #ccc",
+                          borderRadius: 4,
+                        }}
+                        value={
+                          ((watch("chartFieldForRoomSetupByRoom") as
+                            | Record<string, string>
+                            | undefined) ?? {})[resourceId] ?? ""
+                        }
+                        onChange={(e) => {
+                          const chartMap =
+                            (watch("chartFieldForRoomSetupByRoom") as
+                              | Record<string, string>
+                              | undefined) ?? {};
+                          setValue(
+                            "chartFieldForRoomSetupByRoom",
+                            {
+                              ...chartMap,
+                              [resourceId]: e.target.value,
+                            },
+                            { shouldValidate: true },
+                          );
+                          if (selectedRooms.length === 1) {
+                            setValue("chartFieldForRoomSetup", e.target.value);
+                          }
+                        }}
+                        onBlur={() => trigger("chartFieldForRoomSetupByRoom")}
+                      />
+                    </>
+                  )}
+                </Subsection>
+              );
+            })}
+          </>
+        )}
+      />
+
+      <Controller
+        name="chartFieldForRoomSetupByRoom"
+        control={control}
+        shouldUnregister
+        rules={{
+          validate: (val, formValues) => {
+            const map = (val as Record<string, string>) ?? {};
+            const setupMap =
+              (formValues.roomSetupByRoom as Record<string, string>) ?? {};
+            for (const room of setupRooms) {
+              const cfg = getServiceSectionConfig(room, "setup")!;
+              const resourceId = getServiceResourceId(room);
+              const selectedValue =
+                setupMap[resourceId] ?? cfg.defaultValue ?? "";
+              const selectedOption = cfg.options?.find(
+                (o) => o.value === selectedValue,
+              );
+              if (!selectedOption?.requiresChartField) continue;
+              const v = map[resourceId] ?? "";
+              if (!CHARTFIELD_REGEX.test(v)) {
+                return CHARTFIELD_PATTERN_MESSAGE;
+              }
+            }
+            return true;
+          },
+        }}
+        render={() => null}
+      />
+
+      <Controller
+        name="chartFieldForFurnishingsByRoom"
+        control={control}
+        shouldUnregister
+        rules={{
+          validate: (val, formValues) => {
+            const map = (val as Record<string, string>) ?? {};
+            const furnMap =
+              (formValues.furnishingsByRoom as Record<string, string>) ?? {};
+            for (const room of furnishingsRooms) {
+              const cfg = getResourceServicesConfig(room).furnishings;
+              if (!cfg?.chartFieldWhenYes) continue;
+              const resourceId = getServiceResourceId(room);
+              if (furnMap[resourceId] !== "yes") continue;
+              const v = map[resourceId] ?? "";
+              if (!CHARTFIELD_REGEX.test(v)) {
+                return CHARTFIELD_PATTERN_MESSAGE;
+              }
+            }
+            return true;
+          },
+        }}
+        render={() => null}
+      />
 
       {furnishingsRooms.map((room) => {
         const cfg = getResourceServicesConfig(room).furnishings;
@@ -317,50 +378,41 @@ export default function BookingFormResourceServices({
                 <Checkbox
                   checked={isYes}
                   onChange={(e) => {
+                    const checked = e.target.checked;
                     setValue("furnishingsByRoom", {
                       ...furnMap,
-                      [resourceId]: e.target.checked ? "yes" : "",
+                      [resourceId]: checked ? "yes" : "",
                     });
+                    trigger("chartFieldForFurnishingsByRoom");
                   }}
                 />
               }
             />
             {cfg.chartFieldWhenYes && isYes && (
-              <Controller
-                name="chartFieldForFurnishingsByRoom"
-                control={control}
-                rules={{
-                  validate: (val) => {
-                    const map = (val as Record<string, string>) ?? {};
-                    const v = map[resourceId] ?? "";
-                    if (!CHARTFIELD_REGEX.test(v)) {
-                      return CHARTFIELD_PATTERN_MESSAGE;
-                    }
-                    return true;
-                  },
-                }}
-                render={({ field }) => (
-                  <>
-                    <Label>ChartField for Additional Event Furniture *</Label>
-                    <input
-                      style={{
-                        width: "100%",
-                        padding: "8px",
-                        marginBottom: 16,
-                        border: "1px solid #ccc",
-                        borderRadius: 4,
-                      }}
-                      value={chartFurn[resourceId] ?? ""}
-                      onChange={(e) => {
-                        field.onChange({
-                          ...((field.value as Record<string, string>) ?? {}),
-                          [resourceId]: e.target.value,
-                        });
-                      }}
-                    />
-                  </>
-                )}
-              />
+              <>
+                <Label>ChartField for Additional Event Furniture *</Label>
+                <input
+                  style={{
+                    width: "100%",
+                    padding: "8px",
+                    marginBottom: 16,
+                    border: "1px solid #ccc",
+                    borderRadius: 4,
+                  }}
+                  value={chartFurn[resourceId] ?? ""}
+                  onChange={(e) => {
+                    setValue(
+                      "chartFieldForFurnishingsByRoom",
+                      {
+                        ...chartFurn,
+                        [resourceId]: e.target.value,
+                      },
+                      { shouldValidate: true },
+                    );
+                  }}
+                  onBlur={() => trigger("chartFieldForFurnishingsByRoom")}
+                />
+              </>
             )}
           </Subsection>
         );

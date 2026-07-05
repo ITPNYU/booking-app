@@ -303,11 +303,20 @@ export default function FormInput({
   const cateringValue = watch("catering");
   const cleaningValue = watch("cleaningService");
 
+  const cateringRequiresCleaning = useMemo(
+    () =>
+      selectedRooms.some(
+        (room) =>
+          getResourceServicesConfig(room).catering?.forceCleaning === true,
+      ),
+    [selectedRooms],
+  );
+
   const cleaningWasAutoSet = useRef(false);
   const autoCleaningValueRef = useRef<string | undefined>(undefined);
 
   useEffect(() => {
-    if (cateringValue === "yes") {
+    if (cateringValue === "yes" && cateringRequiresCleaning) {
       if (cleaningValue !== "yes") {
         setValue("cleaningService", "yes", { shouldValidate: true });
         cleaningWasAutoSet.current = true;
@@ -318,7 +327,7 @@ export default function FormInput({
       cleaningWasAutoSet.current = false;
       autoCleaningValueRef.current = "";
     }
-  }, [cateringValue, cleaningValue, setValue]);
+  }, [cateringValue, cleaningValue, setValue, cateringRequiresCleaning]);
 
   const hireSecurityValue = watch("hireSecurity");
   // Track if hireSecurity was auto-set by attendance logic
