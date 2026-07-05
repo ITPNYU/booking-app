@@ -566,6 +566,9 @@ export async function executeXStateTransition(
       if (typeof servicesApproved.setup === "boolean") {
         firestoreUpdates.setupServiceApproved = servicesApproved.setup;
       }
+      if (typeof servicesApproved.auxiliary === "boolean") {
+        firestoreUpdates.auxiliaryServiceApproved = servicesApproved.auxiliary;
+      }
 
       console.log(
         `🔄 UPDATING INDIVIDUAL SERVICE FIELDS [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
@@ -578,6 +581,7 @@ export async function executeXStateTransition(
             cleaningServiceApproved: firestoreUpdates.cleaningServiceApproved,
             securityServiceApproved: firestoreUpdates.securityServiceApproved,
             setupServiceApproved: firestoreUpdates.setupServiceApproved,
+            auxiliaryServiceApproved: firestoreUpdates.auxiliaryServiceApproved,
           },
         },
       );

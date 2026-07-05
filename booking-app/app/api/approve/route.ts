@@ -27,6 +27,7 @@ const SERVICE_APPROVED_FIELDS: Record<string, string> = {
   cleaning: "cleaningServiceApproved",
   security: "securityServiceApproved",
   setup: "setupServiceApproved",
+  auxiliary: "auxiliaryServiceApproved",
 };
 
 /**

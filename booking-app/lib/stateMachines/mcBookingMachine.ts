@@ -30,6 +30,7 @@ const SERVICE_CONFIGS = [
   { name: "Cleaning",  contextKey: "cleaning",  requestGuard: "cleanRequested",    approvedGuard: "cleanApproved",    approveEvent: "approveCleaning",  declineEvent: "declineCleaning",  closeoutEvent: "closeoutCleaning",  approveAction: "approveCleaningService",  declineAction: "declineCleaningService" },
   { name: "Security",  contextKey: "security",  requestGuard: "securityRequested", approvedGuard: "securityApproved", approveEvent: "approveSecurity",  declineEvent: "declineSecurity",  closeoutEvent: "closeoutSecurity",  approveAction: "approveSecurityService",  declineAction: "declineSecurityService" },
   { name: "Equipment", contextKey: "equipment", requestGuard: "equipRequested",    approvedGuard: "equipApproved",    approveEvent: "approveEquipment", declineEvent: "declineEquipment", closeoutEvent: "closeoutEquipment", approveAction: "approveEquipmentService", declineAction: "declineEquipmentService" },
+  { name: "Auxiliary", contextKey: "auxiliary", requestGuard: "auxiliaryRequested", approvedGuard: "auxiliaryApproved", approveEvent: "approveAuxiliary", declineEvent: "declineAuxiliary", closeoutEvent: "closeoutAuxiliary", approveAction: "approveAuxiliaryService", declineAction: "declineAuxiliaryService" },
 ] as const satisfies readonly ServiceConfig[];
 
 // Derived event union — single source of truth is SERVICE_CONFIGS above.
@@ -200,6 +201,7 @@ interface MediaCommonsBookingContext {
     cleaning?: boolean;
     security?: boolean;
     setup?: boolean;
+    auxiliary?: boolean;
   };
   servicesApproved?: {
     staff?: boolean;
@@ -208,6 +210,7 @@ interface MediaCommonsBookingContext {
     cleaning?: boolean;
     security?: boolean;
     setup?: boolean;
+    auxiliary?: boolean;
   };
   // Flag to indicate this XState was created from existing booking without prior xstateData
   _restoredFromStatus?: boolean;
@@ -562,6 +565,7 @@ export const mcBookingMachine = setup({
           catering: context.servicesRequested.catering || false,
           cleaning: context.servicesRequested.cleaning || false,
           security: context.servicesRequested.security || false,
+          auxiliary: context.servicesRequested.auxiliary || false,
         }
         : undefined;
 

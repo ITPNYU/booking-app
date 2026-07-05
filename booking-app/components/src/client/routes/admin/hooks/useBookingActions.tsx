@@ -169,6 +169,9 @@ export default function useBookingActions({
                 data.securityServiceApproved,
               setup:
                 context.servicesApproved?.setup ?? data.setupServiceApproved,
+              auxiliary:
+                context.servicesApproved?.auxiliary ??
+                data.auxiliaryServiceApproved,
             });
 
             setServicesClosedOut({
@@ -194,6 +197,10 @@ export default function useBookingActions({
               setup:
                 closeoutContext.setup === true ||
                 serviceCloseoutStates["Setup Closeout"] === "Setup Closedout",
+              auxiliary:
+                closeoutContext.auxiliary === true ||
+                serviceCloseoutStates["Auxiliary Closeout"] ===
+                "Auxiliary Closedout",
             });
           } else {
             // Fallback to individual service approval fields if XState data is not available
@@ -205,6 +212,7 @@ export default function useBookingActions({
               cleaning: data.cleaningServiceApproved,
               security: data.securityServiceApproved,
               setup: data.setupServiceApproved,
+              auxiliary: data.auxiliaryServiceApproved,
             });
             setServicesClosedOut({}); // Reset closeout status if no XState data
           }

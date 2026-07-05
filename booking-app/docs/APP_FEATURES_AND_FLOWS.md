@@ -125,7 +125,7 @@ Step 4: Booking Details
          │    • Room Setup + details
          │    • Equipment Services
          │    • Staffing Services (audio tech, lighting, etc.)
-         │    • Catering (NYU Plated or Outside Catering)
+         │    • Catering (chartfield required when enabled)
          │    • Cleaning (CBS Cleaning)
          │    • Hire Security
          │  Sponsor info (optional)
@@ -375,18 +375,19 @@ VIP bookings that include service requests are routed to the **Services Request*
 
 ## 6. Service Management
 
-Media Commons supports six service types that are managed independently alongside the main booking approval. Each requested service goes through its own lifecycle.
+Media Commons supports seven service types that are managed independently alongside the main booking approval. Each requested service goes through its own lifecycle.
 
 ### Available Services
 
 | Service | Options |
 |---------|---------|
-| **Staffing** | Audio technician (Garage 103), Audio technician (Audio Lab 230), Lighting technician (Garage 103), DMX lights (Rooms 220-224), Campus Media Services (Rooms 202/1201) |
+| **Staffing** | Audio technician (Garage 103), Audio technician (SAI Studio 230), Lighting technician (Garage 103), DMX lights (Rooms 220-224), Campus Media Services (Rooms 202/1201) |
 | **Equipment** | Equipment Checkout |
-| **Catering** | NYU Plated, Outside Catering |
-| **Cleaning** | CBS Cleaning Services |
-| **Security** | Hire Security |
-| **Room Setup** | Custom setup with details |
+| **Catering** | Yes/no toggle with required chartfield (no Outside Catering / NYU Plated dropdown) |
+| **Cleaning** | CBS Cleaning Services (auto-forced when catering is requested) |
+| **Security** | Hire Security; Garage 103 uses main vs Willoughby entrance choice |
+| **Room Setup** | Per-room layout options from tenant `resource.services` config |
+| **Auxiliary** | Breakout/lounge/foyer (1201), student lounge (202), green room (103) |
 
 Some services require a **chart field** (billing code) when selected:
 - Catering, Cleaning, Security, and Room Setup each have a chart field input

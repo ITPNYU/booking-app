@@ -1,7 +1,4 @@
-import {
-  generateDefaultSchema,
-  type SchemaContextType,
-} from "../client/routes/components/SchemaProvider";
+import { applyMcResourceServices } from "@/lib/tenant/mcResourceServices";
 import { TENANTS } from "../constants/tenants";
 
 const baseMediaCommonsSchema: SchemaContextType = {
@@ -78,7 +75,7 @@ const baseMediaCommonsSchema: SchemaContextType = {
     },
   },
   resources: [
-    {
+    applyMcResourceServices({
       capacity: 30,
       name: "Lecture Hall 202",
       resourceId: "202",
@@ -87,7 +84,7 @@ const baseMediaCommonsSchema: SchemaContextType = {
       training: { required: false, formId: "", infoUrl: "" },
       isWalkIn: false,
       isWalkInCanBookTwo: false,
-      services: [],
+      services: ["equipment", "catering", "cleaning", "security", "setup"],
       minHour: {
         student: 1,
         faculty: 1,
@@ -110,8 +107,8 @@ const baseMediaCommonsSchema: SchemaContextType = {
         facultyVIP: 12,
         adminVIP: 16,
       },
-    },
-    {
+    } as any),
+    applyMcResourceServices({
       capacity: 20,
       name: "Studio 220",
       resourceId: "220",
@@ -120,7 +117,7 @@ const baseMediaCommonsSchema: SchemaContextType = {
       training: { required: false, formId: "", infoUrl: "" },
       isWalkIn: true,
       isWalkInCanBookTwo: false,
-      services: [],
+      services: ["equipment", "staffing"],
       minHour: {
         student: 1,
         faculty: 1,
@@ -143,8 +140,8 @@ const baseMediaCommonsSchema: SchemaContextType = {
         facultyVIP: 10,
         adminVIP: 14,
       },
-    },
-    {
+    } as any),
+    applyMcResourceServices({
       capacity: 15,
       name: "Training Room 230",
       resourceId: "230",
@@ -153,7 +150,7 @@ const baseMediaCommonsSchema: SchemaContextType = {
       training: { required: true, formId: "https://docs.google.com/forms/d/e/mock/viewform", infoUrl: "" },
       isWalkIn: false,
       isWalkInCanBookTwo: false,
-      services: [],
+      services: ["equipment", "catering", "cleaning", "security"],
       minHour: {
         student: 1,
         faculty: 1,
@@ -176,7 +173,7 @@ const baseMediaCommonsSchema: SchemaContextType = {
         facultyVIP: 12,
         adminVIP: 16,
       },
-    },
+    } as any),
   ],
   origins: {
     VIP: true,

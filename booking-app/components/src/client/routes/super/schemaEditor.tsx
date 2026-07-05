@@ -599,21 +599,38 @@ export function ResourceEditor({
         />
 
         <TextField
-          label="Services (comma-separated)"
-          value={Array.isArray(resource.services) ? resource.services.join(", ") : ""}
-          onChange={(e) =>
-            set(
-              "services",
-              e.target.value
-                .split(",")
-                .map((s) => s.trim())
-                .filter(Boolean),
-            )
+          label="Services config (JSON)"
+          value={
+            Array.isArray(resource.services)
+              ? resource.services.join(", ")
+              : JSON.stringify(resource.services ?? {})
           }
+          onChange={(e) => {
+            const raw = e.target.value.trim();
+            if (!raw) {
+              set("services", {});
+              return;
+            }
+            if (!raw.startsWith("{")) {
+              set(
+                "services",
+                raw
+                  .split(",")
+                  .map((s) => s.trim())
+                  .filter(Boolean),
+              );
+              return;
+            }
+            try {
+              set("services", JSON.parse(raw));
+            } catch {
+              // keep editing until valid JSON
+            }
+          }}
           fullWidth
           size="small"
           sx={{ mb: 2 }}
-          helperText="e.g. equipment, staffing, setup, security, cleaning, catering"
+          helperText="Legacy: comma-separated keys. New: JSON ResourceServicesConfig object."
         />
 
         <TextField

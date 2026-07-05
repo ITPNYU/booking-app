@@ -220,11 +220,13 @@ export const bookingContentsToDescription = async (
   }
 
   // Only show catering service if it's not "no" or "No"
-  const cateringService =
+  const cateringValue =
     getProperty(bookingContents, "cateringService") ||
     getProperty(bookingContents, "catering");
-  if (cateringService && cateringService !== "no" && cateringService !== "No") {
-    description += listItem("Catering Service", cateringService);
+  if (cateringValue && cateringValue !== "no" && cateringValue !== "No") {
+    const cateringLabel =
+      cateringValue === "yes" ? "Yes" : cateringValue;
+    description += listItem("Catering Service", cateringLabel);
     const cateringChartField = getProperty(
       bookingContents,
       "chartFieldForCatering",

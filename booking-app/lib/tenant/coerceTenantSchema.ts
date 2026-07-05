@@ -4,6 +4,7 @@ import type {
   SchemaContextType,
 } from "@/components/src/client/routes/components/schemaTypes";
 import { generateDefaultSchema } from "@/components/src/client/routes/components/schemaTypes";
+import { normalizeResourceServices } from "./migrateResourceServices";
 
 function normalizeResourceId(value: unknown, field: string): string {
   if (
@@ -49,6 +50,10 @@ function coerceResource(
     ...resource,
     resourceId: canonicalId,
   } as Resource;
+}
+
+function normalizeCoercedResource(resource: Resource): Resource {
+  return normalizeResourceServices(resource);
 }
 
 function coerceResources(
@@ -123,7 +128,7 @@ export function coerceTenantSchema(
     resources: Array.isArray(raw.resources)
       ? coerceResources(
           raw.resources as Array<Resource | Record<string, unknown>>,
-        )
+        ).map(normalizeCoercedResource)
       : base.resources,
     attestations: Array.isArray(raw.attestations)
       ? (raw.attestations as SchemaContextType["attestations"])

@@ -679,8 +679,12 @@ export default function MoreInfoModal({
                         <LabelCell>Catering Service</LabelCell>
                         <StackedTableCell
                           topText={
-                            booking.cateringService ||
-                            (booking.catering === "yes" ? "Yes" : "")
+                            booking.cateringService &&
+                            booking.cateringService !== "yes"
+                              ? booking.cateringService
+                              : booking.catering === "yes"
+                                ? "Yes"
+                                : ""
                           }
                           bottomText={booking.chartFieldForCatering || ""}
                         />
@@ -699,7 +703,13 @@ export default function MoreInfoModal({
                       <LabelCell>Security</LabelCell>
                       <StackedTableCell
                         topText={
-                          booking.hireSecurity === "yes" ? "Yes" : "none"
+                          booking.hireSecurity === "yes"
+                            ? "Yes"
+                            : booking.hireSecurity === "willoughby"
+                              ? "Willoughby entrance"
+                              : booking.hireSecurity === "main_entrance"
+                                ? "Main entrance"
+                                : booking.hireSecurity || "none"
                         }
                         bottomText={booking.chartFieldForSecurity || "none"}
                       />

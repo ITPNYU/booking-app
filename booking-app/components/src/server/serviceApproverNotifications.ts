@@ -40,6 +40,11 @@ const SERVICE_APPROVER_CONFIG = {
     subjectStatus: "SECURITY REQUESTED",
     displayName: "security",
   },
+  auxiliary: {
+    flagField: "isAuxiliary",
+    subjectStatus: "AUXILIARY SPACE REQUESTED",
+    displayName: "auxiliary space",
+  },
 } as const;
 
 export const isServicesRequestState = (newState: any): boolean =>

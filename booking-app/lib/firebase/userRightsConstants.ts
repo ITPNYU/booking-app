@@ -8,6 +8,7 @@ export const USER_RIGHT_FLAG_FIELDS = [
   "isCatering",
   "isCleaning",
   "isSecurity",
+  "isAuxiliary",
 ] as const;
 
 export type UserRightFlagField = (typeof USER_RIGHT_FLAG_FIELDS)[number];

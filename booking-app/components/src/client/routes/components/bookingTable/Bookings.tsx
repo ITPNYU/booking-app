@@ -43,6 +43,7 @@ import getBookingStatus from "../../hooks/getBookingStatus";
 import Loading from "../Loading";
 import { useAuth } from "../AuthProvider";
 import { DatabaseContext } from "../Provider";
+import { deriveFormServicesFlags } from "../../../../utils/resourceServicesUtils";
 import { useTenantSchema } from "../SchemaProvider";
 import BookMoreButton from "./BookMoreButton";
 import BookingTableFilters from "./BookingTableFilters";
@@ -77,15 +78,23 @@ export const Bookings: React.FC<BookingsProps> = ({
   const {
     resourceName,
     form,
+    resources,
     interimHighlightThresholdHours = 18,
   } = useTenantSchema();
-  const {
-    showSetup,
-    showEquipment,
-    showStaffing,
-    showCatering,
-    showSecurity: showHireSecurity,
-  } = form.services;
+  const derivedServiceFlags = useMemo(
+    () => deriveFormServicesFlags(resources ?? []),
+    [resources],
+  );
+  const showSetup =
+    derivedServiceFlags.showSetup || form.services.showSetup;
+  const showEquipment =
+    derivedServiceFlags.showEquipment || form.services.showEquipment;
+  const showStaffing =
+    derivedServiceFlags.showStaffing || form.services.showStaffing;
+  const showCatering =
+    derivedServiceFlags.showCatering || form.services.showCatering;
+  const showHireSecurity =
+    derivedServiceFlags.showSecurity || form.services.showSecurity;
   const hasServices =
     showSetup ||
     showEquipment ||

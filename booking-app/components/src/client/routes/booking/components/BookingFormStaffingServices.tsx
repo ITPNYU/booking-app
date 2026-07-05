@@ -12,6 +12,10 @@ import React, { useContext, useMemo } from "react";
 import styled from "@emotion/styled";
 import { FormContextLevel, Inputs, StaffingServices } from "../../../../types";
 import { BookingContext } from "../bookingProvider";
+import {
+  getResourceServicesConfig,
+  resourceHasService,
+} from "../../../../utils/resourceServicesUtils";
 
 const Label = styled.label`
   font-weight: 500;
@@ -20,12 +24,17 @@ const Label = styled.label`
   margin-bottom: 0.5rem;
 `;
 
+type StaffingSectionView = {
+  name: string;
+  services: Array<{ value: string; label: string }>;
+};
+
 interface Props {
   id: keyof Inputs;
   control: Control<Inputs, any>;
   trigger: UseFormTrigger<Inputs>;
   showStaffingServices: boolean;
-  setShowStaffingServices: any;
+  setShowStaffingServices: (value: boolean) => void;
   formContext: FormContextLevel;
 }
 
@@ -40,35 +49,72 @@ export default function BookingFormStaffingServices(props: Props) {
   } = props;
   const { selectedRooms } = useContext(BookingContext);
   const roomIds = selectedRooms.map((room) => room.roomId);
+
   const showStaffing = selectedRooms.some(
-    (room) => room.staffingServices && room.staffingServices.length > 0,
+    (room) =>
+      resourceHasService(room, "staffing") ||
+      (room.staffingServices && room.staffingServices.length > 0),
   );
 
-  // Previously limited for walk-in/modification; restriction removed so full options show in all contexts
+  const { staffingSections, flatServices } = useMemo(() => {
+    const sections: StaffingSectionView[] = [];
+    const flat: Array<{ value: string; label: string }> = [];
 
-  const { staffingSections, staffingServices } = useMemo(() => {
-    let sections: { name: string; indexes: number[] }[] = [];
-    const services: StaffingServices[] = [];
-
-    // Check for specific room services
     selectedRooms.forEach((room) => {
-      // Use room-specific staffing services if available
-      if (room.staffingServices && room.staffingServices.length > 0) {
-        room.staffingServices.forEach((serviceKey: any) => {
-          if (serviceKey && !services.includes(serviceKey)) {
-            services.push(serviceKey);
+      const staffingConfig = getResourceServicesConfig(room).staffing;
+      if (staffingConfig?.sections) {
+        Object.values(staffingConfig.sections).forEach((section) => {
+          if (section.services?.length) {
+            sections.push({
+              name: section.name,
+              services: section.services.map((s) => ({
+                value: s.value,
+                label: s.label,
+              })),
+            });
+          }
+        });
+      } else if (staffingConfig?.staffingOptions?.length) {
+        staffingConfig.staffingOptions.forEach((s) => {
+          if (!flat.some((f) => f.value === s.value)) {
+            flat.push({ value: s.value, label: s.label });
+          }
+        });
+      } else if (room.staffingSections && room.staffingSections.length > 0) {
+        const legacyServices = (room.staffingServices ?? []) as string[];
+        room.staffingSections.forEach((section) => {
+          sections.push({
+            name: section.name,
+            services: section.indexes
+              .map((index) => legacyServices[index])
+              .filter(Boolean)
+              .map((value) => ({
+                value,
+                label:
+                  (StaffingServices as Record<string, string>)[value] ?? value,
+              })),
+          });
+        });
+      } else if (room.staffingServices?.length) {
+        room.staffingServices.forEach((serviceKey: string) => {
+          if (!flat.some((f) => f.value === serviceKey)) {
+            flat.push({
+              value: serviceKey,
+              label:
+                (StaffingServices as Record<string, string>)[serviceKey] ??
+                serviceKey,
+            });
           }
         });
       }
-
-      // Check for staffing sections
-      if (room.staffingSections && room.staffingSections.length > 0) {
-        sections = room.staffingSections;
-      }
     });
 
-    return { staffingSections: sections, staffingServices: services };
-  }, [roomIds, selectedRooms, showStaffing]);
+    return { staffingSections: sections, flatServices: flat };
+  }, [roomIds, selectedRooms]);
+
+  const staffingLabel =
+    getResourceServicesConfig(selectedRooms[0] ?? { services: {} }).staffing
+      ?.label ?? "Staffing";
 
   const toggle = (
     <Controller
@@ -83,10 +129,8 @@ export default function BookingFormStaffingServices(props: Props) {
               onChange={(e) => {
                 setShowStaffingServices(e.target.checked);
                 if (!e.target.checked) {
-                  // de-select boxes if switch says "no staffing services"
                   field.onChange("");
                 }
-
                 trigger(id);
               }}
               onBlur={() => trigger(id)}
@@ -94,17 +138,16 @@ export default function BookingFormStaffingServices(props: Props) {
           }
         />
       )}
-    ></Controller>
+    />
   );
 
-  // If staffing is disabled at the schema level, hide the entire control
   if (!showStaffing) {
     return null;
   }
 
   return (
     <div style={{ marginBottom: 8 }}>
-      <Label htmlFor={id}>Staffing?</Label>
+      <Label htmlFor={id}>{staffingLabel}?</Label>
       <p style={{ fontSize: "0.75rem" }}>
         Request audio technicians, lighting technicians, and technical support.
       </p>
@@ -116,10 +159,10 @@ export default function BookingFormStaffingServices(props: Props) {
           render={({ field }) => (
             <div>
               {staffingSections.length > 0 ? (
-                // Render sectioned staffing services with radio buttons for each service
                 <div>
                   {staffingSections.map((section, sectionIndex) => {
                     const selectedServices = field.value?.split(",") || [];
+                    const sectionValues = section.services.map((s) => s.value);
 
                     return (
                       <div key={sectionIndex} style={{ marginBottom: 24 }}>
@@ -138,22 +181,13 @@ export default function BookingFormStaffingServices(props: Props) {
                           <RadioGroup
                             value={
                               selectedServices.find((service) =>
-                                section.indexes.some(
-                                  (index) =>
-                                    staffingServices[index] === service,
-                                ),
+                                sectionValues.includes(service),
                               ) || ""
                             }
                             onChange={(e) => {
-                              // Remove any previously selected services from this section
                               const otherServices = selectedServices.filter(
-                                (service) =>
-                                  !section.indexes.some(
-                                    (index) =>
-                                      staffingServices[index] === service,
-                                  ),
+                                (service) => !sectionValues.includes(service),
                               );
-                              // Add the newly selected service
                               const newServices = e.target.value
                                 ? [...otherServices, e.target.value]
                                 : otherServices;
@@ -162,22 +196,19 @@ export default function BookingFormStaffingServices(props: Props) {
                             }}
                             onBlur={() => trigger(id)}
                           >
-                            {section.indexes.map((serviceIndex) => {
-                              const service = staffingServices[serviceIndex];
-                              return service ? (
-                                <FormControlLabel
-                                  key={serviceIndex}
-                                  value={service}
-                                  control={<Radio size="small" />}
-                                  label={service}
-                                  sx={{
-                                    display: "block",
-                                    fontSize: "0.75rem",
-                                    marginBottom: 0.5,
-                                  }}
-                                />
-                              ) : null;
-                            })}
+                            {section.services.map((service) => (
+                              <FormControlLabel
+                                key={service.value}
+                                value={service.value}
+                                control={<Radio size="small" />}
+                                label={service.label}
+                                sx={{
+                                  display: "block",
+                                  fontSize: "0.75rem",
+                                  marginBottom: 0.5,
+                                }}
+                              />
+                            ))}
                           </RadioGroup>
                         </FormControl>
                       </div>
@@ -185,7 +216,6 @@ export default function BookingFormStaffingServices(props: Props) {
                   })}
                 </div>
               ) : (
-                // Render radio buttons for non-sectioned services (single select for staffing)
                 <FormControl component="fieldset">
                   <RadioGroup
                     value={field.value || ""}
@@ -195,12 +225,12 @@ export default function BookingFormStaffingServices(props: Props) {
                     }}
                     onBlur={() => trigger(id)}
                   >
-                    {staffingServices.map((service) => (
+                    {flatServices.map((service) => (
                       <FormControlLabel
-                        key={service}
-                        value={service}
+                        key={service.value}
+                        value={service.value}
                         control={<Radio size="small" />}
-                        label={service}
+                        label={service.label}
                         sx={{
                           display: "block",
                           fontSize: "0.75rem",
@@ -213,7 +243,7 @@ export default function BookingFormStaffingServices(props: Props) {
               )}
             </div>
           )}
-        ></Controller>
+        />
       )}
     </div>
   );

@@ -19,6 +19,67 @@ export type StaffingSection = {
   indexes: number[];
 };
 
+export type ResourceFormSelectOption = {
+  value: string;
+  label: string;
+  requiresChartField?: boolean;
+  defaultValue?: boolean;
+};
+
+export type ResourceFormSectionConfig = {
+  mode: "toggle" | "select" | "static" | "hidden";
+  label?: string;
+  descriptionHtml?: string;
+  options?: ResourceFormSelectOption[];
+  defaultValue?: string;
+  required?: boolean;
+  hideForUser?: boolean;
+  hideForVIP?: boolean;
+  hideForWalkIn?: boolean;
+};
+
+export type ResourceStaffingServiceOption = {
+  value: string;
+  label: string;
+  defaultValue?: boolean;
+};
+
+export type ResourceStaffingSectionConfig = {
+  name: string;
+  services: ResourceStaffingServiceOption[];
+};
+
+export type ResourceStaffingConfig = ResourceFormSectionConfig & {
+  sections?: Record<string, ResourceStaffingSectionConfig>;
+  staffingOptions?: ResourceStaffingServiceOption[];
+};
+
+export type ResourceAuxiliarySpaceConfig = {
+  enabled: boolean;
+  label?: string;
+  descriptionHtml?: string;
+};
+
+export type ResourceServicesConfig = {
+  setup?: ResourceFormSectionConfig;
+  staffing?: ResourceStaffingConfig;
+  furnishings?: ResourceFormSectionConfig & { chartFieldWhenYes?: boolean };
+  equipment?: ResourceFormSectionConfig & {
+    showDetailsField?: boolean;
+    detailsLabel?: string;
+    detailsDescriptionHtml?: string;
+  };
+  catering?: ResourceFormSectionConfig & {
+    forceCleaning?: boolean;
+    studentLoungeCheckbox?: boolean;
+  };
+  cleaning?: ResourceFormSectionConfig;
+  security?: ResourceFormSectionConfig;
+  auxiliarySpace?: ResourceAuxiliarySpaceConfig;
+};
+
+export type ResourceServiceKey = keyof ResourceServicesConfig;
+
 export type ResourceTraining = {
   required?: boolean;
   formId?: string;
@@ -43,7 +104,8 @@ export type Resource = {
   training?: ResourceTraining;
   isWalkIn: boolean;
   isWalkInCanBookTwo: boolean;
-  services: string[];
+  /** Consolidated service config; legacy string[] coerced on read */
+  services: ResourceServicesConfig | string[];
   /**
    * Limit how many requests a user can make per period for this resource.
    * Convention: `-1` (or missing) means “unlimited”.
@@ -70,6 +132,7 @@ export type Resource = {
       catering: boolean;
       cleaning: boolean;
       security: boolean;
+      auxiliary?: boolean;
     };
   };
   maxHour?: {
@@ -256,7 +319,7 @@ export const defaultResource: Resource = {
   },
   isWalkIn: false,
   isWalkInCanBookTwo: false,
-  services: [],
+  services: {},
   requestLimits: {
     perDay: { admin: -1, faculty: -1, student: -1 },
     perWeek: { admin: -1, faculty: -1, student: -1 },
@@ -274,6 +337,7 @@ export const defaultResource: Resource = {
       catering: false,
       cleaning: false,
       security: false,
+      auxiliary: false,
     },
   },
   maxHour: {

@@ -39,7 +39,13 @@ import { BookingContext } from "../bookingProvider";
 import { mapAffiliationToRole } from "../formPages/UserRolePage";
 import useCheckAutoApproval from "../hooks/useCheckAutoApproval";
 import useSubmitBooking from "../hooks/useSubmitBooking";
+import {
+  anyRoomHasService,
+  getResourceServicesConfig,
+  getServiceSectionConfig,
+} from "../../../../utils/resourceServicesUtils";
 import BookingFormEquipmentServices from "./BookingFormEquipmentServices";
+import BookingFormResourceServices from "./BookingFormResourceServices";
 import BookingFormStaffingServices from "./BookingFormStaffingServices";
 import BookingSelection from "./BookingSelection";
 
@@ -129,27 +135,27 @@ export default function FormInput({
 
   // Determine which services to show based on selected rooms and schema resources
   const showEquipment = useMemo(
-    () => selectedRooms.some((room) => room.services?.includes("equipment")),
+    () => anyRoomHasService(selectedRooms, "equipment"),
     [selectedRooms],
   );
 
   const showStaffing = useMemo(
-    () => selectedRooms.some((room) => room.services?.includes("staffing")),
+    () => anyRoomHasService(selectedRooms, "staffing"),
     [selectedRooms],
   );
 
   const showCatering = useMemo(
-    () => selectedRooms.some((room) => room.services?.includes("catering")),
+    () => anyRoomHasService(selectedRooms, "catering"),
     [selectedRooms],
   );
 
   const showHireSecurity = useMemo(
-    () => selectedRooms.some((room) => room.services?.includes("security")),
+    () => anyRoomHasService(selectedRooms, "security"),
     [selectedRooms],
   );
 
   const showCleaning = useMemo(
-    () => selectedRooms.some((room) => room.services?.includes("cleaning")),
+    () => anyRoomHasService(selectedRooms, "cleaning"),
     [selectedRooms],
   );
 
@@ -179,6 +185,14 @@ export default function FormInput({
       chartFieldForCleaning: "",
       chartFieldForSecurity: "",
       chartFieldForRoomSetup: "",
+      roomSetupByRoom: {},
+      setupDetailsByRoom: {},
+      chartFieldForRoomSetupByRoom: {},
+      furnishingsByRoom: {},
+      chartFieldForFurnishingsByRoom: {},
+      studentLoungeByRoom: {},
+      auxiliarySpaceByRoom: {},
+      auxiliarySpaceRequested: false,
       hireSecurity: "",
       attendeeAffiliation: "",
       roomSetup: "",
@@ -245,12 +259,24 @@ export default function FormInput({
   const expectedAttendanceValue = watch("expectedAttendance");
   const isLargeEvent = parseInt(expectedAttendanceValue || "0") >= 75;
   const cateringValue = watch("catering");
-  const cateringServiceValue = watch("cateringService");
+  const cleaningValue = watch("cleaningService");
 
-  const shouldShowCateringChartField =
-    cateringValue === "yes" &&
-    !!cateringServiceValue &&
-    cateringServiceValue !== "Outside Catering";
+  const cleaningWasAutoSet = useRef(false);
+  const autoCleaningValueRef = useRef<string | undefined>(undefined);
+
+  useEffect(() => {
+    if (cateringValue === "yes") {
+      if (cleaningValue !== "yes") {
+        setValue("cleaningService", "yes", { shouldValidate: true });
+        cleaningWasAutoSet.current = true;
+        autoCleaningValueRef.current = "yes";
+      }
+    } else if (cleaningWasAutoSet.current && cleaningValue === "yes") {
+      setValue("cleaningService", "", { shouldValidate: true });
+      cleaningWasAutoSet.current = false;
+      autoCleaningValueRef.current = "";
+    }
+  }, [cateringValue, cleaningValue, setValue]);
 
   const hireSecurityValue = watch("hireSecurity");
   // Track if hireSecurity was auto-set by attendance logic
@@ -332,15 +358,6 @@ export default function FormInput({
   // Add a state to track if we're currently fetching sponsor data
   const [isFetchingSponsor, setIsFetchingSponsor] = useState(false);
 
-  useEffect(() => {
-    if (
-      cateringValue !== "yes" ||
-      cateringServiceValue === "Outside Catering"
-    ) {
-      unregister("chartFieldForCatering");
-      clearErrors("chartFieldForCatering");
-    }
-  }, [cateringServiceValue, cateringValue, unregister, clearErrors]);
 
   // Watch sponsor email field specifically
   const sponsorEmail = watch("sponsorEmail");
@@ -516,14 +533,59 @@ export default function FormInput({
 
   const formatFieldLabel = (label: string) => `${prefix} ${label}`.trim();
 
+  const hasConfigSetup = useMemo(
+    () =>
+      selectedRooms.some(
+        (r) => getServiceSectionConfig(r, "setup")?.mode === "select",
+      ),
+    [selectedRooms],
+  );
+
+  const hasStaticCatering = useMemo(
+    () =>
+      selectedRooms.some(
+        (r) => getServiceSectionConfig(r, "catering")?.mode === "static",
+      ),
+    [selectedRooms],
+  );
+
+  const hasSecuritySelect = useMemo(
+    () =>
+      selectedRooms.some(
+        (r) => getServiceSectionConfig(r, "security")?.mode === "select",
+      ),
+    [selectedRooms],
+  );
+
+  const hasStaticEquipment = useMemo(
+    () =>
+      selectedRooms.some(
+        (r) => getServiceSectionConfig(r, "equipment")?.mode === "static",
+      ),
+    [selectedRooms],
+  );
+
   // Common Services section used by both full form and modification form
   const servicesSection = (
     <Section title={formatSectionTitle("Services")}>
-      {!isWalkIn && showSetup && (
+      <BookingFormResourceServices
+        selectedRooms={selectedRooms}
+        control={control}
+        errors={errors}
+        trigger={trigger}
+        watch={watch}
+        setValue={setValue}
+        isWalkIn={isWalkIn}
+        isVIP={isVIP}
+        formatFieldLabel={formatFieldLabel}
+        cateringValue={cateringValue}
+        hireSecurityValue={hireSecurityValue}
+      />
+      {!isWalkIn && showSetup && !hasConfigSetup && (
         <div style={{ marginBottom: 32 }}>
           <BookingFormSwitch
             id="roomSetup"
-            label="Setup?"
+            label="Room Setup"
             required={false}
             description={
               <p>
@@ -555,7 +617,7 @@ export default function FormInput({
           )}
         </div>
       )}
-      {showEquipment && (
+      {showEquipment && !hasStaticEquipment && (
         <div style={{ marginBottom: 32 }}>
           <BookingFormEquipmentServices
             id="equipmentServices"
@@ -628,7 +690,7 @@ export default function FormInput({
             )}
         </div>
       )}
-      {!isWalkIn && showCatering && (
+      {!isWalkIn && showCatering && !hasStaticCatering && (
         <div style={{ marginBottom: 32 }}>
           <BookingFormSwitch
             id="catering"
@@ -638,26 +700,16 @@ export default function FormInput({
             {...{ control, errors, trigger }}
           />
           {cateringValue === "yes" && (
-            <>
-              <BookingFormDropdown
-                id="cateringService"
-                label="Catering Service"
-                options={["Outside Catering", "NYU Plated"]}
-                {...{ control, errors, trigger }}
-              />
-              {shouldShowCateringChartField && (
-                <BookingFormTextField
-                  id="chartFieldForCatering"
-                  label="ChartField for Catering Services"
-                  required
-                  pattern={{
-                    value: CHARTFIELD_REGEX,
-                    message: CHARTFIELD_PATTERN_MESSAGE,
-                  }}
-                  {...{ control, errors, trigger }}
-                />
-              )}
-            </>
+            <BookingFormTextField
+              id="chartFieldForCatering"
+              label="ChartField for Catering Services"
+              required
+              pattern={{
+                value: CHARTFIELD_REGEX,
+                message: CHARTFIELD_PATTERN_MESSAGE,
+              }}
+              {...{ control, errors, trigger }}
+            />
           )}
         </div>
       )}
@@ -670,6 +722,7 @@ export default function FormInput({
               <p>Select if you need cleaning services for your event.</p>
             }
             required={false}
+            disabled={cateringValue === "yes"}
             {...{ control, errors, trigger }}
           />
           {watch("cleaningService") === "yes" && (
@@ -686,7 +739,7 @@ export default function FormInput({
           )}
         </div>
       )}
-      {!isWalkIn && showHireSecurity && (
+      {!isWalkIn && showHireSecurity && !hasSecuritySelect && (
         <div style={{ marginBottom: 32 }}>
           <BookingFormSwitch
             id="hireSecurity"
