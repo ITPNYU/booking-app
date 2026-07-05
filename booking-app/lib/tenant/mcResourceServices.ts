@@ -297,6 +297,17 @@ export function getMcResourceServices(
 export function applyMcResourceServices(resource: Resource): Resource {
   const mcServices = getMcResourceServices(resource.resourceId);
   if (!mcServices) return resource;
+
+  const { services } = resource;
+  if (
+    services &&
+    typeof services === "object" &&
+    !Array.isArray(services) &&
+    Object.keys(services).length > 0
+  ) {
+    return resource;
+  }
+
   return {
     ...resource,
     services: mcServices,

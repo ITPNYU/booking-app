@@ -71,7 +71,9 @@ export function migrateResourceServices(
     if (staffingSections?.length) {
       staffing.sections = {};
       staffingSections.forEach((section, sectionIndex) => {
-        const sectionKey = section.name.toLowerCase().replace(/\s+/g, "_") || `section_${sectionIndex}`;
+        const baseKey =
+          section.name.toLowerCase().replace(/\s+/g, "_") || "section";
+        const sectionKey = `${sectionIndex}_${baseKey}`;
         staffing.sections![sectionKey] = {
           name: section.name,
           services: section.indexes

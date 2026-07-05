@@ -4,18 +4,24 @@ import type {
   SchemaContextType,
 } from "@/components/src/client/routes/components/schemaTypes";
 import { generateDefaultSchema } from "@/components/src/client/routes/components/schemaTypes";
-import { isMediaCommons } from "@/components/src/utils/tenantUtils";
+import { TENANTS } from "@/components/src/constants/tenants";
 import { applyMcResourceServices } from "./mcResourceServices";
 import { normalizeResourceServices } from "./migrateResourceServices";
+
+function isMcTenantSlug(tenantSlug: string): boolean {
+  return (
+    tenantSlug === TENANTS.MC || tenantSlug === TENANTS.MEDIA_COMMONS
+  );
+}
 
 function applyTenantResourceServices(
   resource: Resource,
   tenantSlug: string,
 ): Resource {
-  const normalized = normalizeResourceServices(resource);
-  return isMediaCommons(tenantSlug)
-    ? applyMcResourceServices(normalized)
-    : normalized;
+  const withMc = isMcTenantSlug(tenantSlug)
+    ? applyMcResourceServices(resource)
+    : resource;
+  return normalizeResourceServices(withMc);
 }
 
 function normalizeResourceId(value: unknown, field: string): string {

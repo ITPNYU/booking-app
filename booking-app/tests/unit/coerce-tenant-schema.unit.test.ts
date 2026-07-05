@@ -71,6 +71,29 @@ describe("coerceTenantSchema — resources", () => {
     expect(coerced.resources[0].services?.catering?.mode).toBe("static");
   });
 
+  it("preserves Firestore object services config for mc tenant", () => {
+    const customServices = {
+      catering: { mode: "toggle" as const, label: "Custom Catering" },
+    };
+    const coerced = coerceTenantSchema(
+      {
+        resources: [
+          {
+            resourceId: "202",
+            name: "Studio",
+            capacity: 12,
+            services: customServices,
+          },
+        ],
+      },
+      "mc",
+    );
+
+    expect(coerced.resources[0].services?.catering?.label).toBe(
+      "Custom Catering",
+    );
+  });
+
   it("keeps a canonical resourceId and removes a matching legacy roomId", () => {
     const coerced = coerceTenantSchema(
       {

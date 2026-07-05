@@ -313,19 +313,16 @@ export default function FormInput({
   );
 
   const cleaningWasAutoSet = useRef(false);
-  const autoCleaningValueRef = useRef<string | undefined>(undefined);
 
   useEffect(() => {
     if (cateringValue === "yes" && cateringRequiresCleaning) {
       if (cleaningValue !== "yes") {
         setValue("cleaningService", "yes", { shouldValidate: true });
         cleaningWasAutoSet.current = true;
-        autoCleaningValueRef.current = "yes";
       }
     } else if (cleaningWasAutoSet.current && cleaningValue === "yes") {
       setValue("cleaningService", "", { shouldValidate: true });
       cleaningWasAutoSet.current = false;
-      autoCleaningValueRef.current = "";
     }
   }, [cateringValue, cleaningValue, setValue, cateringRequiresCleaning]);
 
@@ -741,7 +738,7 @@ export default function FormInput({
               <p>Select if you need cleaning services for your event.</p>
             }
             required={false}
-            disabled={cateringValue === "yes"}
+            disabled={cateringValue === "yes" && cateringRequiresCleaning}
             {...{ control, errors, trigger }}
           />
           {watch("cleaningService") === "yes" && (

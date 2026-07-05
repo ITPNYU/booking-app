@@ -4,6 +4,7 @@ import {
   anyRoomHasVisibleService,
   getRoomsWithVisibleService,
 } from "@/components/src/utils/resourceServicesUtils";
+import { applyMcResourceServices } from "@/lib/tenant/mcResourceServices";
 import { migrateResourceServices } from "@/lib/tenant/migrateResourceServices";
 
 describe("getMediaCommonsServices", () => {
@@ -52,6 +53,31 @@ describe("resource service visibility", () => {
   });
 });
 
+describe("applyMcResourceServices", () => {
+  it("applies MC defaults for legacy resources without object config", () => {
+    const result = applyMcResourceServices({
+      resourceId: "202",
+      name: "202",
+      capacity: 50,
+      services: ["catering"],
+    });
+    expect(result.services?.catering?.mode).toBe("static");
+  });
+
+  it("does not overwrite an existing object services config", () => {
+    const custom = {
+      catering: { mode: "toggle" as const, label: "Custom Catering" },
+    };
+    const result = applyMcResourceServices({
+      resourceId: "202",
+      name: "202",
+      capacity: 50,
+      services: custom,
+    });
+    expect(result.services).toEqual(custom);
+  });
+});
+
 describe("migrateResourceServices", () => {
   it("converts legacy services array to object stubs", () => {
     const result = migrateResourceServices({
@@ -71,10 +97,10 @@ describe("migrateResourceServices", () => {
         { name: "Audio", indexes: [1] },
       ],
     });
-    expect(result.staffing?.sections?.lighting?.services[0].value).toBe(
+    expect(result.staffing?.sections?.["0_lighting"]?.services[0].value).toBe(
       "LIGHTING_TECH_103",
     );
-    expect(result.staffing?.sections?.audio?.services[0].value).toBe(
+    expect(result.staffing?.sections?.["1_audio"]?.services[0].value).toBe(
       "AUDIO_TECH_103",
     );
   });

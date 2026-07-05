@@ -2,6 +2,7 @@ import {
   Checkbox,
   FormControl,
   FormControlLabel,
+  FormHelperText,
   Radio,
   RadioGroup,
 } from "@mui/material";
@@ -70,6 +71,18 @@ function HtmlBlock({ html }: { html?: string }) {
   );
 }
 
+function mapFieldErrorMessage(error: unknown): string | undefined {
+  if (
+    error &&
+    typeof error === "object" &&
+    "message" in error &&
+    typeof (error as { message?: unknown }).message === "string"
+  ) {
+    return (error as { message: string }).message;
+  }
+  return undefined;
+}
+
 export default function BookingFormResourceServices({
   selectedRooms,
   control,
@@ -131,6 +144,13 @@ export default function BookingFormResourceServices({
     selectedRooms,
     "auxiliarySpace",
     visibility,
+  );
+
+  const setupChartError = mapFieldErrorMessage(
+    errors.chartFieldForRoomSetupByRoom,
+  );
+  const furnishingsChartError = mapFieldErrorMessage(
+    errors.chartFieldForFurnishingsByRoom,
   );
 
   useEffect(() => {
@@ -288,7 +308,12 @@ export default function BookingFormResourceServices({
                           }
                         }}
                         onBlur={() => trigger("chartFieldForRoomSetupByRoom")}
+                        aria-required
+                        aria-invalid={!!setupChartError}
                       />
+                      {setupChartError && (
+                        <FormHelperText error>{setupChartError}</FormHelperText>
+                      )}
                     </>
                   )}
                 </Subsection>
@@ -390,8 +415,11 @@ export default function BookingFormResourceServices({
             />
             {cfg.chartFieldWhenYes && isYes && (
               <>
-                <Label>ChartField for Additional Event Furniture *</Label>
+                <Label htmlFor={`chart-furn-${resourceId}`}>
+                  ChartField for Additional Event Furniture *
+                </Label>
                 <input
+                  id={`chart-furn-${resourceId}`}
                   style={{
                     width: "100%",
                     padding: "8px",
@@ -411,7 +439,12 @@ export default function BookingFormResourceServices({
                     );
                   }}
                   onBlur={() => trigger("chartFieldForFurnishingsByRoom")}
+                  aria-required
+                  aria-invalid={!!furnishingsChartError}
                 />
+                {furnishingsChartError && (
+                  <FormHelperText error>{furnishingsChartError}</FormHelperText>
+                )}
               </>
             )}
           </Subsection>

@@ -499,6 +499,27 @@ export function ResourceEditor({
     }
   };
 
+  const formatServicesForEditor = (
+    services: Resource["services"] | undefined,
+  ): string => {
+    if (Array.isArray(services)) {
+      return services.join(", ");
+    }
+    return JSON.stringify(services ?? {}, null, 2);
+  };
+
+  const [servicesDraft, setServicesDraft] = useState(() =>
+    formatServicesForEditor(resource.services),
+  );
+  const [servicesJsonError, setServicesJsonError] = useState<string | null>(
+    null,
+  );
+
+  useEffect(() => {
+    setServicesDraft(formatServicesForEditor(resource.services));
+    setServicesJsonError(null);
+  }, [resource.resourceId, resource.services]);
+
   return (
     <Accordion>
       <AccordionSummary expandIcon={<ExpandMoreIcon />}>
@@ -600,15 +621,16 @@ export function ResourceEditor({
 
         <TextField
           label="Services config (JSON)"
-          value={
-            Array.isArray(resource.services)
-              ? resource.services.join(", ")
-              : JSON.stringify(resource.services ?? {})
-          }
+          value={servicesDraft}
           onChange={(e) => {
-            const raw = e.target.value.trim();
+            setServicesDraft(e.target.value);
+            setServicesJsonError(null);
+          }}
+          onBlur={() => {
+            const raw = servicesDraft.trim();
             if (!raw) {
               set("services", {});
+              setServicesJsonError(null);
               return;
             }
             if (!raw.startsWith("{")) {
@@ -619,18 +641,26 @@ export function ResourceEditor({
                   .map((s) => s.trim())
                   .filter(Boolean),
               );
+              setServicesJsonError(null);
               return;
             }
             try {
               set("services", JSON.parse(raw));
+              setServicesJsonError(null);
             } catch {
-              // keep editing until valid JSON
+              setServicesJsonError(
+                "Invalid JSON — fix syntax before leaving this field",
+              );
             }
           }}
           fullWidth
           size="small"
           sx={{ mb: 2 }}
-          helperText="Legacy: comma-separated keys. New: JSON ResourceServicesConfig object."
+          error={!!servicesJsonError}
+          helperText={
+            servicesJsonError ??
+            "Legacy: comma-separated keys. New: JSON ResourceServicesConfig object."
+          }
         />
 
         <TextField

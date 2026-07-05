@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.stubEnv("NEXT_PUBLIC_BASE_URL", "https://booking.test");
 
@@ -241,7 +241,10 @@ import { ApproverLevel, TableNames } from "@/components/src/policy";
 import { BookingStatusLabel } from "@/components/src/types";
 
 describe("components/src/server/admin", () => {
+  const originalTz = process.env.TZ;
+
   beforeEach(() => {
+    process.env.TZ = "UTC";
     vi.unstubAllEnvs();
     vi.stubEnv("NEXT_PUBLIC_BASE_URL", "https://booking.test");
     vi.resetModules();
@@ -249,6 +252,14 @@ describe("components/src/server/admin", () => {
     resetFirestore();
     mockIsMediaCommons.mockReturnValue(false);
     mockGetApprovalCcEmail.mockReturnValue("cc@nyu.edu");
+  });
+
+  afterEach(() => {
+    if (originalTz === undefined) {
+      delete process.env.TZ;
+    } else {
+      process.env.TZ = originalTz;
+    }
   });
 
   it("gets latest booking logs by calendar event id and matching current status", async () => {
@@ -422,9 +433,7 @@ describe("components/src/server/admin", () => {
     const result = await serverBookingContents("cal-1", "tenant-z");
 
     expect(result.headerMessage).toBe("");
-    expect(result.startDate).toBe(
-      startTimestamp.toDate().toLocaleDateString("en-US"),
-    );
+    expect(result.startDate).toBe("3/1/2024");
     expect(result.endTime).toBeDefined();
     expect(result.history.map((h: any) => h.status)).toContain(
       BookingStatusLabel.REQUESTED,
