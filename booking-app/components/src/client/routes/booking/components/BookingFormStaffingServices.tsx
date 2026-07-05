@@ -28,6 +28,20 @@ type StaffingSectionView = {
   services: Array<{ value: string; label: string }>;
 };
 
+function staffingSectionKey(section: StaffingSectionView): string {
+  return `${section.name}::${section.services.map((s) => s.value).sort().join(",")}`;
+}
+
+function addStaffingSection(
+  sections: StaffingSectionView[],
+  section: StaffingSectionView,
+) {
+  const key = staffingSectionKey(section);
+  if (!sections.some((existing) => staffingSectionKey(existing) === key)) {
+    sections.push(section);
+  }
+}
+
 interface Props {
   id: "staffingServices";
   control: Control<Inputs, any>;
@@ -64,7 +78,7 @@ export default function BookingFormStaffingServices(props: Props) {
       if (staffingConfig?.sections) {
         Object.values(staffingConfig.sections).forEach((section) => {
           if (section.services?.length) {
-            sections.push({
+            addStaffingSection(sections, {
               name: section.name,
               services: section.services.map((s) => ({
                 value: s.value,
@@ -82,7 +96,7 @@ export default function BookingFormStaffingServices(props: Props) {
       } else if (room.staffingSections && room.staffingSections.length > 0) {
         const legacyServices = (room.staffingServices ?? []) as string[];
         room.staffingSections.forEach((section) => {
-          sections.push({
+          addStaffingSection(sections, {
             name: section.name,
             services: section.indexes
               .map((index) => legacyServices[index])

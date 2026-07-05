@@ -11,16 +11,14 @@ import {
   FieldErrors,
   UseFormTrigger,
 } from "react-hook-form";
-import React from "react";
+import React, { useEffect } from "react";
 import styled from "@emotion/styled";
-import { FormContextLevel, Inputs } from "../../../../types";
+import { Inputs } from "../../../../types";
 import {
   CHARTFIELD_PATTERN_MESSAGE,
   CHARTFIELD_REGEX,
 } from "../../../../utils/validationHelpers";
 import {
-  getCateringConfig,
-  getFurnishingsConfig,
   getResourceServicesConfig,
   getRoomsWithVisibleService,
   getServiceResourceId,
@@ -44,20 +42,8 @@ const Subsection = styled.div`
   border-left: 3px solid #e0e0e0;
 `;
 
-type RoomLike = ServiceResourceLike;
-
-function HtmlBlock({ html }: { html?: string }) {
-  if (!html) return null;
-  return (
-    <div
-      style={{ fontSize: "0.75rem", marginBottom: 8 }}
-      dangerouslySetInnerHTML={{ __html: html }}
-    />
-  );
-}
-
 interface Props {
-  selectedRooms: RoomLike[];
+  selectedRooms: ServiceResourceLike[];
   control: Control<Inputs, any>;
   errors: FieldErrors<Inputs>;
   trigger: UseFormTrigger<Inputs>;
@@ -72,6 +58,16 @@ interface Props {
   formatFieldLabel: (label: string) => string;
   cateringValue: string;
   hireSecurityValue: string;
+}
+
+function HtmlBlock({ html }: { html?: string }) {
+  if (!html) return null;
+  return (
+    <div
+      style={{ fontSize: "0.75rem", marginBottom: 8 }}
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
+  );
 }
 
 export default function BookingFormResourceServices({
@@ -98,7 +94,11 @@ export default function BookingFormResourceServices({
   );
   if (!hasConfig || isWalkIn) return null;
 
-  const setupRooms = getRoomsWithVisibleService(selectedRooms, "setup", visibility);
+  const setupRooms = getRoomsWithVisibleService(
+    selectedRooms,
+    "setup",
+    visibility,
+  ).filter((r) => getServiceSectionConfig(r, "setup")?.mode === "select");
   const furnishingsRooms = getRoomsWithVisibleService(
     selectedRooms,
     "furnishings",
@@ -127,9 +127,49 @@ export default function BookingFormResourceServices({
     visibility,
   ).filter((r) => getServiceSectionConfig(r, "security")?.mode === "select");
 
-  const auxiliaryRooms = selectedRooms.filter(
-    (r) => getResourceServicesConfig(r).auxiliarySpace?.enabled,
+  const auxiliaryRooms = getRoomsWithVisibleService(
+    selectedRooms,
+    "auxiliarySpace",
+    visibility,
   );
+
+  useEffect(() => {
+    const currentMap =
+      (watch("roomSetupByRoom") as Record<string, string> | undefined) ?? {};
+    const currentDetails =
+      (watch("setupDetailsByRoom") as Record<string, string> | undefined) ?? {};
+    const nextMap = { ...currentMap };
+    const nextDetails = { ...currentDetails };
+    let changed = false;
+
+    setupRooms.forEach((room) => {
+      const cfg = getServiceSectionConfig(room, "setup");
+      const resourceId = getServiceResourceId(room);
+      if (cfg?.defaultValue && !nextMap[resourceId]) {
+        nextMap[resourceId] = cfg.defaultValue;
+        const opt = cfg.options?.find((o) => o.value === cfg.defaultValue);
+        nextDetails[resourceId] = opt?.label ?? cfg.defaultValue;
+        changed = true;
+      }
+    });
+
+    if (changed) {
+      setValue("roomSetupByRoom", nextMap, { shouldValidate: false });
+      setValue("setupDetailsByRoom", nextDetails, { shouldValidate: false });
+      if (selectedRooms.length === 1 && setupRooms.length === 1) {
+        const resourceId = getServiceResourceId(setupRooms[0]);
+        setValue("roomSetup", "yes", { shouldValidate: false });
+        setValue("setupDetails", nextDetails[resourceId] ?? "", {
+          shouldValidate: false,
+        });
+      }
+    }
+  }, [
+    setupRooms,
+    selectedRooms.length,
+    setValue,
+    watch,
+  ]);
 
   return (
     <>
@@ -155,9 +195,14 @@ export default function BookingFormResourceServices({
             <Controller
               name="roomSetupByRoom"
               control={control}
-              rules={
-                cfg.required ? { required: "Please select a room setup" } : undefined
-              }
+              rules={{
+                validate: (val) => {
+                  if (!cfg.required) return true;
+                  const map = (val as Record<string, string>) ?? {};
+                  const v = map[resourceId] ?? cfg.defaultValue;
+                  return v ? true : "Please select a room setup";
+                },
+              }}
               render={({ field }) => (
                 <FormControl component="fieldset" fullWidth>
                   <RadioGroup
@@ -247,7 +292,7 @@ export default function BookingFormResourceServices({
       })}
 
       {furnishingsRooms.map((room) => {
-        const cfg = getFurnishingsConfig(room);
+        const cfg = getResourceServicesConfig(room).furnishings;
         if (!cfg) return null;
         const resourceId = getServiceResourceId(room);
         const furnMap =
@@ -335,7 +380,7 @@ export default function BookingFormResourceServices({
       })}
 
       {staticCateringRoom && (() => {
-        const cfg = getCateringConfig(staticCateringRoom);
+        const cfg = getResourceServicesConfig(staticCateringRoom).catering;
         if (!cfg) return null;
         const cateringRoomId = getServiceResourceId(staticCateringRoom);
         const loungeChecked = loungeByRoom[cateringRoomId] === "yes";

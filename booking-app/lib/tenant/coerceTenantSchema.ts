@@ -4,7 +4,19 @@ import type {
   SchemaContextType,
 } from "@/components/src/client/routes/components/schemaTypes";
 import { generateDefaultSchema } from "@/components/src/client/routes/components/schemaTypes";
+import { isMediaCommons } from "@/components/src/utils/tenantUtils";
+import { applyMcResourceServices } from "./mcResourceServices";
 import { normalizeResourceServices } from "./migrateResourceServices";
+
+function applyTenantResourceServices(
+  resource: Resource,
+  tenantSlug: string,
+): Resource {
+  const normalized = normalizeResourceServices(resource);
+  return isMediaCommons(tenantSlug)
+    ? applyMcResourceServices(normalized)
+    : normalized;
+}
 
 function normalizeResourceId(value: unknown, field: string): string {
   if (
@@ -50,10 +62,6 @@ function coerceResource(
     ...resource,
     resourceId: canonicalId,
   } as Resource;
-}
-
-function normalizeCoercedResource(resource: Resource): Resource {
-  return normalizeResourceServices(resource);
 }
 
 function coerceResources(
@@ -125,11 +133,12 @@ export function coerceTenantSchema(
         ...rawCc?.timeSensitiveRequestWarning,
       },
     },
-    resources: Array.isArray(raw.resources)
+    resources: (Array.isArray(raw.resources)
       ? coerceResources(
           raw.resources as Array<Resource | Record<string, unknown>>,
-        ).map(normalizeCoercedResource)
-      : base.resources,
+        )
+      : base.resources
+    ).map((resource) => applyTenantResourceServices(resource, tenantSlug)),
     attestations: Array.isArray(raw.attestations)
       ? (raw.attestations as SchemaContextType["attestations"])
       : base.attestations,

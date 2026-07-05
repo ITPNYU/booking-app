@@ -48,12 +48,14 @@ export enum Actions {
   APPROVE_CLEANING_SERVICE = "Approve Cleaning",
   APPROVE_SECURITY_SERVICE = "Approve Security",
   APPROVE_SETUP_SERVICE = "Approve Setup",
+  APPROVE_AUXILIARY_SERVICE = "Approve Auxiliary",
   DECLINE_STAFF_SERVICE = "Decline Staff",
   DECLINE_EQUIPMENT_SERVICE = "Decline Equipment",
   DECLINE_CATERING_SERVICE = "Decline Catering",
   DECLINE_CLEANING_SERVICE = "Decline Cleaning",
   DECLINE_SECURITY_SERVICE = "Decline Security",
   DECLINE_SETUP_SERVICE = "Decline Setup",
+  DECLINE_AUXILIARY_SERVICE = "Decline Auxiliary",
   // Media Commons Service Closeout Actions
   CLOSEOUT_STAFF_SERVICE = "Closeout Staff",
   CLOSEOUT_EQUIPMENT_SERVICE = "Closeout Equipment",
@@ -61,6 +63,7 @@ export enum Actions {
   CLOSEOUT_CLEANING_SERVICE = "Closeout Cleaning",
   CLOSEOUT_SECURITY_SERVICE = "Closeout Security",
   CLOSEOUT_SETUP_SERVICE = "Closeout Setup",
+  CLOSEOUT_AUXILIARY_SERVICE = "Closeout Auxiliary",
   PLACEHOLDER = "",
 }
 
@@ -323,6 +326,7 @@ export default function useBookingActions({
     "cleaning",
     "security",
     "setup",
+    "auxiliary",
   ] as const;
 
   // Common action definition function
@@ -462,6 +466,10 @@ export default function useBookingActions({
               case "setup":
                 approveAction = Actions.APPROVE_SETUP_SERVICE;
                 declineAction = Actions.DECLINE_SETUP_SERVICE;
+                break;
+              case "auxiliary":
+                approveAction = Actions.APPROVE_AUXILIARY_SERVICE;
+                declineAction = Actions.DECLINE_AUXILIARY_SERVICE;
                 break;
               default:
                 return; // Skip unknown service types

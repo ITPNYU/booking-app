@@ -100,6 +100,14 @@ export function getRoomsWithVisibleService(
   });
 }
 
+export function anyRoomHasVisibleService(
+  rooms: ServiceResourceLike[],
+  key: ResourceServiceKey,
+  context: ServiceVisibilityContext,
+): boolean {
+  return getRoomsWithVisibleService(rooms, key, context).length > 0;
+}
+
 /** Derive deprecated form.services flags from resource.services keys */
 export function deriveFormServicesFlags(resources: ServiceResourceLike[]): {
   showCatering: boolean;
@@ -115,16 +123,4 @@ export function deriveFormServicesFlags(resources: ServiceResourceLike[]): {
     showCatering: anyRoomHasService(resources, "catering"),
     showSecurity: anyRoomHasService(resources, "security"),
   };
-}
-
-export function getStaffingConfig(resource: ServiceResourceLike) {
-  return getResourceServicesConfig(resource).staffing;
-}
-
-export function getFurnishingsConfig(resource: ServiceResourceLike) {
-  return getResourceServicesConfig(resource).furnishings;
-}
-
-export function getCateringConfig(resource: ServiceResourceLike) {
-  return getResourceServicesConfig(resource).catering;
 }

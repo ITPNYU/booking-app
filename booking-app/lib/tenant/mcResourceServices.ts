@@ -302,7 +302,3 @@ export function applyMcResourceServices(resource: Resource): Resource {
     services: mcServices,
   };
 }
-
-export function applyMcResourceServicesToAll(resources: Resource[]): Resource[] {
-  return resources.map(applyMcResourceServices);
-}

@@ -40,9 +40,10 @@ import { mapAffiliationToRole } from "../formPages/UserRolePage";
 import useCheckAutoApproval from "../hooks/useCheckAutoApproval";
 import useSubmitBooking from "../hooks/useSubmitBooking";
 import {
-  anyRoomHasService,
+  anyRoomHasVisibleService,
   getResourceServicesConfig,
   getServiceSectionConfig,
+  ServiceVisibilityContext,
 } from "../../../../utils/resourceServicesUtils";
 import BookingFormEquipmentServices from "./BookingFormEquipmentServices";
 import BookingFormResourceServices from "./BookingFormResourceServices";
@@ -133,30 +134,71 @@ export default function FormInput({
     mappings: { role: roleMapping },
   } = useTenantSchema();
 
+  const serviceVisibility = useMemo<ServiceVisibilityContext>(
+    () => ({
+      isVIP,
+      isWalkIn,
+      isStandardUser: !isVIP && !isWalkIn,
+    }),
+    [isVIP, isWalkIn],
+  );
+
+  const hasConfigSetup = useMemo(
+    () =>
+      selectedRooms.some(
+        (r) => getServiceSectionConfig(r, "setup")?.mode === "select",
+      ),
+    [selectedRooms],
+  );
+
+  const hasStaticCatering = useMemo(
+    () =>
+      selectedRooms.some(
+        (r) => getServiceSectionConfig(r, "catering")?.mode === "static",
+      ),
+    [selectedRooms],
+  );
+
+  const hasSecuritySelect = useMemo(
+    () =>
+      selectedRooms.some(
+        (r) => getServiceSectionConfig(r, "security")?.mode === "select",
+      ),
+    [selectedRooms],
+  );
+
+  const hasStaticEquipment = useMemo(
+    () =>
+      selectedRooms.some(
+        (r) => getServiceSectionConfig(r, "equipment")?.mode === "static",
+      ),
+    [selectedRooms],
+  );
+
   // Determine which services to show based on selected rooms and schema resources
   const showEquipment = useMemo(
-    () => anyRoomHasService(selectedRooms, "equipment"),
-    [selectedRooms],
+    () => anyRoomHasVisibleService(selectedRooms, "equipment", serviceVisibility),
+    [selectedRooms, serviceVisibility],
   );
 
   const showStaffing = useMemo(
-    () => anyRoomHasService(selectedRooms, "staffing"),
-    [selectedRooms],
+    () => anyRoomHasVisibleService(selectedRooms, "staffing", serviceVisibility),
+    [selectedRooms, serviceVisibility],
   );
 
   const showCatering = useMemo(
-    () => anyRoomHasService(selectedRooms, "catering"),
-    [selectedRooms],
+    () => anyRoomHasVisibleService(selectedRooms, "catering", serviceVisibility),
+    [selectedRooms, serviceVisibility],
   );
 
   const showHireSecurity = useMemo(
-    () => anyRoomHasService(selectedRooms, "security"),
-    [selectedRooms],
+    () => anyRoomHasVisibleService(selectedRooms, "security", serviceVisibility),
+    [selectedRooms, serviceVisibility],
   );
 
   const showCleaning = useMemo(
-    () => anyRoomHasService(selectedRooms, "cleaning"),
-    [selectedRooms],
+    () => anyRoomHasVisibleService(selectedRooms, "cleaning", serviceVisibility),
+    [selectedRooms, serviceVisibility],
   );
 
   const {
@@ -313,7 +355,7 @@ export default function FormInput({
       hireSecurityManuallySet.current = false;
     }
 
-    if (isLargeEvent) {
+    if (isLargeEvent && !hasSecuritySelect) {
       if (hireSecurityValue !== "yes") {
         setValue("hireSecurity", "yes", { shouldValidate: true });
         hireSecurityWasAutoSet.current = true;
@@ -327,7 +369,7 @@ export default function FormInput({
         autoHireSecurityValueRef.current = "";
       }
     }
-  }, [isLargeEvent, hireSecurityValue, setValue]);
+  }, [isLargeEvent, hireSecurityValue, setValue, hasSecuritySelect]);
 
   const validateExpectedAttendance = useCallback(
     (value: string) => {
@@ -532,38 +574,6 @@ export default function FormInput({
   const formatSectionTitle = (title: string) => `${prefix} ${title}`.trim();
 
   const formatFieldLabel = (label: string) => `${prefix} ${label}`.trim();
-
-  const hasConfigSetup = useMemo(
-    () =>
-      selectedRooms.some(
-        (r) => getServiceSectionConfig(r, "setup")?.mode === "select",
-      ),
-    [selectedRooms],
-  );
-
-  const hasStaticCatering = useMemo(
-    () =>
-      selectedRooms.some(
-        (r) => getServiceSectionConfig(r, "catering")?.mode === "static",
-      ),
-    [selectedRooms],
-  );
-
-  const hasSecuritySelect = useMemo(
-    () =>
-      selectedRooms.some(
-        (r) => getServiceSectionConfig(r, "security")?.mode === "select",
-      ),
-    [selectedRooms],
-  );
-
-  const hasStaticEquipment = useMemo(
-    () =>
-      selectedRooms.some(
-        (r) => getServiceSectionConfig(r, "equipment")?.mode === "static",
-      ),
-    [selectedRooms],
-  );
 
   // Common Services section used by both full form and modification form
   const servicesSection = (
