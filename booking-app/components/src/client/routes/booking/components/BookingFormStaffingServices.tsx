@@ -1,21 +1,20 @@
 import {
-  Checkbox,
+  FormControl,
   FormControlLabel,
-  Switch,
+  FormLabel,
   Radio,
   RadioGroup,
-  FormControl,
-  FormLabel,
+  Switch,
 } from "@mui/material";
 import { Control, Controller, UseFormTrigger } from "react-hook-form";
 import React, { useContext, useMemo } from "react";
 import styled from "@emotion/styled";
 import { FormContextLevel, Inputs, StaffingServices } from "../../../../types";
-import { BookingContext } from "../bookingProvider";
 import {
   getResourceServicesConfig,
   resourceHasService,
 } from "../../../../utils/resourceServicesUtils";
+import { BookingContext } from "../bookingProvider";
 
 const Label = styled.label`
   font-weight: 500;
@@ -30,7 +29,7 @@ type StaffingSectionView = {
 };
 
 interface Props {
-  id: keyof Inputs;
+  id: "staffingServices";
   control: Control<Inputs, any>;
   trigger: UseFormTrigger<Inputs>;
   showStaffingServices: boolean;
@@ -113,8 +112,8 @@ export default function BookingFormStaffingServices(props: Props) {
   }, [roomIds, selectedRooms]);
 
   const staffingLabel =
-    getResourceServicesConfig(selectedRooms[0] ?? { services: {} }).staffing
-      ?.label ?? "Staffing";
+    getResourceServicesConfig(selectedRooms[0] ?? {}).staffing?.label ??
+    "Staffing";
 
   const toggle = (
     <Controller
@@ -156,93 +155,98 @@ export default function BookingFormStaffingServices(props: Props) {
         <Controller
           name={id}
           control={control}
-          render={({ field }) => (
-            <div>
-              {staffingSections.length > 0 ? (
-                <div>
-                  {staffingSections.map((section, sectionIndex) => {
-                    const selectedServices = field.value?.split(",") || [];
-                    const sectionValues = section.services.map((s) => s.value);
+          render={({ field }) => {
+            const value = typeof field.value === "string" ? field.value : "";
+            const selectedServices = value ? value.split(",") : [];
 
-                    return (
-                      <div key={sectionIndex} style={{ marginBottom: 24 }}>
-                        <FormLabel
-                          component="legend"
-                          sx={{
-                            fontSize: "0.875rem",
-                            fontWeight: 500,
-                            marginBottom: 1,
-                            display: "block",
-                          }}
-                        >
-                          {section.name}:
-                        </FormLabel>
-                        <FormControl component="fieldset">
-                          <RadioGroup
-                            value={
-                              selectedServices.find((service) =>
-                                sectionValues.includes(service),
-                              ) || ""
-                            }
-                            onChange={(e) => {
-                              const otherServices = selectedServices.filter(
-                                (service) => !sectionValues.includes(service),
-                              );
-                              const newServices = e.target.value
-                                ? [...otherServices, e.target.value]
-                                : otherServices;
-                              field.onChange(newServices.join(","));
-                              trigger(id);
+            return (
+              <div>
+                {staffingSections.length > 0 ? (
+                  <div>
+                    {staffingSections.map((section, sectionIndex) => {
+                      const sectionValues = section.services.map((s) => s.value);
+
+                      return (
+                        <div key={sectionIndex} style={{ marginBottom: 24 }}>
+                          <FormLabel
+                            component="legend"
+                            sx={{
+                              fontSize: "0.875rem",
+                              fontWeight: 500,
+                              marginBottom: 1,
+                              display: "block",
                             }}
-                            onBlur={() => trigger(id)}
                           >
-                            {section.services.map((service) => (
-                              <FormControlLabel
-                                key={service.value}
-                                value={service.value}
-                                control={<Radio size="small" />}
-                                label={service.label}
-                                sx={{
-                                  display: "block",
-                                  fontSize: "0.75rem",
-                                  marginBottom: 0.5,
-                                }}
-                              />
-                            ))}
-                          </RadioGroup>
-                        </FormControl>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <FormControl component="fieldset">
-                  <RadioGroup
-                    value={field.value || ""}
-                    onChange={(e) => {
-                      field.onChange(e.target.value);
-                      trigger(id);
-                    }}
-                    onBlur={() => trigger(id)}
-                  >
-                    {flatServices.map((service) => (
-                      <FormControlLabel
-                        key={service.value}
-                        value={service.value}
-                        control={<Radio size="small" />}
-                        label={service.label}
-                        sx={{
-                          display: "block",
-                          fontSize: "0.75rem",
-                          marginBottom: 0.5,
-                        }}
-                      />
-                    ))}
-                  </RadioGroup>
-                </FormControl>
-              )}
-            </div>
-          )}
+                            {section.name}:
+                          </FormLabel>
+                          <FormControl component="fieldset">
+                            <RadioGroup
+                              value={
+                                selectedServices.find((service) =>
+                                  sectionValues.includes(service),
+                                ) || ""
+                              }
+                              onChange={(e) => {
+                                const otherServices = selectedServices.filter(
+                                  (service) =>
+                                    !sectionValues.includes(service),
+                                );
+                                const newServices = e.target.value
+                                  ? [...otherServices, e.target.value]
+                                  : otherServices;
+                                field.onChange(newServices.join(","));
+                                trigger(id);
+                              }}
+                              onBlur={() => trigger(id)}
+                            >
+                              {section.services.map((service) => (
+                                <FormControlLabel
+                                  key={service.value}
+                                  value={service.value}
+                                  control={<Radio size="small" />}
+                                  label={service.label}
+                                  sx={{
+                                    display: "block",
+                                    fontSize: "0.75rem",
+                                    marginBottom: 0.5,
+                                  }}
+                                />
+                              ))}
+                            </RadioGroup>
+                          </FormControl>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <FormControl component="fieldset">
+                    <RadioGroup
+                      value={value}
+                      onChange={(e) => {
+                        field.onChange(e.target.value);
+                        trigger(id);
+                      }}
+                      onBlur={() => trigger(id)}
+                    >
+                      {flatServices.map((service) => (
+                        <FormControlLabel
+                          key={service.value}
+                          value={service.value}
+                          control={<Radio size="small" />}
+                          label={service.label}
+                          sx={{
+                            display: "block",
+                            fontSize: "0.75rem",
+                            marginBottom: 0.5,
+                          }}
+                        />
+                      ))}
+                    </RadioGroup>
+                  </FormControl>
+                )}
+              </div>
+            );
+          }}
         />
       )}
     </div>

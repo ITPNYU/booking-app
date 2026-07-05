@@ -209,6 +209,21 @@ export type Inputs = {
   origin?: BookingOrigin
 };
 
+/** Form field keys whose values are plain strings (excludes maps/booleans). */
+export type StringInputKeys = {
+  [K in keyof Inputs]: Inputs[K] extends string | undefined ? K : never;
+}[keyof Inputs];
+
+export type MediaCommonsServiceFlags = {
+  staff?: boolean;
+  equipment?: boolean;
+  catering?: boolean;
+  cleaning?: boolean;
+  security?: boolean;
+  setup?: boolean;
+  auxiliary?: boolean;
+};
+
 export type DepartmentType = {
   department: string;
   createdAt: string;

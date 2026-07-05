@@ -1,4 +1,8 @@
 import { applyMcResourceServices } from "@/lib/tenant/mcResourceServices";
+import {
+  generateDefaultSchema,
+  type SchemaContextType,
+} from "../client/routes/components/SchemaProvider";
 import { TENANTS } from "../constants/tenants";
 
 const baseMediaCommonsSchema: SchemaContextType = {

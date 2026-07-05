@@ -11,14 +11,28 @@ export type ServiceVisibilityContext = {
   isStandardUser: boolean;
 };
 
+/** Room or resource shape accepted by service helpers (booking uses roomId). */
+export type ServiceResourceLike = {
+  services?: Resource["services"];
+  resourceId?: string;
+  roomId?: string;
+  name?: string;
+  staffingServices?: string[];
+  staffingSections?: { name: string; indexes: number[] }[];
+};
+
+export function getServiceResourceId(room: ServiceResourceLike): string {
+  return room.resourceId ?? room.roomId ?? "";
+}
+
 export function isLegacyServicesArray(
-  services: Resource["services"],
+  services: Resource["services"] | undefined,
 ): services is string[] {
   return Array.isArray(services);
 }
 
 export function getResourceServicesConfig(
-  resource: Pick<Resource, "services">,
+  resource: ServiceResourceLike,
 ): ResourceServicesConfig {
   const { services } = resource;
   if (!services || isLegacyServicesArray(services)) {
@@ -27,27 +41,8 @@ export function getResourceServicesConfig(
   return services;
 }
 
-export function isServiceOffered(
-  resource: Pick<Resource, "services">,
-  key: ResourceServiceKey,
-): boolean {
-  const config = getResourceServicesConfig(resource);
-  const section = config[key];
-  if (!section) return false;
-  if (isLegacyServicesArray(resource.services)) {
-    return resource.services.includes(key);
-  }
-  if (key === "auxiliarySpace") {
-    return !!(section as { enabled?: boolean }).enabled;
-  }
-  if ((section as ResourceFormSectionConfig).mode === "hidden") {
-    return true;
-  }
-  return true;
-}
-
 export function resourceHasService(
-  resource: Pick<Resource, "services">,
+  resource: ServiceResourceLike,
   key: ResourceServiceKey,
 ): boolean {
   if (isLegacyServicesArray(resource.services)) {
@@ -61,14 +56,14 @@ export function resourceHasService(
 }
 
 export function anyRoomHasService(
-  rooms: Array<Pick<Resource, "services" | "resourceId" | "name">>,
+  rooms: ServiceResourceLike[],
   key: ResourceServiceKey,
 ): boolean {
   return rooms.some((room) => resourceHasService(room, key));
 }
 
 export function getServiceSectionConfig(
-  resource: Pick<Resource, "services">,
+  resource: ServiceResourceLike,
   key: ResourceServiceKey,
 ): ResourceFormSectionConfig | undefined {
   const config = getResourceServicesConfig(resource);
@@ -89,17 +84,16 @@ export function shouldShowServiceSection(
 }
 
 export function getRoomsWithVisibleService(
-  rooms: Array<Pick<Resource, "services" | "resourceId" | "name">>,
+  rooms: ServiceResourceLike[],
   key: ResourceServiceKey,
   context: ServiceVisibilityContext,
-): Array<Pick<Resource, "services" | "resourceId" | "name">> {
+): ServiceResourceLike[] {
   return rooms.filter((room) => {
     if (!resourceHasService(room, key)) return false;
     const section = getServiceSectionConfig(room, key);
     if (!section) {
       return key === "auxiliarySpace"
-        ? !!(getResourceServicesConfig(room).auxiliarySpace as { enabled?: boolean })
-            ?.enabled
+        ? !!getResourceServicesConfig(room).auxiliarySpace?.enabled
         : false;
     }
     return shouldShowServiceSection(section, context);
@@ -107,9 +101,7 @@ export function getRoomsWithVisibleService(
 }
 
 /** Derive deprecated form.services flags from resource.services keys */
-export function deriveFormServicesFlags(
-  resources: Array<Pick<Resource, "services">>,
-): {
+export function deriveFormServicesFlags(resources: ServiceResourceLike[]): {
   showCatering: boolean;
   showEquipment: boolean;
   showSecurity: boolean;
@@ -125,10 +117,14 @@ export function deriveFormServicesFlags(
   };
 }
 
-export function getStaffingConfig(resource: Pick<Resource, "services" | "staffingServices" | "staffingSections">) {
-  const servicesConfig = getResourceServicesConfig(resource);
-  if (servicesConfig.staffing) {
-    return servicesConfig.staffing;
-  }
-  return undefined;
+export function getStaffingConfig(resource: ServiceResourceLike) {
+  return getResourceServicesConfig(resource).staffing;
+}
+
+export function getFurnishingsConfig(resource: ServiceResourceLike) {
+  return getResourceServicesConfig(resource).furnishings;
+}
+
+export function getCateringConfig(resource: ServiceResourceLike) {
+  return getResourceServicesConfig(resource).catering;
 }

@@ -14,15 +14,18 @@ import {
 import React from "react";
 import styled from "@emotion/styled";
 import { FormContextLevel, Inputs } from "../../../../types";
-import type { Resource } from "../../components/schemaTypes";
 import {
   CHARTFIELD_PATTERN_MESSAGE,
   CHARTFIELD_REGEX,
 } from "../../../../utils/validationHelpers";
 import {
+  getCateringConfig,
+  getFurnishingsConfig,
   getResourceServicesConfig,
   getRoomsWithVisibleService,
+  getServiceResourceId,
   getServiceSectionConfig,
+  ServiceResourceLike,
   ServiceVisibilityContext,
 } from "../../../../utils/resourceServicesUtils";
 import { BookingFormSwitch, BookingFormTextField } from "./BookingFormInputs";
@@ -41,7 +44,7 @@ const Subsection = styled.div`
   border-left: 3px solid #e0e0e0;
 `;
 
-type RoomLike = Pick<Resource, "services" | "resourceId" | "name">;
+type RoomLike = ServiceResourceLike;
 
 function HtmlBlock({ html }: { html?: string }) {
   if (!html) return null;
@@ -132,18 +135,19 @@ export default function BookingFormResourceServices({
     <>
       {setupRooms.map((room) => {
         const cfg = getServiceSectionConfig(room, "setup")!;
+        const resourceId = getServiceResourceId(room);
         const mapValues =
           (watch("roomSetupByRoom") as Record<string, string> | undefined) ?? {};
         const chartMap =
           (watch("chartFieldForRoomSetupByRoom") as
             | Record<string, string>
             | undefined) ?? {};
-        const selectedValue = mapValues[room.resourceId] ?? cfg.defaultValue ?? "";
+        const selectedValue = mapValues[resourceId] ?? cfg.defaultValue ?? "";
         const selectedOption = cfg.options?.find((o) => o.value === selectedValue);
         const needsChart = !!selectedOption?.requiresChartField;
 
         return (
-          <Subsection key={`setup-${room.resourceId}`}>
+          <Subsection key={`setup-${resourceId}`}>
             <Label>
               {formatFieldLabel(`${room.name} — ${cfg.label ?? "Room Setup"}`)}
             </Label>
@@ -162,7 +166,7 @@ export default function BookingFormResourceServices({
                       const value = e.target.value;
                       const next = {
                         ...((field.value as Record<string, string>) ?? {}),
-                        [room.resourceId]: value,
+                        [resourceId]: value,
                       };
                       field.onChange(next);
                       const opt = cfg.options?.find((o) => o.value === value);
@@ -172,7 +176,7 @@ export default function BookingFormResourceServices({
                           | undefined) ?? {};
                       setValue("setupDetailsByRoom", {
                         ...details,
-                        [room.resourceId]: opt?.label ?? value,
+                        [resourceId]: opt?.label ?? value,
                       });
                       if (selectedRooms.length === 1) {
                         setValue("roomSetup", "yes");
@@ -200,7 +204,7 @@ export default function BookingFormResourceServices({
                 rules={{
                   validate: (val) => {
                     const map = (val as Record<string, string>) ?? {};
-                    const v = map[room.resourceId] ?? "";
+                    const v = map[resourceId] ?? "";
                     if (!CHARTFIELD_REGEX.test(v)) {
                       return CHARTFIELD_PATTERN_MESSAGE;
                     }
@@ -209,11 +213,11 @@ export default function BookingFormResourceServices({
                 }}
                 render={({ field }) => (
                   <>
-                    <Label htmlFor={`chart-setup-${room.resourceId}`}>
+                    <Label htmlFor={`chart-setup-${resourceId}`}>
                       ChartField for Room Setup *
                     </Label>
                     <input
-                      id={`chart-setup-${room.resourceId}`}
+                      id={`chart-setup-${resourceId}`}
                       style={{
                         width: "100%",
                         padding: "8px",
@@ -221,11 +225,11 @@ export default function BookingFormResourceServices({
                         border: "1px solid #ccc",
                         borderRadius: 4,
                       }}
-                      value={chartMap[room.resourceId] ?? ""}
+                      value={chartMap[resourceId] ?? ""}
                       onChange={(e) => {
                         const next = {
                           ...((field.value as Record<string, string>) ?? {}),
-                          [room.resourceId]: e.target.value,
+                          [resourceId]: e.target.value,
                         };
                         field.onChange(next);
                         if (selectedRooms.length === 1) {
@@ -243,17 +247,19 @@ export default function BookingFormResourceServices({
       })}
 
       {furnishingsRooms.map((room) => {
-        const cfg = getServiceSectionConfig(room, "furnishings")!;
+        const cfg = getFurnishingsConfig(room);
+        if (!cfg) return null;
+        const resourceId = getServiceResourceId(room);
         const furnMap =
           (watch("furnishingsByRoom") as Record<string, string> | undefined) ?? {};
         const chartFurn =
           (watch("chartFieldForFurnishingsByRoom") as
             | Record<string, string>
             | undefined) ?? {};
-        const isYes = furnMap[room.resourceId] === "yes";
+        const isYes = furnMap[resourceId] === "yes";
 
         return (
-          <Subsection key={`furn-${room.resourceId}`}>
+          <Subsection key={`furn-${resourceId}`}>
             <Label>
               {formatFieldLabel(
                 `${room.name} — ${cfg.label ?? "Additional Event Furniture"}`,
@@ -268,7 +274,7 @@ export default function BookingFormResourceServices({
                   onChange={(e) => {
                     setValue("furnishingsByRoom", {
                       ...furnMap,
-                      [room.resourceId]: e.target.checked ? "yes" : "",
+                      [resourceId]: e.target.checked ? "yes" : "",
                     });
                   }}
                 />
@@ -281,7 +287,7 @@ export default function BookingFormResourceServices({
                 rules={{
                   validate: (val) => {
                     const map = (val as Record<string, string>) ?? {};
-                    const v = map[room.resourceId] ?? "";
+                    const v = map[resourceId] ?? "";
                     if (!CHARTFIELD_REGEX.test(v)) {
                       return CHARTFIELD_PATTERN_MESSAGE;
                     }
@@ -299,11 +305,11 @@ export default function BookingFormResourceServices({
                         border: "1px solid #ccc",
                         borderRadius: 4,
                       }}
-                      value={chartFurn[room.resourceId] ?? ""}
+                      value={chartFurn[resourceId] ?? ""}
                       onChange={(e) => {
                         field.onChange({
                           ...((field.value as Record<string, string>) ?? {}),
-                          [room.resourceId]: e.target.value,
+                          [resourceId]: e.target.value,
                         });
                       }}
                     />
@@ -317,8 +323,9 @@ export default function BookingFormResourceServices({
 
       {equipmentStaticRooms.map((room) => {
         const cfg = getServiceSectionConfig(room, "equipment")!;
+        const resourceId = getServiceResourceId(room);
         return (
-          <Subsection key={`equip-${room.resourceId}`}>
+          <Subsection key={`equip-${resourceId}`}>
             <Label>
               {formatFieldLabel(`${room.name} — ${cfg.label ?? "Equipment"}`)}
             </Label>
@@ -328,9 +335,10 @@ export default function BookingFormResourceServices({
       })}
 
       {staticCateringRoom && (() => {
-        const cfg = getServiceSectionConfig(staticCateringRoom, "catering")!;
-        const loungeChecked =
-          loungeByRoom[staticCateringRoom.resourceId] === "yes";
+        const cfg = getCateringConfig(staticCateringRoom);
+        if (!cfg) return null;
+        const cateringRoomId = getServiceResourceId(staticCateringRoom);
+        const loungeChecked = loungeByRoom[cateringRoomId] === "yes";
         return (
           <div style={{ marginBottom: 32 }} key="catering-202">
             <Label>{formatFieldLabel(cfg.label ?? "Catering")}</Label>
@@ -345,7 +353,7 @@ export default function BookingFormResourceServices({
                       const checked = e.target.checked;
                       setValue("studentLoungeByRoom", {
                         ...loungeByRoom,
-                        [staticCateringRoom.resourceId]: checked ? "yes" : "",
+                        [cateringRoomId]: checked ? "yes" : "",
                       });
                       setValue(
                         "auxiliarySpaceRequested",
@@ -392,8 +400,9 @@ export default function BookingFormResourceServices({
 
       {securitySelectRooms.map((room) => {
         const cfg = getServiceSectionConfig(room, "security")!;
+        const resourceId = getServiceResourceId(room);
         return (
-          <Subsection key={`sec-${room.resourceId}`}>
+          <Subsection key={`sec-${resourceId}`}>
             <Label>
               {formatFieldLabel(`${room.name} — ${cfg.label ?? "Security"}`)}
             </Label>
@@ -444,9 +453,10 @@ export default function BookingFormResourceServices({
 
       {auxiliaryRooms.map((room) => {
         const aux = getResourceServicesConfig(room).auxiliarySpace!;
-        const checked = auxiliaryByRoom[room.resourceId] === "yes";
+        const resourceId = getServiceResourceId(room);
+        const checked = auxiliaryByRoom[resourceId] === "yes";
         return (
-          <Subsection key={`aux-${room.resourceId}`}>
+          <Subsection key={`aux-${resourceId}`}>
             <FormControlLabel
               label={formatFieldLabel(
                 `${room.name} — ${aux.label ?? "Auxiliary space"}`,
@@ -457,7 +467,7 @@ export default function BookingFormResourceServices({
                   onChange={(e) => {
                     const nextMap = {
                       ...auxiliaryByRoom,
-                      [room.resourceId]: e.target.checked ? "yes" : "",
+                      [resourceId]: e.target.checked ? "yes" : "",
                     };
                     setValue("auxiliarySpaceByRoom", nextMap);
                     setValue(

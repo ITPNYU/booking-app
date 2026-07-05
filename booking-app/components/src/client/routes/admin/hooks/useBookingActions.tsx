@@ -9,7 +9,7 @@ import {
   decline,
   noShow,
 } from "@/components/src/server/db";
-import { BookingStatusLabel, PageContextLevel } from "@/components/src/types";
+import { BookingStatusLabel, MediaCommonsServiceFlags, PageContextLevel } from "@/components/src/types";
 import {
   getMediaCommonsServices,
   isMediaCommons,
@@ -93,30 +93,9 @@ export default function useBookingActions({
   const { userEmail, netId, updateBookingInList } = useContext(DatabaseContext);
   const loadExistingBookingData = useExistingBooking();
   const [bookingData, setBookingData] = useState<any>(null);
-  const [serviceRequests, setServiceRequests] = useState<{
-    staff?: boolean;
-    equipment?: boolean;
-    catering?: boolean;
-    cleaning?: boolean;
-    security?: boolean;
-    setup?: boolean;
-  }>({});
-  const [servicesApproved, setServicesApproved] = useState<{
-    staff?: boolean;
-    equipment?: boolean;
-    catering?: boolean;
-    cleaning?: boolean;
-    security?: boolean;
-    setup?: boolean;
-  }>({});
-  const [servicesClosedOut, setServicesClosedOut] = useState<{
-    staff?: boolean;
-    equipment?: boolean;
-    catering?: boolean;
-    cleaning?: boolean;
-    security?: boolean;
-    setup?: boolean;
-  }>({});
+  const [serviceRequests, setServiceRequests] = useState<MediaCommonsServiceFlags>({});
+  const [servicesApproved, setServicesApproved] = useState<MediaCommonsServiceFlags>({});
+  const [servicesClosedOut, setServicesClosedOut] = useState<MediaCommonsServiceFlags>({});
   const [currentXState, setCurrentXState] = useState<any>("");
 
   // Function to fetch booking data and update states. Returns fetched data for row-level table updates.
