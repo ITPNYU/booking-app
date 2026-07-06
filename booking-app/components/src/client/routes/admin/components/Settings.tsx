@@ -32,8 +32,19 @@ const tabs = [
   { label: "Site banner", id: "siteBanner" },
 ];
 
-export default function Settings() {
-  const [tab, setTab] = useState("safetyTraining");
+type SettingsProps = {
+  maintenanceOnly?: boolean;
+};
+
+export default function Settings({ maintenanceOnly = false }: SettingsProps) {
+  const [tab, setTab] = useState(
+    maintenanceOnly ? "maintenanceMode" : "safetyTraining",
+  );
+
+  if (maintenanceOnly) {
+    return <MaintenanceModeSettings />;
+  }
+
   return (
     <Grid container marginTop={4} spacing={2}>
       <Grid xs={2}>

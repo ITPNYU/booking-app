@@ -13,12 +13,16 @@ const maintenanceMode = (overrides: Record<string, unknown> = {}) => ({
 });
 
 const mocks = vi.hoisted(() => {
+  const mockAdminGet = vi.fn();
+  const mockLimit = vi.fn(() => ({ get: mockAdminGet }));
+  const mockWhere = vi.fn(() => ({ where: mockWhere, limit: mockLimit }));
   const mockSet = vi.fn();
   const mockDoc = vi.fn(() => ({
     set: (...args: unknown[]) => mockSet(...args),
   }));
   const mockCollection = vi.fn(() => ({
     doc: (...args: unknown[]) => mockDoc(...args),
+    where: (...args: unknown[]) => mockWhere(...args),
   }));
   const mockFirestoreFn = Object.assign(
     () => ({
@@ -33,9 +37,12 @@ const mocks = vi.hoisted(() => {
   return {
     mockRequireSession: vi.fn(),
     mockResolveCallerRole: vi.fn(),
+    mockAdminGet,
     mockCollection,
     mockDoc,
+    mockLimit,
     mockSet,
+    mockWhere,
     mockFirestoreFn,
   };
 });
@@ -77,6 +84,7 @@ describe("PUT /api/tenant-maintenance-mode", () => {
       netId: "admin",
     });
     mocks.mockResolveCallerRole.mockResolvedValue(PagePermission.ADMIN);
+    mocks.mockAdminGet.mockResolvedValue({ empty: false });
     mocks.mockSet.mockResolvedValue(undefined);
   });
 
@@ -110,8 +118,8 @@ describe("PUT /api/tenant-maintenance-mode", () => {
     expect(mocks.mockSet).not.toHaveBeenCalled();
   });
 
-  it("returns 403 when caller is not admin or super-admin", async () => {
-    mocks.mockResolveCallerRole.mockResolvedValue(PagePermission.BOOKING);
+  it("returns 403 when caller is not a database admin", async () => {
+    mocks.mockAdminGet.mockResolvedValue({ empty: true });
 
     const res = await PUT(
       createPutRequest({
@@ -124,6 +132,23 @@ describe("PUT /api/tenant-maintenance-mode", () => {
     expect(status).toBe(403);
     expect(data.error).toBe("Forbidden");
     expect(mocks.mockSet).not.toHaveBeenCalled();
+  });
+
+  it("allows a super-admin who is also a tenant database admin", async () => {
+    mocks.mockResolveCallerRole.mockResolvedValue(PagePermission.SUPER_ADMIN);
+    mocks.mockAdminGet.mockResolvedValue({ empty: false });
+
+    const res = await PUT(
+      createPutRequest({
+        tenant: "mc",
+        maintenanceMode: maintenanceMode({ enabled: false }),
+      }),
+    );
+    const { data, status } = await parseJson(res);
+
+    expect(status).toBe(200);
+    expect(data).toEqual({ ok: true });
+    expect(mocks.mockSet).toHaveBeenCalled();
   });
 
   it("returns 400 when maintenanceMode is missing", async () => {
@@ -196,6 +221,13 @@ describe("PUT /api/tenant-maintenance-mode", () => {
 
     expect(status).toBe(200);
     expect(data).toEqual({ ok: true });
+    expect(mocks.mockCollection).toHaveBeenCalledWith("mc-usersRights");
+    expect(mocks.mockWhere).toHaveBeenCalledWith(
+      "email",
+      "==",
+      "admin@nyu.edu",
+    );
+    expect(mocks.mockWhere).toHaveBeenCalledWith("isAdmin", "==", true);
     expect(mocks.mockCollection).toHaveBeenCalledWith("mc-settings");
     expect(mocks.mockDoc).toHaveBeenCalledWith(
       MAINTENANCE_MODE_SETTINGS_DOC_ID,

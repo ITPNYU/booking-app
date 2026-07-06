@@ -64,7 +64,8 @@ const Divider = styled(Box)(({ theme }) => ({
 export default function NavBar() {
   const router = useRouter();
   const { tenant } = useParams<{ tenant: string }>();
-  const { pagePermission, netId, setUserEmail } = useContext(DatabaseContext);
+  const { maintenanceMode, pagePermission, netId, setUserEmail } =
+    useContext(DatabaseContext);
   const handleStartBooking = useHandleStartBooking();
   const [selectedView, setSelectedView] = useState<PagePermission>(
     PagePermission.BOOKING,
@@ -270,6 +271,10 @@ export default function NavBar() {
   ]);
 
   const button = useMemo(() => {
+    if (maintenanceMode.enabled) {
+      return null;
+    }
+
     // Do not show the button for super admin or liaison page.
     if (
       selectedView === PagePermission.SUPER_ADMIN ||
@@ -326,7 +331,14 @@ export default function NavBar() {
         </Button>
       );
     }
-  }, [pagePermission, selectedView, tenant, supportVIP, supportWalkIn]);
+  }, [
+    maintenanceMode.enabled,
+    pagePermission,
+    selectedView,
+    tenant,
+    supportVIP,
+    supportWalkIn,
+  ]);
 
   return (
     <Nav>

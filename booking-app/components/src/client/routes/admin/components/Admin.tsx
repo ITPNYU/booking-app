@@ -11,7 +11,8 @@ import Settings from "./Settings";
 
 export default function Admin({ calendarEventId }) {
   const [tab, setTab] = useState("bookings");
-  const { adminUsers, pagePermission, userEmail } = useContext(DatabaseContext);
+  const { adminUsers, maintenanceMode, pagePermission, userEmail } =
+    useContext(DatabaseContext);
 
   const adminEmails = useMemo<string[]>(
     () => adminUsers.map((user) => user.email),
@@ -19,9 +20,23 @@ export default function Admin({ calendarEventId }) {
   );
 
   const userHasPermission = canAccessAdmin(pagePermission);
+  const isDatabaseAdmin =
+    !!userEmail && adminEmails.some((email) => email === userEmail);
 
   if (adminEmails.length === 0 || userEmail == null) {
     return <CenterLoading />;
+  }
+
+  if (maintenanceMode.enabled) {
+    return (
+      <Box margin={3}>
+        {!isDatabaseAdmin ? (
+          <div>You do not have permission to view this page.</div>
+        ) : (
+          <Settings maintenanceOnly />
+        )}
+      </Box>
+    );
   }
 
   return (
