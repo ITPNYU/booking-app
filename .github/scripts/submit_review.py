@@ -77,11 +77,16 @@ def parse_commentable_lines(diff: str) -> dict[str, set[int]]:
 
 
 def post(repo: str, pr: str, payload: dict) -> tuple[int, str]:
-    proc = subprocess.run(
-        ["gh", "api", "--method", "POST",
-         f"/repos/{repo}/pulls/{pr}/reviews", "--input", "-"],
-        input=json.dumps(payload), capture_output=True, text=True,
-    )
+    # Review posting is advisory and must never crash the job — surface a
+    # missing/broken gh binary as a failed attempt, not an unhandled exception.
+    try:
+        proc = subprocess.run(
+            ["gh", "api", "--method", "POST",
+             f"/repos/{repo}/pulls/{pr}/reviews", "--input", "-"],
+            input=json.dumps(payload), capture_output=True, text=True,
+        )
+    except OSError as exc:
+        return 1, f"could not invoke gh: {exc}"
     return proc.returncode, (proc.stdout + proc.stderr).strip()
 
 
