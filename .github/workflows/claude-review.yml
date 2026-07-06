@@ -33,14 +33,23 @@ jobs:
       github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     # A hung API call would otherwise hold the runner for the 6h default.
-    # Sized to fit the --max-turns budget below (~25s/turn observed) with margin,
-    # so the turn cap — not this wall clock — stays the limiting factor.
-    timeout-minutes: 45
+    # Sized to fit the --max-turns budget below (~25s/turn observed ≈ 42 min
+    # at 100 turns) with margin, so the turn cap — not this wall clock —
+    # stays the limiting factor.
+    timeout-minutes: 60
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          # Claude holds read-only file tools (Read/Grep/Glob below), and
+          # actions/checkout by default persists the write-scoped GITHUB_TOKEN
+          # into .git/config — an on-disk secret a prompt injection could read
+          # and exfiltrate through the review text. Nothing downstream needs
+          # git-over-HTTP auth: `gh pr diff` authenticates via the env token,
+          # and the submit step only runs local git (rev-parse/show) against
+          # refs this full fetch already brought down.
+          persist-credentials: false
 
       - name: Claude review
         # Pinned to the commit the v1 tag pointed at (mutable tags are a
@@ -51,7 +60,15 @@ jobs:
           # Claude subscription auth (no Bedrock / no API key). Generate with
           # `claude setup-token` and store as the CLAUDE_CODE_OAUTH_TOKEN secret.
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          # Claude only READS (gh pr diff) and WRITES the review payload to a file.
+          # Claude only READS (gh pr diff, plus local Read/Grep/Glob over the
+          # checkout) and WRITES the review payload to a file. The local file
+          # tools exist so the review can trace cross-file impact — a diff-only
+          # view kept missing bugs whose trigger lives outside the changed
+          # hunks (e.g. a new gate blocking on state that another file never
+          # clears). They add no new injection lever: the checkout content is
+          # the same attacker-controlled input as the diff, the runner is
+          # ephemeral, and with persist-credentials: false there is no on-disk
+          # secret for a read tool to reach.
           # It is deliberately NOT given gh api: the PR diff is attacker-controlled,
           # so a prompt injection must not be able to choose which API endpoint runs.
           # Accepted residual risk: the allowlist relies on Claude Code's permission
@@ -69,19 +86,22 @@ jobs:
           # step executing the BASE-ref copy via absolute paths under a clean
           # `env -i` environment; the runner is ephemeral, and the real injection
           # lever (the API call) is gone.
-          # max-turns must cover: read the diff, reason over every hunk, then
+          # max-turns must cover: read the diff, reason over every hunk, chase
+          # callers/definitions of changed code through the checkout, then
           # write /tmp/review.json. Large PRs keep exhausting smaller budgets
           # before the write, ending in error_max_turns with no review posted.
-          # timeout-minutes above is sized to fit 80 turns (~25s/turn ≈ 33 min)
+          # timeout-minutes above is sized to fit 100 turns (~25s/turn ≈ 42 min)
           # so the turn cap stays the limiting factor.
           claude_args: >-
             --model claude-sonnet-5
-            --max-turns 80
-            --allowedTools "Bash(gh pr diff:*),Write"
+            --max-turns 100
+            --allowedTools "Bash(gh pr diff:*),Read,Grep,Glob,Write"
           prompt: |
             You are reviewing pull request #${{ github.event.pull_request.number }}
             in the repository ${{ github.repository }}. The head commit SHA is
-            ${{ github.event.pull_request.head.sha }}.
+            ${{ github.event.pull_request.head.sha }}. The repository is checked
+            out in your working directory at the PR's merge result, so you can
+            Read/Grep/Glob any file — not just the diff.
 
             Report ONLY High and Medium severity findings:
             - High: correctness bugs, security issues (auth, injection, secret
@@ -95,9 +115,24 @@ jobs:
             Post everything as ONE single pull request review (GitHub Copilot style),
             NOT as separate standalone comments. Steps:
             1. Read the diff: gh pr diff ${{ github.event.pull_request.number }}
-            2. For each High/Medium finding, note the file path and the exact line
+            2. Trace the diff through the rest of the codebase — bugs whose
+               trigger lives outside the changed hunks are in scope:
+               - For each function/component the diff changes or newly calls,
+                 Read the full enclosing file and Grep for its callers and
+                 consumers; check the change holds on every path that reaches it.
+               - For state, flags, or context values the new code reads
+                 (loading flags, permissions, settings), find where they are
+                 set and cleared, and check every branch — including the
+                 unauthenticated / empty / error cases.
+               - When new enforcement or validation is added (auth checks,
+                 rate limits, feature gates), Grep for sibling code paths that
+                 mutate the same data and would bypass it.
+               - Before reporting a finding, verify the trigger path in the
+                 surrounding code instead of assuming it from the diff alone;
+                 drop findings the surrounding code refutes.
+            3. For each High/Medium finding, note the file path and the exact line
                number in the NEW version of the file (the right side of the diff).
-            3. Use the Write tool to create /tmp/review.json with this shape:
+            4. Use the Write tool to create /tmp/review.json with this shape:
                {
                  "event": "COMMENT",
                  "commit_id": "${{ github.event.pull_request.head.sha }}",
@@ -109,7 +144,7 @@ jobs:
                }
                Prefix every comment body with **[High]** or **[Medium]**. For a
                multi-line span, also set "start_line" and "start_side": "RIGHT".
-            4. Do NOT submit the review yourself and do NOT call gh api — you do not
+            5. Do NOT submit the review yourself and do NOT call gh api — you do not
                have that permission. Your only job is to WRITE /tmp/review.json. A
                separate trusted workflow step submits it.
             Always write /tmp/review.json. If there are no High or Medium findings,
