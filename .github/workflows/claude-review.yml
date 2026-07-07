@@ -109,9 +109,13 @@ jobs:
           # without needing credentials in git config.
           persist-credentials: false
           # Automatic (pull_request) runs check out the merge ref by default.
-          # A manual dispatch has no such default, so check out the PR head so
-          # Claude's Read/Grep/Glob see the PR's code.
-          ref: ${{ github.event_name == 'workflow_dispatch' && format('refs/pull/{0}/head', steps.pr.outputs.number) || '' }}
+          # A manual dispatch has no such default, so check out the exact
+          # commit resolved above — NOT the mutable refs/pull/N/head branch
+          # ref. Pinning to the SHA keeps the reviewed code and the review's
+          # commit_id in lockstep even if a new commit lands on the PR between
+          # resolve and checkout (the old SHA stays reachable from the new
+          # head, so the fetch still succeeds).
+          ref: ${{ github.event_name == 'workflow_dispatch' && steps.pr.outputs.sha || '' }}
 
       - name: Claude review
         if: steps.pr.outputs.eligible == 'true'
