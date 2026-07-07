@@ -10,7 +10,10 @@
  * What it touches:
  *   - `${tenant}-bookings`   name/netId/nNumber/phone fields, only for bookings
  *                            whose `endDate` is before the --before cutoff
- *                            (concluded bookings — active/future are never touched)
+ *                            (concluded bookings — active/future are never touched).
+ *                            XState tenants also duplicate this PII inside
+ *                            xstateData.snapshot.context.formData on the same
+ *                            doc, so those nested copies are hashed as well.
  *   - `${tenant}-preBanLogs` `netId`, only for logs whose latest date
  *                            (lateCancelDate/noShowDate) is before the cutoff
  *   - `nyu_identity_cache`   shared, doc id IS a netId and the doc holds
@@ -85,15 +88,29 @@ const makeHasher = (pepper) => (value) => {
  * where `patch` contains only the fields that actually change and `backup`
  * holds their original values. Returns null when nothing changes.
  */
+// XState tenants (e.g. Media Commons) persist a full booking snapshot on the
+// same doc, and its context.formData duplicates the top-level PII as plain
+// strings. Hash those too via a Firestore dotted field path, or a plaintext
+// copy of every subject's PII survives anonymization inside the doc.
+const XSTATE_FORMDATA_PATH = "xstateData.snapshot.context.formData";
+
 const computeBookingUpdate = (data, hash) => {
   const patch = {};
   const backup = {};
+  const hashField = (original, key) => {
+    if (typeof original !== "string" || original.length === 0) return;
+    if (original.startsWith(ANON_PREFIX)) return;
+    patch[key] = hash(original);
+    backup[key] = original;
+  };
   for (const field of BOOKING_PII_FIELDS) {
-    const original = data[field];
-    if (typeof original !== "string" || original.length === 0) continue;
-    if (original.startsWith(ANON_PREFIX)) continue;
-    patch[field] = hash(original);
-    backup[field] = original;
+    hashField(data[field], field);
+  }
+  const formData = data.xstateData?.snapshot?.context?.formData;
+  if (formData && typeof formData === "object") {
+    for (const field of BOOKING_PII_FIELDS) {
+      hashField(formData[field], `${XSTATE_FORMDATA_PATH}.${field}`);
+    }
   }
   return Object.keys(patch).length > 0 ? { patch, backup } : null;
 };
@@ -177,6 +194,14 @@ const parseArgs = (args = process.argv.slice(2)) => {
         DATABASES,
       ).join(", ")}`,
     );
+  }
+
+  // --backup-only is an anonymize-mode flag (write a backup, change nothing).
+  // Combined with --restore it is meaningless AND dangerous: it flips the
+  // willWrite gate below to false, letting a real restore write to production
+  // bypass the --confirm-production check. Reject the combination outright.
+  if (options.restore && options.backupOnly) {
+    throw new Error("--backup-only cannot be combined with --restore");
   }
 
   // Restore mode reads a backup file and writes originals back; it needs no

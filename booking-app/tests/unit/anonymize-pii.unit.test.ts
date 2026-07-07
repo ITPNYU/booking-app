@@ -105,6 +105,45 @@ describe("scripts/anonymizePII computeBookingUpdate", () => {
     const data = { title: "meeting", firstName: `${ANON_PREFIX}x`, lastName: "" };
     expect(computeBookingUpdate(data, hash)).toBeNull();
   });
+
+  it("also hashes the duplicate PII nested in xstateData.snapshot.context.formData", () => {
+    const data = {
+      firstName: "Ada",
+      xstateData: {
+        snapshot: {
+          context: {
+            formData: {
+              firstName: "Ada",
+              netId: "al123",
+              phoneNumber: "212-555-0100",
+              department: "not-pii",
+            },
+          },
+        },
+      },
+    };
+    const result = computeBookingUpdate(data, hash)!;
+    const key = "xstateData.snapshot.context.formData";
+    expect(result.backup[`${key}.firstName`]).toBe("Ada");
+    expect(result.backup[`${key}.netId`]).toBe("al123");
+    expect(result.backup[`${key}.phoneNumber`]).toBe("212-555-0100");
+    // non-PII nested field is untouched
+    expect(`${key}.department` in result.patch).toBe(false);
+    for (const field of Object.keys(result.patch)) {
+      expect(String(result.patch[field]).startsWith(ANON_PREFIX)).toBe(true);
+    }
+  });
+
+  it("skips already-hashed nested formData values (idempotent re-run)", () => {
+    const data = {
+      xstateData: {
+        snapshot: {
+          context: { formData: { netId: `${ANON_PREFIX}deadbeef`, firstName: "" } },
+        },
+      },
+    };
+    expect(computeBookingUpdate(data, hash)).toBeNull();
+  });
 });
 
 describe("scripts/anonymizePII computePreBanUpdate", () => {
@@ -178,6 +217,12 @@ describe("scripts/anonymizePII parseArgs", () => {
   it("does not require --before in restore mode", () => {
     const opts = parseArgs(["--restore", "backup.json", "--database", "development"]);
     expect(opts.restore).toBe("backup.json");
+  });
+
+  it("rejects --backup-only combined with --restore (would bypass the prod gate)", () => {
+    expect(() =>
+      parseArgs(["--restore", "backup.json", "--backup-only", "--database", "production"]),
+    ).toThrow(/--backup-only cannot be combined with --restore/);
   });
 
   it("requires --confirm-production to restore to production", () => {
