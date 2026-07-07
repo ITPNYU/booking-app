@@ -8,14 +8,17 @@ import path from "path";
 const requireModule = createRequire(import.meta.url);
 const {
   ANON_PREFIX,
+  CACHE_COLLECTION,
   makeHasher,
   computeBookingUpdate,
   computePreBanUpdate,
   preBanLogDateMillis,
   parseArgs,
+  anonymize,
   restore,
 } = requireModule("../../scripts/anonymizePII.js") as {
   ANON_PREFIX: string;
+  CACHE_COLLECTION: string;
   makeHasher: (pepper: string) => (value: unknown) => unknown;
   computeBookingUpdate: (
     data: Record<string, any>,
@@ -27,6 +30,7 @@ const {
   ) => { patch: Record<string, any>; backup: Record<string, any> } | null;
   preBanLogDateMillis: (data: Record<string, any>) => number | null;
   parseArgs: (args: string[]) => any;
+  anonymize: (db: any, options: any) => Promise<any>;
   restore: (db: any, options: any) => Promise<any>;
 };
 
@@ -180,6 +184,62 @@ describe("scripts/anonymizePII parseArgs", () => {
     expect(() =>
       parseArgs(["--restore", "backup.json", "--database", "production"]),
     ).toThrow(/confirm-production/);
+  });
+});
+
+describe("scripts/anonymizePII anonymize cache scoping", () => {
+  // Minimal Firestore stub: listCollections + collection().where().get() /
+  // collection().get() returning the given docs. Dry-run only, so no batch
+  // commits or pepper are needed.
+  const fakeDb = (collections: Record<string, Record<string, any>>) => {
+    const docsOf = (name: string) =>
+      Object.entries(collections[name] || {}).map(([id, data]) => ({
+        id,
+        ref: `${name}/${id}`,
+        data: () => data,
+      }));
+    const snapOf = (name: string) => ({
+      size: docsOf(name).length,
+      docs: docsOf(name),
+    });
+    return {
+      listCollections: async () =>
+        Object.keys(collections).map((id) => ({ id })),
+      collection: (name: string) => ({
+        where: () => ({ get: async () => snapOf(name) }),
+        get: async () => snapOf(name),
+      }),
+    };
+  };
+
+  const collections = {
+    "mc-bookings": {},
+    "itp-bookings": {},
+    nyu_identity_cache: { al123: { university_id: "N1", name: "Ada" } },
+  };
+  const baseOpts = {
+    database: "development",
+    before: "2026-09-01",
+    dryRun: true,
+    cutoff: new Date("2026-09-01"),
+  };
+
+  it("clears the shared identity cache on a full (no --tenant) run", async () => {
+    const report = await anonymize(fakeDb(collections), { ...baseOpts });
+    expect(report.collections[CACHE_COLLECTION].docsDeleted).toBe(1);
+    expect(report.totals.docsDeleted).toBe(1);
+  });
+
+  it("leaves the shared identity cache untouched on a --tenant run", async () => {
+    const report = await anonymize(fakeDb(collections), {
+      ...baseOpts,
+      tenant: "mc",
+    });
+    expect(report.totals.docsDeleted).toBe(0);
+    expect(report.collections[CACHE_COLLECTION].docsDeleted).toBe(0);
+    expect(report.collections[CACHE_COLLECTION].skipped).toBeTruthy();
+    // The tenant filter also scopes the booking collections it touches.
+    expect(report.collections["itp-bookings"]).toBeUndefined();
   });
 });
 

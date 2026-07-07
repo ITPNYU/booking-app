@@ -15,7 +15,9 @@
  *                            (lateCancelDate/noShowDate) is before the cutoff
  *   - `nyu_identity_cache`   shared, doc id IS a netId and the doc holds
  *                            name + university_id; it is a 7-day TTL cache, so
- *                            it is backed up and DELETED (regenerates on demand)
+ *                            it is backed up and DELETED (regenerates on demand).
+ *                            It is NOT tenant-scoped, so a --tenant run leaves
+ *                            it untouched (run without --tenant to clear it).
  *
  * Safety:
  *   - Always writes a JSON backup of every original value BEFORE mutating.
@@ -316,7 +318,23 @@ const anonymize = async (db, options) => {
   }
 
   // --- nyu_identity_cache: doc id is a netId; back up + delete (regenerable) ---
-  if (!options.skipCache) {
+  // The cache is a SHARED collection: its doc ids are bare netIds, not
+  // tenant-prefixed, so it cannot be scoped to one tenant. --tenant exists to
+  // limit blast radius, so a tenant-scoped run must NOT wipe every tenant's
+  // cache entries — skip the cache pass whenever a tenant filter is set.
+  if (options.skipCache) {
+    // Cache pass explicitly disabled; nothing to do.
+  } else if (options.tenant) {
+    console.log(
+      `Skipping ${CACHE_COLLECTION}: it is a shared, non-tenant-scoped cache ` +
+        `and --tenant ${options.tenant} was given. Run without --tenant to clear it.`,
+    );
+    report.collections[CACHE_COLLECTION] = {
+      scanned: 0,
+      docsDeleted: 0,
+      skipped: "not cleared on a --tenant run (shared cache)",
+    };
+  } else {
     const snap = await db.collection(CACHE_COLLECTION).get();
     const colBackup = {};
     for (const doc of snap.docs) {
@@ -423,7 +441,9 @@ Options:
   --before <YYYY-MM-DD>    Academic-year cutoff; only records before this are
                            anonymized (required unless --restore)
   --database <env>         development (default), staging, or production
-  --tenant <tenant>        Limit to one tenant prefix (e.g. mc, itp)
+  --tenant <tenant>        Limit to one tenant prefix (e.g. mc, itp); the
+                           shared identity cache is left untouched on a
+                           tenant-scoped run
   --dry-run                Report the change set; write nothing, no backup
   --backup-only            Write the JSON backup of the eligible records but
                            make no changes (no hashing, no deletes, no pepper)
@@ -490,6 +510,7 @@ if (require.main === module) {
 module.exports = {
   DATABASES,
   ANON_PREFIX,
+  CACHE_COLLECTION,
   BOOKING_PII_FIELDS,
   PREBAN_PII_FIELDS,
   makeHasher,
@@ -497,5 +518,6 @@ module.exports = {
   computePreBanUpdate,
   preBanLogDateMillis,
   parseArgs,
+  anonymize,
   restore,
 };
