@@ -387,6 +387,16 @@ const restore = async (db, options) => {
       report.skipped[name] = { docs: Object.keys(docs).length };
       continue;
     }
+    // --tenant is a hard scope boundary everywhere else in this script, so
+    // honor it here too: restoring from a full backup with --tenant mc must
+    // write back only mc-* collections, not every tenant's PII in the file.
+    if (options.tenant && !name.startsWith(`${options.tenant}-`)) {
+      report.skipped[name] = {
+        docs: Object.keys(docs).length,
+        reason: `outside --tenant ${options.tenant}`,
+      };
+      continue;
+    }
     let restoredDocs = 0;
     let restoredFields = 0;
     for (const [docId, data] of Object.entries(docs)) {

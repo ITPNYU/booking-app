@@ -279,4 +279,29 @@ describe("scripts/anonymizePII restore", () => {
       fs.unlinkSync(file);
     }
   });
+
+  it("restores only the matching tenant's collections when --tenant is set", async () => {
+    const backup = {
+      database: "development",
+      collections: {
+        "mc-bookings": { b1: { firstName: "Ada" } },
+        "itp-bookings": { b2: { firstName: "Bob" } },
+      },
+    };
+    const file = path.join(os.tmpdir(), `anon-restore-tenant-${process.pid}.json`);
+    fs.writeFileSync(file, JSON.stringify(backup));
+    try {
+      const report = await restore(stubDb, {
+        database: "development",
+        restore: file,
+        tenant: "mc",
+        dryRun: true,
+      });
+      expect(Object.keys(report.collections)).toEqual(["mc-bookings"]);
+      expect(report.skipped["itp-bookings"]).toMatchObject({ docs: 1 });
+      expect(report.totals.restoredDocs).toBe(1);
+    } finally {
+      fs.unlinkSync(file);
+    }
+  });
 });
