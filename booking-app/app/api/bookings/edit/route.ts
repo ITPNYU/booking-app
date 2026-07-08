@@ -251,7 +251,7 @@ export async function PUT(request: NextRequest) {
     );
 
     const selectedRoomIds = selectedRooms
-      .map((r: { roomId: number }) => r.roomId)
+      .map((r: { roomId: string }) => r.roomId)
       .join(", ");
 
     console.log("✏️ EDIT: Deleting old calendar events");
@@ -343,16 +343,16 @@ export async function PUT(request: NextRequest) {
     // treat services as already decided (e.g. declined) and immediately
     // re-decline the edited request.
     //
-    // This is intentionally tenant-agnostic: clearing fields that don't exist
-    // is harmless, and it future-proofs tenants that add per-service approvals.
-    if (wasDeclined) {
-      updatedData.staffServiceApproved = null;
-      updatedData.equipmentServiceApproved = null;
-      updatedData.cateringServiceApproved = null;
-      updatedData.cleaningServiceApproved = null;
-      updatedData.securityServiceApproved = null;
-      updatedData.setupServiceApproved = null;
-    }
+    // Firestore fields are deleted (not nulled) after the booking update so
+    // restoreXStateFromFirestore does not rehydrate stale declined decisions.
+    const SERVICE_APPROVAL_FIELDS = [
+      "staffServiceApproved",
+      "equipmentServiceApproved",
+      "cateringServiceApproved",
+      "cleaningServiceApproved",
+      "securityServiceApproved",
+      "setupServiceApproved",
+    ];
 
     // If booking was declined, clear the declinedAt timestamp to ensure status shows as REQUESTED
     if (existingContents.declinedAt) {
@@ -381,6 +381,15 @@ export async function PUT(request: NextRequest) {
       updatedData,
       tenant,
     );
+
+    if (wasDeclined) {
+      await serverDeleteFieldsByCalendarEventId(
+        TableNames.BOOKING,
+        newCalendarEventId,
+        SERVICE_APPROVAL_FIELDS,
+        tenant,
+      );
+    }
 
     // If booking was declined, trigger XState edit transition on the NEW calendarEventId
     // This moves the booking from DECLINED to REQUESTED state

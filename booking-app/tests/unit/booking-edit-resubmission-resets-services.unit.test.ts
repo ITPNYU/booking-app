@@ -155,14 +155,21 @@ describe("Edit resubmission resets declined services", () => {
 
     const updatedData = updateArgs[2];
     expect(updatedData.calendarEventId).toBe("new-cal-456");
+    expect(updatedData.staffServiceApproved).toBeUndefined();
 
-    // Critical: reset service decisions
-    expect(updatedData.staffServiceApproved).toBeNull();
-    expect(updatedData.equipmentServiceApproved).toBeNull();
-    expect(updatedData.cateringServiceApproved).toBeNull();
-    expect(updatedData.cleaningServiceApproved).toBeNull();
-    expect(updatedData.securityServiceApproved).toBeNull();
-    expect(updatedData.setupServiceApproved).toBeNull();
+    expect(mockServerDeleteFieldsByCalendarEventId).toHaveBeenCalledWith(
+      "bookings",
+      "new-cal-456",
+      [
+        "staffServiceApproved",
+        "equipmentServiceApproved",
+        "cateringServiceApproved",
+        "cleaningServiceApproved",
+        "securityServiceApproved",
+        "setupServiceApproved",
+      ],
+      "mc",
+    );
 
     // Still runs XState edit transition for declined bookings
     expect(mockCallXStateTransitionAPI).toHaveBeenCalledWith(

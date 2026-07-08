@@ -63,10 +63,10 @@ const parseJson = async (response: Response) => {
 };
 
 const mockSchema = {
-  tenant: "mc",
-  name: "Media Commons",
-  showEquipment: true,
-  resources: [{ name: "Room 1", roomId: 1 }],
+  tenantId: "mc",
+  tenant: { name: "Media Commons", logo: "", nameForPolicy: "" },
+  form: { services: { showEquipment: true } },
+  resources: [{ name: "Room 1", resourceId: "1" }],
 };
 
 describe("GET /api/tenantSchema/[tenant]", () => {
@@ -83,6 +83,8 @@ describe("GET /api/tenantSchema/[tenant]", () => {
     expect(status).toBe(200);
     expect(data.tenant.name).toBe("Media Commons");
     expect(data.resources).toHaveLength(1);
+    expect(data.resources[0].resourceId).toBe("1");
+    expect(data.resources[0]).not.toHaveProperty("roomId");
   });
 
   it("returns 404 when schema not found", async () => {

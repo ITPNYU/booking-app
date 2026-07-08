@@ -94,47 +94,36 @@ describe("FormInput - Field Visibility by Form Context", () => {
   });
 
   const rawMockTenantSchema: Record<string, unknown> = {
-    tenant: "media-commons",
-    name: "Media Commons",
-    logo: "",
-    nameForPolicy: "Media Commons",
+    tenantId: "media-commons",
+    tenant: {
+      name: "Media Commons",
+      logo: "",
+      nameForPolicy: "Media Commons",
+    },
     policy: "",
     roles: ["Student", "Faculty", "Staff"],
-    showNNumber: true,
-    showSponsor: true,
-    showSetup: true,
-    showEquipment: true,
-    showStaffing: true,
-    showCatering: true,
-    showHireSecurity: true,
-    showBookingTypes: true,
-    agreements: [
+    mappings: { program: {}, role: {}, school: {} },
+    form: {
+      showNNumber: true,
+      showSponsor: true,
+      showBookingType: true,
+      services: {
+        showSetup: true,
+        showEquipment: true,
+        showStaffing: true,
+        showCatering: true,
+        showSecurity: true,
+      },
+    },
+    attestations: [
       {
         id: "agreement1",
         html: "<p>I agree to the terms and conditions</p>",
       },
     ],
     resources: [],
-    supportVIP: true,
-    supportWalkIn: true,
+    origins: { VIP: true, walkIn: true },
     resourceName: "Room",
-    programMapping: {},
-    roleMapping: {},
-    emailMessages: {
-      requestConfirmation: "",
-      firstApprovalRequest: "",
-      secondApprovalRequest: "",
-      walkInConfirmation: "",
-      vipConfirmation: "",
-      checkoutConfirmation: "",
-      checkinConfirmation: "",
-      declined: "",
-      canceled: "",
-      lateCancel: "",
-      noShow: "",
-      closed: "",
-      approvalNotice: "",
-    },
   };
 
   const mockTenantSchema = coerceTenantSchema(
@@ -496,7 +485,10 @@ describe("FormInput - Field Visibility by Form Context", () => {
   describe("Field Visibility Based on Tenant Schema", () => {
     it("hides N-Number when showNNumber is false", () => {
       const schemaWithoutNNumber = coerceTenantSchema(
-        { ...rawMockTenantSchema, showNNumber: false },
+        {
+          ...rawMockTenantSchema,
+          form: { ...(rawMockTenantSchema.form as object), showNNumber: false },
+        },
         "media-commons",
       );
 
@@ -520,7 +512,10 @@ describe("FormInput - Field Visibility by Form Context", () => {
 
     it("hides Net ID when showSponsor is false", () => {
       const schemaWithoutSponsor = coerceTenantSchema(
-        { ...rawMockTenantSchema, showSponsor: false },
+        {
+          ...rawMockTenantSchema,
+          form: { ...(rawMockTenantSchema.form as object), showSponsor: false },
+        },
         "media-commons",
       );
 
@@ -544,7 +539,16 @@ describe("FormInput - Field Visibility by Form Context", () => {
 
     it("hides Setup service when showSetup is false", () => {
       const schemaWithoutSetup = coerceTenantSchema(
-        { ...rawMockTenantSchema, showSetup: false },
+        {
+          ...rawMockTenantSchema,
+          form: {
+            ...(rawMockTenantSchema.form as { services: object }),
+            services: {
+              ...(rawMockTenantSchema.form as { services: object }).services,
+              showSetup: false,
+            },
+          },
+        },
         "media-commons",
       );
 
@@ -568,7 +572,13 @@ describe("FormInput - Field Visibility by Form Context", () => {
 
     it("hides Booking Type when showBookingTypes is false", () => {
       const schemaWithoutBookingTypes = coerceTenantSchema(
-        { ...rawMockTenantSchema, showBookingTypes: false },
+        {
+          ...rawMockTenantSchema,
+          form: {
+            ...(rawMockTenantSchema.form as object),
+            showBookingType: false,
+          },
+        },
         "media-commons",
       );
 

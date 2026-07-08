@@ -1,10 +1,14 @@
 import { Timestamp } from "firebase/firestore";
 import { format } from "date-fns";
-import { toZonedTime } from "date-fns-tz";
+import { formatInTimeZone, toZonedTime } from "date-fns-tz";
 import { DEFAULT_SLOT_UNIT } from "../routes/booking/utils/getSlotUnit";
 
 // All times in the booking app are displayed in Eastern Time
 export const TIMEZONE = "America/New_York";
+
+/** FullCalendar `startStr` / `endStr` format: Eastern local time without offset. */
+export const toBookingCalendarStr = (date: Date): string =>
+  formatInTimeZone(date, TIMEZONE, "yyyy-MM-dd'T'HH:mm:ss");
 
 export const formatDate = (
   oldDate:

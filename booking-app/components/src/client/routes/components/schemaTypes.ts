@@ -14,9 +14,6 @@ export type Attestation = {
   html: string;
 };
 
-/** @deprecated Use Attestation */
-export type Agreement = Attestation;
-
 export type StaffingSection = {
   name: string;
   indexes: number[];
@@ -28,16 +25,32 @@ export type ResourceTraining = {
   infoUrl?: string;
 };
 
+export type RequestLimitPeriod = "perDay" | "perWeek" | "perMonth" | "perSemester";
+
+/** Keys in `resource.requestLimits` — one bucket per base role (VIP / walk-in share the same cap). */
+export type RequestLimitBucketKey = "admin" | "faculty" | "student";
+
+export type RequestLimits = Partial<
+  Record<RequestLimitPeriod, Partial<Record<RequestLimitBucketKey, number>>>
+>;
+
 export type Resource = {
   capacity: number;
   name: string;
-  roomId: number;
+  resourceId: string;
   isEquipment: boolean;
   calendarId: string;
   training?: ResourceTraining;
   isWalkIn: boolean;
   isWalkInCanBookTwo: boolean;
   services: string[];
+  /**
+   * Limit how many requests a user can make per period for this resource.
+   * Convention: `-1` (or missing) means “unlimited”.
+   *
+   * Shape: each period has only `admin`, `faculty`, `student` — counts include all booking origins.
+   */
+  requestLimits?: RequestLimits;
   autoApproval?: {
     shouldAutoApprove?: boolean;
     minHour?: {
@@ -93,6 +106,14 @@ export type TimeSensitiveRequestWarning = {
   policyLink?: string;
 };
 
+export type TermRange = [number, number]; // [startMonth, endMonth], 1-12 inclusive
+
+export type TermConfig = {
+  fallTerm: TermRange; // e.g. [9, 12]
+  springTerm: TermRange; // e.g. [1, 5]
+  summerTerm: TermRange; // e.g. [6, 8]
+};
+
 export type ContextLabels = {
   user: string;
   worker: string;
@@ -100,9 +121,6 @@ export type ContextLabels = {
   services: string;
   admin: string;
 };
-
-/** @deprecated Use ContextLabels */
-export type PermissionLabels = ContextLabels;
 
 export type TenantBranding = {
   name: string;
@@ -190,6 +208,8 @@ export type SchemaContextType = {
           preApproved: boolean;
         };
       };
+  /** Term/semester configuration for "perSemester" request limits */
+  termConfig?: TermConfig;
   calendarConfig?: {
     startHour?: Record<string, string>;
     slotUnit?: Record<string, number>;
@@ -223,13 +243,10 @@ export const defaultAttestation: Attestation = {
   html: "",
 };
 
-/** @deprecated Use defaultAttestation */
-export const defaultAgreement = defaultAttestation;
-
 export const defaultResource: Resource = {
   capacity: 0,
   name: "",
-  roomId: 0,
+  resourceId: "",
   isEquipment: false,
   calendarId: "",
   training: {
@@ -240,6 +257,12 @@ export const defaultResource: Resource = {
   isWalkIn: false,
   isWalkInCanBookTwo: false,
   services: [],
+  requestLimits: {
+    perDay: { admin: -1, faculty: -1, student: -1 },
+    perWeek: { admin: -1, faculty: -1, student: -1 },
+    perMonth: { admin: -1, faculty: -1, student: -1 },
+    perSemester: { admin: -1, faculty: -1, student: -1 },
+  },
   autoApproval: {
     shouldAutoApprove: false,
     minHour: { admin: -1, faculty: -1, student: -1 },
@@ -350,6 +373,11 @@ export const defaultScheme: Omit<SchemaContextType, "tenantId"> = {
   declinedGracePeriod: 24,
   interimHighlightThresholdHours: 18,
   autoCancel: false,
+  termConfig: {
+    fallTerm: [9, 12],
+    springTerm: [1, 5],
+    summerTerm: [6, 8],
+  },
   calendarConfig: {
     startHour: {
       student: "09:00:00",

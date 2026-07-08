@@ -19,6 +19,7 @@ import {
   BookingFormDetails,
   BookingOrigin,
   BookingStatusLabel,
+  FormContextLevel,
   RoomSetting,
 } from "@/components/src/types";
 import { getSecondaryContactName } from "@/components/src/utils/formatters";
@@ -50,6 +51,11 @@ import {
   getAffiliationDisplayValues,
   getOtherDisplayFields,
 } from "./shared";
+import {
+  enforceRequestLimits,
+  getRequestLimitRoleKey,
+} from "@/lib/bookingRequestLimits";
+import type { SchemaContextType } from "@/components/src/client/routes/components/SchemaProvider";
 
 // Common function to create XState data structure
 export function createXStateData(
@@ -159,7 +165,7 @@ const getTenantRooms = async (tenant?: string) => {
     );
 
     return resourcesWithCorrectCalendarIds.map((resource: any) => ({
-      roomId: resource.roomId,
+      roomId: String(resource.resourceId ?? resource.roomId),
       name: resource.name,
       capacity: resource.capacity?.toString(),
       calendarId: resource.calendarId,
@@ -227,9 +233,7 @@ async function createBookingCalendarEvent(
     throw Error(`calendarId not found for room ${room.roomId}`);
   }
 
-  const selectedRoomIds = selectedRooms.map(
-    (r: { roomId: number }) => r.roomId,
-  );
+  const selectedRoomIds = selectedRooms.map((r) => r.roomId);
   const otherRoomEmails = otherRooms.map(
     (r: { calendarId: string }) => r.calendarId,
   );
@@ -565,6 +569,52 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // Enforce per-resource request limits (per user email + role)
+  try {
+    const bookingRoleField = String(data?.role ?? "").trim();
+    const limitRoleKey = getRequestLimitRoleKey(
+      FormContextLevel.FULL_FORM,
+      bookingRoleField,
+    );
+    const selectedRoomIdsForLimits: string[] = Array.isArray(selectedRooms)
+      ? selectedRooms
+          .map((r: any) => (r?.roomId == null ? "" : String(r.roomId).trim()))
+          .filter((resourceId: string) => resourceId.length > 0)
+      : [];
+
+    if (
+      tenant &&
+      email &&
+      bookingRoleField &&
+      selectedRoomIdsForLimits.length > 0
+    ) {
+      const tenantSchema = await serverGetDocumentById<SchemaContextType>(
+        TableNames.TENANT_SCHEMA,
+        tenant,
+        tenant,
+      );
+
+      const enforcement = await enforceRequestLimits({
+        tenant,
+        email,
+        bookingRoleField,
+        limitRoleKey,
+        selectedRoomIds: selectedRoomIdsForLimits,
+        schema: tenantSchema,
+      });
+
+      if (enforcement.ok === false) {
+        return NextResponse.json(
+          { error: enforcement.message },
+          { status: 429 },
+        );
+      }
+    }
+  } catch (e: any) {
+    console.error("Error enforcing request limits:", e);
+    // Fail open to avoid blocking bookings if enforcement throws unexpectedly
+  }
+
   console.log("data", data);
 
   // Determine initial status and auto-approval using XState for ITP
@@ -770,9 +820,10 @@ export async function POST(request: NextRequest) {
   // Generate Sequential ID early so it can be used in calendar description
   const sequentialId = await serverGetNextSequentialId("bookings", tenant);
 
-  const selectedRoomIds = selectedRooms
-    .map((r: { roomId: number }) => r.roomId)
-    .join(", ");
+  const selectedRoomIdsArray = selectedRooms
+    .map((r: { roomId: number | string }) => String(r.roomId).trim())
+    .filter((resourceId: string) => resourceId.length > 0);
+  const selectedRoomIds = selectedRoomIdsArray.join(", ");
 
   // Build booking contents for description
   const startDateObj = new Date(bookingCalendarInfo.startStr);
@@ -827,6 +878,7 @@ export async function POST(request: NextRequest) {
     const bookingData = {
       calendarEventId,
       roomId: selectedRoomIds,
+      roomIds: selectedRoomIdsArray,
       email,
       startDate: toFirebaseTimestampFromString(bookingCalendarInfo.startStr),
       endDate: toFirebaseTimestampFromString(bookingCalendarInfo.endStr),

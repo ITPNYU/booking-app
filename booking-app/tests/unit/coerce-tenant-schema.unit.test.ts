@@ -9,40 +9,93 @@ describe("coerceTenantSchema — timeSensitiveRequestWarning", () => {
     policyLink: "https://policy.example",
   };
 
-  it("picks up a top-level warning from a fully-legacy document", () => {
-    const legacy: any = {
-      tenant: "mc",
-      name: "Media Commons",
-      timeSensitiveRequestWarning: warning,
+  const canonicalBase = {
+    tenantId: "mc",
+    tenant: { name: "Media Commons", logo: "", nameForPolicy: "" },
+    mappings: { program: {}, role: {}, school: {} },
+    form: { services: {} },
+  };
+
+  it("keeps a nested calendarConfig warning from a canonical document", () => {
+    const doc: any = {
+      ...canonicalBase,
+      calendarConfig: { timeSensitiveRequestWarning: warning },
     };
-    const c = coerceTenantSchema(legacy, "mc");
+    const c = coerceTenantSchema(doc, "mc");
     expect(c.calendarConfig?.timeSensitiveRequestWarning).toMatchObject(warning);
   });
 
-  it("picks up a top-level warning from a partially-migrated (new-shape) document", () => {
-    // Nested tenant/mappings/form => coerce takes the new-shape branch, but the
-    // warning is still stored at the legacy top level. It must not be dropped.
-    const partial: any = {
-      tenantId: "mc",
-      tenant: { name: "Media Commons", logo: "", nameForPolicy: "" },
-      mappings: { program: {}, role: {}, school: {} },
-      form: { services: {} },
-      timeSensitiveRequestWarning: warning,
-    };
-    const c = coerceTenantSchema(partial, "mc");
-    expect(c.calendarConfig?.timeSensitiveRequestWarning).toMatchObject(warning);
-  });
-
-  it("prefers the nested warning over a stale top-level one", () => {
-    const both: any = {
-      tenantId: "mc",
-      tenant: { name: "Media Commons", logo: "", nameForPolicy: "" },
-      mappings: { program: {}, role: {}, school: {} },
-      form: { services: {} },
-      timeSensitiveRequestWarning: { ...warning, hours: 12 },
+  it("merges a partial nested warning over the defaults", () => {
+    const doc: any = {
+      ...canonicalBase,
       calendarConfig: { timeSensitiveRequestWarning: { hours: 99 } },
     };
-    const c = coerceTenantSchema(both, "mc");
+    const c = coerceTenantSchema(doc, "mc");
     expect(c.calendarConfig?.timeSensitiveRequestWarning?.hours).toBe(99);
+  });
+});
+
+describe("coerceTenantSchema — resources", () => {
+  it.each([
+    ["number", 202, "202"],
+    ["string", "studio-a", "studio-a"],
+  ])("coerces a legacy %s roomId to resourceId", (_, roomId, resourceId) => {
+    const resource = {
+      roomId,
+      name: "Studio",
+      capacity: 12,
+      customField: { keep: true },
+    };
+
+    const coerced = coerceTenantSchema({ resources: [resource] }, "mc");
+
+    expect(coerced.resources[0]).toEqual({
+      resourceId,
+      name: "Studio",
+      capacity: 12,
+      customField: { keep: true },
+    });
+    expect(coerced.resources[0]).not.toHaveProperty("roomId");
+  });
+
+  it("keeps a canonical resourceId and removes a matching legacy roomId", () => {
+    const coerced = coerceTenantSchema(
+      {
+        resources: [
+          {
+            resourceId: "canonical-id",
+            roomId: "canonical-id",
+            name: "Canonical resource",
+          },
+        ],
+      },
+      "mc",
+    );
+
+    expect(coerced.resources[0].resourceId).toBe("canonical-id");
+    expect(coerced.resources[0]).not.toHaveProperty("roomId");
+  });
+
+  it("rejects conflicting legacy and canonical IDs", () => {
+    expect(() =>
+      coerceTenantSchema(
+        { resources: [{ resourceId: "studio-a", roomId: 202 }] },
+        "mc",
+      ),
+    ).toThrow("conflicting resourceId and roomId");
+  });
+
+  it("rejects duplicate canonical IDs", () => {
+    expect(() =>
+      coerceTenantSchema(
+        {
+          resources: [
+            { resourceId: "studio-a" },
+            { roomId: "studio-a" },
+          ],
+        },
+        "mc",
+      ),
+    ).toThrow('duplicate resourceId "studio-a"');
   });
 });
