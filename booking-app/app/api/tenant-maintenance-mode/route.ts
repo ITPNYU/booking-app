@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isValidTenant } from "@/components/src/constants/tenants";
 import { TableNames, getTenantCollectionName } from "@/components/src/policy";
+import { PagePermission } from "@/components/src/types";
+import { resolveCallerRole } from "@/lib/api/authz";
 import { requireSession } from "@/lib/api/requireSession";
 import admin from "@/lib/firebase/server/firebaseAdmin";
 import {
@@ -41,15 +43,11 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({ error: "Invalid tenant" }, { status: 400 });
   }
 
-  const db = admin.firestore();
-  const adminSnap = await db
-    .collection(getTenantCollectionName(TableNames.USERS_RIGHTS, tenant))
-    .where("email", "==", session.email)
-    .where("isAdmin", "==", true)
-    .limit(1)
-    .get();
-
-  if (adminSnap.empty) {
+  const role = await resolveCallerRole(session, tenant);
+  if (
+    role !== PagePermission.ADMIN &&
+    role !== PagePermission.SUPER_ADMIN
+  ) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -83,6 +81,7 @@ export async function PUT(req: NextRequest) {
     raw.message.trim().slice(0, MAINTENANCE_MODE_MESSAGE_MAX_LEN) ||
     DEFAULT_MAINTENANCE_MODE_MESSAGE;
 
+  const db = admin.firestore();
   const ref = db
     .collection(getTenantCollectionName(TableNames.SETTINGS, tenant))
     .doc(MAINTENANCE_MODE_SETTINGS_DOC_ID);

@@ -20,23 +20,17 @@ export default function Admin({ calendarEventId }) {
   );
 
   const userHasPermission = canAccessAdmin(pagePermission);
-  const isDatabaseAdmin =
-    !!userEmail && adminEmails.some((email) => email === userEmail);
-
-  if (adminEmails.length === 0 || userEmail == null) {
-    return <CenterLoading />;
-  }
 
   if (maintenanceMode.enabled) {
     return (
       <Box margin={3}>
-        {!isDatabaseAdmin ? (
-          <div>You do not have permission to view this page.</div>
-        ) : (
-          <Settings maintenanceOnly />
-        )}
+        <Settings maintenanceOnly />
       </Box>
     );
+  }
+
+  if (adminEmails.length === 0 || userEmail == null) {
+    return <CenterLoading />;
   }
 
   return (

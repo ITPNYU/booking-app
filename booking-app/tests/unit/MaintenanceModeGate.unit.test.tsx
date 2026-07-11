@@ -80,6 +80,19 @@ describe("MaintenanceModeGate", () => {
     expect(screen.queryByText("Maintenance mode")).not.toBeInTheDocument();
   });
 
+  it("allows super admins to reach the admin page during maintenance mode", () => {
+    mockUsePathname.mockReturnValue("/mc/admin");
+
+    renderGate({
+      adminUsers: [],
+      pagePermission: PagePermission.SUPER_ADMIN,
+      userEmail: "super@nyu.edu",
+    });
+
+    expect(screen.getByText("Protected tenant content")).toBeInTheDocument();
+    expect(screen.queryByText("Maintenance mode")).not.toBeInTheDocument();
+  });
+
   it("blocks admin URLs when the signed-in user is not in adminUsers", () => {
     mockUsePathname.mockReturnValue("/mc/admin");
 

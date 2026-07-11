@@ -119,7 +119,7 @@ describe("PUT /api/tenant-maintenance-mode", () => {
   });
 
   it("returns 403 when caller is not a database admin", async () => {
-    mocks.mockAdminGet.mockResolvedValue({ empty: true });
+    mocks.mockResolveCallerRole.mockResolvedValue(PagePermission.BOOKING);
 
     const res = await PUT(
       createPutRequest({
@@ -134,9 +134,8 @@ describe("PUT /api/tenant-maintenance-mode", () => {
     expect(mocks.mockSet).not.toHaveBeenCalled();
   });
 
-  it("allows a super-admin who is also a tenant database admin", async () => {
+  it("allows a super-admin without a tenant database admin doc", async () => {
     mocks.mockResolveCallerRole.mockResolvedValue(PagePermission.SUPER_ADMIN);
-    mocks.mockAdminGet.mockResolvedValue({ empty: false });
 
     const res = await PUT(
       createPutRequest({
@@ -149,6 +148,11 @@ describe("PUT /api/tenant-maintenance-mode", () => {
     expect(status).toBe(200);
     expect(data).toEqual({ ok: true });
     expect(mocks.mockSet).toHaveBeenCalled();
+    expect(mocks.mockWhere).not.toHaveBeenCalledWith(
+      "isAdmin",
+      "==",
+      true,
+    );
   });
 
   it("returns 400 when maintenanceMode is missing", async () => {
@@ -221,13 +225,11 @@ describe("PUT /api/tenant-maintenance-mode", () => {
 
     expect(status).toBe(200);
     expect(data).toEqual({ ok: true });
-    expect(mocks.mockCollection).toHaveBeenCalledWith("mc-usersRights");
-    expect(mocks.mockWhere).toHaveBeenCalledWith(
-      "email",
-      "==",
-      "admin@nyu.edu",
+    expect(mocks.mockResolveCallerRole).toHaveBeenCalledWith(
+      { email: "admin@nyu.edu", netId: "admin" },
+      "mc",
     );
-    expect(mocks.mockWhere).toHaveBeenCalledWith("isAdmin", "==", true);
+    expect(mocks.mockCollection).not.toHaveBeenCalledWith("mc-usersRights");
     expect(mocks.mockCollection).toHaveBeenCalledWith("mc-settings");
     expect(mocks.mockDoc).toHaveBeenCalledWith(
       MAINTENANCE_MODE_SETTINGS_DOC_ID,

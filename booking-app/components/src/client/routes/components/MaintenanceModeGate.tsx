@@ -4,6 +4,7 @@ import { Alert, Box, Typography } from "@mui/material";
 import { usePathname } from "next/navigation";
 import { ReactNode, useContext } from "react";
 
+import { PagePermission } from "../../../types";
 import Loading from "./Loading";
 import { DatabaseContext } from "./Provider";
 
@@ -14,8 +15,13 @@ type MaintenanceModeGateProps = {
 export default function MaintenanceModeGate({
   children,
 }: MaintenanceModeGateProps) {
-  const { adminUsers, maintenanceMode, permissionsLoading, userEmail } =
-    useContext(DatabaseContext);
+  const {
+    adminUsers,
+    maintenanceMode,
+    pagePermission,
+    permissionsLoading,
+    userEmail,
+  } = useContext(DatabaseContext);
   const pathname = usePathname();
 
   if (permissionsLoading) {
@@ -28,9 +34,10 @@ export default function MaintenanceModeGate({
 
   const isDatabaseAdmin =
     !!userEmail && adminUsers.some((admin) => admin.email === userEmail);
+  const isSuperAdmin = pagePermission === PagePermission.SUPER_ADMIN;
   const isAdminPath = /^\/[^/]+\/admin(?:\/|$)/.test(pathname ?? "");
 
-  if (isDatabaseAdmin && isAdminPath) {
+  if ((isSuperAdmin || isDatabaseAdmin) && isAdminPath) {
     return <>{children}</>;
   }
 

@@ -18,6 +18,7 @@ vi.mock("@/components/src/client/utils/serverDate", () => ({
 vi.mock("@/components/src/server/admin", () => ({
   firstApproverEmails: vi.fn(),
   serverApproveInstantBooking: vi.fn(),
+  serverGetRoomCalendarId: vi.fn(),
   serverSendBookingDetailEmail: vi.fn(),
   serverUpdateDataByCalendarEventId: vi.fn(),
 }));
@@ -38,6 +39,7 @@ vi.mock("@/components/src/server/emails", () => ({
 
 vi.mock("@/lib/firebase/server/adminDb", () => ({
   logServerBookingChange: vi.fn(),
+  serverGetFinalApproverEmail: vi.fn(),
   serverGetNextSequentialId: vi.fn(),
   serverSaveDataToFirestore: vi.fn(),
   serverGetDocumentById: vi.fn(),
@@ -72,6 +74,7 @@ vi.mock("@/lib/bookingRequestLimits", () => ({
   getRequestLimitRoleKey: vi.fn(),
 }));
 
+import { POST as POSTBookingsDirect } from "@/app/api/bookingsDirect/route";
 import { POST } from "@/app/api/bookings/route";
 
 const createPostRequest = () =>
@@ -90,6 +93,21 @@ const createPostRequest = () =>
     }),
   });
 
+const createDirectPostRequest = () =>
+  new NextRequest("http://localhost:3000/api/bookingsDirect", {
+    method: "POST",
+    headers: new Headers({
+      "Content-Type": "application/json",
+      "x-tenant": "mc",
+    }),
+    body: JSON.stringify({
+      email: "requester@nyu.edu",
+      selectedRooms: [],
+      bookingCalendarInfo: null,
+      data: {},
+    }),
+  });
+
 describe("POST /api/bookings maintenance mode", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -102,6 +120,24 @@ describe("POST /api/bookings maintenance mode", () => {
     });
 
     const response = await POST(createPostRequest());
+    const body = await response.json();
+
+    expect(response.status).toBe(503);
+    expect(body).toEqual({
+      error: "Requests are paused.",
+      maintenanceMode: true,
+    });
+    expect(mocks.mockGetMaintenanceModeSettings).toHaveBeenCalledWith("mc");
+    expect(mocks.mockInsertEvent).not.toHaveBeenCalled();
+  });
+
+  it("returns 503 before creating a direct booking when maintenance mode is enabled", async () => {
+    mocks.mockGetMaintenanceModeSettings.mockResolvedValue({
+      enabled: true,
+      message: "Requests are paused.",
+    });
+
+    const response = await POSTBookingsDirect(createDirectPostRequest());
     const body = await response.json();
 
     expect(response.status).toBe(503);
