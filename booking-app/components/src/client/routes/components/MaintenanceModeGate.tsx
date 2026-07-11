@@ -4,9 +4,13 @@ import { Alert, Box, Typography } from "@mui/material";
 import { usePathname } from "next/navigation";
 import { ReactNode, useContext } from "react";
 
-import { PagePermission } from "../../../types";
 import Loading from "./Loading";
 import { DatabaseContext } from "./Provider";
+
+const MAINTENANCE_BLOCKED_ROUTE_SEGMENTS = new Set(["book", "walk-in", "vip"]);
+
+const getTenantRouteSegment = (pathname: string | null): string | undefined =>
+  pathname?.match(/^\/[^/]+\/([^/]+)/)?.[1];
 
 type MaintenanceModeGateProps = {
   children: ReactNode;
@@ -15,13 +19,7 @@ type MaintenanceModeGateProps = {
 export default function MaintenanceModeGate({
   children,
 }: MaintenanceModeGateProps) {
-  const {
-    adminUsers,
-    maintenanceMode,
-    pagePermission,
-    permissionsLoading,
-    userEmail,
-  } = useContext(DatabaseContext);
+  const { maintenanceMode, permissionsLoading } = useContext(DatabaseContext);
   const pathname = usePathname();
 
   if (permissionsLoading) {
@@ -32,12 +30,8 @@ export default function MaintenanceModeGate({
     return <>{children}</>;
   }
 
-  const isDatabaseAdmin =
-    !!userEmail && adminUsers.some((admin) => admin.email === userEmail);
-  const isSuperAdmin = pagePermission === PagePermission.SUPER_ADMIN;
-  const isAdminPath = /^\/[^/]+\/admin(?:\/|$)/.test(pathname ?? "");
-
-  if ((isSuperAdmin || isDatabaseAdmin) && isAdminPath) {
+  const routeSegment = getTenantRouteSegment(pathname);
+  if (!MAINTENANCE_BLOCKED_ROUTE_SEGMENTS.has(routeSegment ?? "")) {
     return <>{children}</>;
   }
 

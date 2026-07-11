@@ -93,12 +93,14 @@ const createPostRequest = () =>
     }),
   });
 
-const createDirectPostRequest = () =>
+const createDirectPostRequest = (
+  headers: Record<string, string> = { "x-tenant": "mc" },
+) =>
   new NextRequest("http://localhost:3000/api/bookingsDirect", {
     method: "POST",
     headers: new Headers({
       "Content-Type": "application/json",
-      "x-tenant": "mc",
+      ...headers,
     }),
     body: JSON.stringify({
       email: "requester@nyu.edu",
@@ -138,6 +140,24 @@ describe("POST /api/bookings maintenance mode", () => {
     });
 
     const response = await POSTBookingsDirect(createDirectPostRequest());
+    const body = await response.json();
+
+    expect(response.status).toBe(503);
+    expect(body).toEqual({
+      error: "Requests are paused.",
+      maintenanceMode: true,
+    });
+    expect(mocks.mockGetMaintenanceModeSettings).toHaveBeenCalledWith("mc");
+    expect(mocks.mockInsertEvent).not.toHaveBeenCalled();
+  });
+
+  it("checks default tenant maintenance mode for direct bookings without tenant signals", async () => {
+    mocks.mockGetMaintenanceModeSettings.mockResolvedValue({
+      enabled: true,
+      message: "Requests are paused.",
+    });
+
+    const response = await POSTBookingsDirect(createDirectPostRequest({}));
     const body = await response.json();
 
     expect(response.status).toBe(503);

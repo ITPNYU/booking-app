@@ -54,7 +54,7 @@ describe("MaintenanceModeGate", () => {
     expect(screen.queryByText("Maintenance mode")).not.toBeInTheDocument();
   });
 
-  it("blocks children and shows only the maintenance notice for non-admins", () => {
+  it("blocks the public booking form and shows only the maintenance notice", () => {
     renderGate();
 
     expect(screen.getByText("Maintenance mode")).toBeInTheDocument();
@@ -67,7 +67,21 @@ describe("MaintenanceModeGate", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("allows database admins to reach the admin page during maintenance mode", () => {
+  it.each(["book", "walk-in", "vip"])(
+    "blocks %s booking intake routes during maintenance mode",
+    (routeSegment) => {
+      mockUsePathname.mockReturnValue(`/mc/${routeSegment}`);
+
+      renderGate();
+
+      expect(screen.getByText("Maintenance mode")).toBeInTheDocument();
+      expect(
+        screen.queryByText("Protected tenant content"),
+      ).not.toBeInTheDocument();
+    },
+  );
+
+  it("allows the admin page to handle its own authorization during maintenance mode", () => {
     mockUsePathname.mockReturnValue("/mc/admin");
 
     renderGate({
@@ -93,18 +107,39 @@ describe("MaintenanceModeGate", () => {
     expect(screen.queryByText("Maintenance mode")).not.toBeInTheDocument();
   });
 
-  it("blocks admin URLs when the signed-in user is not in adminUsers", () => {
-    mockUsePathname.mockReturnValue("/mc/admin");
+  it("allows staff dashboards during maintenance mode", () => {
+    mockUsePathname.mockReturnValue("/mc/liaison");
 
     renderGate({
-      adminUsers: [{ email: "admin@nyu.edu" }],
-      pagePermission: PagePermission.ADMIN,
-      userEmail: "other@nyu.edu",
+      pagePermission: PagePermission.LIAISON,
+      userEmail: "liaison@nyu.edu",
     });
 
-    expect(screen.getByText("Maintenance mode")).toBeInTheDocument();
-    expect(
-      screen.queryByText("Protected tenant content"),
-    ).not.toBeInTheDocument();
+    expect(screen.getByText("Protected tenant content")).toBeInTheDocument();
+    expect(screen.queryByText("Maintenance mode")).not.toBeInTheDocument();
+  });
+
+  it.each(["approve", "decline"])(
+    "allows %s email action routes during maintenance mode",
+    (routeSegment) => {
+      mockUsePathname.mockReturnValue(`/mc/${routeSegment}`);
+
+      renderGate();
+
+      expect(screen.getByText("Protected tenant content")).toBeInTheDocument();
+      expect(screen.queryByText("Maintenance mode")).not.toBeInTheDocument();
+    },
+  );
+
+  it("allows staff dashboard routes to handle their own authorization", () => {
+    mockUsePathname.mockReturnValue("/mc/services");
+
+    renderGate({
+      pagePermission: PagePermission.BOOKING,
+      userEmail: "requester@nyu.edu",
+    });
+
+    expect(screen.getByText("Protected tenant content")).toBeInTheDocument();
+    expect(screen.queryByText("Maintenance mode")).not.toBeInTheDocument();
   });
 });

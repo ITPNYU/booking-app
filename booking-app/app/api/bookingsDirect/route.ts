@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
   } = await request.json();
 
   // Extract tenant from URL
-  const tenant = extractTenantFromRequest(request);
+  const tenant = extractTenantFromRequest(request) ?? DEFAULT_TENANT;
   const maintenanceMode = await getMaintenanceModeSettings(tenant);
   if (maintenanceMode.enabled) {
     return NextResponse.json(
