@@ -252,6 +252,12 @@ describe("server/db", () => {
   });
 
   it("executeTraditionalNoShow awaits the new log and ignores excused logs for tenant violationCount", async () => {
+    let resolveSave!: () => void;
+    const saveCompleted = new Promise<void>((resolve) => {
+      resolveSave = resolve;
+    });
+    mockClientSaveDataToFirestore.mockReturnValueOnce(saveCompleted);
+
     mockGetTenantEmailConfig.mockResolvedValue({
       schemaName: "Media Commons",
       emailNotifications: {
@@ -274,12 +280,32 @@ describe("server/db", () => {
 
     const { executeTraditionalNoShow } =
       await import("@/components/src/server/db");
-    await executeTraditionalNoShow(
+    const noShowPromise = executeTraditionalNoShow(
       "cal-noshow-1",
       "staff@nyu.edu",
       "netX",
       "mc",
     );
+
+    await Promise.resolve();
+    expect(mockClientSaveDataToFirestore).toHaveBeenCalledWith(
+      "preBanLogs",
+      expect.objectContaining({
+        netId: "netX",
+        bookingId: "cal-noshow-1",
+      }),
+      "mc",
+    );
+    expect(mockServerFetchAllDataFromCollection).not.toHaveBeenCalledWith(
+      "preBanLogs",
+      undefined,
+      "mc",
+    );
+
+    resolveSave();
+    await noShowPromise;
+    await Promise.resolve();
+    await Promise.resolve();
 
     expect(mockClientSaveDataToFirestore).toHaveBeenCalledWith(
       "preBanLogs",
