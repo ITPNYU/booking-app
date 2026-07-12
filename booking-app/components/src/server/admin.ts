@@ -778,81 +778,83 @@ export const serverApproveEvent = async (id: string, tenant?: string) => {
 
   // for secondary contact, if we have one
   // secondaryEmail now stores full NYU email (e.g., abc123@nyu.edu)
-  const postApprovalTasks: Promise<unknown>[] = [
-    fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/calendarEvents`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        "x-tenant": tenant || DEFAULT_TENANT,
-      },
-      body: JSON.stringify({
-        calendarEventId: id,
-        newValues: { statusPrefix: BookingStatusLabel.APPROVED },
-      }),
-    }),
-    fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/inviteUser`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-tenant": tenant || DEFAULT_TENANT,
-      },
-      body: JSON.stringify({
-        guestEmail,
-        calendarEventId: id,
-        roomId: contents.roomId,
-      }),
-    }),
-  ];
-
+  // Keep these side effects sequential so a calendar/guest failure cannot
+  // skip secondary contact email/invite (and so invites run after calendar update).
   if (contents.secondaryEmail && contents.secondaryEmail.length > 0) {
+    // Handle both legacy net ID format and new full email format
     const secondaryEmailAddress = contents.secondaryEmail.includes("@")
       ? contents.secondaryEmail
       : `${contents.secondaryEmail}@nyu.edu`;
 
-    postApprovalTasks.push(
-      (async () => {
-        await serverSendBookingDetailEmail({
-          calendarEventId: id,
-          targetEmail: secondaryEmailAddress,
-          headerMessage:
-            "A reservation where you are listed as a Secondary Point of Contact has been approved.<br /><br />" +
-            emailConfig.emailNotifications.approvedUser,
-          status: BookingStatusLabel.APPROVED,
-          replyTo: guestEmail,
-          tenant,
-        });
+    // Await the email to ensure it's sent before proceeding
+    await serverSendBookingDetailEmail({
+      calendarEventId: id,
+      targetEmail: secondaryEmailAddress,
+      headerMessage:
+        "A reservation where you are listed as a Secondary Point of Contact has been approved.<br /><br />" +
+        emailConfig.emailNotifications.approvedUser,
+      status: BookingStatusLabel.APPROVED,
+      replyTo: guestEmail,
+      tenant,
+    });
 
-        const inviteSecondaryResponse = await fetch(
-          `${process.env.NEXT_PUBLIC_BASE_URL}/api/inviteUser`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              guestEmail: secondaryEmailAddress,
-              calendarEventId: id,
-              roomId: contents.roomId,
-            }),
-          },
-        );
-        if (!inviteSecondaryResponse.ok) {
-          let errorBody = "";
-          try {
-            errorBody = await inviteSecondaryResponse.text();
-          } catch {
-            // ignore body read errors
-          }
-          throw new Error(
-            `Failed to invite secondary contact (status ${inviteSecondaryResponse.status} ${inviteSecondaryResponse.statusText})` +
-              (errorBody ? `: ${errorBody}` : ""),
-          );
-        }
-      })(),
+    const secondaryFormData = {
+      guestEmail: secondaryEmailAddress,
+      calendarEventId: id,
+      roomId: contents.roomId,
+    };
+    // Intentionally awaiting without try-catch: if email delivery fails,
+    // we want the approval process to fail with the API error message.
+    const inviteSecondaryResponse = await fetch(
+      `${process.env.NEXT_PUBLIC_BASE_URL}/api/inviteUser`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(secondaryFormData),
+      },
     );
+    if (!inviteSecondaryResponse.ok) {
+      let errorBody = "";
+      try {
+        errorBody = await inviteSecondaryResponse.text();
+      } catch {
+        // ignore body read errors
+      }
+      throw new Error(
+        `Failed to invite secondary contact (status ${inviteSecondaryResponse.status} ${inviteSecondaryResponse.statusText})` +
+          (errorBody ? `: ${errorBody}` : ""),
+      );
+    }
   }
 
-  await Promise.all(postApprovalTasks);
+  const formDataForCalendarEvents = {
+    calendarEventId: id,
+    newValues: { statusPrefix: BookingStatusLabel.APPROVED },
+  };
+  await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/calendarEvents`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      "x-tenant": tenant || DEFAULT_TENANT,
+    },
+    body: JSON.stringify(formDataForCalendarEvents),
+  });
+
+  const formData = {
+    guestEmail,
+    calendarEventId: id,
+    roomId: contents.roomId,
+  };
+  await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/inviteUser`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-tenant": tenant || DEFAULT_TENANT,
+    },
+    body: JSON.stringify(formData),
+  });
 };
 
 export const admins = async (): Promise<AdminUser[]> => {
