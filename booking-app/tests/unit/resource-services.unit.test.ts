@@ -66,7 +66,7 @@ describe("applyMcResourceServices", () => {
 
   it("does not overwrite an existing object services config", () => {
     const custom = {
-      catering: { mode: "toggle" as const, label: "Custom Catering" },
+      catering: { label: "Custom Catering" },
     };
     const result = applyMcResourceServices({
       resourceId: "202",
@@ -83,7 +83,8 @@ describe("migrateResourceServices", () => {
     const result = migrateResourceServices({
       services: ["equipment", "catering", "setup"],
     });
-    expect(result.equipment?.mode).toBe("toggle");
+    expect(result.equipment?.mode).toBeUndefined();
+    expect(result.equipment?.label).toBe("Equipment");
     expect(result.catering?.forceCleaning).toBe(true);
     expect(result.setup?.label).toBe("Room Setup");
   });
@@ -97,11 +98,28 @@ describe("migrateResourceServices", () => {
         { name: "Audio", indexes: [1] },
       ],
     });
-    expect(result.staffing?.sections?.["0_lighting"]?.services[0].value).toBe(
+    expect(result.staffing?.sections?.["0_lighting"]?.options[0].value).toBe(
       "LIGHTING_TECH_103",
     );
-    expect(result.staffing?.sections?.["1_audio"]?.services[0].value).toBe(
+    expect(result.staffing?.sections?.["1_audio"]?.options[0].value).toBe(
       "AUDIO_TECH_103",
     );
+  });
+
+  it("normalizes select/requiresChartField into radio/chartField", () => {
+    const result = migrateResourceServices({
+      services: {
+        setup: {
+          mode: "select",
+          options: [
+            { value: "a", label: "A", requiresChartField: true },
+          ],
+        },
+        auxiliarySpace: { enabled: true, label: "Green room" },
+      },
+    });
+    expect(result.setup?.mode).toBe("radio");
+    expect(result.setup?.options?.[0].chartField?.required).toBe(true);
+    expect(result.annex?.label).toBe("Green room");
   });
 });

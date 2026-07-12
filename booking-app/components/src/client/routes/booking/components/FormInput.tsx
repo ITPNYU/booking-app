@@ -146,7 +146,7 @@ export default function FormInput({
   const hasConfigSetup = useMemo(
     () =>
       selectedRooms.some(
-        (r) => getServiceSectionConfig(r, "setup")?.mode === "select",
+        (r) => getServiceSectionConfig(r, "setup")?.mode === "radio",
       ),
     [selectedRooms],
   );
@@ -162,7 +162,7 @@ export default function FormInput({
   const hasSecuritySelect = useMemo(
     () =>
       selectedRooms.some(
-        (r) => getServiceSectionConfig(r, "security")?.mode === "select",
+        (r) => getServiceSectionConfig(r, "security")?.mode === "radio",
       ),
     [selectedRooms],
   );

@@ -19,22 +19,56 @@ export type StaffingSection = {
   indexes: number[];
 };
 
-export type ResourceFormSelectOption = {
+export type ShowInOrigin = {
+  user?: boolean;
+  walkIn?: boolean;
+  VIP?: boolean;
+};
+
+export type ResourceChartFieldConfig = {
+  label?: string;
+  descriptionHtml?: string;
+  required?: boolean;
+};
+
+export type ResourceFormOption = {
   value: string;
   label: string;
+  chartField?: ResourceChartFieldConfig;
+};
+
+/** @deprecated Use ResourceFormOption */
+export type ResourceFormSelectOption = ResourceFormOption & {
   requiresChartField?: boolean;
   defaultValue?: boolean;
 };
 
+/**
+ * Service section config.
+ * - mode "radio": choice list via options
+ * - mode "static": read-only HTML
+ * - mode "hidden": offered but not shown
+ * - omit mode: yes/no switch (optional section chartField when yes)
+ */
 export type ResourceFormSectionConfig = {
-  mode: "toggle" | "select" | "static" | "hidden";
+  showInOrigin?: ShowInOrigin;
   label?: string;
   descriptionHtml?: string;
-  options?: ResourceFormSelectOption[];
+  mode?: "radio" | "static" | "hidden";
+  options?: ResourceFormOption[];
   defaultValue?: string;
   required?: boolean;
+  chartField?: ResourceChartFieldConfig;
+  forceCleaning?: boolean;
+  studentLoungeCheckbox?: boolean;
+  showDetailsField?: boolean;
+  detailsLabel?: string;
+  detailsDescriptionHtml?: string;
+  /** @deprecated Prefer showInOrigin */
   hideForUser?: boolean;
+  /** @deprecated Prefer showInOrigin */
   hideForVIP?: boolean;
+  /** @deprecated Prefer showInOrigin */
   hideForWalkIn?: boolean;
 };
 
@@ -45,37 +79,42 @@ export type ResourceStaffingServiceOption = {
 };
 
 export type ResourceStaffingSectionConfig = {
-  name: string;
-  services: ResourceStaffingServiceOption[];
+  label: string;
+  descriptionHtml?: string;
+  mode: "radio";
+  defaultValue?: string;
+  options: ResourceFormOption[];
+  /** @deprecated Prefer label */
+  name?: string;
+  /** @deprecated Prefer options */
+  services?: ResourceStaffingServiceOption[];
 };
 
-export type ResourceStaffingConfig = ResourceFormSectionConfig & {
-  sections?: Record<string, ResourceStaffingSectionConfig>;
-  staffingOptions?: ResourceStaffingServiceOption[];
-};
-
-export type ResourceAuxiliarySpaceConfig = {
-  enabled: boolean;
+export type ResourceStaffingConfig = {
+  showInOrigin?: ShowInOrigin;
   label?: string;
   descriptionHtml?: string;
+  sections?: Record<string, ResourceStaffingSectionConfig>;
+  /** @deprecated Prefer sections with options */
+  staffingOptions?: ResourceStaffingServiceOption[];
+  /** @deprecated Prefer omitting mode (switch) or sections */
+  mode?: "radio" | "static" | "hidden";
+  hideForUser?: boolean;
+  hideForVIP?: boolean;
+  hideForWalkIn?: boolean;
 };
 
 export type ResourceServicesConfig = {
+  annex?: ResourceFormSectionConfig;
   setup?: ResourceFormSectionConfig;
   staffing?: ResourceStaffingConfig;
-  furnishings?: ResourceFormSectionConfig & { chartFieldWhenYes?: boolean };
-  equipment?: ResourceFormSectionConfig & {
-    showDetailsField?: boolean;
-    detailsLabel?: string;
-    detailsDescriptionHtml?: string;
-  };
-  catering?: ResourceFormSectionConfig & {
-    forceCleaning?: boolean;
-    studentLoungeCheckbox?: boolean;
-  };
+  furnishings?: ResourceFormSectionConfig;
+  equipment?: ResourceFormSectionConfig;
+  catering?: ResourceFormSectionConfig;
   cleaning?: ResourceFormSectionConfig;
   security?: ResourceFormSectionConfig;
-  auxiliarySpace?: ResourceAuxiliarySpaceConfig;
+  /** @deprecated Prefer annex */
+  auxiliarySpace?: ResourceFormSectionConfig & { enabled?: boolean };
 };
 
 export type ResourceServiceKey = keyof ResourceServicesConfig;

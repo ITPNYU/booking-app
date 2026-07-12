@@ -1,8 +1,11 @@
 import type {
   Resource,
+  ResourceChartFieldConfig,
+  ResourceFormOption,
   ResourceFormSectionConfig,
   ResourceServicesConfig,
   ResourceServiceKey,
+  ShowInOrigin,
 } from "@/components/src/client/routes/components/schemaTypes";
 
 export type ServiceVisibilityContext = {
@@ -41,16 +44,48 @@ export function getResourceServicesConfig(
   return services;
 }
 
+function originAllows(
+  showInOrigin: ShowInOrigin | undefined,
+  context: ServiceVisibilityContext,
+  legacy?: {
+    hideForUser?: boolean;
+    hideForVIP?: boolean;
+    hideForWalkIn?: boolean;
+  },
+): boolean {
+  if (showInOrigin) {
+    if (context.isWalkIn) return showInOrigin.walkIn !== false;
+    if (context.isVIP) return showInOrigin.VIP !== false;
+    if (context.isStandardUser) return showInOrigin.user !== false;
+    return true;
+  }
+  if (legacy) {
+    if (context.isWalkIn && legacy.hideForWalkIn) return false;
+    if (context.isVIP && legacy.hideForVIP) return false;
+    if (context.isStandardUser && legacy.hideForUser) return false;
+  }
+  return true;
+}
+
 export function resourceHasService(
   resource: ServiceResourceLike,
   key: ResourceServiceKey,
 ): boolean {
   if (isLegacyServicesArray(resource.services)) {
+    if (key === "annex") {
+      return (
+        resource.services.includes("annex") ||
+        resource.services.includes("auxiliarySpace")
+      );
+    }
     return resource.services.includes(key);
   }
   const config = getResourceServicesConfig(resource);
+  if (key === "annex") {
+    return config.annex != null || config.auxiliarySpace != null;
+  }
   if (key === "auxiliarySpace") {
-    return !!config.auxiliarySpace?.enabled;
+    return config.auxiliarySpace != null || config.annex != null;
   }
   return config[key] != null;
 }
@@ -67,8 +102,15 @@ export function getServiceSectionConfig(
   key: ResourceServiceKey,
 ): ResourceFormSectionConfig | undefined {
   const config = getResourceServicesConfig(resource);
+  if (key === "annex") {
+    return config.annex ?? config.auxiliarySpace;
+  }
+  if (key === "auxiliarySpace") {
+    return config.auxiliarySpace ?? config.annex;
+  }
+  if (key === "staffing") return undefined;
   const section = config[key];
-  if (!section || key === "auxiliarySpace") return undefined;
+  if (!section) return undefined;
   return section as ResourceFormSectionConfig;
 }
 
@@ -77,10 +119,7 @@ export function shouldShowServiceSection(
   context: ServiceVisibilityContext,
 ): boolean {
   if (!config || config.mode === "hidden") return false;
-  if (context.isWalkIn && config.hideForWalkIn) return false;
-  if (context.isVIP && config.hideForVIP) return false;
-  if (context.isStandardUser && config.hideForUser) return false;
-  return true;
+  return originAllows(config.showInOrigin, context, config);
 }
 
 export function getRoomsWithVisibleService(
@@ -92,11 +131,18 @@ export function getRoomsWithVisibleService(
     if (!resourceHasService(room, key)) return false;
     const section = getServiceSectionConfig(room, key);
     if (!section) {
-      if (key === "auxiliarySpace") {
-        return !!getResourceServicesConfig(room).auxiliarySpace?.enabled;
-      }
       // Legacy string[] resources have no section config — show when offered.
       return isLegacyServicesArray(room.services);
+    }
+    // Legacy auxiliarySpace.enabled: false means not offered (already filtered by hasService)
+    if (
+      key === "annex" ||
+      key === "auxiliarySpace"
+    ) {
+      const aux = getResourceServicesConfig(room).auxiliarySpace;
+      if (aux && aux.enabled === false && !getResourceServicesConfig(room).annex) {
+        return false;
+      }
     }
     return shouldShowServiceSection(section, context);
   });
@@ -108,6 +154,24 @@ export function anyRoomHasVisibleService(
   context: ServiceVisibilityContext,
 ): boolean {
   return getRoomsWithVisibleService(rooms, key, context).length > 0;
+}
+
+export function optionRequiresChartField(
+  option: ResourceFormOption | undefined,
+): boolean {
+  return !!option?.chartField;
+}
+
+export function sectionRequiresChartField(
+  config: ResourceFormSectionConfig | undefined,
+): boolean {
+  return !!config?.chartField;
+}
+
+export function getOptionChartField(
+  option: ResourceFormOption | undefined,
+): ResourceChartFieldConfig | undefined {
+  return option?.chartField;
 }
 
 /** Derive deprecated form.services flags from resource.services keys */

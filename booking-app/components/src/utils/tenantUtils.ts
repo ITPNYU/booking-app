@@ -111,5 +111,7 @@ export const getMediaCommonsServices = (data: any) => ({
   auxiliary:
     !!data.auxiliarySpaceRequested ||
     Object.values(data.studentLoungeByRoom ?? {}).some((v) => v === "yes") ||
-    Object.values(data.auxiliarySpaceByRoom ?? {}).some((v) => v === "yes"),
+    Object.values(data.auxiliarySpaceByRoom ?? {}).some(
+      (v) => typeof v === "string" && !!v && v !== "none" && v !== "no",
+    ),
 });

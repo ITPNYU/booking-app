@@ -26,6 +26,7 @@ const Label = styled.label`
 type StaffingSectionView = {
   name: string;
   services: Array<{ value: string; label: string }>;
+  defaultValue?: string;
 };
 
 function staffingSectionKey(section: StaffingSectionView): string {
@@ -77,13 +78,21 @@ export default function BookingFormStaffingServices(props: Props) {
       const staffingConfig = getResourceServicesConfig(room).staffing;
       if (staffingConfig?.sections) {
         Object.values(staffingConfig.sections).forEach((section) => {
-          if (section.services?.length) {
+          const options =
+            section.options?.length
+              ? section.options
+              : section.services?.map((s) => ({
+                  value: s.value,
+                  label: s.label,
+                }));
+          if (options?.length) {
             addStaffingSection(sections, {
-              name: section.name,
-              services: section.services.map((s) => ({
+              name: section.label ?? section.name ?? "Staffing",
+              services: options.map((s) => ({
                 value: s.value,
                 label: s.label,
               })),
+              defaultValue: section.defaultValue,
             });
           }
         });
@@ -179,6 +188,12 @@ export default function BookingFormStaffingServices(props: Props) {
                   <div>
                     {staffingSections.map((section, sectionIndex) => {
                       const sectionValues = section.services.map((s) => s.value);
+                      const current =
+                        selectedServices.find((service) =>
+                          sectionValues.includes(service),
+                        ) ||
+                        section.defaultValue ||
+                        "";
 
                       return (
                         <div key={sectionIndex} style={{ marginBottom: 24 }}>
@@ -195,11 +210,7 @@ export default function BookingFormStaffingServices(props: Props) {
                           </FormLabel>
                           <FormControl component="fieldset">
                             <RadioGroup
-                              value={
-                                selectedServices.find((service) =>
-                                  sectionValues.includes(service),
-                                ) || ""
-                              }
+                              value={current}
                               onChange={(e) => {
                                 const otherServices = selectedServices.filter(
                                   (service) =>

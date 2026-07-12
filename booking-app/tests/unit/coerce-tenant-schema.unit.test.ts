@@ -67,13 +67,13 @@ describe("coerceTenantSchema — resources", () => {
     );
 
     expect(coerced.resources[0].resourceId).toBe("202");
-    expect(coerced.resources[0].services?.setup?.mode).toBe("select");
+    expect(coerced.resources[0].services?.setup?.mode).toBe("radio");
     expect(coerced.resources[0].services?.catering?.mode).toBe("static");
   });
 
   it("preserves Firestore object services config for mc tenant", () => {
     const customServices = {
-      catering: { mode: "toggle" as const, label: "Custom Catering" },
+      catering: { label: "Custom Catering" },
     };
     const coerced = coerceTenantSchema(
       {
