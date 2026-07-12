@@ -198,4 +198,13 @@ describe("resolveCallerRole", () => {
     await expect(resolveCallerRole(session, "mc")).resolves.toBe("SERVICES");
     expect(serviceApproverSnap).not.toHaveBeenCalled();
   });
+
+  it("keeps liaison precedence over tenant service approver records", async () => {
+    approverSnap.mockReturnValue([{ email: session.email, level: 1 }]);
+    serviceApproverSnap.mockReturnValue([{ email: session.email }]);
+    const { resolveCallerRole } = await import("@/lib/api/authz");
+
+    await expect(resolveCallerRole(session, "mc")).resolves.toBe("LIAISON");
+    expect(serviceApproverSnap).not.toHaveBeenCalled();
+  });
 });

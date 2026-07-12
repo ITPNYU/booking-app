@@ -51,7 +51,6 @@ export async function resolveCallerRole(
     userRights?.isCatering === true ||
     userRights?.isCleaning === true ||
     userRights?.isSecurity === true;
-  if (hasLegacyServiceRight) return PagePermission.SERVICES;
 
   const approversCollection = getTenantCollectionName(
     TableNames.APPROVERS,
@@ -68,6 +67,7 @@ export async function resolveCallerRole(
     if (level === ApproverLevel.EQUIPMENT) return PagePermission.SERVICES;
     return PagePermission.LIAISON;
   }
+  if (hasLegacyServiceRight) return PagePermission.SERVICES;
 
   const serviceApproversCollection = getTenantCollectionName(
     TableNames.SERVICE_APPROVERS,

@@ -91,10 +91,11 @@ export async function GET(req: NextRequest) {
         settingsDocPromise,
       ]);
 
-    const userRightsRecords = usersRightsSnap.docs.map(d => ({
-      id: d.id,
-      ...(d.data() as Record<string, unknown>),
-    }));
+    const userRightsRecords: Array<Record<string, unknown> & { id: string }> =
+      usersRightsSnap.docs.map(d => ({
+        id: d.id,
+        ...(d.data() as Record<string, unknown>),
+      }));
     const adminUsers = userRightsRecords
       .filter((r: any) => r.isAdmin === true)
       .map((r: any) => ({
@@ -153,10 +154,11 @@ export async function GET(req: NextRequest) {
       pagePermission = PagePermission.SUPER_ADMIN;
     } else if (adminUsers.some((u: any) => u.email === email)) {
       pagePermission = PagePermission.ADMIN;
-    } else if (
-      equipmentUsers.some((u: any) => u.email === email) ||
-      hasLegacyServiceRight
-    ) {
+    } else if (equipmentUsers.some((u: any) => u.email === email)) {
+      pagePermission = PagePermission.SERVICES;
+    } else if (liaisonUsers.some((u: any) => u.email === email)) {
+      pagePermission = PagePermission.LIAISON;
+    } else if (hasLegacyServiceRight) {
       pagePermission = PagePermission.SERVICES;
     }
     if (pagePermission === PagePermission.BOOKING && tenant) {
@@ -172,11 +174,6 @@ export async function GET(req: NextRequest) {
       }
     }
     if (
-      pagePermission === PagePermission.BOOKING &&
-      liaisonUsers.some((u: any) => u.email === email)
-    ) {
-      pagePermission = PagePermission.LIAISON;
-    } else if (
       pagePermission === PagePermission.BOOKING &&
       paUsers.some((u: any) => u.email === email)
     ) {

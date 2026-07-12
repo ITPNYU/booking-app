@@ -97,10 +97,26 @@ describe("service approver server helpers", () => {
 
   it("resolves approvers assigned to every requested resource for the service", async () => {
     collections.set("mc-usersServiceApprovers", [
-      { id: "1", data: { resourceId: "a", service: "setup", email: "one@nyu.edu" } },
-      { id: "2", data: { resourceId: "b", service: "setup", email: "ONE@nyu.edu" } },
-      { id: "3", data: { resourceId: "b", service: "setup", email: "two@nyu.edu" } },
-      { id: "4", data: { resourceId: "a", service: "equipment", email: "other@nyu.edu" } },
+      {
+        id: "1",
+        data: { resourceId: "a", service: "setup", email: "one@nyu.edu" },
+      },
+      {
+        id: "2",
+        data: { resourceId: "b", service: "setup", email: "ONE@nyu.edu" },
+      },
+      {
+        id: "3",
+        data: { resourceId: "b", service: "setup", email: "two@nyu.edu" },
+      },
+      {
+        id: "4",
+        data: {
+          resourceId: "a",
+          service: "equipment",
+          email: "other@nyu.edu",
+        },
+      },
     ]);
     const { serverResolveServiceApproverEmails } =
       await import("@/lib/firebase/server/adminDb");
@@ -112,7 +128,32 @@ describe("service approver server helpers", () => {
 
   it("falls back to legacy service approvers when no resource assignments exist", async () => {
     collections.set("mc-usersServiceApprovers", [
-      { id: "1", data: { resourceId: "other", service: "setup", email: "one@nyu.edu" } },
+      {
+        id: "1",
+        data: { resourceId: "other", service: "setup", email: "one@nyu.edu" },
+      },
+    ]);
+    collections.set("mc-usersRights", [
+      { id: "legacy", data: { email: "LEGACY@nyu.edu", isSetup: true } },
+    ]);
+    const { serverResolveServiceApproverEmails } =
+      await import("@/lib/firebase/server/adminDb");
+
+    await expect(
+      serverResolveServiceApproverEmails(["a", "b"], "setup", "mc"),
+    ).resolves.toEqual(["legacy@nyu.edu"]);
+  });
+
+  it("falls back to legacy service approvers when only some requested resources are assigned", async () => {
+    collections.set("mc-usersServiceApprovers", [
+      {
+        id: "1",
+        data: {
+          resourceId: "a",
+          service: "setup",
+          email: "assigned@nyu.edu",
+        },
+      },
     ]);
     collections.set("mc-usersRights", [
       { id: "legacy", data: { email: "LEGACY@nyu.edu", isSetup: true } },
@@ -127,9 +168,22 @@ describe("service approver server helpers", () => {
 
   it("checks whether a caller is assigned to every resource", async () => {
     collections.set("mc-usersServiceApprovers", [
-      { id: "1", data: { resourceId: "a", service: "setup", email: "one@nyu.edu" } },
-      { id: "2", data: { resourceId: "b", service: "setup", email: "one@nyu.edu" } },
-      { id: "3", data: { resourceId: "a", service: "equipment", email: "one@nyu.edu" } },
+      {
+        id: "1",
+        data: { resourceId: "a", service: "setup", email: "one@nyu.edu" },
+      },
+      {
+        id: "2",
+        data: { resourceId: "b", service: "setup", email: "one@nyu.edu" },
+      },
+      {
+        id: "3",
+        data: {
+          resourceId: "a",
+          service: "equipment",
+          email: "one@nyu.edu",
+        },
+      },
     ]);
     const { serverIsServiceApproverForAllResources } =
       await import("@/lib/firebase/server/adminDb");
@@ -190,6 +244,33 @@ describe("service approver server helpers", () => {
       serverIsServiceApproverForAllResources(
         "LEGACY@nyu.edu",
         ["a"],
+        "setup",
+        "mc",
+      ),
+    ).resolves.toBe(true);
+  });
+
+  it("allows legacy service approvers when only some requested resources are assigned", async () => {
+    collections.set("mc-usersServiceApprovers", [
+      {
+        id: "1",
+        data: {
+          resourceId: "a",
+          service: "setup",
+          email: "assigned@nyu.edu",
+        },
+      },
+    ]);
+    collections.set("mc-usersRights", [
+      { id: "legacy", data: { email: "legacy@nyu.edu", isSetup: true } },
+    ]);
+    const { serverIsServiceApproverForAllResources } =
+      await import("@/lib/firebase/server/adminDb");
+
+    await expect(
+      serverIsServiceApproverForAllResources(
+        "LEGACY@nyu.edu",
+        ["a", "b"],
         "setup",
         "mc",
       ),

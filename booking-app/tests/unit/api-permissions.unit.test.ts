@@ -125,4 +125,37 @@ describe("GET /api/permissions", () => {
       filters: [["email", "service@nyu.edu"]],
     });
   });
+
+  it("keeps liaison page permission when the caller is also a service approver", async () => {
+    mocks.collections.set("mc-usersApprovers", [
+      {
+        id: "liaison-doc",
+        data: {
+          email: "service@nyu.edu",
+          department: "ITP",
+          level: 1,
+        },
+      },
+    ]);
+    mocks.collections.set("mc-usersServiceApprovers", [
+      {
+        id: "service-doc",
+        data: {
+          email: "service@nyu.edu",
+          resourceId: "room-1",
+          service: "setup",
+        },
+      },
+    ]);
+
+    const response = await GET(request());
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.pagePermission).toBe("LIAISON");
+    expect(mocks.collectionGets).not.toContainEqual({
+      name: "mc-usersServiceApprovers",
+      filters: [["email", "service@nyu.edu"]],
+    });
+  });
 });

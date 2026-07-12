@@ -362,6 +362,16 @@ const SERVICE_USER_RIGHT_FLAGS: Record<string, string> = {
 const dedupeStrings = (values: string[]): string[] =>
   Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)));
 
+const hasServiceAssignmentsForEveryResource = (
+  records: ServiceApproverData[],
+  resourceIds: string[],
+): boolean => {
+  const assignedResourceIds = new Set(
+    records.map((record) => String(record.resourceId)),
+  );
+  return resourceIds.every((resourceId) => assignedResourceIds.has(resourceId));
+};
+
 const serverResolveLegacyServiceApproverEmails = async (
   service: string,
   tenant?: string,
@@ -441,7 +451,12 @@ export const serverResolveServiceApproverEmails = async (
   const matchingRecords = records.filter((record) =>
     requestedResourceIds.has(String(record.resourceId)),
   );
-  if (matchingRecords.length === 0) {
+  if (
+    !hasServiceAssignmentsForEveryResource(
+      matchingRecords,
+      normalizedResourceIds,
+    )
+  ) {
     return serverResolveLegacyServiceApproverEmails(normalizedService, tenant);
   }
 
@@ -488,7 +503,12 @@ export const serverIsServiceApproverForAllResources = async (
   const matchingRecords = records.filter((record) =>
     requestedResourceIds.has(String(record.resourceId)),
   );
-  if (matchingRecords.length === 0) {
+  if (
+    !hasServiceAssignmentsForEveryResource(
+      matchingRecords,
+      normalizedResourceIds,
+    )
+  ) {
     return serverIsLegacyServiceApprover(
       normalizedEmail,
       normalizedService,
