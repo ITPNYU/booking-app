@@ -43,6 +43,7 @@ describe("getMediaCommonsServices", () => {
 
 describe("resource service visibility", () => {
   const standardUser = { isVIP: false, isWalkIn: false, isStandardUser: true };
+  const vipUser = { isVIP: true, isWalkIn: false, isStandardUser: false };
 
   it("shows legacy string[] services when no object config exists", () => {
     const rooms = [{ roomId: "room1", services: ["catering", "equipment"] }];
@@ -50,6 +51,47 @@ describe("resource service visibility", () => {
     expect(getRoomsWithVisibleService(rooms, "equipment", standardUser)).toHaveLength(
       1,
     );
+  });
+
+  it("shows staffing for object configs using showInOrigin", () => {
+    const rooms = [
+      {
+        roomId: "103",
+        services: {
+          staffing: {
+            showInOrigin: { user: true, walkIn: true, VIP: true },
+            label: "Staffing?",
+            sections: {
+              lighting: {
+                label: "Lighting",
+                mode: "radio" as const,
+                options: [{ value: "DIY", label: "DIY" }],
+              },
+            },
+          },
+        },
+      },
+    ];
+    expect(anyRoomHasVisibleService(rooms, "staffing", standardUser)).toBe(true);
+    expect(getRoomsWithVisibleService(rooms, "staffing", standardUser)).toHaveLength(
+      1,
+    );
+  });
+
+  it("hides staffing when showInOrigin.user is false for standard users", () => {
+    const rooms = [
+      {
+        roomId: "230",
+        services: {
+          staffing: {
+            showInOrigin: { user: false, walkIn: true, VIP: true },
+            label: "Staffing?",
+          },
+        },
+      },
+    ];
+    expect(anyRoomHasVisibleService(rooms, "staffing", standardUser)).toBe(false);
+    expect(anyRoomHasVisibleService(rooms, "staffing", vipUser)).toBe(true);
   });
 });
 

@@ -157,6 +157,17 @@ export default function BookingFormResourceServices({
       (watch("roomSetupByRoom") as Record<string, string> | undefined) ?? {};
     const currentDetails =
       (watch("setupDetailsByRoom") as Record<string, string> | undefined) ?? {};
+    // Editing a pre-migration booking: legacy flat fields are set but maps are empty.
+    // Do not overwrite with schema defaults.
+    const legacySetup = watch("roomSetup");
+    const legacyDetails = watch("setupDetails");
+    const hasLegacySetupAnswer =
+      legacySetup === "yes" ||
+      (typeof legacyDetails === "string" && legacyDetails.trim().length > 0);
+    if (Object.keys(currentMap).length === 0 && hasLegacySetupAnswer) {
+      return;
+    }
+
     const nextMap = { ...currentMap };
     const nextDetails = { ...currentDetails };
     let changed = false;
@@ -193,6 +204,13 @@ export default function BookingFormResourceServices({
   useEffect(() => {
     const currentMap =
       (watch("auxiliarySpaceByRoom") as Record<string, string> | undefined) ?? {};
+    // Preserve existing/legacy auxiliary answers; do not force annex defaults on edit.
+    if (
+      watch("auxiliarySpaceRequested") &&
+      Object.keys(currentMap).length === 0
+    ) {
+      return;
+    }
     const nextMap = { ...currentMap };
     let changed = false;
     auxiliaryRooms.forEach((room) => {

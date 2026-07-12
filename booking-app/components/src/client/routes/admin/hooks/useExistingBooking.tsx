@@ -49,6 +49,35 @@ export default function useExistingBooking() {
     // Explicitly pick only Inputs fields so non-form status/audit fields (Timestamps,
     // xstateData snapshots, service flags, etc.) are never stored in formData and
     // never trigger expensive deep-comparisons in watch().
+    const roomIdsForMaps = rooms.map((room) => String(room.roomId));
+
+    const backfillPerRoomMap = (
+      existing: Record<string, string> | undefined,
+      legacyValue: string | undefined,
+    ): Record<string, string> | undefined => {
+      if (existing && Object.keys(existing).length > 0) return existing;
+      if (!legacyValue || !roomIdsForMaps.length) return existing;
+      return Object.fromEntries(roomIdsForMaps.map((id) => [id, legacyValue]));
+    };
+
+    const legacySetupRequested =
+      booking.roomSetup === "yes" ||
+      (!!booking.setupDetails && booking.setupDetails.trim().length > 0);
+
+    const roomSetupByRoom =
+      booking.roomSetupByRoom &&
+      Object.keys(booking.roomSetupByRoom).length > 0
+        ? booking.roomSetupByRoom
+        : legacySetupRequested
+          ? Object.fromEntries(
+              roomIdsForMaps.map((id) => [
+                id,
+                // Prefer free-text details as the preserved answer; radio may not match.
+                booking.setupDetails?.trim() || booking.roomSetup || "yes",
+              ]),
+            )
+          : booking.roomSetupByRoom;
+
     const formValues: Inputs = {
       firstName: booking.firstName,
       lastName: booking.lastName,
@@ -90,13 +119,25 @@ export default function useExistingBooking() {
       chartFieldForCleaning: booking.chartFieldForCleaning,
       chartFieldForSecurity: booking.chartFieldForSecurity,
       chartFieldForRoomSetup: booking.chartFieldForRoomSetup,
-      roomSetupByRoom: booking.roomSetupByRoom,
-      setupDetailsByRoom: booking.setupDetailsByRoom,
-      chartFieldForRoomSetupByRoom: booking.chartFieldForRoomSetupByRoom,
+      roomSetupByRoom,
+      setupDetailsByRoom: backfillPerRoomMap(
+        booking.setupDetailsByRoom,
+        booking.setupDetails,
+      ),
+      chartFieldForRoomSetupByRoom: backfillPerRoomMap(
+        booking.chartFieldForRoomSetupByRoom,
+        booking.chartFieldForRoomSetup,
+      ),
       furnishingsByRoom: booking.furnishingsByRoom,
       chartFieldForFurnishingsByRoom: booking.chartFieldForFurnishingsByRoom,
       studentLoungeByRoom: booking.studentLoungeByRoom,
-      auxiliarySpaceByRoom: booking.auxiliarySpaceByRoom,
+      auxiliarySpaceByRoom:
+        booking.auxiliarySpaceByRoom &&
+        Object.keys(booking.auxiliarySpaceByRoom).length > 0
+          ? booking.auxiliarySpaceByRoom
+          : booking.auxiliarySpaceRequested
+            ? Object.fromEntries(roomIdsForMaps.map((id) => [id, "yes"]))
+            : booking.auxiliarySpaceByRoom,
       auxiliarySpaceRequested: booking.auxiliarySpaceRequested,
       webcheckoutCartNumber: booking.webcheckoutCartNumber,
       equipment: booking.equipment,

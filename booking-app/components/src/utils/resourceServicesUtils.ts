@@ -108,7 +108,19 @@ export function getServiceSectionConfig(
   if (key === "auxiliarySpace") {
     return config.auxiliarySpace ?? config.annex;
   }
-  if (key === "staffing") return undefined;
+  if (key === "staffing") {
+    const staffing = config.staffing;
+    if (!staffing) return undefined;
+    // Adapt staffing (different shape) for shared visibility checks.
+    return {
+      showInOrigin: staffing.showInOrigin,
+      label: staffing.label,
+      descriptionHtml: staffing.descriptionHtml,
+      hideForUser: staffing.hideForUser,
+      hideForVIP: staffing.hideForVIP,
+      hideForWalkIn: staffing.hideForWalkIn,
+    };
+  }
   const section = config[key];
   if (!section) return undefined;
   return section as ResourceFormSectionConfig;
