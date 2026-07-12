@@ -2,9 +2,7 @@ import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
 import { TableNames } from "@/components/src/policy";
 import { BookingStatusLabel } from "@/components/src/types";
 import { shouldUseXState } from "@/components/src/utils/tenantUtils";
-import { clientUpdateDataByCalendarEventId } from "@/lib/firebase/client/clientDb";
 import { clientGetDataByCalendarEventId } from "@/lib/firebase/firebase";
-import { Timestamp } from "firebase/firestore";
 
 export async function callXStateTransitionAPI(
   calendarEventId: string,
@@ -187,33 +185,20 @@ export const decline = async (
     }
   }
 
-  await clientUpdateDataByCalendarEventId(
-    TableNames.BOOKING,
-    id,
-    {
-      declinedAt: Timestamp.now(),
-      declinedBy: email,
-      declineReason: reason || null,
+  // Full traditional fallback (Firestore + email + calendar) via server route
+  await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/decline-processing`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-tenant": tenant || DEFAULT_TENANT,
     },
-    tenant,
-  );
-
-  const doc = await clientGetDataByCalendarEventId<{
-    id: string;
-    requestNumber: number;
-  }>(TableNames.BOOKING, id, tenant);
-
-  if (doc) {
-    await logClientBookingChange({
-      bookingId: doc.id,
+    body: JSON.stringify({
       calendarEventId: id,
-      status: BookingStatusLabel.DECLINED,
-      changedBy: email,
-      requestNumber: doc.requestNumber,
-      note: reason,
+      email,
+      reason,
       tenant,
-    });
-  }
+    }),
+  });
 };
 
 export const checkin = async (id: string, email: string, tenant?: string) => {
@@ -290,15 +275,20 @@ export const noShow = async (
     }
   }
 
-  await clientUpdateDataByCalendarEventId(
-    TableNames.BOOKING,
-    id,
-    {
-      noShowedAt: Timestamp.now(),
-      noShowedBy: email,
+  // Full traditional fallback (Firestore + pre-ban + emails + calendar)
+  await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/noshow-processing`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-tenant": tenant || DEFAULT_TENANT,
     },
-    tenant,
-  );
+    body: JSON.stringify({
+      calendarEventId: id,
+      email,
+      netId,
+      tenant,
+    }),
+  });
 };
 
 export const clientApproveBooking = async (

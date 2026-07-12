@@ -30,6 +30,9 @@ const ClientProvider: React.FC<ClientProviderProps> = ({ children }) => {
   const needsBookingProvider = useMemo(() => {
     if (!pathname) return false;
     const segments = pathname.split("/").filter(Boolean);
+    // Tenant root `/[tenant]` renders MyBookingsPage for BOOKING users
+    // (PERMISSION_PATH omits BOOKING), so Edit preload needs BookingProvider.
+    if (segments.length === 1) return true;
     return segments.some((segment) =>
       BOOKING_FLOW_SEGMENTS.includes(segment),
     );
