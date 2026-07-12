@@ -51,6 +51,7 @@ export async function resolveCallerRole(
     userRights?.isCatering === true ||
     userRights?.isCleaning === true ||
     userRights?.isSecurity === true;
+  if (hasLegacyServiceRight) return PagePermission.SERVICES;
 
   const approversCollection = getTenantCollectionName(
     TableNames.APPROVERS,
@@ -77,7 +78,7 @@ export async function resolveCallerRole(
     .where("email", "==", email)
     .limit(1)
     .get();
-  if (hasLegacyServiceRight || !serviceApproverSnap.empty) {
+  if (!serviceApproverSnap.empty) {
     return PagePermission.SERVICES;
   }
 

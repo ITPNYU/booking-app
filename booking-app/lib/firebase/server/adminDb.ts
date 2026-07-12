@@ -404,6 +404,23 @@ const serverIsLegacyServiceApprover = async (
   return records.length > 0;
 };
 
+export const serverIsEquipmentApprover = async (
+  email: string,
+  tenant?: string,
+): Promise<boolean> => {
+  const normalizedEmail = normalizeApproverEmail(email);
+  if (!normalizedEmail) return false;
+  const records = await serverFetchAllDataFromCollection<DocumentData>(
+    TableNames.APPROVERS,
+    [
+      { field: "email", operator: "==", value: normalizedEmail },
+      { field: "level", operator: "==", value: ApproverLevel.EQUIPMENT },
+    ],
+    tenant,
+  );
+  return records.length > 0;
+};
+
 export const serverResolveServiceApproverEmails = async (
   resourceIds: string[],
   service: string,
@@ -464,10 +481,7 @@ export const serverIsServiceApproverForAllResources = async (
   }
   const records = await serverFetchAllDataFromCollection<ServiceApproverData>(
     TableNames.SERVICE_APPROVERS,
-    [
-      { field: "service", operator: "==", value: normalizedService },
-      { field: "email", operator: "==", value: normalizedEmail },
-    ],
+    [{ field: "service", operator: "==", value: normalizedService }],
     tenant,
   );
   const requestedResourceIds = new Set(normalizedResourceIds);
@@ -483,7 +497,11 @@ export const serverIsServiceApproverForAllResources = async (
   }
 
   const approvedResourceIds = new Set(
-    matchingRecords.map((record) => String(record.resourceId)),
+    matchingRecords
+      .filter(
+        (record) => normalizeApproverEmail(record.email) === normalizedEmail,
+      )
+      .map((record) => String(record.resourceId)),
   );
   return normalizedResourceIds.every((resourceId) =>
     approvedResourceIds.has(resourceId),

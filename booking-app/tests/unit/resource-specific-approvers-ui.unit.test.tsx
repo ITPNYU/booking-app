@@ -32,6 +32,7 @@ const addServiceApproverMock = vi.mocked(clientAddServiceApprover);
 describe("ResourceSpecific", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    global.fetch = vi.fn(async () => ({ ok: true })) as unknown as typeof fetch;
     listApproversMock.mockResolvedValue([]);
     listServiceApproversMock.mockResolvedValue([]);
     addApproverMock.mockResolvedValue();
@@ -46,6 +47,7 @@ describe("ResourceSpecific", () => {
         ...defaultResource,
         name: "Audio Studio",
         resourceId: "studio/a:floor-2",
+        services: ["equipment"],
       },
     ];
 
@@ -88,6 +90,7 @@ describe("ResourceSpecific", () => {
         ...defaultResource,
         name: "Audio Studio",
         resourceId: "studio/a:floor-2",
+        services: ["equipment"],
       },
     ];
 
@@ -110,10 +113,85 @@ describe("ResourceSpecific", () => {
     await waitFor(() =>
       expect(addServiceApproverMock).toHaveBeenCalledWith(
         "studio/a:floor-2",
-        "setup",
+        "equipment",
         "service@nyu.edu",
         "tenant-one",
       ),
     );
+    expect(global.fetch).toHaveBeenCalledWith(
+      "/api/nyu/identity/service",
+      { headers: { "x-tenant": "tenant-one" } },
+    );
+  });
+
+  it("does not add a service approver when NYU Identity validation fails", async () => {
+    global.fetch = vi.fn(async () => ({ ok: false })) as unknown as typeof fetch;
+    const alertSpy = vi.spyOn(window, "alert").mockImplementation(() => {});
+    const user = userEvent.setup();
+    const schema = generateDefaultSchema("tenant-one");
+    schema.resources = [
+      {
+        ...defaultResource,
+        name: "Audio Studio",
+        resourceId: "studio/a:floor-2",
+        services: ["equipment"],
+      },
+    ];
+
+    render(
+      <SchemaProvider value={schema}>
+        <ResourceSpecific />
+      </SchemaProvider>,
+    );
+
+    const input = await screen.findByLabelText(
+      "Service approver email for studio/a:floor-2",
+    );
+    await user.type(input, " Missing@NYU.EDU ");
+    await user.click(
+      screen.getByRole("button", {
+        name: "Add service approver for studio/a:floor-2",
+      }),
+    );
+
+    await waitFor(() =>
+      expect(alertSpy).toHaveBeenCalledWith("Enter a valid NYU NetID email."),
+    );
+    expect(addServiceApproverMock).not.toHaveBeenCalled();
+    alertSpy.mockRestore();
+  });
+
+  it("sorts resources by resource ID and limits services to each resource schema", async () => {
+    const schema = generateDefaultSchema("tenant-one");
+    schema.resources = [
+      {
+        ...defaultResource,
+        name: "Room 10",
+        resourceId: "10",
+        services: ["setup"],
+      },
+      {
+        ...defaultResource,
+        name: "Room 2",
+        resourceId: "2",
+        services: ["equipment"],
+      },
+    ];
+
+    render(
+      <SchemaProvider value={schema}>
+        <ResourceSpecific />
+      </SchemaProvider>,
+    );
+
+    const room2 = await screen.findByText("2 Room 2");
+    const room10 = await screen.findByText("10 Room 10");
+    expect(
+      room2.compareDocumentPosition(room10) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(screen.getByLabelText("Service for 2")).toHaveTextContent(
+      "Equipment",
+    );
+    expect(screen.getByLabelText("Service for 10")).toHaveTextContent("Setup");
   });
 });

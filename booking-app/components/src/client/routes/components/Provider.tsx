@@ -200,6 +200,9 @@ export const DatabaseProvider = ({
 
   const [preBanLogs, setPreBanLogs] = useState<PreBanLog[]>([]);
   const [superAdminUsers, setSuperAdminUsers] = useState<AdminUser[]>([]);
+  const [serverPagePermission, setServerPagePermission] = useState<
+    PagePermission | undefined
+  >(undefined);
 
   useEffect(() => {
     const fetchUserApiData = async () => {
@@ -220,7 +223,7 @@ export const DatabaseProvider = ({
   }, [netId, tenant]);
 
   // page permission updates with respect to user email, admin list, PA list
-  const pagePermission = useMemo<PagePermission>(() => {
+  const derivedPagePermission = useMemo<PagePermission>(() => {
     // Early return if no email
     if (!userEmail) return PagePermission.BOOKING;
 
@@ -239,8 +242,16 @@ export const DatabaseProvider = ({
     if (paEmails.includes(userEmail)) return PagePermission.PA;
 
     return PagePermission.BOOKING;
-  }, [userEmail, adminUsers, liaisonUsers, paUsers, equipmentUsers, superAdminUsers]);
+  }, [
+    userEmail,
+    adminUsers,
+    liaisonUsers,
+    paUsers,
+    equipmentUsers,
+    superAdminUsers,
+  ]);
 
+  const pagePermission = serverPagePermission ?? derivedPagePermission;
 
   // Defer non-permission data fetches to pages that actually need them.
   // The landing page only needs permissions; booking/admin data loads on navigation.
@@ -249,7 +260,17 @@ export const DatabaseProvider = ({
     if (!pathname) return false;
     const segments = pathname.split("/").filter(Boolean);
     // e.g. /mc/book, /mc/edit, /mc/admin, /mc/walk-in, /mc/vip, /mc/services, /mc/pa, /mc/liaison, /mc/modification
-    const dataRoutes = ["book", "edit", "admin", "walk-in", "vip", "services", "pa", "liaison", "modification"];
+    const dataRoutes = [
+      "book",
+      "edit",
+      "admin",
+      "walk-in",
+      "vip",
+      "services",
+      "pa",
+      "liaison",
+      "modification",
+    ];
     return segments.some((s) => dataRoutes.includes(s));
   }, [pathname]);
 
@@ -432,6 +453,7 @@ export const DatabaseProvider = ({
       }
       const raw = (await res.json()) as Record<string, unknown>;
       const data = reviveTimestamps(raw) as {
+        pagePermission?: PagePermission;
         adminUsers: AdminUser[];
         paUsers: PaUser[];
         liaisonUsers: Approver[];
@@ -445,6 +467,7 @@ export const DatabaseProvider = ({
       setLiaisonUsers(data.liaisonUsers ?? []);
       setEquipmentUsers(data.equipmentUsers ?? []);
       setSuperAdminUsers(data.superAdminUsers ?? []);
+      setServerPagePermission(data.pagePermission);
       setPolicySettings(
         data.policySettings ?? { finalApproverEmail: "" },
       );

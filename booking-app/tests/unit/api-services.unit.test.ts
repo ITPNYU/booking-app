@@ -10,6 +10,7 @@ vi.mock("@/lib/api/authz", () => ({
 
 vi.mock("@/lib/firebase/server/adminDb", () => ({
   serverGetDataByCalendarEventId: vi.fn(),
+  serverIsEquipmentApprover: vi.fn(),
   serverIsServiceApproverForAllResources: vi.fn(),
 }));
 
@@ -23,6 +24,7 @@ import { resolveCallerRole } from "@/lib/api/authz";
 import { requireSession } from "@/lib/api/requireSession";
 import {
   serverGetDataByCalendarEventId,
+  serverIsEquipmentApprover,
   serverIsServiceApproverForAllResources,
 } from "@/lib/firebase/server/adminDb";
 import { executeXStateTransition } from "@/lib/stateMachines/xstateUtilsV5";
@@ -32,6 +34,7 @@ const mockResolveCallerRole = vi.mocked(resolveCallerRole);
 const mockServerGetDataByCalendarEventId = vi.mocked(
   serverGetDataByCalendarEventId,
 );
+const mockServerIsEquipmentApprover = vi.mocked(serverIsEquipmentApprover);
 const mockServerIsServiceApproverForAllResources = vi.mocked(
   serverIsServiceApproverForAllResources,
 );
@@ -65,6 +68,7 @@ describe("POST /api/services", () => {
       roomId: "room-a, room-b",
     } as any);
     mockServerIsServiceApproverForAllResources.mockResolvedValue(true);
+    mockServerIsEquipmentApprover.mockResolvedValue(false);
     mockExecuteXStateTransition.mockResolvedValue({
       success: true,
       newState: { "Services Request": "pending" },
@@ -98,8 +102,29 @@ describe("POST /api/services", () => {
       "setup",
       "mc",
     );
+    expect(mockServerIsEquipmentApprover).toHaveBeenCalledWith(
+      "service@nyu.edu",
+      "mc",
+    );
     expect(mockExecuteXStateTransition).not.toHaveBeenCalled();
     expect(response.status).toBe(403);
+  });
+
+  it("allows existing equipment approvers without a per-resource service assignment", async () => {
+    mockServerIsServiceApproverForAllResources.mockResolvedValue(false);
+    mockServerIsEquipmentApprover.mockResolvedValue(true);
+
+    const response = await POST(
+      request({ calendarEventId: "cal", serviceType: "setup", action: "approve" }),
+    );
+
+    expect(mockExecuteXStateTransition).toHaveBeenCalledWith(
+      "cal",
+      "approveSetup",
+      "mc",
+      "service@nyu.edu",
+    );
+    expect(response.status).toBe(200);
   });
 
   it("uses the session email and ignores spoofed body email", async () => {

@@ -196,5 +196,6 @@ describe("resolveCallerRole", () => {
     const { resolveCallerRole } = await import("@/lib/api/authz");
 
     await expect(resolveCallerRole(session, "mc")).resolves.toBe("SERVICES");
+    expect(serviceApproverSnap).not.toHaveBeenCalled();
   });
 });

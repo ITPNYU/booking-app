@@ -152,6 +152,33 @@ describe("service approver server helpers", () => {
     ).resolves.toBe(false);
   });
 
+  it("does not fall back to legacy rights when resource service assignments exist for another approver", async () => {
+    collections.set("mc-usersServiceApprovers", [
+      {
+        id: "1",
+        data: {
+          resourceId: "a",
+          service: "setup",
+          email: "assigned@nyu.edu",
+        },
+      },
+    ]);
+    collections.set("mc-usersRights", [
+      { id: "legacy", data: { email: "legacy@nyu.edu", isSetup: true } },
+    ]);
+    const { serverIsServiceApproverForAllResources } =
+      await import("@/lib/firebase/server/adminDb");
+
+    await expect(
+      serverIsServiceApproverForAllResources(
+        "legacy@nyu.edu",
+        ["a"],
+        "setup",
+        "mc",
+      ),
+    ).resolves.toBe(false);
+  });
+
   it("allows legacy service approvers when no resource assignments exist", async () => {
     collections.set("mc-usersRights", [
       { id: "legacy", data: { email: "legacy@nyu.edu", isSetup: true } },

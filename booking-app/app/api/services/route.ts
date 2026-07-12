@@ -9,6 +9,7 @@ import { requireSession } from "@/lib/api/requireSession";
 import { resolveCallerRole } from "@/lib/api/authz";
 import {
   serverGetDataByCalendarEventId,
+  serverIsEquipmentApprover,
   serverIsServiceApproverForAllResources,
 } from "@/lib/firebase/server/adminDb";
 import { executeXStateTransition } from "@/lib/stateMachines/xstateUtilsV5";
@@ -91,7 +92,9 @@ export async function POST(req: NextRequest) {
       serviceType,
       tenant,
     );
-    if (!isAssigned) {
+    const isLegacyEquipmentApprover =
+      isAssigned ? false : await serverIsEquipmentApprover(email, tenant);
+    if (!isAssigned && !isLegacyEquipmentApprover) {
       return NextResponse.json(
         { error: "Forbidden: service approver assignment required" },
         { status: 403 },

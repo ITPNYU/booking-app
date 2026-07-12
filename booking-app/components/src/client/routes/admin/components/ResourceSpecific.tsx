@@ -44,18 +44,37 @@ type ServiceApprover = ServiceApproverRow & {
   resourceId: string;
 };
 
-const SERVICE_OPTIONS = [
-  { key: "setup", label: "Setup" },
-  { key: "equipment", label: "Equipment" },
-  { key: "staff", label: "Staffing" },
-  { key: "catering", label: "Catering" },
-  { key: "cleaning", label: "Cleanup" },
-  { key: "security", label: "Security" },
-] as const;
+const SERVICE_LABELS: Record<string, string> = {
+  setup: "Setup",
+  equipment: "Equipment",
+  staff: "Staffing",
+  catering: "Catering",
+  cleaning: "Cleanup",
+  security: "Security",
+};
 
-type ServiceKey = (typeof SERVICE_OPTIONS)[number]["key"];
+const SERVICE_ALIASES: Record<string, string> = {
+  staffing: "staff",
+  cleanup: "cleaning",
+};
+
+const normalizeServiceKey = (service: string): string =>
+  SERVICE_ALIASES[service.trim().toLowerCase()] ?? service.trim().toLowerCase();
 
 const normalizeEmail = (email: string) => email.trim().toLowerCase();
+
+const validateNyuEmail = async (
+  email: string,
+  tenantId: string,
+): Promise<boolean> => {
+  const match = email.match(/^([a-z0-9._-]+)@nyu\.edu$/i);
+  if (!match) return false;
+  const response = await fetch(
+    `/api/nyu/identity/${encodeURIComponent(match[1])}`,
+    { headers: { "x-tenant": tenantId } },
+  );
+  return response.ok;
+};
 
 type ResourceApproverTableProps = {
   resourceId: string;
@@ -164,25 +183,33 @@ const ResourceApproverTable = ({
 
 type ServiceApproverTableProps = {
   resourceId: string;
+  serviceOptions: Array<{ key: string; label: string }>;
   rows: ServiceApproverRow[];
   rowsRefresh: () => Promise<void>;
 };
 
 const ServiceApproverTable = ({
   resourceId,
+  serviceOptions,
   rows,
   rowsRefresh,
 }: ServiceApproverTableProps) => {
   const { tenantId } = useTenantSchema();
   const [loading, setLoading] = useState(false);
-  const [serviceToAdd, setServiceToAdd] = useState<ServiceKey>(
-    SERVICE_OPTIONS[0].key,
+  const [serviceToAdd, setServiceToAdd] = useState<string>(
+    serviceOptions[0]?.key ?? "",
   );
   const [valueToAdd, setValueToAdd] = useState("");
 
+  useEffect(() => {
+    if (!serviceOptions.some((service) => service.key === serviceToAdd)) {
+      setServiceToAdd(serviceOptions[0]?.key ?? "");
+    }
+  }, [serviceOptions, serviceToAdd]);
+
   const addServiceApprover = useCallback(async () => {
     const normalizedEmail = normalizeEmail(valueToAdd);
-    if (!normalizedEmail) {
+    if (!normalizedEmail || !serviceToAdd) {
       return;
     }
 
@@ -198,6 +225,11 @@ const ServiceApproverTable = ({
 
     setLoading(true);
     try {
+      const isValidEmail = await validateNyuEmail(normalizedEmail, tenantId);
+      if (!isValidEmail) {
+        alert("Enter a valid NYU NetID email.");
+        return;
+      }
       await clientAddServiceApprover(
         resourceId,
         serviceToAdd,
@@ -244,13 +276,12 @@ const ServiceApproverTable = ({
               select
               id={`service-approver-service-${resourceId}`}
               inputProps={{ "aria-label": `Service for ${resourceId}` }}
-              onChange={(event) =>
-                setServiceToAdd(event.target.value as ServiceKey)
-              }
+              onChange={(event) => setServiceToAdd(event.target.value)}
               value={serviceToAdd}
               size="small"
+              disabled={serviceOptions.length === 0}
             >
-              {SERVICE_OPTIONS.map((service) => (
+              {serviceOptions.map((service) => (
                 <MenuItem key={service.key} value={service.key}>
                   {service.label}
                 </MenuItem>
@@ -273,6 +304,7 @@ const ServiceApproverTable = ({
               value={valueToAdd}
               placeholder="Add email"
               size="small"
+              disabled={serviceOptions.length === 0}
             />
           </Grid>
         </Grid>
@@ -280,7 +312,9 @@ const ServiceApproverTable = ({
           onClick={() => void addServiceApprover()}
           color="primary"
           sx={{ padding: 0 }}
-          disabled={loading || !valueToAdd.trim()}
+          disabled={
+            loading || !valueToAdd.trim() || serviceOptions.length === 0
+          }
           aria-label={`Add service approver for ${resourceId}`}
         >
           <AddCircleOutline />
@@ -379,6 +413,34 @@ export const ResourceSpecific = () => {
     return result;
   }, [serviceApprovers]);
 
+  const sortedResources = useMemo(
+    () =>
+      [...resources].sort((a, b) =>
+        String(a.resourceId).localeCompare(String(b.resourceId), undefined, {
+          numeric: true,
+        }),
+      ),
+    [resources],
+  );
+
+  const serviceOptionsByResource = useMemo(() => {
+    const result = new Map<string, Array<{ key: string; label: string }>>();
+    resources.forEach((resource) => {
+      const seen = new Set<string>();
+      const options = (resource.services ?? []).reduce<
+        Array<{ key: string; label: string }>
+      >((acc, service) => {
+        const key = normalizeServiceKey(service);
+        if (!SERVICE_LABELS[key] || seen.has(key)) return acc;
+        seen.add(key);
+        acc.push({ key, label: SERVICE_LABELS[key] });
+        return acc;
+      }, []);
+      result.set(resource.resourceId, options);
+    });
+    return result;
+  }, [resources]);
+
   if (loading) {
     return <Typography color="text.secondary">Loading approvers...</Typography>;
   }
@@ -401,7 +463,7 @@ export const ResourceSpecific = () => {
 
   return (
     <Box mt={1}>
-      {resources.map((resource) => (
+      {sortedResources.map((resource) => (
         <Box key={resource.resourceId} mb={4}>
           <Typography variant="h6" style={{ marginBottom: 16 }}>
             {resource.resourceId} {resource.name}
@@ -414,6 +476,9 @@ export const ResourceSpecific = () => {
           <Box mt={3}>
             <ServiceApproverTable
               resourceId={resource.resourceId}
+              serviceOptions={
+                serviceOptionsByResource.get(resource.resourceId) ?? []
+              }
               rows={serviceApproversByResource.get(resource.resourceId) ?? []}
               rowsRefresh={loadApprovers}
             />
