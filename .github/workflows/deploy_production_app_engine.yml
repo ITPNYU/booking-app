@@ -60,6 +60,9 @@ jobs:
           echo "NYU_API_USER_NAME=${{ secrets.NYU_API_USER_NAME }}" >> .env.production
           echo "NYU_API_PASSWORD=${{ secrets.NYU_API_PASSWORD }}" >> .env.production
           echo "NYU_API_ACCESS_ID=${{ secrets.NYU_API_ACCESS_ID }}" >> .env.production
+          echo "NYU_API_AUTH_PROVIDER=${{ vars.NYU_API_AUTH_PROVIDER }}" >> .env.production
+          echo "NYU_ENTRA_CLIENT_ID=${{ secrets.NYU_ENTRA_CLIENT_ID }}" >> .env.production
+          echo "NYU_ENTRA_CLIENT_SECRET=${{ secrets.NYU_ENTRA_CLIENT_SECRET }}" >> .env.production
           echo "OIDC_ISSUER=${{ vars.OIDC_ISSUER }}" >> .env.production
           echo "OIDC_CLIENT_ID=${{ vars.OIDC_CLIENT_ID }}" >> .env.production
           echo "OIDC_CLIENT_SECRET=${{ secrets.OIDC_CLIENT_SECRET }}" >> .env.production
