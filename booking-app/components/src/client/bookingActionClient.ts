@@ -187,7 +187,7 @@ export const decline = async (
     }
   }
 
-  clientUpdateDataByCalendarEventId(
+  await clientUpdateDataByCalendarEventId(
     TableNames.BOOKING,
     id,
     {
@@ -290,7 +290,7 @@ export const noShow = async (
     }
   }
 
-  clientUpdateDataByCalendarEventId(
+  await clientUpdateDataByCalendarEventId(
     TableNames.BOOKING,
     id,
     {

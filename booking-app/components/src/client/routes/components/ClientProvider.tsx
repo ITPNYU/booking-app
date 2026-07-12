@@ -9,6 +9,9 @@ type ClientProviderProps = {
   children: React.ReactNode;
 };
 
+// Include originating pages that call loadExistingBookingData before navigating
+// to /edit or /modification (my-bookings EDIT, pa MODIFICATION), plus other
+// booking-table pages that mount useBookingActions against BookingContext.
 const BOOKING_FLOW_SEGMENTS = [
   "book",
   "walk-in",
@@ -16,6 +19,10 @@ const BOOKING_FLOW_SEGMENTS = [
   "edit",
   "modification",
   "admin",
+  "my-bookings",
+  "pa",
+  "liaison",
+  "services",
 ];
 
 const ClientProvider: React.FC<ClientProviderProps> = ({ children }) => {
