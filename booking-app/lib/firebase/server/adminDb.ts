@@ -362,16 +362,6 @@ const SERVICE_USER_RIGHT_FLAGS: Record<string, string> = {
 const dedupeStrings = (values: string[]): string[] =>
   Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)));
 
-const hasServiceAssignmentsForEveryResource = (
-  records: ServiceApproverData[],
-  resourceIds: string[],
-): boolean => {
-  const assignedResourceIds = new Set(
-    records.map((record) => String(record.resourceId)),
-  );
-  return resourceIds.every((resourceId) => assignedResourceIds.has(resourceId));
-};
-
 const serverResolveLegacyServiceApproverEmails = async (
   service: string,
   tenant?: string,
@@ -414,6 +404,23 @@ const serverIsLegacyServiceApprover = async (
   return records.length > 0;
 };
 
+const groupServiceApproverEmailsByResource = (
+  records: ServiceApproverData[],
+): Map<string, string[]> => {
+  const emailsByResource = new Map<string, string[]>();
+  records.forEach((record) => {
+    const resourceId = String(record.resourceId);
+    const email = normalizeApproverEmail(record.email);
+    if (!resourceId || !email) return;
+    const emails = emailsByResource.get(resourceId) ?? [];
+    if (!emails.includes(email)) {
+      emails.push(email);
+    }
+    emailsByResource.set(resourceId, emails);
+  });
+  return emailsByResource;
+};
+
 export const serverIsEquipmentApprover = async (
   email: string,
   tenant?: string,
@@ -451,31 +458,28 @@ export const serverResolveServiceApproverEmails = async (
   const matchingRecords = records.filter((record) =>
     requestedResourceIds.has(String(record.resourceId)),
   );
-  if (
-    !hasServiceAssignmentsForEveryResource(
-      matchingRecords,
-      normalizedResourceIds,
-    )
-  ) {
-    return serverResolveLegacyServiceApproverEmails(normalizedService, tenant);
-  }
-
-  const resourceIdsByEmail = new Map<string, Set<string>>();
-  matchingRecords.forEach((record) => {
-    const email = normalizeApproverEmail(record.email);
-    const approverResourceIds =
-      resourceIdsByEmail.get(email) ?? new Set<string>();
-    approverResourceIds.add(String(record.resourceId));
-    resourceIdsByEmail.set(email, approverResourceIds);
+  const emailsByResource =
+    groupServiceApproverEmailsByResource(matchingRecords);
+  const needsLegacyFallback = normalizedResourceIds.some((resourceId) => {
+    const explicitEmails = emailsByResource.get(resourceId);
+    return !explicitEmails || explicitEmails.length === 0;
   });
-
-  return [...resourceIdsByEmail.entries()]
-    .filter(([, approverResourceIds]) =>
-      normalizedResourceIds.every((resourceId) =>
-        approverResourceIds.has(resourceId),
-      ),
-    )
-    .map(([email]) => email);
+  const legacyEmails = needsLegacyFallback
+    ? await serverResolveLegacyServiceApproverEmails(normalizedService, tenant)
+    : [];
+  const emailSetsByResource = normalizedResourceIds.map((resourceId) => {
+    const explicitEmails = emailsByResource.get(resourceId);
+    return new Set(
+      explicitEmails && explicitEmails.length > 0
+        ? explicitEmails
+        : legacyEmails,
+    );
+  });
+  const [firstSet, ...otherSets] = emailSetsByResource;
+  if (!firstSet) return [];
+  return [...firstSet].filter((email) =>
+    otherSets.every((emailSet) => emailSet.has(email)),
+  );
 };
 
 export const serverIsServiceApproverForAllResources = async (
@@ -503,29 +507,26 @@ export const serverIsServiceApproverForAllResources = async (
   const matchingRecords = records.filter((record) =>
     requestedResourceIds.has(String(record.resourceId)),
   );
-  if (
-    !hasServiceAssignmentsForEveryResource(
-      matchingRecords,
-      normalizedResourceIds,
-    )
-  ) {
-    return serverIsLegacyServiceApprover(
-      normalizedEmail,
-      normalizedService,
-      tenant,
-    );
-  }
-
-  const approvedResourceIds = new Set(
-    matchingRecords
-      .filter(
-        (record) => normalizeApproverEmail(record.email) === normalizedEmail,
+  const emailsByResource =
+    groupServiceApproverEmailsByResource(matchingRecords);
+  const needsLegacyFallback = normalizedResourceIds.some((resourceId) => {
+    const explicitEmails = emailsByResource.get(resourceId);
+    return !explicitEmails || explicitEmails.length === 0;
+  });
+  const isLegacyServiceApprover = needsLegacyFallback
+    ? await serverIsLegacyServiceApprover(
+        normalizedEmail,
+        normalizedService,
+        tenant,
       )
-      .map((record) => String(record.resourceId)),
-  );
-  return normalizedResourceIds.every((resourceId) =>
-    approvedResourceIds.has(resourceId),
-  );
+    : false;
+  return normalizedResourceIds.every((resourceId) => {
+    const explicitEmails = emailsByResource.get(resourceId);
+    if (explicitEmails && explicitEmails.length > 0) {
+      return explicitEmails.includes(normalizedEmail);
+    }
+    return isLegacyServiceApprover;
+  });
 };
 
 export const serverGetDocumentById = async <T extends DocumentData>(
