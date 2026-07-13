@@ -8,7 +8,7 @@ import {
   clientSendToEquipment,
   decline,
   noShow,
-} from "@/components/src/server/db";
+} from "@/components/src/client/bookingActionClient";
 import { BookingStatusLabel, PageContextLevel } from "@/components/src/types";
 import {
   getMediaCommonsServices,
@@ -90,9 +90,9 @@ export default function useBookingActions({
   const router = useRouter();
   const { tenant } = useParams();
   const { reloadExistingCalendarEvents } = useContext(BookingContext);
-  const { userEmail, netId, updateBookingInList } = useContext(DatabaseContext);
+  const { userEmail, netId, updateBookingInList, allBookings } =
+    useContext(DatabaseContext);
   const loadExistingBookingData = useExistingBooking();
-  const [bookingData, setBookingData] = useState<any>(null);
   const [serviceRequests, setServiceRequests] = useState<{
     staff?: boolean;
     equipment?: boolean;
@@ -119,109 +119,100 @@ export default function useBookingActions({
   }>({});
   const [currentXState, setCurrentXState] = useState<any>("");
 
-  // Function to fetch booking data and update states. Returns fetched data for row-level table updates.
+  const applyBookingData = useCallback((data: any) => {
+    if (!data || !isMediaCommons(tenant as string)) return;
+
+    setServiceRequests(getMediaCommonsServices(data));
+
+    if (data.xstateData) {
+      const checker = createXStateChecker(data);
+      const currentStateValue = checker.getCurrentStateString();
+      setCurrentXState(currentStateValue);
+
+      const context = getXStateContext(data) || {};
+      const closeoutContext = context.servicesClosedOut ?? {};
+      const snapshotValue = data.xstateData?.snapshot?.value;
+      const serviceCloseoutStates =
+        typeof snapshotValue === "object" &&
+        snapshotValue &&
+        snapshotValue["Service Closeout"]
+          ? snapshotValue["Service Closeout"]
+          : {};
+      setServicesApproved({
+        staff: context.servicesApproved?.staff ?? data.staffServiceApproved,
+        equipment:
+          context.servicesApproved?.equipment ?? data.equipmentServiceApproved,
+        catering:
+          context.servicesApproved?.catering ?? data.cateringServiceApproved,
+        cleaning:
+          context.servicesApproved?.cleaning ?? data.cleaningServiceApproved,
+        security:
+          context.servicesApproved?.security ?? data.securityServiceApproved,
+        setup: context.servicesApproved?.setup ?? data.setupServiceApproved,
+      });
+
+      setServicesClosedOut({
+        staff:
+          closeoutContext.staff === true ||
+          serviceCloseoutStates["Staff Closeout"] === "Staff Closedout",
+        equipment:
+          closeoutContext.equipment === true ||
+          serviceCloseoutStates["Equipment Closeout"] ===
+            "Equipment Closedout",
+        catering:
+          closeoutContext.catering === true ||
+          serviceCloseoutStates["Catering Closeout"] === "Catering Closedout",
+        cleaning:
+          closeoutContext.cleaning === true ||
+          serviceCloseoutStates["Cleaning Closeout"] === "Cleaning Closedout",
+        security:
+          closeoutContext.security === true ||
+          serviceCloseoutStates["Security Closeout"] === "Security Closedout",
+        setup:
+          closeoutContext.setup === true ||
+          serviceCloseoutStates["Setup Closeout"] === "Setup Closedout",
+      });
+    } else {
+      setCurrentXState("");
+      setServicesApproved({
+        staff: data.staffServiceApproved,
+        equipment: data.equipmentServiceApproved,
+        catering: data.cateringServiceApproved,
+        cleaning: data.cleaningServiceApproved,
+        security: data.securityServiceApproved,
+        setup: data.setupServiceApproved,
+      });
+      setServicesClosedOut({});
+    }
+  }, [tenant]);
+
+  // Bookings are already loaded for the table — avoid N+1 Firestore reads per row.
+  useEffect(() => {
+    if (!calendarEventId || !isMediaCommons(tenant as string)) return;
+    const cached = allBookings.find(
+      (booking) => booking.calendarEventId === calendarEventId,
+    );
+    if (cached) {
+      applyBookingData(cached);
+    }
+  }, [calendarEventId, tenant, allBookings, applyBookingData]);
+
+  // Refresh a single booking from Firestore after mutations.
   const fetchBookingData = useCallback(async (): Promise<any> => {
     if (!calendarEventId) return undefined;
     try {
       const data = (await clientGetDataByCalendarEventId(
         TableNames.BOOKING,
         calendarEventId,
-        tenant as string
-      )) as any; // Type assertion to handle dynamic properties
-
-      if (isMediaCommons(tenant as string)) {
-        setBookingData(data);
-
-        // Detect service requests from booking data
-        if (data) {
-          setServiceRequests(getMediaCommonsServices(data));
-
-          // Get XState v5 information for service approval status
-          if (data.xstateData) {
-            // Use unified XState utilities
-            const checker = createXStateChecker(data);
-            const currentStateValue = checker.getCurrentStateString();
-            setCurrentXState(currentStateValue);
-
-            const context = getXStateContext(data) || {};
-            const closeoutContext = context.servicesClosedOut ?? {};
-            const snapshotValue = data.xstateData?.snapshot?.value;
-            const serviceCloseoutStates =
-              typeof snapshotValue === "object" &&
-                snapshotValue &&
-                snapshotValue["Service Closeout"]
-                ? snapshotValue["Service Closeout"]
-                : {};
-            setServicesApproved({
-              staff:
-                context.servicesApproved?.staff ?? data.staffServiceApproved,
-              equipment:
-                context.servicesApproved?.equipment ??
-                data.equipmentServiceApproved,
-              catering:
-                context.servicesApproved?.catering ??
-                data.cateringServiceApproved,
-              cleaning:
-                context.servicesApproved?.cleaning ??
-                data.cleaningServiceApproved,
-              security:
-                context.servicesApproved?.security ??
-                data.securityServiceApproved,
-              setup:
-                context.servicesApproved?.setup ?? data.setupServiceApproved,
-            });
-
-            setServicesClosedOut({
-              staff:
-                closeoutContext.staff === true ||
-                serviceCloseoutStates["Staff Closeout"] === "Staff Closedout",
-              equipment:
-                closeoutContext.equipment === true ||
-                serviceCloseoutStates["Equipment Closeout"] ===
-                "Equipment Closedout",
-              catering:
-                closeoutContext.catering === true ||
-                serviceCloseoutStates["Catering Closeout"] ===
-                "Catering Closedout",
-              cleaning:
-                closeoutContext.cleaning === true ||
-                serviceCloseoutStates["Cleaning Closeout"] ===
-                "Cleaning Closedout",
-              security:
-                closeoutContext.security === true ||
-                serviceCloseoutStates["Security Closeout"] ===
-                "Security Closedout",
-              setup:
-                closeoutContext.setup === true ||
-                serviceCloseoutStates["Setup Closeout"] === "Setup Closedout",
-            });
-          } else {
-            // Fallback to individual service approval fields if XState data is not available
-            setCurrentXState("");
-            setServicesApproved({
-              staff: data.staffServiceApproved,
-              equipment: data.equipmentServiceApproved,
-              catering: data.cateringServiceApproved,
-              cleaning: data.cleaningServiceApproved,
-              security: data.securityServiceApproved,
-              setup: data.setupServiceApproved,
-            });
-            setServicesClosedOut({}); // Reset closeout status if no XState data
-          }
-        }
-      }
-
+        tenant as string,
+      )) as any;
+      applyBookingData(data);
       return data ?? undefined;
     } catch (error) {
       console.error("Error fetching booking data:", error);
       return undefined;
     }
-  }, [calendarEventId, tenant]);
-
-  // Fetch booking data to detect service requests for Media Commons
-  useEffect(() => {
-    fetchBookingData();
-  }, [fetchBookingData]);
+  }, [calendarEventId, tenant, applyBookingData]);
 
   const updateActions = () => {
     setDate(new Date());

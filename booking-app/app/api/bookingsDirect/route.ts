@@ -1,5 +1,6 @@
 import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
-import { TableNames, getApprovalCcEmail } from "@/components/src/policy";
+import { TableNames } from "@/components/src/policy";
+import { getApprovalCcEmail } from "@/components/src/tenantPolicyServer";
 import {
   serverGetRoomCalendarId,
   serverSendBookingDetailEmail,
