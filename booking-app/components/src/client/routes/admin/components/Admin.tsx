@@ -24,7 +24,11 @@ export default function Admin({ calendarEventId }) {
   if (maintenanceMode.enabled) {
     return (
       <Box margin={3}>
-        <Settings maintenanceOnly />
+        {!userHasPermission ? (
+          <div>You do not have permission to view this page.</div>
+        ) : (
+          <Settings maintenanceOnly />
+        )}
       </Box>
     );
   }
