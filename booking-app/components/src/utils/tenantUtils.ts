@@ -68,10 +68,8 @@ export const isITP = (tenant?: string): boolean => tenant === TENANTS.ITP;
 /**
  * Check if a tenant is Media Commons (supports both "mediaCommons" and "mc")
  */
-export const isMediaCommons = (tenant?: string): boolean => {
-  console.log("tenant", tenant);
-  return tenant === TENANTS.MC || tenant === TENANTS.MEDIA_COMMONS;
-};
+export const isMediaCommons = (tenant?: string): boolean =>
+  tenant === TENANTS.MC || tenant === TENANTS.MEDIA_COMMONS;
 
 /**
  * Check if a tenant should use XState

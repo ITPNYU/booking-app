@@ -22,7 +22,7 @@ vi.mock("@/components/src/server/ui", () => ({
   getBookingToolDeployUrl: vi.fn(),
 }));
 
-import { updateOperationHours } from "@/components/src/server/db";
+import { updateOperationHours } from "@/components/src/client/adminSettingsClient";
 import { TableNames } from "@/components/src/policy";
 import { Days } from "@/components/src/types";
 

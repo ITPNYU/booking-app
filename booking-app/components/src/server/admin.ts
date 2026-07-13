@@ -13,7 +13,8 @@ import { Timestamp } from "firebase-admin/firestore";
 import { applyEnvironmentCalendarIds } from "@/lib/utils/calendarEnvironment";
 import { DEFAULT_TENANT } from "../constants/tenants";
 import { ITP_DEPT_NAME_KEYWORDS, ITP_GROUP_SHORT_NAMES } from "../utils/tenantUtils";
-import { TableNames, getApprovalCcEmail } from "../policy";
+import { TableNames } from "../policy";
+import { getApprovalCcEmail } from "../tenantPolicyServer";
 import {
   AdminUser,
   Approver,
@@ -777,12 +778,14 @@ export const serverApproveEvent = async (id: string, tenant?: string) => {
 
   // for secondary contact, if we have one
   // secondaryEmail now stores full NYU email (e.g., abc123@nyu.edu)
+  // Keep these side effects sequential so a calendar/guest failure cannot
+  // skip secondary contact email/invite (and so invites run after calendar update).
   if (contents.secondaryEmail && contents.secondaryEmail.length > 0) {
     // Handle both legacy net ID format and new full email format
     const secondaryEmailAddress = contents.secondaryEmail.includes("@")
       ? contents.secondaryEmail
       : `${contents.secondaryEmail}@nyu.edu`;
-    
+
     // Await the email to ensure it's sent before proceeding
     await serverSendBookingDetailEmail({
       calendarEventId: id,
@@ -826,7 +829,6 @@ export const serverApproveEvent = async (id: string, tenant?: string) => {
     }
   }
 
-
   const formDataForCalendarEvents = {
     calendarEventId: id,
     newValues: { statusPrefix: BookingStatusLabel.APPROVED },
@@ -845,17 +847,14 @@ export const serverApproveEvent = async (id: string, tenant?: string) => {
     calendarEventId: id,
     roomId: contents.roomId,
   };
-  const res = await fetch(
-    `${process.env.NEXT_PUBLIC_BASE_URL}/api/inviteUser`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-tenant": tenant || DEFAULT_TENANT,
-      },
-      body: JSON.stringify(formData),
+  await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/inviteUser`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-tenant": tenant || DEFAULT_TENANT,
     },
-  );
+    body: JSON.stringify(formData),
+  });
 };
 
 export const admins = async (): Promise<AdminUser[]> => {

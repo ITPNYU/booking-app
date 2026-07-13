@@ -21,6 +21,14 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  experimental: {
+    optimizePackageImports: [
+      "@mui/material",
+      "@mui/icons-material",
+      "@mui/x-data-grid",
+      "@mui/x-date-pickers",
+    ],
+  },
   serverExternalPackages: ["newrelic"],
   // Only non-secret, browser-facing values belong here. Next.js inlines every
   // `env` entry into any bundle that references it (including client bundles),
