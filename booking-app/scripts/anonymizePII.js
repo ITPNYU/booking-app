@@ -23,22 +23,27 @@
  *                            it untouched (run without --tenant to clear it).
  *
  * Safety:
- *   - Always writes a JSON backup of every original value BEFORE mutating.
+ *   - Always backs up every original value BEFORE mutating. The backup lives
+ *     in Firestore itself (`piiAnonymizationBackups`, same database as the
+ *     data), so raw PII never leaves the access-controlled database — no
+ *     local files, no CI artifacts. Backups carry an `expiresAt` and are
+ *     pruned automatically on the next real run (default 30 days).
  *   - --dry-run reports the change set and writes no backup and no changes.
  *   - Hashing is idempotent (already-hashed `ANON:` values are skipped), so
  *     re-running is safe.
- *   - Writing to production requires --confirm-production.
+ *   - Writing to production (including the backup docs) requires
+ *     --confirm-production.
  *
  * Usage:
  *   node scripts/anonymizePII.js --before 2026-09-01 --database development --dry-run
  *   node scripts/anonymizePII.js --before 2026-09-01 --database staging
  *   node scripts/anonymizePII.js --before 2026-09-01 --database production --confirm-production
+ *   node scripts/anonymizePII.js --restore <backup-id> --database staging
  */
 require("dotenv").config({ path: ".env.local" });
 const admin = require("firebase-admin");
 const crypto = require("crypto");
 const fs = require("fs");
-const path = require("path");
 
 const DATABASES = {
   development: "default",
@@ -47,6 +52,13 @@ const DATABASES = {
 };
 
 const CACHE_COLLECTION = "nyu_identity_cache";
+// Backups of the original values live in Firestore, in the same database as
+// the data being anonymized: one run doc + an `entries` subcollection with one
+// doc per backed-up source doc. Raw PII therefore never leaves the
+// access-controlled database. Runs expire via `expiresAt` and are pruned by
+// the next real run.
+const BACKUP_COLLECTION = "piiAnonymizationBackups";
+const BACKUP_RETENTION_DAYS_DEFAULT = 30;
 const BATCH_SIZE = 450;
 const ANON_PREFIX = "ANON:";
 
@@ -133,9 +145,10 @@ const toMillis = (ts) =>
 
 /** Latest relevant date on a preBanLog, or null if none present. */
 const preBanLogDateMillis = (data) => {
-  const dates = [toMillis(data.lateCancelDate), toMillis(data.noShowDate)].filter(
-    (n) => n !== null,
-  );
+  const dates = [
+    toMillis(data.lateCancelDate),
+    toMillis(data.noShowDate),
+  ].filter((n) => n !== null);
   return dates.length > 0 ? Math.max(...dates) : null;
 };
 
@@ -161,8 +174,8 @@ const parseArgs = (args = process.argv.slice(2)) => {
       case "--tenant":
         options.tenant = args[++index];
         break;
-      case "--backup-dir":
-        options.backupDir = args[++index];
+      case "--backup-retention-days":
+        options.backupRetentionDays = Number(args[++index]);
         break;
       case "--report-file":
         options.reportFile = args[++index];
@@ -196,16 +209,23 @@ const parseArgs = (args = process.argv.slice(2)) => {
     );
   }
 
-  // --backup-only is an anonymize-mode flag (write a backup, change nothing).
-  // Combined with --restore it is meaningless AND dangerous: it flips the
-  // willWrite gate below to false, letting a real restore write to production
-  // bypass the --confirm-production check. Reject the combination outright.
+  // --backup-only is an anonymize-mode flag (write the backup, change
+  // nothing else). Combined with --restore it is meaningless; reject it so it
+  // cannot be mistaken for a "preview restore" (that's --dry-run).
   if (options.restore && options.backupOnly) {
     throw new Error("--backup-only cannot be combined with --restore");
   }
 
-  // Restore mode reads a backup file and writes originals back; it needs no
-  // cutoff. Anonymize / backup-only mode needs the cutoff.
+  if (
+    options.backupRetentionDays !== undefined &&
+    (!Number.isInteger(options.backupRetentionDays) ||
+      options.backupRetentionDays < 1)
+  ) {
+    throw new Error("--backup-retention-days must be a positive integer");
+  }
+
+  // Restore mode reads a Firestore backup and writes originals back; it needs
+  // no cutoff. Anonymize / backup-only mode needs the cutoff.
   if (!options.restore) {
     if (!options.before) {
       throw new Error(
@@ -219,10 +239,15 @@ const parseArgs = (args = process.argv.slice(2)) => {
     options.cutoff = cutoff;
   }
 
-  // Production writes need explicit confirmation. --backup-only does not write
-  // to the database (it only reads and writes a local file), so it is exempt.
-  const willWrite = !options.dryRun && !options.backupOnly;
-  if (options.database === "production" && willWrite && !options.confirmProduction) {
+  // Production writes need explicit confirmation. Backups are written INTO
+  // Firestore, so even --backup-only writes to the database — only --dry-run
+  // is exempt.
+  const willWrite = !options.dryRun;
+  if (
+    options.database === "production" &&
+    willWrite &&
+    !options.confirmProduction
+  ) {
     throw new Error(
       "Refusing to write to production without --confirm-production",
     );
@@ -266,8 +291,9 @@ const discoverCollections = async (db, tenantFilter) => {
 };
 
 /**
- * Commit a set of updates in ≤500-op batches. `ops` is an array of
- * { ref, patch } for updates or { ref, delete: true } for deletes.
+ * Commit a set of writes in ≤500-op batches. `ops` is an array of
+ * { ref, patch } for updates, { ref, set } for creates/overwrites, or
+ * { ref, delete: true } for deletes.
  */
 const commitInBatches = async (db, ops) => {
   for (let i = 0; i < ops.length; i += BATCH_SIZE) {
@@ -275,9 +301,71 @@ const commitInBatches = async (db, ops) => {
     const batch = db.batch();
     for (const op of slice) {
       if (op.delete) batch.delete(op.ref);
+      else if (op.set) batch.set(op.ref, op.set);
       else batch.update(op.ref, op.patch);
     }
     await batch.commit();
+  }
+};
+
+/**
+ * Persist the backup into Firestore BEFORE any mutation: a run doc in
+ * `piiAnonymizationBackups` plus one `entries` subcollection doc per source
+ * doc. Field paths may contain dots (nested xstate fields), so the original
+ * values are stored as a JSON string rather than as Firestore fields.
+ * Returns the backup id.
+ */
+const writeBackupToFirestore = async (db, backup, options) => {
+  const createdAt = new Date();
+  const backupId = `anon-${options.database}-${createdAt
+    .toISOString()
+    .replace(/[:.]/g, "-")}`;
+  const runRef = db.collection(BACKUP_COLLECTION).doc(backupId);
+  const retentionDays =
+    options.backupRetentionDays ?? BACKUP_RETENTION_DAYS_DEFAULT;
+  const entryOps = [];
+  for (const [collection, docs] of Object.entries(backup.collections)) {
+    for (const [docId, fields] of Object.entries(docs)) {
+      entryOps.push({
+        ref: runRef.collection("entries").doc(`${collection}__${docId}`),
+        set: {
+          collection,
+          docId,
+          fieldsJson: JSON.stringify(fields),
+        },
+      });
+    }
+  }
+  await runRef.set({
+    database: options.database,
+    before: options.before ?? null,
+    tenant: options.tenant ?? null,
+    createdAt: admin.firestore.Timestamp.fromDate(createdAt),
+    expiresAt: admin.firestore.Timestamp.fromDate(
+      new Date(createdAt.getTime() + retentionDays * 24 * 60 * 60 * 1000),
+    ),
+    entryCount: entryOps.length,
+  });
+  await commitInBatches(db, entryOps);
+  return backupId;
+};
+
+/** Delete backup runs whose `expiresAt` has passed (entries first, then the run doc). */
+const pruneExpiredBackups = async (db) => {
+  const expired = await db
+    .collection(BACKUP_COLLECTION)
+    .where("expiresAt", "<", admin.firestore.Timestamp.now())
+    .get();
+  for (const runDoc of expired.docs) {
+    const entries = await runDoc.ref.collection("entries").get();
+    await commitInBatches(
+      db,
+      entries.docs.map((doc) => ({ ref: doc.ref, delete: true })),
+    );
+    await runDoc.ref.delete();
+  }
+  if (expired.size > 0) {
+    console.log(`Pruned ${expired.size} expired backup run(s).`);
   }
 };
 
@@ -285,21 +373,39 @@ const anonymize = async (db, options) => {
   const hash =
     options.dryRun || options.backupOnly ? (v) => v : makeHasher(getPepper());
   const cutoffTs = admin.firestore.Timestamp.fromDate(options.cutoff);
-  const backup = { database: options.database, before: options.before, collections: {} };
+  const backup = {
+    database: options.database,
+    before: options.before,
+    collections: {},
+  };
   const report = {
     database: options.database,
     before: options.before,
     dryRun: options.dryRun,
+    backupOnly: !!options.backupOnly,
+    backupId: null,
     collections: {},
     totals: { docsChanged: 0, fieldsHashed: 0, docsDeleted: 0 },
   };
   const ops = [];
 
-  const { bookings, preBanLogs } = await discoverCollections(db, options.tenant);
+  // Real runs (and backup-only runs) also clean up expired backup runs, so
+  // retention does not depend on anyone remembering to delete them.
+  if (!options.dryRun) {
+    await pruneExpiredBackups(db);
+  }
+
+  const { bookings, preBanLogs } = await discoverCollections(
+    db,
+    options.tenant,
+  );
 
   // --- bookings: concluded only (endDate < cutoff) ---
   for (const name of bookings) {
-    const snap = await db.collection(name).where("endDate", "<", cutoffTs).get();
+    const snap = await db
+      .collection(name)
+      .where("endDate", "<", cutoffTs)
+      .get();
     let docsChanged = 0;
     let fieldsHashed = 0;
     const colBackup = {};
@@ -311,7 +417,11 @@ const anonymize = async (db, options) => {
       colBackup[doc.id] = result.backup;
       if (!options.dryRun) ops.push({ ref: doc.ref, patch: result.patch });
     }
-    report.collections[name] = { scanned: snap.size, docsChanged, fieldsHashed };
+    report.collections[name] = {
+      scanned: snap.size,
+      docsChanged,
+      fieldsHashed,
+    };
     report.totals.docsChanged += docsChanged;
     report.totals.fieldsHashed += fieldsHashed;
     if (Object.keys(colBackup).length > 0) backup.collections[name] = colBackup;
@@ -371,13 +481,19 @@ const anonymize = async (db, options) => {
       docsDeleted: snap.size,
     };
     report.totals.docsDeleted += snap.size;
-    if (Object.keys(colBackup).length > 0) backup.collections[CACHE_COLLECTION] = colBackup;
+    if (Object.keys(colBackup).length > 0)
+      backup.collections[CACHE_COLLECTION] = colBackup;
   }
 
   // Write the backup fully BEFORE mutating anything.
   if (!options.dryRun && ops.length > 0) {
-    const backupPath = writeBackup(backup, options);
-    console.log(`Backup written: ${backupPath}`);
+    const backupId = await writeBackupToFirestore(db, backup, options);
+    report.backupId = backupId;
+    console.log(
+      `Backup written: ${BACKUP_COLLECTION}/${backupId} ` +
+        `(expires after ${options.backupRetentionDays ?? BACKUP_RETENTION_DAYS_DEFAULT} days; ` +
+        `restore with --restore ${backupId})`,
+    );
     if (!options.backupOnly) await commitInBatches(db, ops);
   }
 
@@ -388,16 +504,35 @@ const anonymize = async (db, options) => {
 };
 
 /**
- * Restore original values from a backup file produced by an earlier run.
- * bookings / preBanLogs are patched back field-by-field.
+ * Restore original values from a Firestore backup produced by an earlier run
+ * (`--restore <backup-id>`). bookings / preBanLogs are patched back
+ * field-by-field.
  *
  * nyu_identity_cache is intentionally NOT restored: it is a regenerable 7-day
- * TTL cache that self-populates on the next lookup, and its Timestamp fields do
- * not survive the JSON backup round-trip. It is still captured in the backup
- * file for reference.
+ * TTL cache that self-populates on the next lookup, and its Timestamp fields
+ * do not survive the JSON round-trip. It is still captured in the backup for
+ * reference.
  */
 const restore = async (db, options) => {
-  const backup = JSON.parse(fs.readFileSync(options.restore, "utf8"));
+  const runRef = db.collection(BACKUP_COLLECTION).doc(options.restore);
+  const runSnap = await runRef.get();
+  if (!runSnap.exists) {
+    throw new Error(
+      `Backup "${options.restore}" not found in ${BACKUP_COLLECTION} ` +
+        `(database ${options.database}). Note: backups expire and are pruned automatically.`,
+    );
+  }
+  // Backups live in the same database they were taken from, so a mismatch
+  // here means the run doc was written by a different-environment run with
+  // the same id — refuse rather than patch the wrong docs.
+  const meta = runSnap.data() || {};
+  if (meta.database && meta.database !== options.database) {
+    throw new Error(
+      `Backup "${options.restore}" was taken from "${meta.database}", ` +
+        `refusing to restore into "${options.database}"`,
+    );
+  }
+
   const report = {
     database: options.database,
     from: options.restore,
@@ -407,33 +542,37 @@ const restore = async (db, options) => {
     totals: { restoredDocs: 0, restoredFields: 0 },
   };
   const ops = [];
-  for (const [name, docs] of Object.entries(backup.collections || {})) {
+  const entriesSnap = await runRef.collection("entries").get();
+  for (const entryDoc of entriesSnap.docs) {
+    const entry = entryDoc.data();
+    const name = entry.collection;
+    const bump = (bucket, extra) => {
+      bucket[name] = bucket[name] || { docs: 0, ...extra };
+      bucket[name].docs += 1;
+    };
     if (name === CACHE_COLLECTION) {
-      report.skipped[name] = { docs: Object.keys(docs).length };
+      bump(report.skipped, {});
       continue;
     }
     // --tenant is a hard scope boundary everywhere else in this script, so
     // honor it here too: restoring from a full backup with --tenant mc must
-    // write back only mc-* collections, not every tenant's PII in the file.
+    // write back only mc-* collections, not every tenant's PII in the backup.
     if (options.tenant && !name.startsWith(`${options.tenant}-`)) {
-      report.skipped[name] = {
-        docs: Object.keys(docs).length,
-        reason: `outside --tenant ${options.tenant}`,
-      };
+      bump(report.skipped, { reason: `outside --tenant ${options.tenant}` });
       continue;
     }
-    let restoredDocs = 0;
-    let restoredFields = 0;
-    for (const [docId, data] of Object.entries(docs)) {
-      const ref = db.collection(name).doc(docId);
-      // Patch the original PII fields back onto the existing doc.
-      if (!options.dryRun) ops.push({ ref, patch: data });
-      restoredDocs += 1;
-      restoredFields += Object.keys(data).length;
-    }
-    report.collections[name] = { restoredDocs, restoredFields };
-    report.totals.restoredDocs += restoredDocs;
-    report.totals.restoredFields += restoredFields;
+    const data = JSON.parse(entry.fieldsJson);
+    const ref = db.collection(name).doc(entry.docId);
+    // Patch the original PII fields back onto the existing doc.
+    if (!options.dryRun) ops.push({ ref, patch: data });
+    report.collections[name] = report.collections[name] || {
+      restoredDocs: 0,
+      restoredFields: 0,
+    };
+    report.collections[name].restoredDocs += 1;
+    report.collections[name].restoredFields += Object.keys(data).length;
+    report.totals.restoredDocs += 1;
+    report.totals.restoredFields += Object.keys(data).length;
   }
   if (!options.dryRun && ops.length > 0) {
     await commitInBatches(db, ops);
@@ -454,23 +593,15 @@ const getPepper = () => {
   return pepper;
 };
 
-const writeBackup = (backup, options) => {
-  const dir =
-    options.backupDir || path.join(__dirname, "output", "anon-backups");
-  fs.mkdirSync(dir, { recursive: true });
-  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
-  const file = path.join(dir, `anon-backup-${options.database}-${stamp}.json`);
-  fs.writeFileSync(file, JSON.stringify(backup, null, 2));
-  return file;
-};
-
 const main = async () => {
   const options = parseArgs();
   if (options.help) {
     console.log(`Usage: node scripts/anonymizePII.js [options]
 
 Anonymize PII (name/netId/nNumber/phone) in concluded bookings, preBanLogs,
-and the NYU identity cache. Always backs up originals before writing.
+and the NYU identity cache. Originals are always backed up first, into the
+Firestore collection "${BACKUP_COLLECTION}" in the same database (never to a
+local file or CI artifact); backups expire and are pruned automatically.
 
 Options:
   --before <YYYY-MM-DD>    Academic-year cutoff; only records before this are
@@ -480,16 +611,18 @@ Options:
                            shared identity cache is left untouched on a
                            tenant-scoped run
   --dry-run                Report the change set; write nothing, no backup
-  --backup-only            Write the JSON backup of the eligible records but
-                           make no changes (no hashing, no deletes, no pepper)
-  --restore <file>         Restore original values from a backup file (bookings
-                           and preBanLogs only; the regenerable identity cache
-                           is not restored). Supports --dry-run.
-  --backup-dir <path>      Where to write the JSON backup
-                           (default scripts/output/anon-backups)
-  --report-file <path>     Write a JSON summary report
+  --backup-only            Write the Firestore backup of the eligible records
+                           but change nothing (no hashing, no deletes, no pepper)
+  --restore <backup-id>    Restore original values from a Firestore backup run
+                           (bookings and preBanLogs only; the regenerable
+                           identity cache is not restored). Supports --dry-run.
+  --backup-retention-days <n>
+                           How long the backup run is kept before the next
+                           real run prunes it (default ${BACKUP_RETENTION_DAYS_DEFAULT})
+  --report-file <path>     Write a JSON summary report (counts only, no PII)
   --skip-cache             Do not touch nyu_identity_cache
   --confirm-production     Required to write when --database production
+                           (backups count as writes; only --dry-run is exempt)
   --help                   Show this help
 
 Env: ANONYMIZATION_PEPPER (>=16 chars, real runs only), FIREBASE_* (.env.local)`);
@@ -546,6 +679,8 @@ module.exports = {
   DATABASES,
   ANON_PREFIX,
   CACHE_COLLECTION,
+  BACKUP_COLLECTION,
+  BACKUP_RETENTION_DAYS_DEFAULT,
   BOOKING_PII_FIELDS,
   PREBAN_PII_FIELDS,
   makeHasher,
@@ -555,4 +690,5 @@ module.exports = {
   parseArgs,
   anonymize,
   restore,
+  pruneExpiredBackups,
 };

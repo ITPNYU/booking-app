@@ -1,14 +1,11 @@
 import { createRequire } from "module";
 import { describe, expect, it } from "vitest";
 
-import fs from "fs";
-import os from "os";
-import path from "path";
-
 const requireModule = createRequire(import.meta.url);
 const {
   ANON_PREFIX,
   CACHE_COLLECTION,
+  BACKUP_COLLECTION,
   makeHasher,
   computeBookingUpdate,
   computePreBanUpdate,
@@ -19,6 +16,7 @@ const {
 } = requireModule("../../scripts/anonymizePII.js") as {
   ANON_PREFIX: string;
   CACHE_COLLECTION: string;
+  BACKUP_COLLECTION: string;
   makeHasher: (pepper: string) => (value: unknown) => unknown;
   computeBookingUpdate: (
     data: Record<string, any>,
@@ -102,7 +100,11 @@ describe("scripts/anonymizePII computeBookingUpdate", () => {
   });
 
   it("returns null when there is nothing to anonymize", () => {
-    const data = { title: "meeting", firstName: `${ANON_PREFIX}x`, lastName: "" };
+    const data = {
+      title: "meeting",
+      firstName: `${ANON_PREFIX}x`,
+      lastName: "",
+    };
     expect(computeBookingUpdate(data, hash)).toBeNull();
   });
 
@@ -138,7 +140,9 @@ describe("scripts/anonymizePII computeBookingUpdate", () => {
     const data = {
       xstateData: {
         snapshot: {
-          context: { formData: { netId: `${ANON_PREFIX}deadbeef`, firstName: "" } },
+          context: {
+            formData: { netId: `${ANON_PREFIX}deadbeef`, firstName: "" },
+          },
         },
       },
     };
@@ -161,7 +165,9 @@ describe("scripts/anonymizePII computePreBanUpdate", () => {
 
 describe("scripts/anonymizePII preBanLogDateMillis", () => {
   it("returns the latest of the two dates", () => {
-    expect(preBanLogDateMillis({ lateCancelDate: ts(100), noShowDate: ts(200) })).toBe(200);
+    expect(
+      preBanLogDateMillis({ lateCancelDate: ts(100), noShowDate: ts(200) }),
+    ).toBe(200);
     expect(preBanLogDateMillis({ noShowDate: ts(50) })).toBe(50);
   });
 
@@ -176,13 +182,15 @@ describe("scripts/anonymizePII parseArgs", () => {
   });
 
   it("rejects an unknown database", () => {
-    expect(() => parseArgs(["--before", "2026-09-01", "--database", "nope"])).toThrow(
-      /Invalid database/,
-    );
+    expect(() =>
+      parseArgs(["--before", "2026-09-01", "--database", "nope"]),
+    ).toThrow(/Invalid database/);
   });
 
   it("rejects an invalid --before date", () => {
-    expect(() => parseArgs(["--before", "not-a-date"])).toThrow(/Invalid --before/);
+    expect(() => parseArgs(["--before", "not-a-date"])).toThrow(
+      /Invalid --before/,
+    );
   });
 
   it("refuses to write to production without --confirm-production", () => {
@@ -203,32 +211,55 @@ describe("scripts/anonymizePII parseArgs", () => {
     expect(opts.database).toBe("production");
   });
 
-  it("allows --backup-only on production without confirmation (no DB writes)", () => {
-    const opts = parseArgs([
-      "--before",
-      "2026-09-01",
-      "--database",
-      "production",
-      "--backup-only",
-    ]);
-    expect(opts.backupOnly).toBe(true);
+  it("requires --confirm-production for --backup-only on production (backups are DB writes)", () => {
+    expect(() =>
+      parseArgs([
+        "--before",
+        "2026-09-01",
+        "--database",
+        "production",
+        "--backup-only",
+      ]),
+    ).toThrow(/confirm-production/);
   });
 
   it("does not require --before in restore mode", () => {
-    const opts = parseArgs(["--restore", "backup.json", "--database", "development"]);
-    expect(opts.restore).toBe("backup.json");
+    const opts = parseArgs([
+      "--restore",
+      "anon-development-2026",
+      "--database",
+      "development",
+    ]);
+    expect(opts.restore).toBe("anon-development-2026");
   });
 
-  it("rejects --backup-only combined with --restore (would bypass the prod gate)", () => {
+  it("rejects --backup-only combined with --restore", () => {
     expect(() =>
-      parseArgs(["--restore", "backup.json", "--backup-only", "--database", "production"]),
+      parseArgs([
+        "--restore",
+        "anon-production-2026",
+        "--backup-only",
+        "--database",
+        "production",
+      ]),
     ).toThrow(/--backup-only cannot be combined with --restore/);
   });
 
   it("requires --confirm-production to restore to production", () => {
     expect(() =>
-      parseArgs(["--restore", "backup.json", "--database", "production"]),
+      parseArgs([
+        "--restore",
+        "anon-production-2026",
+        "--database",
+        "production",
+      ]),
     ).toThrow(/confirm-production/);
+  });
+
+  it("rejects a non-positive --backup-retention-days", () => {
+    expect(() =>
+      parseArgs(["--before", "2026-09-01", "--backup-retention-days", "0"]),
+    ).toThrow(/backup-retention-days/);
   });
 });
 
@@ -288,65 +319,225 @@ describe("scripts/anonymizePII anonymize cache scoping", () => {
   });
 });
 
-describe("scripts/anonymizePII restore", () => {
-  const stubDb = {
-    collection: (name: string) => ({ doc: (id: string) => ({ ref: `${name}/${id}` }) }),
+// Recording stub: captures every write (direct doc set/delete and committed
+// batch ops) in order, so tests can assert the backup-before-mutation
+// invariant and inspect what was written where.
+const makeRecordingDb = (collections: Record<string, Record<string, any>>) => {
+  const events: Array<{ type: string; path: string; data?: any }> = [];
+  const makeDocRef = (path: string): any => ({
+    path,
+    set: async (data: any) => {
+      events.push({ type: "set", path, data });
+    },
+    delete: async () => {
+      events.push({ type: "delete", path });
+    },
+    collection: (name: string) => makeCollection(`${path}/${name}`),
+  });
+  const docsOf = (name: string) =>
+    Object.entries(collections[name] || {}).map(([id, data]) => ({
+      id,
+      ref: makeDocRef(`${name}/${id}`),
+      data: () => data,
+    }));
+  const snapOf = (name: string) => ({
+    size: docsOf(name).length,
+    docs: docsOf(name),
+  });
+  const makeCollection = (name: string): any => ({
+    id: name,
+    doc: (id: string) => makeDocRef(`${name}/${id}`),
+    where: () => ({ get: async () => snapOf(name) }),
+    get: async () => snapOf(name),
+  });
+  return {
+    events,
+    listCollections: async () => Object.keys(collections).map((id) => ({ id })),
+    collection: (name: string) => makeCollection(name),
+    batch: () => {
+      const pending: Array<{ type: string; path: string; data?: any }> = [];
+      return {
+        update: (ref: any, patch: any) =>
+          pending.push({ type: "update", path: ref.path, data: patch }),
+        set: (ref: any, data: any) =>
+          pending.push({ type: "set", path: ref.path, data }),
+        delete: (ref: any) => pending.push({ type: "delete", path: ref.path }),
+        commit: async () => {
+          events.push(...pending);
+          pending.length = 0;
+        },
+      };
+    },
   };
+};
+
+describe("scripts/anonymizePII anonymize real run", () => {
+  it("writes the Firestore backup fully before mutating any source doc", async () => {
+    process.env.ANONYMIZATION_PEPPER = "unit-test-pepper-0123456789";
+    const db = makeRecordingDb({
+      "mc-bookings": {
+        b1: { firstName: "Ada", netId: "al123", endDate: ts(1) },
+      },
+      nyu_identity_cache: { al123: { university_id: "N1", name: "Ada" } },
+    });
+
+    const report = await anonymize(db, {
+      database: "development",
+      before: "2026-09-01",
+      dryRun: false,
+      cutoff: new Date("2026-09-01"),
+    });
+
+    expect(report.backupId).toMatch(/^anon-development-/);
+    expect(report.backupOnly).toBeFalsy();
+
+    const backupWrites = db.events.filter((e) =>
+      e.path.startsWith(`${BACKUP_COLLECTION}/`),
+    );
+    const mutations = db.events.filter(
+      (e) => !e.path.startsWith(`${BACKUP_COLLECTION}/`),
+    );
+    // Run doc + one entry per touched source doc.
+    expect(backupWrites.length).toBe(3);
+    const entry = backupWrites.find((e) => e.path.includes("mc-bookings__b1"))!;
+    expect(JSON.parse(entry.data.fieldsJson)).toEqual({
+      firstName: "Ada",
+      netId: "al123",
+    });
+    // Every backup write happens before the first mutation.
+    const firstMutation = db.events.indexOf(mutations[0]);
+    for (const write of backupWrites) {
+      expect(db.events.indexOf(write)).toBeLessThan(firstMutation);
+    }
+    // The mutations hash the booking and delete the cache doc.
+    const bookingUpdate = mutations.find((e) => e.path === "mc-bookings/b1")!;
+    expect(bookingUpdate.type).toBe("update");
+    expect(String(bookingUpdate.data.firstName).startsWith(ANON_PREFIX)).toBe(
+      true,
+    );
+    expect(mutations).toContainEqual({
+      type: "delete",
+      path: "nyu_identity_cache/al123",
+    });
+  });
+
+  it("writes the backup but no mutations in --backup-only mode", async () => {
+    const db = makeRecordingDb({
+      "mc-bookings": {
+        b1: { firstName: "Ada", endDate: ts(1) },
+      },
+    });
+
+    const report = await anonymize(db, {
+      database: "development",
+      before: "2026-09-01",
+      dryRun: false,
+      backupOnly: true,
+      cutoff: new Date("2026-09-01"),
+    });
+
+    expect(report.backupId).toMatch(/^anon-development-/);
+    expect(report.backupOnly).toBe(true);
+    expect(
+      db.events.every((e) => e.path.startsWith(`${BACKUP_COLLECTION}/`)),
+    ).toBe(true);
+  });
+});
+
+describe("scripts/anonymizePII restore", () => {
+  const makeRestoreDb = (
+    meta: Record<string, any> | null,
+    entries: Array<{ collection: string; docId: string; fields: any }>,
+  ) => ({
+    collection: (name: string) => ({
+      doc: (id: string) => {
+        if (name === BACKUP_COLLECTION) {
+          return {
+            get: async () => ({ exists: meta != null, data: () => meta }),
+            collection: () => ({
+              get: async () => ({
+                docs: entries.map((entry) => ({
+                  data: () => ({
+                    collection: entry.collection,
+                    docId: entry.docId,
+                    fieldsJson: JSON.stringify(entry.fields),
+                  }),
+                })),
+              }),
+            }),
+          };
+        }
+        return { path: `${name}/${id}` };
+      },
+    }),
+  });
+
+  const entries = [
+    {
+      collection: "mc-bookings",
+      docId: "b1",
+      fields: { firstName: "Ada", netId: "al123" },
+    },
+    { collection: "mc-preBanLogs", docId: "p1", fields: { netId: "al123" } },
+    {
+      collection: CACHE_COLLECTION,
+      docId: "al123",
+      fields: { university_id: "N1", name: "Ada" },
+    },
+  ];
 
   it("restores bookings/preBanLogs but skips the identity cache", async () => {
-    const backup = {
+    const db = makeRestoreDb({ database: "development" }, entries);
+    const report = await restore(db, {
       database: "development",
-      collections: {
-        "mc-bookings": { b1: { firstName: "Ada", netId: "al123" } },
-        "mc-preBanLogs": { p1: { netId: "al123" } },
-        nyu_identity_cache: {
-          al123: { data: {}, cachedAt: { _seconds: 1 }, expiresAt: { _seconds: 2 } },
-        },
-      },
-    };
-    const file = path.join(os.tmpdir(), `anon-restore-test-${process.pid}.json`);
-    fs.writeFileSync(file, JSON.stringify(backup));
-    try {
-      const report = await restore(stubDb, {
-        database: "development",
-        restore: file,
-        dryRun: true,
-      });
-      expect(Object.keys(report.collections).sort()).toEqual([
-        "mc-bookings",
-        "mc-preBanLogs",
-      ]);
-      expect(report.collections.nyu_identity_cache).toBeUndefined();
-      expect(report.skipped.nyu_identity_cache).toEqual({ docs: 1 });
-      expect(report.totals.restoredDocs).toBe(2);
-      expect(report.totals.restoredFields).toBe(3);
-    } finally {
-      fs.unlinkSync(file);
-    }
+      restore: "anon-development-x",
+      dryRun: true,
+    });
+    expect(Object.keys(report.collections).sort()).toEqual([
+      "mc-bookings",
+      "mc-preBanLogs",
+    ]);
+    expect(report.collections[CACHE_COLLECTION]).toBeUndefined();
+    expect(report.skipped[CACHE_COLLECTION]).toEqual({ docs: 1 });
+    expect(report.totals.restoredDocs).toBe(2);
+    expect(report.totals.restoredFields).toBe(3);
   });
 
   it("restores only the matching tenant's collections when --tenant is set", async () => {
-    const backup = {
+    const db = makeRestoreDb({ database: "development" }, [
+      { collection: "mc-bookings", docId: "b1", fields: { firstName: "Ada" } },
+      { collection: "itp-bookings", docId: "b2", fields: { firstName: "Bob" } },
+    ]);
+    const report = await restore(db, {
       database: "development",
-      collections: {
-        "mc-bookings": { b1: { firstName: "Ada" } },
-        "itp-bookings": { b2: { firstName: "Bob" } },
-      },
-    };
-    const file = path.join(os.tmpdir(), `anon-restore-tenant-${process.pid}.json`);
-    fs.writeFileSync(file, JSON.stringify(backup));
-    try {
-      const report = await restore(stubDb, {
+      restore: "anon-development-x",
+      tenant: "mc",
+      dryRun: true,
+    });
+    expect(Object.keys(report.collections)).toEqual(["mc-bookings"]);
+    expect(report.skipped["itp-bookings"]).toMatchObject({ docs: 1 });
+    expect(report.totals.restoredDocs).toBe(1);
+  });
+
+  it("throws when the backup id does not exist", async () => {
+    const db = makeRestoreDb(null, []);
+    await expect(
+      restore(db, {
         database: "development",
-        restore: file,
-        tenant: "mc",
+        restore: "anon-development-missing",
         dryRun: true,
-      });
-      expect(Object.keys(report.collections)).toEqual(["mc-bookings"]);
-      expect(report.skipped["itp-bookings"]).toMatchObject({ docs: 1 });
-      expect(report.totals.restoredDocs).toBe(1);
-    } finally {
-      fs.unlinkSync(file);
-    }
+      }),
+    ).rejects.toThrow(/not found/);
+  });
+
+  it("refuses to restore a backup taken from another database", async () => {
+    const db = makeRestoreDb({ database: "staging" }, entries);
+    await expect(
+      restore(db, {
+        database: "production",
+        restore: "anon-staging-x",
+        dryRun: true,
+      }),
+    ).rejects.toThrow(/taken from "staging"/);
   });
 });

@@ -9,9 +9,11 @@ name: Anonymize PII (annual)
 #     cannot be silently forgotten.
 #   - A real (writing) run is done by a human via "Run workflow" with
 #     dry_run=false. Writing to production also requires confirm_production=true.
-#   - Every real run uploads a JSON backup artifact of the original values.
-#     That artifact contains PII: download it, verify the run, then DELETE it.
-#     Retention is capped so it does not linger.
+#   - Every real run first backs up the original values INTO Firestore
+#     (collection `piiAnonymizationBackups`, same database), where they stay
+#     behind the existing database access controls and expire automatically.
+#     Raw PII must never be written to logs or artifacts — this repo is
+#     public, and artifacts are downloadable by anyone with read access.
 
 permissions:
   contents: read
@@ -153,7 +155,7 @@ jobs:
               `   - before: \`${before}\``,
               "   - dry_run: **false**",
               "   - confirm_production: **true** (production only)",
-              "3. After it finishes, download the backup artifact, verify, then **delete the backup** (it contains raw PII).",
+              "3. After it finishes, note the backup id in the run log (`piiAnonymizationBackups/anon-...`). The backup lives in Firestore, expires automatically, and can be rolled back with `node scripts/anonymizePII.js --restore <backup-id> --database <env>`.",
               "",
               `Prerequisite: the \`ANONYMIZATION_PEPPER\` secret must be set for the \`${env}\` environment.`,
               "",
@@ -166,6 +168,10 @@ jobs:
               body,
             });
 
+      # The report is counts-only (no PII). The PII backup itself is written to
+      # Firestore by the script and is deliberately NEVER uploaded as an
+      # artifact: this repo is public and artifacts are downloadable by anyone
+      # with read access.
       - name: Upload report
         uses: actions/upload-artifact@v4
         if: always()
@@ -173,11 +179,3 @@ jobs:
           name: anon-report-${{ github.run_id }}-${{ strategy.job-index }}
           path: booking-app/anon-report.json
           retention-days: 30
-
-      - name: Upload PII backup (real runs only — delete after verifying)
-        uses: actions/upload-artifact@v4
-        if: ${{ (github.event_name != 'schedule') && (inputs.dry_run == false) }}
-        with:
-          name: anon-backup-${{ github.run_id }}-${{ strategy.job-index }}
-          path: booking-app/scripts/output/anon-backups/
-          retention-days: 7
