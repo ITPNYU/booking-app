@@ -76,48 +76,6 @@ export function createXStateData(
   };
 }
 
-// Common function to create XState snapshot data
-async function createXStateSnapshotData(
-  tenant: string,
-  calendarEventId: string,
-  email: string,
-  targetState: string,
-  context?: any,
-) {
-  const { mcBookingMachine } =
-    await import("@/lib/stateMachines/mcBookingMachine");
-  const { createActor } = await import("xstate");
-
-  // Create fresh XState actor
-  const freshActor = createActor(mcBookingMachine, {
-    input: {
-      tenant,
-      calendarEventId,
-      email,
-      ...context,
-    },
-  });
-
-  freshActor.start();
-
-  // Get the current snapshot
-  const currentSnapshot = freshActor.getSnapshot();
-
-  // Use the common function to create XState data
-  const xstateData = createXStateData(
-    "MC Booking Request",
-    {
-      ...currentSnapshot,
-      context: context || currentSnapshot.context,
-    },
-    targetState,
-  );
-
-  freshActor.stop();
-
-  return xstateData;
-}
-
 // Clean object by removing undefined values for Firestore compatibility
 function cleanObjectForFirestore(obj: any): any {
   if (obj === null || obj === undefined) {
