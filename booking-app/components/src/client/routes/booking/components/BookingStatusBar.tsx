@@ -43,9 +43,11 @@ const NavGrid = styled(Box)`
 export default function BookingStatusBar({ formContext, ...props }: Props) {
   const isWalkIn = formContext === FormContextLevel.WALK_IN;
   const isVIP = formContext === FormContextLevel.VIP;
+  const isModification = formContext === FormContextLevel.MODIFICATION;
   const { isAutoApproval, errorMessage } = useCheckAutoApproval(
     isWalkIn,
     isVIP,
+    isModification,
   );
   const { durationError } = useCheckDurationLimits(isWalkIn, isVIP);
   const { requestLimitError, requestLimitChecking } =

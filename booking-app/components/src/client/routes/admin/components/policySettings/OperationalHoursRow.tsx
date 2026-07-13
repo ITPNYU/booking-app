@@ -6,7 +6,7 @@ import { useContext, useEffect, useState } from "react";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import dayjs from "dayjs";
 import styled from "styled-components";
-import { updateOperationHours } from "@/components/src/server/db";
+import { updateOperationHours } from "@/components/src/client/adminSettingsClient";
 import { DatabaseContext } from "../../../components/Provider";
 
 const Row = styled(Box)`

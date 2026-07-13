@@ -16,7 +16,8 @@ import {
   ITP_DEPT_NAME_KEYWORDS,
   ITP_GROUP_SHORT_NAMES,
 } from "../utils/tenantUtils";
-import { TableNames, getApprovalCcEmail } from "../policy";
+import { TableNames } from "../policy";
+import { getApprovalCcEmail } from "../tenantPolicyServer";
 import {
   AdminUser,
   Approver,
@@ -785,6 +786,8 @@ export const serverApproveEvent = async (id: string, tenant?: string) => {
 
   // for secondary contact, if we have one
   // secondaryEmail now stores full NYU email (e.g., abc123@nyu.edu)
+  // Keep these side effects sequential so a calendar/guest failure cannot
+  // skip secondary contact email/invite (and so invites run after calendar update).
   if (contents.secondaryEmail && contents.secondaryEmail.length > 0) {
     // Handle both legacy net ID format and new full email format
     const secondaryEmailAddress = contents.secondaryEmail.includes("@")
@@ -852,17 +855,14 @@ export const serverApproveEvent = async (id: string, tenant?: string) => {
     calendarEventId: id,
     roomId: contents.roomId,
   };
-  const res = await fetch(
-    `${process.env.NEXT_PUBLIC_BASE_URL}/api/inviteUser`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-tenant": tenant || DEFAULT_TENANT,
-      },
-      body: JSON.stringify(formData),
+  await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/inviteUser`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-tenant": tenant || DEFAULT_TENANT,
     },
-  );
+    body: JSON.stringify(formData),
+  });
 };
 
 export const admins = async (): Promise<AdminUser[]> => {
