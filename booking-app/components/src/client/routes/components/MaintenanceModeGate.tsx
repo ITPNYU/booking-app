@@ -8,6 +8,7 @@ import Loading from "./Loading";
 import { DatabaseContext } from "./Provider";
 
 const MAINTENANCE_BLOCKED_ROUTE_SEGMENTS = new Set(["book", "walk-in", "vip"]);
+const LOADING_EXEMPT_ROUTE_SEGMENTS = new Set(["signin"]);
 
 const getTenantRouteSegment = (pathname: string | null): string | undefined =>
   pathname?.match(/^\/[^/]+\/([^/]+)/)?.[1];
@@ -21,6 +22,11 @@ export default function MaintenanceModeGate({
 }: MaintenanceModeGateProps) {
   const { maintenanceMode, permissionsLoading } = useContext(DatabaseContext);
   const pathname = usePathname();
+  const routeSegment = getTenantRouteSegment(pathname);
+
+  if (LOADING_EXEMPT_ROUTE_SEGMENTS.has(routeSegment ?? "")) {
+    return <>{children}</>;
+  }
 
   if (permissionsLoading) {
     return <Loading />;
@@ -30,7 +36,6 @@ export default function MaintenanceModeGate({
     return <>{children}</>;
   }
 
-  const routeSegment = getTenantRouteSegment(pathname);
   if (!MAINTENANCE_BLOCKED_ROUTE_SEGMENTS.has(routeSegment ?? "")) {
     return <>{children}</>;
   }

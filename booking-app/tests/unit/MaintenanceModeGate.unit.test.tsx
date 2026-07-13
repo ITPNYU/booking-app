@@ -54,6 +54,29 @@ describe("MaintenanceModeGate", () => {
     expect(screen.queryByText("Maintenance mode")).not.toBeInTheDocument();
   });
 
+  it("allows the signin page to mount while permissions are loading", () => {
+    mockUsePathname.mockReturnValue("/mc/signin");
+
+    renderGate({
+      permissionsLoading: true,
+      userEmail: null,
+    });
+
+    expect(screen.getByText("Protected tenant content")).toBeInTheDocument();
+    expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
+  });
+
+  it("keeps booking routes in loading state while permissions are loading", () => {
+    renderGate({
+      permissionsLoading: true,
+    });
+
+    expect(screen.getByRole("progressbar")).toBeInTheDocument();
+    expect(
+      screen.queryByText("Protected tenant content"),
+    ).not.toBeInTheDocument();
+  });
+
   it("blocks the public booking form and shows only the maintenance notice", () => {
     renderGate();
 
