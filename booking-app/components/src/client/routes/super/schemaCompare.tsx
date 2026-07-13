@@ -212,9 +212,7 @@ export default function SchemaCompare() {
       if (!userEmail) return;
       setLoading(true);
       try {
-        const res = await fetch(`/api/tenantSchema/${tenantId}/compare`, {
-          headers: { "x-user-email": userEmail },
-        });
+        const res = await fetch(`/api/tenantSchema/${tenantId}/compare`);
         if (!res.ok) throw new Error(`Failed to fetch: ${res.status}`);
         const data = await res.json();
         setSchemas(data);
@@ -238,7 +236,6 @@ export default function SchemaCompare() {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "x-user-email": userEmail,
           },
           body: JSON.stringify({
             sourceEnv: leftEnv,

@@ -1,6 +1,9 @@
 import "@testing-library/jest-dom";
 import { vi } from "vitest";
 
+// server-only throws outside Next.js server components; no-op in Vitest.
+vi.mock("server-only", () => ({}));
+
 // Mock environment variables
 process.env.NEXT_PUBLIC_BASE_URL = "http://localhost:3000";
 process.env.NEXT_PUBLIC_FIREBASE_API_KEY = "test-api-key";
