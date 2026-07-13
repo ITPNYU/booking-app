@@ -104,14 +104,19 @@ export const normalizeApproverEmail = (email: string): string =>
 const encodeApproverIdPart = (value: string): string =>
   encodeURIComponent(value.trim());
 
+const encodeApproverIdSegment = (value: string): string => {
+  const encodedValue = encodeApproverIdPart(value);
+  return `${encodedValue.length}-${encodedValue}`;
+};
+
 export const getServiceApproverDocumentId = (
   resourceId: string,
   service: string,
   email: string,
 ): string =>
-  `${encodeApproverIdPart(resourceId)}--${encodeApproverIdPart(
+  `${encodeApproverIdSegment(resourceId)}${encodeApproverIdSegment(
     service,
-  )}--${encodeApproverIdPart(normalizeApproverEmail(email))}`;
+  )}${encodeApproverIdSegment(normalizeApproverEmail(email))}`;
 export enum ApproverLevel {
   FIRST = 1,
   FINAL = 2,

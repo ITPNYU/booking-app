@@ -164,6 +164,50 @@ describe("POST /api/services", () => {
     expect(response.status).toBe(200);
   });
 
+  it("allows PA users to close out services without a service assignment", async () => {
+    mockResolveCallerRole.mockResolvedValue(PagePermission.PA);
+    mockServerIsServiceApproverForAllResources.mockResolvedValue(false);
+
+    const response = await POST(
+      request({
+        calendarEventId: "cal",
+        serviceType: "setup",
+        action: "closeout",
+      }),
+    );
+
+    expect(mockServerIsServiceApproverForAllResources).not.toHaveBeenCalled();
+    expect(mockExecuteXStateTransition).toHaveBeenCalledWith(
+      "cal",
+      "closeoutSetup",
+      "mc",
+      "service@nyu.edu",
+    );
+    expect(response.status).toBe(200);
+  });
+
+  it("does not allow PA users to approve services without a service assignment", async () => {
+    mockResolveCallerRole.mockResolvedValue(PagePermission.PA);
+    mockServerIsServiceApproverForAllResources.mockResolvedValue(false);
+
+    const response = await POST(
+      request({
+        calendarEventId: "cal",
+        serviceType: "setup",
+        action: "approve",
+      }),
+    );
+
+    expect(mockServerIsServiceApproverForAllResources).toHaveBeenCalledWith(
+      "service@nyu.edu",
+      ["room-a", "room-b"],
+      "setup",
+      "mc",
+    );
+    expect(mockExecuteXStateTransition).not.toHaveBeenCalled();
+    expect(response.status).toBe(403);
+  });
+
   it("returns 404 when the booking does not exist", async () => {
     mockServerGetDataByCalendarEventId.mockResolvedValue(null);
 

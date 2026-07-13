@@ -84,7 +84,8 @@ export async function POST(req: NextRequest) {
   const role = await resolveCallerRole(session, tenant);
   const isAdmin =
     role === PagePermission.ADMIN || role === PagePermission.SUPER_ADMIN;
-  if (!isAdmin) {
+  const isPaCloseout = action === "closeout" && role === PagePermission.PA;
+  if (!isAdmin && !isPaCloseout) {
     const resourceIds = parseBookingResourceIds(booking.roomId);
     const isAssigned = await serverIsServiceApproverForAllResources(
       email,

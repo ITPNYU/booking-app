@@ -22,4 +22,10 @@ describe("approver document IDs", () => {
       getServiceApproverDocumentId("room/a", "equipment", "person@nyu.edu"),
     );
   });
+
+  it("does not collide when service approver parts contain delimiter characters", () => {
+    expect(
+      getServiceApproverDocumentId("a-", "b", "e@nyu.edu"),
+    ).not.toEqual(getServiceApproverDocumentId("a", "-b", "e@nyu.edu"));
+  });
 });
