@@ -1,3 +1,4 @@
+import { bookingCalendarStrToDate } from "@/components/src/client/utils/date";
 import { getCalendarClient } from "@/lib/googleClient";
 import { traceExternalCall } from "@/lib/newrelic-utils";
 import { BookingFormDetails, BookingStatusLabel } from "../types";
@@ -277,6 +278,12 @@ type InsertEventType = {
   endTime: string | number | Date;
   roomEmails: string[];
 };
+
+// Booking times arrive as client strings; offset-less ones are Eastern wall
+// times from stale bundles and must not be parsed in the host timezone.
+const toEventInstant = (time: string | number | Date): Date =>
+  typeof time === "string" ? bookingCalendarStrToDate(time) : new Date(time);
+
 export const insertEvent = async ({
   calendarId,
   title,
@@ -298,10 +305,10 @@ export const insertEvent = async ({
             summary: title,
             description,
             start: {
-              dateTime: new Date(startTime).toISOString(),
+              dateTime: toEventInstant(startTime).toISOString(),
             },
             end: {
-              dateTime: new Date(endTime).toISOString(),
+              dateTime: toEventInstant(endTime).toISOString(),
             },
             attendees: roomEmails.map((email: string) => ({ email })),
           },

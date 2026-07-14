@@ -1,3 +1,4 @@
+import { bookingCalendarStrToDate } from "@/components/src/client/utils/date";
 import { toFirebaseTimestampFromString } from "@/components/src/client/utils/serverDate";
 import {
   firstApproverEmails,
@@ -426,12 +427,22 @@ async function checkOverlap(
 ) {
   const calendar = await getCalendarClient();
 
+  // Google requires RFC3339 with mandatory offset for timeMin/timeMax;
+  // bookingCalendarStrToDate also absorbs offset-less strings from stale
+  // client bundles.
+  const timeMin = bookingCalendarStrToDate(
+    bookingCalendarInfo.startStr,
+  ).toISOString();
+  const timeMax = bookingCalendarStrToDate(
+    bookingCalendarInfo.endStr,
+  ).toISOString();
+
   // Check each selected room for overlaps
   for (const room of selectedRooms) {
     const events = await calendar.events.list({
       calendarId: room.calendarId,
-      timeMin: bookingCalendarInfo.startStr,
-      timeMax: bookingCalendarInfo.endStr,
+      timeMin,
+      timeMax,
       singleEvents: true,
     });
 
@@ -455,8 +466,8 @@ async function checkOverlap(
 
       const eventStart = new Date(event.start.dateTime || event.start.date);
       const eventEnd = new Date(event.end.dateTime || event.end.date);
-      const requestStart = new Date(bookingCalendarInfo.startStr);
-      const requestEnd = new Date(bookingCalendarInfo.endStr);
+      const requestStart = new Date(timeMin);
+      const requestEnd = new Date(timeMax);
       // log the event that overlaps and then return
       if (
         (eventStart >= requestStart && eventStart < requestEnd) ||
