@@ -39,9 +39,16 @@ const Label = styled.label`
 
 const Subsection = styled.div`
   margin-bottom: 24px;
-  padding-left: 8px;
-  border-left: 3px solid #e0e0e0;
 `;
+
+/** Prefix with room name only when multiple rooms are in the booking. */
+function roomSectionLabel(
+  roomName: string | undefined,
+  label: string,
+  showRoomPrefix: boolean,
+): string {
+  return showRoomPrefix && roomName ? `${roomName} — ${label}` : label;
+}
 
 interface Props {
   selectedRooms: ServiceResourceLike[];
@@ -272,7 +279,11 @@ export default function BookingFormResourceServices({
                 <Subsection key={`setup-${resourceId}`}>
                   <Label>
                     {formatFieldLabel(
-                      `${room.name} — ${cfg.label ?? "Room Setup"}`,
+                      roomSectionLabel(
+                        room.name,
+                        cfg.label ?? "Room Setup",
+                        selectedRooms.length > 1,
+                      ),
                     )}
                   </Label>
                   <HtmlBlock html={cfg.descriptionHtml} />
@@ -438,7 +449,11 @@ export default function BookingFormResourceServices({
           <Subsection key={`furn-${resourceId}`}>
             <Label>
               {formatFieldLabel(
-                `${room.name} — ${cfg.label ?? "Additional Event Furniture"}`,
+                roomSectionLabel(
+                  room.name,
+                  cfg.label ?? "Additional Event Furniture",
+                  selectedRooms.length > 1,
+                ),
               )}
             </Label>
             <HtmlBlock html={cfg.descriptionHtml} />
@@ -504,7 +519,13 @@ export default function BookingFormResourceServices({
         return (
           <Subsection key={`equip-${resourceId}`}>
             <Label>
-              {formatFieldLabel(`${room.name} — ${cfg.label ?? "Equipment"}`)}
+              {formatFieldLabel(
+                roomSectionLabel(
+                  room.name,
+                  cfg.label ?? "Equipment",
+                  selectedRooms.length > 1,
+                ),
+              )}
             </Label>
             <HtmlBlock html={cfg.descriptionHtml} />
           </Subsection>
@@ -581,7 +602,13 @@ export default function BookingFormResourceServices({
         return (
           <Subsection key={`sec-${resourceId}`}>
             <Label>
-              {formatFieldLabel(`${room.name} — ${cfg.label ?? "Security"}`)}
+              {formatFieldLabel(
+                roomSectionLabel(
+                  room.name,
+                  cfg.label ?? "Security",
+                  selectedRooms.length > 1,
+                ),
+              )}
             </Label>
             <Controller
               name="hireSecurity"
@@ -657,7 +684,11 @@ export default function BookingFormResourceServices({
           <Subsection key={`aux-${resourceId}`}>
             <Label>
               {formatFieldLabel(
-                `${room.name} — ${aux.label ?? "Auxiliary Spaces"}`,
+                roomSectionLabel(
+                  room.name,
+                  aux.label ?? "Auxiliary Spaces",
+                  selectedRooms.length > 1,
+                ),
               )}
             </Label>
             <HtmlBlock html={aux.descriptionHtml} />
