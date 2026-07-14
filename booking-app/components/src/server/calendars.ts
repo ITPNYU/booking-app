@@ -286,27 +286,45 @@ export const insertEvent = async ({
   roomEmails,
 }: InsertEventType) => {
   const calendar = await getCalendarClient();
-  const event = await traceExternalCall(
-    "GoogleCalendar",
-    "events.insert",
-    () =>
-      calendar.events.insert({
-        calendarId,
-        sendUpdates: "all", // Send notifications to all attendees when calendar event is created
-        requestBody: {
-          summary: title,
-          description,
-          start: {
-            dateTime: new Date(startTime).toISOString(),
+  try {
+    const event = await traceExternalCall(
+      "GoogleCalendar",
+      "events.insert",
+      () =>
+        calendar.events.insert({
+          calendarId,
+          sendUpdates: "all", // Send notifications to all attendees when calendar event is created
+          requestBody: {
+            summary: title,
+            description,
+            start: {
+              dateTime: new Date(startTime).toISOString(),
+            },
+            end: {
+              dateTime: new Date(endTime).toISOString(),
+            },
+            attendees: roomEmails.map((email: string) => ({ email })),
           },
-          end: {
-            dateTime: new Date(endTime).toISOString(),
-          },
-          attendees: roomEmails.map((email: string) => ({ email })),
-        },
-      }),
-  );
-  return event.data;
+        }),
+    );
+    return event.data;
+  } catch (error: any) {
+    // Log the raw inputs and the Google error body; the generic gaxios
+    // "Bad Request" message alone is not actionable when this fails in prod
+    console.error("🚨 GOOGLE CALENDAR EVENT INSERT FAILED:", {
+      calendarId,
+      rawStartTime: String(startTime),
+      rawEndTime: String(endTime),
+      roomEmails,
+      titleLength: title?.length ?? 0,
+      descriptionLength: description?.length ?? 0,
+      googleStatus: error?.response?.status ?? error?.code,
+      googleError: JSON.stringify(
+        error?.response?.data ?? error?.errors ?? error?.message,
+      ),
+    });
+    throw error;
+  }
 };
 
 export const updateCalendarEvent = async (

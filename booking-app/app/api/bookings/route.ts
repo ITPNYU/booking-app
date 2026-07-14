@@ -519,7 +519,27 @@ export async function POST(request: NextRequest) {
     },
   });
 
-  const hasOverlap = await checkOverlap(selectedRooms, bookingCalendarInfo);
+  let hasOverlap: boolean;
+  try {
+    hasOverlap = await checkOverlap(selectedRooms, bookingCalendarInfo);
+  } catch (err: any) {
+    console.error(
+      `🚨 OVERLAP CHECK FAILED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+      {
+        googleStatus: err?.response?.status ?? err?.code,
+        googleError: JSON.stringify(
+          err?.response?.data ?? err?.errors ?? err?.message,
+        ),
+        roomIds: selectedRooms?.map((r: any) => r.roomId),
+        startStr: bookingCalendarInfo?.startStr,
+        endStr: bookingCalendarInfo?.endStr,
+      },
+    );
+    return NextResponse.json(
+      { error: "Unable to verify room availability. Please try again." },
+      { status: 500 },
+    );
+  }
   if (hasOverlap) {
     return NextResponse.json(
       { error: "Time slot no longer available" },
@@ -820,10 +840,29 @@ export async function POST(request: NextRequest) {
       bookingCalendarInfo,
       description,
     );
-  } catch (err) {
+  } catch (err: any) {
+    console.error(
+      `🚨 CALENDAR EVENT CREATION FAILED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+      {
+        googleStatus: err?.response?.status ?? err?.code,
+        googleError: JSON.stringify(
+          err?.response?.data ?? err?.errors ?? err?.message,
+        ),
+        roomIds: selectedRoomIds,
+        startStr: bookingCalendarInfo?.startStr,
+        endStr: bookingCalendarInfo?.endStr,
+        descriptionLength: description.length,
+      },
+    );
     console.error(err);
+    const googleMessage = err?.errors?.[0]?.message ?? err?.message;
     return NextResponse.json(
-      { result: "error", message: "ROOM CALENDAR ID NOT FOUND" },
+      {
+        result: "error",
+        message: googleMessage
+          ? `Failed to create calendar event: ${googleMessage}`
+          : "Failed to create calendar event",
+      },
       { status: 500 },
     );
   }
