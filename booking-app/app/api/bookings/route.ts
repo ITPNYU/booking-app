@@ -271,8 +271,8 @@ async function handleBookingApprovalEmails(
     );
 
     // Format dates and times properly
-    const startDate = new Date(bookingCalendarInfo?.startStr);
-    const endDate = new Date(bookingCalendarInfo?.endStr);
+    const startDate = bookingCalendarStrToDate(bookingCalendarInfo?.startStr);
+    const endDate = bookingCalendarStrToDate(bookingCalendarInfo?.endStr);
 
     const emailPromises = recipients.map(recipient => {
       console.log(
@@ -815,8 +815,8 @@ export async function POST(request: NextRequest) {
   const selectedRoomIds = selectedRoomIdsArray.join(", ");
 
   // Build booking contents for description
-  const startDateObj = new Date(bookingCalendarInfo.startStr);
-  const endDateObj = new Date(bookingCalendarInfo.endStr);
+  const startDateObj = bookingCalendarStrToDate(bookingCalendarInfo.startStr);
+  const endDateObj = bookingCalendarStrToDate(bookingCalendarInfo.endStr);
 
   // Use display values for calendar description
   const dataWithDisplayValues = {
