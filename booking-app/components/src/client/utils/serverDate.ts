@@ -1,7 +1,7 @@
 import { format, toZonedTime } from "date-fns-tz";
 import { Timestamp } from "firebase-admin/firestore";
 import { extractSecondsNanos } from "@/lib/utils/timestampWire";
-import { TIMEZONE } from "./date";
+import { bookingCalendarStrToDate, TIMEZONE } from "./date";
 
 type DateInput = Date | Timestamp | { [key: string]: any } | number | string;
 
@@ -65,7 +65,9 @@ export const toFirebaseTimestampFromString = (
   dateString: string,
 ): Timestamp => {
   try {
-    const date = new Date(dateString);
+    // Offset-less strings are Eastern wall times (stale booking clients);
+    // parsing them with `new Date()` on a UTC host would shift them 4-5h.
+    const date = bookingCalendarStrToDate(dateString);
     if (isNaN(date.getTime())) {
       throw new Error("Invalid date string");
     }
