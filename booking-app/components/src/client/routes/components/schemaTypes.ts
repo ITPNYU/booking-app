@@ -54,7 +54,7 @@ export type ResourceFormSectionConfig = {
   showInOrigin?: ShowInOrigin;
   label?: string;
   descriptionHtml?: string;
-  mode?: "radio" | "static" | "hidden";
+  mode?: "radio" | "static" | "text" | "hidden";
   options?: ResourceFormOption[];
   defaultValue?: string;
   required?: boolean;
