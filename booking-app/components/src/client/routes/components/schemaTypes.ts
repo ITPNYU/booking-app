@@ -34,6 +34,8 @@ export type ResourceChartFieldConfig = {
 export type ResourceFormOption = {
   value: string;
   label: string;
+  required?: boolean;
+  descriptionHtml?: string;
   chartField?: ResourceChartFieldConfig;
 };
 
