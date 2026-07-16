@@ -221,6 +221,8 @@ export const MC_RESOURCE_SERVICES_220: ResourceServicesConfig = {
     showInOrigin: VIP_ONLY,
     label: MC_SERVICE_LABEL_SETUP,
     descriptionHtml: "",
+    mode: "radio",
+    defaultValue: MC_220_LAYOUT_CUSTOM,
     options: [
       {
         value: MC_220_LAYOUT_CUSTOM,
@@ -268,12 +270,13 @@ export const MC_RESOURCE_SERVICES_221: ResourceServicesConfig = {
     showInOrigin: VIP_ONLY,
     label: MC_SERVICE_LABEL_SETUP,
     descriptionHtml: "",
+    mode: "radio",
+    defaultValue: MC_221_LAYOUT_CUSTOM,
     options: [
       {
         value: MC_221_LAYOUT_CUSTOM,
         label: "Custom Room Setup",
         descriptionHtml: "Please describe the layout in detail.",
-        required: true,
         chartField: CHARTFIELD_REQUIRED,
       },
     ],
@@ -316,6 +319,8 @@ export const MC_RESOURCE_SERVICES_222: ResourceServicesConfig = {
     showInOrigin: VIP_ONLY,
     label: MC_SERVICE_LABEL_SETUP,
     descriptionHtml: "",
+    mode: "radio",
+    defaultValue: MC_222_LAYOUT_CUSTOM,
     options: [
       {
         value: MC_222_LAYOUT_CUSTOM,
@@ -362,6 +367,8 @@ export const MC_RESOURCE_SERVICES_223: ResourceServicesConfig = {
     showInOrigin: VIP_ONLY,
     label: MC_SERVICE_LABEL_SETUP,
     descriptionHtml: "",
+    mode: "radio",
+    defaultValue: MC_223_LAYOUT_CUSTOM,
     options: [
       {
         value: MC_223_LAYOUT_CUSTOM,
@@ -408,6 +415,8 @@ export const MC_RESOURCE_SERVICES_224: ResourceServicesConfig = {
     showInOrigin: VIP_ONLY,
     label: MC_SERVICE_LABEL_SETUP,
     descriptionHtml: "",
+    mode: "radio",
+    defaultValue: MC_224_LAYOUT_CUSTOM,
     options: [
       {
         value: MC_224_LAYOUT_CUSTOM,
@@ -451,10 +460,19 @@ export const MC_RESOURCE_SERVICES_224: ResourceServicesConfig = {
 
 export const MC_RESOURCE_SERVICES_230: ResourceServicesConfig = {
   setup: {
-    showInOrigin: SHOW_NONE,
+    showInOrigin: VIP_ONLY,
     label: MC_SERVICE_LABEL_SETUP,
     descriptionHtml: "",
-    chartField: CHARTFIELD_REQUIRED,
+    mode: "radio",
+    defaultValue: MC_230_LAYOUT_CUSTOM,
+    options: [
+      {
+        value: MC_230_LAYOUT_CUSTOM,
+        label: "Custom Room Setup",
+        descriptionHtml: "Please describe the layout in detail.",
+        chartField: CHARTFIELD_REQUIRED,
+      }
+    ]
   },
   equipment: {
     showInOrigin: SHOW_ALL,
