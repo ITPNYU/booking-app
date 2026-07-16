@@ -1,3 +1,4 @@
+import { bookingCalendarStrToDate } from "@/components/src/client/utils/date";
 import { toFirebaseTimestampFromString } from "@/components/src/client/utils/serverDate";
 import {
   firstApproverEmails,
@@ -270,8 +271,8 @@ async function handleBookingApprovalEmails(
     );
 
     // Format dates and times properly
-    const startDate = new Date(bookingCalendarInfo?.startStr);
-    const endDate = new Date(bookingCalendarInfo?.endStr);
+    const startDate = bookingCalendarStrToDate(bookingCalendarInfo?.startStr);
+    const endDate = bookingCalendarStrToDate(bookingCalendarInfo?.endStr);
 
     const emailPromises = recipients.map(recipient => {
       console.log(
@@ -426,12 +427,22 @@ async function checkOverlap(
 ) {
   const calendar = await getCalendarClient();
 
+  // Google requires RFC3339 with mandatory offset for timeMin/timeMax;
+  // bookingCalendarStrToDate also absorbs offset-less strings from stale
+  // client bundles.
+  const timeMin = bookingCalendarStrToDate(
+    bookingCalendarInfo.startStr,
+  ).toISOString();
+  const timeMax = bookingCalendarStrToDate(
+    bookingCalendarInfo.endStr,
+  ).toISOString();
+
   // Check each selected room for overlaps
   for (const room of selectedRooms) {
     const events = await calendar.events.list({
       calendarId: room.calendarId,
-      timeMin: bookingCalendarInfo.startStr,
-      timeMax: bookingCalendarInfo.endStr,
+      timeMin,
+      timeMax,
       singleEvents: true,
     });
 
@@ -455,8 +466,8 @@ async function checkOverlap(
 
       const eventStart = new Date(event.start.dateTime || event.start.date);
       const eventEnd = new Date(event.end.dateTime || event.end.date);
-      const requestStart = new Date(bookingCalendarInfo.startStr);
-      const requestEnd = new Date(bookingCalendarInfo.endStr);
+      const requestStart = new Date(timeMin);
+      const requestEnd = new Date(timeMax);
       // log the event that overlaps and then return
       if (
         (eventStart >= requestStart && eventStart < requestEnd) ||
@@ -519,7 +530,27 @@ export async function POST(request: NextRequest) {
     },
   });
 
-  const hasOverlap = await checkOverlap(selectedRooms, bookingCalendarInfo);
+  let hasOverlap: boolean;
+  try {
+    hasOverlap = await checkOverlap(selectedRooms, bookingCalendarInfo);
+  } catch (err: any) {
+    console.error(
+      `🚨 OVERLAP CHECK FAILED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+      {
+        googleStatus: err?.response?.status ?? err?.code,
+        googleError: JSON.stringify(
+          err?.response?.data ?? err?.errors ?? err?.message,
+        ),
+        roomIds: selectedRooms?.map((r: any) => r.roomId),
+        startStr: bookingCalendarInfo?.startStr,
+        endStr: bookingCalendarInfo?.endStr,
+      },
+    );
+    return NextResponse.json(
+      { error: "Unable to verify room availability. Please try again." },
+      { status: 500 },
+    );
+  }
   if (hasOverlap) {
     return NextResponse.json(
       { error: "Time slot no longer available" },
@@ -784,8 +815,8 @@ export async function POST(request: NextRequest) {
   const selectedRoomIds = selectedRoomIdsArray.join(", ");
 
   // Build booking contents for description
-  const startDateObj = new Date(bookingCalendarInfo.startStr);
-  const endDateObj = new Date(bookingCalendarInfo.endStr);
+  const startDateObj = bookingCalendarStrToDate(bookingCalendarInfo.startStr);
+  const endDateObj = bookingCalendarStrToDate(bookingCalendarInfo.endStr);
 
   // Use display values for calendar description
   const dataWithDisplayValues = {
@@ -820,10 +851,29 @@ export async function POST(request: NextRequest) {
       bookingCalendarInfo,
       description,
     );
-  } catch (err) {
+  } catch (err: any) {
+    console.error(
+      `🚨 CALENDAR EVENT CREATION FAILED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+      {
+        googleStatus: err?.response?.status ?? err?.code,
+        googleError: JSON.stringify(
+          err?.response?.data ?? err?.errors ?? err?.message,
+        ),
+        roomIds: selectedRoomIds,
+        startStr: bookingCalendarInfo?.startStr,
+        endStr: bookingCalendarInfo?.endStr,
+        descriptionLength: description.length,
+      },
+    );
     console.error(err);
+    const googleMessage = err?.errors?.[0]?.message ?? err?.message;
     return NextResponse.json(
-      { result: "error", message: "ROOM CALENDAR ID NOT FOUND" },
+      {
+        result: "error",
+        message: googleMessage
+          ? `Failed to create calendar event: ${googleMessage}`
+          : "Failed to create calendar event",
+      },
       { status: 500 },
     );
   }
