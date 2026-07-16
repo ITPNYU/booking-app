@@ -33,7 +33,7 @@ const CHARTFIELD_REQUIRED = {
 const MC_103_ENTRANCE_WILLOUGHBY = "Willoughby Street Entrance" as const;
 
 const MC_221_TO_224_FURNISHINGS_DESCRIPTIONHTML =
-  '<p>The following furniture is included with your Ballroom reservation: <a href="https://sites.google.com/nyu.edu/370jmediacommons/spaces/221-224-ballrooms#h.py4aezgqk1v8">Ballroom Furniture</a>. See <a href="https://sites.google.com/nyu.edu/370jmediacommons/rental-inventory/event-furniture? target="blank">additional event furniture here</a>. Please note that requesting additional furniture will require hiring CBS though work order.</p>' as const;
+  '<p>The following furniture is included with your Ballroom reservation: <a href="https://sites.google.com/nyu.edu/370jmediacommons/spaces/221-224-ballrooms#h.py4aezgqk1v8">Ballroom Furniture</a>. See <a href="https://sites.google.com/nyu.edu/370jmediacommons/rental-inventory/event-furniture" target="_blank" rel="noopener noreferrer">additional event furniture here</a>. Please note that requesting additional furniture will require hiring CBS through work order.</p>' as const;
 
 const MC_220_TO_224_EQUIPMENT_DESCRIPTIONHTML =
   '<p>If you wish to check out equipment, please review <a href="https://sites.google.com/nyu.edu/370jmediacommons/rental-inventory">our equipment inventory</a> and include your request below. Please describe your needs in detail (e.g., 2x Small Mocap Suits).</p>' as const;
@@ -166,7 +166,7 @@ export const MC_RESOURCE_SERVICES_103: ResourceServicesConfig = {
 
 export const MC_RESOURCE_SERVICES_202: ResourceServicesConfig = {
   annex: {
-    showInOrigin: SHOW_NONE,
+    showInOrigin: SHOW_ALL,
     options: [
       {
         value: "202GR",
@@ -214,25 +214,19 @@ export const MC_RESOURCE_SERVICES_202: ResourceServicesConfig = {
     label: MC_SERVICE_LABEL_SECURITY,
     chartField: CHARTFIELD_REQUIRED,
   },
-  annex: {
-    showInOrigin: SHOW_ALL,
-    label: "Student lounge approval",
-  },
 };
 
 export const MC_RESOURCE_SERVICES_220: ResourceServicesConfig = {
   setup: {
     showInOrigin: VIP_ONLY,
     label: MC_SERVICE_LABEL_SETUP,
-    descriptionHtml:
-      'For reference, please check the <a href="https://example.com" target="_blank">220 audience layouts</a>.',
-    mode: "text",
+    descriptionHtml: "",
     options: [
       {
         value: MC_220_LAYOUT_CUSTOM,
         label: "Custom Room Setup",
         descriptionHtml: "Please describe the layout in detail.",
-        chartfield: CHARTFIELD_REQUIRED,
+        chartField: CHARTFIELD_REQUIRED,
       },
     ],
   },
@@ -240,7 +234,7 @@ export const MC_RESOURCE_SERVICES_220: ResourceServicesConfig = {
     showInOrigin: SHOW_ALL,
     label: MC_SERVICE_LABEL_FURNISHINGS,
     descriptionHtml:
-      'The following furniture is included with your Black Box reservation: <a href="https://sites.google.com/nyu.edu/370jmediacommons/spaces/220-black-box#h.mwvylbk483wu">Black Box Furniture</a>. See <a href="https://sites.google.com/nyu.edu/370jmediacommons/rental-inventory/event-furniture? target="blank">additional event furniture here</a>. Please note that requesting additional furniture will require hiring CBS though work order.',
+      '<p>The following furniture is included with your Black Box reservation: <a href="https://sites.google.com/nyu.edu/370jmediacommons/spaces/220-black-box#h.mwvylbk483wu">Black Box Furniture</a>. See <a href="https://sites.google.com/nyu.edu/370jmediacommons/rental-inventory/event-furniture" target="_blank" rel="noopener noreferrer">additional event furniture here</a>. Please note that requesting additional furniture will require hiring CBS through work order.</p>',
     chartField: CHARTFIELD_REQUIRED,
   },
   equipment: {
@@ -273,16 +267,14 @@ export const MC_RESOURCE_SERVICES_221: ResourceServicesConfig = {
   setup: {
     showInOrigin: VIP_ONLY,
     label: MC_SERVICE_LABEL_SETUP,
-    descriptionHtml:
-      'For reference, please check the <a href="https://example.com" target="_blank">221 audience layouts</a>.',
-    mode: "text",
+    descriptionHtml: "",
     options: [
       {
         value: MC_221_LAYOUT_CUSTOM,
         label: "Custom Room Setup",
         descriptionHtml: "Please describe the layout in detail.",
         required: true,
-        chartfield: CHARTFIELD_REQUIRED,
+        chartField: CHARTFIELD_REQUIRED,
       },
     ],
   },
@@ -323,15 +315,13 @@ export const MC_RESOURCE_SERVICES_222: ResourceServicesConfig = {
   setup: {
     showInOrigin: VIP_ONLY,
     label: MC_SERVICE_LABEL_SETUP,
-    descriptionHtml:
-      'For reference, please check the <a href="https://example.com" target="_blank">220 audience layouts</a>.',
-    mode: "text",
+    descriptionHtml: "",
     options: [
       {
         value: MC_222_LAYOUT_CUSTOM,
         label: "Custom Room Setup",
         descriptionHtml: "Please describe the layout in detail.",
-        chartfield: CHARTFIELD_REQUIRED,
+        chartField: CHARTFIELD_REQUIRED,
       },
     ],
   },
@@ -371,15 +361,13 @@ export const MC_RESOURCE_SERVICES_223: ResourceServicesConfig = {
   setup: {
     showInOrigin: VIP_ONLY,
     label: MC_SERVICE_LABEL_SETUP,
-    descriptionHtml:
-      'For reference, please check the <a href="https://example.com" target="_blank">220 audience layouts</a>.',
-    mode: "text",
+    descriptionHtml: "",
     options: [
       {
         value: MC_223_LAYOUT_CUSTOM,
         label: "Custom Room Setup",
         descriptionHtml: "Please describe the layout in detail.",
-        chartfield: CHARTFIELD_REQUIRED,
+        chartField: CHARTFIELD_REQUIRED,
       },
     ],
   },
@@ -419,15 +407,13 @@ export const MC_RESOURCE_SERVICES_224: ResourceServicesConfig = {
   setup: {
     showInOrigin: VIP_ONLY,
     label: MC_SERVICE_LABEL_SETUP,
-    descriptionHtml:
-      'For reference, please check the <a href="https://example.com" target="_blank">220 audience layouts</a>.',
-    mode: "text",
+    descriptionHtml: "",
     options: [
       {
         value: MC_224_LAYOUT_CUSTOM,
         label: "Custom Room Setup",
         descriptionHtml: "Please describe the layout in detail.",
-        chartfield: CHARTFIELD_REQUIRED,
+        chartField: CHARTFIELD_REQUIRED,
       },
     ],
   },

@@ -34,6 +34,7 @@ export type ResourceChartFieldConfig = {
 export type ResourceFormOption = {
   value: string;
   label: string;
+  required?: boolean;
   chartField?: ResourceChartFieldConfig;
 };
 
@@ -54,7 +55,7 @@ export type ResourceFormSectionConfig = {
   showInOrigin?: ShowInOrigin;
   label?: string;
   descriptionHtml?: string;
-  mode?: "radio" | "static" | "text" | "hidden";
+  mode?: "radio" | "static" | "hidden";
   options?: ResourceFormOption[];
   defaultValue?: string;
   required?: boolean;
