@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { DEFAULT_MAINTENANCE_MODE_SETTINGS } from "@/lib/utils/maintenanceMode";
+import {
+  DEFAULT_MAINTENANCE_MODE_MESSAGE,
+  DEFAULT_MAINTENANCE_MODE_SETTINGS,
+} from "@/lib/utils/maintenanceMode";
 
 const mocks = vi.hoisted(() => {
   const mockGet = vi.fn();
@@ -25,6 +28,7 @@ import { getMaintenanceModeSettings } from "@/lib/maintenanceModeServer";
 describe("getMaintenanceModeSettings", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.mockGet.mockReset();
   });
 
   it("returns defaults without reading Firestore when tenant is missing", async () => {
@@ -61,5 +65,14 @@ describe("getMaintenanceModeSettings", () => {
 
     expect(mocks.mockCollection).toHaveBeenCalledWith("mc-settings");
     expect(mocks.mockDoc).toHaveBeenCalledWith("maintenanceMode");
+  });
+
+  it("fails closed when Firestore settings cannot be read", async () => {
+    mocks.mockGet.mockRejectedValue(new Error("firestore unavailable"));
+
+    await expect(getMaintenanceModeSettings("mc")).resolves.toEqual({
+      enabled: true,
+      message: DEFAULT_MAINTENANCE_MODE_MESSAGE,
+    });
   });
 });

@@ -29,7 +29,7 @@ export default function BookMoreButton() {
   const handleStartBooking = useHandleStartBooking();
   const [isLoading, setIsLoading] = useState(false);
 
-  if (maintenanceMode.enabled) {
+  if (maintenanceMode?.enabled === true) {
     return null;
   }
 

@@ -2,6 +2,7 @@ import { isValidTenant } from "@/components/src/constants/tenants";
 import { TableNames, getTenantCollectionName } from "@/components/src/policy";
 import admin from "@/lib/firebase/server/firebaseAdmin";
 import {
+  DEFAULT_MAINTENANCE_MODE_MESSAGE,
   DEFAULT_MAINTENANCE_MODE_SETTINGS,
   MAINTENANCE_MODE_SETTINGS_DOC_ID,
   MaintenanceModeSettings,
@@ -27,6 +28,9 @@ export async function getMaintenanceModeSettings(
       : DEFAULT_MAINTENANCE_MODE_SETTINGS;
   } catch (error) {
     console.error("[maintenanceMode] Failed to read settings:", error);
-    return DEFAULT_MAINTENANCE_MODE_SETTINGS;
+    return {
+      enabled: true,
+      message: DEFAULT_MAINTENANCE_MODE_MESSAGE,
+    };
   }
 }
