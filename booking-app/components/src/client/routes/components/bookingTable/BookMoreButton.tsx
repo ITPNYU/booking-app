@@ -11,8 +11,9 @@ import {
 import { Add } from "@mui/icons-material";
 import { styled } from "@mui/system";
 import { useParams, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useContext, useState } from "react";
 import useHandleStartBooking from "../../booking/hooks/useHandleStartBooking";
+import { DatabaseContext } from "../Provider";
 
 const BottomRow = styled(Table)({
   borderTop: "none",
@@ -24,8 +25,13 @@ export default function BookMoreButton() {
   const router = useRouter();
   const theme = useTheme();
   const { tenant } = useParams();
+  const { maintenanceMode } = useContext(DatabaseContext);
   const handleStartBooking = useHandleStartBooking();
   const [isLoading, setIsLoading] = useState(false);
+
+  if (maintenanceMode.enabled) {
+    return null;
+  }
 
   const handleClick = () => {
     setIsLoading(true);

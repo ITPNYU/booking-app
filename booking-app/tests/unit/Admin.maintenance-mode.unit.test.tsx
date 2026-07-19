@@ -48,12 +48,19 @@ describe("Admin maintenance mode authorization", () => {
     expect(screen.queryByText("Maintenance settings")).not.toBeInTheDocument();
   });
 
-  it("shows maintenance settings to admins", () => {
+  it("keeps the admin dashboard available to admins without exposing maintenance settings", () => {
     renderAdmin(PagePermission.ADMIN);
 
-    expect(screen.getByText("Maintenance settings")).toBeInTheDocument();
+    expect(screen.getByText("Bookings table")).toBeInTheDocument();
+    expect(screen.queryByText("Maintenance settings")).not.toBeInTheDocument();
     expect(
       screen.queryByText("You do not have permission to view this page."),
     ).not.toBeInTheDocument();
+  });
+
+  it("shows maintenance settings to super admins", () => {
+    renderAdmin(PagePermission.SUPER_ADMIN);
+
+    expect(screen.getByText("Maintenance settings")).toBeInTheDocument();
   });
 });

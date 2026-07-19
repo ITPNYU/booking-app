@@ -1,7 +1,9 @@
 import { Divider, ListItemButton, ListItemText, Stack } from "@mui/material";
 
 import Grid from "@mui/material/Unstable_Grid2";
-import { useState } from "react";
+import { useContext, useMemo, useState } from "react";
+import { PagePermission } from "../../../../types";
+import { DatabaseContext } from "../../components/Provider";
 import { AdminUsers } from "./AdminUsers";
 import { Approvers } from "./Approvers";
 import { BannedUsers } from "./Ban";
@@ -37,12 +39,26 @@ type SettingsProps = {
 };
 
 export default function Settings({ maintenanceOnly = false }: SettingsProps) {
+  const { pagePermission } = useContext(DatabaseContext);
+  const canManageMaintenanceMode = pagePermission === PagePermission.SUPER_ADMIN;
+  const visibleTabs = useMemo(
+    () =>
+      tabs.filter(
+        (currentTab) =>
+          currentTab.id !== "maintenanceMode" || canManageMaintenanceMode,
+      ),
+    [canManageMaintenanceMode],
+  );
   const [tab, setTab] = useState(
     maintenanceOnly ? "maintenanceMode" : "safetyTraining",
   );
 
   if (maintenanceOnly) {
-    return <MaintenanceModeSettings />;
+    return canManageMaintenanceMode ? (
+      <MaintenanceModeSettings />
+    ) : (
+      <div>You do not have permission to view this page.</div>
+    );
   }
 
   return (
@@ -52,7 +68,7 @@ export default function Settings({ maintenanceOnly = false }: SettingsProps) {
           divider={<Divider sx={{ borderColor: "#21212114" }} />}
           sx={{ border: "1px solid #21212114", borderRadius: "4px" }}
         >
-          {tabs.map((currentTab) => (
+          {visibleTabs.map((currentTab) => (
             <div key={currentTab.label}>
               <ListItemButton
                 onClick={() => setTab(currentTab.id)}
@@ -74,7 +90,9 @@ export default function Settings({ maintenanceOnly = false }: SettingsProps) {
         {tab === "departments" && <Departments />}
         {tab === "bookingTypes" && <BookingTypes />}
         {tab === "policy" && <PolicySettings />}
-        {tab === "maintenanceMode" && <MaintenanceModeSettings />}
+        {tab === "maintenanceMode" && canManageMaintenanceMode && (
+          <MaintenanceModeSettings />
+        )}
         {tab === "export" && <ExportDatabase />}
         {tab === "syncCalendars" && <SyncCalendars />}
         {tab === "siteBanner" && <SiteBannerSettings />}

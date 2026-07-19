@@ -2,7 +2,7 @@ import { Box } from "@mui/material";
 import Tab from "@mui/material/Tab";
 import Tabs from "@mui/material/Tabs";
 import { useContext, useMemo, useState } from "react";
-import { PageContextLevel } from "../../../../types";
+import { PageContextLevel, PagePermission } from "../../../../types";
 import { canAccessAdmin } from "../../../../utils/permissions";
 import { Bookings } from "../../components/bookingTable/Bookings";
 import { CenterLoading } from "../../components/Loading";
@@ -21,7 +21,10 @@ export default function Admin({ calendarEventId }) {
 
   const userHasPermission = canAccessAdmin(pagePermission);
 
-  if (maintenanceMode.enabled) {
+  if (
+    maintenanceMode.enabled &&
+    pagePermission === PagePermission.SUPER_ADMIN
+  ) {
     return (
       <Box margin={3}>
         {!userHasPermission ? (

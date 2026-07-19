@@ -44,10 +44,7 @@ export async function PUT(req: NextRequest) {
   }
 
   const role = await resolveCallerRole(session, tenant);
-  if (
-    role !== PagePermission.ADMIN &&
-    role !== PagePermission.SUPER_ADMIN
-  ) {
+  if (role !== PagePermission.SUPER_ADMIN) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

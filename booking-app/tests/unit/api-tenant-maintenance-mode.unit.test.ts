@@ -83,7 +83,7 @@ describe("PUT /api/tenant-maintenance-mode", () => {
       email: "admin@nyu.edu",
       netId: "admin",
     });
-    mocks.mockResolveCallerRole.mockResolvedValue(PagePermission.ADMIN);
+    mocks.mockResolveCallerRole.mockResolvedValue(PagePermission.SUPER_ADMIN);
     mocks.mockAdminGet.mockResolvedValue({ empty: false });
     mocks.mockSet.mockResolvedValue(undefined);
   });
@@ -118,8 +118,24 @@ describe("PUT /api/tenant-maintenance-mode", () => {
     expect(mocks.mockSet).not.toHaveBeenCalled();
   });
 
-  it("returns 403 when caller is not a database admin", async () => {
+  it("returns 403 when caller is not a super admin", async () => {
     mocks.mockResolveCallerRole.mockResolvedValue(PagePermission.BOOKING);
+
+    const res = await PUT(
+      createPutRequest({
+        tenant: "mc",
+        maintenanceMode: maintenanceMode({ enabled: true }),
+      }),
+    );
+    const { data, status } = await parseJson(res);
+
+    expect(status).toBe(403);
+    expect(data.error).toBe("Forbidden");
+    expect(mocks.mockSet).not.toHaveBeenCalled();
+  });
+
+  it("returns 403 when caller is only a tenant admin", async () => {
+    mocks.mockResolveCallerRole.mockResolvedValue(PagePermission.ADMIN);
 
     const res = await PUT(
       createPutRequest({
@@ -211,7 +227,7 @@ describe("PUT /api/tenant-maintenance-mode", () => {
     );
   });
 
-  it("returns 200 and writes Firestore for valid admin payload", async () => {
+  it("returns 200 and writes Firestore for valid super-admin payload", async () => {
     const res = await PUT(
       createPutRequest({
         tenant: "mc",
