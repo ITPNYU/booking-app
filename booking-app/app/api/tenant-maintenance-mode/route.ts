@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { isValidTenant } from "@/components/src/constants/tenants";
+import {
+  ALLOWED_TENANTS,
+  isValidTenant,
+} from "@/components/src/constants/tenants";
 import { TableNames, getTenantCollectionName } from "@/components/src/policy";
 import { PagePermission } from "@/components/src/types";
 import { resolveCallerRole } from "@/lib/api/authz";
@@ -79,16 +82,21 @@ export async function PUT(req: NextRequest) {
     DEFAULT_MAINTENANCE_MODE_MESSAGE;
 
   const db = admin.firestore();
-  const ref = db
-    .collection(getTenantCollectionName(TableNames.SETTINGS, tenant))
-    .doc(MAINTENANCE_MODE_SETTINGS_DOC_ID);
   try {
-    await ref.set(
-      {
-        maintenanceMode: { enabled: raw.enabled, message },
-        maintenanceModeUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      },
-      { merge: true },
+    await Promise.all(
+      ALLOWED_TENANTS.map((targetTenant) =>
+        db
+          .collection(getTenantCollectionName(TableNames.SETTINGS, targetTenant))
+          .doc(MAINTENANCE_MODE_SETTINGS_DOC_ID)
+          .set(
+            {
+              maintenanceMode: { enabled: raw.enabled, message },
+              maintenanceModeUpdatedAt:
+                admin.firestore.FieldValue.serverTimestamp(),
+            },
+            { merge: true },
+          ),
+      ),
     );
   } catch (error) {
     console.error(

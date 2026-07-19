@@ -6,8 +6,8 @@ import { ReactNode, useContext } from "react";
 
 import Loading from "./Loading";
 import { DatabaseContext } from "./Provider";
+import { PagePermission } from "../../../types";
 
-const MAINTENANCE_BLOCKED_ROUTE_SEGMENTS = new Set(["book", "walk-in", "vip"]);
 const LOADING_EXEMPT_ROUTE_SEGMENTS = new Set(["signin"]);
 
 const getTenantRouteSegment = (pathname: string | null): string | undefined =>
@@ -20,7 +20,8 @@ type MaintenanceModeGateProps = {
 export default function MaintenanceModeGate({
   children,
 }: MaintenanceModeGateProps) {
-  const { maintenanceMode, permissionsLoading } = useContext(DatabaseContext);
+  const { maintenanceMode, pagePermission, permissionsLoading } =
+    useContext(DatabaseContext);
   const pathname = usePathname();
   const routeSegment = getTenantRouteSegment(pathname);
 
@@ -36,7 +37,10 @@ export default function MaintenanceModeGate({
     return <>{children}</>;
   }
 
-  if (!MAINTENANCE_BLOCKED_ROUTE_SEGMENTS.has(routeSegment ?? "")) {
+  if (
+    pagePermission === PagePermission.SUPER_ADMIN &&
+    routeSegment === "super"
+  ) {
     return <>{children}</>;
   }
 

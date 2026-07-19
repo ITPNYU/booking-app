@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { ALLOWED_TENANTS } from "@/components/src/constants/tenants";
 import { PagePermission } from "@/components/src/types";
 import {
   DEFAULT_MAINTENANCE_MODE_MESSAGE,
@@ -227,7 +228,7 @@ describe("PUT /api/tenant-maintenance-mode", () => {
     );
   });
 
-  it("returns 200 and writes Firestore for valid super-admin payload", async () => {
+  it("returns 200 and writes Firestore for all tenants for valid super-admin payload", async () => {
     const res = await PUT(
       createPutRequest({
         tenant: "mc",
@@ -246,19 +247,25 @@ describe("PUT /api/tenant-maintenance-mode", () => {
       "mc",
     );
     expect(mocks.mockCollection).not.toHaveBeenCalledWith("mc-usersRights");
-    expect(mocks.mockCollection).toHaveBeenCalledWith("mc-settings");
-    expect(mocks.mockDoc).toHaveBeenCalledWith(
-      MAINTENANCE_MODE_SETTINGS_DOC_ID,
-    );
-    expect(mocks.mockSet).toHaveBeenCalledWith(
-      expect.objectContaining({
-        maintenanceMode: {
-          enabled: true,
-          message: "Requests are paused for maintenance.",
-        },
-      }),
-      { merge: true },
-    );
+    ALLOWED_TENANTS.forEach((targetTenant) => {
+      expect(mocks.mockCollection).toHaveBeenCalledWith(
+        `${targetTenant}-settings`,
+      );
+    });
+    expect(mocks.mockDoc).toHaveBeenCalledTimes(ALLOWED_TENANTS.length);
+    expect(mocks.mockDoc).toHaveBeenCalledWith(MAINTENANCE_MODE_SETTINGS_DOC_ID);
+    expect(mocks.mockSet).toHaveBeenCalledTimes(ALLOWED_TENANTS.length);
+    ALLOWED_TENANTS.forEach(() => {
+      expect(mocks.mockSet).toHaveBeenCalledWith(
+        expect.objectContaining({
+          maintenanceMode: {
+            enabled: true,
+            message: "Requests are paused for maintenance.",
+          },
+        }),
+        { merge: true },
+      );
+    });
   });
 
   it("returns 500 with JSON when Firestore set throws", async () => {

@@ -62,7 +62,8 @@ export default function MaintenanceModeSettings() {
     <Box>
       <Typography variant="h6">Maintenance mode</Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-        Stop the public booking form from accepting new reservation requests.
+        Show a maintenance notice across all tenants and stop new reservation
+        requests.
       </Typography>
 
       <FormControlLabel

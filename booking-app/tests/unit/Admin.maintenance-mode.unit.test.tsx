@@ -6,9 +6,7 @@ import { DatabaseContext } from "@/components/src/client/routes/components/Provi
 import { PagePermission } from "@/components/src/types";
 
 vi.mock("@/components/src/client/routes/admin/components/Settings", () => ({
-  default: ({ maintenanceOnly = false }: { maintenanceOnly?: boolean }) => (
-    <div>{maintenanceOnly ? "Maintenance settings" : "Full settings"}</div>
-  ),
+  default: () => <div>Full settings</div>,
 }));
 
 vi.mock(
@@ -39,28 +37,27 @@ const renderAdmin = (pagePermission: PagePermission) => {
 };
 
 describe("Admin maintenance mode authorization", () => {
-  it("does not expose maintenance settings to booking users", () => {
+  it("does not expose the admin dashboard to booking users", () => {
     renderAdmin(PagePermission.BOOKING);
 
     expect(
       screen.getByText("You do not have permission to view this page."),
     ).toBeInTheDocument();
-    expect(screen.queryByText("Maintenance settings")).not.toBeInTheDocument();
+    expect(screen.queryByText("Bookings table")).not.toBeInTheDocument();
   });
 
-  it("keeps the admin dashboard available to admins without exposing maintenance settings", () => {
+  it("keeps the admin dashboard available to admins", () => {
     renderAdmin(PagePermission.ADMIN);
 
     expect(screen.getByText("Bookings table")).toBeInTheDocument();
-    expect(screen.queryByText("Maintenance settings")).not.toBeInTheDocument();
     expect(
       screen.queryByText("You do not have permission to view this page."),
     ).not.toBeInTheDocument();
   });
 
-  it("shows maintenance settings to super admins", () => {
+  it("keeps the admin dashboard available to super admins", () => {
     renderAdmin(PagePermission.SUPER_ADMIN);
 
-    expect(screen.getByText("Maintenance settings")).toBeInTheDocument();
+    expect(screen.getByText("Bookings table")).toBeInTheDocument();
   });
 });

@@ -1,16 +1,13 @@
 import { Divider, ListItemButton, ListItemText, Stack } from "@mui/material";
 
 import Grid from "@mui/material/Unstable_Grid2";
-import { useContext, useMemo, useState } from "react";
-import { PagePermission } from "../../../../types";
-import { DatabaseContext } from "../../components/Provider";
+import { useState } from "react";
 import { AdminUsers } from "./AdminUsers";
 import { Approvers } from "./Approvers";
 import { BannedUsers } from "./Ban";
 import BookingTypes from "./BookingTypes";
 import { Departments } from "./Departments";
 import ExportDatabase from "./ExportDatabase";
-import MaintenanceModeSettings from "./MaintenanceModeSettings";
 import { PAUsers } from "./PAUsers";
 import PolicySettings from "./PolicySettings";
 import SafetyTrainedUsers from "./SafetyTraining";
@@ -28,38 +25,13 @@ const tabs = [
   { label: "Ban", id: "ban" },
   { label: "Booking Types", id: "bookingTypes" },
   { label: "Policy Settings", id: "policy" },
-  { label: "Maintenance mode", id: "maintenanceMode" },
   { label: "Export", id: "export" },
   { label: "Sync Calendars", id: "syncCalendars" },
   { label: "Site banner", id: "siteBanner" },
 ];
 
-type SettingsProps = {
-  maintenanceOnly?: boolean;
-};
-
-export default function Settings({ maintenanceOnly = false }: SettingsProps) {
-  const { pagePermission } = useContext(DatabaseContext);
-  const canManageMaintenanceMode = pagePermission === PagePermission.SUPER_ADMIN;
-  const visibleTabs = useMemo(
-    () =>
-      tabs.filter(
-        (currentTab) =>
-          currentTab.id !== "maintenanceMode" || canManageMaintenanceMode,
-      ),
-    [canManageMaintenanceMode],
-  );
-  const [tab, setTab] = useState(
-    maintenanceOnly ? "maintenanceMode" : "safetyTraining",
-  );
-
-  if (maintenanceOnly) {
-    return canManageMaintenanceMode ? (
-      <MaintenanceModeSettings />
-    ) : (
-      <div>You do not have permission to view this page.</div>
-    );
-  }
+export default function Settings() {
+  const [tab, setTab] = useState("safetyTraining");
 
   return (
     <Grid container marginTop={4} spacing={2}>
@@ -68,7 +40,7 @@ export default function Settings({ maintenanceOnly = false }: SettingsProps) {
           divider={<Divider sx={{ borderColor: "#21212114" }} />}
           sx={{ border: "1px solid #21212114", borderRadius: "4px" }}
         >
-          {visibleTabs.map((currentTab) => (
+          {tabs.map((currentTab) => (
             <div key={currentTab.label}>
               <ListItemButton
                 onClick={() => setTab(currentTab.id)}
@@ -90,9 +62,6 @@ export default function Settings({ maintenanceOnly = false }: SettingsProps) {
         {tab === "departments" && <Departments />}
         {tab === "bookingTypes" && <BookingTypes />}
         {tab === "policy" && <PolicySettings />}
-        {tab === "maintenanceMode" && canManageMaintenanceMode && (
-          <MaintenanceModeSettings />
-        )}
         {tab === "export" && <ExportDatabase />}
         {tab === "syncCalendars" && <SyncCalendars />}
         {tab === "siteBanner" && <SiteBannerSettings />}

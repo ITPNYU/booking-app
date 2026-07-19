@@ -103,10 +103,10 @@ const Layout: React.FC<LayoutProps> = async ({ children, params }) => {
       <SchemaProviderWrapper value={serializedTenantSchema}>
         <ClientProvider>
           <TenantEntitlementGuard>
-            <header>
-              <NavBar />
-            </header>
             <MaintenanceModeGate>
+              <header>
+                <NavBar />
+              </header>
               <>
                 <SchemaDriftBanner />
                 <TenantSiteBanner />

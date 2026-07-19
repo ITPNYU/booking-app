@@ -1,9 +1,8 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import Settings from "@/components/src/client/routes/admin/components/Settings";
-import { DatabaseContext } from "@/components/src/client/routes/components/Provider";
-import { PagePermission } from "@/components/src/types";
+import AdminSettings from "@/components/src/client/routes/admin/components/Settings";
+import SuperSettings from "@/components/src/client/routes/super/settings";
 
 vi.mock("@/components/src/client/routes/admin/components/AdminUsers", () => ({
   AdminUsers: () => <div>Admin Users</div>,
@@ -57,23 +56,19 @@ vi.mock(
   }),
 );
 
-function renderSettings(pagePermission: PagePermission) {
-  render(
-    <DatabaseContext.Provider value={{ pagePermission } as any}>
-      <Settings />
-    </DatabaseContext.Provider>,
-  );
-}
+vi.mock("@/components/src/client/routes/components/EmailListTable", () => ({
+  default: () => <div>Super Admin Users</div>,
+}));
 
 describe("Settings maintenance mode visibility", () => {
-  it("hides the maintenance mode tab from tenant admins", () => {
-    renderSettings(PagePermission.ADMIN);
+  it("does not show maintenance mode in tenant admin settings", () => {
+    render(<AdminSettings />);
 
     expect(screen.queryByText("Maintenance mode")).not.toBeInTheDocument();
   });
 
-  it("shows the maintenance mode tab to super admins", () => {
-    renderSettings(PagePermission.SUPER_ADMIN);
+  it("shows maintenance mode in super admin settings", () => {
+    render(<SuperSettings />);
 
     expect(screen.getByText("Maintenance mode")).toBeInTheDocument();
   });
