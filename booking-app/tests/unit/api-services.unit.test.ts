@@ -110,10 +110,7 @@ describe("POST /api/services", () => {
       "setup",
       "mc",
     );
-    expect(mockServerIsEquipmentApprover).toHaveBeenCalledWith(
-      "service@nyu.edu",
-      "mc",
-    );
+    expect(mockServerIsEquipmentApprover).not.toHaveBeenCalled();
     expect(mockExecuteXStateTransition).not.toHaveBeenCalled();
     expect(response.status).toBe(403);
   });

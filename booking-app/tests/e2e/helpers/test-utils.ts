@@ -142,6 +142,41 @@ export async function selectRole(
   await selectDropdown(page, "role-select", roleIndex);
 }
 
+export const serializedTimestamp = (date: Date) => ({
+  __ts: date.getTime(),
+});
+
+export async function mockFirestoreListCollections(
+  page: Page,
+  mocks: Array<{ collection: string | RegExp; docs: unknown[] }>,
+) {
+  await page.route("**/api/firestore/list", async (route) => {
+    const request = route.request();
+    if (request.method() !== "POST") {
+      await route.fulfill({
+        status: 405,
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ error: "Method Not Allowed" }),
+      });
+      return;
+    }
+
+    const body = request.postDataJSON() ?? {};
+    const collection = String(body.collection ?? "");
+    const matched = mocks.find((mock) =>
+      typeof mock.collection === "string"
+        ? collection === mock.collection
+        : mock.collection.test(collection),
+    );
+
+    await route.fulfill({
+      status: 200,
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ docs: matched?.docs ?? [] }),
+    });
+  });
+}
+
 /**
  * Wait for webpack mock overrides to be ready, apply them, and retry until patching succeeds.
  * Replaces the fragile two-step waitForFunction + evaluate pattern.

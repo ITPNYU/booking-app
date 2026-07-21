@@ -1,68 +1,45 @@
 import { expect, test } from "@playwright/test";
 import { registerItpBookingMocks } from "./helpers/itp-mock-routes";
 import {
-  registerDefinePropertyInterceptor,
-  registerWebpackPatcher,
-} from "./helpers/xstate-mocks";
-import {
   itpNavigateToRoleSelection,
   itpSelectRole,
   itpSelectTimeSlot,
 } from "./helpers/itp-test-utils";
+import {
+  mockFirestoreListCollections,
+  serializedTimestamp,
+} from "./helpers/test-utils";
 
 test.describe("ITP Blackout Periods – booking blocked", () => {
   test("blocks ITP booking when date falls within a blackout period", async ({
     page,
   }) => {
     await registerItpBookingMocks(page);
-    await registerDefinePropertyInterceptor(page);
 
-    // Inject blackout period covering tomorrow (all day) for room 408
-    await page.addInitScript(() => {
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      const start = new Date(tomorrow);
-      start.setHours(0, 0, 0, 0);
-      const end = new Date(tomorrow);
-      end.setHours(23, 59, 59, 999);
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const start = new Date(tomorrow);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(tomorrow);
+    end.setHours(23, 59, 59, 999);
 
-      const makeTimestamp = (d: Date) => ({
-        toDate: () => new Date(d),
-        toMillis: () => d.getTime(),
-        valueOf: () => d.getTime(),
-      });
-
-      const mockBlackoutPeriods = [
-        {
-          id: "itp-blackout-1",
-          name: "ITP Test Blackout",
-          startDate: makeTimestamp(start),
-          endDate: makeTimestamp(end),
-          isActive: true,
-          roomIds: [408],
-          createdAt: makeTimestamp(new Date()),
-        },
-      ];
-
-      const original = (window as any).clientFetchAllDataFromCollection;
-
-      (window as any).clientFetchAllDataFromCollection = async function (
-        tableName: string,
-        constraints: unknown[],
-        tenant: string,
-      ) {
-        const normalized = tableName ? tableName.toLowerCase() : "";
-        if (normalized.includes("blackout")) {
-          return mockBlackoutPeriods;
-        }
-        if (original) {
-          return await original(tableName, constraints, tenant);
-        }
-        return [];
-      };
-    });
-
-    await registerWebpackPatcher(page);
+    // Mock blackout period covering tomorrow (all day) for room 408.
+    await mockFirestoreListCollections(page, [
+      {
+        collection: "blackoutPeriods",
+        docs: [
+          {
+            id: "itp-blackout-1",
+            name: "ITP Test Blackout",
+            startDate: serializedTimestamp(start),
+            endDate: serializedTimestamp(end),
+            isActive: true,
+            roomIds: [408],
+            createdAt: serializedTimestamp(new Date()),
+          },
+        ],
+      },
+    ]);
 
     await itpNavigateToRoleSelection(page);
 

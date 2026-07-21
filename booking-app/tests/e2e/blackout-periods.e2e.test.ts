@@ -1,10 +1,11 @@
 import { expect, test } from "@playwright/test";
 import { registerBookingMocks } from "./helpers/mock-routes";
 import {
-  registerDefinePropertyInterceptor,
-  registerWebpackPatcher,
-} from "./helpers/xstate-mocks";
-import { selectRole, selectTimeSlot } from "./helpers/test-utils";
+  mockFirestoreListCollections,
+  selectRole,
+  selectTimeSlot,
+  serializedTimestamp,
+} from "./helpers/test-utils";
 
 const BASE_URL =
   process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000";
@@ -14,55 +15,31 @@ test.describe("Blackout Periods – booking blocked", () => {
     page,
   }) => {
     await registerBookingMocks(page);
-    await registerDefinePropertyInterceptor(page);
 
-    // Inject blackout period covering tomorrow (all day) for room 202
-    await page.addInitScript(() => {
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      const start = new Date(tomorrow);
-      start.setHours(0, 0, 0, 0);
-      const end = new Date(tomorrow);
-      end.setHours(23, 59, 59, 999);
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const start = new Date(tomorrow);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(tomorrow);
+    end.setHours(23, 59, 59, 999);
 
-      const makeTimestamp = (d: Date) => ({
-        toDate: () => new Date(d),
-        toMillis: () => d.getTime(),
-        valueOf: () => d.getTime(),
-      });
-
-      const mockBlackoutPeriods = [
-        {
-          id: "blackout-1",
-          name: "Test Blackout",
-          startDate: makeTimestamp(start),
-          endDate: makeTimestamp(end),
-          isActive: true,
-          roomIds: [202],
-          createdAt: makeTimestamp(new Date()),
-        },
-      ];
-
-      const original = (window as any).clientFetchAllDataFromCollection;
-
-      (window as any).clientFetchAllDataFromCollection = async function (
-        tableName: string,
-        constraints: unknown[],
-        tenant: string,
-      ) {
-        const normalized = tableName ? tableName.toLowerCase() : "";
-        if (normalized.includes("blackout")) {
-          return mockBlackoutPeriods;
-        }
-        if (original) {
-          return await original(tableName, constraints, tenant);
-        }
-        return [];
-      };
-
-    });
-
-    await registerWebpackPatcher(page);
+    // Mock blackout period covering tomorrow (all day) for room 202.
+    await mockFirestoreListCollections(page, [
+      {
+        collection: "blackoutPeriods",
+        docs: [
+          {
+            id: "blackout-1",
+            name: "Test Blackout",
+            startDate: serializedTimestamp(start),
+            endDate: serializedTimestamp(end),
+            isActive: true,
+            roomIds: [202],
+            createdAt: serializedTimestamp(new Date()),
+          },
+        ],
+      },
+    ]);
 
     // Navigate through the booking flow
     await page.goto(`${BASE_URL}/mc`, { waitUntil: "domcontentloaded" });
