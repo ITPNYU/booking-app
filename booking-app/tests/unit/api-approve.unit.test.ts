@@ -268,7 +268,9 @@ describe("POST /api/approve", () => {
       firstApprovedAt: "2026-06-14T12:00:00Z",
       roomId: "room-1, room-2",
     } as any);
-    mockServerListResourceApproversByEmail.mockResolvedValue(assignments as any);
+    mockServerListResourceApproversByEmail.mockResolvedValue(
+      assignments as any,
+    );
 
     const response = await POST(
       createRequest({ id: bookingId, email: bodyEmail }) as any,
@@ -355,12 +357,13 @@ describe("POST /api/approve", () => {
   it("returns 409 and does not fall back when Media Commons booking has unprocessed services", async () => {
     mockExecute.mockResolvedValue({
       success: false,
-      error: "Invalid transition: Cannot execute 'approve' from state 'Services Request'",
+      error:
+        "Invalid transition: Cannot execute 'approve' from state 'Services Request'",
     });
     mockIsMediaCommons.mockReturnValue(true);
     mockServerGetDataByCalendarEventId.mockResolvedValue({
       id: "booking-db-id",
-      staffingServicesDetails: "yes",  // requested
+      staffingServicesDetails: "yes", // requested
       staffServiceApproved: undefined, // not yet processed
     } as any);
     mockGetMediaCommonsServices.mockReturnValue({
@@ -388,7 +391,8 @@ describe("POST /api/approve", () => {
   it("falls back to serverApproveBooking when Media Commons XState fails but all requested services are already processed", async () => {
     mockExecute.mockResolvedValue({
       success: false,
-      error: "Invalid transition: Cannot execute 'approve' from state 'Services Request'",
+      error:
+        "Invalid transition: Cannot execute 'approve' from state 'Services Request'",
     });
     mockIsMediaCommons.mockReturnValue(true);
     mockServerGetDataByCalendarEventId.mockResolvedValue({

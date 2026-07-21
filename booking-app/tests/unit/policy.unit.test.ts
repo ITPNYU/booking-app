@@ -19,8 +19,8 @@ describe("CALENDAR_HIDE_STATUS", () => {
 
 describe("getResourceApproverDocumentId", () => {
   it("normalizes resource ID whitespace and email case", () => {
-    expect(
-      getResourceApproverDocumentId(" room/a ", " Person@NYU.EDU "),
-    ).toBe(getResourceApproverDocumentId("room/a", "person@nyu.edu"));
+    expect(getResourceApproverDocumentId(" room/a ", " Person@NYU.EDU ")).toBe(
+      getResourceApproverDocumentId("room/a", "person@nyu.edu"),
+    );
   });
 });

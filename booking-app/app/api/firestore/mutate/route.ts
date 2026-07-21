@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
         );
       }
       const data = reviveValue(body.data) as FirebaseFirestore.DocumentData;
-      await colRef.doc(body.docId).set(data);
+      await colRef.doc(body.docId).set(data, { merge: true });
       return NextResponse.json({ ok: true });
     }
     if (body.op === "delete") {

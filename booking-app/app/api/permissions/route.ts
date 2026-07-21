@@ -78,7 +78,12 @@ export async function GET(req: NextRequest) {
             .doc(SITE_BANNER_SETTINGS_DOC_ID)
             .get()
         : Promise.resolve(null);
-    const [usersRightsSnap, superAdminSnap, approversSnap, settingsSnap] =
+    const [
+      usersRightsSnap,
+      superAdminSnap,
+      approversSnap,
+      settingsSnap,
+    ] =
       await Promise.all([
         usersRightsRef.get(),
         superAdminRef.get(),
@@ -86,10 +91,11 @@ export async function GET(req: NextRequest) {
         settingsDocPromise,
       ]);
 
-    const userRightsRecords = usersRightsSnap.docs.map(d => ({
-      id: d.id,
-      ...(d.data() as Record<string, unknown>),
-    }));
+    const userRightsRecords: Array<Record<string, unknown> & { id: string }> =
+      usersRightsSnap.docs.map(d => ({
+        id: d.id,
+        ...(d.data() as Record<string, unknown>),
+      }));
     const adminUsers = userRightsRecords
       .filter((r: any) => r.isAdmin === true)
       .map((r: any) => ({
@@ -135,6 +141,14 @@ export async function GET(req: NextRequest) {
 
     // Server-side role resolution — single source of truth.
     const email = session.email;
+    const userRights = userRightsRecords.find((r: any) => r.email === email);
+    const hasLegacyServiceRight =
+      userRights?.isSetup === true ||
+      userRights?.isEquipment === true ||
+      userRights?.isStaffing === true ||
+      userRights?.isCatering === true ||
+      userRights?.isCleaning === true ||
+      userRights?.isSecurity === true;
     let pagePermission: PagePermission = PagePermission.BOOKING;
     if (superAdminUsers.some((u: any) => u.email === email)) {
       pagePermission = PagePermission.SUPER_ADMIN;
@@ -144,7 +158,25 @@ export async function GET(req: NextRequest) {
       pagePermission = PagePermission.SERVICES;
     } else if (liaisonUsers.some((u: any) => u.email === email)) {
       pagePermission = PagePermission.LIAISON;
-    } else if (paUsers.some((u: any) => u.email === email)) {
+    } else if (hasLegacyServiceRight) {
+      pagePermission = PagePermission.SERVICES;
+    }
+    if (pagePermission === PagePermission.BOOKING && tenant) {
+      const serviceApproverSnap = await db
+        .collection(
+          getTenantCollectionName(TableNames.SERVICE_APPROVERS, tenant),
+        )
+        .where("email", "==", email)
+        .limit(1)
+        .get();
+      if (!serviceApproverSnap.empty) {
+        pagePermission = PagePermission.SERVICES;
+      }
+    }
+    if (
+      pagePermission === PagePermission.BOOKING &&
+      paUsers.some((u: any) => u.email === email)
+    ) {
       pagePermission = PagePermission.PA;
     }
 

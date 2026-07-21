@@ -1,22 +1,46 @@
 import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
+import { isValidTenant } from "@/components/src/constants/tenants";
+import { TableNames } from "@/components/src/policy";
+import { PagePermission } from "@/components/src/types";
 import { NextRequest, NextResponse } from "next/server";
 
 import { shouldUseXState } from "@/components/src/utils/tenantUtils";
+import { requireSession } from "@/lib/api/requireSession";
+import { resolveCallerRole } from "@/lib/api/authz";
+import {
+  serverGetDataByCalendarEventId,
+  serverIsEquipmentApprover,
+  serverIsServiceApproverForAllResources,
+} from "@/lib/firebase/server/adminDb";
 import { executeXStateTransition } from "@/lib/stateMachines/xstateUtilsV5";
 
+const parseBookingResourceIds = (roomId: unknown): string[] =>
+  String(roomId ?? "")
+    .split(",")
+    .map((resourceId) => resourceId.trim())
+    .filter(Boolean);
+
 export async function POST(req: NextRequest) {
-  const { calendarEventId, serviceType, action, email, reason } =
-    await req.json();
+  const session = await requireSession();
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { calendarEventId, serviceType, action, reason } = await req.json();
+  const email = session.email;
 
   // Get tenant from x-tenant header, fallback to default tenant
   const tenant = req.headers.get("x-tenant") || DEFAULT_TENANT;
+  if (!isValidTenant(tenant)) {
+    return NextResponse.json({ error: "Invalid tenant" }, { status: 400 });
+  }
 
   // Validate input
-  if (!calendarEventId || !serviceType || !action || !email) {
+  if (!calendarEventId || !serviceType || !action) {
     return NextResponse.json(
       {
         error:
-          "Missing required fields: calendarEventId, serviceType, action, email",
+          "Missing required fields: calendarEventId, serviceType, action",
       },
       { status: 400 },
     );
@@ -49,6 +73,39 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    const booking = await serverGetDataByCalendarEventId<any>(
+      TableNames.BOOKING,
+      calendarEventId,
+      tenant,
+    );
+    if (!booking) {
+      return NextResponse.json({ error: "Booking not found" }, { status: 404 });
+    }
+
+    const role = await resolveCallerRole(session, tenant);
+    const isAdmin =
+      role === PagePermission.ADMIN || role === PagePermission.SUPER_ADMIN;
+    const isPaCloseout = action === "closeout" && role === PagePermission.PA;
+    if (!isAdmin && !isPaCloseout) {
+      const resourceIds = parseBookingResourceIds(booking.roomId);
+      const isAssigned = await serverIsServiceApproverForAllResources(
+        email,
+        resourceIds,
+        serviceType,
+        tenant,
+      );
+      const isLegacyEquipmentApprover =
+        !isAssigned &&
+        serviceType === "equipment" &&
+        (await serverIsEquipmentApprover(email, tenant));
+      if (!isAssigned && !isLegacyEquipmentApprover) {
+        return NextResponse.json(
+          { error: "Forbidden: service approver assignment required" },
+          { status: 403 },
+        );
+      }
+    }
+
     console.log(
       `🎯 SERVICE ${action.toUpperCase()} REQUEST [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
       {

@@ -1,10 +1,11 @@
 import { expect, test } from "@playwright/test";
 import { registerBookingMocks } from "./helpers/mock-routes";
 import {
-  registerDefinePropertyInterceptor,
-  registerWebpackPatcher,
-} from "./helpers/xstate-mocks";
-import { selectRole, selectTimeSlot } from "./helpers/test-utils";
+  mockFirestoreListCollections,
+  selectRole,
+  selectTimeSlot,
+  serializedTimestamp,
+} from "./helpers/test-utils";
 
 const BASE_URL =
   process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000";
@@ -12,44 +13,19 @@ const BASE_URL =
 test.describe("Ban Enforcement – banned user blocked", () => {
   test("blocks banned user from booking", async ({ page }) => {
     await registerBookingMocks(page);
-    await registerDefinePropertyInterceptor(page);
-
-    // Inject banned user data for the test user (test@nyu.edu)
-    await page.addInitScript(() => {
-      const makeTimestamp = (d: Date) => ({
-        toDate: () => new Date(d),
-        toMillis: () => d.getTime(),
-        valueOf: () => d.getTime(),
-      });
-
-      const mockBannedUsers = [
-        {
-          id: "ban-1",
-          email: "test@nyu.edu",
-          bannedAt: new Date().toISOString(),
-          createdAt: makeTimestamp(new Date()),
-        },
-      ];
-
-      const original = (window as any).clientFetchAllDataFromCollection;
-
-      (window as any).clientFetchAllDataFromCollection = async function (
-        tableName: string,
-        constraints: unknown[],
-        tenant: string,
-      ) {
-        const normalized = tableName ? tableName.toLowerCase() : "";
-        if (normalized.includes("banned")) {
-          return mockBannedUsers;
-        }
-        if (original) {
-          return await original(tableName, constraints, tenant);
-        }
-        return [];
-      };
-    });
-
-    await registerWebpackPatcher(page);
+    await mockFirestoreListCollections(page, [
+      {
+        collection: "usersBanned",
+        docs: [
+          {
+            id: "ban-1",
+            email: "test@nyu.edu",
+            bannedAt: new Date().toISOString(),
+            createdAt: serializedTimestamp(new Date()),
+          },
+        ],
+      },
+    ]);
 
     // Navigate through the booking flow
     await page.goto(`${BASE_URL}/mc`, { waitUntil: "domcontentloaded" });
