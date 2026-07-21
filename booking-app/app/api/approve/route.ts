@@ -52,6 +52,17 @@ const parseBookingResourceIds = (roomId: unknown): string[] =>
     .map((resourceId) => resourceId.trim())
     .filter(Boolean);
 
+const getErrorMessage = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error);
+
+const getErrorStatus = (error: unknown): number =>
+  typeof error === "object" &&
+  error !== null &&
+  "status" in error &&
+  typeof error.status === "number"
+    ? error.status
+    : 500;
+
 async function authorizeApproval(
   email: string,
   tenant: string,
@@ -196,12 +207,6 @@ export async function POST(req: NextRequest) {
           },
         );
 
-        // Add history logging for final approval since XState doesn't handle history
-        const doc = await serverGetDataByCalendarEventId<{
-          id: string;
-          requestNumber: number;
-        }>(TableNames.BOOKING, id, tenant);
-
         // Use finalApprove function for complete and consistent processing
         try {
           const { finalApprove } =
@@ -225,7 +230,7 @@ export async function POST(req: NextRequest) {
               calendarEventId: id,
               email,
               tenant,
-              error: error.message,
+              error: getErrorMessage(error),
             },
           );
         }
@@ -261,7 +266,7 @@ export async function POST(req: NextRequest) {
               calendarEventId: id,
               email,
               tenant,
-              error: error.message,
+              error: getErrorMessage(error),
             },
           );
         }
@@ -357,12 +362,12 @@ export async function POST(req: NextRequest) {
         calendarEventId: id,
         email,
         tenant,
-        error: error.message,
+        error: getErrorMessage(error),
       },
     );
     return NextResponse.json(
-      { error: error.message },
-      { status: error.status || 500 },
+      { error: getErrorMessage(error) },
+      { status: getErrorStatus(error) },
     );
   }
 }

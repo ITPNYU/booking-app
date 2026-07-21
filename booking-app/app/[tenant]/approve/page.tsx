@@ -6,7 +6,7 @@ import {
   DatabaseContext,
   DatabaseProvider,
 } from "@/components/src/client/routes/components/Provider";
-import { clientApproveBooking } from "@/components/src/server/db";
+import { clientApproveBooking } from "@/components/src/client/bookingActionClient";
 import { Button } from "@mui/material";
 import { useSearchParams } from "next/navigation";
 

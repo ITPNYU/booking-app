@@ -18,8 +18,6 @@ import {
 } from "@/components/src/types";
 import { getMediaCommonsServices } from "@/components/src/utils/tenantUtils";
 import { serverGetDataByCalendarEventId } from "@/lib/firebase/server/adminDb";
-import { itpBookingMachine } from "@/lib/stateMachines/itpBookingMachine";
-import { mcBookingMachine } from "@/lib/stateMachines/mcBookingMachine";
 import { Timestamp } from "firebase-admin/firestore";
 import { NextRequest, NextResponse } from "next/server";
 import { createActor } from "xstate";
@@ -276,7 +274,11 @@ export async function PUT(request: NextRequest) {
     );
 
     // Create new XState data in Approved state
-    const machine = isMediaCommons ? mcBookingMachine : itpBookingMachine;
+    const preservedOrigin = existingBookingData.origin || BookingOrigin.USER;
+    const machine = isMediaCommons
+      ? (await import("@/lib/stateMachines/mcBookingMachine")).mcBookingMachine
+      : (await import("@/lib/stateMachines/itpBookingMachine"))
+          .itpBookingMachine;
     const servicesRequested = isMediaCommons
       ? getMediaCommonsServices(data)
       : undefined;
@@ -300,7 +302,8 @@ export async function PUT(request: NextRequest) {
         selectedRooms: selectedRooms || [],
         formData: data || {},
         bookingCalendarInfo: bookingCalendarInfo || {},
-        role: data?.role as Role, // Pass role from form data
+        role: data?.role as Role,
+        origin: preservedOrigin,
         servicesRequested,
         servicesApproved,
       },
@@ -320,6 +323,7 @@ export async function PUT(request: NextRequest) {
         context: {
           ...currentSnapshot.context,
           calendarEventId: newCalendarEventId,
+          origin: preservedOrigin,
         },
         children: currentSnapshot.children || {},
       },

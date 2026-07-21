@@ -1,13 +1,13 @@
 "use client";
 
 import { Box, Stack, Typography, useMediaQuery, useTheme } from "@mui/material";
+import dynamic from "next/dynamic";
 import React, { useContext, useMemo, useState } from "react";
 
 import { FormContextLevel } from "@/components/src/types";
 import Grid from "@mui/material/Unstable_Grid2";
 import { BookingContext } from "../bookingProvider";
 import { CalendarDatePicker } from "../components/CalendarDatePicker";
-import CalendarVerticalResource from "../components/CalendarVerticalResource";
 import { DatabaseContext } from "../../components/Provider";
 import { SelectRooms } from "../components/SelectRooms";
 import useCheckFormMissingData from "../hooks/useCheckFormMissingData";
@@ -15,6 +15,18 @@ import { useTenantSchema } from "../../components/SchemaProvider";
 import { getStartHour } from "../utils/getStartHour";
 import { getSlotUnit } from "../utils/getSlotUnit";
 import { getBookingHourLimits } from "../utils/bookingHourLimits";
+
+const CalendarVerticalResource = dynamic(
+  () => import("../components/CalendarVerticalResource"),
+  {
+    ssr: false,
+    loading: () => (
+      <Box sx={{ minHeight: 400, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        Loading calendar...
+      </Box>
+    ),
+  },
+);
 
 interface Props {
   calendarEventId?: string;

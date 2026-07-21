@@ -338,7 +338,9 @@ export async function executeXStateTransition(
           await import("@/lib/firebase/server/adminDb");
         const { serverSendBookingDetailEmail } =
           await import("@/components/src/server/admin");
-        const { getApprovalCcEmail } = await import("@/components/src/policy");
+        const { getApprovalCcEmail } = await import(
+          "@/components/src/tenantPolicyServer"
+        );
         const { BookingStatusLabel } = await import("@/components/src/types");
 
         // Check policy violation and add to pre-ban logs

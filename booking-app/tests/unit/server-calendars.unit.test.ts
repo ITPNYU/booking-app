@@ -109,6 +109,55 @@ describe("server/calendars", () => {
     });
   });
 
+  it("insertEvent logs the Google error body and rethrows on failure", async () => {
+    const googleError = Object.assign(new Error("Bad Request"), {
+      code: 400,
+      response: {
+        status: 400,
+        data: {
+          error: {
+            errors: [{ reason: "invalid", message: "Invalid attendee email." }],
+          },
+        },
+      },
+    });
+    const insertMock = vi.fn().mockRejectedValue(googleError);
+    mockGetCalendarClient.mockResolvedValue({
+      events: {
+        insert: insertMock,
+      },
+    });
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    const { insertEvent } = await import("@/components/src/server/calendars");
+
+    await expect(
+      insertEvent({
+        calendarId: "cal-1",
+        title: "[REQUESTED] 222 Demo",
+        description: "<p>demo</p>",
+        startTime: "2026-07-16T12:00:00-04:00",
+        endTime: "2026-07-16T16:00:00-04:00",
+        roomEmails: ["room-cal-2"],
+      }),
+    ).rejects.toThrow("Bad Request");
+
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      "🚨 GOOGLE CALENDAR EVENT INSERT FAILED:",
+      expect.objectContaining({
+        calendarId: "cal-1",
+        rawStartTime: "2026-07-16T12:00:00-04:00",
+        rawEndTime: "2026-07-16T16:00:00-04:00",
+        roomEmails: ["room-cal-2"],
+        googleStatus: 400,
+        googleError: expect.stringContaining("Invalid attendee email."),
+      }),
+    );
+    consoleErrorSpy.mockRestore();
+  });
+
   it("bookingContentsToDescription formats booking details", async () => {
     const bookingContents = {
       requestNumber: "42",

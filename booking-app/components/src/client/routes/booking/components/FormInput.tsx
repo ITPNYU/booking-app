@@ -115,7 +115,7 @@ export default function FormInput({
       formData?.origin === BookingOrigin.VIP);
   const isBooking = !isWalkIn && !isVIP;
 
-  const { isAutoApproval } = useCheckAutoApproval(isWalkIn, isVIP);
+  const { isAutoApproval } = useCheckAutoApproval(isWalkIn, isVIP, isMod);
 
   const getDefaultValue = (key: keyof UserApiData): string => {
     // For VIP and walk-in bookings, we don't need identity data.

@@ -1,14 +1,10 @@
-import { getBookingHourLimits } from "@/components/src/client/routes/booking/utils/bookingHourLimits";
-import { TENANTS } from "@/components/src/constants/tenants";
+import "server-only";
+
 import { BookingOrigin, Inputs, Role, RoomSetting } from "@/components/src/types";
 import type { DateSelectArg } from "fullcalendar";
-import { BookingLogger } from "@/lib/logger/bookingLogger";
+import { evaluateMcShouldAutoApprove } from "@/lib/stateMachines/autoApprovalGuards";
 import { logAutomaticCancellationTransition, type AutomaticCancellationReason } from "@/lib/stateMachines/logAutomaticCancellationTransition";
 import { and, assign, setup } from "xstate";
-import { checkAutoApprovalEligibility } from "@/lib/utils/autoApprovalUtils";
-
-// Time constants for clarity
-const ONE_HOUR_IN_MS = 60 * 60 * 1000;
 
 // Service configuration for factory-generated states
 interface ServiceConfig {
@@ -445,158 +441,8 @@ export const mcBookingMachine = setup({
 
   },
   guards: {
-    shouldAutoApprove: ({ context }) => {
-      // If this is a newly created XState (converted from existing booking without XState data), don't auto-approve
-      // This prevents auto-approval when converting existing bookings to XState
-      if (context._restoredFromStatus) {
-        console.log(
-          "🚫 XSTATE GUARD: Newly created XState from existing booking (no prior xstateData), requires manual approval",
-        );
-        console.log(
-          "🎯 XSTATE AUTO-APPROVAL GUARD RESULT: REJECTED (Converted from existing booking)",
-        );
-        return false;
-      }
-
-      // Implement actual auto-approval logic for Media Commons
-      if (context.tenant !== TENANTS.MC) {
-        console.log(
-          `🚫 XSTATE GUARD: Not Media Commons tenant (${context.tenant}), rejecting auto-approval`,
-        );
-        console.log(
-          "🎯 XSTATE AUTO-APPROVAL GUARD RESULT: REJECTED (Wrong tenant)",
-        );
-        return false;
-      }
-
-      // Check event duration against role-based limits
-      if (context.bookingCalendarInfo && context.selectedRooms) {
-        const startDate = new Date(context.bookingCalendarInfo.startStr);
-        const endDate = new Date(context.bookingCalendarInfo.endStr);
-        const duration = endDate.getTime() - startDate.getTime();
-        const durationHours = duration / ONE_HOUR_IN_MS;
-
-        // Get dynamic hour limits based on role and booking type
-        const { maxHours, minHours } = getBookingHourLimits(
-          context.selectedRooms,
-          context.role,
-          context.isWalkIn || false,
-          context.isVip || false,
-        );
-
-        if (durationHours > maxHours) {
-          console.log(
-            `🚫 XSTATE GUARD: Event duration exceeds maximum (${durationHours.toFixed(1)} hours > ${maxHours} hours max for ${context.role || "student"} ${context.isVip ? "VIP" : context.isWalkIn ? "walk-in" : "booking"})`,
-          );
-          console.log(
-            "🎯 XSTATE AUTO-APPROVAL GUARD RESULT: REJECTED (Duration exceeds max limit)",
-          );
-          return false;
-        }
-
-        if (durationHours < minHours) {
-          console.log(
-            `🚫 XSTATE GUARD: Event duration below minimum (${durationHours.toFixed(1)} hours < ${minHours} hours min for ${context.role || "student"} ${context.isVip ? "VIP" : context.isWalkIn ? "walk-in" : "booking"})`,
-          );
-          console.log(
-            "🎯 XSTATE AUTO-APPROVAL GUARD RESULT: REJECTED (Duration below min limit)",
-          );
-          return false;
-        }
-      }
-
-      // Check if any services are requested - if so, don't auto-approve (except for walk-ins)
-      if (
-        context.servicesRequested &&
-        typeof context.servicesRequested === "object" &&
-        !context.isWalkIn
-      ) {
-        const hasServices = Object.values(context.servicesRequested).some(
-          Boolean,
-        );
-        if (hasServices) {
-          console.log(
-            "🚫 XSTATE GUARD: Services requested, requires manual approval",
-          );
-          console.log(
-            "🎯 XSTATE AUTO-APPROVAL GUARD RESULT: REJECTED (Services requested)",
-          );
-          return false;
-        }
-      }
-
-      // Room eligibility and all other auto-approval rules are handled by checkAutoApprovalEligibility below
-      // (no longer using legacy room.shouldAutoApprove)
-
-      // Special case: VIP bookings with services should go to "Services Request" state, not auto-approve
-      if (context.isVip) {
-        const hasServices =
-          context.servicesRequested &&
-            typeof context.servicesRequested === "object"
-            ? Object.values(context.servicesRequested).some(Boolean)
-            : false;
-
-        if (hasServices) {
-          console.log(
-            "🚫 XSTATE GUARD: VIP booking with services should go to Services Request, not auto-approve",
-          );
-          console.log(
-            "🎯 XSTATE AUTO-APPROVAL GUARD RESULT: REJECTED (VIP with services)",
-          );
-          return false;
-        }
-      }
-
-      // Calculate duration if calendar info is available
-      let durationHours: number | undefined;
-      if (context.bookingCalendarInfo) {
-        const startDate = new Date(context.bookingCalendarInfo.startStr);
-        const endDate = new Date(context.bookingCalendarInfo.endStr);
-        const duration = endDate.getTime() - startDate.getTime();
-        durationHours = duration / ONE_HOUR_IN_MS;
-      }
-
-      // Map servicesRequested to format expected by autoApprovalUtils
-      const servicesRequested = context.servicesRequested
-        ? {
-          setup: context.servicesRequested.setup || false,
-          equipment: context.servicesRequested.equipment || false,
-          staffing: context.servicesRequested.staff || false,
-          catering: context.servicesRequested.catering || false,
-          cleaning: context.servicesRequested.cleaning || false,
-          security: context.servicesRequested.security || false,
-          auxiliary: context.servicesRequested.auxiliary || false,
-        }
-        : undefined;
-
-      // Use the new auto-approval utility
-      const result = checkAutoApprovalEligibility({
-        selectedRooms: context.selectedRooms || [],
-        role: context.role,
-        isWalkIn: context.isWalkIn,
-        isVip: context.isVip,
-        durationHours,
-        servicesRequested,
-      });
-
-      if (result.canAutoApprove) {
-        console.log("✅ XSTATE GUARD: All conditions met for auto-approval");
-        console.log("🎯 XSTATE AUTO-APPROVAL GUARD RESULT: APPROVED", {
-          isWalkIn: context.isWalkIn,
-          isVip: context.isVip,
-          reason: result.reason,
-          details: result.details,
-        });
-      } else {
-        console.log(`🚫 XSTATE GUARD: ${result.reason}`);
-        console.log("🎯 XSTATE AUTO-APPROVAL GUARD RESULT: REJECTED", {
-          reason: result.reason,
-          details: result.details,
-        });
-      }
-
-      return result.canAutoApprove;
-    },
+    shouldAutoApprove: ({ context }) =>
+      evaluateMcShouldAutoApprove(context),
     "isVip AND servicesRequested": and([
       ({ context }) => {
         const isVip = context.isVip || false;
