@@ -144,36 +144,51 @@ export default function FormInput({
     [isVIP, isWalkIn],
   );
 
-  const needsGenericSetup = useMemo(
-    () =>
-      getRoomsWithVisibleService(selectedRooms, "setup", serviceVisibility).some(
-        (r) => {
-          const mode = getServiceSectionConfig(r, "setup")?.mode;
-          return mode !== "radio" && mode !== "static";
-        },
-      ),
-    [selectedRooms, serviceVisibility],
-  );
-
-  const needsGenericSecuritySwitch = useMemo(
-    () =>
-      getRoomsWithVisibleService(
+  const needsGenericSetup = useMemo(() => {
+    const hasSpecialSetup = selectedRooms.some((r) => {
+      const mode = getServiceSectionConfig(r, "setup")?.mode;
+      return mode === "radio" || mode === "static";
+    });
+    if (hasSpecialSetup) {
+      // Multi-room: still show the generic switch for co-selected rooms
+      // that are not handled by BookingFormResourceServices.
+      return getRoomsWithVisibleService(
         selectedRooms,
-        "security",
+        "setup",
         serviceVisibility,
-      ).some((r) => getServiceSectionConfig(r, "security")?.mode !== "radio"),
-    [selectedRooms, serviceVisibility],
-  );
+      ).some((r) => {
+        const mode = getServiceSectionConfig(r, "setup")?.mode;
+        return mode !== "radio" && mode !== "static";
+      });
+    }
+    // Legacy / form-level: honor schema showSetup when no special configs exist.
+    return showSetup;
+  }, [selectedRooms, serviceVisibility, showSetup]);
 
-  const needsInteractiveEquipment = useMemo(
-    () =>
-      getRoomsWithVisibleService(
-        selectedRooms,
-        "equipment",
-        serviceVisibility,
-      ).some((r) => getServiceSectionConfig(r, "equipment")?.mode !== "static"),
-    [selectedRooms, serviceVisibility],
-  );
+  const needsGenericSecuritySwitch = useMemo(() => {
+    const securityRooms = getRoomsWithVisibleService(
+      selectedRooms,
+      "security",
+      serviceVisibility,
+    );
+    if (securityRooms.length === 0) return false;
+    // Show switch if any security room is not radio-mode (multi-room safe).
+    return securityRooms.some(
+      (r) => getServiceSectionConfig(r, "security")?.mode !== "radio",
+    );
+  }, [selectedRooms, serviceVisibility]);
+
+  const needsInteractiveEquipment = useMemo(() => {
+    const equipmentRooms = getRoomsWithVisibleService(
+      selectedRooms,
+      "equipment",
+      serviceVisibility,
+    );
+    if (equipmentRooms.length === 0) return false;
+    return equipmentRooms.some(
+      (r) => getServiceSectionConfig(r, "equipment")?.mode !== "static",
+    );
+  }, [selectedRooms, serviceVisibility]);
 
   const cateringDescriptionHtml = useMemo(() => {
     for (const room of selectedRooms) {
