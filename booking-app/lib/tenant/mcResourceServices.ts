@@ -481,6 +481,10 @@ export function applyMcResourceServices(resource: Resource): Resource {
   if (!mcServices) return resource;
 
   const { services } = resource;
+  // Preserve admin-authored configs: non-empty object or non-empty legacy array.
+  if (Array.isArray(services) && services.length > 0) {
+    return resource;
+  }
   if (
     services &&
     typeof services === "object" &&

@@ -1,5 +1,6 @@
 import { Department, Inputs, Role } from "@/components/src/types";
 import { toBookingCalendarStr } from "@/components/src/client/utils/date";
+import { getServiceSectionConfig } from "@/components/src/utils/resourceServicesUtils";
 
 import { useContext } from "react";
 import { BookingContext } from "../../booking/bookingProvider";
@@ -70,11 +71,25 @@ export default function useExistingBooking() {
         ? booking.roomSetupByRoom
         : legacySetupRequested
           ? Object.fromEntries(
-              roomIdsForMaps.map((id) => [
-                id,
-                // Prefer free-text details as the preserved answer; radio may not match.
-                booking.setupDetails?.trim() || booking.roomSetup || "yes",
-              ]),
+              rooms.map((room) => {
+                const id = String(room.roomId);
+                const cfg = getServiceSectionConfig(room, "setup");
+                if (cfg?.mode === "radio" && (cfg.options?.length ?? 0) > 0) {
+                  const details = booking.setupDetails?.trim();
+                  const match = cfg.options!.find(
+                    (o) =>
+                      o.value === details ||
+                      o.label === details ||
+                      o.value === booking.roomSetup,
+                  );
+                  // Prefer a real option value (or schema default) over free-text.
+                  return [id, match?.value ?? cfg.defaultValue ?? ""];
+                }
+                return [
+                  id,
+                  booking.setupDetails?.trim() || booking.roomSetup || "yes",
+                ];
+              }),
             )
           : booking.roomSetupByRoom;
 

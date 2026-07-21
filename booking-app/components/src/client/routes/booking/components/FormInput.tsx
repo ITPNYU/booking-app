@@ -42,6 +42,7 @@ import useSubmitBooking from "../hooks/useSubmitBooking";
 import {
   anyRoomHasVisibleService,
   getResourceServicesConfig,
+  getRoomsWithVisibleService,
   getServiceSectionConfig,
   ServiceVisibilityContext,
 } from "../../../../utils/resourceServicesUtils";
@@ -143,29 +144,35 @@ export default function FormInput({
     [isVIP, isWalkIn],
   );
 
-  const hasConfigSetup = useMemo(
+  const needsGenericSetup = useMemo(
     () =>
-      selectedRooms.some((r) => {
-        const mode = getServiceSectionConfig(r, "setup")?.mode;
-        return mode === "radio" || mode === "static";
-      }),
-    [selectedRooms],
+      getRoomsWithVisibleService(selectedRooms, "setup", serviceVisibility).some(
+        (r) => {
+          const mode = getServiceSectionConfig(r, "setup")?.mode;
+          return mode !== "radio" && mode !== "static";
+        },
+      ),
+    [selectedRooms, serviceVisibility],
   );
 
-  const hasSecuritySelect = useMemo(
+  const needsGenericSecuritySwitch = useMemo(
     () =>
-      selectedRooms.some(
-        (r) => getServiceSectionConfig(r, "security")?.mode === "radio",
-      ),
-    [selectedRooms],
+      getRoomsWithVisibleService(
+        selectedRooms,
+        "security",
+        serviceVisibility,
+      ).some((r) => getServiceSectionConfig(r, "security")?.mode !== "radio"),
+    [selectedRooms, serviceVisibility],
   );
 
-  const hasStaticEquipment = useMemo(
+  const needsInteractiveEquipment = useMemo(
     () =>
-      selectedRooms.some(
-        (r) => getServiceSectionConfig(r, "equipment")?.mode === "static",
-      ),
-    [selectedRooms],
+      getRoomsWithVisibleService(
+        selectedRooms,
+        "equipment",
+        serviceVisibility,
+      ).some((r) => getServiceSectionConfig(r, "equipment")?.mode !== "static"),
+    [selectedRooms, serviceVisibility],
   );
 
   const cateringDescriptionHtml = useMemo(() => {
@@ -327,6 +334,14 @@ export default function FormInput({
     }
   }, [cateringValue, cleaningValue, setValue, cateringRequiresCleaning]);
 
+  // Drop stale catering chartfield errors when the field is hidden.
+  useEffect(() => {
+    if (cateringValue === "yes") return;
+    unregister("chartFieldForCatering");
+    clearErrors("chartFieldForCatering");
+    setValue("chartFieldForCatering", "", { shouldValidate: false });
+  }, [cateringValue, unregister, clearErrors, setValue]);
+
   const hireSecurityValue = watch("hireSecurity");
   // Track if hireSecurity was auto-set by attendance logic
   const hireSecurityWasAutoSet = useRef(false);
@@ -362,7 +377,7 @@ export default function FormInput({
       hireSecurityManuallySet.current = false;
     }
 
-    if (isLargeEvent && !hasSecuritySelect) {
+    if (isLargeEvent && needsGenericSecuritySwitch) {
       if (hireSecurityValue !== "yes") {
         setValue("hireSecurity", "yes", { shouldValidate: true });
         hireSecurityWasAutoSet.current = true;
@@ -376,7 +391,7 @@ export default function FormInput({
         autoHireSecurityValueRef.current = "";
       }
     }
-  }, [isLargeEvent, hireSecurityValue, setValue, hasSecuritySelect]);
+  }, [isLargeEvent, hireSecurityValue, setValue, needsGenericSecuritySwitch]);
 
   const validateExpectedAttendance = useCallback(
     (value: string) => {
@@ -597,7 +612,7 @@ export default function FormInput({
         formatFieldLabel={formatFieldLabel}
         hireSecurityValue={hireSecurityValue}
       />
-      {!isWalkIn && showSetup && !hasConfigSetup && (
+      {!isWalkIn && showSetup && needsGenericSetup && (
         <div style={{ marginBottom: 32 }}>
           <BookingFormSwitch
             id="roomSetup"
@@ -633,7 +648,7 @@ export default function FormInput({
           )}
         </div>
       )}
-      {showEquipment && !hasStaticEquipment && (
+      {showEquipment && needsInteractiveEquipment && (
         <div style={{ marginBottom: 32 }}>
           <BookingFormEquipmentServices
             id="equipmentServices"
@@ -764,7 +779,7 @@ export default function FormInput({
           )}
         </div>
       )}
-      {!isWalkIn && showHireSecurity && !hasSecuritySelect && (
+      {!isWalkIn && showHireSecurity && needsGenericSecuritySwitch && (
         <div style={{ marginBottom: 32 }}>
           <BookingFormSwitch
             id="hireSecurity"

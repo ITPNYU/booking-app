@@ -105,7 +105,7 @@ export const getMediaCommonsServices = (data: any) => ({
   catering: !!data.catering && data.catering !== "no",
   cleaning: !!data.cleaningService && data.cleaningService !== "no",
   security:
-    data.hireSecurity === "yes" || data.hireSecurity === "willoughby",
+    !!data.hireSecurity && !["", "no"].includes(String(data.hireSecurity)),
   auxiliary:
     !!data.auxiliarySpaceRequested ||
     Object.values(data.studentLoungeByRoom ?? {}).some((v) => v === "yes") ||

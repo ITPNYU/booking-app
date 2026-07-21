@@ -19,11 +19,20 @@ describe("getMediaCommonsServices", () => {
     expect(services.security).toBe(true);
   });
 
-  it("does not request security when hireSecurity is empty", () => {
-    const services = getMediaCommonsServices({
-      hireSecurity: "",
-    });
-    expect(services.security).toBe(false);
+  it("requests security for custom radio values", () => {
+    expect(
+      getMediaCommonsServices({ hireSecurity: "willoughby" }).security,
+    ).toBe(true);
+    expect(
+      getMediaCommonsServices({ hireSecurity: "main_entrance" }).security,
+    ).toBe(true);
+  });
+
+  it("does not request security when hireSecurity is empty or no", () => {
+    expect(getMediaCommonsServices({ hireSecurity: "" }).security).toBe(false);
+    expect(getMediaCommonsServices({ hireSecurity: "no" }).security).toBe(
+      false,
+    );
   });
 
   it("detects setup from per-room maps", () => {
@@ -103,17 +112,28 @@ describe("resource service visibility", () => {
 });
 
 describe("applyMcResourceServices", () => {
-  it("applies MC defaults for legacy resources without object config", () => {
+  it("applies MC defaults when services are missing or empty", () => {
     const result = applyMcResourceServices({
       resourceId: "202",
       name: "202",
       capacity: 50,
-      services: ["catering"],
+      services: [],
     });
     expect(result.services?.catering?.forceCleaning).toBe(true);
     expect(result.services?.catering?.chartField?.required).toBe(true);
     expect(result.services?.setup?.mode).toBe("static");
     expect(result.services?.annex?.mode).toBe("radio");
+  });
+
+  it("preserves non-empty legacy services arrays", () => {
+    const legacy = ["equipment", "catering"];
+    const result = applyMcResourceServices({
+      resourceId: "202",
+      name: "202",
+      capacity: 50,
+      services: legacy,
+    });
+    expect(result.services).toEqual(legacy);
   });
 
   it("does not overwrite an existing object services config", () => {
@@ -152,7 +172,8 @@ describe("migrateResourceServices", () => {
     });
     expect(result.equipment?.mode).toBeUndefined();
     expect(result.equipment?.label).toBe("Equipment");
-    expect(result.catering?.forceCleaning).toBe(true);
+    expect(result.catering?.forceCleaning).toBeUndefined();
+    expect(result.catering?.label).toBe("Catering");
     expect(result.setup?.label).toBe("Room Setup");
   });
 

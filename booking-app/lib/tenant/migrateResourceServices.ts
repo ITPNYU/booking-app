@@ -275,7 +275,6 @@ export function migrateResourceServices(
       } else if (key === "catering") {
         result.catering = {
           label: SERVICE_LABELS.catering,
-          forceCleaning: true,
         };
       } else if (key === "cleaning") {
         result.cleaning = { label: SERVICE_LABELS.cleaning };
