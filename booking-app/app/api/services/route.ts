@@ -72,38 +72,40 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const booking = await serverGetDataByCalendarEventId<any>(
-    TableNames.BOOKING,
-    calendarEventId,
-    tenant,
-  );
-  if (!booking) {
-    return NextResponse.json({ error: "Booking not found" }, { status: 404 });
-  }
-
-  const role = await resolveCallerRole(session, tenant);
-  const isAdmin =
-    role === PagePermission.ADMIN || role === PagePermission.SUPER_ADMIN;
-  const isPaCloseout = action === "closeout" && role === PagePermission.PA;
-  if (!isAdmin && !isPaCloseout) {
-    const resourceIds = parseBookingResourceIds(booking.roomId);
-    const isAssigned = await serverIsServiceApproverForAllResources(
-      email,
-      resourceIds,
-      serviceType,
+  try {
+    const booking = await serverGetDataByCalendarEventId<any>(
+      TableNames.BOOKING,
+      calendarEventId,
       tenant,
     );
-    const isLegacyEquipmentApprover =
-      isAssigned ? false : await serverIsEquipmentApprover(email, tenant);
-    if (!isAssigned && !isLegacyEquipmentApprover) {
-      return NextResponse.json(
-        { error: "Forbidden: service approver assignment required" },
-        { status: 403 },
-      );
+    if (!booking) {
+      return NextResponse.json({ error: "Booking not found" }, { status: 404 });
     }
-  }
 
-  try {
+    const role = await resolveCallerRole(session, tenant);
+    const isAdmin =
+      role === PagePermission.ADMIN || role === PagePermission.SUPER_ADMIN;
+    const isPaCloseout = action === "closeout" && role === PagePermission.PA;
+    if (!isAdmin && !isPaCloseout) {
+      const resourceIds = parseBookingResourceIds(booking.roomId);
+      const isAssigned = await serverIsServiceApproverForAllResources(
+        email,
+        resourceIds,
+        serviceType,
+        tenant,
+      );
+      const isLegacyEquipmentApprover =
+        !isAssigned &&
+        serviceType === "equipment" &&
+        (await serverIsEquipmentApprover(email, tenant));
+      if (!isAssigned && !isLegacyEquipmentApprover) {
+        return NextResponse.json(
+          { error: "Forbidden: service approver assignment required" },
+          { status: 403 },
+        );
+      }
+    }
+
     console.log(
       `🎯 SERVICE ${action.toUpperCase()} REQUEST [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
       {

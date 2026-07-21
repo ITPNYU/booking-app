@@ -126,7 +126,25 @@ describe("service approver server helpers", () => {
     ).resolves.toEqual(["one@nyu.edu"]);
   });
 
-  it("falls back to legacy service approvers when no resource assignments exist", async () => {
+  it("returns no approvers when any requested resource has no assignment", async () => {
+    collections.set("mc-usersServiceApprovers", [
+      {
+        id: "1",
+        data: { resourceId: "a", service: "setup", email: "one@nyu.edu" },
+      },
+    ]);
+    collections.set("mc-usersRights", [
+      { id: "legacy", data: { email: "LEGACY@nyu.edu", isSetup: true } },
+    ]);
+    const { serverResolveServiceApproverEmails } =
+      await import("@/lib/firebase/server/adminDb");
+
+    await expect(
+      serverResolveServiceApproverEmails(["a", "b"], "setup", "mc"),
+    ).resolves.toEqual([]);
+  });
+
+  it("does not fall back to legacy service approvers when no resource assignments exist", async () => {
     collections.set("mc-usersServiceApprovers", [
       {
         id: "1",
@@ -141,32 +159,10 @@ describe("service approver server helpers", () => {
 
     await expect(
       serverResolveServiceApproverEmails(["a", "b"], "setup", "mc"),
-    ).resolves.toEqual(["legacy@nyu.edu"]);
-  });
-
-  it("does not let legacy approvers override explicit resource assignments", async () => {
-    collections.set("mc-usersServiceApprovers", [
-      {
-        id: "1",
-        data: {
-          resourceId: "a",
-          service: "setup",
-          email: "assigned@nyu.edu",
-        },
-      },
-    ]);
-    collections.set("mc-usersRights", [
-      { id: "legacy", data: { email: "LEGACY@nyu.edu", isSetup: true } },
-    ]);
-    const { serverResolveServiceApproverEmails } =
-      await import("@/lib/firebase/server/adminDb");
-
-    await expect(
-      serverResolveServiceApproverEmails(["a", "b"], "setup", "mc"),
     ).resolves.toEqual([]);
   });
 
-  it("resolves callers covered by explicit and legacy assignments per resource", async () => {
+  it("does not let legacy approvers override explicit resource assignments", async () => {
     collections.set("mc-usersServiceApprovers", [
       {
         id: "1",
@@ -186,7 +182,7 @@ describe("service approver server helpers", () => {
 
     await expect(
       serverResolveServiceApproverEmails(["a", "b"], "setup", "mc"),
-    ).resolves.toEqual(["assigned@nyu.edu"]);
+    ).resolves.toEqual([]);
   });
 
   it("checks whether a caller is assigned to every resource", async () => {
@@ -256,7 +252,7 @@ describe("service approver server helpers", () => {
     ).resolves.toBe(false);
   });
 
-  it("allows legacy service approvers when no resource assignments exist", async () => {
+  it("does not authorize legacy service approvers when no resource assignments exist", async () => {
     collections.set("mc-usersRights", [
       { id: "legacy", data: { email: "legacy@nyu.edu", isSetup: true } },
     ]);
@@ -270,7 +266,7 @@ describe("service approver server helpers", () => {
         "setup",
         "mc",
       ),
-    ).resolves.toBe(true);
+    ).resolves.toBe(false);
   });
 
   it("does not authorize legacy service approvers for explicit resource assignments", async () => {
@@ -300,7 +296,7 @@ describe("service approver server helpers", () => {
     ).resolves.toBe(false);
   });
 
-  it("authorizes callers covered by explicit and legacy assignments per resource", async () => {
+  it("does not authorize callers for partially assigned resource sets", async () => {
     collections.set("mc-usersServiceApprovers", [
       {
         id: "1",
@@ -324,6 +320,6 @@ describe("service approver server helpers", () => {
         "setup",
         "mc",
       ),
-    ).resolves.toBe(true);
+    ).resolves.toBe(false);
   });
 });

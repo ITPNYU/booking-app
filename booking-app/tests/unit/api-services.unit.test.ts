@@ -80,7 +80,11 @@ describe("POST /api/services", () => {
     mockRequireSession.mockResolvedValue(null);
 
     const response = await POST(
-      request({ calendarEventId: "cal", serviceType: "setup", action: "approve" }),
+      request({
+        calendarEventId: "cal",
+        serviceType: "setup",
+        action: "approve",
+      }),
     );
 
     await expect(parseJson(response)).resolves.toEqual({
@@ -93,7 +97,11 @@ describe("POST /api/services", () => {
     mockServerIsServiceApproverForAllResources.mockResolvedValue(false);
 
     const response = await POST(
-      request({ calendarEventId: "cal", serviceType: "setup", action: "approve" }),
+      request({
+        calendarEventId: "cal",
+        serviceType: "setup",
+        action: "approve",
+      }),
     );
 
     expect(mockServerIsServiceApproverForAllResources).toHaveBeenCalledWith(
@@ -110,21 +118,42 @@ describe("POST /api/services", () => {
     expect(response.status).toBe(403);
   });
 
-  it("allows existing equipment approvers without a per-resource service assignment", async () => {
+  it("allows existing equipment approvers for equipment without a per-resource service assignment", async () => {
     mockServerIsServiceApproverForAllResources.mockResolvedValue(false);
     mockServerIsEquipmentApprover.mockResolvedValue(true);
 
     const response = await POST(
-      request({ calendarEventId: "cal", serviceType: "setup", action: "approve" }),
+      request({
+        calendarEventId: "cal",
+        serviceType: "equipment",
+        action: "approve",
+      }),
     );
 
     expect(mockExecuteXStateTransition).toHaveBeenCalledWith(
       "cal",
-      "approveSetup",
+      "approveEquipment",
       "mc",
       "service@nyu.edu",
     );
     expect(response.status).toBe(200);
+  });
+
+  it("does not allow existing equipment approvers for non-equipment services", async () => {
+    mockServerIsServiceApproverForAllResources.mockResolvedValue(false);
+    mockServerIsEquipmentApprover.mockResolvedValue(true);
+
+    const response = await POST(
+      request({
+        calendarEventId: "cal",
+        serviceType: "setup",
+        action: "approve",
+      }),
+    );
+
+    expect(mockServerIsEquipmentApprover).not.toHaveBeenCalled();
+    expect(mockExecuteXStateTransition).not.toHaveBeenCalled();
+    expect(response.status).toBe(403);
   });
 
   it("uses the session email and ignores spoofed body email", async () => {
@@ -151,7 +180,11 @@ describe("POST /api/services", () => {
     mockServerIsServiceApproverForAllResources.mockResolvedValue(false);
 
     const response = await POST(
-      request({ calendarEventId: "cal", serviceType: "setup", action: "decline" }),
+      request({
+        calendarEventId: "cal",
+        serviceType: "setup",
+        action: "decline",
+      }),
     );
 
     expect(mockServerIsServiceApproverForAllResources).not.toHaveBeenCalled();
@@ -212,12 +245,33 @@ describe("POST /api/services", () => {
     mockServerGetDataByCalendarEventId.mockResolvedValue(null);
 
     const response = await POST(
-      request({ calendarEventId: "missing", serviceType: "setup", action: "approve" }),
+      request({
+        calendarEventId: "missing",
+        serviceType: "setup",
+        action: "approve",
+      }),
     );
 
     await expect(parseJson(response)).resolves.toEqual({
       status: 404,
       body: { error: "Booking not found" },
+    });
+  });
+
+  it("returns structured JSON when authorization lookup fails", async () => {
+    mockResolveCallerRole.mockRejectedValue(new Error("firestore unavailable"));
+
+    const response = await POST(
+      request({
+        calendarEventId: "cal",
+        serviceType: "setup",
+        action: "approve",
+      }),
+    );
+
+    await expect(parseJson(response)).resolves.toEqual({
+      status: 500,
+      body: { error: "firestore unavailable" },
     });
   });
 });

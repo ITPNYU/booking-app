@@ -350,59 +350,8 @@ export const serverRemoveServiceApprover = async (
   );
 };
 
-const SERVICE_USER_RIGHT_FLAGS: Record<string, string> = {
-  setup: "isSetup",
-  equipment: "isEquipment",
-  staff: "isStaffing",
-  catering: "isCatering",
-  cleaning: "isCleaning",
-  security: "isSecurity",
-};
-
 const dedupeStrings = (values: string[]): string[] =>
   Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)));
-
-const serverResolveLegacyServiceApproverEmails = async (
-  service: string,
-  tenant?: string,
-): Promise<string[]> => {
-  const flagField = SERVICE_USER_RIGHT_FLAGS[service.trim()];
-  if (!flagField) return [];
-  const records = await serverFetchAllDataFromCollection<DocumentData>(
-    TableNames.USERS_RIGHTS,
-    [{ field: flagField, operator: "==", value: true }],
-    tenant,
-  );
-  return Array.from(
-    new Set(
-      records
-        .map((record) =>
-          typeof record.email === "string"
-            ? normalizeApproverEmail(record.email)
-            : "",
-        )
-        .filter(Boolean),
-    ),
-  );
-};
-
-const serverIsLegacyServiceApprover = async (
-  email: string,
-  service: string,
-  tenant?: string,
-): Promise<boolean> => {
-  const flagField = SERVICE_USER_RIGHT_FLAGS[service.trim()];
-  if (!flagField) return false;
-  const records = await serverFetchAllDataFromCollection<DocumentData>(
-    TableNames.USERS_RIGHTS,
-    [
-      { field: "email", operator: "==", value: normalizeApproverEmail(email) },
-      { field: flagField, operator: "==", value: true },
-    ],
-    tenant,
-  );
-  return records.length > 0;
-};
 
 const groupServiceApproverEmailsByResource = (
   records: ServiceApproverData[],
@@ -460,20 +409,8 @@ export const serverResolveServiceApproverEmails = async (
   );
   const emailsByResource =
     groupServiceApproverEmailsByResource(matchingRecords);
-  const needsLegacyFallback = normalizedResourceIds.some((resourceId) => {
-    const explicitEmails = emailsByResource.get(resourceId);
-    return !explicitEmails || explicitEmails.length === 0;
-  });
-  const legacyEmails = needsLegacyFallback
-    ? await serverResolveLegacyServiceApproverEmails(normalizedService, tenant)
-    : [];
   const emailSetsByResource = normalizedResourceIds.map((resourceId) => {
-    const explicitEmails = emailsByResource.get(resourceId);
-    return new Set(
-      explicitEmails && explicitEmails.length > 0
-        ? explicitEmails
-        : legacyEmails,
-    );
+    return new Set(emailsByResource.get(resourceId) ?? []);
   });
   const [firstSet, ...otherSets] = emailSetsByResource;
   if (!firstSet) return [];
@@ -509,23 +446,9 @@ export const serverIsServiceApproverForAllResources = async (
   );
   const emailsByResource =
     groupServiceApproverEmailsByResource(matchingRecords);
-  const needsLegacyFallback = normalizedResourceIds.some((resourceId) => {
-    const explicitEmails = emailsByResource.get(resourceId);
-    return !explicitEmails || explicitEmails.length === 0;
-  });
-  const isLegacyServiceApprover = needsLegacyFallback
-    ? await serverIsLegacyServiceApprover(
-        normalizedEmail,
-        normalizedService,
-        tenant,
-      )
-    : false;
   return normalizedResourceIds.every((resourceId) => {
-    const explicitEmails = emailsByResource.get(resourceId);
-    if (explicitEmails && explicitEmails.length > 0) {
-      return explicitEmails.includes(normalizedEmail);
-    }
-    return isLegacyServiceApprover;
+    const explicitEmails = emailsByResource.get(resourceId) ?? [];
+    return explicitEmails.includes(normalizedEmail);
   });
 };
 
