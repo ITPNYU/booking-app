@@ -1,3 +1,4 @@
+import { bookingCalendarStrToDate } from "@/components/src/client/utils/date";
 import { toFirebaseTimestampFromString } from "@/components/src/client/utils/serverDate";
 import {
   firstApproverEmails,
@@ -76,48 +77,6 @@ export function createXStateData(
   };
 }
 
-// Common function to create XState snapshot data
-async function createXStateSnapshotData(
-  tenant: string,
-  calendarEventId: string,
-  email: string,
-  targetState: string,
-  context?: any,
-) {
-  const { mcBookingMachine } =
-    await import("@/lib/stateMachines/mcBookingMachine");
-  const { createActor } = await import("xstate");
-
-  // Create fresh XState actor
-  const freshActor = createActor(mcBookingMachine, {
-    input: {
-      tenant,
-      calendarEventId,
-      email,
-      ...context,
-    },
-  });
-
-  freshActor.start();
-
-  // Get the current snapshot
-  const currentSnapshot = freshActor.getSnapshot();
-
-  // Use the common function to create XState data
-  const xstateData = createXStateData(
-    "MC Booking Request",
-    {
-      ...currentSnapshot,
-      context: context || currentSnapshot.context,
-    },
-    targetState,
-  );
-
-  freshActor.stop();
-
-  return xstateData;
-}
-
 // Clean object by removing undefined values for Firestore compatibility
 function cleanObjectForFirestore(obj: any): any {
   if (obj === null || obj === undefined) {
@@ -165,7 +124,7 @@ const getTenantRooms = async (tenant?: string) => {
     );
 
     return resourcesWithCorrectCalendarIds.map((resource: any) => ({
-      roomId: resource.roomId,
+      roomId: String(resource.resourceId ?? resource.roomId),
       name: resource.name,
       capacity: resource.capacity?.toString(),
       calendarId: resource.calendarId,
@@ -233,9 +192,7 @@ async function createBookingCalendarEvent(
     throw Error(`calendarId not found for room ${room.roomId}`);
   }
 
-  const selectedRoomIds = selectedRooms.map(
-    (r: { roomId: number }) => r.roomId,
-  );
+  const selectedRoomIds = selectedRooms.map((r) => r.roomId);
   const otherRoomEmails = otherRooms.map(
     (r: { calendarId: string }) => r.calendarId,
   );
@@ -314,8 +271,8 @@ async function handleBookingApprovalEmails(
     );
 
     // Format dates and times properly
-    const startDate = new Date(bookingCalendarInfo?.startStr);
-    const endDate = new Date(bookingCalendarInfo?.endStr);
+    const startDate = bookingCalendarStrToDate(bookingCalendarInfo?.startStr);
+    const endDate = bookingCalendarStrToDate(bookingCalendarInfo?.endStr);
 
     const emailPromises = recipients.map(recipient => {
       console.log(
@@ -470,12 +427,22 @@ async function checkOverlap(
 ) {
   const calendar = await getCalendarClient();
 
+  // Google requires RFC3339 with mandatory offset for timeMin/timeMax;
+  // bookingCalendarStrToDate also absorbs offset-less strings from stale
+  // client bundles.
+  const timeMin = bookingCalendarStrToDate(
+    bookingCalendarInfo.startStr,
+  ).toISOString();
+  const timeMax = bookingCalendarStrToDate(
+    bookingCalendarInfo.endStr,
+  ).toISOString();
+
   // Check each selected room for overlaps
   for (const room of selectedRooms) {
     const events = await calendar.events.list({
       calendarId: room.calendarId,
-      timeMin: bookingCalendarInfo.startStr,
-      timeMax: bookingCalendarInfo.endStr,
+      timeMin,
+      timeMax,
       singleEvents: true,
     });
 
@@ -499,8 +466,8 @@ async function checkOverlap(
 
       const eventStart = new Date(event.start.dateTime || event.start.date);
       const eventEnd = new Date(event.end.dateTime || event.end.date);
-      const requestStart = new Date(bookingCalendarInfo.startStr);
-      const requestEnd = new Date(bookingCalendarInfo.endStr);
+      const requestStart = new Date(timeMin);
+      const requestEnd = new Date(timeMax);
       // log the event that overlaps and then return
       if (
         (eventStart >= requestStart && eventStart < requestEnd) ||
@@ -563,7 +530,27 @@ export async function POST(request: NextRequest) {
     },
   });
 
-  const hasOverlap = await checkOverlap(selectedRooms, bookingCalendarInfo);
+  let hasOverlap: boolean;
+  try {
+    hasOverlap = await checkOverlap(selectedRooms, bookingCalendarInfo);
+  } catch (err: any) {
+    console.error(
+      `🚨 OVERLAP CHECK FAILED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+      {
+        googleStatus: err?.response?.status ?? err?.code,
+        googleError: JSON.stringify(
+          err?.response?.data ?? err?.errors ?? err?.message,
+        ),
+        roomIds: selectedRooms?.map((r: any) => r.roomId),
+        startStr: bookingCalendarInfo?.startStr,
+        endStr: bookingCalendarInfo?.endStr,
+      },
+    );
+    return NextResponse.json(
+      { error: "Unable to verify room availability. Please try again." },
+      { status: 500 },
+    );
+  }
   if (hasOverlap) {
     return NextResponse.json(
       { error: "Time slot no longer available" },
@@ -578,13 +565,18 @@ export async function POST(request: NextRequest) {
       FormContextLevel.FULL_FORM,
       bookingRoleField,
     );
-    const selectedRoomIdsNums: number[] = Array.isArray(selectedRooms)
+    const selectedRoomIdsForLimits: string[] = Array.isArray(selectedRooms)
       ? selectedRooms
-          .map((r: any) => Number(r?.roomId))
-          .filter((n: number) => Number.isFinite(n))
+          .map((r: any) => (r?.roomId == null ? "" : String(r.roomId).trim()))
+          .filter((resourceId: string) => resourceId.length > 0)
       : [];
 
-    if (tenant && email && bookingRoleField && selectedRoomIdsNums.length > 0) {
+    if (
+      tenant &&
+      email &&
+      bookingRoleField &&
+      selectedRoomIdsForLimits.length > 0
+    ) {
       const tenantSchema = await serverGetDocumentById<SchemaContextType>(
         TableNames.TENANT_SCHEMA,
         tenant,
@@ -596,7 +588,7 @@ export async function POST(request: NextRequest) {
         email,
         bookingRoleField,
         limitRoleKey,
-        selectedRoomIds: selectedRoomIdsNums,
+        selectedRoomIds: selectedRoomIdsForLimits,
         schema: tenantSchema,
       });
 
@@ -817,16 +809,14 @@ export async function POST(request: NextRequest) {
   // Generate Sequential ID early so it can be used in calendar description
   const sequentialId = await serverGetNextSequentialId("bookings", tenant);
 
-  const selectedRoomIds = selectedRooms
-    .map((r: { roomId: number }) => r.roomId)
-    .join(", ");
   const selectedRoomIdsArray = selectedRooms
-    .map((r: { roomId: number | string }) => Number((r as any)?.roomId))
-    .filter((n: number) => Number.isFinite(n));
+    .map((r: { roomId: number | string }) => String(r.roomId).trim())
+    .filter((resourceId: string) => resourceId.length > 0);
+  const selectedRoomIds = selectedRoomIdsArray.join(", ");
 
   // Build booking contents for description
-  const startDateObj = new Date(bookingCalendarInfo.startStr);
-  const endDateObj = new Date(bookingCalendarInfo.endStr);
+  const startDateObj = bookingCalendarStrToDate(bookingCalendarInfo.startStr);
+  const endDateObj = bookingCalendarStrToDate(bookingCalendarInfo.endStr);
 
   // Use display values for calendar description
   const dataWithDisplayValues = {
@@ -861,10 +851,29 @@ export async function POST(request: NextRequest) {
       bookingCalendarInfo,
       description,
     );
-  } catch (err) {
+  } catch (err: any) {
+    console.error(
+      `🚨 CALENDAR EVENT CREATION FAILED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+      {
+        googleStatus: err?.response?.status ?? err?.code,
+        googleError: JSON.stringify(
+          err?.response?.data ?? err?.errors ?? err?.message,
+        ),
+        roomIds: selectedRoomIds,
+        startStr: bookingCalendarInfo?.startStr,
+        endStr: bookingCalendarInfo?.endStr,
+        descriptionLength: description.length,
+      },
+    );
     console.error(err);
+    const googleMessage = err?.errors?.[0]?.message ?? err?.message;
     return NextResponse.json(
-      { result: "error", message: "ROOM CALENDAR ID NOT FOUND" },
+      {
+        result: "error",
+        message: googleMessage
+          ? `Failed to create calendar event: ${googleMessage}`
+          : "Failed to create calendar event",
+      },
       { status: 500 },
     );
   }

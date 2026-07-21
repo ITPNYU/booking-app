@@ -5,6 +5,66 @@ import type {
 } from "@/components/src/client/routes/components/schemaTypes";
 import { generateDefaultSchema } from "@/components/src/client/routes/components/schemaTypes";
 
+function normalizeResourceId(value: unknown, field: string): string {
+  if (
+    (typeof value !== "string" && typeof value !== "number") ||
+    (typeof value === "number" && !Number.isFinite(value))
+  ) {
+    throw new Error(`${field} must be a string or finite number`);
+  }
+  const resourceId = String(value);
+  if (!resourceId.trim()) {
+    throw new Error(`${field} must be non-empty`);
+  }
+  if (resourceId.includes(",")) {
+    throw new Error(`${field} must not contain commas`);
+  }
+  return resourceId;
+}
+
+function coerceResource(
+  rawResource: Resource | Record<string, unknown>,
+  index: number,
+): Resource {
+  const {
+    roomId,
+    resourceId,
+    ...resource
+  } = rawResource as Record<string, unknown>;
+  const canonicalId =
+    resourceId === undefined
+      ? normalizeResourceId(roomId, `resources[${index}].roomId`)
+      : normalizeResourceId(resourceId, `resources[${index}].resourceId`);
+
+  if (
+    roomId !== undefined &&
+    normalizeResourceId(roomId, `resources[${index}].roomId`) !== canonicalId
+  ) {
+    throw new Error(
+      `resources[${index}] has conflicting resourceId and roomId`,
+    );
+  }
+
+  return {
+    ...resource,
+    resourceId: canonicalId,
+  } as Resource;
+}
+
+function coerceResources(
+  resources: Array<Resource | Record<string, unknown>>,
+): Resource[] {
+  const seen = new Set<string>();
+  return resources.map((resource, index) => {
+    const coerced = coerceResource(resource, index);
+    if (seen.has(coerced.resourceId)) {
+      throw new Error(`resources has duplicate resourceId "${coerced.resourceId}"`);
+    }
+    seen.add(coerced.resourceId);
+    return coerced;
+  });
+}
+
 /**
  * Normalizes a tenant schema document from Firestore into SchemaContextType by
  * merging the stored (canonical nested-shape) document over the tenant
@@ -61,7 +121,9 @@ export function coerceTenantSchema(
       },
     },
     resources: Array.isArray(raw.resources)
-      ? (raw.resources as Resource[])
+      ? coerceResources(
+          raw.resources as Array<Resource | Record<string, unknown>>,
+        )
       : base.resources,
     attestations: Array.isArray(raw.attestations)
       ? (raw.attestations as SchemaContextType["attestations"])

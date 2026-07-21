@@ -1,11 +1,11 @@
 import { clientGetFinalApproverEmailFromDatabase } from "@/lib/firebase/firebase";
 
 import { BookingStatusLabel } from "./types";
-import { getApprovedCcEmail, getCanceledCcEmail } from "./tenantPolicy";
 
 export enum TableNames {
   ADMINS = "usersAdmin",
   APPROVERS = "usersApprovers",
+  RESOURCE_APPROVERS = "usersResourceApprovers",
   BANNED = "usersBanned",
   BOOKING = "bookings",
   BOOKING_TYPES = "bookingTypes",
@@ -45,6 +45,7 @@ export const getTenantCollectionName = (
     "settings",
     "usersWhitelist",
     "usersApprovers",
+    "usersResourceApprovers",
     "usersRights",
     "counters",
   ];
@@ -100,6 +101,15 @@ export enum ApproverLevel {
   EQUIPMENT = 3,
 }
 
+export const getResourceApproverDocumentId = (
+  resourceId: string,
+  email: string,
+): string => {
+  const encodedResourceId = encodeURIComponent(resourceId.trim());
+  const encodedEmail = encodeURIComponent(email.trim().toLowerCase());
+  return `${encodedResourceId.length}-${encodedResourceId}${encodedEmail}`;
+};
+
 /** ******** CONTACTS ************/
 
 export const clientGetFinalApproverEmail = async (): Promise<string> => {
@@ -107,27 +117,4 @@ export const clientGetFinalApproverEmail = async (): Promise<string> => {
   return (
     finalApproverEmail || "booking-app-devs+notFoundFinalApprover@itp.nyu.edu"
   );
-};
-
-/**
- * Get CC email for approval notifications.
- * branchName param kept for backward compatibility but no longer used
- * (environment is resolved from NEXT_PUBLIC_BRANCH_NAME).
- */
-export const getApprovalCcEmail = async (
-  _branchName: string,
-  tenant?: string,
-): Promise<string> => {
-  if (!tenant) return "";
-  return getApprovedCcEmail(tenant);
-};
-
-/**
- * Get CC email for cancellation notifications.
- */
-export const getCancelCcEmail = async (
-  tenant?: string,
-): Promise<string> => {
-  if (!tenant) return "";
-  return getCanceledCcEmail(tenant);
 };

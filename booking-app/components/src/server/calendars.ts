@@ -1,3 +1,4 @@
+import { bookingCalendarStrToDate } from "@/components/src/client/utils/date";
 import { getCalendarClient } from "@/lib/googleClient";
 import { traceExternalCall } from "@/lib/newrelic-utils";
 import { BookingFormDetails, BookingStatusLabel } from "../types";
@@ -30,7 +31,7 @@ export const patchCalendarEvent = async (
 export const inviteUserToCalendarEvent = async (
   calendarEventId: string,
   guestEmail: string,
-  roomId: number,
+  roomId: string,
   tenant?: string,
 ) => {
   const roomCalendarIds = await serverGetRoomCalendarIds(roomId, tenant);
@@ -277,6 +278,12 @@ type InsertEventType = {
   endTime: string | number | Date;
   roomEmails: string[];
 };
+
+// Booking times arrive as client strings; offset-less ones are Eastern wall
+// times from stale bundles and must not be parsed in the host timezone.
+const toEventInstant = (time: string | number | Date): Date =>
+  typeof time === "string" ? bookingCalendarStrToDate(time) : new Date(time);
+
 export const insertEvent = async ({
   calendarId,
   title,
@@ -286,27 +293,45 @@ export const insertEvent = async ({
   roomEmails,
 }: InsertEventType) => {
   const calendar = await getCalendarClient();
-  const event = await traceExternalCall(
-    "GoogleCalendar",
-    "events.insert",
-    () =>
-      calendar.events.insert({
-        calendarId,
-        sendUpdates: "all", // Send notifications to all attendees when calendar event is created
-        requestBody: {
-          summary: title,
-          description,
-          start: {
-            dateTime: new Date(startTime).toISOString(),
+  try {
+    const event = await traceExternalCall(
+      "GoogleCalendar",
+      "events.insert",
+      () =>
+        calendar.events.insert({
+          calendarId,
+          sendUpdates: "all", // Send notifications to all attendees when calendar event is created
+          requestBody: {
+            summary: title,
+            description,
+            start: {
+              dateTime: toEventInstant(startTime).toISOString(),
+            },
+            end: {
+              dateTime: toEventInstant(endTime).toISOString(),
+            },
+            attendees: roomEmails.map((email: string) => ({ email })),
           },
-          end: {
-            dateTime: new Date(endTime).toISOString(),
-          },
-          attendees: roomEmails.map((email: string) => ({ email })),
-        },
-      }),
-  );
-  return event.data;
+        }),
+    );
+    return event.data;
+  } catch (error: any) {
+    // Log the raw inputs and the Google error body; the generic gaxios
+    // "Bad Request" message alone is not actionable when this fails in prod
+    console.error("🚨 GOOGLE CALENDAR EVENT INSERT FAILED:", {
+      calendarId,
+      rawStartTime: String(startTime),
+      rawEndTime: String(endTime),
+      roomEmails,
+      titleLength: title?.length ?? 0,
+      descriptionLength: description?.length ?? 0,
+      googleStatus: error?.response?.status ?? error?.code,
+      googleError: JSON.stringify(
+        error?.response?.data ?? error?.errors ?? error?.message,
+      ),
+    });
+    throw error;
+  }
 };
 
 export const updateCalendarEvent = async (
@@ -326,9 +351,7 @@ export const updateCalendarEvent = async (
   }
 
   const roomCalendarIds = await serverGetRoomCalendarIds(
-    typeof bookingContents.roomId === "string"
-      ? parseInt(bookingContents.roomId, 10)
-      : bookingContents.roomId,
+    String(bookingContents.roomId).split(",")[0].trim(),
     tenant,
   );
   console.log(`Room Calendar Ids: ${roomCalendarIds}`);

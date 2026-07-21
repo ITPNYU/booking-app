@@ -104,7 +104,7 @@ export const getTenantRooms = async (tenant?: string) => {
     );
 
     return resourcesWithCorrectCalendarIds.map((resource: any) => ({
-      roomId: resource.roomId,
+      roomId: String(resource.resourceId ?? resource.roomId),
       name: resource.name,
       capacity: resource.capacity?.toString(),
       calendarId: resource.calendarId,

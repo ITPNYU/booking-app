@@ -29,7 +29,7 @@ import { getBlackoutTimeRangeForDate } from "../../../../utils/blackoutUtils";
 import { DatabaseContext } from "../../components/Provider";
 import { BookingContext } from "../bookingProvider";
 import { useBookingDateRestrictions } from "../hooks/useBookingDateRestrictions";
-import { TIMEZONE } from "../../../utils/date";
+import { TIMEZONE, toBookingCalendarStr } from "../../../utils/date";
 import { DEFAULT_START_HOUR } from "../utils/getStartHour";
 import { DEFAULT_SLOT_UNIT } from "../utils/getSlotUnit";
 import { buildBlockPastTimes } from "../utils/buildBlockPastTimes";
@@ -141,11 +141,17 @@ export default function CalendarVerticalResource({
 
   const resources = useMemo(
     () =>
-      rooms.map((room) => ({
-        id: `${room.roomId}`,
-        title: `${room.roomId} ${room.name}`,
-        index: Number(room.roomId),
-      })),
+      [...rooms]
+        .sort((a, b) =>
+          String(a.roomId).localeCompare(String(b.roomId), undefined, {
+            numeric: true,
+          }),
+        )
+        .map((room, index) => ({
+          id: room.roomId,
+          title: `${room.roomId} ${room.name}`,
+          index,
+        })),
     [rooms],
   );
 
@@ -169,7 +175,7 @@ export default function CalendarVerticalResource({
             start: blackoutRange.start.toISOString(),
             end: blackoutRange.end.toISOString(),
             id: `blackout-${room.roomId}-${period.id}`,
-            resourceId: `${room.roomId}`,
+            resourceId: room.roomId,
             title: blackoutRange.title,
             overlap: false,
             display: "background",
@@ -208,12 +214,11 @@ export default function CalendarVerticalResource({
       start: bookingCalendarInfo.startStr,
       end: bookingCalendarInfo.endStr,
       id: room.roomId + bookingCalendarInfo.startStr,
-      resourceId: `${room.roomId}`,
+      resourceId: room.roomId,
       title: NEW_TITLE_TAG,
       overlap: true,
       durationEditable: true,
-      startEditable:
-        formContext !== FormContextLevel.MODIFICATION || isAdmin,
+      startEditable: formContext !== FormContextLevel.MODIFICATION || isAdmin,
       groupId: "new",
       url: `${index}:${rooms.length}`, // some hackiness to let us render multiple events visually as one big block
     }));
@@ -241,11 +246,9 @@ export default function CalendarVerticalResource({
     const selectedResourceId = selectInfo.resource?.id;
 
     if (!isAdmin && selectedResourceId) {
-      const roomId = parseInt(selectedResourceId);
-
       // Use the new time-aware blackout checking
       const { inBlackout } = isBookingTimeInBlackout(bookingStart, bookingEnd, [
-        roomId,
+        selectedResourceId,
       ]);
 
       if (inBlackout) {
@@ -267,11 +270,9 @@ export default function CalendarVerticalResource({
     const selectedResourceId = selectInfo.resource?.id;
 
     if (!isAdmin && selectedResourceId) {
-      const roomId = parseInt(selectedResourceId);
-
       // Use the new time-aware blackout checking
       const { inBlackout } = isBookingTimeInBlackout(bookingStart, bookingEnd, [
-        roomId,
+        selectedResourceId,
       ]);
 
       if (inBlackout) {
@@ -315,11 +316,17 @@ export default function CalendarVerticalResource({
 
   // if change event duration via dragging edges or drag event block to move
   const handleEventEdit = (info: EventResizeDoneArg | EventDropArg) => {
-    // Always allow modification of end time, even for past events
+    if (info.event.start == null || info.event.end == null) {
+      return;
+    }
+
+    // Always allow modification of end time, even for past events.
+    // Normalize to Eastern local strings so resize/drag stays consistent with
+    // FullCalendar's timeZone and avoids UTC ISO strings corrupting start time.
     setBookingCalendarInfo({
-      startStr: info.event.startStr,
+      startStr: toBookingCalendarStr(info.event.start),
       start: info.event.start,
-      endStr: info.event.endStr,
+      endStr: toBookingCalendarStr(info.event.end),
       end: info.event.end,
       allDay: false,
       jsEvent: info.jsEvent,
@@ -407,9 +414,7 @@ export default function CalendarVerticalResource({
           googleCalendarPlugin,
           interactionPlugin,
         ]}
-        selectable={
-          formContext !== FormContextLevel.MODIFICATION || isAdmin
-        }
+        selectable={formContext !== FormContextLevel.MODIFICATION || isAdmin}
         select={handleEventSelect}
         selectAllow={handleEventSelecting}
         selectOverlap={handleSelectOverlap}

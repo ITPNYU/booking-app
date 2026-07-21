@@ -1,5 +1,6 @@
 import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
-import { TableNames, getApprovalCcEmail } from "@/components/src/policy";
+import { TableNames } from "@/components/src/policy";
+import { getApprovalCcEmail } from "@/components/src/tenantPolicyServer";
 import {
   serverGetRoomCalendarId,
   serverSendBookingDetailEmail,
@@ -98,9 +99,7 @@ export async function POST(request: NextRequest) {
   const { departmentDisplay, schoolDisplay } =
     getAffiliationDisplayValues(data);
   const [room, ...otherRooms] = selectedRooms;
-  const selectedRoomIds = selectedRooms.map(
-    (r: { roomId: number }) => r.roomId,
-  );
+  const selectedRoomIds = selectedRooms.map((r: { roomId: string }) => r.roomId);
   const otherRoomIds = otherRooms.map(
     (r: { calendarId: string }) => r.calendarId,
   );

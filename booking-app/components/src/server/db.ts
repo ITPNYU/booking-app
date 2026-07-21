@@ -26,8 +26,6 @@ import {
   ApproverLevel,
   TableNames,
   clientGetFinalApproverEmail,
-  getApprovalCcEmail,
-  getCancelCcEmail,
 } from "../policy";
 
 import { getBookingToolDeployUrl } from "./ui";
@@ -85,75 +83,10 @@ export async function callXStateTransitionAPI(
   }
 }
 
-export const fetchAllFutureBooking = async <Booking>(
-  tenant?: string,
-): Promise<Booking[]> => {
-  const nowMs = Date.now();
-  return clientFetchAllDataFromCollection<Booking>(
-    TableNames.BOOKING,
-    [{ field: "endDate", op: ">", value: { __ts: nowMs } }],
-    tenant,
-  );
-};
-
-export const fetchAllBookings = async <Booking>(
-  pagePermission: PagePermission,
-  limit: number,
-  filters: Filters,
-  last: any,
-  tenant?: string,
-): Promise<Booking[]> => {
-  if (
-    pagePermission === PagePermission.ADMIN ||
-    pagePermission === PagePermission.LIAISON ||
-    pagePermission === PagePermission.PA
-  ) {
-    return getPaginatedData<Booking>(
-      TableNames.BOOKING,
-      limit,
-      filters,
-      last,
-      tenant,
-    );
-  }
-  return getPaginatedData<Booking>(
-    TableNames.BOOKING,
-    limit,
-    filters,
-    last,
-    tenant,
-  );
-};
-
-export const getOldSafetyTrainingEmails = () =>
-  // TODO: implement this
-  [];
-// const activeSpreadSheet = SpreadsheetApp.openById(
-//  OLD_SAFETY_TRAINING_SHEET_ID
-// );
-// const activeSheet = activeSpreadSheet.getSheetByName(
-//  OLD_SAFETY_TRAINING_SHEET_NAME
-// );
-// var lastRow = activeSheet.getLastRow();
-
-// // get all row3(email) data
-// var range = activeSheet.getRange(1, 5, lastRow);
-// var values = range.getValues();
-
-// const secondSpreadSheet = SpreadsheetApp.openById(
-//  SECOND_OLD_SAFETY_TRAINING_SHEET_ID
-// );
-// const secondSheet = secondSpreadSheet
-//  .getSheets()
-//  .find(
-//    (sheet) => sheet.getSheetId() === SECOND_OLD_SAFETY_TRAINING_SHEET_GID
-//  );
-// const secondLastRow = secondSheet.getLastRow();
-// const secondRange = secondSheet.getRange(1, 2, secondLastRow);
-// const secondValues = secondRange.getValues();
-
-// const combinedValues = [...values, ...secondValues];
-// return combinedValues;
+export {
+  fetchAllBookings,
+  fetchAllFutureBooking,
+} from "@/lib/firebase/bookingQueries";
 
 export const decline = async (
   id: string,
@@ -649,7 +582,10 @@ export const processCancelBooking = async (
       tenant,
     });
 
-    const cancelCcEmail = await getCancelCcEmail(tenant);
+    const cancelCcEmail = await (async () => {
+      const { getCancelCcEmail } = await import("../tenantPolicyServer");
+      return getCancelCcEmail(tenant);
+    })();
     if (cancelCcEmail) {
       await serverSendBookingDetailEmail({
         calendarEventId: id,
@@ -813,15 +749,17 @@ export const updateOperationHours = async (
   open: number,
   close: number,
   isClosed: boolean,
-  roomId?: number,
+  roomId?: string | number,
 ) => {
   const docs = await clientFetchAllDataFromCollection<
     OperationHours & { id: string }
   >(TableNames.OPERATION_HOURS);
 
+  const normalizedRoomId =
+    roomId === undefined || roomId === null ? undefined : String(roomId);
   const match = docs.find((x) => {
-    if (roomId) {
-      return x.day === day && x.roomId === roomId;
+    if (normalizedRoomId) {
+      return x.day === day && String(x.roomId) === normalizedRoomId;
     }
     return x.day === day;
   });
@@ -835,7 +773,7 @@ export const updateOperationHours = async (
       isClosed,
     });
   } else {
-    const r = roomId ? { roomId } : {};
+    const r = normalizedRoomId ? { roomId: normalizedRoomId } : {};
     clientSaveDataToFirestore(TableNames.OPERATION_HOURS, {
       day: day.toString(),
       open,
@@ -1173,7 +1111,7 @@ export const executeTraditionalNoShow = async (
   // Add to pre-ban logs only if policy violation
   if (isPolicyViolation(doc)) {
     const log = { netId, bookingId: id, noShowDate: Timestamp.now() };
-    clientSaveDataToFirestore(TableNames.PRE_BAN_LOGS, log, tenant);
+    await clientSaveDataToFirestore(TableNames.PRE_BAN_LOGS, log, tenant);
   }
 
   // Log the no-show action
@@ -1191,7 +1129,7 @@ export const executeTraditionalNoShow = async (
   // @ts-ignore
   const guestEmail = doc ? doc.email : null;
 
-  const violationCount = await getViolationCount(netId);
+  const violationCount = await getViolationCount(netId, tenant);
   const { getTenantEmailConfig } = await import("./emails");
   const emailConfig = await getTenantEmailConfig(tenant);
   const headerMessage = emailConfig.emailNotifications.noShow.replace(
@@ -1205,7 +1143,10 @@ export const executeTraditionalNoShow = async (
     BookingStatusLabel.NO_SHOW,
     tenant,
   );
-  const noShowCcEmail = await getApprovalCcEmail(process.env.NEXT_PUBLIC_BRANCH_NAME, tenant);
+  const noShowCcEmail = await (async () => {
+    const { getApprovalCcEmail } = await import("../tenantPolicyServer");
+    return getApprovalCcEmail(process.env.NEXT_PUBLIC_BRANCH_NAME, tenant);
+  })();
   if (noShowCcEmail) {
     clientSendBookingDetailEmail(
       id,

@@ -3,17 +3,17 @@ import {
   isMediaCommonsTenant,
 } from "@/components/src/constants/tenants";
 import { getMediaCommonsServices } from "@/components/src/utils/tenantUtils";
-import { itpBookingMachine } from "@/lib/stateMachines/itpBookingMachine";
-import { mcBookingMachine } from "@/lib/stateMachines/mcBookingMachine";
+import {
+  evaluateItpShouldAutoApprove,
+  evaluateMcShouldAutoApprove,
+} from "@/lib/stateMachines/autoApprovalGuards";
 import { useContext, useEffect, useState } from "react";
-import { createActor } from "xstate";
 import { checkAutoApprovalEligibility } from "@/lib/utils/autoApprovalUtils";
 import { useTenantSchema } from "../../components/SchemaProvider";
 import { BookingContext } from "../bookingProvider";
-import { getBookingHourLimits } from "../utils/bookingHourLimits";
 
 export function selectedAutoApprovalRooms(
-  selectedRoomIds: number[],
+  selectedRoomIds: string[],
   selectedRooms: any[],
 ) {
   if (selectedRoomIds.length < 2) return true;
@@ -28,7 +28,11 @@ export function selectedAutoApprovalRooms(
   return false;
 }
 
-export default function useCheckAutoApproval(isWalkIn = false, isVIP = false) {
+export default function useCheckAutoApproval(
+  isWalkIn = false,
+  isVIP = false,
+  skipCheck = false,
+) {
   const { bookingCalendarInfo, selectedRooms, formData, role } =
     useContext(BookingContext);
   const schema = useTenantSchema();
@@ -46,119 +50,55 @@ export default function useCheckAutoApproval(isWalkIn = false, isVIP = false) {
   };
 
   useEffect(() => {
-    // For ITP and Media Commons tenants, use XState machine for auto-approval logic
-    if (schema.tenantId === TENANTS.ITP || isMediaCommonsTenant(schema.tenantId)) {
-      console.log(
-        `🎭 CLIENT-SIDE XSTATE CHECK [${schema.tenantId?.toUpperCase()}]:`,
-        {
-          tenant: schema.tenantId,
-          selectedRooms: selectedRooms?.map((r) => ({
-            roomId: r.roomId,
-            name: r.name,
-            autoApproval: r.autoApproval,
-          })),
-          formData,
-          bookingCalendarInfo: bookingCalendarInfo
-            ? {
-                startStr: bookingCalendarInfo.start.toISOString(),
-                endStr: bookingCalendarInfo.end.toISOString(),
-                duration: `${((bookingCalendarInfo.end.getTime() - bookingCalendarInfo.start.getTime()) / (1000 * 60 * 60)).toFixed(1)} hours`,
-              }
-            : null,
-          isWalkIn,
-        },
-      );
+    if (skipCheck) {
+      setIsAutoApproval(true);
+      setErrorMessage(null);
+      return;
+    }
 
-      try {
-        // Choose the appropriate machine based on tenant
-        const machine =
-          schema.tenantId === TENANTS.ITP ? itpBookingMachine : mcBookingMachine;
+    // ITP / MC: use shared guard logic (same as server XState machines, no server imports).
+    if (
+      schema.tenantId === TENANTS.ITP ||
+      isMediaCommonsTenant(schema.tenantId)
+    ) {
+      const bookingCalendarInput = bookingCalendarInfo
+        ? {
+            startStr: bookingCalendarInfo.start.toISOString(),
+            endStr: bookingCalendarInfo.end.toISOString(),
+          }
+        : null;
 
-        // For Media Commons, prepare services data
-        const servicesRequested = isMediaCommonsTenant(schema.tenantId)
-          ? getMediaCommonsServices(formData || {})
-          : {};
+      const canAutoApprove =
+        schema.tenantId === TENANTS.ITP
+          ? evaluateItpShouldAutoApprove({
+              tenant: schema.tenantId,
+              selectedRooms,
+              formData,
+              bookingCalendarInfo: bookingCalendarInput,
+              isWalkIn,
+              role,
+            })
+          : evaluateMcShouldAutoApprove({
+              tenant: schema.tenantId,
+              selectedRooms,
+              bookingCalendarInfo: bookingCalendarInput,
+              isWalkIn,
+              isVip: isVIP,
+              role,
+              servicesRequested: getMediaCommonsServices(formData || {}),
+            });
 
-        const bookingActor = createActor(machine, {
-          input: {
-            tenant: schema.tenantId,
-            selectedRooms,
-            formData,
-            bookingCalendarInfo: bookingCalendarInfo
-              ? {
-                  startStr: bookingCalendarInfo.start.toISOString(),
-                  endStr: bookingCalendarInfo.end.toISOString(),
-                }
-              : null,
-            isWalkIn,
-            isVip: isVIP,
-            role,
-            // Media Commons specific fields
-            ...(isMediaCommonsTenant(schema.tenantId) && {
-              servicesRequested,
-              servicesApproved: {}, // Initially no services are approved
-              email: "user@example.com", // Placeholder
-              calendarEventId: "temp-id", // Placeholder
-            }),
-          },
-        });
-
-        bookingActor.start();
-        const currentState = bookingActor.getSnapshot();
-        const xstateDecision = currentState.value === "Approved";
-
-        console.log(
-          `🎭 CLIENT-SIDE XSTATE RESULT [${schema.tenantId?.toUpperCase()}]:`,
-          {
-            state: currentState.value,
-            decision: xstateDecision ? "AUTO-APPROVE" : "MANUAL-APPROVAL",
-            context: {
-              tenant: currentState.context.tenant,
-              selectedRoomsCount: currentState.context.selectedRooms?.length,
-              hasFormData: !!currentState.context.formData,
-              isWalkIn: currentState.context.isWalkIn,
-              // Media Commons specific context
-              ...(isMediaCommonsTenant(schema.tenantId) && {
-                servicesRequested: (currentState.context as any)
-                  .servicesRequested,
-                hasServices: (currentState.context as any).servicesRequested
-                  ? Object.values(
-                      (currentState.context as any).servicesRequested,
-                    ).some(Boolean)
-                  : false,
-                isVip: (currentState.context as any).isVip,
-              }),
-            },
-          },
-        );
-
-        bookingActor.stop();
-
-        if (xstateDecision) {
-          console.log(
-            "✅ AUTO-APPROVAL APPROVED [ITP]:",
-            "XState machine approved auto-approval",
-          );
-          setIsAutoApproval(true);
-          setErrorMessage(null);
-        } else {
-          console.log(
-            "🚫 AUTO-APPROVAL REJECTED [ITP]:",
-            "XState machine rejected auto-approval",
-          );
-          setIsAutoApproval(false);
-          setErrorMessage(
-            "This booking does not meet the auto-approval requirements",
-          );
-        }
-      } catch (error) {
-        console.error("🚨 CLIENT-SIDE XSTATE ERROR [ITP]:", error);
-        // Fallback to traditional logic if XState fails
+      if (canAutoApprove) {
+        setIsAutoApproval(true);
+        setErrorMessage(null);
+      } else {
         setIsAutoApproval(false);
-        setErrorMessage("Unable to determine auto-approval eligibility");
+        setErrorMessage(
+          "This booking does not meet the auto-approval requirements",
+        );
       }
 
-      return; // Exit early for ITP tenant
+      return;
     }
 
     // Traditional logic for non-ITP/MC tenants - now using new autoApprovalUtils
@@ -198,7 +138,7 @@ export default function useCheckAutoApproval(isWalkIn = false, isVIP = false) {
       : undefined;
 
     console.log(
-      `🔍 AUTO-APPROVAL CHECK USING NEW UTILS [${schema.tenantId?.toUpperCase() || "UNKNOWN"}]:`,
+      `🔍 AUTO-APPROVAL CHECK [${schema.tenantId?.toUpperCase() || "UNKNOWN"}]:`,
       {
         role,
         isWalkIn,
@@ -209,7 +149,6 @@ export default function useCheckAutoApproval(isWalkIn = false, isVIP = false) {
       },
     );
 
-    // Use the new auto-approval utility
     const result = checkAutoApprovalEligibility({
       selectedRooms,
       role,
@@ -233,13 +172,15 @@ export default function useCheckAutoApproval(isWalkIn = false, isVIP = false) {
     setIsAutoApproval(true);
     setErrorMessage(null);
   }, [
-    // WARNING WARNING make sure to update this dep list if relying on new props
     bookingCalendarInfo,
     selectedRooms,
     formData,
     schema.resources,
-    schema.tenantId, // Added tenant to dependencies
-    isWalkIn, // Added isWalkIn to dependencies
+    schema.tenantId,
+    isWalkIn,
+    isVIP,
+    role,
+    skipCheck,
   ]);
 
   return { isAutoApproval, errorMessage };

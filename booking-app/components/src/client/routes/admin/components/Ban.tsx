@@ -1,4 +1,3 @@
-// This is a wrapper for google.script.run that lets us use promises.
 import React, { useContext } from "react";
 
 import { DatabaseContext } from "../../components/Provider";
