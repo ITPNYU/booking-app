@@ -47,7 +47,7 @@ describe("coerceTenantSchema — resources", () => {
       customField: { keep: true },
     };
 
-    const coerced = coerceTenantSchema({ resources: [resource] }, "mc");
+    const coerced = coerceTenantSchema({ resources: [resource] }, "itp");
 
     expect(coerced.resources[0]).toEqual({
       resourceId,
@@ -56,6 +56,46 @@ describe("coerceTenantSchema — resources", () => {
       customField: { keep: true },
     });
     expect(coerced.resources[0]).not.toHaveProperty("roomId");
+  });
+
+  it("applies MC room service configs when coercing the mc tenant", () => {
+    const coerced = coerceTenantSchema(
+      {
+        resources: [{ roomId: "202", name: "Studio", capacity: 12 }],
+      },
+      "mc",
+    );
+
+    expect(coerced.resources[0].resourceId).toBe("202");
+    expect(coerced.resources[0].services?.setup?.mode).toBe("static");
+    expect(coerced.resources[0].services?.catering?.forceCleaning).toBe(true);
+    expect(coerced.resources[0].services?.catering?.chartField?.required).toBe(
+      true,
+    );
+    expect(coerced.resources[0].services?.annex?.mode).toBe("radio");
+  });
+
+  it("preserves Firestore object services config for mc tenant", () => {
+    const customServices = {
+      catering: { label: "Custom Catering" },
+    };
+    const coerced = coerceTenantSchema(
+      {
+        resources: [
+          {
+            resourceId: "202",
+            name: "Studio",
+            capacity: 12,
+            services: customServices,
+          },
+        ],
+      },
+      "mc",
+    );
+
+    expect(coerced.resources[0].services?.catering?.label).toBe(
+      "Custom Catering",
+    );
   });
 
   it("keeps a canonical resourceId and removes a matching legacy roomId", () => {
@@ -69,7 +109,7 @@ describe("coerceTenantSchema — resources", () => {
           },
         ],
       },
-      "mc",
+      "itp",
     );
 
     expect(coerced.resources[0].resourceId).toBe("canonical-id");
@@ -80,7 +120,7 @@ describe("coerceTenantSchema — resources", () => {
     expect(() =>
       coerceTenantSchema(
         { resources: [{ resourceId: "studio-a", roomId: 202 }] },
-        "mc",
+        "itp",
       ),
     ).toThrow("conflicting resourceId and roomId");
   });
@@ -94,7 +134,7 @@ describe("coerceTenantSchema — resources", () => {
             { roomId: "studio-a" },
           ],
         },
-        "mc",
+        "itp",
       ),
     ).toThrow('duplicate resourceId "studio-a"');
   });

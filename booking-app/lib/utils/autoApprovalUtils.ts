@@ -21,6 +21,7 @@ export interface AutoApprovalContext {
     catering?: boolean;
     cleaning?: boolean;
     security?: boolean;
+    auxiliary?: boolean;
   };
 }
 
@@ -92,6 +93,7 @@ function areServicesAllowedForAutoApproval(
     catering?: boolean;
     cleaning?: boolean;
     security?: boolean;
+    auxiliary?: boolean;
   },
 ): { allowed: boolean; reason?: string } {
   if (!servicesRequested) {

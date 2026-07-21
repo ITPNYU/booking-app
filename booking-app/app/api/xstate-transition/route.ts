@@ -68,6 +68,9 @@ export async function POST(req: NextRequest) {
     "closeoutSecurity",
     "declineEquipment",
     "closeoutEquipment",
+    "approveAuxiliary",
+    "declineAuxiliary",
+    "closeoutAuxiliary",
   ];
 
   if (!validEventTypes.includes(eventType)) {

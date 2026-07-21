@@ -92,12 +92,24 @@ export const getTenantFlags = (tenant?: string) => ({
 export const getMediaCommonsServices = (data: any) => ({
   staff:
     !!data.staffingServicesDetails && data.staffingServicesDetails !== "no",
-  setup: !!data.setupDetails && data.setupDetails !== "no",
+  setup:
+    Object.values(data.roomSetupByRoom ?? {}).some(
+      (v: unknown) => typeof v === "string" && v && v !== "no",
+    ) ||
+    (!!data.setupDetails && data.setupDetails !== "no") ||
+    (!!data.roomSetup && !["", "no"].includes(data.roomSetup)),
   equipment:
     (!!data.mediaServices && data.mediaServices !== "no") ||
     (!!data.equipmentServices && data.equipmentServices !== "no") ||
     (!!data.equipmentServicesDetails && data.equipmentServicesDetails !== "no"),
   catering: !!data.catering && data.catering !== "no",
   cleaning: !!data.cleaningService && data.cleaningService !== "no",
-  security: !!data.hireSecurity && data.hireSecurity !== "no",
+  security:
+    !!data.hireSecurity && !["", "no"].includes(String(data.hireSecurity)),
+  auxiliary:
+    !!data.auxiliarySpaceRequested ||
+    Object.values(data.studentLoungeByRoom ?? {}).some((v) => v === "yes") ||
+    Object.values(data.auxiliarySpaceByRoom ?? {}).some(
+      (v) => typeof v === "string" && !!v && v !== "none" && v !== "no",
+    ),
 });

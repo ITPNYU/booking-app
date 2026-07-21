@@ -30,6 +30,7 @@ export async function POST(req: NextRequest) {
     "cleaning",
     "security",
     "setup",
+    "auxiliary",
   ];
   if (!validServices.includes(serviceType)) {
     return NextResponse.json(

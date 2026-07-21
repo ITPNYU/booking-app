@@ -499,6 +499,27 @@ export function ResourceEditor({
     }
   };
 
+  const formatServicesForEditor = (
+    services: Resource["services"] | undefined,
+  ): string => {
+    if (Array.isArray(services)) {
+      return services.join(", ");
+    }
+    return JSON.stringify(services ?? {}, null, 2);
+  };
+
+  const [servicesDraft, setServicesDraft] = useState(() =>
+    formatServicesForEditor(resource.services),
+  );
+  const [servicesJsonError, setServicesJsonError] = useState<string | null>(
+    null,
+  );
+
+  useEffect(() => {
+    setServicesDraft(formatServicesForEditor(resource.services));
+    setServicesJsonError(null);
+  }, [resource.resourceId, resource.services]);
+
   return (
     <Accordion>
       <AccordionSummary expandIcon={<ExpandMoreIcon />}>
@@ -599,21 +620,47 @@ export function ResourceEditor({
         />
 
         <TextField
-          label="Services (comma-separated)"
-          value={Array.isArray(resource.services) ? resource.services.join(", ") : ""}
-          onChange={(e) =>
-            set(
-              "services",
-              e.target.value
-                .split(",")
-                .map((s) => s.trim())
-                .filter(Boolean),
-            )
-          }
+          label="Services config (JSON)"
+          value={servicesDraft}
+          onChange={(e) => {
+            setServicesDraft(e.target.value);
+            setServicesJsonError(null);
+          }}
+          onBlur={() => {
+            const raw = servicesDraft.trim();
+            if (!raw) {
+              set("services", {});
+              setServicesJsonError(null);
+              return;
+            }
+            if (!raw.startsWith("{")) {
+              set(
+                "services",
+                raw
+                  .split(",")
+                  .map((s) => s.trim())
+                  .filter(Boolean),
+              );
+              setServicesJsonError(null);
+              return;
+            }
+            try {
+              set("services", JSON.parse(raw));
+              setServicesJsonError(null);
+            } catch {
+              setServicesJsonError(
+                "Invalid JSON — fix syntax before leaving this field",
+              );
+            }
+          }}
           fullWidth
           size="small"
           sx={{ mb: 2 }}
-          helperText="e.g. equipment, staffing, setup, security, cleaning, catering"
+          error={!!servicesJsonError}
+          helperText={
+            servicesJsonError ??
+            "Legacy: comma-separated keys. New: JSON ResourceServicesConfig object."
+          }
         />
 
         <TextField

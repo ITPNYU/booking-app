@@ -84,6 +84,7 @@ export type BookingStatus = {
   cleaningServiceApproved?: boolean;
   securityServiceApproved?: boolean;
   setupServiceApproved?: boolean;
+  auxiliaryServiceApproved?: boolean;
 };
 
 // the order here is the order these are displayed as table filters
@@ -191,6 +192,14 @@ export type Inputs = {
   chartFieldForCleaning: string;
   chartFieldForSecurity: string;
   chartFieldForRoomSetup: string;
+  roomSetupByRoom?: Record<string, string>;
+  setupDetailsByRoom?: Record<string, string>;
+  chartFieldForRoomSetupByRoom?: Record<string, string>;
+  furnishingsByRoom?: Record<string, string>;
+  chartFieldForFurnishingsByRoom?: Record<string, string>;
+  studentLoungeByRoom?: Record<string, string>;
+  auxiliarySpaceByRoom?: Record<string, string>;
+  auxiliarySpaceRequested?: boolean;
   webcheckoutCartNumber?: string;
   // Individual service fields for pregame parsing
   equipment?: string;
@@ -198,6 +207,21 @@ export type Inputs = {
   cleaning?: string;
   // origin of the booking
   origin?: BookingOrigin
+};
+
+/** Form field keys whose values are plain strings (excludes maps/booleans). */
+export type StringInputKeys = {
+  [K in keyof Inputs]: Inputs[K] extends string | undefined ? K : never;
+}[keyof Inputs];
+
+export type MediaCommonsServiceFlags = {
+  staff?: boolean;
+  equipment?: boolean;
+  catering?: boolean;
+  cleaning?: boolean;
+  security?: boolean;
+  setup?: boolean;
+  auxiliary?: boolean;
 };
 
 export type DepartmentType = {
@@ -321,7 +345,7 @@ export type RoomSetting = {
   isWalkIn?: boolean;
   isWalkInCanBookTwo?: boolean;
   isEquipment?: boolean;
-  services?: string[];
+  services?: string[] | import("@/components/src/client/routes/components/schemaTypes").ResourceServicesConfig;
   staffingServices?: string[]; // Specific staffing service options for this room
   staffingSections?: { name: string; indexes: number[] }[];
   // Auto-approval configuration

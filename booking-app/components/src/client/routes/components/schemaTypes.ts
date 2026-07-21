@@ -19,6 +19,109 @@ export type StaffingSection = {
   indexes: number[];
 };
 
+export type ShowInOrigin = {
+  user?: boolean;
+  walkIn?: boolean;
+  VIP?: boolean;
+};
+
+export type ResourceChartFieldConfig = {
+  label?: string;
+  descriptionHtml?: string;
+  required?: boolean;
+  /** Reserved for schema authors; forms always apply CHARTFIELD_REGEX when required. */
+  validation?: string;
+};
+
+export type ResourceFormOption = {
+  value: string;
+  label: string;
+  chartField?: ResourceChartFieldConfig;
+};
+
+/** @deprecated Use ResourceFormOption */
+export type ResourceFormSelectOption = ResourceFormOption & {
+  requiresChartField?: boolean;
+  defaultValue?: boolean;
+};
+
+/**
+ * Service section config.
+ * - mode "radio": choice list via options (`select` in JSON normalizes to radio)
+ * - mode "static": read-only HTML
+ * - mode "hidden": offered but not shown
+ * - omit mode + chartField (no options): yes/no switch
+ * - omit mode + description only (no options/chartField): treated as static on migrate
+ */
+export type ResourceFormSectionConfig = {
+  showInOrigin?: ShowInOrigin;
+  label?: string;
+  descriptionHtml?: string;
+  mode?: "radio" | "static" | "hidden";
+  options?: ResourceFormOption[];
+  defaultValue?: string;
+  required?: boolean;
+  chartField?: ResourceChartFieldConfig;
+  forceCleaning?: boolean;
+  studentLoungeCheckbox?: boolean;
+  showDetailsField?: boolean;
+  detailsLabel?: string;
+  detailsDescriptionHtml?: string;
+  /** @deprecated Prefer showInOrigin */
+  hideForUser?: boolean;
+  /** @deprecated Prefer showInOrigin */
+  hideForVIP?: boolean;
+  /** @deprecated Prefer showInOrigin */
+  hideForWalkIn?: boolean;
+};
+
+export type ResourceStaffingServiceOption = {
+  value: string;
+  label: string;
+  defaultValue?: boolean;
+};
+
+export type ResourceStaffingSectionConfig = {
+  label: string;
+  descriptionHtml?: string;
+  mode: "radio";
+  defaultValue?: string;
+  options: ResourceFormOption[];
+  /** @deprecated Prefer label */
+  name?: string;
+  /** @deprecated Prefer options */
+  services?: ResourceStaffingServiceOption[];
+};
+
+export type ResourceStaffingConfig = {
+  showInOrigin?: ShowInOrigin;
+  label?: string;
+  descriptionHtml?: string;
+  sections?: Record<string, ResourceStaffingSectionConfig>;
+  /** @deprecated Prefer sections with options */
+  staffingOptions?: ResourceStaffingServiceOption[];
+  /** @deprecated Prefer omitting mode (switch) or sections */
+  mode?: "radio" | "static" | "hidden";
+  hideForUser?: boolean;
+  hideForVIP?: boolean;
+  hideForWalkIn?: boolean;
+};
+
+export type ResourceServicesConfig = {
+  annex?: ResourceFormSectionConfig;
+  setup?: ResourceFormSectionConfig;
+  staffing?: ResourceStaffingConfig;
+  furnishings?: ResourceFormSectionConfig;
+  equipment?: ResourceFormSectionConfig;
+  catering?: ResourceFormSectionConfig;
+  cleaning?: ResourceFormSectionConfig;
+  security?: ResourceFormSectionConfig;
+  /** @deprecated Prefer annex */
+  auxiliarySpace?: ResourceFormSectionConfig & { enabled?: boolean };
+};
+
+export type ResourceServiceKey = keyof ResourceServicesConfig;
+
 export type ResourceTraining = {
   required?: boolean;
   formId?: string;
@@ -43,7 +146,8 @@ export type Resource = {
   training?: ResourceTraining;
   isWalkIn: boolean;
   isWalkInCanBookTwo: boolean;
-  services: string[];
+  /** Consolidated service config; legacy string[] coerced on read */
+  services: ResourceServicesConfig | string[];
   /**
    * Limit how many requests a user can make per period for this resource.
    * Convention: `-1` (or missing) means “unlimited”.
@@ -70,6 +174,7 @@ export type Resource = {
       catering: boolean;
       cleaning: boolean;
       security: boolean;
+      auxiliary?: boolean;
     };
   };
   maxHour?: {
@@ -256,7 +361,7 @@ export const defaultResource: Resource = {
   },
   isWalkIn: false,
   isWalkInCanBookTwo: false,
-  services: [],
+  services: {},
   requestLimits: {
     perDay: { admin: -1, faculty: -1, student: -1 },
     perWeek: { admin: -1, faculty: -1, student: -1 },
@@ -274,6 +379,7 @@ export const defaultResource: Resource = {
       catering: false,
       cleaning: false,
       security: false,
+      auxiliary: false,
     },
   },
   maxHour: {

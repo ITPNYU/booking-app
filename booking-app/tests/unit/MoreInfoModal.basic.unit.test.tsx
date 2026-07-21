@@ -50,8 +50,8 @@ const createMockBooking = (
 ): BookingRow => ({
   requestNumber: 12345,
   calendarEventId: "event-123",
-  startDate: Timestamp.fromDate(new Date("2024-03-15T10:00:00")),
-  endDate: Timestamp.fromDate(new Date("2024-03-15T12:00:00")),
+  startDate: Timestamp.fromDate(new Date("2024-03-15T10:00:00-04:00")),
+  endDate: Timestamp.fromDate(new Date("2024-03-15T12:00:00-04:00")),
   roomId: "202",
   netId: "jd1234",
   firstName: "John",
