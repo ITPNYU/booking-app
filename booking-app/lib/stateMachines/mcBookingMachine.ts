@@ -341,11 +341,17 @@ export const mcBookingMachine = setup({
           return;
         }
 
+        const actorEmail =
+          typeof (event as any)?.email === "string" &&
+          (event as any).email.trim()
+            ? (event as any).email.trim()
+            : context.email;
+
         await logServerBookingChange({
           bookingId: bookingDoc.id,
           calendarEventId: context.calendarEventId,
           status: status as any, // Type assertion for dynamic import
-          changedBy: context.email || "system",
+          changedBy: actorEmail || "system",
           requestNumber: (bookingDoc as any).requestNumber || 0,
           note: note || "",
           tenant: context.tenant,
