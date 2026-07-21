@@ -82,6 +82,45 @@ describe("authorizeWrite", () => {
     expect(decision.ok).toBe(true);
   });
 
+  it("blocks tenant admins from writing maintenance mode through generic settings mutation", async () => {
+    usersRightsSnap.mockReturnValue([{ isAdmin: true }]);
+    const decision = await authorizeWrite(
+      session,
+      "mc",
+      "settings",
+      "maintenanceMode",
+    );
+
+    expect(decision.ok).toBe(false);
+    if (!decision.ok) {
+      expect(decision.status).toBe(403);
+    }
+  });
+
+  it("allows super admins to write maintenance mode through generic settings mutation", async () => {
+    superSnap.mockReturnValue([{ email: session.email }]);
+    const decision = await authorizeWrite(
+      session,
+      "mc",
+      "settings",
+      "maintenanceMode",
+    );
+
+    expect(decision.ok).toBe(true);
+  });
+
+  it("keeps non-maintenance settings writes available to tenant admins", async () => {
+    usersRightsSnap.mockReturnValue([{ isAdmin: true }]);
+    const decision = await authorizeWrite(
+      session,
+      "mc",
+      "settings",
+      "siteBanner",
+    );
+
+    expect(decision.ok).toBe(true);
+  });
+
   it("allows PA write to bookings (e.g. equipment checkout toggle)", async () => {
     usersRightsSnap.mockReturnValue([{ isWorker: true }]);
     const decision = await authorizeWrite(session, "mc", "bookings");

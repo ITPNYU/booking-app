@@ -1,4 +1,5 @@
 import ClientProvider from "@/components/src/client/routes/components/ClientProvider";
+import MaintenanceModeGate from "@/components/src/client/routes/components/MaintenanceModeGate";
 import NavBar from "@/components/src/client/routes/components/navBar";
 import SchemaDriftBanner from "@/components/src/client/routes/components/SchemaDriftBanner";
 import TenantSiteBanner from "@/components/src/client/routes/components/TenantSiteBanner";
@@ -101,13 +102,17 @@ const Layout: React.FC<LayoutProps> = async ({ children, params }) => {
     return (
       <SchemaProviderWrapper value={serializedTenantSchema}>
         <ClientProvider>
-          <SchemaDriftBanner />
           <TenantEntitlementGuard>
-            <TenantSiteBanner />
-            <header>
-              <NavBar />
-            </header>
-            <main>{children}</main>
+            <MaintenanceModeGate>
+              <header>
+                <NavBar />
+              </header>
+              <>
+                <SchemaDriftBanner />
+                <TenantSiteBanner />
+              </>
+              <main>{children}</main>
+            </MaintenanceModeGate>
           </TenantEntitlementGuard>
         </ClientProvider>
       </SchemaProviderWrapper>
