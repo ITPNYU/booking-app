@@ -101,14 +101,12 @@ export default defineConfig({
   ],
 
   webServer: {
-    // E2E must run the webpack dev server, not Turbopack. The mock layer
-    // depends on webpack internals in two places: next.config.mjs swaps the
-    // Firebase client SDK for stubs via the `webpack` hook's resolve.alias,
-    // and tests/e2e/helpers/xstate-mocks.ts patches module exports at runtime
-    // through the `webpackChunk_N_E` global. Neither exists under Turbopack
-    // (`npm run dev`), so mocked data silently disappears and every
-    // mock-dependent test times out.
-    command: "npm run dev:webpack",
+    // Runs the same Turbopack dev server as `npm run dev`. The E2E mock
+    // layer is bundler-agnostic: Firebase SDK stubs are aliased for both
+    // bundlers in next.config.mjs, and data-fetcher overrides are read off
+    // `window` at call time (lib/e2e/clientOverrides.ts) instead of patching
+    // the webpack module cache.
+    command: "npm run dev",
     url: "http://127.0.0.1:3000",
     reuseExistingServer: !process.env.CI,
     timeout: 120 * 1000,
