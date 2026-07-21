@@ -366,7 +366,7 @@ export const ResourceSpecific = () => {
         fetchedServiceApprovers.map((item) => ({
           id: item.id,
           resourceId: item.resourceId.trim(),
-          service: item.service.trim(),
+          service: normalizeServiceKey(item.service),
           email: normalizeEmail(item.email),
           createdAt: item.createdAt,
         })),
@@ -396,33 +396,6 @@ export const ResourceSpecific = () => {
     return result;
   }, [approvers]);
 
-  const serviceApproversByResource = useMemo(() => {
-    const result = new Map<string, ServiceApproverRow[]>();
-    serviceApprovers.forEach(({ resourceId, ...row }) => {
-      const rows = result.get(resourceId) ?? [];
-      rows.push(row);
-      result.set(resourceId, rows);
-    });
-    result.forEach((rows) =>
-      rows.sort((a, b) => {
-        const serviceCompare = a.service.localeCompare(b.service);
-        if (serviceCompare !== 0) return serviceCompare;
-        return a.email.localeCompare(b.email);
-      }),
-    );
-    return result;
-  }, [serviceApprovers]);
-
-  const sortedResources = useMemo(
-    () =>
-      [...resources].sort((a, b) =>
-        String(a.resourceId).localeCompare(String(b.resourceId), undefined, {
-          numeric: true,
-        }),
-      ),
-    [resources],
-  );
-
   const serviceOptionsByResource = useMemo(() => {
     const result = new Map<string, Array<{ key: string; label: string }>>();
     resources.forEach((resource) => {
@@ -440,6 +413,39 @@ export const ResourceSpecific = () => {
     });
     return result;
   }, [resources]);
+
+  const serviceApproversByResource = useMemo(() => {
+    const result = new Map<string, ServiceApproverRow[]>();
+    serviceApprovers.forEach(({ resourceId, ...row }) => {
+      const allowedServices = new Set(
+        (serviceOptionsByResource.get(resourceId) ?? []).map(
+          (service) => service.key,
+        ),
+      );
+      if (!allowedServices.has(row.service)) return;
+      const rows = result.get(resourceId) ?? [];
+      rows.push(row);
+      result.set(resourceId, rows);
+    });
+    result.forEach((rows) =>
+      rows.sort((a, b) => {
+        const serviceCompare = a.service.localeCompare(b.service);
+        if (serviceCompare !== 0) return serviceCompare;
+        return a.email.localeCompare(b.email);
+      }),
+    );
+    return result;
+  }, [serviceApprovers, serviceOptionsByResource]);
+
+  const sortedResources = useMemo(
+    () =>
+      [...resources].sort((a, b) =>
+        String(a.resourceId).localeCompare(String(b.resourceId), undefined, {
+          numeric: true,
+        }),
+      ),
+    [resources],
+  );
 
   if (loading) {
     return <Typography color="text.secondary">Loading approvers...</Typography>;

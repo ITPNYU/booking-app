@@ -194,4 +194,43 @@ describe("ResourceSpecific", () => {
     );
     expect(screen.getByLabelText("Service for 10")).toHaveTextContent("Setup");
   });
+
+  it("hides persisted service approvers for services not configured on the resource", async () => {
+    listServiceApproversMock.mockResolvedValue([
+      {
+        id: "garage-equipment",
+        resourceId: "garage",
+        service: "equipment",
+        email: "equipment@nyu.edu",
+      },
+      {
+        id: "garage-catering",
+        resourceId: "garage",
+        service: "catering",
+        email: "catering@nyu.edu",
+      },
+    ]);
+
+    const schema = generateDefaultSchema("tenant-one");
+    schema.resources = [
+      {
+        ...defaultResource,
+        name: "Garage",
+        resourceId: "garage",
+        services: ["equipment"],
+      },
+    ];
+
+    render(
+      <SchemaProvider value={schema}>
+        <ResourceSpecific />
+      </SchemaProvider>,
+    );
+
+    expect(await screen.findByText("equipment@nyu.edu")).toBeInTheDocument();
+    expect(screen.queryByText("catering@nyu.edu")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Service for garage")).toHaveTextContent(
+      "Equipment",
+    );
+  });
 });
