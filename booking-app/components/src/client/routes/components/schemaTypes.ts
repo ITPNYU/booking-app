@@ -29,6 +29,8 @@ export type ResourceChartFieldConfig = {
   label?: string;
   descriptionHtml?: string;
   required?: boolean;
+  /** Reserved for schema authors; forms always apply CHARTFIELD_REGEX when required. */
+  validation?: string;
 };
 
 export type ResourceFormOption = {
@@ -45,10 +47,11 @@ export type ResourceFormSelectOption = ResourceFormOption & {
 
 /**
  * Service section config.
- * - mode "radio": choice list via options
+ * - mode "radio": choice list via options (`select` in JSON normalizes to radio)
  * - mode "static": read-only HTML
  * - mode "hidden": offered but not shown
- * - omit mode: yes/no switch (optional section chartField when yes)
+ * - omit mode + chartField (no options): yes/no switch
+ * - omit mode + description only (no options/chartField): treated as static on migrate
  */
 export type ResourceFormSectionConfig = {
   showInOrigin?: ShowInOrigin;

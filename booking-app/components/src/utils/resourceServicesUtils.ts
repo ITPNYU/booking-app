@@ -111,11 +111,16 @@ export function getServiceSectionConfig(
   if (key === "staffing") {
     const staffing = config.staffing;
     if (!staffing) return undefined;
+    const hasSections =
+      !!staffing.sections && Object.keys(staffing.sections).length > 0;
     // Adapt staffing (different shape) for shared visibility checks.
     return {
       showInOrigin: staffing.showInOrigin,
       label: staffing.label,
       descriptionHtml: staffing.descriptionHtml,
+      mode:
+        staffing.mode ??
+        (hasSections ? undefined : "static"),
       hideForUser: staffing.hideForUser,
       hideForVIP: staffing.hideForVIP,
       hideForWalkIn: staffing.hideForWalkIn,

@@ -70,13 +70,65 @@ export default function BookingFormStaffingServices(props: Props) {
       (room.staffingServices && room.staffingServices.length > 0),
   );
 
-  const { staffingSections, flatServices } = useMemo(() => {
+  const { staffingSections, flatServices, staticStaffingRooms } = useMemo(() => {
     const sections: StaffingSectionView[] = [];
     const flat: Array<{ value: string; label: string }> = [];
+    const staticRooms: Array<{
+      label?: string;
+      descriptionHtml?: string;
+      name?: string;
+    }> = [];
 
     selectedRooms.forEach((room) => {
       const staffingConfig = getResourceServicesConfig(room).staffing;
-      if (staffingConfig?.sections) {
+      if (!staffingConfig) {
+        if (room.staffingSections && room.staffingSections.length > 0) {
+          const legacyServices = (room.staffingServices ?? []) as string[];
+          room.staffingSections.forEach((section) => {
+            addStaffingSection(sections, {
+              name: section.name,
+              services: section.indexes
+                .map((index) => legacyServices[index])
+                .filter(Boolean)
+                .map((value) => ({
+                  value,
+                  label:
+                    (StaffingServices as Record<string, string>)[value] ?? value,
+                })),
+            });
+          });
+        } else if (room.staffingServices?.length) {
+          room.staffingServices.forEach((serviceKey: string) => {
+            if (!flat.some((f) => f.value === serviceKey)) {
+              flat.push({
+                value: serviceKey,
+                label:
+                  (StaffingServices as Record<string, string>)[serviceKey] ??
+                  serviceKey,
+              });
+            }
+          });
+        }
+        return;
+      }
+
+      const hasSections =
+        !!staffingConfig.sections &&
+        Object.keys(staffingConfig.sections).length > 0;
+      const isStatic =
+        staffingConfig.mode === "static" ||
+        (!hasSections && !staffingConfig.staffingOptions?.length);
+
+      if (isStatic) {
+        staticRooms.push({
+          label: staffingConfig.label,
+          descriptionHtml: staffingConfig.descriptionHtml,
+          name: room.name,
+        });
+        return;
+      }
+
+      if (staffingConfig.sections) {
         Object.values(staffingConfig.sections).forEach((section) => {
           const options =
             section.options?.length
@@ -96,47 +148,50 @@ export default function BookingFormStaffingServices(props: Props) {
             });
           }
         });
-      } else if (staffingConfig?.staffingOptions?.length) {
+      } else if (staffingConfig.staffingOptions?.length) {
         staffingConfig.staffingOptions.forEach((s) => {
           if (!flat.some((f) => f.value === s.value)) {
             flat.push({ value: s.value, label: s.label });
           }
         });
-      } else if (room.staffingSections && room.staffingSections.length > 0) {
-        const legacyServices = (room.staffingServices ?? []) as string[];
-        room.staffingSections.forEach((section) => {
-          addStaffingSection(sections, {
-            name: section.name,
-            services: section.indexes
-              .map((index) => legacyServices[index])
-              .filter(Boolean)
-              .map((value) => ({
-                value,
-                label:
-                  (StaffingServices as Record<string, string>)[value] ?? value,
-              })),
-          });
-        });
-      } else if (room.staffingServices?.length) {
-        room.staffingServices.forEach((serviceKey: string) => {
-          if (!flat.some((f) => f.value === serviceKey)) {
-            flat.push({
-              value: serviceKey,
-              label:
-                (StaffingServices as Record<string, string>)[serviceKey] ??
-                serviceKey,
-            });
-          }
-        });
       }
     });
 
-    return { staffingSections: sections, flatServices: flat };
+    return {
+      staffingSections: sections,
+      flatServices: flat,
+      staticStaffingRooms: staticRooms,
+    };
   }, [roomIds, selectedRooms]);
+
+  const hasInteractiveStaffing =
+    staffingSections.length > 0 || flatServices.length > 0;
 
   const staffingLabel =
     getResourceServicesConfig(selectedRooms[0] ?? {}).staffing?.label ??
     "Staffing";
+
+  if (!showStaffing) {
+    return null;
+  }
+
+  if (!hasInteractiveStaffing) {
+    return (
+      <div style={{ marginBottom: 8 }}>
+        {staticStaffingRooms.map((room, index) => (
+          <div key={`staffing-static-${index}`} style={{ marginBottom: 16 }}>
+            <Label>{room.label ?? staffingLabel}</Label>
+            {room.descriptionHtml ? (
+              <div
+                style={{ fontSize: "0.75rem", marginBottom: 8 }}
+                dangerouslySetInnerHTML={{ __html: room.descriptionHtml }}
+              />
+            ) : null}
+          </div>
+        ))}
+      </div>
+    );
+  }
 
   const toggle = (
     <Controller
@@ -163,12 +218,19 @@ export default function BookingFormStaffingServices(props: Props) {
     />
   );
 
-  if (!showStaffing) {
-    return null;
-  }
-
   return (
     <div style={{ marginBottom: 8 }}>
+      {staticStaffingRooms.map((room, index) => (
+        <div key={`staffing-static-${index}`} style={{ marginBottom: 16 }}>
+          <Label>{room.label ?? staffingLabel}</Label>
+          {room.descriptionHtml ? (
+            <div
+              style={{ fontSize: "0.75rem", marginBottom: 8 }}
+              dangerouslySetInnerHTML={{ __html: room.descriptionHtml }}
+            />
+          ) : null}
+        </div>
+      ))}
       <Label htmlFor={id}>{staffingLabel}?</Label>
       <p style={{ fontSize: "0.75rem" }}>
         Request audio technicians, lighting technicians, and technical support.

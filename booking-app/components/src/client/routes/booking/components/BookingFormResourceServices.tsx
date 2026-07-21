@@ -27,7 +27,7 @@ import {
   ServiceResourceLike,
   ServiceVisibilityContext,
 } from "../../../../utils/resourceServicesUtils";
-import { BookingFormSwitch, BookingFormTextField } from "./BookingFormInputs";
+import { BookingFormTextField } from "./BookingFormInputs";
 
 const Label = styled.label`
   font-weight: 500;
@@ -64,7 +64,6 @@ interface Props {
   isWalkIn: boolean;
   isVIP: boolean;
   formatFieldLabel: (label: string) => string;
-  cateringValue: string;
   hireSecurityValue: string;
 }
 
@@ -100,7 +99,6 @@ export default function BookingFormResourceServices({
   isWalkIn,
   isVIP,
   formatFieldLabel,
-  cateringValue,
   hireSecurityValue,
 }: Props) {
   const visibility: ServiceVisibilityContext = {
@@ -118,6 +116,11 @@ export default function BookingFormResourceServices({
     "setup",
     visibility,
   ).filter((r) => getServiceSectionConfig(r, "setup")?.mode === "radio");
+  const setupStaticRooms = getRoomsWithVisibleService(
+    selectedRooms,
+    "setup",
+    visibility,
+  ).filter((r) => getServiceSectionConfig(r, "setup")?.mode === "static");
   const furnishingsRooms = getRoomsWithVisibleService(
     selectedRooms,
     "furnishings",
@@ -129,16 +132,8 @@ export default function BookingFormResourceServices({
     visibility,
   ).filter((r) => getServiceSectionConfig(r, "equipment")?.mode === "static");
 
-  const loungeByRoom =
-    (watch("studentLoungeByRoom") as Record<string, string> | undefined) ?? {};
   const auxiliaryByRoom =
     (watch("auxiliarySpaceByRoom") as Record<string, string> | undefined) ?? {};
-
-  const staticCateringRoom = getRoomsWithVisibleService(
-    selectedRooms,
-    "catering",
-    visibility,
-  ).find((r) => getServiceSectionConfig(r, "catering")?.mode === "static");
 
   const securitySelectRooms = getRoomsWithVisibleService(
     selectedRooms,
@@ -232,17 +227,35 @@ export default function BookingFormResourceServices({
       setValue("auxiliarySpaceByRoom", nextMap, { shouldValidate: false });
       setValue(
         "auxiliarySpaceRequested",
-        Object.values(nextMap).some((v) => !!v && v !== "none") ||
-          Object.values(loungeByRoom).some((v) => v === "yes"),
+        Object.values(nextMap).some((v) => !!v && v !== "none"),
         { shouldValidate: false },
       );
     }
-  }, [auxiliaryRooms, setValue, watch, loungeByRoom]);
+  }, [auxiliaryRooms, setValue, watch]);
 
   if (!hasConfig || isWalkIn) return null;
 
   return (
     <>
+      {setupStaticRooms.map((room) => {
+        const cfg = getServiceSectionConfig(room, "setup")!;
+        const resourceId = getServiceResourceId(room);
+        return (
+          <Subsection key={`setup-static-${resourceId}`}>
+            <Label>
+              {formatFieldLabel(
+                roomSectionLabel(
+                  room.name,
+                  cfg.label ?? "Room Setup",
+                  selectedRooms.length > 1,
+                ),
+              )}
+            </Label>
+            <HtmlBlock html={cfg.descriptionHtml} />
+          </Subsection>
+        );
+      })}
+
       <Controller
         name="roomSetupByRoom"
         control={control}
@@ -528,73 +541,26 @@ export default function BookingFormResourceServices({
               )}
             </Label>
             <HtmlBlock html={cfg.descriptionHtml} />
+            {cfg.showDetailsField && (
+              <BookingFormTextField
+                id="equipmentServicesDetails"
+                label={cfg.detailsLabel ?? "Equipment request details"}
+                description={
+                  cfg.detailsDescriptionHtml ? (
+                    <div
+                      dangerouslySetInnerHTML={{
+                        __html: cfg.detailsDescriptionHtml,
+                      }}
+                    />
+                  ) : undefined
+                }
+                required={false}
+                {...{ control, errors, trigger }}
+              />
+            )}
           </Subsection>
         );
       })}
-
-      {staticCateringRoom && (() => {
-        const cfg = getResourceServicesConfig(staticCateringRoom).catering;
-        if (!cfg) return null;
-        const cateringRoomId = getServiceResourceId(staticCateringRoom);
-        const loungeChecked = loungeByRoom[cateringRoomId] === "yes";
-        return (
-          <div style={{ marginBottom: 32 }} key="catering-202">
-            <Label>{formatFieldLabel(cfg.label ?? "Catering")}</Label>
-            <HtmlBlock html={cfg.descriptionHtml} />
-            {cfg.studentLoungeCheckbox && (
-              <FormControlLabel
-                label="Yes, I would like to request the student lounge"
-                control={
-                  <Checkbox
-                    checked={loungeChecked}
-                    onChange={(e) => {
-                      const checked = e.target.checked;
-                      setValue("studentLoungeByRoom", {
-                        ...loungeByRoom,
-                        [cateringRoomId]: checked ? "yes" : "",
-                      });
-                      setValue(
-                        "auxiliarySpaceRequested",
-                        checked ||
-                          Object.values(auxiliaryByRoom).some((v) => v === "yes"),
-                      );
-                      if (!checked) {
-                        setValue("catering", "");
-                        setValue("chartFieldForCatering", "");
-                      }
-                    }}
-                  />
-                }
-              />
-            )}
-            {loungeChecked && (
-              <>
-                <BookingFormSwitch
-                  id="catering"
-                  label="Catering?"
-                  description={
-                    <p>Select if you need catering for your event.</p>
-                  }
-                  required={false}
-                  {...{ control, errors, trigger }}
-                />
-                {cateringValue === "yes" && (
-                  <BookingFormTextField
-                    id="chartFieldForCatering"
-                    label="ChartField for Catering Services"
-                    required
-                    pattern={{
-                      value: CHARTFIELD_REGEX,
-                      message: CHARTFIELD_PATTERN_MESSAGE,
-                    }}
-                    {...{ control, errors, trigger }}
-                  />
-                )}
-              </>
-            )}
-          </div>
-        );
-      })()}
 
       {securitySelectRooms.map((room) => {
         const cfg = getServiceSectionConfig(room, "security")!;
@@ -675,8 +641,7 @@ export default function BookingFormResourceServices({
           setValue("auxiliarySpaceByRoom", nextMap);
           setValue(
             "auxiliarySpaceRequested",
-            Object.values(nextMap).some((v) => !!v && v !== "none") ||
-              Object.values(loungeByRoom).some((v) => v === "yes"),
+            Object.values(nextMap).some((v) => !!v && v !== "none"),
           );
         };
 

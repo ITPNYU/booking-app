@@ -37,13 +37,36 @@ function hideFlagsToShowInOrigin(section: {
   };
 }
 
+function normalizeChartField(
+  raw: unknown,
+): ResourceFormOption["chartField"] | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const cf = raw as Record<string, unknown>;
+  return {
+    ...(typeof cf.label === "string" ? { label: cf.label } : {}),
+    ...(typeof cf.descriptionHtml === "string"
+      ? { descriptionHtml: cf.descriptionHtml }
+      : {}),
+    ...(typeof cf.required === "boolean" ? { required: cf.required } : {}),
+    ...(typeof cf.validation === "string" ? { validation: cf.validation } : {}),
+  };
+}
+
+function pickChartField(
+  raw: Record<string, unknown>,
+): ResourceFormOption["chartField"] | undefined {
+  const fromCamel = normalizeChartField(raw.chartField);
+  if (fromCamel) return fromCamel;
+  const fromLower = normalizeChartField(raw.chartfield);
+  if (fromLower) return fromLower;
+  if (raw.requiresChartField || raw.chartFieldWhenYes) {
+    return { required: true };
+  }
+  return undefined;
+}
+
 function normalizeOption(opt: Record<string, unknown>): ResourceFormOption {
-  const chartField =
-    opt.chartField && typeof opt.chartField === "object"
-      ? (opt.chartField as ResourceFormOption["chartField"])
-      : opt.requiresChartField
-        ? { required: true }
-        : undefined;
+  const chartField = pickChartField(opt);
   return {
     value: String(opt.value ?? ""),
     label: String(opt.label ?? opt.value ?? ""),
@@ -66,12 +89,16 @@ function normalizeSection(
     ? (raw.options as Record<string, unknown>[]).map(normalizeOption)
     : undefined;
 
-  const chartField =
-    raw.chartField && typeof raw.chartField === "object"
-      ? (raw.chartField as ResourceFormSectionConfig["chartField"])
-      : raw.chartFieldWhenYes
-        ? { required: true }
-        : undefined;
+  const chartField = pickChartField(raw);
+
+  // Description-only sections (no choice UI / switch) become static.
+  if (
+    mode === undefined &&
+    (!options || options.length === 0) &&
+    !chartField
+  ) {
+    mode = "static";
+  }
 
   const showInOrigin =
     (raw.showInOrigin as ShowInOrigin | undefined) ??
@@ -215,6 +242,14 @@ function normalizeObjectServices(
           ),
         },
       };
+    }
+    // Description-only staffing (no sections) → static info.
+    if (
+      !staffing.sections ||
+      Object.keys(staffing.sections).length === 0
+    ) {
+      staffing.mode = "static";
+      delete staffing.sections;
     }
     result.staffing = staffing;
   }

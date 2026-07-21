@@ -4,27 +4,31 @@ import {
   anyRoomHasVisibleService,
   getRoomsWithVisibleService,
 } from "@/components/src/utils/resourceServicesUtils";
-import { applyMcResourceServices } from "@/lib/tenant/mcResourceServices";
+import {
+  applyMcResourceServices,
+  getMcResourceServices,
+  MC_RESOURCE_SERVICES_103,
+} from "@/lib/tenant/mcResourceServices";
 import { migrateResourceServices } from "@/lib/tenant/migrateResourceServices";
 
 describe("getMediaCommonsServices", () => {
-  it("does not request security for 103 main entrance choice", () => {
+  it("requests security for yes hireSecurity", () => {
     const services = getMediaCommonsServices({
-      hireSecurity: "main_entrance",
-    });
-    expect(services.security).toBe(false);
-  });
-
-  it("requests security for willoughby entrance", () => {
-    const services = getMediaCommonsServices({
-      hireSecurity: "willoughby",
+      hireSecurity: "yes",
     });
     expect(services.security).toBe(true);
   });
 
+  it("does not request security when hireSecurity is empty", () => {
+    const services = getMediaCommonsServices({
+      hireSecurity: "",
+    });
+    expect(services.security).toBe(false);
+  });
+
   it("detects setup from per-room maps", () => {
     const services = getMediaCommonsServices({
-      roomSetupByRoom: { "1201": "classroom_style" },
+      roomSetupByRoom: { "1201": "1201_LAYOUT_1" },
     });
     expect(services.setup).toBe(true);
   });
@@ -43,6 +47,7 @@ describe("getMediaCommonsServices", () => {
 
 describe("resource service visibility", () => {
   const standardUser = { isVIP: false, isWalkIn: false, isStandardUser: true };
+  const walkInUser = { isVIP: false, isWalkIn: true, isStandardUser: false };
   const vipUser = { isVIP: true, isWalkIn: false, isStandardUser: false };
 
   it("shows legacy string[] services when no object config exists", () => {
@@ -78,20 +83,22 @@ describe("resource service visibility", () => {
     );
   });
 
-  it("hides staffing when showInOrigin.user is false for standard users", () => {
+  it("hides VIP-only sections from standard user and walk-in", () => {
     const rooms = [
       {
-        roomId: "230",
+        roomId: "220",
         services: {
-          staffing: {
-            showInOrigin: { user: false, walkIn: true, VIP: true },
-            label: "Staffing?",
+          catering: {
+            showInOrigin: { user: false, walkIn: false, VIP: true },
+            label: "Catering?",
+            chartField: { required: true },
           },
         },
       },
     ];
-    expect(anyRoomHasVisibleService(rooms, "staffing", standardUser)).toBe(false);
-    expect(anyRoomHasVisibleService(rooms, "staffing", vipUser)).toBe(true);
+    expect(anyRoomHasVisibleService(rooms, "catering", standardUser)).toBe(false);
+    expect(anyRoomHasVisibleService(rooms, "catering", walkInUser)).toBe(false);
+    expect(anyRoomHasVisibleService(rooms, "catering", vipUser)).toBe(true);
   });
 });
 
@@ -103,7 +110,10 @@ describe("applyMcResourceServices", () => {
       capacity: 50,
       services: ["catering"],
     });
-    expect(result.services?.catering?.mode).toBe("static");
+    expect(result.services?.catering?.forceCleaning).toBe(true);
+    expect(result.services?.catering?.chartField?.required).toBe(true);
+    expect(result.services?.setup?.mode).toBe("static");
+    expect(result.services?.annex?.mode).toBe("radio");
   });
 
   it("does not overwrite an existing object services config", () => {
@@ -117,6 +127,21 @@ describe("applyMcResourceServices", () => {
       services: custom,
     });
     expect(result.services).toEqual(custom);
+  });
+
+  it("includes room 260 defaults", () => {
+    expect(getMcResourceServices("260")?.setup?.defaultValue).toBe(
+      "260_LAYOUT_0",
+    );
+    expect(getMcResourceServices("260")?.catering?.showInOrigin?.user).toBe(
+      false,
+    );
+  });
+
+  it("uses switch security for 103 (no entrance radio)", () => {
+    expect(MC_RESOURCE_SERVICES_103.security?.mode).toBeUndefined();
+    expect(MC_RESOURCE_SERVICES_103.security?.chartField?.required).toBe(true);
+    expect(MC_RESOURCE_SERVICES_103.security?.options).toBeUndefined();
   });
 });
 
@@ -163,5 +188,34 @@ describe("migrateResourceServices", () => {
     expect(result.setup?.mode).toBe("radio");
     expect(result.setup?.options?.[0].chartField?.required).toBe(true);
     expect(result.annex?.label).toBe("Green room");
+  });
+
+  it("coerces lowercase chartfield and infers static for description-only", () => {
+    const result = migrateResourceServices({
+      services: {
+        setup: {
+          label: "Room Setup?",
+          descriptionHtml: "<p>No options</p>",
+        },
+        furnishings: {
+          label: "Furniture?",
+          chartfield: {
+            label: "Chartfield",
+            required: true,
+            validation: "CHARTFIELD_REGEX",
+          },
+        },
+        staffing: {
+          label: "Staffing?",
+          descriptionHtml: "<p>There are no staffing options</p>",
+        },
+      },
+    });
+    expect(result.setup?.mode).toBe("static");
+    expect(result.furnishings?.mode).toBeUndefined();
+    expect(result.furnishings?.chartField?.required).toBe(true);
+    expect(result.furnishings?.chartField?.validation).toBe("CHARTFIELD_REGEX");
+    expect(result.staffing?.mode).toBe("static");
+    expect(result.staffing?.sections).toBeUndefined();
   });
 });

@@ -145,17 +145,10 @@ export default function FormInput({
 
   const hasConfigSetup = useMemo(
     () =>
-      selectedRooms.some(
-        (r) => getServiceSectionConfig(r, "setup")?.mode === "radio",
-      ),
-    [selectedRooms],
-  );
-
-  const hasStaticCatering = useMemo(
-    () =>
-      selectedRooms.some(
-        (r) => getServiceSectionConfig(r, "catering")?.mode === "static",
-      ),
+      selectedRooms.some((r) => {
+        const mode = getServiceSectionConfig(r, "setup")?.mode;
+        return mode === "radio" || mode === "static";
+      }),
     [selectedRooms],
   );
 
@@ -174,6 +167,14 @@ export default function FormInput({
       ),
     [selectedRooms],
   );
+
+  const cateringDescriptionHtml = useMemo(() => {
+    for (const room of selectedRooms) {
+      const html = getServiceSectionConfig(room, "catering")?.descriptionHtml;
+      if (html) return html;
+    }
+    return undefined;
+  }, [selectedRooms]);
 
   // Determine which services to show based on selected rooms and schema resources
   const showEquipment = useMemo(
@@ -594,7 +595,6 @@ export default function FormInput({
         isWalkIn={isWalkIn}
         isVIP={isVIP}
         formatFieldLabel={formatFieldLabel}
-        cateringValue={cateringValue}
         hireSecurityValue={hireSecurityValue}
       />
       {!isWalkIn && showSetup && !hasConfigSetup && (
@@ -706,12 +706,21 @@ export default function FormInput({
             )}
         </div>
       )}
-      {!isWalkIn && showCatering && !hasStaticCatering && (
+      {!isWalkIn && showCatering && (
         <div style={{ marginBottom: 32 }}>
           <BookingFormSwitch
             id="catering"
             label="Catering?"
-            description={<p>Select if you need catering for your event.</p>}
+            description={
+              cateringDescriptionHtml ? (
+                <div
+                  style={{ fontSize: "0.75rem" }}
+                  dangerouslySetInnerHTML={{ __html: cateringDescriptionHtml }}
+                />
+              ) : (
+                <p>Select if you need catering for your event.</p>
+              )
+            }
             required={false}
             {...{ control, errors, trigger }}
           />
