@@ -7,7 +7,6 @@ import {
 import {
   applyMcResourceServices,
   getMcResourceServices,
-  MC_RESOURCE_SERVICES_103,
 } from "@/lib/tenant/mcResourceServices";
 import { migrateResourceServices } from "@/lib/tenant/migrateResourceServices";
 
@@ -155,13 +154,14 @@ describe("applyMcResourceServices", () => {
   });
 
   it("uses radio security for 103 with Willoughby entrance option", () => {
-    expect(MC_RESOURCE_SERVICES_103.security?.mode).toBe("radio");
-    expect(MC_RESOURCE_SERVICES_103.security?.required).toBe(true);
-    expect(MC_RESOURCE_SERVICES_103.security?.options?.[0]?.value).toBe(
+    const services103 = getMcResourceServices("103")!;
+    expect(services103.security?.mode).toBe("radio");
+    expect(services103.security?.required).toBe(true);
+    expect(services103.security?.options?.[0]?.value).toBe(
       "Willoughby Street Entrance",
     );
     expect(
-      MC_RESOURCE_SERVICES_103.security?.options?.[0]?.chartField?.required,
+      services103.security?.options?.[0]?.chartField?.required,
     ).toBe(true);
   });
 
