@@ -382,6 +382,27 @@ describe("/api/calendarEvents", () => {
       expect(mockServerFetchAllDataFromCollection).toHaveBeenCalledTimes(1);
     });
 
+    it("shares one Google fetch across no-range GETs (quantized fallback window)", async () => {
+      // Callers that omit start/end (e.g. stale client bundles right after a
+      // deploy) get a day-quantized fallback range, so consecutive requests
+      // produce the same cache key instead of a unique per-millisecond key.
+      const listMock = stubCalendarClient([
+        {
+          id: "ev-1",
+          summary: "Event 1",
+          start: { dateTime: "2024-01-01T10:00:00Z" },
+          end: { dateTime: "2024-01-01T11:00:00Z" },
+        },
+      ]);
+      mockServerFetchAllDataFromCollection.mockResolvedValue([]);
+
+      const res1 = await GET(makeGETRequest("cal-1", tenantA));
+      const res2 = await GET(makeGETRequest("cal-1", tenantA));
+      expect(res1.status).toBe(200);
+      expect(res2.status).toBe(200);
+      expect(listMock).toHaveBeenCalledTimes(1);
+    });
+
     it("does NOT share cached bookings across different tenants", async () => {
       stubCalendarClient([
         {

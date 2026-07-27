@@ -10,6 +10,7 @@ vi.mock("@/lib/googleClient", () => ({
 
 import {
   getCachedRawCalendarEvents,
+  _getCalendarEventsCacheSizeForTesting,
   _resetCalendarEventsCacheForTesting,
 } from "@/lib/calendarEventsCache";
 
@@ -80,6 +81,37 @@ describe("calendarEventsCache", () => {
     });
     expect(refreshed).toEqual([{ id: "a2" }]);
     expect(listMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("evicts oldest entries beyond the cache size cap", async () => {
+    // MAX_CACHE_ENTRIES is 500. Insert 501 distinct ranges: the size must stay
+    // capped and the oldest entry must be gone (a refetch hits Google again).
+    listMock.mockImplementation(async () => oncePage([{ id: "x" }]));
+    for (let i = 0; i < 501; i++) {
+      await getCachedRawCalendarEvents(
+        "cal1",
+        `2026-01-01T00:00:00.${String(i).padStart(3, "0")}Z`,
+        "2026-02-01T00:00:00Z",
+      );
+    }
+    expect(_getCalendarEventsCacheSizeForTesting()).toBe(500);
+
+    const callsBefore = listMock.mock.calls.length;
+    // Oldest range (i=0) was evicted → refetches upstream.
+    await getCachedRawCalendarEvents(
+      "cal1",
+      "2026-01-01T00:00:00.000Z",
+      "2026-02-01T00:00:00Z",
+    );
+    expect(listMock.mock.calls.length).toBe(callsBefore + 1);
+
+    // Newest range (i=500) is still cached → no extra upstream call.
+    await getCachedRawCalendarEvents(
+      "cal1",
+      "2026-01-01T00:00:00.500Z",
+      "2026-02-01T00:00:00Z",
+    );
+    expect(listMock.mock.calls.length).toBe(callsBefore + 1);
   });
 
   it("paginates via nextPageToken", async () => {

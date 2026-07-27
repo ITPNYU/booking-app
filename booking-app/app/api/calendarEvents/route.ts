@@ -109,14 +109,20 @@ export async function GET(req: NextRequest) {
   const tenant = req.headers.get("x-tenant") || DEFAULT_TENANT;
 
   // Visible window: the client sends the range it is displaying. Fall back to a
-  // small default range for ad-hoc callers that omit it.
+  // small default range for ad-hoc callers that omit it. The fallback is
+  // quantized to day granularity — a raw `new Date()` would put a unique
+  // millisecond timestamp in every cache key, so no-range callers (e.g. stale
+  // client bundles right after a deploy) would never hit the cache while still
+  // inserting a new entry per request.
   const startParam = searchParams.get("start");
   const endParam = searchParams.get("end");
-  const timeMin = startParam || new Date().toISOString();
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  const timeMin = startParam || startOfToday.toISOString();
   const timeMax =
     endParam ||
     (() => {
-      const d = new Date();
+      const d = new Date(startOfToday);
       d.setMonth(d.getMonth() + DEFAULT_RANGE_MONTHS);
       return d.toISOString();
     })();

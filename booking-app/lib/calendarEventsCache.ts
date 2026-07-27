@@ -12,6 +12,13 @@ import { calendar_v3 } from "googleapis/build/src/apis/calendar";
 // calendar event itself is TTL-bound (and `fresh` bypasses it).
 const CALENDAR_CACHE_TTL = 60_000; // 60 seconds
 
+// Hard bound on entries. Keys are (calendarId, range) so a well-behaved
+// client produces only a handful, but nothing ever expired entries before —
+// stale entries were kept forever for stale-while-revalidate — so cap the map
+// and evict oldest-inserted first. ~500 entries × tens of KB stays well within
+// an F1 instance's memory.
+const MAX_CACHE_ENTRIES = 500;
+
 type CacheEntry = { data: calendar_v3.Schema$Event[]; timestamp: number };
 
 const cache = new Map<string, CacheEntry>();
@@ -21,6 +28,11 @@ const inflight = new Map<string, Promise<calendar_v3.Schema$Event[]>>();
 export function _resetCalendarEventsCacheForTesting() {
   cache.clear();
   inflight.clear();
+}
+
+/** @internal – exposed only for unit tests to observe eviction. */
+export function _getCalendarEventsCacheSizeForTesting() {
+  return cache.size;
 }
 
 const cacheKey = (calendarId: string, timeMin: string, timeMax: string) =>
@@ -65,6 +77,11 @@ function refresh(
   const promise = fetchFromGoogle(calendarId, timeMin, timeMax)
     .then((data) => {
       cache.set(key, { data, timestamp: Date.now() });
+      // Maps iterate in insertion order; evict oldest-inserted entries first.
+      for (const oldestKey of cache.keys()) {
+        if (cache.size <= MAX_CACHE_ENTRIES) break;
+        cache.delete(oldestKey);
+      }
       inflight.delete(key);
       return data;
     })
