@@ -70,6 +70,10 @@ function normalizeOption(opt: Record<string, unknown>): ResourceFormOption {
   return {
     value: String(opt.value ?? ""),
     label: String(opt.label ?? opt.value ?? ""),
+    ...(typeof opt.required === "boolean" ? { required: opt.required } : {}),
+    ...(typeof opt.descriptionHtml === "string"
+      ? { descriptionHtml: opt.descriptionHtml }
+      : {}),
     ...(chartField ? { chartField } : {}),
   };
 }
@@ -90,6 +94,11 @@ function normalizeSection(
     : undefined;
 
   const chartField = pickChartField(raw);
+
+  // Options imply radio when mode is omitted.
+  if (mode === undefined && options && options.length > 0) {
+    mode = "radio";
+  }
 
   // Description-only sections (no choice UI / switch) become static.
   if (

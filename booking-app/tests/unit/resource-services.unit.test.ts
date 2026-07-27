@@ -92,13 +92,13 @@ describe("resource service visibility", () => {
     );
   });
 
-  it("hides VIP-only sections from standard user and walk-in", () => {
+  it("hides VIP-only sections from standard user but shows walk-in", () => {
     const rooms = [
       {
         roomId: "220",
         services: {
           catering: {
-            showInOrigin: { user: false, walkIn: false, VIP: true },
+            showInOrigin: { user: false, walkIn: true, VIP: true },
             label: "Catering?",
             chartField: { required: true },
           },
@@ -106,7 +106,7 @@ describe("resource service visibility", () => {
       },
     ];
     expect(anyRoomHasVisibleService(rooms, "catering", standardUser)).toBe(false);
-    expect(anyRoomHasVisibleService(rooms, "catering", walkInUser)).toBe(false);
+    expect(anyRoomHasVisibleService(rooms, "catering", walkInUser)).toBe(true);
     expect(anyRoomHasVisibleService(rooms, "catering", vipUser)).toBe(true);
   });
 });
@@ -121,8 +121,9 @@ describe("applyMcResourceServices", () => {
     });
     expect(result.services?.catering?.forceCleaning).toBe(true);
     expect(result.services?.catering?.chartField?.required).toBe(true);
-    expect(result.services?.setup?.mode).toBe("static");
-    expect(result.services?.annex?.mode).toBe("radio");
+    expect(result.services?.setup?.mode).toBe("radio");
+    expect(result.services?.setup?.defaultValue).toBe("default");
+    expect(result.services?.annex?.options?.length).toBe(2);
   });
 
   it("preserves non-empty legacy services arrays", () => {
@@ -149,19 +150,28 @@ describe("applyMcResourceServices", () => {
     expect(result.services).toEqual(custom);
   });
 
-  it("includes room 260 defaults", () => {
-    expect(getMcResourceServices("260")?.setup?.defaultValue).toBe(
-      "260_LAYOUT_0",
-    );
-    expect(getMcResourceServices("260")?.catering?.showInOrigin?.user).toBe(
-      false,
-    );
+  it("uses empty config for room 260", () => {
+    expect(getMcResourceServices("260")).toEqual({});
   });
 
-  it("uses switch security for 103 (no entrance radio)", () => {
-    expect(MC_RESOURCE_SERVICES_103.security?.mode).toBeUndefined();
-    expect(MC_RESOURCE_SERVICES_103.security?.chartField?.required).toBe(true);
-    expect(MC_RESOURCE_SERVICES_103.security?.options).toBeUndefined();
+  it("uses radio security for 103 with Willoughby entrance option", () => {
+    expect(MC_RESOURCE_SERVICES_103.security?.mode).toBe("radio");
+    expect(MC_RESOURCE_SERVICES_103.security?.required).toBe(true);
+    expect(MC_RESOURCE_SERVICES_103.security?.options?.[0]?.value).toBe(
+      "Willoughby Street Entrance",
+    );
+    expect(
+      MC_RESOURCE_SERVICES_103.security?.options?.[0]?.chartField?.required,
+    ).toBe(true);
+  });
+
+  it("uses custom setup radio for ballroom rooms", () => {
+    expect(getMcResourceServices("220")?.setup?.defaultValue).toBe(
+      "220_LAYOUT_CUSTOM",
+    );
+    expect(
+      getMcResourceServices("220")?.setup?.options?.[0]?.descriptionHtml,
+    ).toBe("Please describe the layout in detail.");
   });
 });
 
@@ -238,5 +248,27 @@ describe("migrateResourceServices", () => {
     expect(result.furnishings?.chartField?.validation).toBe("CHARTFIELD_REGEX");
     expect(result.staffing?.mode).toBe("static");
     expect(result.staffing?.sections).toBeUndefined();
+  });
+
+  it("preserves option descriptionHtml and required", () => {
+    const result = migrateResourceServices({
+      services: {
+        setup: {
+          mode: "radio",
+          options: [
+            {
+              value: "custom",
+              label: "Custom Room Setup",
+              descriptionHtml: "Please describe the layout in detail.",
+              required: false,
+            },
+          ],
+        },
+      },
+    });
+    expect(result.setup?.options?.[0].descriptionHtml).toBe(
+      "Please describe the layout in detail.",
+    );
+    expect(result.setup?.options?.[0].required).toBe(false);
   });
 });

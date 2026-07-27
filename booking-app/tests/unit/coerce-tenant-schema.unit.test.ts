@@ -67,7 +67,8 @@ describe("coerceTenantSchema — resources", () => {
     );
 
     expect(coerced.resources[0].resourceId).toBe("202");
-    expect(coerced.resources[0].services?.setup?.mode).toBe("static");
+    expect(coerced.resources[0].services?.setup?.mode).toBe("radio");
+    expect(coerced.resources[0].services?.setup?.defaultValue).toBe("default");
     expect(coerced.resources[0].services?.catering?.forceCleaning).toBe(true);
     expect(coerced.resources[0].services?.catering?.chartField?.required).toBe(
       true,

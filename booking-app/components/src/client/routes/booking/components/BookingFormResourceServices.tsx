@@ -77,6 +77,34 @@ function HtmlBlock({ html }: { html?: string }) {
   );
 }
 
+function OptionLabel({
+  label,
+  descriptionHtml,
+}: {
+  label: string;
+  descriptionHtml?: string;
+}) {
+  if (!descriptionHtml) return <>{label}</>;
+  return (
+    <span>
+      {label}
+      <span
+        style={{ display: "block", fontSize: "0.75rem", marginTop: 4 }}
+        dangerouslySetInnerHTML={{ __html: descriptionHtml }}
+      />
+    </span>
+  );
+}
+
+function isSchemaDrivenEquipmentSection(
+  cfg: ReturnType<typeof getServiceSectionConfig>,
+): boolean {
+  if (!cfg) return false;
+  if (cfg.mode === "static") return true;
+  if (cfg.showDetailsField) return true;
+  return !!cfg.descriptionHtml && cfg.mode !== "hidden";
+}
+
 function mapFieldErrorMessage(error: unknown): string | undefined {
   if (
     error &&
@@ -130,7 +158,9 @@ export default function BookingFormResourceServices({
     selectedRooms,
     "equipment",
     visibility,
-  ).filter((r) => getServiceSectionConfig(r, "equipment")?.mode === "static");
+  ).filter((r) =>
+    isSchemaDrivenEquipmentSection(getServiceSectionConfig(r, "equipment")),
+  );
 
   const auxiliaryByRoom =
     (watch("auxiliarySpaceByRoom") as Record<string, string> | undefined) ?? {};
@@ -333,7 +363,12 @@ export default function BookingFormResourceServices({
                           key={opt.value}
                           value={opt.value}
                           control={<Radio />}
-                          label={opt.label}
+                          label={
+                            <OptionLabel
+                              label={opt.label}
+                              descriptionHtml={opt.descriptionHtml}
+                            />
+                          }
                         />
                       ))}
                     </RadioGroup>
@@ -598,7 +633,12 @@ export default function BookingFormResourceServices({
                         key={opt.value}
                         value={opt.value}
                         control={<Radio />}
-                        label={opt.label}
+                        label={
+                          <OptionLabel
+                            label={opt.label}
+                            descriptionHtml={opt.descriptionHtml}
+                          />
+                        }
                       />
                     ))}
                   </RadioGroup>

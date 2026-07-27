@@ -185,9 +185,15 @@ export default function FormInput({
       serviceVisibility,
     );
     if (equipmentRooms.length === 0) return false;
-    return equipmentRooms.some(
-      (r) => getServiceSectionConfig(r, "equipment")?.mode !== "static",
-    );
+    return equipmentRooms.some((r) => {
+      const cfg = getServiceSectionConfig(r, "equipment");
+      // Legacy string[] services have no section config; use generic equipment UI.
+      if (!cfg) return true;
+      if (cfg.mode === "static") return false;
+      if (cfg.showDetailsField) return false;
+      if (cfg.descriptionHtml && cfg.mode !== "hidden") return false;
+      return true;
+    });
   }, [selectedRooms, serviceVisibility]);
 
   const cateringDescriptionHtml = useMemo(() => {

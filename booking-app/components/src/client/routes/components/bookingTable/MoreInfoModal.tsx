@@ -705,7 +705,9 @@ export default function MoreInfoModal({
                         topText={
                           booking.hireSecurity === "yes"
                             ? "Yes"
-                            : booking.hireSecurity === "willoughby"
+                            : booking.hireSecurity === "willoughby" ||
+                                booking.hireSecurity ===
+                                  "Willoughby Street Entrance"
                               ? "Willoughby entrance"
                               : booking.hireSecurity === "main_entrance"
                                 ? "Main entrance"
