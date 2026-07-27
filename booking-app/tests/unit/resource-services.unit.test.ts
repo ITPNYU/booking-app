@@ -114,7 +114,7 @@ describe("applyMcResourceServices", () => {
     expect(result.services?.annex?.options?.length).toBe(2);
   });
 
-  it("preserves non-empty legacy services arrays", () => {
+  it("replaces legacy services arrays with MC room defaults", () => {
     const legacy = ["equipment", "catering"];
     const result = applyMcResourceServices({
       resourceId: "202",
@@ -122,7 +122,9 @@ describe("applyMcResourceServices", () => {
       capacity: 50,
       services: legacy,
     });
-    expect(result.services).toEqual(legacy);
+    expect(Array.isArray(result.services)).toBe(false);
+    expect(result.services?.catering?.forceCleaning).toBe(true);
+    expect(result.services?.setup?.mode).toBe("radio");
   });
 
   it("does not overwrite an existing object services config", () => {
@@ -236,6 +238,20 @@ describe("migrateResourceServices", () => {
     expect(result.furnishings?.chartField?.required).toBe(true);
     expect(result.furnishings?.chartField?.validation).toBe("CHARTFIELD_REGEX");
     expect(result.staffing?.mode).toBe("static");
+    expect(result.staffing?.sections).toBeUndefined();
+  });
+
+  it("preserves staffing mode hidden when there are no sections", () => {
+    const result = migrateResourceServices({
+      services: {
+        staffing: {
+          label: "Staffing?",
+          mode: "hidden",
+          descriptionHtml: "<p>Hidden staffing</p>",
+        },
+      },
+    });
+    expect(result.staffing?.mode).toBe("hidden");
     expect(result.staffing?.sections).toBeUndefined();
   });
 

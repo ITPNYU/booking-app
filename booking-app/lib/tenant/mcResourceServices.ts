@@ -1070,10 +1070,8 @@ export function applyMcResourceServices(resource: Resource): Resource {
   if (!mcServices) return resource;
 
   const { services } = resource;
-  // Preserve admin-authored configs: non-empty object or non-empty legacy array.
-  if (Array.isArray(services) && services.length > 0) {
-    return resource;
-  }
+  // Preserve admin-authored object configs. Legacy string[] services are replaced
+  // by room-specific MC defaults so the schema-driven form can take effect.
   if (
     services &&
     typeof services === "object" &&

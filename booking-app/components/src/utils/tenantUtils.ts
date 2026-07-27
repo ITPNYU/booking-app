@@ -101,7 +101,10 @@ export const getMediaCommonsServices = (data: any) => ({
   equipment:
     (!!data.mediaServices && data.mediaServices !== "no") ||
     (!!data.equipmentServices && data.equipmentServices !== "no") ||
-    (!!data.equipmentServicesDetails && data.equipmentServicesDetails !== "no"),
+    (!!data.equipmentServicesDetails && data.equipmentServicesDetails !== "no") ||
+    Object.values(data.equipmentServicesDetailsByRoom ?? {}).some(
+      (v: unknown) => typeof v === "string" && v.trim().length > 0 && v !== "no",
+    ),
   catering: !!data.catering && data.catering !== "no",
   cleaning: !!data.cleaningService && data.cleaningService !== "no",
   security:

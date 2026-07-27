@@ -261,6 +261,7 @@ export default function FormInput({
       chartFieldForRoomSetupByRoom: {},
       furnishingsByRoom: {},
       chartFieldForFurnishingsByRoom: {},
+      equipmentServicesDetailsByRoom: {},
       hireSecurity: "",
       attendeeAffiliation: "",
       roomSetup: "",

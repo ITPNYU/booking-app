@@ -406,6 +406,16 @@ export default function BookingFormResourceServices({
                 (o) => o.value === selectedValue,
               );
               if (!selectedOption?.chartField) continue;
+              if (selectedOption.chartField.required === false) {
+                const optional = map[resourceId] ?? "";
+                if (
+                  optional &&
+                  !CHARTFIELD_REGEX.test(optional)
+                ) {
+                  return CHARTFIELD_PATTERN_MESSAGE;
+                }
+                continue;
+              }
               const v = map[resourceId] ?? "";
               if (!CHARTFIELD_REGEX.test(v)) {
                 return CHARTFIELD_PATTERN_MESSAGE;
@@ -431,6 +441,13 @@ export default function BookingFormResourceServices({
               if (!cfg?.chartField) continue;
               const resourceId = getServiceResourceId(room);
               if (furnMap[resourceId] !== "yes") continue;
+              if (cfg.chartField.required === false) {
+                const optional = map[resourceId] ?? "";
+                if (optional && !CHARTFIELD_REGEX.test(optional)) {
+                  return CHARTFIELD_PATTERN_MESSAGE;
+                }
+                continue;
+              }
               const v = map[resourceId] ?? "";
               if (!CHARTFIELD_REGEX.test(v)) {
                 return CHARTFIELD_PATTERN_MESSAGE;
@@ -525,6 +542,10 @@ export default function BookingFormResourceServices({
       {equipmentStaticRooms.map((room) => {
         const cfg = getServiceSectionConfig(room, "equipment")!;
         const resourceId = getServiceResourceId(room);
+        const detailsByRoom =
+          (watch("equipmentServicesDetailsByRoom") as
+            | Record<string, string>
+            | undefined) ?? {};
         return (
           <Subsection key={`equip-${resourceId}`}>
             <Label>
@@ -538,98 +559,126 @@ export default function BookingFormResourceServices({
             </Label>
             <HtmlBlock html={cfg.descriptionHtml} />
             {cfg.showDetailsField && (
-              <BookingFormTextField
-                id="equipmentServicesDetails"
-                label={cfg.detailsLabel ?? "Equipment request details"}
-                description={
-                  cfg.detailsDescriptionHtml ? (
-                    <div
-                      dangerouslySetInnerHTML={{
-                        __html: cfg.detailsDescriptionHtml,
-                      }}
-                    />
-                  ) : undefined
-                }
-                required={false}
-                {...{ control, errors, trigger }}
-              />
+              <>
+                <Label htmlFor={`equip-details-${resourceId}`}>
+                  {cfg.detailsLabel ?? "Equipment request details"}
+                </Label>
+                {cfg.detailsDescriptionHtml ? (
+                  <HtmlBlock html={cfg.detailsDescriptionHtml} />
+                ) : null}
+                <input
+                  id={`equip-details-${resourceId}`}
+                  style={{
+                    width: "100%",
+                    padding: "8px",
+                    marginBottom: 16,
+                    border: "1px solid #ccc",
+                    borderRadius: 4,
+                  }}
+                  value={detailsByRoom[resourceId] ?? ""}
+                  onChange={(e) => {
+                    const next = {
+                      ...detailsByRoom,
+                      [resourceId]: e.target.value,
+                    };
+                    setValue("equipmentServicesDetailsByRoom", next, {
+                      shouldValidate: false,
+                    });
+                    // Keep legacy flat field in sync for calendars / service detection.
+                    const joined = Object.values(next)
+                      .map((v) => (typeof v === "string" ? v.trim() : ""))
+                      .filter(Boolean)
+                      .join("\n");
+                    setValue("equipmentServicesDetails", joined, {
+                      shouldValidate: false,
+                    });
+                  }}
+                />
+              </>
             )}
           </Subsection>
         );
       })}
 
-      {securitySelectRooms.map((room) => {
-        const cfg = getServiceSectionConfig(room, "security")!;
-        const resourceId = getServiceResourceId(room);
-        return (
-          <Subsection key={`sec-${resourceId}`}>
-            <Label>
-              {formatFieldLabel(
-                roomSectionLabel(
-                  room.name,
-                  cfg.label ?? "Security",
-                  selectedRooms.length > 1,
-                ),
-              )}
-            </Label>
-            <Controller
-              name="hireSecurity"
-              control={control}
-              rules={
-                cfg.required
-                  ? { required: "Please select a security option" }
-                  : undefined
-              }
-              render={({ field }) => (
-                <FormControl component="fieldset" fullWidth>
-                  <RadioGroup
-                    value={field.value ?? ""}
-                    onChange={(e) => {
-                      field.onChange(e.target.value);
-                      trigger("hireSecurity");
+      {securitySelectRooms.length > 0 &&
+        (() => {
+          // hireSecurity is booking-level (downstream APIs / XState expect one value).
+          // Prefer a required radio config when multiple rooms offer security radios.
+          const room =
+            securitySelectRooms.find(
+              (r) => getServiceSectionConfig(r, "security")?.required,
+            ) ?? securitySelectRooms[0];
+          const cfg = getServiceSectionConfig(room, "security")!;
+          const resourceId = getServiceResourceId(room);
+          return (
+            <Subsection key={`sec-${resourceId}`}>
+              <Label>
+                {formatFieldLabel(
+                  roomSectionLabel(
+                    room.name,
+                    cfg.label ?? "Security",
+                    selectedRooms.length > 1,
+                  ),
+                )}
+              </Label>
+              <Controller
+                name="hireSecurity"
+                control={control}
+                rules={
+                  cfg.required
+                    ? { required: "Please select a security option" }
+                    : undefined
+                }
+                render={({ field }) => (
+                  <FormControl component="fieldset" fullWidth>
+                    <RadioGroup
+                      value={field.value ?? ""}
+                      onChange={(e) => {
+                        field.onChange(e.target.value);
+                        trigger("hireSecurity");
+                      }}
+                    >
+                      {cfg.options?.map((opt) => (
+                        <FormControlLabel
+                          key={opt.value}
+                          value={opt.value}
+                          control={<Radio />}
+                          label={
+                            <OptionLabel
+                              label={opt.label}
+                              descriptionHtml={opt.descriptionHtml}
+                            />
+                          }
+                        />
+                      ))}
+                    </RadioGroup>
+                  </FormControl>
+                )}
+              />
+              {(() => {
+                const selectedOpt = cfg.options?.find(
+                  (o) => o.value === hireSecurityValue,
+                );
+                if (!selectedOpt?.chartField) return null;
+                return (
+                  <BookingFormTextField
+                    id="chartFieldForSecurity"
+                    label={
+                      selectedOpt.chartField.label ||
+                      "Chartfield for Campus Safety"
+                    }
+                    required={selectedOpt.chartField.required !== false}
+                    pattern={{
+                      value: CHARTFIELD_REGEX,
+                      message: CHARTFIELD_PATTERN_MESSAGE,
                     }}
-                  >
-                    {cfg.options?.map((opt) => (
-                      <FormControlLabel
-                        key={opt.value}
-                        value={opt.value}
-                        control={<Radio />}
-                        label={
-                          <OptionLabel
-                            label={opt.label}
-                            descriptionHtml={opt.descriptionHtml}
-                          />
-                        }
-                      />
-                    ))}
-                  </RadioGroup>
-                </FormControl>
-              )}
-            />
-            {(() => {
-              const selectedOpt = cfg.options?.find(
-                (o) => o.value === hireSecurityValue,
-              );
-              if (!selectedOpt?.chartField) return null;
-              return (
-                <BookingFormTextField
-                  id="chartFieldForSecurity"
-                  label={
-                    selectedOpt.chartField.label ||
-                    "Chartfield for Campus Safety"
-                  }
-                  required={selectedOpt.chartField.required !== false}
-                  pattern={{
-                    value: CHARTFIELD_REGEX,
-                    message: CHARTFIELD_PATTERN_MESSAGE,
-                  }}
-                  {...{ control, errors, trigger }}
-                />
-              );
-            })()}
-          </Subsection>
-        );
-      })}
+                    {...{ control, errors, trigger }}
+                  />
+                );
+              })()}
+            </Subsection>
+          );
+        })()}
     </>
   );
 }

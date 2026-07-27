@@ -216,6 +216,11 @@ function normalizeObjectServices(
       ...(typeof staffingRaw.descriptionHtml === "string"
         ? { descriptionHtml: staffingRaw.descriptionHtml }
         : {}),
+      ...(staffingRaw.mode === "radio" ||
+      staffingRaw.mode === "static" ||
+      staffingRaw.mode === "hidden"
+        ? { mode: staffingRaw.mode }
+        : {}),
       ...(staffingRaw.showInOrigin
         ? { showInOrigin: staffingRaw.showInOrigin as ShowInOrigin }
         : hideFlagsToShowInOrigin(staffingRaw)
@@ -252,12 +257,14 @@ function normalizeObjectServices(
         },
       };
     }
-    // Description-only staffing (no sections) → static info.
+    // Description-only staffing (no sections) → static info, unless explicitly hidden.
     if (
       !staffing.sections ||
       Object.keys(staffing.sections).length === 0
     ) {
-      staffing.mode = "static";
+      if (staffing.mode !== "hidden") {
+        staffing.mode = "static";
+      }
       delete staffing.sections;
     }
     result.staffing = staffing;
