@@ -144,22 +144,17 @@ export function getRoomsWithVisibleService(
   key: ResourceServiceKey,
   context: ServiceVisibilityContext,
 ): ServiceResourceLike[] {
+  // Annex / auxiliary space is schema-only for now — not rendered or requested.
+  if (key === "annex" || key === "auxiliarySpace") {
+    return [];
+  }
+
   return rooms.filter((room) => {
     if (!resourceHasService(room, key)) return false;
     const section = getServiceSectionConfig(room, key);
     if (!section) {
       // Legacy string[] resources have no section config — show when offered.
       return isLegacyServicesArray(room.services);
-    }
-    // Legacy auxiliarySpace.enabled: false means not offered (already filtered by hasService)
-    if (
-      key === "annex" ||
-      key === "auxiliarySpace"
-    ) {
-      const aux = getResourceServicesConfig(room).auxiliarySpace;
-      if (aux && aux.enabled === false && !getResourceServicesConfig(room).annex) {
-        return false;
-      }
     }
     return shouldShowServiceSection(section, context);
   });

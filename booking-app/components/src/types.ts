@@ -84,7 +84,6 @@ export type BookingStatus = {
   cleaningServiceApproved?: boolean;
   securityServiceApproved?: boolean;
   setupServiceApproved?: boolean;
-  auxiliaryServiceApproved?: boolean;
 };
 
 // the order here is the order these are displayed as table filters
@@ -197,9 +196,6 @@ export type Inputs = {
   chartFieldForRoomSetupByRoom?: Record<string, string>;
   furnishingsByRoom?: Record<string, string>;
   chartFieldForFurnishingsByRoom?: Record<string, string>;
-  studentLoungeByRoom?: Record<string, string>;
-  auxiliarySpaceByRoom?: Record<string, string>;
-  auxiliarySpaceRequested?: boolean;
   webcheckoutCartNumber?: string;
   // Individual service fields for pregame parsing
   equipment?: string;
@@ -221,7 +217,6 @@ export type MediaCommonsServiceFlags = {
   cleaning?: boolean;
   security?: boolean;
   setup?: boolean;
-  auxiliary?: boolean;
 };
 
 export type DepartmentType = {

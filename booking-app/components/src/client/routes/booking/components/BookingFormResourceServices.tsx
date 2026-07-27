@@ -162,20 +162,11 @@ export default function BookingFormResourceServices({
     isSchemaDrivenEquipmentSection(getServiceSectionConfig(r, "equipment")),
   );
 
-  const auxiliaryByRoom =
-    (watch("auxiliarySpaceByRoom") as Record<string, string> | undefined) ?? {};
-
   const securitySelectRooms = getRoomsWithVisibleService(
     selectedRooms,
     "security",
     visibility,
   ).filter((r) => getServiceSectionConfig(r, "security")?.mode === "radio");
-
-  const auxiliaryRooms = getRoomsWithVisibleService(
-    selectedRooms,
-    "annex",
-    visibility,
-  );
 
   const setupChartError = mapFieldErrorMessage(
     errors.chartFieldForRoomSetupByRoom,
@@ -232,36 +223,6 @@ export default function BookingFormResourceServices({
     setValue,
     watch,
   ]);
-
-  useEffect(() => {
-    const currentMap =
-      (watch("auxiliarySpaceByRoom") as Record<string, string> | undefined) ?? {};
-    // Preserve existing/legacy auxiliary answers; do not force annex defaults on edit.
-    if (
-      watch("auxiliarySpaceRequested") &&
-      Object.keys(currentMap).length === 0
-    ) {
-      return;
-    }
-    const nextMap = { ...currentMap };
-    let changed = false;
-    auxiliaryRooms.forEach((room) => {
-      const cfg = getServiceSectionConfig(room, "annex");
-      const resourceId = getServiceResourceId(room);
-      if (cfg?.mode === "radio" && cfg.defaultValue && !nextMap[resourceId]) {
-        nextMap[resourceId] = cfg.defaultValue;
-        changed = true;
-      }
-    });
-    if (changed) {
-      setValue("auxiliarySpaceByRoom", nextMap, { shouldValidate: false });
-      setValue(
-        "auxiliarySpaceRequested",
-        Object.values(nextMap).some((v) => !!v && v !== "none"),
-        { shouldValidate: false },
-      );
-    }
-  }, [auxiliaryRooms, setValue, watch]);
 
   if (!hasConfig || isWalkIn) return null;
 
@@ -666,74 +627,6 @@ export default function BookingFormResourceServices({
                 />
               );
             })()}
-          </Subsection>
-        );
-      })}
-
-      {auxiliaryRooms.map((room) => {
-        const aux = getServiceSectionConfig(room, "annex")!;
-        const resourceId = getServiceResourceId(room);
-        const selected =
-          auxiliaryByRoom[resourceId] ?? aux.defaultValue ?? "";
-        const isRadio = aux.mode === "radio" && (aux.options?.length ?? 0) > 0;
-
-        const markRequested = (nextMap: Record<string, string>) => {
-          setValue("auxiliarySpaceByRoom", nextMap);
-          setValue(
-            "auxiliarySpaceRequested",
-            Object.values(nextMap).some((v) => !!v && v !== "none"),
-          );
-        };
-
-        return (
-          <Subsection key={`aux-${resourceId}`}>
-            <Label>
-              {formatFieldLabel(
-                roomSectionLabel(
-                  room.name,
-                  aux.label ?? "Auxiliary Spaces",
-                  selectedRooms.length > 1,
-                ),
-              )}
-            </Label>
-            <HtmlBlock html={aux.descriptionHtml} />
-            {isRadio ? (
-              <FormControl component="fieldset" fullWidth>
-                <RadioGroup
-                  value={selected}
-                  onChange={(e) => {
-                    markRequested({
-                      ...auxiliaryByRoom,
-                      [resourceId]: e.target.value,
-                    });
-                  }}
-                >
-                  {aux.options?.map((opt) => (
-                    <FormControlLabel
-                      key={opt.value}
-                      value={opt.value}
-                      control={<Radio />}
-                      label={opt.label}
-                    />
-                  ))}
-                </RadioGroup>
-              </FormControl>
-            ) : (
-              <FormControlLabel
-                label="Yes"
-                control={
-                  <Checkbox
-                    checked={selected === "yes"}
-                    onChange={(e) => {
-                      markRequested({
-                        ...auxiliaryByRoom,
-                        [resourceId]: e.target.checked ? "yes" : "",
-                      });
-                    }}
-                  />
-                }
-              />
-            )}
           </Subsection>
         );
       })}

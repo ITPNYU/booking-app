@@ -167,7 +167,6 @@ describe("Edit resubmission resets declined services", () => {
         "cleaningServiceApproved",
         "securityServiceApproved",
         "setupServiceApproved",
-        "auxiliaryServiceApproved",
       ],
       "mc",
     );

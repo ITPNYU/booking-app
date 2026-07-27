@@ -22,7 +22,6 @@ export type McAutoApprovalContext = {
     cleaning?: boolean;
     security?: boolean;
     setup?: boolean;
-    auxiliary?: boolean;
   };
   _restoredFromStatus?: boolean;
 };
@@ -99,7 +98,6 @@ export function evaluateMcShouldAutoApprove(
         catering: context.servicesRequested.catering || false,
         cleaning: context.servicesRequested.cleaning || false,
         security: context.servicesRequested.security || false,
-        auxiliary: context.servicesRequested.auxiliary || false,
       }
     : undefined;
 

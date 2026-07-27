@@ -145,15 +145,6 @@ export default function useExistingBooking() {
       ),
       furnishingsByRoom: booking.furnishingsByRoom,
       chartFieldForFurnishingsByRoom: booking.chartFieldForFurnishingsByRoom,
-      studentLoungeByRoom: booking.studentLoungeByRoom,
-      auxiliarySpaceByRoom:
-        booking.auxiliarySpaceByRoom &&
-        Object.keys(booking.auxiliarySpaceByRoom).length > 0
-          ? booking.auxiliarySpaceByRoom
-          : booking.auxiliarySpaceRequested
-            ? Object.fromEntries(roomIdsForMaps.map((id) => [id, "yes"]))
-            : booking.auxiliarySpaceByRoom,
-      auxiliarySpaceRequested: booking.auxiliarySpaceRequested,
       webcheckoutCartNumber: booking.webcheckoutCartNumber,
       equipment: booking.equipment,
       staffing: booking.staffing,

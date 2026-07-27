@@ -40,17 +40,6 @@ describe("getMediaCommonsServices", () => {
     });
     expect(services.setup).toBe(true);
   });
-
-  it("detects auxiliary from lounge or auxiliary flags", () => {
-    expect(
-      getMediaCommonsServices({ auxiliarySpaceRequested: true }).auxiliary,
-    ).toBe(true);
-    expect(
-      getMediaCommonsServices({
-        studentLoungeByRoom: { "202": "yes" },
-      }).auxiliary,
-    ).toBe(true);
-  });
 });
 
 describe("resource service visibility", () => {

@@ -289,7 +289,6 @@ describe("mcBookingMachine", () => {
         "Cleaning Request": "Cleaning Approved",
         "Security Request": "Security Approved",
         "Equipment Request": "Equipment Approved",
-        "Auxiliary Request": "Auxiliary Approved",
       },
     });
   });

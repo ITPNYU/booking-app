@@ -248,10 +248,6 @@ export async function PUT(request: NextRequest) {
         updatedData.setupServiceApproved =
           existingBookingData.setupServiceApproved;
       }
-      if (existingBookingData.auxiliaryServiceApproved !== undefined) {
-        updatedData.auxiliaryServiceApproved =
-          existingBookingData.auxiliaryServiceApproved;
-      }
     }
 
     console.log(
@@ -290,7 +286,6 @@ export async function PUT(request: NextRequest) {
           cleaning: existingBookingData.cleaningServiceApproved || false,
           security: existingBookingData.securityServiceApproved || false,
           setup: existingBookingData.setupServiceApproved || false,
-          auxiliary: existingBookingData.auxiliaryServiceApproved || false,
         }
       : undefined;
 

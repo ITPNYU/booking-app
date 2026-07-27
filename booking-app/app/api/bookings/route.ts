@@ -767,9 +767,6 @@ export async function POST(request: NextRequest) {
         "closeoutSecurity",
         "declineEquipment",
         "closeoutEquipment",
-        "approveAuxiliary",
-        "declineAuxiliary",
-        "closeoutAuxiliary",
       ];
       mcEvents.forEach(event => {
         try {

@@ -21,7 +21,6 @@ const SERVICE_APPROVAL_FIELD_MAP = {
   cleaning: "cleaningServiceApproved",
   security: "securityServiceApproved",
   setup: "setupServiceApproved",
-  auxiliary: "auxiliaryServiceApproved",
 } as const;
 
 /**
