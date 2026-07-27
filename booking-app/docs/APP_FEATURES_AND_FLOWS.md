@@ -375,7 +375,7 @@ VIP bookings that include service requests are routed to the **Services Request*
 
 ## 6. Service Management
 
-Media Commons supports seven service types that are managed independently alongside the main booking approval. Each requested service goes through its own lifecycle.
+Media Commons supports six service types that are managed independently alongside the main booking approval. Each requested service goes through its own lifecycle.
 
 ### Available Services
 
@@ -387,7 +387,6 @@ Media Commons supports seven service types that are managed independently alongs
 | **Cleaning** | CBS Cleaning Services (auto-forced when catering is requested) |
 | **Security** | Hire Security; Garage 103 uses main vs Willoughby entrance choice |
 | **Room Setup** | Per-room layout options from tenant `resource.services` config |
-| **Auxiliary** | Breakout/lounge/foyer (1201), student lounge (202), green room (103) |
 
 Some services require a **chart field** (billing code) when selected:
 - Catering, Cleaning, Security, and Room Setup each have a chart field input
