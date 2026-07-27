@@ -85,28 +85,33 @@ export const getTenantFlags = (tenant?: string) => ({
   usesXState: shouldUseXState(tenant),
 });
 
+/** True when a service field is a non-empty value other than case-insensitive "no". */
+const isServiceRequested = (value: unknown): boolean => {
+  if (value == null) return false;
+  const normalized = String(value).trim().toLowerCase();
+  return normalized !== "" && normalized !== "no";
+};
+
 /**
  * Detect Media Commons service requests from booking data
  * This function provides consistent service detection logic across the application
  */
 export const getMediaCommonsServices = (data: any) => ({
-  staff:
-    !!data.staffingServicesDetails && data.staffingServicesDetails !== "no",
+  staff: isServiceRequested(data.staffingServicesDetails),
   setup:
-    Object.values(data.roomSetupByRoom ?? {}).some(
-      (v: unknown) => typeof v === "string" && v && v !== "no",
+    Object.values(data.roomSetupByRoom ?? {}).some((v: unknown) =>
+      isServiceRequested(v),
     ) ||
-    (!!data.setupDetails && data.setupDetails !== "no") ||
-    (!!data.roomSetup && !["", "no"].includes(data.roomSetup)),
+    isServiceRequested(data.setupDetails) ||
+    isServiceRequested(data.roomSetup),
   equipment:
-    (!!data.mediaServices && data.mediaServices !== "no") ||
-    (!!data.equipmentServices && data.equipmentServices !== "no") ||
-    (!!data.equipmentServicesDetails && data.equipmentServicesDetails !== "no") ||
-    Object.values(data.equipmentServicesDetailsByRoom ?? {}).some(
-      (v: unknown) => typeof v === "string" && v.trim().length > 0 && v !== "no",
+    isServiceRequested(data.mediaServices) ||
+    isServiceRequested(data.equipmentServices) ||
+    isServiceRequested(data.equipmentServicesDetails) ||
+    Object.values(data.equipmentServicesDetailsByRoom ?? {}).some((v: unknown) =>
+      isServiceRequested(v),
     ),
-  catering: !!data.catering && data.catering !== "no",
-  cleaning: !!data.cleaningService && data.cleaningService !== "no",
-  security:
-    !!data.hireSecurity && !["", "no"].includes(String(data.hireSecurity)),
+  catering: isServiceRequested(data.catering),
+  cleaning: isServiceRequested(data.cleaningService),
+  security: isServiceRequested(data.hireSecurity),
 });

@@ -32,6 +32,14 @@ describe("getMediaCommonsServices", () => {
     expect(getMediaCommonsServices({ hireSecurity: "no" }).security).toBe(
       false,
     );
+    expect(getMediaCommonsServices({ hireSecurity: "No" }).security).toBe(
+      false,
+    );
+  });
+
+  it("does not treat capitalized No as setup requested", () => {
+    expect(getMediaCommonsServices({ roomSetup: "No" }).setup).toBe(false);
+    expect(getMediaCommonsServices({ roomSetup: "no" }).setup).toBe(false);
   });
 
   it("detects setup from per-room maps", () => {
@@ -100,18 +108,25 @@ describe("resource service visibility", () => {
 });
 
 describe("applyMcResourceServices", () => {
-  it("applies MC defaults when services are missing or empty", () => {
-    const result = applyMcResourceServices({
+  it("applies MC defaults when services are missing or a legacy array", () => {
+    const missing = applyMcResourceServices({
+      resourceId: "202",
+      name: "202",
+      capacity: 50,
+    });
+    expect(missing.services?.catering?.forceCleaning).toBe(true);
+    expect(missing.services?.catering?.chartField?.required).toBe(true);
+    expect(missing.services?.setup?.mode).toBe("radio");
+    expect(missing.services?.setup?.defaultValue).toBe("default");
+    expect(missing.services?.annex?.options?.length).toBe(2);
+
+    const emptyArray = applyMcResourceServices({
       resourceId: "202",
       name: "202",
       capacity: 50,
       services: [],
     });
-    expect(result.services?.catering?.forceCleaning).toBe(true);
-    expect(result.services?.catering?.chartField?.required).toBe(true);
-    expect(result.services?.setup?.mode).toBe("radio");
-    expect(result.services?.setup?.defaultValue).toBe("default");
-    expect(result.services?.annex?.options?.length).toBe(2);
+    expect(emptyArray.services?.setup?.mode).toBe("radio");
   });
 
   it("replaces legacy services arrays with MC room defaults", () => {
@@ -138,6 +153,16 @@ describe("applyMcResourceServices", () => {
       services: custom,
     });
     expect(result.services).toEqual(custom);
+  });
+
+  it("preserves intentional empty object services configs", () => {
+    const result = applyMcResourceServices({
+      resourceId: "202",
+      name: "202",
+      capacity: 50,
+      services: {},
+    });
+    expect(result.services).toEqual({});
   });
 
   it("uses empty config for room 260", () => {
