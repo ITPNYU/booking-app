@@ -206,7 +206,7 @@ export type Inputs = {
   staffing?: string;
   cleaning?: string;
   // origin of the booking
-  origin?: BookingOrigin
+  origin?: BookingOrigin;
 };
 
 /** Form field keys whose values are plain strings (excludes maps/booleans). */
