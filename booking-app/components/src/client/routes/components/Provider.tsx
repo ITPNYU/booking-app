@@ -51,6 +51,7 @@ import {
   applyE2EMockBookings,
   applyE2EMockPaUsers,
   applyE2EMockSafetyUsers,
+  getE2EMockPagePermission,
 } from "./e2eMockUtils";
 
 export interface DatabaseContextType {
@@ -208,9 +209,8 @@ export const DatabaseProvider = ({
 
   const [preBanLogs, setPreBanLogs] = useState<PreBanLog[]>([]);
   const [superAdminUsers, setSuperAdminUsers] = useState<AdminUser[]>([]);
-  const [serverPagePermission, setServerPagePermission] = useState<
-    PagePermission | undefined
-  >(undefined);
+  const [serverPagePermission, setServerPagePermission] =
+    useState<PagePermission>(PagePermission.BOOKING);
 
   useEffect(() => {
     const fetchUserApiData = async () => {
@@ -230,35 +230,7 @@ export const DatabaseProvider = ({
     fetchUserApiData();
   }, [netId, tenant]);
 
-  // page permission updates with respect to user email, admin list, PA list
-  const derivedPagePermission = useMemo<PagePermission>(() => {
-    // Early return if no email
-    if (!userEmail) return PagePermission.BOOKING;
-
-    // Pre-compute email lists once
-    const adminEmails = adminUsers.map((admin) => admin.email);
-    const liaisonEmails = liaisonUsers.map((liaison) => liaison.email);
-    const paEmails = paUsers.map((pa) => pa.email);
-    const servicesEmails = equipmentUsers.map((e) => e.email);
-    const superAdminEmails = superAdminUsers.map((admin) => admin.email);
-
-    // Check permissions (ordered by hierarchy - highest to lowest)
-    if (superAdminEmails.includes(userEmail)) return PagePermission.SUPER_ADMIN;
-    if (adminEmails.includes(userEmail)) return PagePermission.ADMIN;
-    if (servicesEmails.includes(userEmail)) return PagePermission.SERVICES;
-    if (liaisonEmails.includes(userEmail)) return PagePermission.LIAISON;
-    if (paEmails.includes(userEmail)) return PagePermission.PA;
-
-    return PagePermission.BOOKING;
-  }, [
-    userEmail,
-    adminUsers,
-    liaisonUsers,
-    paUsers,
-    equipmentUsers,
-    superAdminUsers,
-  ]);
-  const pagePermission = serverPagePermission ?? derivedPagePermission;
+  const pagePermission = serverPagePermission;
 
   // Defer non-permission data fetches to pages that actually need them.
   // The landing page only needs permissions; booking/admin data loads on navigation.
@@ -447,6 +419,12 @@ export const DatabaseProvider = ({
       setPolicySettings,
     });
     if (adminMocked || paMocked || approverMocked) {
+      const mockPagePermission = getE2EMockPagePermission(
+        user?.email ?? userEmail,
+      );
+      if (mockPagePermission !== undefined) {
+        setServerPagePermission(mockPagePermission);
+      }
       return;
     }
 
@@ -475,7 +453,9 @@ export const DatabaseProvider = ({
       setLiaisonUsers(data.liaisonUsers ?? []);
       setEquipmentUsers(data.equipmentUsers ?? []);
       setSuperAdminUsers(data.superAdminUsers ?? []);
-      setServerPagePermission(data.pagePermission);
+      if (data.pagePermission) {
+        setServerPagePermission(data.pagePermission);
+      }
       setPolicySettings(
         data.policySettings ?? { finalApproverEmail: "" },
       );

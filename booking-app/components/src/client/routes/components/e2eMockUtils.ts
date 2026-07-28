@@ -2,6 +2,7 @@ import {
   AdminUser,
   Approver,
   Booking,
+  PagePermission,
   PolicySettings,
   PaUser,
   SafetyTraining,
@@ -14,6 +15,49 @@ function getE2EMockData<T>(key: string): T | undefined {
 
   const store = (window as any).__bookingE2EMocks;
   return store ? (store[key] as T) : undefined;
+}
+
+export function getE2EMockPagePermission(
+  email: string | undefined,
+): PagePermission | undefined {
+  if (typeof window === "undefined" || !email) return undefined;
+
+  const store = (window as any).__bookingE2EMocks;
+  if (!store) return undefined;
+
+  const normalizedEmail = email.trim().toLowerCase();
+  const userRights = (store.usersRights ?? []).find(
+    (record: any) => record.email?.trim().toLowerCase() === normalizedEmail,
+  );
+  if (userRights?.isAdmin === true) return PagePermission.ADMIN;
+
+  const approver = (store.usersApprovers ?? []).find(
+    (record: any) => record.email?.trim().toLowerCase() === normalizedEmail,
+  );
+  if (Number(approver?.level) === 3) return PagePermission.SERVICES;
+  if (approver) return PagePermission.LIAISON;
+
+  const hasLegacyServiceRight =
+    userRights?.isSetup === true ||
+    userRights?.isEquipment === true ||
+    userRights?.isStaffing === true ||
+    userRights?.isCatering === true ||
+    userRights?.isCleaning === true ||
+    userRights?.isSecurity === true;
+  if (hasLegacyServiceRight) return PagePermission.SERVICES;
+
+  const serviceApprovers =
+    store.usersServiceApprovers ?? store.serviceApprovers ?? [];
+  if (
+    serviceApprovers.some(
+      (record: any) => record.email?.trim().toLowerCase() === normalizedEmail,
+    )
+  ) {
+    return PagePermission.SERVICES;
+  }
+
+  if (userRights?.isWorker === true) return PagePermission.PA;
+  return PagePermission.BOOKING;
 }
 
 export function withE2EMockData<T>(
