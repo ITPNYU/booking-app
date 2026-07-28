@@ -126,6 +126,24 @@ describe("service approver server helpers", () => {
     ).resolves.toEqual(["one@nyu.edu"]);
   });
 
+  it("recognizes legacy service rights for the requested service", async () => {
+    collections.set("mc-usersRights", [
+      {
+        id: "legacy",
+        data: { email: "legacy@nyu.edu", isSetup: true },
+      },
+    ]);
+    const { serverHasLegacyServiceApproverRight } =
+      await import("@/lib/firebase/server/adminDb");
+
+    await expect(
+      serverHasLegacyServiceApproverRight("LEGACY@nyu.edu", "setup", "mc"),
+    ).resolves.toBe(true);
+    await expect(
+      serverHasLegacyServiceApproverRight("legacy@nyu.edu", "staff", "mc"),
+    ).resolves.toBe(false);
+  });
+
   it("returns no approvers when any requested resource has no assignment", async () => {
     collections.set("mc-usersServiceApprovers", [
       {

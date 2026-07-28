@@ -387,6 +387,32 @@ export const serverIsEquipmentApprover = async (
   return records.length > 0;
 };
 
+const LEGACY_SERVICE_APPROVER_FLAGS: Record<string, string> = {
+  setup: "isSetup",
+  equipment: "isEquipment",
+  staff: "isStaffing",
+  catering: "isCatering",
+  cleaning: "isCleaning",
+  security: "isSecurity",
+};
+
+export const serverHasLegacyServiceApproverRight = async (
+  email: string,
+  service: string,
+  tenant?: string,
+): Promise<boolean> => {
+  const normalizedEmail = normalizeApproverEmail(email);
+  const flag = LEGACY_SERVICE_APPROVER_FLAGS[service.trim()];
+  if (!normalizedEmail || !flag) return false;
+
+  const records = await serverFetchAllDataFromCollection<DocumentData>(
+    TableNames.USERS_RIGHTS,
+    [{ field: "email", operator: "==", value: normalizedEmail }],
+    tenant,
+  );
+  return records.some((record) => record[flag] === true);
+};
+
 export const serverResolveServiceApproverEmails = async (
   resourceIds: string[],
   service: string,

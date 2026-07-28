@@ -10,11 +10,30 @@ import {
   serializedTimestamp,
 } from "./helpers/test-utils";
 
+const jsonHeaders = { "content-type": "application/json" };
+
 test.describe("ITP Blackout Periods – booking blocked", () => {
   test("blocks ITP booking when date falls within a blackout period", async ({
     page,
   }) => {
     await registerItpBookingMocks(page);
+    await page.route("**/api/permissions**", (route) =>
+      route.fulfill({
+        status: 200,
+        headers: jsonHeaders,
+        body: JSON.stringify({
+          pagePermission: "BOOKING",
+          adminUsers: [],
+          paUsers: [],
+          liaisonUsers: [],
+          equipmentUsers: [],
+          superAdminUsers: [],
+          policySettings: { finalApproverEmail: "" },
+          maintenanceMode: { enabled: false, message: "" },
+          siteBanner: { enabled: false, message: "", colorHex: "#7b1fa2" },
+        }),
+      }),
+    );
 
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);

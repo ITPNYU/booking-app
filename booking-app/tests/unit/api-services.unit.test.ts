@@ -10,6 +10,7 @@ vi.mock("@/lib/api/authz", () => ({
 
 vi.mock("@/lib/firebase/server/adminDb", () => ({
   serverGetDataByCalendarEventId: vi.fn(),
+  serverHasLegacyServiceApproverRight: vi.fn(),
   serverIsEquipmentApprover: vi.fn(),
   serverIsServiceApproverForAllResources: vi.fn(),
 }));
@@ -24,6 +25,7 @@ import { resolveCallerRole } from "@/lib/api/authz";
 import { requireSession } from "@/lib/api/requireSession";
 import {
   serverGetDataByCalendarEventId,
+  serverHasLegacyServiceApproverRight,
   serverIsEquipmentApprover,
   serverIsServiceApproverForAllResources,
 } from "@/lib/firebase/server/adminDb";
@@ -35,6 +37,9 @@ const mockServerGetDataByCalendarEventId = vi.mocked(
   serverGetDataByCalendarEventId,
 );
 const mockServerIsEquipmentApprover = vi.mocked(serverIsEquipmentApprover);
+const mockServerHasLegacyServiceApproverRight = vi.mocked(
+  serverHasLegacyServiceApproverRight,
+);
 const mockServerIsServiceApproverForAllResources = vi.mocked(
   serverIsServiceApproverForAllResources,
 );
@@ -69,6 +74,7 @@ describe("POST /api/services", () => {
     } as any);
     mockServerIsServiceApproverForAllResources.mockResolvedValue(true);
     mockServerIsEquipmentApprover.mockResolvedValue(false);
+    mockServerHasLegacyServiceApproverRight.mockResolvedValue(false);
     mockExecuteXStateTransition.mockResolvedValue({
       success: true,
       newState: { "Services Request": "pending" },
@@ -111,6 +117,11 @@ describe("POST /api/services", () => {
       "mc",
     );
     expect(mockServerIsEquipmentApprover).not.toHaveBeenCalled();
+    expect(mockServerHasLegacyServiceApproverRight).toHaveBeenCalledWith(
+      "service@nyu.edu",
+      "setup",
+      "mc",
+    );
     expect(mockExecuteXStateTransition).not.toHaveBeenCalled();
     expect(response.status).toBe(403);
   });
@@ -130,6 +141,32 @@ describe("POST /api/services", () => {
     expect(mockExecuteXStateTransition).toHaveBeenCalledWith(
       "cal",
       "approveEquipment",
+      "mc",
+      "service@nyu.edu",
+    );
+    expect(response.status).toBe(200);
+  });
+
+  it("allows legacy service approvers without a per-resource assignment", async () => {
+    mockServerIsServiceApproverForAllResources.mockResolvedValue(false);
+    mockServerHasLegacyServiceApproverRight.mockResolvedValue(true);
+
+    const response = await POST(
+      request({
+        calendarEventId: "cal",
+        serviceType: "setup",
+        action: "approve",
+      }),
+    );
+
+    expect(mockServerHasLegacyServiceApproverRight).toHaveBeenCalledWith(
+      "service@nyu.edu",
+      "setup",
+      "mc",
+    );
+    expect(mockExecuteXStateTransition).toHaveBeenCalledWith(
+      "cal",
+      "approveSetup",
       "mc",
       "service@nyu.edu",
     );
