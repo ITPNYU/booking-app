@@ -24,6 +24,7 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
     reloadFutureBookings,
     pagePermission,
     roomSettings,
+    showMaintenanceMode,
   } = useContext(DatabaseContext);
   const {
     bookingCalendarInfo,
@@ -292,13 +293,24 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
             // Handle other error status codes
             let errorMessage =
               "Sorry, an error occurred while submitting this request";
+            let maintenanceMode = false;
             try {
-              const errorData = await res.json();
-              if (errorData.error || errorData.message) {
-                errorMessage = errorData.error || errorData.message;
+              const errorData = (await res.json()) as {
+                error?: string;
+                message?: string;
+                maintenanceMode?: boolean;
+              };
+              const serverMessage = errorData.error ?? errorData.message;
+              if (serverMessage) {
+                errorMessage = serverMessage;
               }
+              maintenanceMode = errorData.maintenanceMode === true;
             } catch (e) {
               // If response is not JSON, use default message
+            }
+            if (maintenanceMode) {
+              showMaintenanceMode(errorMessage);
+              return;
             }
             setError(new Error(errorMessage));
             setSubmitting("error");
@@ -329,6 +341,7 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
       userEmail,
       router,
       reloadFutureBookings,
+      showMaintenanceMode,
       department,
       role,
     ],

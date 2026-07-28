@@ -90,6 +90,7 @@ export interface DatabaseContextType {
     rooms?: Array<{ roomId: string; trainingFormUrl?: string }>,
   ) => Promise<void>;
   reloadPolicySettings: () => Promise<void>;
+  showMaintenanceMode: (message: string) => void;
   setUserEmail: (x: string) => void;
   fetchAllBookings: (clicked: boolean) => Promise<void>;
   updateBookingInList: (
@@ -143,6 +144,7 @@ export const DatabaseContext = createContext<DatabaseContextType>({
   reloadBookingTypes: async () => {},
   reloadSafetyTrainedUsers: async () => {},
   reloadPolicySettings: async () => {},
+  showMaintenanceMode: () => {},
   setUserEmail: (x: string) => {},
   fetchAllBookings: async () => {},
   updateBookingInList: () => {},
@@ -798,6 +800,12 @@ export const DatabaseProvider = ({
         reloadBookingTypes: fetchBookingTypes,
         reloadSafetyTrainedUsers: fetchSafetyTrainedUsers,
         reloadPolicySettings: fetchPolicySettings,
+        showMaintenanceMode: (message: string) =>
+          setMaintenanceMode({
+            enabled: true,
+            message:
+              message.trim() || DEFAULT_MAINTENANCE_MODE_SETTINGS.message,
+          }),
         setUserEmail,
         fetchAllBookings: fetchBookings,
         updateBookingInList,
