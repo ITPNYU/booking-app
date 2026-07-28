@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { registerBookingMocks } from "./helpers/mock-routes";
 import {
-  mockFirestoreListCollections,
+  mockBlackoutPeriods,
   selectRole,
   selectTimeSlot,
   serializedTimestamp,
@@ -24,20 +24,15 @@ test.describe("Blackout Periods – booking blocked", () => {
     end.setHours(23, 59, 59, 999);
 
     // Mock blackout period covering tomorrow (all day) for room 202.
-    await mockFirestoreListCollections(page, [
+    await mockBlackoutPeriods(page, [
       {
-        collection: "blackoutPeriods",
-        docs: [
-          {
-            id: "blackout-1",
-            name: "Test Blackout",
-            startDate: serializedTimestamp(start),
-            endDate: serializedTimestamp(end),
-            isActive: true,
-            roomIds: [202],
-            createdAt: serializedTimestamp(new Date()),
-          },
-        ],
+        id: "blackout-1",
+        name: "Test Blackout",
+        startDate: serializedTimestamp(start),
+        endDate: serializedTimestamp(end),
+        isActive: true,
+        roomIds: [202],
+        createdAt: serializedTimestamp(new Date()),
       },
     ]);
 

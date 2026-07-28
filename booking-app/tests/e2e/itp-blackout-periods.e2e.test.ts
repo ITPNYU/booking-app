@@ -6,7 +6,7 @@ import {
   itpSelectTimeSlot,
 } from "./helpers/itp-test-utils";
 import {
-  mockFirestoreListCollections,
+  mockBlackoutPeriods,
   serializedTimestamp,
 } from "./helpers/test-utils";
 
@@ -43,20 +43,15 @@ test.describe("ITP Blackout Periods – booking blocked", () => {
     end.setHours(23, 59, 59, 999);
 
     // Mock blackout period covering tomorrow (all day) for room 408.
-    await mockFirestoreListCollections(page, [
+    await mockBlackoutPeriods(page, [
       {
-        collection: "blackoutPeriods",
-        docs: [
-          {
-            id: "itp-blackout-1",
-            name: "ITP Test Blackout",
-            startDate: serializedTimestamp(start),
-            endDate: serializedTimestamp(end),
-            isActive: true,
-            roomIds: [408],
-            createdAt: serializedTimestamp(new Date()),
-          },
-        ],
+        id: "itp-blackout-1",
+        name: "ITP Test Blackout",
+        startDate: serializedTimestamp(start),
+        endDate: serializedTimestamp(end),
+        isActive: true,
+        roomIds: [408],
+        createdAt: serializedTimestamp(new Date()),
       },
     ]);
 

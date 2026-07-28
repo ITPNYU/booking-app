@@ -146,6 +146,50 @@ export const serializedTimestamp = (date: Date) => ({
   __ts: date.getTime(),
 });
 
+/**
+ * Provide blackout periods through the client fetcher override used by the
+ * Turbopack-compatible E2E mock layer.  This avoids relying on route handler
+ * ordering for a collection that Provider loads asynchronously.
+ */
+export async function mockBlackoutPeriods(
+  page: Page,
+  periods: Array<Record<string, unknown>>,
+) {
+  await page.addInitScript((periods: Array<Record<string, unknown>>) => {
+    const toTimestamp = (value: unknown) => {
+      if (
+        value &&
+        typeof value === "object" &&
+        "__ts" in value &&
+        typeof (value as { __ts?: unknown }).__ts === "number"
+      ) {
+        const millis = (value as { __ts: number }).__ts;
+        return {
+          toDate: () => new Date(millis),
+          toMillis: () => millis,
+        };
+      }
+      return value;
+    };
+    const blackoutPeriods = periods.map((period) => ({
+      ...period,
+      startDate: toTimestamp(period.startDate),
+      endDate: toTimestamp(period.endDate),
+      createdAt: toTimestamp(period.createdAt),
+    }));
+    const existing = (window as any).clientFetchAllDataFromCollection;
+    (window as any).clientFetchAllDataFromCollection = async (
+      collectionName: string,
+      ...args: unknown[]
+    ) => {
+      if (String(collectionName).toLowerCase() === "blackoutperiods") {
+        return blackoutPeriods;
+      }
+      return existing ? existing(collectionName, ...args) : [];
+    };
+  }, periods);
+}
+
 export async function mockFirestoreListCollections(
   page: Page,
   mocks: Array<{ collection: string | RegExp; docs: unknown[] }>,
