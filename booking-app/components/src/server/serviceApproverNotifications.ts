@@ -5,39 +5,32 @@ import { getTenantEmailConfig } from "@/components/src/server/emails";
 import { BookingStatusLabel } from "@/components/src/types";
 import { getMediaCommonsServices } from "@/components/src/utils/tenantUtils";
 import {
-  serverFetchAllDataFromCollection,
   serverGetDataByCalendarEventId,
   serverResolveServiceApproverEmails,
 } from "@/lib/firebase/server/adminDb";
 
 const SERVICE_APPROVER_CONFIG = {
   setup: {
-    flagField: "isSetup",
     subjectStatus: "SETUP REQUESTED",
     displayName: "setup",
   },
   equipment: {
-    flagField: "isEquipment",
     subjectStatus: "EQUIPMENT REQUESTED",
     displayName: "equipment",
   },
   staff: {
-    flagField: "isStaffing",
     subjectStatus: "STAFFING REQUESTED",
     displayName: "staffing",
   },
   catering: {
-    flagField: "isCatering",
     subjectStatus: "CATERING REQUESTED",
     displayName: "catering",
   },
   cleaning: {
-    flagField: "isCleaning",
     subjectStatus: "CLEANUP REQUESTED",
     displayName: "cleanup",
   },
   security: {
-    flagField: "isSecurity",
     subjectStatus: "SECURITY REQUESTED",
     displayName: "security",
   },
@@ -72,12 +65,11 @@ export const notifyServiceApproversForRequestedServices = async (
   }
 
   const resourceIds = parseBookingResourceIds(booking.roomId);
+  if (resourceIds.length === 0) {
+    return;
+  }
+
   const servicesRequested = getMediaCommonsServices(booking);
-  const usersRights = await serverFetchAllDataFromCollection<any>(
-    TableNames.USERS_RIGHTS,
-    [],
-    tenant,
-  );
   const bookingContents = await serverBookingContents(calendarEventId, tenant);
   const emailConfig = await getTenantEmailConfig(tenant);
   const schemaName = emailConfig.schemaName;
@@ -89,22 +81,11 @@ export const notifyServiceApproversForRequestedServices = async (
           return [];
         }
 
-        const resourceApproverRecipients = await serverResolveServiceApproverEmails(
+        const recipients = await serverResolveServiceApproverEmails(
           resourceIds,
           serviceKey,
           tenant,
         );
-        const recipients =
-          resourceApproverRecipients.length > 0
-            ? resourceApproverRecipients
-            : Array.from(
-                new Set(
-                  usersRights
-                    .filter((record) => record[config.flagField] === true)
-                    .map((record) => record.email)
-                    .filter(Boolean),
-                ),
-              );
 
         if (recipients.length === 0) {
           return [];
