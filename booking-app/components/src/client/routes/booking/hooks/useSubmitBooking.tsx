@@ -293,7 +293,8 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
             // Handle other error status codes
             let errorMessage =
               "Sorry, an error occurred while submitting this request";
-            let maintenanceMode = false;
+            let maintenanceMode = res.status === 503;
+            let maintenanceMessage = "";
             try {
               const errorData = (await res.json()) as {
                 error?: string;
@@ -303,13 +304,15 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
               const serverMessage = errorData.error ?? errorData.message;
               if (serverMessage) {
                 errorMessage = serverMessage;
+                maintenanceMessage = serverMessage;
               }
-              maintenanceMode = errorData.maintenanceMode === true;
+              maintenanceMode =
+                maintenanceMode || errorData.maintenanceMode === true;
             } catch (e) {
               // If response is not JSON, use default message
             }
             if (maintenanceMode) {
-              showMaintenanceMode(errorMessage);
+              showMaintenanceMode(maintenanceMessage);
               return;
             }
             setError(new Error(errorMessage));

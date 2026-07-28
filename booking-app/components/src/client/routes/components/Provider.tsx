@@ -21,6 +21,7 @@ import {
 } from "@/lib/firebase/firebase";
 import {
   DEFAULT_MAINTENANCE_MODE_SETTINGS,
+  MAINTENANCE_MODE_MESSAGE_MAX_LEN,
   type MaintenanceModeSettings,
 } from "@/lib/utils/maintenanceMode";
 import { DEFAULT_SITE_BANNER_COLOR_HEX } from "@/lib/utils/siteBannerHex";
@@ -804,7 +805,8 @@ export const DatabaseProvider = ({
           setMaintenanceMode({
             enabled: true,
             message:
-              message.trim() || DEFAULT_MAINTENANCE_MODE_SETTINGS.message,
+              message.slice(0, MAINTENANCE_MODE_MESSAGE_MAX_LEN).trim() ||
+              DEFAULT_MAINTENANCE_MODE_SETTINGS.message,
           }),
         setUserEmail,
         fetchAllBookings: fetchBookings,
