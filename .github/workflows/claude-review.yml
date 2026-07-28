@@ -8,11 +8,23 @@ on:
     # reopened is required for the same reason: a closed-then-reopened PR with
     # no new commit would otherwise never be reviewed.
     types: [opened, synchronize, ready_for_review, reopened]
+  # Manual trigger to review an existing open PR on demand (e.g. to review a
+  # PR opened before this workflow existed) WITHOUT touching its state — no
+  # close/reopen, no notifications to the author, and no re-run of that PR's
+  # other CI (those are pull_request-triggered; this dispatch only runs the
+  # review). The PR's own committed code is still never trusted with the
+  # write-scoped token — same guards as the automatic path.
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "Number of the open PR to review"
+        type: string
+        required: true
 
-# One review per PR; a new push cancels the in-flight review instead of
-# stacking duplicate threads (and duplicate API spend).
+# One review per PR; a new push (or a repeat dispatch) cancels the in-flight
+# review instead of stacking duplicate threads (and duplicate API spend).
 concurrency:
-  group: claude-review-${{ github.event.pull_request.number }}
+  group: claude-review-${{ github.event.pull_request.number || inputs.pr_number }}
   cancel-in-progress: true
 
 permissions:
@@ -21,16 +33,16 @@ permissions:
 
 jobs:
   review:
-    # Skip drafts, and skip Dependabot PRs — Dependabot-triggered runs don't get
-    # the repo's Actions secrets, so the auth step can't load the OAuth token
-    # and the check fails. Dep bumps don't need an AI code review anyway.
-    # Also skip fork PRs: they don't receive secrets either (the review can't
-    # auth), and gating on same-repo keeps the write-scoped GITHUB_TOKEN away
-    # from untrusted heads entirely.
+    # Automatic path: skip drafts, Dependabot, and fork PRs — Dependabot and
+    # fork runs don't get the repo's Actions secrets (the review can't auth),
+    # and gating on same-repo keeps the write-scoped GITHUB_TOKEN away from
+    # untrusted heads. workflow_dispatch is always allowed to start; the
+    # resolve step below re-applies the fork guard for the manual path.
     if: >-
-      github.actor != 'dependabot[bot]' &&
-      github.event.pull_request.draft == false &&
-      github.event.pull_request.head.repo.full_name == github.repository
+      github.event_name == 'workflow_dispatch' ||
+      (github.actor != 'dependabot[bot]' &&
+       github.event.pull_request.draft == false &&
+       github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-latest
     # A hung API call would otherwise hold the runner for the 6h default.
     # Sized to fit the --max-turns budget below (~25s/turn observed ≈ 42 min
@@ -38,7 +50,53 @@ jobs:
     # stays the limiting factor.
     timeout-minutes: 60
     steps:
+      # Resolve PR number / head SHA / base branch for BOTH triggers. For a
+      # pull_request event they come from the event payload; for a manual
+      # dispatch they are looked up with `gh pr view`. Runs before checkout —
+      # it needs only gh + jq, not the repo.
+      - name: Resolve PR context
+        id: pr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          EVENT_NAME: ${{ github.event_name }}
+          DISPATCH_PR: ${{ inputs.pr_number }}
+          EVENT_NUMBER: ${{ github.event.pull_request.number }}
+          EVENT_SHA: ${{ github.event.pull_request.head.sha }}
+          EVENT_BASE: ${{ github.event.pull_request.base.ref }}
+          EVENT_HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+        run: |
+          set -eo pipefail
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            NUMBER="$DISPATCH_PR"
+            data=$(gh pr view "$NUMBER" -R "$REPO" \
+              --json headRefOid,baseRefName,headRepositoryOwner,headRepository)
+            SHA=$(echo "$data" | jq -r '.headRefOid')
+            BASE=$(echo "$data" | jq -r '.baseRefName')
+            HEAD_REPO="$(echo "$data" | jq -r '.headRepositoryOwner.login')/$(echo "$data" | jq -r '.headRepository.name')"
+          else
+            NUMBER="$EVENT_NUMBER"
+            SHA="$EVENT_SHA"
+            BASE="$EVENT_BASE"
+            HEAD_REPO="$EVENT_HEAD_REPO"
+          fi
+          # Fork guard (both paths): a fork PR must never be reviewed with the
+          # write-scoped token. The automatic path already blocks this at the
+          # job `if:`; re-check here so a manual dispatch can't bypass it.
+          ELIGIBLE=true
+          if [ "$HEAD_REPO" != "$REPO" ]; then
+            echo "::notice::PR #$NUMBER head is $HEAD_REPO (a fork) — skipping review."
+            ELIGIBLE=false
+          fi
+          {
+            echo "number=$NUMBER"
+            echo "sha=$SHA"
+            echo "base=$BASE"
+            echo "eligible=$ELIGIBLE"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Checkout
+        if: steps.pr.outputs.eligible == 'true'
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -47,11 +105,20 @@ jobs:
           # into .git/config — an on-disk secret a prompt injection could read
           # and exfiltrate through the review text. Nothing downstream needs
           # git-over-HTTP auth: `gh pr diff` authenticates via the env token,
-          # and the submit step only runs local git (rev-parse/show) against
-          # refs this full fetch already brought down.
+          # and the submit step reads the trusted script from the base ref
+          # without needing credentials in git config.
           persist-credentials: false
+          # Automatic (pull_request) runs check out the merge ref by default.
+          # A manual dispatch has no such default, so check out the exact
+          # commit resolved above — NOT the mutable refs/pull/N/head branch
+          # ref. Pinning to the SHA keeps the reviewed code and the review's
+          # commit_id in lockstep even if a new commit lands on the PR between
+          # resolve and checkout (the old SHA stays reachable from the new
+          # head, so the fetch still succeeds).
+          ref: ${{ github.event_name == 'workflow_dispatch' && steps.pr.outputs.sha || '' }}
 
       - name: Claude review
+        if: steps.pr.outputs.eligible == 'true'
         # Pinned to the commit the v1 tag pointed at (mutable tags are a
         # supply-chain risk for a step that runs with repo credentials).
         uses: anthropics/claude-code-action@36a69b6a90b850823f86de06fdfd56264772ad98 # v1
@@ -97,11 +164,11 @@ jobs:
             --max-turns 100
             --allowedTools "Bash(gh pr diff:*),Read,Grep,Glob,Write"
           prompt: |
-            You are reviewing pull request #${{ github.event.pull_request.number }}
+            You are reviewing pull request #${{ steps.pr.outputs.number }}
             in the repository ${{ github.repository }}. The head commit SHA is
-            ${{ github.event.pull_request.head.sha }}. The repository is checked
-            out in your working directory at the PR's merge result, so you can
-            Read/Grep/Glob any file — not just the diff.
+            ${{ steps.pr.outputs.sha }}. The PR branch is checked out in your
+            working directory, so you can Read/Grep/Glob any file — not just
+            the diff.
 
             Report ONLY High and Medium severity findings:
             - High: correctness bugs, security issues (auth, injection, secret
@@ -114,7 +181,7 @@ jobs:
 
             Post everything as ONE single pull request review (GitHub Copilot style),
             NOT as separate standalone comments. Steps:
-            1. Read the diff: gh pr diff ${{ github.event.pull_request.number }}
+            1. Read the diff: gh pr diff ${{ steps.pr.outputs.number }}
             2. Trace the diff through the rest of the codebase — bugs whose
                trigger lives outside the changed hunks are in scope:
                - For each function/component the diff changes or newly calls,
@@ -135,7 +202,7 @@ jobs:
             4. Use the Write tool to create /tmp/review.json with this shape:
                {
                  "event": "COMMENT",
-                 "commit_id": "${{ github.event.pull_request.head.sha }}",
+                 "commit_id": "${{ steps.pr.outputs.sha }}",
                  "body": "<1-2 sentence summary, e.g. '2 High, 1 Medium.'>",
                  "comments": [
                    {"path": "<file>", "line": <new-file line number>, "side": "RIGHT",
@@ -159,37 +226,54 @@ jobs:
       # them into the review body, so one bad line number no longer fails the
       # job or loses the finding.
       - name: Submit batched review
-        if: always()
+        if: always() && steps.pr.outputs.eligible == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
           REPO: ${{ github.repository }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          HEAD_SHA: ${{ steps.pr.outputs.sha }}
+          BASE_REF: ${{ steps.pr.outputs.base }}
+          EVENT_NAME: ${{ github.event_name }}
         run: |
+          set -o pipefail
           # Execute the submit script from the trusted BASE ref, not the PR's
           # copy. The PR checkout is untrusted twice over: the Claude step
           # holds an unscoped Write tool (runtime tampering), and the PR
           # itself may commit an edited submit_review.py (committed
           # tampering). Neither version may run with the write-scoped token.
           #
+          # Automatic (pull_request) runs check out the merge ref, so main's
+          # committed script is already a local object — read it with git.
+          # A manual dispatch checks out the PR head, whose history need not
+          # contain main's latest, so fetch the base copy over the API. Both
+          # read the base BRANCH's reviewed version, never the PR's.
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            if ! gh api "repos/$REPO/contents/.github/scripts/submit_review.py?ref=$BASE_REF" \
+                 --jq '.content' | base64 -d > /tmp/submit_review.py; then
+              echo "error: could not read submit_review.py from base $BASE_REF; refusing to run the PR's copy"
+              exit 1
+            fi
+          else
+            if ! /usr/bin/git show "origin/$BASE_REF:.github/scripts/submit_review.py" > /tmp/submit_review.py 2>/dev/null; then
+              echo "error: could not read submit_review.py from origin/$BASE_REF; refusing to run the PR's copy"
+              exit 1
+            fi
+          fi
+          # Fail closed on an empty/short read rather than executing nothing
+          # (or a truncated script) with the write-scoped token.
+          if [ ! -s /tmp/submit_review.py ]; then
+            echo "error: base submit_review.py was empty; refusing to run"
+            exit 1
+          fi
+          if [ ! -f /tmp/review.json ]; then
+            echo "No /tmp/review.json produced; nothing to submit."
+            exit 0
+          fi
           # All binaries are invoked by absolute path and the script runs
           # under `env -i` with an explicit allowlist: the Claude step's
           # unscoped Write could poison $GITHUB_ENV/$GITHUB_PATH, and a
           # shadowed `gh` on PATH or an injected GH_HOST would otherwise
           # redirect the hardcoded API call (token included) elsewhere.
-          # Fail closed: if the script cannot be read from the base ref for
-          # ANY reason (unresolvable ref, deleted script, transient git
-          # error), skip the submit rather than ever executing the PR's copy.
-          BASE_REF="origin/${{ github.event.pull_request.base.ref }}"
-          if ! /usr/bin/git show "$BASE_REF:.github/scripts/submit_review.py" > /tmp/submit_review.py 2>/dev/null; then
-            echo "error: could not read submit_review.py from $BASE_REF; refusing to run the PR's copy"
-            exit 1
-          fi
-          SCRIPT=/tmp/submit_review.py
-          if [ ! -f /tmp/review.json ]; then
-            echo "No /tmp/review.json produced; nothing to submit."
-            exit 0
-          fi
           /usr/bin/env -i \
             PATH=/usr/bin:/bin \
             HOME="$HOME" \
@@ -197,4 +281,4 @@ jobs:
             PR_NUMBER="$PR_NUMBER" \
             REPO="$REPO" \
             HEAD_SHA="$HEAD_SHA" \
-            /usr/bin/python3 "$SCRIPT"
+            /usr/bin/python3 /tmp/submit_review.py

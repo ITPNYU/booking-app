@@ -1,0 +1,51 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+booking-app/node_modules
+booking-app/.pnp
+.pnp.js
+.yarn/install-state.gz
+node_modules/
+
+# testing
+booking-app/coverage
+
+# next.js
+booking-app/.next/
+booking-app/out/
+
+# production
+booking-app/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# local env files
+.env*.local
+.env
+.env*
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# playwright / test output
+booking-app/test-results/
+booking-app/playwright-report/
+booking-app/blob-report/
+booking-app/playwright/.cache/
+
+# schema sync output files
+booking-app/scripts/output/
+booking-app/dry-run-*-output.txt
+booking-app/dry-run-*-report.md
+booking-app/dry-run-*-details.json

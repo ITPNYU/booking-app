@@ -19,6 +19,10 @@ import {
   clientFetchAllDataFromCollection,
   reviveTimestamps,
 } from "@/lib/firebase/firebase";
+import {
+  DEFAULT_MAINTENANCE_MODE_SETTINGS,
+  type MaintenanceModeSettings,
+} from "@/lib/utils/maintenanceMode";
 import { DEFAULT_SITE_BANNER_COLOR_HEX } from "@/lib/utils/siteBannerHex";
 import {
   AdminUser,
@@ -64,6 +68,7 @@ export interface DatabaseContextType {
   paUsers: PaUser[];
   superAdminUsers: AdminUser[];
   policySettings: PolicySettings;
+  maintenanceMode: MaintenanceModeSettings;
   siteBanner: SiteBannerSettings;
   roomSettings: RoomSetting[];
   safetyTrainedUsers: SafetyTraining[];
@@ -89,7 +94,7 @@ export interface DatabaseContextType {
   fetchAllBookings: (clicked: boolean) => Promise<void>;
   updateBookingInList: (
     calendarEventId: string,
-    updatedFields: Partial<Booking>
+    updatedFields: Partial<Booking>,
   ) => void;
   setFilters: (x: Filters) => void;
   setLoadMoreEnabled: (x: boolean) => void;
@@ -114,6 +119,7 @@ export const DatabaseContext = createContext<DatabaseContextType>({
   paUsers: [],
   superAdminUsers: [],
   policySettings: { finalApproverEmail: "" },
+  maintenanceMode: DEFAULT_MAINTENANCE_MODE_SETTINGS,
   siteBanner: {
     enabled: false,
     message: "",
@@ -168,6 +174,8 @@ export const DatabaseProvider = ({
   const [policySettings, setPolicySettings] = useState<PolicySettings>({
     finalApproverEmail: "",
   });
+  const [maintenanceMode, setMaintenanceMode] =
+    useState<MaintenanceModeSettings>(DEFAULT_MAINTENANCE_MODE_SETTINGS);
   const [siteBanner, setSiteBanner] = useState<SiteBannerSettings>({
     enabled: false,
     message: "",
@@ -250,7 +258,6 @@ export const DatabaseProvider = ({
     equipmentUsers,
     superAdminUsers,
   ]);
-
   const pagePermission = serverPagePermission ?? derivedPagePermission;
 
   // Defer non-permission data fetches to pages that actually need them.
@@ -460,6 +467,7 @@ export const DatabaseProvider = ({
         equipmentUsers: Approver[];
         superAdminUsers: AdminUser[];
         policySettings: PolicySettings;
+        maintenanceMode?: MaintenanceModeSettings;
         siteBanner?: SiteBannerSettings;
       };
       setAdminUsers(data.adminUsers ?? []);
@@ -470,6 +478,9 @@ export const DatabaseProvider = ({
       setServerPagePermission(data.pagePermission);
       setPolicySettings(
         data.policySettings ?? { finalApproverEmail: "" },
+      );
+      setMaintenanceMode(
+        data.maintenanceMode ?? DEFAULT_MAINTENANCE_MODE_SETTINGS,
       );
       setSiteBanner(
         data.siteBanner ?? {
@@ -575,7 +586,6 @@ export const DatabaseProvider = ({
                 });
               }
             });
-
           }
         } else {
           // No rooms provided, fetch all (no resource filter)
@@ -597,7 +607,6 @@ export const DatabaseProvider = ({
                   });
                 }
               });
-
             }
           } catch (error: any) {
             console.error(
@@ -775,6 +784,7 @@ export const DatabaseProvider = ({
         superAdminUsers,
         pagePermission,
         policySettings,
+        maintenanceMode,
         siteBanner,
         roomSettings,
         safetyTrainedUsers,

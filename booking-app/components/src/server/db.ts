@@ -1111,7 +1111,7 @@ export const executeTraditionalNoShow = async (
   // Add to pre-ban logs only if policy violation
   if (isPolicyViolation(doc)) {
     const log = { netId, bookingId: id, noShowDate: Timestamp.now() };
-    clientSaveDataToFirestore(TableNames.PRE_BAN_LOGS, log, tenant);
+    await clientSaveDataToFirestore(TableNames.PRE_BAN_LOGS, log, tenant);
   }
 
   // Log the no-show action
@@ -1129,7 +1129,7 @@ export const executeTraditionalNoShow = async (
   // @ts-ignore
   const guestEmail = doc ? doc.email : null;
 
-  const violationCount = await getViolationCount(netId);
+  const violationCount = await getViolationCount(netId, tenant);
   const { getTenantEmailConfig } = await import("./emails");
   const emailConfig = await getTenantEmailConfig(tenant);
   const headerMessage = emailConfig.emailNotifications.noShow.replace(

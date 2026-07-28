@@ -7,6 +7,7 @@ import {
   getTenantCollectionName,
 } from "@/components/src/policy";
 import { Timestamp } from "firebase/firestore";
+import { getE2EOverride } from "@/lib/e2e/clientOverrides";
 
 import { reviveSerializedTimestamps } from "@/lib/utils/timestampWire";
 import { Filters } from "@/components/src/types";
@@ -306,6 +307,8 @@ export const clientFetchAllDataFromCollection = async <T>(
   whereSpecs: WhereSpec[] = [],
   tenant?: string,
 ): Promise<T[]> => {
+  const override = getE2EOverride("clientFetchAllDataFromCollection");
+  if (override) return override(collectionName, whereSpecs, tenant);
   const { docs } = await postJson<
     ListRequest,
     { docs: Array<Record<string, unknown> & { id: string }> }
@@ -458,6 +461,9 @@ export const getPaginatedData = async <T>(
   lastVisible: Record<string, unknown> | null = null,
   tenant?: string,
 ): Promise<T[]> => {
+  const override = getE2EOverride("getPaginatedData");
+  if (override)
+    return override(collectionName, itemsPerPage, filters, lastVisible, tenant);
   // Convert Date values in filters.dateRange to ISO strings for the wire.
   const dateRange = Array.isArray(filters.dateRange)
     ? filters.dateRange.map((d: any) =>
@@ -529,6 +535,8 @@ export const clientGetDataByCalendarEventId = async <T>(
   calendarEventId: string,
   tenant?: string,
 ): Promise<(T & { id: string }) | null> => {
+  const override = getE2EOverride("clientGetDataByCalendarEventId");
+  if (override) return override(collectionName, calendarEventId, tenant);
   try {
     const { docs } = await postJson<
       ListRequest,

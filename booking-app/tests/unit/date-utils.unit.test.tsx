@@ -1,21 +1,28 @@
 import { describe, expect, it } from "vitest";
 import {
+  bookingCalendarStrToDate,
   formatTimeAmPm,
   toBookingCalendarStr,
 } from "@/components/src/client/utils/date";
 
 describe("Date Utils", () => {
   describe("toBookingCalendarStr", () => {
-    it("formats 9:00 AM Eastern as local calendar string without UTC suffix", () => {
+    it("formats 9:00 AM Eastern as local calendar string with offset", () => {
       // 9:00 AM EDT on 2026-04-07 = 13:00 UTC
       const start = new Date("2026-04-07T13:00:00.000Z");
-      expect(toBookingCalendarStr(start)).toBe("2026-04-07T09:00:00");
+      expect(toBookingCalendarStr(start)).toBe("2026-04-07T09:00:00-04:00");
     });
 
-    it("formats 9:00 PM Eastern as local calendar string", () => {
+    it("formats 9:00 PM Eastern as local calendar string with offset", () => {
       // 9:00 PM EDT on 2026-04-07 = 01:00 UTC next day
       const end = new Date("2026-04-08T01:00:00.000Z");
-      expect(toBookingCalendarStr(end)).toBe("2026-04-07T21:00:00");
+      expect(toBookingCalendarStr(end)).toBe("2026-04-07T21:00:00-04:00");
+    });
+
+    it("uses the EST offset outside daylight saving time", () => {
+      // 9:00 AM EST on 2026-01-15 = 14:00 UTC
+      const start = new Date("2026-01-15T14:00:00.000Z");
+      expect(toBookingCalendarStr(start)).toBe("2026-01-15T09:00:00-05:00");
     });
 
     it("does not produce UTC ISO strings that shift start time on resize", () => {
@@ -29,6 +36,46 @@ describe("Date Utils", () => {
       expect(endStr).not.toContain("Z");
       expect(formatTimeAmPm(start)).toBe("9:00 AM");
       expect(formatTimeAmPm(end)).toBe("9:00 PM");
+    });
+
+    it("produces RFC3339 strings Google Calendar timeMin/timeMax accepts", () => {
+      const start = new Date("2026-04-07T13:00:00.000Z");
+      // RFC3339 requires a mandatory offset; offset-less strings 400 on
+      // events.list, which broke checkOverlap for drag-adjusted selections
+      expect(toBookingCalendarStr(start)).toMatch(
+        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$/,
+      );
+    });
+  });
+
+  describe("bookingCalendarStrToDate", () => {
+    it("round-trips with toBookingCalendarStr", () => {
+      const start = new Date("2026-04-07T13:00:00.000Z");
+      const parsed = bookingCalendarStrToDate(toBookingCalendarStr(start));
+      expect(parsed.getTime()).toBe(start.getTime());
+    });
+
+    it("parses offset strings as the instant they denote", () => {
+      expect(
+        bookingCalendarStrToDate("2026-04-07T09:00:00-04:00").toISOString(),
+      ).toBe("2026-04-07T13:00:00.000Z");
+    });
+
+    it("parses UTC (Z) strings as-is", () => {
+      expect(
+        bookingCalendarStrToDate("2026-04-07T13:00:00.000Z").toISOString(),
+      ).toBe("2026-04-07T13:00:00.000Z");
+    });
+
+    it("interprets offset-less strings from stale clients as Eastern time", () => {
+      // Regardless of the host timezone (UTC in prod), a bare local string
+      // must be read as Eastern wall time
+      expect(
+        bookingCalendarStrToDate("2026-04-07T09:00:00").toISOString(),
+      ).toBe("2026-04-07T13:00:00.000Z");
+      expect(
+        bookingCalendarStrToDate("2026-01-15T09:00:00").toISOString(),
+      ).toBe("2026-01-15T14:00:00.000Z");
     });
   });
 

@@ -33,8 +33,10 @@ export const SelectRooms = ({
   const { isBookingTimeInBlackout } = useBookingDateRestrictions();
   const { resources, calendarConfig } = useTenantSchema();
   const selectedIds = selected.map((room) => String(room.roomId));
+  // Fall back to the schema default (false) to match generateDefaultSchema;
+  // tenants that set the field explicitly are unaffected.
   const allowMultipleResourceSelect =
-    calendarConfig?.multipleResourceSelect ?? true;
+    calendarConfig?.multipleResourceSelect ?? false;
 
   // Sort rooms by room number for consistent display order
   const sortedRooms = useMemo(

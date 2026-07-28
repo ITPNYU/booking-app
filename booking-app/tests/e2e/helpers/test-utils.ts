@@ -178,30 +178,19 @@ export async function mockFirestoreListCollections(
 }
 
 /**
- * Wait for webpack mock overrides to be ready, apply them, and retry until patching succeeds.
- * Replaces the fragile two-step waitForFunction + evaluate pattern.
+ * Apply E2E overrides exposed by the init script.
+ *
+ * The client now reads these overrides directly from `window`; waiting for a
+ * webpack module patch is both unnecessary and unreliable under Turbopack.
  */
 export async function applyMockOverrides(page: Page) {
   await page.waitForFunction(
     () => typeof (window as any).__applyMockBookingsOverrides === "function",
     { timeout: 30000 },
   );
-  // Retry applying overrides - webpack modules may not be ready on first attempt
-  await page.waitForFunction(
-    () => {
-      if (typeof (window as any).__applyMockBookingsOverrides === "function") {
-        (window as any).__applyMockBookingsOverrides();
-      }
-      // Check if patching succeeded via the flag (set by xstate-mocks.ts)
-      if (typeof (window as any).__isMockPatchApplied === "function") {
-        return (window as any).__isMockPatchApplied();
-      }
-      // For inline mocks without the flag, check if webpack chunk is available
-      const chunk = (window as any).webpackChunk_N_E;
-      return !!chunk && chunk.length > 0;
-    },
-    { timeout: 15000 },
-  );
+  await page.evaluate(() => {
+    (window as any).__applyMockBookingsOverrides?.();
+  });
 }
 
 /**
