@@ -42,6 +42,44 @@ describe("getMediaCommonsServices", () => {
     expect(getMediaCommonsServices({ roomSetup: "no" }).setup).toBe(false);
   });
 
+  it("does not treat passive default layouts as setup requested", () => {
+    expect(
+      getMediaCommonsServices({
+        roomSetupByRoom: { "1201": "1201_LAYOUT_0" },
+        roomSetup: "yes",
+        setupDetails: "Lecture Style (Default) - 84 Seated",
+      }).setup,
+    ).toBe(false);
+    expect(
+      getMediaCommonsServices({
+        roomSetupByRoom: { "103": "103_LAYOUT_0" },
+      }).setup,
+    ).toBe(false);
+    expect(
+      getMediaCommonsServices({
+        roomSetupByRoom: { "202": "202_LAYOUT_0" },
+      }).setup,
+    ).toBe(false);
+  });
+
+  it("treats non-default layouts as setup requested", () => {
+    expect(
+      getMediaCommonsServices({
+        roomSetupByRoom: { "1201": "1201_LAYOUT_1" },
+      }).setup,
+    ).toBe(true);
+    expect(
+      getMediaCommonsServices({
+        roomSetupByRoom: { "202": "202_LAYOUT_1" },
+      }).setup,
+    ).toBe(true);
+    expect(
+      getMediaCommonsServices({
+        roomSetupByRoom: { "233": "233_LAYOUT_0" },
+      }).setup,
+    ).toBe(true);
+  });
+
   it("detects setup from per-room maps", () => {
     const services = getMediaCommonsServices({
       roomSetupByRoom: { "1201": "1201_LAYOUT_1" },
@@ -117,7 +155,7 @@ describe("applyMcResourceServices", () => {
     expect(missing.services?.catering?.forceCleaning).toBe(true);
     expect(missing.services?.catering?.chartField?.required).toBe(true);
     expect(missing.services?.setup?.mode).toBe("radio");
-    expect(missing.services?.setup?.defaultValue).toBe("default");
+    expect(missing.services?.setup?.defaultValue).toBe("202_LAYOUT_0");
     expect(missing.services?.annex?.options?.length).toBe(2);
 
     const emptyArray = applyMcResourceServices({
@@ -169,9 +207,9 @@ describe("applyMcResourceServices", () => {
     expect(getMcResourceServices("260")).toEqual({});
   });
 
-  it("uses radio security for 103 with Willoughby entrance option", () => {
+  it("uses select/radio security for 103 with Willoughby entrance option", () => {
     const services103 = getMcResourceServices("103")!;
-    expect(services103.security?.mode).toBe("radio");
+    expect(services103.security?.mode).toBe("select");
     expect(services103.security?.required).toBe(true);
     expect(services103.security?.options?.[0]?.value).toBe(
       "Willoughby Street Entrance",
@@ -179,6 +217,35 @@ describe("applyMcResourceServices", () => {
     expect(
       services103.security?.options?.[0]?.chartField?.required,
     ).toBe(true);
+  });
+
+  it("uses VIP-only setup and custom layout option for room 202", () => {
+    const setup202 = getMcResourceServices("202")!.setup!;
+    expect(setup202.showInOrigin).toEqual({
+      user: false,
+      walkIn: false,
+      VIP: true,
+    });
+    expect(setup202.defaultValue).toBe("202_LAYOUT_0");
+    expect(setup202.options?.map((o) => o.value)).toEqual([
+      "202_LAYOUT_0",
+      "202_LAYOUT_1",
+    ]);
+  });
+
+  it("uses numbered layout options for room 233", () => {
+    const setup233 = getMcResourceServices("233")!.setup!;
+    expect(setup233.defaultValue).toBe("233_LAYOUT_0");
+    expect(setup233.options?.[0]).toMatchObject({
+      value: "233_LAYOUT_0",
+      label: "Classroom Style - 72 Seated",
+    });
+    expect(setup233.options?.map((o) => o.value)).toEqual([
+      "233_LAYOUT_0",
+      "233_LAYOUT_1",
+      "233_LAYOUT_2",
+      "233_LAYOUT_3",
+    ]);
   });
 
   it("uses custom setup radio for ballroom rooms", () => {

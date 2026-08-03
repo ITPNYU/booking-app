@@ -45,6 +45,8 @@ const HEADERS = [
   "Closed At",
   "Room Setup Needed (Y/N)",
   "Room Setup Details",
+  "Additional Event Furniture",
+  "Furniture Chart Field",
   "Equipment Services (Y/N)",
   "Equipment Service Details",
   "Staffing Services (Y/N)",
@@ -142,6 +144,22 @@ const buildRow = (booking: Booking): string => {
     safeFormat(booking.closedAt, "M/d/yyyy h:mm a"),
     booking.roomSetup === "yes" ? "Yes" : "No",
     booking.setupDetails || "",
+    booking.furnishingsByRoom
+      ? Object.entries(booking.furnishingsByRoom)
+          .filter(
+            ([, v]) => typeof v === "string" && v.toLowerCase() === "yes",
+          )
+          .map(([roomId]) => roomId)
+          .join("; ")
+      : "",
+    booking.chartFieldForFurnishingsByRoom
+      ? Object.entries(booking.chartFieldForFurnishingsByRoom)
+          .filter(
+            ([roomId]) => booking.furnishingsByRoom?.[roomId] === "yes",
+          )
+          .map(([roomId, chart]) => `${roomId}: ${chart}`)
+          .join("; ")
+      : "",
     booking.equipmentServices && booking.equipmentServices.length > 0
       ? "Yes"
       : "No",

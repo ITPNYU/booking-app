@@ -3,6 +3,7 @@
  */
 
 import { TENANTS } from "../constants/tenants";
+import { isMcPassiveSetupDefault } from "@/lib/tenant/mcResourceServices";
 
 /**
  * NYU Identity API dept_code values that identify ITP / IMA / Low Res affiliated users.
@@ -92,26 +93,41 @@ const isServiceRequested = (value: unknown): boolean => {
   return normalized !== "" && normalized !== "no";
 };
 
+const isActiveSetupSelection = (value: unknown): boolean => {
+  if (!isServiceRequested(value)) return false;
+  const raw = String(value).trim();
+  // Layout ids that are schema defaults without chartfields do not require setup staff.
+  if (isMcPassiveSetupDefault(raw)) return false;
+  return true;
+};
+
 /**
  * Detect Media Commons service requests from booking data
  * This function provides consistent service detection logic across the application
  */
-export const getMediaCommonsServices = (data: any) => ({
-  staff: isServiceRequested(data.staffingServicesDetails),
-  setup:
-    Object.values(data.roomSetupByRoom ?? {}).some((v: unknown) =>
-      isServiceRequested(v),
-    ) ||
-    isServiceRequested(data.setupDetails) ||
-    isServiceRequested(data.roomSetup),
-  equipment:
-    isServiceRequested(data.mediaServices) ||
-    isServiceRequested(data.equipmentServices) ||
-    isServiceRequested(data.equipmentServicesDetails) ||
-    Object.values(data.equipmentServicesDetailsByRoom ?? {}).some((v: unknown) =>
-      isServiceRequested(v),
-    ),
-  catering: isServiceRequested(data.catering),
-  cleaning: isServiceRequested(data.cleaningService),
-  security: isServiceRequested(data.hireSecurity),
-});
+export const getMediaCommonsServices = (data: any) => {
+  const byRoomValues = Object.values(data.roomSetupByRoom ?? {});
+  const hasByRoomMaps = byRoomValues.length > 0;
+  const setupFromByRoom = byRoomValues.some((v) => isActiveSetupSelection(v));
+  // When ByRoom maps exist, they are authoritative (legacy scalars may mirror defaults).
+  const setupFromLegacy =
+    !hasByRoomMaps &&
+    (isActiveSetupSelection(data.setupDetails) ||
+      (isServiceRequested(data.roomSetup) &&
+        String(data.roomSetup).trim().toLowerCase() !== "yes"));
+
+  return {
+    staff: isServiceRequested(data.staffingServicesDetails),
+    setup: setupFromByRoom || setupFromLegacy,
+    equipment:
+      isServiceRequested(data.mediaServices) ||
+      isServiceRequested(data.equipmentServices) ||
+      isServiceRequested(data.equipmentServicesDetails) ||
+      Object.values(data.equipmentServicesDetailsByRoom ?? {}).some(
+        (v: unknown) => isServiceRequested(v),
+      ),
+    catering: isServiceRequested(data.catering),
+    cleaning: isServiceRequested(data.cleaningService),
+    security: isServiceRequested(data.hireSecurity),
+  };
+};

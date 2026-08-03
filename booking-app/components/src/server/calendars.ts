@@ -188,6 +188,31 @@ export const bookingContentsToDescription = async (
       getProperty(bookingContents, "chartFieldForRoomSetup"),
     );
   }
+
+  const furnishingsByRoom = getProperty(
+    bookingContents,
+    "furnishingsByRoom",
+  ) as unknown as Record<string, string> | undefined;
+  const furnishingsChartByRoom = getProperty(
+    bookingContents,
+    "chartFieldForFurnishingsByRoom",
+  ) as unknown as Record<string, string> | undefined;
+  if (furnishingsByRoom && typeof furnishingsByRoom === "object") {
+    const furnishingParts = Object.entries(furnishingsByRoom)
+      .filter(([, v]) => typeof v === "string" && v.toLowerCase() === "yes")
+      .map(([roomId]) => {
+        const chart = furnishingsChartByRoom?.[roomId];
+        return chart
+          ? `${roomId}: yes (chartfield: ${chart})`
+          : `${roomId}: yes`;
+      });
+    if (furnishingParts.length > 0) {
+      description += listItem(
+        "Additional Event Furniture",
+        furnishingParts.join("; "),
+      );
+    }
+  }
   // Only show equipment service if it exists
   const equipmentServices = getProperty(bookingContents, "equipmentServices");
   if (equipmentServices) {

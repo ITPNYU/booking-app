@@ -186,6 +186,13 @@ export function getOptionChartField(
   return option?.chartField;
 }
 
+/** Radio and select both render as a choice list. */
+export function isChoiceMode(
+  mode: ResourceFormSectionConfig["mode"] | undefined,
+): boolean {
+  return mode === "radio" || mode === "select";
+}
+
 /** Derive deprecated form.services flags from resource.services keys */
 export function deriveFormServicesFlags(resources: ServiceResourceLike[]): {
   showCatering: boolean;

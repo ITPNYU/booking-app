@@ -44,6 +44,7 @@ import {
   getResourceServicesConfig,
   getRoomsWithVisibleService,
   getServiceSectionConfig,
+  isChoiceMode,
   ServiceVisibilityContext,
 } from "../../../../utils/resourceServicesUtils";
 import BookingFormEquipmentServices from "./BookingFormEquipmentServices";
@@ -147,7 +148,7 @@ export default function FormInput({
   const needsGenericSetup = useMemo(() => {
     const hasSpecialSetup = selectedRooms.some((r) => {
       const mode = getServiceSectionConfig(r, "setup")?.mode;
-      return mode === "radio" || mode === "static";
+      return isChoiceMode(mode) || mode === "static";
     });
     if (hasSpecialSetup) {
       // Multi-room: still show the generic switch for co-selected rooms
@@ -158,12 +159,20 @@ export default function FormInput({
         serviceVisibility,
       ).some((r) => {
         const mode = getServiceSectionConfig(r, "setup")?.mode;
-        return mode !== "radio" && mode !== "static";
+        return !isChoiceMode(mode) && mode !== "static";
       });
     }
     // Legacy / form-level: honor schema showSetup when no special configs exist.
     return showSetup;
   }, [selectedRooms, serviceVisibility, showSetup]);
+
+  const schemaDrivenServices = useMemo(
+    () =>
+      selectedRooms.some(
+        (r) => Object.keys(getResourceServicesConfig(r)).length > 0,
+      ),
+    [selectedRooms],
+  );
 
   const needsGenericSecuritySwitch = useMemo(() => {
     const securityRooms = getRoomsWithVisibleService(
@@ -172,9 +181,9 @@ export default function FormInput({
       serviceVisibility,
     );
     if (securityRooms.length === 0) return false;
-    // Show switch if any security room is not radio-mode (multi-room safe).
+    // Show switch if any security room is not choice-mode (multi-room safe).
     return securityRooms.some(
-      (r) => getServiceSectionConfig(r, "security")?.mode !== "radio",
+      (r) => !isChoiceMode(getServiceSectionConfig(r, "security")?.mode),
     );
   }, [selectedRooms, serviceVisibility]);
 
@@ -630,6 +639,11 @@ export default function FormInput({
         isVIP={isVIP}
         formatFieldLabel={formatFieldLabel}
         hireSecurityValue={hireSecurityValue}
+        showStaffingServices={showStaffingServices}
+        setShowStaffingServices={setShowStaffingServices}
+        formContext={formContext}
+        cateringRequiresCleaning={cateringRequiresCleaning}
+        isLargeEvent={isLargeEvent}
       />
       {!isWalkIn && showSetup && needsGenericSetup && (
         <div style={{ marginBottom: 32 }}>
@@ -709,7 +723,8 @@ export default function FormInput({
             )}
         </div>
       )}
-      {showStaffing && (
+      {/* Legacy / non-schema rooms: staffing stays booking-level here. */}
+      {showStaffing && !schemaDrivenServices && (
         <div style={{ marginBottom: 32 }}>
           <BookingFormStaffingServices
             id="staffingServices"
@@ -740,7 +755,29 @@ export default function FormInput({
             )}
         </div>
       )}
-      {!isWalkIn && showCatering && (
+      {schemaDrivenServices &&
+        showStaffingServices &&
+        watch("staffingServices") !== undefined &&
+        watch("staffingServices").length > 0 && (
+          <div style={{ marginBottom: 32 }}>
+            <BookingFormTextField
+              id="staffingServicesDetails"
+              label="Staffing Services Details"
+              description={
+                <p>
+                  If you selected any Staffing Services above, please describe
+                  your needs in detail.
+                  <br />
+                  Please specify the type of technical support you require and
+                  any specific requirements for your event.
+                </p>
+              }
+              {...{ control, errors, trigger }}
+            />
+          </div>
+        )}
+      {/* Legacy rooms without object services config keep flat catering/cleaning/security. */}
+      {!schemaDrivenServices && !isWalkIn && showCatering && (
         <div style={{ marginBottom: 32 }}>
           <BookingFormSwitch
             id="catering"
@@ -772,7 +809,7 @@ export default function FormInput({
           )}
         </div>
       )}
-      {!isWalkIn && showCleaning && (
+      {!schemaDrivenServices && !isWalkIn && showCleaning && (
         <div style={{ marginBottom: 32 }}>
           <BookingFormSwitch
             id="cleaningService"
@@ -798,49 +835,53 @@ export default function FormInput({
           )}
         </div>
       )}
-      {!isWalkIn && showHireSecurity && needsGenericSecuritySwitch && (
-        <div style={{ marginBottom: 32 }}>
-          <BookingFormSwitch
-            id="hireSecurity"
-            label="Security?"
-            required={false}
-            disabled={isLargeEvent}
-            description={
-              <p>
-                {isLargeEvent && (
-                  <span
-                    style={{
-                      display: "block",
-                      marginBottom: "4px",
-                      fontWeight: 500,
-                    }}
-                  >
-                    Security is required for events with more than 75 attendees.
-                  </span>
-                )}
-                Only for large events with 75+ attendees, and bookings in The
-                Garage where the Willoughby entrance will be in use. It is
-                required for the reservation holder to provide a chartfield so
-                that the Media Commons Team can obtain Campus Safety Security
-                Services.
-              </p>
-            }
-            {...{ control, errors, trigger }}
-          />
-          {watch("hireSecurity") === "yes" && (
-            <BookingFormTextField
-              id="chartFieldForSecurity"
-              label="ChartField for Security"
+      {!schemaDrivenServices &&
+        !isWalkIn &&
+        showHireSecurity &&
+        needsGenericSecuritySwitch && (
+          <div style={{ marginBottom: 32 }}>
+            <BookingFormSwitch
+              id="hireSecurity"
+              label="Security?"
               required={false}
-              pattern={{
-                value: CHARTFIELD_REGEX,
-                message: CHARTFIELD_PATTERN_MESSAGE,
-              }}
+              disabled={isLargeEvent}
+              description={
+                <p>
+                  {isLargeEvent && (
+                    <span
+                      style={{
+                        display: "block",
+                        marginBottom: "4px",
+                        fontWeight: 500,
+                      }}
+                    >
+                      Security is required for events with more than 75
+                      attendees.
+                    </span>
+                  )}
+                  Only for large events with 75+ attendees, and bookings in The
+                  Garage where the Willoughby entrance will be in use. It is
+                  required for the reservation holder to provide a chartfield so
+                  that the Media Commons Team can obtain Campus Safety Security
+                  Services.
+                </p>
+              }
               {...{ control, errors, trigger }}
             />
-          )}
-        </div>
-      )}
+            {watch("hireSecurity") === "yes" && (
+              <BookingFormTextField
+                id="chartFieldForSecurity"
+                label="ChartField for Security"
+                required={false}
+                pattern={{
+                  value: CHARTFIELD_REGEX,
+                  message: CHARTFIELD_PATTERN_MESSAGE,
+                }}
+                {...{ control, errors, trigger }}
+              />
+            )}
+          </div>
+        )}
     </Section>
   );
 

@@ -109,7 +109,13 @@ export default function MoreInfoModal({
     schema.form.services.showEquipment ||
     schema.form.services.showStaffing ||
     schema.form.services.showCatering ||
-    schema.form.services.showSecurity;
+    schema.form.services.showSecurity ||
+    Boolean(
+      booking.furnishingsByRoom &&
+        Object.values(booking.furnishingsByRoom).some(
+          (v) => typeof v === "string" && v.toLowerCase() === "yes",
+        ),
+    );
 
   const [isEditingCart, setIsEditingCart] = useState(false);
   const [cartNumber, setCartNumber] = useState(
@@ -631,6 +637,37 @@ export default function MoreInfoModal({
                         bottomText={booking.chartFieldForRoomSetup || "none"}
                       />
                     </TableRow>
+                    {booking.furnishingsByRoom &&
+                      Object.entries(booking.furnishingsByRoom).some(
+                        ([, v]) =>
+                          typeof v === "string" && v.toLowerCase() === "yes",
+                      ) && (
+                        <TableRow>
+                          <LabelCell>Additional Event Furniture</LabelCell>
+                          <StackedTableCell
+                            topText={Object.entries(booking.furnishingsByRoom)
+                              .filter(
+                                ([, v]) =>
+                                  typeof v === "string" &&
+                                  v.toLowerCase() === "yes",
+                              )
+                              .map(([roomId]) => roomId)
+                              .join(", ")}
+                            bottomText={
+                              Object.entries(
+                                booking.chartFieldForFurnishingsByRoom ?? {},
+                              )
+                                .filter(([roomId]) =>
+                                  booking.furnishingsByRoom?.[roomId] === "yes",
+                                )
+                                .map(
+                                  ([roomId, chart]) => `${roomId}: ${chart}`,
+                                )
+                                .join("; ") || "none"
+                            }
+                          />
+                        </TableRow>
+                      )}
                     {booking.equipmentServices &&
                       booking.equipmentServices.length > 0 && (
                         <TableRow>

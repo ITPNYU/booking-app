@@ -13,6 +13,7 @@ import { FormContextLevel, Inputs, StaffingServices } from "../../../../types";
 import {
   getResourceServicesConfig,
   resourceHasService,
+  ServiceResourceLike,
 } from "../../../../utils/resourceServicesUtils";
 import { BookingContext } from "../bookingProvider";
 
@@ -50,6 +51,8 @@ interface Props {
   showStaffingServices: boolean;
   setShowStaffingServices: (value: boolean) => void;
   formContext: FormContextLevel;
+  /** When set, only render staffing for these rooms (Room → Service layout). */
+  rooms?: ServiceResourceLike[];
 }
 
 export default function BookingFormStaffingServices(props: Props) {
@@ -60,9 +63,13 @@ export default function BookingFormStaffingServices(props: Props) {
     showStaffingServices,
     setShowStaffingServices,
     formContext: _formContext,
+    rooms: roomsProp,
   } = props;
-  const { selectedRooms } = useContext(BookingContext);
-  const roomIds = selectedRooms.map((room) => room.roomId);
+  const { selectedRooms: contextRooms } = useContext(BookingContext);
+  const selectedRooms = roomsProp ?? contextRooms;
+  const roomIds = selectedRooms.map(
+    (room) => room.resourceId ?? room.roomId ?? "",
+  );
 
   const showStaffing = selectedRooms.some(
     (room) =>

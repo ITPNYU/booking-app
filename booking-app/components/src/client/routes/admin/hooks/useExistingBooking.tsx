@@ -79,7 +79,12 @@ export default function useExistingBooking() {
 
     const setupTargetRooms = rooms.filter((room) => {
       const cfg = getServiceSectionConfig(room, "setup");
-      return cfg?.mode === "radio" || cfg?.mode === "static" || !!cfg;
+      return (
+        cfg?.mode === "radio" ||
+        cfg?.mode === "select" ||
+        cfg?.mode === "static" ||
+        !!cfg
+      );
     });
     const setupTargetIds = setupTargetRooms.map((room) => String(room.roomId));
 
@@ -92,7 +97,10 @@ export default function useExistingBooking() {
               const room = setupTargetRooms[0];
               const id = String(room.roomId);
               const cfg = getServiceSectionConfig(room, "setup");
-              if (cfg?.mode === "radio" && (cfg.options?.length ?? 0) > 0) {
+              if (
+                (cfg?.mode === "radio" || cfg?.mode === "select") &&
+                (cfg.options?.length ?? 0) > 0
+              ) {
                 const details = booking.setupDetails?.trim();
                 const match = cfg.options!.find(
                   (o) =>

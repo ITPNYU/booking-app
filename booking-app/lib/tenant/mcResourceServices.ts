@@ -33,7 +33,7 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
       options: [
         {
           value: "103_LAYOUT_0",
-          label: "Standing Room (no chairs) - 74 Standing",
+          label: "Standing Room (no chairs) - 100 Standing",
         },
         {
           value: "103_LAYOUT_1",
@@ -181,7 +181,7 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
       },
       label: "Security?",
       descriptionHtml: "",
-      mode: "radio",
+      mode: "select",
       defaultValue: "Willoughby Street Entrance",
       required: true,
       options: [
@@ -217,19 +217,23 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
     },
     setup: {
       showInOrigin: {
-        user: true,
-        walkIn: true,
+        user: false,
+        walkIn: false,
         VIP: true,
       },
       mode: "radio",
       label: "Room Setup?",
       required: true,
-      defaultValue: "default",
+      defaultValue: "202_LAYOUT_0",
       options: [
         {
-          value: "default",
+          value: "202_LAYOUT_0",
           label: "Default layout",
-        }
+        },
+        {
+          value: "202_LAYOUT_1",
+          label: "Custom layout",
+        },
       ],
     },
     furnishings: {
@@ -840,16 +844,44 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
       label: "Room Setup?",
       descriptionHtml: "<p>*Options with an asterisk require hiring CBS through work order. Additional layouts may be added when available.</p>",
       required: true,
+      defaultValue: "233_LAYOUT_0",
       options: [
         {
-          value: "classroom_style",
-          label: "Classroom Style - 50 Seated",
+          value: "233_LAYOUT_0",
+          label: "Classroom Style - 72 Seated",
           chartField: {
             label: "Chartfield",
             descriptionHtml: "",
             required: true,
           },
-        }
+        },
+        {
+          value: "233_LAYOUT_1",
+          label: "Collaboration Style - 80 Seated",
+          chartField: {
+            label: "Chartfield",
+            descriptionHtml: "",
+            required: true,
+          },
+        },
+        {
+          value: "233_LAYOUT_2",
+          label: "Theater Style - 100 Seated",
+          chartField: {
+            label: "Chartfield",
+            descriptionHtml: "",
+            required: true,
+          },
+        },
+        {
+          value: "233_LAYOUT_3",
+          label: "Empty Room - 100 Standing",
+          chartField: {
+            label: "Chartfield",
+            descriptionHtml: "",
+            required: true,
+          },
+        },
       ],
     },
     furnishings: {
@@ -1063,6 +1095,22 @@ export function getMcResourceServices(
   resourceId: string,
 ): ResourceServicesConfig | undefined {
   return MC_SERVICES_BY_ROOM[resourceId];
+}
+
+/**
+ * Setup option values that are informational defaults (no chartfield) and
+ * should not count as a "setup service requested" for auto-approval.
+ */
+export function isMcPassiveSetupDefault(value: string): boolean {
+  const normalized = value.trim();
+  if (!normalized) return false;
+  for (const services of Object.values(MC_SERVICES_BY_ROOM)) {
+    const setup = services.setup;
+    if (!setup?.defaultValue || setup.defaultValue !== normalized) continue;
+    const opt = setup.options?.find((o) => o.value === setup.defaultValue);
+    if (opt && !opt.chartField) return true;
+  }
+  return false;
 }
 
 export function applyMcResourceServices(resource: Resource): Resource {
