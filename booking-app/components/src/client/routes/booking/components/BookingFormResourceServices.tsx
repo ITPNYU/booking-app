@@ -1,5 +1,4 @@
 import {
-  Checkbox,
   FormControl,
   FormControlLabel,
   FormHelperText,
@@ -968,67 +967,66 @@ export default function BookingFormResourceServices({
               securityCfg &&
               resourceId === securityChoiceRoomId && (
               <Subsection>
-                <Label>
-                  {formatFieldLabel(securityCfg.label ?? "Security?")}
-                </Label>
-                <HtmlBlock html={securityCfg.descriptionHtml} />
-                <Controller
-                  name="hireSecurity"
-                  control={control}
-                  render={({ field }) => (
-                    <FormControl component="fieldset" fullWidth>
-                      {securityCfg.options?.map((opt) => {
-                        const checked = field.value === opt.value;
-                        return (
-                          <FormControlLabel
-                            key={opt.value}
-                            label={
-                              <OptionLabel
-                                label={opt.label}
-                                descriptionHtml={opt.descriptionHtml}
-                              />
-                            }
-                            control={
-                              <Checkbox
-                                checked={checked}
-                                onChange={(e) => {
-                                  field.onChange(
-                                    e.target.checked ? opt.value : "",
-                                  );
-                                  if (!e.target.checked) {
-                                    setValue("chartFieldForSecurity", "", {
-                                      shouldValidate: false,
-                                    });
-                                  }
-                                  trigger("hireSecurity");
-                                }}
-                              />
-                            }
-                          />
-                        );
-                      })}
-                    </FormControl>
-                  )}
-                />
                 {(() => {
-                  const selectedOpt = securityCfg.options?.find(
-                    (o) => o.value === hireSecurityValue,
-                  );
-                  if (!selectedOpt?.chartField) return null;
+                  const securityOpt = securityCfg.options?.[0];
+                  if (!securityOpt) return null;
+                  const isOn = hireSecurityValue === securityOpt.value;
                   return (
-                    <BookingFormTextField
-                      id="chartFieldForSecurity"
-                      label={
-                        selectedOpt.chartField.label ||
-                        "Chartfield for Campus Safety"
-                      }
-                      required={selectedOpt.chartField.required !== false}
-                      pattern={{
-                        value: CHARTFIELD_REGEX,
-                        message: CHARTFIELD_PATTERN_MESSAGE,
-                      }}
-                      {...{ control, errors, trigger }}
-                    />
+                    <>
+                      <SharedYesNoSwitch
+                        label={formatFieldLabel(
+                          securityCfg.label ?? "Security?",
+                        )}
+                        description={
+                          securityCfg.descriptionHtml ? (
+                            <HtmlBlock html={securityCfg.descriptionHtml} />
+                          ) : undefined
+                        }
+                        value={isOn ? "yes" : "no"}
+                        onChange={(next) => {
+                          if (next === "yes") {
+                            setValue("hireSecurity", securityOpt.value, {
+                              shouldValidate: true,
+                            });
+                          } else {
+                            setValue("hireSecurity", "", {
+                              shouldValidate: true,
+                            });
+                            setValue("chartFieldForSecurity", "", {
+                              shouldValidate: false,
+                            });
+                          }
+                          trigger("hireSecurity");
+                        }}
+                      />
+                      {isOn && (
+                        <>
+                          <p style={{ fontSize: "0.875rem", marginBottom: 16 }}>
+                            <OptionLabel
+                              label={securityOpt.label}
+                              descriptionHtml={securityOpt.descriptionHtml}
+                            />
+                          </p>
+                          {securityOpt.chartField && (
+                            <BookingFormTextField
+                              id="chartFieldForSecurity"
+                              label={
+                                securityOpt.chartField.label ||
+                                "Chartfield for Campus Safety"
+                              }
+                              required={
+                                securityOpt.chartField.required !== false
+                              }
+                              pattern={{
+                                value: CHARTFIELD_REGEX,
+                                message: CHARTFIELD_PATTERN_MESSAGE,
+                              }}
+                              {...{ control, errors, trigger }}
+                            />
+                          )}
+                        </>
+                      )}
+                    </>
                   );
                 })()}
               </Subsection>
