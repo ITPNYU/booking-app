@@ -6,6 +6,17 @@ const __dirname = path.dirname(__filename);
 
 const resolveStub = (relativePath) => path.join(__dirname, relativePath);
 
+// E2E runs swap the Firebase client SDK for in-memory stubs. Declared once
+// here and applied to BOTH bundlers: Turbopack (`next dev --turbo`) via
+// `turbopack.resolveAlias`, and webpack (`next build`, plain `next dev`) via
+// the `webpack` hook below — Turbopack does not run the webpack hook.
+const E2E_STUB_ALIASES = {
+  "firebase/app": "./lib/firebase/stubs/firebaseAppStub.ts",
+  "firebase/firestore": "./lib/firebase/stubs/firebaseFirestoreStub.ts",
+  "@firebase/app": "./lib/firebase/stubs/firebaseAppStub.ts",
+  "@firebase/firestore": "./lib/firebase/stubs/firebaseFirestoreStub.ts",
+};
+
 // Mirrors shouldBypassAuth() from lib/utils/testEnvironment.ts at build time
 // so the client can check synchronously without an API call.
 const isTestEnv =
@@ -21,6 +32,9 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  ...(process.env.E2E_TESTING === "true"
+    ? { turbopack: { resolveAlias: E2E_STUB_ALIASES } }
+    : {}),
   experimental: {
     optimizePackageImports: [
       "@mui/material",
@@ -61,13 +75,11 @@ const nextConfig = {
     if (process.env.E2E_TESTING === "true") {
       config.resolve.alias = {
         ...config.resolve.alias,
-        "firebase/app": resolveStub("lib/firebase/stubs/firebaseAppStub.ts"),
-        "firebase/firestore": resolveStub(
-          "lib/firebase/stubs/firebaseFirestoreStub.ts",
-        ),
-        "@firebase/app": resolveStub("lib/firebase/stubs/firebaseAppStub.ts"),
-        "@firebase/firestore": resolveStub(
-          "lib/firebase/stubs/firebaseFirestoreStub.ts",
+        ...Object.fromEntries(
+          Object.entries(E2E_STUB_ALIASES).map(([specifier, stubPath]) => [
+            specifier,
+            resolveStub(stubPath),
+          ]),
         ),
       };
     }

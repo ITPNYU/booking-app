@@ -1,6 +1,7 @@
 import { Box, IconButton } from "@mui/material";
 
 import { PagePermission } from "@/components/src/types";
+import { hasAnyPermission } from "@/components/src/utils/permissions";
 import { EventContentArg } from "@fullcalendar/core";
 import { Close } from "@mui/icons-material";
 import { styled } from "@mui/material/styles";
@@ -56,7 +57,15 @@ export default function CalendarEventBlock(
     title = "";
   }
 
-  if (pagePermission >= PagePermission.PA) {
+  if (
+    hasAnyPermission(pagePermission, [
+      PagePermission.PA,
+      PagePermission.LIAISON,
+      PagePermission.SERVICES,
+      PagePermission.ADMIN,
+      PagePermission.SUPER_ADMIN,
+    ])
+  ) {
     title = eventInfo.event.title;
   }
 

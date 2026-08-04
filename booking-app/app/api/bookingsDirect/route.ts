@@ -40,6 +40,7 @@ import {
   enforceRequestLimits,
   getRequestLimitRoleKey,
 } from "@/lib/bookingRequestLimits";
+import { getMaintenanceModeSettings } from "@/lib/maintenanceModeServer";
 
 // Helper function to extract tenant from request
 const extractTenantFromRequest = (request: NextRequest): string | undefined => {
@@ -81,7 +82,14 @@ export async function POST(request: NextRequest) {
   } = await request.json();
 
   // Extract tenant from URL
-  const tenant = extractTenantFromRequest(request);
+  const tenant = extractTenantFromRequest(request) ?? DEFAULT_TENANT;
+  const maintenanceMode = await getMaintenanceModeSettings(tenant);
+  if (maintenanceMode.enabled) {
+    return NextResponse.json(
+      { error: maintenanceMode.message, maintenanceMode: true },
+      { status: 503 },
+    );
+  }
 
   console.log("📥 BOOKING DIRECT API - Received data:", {
     origin,

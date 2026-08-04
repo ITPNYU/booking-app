@@ -6,6 +6,7 @@ import {
 } from "@/components/src/policy";
 import { PagePermission } from "@/components/src/types";
 import type { SessionContext } from "@/lib/api/requireSession";
+import { MAINTENANCE_MODE_SETTINGS_DOC_ID } from "@/lib/utils/maintenanceMode";
 
 /**
  * Resolve the caller's role for a given tenant by reading the same
@@ -206,8 +207,13 @@ export async function authorizeWrite(
   session: SessionContext,
   tenant: string | undefined,
   collection: string,
+  docId?: string,
 ): Promise<AccessDecision> {
-  const policy = getPolicy(collection);
+  const policy =
+    collection === TableNames.SETTINGS &&
+    docId === MAINTENANCE_MODE_SETTINGS_DOC_ID
+      ? { ...getPolicy(collection), write: "superOnly" as const }
+      : getPolicy(collection);
   if (policy.write === "deny") {
     return { ok: false, status: 403, reason: `write denied for ${collection}` };
   }
