@@ -1,6 +1,6 @@
 import { bookingCalendarStrToDate } from "@/components/src/client/utils/date";
 import { getCalendarClient } from "@/lib/googleClient";
-import { getStaffingServiceLabel } from "@/lib/tenant/mcResourceServices";
+import { getMcResourceServices, getStaffingServiceLabel } from "@/lib/tenant/mcResourceServices";
 import { traceExternalCall } from "@/lib/newrelic-utils";
 import {
   BookingFormDetails,
@@ -8,6 +8,7 @@ import {
   StaffingServices,
 } from "../types";
 import { formatOrigin, getSecondaryContactName } from "../utils/formatters";
+import { formatAnnexByRoomForDisplay } from "../utils/resourceServicesUtils";
 
 import { serverGetRoomCalendarIds } from "./admin";
 
@@ -310,6 +311,18 @@ export const bookingContentsToDescription = async (
     );
     if (securityChartField) {
       description += listItem("Security Chart Field", securityChartField);
+    }
+  }
+
+  const annexByRoom = bookingContents.annexByRoom;
+  if (annexByRoom && typeof annexByRoom === "object") {
+    const annexRooms = Object.keys(annexByRoom).map((roomId) => ({
+      resourceId: roomId,
+      services: getMcResourceServices(roomId) ?? {},
+    }));
+    const annexDisplay = formatAnnexByRoomForDisplay(annexByRoom, annexRooms);
+    if (annexDisplay) {
+      description += listItem("Auxiliary Spaces", annexDisplay);
     }
   }
   description += "</ul>";

@@ -12,6 +12,7 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
         walkIn: true,
         VIP: true,
       },
+      mode: "checkbox",
       options: [
         {
           value: "103GR",
@@ -202,14 +203,15 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
         walkIn: true,
         VIP: true,
       },
+      mode: "checkbox",
       options: [
         {
           value: "202GR",
-          label: "Lecture Green Room",
+          label: "202GR Lecture Green Room",
         },
         {
           value: "205",
-          label: "Student Lounge",
+          label: "205 Student Lounge",
         }
       ],
     },
@@ -1083,8 +1085,23 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
         walkIn: true,
         VIP: true,
       },
+      mode: "checkbox",
       label: "Request breakout space, lounge, or foyer",
       descriptionHtml: "<p>Check if your reservation requires use of breakout space, lounge, or foyer areas.</p>",
+      options: [
+        {
+          value: "1200L-6",
+          label: "1200L-6 Seminar Foyer",
+        },
+        {
+          value: "1202",
+          label: "1202 Seminar Breakout",
+        },
+        {
+          value: "1204",
+          label: "1204 Seminar Lounge",
+        },
+      ],
     },
   },
 };

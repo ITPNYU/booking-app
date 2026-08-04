@@ -144,7 +144,7 @@ export function getRoomsWithVisibleService(
   key: ResourceServiceKey,
   context: ServiceVisibilityContext,
 ): ServiceResourceLike[] {
-  // Annex / auxiliary space is schema-only for now — not rendered or requested.
+  // Annex / auxiliary space is rendered on the room selection page, not the services form.
   if (key === "annex" || key === "auxiliarySpace") {
     return [];
   }
@@ -158,6 +158,40 @@ export function getRoomsWithVisibleService(
     }
     return shouldShowServiceSection(section, context);
   });
+}
+
+/** Annex options for a parent room (used on the room selection page). */
+export function getAnnexOptions(
+  resource: ServiceResourceLike,
+): ResourceFormOption[] {
+  const section = getServiceSectionConfig(resource, "annex");
+  return section?.options ?? [];
+}
+
+/**
+ * Format selected auxiliary spaces for calendar descriptions / detail UI.
+ * Example: `1201: 1200L-6 Seminar Foyer, 1204 Seminar Lounge; 103: Garage Green Room`
+ */
+export function formatAnnexByRoomForDisplay(
+  annexByRoom: Record<string, string[]> | undefined,
+  rooms: ServiceResourceLike[],
+): string {
+  if (!annexByRoom || typeof annexByRoom !== "object") return "";
+
+  const parts: string[] = [];
+  for (const [roomId, values] of Object.entries(annexByRoom)) {
+    if (!Array.isArray(values) || values.length === 0) continue;
+    const room = rooms.find(
+      (r) => getServiceResourceId(r) === String(roomId),
+    );
+    const options = room ? getAnnexOptions(room) : [];
+    const labels = values.map((value) => {
+      const opt = options.find((o) => o.value === value);
+      return opt?.label ?? value;
+    });
+    parts.push(`${roomId}: ${labels.join(", ")}`);
+  }
+  return parts.join("; ");
 }
 
 export function anyRoomHasVisibleService(

@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import { getMediaCommonsServices } from "@/components/src/utils/tenantUtils";
 import {
   anyRoomHasVisibleService,
+  formatAnnexByRoomForDisplay,
+  getAnnexOptions,
   getRoomsWithVisibleService,
 } from "@/components/src/utils/resourceServicesUtils";
 import {
@@ -158,6 +160,7 @@ describe("applyMcResourceServices", () => {
     expect(missing.services?.setup?.mode).toBe("radio");
     expect(missing.services?.setup?.defaultValue).toBe("202_LAYOUT_0");
     expect(missing.services?.annex?.options?.length).toBe(2);
+    expect(missing.services?.annex?.mode).toBe("checkbox");
 
     const emptyArray = applyMcResourceServices({
       resourceId: "202",
@@ -166,6 +169,26 @@ describe("applyMcResourceServices", () => {
       services: [],
     });
     expect(emptyArray.services?.setup?.mode).toBe("radio");
+  });
+
+  it("includes 1201 breakout, foyer, and lounge annex options", () => {
+    const room = applyMcResourceServices({
+      resourceId: "1201",
+      name: "Seminar Room",
+      capacity: 100,
+      services: [],
+    });
+    expect(room.services?.annex?.mode).toBe("checkbox");
+    expect(room.services?.annex?.options?.map((o) => o.value)).toEqual([
+      "1200L-6",
+      "1202",
+      "1204",
+    ]);
+    expect(room.services?.annex?.options?.map((o) => o.label)).toEqual([
+      "1200L-6 Seminar Foyer",
+      "1202 Seminar Breakout",
+      "1204 Seminar Lounge",
+    ]);
   });
 
   it("replaces legacy services arrays with MC room defaults", () => {
@@ -377,5 +400,23 @@ describe("migrateResourceServices", () => {
       "Please describe the layout in detail.",
     );
     expect(result.setup?.options?.[0].required).toBe(false);
+  });
+});
+
+describe("formatAnnexByRoomForDisplay", () => {
+  it("resolves option labels from parent room annex config", () => {
+    const room = applyMcResourceServices({
+      resourceId: "1201",
+      name: "Seminar Room",
+      capacity: 100,
+      services: [],
+    });
+    expect(getAnnexOptions(room).length).toBe(3);
+    expect(
+      formatAnnexByRoomForDisplay(
+        { "1201": ["1200L-6", "1204"] },
+        [room],
+      ),
+    ).toBe("1201: 1200L-6 Seminar Foyer, 1204 Seminar Lounge");
   });
 });

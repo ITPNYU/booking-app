@@ -12,6 +12,7 @@ export default function useHandleStartBooking() {
     setSelectedRooms,
     setBookingCalendarInfo,
     setFormData,
+    setAnnexByRoom,
   } = useContext(BookingContext);
 
   const handleStartBooking = () => {
@@ -22,6 +23,7 @@ export default function useHandleStartBooking() {
     setDepartment(undefined);
     setRole(undefined);
     setSelectedRooms([]);
+    setAnnexByRoom({});
     setBookingCalendarInfo(undefined);
     setFormData(undefined);
 

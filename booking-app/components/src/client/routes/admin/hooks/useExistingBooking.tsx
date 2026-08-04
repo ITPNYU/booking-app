@@ -13,6 +13,7 @@ export default function useExistingBooking() {
     setSelectedRooms,
     setBookingCalendarInfo,
     setFormData,
+    setAnnexByRoom,
   } = useContext(BookingContext);
   const { allBookings, roomSettings } = useContext(DatabaseContext);
 
@@ -32,6 +33,7 @@ export default function useExistingBooking() {
       roomIds.includes(roomSetting.roomId),
     );
     setSelectedRooms(rooms);
+    setAnnexByRoom(booking.annexByRoom ?? {});
 
     const start = booking.startDate.toDate();
     const end = booking.endDate.toDate();
@@ -178,6 +180,7 @@ export default function useExistingBooking() {
         booking.equipmentServicesDetails,
         roomIdsForMaps.length === 1 ? roomIdsForMaps : [],
       ),
+      annexByRoom: booking.annexByRoom ?? {},
       webcheckoutCartNumber: booking.webcheckoutCartNumber,
       equipment: booking.equipment,
       staffing: booking.staffing,
