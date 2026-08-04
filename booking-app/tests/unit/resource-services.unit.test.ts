@@ -180,14 +180,14 @@ describe("applyMcResourceServices", () => {
     });
     expect(room.services?.annex?.mode).toBe("checkbox");
     expect(room.services?.annex?.options?.map((o) => o.value)).toEqual([
-      "1201-breakout",
-      "1201-foyer",
-      "1201-lounge",
+      "1200L-6",
+      "1202",
+      "1204",
     ]);
     expect(room.services?.annex?.options?.map((o) => o.label)).toEqual([
-      "1201 Break-out Space",
-      "1201 Foyer",
-      "1201 Lounge",
+      "1200L-6 Seminar Foyer",
+      "1202 Seminar Breakout",
+      "1204 Seminar Lounge",
     ]);
   });
 
@@ -414,9 +414,9 @@ describe("formatAnnexByRoomForDisplay", () => {
     expect(getAnnexOptions(room).length).toBe(3);
     expect(
       formatAnnexByRoomForDisplay(
-        { "1201": ["1201-foyer", "1201-lounge"] },
+        { "1201": ["1200L-6", "1204"] },
         [room],
       ),
-    ).toBe("1201: 1201 Foyer, 1201 Lounge");
+    ).toBe("1201: 1200L-6 Seminar Foyer, 1204 Seminar Lounge");
   });
 });

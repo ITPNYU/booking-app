@@ -113,10 +113,14 @@ describe("SelectRooms auxiliary spaces", () => {
 
     expect(screen.getByTestId("annex-options-1201")).toBeTruthy();
     expect(
-      screen.getByRole("checkbox", { name: "1201 Break-out Space" }),
+      screen.getByRole("checkbox", { name: "1202 Seminar Breakout" }),
     ).toBeTruthy();
-    expect(screen.getByRole("checkbox", { name: "1201 Foyer" })).toBeTruthy();
-    expect(screen.getByRole("checkbox", { name: "1201 Lounge" })).toBeTruthy();
+    expect(
+      screen.getByRole("checkbox", { name: "1200L-6 Seminar Foyer" }),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("checkbox", { name: "1204 Seminar Lounge" }),
+    ).toBeTruthy();
   });
 
   it("hides annex options for students even when parent is selected", () => {
@@ -128,7 +132,7 @@ describe("SelectRooms auxiliary spaces", () => {
 
     expect(screen.queryByTestId("annex-options-1201")).toBeNull();
     expect(
-      screen.queryByRole("checkbox", { name: "1201 Foyer" }),
+      screen.queryByRole("checkbox", { name: "1200L-6 Seminar Foyer" }),
     ).toBeNull();
   });
 
@@ -139,11 +143,11 @@ describe("SelectRooms auxiliary spaces", () => {
       name: "1201 Seminar Room",
     });
     fireEvent.click(parent);
-    fireEvent.click(screen.getByRole("checkbox", { name: "1201 Foyer" }));
-
-    expect(screen.getByTestId("annex-state").textContent).toContain(
-      "1201-foyer",
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: "1200L-6 Seminar Foyer" }),
     );
+
+    expect(screen.getByTestId("annex-state").textContent).toContain("1200L-6");
 
     fireEvent.click(parent);
     expect(screen.getByTestId("annex-state").textContent).toBe("{}");

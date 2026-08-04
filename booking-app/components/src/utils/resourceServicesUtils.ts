@@ -170,7 +170,7 @@ export function getAnnexOptions(
 
 /**
  * Format selected auxiliary spaces for calendar descriptions / detail UI.
- * Example: `1201: 1201 Foyer, 1201 Lounge; 103: Garage Green Room`
+ * Example: `1201: 1200L-6 Seminar Foyer, 1204 Seminar Lounge; 103: Garage Green Room`
  */
 export function formatAnnexByRoomForDisplay(
   annexByRoom: Record<string, string[]> | undefined,

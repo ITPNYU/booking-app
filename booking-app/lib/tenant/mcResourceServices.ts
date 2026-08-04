@@ -207,11 +207,11 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
       options: [
         {
           value: "202GR",
-          label: "Lecture Green Room",
+          label: "202GR Lecture Green Room",
         },
         {
           value: "205",
-          label: "Student Lounge",
+          label: "205 Student Lounge",
         }
       ],
     },
@@ -1090,16 +1090,16 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
       descriptionHtml: "<p>Check if your reservation requires use of breakout space, lounge, or foyer areas.</p>",
       options: [
         {
-          value: "1201-breakout",
-          label: "1201 Break-out Space",
+          value: "1200L-6",
+          label: "1200L-6 Seminar Foyer",
         },
         {
-          value: "1201-foyer",
-          label: "1201 Foyer",
+          value: "1202",
+          label: "1202 Seminar Breakout",
         },
         {
-          value: "1201-lounge",
-          label: "1201 Lounge",
+          value: "1204",
+          label: "1204 Seminar Lounge",
         },
       ],
     },

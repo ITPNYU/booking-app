@@ -110,7 +110,7 @@ describe("Calendar Description Functions", () => {
       const withAnnex = {
         ...mockBookingContents,
         annexByRoom: {
-          "1201": ["1201-foyer", "1201-lounge"],
+          "1201": ["1200L-6", "1204"],
           "103": ["103GR"],
         },
       };
@@ -118,8 +118,8 @@ describe("Calendar Description Functions", () => {
       const result = await bookingContentsToDescription(withAnnex);
 
       expect(result).toContain("Auxiliary Spaces");
-      expect(result).toContain("1201 Foyer");
-      expect(result).toContain("1201 Lounge");
+      expect(result).toContain("1200L-6 Seminar Foyer");
+      expect(result).toContain("1204 Seminar Lounge");
       expect(result).toContain("Garage Green Room");
     });
 
