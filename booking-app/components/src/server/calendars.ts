@@ -209,14 +209,15 @@ export const bookingContentsToDescription = async (
     );
   }
 
-  const furnishingsByRoom = getProperty(
-    bookingContents,
-    "furnishingsByRoom",
-  ) as unknown as Record<string, string> | undefined;
-  const furnishingsChartByRoom = getProperty(
-    bookingContents,
-    "chartFieldForFurnishingsByRoom",
-  ) as unknown as Record<string, string> | undefined;
+  // Read object maps directly — getProperty().toString() turns them into
+  // "[object Object]" and would skip this block.
+  const furnishingsByRoom = bookingContents.furnishingsByRoom as
+    | Record<string, string>
+    | undefined;
+  const furnishingsChartByRoom =
+    bookingContents.chartFieldForFurnishingsByRoom as
+      | Record<string, string>
+      | undefined;
   if (furnishingsByRoom && typeof furnishingsByRoom === "object") {
     const furnishingParts = Object.entries(furnishingsByRoom)
       .filter(([, v]) => typeof v === "string" && v.toLowerCase() === "yes")

@@ -326,6 +326,12 @@ export function migrateResourceServices(
     if (staffingSections?.length) {
       staffing.sections = {};
       staffingSections.forEach((section, sectionIndex) => {
+        if (
+          typeof section?.name !== "string" ||
+          !Array.isArray(section?.indexes)
+        ) {
+          return;
+        }
         const baseKey =
           section.name.toLowerCase().replace(/\s+/g, "_") || "section";
         const sectionKey = `${sectionIndex}_${baseKey}`;

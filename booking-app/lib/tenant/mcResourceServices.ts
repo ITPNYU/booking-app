@@ -1164,9 +1164,10 @@ export function isMcPassiveSetupDefault(value: string): boolean {
   if (!normalized) return false;
   for (const services of Object.values(MC_SERVICES_BY_ROOM)) {
     const setup = services.setup;
-    if (!setup?.defaultValue || setup.defaultValue !== normalized) continue;
+    if (!setup?.defaultValue) continue;
     const opt = setup.options?.find((o) => o.value === setup.defaultValue);
-    if (opt && !opt.chartField) return true;
+    if (!opt || opt.chartField) continue;
+    if (opt.value === normalized || opt.label === normalized) return true;
   }
   return false;
 }

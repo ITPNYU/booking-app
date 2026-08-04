@@ -182,11 +182,25 @@ export default function FormInput({
       serviceVisibility,
     );
     if (securityRooms.length === 0) return false;
-    // Show switch if any security room is not choice/checkbox mode (multi-room safe).
+    // Show switch if any security room is not choice/checkbox/static mode
+    // (multi-room safe). Match showSecuritySwitch in BookingFormResourceServices.
     return securityRooms.some((r) => {
       const mode = getServiceSectionConfig(r, "security")?.mode;
-      return !isChoiceMode(mode) && mode !== "checkbox";
+      return (
+        !isChoiceMode(mode) && mode !== "checkbox" && mode !== "static"
+      );
     });
+  }, [selectedRooms, serviceVisibility]);
+
+  const needsCheckboxSecurity = useMemo(() => {
+    const securityRooms = getRoomsWithVisibleService(
+      selectedRooms,
+      "security",
+      serviceVisibility,
+    );
+    return securityRooms.some(
+      (r) => getServiceSectionConfig(r, "security")?.mode === "checkbox",
+    );
   }, [selectedRooms, serviceVisibility]);
 
   const needsInteractiveEquipment = useMemo(() => {
@@ -416,8 +430,14 @@ export default function FormInput({
       hireSecurityManuallySet.current = false;
     }
 
-    if (isLargeEvent && needsGenericSecuritySwitch) {
-      if (hireSecurityValue !== "yes") {
+    if (isLargeEvent && (needsGenericSecuritySwitch || needsCheckboxSecurity)) {
+      // Checkbox-mode (Garage Willoughby) uses a distinct value when opted in;
+      // for large events force a generic "yes" if security is not already set.
+      const alreadyRequested =
+        typeof hireSecurityValue === "string" &&
+        hireSecurityValue.trim().length > 0 &&
+        hireSecurityValue.trim().toLowerCase() !== "no";
+      if (!alreadyRequested) {
         setValue("hireSecurity", "yes", { shouldValidate: true });
         hireSecurityWasAutoSet.current = true;
         autoHireSecurityValueRef.current = "yes";
@@ -430,7 +450,13 @@ export default function FormInput({
         autoHireSecurityValueRef.current = "";
       }
     }
-  }, [isLargeEvent, hireSecurityValue, setValue, needsGenericSecuritySwitch]);
+  }, [
+    isLargeEvent,
+    hireSecurityValue,
+    setValue,
+    needsGenericSecuritySwitch,
+    needsCheckboxSecurity,
+  ]);
 
   const validateExpectedAttendance = useCallback(
     (value: string) => {

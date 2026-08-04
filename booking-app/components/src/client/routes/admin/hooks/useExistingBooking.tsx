@@ -110,9 +110,14 @@ export default function useExistingBooking() {
                     o.label === details ||
                     o.value === booking.roomSetup,
                 );
-                return {
-                  [id]: match?.value ?? cfg.defaultValue ?? "",
-                };
+                // Do not silently substitute schema defaultValue — that can
+                // erase the requester's original selection when options were
+                // renamed after the booking was created. Keep legacy text in
+                // setupDetails and leave the by-room map unset for manual review.
+                if (match?.value) {
+                  return { [id]: match.value };
+                }
+                return undefined;
               }
               return {
                 [id]:

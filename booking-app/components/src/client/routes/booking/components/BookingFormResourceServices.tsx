@@ -153,6 +153,8 @@ function syncSetupLegacyScalars(
   setupMap: Record<string, string>,
   detailsMap: Record<string, string>,
   chartMap: Record<string, string>,
+  existingSetupDetails?: string,
+  existingSetupChart?: string,
 ) {
   const activeRooms = setupRooms.filter((room) => {
     const id = getServiceResourceId(room);
@@ -162,12 +164,32 @@ function syncSetupLegacyScalars(
   setValue("roomSetup", activeRooms.length > 0 ? "yes" : "", {
     shouldValidate: false,
   });
-  setValue("setupDetails", joinByRoomValues(detailsMap, activeRooms), {
-    shouldValidate: false,
-  });
-  setValue("chartFieldForRoomSetup", joinByRoomValues(chartMap, activeRooms), {
-    shouldValidate: false,
-  });
+  const nextDetails = joinByRoomValues(detailsMap, activeRooms);
+  const nextChart = joinByRoomValues(chartMap, activeRooms);
+  // Prefer by-room joins when present. If maps are sparse (e.g. multi-room
+  // legacy edit where only one room was backfilled), keep prior legacy text
+  // instead of overwriting with a single room's fragment.
+  const hasPartialMaps =
+    activeRooms.length > 1 &&
+    activeRooms.some((room) => {
+      const id = getServiceResourceId(room);
+      const d = detailsMap[id];
+      return !d || !String(d).trim();
+    });
+  setValue(
+    "setupDetails",
+    nextDetails ||
+      (hasPartialMaps ? existingSetupDetails?.trim() || "" : "") ||
+      "",
+    { shouldValidate: false },
+  );
+  setValue(
+    "chartFieldForRoomSetup",
+    nextChart ||
+      (hasPartialMaps ? existingSetupChart?.trim() || "" : "") ||
+      "",
+    { shouldValidate: false },
+  );
 }
 
 /** Shared yes/no switch bound via watch/setValue so it can appear under multiple rooms. */
@@ -252,6 +274,14 @@ export default function BookingFormResourceServices({
 
   const firstCateringRoomId = useMemo(() => {
     const room = getRoomsWithVisibleService(selectedRooms, "catering", {
+      isVIP,
+      isWalkIn,
+      isStandardUser: !isVIP && !isWalkIn,
+    })[0];
+    return room ? getServiceResourceId(room) : null;
+  }, [selectedRooms, isVIP, isWalkIn]);
+  const firstStaffingRoomId = useMemo(() => {
+    const room = getRoomsWithVisibleService(selectedRooms, "staffing", {
       isVIP,
       isWalkIn,
       isStandardUser: !isVIP && !isWalkIn,
@@ -346,6 +376,8 @@ export default function BookingFormResourceServices({
       changed ? nextMap : currentMap,
       changed ? nextDetails : currentDetails,
       chartMap,
+      typeof legacyDetails === "string" ? legacyDetails : undefined,
+      watch("chartFieldForRoomSetup") as string | undefined,
     );
   }, [setupRooms, setValue, watch]);
 
@@ -476,7 +508,8 @@ export default function BookingFormResourceServices({
         const staffingSection = getServiceSectionConfig(room, "staffing");
         const showStaffing =
           !!staffingSection &&
-          shouldShowServiceSection(staffingSection, visibility);
+          shouldShowServiceSection(staffingSection, visibility) &&
+          resourceId === firstStaffingRoomId;
         const cateringCfg = getServiceSectionConfig(room, "catering");
         const showCatering =
           !!cateringCfg && shouldShowServiceSection(cateringCfg, visibility);
@@ -576,6 +609,8 @@ export default function BookingFormResourceServices({
                         next,
                         nextDetails,
                         chartMap,
+                        watch("setupDetails") as string | undefined,
+                        watch("chartFieldForRoomSetup") as string | undefined,
                       );
                       trigger("roomSetupByRoom");
                       trigger("chartFieldForRoomSetupByRoom");
@@ -641,6 +676,8 @@ export default function BookingFormResourceServices({
                           setupMap,
                           details,
                           nextChart,
+                          watch("setupDetails") as string | undefined,
+                          watch("chartFieldForRoomSetup") as string | undefined,
                         );
                       }}
                       onBlur={() => trigger("chartFieldForRoomSetupByRoom")}
@@ -970,7 +1007,12 @@ export default function BookingFormResourceServices({
                 {(() => {
                   const securityOpt = securityCfg.options?.[0];
                   if (!securityOpt) return null;
-                  const isOn = hireSecurityValue === securityOpt.value;
+                  const hireRequested =
+                    typeof hireSecurityValue === "string" &&
+                    hireSecurityValue.trim().length > 0 &&
+                    hireSecurityValue.trim().toLowerCase() !== "no";
+                  const isWilloughby =
+                    hireSecurityValue === securityOpt.value;
                   return (
                     <>
                       <SharedYesNoSwitch
@@ -978,11 +1020,26 @@ export default function BookingFormResourceServices({
                           securityCfg.label ?? "Security?",
                         )}
                         description={
-                          securityCfg.descriptionHtml ? (
-                            <HtmlBlock html={securityCfg.descriptionHtml} />
-                          ) : undefined
+                          <>
+                            {isLargeEvent && (
+                              <p
+                                style={{
+                                  fontSize: "0.75rem",
+                                  fontWeight: 500,
+                                  marginBottom: 4,
+                                }}
+                              >
+                                Security is required for events with more than
+                                75 attendees.
+                              </p>
+                            )}
+                            {securityCfg.descriptionHtml ? (
+                              <HtmlBlock html={securityCfg.descriptionHtml} />
+                            ) : null}
+                          </>
                         }
-                        value={isOn ? "yes" : "no"}
+                        value={hireRequested ? "yes" : "no"}
+                        disabled={isLargeEvent}
                         onChange={(next) => {
                           if (next === "yes") {
                             setValue("hireSecurity", securityOpt.value, {
@@ -999,14 +1056,21 @@ export default function BookingFormResourceServices({
                           trigger("hireSecurity");
                         }}
                       />
-                      {isOn && (
+                      {hireRequested && (
                         <>
-                          <p style={{ fontSize: "0.875rem", marginBottom: 16 }}>
-                            <OptionLabel
-                              label={securityOpt.label}
-                              descriptionHtml={securityOpt.descriptionHtml}
-                            />
-                          </p>
+                          {isWilloughby && (
+                            <p
+                              style={{
+                                fontSize: "0.875rem",
+                                marginBottom: 16,
+                              }}
+                            >
+                              <OptionLabel
+                                label={securityOpt.label}
+                                descriptionHtml={securityOpt.descriptionHtml}
+                              />
+                            </p>
+                          )}
                           {securityOpt.chartField && (
                             <BookingFormTextField
                               id="chartFieldForSecurity"

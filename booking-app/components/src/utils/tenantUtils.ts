@@ -107,20 +107,27 @@ const isActiveSetupSelection = (value: unknown): boolean => {
  */
 export const getMediaCommonsServices = (data: any) => {
   const byRoomValues = Object.values(data.roomSetupByRoom ?? {});
-  const hasByRoomMaps = byRoomValues.length > 0;
   const setupFromByRoom = byRoomValues.some((v) => isActiveSetupSelection(v));
-  // When ByRoom maps exist, they are authoritative (legacy scalars may mirror defaults).
+  // Legacy scalars remain additive so mixed schema+generic multi-room bookings
+  // still surface a genuine setup request from co-selected non-schema rooms.
+  // Passive schema defaults mirrored into setupDetails are ignored via
+  // isActiveSetupSelection / isMcPassiveSetupDefault (value + label).
   const setupFromLegacy =
-    !hasByRoomMaps &&
-    (isActiveSetupSelection(data.setupDetails) ||
-      (isServiceRequested(data.roomSetup) &&
-        String(data.roomSetup).trim().toLowerCase() !== "yes"));
+    isActiveSetupSelection(data.setupDetails) ||
+    (isServiceRequested(data.roomSetup) &&
+      String(data.roomSetup).trim().toLowerCase() !== "yes");
+  // Additional event furniture requires CBS/work-order review. Fold into setup
+  // so auto-approval is blocked and existing setup approvers are notified —
+  // there is no separate furnishings XState service yet.
+  const furnishingsRequested = Object.values(
+    data.furnishingsByRoom ?? {},
+  ).some((v: unknown) => isServiceRequested(v));
 
   return {
     staff:
       isServiceRequested(data.staffingServices) ||
       isServiceRequested(data.staffingServicesDetails),
-    setup: setupFromByRoom || setupFromLegacy,
+    setup: setupFromByRoom || setupFromLegacy || furnishingsRequested,
     equipment:
       isServiceRequested(data.mediaServices) ||
       isServiceRequested(data.equipmentServices) ||

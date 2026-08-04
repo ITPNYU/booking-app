@@ -89,6 +89,29 @@ describe("getMediaCommonsServices", () => {
     });
     expect(services.setup).toBe(true);
   });
+
+  it("treats additional event furniture as setup requested", () => {
+    expect(
+      getMediaCommonsServices({
+        furnishingsByRoom: { "103": "yes" },
+      }).setup,
+    ).toBe(true);
+    expect(
+      getMediaCommonsServices({
+        furnishingsByRoom: { "103": "no" },
+      }).setup,
+    ).toBe(false);
+  });
+
+  it("still detects legacy setup when by-room maps are also present", () => {
+    expect(
+      getMediaCommonsServices({
+        roomSetupByRoom: { "103": "103_LAYOUT_0" },
+        roomSetup: "custom",
+        setupDetails: "Need extra tables for the adjacent room",
+      }).setup,
+    ).toBe(true);
+  });
 });
 
 describe("resource service visibility", () => {
