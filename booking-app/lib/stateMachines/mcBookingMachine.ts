@@ -230,7 +230,7 @@ export const mcBookingMachine = setup({
       | { type: "edit" }
       | { type: "Modify" }
       | { type: "cancel" }
-      | { type: "noShow" }
+      | { type: "noShow"; email?: string }
       | { type: "approve" }
       | { type: "checkIn" }
       | { type: "decline"; reason?: string }
