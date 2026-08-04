@@ -12,6 +12,7 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
         walkIn: true,
         VIP: true,
       },
+      mode: "checkbox",
       options: [
         {
           value: "103GR",
@@ -202,6 +203,7 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
         walkIn: true,
         VIP: true,
       },
+      mode: "checkbox",
       options: [
         {
           value: "202GR",
@@ -1083,8 +1085,23 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
         walkIn: true,
         VIP: true,
       },
+      mode: "checkbox",
       label: "Request breakout space, lounge, or foyer",
       descriptionHtml: "<p>Check if your reservation requires use of breakout space, lounge, or foyer areas.</p>",
+      options: [
+        {
+          value: "1201-breakout",
+          label: "1201 Break-out Space",
+        },
+        {
+          value: "1201-foyer",
+          label: "1201 Foyer",
+        },
+        {
+          value: "1201-lounge",
+          label: "1201 Lounge",
+        },
+      ],
     },
   },
 };

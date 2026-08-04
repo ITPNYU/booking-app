@@ -100,6 +100,7 @@ export default function FormInput({
     isInBlackoutPeriod,
     formData,
     setFormData,
+    annexByRoom,
   } = useContext(BookingContext);
   const router = useRouter();
   const { tenant } = useParams();
@@ -288,10 +289,17 @@ export default function FormInput({
       // copy department + role from earlier in form
       department,
       role,
+      // Prefer live annex selections from room page over stale formData.
+      annexByRoom: annexByRoom ?? formData?.annexByRoom ?? {},
     },
     mode: "onBlur",
     resolver: undefined,
   });
+
+  // Keep form field in sync when user changes annex on the room selection page.
+  useEffect(() => {
+    setValue("annexByRoom", annexByRoom ?? {}, { shouldValidate: false });
+  }, [annexByRoom, setValue]);
 
   // different from other switches b/c services don't have yes/no columns in DB
   const [showEquipmentServices, setShowEquipmentServices] = useState(false);

@@ -38,6 +38,7 @@ import { DatabaseContext } from "../Provider";
 import { default as CustomTable } from "../Table";
 import StackedTableCell from "./StackedTableCell";
 import { getStaffingServiceLabel } from "@/lib/tenant/mcResourceServices";
+import { formatAnnexByRoomForDisplay } from "@/components/src/utils/resourceServicesUtils";
 
 function formatStaffingServiceDisplay(value: string): string {
   const trimmed = value.trim();
@@ -46,6 +47,15 @@ function formatStaffingServiceDisplay(value: string): string {
     return StaffingServices[trimmed as keyof typeof StaffingServices];
   }
   return getStaffingServiceLabel(trimmed);
+}
+
+function hasAnnexSelections(
+  annexByRoom: Record<string, string[]> | undefined,
+): boolean {
+  if (!annexByRoom || typeof annexByRoom !== "object") return false;
+  return Object.values(annexByRoom).some(
+    (values) => Array.isArray(values) && values.length > 0,
+  );
 }
 
 interface Props {
@@ -126,7 +136,8 @@ export default function MoreInfoModal({
         Object.values(booking.furnishingsByRoom).some(
           (v) => typeof v === "string" && v.toLowerCase() === "yes",
         ),
-    );
+    ) ||
+    hasAnnexSelections(booking.annexByRoom);
 
   const [isEditingCart, setIsEditingCart] = useState(false);
   const [cartNumber, setCartNumber] = useState(
@@ -679,6 +690,17 @@ export default function MoreInfoModal({
                           />
                         </TableRow>
                       )}
+                    {hasAnnexSelections(booking.annexByRoom) && (
+                      <TableRow>
+                        <LabelCell>Auxiliary Spaces</LabelCell>
+                        <TableCell>
+                          {formatAnnexByRoomForDisplay(
+                            booking.annexByRoom,
+                            schema.resources,
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    )}
                     {booking.equipmentServices &&
                       booking.equipmentServices.length > 0 && (
                         <TableRow>

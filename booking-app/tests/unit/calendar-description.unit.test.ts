@@ -106,6 +106,23 @@ describe("Calendar Description Functions", () => {
   });
 
   describe("bookingContentsToDescription", () => {
+    it("should include auxiliary spaces in services section", async () => {
+      const withAnnex = {
+        ...mockBookingContents,
+        annexByRoom: {
+          "1201": ["1201-foyer", "1201-lounge"],
+          "103": ["103GR"],
+        },
+      };
+
+      const result = await bookingContentsToDescription(withAnnex);
+
+      expect(result).toContain("Auxiliary Spaces");
+      expect(result).toContain("1201 Foyer");
+      expect(result).toContain("1201 Lounge");
+      expect(result).toContain("Garage Green Room");
+    });
+
     it("should generate HTML description with all main sections", async () => {
       const result = await bookingContentsToDescription(mockBookingContents);
 

@@ -39,6 +39,10 @@ export type ResourceFormOption = {
   required?: boolean;
   descriptionHtml?: string;
   chartField?: ResourceChartFieldConfig;
+  /** Optional Google Calendar ID for auxiliary spaces (filled when calendars exist). */
+  calendarId?: string;
+  /** Production calendar ID for auxiliary spaces. */
+  calendarIdProd?: string;
 };
 
 /** @deprecated Use ResourceFormOption */

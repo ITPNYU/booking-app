@@ -197,6 +197,8 @@ export type Inputs = {
   furnishingsByRoom?: Record<string, string>;
   chartFieldForFurnishingsByRoom?: Record<string, string>;
   equipmentServicesDetailsByRoom?: Record<string, string>;
+  /** Selected auxiliary spaces keyed by parent room id → option values. */
+  annexByRoom?: Record<string, string[]>;
   webcheckoutCartNumber?: string;
   // Individual service fields for pregame parsing
   equipment?: string;
