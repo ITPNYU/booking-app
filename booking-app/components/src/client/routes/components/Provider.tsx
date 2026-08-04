@@ -21,6 +21,7 @@ import {
 } from "@/lib/firebase/firebase";
 import {
   DEFAULT_MAINTENANCE_MODE_SETTINGS,
+  MAINTENANCE_MODE_MESSAGE_MAX_LEN,
   type MaintenanceModeSettings,
 } from "@/lib/utils/maintenanceMode";
 import { DEFAULT_SITE_BANNER_COLOR_HEX } from "@/lib/utils/siteBannerHex";
@@ -90,6 +91,7 @@ export interface DatabaseContextType {
     rooms?: Array<{ roomId: string; trainingFormUrl?: string }>,
   ) => Promise<void>;
   reloadPolicySettings: () => Promise<void>;
+  showMaintenanceMode: (message: string) => void;
   setUserEmail: (x: string) => void;
   fetchAllBookings: (clicked: boolean) => Promise<void>;
   updateBookingInList: (
@@ -143,6 +145,7 @@ export const DatabaseContext = createContext<DatabaseContextType>({
   reloadBookingTypes: async () => {},
   reloadSafetyTrainedUsers: async () => {},
   reloadPolicySettings: async () => {},
+  showMaintenanceMode: () => {},
   setUserEmail: (x: string) => {},
   fetchAllBookings: async () => {},
   updateBookingInList: () => {},
@@ -798,6 +801,13 @@ export const DatabaseProvider = ({
         reloadBookingTypes: fetchBookingTypes,
         reloadSafetyTrainedUsers: fetchSafetyTrainedUsers,
         reloadPolicySettings: fetchPolicySettings,
+        showMaintenanceMode: (message: string) =>
+          setMaintenanceMode({
+            enabled: true,
+            message:
+              message.slice(0, MAINTENANCE_MODE_MESSAGE_MAX_LEN).trim() ||
+              DEFAULT_MAINTENANCE_MODE_SETTINGS.message,
+          }),
         setUserEmail,
         fetchAllBookings: fetchBookings,
         updateBookingInList,
