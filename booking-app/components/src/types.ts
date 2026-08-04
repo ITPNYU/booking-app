@@ -197,7 +197,7 @@ export type Inputs = {
   staffing?: string;
   cleaning?: string;
   // origin of the booking
-  origin?: BookingOrigin
+  origin?: BookingOrigin;
 };
 
 export type DepartmentType = {

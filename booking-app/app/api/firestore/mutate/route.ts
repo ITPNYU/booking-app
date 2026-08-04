@@ -22,7 +22,12 @@ export async function POST(req: NextRequest) {
       { status: 400 },
     );
   }
-  const decision = await authorizeWrite(session, body.tenant, body.collection);
+  const decision = await authorizeWrite(
+    session,
+    body.tenant,
+    body.collection,
+    "docId" in body ? body.docId : undefined,
+  );
   if (isAccessDenied(decision)) {
     return NextResponse.json(
       { error: decision.reason },
