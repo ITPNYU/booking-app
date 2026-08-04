@@ -6,13 +6,16 @@ const servicesRequestState = {
   "Services Request": {
     "Staff Request": "Staff Approved",
     "Equipment Request": "Equipment Approved",
+    "Catering Request": "Catering Approved",
+    "Cleaning Request": "Cleaning Approved",
+    "Security Request": "Security Approved",
+    "Setup Request": "Setup Approved",
   },
 };
 
 describe("getStatusFromXState", () => {
-  it("shows final-approved service bookings as approved when the snapshot is stale", () => {
+  it("shows completed service bookings as approved when the snapshot is stale", () => {
     const booking = {
-      finalApprovedAt: { seconds: 1_722_744_000 },
       xstateData: {
         snapshot: {
           value: servicesRequestState,
@@ -23,8 +26,9 @@ describe("getStatusFromXState", () => {
     expect(getStatusFromXState(booking)).toBe(BookingStatusLabel.APPROVED);
   });
 
-  it("keeps an unfinished services request pre-approved", () => {
+  it("keeps an unfinished services request pre-approved despite a final approval timestamp", () => {
     const booking = {
+      finalApprovedAt: { seconds: 0 },
       xstateData: {
         snapshot: {
           value: {

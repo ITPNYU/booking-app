@@ -30,6 +30,21 @@ type BookingLike = {
   setupService?: string;
 };
 
+function areAllServiceRequestStatesApproved(serviceRequestState: any): boolean {
+  if (!serviceRequestState || typeof serviceRequestState !== "object") {
+    return false;
+  }
+
+  const substates = Object.values(serviceRequestState);
+  return (
+    substates.length > 0 &&
+    substates.every(
+      (substate) =>
+        typeof substate === "string" && substate.endsWith(" Approved"),
+    )
+  );
+}
+
 export function getStatusFromXState(
   booking: BookingLike,
   tenant?: string,
@@ -62,11 +77,12 @@ export function getStatusFromXState(
           return BookingStatusLabel.CHECKED_OUT;
         }
         if (xvalue["Services Request"]) {
-          // A final-approval timestamp is the durable booking-level signal. In
-          // practice the client can briefly retain a stale parallel-state
-          // snapshot after the final service decision has completed the
-          // machine, so do not let that snapshot regress the displayed status.
-          if (booking?.finalApprovedAt) {
+          // Some bookings retain this parallel-state snapshot momentarily after
+          // its final region completes. Only treat that stale snapshot as
+          // approved when every service region is actually approved; the final
+          // approval field may be a legacy/zero timestamp or may predate
+          // completion of the service workflow.
+          if (areAllServiceRequestStatesApproved(xvalue["Services Request"])) {
             return BookingStatusLabel.APPROVED;
           }
           return BookingStatusLabel.PRE_APPROVED;
