@@ -117,7 +117,9 @@ export const getMediaCommonsServices = (data: any) => {
         String(data.roomSetup).trim().toLowerCase() !== "yes"));
 
   return {
-    staff: isServiceRequested(data.staffingServicesDetails),
+    staff:
+      isServiceRequested(data.staffingServices) ||
+      isServiceRequested(data.staffingServicesDetails),
     setup: setupFromByRoom || setupFromLegacy,
     equipment:
       isServiceRequested(data.mediaServices) ||

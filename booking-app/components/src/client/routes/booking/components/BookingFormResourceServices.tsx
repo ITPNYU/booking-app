@@ -775,6 +775,7 @@ export default function BookingFormResourceServices({
                   setShowStaffingServices={setShowStaffingServices}
                   formContext={formContext}
                   rooms={[room]}
+                  setValue={setValue}
                 />
               </Subsection>
             )}

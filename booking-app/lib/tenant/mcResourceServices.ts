@@ -1095,6 +1095,31 @@ export function getMcResourceServices(
   return MC_SERVICES_BY_ROOM[resourceId];
 }
 
+/** Resolve a stored staffing option value to its human-readable label. */
+export function getStaffingServiceLabel(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) return trimmed;
+
+  for (const services of Object.values(MC_SERVICES_BY_ROOM)) {
+    const staffing = services.staffing;
+    if (!staffing) continue;
+
+    if (staffing.sections) {
+      for (const section of Object.values(staffing.sections)) {
+        const fromOptions = section.options?.find((o) => o.value === trimmed);
+        if (fromOptions?.label) return fromOptions.label;
+        const fromLegacy = section.services?.find((s) => s.value === trimmed);
+        if (fromLegacy?.label) return fromLegacy.label;
+      }
+    }
+
+    const fromFlat = staffing.staffingOptions?.find((s) => s.value === trimmed);
+    if (fromFlat?.label) return fromFlat.label;
+  }
+
+  return trimmed;
+}
+
 /**
  * Setup option values that are informational defaults (no chartfield) and
  * should not count as a "setup service requested" for auto-approval.

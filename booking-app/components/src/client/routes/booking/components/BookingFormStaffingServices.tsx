@@ -6,8 +6,8 @@ import {
   RadioGroup,
   Switch,
 } from "@mui/material";
-import { Control, Controller, UseFormTrigger } from "react-hook-form";
-import React, { useContext, useMemo } from "react";
+import { Control, Controller, UseFormTrigger, useWatch } from "react-hook-form";
+import React, { useContext, useEffect, useMemo } from "react";
 import styled from "@emotion/styled";
 import { FormContextLevel, Inputs, StaffingServices } from "../../../../types";
 import {
@@ -44,6 +44,12 @@ function addStaffingSection(
   }
 }
 
+function defaultStaffingValues(sections: StaffingSectionView[]): string[] {
+  return sections
+    .map((section) => section.defaultValue)
+    .filter((value): value is string => !!value);
+}
+
 interface Props {
   id: "staffingServices";
   control: Control<Inputs, any>;
@@ -53,6 +59,11 @@ interface Props {
   formContext: FormContextLevel;
   /** When set, only render staffing for these rooms (Room → Service layout). */
   rooms?: ServiceResourceLike[];
+  setValue?: (
+    name: keyof Inputs,
+    value: any,
+    options?: { shouldValidate?: boolean },
+  ) => void;
 }
 
 export default function BookingFormStaffingServices(props: Props) {
@@ -64,12 +75,16 @@ export default function BookingFormStaffingServices(props: Props) {
     setShowStaffingServices,
     formContext: _formContext,
     rooms: roomsProp,
+    setValue,
   } = props;
   const { selectedRooms: contextRooms } = useContext(BookingContext);
   const selectedRooms = roomsProp ?? contextRooms;
   const roomIds = selectedRooms.map(
     (room) => room.resourceId ?? room.roomId ?? "",
   );
+  const staffingFieldValue = useWatch({ control, name: id }) as
+    | string
+    | undefined;
 
   const showStaffing = selectedRooms.some(
     (room) =>
@@ -178,6 +193,30 @@ export default function BookingFormStaffingServices(props: Props) {
     getResourceServicesConfig(selectedRooms[0] ?? {}).staffing?.label ??
     "Staffing?";
 
+  // Radios show section.defaultValue visually, but that does not write the form
+  // field. Seed defaults when staffing is enabled so bookings persist selections.
+  useEffect(() => {
+    if (!showStaffingServices || !setValue) return;
+    if (typeof staffingFieldValue === "string" && staffingFieldValue.length > 0) {
+      return;
+    }
+    const defaults = defaultStaffingValues(staffingSections);
+    if (defaults.length > 0) {
+      setValue(id, defaults.join(","), { shouldValidate: true });
+      return;
+    }
+    if (flatServices.length === 1) {
+      setValue(id, flatServices[0].value, { shouldValidate: true });
+    }
+  }, [
+    showStaffingServices,
+    staffingSections,
+    flatServices,
+    staffingFieldValue,
+    setValue,
+    id,
+  ]);
+
   if (!showStaffing) {
     return null;
   }
@@ -211,9 +250,17 @@ export default function BookingFormStaffingServices(props: Props) {
             <Switch
               checked={showStaffingServices}
               onChange={(e) => {
-                setShowStaffingServices(e.target.checked);
-                if (!e.target.checked) {
+                const checked = e.target.checked;
+                setShowStaffingServices(checked);
+                if (!checked) {
                   field.onChange("");
+                } else if (!field.value) {
+                  const defaults = defaultStaffingValues(staffingSections);
+                  if (defaults.length > 0) {
+                    field.onChange(defaults.join(","));
+                  } else if (flatServices.length === 1) {
+                    field.onChange(flatServices[0].value);
+                  }
                 }
                 trigger(id);
               }}

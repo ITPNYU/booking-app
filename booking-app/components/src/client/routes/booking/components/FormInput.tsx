@@ -735,6 +735,7 @@ export default function FormInput({
               showStaffingServices,
               setShowStaffingServices,
               formContext,
+              setValue,
             }}
           />
           {watch("staffingServices") !== undefined &&

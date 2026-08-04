@@ -1,10 +1,29 @@
 import { bookingCalendarStrToDate } from "@/components/src/client/utils/date";
 import { getCalendarClient } from "@/lib/googleClient";
+import { getStaffingServiceLabel } from "@/lib/tenant/mcResourceServices";
 import { traceExternalCall } from "@/lib/newrelic-utils";
-import { BookingFormDetails, BookingStatusLabel } from "../types";
+import {
+  BookingFormDetails,
+  BookingStatusLabel,
+  StaffingServices,
+} from "../types";
 import { formatOrigin, getSecondaryContactName } from "../utils/formatters";
 
 import { serverGetRoomCalendarIds } from "./admin";
+
+function formatStaffingServicesForDisplay(raw: string): string {
+  return raw
+    .split(",")
+    .map((service) => service.trim())
+    .filter(Boolean)
+    .map((service) => {
+      if (service in StaffingServices) {
+        return StaffingServices[service as keyof typeof StaffingServices];
+      }
+      return getStaffingServiceLabel(service);
+    })
+    .join(", ");
+}
 
 export const patchCalendarEvent = async (
   event: any,
@@ -229,7 +248,10 @@ export const bookingContentsToDescription = async (
   // Only show staffing service if it exists
   const staffingServices = getProperty(bookingContents, "staffingServices");
   if (staffingServices) {
-    description += listItem("Staffing Service", staffingServices);
+    description += listItem(
+      "Staffing Service",
+      formatStaffingServicesForDisplay(String(staffingServices)),
+    );
     const staffingDetails = getProperty(
       bookingContents,
       "staffingServicesDetails",

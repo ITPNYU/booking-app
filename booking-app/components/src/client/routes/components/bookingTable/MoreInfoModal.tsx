@@ -24,6 +24,7 @@ import {
   BookingRow,
   PageContextLevel,
   PagePermission,
+  StaffingServices,
 } from "../../../../types";
 import {
   canAccessWebCheckout,
@@ -36,6 +37,16 @@ import useSortBookingHistory from "../../hooks/useSortBookingHistory";
 import { DatabaseContext } from "../Provider";
 import { default as CustomTable } from "../Table";
 import StackedTableCell from "./StackedTableCell";
+import { getStaffingServiceLabel } from "@/lib/tenant/mcResourceServices";
+
+function formatStaffingServiceDisplay(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) return trimmed;
+  if (trimmed in StaffingServices) {
+    return StaffingServices[trimmed as keyof typeof StaffingServices];
+  }
+  return getStaffingServiceLabel(trimmed);
+}
 
 interface Props {
   booking: BookingRow;
@@ -688,9 +699,13 @@ export default function MoreInfoModal({
                           <LabelCell>Staffing Service</LabelCell>
                           <TableCell>
                             {booking.staffingServices
-                              .split(", ")
+                              .split(",")
+                              .map((service) => service.trim())
+                              .filter(Boolean)
                               .map((service) => (
-                                <p key={service}>{service.trim()}</p>
+                                <p key={service}>
+                                  {formatStaffingServiceDisplay(service)}
+                                </p>
                               ))}
                             <p>{booking.staffingServicesDetails || ""}</p>
                           </TableCell>

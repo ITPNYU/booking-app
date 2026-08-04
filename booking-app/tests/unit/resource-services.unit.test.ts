@@ -7,6 +7,7 @@ import {
 import {
   applyMcResourceServices,
   getMcResourceServices,
+  getStaffingServiceLabel,
 } from "@/lib/tenant/mcResourceServices";
 import { migrateResourceServices } from "@/lib/tenant/migrateResourceServices";
 
@@ -218,6 +219,14 @@ describe("applyMcResourceServices", () => {
     expect(
       services103.security?.options?.[0]?.chartField?.required,
     ).toBe(true);
+  });
+
+  it("resolves staffing option values to human-readable labels", () => {
+    expect(getStaffingServiceLabel("LIGHTING_TECH_DIY")).toBe(
+      "DIY - Basic Washes",
+    );
+    expect(getStaffingServiceLabel("AUDIO_TECH_DIY")).toBe("DIY - Plug & Play");
+    expect(getStaffingServiceLabel("AUDIO_TECH_A1")).toBe("Audio Tech - A1");
   });
 
   it("uses VIP-only setup and custom layout option for room 202", () => {
