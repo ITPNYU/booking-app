@@ -62,6 +62,13 @@ export function getStatusFromXState(
           return BookingStatusLabel.CHECKED_OUT;
         }
         if (xvalue["Services Request"]) {
+          // A final-approval timestamp is the durable booking-level signal. In
+          // practice the client can briefly retain a stale parallel-state
+          // snapshot after the final service decision has completed the
+          // machine, so do not let that snapshot regress the displayed status.
+          if (booking?.finalApprovedAt) {
+            return BookingStatusLabel.APPROVED;
+          }
           return BookingStatusLabel.PRE_APPROVED;
         }
       }
