@@ -53,7 +53,7 @@
     "json2csv": "^6.0.0-alpha.2",
     "mysql2": "^3.10.1",
     "newrelic": "^14.1.2",
-    "next": "15.5.22",
+    "next": "16.3.0",
     "next-auth": "^5.0.0-beta.32",
     "prop-types": "^15.8.1",
     "react": "^18",
@@ -62,7 +62,7 @@
     "react-firebase-hooks": "^5.1.1",
     "react-hook-form": "^7.52.0",
     "server-only": "^0.0.1",
-    "styled-components": "^6.1.12",
+    "styled-components": "^6.4.4",
     "tailwind-datepicker-react": "^1.4.3",
     "xstate": "^5.20.2"
   },
