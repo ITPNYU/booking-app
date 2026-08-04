@@ -75,7 +75,7 @@ describe("coerceTenantSchema — resources", () => {
     expect(coerced.resources[0].services?.catering?.chartField?.required).toBe(
       true,
     );
-    expect(coerced.resources[0].services?.annex?.mode).toBe("radio");
+    expect(coerced.resources[0].services?.annex?.mode).toBe("checkbox");
   });
 
   it("preserves Firestore object services config for mc tenant", () => {
