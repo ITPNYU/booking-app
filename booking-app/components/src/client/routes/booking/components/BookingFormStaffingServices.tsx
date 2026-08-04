@@ -176,7 +176,7 @@ export default function BookingFormStaffingServices(props: Props) {
 
   const staffingLabel =
     getResourceServicesConfig(selectedRooms[0] ?? {}).staffing?.label ??
-    "Staffing";
+    "Staffing?";
 
   if (!showStaffing) {
     return null;
