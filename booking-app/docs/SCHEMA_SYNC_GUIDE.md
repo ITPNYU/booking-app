@@ -56,6 +56,23 @@ resources: defineObjectArrayWithDefaults(defaultResource),
 
 This allows the merge process to automatically apply defaults to each item in the array.
 
+### Resource identifiers (`resourceId`)
+
+The template defines each resource with a string **`resourceId`**. Legacy Firestore documents may still store numeric **`roomId`** values from before the refactor tracked in [#1506](https://github.com/ITPNYU/booking-app/issues/1506).
+
+When the sync script reads or merges a tenant schema, it coerces legacy `roomId` values into `resourceId` strings via `coerceTenantSchema`. Writing the merged `resources` array back replaces the stored array, so synced tenants pick up `resourceId` from the template.
+
+For a dedicated one-time migration (including backup and full document replace), use:
+
+```bash
+npm run migrate:tenant-resource-ids:dry-run
+npm run migrate:tenant-resource-ids
+```
+
 ## Related: one-time nested shape migration
 
 To **rewrite** stored documents from the legacy flat field layout to the nested canonical shape (and drop stale top-level keys), use the Firestore migration script described in [TENANT_SCHEMA_FIRESTORE_MIGRATION.md](./TENANT_SCHEMA_FIRESTORE_MIGRATION.md). That is separate from this add-only sync.
+
+## See also
+
+- [Tenant schema CLI backup](./TENANT_SCHEMA_BACKUP.md) — back up `tenantSchema` to `tenantSchemaBackup`; use `--dry-run` for local JSON only.

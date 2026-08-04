@@ -12,7 +12,7 @@
 <!-- If schema changed, list affected tenants and what changed.
 Example:
 - mc: added `showCleaning` flag
-- itp: added new resource (roomId 999)
+- itp: added new resource (resourceId "999")
 -->
 
 ## Checklist

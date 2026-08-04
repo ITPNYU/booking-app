@@ -62,6 +62,13 @@ type RoomApplicationType =
   | "multi"
   | "specific";
 
+type RuntimeBlackoutPeriod = Omit<BlackoutPeriod, "roomIds"> & {
+  roomIds?: string[];
+};
+
+const sortResourceIds = (resourceIds: string[]) =>
+  resourceIds.sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+
 /**
  * Check if two sorted arrays are equal
  */
@@ -74,16 +81,17 @@ function areSortedArraysEqual<T>(arr1: T[], arr2: T[]): boolean {
 
 export default function BookingBlackoutPeriods() {
   const { roomSettings } = useContext(DatabaseContext);
-  const [blackoutPeriods, setBlackoutPeriods] = useState<BlackoutPeriod[]>([]);
+  const [blackoutPeriods, setBlackoutPeriods] = useState<
+    RuntimeBlackoutPeriod[]
+  >([]);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{
     type: "success" | "error";
     text: string;
   } | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingPeriod, setEditingPeriod] = useState<BlackoutPeriod | null>(
-    null,
-  );
+  const [editingPeriod, setEditingPeriod] =
+    useState<RuntimeBlackoutPeriod | null>(null);
 
   // Form state
   const [periodName, setPeriodName] = useState("");
@@ -91,7 +99,7 @@ export default function BookingBlackoutPeriods() {
   const [endDate, setEndDate] = useState<Dayjs | null>(null);
   const [startTime, setStartTime] = useState<Dayjs | null>(null);
   const [endTime, setEndTime] = useState<Dayjs | null>(null);
-  const [selectedRooms, setSelectedRooms] = useState<number[]>([]);
+  const [selectedRooms, setSelectedRooms] = useState<string[]>([]);
   const [roomApplicationType, setRoomApplicationType] =
     useState<RoomApplicationType>("all");
 
@@ -106,6 +114,15 @@ export default function BookingBlackoutPeriods() {
     });
   }, [roomSettings]);
 
+  const getCategoryResourceIds = (legacyRoomIds: readonly number[]) => {
+    const legacyIds = new Set(legacyRoomIds.map(String));
+    return sortResourceIds(
+      roomSettings
+        .filter((room) => legacyIds.has(room.roomId))
+        .map((room) => room.roomId),
+    );
+  };
+
   const fetchBlackoutPeriods = async () => {
     try {
       const fetchedData =
@@ -113,17 +130,22 @@ export default function BookingBlackoutPeriods() {
           TableNames.BLACKOUT_PERIODS,
         );
       setBlackoutPeriods(
-        fetchedData.sort(
-          (a, b) =>
-            a.startDate.toDate().getTime() - b.startDate.toDate().getTime(),
-        ),
+        fetchedData
+          .map((period) => ({
+            ...period,
+            roomIds: period.roomIds?.map(String),
+          }))
+          .sort(
+            (a, b) =>
+              a.startDate.toDate().getTime() - b.startDate.toDate().getTime(),
+          ),
       );
     } catch (error) {
       console.error("Error fetching blackout periods:", error);
     }
   };
 
-  const handleOpenDialog = (period?: BlackoutPeriod) => {
+  const handleOpenDialog = (period?: RuntimeBlackoutPeriod) => {
     if (period) {
       setEditingPeriod(period);
       setPeriodName(period.name);
@@ -147,19 +169,13 @@ export default function BookingBlackoutPeriods() {
 
       if (period.roomIds && period.roomIds.length > 0) {
         // Check what type of room application this is
-        const allRoomIds = roomSettings
-          .map((room) => room.roomId)
-          .sort((a, b) => a - b);
-        const periodRoomIds = [...period.roomIds].sort((a, b) => a - b);
-        const productionRoomIds = PRODUCTION_ROOMS.filter((roomId) =>
-          roomSettings.some((room) => room.roomId === roomId),
-        ).sort((a, b) => a - b);
-        const eventRoomIds = EVENT_ROOMS.filter((roomId) =>
-          roomSettings.some((room) => room.roomId === roomId),
-        ).sort((a, b) => a - b);
-        const multiRoomIds = MULTI_ROOMS.filter((roomId) =>
-          roomSettings.some((room) => room.roomId === roomId),
-        ).sort((a, b) => a - b);
+        const allRoomIds = sortResourceIds(
+          roomSettings.map((room) => room.roomId),
+        );
+        const periodRoomIds = sortResourceIds([...period.roomIds]);
+        const productionRoomIds = getCategoryResourceIds(PRODUCTION_ROOMS);
+        const eventRoomIds = getCategoryResourceIds(EVENT_ROOMS);
+        const multiRoomIds = getCategoryResourceIds(MULTI_ROOMS);
 
         const isAllRooms =
           allRoomIds.length === periodRoomIds.length &&
@@ -259,32 +275,26 @@ export default function BookingBlackoutPeriods() {
 
     try {
       // Determine which rooms to apply the blackout to
-      let roomIds: number[] = [];
+      let roomIds: string[] = [];
       switch (roomApplicationType) {
         case "all":
           roomIds = roomSettings.map((room) => room.roomId);
           break;
         case "production":
-          roomIds = PRODUCTION_ROOMS.filter((roomId) =>
-            roomSettings.some((room) => room.roomId === roomId),
-          );
+          roomIds = getCategoryResourceIds(PRODUCTION_ROOMS);
           break;
         case "event":
-          roomIds = EVENT_ROOMS.filter((roomId) =>
-            roomSettings.some((room) => room.roomId === roomId),
-          );
+          roomIds = getCategoryResourceIds(EVENT_ROOMS);
           break;
         case "multi":
-          roomIds = MULTI_ROOMS.filter((roomId) =>
-            roomSettings.some((room) => room.roomId === roomId),
-          );
+          roomIds = getCategoryResourceIds(MULTI_ROOMS);
           break;
         case "specific":
           roomIds = selectedRooms;
           break;
       }
 
-      const periodData: Omit<BlackoutPeriod, "id"> = {
+      const periodData: Omit<RuntimeBlackoutPeriod, "id"> = {
         name: periodName.trim(),
         startDate: Timestamp.fromDate(startDate.toDate()),
         endDate: Timestamp.fromDate(endDate.toDate()),
@@ -330,7 +340,7 @@ export default function BookingBlackoutPeriods() {
     }
   };
 
-  const handleDeletePeriod = async (period: BlackoutPeriod) => {
+  const handleDeletePeriod = async (period: RuntimeBlackoutPeriod) => {
     if (!window.confirm(`Are you sure you want to delete "${period.name}"?`)) {
       return;
     }
@@ -368,25 +378,17 @@ export default function BookingBlackoutPeriods() {
     return dateStr;
   };
 
-  const getRoomNames = (period: BlackoutPeriod) => {
+  const getRoomNames = (period: RuntimeBlackoutPeriod) => {
     if (!period.roomIds || period.roomIds.length === 0) {
       return "All Rooms";
     }
 
     // Check if this matches any of our predefined categories
-    const allRoomIds = roomSettings
-      .map((room) => room.roomId)
-      .sort((a, b) => a - b);
-    const periodRoomIds = [...period.roomIds].sort((a, b) => a - b);
-    const productionRoomIds = PRODUCTION_ROOMS.filter((roomId) =>
-      roomSettings.some((room) => room.roomId === roomId),
-    ).sort((a, b) => a - b);
-    const eventRoomIds = EVENT_ROOMS.filter((roomId) =>
-      roomSettings.some((room) => room.roomId === roomId),
-    ).sort((a, b) => a - b);
-    const multiRoomIds = MULTI_ROOMS.filter((roomId) =>
-      roomSettings.some((room) => room.roomId === roomId),
-    ).sort((a, b) => a - b);
+    const allRoomIds = sortResourceIds(roomSettings.map((room) => room.roomId));
+    const periodRoomIds = sortResourceIds([...period.roomIds]);
+    const productionRoomIds = getCategoryResourceIds(PRODUCTION_ROOMS);
+    const eventRoomIds = getCategoryResourceIds(EVENT_ROOMS);
+    const multiRoomIds = getCategoryResourceIds(MULTI_ROOMS);
 
     const isAllRooms = areSortedArraysEqual(allRoomIds, periodRoomIds);
     const isProductionRooms = areSortedArraysEqual(
@@ -418,19 +420,13 @@ export default function BookingBlackoutPeriods() {
   };
 
   const getProductionRoomNumbers = () =>
-    PRODUCTION_ROOMS.filter((roomId) =>
-      roomSettings.some((room) => room.roomId === roomId),
-    ).join(", ");
+    getCategoryResourceIds(PRODUCTION_ROOMS).join(", ");
 
   const getEventRoomNumbers = () =>
-    EVENT_ROOMS.filter((roomId) =>
-      roomSettings.some((room) => room.roomId === roomId),
-    ).join(", ");
+    getCategoryResourceIds(EVENT_ROOMS).join(", ");
 
   const getMultiRoomNumbers = () =>
-    MULTI_ROOMS.filter((roomId) =>
-      roomSettings.some((room) => room.roomId === roomId),
-    ).join(", ");
+    getCategoryResourceIds(MULTI_ROOMS).join(", ");
 
   return (
     <LocalizationProvider dateAdapter={AdapterDayjs}>
@@ -631,7 +627,7 @@ export default function BookingBlackoutPeriods() {
                     multiple
                     value={selectedRooms}
                     onChange={(e) => {
-                      const value = e.target.value as number[];
+                      const value = e.target.value as string[];
                       setSelectedRooms(value);
                     }}
                     input={<OutlinedInput label="Select Rooms" />}

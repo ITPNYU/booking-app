@@ -75,6 +75,7 @@ export default defineConfig({
         "**/safety-training.e2e.test.ts",
         "**/ban-enforcement.e2e.test.ts",
         "**/form-validation.e2e.test.ts",
+        "**/request-limits.e2e.test.ts",
       ],
       use: {
         ...devices["Desktop Chrome"],
@@ -100,6 +101,11 @@ export default defineConfig({
   ],
 
   webServer: {
+    // Runs the same Turbopack dev server as `npm run dev`. The E2E mock
+    // layer is bundler-agnostic: Firebase SDK stubs are aliased for both
+    // bundlers in next.config.mjs, and data-fetcher overrides are read off
+    // `window` at call time (lib/e2e/clientOverrides.ts) instead of patching
+    // the webpack module cache.
     command: "npm run dev",
     url: "http://127.0.0.1:3000",
     reuseExistingServer: !process.env.CI,

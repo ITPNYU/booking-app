@@ -34,10 +34,15 @@ const MenuProps = {
 
 export default function OperationalHours() {
   const { operationHours, roomSettings } = useContext(DatabaseContext);
-  const [specialHourRooms, setSpecialHourRooms] = useState<number[]>(
+  const [specialHourRooms, setSpecialHourRooms] = useState<string[]>(
     Array.from(
-      new Set(operationHours.map((x) => x.roomId).filter((x) => x != null)),
-    ).sort((a, b) => a - b),
+      new Set(
+        operationHours
+          .map((x) => x.roomId)
+          .filter((x) => x != null)
+          .map(String),
+      ),
+    ).sort((a, b) => a.localeCompare(b, undefined, { numeric: true })),
   ); // roomIds
 
   const handleChange = (event: SelectChangeEvent<typeof specialHourRooms>) => {
@@ -45,11 +50,10 @@ export default function OperationalHours() {
       target: { value },
     } = event;
     // On autofill we get a stringified value.
-    const list =
-      typeof value === "string"
-        ? value.split(",").map((x) => Number(x))
-        : value;
-    setSpecialHourRooms(list.sort((a, b) => a - b));
+    const list = typeof value === "string" ? value.split(",") : value;
+    setSpecialHourRooms(
+      list.sort((a, b) => a.localeCompare(b, undefined, { numeric: true })),
+    );
   };
 
   return (
@@ -121,7 +125,7 @@ export default function OperationalHours() {
                     <OperationalHoursRow
                       day={day}
                       setting={operationHours.find(
-                        (x) => x.day === day && x.roomId === roomId,
+                        (x) => x.day === day && String(x.roomId) === roomId,
                       )}
                       roomId={roomId}
                       key={day}

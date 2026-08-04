@@ -1,10 +1,34 @@
 import { Timestamp } from "firebase/firestore";
 import { format } from "date-fns";
-import { toZonedTime } from "date-fns-tz";
+import { formatInTimeZone, fromZonedTime, toZonedTime } from "date-fns-tz";
 import { DEFAULT_SLOT_UNIT } from "../routes/booking/utils/getSlotUnit";
 
 // All times in the booking app are displayed in Eastern Time
 export const TIMEZONE = "America/New_York";
+
+/**
+ * FullCalendar `startStr` / `endStr` format: Eastern local time WITH offset
+ * (e.g. "2026-07-15T10:00:00-04:00"). The offset is required — the server
+ * passes these strings to Google Calendar `events.list` (timeMin/timeMax must
+ * be RFC3339 with mandatory offset) and parses them with `new Date()` on a
+ * UTC host, so an offset-less string 400s the overlap check and shifts stored
+ * times by 4-5 hours.
+ */
+export const toBookingCalendarStr = (date: Date): string =>
+  formatInTimeZone(date, TIMEZONE, "yyyy-MM-dd'T'HH:mm:ssXXX");
+
+const RFC3339_OFFSET_RE = /(Z|[+-]\d{2}:?\d{2})$/;
+
+/**
+ * Parse a booking calendar string to the instant it represents. Strings from
+ * clients running bundles older than this fix lack a timezone offset; those
+ * are Eastern wall times, so interpret them in TIMEZONE instead of letting
+ * `new Date()` read them in the host timezone (UTC on the server).
+ */
+export const bookingCalendarStrToDate = (dateStr: string): Date =>
+  RFC3339_OFFSET_RE.test(dateStr)
+    ? new Date(dateStr)
+    : fromZonedTime(dateStr, TIMEZONE);
 
 export const formatDate = (
   oldDate:

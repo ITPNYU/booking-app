@@ -83,6 +83,13 @@ export type MutateRequest =
       data: Record<string, unknown>;
     }
   | {
+      op: "set";
+      collection: string;
+      tenant?: string;
+      docId: string;
+      data: Record<string, unknown>;
+    }
+  | {
       op: "delete";
       collection: string;
       tenant?: string;

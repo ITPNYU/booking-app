@@ -18,6 +18,7 @@ import { BookingContext } from "../bookingProvider";
 import useCalculateOverlap from "../hooks/useCalculateOverlap";
 import useCheckAutoApproval from "../hooks/useCheckAutoApproval";
 import useCheckDurationLimits from "../hooks/useCheckDurationLimits";
+import useCheckRequestLimits from "../hooks/useCheckRequestLimits";
 import {
   defaultSafetyTrainingInfoUrl,
   useTenantSchema,
@@ -42,11 +43,15 @@ const NavGrid = styled(Box)`
 export default function BookingStatusBar({ formContext, ...props }: Props) {
   const isWalkIn = formContext === FormContextLevel.WALK_IN;
   const isVIP = formContext === FormContextLevel.VIP;
+  const isModification = formContext === FormContextLevel.MODIFICATION;
   const { isAutoApproval, errorMessage } = useCheckAutoApproval(
     isWalkIn,
     isVIP,
+    isModification,
   );
   const { durationError } = useCheckDurationLimits(isWalkIn, isVIP);
+  const { requestLimitError, requestLimitChecking } =
+    useCheckRequestLimits(formContext);
   const {
     bookingCalendarInfo,
     selectedRooms,
@@ -90,6 +95,8 @@ export default function BookingStatusBar({ formContext, ...props }: Props) {
     needsSafetyTraining ||
     isInBlackoutPeriod ||
     durationError !== null ||
+    requestLimitError != null ||
+    requestLimitChecking ||
     (bookingCalendarInfo != null && selectedRooms.length > 0);
 
   // order of precedence matters
@@ -118,6 +125,14 @@ export default function BookingStatusBar({ formContext, ...props }: Props) {
           </p>
         ),
         severity: "error",
+        variant: "filled",
+      };
+    if (requestLimitChecking)
+      return {
+        btnDisabled: true,
+        btnDisabledMessage: "Checking request limits…",
+        message: <p>Checking request limits…</p>,
+        severity: "info",
         variant: "filled",
       };
     if (needsSafetyTraining)
@@ -167,6 +182,14 @@ export default function BookingStatusBar({ formContext, ...props }: Props) {
           </p>
         ),
         severity: "error",
+      };
+    if (requestLimitError)
+      return {
+        btnDisabled: true,
+        btnDisabledMessage: requestLimitError,
+        message: <p>{requestLimitError}</p>,
+        severity: "error",
+        variant: "filled",
       };
     if (durationError)
       return {

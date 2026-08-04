@@ -25,7 +25,7 @@ export interface BlockPastTimeEvent {
  *                     as a parameter so unit tests can control the clock.
  */
 export function buildBlockPastTimes(
-  rooms: Array<{ roomId: number | string }>,
+  rooms: Array<{ roomId: string }>,
   dateView: Date,
   startHour: string | undefined,
   slotUnit: number,
@@ -96,7 +96,7 @@ export function buildBlockPastTimes(
     start: blockStart.toISOString(),
     end: blockEnd.toISOString(),
     id: `${room.roomId}bg`,
-    resourceId: `${room.roomId}`,
+    resourceId: String(room.roomId),
     overlap: false,
     display: "background",
     classNames: ["disabled"],

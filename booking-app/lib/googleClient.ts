@@ -1,20 +1,31 @@
-import { google } from "googleapis";
+let cachedOAuth2Client: Awaited<
+  ReturnType<typeof createOAuth2Client>
+> | null = null;
+let googleapisModule: typeof import("googleapis") | null = null;
 
-let cachedOAuth2Client = null;
+const loadGoogleApis = async () => {
+  if (!googleapisModule) {
+    googleapisModule = await import("googleapis");
+  }
+  return googleapisModule.google;
+};
 
-const createOAuth2Client = () =>
-  new google.auth.OAuth2(
+const createOAuth2Client = async () => {
+  const googleApi = await loadGoogleApis();
+  return new googleApi.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID,
     process.env.GOOGLE_CLIENT_SECRET,
     process.env.GOOGLE_REDIRECT_URI,
   );
+};
 
-const refreshAccessTokenIfNeeded = async (oauth2Client) => {
+const refreshAccessTokenIfNeeded = async (
+  oauth2Client: Awaited<ReturnType<typeof createOAuth2Client>>,
+) => {
   const currentTime = Date.now();
   const tokenExpiryTime = oauth2Client.credentials.expiry_date;
 
   if (!tokenExpiryTime || currentTime >= tokenExpiryTime - 60000) {
-    // 1分前に更新
     try {
       const { credentials } = await oauth2Client.refreshAccessToken();
       oauth2Client.setCredentials(credentials);
@@ -22,13 +33,12 @@ const refreshAccessTokenIfNeeded = async (oauth2Client) => {
       console.error("Error refreshing access token:", error);
       throw error;
     }
-  } else {
   }
 };
 
 const getAuthenticatedClient = async () => {
   if (!cachedOAuth2Client) {
-    cachedOAuth2Client = createOAuth2Client();
+    cachedOAuth2Client = await createOAuth2Client();
     cachedOAuth2Client.setCredentials({
       refresh_token: process.env.GOOGLE_REFRESH_TOKEN,
     });
@@ -39,34 +49,50 @@ const getAuthenticatedClient = async () => {
 };
 
 const getCalendarClient = async () => {
+  const googleApi = await loadGoogleApis();
   const authClient = await getAuthenticatedClient();
-  return google.calendar({ version: "v3", auth: authClient });
+  return googleApi.calendar({ version: "v3", auth: authClient });
 };
 
 const getGmailClient = async () => {
+  const googleApi = await loadGoogleApis();
   const authClient = await getAuthenticatedClient();
-  return google.gmail({ version: "v1", auth: authClient });
+  return googleApi.gmail({ version: "v1", auth: authClient });
 };
-const getGoogleSheet = async (spreadsheetId: string) => {
+
+const getGoogleSheet = async (_spreadsheetId: string) => {
+  const googleApi = await loadGoogleApis();
   const authClient = await getAuthenticatedClient();
-  return google.sheets({ version: "v4", auth: authClient });
+  return googleApi.sheets({ version: "v4", auth: authClient });
 };
+
 const getLoggingClient = async () => {
+  const googleApi = await loadGoogleApis();
   const authClient = await getAuthenticatedClient();
-  return google.logging({ version: "v2", auth: authClient });
+  return googleApi.logging({ version: "v2", auth: authClient });
 };
 
 const getFormsClient = async () => {
+  const googleApi = await loadGoogleApis();
   const authClient = await getAuthenticatedClient();
-  return google.forms({ version: "v1", auth: authClient });
+  return googleApi.forms({ version: "v1", auth: authClient });
 };
 
-const oauth2Client = createOAuth2Client();
+let cachedOAuth2ClientForAuth: Awaited<
+  ReturnType<typeof createOAuth2Client>
+> | null = null;
+
+export const getOAuth2Client = async () => {
+  if (!cachedOAuth2ClientForAuth) {
+    cachedOAuth2ClientForAuth = await createOAuth2Client();
+  }
+  return cachedOAuth2ClientForAuth;
+};
+
 export {
   getCalendarClient,
   getGmailClient,
   getGoogleSheet,
   getFormsClient,
   getLoggingClient,
-  oauth2Client,
 };

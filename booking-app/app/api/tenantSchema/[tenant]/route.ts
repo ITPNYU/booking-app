@@ -2,13 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   serverGetDocumentById,
   serverSaveDataToFirestoreWithId,
-  serverFetchAllDataFromCollection,
 } from "@/lib/firebase/server/adminDb";
 import { TableNames } from "@/components/src/policy";
 import { applyEnvironmentCalendarIds } from "@/lib/utils/calendarEnvironment";
 import { coerceTenantSchema } from "@/lib/tenant/coerceTenantSchema";
 import { isValidTenant } from "@/components/src/constants/tenants";
 import admin from "@/lib/firebase/server/firebaseAdmin";
+import { requireSession } from "@/lib/api/requireSession";
+import { requireSuperAdmin } from "@/lib/api/requireSuperAdmin";
 
 export async function GET(
   request: NextRequest,
@@ -16,6 +17,16 @@ export async function GET(
 ) {
   try {
     const { tenant } = await params;
+
+    // The schema exposes calendar IDs, email templates, and org mappings, so it
+    // requires an authenticated NYU session (the collection is `anyNYU`-read).
+    const session = await requireSession();
+    if (!session) {
+      return NextResponse.json(
+        { error: "Authentication required" },
+        { status: 401 },
+      );
+    }
 
     // Fetch the specific schema document using tenant as document ID
     const rawDoc = await serverGetDocumentById<Record<string, unknown>>(
@@ -71,33 +82,34 @@ export async function PUT(
       );
     }
 
-    // Verify super admin permission via email header
-    const userEmail = request.headers.get("x-user-email");
-    if (!userEmail) {
-      return NextResponse.json(
-        { error: "Authentication required" },
-        { status: 401 },
-      );
-    }
-
-    const superAdmins = await serverFetchAllDataFromCollection<{
-      id: string;
-      email: string;
-    }>(TableNames.SUPER_ADMINS);
-    const isSuperAdmin = superAdmins.some(
-      (sa) => sa.email.toLowerCase() === userEmail.toLowerCase(),
-    );
-    if (!isSuperAdmin) {
-      return NextResponse.json(
-        { error: "Super admin permission required" },
-        { status: 403 },
-      );
-    }
+    // Verify super admin permission from the NextAuth session (server-derived,
+    // not a client-supplied header).
+    const auth = await requireSuperAdmin(tenant);
+    if ("error" in auth) return auth.error;
 
     const newSchema = await request.json();
 
     // Enforce tenant id consistency with URL param
     newSchema.tenantId = tenant;
+
+    // Validate before writing. `set()` is a destructive full overwrite and the
+    // stored document is re-coerced on every read, so a document that cannot be
+    // coerced would 500 every subsequent read and lock the tenant out. Reject it
+    // here (400) instead of persisting a tenant-bricking payload.
+    try {
+      coerceTenantSchema(newSchema, tenant);
+    } catch (validationError) {
+      return NextResponse.json(
+        {
+          error: `Invalid schema: ${
+            validationError instanceof Error
+              ? validationError.message
+              : String(validationError)
+          }`,
+        },
+        { status: 400 },
+      );
+    }
 
     // Backup current schema before overwriting
     const existingSchema = await serverGetDocumentById(

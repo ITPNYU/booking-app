@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
     await inviteUserToCalendarEvent(
       calendarEventId,
       guestEmail,
-      parseInt(roomId, 10),
+      String(roomId),
       tenant,
     );
     return NextResponse.json({ calendarEventId }, { status: 200 });

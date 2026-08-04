@@ -18,8 +18,8 @@ vi.mock("next/navigation", () => ({
   useParams: vi.fn(),
 }));
 
-// Mock server functions
-vi.mock("../../components/src/server/db", () => ({
+// Mock client booking actions (hook imports from bookingActionClient, not server/db)
+vi.mock("@/components/src/client/bookingActionClient", () => ({
   cancel: vi.fn(),
   noShow: vi.fn(),
   checkin: vi.fn(),

@@ -7,6 +7,7 @@ import { TableNames } from "@/components/src/policy";
 import { DatabaseContext } from "../components/Provider";
 import EmailListTable from "../components/EmailListTable";
 import { formatDate } from "../../utils/date";
+import MaintenanceModeSettings from "../admin/components/MaintenanceModeSettings";
 
 function SuperAdminUsers() {
   const { superAdminUsers, reloadSuperAdminUsers } =
@@ -23,7 +24,10 @@ function SuperAdminUsers() {
   );
 }
 
-const tabs = [{ label: "Super Admin Users", id: "superAdmin" }];
+const tabs = [
+  { label: "Super Admin Users", id: "superAdmin" },
+  { label: "Maintenance mode", id: "maintenanceMode" },
+];
 
 export default function Settings() {
   const [tab, setTab] = useState("superAdmin");
@@ -46,7 +50,10 @@ export default function Settings() {
           ))}
         </Stack>
       </Grid>
-      <Grid xs={10}>{tab === "superAdmin" && <SuperAdminUsers />}</Grid>
+      <Grid xs={10}>
+        {tab === "superAdmin" && <SuperAdminUsers />}
+        {tab === "maintenanceMode" && <MaintenanceModeSettings />}
+      </Grid>
     </Grid>
   );
 }

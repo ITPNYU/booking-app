@@ -81,7 +81,7 @@ describe("GET /api/safety_training_form", () => {
   it("returns 404 when safety training form is not configured", async () => {
     mockServerGetDocumentById.mockResolvedValue({
       name: "Test Tenant",
-      // No safetyTrainingGoogleFormId
+      // No training form configured
     });
 
     const request = createRequest({ "x-tenant": "test-tenant" });
@@ -98,7 +98,7 @@ describe("GET /api/safety_training_form", () => {
   it("returns emails from form responses successfully", async () => {
     mockServerGetDocumentById.mockResolvedValue({
       name: "Test Tenant",
-      safetyTrainingGoogleFormId: "form-123",
+      training: { formId: "form-123" },
     });
 
     mockListResponses.mockResolvedValue({
@@ -133,7 +133,7 @@ describe("GET /api/safety_training_form", () => {
   it("filters out invalid emails from responses", async () => {
     mockServerGetDocumentById.mockResolvedValue({
       name: "Test Tenant",
-      safetyTrainingGoogleFormId: "form-123",
+      training: { formId: "form-123" },
     });
 
     mockListResponses.mockResolvedValue({
@@ -163,7 +163,7 @@ describe("GET /api/safety_training_form", () => {
   it("returns empty array when no form responses exist", async () => {
     mockServerGetDocumentById.mockResolvedValue({
       name: "Test Tenant",
-      safetyTrainingGoogleFormId: "form-123",
+      training: { formId: "form-123" },
     });
 
     mockListResponses.mockResolvedValue({
@@ -184,7 +184,7 @@ describe("GET /api/safety_training_form", () => {
   it("returns empty array when responses array is empty", async () => {
     mockServerGetDocumentById.mockResolvedValue({
       name: "Test Tenant",
-      safetyTrainingGoogleFormId: "form-123",
+      training: { formId: "form-123" },
     });
 
     mockListResponses.mockResolvedValue({
@@ -205,7 +205,7 @@ describe("GET /api/safety_training_form", () => {
   it("includes resourceId in logging when provided", async () => {
     mockServerGetDocumentById.mockResolvedValue({
       name: "Test Tenant",
-      safetyTrainingGoogleFormId: "form-123",
+      training: { formId: "form-123" },
     });
 
     mockListResponses.mockResolvedValue({
@@ -238,7 +238,7 @@ describe("GET /api/safety_training_form", () => {
   it("sets correct cache control headers", async () => {
     mockServerGetDocumentById.mockResolvedValue({
       name: "Test Tenant",
-      safetyTrainingGoogleFormId: "form-123",
+      training: { formId: "form-123" },
     });
 
     mockListResponses.mockResolvedValue({
@@ -261,7 +261,7 @@ describe("GET /api/safety_training_form", () => {
     it("returns 401 for invalid_grant authentication errors", async () => {
       mockServerGetDocumentById.mockResolvedValue({
         name: "Test Tenant",
-        safetyTrainingGoogleFormId: "form-123",
+        training: { formId: "form-123" },
       });
 
       mockListResponses.mockRejectedValue(
@@ -282,7 +282,7 @@ describe("GET /api/safety_training_form", () => {
     it("returns 404 for Form not found errors", async () => {
       mockServerGetDocumentById.mockResolvedValue({
         name: "Test Tenant",
-        safetyTrainingGoogleFormId: "invalid-form-id",
+        training: { formId: "invalid-form-id" },
       });
 
       mockListResponses.mockRejectedValue(new Error("Form not found"));
@@ -301,7 +301,7 @@ describe("GET /api/safety_training_form", () => {
     it("returns 403 for permission_denied errors", async () => {
       mockServerGetDocumentById.mockResolvedValue({
         name: "Test Tenant",
-        safetyTrainingGoogleFormId: "form-123",
+        training: { formId: "form-123" },
       });
 
       mockListResponses.mockRejectedValue(
@@ -326,7 +326,7 @@ describe("GET /api/safety_training_form", () => {
     it("returns 403 for Insufficient Permission errors", async () => {
       mockServerGetDocumentById.mockResolvedValue({
         name: "Test Tenant",
-        safetyTrainingGoogleFormId: "form-123",
+        training: { formId: "form-123" },
       });
 
       mockListResponses.mockRejectedValue(
@@ -351,7 +351,7 @@ describe("GET /api/safety_training_form", () => {
     it("returns 500 for generic errors with details", async () => {
       mockServerGetDocumentById.mockResolvedValue({
         name: "Test Tenant",
-        safetyTrainingGoogleFormId: "form-123",
+        training: { formId: "form-123" },
       });
 
       const error = new Error("Network error") as any;
@@ -374,7 +374,7 @@ describe("GET /api/safety_training_form", () => {
     it("returns UNKNOWN code for errors without code property", async () => {
       mockServerGetDocumentById.mockResolvedValue({
         name: "Test Tenant",
-        safetyTrainingGoogleFormId: "form-123",
+        training: { formId: "form-123" },
       });
 
       mockListResponses.mockRejectedValue(new Error("Something went wrong"));

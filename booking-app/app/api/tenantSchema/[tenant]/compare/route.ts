@@ -1,12 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import {
-  serverFetchAllDataFromCollection,
-} from "@/lib/firebase/server/adminDb";
-import { TableNames } from "@/components/src/policy";
+import { isValidTenant } from "@/components/src/constants/tenants";
 import {
   getSchemaFromEnv,
   ENVIRONMENTS,
 } from "@/lib/firebase/server/multiDb";
+import { requireSuperAdmin } from "@/lib/api/requireSuperAdmin";
 
 export async function GET(
   request: NextRequest,
@@ -15,28 +13,16 @@ export async function GET(
   try {
     const { tenant } = await params;
 
-    // Verify super admin permission
-    const userEmail = request.headers.get("x-user-email");
-    if (!userEmail) {
+    if (!isValidTenant(tenant)) {
       return NextResponse.json(
-        { error: "Authentication required" },
-        { status: 401 },
+        { error: `Invalid tenant: ${tenant}` },
+        { status: 400 },
       );
     }
 
-    const superAdmins = await serverFetchAllDataFromCollection<{
-      id: string;
-      email: string;
-    }>(TableNames.SUPER_ADMINS);
-    const isSuperAdmin = superAdmins.some(
-      (sa) => sa.email.toLowerCase() === userEmail.toLowerCase(),
-    );
-    if (!isSuperAdmin) {
-      return NextResponse.json(
-        { error: "Super admin permission required" },
-        { status: 403 },
-      );
-    }
+    // Verify super admin permission from the NextAuth session.
+    const auth = await requireSuperAdmin(tenant);
+    if ("error" in auth) return auth.error;
 
     // Fetch schemas from all environments in parallel.
     // Catch per-env errors so one failing environment doesn't break the response.

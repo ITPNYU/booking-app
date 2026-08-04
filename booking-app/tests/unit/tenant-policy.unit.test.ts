@@ -1,10 +1,12 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import {
   getTenantPolicy,
+} from "@/components/src/tenantPolicy";
+import {
   getApprovedCcEmail,
   getCanceledCcEmail,
-} from "@/components/src/tenantPolicy";
-import { getApprovalCcEmail, getCancelCcEmail } from "@/components/src/policy";
+} from "@/components/src/tenantPolicyServer";
+import { getApprovalCcEmail, getCancelCcEmail } from "@/components/src/tenantPolicyServer";
 import type { SchemaContextType } from "@/components/src/client/routes/components/SchemaProvider";
 import { generateDefaultSchema } from "@/components/src/client/routes/components/SchemaProvider";
 

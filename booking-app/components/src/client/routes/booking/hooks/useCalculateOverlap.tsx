@@ -21,10 +21,10 @@ export default function useCalculateOverlap() {
       calendarEventId = segments[segments.length - 1];
     }
 
-    const selectedRoomIds = selectedRooms.map((x) => x.roomId);
+    const selectedRoomIds = selectedRooms.map((x) => String(x.roomId));
     return existingCalendarEvents
       .map((event) => {
-        if (!selectedRoomIds.includes(Number(event.resourceId))) return false;
+        if (!selectedRoomIds.includes(String(event.resourceId))) return false;
         // for edit/modification mode, don't overlap with existing booking
         if (
           calendarEventId &&

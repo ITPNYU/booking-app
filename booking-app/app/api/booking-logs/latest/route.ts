@@ -28,7 +28,22 @@ function isBookingLogRequest(
 
 export async function POST(req: NextRequest) {
   try {
-    const { bookings } = await req.json();
+    const rawBody = await req.text();
+    if (!rawBody.trim()) {
+      return NextResponse.json(
+        { error: "Request body required" },
+        { status: 400 },
+      );
+    }
+
+    let body: { bookings?: unknown };
+    try {
+      body = JSON.parse(rawBody);
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    }
+
+    const { bookings } = body;
     const tenant = req.headers.get("x-tenant") || DEFAULT_TENANT;
 
     if (!shouldBypassAuth()) {

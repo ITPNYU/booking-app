@@ -1,4 +1,5 @@
 import { Department, Inputs, Role } from "@/components/src/types";
+import { toBookingCalendarStr } from "@/components/src/client/utils/date";
 
 import { useContext } from "react";
 import { BookingContext } from "../../booking/bookingProvider";
@@ -25,7 +26,7 @@ export default function useExistingBooking() {
     setDepartment(booking.department as Department);
     setRole(booking.role as Role);
 
-    const roomIds = booking.roomId.split(", ").map((x) => Number(x));
+    const roomIds = booking.roomId.split(",").map((roomId) => roomId.trim());
     const rooms = roomSettings.filter((roomSetting) =>
       roomIds.includes(roomSetting.roomId),
     );
@@ -33,8 +34,8 @@ export default function useExistingBooking() {
 
     const start = booking.startDate.toDate();
     const end = booking.endDate.toDate();
-    const startStr = start.toISOString();
-    const endStr = end.toISOString();
+    const startStr = toBookingCalendarStr(start);
+    const endStr = toBookingCalendarStr(end);
     setBookingCalendarInfo({
       start,
       end,

@@ -20,9 +20,7 @@ export default function SchemaDriftBanner() {
     if (!userEmail || !tenant) return;
 
     try {
-      const res = await fetch(`/api/tenantSchema/${tenant}/compare`, {
-        headers: { "x-user-email": userEmail },
-      });
+      const res = await fetch(`/api/tenantSchema/${tenant}/compare`);
       if (!res.ok) {
         setChangedCount(0);
         return;

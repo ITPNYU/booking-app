@@ -16,8 +16,11 @@ const Clip = styled(Box)`
   overflow-x: auto;
 `;
 
+const DEFAULT_TABLE_BORDER = "#e3e3e3";
+const DEFAULT_TABLE_HEADER_BACKGROUND = "rgba(33, 33, 33, 0.08)";
+
 const TableCustom = styled(MuiTable)(({ theme }) => ({
-  border: `1px solid ${theme.palette.custom.border}`,
+  border: `1px solid ${theme.palette.custom?.border ?? DEFAULT_TABLE_BORDER}`,
   borderCollapse: "separate",
   borderRadius: "0px 0px 4px 4px",
   // overflowX: "scroll",
@@ -32,7 +35,8 @@ const TableCustom = styled(MuiTable)(({ theme }) => ({
 }));
 
 const ShadedHeader = styled(TableHead)(({ theme }) => ({
-  backgroundColor: theme.palette.custom.gray,
+  backgroundColor:
+    theme.palette.custom?.gray ?? DEFAULT_TABLE_HEADER_BACKGROUND,
 }));
 
 export const TableTopRow = styled(MuiTable)`

@@ -1,11 +1,16 @@
 import { Box, useScrollTrigger } from "@mui/material";
+import dynamic from "next/dynamic";
 import React, { useMemo } from "react";
 import { usePathname, useRouter, useParams } from "next/navigation";
 
 import { FormContextLevel } from "@/components/src/types";
 import { styled } from "@mui/system";
 import BookingFormStepper from "./Stepper";
-import BookingStatusBar from "./BookingStatusBar";
+
+const BookingStatusBar = dynamic(() => import("./BookingStatusBar"), {
+  ssr: false,
+  loading: () => null,
+});
 
 const StickyScroll = styled(Box)`
   position: -webkit-sticky;

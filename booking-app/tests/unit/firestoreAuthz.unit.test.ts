@@ -60,6 +60,16 @@ describe("authorizeWrite", () => {
     expect(decision.ok).toBe(true);
   });
 
+  it("allows admin write to usersResourceApprovers", async () => {
+    usersRightsSnap.mockReturnValue([{ isAdmin: true }]);
+    const decision = await authorizeWrite(
+      session,
+      "mc",
+      "usersResourceApprovers",
+    );
+    expect(decision.ok).toBe(true);
+  });
+
   it("blocks admin from writing usersSuperAdmin (super-only)", async () => {
     usersRightsSnap.mockReturnValue([{ isAdmin: true }]);
     const decision = await authorizeWrite(session, "mc", "usersSuperAdmin");
@@ -69,6 +79,45 @@ describe("authorizeWrite", () => {
   it("allows super_admin to write usersSuperAdmin", async () => {
     superSnap.mockReturnValue([{ email: session.email }]);
     const decision = await authorizeWrite(session, "mc", "usersSuperAdmin");
+    expect(decision.ok).toBe(true);
+  });
+
+  it("blocks tenant admins from writing maintenance mode through generic settings mutation", async () => {
+    usersRightsSnap.mockReturnValue([{ isAdmin: true }]);
+    const decision = await authorizeWrite(
+      session,
+      "mc",
+      "settings",
+      "maintenanceMode",
+    );
+
+    expect(decision.ok).toBe(false);
+    if (!decision.ok) {
+      expect(decision.status).toBe(403);
+    }
+  });
+
+  it("allows super admins to write maintenance mode through generic settings mutation", async () => {
+    superSnap.mockReturnValue([{ email: session.email }]);
+    const decision = await authorizeWrite(
+      session,
+      "mc",
+      "settings",
+      "maintenanceMode",
+    );
+
+    expect(decision.ok).toBe(true);
+  });
+
+  it("keeps non-maintenance settings writes available to tenant admins", async () => {
+    usersRightsSnap.mockReturnValue([{ isAdmin: true }]);
+    const decision = await authorizeWrite(
+      session,
+      "mc",
+      "settings",
+      "siteBanner",
+    );
+
     expect(decision.ok).toBe(true);
   });
 
@@ -98,6 +147,25 @@ describe("authorizeRead", () => {
 
   it("allows any NYU user to read bookings (legacy compat)", async () => {
     const decision = await authorizeRead(session, "mc", "bookings");
+    expect(decision.ok).toBe(true);
+  });
+
+  it("blocks non-admin read of usersResourceApprovers", async () => {
+    const decision = await authorizeRead(
+      session,
+      "mc",
+      "usersResourceApprovers",
+    );
+    expect(decision.ok).toBe(false);
+  });
+
+  it("allows admin read of usersResourceApprovers", async () => {
+    usersRightsSnap.mockReturnValue([{ isAdmin: true }]);
+    const decision = await authorizeRead(
+      session,
+      "mc",
+      "usersResourceApprovers",
+    );
     expect(decision.ok).toBe(true);
   });
 

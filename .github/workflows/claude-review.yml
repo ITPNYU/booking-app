@@ -1,0 +1,284 @@
+name: Claude PR Review
+
+on:
+  pull_request:
+    branches: [main]
+    # ready_for_review is required so a draft promoted to ready gets reviewed —
+    # without it the draft guard below would silently skip such PRs forever.
+    # reopened is required for the same reason: a closed-then-reopened PR with
+    # no new commit would otherwise never be reviewed.
+    types: [opened, synchronize, ready_for_review, reopened]
+  # Manual trigger to review an existing open PR on demand (e.g. to review a
+  # PR opened before this workflow existed) WITHOUT touching its state — no
+  # close/reopen, no notifications to the author, and no re-run of that PR's
+  # other CI (those are pull_request-triggered; this dispatch only runs the
+  # review). The PR's own committed code is still never trusted with the
+  # write-scoped token — same guards as the automatic path.
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "Number of the open PR to review"
+        type: string
+        required: true
+
+# One review per PR; a new push (or a repeat dispatch) cancels the in-flight
+# review instead of stacking duplicate threads (and duplicate API spend).
+concurrency:
+  group: claude-review-${{ github.event.pull_request.number || inputs.pr_number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  review:
+    # Automatic path: skip drafts, Dependabot, and fork PRs — Dependabot and
+    # fork runs don't get the repo's Actions secrets (the review can't auth),
+    # and gating on same-repo keeps the write-scoped GITHUB_TOKEN away from
+    # untrusted heads. workflow_dispatch is always allowed to start; the
+    # resolve step below re-applies the fork guard for the manual path.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.actor != 'dependabot[bot]' &&
+       github.event.pull_request.draft == false &&
+       github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: ubuntu-latest
+    # A hung API call would otherwise hold the runner for the 6h default.
+    # Sized to fit the --max-turns budget below (~25s/turn observed ≈ 42 min
+    # at 100 turns) with margin, so the turn cap — not this wall clock —
+    # stays the limiting factor.
+    timeout-minutes: 60
+    steps:
+      # Resolve PR number / head SHA / base branch for BOTH triggers. For a
+      # pull_request event they come from the event payload; for a manual
+      # dispatch they are looked up with `gh pr view`. Runs before checkout —
+      # it needs only gh + jq, not the repo.
+      - name: Resolve PR context
+        id: pr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          EVENT_NAME: ${{ github.event_name }}
+          DISPATCH_PR: ${{ inputs.pr_number }}
+          EVENT_NUMBER: ${{ github.event.pull_request.number }}
+          EVENT_SHA: ${{ github.event.pull_request.head.sha }}
+          EVENT_BASE: ${{ github.event.pull_request.base.ref }}
+          EVENT_HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+        run: |
+          set -eo pipefail
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            NUMBER="$DISPATCH_PR"
+            data=$(gh pr view "$NUMBER" -R "$REPO" \
+              --json headRefOid,baseRefName,headRepositoryOwner,headRepository)
+            SHA=$(echo "$data" | jq -r '.headRefOid')
+            BASE=$(echo "$data" | jq -r '.baseRefName')
+            HEAD_REPO="$(echo "$data" | jq -r '.headRepositoryOwner.login')/$(echo "$data" | jq -r '.headRepository.name')"
+          else
+            NUMBER="$EVENT_NUMBER"
+            SHA="$EVENT_SHA"
+            BASE="$EVENT_BASE"
+            HEAD_REPO="$EVENT_HEAD_REPO"
+          fi
+          # Fork guard (both paths): a fork PR must never be reviewed with the
+          # write-scoped token. The automatic path already blocks this at the
+          # job `if:`; re-check here so a manual dispatch can't bypass it.
+          ELIGIBLE=true
+          if [ "$HEAD_REPO" != "$REPO" ]; then
+            echo "::notice::PR #$NUMBER head is $HEAD_REPO (a fork) — skipping review."
+            ELIGIBLE=false
+          fi
+          {
+            echo "number=$NUMBER"
+            echo "sha=$SHA"
+            echo "base=$BASE"
+            echo "eligible=$ELIGIBLE"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Checkout
+        if: steps.pr.outputs.eligible == 'true'
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          # Claude holds read-only file tools (Read/Grep/Glob below), and
+          # actions/checkout by default persists the write-scoped GITHUB_TOKEN
+          # into .git/config — an on-disk secret a prompt injection could read
+          # and exfiltrate through the review text. Nothing downstream needs
+          # git-over-HTTP auth: `gh pr diff` authenticates via the env token,
+          # and the submit step reads the trusted script from the base ref
+          # without needing credentials in git config.
+          persist-credentials: false
+          # Automatic (pull_request) runs check out the merge ref by default.
+          # A manual dispatch has no such default, so check out the exact
+          # commit resolved above — NOT the mutable refs/pull/N/head branch
+          # ref. Pinning to the SHA keeps the reviewed code and the review's
+          # commit_id in lockstep even if a new commit lands on the PR between
+          # resolve and checkout (the old SHA stays reachable from the new
+          # head, so the fetch still succeeds).
+          ref: ${{ github.event_name == 'workflow_dispatch' && steps.pr.outputs.sha || '' }}
+
+      - name: Claude review
+        if: steps.pr.outputs.eligible == 'true'
+        # Pinned to the commit the v1 tag pointed at (mutable tags are a
+        # supply-chain risk for a step that runs with repo credentials).
+        uses: anthropics/claude-code-action@36a69b6a90b850823f86de06fdfd56264772ad98 # v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          # Claude subscription auth (no Bedrock / no API key). Generate with
+          # `claude setup-token` and store as the CLAUDE_CODE_OAUTH_TOKEN secret.
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # Claude only READS (gh pr diff, plus local Read/Grep/Glob over the
+          # checkout) and WRITES the review payload to a file. The local file
+          # tools exist so the review can trace cross-file impact — a diff-only
+          # view kept missing bugs whose trigger lives outside the changed
+          # hunks (e.g. a new gate blocking on state that another file never
+          # clears). They add no new injection lever: the checkout content is
+          # the same attacker-controlled input as the diff, the runner is
+          # ephemeral, and with persist-credentials: false there is no on-disk
+          # secret for a read tool to reach.
+          # It is deliberately NOT given gh api: the PR diff is attacker-controlled,
+          # so a prompt injection must not be able to choose which API endpoint runs.
+          # Accepted residual risk: the allowlist relies on Claude Code's permission
+          # engine, which evaluates compound commands (;, &&, |) per segment and
+          # rejects command substitution in non-interactive mode — not on naive
+          # string-prefix matching. If that engine were bypassed, the blast radius
+          # is contained by the submit step (base-ref script, env -i, absolute
+          # paths); token exfiltration from the agent's own step is inherent to
+          # running a hosted agent and is not mitigable at this layer.
+          # The fixed "Submit review" step below makes the one hardcoded POST call.
+          # Write is left unscoped on purpose: a path-scoped matcher (Write(/tmp/**))
+          # silently blocked the /tmp/review.json write and the review never posted.
+          # The writes with an execution path — submit_review.py itself, and the
+          # $GITHUB_ENV/$GITHUB_PATH file commands — are neutralized by the submit
+          # step executing the BASE-ref copy via absolute paths under a clean
+          # `env -i` environment; the runner is ephemeral, and the real injection
+          # lever (the API call) is gone.
+          # max-turns must cover: read the diff, reason over every hunk, chase
+          # callers/definitions of changed code through the checkout, then
+          # write /tmp/review.json. Large PRs keep exhausting smaller budgets
+          # before the write, ending in error_max_turns with no review posted.
+          # timeout-minutes above is sized to fit 100 turns (~25s/turn ≈ 42 min)
+          # so the turn cap stays the limiting factor.
+          claude_args: >-
+            --model claude-sonnet-5
+            --max-turns 100
+            --allowedTools "Bash(gh pr diff:*),Read,Grep,Glob,Write"
+          prompt: |
+            You are reviewing pull request #${{ steps.pr.outputs.number }}
+            in the repository ${{ github.repository }}. The head commit SHA is
+            ${{ steps.pr.outputs.sha }}. The PR branch is checked out in your
+            working directory, so you can Read/Grep/Glob any file — not just
+            the diff.
+
+            Report ONLY High and Medium severity findings:
+            - High: correctness bugs, security issues (auth, injection, secret
+              leakage, unsafe file handling), data loss, multi-tenant / app-scope
+              boundary breaks.
+            - Medium: likely-incorrect behavior, missing error handling, race
+              conditions, configuration that fails silently.
+            Do NOT report Low severity, nitpicks, style, formatting, naming, or
+            subjective preferences. If a finding is not clearly High or Medium, omit it.
+
+            Post everything as ONE single pull request review (GitHub Copilot style),
+            NOT as separate standalone comments. Steps:
+            1. Read the diff: gh pr diff ${{ steps.pr.outputs.number }}
+            2. Trace the diff through the rest of the codebase — bugs whose
+               trigger lives outside the changed hunks are in scope:
+               - For each function/component the diff changes or newly calls,
+                 Read the full enclosing file and Grep for its callers and
+                 consumers; check the change holds on every path that reaches it.
+               - For state, flags, or context values the new code reads
+                 (loading flags, permissions, settings), find where they are
+                 set and cleared, and check every branch — including the
+                 unauthenticated / empty / error cases.
+               - When new enforcement or validation is added (auth checks,
+                 rate limits, feature gates), Grep for sibling code paths that
+                 mutate the same data and would bypass it.
+               - Before reporting a finding, verify the trigger path in the
+                 surrounding code instead of assuming it from the diff alone;
+                 drop findings the surrounding code refutes.
+            3. For each High/Medium finding, note the file path and the exact line
+               number in the NEW version of the file (the right side of the diff).
+            4. Use the Write tool to create /tmp/review.json with this shape:
+               {
+                 "event": "COMMENT",
+                 "commit_id": "${{ steps.pr.outputs.sha }}",
+                 "body": "<1-2 sentence summary, e.g. '2 High, 1 Medium.'>",
+                 "comments": [
+                   {"path": "<file>", "line": <new-file line number>, "side": "RIGHT",
+                    "body": "**[High]** <concise issue + concrete fix>"}
+                 ]
+               }
+               Prefix every comment body with **[High]** or **[Medium]**. For a
+               multi-line span, also set "start_line" and "start_side": "RIGHT".
+            5. Do NOT submit the review yourself and do NOT call gh api — you do not
+               have that permission. Your only job is to WRITE /tmp/review.json. A
+               separate trusted workflow step submits it.
+            Always write /tmp/review.json. If there are no High or Medium findings,
+            write it with an empty "comments" array and body "No High or Medium
+            severity issues found."
+
+      # Trusted submit: the endpoint is hardcoded in the script, so even if a
+      # malicious PR injects instructions into the diff, it can only influence
+      # comment text — never which API call runs. Claude never holds an
+      # API-write tool. The script also drops inline comments GitHub can't
+      # anchor to the diff (which otherwise 422 the whole review) by folding
+      # them into the review body, so one bad line number no longer fails the
+      # job or loses the finding.
+      - name: Submit batched review
+        if: always() && steps.pr.outputs.eligible == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+          REPO: ${{ github.repository }}
+          HEAD_SHA: ${{ steps.pr.outputs.sha }}
+          BASE_REF: ${{ steps.pr.outputs.base }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          set -o pipefail
+          # Execute the submit script from the trusted BASE ref, not the PR's
+          # copy. The PR checkout is untrusted twice over: the Claude step
+          # holds an unscoped Write tool (runtime tampering), and the PR
+          # itself may commit an edited submit_review.py (committed
+          # tampering). Neither version may run with the write-scoped token.
+          #
+          # Automatic (pull_request) runs check out the merge ref, so main's
+          # committed script is already a local object — read it with git.
+          # A manual dispatch checks out the PR head, whose history need not
+          # contain main's latest, so fetch the base copy over the API. Both
+          # read the base BRANCH's reviewed version, never the PR's.
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            if ! gh api "repos/$REPO/contents/.github/scripts/submit_review.py?ref=$BASE_REF" \
+                 --jq '.content' | base64 -d > /tmp/submit_review.py; then
+              echo "error: could not read submit_review.py from base $BASE_REF; refusing to run the PR's copy"
+              exit 1
+            fi
+          else
+            if ! /usr/bin/git show "origin/$BASE_REF:.github/scripts/submit_review.py" > /tmp/submit_review.py 2>/dev/null; then
+              echo "error: could not read submit_review.py from origin/$BASE_REF; refusing to run the PR's copy"
+              exit 1
+            fi
+          fi
+          # Fail closed on an empty/short read rather than executing nothing
+          # (or a truncated script) with the write-scoped token.
+          if [ ! -s /tmp/submit_review.py ]; then
+            echo "error: base submit_review.py was empty; refusing to run"
+            exit 1
+          fi
+          if [ ! -f /tmp/review.json ]; then
+            echo "No /tmp/review.json produced; nothing to submit."
+            exit 0
+          fi
+          # All binaries are invoked by absolute path and the script runs
+          # under `env -i` with an explicit allowlist: the Claude step's
+          # unscoped Write could poison $GITHUB_ENV/$GITHUB_PATH, and a
+          # shadowed `gh` on PATH or an injected GH_HOST would otherwise
+          # redirect the hardcoded API call (token included) elsewhere.
+          /usr/bin/env -i \
+            PATH=/usr/bin:/bin \
+            HOME="$HOME" \
+            GH_TOKEN="$GH_TOKEN" \
+            PR_NUMBER="$PR_NUMBER" \
+            REPO="$REPO" \
+            HEAD_SHA="$HEAD_SHA" \
+            /usr/bin/python3 /tmp/submit_review.py

@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { serverFetchAllDataFromCollection } from "@/lib/firebase/server/adminDb";
 import { TableNames } from "@/components/src/policy";
 import { isValidTenant } from "@/components/src/constants/tenants";
 import { computeDiffSummary } from "@/lib/utils/schemaDiff";
 import { getFirestoreForEnv, ENVIRONMENTS, type Environment } from "@/lib/firebase/server/multiDb";
+import { requireSuperAdmin } from "@/lib/api/requireSuperAdmin";
 
 const BACKUP_COLLECTION = "tenantSchemaBackup";
 
@@ -47,28 +47,10 @@ export async function POST(
       );
     }
 
-    // Verify super admin permission
-    const userEmail = request.headers.get("x-user-email");
-    if (!userEmail) {
-      return NextResponse.json(
-        { error: "Authentication required" },
-        { status: 401 },
-      );
-    }
-
-    const superAdmins = await serverFetchAllDataFromCollection<{
-      id: string;
-      email: string;
-    }>(TableNames.SUPER_ADMINS);
-    const isSuperAdmin = superAdmins.some(
-      (sa) => sa.email.toLowerCase() === userEmail.toLowerCase(),
-    );
-    if (!isSuperAdmin) {
-      return NextResponse.json(
-        { error: "Super admin permission required" },
-        { status: 403 },
-      );
-    }
+    // Verify super admin permission from the NextAuth session.
+    const auth = await requireSuperAdmin(tenant);
+    if ("error" in auth) return auth.error;
+    const userEmail = auth.session.email;
 
     // Fetch source schema
     const sourceDb = getFirestoreForEnv(sourceEnv);
@@ -139,11 +121,14 @@ export async function POST(
         );
     }
 
-    // Write source schema to target, enforcing tenant consistency
+    // Write source schema to target, enforcing tenant consistency. Use the
+    // `tenantId` field the rest of the app reads (coerceTenantSchema reads
+    // `raw.tenantId`); writing a stray top-level `tenant` string would clobber
+    // the structured `tenant` branding object on the next read.
     await targetDb
       .collection(TableNames.TENANT_SCHEMA)
       .doc(tenant)
-      .set({ ...sourceSchema, tenant }, { merge: false });
+      .set({ ...sourceSchema, tenantId: tenant }, { merge: false });
 
     return NextResponse.json({
       success: true,

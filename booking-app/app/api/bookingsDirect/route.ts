@@ -1,5 +1,6 @@
 import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
-import { TableNames, getApprovalCcEmail } from "@/components/src/policy";
+import { TableNames } from "@/components/src/policy";
+import { getApprovalCcEmail } from "@/components/src/tenantPolicyServer";
 import {
   serverGetRoomCalendarId,
   serverSendBookingDetailEmail,
@@ -9,13 +10,18 @@ import {
   notifyServiceApproversForRequestedServices,
 } from "@/components/src/server/serviceApproverNotifications";
 import { getTenantEmailConfig } from "@/components/src/server/emails";
-import { BookingOrigin, BookingStatusLabel } from "@/components/src/types";
+import {
+  BookingOrigin,
+  BookingStatusLabel,
+  FormContextLevel,
+} from "@/components/src/types";
 import {
   getMediaCommonsServices,
   isMediaCommons,
 } from "@/components/src/utils/tenantUtils";
 import {
   logServerBookingChange,
+  serverGetDocumentById,
   serverGetFinalApproverEmail,
   serverGetNextSequentialId,
   serverSaveDataToFirestore,
@@ -29,6 +35,12 @@ import {
   getAffiliationDisplayValues,
   getOtherDisplayFields,
 } from "@/app/api/bookings/shared";
+import type { SchemaContextType } from "@/components/src/client/routes/components/SchemaProvider";
+import {
+  enforceRequestLimits,
+  getRequestLimitRoleKey,
+} from "@/lib/bookingRequestLimits";
+import { getMaintenanceModeSettings } from "@/lib/maintenanceModeServer";
 
 // Helper function to extract tenant from request
 const extractTenantFromRequest = (request: NextRequest): string | undefined => {
@@ -70,7 +82,14 @@ export async function POST(request: NextRequest) {
   } = await request.json();
 
   // Extract tenant from URL
-  const tenant = extractTenantFromRequest(request);
+  const tenant = extractTenantFromRequest(request) ?? DEFAULT_TENANT;
+  const maintenanceMode = await getMaintenanceModeSettings(tenant);
+  if (maintenanceMode.enabled) {
+    return NextResponse.json(
+      { error: maintenanceMode.message, maintenanceMode: true },
+      { status: 503 },
+    );
+  }
 
   console.log("📥 BOOKING DIRECT API - Received data:", {
     origin,
@@ -88,12 +107,52 @@ export async function POST(request: NextRequest) {
   const { departmentDisplay, schoolDisplay } =
     getAffiliationDisplayValues(data);
   const [room, ...otherRooms] = selectedRooms;
-  const selectedRoomIds = selectedRooms.map(
-    (r: { roomId: number }) => r.roomId,
-  );
+  const selectedRoomIds = selectedRooms.map((r: { roomId: string }) => r.roomId);
   const otherRoomIds = otherRooms.map(
     (r: { calendarId: string }) => r.calendarId,
   );
+
+  try {
+    const bookingRoleField = String(data?.role ?? "").trim();
+    const limitRoleKey = getRequestLimitRoleKey(
+      FormContextLevel.FULL_FORM,
+      bookingRoleField,
+    );
+    const selectedRoomIdsNums = selectedRoomIds
+      .map((id: number | string) => Number(id))
+      .filter((n: number) => Number.isFinite(n));
+
+    if (
+      tenant &&
+      email &&
+      bookingRoleField &&
+      selectedRoomIdsNums.length > 0
+    ) {
+      const tenantSchema = await serverGetDocumentById<SchemaContextType>(
+        TableNames.TENANT_SCHEMA,
+        tenant,
+        tenant,
+      );
+
+      const enforcement = await enforceRequestLimits({
+        tenant,
+        email,
+        bookingRoleField,
+        limitRoleKey,
+        selectedRoomIds: selectedRoomIdsNums,
+        schema: tenantSchema,
+      });
+
+      if (enforcement.ok === false) {
+        return NextResponse.json(
+          { result: "error", message: enforcement.message },
+          { status: 429 },
+        );
+      }
+    }
+  } catch (e) {
+    console.error("Error enforcing request limits (bookingsDirect):", e);
+  }
 
   // Determine booking status based on tenant and service requests
   let bookingStatus = BookingStatusLabel.APPROVED;

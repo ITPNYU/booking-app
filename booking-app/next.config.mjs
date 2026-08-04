@@ -6,6 +6,17 @@ const __dirname = path.dirname(__filename);
 
 const resolveStub = (relativePath) => path.join(__dirname, relativePath);
 
+// E2E runs swap the Firebase client SDK for in-memory stubs. Declared once
+// here and applied to BOTH bundlers: Turbopack (`next dev --turbo`) via
+// `turbopack.resolveAlias`, and webpack (`next build`, plain `next dev`) via
+// the `webpack` hook below — Turbopack does not run the webpack hook.
+const E2E_STUB_ALIASES = {
+  "firebase/app": "./lib/firebase/stubs/firebaseAppStub.ts",
+  "firebase/firestore": "./lib/firebase/stubs/firebaseFirestoreStub.ts",
+  "@firebase/app": "./lib/firebase/stubs/firebaseAppStub.ts",
+  "@firebase/firestore": "./lib/firebase/stubs/firebaseFirestoreStub.ts",
+};
+
 // Mirrors shouldBypassAuth() from lib/utils/testEnvironment.ts at build time
 // so the client can check synchronously without an API call.
 const isTestEnv =
@@ -21,33 +32,29 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  ...(process.env.E2E_TESTING === "true"
+    ? { turbopack: { resolveAlias: E2E_STUB_ALIASES } }
+    : {}),
+  experimental: {
+    optimizePackageImports: [
+      "@mui/material",
+      "@mui/icons-material",
+      "@mui/x-data-grid",
+      "@mui/x-date-pickers",
+    ],
+  },
   serverExternalPackages: ["newrelic"],
+  // Only non-secret, browser-facing values belong here. Next.js inlines every
+  // `env` entry into any bundle that references it (including client bundles),
+  // so server secrets must NOT be listed — a single client `process.env.X`
+  // reference would ship them to the browser. Server code reads secrets from
+  // `process.env` directly at runtime (loaded from the deploy-time env file),
+  // which does not require an `env` entry.
   env: {
     NEXT_PUBLIC_IS_TEST_ENV: isTestEnv ? "true" : "false",
-    FIREBASE_PROJECT_ID: process.env.FIREBASE_PROJECT_ID,
-    FIREBASE_PRIVATE_KEY_ID: process.env.FIREBASE_PRIVATE_KEY_ID,
-    FIREBASE_PRIVATE_KEY: process.env.FIREBASE_PRIVATE_KEY,
-    FIREBASE_CLIENT_EMAIL: process.env.FIREBASE_CLIENT_EMAIL,
-    FIREBASE_CLIENT_ID: process.env.FIREBASE_CLIENT_ID,
-    FIREBASE_AUTH_URI: process.env.FIREBASE_AUTH_URI,
-    FIREBASE_TOKEN_URI: process.env.FIREBASE_TOKEN_URI,
-    FIREBASE_AUTH_PROVIDER_X509_CERT_URL:
-      process.env.FIREBASE_AUTH_PROVIDER_X509_CERT_URL,
-    FIREBASE_CLIENT_X509_CERT_URL: process.env.FIREBASE_CLIENT_X509_CERT_URL,
     NEXT_PUBLIC_BASE_URL: process.env.NEXT_PUBLIC_BASE_URL,
     NEXT_PUBLIC_BRANCH_NAME: process.env.NEXT_PUBLIC_BRANCH_NAME,
     NEXT_PUBLIC_GCP_LOG_NAME: process.env.NEXT_PUBLIC_GCP_LOG_NAME,
-    GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
-    GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
-    GOOGLE_REDIRECT_URI: process.env.GOOGLE_REDIRECT_URI,
-    GOOGLE_REFRESH_TOKEN: process.env.GOOGLE_REFRESH_TOKEN,
-    GOOGLE_SHEET_ID: process.env.GOOGLE_SHEET_ID,
-    GOOGLE_SPREADSHEET_ID: process.env.GOOGLE_SPREADSHEET_ID,
-    GOOGLE_API_KEY: process.env.GOOGLE_API_KEY,
-    NYU_API_CLIENT_ID: process.env.NYU_API_CLIENT_ID,
-    NYU_API_CLIENT_SECRET: process.env.NYU_API_CLIENT_SECRET,
-    NYU_API_USER_NAME: process.env.NYU_API_USER_NAME,
-    NYU_API_PASSWORD: process.env.NYU_API_PASSWORD,
   },
   compiler: {
     styledComponents: true,
@@ -68,13 +75,11 @@ const nextConfig = {
     if (process.env.E2E_TESTING === "true") {
       config.resolve.alias = {
         ...config.resolve.alias,
-        "firebase/app": resolveStub("lib/firebase/stubs/firebaseAppStub.ts"),
-        "firebase/firestore": resolveStub(
-          "lib/firebase/stubs/firebaseFirestoreStub.ts",
-        ),
-        "@firebase/app": resolveStub("lib/firebase/stubs/firebaseAppStub.ts"),
-        "@firebase/firestore": resolveStub(
-          "lib/firebase/stubs/firebaseFirestoreStub.ts",
+        ...Object.fromEntries(
+          Object.entries(E2E_STUB_ALIASES).map(([specifier, stubPath]) => [
+            specifier,
+            resolveStub(stubPath),
+          ]),
         ),
       };
     }

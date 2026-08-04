@@ -83,7 +83,7 @@ function getMcTestSchema(tenant: string): SchemaContextType {
       resource({
         capacity: 30,
         name: "Lecture Hall 202",
-        roomId: 202,
+        resourceId: "202",
         calendarId: "mock-calendar-202",
         isWalkIn: false,
         autoApproval: { shouldAutoApprove: true },
@@ -91,7 +91,7 @@ function getMcTestSchema(tenant: string): SchemaContextType {
       resource({
         capacity: 20,
         name: "Studio 220",
-        roomId: 220,
+        resourceId: "220",
         calendarId: "mock-calendar-220",
         isWalkIn: true,
         autoApproval: { shouldAutoApprove: false },
@@ -99,7 +99,7 @@ function getMcTestSchema(tenant: string): SchemaContextType {
       resource({
         capacity: 25,
         name: "Seminar 203",
-        roomId: 203,
+        resourceId: "203",
         calendarId: "mock-calendar-203",
         isWalkIn: false,
         maxHour: { ...defaultResource.maxHour, faculty: 0.5 },
@@ -108,7 +108,7 @@ function getMcTestSchema(tenant: string): SchemaContextType {
       resource({
         capacity: 15,
         name: "Workshop 230",
-        roomId: 230,
+        resourceId: "230",
         calendarId: "mock-calendar-230",
         isWalkIn: false,
         training: {
@@ -186,7 +186,7 @@ function getItpTestSchema(): SchemaContextType {
       resource({
         capacity: 20,
         name: "Room 408",
-        roomId: 408,
+        resourceId: "408",
         calendarId: "mock-calendar-408",
         isWalkIn: false,
         autoApproval: {
@@ -198,7 +198,7 @@ function getItpTestSchema(): SchemaContextType {
       resource({
         capacity: 10,
         name: "Room 410",
-        roomId: 410,
+        resourceId: "410",
         calendarId: "mock-calendar-410",
         isWalkIn: true,
         autoApproval: {

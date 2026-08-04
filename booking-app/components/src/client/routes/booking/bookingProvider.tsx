@@ -161,9 +161,13 @@ export function BookingProvider({ children }) {
     const bookingStart = dayjs(bookingCalendarInfo.start);
     const bookingEnd = dayjs(bookingCalendarInfo.end);
     const selectedRoomIds = selectedRooms.map((room) => room.roomId);
+    const stringIdBlackoutPeriods = blackoutPeriods.map((period) => ({
+      ...period,
+      roomIds: period.roomIds?.map(String),
+    }));
 
     const affectingPeriods = getAffectingBlackoutPeriods(
-      blackoutPeriods,
+      stringIdBlackoutPeriods,
       bookingStart,
       bookingEnd,
       selectedRoomIds,

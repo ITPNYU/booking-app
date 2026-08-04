@@ -1,6 +1,9 @@
 import "@testing-library/jest-dom";
 import { vi } from "vitest";
 
+// server-only throws outside Next.js server components; no-op in Vitest.
+vi.mock("server-only", () => ({}));
+
 // Mock environment variables
 process.env.NEXT_PUBLIC_BASE_URL = "http://localhost:3000";
 process.env.NEXT_PUBLIC_FIREBASE_API_KEY = "test-api-key";
@@ -103,16 +106,22 @@ Object.defineProperty(window, "matchMedia", {
   })),
 });
 
-// Mock IntersectionObserver
-global.IntersectionObserver = vi.fn().mockImplementation(() => ({
-  observe: vi.fn(),
-  unobserve: vi.fn(),
-  disconnect: vi.fn(),
-}));
+// Mock IntersectionObserver — must be a constructable class for components that use `new IntersectionObserver()`
+class IntersectionObserverMock {
+  observe = vi.fn();
+  unobserve = vi.fn();
+  disconnect = vi.fn();
+  constructor(_callback: IntersectionObserverCallback) {}
+}
+global.IntersectionObserver =
+  IntersectionObserverMock as unknown as typeof IntersectionObserver;
 
-// Mock ResizeObserver
-global.ResizeObserver = vi.fn().mockImplementation(() => ({
-  observe: vi.fn(),
-  unobserve: vi.fn(),
-  disconnect: vi.fn(),
-}));
+// Mock ResizeObserver — must be a constructable class (MUI Tabs uses `new ResizeObserver()`)
+class ResizeObserverMock {
+  observe = vi.fn();
+  unobserve = vi.fn();
+  disconnect = vi.fn();
+  constructor(_callback: ResizeObserverCallback) {}
+}
+global.ResizeObserver =
+  ResizeObserverMock as unknown as typeof ResizeObserver;

@@ -4,20 +4,23 @@ import { mergeSchemaDefaults } from "../../scripts/schemaDefaults";
 describe("scripts/schemaDefaults mergeSchemaDefaults (add-only)", () => {
   it("preserves existing mapping children and does not overwrite existing minHour/maxHour", () => {
     const existingSchema: any = {
-      tenant: "mc",
+      tenantId: "mc",
+      tenant: { name: "Media Commons", logo: "", nameForPolicy: "" },
       // Extra top-level keys must survive (script must be non-destructive)
       someExtraTopLevelKey: { keepMe: true },
       // These mappings are where prod data got wiped (extra keys/values not present in template)
-      programMapping: {
-        "Template Program": ["TEMPLATE_VALUE"],
-        "Prod Only Program": ["PROD_CHILD_A", "PROD_CHILD_B"],
-      },
-      roleMapping: {
-        Student: ["STUDENT", "PROD_EXTRA_ROLE_CHILD"],
-      },
-      schoolMapping: {
-        "Tisch School of the Arts": ["ITP / IMA / Low Res"],
-        "Prod Only School": ["PROD_SCHOOL_CHILD"],
+      mappings: {
+        program: {
+          "Template Program": ["TEMPLATE_VALUE"],
+          "Prod Only Program": ["PROD_CHILD_A", "PROD_CHILD_B"],
+        },
+        role: {
+          Student: ["STUDENT", "PROD_EXTRA_ROLE_CHILD"],
+        },
+        school: {
+          "Tisch School of the Arts": ["ITP / IMA / Low Res"],
+          "Prod Only School": ["PROD_SCHOOL_CHILD"],
+        },
       },
       // Resources array uses __defaults__ item merge in the sync logic; we must not overwrite.
       resources: [
@@ -55,25 +58,26 @@ describe("scripts/schemaDefaults mergeSchemaDefaults (add-only)", () => {
     // Never delete extra keys (top-level and within resource items)
     expect(merged.someExtraTopLevelKey).toEqual({ keepMe: true });
     expect(merged.resources[0].extraResourceKey).toBe("keep-me");
+    expect(merged.resources[0].resourceId).toBe("999");
+    expect(merged.resources[0]).not.toHaveProperty("roomId");
 
     // Still adds missing template defaults (spot-check a known required field)
     expect(merged.tenant.contextLabels).toBeTruthy();
     expect(typeof merged.tenant.contextLabels.admin).toBe("string");
   });
 
-  // Regression guard: when a legacy (flat) schema is run through the
-  // defaults merge, the empty nested defaults that get added (emailNotifications,
-  // attestations, resource.training) must NOT shadow the real legacy values.
-  // This is the data-loss path fixed by coercing before adding defaults.
-  it("does not blank legacy email/agreement/training values via injected defaults", () => {
-    const legacySchema: any = {
-      tenant: "mc",
-      name: "Media Commons",
-      emailMessages: {
-        requestConfirmation: "Your request was received.",
+  // Regression guard: empty nested defaults that the merge injects
+  // (emailNotifications, attestations, resource.training) must NOT shadow the
+  // real configured values already present on the stored document.
+  it("does not blank configured email/attestation/training values via injected defaults", () => {
+    const existingSchema: any = {
+      tenantId: "mc",
+      tenant: { name: "Media Commons", logo: "", nameForPolicy: "" },
+      emailNotifications: {
+        requestedUser: "Your request was received.",
         declined: "Sorry, declined.",
       },
-      agreements: [{ id: "liability", html: "<p>I agree</p>" }],
+      attestations: [{ id: "liability", html: "<p>I agree</p>" }],
       resources: [
         {
           name: "Trained Room",
@@ -84,26 +88,28 @@ describe("scripts/schemaDefaults mergeSchemaDefaults (add-only)", () => {
           isWalkIn: false,
           isWalkInCanBookTwo: false,
           services: [],
-          needsSafetyTraining: true,
-          trainingFormUrl: "https://forms.example/abc",
-          trainingInfoUrl: "https://info.example/abc",
+          training: {
+            required: true,
+            formId: "https://forms.example/abc",
+            infoUrl: "https://info.example/abc",
+          },
         },
       ],
     };
 
-    const merged = mergeSchemaDefaults(legacySchema, "mc") as any;
+    const merged = mergeSchemaDefaults(existingSchema, "mc") as any;
 
-    // Legacy email messages map into emailNotifications, not blanked
+    // Configured email messages survive
     expect(merged.emailNotifications.requestedUser).toBe(
       "Your request was received.",
     );
     expect(merged.emailNotifications.declined).toBe("Sorry, declined.");
 
-    // Legacy agreements survive as attestations (empty default must not win)
+    // Configured attestations survive (empty default must not win)
     expect(merged.attestations).toHaveLength(1);
     expect(merged.attestations[0].id).toBe("liability");
 
-    // Legacy resource training fields survive under nested training
+    // Configured resource training survives
     expect(merged.resources[0].training.required).toBe(true);
     expect(merged.resources[0].training.formId).toBe(
       "https://forms.example/abc",
@@ -111,5 +117,7 @@ describe("scripts/schemaDefaults mergeSchemaDefaults (add-only)", () => {
     expect(merged.resources[0].training.infoUrl).toBe(
       "https://info.example/abc",
     );
+    expect(merged.resources[0].resourceId).toBe("1234");
+    expect(merged.resources[0]).not.toHaveProperty("roomId");
   });
 });

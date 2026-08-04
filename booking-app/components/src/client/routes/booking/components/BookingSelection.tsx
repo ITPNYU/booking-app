@@ -48,13 +48,13 @@ export default function BookingSelection() {
         </RoomDetails>
         <RoomDetails container>
           <span>Date:</span>
-          <p>{new Date(bookingCalendarInfo.startStr).toLocaleDateString()}</p>
+          <p>{bookingCalendarInfo.start.toLocaleDateString()}</p>
         </RoomDetails>
         <RoomDetails container>
           <span>Time:</span>
-          <p>{`${formatTimeAmPm(
-            new Date(bookingCalendarInfo.startStr),
-          )} - ${formatTimeAmPm(new Date(bookingCalendarInfo.endStr))}`}</p>
+          <p>{`${formatTimeAmPm(bookingCalendarInfo.start)} - ${formatTimeAmPm(
+            bookingCalendarInfo.end,
+          )}`}</p>
         </RoomDetails>
       </AlertHeader>
     </Box>

@@ -1,5 +1,6 @@
 import { computeDiffSummary } from "@/lib/utils/schemaDiff";
 import { describe, expect, it, vi, beforeEach } from "vitest";
+import { NextResponse } from "next/server";
 
 // ---------------------------------------------------------------------------
 // computeDiffSummary — pure function tests
@@ -118,14 +119,10 @@ vi.mock("@/lib/firebase/server/multiDb", () => ({
   ENVIRONMENTS: ["development", "staging", "production"],
 }));
 
-const mockServerFetch = vi.fn();
-vi.mock("@/lib/firebase/server/adminDb", () => ({
-  serverFetchAllDataFromCollection: (...args: unknown[]) =>
-    mockServerFetch(...args),
-}));
-
-vi.mock("@/lib/firebase/server/firebaseAdmin", () => ({
-  default: {},
+// Auth is now session-derived; mock the super-admin gate directly.
+const mockRequireSuperAdmin = vi.fn();
+vi.mock("@/lib/api/requireSuperAdmin", () => ({
+  requireSuperAdmin: (...args: unknown[]) => mockRequireSuperAdmin(...args),
 }));
 
 import { POST } from "@/app/api/tenantSchema/[tenant]/sync/route";
@@ -148,12 +145,20 @@ async function parseResponse(response: Response) {
 describe("POST /api/tenantSchema/[tenant]/sync", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockServerFetch.mockResolvedValue([
-      { id: "1", email: "admin@nyu.edu" },
-    ]);
+    // Default: authenticated super admin.
+    mockRequireSuperAdmin.mockResolvedValue({
+      session: { email: "admin@nyu.edu", netId: "admin" },
+    });
   });
 
-  it("returns 401 when x-user-email header is missing", async () => {
+  it("returns 401 when unauthenticated", async () => {
+    mockRequireSuperAdmin.mockResolvedValue({
+      error: NextResponse.json(
+        { error: "Authentication required" },
+        { status: 401 },
+      ),
+    });
+
     const res = await POST(
       createRequest({ sourceEnv: "development", targetEnv: "production" }),
       createParams("itp"),
@@ -163,7 +168,12 @@ describe("POST /api/tenantSchema/[tenant]/sync", () => {
   });
 
   it("returns 403 when user is not a super admin", async () => {
-    mockServerFetch.mockResolvedValue([{ id: "1", email: "other@nyu.edu" }]);
+    mockRequireSuperAdmin.mockResolvedValue({
+      error: NextResponse.json(
+        { error: "Super admin permission required" },
+        { status: 403 },
+      ),
+    });
 
     const res = await POST(
       createRequest(

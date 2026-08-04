@@ -474,6 +474,33 @@ describe("mcBookingMachine", () => {
     await waitForCondition(actor, (snapshot) => snapshot.matches("Declined"));
   });
 
+  it("clears declined service decisions after edit and re-approves into Services Request", async () => {
+    const actor = createTestActor({
+      selectedRooms: [{ roomId: 202 }],
+      servicesRequested: { staff: true },
+    });
+
+    actor.send({ type: "approve" });
+    expect(actor.getSnapshot().matches("Pre-approved")).toBe(true);
+
+    actor.send({ type: "approve" });
+    expect(actor.getSnapshot().matches("Services Request")).toBe(true);
+
+    actor.send({ type: "declineStaff" });
+    await waitForCondition(actor, (snapshot) => snapshot.matches("Declined"));
+    expect(actor.getSnapshot().context.servicesApproved?.staff).toBe(false);
+
+    actor.send({ type: "edit" });
+    expect(actor.getSnapshot().matches("Requested")).toBe(true);
+    expect(actor.getSnapshot().context.servicesApproved).toEqual({});
+
+    actor.send({ type: "approve" });
+    expect(actor.getSnapshot().matches("Pre-approved")).toBe(true);
+
+    actor.send({ type: "approve" });
+    expect(actor.getSnapshot().matches("Services Request")).toBe(true);
+  });
+
   it("emits the official guideline state sequence for manual service approvals", async () => {
     const actor = createTestActor({
       selectedRooms: [{ roomId: 202 }], // No autoApproval = disabled

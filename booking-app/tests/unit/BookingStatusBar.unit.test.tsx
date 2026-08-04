@@ -30,6 +30,13 @@ vi.mock(
   })
 );
 
+vi.mock(
+  "@/components/src/client/routes/booking/hooks/useCheckRequestLimits",
+  () => ({
+    default: () => ({ requestLimitError: null, requestLimitChecking: false }),
+  })
+);
+
 // Mock SchemaProvider (preserve defaultSafetyTrainingInfoUrl for BookingStatusBar)
 const mockUseTenantSchema = vi.fn();
 vi.mock("@/components/src/client/routes/components/SchemaProvider", async (importOriginal) => {
