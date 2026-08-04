@@ -114,7 +114,6 @@ export const ServiceApproverUsers = ({
         <Grid container paddingRight={1}>
           <TextField
             id={`service-approver-${flagField}`}
-            inputProps={{ "aria-label": `Approver email for ${title}` }}
             onChange={(e) => setValueToAdd(e.target.value)}
             value={valueToAdd}
             placeholder="Add email"
@@ -126,7 +125,7 @@ export const ServiceApproverUsers = ({
           color="primary"
           sx={{ padding: 0 }}
           disabled={loading}
-          aria-label={`Add approver for ${title}`}
+          aria-label="Add service approver"
         >
           <AddCircleOutline />
         </IconButton>
