@@ -78,6 +78,8 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
         descriptionHtml: "",
         required: true,
       },
+      showDetailsField: true,
+      detailsLabel: "Furniture request details",
     },
     equipment: {
       showInOrigin: {
@@ -249,6 +251,8 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
         descriptionHtml: "",
         required: true,
       },
+      showDetailsField: true,
+      detailsLabel: "Furniture request details",
     },
     equipment: {
       showInOrigin: {
@@ -341,6 +345,8 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
         descriptionHtml: "",
         required: true,
       },
+      showDetailsField: true,
+      detailsLabel: "Furniture request details",
     },
     equipment: {
       showInOrigin: {
@@ -432,6 +438,8 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
         descriptionHtml: "",
         required: true,
       },
+      showDetailsField: true,
+      detailsLabel: "Furniture request details",
     },
     equipment: {
       showInOrigin: {
@@ -523,6 +531,8 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
         descriptionHtml: "",
         required: true,
       },
+      showDetailsField: true,
+      detailsLabel: "Furniture request details",
     },
     equipment: {
       showInOrigin: {
@@ -614,6 +624,8 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
         descriptionHtml: "",
         required: true,
       },
+      showDetailsField: true,
+      detailsLabel: "Furniture request details",
     },
     equipment: {
       showInOrigin: {
@@ -705,6 +717,8 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
         descriptionHtml: "",
         required: true,
       },
+      showDetailsField: true,
+      detailsLabel: "Furniture request details",
     },
     equipment: {
       showInOrigin: {
@@ -897,6 +911,8 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
         descriptionHtml: "",
         required: true,
       },
+      showDetailsField: true,
+      detailsLabel: "Furniture request details",
     },
     equipment: {
       showInOrigin: {
@@ -1028,6 +1044,8 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
         descriptionHtml: "",
         required: true,
       },
+      showDetailsField: true,
+      detailsLabel: "Furniture request details",
     },
     equipment: {
       showInOrigin: {

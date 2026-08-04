@@ -196,6 +196,8 @@ export type Inputs = {
   chartFieldForRoomSetupByRoom?: Record<string, string>;
   furnishingsByRoom?: Record<string, string>;
   chartFieldForFurnishingsByRoom?: Record<string, string>;
+  furnishingsDetails?: string;
+  furnishingsDetailsByRoom?: Record<string, string>;
   equipmentServicesDetailsByRoom?: Record<string, string>;
   /** Selected auxiliary spaces keyed by parent room id → option values. */
   annexByRoom?: Record<string, string[]>;

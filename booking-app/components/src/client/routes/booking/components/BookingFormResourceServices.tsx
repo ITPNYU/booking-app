@@ -515,6 +515,10 @@ export default function BookingFormResourceServices({
           (watch("chartFieldForFurnishingsByRoom") as
             | Record<string, string>
             | undefined) ?? {};
+        const furnDetailsByRoom =
+          (watch("furnishingsDetailsByRoom") as
+            | Record<string, string>
+            | undefined) ?? {};
         const detailsByRoom =
           (watch("equipmentServicesDetailsByRoom") as
             | Record<string, string>
@@ -654,68 +658,112 @@ export default function BookingFormResourceServices({
 
             {showFurnishings && furnishingsCfg && (
               <Subsection>
-                <Label>
-                  {formatFieldLabel(
+                <SharedYesNoSwitch
+                  label={formatFieldLabel(
                     furnishingsCfg.label ?? "Additional Event Furniture",
                   )}
-                </Label>
-                <HtmlBlock html={furnishingsCfg.descriptionHtml} />
-                <FormControlLabel
-                  label="Yes"
-                  control={
-                    <Checkbox
-                      checked={furnMap[resourceId] === "yes"}
-                      onChange={(e) => {
-                        setValue("furnishingsByRoom", {
-                          ...furnMap,
-                          [resourceId]: e.target.checked ? "yes" : "",
-                        });
-                        trigger("chartFieldForFurnishingsByRoom");
-                      }}
-                    />
+                  description={
+                    furnishingsCfg.descriptionHtml ? (
+                      <HtmlBlock html={furnishingsCfg.descriptionHtml} />
+                    ) : undefined
                   }
+                  value={furnMap[resourceId] === "yes" ? "yes" : "no"}
+                  onChange={(next) => {
+                    setValue("furnishingsByRoom", {
+                      ...furnMap,
+                      [resourceId]: next,
+                    });
+                    trigger("chartFieldForFurnishingsByRoom");
+                  }}
                 />
-                {furnishingsCfg.chartField &&
-                  furnMap[resourceId] === "yes" && (
-                    <>
-                      <Label htmlFor={`chart-furn-${resourceId}`}>
-                        {furnishingsCfg.chartField?.label ||
-                          "ChartField for Additional Event Furniture"}
-                        {furnishingsCfg.chartField?.required !== false
-                          ? " *"
-                          : ""}
-                      </Label>
-                      <input
-                        id={`chart-furn-${resourceId}`}
-                        style={{
-                          width: "100%",
-                          padding: "8px",
-                          marginBottom: 16,
-                          border: "1px solid #ccc",
-                          borderRadius: 4,
-                        }}
-                        value={chartFurn[resourceId] ?? ""}
-                        onChange={(e) => {
-                          setValue(
-                            "chartFieldForFurnishingsByRoom",
-                            {
-                              ...chartFurn,
+                {furnMap[resourceId] === "yes" && (
+                  <>
+                    {furnishingsCfg.chartField && (
+                      <>
+                        <Label htmlFor={`chart-furn-${resourceId}`}>
+                          {furnishingsCfg.chartField?.label ||
+                            "ChartField for Additional Event Furniture"}
+                          {furnishingsCfg.chartField?.required !== false
+                            ? " *"
+                            : ""}
+                        </Label>
+                        <input
+                          id={`chart-furn-${resourceId}`}
+                          style={{
+                            width: "100%",
+                            padding: "8px",
+                            marginBottom: 16,
+                            border: "1px solid #ccc",
+                            borderRadius: 4,
+                          }}
+                          value={chartFurn[resourceId] ?? ""}
+                          onChange={(e) => {
+                            setValue(
+                              "chartFieldForFurnishingsByRoom",
+                              {
+                                ...chartFurn,
+                                [resourceId]: e.target.value,
+                              },
+                              { shouldValidate: true },
+                            );
+                          }}
+                          onBlur={() =>
+                            trigger("chartFieldForFurnishingsByRoom")
+                          }
+                          aria-required
+                          aria-invalid={!!furnishingsChartError}
+                        />
+                        {furnishingsChartError && (
+                          <FormHelperText error>
+                            {furnishingsChartError}
+                          </FormHelperText>
+                        )}
+                      </>
+                    )}
+                    {furnishingsCfg.showDetailsField && (
+                      <>
+                        <Label htmlFor={`furn-details-${resourceId}`}>
+                          {furnishingsCfg.detailsLabel ??
+                            "Furniture request details"}
+                        </Label>
+                        {furnishingsCfg.detailsDescriptionHtml ? (
+                          <HtmlBlock
+                            html={furnishingsCfg.detailsDescriptionHtml}
+                          />
+                        ) : null}
+                        <input
+                          id={`furn-details-${resourceId}`}
+                          style={{
+                            width: "100%",
+                            padding: "8px",
+                            marginBottom: 16,
+                            border: "1px solid #ccc",
+                            borderRadius: 4,
+                          }}
+                          value={furnDetailsByRoom[resourceId] ?? ""}
+                          onChange={(e) => {
+                            const next = {
+                              ...furnDetailsByRoom,
                               [resourceId]: e.target.value,
-                            },
-                            { shouldValidate: true },
-                          );
-                        }}
-                        onBlur={() => trigger("chartFieldForFurnishingsByRoom")}
-                        aria-required
-                        aria-invalid={!!furnishingsChartError}
-                      />
-                      {furnishingsChartError && (
-                        <FormHelperText error>
-                          {furnishingsChartError}
-                        </FormHelperText>
-                      )}
-                    </>
-                  )}
+                            };
+                            setValue("furnishingsDetailsByRoom", next, {
+                              shouldValidate: false,
+                            });
+                            const joined = Object.values(next)
+                              .map((v) =>
+                                typeof v === "string" ? v.trim() : "",
+                              )
+                              .filter(Boolean)
+                              .join("\n");
+                            setValue("furnishingsDetails", joined, {
+                              shouldValidate: false,
+                            });
+                          }}
+                        />
+                      </>
+                    )}
+                  </>
+                )}
               </Subsection>
             )}
 

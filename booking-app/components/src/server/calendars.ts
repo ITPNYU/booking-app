@@ -231,6 +231,20 @@ export const bookingContentsToDescription = async (
         "Additional Event Furniture",
         furnishingParts.join("; "),
       );
+      const furnishingsDetails = getProperty(
+        bookingContents,
+        "furnishingsDetails",
+      );
+      if (
+        furnishingsDetails &&
+        typeof furnishingsDetails === "string" &&
+        furnishingsDetails.trim()
+      ) {
+        description += listItem(
+          "Furniture request details",
+          furnishingsDetails.trim(),
+        );
+      }
     }
   }
   // Only show equipment service if it exists

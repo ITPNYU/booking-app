@@ -175,6 +175,12 @@ export default function useExistingBooking() {
       ),
       furnishingsByRoom: booking.furnishingsByRoom,
       chartFieldForFurnishingsByRoom: booking.chartFieldForFurnishingsByRoom,
+      furnishingsDetails: booking.furnishingsDetails ?? "",
+      furnishingsDetailsByRoom: backfillPerRoomMap(
+        booking.furnishingsDetailsByRoom,
+        booking.furnishingsDetails,
+        roomIdsForMaps.length === 1 ? roomIdsForMaps : [],
+      ),
       equipmentServicesDetailsByRoom: backfillPerRoomMap(
         (booking as Inputs).equipmentServicesDetailsByRoom,
         booking.equipmentServicesDetails,

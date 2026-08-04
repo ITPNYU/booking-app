@@ -667,14 +667,23 @@ export default function MoreInfoModal({
                         <TableRow>
                           <LabelCell>Additional Event Furniture</LabelCell>
                           <StackedTableCell
-                            topText={Object.entries(booking.furnishingsByRoom)
-                              .filter(
-                                ([, v]) =>
-                                  typeof v === "string" &&
-                                  v.toLowerCase() === "yes",
-                              )
-                              .map(([roomId]) => roomId)
-                              .join(", ")}
+                            topText={
+                              [
+                                Object.entries(booking.furnishingsByRoom)
+                                  .filter(
+                                    ([, v]) =>
+                                      typeof v === "string" &&
+                                      v.toLowerCase() === "yes",
+                                  )
+                                  .map(([roomId]) => roomId)
+                                  .join(", "),
+                                booking.furnishingsDetails?.trim()
+                                  ? booking.furnishingsDetails.trim()
+                                  : null,
+                              ]
+                                .filter(Boolean)
+                                .join(" — ")
+                            }
                             bottomText={
                               Object.entries(
                                 booking.chartFieldForFurnishingsByRoom ?? {},
