@@ -181,9 +181,7 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
       },
       label: "Security?",
       descriptionHtml: "",
-      mode: "select",
-      defaultValue: "Willoughby Street Entrance",
-      required: true,
+      mode: "checkbox",
       options: [
         {
           value: "Willoughby Street Entrance",

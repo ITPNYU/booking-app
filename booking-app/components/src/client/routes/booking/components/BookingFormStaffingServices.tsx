@@ -238,7 +238,7 @@ export default function BookingFormStaffingServices(props: Props) {
           ) : null}
         </div>
       ))}
-      <Label htmlFor={id}>{staffingLabel}?</Label>
+      <Label htmlFor={id}>{staffingLabel}</Label>
       <p style={{ fontSize: "0.75rem" }}>
         Request audio technicians, lighting technicians, and technical support.
       </p>

@@ -50,6 +50,7 @@ export type ResourceFormSelectOption = ResourceFormOption & {
 /**
  * Service section config.
  * - mode "radio" / "select": choice list via options (`select` normalizes to radio on migrate)
+ * - mode "checkbox": optional option checkboxes (not forced like radio)
  * - mode "static": read-only HTML
  * - mode "hidden": offered but not shown
  * - omit mode + chartField (no options): yes/no switch
@@ -59,7 +60,7 @@ export type ResourceFormSectionConfig = {
   showInOrigin?: ShowInOrigin;
   label?: string;
   descriptionHtml?: string;
-  mode?: "radio" | "select" | "static" | "hidden";
+  mode?: "radio" | "select" | "checkbox" | "static" | "hidden";
   options?: ResourceFormOption[];
   defaultValue?: string;
   required?: boolean;

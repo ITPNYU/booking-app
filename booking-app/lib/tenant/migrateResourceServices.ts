@@ -84,7 +84,12 @@ function normalizeSection(
   const modeRaw = raw.mode;
   let mode: ResourceFormSectionConfig["mode"];
   if (modeRaw === "select" || modeRaw === "radio") mode = "radio";
-  else if (modeRaw === "static" || modeRaw === "hidden") mode = modeRaw;
+  else if (
+    modeRaw === "static" ||
+    modeRaw === "hidden" ||
+    modeRaw === "checkbox"
+  )
+    mode = modeRaw;
   else if (modeRaw === "toggle") mode = undefined;
   else if (typeof modeRaw === "string") mode = undefined;
   else mode = undefined;
@@ -95,7 +100,7 @@ function normalizeSection(
 
   const chartField = pickChartField(raw);
 
-  // Options imply radio when mode is omitted.
+  // Options imply radio when mode is omitted (checkbox must be explicit).
   if (mode === undefined && options && options.length > 0) {
     mode = "radio";
   }

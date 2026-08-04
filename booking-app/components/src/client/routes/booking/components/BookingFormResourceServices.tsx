@@ -274,7 +274,7 @@ export default function BookingFormResourceServices({
       isStandardUser: !isVIP && !isWalkIn,
     }).find((r) => {
       const mode = getServiceSectionConfig(r, "security")?.mode;
-      return !isChoiceMode(mode) && mode !== "static";
+      return !isChoiceMode(mode) && mode !== "checkbox" && mode !== "static";
     });
     return room ? getServiceResourceId(room) : null;
   }, [selectedRooms, isVIP, isWalkIn]);
@@ -283,9 +283,10 @@ export default function BookingFormResourceServices({
       isVIP,
       isWalkIn,
       isStandardUser: !isVIP && !isWalkIn,
-    }).filter((r) =>
-      isChoiceMode(getServiceSectionConfig(r, "security")?.mode),
-    );
+    }).filter((r) => {
+      const mode = getServiceSectionConfig(r, "security")?.mode;
+      return isChoiceMode(mode) || mode === "checkbox";
+    });
     const preferred =
       rooms.find(
         (r) => getServiceSectionConfig(r, "security")?.required,
@@ -488,9 +489,14 @@ export default function BookingFormResourceServices({
           !!securityCfg &&
           isChoiceMode(securityCfg.mode) &&
           shouldShowServiceSection(securityCfg, visibility);
+        const showSecurityCheckbox =
+          !!securityCfg &&
+          securityCfg.mode === "checkbox" &&
+          shouldShowServiceSection(securityCfg, visibility);
         const showSecuritySwitch =
           !!securityCfg &&
           !isChoiceMode(securityCfg.mode) &&
+          securityCfg.mode !== "checkbox" &&
           securityCfg.mode !== "static" &&
           shouldShowServiceSection(securityCfg, visibility);
 
@@ -882,6 +888,76 @@ export default function BookingFormResourceServices({
                           />
                         ))}
                       </RadioGroup>
+                    </FormControl>
+                  )}
+                />
+                {(() => {
+                  const selectedOpt = securityCfg.options?.find(
+                    (o) => o.value === hireSecurityValue,
+                  );
+                  if (!selectedOpt?.chartField) return null;
+                  return (
+                    <BookingFormTextField
+                      id="chartFieldForSecurity"
+                      label={
+                        selectedOpt.chartField.label ||
+                        "Chartfield for Campus Safety"
+                      }
+                      required={selectedOpt.chartField.required !== false}
+                      pattern={{
+                        value: CHARTFIELD_REGEX,
+                        message: CHARTFIELD_PATTERN_MESSAGE,
+                      }}
+                      {...{ control, errors, trigger }}
+                    />
+                  );
+                })()}
+              </Subsection>
+            )}
+
+            {showSecurityCheckbox &&
+              securityCfg &&
+              resourceId === securityChoiceRoomId && (
+              <Subsection>
+                <Label>
+                  {formatFieldLabel(securityCfg.label ?? "Security?")}
+                </Label>
+                <HtmlBlock html={securityCfg.descriptionHtml} />
+                <Controller
+                  name="hireSecurity"
+                  control={control}
+                  render={({ field }) => (
+                    <FormControl component="fieldset" fullWidth>
+                      {securityCfg.options?.map((opt) => {
+                        const checked = field.value === opt.value;
+                        return (
+                          <FormControlLabel
+                            key={opt.value}
+                            label={
+                              <OptionLabel
+                                label={opt.label}
+                                descriptionHtml={opt.descriptionHtml}
+                              />
+                            }
+                            control={
+                              <Checkbox
+                                checked={checked}
+                                onChange={(e) => {
+                                  field.onChange(
+                                    e.target.checked ? opt.value : "",
+                                  );
+                                  if (!e.target.checked) {
+                                    setValue("chartFieldForSecurity", "", {
+                                      shouldValidate: false,
+                                    });
+                                  }
+                                  trigger("hireSecurity");
+                                }}
+                              />
+                            }
+                          />
+                        );
+                      })}
                     </FormControl>
                   )}
                 />

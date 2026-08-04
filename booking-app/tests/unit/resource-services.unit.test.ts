@@ -207,10 +207,11 @@ describe("applyMcResourceServices", () => {
     expect(getMcResourceServices("260")).toEqual({});
   });
 
-  it("uses select/radio security for 103 with Willoughby entrance option", () => {
+  it("uses checkbox security for 103 with Willoughby entrance option", () => {
     const services103 = getMcResourceServices("103")!;
-    expect(services103.security?.mode).toBe("select");
-    expect(services103.security?.required).toBe(true);
+    expect(services103.security?.mode).toBe("checkbox");
+    expect(services103.security?.required).toBeUndefined();
+    expect(services103.security?.defaultValue).toBeUndefined();
     expect(services103.security?.options?.[0]?.value).toBe(
       "Willoughby Street Entrance",
     );

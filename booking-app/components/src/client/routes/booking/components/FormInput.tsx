@@ -181,10 +181,11 @@ export default function FormInput({
       serviceVisibility,
     );
     if (securityRooms.length === 0) return false;
-    // Show switch if any security room is not choice-mode (multi-room safe).
-    return securityRooms.some(
-      (r) => !isChoiceMode(getServiceSectionConfig(r, "security")?.mode),
-    );
+    // Show switch if any security room is not choice/checkbox mode (multi-room safe).
+    return securityRooms.some((r) => {
+      const mode = getServiceSectionConfig(r, "security")?.mode;
+      return !isChoiceMode(mode) && mode !== "checkbox";
+    });
   }, [selectedRooms, serviceVisibility]);
 
   const needsInteractiveEquipment = useMemo(() => {
