@@ -1,4 +1,5 @@
 import {
+  Checkbox,
   FormControl,
   FormControlLabel,
   FormHelperText,
@@ -511,8 +512,14 @@ export default function BookingFormResourceServices({
           shouldShowServiceSection(staffingSection, visibility) &&
           resourceId === firstStaffingRoomId;
         const cateringCfg = getServiceSectionConfig(room, "catering");
-        const showCatering =
-          !!cateringCfg && shouldShowServiceSection(cateringCfg, visibility);
+        const showCateringInteractive =
+          !!cateringCfg &&
+          cateringCfg.mode !== "static" &&
+          shouldShowServiceSection(cateringCfg, visibility);
+        const showCateringStatic =
+          !!cateringCfg &&
+          cateringCfg.mode === "static" &&
+          shouldShowServiceSection(cateringCfg, visibility);
         const cleaningCfg = getServiceSectionConfig(room, "cleaning");
         const showCleaning =
           !!cleaningCfg && shouldShowServiceSection(cleaningCfg, visibility);
@@ -864,7 +871,60 @@ export default function BookingFormResourceServices({
               </Subsection>
             )}
 
-            {showCatering && cateringCfg && (
+            {showCateringStatic && cateringCfg && (
+              <Subsection>
+                <Label>
+                  {formatFieldLabel(cateringCfg.label ?? "Catering?")}
+                </Label>
+                <HtmlBlock html={cateringCfg.descriptionHtml} />
+                {cateringCfg.studentLoungeCheckbox && (
+                  <>
+                    <FormControlLabel
+                      label="Request to use the student lounge"
+                      control={
+                        <Checkbox
+                          checked={cateringValue === "yes"}
+                          onChange={(e) => {
+                            setValue(
+                              "catering",
+                              e.target.checked ? "yes" : "no",
+                              { shouldValidate: true },
+                            );
+                            if (!e.target.checked) {
+                              setValue("chartFieldForCatering", "", {
+                                shouldValidate: false,
+                              });
+                            }
+                            trigger("catering");
+                          }}
+                        />
+                      }
+                    />
+                    {cateringValue === "yes" &&
+                      resourceId === firstCateringRoomId &&
+                      cateringCfg.chartField && (
+                        <BookingFormTextField
+                          id="chartFieldForCatering"
+                          label={
+                            cateringCfg.chartField.label ||
+                            "ChartField for Catering Services"
+                          }
+                          required={
+                            cateringCfg.chartField.required !== false
+                          }
+                          pattern={{
+                            value: CHARTFIELD_REGEX,
+                            message: CHARTFIELD_PATTERN_MESSAGE,
+                          }}
+                          {...{ control, errors, trigger }}
+                        />
+                      )}
+                  </>
+                )}
+              </Subsection>
+            )}
+
+            {showCateringInteractive && cateringCfg && (
               <Subsection>
                 <SharedYesNoSwitch
                   label={formatFieldLabel(cateringCfg.label ?? "Catering?")}
