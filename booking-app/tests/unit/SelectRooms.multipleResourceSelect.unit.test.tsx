@@ -63,6 +63,9 @@ function TestHarness({ multipleResourceSelect }: { multipleResourceSelect: boole
           setHasShownMocapModal: () => {},
           bookingCalendarInfo: undefined,
           setBookingCalendarInfo: () => {},
+          role: undefined,
+          annexByRoom: {},
+          setAnnexByRoom: () => {},
         } as any}
       >
         <SelectRooms

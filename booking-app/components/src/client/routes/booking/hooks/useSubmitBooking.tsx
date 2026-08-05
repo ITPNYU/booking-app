@@ -41,6 +41,8 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
     isBanned,
     needsSafetyTraining,
     isInBlackoutPeriod,
+    annexByRoom,
+    setAnnexByRoom,
   } = useContext(BookingContext);
 
   const isOverlap = useCalculateOverlap();
@@ -233,6 +235,7 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
       // The form accepts NetID (e.g., "abc123") but the field should store email format
       const transformedData = {
         ...data,
+        annexByRoom: data.annexByRoom ?? annexByRoom ?? {},
         sponsorEmail: data.sponsorEmail && isValidNetIdFormat(data.sponsorEmail)
           ? `${data.sponsorEmail}@nyu.edu`
           : data.sponsorEmail,
@@ -323,6 +326,7 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
           // clear stored booking data after submit confirmation
           setBookingCalendarInfo(undefined);
           setSelectedRooms([]);
+          setAnnexByRoom({});
           setFormData(undefined);
           setHasShownMocapModal(false);
 
@@ -340,6 +344,7 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
     [
       bookingCalendarInfo,
       selectedRooms,
+      annexByRoom,
       liaisonUsers,
       userEmail,
       router,

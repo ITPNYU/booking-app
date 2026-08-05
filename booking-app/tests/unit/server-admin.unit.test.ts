@@ -1,14 +1,16 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.stubEnv("NEXT_PUBLIC_BASE_URL", "https://booking.test");
 
 const mockFetch = vi.fn();
 global.fetch = mockFetch as unknown as typeof fetch;
 
-const mockIsMediaCommons = vi.fn();
-const mockTimestampNow = vi.fn(() => ({
-  toDate: () => new Date("2024-01-01T00:00:00.000Z"),
-  toMillis: () => Date.parse("2024-01-01T00:00:00.000Z"),
+const { mockIsMediaCommons, mockTimestampNow } = vi.hoisted(() => ({
+  mockIsMediaCommons: vi.fn(),
+  mockTimestampNow: vi.fn(() => ({
+    toDate: () => new Date("2024-01-01T00:00:00.000Z"),
+    toMillis: () => Date.parse("2024-01-01T00:00:00.000Z"),
+  })),
 }));
 
 type TimestampLike = {
@@ -239,7 +241,10 @@ import { ApproverLevel, TableNames } from "@/components/src/policy";
 import { BookingStatusLabel } from "@/components/src/types";
 
 describe("components/src/server/admin", () => {
+  const originalTz = process.env.TZ;
+
   beforeEach(() => {
+    process.env.TZ = "UTC";
     vi.unstubAllEnvs();
     vi.stubEnv("NEXT_PUBLIC_BASE_URL", "https://booking.test");
     vi.resetModules();
@@ -247,6 +252,14 @@ describe("components/src/server/admin", () => {
     resetFirestore();
     mockIsMediaCommons.mockReturnValue(false);
     mockGetApprovalCcEmail.mockReturnValue("cc@nyu.edu");
+  });
+
+  afterEach(() => {
+    if (originalTz === undefined) {
+      delete process.env.TZ;
+    } else {
+      process.env.TZ = originalTz;
+    }
   });
 
   it("gets latest booking logs by calendar event id and matching current status", async () => {
@@ -389,6 +402,7 @@ describe("components/src/server/admin", () => {
   });
 
   it("formats booking contents with fallback history when logs absent", async () => {
+    const startTimestamp = makeTimestamp("2024-03-01T05:00:00.000Z");
     seedCollection("tenant-z-bookings", [
       {
         id: "booking-1",
@@ -397,7 +411,7 @@ describe("components/src/server/admin", () => {
           requestNumber: 77,
           title: "Animation Workshop",
           email: "requester@nyu.edu",
-          startDate: makeTimestamp("2024-03-01T05:00:00.000Z"),
+          startDate: startTimestamp,
           endDate: makeTimestamp("2024-03-01T07:00:00.000Z"),
           requestedAt: makeTimestamp("2024-02-25T10:00:00.000Z"),
           firstApprovedAt: null,
