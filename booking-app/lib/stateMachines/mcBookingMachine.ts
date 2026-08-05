@@ -1,6 +1,5 @@
 import "server-only";
 
-import { TENANTS } from "@/components/src/constants/tenants";
 import { BookingOrigin, Inputs, Role, RoomSetting } from "@/components/src/types";
 import type { DateSelectArg } from "fullcalendar";
 import { evaluateMcShouldAutoApprove } from "@/lib/stateMachines/autoApprovalGuards";

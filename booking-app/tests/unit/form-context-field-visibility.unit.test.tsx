@@ -189,7 +189,7 @@ describe("FormInput - Field Visibility by Form Context", () => {
 
       // Services section
       expect(screen.getByText("Services")).toBeInTheDocument();
-      expect(screen.getByText("Setup?")).toBeInTheDocument();
+      expect(screen.getByText("Room Setup")).toBeInTheDocument();
       expect(screen.getByText("Catering?")).toBeInTheDocument();
       expect(screen.getByText("Cleaning?")).toBeInTheDocument();
       expect(screen.getByText("Security?")).toBeInTheDocument();
@@ -301,7 +301,7 @@ describe("FormInput - Field Visibility by Form Context", () => {
       renderFormInput(FormContextLevel.VIP);
 
       expect(screen.getByText("VIP Services")).toBeInTheDocument();
-      expect(screen.getByText("Setup?")).toBeInTheDocument();
+      expect(screen.getByText("Room Setup")).toBeInTheDocument();
       expect(screen.getByText("Catering?")).toBeInTheDocument();
       expect(screen.getByText("Cleaning?")).toBeInTheDocument();
       expect(screen.getByText("Security?")).toBeInTheDocument();
@@ -347,7 +347,7 @@ describe("FormInput - Field Visibility by Form Context", () => {
 
       expect(screen.getByText("Walk-In Services")).toBeInTheDocument();
       // Setup should not be visible for walk-ins
-      expect(screen.queryByText("Setup?")).not.toBeInTheDocument();
+      expect(screen.queryByText("Room Setup")).not.toBeInTheDocument();
     });
 
     it("does NOT display Catering service for walk-in bookings", () => {
@@ -436,7 +436,7 @@ describe("FormInput - Field Visibility by Form Context", () => {
       renderFormInput(FormContextLevel.MODIFICATION);
 
       expect(screen.getByText("Services")).toBeInTheDocument();
-      expect(screen.getByText("Setup?")).toBeInTheDocument();
+      expect(screen.getByText("Room Setup")).toBeInTheDocument();
       expect(screen.getByText("Catering?")).toBeInTheDocument();
       expect(screen.getByText("Cleaning?")).toBeInTheDocument();
       expect(screen.getByText("Security?")).toBeInTheDocument();
@@ -567,7 +567,7 @@ describe("FormInput - Field Visibility by Form Context", () => {
         </ThemeProvider>
       );
 
-      expect(screen.queryByText("Setup?")).not.toBeInTheDocument();
+      expect(screen.queryByText("Room Setup")).not.toBeInTheDocument();
     });
 
     it("hides Booking Type when showBookingTypes is false", () => {
@@ -634,7 +634,7 @@ describe("FormInput - Field Visibility by Form Context", () => {
             "Walk-In Reservation Details",
             "Walk-In Services",
           ],
-          shouldNotHave: ["Agreement", "Setup?", "Catering?", "Cleaning?", "Security?"],
+          shouldNotHave: ["Agreement", "Room Setup", "Catering?", "Cleaning?", "Security?"],
         },
         {
           context: FormContextLevel.MODIFICATION,
