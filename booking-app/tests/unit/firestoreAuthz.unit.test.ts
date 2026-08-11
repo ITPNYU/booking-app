@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const superSnap = vi.fn();
 const usersRightsSnap = vi.fn();
 const approverSnap = vi.fn();
+const serviceApproverSnap = vi.fn();
 
 function snapshot(docs: Array<Record<string, unknown>>) {
   return {
@@ -19,6 +20,8 @@ vi.mock("@/lib/firebase/server/firebaseAdmin", () => {
           if (name === "usersSuperAdmin") return snapshot(superSnap());
           if (name.endsWith("usersRights")) return snapshot(usersRightsSnap());
           if (name.endsWith("usersApprovers")) return snapshot(approverSnap());
+          if (name.endsWith("usersServiceApprovers"))
+            return snapshot(serviceApproverSnap());
           return snapshot([]);
         },
       }),
@@ -40,6 +43,7 @@ beforeEach(() => {
   superSnap.mockReturnValue([]);
   usersRightsSnap.mockReturnValue([]);
   approverSnap.mockReturnValue([]);
+  serviceApproverSnap.mockReturnValue([]);
 });
 afterEach(() => {
   vi.clearAllMocks();
@@ -186,5 +190,31 @@ describe("authorizeRead", () => {
   it("denies reads to unknown collection by default", async () => {
     const decision = await authorizeRead(session, "mc", "totally-fake");
     expect(decision.ok).toBe(false);
+  });
+});
+
+describe("resolveCallerRole", () => {
+  it("returns SERVICES for tenant service approvers", async () => {
+    serviceApproverSnap.mockReturnValue([{ email: session.email }]);
+    const { resolveCallerRole } = await import("@/lib/api/authz");
+
+    await expect(resolveCallerRole(session, "mc")).resolves.toBe("SERVICES");
+  });
+
+  it("returns SERVICES for legacy usersRights service approvers", async () => {
+    usersRightsSnap.mockReturnValue([{ email: session.email, isSetup: true }]);
+    const { resolveCallerRole } = await import("@/lib/api/authz");
+
+    await expect(resolveCallerRole(session, "mc")).resolves.toBe("SERVICES");
+    expect(serviceApproverSnap).not.toHaveBeenCalled();
+  });
+
+  it("keeps liaison precedence over tenant service approver records", async () => {
+    approverSnap.mockReturnValue([{ email: session.email, level: 1 }]);
+    serviceApproverSnap.mockReturnValue([{ email: session.email }]);
+    const { resolveCallerRole } = await import("@/lib/api/authz");
+
+    await expect(resolveCallerRole(session, "mc")).resolves.toBe("LIAISON");
+    expect(serviceApproverSnap).not.toHaveBeenCalled();
   });
 });

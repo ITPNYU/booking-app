@@ -1,56 +1,31 @@
 import { expect, test } from "@playwright/test";
 import { registerItpBookingMocks } from "./helpers/itp-mock-routes";
 import {
-  registerDefinePropertyInterceptor,
-  registerWebpackPatcher,
-} from "./helpers/xstate-mocks";
-import {
   itpNavigateToRoleSelection,
   itpSelectRole,
   itpSelectTimeSlot,
 } from "./helpers/itp-test-utils";
+import {
+  mockFirestoreListCollections,
+  serializedTimestamp,
+} from "./helpers/test-utils";
 
 test.describe("ITP Ban Enforcement – banned user blocked", () => {
   test("blocks banned user from booking in ITP", async ({ page }) => {
     await registerItpBookingMocks(page);
-    await registerDefinePropertyInterceptor(page);
-
-    // Inject banned user data for the test user (test@nyu.edu)
-    await page.addInitScript(() => {
-      const makeTimestamp = (d: Date) => ({
-        toDate: () => new Date(d),
-        toMillis: () => d.getTime(),
-        valueOf: () => d.getTime(),
-      });
-
-      const mockBannedUsers = [
-        {
-          id: "itp-ban-1",
-          email: "test@nyu.edu",
-          bannedAt: new Date().toISOString(),
-          createdAt: makeTimestamp(new Date()),
-        },
-      ];
-
-      const original = (window as any).clientFetchAllDataFromCollection;
-
-      (window as any).clientFetchAllDataFromCollection = async function (
-        tableName: string,
-        constraints: unknown[],
-        tenant: string,
-      ) {
-        const normalized = tableName ? tableName.toLowerCase() : "";
-        if (normalized.includes("banned")) {
-          return mockBannedUsers;
-        }
-        if (original) {
-          return await original(tableName, constraints, tenant);
-        }
-        return [];
-      };
-    });
-
-    await registerWebpackPatcher(page);
+    await mockFirestoreListCollections(page, [
+      {
+        collection: "usersBanned",
+        docs: [
+          {
+            id: "itp-ban-1",
+            email: "test@nyu.edu",
+            bannedAt: new Date().toISOString(),
+            createdAt: serializedTimestamp(new Date()),
+          },
+        ],
+      },
+    ]);
 
     await itpNavigateToRoleSelection(page);
 

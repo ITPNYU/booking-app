@@ -7,6 +7,7 @@ import { getMediaCommonsServices } from "@/components/src/utils/tenantUtils";
 import {
   serverFetchAllDataFromCollection,
   serverGetDataByCalendarEventId,
+  serverResolveServiceApproverEmails,
 } from "@/lib/firebase/server/adminDb";
 
 const SERVICE_APPROVER_CONFIG = {
@@ -42,6 +43,12 @@ const SERVICE_APPROVER_CONFIG = {
   },
 } as const;
 
+const parseBookingResourceIds = (roomId: unknown): string[] =>
+  String(roomId ?? "")
+    .split(",")
+    .map((resourceId) => resourceId.trim())
+    .filter(Boolean);
+
 export const isServicesRequestState = (newState: any): boolean =>
   !!(
     newState &&
@@ -64,6 +71,7 @@ export const notifyServiceApproversForRequestedServices = async (
     return;
   }
 
+  const resourceIds = parseBookingResourceIds(booking.roomId);
   const servicesRequested = getMediaCommonsServices(booking);
   const usersRights = await serverFetchAllDataFromCollection<any>(
     TableNames.USERS_RIGHTS,
@@ -74,51 +82,61 @@ export const notifyServiceApproversForRequestedServices = async (
   const emailConfig = await getTenantEmailConfig(tenant);
   const schemaName = emailConfig.schemaName;
 
-  const emailJobs = Object.entries(SERVICE_APPROVER_CONFIG).flatMap(
-    ([serviceKey, config]) => {
-      if (!servicesRequested[serviceKey as keyof typeof servicesRequested]) {
-        return [];
-      }
+  const emailJobs = (
+    await Promise.all(
+      Object.entries(SERVICE_APPROVER_CONFIG).map(async ([serviceKey, config]) => {
+        if (!servicesRequested[serviceKey as keyof typeof servicesRequested]) {
+          return [];
+        }
 
-      const recipients = Array.from(
-        new Set(
-          usersRights
-            .filter((record) => record[config.flagField] === true)
-            .map((record) => record.email)
-            .filter(Boolean),
-        ),
-      );
+        const resourceApproverRecipients = await serverResolveServiceApproverEmails(
+          resourceIds,
+          serviceKey,
+          tenant,
+        );
+        const recipients =
+          resourceApproverRecipients.length > 0
+            ? resourceApproverRecipients
+            : Array.from(
+                new Set(
+                  usersRights
+                    .filter((record) => record[config.flagField] === true)
+                    .map((record) => record.email)
+                    .filter(Boolean),
+                ),
+              );
 
-      if (recipients.length === 0) {
-        return [];
-      }
+        if (recipients.length === 0) {
+          return [];
+        }
 
-      return recipients.map((recipient) =>
-        fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/sendEmail`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-tenant": tenant || DEFAULT_TENANT,
-          },
-          body: JSON.stringify({
-            templateName: "booking_detail",
-            contents: {
-              ...bookingContents,
-              headerMessage: `A ${config.displayName} service approval is required for this request.`,
+        return recipients.map((recipient) =>
+          fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/sendEmail`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-tenant": tenant || DEFAULT_TENANT,
             },
-            targetEmail: recipient,
-            status: BookingStatusLabel.PRE_APPROVED,
-            subjectStatusOverride: config.subjectStatus,
-            eventTitle: bookingContents.title || "",
-            requestNumber: bookingContents.requestNumber,
-            bodyMessage: "",
-            replyTo: bookingContents.email,
-            schemaName,
+            body: JSON.stringify({
+              templateName: "booking_detail",
+              contents: {
+                ...bookingContents,
+                headerMessage: `A ${config.displayName} service approval is required for this request.`,
+              },
+              targetEmail: recipient,
+              status: BookingStatusLabel.PRE_APPROVED,
+              subjectStatusOverride: config.subjectStatus,
+              eventTitle: bookingContents.title || "",
+              requestNumber: bookingContents.requestNumber,
+              bodyMessage: "",
+              replyTo: bookingContents.email,
+              schemaName,
+            }),
           }),
-        }),
-      );
-    },
-  );
+        );
+      }),
+    )
+  ).flat();
 
   await Promise.all(emailJobs);
 };

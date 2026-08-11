@@ -209,20 +209,9 @@ async function mockItpTransitionEndpoints(page: Page) {
 
 /**
  * Navigate to ITP admin page, apply mock overrides, and wait for the booking row.
- * Returns { bookingRow, transitionRequestPromise, transitionResponsePromise }.
+ * Returns { bookingRow }.
  */
 async function navigateToItpAdminAndWaitForRow(page: Page) {
-  const transitionRequestPromise = page.waitForRequest(
-    (request) =>
-      request.url().includes("/api/xstate-transition") &&
-      request.method() === "POST",
-  );
-  const transitionResponsePromise = page.waitForResponse(
-    (response) =>
-      response.url().includes("/api/xstate-transition") &&
-      response.request().method() === "POST",
-  );
-
   await page.goto(`${BASE_URL}/itp/admin`, {
     waitUntil: "domcontentloaded",
   });
@@ -235,7 +224,7 @@ async function navigateToItpAdminAndWaitForRow(page: Page) {
     .first();
   await bookingRow.waitFor({ state: "visible", timeout: 15_000 });
 
-  return { bookingRow, transitionRequestPromise, transitionResponsePromise };
+  return { bookingRow };
 }
 
 /**
@@ -246,8 +235,6 @@ async function selectActionAndAssert(
   bookingRow: ReturnType<Page["locator"]>,
   actionName: string,
   expectedEventType: string,
-  transitionRequestPromise: Promise<any>,
-  transitionResponsePromise: Promise<any>,
   opts: { hasDialog?: boolean } = {},
 ) {
   await bookingRow.locator('[role="combobox"]').click();
@@ -257,6 +244,18 @@ async function selectActionAndAssert(
     'button:has(svg[data-testid="CheckIcon"])',
   );
   await confirmButton.waitFor({ state: "visible", timeout: 5_000 });
+
+  const transitionRequestPromise = page.waitForRequest(
+    (request) =>
+      request.url().includes("/api/xstate-transition") &&
+      request.method() === "POST",
+  );
+  const transitionResponsePromise = page.waitForResponse(
+    (response) =>
+      response.url().includes("/api/xstate-transition") &&
+      response.request().method() === "POST",
+  );
+
   await confirmButton.click();
 
   if (opts.hasDialog) {
@@ -293,13 +292,9 @@ test.describe("ITP Status Transitions", () => {
     await setupItpMockBookingsFeed(page);
     await mockItpTransitionEndpoints(page);
 
-    const { bookingRow, transitionRequestPromise, transitionResponsePromise } =
-      await navigateToItpAdminAndWaitForRow(page);
+    const { bookingRow } = await navigateToItpAdminAndWaitForRow(page);
 
-    await selectActionAndAssert(
-      page, bookingRow, "Check In", "checkIn",
-      transitionRequestPromise, transitionResponsePromise,
-    );
+    await selectActionAndAssert(page, bookingRow, "Check In", "checkIn");
   });
 
   test("Admin can check-out a CHECKED_IN ITP booking", async ({ page }) => {
@@ -322,13 +317,9 @@ test.describe("ITP Status Transitions", () => {
     await setupItpMockBookingsFeed(page);
     await mockItpTransitionEndpoints(page);
 
-    const { bookingRow, transitionRequestPromise, transitionResponsePromise } =
-      await navigateToItpAdminAndWaitForRow(page);
+    const { bookingRow } = await navigateToItpAdminAndWaitForRow(page);
 
-    await selectActionAndAssert(
-      page, bookingRow, "Check Out", "checkOut",
-      transitionRequestPromise, transitionResponsePromise,
-    );
+    await selectActionAndAssert(page, bookingRow, "Check Out", "checkOut");
   });
 
   test("Admin can mark no-show for APPROVED ITP booking 30+ minutes past start", async ({
@@ -351,13 +342,9 @@ test.describe("ITP Status Transitions", () => {
     await setupItpMockBookingsFeed(page);
     await mockItpTransitionEndpoints(page);
 
-    const { bookingRow, transitionRequestPromise, transitionResponsePromise } =
-      await navigateToItpAdminAndWaitForRow(page);
+    const { bookingRow } = await navigateToItpAdminAndWaitForRow(page);
 
-    await selectActionAndAssert(
-      page, bookingRow, "No Show", "noShow",
-      transitionRequestPromise, transitionResponsePromise,
-    );
+    await selectActionAndAssert(page, bookingRow, "No Show", "noShow");
   });
 
   test("Admin can cancel an APPROVED ITP booking", async ({ page }) => {
@@ -378,13 +365,10 @@ test.describe("ITP Status Transitions", () => {
     await setupItpMockBookingsFeed(page);
     await mockItpTransitionEndpoints(page);
 
-    const { bookingRow, transitionRequestPromise, transitionResponsePromise } =
-      await navigateToItpAdminAndWaitForRow(page);
+    const { bookingRow } = await navigateToItpAdminAndWaitForRow(page);
 
-    await selectActionAndAssert(
-      page, bookingRow, "Cancel", "cancel",
-      transitionRequestPromise, transitionResponsePromise,
-      { hasDialog: true },
-    );
+    await selectActionAndAssert(page, bookingRow, "Cancel", "cancel", {
+      hasDialog: true,
+    });
   });
 });

@@ -142,31 +142,99 @@ export async function selectRole(
   await selectDropdown(page, "role-select", roleIndex);
 }
 
+export const serializedTimestamp = (date: Date) => ({
+  __ts: date.getTime(),
+});
+
 /**
- * Wait for webpack mock overrides to be ready, apply them, and retry until patching succeeds.
- * Replaces the fragile two-step waitForFunction + evaluate pattern.
+ * Provide blackout periods through the client fetcher override used by the
+ * Turbopack-compatible E2E mock layer.  This avoids relying on route handler
+ * ordering for a collection that Provider loads asynchronously.
+ */
+export async function mockBlackoutPeriods(
+  page: Page,
+  periods: Array<Record<string, unknown>>,
+) {
+  await page.addInitScript((periods: Array<Record<string, unknown>>) => {
+    const toTimestamp = (value: unknown) => {
+      if (
+        value &&
+        typeof value === "object" &&
+        "__ts" in value &&
+        typeof (value as { __ts?: unknown }).__ts === "number"
+      ) {
+        const millis = (value as { __ts: number }).__ts;
+        return {
+          toDate: () => new Date(millis),
+          toMillis: () => millis,
+        };
+      }
+      return value;
+    };
+    const blackoutPeriods = periods.map((period) => ({
+      ...period,
+      startDate: toTimestamp(period.startDate),
+      endDate: toTimestamp(period.endDate),
+      createdAt: toTimestamp(period.createdAt),
+    }));
+    const existing = (window as any).clientFetchAllDataFromCollection;
+    (window as any).clientFetchAllDataFromCollection = async (
+      collectionName: string,
+      ...args: unknown[]
+    ) => {
+      if (String(collectionName).toLowerCase() === "blackoutperiods") {
+        return blackoutPeriods;
+      }
+      return existing ? existing(collectionName, ...args) : [];
+    };
+  }, periods);
+}
+
+export async function mockFirestoreListCollections(
+  page: Page,
+  mocks: Array<{ collection: string | RegExp; docs: unknown[] }>,
+) {
+  await page.route("**/api/firestore/list", async (route) => {
+    const request = route.request();
+    if (request.method() !== "POST") {
+      await route.fulfill({
+        status: 405,
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ error: "Method Not Allowed" }),
+      });
+      return;
+    }
+
+    const body = request.postDataJSON() ?? {};
+    const collection = String(body.collection ?? "");
+    const matched = mocks.find((mock) =>
+      typeof mock.collection === "string"
+        ? collection === mock.collection
+        : mock.collection.test(collection),
+    );
+
+    await route.fulfill({
+      status: 200,
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ docs: matched?.docs ?? [] }),
+    });
+  });
+}
+
+/**
+ * Apply E2E overrides exposed by the init script.
+ *
+ * The client now reads these overrides directly from `window`; waiting for a
+ * webpack module patch is both unnecessary and unreliable under Turbopack.
  */
 export async function applyMockOverrides(page: Page) {
   await page.waitForFunction(
     () => typeof (window as any).__applyMockBookingsOverrides === "function",
     { timeout: 30000 },
   );
-  // Retry applying overrides - webpack modules may not be ready on first attempt
-  await page.waitForFunction(
-    () => {
-      if (typeof (window as any).__applyMockBookingsOverrides === "function") {
-        (window as any).__applyMockBookingsOverrides();
-      }
-      // Check if patching succeeded via the flag (set by xstate-mocks.ts)
-      if (typeof (window as any).__isMockPatchApplied === "function") {
-        return (window as any).__isMockPatchApplied();
-      }
-      // For inline mocks without the flag, check if webpack chunk is available
-      const chunk = (window as any).webpackChunk_N_E;
-      return !!chunk && chunk.length > 0;
-    },
-    { timeout: 15000 },
-  );
+  await page.evaluate(() => {
+    (window as any).__applyMockBookingsOverrides?.();
+  });
 }
 
 /**

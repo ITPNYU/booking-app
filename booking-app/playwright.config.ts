@@ -113,6 +113,7 @@ export default defineConfig({
     env: {
       ...process.env,
       E2E_TESTING: "true",
+      NEXT_PUBLIC_IS_TEST_ENV: "true",
       BYPASS_AUTH: "true",
       CRON_SECRET: "test-cron-secret-for-e2e",
     },

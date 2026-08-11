@@ -9,6 +9,11 @@ const mocks = vi.hoisted(() => {
   const mockCollection = vi.fn(() => ({
     doc: (...args: unknown[]) => mockDoc(...args),
     get: (...args: unknown[]) => mockGetCollection(...args),
+    where: () => ({
+      limit: () => ({
+        get: (...args: unknown[]) => mockGetCollection(...args),
+      }),
+    }),
   }));
 
   return {
@@ -41,7 +46,7 @@ describe("GET /api/permissions maintenance mode defaults", () => {
       email: "requester@nyu.edu",
       netId: "requester",
     });
-    mocks.mockGetCollection.mockResolvedValue({ docs: [] });
+    mocks.mockGetCollection.mockResolvedValue({ docs: [], empty: true });
     mocks.mockGetDoc.mockResolvedValue({ exists: false });
   });
 

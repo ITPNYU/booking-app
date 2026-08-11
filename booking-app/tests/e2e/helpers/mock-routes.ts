@@ -84,6 +84,27 @@ export async function registerBookingMocks(page: Page) {
     })
   );
 
+  // Provider resolves the active role from this endpoint. Keep general booking
+  // flow tests in the requester role; admin-specific tests register their own
+  // more specific mock after this shared setup.
+  await page.route("**/api/permissions**", (route) =>
+    route.fulfill({
+      status: 200,
+      headers: jsonHeaders,
+      body: JSON.stringify({
+        pagePermission: "BOOKING",
+        adminUsers: [],
+        paUsers: [],
+        liaisonUsers: [],
+        equipmentUsers: [],
+        superAdminUsers: [],
+        policySettings: { finalApproverEmail: "" },
+        maintenanceMode: { enabled: false, message: "" },
+        siteBanner: { enabled: false, message: "", colorHex: "#7b1fa2" },
+      }),
+    }),
+  );
+
   await page.route("**/api/safety_training_users**", (route) =>
     route.fulfill({
       status: 200,

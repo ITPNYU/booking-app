@@ -45,6 +45,13 @@ export async function resolveCallerRole(
     ? null
     : (usersRightsSnap.docs[0].data() as Record<string, unknown>);
   if (userRights?.isAdmin === true) return PagePermission.ADMIN;
+  const hasLegacyServiceRight =
+    userRights?.isSetup === true ||
+    userRights?.isEquipment === true ||
+    userRights?.isStaffing === true ||
+    userRights?.isCatering === true ||
+    userRights?.isCleaning === true ||
+    userRights?.isSecurity === true;
 
   const approversCollection = getTenantCollectionName(
     TableNames.APPROVERS,
@@ -60,6 +67,20 @@ export async function resolveCallerRole(
     const level = Number(data.level);
     if (level === ApproverLevel.EQUIPMENT) return PagePermission.SERVICES;
     return PagePermission.LIAISON;
+  }
+  if (hasLegacyServiceRight) return PagePermission.SERVICES;
+
+  const serviceApproversCollection = getTenantCollectionName(
+    TableNames.SERVICE_APPROVERS,
+    tenant,
+  );
+  const serviceApproverSnap = await db
+    .collection(serviceApproversCollection)
+    .where("email", "==", email)
+    .limit(1)
+    .get();
+  if (!serviceApproverSnap.empty) {
+    return PagePermission.SERVICES;
   }
 
   if (userRights?.isWorker === true) return PagePermission.PA;

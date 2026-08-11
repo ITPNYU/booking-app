@@ -139,9 +139,7 @@ describe("resource approver server helpers", () => {
 
     await expect(
       serverListResourceApproversByEmail(" ONE@NYU.EDU ", "mc"),
-    ).resolves.toEqual([
-      { id: "1", resourceId: "a", email: "one@nyu.edu" },
-    ]);
+    ).resolves.toEqual([{ id: "1", resourceId: "a", email: "one@nyu.edu" }]);
     expect(queryGetMock).toHaveBeenCalledWith("mc-usersResourceApprovers", [
       { field: "email", op: "==", value: "one@nyu.edu" },
     ]);
