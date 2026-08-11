@@ -22,6 +22,7 @@ import ListTable from "../../components/ListTable";
 import { useTenantSchema } from "../../components/SchemaProvider";
 import { formatDate } from "../../../utils/date";
 import { TableNames } from "../../../../policy";
+import { isLegacyServicesArray } from "../../../../utils/resourceServicesUtils";
 
 type ResourceApproverRow = {
   id: string;
@@ -400,7 +401,13 @@ export const ResourceSpecific = () => {
     const result = new Map<string, Array<{ key: string; label: string }>>();
     resources.forEach((resource) => {
       const seen = new Set<string>();
-      const options = (resource.services ?? []).reduce<
+      // `services` may be a legacy string[] or the consolidated config object.
+      // Both describe the same set of services, so reduce over the service
+      // names (config keys) in either shape.
+      const serviceNames = isLegacyServicesArray(resource.services)
+        ? resource.services
+        : Object.keys(resource.services ?? {});
+      const options = serviceNames.reduce<
         Array<{ key: string; label: string }>
       >((acc, service) => {
         const key = normalizeServiceKey(service);
