@@ -22,7 +22,7 @@ Example:
 - [ ] I thoroughly tested this feature locally
 - [ ] I added or updated unit tests (or explained why not in the PR description)
 - [ ] I attached screenshots or a video demonstrating the feature (or explained why not in the PR description)
-- [ ] I incorporated Copilot's feedback (or explained why not in the PR description), and marked conversations as resolved
+- [ ] I reviewed all High and Medium severity comments from Claude's code review, and replied to every High severity comment (a reply is required for High), then marked conversations as resolved
 - [ ] I confirmed my PR passed all unit and end-to-end (E2E) tests
 - [ ] I confirmed there are no conflicts
 - [ ] I requested a code review from at least one other teammate
