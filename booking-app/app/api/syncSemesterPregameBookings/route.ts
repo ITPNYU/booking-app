@@ -2,6 +2,7 @@ import { toFirebaseTimestampFromString } from "@/components/src/client/utils/ser
 import { TENANTS } from "@/components/src/constants/tenants";
 import { TableNames, getTenantCollectionName } from "@/components/src/policy";
 import {
+  AttendeeAffiliation,
   Booking,
   BookingOrigin,
   BookingStatusLabel,
@@ -156,6 +157,22 @@ const getRequesterEmails = (description: string): string[] => {
   return [];
 };
 
+// The pregame sheet stores attendee affiliation as free text; map it onto the
+// AttendeeAffiliation enum values, keeping the raw value when nothing matches.
+const normalizeAttendeeAffiliation = (value: string): string => {
+  const v = value.toLowerCase();
+  if (v.includes("non-nyu") || v.includes("non nyu")) {
+    return AttendeeAffiliation.NON_NYU;
+  }
+  if (v.includes("all") || v.includes("both")) {
+    return AttendeeAffiliation.BOTH;
+  }
+  if (v.includes("nyu")) {
+    return AttendeeAffiliation.NYU;
+  }
+  return value;
+};
+
 const parseDescription = (
   description: string,
 ): Partial<Booking> & {
@@ -253,7 +270,20 @@ const parseDescription = (
 
   const secondaryContact = extractFieldValue("Secondary Contact Name");
   if (secondaryContact && secondaryContact !== "none") {
+    const secondaryParts = secondaryContact.split(" ");
+    bookingDetails.secondaryFirstName = secondaryParts[0] || "";
+    bookingDetails.secondaryLastName = secondaryParts.slice(1).join(" ") || "";
+    // Legacy combined field, still read by paths that predate the split fields
     bookingDetails.secondaryName = secondaryContact;
+  }
+
+  const secondaryEmail = extractFieldValue("Secondary Contact Email");
+  if (
+    secondaryEmail &&
+    secondaryEmail !== "none" &&
+    secondaryEmail.includes("@")
+  ) {
+    bookingDetails.secondaryEmail = secondaryEmail;
   }
 
   const sponsorName = extractFieldValue("Sponsor Name");
@@ -297,7 +327,8 @@ const parseDescription = (
 
   const attendeeAffiliation = extractFieldValue("Attendee Affiliation");
   if (attendeeAffiliation && attendeeAffiliation !== "none") {
-    bookingDetails.attendeeAffiliation = attendeeAffiliation;
+    bookingDetails.attendeeAffiliation =
+      normalizeAttendeeAffiliation(attendeeAffiliation);
   }
 
   // Parse Services section - record all fields individually
@@ -457,6 +488,9 @@ const createBookingWithDefaults = (partialBooking: Partial<Booking>): Booking =>
     firstName: "",
     lastName: "",
     secondaryName: "",
+    secondaryFirstName: "",
+    secondaryLastName: "",
+    secondaryEmail: "",
     nNumber: "",
     netId: "",
     phoneNumber: "",
