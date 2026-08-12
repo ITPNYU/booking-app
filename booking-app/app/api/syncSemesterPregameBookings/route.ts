@@ -880,6 +880,12 @@ export async function POST(request: NextRequest) {
 
                 const newBooking = createBookingWithDefaults({
                   ...parsedDetailsWithoutServices,
+                  // testMode must not store real recipient addresses anywhere:
+                  // approving a test booking in dev would email the secondary
+                  // contact via admin.ts otherwise.
+                  ...(testMode && parsedDetailsWithoutServices.secondaryEmail
+                    ? { secondaryEmail: TEST_MODE_GUEST_EMAIL }
+                    : {}),
                   title: sanitizedTitle,
                   email: cleanEmail,
                   startDate: toFirebaseTimestampFromString(
