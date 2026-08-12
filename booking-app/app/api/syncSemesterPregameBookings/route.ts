@@ -183,8 +183,18 @@ const canonicalizeStaffingEntry = (entry: string): string => {
   if (!staffingConfig) return label;
 
   const target = label.toLowerCase();
-  const matchesOption = (opt: { value: string; label?: string }) =>
-    opt.value.toLowerCase() === target || opt.label?.toLowerCase() === target;
+  const matchesOption = (opt: { value: string; label?: string }) => {
+    const optValue = opt.value.toLowerCase();
+    const optLabel = opt.label?.toLowerCase();
+    return (
+      optValue === target ||
+      optLabel === target ||
+      // The sheet's dropdowns drop the section prefix from option labels
+      // ("Audio Tech - A1" is stored as "A1"), so also match on the segment
+      // after the " - " separator.
+      optLabel?.endsWith(` - ${target}`) === true
+    );
+  };
 
   for (const section of Object.values(staffingConfig.sections ?? {})) {
     const found =
@@ -366,11 +376,16 @@ const parseDescription = (
   const expectedAttendance = extractFieldValue("Expected Attendance");
   console.log("expectedAttendance", expectedAttendance);
   if (expectedAttendance && expectedAttendance !== "none") {
-    // Map <50 to "19" and >50 to "50"
+    // The sheet stores attendance buckets; map them to numeric strings so the
+    // app's comparisons work (isLargeEvent = parseInt(...) >= 75).
     if (expectedAttendance.includes("<50")) {
       bookingDetails.expectedAttendance = "19";
     } else if (expectedAttendance.includes(">50")) {
       bookingDetails.expectedAttendance = "50";
+    } else if (expectedAttendance.includes(">=75")) {
+      bookingDetails.expectedAttendance = "75";
+    } else if (expectedAttendance.includes("<75")) {
+      bookingDetails.expectedAttendance = "74";
     } else {
       bookingDetails.expectedAttendance = expectedAttendance;
     }
@@ -539,6 +554,15 @@ const validateBooking = (
   }
 
   if (!booking?.title) issues.push("Missing title");
+
+  // The booking form forces security on for events with >= 75 attendees;
+  // surface pregame rows where the sheet disagrees so admins can follow up.
+  if (
+    parseInt(booking?.expectedAttendance || "0") >= 75 &&
+    !booking?.hireSecurity
+  ) {
+    issues.push("Large event (>=75) without security");
+  }
 
   // canonicalizeStaffingEntry strips the "(roomId)" prefix on success and on
   // legacy rooms; a surviving prefix means the room has a staffing config but
