@@ -321,6 +321,61 @@ describe("mcBookingMachine", () => {
     expect(actor.getSnapshot().matches("Approved")).toBe(true);
   });
 
+  // Issue #1507: pregame bookings must not skip service review. Whatever path
+  // reaches final approval, a booking with requested services may only become
+  // Approved after each service is explicitly approved.
+  it("routes pregame bookings with services into Services Request instead of auto-approving them", () => {
+    const actor = createTestActor({
+      selectedRooms: [{ roomId: 202 }], // No autoApproval = disabled
+      origin: "pre-game",
+      servicesRequested: { staff: true, cleaning: true },
+    });
+
+    actor.send({ type: "approve" });
+    expect(actor.getSnapshot().matches("Pre-approved")).toBe(true);
+
+    actor.send({ type: "approve" });
+    const snapshot = actor.getSnapshot();
+    expect(snapshot.matches("Services Request")).toBe(true);
+    expect(snapshot.matches("Approved")).toBe(false);
+    expect(snapshot.context.servicesApproved ?? {}).toEqual({});
+  });
+
+  it("still batch-approves pregame bookings without services", () => {
+    const actor = createTestActor({
+      selectedRooms: [{ roomId: 202 }], // No autoApproval = disabled
+      origin: "pre-game",
+    });
+
+    actor.send({ type: "approve" });
+    expect(actor.getSnapshot().matches("Pre-approved")).toBe(true);
+
+    actor.send({ type: "approve" });
+    expect(actor.getSnapshot().matches("Approved")).toBe(true);
+  });
+
+  it("approves pregame bookings with services only after each service is approved", async () => {
+    const actor = createTestActor({
+      selectedRooms: [{ roomId: 202 }], // No autoApproval = disabled
+      origin: "pre-game",
+      servicesRequested: { staff: true, equipment: true },
+    });
+
+    actor.send({ type: "approve" });
+    actor.send({ type: "approve" });
+    expect(actor.getSnapshot().matches("Services Request")).toBe(true);
+
+    actor.send({ type: "approveStaff" });
+    expect(actor.getSnapshot().matches("Services Request")).toBe(true);
+
+    actor.send({ type: "approveEquipment" });
+    await waitForCondition(actor, (snapshot) => snapshot.matches("Approved"));
+    expect(actor.getSnapshot().context.servicesApproved).toEqual({
+      staff: true,
+      equipment: true,
+    });
+  });
+
   it("defaults decline reason when declining without a provided note", () => {
     const actor = createTestActor({
       selectedRooms: [{ roomId: 202 }], // No autoApproval = disabled
