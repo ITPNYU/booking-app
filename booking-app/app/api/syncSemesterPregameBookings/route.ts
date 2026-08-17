@@ -2,6 +2,7 @@ import { toFirebaseTimestampFromString } from "@/components/src/client/utils/ser
 import { TENANTS } from "@/components/src/constants/tenants";
 import { TableNames, getTenantCollectionName } from "@/components/src/policy";
 import {
+  AttendeeAffiliation,
   Booking,
   BookingOrigin,
   BookingStatusLabel,
@@ -12,6 +13,7 @@ import {
 } from "@/lib/firebase/server/adminDb";
 import admin from "@/lib/firebase/server/firebaseAdmin";
 import { getCalendarClient } from "@/lib/googleClient";
+import { getMcResourceServices } from "@/lib/tenant/mcResourceServices";
 import { mcBookingMachine } from "@/lib/stateMachines/mcBookingMachine";
 import { applyEnvironmentCalendarIds } from "@/lib/utils/calendarEnvironment";
 import { Timestamp } from "firebase/firestore";
@@ -156,6 +158,81 @@ const getRequesterEmails = (description: string): string[] => {
   return [];
 };
 
+// Service cells in the pregame sheet are checkboxes today ("true") but may
+// become descriptive values; treat anything except empty/none/false/no as a
+// request so a GAS-side change to real values cannot silently drop services.
+const isServiceValueRequested = (value: string): boolean => {
+  if (!value) return false;
+  const v = value.trim().toLowerCase();
+  return v !== "" && v !== "none" && v !== "false" && v !== "no";
+};
+
+// GAS writes staffing as room-prefixed option labels, e.g.
+// "(103) Lighting Tech - Busking, (230) DIY - plug-and-play". The booking form
+// stores option *values* (e.g. LIGHTING_TECH_BUSKING) comma-joined, so map
+// each entry back onto the room's staffing options. Rooms without a staffing
+// config (legacy schema arrays, where value === label) keep the bare label.
+// Entries whose room has a config but whose label matches no option keep the
+// "(roomId)" prefix so dry-run validation can surface the drift.
+const canonicalizeStaffingEntry = (entry: string): string => {
+  const match = entry.match(/^\((\d+)\)\s*(.+)$/);
+  if (!match) return entry.trim();
+  const [, roomId, rawLabel] = match;
+  const label = rawLabel.trim();
+  const staffingConfig = getMcResourceServices(roomId)?.staffing;
+  if (!staffingConfig) return label;
+
+  const target = label.toLowerCase();
+  const matchesOption = (opt: { value: string; label?: string }) => {
+    const optValue = opt.value.toLowerCase();
+    const optLabel = opt.label?.toLowerCase();
+    return (
+      optValue === target ||
+      optLabel === target ||
+      // The sheet's dropdowns drop the section prefix from option labels
+      // ("Audio Tech - A1" is stored as "A1"), so also match on the segment
+      // after the " - " separator.
+      optLabel?.endsWith(` - ${target}`) === true
+    );
+  };
+
+  for (const section of Object.values(staffingConfig.sections ?? {})) {
+    const found =
+      section.options?.find(matchesOption) ??
+      section.services?.find(matchesOption);
+    if (found) return found.value;
+  }
+  const fromFlat = staffingConfig.staffingOptions?.find(matchesOption);
+  if (fromFlat) return fromFlat.value;
+
+  return entry.trim();
+};
+
+const parseStaffingServices = (raw: string): string =>
+  raw
+    // Entries are ", "-joined; split only before a "(roomId)" prefix so
+    // old-format values without prefixes stay a single passthrough entry.
+    .split(/,\s*(?=\()/)
+    .map(canonicalizeStaffingEntry)
+    .filter(Boolean)
+    .join(",");
+
+// The pregame sheet stores attendee affiliation as free text; map it onto the
+// AttendeeAffiliation enum values, keeping the raw value when nothing matches.
+const normalizeAttendeeAffiliation = (value: string): string => {
+  const v = value.toLowerCase();
+  if (v.includes("non-nyu") || v.includes("non nyu")) {
+    return AttendeeAffiliation.NON_NYU;
+  }
+  if (v.includes("all of the above") || v.includes("both") || v === "all") {
+    return AttendeeAffiliation.BOTH;
+  }
+  if (v.includes("nyu")) {
+    return AttendeeAffiliation.NYU;
+  }
+  return value;
+};
+
 const parseDescription = (
   description: string,
 ): Partial<Booking> & {
@@ -253,7 +330,20 @@ const parseDescription = (
 
   const secondaryContact = extractFieldValue("Secondary Contact Name");
   if (secondaryContact && secondaryContact !== "none") {
+    const secondaryParts = secondaryContact.split(" ");
+    bookingDetails.secondaryFirstName = secondaryParts[0] || "";
+    bookingDetails.secondaryLastName = secondaryParts.slice(1).join(" ") || "";
+    // Legacy combined field, still read by paths that predate the split fields
     bookingDetails.secondaryName = secondaryContact;
+  }
+
+  const secondaryEmail = extractFieldValue("Secondary Contact Email");
+  if (
+    secondaryEmail &&
+    secondaryEmail !== "none" &&
+    secondaryEmail.includes("@")
+  ) {
+    bookingDetails.secondaryEmail = secondaryEmail;
   }
 
   const sponsorName = extractFieldValue("Sponsor Name");
@@ -279,17 +369,23 @@ const parseDescription = (
     bookingDetails.description = eventDescription;
   }
 
-  const category = extractFieldValue("Category");
-  bookingDetails.bookingType = "";
+  const bookingType = extractFieldValue("Booking Type");
+  bookingDetails.bookingType =
+    bookingType && bookingType !== "none" ? bookingType : "";
 
   const expectedAttendance = extractFieldValue("Expected Attendance");
   console.log("expectedAttendance", expectedAttendance);
   if (expectedAttendance && expectedAttendance !== "none") {
-    // Map <50 to "19" and >50 to "50"
+    // The sheet stores attendance buckets; map them to numeric strings so the
+    // app's comparisons work (isLargeEvent = parseInt(...) >= 75).
     if (expectedAttendance.includes("<50")) {
       bookingDetails.expectedAttendance = "19";
     } else if (expectedAttendance.includes(">50")) {
       bookingDetails.expectedAttendance = "50";
+    } else if (expectedAttendance.includes(">=75")) {
+      bookingDetails.expectedAttendance = "75";
+    } else if (expectedAttendance.includes("<75")) {
+      bookingDetails.expectedAttendance = "74";
     } else {
       bookingDetails.expectedAttendance = expectedAttendance;
     }
@@ -297,14 +393,21 @@ const parseDescription = (
 
   const attendeeAffiliation = extractFieldValue("Attendee Affiliation");
   if (attendeeAffiliation && attendeeAffiliation !== "none") {
-    bookingDetails.attendeeAffiliation = attendeeAffiliation;
+    bookingDetails.attendeeAffiliation =
+      normalizeAttendeeAffiliation(attendeeAffiliation);
   }
 
   // Parse Services section - record all fields individually
   const roomSetup = extractFieldValue("Room Setup");
-  const hasRoomSetup = roomSetup.toLowerCase() === "true";
+  const hasRoomSetup = isServiceValueRequested(roomSetup);
   bookingDetails.roomSetup = hasRoomSetup ? "yes" : "";
-  bookingDetails.setupDetails = hasRoomSetup ? "yes" : ""; // For getMediaCommonsServices
+  // getMediaCommonsServices deliberately ignores roomSetup === "yes" and keys
+  // the setup flag off setupDetails, so this must stay non-empty on request.
+  bookingDetails.setupDetails = hasRoomSetup
+    ? roomSetup.toLowerCase() === "true"
+      ? "yes"
+      : roomSetup
+    : "";
   bookingDetails.servicesRequested.setup = hasRoomSetup;
 
   const equipment = extractFieldValue("Equipment");
@@ -324,29 +427,36 @@ const parseDescription = (
   }
 
   const staffing = extractFieldValue("Staffing");
-  const hasStaffing = staffing && staffing.toLowerCase() !== "none";
-  bookingDetails.staffingServices = hasStaffing ? staffing : "";
-  bookingDetails.staffingServicesDetails = hasStaffing ? staffing : ""; // For getMediaCommonsServices
+  const hasStaffing = Boolean(staffing) && staffing.toLowerCase() !== "none";
+  bookingDetails.staffingServices = hasStaffing
+    ? parseStaffingServices(staffing)
+    : "";
+  // Keep the room-prefixed original: staffingServices loses room attribution
+  // once canonicalized, and the details line renders verbatim in the UI.
+  bookingDetails.staffingServicesDetails = hasStaffing ? staffing : "";
   bookingDetails.servicesRequested.staff = hasStaffing;
 
   const catering = extractFieldValue("Catering");
-  const hasCatering = catering.toLowerCase() === "true";
+  const hasCatering = isServiceValueRequested(catering);
   bookingDetails.catering = hasCatering ? "yes" : "";
-  if (hasCatering) {
+  // cateringService is display-only; a literal checkbox "true" is noise.
+  if (hasCatering && catering.toLowerCase() !== "true") {
     bookingDetails.cateringService = catering;
   }
   bookingDetails.servicesRequested.catering = hasCatering;
 
   const cleaning = extractFieldValue("Cleaning");
-  const hasCleaning = cleaning.toLowerCase() === "true";
+  // Every MC catering config sets forceCleaning, and the booking form
+  // auto-enables cleaning with catering — mirror that coupling here.
+  const hasCleaning = isServiceValueRequested(cleaning) || hasCatering;
   bookingDetails.cleaning = hasCleaning ? "yes" : "";
-  if (hasCleaning) {
-    bookingDetails.cleaningService = cleaning;
-  }
+  // getMediaCommonsServices keys the cleaning flag off cleaningService, and
+  // the form stores "yes"/"no" there.
+  bookingDetails.cleaningService = hasCleaning ? "yes" : "";
   bookingDetails.servicesRequested.cleaning = hasCleaning;
 
   const security = extractFieldValue("Security");
-  const hasSecurity = security.toLowerCase() === "true";
+  const hasSecurity = isServiceValueRequested(security);
   bookingDetails.hireSecurity = hasSecurity ? "yes" : "";
   bookingDetails.servicesRequested.security = hasSecurity;
 
@@ -445,6 +555,27 @@ const validateBooking = (
 
   if (!booking?.title) issues.push("Missing title");
 
+  // The booking form forces security on for events with >= 75 attendees;
+  // surface pregame rows where the sheet disagrees so admins can follow up.
+  if (
+    parseInt(booking?.expectedAttendance || "0") >= 75 &&
+    !booking?.hireSecurity
+  ) {
+    issues.push("Large event (>=75) without security");
+  }
+
+  // canonicalizeStaffingEntry strips the "(roomId)" prefix on success and on
+  // legacy rooms; a surviving prefix means the room has a staffing config but
+  // the GAS label matched none of its options (label drift).
+  if (
+    typeof booking?.staffingServices === "string" &&
+    /\(\d+\)/.test(booking.staffingServices)
+  ) {
+    issues.push(
+      `Unmatched staffing option(s) "${booking.staffingServices}"`,
+    );
+  }
+
   return issues;
 };
 
@@ -457,6 +588,9 @@ const createBookingWithDefaults = (partialBooking: Partial<Booking>): Booking =>
     firstName: "",
     lastName: "",
     secondaryName: "",
+    secondaryFirstName: "",
+    secondaryLastName: "",
+    secondaryEmail: "",
     nNumber: "",
     netId: "",
     phoneNumber: "",
@@ -746,6 +880,12 @@ export async function POST(request: NextRequest) {
 
                 const newBooking = createBookingWithDefaults({
                   ...parsedDetailsWithoutServices,
+                  // testMode must not store real recipient addresses anywhere:
+                  // approving a test booking in dev would email the secondary
+                  // contact via admin.ts otherwise.
+                  ...(testMode && parsedDetailsWithoutServices.secondaryEmail
+                    ? { secondaryEmail: TEST_MODE_GUEST_EMAIL }
+                    : {}),
                   title: sanitizedTitle,
                   email: cleanEmail,
                   startDate: toFirebaseTimestampFromString(
