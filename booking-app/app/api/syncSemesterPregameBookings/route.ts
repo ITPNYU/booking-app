@@ -13,7 +13,6 @@ import {
 } from "@/lib/firebase/server/adminDb";
 import admin from "@/lib/firebase/server/firebaseAdmin";
 import { getCalendarClient } from "@/lib/googleClient";
-import { getMcResourceServices } from "@/lib/tenant/mcResourceServices";
 import { mcBookingMachine } from "@/lib/stateMachines/mcBookingMachine";
 import { applyEnvironmentCalendarIds } from "@/lib/utils/calendarEnvironment";
 import { Timestamp } from "firebase/firestore";
@@ -168,44 +167,17 @@ const isServiceValueRequested = (value: string): boolean => {
 };
 
 // GAS writes staffing as room-prefixed option labels, e.g.
-// "(103) Lighting Tech - Busking, (230) DIY - plug-and-play". The booking form
-// stores option *values* (e.g. LIGHTING_TECH_BUSKING) comma-joined, so map
-// each entry back onto the room's staffing options. Rooms without a staffing
-// config (legacy schema arrays, where value === label) keep the bare label.
-// Entries whose room has a config but whose label matches no option keep the
-// "(roomId)" prefix so dry-run validation can surface the drift.
+// "(103) Lighting Tech - Busking, (230) DIY - plug-and-play". On this branch
+// (pre services-refactor) the booking form stores staffing values from the
+// legacy schema arrays, where value === label — so strip the room prefix and
+// keep the label text. The room attribution survives verbatim in
+// staffingServicesDetails. (The main branch additionally maps labels onto the
+// refactored per-room option keys; that version supersedes this one when the
+// services refactor reaches prod.)
 const canonicalizeStaffingEntry = (entry: string): string => {
   const match = entry.match(/^\((\d+)\)\s*(.+)$/);
   if (!match) return entry.trim();
-  const [, roomId, rawLabel] = match;
-  const label = rawLabel.trim();
-  const staffingConfig = getMcResourceServices(roomId)?.staffing;
-  if (!staffingConfig) return label;
-
-  const target = label.toLowerCase();
-  const matchesOption = (opt: { value: string; label?: string }) => {
-    const optValue = opt.value.toLowerCase();
-    const optLabel = opt.label?.toLowerCase();
-    return (
-      optValue === target ||
-      optLabel === target ||
-      // The sheet's dropdowns drop the section prefix from option labels
-      // ("Audio Tech - A1" is stored as "A1"), so also match on the segment
-      // after the " - " separator.
-      optLabel?.endsWith(` - ${target}`) === true
-    );
-  };
-
-  for (const section of Object.values(staffingConfig.sections ?? {})) {
-    const found =
-      section.options?.find(matchesOption) ??
-      section.services?.find(matchesOption);
-    if (found) return found.value;
-  }
-  const fromFlat = staffingConfig.staffingOptions?.find(matchesOption);
-  if (fromFlat) return fromFlat.value;
-
-  return entry.trim();
+  return match[2].trim();
 };
 
 const parseStaffingServices = (raw: string): string =>
@@ -562,18 +534,6 @@ const validateBooking = (
     !booking?.hireSecurity
   ) {
     issues.push("Large event (>=75) without security");
-  }
-
-  // canonicalizeStaffingEntry strips the "(roomId)" prefix on success and on
-  // legacy rooms; a surviving prefix means the room has a staffing config but
-  // the GAS label matched none of its options (label drift).
-  if (
-    typeof booking?.staffingServices === "string" &&
-    /\(\d+\)/.test(booking.staffingServices)
-  ) {
-    issues.push(
-      `Unmatched staffing option(s) "${booking.staffingServices}"`,
-    );
   }
 
   return issues;
