@@ -6,6 +6,10 @@ import { FormContextLevel, Inputs, MediaServices } from "../../../../types";
 
 import { BookingContext } from "../bookingProvider";
 import { useTenantSchema } from "../../components/SchemaProvider";
+import {
+  getResourceServicesConfig,
+  isLegacyServicesArray,
+} from "../../../../utils/resourceServicesUtils";
 
 const Label = styled.label`
   font-weight: 500;
@@ -13,6 +17,28 @@ const Label = styled.label`
   line-height: 1.25rem;
   margin-bottom: 0.5rem;
 `;
+
+function roomOffersCampusMedia(room: {
+  roomId?: string;
+  resourceId?: string;
+  services?: unknown;
+}): boolean {
+  if (
+    isLegacyServicesArray(room.services as any) &&
+    (room.services as string[]).includes("campus-media")
+  ) {
+    return true;
+  }
+  // Object-config rooms (e.g. 202/1201) use static equipment copy that points
+  // requesters to Campus Media; keep the interactive checkbox available when
+  // staffing/media UI is shown for those rooms.
+  const id = String(room.resourceId ?? room.roomId ?? "");
+  const equipment = getResourceServicesConfig(room as any).equipment;
+  if (!equipment) return false;
+  if (id === "202" || id === "1201") return true;
+  const html = equipment.descriptionHtml ?? "";
+  return /campus\s*media/i.test(html);
+}
 
 interface Props {
   id: keyof Inputs;
@@ -58,7 +84,7 @@ export default function BookingFormMediaServices(props: Props) {
         if (room.roomId === "230") {
           options.push(MediaServices.AUDIO_TECH_230);
         }
-        if (room.services?.includes("campus-media")) {
+        if (roomOffersCampusMedia(room)) {
           options.push(MediaServices.CAMPUS_MEDIA_SERVICES);
         }
       }
@@ -112,7 +138,9 @@ export default function BookingFormMediaServices(props: Props) {
         <Controller
           name={id}
           control={control}
-          render={({ field }) => (
+          render={({ field }) => {
+            const value = typeof field.value === "string" ? field.value : "";
+            return (
             <div>
               {checkboxes.map((checkbox) => (
                 <FormControlLabel
@@ -121,11 +149,9 @@ export default function BookingFormMediaServices(props: Props) {
                   sx={{ display: "block" }}
                   control={
                     <Checkbox
-                      checked={field.value?.includes(checkbox) || false}
+                      checked={value.includes(checkbox)}
                       onChange={(e) => {
-                        const values = field.value
-                          ? field.value.split(", ")
-                          : [];
+                        const values = value ? value.split(", ") : [];
                         let newValue: string[];
                         if (e.target.checked) {
                           newValue = [...values, checkbox];
@@ -143,7 +169,8 @@ export default function BookingFormMediaServices(props: Props) {
                 />
               ))}
             </div>
-          )}
+            );
+          }}
         ></Controller>
       )}
     </div>

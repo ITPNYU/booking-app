@@ -3,6 +3,7 @@
  */
 
 import { TENANTS } from "../constants/tenants";
+import { isMcPassiveSetupDefault } from "@/lib/tenant/mcResourceServices";
 
 /**
  * NYU Identity API dept_code values that identify ITP / IMA / Low Res affiliated users.
@@ -85,19 +86,57 @@ export const getTenantFlags = (tenant?: string) => ({
   usesXState: shouldUseXState(tenant),
 });
 
+/** True when a service field is a non-empty value other than case-insensitive "no". */
+const isServiceRequested = (value: unknown): boolean => {
+  if (value == null) return false;
+  const normalized = String(value).trim().toLowerCase();
+  return normalized !== "" && normalized !== "no";
+};
+
+const isActiveSetupSelection = (value: unknown): boolean => {
+  if (!isServiceRequested(value)) return false;
+  const raw = String(value).trim();
+  // Layout ids that are schema defaults without chartfields do not require setup staff.
+  if (isMcPassiveSetupDefault(raw)) return false;
+  return true;
+};
+
 /**
  * Detect Media Commons service requests from booking data
  * This function provides consistent service detection logic across the application
  */
-export const getMediaCommonsServices = (data: any) => ({
-  staff:
-    !!data.staffingServicesDetails && data.staffingServicesDetails !== "no",
-  setup: !!data.setupDetails && data.setupDetails !== "no",
-  equipment:
-    (!!data.mediaServices && data.mediaServices !== "no") ||
-    (!!data.equipmentServices && data.equipmentServices !== "no") ||
-    (!!data.equipmentServicesDetails && data.equipmentServicesDetails !== "no"),
-  catering: !!data.catering && data.catering !== "no",
-  cleaning: !!data.cleaningService && data.cleaningService !== "no",
-  security: !!data.hireSecurity && data.hireSecurity !== "no",
-});
+export const getMediaCommonsServices = (data: any) => {
+  const byRoomValues = Object.values(data.roomSetupByRoom ?? {});
+  const setupFromByRoom = byRoomValues.some((v) => isActiveSetupSelection(v));
+  // Legacy scalars remain additive so mixed schema+generic multi-room bookings
+  // still surface a genuine setup request from co-selected non-schema rooms.
+  // Passive schema defaults mirrored into setupDetails are ignored via
+  // isActiveSetupSelection / isMcPassiveSetupDefault (value + label).
+  const setupFromLegacy =
+    isActiveSetupSelection(data.setupDetails) ||
+    (isServiceRequested(data.roomSetup) &&
+      String(data.roomSetup).trim().toLowerCase() !== "yes");
+  // Additional event furniture requires CBS/work-order review. Fold into setup
+  // so auto-approval is blocked and existing setup approvers are notified —
+  // there is no separate furnishings XState service yet.
+  const furnishingsRequested = Object.values(
+    data.furnishingsByRoom ?? {},
+  ).some((v: unknown) => isServiceRequested(v));
+
+  return {
+    staff:
+      isServiceRequested(data.staffingServices) ||
+      isServiceRequested(data.staffingServicesDetails),
+    setup: setupFromByRoom || setupFromLegacy || furnishingsRequested,
+    equipment:
+      isServiceRequested(data.mediaServices) ||
+      isServiceRequested(data.equipmentServices) ||
+      isServiceRequested(data.equipmentServicesDetails) ||
+      Object.values(data.equipmentServicesDetailsByRoom ?? {}).some(
+        (v: unknown) => isServiceRequested(v),
+      ),
+    catering: isServiceRequested(data.catering),
+    cleaning: isServiceRequested(data.cleaningService),
+    security: isServiceRequested(data.hireSecurity),
+  };
+};

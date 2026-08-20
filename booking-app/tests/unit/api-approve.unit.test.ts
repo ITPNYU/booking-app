@@ -17,6 +17,7 @@ vi.mock("@/components/src/server/admin", () => ({
 }));
 
 vi.mock("@/lib/firebase/server/adminDb", () => ({
+  logServerBookingChange: vi.fn(),
   serverGetDataByCalendarEventId: vi.fn(),
   serverFetchAllDataFromCollection: vi.fn(),
   serverGetFinalApproverEmail: vi.fn(),
@@ -53,6 +54,7 @@ import {
 } from "@/components/src/server/admin";
 import { executeXStateTransition } from "@/lib/stateMachines/xstateUtilsV5";
 import {
+  logServerBookingChange,
   serverFetchAllDataFromCollection,
   serverGetFinalApproverEmail,
   serverGetDataByCalendarEventId,
@@ -86,6 +88,7 @@ const mockServerBookingContents = vi.mocked(serverBookingContents);
 const mockServerGetDataByCalendarEventId = vi.mocked(
   serverGetDataByCalendarEventId,
 );
+const mockLogServerBookingChange = vi.mocked(logServerBookingChange);
 const mockServerFetchAllDataFromCollection = vi.mocked(
   serverFetchAllDataFromCollection,
 );
@@ -518,9 +521,17 @@ describe("POST /api/approve", () => {
       ) as any,
     );
 
-    expect(mockFetch).toHaveBeenCalledWith(
+    expect(mockLogServerBookingChange).toHaveBeenCalledWith({
+      bookingId: "booking-db-id",
+      calendarEventId: bookingId,
+      status: "PRE-APPROVED",
+      changedBy: sessionEmail,
+      requestNumber: 42,
+      tenant: "itp",
+    });
+    expect(mockFetch).not.toHaveBeenCalledWith(
       "https://booking.test/api/booking-logs",
-      expect.objectContaining({ method: "POST" }),
+      expect.anything(),
     );
 
     await expect(parseJson(response)).resolves.toEqual({

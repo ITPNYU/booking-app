@@ -24,6 +24,7 @@ import {
   BookingRow,
   PageContextLevel,
   PagePermission,
+  StaffingServices,
 } from "../../../../types";
 import {
   canAccessWebCheckout,
@@ -36,6 +37,26 @@ import useSortBookingHistory from "../../hooks/useSortBookingHistory";
 import { DatabaseContext } from "../Provider";
 import { default as CustomTable } from "../Table";
 import StackedTableCell from "./StackedTableCell";
+import { getStaffingServiceLabel } from "@/lib/tenant/mcResourceServices";
+import { formatAnnexByRoomForDisplay } from "@/components/src/utils/resourceServicesUtils";
+
+function formatStaffingServiceDisplay(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) return trimmed;
+  if (trimmed in StaffingServices) {
+    return StaffingServices[trimmed as keyof typeof StaffingServices];
+  }
+  return getStaffingServiceLabel(trimmed);
+}
+
+function hasAnnexSelections(
+  annexByRoom: Record<string, string[]> | undefined,
+): boolean {
+  if (!annexByRoom || typeof annexByRoom !== "object") return false;
+  return Object.values(annexByRoom).some(
+    (values) => Array.isArray(values) && values.length > 0,
+  );
+}
 
 interface Props {
   booking: BookingRow;
@@ -109,7 +130,14 @@ export default function MoreInfoModal({
     schema.form.services.showEquipment ||
     schema.form.services.showStaffing ||
     schema.form.services.showCatering ||
-    schema.form.services.showSecurity;
+    schema.form.services.showSecurity ||
+    Boolean(
+      booking.furnishingsByRoom &&
+        Object.values(booking.furnishingsByRoom).some(
+          (v) => typeof v === "string" && v.toLowerCase() === "yes",
+        ),
+    ) ||
+    hasAnnexSelections(booking.annexByRoom);
 
   const [isEditingCart, setIsEditingCart] = useState(false);
   const [cartNumber, setCartNumber] = useState(
@@ -631,6 +659,57 @@ export default function MoreInfoModal({
                         bottomText={booking.chartFieldForRoomSetup || "none"}
                       />
                     </TableRow>
+                    {booking.furnishingsByRoom &&
+                      Object.entries(booking.furnishingsByRoom).some(
+                        ([, v]) =>
+                          typeof v === "string" && v.toLowerCase() === "yes",
+                      ) && (
+                        <TableRow>
+                          <LabelCell>Additional Event Furniture</LabelCell>
+                          <StackedTableCell
+                            topText={
+                              [
+                                Object.entries(booking.furnishingsByRoom)
+                                  .filter(
+                                    ([, v]) =>
+                                      typeof v === "string" &&
+                                      v.toLowerCase() === "yes",
+                                  )
+                                  .map(([roomId]) => roomId)
+                                  .join(", "),
+                                booking.furnishingsDetails?.trim()
+                                  ? booking.furnishingsDetails.trim()
+                                  : null,
+                              ]
+                                .filter(Boolean)
+                                .join(" — ")
+                            }
+                            bottomText={
+                              Object.entries(
+                                booking.chartFieldForFurnishingsByRoom ?? {},
+                              )
+                                .filter(([roomId]) =>
+                                  booking.furnishingsByRoom?.[roomId] === "yes",
+                                )
+                                .map(
+                                  ([roomId, chart]) => `${roomId}: ${chart}`,
+                                )
+                                .join("; ") || "none"
+                            }
+                          />
+                        </TableRow>
+                      )}
+                    {hasAnnexSelections(booking.annexByRoom) && (
+                      <TableRow>
+                        <LabelCell>Auxiliary Spaces</LabelCell>
+                        <TableCell>
+                          {formatAnnexByRoomForDisplay(
+                            booking.annexByRoom,
+                            schema.resources,
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    )}
                     {booking.equipmentServices &&
                       booking.equipmentServices.length > 0 && (
                         <TableRow>
@@ -651,9 +730,13 @@ export default function MoreInfoModal({
                           <LabelCell>Staffing Service</LabelCell>
                           <TableCell>
                             {booking.staffingServices
-                              .split(", ")
+                              .split(",")
+                              .map((service) => service.trim())
+                              .filter(Boolean)
                               .map((service) => (
-                                <p key={service}>{service.trim()}</p>
+                                <p key={service}>
+                                  {formatStaffingServiceDisplay(service)}
+                                </p>
                               ))}
                             <p>{booking.staffingServicesDetails || ""}</p>
                           </TableCell>
@@ -679,8 +762,12 @@ export default function MoreInfoModal({
                         <LabelCell>Catering Service</LabelCell>
                         <StackedTableCell
                           topText={
-                            booking.cateringService ||
-                            (booking.catering === "yes" ? "Yes" : "")
+                            booking.cateringService &&
+                            booking.cateringService !== "yes"
+                              ? booking.cateringService
+                              : booking.catering === "yes"
+                                ? "Yes"
+                                : ""
                           }
                           bottomText={booking.chartFieldForCatering || ""}
                         />
@@ -699,7 +786,15 @@ export default function MoreInfoModal({
                       <LabelCell>Security</LabelCell>
                       <StackedTableCell
                         topText={
-                          booking.hireSecurity === "yes" ? "Yes" : "none"
+                          booking.hireSecurity === "yes"
+                            ? "Yes"
+                            : booking.hireSecurity === "willoughby" ||
+                                booking.hireSecurity ===
+                                  "Willoughby Street Entrance"
+                              ? "Willoughby entrance"
+                              : booking.hireSecurity === "main_entrance"
+                                ? "Main entrance"
+                                : booking.hireSecurity || "none"
                         }
                         bottomText={booking.chartFieldForSecurity || "none"}
                       />

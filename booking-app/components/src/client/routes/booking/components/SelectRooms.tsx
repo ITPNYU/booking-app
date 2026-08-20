@@ -1,4 +1,4 @@
-import { Checkbox, FormControlLabel, FormGroup, Tooltip } from "@mui/material";
+import { Box, Checkbox, FormControlLabel, FormGroup, Tooltip } from "@mui/material";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
 import dayjs from "dayjs";
@@ -7,6 +7,8 @@ import { FormContextLevel, RoomSetting } from "../../../../types";
 
 import { ConfirmDialogControlled } from "../../components/ConfirmDialog";
 import { useTenantSchema } from "../../components/SchemaProvider";
+import { getAnnexOptions } from "../../../../utils/resourceServicesUtils";
+import { canRequestAuxiliarySpaces } from "../../../../utils/roleUtils";
 import { BookingContext } from "../bookingProvider";
 import { useBookingDateRestrictions } from "../hooks/useBookingDateRestrictions";
 
@@ -29,12 +31,18 @@ export const SelectRooms = ({
     setHasShownMocapModal,
     bookingCalendarInfo,
     setBookingCalendarInfo,
+    role,
+    annexByRoom,
+    setAnnexByRoom,
   } = useContext(BookingContext);
   const { isBookingTimeInBlackout } = useBookingDateRestrictions();
   const { resources, calendarConfig } = useTenantSchema();
   const selectedIds = selected.map((room) => String(room.roomId));
+  // Fall back to the schema default (false) to match generateDefaultSchema;
+  // tenants that set the field explicitly are unaffected.
   const allowMultipleResourceSelect =
-    calendarConfig?.multipleResourceSelect ?? true;
+    calendarConfig?.multipleResourceSelect ?? false;
+  const showAnnex = canRequestAuxiliarySpaces(role);
 
   // Sort rooms by room number for consistent display order
   const sortedRooms = useMemo(
@@ -131,26 +139,48 @@ export const SelectRooms = ({
     return "Walk-in bookings are limited to 1 room or 2 connected ballroom bays";
   };
 
+  const clearAnnexForRoom = (roomId: string) => {
+    setAnnexByRoom((prev) => {
+      if (!(roomId in prev)) return prev;
+      const next = { ...prev };
+      delete next[roomId];
+      return next;
+    });
+  };
+
   const handleCheckChange = (e: any, room: RoomSetting) => {
     const newVal: boolean = e.target.checked;
     const normalizedRoom = { ...room, roomId: String(room.roomId) };
-    setSelected((prev: RoomSetting[]) => {
-      if (newVal) {
-        if (
-          !allowMultipleResourceSelect &&
-          prev.length > 0 &&
-          !prev.some((r) => String(r.roomId) === normalizedRoom.roomId)
-        ) {
+
+    if (newVal) {
+      if (
+        !allowMultipleResourceSelect &&
+        selected.length > 0 &&
+        !selected.some((r) => String(r.roomId) === normalizedRoom.roomId)
+      ) {
+        return;
+      }
+
+      if (!allowMultipleResourceSelect) {
+        // Replace selection: drop annex for any previously selected parents.
+        setAnnexByRoom({});
+      }
+
+      setSelected((prev: RoomSetting[]) => {
+        if (prev.some((r) => String(r.roomId) === normalizedRoom.roomId)) {
           return prev;
         }
-
-        const newSelection = [...prev, normalizedRoom].sort((a, b) =>
+        return [...prev, normalizedRoom].sort((a, b) =>
           String(a.roomId).localeCompare(String(b.roomId), undefined, {
             numeric: true,
           }),
         );
-        return newSelection;
-      }
+      });
+      return;
+    }
+
+    clearAnnexForRoom(normalizedRoom.roomId);
+    setSelected((prev: RoomSetting[]) => {
       const newSelection = prev.filter(
         (r) => String(r.roomId) !== normalizedRoom.roomId,
       );
@@ -161,18 +191,41 @@ export const SelectRooms = ({
     });
   };
 
+  const handleAnnexChange = (
+    parentRoomId: string,
+    optionValue: string,
+    checked: boolean,
+  ) => {
+    setAnnexByRoom((prev) => {
+      const current = prev[parentRoomId] ?? [];
+      const nextValues = checked
+        ? current.includes(optionValue)
+          ? current
+          : [...current, optionValue]
+        : current.filter((v) => v !== optionValue);
+      if (nextValues.length === 0) {
+        const next = { ...prev };
+        delete next[parentRoomId];
+        return next;
+      }
+      return { ...prev, [parentRoomId]: nextValues };
+    });
+  };
+
   return (
     <FormGroup>
       {sortedRooms.map((room: RoomSetting) => {
         const roomId = String(room.roomId);
         const disabled = isDisabled(roomId);
         const disabledReason = getDisabledReason(roomId);
+        const isSelected = selectedIds.includes(roomId);
+        const annexOptions = showAnnex && isSelected ? getAnnexOptions(room) : [];
 
         const checkbox = (
           <FormControlLabel
             control={
               <Checkbox
-                checked={selectedIds.includes(roomId)}
+                checked={isSelected}
                 onChange={(e) => handleCheckChange(e, room)}
                 icon={
                   allowMultipleResourceSelect ? undefined : (
@@ -200,12 +253,53 @@ export const SelectRooms = ({
           />
         );
 
-        return disabledReason ? (
-          <Tooltip title={disabledReason} key={room.name}>
-            <span>{checkbox}</span>
-          </Tooltip>
-        ) : (
-          checkbox
+        return (
+          <Box key={room.name}>
+            {disabledReason ? (
+              <Tooltip title={disabledReason}>
+                <span>{checkbox}</span>
+              </Tooltip>
+            ) : (
+              checkbox
+            )}
+            {annexOptions.length > 0 && (
+              <Box
+                sx={{ pl: 3, display: "flex", flexDirection: "column" }}
+                data-testid={`annex-options-${roomId}`}
+              >
+                {annexOptions.map((option) => (
+                  <FormControlLabel
+                    key={option.value}
+                    control={
+                      <Checkbox
+                        size="small"
+                        checked={(annexByRoom[roomId] ?? []).includes(
+                          option.value,
+                        )}
+                        onChange={(e) =>
+                          handleAnnexChange(
+                            roomId,
+                            option.value,
+                            e.target.checked,
+                          )
+                        }
+                        inputProps={{
+                          "aria-label": option.label,
+                        }}
+                        data-testid={`annex-option-${option.value}`}
+                      />
+                    }
+                    label={option.label}
+                    sx={{
+                      "& .MuiFormControlLabel-label": {
+                        fontSize: "0.9rem",
+                      },
+                    }}
+                  />
+                ))}
+              </Box>
+            )}
+          </Box>
         );
       })}
       <ConfirmDialogControlled

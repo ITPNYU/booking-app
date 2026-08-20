@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import type React from "react";
 
 import { DateSelectArg } from "@fullcalendar/core";
 import dayjs from "dayjs";
@@ -33,12 +34,15 @@ export interface BookingContextType {
   setViewDate: (x: Date) => void;
   role: Role | undefined;
   selectedRooms: RoomSetting[];
+  /** Selected auxiliary spaces keyed by parent room id. */
+  annexByRoom: Record<string, string[]>;
   setBookingCalendarInfo: (x: DateSelectArg) => void;
   setDepartment: (x: Department) => void;
   setFormData: (x: Inputs) => void;
   setHasShownMocapModal: (x: boolean) => void;
   setRole: (x: Role) => void;
   setSelectedRooms: (x: RoomSetting[]) => void;
+  setAnnexByRoom: React.Dispatch<React.SetStateAction<Record<string, string[]>>>;
   setSubmitting: (x: SubmitStatus) => void;
   submitting: SubmitStatus;
   fetchingStatus: "loading" | "loaded" | "error" | null;
@@ -61,12 +65,14 @@ export const BookingContext = createContext<BookingContextType>({
   setViewDate: (x: Date) => {},
   role: undefined,
   selectedRooms: [],
+  annexByRoom: {},
   setBookingCalendarInfo: (x: DateSelectArg) => {},
   setDepartment: (x: Department) => {},
   setFormData: (x: Inputs) => {},
   setHasShownMocapModal: (x: boolean) => {},
   setRole: (x: Role) => {},
   setSelectedRooms: (x: RoomSetting[]) => {},
+  setAnnexByRoom: () => {},
   setSubmitting: (x: SubmitStatus) => {},
   submitting: "none",
   fetchingStatus: null,
@@ -94,6 +100,7 @@ export function BookingProvider({ children }) {
   const [hasShownMocapModal, setHasShownMocapModal] = useState(false);
   const [role, setRole] = useState<Role>();
   const [selectedRooms, setSelectedRooms] = useState<RoomSetting[]>([]);
+  const [annexByRoom, setAnnexByRoom] = useState<Record<string, string[]>>({});
   const [submitting, setSubmitting] = useState<SubmitStatus>("error");
   const [viewDate, setViewDate] = useState<Date>(new Date());
   const {
@@ -198,12 +205,14 @@ export function BookingProvider({ children }) {
         isInBlackoutPeriod,
         role,
         selectedRooms,
+        annexByRoom,
         setBookingCalendarInfo,
         setDepartment,
         setFormData,
         setHasShownMocapModal,
         setRole,
         setSelectedRooms,
+        setAnnexByRoom,
         setSubmitting,
         submitting,
         fetchingStatus,

@@ -1,9 +1,30 @@
+import { bookingCalendarStrToDate } from "@/components/src/client/utils/date";
 import { getCalendarClient } from "@/lib/googleClient";
+import { getMcResourceServices, getStaffingServiceLabel } from "@/lib/tenant/mcResourceServices";
 import { traceExternalCall } from "@/lib/newrelic-utils";
-import { BookingFormDetails, BookingStatusLabel } from "../types";
+import {
+  BookingFormDetails,
+  BookingStatusLabel,
+  StaffingServices,
+} from "../types";
 import { formatOrigin, getSecondaryContactName } from "../utils/formatters";
+import { formatAnnexByRoomForDisplay } from "../utils/resourceServicesUtils";
 
 import { serverGetRoomCalendarIds } from "./admin";
+
+function formatStaffingServicesForDisplay(raw: string): string {
+  return raw
+    .split(",")
+    .map((service) => service.trim())
+    .filter(Boolean)
+    .map((service) => {
+      if (service in StaffingServices) {
+        return StaffingServices[service as keyof typeof StaffingServices];
+      }
+      return getStaffingServiceLabel(service);
+    })
+    .join(", ");
+}
 
 export const patchCalendarEvent = async (
   event: any,
@@ -187,6 +208,46 @@ export const bookingContentsToDescription = async (
       getProperty(bookingContents, "chartFieldForRoomSetup"),
     );
   }
+
+  // Read object maps directly — getProperty().toString() turns them into
+  // "[object Object]" and would skip this block.
+  const furnishingsByRoom = bookingContents.furnishingsByRoom as
+    | Record<string, string>
+    | undefined;
+  const furnishingsChartByRoom =
+    bookingContents.chartFieldForFurnishingsByRoom as
+      | Record<string, string>
+      | undefined;
+  if (furnishingsByRoom && typeof furnishingsByRoom === "object") {
+    const furnishingParts = Object.entries(furnishingsByRoom)
+      .filter(([, v]) => typeof v === "string" && v.toLowerCase() === "yes")
+      .map(([roomId]) => {
+        const chart = furnishingsChartByRoom?.[roomId];
+        return chart
+          ? `${roomId}: yes (chartfield: ${chart})`
+          : `${roomId}: yes`;
+      });
+    if (furnishingParts.length > 0) {
+      description += listItem(
+        "Additional Event Furniture",
+        furnishingParts.join("; "),
+      );
+      const furnishingsDetails = getProperty(
+        bookingContents,
+        "furnishingsDetails",
+      );
+      if (
+        furnishingsDetails &&
+        typeof furnishingsDetails === "string" &&
+        furnishingsDetails.trim()
+      ) {
+        description += listItem(
+          "Furniture request details",
+          furnishingsDetails.trim(),
+        );
+      }
+    }
+  }
   // Only show equipment service if it exists
   const equipmentServices = getProperty(bookingContents, "equipmentServices");
   if (equipmentServices) {
@@ -203,7 +264,10 @@ export const bookingContentsToDescription = async (
   // Only show staffing service if it exists
   const staffingServices = getProperty(bookingContents, "staffingServices");
   if (staffingServices) {
-    description += listItem("Staffing Service", staffingServices);
+    description += listItem(
+      "Staffing Service",
+      formatStaffingServicesForDisplay(String(staffingServices)),
+    );
     const staffingDetails = getProperty(
       bookingContents,
       "staffingServicesDetails",
@@ -220,11 +284,13 @@ export const bookingContentsToDescription = async (
   }
 
   // Only show catering service if it's not "no" or "No"
-  const cateringService =
+  const cateringValue =
     getProperty(bookingContents, "cateringService") ||
     getProperty(bookingContents, "catering");
-  if (cateringService && cateringService !== "no" && cateringService !== "No") {
-    description += listItem("Catering Service", cateringService);
+  if (cateringValue && cateringValue !== "no" && cateringValue !== "No") {
+    const cateringLabel =
+      cateringValue === "yes" ? "Yes" : cateringValue;
+    description += listItem("Catering Service", cateringLabel);
     const cateringChartField = getProperty(
       bookingContents,
       "chartFieldForCatering",
@@ -262,6 +328,18 @@ export const bookingContentsToDescription = async (
       description += listItem("Security Chart Field", securityChartField);
     }
   }
+
+  const annexByRoom = bookingContents.annexByRoom;
+  if (annexByRoom && typeof annexByRoom === "object") {
+    const annexRooms = Object.keys(annexByRoom).map((roomId) => ({
+      resourceId: roomId,
+      services: getMcResourceServices(roomId) ?? {},
+    }));
+    const annexDisplay = formatAnnexByRoomForDisplay(annexByRoom, annexRooms);
+    if (annexDisplay) {
+      description += listItem("Auxiliary Spaces", annexDisplay);
+    }
+  }
   description += "</ul>";
 
   description += "<h3>Cancellation Policy</h3>";
@@ -277,6 +355,12 @@ type InsertEventType = {
   endTime: string | number | Date;
   roomEmails: string[];
 };
+
+// Booking times arrive as client strings; offset-less ones are Eastern wall
+// times from stale bundles and must not be parsed in the host timezone.
+const toEventInstant = (time: string | number | Date): Date =>
+  typeof time === "string" ? bookingCalendarStrToDate(time) : new Date(time);
+
 export const insertEvent = async ({
   calendarId,
   title,
@@ -286,27 +370,45 @@ export const insertEvent = async ({
   roomEmails,
 }: InsertEventType) => {
   const calendar = await getCalendarClient();
-  const event = await traceExternalCall(
-    "GoogleCalendar",
-    "events.insert",
-    () =>
-      calendar.events.insert({
-        calendarId,
-        sendUpdates: "all", // Send notifications to all attendees when calendar event is created
-        requestBody: {
-          summary: title,
-          description,
-          start: {
-            dateTime: new Date(startTime).toISOString(),
+  try {
+    const event = await traceExternalCall(
+      "GoogleCalendar",
+      "events.insert",
+      () =>
+        calendar.events.insert({
+          calendarId,
+          sendUpdates: "all", // Send notifications to all attendees when calendar event is created
+          requestBody: {
+            summary: title,
+            description,
+            start: {
+              dateTime: toEventInstant(startTime).toISOString(),
+            },
+            end: {
+              dateTime: toEventInstant(endTime).toISOString(),
+            },
+            attendees: roomEmails.map((email: string) => ({ email })),
           },
-          end: {
-            dateTime: new Date(endTime).toISOString(),
-          },
-          attendees: roomEmails.map((email: string) => ({ email })),
-        },
-      }),
-  );
-  return event.data;
+        }),
+    );
+    return event.data;
+  } catch (error: any) {
+    // Log the raw inputs and the Google error body; the generic gaxios
+    // "Bad Request" message alone is not actionable when this fails in prod
+    console.error("🚨 GOOGLE CALENDAR EVENT INSERT FAILED:", {
+      calendarId,
+      rawStartTime: String(startTime),
+      rawEndTime: String(endTime),
+      roomEmails,
+      titleLength: title?.length ?? 0,
+      descriptionLength: description?.length ?? 0,
+      googleStatus: error?.response?.status ?? error?.code,
+      googleError: JSON.stringify(
+        error?.response?.data ?? error?.errors ?? error?.message,
+      ),
+    });
+    throw error;
+  }
 };
 
 export const updateCalendarEvent = async (

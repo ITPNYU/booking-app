@@ -1,5 +1,6 @@
 import { Department, Inputs, Role } from "@/components/src/types";
 import { toBookingCalendarStr } from "@/components/src/client/utils/date";
+import { getServiceSectionConfig } from "@/components/src/utils/resourceServicesUtils";
 
 import { useContext } from "react";
 import { BookingContext } from "../../booking/bookingProvider";
@@ -12,6 +13,7 @@ export default function useExistingBooking() {
     setSelectedRooms,
     setBookingCalendarInfo,
     setFormData,
+    setAnnexByRoom,
   } = useContext(BookingContext);
   const { allBookings, roomSettings } = useContext(DatabaseContext);
 
@@ -31,6 +33,7 @@ export default function useExistingBooking() {
       roomIds.includes(roomSetting.roomId),
     );
     setSelectedRooms(rooms);
+    setAnnexByRoom(booking.annexByRoom ?? {});
 
     const start = booking.startDate.toDate();
     const end = booking.endDate.toDate();
@@ -49,6 +52,80 @@ export default function useExistingBooking() {
     // Explicitly pick only Inputs fields so non-form status/audit fields (Timestamps,
     // xstateData snapshots, service flags, etc.) are never stored in formData and
     // never trigger expensive deep-comparisons in watch().
+    const roomIdsForMaps = rooms.map((room) => String(room.roomId));
+
+    /**
+     * Convert a legacy flat string into a per-room map only when unambiguous.
+     * - Prefer existing maps.
+     * - If roomSettings have not loaded yet, keep flat legacy fields only.
+     * - Single target room: safe 1:1 mapping.
+     * - Multi-room: do not fan one legacy value onto every room.
+     */
+    const backfillPerRoomMap = (
+      existing: Record<string, string> | undefined,
+      legacyValue: string | undefined,
+      targetRoomIds: string[] = roomIdsForMaps,
+    ): Record<string, string> | undefined => {
+      if (existing && Object.keys(existing).length > 0) return existing;
+      if (!legacyValue) return existing;
+      if (!targetRoomIds.length) return existing;
+      if (targetRoomIds.length === 1) {
+        return { [targetRoomIds[0]]: legacyValue };
+      }
+      return existing;
+    };
+
+    const legacySetupRequested =
+      booking.roomSetup === "yes" ||
+      (!!booking.setupDetails && booking.setupDetails.trim().length > 0);
+
+    const setupTargetRooms = rooms.filter((room) => {
+      const cfg = getServiceSectionConfig(room, "setup");
+      return (
+        cfg?.mode === "radio" ||
+        cfg?.mode === "select" ||
+        cfg?.mode === "static" ||
+        !!cfg
+      );
+    });
+    const setupTargetIds = setupTargetRooms.map((room) => String(room.roomId));
+
+    const roomSetupByRoom =
+      booking.roomSetupByRoom &&
+      Object.keys(booking.roomSetupByRoom).length > 0
+        ? booking.roomSetupByRoom
+        : legacySetupRequested && setupTargetIds.length === 1
+          ? (() => {
+              const room = setupTargetRooms[0];
+              const id = String(room.roomId);
+              const cfg = getServiceSectionConfig(room, "setup");
+              if (
+                (cfg?.mode === "radio" || cfg?.mode === "select") &&
+                (cfg.options?.length ?? 0) > 0
+              ) {
+                const details = booking.setupDetails?.trim();
+                const match = cfg.options!.find(
+                  (o) =>
+                    o.value === details ||
+                    o.label === details ||
+                    o.value === booking.roomSetup,
+                );
+                // Do not silently substitute schema defaultValue — that can
+                // erase the requester's original selection when options were
+                // renamed after the booking was created. Keep legacy text in
+                // setupDetails and leave the by-room map unset for manual review.
+                if (match?.value) {
+                  return { [id]: match.value };
+                }
+                return undefined;
+              }
+              return {
+                [id]:
+                  booking.setupDetails?.trim() || booking.roomSetup || "yes",
+              };
+            })()
+          : booking.roomSetupByRoom;
+
     const formValues: Inputs = {
       firstName: booking.firstName,
       lastName: booking.lastName,
@@ -90,6 +167,31 @@ export default function useExistingBooking() {
       chartFieldForCleaning: booking.chartFieldForCleaning,
       chartFieldForSecurity: booking.chartFieldForSecurity,
       chartFieldForRoomSetup: booking.chartFieldForRoomSetup,
+      roomSetupByRoom,
+      setupDetailsByRoom: backfillPerRoomMap(
+        booking.setupDetailsByRoom,
+        booking.setupDetails,
+        setupTargetIds,
+      ),
+      chartFieldForRoomSetupByRoom: backfillPerRoomMap(
+        booking.chartFieldForRoomSetupByRoom,
+        booking.chartFieldForRoomSetup,
+        setupTargetIds,
+      ),
+      furnishingsByRoom: booking.furnishingsByRoom,
+      chartFieldForFurnishingsByRoom: booking.chartFieldForFurnishingsByRoom,
+      furnishingsDetails: booking.furnishingsDetails ?? "",
+      furnishingsDetailsByRoom: backfillPerRoomMap(
+        booking.furnishingsDetailsByRoom,
+        booking.furnishingsDetails,
+        roomIdsForMaps.length === 1 ? roomIdsForMaps : [],
+      ),
+      equipmentServicesDetailsByRoom: backfillPerRoomMap(
+        (booking as Inputs).equipmentServicesDetailsByRoom,
+        booking.equipmentServicesDetails,
+        roomIdsForMaps.length === 1 ? roomIdsForMaps : [],
+      ),
+      annexByRoom: booking.annexByRoom ?? {},
       webcheckoutCartNumber: booking.webcheckoutCartNumber,
       equipment: booking.equipment,
       staffing: booking.staffing,

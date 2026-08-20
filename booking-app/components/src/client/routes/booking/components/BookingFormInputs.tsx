@@ -19,7 +19,7 @@ import {
 import React, { cloneElement } from "react";
 
 import styled from "@emotion/styled";
-import { Inputs } from "../../../../types";
+import { Inputs, StringInputKeys } from "../../../../types";
 
 const Label = styled.label`
   font-weight: 500;
@@ -29,7 +29,7 @@ const Label = styled.label`
 `;
 
 interface Props {
-  id: keyof Inputs;
+  id: StringInputKeys;
   label: string;
   required?: boolean;
   control: Control<Inputs, any>;
@@ -79,6 +79,7 @@ export function BookingFormDropdown(props: DropdownInputs) {
           )}
           <Select
             {...field}
+            value={typeof field.value === "string" ? field.value : ""}
             id={id}
             aria-labelledby={`${id}-label`}
             inputProps={{ "aria-required": required }}
@@ -120,7 +121,9 @@ export function BookingFormDropdown(props: DropdownInputs) {
               </MenuItem>
             ))}
           </Select>
-          <FormHelperText>{errors[id]?.message}</FormHelperText>
+          <FormHelperText>
+            {typeof errors[id]?.message === "string" ? errors[id]?.message : ""}
+          </FormHelperText>
         </FormControl>
       )}
     ></Controller>
@@ -162,7 +165,7 @@ export function BookingFormTextField(props: TextFieldProps) {
       defaultValue=""
       rules={{
         required: required && `${label} is required`,
-        validate: (value) => {
+        validate: (value: string) => {
           // Check for whitespace-only values (applies to both required and optional fields)
           if (value && typeof value === "string" && value.trim().length === 0) {
             return `${label} cannot be empty whitespace`;

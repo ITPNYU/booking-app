@@ -2,9 +2,12 @@ import {
   ApproverLevel,
   TableNames,
   getResourceApproverDocumentId,
+  getServiceApproverDocumentId,
+  normalizeApproverEmail,
   getTenantCollectionName,
 } from "@/components/src/policy";
 import { Timestamp } from "firebase/firestore";
+import { getE2EOverride } from "@/lib/e2e/clientOverrides";
 
 import { reviveSerializedTimestamps } from "@/lib/utils/timestampWire";
 import { Filters } from "@/components/src/types";
@@ -13,6 +16,7 @@ import {
   USER_RIGHT_FLAG_FIELDS,
   type UserRightFlagField,
 } from "@/lib/firebase/userRightsConstants";
+import { wrapTimestamp } from "@/lib/api/firestoreShared";
 import type {
   GetDocRequest,
   ListRequest,
@@ -47,6 +51,14 @@ export const getTenantCollection = (
 export type AdminUserData = {
   email: string;
   createdAt: Timestamp;
+};
+
+export type ServiceApproverData = {
+  id: string;
+  resourceId: string;
+  service: string;
+  email: string;
+  createdAt?: Timestamp;
 };
 
 export type ResourceApproverData = {
@@ -179,6 +191,69 @@ export const clientSaveDataToFirestore = async (
   }
 };
 
+export const clientListServiceApprovers = async (
+  tenant?: string,
+): Promise<ServiceApproverData[]> => {
+  const docs = await clientFetchAllDataFromCollection<ServiceApproverData>(
+    TableNames.SERVICE_APPROVERS,
+    [],
+    tenant,
+  );
+  return docs.sort((a, b) => {
+    const resourceCompare = a.resourceId.localeCompare(b.resourceId);
+    if (resourceCompare !== 0) return resourceCompare;
+    const serviceCompare = a.service.localeCompare(b.service);
+    if (serviceCompare !== 0) return serviceCompare;
+    return a.email.localeCompare(b.email);
+  });
+};
+
+export const clientAddServiceApprover = async (
+  resourceId: string,
+  service: string,
+  email: string,
+  tenant?: string,
+) => {
+  const normalizedResourceId = resourceId.trim();
+  const normalizedService = service.trim();
+  const normalizedEmail = normalizeApproverEmail(email);
+  if (!normalizedResourceId || !normalizedService || !normalizedEmail) {
+    throw new Error("Resource, service, and email are required");
+  }
+  const docId = getServiceApproverDocumentId(
+    normalizedResourceId,
+    normalizedService,
+    normalizedEmail,
+  );
+  await postJson<MutateRequest>("/api/firestore/mutate", {
+    op: "set",
+    collection: TableNames.SERVICE_APPROVERS,
+    tenant: resolveTenantArg(tenant),
+    docId,
+    data: {
+      resourceId: normalizedResourceId,
+      service: normalizedService,
+      email: normalizedEmail,
+      createdAt: wrapTimestamp(Date.now()),
+    },
+  });
+};
+
+export const clientRemoveServiceApprover = async (
+  resourceId: string,
+  service: string,
+  email: string,
+  tenant?: string,
+) => {
+  const docId = getServiceApproverDocumentId(resourceId, service, email);
+  await postJson<MutateRequest>("/api/firestore/mutate", {
+    op: "delete",
+    collection: TableNames.SERVICE_APPROVERS,
+    tenant: resolveTenantArg(tenant),
+    docId,
+  });
+};
+
 export const clientSaveUserRightsData = async (
   collectionName: TableNames,
   data: object,
@@ -232,6 +307,8 @@ export const clientFetchAllDataFromCollection = async <T>(
   whereSpecs: WhereSpec[] = [],
   tenant?: string,
 ): Promise<T[]> => {
+  const override = getE2EOverride("clientFetchAllDataFromCollection");
+  if (override) return override(collectionName, whereSpecs, tenant);
   const { docs } = await postJson<
     ListRequest,
     { docs: Array<Record<string, unknown> & { id: string }> }
@@ -381,6 +458,9 @@ export const getPaginatedData = async <T>(
   lastVisible: Record<string, unknown> | null = null,
   tenant?: string,
 ): Promise<T[]> => {
+  const override = getE2EOverride("getPaginatedData");
+  if (override)
+    return override(collectionName, itemsPerPage, filters, lastVisible, tenant);
   // Convert Date values in filters.dateRange to ISO strings for the wire.
   const dateRange = Array.isArray(filters.dateRange)
     ? filters.dateRange.map((d: any) =>
@@ -452,6 +532,8 @@ export const clientGetDataByCalendarEventId = async <T>(
   calendarEventId: string,
   tenant?: string,
 ): Promise<(T & { id: string }) | null> => {
+  const override = getE2EOverride("clientGetDataByCalendarEventId");
+  if (override) return override(collectionName, calendarEventId, tenant);
   try {
     const { docs } = await postJson<
       ListRequest,

@@ -13,6 +13,7 @@ import { getMediaCommonsServices, isMediaCommons } from "@/components/src/utils/
 import { resolveCallerRole } from "@/lib/api/authz";
 import { requireSession } from "@/lib/api/requireSession";
 import {
+  logServerBookingChange,
   serverGetDataByCalendarEventId,
   serverGetFinalApproverEmail,
   serverListResourceApproversByEmail,
@@ -287,44 +288,24 @@ export async function POST(req: NextRequest) {
         }>(TableNames.BOOKING, id, tenant);
 
         if (doc) {
-          const logResponse = await fetch(
-            `${process.env.NEXT_PUBLIC_BASE_URL}/api/booking-logs`,
+          await logServerBookingChange({
+            bookingId: doc.id,
+            calendarEventId: id,
+            status: BookingStatusLabel.PRE_APPROVED,
+            changedBy: email,
+            requestNumber: doc.requestNumber,
+            tenant,
+          });
+
+          console.log(
+            `📋 XSTATE SERVICES REQUEST HISTORY LOGGED [${tenant?.toUpperCase()}]:`,
             {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                "x-tenant": tenant || DEFAULT_TENANT,
-              },
-              body: JSON.stringify({
-                bookingId: doc.id,
-                calendarEventId: id,
-                status: BookingStatusLabel.PRE_APPROVED, // Services Request is still PRE_APPROVED status
-                changedBy: email,
-                requestNumber: doc.requestNumber,
-                note: null,
-              }),
+              calendarEventId: id,
+              bookingId: doc.id,
+              requestNumber: doc.requestNumber,
+              status: BookingStatusLabel.PRE_APPROVED,
             },
           );
-
-          if (logResponse.ok) {
-            console.log(
-              `📋 XSTATE SERVICES REQUEST HISTORY LOGGED [${tenant?.toUpperCase()}]:`,
-              {
-                calendarEventId: id,
-                bookingId: doc.id,
-                requestNumber: doc.requestNumber,
-                status: BookingStatusLabel.PRE_APPROVED,
-              },
-            );
-          } else {
-            console.error(
-              `🚨 XSTATE SERVICES REQUEST HISTORY LOG FAILED [${tenant?.toUpperCase()}]:`,
-              {
-                calendarEventId: id,
-                status: logResponse.status,
-              },
-            );
-          }
 
           try {
             await notifyServiceApproversForRequestedServices(id, tenant);

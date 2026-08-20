@@ -95,38 +95,13 @@ export function serializeGenericRecord(record: any) {
 }
 
 /**
- * Registers an Object.defineProperty interceptor that forces `configurable: true`
- * on targeted webpack exports, allowing later overrides.
- * Must be called BEFORE the main mock initScript.
+ * Historical no-op. Overrides used to be injected by rewriting webpack module
+ * exports, which required forcing `configurable: true` on their property
+ * descriptors. The app now reads overrides straight off `window` (see
+ * lib/e2e/clientOverrides.ts), so no descriptor tampering is needed. Kept as
+ * an exported function so existing tests don't need to change.
  */
-export async function registerDefinePropertyInterceptor(page: Page) {
-  await page.addInitScript(() => {
-    const targetExports = new Set([
-      "clientGetDataByCalendarEventId",
-      "clientFetchAllDataFromCollection",
-      "getPaginatedData",
-    ]);
-    const origDefineProperty = Object.defineProperty;
-    Object.defineProperty = function (
-      obj: any,
-      prop: PropertyKey,
-      descriptor: PropertyDescriptor
-    ) {
-      if (
-        descriptor &&
-        descriptor.get &&
-        !descriptor.configurable &&
-        typeof prop === "string" &&
-        targetExports.has(prop)
-      ) {
-        descriptor = { ...descriptor, configurable: true };
-      }
-      return origDefineProperty.call(this, obj, prop, descriptor);
-    } as typeof Object.defineProperty;
-    Object.defineProperty.toString = () =>
-      "function defineProperty() { [native code] }";
-  });
-}
+export async function registerDefinePropertyInterceptor(_page: Page) {}
 
 /**
  * Checks if a table/collection name refers to bookings (not bookingTypes or bookingLogs).
@@ -141,12 +116,15 @@ export function isBookingsTable(normalizedTableName: string): boolean {
 }
 
 /**
- * Registers a webpack module patcher that overrides specified exports.
- * Each test should first set its override functions on `window` (e.g.
- * `window.clientFetchAllDataFromCollection = ...`) via addInitScript,
- * then call this helper to patch those overrides into webpack modules.
+ * Compatibility shim. Tests set their override functions on `window` (e.g.
+ * `window.clientFetchAllDataFromCollection = ...`) via addInitScript; the
+ * app's client fetchers consult `window.<exportName>` on every call in test
+ * builds (see lib/e2e/clientOverrides.ts), so the overrides are live the
+ * moment they are assigned — no bundler runtime patching required. This
+ * helper only keeps the `__applyMockBookingsOverrides` /
+ * `__isMockPatchApplied` window API that existing tests still invoke.
  *
- * @param exports - Names of window properties to patch into webpack modules.
+ * @param exports - Names of window properties tests intend to override.
  *   Defaults to ['clientFetchAllDataFromCollection'].
  */
 export async function registerWebpackPatcher(
@@ -158,84 +136,11 @@ export async function registerWebpackPatcher(
   ];
 
   await page.addInitScript((exportNames: string[]) => {
-    const buildOverrideMap = (): Record<string, Function> => {
-      const map: Record<string, Function> = {};
-      for (const name of exportNames) {
-        if (typeof (window as any)[name] === "function") {
-          map[name] = (window as any)[name];
-        }
-      }
-      return map;
-    };
-
-    const patchWebpackModules = () => {
-      const overrideMap = buildOverrideMap();
-      if (Object.keys(overrideMap).length === 0) return false;
-
-      const chunk = (window as any).webpackChunk_N_E;
-      if (!chunk) return false;
-      let wpRequire: any;
-      try {
-        chunk.push([
-          ["__e2e_patch_" + Date.now()],
-          {},
-          (req: any) => {
-            wpRequire = req;
-          },
-        ]);
-      } catch (_) {
-        return false;
-      }
-      if (!wpRequire?.c) return false;
-      let patched = false;
-      Object.values(wpRequire.c).forEach((mod: any) => {
-        if (
-          mod?.exports &&
-          typeof mod.exports === "object" &&
-          mod.exports !== null
-        ) {
-          for (const [key, fn] of Object.entries(overrideMap)) {
-            if (key in mod.exports && fn) {
-              try {
-                Object.defineProperty(mod.exports, key, {
-                  value: fn,
-                  writable: true,
-                  configurable: true,
-                  enumerable: true,
-                });
-                patched = true;
-              } catch (_) {
-                try {
-                  mod.exports[key] = fn;
-                  patched = true;
-                } catch (_) {}
-              }
-            }
-          }
-        }
-      });
-      return patched;
-    };
-
-    let patchSucceeded = false;
-
-    const _earlyPatchId = setInterval(() => {
-      try {
-        if (patchWebpackModules()) {
-          patchSucceeded = true;
-          clearInterval(_earlyPatchId);
-        }
-      } catch (_) {}
-    }, 50);
-    setTimeout(() => clearInterval(_earlyPatchId), 30000);
-
-    (window as any).__applyMockBookingsOverrides = () => {
-      try {
-        if (patchWebpackModules()) patchSucceeded = true;
-      } catch (_) {}
-    };
-
-    (window as any).__isMockPatchApplied = () => patchSucceeded;
+    (window as any).__applyMockBookingsOverrides = () => {};
+    (window as any).__isMockPatchApplied = () =>
+      exportNames.some(
+        (name) => typeof (window as any)[name] === "function",
+      );
   }, exportNames);
 }
 
@@ -501,99 +406,23 @@ export async function registerMockBookingsFeed(
         };
       };
 
-      const overrideMap: Record<string, Function | undefined> = {
-        clientFetchAllDataFromCollection: (window as any)
-          .clientFetchAllDataFromCollection,
-        getPaginatedData: (window as any).getPaginatedData,
-        clientGetDataByCalendarEventId: async (
-          _tableName: any,
-          calendarEventId: string,
-          _tenant?: string
-        ) => {
-          return await overrideClientGetDataById(calendarEventId);
-        },
+      // The app's client fetchers (lib/firebase/firebase.ts) consult
+      // `window.<exportName>` on every call in test builds via
+      // getE2EOverride, so exposing the override here is all that's needed —
+      // no bundler runtime patching.
+      (window as any).clientGetDataByCalendarEventId = async (
+        _tableName: any,
+        calendarEventId: string,
+        _tenant?: string
+      ) => {
+        return await overrideClientGetDataById(calendarEventId);
       };
 
-      const patchWebpackModules = () => {
-        const chunk = (window as any).webpackChunk_N_E;
-        if (!chunk) return false;
-
-        let wpRequire: any;
-        try {
-          chunk.push([
-            ["__e2e_mock_" + Date.now()],
-            {},
-            (req: any) => {
-              wpRequire = req;
-            },
-          ]);
-        } catch (_) {
-          return false;
-        }
-
-        if (!wpRequire?.c) return false;
-
-        let patched = false;
-        Object.values(wpRequire.c).forEach((mod: any) => {
-          if (
-            mod?.exports &&
-            typeof mod.exports === "object" &&
-            mod.exports !== null
-          ) {
-            for (const [key, fn] of Object.entries(overrideMap)) {
-              if (key in mod.exports && fn) {
-                try {
-                  Object.defineProperty(mod.exports, key, {
-                    value: fn,
-                    writable: true,
-                    configurable: true,
-                    enumerable: true,
-                  });
-                  patched = true;
-                } catch (_) {
-                  try {
-                    mod.exports[key] = fn;
-                    patched = true;
-                  } catch (_) {}
-                }
-              }
-            }
-          }
-        });
-        return patched;
-      };
-
-      let patchSucceeded = false;
-
-      const _earlyPatchId = setInterval(() => {
-        try {
-          if (patchWebpackModules()) {
-            patchSucceeded = true;
-            clearInterval(_earlyPatchId);
-          }
-        } catch (_) {}
-      }, 50);
-      setTimeout(() => clearInterval(_earlyPatchId), 30000);
-
-      try {
-        if (patchWebpackModules()) {
-          patchSucceeded = true;
-        }
-      } catch (_err) {
-        // ignore sync errors
-      }
-
-      (window as any).__applyMockBookingsOverrides = () => {
-        try {
-          if (patchWebpackModules()) {
-            patchSucceeded = true;
-          }
-        } catch (_err) {
-          // ignore sync errors
-        }
-      };
-
-      (window as any).__isMockPatchApplied = () => patchSucceeded;
+      // Back-compat shims: overrides now take effect as soon as they are set
+      // on window, but older tests still invoke these before acting.
+      (window as any).__applyMockBookingsOverrides = () => {};
+      (window as any).__isMockPatchApplied = () =>
+        typeof (window as any).clientFetchAllDataFromCollection === "function";
     },
     {
       timestampFields: TIMESTAMP_FIELDS_WITH_BY,
