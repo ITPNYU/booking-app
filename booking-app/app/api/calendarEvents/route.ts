@@ -10,11 +10,19 @@ import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
 import { serverBookingContents } from "@/components/src/server/admin";
 import { Booking } from "@/components/src/types";
 import { getCachedBookings } from "@/lib/bookingsCache";
-import { getCachedRawCalendarEvents } from "@/lib/calendarEventsCache";
+import {
+  getCachedRawCalendarEvents,
+  invalidateCalendarEventsCache,
+} from "@/lib/calendarEventsCache";
 
 // Default range when the caller does not pass start/end. The client always
 // sends the visible window; this is only a fallback for ad-hoc callers.
 const DEFAULT_RANGE_MONTHS = 3;
+
+// Upper bound on a requested window. The client asks for ~1.5 months; anything
+// much larger (malformed caller, or someone probing the API) would reintroduce
+// the multi-month fetches this endpoint was saturating on.
+const MAX_RANGE_MONTHS = 6;
 
 const getCalendarEvents = async (
   calendarId: string,
@@ -90,6 +98,10 @@ export async function POST(request: NextRequest) {
       roomEmails,
     });
 
+    // Drop this calendar's cached ranges so other viewers on this instance see
+    // the new event on their next fetch instead of pre-mutation cached data.
+    invalidateCalendarEventsCache(calendarId);
+
     return NextResponse.json({ calendarEventId: event.id }, { status: 200 });
   } catch (error) {
     console.error("Error adding event to calendar:", error);
@@ -116,16 +128,36 @@ export async function GET(req: NextRequest) {
   // inserting a new entry per request.
   const startParam = searchParams.get("start");
   const endParam = searchParams.get("end");
+  if (
+    (startParam && isNaN(Date.parse(startParam))) ||
+    (endParam && isNaN(Date.parse(endParam)))
+  ) {
+    return NextResponse.json(
+      { error: "Invalid start/end date" },
+      { status: 400 },
+    );
+  }
   const startOfToday = new Date();
   startOfToday.setHours(0, 0, 0, 0);
-  const timeMin = startParam || startOfToday.toISOString();
-  const timeMax =
-    endParam ||
-    (() => {
-      const d = new Date(startOfToday);
-      d.setMonth(d.getMonth() + DEFAULT_RANGE_MONTHS);
-      return d.toISOString();
-    })();
+  const start = startParam ? new Date(startParam) : startOfToday;
+  const end = endParam
+    ? new Date(endParam)
+    : (() => {
+        const d = new Date(startOfToday);
+        d.setMonth(d.getMonth() + DEFAULT_RANGE_MONTHS);
+        return d;
+      })();
+  if (end <= start) {
+    return NextResponse.json(
+      { error: "end must be after start" },
+      { status: 400 },
+    );
+  }
+  // Clamp oversized windows instead of erroring so a stale client still works.
+  const maxEnd = new Date(start);
+  maxEnd.setMonth(maxEnd.getMonth() + MAX_RANGE_MONTHS);
+  const timeMin = start.toISOString();
+  const timeMax = (end > maxEnd ? maxEnd : end).toISOString();
   // `fresh=1` bypasses the calendar cache (used right after a booking changes).
   const fresh = searchParams.get("fresh") === "1";
 
@@ -208,6 +240,9 @@ export async function PUT(req: NextRequest) {
   try {
     const contents = await serverBookingContents(calendarEventId, tenant);
     await updateCalendarEvent(calendarEventId, newValues, contents, tenant);
+    // The request carries no calendarId, so drop the whole cache. PUTs are
+    // rare (approve/cancel-style title updates), so this is cheap.
+    invalidateCalendarEventsCache();
     return NextResponse.json(
       { message: "Event updated successfully" },
       { status: 200 },
@@ -231,6 +266,7 @@ export async function DELETE(req: NextRequest) {
   }
   try {
     await deleteEvent(calendarId, calendarEventId);
+    invalidateCalendarEventsCache(calendarId);
     return NextResponse.json(
       { message: "Event deleted successfully" },
       { status: 200 },

@@ -36,11 +36,11 @@ export default function fetchCalendarEvents(
   // The fetched window only depends on the viewed month, not the exact day, so
   // navigating day-to-day within a month does not change these and does not
   // trigger a refetch.
-  const windowKey = `${viewDate.getFullYear()}-${viewDate.getMonth()}`;
+  const viewYear = viewDate.getFullYear();
+  const viewMonth = viewDate.getMonth();
   const { start: windowStart, end: windowEnd } = useMemo(
-    () => monthWindow(viewDate),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [windowKey],
+    () => monthWindow(new Date(viewYear, viewMonth, 1)),
+    [viewYear, viewMonth],
   );
 
   const mapEventsForRoom = useCallback(

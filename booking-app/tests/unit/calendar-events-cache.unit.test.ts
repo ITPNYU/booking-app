@@ -10,6 +10,7 @@ vi.mock("@/lib/googleClient", () => ({
 
 import {
   getCachedRawCalendarEvents,
+  invalidateCalendarEventsCache,
   _getCalendarEventsCacheSizeForTesting,
   _resetCalendarEventsCacheForTesting,
 } from "@/lib/calendarEventsCache";
@@ -112,6 +113,83 @@ describe("calendarEventsCache", () => {
       "2026-02-01T00:00:00Z",
     );
     expect(listMock.mock.calls.length).toBe(callsBefore + 1);
+  });
+
+  it("serves stale data immediately and refreshes in the background", async () => {
+    vi.useFakeTimers();
+    try {
+      listMock.mockResolvedValueOnce(oncePage([{ id: "old" }]));
+      await getCachedRawCalendarEvents("cal1", ...RANGE);
+
+      // Past the TTL: the stale entry is returned without awaiting Google.
+      vi.advanceTimersByTime(61_000);
+      listMock.mockResolvedValueOnce(oncePage([{ id: "new" }]));
+      const stale = await getCachedRawCalendarEvents("cal1", ...RANGE);
+      expect(stale).toEqual([{ id: "old" }]);
+      expect(listMock).toHaveBeenCalledTimes(2); // background refresh started
+
+      // Once the background refresh settles, the cache holds the new data.
+      await vi.runAllTimersAsync();
+      const after = await getCachedRawCalendarEvents("cal1", ...RANGE);
+      expect(after).toEqual([{ id: "new" }]);
+      expect(listMock).toHaveBeenCalledTimes(2); // served from refreshed cache
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("fresh=true does not reuse an in-flight fetch started earlier", async () => {
+    // A slow fetch is already in flight (e.g. started before a mutation)...
+    let resolveOld: (v: any) => void;
+    listMock.mockReturnValueOnce(
+      new Promise((r) => {
+        resolveOld = r;
+      }),
+    );
+    const oldFetch = getCachedRawCalendarEvents("cal1", ...RANGE);
+
+    // ...so a fresh caller must trigger its own upstream fetch, not join it.
+    listMock.mockResolvedValueOnce(oncePage([{ id: "post-mutation" }]));
+    const freshData = await getCachedRawCalendarEvents("cal1", ...RANGE, {
+      fresh: true,
+    });
+    expect(freshData).toEqual([{ id: "post-mutation" }]);
+    expect(listMock).toHaveBeenCalledTimes(2);
+
+    // The superseded fetch resolving late must not clobber the newer data.
+    resolveOld!(oncePage([{ id: "pre-mutation" }]));
+    await oldFetch;
+    const cached = await getCachedRawCalendarEvents("cal1", ...RANGE);
+    expect(cached).toEqual([{ id: "post-mutation" }]);
+    expect(listMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("invalidates a single calendar's entries, leaving others cached", async () => {
+    listMock
+      .mockResolvedValueOnce(oncePage([{ id: "a" }]))
+      .mockResolvedValueOnce(oncePage([{ id: "b" }]));
+    await getCachedRawCalendarEvents("cal1", ...RANGE);
+    await getCachedRawCalendarEvents("cal2", ...RANGE);
+
+    invalidateCalendarEventsCache("cal1");
+
+    listMock.mockResolvedValueOnce(oncePage([{ id: "a2" }]));
+    const cal1 = await getCachedRawCalendarEvents("cal1", ...RANGE);
+    const cal2 = await getCachedRawCalendarEvents("cal2", ...RANGE);
+    expect(cal1).toEqual([{ id: "a2" }]); // refetched
+    expect(cal2).toEqual([{ id: "b" }]); // still cached
+    expect(listMock).toHaveBeenCalledTimes(3);
+  });
+
+  it("invalidates everything when no calendarId is given", async () => {
+    listMock
+      .mockResolvedValueOnce(oncePage([{ id: "a" }]))
+      .mockResolvedValueOnce(oncePage([{ id: "b" }]));
+    await getCachedRawCalendarEvents("cal1", ...RANGE);
+    await getCachedRawCalendarEvents("cal2", ...RANGE);
+
+    invalidateCalendarEventsCache();
+    expect(_getCalendarEventsCacheSizeForTesting()).toBe(0);
   });
 
   it("paginates via nextPageToken", async () => {

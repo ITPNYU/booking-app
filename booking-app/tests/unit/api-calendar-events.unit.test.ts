@@ -162,6 +162,64 @@ describe("/api/calendarEvents", () => {
       });
       expect(mockGetCalendarClient).not.toHaveBeenCalled();
     });
+
+    it("rejects an unparseable start/end with 400", async () => {
+      const request = {
+        url: "https://example.com/api/calendarEvents?calendarId=cal-1&start=not-a-date",
+        headers: new Headers(),
+      } as any;
+
+      const response = await GET(request);
+
+      expect(response.status).toBe(400);
+      await expect(response.json()).resolves.toEqual({
+        error: "Invalid start/end date",
+      });
+      expect(mockGetCalendarClient).not.toHaveBeenCalled();
+    });
+
+    it("rejects end <= start with 400", async () => {
+      const request = {
+        url:
+          "https://example.com/api/calendarEvents?calendarId=cal-1" +
+          "&start=2026-09-01T00:00:00Z&end=2026-08-01T00:00:00Z",
+        headers: new Headers(),
+      } as any;
+
+      const response = await GET(request);
+
+      expect(response.status).toBe(400);
+      await expect(response.json()).resolves.toEqual({
+        error: "end must be after start",
+      });
+      expect(mockGetCalendarClient).not.toHaveBeenCalled();
+    });
+
+    it("clamps an oversized window to the maximum range", async () => {
+      const listMock = stubCalendarClient([]);
+      mockServerFetchAllDataFromCollection.mockResolvedValueOnce([]);
+
+      // A 5-year window (e.g. a probing caller) must not reach Google as-is.
+      const request = {
+        url:
+          "https://example.com/api/calendarEvents?calendarId=cal-1" +
+          "&start=2026-09-01T00:00:00Z&end=2031-09-01T00:00:00Z",
+        headers: new Headers(),
+      } as any;
+
+      const response = await GET(request);
+      expect(response.status).toBe(200);
+
+      const { timeMin, timeMax } = listMock.mock.calls[0][0];
+      expect(timeMin).toBe("2026-09-01T00:00:00.000Z");
+      // Clamped to ~6 months after start (setMonth is local-time based, so
+      // assert on the span rather than an exact instant), far below the
+      // requested 5 years.
+      const spanDays =
+        (Date.parse(timeMax) - Date.parse(timeMin)) / 86_400_000;
+      expect(spanDays).toBeGreaterThan(150);
+      expect(spanDays).toBeLessThan(190);
+    });
   });
 
   describe("POST", () => {
@@ -202,6 +260,23 @@ describe("/api/calendarEvents", () => {
         error: "Missing required fields",
       });
       expect(mockInsertEvent).not.toHaveBeenCalled();
+    });
+
+    it("invalidates the events cache so a following GET refetches", async () => {
+      const listMock = stubCalendarClient([]);
+      mockServerFetchAllDataFromCollection.mockResolvedValue([]);
+
+      // Warm the cache for this calendar…
+      await GET(makeGETRequest("gmail-calendar", "tenant-one"));
+      expect(listMock).toHaveBeenCalledTimes(1);
+
+      // …then mutate it: the cached range must be dropped…
+      mockInsertEvent.mockResolvedValueOnce({ id: "created-event" });
+      await POST({ json: async () => basePayload } as any);
+
+      // …so the next GET goes back to Google instead of serving stale data.
+      await GET(makeGETRequest("gmail-calendar", "tenant-one"));
+      expect(listMock).toHaveBeenCalledTimes(2);
     });
 
     it("handles insertion errors", async () => {

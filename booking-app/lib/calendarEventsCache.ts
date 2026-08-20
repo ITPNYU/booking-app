@@ -71,26 +71,56 @@ function refresh(
   calendarId: string,
   timeMin: string,
   timeMax: string,
+  force = false,
 ): Promise<calendar_v3.Schema$Event[]> {
-  const existing = inflight.get(key);
-  if (existing) return existing;
+  // A `force` caller must observe data fetched *after* it asked (it just
+  // mutated the calendar), so it may not reuse an in-flight fetch that could
+  // have started before the mutation.
+  if (!force) {
+    const existing = inflight.get(key);
+    if (existing) return existing;
+  }
   const promise = fetchFromGoogle(calendarId, timeMin, timeMax)
     .then((data) => {
-      cache.set(key, { data, timestamp: Date.now() });
-      // Maps iterate in insertion order; evict oldest-inserted entries first.
-      for (const oldestKey of cache.keys()) {
-        if (cache.size <= MAX_CACHE_ENTRIES) break;
-        cache.delete(oldestKey);
+      // Only the promise still registered for this key may write: a superseded
+      // fetch (replaced by a forced one, or unregistered by invalidation)
+      // resolving late must not clobber newer data.
+      if (inflight.get(key) === promise) {
+        cache.set(key, { data, timestamp: Date.now() });
+        // Maps iterate in insertion order; evict oldest-inserted entries first.
+        for (const oldestKey of cache.keys()) {
+          if (cache.size <= MAX_CACHE_ENTRIES) break;
+          cache.delete(oldestKey);
+        }
+        inflight.delete(key);
       }
-      inflight.delete(key);
       return data;
     })
     .catch((err) => {
-      inflight.delete(key);
+      if (inflight.get(key) === promise) inflight.delete(key);
       throw err;
     });
   inflight.set(key, promise);
   return promise;
+}
+
+/**
+ * Drop cached entries after a calendar mutation (insert/update/delete) so the
+ * next GET on this instance refetches instead of serving pre-mutation data for
+ * up to the TTL. With a `calendarId`, only that calendar's ranges are dropped;
+ * without one, everything is. In-flight fetches for the affected keys are
+ * unregistered so a fetch started before the mutation cannot write its result.
+ * Note: the cache is per-instance, so other instances still serve their copy
+ * until the TTL expires — this bounds cross-user staleness, not removes it.
+ */
+export function invalidateCalendarEventsCache(calendarId?: string) {
+  const prefix = calendarId ? `${calendarId}|` : "";
+  for (const key of cache.keys()) {
+    if (key.startsWith(prefix)) cache.delete(key);
+  }
+  for (const key of inflight.keys()) {
+    if (key.startsWith(prefix)) inflight.delete(key);
+  }
 }
 
 /**
@@ -113,7 +143,7 @@ export async function getCachedRawCalendarEvents(
   const key = cacheKey(calendarId, timeMin, timeMax);
 
   if (options.fresh) {
-    return refresh(key, calendarId, timeMin, timeMax);
+    return refresh(key, calendarId, timeMin, timeMax, true);
   }
 
   const entry = cache.get(key);
