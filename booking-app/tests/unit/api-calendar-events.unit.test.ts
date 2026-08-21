@@ -195,6 +195,30 @@ describe("/api/calendarEvents", () => {
       expect(mockGetCalendarClient).not.toHaveBeenCalled();
     });
 
+    it("defaults the window from start when only start is given", async () => {
+      const listMock = stubCalendarClient([]);
+      mockServerFetchAllDataFromCollection.mockResolvedValueOnce([]);
+
+      // A future start with no end must get a default window anchored to
+      // start, not rejected because "today + default" lands before it.
+      const request = {
+        url:
+          "https://example.com/api/calendarEvents?calendarId=cal-1" +
+          "&start=2030-01-01T00:00:00Z",
+        headers: new Headers(),
+      } as any;
+
+      const response = await GET(request);
+      expect(response.status).toBe(200);
+
+      const { timeMin, timeMax } = listMock.mock.calls[0][0];
+      expect(timeMin).toBe("2030-01-01T00:00:00.000Z");
+      const spanDays =
+        (Date.parse(timeMax) - Date.parse(timeMin)) / 86_400_000;
+      expect(spanDays).toBeGreaterThan(85); // ~3 months after start
+      expect(spanDays).toBeLessThan(95);
+    });
+
     it("clamps an oversized window to the maximum range", async () => {
       const listMock = stubCalendarClient([]);
       mockServerFetchAllDataFromCollection.mockResolvedValueOnce([]);

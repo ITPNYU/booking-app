@@ -140,10 +140,12 @@ export async function GET(req: NextRequest) {
   const startOfToday = new Date();
   startOfToday.setHours(0, 0, 0, 0);
   const start = startParam ? new Date(startParam) : startOfToday;
+  // Anchor the fallback end to `start`, not today: a future start with no end
+  // must yield a window after it, not a bogus end <= start.
   const end = endParam
     ? new Date(endParam)
     : (() => {
-        const d = new Date(startOfToday);
+        const d = new Date(start);
         d.setMonth(d.getMonth() + DEFAULT_RANGE_MONTHS);
         return d;
       })();
