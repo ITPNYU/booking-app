@@ -317,9 +317,20 @@ export function useBookingFilters(props: Props): BookingRow[] {
     // `filterPageContext` ever sees it. Gated on `pageContext`, not the
     // caller's role, because admins / PAs also use /my-bookings to see their
     // own bookings.
+    // The liaison approval queue's default "All Future" range is open-ended,
+    // so fetch it ascending (nearest first). With the default descending
+    // order the LIMIT-bounded window holds the farthest-future bookings, and
+    // once a semester's bulk bookings exceed the limit, near-term requests
+    // never reach the client — the liaison table renders empty while
+    // approval emails still go out.
     setFilters({
       dateRange: getDateRangeFromDateSelection(selectedDateRange),
       sortField: "startDate",
+      sortDirection:
+        pageContext === PageContextLevel.LIAISON &&
+        selectedDateRange === "All Future"
+          ? "asc"
+          : undefined,
       searchQuery,
       userEmail: pageContext === PageContextLevel.USER ? userEmail : undefined,
     });
