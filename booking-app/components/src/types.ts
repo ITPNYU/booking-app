@@ -458,6 +458,12 @@ export interface UserApiData {
 export type Filters = {
   dateRange: string | Date[];
   sortField: string;
+  /**
+   * Sort direction for the server-side fetch. Defaults to "desc". "All
+   * Future" views pass "asc" so the LIMIT-bounded window holds the nearest
+   * upcoming bookings instead of the farthest-future ones.
+   */
+  sortDirection?: "asc" | "desc";
   searchQuery?: string;
   /** Set on the USER /my-bookings view to scope server-side fetch to one user. */
   userEmail?: string;

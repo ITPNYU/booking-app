@@ -495,6 +495,7 @@ export const getPaginatedData = async <T>(
       filters: {
         dateRange: dateRange as any,
         sortField: filters.sortField,
+        sortDirection: filters.sortDirection,
         searchQuery: filters.searchQuery,
         userEmail: filters.userEmail,
       },
