@@ -219,7 +219,8 @@ export const SelectRooms = ({
         const disabled = isDisabled(roomId);
         const disabledReason = getDisabledReason(roomId);
         const isSelected = selectedIds.includes(roomId);
-        const annexOptions = showAnnex && isSelected ? getAnnexOptions(room) : [];
+        const annexOptions =
+          showAnnex && isSelected ? getAnnexOptions(room, resources) : [];
 
         const checkbox = (
           <FormControlLabel

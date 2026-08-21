@@ -27,7 +27,9 @@ import {
   formatOrigin,
   getSecondaryContactName,
 } from "@/components/src/utils/formatters";
+import { resolveAnnexCalendarIds } from "@/components/src/utils/resourceServicesUtils";
 import { canRequestAuxiliarySpaces } from "@/components/src/utils/roleUtils";
+import { serverGetTenantResources } from "@/lib/tenant/serverGetTenantResources";
 import {
   logServerBookingChange,
   serverGetNextSequentialId,
@@ -188,6 +190,7 @@ async function createBookingCalendarEvent(
   title: string,
   bookingCalendarInfo: DateSelectArg,
   description: string,
+  annexCalendarIds: string[] = [],
 ) {
   const [room, ...otherRooms] = selectedRooms;
   const { calendarId } = room;
@@ -197,9 +200,12 @@ async function createBookingCalendarEvent(
   }
 
   const selectedRoomIds = selectedRooms.map(r => r.roomId);
-  const otherRoomEmails = otherRooms.map(
-    (r: { calendarId: string }) => r.calendarId,
-  );
+  const otherRoomEmails = [
+    ...new Set([
+      ...otherRooms.map((r: { calendarId: string }) => r.calendarId),
+      ...annexCalendarIds,
+    ]),
+  ].filter((email) => email && email !== calendarId);
 
   // Limit title to 25 characters
   const truncatedTitle =
@@ -517,6 +523,30 @@ export async function POST(request: NextRequest) {
       { status: 503 },
     );
   }
+
+  // Annex resources can only be requested via a parent room's annex
+  // checkboxes (annexByRoom); reject them if posted as bookable rooms.
+  const tenantResources = await serverGetTenantResources(tenant);
+  const annexResourceIds = new Set(
+    tenantResources
+      .filter((r) => r.parentResourceId)
+      .map((r) => r.resourceId),
+  );
+  const requestedAnnexRoom = Array.isArray(selectedRooms)
+    ? selectedRooms.find((r: any) => annexResourceIds.has(String(r?.roomId)))
+    : undefined;
+  if (requestedAnnexRoom) {
+    return NextResponse.json(
+      {
+        error: `Room ${requestedAnnexRoom.roomId} is an auxiliary space and cannot be booked directly`,
+      },
+      { status: 400 },
+    );
+  }
+  const annexCalendarIds = resolveAnnexCalendarIds(
+    data?.annexByRoom,
+    tenantResources,
+  );
 
   // Get tenant-specific flags
   const { isITP, isMediaCommons, usesXState } = getTenantFlags(tenant);
@@ -873,6 +903,7 @@ export async function POST(request: NextRequest) {
       data.title,
       bookingCalendarInfo,
       description,
+      annexCalendarIds,
     );
   } catch (err: any) {
     console.error(

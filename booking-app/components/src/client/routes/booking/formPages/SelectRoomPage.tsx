@@ -56,8 +56,14 @@ export default function SelectRoomPage({
   const roomsToShow = useMemo(() => {
     const { resources } = schema;
 
+    // Annex resources are offered as checkboxes under their parent room,
+    // never as standalone bookable rooms.
+    const topLevelResources = resources.filter(
+      (resource) => !resource.parentResourceId,
+    );
+
     // Convert schema resources to RoomSetting format for compatibility
-    const convertedResources = resources.map((resource) => ({
+    const convertedResources = topLevelResources.map((resource) => ({
       ...resource,
       roomId: resource.resourceId,
       name: resource.name,

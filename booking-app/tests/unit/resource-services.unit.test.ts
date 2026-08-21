@@ -5,6 +5,7 @@ import {
   formatAnnexByRoomForDisplay,
   getAnnexOptions,
   getRoomsWithVisibleService,
+  resolveAnnexCalendarIds,
 } from "@/components/src/utils/resourceServicesUtils";
 import {
   applyMcResourceServices,
@@ -441,5 +442,105 @@ describe("formatAnnexByRoomForDisplay", () => {
         [room],
       ),
     ).toBe("1201: 1200L-6 Seminar Foyer, 1204 Seminar Lounge");
+  });
+
+  it("prefers annex resource names over hardcoded option labels", () => {
+    const parent = applyMcResourceServices({
+      resourceId: "1201",
+      name: "Seminar Room",
+      capacity: 100,
+      services: [],
+    });
+    const child = {
+      resourceId: "1204",
+      name: "Renamed Lounge",
+      parentResourceId: "1201",
+      services: {},
+    };
+    expect(
+      formatAnnexByRoomForDisplay({ "1201": ["1204"] }, [parent, child]),
+    ).toBe("1201: 1204 Renamed Lounge");
+  });
+});
+
+describe("annex parent-child resources", () => {
+  const parent = {
+    resourceId: "1201",
+    name: "Seminar Room",
+    services: {
+      annex: {
+        mode: "checkbox" as const,
+        options: [{ value: "9999", label: "Legacy Fallback Space" }],
+      },
+    },
+  };
+  const children = [
+    {
+      resourceId: "1204",
+      name: "Seminar Lounge",
+      parentResourceId: "1201",
+      calendarId: "cal-1204@group.calendar.google.com",
+      services: {},
+    },
+    {
+      resourceId: "1200L-6",
+      name: "Seminar Foyer",
+      parentResourceId: "1201",
+      calendarId: "cal-1200l6@group.calendar.google.com",
+      services: {},
+    },
+  ];
+  const topLevel = {
+    resourceId: "103",
+    name: "The Garage",
+    calendarId: "cal-103@group.calendar.google.com",
+    services: {},
+  };
+
+  it("derives annex options from child resources, sorted by id", () => {
+    const options = getAnnexOptions(parent, [parent, topLevel, ...children]);
+    expect(options).toEqual([
+      { value: "1200L-6", label: "1200L-6 Seminar Foyer" },
+      { value: "1204", label: "1204 Seminar Lounge" },
+    ]);
+  });
+
+  it("falls back to configured options when no child resources exist", () => {
+    expect(getAnnexOptions(parent, [parent, topLevel])).toEqual([
+      { value: "9999", label: "Legacy Fallback Space" },
+    ]);
+    expect(getAnnexOptions(parent)).toEqual([
+      { value: "9999", label: "Legacy Fallback Space" },
+    ]);
+  });
+
+  it("resolves selected annex values to child calendar IDs", () => {
+    const resources = [parent, topLevel, ...children];
+    expect(
+      resolveAnnexCalendarIds({ "1201": ["1204", "1200L-6"] }, resources),
+    ).toEqual([
+      "cal-1204@group.calendar.google.com",
+      "cal-1200l6@group.calendar.google.com",
+    ]);
+  });
+
+  it("ignores values without a registered annex resource", () => {
+    const resources = [parent, topLevel, ...children];
+    // "9999" is a legacy option with no resource; "103" is a top-level room,
+    // which must never be invited via the annex path.
+    expect(
+      resolveAnnexCalendarIds({ "1201": ["9999", "103"] }, resources),
+    ).toEqual([]);
+    expect(resolveAnnexCalendarIds(undefined, resources)).toEqual([]);
+  });
+
+  it("dedupes calendar IDs across parents", () => {
+    const resources = [parent, topLevel, ...children];
+    expect(
+      resolveAnnexCalendarIds(
+        { "1201": ["1204"], "202": ["1204"] },
+        resources,
+      ),
+    ).toEqual(["cal-1204@group.calendar.google.com"]);
   });
 });

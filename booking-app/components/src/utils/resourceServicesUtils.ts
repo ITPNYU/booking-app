@@ -20,6 +20,8 @@ export type ServiceResourceLike = {
   resourceId?: string;
   roomId?: string;
   name?: string;
+  parentResourceId?: string;
+  calendarId?: string;
   staffingServices?: string[];
   staffingSections?: { name: string; indexes: number[] }[];
 };
@@ -160,12 +162,75 @@ export function getRoomsWithVisibleService(
   });
 }
 
-/** Annex options for a parent room (used on the room selection page). */
+function annexResourceLabel(resource: ServiceResourceLike): string {
+  const resourceId = getServiceResourceId(resource);
+  return [resourceId, resource.name].filter(Boolean).join(" ");
+}
+
+/** Annex (auxiliary space) resources whose parentResourceId points at this room. */
+export function getAnnexChildResources(
+  parentRoom: ServiceResourceLike,
+  allResources: ServiceResourceLike[],
+): ServiceResourceLike[] {
+  const parentId = getServiceResourceId(parentRoom);
+  if (!parentId) return [];
+  return allResources
+    .filter((r) => r.parentResourceId === parentId)
+    .sort((a, b) =>
+      getServiceResourceId(a).localeCompare(getServiceResourceId(b), undefined, {
+        numeric: true,
+      }),
+    );
+}
+
+/**
+ * Annex options for a parent room (used on the room selection page).
+ * Child resources (parentResourceId) are the source of truth; the
+ * services.annex options list is a fallback for tenants whose annex spaces
+ * are not registered as resources yet.
+ */
 export function getAnnexOptions(
   resource: ServiceResourceLike,
+  allResources?: ServiceResourceLike[],
 ): ResourceFormOption[] {
+  if (allResources) {
+    const children = getAnnexChildResources(resource, allResources);
+    if (children.length > 0) {
+      return children.map((child) => ({
+        value: getServiceResourceId(child),
+        label: annexResourceLabel(child),
+      }));
+    }
+  }
   const section = getServiceSectionConfig(resource, "annex");
   return section?.options ?? [];
+}
+
+/**
+ * Resolve selected auxiliary spaces to the calendar IDs of their annex
+ * resources so they can be invited to the parent booking's calendar event.
+ * Values that don't match an annex resource (legacy options without a
+ * registered resource) resolve to nothing.
+ */
+export function resolveAnnexCalendarIds(
+  annexByRoom: Record<string, string[]> | undefined,
+  allResources: ServiceResourceLike[],
+): string[] {
+  if (!annexByRoom || typeof annexByRoom !== "object") return [];
+
+  const calendarIds = new Set<string>();
+  for (const values of Object.values(annexByRoom)) {
+    if (!Array.isArray(values)) continue;
+    for (const value of values) {
+      const resource = allResources.find(
+        (r) => r.parentResourceId && getServiceResourceId(r) === String(value),
+      );
+      if (resource?.calendarId) {
+        calendarIds.add(resource.calendarId);
+      }
+    }
+  }
+  return [...calendarIds];
 }
 
 /**
@@ -184,8 +249,12 @@ export function formatAnnexByRoomForDisplay(
     const room = rooms.find(
       (r) => getServiceResourceId(r) === String(roomId),
     );
-    const options = room ? getAnnexOptions(room) : [];
+    const options = room ? getAnnexOptions(room, rooms) : [];
     const labels = values.map((value) => {
+      const annexResource = rooms.find(
+        (r) => r.parentResourceId && getServiceResourceId(r) === String(value),
+      );
+      if (annexResource) return annexResourceLabel(annexResource);
       const opt = options.find((o) => o.value === value);
       return opt?.label ?? value;
     });

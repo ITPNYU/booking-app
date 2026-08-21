@@ -1,6 +1,7 @@
 import { bookingCalendarStrToDate } from "@/components/src/client/utils/date";
 import { getCalendarClient } from "@/lib/googleClient";
 import { getMcResourceServices, getStaffingServiceLabel } from "@/lib/tenant/mcResourceServices";
+import { serverGetTenantResources } from "@/lib/tenant/serverGetTenantResources";
 import { traceExternalCall } from "@/lib/newrelic-utils";
 import {
   BookingFormDetails,
@@ -331,11 +332,17 @@ export const bookingContentsToDescription = async (
 
   const annexByRoom = bookingContents.annexByRoom;
   if (annexByRoom && typeof annexByRoom === "object") {
-    const annexRooms = Object.keys(annexByRoom).map((roomId) => ({
+    // Prefer annex resources from the tenant schema for labels; fall back to
+    // hardcoded MC service configs for values without a registered resource.
+    const tenantResources = await serverGetTenantResources(tenant);
+    const fallbackRooms = Object.keys(annexByRoom).map((roomId) => ({
       resourceId: roomId,
       services: getMcResourceServices(roomId) ?? {},
     }));
-    const annexDisplay = formatAnnexByRoomForDisplay(annexByRoom, annexRooms);
+    const annexDisplay = formatAnnexByRoomForDisplay(annexByRoom, [
+      ...tenantResources,
+      ...fallbackRooms,
+    ]);
     if (annexDisplay) {
       description += listItem("Auxiliary Spaces", annexDisplay);
     }
