@@ -10,48 +10,32 @@ import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
 import { serverBookingContents } from "@/components/src/server/admin";
 import { Booking } from "@/components/src/types";
 import { getCachedBookings } from "@/lib/bookingsCache";
-import { getCalendarClient } from "@/lib/googleClient";
-import { calendar_v3 } from "googleapis/build/src/apis/calendar";
+import {
+  getCachedRawCalendarEvents,
+  invalidateCalendarEventsCache,
+} from "@/lib/calendarEventsCache";
 
-const getCalendarEvents = async (calendarId: string, tenant?: string) => {
-  const now = new Date().toISOString();
-  const endOfRange = new Date();
-  endOfRange.setMonth(endOfRange.getMonth() + 12);
-  const endOfRangeISOString = endOfRange.toISOString();
+// Default range when the caller does not pass start/end. The client always
+// sends the visible window; this is only a fallback for ad-hoc callers.
+const DEFAULT_RANGE_MONTHS = 3;
 
-  // Fetch Google Calendar events and bookings in parallel
-  const calendarPromise = (async () => {
-    const events: calendar_v3.Schema$Event[] = [];
-    const calendar = await getCalendarClient();
-    let pageToken: string | undefined;
+// Upper bound on a requested window. The client asks for ~1.5 months; anything
+// much larger (malformed caller, or someone probing the API) would reintroduce
+// the multi-month fetches this endpoint was saturating on.
+const MAX_RANGE_MONTHS = 6;
 
-    do {
-      const res = await calendar.events.list({
-        calendarId,
-        timeMin: now,
-        timeMax: endOfRangeISOString,
-        singleEvents: true,
-        orderBy: "startTime",
-        maxResults: 250,
-        pageToken,
-        fields:
-          "nextPageToken,items(id,summary,start(dateTime,date),end(dateTime,date))",
-      });
-
-      if (res.data.items) {
-        events.push(...res.data.items);
-      }
-      pageToken = res.data.nextPageToken || undefined;
-    } while (pageToken);
-
-    return events;
-  })();
-
-  const bookingsPromise = getCachedBookings(tenant || DEFAULT_TENANT);
-
+const getCalendarEvents = async (
+  calendarId: string,
+  tenant: string | undefined,
+  timeMin: string,
+  timeMax: string,
+  fresh: boolean,
+) => {
+  // Raw Google events are cached per (calendarId, range); bookings come from
+  // their own cache. Both are fetched in parallel.
   const [events, bookings] = await Promise.all([
-    calendarPromise,
-    bookingsPromise.catch(error => {
+    getCachedRawCalendarEvents(calendarId, timeMin, timeMax, { fresh }),
+    getCachedBookings(tenant || DEFAULT_TENANT).catch(error => {
       console.error("Error fetching tenant bookings:", error);
       return [] as Booking[];
     }),
@@ -114,6 +98,10 @@ export async function POST(request: NextRequest) {
       roomEmails,
     });
 
+    // Drop this calendar's cached ranges so other viewers on this instance see
+    // the new event on their next fetch instead of pre-mutation cached data.
+    invalidateCalendarEventsCache(calendarId);
+
     return NextResponse.json({ calendarEventId: event.id }, { status: 200 });
   } catch (error) {
     console.error("Error adding event to calendar:", error);
@@ -132,6 +120,49 @@ export async function GET(req: NextRequest) {
   // Get tenant from x-tenant header, fallback to 'mc' as default
   const tenant = req.headers.get("x-tenant") || DEFAULT_TENANT;
 
+  // Visible window: the client sends the range it is displaying. Fall back to a
+  // small default range for ad-hoc callers that omit it. The fallback is
+  // quantized to day granularity — a raw `new Date()` would put a unique
+  // millisecond timestamp in every cache key, so no-range callers (e.g. stale
+  // client bundles right after a deploy) would never hit the cache while still
+  // inserting a new entry per request.
+  const startParam = searchParams.get("start");
+  const endParam = searchParams.get("end");
+  if (
+    (startParam && isNaN(Date.parse(startParam))) ||
+    (endParam && isNaN(Date.parse(endParam)))
+  ) {
+    return NextResponse.json(
+      { error: "Invalid start/end date" },
+      { status: 400 },
+    );
+  }
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  const start = startParam ? new Date(startParam) : startOfToday;
+  // Anchor the fallback end to `start`, not today: a future start with no end
+  // must yield a window after it, not a bogus end <= start.
+  const end = endParam
+    ? new Date(endParam)
+    : (() => {
+        const d = new Date(start);
+        d.setMonth(d.getMonth() + DEFAULT_RANGE_MONTHS);
+        return d;
+      })();
+  if (end <= start) {
+    return NextResponse.json(
+      { error: "end must be after start" },
+      { status: 400 },
+    );
+  }
+  // Clamp oversized windows instead of erroring so a stale client still works.
+  const maxEnd = new Date(start);
+  maxEnd.setMonth(maxEnd.getMonth() + MAX_RANGE_MONTHS);
+  const timeMin = start.toISOString();
+  const timeMax = (end > maxEnd ? maxEnd : end).toISOString();
+  // `fresh=1` bypasses the calendar cache (used right after a booking changes).
+  const fresh = searchParams.get("fresh") === "1";
+
   // Batch mode: fetch multiple calendars in one request
   if (calendarIds) {
     const ids = calendarIds.split(",").filter(Boolean);
@@ -143,7 +174,7 @@ export async function GET(req: NextRequest) {
       const results = await Promise.all(
         ids.map(async (id) => {
           try {
-            const events = await getCalendarEvents(id, tenant);
+            const events = await getCalendarEvents(id, tenant, timeMin, timeMax, fresh);
             return { calendarId: id, events };
           } catch (error) {
             console.error("Error fetching calendar events for calendarId:", id, error);
@@ -178,7 +209,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const events = await getCalendarEvents(calendarId, tenant);
+    const events = await getCalendarEvents(calendarId, tenant, timeMin, timeMax, fresh);
 
     const res = NextResponse.json(events);
     res.headers.set(
@@ -211,6 +242,9 @@ export async function PUT(req: NextRequest) {
   try {
     const contents = await serverBookingContents(calendarEventId, tenant);
     await updateCalendarEvent(calendarEventId, newValues, contents, tenant);
+    // The request carries no calendarId, so drop the whole cache. PUTs are
+    // rare (approve/cancel-style title updates), so this is cheap.
+    invalidateCalendarEventsCache();
     return NextResponse.json(
       { message: "Event updated successfully" },
       { status: 200 },
@@ -234,6 +268,7 @@ export async function DELETE(req: NextRequest) {
   }
   try {
     await deleteEvent(calendarId, calendarEventId);
+    invalidateCalendarEventsCache(calendarId);
     return NextResponse.json(
       { message: "Event deleted successfully" },
       { status: 200 },
