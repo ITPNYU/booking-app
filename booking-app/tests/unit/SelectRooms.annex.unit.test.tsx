@@ -123,17 +123,17 @@ describe("SelectRooms auxiliary spaces", () => {
     ).toBeTruthy();
   });
 
-  it("hides annex options for students even when parent is selected", () => {
+  it("shows annex options for students when parent is selected", () => {
     render(<TestHarness role={Role.STUDENT} />);
 
     fireEvent.click(
       screen.getByRole("checkbox", { name: "1201 Seminar Room" }),
     );
 
-    expect(screen.queryByTestId("annex-options-1201")).toBeNull();
+    expect(screen.getByTestId("annex-options-1201")).toBeTruthy();
     expect(
-      screen.queryByRole("checkbox", { name: "1200L-6 Seminar Foyer" }),
-    ).toBeNull();
+      screen.getByRole("checkbox", { name: "1200L-6 Seminar Foyer" }),
+    ).toBeTruthy();
   });
 
   it("clears annex selections when parent is deselected", () => {
