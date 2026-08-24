@@ -34,6 +34,30 @@ vi.mock("@/components/src/server/admin", () => ({
   serverGetRoomCalendarIds: vi.fn().mockResolvedValue(["mock-calendar-id"]),
 }));
 
+// Annex labels resolve from the tenant schema's annex child resources
+vi.mock("@/lib/tenant/serverGetTenantResources", () => ({
+  serverGetTenantResources: vi.fn().mockResolvedValue([
+    {
+      resourceId: "1200L-6",
+      name: "Seminar Foyer",
+      parentResourceId: "1201",
+      services: {},
+    },
+    {
+      resourceId: "1204",
+      name: "Seminar Lounge",
+      parentResourceId: "1201",
+      services: {},
+    },
+    {
+      resourceId: "103GR",
+      name: "Garage Green Room",
+      parentResourceId: "103",
+      services: {},
+    },
+  ]),
+}));
+
 describe("Calendar Description Functions", () => {
   let mockBookingContents: BookingFormDetails;
 

@@ -8,7 +8,6 @@ import { FormContextLevel, RoomSetting } from "../../../../types";
 import { ConfirmDialogControlled } from "../../components/ConfirmDialog";
 import { useTenantSchema } from "../../components/SchemaProvider";
 import { getAnnexOptions } from "../../../../utils/resourceServicesUtils";
-import { canRequestAuxiliarySpaces } from "../../../../utils/roleUtils";
 import { BookingContext } from "../bookingProvider";
 import { useBookingDateRestrictions } from "../hooks/useBookingDateRestrictions";
 
@@ -31,7 +30,6 @@ export const SelectRooms = ({
     setHasShownMocapModal,
     bookingCalendarInfo,
     setBookingCalendarInfo,
-    role,
     annexByRoom,
     setAnnexByRoom,
   } = useContext(BookingContext);
@@ -42,7 +40,6 @@ export const SelectRooms = ({
   // tenants that set the field explicitly are unaffected.
   const allowMultipleResourceSelect =
     calendarConfig?.multipleResourceSelect ?? false;
-  const showAnnex = canRequestAuxiliarySpaces(role);
 
   // Sort rooms by room number for consistent display order
   const sortedRooms = useMemo(
@@ -219,7 +216,7 @@ export const SelectRooms = ({
         const disabled = isDisabled(roomId);
         const disabledReason = getDisabledReason(roomId);
         const isSelected = selectedIds.includes(roomId);
-        const annexOptions = showAnnex && isSelected ? getAnnexOptions(room) : [];
+        const annexOptions = isSelected ? getAnnexOptions(room, resources) : [];
 
         const checkbox = (
           <FormControlLabel

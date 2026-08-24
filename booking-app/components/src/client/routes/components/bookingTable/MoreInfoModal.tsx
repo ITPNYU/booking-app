@@ -38,7 +38,10 @@ import { DatabaseContext } from "../Provider";
 import { default as CustomTable } from "../Table";
 import StackedTableCell from "./StackedTableCell";
 import { getStaffingServiceLabel } from "@/lib/tenant/mcResourceServices";
-import { formatAnnexByRoomForDisplay } from "@/components/src/utils/resourceServicesUtils";
+import {
+  formatAnnexByRoomForDisplay,
+  mergeRoomIdsWithAnnex,
+} from "@/components/src/utils/resourceServicesUtils";
 
 function formatStaffingServiceDisplay(value: string): string {
   const trimmed = value.trim();
@@ -519,7 +522,12 @@ export default function MoreInfoModal({
                 </TableRow>
                 <TableRow>
                   <LabelCell>Room(s)</LabelCell>
-                  <TableCell>{booking.roomId ?? BLANK}</TableCell>
+                  <TableCell>
+                    {mergeRoomIdsWithAnnex(
+                      booking.roomId,
+                      booking.annexByRoom,
+                    ) || BLANK}
+                  </TableCell>
                 </TableRow>
                 <TableRow>
                   <LabelCell>Date</LabelCell>

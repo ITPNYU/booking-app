@@ -114,6 +114,12 @@
           <td>Room(s)</td>
           <td>{{ contents.roomId }}</td>
         </tr>
+        {{#if contents.auxiliarySpaces}}
+        <tr>
+          <td>Auxiliary Spaces</td>
+          <td>{{ contents.auxiliarySpaces }}</td>
+        </tr>
+        {{/if}}
         <tr>
           <td>Date</td>
           <td>{{ contents.startDate }}</td>

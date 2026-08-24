@@ -12,7 +12,6 @@ import {
 } from "../../components/src/client/routes/components/SchemaProvider";
 import { BookingContext } from "../../components/src/client/routes/booking/bookingProvider";
 import { SelectRooms } from "../../components/src/client/routes/booking/components/SelectRooms";
-import { applyMcResourceServices } from "../../lib/tenant/mcResourceServices";
 
 vi.mock(
   "../../components/src/client/routes/booking/hooks/useBookingDateRestrictions",
@@ -23,31 +22,65 @@ vi.mock(
   }),
 );
 
-const room1201 = applyMcResourceServices({
+const room1201 = {
   resourceId: "1201",
+  roomId: "1201",
   name: "Seminar Room",
   capacity: 100,
   calendarId: "cal-1201",
   isEquipment: false,
   isWalkIn: false,
   isWalkInCanBookTwo: false,
-  services: [],
-}) as unknown as RoomSetting;
+  services: {},
+} as unknown as RoomSetting;
 
-const room103 = applyMcResourceServices({
+const room103 = {
   resourceId: "103",
+  roomId: "103",
   name: "The Garage",
   capacity: 74,
   calendarId: "cal-103",
   isEquipment: false,
   isWalkIn: true,
   isWalkInCanBookTwo: false,
-  services: [],
-}) as unknown as RoomSetting;
+  services: {},
+} as unknown as RoomSetting;
 
-// RoomSetting uses roomId; applyMcResourceServices returns resourceId.
-(room1201 as any).roomId = "1201";
-(room103 as any).roomId = "103";
+// Annex spaces are schema resources pointing at their parent room.
+const annexResources = [
+  {
+    resourceId: "1200L-6",
+    name: "Seminar Foyer",
+    parentResourceId: "1201",
+    capacity: 10,
+    calendarId: "cal-1200l6",
+    services: {},
+  },
+  {
+    resourceId: "1202",
+    name: "Seminar Breakout",
+    parentResourceId: "1201",
+    capacity: 10,
+    calendarId: "cal-1202",
+    services: {},
+  },
+  {
+    resourceId: "1204",
+    name: "Seminar Lounge",
+    parentResourceId: "1201",
+    capacity: 10,
+    calendarId: "cal-1204",
+    services: {},
+  },
+  {
+    resourceId: "103GR",
+    name: "Garage Green Room",
+    parentResourceId: "103",
+    capacity: 5,
+    calendarId: "cal-103gr",
+    services: {},
+  },
+];
 
 function TestHarness({
   role,
@@ -60,16 +93,19 @@ function TestHarness({
   const [annexByRoom, setAnnexByRoom] = useState<Record<string, string[]>>({});
   const schema = {
     ...generateDefaultSchema("mc"),
-    resources: rooms.map((r) => ({
-      resourceId: String(r.roomId),
-      name: r.name,
-      capacity: Number(r.capacity),
-      calendarId: r.calendarId,
-      isEquipment: false,
-      isWalkIn: false,
-      isWalkInCanBookTwo: false,
-      services: r.services,
-    })),
+    resources: [
+      ...rooms.map((r) => ({
+        resourceId: String(r.roomId),
+        name: r.name,
+        capacity: Number(r.capacity),
+        calendarId: r.calendarId,
+        isEquipment: false,
+        isWalkIn: false,
+        isWalkInCanBookTwo: false,
+        services: r.services,
+      })),
+      ...annexResources,
+    ],
     calendarConfig: {
       ...generateDefaultSchema("mc").calendarConfig,
       multipleResourceSelect: true,
@@ -123,17 +159,17 @@ describe("SelectRooms auxiliary spaces", () => {
     ).toBeTruthy();
   });
 
-  it("hides annex options for students even when parent is selected", () => {
+  it("shows annex options for students when parent is selected", () => {
     render(<TestHarness role={Role.STUDENT} />);
 
     fireEvent.click(
       screen.getByRole("checkbox", { name: "1201 Seminar Room" }),
     );
 
-    expect(screen.queryByTestId("annex-options-1201")).toBeNull();
+    expect(screen.getByTestId("annex-options-1201")).toBeTruthy();
     expect(
-      screen.queryByRole("checkbox", { name: "1200L-6 Seminar Foyer" }),
-    ).toBeNull();
+      screen.getByRole("checkbox", { name: "1200L-6 Seminar Foyer" }),
+    ).toBeTruthy();
   });
 
   it("clears annex selections when parent is deselected", () => {
@@ -160,7 +196,7 @@ describe("SelectRooms auxiliary spaces", () => {
 
     expect(screen.getByTestId("annex-options-103")).toBeTruthy();
     expect(
-      screen.getByRole("checkbox", { name: "Garage Green Room" }),
+      screen.getByRole("checkbox", { name: "103GR Garage Green Room" }),
     ).toBeTruthy();
   });
 });
