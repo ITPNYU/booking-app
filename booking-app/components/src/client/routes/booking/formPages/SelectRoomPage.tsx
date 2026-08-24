@@ -113,7 +113,14 @@ export default function SelectRoomPage({
           selectedAnnexIds.has(resource.resourceId),
       )
       .map(resourceToRoomSetting);
-    return [...selectedRooms, ...annexRooms];
+    // Keep the same numeric order as the calendar columns: the "new
+    // reservation" bar is drawn on the first room and stretched rightward
+    // across the rest, so array order must match column order.
+    return [...selectedRooms, ...annexRooms].sort((a, b) =>
+      String(a.roomId).localeCompare(String(b.roomId), undefined, {
+        numeric: true,
+      }),
+    );
   }, [selectedRooms, annexByRoom, schema.resources]);
 
   return (
