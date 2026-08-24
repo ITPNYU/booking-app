@@ -5,6 +5,7 @@ import {
   formatAnnexByRoomForDisplay,
   getAnnexOptions,
   getRoomsWithVisibleService,
+  mergeRoomIdsWithAnnex,
   resolveAnnexCalendarIds,
 } from "@/components/src/utils/resourceServicesUtils";
 import {
@@ -551,6 +552,18 @@ describe("annex parent-child resources", () => {
       resolveAnnexCalendarIds({ "1201": ["9999", "103"] }, resources),
     ).toEqual([]);
     expect(resolveAnnexCalendarIds(undefined, resources)).toEqual([]);
+  });
+
+  it("merges annex ids into the room list in numeric order", () => {
+    expect(
+      mergeRoomIdsWithAnnex("202, 1201", {
+        "202": ["202GR", "205"],
+        "1201": ["1204"],
+      }),
+    ).toBe("202, 202GR, 205, 1201, 1204");
+    expect(mergeRoomIdsWithAnnex("202, 1201", undefined)).toBe("202, 1201");
+    expect(mergeRoomIdsWithAnnex("202", { "202": ["202"] })).toBe("202");
+    expect(mergeRoomIdsWithAnnex(undefined, undefined)).toBe("");
   });
 
   it("dedupes calendar IDs across parents", () => {

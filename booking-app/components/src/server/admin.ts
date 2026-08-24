@@ -954,9 +954,14 @@ export const serverGetRoomCalendarIds = async (
       schema.resources,
     );
 
-    const rooms = resourcesWithCorrectCalendarIds.filter(
-      (resource: any) =>
-        String(resource.resourceId ?? resource.roomId) === String(roomId),
+    // Multi-room bookings store roomId as a comma-joined list ("202, 1201"),
+    // so match each listed room rather than the raw string.
+    const requestedRoomIds = String(roomId)
+      .split(",")
+      .map((id) => id.trim())
+      .filter(Boolean);
+    const rooms = resourcesWithCorrectCalendarIds.filter((resource: any) =>
+      requestedRoomIds.includes(String(resource.resourceId ?? resource.roomId)),
     );
 
     console.log(`Rooms: ${JSON.stringify(rooms)}`);

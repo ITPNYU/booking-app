@@ -234,6 +234,33 @@ export function resolveAnnexCalendarIds(
 }
 
 /**
+ * Merge a booking's comma-joined room list with its selected auxiliary
+ * spaces into one display string, numerically sorted to match the calendar
+ * column order. Example: `"202, 1201"` + `{202: ["202GR"]}` → `"202, 202GR, 1201"`.
+ */
+export function mergeRoomIdsWithAnnex(
+  roomId: string | undefined,
+  annexByRoom: Record<string, string[]> | undefined,
+): string {
+  const merged = String(roomId ?? "")
+    .split(",")
+    .map((id) => id.trim())
+    .filter(Boolean);
+  if (annexByRoom && typeof annexByRoom === "object") {
+    for (const values of Object.values(annexByRoom)) {
+      if (!Array.isArray(values)) continue;
+      for (const value of values) {
+        const id = String(value).trim();
+        if (id && !merged.includes(id)) merged.push(id);
+      }
+    }
+  }
+  return merged
+    .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+    .join(", ");
+}
+
+/**
  * Format selected auxiliary spaces for calendar descriptions / detail UI.
  * Example: `1201: 1200L-6 Seminar Foyer, 1204 Seminar Lounge; 103: Garage Green Room`
  */

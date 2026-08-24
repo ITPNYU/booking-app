@@ -7,7 +7,12 @@ import { admins } from "@/components/src/server/admin";
 import { getEmailBranchTag } from "@/components/src/server/emails";
 import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
 import { ApproverType } from "@/components/src/types";
+import {
+  formatAnnexByRoomForDisplay,
+  mergeRoomIdsWithAnnex,
+} from "@/components/src/utils/resourceServicesUtils";
 import { getBookingLogs } from "@/lib/firebase/server/adminDb";
+import { serverGetTenantResources } from "@/lib/tenant/serverGetTenantResources";
 import { getGmailClient } from "@/lib/googleClient";
 import fs from "fs";
 import path from "path";
@@ -123,12 +128,26 @@ export const sendHTMLEmail = async (params: SendHTMLEmailParams) => {
     ? getApprovalUrl(contents.calendarEventId, approverType, tenant)
     : undefined;
 
+  // Resolve selected auxiliary spaces to display labels for the template
+  const annexByRoom = (contents as any).annexByRoom;
+  let auxiliarySpaces = "";
+  if (annexByRoom && typeof annexByRoom === "object") {
+    try {
+      const resources = await serverGetTenantResources(tenant);
+      auxiliarySpaces = formatAnnexByRoomForDisplay(annexByRoom, resources);
+    } catch (error) {
+      console.error("Error formatting auxiliary spaces for email:", error);
+    }
+  }
+
   // Update contents with formatted data for the template
   const updatedContents = {
     ...contents,
+    roomId: mergeRoomIdsWithAnnex(contents.roomId, annexByRoom),
     startDate: serverFormatDateOnly(contents.startDate),
     endDate: serverFormatDateOnly(contents.endDate),
     status,
+    auxiliarySpaces,
   };
 
   const htmlBody = template({
