@@ -183,8 +183,8 @@ describe("applyMcResourceServices", () => {
     expect(missing.services?.catering?.chartField?.required).toBe(true);
     expect(missing.services?.setup?.mode).toBe("radio");
     expect(missing.services?.setup?.defaultValue).toBe("202_LAYOUT_0");
-    expect(missing.services?.annex?.options?.length).toBe(2);
-    expect(missing.services?.annex?.mode).toBe("checkbox");
+    // Annex options are derived from parentResourceId resources, not services.
+    expect(missing.services?.annex).toBeUndefined();
 
     const emptyArray = applyMcResourceServices({
       resourceId: "202",
@@ -195,24 +195,15 @@ describe("applyMcResourceServices", () => {
     expect(emptyArray.services?.setup?.mode).toBe("radio");
   });
 
-  it("includes 1201 breakout, foyer, and lounge annex options", () => {
+  it("does not hardcode annex options for 1201", () => {
     const room = applyMcResourceServices({
       resourceId: "1201",
       name: "Seminar Room",
       capacity: 100,
       services: [],
     });
-    expect(room.services?.annex?.mode).toBe("checkbox");
-    expect(room.services?.annex?.options?.map((o) => o.value)).toEqual([
-      "1200L-6",
-      "1202",
-      "1204",
-    ]);
-    expect(room.services?.annex?.options?.map((o) => o.label)).toEqual([
-      "1200L-6 Seminar Foyer",
-      "1202 Seminar Breakout",
-      "1204 Seminar Lounge",
-    ]);
+    // Annex spaces live as child resources (parentResourceId) in the schema.
+    expect(room.services?.annex).toBeUndefined();
   });
 
   it("replaces legacy services arrays with MC room defaults", () => {
@@ -428,29 +419,57 @@ describe("migrateResourceServices", () => {
 });
 
 describe("formatAnnexByRoomForDisplay", () => {
-  it("resolves option labels from parent room annex config", () => {
-    const room = applyMcResourceServices({
-      resourceId: "1201",
-      name: "Seminar Room",
-      capacity: 100,
-      services: [],
-    });
-    expect(getAnnexOptions(room).length).toBe(3);
+  it("resolves labels from annex child resources", () => {
+    const parent = { resourceId: "1201", name: "Seminar Room", services: {} };
+    const children = [
+      {
+        resourceId: "1200L-6",
+        name: "Seminar Foyer",
+        parentResourceId: "1201",
+        services: {},
+      },
+      {
+        resourceId: "1204",
+        name: "Seminar Lounge",
+        parentResourceId: "1201",
+        services: {},
+      },
+    ];
     expect(
-      formatAnnexByRoomForDisplay(
-        { "1201": ["1200L-6", "1204"] },
-        [room],
-      ),
+      formatAnnexByRoomForDisplay({ "1201": ["1200L-6", "1204"] }, [
+        parent,
+        ...children,
+      ]),
     ).toBe("1201: 1200L-6 Seminar Foyer, 1204 Seminar Lounge");
   });
 
-  it("prefers annex resource names over hardcoded option labels", () => {
-    const parent = applyMcResourceServices({
+  it("falls back to configured option labels without child resources", () => {
+    const room = {
       resourceId: "1201",
       name: "Seminar Room",
-      capacity: 100,
-      services: [],
-    });
+      services: {
+        annex: {
+          mode: "checkbox" as const,
+          options: [{ value: "1204", label: "1204 Seminar Lounge" }],
+        },
+      },
+    };
+    expect(formatAnnexByRoomForDisplay({ "1201": ["1204"] }, [room])).toBe(
+      "1201: 1204 Seminar Lounge",
+    );
+  });
+
+  it("prefers annex resource names over configured option labels", () => {
+    const parent = {
+      resourceId: "1201",
+      name: "Seminar Room",
+      services: {
+        annex: {
+          mode: "checkbox" as const,
+          options: [{ value: "1204", label: "Old Label" }],
+        },
+      },
+    };
     const child = {
       resourceId: "1204",
       name: "Renamed Lounge",

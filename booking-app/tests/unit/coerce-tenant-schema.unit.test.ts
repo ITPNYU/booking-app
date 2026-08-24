@@ -75,7 +75,8 @@ describe("coerceTenantSchema — resources", () => {
     expect(coerced.resources[0].services?.catering?.chartField?.required).toBe(
       true,
     );
-    expect(coerced.resources[0].services?.annex?.mode).toBe("checkbox");
+    // Annex options come from parentResourceId child resources, not services.
+    expect(coerced.resources[0].services?.annex).toBeUndefined();
   });
 
   it("preserves Firestore object services config for mc tenant", () => {
