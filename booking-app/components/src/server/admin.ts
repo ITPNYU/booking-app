@@ -833,14 +833,29 @@ export const serverApproveEvent = async (id: string, tenant?: string) => {
     calendarEventId: id,
     newValues: { statusPrefix: BookingStatusLabel.APPROVED },
   };
-  await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/calendarEvents`, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-      "x-tenant": tenant || DEFAULT_TENANT,
+  const calendarUpdateResponse = await fetch(
+    `${process.env.NEXT_PUBLIC_BASE_URL}/api/calendarEvents`,
+    {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "x-tenant": tenant || DEFAULT_TENANT,
+      },
+      body: JSON.stringify(formDataForCalendarEvents),
     },
-    body: JSON.stringify(formDataForCalendarEvents),
-  });
+  );
+  if (!calendarUpdateResponse.ok) {
+    let errorBody = "";
+    try {
+      errorBody = await calendarUpdateResponse.text();
+    } catch {
+      // Preserve the response status when the body cannot be read.
+    }
+    throw new Error(
+      `Failed to update approved calendar event title (status ${calendarUpdateResponse.status} ${calendarUpdateResponse.statusText})` +
+        (errorBody ? `: ${errorBody}` : ""),
+    );
+  }
 
   const formData = {
     guestEmail,
