@@ -1,4 +1,4 @@
-import { Box, Button, Typography } from "@mui/material";
+import { Box, Button, TextField, Typography } from "@mui/material";
 import { useState } from "react";
 
 import AlertToast from "../../components/AlertToast";
@@ -6,11 +6,21 @@ import AlertToast from "../../components/AlertToast";
 export default function ExportDatabase() {
   const [loading, setLoading] = useState(false);
   const [showError, setShowError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
 
   const onClick = async () => {
+    if (!startDate || !endDate || startDate > endDate) {
+      setErrorMessage("Choose a valid start and end date before exporting.");
+      setShowError(true);
+      return;
+    }
+
     setLoading(true);
     try {
-      const response = await fetch("/api/bookings/export");
+      const query = new URLSearchParams({ startDate, endDate });
+      const response = await fetch(`/api/bookings/export?${query}`);
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -33,6 +43,7 @@ export default function ExportDatabase() {
       // Clean up
       window.URL.revokeObjectURL(url);
     } catch (ex) {
+      setErrorMessage("Failed to download file");
       setShowError(true);
       console.error("error exporting database", ex);
     } finally {
@@ -43,14 +54,37 @@ export default function ExportDatabase() {
   return (
     <Box>
       <Typography variant="h6">Export Database</Typography>
-      <p>Export database booking contents as a downloadable CSV file</p>
-      <Box sx={{ marginTop: 2 }}>
+      <p>
+        Export booking contents within an inclusive date range as a downloadable
+        CSV file.
+      </p>
+      <Box
+        sx={{ marginTop: 2, display: "flex", gap: 2, flexWrap: "wrap" }}
+      >
+        <TextField
+          label="Start date"
+          type="date"
+          value={startDate}
+          onChange={event => setStartDate(event.target.value)}
+          InputLabelProps={{ shrink: true }}
+          inputProps={{ max: endDate || undefined }}
+          required
+        />
+        <TextField
+          label="End date"
+          type="date"
+          value={endDate}
+          onChange={event => setEndDate(event.target.value)}
+          InputLabelProps={{ shrink: true }}
+          inputProps={{ min: startDate || undefined }}
+          required
+        />
         <Button onClick={onClick} variant="contained" disabled={loading}>
           Export
         </Button>
       </Box>
       <AlertToast
-        message="Failed to download file"
+        message={errorMessage}
         severity="error"
         open={showError}
         handleClose={() => setShowError(false)}
