@@ -229,7 +229,7 @@ export async function executeXStateTransition(
       if (reason) {
         event.reason = reason;
       }
-      if (email && eventType === "checkOut") {
+      if (email && (eventType === "checkOut" || eventType === "noShow")) {
         event.email = email;
       }
       actor.send(event);

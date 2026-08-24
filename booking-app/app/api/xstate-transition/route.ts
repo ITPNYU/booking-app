@@ -1,4 +1,6 @@
 import { DEFAULT_TENANT, TENANTS } from "@/components/src/constants/tenants";
+import { requireSession } from "@/lib/api/requireSession";
+import { shouldBypassAuth } from "@/lib/utils/testEnvironment";
 import { NextRequest, NextResponse } from "next/server";
 
 import {
@@ -79,11 +81,31 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  let actorEmail = email;
+  let actorNetId = netId;
+  if (eventType === "noShow") {
+    const session = await requireSession();
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // The request body describes client state and must not determine who is
+    // recorded in the audit trail. In E2E mode there is no real user session,
+    // so retain the explicitly mocked actor identity used by the flow tests.
+    if (!shouldBypassAuth()) {
+      actorEmail = session.email;
+      actorNetId = session.netId;
+    } else {
+      actorEmail = email || session.email;
+      actorNetId = netId || session.netId;
+    }
+  }
+
   try {
     console.log(`🎬 XSTATE TRANSITION REQUEST [${tenant?.toUpperCase()}]:`, {
       calendarEventId,
       eventType,
-      email,
+      email: actorEmail,
       tenant,
       reason,
     });
@@ -92,9 +114,9 @@ export async function POST(req: NextRequest) {
       calendarEventId,
       eventType,
       tenant,
-      email, // Pass email for finalApprovedBy
+      actorEmail, // Authenticated operator for no-show history attribution
       reason, // Pass reason for decline actions
-      netId, // Pass authoritative netId for side effects (pre-ban logging)
+      actorNetId, // Authenticated operator netId for no-show attribution
     );
 
     if (!result.success) {

@@ -28,6 +28,11 @@ interface Props {
   selectedServices?: string[] | null;
 }
 
+export function getServiceFilterKey(service: unknown): string | null {
+  if (typeof service !== "string") return null;
+  return service === "Staffing" ? "staff" : service.toLowerCase();
+}
+
 function getDateRangeFromDateSelection(selectedDateRange: DateRangeFilter) {
   switch (selectedDateRange) {
     case "Today": {
@@ -233,9 +238,8 @@ class BookingFilter {
           row.xstateData?.snapshot?.context?.servicesRequested || {};
         return selectedServices.some((service) => {
           // Map display names to keys
-          const serviceKey =
-            service === "Staffing" ? "staff" : service.toLowerCase();
-          return servicesRequested[serviceKey] === true;
+          const serviceKey = getServiceFilterKey(service);
+          return serviceKey !== null && servicesRequested[serviceKey] === true;
         });
       });
     }
