@@ -318,6 +318,9 @@ async function handleBookingApprovalEmails(
         templateName: "booking_detail",
         contents: {
           ...contentsAsStrings,
+          // Keep the object form: stringifying it above would break the
+          // auxiliary-space display in the email.
+          annexByRoom: (formattedContents as any).annexByRoom,
           requestNumber: `${contents.requestNumber}`,
           secondaryContactName: getSecondaryContactName(contents),
         },
