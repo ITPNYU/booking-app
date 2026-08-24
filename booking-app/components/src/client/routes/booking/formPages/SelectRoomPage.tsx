@@ -33,12 +33,37 @@ interface Props {
   formContext?: FormContextLevel;
 }
 
+// Convert a schema resource to the RoomSetting format for compatibility
+const resourceToRoomSetting = (
+  resource: ReturnType<typeof useTenantSchema>["resources"][number],
+) => ({
+  ...resource,
+  roomId: resource.resourceId,
+  name: resource.name,
+  capacity: resource.capacity.toString(),
+  calendarId: resource.calendarId,
+  calendarRef: undefined,
+  needsSafetyTraining: resource.training?.required,
+  trainingFormUrl: resource.training?.formId,
+  trainingInfoUrl: resource.training?.infoUrl,
+  autoApproval: resource.autoApproval,
+  isWalkIn: resource.isWalkIn,
+  isWalkInCanBookTwo: resource.isWalkInCanBookTwo,
+  isEquipment: resource.isEquipment,
+  services: resource.services,
+  maxHour: resource.maxHour,
+  minHour: resource.minHour,
+  staffingServices: resource.staffingServices,
+  staffingSections: resource.staffingSections,
+});
+
 export default function SelectRoomPage({
   calendarEventId,
   formContext = FormContextLevel.FULL_FORM,
 }: Props) {
   const { roomSettings } = useContext(DatabaseContext);
-  const { selectedRooms, setSelectedRooms, role } = useContext(BookingContext);
+  const { selectedRooms, setSelectedRooms, role, annexByRoom } =
+    useContext(BookingContext);
   const [date, setDate] = useState<Date>(new Date());
   useCheckFormMissingData();
   const theme = useTheme();
@@ -62,27 +87,7 @@ export default function SelectRoomPage({
       (resource) => !resource.parentResourceId,
     );
 
-    // Convert schema resources to RoomSetting format for compatibility
-    const convertedResources = topLevelResources.map((resource) => ({
-      ...resource,
-      roomId: resource.resourceId,
-      name: resource.name,
-      capacity: resource.capacity.toString(),
-      calendarId: resource.calendarId,
-      calendarRef: undefined,
-      needsSafetyTraining: resource.training?.required,
-      trainingFormUrl: resource.training?.formId,
-      trainingInfoUrl: resource.training?.infoUrl,
-      autoApproval: resource.autoApproval,
-      isWalkIn: resource.isWalkIn,
-      isWalkInCanBookTwo: resource.isWalkInCanBookTwo,
-      isEquipment: resource.isEquipment,
-      services: resource.services,
-      maxHour: resource.maxHour,
-      minHour: resource.minHour,
-      staffingServices: resource.staffingServices,
-      staffingSections: resource.staffingSections,
-    }));
+    const convertedResources = topLevelResources.map(resourceToRoomSetting);
 
     const allRooms = !isWalkIn
       ? convertedResources
@@ -90,6 +95,26 @@ export default function SelectRoomPage({
 
     return allRooms;
   }, [schema.resources, isWalkIn]);
+
+  // Checked annex spaces get their own calendar column next to the parent
+  // room, so their availability is visible even though they aren't
+  // standalone-bookable.
+  const calendarRooms = useMemo(() => {
+    const selectedAnnexIds = new Set(
+      Object.values(annexByRoom ?? {})
+        .flat()
+        .map(String),
+    );
+    if (selectedAnnexIds.size === 0) return selectedRooms;
+    const annexRooms = schema.resources
+      .filter(
+        (resource) =>
+          resource.parentResourceId &&
+          selectedAnnexIds.has(resource.resourceId),
+      )
+      .map(resourceToRoomSetting);
+    return [...selectedRooms, ...annexRooms];
+  }, [selectedRooms, annexByRoom, schema.resources]);
 
   return (
     <Box sx={{ flexGrow: 1 }}>
@@ -116,7 +141,7 @@ export default function SelectRoomPage({
         </Grid>
         <Grid paddingRight={2} flex={1}>
           <CalendarVerticalResource
-            rooms={selectedRooms}
+            rooms={calendarRooms}
             dateView={date}
             {...{ calendarEventId, formContext }}
             startHour={getStartHour(schema.calendarConfig, formContext, role)}
