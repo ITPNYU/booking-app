@@ -229,7 +229,7 @@ export const mcBookingMachine = setup({
       | { type: "edit" }
       | { type: "Modify" }
       | { type: "cancel" }
-      | { type: "noShow" }
+      | { type: "noShow"; email?: string }
       | { type: "approve" }
       | { type: "checkIn" }
       | { type: "decline"; reason?: string }
@@ -337,11 +337,17 @@ export const mcBookingMachine = setup({
           return;
         }
 
+        const actorEmail =
+          typeof (event as any)?.email === "string" &&
+          (event as any).email.trim()
+            ? (event as any).email.trim()
+            : context.email;
+
         await logServerBookingChange({
           bookingId: bookingDoc.id,
           calendarEventId: context.calendarEventId,
           status: status as any, // Type assertion for dynamic import
-          changedBy: context.email || "system",
+          changedBy: actorEmail || "system",
           requestNumber: (bookingDoc as any).requestNumber || 0,
           note: note || "",
           tenant: context.tenant,
@@ -388,34 +394,8 @@ export const mcBookingMachine = setup({
     },
     // Service approval/decline actions generated from config
     ...createServiceActions(SERVICE_CONFIGS),
-    // Auto-approve all requested services for pregame bookings
     resetServiceDecisionsOnEdit: assign({
       servicesApproved: () => ({}),
-    }),
-    approveAllPregameServices: assign({
-      servicesApproved: ({ context }) => {
-        const approved: any = {};
-        if (context.servicesRequested) {
-          Object.keys(context.servicesRequested).forEach((service) => {
-            if (
-              context.servicesRequested?.[
-              service as keyof typeof context.servicesRequested
-              ]
-            ) {
-              approved[service] = true;
-            }
-          });
-        }
-        console.log(
-          `✅ AUTO-APPROVING ALL PREGAME SERVICES [${context.tenant?.toUpperCase()}]:`,
-          {
-            servicesRequested: context.servicesRequested,
-            servicesApproved: approved,
-            origin: context.origin,
-          },
-        );
-        return approved;
-      },
     }),
 
     // Close processing is now handled by callers (db.ts, cron, /api/services) after XState transition
@@ -555,13 +535,6 @@ export const mcBookingMachine = setup({
     },
     // Per-service requested/approved guards generated from config
     ...createServiceGuards(SERVICE_CONFIGS),
-    isPregameOrigin: ({ context }) => {
-      const isPregame = context.origin === BookingOrigin.PREGAME;
-      console.log(`🎯 XSTATE GUARD: isPregameOrigin: ${isPregame}`, {
-        origin: context.origin,
-      });
-      return isPregame;
-    },
   },
 }).createMachine({
   context: ({ input }: { input?: MediaCommonsBookingContext }) => ({
@@ -771,14 +744,10 @@ export const mcBookingMachine = setup({
     },
     "Pre-approved": {
       on: {
+        // Pregame bookings intentionally take the same path as user bookings
+        // here: ones with services must pass service review (issue #1507),
+        // only service-less ones batch-approve straight through.
         approve: [
-          {
-            target: "Approved",
-            guard: {
-              type: "isPregameOrigin",
-            },
-            actions: "approveAllPregameServices",
-          },
           {
             target: "Approved",
             guard: {

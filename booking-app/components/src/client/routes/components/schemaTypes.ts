@@ -148,6 +148,13 @@ export type Resource = {
   capacity: number;
   name: string;
   resourceId: string;
+  /**
+   * When set, this resource is an auxiliary (annex) space belonging to the
+   * parent resource. Annex resources are hidden from the top-level room list,
+   * cannot be booked standalone, and are offered as annex checkboxes under
+   * their parent; selecting one invites its calendar to the parent's event.
+   */
+  parentResourceId?: string;
   isEquipment: boolean;
   calendarId: string;
   training?: ResourceTraining;

@@ -15,6 +15,7 @@ import {
   PageContextLevel,
 } from "../../../../types";
 import { formatDateTable, formatTimeAmPm } from "../../../utils/date";
+import { mergeRoomIdsWithAnnex } from "../../../../utils/resourceServicesUtils";
 
 import BookingActions from "../../admin/components/BookingActions";
 import getBookingStatus from "../../hooks/getBookingStatus";
@@ -86,7 +87,9 @@ export default function BookingTableRow({
           booking.endDate.toDate(),
         )} ET`}
       />
-      <TableCell sx={{ maxWidth: "150px" }}>{booking.roomId}</TableCell>
+      <TableCell sx={{ maxWidth: "150px" }}>
+        {mergeRoomIdsWithAnnex(booking.roomId, booking.annexByRoom)}
+      </TableCell>
       {!isUserView && (
         <StackedTableCell
           topText={

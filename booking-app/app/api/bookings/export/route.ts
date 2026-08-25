@@ -10,7 +10,8 @@ import {
 import admin from "@/lib/firebase/server/firebaseAdmin";
 import { applyEnvironmentCalendarIds } from "@/lib/utils/calendarEnvironment";
 import { toFirebaseTimestamp } from "@/components/src/client/utils/serverDate";
-import { formatInTimeZone } from "date-fns-tz";
+import { addDays } from "date-fns";
+import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
 
 import { TIMEZONE } from "../shared";
 
@@ -78,6 +79,18 @@ const toDate = (timestamp: unknown): Date | null => {
 const safeFormat = (timestamp: unknown, fmt: string): string => {
   const date = toDate(timestamp);
   return date ? formatInTimeZone(date, TIMEZONE, fmt) : "";
+};
+
+const parseExportDate = (value: string | null): Date | null => {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+
+  const date = fromZonedTime(`${value}T00:00:00`, TIMEZONE);
+  return (
+    isNaN(date.getTime()) ||
+    formatInTimeZone(date, TIMEZONE, "yyyy-MM-dd") !== value
+  )
+    ? null
+    : date;
 };
 
 const getBookingStatus = (booking: Booking): string => {
@@ -178,6 +191,18 @@ const buildRow = (booking: Booking): string => {
 
 export async function GET(request: NextRequest) {
   const tenant = request.headers.get("x-tenant") || DEFAULT_TENANT;
+  const { searchParams } = new URL(request.url);
+  const startDateParam = searchParams.get("startDate");
+  const endDateParam = searchParams.get("endDate");
+  const startDate = parseExportDate(startDateParam);
+  const endDate = parseExportDate(endDateParam);
+
+  if (!startDate || !endDate || startDate > endDate) {
+    return NextResponse.json(
+      { error: "A valid startDate and endDate are required." },
+      { status: 400 },
+    );
+  }
 
   // Schema is small; fetched up front so room mapping (if needed in future
   // columns) is available before we start streaming rows.
@@ -198,10 +223,17 @@ export async function GET(request: NextRequest) {
   void rooms;
 
   const collectionName = getServerTenantCollection(TableNames.BOOKING, tenant);
+  const endDateExclusive = addDays(endDate, 1);
   const docStream = admin
     .firestore()
     .collection(collectionName)
-    .orderBy("requestNumber")
+    .where("startDate", ">=", admin.firestore.Timestamp.fromDate(startDate))
+    .where(
+      "startDate",
+      "<",
+      admin.firestore.Timestamp.fromDate(endDateExclusive),
+    )
+    .orderBy("startDate")
     .stream() as unknown as NodeJS.ReadableStream & { destroy: () => void };
 
   const encoder = new TextEncoder();

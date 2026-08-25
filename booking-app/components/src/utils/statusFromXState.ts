@@ -30,6 +30,21 @@ type BookingLike = {
   setupService?: string;
 };
 
+function areAllServiceRequestStatesApproved(serviceRequestState: any): boolean {
+  if (!serviceRequestState || typeof serviceRequestState !== "object") {
+    return false;
+  }
+
+  const substates = Object.values(serviceRequestState);
+  return (
+    substates.length > 0 &&
+    substates.every(
+      (substate) =>
+        typeof substate === "string" && substate.endsWith(" Approved"),
+    )
+  );
+}
+
 export function getStatusFromXState(
   booking: BookingLike,
   tenant?: string,
@@ -62,6 +77,14 @@ export function getStatusFromXState(
           return BookingStatusLabel.CHECKED_OUT;
         }
         if (xvalue["Services Request"]) {
+          // Some bookings retain this parallel-state snapshot momentarily after
+          // its final region completes. Only treat that stale snapshot as
+          // approved when every service region is actually approved; the final
+          // approval field may be a legacy/zero timestamp or may predate
+          // completion of the service workflow.
+          if (areAllServiceRequestStatesApproved(xvalue["Services Request"])) {
+            return BookingStatusLabel.APPROVED;
+          }
           return BookingStatusLabel.PRE_APPROVED;
         }
       }
