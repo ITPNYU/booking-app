@@ -20,10 +20,10 @@ import {
 } from "@mui/material";
 import type { ChangeEvent } from "react";
 import { useCallback, useContext, useEffect, useRef, useState } from "react";
+import { computeDiff, formatValue, type DiffEntry } from "@/lib/utils/schemaDiff";
 import { DatabaseContext } from "../components/Provider";
 import type { SchemaContextType } from "../components/SchemaProvider";
 import { defaultScheme } from "../components/SchemaProvider";
-import { computeDiff, formatValue, type DiffEntry } from "./schemaEditorUtils";
 
 type SnackState = {
   open: boolean;
