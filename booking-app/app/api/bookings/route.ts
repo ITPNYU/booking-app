@@ -28,6 +28,7 @@ import {
   getSecondaryContactName,
 } from "@/components/src/utils/formatters";
 import { resolveAnnexCalendarIds } from "@/components/src/utils/resourceServicesUtils";
+import { canRequestAuxiliarySpaces } from "@/components/src/utils/roleUtils";
 import { serverGetTenantResources } from "@/lib/tenant/serverGetTenantResources";
 import {
   logServerBookingChange,
@@ -502,8 +503,19 @@ async function checkOverlap(
 }
 
 export async function POST(request: NextRequest) {
-  const { email, selectedRooms, bookingCalendarInfo, data, isAutoApproval } =
+  const { email, selectedRooms, bookingCalendarInfo, data: rawData, isAutoApproval } =
     await request.json();
+
+  // Students cannot request auxiliary spaces — strip even if posted directly.
+  const data =
+    rawData && typeof rawData === "object"
+      ? {
+          ...rawData,
+          ...(!canRequestAuxiliarySpaces(rawData.role)
+            ? { annexByRoom: {} }
+            : {}),
+        }
+      : rawData;
 
   // Extract tenant from URL
   const tenant = extractTenantFromRequest(request);

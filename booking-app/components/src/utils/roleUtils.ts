@@ -42,3 +42,10 @@ export function getBaseRole(role: Role | string | undefined): BaseRole {
   return "student";
 }
 
+/** Auxiliary spaces are faculty/staff only — not students. */
+export function canRequestAuxiliarySpaces(
+  role: Role | string | undefined,
+): boolean {
+  return getBaseRole(role) !== "student";
+}
+
