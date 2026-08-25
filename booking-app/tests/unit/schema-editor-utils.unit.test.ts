@@ -2,50 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   computeDiff,
   formatValue,
-  setNestedValue,
 } from "@/components/src/client/routes/super/schemaEditorUtils";
-
-describe("setNestedValue", () => {
-  it("sets a top-level key", () => {
-    const result = setNestedValue({ a: 1 }, "a", 2);
-    expect(result).toEqual({ a: 2 });
-  });
-
-  it("sets a nested key", () => {
-    const result = setNestedValue({ a: { b: 1 } }, "a.b", 2);
-    expect(result).toEqual({ a: { b: 2 } });
-  });
-
-  it("sets a deeply nested key", () => {
-    const result = setNestedValue(
-      { a: { b: { c: 1 } } },
-      "a.b.c",
-      "new",
-    );
-    expect(result).toEqual({ a: { b: { c: "new" } } });
-  });
-
-  it("creates intermediate objects if missing", () => {
-    const result = setNestedValue({}, "a.b.c", 42);
-    expect(result).toEqual({ a: { b: { c: 42 } } });
-  });
-
-  it("preserves other keys at each level", () => {
-    const result = setNestedValue(
-      { a: { b: 1, x: 2 }, y: 3 },
-      "a.b",
-      10,
-    );
-    expect(result).toEqual({ a: { b: 10, x: 2 }, y: 3 });
-  });
-
-  it("does not mutate the original object", () => {
-    const original = { a: { b: 1 } };
-    const result = setNestedValue(original, "a.b", 2);
-    expect(original.a.b).toBe(1);
-    expect(result.a.b).toBe(2);
-  });
-});
 
 describe("computeDiff", () => {
   it("returns empty array for identical objects", () => {

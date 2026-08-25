@@ -78,19 +78,3 @@ export function formatValue(val: any): string {
   }
   return String(val);
 }
-
-export function getByPath(obj: any, path: string): any {
-  return path.split(".").reduce((o, k) => (o == null ? undefined : o[k]), obj);
-}
-
-export function setNestedValue(obj: any, path: string, value: any): any {
-  const keys = path.split(".");
-  if (keys.length === 1) {
-    return { ...obj, [keys[0]]: value };
-  }
-  const [head, ...rest] = keys;
-  return {
-    ...obj,
-    [head]: setNestedValue(obj[head] ?? {}, rest.join("."), value),
-  };
-}
