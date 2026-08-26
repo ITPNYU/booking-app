@@ -4,7 +4,9 @@ import { FormContextLevel, Inputs } from "@/components/src/types";
 import {
   combineServiceToggles,
   getServiceToggle,
+  hasSchemaServicesConfig,
   lockedToggleValue,
+  needsGenericSetupSwitch,
   resolveSecurityToggle,
   resolveSharedServiceToggle,
 } from "@/components/src/utils/resourceServicesUtils";
@@ -76,6 +78,37 @@ describe("migrateResourceServices toggle", () => {
       },
     });
     expect(withoutToggle.furnishings?.mode).toBe("static");
+  });
+});
+
+describe("legacy generic Room Setup switch", () => {
+  it("treats an empty object services config as schema-driven", () => {
+    expect(hasSchemaServicesConfig({ resourceId: "260", services: {} })).toBe(true);
+    expect(hasSchemaServicesConfig({ resourceId: "x", services: ["setup"] })).toBe(false);
+    expect(hasSchemaServicesConfig({ resourceId: "x" })).toBe(false);
+  });
+
+  it("does not render the generic switch for a room with no services", () => {
+    const room260 = { resourceId: "260", services: {} };
+    expect(needsGenericSetupSwitch([room260], visibility, true)).toBe(false);
+  });
+
+  it("keeps the generic switch for legacy rooms and switch-mode setup sections", () => {
+    const legacy = { resourceId: "1", services: ["setup"] };
+    expect(needsGenericSetupSwitch([legacy], visibility, true)).toBe(true);
+    expect(needsGenericSetupSwitch([legacy], visibility, false)).toBe(false);
+    const switchSetup = {
+      resourceId: "2",
+      services: { setup: { label: "Room Setup", chartField: { required: true } } },
+    };
+    expect(needsGenericSetupSwitch([switchSetup], visibility, false)).toBe(true);
+    const radioSetup = {
+      resourceId: "3",
+      services: {
+        setup: { label: "Room Setup", mode: "radio" as const, options: [{ value: "a", label: "A" }] },
+      },
+    };
+    expect(needsGenericSetupSwitch([radioSetup], visibility, true)).toBe(false);
   });
 });
 

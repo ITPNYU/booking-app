@@ -31,6 +31,42 @@ export function getServiceResourceId(room: ServiceResourceLike): string {
   return room.resourceId ?? room.roomId ?? "";
 }
 
+/**
+ * True when the resource carries an object `services` config — including an
+ * intentionally empty `{}` (no services offered). Such rooms are rendered by
+ * the schema-driven form only; the legacy tenant-level switches must not
+ * appear for them.
+ */
+export function hasSchemaServicesConfig(room: ServiceResourceLike): boolean {
+  const { services } = room;
+  return !!services && typeof services === "object" && !Array.isArray(services);
+}
+
+/**
+ * Whether the legacy generic "Room Setup" switch is needed for the selection:
+ * only for rooms that are not schema-driven (legacy string[] / no services),
+ * or for schema rooms whose setup section is a plain switch.
+ */
+export function needsGenericSetupSwitch(
+  rooms: ServiceResourceLike[],
+  context: ServiceVisibilityContext,
+  tenantShowSetup: boolean,
+): boolean {
+  if (rooms.length === 0) return tenantShowSetup;
+  const schemaSetupSwitchRooms = getRoomsWithVisibleService(
+    rooms,
+    "setup",
+    context,
+  ).filter((r) => {
+    if (!hasSchemaServicesConfig(r)) return false;
+    const mode = getServiceSectionConfig(r, "setup")?.mode;
+    return !isChoiceMode(mode) && mode !== "static";
+  });
+  if (schemaSetupSwitchRooms.length > 0) return true;
+  const hasLegacyRoom = rooms.some((r) => !hasSchemaServicesConfig(r));
+  return hasLegacyRoom && tenantShowSetup;
+}
+
 export function isLegacyServicesArray(
   services: Resource["services"] | undefined,
 ): services is string[] {

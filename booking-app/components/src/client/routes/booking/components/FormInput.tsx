@@ -44,7 +44,9 @@ import {
   getResourceServicesConfig,
   getRoomsWithVisibleService,
   getServiceSectionConfig,
+  hasSchemaServicesConfig,
   isChoiceMode,
+  needsGenericSetupSwitch,
   resolveSecurityToggle,
   resolveSharedServiceToggle,
   ServiceVisibilityContext,
@@ -148,32 +150,16 @@ export default function FormInput({
     [isVIP, isWalkIn],
   );
 
-  const needsGenericSetup = useMemo(() => {
-    const hasSpecialSetup = selectedRooms.some((r) => {
-      const mode = getServiceSectionConfig(r, "setup")?.mode;
-      return isChoiceMode(mode) || mode === "static";
-    });
-    if (hasSpecialSetup) {
-      // Multi-room: still show the generic switch for co-selected rooms
-      // that are not handled by BookingFormResourceServices.
-      return getRoomsWithVisibleService(
-        selectedRooms,
-        "setup",
-        serviceVisibility,
-      ).some((r) => {
-        const mode = getServiceSectionConfig(r, "setup")?.mode;
-        return !isChoiceMode(mode) && mode !== "static";
-      });
-    }
-    // Legacy / form-level: honor schema showSetup when no special configs exist.
-    return showSetup;
-  }, [selectedRooms, serviceVisibility, showSetup]);
+  const needsGenericSetup = useMemo(
+    () => needsGenericSetupSwitch(selectedRooms, serviceVisibility, showSetup),
+    [selectedRooms, serviceVisibility, showSetup],
+  );
 
+  // Rooms with an object services config (even an empty `{}`) are rendered by
+  // BookingFormResourceServices; the legacy tenant-level switches are only for
+  // rooms without one.
   const schemaDrivenServices = useMemo(
-    () =>
-      selectedRooms.some(
-        (r) => Object.keys(getResourceServicesConfig(r)).length > 0,
-      ),
+    () => selectedRooms.some(hasSchemaServicesConfig),
     [selectedRooms],
   );
 
