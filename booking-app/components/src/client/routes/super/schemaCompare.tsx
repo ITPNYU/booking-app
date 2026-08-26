@@ -18,20 +18,22 @@ import {
   Typography,
 } from "@mui/material";
 import { useCallback, useContext, useMemo, useState } from "react";
+import { computeDiff, type DiffEntry } from "@/lib/utils/schemaDiff";
 import { DatabaseContext } from "../components/Provider";
 import { defaultScheme } from "../components/SchemaProvider";
-import { computeDiff, formatValue, type DiffEntry } from "./schemaEditorUtils";
 
 /** Full JSON string — never truncated. */
 function formatValueFull(val: unknown): string {
-  if (val === undefined) return "(undefined)";
+  if (val === undefined) return "(not set)";
   if (val === null) return "(null)";
   if (typeof val === "object") return JSON.stringify(val, null, 2);
   return String(val);
 }
 
+const COLLAPSE_AT = 120;
+
 /** Value cell that respects row-level expanded state. */
-function DryRunValue({
+function DiffValueCell({
   value,
   bg,
   expanded,
@@ -41,7 +43,7 @@ function DryRunValue({
   expanded: boolean;
 }) {
   const full = formatValueFull(value);
-  const isLong = full.length > 120;
+  const isLong = full.length > COLLAPSE_AT;
 
   return (
     <Box
@@ -56,43 +58,44 @@ function DryRunValue({
         whiteSpace: "pre-wrap",
       }}
     >
-      {isLong && !expanded ? full.slice(0, 120) + " ..." : full}
+      {isLong && !expanded ? `${full.slice(0, COLLAPSE_AT)} ...` : full}
     </Box>
   );
 }
 
-/** Row with expand/collapse toggle that applies to both source and target. */
-function DryRunRow({
-  keyName,
-  changeType,
-  sourceValue,
-  targetValue,
-  sourceBg,
-  targetBg,
-}: {
-  keyName: string;
-  changeType: string;
-  sourceValue?: unknown;
-  targetValue?: unknown;
-  sourceBg?: string;
-  targetBg?: string;
-}) {
+/**
+ * One diff row. Change type is relative to the right (target) column:
+ * "added" = will be added to target, "removed" = will be removed from target,
+ * "changed" = target value will be replaced by the left (source) value.
+ */
+function DiffRow({ entry }: { entry: DiffEntry }) {
   const [expanded, setExpanded] = useState(false);
-  const sourceStr = formatValueFull(sourceValue);
-  const targetStr = formatValueFull(targetValue);
-  const isLong = sourceStr.length > 120 || targetStr.length > 120;
+  const sourceStr = formatValueFull(entry.newValue);
+  const targetStr = formatValueFull(entry.oldValue);
+  const isLong =
+    sourceStr.length > COLLAPSE_AT || targetStr.length > COLLAPSE_AT;
 
   const color =
-    changeType === "changed"
+    entry.type === "changed"
       ? "warning.main"
-      : changeType === "added"
+      : entry.type === "added"
         ? "success.main"
         : "error.main";
+  const sourceBg = entry.type !== "removed" ? "#f0fff0" : "#f5f5f5";
+  const targetBg = entry.type !== "added" ? "#fff0f0" : "#f5f5f5";
 
   return (
     <tr>
-      <Box component="td" sx={{ p: 1, borderBottom: "1px solid #ddd", fontFamily: "monospace", fontSize: 12 }}>
-        {keyName}
+      <Box
+        component="td"
+        sx={{
+          p: 1,
+          borderBottom: "1px solid #ddd",
+          fontFamily: "monospace",
+          fontSize: 12,
+        }}
+      >
+        {entry.path}
         {isLong && (
           <Box
             component="span"
@@ -109,20 +112,68 @@ function DryRunRow({
           </Box>
         )}
       </Box>
-      <Box component="td" sx={{ p: 1, borderBottom: "1px solid #ddd", color, fontWeight: "bold" }}>
-        {changeType}
+      <Box
+        component="td"
+        sx={{
+          p: 1,
+          borderBottom: "1px solid #ddd",
+          color,
+          fontWeight: "bold",
+        }}
+      >
+        {entry.type}
       </Box>
-      {sourceValue !== undefined ? (
-        <DryRunValue value={sourceValue} bg={sourceBg} expanded={expanded} />
-      ) : (
-        <Box component="td" sx={{ p: 1, borderBottom: "1px solid #ddd" }} />
-      )}
-      {targetValue !== undefined ? (
-        <DryRunValue value={targetValue} bg={targetBg} expanded={expanded} />
-      ) : (
-        <Box component="td" sx={{ p: 1, borderBottom: "1px solid #ddd" }} />
-      )}
+      <DiffValueCell value={entry.newValue} bg={sourceBg} expanded={expanded} />
+      <DiffValueCell value={entry.oldValue} bg={targetBg} expanded={expanded} />
     </tr>
+  );
+}
+
+/**
+ * Shared table for the Difference view and the dry-run report so both render
+ * identical rows for identical input.
+ */
+function SchemaDiffTable({
+  diffs,
+  leftLabel,
+  rightLabel,
+}: {
+  diffs: DiffEntry[];
+  leftLabel: string;
+  rightLabel: string;
+}) {
+  const th = {
+    textAlign: "left" as const,
+    p: 1,
+    borderBottom: "2px solid #ccc",
+  };
+  return (
+    <Box
+      component="table"
+      sx={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}
+    >
+      <thead>
+        <tr>
+          <Box component="th" sx={{ ...th, width: "25%" }}>
+            Field
+          </Box>
+          <Box component="th" sx={{ ...th, width: "10%" }}>
+            Change
+          </Box>
+          <Box component="th" sx={{ ...th, width: "32.5%" }}>
+            {leftLabel}
+          </Box>
+          <Box component="th" sx={{ ...th, width: "32.5%" }}>
+            {rightLabel}
+          </Box>
+        </tr>
+      </thead>
+      <tbody>
+        {diffs.map((d) => (
+          <DiffRow key={`${d.path}:${d.type}`} entry={d} />
+        ))}
+      </tbody>
+    </Box>
   );
 }
 
@@ -143,7 +194,9 @@ function SchemaHealthCheck({
       const schema = schemas[env];
       if (!schema) continue;
       const schemaKeys = Object.keys(schema);
-      const missing = ALL_DEFAULT_KEYS.filter((key) => !schemaKeys.includes(key));
+      const missing = ALL_DEFAULT_KEYS.filter(
+        (key) => !schemaKeys.includes(key),
+      );
       if (missing.length > 0) {
         results.push({ env, missing });
       }
@@ -156,7 +209,8 @@ function SchemaHealthCheck({
   return (
     <Alert severity="info" sx={{ mb: 2 }}>
       <Typography variant="body2" sx={{ mb: 1 }}>
-        Schema Health: {healthData.length} environment(s) have unconfigured fields
+        Schema Health: {healthData.length} environment(s) have unconfigured
+        fields
       </Typography>
       {healthData.map(({ env, missing }) => (
         <Box key={env} sx={{ mt: 1 }}>
@@ -165,12 +219,7 @@ function SchemaHealthCheck({
           </Typography>
           <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, mt: 0.5 }}>
             {missing.map((key) => (
-              <Chip
-                key={key}
-                label={key}
-                size="small"
-                variant="outlined"
-              />
+              <Chip key={key} label={key} size="small" variant="outlined" />
             ))}
           </Box>
         </Box>
@@ -195,12 +244,7 @@ export default function SchemaCompare() {
   const [syncing, setSyncing] = useState(false);
   const [dryRunning, setDryRunning] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [dryRunResult, setDryRunResult] = useState<{
-    added: { key: string; sourceValue?: unknown }[];
-    removed: { key: string; targetValue?: unknown }[];
-    changed: { key: string; sourceValue?: unknown; targetValue?: unknown }[];
-    unchangedCount: number;
-  } | null>(null);
+  const [dryRunResult, setDryRunResult] = useState<DiffEntry[] | null>(null);
   const [snack, setSnack] = useState<SnackState>({
     open: false,
     message: "",
@@ -278,10 +322,10 @@ export default function SchemaCompare() {
 
   const leftSchema = schemas[leftEnv];
   const rightSchema = schemas[rightEnv];
+  // Same orientation as the sync endpoint: old = right (target), new = left
+  // (source), so change types read as "what Overwrite left → right does".
   const diffs: DiffEntry[] =
-    leftSchema && rightSchema
-      ? computeDiff(leftSchema, rightSchema)
-      : [];
+    leftSchema && rightSchema ? computeDiff(rightSchema, leftSchema) : [];
 
   return (
     <Box>
@@ -289,7 +333,9 @@ export default function SchemaCompare() {
         Environment Schema Compare
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        Compare tenantSchema across development, staging, and production.
+        Compare tenantSchema across development, staging, and production. Change
+        types describe what Overwrite (left → right) does to the right
+        environment.
       </Typography>
 
       <Box display="flex" gap={2} alignItems="center" mb={2} flexWrap="wrap">
@@ -313,7 +359,10 @@ export default function SchemaCompare() {
           <Select
             value={leftEnv}
             label="Left"
-            onChange={(e) => { setLeftEnv(e.target.value as Env); setDryRunResult(null); }}
+            onChange={(e) => {
+              setLeftEnv(e.target.value as Env);
+              setDryRunResult(null);
+            }}
           >
             {ENVIRONMENTS.map((env) => (
               <MenuItem key={env} value={env}>
@@ -330,7 +379,10 @@ export default function SchemaCompare() {
           <Select
             value={rightEnv}
             label="Right"
-            onChange={(e) => { setRightEnv(e.target.value as Env); setDryRunResult(null); }}
+            onChange={(e) => {
+              setRightEnv(e.target.value as Env);
+              setDryRunResult(null);
+            }}
           >
             {ENVIRONMENTS.map((env) => (
               <MenuItem key={env} value={env}>
@@ -398,77 +450,20 @@ export default function SchemaCompare() {
           }}
         >
           <Typography variant="subtitle2" sx={{ mb: 1 }}>
-            Dry Run Result — {leftEnv} → {rightEnv}
+            Dry Run Result — {leftEnv} → {rightEnv} ({dryRunResult.length}{" "}
+            change(s), computed server-side from a fresh read)
           </Typography>
-          {dryRunResult.changed.length === 0 &&
-            dryRunResult.added.length === 0 &&
-            dryRunResult.removed.length === 0 && (
-              <Typography variant="body2">No changes would be applied.</Typography>
-            )}
-          {(dryRunResult.changed.length > 0 ||
-            dryRunResult.added.length > 0 ||
-            dryRunResult.removed.length > 0) && (
-            <Box
-              component="table"
-              sx={{
-                width: "100%",
-                borderCollapse: "collapse",
-                fontSize: 13,
-                mt: 1,
-              }}
-            >
-              <thead>
-                <tr>
-                  <Box component="th" sx={{ textAlign: "left", p: 1, borderBottom: "2px solid #ccc", width: "20%" }}>
-                    Key
-                  </Box>
-                  <Box component="th" sx={{ textAlign: "left", p: 1, borderBottom: "2px solid #ccc", width: "10%" }}>
-                    Change
-                  </Box>
-                  <Box component="th" sx={{ textAlign: "left", p: 1, borderBottom: "2px solid #ccc", width: "35%" }}>
-                    {leftEnv} (source)
-                  </Box>
-                  <Box component="th" sx={{ textAlign: "left", p: 1, borderBottom: "2px solid #ccc", width: "35%" }}>
-                    {rightEnv} (target)
-                  </Box>
-                </tr>
-              </thead>
-              <tbody>
-                {dryRunResult.changed.map((d) => (
-                  <DryRunRow
-                    key={d.key}
-                    keyName={d.key}
-                    changeType="changed"
-                    sourceValue={d.sourceValue}
-                    targetValue={d.targetValue}
-                    sourceBg="#f0fff0"
-                    targetBg="#fff0f0"
-                  />
-                ))}
-                {dryRunResult.added.map((d) => (
-                  <DryRunRow
-                    key={d.key}
-                    keyName={d.key}
-                    changeType="added"
-                    sourceValue={d.sourceValue}
-                    sourceBg="#f0fff0"
-                  />
-                ))}
-                {dryRunResult.removed.map((d) => (
-                  <DryRunRow
-                    key={d.key}
-                    keyName={d.key}
-                    changeType="removed"
-                    targetValue={d.targetValue}
-                    targetBg="#fff0f0"
-                  />
-                ))}
-              </tbody>
-            </Box>
+          {dryRunResult.length === 0 ? (
+            <Typography variant="body2">
+              No changes would be applied.
+            </Typography>
+          ) : (
+            <SchemaDiffTable
+              diffs={dryRunResult}
+              leftLabel={`${leftEnv} (source)`}
+              rightLabel={`${rightEnv} (target)`}
+            />
           )}
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-            Unchanged: {dryRunResult.unchangedCount} key(s)
-          </Typography>
         </Box>
       )}
 
@@ -491,107 +486,11 @@ export default function SchemaCompare() {
               No differences between {leftEnv} and {rightEnv}.
             </Alert>
           ) : (
-            <Box
-              component="table"
-              sx={{
-                width: "100%",
-                borderCollapse: "collapse",
-                fontSize: 13,
-              }}
-            >
-              <thead>
-                <tr>
-                  <Box
-                    component="th"
-                    sx={{
-                      textAlign: "left",
-                      p: 1,
-                      borderBottom: "2px solid #ddd",
-                      width: "30%",
-                    }}
-                  >
-                    Field
-                  </Box>
-                  <Box
-                    component="th"
-                    sx={{
-                      textAlign: "left",
-                      p: 1,
-                      borderBottom: "2px solid #ddd",
-                      width: "35%",
-                    }}
-                  >
-                    {leftEnv}
-                  </Box>
-                  <Box
-                    component="th"
-                    sx={{
-                      textAlign: "left",
-                      p: 1,
-                      borderBottom: "2px solid #ddd",
-                      width: "35%",
-                    }}
-                  >
-                    {rightEnv}
-                  </Box>
-                </tr>
-              </thead>
-              <tbody>
-                {diffs.map((d, i) => (
-                  <tr key={`${d.path}:${d.type}`}>
-                    <Box
-                      component="td"
-                      sx={{
-                        p: 1,
-                        borderBottom: "1px solid #eee",
-                        fontFamily: "monospace",
-                        fontSize: 12,
-                      }}
-                    >
-                      {d.path}
-                    </Box>
-                    <Box
-                      component="td"
-                      sx={{
-                        p: 1,
-                        borderBottom: "1px solid #eee",
-                        fontFamily: "monospace",
-                        fontSize: 12,
-                        backgroundColor:
-                          d.type === "removed" || d.type === "changed"
-                            ? "#fff0f0"
-                            : d.type === "added"
-                              ? "#f5f5f5"
-                              : undefined,
-                        wordBreak: "break-all",
-                        maxWidth: 400,
-                      }}
-                    >
-                      {d.type !== "added" ? formatValue(d.oldValue) : "(not set)"}
-                    </Box>
-                    <Box
-                      component="td"
-                      sx={{
-                        p: 1,
-                        borderBottom: "1px solid #eee",
-                        fontFamily: "monospace",
-                        fontSize: 12,
-                        backgroundColor:
-                          d.type === "added" || d.type === "changed"
-                            ? "#f0fff0"
-                            : d.type === "removed"
-                              ? "#f5f5f5"
-                              : undefined,
-                        wordBreak: "break-all",
-                        maxWidth: 400,
-                      }}
-                    >
-                      {d.type !== "removed" ? formatValue(d.newValue) : "(not set)"}
-                    </Box>
-                  </tr>
-                ))}
-              </tbody>
-            </Box>
+            <SchemaDiffTable
+              diffs={diffs}
+              leftLabel={leftEnv}
+              rightLabel={rightEnv}
+            />
           )}
         </>
       )}
