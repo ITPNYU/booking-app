@@ -452,6 +452,28 @@ export default function BookingFormResourceServices({
   const furnishingsChartError = mapFieldErrorMessage(
     errors.chartFieldForFurnishingsByRoom,
   );
+  const equipmentDetailsError = mapFieldErrorMessage(
+    errors.equipmentServicesDetailsByRoom,
+  );
+
+  // Equipment sections with a toggle require details while the switch is on
+  // (locked on or user-enabled); equipment only counts as requested when
+  // details are filled in.
+  const isEquipmentSwitchOn = (
+    room: ServiceResourceLike,
+    detailsMap: Record<string, string>,
+  ): boolean => {
+    const cfg = getServiceSectionConfig(room, "equipment");
+    if (!cfg?.toggle || !shouldShowServiceSection(cfg, visibility)) {
+      return false;
+    }
+    if (cfg.toggle === "on") return true;
+    if (cfg.toggle === "off") return false;
+    const resourceId = getServiceResourceId(room);
+    return (
+      equipmentOnByRoom[resourceId] ?? !!detailsMap[resourceId]?.trim()
+    );
+  };
 
   useEffect(() => {
     const currentMap =
@@ -601,6 +623,24 @@ export default function BookingFormResourceServices({
               }
             }
             return true;
+          },
+        }}
+        render={() => null}
+      />
+      <Controller
+        name="equipmentServicesDetailsByRoom"
+        control={control}
+        rules={{
+          validate: (val) => {
+            const map = (val as Record<string, string>) ?? {};
+            const missing = selectedRooms.some(
+              (room) =>
+                isEquipmentSwitchOn(room, map) &&
+                !map[getServiceResourceId(room)]?.trim(),
+            );
+            return missing
+              ? "Please describe your equipment needs in detail."
+              : true;
           },
         }}
         render={() => null}
@@ -968,6 +1008,9 @@ export default function BookingFormResourceServices({
                         ...prev,
                         [resourceId]: next === "yes",
                       }));
+                      if (next === "no") {
+                        trigger("equipmentServicesDetailsByRoom");
+                      }
                       if (next === "no" && detailsByRoom[resourceId]) {
                         const { [resourceId]: _removed, ...rest } =
                           detailsByRoom;
@@ -998,6 +1041,7 @@ export default function BookingFormResourceServices({
                   <>
                     <Label htmlFor={`equip-details-${resourceId}`}>
                       {equipmentCfg.detailsLabel ?? "Equipment request details"}
+                      {equipmentHasSwitch ? " *" : ""}
                     </Label>
                     {equipmentCfg.detailsDescriptionHtml ? (
                       <HtmlBlock html={equipmentCfg.detailsDescriptionHtml} />
@@ -1012,13 +1056,15 @@ export default function BookingFormResourceServices({
                         borderRadius: 4,
                       }}
                       value={detailsByRoom[resourceId] ?? ""}
+                      aria-required={equipmentHasSwitch}
+                      aria-invalid={!!equipmentDetailsError}
                       onChange={(e) => {
                         const next = {
                           ...detailsByRoom,
                           [resourceId]: e.target.value,
                         };
                         setValue("equipmentServicesDetailsByRoom", next, {
-                          shouldValidate: false,
+                          shouldValidate: equipmentHasSwitch,
                         });
                         const joined = Object.values(next)
                           .map((v) => (typeof v === "string" ? v.trim() : ""))
@@ -1028,7 +1074,16 @@ export default function BookingFormResourceServices({
                           shouldValidate: false,
                         });
                       }}
+                      onBlur={() =>
+                        equipmentHasSwitch &&
+                        trigger("equipmentServicesDetailsByRoom")
+                      }
                     />
+                    {equipmentDetailsError && (
+                      <FormHelperText error>
+                        {equipmentDetailsError}
+                      </FormHelperText>
+                    )}
                   </>
                 )}
               </Subsection>

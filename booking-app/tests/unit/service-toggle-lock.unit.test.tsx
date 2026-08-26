@@ -141,9 +141,11 @@ const theme = createTheme();
 function ServicesHarness({
   rooms,
   onValues,
+  onValid,
 }: {
   rooms: any[];
   onValues?: (get: () => Partial<Inputs>) => void;
+  onValid?: (values: Partial<Inputs>) => void;
 }) {
   const {
     control,
@@ -152,11 +154,13 @@ function ServicesHarness({
     watch,
     setValue,
     getValues,
+    handleSubmit,
   } = useForm<Inputs>({ mode: "onBlur" });
   const [showStaffingServices, setShowStaffingServices] = useState(false);
   onValues?.(() => getValues());
   return (
     <ThemeProvider theme={theme}>
+      <form onSubmit={handleSubmit((values) => onValid?.(values))}>
       <BookingFormResourceServices
         selectedRooms={rooms}
         control={control}
@@ -174,6 +178,8 @@ function ServicesHarness({
         cateringRequiresCleaning={false}
         isLargeEvent={false}
       />
+      <button type="submit">Submit</button>
+      </form>
     </ThemeProvider>
   );
 }
@@ -277,6 +283,60 @@ describe("BookingFormResourceServices toggle locks", () => {
     expect(toggle).toBeDisabled();
     expect(toggle).toBeChecked();
     expect(screen.getByLabelText(/Equipment request details/)).toBeInTheDocument();
+  });
+
+  it("requires equipment details while a toggled equipment switch is on", async () => {
+    const onValid = vi.fn();
+    render(
+      <ServicesHarness
+        onValid={onValid}
+        rooms={[
+          {
+            resourceId: "230",
+            services: {
+              equipment: { label: "Equipment", toggle: "on" },
+            },
+          },
+        ]}
+      />,
+    );
+    expect(screen.getByText("Equipment request details *")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Submit"));
+    await waitFor(() =>
+      expect(
+        screen.getByText(/Please describe your equipment needs/),
+      ).toBeInTheDocument(),
+    );
+    expect(onValid).not.toHaveBeenCalled();
+
+    fireEvent.change(screen.getByLabelText(/Equipment request details/), {
+      target: { value: "2x SM58" },
+    });
+    fireEvent.click(screen.getByText("Submit"));
+    await waitFor(() => expect(onValid).toHaveBeenCalled());
+    expect(onValid.mock.calls[0][0].equipmentServicesDetailsByRoom).toEqual({
+      "230": "2x SM58",
+    });
+    expect(onValid.mock.calls[0][0].equipmentServicesDetails).toBe("2x SM58");
+  });
+
+  it("does not require details for a legacy equipment section without a toggle", async () => {
+    const onValid = vi.fn();
+    render(
+      <ServicesHarness
+        onValid={onValid}
+        rooms={[
+          {
+            resourceId: "233",
+            services: {
+              equipment: { label: "Equipment", showDetailsField: true },
+            },
+          },
+        ]}
+      />,
+    );
+    fireEvent.click(screen.getByText("Submit"));
+    await waitFor(() => expect(onValid).toHaveBeenCalled());
   });
 
   it("shows the equipment details field for a toggled section without showDetailsField", () => {
