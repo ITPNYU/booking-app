@@ -261,6 +261,28 @@ describe("BookingFormResourceServices toggle locks", () => {
     expect(toggle).toBeChecked();
     expect(screen.getByLabelText(/Equipment request details/)).toBeInTheDocument();
   });
+
+  it("shows the equipment details field for a toggled section without showDetailsField", () => {
+    render(
+      <ServicesHarness
+        rooms={[
+          {
+            resourceId: "230",
+            services: {
+              equipment: {
+                label: "Equipment",
+                descriptionHtml: "<p>SAI Studio gear</p>",
+                mode: "static",
+                toggle: "on",
+              },
+            },
+          },
+        ]}
+      />,
+    );
+    expect(screen.getByRole("checkbox")).toBeChecked();
+    expect(screen.getByLabelText(/Equipment request details/)).toBeInTheDocument();
+  });
 });
 
 function StaffingHarness({ rooms }: { rooms: any[] }) {

@@ -689,7 +689,9 @@ export default function BookingFormResourceServices({
           lockedToggleValue(furnToggle) ??
           (furnMap[resourceId] === "yes" ? "yes" : "no");
 
-        // Equipment: omitted toggle keeps the legacy layout (no switch).
+        // Equipment: omitted toggle keeps the legacy layout (no switch). With a
+        // toggle, the details field is always available when the switch is on —
+        // equipment only counts as requested when details are filled in.
         const equipmentToggle = equipmentCfg?.toggle;
         const equipmentHasSwitch = !!equipmentToggle;
         const equipmentLocked =
@@ -991,7 +993,8 @@ export default function BookingFormResourceServices({
                     <HtmlBlock html={equipmentCfg.descriptionHtml} />
                   </>
                 )}
-                {equipmentOn && equipmentCfg.showDetailsField && (
+                {equipmentOn &&
+                  (equipmentCfg.showDetailsField || equipmentHasSwitch) && (
                   <>
                     <Label htmlFor={`equip-details-${resourceId}`}>
                       {equipmentCfg.detailsLabel ?? "Equipment request details"}
