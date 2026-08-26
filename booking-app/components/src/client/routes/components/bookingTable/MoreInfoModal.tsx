@@ -52,6 +52,20 @@ function formatStaffingServiceDisplay(value: string): string {
   return getStaffingServiceLabel(trimmed);
 }
 
+/** Rooms without a setup service store nothing; hide the row instead of "none". */
+function hasRoomSetup(booking: {
+  roomSetup?: string;
+  setupDetails?: string;
+  chartFieldForRoomSetup?: string;
+}): boolean {
+  const setup = booking.roomSetup?.trim().toLowerCase() ?? "";
+  return (
+    !!booking.setupDetails?.trim() ||
+    (setup !== "" && setup !== "no") ||
+    !!booking.chartFieldForRoomSetup?.trim()
+  );
+}
+
 /** Equipment is requested via the legacy list or schema-driven details. */
 function hasEquipmentRequest(booking: {
   equipmentServices?: string;
@@ -678,18 +692,20 @@ export default function MoreInfoModal({
                 <SectionTitle>Services</SectionTitle>
                 <Table size="small">
                   <TableBody>
-                    <TableRow>
-                      <LabelCell>Room Setup</LabelCell>
-                      <StackedTableCell
-                        topText={
-                          booking.setupDetails ||
-                          (booking.roomSetup === "no"
-                            ? "none"
-                            : booking.roomSetup || "none")
-                        }
-                        bottomText={booking.chartFieldForRoomSetup || "none"}
-                      />
-                    </TableRow>
+                    {hasRoomSetup(booking) && (
+                      <TableRow>
+                        <LabelCell>Room Setup</LabelCell>
+                        <StackedTableCell
+                          topText={
+                            booking.setupDetails ||
+                            (booking.roomSetup === "no"
+                              ? "none"
+                              : booking.roomSetup || "none")
+                          }
+                          bottomText={booking.chartFieldForRoomSetup || "none"}
+                        />
+                      </TableRow>
+                    )}
                     {booking.furnishingsByRoom &&
                       Object.entries(booking.furnishingsByRoom).some(
                         ([, v]) =>

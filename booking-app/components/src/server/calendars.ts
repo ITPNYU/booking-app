@@ -198,11 +198,13 @@ export const bookingContentsToDescription = async (
 
   // Services Section
   description += "<h3>Services</h3><ul>";
-  description += listItem(
-    "Room Setup",
+  // Rooms without a setup service store nothing; skip the row instead of "none".
+  const roomSetupValue =
     getProperty(bookingContents, "setupDetails") ||
-      getProperty(bookingContents, "roomSetup"),
-  );
+    getProperty(bookingContents, "roomSetup");
+  if (roomSetupValue.trim() && roomSetupValue.trim().toLowerCase() !== "no") {
+    description += listItem("Room Setup", roomSetupValue);
+  }
   if (getProperty(bookingContents, "chartFieldForRoomSetup")) {
     description += listItem(
       "Room Setup Chart Field",

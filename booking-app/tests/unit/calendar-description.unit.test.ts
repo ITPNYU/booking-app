@@ -249,6 +249,19 @@ describe("Calendar Description Functions", () => {
       expect(result).not.toContain("Staffing Service");
     });
 
+    it("omits the Room Setup row when the room has no setup service", async () => {
+      const bookingWithoutSetup = {
+        ...mockBookingContents,
+        roomSetup: "",
+        setupDetails: "",
+        chartFieldForRoomSetup: "",
+      };
+
+      const result = await bookingContentsToDescription(bookingWithoutSetup);
+
+      expect(result).not.toContain("<strong>Room Setup:</strong>");
+    });
+
     it("shows schema-driven equipment requests that only have details", async () => {
       const bookingWithDetailsOnly = {
         ...mockBookingContents,
