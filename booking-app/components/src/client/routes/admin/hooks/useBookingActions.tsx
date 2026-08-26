@@ -29,6 +29,7 @@ import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { Timestamp } from "@firebase/firestore";
 import { useParams, useRouter } from "next/navigation";
 import { BookingContext } from "../../booking/bookingProvider";
+import { useTenantSchema } from "../../components/SchemaProvider";
 import { DatabaseContext } from "../../components/Provider";
 import useExistingBooking from "./useExistingBooking";
 
@@ -93,6 +94,8 @@ export default function useBookingActions({
   const [date, setDate] = useState(new Date());
   const router = useRouter();
   const { tenant } = useParams();
+  const schema = useTenantSchema();
+  const tenantResources = schema.resources ?? [];
   const { reloadExistingCalendarEvents } = useContext(BookingContext);
   const { userEmail, netId, updateBookingInList, allBookings } =
     useContext(DatabaseContext);
@@ -108,7 +111,7 @@ export default function useBookingActions({
   const applyBookingData = useCallback((data: any) => {
     if (!data || !isMediaCommons(tenant as string)) return;
 
-    setServiceRequests(getMediaCommonsServices(data));
+    setServiceRequests(getMediaCommonsServices(data, tenantResources));
 
     if (data.xstateData) {
       const checker = createXStateChecker(data);

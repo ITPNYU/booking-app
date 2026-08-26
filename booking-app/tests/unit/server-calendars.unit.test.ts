@@ -4,6 +4,10 @@ const mockGetCalendarClient = vi.fn();
 const mockServerGetRoomCalendarIds = vi.fn();
 const mockGetStatusFromXState = vi.fn();
 
+vi.mock("@/lib/tenant/serverGetTenantResources", () => ({
+  serverGetTenantResources: vi.fn().mockResolvedValue([]),
+}));
+
 vi.mock("@/lib/googleClient", () => ({
   getCalendarClient: mockGetCalendarClient,
 }));

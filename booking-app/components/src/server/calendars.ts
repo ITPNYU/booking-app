@@ -1,6 +1,5 @@
 import { bookingCalendarStrToDate } from "@/components/src/client/utils/date";
 import { getCalendarClient } from "@/lib/googleClient";
-import { getMcResourceServices, getStaffingServiceLabel } from "@/lib/tenant/mcResourceServices";
 import { serverGetTenantResources } from "@/lib/tenant/serverGetTenantResources";
 import { traceExternalCall } from "@/lib/newrelic-utils";
 import {
@@ -9,11 +8,18 @@ import {
   StaffingServices,
 } from "../types";
 import { formatOrigin, getSecondaryContactName } from "../utils/formatters";
-import { formatAnnexByRoomForDisplay } from "../utils/resourceServicesUtils";
+import {
+  formatAnnexByRoomForDisplay,
+  getStaffingServiceLabel,
+  type ServiceResourceLike,
+} from "../utils/resourceServicesUtils";
 
 import { serverGetRoomCalendarIds } from "./admin";
 
-function formatStaffingServicesForDisplay(raw: string): string {
+function formatStaffingServicesForDisplay(
+  raw: string,
+  resources: ServiceResourceLike[],
+): string {
   return raw
     .split(",")
     .map((service) => service.trim())
@@ -22,7 +28,7 @@ function formatStaffingServicesForDisplay(raw: string): string {
       if (service in StaffingServices) {
         return StaffingServices[service as keyof typeof StaffingServices];
       }
-      return getStaffingServiceLabel(service);
+      return getStaffingServiceLabel(resources, service);
     })
     .join(", ");
 }
@@ -99,6 +105,15 @@ export const bookingContentsToDescription = async (
   };
 
   let description = "";
+  // Tenant resources drive staffing labels and auxiliary space names; fetch
+  // lazily (once) so descriptions without either never hit Firestore.
+  let tenantResourcesPromise: Promise<ServiceResourceLike[]> | undefined;
+  const getTenantResources = () => {
+    if (!tenantResourcesPromise) {
+      tenantResourcesPromise = serverGetTenantResources(tenant);
+    }
+    return tenantResourcesPromise;
+  };
 
   // Helper function to safely get property value
   const getProperty = (obj: any, key: string): string =>
@@ -269,7 +284,10 @@ export const bookingContentsToDescription = async (
   if (staffingServices) {
     description += listItem(
       "Staffing Service",
-      formatStaffingServicesForDisplay(String(staffingServices)),
+      formatStaffingServicesForDisplay(
+        String(staffingServices),
+        await getTenantResources(),
+      ),
     );
     const staffingDetails = getProperty(
       bookingContents,
@@ -334,17 +352,10 @@ export const bookingContentsToDescription = async (
 
   const annexByRoom = bookingContents.annexByRoom;
   if (annexByRoom && typeof annexByRoom === "object") {
-    // Prefer annex resources from the tenant schema for labels; fall back to
-    // hardcoded MC service configs for values without a registered resource.
-    const tenantResources = await serverGetTenantResources(tenant);
-    const fallbackRooms = Object.keys(annexByRoom).map((roomId) => ({
-      resourceId: roomId,
-      services: getMcResourceServices(roomId) ?? {},
-    }));
-    const annexDisplay = formatAnnexByRoomForDisplay(annexByRoom, [
-      ...tenantResources,
-      ...fallbackRooms,
-    ]);
+    const annexDisplay = formatAnnexByRoomForDisplay(
+      annexByRoom,
+      await getTenantResources(),
+    );
     if (annexDisplay) {
       description += listItem("Auxiliary Spaces", annexDisplay);
     }

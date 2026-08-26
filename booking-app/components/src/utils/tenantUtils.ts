@@ -3,7 +3,10 @@
  */
 
 import { TENANTS } from "../constants/tenants";
-import { isMcPassiveSetupDefault } from "@/lib/tenant/mcResourceServices";
+import {
+  isPassiveSetupSelection,
+  type ServiceResourceLike,
+} from "./resourceServicesUtils";
 
 /**
  * NYU Identity API dept_code values that identify ITP / IMA / Low Res affiliated users.
@@ -93,27 +96,37 @@ const isServiceRequested = (value: unknown): boolean => {
   return normalized !== "" && normalized !== "no";
 };
 
-const isActiveSetupSelection = (value: unknown): boolean => {
+const isActiveSetupSelection = (
+  value: unknown,
+  resources: ServiceResourceLike[],
+): boolean => {
   if (!isServiceRequested(value)) return false;
   const raw = String(value).trim();
   // Layout ids that are schema defaults without chartfields do not require setup staff.
-  if (isMcPassiveSetupDefault(raw)) return false;
+  if (isPassiveSetupSelection(resources, raw)) return false;
   return true;
 };
 
 /**
- * Detect Media Commons service requests from booking data
- * This function provides consistent service detection logic across the application
+ * Detect Media Commons service requests from booking data.
+ * `resources` are the tenant schema resources (Firestore is the source of
+ * truth for service configs); they decide which room setup values are passive
+ * defaults rather than real setup requests.
  */
-export const getMediaCommonsServices = (data: any) => {
+export const getMediaCommonsServices = (
+  data: any,
+  resources: ServiceResourceLike[],
+) => {
   const byRoomValues = Object.values(data.roomSetupByRoom ?? {});
-  const setupFromByRoom = byRoomValues.some((v) => isActiveSetupSelection(v));
+  const setupFromByRoom = byRoomValues.some((v) =>
+    isActiveSetupSelection(v, resources),
+  );
   // Legacy scalars remain additive so mixed schema+generic multi-room bookings
   // still surface a genuine setup request from co-selected non-schema rooms.
   // Passive schema defaults mirrored into setupDetails are ignored via
-  // isActiveSetupSelection / isMcPassiveSetupDefault (value + label).
+  // isActiveSetupSelection / isPassiveSetupSelection (value + label).
   const setupFromLegacy =
-    isActiveSetupSelection(data.setupDetails) ||
+    isActiveSetupSelection(data.setupDetails, resources) ||
     (isServiceRequested(data.roomSetup) &&
       String(data.roomSetup).trim().toLowerCase() !== "yes");
   // Additional event furniture requires CBS/work-order review. Fold into setup

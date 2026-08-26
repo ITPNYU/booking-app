@@ -700,7 +700,10 @@ export async function POST(request: NextRequest) {
     let isVip = false;
 
     if (isMediaCommons) {
-      servicesRequested = getMediaCommonsServices(data);
+      servicesRequested = getMediaCommonsServices(
+        data,
+        await serverGetTenantResources(tenant),
+      );
 
       // Check if user is VIP (you can customize this logic)
       isVip = data.isVip || false;

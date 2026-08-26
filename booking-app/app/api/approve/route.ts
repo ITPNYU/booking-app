@@ -20,6 +20,7 @@ import {
 } from "@/lib/firebase/server/adminDb";
 import { executeXStateTransition } from "@/lib/stateMachines/xstateUtilsV5";
 import { NextRequest, NextResponse } from "next/server";
+import { serverGetTenantResources } from "@/lib/tenant/serverGetTenantResources";
 
 const SERVICE_APPROVED_FIELDS: Record<string, string> = {
   staff: "staffServiceApproved",
@@ -34,8 +35,14 @@ const SERVICE_APPROVED_FIELDS: Record<string, string> = {
  * Returns true if the booking has at least one requested service that has not yet been
  * approved or declined
  */
-function hasUnprocessedServices(bookingData: any): boolean {
-  const servicesRequested = getMediaCommonsServices(bookingData);
+async function hasUnprocessedServices(
+  bookingData: any,
+  tenant: string,
+): Promise<boolean> {
+  const servicesRequested = getMediaCommonsServices(
+    bookingData,
+    await serverGetTenantResources(tenant),
+  );
   for (const [service, requested] of Object.entries(servicesRequested)) {
     if (!requested) continue;
     const field = SERVICE_APPROVED_FIELDS[service];
@@ -169,7 +176,10 @@ export async function POST(req: NextRequest) {
           id,
           tenant
         );
-        if (bookingData && hasUnprocessedServices(bookingData)) {
+        if (
+          bookingData &&
+          (await hasUnprocessedServices(bookingData, tenant))
+        ) {
           console.log(
             `🛑 BLOCKING FALLBACK: REQUEST HAS UNPROCESSED SERVICES [${tenant?.toUpperCase()}]:`,
             { calendarEventId: id }

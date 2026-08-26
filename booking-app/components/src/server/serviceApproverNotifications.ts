@@ -8,6 +8,7 @@ import {
   serverFetchAllDataFromCollection,
   serverGetDataByCalendarEventId,
 } from "@/lib/firebase/server/adminDb";
+import { serverGetTenantResources } from "@/lib/tenant/serverGetTenantResources";
 
 const SERVICE_APPROVER_CONFIG = {
   setup: {
@@ -64,7 +65,10 @@ export const notifyServiceApproversForRequestedServices = async (
     return;
   }
 
-  const servicesRequested = getMediaCommonsServices(booking);
+  const servicesRequested = getMediaCommonsServices(
+    booking,
+    await serverGetTenantResources(tenant),
+  );
   const usersRights = await serverFetchAllDataFromCollection<any>(
     TableNames.USERS_RIGHTS,
     [],
