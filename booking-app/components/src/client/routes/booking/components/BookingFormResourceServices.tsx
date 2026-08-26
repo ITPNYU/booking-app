@@ -461,6 +461,9 @@ export default function BookingFormResourceServices({
   const equipmentDetailsError = mapFieldErrorMessage(
     errors.equipmentServicesDetailsByRoom,
   );
+  const furnishingsDetailsError = mapFieldErrorMessage(
+    errors.furnishingsDetailsByRoom,
+  );
 
   // Equipment sections with a toggle require details while the switch is on
   // (locked on or user-enabled); equipment only counts as requested when
@@ -629,6 +632,27 @@ export default function BookingFormResourceServices({
               }
             }
             return true;
+          },
+        }}
+        render={() => null}
+      />
+      <Controller
+        name="furnishingsDetailsByRoom"
+        control={control}
+        rules={{
+          validate: (val, formValues) => {
+            const map = (val as Record<string, string>) ?? {};
+            const furnMap =
+              (formValues.furnishingsByRoom as Record<string, string>) ?? {};
+            const missing = furnishingsRooms.some((room) => {
+              const cfg = getResourceServicesConfig(room).furnishings;
+              if (!cfg?.showDetailsField) return false;
+              const resourceId = getServiceResourceId(room);
+              return furnMap[resourceId] === "yes" && !map[resourceId]?.trim();
+            });
+            return missing
+              ? "Please describe the additional furniture you need."
+              : true;
           },
         }}
         render={() => null}
@@ -906,6 +930,7 @@ export default function BookingFormResourceServices({
                       [resourceId]: next,
                     });
                     trigger("chartFieldForFurnishingsByRoom");
+                    trigger("furnishingsDetailsByRoom");
                   }}
                 />
                 {furnValue === "yes" && (
@@ -957,6 +982,7 @@ export default function BookingFormResourceServices({
                         <Label htmlFor={`furn-details-${resourceId}`}>
                           {furnishingsCfg.detailsLabel ??
                             "Furniture request details"}
+                          {" *"}
                         </Label>
                         {furnishingsCfg.detailsDescriptionHtml ? (
                           <HtmlBlock
@@ -973,13 +999,16 @@ export default function BookingFormResourceServices({
                             borderRadius: 4,
                           }}
                           value={furnDetailsByRoom[resourceId] ?? ""}
+                          aria-required
+                          aria-invalid={!!furnishingsDetailsError}
+                          onBlur={() => trigger("furnishingsDetailsByRoom")}
                           onChange={(e) => {
                             const next = {
                               ...furnDetailsByRoom,
                               [resourceId]: e.target.value,
                             };
                             setValue("furnishingsDetailsByRoom", next, {
-                              shouldValidate: false,
+                              shouldValidate: true,
                             });
                             const joined = Object.values(next)
                               .map((v) =>
@@ -992,6 +1021,11 @@ export default function BookingFormResourceServices({
                             });
                           }}
                         />
+                        {furnishingsDetailsError && (
+                          <FormHelperText error>
+                            {furnishingsDetailsError}
+                          </FormHelperText>
+                        )}
                       </>
                     )}
                   </>

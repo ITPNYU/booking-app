@@ -314,6 +314,53 @@ describe("BookingFormResourceServices toggle locks", () => {
     expect(screen.getByLabelText(/Equipment request details/)).toBeInTheDocument();
   });
 
+  it("requires furniture details when the furniture switch is on", async () => {
+    const onValid = vi.fn();
+    render(
+      <ServicesHarness
+        onValid={onValid}
+        rooms={[
+          {
+            resourceId: "233",
+            services: {
+              furnishings: {
+                label: "Furniture",
+                showDetailsField: true,
+                detailsLabel: "Additional event furniture request details",
+              },
+            },
+          },
+        ]}
+      />,
+    );
+    // Off: nothing required.
+    fireEvent.click(screen.getByText("Submit"));
+    await waitFor(() => expect(onValid).toHaveBeenCalledTimes(1));
+
+    fireEvent.click(screen.getByRole("checkbox"));
+    expect(
+      screen.getByText("Additional event furniture request details *"),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Submit"));
+    await waitFor(() =>
+      expect(
+        screen.getByText(/Please describe the additional furniture/),
+      ).toBeInTheDocument(),
+    );
+    expect(onValid).toHaveBeenCalledTimes(1);
+
+    fireEvent.change(
+      screen.getByLabelText(/Additional event furniture request details/),
+      { target: { value: "2 tables" } },
+    );
+    fireEvent.click(screen.getByText("Submit"));
+    await waitFor(() => expect(onValid).toHaveBeenCalledTimes(2));
+    expect(onValid.mock.calls[1][0].furnishingsDetailsByRoom).toEqual({
+      "233": "2 tables",
+    });
+    expect(onValid.mock.calls[1][0].furnishingsDetails).toBe("2 tables");
+  });
+
   it("requires equipment details while a toggled equipment switch is on", async () => {
     const onValid = vi.fn();
     render(
