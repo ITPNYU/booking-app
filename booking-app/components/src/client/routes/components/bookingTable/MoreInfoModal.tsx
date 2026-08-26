@@ -37,20 +37,24 @@ import useSortBookingHistory from "../../hooks/useSortBookingHistory";
 import { DatabaseContext } from "../Provider";
 import { default as CustomTable } from "../Table";
 import StackedTableCell from "./StackedTableCell";
-import { getStaffingServiceLabel } from "@/lib/tenant/mcResourceServices";
 import {
   formatAnnexByRoomForDisplay,
   formatServiceByRoom,
+  getStaffingServiceLabel,
   mergeRoomIdsWithAnnex,
+  type ServiceResourceLike,
 } from "@/components/src/utils/resourceServicesUtils";
 
-function formatStaffingServiceDisplay(value: string): string {
+function formatStaffingServiceDisplay(
+  value: string,
+  resources: ServiceResourceLike[],
+): string {
   const trimmed = value.trim();
   if (!trimmed) return trimmed;
   if (trimmed in StaffingServices) {
     return StaffingServices[trimmed as keyof typeof StaffingServices];
   }
-  return getStaffingServiceLabel(trimmed);
+  return getStaffingServiceLabel(resources, trimmed);
 }
 
 /** Rooms without a setup service store nothing; hide the row instead of "none". */
@@ -800,7 +804,10 @@ export default function MoreInfoModal({
                               .filter(Boolean)
                               .map((service) => (
                                 <p key={service}>
-                                  {formatStaffingServiceDisplay(service)}
+                                  {formatStaffingServiceDisplay(
+                                    service,
+                                    schema.resources ?? [],
+                                  )}
                                 </p>
                               ))}
                             <p>{booking.staffingServicesDetails || ""}</p>
