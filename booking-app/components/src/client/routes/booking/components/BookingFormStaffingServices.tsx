@@ -11,6 +11,7 @@ import { Control, Controller, UseFormTrigger, useWatch } from "react-hook-form";
 import React, { useContext, useEffect, useMemo } from "react";
 import styled from "@emotion/styled";
 import { FormContextLevel, Inputs, StaffingServices } from "../../../../types";
+import type { ServiceToggle } from "../../components/schemaTypes";
 import {
   combineServiceToggles,
   getResourceServicesConfig,
@@ -62,6 +63,11 @@ interface Props {
   formContext: FormContextLevel;
   /** When set, only render staffing for these rooms (Room → Service layout). */
   rooms?: ServiceResourceLike[];
+  /**
+   * Toggle lock resolved across every selected room by the parent. Without
+   * it, the lock is derived from `rooms` only.
+   */
+  toggle?: ServiceToggle;
   setValue?: (
     name: keyof Inputs,
     value: any,
@@ -79,6 +85,7 @@ export default function BookingFormStaffingServices(props: Props) {
     formContext: _formContext,
     rooms: roomsProp,
     setValue,
+    toggle: toggleProp,
   } = props;
   const { selectedRooms: contextRooms } = useContext(BookingContext);
   const selectedRooms = roomsProp ?? contextRooms;
@@ -193,7 +200,7 @@ export default function BookingFormStaffingServices(props: Props) {
     staffingSections.length > 0 || flatServices.length > 0;
 
   // Schema lock for the staffing switch (shared across the rendered rooms).
-  const staffingToggle = useMemo(
+  const roomsToggle = useMemo(
     () =>
       combineServiceToggles(
         selectedRooms
@@ -203,6 +210,7 @@ export default function BookingFormStaffingServices(props: Props) {
       ),
     [selectedRooms],
   );
+  const staffingToggle = toggleProp ?? roomsToggle;
   const staffingLocked = staffingToggle !== "optional";
 
   // Locked switches force the visibility state and clear stale values.

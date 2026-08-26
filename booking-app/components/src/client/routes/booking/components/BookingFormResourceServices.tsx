@@ -346,10 +346,16 @@ export default function BookingFormResourceServices({
     () => resolveSharedServiceToggle(selectedRooms, "cleaning", visibility),
     [selectedRooms, visibility],
   );
-  const securityToggle = useMemo(
-    () => resolveSecurityToggle(selectedRooms, visibility),
+  const staffingToggle = useMemo(
+    () => resolveSharedServiceToggle(selectedRooms, "staffing", visibility),
     [selectedRooms, visibility],
   );
+  // A schema "off" lock must not defeat the mandatory security for 75+
+  // attendee events; the large-event rule keeps the switch forced on.
+  const securityToggle = useMemo(() => {
+    const resolved = resolveSecurityToggle(selectedRooms, visibility);
+    return resolved === "off" && isLargeEvent ? "optional" : resolved;
+  }, [selectedRooms, visibility, isLargeEvent]);
   // Value a locked-on security switch writes: the checkbox option (Willoughby)
   // when present, otherwise the generic "yes".
   const securityLockOnValue = useMemo(() => {
@@ -1099,6 +1105,7 @@ export default function BookingFormResourceServices({
                   setShowStaffingServices={setShowStaffingServices}
                   formContext={formContext}
                   rooms={[room]}
+                  toggle={staffingToggle}
                   setValue={setValue}
                 />
               </Subsection>

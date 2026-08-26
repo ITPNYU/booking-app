@@ -142,10 +142,12 @@ function ServicesHarness({
   rooms,
   onValues,
   onValid,
+  isLargeEvent = false,
 }: {
   rooms: any[];
   onValues?: (get: () => Partial<Inputs>) => void;
   onValid?: (values: Partial<Inputs>) => void;
+  isLargeEvent?: boolean;
 }) {
   const {
     control,
@@ -176,7 +178,7 @@ function ServicesHarness({
         setShowStaffingServices={setShowStaffingServices}
         formContext={FormContextLevel.FULL_FORM}
         cateringRequiresCleaning={false}
-        isLargeEvent={false}
+        isLargeEvent={isLargeEvent}
       />
       <button type="submit">Submit</button>
       </form>
@@ -248,6 +250,33 @@ describe("BookingFormResourceServices toggle locks", () => {
       expect(getValues().catering).toBe("yes");
     });
     expect(screen.getByText(/ChartField for Catering/)).toBeInTheDocument();
+  });
+
+  it("keeps security on for large events even when the schema locks it off", async () => {
+    let getValues: () => Partial<Inputs> = () => ({});
+    render(
+      <ServicesHarness
+        isLargeEvent
+        rooms={[
+          {
+            resourceId: "233",
+            services: {
+              security: {
+                label: "Campus Safety",
+                toggle: "off",
+                chartField: { required: true },
+              },
+            },
+          },
+        ]}
+        onValues={(get) => {
+          getValues = get;
+        }}
+      />,
+    );
+    // The "off" lock does not clear a large-event security value.
+    await waitFor(() => expect(getValues().hireSecurity).not.toBe("no"));
+    expect(screen.getByRole("checkbox")).toBeDisabled();
   });
 
   it("adds an equipment switch only when toggle is set", () => {
@@ -465,6 +494,51 @@ describe("BookingFormStaffingServices toggle lock", () => {
     fireEvent.click(screen.getByText("Submit"));
     await waitFor(() => expect(onValid).toHaveBeenCalled());
     expect(onValid.mock.calls[0][0].staffingServices).toBe("AUDIO_TECH");
+  });
+
+  it("honors a staffing lock from a later room when rendered for the first room", async () => {
+    render(
+      <ServicesHarness
+        rooms={[
+          {
+            resourceId: "103",
+            services: {
+              staffing: {
+                label: "Staffing",
+                sections: {
+                  audio: {
+                    label: "Audio",
+                    mode: "radio",
+                    defaultValue: "A",
+                    options: [{ value: "A", label: "A" }],
+                  },
+                },
+              },
+            },
+          },
+          {
+            resourceId: "230",
+            services: {
+              staffing: {
+                label: "Staffing",
+                toggle: "on",
+                sections: {
+                  audio: {
+                    label: "Audio",
+                    mode: "radio",
+                    defaultValue: "B",
+                    options: [{ value: "B", label: "B" }],
+                  },
+                },
+              },
+            },
+          },
+        ]}
+      />,
+    );
+    const toggle = screen.getAllByRole("checkbox")[0];
+    await waitFor(() => expect(toggle).toBeChecked());
+    expect(toggle).toBeDisabled();
   });
 
   it("leaves the switch user-controlled when toggle is omitted", () => {

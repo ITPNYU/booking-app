@@ -386,11 +386,13 @@ export default function FormInput({
       ) !== "optional",
     [selectedRooms, serviceVisibility],
   );
-  const securityLocked = useMemo(
-    () =>
-      resolveSecurityToggle(selectedRooms, serviceVisibility) !== "optional",
-    [selectedRooms, serviceVisibility],
-  );
+  // Mirrors BookingFormResourceServices: an "off" lock yields to the
+  // large-event security requirement, so the dynamic rule below still runs.
+  const securityLocked = useMemo(() => {
+    const resolved = resolveSecurityToggle(selectedRooms, serviceVisibility);
+    if (resolved === "off" && isLargeEvent) return false;
+    return resolved !== "optional";
+  }, [selectedRooms, serviceVisibility, isLargeEvent]);
 
   const cleaningWasAutoSet = useRef(false);
 
