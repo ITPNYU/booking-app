@@ -10,10 +10,10 @@ import {
 } from "@/components/src/utils/resourceServicesUtils";
 import { migrateResourceServices } from "@/lib/tenant/migrateResourceServices";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import React, { useState } from "react";
 import { useForm } from "react-hook-form";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 const visibility = { isVIP: false, isWalkIn: false, isStandardUser: true };
 
@@ -43,6 +43,23 @@ describe("migrateResourceServices toggle", () => {
     expect(result.catering?.toggle).toBe("optional");
     expect(result.cleaning?.toggle).toBeUndefined();
     expect(result.staffing?.toggle).toBe("on");
+  });
+
+  it("accepts boolean flags saved as strings by the schema editor", () => {
+    const result = migrateResourceServices({
+      services: {
+        equipment: {
+          label: "Equipment",
+          toggle: "on",
+          showDetailsField: "true",
+          chartField: { required: "true" },
+        },
+        catering: { label: "Catering", forceCleaning: "true", chartField: { required: true } },
+      },
+    });
+    expect(result.equipment?.showDetailsField).toBe(true);
+    expect(result.equipment?.chartField?.required).toBe(true);
+    expect(result.catering?.forceCleaning).toBe(true);
   });
 
   it("keeps a description-only section as a switch when toggle is set", () => {
@@ -285,21 +302,32 @@ describe("BookingFormResourceServices toggle locks", () => {
   });
 });
 
-function StaffingHarness({ rooms }: { rooms: any[] }) {
-  const { control, trigger, setValue } = useForm<Inputs>({ mode: "onBlur" });
+function StaffingHarness({
+  rooms,
+  onValid,
+}: {
+  rooms: any[];
+  onValid?: (values: Partial<Inputs>) => void;
+}) {
+  const { control, trigger, setValue, handleSubmit } = useForm<Inputs>({
+    mode: "onBlur",
+  });
   const [show, setShow] = useState(false);
   return (
     <ThemeProvider theme={theme}>
-      <BookingFormStaffingServices
-        id="staffingServices"
-        control={control}
-        trigger={trigger}
-        showStaffingServices={show}
-        setShowStaffingServices={setShow}
-        formContext={FormContextLevel.FULL_FORM}
-        rooms={rooms}
-        setValue={setValue as any}
-      />
+      <form onSubmit={handleSubmit((values) => onValid?.(values))}>
+        <BookingFormStaffingServices
+          id="staffingServices"
+          control={control}
+          trigger={trigger}
+          showStaffingServices={show}
+          setShowStaffingServices={setShow}
+          formContext={FormContextLevel.FULL_FORM}
+          rooms={rooms}
+          setValue={setValue as any}
+        />
+        <button type="submit">Submit</button>
+      </form>
     </ThemeProvider>
   );
 }
@@ -332,6 +360,51 @@ describe("BookingFormStaffingServices toggle lock", () => {
     await waitFor(() => expect(toggle).toBeChecked());
     expect(toggle).toBeDisabled();
     expect(screen.getByLabelText("DIY")).toBeChecked();
+  });
+
+  it("blocks submit when a locked-on section has no default and nothing is selected", async () => {
+    const onValid = vi.fn();
+    render(
+      <StaffingHarness
+        onValid={onValid}
+        rooms={[
+          {
+            resourceId: "230",
+            services: {
+              staffing: {
+                label: "Staffing",
+                toggle: "on",
+                sections: {
+                  default: {
+                    label: "Audio",
+                    mode: "radio",
+                    options: [
+                      { value: "AUDIO_DIY", label: "DIY" },
+                      { value: "AUDIO_TECH", label: "Tech" },
+                    ],
+                  },
+                },
+              },
+            },
+          },
+        ]}
+      />,
+    );
+    await waitFor(() =>
+      expect(screen.getAllByRole("checkbox")[0]).toBeChecked(),
+    );
+    fireEvent.click(screen.getByText("Submit"));
+    await waitFor(() =>
+      expect(
+        screen.getByText(/Please select an option for each staffing section/),
+      ).toBeInTheDocument(),
+    );
+    expect(onValid).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByLabelText("Tech"));
+    fireEvent.click(screen.getByText("Submit"));
+    await waitFor(() => expect(onValid).toHaveBeenCalled());
+    expect(onValid.mock.calls[0][0].staffingServices).toBe("AUDIO_TECH");
   });
 
   it("leaves the switch user-controlled when toggle is omitted", () => {

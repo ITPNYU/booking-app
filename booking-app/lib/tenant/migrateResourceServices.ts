@@ -38,6 +38,17 @@ function hideFlagsToShowInOrigin(section: {
   };
 }
 
+/** Boolean flags may arrive as "true"/"false" strings from the schema editor. */
+function asBool(raw: unknown): boolean | undefined {
+  if (typeof raw === "boolean") return raw;
+  if (typeof raw === "string") {
+    const v = raw.trim().toLowerCase();
+    if (v === "true") return true;
+    if (v === "false") return false;
+  }
+  return undefined;
+}
+
 function normalizeChartField(
   raw: unknown,
 ): ResourceFormOption["chartField"] | undefined {
@@ -48,7 +59,7 @@ function normalizeChartField(
     ...(typeof cf.descriptionHtml === "string"
       ? { descriptionHtml: cf.descriptionHtml }
       : {}),
-    ...(typeof cf.required === "boolean" ? { required: cf.required } : {}),
+    ...(asBool(cf.required) !== undefined ? { required: asBool(cf.required) } : {}),
     ...(typeof cf.validation === "string" ? { validation: cf.validation } : {}),
   };
 }
@@ -71,7 +82,7 @@ function normalizeOption(opt: Record<string, unknown>): ResourceFormOption {
   return {
     value: String(opt.value ?? ""),
     label: String(opt.label ?? opt.value ?? ""),
-    ...(typeof opt.required === "boolean" ? { required: opt.required } : {}),
+    ...(asBool(opt.required) !== undefined ? { required: asBool(opt.required) } : {}),
     ...(typeof opt.descriptionHtml === "string"
       ? { descriptionHtml: opt.descriptionHtml }
       : {}),
@@ -147,15 +158,15 @@ function normalizeSection(
     ...(typeof raw.defaultValue === "string"
       ? { defaultValue: raw.defaultValue }
       : {}),
-    ...(typeof raw.required === "boolean" ? { required: raw.required } : {}),
+    ...(asBool(raw.required) !== undefined ? { required: asBool(raw.required) } : {}),
     ...(options ? { options } : {}),
     ...(chartField ? { chartField } : {}),
     ...(showInOrigin ? { showInOrigin } : {}),
-    ...(raw.forceCleaning === true ? { forceCleaning: true } : {}),
-    ...(raw.studentLoungeCheckbox === true
+    ...(asBool(raw.forceCleaning) === true ? { forceCleaning: true } : {}),
+    ...(asBool(raw.studentLoungeCheckbox) === true
       ? { studentLoungeCheckbox: true }
       : {}),
-    ...(raw.showDetailsField === true ? { showDetailsField: true } : {}),
+    ...(asBool(raw.showDetailsField) === true ? { showDetailsField: true } : {}),
     ...(typeof raw.detailsLabel === "string"
       ? { detailsLabel: raw.detailsLabel }
       : {}),

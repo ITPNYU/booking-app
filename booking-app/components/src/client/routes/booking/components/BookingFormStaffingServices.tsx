@@ -1,6 +1,7 @@
 import {
   FormControl,
   FormControlLabel,
+  FormHelperText,
   FormLabel,
   Radio,
   RadioGroup,
@@ -230,6 +231,24 @@ export default function BookingFormStaffingServices(props: Props) {
     getResourceServicesConfig(selectedRooms[0] ?? {}).staffing?.label ??
     "Staffing?";
 
+  // While the switch is on, every staffing section needs a selection. Sections
+  // with a defaultValue are seeded automatically; sections without one (or a
+  // locked-on switch with no defaults) must not submit empty.
+  const validateStaffingSelection = (value: unknown): true | string => {
+    if (!showStaffingServices || !hasInteractiveStaffing) return true;
+    const selected =
+      typeof value === "string" && value.length > 0 ? value.split(",") : [];
+    if (staffingSections.length > 0) {
+      const missing = staffingSections.some(
+        (section) => !section.services.some((s) => selected.includes(s.value)),
+      );
+      return missing
+        ? "Please select an option for each staffing section."
+        : true;
+    }
+    return selected.length > 0 ? true : "Please select a staffing option.";
+  };
+
   // Radios show section.defaultValue visually, but that does not write the form
   // field. Seed defaults when staffing is enabled so bookings persist selections.
   useEffect(() => {
@@ -280,6 +299,7 @@ export default function BookingFormStaffingServices(props: Props) {
     <Controller
       name={id}
       control={control}
+      rules={{ validate: validateStaffingSelection }}
       render={({ field }) => (
         <FormControlLabel
           label={showStaffingServices ? "Yes" : "No"}
@@ -332,12 +352,18 @@ export default function BookingFormStaffingServices(props: Props) {
         <Controller
           name={id}
           control={control}
-          render={({ field }) => {
+          rules={{ validate: validateStaffingSelection }}
+          render={({ field, fieldState }) => {
             const value = typeof field.value === "string" ? field.value : "";
             const selectedServices = value ? value.split(",") : [];
 
             return (
               <div>
+                {fieldState.error?.message && (
+                  <FormHelperText error sx={{ marginBottom: 1 }}>
+                    {fieldState.error.message}
+                  </FormHelperText>
+                )}
                 {staffingSections.length > 0 ? (
                   <div>
                     {staffingSections.map((section, sectionIndex) => {

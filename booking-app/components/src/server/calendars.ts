@@ -249,14 +249,14 @@ export const bookingContentsToDescription = async (
       }
     }
   }
-  // Only show equipment service if it exists
+  // Equipment is requested via the legacy list or schema-driven details.
   const equipmentServices = getProperty(bookingContents, "equipmentServices");
-  if (equipmentServices) {
-    description += listItem("Equipment Service", equipmentServices);
-    const equipmentDetails = getProperty(
-      bookingContents,
-      "equipmentServicesDetails",
-    );
+  const equipmentDetails = getProperty(
+    bookingContents,
+    "equipmentServicesDetails",
+  );
+  if (equipmentServices || equipmentDetails.trim()) {
+    description += listItem("Equipment Service", equipmentServices || "yes");
     if (equipmentDetails) {
       description += listItem("Equipment Service Details", equipmentDetails);
     }

@@ -121,6 +121,20 @@ describe("MoreInfoModal - Basic Rendering", () => {
   });
 
   describe("Basic Modal Rendering", () => {
+    it("shows schema-driven equipment details without the legacy equipmentServices list", () => {
+      const booking = createMockBooking({
+        equipmentServices: "",
+        equipmentServicesDetails: "2x SM58 microphones",
+        equipmentServicesDetailsByRoom: { "230": "2x SM58 microphones" },
+      } as any);
+      const context = createMockDatabaseContext(PagePermission.ADMIN);
+
+      renderModal(booking, context);
+
+      expect(screen.getByText("Equipment Service")).toBeInTheDocument();
+      expect(screen.getByText("230: 2x SM58 microphones")).toBeInTheDocument();
+    });
+
     it("renders modal with booking information", () => {
       const booking = createMockBooking();
       const context = createMockDatabaseContext(PagePermission.BOOKING);

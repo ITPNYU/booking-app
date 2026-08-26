@@ -235,6 +235,7 @@ describe("Calendar Description Functions", () => {
         hireSecurity: "No",
         mediaServices: "",
         equipmentServices: "",
+        equipmentServicesDetails: "",
         staffingServices: "",
         cleaningService: "no",
       };
@@ -246,6 +247,22 @@ describe("Calendar Description Functions", () => {
       expect(result).not.toContain("Security");
       expect(result).not.toContain("Equipment Service");
       expect(result).not.toContain("Staffing Service");
+    });
+
+    it("shows schema-driven equipment requests that only have details", async () => {
+      const bookingWithDetailsOnly = {
+        ...mockBookingContents,
+        equipmentServices: "",
+        equipmentServicesDetails: "2x SM58 microphones",
+        equipmentServicesDetailsByRoom: { "230": "2x SM58 microphones" },
+      };
+
+      const result = await bookingContentsToDescription(bookingWithDetailsOnly);
+
+      expect(result).toContain("<strong>Equipment Service:</strong> yes");
+      expect(result).toContain(
+        "<strong>Equipment Service Details:</strong> 2x SM58 microphones",
+      );
     });
 
     it("should handle empty or undefined values gracefully", async () => {

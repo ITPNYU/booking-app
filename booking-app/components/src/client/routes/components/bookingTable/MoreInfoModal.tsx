@@ -52,6 +52,29 @@ function formatStaffingServiceDisplay(value: string): string {
   return getStaffingServiceLabel(trimmed);
 }
 
+/** Equipment is requested via the legacy list or schema-driven details. */
+function hasEquipmentRequest(booking: {
+  equipmentServices?: string;
+  equipmentServicesDetails?: string;
+  equipmentServicesDetailsByRoom?: Record<string, string>;
+}): boolean {
+  return formatEquipmentDetails(booking).length > 0 ||
+    !!booking.equipmentServices?.trim();
+}
+
+/** Per-room details when available, otherwise the joined details string. */
+function formatEquipmentDetails(booking: {
+  equipmentServicesDetails?: string;
+  equipmentServicesDetailsByRoom?: Record<string, string>;
+}): string[] {
+  const byRoom = Object.entries(booking.equipmentServicesDetailsByRoom ?? {})
+    .filter(([, v]) => typeof v === "string" && v.trim())
+    .map(([roomId, v]) => `${roomId}: ${v.trim()}`);
+  if (byRoom.length > 0) return byRoom;
+  const joined = booking.equipmentServicesDetails?.trim();
+  return joined ? [joined] : [];
+}
+
 function hasAnnexSelections(
   annexByRoom: Record<string, string[]> | undefined,
 ): boolean {
@@ -718,20 +741,23 @@ export default function MoreInfoModal({
                         </TableCell>
                       </TableRow>
                     )}
-                    {booking.equipmentServices &&
-                      booking.equipmentServices.length > 0 && (
-                        <TableRow>
-                          <LabelCell>Equipment Service</LabelCell>
-                          <TableCell>
-                            {booking.equipmentServices
-                              .split(", ")
-                              .map((service) => (
-                                <p key={service}>{service.trim()}</p>
-                              ))}
-                            <p>{booking.equipmentServicesDetails || ""}</p>
-                          </TableCell>
-                        </TableRow>
-                      )}
+                    {hasEquipmentRequest(booking) && (
+                      <TableRow>
+                        <LabelCell>Equipment Service</LabelCell>
+                        <TableCell>
+                          {(booking.equipmentServices ?? "")
+                            .split(", ")
+                            .map((service) => service.trim())
+                            .filter(Boolean)
+                            .map((service) => (
+                              <p key={service}>{service}</p>
+                            ))}
+                          {formatEquipmentDetails(booking).map((line) => (
+                            <p key={line}>{line}</p>
+                          ))}
+                        </TableCell>
+                      </TableRow>
+                    )}
                     {booking.staffingServices &&
                       booking.staffingServices.length > 0 && (
                         <TableRow>
