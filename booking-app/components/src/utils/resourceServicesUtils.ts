@@ -5,6 +5,7 @@ import type {
   ResourceFormSectionConfig,
   ResourceServicesConfig,
   ResourceServiceKey,
+  ServiceToggle,
   ShowInOrigin,
 } from "@/components/src/client/routes/components/schemaTypes";
 
@@ -120,6 +121,7 @@ export function getServiceSectionConfig(
       showInOrigin: staffing.showInOrigin,
       label: staffing.label,
       descriptionHtml: staffing.descriptionHtml,
+      toggle: staffing.toggle,
       mode:
         staffing.mode ??
         (hasSections ? undefined : "static"),
@@ -139,6 +141,72 @@ export function shouldShowServiceSection(
 ): boolean {
   if (!config || config.mode === "hidden") return false;
   return originAllows(config.showInOrigin, context, config);
+}
+
+/** Toggle lock for one section; omitted means the user controls the switch. */
+export function getServiceToggle(
+  config: { toggle?: ServiceToggle } | undefined,
+): ServiceToggle {
+  return config?.toggle ?? "optional";
+}
+
+export function isServiceToggleLocked(
+  config: { toggle?: ServiceToggle } | undefined,
+): boolean {
+  return getServiceToggle(config) !== "optional";
+}
+
+/** Form value a locked switch must hold, or null when the user decides. */
+export function lockedToggleValue(toggle: ServiceToggle): "yes" | "no" | null {
+  if (toggle === "on") return "yes";
+  if (toggle === "off") return "no";
+  return null;
+}
+
+/**
+ * Combine toggles for a service whose form value is shared across every
+ * selected room (catering / cleaning / security / staffing). Rules:
+ * - "on" if any room locks it on
+ * - "off" only if every room locks it off
+ * - "optional" otherwise (or when no room offers the service)
+ */
+export function combineServiceToggles(toggles: ServiceToggle[]): ServiceToggle {
+  if (toggles.length === 0) return "optional";
+  if (toggles.includes("on")) return "on";
+  if (toggles.every((t) => t === "off")) return "off";
+  return "optional";
+}
+
+export function resolveSharedServiceToggle(
+  rooms: ServiceResourceLike[],
+  key: ResourceServiceKey,
+  context: ServiceVisibilityContext,
+): ServiceToggle {
+  return combineServiceToggles(
+    getRoomsWithVisibleService(rooms, key, context).map((room) =>
+      getServiceToggle(getServiceSectionConfig(room, key)),
+    ),
+  );
+}
+
+/** Security is only lockable in switch / checkbox mode (radio has no switch). */
+export function isSecuritySwitchLike(
+  config: ResourceFormSectionConfig | undefined,
+): boolean {
+  const mode = config?.mode;
+  return !isChoiceMode(mode) && mode !== "static" && mode !== "hidden";
+}
+
+export function resolveSecurityToggle(
+  rooms: ServiceResourceLike[],
+  context: ServiceVisibilityContext,
+): ServiceToggle {
+  return combineServiceToggles(
+    getRoomsWithVisibleService(rooms, "security", context)
+      .map((room) => getServiceSectionConfig(room, "security"))
+      .filter(isSecuritySwitchLike)
+      .map(getServiceToggle),
+  );
 }
 
 export function getRoomsWithVisibleService(

@@ -13,7 +13,7 @@ import {
   FieldErrors,
   UseFormTrigger,
 } from "react-hook-form";
-import React, { useEffect, useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import styled from "@emotion/styled";
 import { FormContextLevel, Inputs } from "../../../../types";
 import {
@@ -25,7 +25,11 @@ import {
   getRoomsWithVisibleService,
   getServiceResourceId,
   getServiceSectionConfig,
+  getServiceToggle,
   isChoiceMode,
+  lockedToggleValue,
+  resolveSecurityToggle,
+  resolveSharedServiceToggle,
   ServiceResourceLike,
   ServiceVisibilityContext,
   shouldShowServiceSection,
@@ -118,6 +122,7 @@ function isSchemaDrivenEquipmentSection(
   if (!cfg) return false;
   if (cfg.mode === "static") return true;
   if (cfg.showDetailsField) return true;
+  if (cfg.toggle) return true;
   return !!cfg.descriptionHtml && cfg.mode !== "hidden";
 }
 
@@ -199,12 +204,15 @@ function SharedYesNoSwitch({
   description,
   value,
   disabled,
+  locked,
   onChange,
 }: {
   label: string;
   description?: React.ReactNode;
   value: string;
   disabled?: boolean;
+  /** Schema toggle lock ("on" / "off"): rendered disabled, value is fixed. */
+  locked?: boolean;
   onChange: (next: "yes" | "no") => void;
 }) {
   return (
@@ -216,7 +224,7 @@ function SharedYesNoSwitch({
         control={
           <Switch
             checked={value === "yes"}
-            disabled={disabled}
+            disabled={disabled || locked}
             onChange={(e) => onChange(e.target.checked ? "yes" : "no")}
           />
         }
@@ -242,11 +250,14 @@ export default function BookingFormResourceServices({
   cateringRequiresCleaning,
   isLargeEvent,
 }: Props) {
-  const visibility: ServiceVisibilityContext = {
-    isVIP,
-    isWalkIn,
-    isStandardUser: !isVIP && !isWalkIn,
-  };
+  const visibility = useMemo<ServiceVisibilityContext>(
+    () => ({
+      isVIP,
+      isWalkIn,
+      isStandardUser: !isVIP && !isWalkIn,
+    }),
+    [isVIP, isWalkIn],
+  );
 
   const hasConfig = selectedRooms.some(
     (r) => Object.keys(getResourceServicesConfig(r)).length > 0,
@@ -325,6 +336,115 @@ export default function BookingFormResourceServices({
   }, [selectedRooms, isVIP, isWalkIn]);
   const cateringValue = watch("catering") as string;
   const cleaningValue = watch("cleaningService") as string;
+
+  // Schema toggle locks for booking-level (shared) switches.
+  const cateringToggle = useMemo(
+    () => resolveSharedServiceToggle(selectedRooms, "catering", visibility),
+    [selectedRooms, visibility],
+  );
+  const cleaningToggle = useMemo(
+    () => resolveSharedServiceToggle(selectedRooms, "cleaning", visibility),
+    [selectedRooms, visibility],
+  );
+  const securityToggle = useMemo(
+    () => resolveSecurityToggle(selectedRooms, visibility),
+    [selectedRooms, visibility],
+  );
+  // Value a locked-on security switch writes: the checkbox option (Willoughby)
+  // when present, otherwise the generic "yes".
+  const securityLockOnValue = useMemo(() => {
+    const checkboxRoom = getRoomsWithVisibleService(
+      selectedRooms,
+      "security",
+      visibility,
+    ).find((r) => getServiceSectionConfig(r, "security")?.mode === "checkbox");
+    return (
+      getServiceSectionConfig(checkboxRoom ?? {}, "security")?.options?.[0]
+        ?.value ?? "yes"
+    );
+  }, [selectedRooms, visibility]);
+
+  // Equipment switch state for rooms whose equipment toggle is "optional".
+  const [equipmentOnByRoom, setEquipmentOnByRoom] = useState<
+    Record<string, boolean>
+  >({});
+
+  useEffect(() => {
+    const cateringLocked = lockedToggleValue(cateringToggle);
+    if (cateringLocked && cateringValue !== cateringLocked) {
+      setValue("catering", cateringLocked, { shouldValidate: true });
+    }
+    const cleaningLocked = lockedToggleValue(cleaningToggle);
+    if (cleaningLocked && cleaningValue !== cleaningLocked) {
+      setValue("cleaningService", cleaningLocked, { shouldValidate: true });
+    }
+  }, [cateringToggle, cleaningToggle, cateringValue, cleaningValue, setValue]);
+
+  useEffect(() => {
+    const securityLocked = lockedToggleValue(securityToggle);
+    if (!securityLocked) return;
+    const requested =
+      typeof hireSecurityValue === "string" &&
+      hireSecurityValue.trim().length > 0 &&
+      hireSecurityValue.trim().toLowerCase() !== "no";
+    if (securityLocked === "yes" && !requested) {
+      setValue("hireSecurity", securityLockOnValue, { shouldValidate: true });
+    } else if (securityLocked === "no" && hireSecurityValue !== "") {
+      setValue("hireSecurity", "", { shouldValidate: true });
+      setValue("chartFieldForSecurity", "", { shouldValidate: false });
+    }
+  }, [securityToggle, securityLockOnValue, hireSecurityValue, setValue]);
+
+  // Per-room locks: furnishings value map and equipment details.
+  useEffect(() => {
+    const currentFurn =
+      (watch("furnishingsByRoom") as Record<string, string> | undefined) ?? {};
+    const nextFurn = { ...currentFurn };
+    let furnChanged = false;
+    furnishingsRooms.forEach((room) => {
+      const locked = lockedToggleValue(
+        getServiceToggle(getResourceServicesConfig(room).furnishings),
+      );
+      if (!locked) return;
+      const resourceId = getServiceResourceId(room);
+      if (nextFurn[resourceId] !== locked) {
+        nextFurn[resourceId] = locked;
+        furnChanged = true;
+      }
+    });
+    if (furnChanged) {
+      setValue("furnishingsByRoom", nextFurn, { shouldValidate: false });
+    }
+
+    const currentDetails =
+      (watch("equipmentServicesDetailsByRoom") as
+        | Record<string, string>
+        | undefined) ?? {};
+    const nextDetails = { ...currentDetails };
+    let detailsChanged = false;
+    selectedRooms.forEach((room) => {
+      const cfg = getServiceSectionConfig(room, "equipment");
+      if (getServiceToggle(cfg) !== "off") return;
+      const resourceId = getServiceResourceId(room);
+      if (nextDetails[resourceId]) {
+        delete nextDetails[resourceId];
+        detailsChanged = true;
+      }
+    });
+    if (detailsChanged) {
+      setValue("equipmentServicesDetailsByRoom", nextDetails, {
+        shouldValidate: false,
+      });
+      setValue(
+        "equipmentServicesDetails",
+        Object.values(nextDetails)
+          .map((v) => (typeof v === "string" ? v.trim() : ""))
+          .filter(Boolean)
+          .join("\n"),
+        { shouldValidate: false },
+      );
+    }
+  }, [furnishingsRooms, selectedRooms, setValue, watch]);
 
   const setupChartError = mapFieldErrorMessage(
     errors.chartFieldForRoomSetupByRoom,
@@ -563,6 +683,26 @@ export default function BookingFormResourceServices({
             | Record<string, string>
             | undefined) ?? {};
 
+        const furnToggle = getServiceToggle(furnishingsCfg);
+        const furnLocked = furnToggle !== "optional";
+        const furnValue =
+          lockedToggleValue(furnToggle) ??
+          (furnMap[resourceId] === "yes" ? "yes" : "no");
+
+        // Equipment: omitted toggle keeps the legacy layout (no switch).
+        const equipmentToggle = equipmentCfg?.toggle;
+        const equipmentHasSwitch = !!equipmentToggle;
+        const equipmentLocked =
+          !!equipmentToggle && equipmentToggle !== "optional";
+        const equipmentOn = !equipmentHasSwitch
+          ? true
+          : equipmentToggle === "on"
+            ? true
+            : equipmentToggle === "off"
+              ? false
+              : (equipmentOnByRoom[resourceId] ??
+                !!detailsByRoom[resourceId]?.trim());
+
         return (
           <RoomBlock key={resourceId}>
             <RoomHeading>{roomDisplayTitle(room)}</RoomHeading>
@@ -710,7 +850,8 @@ export default function BookingFormResourceServices({
                       <HtmlBlock html={furnishingsCfg.descriptionHtml} />
                     ) : undefined
                   }
-                  value={furnMap[resourceId] === "yes" ? "yes" : "no"}
+                  value={furnValue}
+                  locked={furnLocked}
                   onChange={(next) => {
                     setValue("furnishingsByRoom", {
                       ...furnMap,
@@ -719,7 +860,7 @@ export default function BookingFormResourceServices({
                     trigger("chartFieldForFurnishingsByRoom");
                   }}
                 />
-                {furnMap[resourceId] === "yes" && (
+                {furnValue === "yes" && (
                   <>
                     {furnishingsCfg.chartField && (
                       <>
@@ -812,11 +953,45 @@ export default function BookingFormResourceServices({
 
             {showEquipment && equipmentCfg && (
               <Subsection>
-                <Label>
-                  {formatFieldLabel(equipmentCfg.label ?? "Equipment")}
-                </Label>
-                <HtmlBlock html={equipmentCfg.descriptionHtml} />
-                {equipmentCfg.showDetailsField && (
+                {equipmentHasSwitch ? (
+                  <SharedYesNoSwitch
+                    label={formatFieldLabel(equipmentCfg.label ?? "Equipment")}
+                    description={
+                      <HtmlBlock html={equipmentCfg.descriptionHtml} />
+                    }
+                    value={equipmentOn ? "yes" : "no"}
+                    locked={equipmentLocked}
+                    onChange={(next) => {
+                      setEquipmentOnByRoom((prev) => ({
+                        ...prev,
+                        [resourceId]: next === "yes",
+                      }));
+                      if (next === "no" && detailsByRoom[resourceId]) {
+                        const { [resourceId]: _removed, ...rest } =
+                          detailsByRoom;
+                        setValue("equipmentServicesDetailsByRoom", rest, {
+                          shouldValidate: false,
+                        });
+                        setValue(
+                          "equipmentServicesDetails",
+                          Object.values(rest)
+                            .map((v) => (typeof v === "string" ? v.trim() : ""))
+                            .filter(Boolean)
+                            .join("\n"),
+                          { shouldValidate: false },
+                        );
+                      }
+                    }}
+                  />
+                ) : (
+                  <>
+                    <Label>
+                      {formatFieldLabel(equipmentCfg.label ?? "Equipment")}
+                    </Label>
+                    <HtmlBlock html={equipmentCfg.descriptionHtml} />
+                  </>
+                )}
+                {equipmentOn && equipmentCfg.showDetailsField && (
                   <>
                     <Label htmlFor={`equip-details-${resourceId}`}>
                       {equipmentCfg.detailsLabel ?? "Equipment request details"}
@@ -938,6 +1113,7 @@ export default function BookingFormResourceServices({
                     )
                   }
                   value={cateringValue}
+                  locked={cateringToggle !== "optional"}
                   onChange={(next) => {
                     setValue("catering", next, { shouldValidate: true });
                     trigger("catering");
@@ -972,6 +1148,7 @@ export default function BookingFormResourceServices({
                   disabled={
                     cateringValue === "yes" && cateringRequiresCleaning
                   }
+                  locked={cleaningToggle !== "optional"}
                   onChange={(next) => {
                     setValue("cleaningService", next, {
                       shouldValidate: true,
@@ -1100,6 +1277,7 @@ export default function BookingFormResourceServices({
                         }
                         value={hireRequested ? "yes" : "no"}
                         disabled={isLargeEvent}
+                        locked={securityToggle !== "optional"}
                         onChange={(next) => {
                           if (next === "yes") {
                             setValue("hireSecurity", securityOpt.value, {
@@ -1180,6 +1358,7 @@ export default function BookingFormResourceServices({
                   }
                   value={hireSecurityValue}
                   disabled={isLargeEvent}
+                  locked={securityToggle !== "optional"}
                   onChange={(next) => {
                     setValue("hireSecurity", next, { shouldValidate: true });
                     trigger("hireSecurity");

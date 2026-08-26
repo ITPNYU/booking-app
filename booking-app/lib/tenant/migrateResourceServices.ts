@@ -5,6 +5,7 @@ import type {
   ResourceServicesConfig,
   ResourceStaffingConfig,
   ResourceStaffingSectionConfig,
+  ServiceToggle,
   ShowInOrigin,
 } from "@/components/src/client/routes/components/schemaTypes";
 import { StaffingServices } from "@/components/src/types";
@@ -78,10 +79,26 @@ function normalizeOption(opt: Record<string, unknown>): ResourceFormOption {
   };
 }
 
+const SERVICE_TOGGLE_VALUES: readonly ServiceToggle[] = [
+  "on",
+  "off",
+  "optional",
+];
+
+/** Accept only the known toggle values; anything else is dropped (= optional). */
+function normalizeToggle(raw: unknown): ServiceToggle | undefined {
+  if (typeof raw !== "string") return undefined;
+  const value = raw.trim().toLowerCase();
+  return SERVICE_TOGGLE_VALUES.includes(value as ServiceToggle)
+    ? (value as ServiceToggle)
+    : undefined;
+}
+
 function normalizeSection(
   raw: Record<string, unknown>,
 ): ResourceFormSectionConfig {
   const modeRaw = raw.mode;
+  const toggle = normalizeToggle(raw.toggle);
   let mode: ResourceFormSectionConfig["mode"];
   if (modeRaw === "select" || modeRaw === "radio") mode = "radio";
   else if (
@@ -106,10 +123,12 @@ function normalizeSection(
   }
 
   // Description-only sections (no choice UI / switch) become static.
+  // An explicit toggle keeps the switch so it can render locked on/off.
   if (
     mode === undefined &&
     (!options || options.length === 0) &&
-    !chartField
+    !chartField &&
+    !toggle
   ) {
     mode = "static";
   }
@@ -124,6 +143,7 @@ function normalizeSection(
       ? { descriptionHtml: raw.descriptionHtml }
       : {}),
     ...(mode ? { mode } : {}),
+    ...(toggle ? { toggle } : {}),
     ...(typeof raw.defaultValue === "string"
       ? { defaultValue: raw.defaultValue }
       : {}),
@@ -225,6 +245,9 @@ function normalizeObjectServices(
       staffingRaw.mode === "static" ||
       staffingRaw.mode === "hidden"
         ? { mode: staffingRaw.mode }
+        : {}),
+      ...(normalizeToggle(staffingRaw.toggle)
+        ? { toggle: normalizeToggle(staffingRaw.toggle) }
         : {}),
       ...(staffingRaw.showInOrigin
         ? { showInOrigin: staffingRaw.showInOrigin as ShowInOrigin }

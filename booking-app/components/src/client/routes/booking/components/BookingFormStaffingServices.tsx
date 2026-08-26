@@ -11,7 +11,9 @@ import React, { useContext, useEffect, useMemo } from "react";
 import styled from "@emotion/styled";
 import { FormContextLevel, Inputs, StaffingServices } from "../../../../types";
 import {
+  combineServiceToggles,
   getResourceServicesConfig,
+  getServiceToggle,
   resourceHasService,
   ServiceResourceLike,
 } from "../../../../utils/resourceServicesUtils";
@@ -189,6 +191,41 @@ export default function BookingFormStaffingServices(props: Props) {
   const hasInteractiveStaffing =
     staffingSections.length > 0 || flatServices.length > 0;
 
+  // Schema lock for the staffing switch (shared across the rendered rooms).
+  const staffingToggle = useMemo(
+    () =>
+      combineServiceToggles(
+        selectedRooms
+          .map((room) => getResourceServicesConfig(room).staffing)
+          .filter((cfg) => !!cfg)
+          .map((cfg) => getServiceToggle(cfg)),
+      ),
+    [selectedRooms],
+  );
+  const staffingLocked = staffingToggle !== "optional";
+
+  // Locked switches force the visibility state and clear stale values.
+  useEffect(() => {
+    if (!showStaffing || !hasInteractiveStaffing) return;
+    if (staffingToggle === "on" && !showStaffingServices) {
+      setShowStaffingServices(true);
+    } else if (staffingToggle === "off") {
+      if (showStaffingServices) setShowStaffingServices(false);
+      if (staffingFieldValue && setValue) {
+        setValue(id, "", { shouldValidate: false });
+      }
+    }
+  }, [
+    staffingToggle,
+    showStaffing,
+    hasInteractiveStaffing,
+    showStaffingServices,
+    setShowStaffingServices,
+    staffingFieldValue,
+    setValue,
+    id,
+  ]);
+
   const staffingLabel =
     getResourceServicesConfig(selectedRooms[0] ?? {}).staffing?.label ??
     "Staffing?";
@@ -249,6 +286,7 @@ export default function BookingFormStaffingServices(props: Props) {
           control={
             <Switch
               checked={showStaffingServices}
+              disabled={staffingLocked}
               onChange={(e) => {
                 const checked = e.target.checked;
                 setShowStaffingServices(checked);
