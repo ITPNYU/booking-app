@@ -48,7 +48,8 @@ const formatFirestoreTimestamp = (value: any): string => {
 
 const servicesSummary = (booking: any): string[] => {
   const requested: string[] = [];
-  if (booking?.equipmentServices) requested.push("Equipment");
+  if (booking?.equipmentServices || booking?.equipmentServicesDetails?.trim())
+    requested.push("Equipment");
   if (booking?.staffingServices) requested.push("Staff");
   if (booking?.catering === "yes") requested.push("Catering");
   if (booking?.cleaning === "yes") requested.push("Cleaning");

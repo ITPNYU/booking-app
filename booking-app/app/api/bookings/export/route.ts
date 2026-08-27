@@ -173,7 +173,8 @@ const buildRow = (booking: Booking): string => {
           .map(([roomId, chart]) => `${roomId}: ${chart}`)
           .join("; ")
       : "",
-    booking.equipmentServices && booking.equipmentServices.length > 0
+    (booking.equipmentServices && booking.equipmentServices.length > 0) ||
+    booking.equipmentServicesDetails?.trim()
       ? "Yes"
       : "No",
     booking.equipmentServicesDetails || "",

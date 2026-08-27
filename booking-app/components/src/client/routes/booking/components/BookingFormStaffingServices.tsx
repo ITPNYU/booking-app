@@ -1,6 +1,7 @@
 import {
   FormControl,
   FormControlLabel,
+  FormHelperText,
   FormLabel,
   Radio,
   RadioGroup,
@@ -10,8 +11,11 @@ import { Control, Controller, UseFormTrigger, useWatch } from "react-hook-form";
 import React, { useContext, useEffect, useMemo } from "react";
 import styled from "@emotion/styled";
 import { FormContextLevel, Inputs, StaffingServices } from "../../../../types";
+import type { ServiceToggle } from "../../components/schemaTypes";
 import {
+  combineServiceToggles,
   getResourceServicesConfig,
+  getServiceToggle,
   resourceHasService,
   ServiceResourceLike,
 } from "../../../../utils/resourceServicesUtils";
@@ -59,6 +63,11 @@ interface Props {
   formContext: FormContextLevel;
   /** When set, only render staffing for these rooms (Room → Service layout). */
   rooms?: ServiceResourceLike[];
+  /**
+   * Toggle lock resolved across every selected room by the parent. Without
+   * it, the lock is derived from `rooms` only.
+   */
+  toggle?: ServiceToggle;
   setValue?: (
     name: keyof Inputs,
     value: any,
@@ -76,6 +85,7 @@ export default function BookingFormStaffingServices(props: Props) {
     formContext: _formContext,
     rooms: roomsProp,
     setValue,
+    toggle: toggleProp,
   } = props;
   const { selectedRooms: contextRooms } = useContext(BookingContext);
   const selectedRooms = roomsProp ?? contextRooms;
@@ -189,9 +199,63 @@ export default function BookingFormStaffingServices(props: Props) {
   const hasInteractiveStaffing =
     staffingSections.length > 0 || flatServices.length > 0;
 
+  // Schema lock for the staffing switch (shared across the rendered rooms).
+  const roomsToggle = useMemo(
+    () =>
+      combineServiceToggles(
+        selectedRooms
+          .map((room) => getResourceServicesConfig(room).staffing)
+          .filter((cfg) => !!cfg)
+          .map((cfg) => getServiceToggle(cfg)),
+      ),
+    [selectedRooms],
+  );
+  const staffingToggle = toggleProp ?? roomsToggle;
+  const staffingLocked = staffingToggle !== "optional";
+
+  // Locked switches force the visibility state and clear stale values.
+  useEffect(() => {
+    if (!showStaffing || !hasInteractiveStaffing) return;
+    if (staffingToggle === "on" && !showStaffingServices) {
+      setShowStaffingServices(true);
+    } else if (staffingToggle === "off") {
+      if (showStaffingServices) setShowStaffingServices(false);
+      if (staffingFieldValue && setValue) {
+        setValue(id, "", { shouldValidate: false });
+      }
+    }
+  }, [
+    staffingToggle,
+    showStaffing,
+    hasInteractiveStaffing,
+    showStaffingServices,
+    setShowStaffingServices,
+    staffingFieldValue,
+    setValue,
+    id,
+  ]);
+
   const staffingLabel =
     getResourceServicesConfig(selectedRooms[0] ?? {}).staffing?.label ??
     "Staffing?";
+
+  // While the switch is on, every staffing section needs a selection. Sections
+  // with a defaultValue are seeded automatically; sections without one (or a
+  // locked-on switch with no defaults) must not submit empty.
+  const validateStaffingSelection = (value: unknown): true | string => {
+    if (!showStaffingServices || !hasInteractiveStaffing) return true;
+    const selected =
+      typeof value === "string" && value.length > 0 ? value.split(",") : [];
+    if (staffingSections.length > 0) {
+      const missing = staffingSections.some(
+        (section) => !section.services.some((s) => selected.includes(s.value)),
+      );
+      return missing
+        ? "Please select an option for each staffing section."
+        : true;
+    }
+    return selected.length > 0 ? true : "Please select a staffing option.";
+  };
 
   // Radios show section.defaultValue visually, but that does not write the form
   // field. Seed defaults when staffing is enabled so bookings persist selections.
@@ -243,12 +307,14 @@ export default function BookingFormStaffingServices(props: Props) {
     <Controller
       name={id}
       control={control}
+      rules={{ validate: validateStaffingSelection }}
       render={({ field }) => (
         <FormControlLabel
           label={showStaffingServices ? "Yes" : "No"}
           control={
             <Switch
               checked={showStaffingServices}
+              disabled={staffingLocked}
               onChange={(e) => {
                 const checked = e.target.checked;
                 setShowStaffingServices(checked);
@@ -294,12 +360,18 @@ export default function BookingFormStaffingServices(props: Props) {
         <Controller
           name={id}
           control={control}
-          render={({ field }) => {
+          rules={{ validate: validateStaffingSelection }}
+          render={({ field, fieldState }) => {
             const value = typeof field.value === "string" ? field.value : "";
             const selectedServices = value ? value.split(",") : [];
 
             return (
               <div>
+                {fieldState.error?.message && (
+                  <FormHelperText error sx={{ marginBottom: 1 }}>
+                    {fieldState.error.message}
+                  </FormHelperText>
+                )}
                 {staffingSections.length > 0 ? (
                   <div>
                     {staffingSections.map((section, sectionIndex) => {
