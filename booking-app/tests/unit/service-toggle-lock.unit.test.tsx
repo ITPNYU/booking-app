@@ -5,6 +5,7 @@ import {
   combineServiceToggles,
   getServiceToggle,
   hasSchemaServicesConfig,
+  isSchemaDrivenEquipmentSection,
   lockedToggleValue,
   needsGenericSetupSwitch,
   resolveSecurityToggle,
@@ -109,6 +110,17 @@ describe("legacy generic Room Setup switch", () => {
       },
     };
     expect(needsGenericSetupSwitch([radioSetup], visibility, true)).toBe(false);
+  });
+});
+
+describe("isSchemaDrivenEquipmentSection", () => {
+  it("treats a toggle-only equipment config as schema-driven (no legacy UI)", () => {
+    expect(isSchemaDrivenEquipmentSection({ toggle: "on" })).toBe(true);
+    expect(isSchemaDrivenEquipmentSection({ showDetailsField: true })).toBe(true);
+    expect(isSchemaDrivenEquipmentSection({ mode: "static" })).toBe(true);
+    expect(isSchemaDrivenEquipmentSection({ descriptionHtml: "<p>x</p>" })).toBe(true);
+    expect(isSchemaDrivenEquipmentSection({ label: "Equipment" })).toBe(false);
+    expect(isSchemaDrivenEquipmentSection(undefined)).toBe(false);
   });
 });
 
@@ -427,6 +439,33 @@ describe("BookingFormResourceServices toggle locks", () => {
       "230": "2x SM58",
     });
     expect(onValid.mock.calls[0][0].equipmentServicesDetails).toBe("2x SM58");
+  });
+
+  it("shows the missing-details error only under the room that is missing them", async () => {
+    render(
+      <ServicesHarness
+        rooms={[
+          {
+            resourceId: "103",
+            services: { equipment: { label: "Equipment", toggle: "on" } },
+          },
+          {
+            resourceId: "230",
+            services: { equipment: { label: "Equipment", toggle: "on" } },
+          },
+        ]}
+      />,
+    );
+    const inputs = screen.getAllByLabelText(/Equipment request details/);
+    fireEvent.change(inputs[0], { target: { value: "2x SM58" } });
+    fireEvent.click(screen.getByText("Submit"));
+    await waitFor(() =>
+      expect(
+        screen.getAllByText(/Please describe your equipment needs/),
+      ).toHaveLength(1),
+    );
+    expect(inputs[1]).toHaveAttribute("aria-invalid", "true");
+    expect(inputs[0]).toHaveAttribute("aria-invalid", "false");
   });
 
   it("does not require details for a legacy equipment section without a toggle", async () => {

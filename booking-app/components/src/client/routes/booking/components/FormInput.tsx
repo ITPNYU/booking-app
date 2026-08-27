@@ -46,6 +46,7 @@ import {
   getServiceSectionConfig,
   hasSchemaServicesConfig,
   isChoiceMode,
+  isSchemaDrivenEquipmentSection,
   needsGenericSetupSwitch,
   resolveSecurityToggle,
   resolveSharedServiceToggle,
@@ -202,10 +203,8 @@ export default function FormInput({
       const cfg = getServiceSectionConfig(r, "equipment");
       // Legacy string[] services have no section config; use generic equipment UI.
       if (!cfg) return true;
-      if (cfg.mode === "static") return false;
-      if (cfg.showDetailsField) return false;
-      if (cfg.descriptionHtml && cfg.mode !== "hidden") return false;
-      return true;
+      // Mirrors BookingFormResourceServices so a section never renders both UIs.
+      return !isSchemaDrivenEquipmentSection(cfg);
     });
   }, [selectedRooms, serviceVisibility]);
 

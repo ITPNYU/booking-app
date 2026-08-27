@@ -43,6 +43,21 @@ export function hasSchemaServicesConfig(room: ServiceResourceLike): boolean {
 }
 
 /**
+ * Equipment sections rendered by the schema-driven form (static text, a
+ * details field, a toggle, or description-only). Anything else falls back to
+ * the legacy equipment UI in FormInput.
+ */
+export function isSchemaDrivenEquipmentSection(
+  cfg: ResourceFormSectionConfig | undefined,
+): boolean {
+  if (!cfg) return false;
+  if (cfg.mode === "static") return true;
+  if (cfg.showDetailsField) return true;
+  if (cfg.toggle) return true;
+  return !!cfg.descriptionHtml && cfg.mode !== "hidden";
+}
+
+/**
  * Whether the legacy generic "Room Setup" switch is needed for the selection:
  * only for rooms that are not schema-driven (legacy string[] / no services),
  * or for schema rooms whose setup section is a plain switch.

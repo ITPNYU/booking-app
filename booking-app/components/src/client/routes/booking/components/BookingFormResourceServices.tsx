@@ -27,6 +27,7 @@ import {
   getServiceSectionConfig,
   getServiceToggle,
   isChoiceMode,
+  isSchemaDrivenEquipmentSection,
   lockedToggleValue,
   resolveSecurityToggle,
   resolveSharedServiceToggle,
@@ -114,16 +115,6 @@ function OptionLabel({
       />
     </span>
   );
-}
-
-function isSchemaDrivenEquipmentSection(
-  cfg: ReturnType<typeof getServiceSectionConfig>,
-): boolean {
-  if (!cfg) return false;
-  if (cfg.mode === "static") return true;
-  if (cfg.showDetailsField) return true;
-  if (cfg.toggle) return true;
-  return !!cfg.descriptionHtml && cfg.mode !== "hidden";
 }
 
 function mapFieldErrorMessage(error: unknown): string | undefined {
@@ -758,6 +749,14 @@ export default function BookingFormResourceServices({
         const furnValue =
           lockedToggleValue(furnToggle) ??
           (furnMap[resourceId] === "yes" ? "yes" : "no");
+        // The details validation error is form-wide; only show it under the
+        // rooms that are actually missing details.
+        const furnishingsDetailsErrorForRoom =
+          furnishingsDetailsError &&
+          furnValue === "yes" &&
+          !furnDetailsByRoom[resourceId]?.trim()
+            ? furnishingsDetailsError
+            : undefined;
 
         // Equipment: omitted toggle keeps the legacy layout (no switch). With a
         // toggle, the details field is always available when the switch is on —
@@ -774,6 +773,13 @@ export default function BookingFormResourceServices({
               ? false
               : (equipmentOnByRoom[resourceId] ??
                 !!detailsByRoom[resourceId]?.trim());
+        const equipmentDetailsErrorForRoom =
+          equipmentDetailsError &&
+          equipmentHasSwitch &&
+          equipmentOn &&
+          !detailsByRoom[resourceId]?.trim()
+            ? equipmentDetailsError
+            : undefined;
 
         return (
           <RoomBlock key={resourceId}>
@@ -1000,7 +1006,7 @@ export default function BookingFormResourceServices({
                           }}
                           value={furnDetailsByRoom[resourceId] ?? ""}
                           aria-required
-                          aria-invalid={!!furnishingsDetailsError}
+                          aria-invalid={!!furnishingsDetailsErrorForRoom}
                           onBlur={() => trigger("furnishingsDetailsByRoom")}
                           onChange={(e) => {
                             const next = {
@@ -1021,9 +1027,9 @@ export default function BookingFormResourceServices({
                             });
                           }}
                         />
-                        {furnishingsDetailsError && (
+                        {furnishingsDetailsErrorForRoom && (
                           <FormHelperText error>
-                            {furnishingsDetailsError}
+                            {furnishingsDetailsErrorForRoom}
                           </FormHelperText>
                         )}
                       </>
@@ -1097,7 +1103,7 @@ export default function BookingFormResourceServices({
                       }}
                       value={detailsByRoom[resourceId] ?? ""}
                       aria-required={equipmentHasSwitch}
-                      aria-invalid={!!equipmentDetailsError}
+                      aria-invalid={!!equipmentDetailsErrorForRoom}
                       onChange={(e) => {
                         const next = {
                           ...detailsByRoom,
@@ -1119,9 +1125,9 @@ export default function BookingFormResourceServices({
                         trigger("equipmentServicesDetailsByRoom")
                       }
                     />
-                    {equipmentDetailsError && (
+                    {equipmentDetailsErrorForRoom && (
                       <FormHelperText error>
-                        {equipmentDetailsError}
+                        {equipmentDetailsErrorForRoom}
                       </FormHelperText>
                     )}
                   </>
