@@ -5,19 +5,23 @@ import {
   formatAnnexByRoomForDisplay,
   getAnnexOptions,
   getRoomsWithVisibleService,
+  getStaffingServiceLabel,
+  isPassiveSetupSelection,
   mergeRoomIdsWithAnnex,
   resolveAnnexCalendarIds,
 } from "@/components/src/utils/resourceServicesUtils";
-import {
-  applyMcResourceServices,
-  getMcResourceServices,
-  getStaffingServiceLabel,
-} from "@/lib/tenant/mcResourceServices";
+
+/** MC rooms as stored in the tenant schema (services snapshot fixture). */
+const mcRooms = Object.entries(MC_TEST_RESOURCE_SERVICES).map(
+  ([resourceId, services]) => ({ resourceId, services }),
+);
+const svc = (data: any) => getMediaCommonsServices(data, mcRooms);
+import { MC_TEST_RESOURCE_SERVICES } from "@/components/src/testHelpers/mcResourceServicesFixture";
 import { migrateResourceServices } from "@/lib/tenant/migrateResourceServices";
 
 describe("getMediaCommonsServices", () => {
   it("requests security for yes hireSecurity", () => {
-    const services = getMediaCommonsServices({
+    const services = svc({
       hireSecurity: "yes",
     });
     expect(services.security).toBe(true);
@@ -25,43 +29,43 @@ describe("getMediaCommonsServices", () => {
 
   it("requests security for custom radio values", () => {
     expect(
-      getMediaCommonsServices({ hireSecurity: "willoughby" }).security,
+      svc({ hireSecurity: "willoughby" }).security,
     ).toBe(true);
     expect(
-      getMediaCommonsServices({ hireSecurity: "main_entrance" }).security,
+      svc({ hireSecurity: "main_entrance" }).security,
     ).toBe(true);
   });
 
   it("does not request security when hireSecurity is empty or no", () => {
-    expect(getMediaCommonsServices({ hireSecurity: "" }).security).toBe(false);
-    expect(getMediaCommonsServices({ hireSecurity: "no" }).security).toBe(
+    expect(svc({ hireSecurity: "" }).security).toBe(false);
+    expect(svc({ hireSecurity: "no" }).security).toBe(
       false,
     );
-    expect(getMediaCommonsServices({ hireSecurity: "No" }).security).toBe(
+    expect(svc({ hireSecurity: "No" }).security).toBe(
       false,
     );
   });
 
   it("does not treat capitalized No as setup requested", () => {
-    expect(getMediaCommonsServices({ roomSetup: "No" }).setup).toBe(false);
-    expect(getMediaCommonsServices({ roomSetup: "no" }).setup).toBe(false);
+    expect(svc({ roomSetup: "No" }).setup).toBe(false);
+    expect(svc({ roomSetup: "no" }).setup).toBe(false);
   });
 
   it("does not treat passive default layouts as setup requested", () => {
     expect(
-      getMediaCommonsServices({
+      svc({
         roomSetupByRoom: { "1201": "1201_LAYOUT_0" },
         roomSetup: "yes",
         setupDetails: "Lecture Style (Default) - 84 Seated",
       }).setup,
     ).toBe(false);
     expect(
-      getMediaCommonsServices({
+      svc({
         roomSetupByRoom: { "103": "103_LAYOUT_0" },
       }).setup,
     ).toBe(false);
     expect(
-      getMediaCommonsServices({
+      svc({
         roomSetupByRoom: { "202": "202_LAYOUT_0" },
       }).setup,
     ).toBe(false);
@@ -69,24 +73,24 @@ describe("getMediaCommonsServices", () => {
 
   it("treats non-default layouts as setup requested", () => {
     expect(
-      getMediaCommonsServices({
+      svc({
         roomSetupByRoom: { "1201": "1201_LAYOUT_1" },
       }).setup,
     ).toBe(true);
     expect(
-      getMediaCommonsServices({
+      svc({
         roomSetupByRoom: { "202": "202_LAYOUT_1" },
       }).setup,
     ).toBe(true);
     expect(
-      getMediaCommonsServices({
+      svc({
         roomSetupByRoom: { "233": "233_LAYOUT_0" },
       }).setup,
     ).toBe(true);
   });
 
   it("detects setup from per-room maps", () => {
-    const services = getMediaCommonsServices({
+    const services = svc({
       roomSetupByRoom: { "1201": "1201_LAYOUT_1" },
     });
     expect(services.setup).toBe(true);
@@ -94,12 +98,12 @@ describe("getMediaCommonsServices", () => {
 
   it("treats additional event furniture as setup requested", () => {
     expect(
-      getMediaCommonsServices({
+      svc({
         furnishingsByRoom: { "103": "yes" },
       }).setup,
     ).toBe(true);
     expect(
-      getMediaCommonsServices({
+      svc({
         furnishingsByRoom: { "103": "no" },
       }).setup,
     ).toBe(false);
@@ -107,7 +111,7 @@ describe("getMediaCommonsServices", () => {
 
   it("still detects legacy setup when by-room maps are also present", () => {
     expect(
-      getMediaCommonsServices({
+      svc({
         roomSetupByRoom: { "103": "103_LAYOUT_0" },
         roomSetup: "custom",
         setupDetails: "Need extra tables for the adjacent room",
@@ -173,137 +177,41 @@ describe("resource service visibility", () => {
   });
 });
 
-describe("applyMcResourceServices", () => {
-  it("applies MC defaults when services are missing or a legacy array", () => {
-    const missing = applyMcResourceServices({
-      resourceId: "202",
-      name: "202",
-      capacity: 50,
-    });
-    expect(missing.services?.catering?.forceCleaning).toBe(true);
-    expect(missing.services?.catering?.chartField?.required).toBe(true);
-    expect(missing.services?.setup?.mode).toBe("radio");
-    expect(missing.services?.setup?.defaultValue).toBe("202_LAYOUT_0");
-    // Annex options are derived from parentResourceId resources, not services.
-    expect(missing.services?.annex).toBeUndefined();
-
-    const emptyArray = applyMcResourceServices({
-      resourceId: "202",
-      name: "202",
-      capacity: 50,
-      services: [],
-    });
-    expect(emptyArray.services?.setup?.mode).toBe("radio");
-  });
-
-  it("does not hardcode annex options for 1201", () => {
-    const room = applyMcResourceServices({
-      resourceId: "1201",
-      name: "Seminar Room",
-      capacity: 100,
-      services: [],
-    });
-    // Annex spaces live as child resources (parentResourceId) in the schema.
-    expect(room.services?.annex).toBeUndefined();
-  });
-
-  it("replaces legacy services arrays with MC room defaults", () => {
-    const legacy = ["equipment", "catering"];
-    const result = applyMcResourceServices({
-      resourceId: "202",
-      name: "202",
-      capacity: 50,
-      services: legacy,
-    });
-    expect(Array.isArray(result.services)).toBe(false);
-    expect(result.services?.catering?.forceCleaning).toBe(true);
-    expect(result.services?.setup?.mode).toBe("radio");
-  });
-
-  it("does not overwrite an existing object services config", () => {
-    const custom = {
-      catering: { label: "Custom Catering" },
-    };
-    const result = applyMcResourceServices({
-      resourceId: "202",
-      name: "202",
-      capacity: 50,
-      services: custom,
-    });
-    expect(result.services).toEqual(custom);
-  });
-
-  it("preserves intentional empty object services configs", () => {
-    const result = applyMcResourceServices({
-      resourceId: "202",
-      name: "202",
-      capacity: 50,
-      services: {},
-    });
-    expect(result.services).toEqual({});
-  });
-
-  it("uses empty config for room 260", () => {
-    expect(getMcResourceServices("260")).toEqual({});
-  });
-
-  it("uses checkbox security for 103 with Willoughby entrance option", () => {
-    const services103 = getMcResourceServices("103")!;
-    expect(services103.security?.mode).toBe("checkbox");
-    expect(services103.security?.required).toBeUndefined();
-    expect(services103.security?.defaultValue).toBeUndefined();
-    expect(services103.security?.options?.[0]?.value).toBe(
-      "Willoughby Street Entrance",
-    );
-    expect(
-      services103.security?.options?.[0]?.chartField?.required,
-    ).toBe(true);
-  });
-
-  it("resolves staffing option values to human-readable labels", () => {
-    expect(getStaffingServiceLabel("LIGHTING_TECH_DIY")).toBe(
+describe("schema-driven MC helpers", () => {
+  it("resolves staffing option values to labels from tenant resources", () => {
+    expect(getStaffingServiceLabel(mcRooms, "LIGHTING_TECH_DIY")).toBe(
       "DIY - Basic Washes",
     );
-    expect(getStaffingServiceLabel("AUDIO_TECH_DIY")).toBe("DIY - Plug & Play");
-    expect(getStaffingServiceLabel("AUDIO_TECH_A1")).toBe("Audio Tech - A1");
-  });
-
-  it("uses VIP-only setup and custom layout option for room 202", () => {
-    const setup202 = getMcResourceServices("202")!.setup!;
-    expect(setup202.showInOrigin).toEqual({
-      user: false,
-      walkIn: false,
-      VIP: true,
-    });
-    expect(setup202.defaultValue).toBe("202_LAYOUT_0");
-    expect(setup202.options?.map((o) => o.value)).toEqual([
-      "202_LAYOUT_0",
-      "202_LAYOUT_1",
-    ]);
-  });
-
-  it("uses numbered layout options for room 233", () => {
-    const setup233 = getMcResourceServices("233")!.setup!;
-    expect(setup233.defaultValue).toBe("233_LAYOUT_0");
-    expect(setup233.options?.[0]).toMatchObject({
-      value: "233_LAYOUT_0",
-      label: "Classroom Style - 72 Seated",
-    });
-    expect(setup233.options?.map((o) => o.value)).toEqual([
-      "233_LAYOUT_0",
-      "233_LAYOUT_1",
-      "233_LAYOUT_2",
-      "233_LAYOUT_3",
-    ]);
-  });
-
-  it("uses custom setup radio for ballroom rooms", () => {
-    expect(getMcResourceServices("220")?.setup?.defaultValue).toBe(
-      "220_LAYOUT_CUSTOM",
+    expect(getStaffingServiceLabel(mcRooms, "AUDIO_TECH_DIY")).toBe(
+      "DIY - Plug & Play",
     );
+    expect(getStaffingServiceLabel(mcRooms, "AUDIO_TECH_A1")).toBe(
+      "Audio Tech - A1",
+    );
+    expect(getStaffingServiceLabel(mcRooms, "UNKNOWN_VALUE")).toBe(
+      "UNKNOWN_VALUE",
+    );
+    expect(getStaffingServiceLabel([], "AUDIO_TECH_A1")).toBe("AUDIO_TECH_A1");
+  });
+
+  it("treats default layouts without a chartfield as passive", () => {
+    expect(isPassiveSetupSelection(mcRooms, "1201_LAYOUT_0")).toBe(true);
     expect(
-      getMcResourceServices("220")?.setup?.options?.[0]?.descriptionHtml,
-    ).toBe("Please describe the layout in detail.");
+      isPassiveSetupSelection(mcRooms, "Lecture Style (Default) - 84 Seated"),
+    ).toBe(true);
+    expect(isPassiveSetupSelection(mcRooms, "1201_LAYOUT_1")).toBe(false);
+    // Room 230's default carries a chartfield, so it is an active request.
+    expect(isPassiveSetupSelection(mcRooms, "230_LAYOUT_CUSTOM")).toBe(false);
+    expect(isPassiveSetupSelection([], "1201_LAYOUT_0")).toBe(false);
+  });
+
+  it("counts a default layout as a setup request when no resources are known", () => {
+    expect(
+      getMediaCommonsServices(
+        { roomSetupByRoom: { "1201": "1201_LAYOUT_0" } },
+        [],
+      ).setup,
+    ).toBe(true);
   });
 });
 

@@ -445,7 +445,12 @@ export const serverApproveInstantBooking = async (
   if (isMediaCommons(tenant) && bookingData) {
     const { getMediaCommonsServices } =
       await import("@/components/src/utils/tenantUtils");
-    const servicesRequested = getMediaCommonsServices(bookingData);
+    const { serverGetTenantResources } =
+      await import("@/lib/tenant/serverGetTenantResources");
+    const servicesRequested = getMediaCommonsServices(
+      bookingData,
+      await serverGetTenantResources(tenant),
+    );
     const hasServices = Object.values(servicesRequested).some(Boolean);
 
     if (hasServices) {

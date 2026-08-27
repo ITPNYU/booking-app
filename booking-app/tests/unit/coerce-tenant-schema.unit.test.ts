@@ -58,25 +58,23 @@ describe("coerceTenantSchema — resources", () => {
     expect(coerced.resources[0]).not.toHaveProperty("roomId");
   });
 
-  it("applies MC room service configs when coercing the mc tenant", () => {
+  it("does not seed MC service configs from code (Firestore is the source of truth)", () => {
     const coerced = coerceTenantSchema(
       {
-        resources: [{ roomId: "202", name: "Studio", capacity: 12 }],
+        resources: [
+          { roomId: "202", name: "Studio", capacity: 12 },
+          { roomId: "103", name: "Garage", capacity: 50, services: ["setup"] },
+        ],
       },
       "mc",
     );
 
     expect(coerced.resources[0].resourceId).toBe("202");
-    expect(coerced.resources[0].services?.setup?.mode).toBe("radio");
-    expect(coerced.resources[0].services?.setup?.defaultValue).toBe(
-      "202_LAYOUT_0",
-    );
-    expect(coerced.resources[0].services?.catering?.forceCleaning).toBe(true);
-    expect(coerced.resources[0].services?.catering?.chartField?.required).toBe(
-      true,
-    );
-    // Annex options come from parentResourceId child resources, not services.
-    expect(coerced.resources[0].services?.annex).toBeUndefined();
+    expect(coerced.resources[0].services).toBeUndefined();
+    // Legacy string[] services are normalized, not replaced by room defaults.
+    expect(coerced.resources[1].services).toEqual({
+      setup: { label: "Room Setup" },
+    });
   });
 
   it("preserves Firestore object services config for mc tenant", () => {
