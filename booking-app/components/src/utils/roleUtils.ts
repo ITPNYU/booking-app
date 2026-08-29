@@ -48,3 +48,4 @@ export function canRequestAuxiliarySpaces(
 ): boolean {
   return getBaseRole(role) !== "student";
 }
+

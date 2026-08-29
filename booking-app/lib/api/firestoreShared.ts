@@ -55,6 +55,12 @@ export type PaginatedRequest = {
   filters: {
     dateRange?: Array<string | null> | string;
     sortField: string;
+    /**
+     * Sort direction for `sortField`. Defaults to "desc". Open-ended future
+     * views ("All Future") pass "asc" so the LIMIT-bounded window holds the
+     * nearest upcoming bookings instead of the farthest-future ones.
+     */
+    sortDirection?: "asc" | "desc";
     searchQuery?: string;
     /**
      * Limits results to bookings whose `email` field matches. Used by the

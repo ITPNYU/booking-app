@@ -1,105 +1,5 @@
-import { computeDiffSummary } from "@/lib/utils/schemaDiff";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { NextResponse } from "next/server";
-
-// ---------------------------------------------------------------------------
-// computeDiffSummary — pure function tests
-// ---------------------------------------------------------------------------
-describe("computeDiffSummary", () => {
-  it("returns all keys as added with values when target is null", () => {
-    const source = { name: "ITP", logo: "logo.png" };
-    const result = computeDiffSummary(source, null);
-
-    expect(result.added).toEqual([
-      { key: "name", sourceValue: "ITP" },
-      { key: "logo", sourceValue: "logo.png" },
-    ]);
-    expect(result.removed).toEqual([]);
-    expect(result.changed).toEqual([]);
-    expect(result.unchangedCount).toBe(0);
-  });
-
-  it("detects unchanged keys when schemas are identical", () => {
-    const schema = { name: "ITP", logo: "logo.png" };
-    const result = computeDiffSummary(schema, { ...schema });
-
-    expect(result.added).toEqual([]);
-    expect(result.removed).toEqual([]);
-    expect(result.changed).toEqual([]);
-    expect(result.unchangedCount).toBe(2);
-  });
-
-  it("detects changed keys with both values", () => {
-    const source = { name: "ITP Updated", logo: "logo.png" };
-    const target = { name: "ITP", logo: "logo.png" };
-    const result = computeDiffSummary(source, target);
-
-    expect(result.changed).toEqual([
-      { key: "name", sourceValue: "ITP Updated", targetValue: "ITP" },
-    ]);
-    expect(result.unchangedCount).toBe(1);
-  });
-
-  it("detects added keys with source value", () => {
-    const source = { name: "ITP", newField: "value" };
-    const target = { name: "ITP" };
-    const result = computeDiffSummary(source, target);
-
-    expect(result.added).toEqual([{ key: "newField", sourceValue: "value" }]);
-    expect(result.unchangedCount).toBe(1);
-  });
-
-  it("detects removed keys with target value", () => {
-    const source = { name: "ITP" };
-    const target = { name: "ITP", oldField: "value" };
-    const result = computeDiffSummary(source, target);
-
-    expect(result.removed).toEqual([{ key: "oldField", targetValue: "value" }]);
-    expect(result.unchangedCount).toBe(1);
-  });
-
-  it("handles all change types simultaneously", () => {
-    const source = { same: "ok", changed: "new", added: "yes" };
-    const target = { same: "ok", changed: "old", removed: "bye" };
-    const result = computeDiffSummary(source, target);
-
-    expect(result.unchangedCount).toBe(1);
-    expect(result.changed).toEqual([
-      { key: "changed", sourceValue: "new", targetValue: "old" },
-    ]);
-    expect(result.added).toEqual([{ key: "added", sourceValue: "yes" }]);
-    expect(result.removed).toEqual([{ key: "removed", targetValue: "bye" }]);
-  });
-
-  it("detects changes in nested objects via JSON comparison", () => {
-    const source = { resources: [{ id: 1, name: "Room A" }] };
-    const target = { resources: [{ id: 1, name: "Room B" }] };
-    const result = computeDiffSummary(source, target);
-
-    expect(result.changed).toHaveLength(1);
-    expect(result.changed[0].key).toBe("resources");
-    expect(result.changed[0].sourceValue).toEqual([{ id: 1, name: "Room A" }]);
-    expect(result.changed[0].targetValue).toEqual([{ id: 1, name: "Room B" }]);
-  });
-
-  it("handles empty source with null target", () => {
-    const result = computeDiffSummary({}, null);
-
-    expect(result.added).toEqual([]);
-    expect(result.removed).toEqual([]);
-    expect(result.changed).toEqual([]);
-    expect(result.unchangedCount).toBe(0);
-  });
-
-  it("handles empty source and empty target", () => {
-    const result = computeDiffSummary({}, {});
-
-    expect(result.added).toEqual([]);
-    expect(result.removed).toEqual([]);
-    expect(result.changed).toEqual([]);
-    expect(result.unchangedCount).toBe(0);
-  });
-});
 
 // ---------------------------------------------------------------------------
 // POST /api/tenantSchema/[tenant]/sync — API route tests
@@ -249,10 +149,10 @@ describe("POST /api/tenantSchema/[tenant]/sync", () => {
 
     expect(status).toBe(200);
     expect(data.dryRun).toBe(true);
-    expect(data.diff.changed).toEqual([
-      { key: "name", sourceValue: "ITP New", targetValue: "ITP Old" },
+    // Same shape and orientation as the Schema Diff UI: old = target, new = source.
+    expect(data.diff).toEqual([
+      { path: "name", type: "changed", oldValue: "ITP Old", newValue: "ITP New" },
     ]);
-    expect(data.diff.unchangedCount).toBe(1);
     // Verify no writes happened
     expect(mockSet).not.toHaveBeenCalled();
   });

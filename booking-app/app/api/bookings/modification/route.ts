@@ -16,7 +16,9 @@ import {
   BookingStatusLabel,
   Role,
 } from "@/components/src/types";
+import { resolveAnnexCalendarIds } from "@/components/src/utils/resourceServicesUtils";
 import { getMediaCommonsServices } from "@/components/src/utils/tenantUtils";
+import { serverGetTenantResources } from "@/lib/tenant/serverGetTenantResources";
 import { serverGetDataByCalendarEventId } from "@/lib/firebase/server/adminDb";
 import { Timestamp } from "firebase-admin/firestore";
 import { NextRequest, NextResponse } from "next/server";
@@ -165,9 +167,16 @@ export async function PUT(request: NextRequest) {
       throw Error(`calendarId not found for room ${room.roomId}`);
     }
 
-    const otherRoomEmails = otherRooms.map(
-      (r: { calendarId: string }) => r.calendarId,
+    const annexCalendarIds = resolveAnnexCalendarIds(
+      data?.annexByRoom,
+      await serverGetTenantResources(tenant),
     );
+    const otherRoomEmails = [
+      ...new Set([
+        ...otherRooms.map((r: { calendarId: string }) => r.calendarId),
+        ...annexCalendarIds,
+      ]),
+    ].filter((email) => email && email !== calendarId);
 
     const truncatedTitle =
       data.title.length > 25 ? `${data.title.substring(0, 25)}...` : data.title;

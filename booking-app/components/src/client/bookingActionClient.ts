@@ -11,7 +11,12 @@ export async function callXStateTransitionAPI(
   tenant?: string,
   reason?: string,
   netId?: string,
-): Promise<{ success: boolean; newState?: string; error?: string }> {
+): Promise<{
+  success: boolean;
+  newState?: string;
+  error?: string;
+  status?: number;
+}> {
   try {
     const response = await fetch(
       `${process.env.NEXT_PUBLIC_BASE_URL}/api/xstate-transition`,
@@ -36,6 +41,7 @@ export async function callXStateTransitionAPI(
       return {
         success: false,
         error: errorData.error,
+        status: response.status,
       };
     }
 
@@ -273,22 +279,37 @@ export const noShow = async (
       }
       return;
     }
+
+    // Authentication failures are not transition failures. Falling back on
+    // them would hide an expired session and attempt the same mutation through
+    // a second endpoint.
+    if (xstateResult.status === 401 || xstateResult.status === 403) {
+      throw new Error(`XState no-show failed: ${xstateResult.error}`);
+    }
   }
 
   // Full traditional fallback (Firestore + pre-ban + emails + calendar)
-  await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/noshow-processing`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-tenant": tenant || DEFAULT_TENANT,
+  const response = await fetch(
+    `${process.env.NEXT_PUBLIC_BASE_URL}/api/noshow-processing`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-tenant": tenant || DEFAULT_TENANT,
+      },
+      body: JSON.stringify({
+        calendarEventId: id,
+        email,
+        netId,
+        tenant,
+      }),
     },
-    body: JSON.stringify({
-      calendarEventId: id,
-      email,
-      netId,
-      tenant,
-    }),
-  });
+  );
+
+  if (!response.ok) {
+    const result = await response.json().catch(() => ({}));
+    throw new Error(result.error || "Traditional no-show processing failed");
+  }
 };
 
 export const clientApproveBooking = async (

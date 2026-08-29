@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { TableNames } from "@/components/src/policy";
 import { isValidTenant } from "@/components/src/constants/tenants";
-import { computeDiffSummary } from "@/lib/utils/schemaDiff";
+import { computeDiff } from "@/lib/utils/schemaDiff";
 import { getFirestoreForEnv, ENVIRONMENTS, type Environment } from "@/lib/firebase/server/multiDb";
 import { requireSuperAdmin } from "@/lib/api/requireSuperAdmin";
 
@@ -75,13 +75,15 @@ export async function POST(
       .doc(tenant)
       .get();
 
-    // Compute diff for dry-run report
+    // Compute the diff for the dry-run report with the same function the
+    // Schema Diff UI uses, oriented as "what this sync does to the target":
+    // old = target's current doc, new = source doc that will be written.
     const sourceData = sourceSchema as Record<string, unknown>;
     const targetData = (targetDoc.exists ? targetDoc.data() : null) as Record<
       string,
       unknown
     > | null;
-    const diffSummary = computeDiffSummary(sourceData, targetData);
+    const diff = computeDiff(targetData, sourceData);
 
     if (dryRun) {
       return NextResponse.json({
@@ -91,7 +93,7 @@ export async function POST(
         sourceEnv,
         targetEnv,
         targetExists: targetDoc.exists,
-        diff: diffSummary,
+        diff,
       });
     }
 
@@ -138,7 +140,7 @@ export async function POST(
       targetEnv,
       backupId,
       syncedBy: userEmail,
-      diff: diffSummary,
+      diff,
     });
   } catch (error) {
     console.error("Error syncing tenant schema:", error);

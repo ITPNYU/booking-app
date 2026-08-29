@@ -38,7 +38,10 @@ import { DatabaseContext } from "../Provider";
 import { default as CustomTable } from "../Table";
 import StackedTableCell from "./StackedTableCell";
 import { getStaffingServiceLabel } from "@/lib/tenant/mcResourceServices";
-import { formatAnnexByRoomForDisplay } from "@/components/src/utils/resourceServicesUtils";
+import {
+  formatAnnexByRoomForDisplay,
+  mergeRoomIdsWithAnnex,
+} from "@/components/src/utils/resourceServicesUtils";
 
 function formatStaffingServiceDisplay(value: string): string {
   const trimmed = value.trim();
@@ -47,6 +50,43 @@ function formatStaffingServiceDisplay(value: string): string {
     return StaffingServices[trimmed as keyof typeof StaffingServices];
   }
   return getStaffingServiceLabel(trimmed);
+}
+
+/** Rooms without a setup service store nothing; hide the row instead of "none". */
+function hasRoomSetup(booking: {
+  roomSetup?: string;
+  setupDetails?: string;
+  chartFieldForRoomSetup?: string;
+}): boolean {
+  const setup = booking.roomSetup?.trim().toLowerCase() ?? "";
+  return (
+    !!booking.setupDetails?.trim() ||
+    (setup !== "" && setup !== "no") ||
+    !!booking.chartFieldForRoomSetup?.trim()
+  );
+}
+
+/** Equipment is requested via the legacy list or schema-driven details. */
+function hasEquipmentRequest(booking: {
+  equipmentServices?: string;
+  equipmentServicesDetails?: string;
+  equipmentServicesDetailsByRoom?: Record<string, string>;
+}): boolean {
+  return formatEquipmentDetails(booking).length > 0 ||
+    !!booking.equipmentServices?.trim();
+}
+
+/** Per-room details when available, otherwise the joined details string. */
+function formatEquipmentDetails(booking: {
+  equipmentServicesDetails?: string;
+  equipmentServicesDetailsByRoom?: Record<string, string>;
+}): string[] {
+  const byRoom = Object.entries(booking.equipmentServicesDetailsByRoom ?? {})
+    .filter(([, v]) => typeof v === "string" && v.trim())
+    .map(([roomId, v]) => `${roomId}: ${v.trim()}`);
+  if (byRoom.length > 0) return byRoom;
+  const joined = booking.equipmentServicesDetails?.trim();
+  return joined ? [joined] : [];
 }
 
 function hasAnnexSelections(
@@ -519,7 +559,12 @@ export default function MoreInfoModal({
                 </TableRow>
                 <TableRow>
                   <LabelCell>Room(s)</LabelCell>
-                  <TableCell>{booking.roomId ?? BLANK}</TableCell>
+                  <TableCell>
+                    {mergeRoomIdsWithAnnex(
+                      booking.roomId,
+                      booking.annexByRoom,
+                    ) || BLANK}
+                  </TableCell>
                 </TableRow>
                 <TableRow>
                   <LabelCell>Date</LabelCell>
@@ -647,18 +692,20 @@ export default function MoreInfoModal({
                 <SectionTitle>Services</SectionTitle>
                 <Table size="small">
                   <TableBody>
-                    <TableRow>
-                      <LabelCell>Room Setup</LabelCell>
-                      <StackedTableCell
-                        topText={
-                          booking.setupDetails ||
-                          (booking.roomSetup === "no"
-                            ? "none"
-                            : booking.roomSetup || "none")
-                        }
-                        bottomText={booking.chartFieldForRoomSetup || "none"}
-                      />
-                    </TableRow>
+                    {hasRoomSetup(booking) && (
+                      <TableRow>
+                        <LabelCell>Room Setup</LabelCell>
+                        <StackedTableCell
+                          topText={
+                            booking.setupDetails ||
+                            (booking.roomSetup === "no"
+                              ? "none"
+                              : booking.roomSetup || "none")
+                          }
+                          bottomText={booking.chartFieldForRoomSetup || "none"}
+                        />
+                      </TableRow>
+                    )}
                     {booking.furnishingsByRoom &&
                       Object.entries(booking.furnishingsByRoom).some(
                         ([, v]) =>
@@ -710,20 +757,23 @@ export default function MoreInfoModal({
                         </TableCell>
                       </TableRow>
                     )}
-                    {booking.equipmentServices &&
-                      booking.equipmentServices.length > 0 && (
-                        <TableRow>
-                          <LabelCell>Equipment Service</LabelCell>
-                          <TableCell>
-                            {booking.equipmentServices
-                              .split(", ")
-                              .map((service) => (
-                                <p key={service}>{service.trim()}</p>
-                              ))}
-                            <p>{booking.equipmentServicesDetails || ""}</p>
-                          </TableCell>
-                        </TableRow>
-                      )}
+                    {hasEquipmentRequest(booking) && (
+                      <TableRow>
+                        <LabelCell>Equipment Service</LabelCell>
+                        <TableCell>
+                          {(booking.equipmentServices ?? "")
+                            .split(", ")
+                            .map((service) => service.trim())
+                            .filter(Boolean)
+                            .map((service) => (
+                              <p key={service}>{service}</p>
+                            ))}
+                          {formatEquipmentDetails(booking).map((line) => (
+                            <p key={line}>{line}</p>
+                          ))}
+                        </TableCell>
+                      </TableRow>
+                    )}
                     {booking.staffingServices &&
                       booking.staffingServices.length > 0 && (
                         <TableRow>

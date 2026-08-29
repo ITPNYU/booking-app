@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => {
   const whereCalls: WhereCall[] = [];
   let limitValue: number | undefined;
   let orderByField: string | undefined;
+  let orderByDirection: string | undefined;
 
   const makeQuery = () => {
     const q: any = {
@@ -14,8 +15,9 @@ const mocks = vi.hoisted(() => {
         whereCalls.push({ field, op, value });
         return q;
       }),
-      orderBy: vi.fn((field: string) => {
+      orderBy: vi.fn((field: string, direction?: string) => {
         orderByField = field;
+        orderByDirection = direction;
         return q;
       }),
       startAfter: vi.fn(() => q),
@@ -44,10 +46,12 @@ const mocks = vi.hoisted(() => {
     whereCalls,
     getLimit: () => limitValue,
     getOrderByField: () => orderByField,
+    getOrderByDirection: () => orderByDirection,
     reset: () => {
       whereCalls.length = 0;
       limitValue = undefined;
       orderByField = undefined;
+      orderByDirection = undefined;
     },
     mockRequireSession: vi.fn(),
     mockAuthorizeRead: vi.fn(),
@@ -199,5 +203,91 @@ describe("POST /api/firestore/paginated — userEmail filter", () => {
       }),
     );
     expect(res.status).toBe(401);
+  });
+});
+
+describe("POST /api/firestore/paginated — sortDirection", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.reset();
+    mocks.mockRequireSession.mockResolvedValue({
+      email: "alice@nyu.edu",
+      netId: "alice",
+    });
+    mocks.mockAuthorizeRead.mockResolvedValue({ ok: true, role: "BOOKING" });
+  });
+
+  it("defaults to descending order when sortDirection is absent", async () => {
+    const res = await POST(
+      request({
+        collection: "bookings",
+        tenant: "mc",
+        filters: {
+          dateRange: [new Date("2026-01-01").toISOString(), null],
+          sortField: "startDate",
+        },
+        limit: 10,
+      }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(mocks.getOrderByField()).toBe("startDate");
+    expect(mocks.getOrderByDirection()).toBe("desc");
+  });
+
+  it("orders ascending when sortDirection is 'asc'", async () => {
+    // "All Future" views fetch ascending so the LIMIT-bounded window holds
+    // the nearest upcoming bookings instead of the farthest-future ones.
+    const res = await POST(
+      request({
+        collection: "bookings",
+        tenant: "mc",
+        filters: {
+          dateRange: [new Date("2026-01-01").toISOString(), null],
+          sortField: "startDate",
+          sortDirection: "asc",
+        },
+        limit: 10,
+      }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(mocks.getOrderByDirection()).toBe("asc");
+  });
+
+  it("coerces any value other than 'asc' to descending", async () => {
+    const res = await POST(
+      request({
+        collection: "bookings",
+        tenant: "mc",
+        filters: {
+          dateRange: [new Date("2026-01-01").toISOString(), null],
+          sortField: "startDate",
+          sortDirection: "ASC; drop table",
+        },
+        limit: 10,
+      }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(mocks.getOrderByDirection()).toBe("desc");
+  });
+
+  it("applies sortDirection on the search path as well", async () => {
+    const res = await POST(
+      request({
+        collection: "bookings",
+        tenant: "mc",
+        filters: {
+          dateRange: [new Date("2026-01-01").toISOString(), null],
+          sortField: "startDate",
+          sortDirection: "asc",
+          searchQuery: "title",
+        },
+      }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(mocks.getOrderByDirection()).toBe("asc");
   });
 });

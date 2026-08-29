@@ -34,6 +34,30 @@ vi.mock("@/components/src/server/admin", () => ({
   serverGetRoomCalendarIds: vi.fn().mockResolvedValue(["mock-calendar-id"]),
 }));
 
+// Annex labels resolve from the tenant schema's annex child resources
+vi.mock("@/lib/tenant/serverGetTenantResources", () => ({
+  serverGetTenantResources: vi.fn().mockResolvedValue([
+    {
+      resourceId: "1200L-6",
+      name: "Seminar Foyer",
+      parentResourceId: "1201",
+      services: {},
+    },
+    {
+      resourceId: "1204",
+      name: "Seminar Lounge",
+      parentResourceId: "1201",
+      services: {},
+    },
+    {
+      resourceId: "103GR",
+      name: "Garage Green Room",
+      parentResourceId: "103",
+      services: {},
+    },
+  ]),
+}));
+
 describe("Calendar Description Functions", () => {
   let mockBookingContents: BookingFormDetails;
 
@@ -211,6 +235,7 @@ describe("Calendar Description Functions", () => {
         hireSecurity: "No",
         mediaServices: "",
         equipmentServices: "",
+        equipmentServicesDetails: "",
         staffingServices: "",
         cleaningService: "no",
       };
@@ -222,6 +247,35 @@ describe("Calendar Description Functions", () => {
       expect(result).not.toContain("Security");
       expect(result).not.toContain("Equipment Service");
       expect(result).not.toContain("Staffing Service");
+    });
+
+    it("omits the Room Setup row when the room has no setup service", async () => {
+      const bookingWithoutSetup = {
+        ...mockBookingContents,
+        roomSetup: "",
+        setupDetails: "",
+        chartFieldForRoomSetup: "",
+      };
+
+      const result = await bookingContentsToDescription(bookingWithoutSetup);
+
+      expect(result).not.toContain("<strong>Room Setup:</strong>");
+    });
+
+    it("shows schema-driven equipment requests that only have details", async () => {
+      const bookingWithDetailsOnly = {
+        ...mockBookingContents,
+        equipmentServices: "",
+        equipmentServicesDetails: "2x SM58 microphones",
+        equipmentServicesDetailsByRoom: { "230": "2x SM58 microphones" },
+      };
+
+      const result = await bookingContentsToDescription(bookingWithDetailsOnly);
+
+      expect(result).toContain("<strong>Equipment Service:</strong> yes");
+      expect(result).toContain(
+        "<strong>Equipment Service Details:</strong> 2x SM58 microphones",
+      );
     });
 
     it("should handle empty or undefined values gracefully", async () => {

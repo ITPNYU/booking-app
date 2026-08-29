@@ -6,20 +6,6 @@ import type {
 /** Default MC resource `services` configs keyed by resourceId (Firestore tenant schema shape). */
 const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
   "103": {
-    annex: {
-      showInOrigin: {
-        user: true,
-        walkIn: true,
-        VIP: true,
-      },
-      mode: "checkbox",
-      options: [
-        {
-          value: "103GR",
-          label: "Garage Green Room",
-        }
-      ],
-    },
     setup: {
       showInOrigin: {
         user: true,
@@ -200,24 +186,6 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
     },
   },
   "202": {
-    annex: {
-      showInOrigin: {
-        user: true,
-        walkIn: true,
-        VIP: true,
-      },
-      mode: "checkbox",
-      options: [
-        {
-          value: "202GR",
-          label: "202GR Lecture Green Room",
-        },
-        {
-          value: "205",
-          label: "205 Student Lounge",
-        }
-      ],
-    },
     setup: {
       showInOrigin: {
         user: false,
@@ -273,7 +241,7 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
         walkIn: true,
         VIP: true,
       },
-      toggle: "no",
+      toggle: "off",
       label: "Catering",
       descriptionHtml: "<p><b><u>Food is not permitted inside 202</u></b>. Faculty and staff may request to use the student lounge outside of room 202 where catering is allowed. To do so, please select the nested \"205 Student Lounge\" auxiliary space that appears in the previous calendar page when selecting room 202. Note this is only available Friday-Sunday:</p>",
     },
@@ -339,10 +307,9 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
         walkIn: true,
         VIP: true,
       },
-      toggle: "no",
+      toggle: "off",
       label: "Furniture",
       descriptionHtml: "<p>The following furniture is included with your Black Box reservation: <a href=\"https://sites.google.com/nyu.edu/370jmediacommons/spaces/220-black-box#h.mwvylbk483wu\" target=\"_blank\" rel=\"noopener noreferrer\">220 Furniture</a>. Additional event furniture is not available for this production space.</p>",
-      toggle: "off",
     },
     equipment: {
       showInOrigin: {
@@ -434,7 +401,7 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
         walkIn: true,
         VIP: true,
       },
-      toggle: "no",
+      toggle: "off",
       label: "Furniture",
       descriptionHtml: "<p>The following furniture is included with your Ballroom reservation: <a href=\"https://sites.google.com/nyu.edu/370jmediacommons/spaces/221-224-ballrooms#h.py4aezgqk1v8\">Ballroom Furniture</a>. Additional event furniture is not available for this production space.</p>",
     },
@@ -528,7 +495,7 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
         walkIn: true,
         VIP: true,
       },
-      toggle: "no",
+      toggle: "off",
       label: "Furniture",
       descriptionHtml: "<p>The following furniture is included with your Ballroom reservation: <a href=\"https://sites.google.com/nyu.edu/370jmediacommons/spaces/221-224-ballrooms#h.py4aezgqk1v8\">Ballroom Furniture</a>. Additional event furniture is not available for this production space.</p>",
     },
@@ -621,7 +588,7 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
         walkIn: true,
         VIP: true,
       },
-      toggle: "no",
+      toggle: "off",
       label: "Furniture",
       descriptionHtml: "<p>The following furniture is included with your Ballroom reservation: <a href=\"https://sites.google.com/nyu.edu/370jmediacommons/spaces/221-224-ballrooms#h.py4aezgqk1v8\">Ballroom Furniture</a>. Additional event furniture is not available for this production space.</p>",
     },
@@ -714,7 +681,7 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
         walkIn: true,
         VIP: true,
       },
-      toggle: "no",
+      toggle: "off",
       label: "Furniture",
       descriptionHtml: "<p>The following furniture is included with your Ballroom reservation: <a href=\"https://sites.google.com/nyu.edu/370jmediacommons/spaces/221-224-ballrooms#h.py4aezgqk1v8\">Ballroom Furniture</a>. Additional event furniture is not available for this production space.</p>",
     },
@@ -745,13 +712,13 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
       },
       forceCleaning: true,
     },
-    toggle: "optional",
     cleaning: {
       showInOrigin: {
         user: false,
         walkIn: true,
         VIP: true,
       },
+      toggle: "optional",
       label: "Cleaning",
       descriptionHtml: "Select yes if you require cleaning services for your event. Chartfield for payment required.",
       chartField: {
@@ -807,7 +774,7 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
         walkIn: true,
         VIP: true,
       },
-      toggle: "yes",
+      toggle: "on",
       label: "Equipment",
       descriptionHtml: "<p>Always available in the SAI Studio: <a href=\"https://docs.google.com/document/d/121eTGLt8PRbxfTliSYwIQjQ8H4XQj2TwmSmz42AXO1E/edit?usp=sharing\" target=\"_blank\" rel=\"noopener noreferrer\">Audio Playback in the Live Room</a>. Always available for checkout from the front desk: <a href=\"https://sites.google.com/nyu.edu/370jmediacommons/rental-inventory\" target=\"_blank\" rel=\"noopener noreferrer\">General Media Commons Inventory</a>. Only available with an Audio Tech staffed: <a href=\"https://docs.google.com/spreadsheets/d/1XH0B_eZ7h0XlhrjUAOO9RujKzPQQ5VDA4MKCew1UIr4/edit#gid=0\" target=\"_blank\" rel=\"noopener noreferrer\">SAI Studio Inventory</a>.</p>",
       showDetailsField: true,
@@ -1028,7 +995,7 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
       },
       toggle: "optional",
       label: "Equipment",
-      descriptionHtml: "The Post Lab comes included with an 85\” monitor screen. To reserve additional equipment for checkout, select yes and include your request below. Equipment requests are subject to availability. <a href=\"https://sites.google.com/nyu.edu/370jmediacommons/rental-inventory\" target=\"_blank\" rel=\"noopener noreferrer\">Equipment Inventory</a>."
+      descriptionHtml: "The Post Lab comes included with an 85\” monitor screen. To reserve additional equipment for checkout, select yes and include your request below. Equipment requests are subject to availability. <a href=\"https://sites.google.com/nyu.edu/370jmediacommons/rental-inventory\" target=\"_blank\" rel=\"noopener noreferrer\">Equipment Inventory</a>.",
       showDetailsField: true,
       detailsLabel: "Equipment request details*",
     }

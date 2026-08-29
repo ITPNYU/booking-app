@@ -29,7 +29,7 @@ export const itpBookingMachine = setup({
     events: {} as
       | { type: "edit" }
       | { type: "cancel" }
-      | { type: "noShow" }
+      | { type: "noShow"; email?: string }
       | { type: "approve" }
       | { type: "checkIn" }
       | { type: "decline" }

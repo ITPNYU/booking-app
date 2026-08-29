@@ -1,6 +1,7 @@
 import { bookingCalendarStrToDate } from "@/components/src/client/utils/date";
 import { getCalendarClient } from "@/lib/googleClient";
 import { getMcResourceServices, getStaffingServiceLabel } from "@/lib/tenant/mcResourceServices";
+import { serverGetTenantResources } from "@/lib/tenant/serverGetTenantResources";
 import { traceExternalCall } from "@/lib/newrelic-utils";
 import {
   BookingFormDetails,
@@ -197,11 +198,13 @@ export const bookingContentsToDescription = async (
 
   // Services Section
   description += "<h3>Services</h3><ul>";
-  description += listItem(
-    "Room Setup",
+  // Rooms without a setup service store nothing; skip the row instead of "none".
+  const roomSetupValue =
     getProperty(bookingContents, "setupDetails") ||
-      getProperty(bookingContents, "roomSetup"),
-  );
+    getProperty(bookingContents, "roomSetup");
+  if (roomSetupValue.trim() && roomSetupValue.trim().toLowerCase() !== "no") {
+    description += listItem("Room Setup", roomSetupValue);
+  }
   if (getProperty(bookingContents, "chartFieldForRoomSetup")) {
     description += listItem(
       "Room Setup Chart Field",
@@ -248,14 +251,14 @@ export const bookingContentsToDescription = async (
       }
     }
   }
-  // Only show equipment service if it exists
+  // Equipment is requested via the legacy list or schema-driven details.
   const equipmentServices = getProperty(bookingContents, "equipmentServices");
-  if (equipmentServices) {
-    description += listItem("Equipment Service", equipmentServices);
-    const equipmentDetails = getProperty(
-      bookingContents,
-      "equipmentServicesDetails",
-    );
+  const equipmentDetails = getProperty(
+    bookingContents,
+    "equipmentServicesDetails",
+  );
+  if (equipmentServices || equipmentDetails.trim()) {
+    description += listItem("Equipment Service", equipmentServices || "yes");
     if (equipmentDetails) {
       description += listItem("Equipment Service Details", equipmentDetails);
     }
@@ -331,11 +334,17 @@ export const bookingContentsToDescription = async (
 
   const annexByRoom = bookingContents.annexByRoom;
   if (annexByRoom && typeof annexByRoom === "object") {
-    const annexRooms = Object.keys(annexByRoom).map((roomId) => ({
+    // Prefer annex resources from the tenant schema for labels; fall back to
+    // hardcoded MC service configs for values without a registered resource.
+    const tenantResources = await serverGetTenantResources(tenant);
+    const fallbackRooms = Object.keys(annexByRoom).map((roomId) => ({
       resourceId: roomId,
       services: getMcResourceServices(roomId) ?? {},
     }));
-    const annexDisplay = formatAnnexByRoomForDisplay(annexByRoom, annexRooms);
+    const annexDisplay = formatAnnexByRoomForDisplay(annexByRoom, [
+      ...tenantResources,
+      ...fallbackRooms,
+    ]);
     if (annexDisplay) {
       description += listItem("Auxiliary Spaces", annexDisplay);
     }

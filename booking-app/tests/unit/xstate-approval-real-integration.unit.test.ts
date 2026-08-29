@@ -596,6 +596,7 @@ describe("XState Approval Real Integration Tests", () => {
   describe("5. Real XState Machine Integration Tests", () => {
     describe("Auto-Approval Flow", () => {
       it("should transition XState to Approved and trigger real side effects", async () => {
+        const operatorEmail = "pa-operator@nyu.edu";
         const { mcBookingMachine } = await import(
           "@/lib/stateMachines/mcBookingMachine"
         );
@@ -698,8 +699,9 @@ describe("XState Approval Real Integration Tests", () => {
         // Ensure we're in Approved state for No Show test
         expect(actor.getSnapshot().value).toBe("Approved");
 
-        // Simulate no show scenario to test XState's logBookingHistory action
-        actor.send({ type: "noShow" });
+        // The persisted context belongs to the student who booked. The
+        // transition event identifies the PA performing the no-show action.
+        actor.send({ type: "noShow", email: operatorEmail });
 
         // Wait for async logBookingHistory action to complete
         // No Show state has 'always' transition to 'Canceled', so it happens quickly
@@ -709,7 +711,7 @@ describe("XState Approval Real Integration Tests", () => {
         expect(mockLogServerBookingChange).toHaveBeenCalledWith(
           expect.objectContaining({
             status: "NO-SHOW",
-            changedBy: testEmail,
+            changedBy: operatorEmail,
             calendarEventId: testCalendarEventId,
             note: "Booking marked as no show",
           })
