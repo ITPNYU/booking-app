@@ -78,6 +78,19 @@ describe("coerceTenantSchema — resources", () => {
     expect(coerced.resources[0].services?.annex).toBeUndefined();
   });
 
+  it("keeps explicit services when applyMcServiceConfig is false (e2e schema)", () => {
+    const coerced = coerceTenantSchema(
+      {
+        resources: [
+          { resourceId: "202", name: "Studio", capacity: 12, services: {} },
+        ],
+      },
+      "mc",
+      { applyMcServiceConfig: false },
+    );
+    expect(coerced.resources[0].services).toEqual({});
+  });
+
   it("replaces a stored services object for mc rooms with the code config", () => {
     const customServices = {
       catering: { label: "Custom Catering" },
