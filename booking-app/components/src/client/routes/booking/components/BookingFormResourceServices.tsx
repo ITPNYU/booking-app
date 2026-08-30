@@ -421,6 +421,28 @@ export default function BookingFormResourceServices({
     }
   }, [securityToggle, securityLockOnValue, hireSecurityValue, setValue]);
 
+  /**
+   * Whether a room's Room Setup switch is on. Off means "no setup requested":
+   * no layout value is stored and no chartfield is required.
+   */
+  const isSetupSwitchOn = (
+    room: ServiceResourceLike,
+    setupMap: Record<string, string>,
+  ): boolean => {
+    const cfg = getServiceSectionConfig(room, "setup");
+    const toggle = getServiceToggle(cfg);
+    if (toggle === "on") return true;
+    if (toggle === "off") return false;
+    const resourceId = getServiceResourceId(room);
+    if (setupOnByRoom[resourceId] !== undefined) {
+      return setupOnByRoom[resourceId];
+    }
+    const value = setupMap[resourceId];
+    if (!value) return false;
+    // A stored value that is not the passive default means setup was requested.
+    return !(hasPassiveSetupDefault(cfg) && value === cfg?.defaultValue);
+  };
+
   // Per-room locks: setup values, furnishings value map, equipment details.
   useEffect(() => {
     const currentSetup =
@@ -428,9 +450,7 @@ export default function BookingFormResourceServices({
     const nextSetup = { ...currentSetup };
     let setupChanged = false;
     setupRooms.forEach((room) => {
-      const cfg = getServiceSectionConfig(room, "setup");
-      // Rooms without a passive default keep their (chartfield) layout on.
-      if (getServiceToggle(cfg) !== "off" || !hasPassiveSetupDefault(cfg)) {
+      if (getServiceToggle(getServiceSectionConfig(room, "setup")) !== "off") {
         return;
       }
       const resourceId = getServiceResourceId(room);
@@ -549,7 +569,11 @@ export default function BookingFormResourceServices({
     setupRooms.forEach((room) => {
       const cfg = getServiceSectionConfig(room, "setup");
       const resourceId = getServiceResourceId(room);
-      if (cfg?.defaultValue && !nextMap[resourceId]) {
+      // Only pre-select a layout the requester is not charged for; a default
+      // that needs a chartfield is chosen explicitly by turning setup on.
+      const seedable =
+        hasPassiveSetupDefault(cfg) || getServiceToggle(cfg) === "on";
+      if (cfg?.defaultValue && seedable && !nextMap[resourceId]) {
         nextMap[resourceId] = cfg.defaultValue;
         const opt = cfg.options?.find((o) => o.value === cfg.defaultValue);
         nextDetails[resourceId] = opt?.label ?? cfg.defaultValue;
@@ -599,6 +623,7 @@ export default function BookingFormResourceServices({
             for (const room of setupRooms) {
               const cfg = getServiceSectionConfig(room, "setup")!;
               if (!cfg.required) continue;
+              if (!isSetupSwitchOn(room, map)) continue;
               const resourceId = getServiceResourceId(room);
               const v = map[resourceId] ?? cfg.defaultValue;
               if (!v) {
@@ -621,6 +646,7 @@ export default function BookingFormResourceServices({
               (formValues.roomSetupByRoom as Record<string, string>) ?? {};
             for (const room of setupRooms) {
               const cfg = getServiceSectionConfig(room, "setup")!;
+              if (!isSetupSwitchOn(room, setupMap)) continue;
               const resourceId = getServiceResourceId(room);
               const selectedValue =
                 setupMap[resourceId] ?? cfg.defaultValue ?? "";
@@ -781,22 +807,9 @@ export default function BookingFormResourceServices({
         // its passive default layout, which is not a requested service.
         const setupToggle = getServiceToggle(setupCfg);
         const setupDefaultValue = setupCfg?.defaultValue ?? "";
-        // A room whose default layout needs a chartfield (e.g. a single
-        // "Custom Room Setup" option) has no passive layout to fall back to,
-        // so its switch stays on; otherwise the required chartfield would be
-        // hidden while still blocking submission.
         const setupHasPassiveDefault = hasPassiveSetupDefault(setupCfg);
-        const setupLocked =
-          setupToggle !== "optional" || !setupHasPassiveDefault;
-        const setupOn = !setupHasPassiveDefault
-          ? true
-          : lockedToggleValue(setupToggle) === "yes"
-            ? true
-            : lockedToggleValue(setupToggle) === "no"
-              ? false
-              : (setupOnByRoom[resourceId] ??
-                (!!setupMap[resourceId] &&
-                  setupMap[resourceId] !== setupDefaultValue));
+        const setupLocked = setupToggle !== "optional";
+        const setupOn = isSetupSwitchOn(room, setupMap);
         const furnMap =
           (watch("furnishingsByRoom") as Record<string, string> | undefined) ??
           {};
@@ -875,9 +888,32 @@ export default function BookingFormResourceServices({
                       ...prev,
                       [resourceId]: next === "yes",
                     }));
-                    if (next === "yes") return;
-                    // Back to the passive default: keep the room's default
-                    // layout (if any) and drop the chartfield with it.
+                    if (next === "yes") {
+                      // Pre-select the room's default layout so the radio
+                      // group is not empty (the chartfield stays required).
+                      if (setupDefaultValue && !setupMap[resourceId]) {
+                        const defaultOption = setupCfg.options?.find(
+                          (o) => o.value === setupDefaultValue,
+                        );
+                        const details =
+                          (watch("setupDetailsByRoom") as
+                            | Record<string, string>
+                            | undefined) ?? {};
+                        setValue(
+                          "roomSetupByRoom",
+                          { ...setupMap, [resourceId]: setupDefaultValue },
+                          { shouldValidate: false },
+                        );
+                        setValue("setupDetailsByRoom", {
+                          ...details,
+                          [resourceId]:
+                            defaultOption?.label ?? setupDefaultValue,
+                        });
+                      }
+                      return;
+                    }
+                    // Off: back to the passive default layout when the room
+                    // has one, otherwise no setup at all. Drop the chartfield.
                     const nextSetup = { ...setupMap };
                     const details =
                       (watch("setupDetailsByRoom") as
@@ -889,7 +925,7 @@ export default function BookingFormResourceServices({
                         | Record<string, string>
                         | undefined) ?? {};
                     const nextChart = { ...chartMap };
-                    if (setupDefaultValue) {
+                    if (setupHasPassiveDefault) {
                       const defaultOption = setupCfg.options?.find(
                         (o) => o.value === setupDefaultValue,
                       );

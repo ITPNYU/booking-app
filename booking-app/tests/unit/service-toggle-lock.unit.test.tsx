@@ -405,9 +405,11 @@ describe("BookingFormResourceServices toggle locks", () => {
     expect(screen.getByRole("checkbox")).toBeDisabled();
   });
 
-  it("keeps the setup switch on for a room whose only layout needs a chartfield", () => {
+  it("treats setup as not requested until the switch is on for a chartfield-only layout", async () => {
+    const onValid = vi.fn();
     render(
       <ServicesHarness
+        onValid={onValid}
         rooms={[
           {
             resourceId: "220",
@@ -416,6 +418,7 @@ describe("BookingFormResourceServices toggle locks", () => {
                 label: "Room Setup",
                 mode: "radio",
                 toggle: "optional",
+                required: true,
                 defaultValue: "220_LAYOUT_CUSTOM",
                 options: [
                   {
@@ -431,10 +434,33 @@ describe("BookingFormResourceServices toggle locks", () => {
       />,
     );
     const toggle = screen.getByRole("checkbox");
-    expect(toggle).toBeChecked();
-    expect(toggle).toBeDisabled();
-    expect(screen.getByLabelText("Custom Room Setup")).toBeInTheDocument();
+    expect(toggle).not.toBeChecked();
+    expect(toggle).not.toBeDisabled();
+    expect(screen.queryByLabelText("Custom Room Setup")).toBeNull();
+
+    // Off: no setup, no chartfield → submit passes.
+    fireEvent.click(screen.getByText("Submit"));
+    await waitFor(() => expect(onValid).toHaveBeenCalledTimes(1));
+    expect(onValid.mock.calls[0][0].roomSetupByRoom ?? {}).toEqual({});
+
+    // On: layout pre-selected, chartfield required.
+    fireEvent.click(toggle);
+    expect(screen.getByLabelText("Custom Room Setup")).toBeChecked();
     expect(screen.getByLabelText(/Chartfield/)).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Submit"));
+    await waitFor(() =>
+      expect(screen.getByText(/ChartField|Chartfield/i)).toBeInTheDocument(),
+    );
+    expect(onValid).toHaveBeenCalledTimes(1);
+
+    fireEvent.change(screen.getByLabelText(/Chartfield/), {
+      target: { value: "AB123-CD-EF456-GH789" },
+    });
+    fireEvent.click(screen.getByText("Submit"));
+    await waitFor(() => expect(onValid).toHaveBeenCalledTimes(2));
+    expect(onValid.mock.calls[1][0].roomSetupByRoom).toEqual({
+      "220": "220_LAYOUT_CUSTOM",
+    });
   });
 
   it("adds an equipment switch only when toggle is set", () => {
