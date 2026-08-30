@@ -126,6 +126,18 @@ function OptionLabel({
   );
 }
 
+/**
+ * True when the room's default layout is a passive one (no chartfield), i.e.
+ * turning the setup switch off has a layout to fall back to.
+ */
+function hasPassiveSetupDefault(
+  cfg: ReturnType<typeof getServiceSectionConfig>,
+): boolean {
+  if (!cfg?.defaultValue) return false;
+  const defaultOption = cfg.options?.find((o) => o.value === cfg.defaultValue);
+  return !!defaultOption && !defaultOption.chartField;
+}
+
 function mapFieldErrorMessage(error: unknown): string | undefined {
   if (
     error &&
@@ -416,7 +428,9 @@ export default function BookingFormResourceServices({
     const nextSetup = { ...currentSetup };
     let setupChanged = false;
     setupRooms.forEach((room) => {
-      if (getServiceToggle(getServiceSectionConfig(room, "setup")) !== "off") {
+      const cfg = getServiceSectionConfig(room, "setup");
+      // Rooms without a passive default keep their (chartfield) layout on.
+      if (getServiceToggle(cfg) !== "off" || !hasPassiveSetupDefault(cfg)) {
         return;
       }
       const resourceId = getServiceResourceId(room);
@@ -766,10 +780,17 @@ export default function BookingFormResourceServices({
         // Setup: the toggle gates the layout options. Off means the room keeps
         // its passive default layout, which is not a requested service.
         const setupToggle = getServiceToggle(setupCfg);
-        const setupLocked = setupToggle !== "optional";
         const setupDefaultValue = setupCfg?.defaultValue ?? "";
-        const setupOn =
-          lockedToggleValue(setupToggle) === "yes"
+        // A room whose default layout needs a chartfield (e.g. a single
+        // "Custom Room Setup" option) has no passive layout to fall back to,
+        // so its switch stays on; otherwise the required chartfield would be
+        // hidden while still blocking submission.
+        const setupHasPassiveDefault = hasPassiveSetupDefault(setupCfg);
+        const setupLocked =
+          setupToggle !== "optional" || !setupHasPassiveDefault;
+        const setupOn = !setupHasPassiveDefault
+          ? true
+          : lockedToggleValue(setupToggle) === "yes"
             ? true
             : lockedToggleValue(setupToggle) === "no"
               ? false

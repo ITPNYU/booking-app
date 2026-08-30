@@ -405,6 +405,38 @@ describe("BookingFormResourceServices toggle locks", () => {
     expect(screen.getByRole("checkbox")).toBeDisabled();
   });
 
+  it("keeps the setup switch on for a room whose only layout needs a chartfield", () => {
+    render(
+      <ServicesHarness
+        rooms={[
+          {
+            resourceId: "220",
+            services: {
+              setup: {
+                label: "Room Setup",
+                mode: "radio",
+                toggle: "optional",
+                defaultValue: "220_LAYOUT_CUSTOM",
+                options: [
+                  {
+                    value: "220_LAYOUT_CUSTOM",
+                    label: "Custom Room Setup",
+                    chartField: { label: "Chartfield", required: true },
+                  },
+                ],
+              },
+            },
+          },
+        ]}
+      />,
+    );
+    const toggle = screen.getByRole("checkbox");
+    expect(toggle).toBeChecked();
+    expect(toggle).toBeDisabled();
+    expect(screen.getByLabelText("Custom Room Setup")).toBeInTheDocument();
+    expect(screen.getByLabelText(/Chartfield/)).toBeInTheDocument();
+  });
+
   it("adds an equipment switch only when toggle is set", () => {
     const { unmount } = render(
       <ServicesHarness
