@@ -177,7 +177,6 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
       toggle: "optional",
       label: "Campus Safety",
       descriptionHtml: "If your event requires use of the Willoughby Street entrance, a Campus Safety Officer must be hired for the duration of the event. Please select yes to hire a CSO. Chartfield for payment required.",
-      mode: "checkbox",
       chartField: {
         label: "Chartfield",
         descriptionHtml: "",
