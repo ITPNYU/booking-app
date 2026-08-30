@@ -65,6 +65,11 @@ describe("getMediaCommonsServices", () => {
         roomSetupByRoom: { "202": "202_LAYOUT_0" },
       }).setup,
     ).toBe(false);
+    expect(
+      getMediaCommonsServices({
+        roomSetupByRoom: { "233": "233_LAYOUT_0" },
+      }).setup,
+    ).toBe(false);
   });
 
   it("treats non-default layouts as setup requested", () => {
@@ -80,7 +85,7 @@ describe("getMediaCommonsServices", () => {
     ).toBe(true);
     expect(
       getMediaCommonsServices({
-        roomSetupByRoom: { "233": "233_LAYOUT_0" },
+        roomSetupByRoom: { "233": "233_LAYOUT_1" },
       }).setup,
     ).toBe(true);
   });
@@ -180,11 +185,10 @@ describe("applyMcResourceServices", () => {
       name: "202",
       capacity: 50,
     });
-    expect(missing.services?.catering?.forceCleaning).toBe(true);
-    expect(missing.services?.catering?.chartField?.required).toBe(true);
+    expect(missing.services?.catering?.toggle).toBe("off");
     expect(missing.services?.setup?.mode).toBe("radio");
     expect(missing.services?.setup?.defaultValue).toBe("202_LAYOUT_0");
-    // Annex options are derived from parentResourceId resources, not services.
+    // 202 has no annex spaces of its own.
     expect(missing.services?.annex).toBeUndefined();
 
     const emptyArray = applyMcResourceServices({
@@ -196,15 +200,19 @@ describe("applyMcResourceServices", () => {
     expect(emptyArray.services?.setup?.mode).toBe("radio");
   });
 
-  it("does not hardcode annex options for 1201", () => {
+  it("offers the 1201 breakout spaces as an annex checkbox section", () => {
     const room = applyMcResourceServices({
       resourceId: "1201",
       name: "Seminar Room",
       capacity: 100,
       services: [],
     });
-    // Annex spaces live as child resources (parentResourceId) in the schema.
-    expect(room.services?.annex).toBeUndefined();
+    expect(room.services?.annex?.mode).toBe("checkbox");
+    expect(room.services?.annex?.options?.map((o) => o.value)).toEqual([
+      "1200L-6",
+      "1202",
+      "1204",
+    ]);
   });
 
   it("replaces legacy services arrays with MC room defaults", () => {
@@ -216,7 +224,7 @@ describe("applyMcResourceServices", () => {
       services: legacy,
     });
     expect(Array.isArray(result.services)).toBe(false);
-    expect(result.services?.catering?.forceCleaning).toBe(true);
+    expect(result.services?.catering?.toggle).toBe("off");
     expect(result.services?.setup?.mode).toBe("radio");
   });
 
@@ -243,29 +251,32 @@ describe("applyMcResourceServices", () => {
     expect(result.services).toEqual({});
   });
 
-  it("uses empty config for room 260", () => {
-    expect(getMcResourceServices("260")).toEqual({});
+  it("uses an equipment-only config for room 260", () => {
+    const services260 = getMcResourceServices("260")!;
+    expect(Object.keys(services260)).toEqual(["equipment"]);
+    expect(services260.equipment?.toggle).toBe("optional");
+    expect(services260.equipment?.showDetailsField).toBe(true);
   });
 
-  it("uses checkbox security for 103 with Willoughby entrance option", () => {
+  it("uses a switch with a required chartfield for 103 security", () => {
     const services103 = getMcResourceServices("103")!;
-    expect(services103.security?.mode).toBe("checkbox");
-    expect(services103.security?.required).toBeUndefined();
-    expect(services103.security?.defaultValue).toBeUndefined();
-    expect(services103.security?.options?.[0]?.value).toBe(
-      "Willoughby Street Entrance",
-    );
-    expect(
-      services103.security?.options?.[0]?.chartField?.required,
-    ).toBe(true);
+    // No mode and no options: a plain yes/no switch the user controls.
+    expect(services103.security?.mode).toBeUndefined();
+    expect(services103.security?.options).toBeUndefined();
+    expect(services103.security?.toggle).toBe("optional");
+    expect(services103.security?.chartField?.required).toBe(true);
   });
 
   it("resolves staffing option values to human-readable labels", () => {
     expect(getStaffingServiceLabel("LIGHTING_TECH_DIY")).toBe(
-      "DIY - Basic Washes",
+      "No Technician / Plug & Play Lighting",
     );
-    expect(getStaffingServiceLabel("AUDIO_TECH_DIY")).toBe("DIY - Plug & Play");
-    expect(getStaffingServiceLabel("AUDIO_TECH_A1")).toBe("Audio Tech - A1");
+    expect(getStaffingServiceLabel("AUDIO_TECH_DIY")).toBe(
+      "No Technician / Plug & Play AV",
+    );
+    expect(getStaffingServiceLabel("AUDIO_TECH_A1")).toBe(
+      "Audio Tech - A1 Live Sound Engineer*",
+    );
   });
 
   it("uses VIP-only setup and custom layout option for room 202", () => {

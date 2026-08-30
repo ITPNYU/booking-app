@@ -71,11 +71,9 @@ describe("coerceTenantSchema — resources", () => {
     expect(coerced.resources[0].services?.setup?.defaultValue).toBe(
       "202_LAYOUT_0",
     );
-    expect(coerced.resources[0].services?.catering?.forceCleaning).toBe(true);
-    expect(coerced.resources[0].services?.catering?.chartField?.required).toBe(
-      true,
-    );
-    // Annex options come from parentResourceId child resources, not services.
+    // Food is not permitted in 202, so catering is locked off.
+    expect(coerced.resources[0].services?.catering?.toggle).toBe("off");
+    // 202 has no annex spaces of its own.
     expect(coerced.resources[0].services?.annex).toBeUndefined();
   });
 
