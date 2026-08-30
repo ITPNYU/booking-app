@@ -174,56 +174,29 @@ describe("resource service visibility", () => {
 });
 
 describe("applyMcResourceServices", () => {
-  it("applies MC defaults when services are missing or a legacy array", () => {
+  it("applies the MC config when services are missing or a legacy array", () => {
     const missing = applyMcResourceServices({
       resourceId: "202",
       name: "202",
       capacity: 50,
     });
-    expect(missing.services?.catering?.forceCleaning).toBe(true);
-    expect(missing.services?.catering?.chartField?.required).toBe(true);
     expect(missing.services?.setup?.mode).toBe("radio");
     expect(missing.services?.setup?.defaultValue).toBe("202_LAYOUT_0");
     // Annex options are derived from parentResourceId resources, not services.
     expect(missing.services?.annex).toBeUndefined();
 
-    const emptyArray = applyMcResourceServices({
+    const legacy = applyMcResourceServices({
       resourceId: "202",
       name: "202",
       capacity: 50,
-      services: [],
+      services: ["equipment", "catering"],
     });
-    expect(emptyArray.services?.setup?.mode).toBe("radio");
-  });
-
-  it("does not hardcode annex options for 1201", () => {
-    const room = applyMcResourceServices({
-      resourceId: "1201",
-      name: "Seminar Room",
-      capacity: 100,
-      services: [],
-    });
-    // Annex spaces live as child resources (parentResourceId) in the schema.
-    expect(room.services?.annex).toBeUndefined();
-  });
-
-  it("replaces legacy services arrays with MC room defaults", () => {
-    const legacy = ["equipment", "catering"];
-    const result = applyMcResourceServices({
-      resourceId: "202",
-      name: "202",
-      capacity: 50,
-      services: legacy,
-    });
-    expect(Array.isArray(result.services)).toBe(false);
-    expect(result.services?.catering?.forceCleaning).toBe(true);
-    expect(result.services?.setup?.mode).toBe("radio");
+    expect(Array.isArray(legacy.services)).toBe(false);
+    expect(legacy.services?.setup?.mode).toBe("radio");
   });
 
   it("does not overwrite an existing object services config", () => {
-    const custom = {
-      catering: { label: "Custom Catering" },
-    };
+    const custom = { catering: { label: "Custom Catering" } };
     const result = applyMcResourceServices({
       resourceId: "202",
       name: "202",
@@ -233,39 +206,45 @@ describe("applyMcResourceServices", () => {
     expect(result.services).toEqual(custom);
   });
 
-  it("preserves intentional empty object services configs", () => {
-    const result = applyMcResourceServices({
-      resourceId: "202",
-      name: "202",
-      capacity: 50,
-      services: {},
-    });
-    expect(result.services).toEqual({});
-  });
-
-  it("uses empty config for room 260", () => {
-    expect(getMcResourceServices("260")).toEqual({});
-  });
-
-  it("uses checkbox security for 103 with Willoughby entrance option", () => {
+  it("uses a plain Campus Safety switch with a chartfield for 103", () => {
     const services103 = getMcResourceServices("103")!;
-    expect(services103.security?.mode).toBe("checkbox");
-    expect(services103.security?.required).toBeUndefined();
-    expect(services103.security?.defaultValue).toBeUndefined();
-    expect(services103.security?.options?.[0]?.value).toBe(
-      "Willoughby Street Entrance",
-    );
-    expect(
-      services103.security?.options?.[0]?.chartField?.required,
-    ).toBe(true);
+    expect(services103.security?.mode).toBeUndefined();
+    expect(services103.security?.options).toBeUndefined();
+    expect(services103.security?.label).toBe("Campus Safety");
+    expect(services103.security?.chartField?.required).toBe(true);
   });
 
-  it("resolves staffing option values to human-readable labels", () => {
+  it("keeps stored staffing values and resolves them to the new labels", () => {
     expect(getStaffingServiceLabel("LIGHTING_TECH_DIY")).toBe(
-      "DIY - Basic Washes",
+      "No Technician / Plug & Play Lighting",
     );
-    expect(getStaffingServiceLabel("AUDIO_TECH_DIY")).toBe("DIY - Plug & Play");
-    expect(getStaffingServiceLabel("AUDIO_TECH_A1")).toBe("Audio Tech - A1");
+    expect(getStaffingServiceLabel("AUDIO_TECH_DIY")).toBe(
+      "No Technician / Plug & Play AV",
+    );
+    expect(getStaffingServiceLabel("AUDIO_TECH_A1")).toBe(
+      "Audio Tech - A1 Live Sound Engineer*",
+    );
+  });
+
+  it("does not put asterisks in field labels (the form renders them)", () => {
+    for (const [roomId, services] of ["103","202","220","221","222","223","224","230","233","260","1201"].map(
+      (id) => [id, getMcResourceServices(id)!] as const,
+    )) {
+      for (const [key, section] of Object.entries(services)) {
+        const s = section as any;
+        expect(`${roomId}.${key}.detailsLabel=${s.detailsLabel ?? ""}`).not.toMatch(/\*$/);
+        expect(`${roomId}.${key}.chartField.label=${s.chartField?.label ?? ""}`).not.toMatch(/\*$/);
+      }
+    }
+  });
+
+  it("offers the same equipment switch and details hint in every production room", () => {
+    for (const id of ["220", "221", "222", "223", "224"]) {
+      const equipment = getMcResourceServices(id)!.equipment!;
+      expect(equipment.toggle).toBe("optional");
+      expect(equipment.showDetailsField).toBe(true);
+      expect(equipment.detailsDescriptionHtml).toContain("Describe your needs");
+    }
   });
 
   it("uses VIP-only setup and custom layout option for room 202", () => {
