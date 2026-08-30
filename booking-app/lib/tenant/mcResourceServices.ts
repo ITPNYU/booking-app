@@ -1225,14 +1225,9 @@ export function applyMcResourceServices(resource: Resource): Resource {
   const mcServices = getMcResourceServices(resource.resourceId);
   if (!mcServices) return resource;
 
-  const { services } = resource;
-  // Preserve any object config (including intentional empty `{}`). Legacy
-  // string[] services and missing services are replaced by room-specific MC
-  // defaults so the schema-driven form can take effect.
-  if (services && typeof services === "object" && !Array.isArray(services)) {
-    return resource;
-  }
-
+  // This file is the source of truth for MC service configs. The schema
+  // editor persists the coerced schema on save, so any `services` object in
+  // Firestore is a stale snapshot of this config and is always replaced.
   return {
     ...resource,
     services: mcServices,

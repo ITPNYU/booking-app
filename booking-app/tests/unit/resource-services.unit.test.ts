@@ -195,12 +195,32 @@ describe("applyMcResourceServices", () => {
     expect(legacy.services?.setup?.mode).toBe("radio");
   });
 
-  it("does not overwrite an existing object services config", () => {
-    const custom = { catering: { label: "Custom Catering" } };
-    const result = applyMcResourceServices({
+  it("replaces a stored services object with the code config (source of truth)", () => {
+    // The schema editor saves the coerced schema back, so stored objects are
+    // stale snapshots of mcResourceServices.ts and never win over it.
+    const stale = applyMcResourceServices({
       resourceId: "202",
       name: "202",
       capacity: 50,
+      services: { catering: { label: "Custom Catering" } },
+    });
+    expect(stale.services).toEqual(getMcResourceServices("202"));
+
+    const empty = applyMcResourceServices({
+      resourceId: "202",
+      name: "202",
+      capacity: 50,
+      services: {},
+    });
+    expect(empty.services).toEqual(getMcResourceServices("202"));
+  });
+
+  it("leaves resources without an MC config untouched", () => {
+    const custom = { catering: { label: "Custom Catering" } };
+    const result = applyMcResourceServices({
+      resourceId: "999",
+      name: "Unknown",
+      capacity: 5,
       services: custom,
     });
     expect(result.services).toEqual(custom);

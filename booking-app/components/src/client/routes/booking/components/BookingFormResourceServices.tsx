@@ -865,6 +865,11 @@ export default function BookingFormResourceServices({
                         ? " *"
                         : ""}
                     </Label>
+                    {selectedSetupOption.chartField?.descriptionHtml ? (
+                      <HtmlBlock
+                        html={selectedSetupOption.chartField.descriptionHtml}
+                      />
+                    ) : null}
                     <input
                       id={`chart-setup-${resourceId}`}
                       style={{
@@ -1001,6 +1006,11 @@ export default function BookingFormResourceServices({
                             ? " *"
                             : ""}
                         </Label>
+                        {furnishingsCfg.chartField?.descriptionHtml ? (
+                          <HtmlBlock
+                            html={furnishingsCfg.chartField.descriptionHtml}
+                          />
+                        ) : null}
                         <input
                           id={`chart-furn-${resourceId}`}
                           style={{
@@ -1228,7 +1238,17 @@ export default function BookingFormResourceServices({
                   resourceId === firstCateringRoomId && (
                     <BookingFormTextField
                       id="chartFieldForCatering"
-                      label="ChartField for Catering Services"
+                      label={
+                        cateringCfg.chartField?.label ||
+                        "ChartField for Catering Services"
+                      }
+                      description={
+                        cateringCfg.chartField?.descriptionHtml ? (
+                          <HtmlBlock
+                            html={cateringCfg.chartField.descriptionHtml}
+                          />
+                        ) : undefined
+                      }
                       required={cateringCfg.chartField?.required !== false}
                       pattern={{
                         value: CHARTFIELD_REGEX,
@@ -1265,7 +1285,17 @@ export default function BookingFormResourceServices({
                   resourceId === firstCleaningRoomId && (
                     <BookingFormTextField
                       id="chartFieldForCleaning"
-                      label="ChartField for CBS Cleaning Services"
+                      label={
+                        cleaningCfg.chartField?.label ||
+                        "ChartField for CBS Cleaning Services"
+                      }
+                      description={
+                        cleaningCfg.chartField?.descriptionHtml ? (
+                          <HtmlBlock
+                            html={cleaningCfg.chartField.descriptionHtml}
+                          />
+                        ) : undefined
+                      }
                       required={cleaningCfg.chartField?.required === true}
                       pattern={{
                         value: CHARTFIELD_REGEX,
@@ -1473,7 +1503,16 @@ export default function BookingFormResourceServices({
                   resourceId === firstSecuritySwitchRoomId && (
                     <BookingFormTextField
                       id="chartFieldForSecurity"
-                      label="ChartField for Security"
+                      label={
+                        securityCfg.chartField?.label || "ChartField for Security"
+                      }
+                      description={
+                        securityCfg.chartField?.descriptionHtml ? (
+                          <HtmlBlock
+                            html={securityCfg.chartField.descriptionHtml}
+                          />
+                        ) : undefined
+                      }
                       required={securityCfg.chartField?.required === true}
                       pattern={{
                         value: CHARTFIELD_REGEX,
