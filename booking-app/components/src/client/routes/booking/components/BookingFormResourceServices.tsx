@@ -941,6 +941,57 @@ export default function BookingFormResourceServices({
                 />
                 {furnValue === "yes" && (
                   <>
+                  {furnishingsCfg.showDetailsField && (
+                    <>
+                      <Label htmlFor={`furn-details-${resourceId}`}>
+                        {furnishingsCfg.detailsLabel ??
+                          "Furniture request details"}
+                        {" *"}
+                      </Label>
+                      {furnishingsCfg.detailsDescriptionHtml ? (
+                        <HtmlBlock
+                          html={furnishingsCfg.detailsDescriptionHtml}
+                        />
+                      ) : null}
+                      <input
+                        id={`furn-details-${resourceId}`}
+                        style={{
+                          width: "100%",
+                          padding: "8px",
+                          marginBottom: 16,
+                          border: "1px solid #ccc",
+                          borderRadius: 4,
+                        }}
+                        value={furnDetailsByRoom[resourceId] ?? ""}
+                        aria-required
+                        aria-invalid={!!furnishingsDetailsErrorForRoom}
+                        onBlur={() => trigger("furnishingsDetailsByRoom")}
+                        onChange={(e) => {
+                          const next = {
+                            ...furnDetailsByRoom,
+                            [resourceId]: e.target.value,
+                          };
+                          setValue("furnishingsDetailsByRoom", next, {
+                            shouldValidate: true,
+                          });
+                          const joined = Object.values(next)
+                            .map((v) =>
+                              typeof v === "string" ? v.trim() : "",
+                            )
+                            .filter(Boolean)
+                            .join("\n");
+                          setValue("furnishingsDetails", joined, {
+                            shouldValidate: false,
+                          });
+                        }}
+                      />
+                      {furnishingsDetailsErrorForRoom && (
+                        <FormHelperText error>
+                          {furnishingsDetailsErrorForRoom}
+                        </FormHelperText>
+                      )}
+                    </>
+                  )}
                     {furnishingsCfg.chartField && (
                       <>
                         <Label htmlFor={`chart-furn-${resourceId}`}>
@@ -979,57 +1030,6 @@ export default function BookingFormResourceServices({
                         {furnishingsChartError && (
                           <FormHelperText error>
                             {furnishingsChartError}
-                          </FormHelperText>
-                        )}
-                      </>
-                    )}
-                    {furnishingsCfg.showDetailsField && (
-                      <>
-                        <Label htmlFor={`furn-details-${resourceId}`}>
-                          {furnishingsCfg.detailsLabel ??
-                            "Furniture request details"}
-                          {" *"}
-                        </Label>
-                        {furnishingsCfg.detailsDescriptionHtml ? (
-                          <HtmlBlock
-                            html={furnishingsCfg.detailsDescriptionHtml}
-                          />
-                        ) : null}
-                        <input
-                          id={`furn-details-${resourceId}`}
-                          style={{
-                            width: "100%",
-                            padding: "8px",
-                            marginBottom: 16,
-                            border: "1px solid #ccc",
-                            borderRadius: 4,
-                          }}
-                          value={furnDetailsByRoom[resourceId] ?? ""}
-                          aria-required
-                          aria-invalid={!!furnishingsDetailsErrorForRoom}
-                          onBlur={() => trigger("furnishingsDetailsByRoom")}
-                          onChange={(e) => {
-                            const next = {
-                              ...furnDetailsByRoom,
-                              [resourceId]: e.target.value,
-                            };
-                            setValue("furnishingsDetailsByRoom", next, {
-                              shouldValidate: true,
-                            });
-                            const joined = Object.values(next)
-                              .map((v) =>
-                                typeof v === "string" ? v.trim() : "",
-                              )
-                              .filter(Boolean)
-                              .join("\n");
-                            setValue("furnishingsDetails", joined, {
-                              shouldValidate: false,
-                            });
-                          }}
-                        />
-                        {furnishingsDetailsErrorForRoom && (
-                          <FormHelperText error>
-                            {furnishingsDetailsErrorForRoom}
                           </FormHelperText>
                         )}
                       </>
