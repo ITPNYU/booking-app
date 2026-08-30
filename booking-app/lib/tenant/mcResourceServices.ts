@@ -27,8 +27,8 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
           value: "103_LAYOUT_1",
           label: "Audience Layout 1 - 44 Seated*",
           chartField: {
-            label: "Chartfield",
-            descriptionHtml: "ChartField for CBS furniture services*",
+            label: "ChartField for CBS furniture services",
+            descriptionHtml: "",
             required: true,
           },
         },
@@ -36,8 +36,8 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
           value: "103_LAYOUT_2",
           label: "Audience Layout 2 - 50 Seated*",
           chartField: {
-            label: "Chartfield",
-            descriptionHtml: "ChartField for CBS furniture services*",
+            label: "ChartField for CBS furniture services",
+            descriptionHtml: "",
             required: true,
           },
         },
@@ -45,8 +45,8 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
           value: "103_LAYOUT_3",
           label: "Audience Layout 3 - 60 Seated*",
           chartField: {
-            label: "Chartfield",
-            descriptionHtml: "ChartField for CBS furniture services*",
+            label: "ChartField for CBS furniture services",
+            descriptionHtml: "",
             required: true,
           },
         }
@@ -62,12 +62,12 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
       label: "Furniture",
       descriptionHtml: "<p>The following furniture is included with your Garage reservation: <a href=\"https://sites.google.com/nyu.edu/370jmediacommons/spaces/103-the-garage#h.mncvllnd2iz\" target=\"_blank\" rel=\"noopener noreferrer\">103 Furniture</a>. To request any of these included furniture items, please include them in the Equipment section. To request <b>additional event furniture</b>, select yes and include your request below. <a href=\"https://sites.google.com/nyu.edu/370jmediacommons/rental-inventory/event-furniture#h.wjhawkmv4806\" target=\"_blank\" rel=\"noopener noreferrer\">Event Furniture</a> <i>Requesting additional furniture may require hiring CBS. Chartfield for payment required.</i></p>",
       chartField: {
-        label: "Chartfield",
-        descriptionHtml: "Chartfield for CBS furniture services*",
+        label: "Chartfield for CBS furniture services",
+        descriptionHtml: "",
         required: true,
       },
       showDetailsField: true,
-      detailsLabel: "Additional event furniture request details*",
+      detailsLabel: "Additional event furniture request details",
     },
     equipment: {
       showInOrigin: {
@@ -79,7 +79,7 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
       label: "Equipment",
       descriptionHtml: "<p>Always available in the Garage: 4x wireless handheld microphones, video projector + stereo audio playback, analog stereo aux input, Leprecon lighting board with basic lighting presets. Always available for checkout from the front desk: <a href=\"https://sites.google.com/nyu.edu/370jmediacommons/rental-inventory\" target=\"_blank\" rel=\"noopener noreferrer\">General Media Commons Inventory</a>. Only available with a Garage Tech staffed for your reservation: <a href=\"https://docs.google.com/spreadsheets/d/1fziyVrzeytQJyZ8585Wtqxer-PBt6L-u-Z0LHVavK5k/edit?gid=870626522#gid=870626522\" target=\"_blank\" rel=\"noopener noreferrer\">Garage Inventory</a>.</p>",
       showDetailsField: true,
-      detailsLabel: "Equipment request details*",
+      detailsLabel: "Equipment request details",
     },
     staffing: {
       showInOrigin: {
@@ -147,7 +147,7 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
       label: "Catering",
       descriptionHtml: "Select yes if you require catering for your event. Chartfield for payment required.",
       chartField: {
-        label: "Chartfield for catering services*",
+        label: "Chartfield for catering services",
         descriptionHtml: "Note - CBS cleaning services are required for catering.",
         required: true,
       },
@@ -163,7 +163,7 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
       label: "Cleaning",
       descriptionHtml: "Select yes if you require cleaning services for your event. Chartfield for payment required.",
       chartField: {
-        label: "ChartField for CBS cleaning services*",
+        label: "ChartField for CBS cleaning services",
         descriptionHtml: "",
         required: true,
       },
@@ -217,12 +217,12 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
       label: "Furniture",
       descriptionHtml: "<p>The 202 Lecture comes included with fixed seating for 210 people and a lectern with AV controls. To request <b>additional event furniture</b>, select yes and include your request below. <a href=\"https://sites.google.com/nyu.edu/370jmediacommons/rental-inventory/event-furniture#h.wjhawkmv4806\" target=\"_blank\" rel=\"noopener noreferrer\">Event Furniture</a>. <i>Requesting additional event furniture may require hiring CBS. Chartfield for payment required.</i></p>",
       chartField: {
-        label: "Chartfield for CBS furniture services*",
+        label: "Chartfield for CBS furniture services",
         descriptionHtml: "",
         required: true,
       },
       showDetailsField: true,
-      detailsLabel: "Additional event furniture request details*",
+      detailsLabel: "Additional event furniture request details",
     },
     equipment: {
       showInOrigin: {
@@ -254,7 +254,7 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
       label: "Cleaning",
       descriptionHtml: "Select yes if you require cleaning services for your event. Chartfield for payment required.",
       chartField: {
-        label: "Chartfield for CBS cleaning services*",
+        label: "Chartfield for CBS cleaning services",
         descriptionHtml: "",
         required: true,
       },
@@ -269,7 +269,7 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
       label: "Campus Safety",
       descriptionHtml: "For large events with 75+ attendees. Chartfield for payment required.",
       chartField: {
-        label: "Chartfield for Campus Safety services*",
+        label: "Chartfield for Campus Safety services",
         descriptionHtml: "",
         required: true,
       },
@@ -320,7 +320,8 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
       label: "Equipment",
       descriptionHtml: "<p>To reserve equipment for checkout, select yes and include your request below. Equipment requests are subject to availability. <a href=\"https://sites.google.com/nyu.edu/370jmediacommons/rental-inventory\">Equipment Inventory</a>.</p>",
       showDetailsField: true,
-      detailsLabel: "Equipment request details*",
+      detailsLabel: "Equipment request details",
+      detailsDescriptionHtml: "<p>Describe your needs in detail (e.g., 2x Small Mocap Suits).</p>",
     },
     catering: {
       showInOrigin: {
@@ -332,7 +333,7 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
       label: "Catering",
       descriptionHtml: "Select yes if you require catering for your event. Chartfield for payment required.",
       chartField: {
-        label: "Chartfield for catering services*",
+        label: "Chartfield for catering services",
         descriptionHtml: "Note - CBS cleaning services are required for catering.",
         required: true,
       },
@@ -348,7 +349,7 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
       label: "Cleaning",
       descriptionHtml: "Select yes if you require cleaning services for your event. Chartfield for payment required.",
       chartField: {
-        label: "ChartField for CBS cleaning services*",
+        label: "ChartField for CBS cleaning services",
         descriptionHtml: "",
         required: true,
       },
@@ -363,7 +364,7 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
       label: "Campus Safety",
       descriptionHtml: "For large events with 75+ attendees. Chartfield for payment required.",
       chartField: {
-        label: "Chartfield for Campus Safety services*",
+        label: "Chartfield for Campus Safety services",
         descriptionHtml: "",
         required: true,
       },
@@ -387,7 +388,7 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
           label: "Custom Room Setup",
           descriptionHtml: "Please describe the layout in detail.",
           chartField: {
-            label: "Chartfield for CBS furniture services*",
+            label: "Chartfield for CBS furniture services",
             descriptionHtml: "",
             required: true,
           },
@@ -414,7 +415,8 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
       label: "Equipment",
       descriptionHtml: "<p>To reserve equipment for checkout, select yes and include your request below. Equipment requests are subject to availability. <a href=\"https://sites.google.com/nyu.edu/370jmediacommons/rental-inventory\" target=\"_blank\" rel=\"noopener noreferrer\">Equipment Inventory</a>.</p>",
       showDetailsField: true,
-      detailsLabel: "Equipment request details*",
+      detailsLabel: "Equipment request details",
+      detailsDescriptionHtml: "<p>Describe your needs in detail (e.g., 2x Small Mocap Suits).</p>",
     },
     catering: {
       showInOrigin: {
@@ -426,7 +428,7 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
       label: "Catering",
       descriptionHtml: "Select yes if you require catering for your event. Chartfield for payment required.",
       chartField: {
-        label: "Chartfield for catering services*",
+        label: "Chartfield for catering services",
         descriptionHtml: "Note - CBS cleaning services are required for catering.",
         required: true,
       },
@@ -442,7 +444,7 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
       label: "Cleaning",
       descriptionHtml: "Select yes if you require cleaning services for your event. Chartfield for payment required.",
       chartField: {
-        label: "Chartfield for CBS cleaning services*",
+        label: "Chartfield for CBS cleaning services",
         descriptionHtml: "",
         required: true,
       },
@@ -457,7 +459,7 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
       label: "Campus Safety",
       descriptionHtml: "For large events with 75+ attendees. Chartfield for payment required.",
       chartField: {
-        label: "Chartfield for Campus Safety services*",
+        label: "Chartfield for Campus Safety services",
         descriptionHtml: "",
         required: true,
       },
@@ -481,7 +483,7 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
           label: "Custom Room Setup",
           descriptionHtml: "Please describe the layout in detail.",
           chartField: {
-            label: "Chartfield for CBS furniture services*",
+            label: "Chartfield for CBS furniture services",
             descriptionHtml: "",
             required: true,
           },
@@ -504,10 +506,12 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
         walkIn: true,
         VIP: true,
       },
+      toggle: "optional",
       label: "Equipment",
       descriptionHtml: "<p>If you wish to check out equipment, please review <a href=\"https://sites.google.com/nyu.edu/370jmediacommons/rental-inventory\">our equipment inventory</a> and include your request below. Please describe your needs in detail (e.g., 2x Small Mocap Suits).</p>",
       showDetailsField: true,
-      detailsLabel: "Equipment request details*",
+      detailsLabel: "Equipment request details",
+      detailsDescriptionHtml: "<p>Describe your needs in detail (e.g., 2x Small Mocap Suits).</p>",
     },
     catering: {
       showInOrigin: {
@@ -519,7 +523,7 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
       label: "Catering",
       descriptionHtml: "Select yes if you require catering for your event. Chartfield for payment required.",
       chartField: {
-        label: "Chartfield for catering services*",
+        label: "Chartfield for catering services",
         descriptionHtml: "Note - CBS cleaning services are required for catering.",
         required: true,
       },
@@ -550,7 +554,7 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
       label: "Campus Safety",
       descriptionHtml: "For large events with 75+ attendees. Chartfield for payment required.",
       chartField: {
-        label: "Chartfield for Campus Safety services*",
+        label: "Chartfield for Campus Safety services",
         descriptionHtml: "",
         required: true,
       },
@@ -574,7 +578,7 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
           label: "Custom Room Setup",
           descriptionHtml: "Please describe the layout in detail.",
           chartField: {
-            label: "Chartfield for CBS furniture services*",
+            label: "Chartfield for CBS furniture services",
             descriptionHtml: "",
             required: true,
           },
@@ -597,10 +601,12 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
         walkIn: true,
         VIP: true,
       },
+      toggle: "optional",
       label: "Equipment",
       descriptionHtml: "<p>If you wish to check out equipment, please review <a href=\"https://sites.google.com/nyu.edu/370jmediacommons/rental-inventory\">our equipment inventory</a> and include your request below. Please describe your needs in detail (e.g., 2x Small Mocap Suits).</p>",
       showDetailsField: true,
-      detailsLabel: "Equipment request details*",
+      detailsLabel: "Equipment request details",
+      detailsDescriptionHtml: "<p>Describe your needs in detail (e.g., 2x Small Mocap Suits).</p>",
     },
     catering: {
       showInOrigin: {
@@ -612,7 +618,7 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
       label: "Catering",
       descriptionHtml: "Select yes if you require catering for your event. Chartfield for payment required.",
       chartField: {
-        label: "Chartfield for catering services*",
+        label: "Chartfield for catering services",
         descriptionHtml: "Note - CBS cleaning services are required for catering.",
         required: true,
       },
@@ -643,7 +649,7 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
       label: "Campus Safety",
       descriptionHtml: "For large events with 75+ attendees. Chartfield for payment required.",
       chartField: {
-        label: "Chartfield for Campus Safety services*",
+        label: "Chartfield for Campus Safety services",
         descriptionHtml: "",
         required: true,
       },
@@ -667,7 +673,7 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
           label: "Custom Room Setup",
           descriptionHtml: "Please describe the layout in detail.",
           chartField: {
-            label: "Chartfield for CBS furniture services*",
+            label: "Chartfield for CBS furniture services",
             descriptionHtml: "",
             required: true,
           },
@@ -690,10 +696,12 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
         walkIn: true,
         VIP: true,
       },
+      toggle: "optional",
       label: "Equipment",
       descriptionHtml: "<p>If you wish to check out equipment, please review <a href=\"https://sites.google.com/nyu.edu/370jmediacommons/rental-inventory\">our equipment inventory</a> and include your request below. Please describe your needs in detail (e.g., 2x Small Mocap Suits).</p>",
       showDetailsField: true,
-      detailsLabel: "Equipment request details*",
+      detailsLabel: "Equipment request details",
+      detailsDescriptionHtml: "<p>Describe your needs in detail (e.g., 2x Small Mocap Suits).</p>",
     },
     catering: {
       showInOrigin: {
@@ -705,7 +713,7 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
       label: "Catering",
       descriptionHtml: "Select yes if you require catering for your event. Chartfield for payment required.",
       chartField: {
-        label: "Chartfield for catering services*",
+        label: "Chartfield for catering services",
         descriptionHtml: "Note - CBS cleaning services are required for catering.",
         required: true,
       },
@@ -736,7 +744,7 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
       label: "Campus Safety",
       descriptionHtml: "For large events with 75+ attendees. Chartfield for payment required.",
       chartField: {
-        label: "Chartfield for Campus Safety services*",
+        label: "Chartfield for Campus Safety services",
         descriptionHtml: "",
         required: true,
       },
@@ -760,7 +768,7 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
           label: "Custom Room Setup",
           descriptionHtml: "Please describe the layout in detail.",
           chartField: {
-            label: "Chartfield for CBS furniture services*",
+            label: "Chartfield for CBS furniture services",
             descriptionHtml: "",
             required: true,
           },
@@ -821,7 +829,7 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
       label: "Catering",
       descriptionHtml: "Select yes if you require catering for your event. Chartfield for payment required.",
       chartField: {
-        label: "Chartfield for catering services*",
+        label: "Chartfield for catering services",
         descriptionHtml: "Note - CBS cleaning services are required for catering.",
         required: true,
       },
@@ -836,7 +844,7 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
       toggle: "optional",
       label: "Cleaning",
       chartField: {
-        label: "Chartfield for CBS cleaning services*",
+        label: "Chartfield for CBS cleaning services",
         descriptionHtml: "",
         required: true,
       },
@@ -851,7 +859,7 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
       label: "Campus Safety",
       descriptionHtml: "For large events with 75+ attendees. Chartfield for payment required.",
       chartField: {
-        label: "Chartfield for Campus Safety services*",
+        label: "Chartfield for Campus Safety services",
         descriptionHtml: "",
         required: true,
       },
@@ -879,7 +887,7 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
           value: "233_LAYOUT_1",
           label: "Collaboration Style - 80 Seated*",
           chartField: {
-            label: "Chartfield for CBS furniture services*",
+            label: "Chartfield for CBS furniture services",
             descriptionHtml: "",
             required: true,
           },
@@ -888,7 +896,7 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
           value: "233_LAYOUT_2",
           label: "Theater Style - 100 Seated*",
           chartField: {
-            label: "Chartfield for CBS furniture services*",
+            label: "Chartfield for CBS furniture services",
             descriptionHtml: "",
             required: true,
           },
@@ -897,7 +905,7 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
           value: "233_LAYOUT_3",
           label: "Empty Room - 100 Standing*",
           chartField: {
-            label: "Chartfield for CBS furniture services*",
+            label: "Chartfield for CBS furniture services",
             descriptionHtml: "",
             required: true,
           },
@@ -914,12 +922,12 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
       label: "Furniture",
       descriptionHtml: "<p>The following furniture is included with your Co-Lab reservation: <a href=\"https://sites.google.com/nyu.edu/370jmediacommons/spaces/233-co-lab#h.bxth8sepbu54\" target=\"_blank\" rel=\"noopener noreferrer\">233 Furniture</a>. To request <b>additional event furniture</b>, select yes and include your request below. <a href=\"https://sites.google.com/nyu.edu/370jmediacommons/rental-inventory/event-furniture#h.wjhawkmv4806\" target=\"_blank\" rel=\"noopener noreferrer\">Event Furniture</a>. <i>Requesting additional event furniture may require hiring CBS. Chartfield for payment required.</i></p>",
       chartField: {
-        label: "Chartfield for CBS furniture services*",
+        label: "Chartfield for CBS furniture services",
         descriptionHtml: "",
         required: true,
       },
       showDetailsField: true,
-      detailsLabel: "Additional event furniture request details*",
+      detailsLabel: "Additional event furniture request details",
     },
     equipment: {
       showInOrigin: {
@@ -931,7 +939,8 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
       label: "Equipment",
       descriptionHtml: "<p>The Co-Lab comes included with an 85\" TV cart and a PA with two loudspeakers and a mixer. To reserve additional equipment for checkout, select yes and include your request below. Equipment requests are subject to availability. Equipment Inventory.</p>",
       showDetailsField: true,
-      detailsLabel: "Equipment request details*",
+      detailsLabel: "Equipment request details",
+      detailsDescriptionHtml: "<p>Describe your needs in detail (e.g., 2x SM58 microphones, 2x tripod-base mic stands).</p>",
     },
     catering: {
       showInOrigin: {
@@ -943,7 +952,7 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
       label: "Catering",
       descriptionHtml: "Select yes if you require catering for your event. Chartfield for payment required.",
       chartField: {
-        label: "Chartfield for catering services*",
+        label: "Chartfield for catering services",
         descriptionHtml: "Note - CBS cleaning services are required for catering.",
         required: true,
       },
@@ -959,7 +968,7 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
       label: "Cleaning",
       descriptionHtml: "Select yes if you require cleaning services for your event. Chartfield for payment required.",
       chartField: {
-        label: "Chartfield for CBS cleaning services*",
+        label: "Chartfield for CBS cleaning services",
         descriptionHtml: "",
         required: true,
       },
@@ -974,7 +983,7 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
       label: "Campus Safety",
       descriptionHtml: "For large events with 75+ attendees. Chartfield for payment required.",
       chartField: {
-        label: "Chartfield for Campus Safety services*",
+        label: "Chartfield for Campus Safety services",
         descriptionHtml: "",
         required: true,
       },
@@ -991,7 +1000,8 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
       label: "Equipment",
       descriptionHtml: "The Post Lab comes included with an 85\” monitor screen. To reserve additional equipment for checkout, select yes and include your request below. Equipment requests are subject to availability. <a href=\"https://sites.google.com/nyu.edu/370jmediacommons/rental-inventory\" target=\"_blank\" rel=\"noopener noreferrer\">Equipment Inventory</a>.",
       showDetailsField: true,
-      detailsLabel: "Equipment request details*",
+      detailsLabel: "Equipment request details",
+      detailsDescriptionHtml: "<p>Describe your needs in detail (e.g., 1x Audio Technica ATH-M50x).</p>",
     }
   },
   "1201": {
@@ -1040,7 +1050,7 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
           value: "1201_LAYOUT_1",
           label: "Classroom Style - 32 Seated",
           chartField: {
-            label: "Chartfield for CBS furniture services*",
+            label: "Chartfield for CBS furniture services",
             descriptionHtml: "",
             required: true,
           },
@@ -1049,7 +1059,7 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
           value: "1201_LAYOUT_2",
           label: "Conference Style - 28 Seated",
           chartField: {
-            label: "Chartfield for CBS furniture services*",
+            label: "Chartfield for CBS furniture services",
             descriptionHtml: "",
             required: true,
           },
@@ -1058,7 +1068,7 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
           value: "1201_LAYOUT_3",
           label: "Workshop Style A - 36 Seated",
           chartField: {
-            label: "Chartfield for CBS furniture services*",
+            label: "Chartfield for CBS furniture services",
             descriptionHtml: "",
             required: true,
           },
@@ -1067,7 +1077,7 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
           value: "1201_LAYOUT_4",
           label: "Workshop Style B - 56 Seated",
           chartField: {
-            label: "Chartfield for CBS furniture services*",
+            label: "Chartfield for CBS furniture services",
             descriptionHtml: "",
             required: true,
           },
@@ -1076,7 +1086,7 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
           value: "1201_LAYOUT_5",
           label: "Empty Room - 100 Standing",
           chartField: {
-            label: "Chartfield for CBS furniture services*",
+            label: "Chartfield for CBS furniture services",
             descriptionHtml: "",
             required: true,
           },
@@ -1093,12 +1103,12 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
       label: "Furniture",
       descriptionHtml: "<p>The following furniture is already included with your Seminar Room reservation: <a href=\"https://sites.google.com/nyu.edu/370jmediacommons/spaces/1201-seminar-room#h.ieh9npjizebn\" target=\"_blank\" rel=\"noopener noreferrer\">1201 Furniture</a>. To request additional event furniture, select yes and include your request below. <a href=\"https://sites.google.com/nyu.edu/370jmediacommons/rental-inventory/event-furniture#h.wjhawkmv4806\" target=\"_blank\" rel=\"noopener noreferrer\">Event Furniture</a>. Requesting additional event furniture may require hiring CBS. Chartfield for payment required.</p>",
       chartField: {
-        label: "Chartfield for CBS furniture services*",
+        label: "Chartfield for CBS furniture services",
         descriptionHtml: "",
         required: true,
       },
       showDetailsField: true,
-      detailsLabel: "Additional event furniture request details*",
+      detailsLabel: "Additional event furniture request details",
     },
     equipment: {
       showInOrigin: {
@@ -1120,7 +1130,7 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
       label: "Catering",
       descriptionHtml: "Select yes if you require catering for your event. Chartfield for payment required.",
       chartField: {
-        label: "Chartfield for catering services*",
+        label: "Chartfield for catering services",
         descriptionHtml: "Note - CBS cleaning services are required for catering.",
         required: true,
       },
@@ -1135,7 +1145,7 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
       toggle: "optional",
       label: "Cleaning",
       chartField: {
-        label: "Chartfield for CBS cleaning services*",
+        label: "Chartfield for CBS cleaning services",
         descriptionHtml: "",
         required: true,
       },
@@ -1150,7 +1160,7 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
       label: "Campus Safety",
       descriptionHtml: "For large events with 75+ attendees. Chartfield for payment required.",
       chartField: {
-        label: "Chartfield for Campus Safety services*",
+        label: "Chartfield for Campus Safety services",
         descriptionHtml: "",
         required: true,
       },
@@ -1210,14 +1220,9 @@ export function applyMcResourceServices(resource: Resource): Resource {
   const mcServices = getMcResourceServices(resource.resourceId);
   if (!mcServices) return resource;
 
-  const { services } = resource;
-  // Preserve any object config (including intentional empty `{}`). Legacy
-  // string[] services and missing services are replaced by room-specific MC
-  // defaults so the schema-driven form can take effect.
-  if (services && typeof services === "object" && !Array.isArray(services)) {
-    return resource;
-  }
-
+  // This file is the source of truth for MC service configs. The schema
+  // editor persists the coerced schema on save, so any `services` object in
+  // Firestore is a stale snapshot of this config and is always replaced.
   return {
     ...resource,
     services: mcServices,

@@ -71,13 +71,27 @@ describe("coerceTenantSchema — resources", () => {
     expect(coerced.resources[0].services?.setup?.defaultValue).toBe(
       "202_LAYOUT_0",
     );
-    // Food is not permitted in 202, so catering is locked off.
+    // 202 does not allow catering in the room (locked off, no chartfield).
     expect(coerced.resources[0].services?.catering?.toggle).toBe("off");
-    // 202 has no annex spaces of its own.
+    expect(coerced.resources[0].services?.catering?.chartField).toBeUndefined();
+    // Annex options come from parentResourceId child resources, not services.
     expect(coerced.resources[0].services?.annex).toBeUndefined();
   });
 
-  it("preserves Firestore object services config for mc tenant", () => {
+  it("keeps explicit services when applyMcServiceConfig is false (e2e schema)", () => {
+    const coerced = coerceTenantSchema(
+      {
+        resources: [
+          { resourceId: "202", name: "Studio", capacity: 12, services: {} },
+        ],
+      },
+      "mc",
+      { applyMcServiceConfig: false },
+    );
+    expect(coerced.resources[0].services).toEqual({});
+  });
+
+  it("replaces a stored services object for mc rooms with the code config", () => {
     const customServices = {
       catering: { label: "Custom Catering" },
     };
@@ -95,9 +109,9 @@ describe("coerceTenantSchema — resources", () => {
       "mc",
     );
 
-    expect(coerced.resources[0].services?.catering?.label).toBe(
-      "Custom Catering",
-    );
+    // Stored objects are stale editor snapshots; the code config wins.
+    expect(coerced.resources[0].services?.catering?.label).toBe("Catering");
+    expect(coerced.resources[0].services?.catering?.toggle).toBe("off");
   });
 
   it("keeps a canonical resourceId and removes a matching legacy roomId", () => {

@@ -179,7 +179,7 @@ describe("resource service visibility", () => {
 });
 
 describe("applyMcResourceServices", () => {
-  it("applies MC defaults when services are missing or a legacy array", () => {
+  it("applies the MC config when services are missing or a legacy array", () => {
     const missing = applyMcResourceServices({
       resourceId: "202",
       name: "202",
@@ -191,13 +191,14 @@ describe("applyMcResourceServices", () => {
     // 202 has no annex spaces of its own.
     expect(missing.services?.annex).toBeUndefined();
 
-    const emptyArray = applyMcResourceServices({
+    const legacy = applyMcResourceServices({
       resourceId: "202",
       name: "202",
       capacity: 50,
-      services: [],
+      services: ["equipment", "catering"],
     });
-    expect(emptyArray.services?.setup?.mode).toBe("radio");
+    expect(Array.isArray(legacy.services)).toBe(false);
+    expect(legacy.services?.setup?.mode).toBe("radio");
   });
 
   it("offers the 1201 breakout spaces as an annex checkbox section", () => {
@@ -215,40 +216,35 @@ describe("applyMcResourceServices", () => {
     ]);
   });
 
-  it("replaces legacy services arrays with MC room defaults", () => {
-    const legacy = ["equipment", "catering"];
-    const result = applyMcResourceServices({
+  it("replaces a stored services object with the code config (source of truth)", () => {
+    // The schema editor saves the coerced schema back, so stored objects are
+    // stale snapshots of mcResourceServices.ts and never win over it.
+    const stale = applyMcResourceServices({
       resourceId: "202",
       name: "202",
       capacity: 50,
-      services: legacy,
+      services: { catering: { label: "Custom Catering" } },
     });
-    expect(Array.isArray(result.services)).toBe(false);
-    expect(result.services?.catering?.toggle).toBe("off");
-    expect(result.services?.setup?.mode).toBe("radio");
-  });
+    expect(stale.services).toEqual(getMcResourceServices("202"));
 
-  it("does not overwrite an existing object services config", () => {
-    const custom = {
-      catering: { label: "Custom Catering" },
-    };
-    const result = applyMcResourceServices({
-      resourceId: "202",
-      name: "202",
-      capacity: 50,
-      services: custom,
-    });
-    expect(result.services).toEqual(custom);
-  });
-
-  it("preserves intentional empty object services configs", () => {
-    const result = applyMcResourceServices({
+    const empty = applyMcResourceServices({
       resourceId: "202",
       name: "202",
       capacity: 50,
       services: {},
     });
-    expect(result.services).toEqual({});
+    expect(empty.services).toEqual(getMcResourceServices("202"));
+  });
+
+  it("leaves resources without an MC config untouched", () => {
+    const custom = { catering: { label: "Custom Catering" } };
+    const result = applyMcResourceServices({
+      resourceId: "999",
+      name: "Unknown",
+      capacity: 5,
+      services: custom,
+    });
+    expect(result.services).toEqual(custom);
   });
 
   it("uses an equipment-only config for room 260", () => {
@@ -258,16 +254,17 @@ describe("applyMcResourceServices", () => {
     expect(services260.equipment?.showDetailsField).toBe(true);
   });
 
-  it("uses a switch with a required chartfield for 103 security", () => {
+  it("uses a plain Campus Safety switch with a chartfield for 103", () => {
     const services103 = getMcResourceServices("103")!;
     // No mode and no options: a plain yes/no switch the user controls.
     expect(services103.security?.mode).toBeUndefined();
     expect(services103.security?.options).toBeUndefined();
     expect(services103.security?.toggle).toBe("optional");
+    expect(services103.security?.label).toBe("Campus Safety");
     expect(services103.security?.chartField?.required).toBe(true);
   });
 
-  it("resolves staffing option values to human-readable labels", () => {
+  it("keeps stored staffing values and resolves them to the new labels", () => {
     expect(getStaffingServiceLabel("LIGHTING_TECH_DIY")).toBe(
       "No Technician / Plug & Play Lighting",
     );
@@ -277,6 +274,41 @@ describe("applyMcResourceServices", () => {
     expect(getStaffingServiceLabel("AUDIO_TECH_A1")).toBe(
       "Audio Tech - A1 Live Sound Engineer*",
     );
+  });
+
+  it("does not put asterisks in field labels (the form renders them)", () => {
+    for (const [roomId, services] of [
+      "103",
+      "202",
+      "220",
+      "221",
+      "222",
+      "223",
+      "224",
+      "230",
+      "233",
+      "260",
+      "1201",
+    ].map((id) => [id, getMcResourceServices(id)!] as const)) {
+      for (const [key, section] of Object.entries(services)) {
+        const s = section as any;
+        expect(
+          `${roomId}.${key}.detailsLabel=${s.detailsLabel ?? ""}`,
+        ).not.toMatch(/\*$/);
+        expect(
+          `${roomId}.${key}.chartField.label=${s.chartField?.label ?? ""}`,
+        ).not.toMatch(/\*$/);
+      }
+    }
+  });
+
+  it("offers the same equipment switch and details hint in every production room", () => {
+    for (const id of ["220", "221", "222", "223", "224"]) {
+      const equipment = getMcResourceServices(id)!.equipment!;
+      expect(equipment.toggle).toBe("optional");
+      expect(equipment.showDetailsField).toBe(true);
+      expect(equipment.detailsDescriptionHtml).toContain("Describe your needs");
+    }
   });
 
   it("uses VIP-only setup and custom layout option for room 202", () => {
