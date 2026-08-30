@@ -378,6 +378,11 @@ export default function BookingFormResourceServices({
     Record<string, boolean>
   >({});
 
+  // Room setup switch state for rooms whose setup toggle is "optional".
+  const [setupOnByRoom, setSetupOnByRoom] = useState<Record<string, boolean>>(
+    {},
+  );
+
   useEffect(() => {
     const cateringLocked = lockedToggleValue(cateringToggle);
     if (cateringLocked && cateringValue !== cateringLocked) {
@@ -404,8 +409,26 @@ export default function BookingFormResourceServices({
     }
   }, [securityToggle, securityLockOnValue, hireSecurityValue, setValue]);
 
-  // Per-room locks: furnishings value map and equipment details.
+  // Per-room locks: setup values, furnishings value map, equipment details.
   useEffect(() => {
+    const currentSetup =
+      (watch("roomSetupByRoom") as Record<string, string> | undefined) ?? {};
+    const nextSetup = { ...currentSetup };
+    let setupChanged = false;
+    setupRooms.forEach((room) => {
+      if (getServiceToggle(getServiceSectionConfig(room, "setup")) !== "off") {
+        return;
+      }
+      const resourceId = getServiceResourceId(room);
+      if (nextSetup[resourceId]) {
+        delete nextSetup[resourceId];
+        setupChanged = true;
+      }
+    });
+    if (setupChanged) {
+      setValue("roomSetupByRoom", nextSetup, { shouldValidate: false });
+    }
+
     const currentFurn =
       (watch("furnishingsByRoom") as Record<string, string> | undefined) ?? {};
     const nextFurn = { ...currentFurn };
@@ -453,7 +476,7 @@ export default function BookingFormResourceServices({
         { shouldValidate: false },
       );
     }
-  }, [furnishingsRooms, selectedRooms, setValue, watch]);
+  }, [furnishingsRooms, selectedRooms, setupRooms, setValue, watch]);
 
   const setupChartError = mapFieldErrorMessage(
     errors.chartFieldForRoomSetupByRoom,
@@ -740,6 +763,19 @@ export default function BookingFormResourceServices({
         const selectedSetupOption = setupCfg?.options?.find(
           (o) => o.value === selectedSetupValue,
         );
+        // Setup: the toggle gates the layout options. Off means the room keeps
+        // its passive default layout, which is not a requested service.
+        const setupToggle = getServiceToggle(setupCfg);
+        const setupLocked = setupToggle !== "optional";
+        const setupDefaultValue = setupCfg?.defaultValue ?? "";
+        const setupOn =
+          lockedToggleValue(setupToggle) === "yes"
+            ? true
+            : lockedToggleValue(setupToggle) === "no"
+              ? false
+              : (setupOnByRoom[resourceId] ??
+                (!!setupMap[resourceId] &&
+                  setupMap[resourceId] !== setupDefaultValue));
         const furnMap =
           (watch("furnishingsByRoom") as Record<string, string> | undefined) ??
           {};
@@ -808,121 +844,177 @@ export default function BookingFormResourceServices({
 
             {showSetupChoice && setupCfg && (
               <Subsection>
-                <Label>
-                  {formatFieldLabel(setupCfg.label ?? "Room Setup")}
-                </Label>
-                <HtmlBlock html={setupCfg.descriptionHtml} />
-                <FormControl component="fieldset" fullWidth>
-                  <RadioGroup
-                    value={selectedSetupValue}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      const next = {
-                        ...setupMap,
-                        [resourceId]: value,
-                      };
-                      setValue("roomSetupByRoom", next, {
-                        shouldValidate: true,
-                      });
-                      const opt = setupCfg.options?.find(
-                        (o) => o.value === value,
+                <SharedYesNoSwitch
+                  label={formatFieldLabel(setupCfg.label ?? "Room Setup")}
+                  description={<HtmlBlock html={setupCfg.descriptionHtml} />}
+                  value={setupOn ? "yes" : "no"}
+                  locked={setupLocked}
+                  onChange={(next) => {
+                    setSetupOnByRoom((prev) => ({
+                      ...prev,
+                      [resourceId]: next === "yes",
+                    }));
+                    if (next === "yes") return;
+                    // Back to the passive default: keep the room's default
+                    // layout (if any) and drop the chartfield with it.
+                    const nextSetup = { ...setupMap };
+                    const details =
+                      (watch("setupDetailsByRoom") as
+                        | Record<string, string>
+                        | undefined) ?? {};
+                    const nextDetails = { ...details };
+                    const chartMap =
+                      (watch("chartFieldForRoomSetupByRoom") as
+                        | Record<string, string>
+                        | undefined) ?? {};
+                    const nextChart = { ...chartMap };
+                    if (setupDefaultValue) {
+                      const defaultOption = setupCfg.options?.find(
+                        (o) => o.value === setupDefaultValue,
                       );
-                      const details =
-                        (watch("setupDetailsByRoom") as
-                          | Record<string, string>
-                          | undefined) ?? {};
-                      const nextDetails = {
-                        ...details,
-                        [resourceId]: opt?.label ?? value,
-                      };
-                      setValue("setupDetailsByRoom", nextDetails);
-                      const chartMap =
-                        (watch("chartFieldForRoomSetupByRoom") as
-                          | Record<string, string>
-                          | undefined) ?? {};
-                      syncSetupLegacyScalars(
-                        setValue,
-                        setupRooms,
-                        next,
-                        nextDetails,
-                        chartMap,
-                        watch("setupDetails") as string | undefined,
-                        watch("chartFieldForRoomSetup") as string | undefined,
-                      );
-                      trigger("roomSetupByRoom");
-                      trigger("chartFieldForRoomSetupByRoom");
-                    }}
-                  >
-                    {setupCfg.options?.map((opt) => (
-                      <FormControlLabel
-                        key={opt.value}
-                        value={opt.value}
-                        control={<Radio />}
-                        label={
-                          <OptionLabel
-                            label={opt.label}
-                            descriptionHtml={opt.descriptionHtml}
-                          />
-                        }
-                      />
-                    ))}
-                  </RadioGroup>
-                </FormControl>
-                {!!selectedSetupOption?.chartField && (
+                      nextSetup[resourceId] = setupDefaultValue;
+                      nextDetails[resourceId] =
+                        defaultOption?.label ?? setupDefaultValue;
+                    } else {
+                      delete nextSetup[resourceId];
+                      delete nextDetails[resourceId];
+                    }
+                    delete nextChart[resourceId];
+                    setValue("roomSetupByRoom", nextSetup, {
+                      shouldValidate: true,
+                    });
+                    setValue("setupDetailsByRoom", nextDetails);
+                    setValue("chartFieldForRoomSetupByRoom", nextChart, {
+                      shouldValidate: true,
+                    });
+                    syncSetupLegacyScalars(
+                      setValue,
+                      setupRooms,
+                      nextSetup,
+                      nextDetails,
+                      nextChart,
+                      watch("setupDetails") as string | undefined,
+                      watch("chartFieldForRoomSetup") as string | undefined,
+                    );
+                    trigger("roomSetupByRoom");
+                    trigger("chartFieldForRoomSetupByRoom");
+                  }}
+                />
+                {setupOn && (
                   <>
-                    <Label htmlFor={`chart-setup-${resourceId}`}>
-                      {selectedSetupOption.chartField?.label ||
-                        "ChartField for Room Setup"}
-                      {selectedSetupOption.chartField?.required !== false
-                        ? " *"
-                        : ""}
-                    </Label>
-                    <input
-                      id={`chart-setup-${resourceId}`}
-                      style={{
-                        width: "100%",
-                        padding: "8px",
-                        marginBottom: 16,
-                        border: "1px solid #ccc",
-                        borderRadius: 4,
-                      }}
-                      value={
-                        ((watch("chartFieldForRoomSetupByRoom") as
-                          | Record<string, string>
-                          | undefined) ?? {})[resourceId] ?? ""
-                      }
-                      onChange={(e) => {
-                        const chartMap =
-                          (watch("chartFieldForRoomSetupByRoom") as
-                            | Record<string, string>
-                            | undefined) ?? {};
-                        const nextChart = {
-                          ...chartMap,
-                          [resourceId]: e.target.value,
-                        };
-                        setValue("chartFieldForRoomSetupByRoom", nextChart, {
-                          shouldValidate: true,
-                        });
-                        const details =
-                          (watch("setupDetailsByRoom") as
-                            | Record<string, string>
-                            | undefined) ?? {};
-                        syncSetupLegacyScalars(
-                          setValue,
-                          setupRooms,
-                          setupMap,
-                          details,
-                          nextChart,
-                          watch("setupDetails") as string | undefined,
-                          watch("chartFieldForRoomSetup") as string | undefined,
-                        );
-                      }}
-                      onBlur={() => trigger("chartFieldForRoomSetupByRoom")}
-                      aria-required
-                      aria-invalid={!!setupChartError}
-                    />
-                    {setupChartError && (
-                      <FormHelperText error>{setupChartError}</FormHelperText>
+                    <FormControl component="fieldset" fullWidth>
+                      <RadioGroup
+                        value={selectedSetupValue}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          const next = {
+                            ...setupMap,
+                            [resourceId]: value,
+                          };
+                          setValue("roomSetupByRoom", next, {
+                            shouldValidate: true,
+                          });
+                          const opt = setupCfg.options?.find(
+                            (o) => o.value === value,
+                          );
+                          const details =
+                            (watch("setupDetailsByRoom") as
+                              | Record<string, string>
+                              | undefined) ?? {};
+                          const nextDetails = {
+                            ...details,
+                            [resourceId]: opt?.label ?? value,
+                          };
+                          setValue("setupDetailsByRoom", nextDetails);
+                          const chartMap =
+                            (watch("chartFieldForRoomSetupByRoom") as
+                              | Record<string, string>
+                              | undefined) ?? {};
+                          syncSetupLegacyScalars(
+                            setValue,
+                            setupRooms,
+                            next,
+                            nextDetails,
+                            chartMap,
+                            watch("setupDetails") as string | undefined,
+                            watch("chartFieldForRoomSetup") as string | undefined,
+                          );
+                          trigger("roomSetupByRoom");
+                          trigger("chartFieldForRoomSetupByRoom");
+                        }}
+                      >
+                        {setupCfg.options?.map((opt) => (
+                          <FormControlLabel
+                            key={opt.value}
+                            value={opt.value}
+                            control={<Radio />}
+                            label={
+                              <OptionLabel
+                                label={opt.label}
+                                descriptionHtml={opt.descriptionHtml}
+                              />
+                            }
+                          />
+                        ))}
+                      </RadioGroup>
+                    </FormControl>
+                    {!!selectedSetupOption?.chartField && (
+                      <>
+                        <Label htmlFor={`chart-setup-${resourceId}`}>
+                          {selectedSetupOption.chartField?.label ||
+                            "ChartField for Room Setup"}
+                          {selectedSetupOption.chartField?.required !== false
+                            ? " *"
+                            : ""}
+                        </Label>
+                        <input
+                          id={`chart-setup-${resourceId}`}
+                          style={{
+                            width: "100%",
+                            padding: "8px",
+                            marginBottom: 16,
+                            border: "1px solid #ccc",
+                            borderRadius: 4,
+                          }}
+                          value={
+                            ((watch("chartFieldForRoomSetupByRoom") as
+                              | Record<string, string>
+                              | undefined) ?? {})[resourceId] ?? ""
+                          }
+                          onChange={(e) => {
+                            const chartMap =
+                              (watch("chartFieldForRoomSetupByRoom") as
+                                | Record<string, string>
+                                | undefined) ?? {};
+                            const nextChart = {
+                              ...chartMap,
+                              [resourceId]: e.target.value,
+                            };
+                            setValue("chartFieldForRoomSetupByRoom", nextChart, {
+                              shouldValidate: true,
+                            });
+                            const details =
+                              (watch("setupDetailsByRoom") as
+                                | Record<string, string>
+                                | undefined) ?? {};
+                            syncSetupLegacyScalars(
+                              setValue,
+                              setupRooms,
+                              setupMap,
+                              details,
+                              nextChart,
+                              watch("setupDetails") as string | undefined,
+                              watch("chartFieldForRoomSetup") as string | undefined,
+                            );
+                          }}
+                          onBlur={() => trigger("chartFieldForRoomSetupByRoom")}
+                          aria-required
+                          aria-invalid={!!setupChartError}
+                        />
+                        {setupChartError && (
+                          <FormHelperText error>{setupChartError}</FormHelperText>
+                        )}
+                      </>
                     )}
                   </>
                 )}
