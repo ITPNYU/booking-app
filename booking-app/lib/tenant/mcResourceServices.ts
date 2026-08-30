@@ -95,10 +95,10 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
           label: "Lighting",
           descriptionHtml: "",
           mode: "radio",
-          defaultValue: "LIGHTING_TECH_NONE",
+          defaultValue: "LIGHTING_TECH_DIY",
           options: [
             {
-              value: "LIGHTING_TECH_NONE",
+              value: "LIGHTING_TECH_DIY",
               label: "No Technician / Plug & Play Lighting",
             },
             {
@@ -119,10 +119,10 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
           label: "Audio",
           descriptionHtml: "",
           mode: "radio",
-          defaultValue: "AUDIO_TECH_NONE",
+          defaultValue: "AUDIO_TECH_DIY",
           options: [
             {
-              value: "AUDIO_TECH_NONE",
+              value: "AUDIO_TECH_DIY",
               label: "No Technician / Plug & Play AV",
             },
             {
@@ -793,10 +793,10 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
           label: "Audio",
           descriptionHtml: "",
           mode: "radio",
-          defaultValue: "AUDIO_TECH_NONE",
+          defaultValue: "AUDIO_TECH_DIY",
           options: [
             {
-              value: "AUDIO_TECH_NONE",
+              value: "AUDIO_TECH_DIY",
               label: "No Technician / Plug & Play AV",
             },
             {
