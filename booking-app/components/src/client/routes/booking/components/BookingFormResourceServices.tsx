@@ -61,6 +61,15 @@ const Subsection = styled.div`
   margin-bottom: 24px;
 `;
 
+/** Service name and its yes/no switch on one line, description underneath. */
+const SwitchRow = styled.div`
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+`;
+
 function roomDisplayTitle(room: ServiceResourceLike): string {
   const id = getServiceResourceId(room);
   return [id, room.name].filter(Boolean).join(" ");
@@ -208,18 +217,21 @@ function SharedYesNoSwitch({
 }) {
   return (
     <div>
-      <Label>{label}</Label>
+      <SwitchRow>
+        <Label style={{ marginBottom: 0 }}>{label}</Label>
+        <FormControlLabel
+          sx={{ mx: 0 }}
+          label={value === "yes" ? "Yes" : "No"}
+          control={
+            <Switch
+              checked={value === "yes"}
+              disabled={disabled || locked}
+              onChange={(e) => onChange(e.target.checked ? "yes" : "no")}
+            />
+          }
+        />
+      </SwitchRow>
       {description}
-      <FormControlLabel
-        label={value === "yes" ? "Yes" : "No"}
-        control={
-          <Switch
-            checked={value === "yes"}
-            disabled={disabled || locked}
-            onChange={(e) => onChange(e.target.checked ? "yes" : "no")}
-          />
-        }
-      />
     </div>
   );
 }
