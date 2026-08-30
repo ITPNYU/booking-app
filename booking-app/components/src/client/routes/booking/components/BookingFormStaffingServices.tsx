@@ -28,6 +28,15 @@ const Label = styled.label`
   margin-bottom: 0.5rem;
 `;
 
+/** Service name and its yes/no switch on one line, description underneath. */
+const SwitchRow = styled.div`
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+`;
+
 type StaffingSectionView = {
   name: string;
   services: Array<{ value: string; label: string }>;
@@ -310,6 +319,7 @@ export default function BookingFormStaffingServices(props: Props) {
       rules={{ validate: validateStaffingSelection }}
       render={({ field }) => (
         <FormControlLabel
+          sx={{ mx: 0 }}
           label={showStaffingServices ? "Yes" : "No"}
           control={
             <Switch
@@ -351,11 +361,15 @@ export default function BookingFormStaffingServices(props: Props) {
           ) : null}
         </div>
       ))}
-      <Label htmlFor={id}>{staffingLabel}</Label>
+      <SwitchRow>
+        <Label htmlFor={id} style={{ marginBottom: 0 }}>
+          {staffingLabel}
+        </Label>
+        {toggle}
+      </SwitchRow>
       <p style={{ fontSize: "0.75rem" }}>
         Request audio technicians, lighting technicians, and technical support.
       </p>
-      {toggle}
       {showStaffingServices && (
         <Controller
           name={id}

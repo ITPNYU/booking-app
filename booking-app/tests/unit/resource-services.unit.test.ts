@@ -65,6 +65,11 @@ describe("getMediaCommonsServices", () => {
         roomSetupByRoom: { "202": "202_LAYOUT_0" },
       }).setup,
     ).toBe(false);
+    expect(
+      getMediaCommonsServices({
+        roomSetupByRoom: { "233": "233_LAYOUT_0" },
+      }).setup,
+    ).toBe(false);
   });
 
   it("treats non-default layouts as setup requested", () => {
@@ -80,7 +85,7 @@ describe("getMediaCommonsServices", () => {
     ).toBe(true);
     expect(
       getMediaCommonsServices({
-        roomSetupByRoom: { "233": "233_LAYOUT_0" },
+        roomSetupByRoom: { "233": "233_LAYOUT_1" },
       }).setup,
     ).toBe(true);
   });
@@ -180,9 +185,10 @@ describe("applyMcResourceServices", () => {
       name: "202",
       capacity: 50,
     });
+    expect(missing.services?.catering?.toggle).toBe("off");
     expect(missing.services?.setup?.mode).toBe("radio");
     expect(missing.services?.setup?.defaultValue).toBe("202_LAYOUT_0");
-    // Annex options are derived from parentResourceId resources, not services.
+    // 202 has no annex spaces of its own.
     expect(missing.services?.annex).toBeUndefined();
 
     const legacy = applyMcResourceServices({
@@ -193,6 +199,21 @@ describe("applyMcResourceServices", () => {
     });
     expect(Array.isArray(legacy.services)).toBe(false);
     expect(legacy.services?.setup?.mode).toBe("radio");
+  });
+
+  it("offers the 1201 breakout spaces as an annex checkbox section", () => {
+    const room = applyMcResourceServices({
+      resourceId: "1201",
+      name: "Seminar Room",
+      capacity: 100,
+      services: [],
+    });
+    expect(room.services?.annex?.mode).toBe("checkbox");
+    expect(room.services?.annex?.options?.map((o) => o.value)).toEqual([
+      "1200L-6",
+      "1202",
+      "1204",
+    ]);
   });
 
   it("replaces a stored services object with the code config (source of truth)", () => {
@@ -226,10 +247,19 @@ describe("applyMcResourceServices", () => {
     expect(result.services).toEqual(custom);
   });
 
+  it("uses an equipment-only config for room 260", () => {
+    const services260 = getMcResourceServices("260")!;
+    expect(Object.keys(services260)).toEqual(["equipment"]);
+    expect(services260.equipment?.toggle).toBe("optional");
+    expect(services260.equipment?.showDetailsField).toBe(true);
+  });
+
   it("uses a plain Campus Safety switch with a chartfield for 103", () => {
     const services103 = getMcResourceServices("103")!;
+    // No mode and no options: a plain yes/no switch the user controls.
     expect(services103.security?.mode).toBeUndefined();
     expect(services103.security?.options).toBeUndefined();
+    expect(services103.security?.toggle).toBe("optional");
     expect(services103.security?.label).toBe("Campus Safety");
     expect(services103.security?.chartField?.required).toBe(true);
   });
@@ -247,13 +277,27 @@ describe("applyMcResourceServices", () => {
   });
 
   it("does not put asterisks in field labels (the form renders them)", () => {
-    for (const [roomId, services] of ["103","202","220","221","222","223","224","230","233","260","1201"].map(
-      (id) => [id, getMcResourceServices(id)!] as const,
-    )) {
+    for (const [roomId, services] of [
+      "103",
+      "202",
+      "220",
+      "221",
+      "222",
+      "223",
+      "224",
+      "230",
+      "233",
+      "260",
+      "1201",
+    ].map((id) => [id, getMcResourceServices(id)!] as const)) {
       for (const [key, section] of Object.entries(services)) {
         const s = section as any;
-        expect(`${roomId}.${key}.detailsLabel=${s.detailsLabel ?? ""}`).not.toMatch(/\*$/);
-        expect(`${roomId}.${key}.chartField.label=${s.chartField?.label ?? ""}`).not.toMatch(/\*$/);
+        expect(
+          `${roomId}.${key}.detailsLabel=${s.detailsLabel ?? ""}`,
+        ).not.toMatch(/\*$/);
+        expect(
+          `${roomId}.${key}.chartField.label=${s.chartField?.label ?? ""}`,
+        ).not.toMatch(/\*$/);
       }
     }
   });

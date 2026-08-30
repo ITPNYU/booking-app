@@ -882,11 +882,6 @@ const MC_SERVICES_BY_ROOM: Record<string, ResourceServicesConfig> = {
         {
           value: "233_LAYOUT_0",
           label: "Classroom Style - 72 Seated",
-          chartField: {
-            label: "Chartfield for CBS furniture services",
-            descriptionHtml: "",
-            required: true,
-          },
         },
         {
           value: "233_LAYOUT_1",

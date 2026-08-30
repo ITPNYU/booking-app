@@ -266,6 +266,87 @@ describe("BookingFormResourceServices toggle locks", () => {
     });
   });
 
+  it("gates the room setup options behind an optional setup switch", async () => {
+    let getValues: () => Partial<Inputs> = () => ({});
+    render(
+      <ServicesHarness
+        rooms={[
+          {
+            resourceId: "202",
+            name: "Studio",
+            services: {
+              setup: {
+                label: "Room Setup",
+                descriptionHtml: "<p>Pick a layout</p>",
+                toggle: "optional",
+                mode: "radio",
+                defaultValue: "LAYOUT_0",
+                required: true,
+                options: [
+                  { value: "LAYOUT_0", label: "Standing Room" },
+                  { value: "LAYOUT_1", label: "Seated Rows" },
+                ],
+              },
+            },
+          },
+        ]}
+        onValues={(get) => {
+          getValues = get;
+        }}
+      />,
+    );
+    const toggle = screen.getByRole("checkbox");
+    expect(toggle).not.toBeDisabled();
+    expect(toggle).not.toBeChecked();
+    expect(screen.getByText("Pick a layout")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Seated Rows")).toBeNull();
+
+    fireEvent.click(toggle);
+    expect(screen.getByLabelText("Seated Rows")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByLabelText("Seated Rows"));
+    await waitFor(() => {
+      expect(getValues().roomSetupByRoom).toEqual({ "202": "LAYOUT_1" });
+    });
+
+    // Switching back off restores the passive default layout.
+    fireEvent.click(toggle);
+    expect(screen.queryByLabelText("Seated Rows")).toBeNull();
+    await waitFor(() => {
+      expect(getValues().roomSetupByRoom).toEqual({ "202": "LAYOUT_0" });
+    });
+  });
+
+  it("renders a locked-on setup switch with the options shown", () => {
+    render(
+      <ServicesHarness
+        rooms={[
+          {
+            resourceId: "103",
+            name: "Garage",
+            services: {
+              setup: {
+                label: "Room Setup",
+                toggle: "on",
+                mode: "radio",
+                defaultValue: "LAYOUT_0",
+                required: true,
+                options: [
+                  { value: "LAYOUT_0", label: "Standing Room" },
+                  { value: "LAYOUT_1", label: "Seated Rows" },
+                ],
+              },
+            },
+          },
+        ]}
+      />,
+    );
+    const toggle = screen.getByRole("checkbox");
+    expect(toggle).toBeDisabled();
+    expect(toggle).toBeChecked();
+    expect(screen.getByLabelText("Seated Rows")).toBeInTheDocument();
+  });
+
   it("renders a locked-on catering switch and writes yes", async () => {
     let getValues: () => Partial<Inputs> = () => ({});
     render(
@@ -322,6 +403,64 @@ describe("BookingFormResourceServices toggle locks", () => {
     // The "off" lock does not clear a large-event security value.
     await waitFor(() => expect(getValues().hireSecurity).not.toBe("no"));
     expect(screen.getByRole("checkbox")).toBeDisabled();
+  });
+
+  it("treats setup as not requested until the switch is on for a chartfield-only layout", async () => {
+    const onValid = vi.fn();
+    render(
+      <ServicesHarness
+        onValid={onValid}
+        rooms={[
+          {
+            resourceId: "220",
+            services: {
+              setup: {
+                label: "Room Setup",
+                mode: "radio",
+                toggle: "optional",
+                required: true,
+                defaultValue: "220_LAYOUT_CUSTOM",
+                options: [
+                  {
+                    value: "220_LAYOUT_CUSTOM",
+                    label: "Custom Room Setup",
+                    chartField: { label: "Chartfield", required: true },
+                  },
+                ],
+              },
+            },
+          },
+        ]}
+      />,
+    );
+    const toggle = screen.getByRole("checkbox");
+    expect(toggle).not.toBeChecked();
+    expect(toggle).not.toBeDisabled();
+    expect(screen.queryByLabelText("Custom Room Setup")).toBeNull();
+
+    // Off: no setup, no chartfield → submit passes.
+    fireEvent.click(screen.getByText("Submit"));
+    await waitFor(() => expect(onValid).toHaveBeenCalledTimes(1));
+    expect(onValid.mock.calls[0][0].roomSetupByRoom ?? {}).toEqual({});
+
+    // On: layout pre-selected, chartfield required.
+    fireEvent.click(toggle);
+    expect(screen.getByLabelText("Custom Room Setup")).toBeChecked();
+    expect(screen.getByLabelText(/Chartfield/)).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Submit"));
+    await waitFor(() =>
+      expect(screen.getByText(/ChartField|Chartfield/i)).toBeInTheDocument(),
+    );
+    expect(onValid).toHaveBeenCalledTimes(1);
+
+    fireEvent.change(screen.getByLabelText(/Chartfield/), {
+      target: { value: "AB123-CD-EF456-GH789" },
+    });
+    fireEvent.click(screen.getByText("Submit"));
+    await waitFor(() => expect(onValid).toHaveBeenCalledTimes(2));
+    expect(onValid.mock.calls[1][0].roomSetupByRoom).toEqual({
+      "220": "220_LAYOUT_CUSTOM",
+    });
   });
 
   it("adds an equipment switch only when toggle is set", () => {
