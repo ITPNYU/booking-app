@@ -282,6 +282,30 @@ describe("server/calendars", () => {
     });
   });
 
+  it("reports Google Calendar title-update failures to the caller", async () => {
+    const getMock = vi.fn().mockRejectedValue(new Error("Event unavailable"));
+    mockGetCalendarClient.mockResolvedValue({ events: { get: getMock } });
+    mockServerGetRoomCalendarIds.mockResolvedValue(["room-cal-1"]);
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    const { updateCalendarEvent } = await import(
+      "@/components/src/server/calendars"
+    );
+
+    await expect(
+      updateCalendarEvent(
+        "evt-1",
+        { statusPrefix: "APPROVED" },
+        { roomId: "101" } as any,
+        "tenant-a",
+      ),
+    ).rejects.toThrow("Failed to update calendar event evt-1 in 1 calendar(s).");
+
+    consoleErrorSpy.mockRestore();
+  });
+
   it("deleteEvent sends cancellation notifications to all attendees", async () => {
     const deleteMock = vi.fn();
     mockGetCalendarClient.mockResolvedValue({
