@@ -175,7 +175,9 @@ export default function BookingActions(props: Props) {
       const isEditDisabled =
         status !== BookingStatusLabel.REQUESTED &&
         status !== BookingStatusLabel.DECLINED;
-      if (isEditDisabled) {
+      // Once the booking has started there is nothing left for the user to edit.
+      const hasStarted = startDate.toMillis() <= Date.now();
+      if (isEditDisabled || hasStarted) {
         disabled.push(Actions.EDIT);
       }
     }
