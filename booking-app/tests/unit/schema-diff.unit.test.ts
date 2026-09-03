@@ -1,51 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  computeDiff,
-  formatValue,
-  setNestedValue,
-} from "@/components/src/client/routes/super/schemaEditorUtils";
-
-describe("setNestedValue", () => {
-  it("sets a top-level key", () => {
-    const result = setNestedValue({ a: 1 }, "a", 2);
-    expect(result).toEqual({ a: 2 });
-  });
-
-  it("sets a nested key", () => {
-    const result = setNestedValue({ a: { b: 1 } }, "a.b", 2);
-    expect(result).toEqual({ a: { b: 2 } });
-  });
-
-  it("sets a deeply nested key", () => {
-    const result = setNestedValue(
-      { a: { b: { c: 1 } } },
-      "a.b.c",
-      "new",
-    );
-    expect(result).toEqual({ a: { b: { c: "new" } } });
-  });
-
-  it("creates intermediate objects if missing", () => {
-    const result = setNestedValue({}, "a.b.c", 42);
-    expect(result).toEqual({ a: { b: { c: 42 } } });
-  });
-
-  it("preserves other keys at each level", () => {
-    const result = setNestedValue(
-      { a: { b: 1, x: 2 }, y: 3 },
-      "a.b",
-      10,
-    );
-    expect(result).toEqual({ a: { b: 10, x: 2 }, y: 3 });
-  });
-
-  it("does not mutate the original object", () => {
-    const original = { a: { b: 1 } };
-    const result = setNestedValue(original, "a.b", 2);
-    expect(original.a.b).toBe(1);
-    expect(result.a.b).toBe(2);
-  });
-});
+import { computeDiff, formatValue } from "@/lib/utils/schemaDiff";
 
 describe("computeDiff", () => {
   it("returns empty array for identical objects", () => {
@@ -55,16 +9,12 @@ describe("computeDiff", () => {
 
   it("detects added keys", () => {
     const diffs = computeDiff({ a: 1 }, { a: 1, b: 2 });
-    expect(diffs).toEqual([
-      { path: "b", type: "added", newValue: 2 },
-    ]);
+    expect(diffs).toEqual([{ path: "b", type: "added", newValue: 2 }]);
   });
 
   it("detects removed keys", () => {
     const diffs = computeDiff({ a: 1, b: 2 }, { a: 1 });
-    expect(diffs).toEqual([
-      { path: "b", type: "removed", oldValue: 2 },
-    ]);
+    expect(diffs).toEqual([{ path: "b", type: "removed", oldValue: 2 }]);
   });
 
   it("detects changed primitive values", () => {
@@ -169,14 +119,10 @@ describe("computeDiff", () => {
 
   it("recurses into deeply nested array objects", () => {
     const old = {
-      resources: [
-        { name: "Room", autoApproval: { minHour: { admin: 8 } } },
-      ],
+      resources: [{ name: "Room", autoApproval: { minHour: { admin: 8 } } }],
     };
     const updated = {
-      resources: [
-        { name: "Room", autoApproval: { minHour: { admin: 10 } } },
-      ],
+      resources: [{ name: "Room", autoApproval: { minHour: { admin: 10 } } }],
     };
     const diffs = computeDiff(old, updated);
     expect(diffs).toEqual([
@@ -235,8 +181,40 @@ describe("computeDiff", () => {
 
   it("handles both null/undefined inputs", () => {
     const diffs = computeDiff(null, { a: 1 });
-    expect(diffs).toEqual([
-      { path: "a", type: "added", newValue: 1 },
+    expect(diffs).toEqual([{ path: "a", type: "added", newValue: 1 }]);
+  });
+});
+
+describe("computeDiff — sync dry-run parity", () => {
+  it("reports a nested field missing from the target as a leaf-level added path", () => {
+    const target = { calendarConfig: { startHour: 9 } };
+    const source = { calendarConfig: { startHour: 9, endHour: 22 } };
+    expect(computeDiff(target, source)).toEqual([
+      { path: "calendarConfig.endHour", type: "added", newValue: 22 },
+    ]);
+  });
+
+  it("reports a field missing inside an array item as a leaf-level path", () => {
+    const target = { resources: [{ roomId: 1 }] };
+    const source = { resources: [{ roomId: 1, services: { catering: true } }] };
+    expect(computeDiff(target, source)).toEqual([
+      {
+        path: "resources[0].services",
+        type: "added",
+        newValue: { catering: true },
+      },
+    ]);
+  });
+
+  it("treats a missing target document as everything added", () => {
+    const source = { name: "ITP", calendarConfig: { startHour: 9 } };
+    expect(computeDiff(null, source)).toEqual([
+      { path: "name", type: "added", newValue: "ITP" },
+      {
+        path: "calendarConfig",
+        type: "added",
+        newValue: { startHour: 9 },
+      },
     ]);
   });
 });

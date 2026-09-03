@@ -52,19 +52,33 @@ export type ResourceFormSelectOption = ResourceFormOption & {
 };
 
 /**
+ * Yes/No switch lock state for a service section.
+ * - "on": switch is locked to Yes; the service is always requested and its
+ *   dependent fields (chartfield, details) are always shown
+ * - "off": switch is locked to No; only the description is shown
+ * - "optional" (default when omitted): the user controls the switch
+ * Schema locks take precedence over dynamic locks (catering → cleaning,
+ * large-event security).
+ */
+export type ServiceToggle = "on" | "off" | "optional";
+
+/**
  * Service section config.
  * - mode "radio" / "select": choice list via options (`select` normalizes to radio on migrate)
  * - mode "checkbox": optional option checkboxes (not forced like radio)
  * - mode "static": read-only HTML
  * - mode "hidden": offered but not shown
  * - omit mode + chartField (no options): yes/no switch
- * - omit mode + description only (no options/chartField): treated as static on migrate
+ * - omit mode + description only (no options/chartField/toggle): treated as static on migrate
+ * - toggle: lock the yes/no switch (see ServiceToggle). For equipment, omitting
+ *   toggle keeps the legacy layout (details field always shown, no switch).
  */
 export type ResourceFormSectionConfig = {
   showInOrigin?: ShowInOrigin;
   label?: string;
   descriptionHtml?: string;
   mode?: "radio" | "select" | "checkbox" | "static" | "hidden";
+  toggle?: ServiceToggle;
   options?: ResourceFormOption[];
   defaultValue?: string;
   required?: boolean;
@@ -104,6 +118,8 @@ export type ResourceStaffingConfig = {
   showInOrigin?: ShowInOrigin;
   label?: string;
   descriptionHtml?: string;
+  /** Lock the staffing yes/no switch (see ServiceToggle). */
+  toggle?: ServiceToggle;
   sections?: Record<string, ResourceStaffingSectionConfig>;
   /** @deprecated Prefer sections with options */
   staffingOptions?: ResourceStaffingServiceOption[];

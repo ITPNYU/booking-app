@@ -13,7 +13,7 @@ import {
   FieldErrors,
   UseFormTrigger,
 } from "react-hook-form";
-import React, { useEffect, useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import styled from "@emotion/styled";
 import { FormContextLevel, Inputs } from "../../../../types";
 import {
@@ -25,7 +25,12 @@ import {
   getRoomsWithVisibleService,
   getServiceResourceId,
   getServiceSectionConfig,
+  getServiceToggle,
   isChoiceMode,
+  isSchemaDrivenEquipmentSection,
+  lockedToggleValue,
+  resolveSecurityToggle,
+  resolveSharedServiceToggle,
   ServiceResourceLike,
   ServiceVisibilityContext,
   shouldShowServiceSection,
@@ -54,6 +59,15 @@ const RoomBlock = styled.div`
 
 const Subsection = styled.div`
   margin-bottom: 24px;
+`;
+
+/** Service name and its yes/no switch on one line, description underneath. */
+const SwitchRow = styled.div`
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
 `;
 
 function roomDisplayTitle(room: ServiceResourceLike): string {
@@ -112,13 +126,16 @@ function OptionLabel({
   );
 }
 
-function isSchemaDrivenEquipmentSection(
+/**
+ * True when the room's default layout is a passive one (no chartfield), i.e.
+ * turning the setup switch off has a layout to fall back to.
+ */
+function hasPassiveSetupDefault(
   cfg: ReturnType<typeof getServiceSectionConfig>,
 ): boolean {
-  if (!cfg) return false;
-  if (cfg.mode === "static") return true;
-  if (cfg.showDetailsField) return true;
-  return !!cfg.descriptionHtml && cfg.mode !== "hidden";
+  if (!cfg?.defaultValue) return false;
+  const defaultOption = cfg.options?.find((o) => o.value === cfg.defaultValue);
+  return !!defaultOption && !defaultOption.chartField;
 }
 
 function mapFieldErrorMessage(error: unknown): string | undefined {
@@ -199,28 +216,34 @@ function SharedYesNoSwitch({
   description,
   value,
   disabled,
+  locked,
   onChange,
 }: {
   label: string;
   description?: React.ReactNode;
   value: string;
   disabled?: boolean;
+  /** Schema toggle lock ("on" / "off"): rendered disabled, value is fixed. */
+  locked?: boolean;
   onChange: (next: "yes" | "no") => void;
 }) {
   return (
     <div>
-      <Label>{label}</Label>
+      <SwitchRow>
+        <Label style={{ marginBottom: 0 }}>{label}</Label>
+        <FormControlLabel
+          sx={{ mx: 0 }}
+          label={value === "yes" ? "Yes" : "No"}
+          control={
+            <Switch
+              checked={value === "yes"}
+              disabled={disabled || locked}
+              onChange={(e) => onChange(e.target.checked ? "yes" : "no")}
+            />
+          }
+        />
+      </SwitchRow>
       {description}
-      <FormControlLabel
-        label={value === "yes" ? "Yes" : "No"}
-        control={
-          <Switch
-            checked={value === "yes"}
-            disabled={disabled}
-            onChange={(e) => onChange(e.target.checked ? "yes" : "no")}
-          />
-        }
-      />
     </div>
   );
 }
@@ -242,11 +265,14 @@ export default function BookingFormResourceServices({
   cateringRequiresCleaning,
   isLargeEvent,
 }: Props) {
-  const visibility: ServiceVisibilityContext = {
-    isVIP,
-    isWalkIn,
-    isStandardUser: !isVIP && !isWalkIn,
-  };
+  const visibility = useMemo<ServiceVisibilityContext>(
+    () => ({
+      isVIP,
+      isWalkIn,
+      isStandardUser: !isVIP && !isWalkIn,
+    }),
+    [isVIP, isWalkIn],
+  );
 
   const hasConfig = selectedRooms.some(
     (r) => Object.keys(getResourceServicesConfig(r)).length > 0,
@@ -326,12 +352,197 @@ export default function BookingFormResourceServices({
   const cateringValue = watch("catering") as string;
   const cleaningValue = watch("cleaningService") as string;
 
+  // Schema toggle locks for booking-level (shared) switches.
+  const cateringToggle = useMemo(
+    () => resolveSharedServiceToggle(selectedRooms, "catering", visibility),
+    [selectedRooms, visibility],
+  );
+  const cleaningToggle = useMemo(
+    () => resolveSharedServiceToggle(selectedRooms, "cleaning", visibility),
+    [selectedRooms, visibility],
+  );
+  const staffingToggle = useMemo(
+    () => resolveSharedServiceToggle(selectedRooms, "staffing", visibility),
+    [selectedRooms, visibility],
+  );
+  // A schema "off" lock must not defeat the mandatory security for 75+
+  // attendee events; the large-event rule keeps the switch forced on.
+  const securityToggle = useMemo(() => {
+    const resolved = resolveSecurityToggle(selectedRooms, visibility);
+    return resolved === "off" && isLargeEvent ? "optional" : resolved;
+  }, [selectedRooms, visibility, isLargeEvent]);
+  // Value a locked-on security switch writes: the checkbox option (Willoughby)
+  // when present, otherwise the generic "yes".
+  const securityLockOnValue = useMemo(() => {
+    const checkboxRoom = getRoomsWithVisibleService(
+      selectedRooms,
+      "security",
+      visibility,
+    ).find((r) => getServiceSectionConfig(r, "security")?.mode === "checkbox");
+    return (
+      getServiceSectionConfig(checkboxRoom ?? {}, "security")?.options?.[0]
+        ?.value ?? "yes"
+    );
+  }, [selectedRooms, visibility]);
+
+  // Equipment switch state for rooms whose equipment toggle is "optional".
+  const [equipmentOnByRoom, setEquipmentOnByRoom] = useState<
+    Record<string, boolean>
+  >({});
+
+  // Room setup switch state for rooms whose setup toggle is "optional".
+  const [setupOnByRoom, setSetupOnByRoom] = useState<Record<string, boolean>>(
+    {},
+  );
+
+  useEffect(() => {
+    const cateringLocked = lockedToggleValue(cateringToggle);
+    if (cateringLocked && cateringValue !== cateringLocked) {
+      setValue("catering", cateringLocked, { shouldValidate: true });
+    }
+    const cleaningLocked = lockedToggleValue(cleaningToggle);
+    if (cleaningLocked && cleaningValue !== cleaningLocked) {
+      setValue("cleaningService", cleaningLocked, { shouldValidate: true });
+    }
+  }, [cateringToggle, cleaningToggle, cateringValue, cleaningValue, setValue]);
+
+  useEffect(() => {
+    const securityLocked = lockedToggleValue(securityToggle);
+    if (!securityLocked) return;
+    const requested =
+      typeof hireSecurityValue === "string" &&
+      hireSecurityValue.trim().length > 0 &&
+      hireSecurityValue.trim().toLowerCase() !== "no";
+    if (securityLocked === "yes" && !requested) {
+      setValue("hireSecurity", securityLockOnValue, { shouldValidate: true });
+    } else if (securityLocked === "no" && hireSecurityValue !== "") {
+      setValue("hireSecurity", "", { shouldValidate: true });
+      setValue("chartFieldForSecurity", "", { shouldValidate: false });
+    }
+  }, [securityToggle, securityLockOnValue, hireSecurityValue, setValue]);
+
+  /**
+   * Whether a room's Room Setup switch is on. Off means "no setup requested":
+   * no layout value is stored and no chartfield is required.
+   */
+  const isSetupSwitchOn = (
+    room: ServiceResourceLike,
+    setupMap: Record<string, string>,
+  ): boolean => {
+    const cfg = getServiceSectionConfig(room, "setup");
+    const toggle = getServiceToggle(cfg);
+    if (toggle === "on") return true;
+    if (toggle === "off") return false;
+    const resourceId = getServiceResourceId(room);
+    if (setupOnByRoom[resourceId] !== undefined) {
+      return setupOnByRoom[resourceId];
+    }
+    const value = setupMap[resourceId];
+    if (!value) return false;
+    // A stored value that is not the passive default means setup was requested.
+    return !(hasPassiveSetupDefault(cfg) && value === cfg?.defaultValue);
+  };
+
+  // Per-room locks: setup values, furnishings value map, equipment details.
+  useEffect(() => {
+    const currentSetup =
+      (watch("roomSetupByRoom") as Record<string, string> | undefined) ?? {};
+    const nextSetup = { ...currentSetup };
+    let setupChanged = false;
+    setupRooms.forEach((room) => {
+      if (getServiceToggle(getServiceSectionConfig(room, "setup")) !== "off") {
+        return;
+      }
+      const resourceId = getServiceResourceId(room);
+      if (nextSetup[resourceId]) {
+        delete nextSetup[resourceId];
+        setupChanged = true;
+      }
+    });
+    if (setupChanged) {
+      setValue("roomSetupByRoom", nextSetup, { shouldValidate: false });
+    }
+
+    const currentFurn =
+      (watch("furnishingsByRoom") as Record<string, string> | undefined) ?? {};
+    const nextFurn = { ...currentFurn };
+    let furnChanged = false;
+    furnishingsRooms.forEach((room) => {
+      const locked = lockedToggleValue(
+        getServiceToggle(getResourceServicesConfig(room).furnishings),
+      );
+      if (!locked) return;
+      const resourceId = getServiceResourceId(room);
+      if (nextFurn[resourceId] !== locked) {
+        nextFurn[resourceId] = locked;
+        furnChanged = true;
+      }
+    });
+    if (furnChanged) {
+      setValue("furnishingsByRoom", nextFurn, { shouldValidate: false });
+    }
+
+    const currentDetails =
+      (watch("equipmentServicesDetailsByRoom") as
+        | Record<string, string>
+        | undefined) ?? {};
+    const nextDetails = { ...currentDetails };
+    let detailsChanged = false;
+    selectedRooms.forEach((room) => {
+      const cfg = getServiceSectionConfig(room, "equipment");
+      if (getServiceToggle(cfg) !== "off") return;
+      const resourceId = getServiceResourceId(room);
+      if (nextDetails[resourceId]) {
+        delete nextDetails[resourceId];
+        detailsChanged = true;
+      }
+    });
+    if (detailsChanged) {
+      setValue("equipmentServicesDetailsByRoom", nextDetails, {
+        shouldValidate: false,
+      });
+      setValue(
+        "equipmentServicesDetails",
+        Object.values(nextDetails)
+          .map((v) => (typeof v === "string" ? v.trim() : ""))
+          .filter(Boolean)
+          .join("\n"),
+        { shouldValidate: false },
+      );
+    }
+  }, [furnishingsRooms, selectedRooms, setupRooms, setValue, watch]);
+
   const setupChartError = mapFieldErrorMessage(
     errors.chartFieldForRoomSetupByRoom,
   );
   const furnishingsChartError = mapFieldErrorMessage(
     errors.chartFieldForFurnishingsByRoom,
   );
+  const equipmentDetailsError = mapFieldErrorMessage(
+    errors.equipmentServicesDetailsByRoom,
+  );
+  const furnishingsDetailsError = mapFieldErrorMessage(
+    errors.furnishingsDetailsByRoom,
+  );
+
+  // Equipment sections with a toggle require details while the switch is on
+  // (locked on or user-enabled); equipment only counts as requested when
+  // details are filled in.
+  const isEquipmentSwitchOn = (
+    room: ServiceResourceLike,
+    detailsMap: Record<string, string>,
+  ): boolean => {
+    const cfg = getServiceSectionConfig(room, "equipment");
+    if (!cfg?.toggle || !shouldShowServiceSection(cfg, visibility)) {
+      return false;
+    }
+    if (cfg.toggle === "on") return true;
+    if (cfg.toggle === "off") return false;
+    const resourceId = getServiceResourceId(room);
+    return (
+      equipmentOnByRoom[resourceId] ?? !!detailsMap[resourceId]?.trim()
+    );
+  };
 
   useEffect(() => {
     const currentMap =
@@ -358,7 +569,11 @@ export default function BookingFormResourceServices({
     setupRooms.forEach((room) => {
       const cfg = getServiceSectionConfig(room, "setup");
       const resourceId = getServiceResourceId(room);
-      if (cfg?.defaultValue && !nextMap[resourceId]) {
+      // Only pre-select a layout the requester is not charged for; a default
+      // that needs a chartfield is chosen explicitly by turning setup on.
+      const seedable =
+        hasPassiveSetupDefault(cfg) || getServiceToggle(cfg) === "on";
+      if (cfg?.defaultValue && seedable && !nextMap[resourceId]) {
         nextMap[resourceId] = cfg.defaultValue;
         const opt = cfg.options?.find((o) => o.value === cfg.defaultValue);
         nextDetails[resourceId] = opt?.label ?? cfg.defaultValue;
@@ -408,6 +623,7 @@ export default function BookingFormResourceServices({
             for (const room of setupRooms) {
               const cfg = getServiceSectionConfig(room, "setup")!;
               if (!cfg.required) continue;
+              if (!isSetupSwitchOn(room, map)) continue;
               const resourceId = getServiceResourceId(room);
               const v = map[resourceId] ?? cfg.defaultValue;
               if (!v) {
@@ -430,6 +646,7 @@ export default function BookingFormResourceServices({
               (formValues.roomSetupByRoom as Record<string, string>) ?? {};
             for (const room of setupRooms) {
               const cfg = getServiceSectionConfig(room, "setup")!;
+              if (!isSetupSwitchOn(room, setupMap)) continue;
               const resourceId = getServiceResourceId(room);
               const selectedValue =
                 setupMap[resourceId] ?? cfg.defaultValue ?? "";
@@ -481,6 +698,45 @@ export default function BookingFormResourceServices({
               }
             }
             return true;
+          },
+        }}
+        render={() => null}
+      />
+      <Controller
+        name="furnishingsDetailsByRoom"
+        control={control}
+        rules={{
+          validate: (val, formValues) => {
+            const map = (val as Record<string, string>) ?? {};
+            const furnMap =
+              (formValues.furnishingsByRoom as Record<string, string>) ?? {};
+            const missing = furnishingsRooms.some((room) => {
+              const cfg = getResourceServicesConfig(room).furnishings;
+              if (!cfg?.showDetailsField) return false;
+              const resourceId = getServiceResourceId(room);
+              return furnMap[resourceId] === "yes" && !map[resourceId]?.trim();
+            });
+            return missing
+              ? "Please describe the additional furniture you need."
+              : true;
+          },
+        }}
+        render={() => null}
+      />
+      <Controller
+        name="equipmentServicesDetailsByRoom"
+        control={control}
+        rules={{
+          validate: (val) => {
+            const map = (val as Record<string, string>) ?? {};
+            const missing = selectedRooms.some(
+              (room) =>
+                isEquipmentSwitchOn(room, map) &&
+                !map[getServiceResourceId(room)]?.trim(),
+            );
+            return missing
+              ? "Please describe your equipment needs in detail."
+              : true;
           },
         }}
         render={() => null}
@@ -547,6 +803,13 @@ export default function BookingFormResourceServices({
         const selectedSetupOption = setupCfg?.options?.find(
           (o) => o.value === selectedSetupValue,
         );
+        // Setup: the toggle gates the layout options. Off means the room keeps
+        // its passive default layout, which is not a requested service.
+        const setupToggle = getServiceToggle(setupCfg);
+        const setupDefaultValue = setupCfg?.defaultValue ?? "";
+        const setupHasPassiveDefault = hasPassiveSetupDefault(setupCfg);
+        const setupLocked = setupToggle !== "optional";
+        const setupOn = isSetupSwitchOn(room, setupMap);
         const furnMap =
           (watch("furnishingsByRoom") as Record<string, string> | undefined) ??
           {};
@@ -563,6 +826,43 @@ export default function BookingFormResourceServices({
             | Record<string, string>
             | undefined) ?? {};
 
+        const furnToggle = getServiceToggle(furnishingsCfg);
+        const furnLocked = furnToggle !== "optional";
+        const furnValue =
+          lockedToggleValue(furnToggle) ??
+          (furnMap[resourceId] === "yes" ? "yes" : "no");
+        // The details validation error is form-wide; only show it under the
+        // rooms that are actually missing details.
+        const furnishingsDetailsErrorForRoom =
+          furnishingsDetailsError &&
+          furnValue === "yes" &&
+          !furnDetailsByRoom[resourceId]?.trim()
+            ? furnishingsDetailsError
+            : undefined;
+
+        // Equipment: omitted toggle keeps the legacy layout (no switch). With a
+        // toggle, the details field is always available when the switch is on —
+        // equipment only counts as requested when details are filled in.
+        const equipmentToggle = equipmentCfg?.toggle;
+        const equipmentHasSwitch = !!equipmentToggle;
+        const equipmentLocked =
+          !!equipmentToggle && equipmentToggle !== "optional";
+        const equipmentOn = !equipmentHasSwitch
+          ? true
+          : equipmentToggle === "on"
+            ? true
+            : equipmentToggle === "off"
+              ? false
+              : (equipmentOnByRoom[resourceId] ??
+                !!detailsByRoom[resourceId]?.trim());
+        const equipmentDetailsErrorForRoom =
+          equipmentDetailsError &&
+          equipmentHasSwitch &&
+          equipmentOn &&
+          !detailsByRoom[resourceId]?.trim()
+            ? equipmentDetailsError
+            : undefined;
+
         return (
           <RoomBlock key={resourceId}>
             <RoomHeading>{roomDisplayTitle(room)}</RoomHeading>
@@ -578,77 +878,268 @@ export default function BookingFormResourceServices({
 
             {showSetupChoice && setupCfg && (
               <Subsection>
-                <Label>
-                  {formatFieldLabel(setupCfg.label ?? "Room Setup")}
-                </Label>
-                <HtmlBlock html={setupCfg.descriptionHtml} />
-                <FormControl component="fieldset" fullWidth>
-                  <RadioGroup
-                    value={selectedSetupValue}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      const next = {
-                        ...setupMap,
-                        [resourceId]: value,
-                      };
-                      setValue("roomSetupByRoom", next, {
-                        shouldValidate: true,
-                      });
-                      const opt = setupCfg.options?.find(
-                        (o) => o.value === value,
+                <SharedYesNoSwitch
+                  label={formatFieldLabel(setupCfg.label ?? "Room Setup")}
+                  description={<HtmlBlock html={setupCfg.descriptionHtml} />}
+                  value={setupOn ? "yes" : "no"}
+                  locked={setupLocked}
+                  onChange={(next) => {
+                    setSetupOnByRoom((prev) => ({
+                      ...prev,
+                      [resourceId]: next === "yes",
+                    }));
+                    if (next === "yes") {
+                      // Pre-select the room's default layout so the radio
+                      // group is not empty (the chartfield stays required).
+                      if (setupDefaultValue && !setupMap[resourceId]) {
+                        const defaultOption = setupCfg.options?.find(
+                          (o) => o.value === setupDefaultValue,
+                        );
+                        const details =
+                          (watch("setupDetailsByRoom") as
+                            | Record<string, string>
+                            | undefined) ?? {};
+                        setValue(
+                          "roomSetupByRoom",
+                          { ...setupMap, [resourceId]: setupDefaultValue },
+                          { shouldValidate: false },
+                        );
+                        setValue("setupDetailsByRoom", {
+                          ...details,
+                          [resourceId]:
+                            defaultOption?.label ?? setupDefaultValue,
+                        });
+                      }
+                      return;
+                    }
+                    // Off: back to the passive default layout when the room
+                    // has one, otherwise no setup at all. Drop the chartfield.
+                    const nextSetup = { ...setupMap };
+                    const details =
+                      (watch("setupDetailsByRoom") as
+                        | Record<string, string>
+                        | undefined) ?? {};
+                    const nextDetails = { ...details };
+                    const chartMap =
+                      (watch("chartFieldForRoomSetupByRoom") as
+                        | Record<string, string>
+                        | undefined) ?? {};
+                    const nextChart = { ...chartMap };
+                    if (setupHasPassiveDefault) {
+                      const defaultOption = setupCfg.options?.find(
+                        (o) => o.value === setupDefaultValue,
                       );
-                      const details =
-                        (watch("setupDetailsByRoom") as
-                          | Record<string, string>
-                          | undefined) ?? {};
-                      const nextDetails = {
-                        ...details,
-                        [resourceId]: opt?.label ?? value,
-                      };
-                      setValue("setupDetailsByRoom", nextDetails);
-                      const chartMap =
-                        (watch("chartFieldForRoomSetupByRoom") as
-                          | Record<string, string>
-                          | undefined) ?? {};
-                      syncSetupLegacyScalars(
-                        setValue,
-                        setupRooms,
-                        next,
-                        nextDetails,
-                        chartMap,
-                        watch("setupDetails") as string | undefined,
-                        watch("chartFieldForRoomSetup") as string | undefined,
-                      );
-                      trigger("roomSetupByRoom");
-                      trigger("chartFieldForRoomSetupByRoom");
-                    }}
-                  >
-                    {setupCfg.options?.map((opt) => (
-                      <FormControlLabel
-                        key={opt.value}
-                        value={opt.value}
-                        control={<Radio />}
-                        label={
-                          <OptionLabel
-                            label={opt.label}
-                            descriptionHtml={opt.descriptionHtml}
-                          />
-                        }
-                      />
-                    ))}
-                  </RadioGroup>
-                </FormControl>
-                {!!selectedSetupOption?.chartField && (
+                      nextSetup[resourceId] = setupDefaultValue;
+                      nextDetails[resourceId] =
+                        defaultOption?.label ?? setupDefaultValue;
+                    } else {
+                      delete nextSetup[resourceId];
+                      delete nextDetails[resourceId];
+                    }
+                    delete nextChart[resourceId];
+                    setValue("roomSetupByRoom", nextSetup, {
+                      shouldValidate: true,
+                    });
+                    setValue("setupDetailsByRoom", nextDetails);
+                    setValue("chartFieldForRoomSetupByRoom", nextChart, {
+                      shouldValidate: true,
+                    });
+                    syncSetupLegacyScalars(
+                      setValue,
+                      setupRooms,
+                      nextSetup,
+                      nextDetails,
+                      nextChart,
+                      watch("setupDetails") as string | undefined,
+                      watch("chartFieldForRoomSetup") as string | undefined,
+                    );
+                    trigger("roomSetupByRoom");
+                    trigger("chartFieldForRoomSetupByRoom");
+                  }}
+                />
+                {setupOn && (
                   <>
-                    <Label htmlFor={`chart-setup-${resourceId}`}>
-                      {selectedSetupOption.chartField?.label ||
-                        "ChartField for Room Setup"}
-                      {selectedSetupOption.chartField?.required !== false
-                        ? " *"
-                        : ""}
+                    <FormControl component="fieldset" fullWidth>
+                      <RadioGroup
+                        value={selectedSetupValue}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          const next = {
+                            ...setupMap,
+                            [resourceId]: value,
+                          };
+                          setValue("roomSetupByRoom", next, {
+                            shouldValidate: true,
+                          });
+                          const opt = setupCfg.options?.find(
+                            (o) => o.value === value,
+                          );
+                          const details =
+                            (watch("setupDetailsByRoom") as
+                              | Record<string, string>
+                              | undefined) ?? {};
+                          const nextDetails = {
+                            ...details,
+                            [resourceId]: opt?.label ?? value,
+                          };
+                          setValue("setupDetailsByRoom", nextDetails);
+                          const chartMap =
+                            (watch("chartFieldForRoomSetupByRoom") as
+                              | Record<string, string>
+                              | undefined) ?? {};
+                          syncSetupLegacyScalars(
+                            setValue,
+                            setupRooms,
+                            next,
+                            nextDetails,
+                            chartMap,
+                            watch("setupDetails") as string | undefined,
+                            watch("chartFieldForRoomSetup") as string | undefined,
+                          );
+                          trigger("roomSetupByRoom");
+                          trigger("chartFieldForRoomSetupByRoom");
+                        }}
+                      >
+                        {setupCfg.options?.map((opt) => (
+                          <FormControlLabel
+                            key={opt.value}
+                            value={opt.value}
+                            control={<Radio />}
+                            label={
+                              <OptionLabel
+                                label={opt.label}
+                                descriptionHtml={opt.descriptionHtml}
+                              />
+                            }
+                          />
+                        ))}
+                      </RadioGroup>
+                    </FormControl>
+                    {!!selectedSetupOption?.chartField && (
+                      <>
+                        <Label htmlFor={`chart-setup-${resourceId}`}>
+                          {selectedSetupOption.chartField?.label ||
+                            "ChartField for Room Setup"}
+                          {selectedSetupOption.chartField?.required !== false
+                            ? " *"
+                            : ""}
+                        </Label>
+                        {selectedSetupOption.chartField?.descriptionHtml ? (
+                          <HtmlBlock
+                            html={
+                              selectedSetupOption.chartField.descriptionHtml
+                            }
+                          />
+                        ) : null}
+                        <input
+                          id={`chart-setup-${resourceId}`}
+                          style={{
+                            width: "100%",
+                            padding: "8px",
+                            marginBottom: 16,
+                            border: "1px solid #ccc",
+                            borderRadius: 4,
+                          }}
+                          value={
+                            ((watch("chartFieldForRoomSetupByRoom") as
+                              | Record<string, string>
+                              | undefined) ?? {})[resourceId] ?? ""
+                          }
+                          onChange={(e) => {
+                            const chartMap =
+                              (watch("chartFieldForRoomSetupByRoom") as
+                                | Record<string, string>
+                                | undefined) ?? {};
+                            const nextChart = {
+                              ...chartMap,
+                              [resourceId]: e.target.value,
+                            };
+                            setValue("chartFieldForRoomSetupByRoom", nextChart, {
+                              shouldValidate: true,
+                            });
+                            const details =
+                              (watch("setupDetailsByRoom") as
+                                | Record<string, string>
+                                | undefined) ?? {};
+                            syncSetupLegacyScalars(
+                              setValue,
+                              setupRooms,
+                              setupMap,
+                              details,
+                              nextChart,
+                              watch("setupDetails") as string | undefined,
+                              watch("chartFieldForRoomSetup") as string | undefined,
+                            );
+                          }}
+                          onBlur={() => trigger("chartFieldForRoomSetupByRoom")}
+                          aria-required
+                          aria-invalid={!!setupChartError}
+                        />
+                        {setupChartError && (
+                          <FormHelperText error>{setupChartError}</FormHelperText>
+                        )}
+                      </>
+                    )}
+                  </>
+                )}
+              </Subsection>
+            )}
+
+            {showEquipment && equipmentCfg && (
+              <Subsection>
+                {equipmentHasSwitch ? (
+                  <SharedYesNoSwitch
+                    label={formatFieldLabel(equipmentCfg.label ?? "Equipment")}
+                    description={
+                      <HtmlBlock html={equipmentCfg.descriptionHtml} />
+                    }
+                    value={equipmentOn ? "yes" : "no"}
+                    locked={equipmentLocked}
+                    onChange={(next) => {
+                      setEquipmentOnByRoom((prev) => ({
+                        ...prev,
+                        [resourceId]: next === "yes",
+                      }));
+                      if (next === "no") {
+                        trigger("equipmentServicesDetailsByRoom");
+                      }
+                      if (next === "no" && detailsByRoom[resourceId]) {
+                        const { [resourceId]: _removed, ...rest } =
+                          detailsByRoom;
+                        setValue("equipmentServicesDetailsByRoom", rest, {
+                          shouldValidate: false,
+                        });
+                        setValue(
+                          "equipmentServicesDetails",
+                          Object.values(rest)
+                            .map((v) => (typeof v === "string" ? v.trim() : ""))
+                            .filter(Boolean)
+                            .join("\n"),
+                          { shouldValidate: false },
+                        );
+                      }
+                    }}
+                  />
+                ) : (
+                  <>
+                    <Label>
+                      {formatFieldLabel(equipmentCfg.label ?? "Equipment")}
                     </Label>
+                    <HtmlBlock html={equipmentCfg.descriptionHtml} />
+                  </>
+                )}
+                {equipmentOn &&
+                  (equipmentCfg.showDetailsField || equipmentHasSwitch) && (
+                  <>
+                    <Label htmlFor={`equip-details-${resourceId}`}>
+                      {equipmentCfg.detailsLabel ?? "Equipment request details"}
+                      {equipmentHasSwitch ? " *" : ""}
+                    </Label>
+                    {equipmentCfg.detailsDescriptionHtml ? (
+                      <HtmlBlock html={equipmentCfg.detailsDescriptionHtml} />
+                    ) : null}
                     <input
-                      id={`chart-setup-${resourceId}`}
+                      id={`equip-details-${resourceId}`}
                       style={{
                         width: "100%",
                         padding: "8px",
@@ -656,43 +1147,34 @@ export default function BookingFormResourceServices({
                         border: "1px solid #ccc",
                         borderRadius: 4,
                       }}
-                      value={
-                        ((watch("chartFieldForRoomSetupByRoom") as
-                          | Record<string, string>
-                          | undefined) ?? {})[resourceId] ?? ""
-                      }
+                      value={detailsByRoom[resourceId] ?? ""}
+                      aria-required={equipmentHasSwitch}
+                      aria-invalid={!!equipmentDetailsErrorForRoom}
                       onChange={(e) => {
-                        const chartMap =
-                          (watch("chartFieldForRoomSetupByRoom") as
-                            | Record<string, string>
-                            | undefined) ?? {};
-                        const nextChart = {
-                          ...chartMap,
+                        const next = {
+                          ...detailsByRoom,
                           [resourceId]: e.target.value,
                         };
-                        setValue("chartFieldForRoomSetupByRoom", nextChart, {
-                          shouldValidate: true,
+                        setValue("equipmentServicesDetailsByRoom", next, {
+                          shouldValidate: equipmentHasSwitch,
                         });
-                        const details =
-                          (watch("setupDetailsByRoom") as
-                            | Record<string, string>
-                            | undefined) ?? {};
-                        syncSetupLegacyScalars(
-                          setValue,
-                          setupRooms,
-                          setupMap,
-                          details,
-                          nextChart,
-                          watch("setupDetails") as string | undefined,
-                          watch("chartFieldForRoomSetup") as string | undefined,
-                        );
+                        const joined = Object.values(next)
+                          .map((v) => (typeof v === "string" ? v.trim() : ""))
+                          .filter(Boolean)
+                          .join("\n");
+                        setValue("equipmentServicesDetails", joined, {
+                          shouldValidate: false,
+                        });
                       }}
-                      onBlur={() => trigger("chartFieldForRoomSetupByRoom")}
-                      aria-required
-                      aria-invalid={!!setupChartError}
+                      onBlur={() =>
+                        equipmentHasSwitch &&
+                        trigger("equipmentServicesDetailsByRoom")
+                      }
                     />
-                    {setupChartError && (
-                      <FormHelperText error>{setupChartError}</FormHelperText>
+                    {equipmentDetailsErrorForRoom && (
+                      <FormHelperText error>
+                        {equipmentDetailsErrorForRoom}
+                      </FormHelperText>
                     )}
                   </>
                 )}
@@ -710,17 +1192,70 @@ export default function BookingFormResourceServices({
                       <HtmlBlock html={furnishingsCfg.descriptionHtml} />
                     ) : undefined
                   }
-                  value={furnMap[resourceId] === "yes" ? "yes" : "no"}
+                  value={furnValue}
+                  locked={furnLocked}
                   onChange={(next) => {
                     setValue("furnishingsByRoom", {
                       ...furnMap,
                       [resourceId]: next,
                     });
                     trigger("chartFieldForFurnishingsByRoom");
+                    trigger("furnishingsDetailsByRoom");
                   }}
                 />
-                {furnMap[resourceId] === "yes" && (
+                {furnValue === "yes" && (
                   <>
+                  {furnishingsCfg.showDetailsField && (
+                    <>
+                      <Label htmlFor={`furn-details-${resourceId}`}>
+                        {furnishingsCfg.detailsLabel ??
+                          "Furniture request details"}
+                        {" *"}
+                      </Label>
+                      {furnishingsCfg.detailsDescriptionHtml ? (
+                        <HtmlBlock
+                          html={furnishingsCfg.detailsDescriptionHtml}
+                        />
+                      ) : null}
+                      <input
+                        id={`furn-details-${resourceId}`}
+                        style={{
+                          width: "100%",
+                          padding: "8px",
+                          marginBottom: 16,
+                          border: "1px solid #ccc",
+                          borderRadius: 4,
+                        }}
+                        value={furnDetailsByRoom[resourceId] ?? ""}
+                        aria-required
+                        aria-invalid={!!furnishingsDetailsErrorForRoom}
+                        onBlur={() => trigger("furnishingsDetailsByRoom")}
+                        onChange={(e) => {
+                          const next = {
+                            ...furnDetailsByRoom,
+                            [resourceId]: e.target.value,
+                          };
+                          setValue("furnishingsDetailsByRoom", next, {
+                            shouldValidate: true,
+                          });
+                          const joined = Object.values(next)
+                            .map((v) =>
+                              typeof v === "string" ? v.trim() : "",
+                            )
+                            .filter(Boolean)
+                            .join("\n");
+                          setValue("furnishingsDetails", joined, {
+                            shouldValidate: false,
+                          });
+                        }}
+                      />
+                      {furnishingsDetailsErrorForRoom && (
+                        <FormHelperText error>
+                          {furnishingsDetailsErrorForRoom}
+                        </FormHelperText>
+                      )}
+                    </>
+                  )}
                     {furnishingsCfg.chartField && (
                       <>
                         <Label htmlFor={`chart-furn-${resourceId}`}>
@@ -730,6 +1265,11 @@ export default function BookingFormResourceServices({
                             ? " *"
                             : ""}
                         </Label>
+                        {furnishingsCfg.chartField?.descriptionHtml ? (
+                          <HtmlBlock
+                            html={furnishingsCfg.chartField.descriptionHtml}
+                          />
+                        ) : null}
                         <input
                           id={`chart-furn-${resourceId}`}
                           style={{
@@ -763,94 +1303,6 @@ export default function BookingFormResourceServices({
                         )}
                       </>
                     )}
-                    {furnishingsCfg.showDetailsField && (
-                      <>
-                        <Label htmlFor={`furn-details-${resourceId}`}>
-                          {furnishingsCfg.detailsLabel ??
-                            "Furniture request details"}
-                        </Label>
-                        {furnishingsCfg.detailsDescriptionHtml ? (
-                          <HtmlBlock
-                            html={furnishingsCfg.detailsDescriptionHtml}
-                          />
-                        ) : null}
-                        <input
-                          id={`furn-details-${resourceId}`}
-                          style={{
-                            width: "100%",
-                            padding: "8px",
-                            marginBottom: 16,
-                            border: "1px solid #ccc",
-                            borderRadius: 4,
-                          }}
-                          value={furnDetailsByRoom[resourceId] ?? ""}
-                          onChange={(e) => {
-                            const next = {
-                              ...furnDetailsByRoom,
-                              [resourceId]: e.target.value,
-                            };
-                            setValue("furnishingsDetailsByRoom", next, {
-                              shouldValidate: false,
-                            });
-                            const joined = Object.values(next)
-                              .map((v) =>
-                                typeof v === "string" ? v.trim() : "",
-                              )
-                              .filter(Boolean)
-                              .join("\n");
-                            setValue("furnishingsDetails", joined, {
-                              shouldValidate: false,
-                            });
-                          }}
-                        />
-                      </>
-                    )}
-                  </>
-                )}
-              </Subsection>
-            )}
-
-            {showEquipment && equipmentCfg && (
-              <Subsection>
-                <Label>
-                  {formatFieldLabel(equipmentCfg.label ?? "Equipment")}
-                </Label>
-                <HtmlBlock html={equipmentCfg.descriptionHtml} />
-                {equipmentCfg.showDetailsField && (
-                  <>
-                    <Label htmlFor={`equip-details-${resourceId}`}>
-                      {equipmentCfg.detailsLabel ?? "Equipment request details"}
-                    </Label>
-                    {equipmentCfg.detailsDescriptionHtml ? (
-                      <HtmlBlock html={equipmentCfg.detailsDescriptionHtml} />
-                    ) : null}
-                    <input
-                      id={`equip-details-${resourceId}`}
-                      style={{
-                        width: "100%",
-                        padding: "8px",
-                        marginBottom: 16,
-                        border: "1px solid #ccc",
-                        borderRadius: 4,
-                      }}
-                      value={detailsByRoom[resourceId] ?? ""}
-                      onChange={(e) => {
-                        const next = {
-                          ...detailsByRoom,
-                          [resourceId]: e.target.value,
-                        };
-                        setValue("equipmentServicesDetailsByRoom", next, {
-                          shouldValidate: false,
-                        });
-                        const joined = Object.values(next)
-                          .map((v) => (typeof v === "string" ? v.trim() : ""))
-                          .filter(Boolean)
-                          .join("\n");
-                        setValue("equipmentServicesDetails", joined, {
-                          shouldValidate: false,
-                        });
-                      }}
-                    />
                   </>
                 )}
               </Subsection>
@@ -866,6 +1318,7 @@ export default function BookingFormResourceServices({
                   setShowStaffingServices={setShowStaffingServices}
                   formContext={formContext}
                   rooms={[room]}
+                  toggle={staffingToggle}
                   setValue={setValue}
                 />
               </Subsection>
@@ -938,6 +1391,7 @@ export default function BookingFormResourceServices({
                     )
                   }
                   value={cateringValue}
+                  locked={cateringToggle !== "optional"}
                   onChange={(next) => {
                     setValue("catering", next, { shouldValidate: true });
                     trigger("catering");
@@ -947,7 +1401,17 @@ export default function BookingFormResourceServices({
                   resourceId === firstCateringRoomId && (
                     <BookingFormTextField
                       id="chartFieldForCatering"
-                      label="ChartField for Catering Services"
+                      label={
+                        cateringCfg.chartField?.label ||
+                        "ChartField for Catering Services"
+                      }
+                      description={
+                        cateringCfg.chartField?.descriptionHtml ? (
+                          <HtmlBlock
+                            html={cateringCfg.chartField.descriptionHtml}
+                          />
+                        ) : undefined
+                      }
                       required={cateringCfg.chartField?.required !== false}
                       pattern={{
                         value: CHARTFIELD_REGEX,
@@ -972,6 +1436,7 @@ export default function BookingFormResourceServices({
                   disabled={
                     cateringValue === "yes" && cateringRequiresCleaning
                   }
+                  locked={cleaningToggle !== "optional"}
                   onChange={(next) => {
                     setValue("cleaningService", next, {
                       shouldValidate: true,
@@ -983,7 +1448,17 @@ export default function BookingFormResourceServices({
                   resourceId === firstCleaningRoomId && (
                     <BookingFormTextField
                       id="chartFieldForCleaning"
-                      label="ChartField for CBS Cleaning Services"
+                      label={
+                        cleaningCfg.chartField?.label ||
+                        "ChartField for CBS Cleaning Services"
+                      }
+                      description={
+                        cleaningCfg.chartField?.descriptionHtml ? (
+                          <HtmlBlock
+                            html={cleaningCfg.chartField.descriptionHtml}
+                          />
+                        ) : undefined
+                      }
                       required={cleaningCfg.chartField?.required === true}
                       pattern={{
                         value: CHARTFIELD_REGEX,
@@ -1100,6 +1575,7 @@ export default function BookingFormResourceServices({
                         }
                         value={hireRequested ? "yes" : "no"}
                         disabled={isLargeEvent}
+                        locked={securityToggle !== "optional"}
                         onChange={(next) => {
                           if (next === "yes") {
                             setValue("hireSecurity", securityOpt.value, {
@@ -1180,6 +1656,7 @@ export default function BookingFormResourceServices({
                   }
                   value={hireSecurityValue}
                   disabled={isLargeEvent}
+                  locked={securityToggle !== "optional"}
                   onChange={(next) => {
                     setValue("hireSecurity", next, { shouldValidate: true });
                     trigger("hireSecurity");
@@ -1189,7 +1666,16 @@ export default function BookingFormResourceServices({
                   resourceId === firstSecuritySwitchRoomId && (
                     <BookingFormTextField
                       id="chartFieldForSecurity"
-                      label="ChartField for Security"
+                      label={
+                        securityCfg.chartField?.label || "ChartField for Security"
+                      }
+                      description={
+                        securityCfg.chartField?.descriptionHtml ? (
+                          <HtmlBlock
+                            html={securityCfg.chartField.descriptionHtml}
+                          />
+                        ) : undefined
+                      }
                       required={securityCfg.chartField?.required === true}
                       pattern={{
                         value: CHARTFIELD_REGEX,

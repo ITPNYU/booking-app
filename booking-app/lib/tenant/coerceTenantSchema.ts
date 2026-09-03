@@ -14,13 +14,24 @@ function isMcTenantSlug(tenantSlug: string): boolean {
   );
 }
 
+export type CoerceTenantSchemaOptions = {
+  /**
+   * Replace MC rooms' `services` with the code config in
+   * `mcResourceServices.ts` (the source of truth for real tenant data).
+   * The e2e test schema opts out so its explicit fixtures stay as written.
+   */
+  applyMcServiceConfig?: boolean;
+};
+
 function applyTenantResourceServices(
   resource: Resource,
   tenantSlug: string,
+  applyMcServiceConfig: boolean,
 ): Resource {
-  const withMc = isMcTenantSlug(tenantSlug)
-    ? applyMcResourceServices(resource)
-    : resource;
+  const withMc =
+    applyMcServiceConfig && isMcTenantSlug(tenantSlug)
+      ? applyMcResourceServices(resource)
+      : resource;
   return normalizeResourceServices(withMc);
 }
 
@@ -92,6 +103,7 @@ function coerceResources(
 export function coerceTenantSchema(
   raw: Record<string, unknown> | null | undefined,
   tenantSlug: string,
+  options: CoerceTenantSchemaOptions = {},
 ): SchemaContextType {
   const base = generateDefaultSchema(tenantSlug);
   if (!raw || typeof raw !== "object") {
@@ -144,7 +156,13 @@ export function coerceTenantSchema(
           raw.resources as Array<Resource | Record<string, unknown>>,
         )
       : base.resources
-    ).map((resource) => applyTenantResourceServices(resource, tenantSlug)),
+    ).map((resource) =>
+      applyTenantResourceServices(
+        resource,
+        tenantSlug,
+        options.applyMcServiceConfig !== false,
+      ),
+    ),
     attestations: Array.isArray(raw.attestations)
       ? (raw.attestations as SchemaContextType["attestations"])
       : base.attestations,
