@@ -75,6 +75,65 @@ export default function useExistingBooking() {
       return existing;
     };
 
+    /**
+     * Catering / cleaning / security used to be booking-level. When a booking
+     * has no per-room map yet, spread the legacy answer (and its chartfield)
+     * onto every selected room that offers the service, which is what the
+     * booking-level value meant.
+     */
+    const isRequested = (value: unknown) =>
+      typeof value === "string" &&
+      value.trim() !== "" &&
+      value.trim().toLowerCase() !== "no";
+    const fanLegacyService = (
+      key: "catering" | "cleaning" | "security",
+      existing: Record<string, string> | undefined,
+      existingChart: Record<string, string> | undefined,
+      legacyValue: string | undefined,
+      legacyChart: string | undefined,
+    ) => {
+      if (existing && Object.keys(existing).length > 0) {
+        return { map: existing, chart: existingChart };
+      }
+      if (!isRequested(legacyValue)) return { map: existing, chart: existingChart };
+      const targetIds = rooms
+        .filter((room) => !!getServiceSectionConfig(room, key))
+        .map((room) => String(room.roomId));
+      if (!targetIds.length) return { map: existing, chart: existingChart };
+      const map: Record<string, string> = {};
+      const chart: Record<string, string> = {};
+      const value = key === "security" ? legacyValue!.trim() : "yes";
+      for (const id of targetIds) {
+        map[id] = value;
+        if (legacyChart?.trim()) chart[id] = legacyChart.trim();
+      }
+      return {
+        map,
+        chart: Object.keys(chart).length > 0 ? chart : existingChart,
+      };
+    };
+    const cateringFan = fanLegacyService(
+      "catering",
+      booking.cateringByRoom,
+      booking.chartFieldForCateringByRoom,
+      booking.catering,
+      booking.chartFieldForCatering,
+    );
+    const cleaningFan = fanLegacyService(
+      "cleaning",
+      booking.cleaningByRoom,
+      booking.chartFieldForCleaningByRoom,
+      booking.cleaningService,
+      booking.chartFieldForCleaning,
+    );
+    const securityFan = fanLegacyService(
+      "security",
+      booking.hireSecurityByRoom,
+      booking.chartFieldForSecurityByRoom,
+      booking.hireSecurity,
+      booking.chartFieldForSecurity,
+    );
+
     const legacySetupRequested =
       booking.roomSetup === "yes" ||
       (!!booking.setupDetails && booking.setupDetails.trim().length > 0);
@@ -191,6 +250,12 @@ export default function useExistingBooking() {
         booking.equipmentServicesDetails,
         roomIdsForMaps.length === 1 ? roomIdsForMaps : [],
       ),
+      cateringByRoom: cateringFan.map,
+      chartFieldForCateringByRoom: cateringFan.chart,
+      cleaningByRoom: cleaningFan.map,
+      chartFieldForCleaningByRoom: cleaningFan.chart,
+      hireSecurityByRoom: securityFan.map,
+      chartFieldForSecurityByRoom: securityFan.chart,
       annexByRoom: booking.annexByRoom ?? {},
       webcheckoutCartNumber: booking.webcheckoutCartNumber,
       equipment: booking.equipment,

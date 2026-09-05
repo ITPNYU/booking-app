@@ -3,6 +3,7 @@ import { getMediaCommonsServices } from "@/components/src/utils/tenantUtils";
 import {
   anyRoomHasVisibleService,
   formatAnnexByRoomForDisplay,
+  formatServiceByRoom,
   getAnnexOptions,
   getRoomsWithVisibleService,
   mergeRoomIdsWithAnnex,
@@ -617,5 +618,22 @@ describe("annex parent-child resources", () => {
         resources,
       ),
     ).toEqual(["cal-1204@group.calendar.google.com"]);
+  });
+});
+
+describe("formatServiceByRoom", () => {
+  it("lists requesting rooms with their chartfields and skips no / empty", () => {
+    expect(
+      formatServiceByRoom(
+        { "103": "yes", "220": "no", "233": "", "1201": "Willoughby" },
+        { "103": "12345-AB-CDE00-00001", "220": "ignored" },
+      ),
+    ).toEqual(["103: yes (chartfield: 12345-AB-CDE00-00001)", "1201: Willoughby"]);
+  });
+
+  it("returns nothing for missing or malformed maps", () => {
+    expect(formatServiceByRoom(undefined, undefined)).toEqual([]);
+    expect(formatServiceByRoom("yes", {})).toEqual([]);
+    expect(formatServiceByRoom(["yes"], {})).toEqual([]);
   });
 });

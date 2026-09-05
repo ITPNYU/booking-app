@@ -383,6 +383,35 @@ export function mergeRoomIdsWithAnnex(
  * Format selected auxiliary spaces for calendar descriptions / detail UI.
  * Example: `1201: 1200L-6 Seminar Foyer, 1204 Seminar Lounge; 103: Garage Green Room`
  */
+/**
+ * Rows for a per-room service map: "roomId: value" plus its chartfield when
+ * present, for each room that requested the service. Empty for no map.
+ */
+export function formatServiceByRoom(
+  map: unknown,
+  chartMap: unknown,
+): string[] {
+  if (!map || typeof map !== "object" || Array.isArray(map)) return [];
+  const charts =
+    chartMap && typeof chartMap === "object" && !Array.isArray(chartMap)
+      ? (chartMap as Record<string, unknown>)
+      : {};
+  const rows: string[] = [];
+  for (const [roomId, raw] of Object.entries(map as Record<string, unknown>)) {
+    if (typeof raw !== "string") continue;
+    const value = raw.trim();
+    if (!value || value.toLowerCase() === "no") continue;
+    const chart = charts[roomId];
+    const label = value.toLowerCase() === "yes" ? "yes" : value;
+    rows.push(
+      typeof chart === "string" && chart.trim()
+        ? `${roomId}: ${label} (chartfield: ${chart.trim()})`
+        : `${roomId}: ${label}`,
+    );
+  }
+  return rows;
+}
+
 export function formatAnnexByRoomForDisplay(
   annexByRoom: Record<string, string[]> | undefined,
   rooms: ServiceResourceLike[],
