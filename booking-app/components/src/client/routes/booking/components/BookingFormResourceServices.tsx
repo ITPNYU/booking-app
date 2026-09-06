@@ -555,8 +555,8 @@ export default function BookingFormResourceServices({
         if (nextCleaning[id] !== "yes") {
           nextCleaning[id] = "yes";
           cleaningChanged = true;
+          cleaningAutoSetByRoom.current[id] = true;
         }
-        cleaningAutoSetByRoom.current[id] = true;
       } else if (cleaningAutoSetByRoom.current[id]) {
         cleaningAutoSetByRoom.current[id] = false;
         if (nextCleaning[id] === "yes") {
