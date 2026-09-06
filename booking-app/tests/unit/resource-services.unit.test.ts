@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { getMediaCommonsServices } from "@/components/src/utils/tenantUtils";
+import {
+  getMediaCommonsServices,
+  isServiceRequested,
+} from "@/components/src/utils/tenantUtils";
 import {
   anyRoomHasVisibleService,
   formatAnnexByRoomForDisplay,
@@ -31,6 +34,15 @@ describe("getMediaCommonsServices", () => {
     expect(
       getMediaCommonsServices({ hireSecurity: "main_entrance" }).security,
     ).toBe(true);
+  });
+
+  it("requests security for a joined multi-room value", () => {
+    // Multi-room bookings join distinct per-room values with "; ".
+    expect(
+      getMediaCommonsServices({ hireSecurity: "yes; willoughby" }).security,
+    ).toBe(true);
+    expect(isServiceRequested("yes; willoughby")).toBe(true);
+    expect(isServiceRequested("willoughby; main_entrance")).toBe(true);
   });
 
   it("does not request security when hireSecurity is empty or no", () => {

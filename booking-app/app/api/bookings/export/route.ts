@@ -1,4 +1,5 @@
 import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
+import { isServiceRequested } from "@/components/src/utils/tenantUtils";
 import { NextRequest, NextResponse } from "next/server";
 
 import { TableNames } from "@/components/src/policy";
@@ -184,7 +185,7 @@ const buildRow = (booking: Booking): string => {
     booking.staffingServicesDetails || "",
     booking.catering === "yes" ? "Yes" : "No",
     booking.cleaningService === "yes" ? "Yes" : "No",
-    booking.hireSecurity === "yes" ? "Yes" : "No",
+    isServiceRequested(booking.hireSecurity) ? "Yes" : "No",
   ];
 
   return values.map(escapeCsv).join(",");
