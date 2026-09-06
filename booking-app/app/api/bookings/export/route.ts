@@ -54,8 +54,14 @@ const HEADERS = [
   "Staffing Services (Y/N)",
   "Staffing Service Details",
   "Catering (Y/N)",
+  "Catering Rooms",
+  "Catering Chart Field",
   "Cleaning Services (Y/N)",
+  "Cleaning Rooms",
+  "Cleaning Chart Field",
   "Hire Security (Y/N)",
+  "Hire Security Rooms",
+  "Hire Security Chart Field",
 ] as const;
 
 const escapeCsv = (value: unknown): string => {
@@ -114,6 +120,41 @@ const calculateTimeInUse = (startDate: unknown, endDate: unknown): number => {
     100
   );
 };
+
+type ByRoomMap = Record<string, unknown> | undefined;
+
+/**
+ * Rooms that requested a per-room service, joined with "; ". A plain "yes"
+ * lists just the room id; a choice value (e.g. a security post) is shown as
+ * "roomId: value".
+ */
+const requestedRooms = (byRoom: ByRoomMap): string =>
+  byRoom
+    ? Object.entries(byRoom)
+        .filter(([, v]) => isServiceRequested(v))
+        .map(([roomId, v]) => {
+          const value = String(v).trim();
+          return value.toLowerCase() === "yes" ? roomId : `${roomId}: ${value}`;
+        })
+        .join("; ")
+    : "";
+
+/** Chartfields for rooms that requested a per-room service, as "roomId: chart". */
+const requestedRoomChartFields = (
+  byRoom: ByRoomMap,
+  chartByRoom: ByRoomMap,
+): string =>
+  chartByRoom
+    ? Object.entries(chartByRoom)
+        .filter(
+          ([roomId, chart]) =>
+            isServiceRequested(byRoom?.[roomId]) &&
+            typeof chart === "string" &&
+            chart.trim(),
+        )
+        .map(([roomId, chart]) => `${roomId}: ${String(chart).trim()}`)
+        .join("; ")
+    : "";
 
 const countRooms = (roomId: string | number): number => {
   const roomIdStr = String(roomId);
@@ -184,8 +225,23 @@ const buildRow = (booking: Booking): string => {
       : "No",
     booking.staffingServicesDetails || "",
     booking.catering === "yes" ? "Yes" : "No",
+    requestedRooms(booking.cateringByRoom),
+    requestedRoomChartFields(
+      booking.cateringByRoom,
+      booking.chartFieldForCateringByRoom,
+    ),
     booking.cleaningService === "yes" ? "Yes" : "No",
+    requestedRooms(booking.cleaningByRoom),
+    requestedRoomChartFields(
+      booking.cleaningByRoom,
+      booking.chartFieldForCleaningByRoom,
+    ),
     isServiceRequested(booking.hireSecurity) ? "Yes" : "No",
+    requestedRooms(booking.hireSecurityByRoom),
+    requestedRoomChartFields(
+      booking.hireSecurityByRoom,
+      booking.chartFieldForSecurityByRoom,
+    ),
   ];
 
   return values.map(escapeCsv).join(",");
