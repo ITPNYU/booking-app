@@ -86,8 +86,12 @@ export const getTenantFlags = (tenant?: string) => ({
   usesXState: shouldUseXState(tenant),
 });
 
-/** True when a service field is a non-empty value other than case-insensitive "no". */
-const isServiceRequested = (value: unknown): boolean => {
+/**
+ * True when a service field is a non-empty value other than case-insensitive "no".
+ * Use this instead of `=== "yes"` for legacy service scalars: multi-room bookings
+ * join distinct per-room values (e.g. hireSecurity "yes; willoughby").
+ */
+export const isServiceRequested = (value: unknown): boolean => {
   if (value == null) return false;
   const normalized = String(value).trim().toLowerCase();
   return normalized !== "" && normalized !== "no";

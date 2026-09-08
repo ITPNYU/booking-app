@@ -48,8 +48,6 @@ import {
   isChoiceMode,
   isSchemaDrivenEquipmentSection,
   needsGenericSetupSwitch,
-  resolveSecurityToggle,
-  resolveSharedServiceToggle,
   ServiceVisibilityContext,
 } from "../../../../utils/resourceServicesUtils";
 import BookingFormEquipmentServices from "./BookingFormEquipmentServices";
@@ -276,6 +274,12 @@ export default function FormInput({
       furnishingsDetails: "",
       furnishingsDetailsByRoom: {},
       equipmentServicesDetailsByRoom: {},
+      cateringByRoom: {},
+      chartFieldForCateringByRoom: {},
+      cleaningByRoom: {},
+      chartFieldForCleaningByRoom: {},
+      hireSecurityByRoom: {},
+      chartFieldForSecurityByRoom: {},
       hireSecurity: "",
       attendeeAffiliation: "",
       roomSetup: "",
@@ -360,29 +364,14 @@ export default function FormInput({
     [selectedRooms],
   );
 
-  // Schema toggle locks win over the dynamic catering/attendance rules below;
-  // BookingFormResourceServices writes the locked values.
-  const cleaningLocked = useMemo(
-    () =>
-      resolveSharedServiceToggle(
-        selectedRooms,
-        "cleaning",
-        serviceVisibility,
-      ) !== "optional",
-    [selectedRooms, serviceVisibility],
-  );
-  // Mirrors BookingFormResourceServices: an "off" lock yields to the
-  // large-event security requirement, so the dynamic rule below still runs.
-  const securityLocked = useMemo(() => {
-    const resolved = resolveSecurityToggle(selectedRooms, serviceVisibility);
-    if (resolved === "off" && isLargeEvent) return false;
-    return resolved !== "optional";
-  }, [selectedRooms, serviceVisibility, isLargeEvent]);
-
+  // The rules below only drive the legacy booking-level switches. Rooms with
+  // a schema services config get per-room catering / cleaning / security in
+  // BookingFormResourceServices, which applies these rules room by room and
+  // mirrors the results into the flat fields.
   const cleaningWasAutoSet = useRef(false);
 
   useEffect(() => {
-    if (cleaningLocked) return;
+    if (schemaDrivenServices) return;
     if (cateringValue === "yes" && cateringRequiresCleaning) {
       if (cleaningValue !== "yes") {
         setValue("cleaningService", "yes", { shouldValidate: true });
@@ -397,7 +386,7 @@ export default function FormInput({
     cleaningValue,
     setValue,
     cateringRequiresCleaning,
-    cleaningLocked,
+    schemaDrivenServices,
   ]);
 
   // Drop stale catering chartfield errors when the field is hidden.
@@ -430,8 +419,8 @@ export default function FormInput({
   }, [hireSecurityValue]);
 
   useEffect(() => {
-    // Schema-locked security is owned by BookingFormResourceServices.
-    if (securityLocked) return;
+    // Per-room security is owned by BookingFormResourceServices.
+    if (schemaDrivenServices) return;
     // Do not auto-manage hireSecurity if the user has manually overridden it
     // BUT: if attendance crosses back above threshold (in auto-enabling direction),
     // reset the manual flag and auto-enable again
@@ -471,7 +460,7 @@ export default function FormInput({
     setValue,
     needsGenericSecuritySwitch,
     needsCheckboxSecurity,
-    securityLocked,
+    schemaDrivenServices,
   ]);
 
   const validateExpectedAttendance = useCallback(
@@ -691,11 +680,9 @@ export default function FormInput({
         isWalkIn={isWalkIn}
         isVIP={isVIP}
         formatFieldLabel={formatFieldLabel}
-        hireSecurityValue={hireSecurityValue}
         showStaffingServices={showStaffingServices}
         setShowStaffingServices={setShowStaffingServices}
         formContext={formContext}
-        cateringRequiresCleaning={cateringRequiresCleaning}
         isLargeEvent={isLargeEvent}
       />
       {!isWalkIn && showSetup && needsGenericSetup && (

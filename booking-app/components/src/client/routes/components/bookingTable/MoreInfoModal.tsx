@@ -40,6 +40,7 @@ import StackedTableCell from "./StackedTableCell";
 import { getStaffingServiceLabel } from "@/lib/tenant/mcResourceServices";
 import {
   formatAnnexByRoomForDisplay,
+  formatServiceByRoom,
   mergeRoomIdsWithAnnex,
 } from "@/components/src/utils/resourceServicesUtils";
 
@@ -178,6 +179,20 @@ export default function MoreInfoModal({
         ),
     ) ||
     hasAnnexSelections(booking.annexByRoom);
+
+  // Multi-room bookings show catering / cleaning / security per room.
+  const cateringRows = formatServiceByRoom(
+    booking.cateringByRoom,
+    booking.chartFieldForCateringByRoom,
+  );
+  const cleaningRows = formatServiceByRoom(
+    booking.cleaningByRoom,
+    booking.chartFieldForCleaningByRoom,
+  );
+  const securityRows = formatServiceByRoom(
+    booking.hireSecurityByRoom,
+    booking.chartFieldForSecurityByRoom,
+  );
 
   const [isEditingCart, setIsEditingCart] = useState(false);
   const [cartNumber, setCartNumber] = useState(
@@ -810,44 +825,65 @@ export default function MoreInfoModal({
                       booking.cateringService) && (
                       <TableRow>
                         <LabelCell>Catering Service</LabelCell>
-                        <StackedTableCell
-                          topText={
-                            booking.cateringService &&
-                            booking.cateringService !== "yes"
-                              ? booking.cateringService
-                              : booking.catering === "yes"
-                                ? "Yes"
-                                : ""
-                          }
-                          bottomText={booking.chartFieldForCatering || ""}
-                        />
+                        {cateringRows.length > 1 ? (
+                          <StackedTableCell
+                            topText={cateringRows.join("; ")}
+                            bottomText=""
+                          />
+                        ) : (
+                          <StackedTableCell
+                            topText={
+                              booking.cateringService &&
+                              booking.cateringService !== "yes"
+                                ? booking.cateringService
+                                : booking.catering === "yes"
+                                  ? "Yes"
+                                  : ""
+                            }
+                            bottomText={booking.chartFieldForCatering || ""}
+                          />
+                        )}
                       </TableRow>
                     )}
                     {booking.cleaningService === "yes" && (
                       <TableRow>
                         <LabelCell>Cleaning Service</LabelCell>
-                        <StackedTableCell
-                          topText="Yes"
-                          bottomText={booking.chartFieldForCleaning || ""}
-                        />
+                        {cleaningRows.length > 1 ? (
+                          <StackedTableCell
+                            topText={cleaningRows.join("; ")}
+                            bottomText=""
+                          />
+                        ) : (
+                          <StackedTableCell
+                            topText="Yes"
+                            bottomText={booking.chartFieldForCleaning || ""}
+                          />
+                        )}
                       </TableRow>
                     )}
                     <TableRow>
                       <LabelCell>Security</LabelCell>
-                      <StackedTableCell
-                        topText={
-                          booking.hireSecurity === "yes"
-                            ? "Yes"
-                            : booking.hireSecurity === "willoughby" ||
-                                booking.hireSecurity ===
-                                  "Willoughby Street Entrance"
-                              ? "Willoughby entrance"
-                              : booking.hireSecurity === "main_entrance"
-                                ? "Main entrance"
-                                : booking.hireSecurity || "none"
-                        }
-                        bottomText={booking.chartFieldForSecurity || "none"}
-                      />
+                      {securityRows.length > 1 ? (
+                        <StackedTableCell
+                          topText={securityRows.join("; ")}
+                          bottomText=""
+                        />
+                      ) : (
+                        <StackedTableCell
+                          topText={
+                            booking.hireSecurity === "yes"
+                              ? "Yes"
+                              : booking.hireSecurity === "willoughby" ||
+                                  booking.hireSecurity ===
+                                    "Willoughby Street Entrance"
+                                ? "Willoughby entrance"
+                                : booking.hireSecurity === "main_entrance"
+                                  ? "Main entrance"
+                                  : booking.hireSecurity || "none"
+                          }
+                          bottomText={booking.chartFieldForSecurity || "none"}
+                        />
+                      )}
                     </TableRow>
                   </TableBody>
                 </Table>
