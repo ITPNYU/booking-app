@@ -4,6 +4,7 @@ import {
   isMediaCommonsTenant,
 } from "@/components/src/constants/tenants";
 import { Inputs, Role, RoomSetting } from "@/components/src/types";
+import { isServiceRequested } from "@/components/src/utils/tenantUtils";
 import { checkAutoApprovalEligibility } from "@/lib/utils/autoApprovalUtils";
 
 const ONE_HOUR_IN_MS = 60 * 60 * 1000;
@@ -134,7 +135,7 @@ export function evaluateItpShouldAutoApprove(
         staffing: false,
         catering: context.formData.catering === "yes",
         cleaning: false,
-        security: context.formData.hireSecurity === "yes",
+        security: isServiceRequested(context.formData.hireSecurity),
       }
     : undefined;
 

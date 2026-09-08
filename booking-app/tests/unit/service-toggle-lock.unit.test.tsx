@@ -218,11 +218,9 @@ function ServicesHarness({
         isWalkIn={false}
         isVIP={false}
         formatFieldLabel={(l) => l}
-        hireSecurityValue={watch("hireSecurity") ?? ""}
         showStaffingServices={showStaffingServices}
         setShowStaffingServices={setShowStaffingServices}
         formContext={FormContextLevel.FULL_FORM}
-        cateringRequiresCleaning={false}
         isLargeEvent={isLargeEvent}
       />
       <button type="submit">Submit</button>
@@ -804,5 +802,205 @@ describe("BookingFormStaffingServices toggle lock", () => {
     const toggle = screen.getAllByRole("checkbox")[0];
     expect(toggle).not.toBeChecked();
     expect(toggle).not.toBeDisabled();
+  });
+});
+
+const CHART = "12345-AB-CDE00-00001";
+
+function cateringRoom(
+  resourceId: string,
+  name: string,
+  extra: Record<string, unknown> = {},
+) {
+  return {
+    resourceId,
+    name,
+    services: {
+      catering: {
+        label: "Catering",
+        chartField: { label: "ChartField for Catering", required: true },
+        ...extra,
+      },
+    },
+  };
+}
+
+describe("BookingFormResourceServices per-room catering / cleaning / security", () => {
+  it("toggles catering for one room without touching the other rooms", async () => {
+    let getValues: () => Partial<Inputs> = () => ({});
+    render(
+      <ServicesHarness
+        rooms={[cateringRoom("103", "Garage"), cateringRoom("220", "Black Box")]}
+        onValues={(get) => {
+          getValues = get;
+        }}
+      />,
+    );
+    const [garage, blackBox] = screen.getAllByRole("checkbox");
+    fireEvent.click(garage);
+    await waitFor(() => {
+      expect(getValues().cateringByRoom).toEqual({ "103": "yes" });
+      expect(getValues().catering).toBe("yes");
+    });
+    expect(garage).toBeChecked();
+    expect(blackBox).not.toBeChecked();
+    // Only the room that requested catering asks for a chartfield.
+    expect(screen.getAllByLabelText(/ChartField for Catering/)).toHaveLength(1);
+
+    fireEvent.change(screen.getByLabelText(/ChartField for Catering/), {
+      target: { value: CHART },
+    });
+    fireEvent.click(blackBox);
+    await waitFor(() => {
+      expect(getValues().cateringByRoom).toEqual({ "103": "yes", "220": "yes" });
+      // Legacy scalars aggregate the per-room answers.
+      expect(getValues().chartFieldForCatering).toBe(`103 Garage: ${CHART}`);
+    });
+    expect(screen.getAllByLabelText(/ChartField for Catering/)).toHaveLength(2);
+
+    fireEvent.click(garage);
+    await waitFor(() => {
+      expect(getValues().cateringByRoom).toEqual({ "103": "no", "220": "yes" });
+      expect(getValues().catering).toBe("yes");
+      expect(getValues().chartFieldForCateringByRoom).toEqual({});
+    });
+    fireEvent.click(blackBox);
+    await waitFor(() => expect(getValues().catering).toBe("no"));
+  });
+
+  it("forces cleaning only in the room whose catering requires it", async () => {
+    let getValues: () => Partial<Inputs> = () => ({});
+    const withCleaning = (resourceId: string, name: string) => {
+      const room = cateringRoom(resourceId, name, { forceCleaning: true });
+      return {
+        ...room,
+        services: {
+          ...room.services,
+          cleaning: { label: "Cleaning", chartField: { required: false } },
+        },
+      };
+    };
+    render(
+      <ServicesHarness
+        rooms={[withCleaning("103", "Garage"), withCleaning("220", "Black Box")]}
+        onValues={(get) => {
+          getValues = get;
+        }}
+      />,
+    );
+    const [garageCatering, garageCleaning, , blackBoxCleaning] =
+      screen.getAllByRole("checkbox");
+    fireEvent.click(garageCatering);
+    await waitFor(() => {
+      expect(getValues().cleaningByRoom).toEqual({ "103": "yes" });
+      expect(getValues().cleaningService).toBe("yes");
+    });
+    expect(garageCleaning).toBeChecked();
+    expect(garageCleaning).toBeDisabled();
+    expect(blackBoxCleaning).not.toBeChecked();
+    expect(blackBoxCleaning).not.toBeDisabled();
+
+    fireEvent.click(garageCatering);
+    await waitFor(() => {
+      expect(getValues().cleaningByRoom).toEqual({ "103": "no" });
+      expect(getValues().cleaningService).toBe("no");
+    });
+    expect(garageCleaning).not.toBeDisabled();
+  });
+
+  it("applies a security lock to its own room only", async () => {
+    let getValues: () => Partial<Inputs> = () => ({});
+    const securityRoom = (resourceId: string, toggle?: string) => ({
+      resourceId,
+      services: {
+        security: {
+          label: "Campus Safety",
+          ...(toggle ? { toggle } : {}),
+          chartField: { required: true },
+        },
+      },
+    });
+    render(
+      <ServicesHarness
+        rooms={[securityRoom("103", "on"), securityRoom("220")]}
+        onValues={(get) => {
+          getValues = get;
+        }}
+      />,
+    );
+    const [garage, blackBox] = screen.getAllByRole("checkbox");
+    await waitFor(() => {
+      expect(getValues().hireSecurityByRoom).toEqual({ "103": "yes" });
+      expect(getValues().hireSecurity).toBe("yes");
+    });
+    expect(garage).toBeChecked();
+    expect(garage).toBeDisabled();
+    expect(blackBox).not.toBeChecked();
+    expect(blackBox).not.toBeDisabled();
+  });
+
+  it("requires security for every switch room of a large event", async () => {
+    let getValues: () => Partial<Inputs> = () => ({});
+    const securityRoom = (resourceId: string) => ({
+      resourceId,
+      services: {
+        security: { label: "Campus Safety", chartField: { required: false } },
+      },
+    });
+    render(
+      <ServicesHarness
+        isLargeEvent
+        rooms={[securityRoom("103"), securityRoom("220")]}
+        onValues={(get) => {
+          getValues = get;
+        }}
+      />,
+    );
+    await waitFor(() => {
+      expect(getValues().hireSecurityByRoom).toEqual({
+        "103": "yes",
+        "220": "yes",
+      });
+      expect(getValues().hireSecurity).toBe("yes");
+    });
+    screen.getAllByRole("checkbox").forEach((box) => {
+      expect(box).toBeChecked();
+      expect(box).toBeDisabled();
+    });
+  });
+
+  it("blocks submit until each room requesting catering has a chartfield", async () => {
+    const onValid = vi.fn();
+    render(
+      <ServicesHarness
+        rooms={[cateringRoom("103", "Garage"), cateringRoom("220", "Black Box")]}
+        onValid={onValid}
+      />,
+    );
+    const [garage, blackBox] = screen.getAllByRole("checkbox");
+    fireEvent.click(garage);
+    fireEvent.click(blackBox);
+    const inputs = await screen.findAllByLabelText(/ChartField for Catering/);
+    fireEvent.change(inputs[0], { target: { value: CHART } });
+
+    fireEvent.click(screen.getByText("Submit"));
+    await waitFor(() => {
+      expect(screen.getAllByText(/Invalid ChartField format/).length).toBeGreaterThan(0);
+    });
+    expect(onValid).not.toHaveBeenCalled();
+    // The error only shows under the room that is missing its chartfield.
+    expect(inputs[0]).toHaveAttribute("aria-invalid", "false");
+    expect(inputs[1]).toHaveAttribute("aria-invalid", "true");
+
+    fireEvent.change(inputs[1], { target: { value: CHART } });
+    fireEvent.click(screen.getByText("Submit"));
+    await waitFor(() => expect(onValid).toHaveBeenCalled());
+    expect(onValid.mock.calls[0][0].chartFieldForCateringByRoom).toEqual({
+      "103": CHART,
+      "220": CHART,
+    });
+    expect(onValid.mock.calls[0][0].chartFieldForCatering).toBe(
+      `103 Garage: ${CHART}; 220 Black Box: ${CHART}`,
+    );
   });
 });

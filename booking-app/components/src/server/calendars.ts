@@ -9,7 +9,10 @@ import {
   StaffingServices,
 } from "../types";
 import { formatOrigin, getSecondaryContactName } from "../utils/formatters";
-import { formatAnnexByRoomForDisplay } from "../utils/resourceServicesUtils";
+import {
+  formatAnnexByRoomForDisplay,
+  formatServiceByRoom,
+} from "../utils/resourceServicesUtils";
 
 import { serverGetRoomCalendarIds } from "./admin";
 
@@ -286,11 +289,32 @@ export const bookingContentsToDescription = async (
     description += listItem("Cart Number", cartNumber);
   }
 
+  // Multi-room bookings list catering / cleaning / security per room; a
+  // single room (or a legacy booking without maps) uses the flat fields.
+  const cateringRows = formatServiceByRoom(
+    bookingContents.cateringByRoom,
+    bookingContents.chartFieldForCateringByRoom,
+  );
+  const cleaningRows = formatServiceByRoom(
+    bookingContents.cleaningByRoom,
+    bookingContents.chartFieldForCleaningByRoom,
+  );
+  const securityRows = formatServiceByRoom(
+    bookingContents.hireSecurityByRoom,
+    bookingContents.chartFieldForSecurityByRoom,
+  );
+
   // Only show catering service if it's not "no" or "No"
   const cateringValue =
     getProperty(bookingContents, "cateringService") ||
     getProperty(bookingContents, "catering");
-  if (cateringValue && cateringValue !== "no" && cateringValue !== "No") {
+  if (cateringRows.length > 1) {
+    description += listItem("Catering Service", cateringRows.join("; "));
+  } else if (
+    cateringValue &&
+    cateringValue !== "no" &&
+    cateringValue !== "No"
+  ) {
     const cateringLabel =
       cateringValue === "yes" ? "Yes" : cateringValue;
     description += listItem("Catering Service", cateringLabel);
@@ -305,7 +329,13 @@ export const bookingContentsToDescription = async (
 
   // Only show cleaning service if it's not "no" or "No"
   const cleaningService = getProperty(bookingContents, "cleaningService");
-  if (cleaningService && cleaningService !== "no" && cleaningService !== "No") {
+  if (cleaningRows.length > 1) {
+    description += listItem("Cleaning Service", cleaningRows.join("; "));
+  } else if (
+    cleaningService &&
+    cleaningService !== "no" &&
+    cleaningService !== "No"
+  ) {
     description += listItem("Cleaning Service", "Yes");
     const cleaningChartField = getProperty(
       bookingContents,
@@ -321,7 +351,13 @@ export const bookingContentsToDescription = async (
 
   // Only show security service if it's not "no" or "No"
   const securityService = getProperty(bookingContents, "hireSecurity");
-  if (securityService && securityService !== "no" && securityService !== "No") {
+  if (securityRows.length > 1) {
+    description += listItem("Security", securityRows.join("; "));
+  } else if (
+    securityService &&
+    securityService !== "no" &&
+    securityService !== "No"
+  ) {
     description += listItem("Security", securityService);
     const securityChartField = getProperty(
       bookingContents,

@@ -199,6 +199,13 @@ export type Inputs = {
   furnishingsDetails?: string;
   furnishingsDetailsByRoom?: Record<string, string>;
   equipmentServicesDetailsByRoom?: Record<string, string>;
+  /** Per-room catering / cleaning / security. Legacy scalars above are kept in sync as aggregates. */
+  cateringByRoom?: Record<string, string>;
+  chartFieldForCateringByRoom?: Record<string, string>;
+  cleaningByRoom?: Record<string, string>;
+  chartFieldForCleaningByRoom?: Record<string, string>;
+  hireSecurityByRoom?: Record<string, string>;
+  chartFieldForSecurityByRoom?: Record<string, string>;
   /** Selected auxiliary spaces keyed by parent room id → option values. */
   annexByRoom?: Record<string, string[]>;
   webcheckoutCartNumber?: string;
