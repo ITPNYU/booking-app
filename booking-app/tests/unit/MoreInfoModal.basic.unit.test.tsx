@@ -136,6 +136,8 @@ describe("MoreInfoModal - Basic Rendering", () => {
 
     it("shows schema-driven equipment details without the legacy equipmentServices list", () => {
       const booking = createMockBooking({
+        roomSetup: "",
+        setupDetails: "",
         equipmentServices: "",
         equipmentServicesDetails: "2x SM58 microphones",
         equipmentServicesDetailsByRoom: { "230": "2x SM58 microphones" },
@@ -144,8 +146,48 @@ describe("MoreInfoModal - Basic Rendering", () => {
 
       renderModal(booking, context);
 
-      expect(screen.getByText("Equipment Service")).toBeInTheDocument();
-      expect(screen.getByText("230: 2x SM58 microphones")).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "230" })).toBeInTheDocument();
+      expect(screen.getByText("Equipment")).toBeInTheDocument();
+      expect(screen.getByText("2x SM58 microphones")).toBeInTheDocument();
+      expect(screen.queryByText("230: 2x SM58 microphones")).toBeNull();
+    });
+
+    it("groups catering and security under each booked room", () => {
+      const booking = createMockBooking({
+        roomId: "202, 103",
+        roomSetup: "",
+        setupDetails: "",
+        cateringByRoom: { "202": "yes" },
+        chartFieldForCateringByRoom: { "202": "cat-202" },
+        hireSecurityByRoom: { "103": "willoughby" },
+      } as any);
+      const context = createMockDatabaseContext(PagePermission.ADMIN);
+
+      renderModal(booking, context);
+
+      expect(screen.getByRole("heading", { name: "202" })).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "103" })).toBeInTheDocument();
+      expect(screen.getByText("Catering")).toBeInTheDocument();
+      expect(screen.getByText("cat-202")).toBeInTheDocument();
+      expect(screen.getByText("Willoughby entrance")).toBeInTheDocument();
+      expect(screen.queryByText("202: yes")).toBeNull();
+    });
+
+    it("shows staffing on each booked room", () => {
+      const booking = createMockBooking({
+        roomId: "202, 103",
+        roomSetup: "",
+        setupDetails: "",
+        staffingServices: "AUDIO_TECH_103",
+        cateringByRoom: { "202": "yes" },
+      } as any);
+      const context = createMockDatabaseContext(PagePermission.ADMIN);
+
+      renderModal(booking, context);
+
+      expect(screen.getAllByText("Staffing")).toHaveLength(2);
+      expect(screen.getByRole("heading", { name: "202" })).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "103" })).toBeInTheDocument();
     });
 
     it("renders modal with booking information", () => {
@@ -156,7 +198,7 @@ describe("MoreInfoModal - Basic Rendering", () => {
 
       expect(screen.getByText("Request Number:")).toBeInTheDocument();
       expect(screen.getAllByText("12345")).toHaveLength(2); // Header and history
-      expect(screen.getAllByText("202")).toHaveLength(2); // Header and history
+      expect(screen.getAllByText("202")).toHaveLength(3); // Header, Request, and Services room heading
       expect(screen.getAllByText("03/15/24")).toHaveLength(2); // Header and Request section
       expect(screen.getAllByText("PENDING")).toHaveLength(2); // Header and history
     });
@@ -222,7 +264,7 @@ describe("MoreInfoModal - Basic Rendering", () => {
 
       renderModal(booking, context);
 
-      expect(screen.getAllByText("none")).toHaveLength(8); // Secondary contact fields and other none values
+      expect(screen.getAllByText("none")).toHaveLength(2); // Secondary contact name and email
     });
 
     it("displays all booking details correctly", () => {

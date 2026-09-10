@@ -24,7 +24,6 @@ import {
   BookingRow,
   PageContextLevel,
   PagePermission,
-  StaffingServices,
 } from "../../../../types";
 import {
   canAccessWebCheckout,
@@ -37,67 +36,12 @@ import useSortBookingHistory from "../../hooks/useSortBookingHistory";
 import { DatabaseContext } from "../Provider";
 import { default as CustomTable } from "../Table";
 import StackedTableCell from "./StackedTableCell";
-import { getStaffingServiceLabel } from "@/lib/tenant/mcResourceServices";
+import { mergeRoomIdsWithAnnex } from "@/components/src/utils/resourceServicesUtils";
 import {
-  formatAnnexByRoomForDisplay,
-  formatServiceByRoom,
-  mergeRoomIdsWithAnnex,
-} from "@/components/src/utils/resourceServicesUtils";
-
-function formatStaffingServiceDisplay(value: string): string {
-  const trimmed = value.trim();
-  if (!trimmed) return trimmed;
-  if (trimmed in StaffingServices) {
-    return StaffingServices[trimmed as keyof typeof StaffingServices];
-  }
-  return getStaffingServiceLabel(trimmed);
-}
-
-/** Rooms without a setup service store nothing; hide the row instead of "none". */
-function hasRoomSetup(booking: {
-  roomSetup?: string;
-  setupDetails?: string;
-  chartFieldForRoomSetup?: string;
-}): boolean {
-  const setup = booking.roomSetup?.trim().toLowerCase() ?? "";
-  return (
-    !!booking.setupDetails?.trim() ||
-    (setup !== "" && setup !== "no") ||
-    !!booking.chartFieldForRoomSetup?.trim()
-  );
-}
-
-/** Equipment is requested via the legacy list or schema-driven details. */
-function hasEquipmentRequest(booking: {
-  equipmentServices?: string;
-  equipmentServicesDetails?: string;
-  equipmentServicesDetailsByRoom?: Record<string, string>;
-}): boolean {
-  return formatEquipmentDetails(booking).length > 0 ||
-    !!booking.equipmentServices?.trim();
-}
-
-/** Per-room details when available, otherwise the joined details string. */
-function formatEquipmentDetails(booking: {
-  equipmentServicesDetails?: string;
-  equipmentServicesDetailsByRoom?: Record<string, string>;
-}): string[] {
-  const byRoom = Object.entries(booking.equipmentServicesDetailsByRoom ?? {})
-    .filter(([, v]) => typeof v === "string" && v.trim())
-    .map(([roomId, v]) => `${roomId}: ${v.trim()}`);
-  if (byRoom.length > 0) return byRoom;
-  const joined = booking.equipmentServicesDetails?.trim();
-  return joined ? [joined] : [];
-}
-
-function hasAnnexSelections(
-  annexByRoom: Record<string, string[]> | undefined,
-): boolean {
-  if (!annexByRoom || typeof annexByRoom !== "object") return false;
-  return Object.values(annexByRoom).some(
-    (values) => Array.isArray(values) && values.length > 0,
-  );
-}
+  getBookingServicesByRoom,
+  hasBookingServicesDisplay,
+  type BookingServiceDisplayRow,
+} from "@/components/src/utils/bookingServicesDisplay";
 
 interface Props {
   booking: BookingRow;
@@ -134,10 +78,20 @@ const StatusTable = styled(CustomTable)({
 
 const SectionTitle = styled(Typography)({
   fontWeight: 700,
+  margin: 0,
 });
 SectionTitle.defaultProps = {
   variant: "subtitle1",
 };
+
+/** Title + table with the same gap used under Services. */
+const Section = styled(Box)(({ theme }) => ({
+  width: "100%",
+  marginBottom: theme.spacing(3),
+  display: "flex",
+  flexDirection: "column",
+  gap: theme.spacing(1.5),
+}));
 
 const LabelCell = styled(TableCell)(({ theme }) => ({
   borderRight: `1px solid ${theme.palette.custom.border}`,
@@ -155,6 +109,19 @@ const AlertHeader = styled(Alert)(({ theme }) => ({
 
 const BLANK = "none";
 
+function ServiceDisplayRow({ row }: { row: BookingServiceDisplayRow }) {
+  return (
+    <TableRow>
+      <LabelCell>{row.label}</LabelCell>
+      {row.chartField ? (
+        <StackedTableCell topText={row.value} bottomText={row.chartField} />
+      ) : (
+        <TableCell>{row.value}</TableCell>
+      )}
+    </TableRow>
+  );
+}
+
 export default function MoreInfoModal({
   booking,
   closeModal,
@@ -166,33 +133,11 @@ export default function MoreInfoModal({
   const historyRows = useSortBookingHistory(booking);
   const { pagePermission, userEmail } = useContext(DatabaseContext);
   const schema = useTenantSchema();
-  const hasServices =
-    schema.form.services.showSetup ||
-    schema.form.services.showEquipment ||
-    schema.form.services.showStaffing ||
-    schema.form.services.showCatering ||
-    schema.form.services.showSecurity ||
-    Boolean(
-      booking.furnishingsByRoom &&
-        Object.values(booking.furnishingsByRoom).some(
-          (v) => typeof v === "string" && v.toLowerCase() === "yes",
-        ),
-    ) ||
-    hasAnnexSelections(booking.annexByRoom);
-
-  // Multi-room bookings show catering / cleaning / security per room.
-  const cateringRows = formatServiceByRoom(
-    booking.cateringByRoom,
-    booking.chartFieldForCateringByRoom,
+  const servicesDisplay = getBookingServicesByRoom(
+    booking,
+    schema.resources,
   );
-  const cleaningRows = formatServiceByRoom(
-    booking.cleaningByRoom,
-    booking.chartFieldForCleaningByRoom,
-  );
-  const securityRows = formatServiceByRoom(
-    booking.hireSecurityByRoom,
-    booking.chartFieldForSecurityByRoom,
-  );
+  const hasServices = hasBookingServicesDisplay(servicesDisplay);
 
   const [isEditingCart, setIsEditingCart] = useState(false);
   const [cartNumber, setCartNumber] = useState(
@@ -293,9 +238,9 @@ export default function MoreInfoModal({
     }
 
     return (
-      <>
+      <Section>
         <SectionTitle>WebCheckout</SectionTitle>
-        <Table size="small" sx={{ marginBottom: 3 }}>
+        <Table size="small">
           <TableBody>
             <TableRow>
               <LabelCell>Cart Number</LabelCell>
@@ -518,7 +463,7 @@ export default function MoreInfoModal({
             </TableRow>
           </TableBody>
         </Table>
-      </>
+      </Section>
     );
   };
 
@@ -560,13 +505,14 @@ export default function MoreInfoModal({
           <Grid container columnSpacing={2} margin={0}>
             {renderWebCheckoutSection()}
 
-            <SectionTitle>History</SectionTitle>
-            <StatusTable columns={historyCols} sx={{ marginBottom: 3 }}>
-              {historyRows}
-            </StatusTable>
+            <Section>
+              <SectionTitle>History</SectionTitle>
+              <StatusTable columns={historyCols}>{historyRows}</StatusTable>
+            </Section>
 
-            <SectionTitle>Request</SectionTitle>
-            <Table size="small" sx={{ marginBottom: 3 }}>
+            <Section>
+              <SectionTitle>Request</SectionTitle>
+              <Table size="small">
               <TableBody>
                 <TableRow>
                   <LabelCell>Request #</LabelCell>
@@ -609,9 +555,11 @@ export default function MoreInfoModal({
                 )}
               </TableBody>
             </Table>
+            </Section>
 
-            <SectionTitle>Requester</SectionTitle>
-            <Table size="small" sx={{ marginBottom: 3 }}>
+            <Section>
+              <SectionTitle>Requester</SectionTitle>
+              <Table size="small">
               <TableBody>
                 <TableRow>
                   <LabelCell>NetID</LabelCell>
@@ -673,9 +621,11 @@ export default function MoreInfoModal({
                 )}
               </TableBody>
             </Table>
+            </Section>
 
-            <SectionTitle>Details</SectionTitle>
-            <Table size="small" sx={{ marginBottom: 3 }}>
+            <Section>
+              <SectionTitle>Details</SectionTitle>
+              <Table size="small">
               <TableBody>
                 <TableRow>
                   <LabelCell>Title</LabelCell>
@@ -701,193 +651,53 @@ export default function MoreInfoModal({
                 </TableRow>
               </TableBody>
             </Table>
+            </Section>
 
             {hasServices && (
-              <>
+              <Section>
                 <SectionTitle>Services</SectionTitle>
-                <Table size="small">
-                  <TableBody>
-                    {hasRoomSetup(booking) && (
-                      <TableRow>
-                        <LabelCell>Room Setup</LabelCell>
-                        <StackedTableCell
-                          topText={
-                            booking.setupDetails ||
-                            (booking.roomSetup === "no"
-                              ? "none"
-                              : booking.roomSetup || "none")
-                          }
-                          bottomText={booking.chartFieldForRoomSetup || "none"}
+                {servicesDisplay.bookingLevel.length > 0 && (
+                  <Table size="small">
+                    <TableBody>
+                      {servicesDisplay.bookingLevel.map((row) => (
+                        <ServiceDisplayRow
+                          key={`booking-${row.key}`}
+                          row={row}
                         />
-                      </TableRow>
-                    )}
-                    {booking.furnishingsByRoom &&
-                      Object.entries(booking.furnishingsByRoom).some(
-                        ([, v]) =>
-                          typeof v === "string" && v.toLowerCase() === "yes",
-                      ) && (
-                        <TableRow>
-                          <LabelCell>Additional Event Furniture</LabelCell>
-                          <StackedTableCell
-                            topText={
-                              [
-                                Object.entries(booking.furnishingsByRoom)
-                                  .filter(
-                                    ([, v]) =>
-                                      typeof v === "string" &&
-                                      v.toLowerCase() === "yes",
-                                  )
-                                  .map(([roomId]) => roomId)
-                                  .join(", "),
-                                booking.furnishingsDetails?.trim()
-                                  ? booking.furnishingsDetails.trim()
-                                  : null,
-                              ]
-                                .filter(Boolean)
-                                .join(" — ")
-                            }
-                            bottomText={
-                              Object.entries(
-                                booking.chartFieldForFurnishingsByRoom ?? {},
-                              )
-                                .filter(([roomId]) =>
-                                  booking.furnishingsByRoom?.[roomId] === "yes",
-                                )
-                                .map(
-                                  ([roomId, chart]) => `${roomId}: ${chart}`,
-                                )
-                                .join("; ") || "none"
-                            }
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+                {servicesDisplay.rooms.map((room) => (
+                  <Box
+                    key={room.roomId}
+                    sx={{
+                      width: "100%",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 0.75,
+                    }}
+                  >
+                    <Typography
+                      variant="subtitle2"
+                      component="h3"
+                      sx={{ fontWeight: 600, m: 0 }}
+                    >
+                      {room.title}
+                    </Typography>
+                    <Table size="small">
+                      <TableBody>
+                        {room.rows.map((row) => (
+                          <ServiceDisplayRow
+                            key={`${room.roomId}-${row.key}`}
+                            row={row}
                           />
-                        </TableRow>
-                      )}
-                    {hasAnnexSelections(booking.annexByRoom) && (
-                      <TableRow>
-                        <LabelCell>Auxiliary Spaces</LabelCell>
-                        <TableCell>
-                          {formatAnnexByRoomForDisplay(
-                            booking.annexByRoom,
-                            schema.resources,
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    )}
-                    {hasEquipmentRequest(booking) && (
-                      <TableRow>
-                        <LabelCell>Equipment Service</LabelCell>
-                        <TableCell>
-                          {(booking.equipmentServices ?? "")
-                            .split(", ")
-                            .map((service) => service.trim())
-                            .filter(Boolean)
-                            .map((service) => (
-                              <p key={service}>{service}</p>
-                            ))}
-                          {formatEquipmentDetails(booking).map((line) => (
-                            <p key={line}>{line}</p>
-                          ))}
-                        </TableCell>
-                      </TableRow>
-                    )}
-                    {booking.staffingServices &&
-                      booking.staffingServices.length > 0 && (
-                        <TableRow>
-                          <LabelCell>Staffing Service</LabelCell>
-                          <TableCell>
-                            {booking.staffingServices
-                              .split(",")
-                              .map((service) => service.trim())
-                              .filter(Boolean)
-                              .map((service) => (
-                                <p key={service}>
-                                  {formatStaffingServiceDisplay(service)}
-                                </p>
-                              ))}
-                            <p>{booking.staffingServicesDetails || ""}</p>
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    {booking.mediaServices &&
-                      booking.mediaServices.length > 0 && (
-                        <TableRow>
-                          <LabelCell>Media Service</LabelCell>
-                          <TableCell>
-                            {booking.mediaServices
-                              .split(", ")
-                              .map((service) => (
-                                <p key={service}>{service.trim()}</p>
-                              ))}
-                            <p>{booking.mediaServicesDetails || ""}</p>
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    {(booking.catering === "yes" ||
-                      booking.cateringService) && (
-                      <TableRow>
-                        <LabelCell>Catering Service</LabelCell>
-                        {cateringRows.length > 1 ? (
-                          <StackedTableCell
-                            topText={cateringRows.join("; ")}
-                            bottomText=""
-                          />
-                        ) : (
-                          <StackedTableCell
-                            topText={
-                              booking.cateringService &&
-                              booking.cateringService !== "yes"
-                                ? booking.cateringService
-                                : booking.catering === "yes"
-                                  ? "Yes"
-                                  : ""
-                            }
-                            bottomText={booking.chartFieldForCatering || ""}
-                          />
-                        )}
-                      </TableRow>
-                    )}
-                    {booking.cleaningService === "yes" && (
-                      <TableRow>
-                        <LabelCell>Cleaning Service</LabelCell>
-                        {cleaningRows.length > 1 ? (
-                          <StackedTableCell
-                            topText={cleaningRows.join("; ")}
-                            bottomText=""
-                          />
-                        ) : (
-                          <StackedTableCell
-                            topText="Yes"
-                            bottomText={booking.chartFieldForCleaning || ""}
-                          />
-                        )}
-                      </TableRow>
-                    )}
-                    <TableRow>
-                      <LabelCell>Security</LabelCell>
-                      {securityRows.length > 1 ? (
-                        <StackedTableCell
-                          topText={securityRows.join("; ")}
-                          bottomText=""
-                        />
-                      ) : (
-                        <StackedTableCell
-                          topText={
-                            booking.hireSecurity === "yes"
-                              ? "Yes"
-                              : booking.hireSecurity === "willoughby" ||
-                                  booking.hireSecurity ===
-                                    "Willoughby Street Entrance"
-                                ? "Willoughby entrance"
-                                : booking.hireSecurity === "main_entrance"
-                                  ? "Main entrance"
-                                  : booking.hireSecurity || "none"
-                          }
-                          bottomText={booking.chartFieldForSecurity || "none"}
-                        />
-                      )}
-                    </TableRow>
-                  </TableBody>
-                </Table>
-              </>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </Box>
+                ))}
+              </Section>
             )}
           </Grid>
         </ScrollableContent>
