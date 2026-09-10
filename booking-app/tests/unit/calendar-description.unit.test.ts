@@ -1,5 +1,6 @@
 import { bookingContentsToDescription } from "@/components/src/server/calendars";
 import { BookingFormDetails, BookingStatusLabel } from "@/components/src/types";
+import { serverGetTenantResources } from "@/lib/tenant/serverGetTenantResources";
 import { Timestamp } from "firebase-admin/firestore";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -130,7 +131,7 @@ describe("Calendar Description Functions", () => {
   });
 
   describe("bookingContentsToDescription", () => {
-    it("should include auxiliary spaces in services section", async () => {
+    it("should include auxiliary spaces under the parent room", async () => {
       const withAnnex = {
         ...mockBookingContents,
         annexByRoom: {
@@ -141,10 +142,12 @@ describe("Calendar Description Functions", () => {
 
       const result = await bookingContentsToDescription(withAnnex);
 
-      expect(result).toContain("Auxiliary Spaces");
+      expect(result).toContain("<h4>1201</h4>");
+      expect(result).toContain("<h4>103</h4>");
+      expect(result).toContain("<strong>Auxiliary Spaces:</strong>");
       expect(result).toContain("1200L-6 Seminar Foyer");
       expect(result).toContain("1204 Seminar Lounge");
-      expect(result).toContain("Garage Green Room");
+      expect(result).toContain("103GR Garage Green Room");
     });
 
     it("should generate HTML description with all main sections", async () => {
@@ -206,24 +209,22 @@ describe("Calendar Description Functions", () => {
       );
     });
 
-    it("should include services information correctly", async () => {
+    it("should include services grouped by room", async () => {
       const result = await bookingContentsToDescription(mockBookingContents);
 
+      expect(result).toContain("<strong>Room Setup:</strong> Tables in U-shape");
       expect(result).toContain(
-        "<strong>Room Setup:</strong> Tables in U-shape"
+        "<strong>Equipment:</strong> Camera — HD camera setup",
       );
-      expect(result).toContain("<strong>Equipment Service:</strong> Camera");
+      expect(result).toContain("<h4>101</h4>");
+      expect(result).toContain("<h4>102</h4>");
       expect(result).toContain(
-        "<strong>Equipment Service Details:</strong> HD camera setup"
-      );
-      expect(result).toContain(
-        "<strong>Staffing Service:</strong> Audio technician"
+        "<strong>Staffing:</strong> Audio technician — Audio support for event",
       );
       expect(result).toContain(
-        "<strong>Staffing Service Details:</strong> Audio support for event"
+        "<strong>Media Service:</strong> Audio/Visual equipment — Projector and speakers",
       );
-      // Services that are not requested should not appear in the description
-      expect(result).not.toContain("Cleaning Service");
+      expect(result).not.toContain("Cleaning");
       expect(result).not.toContain("Security");
     });
 
@@ -272,9 +273,9 @@ describe("Calendar Description Functions", () => {
 
       const result = await bookingContentsToDescription(bookingWithDetailsOnly);
 
-      expect(result).toContain("<strong>Equipment Service:</strong> yes");
+      expect(result).toContain("<h4>230</h4>");
       expect(result).toContain(
-        "<strong>Equipment Service Details:</strong> 2x SM58 microphones",
+        "<strong>Equipment:</strong> 2x SM58 microphones",
       );
     });
 
@@ -298,26 +299,27 @@ describe("Calendar Description Functions", () => {
       const bookingWithChartFields = {
         ...mockBookingContents,
         chartFieldForRoomSetup: "12345-SE-TUP01-00001",
+        cateringService: "yes",
         chartFieldForCatering: "12345-CA-TERI0-00001",
         chartFieldForCleaning: "12345-CL-EAN01-00001",
         chartFieldForSecurity: "12345-SE-CUR01-00001",
-        hireSecurity: "Yes", // Set to "Yes" so security service appears
-        cleaningService: "yes", // Set to "yes" so cleaning service appears
+        hireSecurity: "Yes",
+        cleaningService: "yes",
       };
 
       const result = await bookingContentsToDescription(bookingWithChartFields);
 
       expect(result).toContain(
-        "<strong>Room Setup Chart Field:</strong> 12345-SE-TUP01-00001"
+        "<strong>Room Setup:</strong> Tables in U-shape<br>12345-SE-TUP01-00001",
       );
       expect(result).toContain(
-        "<strong>Catering Chart Field:</strong> 12345-CA-TERI0-00001"
+        "<strong>Catering:</strong> Yes<br>12345-CA-TERI0-00001",
       );
       expect(result).toContain(
-        "<strong>Cleaning Service Chart Field:</strong> 12345-CL-EAN01-00001"
+        "<strong>Cleaning:</strong> Yes<br>12345-CL-EAN01-00001",
       );
       expect(result).toContain(
-        "<strong>Security Chart Field:</strong> 12345-SE-CUR01-00001"
+        "<strong>Security:</strong> Yes<br>12345-SE-CUR01-00001",
       );
     });
 
@@ -345,7 +347,56 @@ describe("Calendar Description Functions", () => {
 
       expect(result).toContain("<strong>Room Setup:</strong> U-shape setup");
       expect(result).toContain(
-        "<strong>Catering Service:</strong> Coffee and snacks"
+        "<strong>Catering:</strong> Coffee and snacks"
+      );
+    });
+
+    it("lists catering and security under each booked room", async () => {
+      vi.mocked(serverGetTenantResources).mockResolvedValueOnce([
+        {
+          resourceId: "202",
+          name: "Screening Room",
+          services: { catering: { label: "Catering?", toggle: "optional" } },
+        },
+        {
+          resourceId: "103",
+          name: "The Garage",
+          services: {
+            security: {
+              label: "Campus Safety",
+              mode: "radio",
+              options: [
+                {
+                  value: "willoughby",
+                  label: "Willoughby Street Entrance",
+                },
+              ],
+            },
+          },
+        },
+      ] as any);
+
+      const result = await bookingContentsToDescription({
+        ...mockBookingContents,
+        roomId: "202, 103",
+        roomSetup: "",
+        setupDetails: "",
+        mediaServices: "",
+        mediaServicesDetails: "",
+        equipmentServices: "",
+        equipmentServicesDetails: "",
+        staffingServices: "",
+        staffingServicesDetails: "",
+        cateringByRoom: { "202": "yes" },
+        chartFieldForCateringByRoom: { "202": "123-456" },
+        hireSecurityByRoom: { "103": "willoughby" },
+      });
+
+      expect(result).toContain("<h4>202 Screening Room</h4>");
+      expect(result).toContain("<h4>103 The Garage</h4>");
+      expect(result).toContain("<strong>Catering:</strong> Yes<br>123-456");
+      expect(result).toContain(
+        "<strong>Campus Safety:</strong> Willoughby Street Entrance",
       );
     });
 

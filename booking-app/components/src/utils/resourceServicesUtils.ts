@@ -412,6 +412,30 @@ export function formatServiceByRoom(
   return rows;
 }
 
+/** Labels for one parent room's selected auxiliary spaces, without a roomId prefix. */
+export function formatAnnexSelectionsForRoom(
+  annexByRoom: Record<string, string[]> | undefined,
+  roomId: string,
+  rooms: ServiceResourceLike[],
+): string {
+  if (!annexByRoom || typeof annexByRoom !== "object") return "";
+  const values = annexByRoom[roomId];
+  if (!Array.isArray(values) || values.length === 0) return "";
+
+  const room = rooms.find((r) => getServiceResourceId(r) === String(roomId));
+  const options = room ? getAnnexOptions(room, rooms) : [];
+  return values
+    .map((value) => {
+      const annexResource = rooms.find(
+        (r) => r.parentResourceId && getServiceResourceId(r) === String(value),
+      );
+      if (annexResource) return annexResourceLabel(annexResource);
+      const opt = options.find((o) => o.value === value);
+      return opt?.label ?? value;
+    })
+    .join(", ");
+}
+
 export function formatAnnexByRoomForDisplay(
   annexByRoom: Record<string, string[]> | undefined,
   rooms: ServiceResourceLike[],
@@ -419,21 +443,9 @@ export function formatAnnexByRoomForDisplay(
   if (!annexByRoom || typeof annexByRoom !== "object") return "";
 
   const parts: string[] = [];
-  for (const [roomId, values] of Object.entries(annexByRoom)) {
-    if (!Array.isArray(values) || values.length === 0) continue;
-    const room = rooms.find(
-      (r) => getServiceResourceId(r) === String(roomId),
-    );
-    const options = room ? getAnnexOptions(room, rooms) : [];
-    const labels = values.map((value) => {
-      const annexResource = rooms.find(
-        (r) => r.parentResourceId && getServiceResourceId(r) === String(value),
-      );
-      if (annexResource) return annexResourceLabel(annexResource);
-      const opt = options.find((o) => o.value === value);
-      return opt?.label ?? value;
-    });
-    parts.push(`${roomId}: ${labels.join(", ")}`);
+  for (const roomId of Object.keys(annexByRoom)) {
+    const labels = formatAnnexSelectionsForRoom(annexByRoom, roomId, rooms);
+    if (labels) parts.push(`${roomId}: ${labels}`);
   }
   return parts.join("; ");
 }

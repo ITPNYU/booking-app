@@ -13,14 +13,24 @@
       }
 
       .section {
-        margin-bottom: 30px;
+        margin-bottom: 20px;
         max-width: 800px;
       }
 
       .section-title {
         font-size: 16px;
         font-weight: bold;
-        margin-bottom: 10px;
+        margin: 0 0 10px;
+      }
+
+      .room-title {
+        font-size: 14px;
+        font-weight: 600;
+        margin: 16px 0 5px;
+      }
+
+      .section-title + .room-title {
+        margin-top: 0;
       }
 
       .info-table {
@@ -61,7 +71,6 @@
       .history-table {
         width: 100%;
         border-collapse: collapse;
-        margin-bottom: 20px;
       }
 
       .history-table th,
@@ -78,9 +87,9 @@
     </style>
   </head>
   <body>
+    <p>{{{ contents.headerMessage }}}</p>
+    {{#if bookingLogs.length}}
     <div class="section">
-      <p>{{{ contents.headerMessage }}}</p>
-      {{#if bookingLogs.length}}
       <div class="section-title">History</div>
       <table class="history-table">
         <thead>
@@ -102,8 +111,10 @@
           {{/each}}
         </tbody>
       </table>
-      {{/if}}
+    </div>
+    {{/if}}
 
+    <div class="section">
       <div class="section-title">Request</div>
       <table class="info-table">
         <tr>
@@ -139,7 +150,9 @@
         </tr>
         {{/if}}
       </table>
+    </div>
 
+    <div class="section">
       <div class="section-title">Requester</div>
       <table class="info-table">
         <tr>
@@ -216,7 +229,9 @@
         </tr>
         {{/unless}}
       </table>
+    </div>
 
+    <div class="section">
       <div class="section-title">Details</div>
       <table class="info-table">
         <tr>
@@ -252,71 +267,42 @@
           </td>
         </tr>
       </table>
-
-      {{#unless (eq contents.tenant "itp")}}
-      <div class="section-title">Services</div>
-      <table class="info-table">
-        <tr>
-          <td>Room Setup</td>
-          <td>
-            {{#if contents.setupDetails}}{{ contents.setupDetails
-            }}{{else}}{{#if contents.roomSetup}}{{#unless (eq contents.roomSetup
-            "no")}}{{ contents.roomSetup
-            }}{{else}}none{{/unless}}{{else}}none{{/if}}{{/if}} {{#if
-            contents.chartFieldForRoomSetup}}
-            <br />{{ contents.chartFieldForRoomSetup }} {{/if}}
-          </td>
-        </tr>
-        {{#if contents.equipmentServices}}
-        <tr>
-          <td>Equipment Service</td>
-          <td>
-            {{ contents.equipmentServices }} {{#if contents.equipmentServicesDetails}}
-            <br />{{ contents.equipmentServicesDetails }} {{/if}}
-          </td>
-        </tr>
-        {{/if}}
-        {{#if contents.staffingServices}}
-        <tr>
-          <td>Staffing Service</td>
-          <td>
-            {{ contents.staffingServices }} {{#if contents.staffingServicesDetails}}
-            <br />{{ contents.staffingServicesDetails }} {{/if}}
-          </td>
-        </tr>
-        {{/if}}
-        {{#if contents.cateringService}}{{#unless (eq contents.cateringService "no")}}
-        <tr>
-          <td>Catering Service</td>
-          <td>
-            {{ contents.cateringService }} {{#if contents.chartFieldForCatering}}
-            <br />{{ contents.chartFieldForCatering }} {{/if}}
-          </td>
-        </tr>
-        {{/unless}}{{/if}}
-        {{#if contents.cleaningService}}{{#unless (eq contents.cleaningService "no")}}
-        <tr>
-          <td>Cleaning Service</td>
-          <td>
-            Yes {{#if contents.chartFieldForCleaning}}
-            <br />{{ contents.chartFieldForCleaning }} {{/if}}
-          </td>
-        </tr>
-        {{/unless}}{{/if}}
-        <tr>
-          <td>Security</td>
-          <td>
-            <div class="value-content">
-              {{#if contents.hireSecurity}}{{#unless (eq contents.hireSecurity
-              "no")}}{{ contents.hireSecurity
-              }}{{else}}none{{/unless}}{{else}}none{{/if}} {{#if
-              contents.chartFieldForSecurity}}<br />{{contents.chartFieldForSecurity}}{{/if}}
-            </div>
-          </td>
-        </tr>
-      </table>
-      {{/unless}}
     </div>
+
+    {{#unless (eq contents.tenant "itp")}}
+    {{#if contents.services.show}}
+    <div class="section">
+      <div class="section-title">Services</div>
+      {{#if contents.services.bookingLevel.length}}
+      <table class="info-table">
+        {{#each contents.services.bookingLevel}}
+        <tr>
+          <td>{{this.label}}</td>
+          <td>
+            {{this.value}}{{#if this.chartField}}
+            <br />{{this.chartField}}{{/if}}
+          </td>
+        </tr>
+        {{/each}}
+      </table>
+      {{/if}}
+      {{#each contents.services.rooms}}
+      <div class="room-title">{{this.title}}</div>
+      <table class="info-table">
+        {{#each this.rows}}
+        <tr>
+          <td>{{this.label}}</td>
+          <td>
+            {{this.value}}{{#if this.chartField}}
+            <br />{{this.chartField}}{{/if}}
+          </td>
+        </tr>
+        {{/each}}
+      </table>
+      {{/each}}
+    </div>
+    {{/if}}
+    {{/unless}}
 
     {{#if approvalUrl}}
     <div class="footer">
