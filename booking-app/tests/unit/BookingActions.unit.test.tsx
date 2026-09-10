@@ -73,7 +73,8 @@ const mockBookingContext = {
 const defaultProps = {
   status: BookingStatusLabel.REQUESTED,
   calendarEventId: "test-event-123",
-  startDate: Timestamp.fromDate(new Date("2024-02-15T10:00:00Z")),
+  // Edit is disabled once a booking has started, so keep this fixture upcoming.
+  startDate: Timestamp.fromDate(new Date(Date.now() + 24 * 60 * 60 * 1000)),
   onSelect: vi.fn(),
   setOptimisticStatus: vi.fn(),
   pageContext: PageContextLevel.USER,
