@@ -301,6 +301,47 @@ describe("getBookingServicesByRoom", () => {
     ]);
   });
 
+  it("keeps tenant-schema rooms when a later fallback repeats the same id", () => {
+    const staleFallback: ServiceResourceLike = {
+      resourceId: "103",
+      services: {
+        setup: {
+          label: "Room Setup",
+          mode: "radio",
+          options: [
+            { value: "103_LAYOUT_1", label: "STALE HARDCODED LAYOUT" },
+          ],
+        },
+        security: { label: "Campus Safety" },
+      },
+    };
+    const display = getBookingServicesByRoom(
+      {
+        roomId: "103",
+        roomSetupByRoom: { "103": "103_LAYOUT_1" },
+        hireSecurityByRoom: { "103": "willoughby" },
+        annexByRoom: { "103": ["202GR"] },
+      },
+      [
+        garage,
+        {
+          resourceId: "202GR",
+          name: "Garage Green Room",
+          parentResourceId: "103",
+        },
+        staleFallback,
+      ],
+    );
+
+    expect(display.rooms[0].title).toBe("103 The Garage");
+    expect(display.rooms[0].rows.find((row) => row.key === "setup")?.value).toBe(
+      "Audience Layout 1 - 44 Seated*",
+    );
+    expect(
+      display.rooms[0].rows.find((row) => row.key === "security")?.value,
+    ).toBe("Willoughby Street Entrance");
+  });
+
   it("shows staffing and media on every booked room", () => {
     const staffingRoom: ServiceResourceLike = {
       resourceId: "202",

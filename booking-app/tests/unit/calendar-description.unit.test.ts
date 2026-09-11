@@ -150,6 +150,44 @@ describe("Calendar Description Functions", () => {
       expect(result).toContain("103GR Garage Green Room");
     });
 
+    it("prefers tenant-schema room config over hardcoded MC fallbacks for the same id", async () => {
+      vi.mocked(serverGetTenantResources).mockResolvedValueOnce([
+        {
+          resourceId: "103",
+          name: "The Garage",
+          services: {
+            setup: {
+              label: "Room Setup",
+              mode: "radio",
+              options: [
+                { value: "103_LAYOUT_1", label: "LIVE TENANT LAYOUT" },
+              ],
+            },
+          },
+        },
+        {
+          resourceId: "103GR",
+          name: "Garage Green Room",
+          parentResourceId: "103",
+          services: {},
+        },
+      ]);
+
+      const result = await bookingContentsToDescription({
+        ...mockBookingContents,
+        roomId: "103",
+        roomSetup: "",
+        setupDetails: "",
+        roomSetupByRoom: { "103": "103_LAYOUT_1" },
+        annexByRoom: { "103": ["103GR"] },
+      });
+
+      expect(result).toContain("<h4>103 The Garage</h4>");
+      expect(result).toContain("<strong>Room Setup:</strong> LIVE TENANT LAYOUT");
+      expect(result).not.toContain("Audience Layout 1 - 44 Seated*");
+      expect(result).toContain("103GR Garage Green Room");
+    });
+
     it("should generate HTML description with all main sections", async () => {
       const result = await bookingContentsToDescription(mockBookingContents);
 

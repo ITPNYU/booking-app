@@ -100,4 +100,32 @@ describe("booking_detail email services", () => {
     expect(html).not.toContain(">Services<");
     expect(html).not.toContain("371");
   });
+
+  it("shows auxiliary spaces only under the room in Services, not in Request", () => {
+    const html = template({
+      contents: {
+        ...baseContents,
+        auxiliarySpaces: "103: 202GR Garage Green Room",
+        services: {
+          show: true,
+          bookingLevel: [],
+          rooms: [
+            {
+              title: "103 The Garage",
+              rows: [
+                {
+                  label: "Auxiliary Spaces",
+                  value: "202GR Garage Green Room",
+                },
+              ],
+            },
+          ],
+        },
+      },
+      bookingLogs: [],
+    });
+
+    expect(html).toContain("202GR Garage Green Room");
+    expect(html).not.toContain("103: 202GR Garage Green Room");
+  });
 });

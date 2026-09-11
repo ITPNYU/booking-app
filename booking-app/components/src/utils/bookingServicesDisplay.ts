@@ -132,10 +132,12 @@ export function getBookingServicesByRoom(
     ...extraRoomIdsFromMaps(booking, bookedIds),
   ]);
 
+  // First resource for an id wins so live tenant-schema rooms are not
+  // overwritten by later hardcoded MC fallbacks for the same parent id.
   const resourceById = new Map<string, ServiceResourceLike>();
   for (const resource of resources) {
     const id = getServiceResourceId(resource);
-    if (id) resourceById.set(id, resource);
+    if (id && !resourceById.has(id)) resourceById.set(id, resource);
   }
 
   const rooms: ServiceResourceLike[] = roomIds.map(

@@ -12,10 +12,7 @@ import {
   hasBookingServicesDisplay,
   type BookingServicesSource,
 } from "@/components/src/utils/bookingServicesDisplay";
-import {
-  formatAnnexByRoomForDisplay,
-  mergeRoomIdsWithAnnex,
-} from "@/components/src/utils/resourceServicesUtils";
+import { mergeRoomIdsWithAnnex } from "@/components/src/utils/resourceServicesUtils";
 import { getBookingLogs } from "@/lib/firebase/server/adminDb";
 import { getMcResourceServices } from "@/lib/tenant/mcResourceServices";
 import { serverGetTenantResources } from "@/lib/tenant/serverGetTenantResources";
@@ -134,7 +131,6 @@ export const sendHTMLEmail = async (params: SendHTMLEmailParams) => {
     ? getApprovalUrl(contents.calendarEventId, approverType, tenant)
     : undefined;
 
-  // Resolve selected auxiliary spaces to display labels for the template
   const annexByRoom = (contents as any).annexByRoom;
   let tenantResources: Awaited<ReturnType<typeof serverGetTenantResources>> =
     [];
@@ -142,18 +138,6 @@ export const sendHTMLEmail = async (params: SendHTMLEmailParams) => {
     tenantResources = await serverGetTenantResources(tenant);
   } catch (error) {
     console.error("Error fetching tenant resources for email:", error);
-  }
-
-  let auxiliarySpaces = "";
-  if (annexByRoom && typeof annexByRoom === "object") {
-    try {
-      auxiliarySpaces = formatAnnexByRoomForDisplay(
-        annexByRoom,
-        tenantResources,
-      );
-    } catch (error) {
-      console.error("Error formatting auxiliary spaces for email:", error);
-    }
   }
 
   const fallbackRooms =
@@ -175,7 +159,6 @@ export const sendHTMLEmail = async (params: SendHTMLEmailParams) => {
     startDate: serverFormatDateOnly(contents.startDate),
     endDate: serverFormatDateOnly(contents.endDate),
     status,
-    auxiliarySpaces,
     services: {
       show: hasBookingServicesDisplay(servicesDisplay),
       bookingLevel: servicesDisplay.bookingLevel,
