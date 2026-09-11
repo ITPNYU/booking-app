@@ -7,7 +7,6 @@ import {
   TextField,
 } from "@mui/material";
 import {
-  Chair,
   TableBar,
   Headset,
   PeopleAlt,
@@ -141,7 +140,6 @@ export default function BookingTableFilters({
     Catering: LocalDining,
     Cleaning: CleaningServices,
     Security: LocalPolice,
-    Furnishings: Chair,
   };
 
   const dateFilters = (
@@ -343,7 +341,6 @@ export default function BookingTableFilters({
                 "Catering",
                 "Cleaning",
                 "Security",
-                "Furnishings",
               ].map((service) => (
                 <Box
                   onClick={() =>
