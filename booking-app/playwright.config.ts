@@ -25,12 +25,7 @@ export default defineConfig({
         "--disable-setuid-sandbox",
         "--disable-dev-shm-usage",
         "--disable-gpu",
-        ...(process.env.CI
-          ? [
-              "--disable-extensions",
-              "--no-first-run",
-            ]
-          : []),
+        ...(process.env.CI ? ["--disable-extensions", "--no-first-run"] : []),
       ],
       slowMo: 0,
     },
@@ -76,6 +71,7 @@ export default defineConfig({
         "**/ban-enforcement.e2e.test.ts",
         "**/form-validation.e2e.test.ts",
         "**/request-limits.e2e.test.ts",
+        "**/schema-driven-services-form.e2e.test.ts",
       ],
       use: {
         ...devices["Desktop Chrome"],
