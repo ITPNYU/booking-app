@@ -533,12 +533,14 @@ describe("useBookingActions Hook", () => {
         Actions.APPROVE_CLEANING_SERVICE,
         Actions.APPROVE_SECURITY_SERVICE,
         Actions.APPROVE_SETUP_SERVICE,
+        Actions.APPROVE_FURNISHINGS_SERVICE,
         Actions.DECLINE_STAFF_SERVICE,
         Actions.DECLINE_EQUIPMENT_SERVICE,
         Actions.DECLINE_CATERING_SERVICE,
         Actions.DECLINE_CLEANING_SERVICE,
         Actions.DECLINE_SECURITY_SERVICE,
         Actions.DECLINE_SETUP_SERVICE,
+        Actions.DECLINE_FURNISHINGS_SERVICE,
       ];
 
       serviceApprovalActions.forEach((action) => {
@@ -556,6 +558,7 @@ describe("useBookingActions Hook", () => {
         Actions.CLOSEOUT_CLEANING_SERVICE,
         Actions.CLOSEOUT_SECURITY_SERVICE,
         Actions.CLOSEOUT_SETUP_SERVICE,
+        Actions.CLOSEOUT_FURNISHINGS_SERVICE,
       ];
 
       serviceCloseoutActions.forEach((action) => {

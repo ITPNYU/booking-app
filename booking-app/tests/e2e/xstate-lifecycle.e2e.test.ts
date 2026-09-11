@@ -43,6 +43,7 @@ async function seedAdminUserData() {
     isEquipment: false,
     isStaffing: false,
     isSetup: false,
+    isFurnishings: false,
     isCatering: false,
     isCleaning: false,
     isSecurity: false,

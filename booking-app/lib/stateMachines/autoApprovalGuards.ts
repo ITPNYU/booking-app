@@ -23,6 +23,7 @@ export type McAutoApprovalContext = {
     cleaning?: boolean;
     security?: boolean;
     setup?: boolean;
+    furnishings?: boolean;
   };
   _restoredFromStatus?: boolean;
 };
@@ -99,6 +100,7 @@ export function evaluateMcShouldAutoApprove(
         catering: context.servicesRequested.catering || false,
         cleaning: context.servicesRequested.cleaning || false,
         security: context.servicesRequested.security || false,
+        furnishings: context.servicesRequested.furnishings || false,
       }
     : undefined;
 

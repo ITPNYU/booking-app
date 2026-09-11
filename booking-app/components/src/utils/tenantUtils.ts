@@ -133,9 +133,8 @@ export const getMediaCommonsServices = (
     isActiveSetupSelection(data.setupDetails, resources) ||
     (isServiceRequested(data.roomSetup) &&
       String(data.roomSetup).trim().toLowerCase() !== "yes");
-  // Additional event furniture requires CBS/work-order review. Fold into setup
-  // so auto-approval is blocked and existing setup approvers are notified —
-  // there is no separate furnishings XState service yet.
+  // Additional event furniture is its own service region in the MC machine
+  // ("Furnishings Request" / "Furnishings Closeout").
   const furnishingsRequested = Object.values(
     data.furnishingsByRoom ?? {},
   ).some((v: unknown) => isServiceRequested(v));
@@ -144,7 +143,8 @@ export const getMediaCommonsServices = (
     staff:
       isServiceRequested(data.staffingServices) ||
       isServiceRequested(data.staffingServicesDetails),
-    setup: setupFromByRoom || setupFromLegacy || furnishingsRequested,
+    setup: setupFromByRoom || setupFromLegacy,
+    furnishings: furnishingsRequested,
     equipment:
       isServiceRequested(data.mediaServices) ||
       isServiceRequested(data.equipmentServices) ||

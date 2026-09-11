@@ -41,7 +41,28 @@ const SERVICE_APPROVER_CONFIG = {
     subjectStatus: "SECURITY REQUESTED",
     displayName: "security",
   },
+  furnishings: {
+    flagField: "isFurnishings",
+    // Furnishings used to be folded into setup; until an isFurnishings
+    // approver exists in a tenant, keep routing these to setup approvers.
+    fallbackFlagField: "isSetup",
+    subjectStatus: "FURNISHINGS REQUESTED",
+    displayName: "furnishings",
+  },
 } as const;
+
+const recipientsWithFlag = (
+  usersRights: Array<Record<string, unknown>>,
+  flagField: string,
+): string[] =>
+  Array.from(
+    new Set(
+      usersRights
+        .filter((record) => record[flagField] === true)
+        .map((record) => record.email as string)
+        .filter(Boolean),
+    ),
+  );
 
 export const isServicesRequestState = (newState: any): boolean =>
   !!(
@@ -84,14 +105,10 @@ export const notifyServiceApproversForRequestedServices = async (
         return [];
       }
 
-      const recipients = Array.from(
-        new Set(
-          usersRights
-            .filter((record) => record[config.flagField] === true)
-            .map((record) => record.email)
-            .filter(Boolean),
-        ),
-      );
+      let recipients = recipientsWithFlag(usersRights, config.flagField);
+      if (recipients.length === 0 && "fallbackFlagField" in config) {
+        recipients = recipientsWithFlag(usersRights, config.fallbackFlagField);
+      }
 
       if (recipients.length === 0) {
         return [];
