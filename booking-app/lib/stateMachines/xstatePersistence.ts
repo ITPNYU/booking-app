@@ -10,6 +10,7 @@ import {
   serverGetDataByCalendarEventId,
 } from "@/lib/firebase/server/adminDb";
 import { createActor } from "xstate";
+import { serverGetTenantResources } from "@/lib/tenant/serverGetTenantResources";
 import { itpBookingMachine } from "./itpBookingMachine";
 import { mcBookingMachine } from "./mcBookingMachine";
 import type { PersistedXStateData } from "./xstateTypes";
@@ -114,7 +115,10 @@ export async function createXStateDataFromBookingStatus(
 
   // Build input context
   const servicesRequested = isMediaCommons(tenant)
-    ? getMediaCommonsServices(bookingData)
+    ? getMediaCommonsServices(
+        bookingData,
+        await serverGetTenantResources(tenant),
+      )
     : {};
 
   console.log(
@@ -474,7 +478,10 @@ export async function restoreXStateFromFirestore(
 
       // Update MC-specific services data
       if (isMediaCommons(tenant)) {
-        const currentServicesRequested = getMediaCommonsServices(bookingData);
+        const currentServicesRequested = getMediaCommonsServices(
+          bookingData,
+          await serverGetTenantResources(tenant),
+        );
         const currentServicesApproved =
           getServicesApprovedFromBookingData(bookingData);
 

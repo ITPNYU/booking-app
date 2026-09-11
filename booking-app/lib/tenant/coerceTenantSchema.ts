@@ -4,35 +4,10 @@ import type {
   SchemaContextType,
 } from "@/components/src/client/routes/components/schemaTypes";
 import { generateDefaultSchema } from "@/components/src/client/routes/components/schemaTypes";
-import { TENANTS } from "@/components/src/constants/tenants";
-import { applyMcResourceServices } from "./mcResourceServices";
 import { normalizeResourceServices } from "./migrateResourceServices";
 
-function isMcTenantSlug(tenantSlug: string): boolean {
-  return (
-    tenantSlug === TENANTS.MC || tenantSlug === TENANTS.MEDIA_COMMONS
-  );
-}
-
-export type CoerceTenantSchemaOptions = {
-  /**
-   * Replace MC rooms' `services` with the code config in
-   * `mcResourceServices.ts` (the source of truth for real tenant data).
-   * The e2e test schema opts out so its explicit fixtures stay as written.
-   */
-  applyMcServiceConfig?: boolean;
-};
-
-function applyTenantResourceServices(
-  resource: Resource,
-  tenantSlug: string,
-  applyMcServiceConfig: boolean,
-): Resource {
-  const withMc =
-    applyMcServiceConfig && isMcTenantSlug(tenantSlug)
-      ? applyMcResourceServices(resource)
-      : resource;
-  return normalizeResourceServices(withMc);
+function applyTenantResourceServices(resource: Resource): Resource {
+  return normalizeResourceServices(resource);
 }
 
 function normalizeResourceId(value: unknown, field: string): string {
@@ -56,11 +31,10 @@ function coerceResource(
   rawResource: Resource | Record<string, unknown>,
   index: number,
 ): Resource {
-  const {
-    roomId,
-    resourceId,
-    ...resource
-  } = rawResource as Record<string, unknown>;
+  const { roomId, resourceId, ...resource } = rawResource as Record<
+    string,
+    unknown
+  >;
   const canonicalId =
     resourceId === undefined
       ? normalizeResourceId(roomId, `resources[${index}].roomId`)
@@ -88,7 +62,9 @@ function coerceResources(
   return resources.map((resource, index) => {
     const coerced = coerceResource(resource, index);
     if (seen.has(coerced.resourceId)) {
-      throw new Error(`resources has duplicate resourceId "${coerced.resourceId}"`);
+      throw new Error(
+        `resources has duplicate resourceId "${coerced.resourceId}"`,
+      );
     }
     seen.add(coerced.resourceId);
     return coerced;
@@ -103,7 +79,6 @@ function coerceResources(
 export function coerceTenantSchema(
   raw: Record<string, unknown> | null | undefined,
   tenantSlug: string,
-  options: CoerceTenantSchemaOptions = {},
 ): SchemaContextType {
   const base = generateDefaultSchema(tenantSlug);
   if (!raw || typeof raw !== "object") {
@@ -156,13 +131,7 @@ export function coerceTenantSchema(
           raw.resources as Array<Resource | Record<string, unknown>>,
         )
       : base.resources
-    ).map((resource) =>
-      applyTenantResourceServices(
-        resource,
-        tenantSlug,
-        options.applyMcServiceConfig !== false,
-      ),
-    ),
+    ).map((resource) => applyTenantResourceServices(resource)),
     attestations: Array.isArray(raw.attestations)
       ? (raw.attestations as SchemaContextType["attestations"])
       : base.attestations,
