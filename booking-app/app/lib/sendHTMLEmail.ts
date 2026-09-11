@@ -14,7 +14,6 @@ import {
 } from "@/components/src/utils/bookingServicesDisplay";
 import { mergeRoomIdsWithAnnex } from "@/components/src/utils/resourceServicesUtils";
 import { getBookingLogs } from "@/lib/firebase/server/adminDb";
-import { getMcResourceServices } from "@/lib/tenant/mcResourceServices";
 import { serverGetTenantResources } from "@/lib/tenant/serverGetTenantResources";
 import { getGmailClient } from "@/lib/googleClient";
 import fs from "fs";
@@ -144,7 +143,6 @@ export const sendHTMLEmail = async (params: SendHTMLEmailParams) => {
     annexByRoom && typeof annexByRoom === "object"
       ? Object.keys(annexByRoom).map((roomId) => ({
           resourceId: roomId,
-          services: getMcResourceServices(roomId) ?? {},
         }))
       : [];
   const servicesDisplay = getBookingServicesByRoom(
