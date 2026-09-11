@@ -124,6 +124,47 @@ describe("getBookingServicesByRoom", () => {
     ]);
   });
 
+  it("keeps the equipment checklist when a per-room details map also exists", () => {
+    const display = getBookingServicesByRoom({
+      roomId: "202",
+      equipmentServices: "Camera, Projector",
+      equipmentServicesDetails: "need two stands",
+      equipmentServicesDetailsByRoom: { "202": "need two stands" },
+    });
+
+    expect(display.bookingLevel).toEqual([]);
+    expect(display.rooms).toHaveLength(1);
+    expect(display.rooms[0].rows).toEqual([
+      {
+        key: "equipment",
+        label: "Equipment",
+        value: "Camera — Projector — need two stands",
+      },
+    ]);
+  });
+
+  it("shows the equipment checklist at booking level when multi-room details are per-room", () => {
+    const display = getBookingServicesByRoom({
+      roomId: "202, 103",
+      equipmentServices: "Camera, Projector",
+      equipmentServicesDetails: "need two stands",
+      equipmentServicesDetailsByRoom: { "202": "need two stands" },
+    });
+
+    expect(display.bookingLevel).toEqual([
+      {
+        key: "equipment",
+        label: "Equipment",
+        value: "Camera — Projector",
+      },
+    ]);
+    expect(display.rooms).toHaveLength(1);
+    expect(display.rooms[0].roomId).toBe("202");
+    expect(display.rooms[0].rows).toEqual([
+      { key: "equipment", label: "Equipment", value: "need two stands" },
+    ]);
+  });
+
   it("attributes legacy scalars to a single booked room", () => {
     const display = getBookingServicesByRoom({
       roomId: "202",

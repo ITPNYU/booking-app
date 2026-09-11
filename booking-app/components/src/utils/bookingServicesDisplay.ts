@@ -267,9 +267,7 @@ export function getBookingServicesByRoom(
     }
 
     const equipment = formatListAndDetails(
-      !hasEquipmentMap
-        ? legacyForRoom(booking.equipmentServices, roomId, bookedIds)
-        : undefined,
+      legacyForRoom(booking.equipmentServices, roomId, bookedIds),
       valueForRoom(
         equipmentDetailsMap,
         roomId,
@@ -435,19 +433,17 @@ export function getBookingServicesByRoom(
         });
       }
     }
-    if (!hasEquipmentMap) {
-      const equipment = formatListAndDetails(
-        booking.equipmentServices,
-        booking.equipmentServicesDetails,
-        ", ",
-      );
-      if (equipment) {
-        bookingLevel.push({
-          key: "equipment",
-          label: "Equipment",
-          value: equipment,
-        });
-      }
+    const equipment = formatListAndDetails(
+      booking.equipmentServices,
+      hasEquipmentMap ? undefined : booking.equipmentServicesDetails,
+      ", ",
+    );
+    if (equipment) {
+      bookingLevel.push({
+        key: "equipment",
+        label: "Equipment",
+        value: equipment,
+      });
     }
     if (!hasFurnishingsMap) {
       const furnishings = resolveFurnishingsRow({
