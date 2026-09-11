@@ -1,4 +1,5 @@
 import { defaultSafetyTrainingInfoUrl } from "@/components/src/constants/safetyTraining";
+import { MC_TEST_RESOURCE_SERVICES } from "@/components/src/testHelpers/mcResourceServicesFixture";
 import {
   defaultResource,
   generateDefaultSchema,
@@ -49,7 +50,10 @@ function getMcTestSchema(tenant: string): SchemaContextType {
     policy: "<p>Test policy.</p>",
     mappings: {
       school: {
-        "Tisch School of the Arts": ["ITP / IMA / Low Res", "General Department"],
+        "Tisch School of the Arts": [
+          "ITP / IMA / Low Res",
+          "General Department",
+        ],
       },
       program: {
         "ITP / IMA / Low Res": ["ITP"],
@@ -118,6 +122,76 @@ function getMcTestSchema(tenant: string): SchemaContextType {
           infoUrl: defaultSafetyTrainingInfoUrl,
         },
         autoApproval: { shouldAutoApprove: false },
+      }),
+      // Rooms below carry the real MC `services` snapshot so e2e can exercise
+      // the schema-driven service sections (tenant schema is the only source
+      // of service configs at runtime). 202/220/203/230 above stay without
+      // `services` to keep the legacy form path covered.
+      resource({
+        capacity: 100,
+        name: "The Garage",
+        resourceId: "103",
+        calendarId: "mock-calendar-103",
+        isWalkIn: false,
+        autoApproval: { shouldAutoApprove: false },
+        services: MC_TEST_RESOURCE_SERVICES["103"],
+      }),
+      resource({
+        capacity: 20,
+        name: "Studio 221",
+        resourceId: "221",
+        calendarId: "mock-calendar-221",
+        isWalkIn: false,
+        autoApproval: { shouldAutoApprove: false },
+        services: {
+          ...MC_TEST_RESOURCE_SERVICES["221"],
+          // Label that exists nowhere in code: proves the form reads the schema.
+          furnishings: {
+            ...MC_TEST_RESOURCE_SERVICES["221"].furnishings!,
+            label: "Furniture (from tenant schema)",
+          },
+        },
+      }),
+      resource({
+        capacity: 12,
+        name: "Post Lab",
+        resourceId: "260",
+        calendarId: "mock-calendar-260",
+        isWalkIn: false,
+        autoApproval: { shouldAutoApprove: false },
+        services: MC_TEST_RESOURCE_SERVICES["260"],
+      }),
+      resource({
+        capacity: 100,
+        name: "Seminar Room",
+        resourceId: "1201",
+        calendarId: "mock-calendar-1201",
+        isWalkIn: false,
+        autoApproval: { shouldAutoApprove: false },
+        services: MC_TEST_RESOURCE_SERVICES["1201"],
+      }),
+      ...(["1200L-6", "1202", "1204"] as const).map((annexId) =>
+        resource({
+          capacity: 10,
+          name: `Breakout ${annexId}`,
+          resourceId: annexId,
+          parentResourceId: "1201",
+          calendarId: `mock-calendar-${annexId}`,
+          isWalkIn: false,
+          autoApproval: { shouldAutoApprove: false },
+          services: {},
+        }),
+      ),
+      // Room 202's real config (catering locked off, setup hidden from users)
+      // under an e2e-only id so the legacy room 202 used by other specs is untouched.
+      resource({
+        capacity: 30,
+        name: "Lecture Hall (202 services config)",
+        resourceId: "2020",
+        calendarId: "mock-calendar-2020",
+        isWalkIn: false,
+        autoApproval: { shouldAutoApprove: false },
+        services: MC_TEST_RESOURCE_SERVICES["202"],
       }),
     ],
     origins: {

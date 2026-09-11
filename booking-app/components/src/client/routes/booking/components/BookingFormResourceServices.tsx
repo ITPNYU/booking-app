@@ -281,14 +281,20 @@ function syncServiceLegacyScalars(
       (room) => maps.catering[getServiceResourceId(room)] === "yes",
     );
     write("catering", active.length > 0 ? "yes" : "no");
-    write("chartFieldForCatering", joinByRoomValues(maps.cateringChart, active));
+    write(
+      "chartFieldForCatering",
+      joinByRoomValues(maps.cateringChart, active),
+    );
   }
   if (rooms.cleaning.length > 0) {
     const active = rooms.cleaning.filter(
       (room) => maps.cleaning[getServiceResourceId(room)] === "yes",
     );
     write("cleaningService", active.length > 0 ? "yes" : "no");
-    write("chartFieldForCleaning", joinByRoomValues(maps.cleaningChart, active));
+    write(
+      "chartFieldForCleaning",
+      joinByRoomValues(maps.cleaningChart, active),
+    );
   }
   if (rooms.security.length > 0) {
     const active = rooms.security.filter((room) =>
@@ -300,7 +306,10 @@ function syncServiceLegacyScalars(
       ),
     );
     write("hireSecurity", values.join("; "));
-    write("chartFieldForSecurity", joinByRoomValues(maps.securityChart, active));
+    write(
+      "chartFieldForSecurity",
+      joinByRoomValues(maps.securityChart, active),
+    );
   }
 }
 
@@ -316,7 +325,9 @@ function syncSetupLegacyScalars(
   const activeRooms = setupRooms.filter((room) => {
     const id = getServiceResourceId(room);
     const v = setupMap[id];
-    return typeof v === "string" && v.trim().length > 0 && v.toLowerCase() !== "no";
+    return (
+      typeof v === "string" && v.trim().length > 0 && v.toLowerCase() !== "no"
+    );
   });
   setValue("roomSetup", activeRooms.length > 0 ? "yes" : "", {
     shouldValidate: false,
@@ -342,9 +353,7 @@ function syncSetupLegacyScalars(
   );
   setValue(
     "chartFieldForRoomSetup",
-    nextChart ||
-      (hasPartialMaps ? existingSetupChart?.trim() || "" : "") ||
-      "",
+    nextChart || (hasPartialMaps ? existingSetupChart?.trim() || "" : "") || "",
     { shouldValidate: false },
   );
 }
@@ -357,6 +366,7 @@ function SharedYesNoSwitch({
   disabled,
   locked,
   onChange,
+  testId,
 }: {
   label: string;
   description?: React.ReactNode;
@@ -365,6 +375,8 @@ function SharedYesNoSwitch({
   /** Schema toggle lock ("on" / "off"): rendered disabled, value is fixed. */
   locked?: boolean;
   onChange: (next: "yes" | "no") => void;
+  /** Stable hook for e2e tests, e.g. `service-switch-setup-103`. */
+  testId?: string;
 }) {
   return (
     <div>
@@ -378,6 +390,9 @@ function SharedYesNoSwitch({
               checked={value === "yes"}
               disabled={disabled || locked}
               onChange={(e) => onChange(e.target.checked ? "yes" : "no")}
+              inputProps={
+                testId ? ({ "data-testid": testId } as object) : undefined
+              }
             />
           }
         />
@@ -421,9 +436,7 @@ export default function BookingFormResourceServices({
         isVIP,
         isWalkIn,
         isStandardUser: !isVIP && !isWalkIn,
-      }).filter((r) =>
-        isChoiceMode(getServiceSectionConfig(r, "setup")?.mode),
-      ),
+      }).filter((r) => isChoiceMode(getServiceSectionConfig(r, "setup")?.mode)),
     [selectedRooms, isVIP, isWalkIn],
   );
   const furnishingsRooms = useMemo(
@@ -625,7 +638,11 @@ export default function BookingFormResourceServices({
     syncServiceLegacyScalars(
       setValue,
       watch,
-      { catering: cateringRooms, cleaning: cleaningRooms, security: securityRooms },
+      {
+        catering: cateringRooms,
+        cleaning: cleaningRooms,
+        security: securityRooms,
+      },
       {
         catering: nextCatering,
         cateringChart,
@@ -822,9 +839,7 @@ export default function BookingFormResourceServices({
     if (cfg.toggle === "on") return true;
     if (cfg.toggle === "off") return false;
     const resourceId = getServiceResourceId(room);
-    return (
-      equipmentOnByRoom[resourceId] ?? !!detailsMap[resourceId]?.trim()
-    );
+    return equipmentOnByRoom[resourceId] ?? !!detailsMap[resourceId]?.trim();
   };
 
   useEffect(() => {
@@ -886,10 +901,7 @@ export default function BookingFormResourceServices({
     const config = getResourceServicesConfig(room);
     return Object.keys(config).some((key) => {
       if (key === "annex" || key === "auxiliarySpace") return false;
-      const section = getServiceSectionConfig(
-        room,
-        key as keyof typeof config,
-      );
+      const section = getServiceSectionConfig(room, key as keyof typeof config);
       if (!section) return false;
       return shouldShowServiceSection(section, visibility);
     });
@@ -1282,7 +1294,10 @@ export default function BookingFormResourceServices({
         };
 
         return (
-          <RoomBlock key={resourceId}>
+          <RoomBlock
+            key={resourceId}
+            data-testid={`room-services-${resourceId}`}
+          >
             <RoomHeading>{roomDisplayTitle(room)}</RoomHeading>
 
             {showSetupStatic && setupCfg && (
@@ -1297,6 +1312,7 @@ export default function BookingFormResourceServices({
             {showSetupChoice && setupCfg && (
               <Subsection>
                 <SharedYesNoSwitch
+                  testId={`service-switch-setup-${resourceId}`}
                   label={formatFieldLabel(setupCfg.label ?? "Room Setup")}
                   description={<HtmlBlock html={setupCfg.descriptionHtml} />}
                   value={setupOn ? "yes" : "no"}
@@ -1412,7 +1428,9 @@ export default function BookingFormResourceServices({
                             nextDetails,
                             chartMap,
                             watch("setupDetails") as string | undefined,
-                            watch("chartFieldForRoomSetup") as string | undefined,
+                            watch("chartFieldForRoomSetup") as
+                              | string
+                              | undefined,
                           );
                           trigger("roomSetupByRoom");
                           trigger("chartFieldForRoomSetupByRoom");
@@ -1472,9 +1490,13 @@ export default function BookingFormResourceServices({
                               ...chartMap,
                               [resourceId]: e.target.value,
                             };
-                            setValue("chartFieldForRoomSetupByRoom", nextChart, {
-                              shouldValidate: true,
-                            });
+                            setValue(
+                              "chartFieldForRoomSetupByRoom",
+                              nextChart,
+                              {
+                                shouldValidate: true,
+                              },
+                            );
                             const details =
                               (watch("setupDetailsByRoom") as
                                 | Record<string, string>
@@ -1486,7 +1508,9 @@ export default function BookingFormResourceServices({
                               details,
                               nextChart,
                               watch("setupDetails") as string | undefined,
-                              watch("chartFieldForRoomSetup") as string | undefined,
+                              watch("chartFieldForRoomSetup") as
+                                | string
+                                | undefined,
                             );
                           }}
                           onBlur={() => trigger("chartFieldForRoomSetupByRoom")}
@@ -1494,7 +1518,9 @@ export default function BookingFormResourceServices({
                           aria-invalid={!!setupChartError}
                         />
                         {setupChartError && (
-                          <FormHelperText error>{setupChartError}</FormHelperText>
+                          <FormHelperText error>
+                            {setupChartError}
+                          </FormHelperText>
                         )}
                       </>
                     )}
@@ -1507,6 +1533,7 @@ export default function BookingFormResourceServices({
               <Subsection>
                 {equipmentHasSwitch ? (
                   <SharedYesNoSwitch
+                    testId={`service-switch-equipment-${resourceId}`}
                     label={formatFieldLabel(equipmentCfg.label ?? "Equipment")}
                     description={
                       <HtmlBlock html={equipmentCfg.descriptionHtml} />
@@ -1548,60 +1575,62 @@ export default function BookingFormResourceServices({
                 )}
                 {equipmentOn &&
                   (equipmentCfg.showDetailsField || equipmentHasSwitch) && (
-                  <>
-                    <Label htmlFor={`equip-details-${resourceId}`}>
-                      {equipmentCfg.detailsLabel ?? "Equipment request details"}
-                      {equipmentHasSwitch ? " *" : ""}
-                    </Label>
-                    {equipmentCfg.detailsDescriptionHtml ? (
-                      <HtmlBlock html={equipmentCfg.detailsDescriptionHtml} />
-                    ) : null}
-                    <input
-                      id={`equip-details-${resourceId}`}
-                      style={{
-                        width: "100%",
-                        padding: "8px",
-                        marginBottom: 16,
-                        border: "1px solid #ccc",
-                        borderRadius: 4,
-                      }}
-                      value={detailsByRoom[resourceId] ?? ""}
-                      aria-required={equipmentHasSwitch}
-                      aria-invalid={!!equipmentDetailsErrorForRoom}
-                      onChange={(e) => {
-                        const next = {
-                          ...detailsByRoom,
-                          [resourceId]: e.target.value,
-                        };
-                        setValue("equipmentServicesDetailsByRoom", next, {
-                          shouldValidate: equipmentHasSwitch,
-                        });
-                        const joined = Object.values(next)
-                          .map((v) => (typeof v === "string" ? v.trim() : ""))
-                          .filter(Boolean)
-                          .join("\n");
-                        setValue("equipmentServicesDetails", joined, {
-                          shouldValidate: false,
-                        });
-                      }}
-                      onBlur={() =>
-                        equipmentHasSwitch &&
-                        trigger("equipmentServicesDetailsByRoom")
-                      }
-                    />
-                    {equipmentDetailsErrorForRoom && (
-                      <FormHelperText error>
-                        {equipmentDetailsErrorForRoom}
-                      </FormHelperText>
-                    )}
-                  </>
-                )}
+                    <>
+                      <Label htmlFor={`equip-details-${resourceId}`}>
+                        {equipmentCfg.detailsLabel ??
+                          "Equipment request details"}
+                        {equipmentHasSwitch ? " *" : ""}
+                      </Label>
+                      {equipmentCfg.detailsDescriptionHtml ? (
+                        <HtmlBlock html={equipmentCfg.detailsDescriptionHtml} />
+                      ) : null}
+                      <input
+                        id={`equip-details-${resourceId}`}
+                        style={{
+                          width: "100%",
+                          padding: "8px",
+                          marginBottom: 16,
+                          border: "1px solid #ccc",
+                          borderRadius: 4,
+                        }}
+                        value={detailsByRoom[resourceId] ?? ""}
+                        aria-required={equipmentHasSwitch}
+                        aria-invalid={!!equipmentDetailsErrorForRoom}
+                        onChange={(e) => {
+                          const next = {
+                            ...detailsByRoom,
+                            [resourceId]: e.target.value,
+                          };
+                          setValue("equipmentServicesDetailsByRoom", next, {
+                            shouldValidate: equipmentHasSwitch,
+                          });
+                          const joined = Object.values(next)
+                            .map((v) => (typeof v === "string" ? v.trim() : ""))
+                            .filter(Boolean)
+                            .join("\n");
+                          setValue("equipmentServicesDetails", joined, {
+                            shouldValidate: false,
+                          });
+                        }}
+                        onBlur={() =>
+                          equipmentHasSwitch &&
+                          trigger("equipmentServicesDetailsByRoom")
+                        }
+                      />
+                      {equipmentDetailsErrorForRoom && (
+                        <FormHelperText error>
+                          {equipmentDetailsErrorForRoom}
+                        </FormHelperText>
+                      )}
+                    </>
+                  )}
               </Subsection>
             )}
 
             {showFurnishings && furnishingsCfg && (
               <Subsection>
                 <SharedYesNoSwitch
+                  testId={`service-switch-furnishings-${resourceId}`}
                   label={formatFieldLabel(
                     furnishingsCfg.label ?? "Additional Event Furniture",
                   )}
@@ -1623,57 +1652,57 @@ export default function BookingFormResourceServices({
                 />
                 {furnValue === "yes" && (
                   <>
-                  {furnishingsCfg.showDetailsField && (
-                    <>
-                      <Label htmlFor={`furn-details-${resourceId}`}>
-                        {furnishingsCfg.detailsLabel ??
-                          "Furniture request details"}
-                        {" *"}
-                      </Label>
-                      {furnishingsCfg.detailsDescriptionHtml ? (
-                        <HtmlBlock
-                          html={furnishingsCfg.detailsDescriptionHtml}
+                    {furnishingsCfg.showDetailsField && (
+                      <>
+                        <Label htmlFor={`furn-details-${resourceId}`}>
+                          {furnishingsCfg.detailsLabel ??
+                            "Furniture request details"}
+                          {" *"}
+                        </Label>
+                        {furnishingsCfg.detailsDescriptionHtml ? (
+                          <HtmlBlock
+                            html={furnishingsCfg.detailsDescriptionHtml}
+                          />
+                        ) : null}
+                        <input
+                          id={`furn-details-${resourceId}`}
+                          style={{
+                            width: "100%",
+                            padding: "8px",
+                            marginBottom: 16,
+                            border: "1px solid #ccc",
+                            borderRadius: 4,
+                          }}
+                          value={furnDetailsByRoom[resourceId] ?? ""}
+                          aria-required
+                          aria-invalid={!!furnishingsDetailsErrorForRoom}
+                          onBlur={() => trigger("furnishingsDetailsByRoom")}
+                          onChange={(e) => {
+                            const next = {
+                              ...furnDetailsByRoom,
+                              [resourceId]: e.target.value,
+                            };
+                            setValue("furnishingsDetailsByRoom", next, {
+                              shouldValidate: true,
+                            });
+                            const joined = Object.values(next)
+                              .map((v) =>
+                                typeof v === "string" ? v.trim() : "",
+                              )
+                              .filter(Boolean)
+                              .join("\n");
+                            setValue("furnishingsDetails", joined, {
+                              shouldValidate: false,
+                            });
+                          }}
                         />
-                      ) : null}
-                      <input
-                        id={`furn-details-${resourceId}`}
-                        style={{
-                          width: "100%",
-                          padding: "8px",
-                          marginBottom: 16,
-                          border: "1px solid #ccc",
-                          borderRadius: 4,
-                        }}
-                        value={furnDetailsByRoom[resourceId] ?? ""}
-                        aria-required
-                        aria-invalid={!!furnishingsDetailsErrorForRoom}
-                        onBlur={() => trigger("furnishingsDetailsByRoom")}
-                        onChange={(e) => {
-                          const next = {
-                            ...furnDetailsByRoom,
-                            [resourceId]: e.target.value,
-                          };
-                          setValue("furnishingsDetailsByRoom", next, {
-                            shouldValidate: true,
-                          });
-                          const joined = Object.values(next)
-                            .map((v) =>
-                              typeof v === "string" ? v.trim() : "",
-                            )
-                            .filter(Boolean)
-                            .join("\n");
-                          setValue("furnishingsDetails", joined, {
-                            shouldValidate: false,
-                          });
-                        }}
-                      />
-                      {furnishingsDetailsErrorForRoom && (
-                        <FormHelperText error>
-                          {furnishingsDetailsErrorForRoom}
-                        </FormHelperText>
-                      )}
-                    </>
-                  )}
+                        {furnishingsDetailsErrorForRoom && (
+                          <FormHelperText error>
+                            {furnishingsDetailsErrorForRoom}
+                          </FormHelperText>
+                        )}
+                      </>
+                    )}
                     {furnishingsCfg.chartField && (
                       <>
                         <Label htmlFor={`chart-furn-${resourceId}`}>
@@ -1789,6 +1818,7 @@ export default function BookingFormResourceServices({
             {showCateringInteractive && cateringCfg && (
               <Subsection>
                 <SharedYesNoSwitch
+                  testId={`service-switch-catering-${resourceId}`}
                   label={formatFieldLabel(cateringCfg.label ?? "Catering?")}
                   description={
                     cateringCfg.descriptionHtml ? (
@@ -1830,6 +1860,7 @@ export default function BookingFormResourceServices({
             {showCleaning && cleaningCfg && (
               <Subsection>
                 <SharedYesNoSwitch
+                  testId={`service-switch-cleaning-${resourceId}`}
                   label={formatFieldLabel(cleaningCfg.label ?? "Cleaning?")}
                   description={
                     <p style={{ fontSize: "0.75rem" }}>
@@ -1953,6 +1984,7 @@ export default function BookingFormResourceServices({
                   return (
                     <>
                       <SharedYesNoSwitch
+                        testId={`service-switch-security-${resourceId}`}
                         label={formatFieldLabel(
                           securityCfg.label ?? "Security?",
                         )}
@@ -2035,6 +2067,7 @@ export default function BookingFormResourceServices({
             {showSecuritySwitch && securityCfg && (
               <Subsection>
                 <SharedYesNoSwitch
+                  testId={`service-switch-security-${resourceId}`}
                   label={formatFieldLabel(securityCfg.label ?? "Security?")}
                   description={
                     <p style={{ fontSize: "0.75rem" }}>
