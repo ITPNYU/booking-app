@@ -27,7 +27,6 @@ import type {
  * When merging a Stately export, replace only the `createMachine(...)`
  * argument. tests/unit/mc-booking-machine-stately-literal.unit.test.ts and
  * mc-booking-machine-service-parity.unit.test.ts enforce the rules above.
- * See docs/STATELY_WORKFLOW.md.
  *
  * ⚠️ XSTATE PURITY CONSTRAINT:
  * The machine only transitions state and logs. No database writes, emails,

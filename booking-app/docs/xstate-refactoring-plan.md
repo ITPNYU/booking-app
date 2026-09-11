@@ -198,8 +198,6 @@ function createServiceRequestStates(services: typeof SERVICE_TYPES) {
 
 **Stately compatibility:** The generated states are still valid `createMachine()` definitions. Stately can import the expanded output. For Stately round-trip, we can export → run through factory on import.
 
-> **Superseded (2026-09).** Stately Studio parses the file statically and could not see the factory-generated regions, so the six service regions are written out as literals again. The factory now lives in `tests/unit/helpers/mcServiceStateFactory.ts` and a parity test pins every region to it. Action and guard implementations moved to `mcBookingMachineImpl.ts`. See `docs/STATELY_WORKFLOW.md`.
-
 ---
 
 ### Phase 3: Externalize side effects as named actions
@@ -397,7 +395,7 @@ The vision of "PM adds a state in Stately and deploys without code changes" has 
 
 1. **Adding a new state always requires a new action implementation** — PM can wire the action name in Stately, but a developer must write the email template, DB update, etc.
 2. **MC parallel states (6 services) are complex in Stately's visual editor** — may be hard to navigate
-3. **Factory-generated states (Phase 2) don't round-trip cleanly** — Stately exports flat state definitions, so the factory must re-wrap on import. Resolved by returning to literal regions with a parity test (see `docs/STATELY_WORKFLOW.md`)
+3. **Factory-generated states (Phase 2) don't round-trip cleanly** — Stately exports flat state definitions, so the factory must re-wrap on import
 4. **Guard logic can't be edited visually** — PM can assign guard names, but implementation stays in code
 
 **Recommendation:** Before starting Phase 3, align with PM on specific use cases:
