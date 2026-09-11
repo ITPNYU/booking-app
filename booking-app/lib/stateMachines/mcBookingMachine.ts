@@ -1,561 +1,48 @@
 import "server-only";
 
-import { BookingOrigin, Inputs, Role, RoomSetting } from "@/components/src/types";
-import type { DateSelectArg } from "fullcalendar";
-import { evaluateMcShouldAutoApprove } from "@/lib/stateMachines/autoApprovalGuards";
-import { logAutomaticCancellationTransition, type AutomaticCancellationReason } from "@/lib/stateMachines/logAutomaticCancellationTransition";
-import { and, assign, setup } from "xstate";
+import { setup } from "xstate";
+import {
+  buildMcInitialContext,
+  mcBookingActions,
+  mcBookingGuards,
+} from "./mcBookingMachineImpl";
+import type {
+  MediaCommonsBookingContext,
+  MediaCommonsBookingEvent,
+} from "./mcBookingMachineTypes";
 
-// Service configuration for factory-generated states
-interface ServiceConfig {
-  name: string;
-  contextKey: keyof NonNullable<MediaCommonsBookingContext["servicesRequested"]>;
-  requestGuard: string;
-  approvedGuard: string;
-  approveEvent: string;
-  declineEvent: string;
-  closeoutEvent: string;
-  approveAction: string;
-  declineAction: string;
-}
-
-const SERVICE_CONFIGS = [
-  { name: "Staff",     contextKey: "staff",     requestGuard: "staffRequested",    approvedGuard: "staffApproved",    approveEvent: "approveStaff",     declineEvent: "declineStaff",     closeoutEvent: "closeoutStaff",     approveAction: "approveStaffService",     declineAction: "declineStaffService" },
-  { name: "Catering",  contextKey: "catering",  requestGuard: "caterRequested",    approvedGuard: "cateringApproved", approveEvent: "approveCatering",  declineEvent: "declineCatering",  closeoutEvent: "closeoutCatering",  approveAction: "approveCateringService",  declineAction: "declineCateringService" },
-  { name: "Setup",     contextKey: "setup",     requestGuard: "setupRequested",    approvedGuard: "setupApproved",    approveEvent: "approveSetup",     declineEvent: "declineSetup",     closeoutEvent: "closeoutSetup",     approveAction: "approveSetupService",     declineAction: "declineSetupService" },
-  { name: "Cleaning",  contextKey: "cleaning",  requestGuard: "cleanRequested",    approvedGuard: "cleanApproved",    approveEvent: "approveCleaning",  declineEvent: "declineCleaning",  closeoutEvent: "closeoutCleaning",  approveAction: "approveCleaningService",  declineAction: "declineCleaningService" },
-  { name: "Security",  contextKey: "security",  requestGuard: "securityRequested", approvedGuard: "securityApproved", approveEvent: "approveSecurity",  declineEvent: "declineSecurity",  closeoutEvent: "closeoutSecurity",  approveAction: "approveSecurityService",  declineAction: "declineSecurityService" },
-  { name: "Equipment", contextKey: "equipment", requestGuard: "equipRequested",    approvedGuard: "equipApproved",    approveEvent: "approveEquipment", declineEvent: "declineEquipment", closeoutEvent: "closeoutEquipment", approveAction: "approveEquipmentService", declineAction: "declineEquipmentService" },
-] as const satisfies readonly ServiceConfig[];
-
-// Derived event union — single source of truth is SERVICE_CONFIGS above.
-// Adding a service to SERVICE_CONFIGS automatically extends the event types.
-type ServiceEvent =
-  | { type: (typeof SERVICE_CONFIGS)[number]["approveEvent"] }
-  | { type: (typeof SERVICE_CONFIGS)[number]["declineEvent"] }
-  | { type: (typeof SERVICE_CONFIGS)[number]["closeoutEvent"] };
-
-function createServiceRequestState(config: ServiceConfig) {
-  return {
-    initial: `Evaluate ${config.name} Request`,
-    states: {
-      [`Evaluate ${config.name} Request`]: {
-        always: [
-          { target: `${config.name} Requested`, guard: { type: config.requestGuard } },
-          { target: `${config.name} Approved` },
-        ],
-        entry: [
-          ({ context }: { context: MediaCommonsBookingContext }) => {
-            console.log(
-              `🔍 XSTATE SUBSTATE: Evaluating ${config.name} Request [MEDIA COMMONS]`,
-              { tenant: context.tenant, [`${config.contextKey}Requested`]: context.servicesRequested?.[config.contextKey], timestamp: new Date().toISOString() },
-            );
-          },
-        ],
-      },
-      [`${config.name} Requested`]: {
-        on: {
-          [config.declineEvent]: { target: `${config.name} Declined`, actions: config.declineAction },
-          [config.approveEvent]: { target: `${config.name} Approved`, actions: config.approveAction },
-        },
-        entry: [
-          ({ context }: { context: MediaCommonsBookingContext }) => {
-            console.log(
-              `⏳ XSTATE SUBSTATE: ${config.name} Request Pending Approval [MEDIA COMMONS]`,
-              { tenant: context.tenant, timestamp: new Date().toISOString() },
-            );
-          },
-        ],
-      },
-      [`${config.name} Approved`]: {
-        type: "final" as const,
-        entry: [
-          ({ context }: { context: MediaCommonsBookingContext }) => {
-            console.log(
-              `✅ XSTATE SUBSTATE: ${config.name} Request APPROVED [MEDIA COMMONS]`,
-              { tenant: context.tenant, timestamp: new Date().toISOString() },
-            );
-          },
-        ],
-      },
-      [`${config.name} Declined`]: {
-        type: "final" as const,
-        entry: [
-          ({ context }: { context: MediaCommonsBookingContext }) => {
-            console.log(
-              `❌ XSTATE SUBSTATE: ${config.name} Request DECLINED [MEDIA COMMONS]`,
-              { tenant: context.tenant, timestamp: new Date().toISOString() },
-            );
-          },
-        ],
-      },
-    },
-  };
-}
-
-function createServiceCloseoutState(config: ServiceConfig) {
-  return {
-    initial: `Evaluate ${config.name}`,
-    states: {
-      [`Evaluate ${config.name}`]: {
-        always: [
-          { target: `${config.name} Closeout Pending`, guard: { type: config.approvedGuard } },
-          { target: `${config.name} Closedout` },
-        ],
-        entry: [
-          ({ context }: { context: MediaCommonsBookingContext }) => {
-            console.log(
-              `🔍 XSTATE CLOSEOUT: Evaluating ${config.name} Closeout [MEDIA COMMONS]`,
-              { tenant: context.tenant, [`${config.contextKey}Approved`]: context.servicesApproved?.[config.contextKey], timestamp: new Date().toISOString() },
-            );
-          },
-        ],
-      },
-      [`${config.name} Closeout Pending`]: {
-        on: {
-          [config.closeoutEvent]: { target: `${config.name} Closedout` },
-        },
-        entry: [
-          ({ context }: { context: MediaCommonsBookingContext }) => {
-            console.log(
-              `⏳ XSTATE CLOSEOUT: ${config.name} Closeout Pending [MEDIA COMMONS]`,
-              { tenant: context.tenant, timestamp: new Date().toISOString() },
-            );
-          },
-        ],
-      },
-      [`${config.name} Closedout`]: {
-        type: "final" as const,
-        entry: [
-          ({ context }: { context: MediaCommonsBookingContext }) => {
-            console.log(
-              `✅ XSTATE CLOSEOUT: ${config.name} CLOSED OUT [MEDIA COMMONS]`,
-              { tenant: context.tenant, timestamp: new Date().toISOString() },
-            );
-          },
-        ],
-      },
-    },
-  };
-}
-
-function createServiceActions(configs: readonly ServiceConfig[]) {
-  const actions: Record<string, ReturnType<typeof assign>> = {};
-  for (const config of configs) {
-    actions[config.approveAction] = assign({
-      servicesApproved: ({ context }: { context: MediaCommonsBookingContext }) => ({
-        ...context.servicesApproved,
-        [config.contextKey]: true,
-      }),
-    });
-    actions[config.declineAction] = assign({
-      servicesApproved: ({ context }: { context: MediaCommonsBookingContext }) => ({
-        ...context.servicesApproved,
-        [config.contextKey]: false,
-      }),
-    });
-  }
-  return actions;
-}
-
-function createServiceGuards(configs: readonly ServiceConfig[]) {
-  const guards: Record<string, (args: { context: MediaCommonsBookingContext }) => boolean> = {};
-  for (const config of configs) {
-    guards[config.requestGuard] = ({ context }: { context: MediaCommonsBookingContext }) => {
-      const requested = context.servicesRequested?.[config.contextKey] || false;
-      console.log(`🎯 XSTATE GUARD: ${config.requestGuard}: ${requested}`);
-      return requested;
-    };
-    guards[config.approvedGuard] = ({ context }: { context: MediaCommonsBookingContext }) => {
-      const approved = context.servicesApproved?.[config.contextKey] === true;
-      console.log(`🎯 XSTATE GUARD: ${config.approvedGuard}: ${approved}`);
-      return approved;
-    };
-  }
-  return guards;
-}
-
-// Define context type for type safety
-interface MediaCommonsBookingContext {
-  tenant?: string;
-  selectedRooms?: RoomSetting[];
-  formData?: Inputs;
-  bookingCalendarInfo?: DateSelectArg;
-  isWalkIn?: boolean;
-  calendarEventId?: string | null;
-  email?: string;
-  isVip?: boolean;
-  role?: Role;
-  declineReason?: string;
-  origin?: string;
-  automationReason?: AutomaticCancellationReason; // Tracks automatic transitions
-  servicesRequested?: {
-    staff?: boolean;
-    equipment?: boolean;
-    catering?: boolean;
-    cleaning?: boolean;
-    security?: boolean;
-    setup?: boolean;
-  };
-  servicesApproved?: {
-    staff?: boolean;
-    equipment?: boolean;
-    catering?: boolean;
-    cleaning?: boolean;
-    security?: boolean;
-    setup?: boolean;
-  };
-  // Flag to indicate this XState was created from existing booking without prior xstateData
-  _restoredFromStatus?: boolean;
-  // Queue of side effects declared by state entry actions. Machine stays pure
-  // (assign only); xstate-transition route drains and executes the list after
-  // the transition, then clears it before persisting the snapshot.
-  pendingSideEffects?: string[];
-}
-
-// ⚠️ XSTATE PURITY CONSTRAINT:
-// This XState machine should ONLY handle state transitions and logging
-// DO NOT add side effects like:
-// - Database operations (Firestore writes)
-// - Email sending (actual API calls)
-// - External API calls
-// - File operations
-// These should be handled in traditional processing after XState transitions
-
+/**
+ * Media Commons booking machine.
+ *
+ * ── Stately Studio round-trip ──────────────────────────────────────────────
+ * The `createMachine({ ... })` block below is a plain object literal so the
+ * file can be imported into Stately Studio, edited visually, and exported
+ * back. Keep it that way:
+ *   - no inline functions, spreads, template strings, or computed keys
+ *   - guards and actions are referenced by name; implementations live in
+ *     mcBookingMachineImpl.ts (an unknown name fails `tsc`)
+ *   - state names and event names are persisted in Firestore
+ *     (`xstateData.snapshot.value`) and compared as strings elsewhere —
+ *     renaming one is a data migration, not an edit
+ * When merging a Stately export, replace only the `createMachine(...)`
+ * argument. tests/unit/mc-booking-machine-stately-literal.unit.test.ts and
+ * mc-booking-machine-service-parity.unit.test.ts enforce the rules above.
+ *
+ * ⚠️ XSTATE PURITY CONSTRAINT:
+ * The machine only transitions state and logs. No database writes, emails,
+ * external API calls, or file operations here or in the impl file — those run
+ * in the orchestration layer after the transition.
+ */
 export const mcBookingMachine = setup({
   types: {
     context: {} as MediaCommonsBookingContext,
-    events: {} as
-      | { type: "edit" }
-      | { type: "Modify" }
-      | { type: "cancel" }
-      | { type: "noShow"; email?: string }
-      | { type: "approve" }
-      | { type: "checkIn" }
-      | { type: "decline"; reason?: string }
-      | { type: "checkOut" }
-      | { type: "autoCloseScript" }
-      | ServiceEvent,
+    events: {} as MediaCommonsBookingEvent,
   },
   actors: {},
-  actions: {
-    // Queue a side effect for the xstate-transition route to execute after
-    // the machine finishes transitioning. Pure assign — safe on both server
-    // and client.
-    queueCancelProcessing: assign({
-      pendingSideEffects: ({ context }) => [
-        ...(context.pendingSideEffects ?? []),
-        "cancelProcessing",
-      ],
-    }),
-
-    sendHTMLEmail: ({ context, event }) => {
-      // NOTE: This is a placeholder action for state machine logic only
-      // Actual email sending is handled by traditional processing after XState
-      console.log(
-        "📧 XSTATE ACTION: sendHTMLEmail executed (placeholder only)",
-        {
-          tenant: context.tenant,
-          hasFormData: !!context.formData,
-          email: context.email,
-          note: "Actual email sending handled outside XState",
-        },
-      );
-    },
-    createCalendarEvent: ({ context, event }) => {
-      // NOTE: This is a placeholder action for state machine logic only
-      // Actual calendar creation is handled by traditional processing after XState
-      console.log(
-        "📅 XSTATE ACTION: createCalendarEvent executed (placeholder only)",
-        {
-          tenant: context.tenant,
-          selectedRoomsCount: context.selectedRooms?.length || 0,
-          calendarEventId: context.calendarEventId,
-          note: "Actual calendar creation handled outside XState",
-        },
-      );
-    },
-    updateCalendarEvent: ({ context, event }) => {
-      // NOTE: This is a placeholder action for state machine logic only
-      // Actual calendar update is handled by traditional processing after XState
-      console.log(
-        "📅 XSTATE ACTION: updateCalendarEvent executed (placeholder only)",
-        {
-          tenant: context.tenant,
-          calendarEventId: context.calendarEventId,
-          note: "Actual calendar update handled outside XState",
-        },
-      );
-    },
-    deleteCalendarEvent: ({ context, event }) => {
-      // NOTE: This is a placeholder action for state machine logic only
-      // Actual calendar deletion is handled by traditional processing after XState
-      console.log(
-        "🗑️ XSTATE ACTION: deleteCalendarEvent executed (placeholder only)",
-        {
-          tenant: context.tenant,
-          calendarEventId: context.calendarEventId,
-          note: "Actual calendar deletion handled outside XState",
-        },
-      );
-    },
-    logBookingHistory: async (
-      { context, event },
-      params: { status?: string; note?: string } = {},
-    ) => {
-      // Log booking history directly from XState
-      try {
-        const { logServerBookingChange, serverGetDataByCalendarEventId } =
-          await import("@/lib/firebase/server/adminDb");
-        const { TableNames } = await import("@/components/src/policy");
-        const { BookingStatusLabel } = await import("@/components/src/types");
-
-        // Get the action parameters from the second argument
-        const status = params?.status;
-        const note = params?.note;
-
-        if (!status) {
-          console.warn(
-            `⚠️ XSTATE HISTORY LOG SKIPPED - NO STATUS [${context.tenant?.toUpperCase()}]:`,
-            { calendarEventId: context.calendarEventId },
-          );
-          return;
-        }
-
-        // Get booking document to get bookingId and requestNumber
-        const bookingDoc = await serverGetDataByCalendarEventId(
-          TableNames.BOOKING,
-          context.calendarEventId,
-          context.tenant,
-        );
-
-        if (!bookingDoc) {
-          console.error(
-            `❌ XSTATE HISTORY LOG: Booking not found [${context.tenant?.toUpperCase()}]`,
-            { calendarEventId: context.calendarEventId },
-          );
-          return;
-        }
-
-        const actorEmail =
-          typeof (event as any)?.email === "string" &&
-          (event as any).email.trim()
-            ? (event as any).email.trim()
-            : context.email;
-
-        await logServerBookingChange({
-          bookingId: bookingDoc.id,
-          calendarEventId: context.calendarEventId,
-          status: status as any, // Type assertion for dynamic import
-          changedBy: actorEmail || "system",
-          requestNumber: (bookingDoc as any).requestNumber || 0,
-          note: note || "",
-          tenant: context.tenant,
-        });
-
-        console.log(
-          `📋 XSTATE HISTORY LOGGED [${context.tenant?.toUpperCase() || "UNKNOWN"}]:`,
-          {
-            calendarEventId: context.calendarEventId,
-            status,
-            note,
-          },
-        );
-      } catch (error) {
-        console.error(
-          `🚨 XSTATE HISTORY LOG FAILED [${context.tenant?.toUpperCase() || "UNKNOWN"}]:`,
-          {
-            calendarEventId: context.calendarEventId,
-            error: error.message,
-          },
-        );
-      }
-    },
-    inviteUserToCalendarEvent: ({ context, event }) => {
-      console.log("👥 XSTATE ACTION: inviteUserToCalendarEvent executed", {
-        tenant: context.tenant,
-        calendarEventId: context.calendarEventId,
-        email: context.email,
-      });
-    },
-    setDeclineReason: assign({
-      declineReason: ({ event }) => {
-        const { reason } = event as any;
-        if (reason && reason.trim()) {
-          return reason;
-        }
-        return "Service requirements could not be fulfilled";
-      },
-    }),
-    logCanceledAfterAutomaticTransition: async (
-      { context },
-    ): Promise<void> => {
-      await logAutomaticCancellationTransition(context);
-    },
-    // Service approval/decline actions generated from config
-    ...createServiceActions(SERVICE_CONFIGS),
-    resetServiceDecisionsOnEdit: assign({
-      servicesApproved: () => ({}),
-    }),
-
-    // Close processing is now handled by callers (db.ts, cron, /api/services) after XState transition
-    // to keep the same pattern across all tenants (MC, ITP, etc.)
-    handleCloseProcessing: ({ context }) => {
-      console.log("🎬 XSTATE ACTION: handleCloseProcessing (no-op, handled by callers)", {
-        calendarEventId: context.calendarEventId,
-        tenant: context.tenant,
-      });
-    },
-
-    // Checkout processing is now handled by db.ts after XState transition
-    // to keep the same pattern across all tenants (MC, ITP, etc.)
-    handleCheckoutProcessing: ({ context }) => {
-      console.log("🎬 XSTATE ACTION: handleCheckoutProcessing (no-op, handled by db.ts)", {
-        calendarEventId: context.calendarEventId,
-        tenant: context.tenant,
-      });
-    },
-
-  },
-  guards: {
-    shouldAutoApprove: ({ context }) =>
-      evaluateMcShouldAutoApprove(context),
-    "isVip AND servicesRequested": and([
-      ({ context }) => {
-        const isVip = context.isVip || false;
-        console.log(`🎯 XSTATE GUARD: Checking isVip: ${isVip}`);
-        return isVip;
-      },
-      ({ context }) => {
-        const hasServices =
-          context.servicesRequested &&
-            typeof context.servicesRequested === "object"
-            ? Object.values(context.servicesRequested).some(Boolean)
-            : false;
-        console.log(
-          `🎯 XSTATE GUARD: Checking servicesRequested: ${hasServices}`,
-        );
-        return hasServices;
-      },
-    ]),
-    servicesRequested: ({ context }) => {
-      const hasServices =
-        context.servicesRequested &&
-          typeof context.servicesRequested === "object"
-          ? Object.values(context.servicesRequested).some(Boolean)
-          : false;
-      console.log(`🎯 XSTATE GUARD: servicesRequested: ${hasServices}`);
-      return hasServices;
-    },
-    servicesApproved: ({ context }) => {
-      if (
-        !context.servicesRequested ||
-        typeof context.servicesRequested !== "object"
-      )
-        return false;
-
-      // Check if any services are actually requested
-      const hasRequestedServices = Object.values(
-        context.servicesRequested,
-      ).some(Boolean);
-
-      // If no services are requested, consider all "approved"
-      if (!hasRequestedServices) {
-        console.log(
-          "🎯 XSTATE GUARD: servicesApproved: true (no services requested)",
-        );
-        return true;
-      }
-
-      // If services are requested, check if all requested services are approved
-      if (
-        !context.servicesApproved ||
-        typeof context.servicesApproved !== "object"
-      )
-        return false;
-
-      const allApproved = Object.entries(context.servicesRequested).every(
-        ([service, requested]) => {
-          if (!requested) return true; // If not requested, consider it "approved"
-          return (
-            context.servicesApproved?.[
-            service as keyof typeof context.servicesApproved
-            ] === true
-          );
-        },
-      );
-
-      console.log(`🎯 XSTATE GUARD: servicesApproved: ${allApproved}`);
-      return allApproved;
-    },
-    servicesDeclined: ({ context }) => {
-      if (
-        !context.servicesRequested ||
-        typeof context.servicesRequested !== "object" ||
-        !context.servicesApproved ||
-        typeof context.servicesApproved !== "object"
-      )
-        return false;
-
-      // First, check if ALL requested services have been decided (approved or declined)
-      const allServicesDecided = Object.entries(
-        context.servicesRequested,
-      ).every(([service, requested]) => {
-        if (!requested) return true; // If not requested, it's considered "decided"
-        const approval =
-          context.servicesApproved?.[
-          service as keyof typeof context.servicesApproved
-          ];
-        return typeof approval === "boolean"; // Must be explicitly true or false
-      });
-
-      if (!allServicesDecided) {
-        console.log(
-          "🎯 XSTATE GUARD: servicesDeclined: false (not all services decided yet)",
-        );
-        return false;
-      }
-
-      // If all services are decided, check if any requested service is explicitly declined
-      const anyDeclined = Object.entries(context.servicesRequested).some(
-        ([service, requested]) => {
-          if (!requested) return false; // If not requested, can't be declined
-          return (
-            context.servicesApproved?.[
-            service as keyof typeof context.servicesApproved
-            ] === false
-          );
-        },
-      );
-
-      console.log(
-        `🎯 XSTATE GUARD: servicesDeclined: ${anyDeclined} (all services decided: ${allServicesDecided})`,
-      );
-      return anyDeclined;
-    },
-    // Per-service requested/approved guards generated from config
-    ...createServiceGuards(SERVICE_CONFIGS),
-  },
+  actions: mcBookingActions,
+  guards: mcBookingGuards,
 }).createMachine({
-  context: ({ input }: { input?: MediaCommonsBookingContext }) => ({
-    tenant: input?.tenant,
-    selectedRooms: input?.selectedRooms || [],
-    formData: input?.formData,
-    bookingCalendarInfo: input?.bookingCalendarInfo,
-    isWalkIn: input?.isWalkIn || false,
-    calendarEventId: input?.calendarEventId,
-    email: input?.email,
-    isVip: input?.isVip || false,
-    origin: input?.origin,
-    servicesRequested:
-      input?.servicesRequested && typeof input.servicesRequested === "object"
-        ? input.servicesRequested
-        : {},
-    servicesApproved:
-      input?.servicesApproved && typeof input.servicesApproved === "object"
-        ? input.servicesApproved
-        : {},
-  }),
+  context: buildMcInitialContext,
   id: "MC Booking Request",
   initial: "Requested",
   states: {
@@ -590,17 +77,9 @@ export const mcBookingMachine = setup({
         },
       ],
       entry: [
-        ({ context }) => {
-          console.log(
-            "🏁 XSTATE STATE: Entered 'Requested' state [MEDIA COMMONS]",
-            {
-              tenant: context.tenant,
-              timestamp: new Date().toISOString(),
-              isVip: context.isVip,
-              servicesRequested: context.servicesRequested,
-              calendarEventId: context.calendarEventId,
-            },
-          );
+        {
+          type: "logStateEntry",
+          params: { label: "Entered 'Requested' state" },
         },
         {
           type: "sendHTMLEmail",
@@ -623,16 +102,9 @@ export const mcBookingMachine = setup({
         },
       ],
       entry: [
-        ({ context }) => {
-          console.log(
-            "🏁 XSTATE STATE: Entered 'Canceled' state [MEDIA COMMONS]",
-            {
-              tenant: context.tenant,
-              timestamp: new Date().toISOString(),
-              servicesRequested: context.servicesRequested,
-              calendarEventId: context.calendarEventId,
-            },
-          );
+        {
+          type: "logStateEntry",
+          params: { label: "Entered 'Canceled' state" },
         },
         {
           type: "queueCancelProcessing",
@@ -655,15 +127,15 @@ export const mcBookingMachine = setup({
       after: {
         "86400000": {
           target: "Canceled",
-          actions: [assign({ automationReason: "decline" as const })],
+          actions: [
+            { type: "setAutomationReason", params: { reason: "decline" } },
+          ],
         },
       },
       entry: [
-        ({ context }) => {
-          console.log("🏁 XSTATE STATE: Entered 'Declined' state", {
-            tenant: context.tenant,
-            timestamp: new Date().toISOString(),
-          });
+        {
+          type: "logStateEntry",
+          params: { label: "Entered 'Declined' state" },
         },
         {
           type: "sendHTMLEmail",
@@ -695,12 +167,9 @@ export const mcBookingMachine = setup({
         },
       },
       entry: [
-        ({ context }) => {
-          console.log("🏁 XSTATE STATE: Entered 'Approved' state", {
-            tenant: context.tenant,
-            timestamp: new Date().toISOString(),
-          });
-          console.log("🎉 XSTATE: APPROVAL SUCCESSFUL!");
+        {
+          type: "logStateEntry",
+          params: { label: "Entered 'Approved' state" },
         },
         {
           type: "sendHTMLEmail",
@@ -724,23 +193,349 @@ export const mcBookingMachine = setup({
         target: "Evaluate Services Request",
       },
       entry: [
-        ({ context }) => {
-          console.log(
-            "🏁 XSTATE STATE: Entered 'Services Request' parallel state [MEDIA COMMONS]",
-            {
-              tenant: context.tenant,
-              timestamp: new Date().toISOString(),
-              servicesRequested: context.servicesRequested,
-              isVip: context.isVip,
-            },
-          );
+        {
+          type: "logStateEntry",
+          params: { label: "Entered 'Services Request' parallel state" },
         },
       ],
-      // Type assertion required: XState's setup() infers literal string unions for state keys,
-      // which Object.fromEntries cannot produce from a runtime array.
-      states: Object.fromEntries(
-        SERVICE_CONFIGS.map(c => [`${c.name} Request`, createServiceRequestState(c)])
-      ) as any,
+      states: {
+        "Staff Request": {
+          initial: "Evaluate Staff Request",
+          states: {
+            "Evaluate Staff Request": {
+              always: [
+                {
+                  target: "Staff Requested",
+                  guard: { type: "staffRequested" },
+                },
+                { target: "Staff Approved" },
+              ],
+              entry: [
+                {
+                  type: "logStateEntry",
+                  params: { label: "Evaluating Staff Request" },
+                },
+              ],
+            },
+            "Staff Requested": {
+              on: {
+                declineStaff: {
+                  target: "Staff Declined",
+                  actions: "declineStaffService",
+                },
+                approveStaff: {
+                  target: "Staff Approved",
+                  actions: "approveStaffService",
+                },
+              },
+              entry: [
+                {
+                  type: "logStateEntry",
+                  params: { label: "Staff Request Pending Approval" },
+                },
+              ],
+            },
+            "Staff Approved": {
+              type: "final",
+              entry: [
+                {
+                  type: "logStateEntry",
+                  params: { label: "Staff Request APPROVED" },
+                },
+              ],
+            },
+            "Staff Declined": {
+              type: "final",
+              entry: [
+                {
+                  type: "logStateEntry",
+                  params: { label: "Staff Request DECLINED" },
+                },
+              ],
+            },
+          },
+        },
+        "Catering Request": {
+          initial: "Evaluate Catering Request",
+          states: {
+            "Evaluate Catering Request": {
+              always: [
+                {
+                  target: "Catering Requested",
+                  guard: { type: "caterRequested" },
+                },
+                { target: "Catering Approved" },
+              ],
+              entry: [
+                {
+                  type: "logStateEntry",
+                  params: { label: "Evaluating Catering Request" },
+                },
+              ],
+            },
+            "Catering Requested": {
+              on: {
+                declineCatering: {
+                  target: "Catering Declined",
+                  actions: "declineCateringService",
+                },
+                approveCatering: {
+                  target: "Catering Approved",
+                  actions: "approveCateringService",
+                },
+              },
+              entry: [
+                {
+                  type: "logStateEntry",
+                  params: { label: "Catering Request Pending Approval" },
+                },
+              ],
+            },
+            "Catering Approved": {
+              type: "final",
+              entry: [
+                {
+                  type: "logStateEntry",
+                  params: { label: "Catering Request APPROVED" },
+                },
+              ],
+            },
+            "Catering Declined": {
+              type: "final",
+              entry: [
+                {
+                  type: "logStateEntry",
+                  params: { label: "Catering Request DECLINED" },
+                },
+              ],
+            },
+          },
+        },
+        "Setup Request": {
+          initial: "Evaluate Setup Request",
+          states: {
+            "Evaluate Setup Request": {
+              always: [
+                {
+                  target: "Setup Requested",
+                  guard: { type: "setupRequested" },
+                },
+                { target: "Setup Approved" },
+              ],
+              entry: [
+                {
+                  type: "logStateEntry",
+                  params: { label: "Evaluating Setup Request" },
+                },
+              ],
+            },
+            "Setup Requested": {
+              on: {
+                declineSetup: {
+                  target: "Setup Declined",
+                  actions: "declineSetupService",
+                },
+                approveSetup: {
+                  target: "Setup Approved",
+                  actions: "approveSetupService",
+                },
+              },
+              entry: [
+                {
+                  type: "logStateEntry",
+                  params: { label: "Setup Request Pending Approval" },
+                },
+              ],
+            },
+            "Setup Approved": {
+              type: "final",
+              entry: [
+                {
+                  type: "logStateEntry",
+                  params: { label: "Setup Request APPROVED" },
+                },
+              ],
+            },
+            "Setup Declined": {
+              type: "final",
+              entry: [
+                {
+                  type: "logStateEntry",
+                  params: { label: "Setup Request DECLINED" },
+                },
+              ],
+            },
+          },
+        },
+        "Cleaning Request": {
+          initial: "Evaluate Cleaning Request",
+          states: {
+            "Evaluate Cleaning Request": {
+              always: [
+                {
+                  target: "Cleaning Requested",
+                  guard: { type: "cleanRequested" },
+                },
+                { target: "Cleaning Approved" },
+              ],
+              entry: [
+                {
+                  type: "logStateEntry",
+                  params: { label: "Evaluating Cleaning Request" },
+                },
+              ],
+            },
+            "Cleaning Requested": {
+              on: {
+                declineCleaning: {
+                  target: "Cleaning Declined",
+                  actions: "declineCleaningService",
+                },
+                approveCleaning: {
+                  target: "Cleaning Approved",
+                  actions: "approveCleaningService",
+                },
+              },
+              entry: [
+                {
+                  type: "logStateEntry",
+                  params: { label: "Cleaning Request Pending Approval" },
+                },
+              ],
+            },
+            "Cleaning Approved": {
+              type: "final",
+              entry: [
+                {
+                  type: "logStateEntry",
+                  params: { label: "Cleaning Request APPROVED" },
+                },
+              ],
+            },
+            "Cleaning Declined": {
+              type: "final",
+              entry: [
+                {
+                  type: "logStateEntry",
+                  params: { label: "Cleaning Request DECLINED" },
+                },
+              ],
+            },
+          },
+        },
+        "Security Request": {
+          initial: "Evaluate Security Request",
+          states: {
+            "Evaluate Security Request": {
+              always: [
+                {
+                  target: "Security Requested",
+                  guard: { type: "securityRequested" },
+                },
+                { target: "Security Approved" },
+              ],
+              entry: [
+                {
+                  type: "logStateEntry",
+                  params: { label: "Evaluating Security Request" },
+                },
+              ],
+            },
+            "Security Requested": {
+              on: {
+                declineSecurity: {
+                  target: "Security Declined",
+                  actions: "declineSecurityService",
+                },
+                approveSecurity: {
+                  target: "Security Approved",
+                  actions: "approveSecurityService",
+                },
+              },
+              entry: [
+                {
+                  type: "logStateEntry",
+                  params: { label: "Security Request Pending Approval" },
+                },
+              ],
+            },
+            "Security Approved": {
+              type: "final",
+              entry: [
+                {
+                  type: "logStateEntry",
+                  params: { label: "Security Request APPROVED" },
+                },
+              ],
+            },
+            "Security Declined": {
+              type: "final",
+              entry: [
+                {
+                  type: "logStateEntry",
+                  params: { label: "Security Request DECLINED" },
+                },
+              ],
+            },
+          },
+        },
+        "Equipment Request": {
+          initial: "Evaluate Equipment Request",
+          states: {
+            "Evaluate Equipment Request": {
+              always: [
+                {
+                  target: "Equipment Requested",
+                  guard: { type: "equipRequested" },
+                },
+                { target: "Equipment Approved" },
+              ],
+              entry: [
+                {
+                  type: "logStateEntry",
+                  params: { label: "Evaluating Equipment Request" },
+                },
+              ],
+            },
+            "Equipment Requested": {
+              on: {
+                declineEquipment: {
+                  target: "Equipment Declined",
+                  actions: "declineEquipmentService",
+                },
+                approveEquipment: {
+                  target: "Equipment Approved",
+                  actions: "approveEquipmentService",
+                },
+              },
+              entry: [
+                {
+                  type: "logStateEntry",
+                  params: { label: "Equipment Request Pending Approval" },
+                },
+              ],
+            },
+            "Equipment Approved": {
+              type: "final",
+              entry: [
+                {
+                  type: "logStateEntry",
+                  params: { label: "Equipment Request APPROVED" },
+                },
+              ],
+            },
+            "Equipment Declined": {
+              type: "final",
+              entry: [
+                {
+                  type: "logStateEntry",
+                  params: { label: "Equipment Request DECLINED" },
+                },
+              ],
+            },
+          },
+        },
+      },
     },
     "Pre-approved": {
       on: {
@@ -776,13 +571,9 @@ export const mcBookingMachine = setup({
         },
       },
       entry: [
-        ({ context }) => {
-          console.log("🏁 XSTATE STATE: Entered 'Pre-approved' state", {
-            tenant: context.tenant,
-            timestamp: new Date().toISOString(),
-            origin: context.origin,
-            isPregame: context.origin === BookingOrigin.PREGAME,
-          });
+        {
+          type: "logStateEntry",
+          params: { label: "Entered 'Pre-approved' state" },
         },
         {
           type: "updateCalendarEvent",
@@ -795,30 +586,272 @@ export const mcBookingMachine = setup({
         target: "Closed",
       },
       entry: [
-        ({ context }) => {
-          console.log(
-            "🏁 XSTATE STATE: Entered 'Service Closeout' parallel state [MEDIA COMMONS]",
-            {
-              tenant: context.tenant,
-              timestamp: new Date().toISOString(),
-              servicesApproved: context.servicesApproved,
-            },
-          );
+        {
+          type: "logStateEntry",
+          params: { label: "Entered 'Service Closeout' parallel state" },
         },
       ],
-      // Type assertion required: same XState literal key limitation as Services Request above.
-      states: Object.fromEntries(
-        SERVICE_CONFIGS.map(c => [`${c.name} Closeout`, createServiceCloseoutState(c)])
-      ) as any,
+      states: {
+        "Staff Closeout": {
+          initial: "Evaluate Staff",
+          states: {
+            "Evaluate Staff": {
+              always: [
+                {
+                  target: "Staff Closeout Pending",
+                  guard: { type: "staffApproved" },
+                },
+                { target: "Staff Closedout" },
+              ],
+              entry: [
+                {
+                  type: "logStateEntry",
+                  params: { label: "Evaluating Staff Closeout" },
+                },
+              ],
+            },
+            "Staff Closeout Pending": {
+              on: {
+                closeoutStaff: {
+                  target: "Staff Closedout",
+                },
+              },
+              entry: [
+                {
+                  type: "logStateEntry",
+                  params: { label: "Staff Closeout Pending" },
+                },
+              ],
+            },
+            "Staff Closedout": {
+              type: "final",
+              entry: [
+                {
+                  type: "logStateEntry",
+                  params: { label: "Staff CLOSED OUT" },
+                },
+              ],
+            },
+          },
+        },
+        "Catering Closeout": {
+          initial: "Evaluate Catering",
+          states: {
+            "Evaluate Catering": {
+              always: [
+                {
+                  target: "Catering Closeout Pending",
+                  guard: { type: "cateringApproved" },
+                },
+                { target: "Catering Closedout" },
+              ],
+              entry: [
+                {
+                  type: "logStateEntry",
+                  params: { label: "Evaluating Catering Closeout" },
+                },
+              ],
+            },
+            "Catering Closeout Pending": {
+              on: {
+                closeoutCatering: {
+                  target: "Catering Closedout",
+                },
+              },
+              entry: [
+                {
+                  type: "logStateEntry",
+                  params: { label: "Catering Closeout Pending" },
+                },
+              ],
+            },
+            "Catering Closedout": {
+              type: "final",
+              entry: [
+                {
+                  type: "logStateEntry",
+                  params: { label: "Catering CLOSED OUT" },
+                },
+              ],
+            },
+          },
+        },
+        "Setup Closeout": {
+          initial: "Evaluate Setup",
+          states: {
+            "Evaluate Setup": {
+              always: [
+                {
+                  target: "Setup Closeout Pending",
+                  guard: { type: "setupApproved" },
+                },
+                { target: "Setup Closedout" },
+              ],
+              entry: [
+                {
+                  type: "logStateEntry",
+                  params: { label: "Evaluating Setup Closeout" },
+                },
+              ],
+            },
+            "Setup Closeout Pending": {
+              on: {
+                closeoutSetup: {
+                  target: "Setup Closedout",
+                },
+              },
+              entry: [
+                {
+                  type: "logStateEntry",
+                  params: { label: "Setup Closeout Pending" },
+                },
+              ],
+            },
+            "Setup Closedout": {
+              type: "final",
+              entry: [
+                {
+                  type: "logStateEntry",
+                  params: { label: "Setup CLOSED OUT" },
+                },
+              ],
+            },
+          },
+        },
+        "Cleaning Closeout": {
+          initial: "Evaluate Cleaning",
+          states: {
+            "Evaluate Cleaning": {
+              always: [
+                {
+                  target: "Cleaning Closeout Pending",
+                  guard: { type: "cleanApproved" },
+                },
+                { target: "Cleaning Closedout" },
+              ],
+              entry: [
+                {
+                  type: "logStateEntry",
+                  params: { label: "Evaluating Cleaning Closeout" },
+                },
+              ],
+            },
+            "Cleaning Closeout Pending": {
+              on: {
+                closeoutCleaning: {
+                  target: "Cleaning Closedout",
+                },
+              },
+              entry: [
+                {
+                  type: "logStateEntry",
+                  params: { label: "Cleaning Closeout Pending" },
+                },
+              ],
+            },
+            "Cleaning Closedout": {
+              type: "final",
+              entry: [
+                {
+                  type: "logStateEntry",
+                  params: { label: "Cleaning CLOSED OUT" },
+                },
+              ],
+            },
+          },
+        },
+        "Security Closeout": {
+          initial: "Evaluate Security",
+          states: {
+            "Evaluate Security": {
+              always: [
+                {
+                  target: "Security Closeout Pending",
+                  guard: { type: "securityApproved" },
+                },
+                { target: "Security Closedout" },
+              ],
+              entry: [
+                {
+                  type: "logStateEntry",
+                  params: { label: "Evaluating Security Closeout" },
+                },
+              ],
+            },
+            "Security Closeout Pending": {
+              on: {
+                closeoutSecurity: {
+                  target: "Security Closedout",
+                },
+              },
+              entry: [
+                {
+                  type: "logStateEntry",
+                  params: { label: "Security Closeout Pending" },
+                },
+              ],
+            },
+            "Security Closedout": {
+              type: "final",
+              entry: [
+                {
+                  type: "logStateEntry",
+                  params: { label: "Security CLOSED OUT" },
+                },
+              ],
+            },
+          },
+        },
+        "Equipment Closeout": {
+          initial: "Evaluate Equipment",
+          states: {
+            "Evaluate Equipment": {
+              always: [
+                {
+                  target: "Equipment Closeout Pending",
+                  guard: { type: "equipApproved" },
+                },
+                { target: "Equipment Closedout" },
+              ],
+              entry: [
+                {
+                  type: "logStateEntry",
+                  params: { label: "Evaluating Equipment Closeout" },
+                },
+              ],
+            },
+            "Equipment Closeout Pending": {
+              on: {
+                closeoutEquipment: {
+                  target: "Equipment Closedout",
+                },
+              },
+              entry: [
+                {
+                  type: "logStateEntry",
+                  params: { label: "Equipment Closeout Pending" },
+                },
+              ],
+            },
+            "Equipment Closedout": {
+              type: "final",
+              entry: [
+                {
+                  type: "logStateEntry",
+                  params: { label: "Equipment CLOSED OUT" },
+                },
+              ],
+            },
+          },
+        },
+      },
     },
     Closed: {
       type: "final",
       entry: [
-        ({ context }) => {
-          console.log("🏁 XSTATE STATE: Entered 'Closed' state (final)", {
-            tenant: context.tenant,
-            timestamp: new Date().toISOString(),
-          });
+        {
+          type: "logStateEntry",
+          params: { label: "Entered 'Closed' state (final)" },
         },
         {
           type: "handleCloseProcessing",
@@ -838,11 +871,9 @@ export const mcBookingMachine = setup({
         },
       },
       entry: [
-        ({ context }) => {
-          console.log("🏁 XSTATE STATE: Entered 'Checked In' state", {
-            tenant: context.tenant,
-            timestamp: new Date().toISOString(),
-          });
+        {
+          type: "logStateEntry",
+          params: { label: "Entered 'Checked In' state" },
         },
         {
           type: "sendHTMLEmail",
@@ -855,15 +886,12 @@ export const mcBookingMachine = setup({
     "No Show": {
       always: {
         target: "Canceled",
-        actions: [assign({ automationReason: "no-show" })],
+        actions: [
+          { type: "setAutomationReason", params: { reason: "no-show" } },
+        ],
       },
       entry: [
-        ({ context }) => {
-          console.log("🏁 XSTATE STATE: Entered 'No Show' state", {
-            tenant: context.tenant,
-            timestamp: new Date().toISOString(),
-          });
-        },
+        { type: "logStateEntry", params: { label: "Entered 'No Show' state" } },
         {
           type: "updateCalendarEvent",
         },
@@ -892,16 +920,9 @@ export const mcBookingMachine = setup({
         },
       ],
       entry: [
-        ({ context }) => {
-          console.log(
-            "🔍 XSTATE STATE: Evaluating Services Request Results [MEDIA COMMONS]",
-            {
-              tenant: context.tenant,
-              timestamp: new Date().toISOString(),
-              servicesRequested: context.servicesRequested,
-              servicesApproved: context.servicesApproved,
-            },
-          );
+        {
+          type: "logStateEntry",
+          params: { label: "Evaluating Services Request Results" },
         },
       ],
     },
@@ -918,11 +939,9 @@ export const mcBookingMachine = setup({
         },
       ],
       entry: [
-        ({ context }) => {
-          console.log("🏁 XSTATE STATE: Entered 'Checked Out' state", {
-            tenant: context.tenant,
-            timestamp: new Date().toISOString(),
-          });
+        {
+          type: "logStateEntry",
+          params: { label: "Entered 'Checked Out' state" },
         },
         {
           type: "handleCheckoutProcessing",

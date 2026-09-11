@@ -1,8 +1,4 @@
 import { EquipmentServices, StaffingServices } from "@/components/src/types";
-import {
-  getStaffingServiceLabel,
-  isMcPassiveSetupDefault,
-} from "@/lib/tenant/mcResourceServices";
 import { isServiceRequested } from "@/components/src/utils/tenantUtils";
 import type {
   ResourceFormSectionConfig,
@@ -12,6 +8,8 @@ import {
   formatAnnexSelectionsForRoom,
   getServiceResourceId,
   getServiceSectionConfig,
+  getStaffingServiceLabel,
+  isPassiveSetupSelection,
   resourceHasService,
   ServiceResourceLike,
 } from "@/components/src/utils/resourceServicesUtils";
@@ -121,6 +119,7 @@ export function getBookingServicesByRoom(
   const staffingValue = formatStaffingRow(
     booking.staffingServices,
     booking.staffingServicesDetails,
+    resources,
   );
 
   const setupMap = stringMap(booking.roomSetupByRoom);
@@ -237,6 +236,7 @@ export function getBookingServicesByRoom(
         hasKeys(setupChartMap),
       ),
       setupCfg,
+      resources,
     );
     if (setup) {
       rows.push({
@@ -406,6 +406,7 @@ export function getBookingServicesByRoom(
         booking.setupDetails,
         booking.chartFieldForRoomSetup,
         undefined,
+        resources,
       );
       if (setup) {
         bookingLevel.push({
@@ -652,22 +653,26 @@ function formatSecurityValue(
   return trimmed;
 }
 
-function formatStaffingServiceDisplay(value: string): string {
+function formatStaffingServiceDisplay(
+  value: string,
+  resources: ServiceResourceLike[],
+): string {
   const trimmed = value.trim();
   if (!trimmed) return trimmed;
   if (trimmed in StaffingServices) {
     return StaffingServices[trimmed as keyof typeof StaffingServices];
   }
-  return getStaffingServiceLabel(trimmed);
+  return getStaffingServiceLabel(resources, trimmed);
 }
 
 function formatStaffingRow(
   services: string | undefined,
   details: string | undefined,
+  resources: ServiceResourceLike[],
 ): string | undefined {
   const labels = String(services ?? "")
     .split(",")
-    .map((service) => formatStaffingServiceDisplay(service))
+    .map((service) => formatStaffingServiceDisplay(service, resources))
     .filter((service) => !isBlankDisplayValue(service));
   const detailText = meaningfulText(details);
   if (labels.length === 0 && !detailText) return undefined;
@@ -729,12 +734,13 @@ function resolveSetupDisplay(
   details: string | undefined,
   chartField: string | undefined,
   setupCfg: ResourceFormSectionConfig | undefined,
+  resources: ServiceResourceLike[],
 ): { value: string; chartField?: string } | undefined {
   const option = setupCfg?.options?.find((o) => o.value === storedValue);
   const display = firstMeaningful(details, option?.label, storedValue);
   if (
-    (display && isMcPassiveSetupDefault(display)) ||
-    (storedValue && isMcPassiveSetupDefault(storedValue))
+    (display && isPassiveSetupSelection(resources, display)) ||
+    (storedValue && isPassiveSetupSelection(resources, storedValue))
   ) {
     return undefined;
   }
