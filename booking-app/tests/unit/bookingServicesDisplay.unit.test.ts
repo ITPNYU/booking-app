@@ -173,6 +173,49 @@ describe("getBookingServicesByRoom", () => {
     ]);
   });
 
+  it("does not fan legacy catering onto leftover rooms from unrelated maps", () => {
+    const leftoverRoom: ServiceResourceLike = {
+      resourceId: "230",
+      name: "Black Box",
+      services: {
+        catering: { label: "Catering?", toggle: "optional" },
+        cleaning: { label: "Cleaning", toggle: "optional" },
+        setup: { label: "Room Setup" },
+      },
+    };
+    const display = getBookingServicesByRoom(
+      {
+        roomId: "202, 103",
+        catering: "yes",
+        chartFieldForCatering: "cat-1",
+        cleaningService: "yes",
+        hireSecurity: "willoughby",
+        roomSetupByRoom: { "230": "Theater" },
+      },
+      [screeningRoom, garage, leftoverRoom],
+    );
+
+    expect(display.rooms.map((room) => room.roomId)).toEqual([
+      "202",
+      "103",
+      "230",
+    ]);
+    expect(display.rooms[0].rows).toEqual([
+      { key: "catering", label: "Catering", value: "Yes", chartField: "cat-1" },
+    ]);
+    expect(display.rooms[1].rows).toEqual([
+      {
+        key: "security",
+        label: "Campus Safety",
+        value: "Willoughby Street Entrance",
+      },
+    ]);
+    expect(display.rooms[2].rows).toEqual([
+      { key: "setup", label: "Room Setup", value: "Theater" },
+    ]);
+    expect(display.bookingLevel.map((row) => row.key)).toEqual(["cleaning"]);
+  });
+
   it("shows multi-room setup, equipment, and staffing once at booking level", () => {
     const staffingRoom: ServiceResourceLike = {
       resourceId: "202",

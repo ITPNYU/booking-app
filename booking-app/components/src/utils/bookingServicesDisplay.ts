@@ -161,22 +161,26 @@ export function getBookingServicesByRoom(
   );
 
   const isMultiRoom = bookedIds.length !== 1;
+  // Fan legacy scalars onto booked rooms only, not leftover map-only rooms.
+  const bookedRooms = rooms.filter((room) =>
+    bookedIds.includes(getServiceResourceId(room)),
+  );
   const cateringFanIds = fanTargetIds(
-    rooms,
+    bookedRooms,
     "catering",
     !hasCateringMap &&
       isMultiRoom &&
       isRequestedDisplayValue(firstLegacyCatering(booking)),
   );
   const cleaningFanIds = fanTargetIds(
-    rooms,
+    bookedRooms,
     "cleaning",
     !hasCleaningMap &&
       isMultiRoom &&
       isRequestedDisplayValue(booking.cleaningService),
   );
   const securityFanIds = fanTargetIds(
-    rooms,
+    bookedRooms,
     "security",
     !hasSecurityMap &&
       isMultiRoom &&
