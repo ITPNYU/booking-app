@@ -267,12 +267,11 @@
             <br />{{ contents.chartFieldForRoomSetup }} {{/if}}
           </td>
         </tr>
-        {{#if contents.furnishingsSummary}}
+        {{#if contents.furnishingsLines}}
         <tr>
           <td>Additional Event Furniture</td>
           <td>
-            {{ contents.furnishingsSummary }} {{#if contents.furnishingsChartFields}}
-            <br />{{ contents.furnishingsChartFields }} {{/if}}
+            {{#each contents.furnishingsLines}}{{ this }}<br />{{/each}}
           </td>
         </tr>
         {{/if}}

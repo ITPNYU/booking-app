@@ -438,8 +438,7 @@ describe("components/src/server/admin", () => {
     expect(result.history.map((h: any) => h.status)).toContain(
       BookingStatusLabel.REQUESTED,
     );
-    expect(result.furnishingsSummary).toBeNull();
-    expect(result.furnishingsChartFields).toBeNull();
+    expect(result.furnishingsLines).toEqual([]);
   });
 
   it("flattens the furnishings request for the email template", async () => {
@@ -456,6 +455,7 @@ describe("components/src/server/admin", () => {
           requestedAt: makeTimestamp("2024-02-25T10:00:00.000Z"),
           status: BookingStatusLabel.REQUESTED,
           furnishingsByRoom: { "103": "yes", "233": "no" },
+          furnishingsDetailsByRoom: { "103": "Two extra tables" },
           furnishingsDetails: "Two extra tables",
           chartFieldForFurnishingsByRoom: { "103": "CF-103", "233": "CF-233" },
         },
@@ -467,8 +467,9 @@ describe("components/src/server/admin", () => {
 
     const result = await serverBookingContents("cal-2", "tenant-z");
 
-    expect(result.furnishingsSummary).toBe("103 — Two extra tables");
-    expect(result.furnishingsChartFields).toBe("103: CF-103");
+    expect(result.furnishingsLines).toEqual([
+      "103: Two extra tables (chartfield: CF-103)",
+    ]);
   });
 
   it("performs first approval flow and notifies final approver", async () => {

@@ -1,6 +1,5 @@
 import {
-  formatFurnishingsChartFields,
-  formatFurnishingsSummary,
+  formatFurnishingsLines,
   hasFurnishingsRequest,
 } from "@/components/src/utils/furnishingsDisplay";
 import {
@@ -728,12 +727,11 @@ export default function MoreInfoModal({
                     {hasFurnishingsRequest(booking) && (
                       <TableRow>
                         <LabelCell>Additional Event Furniture</LabelCell>
-                        <StackedTableCell
-                          topText={formatFurnishingsSummary(booking) ?? "none"}
-                          bottomText={
-                            formatFurnishingsChartFields(booking) ?? "none"
-                          }
-                        />
+                        <TableCell>
+                          {formatFurnishingsLines(booking).map((line) => (
+                            <p key={line}>{line}</p>
+                          ))}
+                        </TableCell>
                       </TableRow>
                     )}
                     {hasAnnexSelections(booking.annexByRoom) && (

@@ -1,7 +1,4 @@
-import {
-  formatFurnishingsChartFields,
-  formatFurnishingsSummary,
-} from "@/components/src/utils/furnishingsDisplay";
+import { formatFurnishingsLines } from "@/components/src/utils/furnishingsDisplay";
 import {
   logServerBookingChange,
   serverDeleteData,
@@ -240,8 +237,7 @@ export const serverBookingContents = async (id: string, tenant?: string) => {
     }),
     secondaryContactName: getSecondaryContactName(booking),
     // Flattened for the email template; object maps cannot be rendered there.
-    furnishingsSummary: formatFurnishingsSummary(booking),
-    furnishingsChartFields: formatFurnishingsChartFields(booking),
+    furnishingsLines: formatFurnishingsLines(booking),
   };
 
   return updatedBookingObj as unknown as BookingFormDetails;

@@ -1,6 +1,5 @@
 import {
-  formatFurnishingsChartFields,
-  formatFurnishingsSummary,
+  formatFurnishingsLines,
   getFurnishingsRequestedRoomIds,
   hasFurnishingsRequest,
 } from "@/components/src/utils/furnishingsDisplay";
@@ -21,31 +20,31 @@ describe("furnishingsDisplay", () => {
     );
   });
 
-  it("formats the summary with rooms and trimmed details", () => {
+  it("renders one line per requested room with details and chartfield", () => {
     expect(
-      formatFurnishingsSummary({
-        furnishingsByRoom: { "103": "yes", "233": "yes" },
-        furnishingsDetails: "  Two extra tables  ",
+      formatFurnishingsLines({
+        furnishingsByRoom: { "103": "yes", "202": "yes", "233": "no" },
+        furnishingsDetailsByRoom: {
+          "103": " Two extra tables ",
+          "202": "",
+          "233": "ignored",
+        },
+        chartFieldForFurnishingsByRoom: {
+          "103": "12345-12",
+          "233": "CF-233",
+        },
+        furnishingsDetails: "Two extra tables",
       }),
-    ).toBe("103, 233 — Two extra tables");
-    expect(
-      formatFurnishingsSummary({ furnishingsByRoom: { "103": "yes" } }),
-    ).toBe("103");
-    expect(formatFurnishingsSummary({ furnishingsByRoom: {} })).toBeNull();
+    ).toEqual(["103: Two extra tables (chartfield: 12345-12)", "202: yes"]);
   });
 
-  it("formats chartfields for requested rooms only", () => {
+  it("falls back to the joined details for bookings without per-room details", () => {
     expect(
-      formatFurnishingsChartFields({
-        furnishingsByRoom: { "103": "yes", "233": "no" },
-        chartFieldForFurnishingsByRoom: { "103": "CF-103", "233": "CF-233" },
-      }),
-    ).toBe("103: CF-103");
-    expect(
-      formatFurnishingsChartFields({
+      formatFurnishingsLines({
         furnishingsByRoom: { "103": "yes" },
-        chartFieldForFurnishingsByRoom: { "103": "  " },
+        furnishingsDetails: "Podium and two chairs",
       }),
-    ).toBeNull();
+    ).toEqual(["103: yes", "Details: Podium and two chairs"]);
+    expect(formatFurnishingsLines({ furnishingsByRoom: {} })).toEqual([]);
   });
 });
