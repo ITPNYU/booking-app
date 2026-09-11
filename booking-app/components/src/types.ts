@@ -47,6 +47,9 @@ export type BookingRow = Booking & {
 export type BookingFormDetails = Booking & {
   headerMessage?: string;
   id?: string;
+  /** Flattened furnishings request for the email template (serverBookingContents). */
+  furnishingsSummary?: string | null;
+  furnishingsChartFields?: string | null;
 };
 
 export type BookingStatus = {

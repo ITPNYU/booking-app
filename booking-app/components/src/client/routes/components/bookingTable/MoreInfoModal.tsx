@@ -1,4 +1,9 @@
 import {
+  formatFurnishingsChartFields,
+  formatFurnishingsSummary,
+  hasFurnishingsRequest,
+} from "@/components/src/utils/furnishingsDisplay";
+import {
   Alert,
   Box,
   Button,
@@ -176,12 +181,7 @@ export default function MoreInfoModal({
     schema.form.services.showStaffing ||
     schema.form.services.showCatering ||
     schema.form.services.showSecurity ||
-    Boolean(
-      booking.furnishingsByRoom &&
-        Object.values(booking.furnishingsByRoom).some(
-          (v) => typeof v === "string" && v.toLowerCase() === "yes",
-        ),
-    ) ||
+    hasFurnishingsRequest(booking) ||
     hasAnnexSelections(booking.annexByRoom);
 
   // Multi-room bookings show catering / cleaning / security per room.
@@ -725,46 +725,17 @@ export default function MoreInfoModal({
                         />
                       </TableRow>
                     )}
-                    {booking.furnishingsByRoom &&
-                      Object.entries(booking.furnishingsByRoom).some(
-                        ([, v]) =>
-                          typeof v === "string" && v.toLowerCase() === "yes",
-                      ) && (
-                        <TableRow>
-                          <LabelCell>Additional Event Furniture</LabelCell>
-                          <StackedTableCell
-                            topText={
-                              [
-                                Object.entries(booking.furnishingsByRoom)
-                                  .filter(
-                                    ([, v]) =>
-                                      typeof v === "string" &&
-                                      v.toLowerCase() === "yes",
-                                  )
-                                  .map(([roomId]) => roomId)
-                                  .join(", "),
-                                booking.furnishingsDetails?.trim()
-                                  ? booking.furnishingsDetails.trim()
-                                  : null,
-                              ]
-                                .filter(Boolean)
-                                .join(" — ")
-                            }
-                            bottomText={
-                              Object.entries(
-                                booking.chartFieldForFurnishingsByRoom ?? {},
-                              )
-                                .filter(([roomId]) =>
-                                  booking.furnishingsByRoom?.[roomId] === "yes",
-                                )
-                                .map(
-                                  ([roomId, chart]) => `${roomId}: ${chart}`,
-                                )
-                                .join("; ") || "none"
-                            }
-                          />
-                        </TableRow>
-                      )}
+                    {hasFurnishingsRequest(booking) && (
+                      <TableRow>
+                        <LabelCell>Additional Event Furniture</LabelCell>
+                        <StackedTableCell
+                          topText={formatFurnishingsSummary(booking) ?? "none"}
+                          bottomText={
+                            formatFurnishingsChartFields(booking) ?? "none"
+                          }
+                        />
+                      </TableRow>
+                    )}
                     {hasAnnexSelections(booking.annexByRoom) && (
                       <TableRow>
                         <LabelCell>Auxiliary Spaces</LabelCell>
