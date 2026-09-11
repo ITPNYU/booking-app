@@ -425,23 +425,6 @@ export function getBookingServicesByRoom(
         });
       }
     }
-    if (!hasFurnishingsMap) {
-      const furnishings = resolveFurnishingsRow({
-        roomId: "",
-        requested: undefined,
-        details: undefined,
-        joinedDetails: booking.furnishingsDetails,
-        furnYesRoomIds: [],
-        chartField: undefined,
-      });
-      if (furnishings) {
-        bookingLevel.push({
-          key: "furnishings",
-          label: "Additional Event Furniture",
-          ...furnishings,
-        });
-      }
-    }
   }
   if (staffingValue && bookedIds.length === 0) {
     bookingLevel.push({
@@ -773,19 +756,16 @@ function resolveFurnishingsRow({
   chartField: string | undefined;
 }): { value: string; chartField?: string } | undefined {
   const isYes = isRequestedDisplayValue(requested);
+  if (!isYes) return undefined;
   const perRoomDetails = meaningfulText(details);
   const sharedDetails =
     !perRoomDetails &&
-    (isYes && furnYesRoomIds.length === 1 && furnYesRoomIds[0] === roomId
+    furnYesRoomIds.length === 1 &&
+    furnYesRoomIds[0] === roomId
       ? meaningfulText(joinedDetails)
-      : !requested && !roomId
-        ? meaningfulText(joinedDetails)
-        : undefined);
+      : undefined;
   const detailText = perRoomDetails ?? sharedDetails;
   const chart = meaningfulText(chartField);
-  if (!isYes && !detailText && !chart) return undefined;
-  if (!isYes && roomId) return undefined;
-  const value = detailText ?? (isYes ? "Yes" : undefined);
-  if (!value) return undefined;
+  const value = detailText ?? "Yes";
   return chart ? { value, chartField: chart } : { value };
 }

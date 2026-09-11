@@ -319,4 +319,47 @@ describe("getBookingServicesByRoom", () => {
       },
     ]);
   });
+
+  it("does not show leftover furnishings details without a yes", () => {
+    const display = getBookingServicesByRoom({
+      roomId: "202, 103",
+      furnishingsDetails: "2 tables",
+    });
+
+    expect(
+      display.bookingLevel.find((row) => row.key === "furnishings"),
+    ).toBeUndefined();
+    expect(display.rooms).toEqual([]);
+  });
+
+  it("does not show furnishings details when every room is no", () => {
+    const display = getBookingServicesByRoom({
+      roomId: "202, 103",
+      furnishingsByRoom: { "202": "no", "103": "no" },
+      furnishingsDetails: "2 tables",
+      furnishingsDetailsByRoom: { "202": "2 tables" },
+    });
+
+    expect(display.bookingLevel).toEqual([]);
+    expect(display.rooms).toEqual([]);
+  });
+
+  it("shows furnishings on the room that requested them", () => {
+    const display = getBookingServicesByRoom({
+      roomId: "202, 103",
+      furnishingsByRoom: { "202": "yes", "103": "no" },
+      furnishingsDetailsByRoom: { "202": "2 tables" },
+      furnishingsDetails: "2 tables",
+    });
+
+    expect(display.bookingLevel).toEqual([]);
+    expect(display.rooms.map((room) => room.roomId)).toEqual(["202"]);
+    expect(display.rooms[0].rows).toEqual([
+      {
+        key: "furnishings",
+        label: "Additional Event Furniture",
+        value: "2 tables",
+      },
+    ]);
+  });
 });
