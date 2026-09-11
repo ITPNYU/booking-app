@@ -1,6 +1,5 @@
 import { bookingCalendarStrToDate } from "@/components/src/client/utils/date";
 import { getCalendarClient } from "@/lib/googleClient";
-import { getMcResourceServices } from "@/lib/tenant/mcResourceServices";
 import { serverGetTenantResources } from "@/lib/tenant/serverGetTenantResources";
 import { traceExternalCall } from "@/lib/newrelic-utils";
 import { BookingFormDetails, BookingStatusLabel } from "../types";
@@ -20,11 +19,12 @@ async function resourcesForServicesDisplay(
 ): Promise<ServiceResourceLike[]> {
   const tenantResources = await serverGetTenantResources(tenant);
   const annexByRoom = bookingContents.annexByRoom;
+  // Annex parent ids that are not in the tenant schema still need a resource
+  // entry so services can be grouped under that room.
   const fallbackRooms =
     annexByRoom && typeof annexByRoom === "object"
       ? Object.keys(annexByRoom).map((roomId) => ({
           resourceId: roomId,
-          services: getMcResourceServices(roomId) ?? {},
         }))
       : [];
   return [...tenantResources, ...fallbackRooms];

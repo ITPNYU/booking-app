@@ -24,12 +24,8 @@ export async function getCachedTenantSchema(
   }
   if (shouldBypassAuth()) {
     const test = getTestTenantSchema(tenant);
-    // The e2e schema defines its own (mostly empty) service configs; do not
-    // replace them with the real MC config.
     return test
-      ? coerceTenantSchema(test as unknown as Record<string, unknown>, tenant, {
-          applyMcServiceConfig: false,
-        })
+      ? coerceTenantSchema(test as unknown as Record<string, unknown>, tenant)
       : null;
   }
 

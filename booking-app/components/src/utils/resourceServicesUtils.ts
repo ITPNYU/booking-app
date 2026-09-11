@@ -82,6 +82,51 @@ export function needsGenericSetupSwitch(
   return hasLegacyRoom && tenantShowSetup;
 }
 
+/**
+ * Resolve a stored staffing option value (e.g. `LIGHTING_TECH_DIY`) to its
+ * label using the tenant resources' staffing configs. Falls back to the raw
+ * value when no resource defines it.
+ */
+export function getStaffingServiceLabel(
+  resources: ServiceResourceLike[],
+  value: string,
+): string {
+  const target = value.trim();
+  if (!target) return value;
+  for (const resource of resources) {
+    const staffing = getResourceServicesConfig(resource).staffing;
+    if (!staffing) continue;
+    for (const section of Object.values(staffing.sections ?? {})) {
+      const found =
+        section.options?.find((o) => o.value === target) ??
+        section.services?.find((s) => s.value === target);
+      if (found?.label) return found.label;
+    }
+    const flat = staffing.staffingOptions?.find((o) => o.value === target);
+    if (flat?.label) return flat.label;
+  }
+  return value;
+}
+
+/**
+ * A room setup value (or label) that is a room's schema default without a
+ * chartfield is informational only and does not count as a setup request.
+ */
+export function isPassiveSetupSelection(
+  resources: ServiceResourceLike[],
+  value: string,
+): boolean {
+  const normalized = value.trim();
+  if (!normalized) return false;
+  return resources.some((resource) => {
+    const setup = getResourceServicesConfig(resource).setup;
+    if (!setup?.defaultValue) return false;
+    const opt = setup.options?.find((o) => o.value === setup.defaultValue);
+    if (!opt || opt.chartField) return false;
+    return opt.value === normalized || opt.label === normalized;
+  });
+}
+
 export function isLegacyServicesArray(
   services: Resource["services"] | undefined,
 ): services is string[] {

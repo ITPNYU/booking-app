@@ -285,7 +285,7 @@ export async function PUT(request: NextRequest) {
       : (await import("@/lib/stateMachines/itpBookingMachine"))
           .itpBookingMachine;
     const servicesRequested = isMediaCommons
-      ? getMediaCommonsServices(data)
+      ? getMediaCommonsServices(data, await serverGetTenantResources(tenant))
       : undefined;
     const servicesApproved = isMediaCommons
       ? {

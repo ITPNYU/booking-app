@@ -22,7 +22,9 @@ describe("coerceTenantSchema — timeSensitiveRequestWarning", () => {
       calendarConfig: { timeSensitiveRequestWarning: warning },
     };
     const c = coerceTenantSchema(doc, "mc");
-    expect(c.calendarConfig?.timeSensitiveRequestWarning).toMatchObject(warning);
+    expect(c.calendarConfig?.timeSensitiveRequestWarning).toMatchObject(
+      warning,
+    );
   });
 
   it("merges a partial nested warning over the defaults", () => {
@@ -58,27 +60,26 @@ describe("coerceTenantSchema — resources", () => {
     expect(coerced.resources[0]).not.toHaveProperty("roomId");
   });
 
-  it("applies MC room service configs when coercing the mc tenant", () => {
+  it("does not seed MC service configs from code (Firestore is the source of truth)", () => {
     const coerced = coerceTenantSchema(
       {
-        resources: [{ roomId: "202", name: "Studio", capacity: 12 }],
+        resources: [
+          { roomId: "202", name: "Studio", capacity: 12 },
+          { roomId: "103", name: "Garage", capacity: 50, services: ["setup"] },
+        ],
       },
       "mc",
     );
 
     expect(coerced.resources[0].resourceId).toBe("202");
-    expect(coerced.resources[0].services?.setup?.mode).toBe("radio");
-    expect(coerced.resources[0].services?.setup?.defaultValue).toBe(
-      "202_LAYOUT_0",
-    );
-    // 202 does not allow catering in the room (locked off, no chartfield).
-    expect(coerced.resources[0].services?.catering?.toggle).toBe("off");
-    expect(coerced.resources[0].services?.catering?.chartField).toBeUndefined();
-    // Annex options come from parentResourceId child resources, not services.
-    expect(coerced.resources[0].services?.annex).toBeUndefined();
+    expect(coerced.resources[0].services).toBeUndefined();
+    // Legacy string[] services are normalized, not replaced by room defaults.
+    expect(coerced.resources[1].services).toEqual({
+      setup: { label: "Room Setup" },
+    });
   });
 
-  it("keeps explicit services when applyMcServiceConfig is false (e2e schema)", () => {
+  it("keeps explicit services objects as written", () => {
     const coerced = coerceTenantSchema(
       {
         resources: [
@@ -86,32 +87,8 @@ describe("coerceTenantSchema — resources", () => {
         ],
       },
       "mc",
-      { applyMcServiceConfig: false },
     );
     expect(coerced.resources[0].services).toEqual({});
-  });
-
-  it("replaces a stored services object for mc rooms with the code config", () => {
-    const customServices = {
-      catering: { label: "Custom Catering" },
-    };
-    const coerced = coerceTenantSchema(
-      {
-        resources: [
-          {
-            resourceId: "202",
-            name: "Studio",
-            capacity: 12,
-            services: customServices,
-          },
-        ],
-      },
-      "mc",
-    );
-
-    // Stored objects are stale editor snapshots; the code config wins.
-    expect(coerced.resources[0].services?.catering?.label).toBe("Catering");
-    expect(coerced.resources[0].services?.catering?.toggle).toBe("off");
   });
 
   it("keeps a canonical resourceId and removes a matching legacy roomId", () => {
@@ -145,10 +122,7 @@ describe("coerceTenantSchema — resources", () => {
     expect(() =>
       coerceTenantSchema(
         {
-          resources: [
-            { resourceId: "studio-a" },
-            { roomId: "studio-a" },
-          ],
+          resources: [{ resourceId: "studio-a" }, { roomId: "studio-a" }],
         },
         "itp",
       ),

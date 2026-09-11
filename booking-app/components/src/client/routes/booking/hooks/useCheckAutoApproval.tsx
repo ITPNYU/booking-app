@@ -88,7 +88,10 @@ export default function useCheckAutoApproval(
               isWalkIn,
               isVip: isVIP,
               role,
-              servicesRequested: getMediaCommonsServices(formData || {}),
+              servicesRequested: getMediaCommonsServices(
+                formData || {},
+                selectedRooms,
+              ),
             });
 
       if (canAutoApprove) {
