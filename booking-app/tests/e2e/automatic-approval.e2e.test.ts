@@ -605,6 +605,7 @@ test.describe("Automatic Approval Booking Flow", () => {
       isStaffing: false,
       isLiaison: false,
       isSetup: false,
+      isFurnishings: false,
       isCatering: false,
       isCleaning: false,
       isSecurity: false,

@@ -17,6 +17,7 @@ const SERVICE_LABELS: Record<string, string> = {
   catering: "Catering",
   cleaning: "Cleaning",
   security: "Security",
+  furnishings: "Furniture",
   annex: "Auxiliary Spaces",
 };
 
@@ -335,6 +336,8 @@ export function migrateResourceServices(
         result.cleaning = { label: SERVICE_LABELS.cleaning };
       } else if (key === "security") {
         result.security = { label: SERVICE_LABELS.security };
+      } else if (key === "furnishings") {
+        result.furnishings = { label: SERVICE_LABELS.furnishings };
       } else if (key === "annex" || key === "auxiliarySpace") {
         result.annex = { label: SERVICE_LABELS.annex };
       }

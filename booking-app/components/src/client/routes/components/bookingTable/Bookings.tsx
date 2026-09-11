@@ -1,4 +1,5 @@
 import {
+  Chair,
   MoreHoriz,
   TableBar,
   Headset,
@@ -95,12 +96,14 @@ export const Bookings: React.FC<BookingsProps> = ({
     derivedServiceFlags.showCatering || form.services.showCatering;
   const showHireSecurity =
     derivedServiceFlags.showSecurity || form.services.showSecurity;
+  const showFurnishings = derivedServiceFlags.showFurnishings;
   const hasServices =
     showSetup ||
     showEquipment ||
     showStaffing ||
     showCatering ||
-    showHireSecurity;
+    showHireSecurity ||
+    showFurnishings;
   const theme = useTheme();
   const params = useParams();
   const tenant = params?.tenant as string;
@@ -679,6 +682,17 @@ export const Bookings: React.FC<BookingsProps> = ({
                     closedout: isServiceClosedOut(
                       "Security Closeout",
                       "Security Closedout",
+                    ),
+                  },
+                  {
+                    label: "Furnishings",
+                    Icon: Chair,
+                    requested: servicesRequested.furnishings || false,
+                    serviceKey: "furnishings",
+                    closeoutKey: "Furnishings Closeout",
+                    closedout: isServiceClosedOut(
+                      "Furnishings Closeout",
+                      "Furnishings Closedout",
                     ),
                   },
                 ];

@@ -523,6 +523,7 @@ export function deriveFormServicesFlags(resources: ServiceResourceLike[]): {
   showSecurity: boolean;
   showSetup: boolean;
   showStaffing: boolean;
+  showFurnishings: boolean;
 } {
   return {
     showSetup: anyRoomHasService(resources, "setup"),
@@ -530,5 +531,6 @@ export function deriveFormServicesFlags(resources: ServiceResourceLike[]): {
     showStaffing: anyRoomHasService(resources, "staffing"),
     showCatering: anyRoomHasService(resources, "catering"),
     showSecurity: anyRoomHasService(resources, "security"),
+    showFurnishings: anyRoomHasService(resources, "furnishings"),
   };
 }

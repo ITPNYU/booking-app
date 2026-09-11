@@ -70,4 +70,7 @@ export type MediaCommonsBookingEvent =
   | { type: "closeoutSecurity" }
   | { type: "approveEquipment" }
   | { type: "declineEquipment" }
-  | { type: "closeoutEquipment" };
+  | { type: "closeoutEquipment" }
+  | { type: "approveFurnishings" }
+  | { type: "declineFurnishings" }
+  | { type: "closeoutFurnishings" };

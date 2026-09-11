@@ -204,6 +204,7 @@ export type Resource = {
       catering: boolean;
       cleaning: boolean;
       security: boolean;
+      furnishings?: boolean;
     };
   };
   maxHour?: {
@@ -408,6 +409,7 @@ export const defaultResource: Resource = {
       catering: false,
       cleaning: false,
       security: false,
+      furnishings: false,
     },
   },
   maxHour: {

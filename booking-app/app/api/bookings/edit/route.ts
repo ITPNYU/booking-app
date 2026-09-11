@@ -361,6 +361,7 @@ export async function PUT(request: NextRequest) {
       "cleaningServiceApproved",
       "securityServiceApproved",
       "setupServiceApproved",
+      "furnishingsServiceApproved",
     ];
 
     // If booking was declined, clear the declinedAt timestamp to ensure status shows as REQUESTED

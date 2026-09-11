@@ -84,6 +84,7 @@ export type BookingStatus = {
   cleaningServiceApproved?: boolean;
   securityServiceApproved?: boolean;
   setupServiceApproved?: boolean;
+  furnishingsServiceApproved?: boolean;
 };
 
 // the order here is the order these are displayed as table filters
@@ -229,6 +230,7 @@ export type MediaCommonsServiceFlags = {
   cleaning?: boolean;
   security?: boolean;
   setup?: boolean;
+  furnishings?: boolean;
 };
 
 export type DepartmentType = {
@@ -376,6 +378,7 @@ export type RoomSetting = {
       catering: boolean; // Allow auto-approval with catering requests
       cleaning: boolean; // Allow auto-approval with cleaning requests
       security: boolean; // Allow auto-approval with security requests
+      furnishings?: boolean; // Allow auto-approval with additional event furniture requests
     };
   };
   maxHour?: {
