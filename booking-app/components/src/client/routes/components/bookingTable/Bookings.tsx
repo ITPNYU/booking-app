@@ -704,7 +704,7 @@ export const Bookings: React.FC<BookingsProps> = ({
                       display: "flex",
                       flexDirection: "row",
                       flexWrap: "nowrap",
-                      gap: "2px",
+                      gap: "4px",
                     }}
                   >
                     {items.map(
@@ -724,7 +724,7 @@ export const Bookings: React.FC<BookingsProps> = ({
                                 flexDirection: "column",
                                 alignItems: "center",
                                 gap: "2px",
-                                padding: "4px 3px",
+                                padding: "4px 4px",
                                 borderRadius: "6px",
                               }}
                             >
