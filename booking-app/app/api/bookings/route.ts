@@ -62,6 +62,7 @@ import {
   extractTenantFromRequest,
   getAffiliationDisplayValues,
   getOtherDisplayFields,
+  toSendHTMLEmailContents,
 } from "./shared";
 
 // Common function to create XState data structure
@@ -305,23 +306,12 @@ async function handleBookingApprovalEmails(
         contents.requestNumber ?? sequentialId,
       );
 
-      // Convert all values to strings for sendHTMLEmail
-      const contentsAsStrings = Object.fromEntries(
-        Object.entries(formattedContents).map(([key, value]) => [
-          key,
-          value instanceof Timestamp
-            ? value.toDate().toISOString()
-            : String(value ?? ""),
-        ]),
-      );
-
       return sendHTMLEmail({
         templateName: "booking_detail",
         contents: {
-          ...contentsAsStrings,
-          // Keep the object form: stringifying it above would break the
-          // auxiliary-space display in the email.
-          annexByRoom: (formattedContents as any).annexByRoom,
+          ...toSendHTMLEmailContents(
+            formattedContents as Record<string, unknown>,
+          ),
           requestNumber: `${contents.requestNumber}`,
           secondaryContactName: getSecondaryContactName(contents),
         },
