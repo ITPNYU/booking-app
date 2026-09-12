@@ -13,6 +13,7 @@ import { createActor } from "xstate";
 import { serverGetTenantResources } from "@/lib/tenant/serverGetTenantResources";
 import { itpBookingMachine } from "./itpBookingMachine";
 import { mcBookingMachine } from "./mcBookingMachine";
+import { fillMissingMcServiceRegions } from "./mcServiceRegionMigration";
 import type { PersistedXStateData } from "./xstateTypes";
 
 const SERVICE_APPROVAL_FIELD_MAP = {
@@ -22,6 +23,7 @@ const SERVICE_APPROVAL_FIELD_MAP = {
   cleaning: "cleaningServiceApproved",
   security: "securityServiceApproved",
   setup: "setupServiceApproved",
+  furnishings: "furnishingsServiceApproved",
 } as const;
 
 /**
@@ -134,6 +136,7 @@ export async function createXStateDataFromBookingStatus(
         catering: bookingData?.catering,
         cleaningService: bookingData?.cleaningService,
         hireSecurity: bookingData?.hireSecurity,
+        furnishingsByRoom: bookingData?.furnishingsByRoom,
       },
     },
   );
@@ -490,6 +493,11 @@ export async function restoreXStateFromFirestore(
           servicesRequested: currentServicesRequested,
           servicesApproved: currentServicesApproved,
         };
+        updatedSnapshot.value = fillMissingMcServiceRegions(
+          updatedSnapshot.value,
+          currentServicesRequested,
+          currentServicesApproved,
+        );
       }
     }
 

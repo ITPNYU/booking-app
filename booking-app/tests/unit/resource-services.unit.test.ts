@@ -104,17 +104,16 @@ describe("getMediaCommonsServices", () => {
     expect(services.setup).toBe(true);
   });
 
-  it("treats additional event furniture as setup requested", () => {
-    expect(
-      svc({
-        furnishingsByRoom: { "103": "yes" },
-      }).setup,
-    ).toBe(true);
-    expect(
-      svc({
-        furnishingsByRoom: { "103": "no" },
-      }).setup,
-    ).toBe(false);
+  it("reports additional event furniture as its own furnishings service", () => {
+    const requested = svc({ furnishingsByRoom: { "103": "yes" } });
+    expect(requested.furnishings).toBe(true);
+    expect(requested.setup).toBe(false);
+
+    const declined = svc({ furnishingsByRoom: { "103": "no" } });
+    expect(declined.furnishings).toBe(false);
+    expect(declined.setup).toBe(false);
+
+    expect(svc({}).furnishings).toBe(false);
   });
 
   it("still detects legacy setup when by-room maps are also present", () => {

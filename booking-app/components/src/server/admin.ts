@@ -1,3 +1,4 @@
+import { formatFurnishingsLines } from "@/components/src/utils/furnishingsDisplay";
 import {
   logServerBookingChange,
   serverDeleteData,
@@ -235,6 +236,8 @@ export const serverBookingContents = async (id: string, tenant?: string) => {
       hour12: true,
     }),
     secondaryContactName: getSecondaryContactName(booking),
+    // Flattened for the email template; object maps cannot be rendered there.
+    furnishingsLines: formatFurnishingsLines(booking),
   };
 
   return updatedBookingObj as unknown as BookingFormDetails;

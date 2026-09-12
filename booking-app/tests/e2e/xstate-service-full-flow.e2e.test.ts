@@ -91,6 +91,7 @@ async function seedAdminUserData() {
     isEquipment: true,
     isStaffing: true,
     isSetup: true,
+    isFurnishings: true,
     isCatering: true,
     isCleaning: true,
     isSecurity: true,

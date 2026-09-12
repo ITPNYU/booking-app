@@ -38,7 +38,7 @@ The Media Commons Booking App is a room and space reservation system for NYU Med
 - **Two-level approval workflow** (Liaison → Final Approver)
 - **Auto-approval** for eligible bookings (based on role, duration, and services)
 - **Walk-in and VIP booking flows** for on-the-spot and expedited reservations
-- **Parallel service request management** — 6 service types (staff, equipment, catering, cleaning, security, setup) can be approved/declined independently
+- **Parallel service request management** — 7 service types (staff, equipment, catering, cleaning, security, setup, furnishings) can be approved/declined independently
 - **Google Calendar sync** — every booking creates and updates a calendar event
 - **Equipment checkout tracking** via web checkout cart system
 - **Safety training enforcement** — certain rooms require completed training
@@ -364,6 +364,7 @@ Each room can be configured to allow or block auto-approval for each service typ
 - Catering
 - Cleaning
 - Security
+- Furnishings (additional event furniture)
 
 If a user requests a service that is not allowed for auto-approval on the selected room, the booking goes through the normal approval queue instead.
 
@@ -375,7 +376,7 @@ VIP bookings that include service requests are routed to the **Services Request*
 
 ## 6. Service Management
 
-Media Commons supports six service types that are managed independently alongside the main booking approval. Each requested service goes through its own lifecycle.
+Media Commons supports seven service types that are managed independently alongside the main booking approval. Each requested service goes through its own lifecycle.
 
 ### Available Services
 
@@ -387,9 +388,10 @@ Media Commons supports six service types that are managed independently alongsid
 | **Cleaning** | CBS Cleaning Services (auto-forced when catering is requested) |
 | **Security** | Hire Security; Garage 103 uses main vs Willoughby entrance choice |
 | **Room Setup** | Per-room layout options from tenant `resource.services` config |
+| **Furnishings** | Additional event furniture (yes/no per room with request details); may require CBS and a chartfield |
 
 Some services require a **chart field** (billing code) when selected:
-- Catering, Cleaning, Security, and Room Setup each have a chart field input
+- Catering, Cleaning, Security, Room Setup, and Furnishings each have a chart field input
 
 ### Service Approval Workflow
 
@@ -465,6 +467,7 @@ Each room can enable or disable auto-approval, and specify which services are al
 | With Catering | Configurable |
 | With Cleaning | Configurable |
 | With Security | Configurable |
+| With Furnishings | Configurable |
 
 ---
 
