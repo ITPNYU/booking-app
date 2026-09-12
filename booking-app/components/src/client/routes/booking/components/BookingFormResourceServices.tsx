@@ -845,13 +845,21 @@ export default function BookingFormResourceServices({
       legacySetup === "yes" ||
       (typeof legacyDetails === "string" && legacyDetails.trim().length > 0);
 
+    const legacyChart = watch("chartFieldForRoomSetup") as string | undefined;
+    const isLegacyEdit =
+      Object.keys(currentMap).length === 0 && hasLegacySetupAnswer;
+
     const nextMap = { ...currentMap };
     const nextDetails = { ...currentDetails };
+    const nextChart = { ...chartMap };
     let changed = false;
+    let chartChanged = false;
 
     // A switch-mode section locked on is a setup request from the start: the
     // requester cannot turn it off, so it is seeded even while editing a
-    // legacy booking whose per-room maps are still empty.
+    // legacy booking whose per-room maps are still empty. In that case the
+    // aggregate legacy text is the room's starting details (and chartfield)
+    // so the answer being edited is carried over rather than re-entered.
     setupRooms.forEach((room) => {
       const cfg = getServiceSectionConfig(room, "setup");
       if (!isSetupSwitchSection(cfg) || getServiceToggle(cfg) !== "on") return;
@@ -860,14 +868,44 @@ export default function BookingFormResourceServices({
         nextMap[resourceId] = "yes";
         changed = true;
       }
+      if (!isLegacyEdit) return;
+      const legacyText =
+        typeof legacyDetails === "string" ? legacyDetails.trim() : "";
+      if (legacyText && !nextDetails[resourceId]?.trim()) {
+        nextDetails[resourceId] = legacyText;
+        changed = true;
+      }
+      const legacyChartText =
+        typeof legacyChart === "string" ? legacyChart.trim() : "";
+      if (cfg?.chartField && legacyChartText && !nextChart[resourceId]?.trim()) {
+        nextChart[resourceId] = legacyChartText;
+        chartChanged = true;
+      }
     });
 
     // Editing a pre-migration booking: legacy flat fields are set but maps are
     // empty. Keep the locked-on seeds, but do not overwrite the legacy answer
-    // with schema defaults or rebuild its scalars from the still-sparse maps.
-    if (Object.keys(currentMap).length === 0 && hasLegacySetupAnswer) {
+    // with schema defaults.
+    if (isLegacyEdit) {
       if (changed) {
         setValue("roomSetupByRoom", nextMap, { shouldValidate: false });
+        setValue("setupDetailsByRoom", nextDetails, { shouldValidate: false });
+      }
+      if (chartChanged) {
+        setValue("chartFieldForRoomSetupByRoom", nextChart, {
+          shouldValidate: false,
+        });
+      }
+      if (changed || chartChanged) {
+        syncSetupLegacyScalars(
+          setValue,
+          setupRooms,
+          nextMap,
+          nextDetails,
+          nextChart,
+          typeof legacyDetails === "string" ? legacyDetails : undefined,
+          legacyChart,
+        );
       }
       return;
     }
@@ -901,7 +939,7 @@ export default function BookingFormResourceServices({
       changed ? nextDetails : currentDetails,
       chartMap,
       typeof legacyDetails === "string" ? legacyDetails : undefined,
-      watch("chartFieldForRoomSetup") as string | undefined,
+      legacyChart,
     );
   }, [setupRooms, setValue, watch]);
 
