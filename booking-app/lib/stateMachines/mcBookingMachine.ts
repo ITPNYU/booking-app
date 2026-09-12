@@ -535,6 +535,62 @@ export const mcBookingMachine = setup({
             },
           },
         },
+        "Furnishings Request": {
+          initial: "Evaluate Furnishings Request",
+          states: {
+            "Evaluate Furnishings Request": {
+              always: [
+                {
+                  target: "Furnishings Requested",
+                  guard: { type: "furnishingsRequested" },
+                },
+                { target: "Furnishings Approved" },
+              ],
+              entry: [
+                {
+                  type: "logStateEntry",
+                  params: { label: "Evaluating Furnishings Request" },
+                },
+              ],
+            },
+            "Furnishings Requested": {
+              on: {
+                declineFurnishings: {
+                  target: "Furnishings Declined",
+                  actions: "declineFurnishingsService",
+                },
+                approveFurnishings: {
+                  target: "Furnishings Approved",
+                  actions: "approveFurnishingsService",
+                },
+              },
+              entry: [
+                {
+                  type: "logStateEntry",
+                  params: { label: "Furnishings Request Pending Approval" },
+                },
+              ],
+            },
+            "Furnishings Approved": {
+              type: "final",
+              entry: [
+                {
+                  type: "logStateEntry",
+                  params: { label: "Furnishings Request APPROVED" },
+                },
+              ],
+            },
+            "Furnishings Declined": {
+              type: "final",
+              entry: [
+                {
+                  type: "logStateEntry",
+                  params: { label: "Furnishings Request DECLINED" },
+                },
+              ],
+            },
+          },
+        },
       },
     },
     "Pre-approved": {
@@ -839,6 +895,48 @@ export const mcBookingMachine = setup({
                 {
                   type: "logStateEntry",
                   params: { label: "Equipment CLOSED OUT" },
+                },
+              ],
+            },
+          },
+        },
+        "Furnishings Closeout": {
+          initial: "Evaluate Furnishings",
+          states: {
+            "Evaluate Furnishings": {
+              always: [
+                {
+                  target: "Furnishings Closeout Pending",
+                  guard: { type: "furnishingsApproved" },
+                },
+                { target: "Furnishings Closedout" },
+              ],
+              entry: [
+                {
+                  type: "logStateEntry",
+                  params: { label: "Evaluating Furnishings Closeout" },
+                },
+              ],
+            },
+            "Furnishings Closeout Pending": {
+              on: {
+                closeoutFurnishings: {
+                  target: "Furnishings Closedout",
+                },
+              },
+              entry: [
+                {
+                  type: "logStateEntry",
+                  params: { label: "Furnishings Closeout Pending" },
+                },
+              ],
+            },
+            "Furnishings Closedout": {
+              type: "final",
+              entry: [
+                {
+                  type: "logStateEntry",
+                  params: { label: "Furnishings CLOSED OUT" },
                 },
               ],
             },

@@ -1,4 +1,5 @@
 import {
+  Chair,
   MoreHoriz,
   TableBar,
   Headset,
@@ -95,12 +96,14 @@ export const Bookings: React.FC<BookingsProps> = ({
     derivedServiceFlags.showCatering || form.services.showCatering;
   const showHireSecurity =
     derivedServiceFlags.showSecurity || form.services.showSecurity;
+  const showFurnishings = derivedServiceFlags.showFurnishings;
   const hasServices =
     showSetup ||
     showEquipment ||
     showStaffing ||
     showCatering ||
-    showHireSecurity;
+    showHireSecurity ||
+    showFurnishings;
   const theme = useTheme();
   const params = useParams();
   const tenant = params?.tenant as string;
@@ -681,6 +684,17 @@ export const Bookings: React.FC<BookingsProps> = ({
                       "Security Closedout",
                     ),
                   },
+                  {
+                    label: "Furnishings",
+                    Icon: Chair,
+                    requested: servicesRequested.furnishings || false,
+                    serviceKey: "furnishings",
+                    closeoutKey: "Furnishings Closeout",
+                    closedout: isServiceClosedOut(
+                      "Furnishings Closeout",
+                      "Furnishings Closedout",
+                    ),
+                  },
                 ];
 
                 return (
@@ -689,7 +703,8 @@ export const Bookings: React.FC<BookingsProps> = ({
                     style={{
                       display: "flex",
                       flexDirection: "row",
-                      gap: "6px",
+                      flexWrap: "nowrap",
+                      gap: "4px",
                     }}
                   >
                     {items.map(
@@ -709,7 +724,7 @@ export const Bookings: React.FC<BookingsProps> = ({
                                 flexDirection: "column",
                                 alignItems: "center",
                                 gap: "2px",
-                                padding: "4px 6px",
+                                padding: "4px 4px",
                                 borderRadius: "6px",
                               }}
                             >

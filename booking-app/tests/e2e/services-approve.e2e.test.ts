@@ -94,6 +94,13 @@ const SERVICE_METADATA = {
     approvedState: "Setup Approved",
     declinedState: "Setup Declined",
   },
+  furnishings: {
+    label: "Furnishings",
+    requestKey: "Furnishings Request",
+    requestedState: "Furnishings Requested",
+    approvedState: "Furnishings Approved",
+    declinedState: "Furnishings Declined",
+  },
 } as const;
 
 const createTimestamp = (date: Date) => {
@@ -114,6 +121,7 @@ async function seedServicesUserData() {
     isEquipment: true,
     isStaffing: false,
     isSetup: false,
+    isFurnishings: false,
     isCatering: false,
     isCleaning: false,
     isSecurity: false,
@@ -159,6 +167,8 @@ async function seedServiceRequestBooking() {
     attendeeAffiliation: "NYU Members with an active NYU ID",
     roomSetup: "Yes",
     setupDetails: "Need setup assistance",
+    furnishingsByRoom: { "202": "yes" },
+    furnishingsDetails: "Two extra tables",
     mediaServices: "",
     mediaServicesDetails: "",
     equipmentServices: "Need cameras",
@@ -223,6 +233,7 @@ async function seedServiceRequestBooking() {
             "Cleaning Request": "Cleaning Requested",
             "Security Request": "Security Requested",
             "Setup Request": "Setup Requested",
+            "Furnishings Request": "Furnishings Requested",
           },
         },
         status: BookingStatusLabel.EQUIPMENT,
@@ -236,6 +247,7 @@ async function seedServiceRequestBooking() {
             cleaning: true,
             security: true,
             setup: true,
+            furnishings: true,
           },
           servicesApproved: {},
           servicesDeclined: {},
@@ -841,6 +853,7 @@ test.describe("Services approval flow (mocked Firestore)", () => {
       { optionLabel: "Approve Cleaning", serviceType: "cleaning" },
       { optionLabel: "Approve Security", serviceType: "security" },
       { optionLabel: "Approve Setup", serviceType: "setup" },
+      { optionLabel: "Approve Furnishings", serviceType: "furnishings" },
     ];
 
     for (const { optionLabel, serviceType } of serviceApprovals) {

@@ -70,6 +70,9 @@ export async function POST(req: NextRequest) {
     "closeoutSecurity",
     "declineEquipment",
     "closeoutEquipment",
+    "approveFurnishings",
+    "declineFurnishings",
+    "closeoutFurnishings",
   ];
 
   if (!validEventTypes.includes(eventType)) {

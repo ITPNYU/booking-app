@@ -337,7 +337,7 @@ The system uses XState v5 for state management:
 
 ### Service Request Workflow
 
-Media Commons supports additional service requests (equipment, staffing, catering, cleaning, security, setup) with approval workflows managed through XState.
+Media Commons supports additional service requests (equipment, staffing, catering, cleaning, security, setup, furnishings) with approval workflows managed through XState.
 
 ## Support and Troubleshooting
 

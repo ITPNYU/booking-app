@@ -267,6 +267,14 @@
             <br />{{ contents.chartFieldForRoomSetup }} {{/if}}
           </td>
         </tr>
+        {{#if contents.furnishingsLines}}
+        <tr>
+          <td>Additional Event Furniture</td>
+          <td>
+            {{#each contents.furnishingsLines}}{{ this }}<br />{{/each}}
+          </td>
+        </tr>
+        {{/if}}
         {{#if contents.equipmentServices}}
         <tr>
           <td>Equipment Service</td>

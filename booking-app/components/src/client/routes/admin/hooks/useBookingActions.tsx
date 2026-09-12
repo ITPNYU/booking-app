@@ -33,6 +33,28 @@ import { useTenantSchema } from "../../components/SchemaProvider";
 import { DatabaseContext } from "../../components/Provider";
 import useExistingBooking from "./useExistingBooking";
 
+// Service keys as used in context.servicesRequested / servicesApproved.
+const SERVICE_TYPES = [
+  "staff",
+  "equipment",
+  "catering",
+  "cleaning",
+  "security",
+  "setup",
+  "furnishings",
+] as const;
+
+/** Prefix of the machine's "<Name> Request" / "<Name> Closeout" regions. */
+const SERVICE_REGION_NAMES: Record<(typeof SERVICE_TYPES)[number], string> = {
+  staff: "Staff",
+  equipment: "Equipment",
+  catering: "Catering",
+  cleaning: "Cleaning",
+  security: "Security",
+  setup: "Setup",
+  furnishings: "Furnishings",
+};
+
 export enum Actions {
   CANCEL = "Cancel",
   NO_SHOW = "No Show",
@@ -53,12 +75,14 @@ export enum Actions {
   APPROVE_CLEANING_SERVICE = "Approve Cleaning",
   APPROVE_SECURITY_SERVICE = "Approve Security",
   APPROVE_SETUP_SERVICE = "Approve Setup",
+  APPROVE_FURNISHINGS_SERVICE = "Approve Furnishings",
   DECLINE_STAFF_SERVICE = "Decline Staff",
   DECLINE_EQUIPMENT_SERVICE = "Decline Equipment",
   DECLINE_CATERING_SERVICE = "Decline Catering",
   DECLINE_CLEANING_SERVICE = "Decline Cleaning",
   DECLINE_SECURITY_SERVICE = "Decline Security",
   DECLINE_SETUP_SERVICE = "Decline Setup",
+  DECLINE_FURNISHINGS_SERVICE = "Decline Furnishings",
   // Media Commons Service Closeout Actions
   CLOSEOUT_STAFF_SERVICE = "Closeout Staff",
   CLOSEOUT_EQUIPMENT_SERVICE = "Closeout Equipment",
@@ -66,6 +90,7 @@ export enum Actions {
   CLOSEOUT_CLEANING_SERVICE = "Closeout Cleaning",
   CLOSEOUT_SECURITY_SERVICE = "Closeout Security",
   CLOSEOUT_SETUP_SERVICE = "Closeout Setup",
+  CLOSEOUT_FURNISHINGS_SERVICE = "Closeout Furnishings",
   PLACEHOLDER = "",
 }
 
@@ -111,7 +136,7 @@ export default function useBookingActions({
   const applyBookingData = useCallback((data: any) => {
     if (!data || !isMediaCommons(tenant as string)) return;
 
-    setServiceRequests(getMediaCommonsServices(data, tenantResources));
+    const requestedFromData = getMediaCommonsServices(data, tenantResources);
 
     if (data.xstateData) {
       const checker = createXStateChecker(data);
@@ -121,6 +146,24 @@ export default function useBookingActions({
       const context = getXStateContext(data) || {};
       const closeoutContext = context.servicesClosedOut ?? {};
       const snapshotValue = data.xstateData?.snapshot?.value;
+      // A region still sitting in "<Name> Requested" needs a decision even if
+      // the booking data no longer derives that flag (e.g. furniture requests
+      // used to be folded into setup before they became their own service).
+      const serviceRequestStates =
+        typeof snapshotValue === "object" &&
+        snapshotValue &&
+        snapshotValue["Services Request"]
+          ? snapshotValue["Services Request"]
+          : {};
+      const pendingInMachine = Object.fromEntries(
+        SERVICE_TYPES.filter(
+          (serviceType) =>
+            serviceRequestStates[
+              `${SERVICE_REGION_NAMES[serviceType]} Request`
+            ] === `${SERVICE_REGION_NAMES[serviceType]} Requested`,
+        ).map((serviceType) => [serviceType, true]),
+      ) as MediaCommonsServiceFlags;
+      setServiceRequests({ ...requestedFromData, ...pendingInMachine });
       const serviceCloseoutStates =
         typeof snapshotValue === "object" &&
         snapshotValue &&
@@ -138,6 +181,9 @@ export default function useBookingActions({
         security:
           context.servicesApproved?.security ?? data.securityServiceApproved,
         setup: context.servicesApproved?.setup ?? data.setupServiceApproved,
+        furnishings:
+          context.servicesApproved?.furnishings ??
+          data.furnishingsServiceApproved,
       });
 
       setServicesClosedOut({
@@ -160,9 +206,14 @@ export default function useBookingActions({
         setup:
           closeoutContext.setup === true ||
           serviceCloseoutStates["Setup Closeout"] === "Setup Closedout",
+        furnishings:
+          closeoutContext.furnishings === true ||
+          serviceCloseoutStates["Furnishings Closeout"] ===
+            "Furnishings Closedout",
       });
     } else {
       setCurrentXState("");
+      setServiceRequests(requestedFromData);
       setServicesApproved({
         staff: data.staffServiceApproved,
         equipment: data.equipmentServiceApproved,
@@ -170,6 +221,7 @@ export default function useBookingActions({
         cleaning: data.cleaningServiceApproved,
         security: data.securityServiceApproved,
         setup: data.setupServiceApproved,
+        furnishings: data.furnishingsServiceApproved,
       });
       setServicesClosedOut({});
     }
@@ -308,15 +360,6 @@ export default function useBookingActions({
     },
   };
 
-  // Service types constant definition
-  const SERVICE_TYPES = [
-    "staff",
-    "equipment",
-    "catering",
-    "cleaning",
-    "security",
-    "setup",
-  ] as const;
 
   // Common action definition function
   const getActionsForPageContext = (
@@ -455,6 +498,10 @@ export default function useBookingActions({
               case "setup":
                 approveAction = Actions.APPROVE_SETUP_SERVICE;
                 declineAction = Actions.DECLINE_SETUP_SERVICE;
+                break;
+              case "furnishings":
+                approveAction = Actions.APPROVE_FURNISHINGS_SERVICE;
+                declineAction = Actions.DECLINE_FURNISHINGS_SERVICE;
                 break;
               default:
                 return; // Skip unknown service types

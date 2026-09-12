@@ -17,7 +17,8 @@ export interface McServiceConfig {
     | "catering"
     | "cleaning"
     | "security"
-    | "setup";
+    | "setup"
+    | "furnishings";
   requestGuard: string;
   approvedGuard: string;
   approveEvent: string;
@@ -93,6 +94,17 @@ export const MC_SERVICE_CONFIGS: readonly McServiceConfig[] = [
     closeoutEvent: "closeoutEquipment",
     approveAction: "approveEquipmentService",
     declineAction: "declineEquipmentService",
+  },
+  {
+    name: "Furnishings",
+    contextKey: "furnishings",
+    requestGuard: "furnishingsRequested",
+    approvedGuard: "furnishingsApproved",
+    approveEvent: "approveFurnishings",
+    declineEvent: "declineFurnishings",
+    closeoutEvent: "closeoutFurnishings",
+    approveAction: "approveFurnishingsService",
+    declineAction: "declineFurnishingsService",
   },
 ];
 

@@ -304,6 +304,8 @@ export const mcBookingActions = {
   declineSecurityService: serviceApprovalAction("security", false),
   approveEquipmentService: serviceApprovalAction("equipment", true),
   declineEquipmentService: serviceApprovalAction("equipment", false),
+  approveFurnishingsService: serviceApprovalAction("furnishings", true),
+  declineFurnishingsService: serviceApprovalAction("furnishings", false),
 
   resetServiceDecisionsOnEdit: mcAssign({
     servicesApproved: () => ({}),
@@ -456,4 +458,12 @@ export const mcBookingGuards = {
   securityApproved: serviceApprovedGuard("security", "securityApproved"),
   equipRequested: serviceRequestedGuard("equipment", "equipRequested"),
   equipApproved: serviceApprovedGuard("equipment", "equipApproved"),
+  furnishingsRequested: serviceRequestedGuard(
+    "furnishings",
+    "furnishingsRequested",
+  ),
+  furnishingsApproved: serviceApprovedGuard(
+    "furnishings",
+    "furnishingsApproved",
+  ),
 };

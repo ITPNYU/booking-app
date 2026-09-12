@@ -90,6 +90,7 @@ async function seedServicesUserData() {
     isEquipment: true,
     isStaffing: true,
     isSetup: false,
+    isFurnishings: false,
     isCatering: false,
     isCleaning: false,
     isSecurity: false,
