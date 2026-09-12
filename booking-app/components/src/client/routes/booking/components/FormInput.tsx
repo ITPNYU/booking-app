@@ -269,7 +269,6 @@ export default function FormInput({
       sponsorEmail: "",
       mediaServicesDetails: "",
       equipmentServicesDetails: "",
-      staffingServicesDetails: "",
       catering: "",
       chartFieldForCatering: "",
       chartFieldForCleaning: "",
@@ -786,46 +785,8 @@ export default function FormInput({
               setValue,
             }}
           />
-          {watch("staffingServices") !== undefined &&
-            watch("staffingServices").length > 0 && (
-              <BookingFormTextField
-                id="staffingServicesDetails"
-                label="Staffing Services Details"
-                description={
-                  <p>
-                    If you selected any Staffing Services above, please describe
-                    your needs in detail.
-                    <br />
-                    Please specify the type of technical support you require and
-                    any specific requirements for your event.
-                  </p>
-                }
-                {...{ control, errors, trigger }}
-              />
-            )}
         </div>
       )}
-      {schemaDrivenServices &&
-        showStaffingServices &&
-        watch("staffingServices") !== undefined &&
-        watch("staffingServices").length > 0 && (
-          <div style={{ marginBottom: 32 }}>
-            <BookingFormTextField
-              id="staffingServicesDetails"
-              label="Staffing Services Details"
-              description={
-                <p>
-                  If you selected any Staffing Services above, please describe
-                  your needs in detail.
-                  <br />
-                  Please specify the type of technical support you require and
-                  any specific requirements for your event.
-                </p>
-              }
-              {...{ control, errors, trigger }}
-            />
-          </div>
-        )}
       {/* Legacy rooms without object services config keep flat catering/cleaning/security. */}
       {!schemaDrivenServices && !isWalkIn && showCatering && (
         <div style={{ marginBottom: 32 }}>

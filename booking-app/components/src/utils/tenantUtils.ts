@@ -140,9 +140,7 @@ export const getMediaCommonsServices = (
   ).some((v: unknown) => isServiceRequested(v));
 
   return {
-    staff:
-      isServiceRequested(data.staffingServices) ||
-      isServiceRequested(data.staffingServicesDetails),
+    staff: isServiceRequested(data.staffingServices),
     setup: setupFromByRoom || setupFromLegacy,
     furnishings: furnishingsRequested,
     equipment:

@@ -131,7 +131,7 @@ export async function createXStateDataFromBookingStatus(
       servicesRequestedResult: servicesRequested,
       bookingDataServiceFields: {
         roomSetup: bookingData?.roomSetup,
-        staffingServicesDetails: bookingData?.staffingServicesDetails,
+        staffingServices: bookingData?.staffingServices,
         equipmentServices: bookingData?.equipmentServices,
         catering: bookingData?.catering,
         cleaningService: bookingData?.cleaningService,
