@@ -280,7 +280,7 @@ export function getBookingServicesByRoom(
         hasKeys(setupChartMap),
       ),
       setupCfg,
-      resources,
+      [room],
     );
     if (setup) {
       rows.push({
@@ -448,7 +448,7 @@ export function getBookingServicesByRoom(
         booking.setupDetails,
         booking.chartFieldForRoomSetup,
         undefined,
-        resources,
+        rooms,
       );
       if (setup) {
         bookingLevel.push({

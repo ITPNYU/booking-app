@@ -91,6 +91,78 @@ describe("getBookingServicesByRoom", () => {
     expect(display.rooms).toEqual([]);
   });
 
+  it("does not hide a room's requested setup because another room uses that label as a default", () => {
+    const otherRoomDefault: ServiceResourceLike = {
+      resourceId: "1201",
+      name: "Seminar",
+      services: {
+        setup: {
+          label: "Room Setup",
+          mode: "radio",
+          defaultValue: "1201_LAYOUT_0",
+          options: [
+            {
+              value: "1201_LAYOUT_0",
+              label: "Audience Layout 1 - 44 Seated*",
+            },
+          ],
+        },
+      },
+    };
+    const display = getBookingServicesByRoom(
+      {
+        roomId: "103",
+        roomSetupByRoom: { "103": "103_LAYOUT_1" },
+        chartFieldForRoomSetupByRoom: { "103": "cbs-1" },
+      },
+      [garage, otherRoomDefault],
+    );
+
+    expect(display.rooms[0].rows).toEqual([
+      {
+        key: "setup",
+        label: "Room Setup",
+        value: "Audience Layout 1 - 44 Seated*",
+        chartField: "cbs-1",
+      },
+    ]);
+  });
+
+  it("does not hide booking-level setup that matches an unbooked room's default", () => {
+    const unbooked: ServiceResourceLike = {
+      resourceId: "1201",
+      name: "Seminar",
+      services: {
+        setup: {
+          label: "Room Setup",
+          mode: "radio",
+          defaultValue: "1201_LAYOUT_0",
+          options: [
+            {
+              value: "1201_LAYOUT_0",
+              label: "Lecture Style (Default) - 84 Seated",
+            },
+          ],
+        },
+      },
+    };
+    const display = getBookingServicesByRoom(
+      {
+        roomId: "202, 103",
+        setupDetails: "Lecture Style (Default) - 84 Seated",
+      },
+      [screeningRoom, garage, unbooked],
+    );
+
+    expect(display.bookingLevel).toEqual([
+      {
+        key: "setup",
+        label: "Room Setup",
+        value: "Lecture Style (Default) - 84 Seated",
+      },
+    ]);
+  });
+
   it("shows a requested setup option label and skips the room id prefix", () => {
     const display = getBookingServicesByRoom(
       {
