@@ -844,25 +844,39 @@ export default function BookingFormResourceServices({
     const hasLegacySetupAnswer =
       legacySetup === "yes" ||
       (typeof legacyDetails === "string" && legacyDetails.trim().length > 0);
-    if (Object.keys(currentMap).length === 0 && hasLegacySetupAnswer) {
-      return;
-    }
 
     const nextMap = { ...currentMap };
     const nextDetails = { ...currentDetails };
     let changed = false;
 
+    // A switch-mode section locked on is a setup request from the start: the
+    // requester cannot turn it off, so it is seeded even while editing a
+    // legacy booking whose per-room maps are still empty.
     setupRooms.forEach((room) => {
       const cfg = getServiceSectionConfig(room, "setup");
+      if (!isSetupSwitchSection(cfg) || getServiceToggle(cfg) !== "on") return;
       const resourceId = getServiceResourceId(room);
-      // A switch-mode section locked on is a setup request from the start.
-      if (isSetupSwitchSection(cfg)) {
-        if (getServiceToggle(cfg) === "on" && !nextMap[resourceId]) {
-          nextMap[resourceId] = "yes";
-          changed = true;
-        }
-        return;
+      if (!nextMap[resourceId]) {
+        nextMap[resourceId] = "yes";
+        changed = true;
       }
+    });
+
+    // Editing a pre-migration booking: legacy flat fields are set but maps are
+    // empty. Keep the locked-on seeds, but do not overwrite the legacy answer
+    // with schema defaults or rebuild its scalars from the still-sparse maps.
+    if (Object.keys(currentMap).length === 0 && hasLegacySetupAnswer) {
+      if (changed) {
+        setValue("roomSetupByRoom", nextMap, { shouldValidate: false });
+      }
+      return;
+    }
+
+    setupRooms.forEach((room) => {
+      const cfg = getServiceSectionConfig(room, "setup");
+      // Switch sections have no layout default; locked-on ones are seeded above.
+      if (isSetupSwitchSection(cfg)) return;
+      const resourceId = getServiceResourceId(room);
       // Only pre-select a layout the requester is not charged for; a default
       // that needs a chartfield is chosen explicitly by turning setup on.
       const seedable =
