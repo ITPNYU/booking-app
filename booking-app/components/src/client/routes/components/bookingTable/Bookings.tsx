@@ -1,6 +1,6 @@
 import {
-  Chair,
   MoreHoriz,
+  RoomService,
   TableBar,
   Headset,
   PeopleAlt,
@@ -620,7 +620,7 @@ export const Bookings: React.FC<BookingsProps> = ({
                 }[] = [
                   {
                     label: "Setup",
-                    Icon: TableBar,
+                    Icon: RoomService,
                     requested: servicesRequested.setup || false,
                     serviceKey: "setup",
                     closeoutKey: "Setup Closeout",
@@ -685,8 +685,8 @@ export const Bookings: React.FC<BookingsProps> = ({
                     ),
                   },
                   {
-                    label: "Furnishings",
-                    Icon: Chair,
+                    label: "Furniture",
+                    Icon: TableBar,
                     requested: servicesRequested.furnishings || false,
                     serviceKey: "furnishings",
                     closeoutKey: "Furnishings Closeout",

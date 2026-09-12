@@ -28,9 +28,15 @@ interface Props {
   selectedServices?: string[] | null;
 }
 
+/** Filter chip label -> MediaCommonsServiceFlags key. */
+const SERVICE_FILTER_KEYS: Record<string, string> = {
+  Staffing: "staff",
+  Furniture: "furnishings",
+};
+
 export function getServiceFilterKey(service: unknown): string | null {
   if (typeof service !== "string") return null;
-  return service === "Staffing" ? "staff" : service.toLowerCase();
+  return SERVICE_FILTER_KEYS[service] ?? service.toLowerCase();
 }
 
 function getDateRangeFromDateSelection(selectedDateRange: DateRangeFilter) {

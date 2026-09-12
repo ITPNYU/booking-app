@@ -52,7 +52,7 @@ const SERVICE_LABELS: Record<string, string> = {
   catering: "Catering",
   cleaning: "Cleanup",
   security: "Security",
-  furnishings: "Furnishings",
+  furnishings: "Furniture",
 };
 
 const SERVICE_ALIASES: Record<string, string> = {

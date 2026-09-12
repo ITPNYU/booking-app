@@ -853,7 +853,7 @@ test.describe("Services approval flow (mocked Firestore)", () => {
       { optionLabel: "Approve Cleaning", serviceType: "cleaning" },
       { optionLabel: "Approve Security", serviceType: "security" },
       { optionLabel: "Approve Setup", serviceType: "setup" },
-      { optionLabel: "Approve Furnishings", serviceType: "furnishings" },
+      { optionLabel: "Approve Furniture", serviceType: "furnishings" },
     ];
 
     for (const { optionLabel, serviceType } of serviceApprovals) {

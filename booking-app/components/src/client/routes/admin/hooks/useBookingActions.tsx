@@ -75,14 +75,14 @@ export enum Actions {
   APPROVE_CLEANING_SERVICE = "Approve Cleaning",
   APPROVE_SECURITY_SERVICE = "Approve Security",
   APPROVE_SETUP_SERVICE = "Approve Setup",
-  APPROVE_FURNISHINGS_SERVICE = "Approve Furnishings",
+  APPROVE_FURNISHINGS_SERVICE = "Approve Furniture",
   DECLINE_STAFF_SERVICE = "Decline Staff",
   DECLINE_EQUIPMENT_SERVICE = "Decline Equipment",
   DECLINE_CATERING_SERVICE = "Decline Catering",
   DECLINE_CLEANING_SERVICE = "Decline Cleaning",
   DECLINE_SECURITY_SERVICE = "Decline Security",
   DECLINE_SETUP_SERVICE = "Decline Setup",
-  DECLINE_FURNISHINGS_SERVICE = "Decline Furnishings",
+  DECLINE_FURNISHINGS_SERVICE = "Decline Furniture",
   // Media Commons Service Closeout Actions
   CLOSEOUT_STAFF_SERVICE = "Closeout Staff",
   CLOSEOUT_EQUIPMENT_SERVICE = "Closeout Equipment",
@@ -90,7 +90,7 @@ export enum Actions {
   CLOSEOUT_CLEANING_SERVICE = "Closeout Cleaning",
   CLOSEOUT_SECURITY_SERVICE = "Closeout Security",
   CLOSEOUT_SETUP_SERVICE = "Closeout Setup",
-  CLOSEOUT_FURNISHINGS_SERVICE = "Closeout Furnishings",
+  CLOSEOUT_FURNISHINGS_SERVICE = "Closeout Furniture",
   PLACEHOLDER = "",
 }
 
