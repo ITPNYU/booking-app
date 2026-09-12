@@ -509,6 +509,60 @@ describe("getBookingServicesByRoom", () => {
       ),
     ).toBe(false);
   });
+
+  it("keeps shared furnishingsDetails on the one room that requested them", () => {
+    const display = getBookingServicesByRoom({
+      roomId: "202, 103",
+      furnishingsByRoom: { "202": "yes", "103": "no" },
+      furnishingsDetails: "Podium and two chairs",
+    });
+
+    expect(display.bookingLevel).toEqual([]);
+    expect(display.rooms).toHaveLength(1);
+    expect(display.rooms[0].rows).toEqual([
+      {
+        key: "furnishings",
+        label: "Additional Event Furniture",
+        value: "Podium and two chairs",
+      },
+    ]);
+  });
+
+  it("shows shared furnishingsDetails once at booking level for multi-room yes requests", () => {
+    const display = getBookingServicesByRoom({
+      roomId: "202, 103",
+      furnishingsByRoom: { "202": "yes", "103": "yes" },
+      furnishingsDetails: "Two extra tables",
+    });
+
+    expect(display.bookingLevel).toEqual([
+      {
+        key: "furnishings",
+        label: "Additional Event Furniture",
+        value: "Two extra tables",
+      },
+    ]);
+    expect(display.rooms.map((room) => room.roomId)).toEqual(["202", "103"]);
+    expect(display.rooms[0].rows).toEqual([
+      { key: "furnishings", label: "Additional Event Furniture", value: "Yes" },
+    ]);
+    expect(display.rooms[1].rows).toEqual([
+      { key: "furnishings", label: "Additional Event Furniture", value: "Yes" },
+    ]);
+  });
+
+  it("does not repeat furnishingsDetails at booking level when a room has its own details", () => {
+    const display = getBookingServicesByRoom({
+      roomId: "202, 103",
+      furnishingsByRoom: { "202": "yes", "103": "yes" },
+      furnishingsDetailsByRoom: { "202": "Two extra tables" },
+      furnishingsDetails: "Two extra tables",
+    });
+
+    expect(display.bookingLevel).toEqual([]);
+    expect(display.rooms[0].rows[0].value).toBe("Two extra tables");
+    expect(display.rooms[1].rows[0].value).toBe("Yes");
+  });
 });
 
 describe("bookingServicesDisplayForEmail", () => {

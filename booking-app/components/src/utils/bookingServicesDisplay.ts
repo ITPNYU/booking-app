@@ -441,6 +441,24 @@ export function getBookingServicesByRoom(
   });
 
   const bookingLevel: BookingServiceDisplayRow[] = [];
+  // Legacy multi-room furnishings stored one shared furnishingsDetails
+  // string. Do not fan it onto every yes-room, and do not show it unless
+  // furnishings was actually requested.
+  const sharedFurnishingsDetails = meaningfulText(booking.furnishingsDetails);
+  const hasPerRoomFurnishingsDetails = furnYesRoomIds.some((id) =>
+    Boolean(meaningfulText(furnishingsDetailsMap[id])),
+  );
+  if (
+    furnYesRoomIds.length > 1 &&
+    !hasPerRoomFurnishingsDetails &&
+    sharedFurnishingsDetails
+  ) {
+    bookingLevel.push({
+      key: "furnishings",
+      label: "Additional Event Furniture",
+      value: sharedFurnishingsDetails,
+    });
+  }
   if (isMultiRoom) {
     if (!hasSetupMap) {
       const setup = resolveSetupDisplay(
