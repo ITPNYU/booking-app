@@ -140,3 +140,32 @@ export const buildBookingContents = (
     origin,
   };
 };
+
+function isTimestampLike(value: unknown): value is { toDate: () => Date } {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    typeof (value as { toDate?: unknown }).toDate === "function"
+  );
+}
+
+/**
+ * sendHTMLEmail needs string scalars, but *ByRoom maps (and other objects)
+ * must stay objects. String(map) is "[object Object]", which
+ * getBookingServicesByRoom treats as empty and silently drops per-room
+ * services and chart fields from the approval email.
+ */
+export function toSendHTMLEmailContents(
+  contents: Record<string, unknown>,
+): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(contents).map(([key, value]) => [
+      key,
+      isTimestampLike(value)
+        ? value.toDate().toISOString()
+        : value !== null && typeof value === "object"
+          ? value
+          : String(value ?? ""),
+    ]),
+  );
+}

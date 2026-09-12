@@ -403,6 +403,40 @@ describe("getBookingServicesByRoom", () => {
       },
     ]);
   });
+
+  it("shows furnishings only on rooms that requested them", () => {
+    const display = getBookingServicesByRoom({
+      roomId: "202, 103",
+      furnishingsByRoom: { "202": "yes", "103": "no" },
+      furnishingsDetailsByRoom: { "202": "Two extra tables" },
+      chartFieldForFurnishingsByRoom: { "202": "furn-1" },
+    });
+
+    expect(display.bookingLevel).toEqual([]);
+    expect(display.rooms).toHaveLength(1);
+    expect(display.rooms[0].rows).toEqual([
+      {
+        key: "furnishings",
+        label: "Additional Event Furniture",
+        value: "Two extra tables",
+        chartField: "furn-1",
+      },
+    ]);
+  });
+
+  it("does not surface leftover furnishingsDetails on legacy multi-room bookings", () => {
+    const display = getBookingServicesByRoom({
+      roomId: "202, 103",
+      furnishingsDetails: "stale leftover furniture notes",
+    });
+
+    expect(display.bookingLevel.find((row) => row.key === "furnishings")).toBeUndefined();
+    expect(
+      display.rooms.some((room) =>
+        room.rows.some((row) => row.key === "furnishings"),
+      ),
+    ).toBe(false);
+  });
 });
 
 describe("bookingServicesDisplayForEmail", () => {

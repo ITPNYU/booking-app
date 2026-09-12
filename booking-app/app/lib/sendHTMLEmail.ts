@@ -27,13 +27,9 @@ if (typeof window === "undefined") {
   Handlebars = require("handlebars");
 }
 
-interface BookingFormDetails {
-  [key: string]: string;
-}
-
 interface SendHTMLEmailParams {
   templateName: string;
-  contents: BookingFormDetails;
+  contents: Record<string, unknown>;
   targetEmail: string;
   status: string;
   eventTitle: string;
@@ -128,10 +124,10 @@ export const sendHTMLEmail = async (params: SendHTMLEmailParams) => {
 
   const template = Handlebars.compile(templateSource);
   const approvalUrl = approverType
-    ? getApprovalUrl(contents.calendarEventId, approverType, tenant)
+    ? getApprovalUrl(String(contents.calendarEventId ?? ""), approverType, tenant)
     : undefined;
 
-  const annexByRoom = (contents as any).annexByRoom;
+  const annexByRoom = contents.annexByRoom;
   let tenantResources: Awaited<ReturnType<typeof serverGetTenantResources>> =
     [];
   try {
@@ -157,9 +153,12 @@ export const sendHTMLEmail = async (params: SendHTMLEmailParams) => {
   // Update contents with formatted data for the template
   const updatedContents: Record<string, unknown> = {
     ...contents,
-    roomId: mergeRoomIdsWithAnnex(contents.roomId, annexByRoom),
-    startDate: serverFormatDateOnly(contents.startDate),
-    endDate: serverFormatDateOnly(contents.endDate),
+    roomId: mergeRoomIdsWithAnnex(
+      contents.roomId == null ? undefined : String(contents.roomId),
+      annexByRoom as Record<string, string[]> | undefined,
+    ),
+    startDate: serverFormatDateOnly(String(contents.startDate ?? "")),
+    endDate: serverFormatDateOnly(String(contents.endDate ?? "")),
     status,
     services: {
       show: hasBookingServicesDisplay(servicesDisplay),
