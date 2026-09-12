@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  bookingServicesDisplayForEmail,
   formatServicesDescriptionHtml,
   getBookingServicesByRoom,
   hasBookingServicesDisplay,
@@ -401,6 +402,71 @@ describe("getBookingServicesByRoom", () => {
         value: "(Garage 103) Request an audio technician",
       },
     ]);
+  });
+});
+
+describe("bookingServicesDisplayForEmail", () => {
+  const mixed: ReturnType<typeof getBookingServicesByRoom> = {
+    bookingLevel: [{ key: "setup", label: "Room Setup", value: "Standard" }],
+    rooms: [
+      {
+        roomId: "202",
+        title: "202 Screening Room",
+        rows: [{ key: "equipment", label: "Equipment", value: "Camera" }],
+      },
+      {
+        roomId: "103",
+        title: "103 The Garage",
+        rows: [
+          {
+            key: "annex",
+            label: "Auxiliary Spaces",
+            value: "202GR Garage Green Room",
+          },
+          { key: "catering", label: "Catering", value: "Yes" },
+        ],
+      },
+    ],
+  };
+
+  it("keeps the full display for non-ITP tenants", () => {
+    expect(bookingServicesDisplayForEmail(mixed, "mc")).toEqual(mixed);
+  });
+
+  it("keeps only annex rows for ITP so auxiliary spaces are not dropped", () => {
+    const filtered = bookingServicesDisplayForEmail(mixed, "itp");
+    expect(filtered.bookingLevel).toEqual([]);
+    expect(filtered.rooms).toEqual([
+      {
+        roomId: "103",
+        title: "103 The Garage",
+        rows: [
+          {
+            key: "annex",
+            label: "Auxiliary Spaces",
+            value: "202GR Garage Green Room",
+          },
+        ],
+      },
+    ]);
+    expect(hasBookingServicesDisplay(filtered)).toBe(true);
+  });
+
+  it("hides the Services block for ITP when nothing but non-annex services were requested", () => {
+    const equipmentOnly = bookingServicesDisplayForEmail(
+      {
+        bookingLevel: [],
+        rooms: [
+          {
+            roomId: "371",
+            title: "371",
+            rows: [{ key: "equipment", label: "Equipment", value: "Camera" }],
+          },
+        ],
+      },
+      "itp",
+    );
+    expect(hasBookingServicesDisplay(equipmentOnly)).toBe(false);
   });
 });
 

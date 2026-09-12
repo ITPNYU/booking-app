@@ -8,6 +8,7 @@ import { getEmailBranchTag } from "@/components/src/server/emails";
 import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
 import { ApproverType } from "@/components/src/types";
 import {
+  bookingServicesDisplayForEmail,
   getBookingServicesByRoom,
   hasBookingServicesDisplay,
   type BookingServicesSource,
@@ -145,9 +146,12 @@ export const sendHTMLEmail = async (params: SendHTMLEmailParams) => {
           resourceId: roomId,
         }))
       : [];
-  const servicesDisplay = getBookingServicesByRoom(
-    contents as BookingServicesSource,
-    [...tenantResources, ...fallbackRooms],
+  const servicesDisplay = bookingServicesDisplayForEmail(
+    getBookingServicesByRoom(contents as BookingServicesSource, [
+      ...tenantResources,
+      ...fallbackRooms,
+    ]),
+    tenant ?? (contents as { tenant?: string }).tenant,
   );
 
   // Update contents with formatted data for the template

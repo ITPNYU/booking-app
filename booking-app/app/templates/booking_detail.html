@@ -263,7 +263,6 @@
       </table>
     </div>
 
-    {{#unless (eq contents.tenant "itp")}}
     {{#if contents.services.show}}
     <div class="section">
       <div class="section-title">Services</div>
@@ -296,7 +295,6 @@
       {{/each}}
     </div>
     {{/if}}
-    {{/unless}}
 
     {{#if approvalUrl}}
     <div class="footer">

@@ -78,7 +78,7 @@ describe("booking_detail email services", () => {
     expect(html).not.toContain(">Services<");
   });
 
-  it("omits the Services section for ITP even when services are present", () => {
+  it("renders annex rows for ITP when the email payload includes them", () => {
     const html = template({
       contents: {
         ...baseContents,
@@ -89,7 +89,12 @@ describe("booking_detail email services", () => {
           rooms: [
             {
               title: "371",
-              rows: [{ label: "Equipment", value: "Camera" }],
+              rows: [
+                {
+                  label: "Auxiliary Spaces",
+                  value: "371A Breakout",
+                },
+              ],
             },
           ],
         },
@@ -97,8 +102,23 @@ describe("booking_detail email services", () => {
       bookingLogs: [],
     });
 
+    expect(html).toContain(">Services<");
+    expect(html).toContain("371");
+    expect(html).toContain("Auxiliary Spaces");
+    expect(html).toContain("371A Breakout");
+  });
+
+  it("omits the Services section when the ITP payload has nothing to show", () => {
+    const html = template({
+      contents: {
+        ...baseContents,
+        tenant: "itp",
+        services: { show: false, bookingLevel: [], rooms: [] },
+      },
+      bookingLogs: [],
+    });
+
     expect(html).not.toContain(">Services<");
-    expect(html).not.toContain("371");
   });
 
   it("shows auxiliary spaces only under the room in Services, not in Request", () => {

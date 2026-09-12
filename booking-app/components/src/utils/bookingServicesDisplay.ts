@@ -1,3 +1,4 @@
+import { TENANTS } from "@/components/src/constants/tenants";
 import { EquipmentServices, StaffingServices } from "@/components/src/types";
 import { isServiceRequested } from "@/components/src/utils/tenantUtils";
 import type {
@@ -85,6 +86,27 @@ export function hasBookingServicesDisplay(
     display.rooms.some((room) => room.rows.length > 0) ||
     display.bookingLevel.length > 0
   );
+}
+
+/**
+ * ITP confirmation emails hide catering / equipment / setup, but annex is a
+ * schema-driven room feature and must still render. Other tenants keep the
+ * full display.
+ */
+export function bookingServicesDisplayForEmail(
+  display: BookingServicesDisplay,
+  tenant?: string,
+): BookingServicesDisplay {
+  if (tenant !== TENANTS.ITP) return display;
+  return {
+    bookingLevel: [],
+    rooms: display.rooms
+      .map((room) => ({
+        ...room,
+        rows: room.rows.filter((row) => row.key === "annex"),
+      }))
+      .filter((room) => room.rows.length > 0),
+  };
 }
 
 function descriptionListItem(row: BookingServiceDisplayRow): string {
