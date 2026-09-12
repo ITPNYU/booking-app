@@ -432,6 +432,48 @@ export function getServiceRooms(
   ];
 }
 
+/** Every form field that stores a value keyed by room / annex resource id. */
+export const SERVICE_BY_ROOM_FIELDS = [
+  "roomSetupByRoom",
+  "setupDetailsByRoom",
+  "chartFieldForRoomSetupByRoom",
+  "furnishingsByRoom",
+  "chartFieldForFurnishingsByRoom",
+  "furnishingsDetailsByRoom",
+  "equipmentServicesDetailsByRoom",
+  "cateringByRoom",
+  "chartFieldForCateringByRoom",
+  "cleaningByRoom",
+  "chartFieldForCleaningByRoom",
+  "hireSecurityByRoom",
+  "chartFieldForSecurityByRoom",
+] as const;
+
+export type ServiceByRoomField = (typeof SERVICE_BY_ROOM_FIELDS)[number];
+
+/**
+ * Drop per-room service entries for rooms that are no longer part of the
+ * booking. Answers for an annex space (or a parent room) linger in the form
+ * maps after the user unchecks it on the room page; without this they would
+ * be saved and shown as if that room still requested the service.
+ */
+export function pruneServiceMapsToRooms<
+  T extends Partial<Record<ServiceByRoomField, Record<string, string>>>,
+>(data: T, rooms: ServiceResourceLike[]): T {
+  const keep = new Set(rooms.map(getServiceResourceId));
+  const next: T = { ...data };
+  for (const field of SERVICE_BY_ROOM_FIELDS) {
+    const map = data[field];
+    if (!map || typeof map !== "object" || Array.isArray(map)) continue;
+    const entries = Object.entries(map);
+    if (entries.every(([roomId]) => keep.has(roomId))) continue;
+    next[field] = Object.fromEntries(
+      entries.filter(([roomId]) => keep.has(roomId)),
+    ) as T[typeof field];
+  }
+  return next;
+}
+
 /**
  * Resolve selected auxiliary spaces to the calendar IDs of their annex
  * resources so they can be invited to the parent booking's calendar event.
