@@ -371,6 +371,61 @@ export function getAnnexOptions(
 }
 
 /**
+ * Annex resources the user has checked under any selected parent room,
+ * resolved against the tenant resources. Only registered annex resources
+ * (parentResourceId set) are returned; legacy option values with no resource
+ * resolve to nothing. Sorted numerically by resource ID.
+ */
+export function getSelectedAnnexResources(
+  annexByRoom: Record<string, string[]> | undefined,
+  allResources: ServiceResourceLike[],
+): ServiceResourceLike[] {
+  if (!annexByRoom || typeof annexByRoom !== "object") return [];
+  const selectedIds = new Set<string>();
+  for (const values of Object.values(annexByRoom)) {
+    if (!Array.isArray(values)) continue;
+    for (const value of values) {
+      const id = String(value).trim();
+      if (id) selectedIds.add(id);
+    }
+  }
+  if (selectedIds.size === 0) return [];
+  return allResources
+    .filter(
+      (r) => r.parentResourceId && selectedIds.has(getServiceResourceId(r)),
+    )
+    .sort((a, b) =>
+      getServiceResourceId(a).localeCompare(
+        getServiceResourceId(b),
+        undefined,
+        {
+          numeric: true,
+        },
+      ),
+    );
+}
+
+/**
+ * Rooms whose services the booking form should render: the selected rooms
+ * plus every checked annex space. Annex spaces are never in `selectedRooms`
+ * (they are picked as checkboxes under their parent), so without this their
+ * own `services` config would never reach the form.
+ */
+export function getServiceRooms(
+  selectedRooms: ServiceResourceLike[],
+  annexByRoom: Record<string, string[]> | undefined,
+  allResources: ServiceResourceLike[],
+): ServiceResourceLike[] {
+  const annexRooms = getSelectedAnnexResources(annexByRoom, allResources);
+  if (annexRooms.length === 0) return selectedRooms;
+  const selectedIds = new Set(selectedRooms.map(getServiceResourceId));
+  return [
+    ...selectedRooms,
+    ...annexRooms.filter((r) => !selectedIds.has(getServiceResourceId(r))),
+  ];
+}
+
+/**
  * Resolve selected auxiliary spaces to the calendar IDs of their annex
  * resources so they can be invited to the parent booking's calendar event.
  * Values that don't match an annex resource (legacy options without a
