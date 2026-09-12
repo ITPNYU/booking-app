@@ -6,6 +6,7 @@ import {
   getServiceToggle,
   hasSchemaServicesConfig,
   isSchemaDrivenEquipmentSection,
+  isSetupSwitchSection,
   lockedToggleValue,
   needsGenericSetupSwitch,
   resolveSecurityToggle,
@@ -94,15 +95,18 @@ describe("legacy generic Room Setup switch", () => {
     expect(needsGenericSetupSwitch([room260], visibility, true)).toBe(false);
   });
 
-  it("keeps the generic switch for legacy rooms and switch-mode setup sections", () => {
+  it("keeps the generic switch only for legacy rooms", () => {
     const legacy = { resourceId: "1", services: ["setup"] };
     expect(needsGenericSetupSwitch([legacy], visibility, true)).toBe(true);
     expect(needsGenericSetupSwitch([legacy], visibility, false)).toBe(false);
+    // A schema setup section with no mode is a per-room switch rendered by
+    // BookingFormResourceServices, never the generic switch — otherwise the
+    // generic switch would echo a co-selected room's layout choice.
     const switchSetup = {
       resourceId: "2",
       services: { setup: { label: "Room Setup", chartField: { required: true } } },
     };
-    expect(needsGenericSetupSwitch([switchSetup], visibility, false)).toBe(true);
+    expect(needsGenericSetupSwitch([switchSetup], visibility, true)).toBe(false);
     const radioSetup = {
       resourceId: "3",
       services: {
@@ -110,6 +114,23 @@ describe("legacy generic Room Setup switch", () => {
       },
     };
     expect(needsGenericSetupSwitch([radioSetup], visibility, true)).toBe(false);
+    expect(
+      needsGenericSetupSwitch([radioSetup, switchSetup], visibility, true),
+    ).toBe(false);
+    // A legacy room alongside schema rooms still gets its generic switch.
+    expect(
+      needsGenericSetupSwitch([radioSetup, legacy], visibility, true),
+    ).toBe(true);
+  });
+
+  it("classifies setup sections as switch-mode", () => {
+    expect(isSetupSwitchSection({ label: "Room Setup", toggle: "optional" })).toBe(true);
+    expect(isSetupSwitchSection({ label: "Room Setup", chartField: { required: true } })).toBe(true);
+    expect(isSetupSwitchSection({ mode: "radio", options: [] })).toBe(false);
+    expect(isSetupSwitchSection({ mode: "select", options: [] })).toBe(false);
+    expect(isSetupSwitchSection({ mode: "static" })).toBe(false);
+    expect(isSetupSwitchSection({ mode: "hidden" })).toBe(false);
+    expect(isSetupSwitchSection(undefined)).toBe(false);
   });
 });
 
@@ -459,6 +480,162 @@ describe("BookingFormResourceServices toggle locks", () => {
     expect(onValid.mock.calls[1][0].roomSetupByRoom).toEqual({
       "220": "220_LAYOUT_CUSTOM",
     });
+  });
+
+  it("renders a switch-mode setup section per room with required details", async () => {
+    const onValid = vi.fn();
+    let getValues: () => Partial<Inputs> = () => ({});
+    render(
+      <ServicesHarness
+        onValid={onValid}
+        onValues={(get) => {
+          getValues = get;
+        }}
+        rooms={[
+          {
+            resourceId: "1200L-6",
+            name: "Seminar Foyer",
+            services: {
+              setup: {
+                label: "Room Setup",
+                descriptionHtml: "<p>Foyer setup</p>",
+                toggle: "optional",
+                chartField: { label: "Chartfield for setup", required: true },
+              },
+            },
+          },
+        ]}
+      />,
+    );
+    const toggle = screen.getByRole("checkbox");
+    expect(toggle).not.toBeChecked();
+    expect(screen.getByText("Foyer setup")).toBeInTheDocument();
+    expect(screen.queryByLabelText(/Room Setup Details/)).toBeNull();
+
+    // Off: nothing requested, submit passes.
+    fireEvent.click(screen.getByText("Submit"));
+    await waitFor(() => expect(onValid).toHaveBeenCalledTimes(1));
+    expect(onValid.mock.calls[0][0].roomSetupByRoom ?? {}).toEqual({});
+
+    // On: details and chartfield are required.
+    fireEvent.click(toggle);
+    expect(screen.getByLabelText(/Room Setup Details/)).toBeInTheDocument();
+    await waitFor(() =>
+      expect(getValues().roomSetupByRoom).toEqual({ "1200L-6": "yes" }),
+    );
+    fireEvent.click(screen.getByText("Submit"));
+    await waitFor(() =>
+      expect(
+        screen.getByText("Please describe the room setup you need."),
+      ).toBeInTheDocument(),
+    );
+    expect(onValid).toHaveBeenCalledTimes(1);
+
+    fireEvent.change(screen.getByLabelText(/Room Setup Details/), {
+      target: { value: "4 tables, 20 chairs" },
+    });
+    fireEvent.change(screen.getByLabelText(/Chartfield for setup/), {
+      target: { value: "AB123-CD-EF456-GH789" },
+    });
+    fireEvent.click(screen.getByText("Submit"));
+    await waitFor(() => expect(onValid).toHaveBeenCalledTimes(2));
+    const values = onValid.mock.calls[1][0];
+    expect(values.roomSetupByRoom).toEqual({ "1200L-6": "yes" });
+    expect(values.setupDetailsByRoom).toEqual({
+      "1200L-6": "4 tables, 20 chairs",
+    });
+    expect(values.chartFieldForRoomSetupByRoom).toEqual({
+      "1200L-6": "AB123-CD-EF456-GH789",
+    });
+    // Legacy scalars mirror the per-room answer.
+    expect(values.roomSetup).toBe("yes");
+    expect(values.setupDetails).toContain("4 tables, 20 chairs");
+
+    // Off again clears the room's setup, details and chartfield.
+    fireEvent.click(toggle);
+    await waitFor(() => {
+      expect(getValues().roomSetupByRoom).toEqual({});
+      expect(getValues().setupDetailsByRoom).toEqual({});
+      expect(getValues().chartFieldForRoomSetupByRoom).toEqual({});
+      expect(getValues().roomSetup).toBe("");
+    });
+  });
+
+  it("keeps a switch-mode annex setup independent of the parent's layout choice", async () => {
+    let getValues: () => Partial<Inputs> = () => ({});
+    render(
+      <ServicesHarness
+        onValues={(get) => {
+          getValues = get;
+        }}
+        rooms={[
+          {
+            resourceId: "1201",
+            name: "Seminar Room",
+            services: {
+              setup: {
+                label: "Room Setup",
+                toggle: "on",
+                mode: "radio",
+                defaultValue: "1201_LAYOUT_0",
+                options: [
+                  { value: "1201_LAYOUT_0", label: "Lecture Style (Default)" },
+                  { value: "1201_LAYOUT_1", label: "Classroom Style" },
+                ],
+              },
+            },
+          },
+          {
+            resourceId: "1200L-6",
+            name: "Seminar Foyer",
+            parentResourceId: "1201",
+            services: {
+              setup: { label: "Room Setup", toggle: "optional" },
+            },
+          },
+        ]}
+      />,
+    );
+    // One Room Setup section per room; the foyer's is a plain switch that
+    // does not repeat the parent's layout options.
+    expect(screen.getAllByText("Room Setup")).toHaveLength(2);
+    expect(screen.getAllByLabelText("Lecture Style (Default)")).toHaveLength(1);
+    const toggles = screen.getAllByRole("checkbox");
+    expect(toggles).toHaveLength(2);
+    const [parentToggle, foyerToggle] = toggles;
+    expect(parentToggle).toBeChecked();
+    expect(parentToggle).toBeDisabled();
+    expect(foyerToggle).not.toBeChecked();
+    expect(screen.queryByLabelText(/Room Setup Details/)).toBeNull();
+    await waitFor(() =>
+      expect(getValues().roomSetupByRoom).toEqual({ "1201": "1201_LAYOUT_0" }),
+    );
+
+    // Choosing the parent's layout leaves the foyer alone.
+    fireEvent.click(screen.getByLabelText("Classroom Style"));
+    await waitFor(() =>
+      expect(getValues().roomSetupByRoom).toEqual({ "1201": "1201_LAYOUT_1" }),
+    );
+    expect(foyerToggle).not.toBeChecked();
+    expect(getValues().setupDetails).toBe("Classroom Style");
+
+    // Turning the foyer on adds its own entry next to the parent's.
+    fireEvent.click(foyerToggle);
+    fireEvent.change(screen.getByLabelText(/Room Setup Details/), {
+      target: { value: "2 cocktail tables" },
+    });
+    await waitFor(() =>
+      expect(getValues().roomSetupByRoom).toEqual({
+        "1201": "1201_LAYOUT_1",
+        "1200L-6": "yes",
+      }),
+    );
+    expect(getValues().setupDetailsByRoom).toEqual({
+      "1201": "Classroom Style",
+      "1200L-6": "2 cocktail tables",
+    });
+    expect(getValues().setupDetails).toContain("Classroom Style");
+    expect(getValues().setupDetails).toContain("2 cocktail tables");
   });
 
   it("adds an equipment switch only when toggle is set", () => {

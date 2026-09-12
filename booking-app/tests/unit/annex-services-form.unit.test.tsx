@@ -53,6 +53,16 @@ const room1201 = {
       mode: "checkbox",
       options: [{ value: "1200L-6", label: "1200L-6 Seminar Foyer" }],
     },
+    setup: {
+      label: "Room Setup",
+      toggle: "on",
+      mode: "radio",
+      defaultValue: "1201_LAYOUT_0",
+      options: [
+        { value: "1201_LAYOUT_0", label: "Lecture Style (Default)" },
+        { value: "1201_LAYOUT_1", label: "Classroom Style" },
+      ],
+    },
   },
 };
 
@@ -75,6 +85,8 @@ const annex1200L6 = {
       options: [{ value: "yes", label: "Yes, hire Campus Safety" }],
       chartField: { required: true },
     },
+    // A setup section with no mode or options: a plain per-room switch.
+    setup: { label: "Room Setup", toggle: "optional" },
   },
 };
 
@@ -155,7 +167,7 @@ describe("FormInput renders services for checked annex spaces", () => {
         showSponsor: false,
         showBookingType: false,
         services: {
-          showSetup: false,
+          showSetup: true,
           showEquipment: false,
           showStaffing: false,
           showCatering: false,
@@ -223,6 +235,20 @@ describe("FormInput renders services for checked annex spaces", () => {
     renderForm({ "1201": ["1200L-6"] });
     expect(screen.getByText("1200L-6 Seminar Foyer")).toBeInTheDocument();
     expect(screen.getByText(FOYER_SECURITY_LABEL)).toBeInTheDocument();
+  });
+
+  it("renders the annex room's setup as its own switch, not a copy of the parent's layouts", () => {
+    renderForm({ "1201": ["1200L-6"] });
+    // One Room Setup section per room, and the parent's layout options are
+    // listed exactly once.
+    expect(screen.getAllByText("Room Setup")).toHaveLength(2);
+    expect(screen.getAllByLabelText("Lecture Style (Default)")).toHaveLength(1);
+    expect(screen.getAllByLabelText("Classroom Style")).toHaveLength(1);
+    // The legacy generic switch (bound to the shared roomSetup scalar, which
+    // mirrors 1201's selection) must not appear next to schema-driven rooms.
+    expect(
+      screen.queryByText(/requesting a room setup that requires hiring/),
+    ).not.toBeInTheDocument();
   });
 
   it("does not show annex services when no annex space is checked", () => {

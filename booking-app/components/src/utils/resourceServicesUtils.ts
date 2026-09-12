@@ -58,9 +58,26 @@ export function isSchemaDrivenEquipmentSection(
 }
 
 /**
+ * Setup sections rendered as a per-room yes/no switch (details + optional
+ * chartfield): a schema setup config that is not a layout choice, static
+ * text, or hidden. Mirrors isSecuritySwitchLike for the setup service.
+ */
+export function isSetupSwitchSection(
+  cfg: ResourceFormSectionConfig | undefined,
+): boolean {
+  if (!cfg) return false;
+  const mode = cfg.mode;
+  return !isChoiceMode(mode) && mode !== "static" && mode !== "hidden";
+}
+
+/**
  * Whether the legacy generic "Room Setup" switch is needed for the selection:
- * only for rooms that are not schema-driven (legacy string[] / no services),
- * or for schema rooms whose setup section is a plain switch.
+ * only for rooms that are not schema-driven (legacy string[] / no services).
+ * Every schema setup section (layout choice, static text, or plain switch) is
+ * rendered per room by BookingFormResourceServices, which also owns the
+ * legacy roomSetup / setupDetails / chartFieldForRoomSetup scalars it mirrors
+ * into — so the generic switch must not be shown next to it, or it would echo
+ * another room's selection.
  */
 export function needsGenericSetupSwitch(
   rooms: ServiceResourceLike[],
@@ -68,16 +85,6 @@ export function needsGenericSetupSwitch(
   tenantShowSetup: boolean,
 ): boolean {
   if (rooms.length === 0) return tenantShowSetup;
-  const schemaSetupSwitchRooms = getRoomsWithVisibleService(
-    rooms,
-    "setup",
-    context,
-  ).filter((r) => {
-    if (!hasSchemaServicesConfig(r)) return false;
-    const mode = getServiceSectionConfig(r, "setup")?.mode;
-    return !isChoiceMode(mode) && mode !== "static";
-  });
-  if (schemaSetupSwitchRooms.length > 0) return true;
   const hasLegacyRoom = rooms.some((r) => !hasSchemaServicesConfig(r));
   return hasLegacyRoom && tenantShowSetup;
 }
