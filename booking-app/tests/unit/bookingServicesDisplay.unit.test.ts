@@ -405,4 +405,81 @@ describe("getBookingServicesByRoom", () => {
       },
     ]);
   });
+
+  it("attaches a shared furnishings description to the only yes room", () => {
+    const display = getBookingServicesByRoom({
+      roomId: "202, 103",
+      furnishingsByRoom: { "202": "yes", "103": "no" },
+      furnishingsDetails: "2 tables",
+    });
+
+    expect(display.bookingLevel).toEqual([]);
+    expect(display.rooms.map((room) => room.roomId)).toEqual(["202"]);
+    expect(display.rooms[0].rows).toEqual([
+      {
+        key: "furnishings",
+        label: "Additional Event Furniture",
+        value: "2 tables",
+      },
+    ]);
+  });
+
+  it("keeps shared furnishings details at booking level for legacy multi-room requests", () => {
+    const display = getBookingServicesByRoom({
+      roomId: "202, 103",
+      furnishingsByRoom: { "202": "yes", "103": "yes" },
+      furnishingsDetails: "2 round tables for 202, chairs for 103",
+    });
+
+    expect(display.bookingLevel).toEqual([
+      {
+        key: "furnishings",
+        label: "Additional Event Furniture",
+        value: "2 round tables for 202, chairs for 103",
+      },
+    ]);
+    expect(display.rooms.map((room) => room.roomId)).toEqual(["202", "103"]);
+    expect(display.rooms[0].rows).toEqual([
+      {
+        key: "furnishings",
+        label: "Additional Event Furniture",
+        value: "Yes",
+      },
+    ]);
+    expect(display.rooms[1].rows).toEqual([
+      {
+        key: "furnishings",
+        label: "Additional Event Furniture",
+        value: "Yes",
+      },
+    ]);
+  });
+
+  it("does not duplicate furnishings details at booking level when rooms have their own", () => {
+    const display = getBookingServicesByRoom({
+      roomId: "202, 103",
+      furnishingsByRoom: { "202": "yes", "103": "yes" },
+      furnishingsDetailsByRoom: {
+        "202": "2 tables",
+        "103": "chairs",
+      },
+      furnishingsDetails: "2 tables; chairs",
+    });
+
+    expect(display.bookingLevel).toEqual([]);
+    expect(display.rooms[0].rows).toEqual([
+      {
+        key: "furnishings",
+        label: "Additional Event Furniture",
+        value: "2 tables",
+      },
+    ]);
+    expect(display.rooms[1].rows).toEqual([
+      {
+        key: "furnishings",
+        label: "Additional Event Furniture",
+        value: "chairs",
+      },
+    ]);
+  });
 });

@@ -31,8 +31,8 @@ export type BookingRoomServicesDisplay = {
 export type BookingServicesDisplay = {
   rooms: BookingRoomServicesDisplay[];
   /**
-   * Setup / equipment shown once under the Services title when they are
-   * booking-level and cannot be attributed to a room.
+   * Setup / equipment / shared furnishings shown once under the Services
+   * title when they are booking-level and cannot be attributed to a room.
    */
   bookingLevel: BookingServiceDisplayRow[];
 };
@@ -93,8 +93,8 @@ export function hasBookingServicesDisplay(
  *
  * Legacy catering / cleaning / security (no *ByRoom map) are shown on each
  * booked room that offers that service. Staffing and media are shown on every
- * booked room. Setup and equipment that cannot be attributed to one room are
- * returned in `bookingLevel`.
+ * booked room. Setup, equipment, and a shared furnishings description that
+ * cannot be attributed to one room are returned in `bookingLevel`.
  */
 export function getBookingServicesByRoom(
   booking: BookingServicesSource,
@@ -430,6 +430,24 @@ export function getBookingServicesByRoom(
         });
       }
     }
+  }
+  const sharedFurnishingsDetails = meaningfulText(booking.furnishingsDetails);
+  const hasPerRoomFurnishingsDetails = furnYesRoomIds.some((id) =>
+    Boolean(meaningfulText(furnishingsDetailsMap[id])),
+  );
+  // Legacy bookings store one furnishingsDetails string for the whole request.
+  // Attach it to the only "yes" room; otherwise show it once at booking level
+  // so multi-room requests do not drop the furniture description.
+  if (
+    furnYesRoomIds.length > 1 &&
+    sharedFurnishingsDetails &&
+    !hasPerRoomFurnishingsDetails
+  ) {
+    bookingLevel.push({
+      key: "furnishings",
+      label: "Additional Event Furniture",
+      value: sharedFurnishingsDetails,
+    });
   }
   if (staffingValue && bookedIds.length === 0) {
     bookingLevel.push({
