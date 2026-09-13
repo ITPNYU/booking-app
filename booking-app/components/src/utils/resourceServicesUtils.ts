@@ -58,9 +58,26 @@ export function isSchemaDrivenEquipmentSection(
 }
 
 /**
+ * Setup sections rendered as a per-room yes/no switch (details + optional
+ * chartfield): a schema setup config that is not a layout choice, static
+ * text, or hidden. Mirrors isSecuritySwitchLike for the setup service.
+ */
+export function isSetupSwitchSection(
+  cfg: ResourceFormSectionConfig | undefined,
+): boolean {
+  if (!cfg) return false;
+  const mode = cfg.mode;
+  return !isChoiceMode(mode) && mode !== "static" && mode !== "hidden";
+}
+
+/**
  * Whether the legacy generic "Room Setup" switch is needed for the selection:
- * only for rooms that are not schema-driven (legacy string[] / no services),
- * or for schema rooms whose setup section is a plain switch.
+ * only for rooms that are not schema-driven (legacy string[] / no services).
+ * Every schema setup section (layout choice, static text, or plain switch) is
+ * rendered per room by BookingFormResourceServices, which also owns the
+ * legacy roomSetup / setupDetails / chartFieldForRoomSetup scalars it mirrors
+ * into — so the generic switch must not be shown next to it, or it would echo
+ * another room's selection.
  */
 export function needsGenericSetupSwitch(
   rooms: ServiceResourceLike[],
@@ -68,16 +85,6 @@ export function needsGenericSetupSwitch(
   tenantShowSetup: boolean,
 ): boolean {
   if (rooms.length === 0) return tenantShowSetup;
-  const schemaSetupSwitchRooms = getRoomsWithVisibleService(
-    rooms,
-    "setup",
-    context,
-  ).filter((r) => {
-    if (!hasSchemaServicesConfig(r)) return false;
-    const mode = getServiceSectionConfig(r, "setup")?.mode;
-    return !isChoiceMode(mode) && mode !== "static";
-  });
-  if (schemaSetupSwitchRooms.length > 0) return true;
   const hasLegacyRoom = rooms.some((r) => !hasSchemaServicesConfig(r));
   return hasLegacyRoom && tenantShowSetup;
 }
@@ -368,6 +375,103 @@ export function getAnnexOptions(
   }
   const section = getServiceSectionConfig(resource, "annex");
   return section?.options ?? [];
+}
+
+/**
+ * Annex resources the user has checked under any selected parent room,
+ * resolved against the tenant resources. Only registered annex resources
+ * (parentResourceId set) are returned; legacy option values with no resource
+ * resolve to nothing. Sorted numerically by resource ID.
+ */
+export function getSelectedAnnexResources(
+  annexByRoom: Record<string, string[]> | undefined,
+  allResources: ServiceResourceLike[],
+): ServiceResourceLike[] {
+  if (!annexByRoom || typeof annexByRoom !== "object") return [];
+  const selectedIds = new Set<string>();
+  for (const values of Object.values(annexByRoom)) {
+    if (!Array.isArray(values)) continue;
+    for (const value of values) {
+      const id = String(value).trim();
+      if (id) selectedIds.add(id);
+    }
+  }
+  if (selectedIds.size === 0) return [];
+  return allResources
+    .filter(
+      (r) => r.parentResourceId && selectedIds.has(getServiceResourceId(r)),
+    )
+    .sort((a, b) =>
+      getServiceResourceId(a).localeCompare(
+        getServiceResourceId(b),
+        undefined,
+        {
+          numeric: true,
+        },
+      ),
+    );
+}
+
+/**
+ * Rooms whose services the booking form should render: the selected rooms
+ * plus every checked annex space. Annex spaces are never in `selectedRooms`
+ * (they are picked as checkboxes under their parent), so without this their
+ * own `services` config would never reach the form.
+ */
+export function getServiceRooms(
+  selectedRooms: ServiceResourceLike[],
+  annexByRoom: Record<string, string[]> | undefined,
+  allResources: ServiceResourceLike[],
+): ServiceResourceLike[] {
+  const annexRooms = getSelectedAnnexResources(annexByRoom, allResources);
+  if (annexRooms.length === 0) return selectedRooms;
+  const selectedIds = new Set(selectedRooms.map(getServiceResourceId));
+  return [
+    ...selectedRooms,
+    ...annexRooms.filter((r) => !selectedIds.has(getServiceResourceId(r))),
+  ];
+}
+
+/** Every form field that stores a value keyed by room / annex resource id. */
+export const SERVICE_BY_ROOM_FIELDS = [
+  "roomSetupByRoom",
+  "setupDetailsByRoom",
+  "chartFieldForRoomSetupByRoom",
+  "furnishingsByRoom",
+  "chartFieldForFurnishingsByRoom",
+  "furnishingsDetailsByRoom",
+  "equipmentServicesDetailsByRoom",
+  "cateringByRoom",
+  "chartFieldForCateringByRoom",
+  "cleaningByRoom",
+  "chartFieldForCleaningByRoom",
+  "hireSecurityByRoom",
+  "chartFieldForSecurityByRoom",
+] as const;
+
+export type ServiceByRoomField = (typeof SERVICE_BY_ROOM_FIELDS)[number];
+
+/**
+ * Drop per-room service entries for rooms that are no longer part of the
+ * booking. Answers for an annex space (or a parent room) linger in the form
+ * maps after the user unchecks it on the room page; without this they would
+ * be saved and shown as if that room still requested the service.
+ */
+export function pruneServiceMapsToRooms<
+  T extends Partial<Record<ServiceByRoomField, Record<string, string>>>,
+>(data: T, rooms: ServiceResourceLike[]): T {
+  const keep = new Set(rooms.map(getServiceResourceId));
+  const next: T = { ...data };
+  for (const field of SERVICE_BY_ROOM_FIELDS) {
+    const map = data[field];
+    if (!map || typeof map !== "object" || Array.isArray(map)) continue;
+    const entries = Object.entries(map);
+    if (entries.every(([roomId]) => keep.has(roomId))) continue;
+    next[field] = Object.fromEntries(
+      entries.filter(([roomId]) => keep.has(roomId)),
+    ) as T[typeof field];
+  }
+  return next;
 }
 
 /**

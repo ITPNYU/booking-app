@@ -7,6 +7,7 @@ import {
   anyRoomHasVisibleService,
   formatAnnexByRoomForDisplay,
   formatServiceByRoom,
+  pruneServiceMapsToRooms,
   getAnnexOptions,
   getRoomsWithVisibleService,
   getStaffingServiceLabel,
@@ -601,5 +602,61 @@ describe("formatServiceByRoom", () => {
     expect(formatServiceByRoom(undefined, undefined)).toEqual([]);
     expect(formatServiceByRoom("yes", {})).toEqual([]);
     expect(formatServiceByRoom(["yes"], {})).toEqual([]);
+  });
+});
+
+describe("pruneServiceMapsToRooms", () => {
+  const rooms = [
+    { roomId: "1201" },
+    { resourceId: "1200L-6", parentResourceId: "1201" },
+  ];
+
+  it("drops entries for rooms and annexes no longer in the booking", () => {
+    const data = {
+      roomSetupByRoom: { "1201": "yes", "1200L-6": "yes", "1204": "yes" },
+      setupDetailsByRoom: { "1204": "tables" },
+      chartFieldForRoomSetupByRoom: { "1204": "12345-AB-CDE00-00001" },
+      hireSecurityByRoom: { "1201": "Willoughby", "1204": "Willoughby" },
+      chartFieldForSecurityByRoom: { "1204": "12345-AB-CDE00-00001" },
+      cateringByRoom: { "1200L-6": "yes", "1204": "yes" },
+      cleaningByRoom: { "1204": "yes" },
+      firstName: "Ada",
+    };
+    expect(pruneServiceMapsToRooms(data, rooms)).toEqual({
+      roomSetupByRoom: { "1201": "yes", "1200L-6": "yes" },
+      setupDetailsByRoom: {},
+      chartFieldForRoomSetupByRoom: {},
+      hireSecurityByRoom: { "1201": "Willoughby" },
+      chartFieldForSecurityByRoom: {},
+      cateringByRoom: { "1200L-6": "yes" },
+      cleaningByRoom: {},
+      firstName: "Ada",
+    });
+  });
+
+  it("returns the same map references when nothing needs pruning", () => {
+    const cateringByRoom = { "1201": "yes" };
+    const result = pruneServiceMapsToRooms(
+      { cateringByRoom, cleaningByRoom: undefined },
+      rooms,
+    );
+    expect(result.cateringByRoom).toBe(cateringByRoom);
+    expect(result.cleaningByRoom).toBeUndefined();
+  });
+
+  it("makes stale annex rows disappear from calendar / detail output", () => {
+    const pruned = pruneServiceMapsToRooms(
+      {
+        cateringByRoom: { "1201": "yes", "1204": "yes" },
+        chartFieldForCateringByRoom: { "1204": "12345-AB-CDE00-00001" },
+      },
+      rooms,
+    );
+    expect(
+      formatServiceByRoom(
+        pruned.cateringByRoom,
+        pruned.chartFieldForCateringByRoom,
+      ),
+    ).toEqual(["1201: yes"]);
   });
 });

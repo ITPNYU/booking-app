@@ -43,6 +43,7 @@ import {
   anyRoomHasVisibleService,
   getResourceServicesConfig,
   getRoomsWithVisibleService,
+  getServiceRooms,
   getServiceSectionConfig,
   hasSchemaServicesConfig,
   isChoiceMode,
@@ -138,7 +139,15 @@ export default function FormInput({
     },
     attestations,
     mappings: { role: roleMapping },
+    resources: schemaResources,
   } = useTenantSchema();
+
+  // Checked annex spaces (e.g. 1200L-6 under 1201) live in annexByRoom, not
+  // selectedRooms, but their own services must still be offered on the form.
+  const serviceRooms = useMemo(
+    () => getServiceRooms(selectedRooms, annexByRoom, schemaResources),
+    [selectedRooms, annexByRoom, schemaResources],
+  );
 
   const serviceVisibility = useMemo<ServiceVisibilityContext>(
     () => ({
@@ -150,21 +159,21 @@ export default function FormInput({
   );
 
   const needsGenericSetup = useMemo(
-    () => needsGenericSetupSwitch(selectedRooms, serviceVisibility, showSetup),
-    [selectedRooms, serviceVisibility, showSetup],
+    () => needsGenericSetupSwitch(serviceRooms, serviceVisibility, showSetup),
+    [serviceRooms, serviceVisibility, showSetup],
   );
 
   // Rooms with an object services config (even an empty `{}`) are rendered by
   // BookingFormResourceServices; the legacy tenant-level switches are only for
   // rooms without one.
   const schemaDrivenServices = useMemo(
-    () => selectedRooms.some(hasSchemaServicesConfig),
-    [selectedRooms],
+    () => serviceRooms.some(hasSchemaServicesConfig),
+    [serviceRooms],
   );
 
   const needsGenericSecuritySwitch = useMemo(() => {
     const securityRooms = getRoomsWithVisibleService(
-      selectedRooms,
+      serviceRooms,
       "security",
       serviceVisibility,
     );
@@ -177,22 +186,22 @@ export default function FormInput({
         !isChoiceMode(mode) && mode !== "checkbox" && mode !== "static"
       );
     });
-  }, [selectedRooms, serviceVisibility]);
+  }, [serviceRooms, serviceVisibility]);
 
   const needsCheckboxSecurity = useMemo(() => {
     const securityRooms = getRoomsWithVisibleService(
-      selectedRooms,
+      serviceRooms,
       "security",
       serviceVisibility,
     );
     return securityRooms.some(
       (r) => getServiceSectionConfig(r, "security")?.mode === "checkbox",
     );
-  }, [selectedRooms, serviceVisibility]);
+  }, [serviceRooms, serviceVisibility]);
 
   const needsInteractiveEquipment = useMemo(() => {
     const equipmentRooms = getRoomsWithVisibleService(
-      selectedRooms,
+      serviceRooms,
       "equipment",
       serviceVisibility,
     );
@@ -204,40 +213,40 @@ export default function FormInput({
       // Mirrors BookingFormResourceServices so a section never renders both UIs.
       return !isSchemaDrivenEquipmentSection(cfg);
     });
-  }, [selectedRooms, serviceVisibility]);
+  }, [serviceRooms, serviceVisibility]);
 
   const cateringDescriptionHtml = useMemo(() => {
-    for (const room of selectedRooms) {
+    for (const room of serviceRooms) {
       const html = getServiceSectionConfig(room, "catering")?.descriptionHtml;
       if (html) return html;
     }
     return undefined;
-  }, [selectedRooms]);
+  }, [serviceRooms]);
 
   // Determine which services to show based on selected rooms and schema resources
   const showEquipment = useMemo(
-    () => anyRoomHasVisibleService(selectedRooms, "equipment", serviceVisibility),
-    [selectedRooms, serviceVisibility],
+    () => anyRoomHasVisibleService(serviceRooms, "equipment", serviceVisibility),
+    [serviceRooms, serviceVisibility],
   );
 
   const showStaffing = useMemo(
-    () => anyRoomHasVisibleService(selectedRooms, "staffing", serviceVisibility),
-    [selectedRooms, serviceVisibility],
+    () => anyRoomHasVisibleService(serviceRooms, "staffing", serviceVisibility),
+    [serviceRooms, serviceVisibility],
   );
 
   const showCatering = useMemo(
-    () => anyRoomHasVisibleService(selectedRooms, "catering", serviceVisibility),
-    [selectedRooms, serviceVisibility],
+    () => anyRoomHasVisibleService(serviceRooms, "catering", serviceVisibility),
+    [serviceRooms, serviceVisibility],
   );
 
   const showHireSecurity = useMemo(
-    () => anyRoomHasVisibleService(selectedRooms, "security", serviceVisibility),
-    [selectedRooms, serviceVisibility],
+    () => anyRoomHasVisibleService(serviceRooms, "security", serviceVisibility),
+    [serviceRooms, serviceVisibility],
   );
 
   const showCleaning = useMemo(
-    () => anyRoomHasVisibleService(selectedRooms, "cleaning", serviceVisibility),
-    [selectedRooms, serviceVisibility],
+    () => anyRoomHasVisibleService(serviceRooms, "cleaning", serviceVisibility),
+    [serviceRooms, serviceVisibility],
   );
 
   const {
@@ -260,7 +269,6 @@ export default function FormInput({
       sponsorEmail: "",
       mediaServicesDetails: "",
       equipmentServicesDetails: "",
-      staffingServicesDetails: "",
       catering: "",
       chartFieldForCatering: "",
       chartFieldForCleaning: "",
@@ -671,7 +679,7 @@ export default function FormInput({
   const servicesSection = (
     <Section title={formatSectionTitle("Services")}>
       <BookingFormResourceServices
-        selectedRooms={selectedRooms}
+        selectedRooms={serviceRooms}
         control={control}
         errors={errors}
         trigger={trigger}
@@ -777,46 +785,8 @@ export default function FormInput({
               setValue,
             }}
           />
-          {watch("staffingServices") !== undefined &&
-            watch("staffingServices").length > 0 && (
-              <BookingFormTextField
-                id="staffingServicesDetails"
-                label="Staffing Services Details"
-                description={
-                  <p>
-                    If you selected any Staffing Services above, please describe
-                    your needs in detail.
-                    <br />
-                    Please specify the type of technical support you require and
-                    any specific requirements for your event.
-                  </p>
-                }
-                {...{ control, errors, trigger }}
-              />
-            )}
         </div>
       )}
-      {schemaDrivenServices &&
-        showStaffingServices &&
-        watch("staffingServices") !== undefined &&
-        watch("staffingServices").length > 0 && (
-          <div style={{ marginBottom: 32 }}>
-            <BookingFormTextField
-              id="staffingServicesDetails"
-              label="Staffing Services Details"
-              description={
-                <p>
-                  If you selected any Staffing Services above, please describe
-                  your needs in detail.
-                  <br />
-                  Please specify the type of technical support you require and
-                  any specific requirements for your event.
-                </p>
-              }
-              {...{ control, errors, trigger }}
-            />
-          </div>
-        )}
       {/* Legacy rooms without object services config keep flat catering/cleaning/security. */}
       {!schemaDrivenServices && !isWalkIn && showCatering && (
         <div style={{ marginBottom: 32 }}>

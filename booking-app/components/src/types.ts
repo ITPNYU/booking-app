@@ -183,7 +183,6 @@ export type Inputs = {
   equipmentServices: string;
   equipmentServicesDetails: string;
   staffingServices: string;
-  staffingServicesDetails: string;
   catering: string;
   hireSecurity: string;
   expectedAttendance: string;

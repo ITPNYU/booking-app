@@ -215,7 +215,6 @@ export default function useExistingBooking() {
       equipmentServices: booking.equipmentServices,
       equipmentServicesDetails: booking.equipmentServicesDetails,
       staffingServices: booking.staffingServices,
-      staffingServicesDetails: booking.staffingServicesDetails,
       catering: booking.catering,
       hireSecurity: booking.hireSecurity,
       expectedAttendance: booking.expectedAttendance,

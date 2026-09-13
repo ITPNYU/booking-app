@@ -283,7 +283,6 @@ describe("Modification Features", () => {
             selectedRooms: mockRooms,
             formData: {
               staffingServices: "Audio Technician",
-              staffingServicesDetails: "Need help with sound setup",
             },
           },
         }

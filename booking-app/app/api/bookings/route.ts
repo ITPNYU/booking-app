@@ -713,7 +713,7 @@ export async function POST(request: NextRequest) {
         isVip,
         formData: {
           setup: data.roomSetup,
-          staff: data.staffingServicesDetails,
+          staff: data.staffingServices,
           equipment: data.equipmentServices,
           catering: data.catering,
           cleaning: data.cleaningService,
