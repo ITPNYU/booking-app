@@ -18,17 +18,6 @@ import { fillMissingMcServiceRegions } from "./mcServiceRegionMigration";
 import type { PersistedXStateData } from "./xstateTypes";
 
 /**
- * Build XState servicesApproved context from Firestore booking fields.
- * Only explicit boolean decisions are included so cleared/null fields do not
- * retain a prior decision after edit/resubmission (ADR-0001).
- */
-export function getServicesApprovedFromBookingData(
-  bookingData: any,
-): Record<string, boolean> {
-  return getServiceDecisions(bookingData) as Record<string, boolean>;
-}
-
-/**
  * Map booking status to XState state
  */
 export function mapBookingStatusToXState(status: string): string {
@@ -134,7 +123,7 @@ export async function createXStateDataFromBookingStatus(
         email: bookingData.email,
         isVip: bookingData.isVip || false,
         servicesRequested,
-        servicesApproved: getServicesApprovedFromBookingData(bookingData),
+        servicesApproved: getServiceDecisions(bookingData),
         // Flag to indicate this XState was created from existing booking without prior xstateData
         _restoredFromStatus: true,
       }
@@ -465,8 +454,9 @@ export async function restoreXStateFromFirestore(
           bookingData,
           await serverGetTenantResources(tenant),
         );
-        const currentServicesApproved =
-          getServicesApprovedFromBookingData(bookingData);
+        // Only explicit booleans count: a flag the edit endpoint deleted is a
+        // pending service again (ADR-0001).
+        const currentServicesApproved = getServiceDecisions(bookingData);
 
         updatedSnapshot.context = {
           ...updatedSnapshot.context,

@@ -1,4 +1,5 @@
 import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
+import type { MediaCommonsServiceKey } from "@/components/src/utils/serviceDecisions";
 import { TableNames } from "@/components/src/policy";
 import { serverUpdateDataByCalendarEventId } from "@/components/src/server/admin";
 import { BookingStatusLabel } from "@/components/src/types";
@@ -95,7 +96,7 @@ export async function executeXStateTransition(
   reason?: string,
   netId?: string,
   /** For "edit": the services whose requests changed (their decisions reset). */
-  changedServices?: string[],
+  changedServices?: MediaCommonsServiceKey[],
 ): Promise<{ success: boolean; newState?: string; error?: string }> {
   try {
     console.log(

@@ -140,6 +140,75 @@ describe("getChangedServiceKeys", () => {
     ).toEqual([]);
   });
 
+  describe("a booking saved before per-room maps existed", () => {
+    // The existing-booking loader fans a legacy booking-level answer out
+    // onto every room that offers the service, and the form derives the
+    // flat scalars back from the maps. Neither is a change by the requester.
+    const legacy = {
+      title: "Original",
+      catering: "yes",
+      chartFieldForCatering: "AAAAA-BBBBB",
+      hireSecurity: "willoughby",
+      roomSetup: "yes",
+      setupDetails: "20 chairs",
+      chartFieldForRoomSetup: "CCCCC-DDDDD",
+    };
+
+    it("treats maps fanned out from the legacy answers as unchanged", () => {
+      expect(
+        getChangedServiceKeys(legacy, {
+          ...legacy,
+          chartFieldForCatering: "202 Lecture Hall: AAAAA-BBBBB; 203 Studio: AAAAA-BBBBB",
+          cateringByRoom: { "202": "yes", "203": "yes" },
+          chartFieldForCateringByRoom: {
+            "202": "AAAAA-BBBBB",
+            "203": "AAAAA-BBBBB",
+          },
+          hireSecurityByRoom: { "202": "willoughby" },
+          roomSetupByRoom: { "202": "20 chairs" },
+          setupDetailsByRoom: { "202": "20 chairs" },
+          chartFieldForRoomSetupByRoom: { "202": "CCCCC-DDDDD" },
+        }),
+      ).toEqual([]);
+    });
+
+    it("still counts a room whose answer differs from the legacy one", () => {
+      expect(
+        getChangedServiceKeys(legacy, {
+          ...legacy,
+          cateringByRoom: { "202": "yes", "203": "yes" },
+          chartFieldForCateringByRoom: {
+            "202": "AAAAA-BBBBB",
+            "203": "EEEEE-FFFFF",
+          },
+        }),
+      ).toEqual(["catering"]);
+    });
+
+    it("counts a map with no legacy answer behind it as a new request", () => {
+      expect(
+        getChangedServiceKeys(
+          { ...legacy, hireSecurity: "" },
+          { ...legacy, hireSecurity: "", hireSecurityByRoom: { "202": "yes" } },
+        ),
+      ).toEqual(["security"]);
+    });
+
+    it("ignores the derived flat scalars once both sides carry maps", () => {
+      const withMaps = {
+        ...legacy,
+        cateringByRoom: { "202": "yes" },
+        chartFieldForCateringByRoom: { "202": "AAAAA-BBBBB" },
+      };
+      expect(
+        getChangedServiceKeys(withMaps, {
+          ...withMaps,
+          chartFieldForCatering: "202 Lecture Hall: AAAAA-BBBBB",
+        }),
+      ).toEqual([]);
+    });
+  });
+
   it("covers every per-room map and every flat service field", () => {
     const covered = new Set(
       MEDIA_COMMONS_SERVICE_KEYS.flatMap((key) => SERVICE_REQUEST_FIELDS[key]),

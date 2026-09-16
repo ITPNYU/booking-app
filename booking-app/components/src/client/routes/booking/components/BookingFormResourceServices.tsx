@@ -1411,6 +1411,7 @@ export default function BookingFormResourceServices({
                 <ServiceDecisionMark
                   service="setup"
                   decision={serviceDecisions?.setup}
+                  formContext={formContext}
                 />
                 <Label>
                   {formatFieldLabel(setupCfg.label ?? "Room Setup")}
@@ -1424,6 +1425,7 @@ export default function BookingFormResourceServices({
                 <ServiceDecisionMark
                   service="setup"
                   decision={serviceDecisions?.setup}
+                  formContext={formContext}
                 />
                 <SharedYesNoSwitch
                   label={formatFieldLabel(setupCfg.label ?? "Room Setup")}
@@ -1584,6 +1586,7 @@ export default function BookingFormResourceServices({
                 <ServiceDecisionMark
                   service="setup"
                   decision={serviceDecisions?.setup}
+                  formContext={formContext}
                 />
                 <SharedYesNoSwitch
                   label={formatFieldLabel(setupCfg.label ?? "Room Setup")}
@@ -1797,6 +1800,7 @@ export default function BookingFormResourceServices({
                 <ServiceDecisionMark
                   service="equipment"
                   decision={serviceDecisions?.equipment}
+                  formContext={formContext}
                 />
                 {equipmentHasSwitch ? (
                   <SharedYesNoSwitch
@@ -1897,6 +1901,7 @@ export default function BookingFormResourceServices({
                 <ServiceDecisionMark
                   service="furnishings"
                   decision={serviceDecisions?.furnishings}
+                  formContext={formContext}
                 />
                 <SharedYesNoSwitch
                   label={formatFieldLabel(
@@ -2045,6 +2050,7 @@ export default function BookingFormResourceServices({
                 <ServiceDecisionMark
                   service="catering"
                   decision={serviceDecisions?.catering}
+                  formContext={formContext}
                 />
                 <Label>
                   {formatFieldLabel(cateringCfg.label ?? "Catering?")}
@@ -2093,6 +2099,7 @@ export default function BookingFormResourceServices({
                 <ServiceDecisionMark
                   service="catering"
                   decision={serviceDecisions?.catering}
+                  formContext={formContext}
                 />
                 <SharedYesNoSwitch
                   label={formatFieldLabel(cateringCfg.label ?? "Catering?")}
@@ -2138,6 +2145,7 @@ export default function BookingFormResourceServices({
                 <ServiceDecisionMark
                   service="cleaning"
                   decision={serviceDecisions?.cleaning}
+                  formContext={formContext}
                 />
                 <SharedYesNoSwitch
                   label={formatFieldLabel(cleaningCfg.label ?? "Cleaning?")}
@@ -2193,6 +2201,7 @@ export default function BookingFormResourceServices({
                 <ServiceDecisionMark
                   service="security"
                   decision={serviceDecisions?.security}
+                  formContext={formContext}
                 />
                 <Label>
                   {formatFieldLabel(securityCfg.label ?? "Security")}
@@ -2262,6 +2271,7 @@ export default function BookingFormResourceServices({
                 <ServiceDecisionMark
                   service="security"
                   decision={serviceDecisions?.security}
+                  formContext={formContext}
                 />
                 {(() => {
                   const securityOpt = securityCfg.options?.[0];
@@ -2355,6 +2365,7 @@ export default function BookingFormResourceServices({
                 <ServiceDecisionMark
                   service="security"
                   decision={serviceDecisions?.security}
+                  formContext={formContext}
                 />
                 <SharedYesNoSwitch
                   label={formatFieldLabel(securityCfg.label ?? "Security?")}

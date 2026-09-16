@@ -94,7 +94,7 @@ export default function BookingFormStaffingServices(props: Props) {
     trigger,
     showStaffingServices,
     setShowStaffingServices,
-    formContext: _formContext,
+    formContext,
     rooms: roomsProp,
     setValue,
     toggle: toggleProp,
@@ -301,7 +301,11 @@ export default function BookingFormStaffingServices(props: Props) {
   if (!hasInteractiveStaffing) {
     return (
       <div style={{ marginBottom: 8 }}>
-        <ServiceDecisionMark service="staff" decision={decision} />
+        <ServiceDecisionMark
+          service="staff"
+          decision={decision}
+          formContext={formContext}
+        />
         {staticStaffingRooms.map((room, index) => (
           <div key={`staffing-static-${index}`} style={{ marginBottom: 16 }}>
             <Label>{room.label ?? staffingLabel}</Label>
@@ -355,7 +359,11 @@ export default function BookingFormStaffingServices(props: Props) {
 
   return (
     <div style={{ marginBottom: 8 }}>
-      <ServiceDecisionMark service="staff" decision={decision} />
+      <ServiceDecisionMark
+          service="staff"
+          decision={decision}
+          formContext={formContext}
+        />
       {staticStaffingRooms.map((room, index) => (
         <div key={`staffing-static-${index}`} style={{ marginBottom: 16 }}>
           <Label>{room.label ?? staffingLabel}</Label>

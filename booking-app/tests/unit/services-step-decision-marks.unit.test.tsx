@@ -174,7 +174,7 @@ describe("Services step decision marks", () => {
     ).toBeInTheDocument();
   });
 
-  it("shows the same marks in the modification context", () => {
+  it("shows the same marks in the modification context, without the reset note", () => {
     (usePathname as any).mockReturnValue("/mc/modification/services/evt1");
     renderServices(FormContextLevel.MODIFICATION, {
       staff: true,
@@ -186,6 +186,10 @@ describe("Services step decision marks", () => {
       "catering:declined",
       "staff:approved",
     ]);
+    // Modification copies decisions forward unchanged (ADR-0001), so the
+    // note about a change resetting the decision would be untrue here.
+    expect(screen.getByText("Approved.")).toBeInTheDocument();
+    expect(screen.queryByText(/sends it back/)).not.toBeInTheDocument();
   });
 
   it("marks the legacy tenant-level catering switch too", () => {

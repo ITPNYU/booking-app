@@ -78,7 +78,13 @@ export default function BookingFormEquipmentServices(props: Props) {
     return null;
   }
 
-  const mark = <ServiceDecisionMark service="equipment" decision={decision} />;
+  const mark = (
+    <ServiceDecisionMark
+      service="equipment"
+      decision={decision}
+      formContext={formContext}
+    />
+  );
 
   if (limitedContexts.includes(formContext)) {
     return (

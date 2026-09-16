@@ -53,58 +53,101 @@ export function getServiceDecisions(
   return decisions;
 }
 
+/** A per-room map and the legacy booking-level fields it stands in for. */
+type ByRoomField = {
+  field: keyof Inputs;
+  /**
+   * The flat fields the existing-booking loader fans this map out from when
+   * a saved booking predates per-room maps, and that the form derives back
+   * from the map (any room "yes" → "yes", chartfields joined per room).
+   */
+  legacy: readonly (keyof Inputs)[];
+};
+
+type ServiceFieldSet = {
+  byRoom: readonly ByRoomField[];
+  /** Booking-level answers that have no per-room map. */
+  flat: readonly (keyof Inputs)[];
+};
+
 /**
  * Every form field that belongs to a service section, per service key: the
  * toggle or choice, the detail text and the chartfield, both in the per-room
  * maps and in the legacy flat fields. A change to any of them is a change to
  * that service's request (ADR-0001).
  */
-export const SERVICE_REQUEST_FIELDS: Record<
+export const SERVICE_REQUEST_FIELD_SETS: Record<
   MediaCommonsServiceKey,
-  readonly (keyof Inputs)[]
+  ServiceFieldSet
 > = {
-  staff: ["staffingServices"],
-  equipment: [
-    "equipmentServices",
-    "equipmentServicesDetails",
-    "equipmentServicesDetailsByRoom",
-    "mediaServices",
-    "mediaServicesDetails",
-  ],
-  catering: [
-    "catering",
-    "cateringService",
-    "chartFieldForCatering",
-    "cateringByRoom",
-    "chartFieldForCateringByRoom",
-  ],
-  cleaning: [
-    "cleaningService",
-    "chartFieldForCleaning",
-    "cleaningByRoom",
-    "chartFieldForCleaningByRoom",
-  ],
-  security: [
-    "hireSecurity",
-    "chartFieldForSecurity",
-    "hireSecurityByRoom",
-    "chartFieldForSecurityByRoom",
-  ],
-  setup: [
-    "roomSetup",
-    "setupDetails",
-    "chartFieldForRoomSetup",
-    "roomSetupByRoom",
-    "setupDetailsByRoom",
-    "chartFieldForRoomSetupByRoom",
-  ],
-  furnishings: [
-    "furnishingsDetails",
-    "furnishingsByRoom",
-    "chartFieldForFurnishingsByRoom",
-    "furnishingsDetailsByRoom",
-  ],
+  staff: { byRoom: [], flat: ["staffingServices"] },
+  equipment: {
+    byRoom: [
+      {
+        field: "equipmentServicesDetailsByRoom",
+        legacy: ["equipmentServicesDetails"],
+      },
+    ],
+    flat: ["equipmentServices", "mediaServices", "mediaServicesDetails"],
+  },
+  catering: {
+    byRoom: [
+      { field: "cateringByRoom", legacy: ["catering"] },
+      { field: "chartFieldForCateringByRoom", legacy: ["chartFieldForCatering"] },
+    ],
+    flat: ["cateringService"],
+  },
+  cleaning: {
+    byRoom: [
+      { field: "cleaningByRoom", legacy: ["cleaningService"] },
+      { field: "chartFieldForCleaningByRoom", legacy: ["chartFieldForCleaning"] },
+    ],
+    flat: [],
+  },
+  security: {
+    byRoom: [
+      { field: "hireSecurityByRoom", legacy: ["hireSecurity"] },
+      { field: "chartFieldForSecurityByRoom", legacy: ["chartFieldForSecurity"] },
+    ],
+    flat: [],
+  },
+  setup: {
+    byRoom: [
+      { field: "roomSetupByRoom", legacy: ["setupDetails", "roomSetup"] },
+      { field: "setupDetailsByRoom", legacy: ["setupDetails"] },
+      {
+        field: "chartFieldForRoomSetupByRoom",
+        legacy: ["chartFieldForRoomSetup"],
+      },
+    ],
+    flat: [],
+  },
+  furnishings: {
+    byRoom: [
+      { field: "furnishingsByRoom", legacy: [] },
+      { field: "chartFieldForFurnishingsByRoom", legacy: [] },
+      { field: "furnishingsDetailsByRoom", legacy: ["furnishingsDetails"] },
+    ],
+    flat: [],
+  },
 };
+
+/** Every field of a service section, per service key (maps, legacy and flat). */
+export const SERVICE_REQUEST_FIELDS = MEDIA_COMMONS_SERVICE_KEYS.reduce(
+  (fields, key) => {
+    const { byRoom, flat } = SERVICE_REQUEST_FIELD_SETS[key];
+    fields[key] = [
+      ...new Set([
+        ...byRoom.flatMap((entry) => [entry.field, ...entry.legacy]),
+        ...flat,
+      ]),
+    ];
+    return fields;
+  },
+  {} as Record<MediaCommonsServiceKey, readonly (keyof Inputs)[]>,
+);
+
+type Answers = Partial<Record<string, unknown>>;
 
 /**
  * One answer, in comparable form. "Not requested" is written three ways
@@ -117,33 +160,85 @@ function normalizeAnswer(value: unknown): string {
   return text.toLowerCase() === "no" ? "" : text;
 }
 
-/** A field's value in comparable form: a scalar, or a per-room map without empty rooms. */
-function normalizeField(value: unknown): string {
-  if (value && typeof value === "object" && !Array.isArray(value)) {
-    const rooms = Object.entries(value as Record<string, unknown>)
-      .map(([roomId, answer]) => [roomId, normalizeAnswer(answer)] as const)
-      .filter(([, answer]) => answer !== "")
-      .sort(([a], [b]) => a.localeCompare(b));
-    return rooms.length === 0 ? "" : JSON.stringify(rooms);
+/**
+ * A per-room map's answers in comparable form, without unrequested rooms.
+ * `null` when the booking carries no map at all (it predates per-room maps),
+ * which is different from a map whose rooms all answered "no".
+ */
+function normalizeMap(value: unknown): Map<string, string> | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const rooms = new Map<string, string>();
+  for (const [roomId, answer] of Object.entries(value as Record<string, unknown>)) {
+    const normalized = normalizeAnswer(answer);
+    if (normalized !== "") rooms.set(roomId, normalized);
   }
-  return normalizeAnswer(value);
+  return rooms;
+}
+
+const sameMap = (a: Map<string, string>, b: Map<string, string>): boolean =>
+  a.size === b.size && [...a].every(([roomId, answer]) => b.get(roomId) === answer);
+
+/**
+ * Whether a per-room map on one side matches the booking-level answer on the
+ * other side, which carries no map: the loader fans that answer onto every
+ * room, so the map is unchanged when every room still carries it, and an
+ * all-"no" map is unchanged only when there was no answer to fan out.
+ */
+const matchesLegacyAnswer = (
+  map: Map<string, string>,
+  legacy: readonly (keyof Inputs)[],
+  answers: Answers,
+): boolean => {
+  const legacyAnswers = new Set(
+    legacy.map((field) => normalizeAnswer(answers[field])).filter(Boolean),
+  );
+  if (map.size === 0) return legacyAnswers.size === 0;
+  return (
+    legacyAnswers.size > 0 &&
+    [...map.values()].every((answer) => legacyAnswers.has(answer))
+  );
+};
+
+/** Whether one per-room map differs between the saved booking and the resubmission. */
+function byRoomFieldChanged(
+  { field, legacy }: ByRoomField,
+  saved: Answers,
+  submitted: Answers,
+): boolean {
+  const before = normalizeMap(saved[field]);
+  const after = normalizeMap(submitted[field]);
+  if (before && after) return !sameMap(before, after);
+  if (!before && !after) {
+    return legacy.some(
+      (flat) => normalizeAnswer(saved[flat]) !== normalizeAnswer(submitted[flat]),
+    );
+  }
+  return after
+    ? !matchesLegacyAnswer(after, legacy, saved)
+    : !matchesLegacyAnswer(before!, legacy, submitted);
 }
 
 /**
  * Which services' requests differ between a saved booking and a resubmission.
  * Compares the service section fields only, so Details changes (title,
- * attendance, contacts) never count. Returned in canonical key order.
+ * attendance, contacts) never count. The flat scalars behind a per-room map
+ * are derived from it by the form and are only compared when neither side
+ * carries the map (legacy rooms). Returned in canonical key order.
  */
 export function getChangedServiceKeys(
-  before: Partial<Record<string, unknown>> | null | undefined,
-  after: Partial<Record<string, unknown>> | null | undefined,
+  before: Answers | null | undefined,
+  after: Answers | null | undefined,
 ): MediaCommonsServiceKey[] {
   const saved = before ?? {};
   const submitted = after ?? {};
-  return MEDIA_COMMONS_SERVICE_KEYS.filter((key) =>
-    SERVICE_REQUEST_FIELDS[key].some(
-      (field) =>
-        normalizeField(saved[field]) !== normalizeField(submitted[field]),
-    ),
-  );
+  return MEDIA_COMMONS_SERVICE_KEYS.filter((key) => {
+    const { byRoom, flat } = SERVICE_REQUEST_FIELD_SETS[key];
+    return (
+      byRoom.some((entry) => byRoomFieldChanged(entry, saved, submitted)) ||
+      flat.some(
+        (field) =>
+          normalizeAnswer(saved[field]) !== normalizeAnswer(submitted[field]),
+      )
+    );
+  });
 }

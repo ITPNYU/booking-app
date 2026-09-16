@@ -251,7 +251,11 @@ export default function ServicesInput({ calendarEventId, formContext }: Props) {
           />
           {showGenericSetup && (
             <div style={{ marginBottom: 32 }}>
-              <ServiceDecisionMark service="setup" decision={decisions.setup} />
+              <ServiceDecisionMark
+                service="setup"
+                decision={decisions.setup}
+                formContext={formContext}
+              />
               <BookingFormSwitch
                 id="roomSetup"
                 label="Room Setup"
@@ -352,6 +356,7 @@ export default function ServicesInput({ calendarEventId, formContext }: Props) {
               <ServiceDecisionMark
                 service="catering"
                 decision={decisions.catering}
+                formContext={formContext}
               />
               <BookingFormSwitch
                 id="catering"
@@ -390,6 +395,7 @@ export default function ServicesInput({ calendarEventId, formContext }: Props) {
               <ServiceDecisionMark
                 service="cleaning"
                 decision={decisions.cleaning}
+                formContext={formContext}
               />
               <BookingFormSwitch
                 id="cleaningService"
@@ -420,6 +426,7 @@ export default function ServicesInput({ calendarEventId, formContext }: Props) {
               <ServiceDecisionMark
                 service="security"
                 decision={decisions.security}
+                formContext={formContext}
               />
               <BookingFormSwitch
                 id="hireSecurity"

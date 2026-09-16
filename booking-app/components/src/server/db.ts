@@ -5,6 +5,7 @@ import {
   clientUpdateDataInFirestore,
   getPaginatedData,
 } from "@/lib/firebase/firebase";
+import type { MediaCommonsServiceKey } from "@/components/src/utils/serviceDecisions";
 import { Timestamp, where } from "firebase/firestore";
 import { shouldUseXState } from "@/components/src/utils/tenantUtils";
 import { clientUpdateDataByCalendarEventId } from "@/lib/firebase/client/clientDb";
@@ -43,7 +44,7 @@ export async function callXStateTransitionAPI(
   reason?: string,
   netId?: string,
   /** For "edit": the services whose requests changed (their decisions reset). */
-  changedServices?: string[],
+  changedServices?: MediaCommonsServiceKey[],
 ): Promise<{ success: boolean; newState?: string; error?: string }> {
   try {
     const response = await fetch(
