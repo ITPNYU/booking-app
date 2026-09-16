@@ -219,6 +219,8 @@ Submit → Booking returns to Requested status
 
 After an edit, the booking goes back to **Requested** status and re-enters the approval workflow.
 
+**Service decisions on edit (Media Commons):** the Services step shows a decision mark on every service section that already holds a service decision: a green check for approved, a red X for declined (the same icons as the bookings table Services column). A pending service shows no mark. Resubmitting resets only the decisions of the services whose requests changed (toggle or choice, detail text, or chartfield, on any room); unchanged services keep their decision. An unchanged declined service therefore leads to the booking being declined again, so the requester must change that service to have it reviewed. See ADR-0001.
+
 ### 3.5 Modification Flow (Admin/PA Only)
 
 For making modifications to a booking that has already been approved or is in progress. This flow is only available to **Admins and PAs**, not regular users.
@@ -418,6 +420,8 @@ Service Requested
 - If **all** requested services are approved → the booking moves to **Approved**
 - If **any** requested service is declined → the booking moves to **Declined**
   - The decline email lists which specific services were declined
+
+**Re-entry after an edit:** a resubmitted booking re-enters this workflow with the decisions of its unchanged services intact. Those services land directly in their approved or declined state; only pending services wait on approvers, and only their approvers are notified.
 
 ### Service Closeout
 

@@ -42,6 +42,7 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
     setIsDetailsValid,
     resetServiceRuleMemory,
     setCheckedAgreements,
+    setServiceDecisions,
     setHasShownMocapModal,
     setSubmitting,
     error,
@@ -349,6 +350,7 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
           setIsDetailsValid(false);
           resetServiceRuleMemory();
           setCheckedAgreements({});
+          setServiceDecisions({});
           setHasShownMocapModal(false);
 
           reloadFutureBookings();

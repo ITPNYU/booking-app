@@ -24,6 +24,7 @@ import BookingFormEquipmentServices from "./BookingFormEquipmentServices";
 import BookingFormResourceServices from "./BookingFormResourceServices";
 import BookingFormStaffingServices from "./BookingFormStaffingServices";
 import { RequestFormShell, Section } from "./RequestFormShell";
+import ServiceDecisionMark from "./ServiceDecisionMark";
 import SubmitBlock from "./SubmitBlock";
 
 interface Props {
@@ -37,8 +38,13 @@ interface Props {
  * BookingContext like Details does, so the two steps share one answer set.
  */
 export default function ServicesInput({ calendarEventId, formContext }: Props) {
-  const { selectedRooms, formData, annexByRoom, serviceRuleMemory } =
-    useContext(BookingContext);
+  const {
+    selectedRooms,
+    formData,
+    annexByRoom,
+    serviceRuleMemory,
+    serviceDecisions,
+  } = useContext(BookingContext);
   // Rule bookkeeping lives in BookingContext so it outlives this step.
   const localRuleMemory = useRef(createServiceRuleMemory());
   const memory = serviceRuleMemory ?? localRuleMemory.current;
@@ -50,7 +56,10 @@ export default function ServicesInput({ calendarEventId, formContext }: Props) {
   } = useTenantSchema();
 
   const origin = getRequestOrigin(formContext, formData?.origin);
-  const { isWalkIn, isVIP } = origin;
+  const { isWalkIn, isVIP, isEdit, isMod } = origin;
+
+  // Decision marks only make sense for a saved booking: edit and modification.
+  const decisions = isEdit || isMod ? (serviceDecisions ?? {}) : {};
 
   const { isSubmitting, createSubmitHandler } = useSubmitRequest(
     formContext,
@@ -238,10 +247,18 @@ export default function ServicesInput({ calendarEventId, formContext }: Props) {
             formContext={formContext}
             isLargeEvent={isLargeEvent}
             ruleMemory={memory}
+            serviceDecisions={decisions}
           />
           {showGenericSetup && (
             <div style={{ marginBottom: 32 }}>
               <BookingFormSwitch
+                decisionMark={
+                  <ServiceDecisionMark
+                    service="setup"
+                    decision={decisions.setup}
+                    formContext={formContext}
+                  />
+                }
                 id="roomSetup"
                 label="Room Setup"
                 required={false}
@@ -286,6 +303,7 @@ export default function ServicesInput({ calendarEventId, formContext }: Props) {
                   setShowEquipmentServices,
                   formContext,
                 }}
+                decision={decisions.equipment}
               />
               {watch("equipmentServices") !== undefined &&
                 watch("equipmentServices").length > 0 && (
@@ -330,6 +348,7 @@ export default function ServicesInput({ calendarEventId, formContext }: Props) {
                   formContext,
                   setValue,
                 }}
+                decision={decisions.staff}
               />
             </div>
           )}
@@ -337,6 +356,13 @@ export default function ServicesInput({ calendarEventId, formContext }: Props) {
           {showLegacyCatering && (
             <div style={{ marginBottom: 32 }}>
               <BookingFormSwitch
+                decisionMark={
+                  <ServiceDecisionMark
+                    service="catering"
+                    decision={decisions.catering}
+                    formContext={formContext}
+                  />
+                }
                 id="catering"
                 label="Catering?"
                 description={
@@ -371,6 +397,13 @@ export default function ServicesInput({ calendarEventId, formContext }: Props) {
           {showLegacyCleaning && (
             <div style={{ marginBottom: 32 }}>
               <BookingFormSwitch
+                decisionMark={
+                  <ServiceDecisionMark
+                    service="cleaning"
+                    decision={decisions.cleaning}
+                    formContext={formContext}
+                  />
+                }
                 id="cleaningService"
                 label="Cleaning?"
                 description={
@@ -397,6 +430,13 @@ export default function ServicesInput({ calendarEventId, formContext }: Props) {
           {showLegacySecurity && (
             <div style={{ marginBottom: 32 }}>
               <BookingFormSwitch
+                decisionMark={
+                  <ServiceDecisionMark
+                    service="security"
+                    decision={decisions.security}
+                    formContext={formContext}
+                  />
+                }
                 id="hireSecurity"
                 label="Security?"
                 required={false}

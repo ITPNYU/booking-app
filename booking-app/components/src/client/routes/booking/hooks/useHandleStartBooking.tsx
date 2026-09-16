@@ -16,6 +16,7 @@ export default function useHandleStartBooking() {
     resetServiceRuleMemory,
     setCheckedAgreements,
     setAnnexByRoom,
+    setServiceDecisions,
   } = useContext(BookingContext);
 
   const handleStartBooking = () => {
@@ -32,6 +33,7 @@ export default function useHandleStartBooking() {
     setIsDetailsValid(false);
     resetServiceRuleMemory();
     setCheckedAgreements({});
+    setServiceDecisions({});
 
     setHasShownMocapModal(false);
   };
