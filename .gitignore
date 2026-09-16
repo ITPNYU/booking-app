@@ -49,3 +49,9 @@ booking-app/scripts/output/
 booking-app/dry-run-*-output.txt
 booking-app/dry-run-*-report.md
 booking-app/dry-run-*-details.json
+
+# agents
+booking-app/docs/agents/triage-labels.md
+booking-app/docs/agents/issue-tracker.md
+booking-app/docs/agents/domain.md
+booking-app/AGENTS.md

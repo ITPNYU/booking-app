@@ -45,7 +45,7 @@ export function hasSchemaServicesConfig(room: ServiceResourceLike): boolean {
 /**
  * Equipment sections rendered by the schema-driven form (static text, a
  * details field, a toggle, or description-only). Anything else falls back to
- * the legacy equipment UI in FormInput.
+ * the legacy equipment UI in ServicesInput.
  */
 export function isSchemaDrivenEquipmentSection(
   cfg: ResourceFormSectionConfig | undefined,
@@ -462,6 +462,7 @@ export function pruneServiceMapsToRooms<
 >(data: T, rooms: ServiceResourceLike[]): T {
   const keep = new Set(rooms.map(getServiceResourceId));
   const next: T = { ...data };
+  let changed = false;
   for (const field of SERVICE_BY_ROOM_FIELDS) {
     const map = data[field];
     if (!map || typeof map !== "object" || Array.isArray(map)) continue;
@@ -470,8 +471,10 @@ export function pruneServiceMapsToRooms<
     next[field] = Object.fromEntries(
       entries.filter(([roomId]) => keep.has(roomId)),
     ) as T[typeof field];
+    changed = true;
   }
-  return next;
+  // Same reference when nothing was dropped, so callers can skip a re-render.
+  return changed ? next : data;
 }
 
 /**
@@ -649,4 +652,23 @@ export function deriveFormServicesFlags(resources: ServiceResourceLike[]): {
     showSecurity: anyRoomHasService(resources, "security"),
     showFurnishings: anyRoomHasService(resources, "furnishings"),
   };
+}
+
+/**
+ * Rooms with at least one service section the origin can see. The annex
+ * section is excluded: it is rendered on the room page, not the Services step.
+ */
+export function getRoomsWithAnyVisibleService(
+  rooms: ServiceResourceLike[],
+  context: ServiceVisibilityContext,
+): ServiceResourceLike[] {
+  return rooms.filter((room) => {
+    const config = getResourceServicesConfig(room);
+    return (Object.keys(config) as (keyof typeof config)[]).some((key) => {
+      if (key === "annex" || key === "auxiliarySpace") return false;
+      const section = getServiceSectionConfig(room, key);
+      if (!section) return false;
+      return shouldShowServiceSection(section, context);
+    });
+  });
 }
