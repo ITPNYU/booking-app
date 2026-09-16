@@ -68,8 +68,24 @@ describe("useBookingFilters — server-side sortDirection", () => {
     );
   });
 
-  it("keeps the default (descending) for non-LIAISON 'All Future' views", () => {
-    renderFilters(PageContextLevel.ADMIN, "All Future");
+  it.each([
+    PageContextLevel.PA,
+    PageContextLevel.SERVICES,
+    PageContextLevel.ADMIN,
+  ])("fetches ascending for the staff 'All Future' view (context %s)", (ctx) => {
+    // Admin / services share the same LIMIT-bounded fetch. Left descending,
+    // their status chips (e.g. "Pre-approved") only ever see the farthest-
+    // future rows, so near-term pre-approved bookings look missing.
+    renderFilters(ctx, "All Future");
+
+    expect(setFilters).toHaveBeenCalledWith(
+      expect.objectContaining({ sortDirection: "asc" }),
+    );
+  });
+
+  it("keeps the default (descending) for the USER 'All Future' view", () => {
+    // /my-bookings is already scoped server-side by userEmail.
+    renderFilters(PageContextLevel.USER, "All Future");
 
     expect(setFilters).toHaveBeenCalledWith(
       expect.objectContaining({ sortDirection: undefined }),
