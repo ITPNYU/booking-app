@@ -2,9 +2,7 @@
 
 import { FormContextLevel } from "@/components/src/types";
 import Grid from "@mui/material/Unstable_Grid2";
-import { useContext } from "react";
-import { DatabaseContext } from "../../components/Provider";
-import DetailsInput from "../components/DetailsInput";
+import ServicesInput from "../components/ServicesInput";
 import useCheckFormMissingData from "../hooks/useCheckFormMissingData";
 
 interface Props {
@@ -12,17 +10,17 @@ interface Props {
   formContext?: FormContextLevel;
 }
 
-export default function BookingFormDetailsPage({
+/** The Services step: the request's service requests, one section per service and resource. */
+export default function BookingFormServicesPage({
   calendarEventId,
   formContext = FormContextLevel.FULL_FORM,
 }: Props) {
-  const { userApiData } = useContext(DatabaseContext);
   useCheckFormMissingData();
   return (
     <Grid container>
       <Grid width={330} />
       <Grid xs={12} md={7} margin={2} paddingRight={{ xs: 0, md: 2 }}>
-        <DetailsInput {...{ formContext, calendarEventId, userApiData }} />
+        <ServicesInput {...{ formContext, calendarEventId }} />
       </Grid>
     </Grid>
   );

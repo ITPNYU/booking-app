@@ -1,4 +1,11 @@
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type React from "react";
 
 import { DateSelectArg } from "@fullcalendar/core";
@@ -15,6 +22,15 @@ import {
 import { SAFETY_TRAINING_REQUIRED_ROOM } from "../../../mediaCommonsPolicy";
 import { getAffectingBlackoutPeriods } from "../../../utils/blackoutUtils";
 import { canAccessAdmin } from "../../../utils/permissions";
+import {
+  getServiceResourceId,
+  getServiceRooms,
+} from "../../../utils/resourceServicesUtils";
+import {
+  createServiceRuleMemory,
+  pruneServiceRequestsToRooms,
+  ServiceRuleMemory,
+} from "../../../utils/serviceSections";
 import { DatabaseContext } from "../components/Provider";
 import fetchCalendarEvents from "./hooks/fetchCalendarEvents";
 import { useTenantSchema } from "../components/SchemaProvider";
@@ -24,6 +40,15 @@ export interface BookingContextType {
   department: Department | undefined;
   existingCalendarEvents: CalendarEvent[];
   formData: Inputs | undefined;
+  /**
+   * Whether the Details step's answer set currently passes its validation.
+   * Mirrored by the Details page; the missing-data guard reads it before
+   * letting a request land on the Services step.
+   */
+  isDetailsValid: boolean;
+  /** Which service answers a rule switched on; survives leaving the Services step. */
+  serviceRuleMemory: ServiceRuleMemory;
+  resetServiceRuleMemory: () => void;
   hasShownMocapModal: boolean;
   isBanned: boolean;
   isSafetyTrained: boolean;
@@ -37,10 +62,13 @@ export interface BookingContextType {
   setBookingCalendarInfo: (x: DateSelectArg) => void;
   setDepartment: (x: Department) => void;
   setFormData: (x: Inputs) => void;
+  setIsDetailsValid: (x: boolean) => void;
   setHasShownMocapModal: (x: boolean) => void;
   setRole: (x: Role) => void;
   setSelectedRooms: (x: RoomSetting[]) => void;
-  setAnnexByRoom: React.Dispatch<React.SetStateAction<Record<string, string[]>>>;
+  setAnnexByRoom: React.Dispatch<
+    React.SetStateAction<Record<string, string[]>>
+  >;
   setSubmitting: (x: SubmitStatus) => void;
   submitting: SubmitStatus;
   fetchingStatus: "loading" | "loaded" | "error" | null;
@@ -53,6 +81,9 @@ export const BookingContext = createContext<BookingContextType>({
   department: undefined,
   existingCalendarEvents: [],
   formData: undefined,
+  isDetailsValid: false,
+  serviceRuleMemory: createServiceRuleMemory(),
+  resetServiceRuleMemory: () => {},
   hasShownMocapModal: false,
   isBanned: false,
   isSafetyTrained: true,
@@ -65,6 +96,7 @@ export const BookingContext = createContext<BookingContextType>({
   setBookingCalendarInfo: (x: DateSelectArg) => {},
   setDepartment: (x: Department) => {},
   setFormData: (x: Inputs) => {},
+  setIsDetailsValid: (x: boolean) => {},
   setHasShownMocapModal: (x: boolean) => {},
   setRole: (x: Role) => {},
   setSelectedRooms: (x: RoomSetting[]) => {},
@@ -93,6 +125,11 @@ export function BookingProvider({ children }) {
     useState<DateSelectArg>();
   const [department, setDepartment] = useState<Department>();
   const [formData, setFormData] = useState<Inputs>(undefined);
+  const [isDetailsValid, setIsDetailsValid] = useState(false);
+  const serviceRuleMemory = useRef(createServiceRuleMemory());
+  const resetServiceRuleMemory = () => {
+    Object.assign(serviceRuleMemory.current, createServiceRuleMemory());
+  };
   const [hasShownMocapModal, setHasShownMocapModal] = useState(false);
   const [role, setRole] = useState<Role>();
   const [selectedRooms, setSelectedRooms] = useState<RoomSetting[]>([]);
@@ -123,6 +160,34 @@ export function BookingProvider({ children }) {
       reloadSafetyTrainedUsers();
     }
   }, [selectedRooms, reloadSafetyTrainedUsers]);
+
+  // Service requests are answered per room. When the room set changes, the
+  // answers for rooms no longer part of the request are dropped right away so
+  // they never reach the Services step or the submission. Rooms and answers
+  // that arrive together (loading a saved booking) are left as they are.
+  const serviceRooms = useMemo(
+    () => getServiceRooms(selectedRooms, annexByRoom, schema.resources ?? []),
+    [selectedRooms, annexByRoom, schema.resources],
+  );
+  const tenantShowSetup = schema.form?.services?.showSetup ?? false;
+  const serviceRoomKey = serviceRooms.map(getServiceResourceId).join(",");
+  const previousServiceRoomKey = useRef<string | null>(null);
+  useEffect(() => {
+    const previous = previousServiceRoomKey.current;
+    previousServiceRoomKey.current = serviceRoomKey;
+    // No rooms before means nothing was answered yet: a saved booking's
+    // rooms and answers arrive together and must be kept.
+    if (!previous || previous === serviceRoomKey) return;
+    if (!formData) return;
+    const pruned = pruneServiceRequestsToRooms(
+      formData,
+      serviceRooms,
+      tenantShowSetup,
+    );
+    if (pruned !== formData) setFormData(pruned);
+    // formData is read, not watched: pruning runs only when the rooms change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [serviceRoomKey]);
 
   const isBanned = useMemo<boolean>(() => {
     const bannedEmails = bannedUsers.map((bannedUser) => bannedUser.email);
@@ -191,6 +256,9 @@ export function BookingProvider({ children }) {
         existingCalendarEvents,
         reloadExistingCalendarEvents,
         formData,
+        isDetailsValid,
+        serviceRuleMemory: serviceRuleMemory.current,
+        resetServiceRuleMemory,
         hasShownMocapModal,
         isBanned,
         isSafetyTrained,
@@ -202,6 +270,7 @@ export function BookingProvider({ children }) {
         setBookingCalendarInfo,
         setDepartment,
         setFormData,
+        setIsDetailsValid,
         setHasShownMocapModal,
         setRole,
         setSelectedRooms,

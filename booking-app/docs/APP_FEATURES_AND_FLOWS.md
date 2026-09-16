@@ -118,18 +118,11 @@ Step 3: Room & Time Selection
          │  Existing bookings and blackout periods are visible
          │  System validates: duration limits, blackout conflicts, overlaps
          ▼
-Step 4: Booking Details
+Step 4: Details
          │  Personal info: name, NetID, N-Number, phone, email
          │  Event details: title, description, booking type, expected attendance
-         │  Services (shown based on room capabilities):
-         │    • Room Setup + details
-         │    • Equipment Services
-         │    • Staffing Services (audio tech, lighting, etc.)
-         │    • Catering (chartfield required when enabled)
-         │    • Cleaning (CBS Cleaning)
-         │    • Hire Security
          │  Sponsor info (optional)
-         │  Accept required agreements
+         │  Next validates the step before moving on
          │
          │  Real-time alerts shown for:
          │    ✓ Auto-approval eligibility (green indicator)
@@ -140,10 +133,26 @@ Step 4: Booking Details
          │    ⚠ Time-sensitive booking (less than configured threshold)
          │    ⚠ Overlap with existing booking
          ▼
-Step 5: Confirmation
+Step 5: Services
+         │  One service section per service and resource, shown based on
+         │  room capabilities and origin:
+         │    • Room Setup + details
+         │    • Equipment Services
+         │    • Staffing Services (audio tech, lighting, etc.)
+         │    • Catering (chartfield required when enabled)
+         │    • Cleaning (CBS Cleaning)
+         │    • Hire Security (locked on when expected attendance ≥ 75)
+         │  Accept required agreements
+         │
+         │  Skipped (and hidden from the Stepper) when no section would show
+         │  for the selected rooms; Details then keeps Submit.
+         ▼
+Step 6: Confirmation
          Submit → Success or Error display
          Link to "View My Bookings"
 ```
+
+The Stepper, the Back/Next buttons and the missing-data guard read one shared step list computed per request from the selected rooms and origin. Landing on Services requires rooms, a time and a valid Details answer set; otherwise the guard bounces to the earliest incomplete step. Service requests for rooms that are removed on the room page are dropped as soon as the room set changes.
 
 After submission, the booking enters the lifecycle as **Requested** (or **Approved** if auto-approval conditions are met).
 
@@ -164,7 +173,7 @@ Step 4: Room Selection
          │  Only walk-in-eligible rooms are shown
          │  Walk-in-specific hour limits apply
          ▼
-Step 5: Booking Details → Confirmation
+Step 5: Details → Services → Confirmation
 ```
 
 **Key differences from standard flow:**
@@ -182,7 +191,7 @@ Step 1: VIP Landing
          ▼
 Step 2: Role & Affiliation
          ▼
-Step 3: Room & Time Selection → Booking Details → Confirmation
+Step 3: Room & Time Selection → Details → Services → Confirmation
 ```
 
 **Key differences from standard flow:**
@@ -201,7 +210,7 @@ For editing a previously submitted booking.
 ```
 Load Existing Booking Data
     ▼
-Role Selection → Room Selection → Booking Details Form
+Role Selection → Room Selection → Details → Services
     │  All fields pre-filled with existing data
     │  User modifies as needed
     ▼
@@ -221,7 +230,7 @@ For making modifications to a booking that has already been approved or is in pr
 ```
 Load Existing Booking Data
     ▼
-Modification Form → Room Selection → Confirmation
+Room Selection → Details → Services → Confirmation
     │  Pre-filled with existing data
     ▼
 Submit → Booking updated (stays in current status)
