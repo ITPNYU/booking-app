@@ -3,6 +3,7 @@ import { TableNames } from "@/components/src/policy";
 import { serverBookingContents } from "@/components/src/server/admin";
 import { getTenantEmailConfig } from "@/components/src/server/emails";
 import { BookingStatusLabel } from "@/components/src/types";
+import { getServiceDecisions } from "@/components/src/utils/serviceDecisions";
 import { getMediaCommonsServices } from "@/components/src/utils/tenantUtils";
 import {
   serverFetchAllDataFromCollection,
@@ -90,6 +91,9 @@ export const notifyServiceApproversForRequestedServices = async (
     booking,
     await serverGetTenantResources(tenant),
   );
+  // A resubmitted edit keeps the decisions of unchanged services (ADR-0001);
+  // those land straight in their final state and need no approver.
+  const decisions = getServiceDecisions(booking);
   const usersRights = await serverFetchAllDataFromCollection<any>(
     TableNames.USERS_RIGHTS,
     [],
@@ -102,6 +106,9 @@ export const notifyServiceApproversForRequestedServices = async (
   const emailJobs = Object.entries(SERVICE_APPROVER_CONFIG).flatMap(
     ([serviceKey, config]) => {
       if (!servicesRequested[serviceKey as keyof typeof servicesRequested]) {
+        return [];
+      }
+      if (typeof decisions[serviceKey as keyof typeof decisions] === "boolean") {
         return [];
       }
 

@@ -94,6 +94,8 @@ export async function executeXStateTransition(
   email?: string,
   reason?: string,
   netId?: string,
+  /** For "edit": the services whose requests changed (their decisions reset). */
+  changedServices?: string[],
 ): Promise<{ success: boolean; newState?: string; error?: string }> {
   try {
     console.log(
@@ -231,6 +233,9 @@ export async function executeXStateTransition(
       }
       if (email && (eventType === "checkOut" || eventType === "noShow")) {
         event.email = email;
+      }
+      if (eventType === "edit" && Array.isArray(changedServices)) {
+        event.changedServices = changedServices;
       }
       actor.send(event);
     } catch (subscribeError) {

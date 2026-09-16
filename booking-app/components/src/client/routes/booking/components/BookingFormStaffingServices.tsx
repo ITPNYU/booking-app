@@ -20,6 +20,7 @@ import {
   ServiceResourceLike,
 } from "../../../../utils/resourceServicesUtils";
 import { BookingContext } from "../bookingProvider";
+import ServiceDecisionMark from "./ServiceDecisionMark";
 
 const Label = styled.label`
   font-weight: 500;
@@ -82,6 +83,8 @@ interface Props {
     value: any,
     options?: { shouldValidate?: boolean },
   ) => void;
+  /** The staff service decision on the loaded booking (edit / modification). */
+  decision?: boolean;
 }
 
 export default function BookingFormStaffingServices(props: Props) {
@@ -95,6 +98,7 @@ export default function BookingFormStaffingServices(props: Props) {
     rooms: roomsProp,
     setValue,
     toggle: toggleProp,
+    decision,
   } = props;
   const { selectedRooms: contextRooms } = useContext(BookingContext);
   const selectedRooms = roomsProp ?? contextRooms;
@@ -297,6 +301,7 @@ export default function BookingFormStaffingServices(props: Props) {
   if (!hasInteractiveStaffing) {
     return (
       <div style={{ marginBottom: 8 }}>
+        <ServiceDecisionMark service="staff" decision={decision} />
         {staticStaffingRooms.map((room, index) => (
           <div key={`staffing-static-${index}`} style={{ marginBottom: 16 }}>
             <Label>{room.label ?? staffingLabel}</Label>
@@ -350,6 +355,7 @@ export default function BookingFormStaffingServices(props: Props) {
 
   return (
     <div style={{ marginBottom: 8 }}>
+      <ServiceDecisionMark service="staff" decision={decision} />
       {staticStaffingRooms.map((room, index) => (
         <div key={`staffing-static-${index}`} style={{ marginBottom: 16 }}>
           <Label>{room.label ?? staffingLabel}</Label>

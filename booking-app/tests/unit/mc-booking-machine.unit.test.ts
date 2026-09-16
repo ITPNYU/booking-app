@@ -530,31 +530,94 @@ describe("mcBookingMachine", () => {
     await waitForCondition(actor, (snapshot) => snapshot.matches("Declined"));
   });
 
-  it("clears declined service decisions after edit and re-approves into Services Request", async () => {
+  /** A booking declined with staff approved and catering declined. */
+  const declineWithMixedDecisions = async () => {
     const actor = createTestActor({
       selectedRooms: [{ roomId: 202 }],
-      servicesRequested: { staff: true },
+      servicesRequested: { staff: true, catering: true },
+    });
+    actor.send({ type: "approve" });
+    actor.send({ type: "approve" });
+    expect(actor.getSnapshot().matches("Services Request")).toBe(true);
+    actor.send({ type: "approveStaff" });
+    actor.send({ type: "declineCatering" });
+    await waitForCondition(actor, (snapshot) => snapshot.matches("Declined"));
+    expect(actor.getSnapshot().context.servicesApproved).toEqual({
+      staff: true,
+      catering: false,
+    });
+    return actor;
+  };
+
+  const serviceRequestRegions = (actor: BookingActor) =>
+    (actor.getSnapshot().value as Record<string, unknown>)["Services Request"];
+
+  it("clears only the changed services' decisions on edit and re-enters Services Request with the rest kept", async () => {
+    const actor = await declineWithMixedDecisions();
+
+    actor.send({ type: "edit", changedServices: ["catering"] });
+    expect(actor.getSnapshot().matches("Requested")).toBe(true);
+    expect(actor.getSnapshot().context.servicesApproved).toEqual({
+      staff: true,
     });
 
     actor.send({ type: "approve" });
-    expect(actor.getSnapshot().matches("Pre-approved")).toBe(true);
-
     actor.send({ type: "approve" });
-    expect(actor.getSnapshot().matches("Services Request")).toBe(true);
+    expect(serviceRequestRegions(actor)).toMatchObject({
+      "Staff Request": "Staff Approved",
+      "Catering Request": "Catering Requested",
+    });
+  });
 
-    actor.send({ type: "declineStaff" });
-    await waitForCondition(actor, (snapshot) => snapshot.matches("Declined"));
-    expect(actor.getSnapshot().context.servicesApproved?.staff).toBe(false);
+  it("keeps every decision on an edit that changed no service, so a declined service declines the booking again", async () => {
+    const actor = await declineWithMixedDecisions();
 
     actor.send({ type: "edit" });
     expect(actor.getSnapshot().matches("Requested")).toBe(true);
-    expect(actor.getSnapshot().context.servicesApproved).toEqual({});
+    expect(actor.getSnapshot().context.servicesApproved).toEqual({
+      staff: true,
+      catering: false,
+    });
 
     actor.send({ type: "approve" });
-    expect(actor.getSnapshot().matches("Pre-approved")).toBe(true);
+    actor.send({ type: "approve" });
+    await waitForCondition(actor, (snapshot) => snapshot.matches("Declined"));
+  });
+
+  it("lands already-decided services in their final states and waits only on pending ones", () => {
+    const actor = createTestActor({
+      selectedRooms: [{ roomId: 202 }],
+      servicesRequested: { staff: true, catering: true, security: true },
+      servicesApproved: { staff: true, catering: false },
+    });
 
     actor.send({ type: "approve" });
+    actor.send({ type: "approve" });
+
     expect(actor.getSnapshot().matches("Services Request")).toBe(true);
+    expect(serviceRequestRegions(actor)).toMatchObject({
+      "Staff Request": "Staff Approved",
+      "Catering Request": "Catering Declined",
+      "Security Request": "Security Requested",
+    });
+    expect(actor.getSnapshot().can({ type: "approveStaff" })).toBe(false);
+    expect(actor.getSnapshot().can({ type: "approveSecurity" })).toBe(true);
+  });
+
+  it("ignores a stale decision for a service that is no longer requested", () => {
+    const actor = createTestActor({
+      selectedRooms: [{ roomId: 202 }],
+      servicesRequested: { staff: true },
+      servicesApproved: { catering: false },
+    });
+
+    actor.send({ type: "approve" });
+    actor.send({ type: "approve" });
+
+    expect(serviceRequestRegions(actor)).toMatchObject({
+      "Staff Request": "Staff Requested",
+      "Catering Request": "Catering Approved",
+    });
   });
 
   it("emits the official guideline state sequence for manual service approvals", async () => {

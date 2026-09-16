@@ -90,6 +90,26 @@ describe("fillMissingMcServiceRegions", () => {
     );
   });
 
+  it("lands a decided Furnishings Request in its final state, like the region's own guards", () => {
+    const approved = fillMissingMcServiceRegions(
+      LEGACY_SERVICES_REQUEST,
+      { furnishings: true },
+      { furnishings: true },
+    ) as any;
+    expect(approved["Services Request"]["Furnishings Request"]).toBe(
+      "Furnishings Approved",
+    );
+
+    const declined = fillMissingMcServiceRegions(
+      LEGACY_SERVICES_REQUEST,
+      { furnishings: true },
+      { furnishings: false },
+    ) as any;
+    expect(declined["Services Request"]["Furnishings Request"]).toBe(
+      "Furnishings Declined",
+    );
+  });
+
   it("adds a pending Furnishings Closeout only when furnishings were approved", () => {
     const pending = fillMissingMcServiceRegions(
       LEGACY_SERVICE_CLOSEOUT,

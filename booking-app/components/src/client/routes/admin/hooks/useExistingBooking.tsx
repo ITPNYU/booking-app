@@ -1,6 +1,7 @@
 import { Department, Inputs, Role } from "@/components/src/types";
 import { toBookingCalendarStr } from "@/components/src/client/utils/date";
 import { getServiceSectionConfig } from "@/components/src/utils/resourceServicesUtils";
+import { getServiceDecisions } from "@/components/src/utils/serviceDecisions";
 
 import { useContext } from "react";
 import { BookingContext } from "../../booking/bookingProvider";
@@ -16,6 +17,7 @@ export default function useExistingBooking() {
     setIsDetailsValid,
     resetServiceRuleMemory,
     setAnnexByRoom,
+    setServiceDecisions,
   } = useContext(BookingContext);
   const { allBookings, roomSettings } = useContext(DatabaseContext);
 
@@ -266,6 +268,9 @@ export default function useExistingBooking() {
     };
 
     setFormData(formValues);
+    // Service decisions travel beside the answers so the Services step can
+    // mark decided sections without them ever entering the form.
+    setServiceDecisions(getServiceDecisions(booking));
     // The saved answers are re-validated when the Details step mounts.
     setIsDetailsValid(false);
     resetServiceRuleMemory();

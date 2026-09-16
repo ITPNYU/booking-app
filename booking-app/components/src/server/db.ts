@@ -42,6 +42,8 @@ export async function callXStateTransitionAPI(
   tenant?: string,
   reason?: string,
   netId?: string,
+  /** For "edit": the services whose requests changed (their decisions reset). */
+  changedServices?: string[],
 ): Promise<{ success: boolean; newState?: string; error?: string }> {
   try {
     const response = await fetch(
@@ -58,6 +60,7 @@ export async function callXStateTransitionAPI(
           email,
           netId,
           reason,
+          changedServices,
         }),
       },
     );

@@ -2,6 +2,7 @@ import { TENANTS } from "@/components/src/constants/tenants";
 import { TableNames } from "@/components/src/policy";
 import { serverUpdateDataByCalendarEventId } from "@/components/src/server/admin";
 import { BookingStatusLabel } from "@/components/src/types";
+import { getServiceDecisions } from "@/components/src/utils/serviceDecisions";
 import {
   getMediaCommonsServices,
   isMediaCommons,
@@ -16,36 +17,15 @@ import { mcBookingMachine } from "./mcBookingMachine";
 import { fillMissingMcServiceRegions } from "./mcServiceRegionMigration";
 import type { PersistedXStateData } from "./xstateTypes";
 
-const SERVICE_APPROVAL_FIELD_MAP = {
-  staff: "staffServiceApproved",
-  equipment: "equipmentServiceApproved",
-  catering: "cateringServiceApproved",
-  cleaning: "cleaningServiceApproved",
-  security: "securityServiceApproved",
-  setup: "setupServiceApproved",
-  furnishings: "furnishingsServiceApproved",
-} as const;
-
 /**
  * Build XState servicesApproved context from Firestore booking fields.
  * Only explicit boolean decisions are included so cleared/null fields do not
- * retain a prior declined state after edit/resubmission.
+ * retain a prior decision after edit/resubmission (ADR-0001).
  */
 export function getServicesApprovedFromBookingData(
   bookingData: any,
 ): Record<string, boolean> {
-  const servicesApproved: Record<string, boolean> = {};
-
-  for (const [serviceKey, fieldName] of Object.entries(
-    SERVICE_APPROVAL_FIELD_MAP,
-  )) {
-    const value = bookingData?.[fieldName];
-    if (typeof value === "boolean") {
-      servicesApproved[serviceKey] = value;
-    }
-  }
-
-  return servicesApproved;
+  return getServiceDecisions(bookingData) as Record<string, boolean>;
 }
 
 /**

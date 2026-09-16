@@ -194,7 +194,7 @@ export function createServiceRuleMemory(): ServiceRuleMemory {
 }
 
 /** Booking-level answers per service, dropped once no remaining room offers it. */
-const FLAT_SERVICE_FIELDS: Partial<
+export const FLAT_SERVICE_FIELDS: Partial<
   Record<ResourceServiceKey, (keyof Inputs)[]>
 > = {
   setup: ["roomSetup", "setupDetails", "chartFieldForRoomSetup"],

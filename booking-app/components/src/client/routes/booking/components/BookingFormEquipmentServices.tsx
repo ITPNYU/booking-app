@@ -5,6 +5,7 @@ import styled from "@emotion/styled";
 import { FormContextLevel, Inputs, EquipmentServices } from "../../../../types";
 
 import { useTenantSchema } from "../../components/SchemaProvider";
+import ServiceDecisionMark from "./ServiceDecisionMark";
 
 const Label = styled.label`
   font-weight: 500;
@@ -20,6 +21,8 @@ interface Props {
   showEquipmentServices: boolean;
   setShowEquipmentServices: any;
   formContext: FormContextLevel;
+  /** The equipment service decision on the loaded booking (edit / modification). */
+  decision?: boolean;
 }
 
 export default function BookingFormEquipmentServices(props: Props) {
@@ -30,6 +33,7 @@ export default function BookingFormEquipmentServices(props: Props) {
     showEquipmentServices,
     setShowEquipmentServices,
     formContext,
+    decision,
   } = props;
   const schema = useTenantSchema();
   const { showEquipment } = schema.form.services;
@@ -74,9 +78,12 @@ export default function BookingFormEquipmentServices(props: Props) {
     return null;
   }
 
+  const mark = <ServiceDecisionMark service="equipment" decision={decision} />;
+
   if (limitedContexts.includes(formContext)) {
     return (
       <div style={{ marginBottom: 8 }}>
+        {mark}
         <Label htmlFor={id}>Equipment?</Label>
         <p style={{ fontSize: "0.75rem" }}>Check out equipment</p>
         {toggle}
@@ -86,6 +93,7 @@ export default function BookingFormEquipmentServices(props: Props) {
 
   return (
     <div style={{ marginBottom: 8 }}>
+      {mark}
       <Label htmlFor={id}>Equipment?</Label>
       <p style={{ fontSize: "0.75rem" }}>
         Check out equipment from Media Commons inventory.

@@ -26,6 +26,7 @@ import {
   getServiceResourceId,
   getServiceRooms,
 } from "../../../utils/resourceServicesUtils";
+import type { ServiceDecisions } from "../../../utils/serviceDecisions";
 import {
   createServiceRuleMemory,
   pruneServiceRequestsToRooms,
@@ -49,6 +50,13 @@ export interface BookingContextType {
   /** Which service answers a rule switched on; survives leaving the Services step. */
   serviceRuleMemory: ServiceRuleMemory;
   resetServiceRuleMemory: () => void;
+  /**
+   * The loaded booking's service decisions (edit and modification contexts),
+   * kept beside formData so they never enter the answer set. Cleared with
+   * the rest of the form.
+   */
+  serviceDecisions: ServiceDecisions;
+  setServiceDecisions: (x: ServiceDecisions) => void;
   hasShownMocapModal: boolean;
   isBanned: boolean;
   isSafetyTrained: boolean;
@@ -84,6 +92,8 @@ export const BookingContext = createContext<BookingContextType>({
   isDetailsValid: false,
   serviceRuleMemory: createServiceRuleMemory(),
   resetServiceRuleMemory: () => {},
+  serviceDecisions: {},
+  setServiceDecisions: (x: ServiceDecisions) => {},
   hasShownMocapModal: false,
   isBanned: false,
   isSafetyTrained: true,
@@ -130,6 +140,9 @@ export function BookingProvider({ children }) {
   const resetServiceRuleMemory = () => {
     Object.assign(serviceRuleMemory.current, createServiceRuleMemory());
   };
+  const [serviceDecisions, setServiceDecisions] = useState<ServiceDecisions>(
+    {},
+  );
   const [hasShownMocapModal, setHasShownMocapModal] = useState(false);
   const [role, setRole] = useState<Role>();
   const [selectedRooms, setSelectedRooms] = useState<RoomSetting[]>([]);
@@ -259,6 +272,8 @@ export function BookingProvider({ children }) {
         isDetailsValid,
         serviceRuleMemory: serviceRuleMemory.current,
         resetServiceRuleMemory,
+        serviceDecisions,
+        setServiceDecisions,
         hasShownMocapModal,
         isBanned,
         isSafetyTrained,
