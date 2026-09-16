@@ -8,13 +8,14 @@ import type { MediaCommonsServiceKey } from "../../../../utils/serviceDecisions"
 const APPROVED_COLOR = "rgba(72, 196, 77, 1)";
 const DECLINED_COLOR = "rgba(255, 26, 26, 1)";
 
-const Row = styled.div`
-  display: flex;
+/** Inline so it sits on the service's name/toggle row, after the toggle. */
+const Row = styled.span`
+  display: inline-flex;
   align-items: flex-start;
   gap: 6px;
   font-size: 0.75rem;
   line-height: 1.25rem;
-  margin: 0 0 8px;
+  min-width: 0;
 `;
 
 interface Props {
@@ -31,7 +32,9 @@ interface Props {
 /**
  * Decision mark: the green check or red X shown on a service section in the
  * edit and modification contexts, with a note on what changing the section
- * does to that decision (ADR-0001). A pending service renders nothing.
+ * does to that decision (ADR-0001). It renders inline on the row that holds
+ * the service's name and toggle, after the toggle. A pending service renders
+ * nothing.
  */
 export default function ServiceDecisionMark({
   service,
@@ -51,7 +54,14 @@ export default function ServiceDecisionMark({
     >
       <Icon
         aria-hidden
-        sx={{ fontSize: 16, color, stroke: color, strokeWidth: 1.4 }}
+        sx={{
+          fontSize: 16,
+          color,
+          stroke: color,
+          strokeWidth: 1.4,
+          flexShrink: 0,
+          marginTop: "2px",
+        }}
       />
       <span>
         <strong>{approved ? "Approved." : "Declined."}</strong>

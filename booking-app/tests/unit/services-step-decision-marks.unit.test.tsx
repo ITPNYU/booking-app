@@ -156,6 +156,30 @@ describe("Services step decision marks", () => {
     ]);
   });
 
+  it.each([
+    ["staff", "Staffing"],
+    ["catering", "Catering"],
+  ])(
+    "renders the %s mark on the service's name row, after its toggle",
+    (service, labelText) => {
+      renderServices(FormContextLevel.EDIT, { staff: true, catering: false }, [
+        room202,
+      ]);
+
+      const mark = screen
+        .getAllByTestId("service-decision-mark")
+        .find((el) => el.dataset.service === service)!;
+      const row = mark.parentElement!;
+      const toggle = row.querySelector('input[type="checkbox"]')!;
+
+      expect(row).toHaveTextContent(labelText);
+      expect(toggle).not.toBeNull();
+      expect(
+        toggle.compareDocumentPosition(mark) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+    },
+  );
+
   it("explains that changing an approved service sends it back for approval", () => {
     renderServices(FormContextLevel.EDIT, { staff: true });
 

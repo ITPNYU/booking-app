@@ -28,6 +28,15 @@ const Label = styled.label`
   margin-bottom: 0.5rem;
 `;
 
+/** Switch label, the yes/no switch and any trailing mark on one line. */
+const SwitchRow = styled.div`
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+`;
+
 interface Props {
   id: StringInputKeys;
   label: string;
@@ -215,6 +224,8 @@ export function BookingFormTextField(props: TextFieldProps) {
 interface SwitchProps extends Props {
   description?: React.ReactElement;
   disabled?: boolean;
+  /** Rendered after the switch, on the same row as the label. */
+  decisionMark?: React.ReactNode;
 }
 
 export function BookingFormSwitch(props: SwitchProps) {
@@ -226,6 +237,7 @@ export function BookingFormSwitch(props: SwitchProps) {
     control,
     trigger,
     disabled = false,
+    decisionMark,
   } = props;
 
   const desc =
@@ -243,23 +255,29 @@ export function BookingFormSwitch(props: SwitchProps) {
       }}
       render={({ field }) => (
         <div>
-          <Label htmlFor={id}>{`${label}${required ? "*" : ""}`}</Label>
+          <SwitchRow>
+            <Label htmlFor={id} style={{ marginBottom: 0 }}>{`${label}${
+              required ? "*" : ""
+            }`}</Label>
+            <FormControlLabel
+              sx={{ mx: 0 }}
+              label={field.value === "yes" ? "Yes" : "No"}
+              control={
+                <Switch
+                  id={id}
+                  inputProps={{ "aria-required": required }}
+                  checked={field.value === "yes"}
+                  onChange={(e) =>
+                    field.onChange(e.target.checked ? "yes" : "no")
+                  }
+                  onBlur={() => trigger(id)}
+                  disabled={disabled}
+                />
+              }
+            />
+            {decisionMark}
+          </SwitchRow>
           {desc}
-          <FormControlLabel
-            label={field.value === "yes" ? "Yes" : "No"}
-            control={
-              <Switch
-                id={id}
-                inputProps={{ "aria-required": required }}
-                checked={field.value === "yes"}
-                onChange={(e) =>
-                  field.onChange(e.target.checked ? "yes" : "no")
-                }
-                onBlur={() => trigger(id)}
-                disabled={disabled}
-              />
-            }
-          />
         </div>
       )}
     ></Controller>

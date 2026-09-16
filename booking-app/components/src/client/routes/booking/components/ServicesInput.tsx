@@ -251,12 +251,14 @@ export default function ServicesInput({ calendarEventId, formContext }: Props) {
           />
           {showGenericSetup && (
             <div style={{ marginBottom: 32 }}>
-              <ServiceDecisionMark
-                service="setup"
-                decision={decisions.setup}
-                formContext={formContext}
-              />
               <BookingFormSwitch
+                decisionMark={
+                  <ServiceDecisionMark
+                    service="setup"
+                    decision={decisions.setup}
+                    formContext={formContext}
+                  />
+                }
                 id="roomSetup"
                 label="Room Setup"
                 required={false}
@@ -353,12 +355,14 @@ export default function ServicesInput({ calendarEventId, formContext }: Props) {
           {/* Legacy rooms without object services config keep flat catering/cleaning/security. */}
           {showLegacyCatering && (
             <div style={{ marginBottom: 32 }}>
-              <ServiceDecisionMark
-                service="catering"
-                decision={decisions.catering}
-                formContext={formContext}
-              />
               <BookingFormSwitch
+                decisionMark={
+                  <ServiceDecisionMark
+                    service="catering"
+                    decision={decisions.catering}
+                    formContext={formContext}
+                  />
+                }
                 id="catering"
                 label="Catering?"
                 description={
@@ -392,12 +396,14 @@ export default function ServicesInput({ calendarEventId, formContext }: Props) {
           )}
           {showLegacyCleaning && (
             <div style={{ marginBottom: 32 }}>
-              <ServiceDecisionMark
-                service="cleaning"
-                decision={decisions.cleaning}
-                formContext={formContext}
-              />
               <BookingFormSwitch
+                decisionMark={
+                  <ServiceDecisionMark
+                    service="cleaning"
+                    decision={decisions.cleaning}
+                    formContext={formContext}
+                  />
+                }
                 id="cleaningService"
                 label="Cleaning?"
                 description={
@@ -423,12 +429,14 @@ export default function ServicesInput({ calendarEventId, formContext }: Props) {
           )}
           {showLegacySecurity && (
             <div style={{ marginBottom: 32 }}>
-              <ServiceDecisionMark
-                service="security"
-                decision={decisions.security}
-                formContext={formContext}
-              />
               <BookingFormSwitch
+                decisionMark={
+                  <ServiceDecisionMark
+                    service="security"
+                    decision={decisions.security}
+                    formContext={formContext}
+                  />
+                }
                 id="hireSecurity"
                 label="Security?"
                 required={false}

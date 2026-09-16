@@ -298,17 +298,25 @@ export default function BookingFormStaffingServices(props: Props) {
     return null;
   }
 
+  const mark = (
+    <ServiceDecisionMark
+      service="staff"
+      decision={decision}
+      formContext={formContext}
+    />
+  );
+
   if (!hasInteractiveStaffing) {
     return (
       <div style={{ marginBottom: 8 }}>
-        <ServiceDecisionMark
-          service="staff"
-          decision={decision}
-          formContext={formContext}
-        />
         {staticStaffingRooms.map((room, index) => (
           <div key={`staffing-static-${index}`} style={{ marginBottom: 16 }}>
-            <Label>{room.label ?? staffingLabel}</Label>
+            <SwitchRow>
+              <Label style={{ marginBottom: 0 }}>
+                {room.label ?? staffingLabel}
+              </Label>
+              {index === 0 && mark}
+            </SwitchRow>
             {room.descriptionHtml ? (
               <div
                 style={{ fontSize: "0.75rem", marginBottom: 8 }}
@@ -359,11 +367,6 @@ export default function BookingFormStaffingServices(props: Props) {
 
   return (
     <div style={{ marginBottom: 8 }}>
-      <ServiceDecisionMark
-          service="staff"
-          decision={decision}
-          formContext={formContext}
-        />
       {staticStaffingRooms.map((room, index) => (
         <div key={`staffing-static-${index}`} style={{ marginBottom: 16 }}>
           <Label>{room.label ?? staffingLabel}</Label>
@@ -380,6 +383,7 @@ export default function BookingFormStaffingServices(props: Props) {
           {staffingLabel}
         </Label>
         {toggle}
+        {mark}
       </SwitchRow>
       <p style={{ fontSize: "0.75rem" }}>
         Request audio technicians, lighting technicians, and technical support.

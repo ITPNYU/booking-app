@@ -14,6 +14,15 @@ const Label = styled.label`
   margin-bottom: 0.5rem;
 `;
 
+/** Service name, its yes/no switch and decision mark on one line. */
+const SwitchRow = styled.div`
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+`;
+
 interface Props {
   id: keyof Inputs;
   control: Control<Inputs, any>;
@@ -86,25 +95,31 @@ export default function BookingFormEquipmentServices(props: Props) {
     />
   );
 
+  const row = (
+    <SwitchRow>
+      <Label htmlFor={id} style={{ marginBottom: 0 }}>
+        Equipment?
+      </Label>
+      {toggle}
+      {mark}
+    </SwitchRow>
+  );
+
   if (limitedContexts.includes(formContext)) {
     return (
       <div style={{ marginBottom: 8 }}>
-        {mark}
-        <Label htmlFor={id}>Equipment?</Label>
+        {row}
         <p style={{ fontSize: "0.75rem" }}>Check out equipment</p>
-        {toggle}
       </div>
     );
   }
 
   return (
     <div style={{ marginBottom: 8 }}>
-      {mark}
-      <Label htmlFor={id}>Equipment?</Label>
+      {row}
       <p style={{ fontSize: "0.75rem" }}>
         Check out equipment from Media Commons inventory.
       </p>
-      {toggle}
     </div>
   );
 }
