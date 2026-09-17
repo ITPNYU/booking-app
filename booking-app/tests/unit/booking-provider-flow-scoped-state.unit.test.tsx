@@ -4,7 +4,7 @@ import {
   BookingProvider,
 } from "@/components/src/client/routes/booking/bookingProvider";
 import { DatabaseContext } from "@/components/src/client/routes/components/Provider";
-import { PagePermission } from "@/components/src/types";
+import { PagePermission, Role, RoomSetting } from "@/components/src/types";
 import { act, render } from "@testing-library/react";
 import { usePathname } from "next/navigation";
 import { useContext } from "react";
@@ -99,6 +99,30 @@ describe("BookingProvider - state scoped to the current request", () => {
     expect(context.isDetailsValid).toBe(false);
   });
 
+  it("drops Details validity when the selected rooms change", () => {
+    const small = { roomId: "101", name: "A", capacity: "10" } as RoomSetting;
+    const large = { roomId: "102", name: "B", capacity: "50" } as RoomSetting;
+    render(tree());
+    act(() => context.setSelectedRooms([large]));
+    act(() => context.setIsDetailsValid(true));
+    expect(context.isDetailsValid).toBe(true);
+
+    act(() => context.setSelectedRooms([small]));
+
+    expect(context.isDetailsValid).toBe(false);
+  });
+
+  it("drops Details validity when the role changes", () => {
+    render(tree());
+    act(() => context.setRole(Role.FACULTY));
+    act(() => context.setIsDetailsValid(true));
+    expect(context.isDetailsValid).toBe(true);
+
+    act(() => context.setRole(Role.STUDENT));
+
+    expect(context.isDetailsValid).toBe(false);
+  });
+
   it("keeps the service rule memory across the steps of one request", () => {
     const { rerender } = render(tree());
     context.serviceRuleMemory.cleaningAutoSet = true;
@@ -116,5 +140,22 @@ describe("BookingProvider - state scoped to the current request", () => {
     navigate(rerender, "/mc/walk-in/services");
 
     expect(context.serviceRuleMemory).toEqual(fresh);
+  });
+
+  it("forgets the per-room rule memory of a room that is removed", () => {
+    const roomA = { roomId: "101", name: "A", capacity: "10" } as RoomSetting;
+    const roomB = { roomId: "102", name: "B", capacity: "10" } as RoomSetting;
+    render(tree());
+    act(() => context.setSelectedRooms([roomA, roomB]));
+    context.serviceRuleMemory.cleaningAutoSetByRoom["101"] = true;
+    context.serviceRuleMemory.cleaningAutoSetByRoom["102"] = true;
+    context.serviceRuleMemory.securityAutoSetByRoom["102"] = true;
+
+    act(() => context.setSelectedRooms([roomA]));
+
+    expect(context.serviceRuleMemory.cleaningAutoSetByRoom).toEqual({
+      "101": true,
+    });
+    expect(context.serviceRuleMemory.securityAutoSetByRoom).toEqual({});
   });
 });

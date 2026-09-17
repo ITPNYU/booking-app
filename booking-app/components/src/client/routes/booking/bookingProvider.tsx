@@ -30,6 +30,7 @@ import {
 import {
   createServiceRuleMemory,
   pruneServiceRequestsToRooms,
+  pruneServiceRuleMemoryToRooms,
   ServiceRuleMemory,
 } from "../../../utils/serviceSections";
 import { DatabaseContext } from "../components/Provider";
@@ -43,10 +44,11 @@ export interface BookingContextType {
   existingCalendarEvents: CalendarEvent[];
   formData: Inputs | undefined;
   /**
-   * Whether the Details step's answer set currently passes its validation.
-   * Mirrored by the Details page; the missing-data guard reads it before
-   * letting a request land on the Services step. Holds only for the request
-   * (tenant, flow and booking id) it was validated in.
+   * Whether the Details step's answer set passed its validation. Recorded
+   * by the Details page when Next validates it and withdrawn on any later
+   * edit; the missing-data guard reads it before letting a request land on
+   * the Services step. Holds only for the request
+   * (tenant, flow and booking id), role and rooms it was validated against.
    */
   isDetailsValid: boolean;
   /** Which service answers a rule switched on; survives leaving the Services step. */
@@ -128,18 +130,27 @@ export function BookingProvider({ children }) {
     useState<DateSelectArg>();
   const [department, setDepartment] = useState<Department>();
   const [formData, setFormData] = useState<Inputs>(undefined);
+  const [role, setRole] = useState<Role>();
+  const [selectedRooms, setSelectedRooms] = useState<RoomSetting[]>([]);
   // This provider outlives a request: moving from one flow or booking to
   // another keeps it mounted. Details validity and the service rule memory
   // are tied to the request they were recorded in, so another request never
   // inherits them, whether or not its entry point cleared them.
   const flowKey = getBookingFlowKey(pathname);
-  const [detailsValidFlowKey, setDetailsValidFlowKey] = useState<
-    string | null
-  >(null);
-  const isDetailsValid = detailsValidFlowKey === flowKey;
+  // Details validation also reads the role (sponsor) and the rooms' capacity
+  // (expected attendance), which change on other steps. Validity holds only
+  // for the values it was checked against, so changing them sends the
+  // request back through Details even if that step was skipped on the way.
+  const detailsValidityKey = [
+    flowKey,
+    role ?? "",
+    ...selectedRooms.map((room) => `${room.roomId}:${room.capacity}`),
+  ].join("|");
+  const [detailsValidKey, setDetailsValidKey] = useState<string | null>(null);
+  const isDetailsValid = detailsValidKey === detailsValidityKey;
   const setIsDetailsValid = useCallback(
-    (x: boolean) => setDetailsValidFlowKey(x ? flowKey : null),
-    [flowKey],
+    (x: boolean) => setDetailsValidKey(x ? detailsValidityKey : null),
+    [detailsValidityKey],
   );
   const serviceRuleMemory = useRef(createServiceRuleMemory());
   const resetServiceRuleMemory = () => {
@@ -153,8 +164,6 @@ export function BookingProvider({ children }) {
     resetServiceRuleMemory();
   }
   const [hasShownMocapModal, setHasShownMocapModal] = useState(false);
-  const [role, setRole] = useState<Role>();
-  const [selectedRooms, setSelectedRooms] = useState<RoomSetting[]>([]);
   const [annexByRoom, setAnnexByRoom] = useState<Record<string, string[]>>({});
   const [submitting, setSubmitting] = useState<SubmitStatus>("error");
   const {
@@ -200,6 +209,8 @@ export function BookingProvider({ children }) {
     // No rooms before means nothing was answered yet: a saved booking's
     // rooms and answers arrive together and must be kept.
     if (!previous || previous === serviceRoomKey) return;
+    // The rule memory of a dropped room goes with its answers.
+    pruneServiceRuleMemoryToRooms(serviceRuleMemory.current, serviceRooms);
     if (!formData) return;
     const pruned = pruneServiceRequestsToRooms(
       formData,

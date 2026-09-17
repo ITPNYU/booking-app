@@ -80,10 +80,16 @@ export default function DetailsInput({
   } = useRequestFormState({ userApiData, isVIP, isWalkIn });
 
   // The missing-data guard lets a request onto Services only while the
-  // Details answer set is valid.
+  // Details answer set is valid. The Services form cannot see these fields,
+  // so validity is recorded when Next validates them (goToServices) and
+  // withdrawn on any later edit. isValid is not mirrored: it is recomputed
+  // only on blur, and leaving through browser history fires none.
   useEffect(() => {
-    setIsDetailsValid(isValid);
-  }, [isValid, setIsDetailsValid]);
+    const subscription = watch((_values, { type }) => {
+      if (type === "change") setIsDetailsValid(false);
+    });
+    return () => subscription.unsubscribe();
+  }, [watch, setIsDetailsValid]);
 
   const maxCapacity = useMemo(
     () => selectedRooms.reduce((sum, room) => sum + parseInt(room.capacity), 0),
@@ -201,7 +207,9 @@ export default function DetailsInput({
   // form; other requests are blocked by bans, safety training and blackouts.
   const nextDisabled = isMod ? !isValid : blocked;
 
+  // Runs only once handleSubmit has validated every Details field.
   const goToServices = () => {
+    setIsDetailsValid(true);
     router.push(
       buildBookingUrl(
         String(tenant),

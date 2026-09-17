@@ -5,6 +5,7 @@ import {
   anyRoomHasVisibleService,
   getRoomsWithAnyVisibleService,
   getRoomsWithVisibleService,
+  getServiceResourceId,
   getServiceSectionConfig,
   hasSchemaServicesConfig,
   isChoiceMode,
@@ -191,6 +192,25 @@ export function createServiceRuleMemory(): ServiceRuleMemory {
     cleaningAutoSetByRoom: {},
     securityAutoSetByRoom: {},
   };
+}
+
+/**
+ * Forget the per-room rule memory of rooms no longer part of the request, so
+ * a room that is removed and added back starts with no rule history. Mutates
+ * the memory in place: it is shared by reference through BookingContext.
+ */
+export function pruneServiceRuleMemoryToRooms(
+  memory: ServiceRuleMemory,
+  rooms: ServiceResourceLike[],
+): void {
+  const keep = new Set(rooms.map(getServiceResourceId));
+  [memory.cleaningAutoSetByRoom, memory.securityAutoSetByRoom].forEach(
+    (byRoom) => {
+      Object.keys(byRoom).forEach((id) => {
+        if (!keep.has(id)) delete byRoom[id];
+      });
+    },
+  );
 }
 
 /** Booking-level answers per service, dropped once no remaining room offers it. */

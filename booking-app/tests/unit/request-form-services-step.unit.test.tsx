@@ -177,13 +177,20 @@ describe("Details step", () => {
 
     const next = screen.getByRole("button", { name: "Next" });
     await waitFor(() => expect(next).toBeEnabled(), { timeout: 3000 });
-    expect(setIsDetailsValid).toHaveBeenLastCalledWith(true);
+    // A valid form alone records nothing: only Next's validation does.
+    expect(setIsDetailsValid).not.toHaveBeenCalledWith(true);
 
     await user.click(next);
 
     await waitFor(() =>
       expect(push).toHaveBeenCalledWith("/mc/modification/services/evt1"),
     );
+    expect(setIsDetailsValid).toHaveBeenLastCalledWith(true);
+
+    // An edit withdraws validity right away, without waiting for a blur:
+    // leaving through browser history never fires one.
+    await user.clear(screen.getByLabelText(/Reservation Title/));
+    expect(setIsDetailsValid).toHaveBeenLastCalledWith(false);
   });
 });
 
