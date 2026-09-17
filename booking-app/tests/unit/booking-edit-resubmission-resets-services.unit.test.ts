@@ -57,6 +57,40 @@ vi.mock("@/components/src/utils/statusFromXState", () => ({
 
 vi.mock("@/components/src/utils/tenantUtils", () => ({
   shouldUseXState: () => true,
+  isMediaCommons: () => true,
+  isITP: () => false,
+  getMediaCommonsServices: () => ({}),
+}));
+
+vi.mock("@/lib/tenant/serverGetTenantResources", () => ({
+  serverGetTenantResources: vi.fn().mockResolvedValue([]),
+}));
+
+vi.mock("@/lib/stateMachines/mcBookingMachine", () => ({
+  mcBookingMachine: { id: "MC Booking Request" },
+}));
+
+vi.mock("@/lib/stateMachines/itpBookingMachine", () => ({
+  itpBookingMachine: { id: "ITP Booking Request" },
+}));
+
+vi.mock("xstate", () => ({
+  createActor: (_machine: any, options: any) => ({
+    start: vi.fn(),
+    stop: vi.fn(),
+    getPersistedSnapshot: () => ({
+      status: "active",
+      value: "Requested",
+      context: options.input,
+    }),
+  }),
+}));
+
+vi.mock("@/app/api/bookings/route", () => ({
+  createXStateData: (machineId: string, snapshot: any) => ({
+    machineId,
+    snapshot,
+  }),
 }));
 
 vi.mock("@/components/src/client/utils/serverDate", () => ({
@@ -172,13 +206,12 @@ describe("Edit resubmission resets declined services", () => {
       "mc",
     );
 
-    // Still runs XState edit transition for declined bookings
-    expect(mockCallXStateTransitionAPI).toHaveBeenCalledWith(
+    // A fresh Requested snapshot replaces the declined one, so no edit transition
+    expect(updatedData.xstateData.snapshot.value).toBe("Requested");
+    expect(updatedData.xstateData.snapshot.context.calendarEventId).toBe(
       "new-cal-456",
-      "edit",
-      "user@nyu.edu",
-      "mc",
     );
+    expect(mockCallXStateTransitionAPI).not.toHaveBeenCalled();
   });
 });
 

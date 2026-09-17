@@ -405,6 +405,21 @@ export default function FormInput({
     setValue("chartFieldForCatering", "", { shouldValidate: false });
   }, [cateringValue, unregister, clearErrors, setValue]);
 
+  // Legacy setup / equipment switches only hide their detail fields. Clear the
+  // values too, otherwise an edit that turns the service off still stores (and
+  // requests) it. Schema-driven rooms sync these fields themselves.
+  const roomSetupValue = watch("roomSetup");
+  const equipmentServicesValue = watch("equipmentServices");
+  useEffect(() => {
+    if (schemaDrivenServices || roomSetupValue === "yes") return;
+    setValue("setupDetails", "", { shouldValidate: false });
+    setValue("chartFieldForRoomSetup", "", { shouldValidate: false });
+  }, [roomSetupValue, schemaDrivenServices, setValue]);
+  useEffect(() => {
+    if (schemaDrivenServices || equipmentServicesValue?.length > 0) return;
+    setValue("equipmentServicesDetails", "", { shouldValidate: false });
+  }, [equipmentServicesValue, schemaDrivenServices, setValue]);
+
   const hireSecurityValue = watch("hireSecurity");
   // Track if hireSecurity was auto-set by attendance logic
   const hireSecurityWasAutoSet = useRef(false);

@@ -4,6 +4,7 @@ import { TableNames } from "@/components/src/policy";
 import {
   firstApproverEmails,
   serverBookingContents,
+  serverApproveInstantBooking,
   serverDeleteFieldsByCalendarEventId,
   serverSendBookingDetailEmail,
   serverUpdateDataByCalendarEventId,
@@ -25,10 +26,18 @@ import { resolveAnnexCalendarIds } from "@/components/src/utils/resourceServices
 import { serverGetTenantResources } from "@/lib/tenant/serverGetTenantResources";
 import { callXStateTransitionAPI } from "@/components/src/server/db";
 import { getStatusFromXState } from "@/components/src/utils/statusFromXState";
-import { shouldUseXState } from "@/components/src/utils/tenantUtils";
+import {
+  getMediaCommonsServices,
+  isITP,
+  isMediaCommons,
+  shouldUseXState,
+} from "@/components/src/utils/tenantUtils";
 import { logServerBookingChange } from "@/lib/firebase/server/adminDb";
+import { itpBookingMachine } from "@/lib/stateMachines/itpBookingMachine";
+import { mcBookingMachine } from "@/lib/stateMachines/mcBookingMachine";
 import { Timestamp } from "firebase-admin/firestore";
 import { NextRequest, NextResponse } from "next/server";
+import { createActor } from "xstate";
 import {
   buildBookingContents,
   extractTenantFromRequest,
@@ -155,6 +164,63 @@ async function sendEditNotificationEmails(
 }
 
 /**
+ * Run the booking machine on the edited booking, mirroring the create flow in
+ * /api/bookings, so the stored snapshot reflects the services that are still
+ * requested and whether the booking now qualifies for auto-approval.
+ * Returns undefined for tenants without a booking machine.
+ */
+async function buildEditedXStateData({
+  tenant,
+  selectedRooms,
+  data,
+  bookingCalendarInfo,
+  email,
+  calendarEventId,
+  origin,
+}: {
+  tenant?: string;
+  selectedRooms: any[];
+  data: any;
+  bookingCalendarInfo: any;
+  email: string;
+  calendarEventId: string;
+  origin: string;
+}) {
+  const machine = isMediaCommons(tenant)
+    ? mcBookingMachine
+    : isITP(tenant)
+      ? itpBookingMachine
+      : null;
+  if (!machine) return undefined;
+
+  const servicesRequested = isMediaCommons(tenant)
+    ? getMediaCommonsServices(data, await serverGetTenantResources(tenant))
+    : undefined;
+
+  const actor = createActor(machine as any, {
+    input: {
+      tenant,
+      selectedRooms,
+      formData: data,
+      bookingCalendarInfo,
+      isWalkIn: false,
+      isVip: false,
+      email,
+      calendarEventId,
+      origin,
+      role: data.role,
+      servicesRequested,
+    },
+  });
+  actor.start();
+  const snapshot = actor.getPersistedSnapshot();
+  actor.stop();
+
+  const { createXStateData } = await import("@/app/api/bookings/route");
+  return createXStateData(machine.id, snapshot);
+}
+
+/**
  * PUT /api/bookings/edit
  *
  * User editing their own non-approved booking.
@@ -162,8 +228,10 @@ async function sendEditNotificationEmails(
  *
  * Characteristics:
  * - User can only edit their own non-approved bookings
- * - For DECLINED bookings: Triggers XState "edit" transition (DECLINED → REQUESTED)
- * - For other statuses: XState remains in current state (no state transition)
+ * - XState snapshot is rebuilt from the edited data (DECLINED → REQUESTED, and
+ *   services turned off are no longer requested)
+ * - If the edited booking qualifies for auto-approval, it is approved instead
+ *   of being sent to approvers
  * - Clears declinedAt timestamp when editing declined bookings
  * - Only booking data is updated
  * - Sends notification email to first approvers
@@ -384,6 +452,22 @@ export async function PUT(request: NextRequest) {
       newOrigin: updatedData.origin,
     });
 
+    const xstateData = usesXState
+      ? await buildEditedXStateData({
+          tenant,
+          selectedRooms,
+          data,
+          bookingCalendarInfo,
+          email,
+          calendarEventId: newCalendarEventId,
+          origin: updatedData.origin,
+        })
+      : undefined;
+    if (xstateData) {
+      updatedData.xstateData = xstateData;
+    }
+    const isAutoApproved = xstateData?.snapshot?.value === "Approved";
+
     // Update booking with new calendarEventId first
     await serverUpdateDataByCalendarEventId(
       TableNames.BOOKING,
@@ -401,9 +485,9 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    // If booking was declined, trigger XState edit transition on the NEW calendarEventId
-    // This moves the booking from DECLINED to REQUESTED state
-    if (usesXState && wasDeclined) {
+    // The rebuilt snapshot already starts from Requested. Only fall back to the
+    // edit transition (DECLINED → REQUESTED) when no machine exists for the tenant.
+    if (usesXState && wasDeclined && !xstateData) {
       console.log(
         `🔄 EDIT: Triggering XState edit transition for DECLINED booking [${tenant?.toUpperCase()}]:`,
         {
@@ -455,17 +539,24 @@ export async function PUT(request: NextRequest) {
       tenant,
     );
 
-    // Send email notifications
-    console.log("📧 EDIT: Sending email notifications");
-    await sendEditNotificationEmails(
-      newCalendarEventId,
-      data,
-      existingContents,
-      selectedRoomIds,
-      bookingCalendarInfo,
-      email,
-      tenant,
-    );
+    if (isAutoApproved) {
+      console.log(
+        `🎉 EDIT: Booking qualifies for auto-approval [${tenant?.toUpperCase()}]:`,
+        { newCalendarEventId },
+      );
+      await serverApproveInstantBooking(newCalendarEventId, email, tenant);
+    } else {
+      console.log("📧 EDIT: Sending email notifications");
+      await sendEditNotificationEmails(
+        newCalendarEventId,
+        data,
+        existingContents,
+        selectedRoomIds,
+        bookingCalendarInfo,
+        email,
+        tenant,
+      );
+    }
 
     // Verify the final status after edit
     const { serverGetDataByCalendarEventId } =
