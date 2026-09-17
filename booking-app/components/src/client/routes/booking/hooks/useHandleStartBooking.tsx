@@ -14,6 +14,7 @@ export default function useHandleStartBooking() {
     setFormData,
     setIsDetailsValid,
     resetServiceRuleMemory,
+    setCheckedAgreements,
     setAnnexByRoom,
   } = useContext(BookingContext);
 
@@ -30,6 +31,7 @@ export default function useHandleStartBooking() {
     setFormData(undefined);
     setIsDetailsValid(false);
     resetServiceRuleMemory();
+    setCheckedAgreements({});
 
     setHasShownMocapModal(false);
   };

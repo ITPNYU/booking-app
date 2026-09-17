@@ -92,6 +92,8 @@ const bookingContext = (overrides: Record<string, unknown> = {}) =>
     formData: null,
     setFormData: vi.fn(),
     setIsDetailsValid: vi.fn(),
+    checkedAgreements: {},
+    setCheckedAgreements: vi.fn(),
     isBanned: false,
     needsSafetyTraining: false,
     isInBlackoutPeriod: false,

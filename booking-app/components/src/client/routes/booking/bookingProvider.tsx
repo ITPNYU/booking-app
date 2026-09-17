@@ -54,6 +54,11 @@ export interface BookingContextType {
   /** Which service answers a rule switched on; survives leaving the Services step. */
   serviceRuleMemory: ServiceRuleMemory;
   resetServiceRuleMemory: () => void;
+  /**
+   * Agreement attestations ticked so far, by attestation id. Kept here so
+   * they survive the submit block remounting within a request.
+   */
+  checkedAgreements: Record<string, boolean>;
   hasShownMocapModal: boolean;
   isBanned: boolean;
   isSafetyTrained: boolean;
@@ -68,6 +73,7 @@ export interface BookingContextType {
   setDepartment: (x: Department) => void;
   setFormData: (x: Inputs) => void;
   setIsDetailsValid: (x: boolean) => void;
+  setCheckedAgreements: (x: Record<string, boolean>) => void;
   setHasShownMocapModal: (x: boolean) => void;
   setRole: (x: Role) => void;
   setSelectedRooms: (x: RoomSetting[]) => void;
@@ -89,6 +95,7 @@ export const BookingContext = createContext<BookingContextType>({
   isDetailsValid: false,
   serviceRuleMemory: createServiceRuleMemory(),
   resetServiceRuleMemory: () => {},
+  checkedAgreements: {},
   hasShownMocapModal: false,
   isBanned: false,
   isSafetyTrained: true,
@@ -102,6 +109,7 @@ export const BookingContext = createContext<BookingContextType>({
   setDepartment: (x: Department) => {},
   setFormData: (x: Inputs) => {},
   setIsDetailsValid: (x: boolean) => {},
+  setCheckedAgreements: (x: Record<string, boolean>) => {},
   setHasShownMocapModal: (x: boolean) => {},
   setRole: (x: Role) => {},
   setSelectedRooms: (x: RoomSetting[]) => {},
@@ -163,6 +171,9 @@ export function BookingProvider({ children }) {
     serviceRuleMemoryFlowKey.current = flowKey;
     resetServiceRuleMemory();
   }
+  const [checkedAgreements, setCheckedAgreements] = useState<
+    Record<string, boolean>
+  >({});
   const [hasShownMocapModal, setHasShownMocapModal] = useState(false);
   const [annexByRoom, setAnnexByRoom] = useState<Record<string, string[]>>({});
   const [submitting, setSubmitting] = useState<SubmitStatus>("error");
@@ -292,6 +303,7 @@ export function BookingProvider({ children }) {
         isDetailsValid,
         serviceRuleMemory: serviceRuleMemory.current,
         resetServiceRuleMemory,
+        checkedAgreements,
         hasShownMocapModal,
         isBanned,
         isSafetyTrained,
@@ -304,6 +316,7 @@ export function BookingProvider({ children }) {
         setDepartment,
         setFormData,
         setIsDetailsValid,
+        setCheckedAgreements,
         setHasShownMocapModal,
         setRole,
         setSelectedRooms,

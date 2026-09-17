@@ -1,5 +1,5 @@
 import { Button } from "@mui/material";
-import React, { useContext, useState } from "react";
+import React, { useContext } from "react";
 
 import { FormContextLevel } from "../../../../types";
 import { getRequestOrigin } from "../../../../utils/serviceSections";
@@ -35,17 +35,13 @@ export default function SubmitBlock({
   isSubmitting,
 }: Props) {
   const { attestations } = useTenantSchema();
-  const { formData } = useContext(BookingContext);
+  const { formData, checkedAgreements, setCheckedAgreements } =
+    useContext(BookingContext);
   const blocked = useRequestBlocked();
-  const { isMod, isBooking, isWalkIn } = getRequestOrigin(
+  const { isMod, isBooking } = getRequestOrigin(
     formContext,
     formData?.origin,
   );
-
-  // agreements, skip for walk-ins
-  const [checkedAgreements, setCheckedAgreements] = useState<
-    Record<string, boolean>
-  >(Object.fromEntries(attestations.map((a) => [a.id, isWalkIn])));
 
   // The Agreement section is only rendered for the regular booking form. VIP
   // and walk-in flows never show the attestations, so they must not be
@@ -68,7 +64,7 @@ export default function SubmitBlock({
             <BookingFormAgreementCheckbox
               key={agreement.id}
               id={agreement.id}
-              checked={checkedAgreements[agreement.id]}
+              checked={checkedAgreements[agreement.id] ?? false}
               onChange={(value) =>
                 setCheckedAgreements({
                   ...checkedAgreements,

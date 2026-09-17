@@ -89,6 +89,8 @@ describe("DetailsInput - Field Visibility by Form Context", () => {
     formData: null,
     setFormData: vi.fn(),
     setIsDetailsValid: vi.fn(),
+    checkedAgreements: {},
+    setCheckedAgreements: vi.fn(),
     isBanned: false,
     needsSafetyTraining: false,
     isInBlackoutPeriod: false,
