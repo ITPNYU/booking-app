@@ -81,6 +81,7 @@ export default defineConfig({
         "**/ban-enforcement.e2e.test.ts",
         "**/form-validation.e2e.test.ts",
         "**/request-limits.e2e.test.ts",
+        "**/services-step.e2e.test.ts",
       ],
       use: {
         ...devices["Desktop Chrome"],
