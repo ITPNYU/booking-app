@@ -1,5 +1,5 @@
 import { expect, Page, test } from "@playwright/test";
-import { mockTenantSchema, registerBookingMocks } from "./helpers/mock-routes";
+import { registerBookingMocks } from "./helpers/mock-routes";
 import {
   fillBookingForm,
   selectRole,
@@ -8,29 +8,12 @@ import {
 
 const BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000";
 
-const jsonHeaders = { "content-type": "application/json" };
-
 /**
- * The default mock rooms offer no services, so the Services step is skipped.
- * This schema gives Lecture Hall 202 a catering section so the step shows.
+ * The tenant schema is read on the server (getTestTenantSchema), so it cannot
+ * be swapped per test. Event Space 240 is the mock room that offers a service;
+ * the other rooms offer none, so the Services step is skipped for them.
  */
-const schemaWithCatering = {
-  ...mockTenantSchema,
-  resources: mockTenantSchema.resources.map((resource) =>
-    resource.resourceId === "202"
-      ? {
-          ...resource,
-          services: {
-            catering: {
-              label: "Catering",
-              descriptionHtml: "<p>Select if you need catering.</p>",
-              chartField: { required: true },
-            },
-          },
-        }
-      : resource,
-  ),
-};
+const SERVICES_ROOM_ID = "240";
 
 async function walkToDetails(page: Page, roomId = "202") {
   await page.goto(`${BASE_URL}/mc/book`, { waitUntil: "domcontentloaded" });
@@ -60,16 +43,8 @@ test.describe("Services step", () => {
     page,
   }) => {
     await registerBookingMocks(page);
-    // Registered last, so it wins over the default schema route.
-    await page.route("**/api/tenantSchema/mc", (route) =>
-      route.fulfill({
-        status: 200,
-        headers: jsonHeaders,
-        body: JSON.stringify(schemaWithCatering),
-      }),
-    );
 
-    await walkToDetails(page);
+    await walkToDetails(page, SERVICES_ROOM_ID);
 
     // The Stepper lists Services between Details and Confirmation.
     const stepper = page.locator(".MuiStepper-root");
