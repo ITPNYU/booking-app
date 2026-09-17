@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  isBookingStepPath,
   parseBookingUrl,
   buildBookingUrl,
   getAffiliationStep,
@@ -45,6 +46,26 @@ describe("bookingUrlParser", () => {
         step: null,
         id: null,
       });
+    });
+  });
+
+  describe("isBookingStepPath", () => {
+    it("accepts the steps of a flow", () => {
+      expect(isBookingStepPath("/test-tenant/book/form")).toBe(true);
+      expect(isBookingStepPath("/test-tenant/walk-in/netid")).toBe(true);
+      expect(isBookingStepPath("/test-tenant/edit/form/abc123")).toBe(true);
+    });
+
+    it("rejects a flow's landing page", () => {
+      expect(isBookingStepPath("/test-tenant/book")).toBe(false);
+      expect(isBookingStepPath("/test-tenant/edit/abc123")).toBe(false);
+      expect(isBookingStepPath("/test-tenant/modification/abc123")).toBe(false);
+    });
+
+    it("rejects pages outside the flows", () => {
+      expect(isBookingStepPath("/test-tenant/admin/settings")).toBe(false);
+      expect(isBookingStepPath("/test-tenant")).toBe(false);
+      expect(isBookingStepPath(null)).toBe(false);
     });
   });
 

@@ -35,7 +35,10 @@ import {
 } from "../../../utils/serviceSections";
 import { DatabaseContext } from "../components/Provider";
 import fetchCalendarEvents from "./hooks/fetchCalendarEvents";
-import { getBookingFlowKey } from "./utils/bookingUrlParser";
+import {
+  getBookingFlowKey,
+  isBookingStepPath,
+} from "./utils/bookingUrlParser";
 import { useTenantSchema } from "../components/SchemaProvider";
 
 export interface BookingContextType {
@@ -48,7 +51,8 @@ export interface BookingContextType {
    * by the Details page when Next validates it and withdrawn on any later
    * edit; the missing-data guard reads it before letting a request land on
    * the Services step. Holds only for the request
-   * (tenant, flow and booking id), role and rooms it was validated against.
+   * (tenant, flow, booking id and attempt), role and rooms it was validated
+   * against.
    */
   isDetailsValid: boolean;
   /** Which service answers a rule switched on; survives leaving the Services step. */
@@ -56,7 +60,8 @@ export interface BookingContextType {
   resetServiceRuleMemory: () => void;
   /**
    * Agreement attestations ticked so far, by attestation id. Kept here so
-   * they survive the submit block remounting within a request.
+   * they survive the submit block remounting within a request. Hold only
+   * for the request they were ticked in.
    */
   checkedAgreements: Record<string, boolean>;
   hasShownMocapModal: boolean;
@@ -121,6 +126,8 @@ export const BookingContext = createContext<BookingContextType>({
   setError: (x: Error | null) => {},
 });
 
+const NO_AGREEMENTS: Record<string, boolean> = {};
+
 export function BookingProvider({ children }) {
   const {
     bannedUsers,
@@ -141,10 +148,22 @@ export function BookingProvider({ children }) {
   const [role, setRole] = useState<Role>();
   const [selectedRooms, setSelectedRooms] = useState<RoomSetting[]>([]);
   // This provider outlives a request: moving from one flow or booking to
-  // another keeps it mounted. Details validity and the service rule memory
-  // are tied to the request they were recorded in, so another request never
-  // inherits them, whether or not its entry point cleared them.
-  const flowKey = getBookingFlowKey(pathname);
+  // another keeps it mounted. Details validity, the service rule memory and
+  // the ticked agreements are tied to the request they were recorded in, so
+  // another request never inherits them, whether or not its entry point
+  // cleared them.
+  //
+  // A new request has no booking id, so two attempts at the same flow share a
+  // pathname. Leaving the flow's steps, for its landing page or any other
+  // page, ends the attempt: the steps reached afterwards belong to a new one.
+  const [attempt, setAttempt] = useState({ pathname, count: 0 });
+  if (attempt.pathname !== pathname) {
+    setAttempt({
+      pathname,
+      count: isBookingStepPath(pathname) ? attempt.count : attempt.count + 1,
+    });
+  }
+  const flowKey = `${getBookingFlowKey(pathname)}#${attempt.count}`;
   // Details validation also reads the role (sponsor) and the rooms' capacity
   // (expected attendance), which change on other steps. Validity holds only
   // for the values it was checked against, so changing them sends the
@@ -171,9 +190,16 @@ export function BookingProvider({ children }) {
     serviceRuleMemoryFlowKey.current = flowKey;
     resetServiceRuleMemory();
   }
-  const [checkedAgreements, setCheckedAgreements] = useState<
-    Record<string, boolean>
-  >({});
+  const [agreements, setAgreements] = useState<{
+    flowKey: string;
+    checked: Record<string, boolean>;
+  } | null>(null);
+  const checkedAgreements =
+    agreements?.flowKey === flowKey ? agreements.checked : NO_AGREEMENTS;
+  const setCheckedAgreements = useCallback(
+    (checked: Record<string, boolean>) => setAgreements({ flowKey, checked }),
+    [flowKey],
+  );
   const [hasShownMocapModal, setHasShownMocapModal] = useState(false);
   const [annexByRoom, setAnnexByRoom] = useState<Record<string, string[]>>({});
   const [submitting, setSubmitting] = useState<SubmitStatus>("error");

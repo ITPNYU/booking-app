@@ -142,6 +142,61 @@ describe("BookingProvider - state scoped to the current request", () => {
     expect(context.serviceRuleMemory).toEqual(fresh);
   });
 
+  it("keeps ticked agreements across the steps of one request", () => {
+    const { rerender } = render(tree());
+    act(() => context.setCheckedAgreements({ policy: true }));
+
+    navigate(rerender, "/mc/book/services");
+
+    expect(context.checkedAgreements).toEqual({ policy: true });
+  });
+
+  it("does not carry ticked agreements into another request", () => {
+    const { rerender } = render(tree());
+    act(() => context.setCheckedAgreements({ policy: true }));
+
+    navigate(rerender, "/mc/walk-in/form");
+
+    expect(context.checkedAgreements).toEqual({});
+  });
+
+  it("starts a new attempt when the flow is re-entered through its landing page", () => {
+    const { rerender } = render(tree());
+    act(() => context.setIsDetailsValid(true));
+    act(() => context.setCheckedAgreements({ policy: true }));
+    context.serviceRuleMemory.cleaningAutoSet = true;
+
+    navigate(rerender, "/mc/book");
+    navigate(rerender, "/mc/book/form");
+
+    expect(context.isDetailsValid).toBe(false);
+    expect(context.checkedAgreements).toEqual({});
+    expect(context.serviceRuleMemory.cleaningAutoSet).toBe(false);
+  });
+
+  it("starts a new attempt when the flow is left for another page", () => {
+    const { rerender } = render(tree());
+    act(() => context.setIsDetailsValid(true));
+    act(() => context.setCheckedAgreements({ policy: true }));
+
+    navigate(rerender, "/mc/my-bookings");
+    navigate(rerender, "/mc/book/form");
+
+    expect(context.isDetailsValid).toBe(false);
+    expect(context.checkedAgreements).toEqual({});
+  });
+
+  it("starts a new attempt when the same booking is reopened from its landing page", () => {
+    (usePathname as any).mockReturnValue("/mc/edit/form/evt1");
+    const { rerender } = render(tree());
+    act(() => context.setCheckedAgreements({ policy: true }));
+
+    navigate(rerender, "/mc/edit/evt1");
+    navigate(rerender, "/mc/edit/form/evt1");
+
+    expect(context.checkedAgreements).toEqual({});
+  });
+
   it("forgets the per-room rule memory of a room that is removed", () => {
     const roomA = { roomId: "101", name: "A", capacity: "10" } as RoomSetting;
     const roomB = { roomId: "102", name: "B", capacity: "10" } as RoomSetting;
