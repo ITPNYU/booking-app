@@ -1,5 +1,6 @@
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -33,6 +34,7 @@ import {
 } from "../../../utils/serviceSections";
 import { DatabaseContext } from "../components/Provider";
 import fetchCalendarEvents from "./hooks/fetchCalendarEvents";
+import { getBookingFlowKey } from "./utils/bookingUrlParser";
 import { useTenantSchema } from "../components/SchemaProvider";
 
 export interface BookingContextType {
@@ -43,7 +45,8 @@ export interface BookingContextType {
   /**
    * Whether the Details step's answer set currently passes its validation.
    * Mirrored by the Details page; the missing-data guard reads it before
-   * letting a request land on the Services step.
+   * letting a request land on the Services step. Holds only for the request
+   * (tenant, flow and booking id) it was validated in.
    */
   isDetailsValid: boolean;
   /** Which service answers a rule switched on; survives leaving the Services step. */
@@ -125,11 +128,30 @@ export function BookingProvider({ children }) {
     useState<DateSelectArg>();
   const [department, setDepartment] = useState<Department>();
   const [formData, setFormData] = useState<Inputs>(undefined);
-  const [isDetailsValid, setIsDetailsValid] = useState(false);
+  // This provider outlives a request: moving from one flow or booking to
+  // another keeps it mounted. Details validity and the service rule memory
+  // are tied to the request they were recorded in, so another request never
+  // inherits them, whether or not its entry point cleared them.
+  const flowKey = getBookingFlowKey(pathname);
+  const [detailsValidFlowKey, setDetailsValidFlowKey] = useState<
+    string | null
+  >(null);
+  const isDetailsValid = detailsValidFlowKey === flowKey;
+  const setIsDetailsValid = useCallback(
+    (x: boolean) => setDetailsValidFlowKey(x ? flowKey : null),
+    [flowKey],
+  );
   const serviceRuleMemory = useRef(createServiceRuleMemory());
   const resetServiceRuleMemory = () => {
     Object.assign(serviceRuleMemory.current, createServiceRuleMemory());
   };
+  // Reset while rendering, not in an effect: the Services step reads the
+  // memory in its own effects, which run before this provider's.
+  const serviceRuleMemoryFlowKey = useRef(flowKey);
+  if (serviceRuleMemoryFlowKey.current !== flowKey) {
+    serviceRuleMemoryFlowKey.current = flowKey;
+    resetServiceRuleMemory();
+  }
   const [hasShownMocapModal, setHasShownMocapModal] = useState(false);
   const [role, setRole] = useState<Role>();
   const [selectedRooms, setSelectedRooms] = useState<RoomSetting[]>([]);

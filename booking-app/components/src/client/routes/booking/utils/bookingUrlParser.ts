@@ -13,6 +13,15 @@ export function parseBookingUrl(pathname: string) {
   };
 }
 
+/**
+ * Identifies the request a pathname belongs to: the same tenant, flow and
+ * booking id on every step of one request, different for any other request.
+ */
+export function getBookingFlowKey(pathname: string | null): string {
+  const { tenant, flowType, id } = parseBookingUrl(pathname ?? "");
+  return [tenant, flowType, id ?? ""].join("/");
+}
+
 export function buildBookingUrl(
   tenant: string,
   flowType: string,
