@@ -1,5 +1,9 @@
 import { defineConfig, devices } from "@playwright/test";
 
+// Wide enough that the bookings DataGrid renders every column: with the
+// Services and Equip. columns present, 1280px virtualizes the Action column away.
+const WIDE_VIEWPORT = { width: 1920, height: 1080 };
+
 export default defineConfig({
   testDir: "./tests",
   testMatch: "**/*.e2e.test.ts",
@@ -37,7 +41,7 @@ export default defineConfig({
 
     navigationTimeout: 90000,
     actionTimeout: 45000,
-    viewport: { width: 1280, height: 720 },
+    viewport: WIDE_VIEWPORT,
     ignoreHTTPSErrors: true,
   },
 
@@ -46,6 +50,7 @@ export default defineConfig({
       name: "chromium",
       use: {
         ...devices["Desktop Chrome"],
+        viewport: WIDE_VIEWPORT,
       },
     },
     {
@@ -79,6 +84,7 @@ export default defineConfig({
       ],
       use: {
         ...devices["Desktop Chrome"],
+        viewport: WIDE_VIEWPORT,
       },
     },
     {
@@ -96,6 +102,7 @@ export default defineConfig({
       ],
       use: {
         ...devices["Desktop Chrome"],
+        viewport: WIDE_VIEWPORT,
       },
     },
   ],
