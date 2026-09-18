@@ -197,6 +197,38 @@ describe("BookingProvider - state scoped to the current request", () => {
     expect(context.checkedAgreements).toEqual({});
   });
 
+  it("keeps the submit status across the steps of one request", () => {
+    const { rerender } = render(tree());
+    act(() => context.setSubmitting("success"));
+
+    navigate(rerender, "/mc/book/confirmation");
+
+    expect(context.submitting).toBe("success");
+  });
+
+  it("does not carry a successful submission into the next attempt", () => {
+    const { rerender } = render(tree());
+    const initial = context.submitting;
+    act(() => context.setSubmitting("success"));
+
+    navigate(rerender, "/mc/my-bookings");
+    navigate(rerender, "/mc/book/services");
+
+    expect(context.submitting).toBe(initial);
+    expect(context.submitting).not.toBe("success");
+  });
+
+  it("ignores a submission that settles after its request was left", () => {
+    const { rerender } = render(tree());
+    const settle = context.setSubmitting;
+
+    navigate(rerender, "/mc/book");
+    navigate(rerender, "/mc/book/form");
+    act(() => settle("success"));
+
+    expect(context.submitting).not.toBe("success");
+  });
+
   it("forgets the per-room rule memory of a room that is removed", () => {
     const roomA = { roomId: "101", name: "A", capacity: "10" } as RoomSetting;
     const roomB = { roomId: "102", name: "B", capacity: "10" } as RoomSetting;

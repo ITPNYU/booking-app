@@ -127,6 +127,7 @@ export const BookingContext = createContext<BookingContextType>({
 });
 
 const NO_AGREEMENTS: Record<string, boolean> = {};
+const INITIAL_SUBMIT_STATUS: SubmitStatus = "error";
 
 export function BookingProvider({ children }) {
   const {
@@ -148,10 +149,10 @@ export function BookingProvider({ children }) {
   const [role, setRole] = useState<Role>();
   const [selectedRooms, setSelectedRooms] = useState<RoomSetting[]>([]);
   // This provider outlives a request: moving from one flow or booking to
-  // another keeps it mounted. Details validity, the service rule memory and
-  // the ticked agreements are tied to the request they were recorded in, so
-  // another request never inherits them, whether or not its entry point
-  // cleared them.
+  // another keeps it mounted. Details validity, the service rule memory, the
+  // ticked agreements and the submit status are tied to the request they were
+  // recorded in, so another request never inherits them, whether or not its
+  // entry point cleared them.
   //
   // A new request has no booking id, so two attempts at the same flow share a
   // pathname. Leaving the flow's steps, for its landing page or any other
@@ -202,7 +203,18 @@ export function BookingProvider({ children }) {
   );
   const [hasShownMocapModal, setHasShownMocapModal] = useState(false);
   const [annexByRoom, setAnnexByRoom] = useState<Record<string, string[]>>({});
-  const [submitting, setSubmitting] = useState<SubmitStatus>("error");
+  // A finished submission is terminal for its own attempt only: "success"
+  // switches off the missing-data guard, which the next request needs back.
+  const [submission, setSubmission] = useState<{
+    flowKey: string;
+    status: SubmitStatus;
+  } | null>(null);
+  const submitting =
+    submission?.flowKey === flowKey ? submission.status : INITIAL_SUBMIT_STATUS;
+  const setSubmitting = useCallback(
+    (status: SubmitStatus) => setSubmission({ flowKey, status }),
+    [flowKey],
+  );
   const {
     existingCalendarEvents,
     reloadExistingCalendarEvents,
