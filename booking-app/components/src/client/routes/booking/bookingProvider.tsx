@@ -38,6 +38,7 @@ import fetchCalendarEvents from "./hooks/fetchCalendarEvents";
 import {
   getBookingFlowKey,
   isBookingStepPath,
+  parseBookingUrl,
 } from "./utils/bookingUrlParser";
 import { useTenantSchema } from "../components/SchemaProvider";
 
@@ -157,14 +158,33 @@ export function BookingProvider({ children }) {
   // A new request has no booking id, so two attempts at the same flow share a
   // pathname. Leaving the flow's steps, for its landing page or any other
   // page, ends the attempt: the steps reached afterwards belong to a new one.
-  const [attempt, setAttempt] = useState({ pathname, count: 0 });
+  //
+  // The confirmation page closes the request that redirected to it, under a
+  // pathname of its own: an edit lands on book/confirmation and a
+  // modification on one without the booking id. It keeps that request's key,
+  // so the submission still settling there is reported on it. Leaving it
+  // ends the attempt, even for a step of the same flow (browser Back).
+  const [attempt, setAttempt] = useState({
+    pathname,
+    count: 0,
+    request: getBookingFlowKey(pathname),
+  });
   if (attempt.pathname !== pathname) {
-    setAttempt({
-      pathname,
-      count: isBookingStepPath(pathname) ? attempt.count : attempt.count + 1,
-    });
+    setAttempt(
+      parseBookingUrl(pathname ?? "").step === "confirmation"
+        ? { ...attempt, pathname }
+        : {
+            pathname,
+            count:
+              isBookingStepPath(pathname) &&
+              parseBookingUrl(attempt.pathname ?? "").step !== "confirmation"
+                ? attempt.count
+                : attempt.count + 1,
+            request: getBookingFlowKey(pathname),
+          },
+    );
   }
-  const flowKey = `${getBookingFlowKey(pathname)}#${attempt.count}`;
+  const flowKey = `${attempt.request}#${attempt.count}`;
   // Details validation also reads the role (sponsor) and the rooms' capacity
   // (expected attendance), which change on other steps. Validity holds only
   // for the values it was checked against, so changing them sends the

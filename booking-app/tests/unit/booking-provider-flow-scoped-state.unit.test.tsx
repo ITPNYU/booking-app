@@ -229,6 +229,52 @@ describe("BookingProvider - state scoped to the current request", () => {
     expect(context.submitting).not.toBe("success");
   });
 
+  it.each([
+    ["/mc/edit/form/evt1", "/mc/book/confirmation"],
+    ["/mc/modification/form/evt1", "/mc/modification/confirmation"],
+    ["/mc/walk-in/services", "/mc/walk-in/confirmation"],
+  ])(
+    "reports a submission from %s on its confirmation page %s",
+    (stepPath, confirmationPath) => {
+      (usePathname as any).mockReturnValue(stepPath);
+      const { rerender } = render(tree());
+      // The request settles after the redirect, through the setter the
+      // submitting step captured.
+      const settle = context.setSubmitting;
+      act(() => settle("submitting"));
+
+      navigate(rerender, confirmationPath);
+      expect(context.submitting).toBe("submitting");
+      act(() => settle("success"));
+
+      expect(context.submitting).toBe("success");
+    },
+  );
+
+  it("does not carry a submission from a confirmation page into the next request", () => {
+    (usePathname as any).mockReturnValue("/mc/edit/form/evt1");
+    const { rerender } = render(tree());
+    act(() => context.setSubmitting("success"));
+    navigate(rerender, "/mc/book/confirmation");
+
+    navigate(rerender, "/mc/book/form");
+
+    expect(context.submitting).not.toBe("success");
+  });
+
+  it("starts a new attempt when a step is reached back from the confirmation page", () => {
+    const { rerender } = render(tree());
+    act(() => context.setIsDetailsValid(true));
+    act(() => context.setSubmitting("success"));
+    navigate(rerender, "/mc/book/confirmation");
+    expect(context.submitting).toBe("success");
+
+    navigate(rerender, "/mc/book/form");
+
+    expect(context.submitting).not.toBe("success");
+    expect(context.isDetailsValid).toBe(false);
+  });
+
   it("forgets the per-room rule memory of a room that is removed", () => {
     const roomA = { roomId: "101", name: "A", capacity: "10" } as RoomSetting;
     const roomB = { roomId: "102", name: "B", capacity: "10" } as RoomSetting;
