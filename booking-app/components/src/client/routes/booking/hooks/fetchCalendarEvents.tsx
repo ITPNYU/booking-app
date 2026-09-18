@@ -5,7 +5,12 @@ import { CalendarEvent, RoomSetting } from "../../../../types";
 
 import { CALENDAR_HIDE_STATUS } from "../../../../policy";
 
-export default function fetchCalendarEvents(allRooms: RoomSetting[]) {
+// `enabled` lets the provider mount on pages that never render the calendar
+// (admin, liaison, PA, my-bookings, ...) without paying for the fetch there.
+export default function fetchCalendarEvents(
+  allRooms: RoomSetting[],
+  enabled: boolean = true,
+) {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [fetchingStatus, setFetchingStatus] = useState<
     "loading" | "loaded" | "error" | null
@@ -66,6 +71,8 @@ export default function fetchCalendarEvents(allRooms: RoomSetting[]) {
       inflightRef.current = null;
     }
 
+    if (!enabled) return;
+
     if (allRooms.length === 0) {
       setEvents([]);
       return;
@@ -120,7 +127,7 @@ export default function fetchCalendarEvents(allRooms: RoomSetting[]) {
         console.error("Error loading calendar events:", error);
         setFetchingStatus("error");
       });
-  }, [allRooms, tenant, mapEventsForRoom]);
+  }, [allRooms, tenant, mapEventsForRoom, enabled]);
 
   useEffect(() => {
     loadEvents();

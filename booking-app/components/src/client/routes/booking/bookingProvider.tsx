@@ -101,6 +101,16 @@ export interface BookingContextType {
   setError: (x: Error | null) => void;
 }
 
+// Route segments whose pages render the room calendar (selectRoom) or check
+// overlap against it.
+const CALENDAR_FLOW_SEGMENTS = [
+  "book",
+  "walk-in",
+  "vip",
+  "edit",
+  "modification",
+];
+
 export const BookingContext = createContext<BookingContextType>({
   bookingCalendarInfo: undefined,
   department: undefined,
@@ -151,6 +161,16 @@ export function BookingProvider({ children }) {
     pagePermission,
   } = useContext(DatabaseContext);
   const pathname = usePathname();
+  // The provider is also mounted on booking-table pages (admin, liaison, PA,
+  // my-bookings, tenant root) for the edit preload, but only these flows render
+  // the room calendar. Fetching every room's events elsewhere is pure load.
+  const showsBookingCalendar = useMemo(
+    () =>
+      (pathname ?? "")
+        .split("/")
+        .some((segment) => CALENDAR_FLOW_SEGMENTS.includes(segment)),
+    [pathname],
+  );
   const schema = useTenantSchema();
 
   const [bookingCalendarInfo, setBookingCalendarInfo] =
@@ -257,7 +277,7 @@ export function BookingProvider({ children }) {
     existingCalendarEvents,
     reloadExistingCalendarEvents,
     fetchingStatus,
-  } = fetchCalendarEvents(roomSettings);
+  } = fetchCalendarEvents(roomSettings, showsBookingCalendar);
   const [error, setError] = useState<Error | null>(null);
 
   // Update safety trained users when selected rooms change
