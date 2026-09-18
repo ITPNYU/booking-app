@@ -218,10 +218,15 @@ export const FLAT_SERVICE_FIELDS: Partial<
   Record<ResourceServiceKey, (keyof Inputs)[]>
 > = {
   setup: ["roomSetup", "setupDetails", "chartFieldForRoomSetup"],
-  equipment: ["equipmentServices", "equipmentServicesDetails"],
+  equipment: [
+    "equipmentServices",
+    "equipmentServicesDetails",
+    "mediaServices",
+    "mediaServicesDetails",
+  ],
   staffing: ["staffingServices"],
   furnishings: ["furnishingsDetails"],
-  catering: ["catering", "chartFieldForCatering"],
+  catering: ["catering", "cateringService", "chartFieldForCatering"],
   cleaning: ["cleaningService", "chartFieldForCleaning"],
   security: ["hireSecurity", "chartFieldForSecurity"],
 };
