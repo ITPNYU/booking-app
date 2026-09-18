@@ -122,12 +122,21 @@ This project uses a CI/CD pipeline with automated deployments:
 | `staging` | 🔬 Staging | Pre-production testing and QA |
 | `prod` | 🚀 Production | Live production environment |
 
-### 📝 Deployment Guidelines
+### 📝 Deployment Flow
 
-1. Always create feature branches from `main`
-2. Test thoroughly in development
-3. Create pull requests for code review
-4. Merge to appropriate branch based on deployment target
+The developer who writes a change owns it all the way to production. The reviewer only reviews; the developer merges, deploys, and verifies.
+
+1. **Open a PR** — The developer creates a feature branch from `main` and opens a pull request against `main`.
+2. **Review** — The reviewer reviews the PR. Do not merge until the reviewer has approved it.
+3. **Merge to `main`** — Once approved, the developer merges their own PR.
+4. **Confirm the dev deploy** — Merging to `main` triggers **Actions** > **Deploy DEVELOPMENT to App Engine**. The developer confirms that the run finished successfully.
+5. **Test on dev** — The developer tests the change in the development environment.
+6. **Test on staging (only when needed)** — If the change needs to be verified on staging before it goes live, the developer opens a pull request from `main` into `staging` and merges it. This triggers **Actions** > **Deploy STAGING to App Engine**; confirm that the run finished successfully, then test the change in the staging environment. Staging may be stopped to save costs — start it first if so (see [Staging Environment Control](#staging-environment-control)). Skip this step when testing on dev is enough.
+7. **Open a PR to `prod`** — When the change works on dev (and on staging, if step 6 applied), the developer opens a pull request from `main` into `prod`. The **PR Prod Schema Diff** workflow comments the tenant schema differences between development and production on the PR; confirm every difference is acceptable before merging.
+8. **Merge to `prod`** — The developer merges the PR, which triggers **Actions** > **Deploy PRODUCTION to App Engine**. Confirm that the run finished successfully.
+9. **Verify on production** — The developer verifies the change in the production environment.
+
+> A `main` → `prod` PR ships everything on `main` that is not yet on `prod`, not just your own change. Check the PR's commit list before merging, and coordinate with the authors of any other changes it includes.
 
 ## Staging Environment Control
 
