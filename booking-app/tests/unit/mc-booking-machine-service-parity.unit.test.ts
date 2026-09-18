@@ -55,6 +55,12 @@ describe("mcBookingMachine service regions stay in parity", () => {
       expect(impl.guards, service.approvedGuard).toHaveProperty(
         service.approvedGuard,
       );
+      expect(impl.guards, service.alreadyApprovedGuard).toHaveProperty(
+        service.alreadyApprovedGuard,
+      );
+      expect(impl.guards, service.alreadyDeclinedGuard).toHaveProperty(
+        service.alreadyDeclinedGuard,
+      );
       expect(impl.actions, service.approveAction).toHaveProperty(
         service.approveAction,
       );

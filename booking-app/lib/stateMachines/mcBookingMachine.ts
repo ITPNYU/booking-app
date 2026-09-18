@@ -205,6 +205,14 @@ export const mcBookingMachine = setup({
             "Evaluate Staff Request": {
               always: [
                 {
+                  target: "Staff Approved",
+                  guard: { type: "staffAlreadyApproved" },
+                },
+                {
+                  target: "Staff Declined",
+                  guard: { type: "staffAlreadyDeclined" },
+                },
+                {
                   target: "Staff Requested",
                   guard: { type: "staffRequested" },
                 },
@@ -260,6 +268,14 @@ export const mcBookingMachine = setup({
           states: {
             "Evaluate Catering Request": {
               always: [
+                {
+                  target: "Catering Approved",
+                  guard: { type: "cateringAlreadyApproved" },
+                },
+                {
+                  target: "Catering Declined",
+                  guard: { type: "cateringAlreadyDeclined" },
+                },
                 {
                   target: "Catering Requested",
                   guard: { type: "caterRequested" },
@@ -317,6 +333,14 @@ export const mcBookingMachine = setup({
             "Evaluate Setup Request": {
               always: [
                 {
+                  target: "Setup Approved",
+                  guard: { type: "setupAlreadyApproved" },
+                },
+                {
+                  target: "Setup Declined",
+                  guard: { type: "setupAlreadyDeclined" },
+                },
+                {
                   target: "Setup Requested",
                   guard: { type: "setupRequested" },
                 },
@@ -372,6 +396,14 @@ export const mcBookingMachine = setup({
           states: {
             "Evaluate Cleaning Request": {
               always: [
+                {
+                  target: "Cleaning Approved",
+                  guard: { type: "cleaningAlreadyApproved" },
+                },
+                {
+                  target: "Cleaning Declined",
+                  guard: { type: "cleaningAlreadyDeclined" },
+                },
                 {
                   target: "Cleaning Requested",
                   guard: { type: "cleanRequested" },
@@ -429,6 +461,14 @@ export const mcBookingMachine = setup({
             "Evaluate Security Request": {
               always: [
                 {
+                  target: "Security Approved",
+                  guard: { type: "securityAlreadyApproved" },
+                },
+                {
+                  target: "Security Declined",
+                  guard: { type: "securityAlreadyDeclined" },
+                },
+                {
                   target: "Security Requested",
                   guard: { type: "securityRequested" },
                 },
@@ -485,6 +525,14 @@ export const mcBookingMachine = setup({
             "Evaluate Equipment Request": {
               always: [
                 {
+                  target: "Equipment Approved",
+                  guard: { type: "equipmentAlreadyApproved" },
+                },
+                {
+                  target: "Equipment Declined",
+                  guard: { type: "equipmentAlreadyDeclined" },
+                },
+                {
                   target: "Equipment Requested",
                   guard: { type: "equipRequested" },
                 },
@@ -540,6 +588,14 @@ export const mcBookingMachine = setup({
           states: {
             "Evaluate Furnishings Request": {
               always: [
+                {
+                  target: "Furnishings Approved",
+                  guard: { type: "furnishingsAlreadyApproved" },
+                },
+                {
+                  target: "Furnishings Declined",
+                  guard: { type: "furnishingsAlreadyDeclined" },
+                },
                 {
                   target: "Furnishings Requested",
                   guard: { type: "furnishingsRequested" },

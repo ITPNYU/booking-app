@@ -14,6 +14,7 @@ const LATE_ADDED_SERVICE_REGIONS: ReadonlyArray<{
   requestRegion: string;
   requestedState: string;
   requestApprovedState: string;
+  requestDeclinedState: string;
   closeoutRegion: string;
   closeoutPendingState: string;
   closedoutState: string;
@@ -23,6 +24,7 @@ const LATE_ADDED_SERVICE_REGIONS: ReadonlyArray<{
     requestRegion: "Furnishings Request",
     requestedState: "Furnishings Requested",
     requestApprovedState: "Furnishings Approved",
+    requestDeclinedState: "Furnishings Declined",
     closeoutRegion: "Furnishings Closeout",
     closeoutPendingState: "Furnishings Closeout Pending",
     closedoutState: "Furnishings Closedout",
@@ -52,9 +54,17 @@ export function fillMissingMcServiceRegions(
     let changed = false;
     for (const region of LATE_ADDED_SERVICE_REGIONS) {
       if (region.requestRegion in regions) continue;
-      regions[region.requestRegion] = servicesRequested?.[region.key]
-        ? region.requestedState
-        : region.requestApprovedState;
+      // Mirrors "Evaluate <Service> Request": a requested service that
+      // already holds a decision lands in its final state (ADR-0001).
+      const requested = servicesRequested?.[region.key] === true;
+      const decision = servicesApproved?.[region.key];
+      regions[region.requestRegion] = !requested
+        ? region.requestApprovedState
+        : decision === true
+          ? region.requestApprovedState
+          : decision === false
+            ? region.requestDeclinedState
+            : region.requestedState;
       changed = true;
     }
     if (changed) {
