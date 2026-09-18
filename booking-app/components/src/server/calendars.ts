@@ -31,10 +31,11 @@ async function resourcesForServicesDisplay(
   return [...tenantResources, ...fallbackRooms];
 }
 
-// Every booking flow writes to Google Calendar through insertEvent,
+// Booking flows write to Google Calendar through insertEvent,
 // patchCalendarEvent or deleteEvent below — not through /api/calendarEvents —
 // so the events cache has to be dropped here for other viewers on this
-// instance to see the change. A multi-room event is mirrored onto each guest
+// instance to see the change. (The admin sync/import routes patch events
+// directly and invalidate on their own.) A multi-room event is mirrored onto each guest
 // room's calendar, so drop every calendar rather than just the organizer's.
 const invalidateBookingCalendarCache = () => invalidateCalendarEventsCache();
 
