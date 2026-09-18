@@ -127,7 +127,7 @@ This project uses a CI/CD pipeline with automated deployments:
 The developer who writes a change owns it all the way to production. The reviewer only reviews; the developer merges, deploys, and verifies.
 
 1. **Open a PR** — The developer creates a feature branch from `main` and opens a pull request against `main`.
-2. **Review** — The reviewer reviews the PR. Do not merge until the reviewer has approved it (LGTM).
+2. **Review** — The reviewer reviews the PR. Do not merge until the reviewer has approved it.
 3. **Merge to `main`** — Once approved, the developer merges their own PR.
 4. **Confirm the dev deploy** — Merging to `main` triggers **Actions** > **Deploy DEVELOPMENT to App Engine**. The developer confirms that the run finished successfully.
 5. **Test on dev** — The developer tests the change in the development environment.
