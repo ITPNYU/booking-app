@@ -206,10 +206,15 @@ export function BookingProvider({ children }) {
   };
   // Reset while rendering, not in an effect: the Services step reads the
   // memory in its own effects, which run before this provider's.
+  // The room set the service answers were last pruned against. A new request
+  // starts without one, so the saved booking it loads is kept as it arrives
+  // however many were opened before it.
+  const previousServiceRoomKey = useRef<string | null>(null);
   const serviceRuleMemoryFlowKey = useRef(flowKey);
   if (serviceRuleMemoryFlowKey.current !== flowKey) {
     serviceRuleMemoryFlowKey.current = flowKey;
     resetServiceRuleMemory();
+    previousServiceRoomKey.current = null;
   }
   const [agreements, setAgreements] = useState<{
     flowKey: string;
@@ -271,7 +276,6 @@ export function BookingProvider({ children }) {
   );
   const tenantShowSetup = schema.form?.services?.showSetup ?? false;
   const serviceRoomKey = serviceRooms.map(getServiceResourceId).join(",");
-  const previousServiceRoomKey = useRef<string | null>(null);
   useEffect(() => {
     const previous = previousServiceRoomKey.current;
     previousServiceRoomKey.current = serviceRoomKey;

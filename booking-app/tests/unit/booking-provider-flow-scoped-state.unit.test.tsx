@@ -275,6 +275,48 @@ describe("BookingProvider - state scoped to the current request", () => {
     expect(context.isDetailsValid).toBe(false);
   });
 
+  it("does not prune a saved booking loaded after another one", () => {
+    const roomA = { roomId: "101", name: "A", capacity: "10" } as RoomSetting;
+    const roomB = { roomId: "102", name: "B", capacity: "10" } as RoomSetting;
+    const saved = (title: string) =>
+      ({ title, cateringByRoom: { "101": "yes", "102": "yes" } }) as any;
+    (usePathname as any).mockReturnValue("/mc/edit/form/evt1");
+    const { rerender } = render(tree());
+    act(() => {
+      context.setSelectedRooms([roomA]);
+      context.setFormData(saved("first"));
+    });
+
+    navigate(rerender, "/mc/edit/form/evt2");
+    act(() => {
+      context.setSelectedRooms([roomB]);
+      context.setFormData(saved("second"));
+    });
+
+    expect(context.formData?.cateringByRoom).toEqual({
+      "101": "yes",
+      "102": "yes",
+    });
+  });
+
+  it("still prunes when a room is removed within the request", () => {
+    const roomA = { roomId: "101", name: "A", capacity: "10" } as RoomSetting;
+    const roomB = { roomId: "102", name: "B", capacity: "10" } as RoomSetting;
+    (usePathname as any).mockReturnValue("/mc/edit/form/evt1");
+    const { rerender } = render(tree());
+    navigate(rerender, "/mc/edit/form/evt2");
+    act(() => {
+      context.setSelectedRooms([roomA, roomB]);
+      context.setFormData({
+        cateringByRoom: { "101": "yes", "102": "yes" },
+      } as any);
+    });
+
+    act(() => context.setSelectedRooms([roomA]));
+
+    expect(context.formData?.cateringByRoom).toEqual({ "101": "yes" });
+  });
+
   it("forgets the per-room rule memory of a room that is removed", () => {
     const roomA = { roomId: "101", name: "A", capacity: "10" } as RoomSetting;
     const roomB = { roomId: "102", name: "B", capacity: "10" } as RoomSetting;
