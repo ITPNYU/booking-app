@@ -12,11 +12,17 @@ import { calendar_v3 } from "googleapis/build/src/apis/calendar";
 // calendar event itself is TTL-bound (and `fresh` bypasses it).
 const CALENDAR_CACHE_TTL = 60_000; // 60 seconds
 
+// Stale-while-revalidate hands back whatever is cached, however old. Mutations
+// made by other instances (or directly in Google Calendar) never invalidate
+// this instance, so a range nobody viewed for hours would otherwise be served
+// hours out of date. Past this age an entry counts as a miss and is awaited.
+const CALENDAR_CACHE_MAX_STALE = 5 * 60_000; // 5 minutes
+
 // Hard bound on entries. Keys are (calendarId, range) so a well-behaved
 // client produces only a handful, but nothing ever expired entries before —
 // stale entries were kept forever for stale-while-revalidate — so cap the map
-// and evict oldest-inserted first. ~500 entries × tens of KB stays well within
-// an F1 instance's memory.
+// and evict least-recently-written first. ~500 entries × tens of KB stays well
+// within an F1 instance's memory.
 const MAX_CACHE_ENTRIES = 500;
 
 type CacheEntry = { data: calendar_v3.Schema$Event[]; timestamp: number };
@@ -86,8 +92,11 @@ function refresh(
       // fetch (replaced by a forced one, or unregistered by invalidation)
       // resolving late must not clobber newer data.
       if (inflight.get(key) === promise) {
+        // Maps iterate in insertion order, and re-setting an existing key keeps
+        // its old position. Delete first so a refreshed (hot) range moves to the
+        // end instead of staying first in line for eviction.
+        cache.delete(key);
         cache.set(key, { data, timestamp: Date.now() });
-        // Maps iterate in insertion order; evict oldest-inserted entries first.
         for (const oldestKey of cache.keys()) {
           if (cache.size <= MAX_CACHE_ENTRIES) break;
           cache.delete(oldestKey);
@@ -130,6 +139,7 @@ export function invalidateCalendarEventsCache(calendarId?: string) {
  *   - fresh cache hit  → return immediately.
  *   - stale cache hit  → return the stale data immediately AND refresh in the
  *                        background (stale-while-revalidate). No user waits.
+ *   - too-stale hit    → older than CALENDAR_CACHE_MAX_STALE: treated as a miss.
  *   - cache miss       → await a single fetch, coalescing concurrent misses.
  *   - options.fresh    → bypass the cache and await a fresh fetch (used after a
  *                        booking is created/changed so the new event shows now).
@@ -147,7 +157,7 @@ export async function getCachedRawCalendarEvents(
   }
 
   const entry = cache.get(key);
-  if (entry) {
+  if (entry && Date.now() - entry.timestamp < CALENDAR_CACHE_MAX_STALE) {
     if (Date.now() - entry.timestamp >= CALENDAR_CACHE_TTL) {
       // Stale: kick off a background refresh but don't block on it. Swallow
       // errors here — the caller already has usable (stale) data.
@@ -158,6 +168,7 @@ export async function getCachedRawCalendarEvents(
     return entry.data;
   }
 
-  // Cold miss: must fetch. Concurrent misses share one upstream call.
+  // Cold (or too-stale) miss: must fetch. Concurrent misses share one upstream
+  // call.
   return refresh(key, calendarId, timeMin, timeMax);
 }

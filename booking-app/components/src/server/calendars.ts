@@ -1,4 +1,5 @@
 import { bookingCalendarStrToDate } from "@/components/src/client/utils/date";
+import { invalidateCalendarEventsCache } from "@/lib/calendarEventsCache";
 import { getCalendarClient } from "@/lib/googleClient";
 import { serverGetTenantResources } from "@/lib/tenant/serverGetTenantResources";
 import { traceExternalCall } from "@/lib/newrelic-utils";
@@ -30,6 +31,13 @@ async function resourcesForServicesDisplay(
   return [...tenantResources, ...fallbackRooms];
 }
 
+// Every booking flow writes to Google Calendar through insertEvent,
+// patchCalendarEvent or deleteEvent below — not through /api/calendarEvents —
+// so the events cache has to be dropped here for other viewers on this
+// instance to see the change. A multi-room event is mirrored onto each guest
+// room's calendar, so drop every calendar rather than just the organizer's.
+const invalidateBookingCalendarCache = () => invalidateCalendarEventsCache();
+
 export const patchCalendarEvent = async (
   event: any,
   calendarId: string,
@@ -50,6 +58,7 @@ export const patchCalendarEvent = async (
       sendUpdates: "all", // Send notifications to all attendees when calendar is updated
     }),
   );
+  invalidateBookingCalendarCache();
 };
 
 export const inviteUserToCalendarEvent = async (
@@ -263,6 +272,7 @@ export const insertEvent = async ({
           },
         }),
     );
+    invalidateBookingCalendarCache();
     return event.data;
   } catch (error: any) {
     // Log the raw inputs and the Google error body; the generic gaxios
@@ -380,6 +390,7 @@ export const deleteEvent = async (
         sendUpdates: "all", // Send cancellation notifications to all attendees
       }),
     );
+    invalidateBookingCalendarCache();
     console.log(`deleted calendar event for ${roomId}`);
   } catch (error) {
     console.log(`calendar event doesn't exist for room ${roomId}`);

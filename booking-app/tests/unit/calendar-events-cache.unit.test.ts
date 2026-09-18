@@ -115,6 +115,46 @@ describe("calendarEventsCache", () => {
     expect(listMock.mock.calls.length).toBe(callsBefore + 1);
   });
 
+  it("keeps a refreshed (hot) range when evicting, dropping colder ones first", async () => {
+    listMock.mockImplementation(async () => oncePage([{ id: "x" }]));
+    const range = (i: number) =>
+      [
+        "cal1",
+        `2026-01-01T00:00:00.${String(i).padStart(3, "0")}Z`,
+        "2026-02-01T00:00:00Z",
+      ] as const;
+    for (let i = 0; i < 500; i++) await getCachedRawCalendarEvents(...range(i));
+
+    // Re-fetch the oldest-inserted range, then overflow the cap by one.
+    await getCachedRawCalendarEvents(...range(0), { fresh: true });
+    await getCachedRawCalendarEvents(...range(500));
+    expect(_getCalendarEventsCacheSizeForTesting()).toBe(500);
+
+    const callsBefore = listMock.mock.calls.length;
+    // The refreshed range survived; the next-oldest (i=1) was evicted instead.
+    await getCachedRawCalendarEvents(...range(0));
+    expect(listMock.mock.calls.length).toBe(callsBefore);
+    await getCachedRawCalendarEvents(...range(1));
+    expect(listMock.mock.calls.length).toBe(callsBefore + 1);
+  });
+
+  it("awaits a fresh fetch instead of serving an entry past the max stale age", async () => {
+    vi.useFakeTimers();
+    try {
+      listMock.mockResolvedValueOnce(oncePage([{ id: "old" }]));
+      await getCachedRawCalendarEvents("cal1", ...RANGE);
+
+      // Nobody viewed this range for an hour: hour-old data must not be shown.
+      vi.advanceTimersByTime(60 * 60_000);
+      listMock.mockResolvedValueOnce(oncePage([{ id: "new" }]));
+      const result = await getCachedRawCalendarEvents("cal1", ...RANGE);
+      expect(result).toEqual([{ id: "new" }]);
+      expect(listMock).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("serves stale data immediately and refreshes in the background", async () => {
     vi.useFakeTimers();
     try {
