@@ -438,6 +438,38 @@ describe("components/src/server/admin", () => {
     expect(result.history.map((h: any) => h.status)).toContain(
       BookingStatusLabel.REQUESTED,
     );
+    expect(result.furnishingsLines).toEqual([]);
+  });
+
+  it("flattens the furnishings request for the email template", async () => {
+    seedCollection("tenant-z-bookings", [
+      {
+        id: "booking-2",
+        data: {
+          calendarEventId: "cal-2",
+          requestNumber: 78,
+          title: "Furniture Workshop",
+          email: "requester@nyu.edu",
+          startDate: makeTimestamp("2024-03-01T05:00:00.000Z"),
+          endDate: makeTimestamp("2024-03-01T07:00:00.000Z"),
+          requestedAt: makeTimestamp("2024-02-25T10:00:00.000Z"),
+          status: BookingStatusLabel.REQUESTED,
+          furnishingsByRoom: { "103": "yes", "233": "no" },
+          furnishingsDetailsByRoom: { "103": "Two extra tables" },
+          furnishingsDetails: "Two extra tables",
+          chartFieldForFurnishingsByRoom: { "103": "CF-103", "233": "CF-233" },
+        },
+      },
+    ]);
+
+    const { serverBookingContents } =
+      await import("@/components/src/server/admin");
+
+    const result = await serverBookingContents("cal-2", "tenant-z");
+
+    expect(result.furnishingsLines).toEqual([
+      "103: Two extra tables (chartfield: CF-103)",
+    ]);
   });
 
   it("performs first approval flow and notifies final approver", async () => {

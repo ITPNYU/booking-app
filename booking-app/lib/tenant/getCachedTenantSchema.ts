@@ -24,7 +24,9 @@ export async function getCachedTenantSchema(
   }
   if (shouldBypassAuth()) {
     const test = getTestTenantSchema(tenant);
-    return test ? coerceTenantSchema(test as unknown as Record<string, unknown>, tenant) : null;
+    return test
+      ? coerceTenantSchema(test as unknown as Record<string, unknown>, tenant)
+      : null;
   }
 
   const now = Date.now();

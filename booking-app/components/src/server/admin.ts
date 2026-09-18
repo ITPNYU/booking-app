@@ -1,3 +1,4 @@
+import { formatFurnishingsLines } from "@/components/src/utils/furnishingsDisplay";
 import {
   logServerBookingChange,
   serverDeleteData,
@@ -235,6 +236,8 @@ export const serverBookingContents = async (id: string, tenant?: string) => {
       hour12: true,
     }),
     secondaryContactName: getSecondaryContactName(booking),
+    // Flattened for the email template; object maps cannot be rendered there.
+    furnishingsLines: formatFurnishingsLines(booking),
   };
 
   return updatedBookingObj as unknown as BookingFormDetails;
@@ -445,7 +448,12 @@ export const serverApproveInstantBooking = async (
   if (isMediaCommons(tenant) && bookingData) {
     const { getMediaCommonsServices } =
       await import("@/components/src/utils/tenantUtils");
-    const servicesRequested = getMediaCommonsServices(bookingData);
+    const { serverGetTenantResources } =
+      await import("@/lib/tenant/serverGetTenantResources");
+    const servicesRequested = getMediaCommonsServices(
+      bookingData,
+      await serverGetTenantResources(tenant),
+    );
     const hasServices = Object.values(servicesRequested).some(Boolean);
 
     if (hasServices) {
@@ -954,9 +962,14 @@ export const serverGetRoomCalendarIds = async (
       schema.resources,
     );
 
-    const rooms = resourcesWithCorrectCalendarIds.filter(
-      (resource: any) =>
-        String(resource.resourceId ?? resource.roomId) === String(roomId),
+    // Multi-room bookings store roomId as a comma-joined list ("202, 1201"),
+    // so match each listed room rather than the raw string.
+    const requestedRoomIds = String(roomId)
+      .split(",")
+      .map((id) => id.trim())
+      .filter(Boolean);
+    const rooms = resourcesWithCorrectCalendarIds.filter((resource: any) =>
+      requestedRoomIds.includes(String(resource.resourceId ?? resource.roomId)),
     );
 
     console.log(`Rooms: ${JSON.stringify(rooms)}`);

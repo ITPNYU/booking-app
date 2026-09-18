@@ -107,15 +107,16 @@ import { BookingStatusLabel } from "@/components/src/types";
 // Helper function to simulate logBookingHistory action from mcBookingMachine
 const simulateLogBookingHistory = async (
   context: { email?: string },
-  params: { status?: string; note?: string }
+  params: { status?: string; note?: string },
+  event: { email?: string } = {},
 ) => {
   const { status, note } = params;
 
   if (!status) return;
 
-  // mcBookingMachine logBookingHistory simply uses context.email || "system"
-  // Automatic CANCELED transitions are handled separately by handleStateTransitions
-  const changedBy = context.email || "system";
+  // mcBookingMachine logBookingHistory prefers the actor email from the event.
+  // The persisted context email is the booking/requestor email.
+  const changedBy = event.email?.trim() || context.email || "system";
 
   await mockLogServerBookingChange({
     bookingId: "booking-123",
@@ -226,7 +227,28 @@ describe("NO_SHOW System Attribution", () => {
   });
 
   describe("mcBookingMachine logBookingHistory Action", () => {
-    it("should use user email for booking history logs (automatic CANCELED transitions are handled separately)", async () => {
+    it("should prefer the actor email over the booking context email for no-show history logs", async () => {
+      const context = { email: "requestor@nyu.edu" };
+      const event = { email: "staff@nyu.edu" };
+      const params = {
+        status: "NO-SHOW",
+        note: "Booking marked as no show",
+      };
+
+      await simulateLogBookingHistory(context, params, event);
+
+      expect(mockLogServerBookingChange).toHaveBeenCalledWith({
+        bookingId: "booking-123",
+        calendarEventId: "cal-event-123",
+        status: "NO-SHOW",
+        changedBy: "staff@nyu.edu",
+        requestNumber: 123,
+        note: "Booking marked as no show",
+        tenant: "mc",
+      });
+    });
+
+    it("should fall back to context email when event actor email is absent", async () => {
       const context = { email: "user@nyu.edu" };
       const params = {
         status: "NO-SHOW",

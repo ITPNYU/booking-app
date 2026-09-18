@@ -19,6 +19,7 @@ import { PagePermission } from "../../../types";
 import { PERMISSION_PATH } from "../../../utils/permissions";
 import useHandleStartBooking from "../booking/hooks/useHandleStartBooking";
 import ConfirmDialog from "./ConfirmDialog";
+import getEnvironmentTitle from "./getEnvironmentTitle";
 import { DatabaseContext } from "./Provider";
 import { SchemaContext } from "./SchemaProvider";
 
@@ -139,14 +140,9 @@ export default function NavBar() {
     router.push("/");
   };
 
-  const envTitle = (() => {
-    const branch = process.env.NEXT_PUBLIC_BRANCH_NAME;
-    if (branch.toLowerCase() === "production") {
-      return "";
-    }
-    const branchTitle = branch.charAt(0).toUpperCase() + branch.slice(1);
-    return `[${branchTitle}]`;
-  })();
+  const envTitle = getEnvironmentTitle(
+    process.env.NEXT_PUBLIC_BRANCH_NAME,
+  );
 
   useEffect(() => {
     const isTenantRoot = /^\/[^/]+$/.test(pathname);

@@ -1,9 +1,15 @@
-import { applyMcResourceServices } from "@/lib/tenant/mcResourceServices";
 import {
   generateDefaultSchema,
   type SchemaContextType,
 } from "../client/routes/components/SchemaProvider";
 import { TENANTS } from "../constants/tenants";
+import { MC_TEST_RESOURCE_SERVICES } from "./mcResourceServicesFixture";
+
+/** Attach the MC services snapshot to a test resource (mirrors the tenant schema). */
+const withMcServices = <T extends { resourceId: string }>(resource: T) => ({
+  ...resource,
+  services: MC_TEST_RESOURCE_SERVICES[resource.resourceId] ?? {},
+});
 
 const baseMediaCommonsSchema: SchemaContextType = {
   ...generateDefaultSchema(TENANTS.MC),
@@ -79,7 +85,7 @@ const baseMediaCommonsSchema: SchemaContextType = {
     },
   },
   resources: [
-    applyMcResourceServices({
+    withMcServices({
       capacity: 30,
       name: "Lecture Hall 202",
       resourceId: "202",
@@ -112,7 +118,7 @@ const baseMediaCommonsSchema: SchemaContextType = {
         adminVIP: 16,
       },
     } as any),
-    applyMcResourceServices({
+    withMcServices({
       capacity: 20,
       name: "Studio 220",
       resourceId: "220",
@@ -145,7 +151,7 @@ const baseMediaCommonsSchema: SchemaContextType = {
         adminVIP: 14,
       },
     } as any),
-    applyMcResourceServices({
+    withMcServices({
       capacity: 15,
       name: "Training Room 230",
       resourceId: "230",

@@ -20,5 +20,12 @@ export async function requireSession(): Promise<SessionContext | null> {
   if (!email || !email.endsWith("@nyu.edu")) {
     return null;
   }
-  return { email, netId: email.split("@")[0] };
+  const sessionNetId = (session.user as unknown as Record<string, unknown>)
+    .netId;
+  const netId =
+    typeof sessionNetId === "string" && sessionNetId.trim()
+      ? sessionNetId.trim().toLowerCase()
+      : email.split("@")[0];
+
+  return { email, netId };
 }

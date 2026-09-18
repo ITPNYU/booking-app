@@ -28,6 +28,17 @@ interface Props {
   selectedServices?: string[] | null;
 }
 
+/** Filter chip label -> MediaCommonsServiceFlags key. */
+const SERVICE_FILTER_KEYS: Record<string, string> = {
+  Staffing: "staff",
+  Furniture: "furnishings",
+};
+
+export function getServiceFilterKey(service: unknown): string | null {
+  if (typeof service !== "string") return null;
+  return SERVICE_FILTER_KEYS[service] ?? service.toLowerCase();
+}
+
 function getDateRangeFromDateSelection(selectedDateRange: DateRangeFilter) {
   switch (selectedDateRange) {
     case "Today": {
@@ -233,9 +244,8 @@ class BookingFilter {
           row.xstateData?.snapshot?.context?.servicesRequested || {};
         return selectedServices.some((service) => {
           // Map display names to keys
-          const serviceKey =
-            service === "Staffing" ? "staff" : service.toLowerCase();
-          return servicesRequested[serviceKey] === true;
+          const serviceKey = getServiceFilterKey(service);
+          return serviceKey !== null && servicesRequested[serviceKey] === true;
         });
       });
     }
@@ -317,9 +327,22 @@ export function useBookingFilters(props: Props): BookingRow[] {
     // `filterPageContext` ever sees it. Gated on `pageContext`, not the
     // caller's role, because admins / PAs also use /my-bookings to see their
     // own bookings.
+    // The staff views' (PA / liaison / services / admin) "All Future" range is
+    // open-ended, so fetch it ascending (nearest first). With the default
+    // descending order the LIMIT-bounded window holds the farthest-future
+    // bookings, and once a semester's bulk bookings exceed the limit, near-term
+    // requests never reach the client — the liaison table renders empty while
+    // approval emails still go out, and the admin / services status filters
+    // (e.g. "Pre-approved") appear broken because the near-term rows they
+    // would match were never fetched. Search is unaffected (no LIMIT).
     setFilters({
       dateRange: getDateRangeFromDateSelection(selectedDateRange),
       sortField: "startDate",
+      sortDirection:
+        pageContext >= PageContextLevel.PA &&
+        selectedDateRange === "All Future"
+          ? "asc"
+          : undefined,
       searchQuery,
       userEmail: pageContext === PageContextLevel.USER ? userEmail : undefined,
     });

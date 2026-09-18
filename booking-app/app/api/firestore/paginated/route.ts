@@ -84,11 +84,18 @@ export async function POST(req: NextRequest) {
       q = q.where("email", "==", session.email);
     }
 
+    // Sort direction is client-controlled so open-ended future views ("All
+    // Future") can fetch ascending — nearest bookings first. With the default
+    // descending order, the LIMIT-bounded window holds the *farthest*-future
+    // bookings, and once a semester's bulk bookings exceed LIMIT, near-term
+    // requests never reach the client (empty liaison/admin approval tables).
+    const sortDirection = body.filters.sortDirection === "asc" ? "asc" : "desc";
+
     const searchQuery = body.filters.searchQuery?.trim();
     if (searchQuery) {
       // Search path: fetch with date filter only, then filter in-process.
       const searchTerm = searchQuery.toLowerCase();
-      const orderedQuery = q.orderBy(body.filters.sortField, "desc");
+      const orderedQuery = q.orderBy(body.filters.sortField, sortDirection);
       const snapshot = await orderedQuery.get();
       const matchingDocs = snapshot.docs.filter((doc) => {
         const data = doc.data();
@@ -110,7 +117,7 @@ export async function POST(req: NextRequest) {
     // Standard paginated path
     let orderedQuery: FirebaseFirestore.Query = q.orderBy(
       body.filters.sortField,
-      "desc",
+      sortDirection,
     );
     if (body.lastVisible) {
       const cursor = (body.lastVisible as Record<string, unknown>)[

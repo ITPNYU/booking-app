@@ -2,6 +2,7 @@ import { TENANTS } from "@/components/src/constants/tenants";
 import { TableNames } from "@/components/src/policy";
 import { serverUpdateDataByCalendarEventId } from "@/components/src/server/admin";
 import { BookingStatusLabel } from "@/components/src/types";
+import { getServiceDecisions } from "@/components/src/utils/serviceDecisions";
 import {
   getMediaCommonsServices,
   isMediaCommons,
@@ -10,40 +11,11 @@ import {
   serverGetDataByCalendarEventId,
 } from "@/lib/firebase/server/adminDb";
 import { createActor } from "xstate";
+import { serverGetTenantResources } from "@/lib/tenant/serverGetTenantResources";
 import { itpBookingMachine } from "./itpBookingMachine";
 import { mcBookingMachine } from "./mcBookingMachine";
+import { fillMissingMcServiceRegions } from "./mcServiceRegionMigration";
 import type { PersistedXStateData } from "./xstateTypes";
-
-const SERVICE_APPROVAL_FIELD_MAP = {
-  staff: "staffServiceApproved",
-  equipment: "equipmentServiceApproved",
-  catering: "cateringServiceApproved",
-  cleaning: "cleaningServiceApproved",
-  security: "securityServiceApproved",
-  setup: "setupServiceApproved",
-} as const;
-
-/**
- * Build XState servicesApproved context from Firestore booking fields.
- * Only explicit boolean decisions are included so cleared/null fields do not
- * retain a prior declined state after edit/resubmission.
- */
-export function getServicesApprovedFromBookingData(
-  bookingData: any,
-): Record<string, boolean> {
-  const servicesApproved: Record<string, boolean> = {};
-
-  for (const [serviceKey, fieldName] of Object.entries(
-    SERVICE_APPROVAL_FIELD_MAP,
-  )) {
-    const value = bookingData?.[fieldName];
-    if (typeof value === "boolean") {
-      servicesApproved[serviceKey] = value;
-    }
-  }
-
-  return servicesApproved;
-}
 
 /**
  * Map booking status to XState state
@@ -114,7 +86,10 @@ export async function createXStateDataFromBookingStatus(
 
   // Build input context
   const servicesRequested = isMediaCommons(tenant)
-    ? getMediaCommonsServices(bookingData)
+    ? getMediaCommonsServices(
+        bookingData,
+        await serverGetTenantResources(tenant),
+      )
     : {};
 
   console.log(
@@ -125,11 +100,12 @@ export async function createXStateDataFromBookingStatus(
       servicesRequestedResult: servicesRequested,
       bookingDataServiceFields: {
         roomSetup: bookingData?.roomSetup,
-        staffingServicesDetails: bookingData?.staffingServicesDetails,
+        staffingServices: bookingData?.staffingServices,
         equipmentServices: bookingData?.equipmentServices,
         catering: bookingData?.catering,
         cleaningService: bookingData?.cleaningService,
         hireSecurity: bookingData?.hireSecurity,
+        furnishingsByRoom: bookingData?.furnishingsByRoom,
       },
     },
   );
@@ -147,7 +123,7 @@ export async function createXStateDataFromBookingStatus(
         email: bookingData.email,
         isVip: bookingData.isVip || false,
         servicesRequested,
-        servicesApproved: getServicesApprovedFromBookingData(bookingData),
+        servicesApproved: getServiceDecisions(bookingData),
         // Flag to indicate this XState was created from existing booking without prior xstateData
         _restoredFromStatus: true,
       }
@@ -474,15 +450,24 @@ export async function restoreXStateFromFirestore(
 
       // Update MC-specific services data
       if (isMediaCommons(tenant)) {
-        const currentServicesRequested = getMediaCommonsServices(bookingData);
-        const currentServicesApproved =
-          getServicesApprovedFromBookingData(bookingData);
+        const currentServicesRequested = getMediaCommonsServices(
+          bookingData,
+          await serverGetTenantResources(tenant),
+        );
+        // Only explicit booleans count: a flag the edit endpoint deleted is a
+        // pending service again (ADR-0001).
+        const currentServicesApproved = getServiceDecisions(bookingData);
 
         updatedSnapshot.context = {
           ...updatedSnapshot.context,
           servicesRequested: currentServicesRequested,
           servicesApproved: currentServicesApproved,
         };
+        updatedSnapshot.value = fillMissingMcServiceRegions(
+          updatedSnapshot.value,
+          currentServicesRequested,
+          currentServicesApproved,
+        );
       }
     }
 

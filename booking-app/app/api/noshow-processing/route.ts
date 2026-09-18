@@ -1,3 +1,4 @@
+import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
 import { TableNames } from "@/components/src/policy";
 import {
   serverBookingContents,
@@ -15,6 +16,8 @@ import {
   serverGetDataByCalendarEventId,
   serverSaveDataToFirestore,
 } from "@/lib/firebase/server/adminDb";
+import { requireSession } from "@/lib/api/requireSession";
+import { shouldBypassAuth } from "@/lib/utils/testEnvironment";
 import { Timestamp } from "firebase-admin/firestore";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -27,24 +30,33 @@ export async function POST(req: NextRequest) {
   let requestBody: {
     calendarEventId?: string;
     email?: string;
-    netId?: string;
-    tenant?: string;
   } = {};
 
   try {
     requestBody = await req.json();
-    const { calendarEventId, email, netId, tenant } = requestBody;
+    const { calendarEventId, email } = requestBody;
+    const tenant = req.headers.get("x-tenant") || DEFAULT_TENANT;
 
-    if (!calendarEventId || !email || !netId) {
+    if (!calendarEventId) {
       return NextResponse.json(
-        { error: "Missing required fields" },
+        { error: "Missing required field: calendarEventId" },
         { status: 400 },
       );
     }
 
+    const session = await requireSession();
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Only the authenticated session may determine the audit actor. E2E tests
+    // have no real session, so preserve their explicit mocked identity.
+    const actorEmail =
+      shouldBypassAuth() && email?.trim() ? email.trim() : session.email;
+
     console.log(
       `🔄 NOSHOW PROCESSING API CALLED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-      { calendarEventId, email, netId, tenant },
+      { calendarEventId, actorEmail, tenant },
     );
 
     const bookingDoc = (await serverGetDataByCalendarEventId(
@@ -58,28 +70,33 @@ export async function POST(req: NextRequest) {
       roomId?: string;
       startDate?: unknown;
       requestedAt?: unknown;
+      netId?: string;
     } | null;
 
     if (!bookingDoc) {
       throw new Error("Booking not found");
     }
 
+    // The policy violation belongs to the person who made the booking, not
+    // the operator. Never accept that identity from the request body.
+    const bookingNetId = bookingDoc.netId || bookingDoc.email?.split("@")[0];
+
     await serverUpdateDataByCalendarEventId(
       TableNames.BOOKING,
       calendarEventId,
       {
         noShowedAt: Timestamp.now(),
-        noShowedBy: email,
+        noShowedBy: actorEmail,
       },
       tenant,
     );
 
     // Pre-ban policy-violation log (same gate as traditional helper)
-    if (bookingDoc.startDate && bookingDoc.requestedAt) {
+    if (bookingDoc.startDate && bookingDoc.requestedAt && bookingNetId) {
       await serverSaveDataToFirestore(
         TableNames.PRE_BAN_LOGS,
         {
-          netId,
+          netId: bookingNetId,
           bookingId: calendarEventId,
           noShowDate: Timestamp.now(),
         },
@@ -92,7 +109,7 @@ export async function POST(req: NextRequest) {
         bookingId: bookingDoc.id,
         calendarEventId,
         status: BookingStatusLabel.NO_SHOW,
-        changedBy: email,
+        changedBy: actorEmail,
         requestNumber: bookingDoc.requestNumber,
         tenant,
       });
@@ -103,9 +120,11 @@ export async function POST(req: NextRequest) {
       undefined,
       tenant,
     );
-    const violationCount = preBanLogs.filter(
-      (log: any) => log.netId === netId && log?.excused !== true,
-    ).length;
+    const violationCount = bookingNetId
+      ? preBanLogs.filter(
+          (log: any) => log.netId === bookingNetId && log?.excused !== true,
+        ).length
+      : 0;
 
     const emailConfig = await getTenantEmailConfig(tenant);
     const headerMessage = emailConfig.emailNotifications.noShow.replace(
@@ -167,7 +186,7 @@ export async function POST(req: NextRequest) {
 
     console.log(
       `✅ NOSHOW PROCESSING API SUCCESS [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-      { calendarEventId, email, netId },
+      { calendarEventId, actorEmail, bookingNetId },
     );
 
     return NextResponse.json({ success: true });

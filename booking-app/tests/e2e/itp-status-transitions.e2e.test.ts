@@ -38,6 +38,7 @@ async function seedItpAdminUserData() {
     isEquipment: false,
     isStaffing: false,
     isSetup: false,
+    isFurnishings: false,
     isCatering: false,
     isCleaning: false,
     isSecurity: false,

@@ -4,24 +4,10 @@ import type {
   SchemaContextType,
 } from "@/components/src/client/routes/components/schemaTypes";
 import { generateDefaultSchema } from "@/components/src/client/routes/components/schemaTypes";
-import { TENANTS } from "@/components/src/constants/tenants";
-import { applyMcResourceServices } from "./mcResourceServices";
 import { normalizeResourceServices } from "./migrateResourceServices";
 
-function isMcTenantSlug(tenantSlug: string): boolean {
-  return (
-    tenantSlug === TENANTS.MC || tenantSlug === TENANTS.MEDIA_COMMONS
-  );
-}
-
-function applyTenantResourceServices(
-  resource: Resource,
-  tenantSlug: string,
-): Resource {
-  const withMc = isMcTenantSlug(tenantSlug)
-    ? applyMcResourceServices(resource)
-    : resource;
-  return normalizeResourceServices(withMc);
+function applyTenantResourceServices(resource: Resource): Resource {
+  return normalizeResourceServices(resource);
 }
 
 function normalizeResourceId(value: unknown, field: string): string {
@@ -45,11 +31,10 @@ function coerceResource(
   rawResource: Resource | Record<string, unknown>,
   index: number,
 ): Resource {
-  const {
-    roomId,
-    resourceId,
-    ...resource
-  } = rawResource as Record<string, unknown>;
+  const { roomId, resourceId, ...resource } = rawResource as Record<
+    string,
+    unknown
+  >;
   const canonicalId =
     resourceId === undefined
       ? normalizeResourceId(roomId, `resources[${index}].roomId`)
@@ -77,7 +62,9 @@ function coerceResources(
   return resources.map((resource, index) => {
     const coerced = coerceResource(resource, index);
     if (seen.has(coerced.resourceId)) {
-      throw new Error(`resources has duplicate resourceId "${coerced.resourceId}"`);
+      throw new Error(
+        `resources has duplicate resourceId "${coerced.resourceId}"`,
+      );
     }
     seen.add(coerced.resourceId);
     return coerced;
@@ -144,7 +131,7 @@ export function coerceTenantSchema(
           raw.resources as Array<Resource | Record<string, unknown>>,
         )
       : base.resources
-    ).map((resource) => applyTenantResourceServices(resource, tenantSlug)),
+    ).map((resource) => applyTenantResourceServices(resource)),
     attestations: Array.isArray(raw.attestations)
       ? (raw.attestations as SchemaContextType["attestations"])
       : base.attestations,

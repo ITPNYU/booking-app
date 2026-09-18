@@ -13,7 +13,11 @@ import {
 } from "@/lib/firebase/server/adminDb";
 import admin from "@/lib/firebase/server/firebaseAdmin";
 import { getCalendarClient } from "@/lib/googleClient";
-import { getMcResourceServices } from "@/lib/tenant/mcResourceServices";
+import {
+  getResourceServicesConfig,
+  getServiceResourceId,
+  type ServiceResourceLike,
+} from "@/components/src/utils/resourceServicesUtils";
 import { mcBookingMachine } from "@/lib/stateMachines/mcBookingMachine";
 import { applyEnvironmentCalendarIds } from "@/lib/utils/calendarEnvironment";
 import { Timestamp } from "firebase/firestore";
@@ -174,12 +178,18 @@ const isServiceValueRequested = (value: string): boolean => {
 // config (legacy schema arrays, where value === label) keep the bare label.
 // Entries whose room has a config but whose label matches no option keep the
 // "(roomId)" prefix so dry-run validation can surface the drift.
-const canonicalizeStaffingEntry = (entry: string): string => {
+const canonicalizeStaffingEntry = (
+  entry: string,
+  resources: ServiceResourceLike[],
+): string => {
   const match = entry.match(/^\((\d+)\)\s*(.+)$/);
   if (!match) return entry.trim();
   const [, roomId, rawLabel] = match;
   const label = rawLabel.trim();
-  const staffingConfig = getMcResourceServices(roomId)?.staffing;
+  const room = resources.find(r => getServiceResourceId(r) === roomId);
+  const staffingConfig = room
+    ? getResourceServicesConfig(room).staffing
+    : undefined;
   if (!staffingConfig) return label;
 
   const target = label.toLowerCase();
@@ -208,12 +218,15 @@ const canonicalizeStaffingEntry = (entry: string): string => {
   return entry.trim();
 };
 
-const parseStaffingServices = (raw: string): string =>
+const parseStaffingServices = (
+  raw: string,
+  resources: ServiceResourceLike[],
+): string =>
   raw
     // Entries are ", "-joined; split only before a "(roomId)" prefix so
     // old-format values without prefixes stay a single passthrough entry.
     .split(/,\s*(?=\()/)
-    .map(canonicalizeStaffingEntry)
+    .map(entry => canonicalizeStaffingEntry(entry, resources))
     .filter(Boolean)
     .join(",");
 
@@ -235,6 +248,9 @@ const normalizeAttendeeAffiliation = (value: string): string => {
 
 const parseDescription = (
   description: string,
+  // Tenant resources (staffing option configs); callers that only need
+  // emails may omit them.
+  resources: ServiceResourceLike[] = [],
 ): Partial<Booking> & {
   additionalEmails: string[];
   servicesRequested: {
@@ -429,7 +445,7 @@ const parseDescription = (
   const staffing = extractFieldValue("Staffing");
   const hasStaffing = Boolean(staffing) && staffing.toLowerCase() !== "none";
   bookingDetails.staffingServices = hasStaffing
-    ? parseStaffingServices(staffing)
+    ? parseStaffingServices(staffing, resources)
     : "";
   // Keep the room-prefixed original: staffingServices loses room attribution
   // once canonicalized, and the details line renders verbatim in the UI.
@@ -798,7 +814,7 @@ export async function POST(request: NextRequest) {
                 .where("calendarEventId", "==", event.id);
               const bookingSnapshot = await bookingRef.get();
               const description = event.description || "";
-              const parsedDetails = parseDescription(description);
+              const parsedDetails = parseDescription(description, resources);
               const guestEmails = findGuestEmails(event, description);
               const roomIds = findRoomIds(event.summary, description);
               const startDate = toFirebaseTimestampFromString(

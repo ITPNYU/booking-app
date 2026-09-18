@@ -3,7 +3,7 @@
 import { Alert, Box, Typography } from "@mui/material";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useContext, useEffect, useState } from "react";
-import { computeDiffSummary } from "@/lib/utils/schemaDiff";
+import { computeDiff } from "@/lib/utils/schemaDiff";
 import { PagePermission } from "../../../types";
 import { DatabaseContext } from "./Provider";
 
@@ -38,8 +38,7 @@ export default function SchemaDriftBanner() {
         return;
       }
 
-      const diff = computeDiffSummary(dev, prod);
-      setChangedCount(diff.added.length + diff.removed.length + diff.changed.length);
+      setChangedCount(computeDiff(prod, dev).length);
     } catch {
       setChangedCount(0);
     } finally {

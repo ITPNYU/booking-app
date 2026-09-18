@@ -21,6 +21,13 @@ import {
   BookingStatusLabel,
 } from "@/components/src/types";
 import { getSecondaryContactName } from "@/components/src/utils/formatters";
+import { resolveAnnexCalendarIds } from "@/components/src/utils/resourceServicesUtils";
+import {
+  getChangedServiceKeys,
+  getServiceDecisions,
+  SERVICE_APPROVAL_FIELDS,
+} from "@/components/src/utils/serviceDecisions";
+import { serverGetTenantResources } from "@/lib/tenant/serverGetTenantResources";
 import { callXStateTransitionAPI } from "@/components/src/server/db";
 import { getStatusFromXState } from "@/components/src/utils/statusFromXState";
 import { shouldUseXState } from "@/components/src/utils/tenantUtils";
@@ -161,7 +168,10 @@ async function sendEditNotificationEmails(
  * Characteristics:
  * - User can only edit their own non-approved bookings
  * - For DECLINED bookings: Triggers XState "edit" transition (DECLINED → REQUESTED)
- * - For other statuses: XState remains in current state (no state transition)
+ * - For REQUESTED bookings: XState is only told about the edit when a service
+ *   decision had to be cleared (REQUESTED → REQUESTED, context reconciled)
+ * - Service decisions are reset per service: only the services whose requests
+ *   changed lose their decision (ADR-0001)
  * - Clears declinedAt timestamp when editing declined bookings
  * - Only booking data is updated
  * - Sends notification email to first approvers
@@ -293,9 +303,16 @@ export async function PUT(request: NextRequest) {
       throw Error(`calendarId not found for room ${room.roomId}`);
     }
 
-    const otherRoomEmails = otherRooms.map(
-      (r: { calendarId: string }) => r.calendarId,
+    const annexCalendarIds = resolveAnnexCalendarIds(
+      data?.annexByRoom,
+      await serverGetTenantResources(tenant),
     );
+    const otherRoomEmails = [
+      ...new Set([
+        ...otherRooms.map((r: { calendarId: string }) => r.calendarId),
+        ...annexCalendarIds,
+      ]),
+    ].filter((email) => email && email !== calendarId);
 
     const truncatedTitle =
       data.title.length > 25 ? `${data.title.substring(0, 25)}...` : data.title;
@@ -338,21 +355,24 @@ export async function PUT(request: NextRequest) {
       origin: existingContents.origin || BookingOrigin.USER,
     };
 
-    // If a request was previously declined, reset any per-service approval
-    // decisions on resubmission. Otherwise, the restored XState context can
-    // treat services as already decided (e.g. declined) and immediately
-    // re-decline the edited request.
+    // A resubmission resets the decision of every service whose request
+    // changed, and keeps the rest (ADR-0001). An unchanged declined service
+    // therefore declines the booking again once it re-enters Services Request.
     //
-    // Firestore fields are deleted (not nulled) after the booking update so
-    // restoreXStateFromFirestore does not rehydrate stale declined decisions.
-    const SERVICE_APPROVAL_FIELDS = [
-      "staffServiceApproved",
-      "equipmentServiceApproved",
-      "cateringServiceApproved",
-      "cleaningServiceApproved",
-      "securityServiceApproved",
-      "setupServiceApproved",
-    ];
+    // Flags are deleted (not nulled) after the booking update so
+    // restoreXStateFromFirestore rebuilds the machine's servicesApproved from
+    // the remaining decisions only.
+    const changedServices = getChangedServiceKeys(existingContents, data);
+    const previousDecisions = getServiceDecisions(existingContents);
+    const clearedDecisionFields = changedServices
+      .filter((service) => typeof previousDecisions[service] === "boolean")
+      .map((service) => SERVICE_APPROVAL_FIELDS[service]);
+    console.log(`🧮 EDIT: Service request changes [${tenant?.toUpperCase()}]:`, {
+      calendarEventId,
+      changedServices,
+      previousDecisions,
+      clearedDecisionFields,
+    });
 
     // If booking was declined, clear the declinedAt timestamp to ensure status shows as REQUESTED
     if (existingContents.declinedAt) {
@@ -382,25 +402,32 @@ export async function PUT(request: NextRequest) {
       tenant,
     );
 
-    if (wasDeclined) {
+    if (clearedDecisionFields.length > 0) {
       await serverDeleteFieldsByCalendarEventId(
         TableNames.BOOKING,
         newCalendarEventId,
-        SERVICE_APPROVAL_FIELDS,
+        clearedDecisionFields,
         tenant,
       );
     }
 
-    // If booking was declined, trigger XState edit transition on the NEW calendarEventId
-    // This moves the booking from DECLINED to REQUESTED state
-    if (usesXState && wasDeclined) {
+    // Tell the machine about the edit on the NEW calendarEventId. A declined
+    // booking moves DECLINED → REQUESTED. A requested booking stays where it
+    // is, so the machine only hears about the edit when a decision was
+    // cleared and its persisted context must be reconciled with the flags;
+    // re-entering Requested re-runs the auto-approval evaluation, which
+    // ordinary REQUESTED edits should not trigger.
+    const needsMachineEdit =
+      usesXState && (wasDeclined || clearedDecisionFields.length > 0);
+    if (needsMachineEdit) {
       console.log(
-        `🔄 EDIT: Triggering XState edit transition for DECLINED booking [${tenant?.toUpperCase()}]:`,
+        `🔄 EDIT: Triggering XState edit transition [${tenant?.toUpperCase()}]:`,
         {
           oldCalendarEventId: calendarEventId,
           newCalendarEventId,
-          fromStatus: "Declined",
+          fromStatus: currentStatus,
           toStatus: "Requested",
+          changedServices,
         },
       );
 
@@ -409,6 +436,9 @@ export async function PUT(request: NextRequest) {
         "edit",
         modifiedBy,
         tenant,
+        undefined,
+        undefined,
+        changedServices,
       );
 
       if (xstateResult.success) {

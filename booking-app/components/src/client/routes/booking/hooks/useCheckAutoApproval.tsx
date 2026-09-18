@@ -2,7 +2,10 @@ import {
   TENANTS,
   isMediaCommonsTenant,
 } from "@/components/src/constants/tenants";
-import { getMediaCommonsServices } from "@/components/src/utils/tenantUtils";
+import {
+  getMediaCommonsServices,
+  isServiceRequested,
+} from "@/components/src/utils/tenantUtils";
 import {
   evaluateItpShouldAutoApprove,
   evaluateMcShouldAutoApprove,
@@ -85,7 +88,10 @@ export default function useCheckAutoApproval(
               isWalkIn,
               isVip: isVIP,
               role,
-              servicesRequested: getMediaCommonsServices(formData || {}),
+              servicesRequested: getMediaCommonsServices(
+                formData || {},
+                selectedRooms,
+              ),
             });
 
       if (canAutoApprove) {
@@ -133,7 +139,7 @@ export default function useCheckAutoApproval(
           staffing: !isWalkIn && formData.staffingServices?.length > 0,
           catering: formData.catering === "yes",
           cleaning: formData.cleaningService === "yes",
-          security: formData.hireSecurity === "yes",
+          security: isServiceRequested(formData.hireSecurity),
         }
       : undefined;
 

@@ -1,4 +1,5 @@
 import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
+import type { MediaCommonsServiceKey } from "@/components/src/utils/serviceDecisions";
 import { TableNames } from "@/components/src/policy";
 import { serverUpdateDataByCalendarEventId } from "@/components/src/server/admin";
 import { BookingStatusLabel } from "@/components/src/types";
@@ -94,6 +95,8 @@ export async function executeXStateTransition(
   email?: string,
   reason?: string,
   netId?: string,
+  /** For "edit": the services whose requests changed (their decisions reset). */
+  changedServices?: MediaCommonsServiceKey[],
 ): Promise<{ success: boolean; newState?: string; error?: string }> {
   try {
     console.log(
@@ -229,8 +232,11 @@ export async function executeXStateTransition(
       if (reason) {
         event.reason = reason;
       }
-      if (email && eventType === "checkOut") {
+      if (email && (eventType === "checkOut" || eventType === "noShow")) {
         event.email = email;
+      }
+      if (eventType === "edit" && Array.isArray(changedServices)) {
+        event.changedServices = changedServices;
       }
       actor.send(event);
     } catch (subscribeError) {
@@ -568,6 +574,10 @@ export async function executeXStateTransition(
       if (typeof servicesApproved.setup === "boolean") {
         firestoreUpdates.setupServiceApproved = servicesApproved.setup;
       }
+      if (typeof servicesApproved.furnishings === "boolean") {
+        firestoreUpdates.furnishingsServiceApproved =
+          servicesApproved.furnishings;
+      }
 
       console.log(
         `🔄 UPDATING INDIVIDUAL SERVICE FIELDS [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
@@ -580,6 +590,8 @@ export async function executeXStateTransition(
             cleaningServiceApproved: firestoreUpdates.cleaningServiceApproved,
             securityServiceApproved: firestoreUpdates.securityServiceApproved,
             setupServiceApproved: firestoreUpdates.setupServiceApproved,
+            furnishingsServiceApproved:
+              firestoreUpdates.furnishingsServiceApproved,
           },
         },
       );

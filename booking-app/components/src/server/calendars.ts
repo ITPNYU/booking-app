@@ -1,29 +1,33 @@
 import { bookingCalendarStrToDate } from "@/components/src/client/utils/date";
 import { getCalendarClient } from "@/lib/googleClient";
-import { getMcResourceServices, getStaffingServiceLabel } from "@/lib/tenant/mcResourceServices";
+import { serverGetTenantResources } from "@/lib/tenant/serverGetTenantResources";
 import { traceExternalCall } from "@/lib/newrelic-utils";
-import {
-  BookingFormDetails,
-  BookingStatusLabel,
-  StaffingServices,
-} from "../types";
+import { BookingFormDetails, BookingStatusLabel } from "../types";
 import { formatOrigin, getSecondaryContactName } from "../utils/formatters";
-import { formatAnnexByRoomForDisplay } from "../utils/resourceServicesUtils";
+import {
+  formatServicesDescriptionHtml,
+  getBookingServicesByRoom,
+  type BookingServicesSource,
+} from "../utils/bookingServicesDisplay";
+import type { ServiceResourceLike } from "../utils/resourceServicesUtils";
 
 import { serverGetRoomCalendarIds } from "./admin";
 
-function formatStaffingServicesForDisplay(raw: string): string {
-  return raw
-    .split(",")
-    .map((service) => service.trim())
-    .filter(Boolean)
-    .map((service) => {
-      if (service in StaffingServices) {
-        return StaffingServices[service as keyof typeof StaffingServices];
-      }
-      return getStaffingServiceLabel(service);
-    })
-    .join(", ");
+async function resourcesForServicesDisplay(
+  bookingContents: BookingFormDetails,
+  tenant?: string,
+): Promise<ServiceResourceLike[]> {
+  const tenantResources = await serverGetTenantResources(tenant);
+  const annexByRoom = bookingContents.annexByRoom;
+  // Annex parent ids that are not in the tenant schema still need a resource
+  // entry so services can be grouped under that room.
+  const fallbackRooms =
+    annexByRoom && typeof annexByRoom === "object"
+      ? Object.keys(annexByRoom).map((roomId) => ({
+          resourceId: roomId,
+        }))
+      : [];
+  return [...tenantResources, ...fallbackRooms];
 }
 
 export const patchCalendarEvent = async (
@@ -195,152 +199,20 @@ export const bookingContentsToDescription = async (
   );
   description += "</ul>";
 
-  // Services Section
-  description += "<h3>Services</h3><ul>";
-  description += listItem(
-    "Room Setup",
-    getProperty(bookingContents, "setupDetails") ||
-      getProperty(bookingContents, "roomSetup"),
+  const resources = await resourcesForServicesDisplay(bookingContents, tenant);
+  const servicesDisplay = getBookingServicesByRoom(
+    bookingContents as BookingServicesSource,
+    resources,
   );
-  if (getProperty(bookingContents, "chartFieldForRoomSetup")) {
-    description += listItem(
-      "Room Setup Chart Field",
-      getProperty(bookingContents, "chartFieldForRoomSetup"),
-    );
-  }
-
-  // Read object maps directly — getProperty().toString() turns them into
-  // "[object Object]" and would skip this block.
-  const furnishingsByRoom = bookingContents.furnishingsByRoom as
-    | Record<string, string>
-    | undefined;
-  const furnishingsChartByRoom =
-    bookingContents.chartFieldForFurnishingsByRoom as
-      | Record<string, string>
-      | undefined;
-  if (furnishingsByRoom && typeof furnishingsByRoom === "object") {
-    const furnishingParts = Object.entries(furnishingsByRoom)
-      .filter(([, v]) => typeof v === "string" && v.toLowerCase() === "yes")
-      .map(([roomId]) => {
-        const chart = furnishingsChartByRoom?.[roomId];
-        return chart
-          ? `${roomId}: yes (chartfield: ${chart})`
-          : `${roomId}: yes`;
-      });
-    if (furnishingParts.length > 0) {
-      description += listItem(
-        "Additional Event Furniture",
-        furnishingParts.join("; "),
-      );
-      const furnishingsDetails = getProperty(
-        bookingContents,
-        "furnishingsDetails",
-      );
-      if (
-        furnishingsDetails &&
-        typeof furnishingsDetails === "string" &&
-        furnishingsDetails.trim()
-      ) {
-        description += listItem(
-          "Furniture request details",
-          furnishingsDetails.trim(),
-        );
-      }
-    }
-  }
-  // Only show equipment service if it exists
-  const equipmentServices = getProperty(bookingContents, "equipmentServices");
-  if (equipmentServices) {
-    description += listItem("Equipment Service", equipmentServices);
-    const equipmentDetails = getProperty(
-      bookingContents,
-      "equipmentServicesDetails",
-    );
-    if (equipmentDetails) {
-      description += listItem("Equipment Service Details", equipmentDetails);
-    }
-  }
-
-  // Only show staffing service if it exists
-  const staffingServices = getProperty(bookingContents, "staffingServices");
-  if (staffingServices) {
-    description += listItem(
-      "Staffing Service",
-      formatStaffingServicesForDisplay(String(staffingServices)),
-    );
-    const staffingDetails = getProperty(
-      bookingContents,
-      "staffingServicesDetails",
-    );
-    if (staffingDetails) {
-      description += listItem("Staffing Service Details", staffingDetails);
-    }
-  }
-
-  // Add WebCheckout Cart Number
   const cartNumber = getProperty(bookingContents, "webcheckoutCartNumber");
   if (cartNumber) {
-    description += listItem("Cart Number", cartNumber);
+    servicesDisplay.bookingLevel.push({
+      key: "cart",
+      label: "Cart Number",
+      value: cartNumber,
+    });
   }
-
-  // Only show catering service if it's not "no" or "No"
-  const cateringValue =
-    getProperty(bookingContents, "cateringService") ||
-    getProperty(bookingContents, "catering");
-  if (cateringValue && cateringValue !== "no" && cateringValue !== "No") {
-    const cateringLabel =
-      cateringValue === "yes" ? "Yes" : cateringValue;
-    description += listItem("Catering Service", cateringLabel);
-    const cateringChartField = getProperty(
-      bookingContents,
-      "chartFieldForCatering",
-    );
-    if (cateringChartField) {
-      description += listItem("Catering Chart Field", cateringChartField);
-    }
-  }
-
-  // Only show cleaning service if it's not "no" or "No"
-  const cleaningService = getProperty(bookingContents, "cleaningService");
-  if (cleaningService && cleaningService !== "no" && cleaningService !== "No") {
-    description += listItem("Cleaning Service", "Yes");
-    const cleaningChartField = getProperty(
-      bookingContents,
-      "chartFieldForCleaning",
-    );
-    if (cleaningChartField) {
-      description += listItem(
-        "Cleaning Service Chart Field",
-        cleaningChartField,
-      );
-    }
-  }
-
-  // Only show security service if it's not "no" or "No"
-  const securityService = getProperty(bookingContents, "hireSecurity");
-  if (securityService && securityService !== "no" && securityService !== "No") {
-    description += listItem("Security", securityService);
-    const securityChartField = getProperty(
-      bookingContents,
-      "chartFieldForSecurity",
-    );
-    if (securityChartField) {
-      description += listItem("Security Chart Field", securityChartField);
-    }
-  }
-
-  const annexByRoom = bookingContents.annexByRoom;
-  if (annexByRoom && typeof annexByRoom === "object") {
-    const annexRooms = Object.keys(annexByRoom).map((roomId) => ({
-      resourceId: roomId,
-      services: getMcResourceServices(roomId) ?? {},
-    }));
-    const annexDisplay = formatAnnexByRoomForDisplay(annexByRoom, annexRooms);
-    if (annexDisplay) {
-      description += listItem("Auxiliary Spaces", annexDisplay);
-    }
-  }
-  description += "</ul>";
+  description += formatServicesDescriptionHtml(servicesDisplay);
 
   description += "<h3>Cancellation Policy</h3>";
 

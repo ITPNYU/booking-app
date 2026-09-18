@@ -7,6 +7,7 @@ import {
   TextField,
 } from "@mui/material";
 import {
+  RoomService,
   TableBar,
   Headset,
   PeopleAlt,
@@ -134,12 +135,13 @@ export default function BookingTableFilters({
   );
 
   const serviceIcons: Record<string, React.ElementType> = {
-    Setup: TableBar,
+    Setup: RoomService,
     Equipment: Headset,
     Staffing: PeopleAlt,
     Catering: LocalDining,
     Cleaning: CleaningServices,
     Security: LocalPolice,
+    Furniture: TableBar,
   };
 
   const dateFilters = (
@@ -341,6 +343,7 @@ export default function BookingTableFilters({
                 "Catering",
                 "Cleaning",
                 "Security",
+                "Furniture",
               ].map((service) => (
                 <Box
                   onClick={() =>

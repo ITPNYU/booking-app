@@ -119,6 +119,23 @@ function getMcTestSchema(tenant: string): SchemaContextType {
         },
         autoApproval: { shouldAutoApprove: false },
       }),
+      // The only room that offers a service: the layout reads this schema on
+      // the server, so e2e specs cannot swap in services through page.route.
+      resource({
+        capacity: 40,
+        name: "Event Space 240",
+        resourceId: "240",
+        calendarId: "mock-calendar-240",
+        isWalkIn: false,
+        autoApproval: { shouldAutoApprove: false },
+        services: {
+          catering: {
+            label: "Catering",
+            descriptionHtml: "<p>Select if you need catering.</p>",
+            chartField: { required: true },
+          },
+        },
+      }),
     ],
     origins: {
       VIP: true,

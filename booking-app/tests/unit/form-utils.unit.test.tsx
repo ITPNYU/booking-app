@@ -248,8 +248,6 @@ describe("Form Utils", () => {
           formValues.mediaServices && formValues.mediaServices.length > 0,
         showEquipmentServicesDetails:
           formValues.equipmentServices && formValues.equipmentServices.length > 0,
-        showStaffingServicesDetails:
-          formValues.staffingServices && formValues.staffingServices.length > 0,
       };
     };
 
@@ -300,18 +298,6 @@ describe("Form Utils", () => {
     it("hides equipment services details when no services selected", () => {
       const dependencies = getFieldDependencies({ equipmentServices: [] });
       expect(dependencies.showEquipmentServicesDetails).toBe(false);
-    });
-
-    it("shows staffing services details when services are selected", () => {
-      const dependencies = getFieldDependencies({
-        staffingServices: ["audio tech"],
-      });
-      expect(dependencies.showStaffingServicesDetails).toBe(true);
-    });
-
-    it("hides staffing services details when no services selected", () => {
-      const dependencies = getFieldDependencies({ staffingServices: [] });
-      expect(dependencies.showStaffingServicesDetails).toBe(false);
     });
   });
 

@@ -38,7 +38,7 @@ The Media Commons Booking App is a room and space reservation system for NYU Med
 - **Two-level approval workflow** (Liaison → Final Approver)
 - **Auto-approval** for eligible bookings (based on role, duration, and services)
 - **Walk-in and VIP booking flows** for on-the-spot and expedited reservations
-- **Parallel service request management** — 6 service types (staff, equipment, catering, cleaning, security, setup) can be approved/declined independently
+- **Parallel service request management** — 7 service types (staff, equipment, catering, cleaning, security, setup, furnishings) can be approved/declined independently
 - **Google Calendar sync** — every booking creates and updates a calendar event
 - **Equipment checkout tracking** via web checkout cart system
 - **Safety training enforcement** — certain rooms require completed training
@@ -118,18 +118,11 @@ Step 3: Room & Time Selection
          │  Existing bookings and blackout periods are visible
          │  System validates: duration limits, blackout conflicts, overlaps
          ▼
-Step 4: Booking Details
+Step 4: Details
          │  Personal info: name, NetID, N-Number, phone, email
          │  Event details: title, description, booking type, expected attendance
-         │  Services (shown based on room capabilities):
-         │    • Room Setup + details
-         │    • Equipment Services
-         │    • Staffing Services (audio tech, lighting, etc.)
-         │    • Catering (chartfield required when enabled)
-         │    • Cleaning (CBS Cleaning)
-         │    • Hire Security
          │  Sponsor info (optional)
-         │  Accept required agreements
+         │  Next validates the step before moving on
          │
          │  Real-time alerts shown for:
          │    ✓ Auto-approval eligibility (green indicator)
@@ -140,10 +133,26 @@ Step 4: Booking Details
          │    ⚠ Time-sensitive booking (less than configured threshold)
          │    ⚠ Overlap with existing booking
          ▼
-Step 5: Confirmation
+Step 5: Services
+         │  One service section per service and resource, shown based on
+         │  room capabilities and origin:
+         │    • Room Setup + details
+         │    • Equipment Services
+         │    • Staffing Services (audio tech, lighting, etc.)
+         │    • Catering (chartfield required when enabled)
+         │    • Cleaning (CBS Cleaning)
+         │    • Hire Security (locked on when expected attendance ≥ 75)
+         │  Accept required agreements
+         │
+         │  Skipped (and hidden from the Stepper) when no section would show
+         │  for the selected rooms; Details then keeps Submit.
+         ▼
+Step 6: Confirmation
          Submit → Success or Error display
          Link to "View My Bookings"
 ```
+
+The Stepper, the Back/Next buttons and the missing-data guard read one shared step list computed per request from the selected rooms and origin. Landing on Services requires rooms, a time and a valid Details answer set; otherwise the guard bounces to the earliest incomplete step. Service requests for rooms that are removed on the room page are dropped as soon as the room set changes.
 
 After submission, the booking enters the lifecycle as **Requested** (or **Approved** if auto-approval conditions are met).
 
@@ -164,7 +173,7 @@ Step 4: Room Selection
          │  Only walk-in-eligible rooms are shown
          │  Walk-in-specific hour limits apply
          ▼
-Step 5: Booking Details → Confirmation
+Step 5: Details → Services → Confirmation
 ```
 
 **Key differences from standard flow:**
@@ -182,7 +191,7 @@ Step 1: VIP Landing
          ▼
 Step 2: Role & Affiliation
          ▼
-Step 3: Room & Time Selection → Booking Details → Confirmation
+Step 3: Room & Time Selection → Details → Services → Confirmation
 ```
 
 **Key differences from standard flow:**
@@ -201,7 +210,7 @@ For editing a previously submitted booking.
 ```
 Load Existing Booking Data
     ▼
-Role Selection → Room Selection → Booking Details Form
+Role Selection → Room Selection → Details → Services
     │  All fields pre-filled with existing data
     │  User modifies as needed
     ▼
@@ -221,7 +230,7 @@ For making modifications to a booking that has already been approved or is in pr
 ```
 Load Existing Booking Data
     ▼
-Modification Form → Room Selection → Confirmation
+Room Selection → Details → Services → Confirmation
     │  Pre-filled with existing data
     ▼
 Submit → Booking updated (stays in current status)
@@ -364,6 +373,7 @@ Each room can be configured to allow or block auto-approval for each service typ
 - Catering
 - Cleaning
 - Security
+- Furnishings (additional event furniture)
 
 If a user requests a service that is not allowed for auto-approval on the selected room, the booking goes through the normal approval queue instead.
 
@@ -375,7 +385,7 @@ VIP bookings that include service requests are routed to the **Services Request*
 
 ## 6. Service Management
 
-Media Commons supports six service types that are managed independently alongside the main booking approval. Each requested service goes through its own lifecycle.
+Media Commons supports seven service types that are managed independently alongside the main booking approval. Each requested service goes through its own lifecycle.
 
 ### Available Services
 
@@ -387,9 +397,10 @@ Media Commons supports six service types that are managed independently alongsid
 | **Cleaning** | CBS Cleaning Services (auto-forced when catering is requested) |
 | **Security** | Hire Security; Garage 103 uses main vs Willoughby entrance choice |
 | **Room Setup** | Per-room layout options from tenant `resource.services` config |
+| **Furnishings** | Additional event furniture (yes/no per room with request details); may require CBS and a chartfield |
 
 Some services require a **chart field** (billing code) when selected:
-- Catering, Cleaning, Security, and Room Setup each have a chart field input
+- Catering, Cleaning, Security, Room Setup, and Furnishings each have a chart field input
 
 ### Service Approval Workflow
 
@@ -465,6 +476,7 @@ Each room can enable or disable auto-approval, and specify which services are al
 | With Catering | Configurable |
 | With Cleaning | Configurable |
 | With Security | Configurable |
+| With Furnishings | Configurable |
 
 ---
 

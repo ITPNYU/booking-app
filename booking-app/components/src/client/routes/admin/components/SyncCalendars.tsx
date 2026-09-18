@@ -29,6 +29,7 @@ import { useState } from "react";
 import AlertToast from "../../components/AlertToast";
 import { TIMEZONE } from "../../../utils/date";
 import { serializedTimestampToMillis } from "@/lib/utils/timestampWire";
+import { isServiceRequested } from "@/components/src/utils/tenantUtils";
 
 const formatFirestoreTimestamp = (value: any): string => {
   if (!value) return "";
@@ -48,11 +49,12 @@ const formatFirestoreTimestamp = (value: any): string => {
 
 const servicesSummary = (booking: any): string[] => {
   const requested: string[] = [];
-  if (booking?.equipmentServices) requested.push("Equipment");
+  if (booking?.equipmentServices || booking?.equipmentServicesDetails?.trim())
+    requested.push("Equipment");
   if (booking?.staffingServices) requested.push("Staff");
   if (booking?.catering === "yes") requested.push("Catering");
   if (booking?.cleaning === "yes") requested.push("Cleaning");
-  if (booking?.hireSecurity === "yes") requested.push("Security");
+  if (isServiceRequested(booking?.hireSecurity)) requested.push("Security");
   if (booking?.roomSetup === "yes") requested.push("Setup");
   return requested;
 };

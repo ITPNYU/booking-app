@@ -1,111 +1,127 @@
 import { describe, expect, it } from "vitest";
-import { getMediaCommonsServices } from "@/components/src/utils/tenantUtils";
+import {
+  getMediaCommonsServices,
+  isServiceRequested,
+} from "@/components/src/utils/tenantUtils";
 import {
   anyRoomHasVisibleService,
   formatAnnexByRoomForDisplay,
+  formatServiceByRoom,
+  pruneServiceMapsToRooms,
   getAnnexOptions,
   getRoomsWithVisibleService,
-} from "@/components/src/utils/resourceServicesUtils";
-import {
-  applyMcResourceServices,
-  getMcResourceServices,
   getStaffingServiceLabel,
-} from "@/lib/tenant/mcResourceServices";
+  isPassiveSetupSelection,
+  mergeRoomIdsWithAnnex,
+  resolveAnnexCalendarIds,
+} from "@/components/src/utils/resourceServicesUtils";
+import { MC_TEST_RESOURCE_SERVICES } from "@/components/src/testHelpers/mcResourceServicesFixture";
 import { migrateResourceServices } from "@/lib/tenant/migrateResourceServices";
+import { pruneServiceRequestsToRooms } from "@/components/src/utils/serviceSections";
+import type { Inputs } from "@/components/src/types";
+
+/** MC rooms as stored in the tenant schema (services snapshot fixture). */
+const mcRooms = Object.entries(MC_TEST_RESOURCE_SERVICES).map(
+  ([resourceId, services]) => ({ resourceId, services }),
+);
+const svc = (data: any) => getMediaCommonsServices(data, mcRooms);
 
 describe("getMediaCommonsServices", () => {
   it("requests security for yes hireSecurity", () => {
-    const services = getMediaCommonsServices({
+    const services = svc({
       hireSecurity: "yes",
     });
     expect(services.security).toBe(true);
   });
 
   it("requests security for custom radio values", () => {
-    expect(
-      getMediaCommonsServices({ hireSecurity: "willoughby" }).security,
-    ).toBe(true);
-    expect(
-      getMediaCommonsServices({ hireSecurity: "main_entrance" }).security,
-    ).toBe(true);
+    expect(svc({ hireSecurity: "willoughby" }).security).toBe(true);
+    expect(svc({ hireSecurity: "main_entrance" }).security).toBe(true);
+  });
+
+  it("requests security for a joined multi-room value", () => {
+    // Multi-room bookings join distinct per-room values with "; ".
+    expect(svc({ hireSecurity: "yes; willoughby" }).security).toBe(true);
+    expect(isServiceRequested("yes; willoughby")).toBe(true);
+    expect(isServiceRequested("willoughby; main_entrance")).toBe(true);
   });
 
   it("does not request security when hireSecurity is empty or no", () => {
-    expect(getMediaCommonsServices({ hireSecurity: "" }).security).toBe(false);
-    expect(getMediaCommonsServices({ hireSecurity: "no" }).security).toBe(
-      false,
-    );
-    expect(getMediaCommonsServices({ hireSecurity: "No" }).security).toBe(
-      false,
-    );
+    expect(svc({ hireSecurity: "" }).security).toBe(false);
+    expect(svc({ hireSecurity: "no" }).security).toBe(false);
+    expect(svc({ hireSecurity: "No" }).security).toBe(false);
   });
 
   it("does not treat capitalized No as setup requested", () => {
-    expect(getMediaCommonsServices({ roomSetup: "No" }).setup).toBe(false);
-    expect(getMediaCommonsServices({ roomSetup: "no" }).setup).toBe(false);
+    expect(svc({ roomSetup: "No" }).setup).toBe(false);
+    expect(svc({ roomSetup: "no" }).setup).toBe(false);
   });
 
   it("does not treat passive default layouts as setup requested", () => {
     expect(
-      getMediaCommonsServices({
+      svc({
         roomSetupByRoom: { "1201": "1201_LAYOUT_0" },
         roomSetup: "yes",
         setupDetails: "Lecture Style (Default) - 84 Seated",
       }).setup,
     ).toBe(false);
     expect(
-      getMediaCommonsServices({
+      svc({
         roomSetupByRoom: { "103": "103_LAYOUT_0" },
       }).setup,
     ).toBe(false);
     expect(
-      getMediaCommonsServices({
+      svc({
         roomSetupByRoom: { "202": "202_LAYOUT_0" },
+      }).setup,
+    ).toBe(false);
+    expect(
+      svc({
+        roomSetupByRoom: { "233": "233_LAYOUT_0" },
       }).setup,
     ).toBe(false);
   });
 
   it("treats non-default layouts as setup requested", () => {
     expect(
-      getMediaCommonsServices({
+      svc({
         roomSetupByRoom: { "1201": "1201_LAYOUT_1" },
       }).setup,
     ).toBe(true);
     expect(
-      getMediaCommonsServices({
+      svc({
         roomSetupByRoom: { "202": "202_LAYOUT_1" },
       }).setup,
     ).toBe(true);
     expect(
-      getMediaCommonsServices({
-        roomSetupByRoom: { "233": "233_LAYOUT_0" },
+      svc({
+        roomSetupByRoom: { "233": "233_LAYOUT_1" },
       }).setup,
     ).toBe(true);
   });
 
   it("detects setup from per-room maps", () => {
-    const services = getMediaCommonsServices({
+    const services = svc({
       roomSetupByRoom: { "1201": "1201_LAYOUT_1" },
     });
     expect(services.setup).toBe(true);
   });
 
-  it("treats additional event furniture as setup requested", () => {
-    expect(
-      getMediaCommonsServices({
-        furnishingsByRoom: { "103": "yes" },
-      }).setup,
-    ).toBe(true);
-    expect(
-      getMediaCommonsServices({
-        furnishingsByRoom: { "103": "no" },
-      }).setup,
-    ).toBe(false);
+  it("reports additional event furniture as its own furnishings service", () => {
+    const requested = svc({ furnishingsByRoom: { "103": "yes" } });
+    expect(requested.furnishings).toBe(true);
+    expect(requested.setup).toBe(false);
+
+    const declined = svc({ furnishingsByRoom: { "103": "no" } });
+    expect(declined.furnishings).toBe(false);
+    expect(declined.setup).toBe(false);
+
+    expect(svc({}).furnishings).toBe(false);
   });
 
   it("still detects legacy setup when by-room maps are also present", () => {
     expect(
-      getMediaCommonsServices({
+      svc({
         roomSetupByRoom: { "103": "103_LAYOUT_0" },
         roomSetup: "custom",
         setupDetails: "Need extra tables for the adjacent room",
@@ -121,10 +137,12 @@ describe("resource service visibility", () => {
 
   it("shows legacy string[] services when no object config exists", () => {
     const rooms = [{ roomId: "room1", services: ["catering", "equipment"] }];
-    expect(anyRoomHasVisibleService(rooms, "catering", standardUser)).toBe(true);
-    expect(getRoomsWithVisibleService(rooms, "equipment", standardUser)).toHaveLength(
-      1,
+    expect(anyRoomHasVisibleService(rooms, "catering", standardUser)).toBe(
+      true,
     );
+    expect(
+      getRoomsWithVisibleService(rooms, "equipment", standardUser),
+    ).toHaveLength(1);
   });
 
   it("shows staffing for object configs using showInOrigin", () => {
@@ -146,10 +164,12 @@ describe("resource service visibility", () => {
         },
       },
     ];
-    expect(anyRoomHasVisibleService(rooms, "staffing", standardUser)).toBe(true);
-    expect(getRoomsWithVisibleService(rooms, "staffing", standardUser)).toHaveLength(
-      1,
+    expect(anyRoomHasVisibleService(rooms, "staffing", standardUser)).toBe(
+      true,
     );
+    expect(
+      getRoomsWithVisibleService(rooms, "staffing", standardUser),
+    ).toHaveLength(1);
   });
 
   it("hides VIP-only sections from standard user but shows walk-in", () => {
@@ -165,118 +185,70 @@ describe("resource service visibility", () => {
         },
       },
     ];
-    expect(anyRoomHasVisibleService(rooms, "catering", standardUser)).toBe(false);
+    expect(anyRoomHasVisibleService(rooms, "catering", standardUser)).toBe(
+      false,
+    );
     expect(anyRoomHasVisibleService(rooms, "catering", walkInUser)).toBe(true);
     expect(anyRoomHasVisibleService(rooms, "catering", vipUser)).toBe(true);
   });
 });
 
-describe("applyMcResourceServices", () => {
-  it("applies MC defaults when services are missing or a legacy array", () => {
-    const missing = applyMcResourceServices({
-      resourceId: "202",
-      name: "202",
-      capacity: 50,
-    });
-    expect(missing.services?.catering?.forceCleaning).toBe(true);
-    expect(missing.services?.catering?.chartField?.required).toBe(true);
-    expect(missing.services?.setup?.mode).toBe("radio");
-    expect(missing.services?.setup?.defaultValue).toBe("202_LAYOUT_0");
-    expect(missing.services?.annex?.options?.length).toBe(2);
-    expect(missing.services?.annex?.mode).toBe("checkbox");
+describe("MC services fixture (seeded into the tenant schema)", () => {
+  const services = (id: string) => MC_TEST_RESOURCE_SERVICES[id]!;
 
-    const emptyArray = applyMcResourceServices({
-      resourceId: "202",
-      name: "202",
-      capacity: 50,
-      services: [],
-    });
-    expect(emptyArray.services?.setup?.mode).toBe("radio");
-  });
-
-  it("includes 1201 breakout, foyer, and lounge annex options", () => {
-    const room = applyMcResourceServices({
-      resourceId: "1201",
-      name: "Seminar Room",
-      capacity: 100,
-      services: [],
-    });
-    expect(room.services?.annex?.mode).toBe("checkbox");
-    expect(room.services?.annex?.options?.map((o) => o.value)).toEqual([
+  it("offers the 1201 breakout spaces as an annex checkbox section", () => {
+    expect(services("1201").annex?.mode).toBe("checkbox");
+    expect(services("1201").annex?.options?.map((o) => o.value)).toEqual([
       "1200L-6",
       "1202",
       "1204",
     ]);
-    expect(room.services?.annex?.options?.map((o) => o.label)).toEqual([
-      "1200L-6 Seminar Foyer",
-      "1202 Seminar Breakout",
-      "1204 Seminar Lounge",
-    ]);
   });
 
-  it("replaces legacy services arrays with MC room defaults", () => {
-    const legacy = ["equipment", "catering"];
-    const result = applyMcResourceServices({
-      resourceId: "202",
-      name: "202",
-      capacity: 50,
-      services: legacy,
-    });
-    expect(Array.isArray(result.services)).toBe(false);
-    expect(result.services?.catering?.forceCleaning).toBe(true);
-    expect(result.services?.setup?.mode).toBe("radio");
+  it("uses an equipment-only config for room 260", () => {
+    const services260 = services("260");
+    expect(Object.keys(services260)).toEqual(["equipment"]);
+    expect(services260.equipment?.toggle).toBe("optional");
+    expect(services260.equipment?.showDetailsField).toBe(true);
   });
 
-  it("does not overwrite an existing object services config", () => {
-    const custom = {
-      catering: { label: "Custom Catering" },
-    };
-    const result = applyMcResourceServices({
-      resourceId: "202",
-      name: "202",
-      capacity: 50,
-      services: custom,
-    });
-    expect(result.services).toEqual(custom);
+  it("uses a plain Campus Safety switch with a chartfield for 103", () => {
+    const services103 = services("103");
+    // No mode and no options: a plain yes/no switch the user controls.
+    expect(services103.security?.mode).toBeUndefined();
+    expect(services103.security?.options).toBeUndefined();
+    expect(services103.security?.toggle).toBe("optional");
+    expect(services103.security?.label).toBe("Campus Safety");
+    expect(services103.security?.chartField?.required).toBe(true);
   });
 
-  it("preserves intentional empty object services configs", () => {
-    const result = applyMcResourceServices({
-      resourceId: "202",
-      name: "202",
-      capacity: 50,
-      services: {},
-    });
-    expect(result.services).toEqual({});
+  it("does not put asterisks in field labels (the form renders them)", () => {
+    for (const [roomId, roomServices] of Object.entries(
+      MC_TEST_RESOURCE_SERVICES,
+    )) {
+      for (const [key, section] of Object.entries(roomServices)) {
+        const s = section as any;
+        expect(
+          `${roomId}.${key}.detailsLabel=${s.detailsLabel ?? ""}`,
+        ).not.toMatch(/\*$/);
+        expect(
+          `${roomId}.${key}.chartField.label=${s.chartField?.label ?? ""}`,
+        ).not.toMatch(/\*$/);
+      }
+    }
   });
 
-  it("uses empty config for room 260", () => {
-    expect(getMcResourceServices("260")).toEqual({});
-  });
-
-  it("uses checkbox security for 103 with Willoughby entrance option", () => {
-    const services103 = getMcResourceServices("103")!;
-    expect(services103.security?.mode).toBe("checkbox");
-    expect(services103.security?.required).toBeUndefined();
-    expect(services103.security?.defaultValue).toBeUndefined();
-    expect(services103.security?.options?.[0]?.value).toBe(
-      "Willoughby Street Entrance",
-    );
-    expect(
-      services103.security?.options?.[0]?.chartField?.required,
-    ).toBe(true);
-  });
-
-  it("resolves staffing option values to human-readable labels", () => {
-    expect(getStaffingServiceLabel("LIGHTING_TECH_DIY")).toBe(
-      "DIY - Basic Washes",
-    );
-    expect(getStaffingServiceLabel("AUDIO_TECH_DIY")).toBe("DIY - Plug & Play");
-    expect(getStaffingServiceLabel("AUDIO_TECH_A1")).toBe("Audio Tech - A1");
+  it("offers the same equipment switch and details hint in every production room", () => {
+    for (const id of ["220", "221", "222", "223", "224"]) {
+      const equipment = services(id).equipment!;
+      expect(equipment.toggle).toBe("optional");
+      expect(equipment.showDetailsField).toBe(true);
+      expect(equipment.detailsDescriptionHtml).toContain("Describe your needs");
+    }
   });
 
   it("uses VIP-only setup and custom layout option for room 202", () => {
-    const setup202 = getMcResourceServices("202")!.setup!;
+    const setup202 = services("202").setup!;
     expect(setup202.showInOrigin).toEqual({
       user: false,
       walkIn: false,
@@ -290,7 +262,7 @@ describe("applyMcResourceServices", () => {
   });
 
   it("uses numbered layout options for room 233", () => {
-    const setup233 = getMcResourceServices("233")!.setup!;
+    const setup233 = services("233").setup!;
     expect(setup233.defaultValue).toBe("233_LAYOUT_0");
     expect(setup233.options?.[0]).toMatchObject({
       value: "233_LAYOUT_0",
@@ -305,12 +277,48 @@ describe("applyMcResourceServices", () => {
   });
 
   it("uses custom setup radio for ballroom rooms", () => {
-    expect(getMcResourceServices("220")?.setup?.defaultValue).toBe(
-      "220_LAYOUT_CUSTOM",
+    expect(services("220").setup?.defaultValue).toBe("220_LAYOUT_CUSTOM");
+    expect(services("220").setup?.options?.[0]?.descriptionHtml).toBe(
+      "Please describe the layout in detail.",
     );
+  });
+});
+
+describe("schema-driven MC helpers", () => {
+  it("resolves staffing option values to labels from tenant resources", () => {
+    expect(getStaffingServiceLabel(mcRooms, "LIGHTING_TECH_DIY")).toBe(
+      "No Technician / Plug & Play Lighting",
+    );
+    expect(getStaffingServiceLabel(mcRooms, "AUDIO_TECH_DIY")).toBe(
+      "No Technician / Plug & Play AV",
+    );
+    expect(getStaffingServiceLabel(mcRooms, "AUDIO_TECH_A1")).toBe(
+      "Audio Tech - A1 Live Sound Engineer*",
+    );
+    expect(getStaffingServiceLabel(mcRooms, "UNKNOWN_VALUE")).toBe(
+      "UNKNOWN_VALUE",
+    );
+    expect(getStaffingServiceLabel([], "AUDIO_TECH_A1")).toBe("AUDIO_TECH_A1");
+  });
+
+  it("treats default layouts without a chartfield as passive", () => {
+    expect(isPassiveSetupSelection(mcRooms, "1201_LAYOUT_0")).toBe(true);
     expect(
-      getMcResourceServices("220")?.setup?.options?.[0]?.descriptionHtml,
-    ).toBe("Please describe the layout in detail.");
+      isPassiveSetupSelection(mcRooms, "Lecture Style (Default) - 84 Seated"),
+    ).toBe(true);
+    expect(isPassiveSetupSelection(mcRooms, "1201_LAYOUT_1")).toBe(false);
+    // Room 230's default carries a chartfield, so it is an active request.
+    expect(isPassiveSetupSelection(mcRooms, "230_LAYOUT_CUSTOM")).toBe(false);
+    expect(isPassiveSetupSelection([], "1201_LAYOUT_0")).toBe(false);
+  });
+
+  it("counts a default layout as a setup request when no resources are known", () => {
+    expect(
+      getMediaCommonsServices(
+        { roomSetupByRoom: { "1201": "1201_LAYOUT_0" } },
+        [],
+      ).setup,
+    ).toBe(true);
   });
 });
 
@@ -348,9 +356,7 @@ describe("migrateResourceServices", () => {
       services: {
         setup: {
           mode: "select",
-          options: [
-            { value: "a", label: "A", requiresChartField: true },
-          ],
+          options: [{ value: "a", label: "A", requiresChartField: true }],
         },
         auxiliarySpace: { enabled: true, label: "Green room" },
       },
@@ -427,19 +433,262 @@ describe("migrateResourceServices", () => {
 });
 
 describe("formatAnnexByRoomForDisplay", () => {
-  it("resolves option labels from parent room annex config", () => {
-    const room = applyMcResourceServices({
+  it("resolves labels from annex child resources", () => {
+    const parent = { resourceId: "1201", name: "Seminar Room", services: {} };
+    const children = [
+      {
+        resourceId: "1200L-6",
+        name: "Seminar Foyer",
+        parentResourceId: "1201",
+        services: {},
+      },
+      {
+        resourceId: "1204",
+        name: "Seminar Lounge",
+        parentResourceId: "1201",
+        services: {},
+      },
+    ];
+    expect(
+      formatAnnexByRoomForDisplay({ "1201": ["1200L-6", "1204"] }, [
+        parent,
+        ...children,
+      ]),
+    ).toBe("1201: 1200L-6 Seminar Foyer, 1204 Seminar Lounge");
+  });
+
+  it("falls back to configured option labels without child resources", () => {
+    const room = {
       resourceId: "1201",
       name: "Seminar Room",
-      capacity: 100,
-      services: [],
-    });
-    expect(getAnnexOptions(room).length).toBe(3);
+      services: {
+        annex: {
+          mode: "checkbox" as const,
+          options: [{ value: "1204", label: "1204 Seminar Lounge" }],
+        },
+      },
+    };
+    expect(formatAnnexByRoomForDisplay({ "1201": ["1204"] }, [room])).toBe(
+      "1201: 1204 Seminar Lounge",
+    );
+  });
+
+  it("prefers annex resource names over configured option labels", () => {
+    const parent = {
+      resourceId: "1201",
+      name: "Seminar Room",
+      services: {
+        annex: {
+          mode: "checkbox" as const,
+          options: [{ value: "1204", label: "Old Label" }],
+        },
+      },
+    };
+    const child = {
+      resourceId: "1204",
+      name: "Renamed Lounge",
+      parentResourceId: "1201",
+      services: {},
+    };
     expect(
-      formatAnnexByRoomForDisplay(
-        { "1201": ["1200L-6", "1204"] },
-        [room],
+      formatAnnexByRoomForDisplay({ "1201": ["1204"] }, [parent, child]),
+    ).toBe("1201: 1204 Renamed Lounge");
+  });
+});
+
+describe("annex parent-child resources", () => {
+  const parent = {
+    resourceId: "1201",
+    name: "Seminar Room",
+    services: {
+      annex: {
+        mode: "checkbox" as const,
+        options: [{ value: "9999", label: "Legacy Fallback Space" }],
+      },
+    },
+  };
+  const children = [
+    {
+      resourceId: "1204",
+      name: "Seminar Lounge",
+      parentResourceId: "1201",
+      calendarId: "cal-1204@group.calendar.google.com",
+      services: {},
+    },
+    {
+      resourceId: "1200L-6",
+      name: "Seminar Foyer",
+      parentResourceId: "1201",
+      calendarId: "cal-1200l6@group.calendar.google.com",
+      services: {},
+    },
+  ];
+  const topLevel = {
+    resourceId: "103",
+    name: "The Garage",
+    calendarId: "cal-103@group.calendar.google.com",
+    services: {},
+  };
+
+  it("derives annex options from child resources, sorted by id", () => {
+    const options = getAnnexOptions(parent, [parent, topLevel, ...children]);
+    expect(options).toEqual([
+      { value: "1200L-6", label: "1200L-6 Seminar Foyer" },
+      { value: "1204", label: "1204 Seminar Lounge" },
+    ]);
+  });
+
+  it("falls back to configured options when no child resources exist", () => {
+    expect(getAnnexOptions(parent, [parent, topLevel])).toEqual([
+      { value: "9999", label: "Legacy Fallback Space" },
+    ]);
+    expect(getAnnexOptions(parent)).toEqual([
+      { value: "9999", label: "Legacy Fallback Space" },
+    ]);
+  });
+
+  it("resolves selected annex values to child calendar IDs", () => {
+    const resources = [parent, topLevel, ...children];
+    expect(
+      resolveAnnexCalendarIds({ "1201": ["1204", "1200L-6"] }, resources),
+    ).toEqual([
+      "cal-1204@group.calendar.google.com",
+      "cal-1200l6@group.calendar.google.com",
+    ]);
+  });
+
+  it("ignores values without a registered annex resource", () => {
+    const resources = [parent, topLevel, ...children];
+    // "9999" is a legacy option with no resource; "103" is a top-level room,
+    // which must never be invited via the annex path.
+    expect(
+      resolveAnnexCalendarIds({ "1201": ["9999", "103"] }, resources),
+    ).toEqual([]);
+    expect(resolveAnnexCalendarIds(undefined, resources)).toEqual([]);
+  });
+
+  it("merges annex ids into the room list in numeric order", () => {
+    expect(
+      mergeRoomIdsWithAnnex("202, 1201", {
+        "202": ["202GR", "205"],
+        "1201": ["1204"],
+      }),
+    ).toBe("202, 202GR, 205, 1201, 1204");
+    expect(mergeRoomIdsWithAnnex("202, 1201", undefined)).toBe("202, 1201");
+    expect(mergeRoomIdsWithAnnex("202", { "202": ["202"] })).toBe("202");
+    expect(mergeRoomIdsWithAnnex(undefined, undefined)).toBe("");
+  });
+
+  it("dedupes calendar IDs across parents", () => {
+    const resources = [parent, topLevel, ...children];
+    expect(
+      resolveAnnexCalendarIds({ "1201": ["1204"], "202": ["1204"] }, resources),
+    ).toEqual(["cal-1204@group.calendar.google.com"]);
+  });
+});
+
+describe("formatServiceByRoom", () => {
+  it("lists requesting rooms with their chartfields and skips no / empty", () => {
+    expect(
+      formatServiceByRoom(
+        { "103": "yes", "220": "no", "233": "", "1201": "Willoughby" },
+        { "103": "12345-AB-CDE00-00001", "220": "ignored" },
       ),
-    ).toBe("1201: 1200L-6 Seminar Foyer, 1204 Seminar Lounge");
+    ).toEqual([
+      "103: yes (chartfield: 12345-AB-CDE00-00001)",
+      "1201: Willoughby",
+    ]);
+  });
+
+  it("returns nothing for missing or malformed maps", () => {
+    expect(formatServiceByRoom(undefined, undefined)).toEqual([]);
+    expect(formatServiceByRoom("yes", {})).toEqual([]);
+    expect(formatServiceByRoom(["yes"], {})).toEqual([]);
+  });
+});
+
+describe("pruneServiceMapsToRooms", () => {
+  const rooms = [
+    { roomId: "1201" },
+    { resourceId: "1200L-6", parentResourceId: "1201" },
+  ];
+
+  it("drops entries for rooms and annexes no longer in the booking", () => {
+    const data = {
+      roomSetupByRoom: { "1201": "yes", "1200L-6": "yes", "1204": "yes" },
+      setupDetailsByRoom: { "1204": "tables" },
+      chartFieldForRoomSetupByRoom: { "1204": "12345-AB-CDE00-00001" },
+      hireSecurityByRoom: { "1201": "Willoughby", "1204": "Willoughby" },
+      chartFieldForSecurityByRoom: { "1204": "12345-AB-CDE00-00001" },
+      cateringByRoom: { "1200L-6": "yes", "1204": "yes" },
+      cleaningByRoom: { "1204": "yes" },
+      firstName: "Ada",
+    };
+    expect(pruneServiceMapsToRooms(data, rooms)).toEqual({
+      roomSetupByRoom: { "1201": "yes", "1200L-6": "yes" },
+      setupDetailsByRoom: {},
+      chartFieldForRoomSetupByRoom: {},
+      hireSecurityByRoom: { "1201": "Willoughby" },
+      chartFieldForSecurityByRoom: {},
+      cateringByRoom: { "1200L-6": "yes" },
+      cleaningByRoom: {},
+      firstName: "Ada",
+    });
+  });
+
+  it("returns the same map references when nothing needs pruning", () => {
+    const cateringByRoom = { "1201": "yes" };
+    const result = pruneServiceMapsToRooms(
+      { cateringByRoom, cleaningByRoom: undefined },
+      rooms,
+    );
+    expect(result.cateringByRoom).toBe(cateringByRoom);
+    expect(result.cleaningByRoom).toBeUndefined();
+  });
+
+  it("makes stale annex rows disappear from calendar / detail output", () => {
+    const pruned = pruneServiceMapsToRooms(
+      {
+        cateringByRoom: { "1201": "yes", "1204": "yes" },
+        chartFieldForCateringByRoom: { "1204": "12345-AB-CDE00-00001" },
+      },
+      rooms,
+    );
+    expect(
+      formatServiceByRoom(
+        pruned.cateringByRoom,
+        pruned.chartFieldForCateringByRoom,
+      ),
+    ).toEqual(["1201: yes"]);
+  });
+});
+
+describe("pruneServiceRequestsToRooms", () => {
+  it("clears the legacy scalar fields of a service no remaining room offers", () => {
+    const data = {
+      catering: "yes",
+      cateringService: "Outside Catering",
+      chartFieldForCatering: "12345-AB-CDE00-00001",
+      equipmentServices: "Checkout Equipment",
+      equipmentServicesDetails: "two mics",
+      mediaServices: "Checkout Equipment",
+      mediaServicesDetails: "two mics",
+      firstName: "Ada",
+    } as Inputs;
+    const pruned = pruneServiceRequestsToRooms(
+      data,
+      [{ resourceId: "1201", services: [] }],
+      false,
+    );
+    expect(pruned).toMatchObject({
+      catering: "",
+      cateringService: "",
+      chartFieldForCatering: "",
+      equipmentServices: "",
+      equipmentServicesDetails: "",
+      mediaServices: "",
+      mediaServicesDetails: "",
+      firstName: "Ada",
+    });
   });
 });

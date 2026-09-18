@@ -41,6 +41,7 @@ import {
   getRequestLimitRoleKey,
 } from "@/lib/bookingRequestLimits";
 import { getMaintenanceModeSettings } from "@/lib/maintenanceModeServer";
+import { serverGetTenantResources } from "@/lib/tenant/serverGetTenantResources";
 
 // Helper function to extract tenant from request
 const extractTenantFromRequest = (request: NextRequest): string | undefined => {
@@ -171,7 +172,10 @@ export async function POST(request: NextRequest) {
 
     // For Media Commons bookings with services, check service requirements
     if (isMediaCommons(tenant)) {
-      const servicesRequested = getMediaCommonsServices(data);
+      const servicesRequested = getMediaCommonsServices(
+        data,
+        await serverGetTenantResources(tenant),
+      );
       const hasServices = Object.values(servicesRequested).some(Boolean);
 
       if (hasServices && origin !== BookingOrigin.WALK_IN) {
@@ -299,7 +303,7 @@ export async function POST(request: NextRequest) {
 
       // Get services requested for Media Commons
       const servicesRequested = isMediaCommons(tenant)
-        ? getMediaCommonsServices(data)
+        ? getMediaCommonsServices(data, await serverGetTenantResources(tenant))
         : undefined;
 
       // Create XState actor with proper context

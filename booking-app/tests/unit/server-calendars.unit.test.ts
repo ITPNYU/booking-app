@@ -4,6 +4,10 @@ const mockGetCalendarClient = vi.fn();
 const mockServerGetRoomCalendarIds = vi.fn();
 const mockGetStatusFromXState = vi.fn();
 
+vi.mock("@/lib/tenant/serverGetTenantResources", () => ({
+  serverGetTenantResources: vi.fn().mockResolvedValue([]),
+}));
+
 vi.mock("@/lib/googleClient", () => ({
   getCalendarClient: mockGetCalendarClient,
 }));
@@ -16,12 +20,22 @@ vi.mock("@/components/src/utils/statusFromXState", () => ({
   getStatusFromXState: mockGetStatusFromXState,
 }));
 
-vi.mock("@/components/src/types", () => ({
-  BookingStatusLabel: {
-    APPROVED: "APPROVED",
-    PRE_APPROVED: "PRE_APPROVED",
-  },
-  BookingFormDetails: {}
+vi.mock("@/components/src/types", async () => {
+  const actual = await vi.importActual<typeof import("@/components/src/types")>(
+    "@/components/src/types",
+  );
+  return {
+    ...actual,
+    BookingStatusLabel: {
+      ...actual.BookingStatusLabel,
+      APPROVED: "APPROVED",
+      PRE_APPROVED: "PRE_APPROVED",
+    },
+  };
+});
+
+vi.mock("@/lib/tenant/serverGetTenantResources", () => ({
+  serverGetTenantResources: vi.fn().mockResolvedValue([]),
 }));
 
 vi.mock("@/components/src/utils/formatters", async () => {

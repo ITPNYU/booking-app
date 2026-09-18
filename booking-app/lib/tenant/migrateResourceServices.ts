@@ -5,6 +5,7 @@ import type {
   ResourceServicesConfig,
   ResourceStaffingConfig,
   ResourceStaffingSectionConfig,
+  ServiceToggle,
   ShowInOrigin,
 } from "@/components/src/client/routes/components/schemaTypes";
 import { StaffingServices } from "@/components/src/types";
@@ -16,6 +17,7 @@ const SERVICE_LABELS: Record<string, string> = {
   catering: "Catering",
   cleaning: "Cleaning",
   security: "Security",
+  furnishings: "Furniture",
   annex: "Auxiliary Spaces",
 };
 
@@ -37,6 +39,17 @@ function hideFlagsToShowInOrigin(section: {
   };
 }
 
+/** Boolean flags may arrive as "true"/"false" strings from the schema editor. */
+function asBool(raw: unknown): boolean | undefined {
+  if (typeof raw === "boolean") return raw;
+  if (typeof raw === "string") {
+    const v = raw.trim().toLowerCase();
+    if (v === "true") return true;
+    if (v === "false") return false;
+  }
+  return undefined;
+}
+
 function normalizeChartField(
   raw: unknown,
 ): ResourceFormOption["chartField"] | undefined {
@@ -47,7 +60,7 @@ function normalizeChartField(
     ...(typeof cf.descriptionHtml === "string"
       ? { descriptionHtml: cf.descriptionHtml }
       : {}),
-    ...(typeof cf.required === "boolean" ? { required: cf.required } : {}),
+    ...(asBool(cf.required) !== undefined ? { required: asBool(cf.required) } : {}),
     ...(typeof cf.validation === "string" ? { validation: cf.validation } : {}),
   };
 }
@@ -70,7 +83,7 @@ function normalizeOption(opt: Record<string, unknown>): ResourceFormOption {
   return {
     value: String(opt.value ?? ""),
     label: String(opt.label ?? opt.value ?? ""),
-    ...(typeof opt.required === "boolean" ? { required: opt.required } : {}),
+    ...(asBool(opt.required) !== undefined ? { required: asBool(opt.required) } : {}),
     ...(typeof opt.descriptionHtml === "string"
       ? { descriptionHtml: opt.descriptionHtml }
       : {}),
@@ -78,10 +91,26 @@ function normalizeOption(opt: Record<string, unknown>): ResourceFormOption {
   };
 }
 
+const SERVICE_TOGGLE_VALUES: readonly ServiceToggle[] = [
+  "on",
+  "off",
+  "optional",
+];
+
+/** Accept only the known toggle values; anything else is dropped (= optional). */
+function normalizeToggle(raw: unknown): ServiceToggle | undefined {
+  if (typeof raw !== "string") return undefined;
+  const value = raw.trim().toLowerCase();
+  return SERVICE_TOGGLE_VALUES.includes(value as ServiceToggle)
+    ? (value as ServiceToggle)
+    : undefined;
+}
+
 function normalizeSection(
   raw: Record<string, unknown>,
 ): ResourceFormSectionConfig {
   const modeRaw = raw.mode;
+  const toggle = normalizeToggle(raw.toggle);
   let mode: ResourceFormSectionConfig["mode"];
   if (modeRaw === "select" || modeRaw === "radio") mode = "radio";
   else if (
@@ -106,10 +135,12 @@ function normalizeSection(
   }
 
   // Description-only sections (no choice UI / switch) become static.
+  // An explicit toggle keeps the switch so it can render locked on/off.
   if (
     mode === undefined &&
     (!options || options.length === 0) &&
-    !chartField
+    !chartField &&
+    !toggle
   ) {
     mode = "static";
   }
@@ -124,18 +155,19 @@ function normalizeSection(
       ? { descriptionHtml: raw.descriptionHtml }
       : {}),
     ...(mode ? { mode } : {}),
+    ...(toggle ? { toggle } : {}),
     ...(typeof raw.defaultValue === "string"
       ? { defaultValue: raw.defaultValue }
       : {}),
-    ...(typeof raw.required === "boolean" ? { required: raw.required } : {}),
+    ...(asBool(raw.required) !== undefined ? { required: asBool(raw.required) } : {}),
     ...(options ? { options } : {}),
     ...(chartField ? { chartField } : {}),
     ...(showInOrigin ? { showInOrigin } : {}),
-    ...(raw.forceCleaning === true ? { forceCleaning: true } : {}),
-    ...(raw.studentLoungeCheckbox === true
+    ...(asBool(raw.forceCleaning) === true ? { forceCleaning: true } : {}),
+    ...(asBool(raw.studentLoungeCheckbox) === true
       ? { studentLoungeCheckbox: true }
       : {}),
-    ...(raw.showDetailsField === true ? { showDetailsField: true } : {}),
+    ...(asBool(raw.showDetailsField) === true ? { showDetailsField: true } : {}),
     ...(typeof raw.detailsLabel === "string"
       ? { detailsLabel: raw.detailsLabel }
       : {}),
@@ -226,6 +258,9 @@ function normalizeObjectServices(
       staffingRaw.mode === "hidden"
         ? { mode: staffingRaw.mode }
         : {}),
+      ...(normalizeToggle(staffingRaw.toggle)
+        ? { toggle: normalizeToggle(staffingRaw.toggle) }
+        : {}),
       ...(staffingRaw.showInOrigin
         ? { showInOrigin: staffingRaw.showInOrigin as ShowInOrigin }
         : hideFlagsToShowInOrigin(staffingRaw)
@@ -301,6 +336,8 @@ export function migrateResourceServices(
         result.cleaning = { label: SERVICE_LABELS.cleaning };
       } else if (key === "security") {
         result.security = { label: SERVICE_LABELS.security };
+      } else if (key === "furnishings") {
+        result.furnishings = { label: SERVICE_LABELS.furnishings };
       } else if (key === "annex" || key === "auxiliarySpace") {
         result.annex = { label: SERVICE_LABELS.annex };
       }

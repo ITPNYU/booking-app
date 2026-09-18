@@ -3,11 +3,13 @@ import { TableNames } from "@/components/src/policy";
 import { serverBookingContents } from "@/components/src/server/admin";
 import { getTenantEmailConfig } from "@/components/src/server/emails";
 import { BookingStatusLabel } from "@/components/src/types";
+import { getServiceDecisions } from "@/components/src/utils/serviceDecisions";
 import { getMediaCommonsServices } from "@/components/src/utils/tenantUtils";
 import {
   serverFetchAllDataFromCollection,
   serverGetDataByCalendarEventId,
 } from "@/lib/firebase/server/adminDb";
+import { serverGetTenantResources } from "@/lib/tenant/serverGetTenantResources";
 
 const SERVICE_APPROVER_CONFIG = {
   setup: {
@@ -40,7 +42,28 @@ const SERVICE_APPROVER_CONFIG = {
     subjectStatus: "SECURITY REQUESTED",
     displayName: "security",
   },
+  furnishings: {
+    flagField: "isFurnishings",
+    // Furnishings used to be folded into setup; until an isFurnishings
+    // approver exists in a tenant, keep routing these to setup approvers.
+    fallbackFlagField: "isSetup",
+    subjectStatus: "FURNISHINGS REQUESTED",
+    displayName: "furnishings",
+  },
 } as const;
+
+const recipientsWithFlag = (
+  usersRights: Array<Record<string, unknown>>,
+  flagField: string,
+): string[] =>
+  Array.from(
+    new Set(
+      usersRights
+        .filter((record) => record[flagField] === true)
+        .map((record) => record.email as string)
+        .filter(Boolean),
+    ),
+  );
 
 export const isServicesRequestState = (newState: any): boolean =>
   !!(
@@ -64,7 +87,13 @@ export const notifyServiceApproversForRequestedServices = async (
     return;
   }
 
-  const servicesRequested = getMediaCommonsServices(booking);
+  const servicesRequested = getMediaCommonsServices(
+    booking,
+    await serverGetTenantResources(tenant),
+  );
+  // A resubmitted edit keeps the decisions of unchanged services (ADR-0001);
+  // those land straight in their final state and need no approver.
+  const decisions = getServiceDecisions(booking);
   const usersRights = await serverFetchAllDataFromCollection<any>(
     TableNames.USERS_RIGHTS,
     [],
@@ -79,15 +108,14 @@ export const notifyServiceApproversForRequestedServices = async (
       if (!servicesRequested[serviceKey as keyof typeof servicesRequested]) {
         return [];
       }
+      if (typeof decisions[serviceKey as keyof typeof decisions] === "boolean") {
+        return [];
+      }
 
-      const recipients = Array.from(
-        new Set(
-          usersRights
-            .filter((record) => record[config.flagField] === true)
-            .map((record) => record.email)
-            .filter(Boolean),
-        ),
-      );
+      let recipients = recipientsWithFlag(usersRights, config.flagField);
+      if (recipients.length === 0 && "fallbackFlagField" in config) {
+        recipients = recipientsWithFlag(usersRights, config.fallbackFlagField);
+      }
 
       if (recipients.length === 0) {
         return [];
