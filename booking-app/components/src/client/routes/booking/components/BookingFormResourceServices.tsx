@@ -17,11 +17,16 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import styled from "@emotion/styled";
 import { FormContextLevel, Inputs } from "../../../../types";
 import {
+  createServiceRuleMemory,
+  ServiceRuleMemory,
+} from "../../../../utils/serviceSections";
+import {
   CHARTFIELD_PATTERN_MESSAGE,
   CHARTFIELD_REGEX,
 } from "../../../../utils/validationHelpers";
 import {
   getResourceServicesConfig,
+  getRoomsWithAnyVisibleService,
   getRoomsWithVisibleService,
   getServiceResourceId,
   getServiceSectionConfig,
@@ -93,6 +98,11 @@ interface Props {
   setShowStaffingServices: (value: boolean) => void;
   formContext: FormContextLevel;
   isLargeEvent: boolean;
+  /**
+   * Which per-room answers a rule switched on. Passed in by the Services
+   * step so it survives leaving the step; defaults to component-local memory.
+   */
+  ruleMemory?: ServiceRuleMemory;
 }
 
 function HtmlBlock({ html }: { html?: string }) {
@@ -402,7 +412,10 @@ export default function BookingFormResourceServices({
   setShowStaffingServices,
   formContext,
   isLargeEvent,
+  ruleMemory,
 }: Props) {
+  const localRuleMemory = useRef(createServiceRuleMemory());
+  const memory = ruleMemory ?? localRuleMemory.current;
   const visibility = useMemo<ServiceVisibilityContext>(
     () => ({
       isVIP,
@@ -503,8 +516,8 @@ export default function BookingFormResourceServices({
   // Rooms whose cleaning / security were switched on by a rule (catering
   // forces cleaning; 75+ attendees forces security) rather than by the user,
   // so the rule can switch them back off when it no longer applies.
-  const cleaningAutoSetByRoom = useRef<Record<string, boolean>>({});
-  const securityAutoSetByRoom = useRef<Record<string, boolean>>({});
+  const cleaningAutoSetByRoom = memory.cleaningAutoSetByRoom;
+  const securityAutoSetByRoom = memory.securityAutoSetByRoom;
 
   /** Per-room security toggle; an "off" lock yields to the large-event rule. */
   const securityToggleForRoom = (room: ServiceResourceLike) => {
@@ -557,10 +570,10 @@ export default function BookingFormResourceServices({
         if (nextCleaning[id] !== "yes") {
           nextCleaning[id] = "yes";
           cleaningChanged = true;
-          cleaningAutoSetByRoom.current[id] = true;
+          cleaningAutoSetByRoom[id] = true;
         }
-      } else if (cleaningAutoSetByRoom.current[id]) {
-        cleaningAutoSetByRoom.current[id] = false;
+      } else if (cleaningAutoSetByRoom[id]) {
+        cleaningAutoSetByRoom[id] = false;
         if (nextCleaning[id] === "yes") {
           nextCleaning[id] = "no";
           cleaningChanged = true;
@@ -598,10 +611,10 @@ export default function BookingFormResourceServices({
         if (!requested) {
           nextSecurity[id] = onValue;
           securityChanged = true;
-          securityAutoSetByRoom.current[id] = true;
+          securityAutoSetByRoom[id] = true;
         }
-      } else if (securityAutoSetByRoom.current[id]) {
-        securityAutoSetByRoom.current[id] = false;
+      } else if (securityAutoSetByRoom[id]) {
+        securityAutoSetByRoom[id] = false;
         if (current !== "") {
           nextSecurity[id] = "";
           securityChanged = true;
@@ -945,18 +958,10 @@ export default function BookingFormResourceServices({
 
   if (!hasConfig || isWalkIn) return null;
 
-  const roomsWithAnyService = selectedRooms.filter((room) => {
-    const config = getResourceServicesConfig(room);
-    return Object.keys(config).some((key) => {
-      if (key === "annex" || key === "auxiliarySpace") return false;
-      const section = getServiceSectionConfig(
-        room,
-        key as keyof typeof config,
-      );
-      if (!section) return false;
-      return shouldShowServiceSection(section, visibility);
-    });
-  });
+  const roomsWithAnyService = getRoomsWithAnyVisibleService(
+    selectedRooms,
+    visibility,
+  );
 
   return (
     <>

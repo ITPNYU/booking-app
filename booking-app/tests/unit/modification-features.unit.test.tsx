@@ -3,7 +3,8 @@ import {
   BookingContextType,
 } from "@/components/src/client/routes/booking/bookingProvider";
 import CalendarVerticalResource from "@/components/src/client/routes/booking/components/CalendarVerticalResource";
-import FormInput from "@/components/src/client/routes/booking/components/FormInput";
+import DetailsInput from "@/components/src/client/routes/booking/components/DetailsInput";
+import ServicesInput from "@/components/src/client/routes/booking/components/ServicesInput";
 import { DatabaseContext } from "@/components/src/client/routes/components/Provider";
 import {
   Days,
@@ -25,7 +26,7 @@ const { mockIsBookingTimeInBlackout } = vi.hoisted(() => ({
 // Global mocks
 // --------------------
 
-// Mock SchemaProvider hook so FormInput doesn't depend on external schema
+// Mock SchemaProvider hook so DetailsInput doesn't depend on external schema
 vi.mock(
   "@/components/src/client/routes/components/SchemaProvider",
   async (importOriginal) => {
@@ -57,7 +58,7 @@ vi.mock(
   },
 );
 
-// Mock hooks that FormInput relies on
+// Mock hooks that DetailsInput relies on
 vi.mock(
   "@/components/src/client/routes/booking/hooks/useCheckAutoApproval",
   () => ({
@@ -216,6 +217,7 @@ function renderWithProviders(
     setBookingCalendarInfo: vi.fn(),
     setDepartment: vi.fn(),
     setFormData: vi.fn(),
+    setIsDetailsValid: vi.fn(),
     setHasShownMocapModal: vi.fn(),
     setRole: vi.fn(),
     setSelectedRooms: vi.fn(),
@@ -247,10 +249,10 @@ describe("Modification Features", () => {
     fullCalendarProps = null; // reset capture between tests
   });
 
-  describe("FormInput (Modification)", () => {
+  describe("DetailsInput (Modification)", () => {
     it("renders title and description fields in modification context", () => {
       renderWithProviders(
-        <FormInput formContext={FormContextLevel.MODIFICATION} />, // no calendarEventId needed for render check
+        <DetailsInput formContext={FormContextLevel.MODIFICATION} />, // no calendarEventId needed for render check
         {
           bookingContextOverrides: {
             selectedRooms: [],
@@ -264,6 +266,9 @@ describe("Modification Features", () => {
       expect(screen.getByText(/Expected Attendance/i)).toBeInTheDocument();
     });
 
+  });
+
+  describe("ServicesInput (Modification)", () => {
     it("initializes staffing services toggle when existing booking has staffing services", async () => {
       const mockRooms: RoomSetting[] = [
         {
@@ -277,7 +282,7 @@ describe("Modification Features", () => {
       ];
 
       renderWithProviders(
-        <FormInput formContext={FormContextLevel.MODIFICATION} />,
+        <ServicesInput formContext={FormContextLevel.MODIFICATION} />,
         {
           bookingContextOverrides: {
             selectedRooms: mockRooms,
@@ -312,7 +317,7 @@ describe("Modification Features", () => {
       ];
 
       renderWithProviders(
-        <FormInput formContext={FormContextLevel.MODIFICATION} />,
+        <ServicesInput formContext={FormContextLevel.MODIFICATION} />,
         {
           bookingContextOverrides: {
             selectedRooms: mockRooms,
@@ -349,7 +354,7 @@ describe("Modification Features", () => {
       ];
 
       renderWithProviders(
-        <FormInput formContext={FormContextLevel.MODIFICATION} />,
+        <ServicesInput formContext={FormContextLevel.MODIFICATION} />,
         {
           bookingContextOverrides: {
             selectedRooms: mockRooms,
@@ -386,7 +391,7 @@ describe("Modification Features", () => {
       ];
 
       renderWithProviders(
-        <FormInput formContext={FormContextLevel.MODIFICATION} />,
+        <ServicesInput formContext={FormContextLevel.MODIFICATION} />,
         {
           bookingContextOverrides: {
             selectedRooms: mockRooms,
@@ -414,7 +419,7 @@ describe("Modification Features", () => {
       ];
 
       renderWithProviders(
-        <FormInput formContext={FormContextLevel.MODIFICATION} />,
+        <ServicesInput formContext={FormContextLevel.MODIFICATION} />,
         {
           bookingContextOverrides: {
             selectedRooms: mockRooms,
@@ -429,11 +434,6 @@ describe("Modification Features", () => {
           },
         }
       );
-
-      // Wait for form to render
-      await waitFor(() => {
-        expect(screen.getByText(/Reservation Title/i)).toBeInTheDocument();
-      });
 
       // Check that service section exists by looking for the heading
       await waitFor(() => {

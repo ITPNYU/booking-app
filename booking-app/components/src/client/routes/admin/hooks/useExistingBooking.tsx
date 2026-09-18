@@ -13,6 +13,9 @@ export default function useExistingBooking() {
     setSelectedRooms,
     setBookingCalendarInfo,
     setFormData,
+    setIsDetailsValid,
+    resetServiceRuleMemory,
+    setCheckedAgreements,
     setAnnexByRoom,
   } = useContext(BookingContext);
   const { allBookings, roomSettings } = useContext(DatabaseContext);
@@ -264,6 +267,10 @@ export default function useExistingBooking() {
     };
 
     setFormData(formValues);
+    // The saved answers are re-validated when the Details step mounts.
+    setIsDetailsValid(false);
+    resetServiceRuleMemory();
+    setCheckedAgreements({});
   };
 
   return loadExistingBookingData;

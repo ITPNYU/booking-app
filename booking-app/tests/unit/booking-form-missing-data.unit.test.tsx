@@ -531,3 +531,88 @@ describe("useCheckFormMissingData - Redirect Behavior", () => {
     });
   });
 });
+
+describe("useCheckFormMissingData - Services step", () => {
+  const mockPush = vi.fn();
+  const completeSelection = {
+    role: "Student",
+    department: "Engineering",
+    // A legacy room offering catering: the Services step has a section to show.
+    selectedRooms: [{ roomId: "room1", capacity: "20", services: ["catering"] }],
+    bookingCalendarInfo: {
+      startStr: "2024-01-01T09:00:00",
+      endStr: "2024-01-01T10:00:00",
+      start: new Date("2024-01-01T09:00:00"),
+      end: new Date("2024-01-01T10:00:00"),
+    },
+    formData: { title: "Demo" },
+    isDetailsValid: true,
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    (useRouter as any).mockReturnValue({ push: mockPush });
+    (useParams as any).mockReturnValue({ tenant: "test-tenant" });
+    (usePathname as any).mockReturnValue("/test-tenant/book/services");
+  });
+
+  it("allows Services when rooms, time and a valid Details answer set are present", () => {
+    renderHook(() => useCheckFormMissingData(), {
+      wrapper: createWrapper(completeSelection),
+    });
+    expect(mockPush).not.toHaveBeenCalled();
+  });
+
+  it("bounces to the affiliation step when affiliation is missing", () => {
+    renderHook(() => useCheckFormMissingData(), {
+      wrapper: createWrapper({ ...completeSelection, role: null }),
+    });
+    expect(mockPush).toHaveBeenCalledWith("/test-tenant/book/role");
+  });
+
+  it("bounces to Select Time when rooms or time are missing", () => {
+    renderHook(() => useCheckFormMissingData(), {
+      wrapper: createWrapper({ ...completeSelection, bookingCalendarInfo: null }),
+    });
+    expect(mockPush).toHaveBeenCalledWith("/test-tenant/book/selectRoom");
+  });
+
+  it("bounces to Details when the Details answer set is not valid", () => {
+    renderHook(() => useCheckFormMissingData(), {
+      wrapper: createWrapper({ ...completeSelection, isDetailsValid: false }),
+    });
+    expect(mockPush).toHaveBeenCalledWith("/test-tenant/book/form");
+  });
+
+  it("bounces to Details when no service section would show for the rooms", () => {
+    renderHook(() => useCheckFormMissingData(), {
+      wrapper: createWrapper({
+        ...completeSelection,
+        selectedRooms: [{ roomId: "room1", capacity: "20", services: {} }],
+      }),
+    });
+    expect(mockPush).toHaveBeenCalledWith("/test-tenant/book/form");
+  });
+
+  it("keeps the booking id in the redirect for the edit flow", () => {
+    (usePathname as any).mockReturnValue("/test-tenant/edit/services/abc123");
+    renderHook(() => useCheckFormMissingData(), {
+      wrapper: createWrapper({ ...completeSelection, isDetailsValid: false }),
+    });
+    expect(mockPush).toHaveBeenCalledWith("/test-tenant/edit/form/abc123");
+  });
+
+  it("does not require affiliation for modification", () => {
+    (usePathname as any).mockReturnValue(
+      "/test-tenant/modification/services/abc123",
+    );
+    renderHook(() => useCheckFormMissingData(), {
+      wrapper: createWrapper({
+        ...completeSelection,
+        role: null,
+        department: null,
+      }),
+    });
+    expect(mockPush).not.toHaveBeenCalled();
+  });
+});

@@ -17,6 +17,8 @@ import {
 } from "@/components/src/utils/resourceServicesUtils";
 import { MC_TEST_RESOURCE_SERVICES } from "@/components/src/testHelpers/mcResourceServicesFixture";
 import { migrateResourceServices } from "@/lib/tenant/migrateResourceServices";
+import { pruneServiceRequestsToRooms } from "@/components/src/utils/serviceSections";
+import type { Inputs } from "@/components/src/types";
 
 /** MC rooms as stored in the tenant schema (services snapshot fixture). */
 const mcRooms = Object.entries(MC_TEST_RESOURCE_SERVICES).map(
@@ -658,5 +660,35 @@ describe("pruneServiceMapsToRooms", () => {
         pruned.chartFieldForCateringByRoom,
       ),
     ).toEqual(["1201: yes"]);
+  });
+});
+
+describe("pruneServiceRequestsToRooms", () => {
+  it("clears the legacy scalar fields of a service no remaining room offers", () => {
+    const data = {
+      catering: "yes",
+      cateringService: "Outside Catering",
+      chartFieldForCatering: "12345-AB-CDE00-00001",
+      equipmentServices: "Checkout Equipment",
+      equipmentServicesDetails: "two mics",
+      mediaServices: "Checkout Equipment",
+      mediaServicesDetails: "two mics",
+      firstName: "Ada",
+    } as Inputs;
+    const pruned = pruneServiceRequestsToRooms(
+      data,
+      [{ resourceId: "1201", services: [] }],
+      false,
+    );
+    expect(pruned).toMatchObject({
+      catering: "",
+      cateringService: "",
+      chartFieldForCatering: "",
+      equipmentServices: "",
+      equipmentServicesDetails: "",
+      mediaServices: "",
+      mediaServicesDetails: "",
+      firstName: "Ada",
+    });
   });
 });

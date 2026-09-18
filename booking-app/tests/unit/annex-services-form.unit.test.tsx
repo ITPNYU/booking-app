@@ -1,4 +1,4 @@
-import FormInput from "@/components/src/client/routes/booking/components/FormInput";
+import ServicesInput from "@/components/src/client/routes/booking/components/ServicesInput";
 import { BookingContext } from "@/components/src/client/routes/booking/bookingProvider";
 import { DatabaseContext } from "@/components/src/client/routes/components/Provider";
 import { SchemaProvider } from "@/components/src/client/routes/components/SchemaProvider";
@@ -154,7 +154,7 @@ describe("getSelectedAnnexResources / getServiceRooms", () => {
   });
 });
 
-describe("FormInput renders services for checked annex spaces", () => {
+describe("ServicesInput renders services for checked annex spaces", () => {
   const schema = coerceTenantSchema(
     {
       tenantId: "mc",
@@ -218,7 +218,7 @@ describe("FormInput renders services for checked annex spaces", () => {
                 } as any
               }
             >
-              <FormInput formContext={FormContextLevel.FULL_FORM} />
+              <ServicesInput formContext={FormContextLevel.FULL_FORM} />
             </BookingContext.Provider>
           </SchemaProvider>
         </DatabaseContext.Provider>
