@@ -27,6 +27,7 @@ import {
   getServiceResourceId,
   getServiceRooms,
 } from "../../../utils/resourceServicesUtils";
+import type { ServiceDecisions } from "../../../utils/serviceDecisions";
 import {
   createServiceRuleMemory,
   pruneServiceRequestsToRooms,
@@ -65,6 +66,13 @@ export interface BookingContextType {
    * for the request they were ticked in.
    */
   checkedAgreements: Record<string, boolean>;
+  /**
+   * The loaded booking's service decisions (edit and modification contexts),
+   * kept beside formData so they never enter the answer set. Cleared with
+   * the rest of the form.
+   */
+  serviceDecisions: ServiceDecisions;
+  setServiceDecisions: (x: ServiceDecisions) => void;
   hasShownMocapModal: boolean;
   isBanned: boolean;
   isSafetyTrained: boolean;
@@ -102,6 +110,8 @@ export const BookingContext = createContext<BookingContextType>({
   serviceRuleMemory: createServiceRuleMemory(),
   resetServiceRuleMemory: () => {},
   checkedAgreements: {},
+  serviceDecisions: {},
+  setServiceDecisions: (x: ServiceDecisions) => {},
   hasShownMocapModal: false,
   isBanned: false,
   isSafetyTrained: true,
@@ -225,6 +235,9 @@ export function BookingProvider({ children }) {
   const setCheckedAgreements = useCallback(
     (checked: Record<string, boolean>) => setAgreements({ flowKey, checked }),
     [flowKey],
+  );
+  const [serviceDecisions, setServiceDecisions] = useState<ServiceDecisions>(
+    {},
   );
   const [hasShownMocapModal, setHasShownMocapModal] = useState(false);
   const [annexByRoom, setAnnexByRoom] = useState<Record<string, string[]>>({});
@@ -366,6 +379,8 @@ export function BookingProvider({ children }) {
         serviceRuleMemory: serviceRuleMemory.current,
         resetServiceRuleMemory,
         checkedAgreements,
+        serviceDecisions,
+        setServiceDecisions,
         hasShownMocapModal,
         isBanned,
         isSafetyTrained,
