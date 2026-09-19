@@ -16,6 +16,7 @@ import admin from "@/lib/firebase/server/firebaseAdmin";
 import { getCalendarClient } from "@/lib/googleClient";
 import { Timestamp } from "firebase/firestore";
 import { NextResponse } from "next/server";
+import { compareResourceIds } from "../../../components/src/utils/resourceOrder";
 
 const db = admin.firestore();
 const areRoomIdsSame = (roomIds1: string, roomIds2: string): boolean => {
@@ -112,7 +113,7 @@ const findRoomIds = (event: any, resources: any[]): string => {
 
   // Resource IDs are opaque strings; numeric sorting is only a display aid.
   return Array.from(roomIds)
-    .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+    .sort(compareResourceIds)
     .join(",");
 };
 

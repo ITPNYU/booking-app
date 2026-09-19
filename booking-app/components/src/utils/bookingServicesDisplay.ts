@@ -14,6 +14,7 @@ import {
   resourceHasService,
   ServiceResourceLike,
 } from "@/components/src/utils/resourceServicesUtils";
+import { compareResourceIds } from "./resourceOrder";
 
 /** One requested service under a room or in the booking-level block. */
 export type BookingServiceDisplayRow = {
@@ -611,9 +612,7 @@ function extraRoomIdsFromMaps(
       if (Array.isArray(values) && values.length > 0) extras.add(id);
     }
   }
-  return [...extras].sort((a, b) =>
-    a.localeCompare(b, undefined, { numeric: true }),
-  );
+  return [...extras].sort(compareResourceIds);
 }
 
 function stringMap(map: unknown): Record<string, string> {

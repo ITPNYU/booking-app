@@ -33,6 +33,7 @@ import { TIMEZONE, toBookingCalendarStr } from "../../../utils/date";
 import { DEFAULT_START_HOUR } from "../utils/getStartHour";
 import { DEFAULT_SLOT_UNIT } from "../utils/getSlotUnit";
 import { buildBlockPastTimes } from "../utils/buildBlockPastTimes";
+import { compareResourceIds } from "../../../../utils/resourceOrder";
 
 interface Props {
   calendarEventId?: string;
@@ -142,11 +143,7 @@ export default function CalendarVerticalResource({
   const resources = useMemo(
     () =>
       [...rooms]
-        .sort((a, b) =>
-          String(a.roomId).localeCompare(String(b.roomId), undefined, {
-            numeric: true,
-          }),
-        )
+        .sort((a, b) => compareResourceIds(a.roomId, b.roomId))
         .map((room, index) => ({
           id: room.roomId,
           title: `${room.roomId} ${room.name}`,
