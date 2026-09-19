@@ -9,6 +9,7 @@ import {
   LocalPolice,
 } from "@mui/icons-material";
 import React from "react";
+import { SERVICE_ORDER } from "../../../utils/serviceOrder";
 
 // Map services to their icons
 const serviceIcons: Record<string, React.ElementType> = {
@@ -20,17 +21,6 @@ const serviceIcons: Record<string, React.ElementType> = {
   Security: LocalPolice,
   Furniture: TableBar,
 };
-
-// Display order for services, shared by the booking table and its filters
-export const SERVICE_ORDER = [
-  "Setup",
-  "Furniture",
-  "Equipment",
-  "Staffing",
-  "Catering",
-  "Cleaning",
-  "Security",
-];
 
 interface ServicesMultiSelectDropdownProps {
   value: string[] | null;

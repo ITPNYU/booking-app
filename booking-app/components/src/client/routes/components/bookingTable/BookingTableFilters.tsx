@@ -25,9 +25,8 @@ import { DatabaseContext } from "../Provider";
 import { DateRangeFilter } from "./hooks/getDateFilter";
 import MultiSelectDropdown from "../../booking/components/MultiSelectDropdown";
 import StatusMultiSelectDropdown from "../../booking/components/StatusMultiSelectDropdown";
-import ServicesMultiSelectDropdown, {
-  SERVICE_ORDER,
-} from "../../booking/components/ServicesMultiSelectDropdown";
+import ServicesMultiSelectDropdown from "../../booking/components/ServicesMultiSelectDropdown";
+import { SERVICE_ORDER } from "../../../utils/serviceOrder";
 import StatusChip from "./StatusChip";
 import FilterChip from "./FilterChip";
 

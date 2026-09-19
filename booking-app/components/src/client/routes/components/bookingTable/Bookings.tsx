@@ -45,7 +45,7 @@ import Loading from "../Loading";
 import { useAuth } from "../AuthProvider";
 import { DatabaseContext } from "../Provider";
 import { deriveFormServicesFlags } from "../../../../utils/resourceServicesUtils";
-import { SERVICE_ORDER } from "../../booking/components/ServicesMultiSelectDropdown";
+import { SERVICE_ORDER } from "../../../utils/serviceOrder";
 import { useTenantSchema } from "../SchemaProvider";
 import BookMoreButton from "./BookMoreButton";
 import BookingTableFilters from "./BookingTableFilters";
