@@ -1,6 +1,6 @@
 import { Checkbox, MenuItem, Select, SxProps, Theme, Box } from "@mui/material";
 import {
-  RoomService,
+  RoomPreferences,
   TableBar,
   Headset,
   PeopleAlt,
@@ -12,7 +12,7 @@ import React from "react";
 
 // Map services to their icons
 const serviceIcons: Record<string, React.ElementType> = {
-  Setup: RoomService,
+  Setup: RoomPreferences,
   Equipment: Headset,
   Staffing: PeopleAlt,
   Catering: LocalDining,
@@ -21,7 +21,8 @@ const serviceIcons: Record<string, React.ElementType> = {
   Furniture: TableBar,
 };
 
-const SERVICE_ORDER = [
+// Display order for services, shared by the booking table and its filters
+export const SERVICE_ORDER = [
   "Setup",
   "Equipment",
   "Staffing",

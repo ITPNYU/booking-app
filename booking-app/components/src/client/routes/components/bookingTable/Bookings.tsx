@@ -1,6 +1,6 @@
 import {
   MoreHoriz,
-  RoomService,
+  RoomPreferences,
   TableBar,
   Headset,
   PeopleAlt,
@@ -45,6 +45,7 @@ import Loading from "../Loading";
 import { useAuth } from "../AuthProvider";
 import { DatabaseContext } from "../Provider";
 import { deriveFormServicesFlags } from "../../../../utils/resourceServicesUtils";
+import { SERVICE_ORDER } from "../../booking/components/ServicesMultiSelectDropdown";
 import { useTenantSchema } from "../SchemaProvider";
 import BookMoreButton from "./BookMoreButton";
 import BookingTableFilters from "./BookingTableFilters";
@@ -620,7 +621,7 @@ export const Bookings: React.FC<BookingsProps> = ({
                 }[] = [
                   {
                     label: "Setup",
-                    Icon: RoomService,
+                    Icon: RoomPreferences,
                     requested: servicesRequested.setup || false,
                     serviceKey: "setup",
                     closeoutKey: "Setup Closeout",
@@ -707,7 +708,13 @@ export const Bookings: React.FC<BookingsProps> = ({
                       gap: "4px",
                     }}
                   >
-                    {items.map(
+                    {[...items]
+                      .sort(
+                        (a, b) =>
+                          SERVICE_ORDER.indexOf(a.label) -
+                          SERVICE_ORDER.indexOf(b.label),
+                      )
+                      .map(
                       ({ label, Icon, requested, serviceKey, closedout }) => {
                         const approved = servicesApproved[serviceKey];
                         const showApprovalBadge =
