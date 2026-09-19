@@ -53,6 +53,7 @@ import {
   applyE2EMockPaUsers,
   applyE2EMockSafetyUsers,
 } from "./e2eMockUtils";
+import { compareResourceIds } from "../../../utils/resourceOrder";
 
 export interface DatabaseContextType {
   adminUsers: AdminUser[];
@@ -351,9 +352,7 @@ export const DatabaseProvider = ({
           isEquipment: resource.isEquipment || false,
           services: resource.services || [],
         }))
-        .sort((a, b) =>
-          a.roomId.localeCompare(b.roomId, undefined, { numeric: true }),
-        );
+        .sort((a, b) => compareResourceIds(a.roomId, b.roomId));
       setRoomSettings(rooms);
     }
   }, [schemaContext?.resources]);

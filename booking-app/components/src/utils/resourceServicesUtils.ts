@@ -8,6 +8,7 @@ import type {
   ServiceToggle,
   ShowInOrigin,
 } from "@/components/src/client/routes/components/schemaTypes";
+import { compareResourceIds } from "./resourceOrder";
 
 export type ServiceVisibilityContext = {
   isVIP: boolean;
@@ -348,9 +349,7 @@ export function getAnnexChildResources(
   return allResources
     .filter((r) => r.parentResourceId === parentId)
     .sort((a, b) =>
-      getServiceResourceId(a).localeCompare(getServiceResourceId(b), undefined, {
-        numeric: true,
-      }),
+      compareResourceIds(getServiceResourceId(a), getServiceResourceId(b)),
     );
 }
 
@@ -402,13 +401,7 @@ export function getSelectedAnnexResources(
       (r) => r.parentResourceId && selectedIds.has(getServiceResourceId(r)),
     )
     .sort((a, b) =>
-      getServiceResourceId(a).localeCompare(
-        getServiceResourceId(b),
-        undefined,
-        {
-          numeric: true,
-        },
-      ),
+      compareResourceIds(getServiceResourceId(a), getServiceResourceId(b)),
     );
 }
 
@@ -527,7 +520,7 @@ export function mergeRoomIdsWithAnnex(
     }
   }
   return merged
-    .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+    .sort(compareResourceIds)
     .join(", ");
 }
 
