@@ -8,9 +8,12 @@ import { getEmailBranchTag } from "@/components/src/server/emails";
 import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
 import { ApproverType } from "@/components/src/types";
 import {
-  formatAnnexByRoomForDisplay,
-  mergeRoomIdsWithAnnex,
-} from "@/components/src/utils/resourceServicesUtils";
+  bookingServicesDisplayForEmail,
+  getBookingServicesByRoom,
+  hasBookingServicesDisplay,
+  type BookingServicesSource,
+} from "@/components/src/utils/bookingServicesDisplay";
+import { mergeRoomIdsWithAnnex } from "@/components/src/utils/resourceServicesUtils";
 import { getBookingLogs } from "@/lib/firebase/server/adminDb";
 import { serverGetTenantResources } from "@/lib/tenant/serverGetTenantResources";
 import { getGmailClient } from "@/lib/googleClient";
@@ -24,13 +27,9 @@ if (typeof window === "undefined") {
   Handlebars = require("handlebars");
 }
 
-interface BookingFormDetails {
-  [key: string]: string;
-}
-
 interface SendHTMLEmailParams {
   templateName: string;
-  contents: BookingFormDetails;
+  contents: Record<string, unknown>;
   targetEmail: string;
   status: string;
   eventTitle: string;
@@ -125,29 +124,47 @@ export const sendHTMLEmail = async (params: SendHTMLEmailParams) => {
 
   const template = Handlebars.compile(templateSource);
   const approvalUrl = approverType
-    ? getApprovalUrl(contents.calendarEventId, approverType, tenant)
+    ? getApprovalUrl(String(contents.calendarEventId ?? ""), approverType, tenant)
     : undefined;
 
-  // Resolve selected auxiliary spaces to display labels for the template
-  const annexByRoom = (contents as any).annexByRoom;
-  let auxiliarySpaces = "";
-  if (annexByRoom && typeof annexByRoom === "object") {
-    try {
-      const resources = await serverGetTenantResources(tenant);
-      auxiliarySpaces = formatAnnexByRoomForDisplay(annexByRoom, resources);
-    } catch (error) {
-      console.error("Error formatting auxiliary spaces for email:", error);
-    }
+  const annexByRoom = contents.annexByRoom;
+  let tenantResources: Awaited<ReturnType<typeof serverGetTenantResources>> =
+    [];
+  try {
+    tenantResources = await serverGetTenantResources(tenant);
+  } catch (error) {
+    console.error("Error fetching tenant resources for email:", error);
   }
 
+  const fallbackRooms =
+    annexByRoom && typeof annexByRoom === "object"
+      ? Object.keys(annexByRoom).map((roomId) => ({
+          resourceId: roomId,
+        }))
+      : [];
+  const servicesDisplay = bookingServicesDisplayForEmail(
+    getBookingServicesByRoom(contents as BookingServicesSource, [
+      ...tenantResources,
+      ...fallbackRooms,
+    ]),
+    tenant ?? (contents as { tenant?: string }).tenant,
+  );
+
   // Update contents with formatted data for the template
-  const updatedContents = {
+  const updatedContents: Record<string, unknown> = {
     ...contents,
-    roomId: mergeRoomIdsWithAnnex(contents.roomId, annexByRoom),
-    startDate: serverFormatDateOnly(contents.startDate),
-    endDate: serverFormatDateOnly(contents.endDate),
+    roomId: mergeRoomIdsWithAnnex(
+      contents.roomId == null ? undefined : String(contents.roomId),
+      annexByRoom as Record<string, string[]> | undefined,
+    ),
+    startDate: serverFormatDateOnly(String(contents.startDate ?? "")),
+    endDate: serverFormatDateOnly(String(contents.endDate ?? "")),
     status,
-    auxiliarySpaces,
+    services: {
+      show: hasBookingServicesDisplay(servicesDisplay),
+      bookingLevel: servicesDisplay.bookingLevel,
+      rooms: servicesDisplay.rooms,
+    },
   };
 
   const htmlBody = template({

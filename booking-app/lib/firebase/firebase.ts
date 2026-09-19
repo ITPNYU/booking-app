@@ -11,6 +11,7 @@ import { getE2EOverride } from "@/lib/e2e/clientOverrides";
 
 import { reviveSerializedTimestamps } from "@/lib/utils/timestampWire";
 import { Filters } from "@/components/src/types";
+import { compareResourceIds } from "@/components/src/utils/resourceOrder";
 import type { SchemaContextType } from "@/components/src/client/routes/components/schemaTypes";
 import {
   USER_RIGHT_FLAG_FIELDS,
@@ -200,7 +201,7 @@ export const clientListServiceApprovers = async (
     tenant,
   );
   return docs.sort((a, b) => {
-    const resourceCompare = a.resourceId.localeCompare(b.resourceId);
+    const resourceCompare = compareResourceIds(a.resourceId, b.resourceId);
     if (resourceCompare !== 0) return resourceCompare;
     const serviceCompare = a.service.localeCompare(b.service);
     if (serviceCompare !== 0) return serviceCompare;

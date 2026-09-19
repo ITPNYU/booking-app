@@ -54,6 +54,7 @@ import {
 } from "@/lib/firebase/firebase";
 import dayjs, { Dayjs } from "dayjs";
 import { DatabaseContext } from "../../../components/Provider";
+import { compareResourceIds } from "../../../../../utils/resourceOrder";
 
 type RoomApplicationType =
   | "all"
@@ -67,7 +68,7 @@ type RuntimeBlackoutPeriod = Omit<BlackoutPeriod, "roomIds"> & {
 };
 
 const sortResourceIds = (resourceIds: string[]) =>
-  resourceIds.sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+  resourceIds.sort(compareResourceIds);
 
 /**
  * Check if two sorted arrays are equal

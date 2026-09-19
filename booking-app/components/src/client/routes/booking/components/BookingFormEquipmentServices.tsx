@@ -5,12 +5,22 @@ import styled from "@emotion/styled";
 import { FormContextLevel, Inputs, EquipmentServices } from "../../../../types";
 
 import { useTenantSchema } from "../../components/SchemaProvider";
+import ServiceDecisionMark from "./ServiceDecisionMark";
 
 const Label = styled.label`
   font-weight: 500;
   font-size: 0.875rem;
   line-height: 1.25rem;
   margin-bottom: 0.5rem;
+`;
+
+/** Service name, its yes/no switch and decision mark on one line. */
+const SwitchRow = styled.div`
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
 `;
 
 interface Props {
@@ -20,6 +30,8 @@ interface Props {
   showEquipmentServices: boolean;
   setShowEquipmentServices: any;
   formContext: FormContextLevel;
+  /** The equipment service decision on the loaded booking (edit / modification). */
+  decision?: boolean;
 }
 
 export default function BookingFormEquipmentServices(props: Props) {
@@ -30,6 +42,7 @@ export default function BookingFormEquipmentServices(props: Props) {
     showEquipmentServices,
     setShowEquipmentServices,
     formContext,
+    decision,
   } = props;
   const schema = useTenantSchema();
   const { showEquipment } = schema.form.services;
@@ -74,23 +87,39 @@ export default function BookingFormEquipmentServices(props: Props) {
     return null;
   }
 
+  const mark = (
+    <ServiceDecisionMark
+      service="equipment"
+      decision={decision}
+      formContext={formContext}
+    />
+  );
+
+  const row = (
+    <SwitchRow>
+      <Label htmlFor={id} style={{ marginBottom: 0 }}>
+        Equipment?
+      </Label>
+      {toggle}
+      {mark}
+    </SwitchRow>
+  );
+
   if (limitedContexts.includes(formContext)) {
     return (
       <div style={{ marginBottom: 8 }}>
-        <Label htmlFor={id}>Equipment?</Label>
+        {row}
         <p style={{ fontSize: "0.75rem" }}>Check out equipment</p>
-        {toggle}
       </div>
     );
   }
 
   return (
     <div style={{ marginBottom: 8 }}>
-      <Label htmlFor={id}>Equipment?</Label>
+      {row}
       <p style={{ fontSize: "0.75rem" }}>
         Check out equipment from Media Commons inventory.
       </p>
-      {toggle}
     </div>
   );
 }

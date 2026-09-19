@@ -39,6 +39,10 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
     setBookingCalendarInfo,
     setSelectedRooms,
     setFormData,
+    setIsDetailsValid,
+    resetServiceRuleMemory,
+    setCheckedAgreements,
+    setServiceDecisions,
     setHasShownMocapModal,
     setSubmitting,
     error,
@@ -343,6 +347,10 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
           setSelectedRooms([]);
           setAnnexByRoom({});
           setFormData(undefined);
+          setIsDetailsValid(false);
+          resetServiceRuleMemory();
+          setCheckedAgreements({});
+          setServiceDecisions({});
           setHasShownMocapModal(false);
 
           reloadFutureBookings();

@@ -1,4 +1,5 @@
-import FormInput from "@/components/src/client/routes/booking/components/FormInput";
+import DetailsInput from "@/components/src/client/routes/booking/components/DetailsInput";
+import ServicesInput from "@/components/src/client/routes/booking/components/ServicesInput";
 import { BookingContext } from "@/components/src/client/routes/booking/bookingProvider";
 import { DatabaseContext } from "@/components/src/client/routes/components/Provider";
 import { SchemaProvider } from "@/components/src/client/routes/components/SchemaProvider";
@@ -40,7 +41,7 @@ const theme = createTheme({
   },
 });
 
-describe("FormInput - Field Visibility by Form Context", () => {
+describe("DetailsInput - Field Visibility by Form Context", () => {
   const mockRouter = {
     push: vi.fn(),
   };
@@ -87,6 +88,9 @@ describe("FormInput - Field Visibility by Form Context", () => {
     },
     formData: null,
     setFormData: vi.fn(),
+    setIsDetailsValid: vi.fn(),
+    checkedAgreements: {},
+    setCheckedAgreements: vi.fn(),
     isBanned: false,
     needsSafetyTraining: false,
     isInBlackoutPeriod: false,
@@ -131,7 +135,7 @@ describe("FormInput - Field Visibility by Form Context", () => {
     "media-commons",
   );
 
-  const renderFormInput = (
+  const renderDetailsInput = (
     formContext: FormContextLevel,
     bookingContextOverrides = {},
     userApiData = mockUserApiData
@@ -143,10 +147,29 @@ describe("FormInput - Field Visibility by Form Context", () => {
         <DatabaseContext.Provider value={mockDatabaseContext}>
           <SchemaProvider value={mockTenantSchema}>
             <BookingContext.Provider value={bookingContext}>
-              <FormInput
+              <DetailsInput
                 formContext={formContext}
                 userApiData={userApiData}
               />
+            </BookingContext.Provider>
+          </SchemaProvider>
+        </DatabaseContext.Provider>
+      </ThemeProvider>
+    );
+  };
+
+  const renderServicesInput = (
+    formContext: FormContextLevel,
+    bookingContextOverrides = {},
+  ) => {
+    const bookingContext = createBookingContext(bookingContextOverrides);
+
+    return render(
+      <ThemeProvider theme={theme}>
+        <DatabaseContext.Provider value={mockDatabaseContext}>
+          <SchemaProvider value={mockTenantSchema}>
+            <BookingContext.Provider value={bookingContext}>
+              <ServicesInput formContext={formContext} />
             </BookingContext.Provider>
           </SchemaProvider>
         </DatabaseContext.Provider>
@@ -162,7 +185,7 @@ describe("FormInput - Field Visibility by Form Context", () => {
 
   describe("Normal Booking (FULL_FORM)", () => {
     it("displays all expected sections", () => {
-      renderFormInput(FormContextLevel.FULL_FORM);
+      renderDetailsInput(FormContextLevel.FULL_FORM);
 
       // Contact Information section
       expect(screen.getByText("Contact Information")).toBeInTheDocument();
@@ -187,6 +210,18 @@ describe("FormInput - Field Visibility by Form Context", () => {
       expect(screen.getByText("Expected Attendance*")).toBeInTheDocument();
       expect(screen.getByText("Attendee Affiliation(s)*")).toBeInTheDocument();
 
+      // Services and Agreement live on the Services step; Details ends with Next
+      expect(screen.queryByText("Services")).not.toBeInTheDocument();
+      expect(screen.queryByText("Agreement")).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Next" })).toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: "Submit" }),
+      ).not.toBeInTheDocument();
+    });
+
+    it("displays the service sections and the submit block on the Services step", () => {
+      renderServicesInput(FormContextLevel.FULL_FORM);
+
       // Services section
       expect(screen.getByText("Services")).toBeInTheDocument();
       expect(screen.getByText("Room Setup")).toBeInTheDocument();
@@ -197,10 +232,11 @@ describe("FormInput - Field Visibility by Form Context", () => {
       // Agreement section
       expect(screen.getByText("Agreement")).toBeInTheDocument();
       expect(screen.getByText("I agree")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Submit" })).toBeInTheDocument();
     });
 
     it("does not show sponsor section for non-student roles", () => {
-      renderFormInput(FormContextLevel.FULL_FORM, { role: "Faculty" });
+      renderDetailsInput(FormContextLevel.FULL_FORM, { role: "Faculty" });
 
       // Contact Information should be present
       expect(screen.getByText("Contact Information")).toBeInTheDocument();
@@ -216,21 +252,21 @@ describe("FormInput - Field Visibility by Form Context", () => {
     });
 
     it("displays equipment services when room has equipment service", () => {
-      renderFormInput(FormContextLevel.FULL_FORM);
+      renderServicesInput(FormContextLevel.FULL_FORM);
 
       // Equipment services toggle should be visible
       expect(screen.getByText("Equipment?")).toBeInTheDocument();
     });
 
     it("displays staffing services when room has staffing service", () => {
-      renderFormInput(FormContextLevel.FULL_FORM);
+      renderServicesInput(FormContextLevel.FULL_FORM);
 
       // Staffing services toggle should be visible
       expect(screen.getByText("Staffing?")).toBeInTheDocument();
     });
 
     it("hides services when room does not have those services", () => {
-      renderFormInput(FormContextLevel.FULL_FORM, {
+      renderServicesInput(FormContextLevel.FULL_FORM, {
         selectedRooms: [
           {
             roomId: "room1",
@@ -254,22 +290,21 @@ describe("FormInput - Field Visibility by Form Context", () => {
 
   describe("VIP Booking", () => {
     it("displays VIP prefix in section titles", () => {
-      renderFormInput(FormContextLevel.VIP);
+      renderDetailsInput(FormContextLevel.VIP);
 
       expect(screen.getByText("VIP Contact Information")).toBeInTheDocument();
       expect(screen.getByText("VIP Reservation Details")).toBeInTheDocument();
-      expect(screen.getByText("VIP Services")).toBeInTheDocument();
     });
 
     it("displays VIP prefix in field labels", () => {
-      renderFormInput(FormContextLevel.VIP);
+      renderDetailsInput(FormContextLevel.VIP);
 
       expect(screen.getByText("VIP NYU Net ID*")).toBeInTheDocument();
       expect(screen.getByText("VIP Phone Number*")).toBeInTheDocument();
     });
 
     it("does NOT display N-Number field for VIP bookings", () => {
-      renderFormInput(FormContextLevel.VIP);
+      renderDetailsInput(FormContextLevel.VIP);
 
       // N-Number should not be present
       expect(screen.queryByText("VIP NYU N-Number*")).not.toBeInTheDocument();
@@ -280,7 +315,7 @@ describe("FormInput - Field Visibility by Form Context", () => {
     });
 
     it("displays contact information section", () => {
-      renderFormInput(FormContextLevel.VIP);
+      renderDetailsInput(FormContextLevel.VIP);
 
       expect(screen.getByText("VIP Contact Information")).toBeInTheDocument();
       expect(screen.getByText("First Name*")).toBeInTheDocument();
@@ -289,7 +324,7 @@ describe("FormInput - Field Visibility by Form Context", () => {
     });
 
     it("displays sponsor section for student VIP bookings", () => {
-      renderFormInput(FormContextLevel.VIP, { role: "Student" });
+      renderDetailsInput(FormContextLevel.VIP, { role: "Student" });
 
       expect(screen.getByText("VIP Sponsor")).toBeInTheDocument();
       expect(screen.getByText("Sponsor First Name*")).toBeInTheDocument();
@@ -298,7 +333,7 @@ describe("FormInput - Field Visibility by Form Context", () => {
     });
 
     it("displays services section with all options", () => {
-      renderFormInput(FormContextLevel.VIP);
+      renderServicesInput(FormContextLevel.VIP);
 
       expect(screen.getByText("VIP Services")).toBeInTheDocument();
       expect(screen.getByText("Room Setup")).toBeInTheDocument();
@@ -308,7 +343,7 @@ describe("FormInput - Field Visibility by Form Context", () => {
     });
 
     it("does NOT display Agreement section for VIP bookings", () => {
-      renderFormInput(FormContextLevel.VIP);
+      renderServicesInput(FormContextLevel.VIP);
 
       // VIP bookings don't require agreement section
       expect(screen.queryByText("Agreement")).not.toBeInTheDocument();
@@ -318,15 +353,14 @@ describe("FormInput - Field Visibility by Form Context", () => {
 
   describe("Walk-In Booking", () => {
     it("displays Walk-In prefix in section titles", () => {
-      renderFormInput(FormContextLevel.WALK_IN);
+      renderDetailsInput(FormContextLevel.WALK_IN);
 
       expect(screen.getByText("Walk-In Contact Information")).toBeInTheDocument();
       expect(screen.getByText("Walk-In Reservation Details")).toBeInTheDocument();
-      expect(screen.getByText("Walk-In Services")).toBeInTheDocument();
     });
 
     it("displays Walk-In prefix in field labels", () => {
-      renderFormInput(FormContextLevel.WALK_IN);
+      renderDetailsInput(FormContextLevel.WALK_IN);
 
       expect(screen.getByText("Walk-In NYU N-Number*")).toBeInTheDocument();
       expect(screen.getByText("Walk-In NYU Net ID*")).toBeInTheDocument();
@@ -334,7 +368,7 @@ describe("FormInput - Field Visibility by Form Context", () => {
     });
 
     it("displays contact information section", () => {
-      renderFormInput(FormContextLevel.WALK_IN);
+      renderDetailsInput(FormContextLevel.WALK_IN);
 
       expect(screen.getByText("Walk-In Contact Information")).toBeInTheDocument();
       expect(screen.getByText("First Name*")).toBeInTheDocument();
@@ -343,7 +377,7 @@ describe("FormInput - Field Visibility by Form Context", () => {
     });
 
     it("does NOT display Setup service for walk-in bookings", () => {
-      renderFormInput(FormContextLevel.WALK_IN);
+      renderServicesInput(FormContextLevel.WALK_IN);
 
       expect(screen.getByText("Walk-In Services")).toBeInTheDocument();
       // Setup should not be visible for walk-ins
@@ -351,7 +385,7 @@ describe("FormInput - Field Visibility by Form Context", () => {
     });
 
     it("does NOT display Catering service for walk-in bookings", () => {
-      renderFormInput(FormContextLevel.WALK_IN);
+      renderServicesInput(FormContextLevel.WALK_IN);
 
       expect(screen.getByText("Walk-In Services")).toBeInTheDocument();
       // Catering should not be visible for walk-ins
@@ -359,7 +393,7 @@ describe("FormInput - Field Visibility by Form Context", () => {
     });
 
     it("does NOT display Cleaning service for walk-in bookings", () => {
-      renderFormInput(FormContextLevel.WALK_IN);
+      renderServicesInput(FormContextLevel.WALK_IN);
 
       expect(screen.getByText("Walk-In Services")).toBeInTheDocument();
       // Cleaning should not be visible for walk-ins
@@ -367,7 +401,7 @@ describe("FormInput - Field Visibility by Form Context", () => {
     });
 
     it("does NOT display Security service for walk-in bookings", () => {
-      renderFormInput(FormContextLevel.WALK_IN);
+      renderServicesInput(FormContextLevel.WALK_IN);
 
       expect(screen.getByText("Walk-In Services")).toBeInTheDocument();
       // Security should not be visible for walk-ins
@@ -375,7 +409,7 @@ describe("FormInput - Field Visibility by Form Context", () => {
     });
 
     it("displays equipment and staffing services for walk-in bookings", () => {
-      renderFormInput(FormContextLevel.WALK_IN);
+      renderServicesInput(FormContextLevel.WALK_IN);
 
       // Equipment and staffing services should be available
       expect(screen.getByText("Equipment?")).toBeInTheDocument();
@@ -383,7 +417,7 @@ describe("FormInput - Field Visibility by Form Context", () => {
     });
 
     it("does NOT display Agreement section for walk-in bookings", () => {
-      renderFormInput(FormContextLevel.WALK_IN);
+      renderServicesInput(FormContextLevel.WALK_IN);
 
       // Agreement section should not be present for walk-ins
       expect(screen.queryByText("Agreement")).not.toBeInTheDocument();
@@ -391,7 +425,7 @@ describe("FormInput - Field Visibility by Form Context", () => {
     });
 
     it("displays sponsor section for student walk-in bookings", () => {
-      renderFormInput(FormContextLevel.WALK_IN, { role: "Student" });
+      renderDetailsInput(FormContextLevel.WALK_IN, { role: "Student" });
 
       expect(screen.getByText("Walk-In Sponsor")).toBeInTheDocument();
       expect(screen.getByText("Sponsor First Name*")).toBeInTheDocument();
@@ -402,7 +436,7 @@ describe("FormInput - Field Visibility by Form Context", () => {
 
   describe("Modification", () => {
     it("does NOT display Contact Information section", () => {
-      renderFormInput(FormContextLevel.MODIFICATION);
+      renderDetailsInput(FormContextLevel.MODIFICATION);
 
       expect(screen.queryByText("Contact Information")).not.toBeInTheDocument();
       expect(screen.queryByText("First Name*")).not.toBeInTheDocument();
@@ -411,7 +445,7 @@ describe("FormInput - Field Visibility by Form Context", () => {
     });
 
     it("does NOT display Sponsor section", () => {
-      renderFormInput(FormContextLevel.MODIFICATION, { role: "Student" });
+      renderDetailsInput(FormContextLevel.MODIFICATION, { role: "Student" });
 
       expect(screen.queryByText("Sponsor")).not.toBeInTheDocument();
       expect(screen.queryByText("Sponsor First Name*")).not.toBeInTheDocument();
@@ -420,7 +454,7 @@ describe("FormInput - Field Visibility by Form Context", () => {
     });
 
     it("displays Reservation Details section (simplified)", () => {
-      renderFormInput(FormContextLevel.MODIFICATION);
+      renderDetailsInput(FormContextLevel.MODIFICATION);
 
       expect(screen.getByText("Reservation Details")).toBeInTheDocument();
       expect(screen.getByText("Reservation Title*")).toBeInTheDocument();
@@ -433,7 +467,7 @@ describe("FormInput - Field Visibility by Form Context", () => {
     });
 
     it("displays Services section", () => {
-      renderFormInput(FormContextLevel.MODIFICATION);
+      renderServicesInput(FormContextLevel.MODIFICATION);
 
       expect(screen.getByText("Services")).toBeInTheDocument();
       expect(screen.getByText("Room Setup")).toBeInTheDocument();
@@ -443,14 +477,14 @@ describe("FormInput - Field Visibility by Form Context", () => {
     });
 
     it("displays equipment and staffing services", () => {
-      renderFormInput(FormContextLevel.MODIFICATION);
+      renderServicesInput(FormContextLevel.MODIFICATION);
 
       expect(screen.getByText("Equipment?")).toBeInTheDocument();
       expect(screen.getByText("Staffing?")).toBeInTheDocument();
     });
 
     it("does NOT display Agreement section", () => {
-      renderFormInput(FormContextLevel.MODIFICATION);
+      renderServicesInput(FormContextLevel.MODIFICATION);
 
       expect(screen.queryByText("Agreement")).not.toBeInTheDocument();
       expect(screen.queryByText("I agree")).not.toBeInTheDocument();
@@ -459,7 +493,7 @@ describe("FormInput - Field Visibility by Form Context", () => {
 
   describe("Edit Context", () => {
     it("does NOT display N-Number field when editing a VIP booking", () => {
-      renderFormInput(FormContextLevel.EDIT, {
+      renderDetailsInput(FormContextLevel.EDIT, {
         formData: {
           origin: BookingOrigin.VIP,
         },
@@ -471,7 +505,7 @@ describe("FormInput - Field Visibility by Form Context", () => {
     });
 
     it("displays N-Number field when editing a non-VIP booking", () => {
-      renderFormInput(FormContextLevel.EDIT, {
+      renderDetailsInput(FormContextLevel.EDIT, {
         formData: {
           origin: BookingOrigin.USER,
         },
@@ -497,7 +531,7 @@ describe("FormInput - Field Visibility by Form Context", () => {
           <DatabaseContext.Provider value={mockDatabaseContext}>
             <SchemaProvider value={schemaWithoutNNumber}>
               <BookingContext.Provider value={createBookingContext()}>
-                <FormInput
+                <DetailsInput
                   formContext={FormContextLevel.FULL_FORM}
                   userApiData={mockUserApiData}
                 />
@@ -524,7 +558,7 @@ describe("FormInput - Field Visibility by Form Context", () => {
           <DatabaseContext.Provider value={mockDatabaseContext}>
             <SchemaProvider value={schemaWithoutSponsor}>
               <BookingContext.Provider value={createBookingContext()}>
-                <FormInput
+                <DetailsInput
                   formContext={FormContextLevel.FULL_FORM}
                   userApiData={mockUserApiData}
                 />
@@ -557,10 +591,7 @@ describe("FormInput - Field Visibility by Form Context", () => {
           <DatabaseContext.Provider value={mockDatabaseContext}>
             <SchemaProvider value={schemaWithoutSetup}>
               <BookingContext.Provider value={createBookingContext()}>
-                <FormInput
-                  formContext={FormContextLevel.FULL_FORM}
-                  userApiData={mockUserApiData}
-                />
+                <ServicesInput formContext={FormContextLevel.FULL_FORM} />
               </BookingContext.Provider>
             </SchemaProvider>
           </DatabaseContext.Provider>
@@ -587,7 +618,7 @@ describe("FormInput - Field Visibility by Form Context", () => {
           <DatabaseContext.Provider value={mockDatabaseContext}>
             <SchemaProvider value={schemaWithoutBookingTypes}>
               <BookingContext.Provider value={createBookingContext()}>
-                <FormInput
+                <DetailsInput
                   formContext={FormContextLevel.FULL_FORM}
                   userApiData={mockUserApiData}
                 />
@@ -607,61 +638,71 @@ describe("FormInput - Field Visibility by Form Context", () => {
         {
           context: FormContextLevel.FULL_FORM,
           name: "Normal Booking",
-          shouldHave: [
-            "Contact Information",
-            "Sponsor",
-            "Reservation Details",
-            "Services",
-            "Agreement",
-          ],
-          shouldNotHave: [],
+          details: {
+            shouldHave: ["Contact Information", "Sponsor", "Reservation Details"],
+            shouldNotHave: ["Services", "Agreement"],
+          },
+          services: { shouldHave: ["Services", "Agreement"], shouldNotHave: [] },
         },
         {
           context: FormContextLevel.VIP,
           name: "VIP Booking",
-          shouldHave: [
-            "VIP Contact Information",
-            "VIP Reservation Details",
-            "VIP Services",
-          ],
-          shouldNotHave: ["VIP NYU N-Number*", "Agreement"],
+          details: {
+            shouldHave: ["VIP Contact Information", "VIP Reservation Details"],
+            shouldNotHave: ["VIP NYU N-Number*", "Agreement"],
+          },
+          services: { shouldHave: ["VIP Services"], shouldNotHave: ["Agreement"] },
         },
         {
           context: FormContextLevel.WALK_IN,
           name: "Walk-In Booking",
-          shouldHave: [
-            "Walk-In Contact Information",
-            "Walk-In Reservation Details",
-            "Walk-In Services",
-          ],
-          shouldNotHave: ["Agreement", "Room Setup", "Catering?", "Cleaning?", "Security?"],
+          details: {
+            shouldHave: [
+              "Walk-In Contact Information",
+              "Walk-In Reservation Details",
+            ],
+            shouldNotHave: ["Agreement"],
+          },
+          services: {
+            shouldHave: ["Walk-In Services"],
+            shouldNotHave: ["Agreement", "Room Setup", "Catering?", "Cleaning?", "Security?"],
+          },
         },
         {
           context: FormContextLevel.MODIFICATION,
           name: "Modification",
-          shouldHave: ["Reservation Details", "Services"],
-          shouldNotHave: [
-            "Contact Information",
-            "Sponsor",
-            "Agreement",
-            "Booking Type*",
-            "Attendee Affiliation(s)*",
-          ],
+          details: {
+            shouldHave: ["Reservation Details"],
+            shouldNotHave: [
+              "Contact Information",
+              "Sponsor",
+              "Agreement",
+              "Booking Type*",
+              "Attendee Affiliation(s)*",
+            ],
+          },
+          services: { shouldHave: ["Services"], shouldNotHave: ["Agreement"] },
         },
       ];
 
-      testCases.forEach(({ context, name, shouldHave, shouldNotHave }) => {
-        const { unmount } = renderFormInput(context);
-
-        shouldHave.forEach((item) => {
+      testCases.forEach(({ context, details, services }) => {
+        const detailsPage = renderDetailsInput(context);
+        details.shouldHave.forEach((item) => {
           expect(screen.getByText(item)).toBeInTheDocument();
         });
-
-        shouldNotHave.forEach((item) => {
+        details.shouldNotHave.forEach((item) => {
           expect(screen.queryByText(item)).not.toBeInTheDocument();
         });
+        detailsPage.unmount();
 
-        unmount();
+        const servicesPage = renderServicesInput(context);
+        services.shouldHave.forEach((item) => {
+          expect(screen.getByText(item)).toBeInTheDocument();
+        });
+        services.shouldNotHave.forEach((item) => {
+          expect(screen.queryByText(item)).not.toBeInTheDocument();
+        });
+        servicesPage.unmount();
       });
     });
   });

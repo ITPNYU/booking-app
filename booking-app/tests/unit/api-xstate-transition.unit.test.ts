@@ -60,6 +60,7 @@ describe("POST /api/xstate-transition no-show attribution", () => {
       "operator@nyu.edu",
       undefined,
       "operator",
+      undefined,
     );
   });
 
@@ -82,6 +83,7 @@ describe("POST /api/xstate-transition no-show attribution", () => {
       "e2e-operator@nyu.edu",
       undefined,
       "e2e-operator",
+      undefined,
     );
   });
 
@@ -98,5 +100,37 @@ describe("POST /api/xstate-transition no-show attribution", () => {
 
     expect(response.status).toBe(401);
     expect(mockExecuteXStateTransition).not.toHaveBeenCalled();
+  });
+});
+
+describe("POST /api/xstate-transition edit", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockExecuteXStateTransition.mockResolvedValue({
+      success: true,
+      newState: "Requested",
+    });
+  });
+
+  it("passes the changed services on to the machine, dropping unknown keys", async () => {
+    const response = await POST(
+      createRequest({
+        calendarEventId: "calendar-123",
+        eventType: "edit",
+        email: "user@nyu.edu",
+        changedServices: ["catering", "not-a-service", "staff"],
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(mockExecuteXStateTransition).toHaveBeenCalledWith(
+      "calendar-123",
+      "edit",
+      "mc",
+      "user@nyu.edu",
+      undefined,
+      undefined,
+      ["catering", "staff"],
+    );
   });
 });

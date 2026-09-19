@@ -7,7 +7,7 @@ import {
   TextField,
 } from "@mui/material";
 import {
-  RoomService,
+  RoomPreferences,
   TableBar,
   Headset,
   PeopleAlt,
@@ -26,6 +26,7 @@ import { DateRangeFilter } from "./hooks/getDateFilter";
 import MultiSelectDropdown from "../../booking/components/MultiSelectDropdown";
 import StatusMultiSelectDropdown from "../../booking/components/StatusMultiSelectDropdown";
 import ServicesMultiSelectDropdown from "../../booking/components/ServicesMultiSelectDropdown";
+import { SERVICE_ORDER } from "../../../utils/serviceOrder";
 import StatusChip from "./StatusChip";
 import FilterChip from "./FilterChip";
 
@@ -135,7 +136,7 @@ export default function BookingTableFilters({
   );
 
   const serviceIcons: Record<string, React.ElementType> = {
-    Setup: RoomService,
+    Setup: RoomPreferences,
     Equipment: Headset,
     Staffing: PeopleAlt,
     Catering: LocalDining,
@@ -336,15 +337,7 @@ export default function BookingTableFilters({
                 rowGap: 1.5,
               }}
             >
-              {[
-                "Setup",
-                "Equipment",
-                "Staffing",
-                "Catering",
-                "Cleaning",
-                "Security",
-                "Furniture",
-              ].map((service) => (
+              {SERVICE_ORDER.map((service) => (
                 <Box
                   onClick={() =>
                     setSelectedServices?.((prev: string[] | null) => {
