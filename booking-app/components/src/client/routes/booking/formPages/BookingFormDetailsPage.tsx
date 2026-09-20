@@ -4,7 +4,7 @@ import { FormContextLevel } from "@/components/src/types";
 import Grid from "@mui/material/Unstable_Grid2";
 import { useContext } from "react";
 import { DatabaseContext } from "../../components/Provider";
-import FormInput from "../components/FormInput";
+import DetailsInput from "../components/DetailsInput";
 import useCheckFormMissingData from "../hooks/useCheckFormMissingData";
 
 interface Props {
@@ -22,7 +22,7 @@ export default function BookingFormDetailsPage({
     <Grid container>
       <Grid width={330} />
       <Grid xs={12} md={7} margin={2} paddingRight={{ xs: 0, md: 2 }}>
-        <FormInput {...{ formContext, calendarEventId, userApiData }} />
+        <DetailsInput {...{ formContext, calendarEventId, userApiData }} />
       </Grid>
     </Grid>
   );

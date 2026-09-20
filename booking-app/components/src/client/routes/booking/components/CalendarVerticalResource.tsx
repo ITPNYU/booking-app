@@ -38,6 +38,7 @@ import {
   isUnmatchedCopyOfBooking,
   normalizeCalendarEventId,
 } from "../utils/isOwnCalendarEvent";
+import { compareResourceIds } from "../../../../utils/resourceOrder";
 
 interface Props {
   calendarEventId?: string;
@@ -148,11 +149,7 @@ export default function CalendarVerticalResource({
   const resources = useMemo(
     () =>
       [...rooms]
-        .sort((a, b) =>
-          String(a.roomId).localeCompare(String(b.roomId), undefined, {
-            numeric: true,
-          }),
-        )
+        .sort((a, b) => compareResourceIds(a.roomId, b.roomId))
         .map((room, index) => ({
           id: room.roomId,
           title: `${room.roomId} ${room.name}`,

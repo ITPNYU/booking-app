@@ -20,6 +20,7 @@ import { Days } from "@/components/src/types";
 import { ExpandMore } from "@mui/icons-material";
 import { DatabaseContext } from "../../../components/Provider";
 import OperationalHoursRow from "./OperationalHoursRow";
+import { compareResourceIds } from "../../../../../utils/resourceOrder";
 
 const ITEM_HEIGHT = 48;
 const ITEM_PADDING_TOP = 8;
@@ -42,7 +43,7 @@ export default function OperationalHours() {
           .filter((x) => x != null)
           .map(String),
       ),
-    ).sort((a, b) => a.localeCompare(b, undefined, { numeric: true })),
+    ).sort(compareResourceIds),
   ); // roomIds
 
   const handleChange = (event: SelectChangeEvent<typeof specialHourRooms>) => {
@@ -52,7 +53,7 @@ export default function OperationalHours() {
     // On autofill we get a stringified value.
     const list = typeof value === "string" ? value.split(",") : value;
     setSpecialHourRooms(
-      list.sort((a, b) => a.localeCompare(b, undefined, { numeric: true })),
+      list.sort(compareResourceIds),
     );
   };
 

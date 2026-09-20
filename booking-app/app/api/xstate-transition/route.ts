@@ -7,18 +7,34 @@ import {
   executeXStateTransition,
   getAvailableXStateTransitions,
 } from "@/lib/stateMachines/xstateUtilsV5";
+import {
+  MEDIA_COMMONS_SERVICE_KEYS,
+  type MediaCommonsServiceKey,
+} from "@/components/src/utils/serviceDecisions";
+
+/** Keep only known service keys from an "edit" event's changed-services list. */
+const toChangedServices = (value: unknown): MediaCommonsServiceKey[] | undefined =>
+  Array.isArray(value)
+    ? (value.filter((key): key is MediaCommonsServiceKey =>
+        (MEDIA_COMMONS_SERVICE_KEYS as readonly string[]).includes(key),
+      ) as MediaCommonsServiceKey[])
+    : undefined;
 
 /**
  * Execute XState transition for ITP bookings
  * POST /api/xstate-transition
- * Body: { calendarEventId: string, eventType: string, email?: string, netId?: string, reason?: string }
+ * Body: { calendarEventId: string, eventType: string, email?: string, netId?: string, reason?: string, changedServices?: string[] }
+ *
+ * changedServices accompanies an "edit" event: the services whose requests
+ * changed, so the machine resets only their decisions (ADR-0001).
  *
  * netId is the authoritative user id from the caller's session — needed because
  * some queued side effects (pre-ban logging inside /api/cancel-processing) key
  * off it. Reconstructing from email.split("@")[0] is wrong for aliases.
  */
 export async function POST(req: NextRequest) {
-  const { calendarEventId, eventType, email, netId, reason } = await req.json();
+  const { calendarEventId, eventType, email, netId, reason, changedServices } =
+    await req.json();
 
   // Get tenant from x-tenant header, fallback to default tenant
   const tenant = req.headers.get("x-tenant") || DEFAULT_TENANT;
@@ -120,6 +136,7 @@ export async function POST(req: NextRequest) {
       actorEmail, // Authenticated operator for no-show history attribution
       reason, // Pass reason for decline actions
       actorNetId, // Authenticated operator netId for no-show attribution
+      toChangedServices(changedServices),
     );
 
     if (!result.success) {

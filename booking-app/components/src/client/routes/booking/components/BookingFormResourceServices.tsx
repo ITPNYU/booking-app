@@ -17,11 +17,16 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import styled from "@emotion/styled";
 import { FormContextLevel, Inputs } from "../../../../types";
 import {
+  createServiceRuleMemory,
+  ServiceRuleMemory,
+} from "../../../../utils/serviceSections";
+import {
   CHARTFIELD_PATTERN_MESSAGE,
   CHARTFIELD_REGEX,
 } from "../../../../utils/validationHelpers";
 import {
   getResourceServicesConfig,
+  getRoomsWithAnyVisibleService,
   getRoomsWithVisibleService,
   getServiceResourceId,
   getServiceSectionConfig,
@@ -36,7 +41,9 @@ import {
   ServiceVisibilityContext,
   shouldShowServiceSection,
 } from "../../../../utils/resourceServicesUtils";
+import type { ServiceDecisions } from "../../../../utils/serviceDecisions";
 import BookingFormStaffingServices from "./BookingFormStaffingServices";
+import ServiceDecisionMark from "./ServiceDecisionMark";
 
 const Label = styled.label`
   font-weight: 500;
@@ -93,6 +100,17 @@ interface Props {
   setShowStaffingServices: (value: boolean) => void;
   formContext: FormContextLevel;
   isLargeEvent: boolean;
+  /**
+   * Which per-room answers a rule switched on. Passed in by the Services
+   * step so it survives leaving the step; defaults to component-local memory.
+   */
+  ruleMemory?: ServiceRuleMemory;
+  /**
+   * The loaded booking's service decisions (edit and modification contexts).
+   * Decisions are booking-level, so every room's section for a decided
+   * service shows the same mark.
+   */
+  serviceDecisions?: ServiceDecisions;
 }
 
 function HtmlBlock({ html }: { html?: string }) {
@@ -358,6 +376,7 @@ function SharedYesNoSwitch({
   disabled,
   locked,
   onChange,
+  decisionMark,
 }: {
   label: string;
   description?: React.ReactNode;
@@ -366,6 +385,8 @@ function SharedYesNoSwitch({
   /** Schema toggle lock ("on" / "off"): rendered disabled, value is fixed. */
   locked?: boolean;
   onChange: (next: "yes" | "no") => void;
+  /** Decision mark rendered after the toggle, on the same row as the label. */
+  decisionMark?: React.ReactNode;
 }) {
   return (
     <div>
@@ -382,6 +403,7 @@ function SharedYesNoSwitch({
             />
           }
         />
+        {decisionMark}
       </SwitchRow>
       {description}
     </div>
@@ -402,7 +424,11 @@ export default function BookingFormResourceServices({
   setShowStaffingServices,
   formContext,
   isLargeEvent,
+  ruleMemory,
+  serviceDecisions,
 }: Props) {
+  const localRuleMemory = useRef(createServiceRuleMemory());
+  const memory = ruleMemory ?? localRuleMemory.current;
   const visibility = useMemo<ServiceVisibilityContext>(
     () => ({
       isVIP,
@@ -503,8 +529,8 @@ export default function BookingFormResourceServices({
   // Rooms whose cleaning / security were switched on by a rule (catering
   // forces cleaning; 75+ attendees forces security) rather than by the user,
   // so the rule can switch them back off when it no longer applies.
-  const cleaningAutoSetByRoom = useRef<Record<string, boolean>>({});
-  const securityAutoSetByRoom = useRef<Record<string, boolean>>({});
+  const cleaningAutoSetByRoom = memory.cleaningAutoSetByRoom;
+  const securityAutoSetByRoom = memory.securityAutoSetByRoom;
 
   /** Per-room security toggle; an "off" lock yields to the large-event rule. */
   const securityToggleForRoom = (room: ServiceResourceLike) => {
@@ -557,10 +583,10 @@ export default function BookingFormResourceServices({
         if (nextCleaning[id] !== "yes") {
           nextCleaning[id] = "yes";
           cleaningChanged = true;
-          cleaningAutoSetByRoom.current[id] = true;
+          cleaningAutoSetByRoom[id] = true;
         }
-      } else if (cleaningAutoSetByRoom.current[id]) {
-        cleaningAutoSetByRoom.current[id] = false;
+      } else if (cleaningAutoSetByRoom[id]) {
+        cleaningAutoSetByRoom[id] = false;
         if (nextCleaning[id] === "yes") {
           nextCleaning[id] = "no";
           cleaningChanged = true;
@@ -598,10 +624,10 @@ export default function BookingFormResourceServices({
         if (!requested) {
           nextSecurity[id] = onValue;
           securityChanged = true;
-          securityAutoSetByRoom.current[id] = true;
+          securityAutoSetByRoom[id] = true;
         }
-      } else if (securityAutoSetByRoom.current[id]) {
-        securityAutoSetByRoom.current[id] = false;
+      } else if (securityAutoSetByRoom[id]) {
+        securityAutoSetByRoom[id] = false;
         if (current !== "") {
           nextSecurity[id] = "";
           securityChanged = true;
@@ -945,18 +971,10 @@ export default function BookingFormResourceServices({
 
   if (!hasConfig || isWalkIn) return null;
 
-  const roomsWithAnyService = selectedRooms.filter((room) => {
-    const config = getResourceServicesConfig(room);
-    return Object.keys(config).some((key) => {
-      if (key === "annex" || key === "auxiliarySpace") return false;
-      const section = getServiceSectionConfig(
-        room,
-        key as keyof typeof config,
-      );
-      if (!section) return false;
-      return shouldShowServiceSection(section, visibility);
-    });
-  });
+  const roomsWithAnyService = getRoomsWithAnyVisibleService(
+    selectedRooms,
+    visibility,
+  );
 
   return (
     <>
@@ -1394,9 +1412,16 @@ export default function BookingFormResourceServices({
 
             {showSetupStatic && setupCfg && (
               <Subsection>
-                <Label>
-                  {formatFieldLabel(setupCfg.label ?? "Room Setup")}
-                </Label>
+                <SwitchRow>
+                  <Label style={{ marginBottom: 0 }}>
+                    {formatFieldLabel(setupCfg.label ?? "Room Setup")}
+                  </Label>
+                  <ServiceDecisionMark
+                    service="setup"
+                    decision={serviceDecisions?.setup}
+                    formContext={formContext}
+                  />
+                </SwitchRow>
                 <HtmlBlock html={setupCfg.descriptionHtml} />
               </Subsection>
             )}
@@ -1404,6 +1429,13 @@ export default function BookingFormResourceServices({
             {showSetupSwitch && setupCfg && (
               <Subsection>
                 <SharedYesNoSwitch
+                  decisionMark={
+                    <ServiceDecisionMark
+                      service="setup"
+                      decision={serviceDecisions?.setup}
+                      formContext={formContext}
+                    />
+                  }
                   label={formatFieldLabel(setupCfg.label ?? "Room Setup")}
                   description={<HtmlBlock html={setupCfg.descriptionHtml} />}
                   value={setupOn ? "yes" : "no"}
@@ -1560,6 +1592,13 @@ export default function BookingFormResourceServices({
             {showSetupChoice && setupCfg && (
               <Subsection>
                 <SharedYesNoSwitch
+                  decisionMark={
+                    <ServiceDecisionMark
+                      service="setup"
+                      decision={serviceDecisions?.setup}
+                      formContext={formContext}
+                    />
+                  }
                   label={formatFieldLabel(setupCfg.label ?? "Room Setup")}
                   description={<HtmlBlock html={setupCfg.descriptionHtml} />}
                   value={setupOn ? "yes" : "no"}
@@ -1770,6 +1809,13 @@ export default function BookingFormResourceServices({
               <Subsection>
                 {equipmentHasSwitch ? (
                   <SharedYesNoSwitch
+                    decisionMark={
+                      <ServiceDecisionMark
+                        service="equipment"
+                        decision={serviceDecisions?.equipment}
+                        formContext={formContext}
+                      />
+                    }
                     label={formatFieldLabel(equipmentCfg.label ?? "Equipment")}
                     description={
                       <HtmlBlock html={equipmentCfg.descriptionHtml} />
@@ -1803,9 +1849,16 @@ export default function BookingFormResourceServices({
                   />
                 ) : (
                   <>
-                    <Label>
-                      {formatFieldLabel(equipmentCfg.label ?? "Equipment")}
-                    </Label>
+                    <SwitchRow>
+                      <Label style={{ marginBottom: 0 }}>
+                        {formatFieldLabel(equipmentCfg.label ?? "Equipment")}
+                      </Label>
+                      <ServiceDecisionMark
+                        service="equipment"
+                        decision={serviceDecisions?.equipment}
+                        formContext={formContext}
+                      />
+                    </SwitchRow>
                     <HtmlBlock html={equipmentCfg.descriptionHtml} />
                   </>
                 )}
@@ -1865,6 +1918,13 @@ export default function BookingFormResourceServices({
             {showFurnishings && furnishingsCfg && (
               <Subsection>
                 <SharedYesNoSwitch
+                  decisionMark={
+                    <ServiceDecisionMark
+                      service="furnishings"
+                      decision={serviceDecisions?.furnishings}
+                      formContext={formContext}
+                    />
+                  }
                   label={formatFieldLabel(
                     furnishingsCfg.label ?? "Additional Event Furniture",
                   )}
@@ -2001,15 +2061,23 @@ export default function BookingFormResourceServices({
                   rooms={[room]}
                   toggle={staffingToggle}
                   setValue={setValue}
+                  decision={serviceDecisions?.staff}
                 />
               </Subsection>
             )}
 
             {showCateringStatic && cateringCfg && (
               <Subsection>
-                <Label>
-                  {formatFieldLabel(cateringCfg.label ?? "Catering?")}
-                </Label>
+                <SwitchRow>
+                  <Label style={{ marginBottom: 0 }}>
+                    {formatFieldLabel(cateringCfg.label ?? "Catering?")}
+                  </Label>
+                  <ServiceDecisionMark
+                    service="catering"
+                    decision={serviceDecisions?.catering}
+                    formContext={formContext}
+                  />
+                </SwitchRow>
                 <HtmlBlock html={cateringCfg.descriptionHtml} />
                 {cateringCfg.studentLoungeCheckbox && (
                   <>
@@ -2052,6 +2120,13 @@ export default function BookingFormResourceServices({
             {showCateringInteractive && cateringCfg && (
               <Subsection>
                 <SharedYesNoSwitch
+                  decisionMark={
+                    <ServiceDecisionMark
+                      service="catering"
+                      decision={serviceDecisions?.catering}
+                      formContext={formContext}
+                    />
+                  }
                   label={formatFieldLabel(cateringCfg.label ?? "Catering?")}
                   description={
                     cateringCfg.descriptionHtml ? (
@@ -2093,6 +2168,13 @@ export default function BookingFormResourceServices({
             {showCleaning && cleaningCfg && (
               <Subsection>
                 <SharedYesNoSwitch
+                  decisionMark={
+                    <ServiceDecisionMark
+                      service="cleaning"
+                      decision={serviceDecisions?.cleaning}
+                      formContext={formContext}
+                    />
+                  }
                   label={formatFieldLabel(cleaningCfg.label ?? "Cleaning?")}
                   description={
                     <p style={{ fontSize: "0.75rem" }}>
@@ -2143,9 +2225,16 @@ export default function BookingFormResourceServices({
 
             {showSecurityChoice && securityCfg && (
               <Subsection>
-                <Label>
-                  {formatFieldLabel(securityCfg.label ?? "Security")}
-                </Label>
+                <SwitchRow>
+                  <Label style={{ marginBottom: 0 }}>
+                    {formatFieldLabel(securityCfg.label ?? "Security")}
+                  </Label>
+                  <ServiceDecisionMark
+                    service="security"
+                    decision={serviceDecisions?.security}
+                    formContext={formContext}
+                  />
+                </SwitchRow>
                 <FormControl
                   component="fieldset"
                   fullWidth
@@ -2216,6 +2305,13 @@ export default function BookingFormResourceServices({
                   return (
                     <>
                       <SharedYesNoSwitch
+                        decisionMark={
+                          <ServiceDecisionMark
+                            service="security"
+                            decision={serviceDecisions?.security}
+                            formContext={formContext}
+                          />
+                        }
                         label={formatFieldLabel(
                           securityCfg.label ?? "Security?",
                         )}
@@ -2298,6 +2394,13 @@ export default function BookingFormResourceServices({
             {showSecuritySwitch && securityCfg && (
               <Subsection>
                 <SharedYesNoSwitch
+                  decisionMark={
+                    <ServiceDecisionMark
+                      service="security"
+                      decision={serviceDecisions?.security}
+                      formContext={formContext}
+                    />
+                  }
                   label={formatFieldLabel(securityCfg.label ?? "Security?")}
                   description={
                     <p style={{ fontSize: "0.75rem" }}>

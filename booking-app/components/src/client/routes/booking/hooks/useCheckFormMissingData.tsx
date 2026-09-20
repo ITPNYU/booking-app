@@ -7,7 +7,15 @@ import {
   buildBookingUrl,
   getAffiliationStep,
 } from "../utils/bookingUrlParser";
+import { flowTypeToFormContext } from "../utils/formSteps";
+import useFormSteps from "./useFormSteps";
 
+/**
+ * Bounce a request that lands on a step it is not ready for to the earliest
+ * incomplete step: affiliation, then Select Time, then Details. The Services
+ * step additionally needs a valid Details answer set and at least one
+ * service section to show; otherwise it is skipped and Details keeps Submit.
+ */
 export default function useCheckFormMissingData() {
   const pathname = usePathname();
   const router = useRouter();
@@ -18,8 +26,14 @@ export default function useCheckFormMissingData() {
     selectedRooms,
     bookingCalendarInfo,
     formData,
+    isDetailsValid,
     submitting,
   } = useContext(BookingContext);
+
+  const parsed = parseBookingUrl(pathname);
+  const { hasServicesStep } = useFormSteps(
+    flowTypeToFormContext(parsed.flowType),
+  );
 
   useEffect(() => {
     // Don't redirect while a booking is being submitted or was just submitted.
@@ -27,7 +41,6 @@ export default function useCheckFormMissingData() {
     // which would otherwise trigger a false redirect back to an earlier step.
     if (submitting === "submitting" || submitting === "success") return;
 
-    const parsed = parseBookingUrl(pathname);
     if (!parsed || !parsed.step) return;
 
     const { tenant, flowType, step, id } = parsed;
@@ -39,6 +52,12 @@ export default function useCheckFormMissingData() {
       bookingCalendarInfo &&
       bookingCalendarInfo.startStr &&
       bookingCalendarInfo.endStr;
+
+    const earliestIncompleteStep = (): string => {
+      if (!hasAffiliationFields) return getAffiliationStep(flowType);
+      if (!hasRoomSelectionFields) return "selectRoom";
+      return "";
+    };
 
     // Check what's missing based on current step
     let isMissing = false;
@@ -52,19 +71,23 @@ export default function useCheckFormMissingData() {
       !(hasAffiliationFields && hasRoomSelectionFields)
     ) {
       isMissing = true;
-      redirectStep = !hasAffiliationFields
-        ? getAffiliationStep(flowType)
-        : "selectRoom";
+      redirectStep = earliestIncompleteStep();
+    } else if (step === "services") {
+      const ready =
+        hasAffiliationFields &&
+        hasRoomSelectionFields &&
+        isDetailsValid &&
+        hasServicesStep;
+      if (!ready) {
+        isMissing = true;
+        redirectStep = earliestIncompleteStep() || "form";
+      }
     } else if (
       step === "confirmation" &&
       !(hasAffiliationFields && hasRoomSelectionFields && formData)
     ) {
       isMissing = true;
-      if (!hasAffiliationFields) {
-        redirectStep = getAffiliationStep(flowType);
-      } else if (!hasRoomSelectionFields) {
-        redirectStep = "selectRoom";
-      }
+      redirectStep = earliestIncompleteStep();
     }
 
     if (isMissing && redirectStep) {
@@ -76,6 +99,8 @@ export default function useCheckFormMissingData() {
       });
       router.push(buildBookingUrl(tenant, flowType, redirectStep, id));
     }
+    // `parsed` is derived from pathname, which is already a dependency.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     pathname,
     router,
@@ -84,6 +109,8 @@ export default function useCheckFormMissingData() {
     selectedRooms,
     bookingCalendarInfo,
     formData,
+    isDetailsValid,
+    hasServicesStep,
     submitting,
   ]);
 }

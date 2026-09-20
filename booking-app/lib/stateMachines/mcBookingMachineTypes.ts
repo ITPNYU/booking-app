@@ -6,6 +6,7 @@ import type {
 } from "@/components/src/types";
 import type { DateSelectArg } from "fullcalendar";
 import type { AutomaticCancellationReason } from "@/lib/stateMachines/logAutomaticCancellationTransition";
+import type { MediaCommonsServiceKey } from "@/components/src/utils/serviceDecisions";
 
 /**
  * Media Commons service keys as they appear in the machine context
@@ -13,7 +14,7 @@ import type { AutomaticCancellationReason } from "@/lib/stateMachines/logAutomat
  * per-service regions of "Services Request" / "Service Closeout" in
  * mcBookingMachine.ts and with `getMediaCommonsServices()`.
  */
-export type MediaCommonsServiceKey = keyof MediaCommonsServiceFlags;
+export type { MediaCommonsServiceKey };
 
 export interface MediaCommonsBookingContext {
   tenant?: string;
@@ -44,7 +45,13 @@ export interface MediaCommonsBookingContext {
  * Stately Studio can import and export.
  */
 export type MediaCommonsBookingEvent =
-  | { type: "edit" }
+  /**
+   * A requester resubmitted the request. `changedServices` lists the services
+   * whose requests changed; only their decisions are reset (ADR-0001). Absent
+   * means the caller already reconciled `servicesApproved` from the booking's
+   * approval flags, so every decision in context is kept.
+   */
+  | { type: "edit"; changedServices?: MediaCommonsServiceKey[] }
   | { type: "Modify" }
   | { type: "cancel" }
   | { type: "noShow"; email?: string }

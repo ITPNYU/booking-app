@@ -8,6 +8,7 @@ import {
   Timestamp,
 } from "../../lib/firebase/stubs/firebaseFirestoreStub";
 import { registerBookingMocks } from "./helpers/mock-routes";
+import { selectRole } from "./helpers/test-utils";
 
 const BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000";
 
@@ -40,9 +41,9 @@ async function ensureRoleSelectionPage(page) {
   await page.waitForURL("**/mc/book/role", { timeout: 5000 });
   await page.waitForLoadState("networkidle");
 
-  // Wait for department dropdown to be ready
-  const departmentLocator = page.getByTestId("department-select");
-  await departmentLocator.waitFor({ state: "visible", timeout: 30000 });
+  // The department dropdown only appears once a school is chosen
+  const schoolLocator = page.getByTestId("school-select");
+  await schoolLocator.waitFor({ state: "visible", timeout: 30000 });
 }
 
 const DROPDOWN_TEST_IDS: Record<string, string> = {
@@ -280,7 +281,7 @@ async function fillDetails(page) {
 
   await page.locator('input[name="sponsorFirstName"]').fill("Noah");
   await page.locator('input[name="sponsorLastName"]').fill("Pivnick");
-  await page.locator('input[name="sponsorEmail"]').fill("noah.pivnick@nyu.edu");
+  await page.locator('input[name="sponsorEmail"]').fill("np1234@nyu.edu");
 
   await page.locator('input[name="title"]').fill("Test Event");
   await page
@@ -801,8 +802,8 @@ test.describe("Automatic Approval Booking Flow", () => {
 
     await ensureRoleSelectionPage(page);
 
-    await selectDropdown(page, "Choose a Department", "ITP / IMA / Low Res");
-    await selectDropdown(page, "Choose a Role", "Student");
+    // First school and department, role index 0 = Student
+    await selectRole(page, { roleIndex: 0 });
 
     await page.getByRole("button", { name: "Next", exact: true }).click();
     await page.waitForURL("**/mc/book/selectRoom");

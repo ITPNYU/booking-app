@@ -8,6 +8,7 @@ import type {
   ServiceToggle,
   ShowInOrigin,
 } from "@/components/src/client/routes/components/schemaTypes";
+import { compareResourceIds } from "./resourceOrder";
 
 export type ServiceVisibilityContext = {
   isVIP: boolean;
@@ -348,9 +349,7 @@ export function getAnnexChildResources(
   return allResources
     .filter((r) => r.parentResourceId === parentId)
     .sort((a, b) =>
-      getServiceResourceId(a).localeCompare(getServiceResourceId(b), undefined, {
-        numeric: true,
-      }),
+      compareResourceIds(getServiceResourceId(a), getServiceResourceId(b)),
     );
 }
 
@@ -402,13 +401,7 @@ export function getSelectedAnnexResources(
       (r) => r.parentResourceId && selectedIds.has(getServiceResourceId(r)),
     )
     .sort((a, b) =>
-      getServiceResourceId(a).localeCompare(
-        getServiceResourceId(b),
-        undefined,
-        {
-          numeric: true,
-        },
-      ),
+      compareResourceIds(getServiceResourceId(a), getServiceResourceId(b)),
     );
 }
 
@@ -416,7 +409,8 @@ export function getSelectedAnnexResources(
  * Rooms whose services the booking form should render: the selected rooms
  * plus every checked annex space. Annex spaces are never in `selectedRooms`
  * (they are picked as checkboxes under their parent), so without this their
- * own `services` config would never reach the form.
+ * own `services` config would never reach the form. Rooms and annex spaces
+ * are merged into one list in resource display order.
  */
 export function getServiceRooms(
   selectedRooms: ServiceResourceLike[],
@@ -429,7 +423,9 @@ export function getServiceRooms(
   return [
     ...selectedRooms,
     ...annexRooms.filter((r) => !selectedIds.has(getServiceResourceId(r))),
-  ];
+  ].sort((a, b) =>
+    compareResourceIds(getServiceResourceId(a), getServiceResourceId(b)),
+  );
 }
 
 /** Every form field that stores a value keyed by room / annex resource id. */
@@ -527,7 +523,7 @@ export function mergeRoomIdsWithAnnex(
     }
   }
   return merged
-    .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+    .sort(compareResourceIds)
     .join(", ");
 }
 
