@@ -742,6 +742,86 @@ describe("components/src/server/admin", () => {
     });
   });
 
+  it("still notifies the final approver if first-approval role lookup fails", async () => {
+    seedCollection("tenant-y-bookings", [
+      {
+        id: "booking-role-fail",
+        data: {
+          calendarEventId: "cal-role-fail",
+          requestNumber: 91,
+          title: "Role Lookup Fail",
+          email: "requester@nyu.edu",
+          startDate: makeTimestamp("2024-03-04T10:00:00.000Z"),
+          endDate: makeTimestamp("2024-03-04T12:00:00.000Z"),
+          requestedAt: makeTimestamp("2024-03-01T08:00:00.000Z"),
+          firstApprovedAt: null,
+          finalApprovedAt: null,
+          declinedAt: null,
+          canceledAt: null,
+          checkedInAt: null,
+          checkedOutAt: null,
+          noShowedAt: null,
+          walkedInAt: null,
+          role: "Faculty",
+          status: BookingStatusLabel.REQUESTED,
+        },
+      },
+    ]);
+    seedCollection("tenant-y-usersApprovers", [
+      {
+        id: "approver-final",
+        data: {
+          email: "final@nyu.edu",
+          department: "ITP",
+          level: ApproverLevel.FINAL,
+        },
+      },
+    ]);
+
+    mockFetch.mockResolvedValue({ ok: true } as any);
+
+    const firebaseAdmin = (await import("firebase-admin")).default;
+    const firestoreInstance = firebaseAdmin.firestore() as {
+      collection: (name: string) => unknown;
+    };
+    const originalCollection = firestoreInstance.collection;
+    firestoreInstance.collection = (name: string) => {
+      if (name === "usersSuperAdmin") {
+        throw new Error("transient firestore error");
+      }
+      return originalCollection(name);
+    };
+
+    try {
+      const { serverFirstApproveOnly } =
+        await import("@/components/src/server/admin");
+
+      await serverFirstApproveOnly(
+        "cal-role-fail",
+        "approver@nyu.edu",
+        "tenant-y",
+      );
+
+      const logs = readCollection("tenant-y-bookingLogs");
+      expect(logs).toHaveLength(1);
+      expect(logs[0]).toMatchObject({
+        bookingId: "booking-role-fail",
+        status: BookingStatusLabel.PRE_APPROVED,
+        changedBy: "approver@nyu.edu",
+      });
+      expect(logs[0].note == null).toBe(true);
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        "https://booking.test/api/sendEmail",
+        expect.objectContaining({
+          method: "POST",
+        }),
+      );
+    } finally {
+      firestoreInstance.collection = originalCollection;
+    }
+  });
+
   it("skips CC email when getApprovalCcEmail returns empty string", async () => {
     mockGetApprovalCcEmail.mockReturnValue("");
 

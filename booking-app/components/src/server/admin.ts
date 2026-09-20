@@ -306,18 +306,26 @@ export const serverDeleteDataByCalendarEventId = async (
   await serverDeleteData(collectionName, booking.id, tenant);
 };
 
-async function resolveFirstApprovalHistoryNote(
+export async function resolveFirstApprovalHistoryNote(
   email?: string,
   tenant?: string,
 ): Promise<string | undefined> {
   if (isSystemHistoryActor(email) || !email) {
     return undefined;
   }
-  const role = await resolveCallerRole(
-    { email, netId: email.split("@")[0] },
-    tenant,
-  );
-  return firstApprovalHistoryNote(email, role);
+  try {
+    const role = await resolveCallerRole(
+      { email, netId: email.split("@")[0] },
+      tenant,
+    );
+    return firstApprovalHistoryNote(email, role);
+  } catch (error) {
+    console.error(
+      "Failed to resolve first-approval history note from caller role:",
+      error,
+    );
+    return undefined;
+  }
 }
 
 // from server
