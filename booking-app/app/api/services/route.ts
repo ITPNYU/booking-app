@@ -1,7 +1,10 @@
 import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
 import { NextRequest, NextResponse } from "next/server";
 
-import { serviceHistoryNote } from "@/components/src/utils/bookingHistoryNotes";
+import {
+  serviceHistoryDisplayName,
+  serviceHistoryNote,
+} from "@/components/src/utils/bookingHistoryNotes";
 import { shouldUseXState } from "@/components/src/utils/tenantUtils";
 import { executeXStateTransition } from "@/lib/stateMachines/xstateUtilsV5";
 
@@ -203,8 +206,8 @@ export async function POST(req: NextRequest) {
                 requestNumber: doc.requestNumber,
                 note:
                   reason && String(reason).trim().length > 0
-                    ? `Overall declined due to service: ${serviceDisplayName}. Reason: ${reason}`
-                    : `Overall declined due to service: ${serviceDisplayName}`,
+                    ? `Overall declined due to service: ${serviceHistoryDisplayName(serviceType)}. Reason: ${reason}`
+                    : `Overall declined due to service: ${serviceHistoryDisplayName(serviceType)}`,
               }),
             },
           );

@@ -1,4 +1,5 @@
 import { formatFurnishingsLines } from "@/components/src/utils/furnishingsDisplay";
+import { resolveCallerRole } from "@/lib/api/authz";
 import {
   logServerBookingChange,
   serverDeleteData,
@@ -27,7 +28,7 @@ import {
   BookingStatusLabel,
 } from "../types";
 import {
-  DEPARTMENTAL_LIAISON_APPROVED_NOTE,
+  firstApprovalHistoryNote,
   isSystemHistoryActor,
   resolvePreApprovedHistoryNotes,
 } from "../utils/bookingHistoryNotes";
@@ -305,6 +306,20 @@ export const serverDeleteDataByCalendarEventId = async (
   await serverDeleteData(collectionName, booking.id, tenant);
 };
 
+async function resolveFirstApprovalHistoryNote(
+  email?: string,
+  tenant?: string,
+): Promise<string | undefined> {
+  if (isSystemHistoryActor(email) || !email) {
+    return undefined;
+  }
+  const role = await resolveCallerRole(
+    { email, netId: email.split("@")[0] },
+    tenant,
+  );
+  return firstApprovalHistoryNote(email, role);
+}
+
 // from server
 const serverFirstApprove = (id: string, email?: string, tenant?: string) => {
   serverUpdateDataByCalendarEventId(
@@ -364,9 +379,7 @@ export const serverFirstApproveOnly = async (
       changedBy: email,
       requestNumber: doc.requestNumber,
       calendarEventId: id,
-      note: isSystemHistoryActor(email)
-        ? undefined
-        : DEPARTMENTAL_LIAISON_APPROVED_NOTE,
+      note: await resolveFirstApprovalHistoryNote(email, tenant),
       tenant,
     });
   }
@@ -532,9 +545,7 @@ const firstApprove = async (id: string, email: string, tenant?: string) => {
       changedBy: email,
       requestNumber: doc.requestNumber,
       calendarEventId: id,
-      note: isSystemHistoryActor(email)
-        ? undefined
-        : DEPARTMENTAL_LIAISON_APPROVED_NOTE,
+      note: await resolveFirstApprovalHistoryNote(email, tenant),
       tenant,
     });
   }

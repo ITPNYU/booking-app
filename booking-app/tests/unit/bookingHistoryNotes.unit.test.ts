@@ -1,7 +1,8 @@
-import { BookingStatusLabel } from "@/components/src/types";
+import { BookingStatusLabel, PagePermission } from "@/components/src/types";
 import {
   ADMIN_POLICY_APPROVED_NOTE,
   DEPARTMENTAL_LIAISON_APPROVED_NOTE,
+  firstApprovalHistoryNote,
   resolvePreApprovedHistoryNotes,
   serviceHistoryNote,
 } from "@/components/src/utils/bookingHistoryNotes";
@@ -130,6 +131,31 @@ describe("bookingHistoryNotes", () => {
       ADMIN_POLICY_APPROVED_NOTE,
       undefined,
     ]);
+  });
+
+  it("omits a first-approval note for System actors", () => {
+    expect(firstApprovalHistoryNote("System", PagePermission.ADMIN)).toBe(
+      undefined,
+    );
+    expect(firstApprovalHistoryNote("system")).toBe(undefined);
+  });
+
+  it("labels first approval by Admin or Super Admin as admin policy", () => {
+    expect(
+      firstApprovalHistoryNote("admin@nyu.edu", PagePermission.ADMIN),
+    ).toBe(ADMIN_POLICY_APPROVED_NOTE);
+    expect(
+      firstApprovalHistoryNote("super@nyu.edu", PagePermission.SUPER_ADMIN),
+    ).toBe(ADMIN_POLICY_APPROVED_NOTE);
+  });
+
+  it("labels first approval by a liaison (or unknown role) as liaison", () => {
+    expect(
+      firstApprovalHistoryNote("liaison@nyu.edu", PagePermission.LIAISON),
+    ).toBe(DEPARTMENTAL_LIAISON_APPROVED_NOTE);
+    expect(firstApprovalHistoryNote("approver@nyu.edu")).toBe(
+      DEPARTMENTAL_LIAISON_APPROVED_NOTE,
+    );
   });
 
   it("uses Staffing for staff service history notes", () => {

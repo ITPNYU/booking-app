@@ -1,4 +1,4 @@
-import { BookingStatusLabel } from "../types";
+import { BookingStatusLabel, PagePermission } from "../types";
 
 /** History-table notes for each PRE-APPROVED stage. */
 export const DEPARTMENTAL_LIAISON_APPROVED_NOTE =
@@ -21,6 +21,20 @@ export function isBlankHistoryNote(note: unknown): boolean {
 
 export function isSystemHistoryActor(changedBy?: string): boolean {
   return !changedBy || changedBy.trim().toLowerCase() === "system";
+}
+
+/** History note for a first-approval PRE-APPROVED log based on the actor's role. */
+export function firstApprovalHistoryNote(
+  email?: string,
+  role?: PagePermission,
+): string | undefined {
+  if (isSystemHistoryActor(email)) {
+    return undefined;
+  }
+  if (role === PagePermission.ADMIN || role === PagePermission.SUPER_ADMIN) {
+    return ADMIN_POLICY_APPROVED_NOTE;
+  }
+  return DEPARTMENTAL_LIAISON_APPROVED_NOTE;
 }
 
 export function serviceHistoryDisplayName(serviceType: string): string {
