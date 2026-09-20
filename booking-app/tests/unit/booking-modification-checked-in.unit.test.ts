@@ -193,6 +193,14 @@ describe("Checked In booking modification", () => {
     expect(xstateUpdate.xstateData.snapshot.context.calendarEventId).toBe(
       "new-cal-456",
     );
+    expect(xstateUpdate.xstateData.snapshot.context.servicesRequested).toEqual({
+      staff: false,
+      equipment: false,
+    });
+    expect(xstateUpdate.xstateData.snapshot.context.formData).toEqual({
+      title: "Updated Session",
+      department: "ITP",
+    });
     expect(mockCreateActor).not.toHaveBeenCalled();
 
     expect(mockFinalApprove).not.toHaveBeenCalled();
@@ -212,6 +220,76 @@ describe("Checked In booking modification", () => {
         status: BookingStatusLabel.CHECKED_IN,
       }),
     );
+  });
+
+  it("merges new service and form context into preserved XState", async () => {
+    mockGetMediaCommonsServices.mockReturnValue({
+      staff: false,
+      equipment: true,
+      catering: false,
+    });
+    mockServerGetDataByCalendarEventId.mockResolvedValue({
+      id: "booking-123",
+      origin: "user",
+      email: "user@nyu.edu",
+      finalApprovedAt: { seconds: 1700000000 },
+      staffServiceApproved: true,
+      equipmentServiceApproved: false,
+      xstateData: {
+        machineId: "MC Booking Request",
+        snapshot: {
+          value: "Approved",
+          context: {
+            calendarEventId: "old-cal-123",
+            origin: "user",
+            servicesRequested: { staff: true, equipment: false },
+            servicesApproved: { staff: true, equipment: false },
+            formData: { title: "Original Session" },
+            selectedRooms: [{ roomId: "201" }],
+          },
+        },
+      },
+    });
+
+    const res = await PUT(
+      createRequest({
+        ...modificationBody,
+        selectedRooms: [{ roomId: "202", calendarId: "cal-room-202" }],
+        data: {
+          title: "Updated Session",
+          department: "ITP",
+          equipmentServices: ["camera"],
+        },
+      }),
+    );
+    expect(res.status).toBe(200);
+
+    const xstateUpdate = mockServerUpdateDataByCalendarEventId.mock.calls[1][2];
+    expect(xstateUpdate.xstateData.snapshot.value).toBe("Approved");
+    expect(xstateUpdate.xstateData.snapshot.context).toEqual(
+      expect.objectContaining({
+        calendarEventId: "new-cal-456",
+        origin: "user",
+        email: "user@nyu.edu",
+        formData: {
+          title: "Updated Session",
+          department: "ITP",
+          equipmentServices: ["camera"],
+        },
+        selectedRooms: [{ roomId: "202", calendarId: "cal-room-202" }],
+        bookingCalendarInfo: modificationBody.bookingCalendarInfo,
+        servicesRequested: {
+          staff: false,
+          equipment: true,
+          catering: false,
+        },
+        servicesApproved: expect.objectContaining({
+          staff: true,
+          equipment: false,
+        }),
+      }),
+    );
+    expect(mockCreateActor).not.toHaveBeenCalled();
   });
 
   it("still re-approves Approved bookings", async () => {

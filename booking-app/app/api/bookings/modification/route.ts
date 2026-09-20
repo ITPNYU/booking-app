@@ -62,6 +62,7 @@ function buildPreservedXStateData(
   existingBookingData: Booking,
   newCalendarEventId: string,
   xstateValue: "Checked In" | "Approved",
+  contextUpdates: Record<string, unknown> = {},
 ): Record<string, unknown> | null {
   const existing = existingBookingData.xstateData;
   if (!existing?.snapshot) return null;
@@ -73,6 +74,7 @@ function buildPreservedXStateData(
       value: xstateValue,
       context: {
         ...existing.snapshot.context,
+        ...contextUpdates,
         calendarEventId: newCalendarEventId,
       },
     },
@@ -368,10 +370,26 @@ export async function PUT(request: NextRequest) {
         }
       : undefined;
 
+    const preservedContextUpdates: Record<string, unknown> = {
+      email,
+      selectedRooms: selectedRooms || [],
+      formData: data || {},
+      bookingCalendarInfo: bookingCalendarInfo || {},
+      role: data?.role as Role,
+      origin: preservedOrigin,
+    };
+    if (servicesRequested !== undefined) {
+      preservedContextUpdates.servicesRequested = servicesRequested;
+    }
+    if (servicesApproved !== undefined) {
+      preservedContextUpdates.servicesApproved = servicesApproved;
+    }
+
     let xstateData = buildPreservedXStateData(
       existingBookingData,
       newCalendarEventId,
       xstateValue,
+      preservedContextUpdates,
     );
 
     if (!xstateData) {
