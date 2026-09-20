@@ -564,6 +564,44 @@ describe("POST /api/approve", () => {
     });
   });
 
+  it("logs services request as admin policy when a final approver sends Pre-approved into services", async () => {
+    mockResolveCallerRole.mockResolvedValue(PagePermission.LIAISON);
+    mockServerGetDataByCalendarEventId.mockResolvedValue({
+      id: "booking-db-id",
+      requestNumber: 42,
+      title: "Media Commons Session",
+      email: "requester@nyu.edu",
+      firstApprovedAt: "2026-06-14T12:00:00Z",
+    } as any);
+    mockServerGetFinalApproverEmail.mockResolvedValue(sessionEmail);
+    mockExecute.mockResolvedValue({
+      success: true,
+      newState: { "Services Request": "pending" },
+    });
+
+    const response = await POST(
+      createRequest(
+        { id: bookingId, email: bodyEmail },
+        { "x-tenant": "itp" },
+      ) as any,
+    );
+
+    expect(mockLogServerBookingChange).toHaveBeenCalledWith({
+      bookingId: "booking-db-id",
+      calendarEventId: bookingId,
+      status: "PRE-APPROVED",
+      changedBy: sessionEmail,
+      requestNumber: 42,
+      note: "Admin Policy Approved",
+      tenant: "itp",
+    });
+
+    await expect(parseJson(response)).resolves.toEqual({
+      status: 200,
+      data: { message: "Approved successfully" },
+    });
+  });
+
   it("logs services request transitions with a liaison note for liaison approvers", async () => {
     mockResolveCallerRole.mockResolvedValue(PagePermission.LIAISON);
     mockExecute.mockResolvedValue({

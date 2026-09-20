@@ -12,6 +12,7 @@ import {
   serverApproveBooking,
 } from "@/components/src/server/admin";
 import { BookingStatusLabel, PagePermission } from "@/components/src/types";
+import { ADMIN_POLICY_APPROVED_NOTE } from "@/components/src/utils/bookingHistoryNotes";
 import { getMediaCommonsServices, isMediaCommons } from "@/components/src/utils/tenantUtils";
 import { resolveCallerRole } from "@/lib/api/authz";
 import { requireSession } from "@/lib/api/requireSession";
@@ -308,7 +309,13 @@ export async function POST(req: NextRequest) {
             status: BookingStatusLabel.PRE_APPROVED,
             changedBy: email,
             requestNumber: doc.requestNumber,
-            note: await resolveFirstApprovalHistoryNote(email, tenant),
+            // Pre-transition firstApprovedAt: already set means this is the
+            // final-approver → Services Request step, not the initial liaison
+            // sign-off. Role lookup cannot tell those apart (FINAL approvers
+            // resolve to LIAISON).
+            note: booking.firstApprovedAt
+              ? ADMIN_POLICY_APPROVED_NOTE
+              : await resolveFirstApprovalHistoryNote(email, tenant),
             tenant,
           });
 
