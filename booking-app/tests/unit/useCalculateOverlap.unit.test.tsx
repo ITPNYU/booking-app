@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { BookingContext } from "@/components/src/client/routes/booking/bookingProvider";
 import useCalculateOverlap from "@/components/src/client/routes/booking/hooks/useCalculateOverlap";
-import { DatabaseContext } from "@/components/src/client/routes/components/Provider";
 import { usePathname } from "next/navigation";
 
 // Mock next/navigation so we can control pathname dynamically in each test
@@ -23,6 +22,7 @@ type CalendarEvent = {
   start: string;
   end: string;
   resourceId: string | number;
+  calendarEventId?: string;
 };
 
 describe("useCalculateOverlap", () => {
@@ -45,11 +45,9 @@ describe("useCalculateOverlap", () => {
   } as any;
 
   const wrapper =
-    (ctx: any, dbCtx: any = {}) =>
+    (ctx: any) =>
     ({ children }) => (
-      <DatabaseContext.Provider value={{ allBookings: [], ...dbCtx } as any}>
-        <BookingContext.Provider value={ctx}>{children}</BookingContext.Provider>
-      </DatabaseContext.Provider>
+      <BookingContext.Provider value={ctx}>{children}</BookingContext.Provider>
     );
 
   it("returns false when there is no overlap", () => {
@@ -166,6 +164,30 @@ describe("useCalculateOverlap", () => {
     expect(result.current).toBe(false);
   });
 
+  it("ignores a guest copy stamped with this booking's Firestore id", () => {
+    const calendarEventId = "event789";
+    setMockPathname(`/tenant/modification/selectRoom/${calendarEventId}`);
+
+    const context = {
+      ...baseContext,
+      existingCalendarEvents: [
+        {
+          id: "google-guest-copy:222:2025-07-06T15:00:00-04:00",
+          calendarEventId,
+          start: "2025-07-06T15:00:00-04:00",
+          end: "2025-07-06T17:00:00-04:00",
+          resourceId: "222",
+        } as CalendarEvent,
+      ],
+    };
+
+    const { result } = renderHook(() => useCalculateOverlap(), {
+      wrapper: wrapper(context),
+    });
+
+    expect(result.current).toBe(false);
+  });
+
   it("still overlaps a different booking at the same slot", () => {
     const calendarEventId = "event789";
     setMockPathname(`/tenant/modification/selectRoom/${calendarEventId}`);
@@ -186,22 +208,7 @@ describe("useCalculateOverlap", () => {
     };
 
     const { result } = renderHook(() => useCalculateOverlap(), {
-      wrapper: wrapper(context, {
-        allBookings: [
-          {
-            calendarEventId,
-            roomId: "222",
-            startDate: { toDate: () => new Date(start) },
-            endDate: { toDate: () => new Date(end) },
-          },
-          {
-            calendarEventId: "other-booking",
-            roomId: "222",
-            startDate: { toDate: () => new Date(start) },
-            endDate: { toDate: () => new Date(end) },
-          },
-        ],
-      }),
+      wrapper: wrapper(context),
     });
 
     expect(result.current).toBe(true);

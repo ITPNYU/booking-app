@@ -7,13 +7,6 @@ type EventLike = {
   extendedProps?: { calendarEventId?: string };
 };
 
-type BookingSlotLike = {
-  calendarEventId?: string;
-  roomId?: string;
-  startDate?: { toDate?: () => Date };
-  endDate?: { toDate?: () => Date };
-};
-
 export function normalizeCalendarEventId(
   calendarEventId?: string | string[] | null,
 ): string | undefined {
@@ -36,6 +29,10 @@ export function normalizeCalendarEventId(
  * fetchCalendarEvents encodes ids as `${calendarEventId}:${roomId}:${start}`.
  * Start timestamps contain colons, so matching by prefix is required instead
  * of taking split(":")[0] alone.
+ *
+ * Guest copies on other room calendars get a different Google event id;
+ * `/api/calendarEvents` stamps the Firestore booking id onto those events so
+ * this check works without consulting DatabaseContext.allBookings.
  */
 export function isOwnCalendarEvent(
   event: EventLike,
@@ -58,53 +55,4 @@ export function isOwnCalendarEvent(
   if (eventId.startsWith(`${target}:`)) return true;
   if (eventId.startsWith(`${target}_`)) return true;
   return false;
-}
-
-/** True when an event occupies the same room and time as a booking. */
-export function isSameSlotAsBooking(
-  event: EventLike,
-  booking?: BookingSlotLike,
-): boolean {
-  if (!booking?.roomId || event.start == null || event.end == null) {
-    return false;
-  }
-
-  const roomIds = booking.roomId.split(",").map((roomId) => roomId.trim());
-  if (!roomIds.includes(String(event.resourceId))) return false;
-
-  const bookingStart = booking.startDate?.toDate?.()?.getTime();
-  const bookingEnd = booking.endDate?.toDate?.()?.getTime();
-  if (!bookingStart || !bookingEnd) return false;
-
-  const eventStart = new Date(event.start).getTime();
-  const eventEnd = new Date(event.end).getTime();
-  if (Number.isNaN(eventStart) || Number.isNaN(eventEnd)) return false;
-
-  const FUZZ_MS = 60 * 1000;
-  return (
-    Math.abs(eventStart - bookingStart) < FUZZ_MS &&
-    Math.abs(eventEnd - bookingEnd) < FUZZ_MS
-  );
-}
-
-/**
- * Fallback when Google Calendar returns a different event id than Firestore
- * (guest copies on other room calendars). Same room+time is not enough on its
- * own — if the event belongs to a different booking in `allBookings`, it is a
- * real conflict and must not be ignored.
- */
-export function isUnmatchedCopyOfBooking(
-  event: EventLike,
-  booking?: BookingSlotLike,
-  allBookings: BookingSlotLike[] = [],
-): boolean {
-  if (!booking || !isSameSlotAsBooking(event, booking)) return false;
-
-  const belongsToOtherBooking = allBookings.some((candidate) => {
-    const candidateId = candidate.calendarEventId;
-    if (!candidateId || candidateId === booking.calendarEventId) return false;
-    return isOwnCalendarEvent(event, candidateId);
-  });
-
-  return !belongsToOtherBooking;
 }

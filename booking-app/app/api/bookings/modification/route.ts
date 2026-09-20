@@ -45,9 +45,9 @@ function getModificationTarget(existingBookingData: Booking): {
 } {
   const status = getStatusFromXState(existingBookingData);
   const isCheckedIn = status === BookingStatusLabel.CHECKED_IN;
-  const isApproved =
-    status === BookingStatusLabel.APPROVED ||
-    (!isCheckedIn && !!existingBookingData.finalApprovedAt);
+  // Derive from live status only. finalApprovedAt is never cleared after
+  // cancel/decline/checkout/close/no-show, so it cannot gate modifications.
+  const isApproved = status === BookingStatusLabel.APPROVED;
   return {
     isCheckedIn,
     isApproved,

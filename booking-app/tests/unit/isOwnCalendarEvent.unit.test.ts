@@ -1,8 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   isOwnCalendarEvent,
-  isSameSlotAsBooking,
-  isUnmatchedCopyOfBooking,
   normalizeCalendarEventId,
 } from "@/components/src/client/routes/booking/utils/isOwnCalendarEvent";
 
@@ -59,102 +57,23 @@ describe("isOwnCalendarEvent", () => {
     ).toBe(true);
   });
 
+  it("matches a guest copy stamped with the Firestore booking id", () => {
+    expect(
+      isOwnCalendarEvent(
+        {
+          id: "google-guest-copy:203:2026-09-18T14:00:00-04:00",
+          calendarEventId,
+          resourceId: "203",
+        },
+        calendarEventId,
+      ),
+    ).toBe(true);
+  });
+
   it("decodes URL-encoded ids", () => {
     expect(normalizeCalendarEventId("abc%5Fdef")).toBe("abc_def");
     expect(
       isOwnCalendarEvent({ id: "abc_def:202:start" }, "abc%5Fdef"),
     ).toBe(true);
-  });
-});
-
-describe("isSameSlotAsBooking", () => {
-  const start = new Date("2026-09-18T18:00:00.000Z");
-  const end = new Date("2026-09-18T20:00:00.000Z");
-
-  it("matches the same room and time as the booking being modified", () => {
-    expect(
-      isSameSlotAsBooking(
-        {
-          id: "google-copy-id:202:start",
-          resourceId: "202",
-          start: start.toISOString(),
-          end: end.toISOString(),
-        },
-        {
-          calendarEventId: "original-id",
-          roomId: "202",
-          startDate: { toDate: () => start },
-          endDate: { toDate: () => end },
-        },
-      ),
-    ).toBe(true);
-  });
-
-  it("does not match a different room or time", () => {
-    expect(
-      isSameSlotAsBooking(
-        {
-          id: "other",
-          resourceId: "203",
-          start: start.toISOString(),
-          end: end.toISOString(),
-        },
-        {
-          roomId: "202",
-          startDate: { toDate: () => start },
-          endDate: { toDate: () => end },
-        },
-      ),
-    ).toBe(false);
-  });
-});
-
-describe("isUnmatchedCopyOfBooking", () => {
-  const start = new Date("2026-09-18T18:00:00.000Z");
-  const end = new Date("2026-09-18T20:00:00.000Z");
-  const originalBooking = {
-    calendarEventId: "original-id",
-    roomId: "202",
-    startDate: { toDate: () => start },
-    endDate: { toDate: () => end },
-  };
-
-  it("treats a same-slot Google copy with an unknown id as this booking", () => {
-    expect(
-      isUnmatchedCopyOfBooking(
-        {
-          id: "google-copy-id:202:start",
-          resourceId: "202",
-          start: start.toISOString(),
-          end: end.toISOString(),
-        },
-        originalBooking,
-        [originalBooking],
-      ),
-    ).toBe(true);
-  });
-
-  it("does not hide a different Firestore booking at the same slot", () => {
-    expect(
-      isUnmatchedCopyOfBooking(
-        {
-          id: "other-booking:202:start",
-          calendarEventId: "other-booking",
-          resourceId: "202",
-          start: start.toISOString(),
-          end: end.toISOString(),
-        },
-        originalBooking,
-        [
-          originalBooking,
-          {
-            calendarEventId: "other-booking",
-            roomId: "202",
-            startDate: { toDate: () => start },
-            endDate: { toDate: () => end },
-          },
-        ],
-      ),
-    ).toBe(false);
   });
 });

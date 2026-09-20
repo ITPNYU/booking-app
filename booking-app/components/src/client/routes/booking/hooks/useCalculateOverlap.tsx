@@ -2,17 +2,14 @@ import { useCallback, useContext } from "react";
 
 import { usePathname } from "next/navigation";
 import { BookingContext } from "../bookingProvider";
-import { DatabaseContext } from "../../components/Provider";
 import {
   isOwnCalendarEvent,
-  isUnmatchedCopyOfBooking,
   normalizeCalendarEventId,
 } from "../utils/isOwnCalendarEvent";
 
 export default function useCalculateOverlap() {
   const { bookingCalendarInfo, existingCalendarEvents, selectedRooms } =
     useContext(BookingContext);
-  const { allBookings } = useContext(DatabaseContext);
   const pathname = usePathname();
   const isOverlapping = useCallback(() => {
     if (bookingCalendarInfo == null) return false;
@@ -28,22 +25,12 @@ export default function useCalculateOverlap() {
       calendarEventId = normalizeCalendarEventId(segments[segments.length - 1]);
     }
 
-    const originalBooking = calendarEventId
-      ? allBookings.find(
-          (booking) => booking.calendarEventId === calendarEventId,
-        )
-      : undefined;
-
     const selectedRoomIds = selectedRooms.map((x) => String(x.roomId));
     return existingCalendarEvents
       .map((event) => {
         if (!selectedRoomIds.includes(String(event.resourceId))) return false;
         // for edit/modification mode, don't overlap with existing booking
-        if (
-          calendarEventId &&
-          (isOwnCalendarEvent(event, calendarEventId) ||
-            isUnmatchedCopyOfBooking(event, originalBooking, allBookings))
-        )
+        if (calendarEventId && isOwnCalendarEvent(event, calendarEventId))
           return false;
 
         const eventStart = new Date(event.start);
@@ -63,13 +50,7 @@ export default function useCalculateOverlap() {
         return false;
       })
       .some((x) => x);
-  }, [
-    bookingCalendarInfo,
-    existingCalendarEvents,
-    selectedRooms,
-    pathname,
-    allBookings,
-  ]);
+  }, [bookingCalendarInfo, existingCalendarEvents, selectedRooms, pathname]);
 
   return isOverlapping();
 }

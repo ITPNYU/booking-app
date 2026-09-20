@@ -35,7 +35,6 @@ import { DEFAULT_SLOT_UNIT } from "../utils/getSlotUnit";
 import { buildBlockPastTimes } from "../utils/buildBlockPastTimes";
 import {
   isOwnCalendarEvent,
-  isUnmatchedCopyOfBooking,
   normalizeCalendarEventId,
 } from "../utils/isOwnCalendarEvent";
 import { compareResourceIds } from "../../../../utils/resourceOrder";
@@ -131,8 +130,7 @@ export default function CalendarVerticalResource({
   slotUnit,
   maxHours,
 }: Props) {
-  const { operationHours, pagePermission, allBookings } =
-    useContext(DatabaseContext);
+  const { operationHours, pagePermission } = useContext(DatabaseContext);
   const { getBlackoutPeriodsForDateAndRooms, isBookingTimeInBlackout } =
     useBookingDateRestrictions();
   const {
@@ -349,18 +347,10 @@ export default function CalendarVerticalResource({
     )
       return existingCalendarEvents;
 
-    const originalBooking = allBookings.find(
-      (booking) =>
-        booking.calendarEventId === targetId ||
-        booking.calendarEventId === calendarEventId,
-    );
-
     return existingCalendarEvents.filter(
-      (event) =>
-        !isOwnCalendarEvent(event, targetId) &&
-        !isUnmatchedCopyOfBooking(event, originalBooking, allBookings),
+      (event) => !isOwnCalendarEvent(event, targetId),
     );
-  }, [existingCalendarEvents, formContext, calendarEventId, allBookings]);
+  }, [existingCalendarEvents, formContext, calendarEventId]);
 
   if (fetchingStatus === "error" && existingCalendarEvents.length === 0) {
     return (

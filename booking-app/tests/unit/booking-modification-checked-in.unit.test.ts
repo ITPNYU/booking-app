@@ -258,6 +258,31 @@ describe("Checked In booking modification", () => {
     expect(mockFinalApprove).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ["Canceled", { canceledAt: { seconds: 1720000000 } }],
+    ["Declined", { declinedAt: { seconds: 1720000000 } }],
+    ["Checked Out", { checkedOutAt: { seconds: 1720000000 } }],
+    ["Closed", { closedAt: { seconds: 1720000000 } }],
+    ["No Show", { noShowedAt: { seconds: 1720000000 } }],
+  ])(
+    "rejects a %s booking even when finalApprovedAt is still set",
+    async (xstateValue, extra) => {
+      mockServerGetDataByCalendarEventId.mockResolvedValue({
+        id: "booking-123",
+        origin: "user",
+        finalApprovedAt: { seconds: 1700000000 },
+        firstApprovedAt: { seconds: 1695000000 },
+        ...extra,
+        xstateData: { snapshot: { value: xstateValue } },
+      });
+
+      const res = await PUT(createRequest(modificationBody));
+      expect(res.status).toBe(409);
+      expect(mockInsertEvent).not.toHaveBeenCalled();
+      expect(mockFinalApprove).not.toHaveBeenCalled();
+    },
+  );
+
   it("fails when a checked-in modification cannot be logged", async () => {
     mockServerGetDataByCalendarEventId.mockResolvedValue({
       origin: "user",
