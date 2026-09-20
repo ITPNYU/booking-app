@@ -1,4 +1,4 @@
-import { BookingStatusLabel, PagePermission } from "../types";
+import { PagePermission } from "../types";
 
 /** History-table notes for each PRE-APPROVED stage. */
 export const DEPARTMENTAL_LIAISON_APPROVED_NOTE =
@@ -69,50 +69,15 @@ export type HistoryLogNoteInput = {
 };
 
 /**
- * Fill in liaison / admin policy notes for PRE-APPROVED logs that were stored
- * without one. Walks logs in the given (chronological) order:
- * - existing notes are kept
- * - a System PRE-APPROVED consumes the liaison slot (auto first-approve)
- * - labeled liaison / admin policy notes consume their slots
- * - service notes do not consume liaison / admin slots
+ * Normalize stored history notes. Does not invent liaison / admin labels for
+ * blank PRE-APPROVED rows: before this change those logs had no note, and a
+ * first unlabeled human was often an Admin (or Super Admin), not a liaison.
+ * New writes persist the role via firstApprovalHistoryNote.
  */
 export function resolvePreApprovedHistoryNotes(
   logs: HistoryLogNoteInput[],
 ): (string | undefined)[] {
-  let liaisonAssigned = false;
-  let adminAssigned = false;
-
-  return logs.map((log) => {
-    const storedNote = isBlankHistoryNote(log.note)
-      ? undefined
-      : String(log.note);
-
-    if (log.status !== BookingStatusLabel.PRE_APPROVED) {
-      return storedNote;
-    }
-
-    if (storedNote) {
-      if (storedNote === DEPARTMENTAL_LIAISON_APPROVED_NOTE) {
-        liaisonAssigned = true;
-      } else if (storedNote === ADMIN_POLICY_APPROVED_NOTE) {
-        adminAssigned = true;
-      }
-      return storedNote;
-    }
-
-    if (isSystemHistoryActor(log.changedBy)) {
-      liaisonAssigned = true;
-      return undefined;
-    }
-
-    if (!liaisonAssigned) {
-      liaisonAssigned = true;
-      return DEPARTMENTAL_LIAISON_APPROVED_NOTE;
-    }
-    if (!adminAssigned) {
-      adminAssigned = true;
-      return ADMIN_POLICY_APPROVED_NOTE;
-    }
-    return undefined;
-  });
+  return logs.map((log) =>
+    isBlankHistoryNote(log.note) ? undefined : String(log.note),
+  );
 }

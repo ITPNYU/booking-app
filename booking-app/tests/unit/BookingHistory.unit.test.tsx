@@ -187,7 +187,7 @@ describe("useSortBookingHistory - automatic approval history", () => {
     expect(users).toEqual(expectedUsers);
   });
 
-  it("fills liaison and admin policy notes on unlabeled PRE-APPROVED rows", async () => {
+  it("keeps stored PRE-APPROVED notes and leaves unlabeled rows blank", async () => {
     const logs = [
       {
         id: "log-requested",
@@ -245,14 +245,14 @@ describe("useSortBookingHistory - automatic approval history", () => {
     );
     expect(notes).toEqual([
       undefined,
-      "Departmental Liaison Approved",
-      "Admin Policy Approved",
+      undefined,
+      undefined,
       "Equipment Service Approved",
       undefined,
     ]);
   });
 
-  it("labels unlabeled human PRE-APPROVED as admin policy after System first-approve", async () => {
+  it("leaves unlabeled PRE-APPROVED blank after System first-approve", async () => {
     const logs = [
       {
         id: "log-system",
@@ -286,10 +286,10 @@ describe("useSortBookingHistory - automatic approval history", () => {
     const notes = result.current.map(
       (row) => row.props.children[3].props.children,
     );
-    expect(notes).toEqual([undefined, "Admin Policy Approved"]);
+    expect(notes).toEqual([undefined, undefined]);
   });
 
-  it("labels unlabeled PRE-APPROVED as admin policy after a stored liaison note", async () => {
+  it("keeps a stored liaison note and leaves a later unlabeled PRE-APPROVED blank", async () => {
     const logs = [
       {
         id: "log-liaison",
@@ -324,10 +324,7 @@ describe("useSortBookingHistory - automatic approval history", () => {
     const notes = result.current.map(
       (row) => row.props.children[3].props.children,
     );
-    expect(notes).toEqual([
-      "Departmental Liaison Approved",
-      "Admin Policy Approved",
-    ]);
+    expect(notes).toEqual(["Departmental Liaison Approved", undefined]);
   });
 });
 

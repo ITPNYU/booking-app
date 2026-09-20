@@ -9,7 +9,7 @@ import {
 import { describe, expect, it } from "vitest";
 
 describe("bookingHistoryNotes", () => {
-  it("keeps an existing PRE-APPROVED note", () => {
+  it("keeps existing PRE-APPROVED notes", () => {
     expect(
       resolvePreApprovedHistoryNotes([
         {
@@ -17,22 +17,36 @@ describe("bookingHistoryNotes", () => {
           note: "Equipment Service Approved",
           changedBy: "approver@nyu.edu",
         },
+        {
+          status: BookingStatusLabel.PRE_APPROVED,
+          note: DEPARTMENTAL_LIAISON_APPROVED_NOTE,
+          changedBy: "liaison@nyu.edu",
+        },
+        {
+          status: BookingStatusLabel.PRE_APPROVED,
+          note: ADMIN_POLICY_APPROVED_NOTE,
+          changedBy: "admin@nyu.edu",
+        },
       ]),
-    ).toEqual(["Equipment Service Approved"]);
+    ).toEqual([
+      "Equipment Service Approved",
+      DEPARTMENTAL_LIAISON_APPROVED_NOTE,
+      ADMIN_POLICY_APPROVED_NOTE,
+    ]);
   });
 
-  it("labels the first unlabeled human PRE-APPROVED as liaison", () => {
+  it("does not invent a liaison note for a single unlabeled PRE-APPROVED", () => {
     expect(
       resolvePreApprovedHistoryNotes([
         {
           status: BookingStatusLabel.PRE_APPROVED,
-          changedBy: "liaison@nyu.edu",
+          changedBy: "admin@nyu.edu",
         },
       ]),
-    ).toEqual([DEPARTMENTAL_LIAISON_APPROVED_NOTE]);
+    ).toEqual([undefined]);
   });
 
-  it("labels the second unlabeled human PRE-APPROVED as admin policy", () => {
+  it("does not invent notes for unlabeled PRE-APPROVED rows", () => {
     expect(
       resolvePreApprovedHistoryNotes([
         {
@@ -44,10 +58,7 @@ describe("bookingHistoryNotes", () => {
           changedBy: "admin@nyu.edu",
         },
       ]),
-    ).toEqual([
-      DEPARTMENTAL_LIAISON_APPROVED_NOTE,
-      ADMIN_POLICY_APPROVED_NOTE,
-    ]);
+    ).toEqual([undefined, undefined]);
   });
 
   it("does not invent a note for System PRE-APPROVED rows", () => {
@@ -61,37 +72,7 @@ describe("bookingHistoryNotes", () => {
     ).toEqual([undefined]);
   });
 
-  it("treats lowercase system as System", () => {
-    expect(
-      resolvePreApprovedHistoryNotes([
-        {
-          status: BookingStatusLabel.PRE_APPROVED,
-          changedBy: "system",
-        },
-        {
-          status: BookingStatusLabel.PRE_APPROVED,
-          changedBy: "admin@nyu.edu",
-        },
-      ]),
-    ).toEqual([undefined, ADMIN_POLICY_APPROVED_NOTE]);
-  });
-
-  it("labels the first unlabeled human after System as admin policy", () => {
-    expect(
-      resolvePreApprovedHistoryNotes([
-        {
-          status: BookingStatusLabel.PRE_APPROVED,
-          changedBy: "System",
-        },
-        {
-          status: BookingStatusLabel.PRE_APPROVED,
-          changedBy: "admin@nyu.edu",
-        },
-      ]),
-    ).toEqual([undefined, ADMIN_POLICY_APPROVED_NOTE]);
-  });
-
-  it("does not relabel liaison after a stored liaison note", () => {
+  it("keeps a stored liaison note and leaves a later unlabeled row blank", () => {
     expect(
       resolvePreApprovedHistoryNotes([
         {
@@ -104,33 +85,7 @@ describe("bookingHistoryNotes", () => {
           changedBy: "admin@nyu.edu",
         },
       ]),
-    ).toEqual([
-      DEPARTMENTAL_LIAISON_APPROVED_NOTE,
-      ADMIN_POLICY_APPROVED_NOTE,
-    ]);
-  });
-
-  it("leaves a third unlabeled human PRE-APPROVED blank", () => {
-    expect(
-      resolvePreApprovedHistoryNotes([
-        {
-          status: BookingStatusLabel.PRE_APPROVED,
-          changedBy: "liaison@nyu.edu",
-        },
-        {
-          status: BookingStatusLabel.PRE_APPROVED,
-          changedBy: "admin@nyu.edu",
-        },
-        {
-          status: BookingStatusLabel.PRE_APPROVED,
-          changedBy: "other@nyu.edu",
-        },
-      ]),
-    ).toEqual([
-      DEPARTMENTAL_LIAISON_APPROVED_NOTE,
-      ADMIN_POLICY_APPROVED_NOTE,
-      undefined,
-    ]);
+    ).toEqual([DEPARTMENTAL_LIAISON_APPROVED_NOTE, undefined]);
   });
 
   it("omits a first-approval note for System actors", () => {

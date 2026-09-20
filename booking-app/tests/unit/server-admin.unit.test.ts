@@ -472,7 +472,7 @@ describe("components/src/server/admin", () => {
     ]);
   });
 
-  it("fills unlabeled PRE-APPROVED history notes for email contents", async () => {
+  it("leaves unlabeled PRE-APPROVED history notes blank in email contents", async () => {
     seedCollection("tenant-z-bookings", [
       {
         id: "booking-history",
@@ -528,8 +528,8 @@ describe("components/src/server/admin", () => {
 
     expect(result.history.map((h: any) => h.note)).toEqual([
       undefined,
-      "Departmental Liaison Approved",
-      "Admin Policy Approved",
+      undefined,
+      undefined,
     ]);
   });
 
