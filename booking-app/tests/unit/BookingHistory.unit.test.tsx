@@ -186,4 +186,148 @@ describe("useSortBookingHistory - automatic approval history", () => {
 
     expect(users).toEqual(expectedUsers);
   });
+
+  it("fills liaison and admin policy notes on unlabeled PRE-APPROVED rows", async () => {
+    const logs = [
+      {
+        id: "log-requested",
+        status: BookingStatusLabel.REQUESTED,
+        changedBy: "rh3900@nyu.edu",
+        changedAt: Timestamp.fromMillis(1),
+        requestNumber,
+      },
+      {
+        id: "log-liaison",
+        status: BookingStatusLabel.PRE_APPROVED,
+        changedBy: "nnp278@nyu.edu",
+        changedAt: Timestamp.fromMillis(2),
+        requestNumber,
+      },
+      {
+        id: "log-admin",
+        status: BookingStatusLabel.PRE_APPROVED,
+        changedBy: "jg5626@nyu.edu",
+        changedAt: Timestamp.fromMillis(3),
+        requestNumber,
+      },
+      {
+        id: "log-equipment",
+        status: BookingStatusLabel.PRE_APPROVED,
+        changedBy: "efh257@nyu.edu",
+        changedAt: Timestamp.fromMillis(4),
+        note: "Equipment Service Approved",
+        requestNumber,
+      },
+      {
+        id: "log-approved",
+        status: BookingStatusLabel.APPROVED,
+        changedBy: "System",
+        changedAt: Timestamp.fromMillis(5),
+        requestNumber,
+      },
+    ];
+
+    mockFetch.mockResolvedValueOnce(logs);
+
+    const bookingRow: any = {
+      requestNumber,
+      email: "rh3900@nyu.edu",
+    };
+
+    const { result } = renderHook(() => useSortBookingHistory(bookingRow));
+
+    await waitFor(() => {
+      expect(result.current.length).toBe(logs.length);
+    });
+
+    const notes = result.current.map(
+      (row) => row.props.children[3].props.children,
+    );
+    expect(notes).toEqual([
+      undefined,
+      "Departmental Liaison Approved",
+      "Admin Policy Approved",
+      "Equipment Service Approved",
+      undefined,
+    ]);
+  });
+
+  it("labels unlabeled human PRE-APPROVED as admin policy after System first-approve", async () => {
+    const logs = [
+      {
+        id: "log-system",
+        status: BookingStatusLabel.PRE_APPROVED,
+        changedBy: "System",
+        changedAt: Timestamp.fromMillis(1),
+        requestNumber,
+      },
+      {
+        id: "log-admin",
+        status: BookingStatusLabel.PRE_APPROVED,
+        changedBy: "jg5626@nyu.edu",
+        changedAt: Timestamp.fromMillis(2),
+        requestNumber,
+      },
+    ];
+
+    mockFetch.mockResolvedValueOnce(logs);
+
+    const bookingRow: any = {
+      requestNumber,
+      email: "rh3900@nyu.edu",
+    };
+
+    const { result } = renderHook(() => useSortBookingHistory(bookingRow));
+
+    await waitFor(() => {
+      expect(result.current.length).toBe(logs.length);
+    });
+
+    const notes = result.current.map(
+      (row) => row.props.children[3].props.children,
+    );
+    expect(notes).toEqual([undefined, "Admin Policy Approved"]);
+  });
+
+  it("labels unlabeled PRE-APPROVED as admin policy after a stored liaison note", async () => {
+    const logs = [
+      {
+        id: "log-liaison",
+        status: BookingStatusLabel.PRE_APPROVED,
+        changedBy: "nnp278@nyu.edu",
+        changedAt: Timestamp.fromMillis(1),
+        note: "Departmental Liaison Approved",
+        requestNumber,
+      },
+      {
+        id: "log-admin",
+        status: BookingStatusLabel.PRE_APPROVED,
+        changedBy: "jg5626@nyu.edu",
+        changedAt: Timestamp.fromMillis(2),
+        requestNumber,
+      },
+    ];
+
+    mockFetch.mockResolvedValueOnce(logs);
+
+    const bookingRow: any = {
+      requestNumber,
+      email: "rh3900@nyu.edu",
+    };
+
+    const { result } = renderHook(() => useSortBookingHistory(bookingRow));
+
+    await waitFor(() => {
+      expect(result.current.length).toBe(logs.length);
+    });
+
+    const notes = result.current.map(
+      (row) => row.props.children[3].props.children,
+    );
+    expect(notes).toEqual([
+      "Departmental Liaison Approved",
+      "Admin Policy Approved",
+    ]);
+  });
 });
+

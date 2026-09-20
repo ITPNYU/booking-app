@@ -472,6 +472,67 @@ describe("components/src/server/admin", () => {
     ]);
   });
 
+  it("fills unlabeled PRE-APPROVED history notes for email contents", async () => {
+    seedCollection("tenant-z-bookings", [
+      {
+        id: "booking-history",
+        data: {
+          calendarEventId: "cal-history",
+          requestNumber: 79,
+          title: "History Workshop",
+          email: "requester@nyu.edu",
+          startDate: makeTimestamp("2024-03-01T05:00:00.000Z"),
+          endDate: makeTimestamp("2024-03-01T07:00:00.000Z"),
+          requestedAt: makeTimestamp("2024-02-25T10:00:00.000Z"),
+          status: BookingStatusLabel.PRE_APPROVED,
+        },
+      },
+    ]);
+    seedCollection("tenant-z-bookingLogs", [
+      {
+        id: "log-requested",
+        data: {
+          calendarEventId: "cal-history",
+          status: BookingStatusLabel.REQUESTED,
+          changedBy: "requester@nyu.edu",
+          changedAt: makeTimestamp("2024-02-25T10:00:00.000Z"),
+          requestNumber: 79,
+        },
+      },
+      {
+        id: "log-liaison",
+        data: {
+          calendarEventId: "cal-history",
+          status: BookingStatusLabel.PRE_APPROVED,
+          changedBy: "liaison@nyu.edu",
+          changedAt: makeTimestamp("2024-02-26T10:00:00.000Z"),
+          requestNumber: 79,
+        },
+      },
+      {
+        id: "log-admin",
+        data: {
+          calendarEventId: "cal-history",
+          status: BookingStatusLabel.PRE_APPROVED,
+          changedBy: "admin@nyu.edu",
+          changedAt: makeTimestamp("2024-02-27T10:00:00.000Z"),
+          requestNumber: 79,
+        },
+      },
+    ]);
+
+    const { serverBookingContents } =
+      await import("@/components/src/server/admin");
+
+    const result = await serverBookingContents("cal-history", "tenant-z");
+
+    expect(result.history.map((h: any) => h.note)).toEqual([
+      undefined,
+      "Departmental Liaison Approved",
+      "Admin Policy Approved",
+    ]);
+  });
+
   it("performs first approval flow and notifies final approver", async () => {
     seedCollection("tenant-y-bookings", [
       {
@@ -529,6 +590,7 @@ describe("components/src/server/admin", () => {
       bookingId: "booking-2",
       status: BookingStatusLabel.PRE_APPROVED,
       changedBy: "approver@nyu.edu",
+      note: "Departmental Liaison Approved",
     });
 
     expect(mockFetch).toHaveBeenCalledWith(

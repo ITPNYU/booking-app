@@ -527,6 +527,7 @@ describe("POST /api/approve", () => {
       status: "PRE-APPROVED",
       changedBy: sessionEmail,
       requestNumber: 42,
+      note: "Admin Policy Approved",
       tenant: "itp",
     });
     expect(mockFetch).not.toHaveBeenCalledWith(
