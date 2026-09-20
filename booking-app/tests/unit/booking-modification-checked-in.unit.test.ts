@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
-import { BookingStatusLabel } from "@/components/src/types";
+import { BookingStatusLabel, PagePermission } from "@/components/src/types";
 
 const mockServerBookingContents = vi.fn();
 const mockServerUpdateDataByCalendarEventId = vi.fn();
@@ -14,6 +14,8 @@ const mockGetMediaCommonsServices = vi.fn();
 const mockServerSendBookingDetailEmail = vi.fn();
 const mockCreateActor = vi.fn();
 const mockGetTenantRooms = vi.fn();
+const mockRequireSession = vi.fn();
+const mockResolveCallerRole = vi.fn();
 
 vi.mock("@/components/src/server/admin", () => ({
   serverBookingContents: (...args: any[]) => mockServerBookingContents(...args),
@@ -89,6 +91,14 @@ vi.mock("@/lib/stateMachines/itpBookingMachine", () => ({
   itpBookingMachine: { id: "ITP Booking Request" },
 }));
 
+vi.mock("@/lib/api/requireSession", () => ({
+  requireSession: (...args: any[]) => mockRequireSession(...args),
+}));
+
+vi.mock("@/lib/api/authz", () => ({
+  resolveCallerRole: (...args: any[]) => mockResolveCallerRole(...args),
+}));
+
 import { PUT } from "@/app/api/bookings/modification/route";
 
 const createRequest = (body: object) =>
@@ -114,6 +124,11 @@ const modificationBody = {
 describe("Checked In booking modification", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockRequireSession.mockResolvedValue({
+      email: "pa@nyu.edu",
+      netId: "pa",
+    });
+    mockResolveCallerRole.mockResolvedValue(PagePermission.PA);
 
     mockServerBookingContents.mockResolvedValue({
       id: "booking-123",
@@ -321,6 +336,61 @@ describe("Checked In booking modification", () => {
     );
     expect(mockLogServerBookingChange).not.toHaveBeenCalled();
     expect(mockServerSendBookingDetailEmail).not.toHaveBeenCalled();
+  });
+
+  it("rejects unauthenticated callers", async () => {
+    mockRequireSession.mockResolvedValue(null);
+
+    const res = await PUT(createRequest(modificationBody));
+    expect(res.status).toBe(401);
+    await expect(res.json()).resolves.toEqual({ error: "Unauthorized" });
+    expect(mockResolveCallerRole).not.toHaveBeenCalled();
+    expect(mockServerGetDataByCalendarEventId).not.toHaveBeenCalled();
+    expect(mockInsertEvent).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    PagePermission.BOOKING,
+    PagePermission.LIAISON,
+  ])("rejects %s callers", async (role) => {
+    mockResolveCallerRole.mockResolvedValue(role);
+
+    const res = await PUT(createRequest(modificationBody));
+    expect(res.status).toBe(403);
+    await expect(res.json()).resolves.toEqual({
+      error: "Only PA, Services, or Admin can modify a booking",
+    });
+    expect(mockServerGetDataByCalendarEventId).not.toHaveBeenCalled();
+    expect(mockInsertEvent).not.toHaveBeenCalled();
+  });
+
+  it("uses the session email instead of a spoofed modifiedBy", async () => {
+    mockRequireSession.mockResolvedValue({
+      email: "services@nyu.edu",
+      netId: "services",
+    });
+    mockResolveCallerRole.mockResolvedValue(PagePermission.SERVICES);
+    mockServerGetDataByCalendarEventId.mockResolvedValue({
+      id: "booking-123",
+      email: "user@nyu.edu",
+      origin: "user",
+      finalApprovedAt: { seconds: 1700000000 },
+      checkedInAt: { seconds: 1710000000 },
+      xstateData: { snapshot: { value: "Checked In" } },
+    });
+
+    const res = await PUT(
+      createRequest({
+        ...modificationBody,
+        modifiedBy: "spoofed-admin@nyu.edu",
+      }),
+    );
+    expect(res.status).toBe(200);
+    expect(mockLogServerBookingChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        changedBy: "services@nyu.edu",
+      }),
+    );
   });
 
   it("rejects bookings that are not Approved or Checked In", async () => {

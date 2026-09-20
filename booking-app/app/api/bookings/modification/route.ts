@@ -18,8 +18,11 @@ import {
   Role,
 } from "@/components/src/types";
 import { resolveAnnexCalendarIds } from "@/components/src/utils/resourceServicesUtils";
+import { canAccessWebCheckout } from "@/components/src/utils/permissions";
 import { getStatusFromXState } from "@/components/src/utils/statusFromXState";
 import { getMediaCommonsServices } from "@/components/src/utils/tenantUtils";
+import { resolveCallerRole } from "@/lib/api/authz";
+import { requireSession } from "@/lib/api/requireSession";
 import { serverGetTenantResources } from "@/lib/tenant/serverGetTenantResources";
 import {
   logServerBookingChange,
@@ -94,6 +97,20 @@ function buildPreservedXStateData(
  * - Preserves approval timestamps, check-in timestamps, and service approvals
  */
 export async function PUT(request: NextRequest) {
+  const session = await requireSession();
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const tenant = extractTenantFromRequest(request);
+  const role = await resolveCallerRole(session, tenant);
+  if (!canAccessWebCheckout(role)) {
+    return NextResponse.json(
+      { error: "Only PA, Services, or Admin can modify a booking" },
+      { status: 403 },
+    );
+  }
+
   const {
     email,
     selectedRooms,
@@ -101,10 +118,9 @@ export async function PUT(request: NextRequest) {
     bookingCalendarInfo,
     data,
     calendarEventId,
-    modifiedBy,
   } = await request.json();
-
-  const tenant = extractTenantFromRequest(request);
+  // Never trust a client-supplied actor; the session is the source of truth.
+  const modifiedBy = session.email;
   const { isMediaCommons } = getTenantFlags(tenant);
 
   console.log(
@@ -116,14 +132,6 @@ export async function PUT(request: NextRequest) {
       modifiedBy,
     },
   );
-
-  // Validation
-  if (!modifiedBy) {
-    return NextResponse.json(
-      { error: "modifiedBy field is required for modifications" },
-      { status: 400 },
-    );
-  }
 
   if (bookingCalendarInfo == null) {
     return NextResponse.json(
