@@ -283,9 +283,10 @@ describe("Checked In booking modification", () => {
     },
   );
 
-  it("fails when a checked-in modification cannot be logged", async () => {
+  it("still succeeds when a checked-in modification cannot be logged", async () => {
     mockServerGetDataByCalendarEventId.mockResolvedValue({
       origin: "user",
+      email: "user@nyu.edu",
       finalApprovedAt: { seconds: 1700000000 },
       checkedInAt: { seconds: 1710000000 },
       xstateData: { snapshot: { value: "Checked In" } },
@@ -297,7 +298,36 @@ describe("Checked In booking modification", () => {
     });
 
     const res = await PUT(createRequest(modificationBody));
-    expect(res.status).toBe(500);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({
+      result: "success",
+      calendarEventId: "new-cal-456",
+    });
+    expect(mockInsertEvent).toHaveBeenCalled();
     expect(mockLogServerBookingChange).not.toHaveBeenCalled();
+    expect(mockServerSendBookingDetailEmail).toHaveBeenCalled();
+  });
+
+  it("still succeeds when history logging throws after the mutation", async () => {
+    mockServerGetDataByCalendarEventId.mockResolvedValue({
+      id: "booking-123",
+      email: "user@nyu.edu",
+      origin: "user",
+      finalApprovedAt: { seconds: 1700000000 },
+      checkedInAt: { seconds: 1710000000 },
+      xstateData: { snapshot: { value: "Checked In" } },
+    });
+    mockLogServerBookingChange.mockRejectedValueOnce(
+      new Error("Firestore unavailable"),
+    );
+
+    const res = await PUT(createRequest(modificationBody));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({
+      result: "success",
+      calendarEventId: "new-cal-456",
+    });
+    expect(mockLogServerBookingChange).toHaveBeenCalled();
+    expect(mockServerSendBookingDetailEmail).toHaveBeenCalled();
   });
 });

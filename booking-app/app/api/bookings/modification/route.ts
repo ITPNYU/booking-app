@@ -440,22 +440,31 @@ export async function PUT(request: NextRequest) {
     );
 
     if (isCheckedIn) {
-      const bookingId =
-        (existingBookingData as BookingWithId).id || existingContents.id;
-      if (!bookingId) {
-        throw new Error(
-          "Cannot log checked-in modification without a booking id",
+      // Calendar + Firestore writes already succeeded. Do not fail the request
+      // if history logging throws — a 500 here would make retries 404.
+      try {
+        const bookingId =
+          (existingBookingData as BookingWithId).id || existingContents.id;
+        if (!bookingId) {
+          throw new Error(
+            "Cannot log checked-in modification without a booking id",
+          );
+        }
+        await logServerBookingChange({
+          bookingId,
+          calendarEventId: newCalendarEventId,
+          status: BookingStatusLabel.MODIFIED,
+          changedBy: modifiedBy,
+          requestNumber: existingContents.requestNumber,
+          note: "Booking modified while checked in",
+          tenant,
+        });
+      } catch (logError) {
+        console.error(
+          "Failed to log checked-in modification:",
+          logError,
         );
       }
-      await logServerBookingChange({
-        bookingId,
-        calendarEventId: newCalendarEventId,
-        status: BookingStatusLabel.MODIFIED,
-        changedBy: modifiedBy,
-        requestNumber: existingContents.requestNumber,
-        note: "Booking modified while checked in",
-        tenant,
-      });
 
       const guestEmail = existingBookingData.email || email;
       if (guestEmail) {
