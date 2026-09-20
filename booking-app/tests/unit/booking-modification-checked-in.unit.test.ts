@@ -331,7 +331,10 @@ describe("Checked In booking modification", () => {
     });
 
     const res = await PUT(createRequest(modificationBody));
-    expect(res.status).toBe(409);
+    expect(res.status).toBe(422);
+    await expect(res.json()).resolves.toEqual({
+      error: "Booking must be Approved or Checked In to modify",
+    });
     expect(mockInsertEvent).not.toHaveBeenCalled();
     expect(mockFinalApprove).not.toHaveBeenCalled();
   });
@@ -355,7 +358,7 @@ describe("Checked In booking modification", () => {
       });
 
       const res = await PUT(createRequest(modificationBody));
-      expect(res.status).toBe(409);
+      expect(res.status).toBe(422);
       expect(mockInsertEvent).not.toHaveBeenCalled();
       expect(mockFinalApprove).not.toHaveBeenCalled();
     },

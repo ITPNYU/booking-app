@@ -157,9 +157,10 @@ export async function PUT(request: NextRequest) {
           hasApprovedTimestamp: !!existingBookingData.finalApprovedAt,
         },
       );
+      // 422, not 409: the client treats 409 as a calendar slot conflict.
       return NextResponse.json(
         { error: "Booking must be Approved or Checked In to modify" },
-        { status: 409 },
+        { status: 422 },
       );
     }
 
