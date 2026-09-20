@@ -606,7 +606,7 @@ export default function FormInput({
   const disabledButton =
     attestationsIncomplete ||
     isBanned ||
-    needsSafetyTraining ||
+    (needsSafetyTraining && !isMod) ||
     isInBlackoutPeriod ||
     isSubmitting;
 

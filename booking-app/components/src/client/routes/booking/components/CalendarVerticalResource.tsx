@@ -33,6 +33,11 @@ import { TIMEZONE, toBookingCalendarStr } from "../../../utils/date";
 import { DEFAULT_START_HOUR } from "../utils/getStartHour";
 import { DEFAULT_SLOT_UNIT } from "../utils/getSlotUnit";
 import { buildBlockPastTimes } from "../utils/buildBlockPastTimes";
+import {
+  isOwnCalendarEvent,
+  isUnmatchedCopyOfBooking,
+  normalizeCalendarEventId,
+} from "../utils/isOwnCalendarEvent";
 
 interface Props {
   calendarEventId?: string;
@@ -125,7 +130,8 @@ export default function CalendarVerticalResource({
   slotUnit,
   maxHours,
 }: Props) {
-  const { operationHours, pagePermission } = useContext(DatabaseContext);
+  const { operationHours, pagePermission, allBookings } =
+    useContext(DatabaseContext);
   const { getBlackoutPeriodsForDateAndRooms, isBookingTimeInBlackout } =
     useBookingDateRestrictions();
   const {
@@ -294,6 +300,7 @@ export default function CalendarVerticalResource({
   };
 
   const handleSelectOverlap = (el) => {
+    if (isOwnCalendarEvent(el, calendarEventId)) return true;
     // Admins can overlap blackout period blocks
     if (isAdmin) return true;
     // Don't allow overlap with blackout periods
@@ -334,21 +341,29 @@ export default function CalendarVerticalResource({
     });
   };
 
-  // for editing an existing reservation
+  // for editing an existing reservation, hide this booking's own calendar
+  // block so it does not occupy the slot the user is trying to change
   const existingCalEventsFiltered = useMemo(() => {
+    const targetId = normalizeCalendarEventId(calendarEventId);
     if (
       (formContext !== FormContextLevel.EDIT &&
         formContext !== FormContextLevel.MODIFICATION) ||
-      calendarEventId == null ||
-      calendarEventId.length === 0
+      !targetId
     )
       return existingCalendarEvents;
 
-    // based on how we format the id in fetchCalendarEvents
-    return existingCalendarEvents.filter(
-      (event) => event.id.split(":")[0] !== calendarEventId,
+    const originalBooking = allBookings.find(
+      (booking) =>
+        booking.calendarEventId === targetId ||
+        booking.calendarEventId === calendarEventId,
     );
-  }, [existingCalendarEvents, formContext]);
+
+    return existingCalendarEvents.filter(
+      (event) =>
+        !isOwnCalendarEvent(event, targetId) &&
+        !isUnmatchedCopyOfBooking(event, originalBooking, allBookings),
+    );
+  }, [existingCalendarEvents, formContext, calendarEventId, allBookings]);
 
   if (fetchingStatus === "error" && existingCalendarEvents.length === 0) {
     return (
@@ -422,7 +437,11 @@ export default function CalendarVerticalResource({
           resourceIds: resources.map((r) => r.id),
           overlap: false,
         }}
-        eventOverlap={false}
+        eventOverlap={(still) => {
+          if (isOwnCalendarEvent(still, calendarEventId)) return true;
+          if (still.title === NEW_TITLE_TAG) return true;
+          return false;
+        }}
         schedulerLicenseKey="CC-Attribution-NonCommercial-NoDerivatives"
         resources={resources}
         resourceOrder={"index"}

@@ -3,6 +3,7 @@ import { TableNames } from "@/components/src/policy";
 import {
   finalApprove,
   serverBookingContents,
+  serverSendBookingDetailEmail,
   serverUpdateDataByCalendarEventId,
 } from "@/components/src/server/admin";
 import {
@@ -17,9 +18,13 @@ import {
   Role,
 } from "@/components/src/types";
 import { resolveAnnexCalendarIds } from "@/components/src/utils/resourceServicesUtils";
+import { getStatusFromXState } from "@/components/src/utils/statusFromXState";
 import { getMediaCommonsServices } from "@/components/src/utils/tenantUtils";
 import { serverGetTenantResources } from "@/lib/tenant/serverGetTenantResources";
-import { serverGetDataByCalendarEventId } from "@/lib/firebase/server/adminDb";
+import {
+  logServerBookingChange,
+  serverGetDataByCalendarEventId,
+} from "@/lib/firebase/server/adminDb";
 import { Timestamp } from "firebase-admin/firestore";
 import { NextRequest, NextResponse } from "next/server";
 import { createActor } from "xstate";
@@ -30,20 +35,61 @@ import {
   getTenantRooms,
 } from "../shared";
 
+type BookingWithId = Booking & { id?: string };
+
+function getModificationTarget(existingBookingData: Booking): {
+  isCheckedIn: boolean;
+  isApproved: boolean;
+  statusLabel: BookingStatusLabel;
+  xstateValue: "Checked In" | "Approved";
+} {
+  const status = getStatusFromXState(existingBookingData);
+  const isCheckedIn = status === BookingStatusLabel.CHECKED_IN;
+  const isApproved =
+    status === BookingStatusLabel.APPROVED ||
+    (!isCheckedIn && !!existingBookingData.finalApprovedAt);
+  return {
+    isCheckedIn,
+    isApproved,
+    statusLabel: isCheckedIn
+      ? BookingStatusLabel.CHECKED_IN
+      : BookingStatusLabel.APPROVED,
+    xstateValue: isCheckedIn ? "Checked In" : "Approved",
+  };
+}
+
+function buildPreservedXStateData(
+  existingBookingData: Booking,
+  newCalendarEventId: string,
+  xstateValue: "Checked In" | "Approved",
+): Record<string, unknown> | null {
+  const existing = existingBookingData.xstateData;
+  if (!existing?.snapshot) return null;
+  return {
+    ...existing,
+    lastTransition: new Date().toISOString(),
+    snapshot: {
+      ...existing.snapshot,
+      value: xstateValue,
+      context: {
+        ...existing.snapshot.context,
+        calendarEventId: newCalendarEventId,
+      },
+    },
+  };
+}
+
 /**
  * PUT /api/bookings/modification
  *
- * PA/Admin modifying an approved booking (Modification Request).
- * This is for when PA/Admin needs to change details of an already approved booking.
+ * PA/Services/Admin modifying an approved or checked-in booking.
  *
  * Characteristics:
- * - Only PA/Admin can do modifications
- * - Booking must be in approved state
- * - Maintains "Approved" state after modification
- * - Preserves approval timestamps and service approvals
- * - Sends approval confirmation email
- * - Calendar event is updated to [APPROVED]
- * - Calls finalApprove() to handle all approval-related tasks
+ * - Only PA/Services/Admin can do modifications
+ * - Booking must be Approved or Checked In
+ * - Approved bookings stay Approved (finalApprove + confirmation email)
+ * - Checked In bookings stay Checked In (no re-approval or re-check-in)
+ * - Preserves approval timestamps, check-in timestamps, and service approvals
  */
 export async function PUT(request: NextRequest) {
   const {
@@ -96,17 +142,23 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "Booking not found" }, { status: 404 });
     }
 
-    // Verify this is an approved booking
-    const hasApprovedTimestamp = !!existingBookingData.finalApprovedAt;
-    if (!hasApprovedTimestamp) {
+    const { isCheckedIn, isApproved, statusLabel, xstateValue } =
+      getModificationTarget(existingBookingData);
+
+    if (!isCheckedIn && !isApproved) {
       console.warn(
-        `⚠️ MODIFICATION attempted on non-approved booking [${tenant?.toUpperCase()}]:`,
+        `⚠️ MODIFICATION rejected for non-approved booking [${tenant?.toUpperCase()}]:`,
         {
           calendarEventId,
-          hasApprovedTimestamp,
+          isCheckedIn,
+          isApproved,
+          hasApprovedTimestamp: !!existingBookingData.finalApprovedAt,
         },
       );
-      // Allow it to proceed but log the warning
+      return NextResponse.json(
+        { error: "Booking must be Approved or Checked In to modify" },
+        { status: 409 },
+      );
     }
 
     const existingContents = await serverBookingContents(
@@ -136,12 +188,9 @@ export async function PUT(request: NextRequest) {
     );
 
     console.log("🔧 MODIFICATION: Creating new calendar event");
-    // Create new calendar event with APPROVED status
     const startDateObj = new Date(bookingCalendarInfo.startStr);
     const endDateObj = new Date(bookingCalendarInfo.endStr);
 
-    // Initially create with APPROVED status
-    const statusLabel = BookingStatusLabel.APPROVED;
     const bookingContentsForDesc = buildBookingContents(
       data,
       selectedRoomIds,
@@ -152,11 +201,14 @@ export async function PUT(request: NextRequest) {
       existingBookingData.origin || BookingOrigin.USER,
     );
 
+    const statusNote = isCheckedIn
+      ? "<p>Your reservation has been updated.</p>"
+      : "<p>Your reservation has been confirmed and approved.</p>";
     const description =
       `${await bookingContentsToDescription(
         bookingContentsForDesc,
         tenant,
-      )}<p>Your reservation has been confirmed and approved.</p>` +
+      )}${statusNote}` +
       '<p>To cancel reservations please return to the Booking Tool, visit My Bookings, and click "cancel" on the booking at least 24 hours before the date of the event. Failure to cancel an unused booking is considered a no-show and may result in restricted use of the space.</p>';
 
     // Create calendar event
@@ -203,10 +255,17 @@ export async function PUT(request: NextRequest) {
       startDate: toFirebaseTimestampFromString(bookingCalendarInfo.startStr),
       endDate: toFirebaseTimestampFromString(bookingCalendarInfo.endStr),
       calendarEventId: newCalendarEventId,
-      equipmentCheckedOut: false,
-      requestedAt: Timestamp.now(),
+      equipmentCheckedOut: isCheckedIn
+        ? (existingBookingData.equipmentCheckedOut ?? false)
+        : false,
       origin: existingBookingData.origin || BookingOrigin.USER,
     };
+
+    if (isCheckedIn && existingBookingData.requestedAt) {
+      updatedData.requestedAt = existingBookingData.requestedAt;
+    } else {
+      updatedData.requestedAt = Timestamp.now();
+    }
 
     console.log(
       `✅ PRESERVED ORIGIN FOR MODIFICATION [${tenant?.toUpperCase()}]:`,
@@ -229,6 +288,15 @@ export async function PUT(request: NextRequest) {
     }
     if (existingBookingData.firstApprovedBy) {
       updatedData.firstApprovedBy = existingBookingData.firstApprovedBy;
+    }
+    if (existingBookingData.checkedInAt) {
+      updatedData.checkedInAt = existingBookingData.checkedInAt;
+    }
+    if (existingBookingData.checkedInBy) {
+      updatedData.checkedInBy = existingBookingData.checkedInBy;
+    }
+    if (existingBookingData.walkedInAt) {
+      updatedData.walkedInAt = existingBookingData.walkedInAt;
     }
 
     // Preserve service approvals for Media Commons
@@ -282,12 +350,8 @@ export async function PUT(request: NextRequest) {
       tenant,
     );
 
-    // Create new XState data in Approved state
+    // Preserve existing XState when possible so checkout/service regions stay intact.
     const preservedOrigin = existingBookingData.origin || BookingOrigin.USER;
-    const machine = isMediaCommons
-      ? (await import("@/lib/stateMachines/mcBookingMachine")).mcBookingMachine
-      : (await import("@/lib/stateMachines/itpBookingMachine"))
-          .itpBookingMachine;
     const servicesRequested = isMediaCommons
       ? getMediaCommonsServices(data, await serverGetTenantResources(tenant))
       : undefined;
@@ -304,42 +368,56 @@ export async function PUT(request: NextRequest) {
         }
       : undefined;
 
-    const freshActor = createActor(machine, {
-      input: {
-        tenant,
-        calendarEventId: newCalendarEventId,
-        email,
-        selectedRooms: selectedRooms || [],
-        formData: data || {},
-        bookingCalendarInfo: bookingCalendarInfo || {},
-        role: data?.role as Role,
-        origin: preservedOrigin,
-        servicesRequested,
-        servicesApproved,
-      },
-    });
+    let xstateData = buildPreservedXStateData(
+      existingBookingData,
+      newCalendarEventId,
+      xstateValue,
+    );
 
-    freshActor.start();
-    const currentSnapshot = freshActor.getSnapshot();
-
-    // Create XState data with Approved state
-    const xstateData = {
-      machineId: isMediaCommons ? "MC Booking Request" : "ITP Booking Request",
-      lastTransition: new Date().toISOString(),
-      snapshot: {
-        status: currentSnapshot.status,
-        value: "Approved", // Force Approved state
-        historyValue: currentSnapshot.historyValue || {},
-        context: {
-          ...currentSnapshot.context,
+    if (!xstateData) {
+      const machine = isMediaCommons
+        ? (await import("@/lib/stateMachines/mcBookingMachine"))
+            .mcBookingMachine
+        : (await import("@/lib/stateMachines/itpBookingMachine"))
+            .itpBookingMachine;
+      const freshActor = createActor(machine, {
+        input: {
+          tenant,
           calendarEventId: newCalendarEventId,
+          email,
+          selectedRooms: selectedRooms || [],
+          formData: data || {},
+          bookingCalendarInfo: bookingCalendarInfo || {},
+          role: data?.role as Role,
           origin: preservedOrigin,
+          servicesRequested,
+          servicesApproved,
         },
-        children: currentSnapshot.children || {},
-      },
-    };
+      });
 
-    freshActor.stop();
+      freshActor.start();
+      const currentSnapshot = freshActor.getSnapshot();
+
+      xstateData = {
+        machineId: isMediaCommons
+          ? "MC Booking Request"
+          : "ITP Booking Request",
+        lastTransition: new Date().toISOString(),
+        snapshot: {
+          status: currentSnapshot.status,
+          value: xstateValue,
+          historyValue: currentSnapshot.historyValue || {},
+          context: {
+            ...currentSnapshot.context,
+            calendarEventId: newCalendarEventId,
+            origin: preservedOrigin,
+          },
+          children: currentSnapshot.children || {},
+        },
+      };
+
+      freshActor.stop();
+    }
 
     // Save XState data
     await serverUpdateDataByCalendarEventId(
@@ -352,33 +430,70 @@ export async function PUT(request: NextRequest) {
     );
 
     console.log(
-      `✅ NEW BOOKING INITIALIZED WITH APPROVED STATE [${tenant?.toUpperCase()}]:`,
+      `✅ NEW BOOKING INITIALIZED WITH ${xstateValue.toUpperCase()} STATE [${tenant?.toUpperCase()}]:`,
       {
         calendarEventId: newCalendarEventId,
-        targetState: "Approved",
+        targetState: xstateValue,
         servicesRequested,
         servicesApproved,
       },
     );
 
-    // Run finalApprove to handle approval-related tasks:
-    // - Log APPROVED status to booking history
-    // - Update calendar event to [APPROVED] (already done above, but finalApprove ensures consistency)
-    // - Send approval confirmation email
-    console.log(
-      `🎉 RUNNING FINAL APPROVE FOR MODIFICATION [${tenant?.toUpperCase()}]:`,
-      {
+    if (isCheckedIn) {
+      const bookingId =
+        (existingBookingData as BookingWithId).id || existingContents.id;
+      if (!bookingId) {
+        throw new Error(
+          "Cannot log checked-in modification without a booking id",
+        );
+      }
+      await logServerBookingChange({
+        bookingId,
         calendarEventId: newCalendarEventId,
-        modifiedBy,
-      },
-    );
+        status: BookingStatusLabel.MODIFIED,
+        changedBy: modifiedBy,
+        requestNumber: existingContents.requestNumber,
+        note: "Booking modified while checked in",
+        tenant,
+      });
 
-    await finalApprove(
-      newCalendarEventId,
-      modifiedBy,
-      tenant,
-      "Approved via booking modification",
-    );
+      const guestEmail = existingBookingData.email || email;
+      if (guestEmail) {
+        try {
+          await serverSendBookingDetailEmail({
+            calendarEventId: newCalendarEventId,
+            targetEmail: guestEmail,
+            headerMessage: "Your reservation has been updated.",
+            status: BookingStatusLabel.CHECKED_IN,
+            tenant,
+          });
+        } catch (emailError) {
+          console.error(
+            "Failed to send checked-in modification email:",
+            emailError,
+          );
+        }
+      }
+    } else {
+      // Run finalApprove to handle approval-related tasks:
+      // - Log APPROVED status to booking history
+      // - Update calendar event to [APPROVED]
+      // - Send approval confirmation email
+      console.log(
+        `🎉 RUNNING FINAL APPROVE FOR MODIFICATION [${tenant?.toUpperCase()}]:`,
+        {
+          calendarEventId: newCalendarEventId,
+          modifiedBy,
+        },
+      );
+
+      await finalApprove(
+        newCalendarEventId,
+        modifiedBy,
+        tenant,
+        "Approved via booking modification",
+      );
+    }
 
     console.log(`✅ MODIFICATION COMPLETED [${tenant?.toUpperCase()}]:`, {
       calendarEventId: newCalendarEventId,

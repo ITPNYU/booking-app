@@ -291,6 +291,23 @@ describe("BookingStatusBar - Blackout Period Handling", () => {
     expect(screen.getByText(/blackout period/)).toBeInTheDocument();
   });
 
+  it("does not block modification on missing safety training", () => {
+    renderComponent(
+      {
+        needsSafetyTraining: true,
+      },
+      {
+        formContext: FormContextLevel.MODIFICATION,
+      }
+    );
+
+    const nextButton = screen.getByRole("button", { name: /next/i });
+    expect(nextButton).not.toBeDisabled();
+    expect(
+      screen.queryByText(/You have not taken safety training/)
+    ).not.toBeInTheDocument();
+  });
+
   it("renders back button when not hidden", () => {
     renderComponent();
 

@@ -2,10 +2,17 @@ import { useCallback, useContext } from "react";
 
 import { usePathname } from "next/navigation";
 import { BookingContext } from "../bookingProvider";
+import { DatabaseContext } from "../../components/Provider";
+import {
+  isOwnCalendarEvent,
+  isUnmatchedCopyOfBooking,
+  normalizeCalendarEventId,
+} from "../utils/isOwnCalendarEvent";
 
 export default function useCalculateOverlap() {
   const { bookingCalendarInfo, existingCalendarEvents, selectedRooms } =
     useContext(BookingContext);
+  const { allBookings } = useContext(DatabaseContext);
   const pathname = usePathname();
   const isOverlapping = useCallback(() => {
     if (bookingCalendarInfo == null) return false;
@@ -18,8 +25,14 @@ export default function useCalculateOverlap() {
       // Extract the last non-empty segment as the calendarEventId. This supports both
       // /edit/<id> and nested paths like /edit/form/<id> or /modification/form/<id>
       const segments = pathname.split("/").filter(Boolean);
-      calendarEventId = segments[segments.length - 1];
+      calendarEventId = normalizeCalendarEventId(segments[segments.length - 1]);
     }
+
+    const originalBooking = calendarEventId
+      ? allBookings.find(
+          (booking) => booking.calendarEventId === calendarEventId,
+        )
+      : undefined;
 
     const selectedRoomIds = selectedRooms.map((x) => String(x.roomId));
     return existingCalendarEvents
@@ -28,8 +41,8 @@ export default function useCalculateOverlap() {
         // for edit/modification mode, don't overlap with existing booking
         if (
           calendarEventId &&
-          (event.id === calendarEventId ||
-            event.id.split(":")[0] === calendarEventId)
+          (isOwnCalendarEvent(event, calendarEventId) ||
+            isUnmatchedCopyOfBooking(event, originalBooking, allBookings))
         )
           return false;
 
@@ -50,7 +63,13 @@ export default function useCalculateOverlap() {
         return false;
       })
       .some((x) => x);
-  }, [bookingCalendarInfo, existingCalendarEvents, selectedRooms, pathname]);
+  }, [
+    bookingCalendarInfo,
+    existingCalendarEvents,
+    selectedRooms,
+    pathname,
+    allBookings,
+  ]);
 
   return isOverlapping();
 }
