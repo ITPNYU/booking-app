@@ -128,13 +128,16 @@ The developer who writes a change owns it all the way to production. The reviewe
 
 1. **Open a PR** — The developer creates a feature branch from `main` and opens a pull request against `main`.
 2. **Review** — The reviewer reviews the PR. Do not merge until the reviewer has approved it.
-3. **Merge to `main`** — Once approved, the developer merges their own PR.
-4. **Confirm the dev deploy** — Merging to `main` triggers **Actions** > **Deploy DEVELOPMENT to App Engine**. The developer confirms that the run finished successfully.
-5. **Test on dev** — The developer tests the change in the development environment.
-6. **Test on staging (only when needed)** — If the change needs to be verified on staging before it goes live, the developer opens a pull request from `main` into `staging` and merges it. This triggers **Actions** > **Deploy STAGING to App Engine**; confirm that the run finished successfully, then test the change in the staging environment. Staging may be stopped to save costs — start it first if so (see [Staging Environment Control](#staging-environment-control)). Skip this step when testing on dev is enough.
-7. **Open a PR to `prod`** — When the change works on dev (and on staging, if step 6 applied), the developer opens a pull request from `main` into `prod`. The **PR Prod Schema Diff** workflow comments the tenant schema differences between development and production on the PR; confirm every difference is acceptable before merging.
-8. **Merge to `prod`** — The developer merges the PR, which triggers **Actions** > **Deploy PRODUCTION to App Engine**. Confirm that the run finished successfully.
-9. **Verify on production** — The developer verifies the change in the production environment.
+3. **Check `main` for undeployed changes** — Before merging, compare `prod` with `main` (`https://github.com/ITPNYU/booking-app/compare/prod...main`). If `main` already contains changes from someone else that are not on `prod` yet, do one of the following:
+   - Wait until that person's changes have been deployed to `prod`, then merge; or
+   - Contact that person and agree to ship your change together with theirs.
+4. **Merge to `main`** — Once approved, and once step 3 is cleared, the developer merges their own PR.
+5. **Confirm the dev deploy** — Merging to `main` triggers **Actions** > **Deploy DEVELOPMENT to App Engine**. The developer confirms that the run finished successfully.
+6. **Test on dev** — The developer tests the change in the development environment.
+7. **Test on staging (only when needed)** — If the change needs to be verified on staging before it goes live, the developer opens a pull request from `main` into `staging` and merges it. This triggers **Actions** > **Deploy STAGING to App Engine**; confirm that the run finished successfully, then test the change in the staging environment. Staging may be stopped to save costs — start it first if so (see [Staging Environment Control](#staging-environment-control)). Skip this step when testing on dev is enough.
+8. **Open a PR to `prod`** — When the change works on dev (and on staging, if step 7 applied), the developer opens a pull request from `main` into `prod`. The **PR Prod Schema Diff** workflow comments the tenant schema differences between development and production on the PR; confirm every difference is acceptable before merging.
+9. **Merge to `prod`** — The developer merges the PR, which triggers **Actions** > **Deploy PRODUCTION to App Engine**. Confirm that the run finished successfully.
+10. **Verify on production** — The developer verifies the change in the production environment.
 
 > A `main` → `prod` PR ships everything on `main` that is not yet on `prod`, not just your own change. Check the PR's commit list before merging, and coordinate with the authors of any other changes it includes.
 
