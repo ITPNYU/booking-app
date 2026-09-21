@@ -119,6 +119,7 @@ export type CalendarEvent = {
   end: string;
   id: string;
   resourceId: string;
+  calendarEventId?: string;
   display?: string;
   overlap?: boolean;
   url?: string;
