@@ -1,4 +1,5 @@
 import { formatFurnishingsLines } from "@/components/src/utils/furnishingsDisplay";
+import { resolveCallerRole } from "@/lib/api/authz";
 import {
   logServerBookingChange,
   serverDeleteData,
@@ -26,6 +27,11 @@ import {
   BookingStatus,
   BookingStatusLabel,
 } from "../types";
+import {
+  firstApprovalHistoryNote,
+  isSystemHistoryActor,
+  resolvePreApprovedHistoryNotes,
+} from "../utils/bookingHistoryNotes";
 import { getSecondaryContactName } from "../utils/formatters";
 import { isMediaCommons } from "../utils/tenantUtils";
 import { getTenantEmailConfig } from "./emails";
@@ -107,14 +113,16 @@ const getBookingHistory = async (
 
   if (logs.length > 0) {
     // Use bookingLogs data if available
-    return logs
-      .sort((a, b) => a.changedAt.toMillis() - b.changedAt.toMillis())
-      .map((log) => ({
-        status: log.status,
-        user: log.changedBy,
-        date: log.changedAt.toDate().toLocaleString(),
-        note: log.note ?? undefined,
-      }));
+    const sortedLogs = logs.sort(
+      (a, b) => a.changedAt.toMillis() - b.changedAt.toMillis(),
+    );
+    const resolvedNotes = resolvePreApprovedHistoryNotes(sortedLogs);
+    return sortedLogs.map((log, index) => ({
+      status: log.status,
+      user: log.changedBy,
+      date: log.changedAt.toDate().toLocaleString(),
+      note: resolvedNotes[index],
+    }));
   }
 
   // Fallback to original implementation if no logs found
@@ -298,6 +306,28 @@ export const serverDeleteDataByCalendarEventId = async (
   await serverDeleteData(collectionName, booking.id, tenant);
 };
 
+export async function resolveFirstApprovalHistoryNote(
+  email?: string,
+  tenant?: string,
+): Promise<string | undefined> {
+  if (isSystemHistoryActor(email) || !email) {
+    return undefined;
+  }
+  try {
+    const role = await resolveCallerRole(
+      { email, netId: email.split("@")[0] },
+      tenant,
+    );
+    return firstApprovalHistoryNote(email, role);
+  } catch (error) {
+    console.error(
+      "Failed to resolve first-approval history note from caller role:",
+      error,
+    );
+    return undefined;
+  }
+}
+
 // from server
 const serverFirstApprove = (id: string, email?: string, tenant?: string) => {
   serverUpdateDataByCalendarEventId(
@@ -357,6 +387,7 @@ export const serverFirstApproveOnly = async (
       changedBy: email,
       requestNumber: doc.requestNumber,
       calendarEventId: id,
+      note: await resolveFirstApprovalHistoryNote(email, tenant),
       tenant,
     });
   }
@@ -522,6 +553,7 @@ const firstApprove = async (id: string, email: string, tenant?: string) => {
       changedBy: email,
       requestNumber: doc.requestNumber,
       calendarEventId: id,
+      note: await resolveFirstApprovalHistoryNote(email, tenant),
       tenant,
     });
   }

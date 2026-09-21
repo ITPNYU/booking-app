@@ -4,6 +4,7 @@ import {
   BookingRow,
   BookingStatusLabel,
 } from "@/components/src/types";
+import { resolvePreApprovedHistoryNotes } from "@/components/src/utils/bookingHistoryNotes";
 import { clientFetchAllDataFromCollection } from "@/lib/firebase/firebase";
 import { TableCell, TableRow } from "@mui/material";
 import { Timestamp } from "firebase/firestore";
@@ -30,9 +31,16 @@ export default function useSortBookingHistory(booking: BookingRow) {
 
       if (logs.length > 0) {
         // Use bookingLogs data if available
-        const sortedRows = logs
-          .sort((a, b) => a.changedAt.toMillis() - b.changedAt.toMillis())
-          .map((log) => (
+        const sortedLogs = logs.sort(
+          (a, b) => a.changedAt.toMillis() - b.changedAt.toMillis(),
+        );
+        const resolvedNotes = resolvePreApprovedHistoryNotes(sortedLogs);
+        const sortedRows = sortedLogs.map((log, index) => {
+          const note =
+            log.status === BookingStatusLabel.MODIFIED
+              ? `Modified by ${log.changedBy}`
+              : resolvedNotes[index];
+          return (
             <TableRow key={log.id}>
               <TableCell>
                 <StatusChip status={log.status} />
@@ -42,13 +50,10 @@ export default function useSortBookingHistory(booking: BookingRow) {
                 {formatDateTable(log.changedAt.toDate())}{" "}
                 {formatTimeAmPm(log.changedAt.toDate())}
               </TableCell>
-              <TableCell>
-                {log.status === BookingStatusLabel.MODIFIED
-                  ? `Modified by ${log.changedBy}`
-                  : log.note}
-              </TableCell>
+              <TableCell>{note}</TableCell>
             </TableRow>
-          ));
+          );
+        });
         setRows(sortedRows);
       } else {
         // Fallback to original implementation
