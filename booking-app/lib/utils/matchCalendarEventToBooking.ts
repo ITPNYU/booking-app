@@ -20,6 +20,17 @@ export type MatchableBooking = {
   endDate?: unknown;
 };
 
+type SlotEntry<T> = {
+  booking: T;
+  start: number;
+  end: number;
+};
+
+export type BookingMatchIndex<T extends MatchableBooking> = {
+  byId: Map<string, T>;
+  byRoomSlot: Map<string, SlotEntry<T>[]>;
+};
+
 export function bookingTimeMillis(value: unknown): number | null {
   if (value == null) return null;
   if (typeof value === "number" && Number.isFinite(value)) return value;
@@ -65,27 +76,66 @@ function calendarEventTimeMillis(
   return bookingTimeMillis(value.dateTime || value.date);
 }
 
-function bookingIncludesRoom(
-  booking: MatchableBooking,
-  roomIdsForCalendar: string[],
-): boolean {
-  if (!booking.roomId || roomIdsForCalendar.length === 0) return false;
-  const bookingRoomIds = booking.roomId.split(",").map((roomId) => roomId.trim());
-  return roomIdsForCalendar.some((roomId) => bookingRoomIds.includes(roomId));
+function timeBucket(ms: number): number {
+  return Math.floor(ms / SLOT_FUZZ_MS);
 }
 
-function isSameSlot(
-  booking: MatchableBooking,
+function roomSlotKey(
+  roomId: string,
+  startBucket: number,
+  endBucket: number,
+): string {
+  return `${roomId}:${startBucket}:${endBucket}`;
+}
+
+function timesMatch(
+  bookingStart: number,
+  bookingEnd: number,
   eventStart: number,
   eventEnd: number,
 ): boolean {
-  const bookingStart = bookingTimeMillis(booking.startDate);
-  const bookingEnd = bookingTimeMillis(booking.endDate);
-  if (bookingStart == null || bookingEnd == null) return false;
   return (
     Math.abs(bookingStart - eventStart) < SLOT_FUZZ_MS &&
     Math.abs(bookingEnd - eventEnd) < SLOT_FUZZ_MS
   );
+}
+
+/**
+ * Build lookup structures once per request so each calendar event can be
+ * resolved in O(1) instead of scanning every booking.
+ */
+export function buildBookingMatchIndex<T extends MatchableBooking>(
+  bookings: T[],
+): BookingMatchIndex<T> {
+  const byId = new Map<string, T>();
+  const byRoomSlot = new Map<string, SlotEntry<T>[]>();
+
+  for (const booking of bookings) {
+    if (booking.calendarEventId) {
+      byId.set(booking.calendarEventId, booking);
+    }
+
+    const start = bookingTimeMillis(booking.startDate);
+    const end = bookingTimeMillis(booking.endDate);
+    if (start == null || end == null || !booking.roomId) continue;
+
+    const startBucket = timeBucket(start);
+    const endBucket = timeBucket(end);
+    const roomIds = booking.roomId
+      .split(",")
+      .map((roomId) => roomId.trim())
+      .filter(Boolean);
+    const entry: SlotEntry<T> = { booking, start, end };
+
+    for (const roomId of roomIds) {
+      const key = roomSlotKey(roomId, startBucket, endBucket);
+      const list = byRoomSlot.get(key);
+      if (list) list.push(entry);
+      else byRoomSlot.set(key, [entry]);
+    }
+  }
+
+  return { byId, byRoomSlot };
 }
 
 /**
@@ -98,28 +148,47 @@ function isSameSlot(
  */
 export function findBookingForCalendarEvent<T extends MatchableBooking>(
   event: MatchableCalendarEvent,
-  bookings: T[],
+  index: BookingMatchIndex<T>,
   roomIdsForCalendar: string[],
 ): T | undefined {
   const eventId = event.id || "";
   if (eventId) {
-    const byId = bookings.find(
-      (booking) => booking.calendarEventId === eventId,
-    );
+    const byId = index.byId.get(eventId);
     if (byId) return byId;
   }
+
+  if (roomIdsForCalendar.length === 0) return undefined;
 
   const eventStart = calendarEventTimeMillis(event.start);
   const eventEnd = calendarEventTimeMillis(event.end);
   if (eventStart == null || eventEnd == null) return undefined;
 
-  const slotMatches = bookings.filter(
-    (booking) =>
-      bookingIncludesRoom(booking, roomIdsForCalendar) &&
-      isSameSlot(booking, eventStart, eventEnd),
-  );
+  const startBucket = timeBucket(eventStart);
+  const endBucket = timeBucket(eventEnd);
+  const matches = new Set<T>();
 
-  return slotMatches.length === 1 ? slotMatches[0] : undefined;
+  for (const roomId of roomIdsForCalendar) {
+    for (let startOffset = -1; startOffset <= 1; startOffset++) {
+      for (let endOffset = -1; endOffset <= 1; endOffset++) {
+        const entries = index.byRoomSlot.get(
+          roomSlotKey(
+            roomId,
+            startBucket + startOffset,
+            endBucket + endOffset,
+          ),
+        );
+        if (!entries) continue;
+        for (const entry of entries) {
+          if (timesMatch(entry.start, entry.end, eventStart, eventEnd)) {
+            matches.add(entry.booking);
+          }
+        }
+      }
+    }
+  }
+
+  if (matches.size !== 1) return undefined;
+  return matches.values().next().value;
 }
 
 export function roomIdsByCalendarId(

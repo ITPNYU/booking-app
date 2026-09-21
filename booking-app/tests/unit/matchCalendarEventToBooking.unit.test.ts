@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildBookingMatchIndex,
   findBookingForCalendarEvent,
   roomIdsByCalendarId,
 } from "@/lib/utils/matchCalendarEventToBooking";
@@ -15,9 +16,15 @@ describe("findBookingForCalendarEvent", () => {
     endDate: { toDate: () => new Date(end) },
   };
 
+  const find = (
+    event: Parameters<typeof findBookingForCalendarEvent>[0],
+    bookings: typeof originalBooking[],
+    roomIds: string[],
+  ) => findBookingForCalendarEvent(event, buildBookingMatchIndex(bookings), roomIds);
+
   it("matches by Google event id first", () => {
     expect(
-      findBookingForCalendarEvent(
+      find(
         {
           id: "primary-id",
           start: { dateTime: start },
@@ -31,11 +38,27 @@ describe("findBookingForCalendarEvent", () => {
 
   it("matches a guest copy on another room calendar by unique room+time", () => {
     expect(
-      findBookingForCalendarEvent(
+      find(
         {
           id: "google-guest-copy",
           start: { dateTime: start },
           end: { dateTime: end },
+        },
+        [originalBooking],
+        ["203"],
+      ),
+    ).toBe(originalBooking);
+  });
+
+  it("matches a guest copy whose time falls in an adjacent 60s bucket", () => {
+    const eventStart = new Date("2026-09-18T17:59:30.000Z").toISOString();
+    const eventEnd = new Date("2026-09-18T19:59:30.000Z").toISOString();
+    expect(
+      find(
+        {
+          id: "google-guest-copy",
+          start: { dateTime: eventStart },
+          end: { dateTime: eventEnd },
         },
         [originalBooking],
         ["203"],
@@ -52,7 +75,7 @@ describe("findBookingForCalendarEvent", () => {
     };
 
     expect(
-      findBookingForCalendarEvent(
+      find(
         {
           id: "google-guest-copy",
           start: { dateTime: start },
@@ -66,7 +89,7 @@ describe("findBookingForCalendarEvent", () => {
 
   it("does not match a booking for a different room", () => {
     expect(
-      findBookingForCalendarEvent(
+      find(
         {
           id: "google-guest-copy",
           start: { dateTime: start },

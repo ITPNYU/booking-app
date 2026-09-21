@@ -13,63 +13,64 @@ import { Booking } from "@/components/src/types";
 import { getCachedBookings } from "@/lib/bookingsCache";
 import { getCalendarClient } from "@/lib/googleClient";
 import {
+  BookingMatchIndex,
+  buildBookingMatchIndex,
   findBookingForCalendarEvent,
   roomIdsByCalendarId,
 } from "@/lib/utils/matchCalendarEventToBooking";
 import { calendar_v3 } from "googleapis/build/src/apis/calendar";
 
-const getCalendarEvents = async (
-  calendarId: string,
-  tenant?: string,
-  roomIdsForCalendar: string[] = [],
-) => {
+const listGoogleCalendarEvents = async (calendarId: string) => {
   const now = new Date().toISOString();
   const endOfRange = new Date();
   endOfRange.setMonth(endOfRange.getMonth() + 12);
   const endOfRangeISOString = endOfRange.toISOString();
 
-  // Fetch Google Calendar events and bookings in parallel
-  const calendarPromise = (async () => {
-    const events: calendar_v3.Schema$Event[] = [];
-    const calendar = await getCalendarClient();
-    let pageToken: string | undefined;
+  const events: calendar_v3.Schema$Event[] = [];
+  const calendar = await getCalendarClient();
+  let pageToken: string | undefined;
 
-    do {
-      const res = await calendar.events.list({
-        calendarId,
-        timeMin: now,
-        timeMax: endOfRangeISOString,
-        singleEvents: true,
-        orderBy: "startTime",
-        maxResults: 250,
-        pageToken,
-        fields:
-          "nextPageToken,items(id,summary,start(dateTime,date),end(dateTime,date))",
-      });
+  do {
+    const res = await calendar.events.list({
+      calendarId,
+      timeMin: now,
+      timeMax: endOfRangeISOString,
+      singleEvents: true,
+      orderBy: "startTime",
+      maxResults: 250,
+      pageToken,
+      fields:
+        "nextPageToken,items(id,summary,start(dateTime,date),end(dateTime,date))",
+    });
 
-      if (res.data.items) {
-        events.push(...res.data.items);
-      }
-      pageToken = res.data.nextPageToken || undefined;
-    } while (pageToken);
+    if (res.data.items) {
+      events.push(...res.data.items);
+    }
+    pageToken = res.data.nextPageToken || undefined;
+  } while (pageToken);
 
-    return events;
-  })();
+  return events;
+};
 
-  const bookingsPromise = getCachedBookings(tenant || DEFAULT_TENANT);
-
-  const [events, bookings] = await Promise.all([
-    calendarPromise,
-    bookingsPromise.catch(error => {
+const loadBookingMatchIndex = async (tenant?: string) => {
+  const bookings = await getCachedBookings(tenant || DEFAULT_TENANT).catch(
+    (error) => {
       console.error("Error fetching tenant bookings:", error);
       return [] as Booking[];
-    }),
-  ]);
+    },
+  );
+  return buildBookingMatchIndex(bookings);
+};
 
-  return events.map(e => {
+const mapEventsToResponse = (
+  events: calendar_v3.Schema$Event[],
+  index: BookingMatchIndex<Booking>,
+  roomIdsForCalendar: string[],
+) =>
+  events.map((e) => {
     const booking = findBookingForCalendarEvent(
       e,
-      bookings,
+      index,
       roomIdsForCalendar,
     );
     return {
@@ -89,6 +90,22 @@ const getCalendarEvents = async (
         : undefined,
     };
   });
+
+const getCalendarEvents = async (
+  calendarId: string,
+  indexPromise: Promise<BookingMatchIndex<Booking>>,
+  roomsPromise: Promise<Map<string, string[]>>,
+) => {
+  const [events, index, roomsByCalendarId] = await Promise.all([
+    listGoogleCalendarEvents(calendarId),
+    indexPromise,
+    roomsPromise,
+  ]);
+  return mapEventsToResponse(
+    events,
+    index,
+    roomsByCalendarId.get(calendarId) ?? [],
+  );
 };
 
 export async function POST(request: NextRequest) {
@@ -146,16 +163,15 @@ export async function GET(req: NextRequest) {
     }
 
     try {
-      const roomsByCalendarId = roomIdsByCalendarId(
-        await getTenantRooms(tenant),
-      );
+      const indexPromise = loadBookingMatchIndex(tenant);
+      const roomsPromise = getTenantRooms(tenant).then(roomIdsByCalendarId);
       const results = await Promise.all(
         ids.map(async (id) => {
           try {
             const events = await getCalendarEvents(
               id,
-              tenant,
-              roomsByCalendarId.get(id) ?? [],
+              indexPromise,
+              roomsPromise,
             );
             return { calendarId: id, events };
           } catch (error) {
@@ -191,11 +207,10 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const roomsByCalendarId = roomIdsByCalendarId(await getTenantRooms(tenant));
     const events = await getCalendarEvents(
       calendarId,
-      tenant,
-      roomsByCalendarId.get(calendarId) ?? [],
+      loadBookingMatchIndex(tenant),
+      getTenantRooms(tenant).then(roomIdsByCalendarId),
     );
 
     const res = NextResponse.json(events);
