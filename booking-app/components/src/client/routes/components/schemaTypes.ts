@@ -277,8 +277,8 @@ export type FormConfig = {
   showNNumber: boolean;
   showSponsor: boolean;
   /**
-   * Show the staff-only Memo section at the bottom of the booking detail
-   * modal (Admin and Services contexts). Used to record e.g. work order
+   * Show the staff-only Memo section under WebCheckout in the booking
+   * detail modal (Admin and Services contexts). Used to record e.g. work order
    * confirmation numbers.
    */
   showMemo: boolean;
