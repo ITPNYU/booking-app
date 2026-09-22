@@ -194,9 +194,9 @@ export default function MoreInfoModal({
     setIsEditingCart(false);
   };
 
-  // Memo: staff-only free text (e.g. work order confirmation number).
-  // Visible only in the Admin and Services contexts, and only when the tenant
-  // schema turns it on.
+  // Memo: staff-only free text (e.g. work order confirmation number), shown
+  // directly under WebCheckout. Visible only in the Admin and Services
+  // contexts, and only when the tenant schema turns it on.
   const [savedMemo, setSavedMemo] = useState(booking.memo ?? "");
   const [memoDraft, setMemoDraft] = useState(booking.memo ?? "");
   const [isEditingMemo, setIsEditingMemo] = useState(false);
@@ -647,6 +647,7 @@ export default function MoreInfoModal({
           </AlertHeader>
           <Grid container columnSpacing={2} margin={0}>
             {renderWebCheckoutSection()}
+            {renderMemoSection()}
 
             <Section>
               <SectionTitle>History</SectionTitle>
@@ -853,8 +854,6 @@ export default function MoreInfoModal({
                 ))}
               </Section>
             )}
-
-            {renderMemoSection()}
           </Grid>
         </ScrollableContent>
 

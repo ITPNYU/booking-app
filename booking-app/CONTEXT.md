@@ -43,7 +43,7 @@ An approver's answer for one requested service: approved, declined, or still pen
 _Avoid_: service approval (as a noun for the state), service status, approval flag (in prose)
 
 **Memo**:
-A staff-only free-text note on a booking, such as a work order confirmation number. Shown as the last section of the booking detail modal in the Admin and Services contexts when the tenant schema enables `form.showMemo`. Stored as `memo` on the booking document.
+A staff-only free-text note on a booking, such as a work order confirmation number. Shown directly under the WebCheckout section of the booking detail modal in the Admin and Services contexts when the tenant schema enables `form.showMemo`. Stored as `memo` on the booking document.
 _Avoid_: note (that word is the booking history column), comment, work order field
 
 **Decision mark**:

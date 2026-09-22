@@ -187,18 +187,19 @@ describe("MoreInfoModal - Memo section", () => {
       expect(memoSection()).not.toBeInTheDocument();
     });
 
-    it("renders as the last section in the modal", () => {
+    it("renders directly under the WebCheckout section", () => {
       renderModal({
         permission: PagePermission.ADMIN,
         pageContext: PageContextLevel.ADMIN,
       });
       const section = memoSection()!;
-      const parent = section.parentElement!;
-      expect(parent.lastElementChild).toBe(section);
-      const titles = Array.from(parent.querySelectorAll("h6")).map(
-        (el) => el.textContent,
-      );
-      expect(titles[titles.length - 1]).toBe("Memo");
+      const previous = section.previousElementSibling;
+      expect(previous?.textContent).toContain("WebCheckout");
+      const titles = Array.from(
+        section.parentElement!.querySelectorAll("h6"),
+      ).map((el) => el.textContent);
+      expect(titles.indexOf("Memo")).toBe(titles.indexOf("WebCheckout") + 1);
+      expect(titles.indexOf("History")).toBe(titles.indexOf("Memo") + 1);
     });
   });
 
