@@ -9,8 +9,7 @@ import {
 import { requireSession } from "@/lib/api/requireSession";
 import { resolveCallerRole } from "@/lib/api/authz";
 import { resolveCollectionName } from "@/lib/api/firestoreServer";
-
-export const BOOKING_MEMO_MAX_LEN = 2000;
+import { BOOKING_MEMO_MAX_LEN } from "@/components/src/constants/bookingMemo";
 
 const MEMO_ROLES = new Set<PagePermission>([
   PagePermission.SERVICES,

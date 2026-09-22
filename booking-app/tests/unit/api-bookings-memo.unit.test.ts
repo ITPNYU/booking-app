@@ -38,7 +38,8 @@ vi.mock("@/lib/firebase/server/firebaseAdmin", () => ({
   },
 }));
 
-import { BOOKING_MEMO_MAX_LEN, PUT } from "@/app/api/bookings/memo/route";
+import { PUT } from "@/app/api/bookings/memo/route";
+import { BOOKING_MEMO_MAX_LEN } from "@/components/src/constants/bookingMemo";
 
 const createRequest = (body: unknown, tenant?: string) =>
   new NextRequest("http://localhost:3000/api/bookings/memo", {
