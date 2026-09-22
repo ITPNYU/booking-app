@@ -777,6 +777,7 @@ Blackout periods are time ranges during which bookings are not allowed.
 - Memo is a free-text field for staff notes such as a work order confirmation number
 - Visible and editable only in the Admin and Services contexts, for users with Services, Admin, or Super Admin permission
 - Saved via `PUT /api/bookings/memo` onto the booking document (`memo` field); it is never included in calendar event descriptions or emails
+- The `/api/firestore/*` read routes strip `memo` from booking documents for callers below Services, so regular users never receive it, even for their own bookings
 
 ### Equipment Approval
 

@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
+import admin from "@/lib/firebase/server/firebaseAdmin";
 import { TableNames } from "@/components/src/policy";
 import { PagePermission } from "@/components/src/types";
 import {
   DEFAULT_TENANT,
   isValidTenant,
 } from "@/components/src/constants/tenants";
-import { serverUpdateDataByCalendarEventId } from "@/components/src/server/admin";
 import { requireSession } from "@/lib/api/requireSession";
 import { resolveCallerRole } from "@/lib/api/authz";
+import { resolveCollectionName } from "@/lib/api/firestoreServer";
 
 export const BOOKING_MEMO_MAX_LEN = 2000;
 
@@ -28,6 +29,10 @@ type MemoBody = {
  * calendarEventId. Only Services, Admin, and Super Admin callers may write it.
  * An empty memo clears the field. The memo never reaches the calendar event
  * description or any email.
+ *
+ * Writes go straight to firebase-admin rather than through
+ * `serverUpdateInFirestore`, which swallows update errors; a failed write must
+ * surface as a 500 so the client does not mark the memo as saved.
  */
 export async function PUT(req: NextRequest) {
   const session = await requireSession();
@@ -79,16 +84,18 @@ export async function PUT(req: NextRequest) {
   }
 
   try {
-    await serverUpdateDataByCalendarEventId(
-      TableNames.BOOKING,
-      calendarEventId,
-      { memo: memo || null },
-      tenant,
-    );
-  } catch (error) {
-    if (error instanceof Error && error.message === "Booking not found") {
+    const collectionName = resolveCollectionName(TableNames.BOOKING, tenant);
+    const snapshot = await admin
+      .firestore()
+      .collection(collectionName)
+      .where("calendarEventId", "==", calendarEventId)
+      .limit(1)
+      .get();
+    if (snapshot.empty) {
       return NextResponse.json({ error: "Booking not found" }, { status: 404 });
     }
+    await snapshot.docs[0].ref.update({ memo: memo || null });
+  } catch (error) {
     console.error("Error updating booking memo:", error);
     return NextResponse.json(
       { error: "Internal server error" },
