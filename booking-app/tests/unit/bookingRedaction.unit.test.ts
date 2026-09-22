@@ -14,6 +14,7 @@ vi.mock("@/lib/api/authz", () => ({
 import {
   STAFF_ONLY_BOOKING_FIELDS,
   canReadStaffOnlyBookingFields,
+  findStaffOnlyBookingFieldWrite,
   redactBookingDocsForCaller,
   stripStaffOnlyBookingFields,
 } from "@/lib/api/bookingRedaction";
@@ -105,5 +106,37 @@ describe("bookingRedaction", () => {
       input,
     );
     expect(out).toBe(input);
+  });
+
+  describe("findStaffOnlyBookingFieldWrite", () => {
+    it("flags a top-level memo write to bookings", () => {
+      expect(
+        findStaffOnlyBookingFieldWrite(TableNames.BOOKING, { memo: "x" }),
+      ).toBe("memo");
+    });
+
+    it("flags a dotted path rooted at memo", () => {
+      expect(
+        findStaffOnlyBookingFieldWrite(TableNames.BOOKING, { "memo.a": 1 }),
+      ).toBe("memo");
+    });
+
+    it("ignores other booking fields", () => {
+      expect(
+        findStaffOnlyBookingFieldWrite(TableNames.BOOKING, {
+          webcheckoutCartNumber: "CK-1",
+          memoir: "not memo",
+        }),
+      ).toBeNull();
+    });
+
+    it("ignores other collections and missing data", () => {
+      expect(
+        findStaffOnlyBookingFieldWrite(TableNames.BOOKING_LOGS, { memo: "x" }),
+      ).toBeNull();
+      expect(
+        findStaffOnlyBookingFieldWrite(TableNames.BOOKING, undefined),
+      ).toBeNull();
+    });
   });
 });
