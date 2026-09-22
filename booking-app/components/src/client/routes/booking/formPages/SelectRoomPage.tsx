@@ -2,7 +2,7 @@
 
 import { Box, Stack, Typography, useMediaQuery, useTheme } from "@mui/material";
 import dynamic from "next/dynamic";
-import React, { useContext, useMemo, useState } from "react";
+import React, { useContext, useMemo } from "react";
 
 import { FormContextLevel } from "@/components/src/types";
 import Grid from "@mui/material/Unstable_Grid2";
@@ -63,9 +63,14 @@ export default function SelectRoomPage({
   formContext = FormContextLevel.FULL_FORM,
 }: Props) {
   const { roomSettings } = useContext(DatabaseContext);
-  const { selectedRooms, setSelectedRooms, role, annexByRoom } =
-    useContext(BookingContext);
-  const [date, setDate] = useState<Date>(new Date());
+  const {
+    selectedRooms,
+    setSelectedRooms,
+    role,
+    annexByRoom,
+    viewDate,
+    setViewDate,
+  } = useContext(BookingContext);
   useCheckFormMissingData();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
@@ -131,7 +136,7 @@ export default function SelectRoomPage({
             alignItems={{ xs: "center", md: "unset" }}
           >
             <CalendarDatePicker
-              handleChange={setDate}
+              handleChange={setViewDate}
               formContext={formContext}
             />
             <Box paddingLeft="24px">
@@ -148,7 +153,7 @@ export default function SelectRoomPage({
         <Grid paddingRight={2} flex={1}>
           <CalendarVerticalResource
             rooms={calendarRooms}
-            dateView={date}
+            dateView={viewDate}
             {...{ calendarEventId, formContext }}
             startHour={getStartHour(schema.calendarConfig, formContext, role)}
             slotUnit={getSlotUnit(schema.calendarConfig, formContext, role)}
