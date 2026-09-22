@@ -1,13 +1,27 @@
 import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PagePermission } from "@/components/src/types";
-import { TableNames } from "@/components/src/policy";
 
-const mocks = vi.hoisted(() => ({
-  mockRequireSession: vi.fn(),
-  mockResolveCallerRole: vi.fn(),
-  mockUpdateByCalendarEventId: vi.fn(),
-}));
+const mocks = vi.hoisted(() => {
+  const mockUpdate = vi.fn();
+  const mockGet = vi.fn();
+  const mockLimit = vi.fn(() => ({ get: () => mockGet() }));
+  const mockWhere = vi.fn(() => ({ limit: (n: number) => mockLimit(n) }));
+  const mockCollection = vi.fn(() => ({
+    where: (...args: unknown[]) => (mockWhere as any)(...args),
+  }));
+  return {
+    mockRequireSession: vi.fn(),
+    mockResolveCallerRole: vi.fn(),
+    mockUpdate,
+    mockGet,
+    mockWhere,
+    mockCollection,
+    mockFirestoreFn: () => ({
+      collection: (...args: unknown[]) => (mockCollection as any)(...args),
+    }),
+  };
+});
 
 vi.mock("@/lib/api/requireSession", () => ({
   requireSession: () => mocks.mockRequireSession(),
@@ -18,9 +32,10 @@ vi.mock("@/lib/api/authz", () => ({
     mocks.mockResolveCallerRole(...args),
 }));
 
-vi.mock("@/components/src/server/admin", () => ({
-  serverUpdateDataByCalendarEventId: (...args: unknown[]) =>
-    mocks.mockUpdateByCalendarEventId(...args),
+vi.mock("@/lib/firebase/server/firebaseAdmin", () => ({
+  default: {
+    firestore: mocks.mockFirestoreFn,
+  },
 }));
 
 import { BOOKING_MEMO_MAX_LEN, PUT } from "@/app/api/bookings/memo/route";
@@ -43,7 +58,13 @@ describe("PUT /api/bookings/memo", () => {
       netId: "admin",
     });
     mocks.mockResolveCallerRole.mockResolvedValue(PagePermission.ADMIN);
-    mocks.mockUpdateByCalendarEventId.mockResolvedValue(undefined);
+    mocks.mockUpdate.mockResolvedValue(undefined);
+    mocks.mockGet.mockResolvedValue({
+      empty: false,
+      docs: [
+        { ref: { update: (...args: unknown[]) => mocks.mockUpdate(...args) } },
+      ],
+    });
   });
 
   it("returns 401 without a session", async () => {
@@ -52,7 +73,7 @@ describe("PUT /api/bookings/memo", () => {
       createRequest({ calendarEventId: "evt-1", memo: "WO-123" }, "mc"),
     );
     expect(res.status).toBe(401);
-    expect(mocks.mockUpdateByCalendarEventId).not.toHaveBeenCalled();
+    expect(mocks.mockUpdate).not.toHaveBeenCalled();
   });
 
   it("returns 400 on invalid JSON", async () => {
@@ -103,7 +124,7 @@ describe("PUT /api/bookings/memo", () => {
         createRequest({ calendarEventId: "evt-1", memo: "WO-123" }, "mc"),
       );
       expect(res.status).toBe(403);
-      expect(mocks.mockUpdateByCalendarEventId).not.toHaveBeenCalled();
+      expect(mocks.mockUpdate).not.toHaveBeenCalled();
     },
   );
 
@@ -122,12 +143,13 @@ describe("PUT /api/bookings/memo", () => {
       { email: "admin@nyu.edu", netId: "admin" },
       "mc",
     );
-    expect(mocks.mockUpdateByCalendarEventId).toHaveBeenCalledWith(
-      TableNames.BOOKING,
+    expect(mocks.mockCollection).toHaveBeenCalledWith("mc-bookings");
+    expect(mocks.mockWhere).toHaveBeenCalledWith(
+      "calendarEventId",
+      "==",
       "evt-1",
-      { memo: "WO-123" },
-      "mc",
     );
+    expect(mocks.mockUpdate).toHaveBeenCalledWith({ memo: "WO-123" });
   });
 
   it("clears the memo when an empty string is sent", async () => {
@@ -135,12 +157,7 @@ describe("PUT /api/bookings/memo", () => {
       createRequest({ calendarEventId: "evt-1", memo: "   " }, "mc"),
     );
     expect(res.status).toBe(200);
-    expect(mocks.mockUpdateByCalendarEventId).toHaveBeenCalledWith(
-      TableNames.BOOKING,
-      "evt-1",
-      { memo: null },
-      "mc",
-    );
+    expect(mocks.mockUpdate).toHaveBeenCalledWith({ memo: null });
   });
 
   it("falls back to the body tenant when the header is absent", async () => {
@@ -155,21 +172,29 @@ describe("PUT /api/bookings/memo", () => {
   });
 
   it("returns 404 when the booking does not exist", async () => {
-    mocks.mockUpdateByCalendarEventId.mockRejectedValue(
-      new Error("Booking not found"),
-    );
+    mocks.mockGet.mockResolvedValue({ empty: true, docs: [] });
     const res = await PUT(
       createRequest({ calendarEventId: "evt-missing", memo: "WO-1" }, "mc"),
     );
     expect(res.status).toBe(404);
   });
 
-  it("returns 500 on unexpected write errors", async () => {
+  it("returns 500 when the Firestore update fails, so the client never marks the memo saved", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
-    mocks.mockUpdateByCalendarEventId.mockRejectedValue(new Error("boom"));
+    mocks.mockUpdate.mockRejectedValue(new Error("boom"));
     const res = await PUT(
       createRequest({ calendarEventId: "evt-1", memo: "WO-1" }, "mc"),
     );
     expect(res.status).toBe(500);
+    expect((await res.json()).success).toBeUndefined();
+  });
+
+  it("returns 404 without writing when no booking matches", async () => {
+    mocks.mockGet.mockResolvedValue({ empty: true, docs: [] });
+    const res = await PUT(
+      createRequest({ calendarEventId: "evt-missing", memo: "WO-1" }, "mc"),
+    );
+    expect(res.status).toBe(404);
+    expect(mocks.mockUpdate).not.toHaveBeenCalled();
   });
 });
