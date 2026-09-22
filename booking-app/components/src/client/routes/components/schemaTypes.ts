@@ -276,6 +276,12 @@ export type FormConfig = {
   showBookingType: boolean;
   showNNumber: boolean;
   showSponsor: boolean;
+  /**
+   * Show the staff-only Memo section at the bottom of the booking detail
+   * modal (Admin and Services contexts). Used to record e.g. work order
+   * confirmation numbers.
+   */
+  showMemo: boolean;
   services: FormServicesConfig;
 };
 
@@ -486,6 +492,7 @@ export const defaultScheme: Omit<SchemaContextType, "tenantId"> = {
     showBookingType: true,
     showNNumber: true,
     showSponsor: true,
+    showMemo: false,
     services: {
       showCatering: true,
       showEquipment: true,

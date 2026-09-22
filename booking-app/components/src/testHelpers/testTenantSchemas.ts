@@ -40,6 +40,7 @@ const baseMediaCommonsSchema: SchemaContextType = {
     showBookingType: true,
     showNNumber: true,
     showSponsor: true,
+    showMemo: false,
     services: {
       showCatering: true,
       showEquipment: true,

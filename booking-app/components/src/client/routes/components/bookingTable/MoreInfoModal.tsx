@@ -193,6 +193,74 @@ export default function MoreInfoModal({
     setIsEditingCart(false);
   };
 
+  // Memo: staff-only free text (e.g. work order confirmation number).
+  // Visible only in the Admin and Services contexts, and only when the tenant
+  // schema turns it on.
+  const [savedMemo, setSavedMemo] = useState(booking.memo ?? "");
+  const [memoDraft, setMemoDraft] = useState(booking.memo ?? "");
+  const [isEditingMemo, setIsEditingMemo] = useState(false);
+  const [isSavingMemo, setIsSavingMemo] = useState(false);
+  const [memoError, setMemoError] = useState<string | null>(null);
+
+  const showMemoSection =
+    schema.form.showMemo &&
+    (pageContext === PageContextLevel.ADMIN ||
+      pageContext === PageContextLevel.SERVICES) &&
+    hasAnyPermission(pagePermission, [
+      PagePermission.SERVICES,
+      PagePermission.ADMIN,
+      PagePermission.SUPER_ADMIN,
+    ]);
+
+  const handleStartEditMemo = () => {
+    setMemoDraft(savedMemo);
+    setMemoError(null);
+    setIsEditingMemo(true);
+  };
+
+  const handleCancelEditMemo = () => {
+    setMemoDraft(savedMemo);
+    setMemoError(null);
+    setIsEditingMemo(false);
+  };
+
+  const handleSaveMemo = async () => {
+    if (!showMemoSection) {
+      return;
+    }
+    const memo = memoDraft.trim();
+    setIsSavingMemo(true);
+    setMemoError(null);
+    try {
+      const response = await fetch("/api/bookings/memo", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          ...(tenant ? { "x-tenant": tenant } : {}),
+        },
+        body: JSON.stringify({
+          calendarEventId: booking.calendarEventId,
+          memo,
+        }),
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        setMemoError(data?.error || "Failed to save memo");
+        return;
+      }
+      setSavedMemo(memo);
+      setMemoDraft(memo);
+      setIsEditingMemo(false);
+      booking.memo = memo || undefined;
+      updateBooking?.({ ...booking, memo: memo || undefined });
+    } catch (error) {
+      console.error("Failed to save memo:", error);
+      setMemoError("Failed to save memo");
+    } finally {
+      setIsSavingMemo(false);
+    }
+  };
+
   const fetchWebCheckoutUrl = async (cartNum: string) => {
     setIsLoadingUrl(true);
     try {
@@ -467,6 +535,80 @@ export default function MoreInfoModal({
     );
   };
 
+  const renderMemoSection = () => {
+    if (!showMemoSection) {
+      return null;
+    }
+
+    return (
+      <Section data-testid="booking-memo-section">
+        <Box display="flex" alignItems="center" gap={1}>
+          <SectionTitle>Memo</SectionTitle>
+          {!isEditingMemo && (
+            <Tooltip title="Edit memo">
+              <IconButton
+                onClick={handleStartEditMemo}
+                color="primary"
+                size="small"
+                aria-label="Edit memo"
+              >
+                <Edit fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          )}
+        </Box>
+        {isEditingMemo ? (
+          <Box display="flex" flexDirection="column" gap={1}>
+            <TextField
+              size="small"
+              multiline
+              minRows={2}
+              maxRows={8}
+              value={memoDraft}
+              onChange={(e) => setMemoDraft(e.target.value)}
+              placeholder="e.g. Work order confirmation number"
+              disabled={isSavingMemo}
+              variant="outlined"
+              fullWidth
+              inputProps={{ "aria-label": "Memo", maxLength: 2000 }}
+            />
+            {memoError && (
+              <Typography variant="body2" color="error">
+                {memoError}
+              </Typography>
+            )}
+            <Box display="flex" justifyContent="flex-end" gap={1}>
+              <IconButton
+                onClick={handleSaveMemo}
+                disabled={isSavingMemo}
+                color="primary"
+                aria-label="Save memo"
+              >
+                <Check />
+              </IconButton>
+              <IconButton
+                onClick={handleCancelEditMemo}
+                disabled={isSavingMemo}
+                color="primary"
+                aria-label="Cancel editing memo"
+              >
+                <Cancel />
+              </IconButton>
+            </Box>
+          </Box>
+        ) : savedMemo ? (
+          <Typography variant="body2" sx={{ whiteSpace: "pre-wrap" }}>
+            {savedMemo}
+          </Typography>
+        ) : (
+          <Typography variant="body2" color="text.secondary">
+            No memo
+          </Typography>
+        )}
+      </Section>
+    );
+  };
+
   const historyCols = [
     <TableCell key="status">Status</TableCell>,
     <TableCell key="user">User</TableCell>,
@@ -699,6 +841,8 @@ export default function MoreInfoModal({
                 ))}
               </Section>
             )}
+
+            {renderMemoSection()}
           </Grid>
         </ScrollableContent>
 

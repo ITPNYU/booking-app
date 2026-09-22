@@ -211,6 +211,8 @@ export type Inputs = {
   /** Selected auxiliary spaces keyed by parent room id → option values. */
   annexByRoom?: Record<string, string[]>;
   webcheckoutCartNumber?: string;
+  /** Staff-only free-text note (e.g. work order confirmation number). Shown in the booking detail modal when `schema.form.showMemo` is on. */
+  memo?: string;
   // Individual service fields for pregame parsing
   equipment?: string;
   staffing?: string;
