@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   getReservationDurationHours,
+  isProductionScheduleMissingWhenRequired,
   isProductionScheduleRequired,
 } from "../../components/src/client/routes/booking/utils/productionSchedule";
 import { coerceTenantSchema } from "../../lib/tenant/coerceTenantSchema";
@@ -36,6 +37,57 @@ describe("isProductionScheduleRequired", () => {
   });
 });
 
+describe("isProductionScheduleMissingWhenRequired", () => {
+  const start = "2026-09-22T10:00:00.000Z";
+  const endOver = "2026-09-22T15:00:00.000Z"; // 5h
+  const endUnder = "2026-09-22T13:00:00.000Z"; // 3h
+
+  it("is true when enabled, over threshold, and schedule blank", () => {
+    expect(
+      isProductionScheduleMissingWhenRequired({
+        enabled: true,
+        requiredAboveHours: 4,
+        start,
+        end: endOver,
+        productionSchedule: "  ",
+      }),
+    ).toBe(true);
+  });
+
+  it("is false when schedule is provided", () => {
+    expect(
+      isProductionScheduleMissingWhenRequired({
+        enabled: true,
+        requiredAboveHours: 4,
+        start,
+        end: endOver,
+        productionSchedule: "10am setup",
+      }),
+    ).toBe(false);
+  });
+
+  it("is false when under threshold or disabled", () => {
+    expect(
+      isProductionScheduleMissingWhenRequired({
+        enabled: true,
+        requiredAboveHours: 4,
+        start,
+        end: endUnder,
+        productionSchedule: "",
+      }),
+    ).toBe(false);
+    expect(
+      isProductionScheduleMissingWhenRequired({
+        enabled: false,
+        requiredAboveHours: 4,
+        start,
+        end: endOver,
+        productionSchedule: "",
+      }),
+    ).toBe(false);
+  });
+});
+
 describe("getReservationDurationHours", () => {
   it("returns duration in hours", () => {
     const start = new Date("2026-09-22T10:00:00.000Z");
@@ -49,11 +101,17 @@ describe("getReservationDurationHours", () => {
 });
 
 describe("productionSchedule schema defaults", () => {
-  it("enables production schedule for MC defaults", () => {
-    const schema = generateDefaultSchema("mc");
-    expect(schema.form.productionSchedule.enabled).toBe(true);
-    expect(schema.form.productionSchedule.requiredAboveHours).toBe(4);
-    expect(schema.form.productionSchedule.label).toBe(
+  it("enables production schedule for MC and mediaCommons aliases", () => {
+    expect(generateDefaultSchema("mc").form.productionSchedule.enabled).toBe(
+      true,
+    );
+    expect(
+      generateDefaultSchema("mediaCommons").form.productionSchedule.enabled,
+    ).toBe(true);
+    expect(
+      generateDefaultSchema("mc").form.productionSchedule.requiredAboveHours,
+    ).toBe(4);
+    expect(generateDefaultSchema("mc").form.productionSchedule.label).toBe(
       defaultProductionSchedule.label,
     );
   });

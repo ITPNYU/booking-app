@@ -6,6 +6,7 @@
 // bundle. `SchemaProvider.tsx` re-exports everything here for client consumers.
 
 import { defaultSafetyTrainingInfoUrl } from "@/components/src/constants/safetyTraining";
+import { isMediaCommonsTenant } from "@/components/src/constants/tenants";
 
 export { defaultSafetyTrainingInfoUrl };
 
@@ -590,7 +591,6 @@ export const defaultScheme: Omit<SchemaContextType, "tenantId"> = {
 };
 
 export function generateDefaultSchema(tenantId: string): SchemaContextType {
-  const normalized = (tenantId || "").toLowerCase();
   return {
     tenantId,
     ...defaultScheme,
@@ -604,7 +604,7 @@ export function generateDefaultSchema(tenantId: string): SchemaContextType {
       // MC requires production schedules for long reservations (#1126).
       productionSchedule: {
         ...defaultProductionSchedule,
-        enabled: normalized === "mc",
+        enabled: isMediaCommonsTenant(tenantId),
       },
     },
   };
