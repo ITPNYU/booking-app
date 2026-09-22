@@ -4,12 +4,27 @@ import { TableNames } from "@/components/src/policy";
 
 const mocks = vi.hoisted(() => ({
   mockResolveCallerRole: vi.fn(),
+  mockGetCachedTenantSchema: vi.fn(),
 }));
 
 vi.mock("@/lib/api/authz", () => ({
   resolveCallerRole: (...args: unknown[]) =>
     mocks.mockResolveCallerRole(...args),
 }));
+
+vi.mock("@/lib/tenant/getCachedTenantSchema", () => ({
+  getCachedTenantSchema: (...args: unknown[]) =>
+    mocks.mockGetCachedTenantSchema(...args),
+}));
+
+import { generateDefaultSchema } from "@/components/src/client/routes/components/schemaTypes";
+
+const schemaWith = (
+  detail: Partial<ReturnType<typeof generateDefaultSchema>["detail"]>,
+) => {
+  const base = generateDefaultSchema("mc");
+  return { ...base, detail: { ...base.detail, showMemo: true, ...detail } };
+};
 
 import {
   STAFF_ONLY_BOOKING_FIELDS,
@@ -28,6 +43,7 @@ const docs = () => [
 describe("bookingRedaction", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.mockGetCachedTenantSchema.mockResolvedValue(schemaWith({}));
   });
 
   it("lists memo as a staff-only field", () => {
@@ -41,8 +57,43 @@ describe("bookingRedaction", () => {
     [PagePermission.BOOKING, false],
     [PagePermission.PA, false],
     [PagePermission.LIAISON, false],
-  ])("canReadStaffOnlyBookingFields(%s) is %s", (role, expected) => {
-    expect(canReadStaffOnlyBookingFields(role)).toBe(expected);
+  ])(
+    "canReadStaffOnlyBookingFields(%s) is %s with default memoRoles",
+    async (role, expected) => {
+      expect(await canReadStaffOnlyBookingFields("mc", role)).toBe(expected);
+    },
+  );
+
+  it("canReadStaffOnlyBookingFields follows the tenant memoRoles list", async () => {
+    mocks.mockGetCachedTenantSchema.mockResolvedValue(
+      schemaWith({ memoRoles: ["PA"] }),
+    );
+    expect(await canReadStaffOnlyBookingFields("mc", PagePermission.PA)).toBe(
+      true,
+    );
+    expect(
+      await canReadStaffOnlyBookingFields("mc", PagePermission.SERVICES),
+    ).toBe(false);
+    // ADMIN inherits PA through the permission hierarchy.
+    expect(
+      await canReadStaffOnlyBookingFields("mc", PagePermission.ADMIN),
+    ).toBe(true);
+  });
+
+  it("canReadStaffOnlyBookingFields is false for everyone when showMemo is off", async () => {
+    mocks.mockGetCachedTenantSchema.mockResolvedValue(
+      schemaWith({ showMemo: false }),
+    );
+    expect(
+      await canReadStaffOnlyBookingFields("mc", PagePermission.SUPER_ADMIN),
+    ).toBe(false);
+  });
+
+  it("canReadStaffOnlyBookingFields is false when the tenant has no schema", async () => {
+    mocks.mockGetCachedTenantSchema.mockResolvedValue(null);
+    expect(
+      await canReadStaffOnlyBookingFields("mc", PagePermission.SUPER_ADMIN),
+    ).toBe(false);
   });
 
   it("stripStaffOnlyBookingFields removes memo without mutating the input", () => {

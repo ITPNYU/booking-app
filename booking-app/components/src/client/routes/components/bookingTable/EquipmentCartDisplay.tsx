@@ -6,14 +6,17 @@ interface Props {
   booking: BookingRow;
   onCartClick: () => void;
   pageContext: PageContextLevel;
+  /** Tenant schema `detail.showWebCheckout`; when false only the toggle shows. */
+  showCartNumber?: boolean;
 }
 
 export default function EquipmentCartDisplay({
   booking,
   onCartClick,
   pageContext,
+  showCartNumber = true,
 }: Props) {
-  const canShowCartNumber = pageContext >= PageContextLevel.PA;
+  const canShowCartNumber = showCartNumber && pageContext >= PageContextLevel.PA;
 
   // If user is PA level or above and there's a cart number, display it as clickable text
   if (canShowCartNumber && booking.webcheckoutCartNumber) {

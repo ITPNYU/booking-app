@@ -293,14 +293,63 @@ export type FormConfig = {
   showBookingType: boolean;
   showNNumber: boolean;
   showSponsor: boolean;
-  /**
-   * Show the staff-only Memo section under WebCheckout in the booking
-   * detail modal (Admin and Services contexts). Used to record e.g. work order
-   * confirmation numbers.
-   */
-  showMemo: boolean;
   services: FormServicesConfig;
   productionSchedule: ProductionScheduleConfig;
+};
+
+/** Staff roles that a booking detail feature can be scoped to. */
+export type BookingDetailRole =
+  | "PA"
+  | "LIAISON"
+  | "SERVICES"
+  | "ADMIN"
+  | "SUPER_ADMIN";
+
+export const BOOKING_DETAIL_ROLES: readonly BookingDetailRole[] = [
+  "PA",
+  "LIAISON",
+  "SERVICES",
+  "ADMIN",
+  "SUPER_ADMIN",
+];
+
+export const DEFAULT_MEMO_ROLES: readonly BookingDetailRole[] = [
+  "SERVICES",
+  "ADMIN",
+  "SUPER_ADMIN",
+];
+
+/** Drop unknown entries and duplicates; fall back to the defaults when empty. */
+export function normalizeMemoRoles(raw: unknown): BookingDetailRole[] {
+  if (!Array.isArray(raw)) return [...DEFAULT_MEMO_ROLES];
+  const roles = raw.filter(
+    (r): r is BookingDetailRole =>
+      typeof r === "string" &&
+      (BOOKING_DETAIL_ROLES as readonly string[]).includes(r),
+  );
+  return roles.length > 0
+    ? Array.from(new Set(roles))
+    : [...DEFAULT_MEMO_ROLES];
+}
+
+/**
+ * Booking detail modal configuration (Firestore `tenantSchema.detail`).
+ * Separate from `form`, which configures the request form.
+ */
+export type BookingDetailConfig = {
+  /** Show the WebCheckout section and the cart number in the bookings table. */
+  showWebCheckout: boolean;
+  /**
+   * Show the staff-only Memo section under WebCheckout, used to record e.g.
+   * work order confirmation numbers.
+   */
+  showMemo: boolean;
+  /**
+   * Roles that can see and edit the Memo. A role also unlocks its own page
+   * context (PA page, Liaison page, Services page, Admin page; SUPER_ADMIN
+   * uses the Admin page). Server routes enforce the same list.
+   */
+  memoRoles: BookingDetailRole[];
 };
 
 export type OriginsConfig = {
@@ -342,6 +391,7 @@ export type SchemaContextType = {
   mappings: MappingsConfig;
   roles: string[];
   form: FormConfig;
+  detail: BookingDetailConfig;
   attestations: Attestation[];
   resources: Resource[];
   origins: OriginsConfig;
@@ -526,7 +576,6 @@ export const defaultScheme: Omit<SchemaContextType, "tenantId"> = {
     showBookingType: true,
     showNNumber: true,
     showSponsor: true,
-    showMemo: false,
     services: {
       showCatering: true,
       showEquipment: true,
@@ -535,6 +584,11 @@ export const defaultScheme: Omit<SchemaContextType, "tenantId"> = {
       showStaffing: true,
     },
     productionSchedule: defaultProductionSchedule,
+  },
+  detail: {
+    showWebCheckout: true,
+    showMemo: false,
+    memoRoles: [...DEFAULT_MEMO_ROLES],
   },
   attestations: defineObjectArrayWithDefaults(defaultAttestation),
   resources: defineObjectArrayWithDefaults(defaultResource),

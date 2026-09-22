@@ -771,14 +771,20 @@ Blackout periods are time ranges during which bookings are not allowed.
 - Cart details are viewable from the booking detail modal
 - Authorized staff can update cart information
 
+### Booking detail configuration (`tenantSchema.detail`)
+
+- `detail.showWebCheckout` (default `true`) shows or hides the WebCheckout section in the booking detail modal and the cart number in the bookings table
+- `detail.showMemo` (default `false`) enables the Memo section
+- `detail.memoRoles` (default `["SERVICES", "ADMIN", "SUPER_ADMIN"]`) lists the roles that can see and edit the Memo; each role also unlocks its own page context (PA page, Liaison page, Services page, Admin page)
+
 ### Memo (work order confirmation)
 
-- When the tenant schema sets `form.showMemo: true`, the booking detail modal shows a **Memo** section directly under WebCheckout
+- When enabled, the booking detail modal shows a **Memo** section directly under WebCheckout
 - Memo is a free-text field for staff notes such as a work order confirmation number
-- Visible and editable only in the Admin and Services contexts, for users with Services, Admin, or Super Admin permission
-- Saved via `PUT /api/bookings/memo` onto the booking document (`memo` field); it is never included in calendar event descriptions or emails
-- The `/api/firestore/*` read routes strip `memo` from booking documents for callers below Services, so regular users never receive it, even for their own bookings
-- The generic `/api/firestore/mutate` route refuses booking writes that touch `memo`, so the dedicated route's role check, trimming, and length limit cannot be bypassed
+- Users outside `detail.memoRoles`, or viewing from a page outside those roles, see neither the memo nor its edit icon
+- Saved via `PUT /api/bookings/memo` onto the booking document (`memo` field); the route refuses writes when `showMemo` is off or the caller's role is outside `memoRoles`; it is never included in calendar event descriptions or emails
+- The `/api/firestore/*` read routes strip `memo` from booking documents for callers outside `memoRoles`, so regular users never receive it, even for their own bookings
+- The generic `/api/firestore/mutate` route refuses booking writes that touch `memo`, so the dedicated route's checks, trimming, and length limit cannot be bypassed
 
 ### Equipment Approval
 
