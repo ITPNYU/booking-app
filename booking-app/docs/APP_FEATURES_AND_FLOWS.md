@@ -771,6 +771,13 @@ Blackout periods are time ranges during which bookings are not allowed.
 - Cart details are viewable from the booking detail modal
 - Authorized staff can update cart information
 
+### Memo (work order confirmation)
+
+- When the tenant schema sets `form.showMemo: true`, the booking detail modal shows a **Memo** section as its last section
+- Memo is a free-text field for staff notes such as a work order confirmation number
+- Visible and editable only in the Admin and Services contexts, for users with Services, Admin, or Super Admin permission
+- Saved via `PUT /api/bookings/memo` onto the booking document (`memo` field); it is never included in calendar event descriptions or emails
+
 ### Equipment Approval
 
 - Equipment requests follow the standard service approval workflow
