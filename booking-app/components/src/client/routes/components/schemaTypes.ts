@@ -272,11 +272,24 @@ export type FormServicesConfig = {
   showStaffing: boolean;
 };
 
+/** Duration-gated free-text field on the Details step (issue #1126). */
+export type ProductionScheduleConfig = {
+  enabled: boolean;
+  /** Required when reservation length (hours) is strictly greater than this. */
+  requiredAboveHours: number;
+  label: string;
+  description: string;
+  templateLink: string;
+  templateLinkText: string;
+  calendarBannerMessage: string;
+};
+
 export type FormConfig = {
   showBookingType: boolean;
   showNNumber: boolean;
   showSponsor: boolean;
   services: FormServicesConfig;
+  productionSchedule: ProductionScheduleConfig;
 };
 
 export type OriginsConfig = {
@@ -446,6 +459,20 @@ const defaultTimeSensitiveRequestWarning: TimeSensitiveRequestWarning = {
   policyLink: "",
 };
 
+export const defaultProductionSchedule: ProductionScheduleConfig = {
+  enabled: false,
+  requiredAboveHours: 4,
+  label: "Production Schedule",
+  description:
+    "Please provide a production schedule for your reservation. This is required to justify reservations longer than 4 hours. It should minimally include setup, production, and breakdown.",
+  templateLink:
+    "https://docs.google.com/document/d/1RzBf0mlWiYHrWpfIvh7qS5zKnmTn3SHSr7xVTQaOoz0/edit?usp=sharing",
+  templateLinkText:
+    "Click here for schedule templates for events, recording sessions, and other productions",
+  calendarBannerMessage:
+    "This request is greater than four hours. You will need to provide a production schedule on the next page to continue.",
+};
+
 const defaultContextLabelsByTenantId = (tenantId?: string): ContextLabels => {
   const normalized = (tenantId || "").toLowerCase();
   if (normalized === "itp") {
@@ -493,6 +520,7 @@ export const defaultScheme: Omit<SchemaContextType, "tenantId"> = {
       showSetup: true,
       showStaffing: true,
     },
+    productionSchedule: defaultProductionSchedule,
   },
   attestations: defineObjectArrayWithDefaults(defaultAttestation),
   resources: defineObjectArrayWithDefaults(defaultResource),
@@ -562,12 +590,22 @@ export const defaultScheme: Omit<SchemaContextType, "tenantId"> = {
 };
 
 export function generateDefaultSchema(tenantId: string): SchemaContextType {
+  const normalized = (tenantId || "").toLowerCase();
   return {
     tenantId,
     ...defaultScheme,
     tenant: {
       ...defaultScheme.tenant,
       contextLabels: defaultContextLabelsByTenantId(tenantId),
+    },
+    form: {
+      ...defaultScheme.form,
+      services: { ...defaultScheme.form.services },
+      // MC requires production schedules for long reservations (#1126).
+      productionSchedule: {
+        ...defaultProductionSchedule,
+        enabled: normalized === "mc",
+      },
     },
   };
 }

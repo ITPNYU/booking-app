@@ -134,6 +134,18 @@ describe("BookingStatusBar - Blackout Period Handling", () => {
     mockUseTenantSchema.mockReturnValue({
       tenant: "media-commons",
       name: "Media Commons",
+      form: {
+        productionSchedule: {
+          enabled: false,
+          requiredAboveHours: 4,
+          label: "Production Schedule",
+          description: "",
+          templateLink: "",
+          templateLinkText: "",
+          calendarBannerMessage:
+            "This request is greater than four hours. You will need to provide a production schedule on the next page to continue.",
+        },
+      },
       calendarConfig: {
         timeSensitiveRequestWarning: {
           hours: 48,
@@ -381,6 +393,14 @@ describe("BookingStatusBar - Time Sensitive Request Warning", () => {
     mockUseTenantSchema.mockReturnValue({
       tenant: "media-commons",
       name: "Media Commons",
+      form: {
+        productionSchedule: {
+          enabled: false,
+          requiredAboveHours: 4,
+          calendarBannerMessage:
+            "This request is greater than four hours. You will need to provide a production schedule on the next page to continue.",
+        },
+      },
       calendarConfig: {
         timeSensitiveRequestWarning: {
           hours: 48,
@@ -705,5 +725,94 @@ describe("BookingStatusBar - Time Sensitive Request Warning", () => {
     });
 
     expect(screen.queryByText("Learn more")).not.toBeInTheDocument();
+  });
+});
+
+describe("BookingStatusBar - Production Schedule Banner", () => {
+  const bannerMessage =
+    "This request is greater than four hours. You will need to provide a production schedule on the next page to continue.";
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(usePathname).mockReturnValue("/test/book/selectRoom");
+    mockUseTenantSchema.mockReturnValue({
+      tenant: "media-commons",
+      name: "Media Commons",
+      form: {
+        productionSchedule: {
+          enabled: true,
+          requiredAboveHours: 4,
+          calendarBannerMessage: bannerMessage,
+        },
+      },
+      calendarConfig: {
+        timeSensitiveRequestWarning: {
+          hours: 48,
+          isActive: false,
+          message: "",
+          policyLink: "",
+        },
+      },
+    });
+  });
+
+  it("shows the banner when enabled and duration exceeds the threshold", () => {
+    const start = new Date("2026-09-22T09:00:00");
+    const end = new Date("2026-09-22T14:00:00"); // 5 hours
+    renderComponent({
+      bookingCalendarInfo: {
+        ...mockBookingContext.bookingCalendarInfo,
+        start,
+        end,
+        startStr: start.toISOString(),
+        endStr: end.toISOString(),
+      },
+    });
+
+    expect(screen.getByText(bannerMessage)).toBeInTheDocument();
+  });
+
+  it("hides the banner when duration is at or below the threshold", () => {
+    const start = new Date("2026-09-22T09:00:00");
+    const end = new Date("2026-09-22T13:00:00"); // 4 hours
+    renderComponent({
+      bookingCalendarInfo: {
+        ...mockBookingContext.bookingCalendarInfo,
+        start,
+        end,
+        startStr: start.toISOString(),
+        endStr: end.toISOString(),
+      },
+    });
+
+    expect(screen.queryByText(bannerMessage)).not.toBeInTheDocument();
+  });
+
+  it("hides the banner when the feature is disabled", () => {
+    mockUseTenantSchema.mockReturnValue({
+      tenant: "itp",
+      form: {
+        productionSchedule: {
+          enabled: false,
+          requiredAboveHours: 4,
+          calendarBannerMessage: bannerMessage,
+        },
+      },
+      calendarConfig: { timeSensitiveRequestWarning: { isActive: false } },
+    });
+
+    const start = new Date("2026-09-22T09:00:00");
+    const end = new Date("2026-09-22T15:00:00");
+    renderComponent({
+      bookingCalendarInfo: {
+        ...mockBookingContext.bookingCalendarInfo,
+        start,
+        end,
+        startStr: start.toISOString(),
+        endStr: end.toISOString(),
+      },
+    });
+
+    expect(screen.queryByText(bannerMessage)).not.toBeInTheDocument();
   });
 });

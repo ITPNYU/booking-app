@@ -649,6 +649,15 @@ export default function MoreInfoModal({
                   <LabelCell>Attendee Affiliation</LabelCell>
                   <TableCell>{booking.attendeeAffiliation ?? BLANK}</TableCell>
                 </TableRow>
+                {booking.productionSchedule?.trim() && (
+                  <TableRow>
+                    <LabelCell>
+                      {schema.form.productionSchedule?.label ||
+                        "Production Schedule"}
+                    </LabelCell>
+                    <TableCell>{booking.productionSchedule}</TableCell>
+                  </TableRow>
+                )}
               </TableBody>
             </Table>
             </Section>
