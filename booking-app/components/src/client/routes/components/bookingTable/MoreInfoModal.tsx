@@ -36,6 +36,7 @@ import {
   hasAnyPermission,
 } from "../../../../utils/permissions";
 import { useTenantSchema } from "../SchemaProvider";
+import { BOOKING_MEMO_MAX_LEN } from "@/components/src/constants/bookingMemo";
 import { formatTimeAmPm, formatDateTable } from "../../../utils/date";
 import { RoomDetails } from "../../booking/components/BookingSelection";
 import useSortBookingHistory from "../../hooks/useSortBookingHistory";
@@ -571,7 +572,7 @@ export default function MoreInfoModal({
               disabled={isSavingMemo}
               variant="outlined"
               fullWidth
-              inputProps={{ "aria-label": "Memo", maxLength: 2000 }}
+              inputProps={{ "aria-label": "Memo", maxLength: BOOKING_MEMO_MAX_LEN }}
             />
             {memoError && (
               <Typography variant="body2" color="error">
