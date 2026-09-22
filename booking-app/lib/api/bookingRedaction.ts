@@ -40,6 +40,31 @@ export function stripStaffOnlyBookingFields<T extends Record<string, unknown>>(
 }
 
 /**
+ * Return the first staff-only booking field that `data` would write, or null.
+ * Matches a top-level key or a dotted field path rooted at it (`memo.x`).
+ * The generic `/api/firestore/mutate` route refuses such writes to
+ * `{tenant}-bookings` regardless of role, so the dedicated
+ * `PUT /api/bookings/memo` route is the only path that can set them and its
+ * role, trimming, and length rules cannot be skipped.
+ */
+export function findStaffOnlyBookingFieldWrite(
+  collection: string,
+  data: Record<string, unknown> | undefined | null,
+): string | null {
+  if (collection !== TableNames.BOOKING || !data || typeof data !== "object") {
+    return null;
+  }
+  for (const key of Object.keys(data)) {
+    for (const field of STAFF_ONLY_BOOKING_FIELDS) {
+      if (key === field || key.startsWith(`${field}.`)) {
+        return field;
+      }
+    }
+  }
+  return null;
+}
+
+/**
  * Redact staff-only fields from documents read out of `collection` unless the
  * caller's resolved role may see them. Non-booking collections pass through
  * untouched, and the role lookup only runs for the bookings collection so the
