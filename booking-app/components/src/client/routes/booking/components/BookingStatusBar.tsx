@@ -23,6 +23,7 @@ import {
   defaultSafetyTrainingInfoUrl,
   useTenantSchema,
 } from "../../components/SchemaProvider";
+import { isProductionScheduleRequired } from "../utils/productionSchedule";
 
 interface Props {
   formContext: FormContextLevel;
@@ -65,6 +66,7 @@ export default function BookingStatusBar({ formContext, ...props }: Props) {
   const schema = useTenantSchema();
   const timeSensitiveRequestWarning =
     schema.calendarConfig?.timeSensitiveRequestWarning;
+  const productionScheduleConfig = schema.form?.productionSchedule;
   const safetyTrainingInfoUrl =
     selectedRooms.find(
       (room) => room.needsSafetyTraining && room.trainingInfoUrl,
@@ -85,6 +87,17 @@ export default function BookingStatusBar({ formContext, ...props }: Props) {
     hoursUntilStart !== null &&
     hoursUntilStart >= 0 &&
     hoursUntilStart <= warningThresholdHours,
+  );
+  const shouldShowProductionScheduleBanner = Boolean(
+    isSelectRoomPage &&
+    productionScheduleConfig?.enabled &&
+    bookingCalendarInfo?.start &&
+    bookingCalendarInfo?.end &&
+    isProductionScheduleRequired(
+      bookingCalendarInfo.start,
+      bookingCalendarInfo.end,
+      productionScheduleConfig.requiredAboveHours,
+    ),
   );
 
   const theme = useTheme();
@@ -369,6 +382,16 @@ export default function BookingStatusBar({ formContext, ...props }: Props) {
               )}
             </Alert>
           )}
+          {shouldShowProductionScheduleBanner &&
+            productionScheduleConfig?.calendarBannerMessage && (
+              <Alert
+                severity="warning"
+                variant="filled"
+                sx={{ padding: "0px 16px", width: "100%", margin: "5px 0px" }}
+              >
+                {productionScheduleConfig.calendarBannerMessage}
+              </Alert>
+            )}
           <Alert
             severity="warning"
             variant="filled"

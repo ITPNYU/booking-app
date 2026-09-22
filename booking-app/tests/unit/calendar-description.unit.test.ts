@@ -247,6 +247,26 @@ describe("Calendar Description Functions", () => {
       );
     });
 
+    it("includes production schedule in Details when present", async () => {
+      const result = await bookingContentsToDescription({
+        ...mockBookingContents,
+        productionSchedule: "10:00 AM Setup; 11:00 AM Production; 3:00 PM Breakdown",
+      });
+
+      expect(result).toContain(
+        "<strong>Production Schedule:</strong> 10:00 AM Setup; 11:00 AM Production; 3:00 PM Breakdown",
+      );
+    });
+
+    it("omits production schedule from Details when empty", async () => {
+      const result = await bookingContentsToDescription({
+        ...mockBookingContents,
+        productionSchedule: "",
+      });
+
+      expect(result).not.toContain("Production Schedule");
+    });
+
     it("should include services grouped by room", async () => {
       const result = await bookingContentsToDescription(mockBookingContents);
 
