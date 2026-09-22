@@ -81,6 +81,11 @@ export const buildMcInitialContext = ({
     input?.servicesApproved && typeof input.servicesApproved === "object"
       ? input.servicesApproved
       : {},
+  servicesAutoCloseout:
+    input?.servicesAutoCloseout &&
+    typeof input.servicesAutoCloseout === "object"
+      ? input.servicesAutoCloseout
+      : {},
 });
 
 const hasAnyServiceRequested = (context: MediaCommonsBookingContext) =>
@@ -113,6 +118,21 @@ const serviceApprovedGuard =
     const approved = context.servicesApproved?.[service] === true;
     console.log(`🎯 XSTATE GUARD: ${guardName}: ${approved}`);
     return approved;
+  };
+
+/**
+ * An approved service the booked rooms flag for automatic closeout. Checked
+ * ahead of the manual "Closeout Pending" step in "Evaluate <Service>" so the
+ * region lands straight in "<Service> Closedout" (issue #1592).
+ */
+const serviceAutoCloseoutGuard =
+  (service: MediaCommonsServiceKey, guardName: string) =>
+  ({ context }: { context: MediaCommonsBookingContext }) => {
+    const approved = context.servicesApproved?.[service] === true;
+    const auto = context.servicesAutoCloseout?.[service] === true;
+    const result = approved && auto;
+    console.log(`🎯 XSTATE GUARD: ${guardName}: ${result}`);
+    return result;
   };
 
 /**
@@ -156,6 +176,17 @@ export const mcBookingActions = {
     pendingSideEffects: ({ context }) => [
       ...(context.pendingSideEffects ?? []),
       "cancelProcessing",
+    ],
+  }),
+  /**
+   * Records that the machine closed a service out on its own so the
+   * xstate-transition route can write the booking-history row afterwards
+   * (`autoCloseout:<service>`; see executeSideEffect).
+   */
+  queueAutoCloseout: mcAssignWithParams<{ service: MediaCommonsServiceKey }>()({
+    pendingSideEffects: ({ context }, params) => [
+      ...(context.pendingSideEffects ?? []),
+      `autoCloseout:${params.service}`,
     ],
   }),
 
@@ -495,6 +526,31 @@ export const mcBookingGuards = {
   furnishingsApproved: serviceApprovedGuard(
     "furnishings",
     "furnishingsApproved",
+  ),
+
+  // Automatic closeout guards for the "Evaluate <Service>" step of Service
+  // Closeout. One per service region.
+  staffAutoCloseout: serviceAutoCloseoutGuard("staff", "staffAutoCloseout"),
+  cateringAutoCloseout: serviceAutoCloseoutGuard(
+    "catering",
+    "cateringAutoCloseout",
+  ),
+  setupAutoCloseout: serviceAutoCloseoutGuard("setup", "setupAutoCloseout"),
+  cleaningAutoCloseout: serviceAutoCloseoutGuard(
+    "cleaning",
+    "cleaningAutoCloseout",
+  ),
+  securityAutoCloseout: serviceAutoCloseoutGuard(
+    "security",
+    "securityAutoCloseout",
+  ),
+  equipmentAutoCloseout: serviceAutoCloseoutGuard(
+    "equipment",
+    "equipmentAutoCloseout",
+  ),
+  furnishingsAutoCloseout: serviceAutoCloseoutGuard(
+    "furnishings",
+    "furnishingsAutoCloseout",
   ),
 
   // Already-decided guards for the "Evaluate <Service> Request" step. One

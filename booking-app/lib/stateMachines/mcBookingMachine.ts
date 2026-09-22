@@ -710,6 +710,16 @@ export const mcBookingMachine = setup({
             "Evaluate Staff": {
               always: [
                 {
+                  target: "Staff Closedout",
+                  guard: { type: "staffAutoCloseout" },
+                  actions: [
+                    {
+                      type: "queueAutoCloseout",
+                      params: { service: "staff" },
+                    },
+                  ],
+                },
+                {
                   target: "Staff Closeout Pending",
                   guard: { type: "staffApproved" },
                 },
@@ -751,6 +761,16 @@ export const mcBookingMachine = setup({
           states: {
             "Evaluate Catering": {
               always: [
+                {
+                  target: "Catering Closedout",
+                  guard: { type: "cateringAutoCloseout" },
+                  actions: [
+                    {
+                      type: "queueAutoCloseout",
+                      params: { service: "catering" },
+                    },
+                  ],
+                },
                 {
                   target: "Catering Closeout Pending",
                   guard: { type: "cateringApproved" },
@@ -794,6 +814,16 @@ export const mcBookingMachine = setup({
             "Evaluate Setup": {
               always: [
                 {
+                  target: "Setup Closedout",
+                  guard: { type: "setupAutoCloseout" },
+                  actions: [
+                    {
+                      type: "queueAutoCloseout",
+                      params: { service: "setup" },
+                    },
+                  ],
+                },
+                {
                   target: "Setup Closeout Pending",
                   guard: { type: "setupApproved" },
                 },
@@ -835,6 +865,16 @@ export const mcBookingMachine = setup({
           states: {
             "Evaluate Cleaning": {
               always: [
+                {
+                  target: "Cleaning Closedout",
+                  guard: { type: "cleaningAutoCloseout" },
+                  actions: [
+                    {
+                      type: "queueAutoCloseout",
+                      params: { service: "cleaning" },
+                    },
+                  ],
+                },
                 {
                   target: "Cleaning Closeout Pending",
                   guard: { type: "cleanApproved" },
@@ -878,6 +918,16 @@ export const mcBookingMachine = setup({
             "Evaluate Security": {
               always: [
                 {
+                  target: "Security Closedout",
+                  guard: { type: "securityAutoCloseout" },
+                  actions: [
+                    {
+                      type: "queueAutoCloseout",
+                      params: { service: "security" },
+                    },
+                  ],
+                },
+                {
                   target: "Security Closeout Pending",
                   guard: { type: "securityApproved" },
                 },
@@ -920,6 +970,16 @@ export const mcBookingMachine = setup({
             "Evaluate Equipment": {
               always: [
                 {
+                  target: "Equipment Closedout",
+                  guard: { type: "equipmentAutoCloseout" },
+                  actions: [
+                    {
+                      type: "queueAutoCloseout",
+                      params: { service: "equipment" },
+                    },
+                  ],
+                },
+                {
                   target: "Equipment Closeout Pending",
                   guard: { type: "equipApproved" },
                 },
@@ -961,6 +1021,16 @@ export const mcBookingMachine = setup({
           states: {
             "Evaluate Furnishings": {
               always: [
+                {
+                  target: "Furnishings Closedout",
+                  guard: { type: "furnishingsAutoCloseout" },
+                  actions: [
+                    {
+                      type: "queueAutoCloseout",
+                      params: { service: "furnishings" },
+                    },
+                  ],
+                },
                 {
                   target: "Furnishings Closeout Pending",
                   guard: { type: "furnishingsApproved" },

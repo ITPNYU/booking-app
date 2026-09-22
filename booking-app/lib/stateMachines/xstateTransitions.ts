@@ -1,5 +1,9 @@
 import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
-import type { MediaCommonsServiceKey } from "@/components/src/utils/serviceDecisions";
+import { serviceHistoryNote } from "@/components/src/utils/bookingHistoryNotes";
+import {
+  MEDIA_COMMONS_SERVICE_KEYS,
+  type MediaCommonsServiceKey,
+} from "@/components/src/utils/serviceDecisions";
 import { TableNames } from "@/components/src/policy";
 import { serverUpdateDataByCalendarEventId } from "@/components/src/server/admin";
 import { BookingStatusLabel } from "@/components/src/types";
@@ -21,6 +25,13 @@ import {
   restoreXStateFromFirestore,
 } from "./xstatePersistence";
 import type { PersistedXStateData } from "./xstateTypes";
+
+const AUTO_CLOSEOUT_EFFECT_PREFIX = "autoCloseout:";
+const AUTO_CLOSEOUT_ACTOR = "System";
+
+/** History note for a service the system closed out, e.g. "Staffing Service Closed Out (automatic)". */
+export const autoCloseoutHistoryNote = (service: string): string =>
+  `${serviceHistoryNote(service, "closeout")} (automatic)`;
 
 /**
  * Drain and execute a single side effect declared by a state entry action
@@ -70,6 +81,55 @@ async function executeSideEffect(
           { effect, calendarEventId, status: response.status },
         );
       }
+    } catch (error: any) {
+      console.error(
+        `🚨 SIDE EFFECT ERROR [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+        { effect, calendarEventId, error: error.message },
+      );
+    }
+    return;
+  }
+
+  // "autoCloseout:<service>": the machine closed the service out on its own
+  // (queueAutoCloseout in "Evaluate <Service>"). Write the same history row a
+  // manual closeout gets from /api/services, attributed to the system.
+  if (effect.startsWith(AUTO_CLOSEOUT_EFFECT_PREFIX)) {
+    const service = effect.slice(AUTO_CLOSEOUT_EFFECT_PREFIX.length);
+    if (!(MEDIA_COMMONS_SERVICE_KEYS as readonly string[]).includes(service)) {
+      console.warn(
+        `⚠️ UNKNOWN AUTO CLOSEOUT SERVICE [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+        { effect, calendarEventId },
+      );
+      return;
+    }
+    try {
+      const { logServerBookingChange } =
+        await import("@/lib/firebase/server/adminDb");
+      const doc = await serverGetDataByCalendarEventId<{
+        id: string;
+        requestNumber?: number;
+      }>(TableNames.BOOKING, calendarEventId, tenant);
+      if (!doc) {
+        console.error(
+          `🚨 AUTO CLOSEOUT HISTORY SKIPPED - BOOKING NOT FOUND [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+          { effect, calendarEventId },
+        );
+        return;
+      }
+      await logServerBookingChange({
+        bookingId: doc.id,
+        calendarEventId,
+        status: BookingStatusLabel.CHECKED_OUT,
+        changedBy: AUTO_CLOSEOUT_ACTOR,
+        requestNumber: doc.requestNumber ?? 0,
+        note: autoCloseoutHistoryNote(service),
+        tenant,
+      });
+      BookingLogger.serviceCloseout(service, {
+        calendarEventId,
+        tenant,
+        reason: "autoCloseout",
+      });
     } catch (error: any) {
       console.error(
         `🚨 SIDE EFFECT ERROR [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
