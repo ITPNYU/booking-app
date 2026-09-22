@@ -3,6 +3,7 @@ import admin from "@/lib/firebase/server/firebaseAdmin";
 import { requireSession } from "@/lib/api/requireSession";
 import { authorizeRead, isAccessDenied } from "@/lib/api/authz";
 import { resolveCollectionName } from "@/lib/api/firestoreServer";
+import { redactBookingDocsForCaller } from "@/lib/api/bookingRedaction";
 import type { PaginatedRequest } from "@/lib/api/firestoreShared";
 
 const SEARCHABLE_FIELDS = [
@@ -110,7 +111,12 @@ export async function POST(req: NextRequest) {
         });
       });
       return NextResponse.json({
-        docs: matchingDocs.map((doc) => ({ id: doc.id, ...doc.data() })),
+        docs: await redactBookingDocsForCaller(
+          session,
+          body.tenant,
+          body.collection,
+          matchingDocs.map((doc) => ({ id: doc.id, ...doc.data() })),
+        ),
       });
     }
 
@@ -141,7 +147,12 @@ export async function POST(req: NextRequest) {
     }
     const snapshot = await orderedQuery.get();
     return NextResponse.json({
-      docs: snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })),
+      docs: await redactBookingDocsForCaller(
+        session,
+        body.tenant,
+        body.collection,
+        snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })),
+      ),
     });
   } catch (error) {
     console.error("[/api/firestore/paginated] error:", error);

@@ -42,6 +42,10 @@ _Avoid_: forced service, disabled switch
 An approver's answer for one requested service: approved, declined, or still pending. One per service for the whole booking, not per resource; Media Commons only. Carried on the booking as the per-service approval flags and in the machine context.
 _Avoid_: service approval (as a noun for the state), service status, approval flag (in prose)
 
+**Memo**:
+A staff-only free-text note on a booking, such as a work order confirmation number. Shown directly under the WebCheckout section of the booking detail modal when the tenant schema enables `detail.showMemo`, to the roles listed in `detail.memoRoles` on their own pages. Stored as `memo` on the booking document and redacted server-side from booking reads for callers outside those roles.
+_Avoid_: note (that word is the booking history column), comment, work order field
+
 **Decision mark**:
 The green check or red X shown on a service section in the edit and modification contexts to surface its service decision. Same icons as the bookings table Services column. A pending service shows no mark.
 _Avoid_: approval badge, approved indicator, status chip
