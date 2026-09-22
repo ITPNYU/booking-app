@@ -1,24 +1,39 @@
 import { TableNames } from "@/components/src/policy";
-import { PagePermission } from "@/components/src/types";
+import type { PagePermission } from "@/components/src/types";
+import type { BookingDetailConfig } from "@/components/src/client/routes/components/schemaTypes";
+import { generateDefaultSchema } from "@/components/src/client/routes/components/schemaTypes";
+import { canAccessMemo } from "@/components/src/utils/bookingMemoAccess";
 import { resolveCallerRole } from "@/lib/api/authz";
 import type { SessionContext } from "@/lib/api/requireSession";
+import { getCachedTenantSchema } from "@/lib/tenant/getCachedTenantSchema";
 
 /**
- * Booking fields that only Services, Admin, and Super Admin callers may read.
+ * Booking fields that only the roles in the tenant schema's
+ * `detail.memoRoles` may read (and only while `detail.showMemo` is on).
  * The `/api/firestore/*` read routes strip them from `{tenant}-bookings`
  * documents for everyone else, so hiding them in the UI is not the only line
  * of defense.
  */
 export const STAFF_ONLY_BOOKING_FIELDS = ["memo"] as const;
 
-const STAFF_ROLES = new Set<PagePermission>([
-  PagePermission.SERVICES,
-  PagePermission.ADMIN,
-  PagePermission.SUPER_ADMIN,
-]);
+/**
+ * Load the tenant's booking detail config, falling back to the defaults
+ * (memo hidden) when the tenant has no schema.
+ */
+export async function getBookingDetailConfig(
+  tenant: string | undefined,
+): Promise<BookingDetailConfig> {
+  const schema = tenant ? await getCachedTenantSchema(tenant) : null;
+  return schema?.detail ?? generateDefaultSchema(tenant ?? "").detail;
+}
 
-export function canReadStaffOnlyBookingFields(role: PagePermission): boolean {
-  return STAFF_ROLES.has(role);
+/** Whether `role` may read or write staff-only booking fields for `tenant`. */
+export async function canReadStaffOnlyBookingFields(
+  tenant: string | undefined,
+  role: PagePermission,
+): Promise<boolean> {
+  const detail = await getBookingDetailConfig(tenant);
+  return canAccessMemo(detail, role);
 }
 
 export function stripStaffOnlyBookingFields<T extends Record<string, unknown>>(
@@ -66,9 +81,10 @@ export function findStaffOnlyBookingFieldWrite(
 
 /**
  * Redact staff-only fields from documents read out of `collection` unless the
- * caller's resolved role may see them. Non-booking collections pass through
- * untouched, and the role lookup only runs for the bookings collection so the
- * other read paths keep their single Firestore round-trip.
+ * caller's resolved role is allowed by the tenant schema. Non-booking
+ * collections pass through untouched, and the role and schema lookups only
+ * run for the bookings collection so the other read paths keep their single
+ * Firestore round-trip.
  */
 export async function redactBookingDocsForCaller<
   T extends Record<string, unknown>,
@@ -82,7 +98,7 @@ export async function redactBookingDocsForCaller<
     return docs;
   }
   const role = await resolveCallerRole(session, tenant);
-  if (canReadStaffOnlyBookingFields(role)) {
+  if (await canReadStaffOnlyBookingFields(tenant, role)) {
     return docs;
   }
   return docs.map(stripStaffOnlyBookingFields);

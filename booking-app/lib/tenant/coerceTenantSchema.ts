@@ -3,7 +3,10 @@ import type {
   Resource,
   SchemaContextType,
 } from "@/components/src/client/routes/components/schemaTypes";
-import { generateDefaultSchema } from "@/components/src/client/routes/components/schemaTypes";
+import {
+  generateDefaultSchema,
+  normalizeMemoRoles,
+} from "@/components/src/client/routes/components/schemaTypes";
 import { normalizeResourceServices } from "./migrateResourceServices";
 
 function applyTenantResourceServices(resource: Resource): Resource {
@@ -89,6 +92,9 @@ export function coerceTenantSchema(
     | SchemaContextType["calendarConfig"]
     | undefined;
   const rawForm = raw.form as SchemaContextType["form"] | undefined;
+  const rawDetail = raw.detail as
+    | Partial<SchemaContextType["detail"]>
+    | undefined;
 
   return {
     ...base,
@@ -109,6 +115,11 @@ export function coerceTenantSchema(
         ...base.form.services,
         ...(rawForm?.services ?? {}),
       },
+    },
+    detail: {
+      ...base.detail,
+      ...rawDetail,
+      memoRoles: normalizeMemoRoles(rawDetail?.memoRoles ?? base.detail.memoRoles),
     },
     origins: {
       ...base.origins,

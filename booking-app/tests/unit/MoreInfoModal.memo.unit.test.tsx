@@ -8,6 +8,7 @@ import { DatabaseContext } from "../../components/src/client/routes/components/P
 import {
   SchemaProvider,
   generateDefaultSchema,
+  type BookingDetailRole,
 } from "../../components/src/client/routes/components/SchemaProvider";
 import {
   BookingRow,
@@ -79,16 +80,28 @@ const renderModal = ({
   permission,
   pageContext,
   showMemo = true,
+  memoRoles,
+  showWebCheckout = true,
   updateBooking,
 }: {
   booking?: BookingRow;
   permission: PagePermission;
   pageContext?: PageContextLevel;
   showMemo?: boolean;
+  memoRoles?: BookingDetailRole[];
+  showWebCheckout?: boolean;
   updateBooking?: (b: BookingRow) => void;
 }) => {
   const base = generateDefaultSchema("mc");
-  const schema = { ...base, form: { ...base.form, showMemo } };
+  const schema = {
+    ...base,
+    detail: {
+      ...base.detail,
+      showMemo,
+      showWebCheckout,
+      ...(memoRoles ? { memoRoles } : {}),
+    },
+  };
   return render(
     <ThemeProvider theme={mockTheme}>
       <SchemaProvider value={schema}>
@@ -200,6 +213,80 @@ describe("MoreInfoModal - Memo section", () => {
       ).map((el) => el.textContent);
       expect(titles.indexOf("Memo")).toBe(titles.indexOf("WebCheckout") + 1);
       expect(titles.indexOf("History")).toBe(titles.indexOf("Memo") + 1);
+    });
+  });
+
+  describe("configurable memo roles", () => {
+    it("shows for a PA on the PA page when memoRoles includes PA", () => {
+      renderModal({
+        permission: PagePermission.PA,
+        pageContext: PageContextLevel.PA,
+        memoRoles: ["PA", "ADMIN"],
+      });
+      expect(memoSection()).toBeInTheDocument();
+      expect(screen.getByLabelText("Edit memo")).toBeInTheDocument();
+    });
+
+    it("hides on the Admin page when memoRoles excludes ADMIN and SUPER_ADMIN", () => {
+      renderModal({
+        permission: PagePermission.ADMIN,
+        pageContext: PageContextLevel.ADMIN,
+        memoRoles: ["SERVICES"],
+      });
+      expect(memoSection()).not.toBeInTheDocument();
+      expect(screen.queryByLabelText("Edit memo")).not.toBeInTheDocument();
+    });
+
+    it("lets an admin see it on the Services page when memoRoles is SERVICES only", () => {
+      renderModal({
+        permission: PagePermission.ADMIN,
+        pageContext: PageContextLevel.SERVICES,
+        memoRoles: ["SERVICES"],
+      });
+      expect(memoSection()).toBeInTheDocument();
+    });
+
+    it("hides for a Services user when memoRoles is ADMIN only, even on the Services page", () => {
+      renderModal({
+        permission: PagePermission.SERVICES,
+        pageContext: PageContextLevel.SERVICES,
+        memoRoles: ["ADMIN"],
+      });
+      expect(memoSection()).not.toBeInTheDocument();
+      expect(screen.queryByLabelText("Edit memo")).not.toBeInTheDocument();
+    });
+
+    it("never shows on the My Bookings page regardless of roles", () => {
+      renderModal({
+        permission: PagePermission.SUPER_ADMIN,
+        pageContext: PageContextLevel.USER,
+        memoRoles: ["PA", "LIAISON", "SERVICES", "ADMIN", "SUPER_ADMIN"],
+      });
+      expect(memoSection()).not.toBeInTheDocument();
+    });
+  });
+
+  describe("WebCheckout toggle", () => {
+    it("hides the WebCheckout section when detail.showWebCheckout is false", () => {
+      renderModal({
+        booking: createMockBooking({ webcheckoutCartNumber: "CK-1" }),
+        permission: PagePermission.ADMIN,
+        pageContext: PageContextLevel.ADMIN,
+        showWebCheckout: false,
+      });
+      expect(screen.queryByText("Cart Number")).not.toBeInTheDocument();
+      expect(
+        screen.queryByLabelText("Edit cart number"),
+      ).not.toBeInTheDocument();
+      expect(memoSection()).toBeInTheDocument();
+    });
+
+    it("shows the WebCheckout section by default", () => {
+      renderModal({
+        permission: PagePermission.ADMIN,
+        pageContext: PageContextLevel.ADMIN,
+      });
+      expect(screen.getByText("Cart Number")).toBeInTheDocument();
     });
   });
 

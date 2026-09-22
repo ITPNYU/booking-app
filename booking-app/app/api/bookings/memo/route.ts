@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import admin from "@/lib/firebase/server/firebaseAdmin";
 import { TableNames } from "@/components/src/policy";
-import { PagePermission } from "@/components/src/types";
 import {
   DEFAULT_TENANT,
   isValidTenant,
@@ -10,12 +9,8 @@ import { requireSession } from "@/lib/api/requireSession";
 import { resolveCallerRole } from "@/lib/api/authz";
 import { resolveCollectionName } from "@/lib/api/firestoreServer";
 import { BOOKING_MEMO_MAX_LEN } from "@/components/src/constants/bookingMemo";
-
-const MEMO_ROLES = new Set<PagePermission>([
-  PagePermission.SERVICES,
-  PagePermission.ADMIN,
-  PagePermission.SUPER_ADMIN,
-]);
+import { canAccessMemo } from "@/components/src/utils/bookingMemoAccess";
+import { getBookingDetailConfig } from "@/lib/api/bookingRedaction";
 
 type MemoBody = {
   calendarEventId?: unknown;
@@ -25,8 +20,9 @@ type MemoBody = {
 
 /**
  * Sets the staff-only `memo` on a booking (`{tenant}-bookings`), looked up by
- * calendarEventId. Only Services, Admin, and Super Admin callers may write it.
- * An empty memo clears the field. The memo never reaches the calendar event
+ * calendarEventId. The tenant schema's `detail.showMemo` must be on and the
+ * caller's role must satisfy `detail.memoRoles`. An empty memo clears the
+ * field. The memo never reaches the calendar event
  * description or any email.
  *
  * Writes go straight to firebase-admin rather than through
@@ -77,8 +73,15 @@ export async function PUT(req: NextRequest) {
     );
   }
 
+  const detail = await getBookingDetailConfig(tenant);
+  if (!detail.showMemo) {
+    return NextResponse.json(
+      { error: "Memo is not enabled for this tenant" },
+      { status: 403 },
+    );
+  }
   const role = await resolveCallerRole(session, tenant);
-  if (!MEMO_ROLES.has(role)) {
+  if (!canAccessMemo(detail, role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

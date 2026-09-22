@@ -40,7 +40,6 @@ const baseMediaCommonsSchema: SchemaContextType = {
     showBookingType: true,
     showNNumber: true,
     showSponsor: true,
-    showMemo: false,
     services: {
       showCatering: true,
       showEquipment: true,
@@ -48,6 +47,11 @@ const baseMediaCommonsSchema: SchemaContextType = {
       showSetup: true,
       showStaffing: true,
     },
+  },
+  detail: {
+    showWebCheckout: true,
+    showMemo: false,
+    memoRoles: ["SERVICES", "ADMIN", "SUPER_ADMIN"],
   },
   attestations: [
     { id: "checklist", html: "<p>Mock checklist agreement.</p>" },

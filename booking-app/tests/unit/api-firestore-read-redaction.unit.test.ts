@@ -31,6 +31,7 @@ const mocks = vi.hoisted(() => {
     mockRequireSession: vi.fn(),
     mockAuthorizeRead: vi.fn(),
     mockResolveCallerRole: vi.fn(),
+    mockGetCachedTenantSchema: vi.fn(),
     mockFirestoreFn: Object.assign(
       () => ({ collection: vi.fn(() => makeQuery()) }),
       {
@@ -54,9 +55,16 @@ vi.mock("@/lib/api/authz", () => ({
     mocks.mockResolveCallerRole(...args),
 }));
 
+vi.mock("@/lib/tenant/getCachedTenantSchema", () => ({
+  getCachedTenantSchema: (...args: unknown[]) =>
+    mocks.mockGetCachedTenantSchema(...args),
+}));
+
 vi.mock("@/lib/firebase/server/firebaseAdmin", () => ({
   default: { firestore: mocks.mockFirestoreFn },
 }));
+
+import { generateDefaultSchema } from "@/components/src/client/routes/components/schemaTypes";
 
 import { POST as paginated } from "@/app/api/firestore/paginated/route";
 import { POST as list } from "@/app/api/firestore/list/route";
@@ -79,6 +87,11 @@ describe("/api/firestore read routes redact staff-only booking fields", () => {
     mocks.mockAuthorizeRead.mockResolvedValue({
       ok: true,
       role: PagePermission.BOOKING,
+    });
+    const base = generateDefaultSchema("mc");
+    mocks.mockGetCachedTenantSchema.mockResolvedValue({
+      ...base,
+      detail: { ...base.detail, showMemo: true },
     });
   });
 

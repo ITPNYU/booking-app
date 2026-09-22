@@ -31,6 +31,10 @@ import {
 } from "../../../../utils/permissions";
 import { useTenantSchema } from "../../components/SchemaProvider";
 import { BOOKING_MEMO_MAX_LEN } from "@/components/src/constants/bookingMemo";
+import {
+  canAccessMemo,
+  isMemoContextAllowed,
+} from "@/components/src/utils/bookingMemoAccess";
 import { formatTimeAmPm, formatDateTable } from "../../../utils/date";
 import { RoomDetails } from "../../booking/components/BookingSelection";
 import useSortBookingHistory from "../../hooks/useSortBookingHistory";
@@ -195,23 +199,20 @@ export default function MoreInfoModal({
   };
 
   // Memo: staff-only free text (e.g. work order confirmation number), shown
-  // directly under WebCheckout. Visible only in the Admin and Services
-  // contexts, and only when the tenant schema turns it on.
+  // directly under WebCheckout. Visibility and editing are governed by the
+  // tenant schema's detail.showMemo and detail.memoRoles.
   const [savedMemo, setSavedMemo] = useState(booking.memo ?? "");
   const [memoDraft, setMemoDraft] = useState(booking.memo ?? "");
   const [isEditingMemo, setIsEditingMemo] = useState(false);
   const [isSavingMemo, setIsSavingMemo] = useState(false);
   const [memoError, setMemoError] = useState<string | null>(null);
 
+  // Both the page context and the caller's role must be inside the tenant's
+  // configured memo roles; anyone outside sees neither the memo nor its edit
+  // icon. The server enforces the same list on reads and writes.
   const showMemoSection =
-    schema.form.showMemo &&
-    (pageContext === PageContextLevel.ADMIN ||
-      pageContext === PageContextLevel.SERVICES) &&
-    hasAnyPermission(pagePermission, [
-      PagePermission.SERVICES,
-      PagePermission.ADMIN,
-      PagePermission.SUPER_ADMIN,
-    ]);
+    isMemoContextAllowed(schema.detail, pageContext) &&
+    canAccessMemo(schema.detail, pagePermission);
 
   const handleStartEditMemo = () => {
     setMemoDraft(savedMemo);
@@ -294,13 +295,14 @@ export default function MoreInfoModal({
     // Show WebCheckout section for PA/ADMIN/SUPER_ADMIN users.
     // In USER context, show read-only cart details when a cart is assigned.
     const canViewWebCheckout =
-      hasAnyPermission(pagePermission, [
+      schema.detail.showWebCheckout &&
+      (hasAnyPermission(pagePermission, [
         PagePermission.PA,
         PagePermission.ADMIN,
         PagePermission.SUPER_ADMIN,
       ]) ||
       (pageContext === PageContextLevel.USER &&
-        Boolean(booking.webcheckoutCartNumber));
+        Boolean(booking.webcheckoutCartNumber)));
 
     if (!canViewWebCheckout) {
       return null;
