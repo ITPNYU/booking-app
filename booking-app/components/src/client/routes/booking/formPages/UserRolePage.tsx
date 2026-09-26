@@ -97,7 +97,7 @@ export default function UserRolePage({
   });
 
   const watchedFields = watch();
-  const prevWatchedFieldsRef = useRef<Inputs>();
+  const prevWatchedFieldsRef = useRef<Inputs | undefined>(undefined);
   const showOther = department === Department.OTHER;
 
   const isVIP = formContext === FormContextLevel.VIP;
