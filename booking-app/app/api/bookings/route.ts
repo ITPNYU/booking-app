@@ -31,7 +31,10 @@ import { resolveAnnexCalendarIds } from "@/components/src/utils/resourceServices
 import { canRequestAuxiliarySpaces } from "@/components/src/utils/roleUtils";
 import { serverGetTenantResources } from "@/lib/tenant/serverGetTenantResources";
 import { getCachedTenantSchema } from "@/lib/tenant/getCachedTenantSchema";
-import { isProductionScheduleMissingWhenRequired } from "@/components/src/client/routes/booking/utils/productionSchedule";
+import {
+  getProductionScheduleRequiredErrorMessage,
+  isProductionScheduleMissingWhenRequired,
+} from "@/components/src/client/routes/booking/utils/productionSchedule";
 import {
   logServerBookingChange,
   serverGetNextSequentialId,
@@ -533,8 +536,9 @@ export async function POST(request: NextRequest) {
   ) {
     return NextResponse.json(
       {
-        error:
-          "A production schedule is required for reservations longer than four hours.",
+        error: getProductionScheduleRequiredErrorMessage(
+          productionScheduleConfig?.requiredAboveHours,
+        ),
       },
       { status: 400 },
     );

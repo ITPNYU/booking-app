@@ -29,7 +29,10 @@ import {
 } from "@/components/src/utils/serviceDecisions";
 import { serverGetTenantResources } from "@/lib/tenant/serverGetTenantResources";
 import { getCachedTenantSchema } from "@/lib/tenant/getCachedTenantSchema";
-import { isProductionScheduleMissingWhenRequired } from "@/components/src/client/routes/booking/utils/productionSchedule";
+import {
+  getProductionScheduleRequiredErrorMessage,
+  isProductionScheduleMissingWhenRequired,
+} from "@/components/src/client/routes/booking/utils/productionSchedule";
 import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
 import { callXStateTransitionAPI } from "@/components/src/server/db";
 import { getStatusFromXState } from "@/components/src/utils/statusFromXState";
@@ -230,8 +233,9 @@ export async function PUT(request: NextRequest) {
   ) {
     return NextResponse.json(
       {
-        error:
-          "A production schedule is required for reservations longer than four hours.",
+        error: getProductionScheduleRequiredErrorMessage(
+          productionScheduleConfig?.requiredAboveHours,
+        ),
       },
       { status: 400 },
     );

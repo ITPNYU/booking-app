@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  getProductionScheduleRequiredErrorMessage,
   getReservationDurationHours,
   isProductionScheduleMissingWhenRequired,
   isProductionScheduleRequired,
@@ -85,6 +86,39 @@ describe("isProductionScheduleMissingWhenRequired", () => {
         productionSchedule: "",
       }),
     ).toBe(false);
+  });
+
+  it("treats non-string productionSchedule values as missing", () => {
+    expect(
+      isProductionScheduleMissingWhenRequired({
+        enabled: true,
+        requiredAboveHours: 4,
+        start,
+        end: endOver,
+        // @ts-expect-error intentional malformed client payload
+        productionSchedule: { text: "not a string" },
+      }),
+    ).toBe(true);
+  });
+});
+
+describe("getProductionScheduleRequiredErrorMessage", () => {
+  it("uses the schema threshold in the error message", () => {
+    expect(getProductionScheduleRequiredErrorMessage(6)).toBe(
+      "A production schedule is required for reservations longer than 6 hours.",
+    );
+  });
+
+  it("defaults to 4 hours when the schema value is missing", () => {
+    expect(getProductionScheduleRequiredErrorMessage()).toBe(
+      "A production schedule is required for reservations longer than 4 hours.",
+    );
+  });
+
+  it("uses singular hour when the threshold is 1", () => {
+    expect(getProductionScheduleRequiredErrorMessage(1)).toBe(
+      "A production schedule is required for reservations longer than 1 hour.",
+    );
   });
 });
 

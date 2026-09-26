@@ -20,7 +20,10 @@ import { resolveAnnexCalendarIds } from "@/components/src/utils/resourceServices
 import { getMediaCommonsServices } from "@/components/src/utils/tenantUtils";
 import { serverGetTenantResources } from "@/lib/tenant/serverGetTenantResources";
 import { getCachedTenantSchema } from "@/lib/tenant/getCachedTenantSchema";
-import { isProductionScheduleMissingWhenRequired } from "@/components/src/client/routes/booking/utils/productionSchedule";
+import {
+  getProductionScheduleRequiredErrorMessage,
+  isProductionScheduleMissingWhenRequired,
+} from "@/components/src/client/routes/booking/utils/productionSchedule";
 import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
 import { serverGetDataByCalendarEventId } from "@/lib/firebase/server/adminDb";
 import { Timestamp } from "firebase-admin/firestore";
@@ -100,8 +103,9 @@ export async function PUT(request: NextRequest) {
   ) {
     return NextResponse.json(
       {
-        error:
-          "A production schedule is required for reservations longer than four hours.",
+        error: getProductionScheduleRequiredErrorMessage(
+          productionScheduleConfig?.requiredAboveHours,
+        ),
       },
       { status: 400 },
     );

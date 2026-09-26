@@ -43,7 +43,10 @@ import {
 import { getMaintenanceModeSettings } from "@/lib/maintenanceModeServer";
 import { serverGetTenantResources } from "@/lib/tenant/serverGetTenantResources";
 import { getCachedTenantSchema } from "@/lib/tenant/getCachedTenantSchema";
-import { isProductionScheduleMissingWhenRequired } from "@/components/src/client/routes/booking/utils/productionSchedule";
+import {
+  getProductionScheduleRequiredErrorMessage,
+  isProductionScheduleMissingWhenRequired,
+} from "@/components/src/client/routes/booking/utils/productionSchedule";
 
 // Helper function to extract tenant from request
 const extractTenantFromRequest = (request: NextRequest): string | undefined => {
@@ -107,8 +110,9 @@ export async function POST(request: NextRequest) {
   ) {
     return NextResponse.json(
       {
-        error:
-          "A production schedule is required for reservations longer than four hours.",
+        error: getProductionScheduleRequiredErrorMessage(
+          productionScheduleConfig?.requiredAboveHours,
+        ),
       },
       { status: 400 },
     );

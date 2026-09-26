@@ -47,6 +47,27 @@ export function parseBookingInstant(value: unknown): Date | null {
   return null;
 }
 
+const DEFAULT_REQUIRED_ABOVE_HOURS = 4;
+
+export function resolveRequiredAboveHours(
+  requiredAboveHours?: number,
+): number {
+  return Number.isFinite(requiredAboveHours) &&
+    requiredAboveHours != null &&
+    requiredAboveHours >= 0
+    ? requiredAboveHours
+    : DEFAULT_REQUIRED_ABOVE_HOURS;
+}
+
+/** API error copy that mirrors the tenant schema threshold. */
+export function getProductionScheduleRequiredErrorMessage(
+  requiredAboveHours?: number,
+): string {
+  const hours = resolveRequiredAboveHours(requiredAboveHours);
+  const unit = hours === 1 ? "hour" : "hours";
+  return `A production schedule is required for reservations longer than ${hours} ${unit}.`;
+}
+
 /**
  * True when schema requires a production schedule for this reservation and
  * the submitted value is blank. Safe to call with JSON-serialized calendar info.
@@ -59,12 +80,15 @@ export function isProductionScheduleMissingWhenRequired(opts: {
   productionSchedule?: string | null;
 }): boolean {
   if (!opts.enabled) return false;
-  const requiredAboveHours = opts.requiredAboveHours ?? 4;
+  const requiredAboveHours = resolveRequiredAboveHours(opts.requiredAboveHours);
   const start = parseBookingInstant(opts.start);
   const end = parseBookingInstant(opts.end);
   if (!start || !end) return false;
   if (!isProductionScheduleRequired(start, end, requiredAboveHours)) {
     return false;
   }
-  return !(opts.productionSchedule && opts.productionSchedule.trim().length > 0);
+  return !(
+    typeof opts.productionSchedule === "string" &&
+    opts.productionSchedule.trim().length > 0
+  );
 }
