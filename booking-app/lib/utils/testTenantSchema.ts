@@ -66,6 +66,10 @@ function getMcTestSchema(tenant: string): SchemaContextType {
       ...base.form,
       showNNumber: true,
       showSponsor: true,
+      productionSchedule: {
+        ...base.form.productionSchedule,
+        enabled: true,
+      },
       services: {
         showCatering: false,
         showEquipment: false,

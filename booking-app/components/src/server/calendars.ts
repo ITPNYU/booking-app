@@ -197,6 +197,10 @@ export const bookingContentsToDescription = async (
     "Attendee Affiliation",
     getProperty(bookingContents, "attendeeAffiliation"),
   );
+  const productionSchedule = getProperty(bookingContents, "productionSchedule");
+  if (productionSchedule.trim()) {
+    description += listItem("Production Schedule", productionSchedule);
+  }
   description += "</ul>";
 
   const resources = await resourcesForServicesDisplay(bookingContents, tenant);

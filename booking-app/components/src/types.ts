@@ -174,6 +174,8 @@ export type Inputs = {
   sponsorEmail: string;
   title: string;
   description: string;
+  /** Free-text production schedule; required when duration exceeds schema threshold. */
+  productionSchedule?: string;
   bookingType: string;
   attendeeAffiliation: string;
   roomSetup: string;
